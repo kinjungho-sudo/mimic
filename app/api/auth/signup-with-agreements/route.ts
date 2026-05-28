@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
-    console.error('[signup] unexpected throw:', msg, '| pw codes:', password.split('').map(c => c.charCodeAt(0)));
+    console.error('[signup] unexpected throw:', msg);
     return NextResponse.json({ error: msg }, { status: 400 });
   }
 
