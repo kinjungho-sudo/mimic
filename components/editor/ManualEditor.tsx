@@ -2,10 +2,11 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  Plus, Trash2, ExternalLink, ChevronUp, ChevronDown, ZoomIn, X,
+  Plus, Trash2, ExternalLink, ChevronUp, ChevronDown, ZoomIn, X, Pencil,
   Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, List, ListOrdered, Link,
 } from 'lucide-react';
 import DOMPurify from 'dompurify';
+import { ImageAnnotationEditor, type Annotation } from './ImageAnnotationEditor';
 
 export interface ManualStep {
   id: string;
@@ -13,12 +14,7 @@ export interface ManualStep {
   actionTitle: string;
   description: string;       // stored as HTML string
   screenshotUrl?: string;
-  highlight?: {
-    top: number;
-    left: number;
-    width: number;
-    height: number;
-  };
+  annotations?: Annotation[];
 }
 
 interface ManualEditorProps {
@@ -34,6 +30,7 @@ export function ManualEditor({ steps, onChange, onSave }: ManualEditorProps) {
     steps.length > 0 ? steps[0].id : null
   );
   const [zoomUrl, setZoomUrl] = useState<string | null>(null);
+  const [annotatingId, setAnnotatingId] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const contentRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -146,6 +143,7 @@ export function ManualEditor({ steps, onChange, onSave }: ManualEditorProps) {
                 onMoveUp={() => moveStep(step.id, -1)}
                 onMoveDown={() => moveStep(step.id, 1)}
                 onZoom={() => step.screenshotUrl && setZoomUrl(step.screenshotUrl)}
+                onAnnotate={() => step.screenshotUrl && setAnnotatingId(step.id)}
               />
             </div>
           ))}
@@ -161,6 +159,18 @@ export function ManualEditor({ steps, onChange, onSave }: ManualEditorProps) {
       </div>
 
       {zoomUrl && <ImageZoomModal url={zoomUrl} onClose={() => setZoomUrl(null)} />}
+
+      {annotatingId && (() => {
+        const step = steps.find(s => s.id === annotatingId)!;
+        return (
+          <ImageAnnotationEditor
+            imageUrl={step.screenshotUrl!}
+            annotations={step.annotations ?? []}
+            onChange={annotations => updateStep(annotatingId, { annotations })}
+            onClose={() => setAnnotatingId(null)}
+          />
+        );
+      })()}
     </div>
   );
 }
@@ -260,9 +270,10 @@ interface StepCardProps {
   onMoveUp: () => void;
   onMoveDown: () => void;
   onZoom: () => void;
+  onAnnotate: () => void;
 }
 
-function StepCard({ step, isActive, isFirst, isLast, onFocus, onUpdate, onSave, onDelete, onMoveUp, onMoveDown, onZoom }: StepCardProps) {
+function StepCard({ step, isActive, isFirst, isLast, onFocus, onUpdate, onSave, onDelete, onMoveUp, onMoveDown, onZoom, onAnnotate }: StepCardProps) {
   const [hovering, setHovering] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -416,6 +427,7 @@ function StepCard({ step, isActive, isFirst, isLast, onFocus, onUpdate, onSave, 
         onUploadClick={() => fileInputRef.current?.click()}
         onDrop={handleImgDrop}
         onZoom={onZoom}
+        onAnnotate={onAnnotate}
       />
     </div>
   );
@@ -583,9 +595,10 @@ interface ScreenshotAreaProps {
   onUploadClick: () => void;
   onDrop: (e: React.DragEvent) => void;
   onZoom: () => void;
+  onAnnotate: () => void;
 }
 
-function ScreenshotArea({ step, onUploadClick, onDrop, onZoom }: ScreenshotAreaProps) {
+function ScreenshotArea({ step, onUploadClick, onDrop, onZoom, onAnnotate }: ScreenshotAreaProps) {
   const [dragOver, setDragOver] = useState(false);
   const [imgHover, setImgHover] = useState(false);
 
@@ -621,27 +634,78 @@ function ScreenshotArea({ step, onUploadClick, onDrop, onZoom }: ScreenshotAreaP
     );
   }
 
+  const hasAnnotations = (step.annotations?.length ?? 0) > 0;
+
   return (
     <div
-      style={{ margin: '0 20px 20px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #E5E7EB', position: 'relative', cursor: 'zoom-in' }}
+      style={{ margin: '0 20px 20px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #E5E7EB', position: 'relative' }}
       onMouseEnter={() => setImgHover(true)}
       onMouseLeave={() => setImgHover(false)}
-      onClick={onZoom}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={step.screenshotUrl} alt={step.actionTitle} style={{ width: '100%', display: 'block' }} />
+
+      {/* Annotation SVG overlay (read-only preview) */}
+      {hasAnnotations && (
+        <AnnotationPreview annotations={step.annotations!} />
+      )}
+
+      {/* Hover overlay */}
       {imgHover && (
-        <div style={{ position: 'absolute', inset: 0, background: 'rgba(10,10,15,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          onClick={e => e.stopPropagation()}>
-          <button onClick={onZoom} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', background: 'white', color: '#111827', border: 'none', fontSize: '12.5px', fontWeight: 500, cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.25)' }}>
-            <ZoomIn size={14} /> 확대 보기
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(10,10,15,0.32)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+          <button
+            onClick={e => { e.stopPropagation(); onAnnotate(); }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', background: 'white', color: '#111827', border: 'none', fontSize: '12.5px', fontWeight: 500, cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.25)' }}
+          >
+            <Pencil size={13} /> {hasAnnotations ? '편집' : '이미지 편집'}
+          </button>
+          <button
+            onClick={e => { e.stopPropagation(); onZoom(); }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', fontSize: '12.5px', fontWeight: 500, cursor: 'pointer' }}
+          >
+            <ZoomIn size={13} /> 확대
           </button>
         </div>
       )}
-      {step.highlight && (
-        <div style={{ position: 'absolute', top: `${step.highlight.top}%`, left: `${step.highlight.left}%`, width: `${step.highlight.width}%`, height: `${step.highlight.height}%`, border: '2.5px solid #EF4444', borderRadius: '4px', boxShadow: '0 0 0 2px rgba(239,68,68,0.20)', pointerEvents: 'none' }} />
-      )}
     </div>
+  );
+}
+
+// ── AnnotationPreview (read-only SVG over image) ──────────
+
+function AnnotationPreview({ annotations }: { annotations: Annotation[] }) {
+  return (
+    <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}>
+      {annotations.map(a => {
+        const { type, x1, y1, x2, y2, color, strokeWidth } = a;
+        const sw = strokeWidth * 0.12;
+        const minX = Math.min(x1, x2), minY = Math.min(y1, y2);
+        const w = Math.abs(x2 - x1), h = Math.abs(y2 - y1);
+
+        if (type === 'highlight') return (
+          <rect key={a.id} x={`${minX}%`} y={`${minY}%`} width={`${w}%`} height={`${h}%`} fill={color} opacity={0.35} rx="2%" />
+        );
+        if (type === 'rect') return (
+          <rect key={a.id} x={`${minX}%`} y={`${minY}%`} width={`${w}%`} height={`${h}%`} stroke={color} strokeWidth={sw} fill="none" rx="0.5%" />
+        );
+        if (type === 'ellipse') return (
+          <ellipse key={a.id} cx={`${(x1+x2)/2}%`} cy={`${(y1+y2)/2}%`} rx={`${w/2}%`} ry={`${h/2}%`} stroke={color} strokeWidth={sw} fill="none" />
+        );
+        if (type === 'arrow') {
+          const id = `prev-arrow-${a.id}`;
+          return (
+            <g key={a.id}>
+              <defs><marker id={id} markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill={color} /></marker></defs>
+              <line x1={`${x1}%`} y1={`${y1}%`} x2={`${x2}%`} y2={`${y2}%`} stroke={color} strokeWidth={sw} markerEnd={`url(#${id})`} strokeLinecap="round" />
+            </g>
+          );
+        }
+        if (type === 'text' && a.text) return (
+          <text key={a.id} x={`${x1}%`} y={`${y1}%`} fill={color} fontSize="1.8%" fontWeight="600" dominantBaseline="text-before-edge" stroke="rgba(0,0,0,0.5)" strokeWidth="0.3%" paintOrder="stroke">{a.text}</text>
+        );
+        return null;
+      })}
+    </svg>
   );
 }
 
