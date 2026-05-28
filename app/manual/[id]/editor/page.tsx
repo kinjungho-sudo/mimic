@@ -154,7 +154,6 @@ export default function EditorPage() {
               const prev = manualSteps.find(s => s.id === step.id);
               if (!prev) return;
               if (prev.actionTitle === step.actionTitle && prev.description === step.description) return;
-              // 임시로 생성된 step(id가 'step-'으로 시작)은 DB에 없으므로 저장 건너뜀
               if (step.id.startsWith('step-')) return;
               clearTimeout(stepSaveTimers.current[step.id]);
               stepSaveTimers.current[step.id] = setTimeout(() => {
@@ -164,6 +163,18 @@ export default function EditorPage() {
                 }).catch(() => {});
               }, 600);
             });
+          }}
+          onSave={(id, patch) => {
+            // blur 시 즉시 저장 — debounce 타이머 취소 후 flush
+            if (id.startsWith('step-')) return;
+            clearTimeout(stepSaveTimers.current[id]);
+            const step = manualSteps.find(s => s.id === id);
+            if (!step) return;
+            const merged = { ...step, ...patch };
+            updateStep(id, {
+              user_title: merged.actionTitle || null,
+              user_script: merged.description || null,
+            }).catch(() => {});
           }}
         />
       ) : (

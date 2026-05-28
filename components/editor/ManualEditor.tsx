@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Plus, Trash2, ExternalLink, ChevronUp, ChevronDown, ZoomIn, X,
-  Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, List, Link,
+  Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, List, ListOrdered, Link,
 } from 'lucide-react';
 import DOMPurify from 'dompurify';
 
@@ -24,11 +24,12 @@ export interface ManualStep {
 interface ManualEditorProps {
   steps: ManualStep[];
   onChange: (steps: ManualStep[]) => void;
+  onSave?: (id: string, patch: Partial<ManualStep>) => void;
 }
 
 // ── ManualEditor ──────────────────────────────────────────
 
-export function ManualEditor({ steps, onChange }: ManualEditorProps) {
+export function ManualEditor({ steps, onChange, onSave }: ManualEditorProps) {
   const [activeId, setActiveId] = useState<string | null>(
     steps.length > 0 ? steps[0].id : null
   );
@@ -140,6 +141,7 @@ export function ManualEditor({ steps, onChange }: ManualEditorProps) {
                 isLast={idx === steps.length - 1}
                 onFocus={() => setActiveId(step.id)}
                 onUpdate={patch => updateStep(step.id, patch)}
+                onSave={patch => { updateStep(step.id, patch); onSave?.(step.id, patch); }}
                 onDelete={() => deleteStep(step.id)}
                 onMoveUp={() => moveStep(step.id, -1)}
                 onMoveDown={() => moveStep(step.id, 1)}
@@ -253,13 +255,14 @@ interface StepCardProps {
   isLast: boolean;
   onFocus: () => void;
   onUpdate: (patch: Partial<ManualStep>) => void;
+  onSave: (patch: Partial<ManualStep>) => void;
   onDelete: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
   onZoom: () => void;
 }
 
-function StepCard({ step, isActive, isFirst, isLast, onFocus, onUpdate, onDelete, onMoveUp, onMoveDown, onZoom }: StepCardProps) {
+function StepCard({ step, isActive, isFirst, isLast, onFocus, onUpdate, onSave, onDelete, onMoveUp, onMoveDown, onZoom }: StepCardProps) {
   const [hovering, setHovering] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -300,6 +303,15 @@ function StepCard({ step, isActive, isFirst, isLast, onFocus, onUpdate, onDelete
     onUpdate({ description: DOMPurify.sanitize(raw, { USE_PROFILES: { html: true } }) });
   };
 
+  const handleEditorBlur = () => {
+    const raw = editorRef.current?.innerHTML ?? '';
+    onSave({ description: DOMPurify.sanitize(raw, { USE_PROFILES: { html: true } }) });
+  };
+
+  const handleTitleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    onSave({ actionTitle: e.target.value });
+  };
+
   return (
     <div
       onMouseEnter={() => setHovering(true)}
@@ -331,6 +343,7 @@ function StepCard({ step, isActive, isFirst, isLast, onFocus, onUpdate, onDelete
             value={step.actionTitle}
             onChange={e => onUpdate({ actionTitle: e.target.value })}
             onFocus={onFocus}
+            onBlur={e => { e.currentTarget.style.background = 'transparent'; handleTitleBlur(e); }}
             placeholder="단계 제목을 입력하세요"
             style={{
               width: '100%', fontSize: '15px', fontWeight: 600, color: '#111827',
@@ -341,7 +354,6 @@ function StepCard({ step, isActive, isFirst, isLast, onFocus, onUpdate, onDelete
             }}
             onMouseEnter={e => { e.currentTarget.style.background = '#F3F4F6'; }}
             onMouseLeave={e => { if (document.activeElement !== e.currentTarget) e.currentTarget.style.background = 'transparent'; }}
-            onBlur={e => { e.currentTarget.style.background = 'transparent'; }}
           />
 
           {/* Rich text description (contenteditable) */}
@@ -351,6 +363,7 @@ function StepCard({ step, isActive, isFirst, isLast, onFocus, onUpdate, onDelete
             suppressContentEditableWarning
             onFocus={onFocus}
             onInput={handleEditorInput}
+            onBlur={e => { e.currentTarget.style.background = 'transparent'; handleEditorBlur(); }}
             data-placeholder="이 단계에 대한 설명을 입력하세요."
             style={{
               width: '100%', marginTop: '6px',
@@ -366,7 +379,6 @@ function StepCard({ step, isActive, isFirst, isLast, onFocus, onUpdate, onDelete
             } as React.CSSProperties}
             onMouseEnter={e => { e.currentTarget.style.background = '#F3F4F6'; }}
             onMouseLeave={e => { if (document.activeElement !== e.currentTarget) e.currentTarget.style.background = 'transparent'; }}
-            onBlur={e => { e.currentTarget.style.background = 'transparent'; }}
           />
         </div>
 
@@ -417,47 +429,44 @@ const iconBtn: React.CSSProperties = {
 
 // ── TextFormatToolbar (always visible, uses execCommand) ──
 
-function TextFormatToolbar({ editorRef }: { editorRef: React.RefObject<HTMLDivElement> }) {
-  // Track active formats by polling queryCommandState
-  const [active, setActive] = useState({ bold: false, italic: false, underline: false });
+type ActiveState = { bold: boolean; italic: boolean; underline: boolean; orderedList: boolean; unorderedList: boolean };
 
-  const updateActive = () => {
+function TextFormatToolbar({ editorRef }: { editorRef: React.RefObject<HTMLDivElement> }) {
+  const [active, setActive] = useState<ActiveState>({
+    bold: false, italic: false, underline: false, orderedList: false, unorderedList: false,
+  });
+
+  const syncActive = useCallback(() => {
+    const sel = window.getSelection();
+    if (!sel || !editorRef.current?.contains(sel.anchorNode)) return;
     setActive({
       bold: document.queryCommandState('bold'),
       italic: document.queryCommandState('italic'),
       underline: document.queryCommandState('underline'),
+      orderedList: document.queryCommandState('insertOrderedList'),
+      unorderedList: document.queryCommandState('insertUnorderedList'),
     });
-  };
+  }, [editorRef]);
+
+  useEffect(() => {
+    const el = editorRef.current;
+    if (!el) return;
+    el.addEventListener('keyup', syncActive);
+    el.addEventListener('mouseup', syncActive);
+    document.addEventListener('selectionchange', syncActive);
+    return () => {
+      el.removeEventListener('keyup', syncActive);
+      el.removeEventListener('mouseup', syncActive);
+      document.removeEventListener('selectionchange', syncActive);
+    };
+  }, [editorRef, syncActive]);
 
   const exec = (cmd: string, value?: string) => {
-    // Ensure the editor has focus before executing
     editorRef.current?.focus();
     document.execCommand(cmd, false, value);
-    updateActive();
+    requestAnimationFrame(syncActive);
     editorRef.current?.dispatchEvent(new Event('input', { bubbles: true }));
   };
-
-  const formatTools: Array<{
-    icon: React.ReactNode;
-    cmd: string;
-    title: string;
-    activeKey?: keyof typeof active;
-  }> = [
-    { icon: <Bold size={13} />, cmd: 'bold', title: '굵게 (Ctrl+B)', activeKey: 'bold' },
-    { icon: <Italic size={13} />, cmd: 'italic', title: '기울임 (Ctrl+I)', activeKey: 'italic' },
-    { icon: <Underline size={13} />, cmd: 'underline', title: '밑줄 (Ctrl+U)', activeKey: 'underline' },
-  ];
-
-  const alignTools = [
-    { icon: <AlignLeft size={13} />, cmd: 'justifyLeft', title: '왼쪽 정렬' },
-    { icon: <AlignCenter size={13} />, cmd: 'justifyCenter', title: '가운데 정렬' },
-    { icon: <AlignRight size={13} />, cmd: 'justifyRight', title: '오른쪽 정렬' },
-  ];
-
-  const otherTools = [
-    { icon: <List size={13} />, cmd: 'insertUnorderedList', title: '글머리 기호' },
-    { icon: <Link size={13} />, cmd: 'createLink', title: '링크 삽입' },
-  ];
 
   return (
     <div
@@ -468,12 +477,9 @@ function TextFormatToolbar({ editorRef }: { editorRef: React.RefObject<HTMLDivEl
         background: '#FAFAFA',
         flexWrap: 'wrap',
       }}
-      // Update active state whenever selection changes inside the toolbar area
-      onMouseDown={updateActive}
     >
       {/* Paragraph style dropdown */}
       <select
-        onMouseDown={e => e.stopPropagation()}
         onChange={e => exec('formatBlock', e.target.value)}
         style={{
           fontSize: '11.5px', color: '#374151', background: 'white',
@@ -490,50 +496,46 @@ function TextFormatToolbar({ editorRef }: { editorRef: React.RefObject<HTMLDivEl
 
       <Divider />
 
-      {/* Bold / Italic / Underline */}
-      {formatTools.map(t => {
-        const isActive = t.activeKey ? active[t.activeKey] : false;
-        return (
-          <ToolBtn
-            key={t.cmd}
-            title={t.title}
-            isActive={isActive}
-            onMouseDown={e => { e.preventDefault(); exec(t.cmd); }}
-          >
-            {t.icon}
-          </ToolBtn>
-        );
-      })}
+      <ToolBtn title="굵게 (Ctrl+B)" isActive={active.bold} onMouseDown={e => { e.preventDefault(); exec('bold'); }}>
+        <Bold size={13} />
+      </ToolBtn>
+      <ToolBtn title="기울임 (Ctrl+I)" isActive={active.italic} onMouseDown={e => { e.preventDefault(); exec('italic'); }}>
+        <Italic size={13} />
+      </ToolBtn>
+      <ToolBtn title="밑줄 (Ctrl+U)" isActive={active.underline} onMouseDown={e => { e.preventDefault(); exec('underline'); }}>
+        <Underline size={13} />
+      </ToolBtn>
 
       <Divider />
 
-      {/* Align */}
-      {alignTools.map(t => (
-        <ToolBtn key={t.cmd} title={t.title} onMouseDown={e => { e.preventDefault(); exec(t.cmd); }}>
-          {t.icon}
-        </ToolBtn>
-      ))}
+      <ToolBtn title="왼쪽 정렬" onMouseDown={e => { e.preventDefault(); exec('justifyLeft'); }}>
+        <AlignLeft size={13} />
+      </ToolBtn>
+      <ToolBtn title="가운데 정렬" onMouseDown={e => { e.preventDefault(); exec('justifyCenter'); }}>
+        <AlignCenter size={13} />
+      </ToolBtn>
+      <ToolBtn title="오른쪽 정렬" onMouseDown={e => { e.preventDefault(); exec('justifyRight'); }}>
+        <AlignRight size={13} />
+      </ToolBtn>
 
       <Divider />
 
-      {/* List + Link */}
-      {otherTools.map(t => (
-        <ToolBtn
-          key={t.cmd}
-          title={t.title}
-          onMouseDown={e => {
-            e.preventDefault();
-            if (t.cmd === 'createLink') {
-              const url = prompt('링크 URL 입력:', 'https://');
-              if (url) exec('createLink', url);
-            } else {
-              exec(t.cmd);
-            }
-          }}
-        >
-          {t.icon}
-        </ToolBtn>
-      ))}
+      <ToolBtn title="글머리 기호" isActive={active.unorderedList} onMouseDown={e => { e.preventDefault(); exec('insertUnorderedList'); }}>
+        <List size={13} />
+      </ToolBtn>
+      <ToolBtn title="번호 목록" isActive={active.orderedList} onMouseDown={e => { e.preventDefault(); exec('insertOrderedList'); }}>
+        <ListOrdered size={13} />
+      </ToolBtn>
+
+      <Divider />
+
+      <ToolBtn title="링크 삽입" onMouseDown={e => {
+        e.preventDefault();
+        const url = prompt('링크 URL 입력:', 'https://');
+        if (url) exec('createLink', url);
+      }}>
+        <Link size={13} />
+      </ToolBtn>
     </div>
   );
 }
