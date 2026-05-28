@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>홈 — MIMIC</title>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet" />
+<link rel="stylesheet" href="app.css?v=3" />
+<link rel="stylesheet" href="dashboard.css?v=1" />
+</head>
+<body data-screen-label="04 Dashboard">
+
+<div class="shell">
+  <!-- Sidebar (injected by shell.js) -->
+  <aside data-sidebar="home"></aside>
+
+  <main class="main">
+    <!-- Topbar (injected by shell.js) -->
+    <header data-topbar data-usage="2"></header>
+
+    <div class="page">
+      <div class="greeting">
+        <h1>정호님, 환영합니다 <span style="font-weight:400; color: var(--text-3);">👋</span></h1>
+        <p>오늘도 멋진 매뉴얼을 만들어볼까요?</p>
+      </div>
+
+      <!-- Quick actions -->
+      <div class="quick-actions">
+        <button class="qa qa--primary">
+          <span class="qa__icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </span>
+          <div>
+            <div class="qa__title">새 매뉴얼 만들기</div>
+            <div class="qa__sub">Chrome 확장으로 녹화를 시작합니다</div>
+          </div>
+        </button>
+        <button class="qa">
+          <span class="qa__icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+          </span>
+          <div>
+            <div class="qa__title">튜토리얼 둘러보기</div>
+            <div class="qa__sub">5분이면 익숙해져요</div>
+          </div>
+        </button>
+        <button class="qa">
+          <span class="qa__icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </span>
+          <div>
+            <div class="qa__title">팀 매뉴얼 가져오기</div>
+            <div class="qa__sub">기존 PDF·영상에서 변환</div>
+          </div>
+        </button>
+      </div>
+
+      <!-- Recent manuals -->
+      <div class="section-head">
+        <h3>최근 매뉴얼</h3>
+        <a href="#">모두 보기 →</a>
+      </div>
+
+      <div class="m-grid">
+        <!-- card 1 -->
+        <article class="m-card">
+          <div class="m-card__thumb">
+            <div class="m-card__badges">
+              <span class="tag tag--mode">튜토리얼</span>
+              <span class="tag tag--ai">✦ AI</span>
+            </div>
+            <div class="m-card__thumb-content">
+              <div class="ln w40"></div>
+              <div class="ln w90"></div>
+              <div class="ln w70"></div>
+              <span class="m-card__thumb-marker" style="top: 20%; left: 12%; background:#4F46E5;">1</span>
+              <span class="m-card__thumb-marker" style="top: 56%; left: 64%;">2</span>
+            </div>
+          </div>
+          <div class="m-card__body">
+            <div class="m-card__title">Supabase 프로젝트 시작하기 — Google OAuth 설정까지</div>
+            <div class="m-card__meta">
+              <span>6 스텝</span>
+              <span>2시간 전</span>
+            </div>
+          </div>
+        </article>
+
+        <!-- card 2 -->
+        <article class="m-card">
+          <div class="m-card__thumb">
+            <div class="m-card__badges">
+              <span class="tag">기본</span>
+            </div>
+            <div class="m-card__thumb-content">
+              <div class="ln w70"></div>
+              <div class="ln w90"></div>
+              <div class="ln w40"></div>
+              <div class="ln w90"></div>
+              <span class="m-card__thumb-marker" style="top: 12%; right: 8%;">1</span>
+            </div>
+          </div>
+          <div class="m-card__body">
+            <div class="m-card__title">신입 온보딩 — 사내 시스템 로그인 가이드</div>
+            <div class="m-card__meta">
+              <span>4 스텝</span>
+              <span>어제</span>
+            </div>
+          </div>
+        </article>
+
+        <!-- card 3 -->
+        <article class="m-card">
+          <div class="m-card__thumb">
+            <div class="m-card__badges">
+              <span class="tag tag--mode">튜토리얼</span>
+              <span class="tag tag--ai">✦ AI</span>
+            </div>
+            <div class="m-card__thumb-content">
+              <div class="ln w90"></div>
+              <div class="ln w40"></div>
+              <div class="ln w70"></div>
+              <span class="m-card__thumb-marker" style="top: 40%; left: 30%; background:#4F46E5;">2</span>
+              <span class="m-card__thumb-marker" style="top: 76%; left: 60%;">3</span>
+            </div>
+          </div>
+          <div class="m-card__body">
+            <div class="m-card__title">Notion 데이터베이스로 CRM 만들기</div>
+            <div class="m-card__meta">
+              <span>8 스텝</span>
+              <span>3일 전</span>
+            </div>
+          </div>
+        </article>
+
+        <!-- card 4 -->
+        <article class="m-card">
+          <div class="m-card__thumb">
+            <div class="m-card__badges">
+              <span class="tag">기본</span>
+            </div>
+            <div class="m-card__thumb-content">
+              <div class="ln w40"></div>
+              <div class="ln w90"></div>
+              <div class="ln w70"></div>
+              <span class="m-card__thumb-marker" style="top: 30%; left: 16%;">1</span>
+              <span class="m-card__thumb-marker" style="top: 64%; left: 50%;">2</span>
+            </div>
+          </div>
+          <div class="m-card__body">
+            <div class="m-card__title">방화벽 정책 적용 — NAC 연동 절차</div>
+            <div class="m-card__meta">
+              <span>12 스텝</span>
+              <span>지난주</span>
+            </div>
+          </div>
+        </article>
+
+        <!-- card 5 -->
+        <article class="m-card">
+          <div class="m-card__thumb">
+            <div class="m-card__badges">
+              <span class="tag tag--mode">튜토리얼</span>
+            </div>
+            <div class="m-card__thumb-content">
+              <div class="ln w70"></div>
+              <div class="ln w40"></div>
+              <div class="ln w90"></div>
+              <div class="ln w90"></div>
+              <span class="m-card__thumb-marker" style="top: 56%; left: 36%; background:#4F46E5;">2</span>
+            </div>
+          </div>
+          <div class="m-card__body">
+            <div class="m-card__title">Vrew로 쇼츠 만들기 — 9:16 자동 줌</div>
+            <div class="m-card__meta">
+              <span>5 스텝</span>
+              <span>지난주</span>
+            </div>
+          </div>
+        </article>
+
+        <!-- card 6 -->
+        <article class="m-card">
+          <div class="m-card__thumb">
+            <div class="m-card__badges">
+              <span class="tag">기본</span>
+              <span class="tag tag--ai">✦ AI</span>
+            </div>
+            <div class="m-card__thumb-content">
+              <div class="ln w90"></div>
+              <div class="ln w70"></div>
+              <div class="ln w40"></div>
+              <span class="m-card__thumb-marker" style="top: 20%; left: 60%;">1</span>
+              <span class="m-card__thumb-marker" style="top: 72%; left: 20%;">2</span>
+              <span class="m-card__thumb-marker" style="top: 68%; right: 12%; background:#4F46E5;">3</span>
+            </div>
+          </div>
+          <div class="m-card__body">
+            <div class="m-card__title">고객 환불 처리 SOP — 어드민 화면 기준</div>
+            <div class="m-card__meta">
+              <span>7 스텝</span>
+              <span>2주 전</span>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <!-- Empty state hint (Chrome extension reminder) -->
+      <div class="empty" style="margin-top: 48px;">
+        <div class="empty__art">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="21.17" y1="8" x2="12" y2="8"/><line x1="3.95" y1="6.06" x2="8.54" y2="14"/><line x1="10.88" y1="21.94" x2="15.46" y2="14"/></svg>
+        </div>
+        <div class="empty__title">Chrome 확장으로 한 번에 매뉴얼 만들어보세요</div>
+        <div class="empty__body">평소처럼 웹에서 작업하면 클릭마다 자동 캡처됩니다. 정리는 AI가 해드릴게요.</div>
+        <div class="empty__cta">
+          <button class="btn btn--primary">Chrome 확장 설치</button>
+          <button class="btn btn--outline">가이드 영상 보기</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="shell.js?v=1"></script>
+</body>
+</html>

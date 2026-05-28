@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MIMIC Recorder 연결 — MIMIC</title>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet" />
+<link rel="stylesheet" href="app.css?v=2" />
+<link rel="stylesheet" href="extension.css?v=1" />
+</head>
+<body data-screen-label="12 Extension Link">
+
+<div class="ext-shell">
+  <div class="ext-card">
+
+    <a href="Landing.html" class="ext-brand">
+      <span class="ext-brand__mark">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="14" height="14"><rect x="3.2" y="5.2" width="11" height="2.4" rx="1.2" fill="white" fill-opacity="0.5"/><rect x="3.2" y="10.8" width="14" height="2.4" rx="1.2" fill="white"/><rect x="3.2" y="16.4" width="8" height="2.4" rx="1.2" fill="white" fill-opacity="0.5"/><circle cx="18.7" cy="17.6" r="3.6" fill="white"/><path d="M17.6 16.1 L20.1 17.6 L17.6 19.1 Z" fill="#4F46E5"/></svg>
+      </span>
+      MIMIC
+    </a>
+
+    <!-- ─── Loading state ─── -->
+    <div class="ext-state" id="state-loading">
+      <div class="ext-state__art">
+        <div class="ext-spin"></div>
+      </div>
+      <h1>MIMIC Recorder과 연결 중...</h1>
+      <p>Chrome 확장 프로그램에 보안 토큰을 전달하고 있어요. 잠시만 기다려주세요.</p>
+    </div>
+
+    <!-- ─── Success state ─── -->
+    <div class="ext-state" id="state-success" hidden>
+      <div class="ext-state__art">
+        <div class="ext-check">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+      </div>
+      <h1>MIMIC Recorder 연결 완료</h1>
+      <p>이제 브라우저 우상단의 MIMIC Recorder 아이콘에서 바로 매뉴얼을 만들 수 있어요.</p>
+      <div class="ext-redirect">
+        <span class="ext-redirect__dot"></span>
+        <span>3초 후 워크스페이스로 이동합니다…</span>
+      </div>
+      <div class="ext-actions">
+        <a href="Dashboard.html" class="btn btn--primary btn--lg">지금 워크스페이스로 가기</a>
+      </div>
+    </div>
+
+    <!-- ─── Error state — extension not installed ─── -->
+    <div class="ext-state" id="state-error" hidden>
+      <div class="ext-state__art">
+        <div class="ext-error-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+      </div>
+      <h1>확장 프로그램이 설치되지 않았어요</h1>
+      <p>MIMIC Recorder 확장이 필요합니다. 1분이면 설치할 수 있어요.</p>
+      <div class="ext-actions">
+        <a href="#" class="btn btn--primary btn--lg">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="2" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          Chrome 웹스토어에서 설치
+        </a>
+        <button class="btn btn--outline btn--lg" id="btnRetry">설치 후 다시 시도</button>
+        <a href="Dashboard.html" class="btn btn--ghost">건너뛰고 워크스페이스로</a>
+      </div>
+
+      <div class="ext-help">
+        설치에 어려움이 있으신가요? <a href="Help.html#chrome">설치 가이드 보기</a> · <a href="mailto:hello@mimicflow.com">문의하기</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Dev-only state switcher (remove in prod build) -->
+<div class="ext-state-switch" id="stateSwitch">
+  <button data-state="loading" class="is-active">로딩</button>
+  <button data-state="success">성공</button>
+  <button data-state="error">실패</button>
+</div>
+
+<script>
+/*
+ * Wire-up notes for Claude Code handoff:
+ *
+ * 1. On page load, call:
+ *      const { token } = await fetch('/api/extension/link', { method: 'POST' }).then(r => r.json());
+ *
+ * 2. Send to extension:
+ *      const EXTENSION_ID = process.env.NEXT_PUBLIC_EXTENSION_ID;
+ *      chrome.runtime.sendMessage(EXTENSION_ID, { action: 'CONNECT', token }, (resp) => {
+ *        if (resp?.ok) showState('success'); else showState('error');
+ *      });
+ *      // If chrome.runtime undefined → error state (extension missing)
+ *
+ * 3. On success → setTimeout(() => router.push('/dashboard'), 3000)
+ */
+
+const states = ['loading', 'success', 'error'];
+function showState(name) {
+  states.forEach(s => {
+    document.getElementById('state-' + s).hidden = (s !== name);
+  });
+  document.querySelectorAll('#stateSwitch button').forEach(b => {
+    b.classList.toggle('is-active', b.dataset.state === name);
+  });
+}
+
+document.querySelectorAll('#stateSwitch button').forEach(b => {
+  b.addEventListener('click', () => showState(b.dataset.state));
+});
+
+// Demo: auto-progress loading → success
+setTimeout(() => {
+  if (document.getElementById('state-loading').hidden === false) {
+    showState('success');
+  }
+}, 2200);
+
+document.getElementById('btnRetry').addEventListener('click', () => showState('loading'));
+</script>
+
+</body>
+</html>

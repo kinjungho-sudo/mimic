@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>제작 에디터 — Supabase 프로젝트 시작하기</title>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet" />
+<link rel="stylesheet" href="app.css?v=3" />
+<link rel="stylesheet" href="manual.css?v=3" />
+<link rel="stylesheet" href="editor.css?v=2" />
+</head>
+<body data-screen-label="06 Manual Editor">
+
+<div class="editor-shell">
+
+  <!-- ───── Dark header ───── -->
+  <header class="editor-header">
+    <a href="Manual - Guide.html" class="crumb">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      종료
+    </a>
+    <span class="editor-header__title">Supabase 프로젝트 시작하기</span>
+    <span class="editor-header__pill">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15 8 22 9 17 14 18 21 12 18 6 21 7 14 2 9 9 8"/></svg>
+      튜토리얼 만들기
+    </span>
+
+    <div class="editor-header__actions">
+      <button class="icon-btn" id="settingsBtn" title="설정">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+      <button class="editor-header__btn">저장</button>
+      <button class="editor-header__btn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        미리보기
+      </button>
+      <button class="editor-header__btn editor-header__btn--primary">게시</button>
+    </div>
+
+    <!-- Settings popover -->
+    <div class="popover" id="settingsPopover" style="top: 56px; right: 14px;">
+      <div class="opt-group">
+        <h4>테마</h4>
+        <div class="segmented">
+          <button class="is-active">라이트</button>
+          <button>다크</button>
+          <button>시스템</button>
+        </div>
+      </div>
+      <div class="opt-group">
+        <h4>출력 비율</h4>
+        <div class="segmented">
+          <button class="is-active">16:9</button>
+          <button>1:1</button>
+          <button>9:16</button>
+        </div>
+      </div>
+      <div class="opt-group">
+        <h4>화면 표시</h4>
+        <div class="toggle-row">슬라이드 패널 <span class="toggle is-on"></span></div>
+        <div class="toggle-row">옵션 패널 <span class="toggle is-on"></span></div>
+        <div class="toggle-row">자막 미리보기 <span class="toggle is-on"></span></div>
+      </div>
+      <div class="opt-group" style="margin-bottom: 0;">
+        <h4>미리보기 위치</h4>
+        <div class="segmented">
+          <button class="is-active">분할 화면</button>
+          <button>새 창</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ───── 3-panel body ───── -->
+  <div class="editor-body">
+
+    <!-- ── Left: slide thumbnails ── -->
+    <aside class="slide-panel">
+      <div class="slide-panel__head">
+        <span>슬라이드 6</span>
+        <button class="icon-mini" title="추가">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </div>
+
+      <!-- Slide 1 -->
+      <div class="slide-thumb">
+        <span class="slide-thumb__num">1</span>
+        <div class="slide-thumb__preview">
+          <div class="slide-thumb__mini">
+            <div class="r"></div><div class="r w70"></div><div class="r w40"></div>
+            <span class="slide-thumb__marker" style="bottom: 14px; left: 12px;"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide 2 -->
+      <div class="slide-thumb">
+        <span class="slide-thumb__num">2</span>
+        <div class="slide-thumb__preview">
+          <div class="slide-thumb__mini">
+            <div class="r"></div><div class="r w70"></div><div class="r w40"></div>
+            <span class="slide-thumb__marker" style="top: 14px; right: 12px;"></span>
+          </div>
+          <div class="slide-thumb__effects"><span>줌</span></div>
+        </div>
+      </div>
+
+      <!-- Slide 3 -->
+      <div class="slide-thumb">
+        <span class="slide-thumb__num">3</span>
+        <div class="slide-thumb__preview">
+          <div class="slide-thumb__mini">
+            <div class="r"></div><div class="r w70"></div>
+            <span class="slide-thumb__marker" style="top: 22px; left: 30px;"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide 4 -->
+      <div class="slide-thumb">
+        <span class="slide-thumb__num">4</span>
+        <div class="slide-thumb__preview">
+          <div class="slide-thumb__mini">
+            <div class="r"></div><div class="r w70"></div><div class="r w40"></div><div class="r w70"></div>
+            <span class="slide-thumb__marker" style="bottom: 10px; right: 14px;"></span>
+          </div>
+          <div class="slide-thumb__effects"><span>자막</span></div>
+        </div>
+      </div>
+
+      <!-- Slide 5 active -->
+      <div class="slide-thumb is-active">
+        <span class="slide-thumb__num">5</span>
+        <div class="slide-thumb__preview">
+          <div class="slide-thumb__mini">
+            <div class="r"></div><div class="r w70"></div><div class="r w90" style="width: 90%;"></div><div class="r w40"></div>
+            <span class="slide-thumb__marker" style="top: 12px; left: 8px;"></span>
+            <span class="slide-thumb__marker" style="bottom: 14px; right: 22px; background: var(--primary);"></span>
+          </div>
+          <div class="slide-thumb__effects"><span>줌</span><span>자막</span></div>
+        </div>
+      </div>
+
+      <!-- Slide 6 -->
+      <div class="slide-thumb">
+        <span class="slide-thumb__num">6</span>
+        <div class="slide-thumb__preview">
+          <div class="slide-thumb__mini">
+            <div class="r"></div><div class="r w70"></div><div class="r w40"></div>
+          </div>
+        </div>
+      </div>
+
+      <button class="slide-add">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        새 슬라이드
+      </button>
+    </aside>
+
+    <!-- ── Center: canvas ── -->
+    <section class="canvas-area">
+      <div class="canvas-toolbar">
+        <div class="tool-group">
+          <button class="tool-btn" title="텍스트">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+          </button>
+          <button class="tool-btn" title="이미지">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          </button>
+        </div>
+        <div class="tool-group">
+          <button class="tool-btn" title="사각형">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+          </button>
+          <button class="tool-btn" title="원">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>
+          </button>
+          <button class="tool-btn is-active" title="화살표">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
+          <button class="tool-btn" title="펜">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+          </button>
+        </div>
+        <div class="canvas-toolbar__right">
+          <span class="zoom-control">
+            <button class="tool-btn" style="width:22px; height:22px;">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+            100%
+            <button class="tool-btn" style="width:22px; height:22px;">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+          </span>
+        </div>
+      </div>
+
+      <!-- Canvas surface -->
+      <div class="canvas-surface">
+        <div class="canvas">
+          <div class="canvas-content">
+            <div class="shot">
+              <div class="shot__top"><span class="d"></span><span class="d"></span><span class="d"></span><span class="url"></span></div>
+              <div class="shot__main">
+                <div class="shot__nav">
+                  <div class="row m"></div>
+                  <div class="row s"></div>
+                  <div class="row active" style="width:70%"></div>
+                  <div class="row m"></div>
+                  <div class="row s"></div>
+                  <div class="row m"></div>
+                </div>
+                <div class="shot__body">
+                  <div class="h"></div>
+                  <div class="row w70"></div>
+                  <div class="row w90"></div>
+                  <div class="shot__cards">
+                    <div class="c"></div><div class="c"></div><div class="c"></div>
+                  </div>
+                  <div class="row w70"></div>
+                  <div style="margin-top:16px;">
+                    <span class="shot__btn">Configure provider</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Vrew-style zoom frames -->
+            <div class="zoom-frame" style="top: 18%; left: 10%; width: 72%; height: 60%;">
+              <span class="zoom-frame__label">시작 장면</span>
+              <span class="zoom-frame__handle tl"></span>
+              <span class="zoom-frame__handle tr"></span>
+              <span class="zoom-frame__handle bl"></span>
+              <span class="zoom-frame__handle br"></span>
+            </div>
+            <div class="zoom-frame zoom-frame--end" style="top: 64%; left: 30%; width: 28%; height: 12%;">
+              <span class="zoom-frame__label" style="top: auto; bottom: -22px;">종료 장면</span>
+              <span class="zoom-frame__handle tl"></span>
+              <span class="zoom-frame__handle tr"></span>
+              <span class="zoom-frame__handle bl"></span>
+              <span class="zoom-frame__handle br"></span>
+            </div>
+
+            <!-- Markers ①②③ -->
+            <span class="marker" style="top: 16%; left: 4.5%;">1</span>
+            <span class="marker" style="top: 38%; left: 8%;">2</span>
+            <span class="marker is-active" style="top: 70%; left: 38%;">3</span>
+
+            <!-- Text box selected -->
+            <div class="canvas-text" style="top: 12%; left: 56%;">
+              여기서 Google 로그인을 설정하세요
+              <span class="handle tl"></span>
+              <span class="handle tr"></span>
+              <span class="handle bl"></span>
+              <span class="handle br"></span>
+            </div>
+
+            <!-- Caption -->
+            <div class="canvas-caption">
+              Configure Google provider 버튼을 클릭하여 구글 로그인을 설정합니다.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Playback controls -->
+      <div class="playback">
+        <button class="playback__btn" title="이전">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <button class="playback__play">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+        </button>
+        <button class="playback__btn" title="다음">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+        <span class="playback__info">슬라이드 5 / 6 · 6초</span>
+      </div>
+    </section>
+
+    <!-- ── Right: options panel ── -->
+    <aside class="options-panel">
+      <div class="options-tabs">
+        <button class="options-tab is-active">효과</button>
+        <button class="options-tab">음성·자막</button>
+        <button class="options-tab">전체</button>
+      </div>
+
+      <div class="options-body">
+        <!-- Effects tab content -->
+        <div class="opt-group">
+          <div class="opt-group__title">이 슬라이드 효과</div>
+
+          <div class="opt-label">전환</div>
+          <div class="segmented">
+            <button class="is-active">줌</button>
+            <button>페이드</button>
+            <button>슬라이드</button>
+            <button>없음</button>
+          </div>
+
+          <div class="opt-label">재생 시간</div>
+          <div class="segmented">
+            <button>4초</button>
+            <button class="is-active">6초</button>
+            <button>8초</button>
+          </div>
+
+          <div class="toggle-row">클릭 강조 <span class="toggle is-on"></span></div>
+          <div class="toggle-row">자막 표시 <span class="toggle is-on"></span></div>
+        </div>
+
+        <div class="opt-group">
+          <div class="opt-group__title">줌 경로</div>
+          <div class="zoom-callout">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M8 11h6"/><path d="M11 8v6"/></svg>
+            <div>
+              <strong style="color:#0E7490;">캔버스의 두 박스를 드래그하세요</strong><br/>
+              실선 박스가 시작, 점선 박스가 종료 장면입니다.
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px;">
+            <div style="padding: 10px; border: 1px solid #06B6D4; border-radius: 7px; background: rgba(6,182,212,0.04);">
+              <div style="font-size:10.5px; color:#0E7490; font-weight:500; margin-bottom: 4px;">시작 장면</div>
+              <div style="font-size:11px; color: var(--text-3);">x:0 y:0 w:880 h:495</div>
+            </div>
+            <div style="padding: 10px; border: 1px dashed #06B6D4; border-radius: 7px; background: rgba(6,182,212,0.06);">
+              <div style="font-size:10.5px; color:#0E7490; font-weight:500; margin-bottom: 4px;">종료 장면</div>
+              <div style="font-size:11px; color: var(--text-3);">x:264 y:317 w:246 h:60</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="opt-group">
+          <div class="opt-group__title">음성·자막 빠른 설정</div>
+          <div class="opt-badge-row">
+            <span class="ai-badge">✦ AI 자동</span>
+            <span style="font-size: 12px; color: var(--text-2);">활성화됨</span>
+          </div>
+          <p style="font-size: 11.5px; color: var(--text-3); margin: 0 0 12px; line-height: 1.5;">
+            AI가 자막과 음성을 자동으로 생성합니다. 음성·자막 탭에서 직접 조정할 수 있어요.
+          </p>
+
+          <div class="caption-mini-toolbar">
+            <button>B</button>
+            <button><i>I</i></button>
+            <button>A</button>
+            <span class="ai-pen-mini">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15 8 22 9 17 14 18 21 12 18 6 21 7 14 2 9 9 8"/></svg>
+              다시
+            </span>
+          </div>
+          <textarea class="caption-edit">Configure Google provider 버튼을 클릭하여 구글 로그인을 설정합니다.</textarea>
+        </div>
+
+        <div class="opt-group">
+          <div class="opt-group__title">
+            음성 소스
+            <span class="phase-badge" style="text-transform: none; letter-spacing: 0;">Phase 3</span>
+          </div>
+          <div class="source-cards">
+            <div class="source-card is-active">
+              <span class="source-card__icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15 8 22 9 17 14 18 21 12 18 6 21 7 14 2 9 9 8"/></svg>
+              </span>
+              <div class="source-card__title">AI 음성</div>
+              <div class="source-card__sub">자동 생성</div>
+            </div>
+            <div class="source-card">
+              <span class="source-card__icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+              </span>
+              <div class="source-card__title">직접 녹음</div>
+              <div class="source-card__sub">마이크</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="opt-group" style="margin-bottom: 0;">
+          <div class="opt-group__title">자막 스타일</div>
+          <div class="opt-label">표시 위치</div>
+          <div class="segmented">
+            <button>상단</button>
+            <button>중앙</button>
+            <button class="is-active">하단</button>
+          </div>
+          <div class="opt-label">폰트 크기</div>
+          <div class="segmented">
+            <button>작게</button>
+            <button class="is-active">보통</button>
+            <button>크게</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+  // Settings popover
+  const sBtn = document.getElementById('settingsBtn');
+  const sPop = document.getElementById('settingsPopover');
+  sBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    sPop.classList.toggle('is-open');
+  });
+  document.addEventListener('click', (e) => {
+    if (!sPop.contains(e.target) && e.target !== sBtn) sPop.classList.remove('is-open');
+  });
+
+  // Tab switching
+  document.querySelectorAll('.options-tab').forEach((t, i, all) => {
+    t.addEventListener('click', () => {
+      all.forEach(x => x.classList.remove('is-active'));
+      t.classList.add('is-active');
+    });
+  });
+
+  // Segmented buttons
+  document.querySelectorAll('.segmented').forEach(seg => {
+    seg.querySelectorAll('button').forEach(b => {
+      b.addEventListener('click', () => {
+        seg.querySelectorAll('button').forEach(x => x.classList.remove('is-active'));
+        b.classList.add('is-active');
+      });
+    });
+  });
+
+  // Toggle switches
+  document.querySelectorAll('.toggle').forEach(t => {
+    t.addEventListener('click', () => t.classList.toggle('is-on'));
+  });
+
+  // Slide thumb selection
+  document.querySelectorAll('.slide-thumb').forEach(s => {
+    s.addEventListener('click', () => {
+      document.querySelectorAll('.slide-thumb').forEach(x => x.classList.remove('is-active'));
+      s.classList.add('is-active');
+    });
+  });
+</script>
+</body>
+</html>

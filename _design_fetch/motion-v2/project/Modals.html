@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>모달 — MIMIC</title>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet" />
+<link rel="stylesheet" href="app.css?v=3" />
+<link rel="stylesheet" href="extras.css?v=5" />
+</head>
+<body data-screen-label="11 Modals" style="background: var(--bg-soft);">
+
+<div style="padding: 32px 48px; max-width: 1280px; margin: 0 auto;">
+  <h1 style="font-size:24px; font-weight:500; margin: 0 0 6px;">모달 모음</h1>
+  <p style="color: var(--text-3); margin: 0 0 36px; font-size: 14px;">아래 버튼을 클릭하면 각 모달이 어떻게 보이는지 확인할 수 있어요.</p>
+
+  <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+    <button class="card" style="cursor:pointer; text-align: left;" data-open="share">
+      <div style="font-weight:500; margin-bottom: 4px;">매뉴얼 공유 모달</div>
+      <div style="font-size:12px; color: var(--text-3);">공개·비공개 토글, 액세스 권한, 임베드 코드, 소셜 공유</div>
+    </button>
+    <button class="card" style="cursor:pointer; text-align: left;" data-open="export">
+      <div style="font-weight:500; margin-bottom: 4px;">내보내기 모달</div>
+      <div style="font-size:12px; color: var(--text-3);">PDF · HTML · Markdown 형식 선택, 옵션 설정</div>
+    </button>
+    <button class="card" style="cursor:pointer; text-align: left;" data-open="chrome">
+      <div style="font-weight:500; margin-bottom: 4px;">새 매뉴얼 만들기 모달</div>
+      <div style="font-size:12px; color: var(--text-3);">MIMIC Recorder 녹화 + 스크린샷 업로드 2-path</div>
+    </button>
+    <button class="card" style="cursor:pointer; text-align: left;" data-open="limit">
+      <div style="font-weight:500; margin-bottom: 4px;">한도 도달 안내 모달</div>
+      <div style="font-size:12px; color: var(--text-3);">무료 한도 3개 도달 후 업그레이드 유도</div>
+    </button>
+  </div>
+</div>
+
+<!-- ──── Share modal ──── -->
+<div class="modal-overlay" id="m_share" hidden>
+  <div class="modal modal--wide">
+    <div class="modal__head">
+      <h3 class="modal__title">매뉴얼 공유</h3>
+      <button class="modal__close" data-close>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal__body">
+      <div class="toggle-row" style="padding: 6px 0 14px;">
+        <div>
+          <div style="font-weight:500; color: var(--text); font-size: 13px;">공개 매뉴얼</div>
+          <div style="font-size: 11.5px; color: var(--text-3); margin-top: 2px;">링크를 가진 누구나 볼 수 있어요</div>
+        </div>
+        <span class="toggle is-on"></span>
+      </div>
+
+      <div class="modal-form-row" style="padding: 0;">
+        <label class="label">공유 링크</label>
+        <div class="share-link-input">
+          <input value="https://mimicflow.com/m/k8p2x9" readonly>
+          <button>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px; display:inline; vertical-align:-2px;"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            복사
+          </button>
+        </div>
+      </div>
+
+      <div style="margin: 18px 0 8px;">
+        <label class="label">액세스 권한</label>
+        <div class="access-options">
+          <div class="access-row is-selected">
+            <span class="access-row__radio"></span>
+            <div style="flex:1;"><div class="access-row__title">보기 전용</div><div style="font-size: 11.5px; color: var(--text-3);">매뉴얼을 시청만 할 수 있어요</div></div>
+          </div>
+          <div class="access-row is-disabled">
+            <span class="access-row__radio"></span>
+            <div style="flex:1;"><div class="access-row__title">댓글 <span class="phase-badge">Phase 2</span></div><div style="font-size: 11.5px; color: var(--text-3);">시청하면서 의견을 남길 수 있어요</div></div>
+          </div>
+          <div class="access-row is-disabled">
+            <span class="access-row__radio"></span>
+            <div style="flex:1;"><div class="access-row__title">편집 <span class="phase-badge">Phase 2</span></div><div style="font-size: 11.5px; color: var(--text-3);">함께 매뉴얼을 편집할 수 있어요</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: 18px;">
+        <label class="label">임베드 코드</label>
+        <input class="input" value='<iframe src="https://mimicflow.com/embed/k8p2x9" width="640" height="360"></iframe>' style="font-family: ui-monospace, monospace; font-size: 11.5px; color: var(--text-2);">
+      </div>
+
+      <div class="social-row">
+        <button class="social-btn">💬 카카오톡</button>
+        <button class="social-btn">🟣 슬랙</button>
+        <button class="social-btn">✉️ 이메일</button>
+      </div>
+    </div>
+    <div class="modal__foot">
+      <button class="btn btn--ghost" data-close>닫기</button>
+      <button class="btn btn--primary">완료</button>
+    </div>
+  </div>
+</div>
+
+<!-- ──── Export modal ──── -->
+<div class="modal-overlay" id="m_export" hidden>
+  <div class="modal modal--wide">
+    <div class="modal__head">
+      <h3 class="modal__title">내보내기</h3>
+      <button class="modal__close" data-close>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal__body">
+      <label class="label">형식</label>
+      <div class="fmt-cards" style="margin-bottom: 18px;">
+        <div class="fmt-card is-selected">
+          <div class="fmt-card__icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+          <div>
+            <div class="fmt-card__title">PDF</div>
+            <div class="fmt-card__sub">인쇄 가능한 PDF 문서</div>
+          </div>
+        </div>
+        <div class="fmt-card">
+          <div class="fmt-card__icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div>
+          <div>
+            <div class="fmt-card__title">HTML <span class="phase-badge" style="background: rgba(79,70,229,0.10); color: var(--primary);">Elite+</span></div>
+            <div class="fmt-card__sub">웹 게시용 인터랙티브 페이지</div>
+          </div>
+        </div>
+        <div class="fmt-card">
+          <div class="fmt-card__icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></div>
+          <div>
+            <div class="fmt-card__title">Markdown <span class="phase-badge" style="background: rgba(79,70,229,0.10); color: var(--primary);">Elite+</span></div>
+            <div class="fmt-card__sub">개발 문서·블로그용 .md</div>
+          </div>
+        </div>
+      </div>
+
+      <label class="label">옵션</label>
+      <div class="toggle-row">항목 설명 포함 <span class="toggle is-on"></span></div>
+      <div class="toggle-row">페이지 번호 표시 <span class="toggle is-on"></span></div>
+
+      <label class="label" style="margin-top:14px;">이미지 품질</label>
+      <div class="segmented" style="background: var(--bg-soft); display:grid; grid-auto-flow:column; grid-auto-columns:1fr; gap:4px; padding:4px; border-radius:8px;">
+        <button style="padding:7px; font-size:11.5px; color: var(--text-2); border-radius:5px; font-weight:500;">표준</button>
+        <button style="padding:7px; font-size:11.5px; color: var(--primary); background:white; border-radius:5px; font-weight:500; box-shadow: var(--shadow-1);">고품질</button>
+      </div>
+    </div>
+    <div class="modal__foot">
+      <button class="btn btn--ghost" data-close>닫기</button>
+      <button class="btn btn--primary">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        내보내기
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ──── Chrome extension modal ──── -->
+<div class="modal-overlay" id="m_chrome" hidden>
+  <div class="modal modal--wide">
+    <div class="modal__head">
+      <h3 class="modal__title">새 매뉴얼 만들기</h3>
+      <button class="modal__close" data-close>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal__body" style="padding: 4px 24px 8px;">
+      <p style="font-size: 13px; color: var(--text-3); margin: 0 0 16px;">어떤 방식으로 시작할까요?</p>
+
+      <div class="new-doc-options">
+        <!-- Path 1: MIMIC Recorder extension -->
+        <div class="new-doc-option new-doc-option--featured">
+          <div class="new-doc-option__top">
+            <div class="new-doc-option__icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="12" y1="22" x2="12" y2="18"/><line x1="12" y1="6" x2="12" y2="2"/></svg>
+            </div>
+            <span class="new-doc-option__badge">추천</span>
+          </div>
+          <h4>MIMIC Recorder로 녹화</h4>
+          <p>평소처럼 작업하면 AI가 클릭마다 자동 캡처해서 매뉴얼로 변환합니다.</p>
+
+          <!-- Extension status check -->
+          <div class="ext-status ext-status--ok" id="extStatus">
+            <span class="ext-status__dot"></span>
+            <span class="ext-status__text">확장 연결됨 · v1.2.0</span>
+          </div>
+
+          <!-- ⭐ Device preset picker — emulates viewport via CDP Emulation.setDeviceMetricsOverride -->
+          <div class="device-picker">
+            <div class="device-picker__label">
+              <span>녹화 해상도</span>
+              <span class="device-picker__hint">선택한 디바이스 뷰포트로 자동 리사이즈</span>
+            </div>
+            <div class="device-picker__grid">
+              <button class="device-card is-active" data-device="desktop">
+                <span class="device-card__icon">
+                  <svg width="22" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                </span>
+                <span class="device-card__title">데스크톱</span>
+                <span class="device-card__size">1920×1080</span>
+              </button>
+              <button class="device-card" data-device="mobile">
+                <span class="device-card__icon">
+                  <svg width="13" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                </span>
+                <span class="device-card__title">모바일</span>
+                <span class="device-card__size">375×812</span>
+              </button>
+              <button class="device-card" data-device="tablet">
+                <span class="device-card__icon">
+                  <svg width="17" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                </span>
+                <span class="device-card__title">태블릿</span>
+                <span class="device-card__size">768×1024</span>
+              </button>
+              <button class="device-card" data-device="custom">
+                <span class="device-card__icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 17 23 14 20 11"/><polyline points="4 7 1 10 4 13"/><line x1="23" y1="14" x2="1" y2="10" transform="translate(0 4)"/><rect x="6" y="4" width="12" height="16" rx="1"/></svg>
+                </span>
+                <span class="device-card__title">커스텀</span>
+                <span class="device-card__size">직접 입력</span>
+              </button>
+            </div>
+
+            <details class="device-presets">
+              <summary>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                DevTools 디바이스 24종 더 보기
+              </summary>
+              <div class="device-presets__list">
+                <span class="device-preset-chip">iPhone 15 Pro · 393×852</span>
+                <span class="device-preset-chip">iPhone SE · 375×667</span>
+                <span class="device-preset-chip">Galaxy S24 · 360×800</span>
+                <span class="device-preset-chip">Pixel 8 · 412×915</span>
+                <span class="device-preset-chip">iPad Pro 11" · 834×1194</span>
+                <span class="device-preset-chip">iPad Mini · 768×1024</span>
+                <span class="device-preset-chip">MacBook 13" · 1280×800</span>
+                <span class="device-preset-chip">QHD · 2560×1440</span>
+              </div>
+            </details>
+          </div>
+
+          <button class="btn btn--primary" style="width:100%;" id="recordStartBtn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/></svg>
+            데스크톱(1920×1080)으로 녹화 시작
+          </button>
+        </div>
+
+        <!-- Path 2: Direct upload -->
+        <div class="new-doc-option">
+          <div class="new-doc-option__top">
+            <div class="new-doc-option__icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+          </div>
+          <h4>스크린샷 직접 업로드</h4>
+          <p>이미 가지고 있는 스크린샷을 드래그해서 매뉴얼로 만들 수 있어요.</p>
+
+          <div class="upload-area">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <span>이미지를 끌어다 놓거나 <a href="#">파일 선택</a></span>
+            <span class="upload-area__hint">PNG · JPG · 최대 10개</span>
+          </div>
+
+          <button class="btn btn--outline" style="width:100%;">계속하기</button>
+        </div>
+      </div>
+
+      <div class="new-doc-help">
+        MIMIC Recorder가 설치되지 않았나요? <a href="Extension Link.html">설치 가이드</a>
+      </div>
+    </div>
+    <div class="modal__foot">
+      <button class="btn btn--ghost" data-close>닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ──── Limit reached modal ──── -->
+<div class="modal-overlay" id="m_limit" hidden>
+  <div class="modal">
+    <div class="modal__head">
+      <h3 class="modal__title">오늘의 무료 한도를 다 사용하셨어요</h3>
+      <button class="modal__close" data-close>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal__body" style="text-align: center; padding: 0 24px 22px;">
+      <div style="width:80px; height:80px; margin: 8px auto 18px; border-radius: 20px; background: rgba(245,158,11,0.10); display: grid; place-items: center; color: var(--warning);">
+        <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </div>
+      <p style="font-size:14px; color: var(--text); margin: 0 0 18px;">Pro 플랜으로 업그레이드하면 매뉴얼을 무제한으로 만들 수 있어요. 지금 사전예약하시면 출시 시 가장 먼저 알려드릴게요.</p>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; max-width: 360px; margin: 0 auto; text-align: left;">
+        <div style="padding: 12px; border:1px solid var(--border); border-radius: 8px;">
+          <div style="font-size: 11px; color: var(--text-3); margin-bottom: 4px;">Free (현재)</div>
+          <div style="font-size: 14px; font-weight: 500;">매일 3개</div>
+        </div>
+        <div style="padding: 12px; border:2px solid var(--primary); background: var(--primary-50); border-radius: 8px;">
+          <div style="font-size: 11px; color: var(--primary); margin-bottom: 4px; font-weight: 500;">Pro ₩15,000/월</div>
+          <div style="font-size: 14px; font-weight: 500;">매뉴얼 무제한 + AI 음성</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal__foot">
+      <button class="btn btn--ghost" data-close>내일 다시 시도</button>
+      <a href="Landing.html#proSignupForm" class="btn btn--primary">Pro 사전예약하기 →</a>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('[data-open]').forEach(b => {
+    b.addEventListener('click', () => {
+      const m = document.getElementById('m_' + b.dataset.open);
+      m.hidden = false;
+    });
+  });
+  document.querySelectorAll('[data-close]').forEach(b => {
+    b.addEventListener('click', () => b.closest('.modal-overlay').hidden = true);
+  });
+  document.querySelectorAll('.modal-overlay').forEach(o => {
+    o.addEventListener('click', (e) => { if (e.target === o) o.hidden = true; });
+  });
+  document.querySelectorAll('.toggle').forEach(t => t.addEventListener('click', () => t.classList.toggle('is-on')));
+
+  // Device picker selection
+  const deviceSizes = { desktop: '1920×1080', mobile: '375×812', tablet: '768×1024', custom: '직접 입력' };
+  const deviceLabels = { desktop: '데스크톱', mobile: '모바일', tablet: '태블릿', custom: '커스텀' };
+  document.querySelectorAll('.device-card').forEach(card => {
+    card.addEventListener('click', () => {
+      document.querySelectorAll('.device-card').forEach(c => c.classList.remove('is-active'));
+      card.classList.add('is-active');
+      const d = card.dataset.device;
+      const btn = card.closest('.new-doc-option').querySelector('.btn--primary');
+      btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/></svg> ${deviceLabels[d]}(${deviceSizes[d]})으로 녹화 시작`;
+    });
+  });
+
+  // Auto-open share modal on initial view
+  document.getElementById('m_share').hidden = false;
+</script>
+</body>
+</html>

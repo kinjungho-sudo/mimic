@@ -1,0 +1,436 @@
+'use client';
+
+import { useState, useCallback, useEffect } from 'react';
+
+// ── 타입 ──────────────────────────────────────────────────
+
+interface ChromeTab {
+  id: number;
+  title: string;
+  url: string;
+  favIconUrl?: string;
+}
+
+type ModalStep = 'guide' | 'tab_select' | 'launching' | 'not_installed';
+
+// ── 확장 통신 ─────────────────────────────────────────────
+
+function isExtensionInstalled(): boolean {
+  return !!(typeof window !== 'undefined' && window.chrome?.runtime?.sendMessage);
+}
+
+function sendMessage(action: string, payload?: Record<string, unknown>): Promise<unknown> {
+  return new Promise(resolve => {
+    const extensionId = process.env.NEXT_PUBLIC_EXTENSION_ID?.replace(/^﻿/, '').trim();
+    if (!extensionId || !isExtensionInstalled()) {
+      console.warn('[MIMIC] 확장 없음 또는 extensionId 미설정, 바이패스');
+      resolve(null);
+      return;
+    }
+    // 5초 타임아웃 — 확장이 응답 안 하면 null 반환
+    const timer = setTimeout(() => {
+      console.warn('[MIMIC] sendMessage 타임아웃:', action);
+      resolve(null);
+    }, 5000);
+    window.chrome!.runtime!.sendMessage(extensionId, { action, ...payload }, resp => {
+      clearTimeout(timer);
+      if (window.chrome?.runtime?.lastError) {
+        console.warn('[MIMIC] lastError:', window.chrome.runtime.lastError.message);
+        resolve(null);
+        return;
+      }
+      console.log('[MIMIC] 응답:', action, resp);
+      resolve(resp);
+    });
+  });
+}
+
+async function fetchOpenTabs(): Promise<ChromeTab[] | null> {
+  const resp = await sendMessage('GET_TABS') as { tabs?: ChromeTab[] } | null;
+  if (!resp || !Array.isArray((resp as { tabs?: ChromeTab[] }).tabs)) {
+    console.warn('[MIMIC] GET_TABS 실패 또는 빈 응답:', resp);
+    return null;
+  }
+  return (resp as { tabs: ChromeTab[] }).tabs;
+}
+
+async function sendStartRecording(tabId: number, url: string): Promise<boolean> {
+  const extensionId = process.env.NEXT_PUBLIC_EXTENSION_ID?.replace(/^﻿/, '').trim();
+  if (!extensionId || !isExtensionInstalled()) return true; // 바이패스
+  const resp = await sendMessage('START_RECORDING', { tabId, url }) as { ok?: boolean } | null;
+  return !!(resp && (resp as { ok?: boolean }).ok);
+}
+
+// ── 안내 단계 데이터 ──────────────────────────────────────
+
+const GUIDE_STEPS = [
+  { text: '녹화할 웹 페이지를 선택하세요.', extra: null },
+  {
+    text: '우측 상단의 MIMIC Recorder에서 녹화 버튼을 눌러주세요.',
+    extra: 'recorder_button',
+  },
+  { text: '작업을 수행하면 단계별로 자동 캡처됩니다.', extra: null },
+  { text: '녹화 종료 후 대시보드에서 매뉴얼을 확인하세요.', extra: null },
+];
+
+// ── 파비콘 fallback ───────────────────────────────────────
+
+function FavIcon({ url, favIconUrl }: { url: string; favIconUrl?: string }) {
+  const [errored, setErrored] = useState(false);
+  const domain = (() => { try { return new URL(url).hostname; } catch { return ''; } })();
+
+  if (favIconUrl && !errored) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={favIconUrl}
+        alt=""
+        width={16} height={16}
+        style={{ borderRadius: '3px', flexShrink: 0 }}
+        onError={() => setErrored(true)}
+      />
+    );
+  }
+
+  // 글자 fallback
+  const letter = domain.replace('www.', '').charAt(0).toUpperCase() || '?';
+  const colors = ['#4F46E5','#7C3AED','#DB2777','#D97706','#059669','#0284C7'];
+  const bg = colors[letter.charCodeAt(0) % colors.length];
+  return (
+    <span style={{ width: '16px', height: '16px', borderRadius: '3px', background: bg, color: 'white', display: 'grid', placeItems: 'center', fontSize: '9px', fontWeight: 700, flexShrink: 0 }}>
+      {letter}
+    </span>
+  );
+}
+
+// ── 메인 컴포넌트 ─────────────────────────────────────────
+
+interface RecordingModalProps {
+  onClose: () => void;
+}
+
+export function RecordingModal({ onClose }: RecordingModalProps) {
+  const [step, setStep] = useState<ModalStep>('guide');
+  const [tabs, setTabs] = useState<ChromeTab[]>([]);
+  const [tabsLoading, setTabsLoading] = useState(false);
+  const [selectedTab, setSelectedTab] = useState<ChromeTab | null>(null);
+  const [search, setSearch] = useState('');
+
+  // ESC 닫기
+  useEffect(() => {
+    const fn = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', fn);
+    return () => window.removeEventListener('keydown', fn);
+  }, [onClose]);
+
+  // 탭 선택 단계 진입 시 목록 로드
+  const enterTabSelect = useCallback(async () => {
+    setStep('tab_select');
+    setTabsLoading(true);
+    setSelectedTab(null);
+    setTabs([]);
+
+    const fetched = await fetchOpenTabs();
+
+    if (fetched && fetched.length > 0) {
+      setTabs(fetched);
+      setSelectedTab(fetched[0]);
+    } else {
+      // 확장 미응답 — 빈 목록으로 표시 (URL 직접 입력 유도)
+      setTabs([]);
+      setSelectedTab(null);
+    }
+    setTabsLoading(false);
+  }, []);
+
+  const handleStart = useCallback(async () => {
+    if (!selectedTab) return;
+    setStep('launching');
+    const ok = await sendStartRecording(selectedTab.id, selectedTab.url);
+    if (!ok) { setStep('not_installed'); return; }
+    onClose();
+  }, [selectedTab, onClose]);
+
+  const filteredTabs = tabs.filter(t =>
+    t.title.toLowerCase().includes(search.toLowerCase()) ||
+    t.url.toLowerCase().includes(search.toLowerCase())
+  );
+
+  // 탭 선택 단계: 모달 넓게
+  const isWide = step === 'tab_select';
+
+  return (
+    <>
+      {/* 딤 배경 */}
+      <div
+        onClick={onClose}
+        style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,15,0.50)', zIndex: 1000, backdropFilter: 'blur(3px)' }}
+      />
+
+      {/* 모달 */}
+      <div
+        role="dialog"
+        aria-modal="true"
+        style={{
+          position: 'fixed', top: '50%', left: '50%',
+          transform: 'translate(-50%, -50%)',
+          zIndex: 1001,
+          width: isWide ? '820px' : '480px',
+          maxWidth: 'calc(100vw - 32px)',
+          background: 'white', borderRadius: '20px',
+          boxShadow: '0 32px 80px rgba(10,10,15,0.26), 0 0 0 1px rgba(0,0,0,0.05)',
+          overflow: 'hidden',
+          animation: 'modalIn 0.22s cubic-bezier(0.34,1.4,0.64,1)',
+          fontFamily: "'Pretendard', -apple-system, sans-serif",
+          transition: 'width 0.25s cubic-bezier(0.4,0,0.2,1)',
+        }}
+      >
+        {/* 헤더 */}
+        <div style={{ background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', padding: '22px 28px 18px', position: 'relative' }}>
+          <button
+            onClick={onClose}
+            aria-label="닫기"
+            style={{ position: 'absolute', top: '14px', right: '16px', width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(255,255,255,0.18)', border: 'none', color: 'white', display: 'grid', placeItems: 'center', cursor: 'pointer' }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+            <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#FCA5A5', animation: 'recPulse 1.4s ease-in-out infinite' }} />
+            <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em' }}>MIMIC Recorder</span>
+          </div>
+          <h2 style={{ fontSize: '19px', fontWeight: 700, color: 'white', margin: 0, letterSpacing: '-0.02em' }}>
+            {step === 'guide' && '새 매뉴얼 녹화 시작'}
+            {step === 'tab_select' && '녹화할 페이지 선택'}
+            {step === 'launching' && 'Recorder 실행 중…'}
+            {step === 'not_installed' && '확장 프로그램이 필요해요'}
+          </h2>
+          <p style={{ fontSize: '12.5px', color: 'rgba(255,255,255,0.72)', marginTop: '3px' }}>
+            {step === 'guide' && '화면 녹화로 매뉴얼을 자동으로 만들어드릴게요'}
+            {step === 'tab_select' && `열린 탭 ${tabs.length}개 · 페이지를 선택하면 오른쪽에 미리보기가 표시됩니다`}
+            {step === 'launching' && '잠시만 기다려주세요'}
+            {step === 'not_installed' && 'MIMIC Recorder를 먼저 설치해야 녹화할 수 있어요'}
+          </p>
+        </div>
+
+        {/* ── 가이드 단계 ── */}
+        {step === 'guide' && (
+          <div style={{ padding: '24px 28px 28px' }}>
+            <p style={{ fontSize: '12.5px', fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '14px' }}>진행 방법</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '22px' }}>
+              {GUIDE_STEPS.map((s, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                  <span style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#EEF2FF', color: '#4F46E5', fontSize: '11px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0, marginTop: '1px' }}>
+                    {i + 1}
+                  </span>
+                  <div style={{ flex: 1 }}>
+                    <span style={{ fontSize: '13.5px', color: '#374151', lineHeight: 1.55 }}>{s.text}</span>
+                    {s.extra === 'recorder_button' && (
+                      <div style={{ marginTop: '9px', display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 12px', background: 'linear-gradient(135deg, #EF4444, #DC2626)', borderRadius: '8px', boxShadow: '0 2px 6px rgba(239,68,68,0.28)' }}>
+                        <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: 'white', animation: 'recPulse 1.4s ease-in-out infinite' }} />
+                        <span style={{ fontSize: '11.5px', color: 'white', fontWeight: 600 }}>녹화 시작</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '10px', padding: '11px 14px', marginBottom: '22px', display: 'flex', gap: '10px' }}>
+              <span style={{ fontSize: '15px', flexShrink: 0 }}>💡</span>
+              <p style={{ fontSize: '12.5px', color: '#78350F', lineHeight: 1.55, margin: 0 }}>
+                녹화 중에는 <strong>클릭한 위치</strong>와 <strong>화면 변화</strong>가 자동으로 캡처됩니다.
+              </p>
+            </div>
+            <button
+              onClick={enterTabSelect}
+              style={{ width: '100%', padding: '13px', borderRadius: '11px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', fontSize: '14.5px', fontWeight: 600, border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(79,70,229,0.30)' }}
+            >
+              페이지 선택하기 →
+            </button>
+          </div>
+        )}
+
+        {/* ── 탭 선택 단계 ── */}
+        {step === 'tab_select' && (
+          <div style={{ display: 'flex', height: '460px' }}>
+
+            {/* 좌측: 탭 목록 */}
+            <div style={{ width: '320px', borderRight: '1px solid #F3F4F6', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+              {/* 검색 */}
+              <div style={{ padding: '14px 16px 10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', border: '1.5px solid #E5E7EB', borderRadius: '9px', background: '#F9FAFB' }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  <input
+                    autoFocus
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder="탭 검색..."
+                    style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '13px', color: '#374151', fontFamily: 'inherit' }}
+                  />
+                  {search && (
+                    <button onClick={() => setSearch('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', display: 'grid', placeItems: 'center', padding: 0 }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* 목록 */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '0 8px 12px' }}>
+                {tabsLoading ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '8px' }}>
+                    {[1,2,3,4].map(i => (
+                      <div key={i} style={{ height: '48px', borderRadius: '8px', background: 'linear-gradient(90deg,#F3F4F6 25%,#E9EAEC 50%,#F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite' }} />
+                    ))}
+                  </div>
+                ) : filteredTabs.length === 0 ? (
+                  <div style={{ padding: '32px 16px', textAlign: 'center', color: '#9CA3AF', fontSize: '13px', lineHeight: 1.6 }}>
+                    {tabs.length === 0
+                      ? <>확장과 연결할 수 없어요.<br/>MIMIC Recorder가 활성화되어 있는지 확인해주세요.</>
+                      : '검색 결과가 없어요'}
+                  </div>
+                ) : (
+                  filteredTabs.map(tab => {
+                    const isSelected = selectedTab?.id === tab.id;
+                    const domain = (() => { try { return new URL(tab.url).hostname.replace('www.', ''); } catch { return tab.url; } })();
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => setSelectedTab(tab)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '10px',
+                          width: '100%', padding: '10px 10px', borderRadius: '9px',
+                          border: 'none', textAlign: 'left', cursor: 'pointer',
+                          background: isSelected ? '#EEF2FF' : 'transparent',
+                          transition: 'background 0.12s',
+                          marginBottom: '2px',
+                        }}
+                        onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = '#F9FAFB'; }}
+                        onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
+                      >
+                        <FavIcon url={tab.url} favIconUrl={tab.favIconUrl} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '13px', fontWeight: isSelected ? 600 : 400, color: isSelected ? '#4F46E5' : '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {tab.title || domain}
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#9CA3AF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '1px' }}>
+                            {domain}
+                          </div>
+                        </div>
+                        {isSelected && (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}><polyline points="20 6 9 17 4 12"/></svg>
+                        )}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* 하단 버튼 */}
+              <div style={{ padding: '12px 16px', borderTop: '1px solid #F3F4F6', display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() => setStep('guide')}
+                  style={{ flex: 1, padding: '10px', borderRadius: '9px', background: 'white', color: '#4B5563', fontSize: '13px', fontWeight: 500, border: '1.5px solid #E5E7EB', cursor: 'pointer' }}
+                >
+                  ← 이전
+                </button>
+                <button
+                  onClick={handleStart}
+                  disabled={!selectedTab}
+                  style={{ flex: 2, padding: '10px', borderRadius: '9px', background: selectedTab ? 'linear-gradient(135deg, #4F46E5, #7C3AED)' : '#E5E7EB', color: selectedTab ? 'white' : '#9CA3AF', fontSize: '13.5px', fontWeight: 600, border: 'none', cursor: selectedTab ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px', boxShadow: selectedTab ? '0 3px 10px rgba(79,70,229,0.25)' : 'none', transition: 'all 0.15s' }}
+                >
+                  <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: selectedTab ? 'rgba(255,255,255,0.8)' : '#9CA3AF', animation: selectedTab ? 'recPulse 1.4s infinite' : 'none' }} />
+                  녹화 시작
+                </button>
+              </div>
+            </div>
+
+            {/* 우측: 미리보기 */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#F8F9FA' }}>
+              {selectedTab ? (
+                <>
+                  {/* URL 바 */}
+                  <div style={{ padding: '14px 16px 10px', borderBottom: '1px solid #F3F4F6', background: 'white' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px', background: '#F3F4F6', borderRadius: '8px' }}>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                      <span style={{ fontSize: '12px', color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                        {selectedTab.url}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* iframe 미리보기 */}
+                  <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+                    <iframe
+                      src={selectedTab.url}
+                      title="미리보기"
+                      sandbox="allow-scripts allow-same-origin"
+                      style={{ width: '160%', height: '160%', border: 'none', transform: 'scale(0.625)', transformOrigin: '0 0', pointerEvents: 'none' }}
+                      onError={() => {}}
+                    />
+                    {/* X-Frame-Options 차단 시 fallback 오버레이 */}
+                    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(248,249,250,0)', pointerEvents: 'none' }}>
+                    </div>
+                  </div>
+
+                  {/* 선택된 탭 정보 */}
+                  <div style={{ padding: '12px 16px', borderTop: '1px solid #F3F4F6', background: 'white', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <FavIcon url={selectedTab.url} favIconUrl={selectedTab.favIconUrl} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '12.5px', fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedTab.title}</div>
+                    </div>
+                    <span style={{ fontSize: '11px', padding: '3px 8px', background: '#EEF2FF', color: '#4F46E5', borderRadius: '5px', fontWeight: 500, whiteSpace: 'nowrap' }}>선택됨</span>
+                  </div>
+                </>
+              ) : (
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#9CA3AF', gap: '12px' }}>
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                  <p style={{ fontSize: '13px', textAlign: 'center' }}>왼쪽에서 탭을 선택하면<br/>미리보기가 표시됩니다</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── 실행 중 ── */}
+        {step === 'launching' && (
+          <div style={{ padding: '48px 28px', textAlign: 'center' }}>
+            <div style={{ width: '52px', height: '52px', borderRadius: '50%', border: '3px solid rgba(79,70,229,0.15)', borderTopColor: '#4F46E5', animation: 'spin 0.9s linear infinite', margin: '0 auto 20px' }} />
+            <p style={{ fontSize: '15px', fontWeight: 600, color: '#111827', marginBottom: '6px' }}>MIMIC Recorder 실행 중…</p>
+            <p style={{ fontSize: '13px', color: '#6B7280' }}>선택한 페이지에서 녹화가 곧 시작됩니다</p>
+          </div>
+        )}
+
+        {/* ── 미설치 ── */}
+        {step === 'not_installed' && (
+          <div style={{ padding: '24px 28px 28px' }}>
+            <div style={{ background: '#FEF3C7', border: '1px solid #FDE68A', borderRadius: '10px', padding: '14px 16px', marginBottom: '20px', display: 'flex', gap: '12px' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, marginTop: '1px' }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <p style={{ fontSize: '13px', color: '#78350F', lineHeight: 1.55, margin: 0 }}>
+                MIMIC Recorder 확장 프로그램이 설치되지 않았거나 비활성화되어 있어요.
+              </p>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <button disabled title="Chrome 웹스토어 등록 준비 중" style={{ width: '100%', padding: '12px', borderRadius: '10px', background: '#F3F4F6', color: '#9CA3AF', fontSize: '14px', fontWeight: 500, border: 'none', cursor: 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                MIMIC Recorder 설치하기
+                <span style={{ fontSize: '10.5px', background: '#E5E7EB', color: '#6B7280', padding: '2px 6px', borderRadius: '4px' }}>준비 중</span>
+              </button>
+              <button onClick={enterTabSelect} style={{ width: '100%', padding: '12px', borderRadius: '10px', background: 'white', color: '#4B5563', fontSize: '14px', fontWeight: 500, border: '1.5px solid #E5E7EB', cursor: 'pointer' }}>
+                다시 시도
+              </button>
+              <button onClick={onClose} style={{ width: '100%', padding: '10px', borderRadius: '10px', background: 'none', color: '#9CA3AF', fontSize: '13px', border: 'none', cursor: 'pointer' }}>
+                나중에
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <style>{`
+        @keyframes modalIn { 0%{opacity:0;transform:translate(-50%,-52%) scale(0.95)} 100%{opacity:1;transform:translate(-50%,-50%) scale(1)} }
+        @keyframes recPulse { 0%,100%{opacity:0.5;transform:scale(1)} 50%{opacity:1;transform:scale(1.25)} }
+        @keyframes spin { to{transform:rotate(360deg)} }
+        @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+      `}</style>
+    </>
+  );
+}

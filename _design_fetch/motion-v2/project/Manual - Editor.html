@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>제작 에디터 — Supabase 프로젝트 시작하기</title>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet" />
+<link rel="stylesheet" href="app.css?v=2" />
+<link rel="stylesheet" href="editor2.css?v=3" />
+</head>
+<body data-screen-label="06 Manual Editor (v2)">
+
+<div class="editor-shell">
+
+  <!-- ───── Header ───── -->
+  <header class="editor-header">
+    <a href="Dashboard.html" class="crumb">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      내 매뉴얼
+    </a>
+    <input class="editor-header__title" value="Supabase 프로젝트 시작하기" />
+    <span class="editor-header__autosave">자동 저장됨 · 방금 전</span>
+
+    <div class="editor-header__actions">
+      <button class="editor-header__btn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        미리보기
+      </button>
+      <button class="editor-header__btn editor-header__btn--primary">게시</button>
+    </div>
+  </header>
+
+  <!-- ───── Left slide panel (170px) ───── -->
+  <aside class="slide-panel">
+    <div class="slide-panel__head">
+      <span>슬라이드 6</span>
+      <button class="icon-mini" title="추가">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+    </div>
+
+    <div class="slide-thumb">
+      <div class="slide-thumb__top">
+        <span>1</span>
+        <span class="slide-thumb__count">1</span>
+      </div>
+      <div class="slide-thumb__preview">
+        <div class="slide-thumb__mini">
+          <div class="r"></div><div class="r w70"></div><div class="r w40"></div>
+          <span class="slide-thumb__marker" style="bottom: 14px; left: 12px;"></span>
+        </div>
+      </div>
+      <div class="slide-thumb__title">Start your project</div>
+    </div>
+
+    <div class="slide-thumb">
+      <div class="slide-thumb__top">
+        <span>2</span>
+        <span class="slide-thumb__count">1</span>
+      </div>
+      <div class="slide-thumb__preview">
+        <div class="slide-thumb__mini">
+          <div class="r"></div><div class="r w70"></div><div class="r w40"></div>
+          <span class="slide-thumb__marker" style="top: 14px; right: 12px;"></span>
+        </div>
+      </div>
+      <div class="slide-thumb__title">조직 이름</div>
+    </div>
+
+    <div class="slide-thumb">
+      <div class="slide-thumb__top">
+        <span>3</span>
+        <span class="slide-thumb__count">1</span>
+      </div>
+      <div class="slide-thumb__preview">
+        <div class="slide-thumb__mini">
+          <div class="r"></div><div class="r w70"></div>
+          <span class="slide-thumb__marker" style="top: 22px; left: 30px;"></span>
+        </div>
+      </div>
+      <div class="slide-thumb__title">지역 선택</div>
+    </div>
+
+    <div class="slide-thumb">
+      <div class="slide-thumb__top">
+        <span>4</span>
+        <span class="slide-thumb__count">1</span>
+      </div>
+      <div class="slide-thumb__preview">
+        <div class="slide-thumb__mini">
+          <div class="r"></div><div class="r w70"></div><div class="r w40"></div>
+          <span class="slide-thumb__marker" style="bottom: 10px; right: 14px;"></span>
+        </div>
+      </div>
+      <div class="slide-thumb__title">DB 비밀번호</div>
+    </div>
+
+    <div class="slide-thumb is-active">
+      <div class="slide-thumb__top">
+        <span>5</span>
+        <span class="slide-thumb__count">3</span>
+      </div>
+      <div class="slide-thumb__preview">
+        <div class="slide-thumb__mini">
+          <div class="r"></div><div class="r w70"></div><div class="r w40"></div>
+          <span class="slide-thumb__marker" style="top: 12px; left: 8px;"></span>
+          <span class="slide-thumb__marker" style="top: 30px; left: 14px;"></span>
+          <span class="slide-thumb__marker" style="bottom: 14px; right: 22px;"></span>
+        </div>
+      </div>
+      <div class="slide-thumb__title">Configure Google</div>
+    </div>
+
+    <div class="slide-thumb">
+      <div class="slide-thumb__top">
+        <span>6</span>
+        <span class="slide-thumb__count">0</span>
+      </div>
+      <div class="slide-thumb__preview">
+        <div class="slide-thumb__mini">
+          <div class="r"></div><div class="r w70"></div><div class="r w40"></div>
+        </div>
+      </div>
+      <div class="slide-thumb__title">로그인 테스트</div>
+    </div>
+
+    <button class="slide-add">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      단계 추가
+    </button>
+  </aside>
+
+  <!-- ───── Center canvas ───── -->
+  <section class="canvas-area" data-device="desktop" id="canvasArea">
+    <div class="canvas-toolbar">
+      <span class="canvas-toolbar__title">슬라이드 5</span>
+      <span class="canvas-toolbar__count">하이라이트 3</span>
+
+      <!-- Device switcher -->
+      <button class="canvas-device-chip" id="deviceChip" style="position: relative;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/></svg>
+        <span id="deviceChipLabel">데스크톱 · 1920×1080</span>
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+
+      <span class="canvas-toolbar__hint">빈 영역 클릭 → 하이라이트 추가 · 드래그 → 위치/크기 · 클릭 → 메뉴</span>
+      <span class="canvas-toolbar__zoom">
+        <button class="tool-btn" style="width:22px; height:22px;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        100%
+        <button class="tool-btn" style="width:22px; height:22px;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </span>
+
+      <!-- Device switcher popover -->
+      <div class="device-switcher" id="deviceSwitcher">
+        <div class="device-switcher__item is-active" data-device="desktop" data-label="데스크톱 · 1920×1080">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/></svg>
+          데스크톱
+          <span class="device-switcher__item-size">1920×1080</span>
+        </div>
+        <div class="device-switcher__item" data-device="tablet" data-label="태블릿 · 768×1024">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+          태블릿
+          <span class="device-switcher__item-size">768×1024</span>
+        </div>
+        <div class="device-switcher__item" data-device="mobile" data-label="모바일 · 375×812">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+          모바일
+          <span class="device-switcher__item-size">375×812</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas-surface">
+      <div class="canvas" id="canvas">
+        <div class="canvas-content">
+          <div class="shot">
+            <div class="shot__top">
+              <span class="d"></span><span class="d"></span><span class="d"></span>
+              <span class="url"></span>
+            </div>
+            <div class="shot__main">
+              <div class="shot__nav">
+                <div class="row m"></div><div class="row s"></div>
+                <div class="row active" style="width:70%"></div>
+                <div class="row m"></div><div class="row s"></div><div class="row m"></div>
+              </div>
+              <div class="shot__body">
+                <div class="h"></div>
+                <div class="row w70"></div>
+                <div class="row w90"></div>
+                <div class="shot__cards">
+                  <div class="c"></div><div class="c"></div><div class="c"></div>
+                </div>
+                <div class="row w70"></div>
+                <div style="margin-top:16px;">
+                  <span class="shot__btn">Configure provider</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Spotlight overlay (dims everything except highlights) -->
+          <svg class="annot-spotlight" preserveAspectRatio="none" viewBox="0 0 100 100" aria-hidden="true">
+            <defs>
+              <mask id="annotMask">
+                <rect width="100" height="100" fill="white"/>
+                <rect x="2"  y="14" width="14" height="6"  rx="0.4" fill="black"/>
+                <rect x="22" y="68" width="22" height="11" rx="0.4" fill="black"/>
+                <rect x="62" y="32" width="32" height="8"  rx="0.4" fill="black"/>
+              </mask>
+              <marker id="annotArrowHead" viewBox="0 0 10 10" markerWidth="6" markerHeight="6" refX="9" refY="5" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 Z" fill="#F59E0B"/>
+              </marker>
+            </defs>
+            <rect width="100" height="100" fill="rgba(10,10,15,0.50)" mask="url(#annotMask)"/>
+          </svg>
+
+          <!-- Annotation 1: top sidebar — Authentication -->
+          <div class="annot annot--hl" style="top:14%; left:2%; width:14%; height:6%;"></div>
+          <div class="annot annot--caption" style="top:9%; left:18%;">Click "Authentication"</div>
+          <svg class="annot annot--arrow" style="top:11%; left:14%; width:48px; height:34px;" viewBox="0 0 60 40" aria-hidden="true">
+            <path d="M 52 10 Q 30 6 4 18" stroke="#F59E0B" stroke-width="2.4" fill="none" stroke-linecap="round" marker-end="url(#annotArrowHead)"/>
+          </svg>
+
+          <!-- Annotation 2: Configure provider button (primary target) -->
+          <div class="annot annot--hl annot--hl-active" style="top:68%; left:22%; width:22%; height:11%;"></div>
+          <div class="annot annot--caption annot--caption-lg" style="top:54%; left:34%;">Click "Configure provider"</div>
+          <svg class="annot annot--arrow" style="top:60%; left:30%; width:56px; height:46px;" viewBox="0 0 70 56" aria-hidden="true">
+            <path d="M 8 6 Q 28 18 38 46" stroke="#F59E0B" stroke-width="2.6" fill="none" stroke-linecap="round" marker-end="url(#annotArrowHead)"/>
+          </svg>
+
+          <!-- Annotation 3: heading area — guidance label -->
+          <div class="annot annot--hl" style="top:32%; left:62%; width:32%; height:8%;"></div>
+          <div class="annot annot--caption" style="top:18%; left:64%;">Click here</div>
+          <svg class="annot annot--arrow" style="top:23%; left:74%; width:50px; height:54px;" viewBox="0 0 60 60" aria-hidden="true">
+            <path d="M 10 6 Q 40 22 30 52" stroke="#F59E0B" stroke-width="2.4" fill="none" stroke-linecap="round" marker-end="url(#annotArrowHead)"/>
+          </svg>
+
+          <!-- Context menu (visible by default for demo) -->
+          <div class="marker-menu" id="markerMenu" style="top: 80%; left: 28%;">
+            <div class="marker-menu__item">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+              주석 달기
+            </div>
+            <div class="marker-menu__item">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M8 11h6"/><path d="M11 8v6"/></svg>
+              줌인 영역
+            </div>
+            <div class="marker-menu__item is-on">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+              클릭 사운드
+              <span class="marker-menu__toggle"></span>
+            </div>
+            <div class="marker-menu__item">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+              타이핑 효과
+              <span class="marker-menu__toggle"></span>
+            </div>
+            <div class="marker-menu__sep"></div>
+            <div class="marker-menu__item is-danger">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+              하이라이트 삭제
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───── Bottom split: AI prompt (left) + Script editor (right) ───── -->
+  <div class="bottom-split">
+
+    <!-- AI prompt panel -->
+    <div class="bp">
+      <div class="bp__head">
+        <span class="bp__title">AI 자동 적용</span>
+        <span class="bp__ai-tag">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15 8 22 9 17 14 18 21 12 18 6 21 7 14 2 9 9 8"/></svg>
+          POST /api/generate-annotations
+        </span>
+      </div>
+      <div class="bp__body">
+        <div class="ai-prompt-area">
+          <textarea class="ai-prompt-area__input" placeholder="하이라이트할 영역과 멘트를 자연어로 입력하세요.&#10;예) Authentication 메뉴와 Configure 버튼을 강조해줘. 캡션은 'Click X' 형식으로.">Authentication 메뉴와 Configure provider 버튼을 강조해줘. 주변은 어둡게, 캡션은 Click "X" 형식으로 보여줘.</textarea>
+
+          <div class="ai-prompt-area__suggestions">
+            <span class="ai-prompt-chip">주요 버튼 강조</span>
+            <span class="ai-prompt-chip">주변 어둡게</span>
+            <span class="ai-prompt-chip">화살표 추가</span>
+            <span class="ai-prompt-chip">캡션 친근하게</span>
+          </div>
+
+          <div class="ai-prompt-area__foot">
+            <span class="ai-prompt-area__hint">대상 슬라이드: <code>5번 · Configure Google provider</code></span>
+            <button class="ai-apply-btn">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              AI 자동 적용
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Script editor panel -->
+    <div class="bp">
+      <div class="bp__head">
+        <span class="bp__title">스크립트 (자막 + 음성)</span>
+        <span class="bp__meta">⏱ TTS 예상 8.2초 · 하이라이트 3개</span>
+      </div>
+      <div class="bp__body">
+        <div class="script-area">
+          <div class="script-area__editor">
+            <textarea class="script-area__textarea" id="scriptInput" style="display:none;">좌측 사이드바의 Authentication 메뉴를 선택한 다음, 하단 중앙의 Configure provider 버튼을 클릭하면 Google 로그인 설정 폼이 열립니다.</textarea>
+
+            <!-- Preview with highlighted action tokens -->
+            <div class="script-area__preview" id="scriptPreview">
+              좌측 사이드바의 <span class="highlight-token">Authentication</span> 메뉴를 선택한 다음,
+              하단 중앙의 <span class="highlight-token">Configure provider</span> 버튼을 클릭하면 Google 로그인 설정 폼이 열립니다.
+            </div>
+          </div>
+
+          <div class="script-area__foot">
+            <span class="script-area__meta">
+              <span class="script-area__meta-item">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                자동 저장
+              </span>
+            </span>
+            <div class="script-area__actions">
+              <button class="script-action-btn script-action-btn--play" id="ttsBtn">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                미리듣기
+              </button>
+              <button class="script-action-btn script-action-btn--ai">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15 8 22 9 17 14 18 21 12 18 6 21 7 14 2 9 9 8"/></svg>
+                AI 재생성
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/*
+ * Handoff notes:
+ *  - Canvas should be react-konva Stage + Layer (markers = draggable Circle + Text)
+ *  - Empty click → add marker w/ next number
+ *  - Marker click → setSelectedMarker + open marker-menu at mouse position
+ *  - AI Apply → POST /api/generate-annotations { tutorial_id, slide_id, prompt }
+ *  - Preview ↔ textarea swap is for demo — production uses contenteditable with
+ *    auto-highlight via regex (①②③ → marker-token spans)
+ *  - TTS button → POST /api/tts { text } → audio.play()
+ */
+
+// Device switcher
+const deviceChip = document.getElementById('deviceChip');
+const deviceSwitcher = document.getElementById('deviceSwitcher');
+const canvasArea = document.getElementById('canvasArea');
+if (deviceChip) {
+  deviceChip.addEventListener('click', (e) => {
+    e.stopPropagation();
+    deviceSwitcher.classList.toggle('is-open');
+  });
+  document.addEventListener('click', (e) => {
+    if (!deviceSwitcher.contains(e.target) && !deviceChip.contains(e.target)) {
+      deviceSwitcher.classList.remove('is-open');
+    }
+  });
+  document.querySelectorAll('.device-switcher__item').forEach(item => {
+    item.addEventListener('click', () => {
+      document.querySelectorAll('.device-switcher__item').forEach(x => x.classList.remove('is-active'));
+      item.classList.add('is-active');
+      canvasArea.dataset.device = item.dataset.device;
+      document.getElementById('deviceChipLabel').textContent = item.dataset.label;
+      deviceSwitcher.classList.remove('is-open');
+    });
+  });
+}
+
+// Marker click → toggle context menu (demo)
+document.querySelectorAll('.marker').forEach(m => {
+  m.addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.querySelectorAll('.marker').forEach(x => x.classList.remove('is-selected'));
+    m.classList.add('is-selected');
+
+    const menu = document.getElementById('markerMenu');
+    const canvas = document.getElementById('canvas');
+    const cRect = canvas.getBoundingClientRect();
+    const mRect = m.getBoundingClientRect();
+    menu.style.top = (mRect.bottom - cRect.top + 8) + 'px';
+    menu.style.left = (mRect.left - cRect.left) + 'px';
+  });
+});
+document.getElementById('canvas').addEventListener('click', (e) => {
+  if (e.target.id === 'canvas' || e.target.classList.contains('canvas-content')) {
+    document.getElementById('markerMenu').style.display = 'none';
+  }
+});
+
+// Toggle items in marker menu
+document.querySelectorAll('.marker-menu__toggle').forEach(t => {
+  t.addEventListener('click', (e) => {
+    e.stopPropagation();
+    t.parentElement.classList.toggle('is-on');
+  });
+});
+
+// TTS preview button toggle
+let ttsPlaying = false;
+document.getElementById('ttsBtn').addEventListener('click', (e) => {
+  const btn = e.currentTarget;
+  ttsPlaying = !ttsPlaying;
+  if (ttsPlaying) {
+    btn.innerHTML = `<span class="tts-mini-player__bars"><span style="height:6px"></span><span style="height:10px"></span><span style="height:4px"></span><span style="height:8px"></span></span> 재생 중`;
+    btn.classList.remove('script-action-btn--play');
+    btn.classList.add('script-action-btn--ai');
+    setTimeout(() => {
+      ttsPlaying = false;
+      btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg> 미리듣기`;
+      btn.classList.add('script-action-btn--play');
+      btn.classList.remove('script-action-btn--ai');
+    }, 4000);
+  }
+});
+
+// Suggestion chips → insert into textarea
+document.querySelectorAll('.ai-prompt-chip').forEach(c => {
+  c.addEventListener('click', () => {
+    const ta = document.querySelector('.ai-prompt-area__input');
+    ta.value += (ta.value && !ta.value.endsWith(' ') ? ' ' : '') + c.textContent.trim();
+    ta.focus();
+  });
+});
+
+// Slide thumb selection
+document.querySelectorAll('.slide-thumb').forEach(s => {
+  s.addEventListener('click', () => {
+    document.querySelectorAll('.slide-thumb').forEach(x => x.classList.remove('is-active'));
+    s.classList.add('is-active');
+  });
+});
+</script>
+</body>
+</html>

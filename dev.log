@@ -1,0 +1,24 @@
+
+> mimic-app@0.1.0 dev
+> next dev
+
+ ⚠ Port 3000 is in use, trying 3001 instead.
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3001
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 1616ms
+ ✓ Compiled /middleware in 384ms (126 modules)
+ ○ Compiling / ...
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (101kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (231kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+ ✓ Compiled / in 1746ms (556 modules)
+ GET / 200 in 1895ms
+ ✓ Compiled in 178ms (264 modules)
+ ✓ Compiled in 170ms (264 modules)
+ ✓ Compiled in 114ms (269 modules)
+ ✓ Compiled in 73ms (264 modules)
+ ✓ Compiled in 187ms (264 modules)
+ ✓ Compiled in 176ms (264 modules)
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename 'C:\Users\ADMIN\Desktop\Project\Dev\mimic\.next\cache\webpack\client-development\1.pack.gz_' -> 'C:\Users\ADMIN\Desktop\Project\Dev\mimic\.next\cache\webpack\client-development\1.pack.gz'

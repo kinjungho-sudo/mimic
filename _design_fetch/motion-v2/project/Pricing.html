@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>요금제 — MIMIC</title>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet" />
+<link rel="stylesheet" href="landing.css?v=4" />
+<link rel="stylesheet" href="extras.css?v=4" />
+</head>
+<body data-screen-label="09 Pricing">
+
+<!-- Reuse landing header -->
+<header class="site-header">
+  <div class="container site-header__inner">
+    <a href="Landing.html" class="brand">
+      <span class="brand__mark"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3.2" y="5.2" width="11" height="2.4" rx="1.2" fill="white" fill-opacity="0.5"/><rect x="3.2" y="10.8" width="14" height="2.4" rx="1.2" fill="white"/><rect x="3.2" y="16.4" width="8" height="2.4" rx="1.2" fill="white" fill-opacity="0.5"/><circle cx="18.7" cy="17.6" r="3.6" fill="white"/><path d="M17.6 16.1 L20.1 17.6 L17.6 19.1 Z" fill="#4F46E5"/></svg></span>
+      MIMIC
+    </a>
+    <nav class="nav">
+      <a href="Landing.html#features">기능</a>
+      <a href="Landing.html#how">사용 방법</a>
+      <a href="Pricing.html" style="color: var(--primary); font-weight: 500;">요금제</a>
+      <a href="Landing.html#b2b">기업 문의</a>
+      <a href="Landing.html#faq">FAQ</a>
+    </nav>
+    <div class="header-cta">
+      <a href="Login.html" class="btn btn--ghost">로그인</a>
+      <a href="Signup.html" class="btn btn--primary">무료로 시작</a>
+    </div>
+  </div>
+</header>
+
+<!-- Hero -->
+<section class="pricing-page-hero">
+  <span class="eyebrow"><span class="eyebrow__dot"></span> 합리적인 가격</span>
+  <h1>필요한 만큼만 결제하세요</h1>
+  <p>기본 매뉴얼은 누구나 무료로. 진짜 필요할 때만 업그레이드하세요.</p>
+
+  <div class="billing-toggle__wrap">
+    <div class="billing-toggle">
+      <button id="billMonth" class="is-active">월간 결제</button>
+      <button id="billYear">연간 결제 <span class="save">2개월 무료</span></button>
+    </div>
+  </div>
+</section>
+
+<!-- 3-tier pricing (reused from landing) -->
+<section class="container" style="padding-bottom: 80px;">
+  <div class="pricing">
+    <!-- Free -->
+    <div class="price">
+      <div class="price__icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 L4 8 v4 a8 8 0 0 0 16 0 v-4 z"/></svg>
+      </div>
+      <div class="price__name">Free</div>
+      <div class="price__sub">신용카드 없이 바로 시작</div>
+      <div class="price__amount">₩0<span class="per"> / 월</span></div>
+      <button class="btn btn--outline price__cta" disabled>현재 플랜</button>
+      <ul class="price__features">
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg> 매일 매뉴얼 3개</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg> 기본 매뉴얼 작성</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg> Chrome 확장 설치</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg> 텍스트·도형 편집</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg> 링크 공유 + PDF</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg> 500MB 저장 공간</li>
+      </ul>
+    </div>
+    <!-- Elite -->
+    <div class="price price--featured">
+      <span class="price__badge">가장 인기</span>
+      <div class="price__icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/></svg></div>
+      <div class="price__name">Elite</div>
+      <div class="price__sub">개인 크리에이터를 위한 플랜</div>
+      <div class="price__amount" data-monthly="₩9,000" data-yearly="₩7,500">₩9,000<span class="per"> / 월</span></div>
+      <button class="btn btn--primary price__cta">Elite로 업그레이드</button>
+      <ul class="price__features">
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg> 기본 매뉴얼 <b>무제한</b></li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg> 튜토리얼 매뉴얼 하루 10개</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg> AI 다듬기 무제한</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg> 줌인 + 자막 효과</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg> HTML·MD 내보내기</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg> 5GB 저장 공간</li>
+      </ul>
+    </div>
+    <!-- Pro -->
+    <div class="price">
+      <div class="price__icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4l4 12h12l4-12-6 4-4-6-4 6z"/><line x1="2" y1="20" x2="22" y2="20"/></svg></div>
+      <div class="price__name">Pro</div>
+      <div class="price__sub">파워 유저와 전문가를 위한 플랜</div>
+      <div class="price__amount" data-monthly="₩15,000" data-yearly="₩12,500">₩15,000<span class="per"> / 월</span></div>
+      <button class="btn btn--outline price__cta">Pro로 업그레이드</button>
+      <ul class="price__features">
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg> 튜토리얼 매뉴얼 <b>무제한</b></li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg> AI 음성 <span class="phase-badge">Phase 3</span></li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg> 우선 처리</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg> 비공개 + 비밀번호</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg> 무제한 저장 공간</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg> 우선 지원</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- Detailed comparison table -->
+<section class="compare-section">
+  <h2>기능별 상세 비교</h2>
+  <table class="compare-table">
+    <thead>
+      <tr>
+        <th>기능</th>
+        <th class="center">Free</th>
+        <th class="center col-elite-th">Elite</th>
+        <th class="center">Pro</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="feat-name">기본 매뉴얼 작성</td>
+        <td class="center">매일 3개</td>
+        <td class="center col-elite compare-bold">무제한</td>
+        <td class="center compare-bold">무제한</td>
+      </tr>
+      <tr>
+        <td class="feat-name">인터랙티브 튜토리얼</td>
+        <td class="center compare-dash">—</td>
+        <td class="center col-elite compare-bold">하루 10개</td>
+        <td class="center compare-bold">무제한</td>
+      </tr>
+      <tr>
+        <td class="feat-name">AI 다듬기 펜</td>
+        <td class="center">월 30회</td>
+        <td class="center col-elite compare-bold">무제한</td>
+        <td class="center compare-bold">무제한</td>
+      </tr>
+      <tr>
+        <td class="feat-name">Vrew 스타일 줌인 효과</td>
+        <td class="center compare-dash">—</td>
+        <td class="center col-elite"><span class="compare-check">✓</span></td>
+        <td class="center"><span class="compare-check">✓</span></td>
+      </tr>
+      <tr>
+        <td class="feat-name">AI 자막 자동 생성</td>
+        <td class="center"><span class="compare-check">✓</span></td>
+        <td class="center col-elite"><span class="compare-check">✓</span></td>
+        <td class="center"><span class="compare-check">✓</span></td>
+      </tr>
+      <tr>
+        <td class="feat-name">AI 음성 더빙 <span class="phase-badge">Phase 3</span></td>
+        <td class="center compare-dash">—</td>
+        <td class="center col-elite compare-dash">—</td>
+        <td class="center"><span class="compare-check">✓</span></td>
+      </tr>
+      <tr>
+        <td class="feat-name">출력 비율 (16:9 · 1:1 · 9:16)</td>
+        <td class="center"><span class="compare-check">✓</span></td>
+        <td class="center col-elite"><span class="compare-check">✓</span></td>
+        <td class="center"><span class="compare-check">✓</span></td>
+      </tr>
+      <tr>
+        <td class="feat-name">내보내기</td>
+        <td class="center">PDF</td>
+        <td class="center col-elite compare-bold">PDF · HTML · MD</td>
+        <td class="center compare-bold">전체</td>
+      </tr>
+      <tr>
+        <td class="feat-name">비공개 + 비밀번호 보호</td>
+        <td class="center compare-dash">—</td>
+        <td class="center col-elite compare-dash">—</td>
+        <td class="center"><span class="compare-check">✓</span></td>
+      </tr>
+      <tr>
+        <td class="feat-name">저장 공간</td>
+        <td class="center">500MB</td>
+        <td class="center col-elite compare-bold">5GB</td>
+        <td class="center compare-bold">무제한</td>
+      </tr>
+      <tr>
+        <td class="feat-name">우선 처리 + 우선 지원</td>
+        <td class="center compare-dash">—</td>
+        <td class="center col-elite compare-dash">—</td>
+        <td class="center"><span class="compare-check">✓</span></td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- FAQ -->
+<section class="container" id="faq" style="padding-bottom: 80px;">
+  <span class="section__eyebrow">FAQ</span>
+  <h2 class="section__title">자주 묻는 질문</h2>
+  <div class="faq-list" style="margin-top: 40px;">
+    <div class="faq is-open">
+      <button class="faq__q">언제든 취소할 수 있나요? <span class="faq__icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span></button>
+      <div class="faq__a">네, 마이페이지에서 언제든 구독을 해지할 수 있어요. 해지 후에도 결제한 기간까지는 모든 기능을 그대로 사용하실 수 있습니다.</div>
+    </div>
+    <div class="faq">
+      <button class="faq__q">무료 플랜의 매뉴얼은 어떻게 보관되나요? <span class="faq__icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span></button>
+      <div class="faq__a">무료 플랜에서 만든 매뉴얼은 영구 보관됩니다. 매일 만들 수 있는 개수만 3개로 제한되며, 기존에 만든 매뉴얼 열람·편집·공유는 평생 자유롭게 가능합니다.</div>
+    </div>
+    <div class="faq">
+      <button class="faq__q">어떤 결제 방법을 지원하나요? <span class="faq__icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span></button>
+      <div class="faq__a">국내·해외 주요 신용카드와 카카오페이, 토스페이를 지원합니다. 기업 결제는 세금계산서 발행이 가능합니다.</div>
+    </div>
+    <div class="faq">
+      <button class="faq__q">플랜은 자유롭게 변경할 수 있나요? <span class="faq__icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span></button>
+      <div class="faq__a">언제든 업그레이드·다운그레이드할 수 있어요. 업그레이드는 즉시 반영되고, 다운그레이드는 다음 결제 주기부터 적용됩니다.</div>
+    </div>
+    <div class="faq">
+      <button class="faq__q">환불 정책은 어떻게 되나요? <span class="faq__icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span></button>
+      <div class="faq__a">결제 후 7일 이내, 유료 기능을 한 번도 사용하지 않은 경우 전액 환불이 가능합니다.</div>
+    </div>
+    <div class="faq">
+      <button class="faq__q">팀이나 회사 단위로 사용하려면? <span class="faq__icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span></button>
+      <div class="faq__a">팀 워크스페이스 기능이 곧 출시됩니다. 우선 사용을 원하시면 기업 데모 신청을 통해 베타 액세스를 받으실 수 있습니다.</div>
+    </div>
+  </div>
+</section>
+
+<script>
+  document.querySelectorAll('.faq__q').forEach(q => q.addEventListener('click', () => q.parentElement.classList.toggle('is-open')));
+  const bm = document.getElementById('billMonth');
+  const by = document.getElementById('billYear');
+  function setBilling(p) {
+    bm.classList.toggle('is-active', p === 'month');
+    by.classList.toggle('is-active', p === 'year');
+    document.querySelectorAll('.price__amount[data-monthly]').forEach(el => {
+      el.firstChild.textContent = p === 'month' ? el.dataset.monthly : el.dataset.yearly;
+    });
+  }
+  bm.addEventListener('click', () => setBilling('month'));
+  by.addEventListener('click', () => setBilling('year'));
+</script>
+</body>
+</html>
