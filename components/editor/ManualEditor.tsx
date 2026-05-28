@@ -701,7 +701,7 @@ function AnnotationPreview({ annotations }: { annotations: Annotation[] }) {
           );
         }
         if (type === 'text' && a.text) return (
-          <text key={a.id} x={`${x1}%`} y={`${y1}%`} fill={color} fontSize="1.8%" fontWeight="600" dominantBaseline="text-before-edge" stroke="rgba(0,0,0,0.5)" strokeWidth="0.3%" paintOrder="stroke">{a.text}</text>
+          <text key={a.id} x={`${x1}%`} y={`${y1}%`} fill={color} fontSize="1.8%" fontWeight="600" dominantBaseline="text-before-edge" stroke="rgba(0,0,0,0.5)" strokeWidth="0.3%" style={{ paintOrder: 'stroke' }}>{a.text}</text>
         );
         return null;
       })}
