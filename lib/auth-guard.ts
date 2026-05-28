@@ -61,11 +61,15 @@ export async function requireExtensionToken(
   const supabase = createServiceRoleClient();
   const { data: tokenRow } = await supabase
     .from('mm_extension_tokens')
-    .select('user_id, used_at, expires_at')
+    .select('user_id, used_at, expires_at, kind')
     .eq('token', token)
     .single();
 
   if (!tokenRow) {
+    return { ok: false, response: NextResponse.json({ error: 'Invalid token' }, { status: 401 }) };
+  }
+  // 링크 토큰(kind='link')은 API 호출에 사용 불가 — redeem 전용
+  if (tokenRow.kind !== 'session') {
     return { ok: false, response: NextResponse.json({ error: 'Invalid token' }, { status: 401 }) };
   }
   if (new Date(tokenRow.expires_at) < new Date()) {

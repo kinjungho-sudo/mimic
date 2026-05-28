@@ -9,17 +9,6 @@ export async function POST(request: NextRequest) {
 
   const supabase = createServiceRoleClient();
 
-  // 토큰으로 user_id 조회
-  const { data: tokenRow } = await supabase
-    .from('mm_extension_tokens')
-    .select('user_id')
-    .eq('token', auth.token)
-    .single();
-
-  if (!tokenRow) {
-    return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-  }
-
   let body: unknown;
   try {
     body = await request.json();
@@ -34,20 +23,30 @@ export async function POST(request: NextRequest) {
 
   const d = parsed.data;
 
-  // mm_capture_events에 저장 (NA_steps 테이블 없음)
-  const { data: sessionRow } = await supabase
+  // session_id로 기존 세션 조회, 없으면 자동 생성
+  let sessionId: string = d.session_id;
+  const { data: existingSession } = await supabase
     .from('mm_capture_sessions')
-    .select('id')
-    .eq('user_id', tokenRow.user_id)
-    .eq('status', 'active')
-    .order('started_at', { ascending: false })
-    .limit(1)
+    .select('id, status')
+    .eq('id', d.session_id)
+    .eq('user_id', auth.userId)
     .single();
 
-  if (!sessionRow) {
-    return NextResponse.json({ error: 'No active capture session' }, { status: 409 });
+  if (!existingSession) {
+    // 세션이 없으면 자동 생성 (recorder가 start API를 호출하지 않는 경우)
+    const { data: newSession, error: sessionError } = await supabase
+      .from('mm_capture_sessions')
+      .insert({ id: d.session_id, user_id: auth.userId, status: 'active' })
+      .select('id')
+      .single();
+
+    if (sessionError || !newSession) {
+      return NextResponse.json({ error: 'Failed to create session' }, { status: 500 });
+    }
+    sessionId = newSession.id;
+  } else if (existingSession.status === 'done') {
+    return NextResponse.json({ error: 'Session already finalized' }, { status: 409 });
   }
-  const sessionId = sessionRow.id;
 
   const { data: step, error } = await supabase
     .from('mm_capture_events')
@@ -58,6 +57,8 @@ export async function POST(request: NextRequest) {
       click_y: Math.round(d.click_y * 10000),
       url: d.url,
       element_text: d.title,
+      ai_title: d.title || null,
+      ai_description: d.description || null,
     })
     .select('id')
     .single();

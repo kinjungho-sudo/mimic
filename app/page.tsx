@@ -145,7 +145,7 @@ export default function LandingPage() {
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [demoOpen, setDemoOpen] = useState(false);
-  const [proModal, setProModal] = useState<'elite' | 'pro' | null>(null);
+  const [proModal, setProModal] = useState<'pro' | 'team' | null>(null);
   const [proEmail, setProEmail] = useState('');
   const [proSubmitted, setProSubmitted] = useState(false);
 
@@ -170,13 +170,13 @@ export default function LandingPage() {
       await fetch('/api/pro-signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: proEmail, plan_interested: proModal === 'elite' ? 'pro' : 'pro', source: 'landing' }),
+        body: JSON.stringify({ email: proEmail, plan_interested: proModal === 'pro' ? 'pro' : 'team', source: 'landing' }),
       });
       setProSubmitted(true);
     } catch { /* ignore */ }
   };
 
-  const prices = { elite: billing === 'month' ? '₩9,000' : '₩7,500', pro: billing === 'month' ? '₩15,000' : '₩12,500' };
+  const prices = { pro: billing === 'month' ? '₩9,900' : '₩8,250' };
 
   const faqs = [
     { q: '언제든 취소할 수 있나요?', a: '네, 마이페이지에서 언제든 구독을 해지할 수 있어요. 해지 후에도 결제한 기간까지는 모든 기능을 그대로 사용하실 수 있습니다.' },
@@ -220,17 +220,17 @@ export default function LandingPage() {
               <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '52px', height: '52px', borderRadius: '14px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', marginBottom: '16px' }}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
               </div>
-              <div style={{ fontSize: '20px', fontWeight: 700, color: '#0D0D14', marginBottom: '6px' }}>{proModal === 'elite' ? 'Elite' : 'Pro'} 플랜 사전예약</div>
-              <p style={{ fontSize: '14px', color: '#6B7280', lineHeight: 1.6, margin: 0 }}>출시 즉시 알림 + 얼리버드 할인 혜택을 드립니다.</p>
+              <div style={{ fontSize: '20px', fontWeight: 700, color: '#0D0D14', marginBottom: '6px' }}>{proModal === 'pro' ? 'Pro' : 'Team'} 플랜 사전예약</div>
+              <p style={{ fontSize: '14px', color: '#6B7280', lineHeight: 1.6, margin: 0 }}>{proModal === 'pro' ? '출시 즉시 알림 + 얼리버드 할인 혜택을 드립니다.' : '담당자가 직접 연락드려 요금과 도입 조건을 안내해 드립니다.'}</p>
             </div>
             {!proSubmitted ? (
               <form onSubmit={handleProPlanSignup}>
                 <input type="email" value={proEmail} onChange={e => setProEmail(e.target.value)} placeholder="이메일 주소" required style={{ width: '100%', height: '46px', padding: '0 14px', border: '1.5px solid #E5E7EB', borderRadius: '10px', fontSize: '14px', color: '#111827', outline: 'none', boxSizing: 'border-box', marginBottom: '12px', fontFamily: 'inherit' }} />
-                <button type="submit" style={{ width: '100%', height: '46px', borderRadius: '10px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', fontWeight: 700, fontSize: '14px', border: 'none', cursor: 'pointer' }}>사전예약 신청하기</button>
+                <button type="submit" style={{ width: '100%', height: '46px', borderRadius: '10px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', fontWeight: 700, fontSize: '14px', border: 'none', cursor: 'pointer' }}>{proModal === 'pro' ? '사전예약 신청하기' : '도입 문의 신청하기'}</button>
               </form>
             ) : (
               <div style={{ textAlign: 'center', padding: '16px', background: '#F0FDF4', borderRadius: '12px', color: '#15803D', fontSize: '14px', fontWeight: 500 }}>
-                ✓ 등록되었습니다. 출시일에 가장 먼저 알려드릴게요!
+                ✓ {proModal === 'pro' ? '등록되었습니다. 출시일에 가장 먼저 알려드릴게요!' : '접수되었습니다. 담당자가 곧 연락드릴게요!'}
               </div>
             )}
             <button onClick={() => { setProModal(null); setProSubmitted(false); setProEmail(''); }} style={{ width: '100%', marginTop: '12px', padding: '10px', background: 'none', border: 'none', color: '#9CA3AF', fontSize: '13px', cursor: 'pointer' }}>닫기</button>
@@ -552,21 +552,36 @@ export default function LandingPage() {
           </div>
 
           <div className="pricing-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', maxWidth: '1100px', margin: '0 auto' }}>
-            {[
-              { name: 'Free', sub: '신용카드 없이 바로 시작', amount: '₩0', per: '/ 월', featured: false, planKey: null as null | 'elite' | 'pro', features: ['매일 매뉴얼 3개', '기본 매뉴얼 작성', 'MIMIC Recorder 확장 설치', '텍스트·도형 편집', '링크 공유 + PDF', '500MB 저장 공간'], cta: '무료로 시작' },
-              { name: 'Elite', sub: '개인 크리에이터를 위한 플랜', amount: prices.elite, per: '/ 월', featured: true, planKey: 'elite' as const, features: ['기본 매뉴얼 무제한', '튜토리얼 매뉴얼 하루 10개', 'AI 다듬기 무제한', '줌인 + 자막 효과 (출시 예정)', 'HTML·MD 내보내기', '5GB 저장 공간'], cta: '출시 알림 받기' },
-              { name: 'Pro', sub: '파워 유저와 전문가를 위한 플랜', amount: prices.pro, per: '/ 월', featured: false, planKey: 'pro' as const, features: ['튜토리얼 매뉴얼 무제한', 'AI 음성 (출시 예정)', '우선 처리', '비공개 + 비밀번호', '무제한 저장 공간', '우선 지원'], cta: '출시 알림 받기' },
-            ].map(plan => (
+            {([
+              {
+                name: 'Free', sub: '신용카드 없이 바로 시작', amount: '₩0', per: '/ 월', featured: false,
+                planKey: null as null | 'pro' | 'team',
+                features: ['매일 매뉴얼 3개', '기본 매뉴얼 작성', 'MIMIC Recorder 확장 설치', '텍스트·도형 편집', '링크 공유 + PDF', '500MB 저장 공간'],
+                cta: '무료로 시작',
+              },
+              {
+                name: 'Pro', sub: '개인 크리에이터와 파워 유저', amount: prices.pro, per: '/ 월', featured: true,
+                planKey: 'pro' as const,
+                features: ['매뉴얼 무제한 생성', 'AI 다듬기 무제한', '줌인 + 자막 효과 (출시 예정)', 'AI 음성 (출시 예정)', 'HTML·MD 내보내기', '비공개 + 비밀번호 보호', '5GB 저장 공간'],
+                cta: '출시 알림 받기',
+              },
+              {
+                name: 'Team', sub: '팀·기업을 위한 맞춤 플랜', amount: '협의', per: '', featured: false,
+                planKey: 'team' as const,
+                features: ['Pro 플랜 모든 기능', '팀 워크스페이스', '멤버 권한 관리', '무제한 저장 공간', '전용 온보딩 지원', '세금계산서 발행', '우선 지원 (SLA)'],
+                cta: '도입 문의하기',
+              },
+            ] as const).map(plan => (
               <div key={plan.name} style={{ background: 'white', border: plan.featured ? '2px solid #4F46E5' : '1.5px solid #E5E7EB', borderRadius: '20px', padding: '36px 28px', position: 'relative', transform: plan.featured ? 'translateY(-10px)' : 'none', boxShadow: plan.featured ? '0 16px 48px rgba(79,70,229,0.12), 0 4px 12px rgba(17,24,39,0.06)' : 'none' }}>
                 {plan.featured && <span style={{ position: 'absolute', top: '-13px', left: '50%', transform: 'translateX(-50%)', background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', color: 'white', padding: '5px 14px', borderRadius: '999px', fontSize: '11.5px', fontWeight: 600, whiteSpace: 'nowrap' }}>가장 인기</span>}
                 <div style={{ fontSize: '14px', fontWeight: 700, color: plan.featured ? '#4F46E5' : '#6B7280', marginBottom: '4px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>{plan.name}</div>
                 <div style={{ fontSize: '13px', color: '#9CA3AF', marginBottom: '24px' }}>{plan.sub}</div>
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', marginBottom: '24px' }}>
-                  <span style={{ fontSize: '42px', fontWeight: 700, letterSpacing: '-0.03em', color: '#0D0D14', lineHeight: 1 }}>{plan.amount}</span>
-                  <span style={{ fontSize: '13.5px', color: '#9CA3AF', fontWeight: 400, paddingBottom: '4px' }}>{plan.per}</span>
+                  <span style={{ fontSize: plan.amount === '협의' ? '32px' : '42px', fontWeight: 700, letterSpacing: '-0.03em', color: '#0D0D14', lineHeight: 1 }}>{plan.amount}</span>
+                  {plan.per && <span style={{ fontSize: '13.5px', color: '#9CA3AF', fontWeight: 400, paddingBottom: '4px' }}>{plan.per}</span>}
                 </div>
                 {plan.planKey ? (
-                  <button onClick={() => { setProModal(plan.planKey); setProSubmitted(false); setProEmail(''); }} style={{ display: 'block', width: '100%', margin: '0 0 28px', padding: '13px 0', borderRadius: '10px', fontSize: '14px', fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: plan.featured ? 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)' : 'white', color: plan.featured ? 'white' : '#374151', border: plan.featured ? 'none' : '1.5px solid #E5E7EB', boxShadow: plan.featured ? '0 4px 12px rgba(79,70,229,0.28)' : 'none', fontFamily: 'inherit' }}>{plan.cta}</button>
+                  <button onClick={() => { setProModal(plan.planKey as 'pro' | 'team'); setProSubmitted(false); setProEmail(''); }} style={{ display: 'block', width: '100%', margin: '0 0 28px', padding: '13px 0', borderRadius: '10px', fontSize: '14px', fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: plan.featured ? 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)' : 'white', color: plan.featured ? 'white' : '#374151', border: plan.featured ? 'none' : '1.5px solid #E5E7EB', boxShadow: plan.featured ? '0 4px 12px rgba(79,70,229,0.28)' : 'none', fontFamily: 'inherit' }}>{plan.cta}</button>
                 ) : (
                   <Link href="/auth/signup" style={{ display: 'block', width: '100%', margin: '0 0 28px', padding: '13px 0', borderRadius: '10px', fontSize: '14px', fontWeight: 600, textAlign: 'center', textDecoration: 'none', background: 'white', color: '#374151', border: '1.5px solid #E5E7EB' }}>{plan.cta}</Link>
                 )}

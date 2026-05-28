@@ -16,6 +16,19 @@ export async function GET() {
   return NextResponse.json({ users: data });
 }
 
+export async function DELETE(request: Request) {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth.response;
+
+  const { userId } = await request.json();
+  if (!userId) return NextResponse.json({ error: 'userId required' }, { status: 400 });
+
+  const service = createServiceRoleClient();
+  const { error } = await service.auth.admin.deleteUser(userId);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ success: true });
+}
+
 export async function PATCH(request: Request) {
   const auth = await requireAdmin();
   if (!auth.ok) return auth.response;
@@ -23,7 +36,7 @@ export async function PATCH(request: Request) {
   const { userId, plan } = await request.json();
   if (!userId || !plan) return NextResponse.json({ error: 'userId and plan required' }, { status: 400 });
 
-  const validPlans = ['free', 'pro_waitlist', 'pro', 'team'];
+  const validPlans = ['free', 'pro', 'team'];
   if (!validPlans.includes(plan)) return NextResponse.json({ error: 'Invalid plan' }, { status: 400 });
 
   const service = createServiceRoleClient();

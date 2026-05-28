@@ -41,15 +41,12 @@ export default function MyPage() {
   const [nameLoading, setNameLoading] = useState(false);
   const [nameError, setNameError] = useState('');
 
-  const [marketingChecked, setMarketingChecked] = useState<boolean | null>(null);
-
   const [avatarLoading, setAvatarLoading] = useState(false);
 
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleteInput, setDeleteInput] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const currentMarketing = marketingChecked !== null ? marketingChecked : (user?.agreements?.marketing ?? false);
   const usedToday = user?.daily_manual_count ?? 0;
   const dailyLimit = user?.daily_limit ?? 3;
   const usagePercent = Math.min((usedToday / dailyLimit) * 100, 100);
@@ -349,25 +346,6 @@ export default function MyPage() {
                 재설정 이메일 받기
               </button>
             )}
-          </div>
-        </div>
-
-        {/* ── 알림 & 동의 ── */}
-        <div style={{ background: 'white', border: '1px solid #E5E7EB', borderRadius: '14px', overflow: 'hidden', marginBottom: '20px' }}>
-          <div style={{ padding: '14px 20px', borderBottom: '1px solid #F3F4F6' }}>
-            <h2 style={{ fontSize: '11px', fontWeight: 600, color: '#9CA3AF', margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>알림 & 동의</h2>
-          </div>
-          <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <div style={{ fontSize: '13.5px', fontWeight: 500, color: '#111827', marginBottom: '2px' }}>마케팅 이메일 수신</div>
-              <div style={{ fontSize: '12px', color: '#9CA3AF' }}>새 기능 소식 및 업데이트 뉴스레터</div>
-            </div>
-            <button
-              onClick={() => setMarketingChecked(!currentMarketing)}
-              style={{ width: '40px', height: '22px', borderRadius: '11px', background: currentMarketing ? '#4F46E5' : '#E5E7EB', border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}
-            >
-              <span style={{ position: 'absolute', top: '3px', left: currentMarketing ? '21px' : '3px', width: '16px', height: '16px', borderRadius: '50%', background: 'white', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.15)' }} />
-            </button>
           </div>
         </div>
 

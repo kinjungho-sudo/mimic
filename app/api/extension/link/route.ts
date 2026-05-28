@@ -8,12 +8,13 @@ export async function POST(request: NextRequest) {
   if (!auth.ok) return auth.response;
 
   const token = randomBytes(32).toString('hex');
-  const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5분
+  const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5분 (일회성 링크 토큰)
 
   const supabase = createServiceRoleClient();
   const { error } = await supabase.from('mm_extension_tokens').insert({
     user_id: auth.userId,
     token,
+    kind: 'link',
     expires_at: expiresAt.toISOString(),
   });
 

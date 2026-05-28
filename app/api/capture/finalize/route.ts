@@ -8,19 +8,7 @@ export async function POST(request: NextRequest) {
   if (!auth.ok) return auth.response;
 
   const supabase = createServiceRoleClient();
-
-  // 토큰으로 user_id 조회
-  const { data: tokenRow } = await supabase
-    .from('mm_extension_tokens')
-    .select('user_id')
-    .eq('token', auth.token)
-    .single();
-
-  if (!tokenRow) {
-    return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-  }
-
-  const userId = tokenRow.user_id;
+  const userId = auth.userId;
 
   let body: unknown;
   try {

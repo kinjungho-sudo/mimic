@@ -6,7 +6,7 @@ interface User {
   id: string;
   email: string;
   name: string;
-  plan: 'free' | 'pro_waitlist' | 'pro' | 'team';
+  plan: 'free' | 'pro' | 'team';
   daily_manual_count: number;
   daily_limit: number;
   created_at: string;
@@ -14,14 +14,12 @@ interface User {
 
 const PLAN_COLORS: Record<string, string> = {
   free: '#64748B',
-  pro_waitlist: '#D97706',
   pro: '#4F46E5',
   team: '#7C3AED',
 };
 
 const PLAN_BG: Record<string, string> = {
   free: '#F1F5F9',
-  pro_waitlist: '#FEF3C7',
   pro: '#EEF2FF',
   team: '#F5F3FF',
 };
@@ -30,6 +28,7 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
   useEffect(() => {
@@ -38,6 +37,26 @@ export default function AdminUsersPage() {
       .then(d => { setUsers(d.users ?? []); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
+
+  async function deleteUser(userId: string, email: string) {
+    if (!confirm(`${email} 계정을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+    setDeleting(userId);
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+      if (res.ok) {
+        setUsers(prev => prev.filter(u => u.id !== userId));
+      } else {
+        const d = await res.json();
+        alert(`삭제 실패: ${d.error}`);
+      }
+    } finally {
+      setDeleting(null);
+    }
+  }
 
   async function changePlan(userId: string, plan: string) {
     setUpdating(userId);
@@ -109,7 +128,7 @@ export default function AdminUsersPage() {
                 <td style={{ padding: '14px 16px', fontSize: '12px', color: '#94A3B8' }}>
                   {new Date(user.created_at).toLocaleDateString('ko-KR')}
                 </td>
-                <td style={{ padding: '14px 16px' }}>
+                <td style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <select
                     value={user.plan}
                     onChange={e => changePlan(user.id, e.target.value)}
@@ -117,10 +136,16 @@ export default function AdminUsersPage() {
                     style={{ padding: '5px 8px', borderRadius: '6px', border: '1px solid #E2E8F0', fontSize: '12px', color: '#475569', background: 'white', cursor: 'pointer', outline: 'none' }}
                   >
                     <option value="free">free</option>
-                    <option value="pro_waitlist">pro_waitlist</option>
                     <option value="pro">pro</option>
                     <option value="team">team</option>
                   </select>
+                  <button
+                    onClick={() => deleteUser(user.id, user.email)}
+                    disabled={deleting === user.id}
+                    style={{ padding: '5px 8px', borderRadius: '6px', border: '1px solid #FCA5A5', fontSize: '12px', color: '#EF4444', background: '#FFF5F5', cursor: 'pointer', opacity: deleting === user.id ? 0.5 : 1 }}
+                  >
+                    {deleting === user.id ? '삭제 중...' : '삭제'}
+                  </button>
                 </td>
               </tr>
             ))}

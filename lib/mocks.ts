@@ -14,6 +14,7 @@ export const MOCK_USER: User = {
     terms: true,
     privacy: true,
     marketing: false,
+    email_notification: false,
     agreed_at: '2026-05-26T00:00:00.000Z',
   },
   created_at: '2026-05-26T00:00:00.000Z',

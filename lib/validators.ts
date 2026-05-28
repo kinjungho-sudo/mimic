@@ -23,13 +23,13 @@ export const captureAnalyzeSchema = z.object({
 });
 
 export const captureSaveStepSchema = z.object({
-  session_id: z.string().min(1),
+  session_id: z.string().uuid(),
   step_number: z.number().int().positive(),
   screenshot_url: z.string().url(),
   click_x: z.number().min(0).max(1),
   click_y: z.number().min(0).max(1),
-  title: z.string().max(15),
-  description: z.string().max(40),
+  title: z.string().max(100).optional().default(''),
+  description: z.string().max(500).optional().default(''),
   url: z.string().url(),
 });
 

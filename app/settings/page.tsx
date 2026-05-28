@@ -11,17 +11,6 @@ const NAV_ITEMS = [
   { href: '/settings', label: '설정', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>, active: true },
 ];
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div style={{ background: 'white', border: '1px solid #E5E7EB', borderRadius: '14px', overflow: 'hidden', marginBottom: '20px' }}>
-      <div style={{ padding: '16px 20px', borderBottom: '1px solid #F3F4F6' }}>
-        <h2 style={{ fontSize: '13px', fontWeight: 600, color: '#6B7280', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{title}</h2>
-      </div>
-      <div>{children}</div>
-    </div>
-  );
-}
-
 function ToggleRow({ label, description, value, onChange }: { label: string; description?: string; value: boolean; onChange: (v: boolean) => void }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid #F9FAFB' }}>
@@ -39,15 +28,47 @@ function ToggleRow({ label, description, value, onChange }: { label: string; des
   );
 }
 
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{ background: 'white', border: '1px solid #E5E7EB', borderRadius: '14px', overflow: 'hidden', marginBottom: '20px' }}>
+      <div style={{ padding: '16px 20px', borderBottom: '1px solid #F3F4F6' }}>
+        <h2 style={{ fontSize: '13px', fontWeight: 600, color: '#6B7280', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{title}</h2>
+      </div>
+      <div>{children}</div>
+    </div>
+  );
+}
+
+
 export default function SettingsPage() {
-  const { loading, signOut } = useAuth();
+  const { user, loading, signOut, updateUser } = useAuth();
   const router = useRouter();
 
-  const [emailNotif, setEmailNotif] = useState(true);
-  const [marketingEmail, setMarketingEmail] = useState(false);
-  const [autoPlay, setAutoPlay] = useState(true);
-  const [showTooltips, setShowTooltips] = useState(true);
-  const [language, setLanguage] = useState<'ko' | 'en'>('ko');
+  const [emailNotif, setEmailNotif] = useState<boolean | null>(null);
+  const [marketing, setMarketing] = useState<boolean | null>(null);
+
+  const currentEmailNotif = emailNotif !== null ? emailNotif : (user?.agreements?.email_notification ?? true);
+  const currentMarketing = marketing !== null ? marketing : (user?.agreements?.marketing ?? false);
+
+  const handleToggle = async (field: 'email_notification' | 'marketing', value: boolean) => {
+    if (field === 'email_notification') setEmailNotif(value);
+    else setMarketing(value);
+
+    const res = await fetch('/api/user/agreements', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [field]: value }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      updateUser({ agreements: data.agreements });
+    } else {
+      // 실패 시 롤백
+      if (field === 'email_notification') setEmailNotif(!value);
+      else setMarketing(!value);
+    }
+  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -90,69 +111,33 @@ export default function SettingsPage() {
       <main style={{ flex: 1, padding: '32px 40px', maxWidth: '720px' }}>
         <div style={{ marginBottom: '28px' }}>
           <h1 style={{ fontSize: '22px', fontWeight: 600, margin: '0 0 4px', color: '#111827' }}>설정</h1>
-          <p style={{ fontSize: '13.5px', color: '#6B7280', margin: 0 }}>알림, 표시 방식, 확장 프로그램 연동을 관리하세요</p>
+          <p style={{ fontSize: '13.5px', color: '#6B7280', margin: 0 }}>확장 프로그램 연동 및 계정을 관리하세요</p>
         </div>
 
         <Section title="알림">
           <ToggleRow
             label="이메일 알림"
-            description="매뉴얼 공유·댓글 등 주요 활동 알림"
-            value={emailNotif}
-            onChange={setEmailNotif}
+            description="매뉴얼 조회 등 주요 활동 알림을 이메일로 받습니다"
+            value={currentEmailNotif}
+            onChange={v => handleToggle('email_notification', v)}
           />
           <ToggleRow
             label="마케팅 이메일"
-            description="새 기능 소개 및 업데이트 뉴스레터"
-            value={marketingEmail}
-            onChange={setMarketingEmail}
+            description="새 기능 소식 및 업데이트 뉴스레터"
+            value={currentMarketing}
+            onChange={v => handleToggle('marketing', v)}
           />
-        </Section>
-
-        <Section title="플레이어 기본값">
-          <ToggleRow
-            label="자동 재생"
-            description="매뉴얼 플레이어 진입 시 자동으로 시작"
-            value={autoPlay}
-            onChange={setAutoPlay}
-          />
-          <ToggleRow
-            label="툴팁 표시"
-            description="단계별 설명 툴팁을 기본으로 보여줌"
-            value={showTooltips}
-            onChange={setShowTooltips}
-          />
-        </Section>
-
-        <Section title="언어">
-          <div style={{ padding: '14px 20px' }}>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              {(['ko', 'en'] as const).map(lang => (
-                <button
-                  key={lang}
-                  onClick={() => setLanguage(lang)}
-                  style={{ padding: '7px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', border: language === lang ? '1.5px solid #4F46E5' : '1.5px solid #E5E7EB', background: language === lang ? '#EEF2FF' : 'white', color: language === lang ? '#4F46E5' : '#6B7280', transition: 'all 0.15s' }}
-                >
-                  {lang === 'ko' ? '한국어' : 'English'}
-                </button>
-              ))}
-            </div>
-          </div>
         </Section>
 
         <Section title="Chrome 확장 프로그램">
-          <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #F9FAFB' }}>
+          <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
               <div style={{ fontSize: '13.5px', fontWeight: 500, color: '#111827' }}>MIMIC Recorder</div>
-              <div style={{ fontSize: '12px', color: '#9CA3AF', marginTop: '2px' }}>화면 녹화 및 매뉴얼 자동 생성</div>
+              <div style={{ fontSize: '12px', color: '#9CA3AF', marginTop: '2px' }}>재설치하거나 연결이 끊겼을 때 다시 연결합니다 (30일 자동 유지)</div>
             </div>
             <Link href="/extension-link" style={{ padding: '7px 14px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 500, background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', textDecoration: 'none', boxShadow: '0 2px 8px rgba(79,70,229,0.25)' }}>
               연결하기
             </Link>
-          </div>
-          <div style={{ padding: '12px 20px' }}>
-            <a href="https://chrome.google.com/webstore" target="_blank" rel="noopener noreferrer" style={{ fontSize: '12.5px', color: '#4F46E5', textDecoration: 'none', fontWeight: 500 }}>
-              Chrome 웹스토어에서 설치 →
-            </a>
           </div>
         </Section>
 
