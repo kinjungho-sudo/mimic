@@ -1,8 +1,8 @@
 'use client';
 
-import { ChevronLeft, Play, Share2 } from 'lucide-react';
+import { ChevronLeft, Play, Share2, Check } from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 
 export type EditorMode = 'document' | 'interactive';
 
@@ -10,14 +10,28 @@ interface EditorHeaderProps {
   title: string;
   onTitleChange: (v: string) => void;
   onPreview: () => void;
+  onSave: () => Promise<void>;
   onPublish: () => void;
   onShare: () => void;
   mode: EditorMode;
   onModeChange: (mode: EditorMode) => void;
 }
 
-export function EditorHeader({ title, onTitleChange, onPreview, onPublish, onShare, mode, onModeChange }: EditorHeaderProps) {
+export function EditorHeader({ title, onTitleChange, onPreview, onSave, onPublish, onShare, mode, onModeChange }: EditorHeaderProps) {
   const [localTitle, setLocalTitle] = useState(title);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const handleSave = useCallback(async () => {
+    setSaving(true);
+    try {
+      await onSave();
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } finally {
+      setSaving(false);
+    }
+  }, [onSave]);
 
   return (
     <header style={{
@@ -111,6 +125,26 @@ export function EditorHeader({ title, onTitleChange, onPreview, onPublish, onSha
         >
           <Share2 size={13} />
           공유
+        </button>
+
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          style={{
+            height: '32px', padding: '0 14px', borderRadius: '7px', fontSize: '12.5px',
+            display: 'inline-flex', alignItems: 'center', gap: '6px',
+            color: saved ? '#10B981' : 'rgba(255,255,255,0.85)',
+            background: saved ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.08)',
+            border: `1px solid ${saved ? 'rgba(16,185,129,0.4)' : 'rgba(255,255,255,0.12)'}`,
+            cursor: saving ? 'not-allowed' : 'pointer',
+            whiteSpace: 'nowrap', transition: 'all 0.2s',
+            opacity: saving ? 0.6 : 1,
+          }}
+          onMouseEnter={e => { if (!saving && !saved) { e.currentTarget.style.background = 'rgba(255,255,255,0.14)'; e.currentTarget.style.color = 'white'; } }}
+          onMouseLeave={e => { if (!saving && !saved) { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'rgba(255,255,255,0.85)'; } }}
+        >
+          {saved ? <Check size={13} /> : null}
+          {saving ? '저장 중...' : saved ? '저장됨' : '편집 완료'}
         </button>
 
         <button

@@ -74,6 +74,21 @@ export default function EditorPage() {
     setTitleDirty(true);
   }, []);
 
+  const handleSave = useCallback(async () => {
+    // 모든 debounce 타이머를 취소하고 현재 manualSteps를 즉시 DB에 저장
+    await Promise.all(
+      manualSteps
+        .filter(s => !s.id.startsWith('step-'))
+        .map(s => {
+          clearTimeout(stepSaveTimers.current[s.id]);
+          return updateStep(s.id, {
+            user_title: s.actionTitle || null,
+            user_script: s.description || null,
+          }).catch(() => {});
+        })
+    );
+  }, [manualSteps]);
+
   const handlePublish = useCallback(async () => {
     try {
       const result = await publish();
@@ -138,6 +153,7 @@ export default function EditorPage() {
           if (tutorial.share_token) window.open(`/play/${tutorial.share_token}`, '_blank');
           else alert('게시 후 미리보기가 가능합니다.');
         }}
+        onSave={handleSave}
         onPublish={handlePublish}
         onShare={() => setShowShare(true)}
         mode={mode}

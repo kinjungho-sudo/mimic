@@ -478,9 +478,10 @@ function TextFormatToolbar({ editorRef }: { editorRef: React.RefObject<HTMLDivEl
         flexWrap: 'wrap',
       }}
     >
-      {/* Paragraph style dropdown */}
+      {/* Font size dropdown */}
       <select
-        onChange={e => exec('formatBlock', e.target.value)}
+        defaultValue="3"
+        onChange={e => exec('fontSize', e.target.value)}
         style={{
           fontSize: '11.5px', color: '#374151', background: 'white',
           border: '1px solid #E5E7EB', borderRadius: '5px',
@@ -488,10 +489,13 @@ function TextFormatToolbar({ editorRef }: { editorRef: React.RefObject<HTMLDivEl
           outline: 'none',
         }}
       >
-        <option value="p">본문</option>
-        <option value="h1">제목 1</option>
-        <option value="h2">제목 2</option>
-        <option value="h3">제목 3</option>
+        <option value="1">10px</option>
+        <option value="2">12px</option>
+        <option value="3">14px</option>
+        <option value="4">16px</option>
+        <option value="5">18px</option>
+        <option value="6">24px</option>
+        <option value="7">32px</option>
       </select>
 
       <Divider />
