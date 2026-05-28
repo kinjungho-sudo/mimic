@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from './supabase/server';
+import { createServerClient, createServiceRoleClient } from './supabase/server';
 
 type AuthGuardResult =
   | { ok: true; userId: string }
@@ -40,7 +40,7 @@ export async function requireAdmin(): Promise<AuthGuardResult> {
 // Extension token 인증 — MIMIC Recorder가 Bearer 토큰으로 호출
 export async function requireExtensionToken(
   request: NextRequest
-): Promise<{ ok: true; token: string } | { ok: false; response: NextResponse }> {
+): Promise<{ ok: true; token: string; userId: string } | { ok: false; response: NextResponse }> {
   const auth = request.headers.get('authorization');
   if (!auth?.startsWith('Bearer ')) {
     return {
@@ -57,5 +57,23 @@ export async function requireExtensionToken(
     };
   }
 
-  return { ok: true, token };
+  // 토큰 유효성 검증 (만료 + 소각 여부)
+  const supabase = createServiceRoleClient();
+  const { data: tokenRow } = await supabase
+    .from('mm_extension_tokens')
+    .select('user_id, used_at, expires_at')
+    .eq('token', token)
+    .single();
+
+  if (!tokenRow) {
+    return { ok: false, response: NextResponse.json({ error: 'Invalid token' }, { status: 401 }) };
+  }
+  if (new Date(tokenRow.expires_at) < new Date()) {
+    return { ok: false, response: NextResponse.json({ error: 'Token expired', code: 'TOKEN_EXPIRED' }, { status: 401 }) };
+  }
+  if (tokenRow.used_at) {
+    return { ok: false, response: NextResponse.json({ error: 'Token already used', code: 'TOKEN_USED' }, { status: 401 }) };
+  }
+
+  return { ok: true, token, userId: tokenRow.user_id };
 }
