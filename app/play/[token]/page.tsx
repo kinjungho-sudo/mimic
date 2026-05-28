@@ -176,8 +176,8 @@ function SurveyModal({ tutorialId, viewerSessionId, onClose }: { tutorialId: str
   );
 }
 
-export default function PlayerPage({ params }: { params: Promise<{ token: string }> }) {
-  const [token, setToken] = useState('');
+export default function PlayerPage({ params }: { params: { token: string } }) {
+  const token = params.token;
   const [tutorial, setTutorial] = useState<Tutorial | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -194,11 +194,6 @@ export default function PlayerPage({ params }: { params: Promise<{ token: string
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    params.then(p => setToken(p.token));
-  }, [params]);
-
-  useEffect(() => {
-    if (!token) return;
     fetch(`/api/play/${token}`)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
