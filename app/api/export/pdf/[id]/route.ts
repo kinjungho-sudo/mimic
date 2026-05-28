@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { PDFDocument, rgb } from 'pdf-lib';
+import fontkit from '@pdf-lib/fontkit';
 import { assertStorageUrl } from '@/lib/validate-storage-url';
 
 type Params = { params: Promise<{ id: string }> };
@@ -12,6 +13,16 @@ const H = 595;
 const MARGIN = 40;
 const IMG_W = 420;
 const IMG_H = 315; // 4:3
+
+// Noto Sans KR Regular (subset URL — Google Fonts static CDN)
+const NOTO_SANS_KR_URL = 'https://fonts.gstatic.com/s/notosanskr/v36/PbyxFmXiEBPT4ITbgNA5Cgm2CTU1VJEIBVrT5pCpE_M.woff2';
+const NOTO_SANS_KR_BOLD_URL = 'https://fonts.gstatic.com/s/notosanskr/v36/PbykFmXiEBPT4ITbgNA5CgmOelzI7bMZ9nDlga4.woff2';
+
+async function loadFont(url: string): Promise<ArrayBuffer> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`font fetch failed: ${res.status}`);
+  return res.arrayBuffer();
+}
 
 export async function GET(request: NextRequest, { params }: Params) {
   const auth = await requireAuth(request);
@@ -37,27 +48,41 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   if (!steps?.length) return NextResponse.json({ error: 'No steps' }, { status: 422 });
 
+  // 폰트 로드 (병렬)
+  let fontBytes: ArrayBuffer;
+  let fontBoldBytes: ArrayBuffer;
+  try {
+    [fontBytes, fontBoldBytes] = await Promise.all([
+      loadFont(NOTO_SANS_KR_URL),
+      loadFont(NOTO_SANS_KR_BOLD_URL),
+    ]);
+  } catch {
+    return NextResponse.json({ error: 'Failed to load font' }, { status: 500 });
+  }
+
   const pdfDoc = await PDFDocument.create();
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  pdfDoc.registerFontkit(fontkit);
+
+  const font = await pdfDoc.embedFont(fontBytes);
+  const fontBold = await pdfDoc.embedFont(fontBoldBytes);
 
   // 표지 페이지
   const cover = pdfDoc.addPage([W, H]);
   cover.drawRectangle({ x: 0, y: 0, width: W, height: H, color: rgb(0.31, 0.27, 0.9) });
   cover.drawRectangle({ x: 0, y: 0, width: W, height: 6, color: rgb(0.49, 0.23, 0.93) });
+
   const titleText = tutorial.title;
-  const titleSize = titleText.length > 30 ? 28 : 36;
-  const titleWidth = fontBold.widthOfTextAtSize(titleText, titleSize);
+  const titleSize = titleText.length > 20 ? 28 : 36;
   cover.drawText(titleText, {
-    x: (W - Math.min(titleWidth, W - 80)) / 2,
+    x: MARGIN * 2,
     y: H / 2 + 20,
     size: titleSize,
     font: fontBold,
     color: rgb(1, 1, 1),
-    maxWidth: W - 80,
+    maxWidth: W - MARGIN * 4,
   });
   cover.drawText(`총 ${steps.length}단계`, {
-    x: W / 2 - 30,
+    x: MARGIN * 2,
     y: H / 2 - 30,
     size: 16,
     font,
@@ -85,7 +110,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     page.drawText(stepTitle, {
       x: MARGIN + 32,
       y: H - 28,
-      size: 14,
+      size: 13,
       font: fontBold,
       color: rgb(0.07, 0.09, 0.15),
       maxWidth: W - MARGIN * 2 - 32,
@@ -114,7 +139,6 @@ export async function GET(request: NextRequest, { params }: Params) {
         });
       }
     } catch {
-      // 이미지 로드 실패 시 회색 박스
       page.drawRectangle({ x: imgX, y: imgY, width: IMG_W, height: IMG_H, color: rgb(0.93, 0.93, 0.95) });
       page.drawText('이미지 없음', { x: imgX + IMG_W / 2 - 30, y: imgY + IMG_H / 2, size: 12, font, color: rgb(0.6, 0.6, 0.6) });
     }
@@ -125,30 +149,32 @@ export async function GET(request: NextRequest, { params }: Params) {
     const desc = step.user_script ?? step.ai_description ?? '';
 
     page.drawText('설명', { x: textX, y: imgY + IMG_H - 4, size: 11, font: fontBold, color: rgb(0.31, 0.27, 0.9) });
+
     if (desc) {
-      // 간단한 줄바꿈 처리
-      const words = desc.split(' ');
+      // 줄바꿈 처리 (한글 고려 — 글자 단위 분리)
       const lines: string[] = [];
       let line = '';
-      for (const word of words) {
-        const test = line ? `${line} ${word}` : word;
-        if (font.widthOfTextAtSize(test, 12) > textW) {
+      for (const char of desc) {
+        const test = line + char;
+        if (char === '\n') {
+          lines.push(line);
+          line = '';
+        } else if (font.widthOfTextAtSize(test, 11) > textW) {
           if (line) lines.push(line);
-          line = word;
+          line = char;
         } else {
           line = test;
         }
       }
       if (line) lines.push(line);
 
-      lines.slice(0, 10).forEach((l, i) => {
+      lines.slice(0, 14).forEach((l, i) => {
         page.drawText(l, {
           x: textX,
-          y: imgY + IMG_H - 22 - i * 18,
-          size: 12,
+          y: imgY + IMG_H - 22 - i * 16,
+          size: 11,
           font,
           color: rgb(0.2, 0.2, 0.25),
-          maxWidth: textW,
         });
       });
     }
