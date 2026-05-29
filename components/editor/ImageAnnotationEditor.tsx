@@ -5,17 +5,18 @@ import { X, Trash2, RotateCcw } from 'lucide-react';
 
 // ── Types ──────────────────────────────────────────────────
 
-type Tool = 'select' | 'arrow' | 'rect' | 'ellipse' | 'text' | 'highlight';
+type Tool = 'select' | 'arrow' | 'rect' | 'ellipse' | 'text' | 'highlight' | 'mosaic';
 type Color = string;
 
 export interface Annotation {
   id: string;
-  type: 'arrow' | 'rect' | 'ellipse' | 'text' | 'highlight';
-  x1: number; y1: number;   // 0–100 in viewBox coords
+  type: 'arrow' | 'rect' | 'ellipse' | 'text' | 'highlight' | 'mosaic';
+  // All coords stored as 0–100 percentage of image dimensions
+  x1: number; y1: number;
   x2: number; y2: number;
   text?: string;
   color: Color;
-  strokeWidth: number;      // viewBox units (0.2–0.6 range)
+  strokeWidth: number; // stored as % of image width (e.g. 0.3 = 0.3% of width)
 }
 
 interface ImageAnnotationEditorProps {
@@ -28,7 +29,6 @@ interface ImageAnnotationEditorProps {
 // ── Constants ──────────────────────────────────────────────
 
 const COLORS = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#111827'];
-// strokeWidth stored in viewBox units (viewBox 0 0 100 100)
 const STROKE_OPTIONS = [
   { label: 'thin',   value: 0.3 },
   { label: 'medium', value: 0.5 },
@@ -40,8 +40,9 @@ const TOOL_CONFIG: Record<Tool, { label: string; icon: React.ReactNode }> = {
   arrow:     { label: '화살표',  icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="9 5 19 5 19 15"/></svg> },
   rect:      { label: '사각형',  icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg> },
   ellipse:   { label: '원',      icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><ellipse cx="12" cy="12" rx="10" ry="7"/></svg> },
-  text:      { label: '텍스트',  icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16M4 12h16M4 18h7"/><polyline points="3 7 5 5 7 7"/></svg> },
+  text:      { label: '텍스트',  icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg> },
   highlight: { label: '형광펜',  icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/></svg> },
+  mosaic:    { label: '모자이크', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="2" width="5" height="5"/><rect x="9" y="2" width="5" height="5"/><rect x="16" y="2" width="5" height="5"/><rect x="2" y="9" width="5" height="5"/><rect x="9" y="9" width="5" height="5"/><rect x="16" y="9" width="5" height="5"/><rect x="2" y="16" width="5" height="5"/><rect x="9" y="16" width="5" height="5"/><rect x="16" y="16" width="5" height="5"/></svg> },
 };
 
 function genId() { return Math.random().toString(36).slice(2, 9); }
@@ -51,17 +52,27 @@ function genId() { return Math.random().toString(36).slice(2, 9); }
 export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose }: ImageAnnotationEditorProps) {
   const [tool, setTool] = useState<Tool>('arrow');
   const [color, setColor] = useState<Color>('#EF4444');
-  const [strokeIdx, setStrokeIdx] = useState(1); // medium default
+  const [strokeIdx, setStrokeIdx] = useState(1);
   const [items, setItems] = useState<Annotation[]>(annotations);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawing, setDrawing] = useState<Partial<Annotation> | null>(null);
-  const [editingTextId, setEditingTextId] = useState<string | null>(null);
-  const [textDraft, setTextDraft] = useState('');
+
+  // Text editing: overlay div on top of image
+  const [editingText, setEditingText] = useState<{ id: string; x: number; y: number } | null>(null);
+  const textInputRef = useRef<HTMLDivElement>(null);
+
+  // Drag-to-move state
+  const [dragState, setDragState] = useState<{
+    id: string;
+    startX: number; startY: number;
+    origX1: number; origY1: number; origX2: number; origY2: number;
+  } | null>(null);
 
   const imgRef = useRef<HTMLImageElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const strokeWidth = STROKE_OPTIONS[strokeIdx].value;
 
-  // Convert mouse event to viewBox (0-100) coords relative to image
+  // Convert mouse event → 0–100 pct coords relative to image
   const toVB = useCallback((e: React.MouseEvent | MouseEvent): { x: number; y: number } => {
     const img = imgRef.current;
     if (!img) return { x: 0, y: 0 };
@@ -72,28 +83,32 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
     };
   }, []);
 
-  // commitText is defined early so it can be referenced in handlers below
+
+
   const commitTextRef = useRef<() => void>(() => {});
 
   const commitText = useCallback(() => {
-    setEditingTextId(prev => {
-      if (!prev) return null;
-      setItems(cur => cur
-        .map(a => a.id === prev ? { ...a, text: textDraft } : a)
-        .filter(a => !(a.id === prev && !textDraft.trim()))
-      );
-      setTextDraft('');
-      return null;
-    });
-  }, [textDraft]);
+    if (!editingText) return;
+    const rawText = textInputRef.current?.innerText?.trim() ?? '';
+    const id = editingText.id;
+    setItems(cur => rawText
+      ? cur.map(a => a.id === id ? { ...a, text: rawText } : a)
+      : cur.filter(a => a.id !== id)
+    );
+    setEditingText(null);
+    if (textInputRef.current) textInputRef.current.innerText = '';
+  }, [editingText]);
 
-  // Keep ref in sync so keyboard handler always calls latest
   useEffect(() => { commitTextRef.current = commitText; }, [commitText]);
 
+  // ── Mouse down: start draw or select ──
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    // Ignore if clicking on text editor overlay
+    if ((e.target as HTMLElement).closest('[data-text-editor]')) return;
+
+    if (editingText) { commitTextRef.current(); return; }
+
     if (tool === 'select') return;
-    // If we were editing text, commit it first — then continue to place new annotation
-    if (editingTextId) { commitTextRef.current(); }
 
     e.preventDefault();
     setSelectedId(null);
@@ -102,12 +117,17 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
     if (tool === 'text') {
       const newItem: Annotation = { id: genId(), type: 'text', x1: x, y1: y, x2: x, y2: y, text: '', color, strokeWidth };
       setItems(prev => [...prev, newItem]);
-      setEditingTextId(newItem.id);
-      setTextDraft('');
+      // Show overlay text editor at click position
+      const img = imgRef.current!;
+      const rect = img.getBoundingClientRect();
+      const pxX = ((x / 100) * rect.width) + rect.left - containerRef.current!.getBoundingClientRect().left;
+      const pxY = ((y / 100) * rect.height) + rect.top - containerRef.current!.getBoundingClientRect().top;
+      setEditingText({ id: newItem.id, x: pxX, y: pxY });
       return;
     }
+
     setDrawing({ type: tool as Annotation['type'], x1: x, y1: y, x2: x, y2: y, color, strokeWidth, id: genId() });
-  }, [tool, color, strokeWidth, editingTextId, toVB]);
+  }, [tool, color, strokeWidth, editingText, toVB]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!drawing) return;
@@ -120,31 +140,64 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
       if (!prev) return null;
       const dx = Math.abs((prev.x2 ?? 0) - (prev.x1 ?? 0));
       const dy = Math.abs((prev.y2 ?? 0) - (prev.y1 ?? 0));
-      if (dx < 0.5 && dy < 0.5) return null; // discard tiny drag
-      // If mouseup came from outside, update x2/y2 from the event
+      if (dx < 0.5 && dy < 0.5) return null;
+      let final = { ...prev } as Annotation;
       if (e) {
         const img = imgRef.current;
         if (img) {
           const rect = img.getBoundingClientRect();
-          const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
-          const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
-          const completed = { ...prev, x2: x, y2: y } as Annotation;
-          setItems(cur => [...cur, completed]);
-          return null;
+          final.x2 = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+          final.y2 = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
         }
       }
-      setItems(cur => [...cur, prev as Annotation]);
+      setItems(cur => [...cur, final]);
       return null;
     });
   }, []);
 
-  // Bug fix #1: attach mouseup to window so releasing outside container still commits
+  // Window mouseup for drawing
   useEffect(() => {
     if (!drawing) return;
     const up = (e: MouseEvent) => finishDrawing(e);
     window.addEventListener('mouseup', up);
     return () => window.removeEventListener('mouseup', up);
   }, [drawing, finishDrawing]);
+
+  // ── Drag to move selected annotation ──
+  const handleShapeMouseDown = useCallback((e: React.MouseEvent, id: string) => {
+    if (tool !== 'select') return;
+    e.stopPropagation();
+    e.preventDefault();
+    setSelectedId(id);
+    const { x, y } = toVB(e);
+    const item = items.find(a => a.id === id);
+    if (!item) return;
+    setDragState({ id, startX: x, startY: y, origX1: item.x1, origY1: item.y1, origX2: item.x2, origY2: item.y2 });
+  }, [tool, items, toVB]);
+
+  useEffect(() => {
+    if (!dragState) return;
+    const move = (e: MouseEvent) => {
+      const img = imgRef.current;
+      if (!img) return;
+      const rect = img.getBoundingClientRect();
+      const cx = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+      const cy = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+      const dx = cx - dragState.startX;
+      const dy = cy - dragState.startY;
+      setItems(cur => cur.map(a => a.id === dragState.id
+        ? { ...a, x1: dragState.origX1 + dx, y1: dragState.origY1 + dy, x2: dragState.origX2 + dx, y2: dragState.origY2 + dy }
+        : a
+      ));
+    };
+    const up = () => setDragState(null);
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+    return () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+    };
+  }, [dragState]);
 
   const deleteSelected = useCallback(() => {
     if (!selectedId) return;
@@ -155,29 +208,71 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (editingTextId) commitTextRef.current();
-        else setSelectedId(null);
-      }
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId && !editingTextId) {
+      if (editingText) return; // let text editor handle keys
+      if (e.key === 'Escape') setSelectedId(null);
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
         e.preventDefault();
         deleteSelected();
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [selectedId, editingTextId, deleteSelected]);
+  }, [selectedId, editingText, deleteSelected]);
+
+  // Focus text editor when it appears
+  useEffect(() => {
+    if (!editingText) return;
+    const t = setTimeout(() => {
+      textInputRef.current?.focus();
+      // Place cursor at end
+      const range = document.createRange();
+      const sel = window.getSelection();
+      if (textInputRef.current && sel) {
+        range.selectNodeContents(textInputRef.current);
+        range.collapse(false);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+    }, 0);
+    return () => clearTimeout(t);
+  }, [editingText]);
 
   const handleSave = () => {
-    if (editingTextId) commitTextRef.current();
+    if (editingText) commitTextRef.current();
     onChange(items);
     onClose();
   };
 
+  // SVG viewBox matches rendered pixel size → strokeWidth in px is uniform in both axes
+  const [imgSize, setImgSize] = useState({ w: 1, h: 1 });
+  useEffect(() => {
+    const img = imgRef.current;
+    if (!img) return;
+    const update = () => {
+      const r = img.getBoundingClientRect();
+      if (r.width > 0) setImgSize({ w: r.width, h: r.height });
+    };
+    img.addEventListener('load', update);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(img);
+    return () => { img.removeEventListener('load', update); ro.disconnect(); };
+  }, []);
+
+  // Convert pct coords → pixel coords for SVG (viewBox = pixel size)
+  const px = (pct: number, axis: 'x' | 'y') =>
+    axis === 'x' ? (pct / 100) * imgSize.w : (pct / 100) * imgSize.h;
+
+  const strokePx = (strokeWidth / 100) * imgSize.w;
+
   const cursor = tool === 'select' ? 'default' : tool === 'text' ? 'text' : 'crosshair';
+
+  // Find the item being edited (for text overlay color)
+  const editingItem = editingText ? items.find(a => a.id === editingText.id) : null;
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 70, background: 'rgba(0,0,0,0.92)', display: 'flex', flexDirection: 'column' }}>
+
       {/* ── Top toolbar ── */}
       <div style={{ height: '52px', flexShrink: 0, background: '#1F2937', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: '4px', padding: '0 16px' }}>
 
@@ -187,7 +282,7 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
             const active = tool === t;
             return (
               <button key={t} title={TOOL_CONFIG[t].label}
-                onClick={() => { if (editingTextId) commitTextRef.current(); setTool(t); }}
+                onClick={() => { if (editingText) commitTextRef.current(); setTool(t); }}
                 style={{ width: '34px', height: '34px', borderRadius: '6px', border: 'none', display: 'grid', placeItems: 'center', cursor: 'pointer', background: active ? 'white' : 'transparent', color: active ? '#111827' : 'rgba(255,255,255,0.6)', transition: 'all 0.12s' }}
                 onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}
                 onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent'; }}
@@ -200,27 +295,34 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
 
         <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.12)', margin: '0 8px' }} />
 
-        {/* Colors */}
-        <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
-          {COLORS.map(c => (
-            <button key={c} onClick={() => setColor(c)}
-              style={{ width: '20px', height: '20px', borderRadius: '50%', background: c, border: color === c ? '2.5px solid white' : '2px solid transparent', cursor: 'pointer', flexShrink: 0, transition: 'border 0.1s', outline: 'none' }}
-            />
-          ))}
-        </div>
+        {/* Colors (hidden for mosaic) */}
+        {tool !== 'mosaic' && (
+          <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+            {COLORS.map(c => (
+              <button key={c} onClick={() => setColor(c)}
+                style={{ width: '20px', height: '20px', borderRadius: '50%', background: c, border: color === c ? '2.5px solid white' : '2px solid transparent', cursor: 'pointer', flexShrink: 0, transition: 'border 0.1s', outline: 'none' }}
+              />
+            ))}
+          </div>
+        )}
+        {tool === 'mosaic' && (
+          <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>블러 처리할 영역을 드래그하세요</span>
+        )}
 
         <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.12)', margin: '0 8px' }} />
 
-        {/* Stroke width */}
-        <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-          {STROKE_OPTIONS.map((opt, i) => (
-            <button key={i} onClick={() => setStrokeIdx(i)}
-              style={{ width: '32px', height: '28px', borderRadius: '5px', border: strokeIdx === i ? '1.5px solid white' : '1.5px solid rgba(255,255,255,0.2)', background: 'transparent', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
-            >
-              <div style={{ width: '14px', height: `${i * 2 + 2}px`, background: 'white', borderRadius: '2px' }} />
-            </button>
-          ))}
-        </div>
+        {/* Stroke width (hidden for text / mosaic) */}
+        {tool !== 'text' && tool !== 'mosaic' && tool !== 'select' && (
+          <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+            {STROKE_OPTIONS.map((_, i) => (
+              <button key={i} onClick={() => setStrokeIdx(i)}
+                style={{ width: '32px', height: '28px', borderRadius: '5px', border: strokeIdx === i ? '1.5px solid white' : '1.5px solid rgba(255,255,255,0.2)', background: 'transparent', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
+              >
+                <div style={{ width: '14px', height: `${i * 2 + 2}px`, background: 'white', borderRadius: '2px' }} />
+              </button>
+            ))}
+          </div>
+        )}
 
         <div style={{ flex: 1 }} />
 
@@ -233,7 +335,7 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
         </button>
 
         {selectedId && (
-          <button onClick={deleteSelected} title="선택 삭제"
+          <button onClick={deleteSelected}
             style={{ height: '34px', padding: '0 12px', borderRadius: '7px', border: '1px solid rgba(220,38,38,0.4)', background: 'rgba(220,38,38,0.1)', color: '#FCA5A5', fontSize: '12px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px', marginLeft: '4px' }}
           >
             <Trash2 size={12} /> 삭제
@@ -259,10 +361,10 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
 
       {/* ── Canvas area ── */}
       <div
-        style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px', overflow: 'auto' }}
+        ref={containerRef}
+        style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px', overflow: 'auto', position: 'relative' }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
-        // onMouseUp handled by window listener (bug fix #1)
       >
         <div style={{ position: 'relative', display: 'inline-block', userSelect: 'none' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -274,34 +376,90 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
             style={{ display: 'block', maxWidth: 'min(900px, calc(100vw - 64px))', maxHeight: 'calc(100vh - 120px)', borderRadius: '6px' }}
           />
 
-          {/* SVG overlay — viewBox="0 0 100 100" so coords and strokeWidth share the same unit system */}
+          {/* SVG overlay — viewBox matches actual pixel size so strokeWidth is uniform */}
           <svg
-            viewBox="0 0 100 100"
-            preserveAspectRatio="none"
+            viewBox={`0 0 ${imgSize.w} ${imgSize.h}`}
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', cursor, overflow: 'visible' }}
           >
+            <defs>
+              {/* Mosaic blur filter */}
+              <filter id="mosaic-blur" x="-5%" y="-5%" width="110%" height="110%">
+                <feGaussianBlur stdDeviation="8" />
+              </filter>
+              {/* Define image source for mosaic clipping */}
+              <image id="img-src" href={imageUrl} x="0" y="0" width={imgSize.w} height={imgSize.h} preserveAspectRatio="none" />
+            </defs>
+
             {items.map(a => (
               <AnnotationShape
                 key={a.id}
                 annotation={a}
                 isSelected={selectedId === a.id}
-                isEditingText={editingTextId === a.id}
-                textDraft={editingTextId === a.id ? textDraft : undefined}
-                onTextChange={setTextDraft}
-                onCommitText={commitText}
-                onSelect={() => { if (tool === 'select') setSelectedId(a.id); }}
+                tool={tool}
+                imgW={imgSize.w}
+                imgH={imgSize.h}
+                strokePx={strokePx}
+                onShapeMouseDown={handleShapeMouseDown}
               />
             ))}
+
+            {/* Preview while drawing */}
             {drawing && (
-              <AnnotationShape annotation={drawing as Annotation} isSelected={false} isEditingText={false} />
+              <AnnotationShape
+                annotation={drawing as Annotation}
+                isSelected={false}
+                tool={tool}
+                imgW={imgSize.w}
+                imgH={imgSize.h}
+                strokePx={(drawing.strokeWidth ?? strokeWidth) / 100 * imgSize.w}
+              />
             )}
           </svg>
+
+          {/* Text editing overlay — HTML contenteditable positioned over image */}
+          {editingText && editingItem && (
+            <div
+              data-text-editor
+              ref={textInputRef}
+              contentEditable
+              suppressContentEditableWarning
+              onKeyDown={e => {
+                e.stopPropagation();
+                if (e.key === 'Escape') commitTextRef.current();
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitTextRef.current(); }
+              }}
+              onMouseDown={e => e.stopPropagation()}
+              style={{
+                position: 'absolute',
+                left: `${editingItem.x1}%`,
+                top: `${editingItem.y1}%`,
+                minWidth: '80px',
+                maxWidth: '200px',
+                padding: '3px 6px',
+                background: 'rgba(0,0,0,0.65)',
+                color: editingItem.color,
+                border: `1.5px solid ${editingItem.color}`,
+                borderRadius: '3px',
+                fontSize: '14px',
+                fontWeight: 700,
+                fontFamily: 'inherit',
+                outline: 'none',
+                cursor: 'text',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-all',
+                lineHeight: 1.4,
+                zIndex: 10,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+              }}
+            />
+          )}
         </div>
       </div>
 
       <div style={{ height: '28px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', color: 'rgba(255,255,255,0.3)' }}>
-        {tool === 'text' ? '클릭한 위치에 텍스트 박스가 생깁니다' :
-         tool === 'select' ? '어노테이션을 클릭해 선택 · Delete로 삭제' :
+        {tool === 'text' ? '클릭한 위치에 텍스트를 입력하세요 · Enter로 확정' :
+         tool === 'select' ? '도형을 클릭해 선택 · 드래그로 이동 · Delete로 삭제' :
+         tool === 'mosaic' ? '블러 처리할 영역을 드래그하세요' :
          '클릭 후 드래그하여 그립니다'}
       </div>
     </div>
@@ -313,111 +471,115 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
 interface AnnotationShapeProps {
   annotation: Annotation;
   isSelected: boolean;
-  isEditingText: boolean;
-  textDraft?: string;
-  onTextChange?: (v: string) => void;
-  onCommitText?: () => void;
-  onSelect?: () => void;
+  tool: Tool;
+  imgW: number;
+  imgH: number;
+  strokePx: number;
+  onShapeMouseDown?: (e: React.MouseEvent, id: string) => void;
 }
 
-function TextInput({ x, y, color, value, onChange, onCommit }: {
-  x: number; y: number; color: string;
-  value: string;
-  onChange: (v: string) => void;
-  onCommit: () => void;
-}) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  // Bug fix #4: explicit focus via setTimeout avoids foreignObject autoFocus issues
-  useEffect(() => {
-    const t = setTimeout(() => inputRef.current?.focus(), 0);
-    return () => clearTimeout(t);
-  }, []);
+function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx, onShapeMouseDown }: AnnotationShapeProps) {
+  const { type, x1, y1, x2, y2, color, text } = a;
 
-  return (
-    <foreignObject x={x} y={y} width="35" height="8">
-      <input
-        ref={inputRef}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        onBlur={onCommit}
-        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); onCommit(); } e.stopPropagation(); }}
-        onMouseDown={e => e.stopPropagation()}
-        style={{
-          background: 'rgba(0,0,0,0.6)', color, border: `1.5px solid ${color}`, borderRadius: '2px',
-          padding: '1px 3px', fontSize: '3px', fontWeight: 600, outline: 'none',
-          width: '100%', fontFamily: 'inherit', boxSizing: 'border-box',
-        }}
-      />
-    </foreignObject>
-  );
-}
+  const ax1 = (x1 / 100) * imgW, ay1 = (y1 / 100) * imgH;
+  const ax2 = (x2 / 100) * imgW, ay2 = (y2 / 100) * imgH;
+  const minX = Math.min(ax1, ax2), minY = Math.min(ay1, ay2);
+  const w = Math.abs(ax2 - ax1), h = Math.abs(ay2 - ay1);
 
-function AnnotationShape({ annotation: a, isSelected, isEditingText, textDraft, onTextChange, onCommitText, onSelect }: AnnotationShapeProps) {
-  const { type, x1, y1, x2, y2, color, strokeWidth, text } = a;
+  const selStyle = { stroke: '#60A5FA', strokeWidth: Math.max(1, strokePx * 0.4), strokeDasharray: `${strokePx * 3} ${strokePx * 1.5}`, fill: 'none' };
+  const selPad = strokePx * 0.8;
+  const isSelectTool = tool === 'select';
+  const eventProps = onShapeMouseDown ? {
+    onMouseDown: (e: React.MouseEvent) => onShapeMouseDown(e, a.id),
+    style: { cursor: isSelectTool ? 'move' : 'crosshair' } as React.CSSProperties,
+  } : {};
 
-  const selStyle: React.SVGProps<SVGRectElement> = {
-    stroke: '#60A5FA', strokeWidth: 0.3, strokeDasharray: '1.5 0.8', fill: 'none',
-  };
-
-  const minX = Math.min(x1, x2), minY = Math.min(y1, y2);
-  const w = Math.abs(x2 - x1), h = Math.abs(y2 - y1);
-  const clickable = { style: { cursor: onSelect ? 'pointer' : 'crosshair' } as React.CSSProperties, onClick: (e: React.MouseEvent) => { e.stopPropagation(); onSelect?.(); } };
+  if (type === 'mosaic') {
+    const clipId = `mosaic-clip-${a.id}`;
+    return (
+      <g {...eventProps}>
+        <defs>
+          <clipPath id={clipId}>
+            <rect x={minX} y={minY} width={w} height={h} />
+          </clipPath>
+        </defs>
+        {/* Blurred copy of the image, clipped to mosaic region */}
+        <image
+          href={a.color /* we reuse color field as imageUrl marker — see note below */}
+          x="0" y="0" width={imgW} height={imgH}
+          preserveAspectRatio="none"
+          filter="url(#mosaic-blur)"
+          clipPath={`url(#${clipId})`}
+          style={{ pointerEvents: 'none' }}
+        />
+        {/* Semi-transparent overlay for visibility */}
+        <rect x={minX} y={minY} width={w} height={h} fill="rgba(0,0,0,0.08)" />
+        {isSelected && <rect x={minX - selPad} y={minY - selPad} width={w + selPad * 2} height={h + selPad * 2} {...selStyle} />}
+        {/* Transparent hit area */}
+        <rect x={minX} y={minY} width={w} height={h} fill="transparent" {...eventProps} />
+      </g>
+    );
+  }
 
   if (type === 'highlight') return (
     <g>
-      <rect x={minX} y={minY} width={w} height={h} fill={color} opacity={0.35} rx={0.5} {...clickable} />
-      {isSelected && <rect x={minX - 0.4} y={minY - 0.4} width={w + 0.8} height={h + 0.8} {...selStyle} />}
+      <rect x={minX} y={minY} width={w} height={h} fill={color} opacity={0.35} rx={1} {...eventProps} />
+      {isSelected && <rect x={minX - selPad} y={minY - selPad} width={w + selPad * 2} height={h + selPad * 2} {...selStyle} />}
     </g>
   );
 
   if (type === 'rect') return (
     <g>
-      <rect x={minX} y={minY} width={w} height={h} rx={0.3} stroke={color} strokeWidth={strokeWidth} fill="none" {...clickable} />
-      {isSelected && <rect x={minX - 0.4} y={minY - 0.4} width={w + 0.8} height={h + 0.8} {...selStyle} />}
+      <rect x={minX} y={minY} width={w} height={h} rx={1} stroke={color} strokeWidth={strokePx} fill="none" {...eventProps} />
+      {isSelected && <rect x={minX - selPad} y={minY - selPad} width={w + selPad * 2} height={h + selPad * 2} {...selStyle} />}
     </g>
   );
 
   if (type === 'ellipse') return (
     <g>
-      <ellipse cx={(x1 + x2) / 2} cy={(y1 + y2) / 2} rx={w / 2} ry={h / 2} stroke={color} strokeWidth={strokeWidth} fill="none" {...clickable} />
-      {isSelected && <rect x={minX - 0.4} y={minY - 0.4} width={w + 0.8} height={h + 0.8} {...selStyle} />}
+      <ellipse cx={(ax1 + ax2) / 2} cy={(ay1 + ay2) / 2} rx={w / 2} ry={h / 2} stroke={color} strokeWidth={strokePx} fill="none" {...eventProps} />
+      {isSelected && <rect x={minX - selPad} y={minY - selPad} width={w + selPad * 2} height={h + selPad * 2} {...selStyle} />}
     </g>
   );
 
   if (type === 'arrow') {
     const markerId = `arrow-${a.id}`;
+    // Arrow head sized relative to strokePx
+    const mSize = strokePx * 4;
     return (
       <g>
         <defs>
-          <marker id={markerId} markerWidth="4" markerHeight="4" refX="3" refY="2" orient="auto" markerUnits="strokeWidth">
-            <path d="M0,0 L0,4 L4,2 z" fill={color} />
+          <marker id={markerId} markerWidth={mSize} markerHeight={mSize} refX={mSize - 1} refY={mSize / 2} orient="auto" markerUnits="userSpaceOnUse">
+            <path d={`M0,0 L0,${mSize} L${mSize},${mSize / 2} z`} fill={color} />
           </marker>
         </defs>
-        <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth={strokeWidth} markerEnd={`url(#${markerId})`} strokeLinecap="round" {...clickable} />
-        {isSelected && <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#60A5FA" strokeWidth={strokeWidth + 0.2} strokeDasharray="1.5 0.8" fill="none" pointerEvents="none" />}
+        {/* Transparent wider hit area */}
+        <line x1={ax1} y1={ay1} x2={ax2} y2={ay2} stroke="transparent" strokeWidth={Math.max(8, strokePx * 3)} {...eventProps} />
+        <line x1={ax1} y1={ay1} x2={ax2} y2={ay2} stroke={color} strokeWidth={strokePx} markerEnd={`url(#${markerId})`} strokeLinecap="round" style={{ pointerEvents: 'none' }} />
+        {isSelected && <line x1={ax1} y1={ay1} x2={ax2} y2={ay2} stroke="#60A5FA" strokeWidth={strokePx + 1} strokeDasharray={`${strokePx * 3} ${strokePx}`} fill="none" pointerEvents="none" />}
       </g>
     );
   }
 
   if (type === 'text') {
-    if (isEditingText && onTextChange && onCommitText) {
-      return <TextInput x={x1} y={y1} color={color} value={textDraft ?? ''} onChange={onTextChange} onCommit={onCommitText} />;
-    }
     if (!text) return null;
-    // fontSize in viewBox units — 2.5 ≈ readable at normal image sizes
+    const fSize = Math.max(12, imgW * 0.018); // ~1.8% of image width
     return (
-      <g>
+      <g {...eventProps}>
         <text
-          x={x1} y={y1}
-          fill={color} fontSize={2.5} fontWeight="700" dominantBaseline="text-before-edge"
-          stroke="rgba(0,0,0,0.55)" strokeWidth={0.4}
-          style={{ cursor: onSelect ? 'pointer' : 'default', paintOrder: 'stroke' }}
-          onClick={(e) => { e.stopPropagation(); onSelect?.(); }}
+          x={ax1} y={ay1}
+          fill={color}
+          fontSize={fSize}
+          fontWeight="700"
+          dominantBaseline="text-before-edge"
+          stroke="rgba(0,0,0,0.6)"
+          strokeWidth={fSize * 0.12}
+          style={{ paintOrder: 'stroke', cursor: isSelectTool ? 'move' : 'default' }}
         >
           {text}
         </text>
         {isSelected && (
-          <rect x={x1 - 0.3} y={y1 - 0.3} width={text.length * 1.5 + 1} height={3.5} {...selStyle} />
+          <rect x={ax1 - 2} y={ay1 - 2} width={text.length * fSize * 0.65 + 4} height={fSize + 4} {...selStyle} />
         )}
       </g>
     );
