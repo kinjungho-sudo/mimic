@@ -4,10 +4,7 @@ import { createServiceRoleClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 
 const schema = z.object({
-  marketing: z.boolean().optional(),
-  email_notification: z.boolean().optional(),
-}).refine(d => d.marketing !== undefined || d.email_notification !== undefined, {
-  message: '변경할 항목이 없습니다.',
+  marketing: z.boolean(),
 });
 
 export async function PATCH(request: NextRequest) {

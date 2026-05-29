@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { PDFDocument, rgb } from 'pdf-lib';
-import fontkit from '@pdf-lib/fontkit';
+import { readFile } from 'fs/promises';
+import path from 'path';
 import { assertStorageUrl } from '@/lib/validate-storage-url';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const fontkit = require('@pdf-lib/fontkit');
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -14,14 +17,10 @@ const MARGIN = 40;
 const IMG_W = 420;
 const IMG_H = 315; // 4:3
 
-// Noto Sans KR Regular (subset URL — Google Fonts static CDN)
-const NOTO_SANS_KR_URL = 'https://fonts.gstatic.com/s/notosanskr/v36/PbyxFmXiEBPT4ITbgNA5Cgm2CTU1VJEIBVrT5pCpE_M.woff2';
-const NOTO_SANS_KR_BOLD_URL = 'https://fonts.gstatic.com/s/notosanskr/v36/PbykFmXiEBPT4ITbgNA5CgmOelzI7bMZ9nDlga4.woff2';
-
-async function loadFont(url: string): Promise<ArrayBuffer> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`font fetch failed: ${res.status}`);
-  return res.arrayBuffer();
+async function loadFont(filename: string): Promise<ArrayBuffer> {
+  const fontPath = path.join(process.cwd(), 'public', 'fonts', filename);
+  const buf = await readFile(fontPath);
+  return buf.buffer as ArrayBuffer;
 }
 
 export async function GET(request: NextRequest, { params }: Params) {
@@ -48,13 +47,13 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   if (!steps?.length) return NextResponse.json({ error: 'No steps' }, { status: 422 });
 
-  // 폰트 로드 (병렬)
+  // 폰트 로드 (병렬 — public/fonts에서 로컬 읽기)
   let fontBytes: ArrayBuffer;
   let fontBoldBytes: ArrayBuffer;
   try {
     [fontBytes, fontBoldBytes] = await Promise.all([
-      loadFont(NOTO_SANS_KR_URL),
-      loadFont(NOTO_SANS_KR_BOLD_URL),
+      loadFont('NotoSansKR-Regular.ttf'),
+      loadFont('NotoSansKR-Bold.ttf'),
     ]);
   } catch {
     return NextResponse.json({ error: 'Failed to load font' }, { status: 500 });

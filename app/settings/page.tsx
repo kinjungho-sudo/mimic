@@ -44,29 +44,21 @@ export default function SettingsPage() {
   const { user, loading, signOut, updateUser } = useAuth();
   const router = useRouter();
 
-  const [emailNotif, setEmailNotif] = useState<boolean | null>(null);
   const [marketing, setMarketing] = useState<boolean | null>(null);
-
-  const currentEmailNotif = emailNotif !== null ? emailNotif : (user?.agreements?.email_notification ?? true);
   const currentMarketing = marketing !== null ? marketing : (user?.agreements?.marketing ?? false);
 
-  const handleToggle = async (field: 'email_notification' | 'marketing', value: boolean) => {
-    if (field === 'email_notification') setEmailNotif(value);
-    else setMarketing(value);
-
+  const handleToggle = async (value: boolean) => {
+    setMarketing(value);
     const res = await fetch('/api/user/agreements', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ [field]: value }),
+      body: JSON.stringify({ marketing: value }),
     });
-
     if (res.ok) {
       const data = await res.json();
       updateUser({ agreements: data.agreements });
     } else {
-      // 실패 시 롤백
-      if (field === 'email_notification') setEmailNotif(!value);
-      else setMarketing(!value);
+      setMarketing(!value);
     }
   };
 
@@ -116,16 +108,10 @@ export default function SettingsPage() {
 
         <Section title="알림">
           <ToggleRow
-            label="이메일 알림"
-            description="매뉴얼 조회 등 주요 활동 알림을 이메일로 받습니다"
-            value={currentEmailNotif}
-            onChange={v => handleToggle('email_notification', v)}
-          />
-          <ToggleRow
-            label="마케팅 이메일"
-            description="새 기능 소식 및 업데이트 뉴스레터"
+            label="이메일 수신 동의"
+            description="서비스 소식, 새 기능 업데이트, 주요 활동 알림을 이메일로 받습니다"
             value={currentMarketing}
-            onChange={v => handleToggle('marketing', v)}
+            onChange={handleToggle}
           />
         </Section>
 

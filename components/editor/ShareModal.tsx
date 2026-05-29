@@ -8,13 +8,15 @@ interface ShareModalProps {
   shareToken: string | null;
   shareUrl: string | null;
   onPublishAndShare: () => Promise<{ share_token: string; share_url?: string }>;
+  onUnpublish: () => Promise<void>;
   onClose: () => void;
 }
 
-export function ShareModal({ title, shareToken, shareUrl, onPublishAndShare, onClose }: ShareModalProps) {
+export function ShareModal({ title, shareToken, shareUrl, onPublishAndShare, onUnpublish, onClose }: ShareModalProps) {
   const [url, setUrl] = useState(shareUrl ?? '');
   const [copied, setCopied] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [unpublishing, setUnpublishing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // If already published, url is ready
@@ -181,7 +183,8 @@ export function ShareModal({ title, shareToken, shareUrl, onPublishAndShare, onC
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
+              justifyContent: 'space-between',
+              gap: '8px',
               marginTop: '10px',
               padding: '8px 12px',
               background: '#F0FDF4',
@@ -191,11 +194,40 @@ export function ShareModal({ title, shareToken, shareUrl, onPublishAndShare, onC
               color: '#15803D',
             }}
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-              <circle cx="12" cy="12" r="3"/>
-            </svg>
-            링크를 가진 누구나 볼 수 있어요 · 비공개로 변경하려면 게시 취소를 하세요.
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+              링크를 가진 누구나 볼 수 있어요
+            </div>
+            <button
+              onClick={async () => {
+                if (!confirm('게시를 취소하면 공유 링크가 즉시 비활성화됩니다. 계속할까요?')) return;
+                setUnpublishing(true);
+                try {
+                  await onUnpublish();
+                  onClose();
+                } finally {
+                  setUnpublishing(false);
+                }
+              }}
+              disabled={unpublishing}
+              style={{
+                flexShrink: 0,
+                padding: '3px 10px',
+                borderRadius: '6px',
+                fontSize: '11.5px',
+                fontWeight: 500,
+                background: 'white',
+                color: '#DC2626',
+                border: '1px solid #FCA5A5',
+                cursor: unpublishing ? 'not-allowed' : 'pointer',
+                opacity: unpublishing ? 0.6 : 1,
+              }}
+            >
+              {unpublishing ? '취소 중...' : '게시 취소'}
+            </button>
           </div>
 
           {/* Divider */}

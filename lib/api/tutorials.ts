@@ -42,6 +42,10 @@ export async function publishTutorial(
   return apiFetch(`/api/tutorials/${id}/publish`, { method: 'POST' });
 }
 
+export async function unpublishTutorial(id: string): Promise<void> {
+  return apiFetch(`/api/tutorials/${id}/unpublish`, { method: 'POST' });
+}
+
 export async function getPublicTutorial(token: string): Promise<TutorialDetail> {
   return apiFetch<TutorialDetail>(`/api/play/${token}`);
 }

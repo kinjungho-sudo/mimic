@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "app/api/capture/finalize/route.ts": {
+      "maxDuration": 60
+    }
+  }
+}

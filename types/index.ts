@@ -19,7 +19,6 @@ export type Agreements = {
   terms: boolean;
   privacy: boolean;
   marketing: boolean;
-  email_notification: boolean;
   agreed_at: string;
 };
 
@@ -39,6 +38,7 @@ export type Tutorial = {
   created_at: string;
   updated_at: string;
   published_at: string | null;
+  cover_color?: string | null;
   // enriched by list API
   thumbnail_url?: string | null;
   step_count?: number;

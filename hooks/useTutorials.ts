@@ -9,6 +9,7 @@ type TutorialsState = {
   loading: boolean;
   error: string | null;
   remove: (id: string) => Promise<void>;
+  updateTitle: (id: string, title: string) => void;
   refresh: () => void;
 };
 
@@ -32,7 +33,11 @@ export function useTutorials(enabled = true): TutorialsState {
     setTutorials(prev => prev.filter(t => t.id !== id));
   }, []);
 
+  const updateTitle = useCallback((id: string, title: string) => {
+    setTutorials(prev => prev.map(t => t.id === id ? { ...t, title } : t));
+  }, []);
+
   const refresh = useCallback(() => setTick(t => t + 1), []);
 
-  return { tutorials, loading, error, remove, refresh };
+  return { tutorials, loading, error, remove, updateTitle, refresh };
 }

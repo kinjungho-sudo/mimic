@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { getTutorial, updateTutorial, publishTutorial } from '@/lib/api/tutorials';
+import { getTutorial, updateTutorial, publishTutorial, unpublishTutorial } from '@/lib/api/tutorials';
 import type { TutorialDetail, Tutorial } from '@/types';
 
 type TutorialState = {
@@ -10,6 +10,7 @@ type TutorialState = {
   error: string | null;
   update: (patch: Partial<Tutorial>) => Promise<void>;
   publish: () => Promise<{ share_token: string; share_url: string }>;
+  unpublish: () => Promise<void>;
 };
 
 export function useTutorial(id: string): TutorialState {
@@ -37,5 +38,10 @@ export function useTutorial(id: string): TutorialState {
     return result;
   }, [id]);
 
-  return { tutorial, loading, error, update, publish };
+  const unpublish = useCallback(async () => {
+    await unpublishTutorial(id);
+    setTutorial(prev => prev ? { ...prev, status: 'draft', visibility: 'private', share_token: null, published_at: null } : prev);
+  }, [id]);
+
+  return { tutorial, loading, error, update, publish, unpublish };
 }

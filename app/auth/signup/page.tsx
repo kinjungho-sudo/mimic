@@ -80,7 +80,6 @@ export default function SignupPage() {
         terms: agreeTerms,
         privacy: agreePrivacy,
         marketing: agreeMarketing,
-        email_notification: false,
       });
       router.push('/dashboard');
     } catch (e: unknown) {

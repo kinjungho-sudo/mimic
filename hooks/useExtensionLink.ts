@@ -58,10 +58,10 @@ export function useExtensionLink(onSuccess: () => void): ExtensionLinkState {
       return;
     }
 
-    // 확장에 토큰 전달 — 응답 없거나 lastError면 not_installed 처리
+    // 확장에 토큰 전달 — LINK_USER로 link 토큰 전달 → 확장이 redeem 호출해서 session_token 저장
     window.chrome!.runtime!.sendMessage(
       extensionId,
-      { action: 'CONNECT', token },
+      { action: 'LINK_USER', token },
       (resp) => {
         if (window.chrome?.runtime?.lastError) {
           // 확장이 설치 안 됐거나 비활성화된 경우

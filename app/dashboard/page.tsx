@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
@@ -71,158 +71,185 @@ function UpgradeBanner({ used, limit }: { used: number; limit: number }) {
   );
 }
 
-function TutorialCard({ tutorial, onDelete }: { tutorial: Tutorial; onDelete: (id: string) => void }) {
+function TutorialCard({ tutorial, onDelete, onTitleChange, author }: {
+  tutorial: Tutorial;
+  onDelete: (id: string) => void;
+  onTitleChange: (id: string, title: string) => void;
+  author: { name: string; avatarUrl: string | null };
+}) {
   const router = useRouter();
   const [hovered, setHovered] = useState(false);
-  const [imgError, setImgError] = useState(false);
-  const colors = thumbColors(tutorial.id);
-  const hasThumbnail = !!tutorial.thumbnail_url && !imgError;
+  const [avatarError, setAvatarError] = useState(false);
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(tutorial.title);
+  const [savingTitle, setSavingTitle] = useState(false);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  // 단색 커버 — cover_color 첫 번째 색 or id 기반 fallback
+  const fallbackColor = thumbColors(tutorial.id)[0];
+  const coverColor = tutorial.cover_color
+    ? tutorial.cover_color.split(',')[0].trim()
+    : fallbackColor;
+
+  const stepLabel = (tutorial.step_count ?? 0) > 0
+    ? `${tutorial.step_count}단계`
+    : (tutorial.mode === 'interactive' ? '인터랙티브' : '가이드');
+
+  const showAvatar = !!author.avatarUrl && !avatarError;
+  const authorInitial = author.name.charAt(0).toUpperCase() || '?';
+
+  const saveTitle = useCallback(async () => {
+    const trimmed = titleDraft.trim();
+    if (!trimmed || trimmed === tutorial.title) { setEditingTitle(false); setTitleDraft(tutorial.title); return; }
+    setSavingTitle(true);
+    try {
+      await fetch(`/api/tutorials/${tutorial.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: trimmed }),
+      });
+      onTitleChange(tutorial.id, trimmed);
+    } finally {
+      setSavingTitle(false);
+      setEditingTitle(false);
+    }
+  }, [titleDraft, tutorial.id, tutorial.title, onTitleChange]);
+
+  useEffect(() => {
+    if (editingTitle) titleInputRef.current?.focus();
+  }, [editingTitle]);
 
   return (
     <article
-      onClick={() => router.push(`/manual/${tutorial.id}/editor`)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
         background: 'white',
-        borderRadius: '12px',
+        borderRadius: '14px',
         overflow: 'hidden',
         cursor: 'pointer',
-        boxShadow: hovered
-          ? '0 4px 20px rgba(17,24,39,0.13)'
-          : '0 1px 3px rgba(17,24,39,0.06)',
+        border: '1px solid #F1F5F9',
+        boxShadow: hovered ? '0 8px 24px rgba(17,24,39,0.10)' : '0 1px 4px rgba(17,24,39,0.05)',
         transition: 'box-shadow 0.2s, transform 0.2s',
-        transform: hovered ? 'translateY(-2px)' : 'none',
+        transform: hovered ? 'translateY(-3px)' : 'none',
         display: 'flex', flexDirection: 'column',
       }}
     >
-      {/* ── 썸네일 (16:9) ── */}
-      <div style={{ position: 'relative', paddingTop: '56.25%', overflow: 'hidden', background: hasThumbnail ? '#000' : `linear-gradient(135deg, ${colors[0]} 0%, ${colors[1]} 100%)` }}>
-
-        {hasThumbnail ? (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
-            src={tutorial.thumbnail_url!}
-            alt={tutorial.title}
-            onError={() => setImgError(true)}
-            style={{
-              position: 'absolute', inset: 0, width: '100%', height: '100%',
-              objectFit: 'cover',
-              transform: hovered ? 'scale(1.03)' : 'scale(1)',
-              transition: 'transform 0.3s ease',
-            }}
-          />
-        ) : (
-          /* 스크린샷 없을 때 — 아이콘 플레이스홀더 */
-          <div style={{
-            position: 'absolute', inset: 0,
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            gap: '10px',
-          }}>
-            <div style={{
-              width: '44px', height: '44px', borderRadius: '50%',
-              background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(4px)',
-              display: 'grid', placeItems: 'center',
-            }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      {/* ── 커버 영역 (3:2 비율, 단색) ── */}
+      <div
+        onClick={() => { if (!editingTitle) router.push(`/manual/${tutorial.id}/editor`); }}
+        style={{
+          position: 'relative', paddingTop: '66.66%', overflow: 'hidden',
+          background: coverColor,
+        }}
+      >
+        {/* 중앙 콘텐츠 */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          padding: '20px 16px', gap: '10px',
+        }}>
+          {/* 제목 */}
+          {editingTitle ? (
+            <input
+              ref={titleInputRef}
+              value={titleDraft}
+              onChange={e => setTitleDraft(e.target.value)}
+              onBlur={saveTitle}
+              onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') { setEditingTitle(false); setTitleDraft(tutorial.title); } }}
+              onClick={e => e.stopPropagation()}
+              disabled={savingTitle}
+              style={{
+                fontSize: '15px', fontWeight: 700, color: 'white', lineHeight: 1.4,
+                textAlign: 'center',
+                border: '1.5px solid rgba(255,255,255,0.6)', borderRadius: '8px',
+                padding: '6px 10px', outline: 'none', width: '100%', boxSizing: 'border-box',
+                background: 'rgba(0,0,0,0.25)',
+              }}
+            />
+          ) : (
+            <div
+              onClick={e => { e.stopPropagation(); setEditingTitle(true); }}
+              title="클릭해서 제목 편집"
+              style={{
+                fontSize: '15px', fontWeight: 700, color: 'white', lineHeight: 1.45,
+                textAlign: 'center',
+                display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as const,
+                overflow: 'hidden', cursor: 'text',
+                textShadow: '0 1px 6px rgba(0,0,0,0.25)',
+              }}
+            >
+              {tutorial.title}
             </div>
-            <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.75)', fontWeight: 500 }}>단계 없음</span>
-          </div>
-        )}
+          )}
 
-        {/* 어두운 그라데이션 오버레이 (썸네일 있을 때만) */}
-        {hasThumbnail && (
-          <div style={{
-            position: 'absolute', inset: 0,
-            background: 'linear-gradient(to top, rgba(0,0,0,0.45) 0%, transparent 50%)',
-            opacity: hovered ? 1 : 0.6,
-            transition: 'opacity 0.2s',
-          }} />
-        )}
-
-        {/* 단계 수 뱃지 — 우하단 (YouTube 재생시간 스타일) */}
-        {(tutorial.step_count ?? 0) > 0 && (
+          {/* 단계 수 / 모드 설명 */}
           <span style={{
-            position: 'absolute', bottom: '8px', right: '8px',
-            padding: '2px 7px', borderRadius: '4px',
-            background: 'rgba(0,0,0,0.75)', color: 'white',
-            fontSize: '11px', fontWeight: 600, letterSpacing: '0.01em',
+            fontSize: '11px', fontWeight: 500,
+            color: 'rgba(255,255,255,0.75)',
+            background: 'rgba(0,0,0,0.18)',
+            padding: '3px 10px', borderRadius: '999px',
           }}>
-            {tutorial.step_count}단계
+            {stepLabel}
           </span>
-        )}
+        </div>
 
-        {/* 게시 배지 — 좌하단 */}
+        {/* 상태 뱃지 — 좌상단 */}
         {tutorial.status === 'published' && (
           <span style={{
-            position: 'absolute', bottom: '8px', left: '8px',
-            padding: '2px 7px', borderRadius: '4px',
-            background: 'rgba(16,185,129,0.9)', color: 'white',
-            fontSize: '10.5px', fontWeight: 600,
+            position: 'absolute', top: '10px', left: '10px', zIndex: 2,
+            padding: '3px 8px', borderRadius: '6px', fontSize: '10.5px', fontWeight: 600,
+            background: 'rgba(16,185,129,0.88)', color: 'white', backdropFilter: 'blur(4px)',
           }}>
             게시됨
           </span>
         )}
 
-        {/* 호버 시 편집 버튼 */}
-        <div style={{
-          position: 'absolute', inset: 0,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          opacity: hovered ? 1 : 0, transition: 'opacity 0.18s',
-        }}>
-          <span style={{
-            padding: '7px 18px', borderRadius: '999px',
-            background: 'rgba(255,255,255,0.95)', color: '#111827',
-            fontSize: '12.5px', fontWeight: 600,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
-          }}>
-            편집하기
-          </span>
-        </div>
-
-        {/* 삭제 버튼 — 우상단 */}
+        {/* 삭제 버튼 — 호버 시 우상단 */}
         <button
           onClick={e => { e.stopPropagation(); if (confirm('이 매뉴얼을 삭제할까요?')) onDelete(tutorial.id); }}
           style={{
-            position: 'absolute', top: '8px', right: '8px',
-            width: '28px', height: '28px', borderRadius: '7px',
-            background: 'rgba(0,0,0,0.55)', border: 'none', color: 'white',
+            position: 'absolute', top: '8px', right: '8px', zIndex: 3,
+            width: '28px', height: '28px', borderRadius: '8px',
+            background: 'rgba(0,0,0,0.4)', border: 'none', color: 'white',
             display: 'grid', placeItems: 'center', cursor: 'pointer',
             opacity: hovered ? 1 : 0, transition: 'opacity 0.15s',
-            backdropFilter: 'blur(4px)', zIndex: 2,
           }}
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
         </button>
       </div>
 
-      {/* ── 하단 메타 (YouTube 크리에이터 영역) ── */}
-      <div style={{ padding: '10px 12px 12px', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-        {/* 아바타 (모드 아이콘) */}
-        <div style={{
-          width: '34px', height: '34px', borderRadius: '50%', flexShrink: 0,
-          background: `linear-gradient(135deg, ${colors[0]} 0%, ${colors[1]} 100%)`,
-          display: 'grid', placeItems: 'center',
-        }}>
-          {tutorial.mode === 'interactive'
-            ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-            : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-          }
-        </div>
-
-        {/* 텍스트 */}
-        <div style={{ flex: 1, minWidth: 0 }}>
+      {/* ── 하단 정보 영역 ── */}
+      <div style={{ padding: '10px 12px 12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {/* 작성자 아바타 */}
+        {showAvatar ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={author.avatarUrl!}
+            alt={author.name}
+            onError={() => setAvatarError(true)}
+            style={{ width: '26px', height: '26px', borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }}
+          />
+        ) : (
           <div style={{
-            fontSize: '13.5px', fontWeight: 600, color: '#0F172A', lineHeight: 1.4,
-            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const,
-            overflow: 'hidden',
+            width: '26px', height: '26px', borderRadius: '50%', flexShrink: 0,
+            background: coverColor, opacity: 0.85,
+            display: 'grid', placeItems: 'center',
+            fontSize: '11px', fontWeight: 700, color: 'white',
           }}>
-            {tutorial.title}
+            {authorInitial}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px', fontSize: '11.5px', color: '#9CA3AF' }}>
-            <span>{tutorial.mode === 'interactive' ? '인터랙티브' : '가이드 문서'}</span>
-            <span style={{ width: '2px', height: '2px', borderRadius: '50%', background: '#D1D5DB', flexShrink: 0 }} />
-            <span>{timeAgo(tutorial.updated_at)}</span>
+        )}
+
+        {/* 작성자 이름 + 날짜 */}
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ fontSize: '12px', fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {author.name}
+          </div>
+          <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
+            {timeAgo(tutorial.updated_at)}
           </div>
         </div>
       </div>
@@ -260,47 +287,13 @@ function EmptyState({ onRecord, onBlank }: { onRecord: () => void; onBlank: () =
   );
 }
 
-// 온보딩 체크리스트
-const ONBOARDING_STEPS = [
-  { label: 'MIMIC 가입하기' },
-  { label: '확장 프로그램 설치' },
-  { label: '첫 매뉴얼 만들기' },
-  { label: '매뉴얼 공유하기' },
-];
-
-function OnboardingChecklist({ tutorialCount }: { tutorialCount: number }) {
-  const done = [true, true, tutorialCount > 0, false];
-  const doneCount = done.filter(Boolean).length;
-  if (doneCount === done.length) return null;
-
-  return (
-    <div style={{ margin: '16px 0 0', padding: '14px 12px', background: 'white', border: '1px solid #E5E7EB', borderRadius: '10px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-        <span style={{ fontSize: '12px', fontWeight: 600, color: '#374151' }}>시작하기</span>
-        <span style={{ fontSize: '11px', color: '#6B7280' }}>{doneCount}/{done.length}</span>
-      </div>
-      {/* 진행 바 */}
-      <div style={{ height: '4px', background: '#F3F4F6', borderRadius: '999px', marginBottom: '12px', overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${(doneCount / done.length) * 100}%`, background: 'linear-gradient(90deg, #4F46E5, #7C3AED)', borderRadius: '999px', transition: 'width 0.4s ease' }} />
-      </div>
-      {ONBOARDING_STEPS.map((s, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '5px 0', opacity: done[i] ? 0.5 : 1 }}>
-          <span style={{ width: '16px', height: '16px', borderRadius: '50%', border: `1.5px solid ${done[i] ? '#10B981' : '#D1D5DB'}`, background: done[i] ? '#10B981' : 'white', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-            {done[i] && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
-          </span>
-          <span style={{ fontSize: '12px', color: '#374151', textDecoration: done[i] ? 'line-through' : 'none' }}>{s.label}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 // ── 페이지 ────────────────────────────────────────────────
 
 export default function DashboardPage() {
   const router = useRouter();
   const { user, loading: authLoading, signOut } = useAuth();
-  const { tutorials, loading: tutLoading, remove, refresh } = useTutorials(!!user);
+  const { tutorials, loading: tutLoading, remove, updateTitle, refresh } = useTutorials(!!user);
   const [showRecordingModal, setShowRecordingModal] = useState(false);
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -317,7 +310,6 @@ export default function DashboardPage() {
   const usedToday = user?.daily_manual_count ?? 0;
   const dailyLimit = user?.daily_limit ?? 3;
   const firstName = user?.name?.split(' ')[0] ?? '';
-  const avatarLetter = firstName.charAt(0) || '?';
 
   const handleNewManual = () => setShowRecordingModal(true);
   const handleSignOut = async () => { await signOut(); router.push('/auth/login'); };
@@ -406,15 +398,17 @@ export default function DashboardPage() {
               ))}
             </nav>
 
-            {/* 온보딩 체크리스트 */}
-            {!tutLoading && <OnboardingChecklist tutorialCount={tutorials.length} />}
-
             {/* 하단 유저 영역 */}
             <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid #F3F4F6', display: 'flex', flexDirection: 'column', gap: '2px' }}>
               <Link href="/mypage" style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '8px 10px', borderRadius: '8px', textDecoration: 'none', color: '#374151' }}>
-                <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', display: 'grid', placeItems: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>
-                  {authLoading ? '·' : avatarLetter}
-                </div>
+                {user?.avatar_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={user.avatar_url} alt={user.name} style={{ width: '26px', height: '26px', borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }} />
+                ) : (
+                  <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', display: 'grid', placeItems: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>
+                    {authLoading ? '·' : firstName.charAt(0) || '?'}
+                  </div>
+                )}
                 <div style={{ overflow: 'hidden' }}>
                   <div style={{ fontSize: '13px', fontWeight: 500, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{authLoading ? '...' : (user?.name ?? '내 계정')}</div>
                   <div style={{ fontSize: '11px', color: '#9CA3AF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.plan === 'free' ? '무료 플랜' : 'Pro'}</div>
@@ -450,22 +444,6 @@ export default function DashboardPage() {
                     <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: usedToday >= dailyLimit ? '#EF4444' : '#10B981', flexShrink: 0 }} />
                     오늘 {usedToday}/{dailyLimit}
                   </span>
-                )}
-                {/* 계정 아바타 — Google이면 프로필 사진+이름, 아니면 이니셜 */}
-                {!authLoading && (
-                  <Link href="/mypage" style={{ textDecoration: 'none', flexShrink: 0 }}>
-                    {user?.auth_provider === 'google' && user?.avatar_url ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '4px 10px 4px 4px', borderRadius: '999px', background: 'white', border: '1px solid #E5E7EB' }}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={user.avatar_url} alt={user.name} width={24} height={24} style={{ borderRadius: '50%', display: 'block' }} referrerPolicy="no-referrer" />
-                        <span style={{ fontSize: '12.5px', fontWeight: 500, color: '#111827' }}>{user.name}</span>
-                      </div>
-                    ) : (
-                      <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', color: 'white', display: 'grid', placeItems: 'center', fontSize: '12px', fontWeight: 700 }}>
-                        {avatarLetter}
-                      </div>
-                    )}
-                  </Link>
                 )}
                 {/* 새 매뉴얼 드롭다운 */}
                 <div ref={newMenuRef} style={{ position: 'relative' }}>
@@ -543,7 +521,7 @@ export default function DashboardPage() {
                     <button onClick={() => allManualsRef.current?.scrollIntoView({ behavior: 'smooth' })} style={{ fontSize: '12.5px', color: '#4F46E5', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}>전체 보기</button>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '20px' }}>
-                    {recentTutorials.map(t => <TutorialCard key={t.id} tutorial={t} onDelete={remove} />)}
+                    {recentTutorials.map(t => <TutorialCard key={t.id} tutorial={t} onDelete={remove} onTitleChange={updateTitle} author={{ name: user?.name ?? '나', avatarUrl: user?.avatar_url ?? null }} />)}
                   </div>
                 </section>
               )}
@@ -576,7 +554,7 @@ export default function DashboardPage() {
                   <EmptyState onRecord={handleNewManual} onBlank={handleCreateBlank} />
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '20px' }}>
-                    {tutorials.map(t => <TutorialCard key={t.id} tutorial={t} onDelete={remove} />)}
+                    {tutorials.map(t => <TutorialCard key={t.id} tutorial={t} onDelete={remove} onTitleChange={updateTitle} author={{ name: user?.name ?? '나', avatarUrl: user?.avatar_url ?? null }} />)}
                   </div>
                 )}
               </section>

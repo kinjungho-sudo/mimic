@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
       ...rest,
       step_count: steps.length,
       thumbnail_url: sorted[0]?.screenshot_url ?? null,
+      cover_color: (rest.cover_color as string | null) ?? null,
     };
   });
 
