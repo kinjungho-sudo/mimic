@@ -7,16 +7,17 @@ import { X, Trash2, RotateCcw } from 'lucide-react';
 
 type Tool = 'select' | 'arrow' | 'rect' | 'ellipse' | 'text' | 'highlight' | 'mosaic';
 type Color = string;
+// 8 resize handles for box shapes, 2 endpoint handles for arrows
+type Handle = 'tl'|'tc'|'tr'|'ml'|'mr'|'bl'|'bc'|'br'|'p1'|'p2';
 
 export interface Annotation {
   id: string;
   type: 'arrow' | 'rect' | 'ellipse' | 'text' | 'highlight' | 'mosaic';
-  // All coords stored as 0–100 percentage of image dimensions
-  x1: number; y1: number;
+  x1: number; y1: number; // 0–100 pct of image
   x2: number; y2: number;
   text?: string;
   color: Color;
-  strokeWidth: number; // stored as % of image width (e.g. 0.3 = 0.3% of width)
+  strokeWidth: number; // % of image width
 }
 
 interface ImageAnnotationEditorProps {
@@ -29,11 +30,7 @@ interface ImageAnnotationEditorProps {
 // ── Constants ──────────────────────────────────────────────
 
 const COLORS = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#111827'];
-const STROKE_OPTIONS = [
-  { label: 'thin',   value: 0.3 },
-  { label: 'medium', value: 0.5 },
-  { label: 'thick',  value: 0.9 },
-];
+const STROKE_OPTIONS = [{ value: 0.3 }, { value: 0.5 }, { value: 0.9 }];
 
 const TOOL_CONFIG: Record<Tool, { label: string; icon: React.ReactNode }> = {
   select:    { label: '선택',    icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 3l14 9-7 1-4 7z"/></svg> },
@@ -43,6 +40,14 @@ const TOOL_CONFIG: Record<Tool, { label: string; icon: React.ReactNode }> = {
   text:      { label: '텍스트',  icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg> },
   highlight: { label: '형광펜',  icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/></svg> },
   mosaic:    { label: '모자이크', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="2" width="5" height="5"/><rect x="9" y="2" width="5" height="5"/><rect x="16" y="2" width="5" height="5"/><rect x="2" y="9" width="5" height="5"/><rect x="9" y="9" width="5" height="5"/><rect x="16" y="9" width="5" height="5"/><rect x="2" y="16" width="5" height="5"/><rect x="9" y="16" width="5" height="5"/><rect x="16" y="16" width="5" height="5"/></svg> },
+};
+
+// Cursor per handle
+const HANDLE_CURSOR: Record<Handle, string> = {
+  tl: 'nwse-resize', tc: 'ns-resize',   tr: 'nesw-resize',
+  ml: 'ew-resize',                        mr: 'ew-resize',
+  bl: 'nesw-resize', bc: 'ns-resize',   br: 'nwse-resize',
+  p1: 'crosshair', p2: 'crosshair',
 };
 
 function genId() { return Math.random().toString(36).slice(2, 9); }
@@ -57,13 +62,14 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawing, setDrawing] = useState<Partial<Annotation> | null>(null);
 
-  // Text editing: overlay div on top of image
-  const [editingText, setEditingText] = useState<{ id: string; x: number; y: number } | null>(null);
+  // Text editing overlay
+  const [editingText, setEditingText] = useState<{ id: string } | null>(null);
   const textInputRef = useRef<HTMLDivElement>(null);
 
-  // Drag-to-move state
+  // Unified drag state: move body OR resize by handle
   const [dragState, setDragState] = useState<{
     id: string;
+    handle: Handle | null; // null = move
     startX: number; startY: number;
     origX1: number; origY1: number; origX2: number; origY2: number;
   } | null>(null);
@@ -72,7 +78,6 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
   const containerRef = useRef<HTMLDivElement>(null);
   const strokeWidth = STROKE_OPTIONS[strokeIdx].value;
 
-  // Convert mouse event → 0–100 pct coords relative to image
   const toVB = useCallback((e: React.MouseEvent | MouseEvent): { x: number; y: number } => {
     const img = imgRef.current;
     if (!img) return { x: 0, y: 0 };
@@ -83,10 +88,7 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
     };
   }, []);
 
-
-
   const commitTextRef = useRef<() => void>(() => {});
-
   const commitText = useCallback(() => {
     if (!editingText) return;
     const rawText = textInputRef.current?.innerText?.trim() ?? '';
@@ -98,17 +100,13 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
     setEditingText(null);
     if (textInputRef.current) textInputRef.current.innerText = '';
   }, [editingText]);
-
   useEffect(() => { commitTextRef.current = commitText; }, [commitText]);
 
-  // ── Mouse down: start draw or select ──
+  // ── Drawing ──
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    // Ignore if clicking on text editor overlay
     if ((e.target as HTMLElement).closest('[data-text-editor]')) return;
-
     if (editingText) { commitTextRef.current(); return; }
-
-    if (tool === 'select') return;
+    if (tool === 'select') { setSelectedId(null); return; }
 
     e.preventDefault();
     setSelectedId(null);
@@ -117,15 +115,9 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
     if (tool === 'text') {
       const newItem: Annotation = { id: genId(), type: 'text', x1: x, y1: y, x2: x, y2: y, text: '', color, strokeWidth };
       setItems(prev => [...prev, newItem]);
-      // Show overlay text editor at click position
-      const img = imgRef.current!;
-      const rect = img.getBoundingClientRect();
-      const pxX = ((x / 100) * rect.width) + rect.left - containerRef.current!.getBoundingClientRect().left;
-      const pxY = ((y / 100) * rect.height) + rect.top - containerRef.current!.getBoundingClientRect().top;
-      setEditingText({ id: newItem.id, x: pxX, y: pxY });
+      setEditingText({ id: newItem.id });
       return;
     }
-
     setDrawing({ type: tool as Annotation['type'], x1: x, y1: y, x2: x, y2: y, color, strokeWidth, id: genId() });
   }, [tool, color, strokeWidth, editingText, toVB]);
 
@@ -141,7 +133,7 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
       const dx = Math.abs((prev.x2 ?? 0) - (prev.x1 ?? 0));
       const dy = Math.abs((prev.y2 ?? 0) - (prev.y1 ?? 0));
       if (dx < 0.5 && dy < 0.5) return null;
-      let final = { ...prev } as Annotation;
+      const final = { ...prev } as Annotation;
       if (e) {
         const img = imgRef.current;
         if (img) {
@@ -155,7 +147,6 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
     });
   }, []);
 
-  // Window mouseup for drawing
   useEffect(() => {
     if (!drawing) return;
     const up = (e: MouseEvent) => finishDrawing(e);
@@ -163,8 +154,8 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
     return () => window.removeEventListener('mouseup', up);
   }, [drawing, finishDrawing]);
 
-  // ── Drag to move selected annotation ──
-  const handleShapeMouseDown = useCallback((e: React.MouseEvent, id: string) => {
+  // ── Select / Move / Resize ──
+  const startDrag = useCallback((e: React.MouseEvent, id: string, handle: Handle | null) => {
     if (tool !== 'select') return;
     e.stopPropagation();
     e.preventDefault();
@@ -172,7 +163,7 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
     const { x, y } = toVB(e);
     const item = items.find(a => a.id === id);
     if (!item) return;
-    setDragState({ id, startX: x, startY: y, origX1: item.x1, origY1: item.y1, origX2: item.x2, origY2: item.y2 });
+    setDragState({ id, handle, startX: x, startY: y, origX1: item.x1, origY1: item.y1, origX2: item.x2, origY2: item.y2 });
   }, [tool, items, toVB]);
 
   useEffect(() => {
@@ -185,18 +176,34 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
       const cy = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
       const dx = cx - dragState.startX;
       const dy = cy - dragState.startY;
-      setItems(cur => cur.map(a => a.id === dragState.id
-        ? { ...a, x1: dragState.origX1 + dx, y1: dragState.origY1 + dy, x2: dragState.origX2 + dx, y2: dragState.origY2 + dy }
-        : a
-      ));
+      const { handle, origX1: ox1, origY1: oy1, origX2: ox2, origY2: oy2 } = dragState;
+
+      setItems(cur => cur.map(a => {
+        if (a.id !== dragState.id) return a;
+        if (!handle) {
+          // Move
+          return { ...a, x1: ox1 + dx, y1: oy1 + dy, x2: ox2 + dx, y2: oy2 + dy };
+        }
+        // Arrow endpoints
+        if (handle === 'p1') return { ...a, x1: ox1 + dx, y1: oy1 + dy };
+        if (handle === 'p2') return { ...a, x2: ox2 + dx, y2: oy2 + dy };
+        // Box resize: anchor is opposite corner/edge
+        let { x1, y1, x2, y2 } = a;
+        if (handle === 'tl') { x1 = ox1 + dx; y1 = oy1 + dy; }
+        if (handle === 'tc') { y1 = oy1 + dy; }
+        if (handle === 'tr') { x2 = ox2 + dx; y1 = oy1 + dy; }
+        if (handle === 'ml') { x1 = ox1 + dx; }
+        if (handle === 'mr') { x2 = ox2 + dx; }
+        if (handle === 'bl') { x1 = ox1 + dx; y2 = oy2 + dy; }
+        if (handle === 'bc') { y2 = oy2 + dy; }
+        if (handle === 'br') { x2 = ox2 + dx; y2 = oy2 + dy; }
+        return { ...a, x1, y1, x2, y2 };
+      }));
     };
     const up = () => setDragState(null);
     window.addEventListener('mousemove', move);
     window.addEventListener('mouseup', up);
-    return () => {
-      window.removeEventListener('mousemove', move);
-      window.removeEventListener('mouseup', up);
-    };
+    return () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
   }, [dragState]);
 
   const deleteSelected = useCallback(() => {
@@ -205,26 +212,21 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
     setSelectedId(null);
   }, [selectedId]);
 
-  // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (editingText) return; // let text editor handle keys
+      if (editingText) return;
       if (e.key === 'Escape') setSelectedId(null);
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
-        e.preventDefault();
-        deleteSelected();
-      }
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) { e.preventDefault(); deleteSelected(); }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [selectedId, editingText, deleteSelected]);
 
-  // Focus text editor when it appears
+  // Focus text overlay when it appears
   useEffect(() => {
     if (!editingText) return;
     const t = setTimeout(() => {
       textInputRef.current?.focus();
-      // Place cursor at end
       const range = document.createRange();
       const sel = window.getSelection();
       if (textInputRef.current && sel) {
@@ -243,15 +245,12 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
     onClose();
   };
 
-  // SVG viewBox matches rendered pixel size → strokeWidth in px is uniform in both axes
+  // Track rendered image size for pixel-accurate SVG viewBox
   const [imgSize, setImgSize] = useState({ w: 1, h: 1 });
   useEffect(() => {
     const img = imgRef.current;
     if (!img) return;
-    const update = () => {
-      const r = img.getBoundingClientRect();
-      if (r.width > 0) setImgSize({ w: r.width, h: r.height });
-    };
+    const update = () => { const r = img.getBoundingClientRect(); if (r.width > 0) setImgSize({ w: r.width, h: r.height }); };
     img.addEventListener('load', update);
     update();
     const ro = new ResizeObserver(update);
@@ -259,24 +258,15 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
     return () => { img.removeEventListener('load', update); ro.disconnect(); };
   }, []);
 
-  // Convert pct coords → pixel coords for SVG (viewBox = pixel size)
-  const px = (pct: number, axis: 'x' | 'y') =>
-    axis === 'x' ? (pct / 100) * imgSize.w : (pct / 100) * imgSize.h;
-
   const strokePx = (strokeWidth / 100) * imgSize.w;
-
   const cursor = tool === 'select' ? 'default' : tool === 'text' ? 'text' : 'crosshair';
-
-  // Find the item being edited (for text overlay color)
   const editingItem = editingText ? items.find(a => a.id === editingText.id) : null;
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 70, background: 'rgba(0,0,0,0.92)', display: 'flex', flexDirection: 'column' }}>
 
-      {/* ── Top toolbar ── */}
+      {/* ── Toolbar ── */}
       <div style={{ height: '52px', flexShrink: 0, background: '#1F2937', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: '4px', padding: '0 16px' }}>
-
-        {/* Tools */}
         <div style={{ display: 'flex', gap: '2px', background: 'rgba(255,255,255,0.06)', borderRadius: '8px', padding: '3px' }}>
           {(Object.keys(TOOL_CONFIG) as Tool[]).map(t => {
             const active = tool === t;
@@ -286,32 +276,26 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
                 style={{ width: '34px', height: '34px', borderRadius: '6px', border: 'none', display: 'grid', placeItems: 'center', cursor: 'pointer', background: active ? 'white' : 'transparent', color: active ? '#111827' : 'rgba(255,255,255,0.6)', transition: 'all 0.12s' }}
                 onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}
                 onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent'; }}
-              >
-                {TOOL_CONFIG[t].icon}
-              </button>
+              >{TOOL_CONFIG[t].icon}</button>
             );
           })}
         </div>
 
         <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.12)', margin: '0 8px' }} />
 
-        {/* Colors (hidden for mosaic) */}
         {tool !== 'mosaic' && (
           <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
             {COLORS.map(c => (
               <button key={c} onClick={() => setColor(c)}
-                style={{ width: '20px', height: '20px', borderRadius: '50%', background: c, border: color === c ? '2.5px solid white' : '2px solid transparent', cursor: 'pointer', flexShrink: 0, transition: 'border 0.1s', outline: 'none' }}
+                style={{ width: '20px', height: '20px', borderRadius: '50%', background: c, border: color === c ? '2.5px solid white' : '2px solid transparent', cursor: 'pointer', flexShrink: 0, outline: 'none' }}
               />
             ))}
           </div>
         )}
-        {tool === 'mosaic' && (
-          <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>블러 처리할 영역을 드래그하세요</span>
-        )}
+        {tool === 'mosaic' && <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>블러 처리할 영역을 드래그하세요</span>}
 
         <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.12)', margin: '0 8px' }} />
 
-        {/* Stroke width (hidden for text / mosaic) */}
         {tool !== 'text' && tool !== 'mosaic' && tool !== 'select' && (
           <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
             {STROKE_OPTIONS.map((_, i) => (
@@ -326,40 +310,32 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
 
         <div style={{ flex: 1 }} />
 
-        <button onClick={() => setItems(prev => prev.slice(0, -1))} title="마지막 취소"
+        <button onClick={() => setItems(prev => prev.slice(0, -1))}
           style={{ height: '34px', padding: '0 12px', borderRadius: '7px', border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(255,255,255,0.7)', fontSize: '12px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
           onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
           onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-        >
-          <RotateCcw size={12} /> 되돌리기
-        </button>
+        ><RotateCcw size={12} /> 되돌리기</button>
 
         {selectedId && (
           <button onClick={deleteSelected}
             style={{ height: '34px', padding: '0 12px', borderRadius: '7px', border: '1px solid rgba(220,38,38,0.4)', background: 'rgba(220,38,38,0.1)', color: '#FCA5A5', fontSize: '12px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px', marginLeft: '4px' }}
-          >
-            <Trash2 size={12} /> 삭제
-          </button>
+          ><Trash2 size={12} /> 삭제</button>
         )}
 
         <button onClick={onClose}
           style={{ height: '34px', padding: '0 14px', borderRadius: '7px', border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(255,255,255,0.7)', fontSize: '12.5px', cursor: 'pointer', marginLeft: '8px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
           onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
           onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-        >
-          <X size={13} /> 닫기
-        </button>
+        ><X size={13} /> 닫기</button>
 
         <button onClick={handleSave}
           style={{ height: '34px', padding: '0 18px', borderRadius: '7px', border: 'none', background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', color: 'white', fontSize: '12.5px', fontWeight: 600, cursor: 'pointer', marginLeft: '6px' }}
           onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 12px rgba(79,70,229,0.5)'; }}
           onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; }}
-        >
-          저장
-        </button>
+        >저장</button>
       </div>
 
-      {/* ── Canvas area ── */}
+      {/* ── Canvas ── */}
       <div
         ref={containerRef}
         style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px', overflow: 'auto', position: 'relative' }}
@@ -368,26 +344,18 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
       >
         <div style={{ position: 'relative', display: 'inline-block', userSelect: 'none' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            ref={imgRef}
-            src={imageUrl}
-            alt="편집 중"
-            draggable={false}
+          <img ref={imgRef} src={imageUrl} alt="편집 중" draggable={false}
             style={{ display: 'block', maxWidth: 'min(900px, calc(100vw - 64px))', maxHeight: 'calc(100vh - 120px)', borderRadius: '6px' }}
           />
 
-          {/* SVG overlay — viewBox matches actual pixel size so strokeWidth is uniform */}
           <svg
             viewBox={`0 0 ${imgSize.w} ${imgSize.h}`}
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', cursor, overflow: 'visible' }}
           >
             <defs>
-              {/* Mosaic blur filter */}
               <filter id="mosaic-blur" x="-5%" y="-5%" width="110%" height="110%">
                 <feGaussianBlur stdDeviation="8" />
               </filter>
-              {/* Define image source for mosaic clipping */}
-              <image id="img-src" href={imageUrl} x="0" y="0" width={imgSize.w} height={imgSize.h} preserveAspectRatio="none" />
             </defs>
 
             {items.map(a => (
@@ -399,11 +367,12 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
                 imgW={imgSize.w}
                 imgH={imgSize.h}
                 strokePx={strokePx}
-                onShapeMouseDown={handleShapeMouseDown}
+                imageUrl={imageUrl}
+                onBodyMouseDown={e => startDrag(e, a.id, null)}
+                onHandleMouseDown={(e, h) => startDrag(e, a.id, h)}
               />
             ))}
 
-            {/* Preview while drawing */}
             {drawing && (
               <AnnotationShape
                 annotation={drawing as Annotation}
@@ -412,11 +381,12 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
                 imgW={imgSize.w}
                 imgH={imgSize.h}
                 strokePx={(drawing.strokeWidth ?? strokeWidth) / 100 * imgSize.w}
+                imageUrl={imageUrl}
               />
             )}
           </svg>
 
-          {/* Text editing overlay — HTML contenteditable positioned over image */}
+          {/* Text editing overlay */}
           {editingText && editingItem && (
             <div
               data-text-editor
@@ -433,22 +403,16 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
                 position: 'absolute',
                 left: `${editingItem.x1}%`,
                 top: `${editingItem.y1}%`,
-                minWidth: '80px',
-                maxWidth: '200px',
+                minWidth: '80px', maxWidth: '240px',
                 padding: '3px 6px',
                 background: 'rgba(0,0,0,0.65)',
                 color: editingItem.color,
                 border: `1.5px solid ${editingItem.color}`,
                 borderRadius: '3px',
-                fontSize: '14px',
-                fontWeight: 700,
-                fontFamily: 'inherit',
-                outline: 'none',
-                cursor: 'text',
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-all',
-                lineHeight: 1.4,
-                zIndex: 10,
+                fontSize: '14px', fontWeight: 700, fontFamily: 'inherit',
+                outline: 'none', cursor: 'text',
+                whiteSpace: 'pre-wrap', wordBreak: 'break-all',
+                lineHeight: 1.4, zIndex: 10,
                 boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
               }}
             />
@@ -457,8 +421,8 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
       </div>
 
       <div style={{ height: '28px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', color: 'rgba(255,255,255,0.3)' }}>
-        {tool === 'text' ? '클릭한 위치에 텍스트를 입력하세요 · Enter로 확정' :
-         tool === 'select' ? '도형을 클릭해 선택 · 드래그로 이동 · Delete로 삭제' :
+        {tool === 'text' ? '클릭 후 텍스트 입력 · Enter 확정' :
+         tool === 'select' ? '클릭으로 선택 · 드래그로 이동 · 핸들로 크기 조절 · Delete 삭제' :
          tool === 'mosaic' ? '블러 처리할 영역을 드래그하세요' :
          '클릭 후 드래그하여 그립니다'}
       </div>
@@ -466,7 +430,7 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
   );
 }
 
-// ── AnnotationShape ────────────────────────────────────────
+// ── AnnotationShape ─────────────────────────────────────────
 
 interface AnnotationShapeProps {
   annotation: Annotation;
@@ -475,10 +439,77 @@ interface AnnotationShapeProps {
   imgW: number;
   imgH: number;
   strokePx: number;
-  onShapeMouseDown?: (e: React.MouseEvent, id: string) => void;
+  imageUrl: string;
+  onBodyMouseDown?: (e: React.MouseEvent) => void;
+  onHandleMouseDown?: (e: React.MouseEvent, h: Handle) => void;
 }
 
-function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx, onShapeMouseDown }: AnnotationShapeProps) {
+// PPT-style selection handles rendered as SVG circles/rects
+function SelectionHandles({ minX, minY, w, h, onHandle }: {
+  minX: number; minY: number; w: number; h: number;
+  onHandle: (e: React.MouseEvent, h: Handle) => void;
+}) {
+  const R = 5; // handle radius px
+  const BORDER_COLOR = '#2563EB';
+  const HANDLE_FILL = 'white';
+  const HANDLE_STROKE = '#2563EB';
+
+  // 8 handle positions: [handle, cx, cy]
+  const handles: [Handle, number, number][] = [
+    ['tl', minX,         minY        ],
+    ['tc', minX + w / 2, minY        ],
+    ['tr', minX + w,     minY        ],
+    ['ml', minX,         minY + h / 2],
+    ['mr', minX + w,     minY + h / 2],
+    ['bl', minX,         minY + h    ],
+    ['bc', minX + w / 2, minY + h    ],
+    ['br', minX + w,     minY + h    ],
+  ];
+
+  return (
+    <g>
+      {/* Selection border */}
+      <rect x={minX} y={minY} width={w} height={h}
+        stroke={BORDER_COLOR} strokeWidth={1.5} fill="none" strokeDasharray="none" pointerEvents="none" />
+      {/* 8 handles */}
+      {handles.map(([hKey, cx, cy]) => (
+        <rect
+          key={hKey}
+          x={cx - R} y={cy - R} width={R * 2} height={R * 2}
+          fill={HANDLE_FILL} stroke={HANDLE_STROKE} strokeWidth={1.5}
+          style={{ cursor: HANDLE_CURSOR[hKey] }}
+          onMouseDown={e => { e.stopPropagation(); onHandle(e, hKey); }}
+        />
+      ))}
+    </g>
+  );
+}
+
+// Arrow endpoint handles
+function ArrowHandles({ ax1, ay1, ax2, ay2, onHandle }: {
+  ax1: number; ay1: number; ax2: number; ay2: number;
+  onHandle: (e: React.MouseEvent, h: Handle) => void;
+}) {
+  const R = 5;
+  return (
+    <g>
+      <line x1={ax1} y1={ay1} x2={ax2} y2={ay2} stroke="#2563EB" strokeWidth={1.5} strokeDasharray="4 2" pointerEvents="none" />
+      {(['p1', 'p2'] as Handle[]).map(h => {
+        const cx = h === 'p1' ? ax1 : ax2;
+        const cy = h === 'p1' ? ay1 : ay2;
+        return (
+          <circle key={h} cx={cx} cy={cy} r={R}
+            fill="white" stroke="#2563EB" strokeWidth={1.5}
+            style={{ cursor: 'crosshair' }}
+            onMouseDown={e => { e.stopPropagation(); onHandle(e, h); }}
+          />
+        );
+      })}
+    </g>
+  );
+}
+
+function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx, imageUrl, onBodyMouseDown, onHandleMouseDown }: AnnotationShapeProps) {
   const { type, x1, y1, x2, y2, color, text } = a;
 
   const ax1 = (x1 / 100) * imgW, ay1 = (y1 / 100) * imgH;
@@ -486,100 +517,102 @@ function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx
   const minX = Math.min(ax1, ax2), minY = Math.min(ay1, ay2);
   const w = Math.abs(ax2 - ax1), h = Math.abs(ay2 - ay1);
 
-  const selStyle = { stroke: '#60A5FA', strokeWidth: Math.max(1, strokePx * 0.4), strokeDasharray: `${strokePx * 3} ${strokePx * 1.5}`, fill: 'none' };
-  const selPad = strokePx * 0.8;
   const isSelectTool = tool === 'select';
-  const eventProps = onShapeMouseDown ? {
-    onMouseDown: (e: React.MouseEvent) => onShapeMouseDown(e, a.id),
-    style: { cursor: isSelectTool ? 'move' : 'crosshair' } as React.CSSProperties,
-  } : {};
+  const bodyCursor = isSelectTool ? 'move' : 'crosshair';
+
+  const handleHandle = onHandleMouseDown ?? (() => {});
 
   if (type === 'mosaic') {
     const clipId = `mosaic-clip-${a.id}`;
     return (
-      <g {...eventProps}>
+      <g>
         <defs>
-          <clipPath id={clipId}>
-            <rect x={minX} y={minY} width={w} height={h} />
-          </clipPath>
+          <clipPath id={clipId}><rect x={minX} y={minY} width={w} height={h} /></clipPath>
         </defs>
-        {/* Blurred copy of the image, clipped to mosaic region */}
-        <image
-          href={a.color /* we reuse color field as imageUrl marker — see note below */}
-          x="0" y="0" width={imgW} height={imgH}
-          preserveAspectRatio="none"
-          filter="url(#mosaic-blur)"
-          clipPath={`url(#${clipId})`}
-          style={{ pointerEvents: 'none' }}
-        />
-        {/* Semi-transparent overlay for visibility */}
-        <rect x={minX} y={minY} width={w} height={h} fill="rgba(0,0,0,0.08)" />
-        {isSelected && <rect x={minX - selPad} y={minY - selPad} width={w + selPad * 2} height={h + selPad * 2} {...selStyle} />}
-        {/* Transparent hit area */}
-        <rect x={minX} y={minY} width={w} height={h} fill="transparent" {...eventProps} />
+        <image href={imageUrl} x="0" y="0" width={imgW} height={imgH}
+          preserveAspectRatio="none" filter="url(#mosaic-blur)" clipPath={`url(#${clipId})`}
+          style={{ pointerEvents: 'none' }} />
+        <rect x={minX} y={minY} width={w} height={h} fill="transparent"
+          style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown} />
+        {isSelected && onHandleMouseDown && (
+          <SelectionHandles minX={minX} minY={minY} w={w} h={h} onHandle={handleHandle} />
+        )}
       </g>
     );
   }
 
   if (type === 'highlight') return (
     <g>
-      <rect x={minX} y={minY} width={w} height={h} fill={color} opacity={0.35} rx={1} {...eventProps} />
-      {isSelected && <rect x={minX - selPad} y={minY - selPad} width={w + selPad * 2} height={h + selPad * 2} {...selStyle} />}
+      <rect x={minX} y={minY} width={w} height={h} fill={color} opacity={0.35} rx={1}
+        style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown} />
+      {isSelected && onHandleMouseDown && (
+        <SelectionHandles minX={minX} minY={minY} w={w} h={h} onHandle={handleHandle} />
+      )}
     </g>
   );
 
   if (type === 'rect') return (
     <g>
-      <rect x={minX} y={minY} width={w} height={h} rx={1} stroke={color} strokeWidth={strokePx} fill="none" {...eventProps} />
-      {isSelected && <rect x={minX - selPad} y={minY - selPad} width={w + selPad * 2} height={h + selPad * 2} {...selStyle} />}
+      <rect x={minX} y={minY} width={w} height={h} rx={1} stroke={color} strokeWidth={strokePx} fill="none"
+        style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown} />
+      {isSelected && onHandleMouseDown && (
+        <SelectionHandles minX={minX} minY={minY} w={w} h={h} onHandle={handleHandle} />
+      )}
     </g>
   );
 
   if (type === 'ellipse') return (
     <g>
-      <ellipse cx={(ax1 + ax2) / 2} cy={(ay1 + ay2) / 2} rx={w / 2} ry={h / 2} stroke={color} strokeWidth={strokePx} fill="none" {...eventProps} />
-      {isSelected && <rect x={minX - selPad} y={minY - selPad} width={w + selPad * 2} height={h + selPad * 2} {...selStyle} />}
+      <ellipse cx={(ax1 + ax2) / 2} cy={(ay1 + ay2) / 2} rx={w / 2} ry={h / 2}
+        stroke={color} strokeWidth={strokePx} fill="none"
+        style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown} />
+      {isSelected && onHandleMouseDown && (
+        <SelectionHandles minX={minX} minY={minY} w={w} h={h} onHandle={handleHandle} />
+      )}
     </g>
   );
 
   if (type === 'arrow') {
     const markerId = `arrow-${a.id}`;
-    // Arrow head sized relative to strokePx
     const mSize = strokePx * 4;
     return (
       <g>
         <defs>
-          <marker id={markerId} markerWidth={mSize} markerHeight={mSize} refX={mSize - 1} refY={mSize / 2} orient="auto" markerUnits="userSpaceOnUse">
+          <marker id={markerId} markerWidth={mSize} markerHeight={mSize}
+            refX={mSize - 1} refY={mSize / 2} orient="auto" markerUnits="userSpaceOnUse">
             <path d={`M0,0 L0,${mSize} L${mSize},${mSize / 2} z`} fill={color} />
           </marker>
         </defs>
-        {/* Transparent wider hit area */}
-        <line x1={ax1} y1={ay1} x2={ax2} y2={ay2} stroke="transparent" strokeWidth={Math.max(8, strokePx * 3)} {...eventProps} />
-        <line x1={ax1} y1={ay1} x2={ax2} y2={ay2} stroke={color} strokeWidth={strokePx} markerEnd={`url(#${markerId})`} strokeLinecap="round" style={{ pointerEvents: 'none' }} />
-        {isSelected && <line x1={ax1} y1={ay1} x2={ax2} y2={ay2} stroke="#60A5FA" strokeWidth={strokePx + 1} strokeDasharray={`${strokePx * 3} ${strokePx}`} fill="none" pointerEvents="none" />}
+        {/* Wide transparent hit area */}
+        <line x1={ax1} y1={ay1} x2={ax2} y2={ay2} stroke="transparent"
+          strokeWidth={Math.max(10, strokePx * 3)}
+          style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown} />
+        <line x1={ax1} y1={ay1} x2={ax2} y2={ay2} stroke={color} strokeWidth={strokePx}
+          markerEnd={`url(#${markerId})`} strokeLinecap="round" style={{ pointerEvents: 'none' }} />
+        {isSelected && onHandleMouseDown && (
+          <ArrowHandles ax1={ax1} ay1={ay1} ax2={ax2} ay2={ay2} onHandle={handleHandle} />
+        )}
       </g>
     );
   }
 
   if (type === 'text') {
     if (!text) return null;
-    const fSize = Math.max(12, imgW * 0.018); // ~1.8% of image width
+    const fSize = Math.max(12, imgW * 0.018);
+    const textW = text.length * fSize * 0.65;
     return (
-      <g {...eventProps}>
-        <text
-          x={ax1} y={ay1}
-          fill={color}
-          fontSize={fSize}
-          fontWeight="700"
+      <g>
+        {/* Invisible hit rect for body drag */}
+        <rect x={ax1 - 2} y={ay1 - 2} width={textW + 4} height={fSize + 8} fill="transparent"
+          style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown} />
+        <text x={ax1} y={ay1} fill={color} fontSize={fSize} fontWeight="700"
           dominantBaseline="text-before-edge"
-          stroke="rgba(0,0,0,0.6)"
-          strokeWidth={fSize * 0.12}
-          style={{ paintOrder: 'stroke', cursor: isSelectTool ? 'move' : 'default' }}
-        >
+          stroke="rgba(0,0,0,0.6)" strokeWidth={fSize * 0.12}
+          style={{ paintOrder: 'stroke', pointerEvents: 'none' }}>
           {text}
         </text>
-        {isSelected && (
-          <rect x={ax1 - 2} y={ay1 - 2} width={text.length * fSize * 0.65 + 4} height={fSize + 4} {...selStyle} />
+        {isSelected && onHandleMouseDown && (
+          <SelectionHandles minX={ax1 - 2} minY={ay1 - 2} w={textW + 4} h={fSize + 8} onHandle={handleHandle} />
         )}
       </g>
     );
