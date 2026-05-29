@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Plus, Trash2, ZoomIn, X, Pencil,
-  Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, List, ListOrdered, Link,
+  Bold, Italic, Underline,
 } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { ImageAnnotationEditor, type Annotation } from './ImageAnnotationEditor';
@@ -430,11 +430,11 @@ const iconBtn: React.CSSProperties = {
 
 // ── TextFormatToolbar (always visible, uses execCommand) ──
 
-type ActiveState = { bold: boolean; italic: boolean; underline: boolean; orderedList: boolean; unorderedList: boolean };
+type ActiveState = { bold: boolean; italic: boolean; underline: boolean };
 
 function TextFormatToolbar({ editorRef }: { editorRef: React.RefObject<HTMLDivElement> }) {
   const [active, setActive] = useState<ActiveState>({
-    bold: false, italic: false, underline: false, orderedList: false, unorderedList: false,
+    bold: false, italic: false, underline: false,
   });
 
   const syncActive = useCallback(() => {
@@ -444,8 +444,6 @@ function TextFormatToolbar({ editorRef }: { editorRef: React.RefObject<HTMLDivEl
       bold: document.queryCommandState('bold'),
       italic: document.queryCommandState('italic'),
       underline: document.queryCommandState('underline'),
-      orderedList: document.queryCommandState('insertOrderedList'),
-      unorderedList: document.queryCommandState('insertUnorderedList'),
     });
   }, [editorRef]);
 
@@ -511,36 +509,6 @@ function TextFormatToolbar({ editorRef }: { editorRef: React.RefObject<HTMLDivEl
         <Underline size={13} />
       </ToolBtn>
 
-      <Divider />
-
-      <ToolBtn title="왼쪽 정렬" onMouseDown={e => { e.preventDefault(); exec('justifyLeft'); }}>
-        <AlignLeft size={13} />
-      </ToolBtn>
-      <ToolBtn title="가운데 정렬" onMouseDown={e => { e.preventDefault(); exec('justifyCenter'); }}>
-        <AlignCenter size={13} />
-      </ToolBtn>
-      <ToolBtn title="오른쪽 정렬" onMouseDown={e => { e.preventDefault(); exec('justifyRight'); }}>
-        <AlignRight size={13} />
-      </ToolBtn>
-
-      <Divider />
-
-      <ToolBtn title="글머리 기호" isActive={active.unorderedList} onMouseDown={e => { e.preventDefault(); exec('insertUnorderedList'); }}>
-        <List size={13} />
-      </ToolBtn>
-      <ToolBtn title="번호 목록" isActive={active.orderedList} onMouseDown={e => { e.preventDefault(); exec('insertOrderedList'); }}>
-        <ListOrdered size={13} />
-      </ToolBtn>
-
-      <Divider />
-
-      <ToolBtn title="링크 삽입" onMouseDown={e => {
-        e.preventDefault();
-        const url = prompt('링크 URL 입력:', 'https://');
-        if (url) exec('createLink', url);
-      }}>
-        <Link size={13} />
-      </ToolBtn>
     </div>
   );
 }

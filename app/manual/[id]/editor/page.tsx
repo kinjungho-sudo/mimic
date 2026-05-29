@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Share2, Check, Download, Pencil, X, Undo2, Settings } from 'lucide-react';
+import { Share2, Check, Download, Pencil, Undo2, Settings } from 'lucide-react';
 import { AppSidebar } from '@/components/editor/AppSidebar';
 import { GuideToc } from '@/components/editor/GuideToc';
 import { GuideViewer } from '@/components/editor/GuideViewer';
@@ -273,10 +273,12 @@ export default function EditorPage() {
           )}
         </div>
 
-        {/* Right: actions + created date below */}
+        {/* Right: actions */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
-          {editMode && (
+
+          {editMode ? (
+            /* ── 편집 모드: 실행 취소 + 편집 완료만 ── */
             <>
               <button
                 onClick={handleUndo}
@@ -297,126 +299,116 @@ export default function EditorPage() {
               </button>
 
               <button
-                onClick={handleSave}
+                onClick={async () => { await handleSave(); setEditMode(false); }}
                 disabled={saving}
                 style={{
-                  height: '32px', padding: '0 14px', borderRadius: '7px',
-                  fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px',
-                  color: saved ? '#059669' : '#374151',
-                  background: saved ? 'rgba(16,185,129,0.08)' : 'white',
-                  border: `1px solid ${saved ? 'rgba(16,185,129,0.3)' : '#E5E7EB'}`,
-                  cursor: saving ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.2s', opacity: saving ? 0.6 : 1,
+                  height: '32px', padding: '0 16px', borderRadius: '7px',
+                  fontSize: '12.5px', fontWeight: 600,
+                  display: 'inline-flex', alignItems: 'center', gap: '6px',
+                  color: 'white',
+                  background: saving ? 'rgba(79,70,229,0.6)' : 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
+                  border: 'none', cursor: saving ? 'not-allowed' : 'pointer',
+                  boxShadow: '0 1px 6px rgba(79,70,229,0.3)', transition: 'box-shadow 0.15s',
                 }}
-                onMouseEnter={e => { if (!saving && !saved) e.currentTarget.style.background = '#F9FAFB'; }}
-                onMouseLeave={e => { if (!saving && !saved) e.currentTarget.style.background = 'white'; }}
+                onMouseEnter={e => { if (!saving) e.currentTarget.style.boxShadow = '0 4px 14px rgba(79,70,229,0.45)'; }}
+                onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 6px rgba(79,70,229,0.3)'; }}
               >
-                {saved ? <Check size={13} /> : null}
-                {saving ? '저장 중…' : saved ? '저장됨' : '저장'}
+                {saving ? '저장 중…' : <><Check size={13} /> 편집 완료</>}
+              </button>
+            </>
+          ) : (
+            /* ── 뷰어 모드: 설정 + PDF + 공유 + 편집 + 게시 ── */
+            <>
+              {/* 설정 드롭다운 */}
+              <div ref={settingsRef} style={{ position: 'relative' }}>
+                <button
+                  onClick={() => setShowSettings(v => !v)}
+                  title="설정"
+                  style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: showSettings ? '#4F46E5' : '#374151', background: showSettings ? '#EEF2FF' : 'white', border: `1px solid ${showSettings ? '#C7D2FE' : '#E5E7EB'}`, cursor: 'pointer', transition: 'all 0.15s' }}
+                  onMouseEnter={e => { if (!showSettings) e.currentTarget.style.background = '#F9FAFB'; }}
+                  onMouseLeave={e => { if (!showSettings) e.currentTarget.style.background = 'white'; }}
+                >
+                  <Settings size={13} /> 설정
+                </button>
+
+                {showSettings && (
+                  <div style={{
+                    position: 'absolute', top: 'calc(100% + 8px)', right: 0,
+                    width: '220px', background: 'white', borderRadius: '12px',
+                    boxShadow: '0 8px 28px rgba(17,24,39,0.14), 0 0 0 1px rgba(0,0,0,0.06)',
+                    padding: '16px', zIndex: 100,
+                  }}>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: '#9CA3AF', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '10px' }}>
+                      뷰어 이미지 비율
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      {([
+                        { value: '16:9', label: '16:9 — 와이드스크린', desc: '일반 화면 캡처에 적합' },
+                        { value: '1:1',  label: '1:1 — 정사각형',    desc: '앱/모바일 UI에 적합' },
+                        { value: '9:16', label: '9:16 — 세로',       desc: '스마트폰 화면에 적합' },
+                      ] as { value: Tutorial['output_ratio']; label: string; desc: string }[]).map(opt => (
+                        <button
+                          key={opt.value}
+                          onClick={() => handleRatioChange(opt.value)}
+                          style={{
+                            display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+                            gap: '1px', padding: '8px 10px', borderRadius: '8px', border: 'none',
+                            cursor: 'pointer', textAlign: 'left', transition: 'background 0.12s',
+                            background: outputRatio === opt.value ? '#EEF2FF' : 'transparent',
+                          }}
+                          onMouseEnter={e => { if (outputRatio !== opt.value) e.currentTarget.style.background = '#F9FAFB'; }}
+                          onMouseLeave={e => { if (outputRatio !== opt.value) e.currentTarget.style.background = 'transparent'; }}
+                        >
+                          <span style={{ fontSize: '12.5px', fontWeight: outputRatio === opt.value ? 600 : 400, color: outputRatio === opt.value ? '#4F46E5' : '#111827' }}>
+                            {opt.label}
+                          </span>
+                          <span style={{ fontSize: '11px', color: '#9CA3AF' }}>{opt.desc}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={handleExport}
+                disabled={exporting}
+                title="PDF 내보내기"
+                style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', cursor: exporting ? 'not-allowed' : 'pointer', opacity: exporting ? 0.6 : 1 }}
+                onMouseEnter={e => { if (!exporting) e.currentTarget.style.background = '#F9FAFB'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
+              >
+                <Download size={13} /> {exporting ? '생성 중…' : 'PDF'}
+              </button>
+
+              <button
+                onClick={() => setShowShare(true)}
+                style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', cursor: 'pointer' }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#F9FAFB'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
+              >
+                <Share2 size={13} /> 공유
+              </button>
+
+              <button
+                onClick={() => setEditMode(true)}
+                style={{ height: '32px', padding: '0 14px', borderRadius: '7px', fontSize: '12.5px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', cursor: 'pointer', transition: 'all 0.15s' }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#F9FAFB'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
+              >
+                <Pencil size={13} /> 편집
+              </button>
+
+              <button
+                onClick={handlePublish}
+                style={{ height: '32px', padding: '0 14px', borderRadius: '7px', fontSize: '12.5px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', color: 'white', background: '#111827', border: 'none', cursor: 'pointer', transition: 'background 0.15s' }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#1F2937'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = '#111827'; }}
+              >
+                게시
               </button>
             </>
           )}
-
-          {/* 설정 드롭다운 */}
-          <div ref={settingsRef} style={{ position: 'relative' }}>
-            <button
-              onClick={() => setShowSettings(v => !v)}
-              title="설정"
-              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: showSettings ? '#4F46E5' : '#374151', background: showSettings ? '#EEF2FF' : 'white', border: `1px solid ${showSettings ? '#C7D2FE' : '#E5E7EB'}`, cursor: 'pointer', transition: 'all 0.15s' }}
-              onMouseEnter={e => { if (!showSettings) e.currentTarget.style.background = '#F9FAFB'; }}
-              onMouseLeave={e => { if (!showSettings) e.currentTarget.style.background = 'white'; }}
-            >
-              <Settings size={13} /> 설정
-            </button>
-
-            {showSettings && (
-              <div style={{
-                position: 'absolute', top: 'calc(100% + 8px)', right: 0,
-                width: '220px', background: 'white', borderRadius: '12px',
-                boxShadow: '0 8px 28px rgba(17,24,39,0.14), 0 0 0 1px rgba(0,0,0,0.06)',
-                padding: '16px', zIndex: 100,
-              }}>
-                <div style={{ fontSize: '11px', fontWeight: 600, color: '#9CA3AF', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '10px' }}>
-                  뷰어 이미지 비율
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  {([
-                    { value: '16:9', label: '16:9 — 와이드스크린', desc: '일반 화면 캡처에 적합' },
-                    { value: '1:1',  label: '1:1 — 정사각형',    desc: '앱/모바일 UI에 적합' },
-                    { value: '9:16', label: '9:16 — 세로',       desc: '스마트폰 화면에 적합' },
-                  ] as { value: Tutorial['output_ratio']; label: string; desc: string }[]).map(opt => (
-                    <button
-                      key={opt.value}
-                      onClick={() => handleRatioChange(opt.value)}
-                      style={{
-                        display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
-                        gap: '1px', padding: '8px 10px', borderRadius: '8px', border: 'none',
-                        cursor: 'pointer', textAlign: 'left', transition: 'background 0.12s',
-                        background: outputRatio === opt.value ? '#EEF2FF' : 'transparent',
-                      }}
-                      onMouseEnter={e => { if (outputRatio !== opt.value) e.currentTarget.style.background = '#F9FAFB'; }}
-                      onMouseLeave={e => { if (outputRatio !== opt.value) e.currentTarget.style.background = 'transparent'; }}
-                    >
-                      <span style={{ fontSize: '12.5px', fontWeight: outputRatio === opt.value ? 600 : 400, color: outputRatio === opt.value ? '#4F46E5' : '#111827' }}>
-                        {opt.label}
-                      </span>
-                      <span style={{ fontSize: '11px', color: '#9CA3AF' }}>{opt.desc}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <button
-            onClick={handleExport}
-            disabled={exporting}
-            title="PDF 내보내기"
-            style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', cursor: exporting ? 'not-allowed' : 'pointer', opacity: exporting ? 0.6 : 1 }}
-            onMouseEnter={e => { if (!exporting) e.currentTarget.style.background = '#F9FAFB'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
-          >
-            <Download size={13} /> {exporting ? '생성 중…' : 'PDF'}
-          </button>
-
-          <button
-            onClick={() => setShowShare(true)}
-            style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', cursor: 'pointer' }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#F9FAFB'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
-          >
-            <Share2 size={13} /> 공유
-          </button>
-
-          {/* Edit toggle */}
-          {editMode ? (
-            <button
-              onClick={() => setEditMode(false)}
-              style={{ height: '32px', padding: '0 14px', borderRadius: '7px', fontSize: '12.5px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#374151', background: '#F3F4F6', border: '1px solid #E5E7EB', cursor: 'pointer', transition: 'all 0.15s' }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#E5E7EB'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = '#F3F4F6'; }}
-            >
-              <X size={13} /> 편집 종료
-            </button>
-          ) : (
-            <button
-              onClick={() => setEditMode(true)}
-              style={{ height: '32px', padding: '0 16px', borderRadius: '7px', fontSize: '12.5px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'white', background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', border: 'none', cursor: 'pointer', boxShadow: '0 1px 6px rgba(79,70,229,0.3)', transition: 'box-shadow 0.15s' }}
-              onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 14px rgba(79,70,229,0.45)'; }}
-              onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 6px rgba(79,70,229,0.3)'; }}
-            >
-              <Pencil size={13} /> 편집
-            </button>
-          )}
-
-          <button
-            onClick={handlePublish}
-            style={{ height: '32px', padding: '0 14px', borderRadius: '7px', fontSize: '12.5px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', color: 'white', background: '#111827', border: 'none', cursor: 'pointer', transition: 'background 0.15s' }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#1F2937'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#111827'; }}
-          >
-            게시
-          </button>
           </div>
           {/* Created date — small, below action row */}
           <span style={{ fontSize: '10.5px', color: '#C4C9D4', paddingRight: '2px' }}>
