@@ -241,6 +241,24 @@ JSON만 응답 (마크다운 없이):
   return { color1: '#4F46E5', color2: '#7C3AED' };
 }
 
+export async function rewriteSentence(
+  original: string,
+  instruction: string
+): Promise<string> {
+  const response = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 512,
+    messages: [{
+      role: 'user',
+      content: `다음 문장을 "${instruction}" 방식으로 다시 작성해줘. 수정된 문장만 반환하고, 설명이나 따옴표는 붙이지 마.
+
+원문:
+${original}`,
+    }],
+  });
+  return response.content[0].type === 'text' ? response.content[0].text.trim() : original;
+}
+
 export async function generateAnnotations(userPrompt: string, stepContext: string) {
   const response = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',

@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Plus, Trash2, ZoomIn, X, Pencil,
-  Bold, Italic, Underline,
+  Bold, Italic, Underline, Sparkles, Loader2,
 } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { ImageAnnotationEditor, type Annotation } from './ImageAnnotationEditor';
@@ -430,12 +430,19 @@ const iconBtn: React.CSSProperties = {
 
 // ── TextFormatToolbar (always visible, uses execCommand) ──
 
+const AI_ACTIONS = [
+  { label: '문장 다듬기', instruction: '더 자연스럽고 읽기 쉽게 다듬어줘' },
+  { label: '맞춤법 교정', instruction: '맞춤법과 띄어쓰기를 교정해줘' },
+  { label: '간략하게', instruction: '핵심만 남기고 간략하게 요약해줘' },
+] as const;
+
 type ActiveState = { bold: boolean; italic: boolean; underline: boolean };
 
 function TextFormatToolbar({ editorRef }: { editorRef: React.RefObject<HTMLDivElement> }) {
   const [active, setActive] = useState<ActiveState>({
     bold: false, italic: false, underline: false,
   });
+  const [aiLoading, setAiLoading] = useState<string | null>(null);
 
   const syncActive = useCallback(() => {
     const sel = window.getSelection();
@@ -465,6 +472,29 @@ function TextFormatToolbar({ editorRef }: { editorRef: React.RefObject<HTMLDivEl
     document.execCommand(cmd, false, value);
     requestAnimationFrame(syncActive);
     editorRef.current?.dispatchEvent(new Event('input', { bubbles: true }));
+  };
+
+  const handleAiRewrite = async (instruction: string, label: string) => {
+    const el = editorRef.current;
+    if (!el) return;
+    const text = el.innerText.trim();
+    if (!text) return;
+    setAiLoading(label);
+    try {
+      const res = await fetch('/api/ai/rewrite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, instruction }),
+      });
+      const { result } = await res.json();
+      if (result) {
+        el.innerText = result;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('blur', { bubbles: true }));
+      }
+    } finally {
+      setAiLoading(null);
+    }
   };
 
   return (
@@ -509,6 +539,37 @@ function TextFormatToolbar({ editorRef }: { editorRef: React.RefObject<HTMLDivEl
         <Underline size={13} />
       </ToolBtn>
 
+      <Divider />
+
+      {/* AI rewrite buttons */}
+      <Sparkles size={12} style={{ color: '#7C3AED', marginLeft: '2px', flexShrink: 0 }} />
+      {AI_ACTIONS.map(({ label, instruction }) => (
+        <button
+          key={label}
+          disabled={!!aiLoading}
+          onClick={() => handleAiRewrite(instruction, label)}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: '4px',
+            height: '26px', padding: '0 9px',
+            borderRadius: '5px',
+            border: '1px solid #EDE9FE',
+            background: aiLoading === label ? '#EDE9FE' : 'white',
+            color: '#7C3AED',
+            fontSize: '11.5px', fontWeight: 500,
+            cursor: aiLoading ? 'not-allowed' : 'pointer',
+            opacity: aiLoading && aiLoading !== label ? 0.45 : 1,
+            transition: 'all 0.12s ease',
+            flexShrink: 0,
+          }}
+          onMouseEnter={e => { if (!aiLoading) { e.currentTarget.style.background = '#EDE9FE'; } }}
+          onMouseLeave={e => { if (aiLoading !== label) e.currentTarget.style.background = 'white'; }}
+        >
+          {aiLoading === label
+            ? <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} />
+            : null}
+          {label}
+        </button>
+      ))}
     </div>
   );
 }
