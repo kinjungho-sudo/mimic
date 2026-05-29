@@ -1265,3 +1265,215 @@ export const config = {
 **MIMIC · Backend Build Specification v3.0 · 2026.05.26**
 **Don't Explain, Just Mimic.**
 **작성: 클로드 (코마인드웍스 김정호 의뢰)**
+
+---
+
+---
+
+# MIMIC 제품 로드맵 (중기)
+
+> Tango AI 벤치마킹 기반 차별화 전략 (2026-05-29 추가)
+>
+> **전략 방향:** Tango가 엔터프라이즈 RPA로 피벗하며 생긴 SMB/개인 세그먼트 공백을 공략.
+> Tango 최고 기능(Guide Me, $12,500+/년 Enterprise 전용)을 MIMIC Pro 수준에서 제공.
+> "캡처만 해도 배포 가능한 품질"을 목표로 AI 자동화 수준을 단계적으로 높임.
+
+---
+
+## 현재 완료 상태 (Phase 0)
+
+- [x] Chrome Extension MV3 — 캡처 세션 시작/종료, 클릭 이벤트 저장
+- [x] `/api/capture/finalize` — 캡처 → 튜토리얼 + 스텝 자동 생성
+- [x] Claude AI — 튜토리얼 제목 + 스텝 초안(user_title, user_script) 자동 생성
+- [x] Claude Vision — 첫 스크린샷에서 커버 색상(cover_color) 추출
+- [x] 에디터 — 제목 편집, 스텝 편집, output_ratio 설정(16:9/1:1/9:16)
+- [x] 뷰어 — 고정 비율 이미지 컨테이너, 맨위/아래 이동 버튼
+- [x] PDF / PPTX 내보내기
+- [x] 공유 링크 (`/play/[token]`)
+- [x] 대시보드 카드 — Guidde 스타일 문서형 카드 (색상 아이콘 + 제목 + 날짜 + 작성자)
+
+---
+
+## Phase 1 — 에디터 UX 완성 및 공유 강화
+
+> **목표:** Tango 최다 불만(Undo 없음, 편집 도구 빈약)을 해결. 캡처 → 편집 → 공유 플로우를 매끄럽게.
+> **시작 방법:** "Phase 1 시작해" 또는 "Phase 1-N 항목명 구현해"
+
+### 1-1. 에디터 실행취소/재실행 (Undo/Redo)
+- **Why:** Tango G2 리뷰 1위 불만. 실수로 스텝 삭제/수정 시 복구 불가.
+- **구현:**
+  - `useAutosave.ts` 기반 변경 히스토리 스택 관리
+  - `Ctrl+Z` / `Ctrl+Shift+Z` 단축키 연결
+  - 에디터 헤더에 ↩ ↪ 버튼 노출
+- **관련 파일:** `components/editor/ManualEditor.tsx`, `components/editor/EditorHeader.tsx`
+
+### 1-2. 스텝 드래그 앤 드롭 재정렬
+- **Why:** Tango는 지원, MIMIC 미지원. 순서 변경이 불편하면 편집 포기.
+- **구현:**
+  - `@dnd-kit/core` 도입
+  - 재정렬 시 `order_index` 일괄 PATCH
+- **관련 파일:** `components/editor/AppSidebar.tsx`, `app/api/tutorials/[id]/route.ts`
+
+### 1-3. 스텝 사이 새 스텝 삽입
+- **Why:** 캡처 후 빠진 단계를 수동으로 끼워넣기. Tango 지원 기능.
+- **구현:**
+  - 스텝 카드 사이 "+ 스텝 추가" 버튼 (호버 시 노출)
+  - 이미지 업로드 또는 빈 스텝 생성
+- **관련 파일:** `components/editor/ManualEditor.tsx`, `app/api/steps/[id]/route.ts`
+
+### 1-4. 블러(PII) 도구
+- **Why:** Tango는 Pro에서 수동 블러 제공. 비밀번호/이메일 등 민감 정보 처리 필수.
+- **구현:**
+  - 이미지 위에 드래그로 블러 영역 지정
+  - Canvas API로 해당 영역 픽셀 블러 처리 후 재업로드
+- **관련 파일:** `components/editor/ImageAnnotationEditor.tsx`
+
+### 1-5. 뷰어 비밀번호 보호
+- **Why:** 내부 문서를 외부에 실수로 공개하는 사고 방지.
+- **구현:**
+  - `mm_tutorials.share_password` 컬럼 추가 (hashed)
+  - `/play/[token]` 에서 비밀번호 입력 게이트 처리
+- **DB 변경:** `mm_tutorials` 에 `share_password TEXT NULL` 컬럼 추가
+- **관련 파일:** `app/play/[token]/page.tsx`, `app/api/play/[token]/route.ts`
+
+---
+
+## Phase 2 — AI 품질 향상
+
+> **목표:** 캡처만 해도 배포 가능한 품질의 문서가 나오도록. AI 자동화 수준을 높임.
+> **시작 방법:** "Phase 2 시작해" 또는 "Phase 2-N 항목명 구현해"
+
+### 2-1. 가이드 최신성 감지 (Stale Guide Detection)
+- **Why:** 경쟁사 전체 미지원. UI가 바뀌어도 가이드가 틀린지 아무도 모름. 차별화 1순위.
+- **구현:**
+  - 스텝의 `page_url`을 headless 브라우저로 접근해 현재 스크린샷 재캡처
+  - Claude Vision으로 저장된 스크린샷 vs 현재 화면 비교 → 유사도 점수
+  - 변경 감지 시 해당 스텝에 "업데이트 필요" 뱃지 표시
+- **신규 파일:** `app/api/tutorials/[id]/check-freshness/route.ts`
+- **DB 변경:** `mm_steps` 에 `freshness_checked_at TIMESTAMPTZ`, `is_stale BOOLEAN DEFAULT false` 추가
+
+### 2-2. AI 자동 크롭 개선
+- **Why:** Tango 불만 2위. 자동 크롭이 잘못된 요소를 잡는 경우가 잦음.
+- **구현:**
+  - 캡처 이벤트에서 클릭 좌표(`click_x`, `click_y`) + viewport 크기 저장
+  - finalize 시 해당 좌표 중심으로 스마트 크롭 적용 (Claude Vision으로 요소 경계 감지)
+- **관련 파일:** `app/api/capture/analyze/route.ts`, Extension `content.js`
+- **DB 변경:** `mm_capture_events` 에 `click_x INT`, `click_y INT`, `viewport_w INT`, `viewport_h INT` 추가
+
+### 2-3. AI 나레이션 비디오 출력
+- **Why:** Tango 미지원 (Guidde가 선점). 비디오 콘텐츠 수요가 높고 확산에 유리.
+- **구현:**
+  - 스텝별 `user_script` 기반 TTS 음성 생성 (기존 `/api/tts` 활용)
+  - 스크린샷 슬라이드 + 오디오 → Remotion 으로 MP4 합성
+  - Vercel에서 실행 불가한 경우 외부 렌더링 워커 분리 고려
+- **신규 파일:** `app/api/export/video/route.ts`, `lib/video-renderer.ts`
+
+### 2-4. 가이드 다국어 번역
+- **Why:** Tango Enterprise 전용 기능(10개 언어). Pro 수준에서 제공하면 즉각적 차별화.
+- **구현:**
+  - Claude API로 `user_title` + `user_script` 일괄 번역 (요청 시점에 생성)
+  - 번역본을 `mm_step_translations` 테이블에 저장 (캐싱)
+  - 뷰어에서 언어 선택 드롭다운
+- **신규 파일:** `app/api/tutorials/[id]/translate/route.ts`
+- **DB 변경:** `mm_step_translations(id, step_id, lang CHAR(5), title TEXT, script TEXT)` 테이블 추가
+
+---
+
+## Phase 3 — 인앱 가이드 오버레이 (Guide Me)
+
+> **목표:** Tango의 최고 기능($12,500+/년 Enterprise 전용)을 MIMIC Pro에서 제공.
+> 실제 웹앱 위에 단계별 툴팁 오버레이를 띄워 사용자를 안내.
+> **시작 방법:** "Phase 3 시작해" 또는 "Phase 3-N 항목명 구현해"
+
+### 3-1. DOM 선택자 저장 (인프라)
+- **Why:** Guide Me의 핵심 인프라. 스크린샷만으론 라이브 UI에 오버레이 불가.
+- **구현:**
+  - Extension 캡처 시 클릭 요소의 CSS selector + XPath 저장
+  - finalize 시 `mm_steps` 로 복사
+- **관련 파일:** Extension `content.js`, `app/api/capture/finalize/route.ts`
+- **DB 변경:** `mm_steps` 에 `element_selector TEXT NULL`, `element_xpath TEXT NULL` 추가
+- **DB 변경:** `mm_capture_events` 에 `element_selector TEXT NULL`, `element_xpath TEXT NULL` 추가
+
+### 3-2. Embed SDK (`public/sdk.js`)
+- **Why:** 퍼블리시된 가이드를 어떤 웹앱에서도 실행할 수 있는 JS 스니펫.
+- **구현:**
+  ```html
+  <!-- 삽입 예시 -->
+  <script src="https://mimic.so/sdk.js" data-guide="GUIDE_ID"></script>
+  ```
+  - 각 스텝의 `element_selector` 로 해당 요소를 찾아 툴팁 렌더링
+  - 요소 없으면 화면 중앙 fallback 팝업
+  - "다음" / "이전" / "건너뛰기" 컨트롤
+- **신규 파일:** `public/sdk.js`, `app/api/play/[token]/steps/route.ts`
+
+### 3-3. 오버레이 트리거 방식
+- **Why:** 사용자가 Guide Me를 어떻게 시작할지 설정 가능해야 함.
+- **구현:**
+  - **URL 진입 시 자동 실행** — 특정 URL 패턴에 매칭되면 자동 시작 (SDK 옵션)
+  - **쿼리 파라미터** — `?mimic_guide=GUIDE_ID` 로 딥링크
+  - **플로팅 버튼** — 페이지 우하단에 "?" 버튼으로 언제든 시작
+- **관련 파일:** `public/sdk.js`
+
+### 3-4. 에디터에서 Guide Me 미리보기
+- **Why:** 오버레이가 실제로 어떻게 보이는지 에디터에서 확인.
+- **구현:**
+  - 에디터 헤더 "Guide Me 미리보기" 버튼
+  - iframe 내부에 `page_url` 로드 후 오버레이 SDK 실행
+- **관련 파일:** `components/editor/EditorHeader.tsx`
+
+---
+
+## Phase 4 — 팀 협업 및 분석
+
+> **목표:** 개인 → 팀 플랜 전환. Tango는 실시간 협업 없음, 분석은 Enterprise 전용.
+> **시작 방법:** "Phase 4 시작해" 또는 "Phase 4-N 항목명 구현해"
+
+### 4-1. 뷰어 분석 대시보드
+- **Why:** Tango는 Enterprise 전용. 조회수/완독률/이탈 스텝을 모르면 개선 불가.
+- **구현:**
+  - 기존 `ViewEvent` + `/api/events` 활용 (이미 구현됨 — 데이터 쌓이고 있음)
+  - 에디터 내 "분석" 탭: 총 조회수, 완독률, 스텝별 이탈 funnel 차트
+  - 라이브러리: `recharts` 또는 간단한 SVG bar chart (외부 의존성 최소화)
+- **신규 파일:** `app/manual/[id]/analytics/page.tsx`
+
+### 4-2. 실시간 협업 편집
+- **Why:** Tango 미지원. Google Docs처럼 여러 명이 동시에 가이드 편집.
+- **구현:**
+  - Supabase Realtime으로 스텝 변경사항 실시간 동기화
+  - 편집자 커서/이름 표시 (presence 기능)
+  - 충돌 해결: last-write-wins + 변경 알림 토스트
+- **관련 파일:** `hooks/useTutorial.ts`, `components/editor/ManualEditor.tsx`
+
+### 4-3. 워크스페이스 / 팀 플랜
+- **Why:** 팀 단위 사용으로 ARPU 상승. 현재 모든 가이드가 개인 소유.
+- **구현:**
+  - `mm_workspaces`, `mm_workspace_members` 테이블 신설
+  - 가이드 소유권을 `user_id` → `workspace_id` 로 확장 (하위 호환 유지)
+  - 초대 이메일 + 수락 플로우
+- **DB 변경:** `mm_workspaces(id, name, owner_id, plan)`, `mm_workspace_members(workspace_id, user_id, role)` 추가
+
+---
+
+## 기술 부채 / 백로그
+
+언젠가 해야 하지만 지금 당장 아닌 것들:
+
+- [ ] Firefox / Safari 익스텐션 지원 (Tango Chromium 전용의 약점)
+- [ ] iframe 내부 캡처 (Google Docs, Sheets 내부 클릭 감지)
+- [ ] 모바일 뷰어 최적화
+- [ ] 가이드 버전 히스토리 (Tango Pro 14일, Enterprise 365일)
+- [ ] Notion / Confluence / Slack 네이티브 임베드 통합
+- [ ] Canvas 앱 캡처 (Figma, Webflow 등)
+
+---
+
+## 작업 시작 방법
+
+```
+"Phase 1 시작해"           → Phase 1 전체 항목을 순서대로 구현
+"Phase 2-1 구현해"         → 2-1 가이드 최신성 감지만 구현
+"Phase 3 시작해"           → Phase 3 전체 (Guide Me 오버레이)
+```
+
+각 Phase는 이전 Phase 완료와 무관하게 독립적으로 시작 가능.
+단, Phase 3은 3-1(DOM 선택자 저장)이 완료되어야 3-2 이후 작업 가능.

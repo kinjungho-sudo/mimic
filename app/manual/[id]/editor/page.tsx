@@ -43,8 +43,11 @@ export default function EditorPage() {
   const [saved, setSaved] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [outputRatio, setOutputRatio] = useState<Tutorial['output_ratio']>('16:9');
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
+  const [thumbnailUploading, setThumbnailUploading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
+  const thumbnailInputRef = useRef<HTMLInputElement>(null);
 
   const stepSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
@@ -83,6 +86,7 @@ export default function EditorPage() {
     if (!tutorial) return;
     setTitle(tutorial.title);
     setOutputRatio(tutorial.output_ratio ?? '16:9');
+    setThumbnailUrl(tutorial.thumbnail_url ?? null);
     const steps = stepsToManualSteps(tutorial.steps);
     setManualSteps(steps);
     if (tutorial.steps.length > 0 && !activeId) {
@@ -157,6 +161,26 @@ export default function EditorPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ output_ratio: ratio }),
     }).catch(() => {});
+  }, [id]);
+
+  const handleThumbnailUpload = useCallback(async (file: File) => {
+    setThumbnailUploading(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch(`/api/tutorials/${id}/thumbnail`, { method: 'POST', body: form });
+      if (!res.ok) { alert('썸네일 업로드에 실패했습니다.'); return; }
+      const { thumbnail_url } = await res.json();
+      setThumbnailUrl(thumbnail_url);
+    } finally {
+      setThumbnailUploading(false);
+    }
+  }, [id]);
+
+  const handleThumbnailDelete = useCallback(async () => {
+    if (!confirm('썸네일을 삭제할까요?')) return;
+    await fetch(`/api/tutorials/${id}/thumbnail`, { method: 'DELETE' });
+    setThumbnailUrl(null);
   }, [id]);
 
   const handlePublish = useCallback(async () => {
@@ -339,10 +363,81 @@ export default function EditorPage() {
                 {showSettings && (
                   <div style={{
                     position: 'absolute', top: 'calc(100% + 8px)', right: 0,
-                    width: '220px', background: 'white', borderRadius: '12px',
+                    width: '260px', background: 'white', borderRadius: '12px',
                     boxShadow: '0 8px 28px rgba(17,24,39,0.14), 0 0 0 1px rgba(0,0,0,0.06)',
                     padding: '16px', zIndex: 100,
                   }}>
+                    {/* ── 썸네일 ── */}
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: '#9CA3AF', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '10px' }}>
+                      카드 썸네일
+                    </div>
+                    <input
+                      ref={thumbnailInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      style={{ display: 'none' }}
+                      onChange={e => { const f = e.target.files?.[0]; if (f) handleThumbnailUpload(f); e.target.value = ''; }}
+                    />
+                    {thumbnailUrl ? (
+                      <div style={{ marginBottom: '16px' }}>
+                        <div style={{ position: 'relative', paddingTop: '56.25%', borderRadius: '8px', overflow: 'hidden', border: '1px solid #E5E7EB' }}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={thumbnailUrl} alt="썸네일" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                        </div>
+                        <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
+                          <button
+                            onClick={() => thumbnailInputRef.current?.click()}
+                            disabled={thumbnailUploading}
+                            style={{ flex: 1, padding: '6px 0', borderRadius: '7px', fontSize: '12px', fontWeight: 500, border: '1px solid #E5E7EB', background: 'white', color: '#374151', cursor: 'pointer' }}
+                            onMouseEnter={e => { e.currentTarget.style.background = '#F9FAFB'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
+                          >
+                            교체
+                          </button>
+                          <button
+                            onClick={handleThumbnailDelete}
+                            style={{ flex: 1, padding: '6px 0', borderRadius: '7px', fontSize: '12px', fontWeight: 500, border: '1px solid #FEE2E2', background: 'white', color: '#EF4444', cursor: 'pointer' }}
+                            onMouseEnter={e => { e.currentTarget.style.background = '#FEF2F2'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
+                          >
+                            삭제
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => thumbnailInputRef.current?.click()}
+                        disabled={thumbnailUploading}
+                        style={{
+                          width: '100%', paddingTop: '40%', position: 'relative',
+                          borderRadius: '8px', border: '1.5px dashed #D1D5DB',
+                          background: thumbnailUploading ? '#F9FAFB' : 'white',
+                          cursor: thumbnailUploading ? 'not-allowed' : 'pointer',
+                          marginBottom: '16px', transition: 'border-color 0.15s, background 0.15s',
+                        }}
+                        onMouseEnter={e => { if (!thumbnailUploading) { e.currentTarget.style.borderColor = '#4F46E5'; e.currentTarget.style.background = '#F5F3FF'; } }}
+                        onMouseLeave={e => { if (!thumbnailUploading) { e.currentTarget.style.borderColor = '#D1D5DB'; e.currentTarget.style.background = 'white'; } }}
+                      >
+                        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                          {thumbnailUploading ? (
+                            <div style={{ width: '18px', height: '18px', borderRadius: '50%', border: '2px solid #E5E7EB', borderTopColor: '#4F46E5', animation: 'spin 0.8s linear infinite' }} />
+                          ) : (
+                            <>
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+                              </svg>
+                              <span style={{ fontSize: '11.5px', color: '#6B7280' }}>이미지 업로드</span>
+                              <span style={{ fontSize: '10.5px', color: '#9CA3AF' }}>JPG, PNG, WEBP · 최대 5MB</span>
+                            </>
+                          )}
+                        </div>
+                      </button>
+                    )}
+
+                    {/* ── 구분선 ── */}
+                    <div style={{ height: '1px', background: '#F3F4F6', marginBottom: '14px' }} />
+
+                    {/* ── 뷰어 이미지 비율 ── */}
                     <div style={{ fontSize: '11px', fontWeight: 600, color: '#9CA3AF', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '10px' }}>
                       뷰어 이미지 비율
                     </div>

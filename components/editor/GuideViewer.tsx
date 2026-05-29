@@ -34,7 +34,7 @@ export function GuideViewer({ steps, activeId, onActiveChange, outputRatio = '16
     if (!el) return;
     isScrollingRef.current = true;
     el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    const timer = setTimeout(() => { isScrollingRef.current = false; }, 800);
+    const timer = setTimeout(() => { isScrollingRef.current = false; }, 500);
     return () => clearTimeout(timer);
   }, [activeId]);
 

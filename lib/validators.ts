@@ -39,6 +39,7 @@ export const tutorialPatchSchema = z.object({
   status: z.enum(['draft', 'published']).optional(),
   visibility: z.enum(['private', 'public']).optional(),
   output_ratio: z.enum(['16:9', '1:1', '9:16']).optional(),
+  thumbnail_url: z.string().url().nullable().optional(),
 });
 
 export const generateScriptSchema = z.object({

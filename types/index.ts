@@ -39,8 +39,8 @@ export type Tutorial = {
   updated_at: string;
   published_at: string | null;
   cover_color?: string | null;
-  // enriched by list API
   thumbnail_url?: string | null;
+  // enriched by list API
   step_count?: number;
 };
 
