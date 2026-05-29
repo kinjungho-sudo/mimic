@@ -24,23 +24,30 @@ interface GuideViewerProps {
 export function GuideViewer({ steps, activeId, onActiveChange, outputRatio = '16:9' }: GuideViewerProps) {
   const stepRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
+  // Prevents IntersectionObserver from overwriting activeId during programmatic scroll
+  const isScrollingRef = useRef(false);
 
-  // When activeId changes from TOC click → scroll into view
+  // When activeId changes from TOC click → scroll into view, suppress observer briefly
   useEffect(() => {
     if (!activeId) return;
-    stepRefs.current[activeId]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const el = stepRefs.current[activeId];
+    if (!el) return;
+    isScrollingRef.current = true;
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const timer = setTimeout(() => { isScrollingRef.current = false; }, 800);
+    return () => clearTimeout(timer);
   }, [activeId]);
 
-  // Intersection observer to track which step is in view
+  // Intersection observer to sync TOC highlight while user scrolls manually
   useEffect(() => {
     const els = Object.entries(stepRefs.current).filter(([, el]) => el);
     if (els.length === 0) return;
 
     const obs = new IntersectionObserver(
       entries => {
+        if (isScrollingRef.current) return;
         const visible = entries.filter(e => e.isIntersecting);
         if (visible.length === 0) return;
-        // pick the topmost visible
         visible.sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
         const id = (visible[0].target as HTMLElement).dataset.stepId;
         if (id) onActiveChange(id);
@@ -174,7 +181,7 @@ function ViewerStepCard({ step, outputRatio }: { step: ManualStep; outputRatio: 
               style={{
                 position: 'absolute', inset: 0,
                 width: '100%', height: '100%',
-                objectFit: 'contain',
+                objectFit: 'fill',
                 display: 'block',
               }}
             />

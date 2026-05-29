@@ -1,12 +1,18 @@
 'use client';
 
+import { useId } from 'react';
 import type { Annotation } from './ImageAnnotationEditor';
 
 export function AnnotationPreview({ annotations, imageUrl }: { annotations: Annotation[]; imageUrl: string }) {
+  // Unique per-instance ID prevents filter ID collisions when multiple steps
+  // are rendered simultaneously (GuideViewer renders all steps at once)
+  const uid = useId().replace(/:/g, '');
+  const filterId = `mosaic-blur-${uid}`;
+
   return (
     <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}>
       <defs>
-        <filter id="preview-mosaic-blur" x="-5%" y="-5%" width="110%" height="110%">
+        <filter id={filterId} x="-5%" y="-5%" width="110%" height="110%">
           <feGaussianBlur stdDeviation="4" />
         </filter>
       </defs>
@@ -17,14 +23,14 @@ export function AnnotationPreview({ annotations, imageUrl }: { annotations: Anno
         const w = Math.abs(x2 - x1), h = Math.abs(y2 - y1);
 
         if (type === 'mosaic') {
-          const clipId = `prev-mosaic-clip-${a.id}`;
+          const clipId = `mosaic-clip-${uid}-${a.id}`;
           return (
             <g key={a.id}>
               <defs>
                 <clipPath id={clipId}><rect x={`${minX}%`} y={`${minY}%`} width={`${w}%`} height={`${h}%`} /></clipPath>
               </defs>
               <image href={imageUrl} x="0" y="0" width="100%" height="100%"
-                preserveAspectRatio="none" filter="url(#preview-mosaic-blur)" clipPath={`url(#${clipId})`} />
+                preserveAspectRatio="none" filter={`url(#${filterId})`} clipPath={`url(#${clipId})`} />
             </g>
           );
         }
@@ -38,11 +44,11 @@ export function AnnotationPreview({ annotations, imageUrl }: { annotations: Anno
           <ellipse key={a.id} cx={`${(x1+x2)/2}%`} cy={`${(y1+y2)/2}%`} rx={`${w/2}%`} ry={`${h/2}%`} stroke={color} strokeWidth={sw} fill="none" />
         );
         if (type === 'arrow') {
-          const id = `prev-arrow-${a.id}`;
+          const markerId = `arrow-${uid}-${a.id}`;
           return (
             <g key={a.id}>
-              <defs><marker id={id} markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill={color} /></marker></defs>
-              <line x1={`${x1}%`} y1={`${y1}%`} x2={`${x2}%`} y2={`${y2}%`} stroke={color} strokeWidth={sw} markerEnd={`url(#${id})`} strokeLinecap="round" />
+              <defs><marker id={markerId} markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill={color} /></marker></defs>
+              <line x1={`${x1}%`} y1={`${y1}%`} x2={`${x2}%`} y2={`${y2}%`} stroke={color} strokeWidth={sw} markerEnd={`url(#${markerId})`} strokeLinecap="round" />
             </g>
           );
         }

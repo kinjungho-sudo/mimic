@@ -3,12 +3,12 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard, BookOpen, Users, Zap, Settings, Trash2,
+  LayoutDashboard, BookOpen, Users, Zap, Settings,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
   { icon: LayoutDashboard, label: '홈', href: '/dashboard' },
-  { icon: BookOpen, label: '매뉴얼', href: '/dashboard' },
+  { icon: BookOpen, label: '매뉴얼', href: '/manual' },
   { icon: Users, label: '팀', href: '#' },
   { icon: Zap, label: '자동화', href: '#' },
 ];

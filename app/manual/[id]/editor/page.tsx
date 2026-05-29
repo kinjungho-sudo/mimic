@@ -39,7 +39,7 @@ export default function EditorPage() {
   const [titleDirty, setTitleDirty] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false); // eslint-disable-line @typescript-eslint/no-unused-vars
+  const [saved, setSaved] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [outputRatio, setOutputRatio] = useState<Tutorial['output_ratio']>('16:9');
   const [showSettings, setShowSettings] = useState(false);
@@ -105,10 +105,10 @@ export default function EditorPage() {
   // Autosave title
   useAutosave(id, titleDirty ? { title } : null);
 
-  const handleSave = useCallback(async () => {
+  const handleSave = useCallback(async (): Promise<boolean> => {
     setSaving(true);
     try {
-      await Promise.all(
+      const results = await Promise.all(
         manualSteps
           .filter(s => !s.id.startsWith('step-'))
           .map(s => {
@@ -117,11 +117,15 @@ export default function EditorPage() {
               user_title: s.actionTitle || null,
               user_script: s.description || null,
               user_annotations: s.annotations ?? [],
-            }).catch(() => {});
+            }).then(() => true).catch(() => false);
           })
       );
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      const allOk = results.every(r => r);
+      if (!allOk) {
+        alert('일부 단계를 저장하지 못했습니다. 네트워크 연결을 확인 후 다시 시도해 주세요.');
+        return false;
+      }
+      return true;
     } finally {
       setSaving(false);
     }
@@ -299,7 +303,7 @@ export default function EditorPage() {
               </button>
 
               <button
-                onClick={async () => { await handleSave(); setEditMode(false); }}
+                onClick={async () => { const ok = await handleSave(); if (ok) setEditMode(false); }}
                 disabled={saving}
                 style={{
                   height: '32px', padding: '0 16px', borderRadius: '7px',
