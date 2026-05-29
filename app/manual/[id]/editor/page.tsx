@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Share2, Check, Download, Pencil, X, Undo2 } from 'lucide-react';
+import { Share2, Check, Download, Pencil, X, Undo2, Settings } from 'lucide-react';
 import { AppSidebar } from '@/components/editor/AppSidebar';
 import { GuideToc } from '@/components/editor/GuideToc';
 import { GuideViewer } from '@/components/editor/GuideViewer';
@@ -11,7 +11,7 @@ import { ShareModal } from '@/components/editor/ShareModal';
 import { useTutorial } from '@/hooks/useTutorial';
 import { useAutosave } from '@/hooks/useAutosave';
 import { updateStep } from '@/lib/api/steps';
-import type { Step } from '@/types';
+import type { Step, Tutorial } from '@/types';
 
 // ── Adapters ──────────────────────────────────────────────
 
@@ -41,6 +41,9 @@ export default function EditorPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [outputRatio, setOutputRatio] = useState<Tutorial['output_ratio']>('16:9');
+  const [showSettings, setShowSettings] = useState(false);
+  const settingsRef = useRef<HTMLDivElement>(null);
 
   const stepSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
@@ -78,6 +81,7 @@ export default function EditorPage() {
   useEffect(() => {
     if (!tutorial) return;
     setTitle(tutorial.title);
+    setOutputRatio(tutorial.output_ratio ?? '16:9');
     const steps = stepsToManualSteps(tutorial.steps);
     setManualSteps(steps);
     if (tutorial.steps.length > 0 && !activeId) {
@@ -85,6 +89,18 @@ export default function EditorPage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tutorial?.id]);
+
+  // 설정 패널 외부 클릭 닫기
+  useEffect(() => {
+    if (!showSettings) return;
+    const handler = (e: MouseEvent) => {
+      if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) {
+        setShowSettings(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showSettings]);
 
   // Autosave title
   useAutosave(id, titleDirty ? { title } : null);
@@ -126,6 +142,16 @@ export default function EditorPage() {
     } finally {
       setExporting(false);
     }
+  }, [id]);
+
+  const handleRatioChange = useCallback(async (ratio: Tutorial['output_ratio']) => {
+    setOutputRatio(ratio);
+    setShowSettings(false);
+    await fetch(`/api/tutorials/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ output_ratio: ratio }),
+    }).catch(() => {});
   }, [id]);
 
   const handlePublish = useCallback(async () => {
@@ -182,37 +208,58 @@ export default function EditorPage() {
     );
   }
 
+  const createdAt = new Date(tutorial.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
       {/* ── Top header ── */}
       <header style={{
         height: '52px', flexShrink: 0,
         display: 'flex', alignItems: 'center',
-        padding: '0 16px 0 0',
+        padding: '0 16px',
         background: 'white',
         borderBottom: '1px solid #E5E7EB',
-        gap: '12px',
+        gap: '0',
         zIndex: 20,
       }}>
-        {/* Left: title area (aligned after sidebar+toc) */}
-        <div style={{ width: '300px', flexShrink: 0, display: 'flex', alignItems: 'center', paddingLeft: '16px', borderRight: '1px solid #E5E7EB', height: '100%' }}>
+        {/* Left: back button + logo area (60px sidebar width) */}
+        <div style={{ width: '60px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <button
+            onClick={() => router.push('/dashboard')}
+            title="대시보드로 돌아가기"
+            style={{
+              width: '32px', height: '32px', borderRadius: '8px',
+              border: '1px solid #E5E7EB', background: 'white',
+              display: 'grid', placeItems: 'center',
+              color: '#6B7280', cursor: 'pointer', transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#F9FAFB'; e.currentTarget.style.color = '#111827'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'white'; e.currentTarget.style.color = '#6B7280'; }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+        </div>
+
+        {/* TOC column header (240px) — shows title */}
+        <div style={{ width: '240px', flexShrink: 0, paddingLeft: '14px', paddingRight: '14px', borderLeft: '1px solid #E5E7EB', borderRight: '1px solid #E5E7EB', height: '100%', display: 'flex', alignItems: 'center' }}>
           <input
             value={title}
             onChange={e => { setTitle(e.target.value); setTitleDirty(true); }}
             style={{
-              fontSize: '14px', fontWeight: 600, color: '#111827',
+              fontSize: '13.5px', fontWeight: 600, color: '#111827',
               background: 'transparent', border: 'none', outline: 'none',
               width: '100%', cursor: 'text',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}
             placeholder="매뉴얼 제목"
           />
         </div>
 
-        {/* Center: breadcrumb / status */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', paddingLeft: '16px' }}>
-          <span style={{ fontSize: '12px', color: '#9CA3AF' }}>
-            {manualSteps.length}개 단계
-          </span>
+        {/* Center: meta info */}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', paddingLeft: '20px' }}>
+          <span style={{ fontSize: '12px', color: '#9CA3AF' }}>{manualSteps.length}개 단계</span>
           {tutorial.status === 'published' && (
             <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '20px', background: 'rgba(16,185,129,0.1)', color: '#059669', fontWeight: 500 }}>
               게시됨
@@ -226,8 +273,9 @@ export default function EditorPage() {
           )}
         </div>
 
-        {/* Right: actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {/* Right: actions + created date below */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
           {editMode && (
             <>
               <button
@@ -268,6 +316,57 @@ export default function EditorPage() {
               </button>
             </>
           )}
+
+          {/* 설정 드롭다운 */}
+          <div ref={settingsRef} style={{ position: 'relative' }}>
+            <button
+              onClick={() => setShowSettings(v => !v)}
+              title="설정"
+              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: showSettings ? '#4F46E5' : '#374151', background: showSettings ? '#EEF2FF' : 'white', border: `1px solid ${showSettings ? '#C7D2FE' : '#E5E7EB'}`, cursor: 'pointer', transition: 'all 0.15s' }}
+              onMouseEnter={e => { if (!showSettings) e.currentTarget.style.background = '#F9FAFB'; }}
+              onMouseLeave={e => { if (!showSettings) e.currentTarget.style.background = 'white'; }}
+            >
+              <Settings size={13} /> 설정
+            </button>
+
+            {showSettings && (
+              <div style={{
+                position: 'absolute', top: 'calc(100% + 8px)', right: 0,
+                width: '220px', background: 'white', borderRadius: '12px',
+                boxShadow: '0 8px 28px rgba(17,24,39,0.14), 0 0 0 1px rgba(0,0,0,0.06)',
+                padding: '16px', zIndex: 100,
+              }}>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: '#9CA3AF', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '10px' }}>
+                  뷰어 이미지 비율
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {([
+                    { value: '16:9', label: '16:9 — 와이드스크린', desc: '일반 화면 캡처에 적합' },
+                    { value: '1:1',  label: '1:1 — 정사각형',    desc: '앱/모바일 UI에 적합' },
+                    { value: '9:16', label: '9:16 — 세로',       desc: '스마트폰 화면에 적합' },
+                  ] as { value: Tutorial['output_ratio']; label: string; desc: string }[]).map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => handleRatioChange(opt.value)}
+                      style={{
+                        display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+                        gap: '1px', padding: '8px 10px', borderRadius: '8px', border: 'none',
+                        cursor: 'pointer', textAlign: 'left', transition: 'background 0.12s',
+                        background: outputRatio === opt.value ? '#EEF2FF' : 'transparent',
+                      }}
+                      onMouseEnter={e => { if (outputRatio !== opt.value) e.currentTarget.style.background = '#F9FAFB'; }}
+                      onMouseLeave={e => { if (outputRatio !== opt.value) e.currentTarget.style.background = 'transparent'; }}
+                    >
+                      <span style={{ fontSize: '12.5px', fontWeight: outputRatio === opt.value ? 600 : 400, color: outputRatio === opt.value ? '#4F46E5' : '#111827' }}>
+                        {opt.label}
+                      </span>
+                      <span style={{ fontSize: '11px', color: '#9CA3AF' }}>{opt.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
 
           <button
             onClick={handleExport}
@@ -318,6 +417,11 @@ export default function EditorPage() {
           >
             게시
           </button>
+          </div>
+          {/* Created date — small, below action row */}
+          <span style={{ fontSize: '10.5px', color: '#C4C9D4', paddingRight: '2px' }}>
+            {createdAt} 생성
+          </span>
         </div>
       </header>
 
@@ -342,6 +446,8 @@ export default function EditorPage() {
           {editMode ? (
             <ManualEditor
               steps={manualSteps}
+              hideToc
+              activeId={activeId}
               onChange={(next) => {
                 setManualStepsWithHistory(next);
                 next.forEach(step => {
@@ -376,6 +482,7 @@ export default function EditorPage() {
               steps={manualSteps}
               activeId={activeId}
               onActiveChange={setActiveId}
+              outputRatio={outputRatio}
             />
           )}
         </div>

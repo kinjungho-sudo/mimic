@@ -22,14 +22,20 @@ interface ManualEditorProps {
   steps: ManualStep[];
   onChange: (steps: ManualStep[]) => void;
   onSave?: (id: string, patch: Partial<ManualStep>) => void;
+  // When true, hides the internal TOC sidebar (used when parent provides its own TOC)
+  hideToc?: boolean;
+  // Expose scroll-to-step so parent TOC can drive navigation
+  activeId?: string | null;
 }
 
 // ── ManualEditor ──────────────────────────────────────────
 
-export function ManualEditor({ steps, onChange, onSave }: ManualEditorProps) {
-  const [activeId, setActiveId] = useState<string | null>(
+export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: externalActiveId }: ManualEditorProps) {
+  const [internalActiveId, setInternalActiveId] = useState<string | null>(
     steps.length > 0 ? steps[0].id : null
   );
+  const activeId = hideToc ? (externalActiveId ?? internalActiveId) : internalActiveId;
+  const setActiveId = setInternalActiveId;
   const [zoomUrl, setZoomUrl] = useState<string | null>(null);
   const [annotatingId, setAnnotatingId] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -37,9 +43,16 @@ export function ManualEditor({ steps, onChange, onSave }: ManualEditorProps) {
   const contentRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => {
-    if (!activeId && steps.length > 0) setActiveId(steps[0].id);
+    if (!internalActiveId && steps.length > 0) setActiveId(steps[0].id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [steps.length]);
+
+  // When parent TOC drives navigation, scroll to the step
+  useEffect(() => {
+    if (!hideToc || !externalActiveId) return;
+    contentRefs.current[externalActiveId]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalActiveId]);
 
   const updateStep = (id: string, patch: Partial<ManualStep>) =>
     onChange(steps.map(s => s.id === id ? { ...s, ...patch } : s));
@@ -81,8 +94,8 @@ export function ManualEditor({ steps, onChange, onSave }: ManualEditorProps) {
 
   return (
     <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
-      {/* ── Left TOC ── */}
-      <aside style={{ width: '220px', flexShrink: 0, background: 'white', borderRight: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+      {/* ── Left TOC (hidden when parent provides its own) ── */}
+      <aside style={{ width: '220px', flexShrink: 0, background: 'white', borderRight: '1px solid #E5E7EB', display: hideToc ? 'none' : 'flex', flexDirection: 'column', overflowY: 'auto' }}>
         <div style={{ padding: '16px 16px 10px', fontSize: '11px', fontWeight: 600, color: '#9CA3AF', letterSpacing: '0.06em', textTransform: 'uppercase', borderBottom: '1px solid #F3F4F6', flexShrink: 0 }}>
           목차
         </div>
