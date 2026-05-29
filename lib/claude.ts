@@ -3,6 +3,11 @@ import type { Step } from '@/types';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+// Haiku는 ```json ... ``` 블록으로 감싸서 응답하는 경향이 있어 파싱 전에 제거
+function stripMarkdown(text: string): string {
+  return text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+}
+
 export async function analyzeScreenshot(
   base64Image: string,
   pageUrl: string
@@ -40,7 +45,7 @@ export async function analyzeScreenshot(
 
   const text = response.content[0].type === 'text' ? response.content[0].text : '{}';
   try {
-    const parsed = JSON.parse(text.trim());
+    const parsed = JSON.parse(stripMarkdown(text));
     return {
       title: String(parsed.title || '').slice(0, 15),
       description: String(parsed.description || '').slice(0, 40),
@@ -90,7 +95,7 @@ ${stepsText}${draftSection}
 
   const text = response.content[0].type === 'text' ? response.content[0].text : '{}';
   try {
-    const parsed = JSON.parse(text.trim());
+    const parsed = JSON.parse(stripMarkdown(text));
     return {
       script: String(parsed.script || ''),
       markerPositions: Array.isArray(parsed.markerPositions) ? parsed.markerPositions : [],
@@ -145,7 +150,7 @@ ${JSON.stringify(stepsData, null, 2)}
 
   const text = response.content[0].type === 'text' ? response.content[0].text : '{}';
   try {
-    const parsed = JSON.parse(text.trim());
+    const parsed = JSON.parse(stripMarkdown(text));
     return Array.isArray(parsed.markers) ? parsed.markers : [];
   } catch {
     return [];
@@ -193,7 +198,7 @@ ${stepsText}
 
   const text = response.content[0].type === 'text' ? response.content[0].text : '{}';
   try {
-    const parsed = JSON.parse(text.trim());
+    const parsed = JSON.parse(stripMarkdown(text));
     return {
       tutorial_title: String(parsed.tutorial_title || ''),
       steps: Array.isArray(parsed.steps) ? parsed.steps : [],
@@ -232,7 +237,7 @@ JSON만 응답 (마크다운 없이):
 
   const text = response.content[0].type === 'text' ? response.content[0].text : '{}';
   try {
-    const parsed = JSON.parse(text.trim());
+    const parsed = JSON.parse(stripMarkdown(text));
     const hexRe = /^#[0-9a-fA-F]{6}$/;
     if (hexRe.test(parsed.color1) && hexRe.test(parsed.color2)) {
       return { color1: parsed.color1, color2: parsed.color2 };
@@ -289,7 +294,7 @@ export async function generateAnnotations(userPrompt: string, stepContext: strin
 
   const text = response.content[0].type === 'text' ? response.content[0].text : '{}';
   try {
-    const parsed = JSON.parse(text.trim());
+    const parsed = JSON.parse(stripMarkdown(text));
     return Array.isArray(parsed.annotations) ? parsed.annotations : [];
   } catch {
     return [];
