@@ -11,6 +11,7 @@ import type { Tutorial } from '@/types';
 
 // ── 유틸 ──────────────────────────────────────────────────
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const m = Math.floor(diff / 60000);
@@ -85,15 +86,13 @@ function TutorialCard({ tutorial, onDelete, onTitleChange, author }: {
   const [savingTitle, setSavingTitle] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
-  // 단색 커버 — cover_color 첫 번째 색 or id 기반 fallback
   const fallbackColor = thumbColors(tutorial.id)[0];
-  const coverColor = tutorial.cover_color
+  const iconColor = tutorial.cover_color
     ? tutorial.cover_color.split(',')[0].trim()
     : fallbackColor;
 
-  const stepLabel = (tutorial.step_count ?? 0) > 0
-    ? `${tutorial.step_count}단계`
-    : (tutorial.mode === 'interactive' ? '인터랙티브' : '가이드');
+  const stepCount = tutorial.step_count ?? 0;
+  const dateStr = new Date(tutorial.updated_at).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\. /g, '.').replace(/\.$/, '');
 
   const showAvatar = !!author.avatarUrl && !avatarError;
   const authorInitial = author.name.charAt(0).toUpperCase() || '?';
@@ -123,134 +122,119 @@ function TutorialCard({ tutorial, onDelete, onTitleChange, author }: {
     <article
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onClick={() => { if (!editingTitle) router.push(`/manual/${tutorial.id}/editor`); }}
       style={{
         background: 'white',
-        borderRadius: '14px',
-        overflow: 'hidden',
+        borderRadius: '12px',
         cursor: 'pointer',
-        border: '1px solid #F1F5F9',
-        boxShadow: hovered ? '0 8px 24px rgba(17,24,39,0.10)' : '0 1px 4px rgba(17,24,39,0.05)',
-        transition: 'box-shadow 0.2s, transform 0.2s',
-        transform: hovered ? 'translateY(-3px)' : 'none',
+        border: '1px solid #E5E7EB',
+        boxShadow: hovered ? '0 4px 16px rgba(17,24,39,0.10)' : '0 1px 3px rgba(17,24,39,0.06)',
+        transition: 'box-shadow 0.18s, transform 0.18s',
+        transform: hovered ? 'translateY(-2px)' : 'none',
         display: 'flex', flexDirection: 'column',
+        padding: '16px',
+        position: 'relative',
       }}
     >
-      {/* ── 커버 영역 (3:2 비율, 단색) ── */}
-      <div
-        onClick={() => { if (!editingTitle) router.push(`/manual/${tutorial.id}/editor`); }}
-        style={{
-          position: 'relative', paddingTop: '66.66%', overflow: 'hidden',
-          background: coverColor,
-        }}
-      >
-        {/* 중앙 콘텐츠 */}
+      {/* ── 상단: 아이콘 + 뱃지들 ── */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '12px' }}>
+        {/* 문서 아이콘 */}
         <div style={{
-          position: 'absolute', inset: 0,
-          display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center',
-          padding: '20px 16px', gap: '10px',
+          width: '44px', height: '44px', borderRadius: '10px', flexShrink: 0,
+          background: iconColor, display: 'grid', placeItems: 'center',
         }}>
-          {/* 제목 */}
-          {editingTitle ? (
-            <input
-              ref={titleInputRef}
-              value={titleDraft}
-              onChange={e => setTitleDraft(e.target.value)}
-              onBlur={saveTitle}
-              onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') { setEditingTitle(false); setTitleDraft(tutorial.title); } }}
-              onClick={e => e.stopPropagation()}
-              disabled={savingTitle}
-              style={{
-                fontSize: '15px', fontWeight: 700, color: 'white', lineHeight: 1.4,
-                textAlign: 'center',
-                border: '1.5px solid rgba(255,255,255,0.6)', borderRadius: '8px',
-                padding: '6px 10px', outline: 'none', width: '100%', boxSizing: 'border-box',
-                background: 'rgba(0,0,0,0.25)',
-              }}
-            />
-          ) : (
-            <div
-              onClick={e => { e.stopPropagation(); setEditingTitle(true); }}
-              title="클릭해서 제목 편집"
-              style={{
-                fontSize: '15px', fontWeight: 700, color: 'white', lineHeight: 1.45,
-                textAlign: 'center',
-                display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as const,
-                overflow: 'hidden', cursor: 'text',
-                textShadow: '0 1px 6px rgba(0,0,0,0.25)',
-              }}
-            >
-              {tutorial.title}
-            </div>
-          )}
-
-          {/* 단계 수 / 모드 설명 */}
-          <span style={{
-            fontSize: '11px', fontWeight: 500,
-            color: 'rgba(255,255,255,0.75)',
-            background: 'rgba(0,0,0,0.18)',
-            padding: '3px 10px', borderRadius: '999px',
-          }}>
-            {stepLabel}
-          </span>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.95)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+            <polyline points="10 9 9 9 8 9"/>
+          </svg>
         </div>
 
-        {/* 상태 뱃지 — 좌상단 */}
-        {tutorial.status === 'published' && (
-          <span style={{
-            position: 'absolute', top: '10px', left: '10px', zIndex: 2,
-            padding: '3px 8px', borderRadius: '6px', fontSize: '10.5px', fontWeight: 600,
-            background: 'rgba(16,185,129,0.88)', color: 'white', backdropFilter: 'blur(4px)',
-          }}>
-            게시됨
-          </span>
-        )}
-
-        {/* 삭제 버튼 — 호버 시 우상단 */}
-        <button
-          onClick={e => { e.stopPropagation(); if (confirm('이 매뉴얼을 삭제할까요?')) onDelete(tutorial.id); }}
-          style={{
-            position: 'absolute', top: '8px', right: '8px', zIndex: 3,
-            width: '28px', height: '28px', borderRadius: '8px',
-            background: 'rgba(0,0,0,0.4)', border: 'none', color: 'white',
-            display: 'grid', placeItems: 'center', cursor: 'pointer',
-            opacity: hovered ? 1 : 0, transition: 'opacity 0.15s',
-          }}
-        >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
-        </button>
+        {/* 뱃지 + 삭제 버튼 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {tutorial.status === 'published' && (
+            <span style={{ padding: '3px 8px', borderRadius: '6px', fontSize: '10.5px', fontWeight: 600, background: '#DCFCE7', color: '#16A34A' }}>
+              공유
+            </span>
+          )}
+          {stepCount > 0 && (
+            <span style={{ padding: '3px 8px', borderRadius: '6px', fontSize: '10.5px', fontWeight: 500, background: '#F3F4F6', color: '#6B7280' }}>
+              {stepCount} 단계
+            </span>
+          )}
+          <button
+            onClick={e => { e.stopPropagation(); if (confirm('이 매뉴얼을 삭제할까요?')) onDelete(tutorial.id); }}
+            style={{
+              width: '26px', height: '26px', borderRadius: '6px',
+              background: hovered ? '#FEE2E2' : 'transparent', border: 'none', color: hovered ? '#EF4444' : '#D1D5DB',
+              display: 'grid', placeItems: 'center', cursor: 'pointer',
+              transition: 'background 0.15s, color 0.15s', flexShrink: 0,
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+          </button>
+        </div>
       </div>
 
-      {/* ── 하단 정보 영역 ── */}
-      <div style={{ padding: '10px 12px 12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        {/* 작성자 아바타 */}
-        {showAvatar ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={author.avatarUrl!}
-            alt={author.name}
-            onError={() => setAvatarError(true)}
-            style={{ width: '26px', height: '26px', borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }}
-          />
-        ) : (
-          <div style={{
-            width: '26px', height: '26px', borderRadius: '50%', flexShrink: 0,
-            background: coverColor, opacity: 0.85,
-            display: 'grid', placeItems: 'center',
-            fontSize: '11px', fontWeight: 700, color: 'white',
-          }}>
-            {authorInitial}
-          </div>
-        )}
+      {/* ── 제목 ── */}
+      {editingTitle ? (
+        <input
+          ref={titleInputRef}
+          value={titleDraft}
+          onChange={e => setTitleDraft(e.target.value)}
+          onBlur={saveTitle}
+          onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') { setEditingTitle(false); setTitleDraft(tutorial.title); } }}
+          onClick={e => e.stopPropagation()}
+          disabled={savingTitle}
+          style={{
+            fontSize: '14px', fontWeight: 600, color: '#111827', lineHeight: 1.45,
+            border: '1.5px solid #4F46E5', borderRadius: '6px',
+            padding: '4px 8px', outline: 'none', width: '100%', boxSizing: 'border-box',
+            marginBottom: '10px', fontFamily: 'inherit',
+          }}
+        />
+      ) : (
+        <div
+          onClick={e => { e.stopPropagation(); setEditingTitle(true); }}
+          title="클릭해서 제목 편집"
+          style={{
+            fontSize: '14px', fontWeight: 600, color: '#111827', lineHeight: 1.5,
+            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const,
+            overflow: 'hidden', cursor: 'text', marginBottom: '10px',
+            minHeight: '42px',
+          }}
+        >
+          {tutorial.title}
+        </div>
+      )}
 
-        {/* 작성자 이름 + 날짜 */}
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ fontSize: '12px', fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      {/* ── 하단: 날짜 + 작성자 ── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: '10px', borderTop: '1px solid #F3F4F6' }}>
+        <span style={{ fontSize: '11.5px', color: '#9CA3AF' }}>{dateStr}</span>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {showAvatar ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={author.avatarUrl!}
+              alt={author.name}
+              onError={() => setAvatarError(true)}
+              style={{ width: '20px', height: '20px', borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }}
+            />
+          ) : (
+            <div style={{
+              width: '20px', height: '20px', borderRadius: '50%', flexShrink: 0,
+              background: iconColor, display: 'grid', placeItems: 'center',
+              fontSize: '9px', fontWeight: 700, color: 'white',
+            }}>
+              {authorInitial}
+            </div>
+          )}
+          <span style={{ fontSize: '11.5px', color: '#6B7280', fontWeight: 500, maxWidth: '80px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {author.name}
-          </div>
-          <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
-            {timeAgo(tutorial.updated_at)}
-          </div>
+          </span>
         </div>
       </div>
     </article>
@@ -538,14 +522,17 @@ export default function DashboardPage() {
                 {tutLoading ? (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '20px' }}>
                     {[1, 2, 3].map(i => (
-                      <div key={i} style={{ borderRadius: '12px', overflow: 'hidden', background: 'white', boxShadow: '0 1px 3px rgba(17,24,39,0.06)' }}>
-                        <div style={{ paddingTop: '56.25%', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite' }} />
-                        <div style={{ padding: '10px 12px 12px', display: 'flex', gap: '10px' }}>
-                          <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite', flexShrink: 0 }} />
-                          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                            <div style={{ height: '13px', borderRadius: '6px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite' }} />
-                            <div style={{ height: '11px', width: '60%', borderRadius: '6px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite' }} />
-                          </div>
+                      <div key={i} style={{ borderRadius: '12px', background: 'white', border: '1px solid #E5E7EB', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <div style={{ width: '44px', height: '44px', borderRadius: '10px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite' }} />
+                          <div style={{ width: '60px', height: '22px', borderRadius: '6px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite' }} />
+                        </div>
+                        <div style={{ height: '13px', borderRadius: '6px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite' }} />
+                        <div style={{ height: '13px', width: '70%', borderRadius: '6px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite' }} />
+                        <div style={{ height: '1px', background: '#F3F4F6', margin: '4px 0' }} />
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <div style={{ width: '70px', height: '11px', borderRadius: '6px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite' }} />
+                          <div style={{ width: '80px', height: '11px', borderRadius: '6px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite' }} />
                         </div>
                       </div>
                     ))}

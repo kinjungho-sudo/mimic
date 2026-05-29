@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 
 const BrandMark = () => (
@@ -135,6 +135,324 @@ function RevealSection({ children, style }: { children: React.ReactNode; style?:
   return (
     <div ref={ref} style={{ transition: 'opacity 0.6s ease, transform 0.6s ease', opacity: visible ? 1 : 0, transform: visible ? 'translateY(0)' : 'translateY(24px)', ...style }}>
       {children}
+    </div>
+  );
+}
+
+// ── HeroSimulator ─────────────────────────────────────────
+
+const SCENES = ['record', 'editor', 'player'] as const;
+type Scene = typeof SCENES[number];
+
+const STEPS_DATA = [
+  { num: 1, title: '확장 아이콘 클릭', desc: '브라우저 우측 상단의 MIMIC 아이콘을 클릭하여 녹화를 시작하세요.' },
+  { num: 2, title: '로그인 버튼 클릭', desc: "'로그인' 버튼을 클릭하여 계정 인증을 진행합니다." },
+  { num: 3, title: '이메일 주소 입력', desc: '가입한 이메일 주소를 입력 필드에 입력하세요.' },
+  { num: 4, title: '비밀번호 입력', desc: '비밀번호를 입력하고 엔터 또는 로그인 버튼을 누릅니다.' },
+];
+
+function HeroSimulator() {
+  const [scene, setScene] = useState<Scene>('record');
+  const [recordStep, setRecordStep] = useState(0);
+  const [clickMarkers, setClickMarkers] = useState<{ x: number; y: number; id: number }[]>([]);
+  const [editorAiLoading, setEditorAiLoading] = useState(false);
+  const [editorAiDone, setEditorAiDone] = useState(false);
+  const [playerStep, setPlayerStep] = useState(0);
+  const markerIdRef = useRef(0);
+  const sceneTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recordTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const playerTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const SCENE_CLICKS: { x: number; y: number }[] = [
+    { x: 78, y: 22 }, { x: 62, y: 55 }, { x: 50, y: 68 }, { x: 50, y: 76 },
+  ];
+
+  const startScene = useCallback((s: Scene) => {
+    setScene(s);
+    if (s === 'record') {
+      setRecordStep(0);
+      setClickMarkers([]);
+    } else if (s === 'editor') {
+      setEditorAiLoading(false);
+      setEditorAiDone(false);
+    } else if (s === 'player') {
+      setPlayerStep(0);
+    }
+  }, []);
+
+  // 씬 1: 녹화 — 1초마다 클릭 마커 생성
+  useEffect(() => {
+    if (scene !== 'record') return;
+    recordTimerRef.current = setInterval(() => {
+      setRecordStep(prev => {
+        const next = prev + 1;
+        if (next >= SCENE_CLICKS.length) {
+          if (recordTimerRef.current) clearInterval(recordTimerRef.current);
+        }
+        const pos = SCENE_CLICKS[prev] ?? SCENE_CLICKS[0];
+        markerIdRef.current += 1;
+        setClickMarkers(m => [...m, { ...pos, id: markerIdRef.current }]);
+        return next;
+      });
+    }, 900);
+    return () => { if (recordTimerRef.current) clearInterval(recordTimerRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scene]);
+
+  // 씬 2: 에디터 — AI 버튼 로딩 시뮬레이션
+  useEffect(() => {
+    if (scene !== 'editor') return;
+    const t1 = setTimeout(() => setEditorAiLoading(true), 900);
+    const t2 = setTimeout(() => { setEditorAiLoading(false); setEditorAiDone(true); }, 2100);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [scene]);
+
+  // 씬 3: 플레이어 — 스텝 순서대로 하이라이트
+  useEffect(() => {
+    if (scene !== 'player') return;
+    playerTimerRef.current = setInterval(() => {
+      setPlayerStep(prev => (prev + 1) % STEPS_DATA.length);
+    }, 700);
+    return () => { if (playerTimerRef.current) clearInterval(playerTimerRef.current); };
+  }, [scene]);
+
+  // 씬 자동 전환 (각 4초)
+  useEffect(() => {
+    sceneTimerRef.current = setTimeout(() => {
+      const idx = SCENES.indexOf(scene);
+      startScene(SCENES[(idx + 1) % SCENES.length]);
+    }, 4000);
+    return () => { if (sceneTimerRef.current) clearTimeout(sceneTimerRef.current); };
+  }, [scene, startScene]);
+
+  const sceneIdx = SCENES.indexOf(scene);
+
+  return (
+    <div style={{ position: 'relative', maxWidth: '1080px', margin: '0 auto' }}>
+      {/* 상단 캡션 배지 */}
+      <div style={{ position: 'absolute', top: '-14px', left: '50%', transform: 'translateX(-50%)', zIndex: 10, background: 'white', border: '1px solid #E5E7EB', borderRadius: '999px', padding: '7px 16px', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 2px 12px rgba(0,0,0,0.07)', whiteSpace: 'nowrap', fontSize: '12.5px', fontWeight: 500, color: '#374151' }}>
+        {scene === 'record' && <><span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#EF4444', display: 'inline-block', animation: 'rec-blink 1.4s ease-in-out infinite' }} />자동 캡처 중 — 클릭마다 단계 생성</>}
+        {scene === 'editor' && <><span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#4F46E5', display: 'inline-block', animation: 'pulse-dot 1.8s ease-in-out infinite' }} />AI가 문장을 다듬는 중</>}
+        {scene === 'player' && <><span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10B981', display: 'inline-block', animation: 'pulse-dot 1.8s ease-in-out infinite' }} />완성된 가이드 — 링크로 공유 가능</>}
+      </div>
+
+      {/* 씬 전환 인디케이터 */}
+      <div style={{ position: 'absolute', top: '-14px', right: '24px', zIndex: 10, display: 'flex', gap: '5px', alignItems: 'center' }}>
+        {SCENES.map((s, i) => (
+          <button key={s} onClick={() => startScene(s)} style={{ width: i === sceneIdx ? '18px' : '6px', height: '6px', borderRadius: '999px', background: i === sceneIdx ? '#4F46E5' : '#D1D5DB', border: 'none', cursor: 'pointer', padding: 0, transition: 'all 0.3s ease' }} />
+        ))}
+      </div>
+
+      {/* 메인 프레임 */}
+      <div style={{ borderRadius: '16px', overflow: 'hidden', background: '#0E0E14', boxShadow: '0 40px 80px -20px rgba(79,70,229,0.22), 0 24px 48px -12px rgba(17,24,39,0.20)', border: '1px solid rgba(255,255,255,0.07)' }}>
+        {/* 브라우저 상단바 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: '#15151D', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#FF5F57', display: 'inline-block' }} />
+          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#FEBC2E', display: 'inline-block' }} />
+          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#28C840', display: 'inline-block' }} />
+          <span style={{ margin: '0 auto', fontSize: '11.5px', color: '#6B7280', padding: '3px 14px', borderRadius: '6px', background: 'rgba(255,255,255,0.04)' }}>
+            {scene === 'record' ? 'dashboard.supabase.com/project/auth/providers' : scene === 'editor' ? 'app.mimicflow.com/manual/supabase-oauth-guide/editor' : 'app.mimicflow.com/play/supabase-oauth-guide'}
+          </span>
+          <span style={{ marginLeft: 'auto' }} />
+        </div>
+
+        {/* 씬 컨텐츠 */}
+        <div style={{ minHeight: '400px', position: 'relative', overflow: 'hidden' }}>
+
+          {/* ── 씬 1: 녹화 ── */}
+          {scene === 'record' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 260px', minHeight: '400px', background: '#F8F9FA' }}>
+              {/* 실제 사이트처럼 생긴 캡처 대상 화면 */}
+              <div style={{ position: 'relative', padding: '24px', display: 'flex', flexDirection: 'column', gap: '0' }}>
+                {/* 사이트 헤더 */}
+                <div style={{ height: '48px', background: 'white', borderRadius: '10px 10px 0 0', borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', gap: '16px', padding: '0 18px', marginBottom: '0' }}>
+                  <div style={{ width: '80px', height: '14px', borderRadius: '4px', background: '#1E1B4B' }} />
+                  <div style={{ display: 'flex', gap: '16px', marginLeft: '8px' }}>
+                    {['Table Editor', 'SQL Editor', 'Authentication', 'Storage'].map((t, i) => (
+                      <div key={t} style={{ fontSize: '11px', color: i === 2 ? '#4F46E5' : '#6B7280', fontWeight: i === 2 ? 600 : 400, borderBottom: i === 2 ? '2px solid #4F46E5' : '2px solid transparent', paddingBottom: '2px' }}>{t}</div>
+                    ))}
+                  </div>
+                </div>
+                {/* 사이트 본문 */}
+                <div style={{ background: 'white', borderRadius: '0 0 10px 10px', flex: 1, padding: '18px', boxShadow: '0 4px 20px rgba(0,0,0,0.07)' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '14px' }}>Providers</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                    {[
+                      { name: 'Email', on: true }, { name: 'Google', on: false }, { name: 'GitHub', on: false },
+                      { name: 'Kakao', on: false }, { name: 'Apple', on: false }, { name: 'Twitter', on: false },
+                    ].map((p, i) => (
+                      <div key={p.name} style={{ padding: '10px 12px', border: `1.5px solid ${i === 1 && recordStep >= 2 ? '#4F46E5' : '#E5E7EB'}`, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: i === 1 && recordStep >= 2 ? '#EEF2FF' : 'white', transition: 'all 0.3s' }}>
+                        <span style={{ fontSize: '11.5px', color: '#374151', fontWeight: 500 }}>{p.name}</span>
+                        <div style={{ width: '28px', height: '15px', borderRadius: '999px', background: p.on || (i === 1 && recordStep >= 2) ? '#4F46E5' : '#D1D5DB', position: 'relative', transition: 'background 0.3s' }}>
+                          <div style={{ position: 'absolute', top: '2px', left: p.on || (i === 1 && recordStep >= 2) ? '15px' : '2px', width: '11px', height: '11px', borderRadius: '50%', background: 'white', transition: 'left 0.3s' }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {recordStep >= 2 && (
+                    <div style={{ marginTop: '14px', padding: '14px', background: '#F5F3FF', borderRadius: '8px', border: '1px solid #DDD6FE', animation: 'fadeIn 0.3s ease' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 600, color: '#4F46E5', marginBottom: '8px' }}>Google OAuth 설정</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ height: '28px', background: 'white', borderRadius: '5px', border: '1px solid #DDD6FE', padding: '0 8px', fontSize: '10px', color: '#9CA3AF', display: 'flex', alignItems: 'center' }}>Client ID</div>
+                        <div style={{ height: '28px', background: 'white', borderRadius: '5px', border: '1px solid #DDD6FE', padding: '0 8px', fontSize: '10px', color: '#9CA3AF', display: 'flex', alignItems: 'center' }}>Client Secret</div>
+                        <div style={{ height: '28px', background: '#4F46E5', borderRadius: '5px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: 'white', fontWeight: 600 }}>Save</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 클릭 마커들 */}
+                {clickMarkers.map((m, i) => (
+                  <div key={m.id} style={{ position: 'absolute', left: `${m.x}%`, top: `${m.y}%`, zIndex: 20, transform: 'translate(-50%, -50%)', animation: 'markerPop 0.4s ease-out forwards' }}>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', display: 'grid', placeItems: 'center', fontSize: '11px', fontWeight: 700, boxShadow: '0 0 0 6px rgba(79,70,229,0.20), 0 3px 10px rgba(79,70,229,0.5)' }}>
+                      {i + 1}
+                    </div>
+                  </div>
+                ))}
+
+                {/* MIMIC 오버레이 배지 */}
+                <div style={{ position: 'absolute', top: '32px', right: '32px', background: 'rgba(10,10,15,0.82)', color: 'white', padding: '6px 12px', borderRadius: '6px', fontSize: '11px', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#EF4444', animation: 'rec-blink 1.4s infinite' }} />
+                  {recordStep === 0 ? '녹화 시작' : `${recordStep}단계 캡처됨`}
+                </div>
+              </div>
+
+              {/* 우측 스텝 리스트 */}
+              <div style={{ background: '#0C0C13', borderLeft: '1px solid rgba(255,255,255,0.05)', padding: '16px', fontSize: '11.5px', color: '#9CA3AF' }}>
+                <div style={{ fontSize: '10px', color: '#6B7280', marginBottom: '10px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>캡처된 단계</div>
+                {STEPS_DATA.slice(0, Math.max(1, recordStep)).map((s, i) => (
+                  <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', padding: '8px 10px', borderRadius: '6px', marginBottom: '2px', background: i === recordStep - 1 ? 'rgba(79,70,229,0.14)' : 'transparent', animation: i === recordStep - 1 ? 'fadeIn 0.3s ease' : 'none' }}>
+                    <span style={{ width: '18px', height: '18px', borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: '10px', background: i === recordStep - 1 ? 'linear-gradient(135deg, #4F46E5, #7C3AED)' : 'rgba(255,255,255,0.06)', color: i === recordStep - 1 ? 'white' : '#9CA3AF', flexShrink: 0, marginTop: '1px' }}>{s.num}</span>
+                    <span style={{ fontSize: '11px', color: i === recordStep - 1 ? '#C7D2FE' : '#6B7280', lineHeight: 1.4 }}>{s.title}</span>
+                  </div>
+                ))}
+                {recordStep === 0 && (
+                  <div style={{ color: '#4B5563', fontSize: '11px', textAlign: 'center', marginTop: '24px', lineHeight: 1.6 }}>웹에서 작업하면<br/>자동으로 캡처됩니다</div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── 씬 2: 에디터 ── */}
+          {scene === 'editor' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', minHeight: '400px', background: '#F8F9FA' }}>
+              {/* 에디터 사이드바 */}
+              <div style={{ background: 'white', borderRight: '1px solid #E5E7EB', padding: '12px 0' }}>
+                <div style={{ padding: '8px 14px 10px', fontSize: '10px', fontWeight: 600, color: '#9CA3AF', letterSpacing: '0.06em', textTransform: 'uppercase', borderBottom: '1px solid #F3F4F6', marginBottom: '6px' }}>목차</div>
+                {STEPS_DATA.map((s, i) => (
+                  <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', padding: '7px 14px', background: i === 1 ? '#EEF2FF' : 'transparent', borderLeft: `3px solid ${i === 1 ? '#4F46E5' : 'transparent'}` }}>
+                    <span style={{ fontSize: '10px', fontWeight: 600, color: i === 1 ? '#4F46E5' : '#9CA3AF', flexShrink: 0, marginTop: '1px' }}>{String(s.num).padStart(2, '0')}</span>
+                    <span style={{ fontSize: '11px', color: i === 1 ? '#1E1B4B' : '#6B7280', lineHeight: 1.4, fontWeight: i === 1 ? 500 : 400 }}>{s.title}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* 에디터 메인 */}
+              <div style={{ padding: '24px', overflowY: 'auto' }}>
+                {/* 스텝 카드 */}
+                <div style={{ background: 'white', borderRadius: '12px', border: '1.5px solid #F59E0B', boxShadow: '0 0 0 3px rgba(245,158,11,0.10)', marginBottom: '16px' }}>
+                  {/* 툴바 */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '7px 12px', borderBottom: '1px solid #F3F4F6', background: '#FAFAFA', flexWrap: 'wrap' }}>
+                    <div style={{ fontSize: '10px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', borderRadius: '4px', padding: '2px 6px' }}>14px</div>
+                    <div style={{ width: '1px', height: '14px', background: '#E5E7EB', margin: '0 2px' }} />
+                    {['B', 'I', 'U'].map(t => <div key={t} style={{ width: '22px', height: '22px', borderRadius: '4px', background: 'transparent', display: 'grid', placeItems: 'center', fontSize: '11px', fontWeight: 700, color: '#6B7280' }}>{t}</div>)}
+                    <div style={{ width: '1px', height: '14px', background: '#E5E7EB', margin: '0 2px' }} />
+                    {/* AI 버튼 */}
+                    <span style={{ fontSize: '10px', color: '#7C3AED' }}>✦</span>
+                    {['문장 다듬기', '맞춤법 교정', '간략하게'].map((label, i) => (
+                      <div key={label} style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', height: '22px', padding: '0 7px', borderRadius: '4px', border: '1px solid #EDE9FE', background: editorAiLoading && i === 0 ? '#EDE9FE' : editorAiDone && i === 0 ? '#EDE9FE' : 'white', color: '#7C3AED', fontSize: '10px', fontWeight: 500, transition: 'all 0.2s' }}>
+                        {editorAiLoading && i === 0 && <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', border: '1.5px solid #7C3AED', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />}
+                        {label}
+                      </div>
+                    ))}
+                  </div>
+                  {/* 카드 본문 */}
+                  <div style={{ padding: '14px 18px' }}>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                      <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: '#F59E0B', color: 'white', fontSize: '11px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0 }}>02</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '5px' }}>로그인 버튼 클릭</div>
+                        <div style={{ fontSize: '12px', color: editorAiDone ? '#4F46E5' : '#4B5563', lineHeight: 1.6, transition: 'color 0.4s', padding: '4px 6px', borderRadius: '4px', background: editorAiDone ? '#EEF2FF' : 'transparent' }}>
+                          {editorAiDone
+                            ? "화면 상단에 위치한 '로그인' 버튼을 클릭하세요. 버튼 클릭 후 인증 페이지로 자동 이동합니다."
+                            : "로그인 버튼을 클릭하여 계정 인증을 진행합니다."}
+                        </div>
+                        {editorAiDone && (
+                          <div style={{ marginTop: '5px', fontSize: '10.5px', color: '#10B981', display: 'flex', alignItems: 'center', gap: '4px', animation: 'fadeIn 0.3s ease' }}>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+                            AI 다듬기 완료 · 자동 저장됨
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 다음 스텝 카드 (흐릿하게) */}
+                <div style={{ background: 'white', borderRadius: '12px', border: '1.5px solid #E5E7EB', opacity: 0.5, padding: '14px 18px' }}>
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: '#F59E0B', color: 'white', fontSize: '11px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0 }}>03</div>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}>이메일 주소 입력</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── 씬 3: 플레이어 ── */}
+          {scene === 'player' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', minHeight: '400px', background: '#0D0D14' }}>
+              {/* 플레이어 사이드바 */}
+              <div style={{ borderRight: '1px solid rgba(255,255,255,0.06)', padding: '16px' }}>
+                <div style={{ fontSize: '10px', color: '#4B5563', marginBottom: '10px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Supabase Google OAuth 설정</div>
+                {STEPS_DATA.map((s, i) => (
+                  <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', padding: '8px 10px', borderRadius: '6px', marginBottom: '2px', background: i === playerStep ? 'rgba(79,70,229,0.15)' : 'transparent', borderLeft: `2px solid ${i === playerStep ? '#4F46E5' : 'transparent'}`, transition: 'all 0.3s' }}>
+                    <span style={{ width: '18px', height: '18px', borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: '9px', flexShrink: 0, marginTop: '1px', background: i < playerStep ? '#10B981' : i === playerStep ? 'linear-gradient(135deg, #4F46E5, #7C3AED)' : 'rgba(255,255,255,0.06)', color: 'white' }}>
+                      {i < playerStep ? '✓' : s.num}
+                    </span>
+                    <span style={{ fontSize: '11px', color: i === playerStep ? '#C7D2FE' : '#4B5563', lineHeight: 1.4, fontWeight: i === playerStep ? 500 : 400, transition: 'color 0.3s' }}>{s.title}</span>
+                  </div>
+                ))}
+                <div style={{ marginTop: '16px', height: '3px', background: 'rgba(255,255,255,0.06)', borderRadius: '999px', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', background: 'linear-gradient(90deg, #4F46E5, #7C3AED)', width: `${(playerStep / (STEPS_DATA.length - 1)) * 100}%`, transition: 'width 0.6s ease', borderRadius: '999px' }} />
+                </div>
+                <div style={{ marginTop: '6px', fontSize: '10px', color: '#4B5563', textAlign: 'right' }}>{playerStep + 1} / {STEPS_DATA.length}</div>
+              </div>
+
+              {/* 플레이어 메인 */}
+              <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {/* 스크린샷 영역 */}
+                <div style={{ background: '#fff', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', flex: 1, position: 'relative', minHeight: '200px' }}>
+                  {/* 가짜 브라우저 */}
+                  <div style={{ height: '24px', background: '#F3F4F6', borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', gap: '5px', padding: '0 8px' }}>
+                    {['#FF5F57','#FEBC2E','#28C840'].map(c => <span key={c} style={{ width: '7px', height: '7px', borderRadius: '50%', background: c, display: 'inline-block' }} />)}
+                  </div>
+                  {/* 가짜 콘텐츠 */}
+                  <div style={{ padding: '14px', display: 'grid', gridTemplateColumns: '90px 1fr', gap: '10px', height: 'calc(100% - 24px)' }}>
+                    <div style={{ background: '#F9FAFB', borderRadius: '6px', padding: '8px' }}>
+                      {[75, 55, 65, 75, 55, 65].map((w, i) => <div key={i} style={{ height: '8px', borderRadius: '3px', background: i === playerStep ? '#4F46E5' : '#E5E7EB', width: `${w}%`, marginBottom: '6px', transition: 'background 0.3s' }} />)}
+                    </div>
+                    <div style={{ padding: '4px' }}>
+                      <div style={{ height: '12px', background: '#111827', borderRadius: '3px', width: '60%', marginBottom: '8px' }} />
+                      {[80, 95, 50, 70].map((w, i) => <div key={i} style={{ height: '8px', background: '#E5E7EB', borderRadius: '3px', width: `${w}%`, marginBottom: '5px' }} />)}
+                      <div style={{ marginTop: '10px', display: 'inline-flex', height: '26px', padding: '0 12px', borderRadius: '5px', background: '#4F46E5', color: 'white', fontSize: '10px', alignItems: 'center', fontWeight: 600 }}>Configure provider</div>
+                    </div>
+                  </div>
+                  {/* 클릭 마커 */}
+                  <div style={{ position: 'absolute', width: '24px', height: '24px', borderRadius: '50%', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', display: 'grid', placeItems: 'center', fontSize: '10px', fontWeight: 700, boxShadow: '0 0 0 6px rgba(79,70,229,0.2)', top: `${[30, 55, 65, 75][playerStep] ?? 50}%`, left: `${[15, 60, 40, 70][playerStep] ?? 50}%`, transition: 'all 0.5s ease' }}>
+                    {playerStep + 1}
+                  </div>
+                </div>
+
+                {/* 자막 */}
+                <div style={{ background: 'rgba(10,10,15,0.88)', color: 'white', padding: '10px 16px', borderRadius: '8px', fontSize: '12.5px', lineHeight: 1.6, border: '1px solid rgba(255,255,255,0.07)', backdropFilter: 'blur(8px)', transition: 'opacity 0.3s' }}>
+                  {STEPS_DATA[playerStep].desc}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -303,85 +621,9 @@ export default function LandingPage() {
             </button>
           </div>
 
-          {/* Hero Preview */}
-          <div className="hero-preview" style={{ position: 'relative', maxWidth: '1080px', margin: '0 auto' }}>
-            <div style={{ position: 'absolute', top: '-14px', left: '50%', transform: 'translateX(-50%)', zIndex: 10, background: 'white', border: '1px solid #E5E7EB', borderRadius: '999px', padding: '7px 16px', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 2px 12px rgba(0,0,0,0.07)', whiteSpace: 'nowrap', fontSize: '12.5px', fontWeight: 500, color: '#374151' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#EF4444', display: 'inline-block', animation: 'rec-blink 1.4s ease-in-out infinite' }} />
-              자동 캡처 중 — 클릭마다 단계 생성
-            </div>
-
-            <div style={{ borderRadius: '16px', overflow: 'hidden', background: '#0E0E14', boxShadow: '0 40px 80px -20px rgba(79,70,229,0.22), 0 24px 48px -12px rgba(17,24,39,0.20)', border: '1px solid rgba(255,255,255,0.07)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: '#15151D', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#FF5F57', display: 'inline-block' }} />
-                <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#FEBC2E', display: 'inline-block' }} />
-                <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#28C840', display: 'inline-block' }} />
-                <span style={{ margin: '0 auto', fontSize: '11.5px', color: '#6B7280', padding: '3px 14px', borderRadius: '6px', background: 'rgba(255,255,255,0.04)' }}>supabase.com/dashboard</span>
-                <span style={{ marginLeft: 'auto' }} />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr 280px', minHeight: '380px', background: '#0A0A0F', color: '#D1D5DB' }}>
-                <div style={{ background: '#0C0C13', borderRight: '1px solid rgba(255,255,255,0.05)', padding: '14px', fontSize: '11.5px', color: '#9CA3AF' }}>
-                  <div style={{ color: '#6B7280', fontSize: '10.5px', marginBottom: '10px', letterSpacing: '0.05em' }}>슬라이드 6</div>
-                  {['Start your project', 'Create organization', 'Choose region', 'Set up database', 'Configure Google provider', 'Test login flow'].map((step, i) => (
-                    <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '8px 10px', borderRadius: '6px', marginBottom: '2px', background: i === 4 ? 'rgba(79,70,229,0.14)' : 'transparent', color: i === 4 ? '#C7D2FE' : '#9CA3AF', borderLeft: i === 4 ? '2px solid #4F46E5' : '2px solid transparent' }}>
-                      <span style={{ width: '18px', height: '18px', borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: '10px', background: i === 4 ? 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)' : 'rgba(255,255,255,0.06)', color: i === 4 ? 'white' : '#9CA3AF', flexShrink: 0 }}>{i + 1}</span>
-                      <span style={{ fontSize: '11px' }}>{step}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div style={{ position: 'relative', padding: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '12px' }}>
-                  <div style={{ width: '100%', aspectRatio: '16/9', borderRadius: '10px', background: '#fff', boxShadow: '0 18px 40px rgba(0,0,0,0.45)', overflow: 'hidden', position: 'relative' }}>
-                    <div style={{ height: '28px', background: '#F3F4F6', borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', gap: '6px', padding: '0 10px' }}>
-                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#D1D5DB', display: 'inline-block' }} />
-                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#D1D5DB', display: 'inline-block' }} />
-                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#D1D5DB', display: 'inline-block' }} />
-                      <span style={{ marginLeft: '10px', height: '14px', width: '200px', background: '#fff', border: '1px solid #E5E7EB', borderRadius: '4px', display: 'inline-block' }} />
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', height: 'calc(100% - 28px)' }}>
-                      <div style={{ background: '#F9FAFB', borderRight: '1px solid #E5E7EB', padding: '12px 10px' }}>
-                        {[{ w: '80%', active: false }, { w: '60%', active: false }, { w: '70%', active: true }, { w: '80%', active: false }, { w: '60%', active: false }, { w: '80%', active: false }].map((r, i) => (
-                          <div key={i} style={{ height: '10px', borderRadius: '4px', background: r.active ? '#4F46E5' : '#E5E7EB', marginBottom: '7px', width: r.w }} />
-                        ))}
-                      </div>
-                      <div style={{ padding: '14px' }}>
-                        <div style={{ height: '14px', width: '50%', background: '#111827', borderRadius: '4px', marginBottom: '10px' }} />
-                        {['70%', '90%', '40%'].map((w, i) => <div key={i} style={{ height: '10px', background: '#E5E7EB', borderRadius: '4px', marginBottom: '6px', width: w }} />)}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', margin: '12px 0' }}>
-                          {[0,1,2].map(i => <div key={i} style={{ height: '56px', border: '1px solid #E5E7EB', borderRadius: '6px', background: 'white' }} />)}
-                        </div>
-                        <div style={{ height: '10px', background: '#E5E7EB', borderRadius: '4px', marginBottom: '14px', width: '70%' }} />
-                        <span style={{ display: 'inline-flex', alignItems: 'center', height: '30px', padding: '0 12px', borderRadius: '6px', background: '#4F46E5', color: 'white', fontSize: '11px' }}>Configure provider</span>
-                      </div>
-                    </div>
-                    <span style={{ position: 'absolute', width: '26px', height: '26px', borderRadius: '50%', background: '#4F46E5', color: 'white', display: 'grid', placeItems: 'center', fontSize: '11px', fontWeight: 600, boxShadow: '0 0 0 6px rgba(79,70,229,0.22), 0 2px 8px rgba(79,70,229,0.5)', top: '14%', left: '4.5%', zIndex: 4, animation: 'pulse 2s ease-in-out infinite' }}>1</span>
-                    <span style={{ position: 'absolute', width: '26px', height: '26px', borderRadius: '50%', background: '#DC2626', color: 'white', display: 'grid', placeItems: 'center', fontSize: '11px', fontWeight: 600, boxShadow: '0 2px 8px rgba(220,38,38,0.4)', top: '30%', left: '6%', zIndex: 4 }}>2</span>
-                    <span style={{ position: 'absolute', width: '26px', height: '26px', borderRadius: '50%', background: '#DC2626', color: 'white', display: 'grid', placeItems: 'center', fontSize: '11px', fontWeight: 600, boxShadow: '0 2px 8px rgba(220,38,38,0.4)', top: '78%', left: '38%', zIndex: 4 }}>3</span>
-                    <span style={{ position: 'absolute', top: '73%', left: '28%', width: '130px', height: '38px', border: '2px solid #4F46E5', borderRadius: '4px', background: 'rgba(79,70,229,0.08)', zIndex: 3 }} />
-                  </div>
-                  <div style={{ position: 'absolute', bottom: '18px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(10,10,15,0.82)', color: 'white', padding: '7px 14px', borderRadius: '6px', fontSize: '11.5px', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.07)', zIndex: 5, whiteSpace: 'nowrap' }}>
-                    Configure Google provider 버튼을 클릭하여 구글 로그인을 설정합니다.
-                  </div>
-                </div>
-
-                <div style={{ background: 'rgba(255,255,255,0.02)', borderLeft: '1px solid rgba(255,255,255,0.05)', padding: '18px 16px', fontSize: '12px' }}>
-                  <div style={{ fontSize: '10.5px', color: '#6B7280', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>항목별 설명</div>
-                  {[
-                    { num: 1, title: '좌측 메뉴 영역', body: 'Authentication 섹션을 펼쳐 Providers 메뉴로 이동하세요.', active: false },
-                    { num: 2, title: 'Providers 리스트', body: '사용 가능한 OAuth 제공자 중 Google을 찾습니다.', active: false },
-                    { num: 3, title: 'Configure 버튼', body: '버튼을 클릭하면 Client ID·Secret 입력 폼이 열립니다.', active: true },
-                  ].map(item => (
-                    <div key={item.num} style={{ display: 'flex', gap: '10px', padding: '10px', borderBottom: '1px solid rgba(255,255,255,0.04)', borderRadius: '6px', background: item.active ? 'rgba(79,70,229,0.10)' : 'transparent', margin: '0 -10px' }}>
-                      <span style={{ flexShrink: 0, width: '20px', height: '20px', borderRadius: '50%', display: 'grid', placeItems: 'center', background: item.active ? 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)' : 'rgba(255,255,255,0.06)', color: item.active ? 'white' : '#9CA3AF', fontSize: '10px', fontWeight: 500, marginTop: '1px' }}>{item.num}</span>
-                      <div>
-                        <div style={{ color: '#E5E7EB', fontSize: '12px', fontWeight: 500, marginBottom: '2px' }}>{item.title}</div>
-                        <div style={{ color: '#9CA3AF', fontSize: '11.5px', lineHeight: 1.45 }}>{item.body}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+          {/* Hero Simulator */}
+          <div className="hero-preview">
+            <HeroSimulator />
           </div>
         </div>
       </section>
@@ -737,6 +979,15 @@ export default function LandingPage() {
         @keyframes pulse-dot {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.45; }
+        }
+        @keyframes markerPop {
+          0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+          60% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+          100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(4px); }
+          to { opacity: 1; transform: translateY(0); }
         }
         @media (prefers-reduced-motion: reduce) {
           * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
