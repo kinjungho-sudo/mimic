@@ -51,7 +51,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     .from('mm_steps')
     .update(parsed.data)
     .eq('id', id)
-    .select('id, user_title, user_script')
+    .select('id, user_title, user_script, user_annotations')
     .single();
 
   if (error || !data) {

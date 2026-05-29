@@ -650,7 +650,7 @@ function ScreenshotArea({ step, onUploadClick, onDrop, onZoom, onAnnotate }: Scr
 
       {/* Annotation SVG overlay (read-only preview) */}
       {hasAnnotations && (
-        <AnnotationPreview annotations={step.annotations!} />
+        <AnnotationPreview annotations={step.annotations!} imageUrl={step.screenshotUrl!} />
       )}
 
       {/* Hover overlay */}
@@ -676,15 +676,32 @@ function ScreenshotArea({ step, onUploadClick, onDrop, onZoom, onAnnotate }: Scr
 
 // ── AnnotationPreview (read-only SVG over image) ──────────
 
-function AnnotationPreview({ annotations }: { annotations: Annotation[] }) {
+function AnnotationPreview({ annotations, imageUrl }: { annotations: Annotation[]; imageUrl: string }) {
   return (
     <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}>
+      <defs>
+        <filter id="preview-mosaic-blur" x="-5%" y="-5%" width="110%" height="110%">
+          <feGaussianBlur stdDeviation="4" />
+        </filter>
+      </defs>
       {annotations.map(a => {
         const { type, x1, y1, x2, y2, color, strokeWidth } = a;
         const sw = strokeWidth * 0.12;
         const minX = Math.min(x1, x2), minY = Math.min(y1, y2);
         const w = Math.abs(x2 - x1), h = Math.abs(y2 - y1);
 
+        if (type === 'mosaic') {
+          const clipId = `prev-mosaic-clip-${a.id}`;
+          return (
+            <g key={a.id}>
+              <defs>
+                <clipPath id={clipId}><rect x={`${minX}%`} y={`${minY}%`} width={`${w}%`} height={`${h}%`} /></clipPath>
+              </defs>
+              <image href={imageUrl} x="0" y="0" width="100%" height="100%"
+                preserveAspectRatio="none" filter="url(#preview-mosaic-blur)" clipPath={`url(#${clipId})`} />
+            </g>
+          );
+        }
         if (type === 'highlight') return (
           <rect key={a.id} x={`${minX}%`} y={`${minY}%`} width={`${w}%`} height={`${h}%`} fill={color} opacity={0.35} rx="2%" />
         );

@@ -2,7 +2,7 @@
 
 import { ChevronLeft, Play, Share2, Check, Download, Undo2 } from 'lucide-react';
 import Link from 'next/link';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 export type EditorMode = 'document' | 'interactive';
 
@@ -23,6 +23,9 @@ interface EditorHeaderProps {
 export function EditorHeader({ title, tutorialId, onTitleChange, onPreview, onSave, onPublish, onShare, onUndo, canUndo, mode, onModeChange }: EditorHeaderProps) {
   const [localTitle, setLocalTitle] = useState(title);
   const [saving, setSaving] = useState(false);
+
+  // Sync localTitle when title prop updates (async tutorial fetch)
+  useEffect(() => { setLocalTitle(t => t || title); }, [title]);
   const [saved, setSaved] = useState(false);
   const [exporting, setExporting] = useState(false);
 
