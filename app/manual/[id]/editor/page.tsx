@@ -39,6 +39,7 @@ export default function EditorPage() {
   const [titleDirty, setTitleDirty] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [saving, setSaving] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [saved, setSaved] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [outputRatio, setOutputRatio] = useState<Tutorial['output_ratio']>('16:9');

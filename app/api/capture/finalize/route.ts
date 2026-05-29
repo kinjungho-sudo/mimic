@@ -51,16 +51,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'No captured steps' }, { status: 422 });
   }
 
-  // daily_manual_count 확인 (무료 플랜 한도)
+  // TODO: 정식 서비스 전 플랜별 한도 복구 (daily_limit 체크 비활성화 중)
   const { data: user } = await supabase
     .from('mm_users')
-    .select('daily_manual_count, daily_limit')
+    .select('daily_manual_count')
     .eq('id', userId)
     .single();
-
-  if (user && user.daily_manual_count >= user.daily_limit) {
-    return NextResponse.json({ error: 'Daily limit reached' }, { status: 429 });
-  }
 
   // 튜토리얼 생성
   const tutorialTitle = title ?? `매뉴얼 ${new Date().toLocaleDateString('ko-KR')}`;

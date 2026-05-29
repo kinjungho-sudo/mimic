@@ -29,9 +29,11 @@ export function rateLimit(key: string, limit: number, windowMs: number): NextRes
   return null;
 }
 
-// AI API 전용 — 1분당 10회
-export function rateLimitAi(userId: string): NextResponse | null {
-  return rateLimit(`ai:${userId}`, 10, 60_000);
+// TODO: 정식 서비스 전 한도 복구
+// AI API 전용 — 테스트 기간 무제한
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function rateLimitAi(_userId: string): NextResponse | null {
+  return null;
 }
 
 // 일반 API — 1분당 60회
