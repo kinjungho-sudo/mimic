@@ -166,7 +166,10 @@ export function ManualEditor({ steps, onChange, onSave }: ManualEditorProps) {
           <ImageAnnotationEditor
             imageUrl={step.screenshotUrl!}
             annotations={step.annotations ?? []}
-            onChange={annotations => updateStep(annotatingId, { annotations })}
+            onChange={annotations => {
+              updateStep(annotatingId, { annotations });
+              onSave?.(annotatingId, { annotations });
+            }}
             onClose={() => setAnnotatingId(null)}
           />
         );

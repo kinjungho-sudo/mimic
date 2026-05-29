@@ -41,7 +41,7 @@ function stepsToSlideThumbs(steps: Step[]): SlideThumb[] {
 export default function EditorPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { tutorial, loading, error, publish } = useTutorial(id);
+  const { tutorial, loading, error, publish, unpublish } = useTutorial(id);
 
   const [title, setTitle] = useState('');
   const [mode, setMode] = useState<EditorMode>('document');
@@ -51,6 +51,36 @@ export default function EditorPage() {
   const [titleDirty, setTitleDirty] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const stepSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  // Undo history — stores previous snapshots of manualSteps
+  const historyRef = useRef<ManualStep[][]>([]);
+  const setManualStepsWithHistory = useCallback((next: ManualStep[]) => {
+    historyRef.current = [...historyRef.current.slice(-49), manualSteps];
+    setManualSteps(next);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [manualSteps]);
+
+  const handleUndo = useCallback(() => {
+    if (historyRef.current.length === 0) return;
+    const prev = historyRef.current[historyRef.current.length - 1];
+    historyRef.current = historyRef.current.slice(0, -1);
+    setManualSteps(prev);
+  }, []);
+
+  // Ctrl+Z / Cmd+Z global shortcut
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        const active = document.activeElement;
+        // Don't intercept when typing in an input/textarea/contenteditable
+        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || (active as HTMLElement).isContentEditable)) return;
+        e.preventDefault();
+        handleUndo();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [handleUndo]);
 
   // Seed state from fetched tutorial
   useEffect(() => {
@@ -75,7 +105,6 @@ export default function EditorPage() {
   }, []);
 
   const handleSave = useCallback(async () => {
-    // 모든 debounce 타이머를 취소하고 현재 manualSteps를 즉시 DB에 저장
     await Promise.all(
       manualSteps
         .filter(s => !s.id.startsWith('step-'))
@@ -84,6 +113,7 @@ export default function EditorPage() {
           return updateStep(s.id, {
             user_title: s.actionTitle || null,
             user_script: s.description || null,
+            user_annotations: s.annotations ?? [],
           }).catch(() => {});
         })
     );
@@ -148,6 +178,7 @@ export default function EditorPage() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#F8F9FA', overflow: 'hidden' }}>
       <EditorHeader
         title={title}
+        tutorialId={id}
         onTitleChange={handleTitleChange}
         onPreview={() => {
           if (tutorial.share_token) window.open(`/play/${tutorial.share_token}`, '_blank');
@@ -156,6 +187,8 @@ export default function EditorPage() {
         onSave={handleSave}
         onPublish={handlePublish}
         onShare={() => setShowShare(true)}
+        onUndo={handleUndo}
+        canUndo={historyRef.current.length > 0}
         mode={mode}
         onModeChange={setMode}
       />
@@ -164,8 +197,7 @@ export default function EditorPage() {
         <ManualEditor
           steps={manualSteps}
           onChange={(next) => {
-            setManualSteps(next);
-            // 변경된 step만 찾아 debounce 저장
+            setManualStepsWithHistory(next);
             next.forEach((step) => {
               const prev = manualSteps.find(s => s.id === step.id);
               if (!prev) return;
@@ -180,16 +212,16 @@ export default function EditorPage() {
               }, 600);
             });
           }}
-          onSave={(id, patch) => {
-            // blur 시 즉시 저장 — debounce 타이머 취소 후 flush
-            if (id.startsWith('step-')) return;
-            clearTimeout(stepSaveTimers.current[id]);
-            const step = manualSteps.find(s => s.id === id);
+          onSave={(stepId, patch) => {
+            if (stepId.startsWith('step-')) return;
+            clearTimeout(stepSaveTimers.current[stepId]);
+            const step = manualSteps.find(s => s.id === stepId);
             if (!step) return;
             const merged = { ...step, ...patch };
-            updateStep(id, {
+            updateStep(stepId, {
               user_title: merged.actionTitle || null,
               user_script: merged.description || null,
+              ...(merged.annotations !== undefined ? { user_annotations: merged.annotations } : {}),
             }).catch(() => {});
           }}
         />
@@ -226,6 +258,7 @@ export default function EditorPage() {
           shareToken={tutorial.share_token}
           shareUrl={tutorial.share_token ? `${typeof window !== 'undefined' ? window.location.origin : ''}/play/${tutorial.share_token}` : null}
           onPublishAndShare={publish}
+          onUnpublish={unpublish}
           onClose={() => setShowShare(false)}
         />
       )}

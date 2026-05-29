@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronLeft, Play, Share2, Check } from 'lucide-react';
+import { ChevronLeft, Play, Share2, Check, Download, Undo2 } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useCallback } from 'react';
 
@@ -8,19 +8,41 @@ export type EditorMode = 'document' | 'interactive';
 
 interface EditorHeaderProps {
   title: string;
+  tutorialId: string;
   onTitleChange: (v: string) => void;
   onPreview: () => void;
   onSave: () => Promise<void>;
   onPublish: () => void;
   onShare: () => void;
+  onUndo: () => void;
+  canUndo: boolean;
   mode: EditorMode;
   onModeChange: (mode: EditorMode) => void;
 }
 
-export function EditorHeader({ title, onTitleChange, onPreview, onSave, onPublish, onShare, mode, onModeChange }: EditorHeaderProps) {
+export function EditorHeader({ title, tutorialId, onTitleChange, onPreview, onSave, onPublish, onShare, onUndo, canUndo, mode, onModeChange }: EditorHeaderProps) {
   const [localTitle, setLocalTitle] = useState(title);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = useCallback(async () => {
+    setExporting(true);
+    try {
+      const format = mode === 'document' ? 'pdf' : 'pptx';
+      const res = await fetch(`/api/export/${format}/${tutorialId}`);
+      if (!res.ok) { alert('내보내기 실패. 스텝이 없거나 오류가 발생했습니다.'); return; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = res.headers.get('content-disposition')?.match(/filename="(.+)"/)?.[1] ?? `manual.${format}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+    }
+  }, [mode, tutorialId]);
 
   const handleSave = useCallback(async () => {
     setSaving(true);
@@ -108,6 +130,18 @@ export function EditorHeader({ title, onTitleChange, onPreview, onSave, onPublis
       {/* 우측 액션 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <button
+          onClick={onUndo}
+          disabled={!canUndo}
+          title="실행 취소 (Ctrl+Z)"
+          style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12.5px', display: 'inline-flex', alignItems: 'center', gap: '6px', color: canUndo ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', cursor: canUndo ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap', transition: 'all 0.15s', opacity: canUndo ? 1 : 0.5 }}
+          onMouseEnter={e => { if (canUndo) { e.currentTarget.style.background = 'rgba(255,255,255,0.14)'; e.currentTarget.style.color = 'white'; } }}
+          onMouseLeave={e => { if (canUndo) { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'rgba(255,255,255,0.85)'; } }}
+        >
+          <Undo2 size={13} />
+          실행 취소
+        </button>
+
+        <button
           onClick={onPreview}
           style={{ height: '32px', padding: '0 14px', borderRadius: '7px', fontSize: '12.5px', display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'rgba(255,255,255,0.85)', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'background 0.15s' }}
           onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.14)'; e.currentTarget.style.color = 'white'; }}
@@ -115,6 +149,17 @@ export function EditorHeader({ title, onTitleChange, onPreview, onSave, onPublis
         >
           <Play size={13} />
           미리보기
+        </button>
+
+        <button
+          onClick={handleExport}
+          disabled={exporting}
+          style={{ height: '32px', padding: '0 14px', borderRadius: '7px', fontSize: '12.5px', display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'rgba(255,255,255,0.85)', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', cursor: exporting ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', transition: 'background 0.15s', opacity: exporting ? 0.6 : 1 }}
+          onMouseEnter={e => { if (!exporting) { e.currentTarget.style.background = 'rgba(255,255,255,0.14)'; e.currentTarget.style.color = 'white'; } }}
+          onMouseLeave={e => { if (!exporting) { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'rgba(255,255,255,0.85)'; } }}
+        >
+          <Download size={13} />
+          {exporting ? '생성 중...' : mode === 'document' ? 'PDF' : 'PPTX'}
         </button>
 
         <button

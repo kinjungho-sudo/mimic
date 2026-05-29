@@ -6,6 +6,7 @@ import { z } from 'zod';
 const stepPatchSchema = z.object({
   user_title: z.string().max(200).nullable().optional(),
   user_script: z.string().max(2000).nullable().optional(),
+  user_annotations: z.array(z.unknown()).nullable().optional(),
 });
 
 type Params = { params: Promise<{ id: string }> };

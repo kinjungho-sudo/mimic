@@ -12,7 +12,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 export async function updateStep(
   id: string,
-  patch: { user_title?: string | null; user_script?: string | null }
+  patch: { user_title?: string | null; user_script?: string | null; user_annotations?: unknown }
 ): Promise<void> {
   await apiFetch(`/api/steps/${id}`, {
     method: 'PATCH',
