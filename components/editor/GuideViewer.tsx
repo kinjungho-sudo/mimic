@@ -73,13 +73,13 @@ export function GuideViewer({ steps, activeId, onActiveChange, outputRatio = '16
           padding: '40px 0 80px',
         }}
       >
-        <div style={{ maxWidth: '960px', margin: '0 auto', padding: '0 32px' }}>
+        <div style={{ maxWidth: '900px', margin: '0 auto', padding: '0 20px' }}>
           {steps.map(step => (
             <div
               key={step.id}
               data-step-id={step.id}
               ref={el => { stepRefs.current[step.id] = el; }}
-              style={{ marginBottom: '48px', scrollMarginTop: '24px' }}
+              style={{ marginBottom: '28px', scrollMarginTop: '20px' }}
             >
               <ViewerStepCard step={step} outputRatio={outputRatio} />
             </div>
@@ -137,60 +137,71 @@ export function GuideViewer({ steps, activeId, onActiveChange, outputRatio = '16
 
 function ViewerStepCard({ step, outputRatio }: { step: ManualStep; outputRatio: OutputRatio }) {
   const paddingTop = RATIO_PADDING[outputRatio];
+  const hasImage = !!step.screenshotUrl;
 
   return (
     <div style={{
       background: 'white', borderRadius: '12px',
       border: '1px solid #E5E7EB',
-      boxShadow: '0 1px 4px rgba(17,24,39,0.05)',
+      boxShadow: '0 1px 6px rgba(17,24,39,0.06)',
       overflow: 'hidden',
     }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', padding: '20px 24px 16px' }}>
-        <div style={{
-          width: '32px', height: '32px', borderRadius: '50%',
-          background: '#F59E0B', color: 'white',
-          fontSize: '13px', fontWeight: 700,
-          display: 'grid', placeItems: 'center',
-          flexShrink: 0,
-        }}>
-          {String(step.number).padStart(2, '0')}
+      {/* Screenshot — 상단 전체 너비, padding 없음 */}
+      {hasImage && (
+        <div style={{ position: 'relative', paddingTop, background: '#F3F4F6', borderBottom: '1px solid #E5E7EB' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={step.screenshotUrl}
+            alt={step.actionTitle}
+            style={{
+              position: 'absolute', inset: 0,
+              width: '100%', height: '100%',
+              objectFit: 'fill',
+              display: 'block',
+            }}
+          />
+          {(step.annotations?.length ?? 0) > 0 && (
+            <AnnotationPreview annotations={step.annotations!} imageUrl={step.screenshotUrl!} />
+          )}
+          {/* 스텝 번호 배지 — 이미지 위 좌상단 */}
+          <div style={{
+            position: 'absolute', top: '12px', left: '12px',
+            width: '28px', height: '28px', borderRadius: '50%',
+            background: '#F59E0B', color: 'white',
+            fontSize: '12px', fontWeight: 700,
+            display: 'grid', placeItems: 'center',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.25)',
+          }}>
+            {String(step.number).padStart(2, '0')}
+          </div>
         </div>
+      )}
 
-        <div style={{ flex: 1, minWidth: 0, paddingTop: '4px' }}>
-          <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#111827', lineHeight: 1.4 }}>
+      {/* 제목 + 설명 — 이미지 아래 */}
+      <div style={{ padding: hasImage ? '16px 20px 18px' : '20px 20px 18px', display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+        {/* 이미지 없을 때만 번호 배지를 텍스트 옆에 표시 */}
+        {!hasImage && (
+          <div style={{
+            width: '30px', height: '30px', borderRadius: '50%', flexShrink: 0,
+            background: '#F59E0B', color: 'white',
+            fontSize: '13px', fontWeight: 700,
+            display: 'grid', placeItems: 'center', marginTop: '1px',
+          }}>
+            {String(step.number).padStart(2, '0')}
+          </div>
+        )}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#111827', lineHeight: 1.45 }}>
             {step.actionTitle || <span style={{ color: '#9CA3AF', fontWeight: 400 }}>(제목 없음)</span>}
           </h3>
           {step.description && (
             <div
-              style={{ marginTop: '8px', fontSize: '13.5px', color: '#4B5563', lineHeight: 1.65 }}
+              style={{ marginTop: '6px', fontSize: '13.5px', color: '#4B5563', lineHeight: 1.65 }}
               dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(step.description, { USE_PROFILES: { html: true } }) }}
             />
           )}
         </div>
       </div>
-
-      {/* Screenshot — 고정 비율 컨테이너 */}
-      {step.screenshotUrl && (
-        <div style={{ margin: '0 24px 24px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #E5E7EB' }}>
-          <div style={{ position: 'relative', paddingTop, background: '#F3F4F6' }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={step.screenshotUrl}
-              alt={step.actionTitle}
-              style={{
-                position: 'absolute', inset: 0,
-                width: '100%', height: '100%',
-                objectFit: 'fill',
-                display: 'block',
-              }}
-            />
-            {(step.annotations?.length ?? 0) > 0 && (
-              <AnnotationPreview annotations={step.annotations!} imageUrl={step.screenshotUrl} />
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
