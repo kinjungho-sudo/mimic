@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  Plus, Trash2, ExternalLink, ChevronUp, ChevronDown, ZoomIn, X, Pencil,
+  Plus, Trash2, ZoomIn, X, Pencil,
   Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, List, ListOrdered, Link,
 } from 'lucide-react';
 import DOMPurify from 'dompurify';
@@ -47,15 +47,6 @@ export function ManualEditor({ steps, onChange, onSave }: ManualEditorProps) {
     const next = steps.filter(s => s.id !== id).map((s, i) => ({ ...s, number: i + 1 }));
     onChange(next);
     if (activeId === id) setActiveId(next[0]?.id ?? null);
-  };
-
-  const moveStep = (id: string, dir: -1 | 1) => {
-    const idx = steps.findIndex(s => s.id === id);
-    const newIdx = idx + dir;
-    if (newIdx < 0 || newIdx >= steps.length) return;
-    const next = [...steps];
-    [next[idx], next[newIdx]] = [next[newIdx], next[idx]];
-    onChange(next.map((s, i) => ({ ...s, number: i + 1 })));
   };
 
   const addStep = () => {
@@ -134,14 +125,10 @@ export function ManualEditor({ steps, onChange, onSave }: ManualEditorProps) {
               <StepCard
                 step={step}
                 isActive={activeId === step.id}
-                isFirst={idx === 0}
-                isLast={idx === steps.length - 1}
                 onFocus={() => setActiveId(step.id)}
                 onUpdate={patch => updateStep(step.id, patch)}
                 onSave={patch => { updateStep(step.id, patch); onSave?.(step.id, patch); }}
                 onDelete={() => deleteStep(step.id)}
-                onMoveUp={() => moveStep(step.id, -1)}
-                onMoveDown={() => moveStep(step.id, 1)}
                 onZoom={() => step.screenshotUrl && setZoomUrl(step.screenshotUrl)}
                 onAnnotate={() => step.screenshotUrl && setAnnotatingId(step.id)}
               />
@@ -264,19 +251,16 @@ function TocItem({ step, isActive, isDragOver, onSelect, onRename, onDragStart, 
 interface StepCardProps {
   step: ManualStep;
   isActive: boolean;
-  isFirst: boolean;
-  isLast: boolean;
+
   onFocus: () => void;
   onUpdate: (patch: Partial<ManualStep>) => void;
   onSave: (patch: Partial<ManualStep>) => void;
   onDelete: () => void;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
   onZoom: () => void;
   onAnnotate: () => void;
 }
 
-function StepCard({ step, isActive, isFirst, isLast, onFocus, onUpdate, onSave, onDelete, onMoveUp, onMoveDown, onZoom, onAnnotate }: StepCardProps) {
+function StepCard({ step, isActive, onFocus, onUpdate, onSave, onDelete, onZoom, onAnnotate }: StepCardProps) {
   const [hovering, setHovering] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -408,18 +392,6 @@ function StepCard({ step, isActive, isFirst, isLast, onFocus, onUpdate, onSave, 
             onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.color = '#6B7280'; e.currentTarget.style.background = 'white'; }}
           >
             <Trash2 size={12} />
-          </button>
-          <button onClick={onMoveUp} disabled={isFirst} title="위로" style={{ ...iconBtn, background: isFirst ? '#F9FAFB' : 'white', color: isFirst ? '#D1D5DB' : '#6B7280', cursor: isFirst ? 'default' : 'pointer' }}>
-            <ChevronUp size={12} />
-          </button>
-          <button onClick={onMoveDown} disabled={isLast} title="아래로" style={{ ...iconBtn, background: isLast ? '#F9FAFB' : 'white', color: isLast ? '#D1D5DB' : '#6B7280', cursor: isLast ? 'default' : 'pointer' }}>
-            <ChevronDown size={12} />
-          </button>
-          <button title="새 탭에서 열기" style={iconBtn}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = '#4F46E5'; e.currentTarget.style.color = '#4F46E5'; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.color = '#6B7280'; }}
-          >
-            <ExternalLink size={11} />
           </button>
         </div>
       </div>
