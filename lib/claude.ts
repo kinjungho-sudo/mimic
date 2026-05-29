@@ -8,7 +8,7 @@ export async function analyzeScreenshot(
   pageUrl: string
 ): Promise<{ title: string; description: string }> {
   const response = await client.messages.create({
-    model: 'claude-sonnet-4-6',
+    model: 'claude-haiku-4-5-20251001',
     max_tokens: 256,
     messages: [
       {
@@ -66,7 +66,7 @@ export async function generateScript(
   const draftSection = userDraft ? `\n사용자 초안:\n${userDraft}` : '';
 
   const response = await client.messages.create({
-    model: 'claude-sonnet-4-6',
+    model: 'claude-haiku-4-5-20251001',
     max_tokens: 1024,
     messages: [
       {
@@ -110,7 +110,7 @@ export async function generateMarkers(steps: Step[]) {
   }));
 
   const response = await client.messages.create({
-    model: 'claude-sonnet-4-6',
+    model: 'claude-haiku-4-5-20251001',
     max_tokens: 2048,
     messages: [
       {
@@ -152,9 +152,98 @@ ${JSON.stringify(stepsData, null, 2)}
   }
 }
 
+export async function generateDraft(
+  steps: Array<{ id: string; ai_title: string | null; ai_description: string | null; page_url: string | null; step_number: number }>
+): Promise<{ steps: Array<{ id: string; user_title: string; user_script: string }>; tutorial_title: string }> {
+  const stepsText = steps
+    .map(s =>
+      `[Step ${s.step_number}] id=${s.id}\n` +
+      `제목: ${s.ai_title || '없음'}\n` +
+      `설명: ${s.ai_description || '없음'}\n` +
+      `URL: ${s.page_url || '없음'}`
+    )
+    .join('\n\n');
+
+  const response = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 2048,
+    messages: [
+      {
+        role: 'user',
+        content: `다음은 사용자가 녹화한 매뉴얼 단계들입니다. 각 단계에 대해 더 풍부하고 자연스러운 한국어 매뉴얼 초안을 작성해줘.
+
+${stepsText}
+
+규칙:
+- tutorial_title: 이 매뉴얼 전체를 대표하는 30자 이내 제목 (예: "Slack 채널 만들기", "구글 드라이브 파일 공유 방법")
+- user_title: 각 단계를 20자 이내의 명확한 행동 제목으로 (예: "로그인 버튼 클릭", "이메일 주소 입력")
+- user_script: 각 단계를 독자가 따라하기 쉽게 2-3문장으로 설명 (존댓말, 구체적인 행동 묘사)
+- 모든 step id를 포함해야 함
+
+응답 형식 (JSON만, 마크다운 없이):
+{
+  "tutorial_title": "...",
+  "steps": [
+    { "id": "uuid", "user_title": "...", "user_script": "..." }
+  ]
+}`,
+      },
+    ],
+  });
+
+  const text = response.content[0].type === 'text' ? response.content[0].text : '{}';
+  try {
+    const parsed = JSON.parse(text.trim());
+    return {
+      tutorial_title: String(parsed.tutorial_title || ''),
+      steps: Array.isArray(parsed.steps) ? parsed.steps : [],
+    };
+  } catch {
+    return { tutorial_title: '', steps: [] };
+  }
+}
+
+// 스크린샷에서 dominant color 2개를 추출해 커버 그라데이션 색상 반환
+export async function extractCoverColors(
+  screenshotBase64: string,
+  mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif' = 'image/jpeg'
+): Promise<{ color1: string; color2: string }> {
+  const response = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 64,
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'image',
+            source: { type: 'base64', media_type: mediaType, data: screenshotBase64 },
+          },
+          {
+            type: 'text',
+            text: `이 스크린샷의 전체적인 색감과 분위기를 참고해서, 매뉴얼 커버로 어울리는 그라데이션 색상 2개를 골라줘. 너무 밝거나 너무 어둡지 않게, 브랜드 컬러처럼 세련되게.
+JSON만 응답 (마크다운 없이):
+{"color1":"#hex","color2":"#hex"}`,
+          },
+        ],
+      },
+    ],
+  });
+
+  const text = response.content[0].type === 'text' ? response.content[0].text : '{}';
+  try {
+    const parsed = JSON.parse(text.trim());
+    const hexRe = /^#[0-9a-fA-F]{6}$/;
+    if (hexRe.test(parsed.color1) && hexRe.test(parsed.color2)) {
+      return { color1: parsed.color1, color2: parsed.color2 };
+    }
+  } catch { /* fallback */ }
+  return { color1: '#4F46E5', color2: '#7C3AED' };
+}
+
 export async function generateAnnotations(userPrompt: string, stepContext: string) {
   const response = await client.messages.create({
-    model: 'claude-sonnet-4-6',
+    model: 'claude-haiku-4-5-20251001',
     max_tokens: 2048,
     messages: [
       {
