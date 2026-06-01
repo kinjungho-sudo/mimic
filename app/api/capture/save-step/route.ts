@@ -2,6 +2,7 @@
 import { requireExtensionToken } from '@/lib/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { captureSaveStepSchema } from '@/lib/validators';
+import { redactSensitive } from '@/lib/redact';
 
 export async function POST(request: NextRequest) {
   const auth = await requireExtensionToken(request);
@@ -56,9 +57,9 @@ export async function POST(request: NextRequest) {
       click_x: Math.round(d.click_x * 10000),
       click_y: Math.round(d.click_y * 10000),
       url: d.url,
-      element_text: d.title,
-      ai_title: d.title || null,
-      ai_description: d.description || null,
+      element_text: redactSensitive(d.title),
+      ai_title: redactSensitive(d.title) || null,
+      ai_description: redactSensitive(d.description) || null,
       domain_hostname: d.domain_hostname ?? null,
       domain_name:     d.domain_name     ?? null,
       domain_favicon:  d.domain_favicon  ?? null,

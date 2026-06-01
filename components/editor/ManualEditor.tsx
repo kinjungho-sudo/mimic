@@ -183,6 +183,7 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
                     onDelete={() => deleteStep(step.id)}
                     onZoom={() => step.screenshotUrl && setZoomUrl(step.screenshotUrl)}
                     onAnnotate={() => step.screenshotUrl && setAnnotatingId(step.id)}
+                    onRemoveImage={() => { updateStep(step.id, { screenshotUrl: undefined, annotations: [] }); onSave?.(step.id, { screenshotUrl: undefined, annotations: [] }); }}
                   />
                 </div>
               </div>
@@ -314,9 +315,10 @@ interface StepCardProps {
   onDelete: () => void;
   onZoom: () => void;
   onAnnotate: () => void;
+  onRemoveImage: () => void;
 }
 
-function StepCard({ step, isActive, onFocus, onUpdate, onSave, onDelete, onZoom, onAnnotate }: StepCardProps) {
+function StepCard({ step, isActive, onFocus, onUpdate, onSave, onDelete, onZoom, onAnnotate, onRemoveImage }: StepCardProps) {
   const [hovering, setHovering] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -385,30 +387,30 @@ function StepCard({ step, isActive, onFocus, onUpdate, onSave, onDelete, onZoom,
 
       {/* Card header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', padding: '12px 20px 16px' }}>
-        {/* Step badge */}
-        <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: '#F59E0B', color: 'white', fontSize: '13px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0, marginTop: '1px' }}>
-          {String(step.number).padStart(2, '0')}
-        </div>
-
         {/* Title + description */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          {/* Title */}
-          <input
-            value={step.actionTitle}
-            onChange={e => onUpdate({ actionTitle: e.target.value })}
-            onFocus={onFocus}
-            onBlur={e => { e.currentTarget.style.background = 'transparent'; handleTitleBlur(e); }}
-            placeholder="단계 제목을 입력하세요"
-            style={{
-              width: '100%', fontSize: '15px', fontWeight: 600, color: '#111827',
-              background: 'transparent', border: 'none', outline: 'none',
-              padding: '3px 6px', margin: '0 -6px',
-              lineHeight: 1.4, borderRadius: '6px', cursor: 'text',
-              transition: 'background 0.15s ease', boxSizing: 'border-box',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#F3F4F6'; }}
-            onMouseLeave={e => { if (document.activeElement !== e.currentTarget) e.currentTarget.style.background = 'transparent'; }}
-          />
+          {/* Number + Title row */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '15px', fontWeight: 700, color: '#F59E0B', flexShrink: 0, lineHeight: 1.4 }}>
+              {String(step.number).padStart(2, '0')}.
+            </span>
+            <input
+              value={step.actionTitle}
+              onChange={e => onUpdate({ actionTitle: e.target.value })}
+              onFocus={onFocus}
+              onBlur={e => { e.currentTarget.style.background = 'transparent'; handleTitleBlur(e); }}
+              placeholder="단계 제목을 입력하세요"
+              style={{
+                flex: 1, fontSize: '15px', fontWeight: 600, color: '#111827',
+                background: 'transparent', border: 'none', outline: 'none',
+                padding: '3px 6px', margin: '0 -6px',
+                lineHeight: 1.4, borderRadius: '6px', cursor: 'text',
+                transition: 'background 0.15s ease', boxSizing: 'border-box',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#F3F4F6'; }}
+              onMouseLeave={e => { if (document.activeElement !== e.currentTarget) e.currentTarget.style.background = 'transparent'; }}
+            />
+          </div>
 
           {/* Rich text description (contenteditable) */}
           <div
@@ -470,6 +472,7 @@ function StepCard({ step, isActive, onFocus, onUpdate, onSave, onDelete, onZoom,
         onDrop={handleImgDrop}
         onZoom={onZoom}
         onAnnotate={onAnnotate}
+        onRemove={onRemoveImage}
       />
     </div>
   );
@@ -667,9 +670,10 @@ interface ScreenshotAreaProps {
   onDrop: (e: React.DragEvent) => void;
   onZoom: () => void;
   onAnnotate: () => void;
+  onRemove: () => void;
 }
 
-function ScreenshotArea({ step, onUploadClick, onDrop, onZoom, onAnnotate }: ScreenshotAreaProps) {
+function ScreenshotArea({ step, onUploadClick, onDrop, onZoom, onAnnotate, onRemove }: ScreenshotAreaProps) {
   const [dragOver, setDragOver] = useState(false);
   const [imgHover, setImgHover] = useState(false);
 
@@ -735,6 +739,12 @@ function ScreenshotArea({ step, onUploadClick, onDrop, onZoom, onAnnotate }: Scr
             style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', fontSize: '12.5px', fontWeight: 500, cursor: 'pointer' }}
           >
             <ZoomIn size={13} /> 확대
+          </button>
+          <button
+            onClick={e => { e.stopPropagation(); if (window.confirm('이미지를 삭제하시겠습니까?')) onRemove(); }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', background: 'rgba(220,38,38,0.85)', color: 'white', border: '1px solid rgba(220,38,38,0.5)', fontSize: '12.5px', fontWeight: 500, cursor: 'pointer' }}
+          >
+            <Trash2 size={13} /> 삭제
           </button>
         </div>
       )}
