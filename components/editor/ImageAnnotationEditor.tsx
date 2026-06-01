@@ -5,7 +5,7 @@ import { X, Trash2, RotateCcw } from 'lucide-react';
 
 // ── Types ──────────────────────────────────────────────────
 
-type Tool = 'select' | 'pan' | 'crop' | 'mosaic' | 'ellipse' | 'rect' | 'arrow' | 'text' | 'marker' | 'spotlight';
+type Tool = 'select' | 'eraser' | 'crop' | 'mosaic' | 'ellipse' | 'rect' | 'arrow' | 'text' | 'marker' | 'spotlight';
 type Color = string;
 type Handle = 'tl'|'tc'|'tr'|'ml'|'mr'|'bl'|'bc'|'br'|'p1'|'p2';
 
@@ -16,8 +16,8 @@ export interface Annotation {
   x2: number; y2: number;
   text?: string;
   color: Color;
-  strokeWidth: number; // % of image width
-  markerNumber?: number; // for marker type
+  strokeWidth: number;
+  markerNumber?: number;
 }
 
 interface ImageAnnotationEditorProps {
@@ -34,11 +34,9 @@ interface ImageAnnotationEditorProps {
 const COLORS = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#111827'];
 const STROKE_OPTIONS = [{ value: 0.3 }, { value: 0.5 }, { value: 0.9 }];
 
-// StepHow 스타일: 두 그룹으로 나눔
-// Group A (이미지 변환): crop, mosaic
-// Group B (그리기 도구): select, ellipse, rect, arrow, text, marker, spotlight
-const TOOL_GROUPS: { tools: Tool[]; label?: string }[] = [
-  { tools: ['crop', 'mosaic'] },
+// Group A: 이미지 변환 / Group B: 그리기 도구
+const TOOL_GROUPS: { tools: Tool[] }[] = [
+  { tools: ['crop', 'mosaic', 'eraser'] },
   { tools: ['select', 'ellipse', 'rect', 'arrow', 'text', 'marker', 'spotlight'] },
 ];
 
@@ -47,9 +45,9 @@ const TOOL_CONFIG: Record<Tool, { label: string; icon: React.ReactNode }> = {
     label: '선택',
     icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M4 0 L18 10 L11 11 L8 18 Z"/></svg>,
   },
-  pan: {
-    label: '이동',
-    icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M12 12v.01"/><path d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>,
+  eraser: {
+    label: '지우개',
+    icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 20H7L3 16l10-10 7 7-1.5 1.5"/><path d="M6 17l3-3"/></svg>,
   },
   crop: {
     label: '자르기',
@@ -99,11 +97,47 @@ const HANDLE_CURSOR: Record<Handle, string> = {
 
 function genId() { return Math.random().toString(36).slice(2, 9); }
 
+// 점과 선분 사이 거리 (% 단위, 이미지 비율 보정)
+function distToSegment(px: number, py: number, x1: number, y1: number, x2: number, y2: number, aspectW: number, aspectH: number) {
+  const dx = (x2 - x1) * aspectW, dy = (y2 - y1) * aspectH;
+  const lenSq = dx * dx + dy * dy;
+  const ppx = (px - x1) * aspectW, ppy = (py - y1) * aspectH;
+  const t = lenSq === 0 ? 0 : Math.max(0, Math.min(1, (ppx * dx + ppy * dy) / lenSq));
+  const rx = ppx - t * dx, ry = ppy - t * dy;
+  return Math.sqrt(rx * rx + ry * ry);
+}
+
+// 지우개: annotation이 지우개 경로에 닿는지 판단
+function hitTestAnnotation(a: Annotation, px: number, py: number, radiusPct: number, imgW: number, imgH: number): boolean {
+  const aspect = imgW / imgH;
+  const r = radiusPct * aspect;
+  const cx = (a.x1 + a.x2) / 2, cy = (a.y1 + a.y2) / 2;
+  const dx = (px - cx) * aspect, dy = py - cy;
+  const distCenter = Math.sqrt(dx * dx + dy * dy);
+
+  if (a.type === 'arrow') {
+    return distToSegment(px, py, a.x1, a.y1, a.x2, a.y2, aspect, 1) < r;
+  }
+  if (a.type === 'marker') {
+    return distCenter < r + 4;
+  }
+  if (a.type === 'text') {
+    return Math.abs((px - a.x1) * aspect) < r + 8 && Math.abs(py - a.y1) < r + 3;
+  }
+  // box types: check if point is inside or near border
+  const minX = Math.min(a.x1, a.x2), maxX = Math.max(a.x1, a.x2);
+  const minY = Math.min(a.y1, a.y2), maxY = Math.max(a.y1, a.y2);
+  return px >= minX - radiusPct && px <= maxX + radiusPct && py >= minY - radiusPct && py <= maxY + radiusPct;
+}
+
 // ── Main Component ─────────────────────────────────────────
 
 export function ImageAnnotationEditor({
   imageUrl, annotations, onChange, onClose,
-  initialFocusX = 50, initialFocusY = 50,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  initialFocusX = 50,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  initialFocusY = 50,
 }: ImageAnnotationEditorProps) {
   const [tool, setTool] = useState<Tool>('arrow');
   const [color, setColor] = useState<Color>('#EF4444');
@@ -112,22 +146,17 @@ export function ImageAnnotationEditor({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawing, setDrawing] = useState<Partial<Annotation> | null>(null);
 
-  // Crop state: pending crop rect (before apply)
+  // Crop
   const [cropRect, setCropRect] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
 
-  // Track next marker number
+  // Eraser drag state
+  const eraserActiveRef = useRef(false);
+
+  // Marker number
   const nextMarkerNum = useCallback(() => {
     const nums = items.filter(a => a.type === 'marker' && a.markerNumber != null).map(a => a.markerNumber!);
     return nums.length > 0 ? Math.max(...nums) + 1 : 1;
   }, [items]);
-
-  // ── Zoom / Pan ──
-  const [zoom, setZoom] = useState(1);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
-  const panRef = useRef({ x: 0, y: 0 });
-  const panDragRef = useRef<{ startX: number; startY: number; origPanX: number; origPanY: number } | null>(null);
-  const spaceHeldRef = useRef(false);
-  const [spaceHeld, setSpaceHeld] = useState(false);
 
   // Text editing overlay
   const [editingText, setEditingText] = useState<{ id: string } | null>(null);
@@ -143,6 +172,19 @@ export function ImageAnnotationEditor({
   const imgRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const strokeWidth = STROKE_OPTIONS[strokeIdx].value;
+
+  // 이미지가 렌더링된 실제 px 크기 추적
+  const [imgSize, setImgSize] = useState({ w: 1, h: 1 });
+  useEffect(() => {
+    const img = imgRef.current;
+    if (!img) return;
+    const update = () => { const r = img.getBoundingClientRect(); if (r.width > 0) setImgSize({ w: r.width, h: r.height }); };
+    img.addEventListener('load', update);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(img);
+    return () => { img.removeEventListener('load', update); ro.disconnect(); };
+  }, []);
 
   const toVB = useCallback((e: React.MouseEvent | MouseEvent): { x: number; y: number } => {
     const img = imgRef.current;
@@ -168,108 +210,22 @@ export function ImageAnnotationEditor({
   }, [editingText]);
   useEffect(() => { commitTextRef.current = commitText; }, [commitText]);
 
-  useEffect(() => { panRef.current = pan; }, [pan]);
-
-  // ── Auto-zoom to focus point ──
-  useEffect(() => {
-    const img = imgRef.current;
-    if (!img) return;
-    const apply = () => {
-      const container = containerRef.current;
-      if (!container) return;
-      const cw = container.clientWidth, ch = container.clientHeight;
-      const iw = img.naturalWidth || img.clientWidth, ih = img.naturalHeight || img.clientHeight;
-      const renderedW = Math.min(900, cw - 64);
-      const scale = Math.min(renderedW / iw, (ch - 64) / ih);
-      const rw = iw * scale, rh = ih * scale;
-      const ZOOM = 2;
-      const focusPxX = (initialFocusX / 100) * rw;
-      const focusPxY = (initialFocusY / 100) * rh;
-      const px = (cw / 2 - focusPxX * ZOOM) / ZOOM;
-      const py = (ch / 2 - focusPxY * ZOOM) / ZOOM;
-      setZoom(ZOOM);
-      setPan({ x: px, y: py });
-    };
-    if (img.complete) apply();
-    else img.addEventListener('load', apply, { once: true });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // ── Wheel zoom ──
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      const img = imgRef.current;
-      if (!img) return;
-      const rect = img.getBoundingClientRect();
-      const mx = e.clientX - rect.left;
-      const my = e.clientY - rect.top;
-      const delta = e.deltaY > 0 ? 0.85 : 1 / 0.85;
-      setZoom(prev => {
-        const next = Math.max(0.5, Math.min(8, prev * delta));
-        const curPan = panRef.current;
-        const newPan = {
-          x: mx / prev + curPan.x - mx / next,
-          y: my / prev + curPan.y - my / next,
-        };
-        setPan(newPan);
-        panRef.current = newPan;
-        return next;
-      });
-    };
-    container.addEventListener('wheel', onWheel, { passive: false });
-    return () => container.removeEventListener('wheel', onWheel);
-  }, []);
-
-  // ── Space → temp pan ──
-  useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && !e.repeat) { spaceHeldRef.current = true; setSpaceHeld(true); }
-    };
-    const up = (e: KeyboardEvent) => {
-      if (e.code === 'Space') { spaceHeldRef.current = false; setSpaceHeld(false); }
-    };
-    window.addEventListener('keydown', down);
-    window.addEventListener('keyup', up);
-    return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
-  }, []);
-
-  // ── Pan drag ──
-  const isPanMode = tool === 'pan';
-  const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
-    if (spaceHeldRef.current || isPanMode) {
-      e.preventDefault();
-      e.stopPropagation();
-      panDragRef.current = { startX: e.clientX, startY: e.clientY, origPanX: pan.x, origPanY: pan.y };
-      return;
-    }
-  }, [isPanMode, pan]);
-
-  useEffect(() => {
-    const move = (e: MouseEvent) => {
-      if (!panDragRef.current) return;
-      const dx = (e.clientX - panDragRef.current.startX) / zoom;
-      const dy = (e.clientY - panDragRef.current.startY) / zoom;
-      setPan({ x: panDragRef.current.origPanX + dx, y: panDragRef.current.origPanY + dy });
-    };
-    const up = () => { panDragRef.current = null; };
-    window.addEventListener('mousemove', move);
-    window.addEventListener('mouseup', up);
-    return () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
-  }, [zoom]);
-
   // ── Drawing ──
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('[data-text-editor]')) return;
     if (editingText) { commitTextRef.current(); return; }
     if (tool === 'select') { setSelectedId(null); return; }
-    if (tool === 'pan' || spaceHeldRef.current) return;
 
     e.preventDefault();
     setSelectedId(null);
     const { x, y } = toVB(e);
+
+    if (tool === 'eraser') {
+      eraserActiveRef.current = true;
+      // Erase at click point
+      setItems(prev => prev.filter(a => !hitTestAnnotation(a, x, y, 4, imgSize.w, imgSize.h)));
+      return;
+    }
 
     if (tool === 'text') {
       const newItem: Annotation = { id: genId(), type: 'text', x1: x, y1: y, x2: x, y2: y, text: '', color, strokeWidth };
@@ -280,11 +236,7 @@ export function ImageAnnotationEditor({
 
     if (tool === 'marker') {
       const num = nextMarkerNum();
-      const newItem: Annotation = {
-        id: genId(), type: 'marker',
-        x1: x, y1: y, x2: x + 4, y2: y + 4,
-        color, strokeWidth, markerNumber: num,
-      };
+      const newItem: Annotation = { id: genId(), type: 'marker', x1: x, y1: y, x2: x + 4, y2: y + 4, color, strokeWidth, markerNumber: num };
       setItems(prev => [...prev, newItem]);
       return;
     }
@@ -296,7 +248,7 @@ export function ImageAnnotationEditor({
 
     const annType: Annotation['type'] = tool === 'spotlight' ? 'spotlight' : tool as Annotation['type'];
     setDrawing({ type: annType, x1: x, y1: y, x2: x, y2: y, color, strokeWidth, id: genId() });
-  }, [tool, color, strokeWidth, editingText, toVB, nextMarkerNum]);
+  }, [tool, color, strokeWidth, editingText, toVB, nextMarkerNum, imgSize.w, imgSize.h]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (cropRect && tool === 'crop') {
@@ -304,16 +256,22 @@ export function ImageAnnotationEditor({
       setCropRect(prev => prev ? { ...prev, x2: x, y2: y } : null);
       return;
     }
+    if (tool === 'eraser' && eraserActiveRef.current) {
+      const { x, y } = toVB(e);
+      setItems(prev => prev.filter(a => !hitTestAnnotation(a, x, y, 4, imgSize.w, imgSize.h)));
+      return;
+    }
     if (!drawing) return;
     const { x, y } = toVB(e);
     setDrawing(prev => prev ? { ...prev, x2: x, y2: y } : null);
-  }, [drawing, cropRect, tool, toVB]);
+  }, [drawing, cropRect, tool, toVB, imgSize.w, imgSize.h]);
+
+  const handleMouseUp = useCallback(() => {
+    eraserActiveRef.current = false;
+  }, []);
 
   const finishDrawing = useCallback((e?: MouseEvent) => {
-    if (cropRect) {
-      // crop rect is kept as pending — user applies it manually
-      return;
-    }
+    if (cropRect) return;
     setDrawing(prev => {
       if (!prev) return null;
       const dx = Math.abs((prev.x2 ?? 0) - (prev.x1 ?? 0));
@@ -340,7 +298,7 @@ export function ImageAnnotationEditor({
     return () => window.removeEventListener('mouseup', up);
   }, [drawing, finishDrawing]);
 
-  // Finish crop drag on mouseup
+  // Crop mouseup
   useEffect(() => {
     if (!cropRect) return;
     const up = (e: MouseEvent) => {
@@ -355,18 +313,13 @@ export function ImageAnnotationEditor({
     return () => window.removeEventListener('mouseup', up);
   }, [cropRect]);
 
-  // Apply crop: adds a crop annotation, clears pending rect
   const applyCrop = useCallback(() => {
     if (!cropRect) return;
-    const dx = Math.abs(cropRect.x2 - cropRect.x1);
-    const dy = Math.abs(cropRect.y2 - cropRect.y1);
-    if (dx < 1 || dy < 1) { setCropRect(null); return; }
+    if (Math.abs(cropRect.x2 - cropRect.x1) < 1 || Math.abs(cropRect.y2 - cropRect.y1) < 1) { setCropRect(null); return; }
     const ann: Annotation = {
       id: genId(), type: 'crop',
-      x1: Math.min(cropRect.x1, cropRect.x2),
-      y1: Math.min(cropRect.y1, cropRect.y2),
-      x2: Math.max(cropRect.x1, cropRect.x2),
-      y2: Math.max(cropRect.y1, cropRect.y2),
+      x1: Math.min(cropRect.x1, cropRect.x2), y1: Math.min(cropRect.y1, cropRect.y2),
+      x2: Math.max(cropRect.x1, cropRect.x2), y2: Math.max(cropRect.y1, cropRect.y2),
       color: 'transparent', strokeWidth: 0,
     };
     setItems(prev => [...prev, ann]);
@@ -374,7 +327,7 @@ export function ImageAnnotationEditor({
     setTool('select');
   }, [cropRect]);
 
-  const cancelCrop = useCallback(() => { setCropRect(null); }, []);
+  const cancelCrop = useCallback(() => setCropRect(null), []);
 
   // ── Select / Move / Resize ──
   const startDrag = useCallback((e: React.MouseEvent, id: string, handle: Handle | null) => {
@@ -396,10 +349,8 @@ export function ImageAnnotationEditor({
       const rect = img.getBoundingClientRect();
       const cx = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
       const cy = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
-      const dx = cx - dragState.startX;
-      const dy = cy - dragState.startY;
+      const dx = cx - dragState.startX, dy = cy - dragState.startY;
       const { handle, origX1: ox1, origY1: oy1, origX2: ox2, origY2: oy2 } = dragState;
-
       setItems(cur => cur.map(a => {
         if (a.id !== dragState.id) return a;
         if (!handle) return { ...a, x1: ox1 + dx, y1: oy1 + dy, x2: ox2 + dx, y2: oy2 + dy };
@@ -464,188 +415,169 @@ export function ImageAnnotationEditor({
     onClose();
   };
 
-  const [imgSize, setImgSize] = useState({ w: 1, h: 1 });
-  useEffect(() => {
-    const img = imgRef.current;
-    if (!img) return;
-    const update = () => { const r = img.getBoundingClientRect(); if (r.width > 0) setImgSize({ w: r.width, h: r.height }); };
-    img.addEventListener('load', update);
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(img);
-    return () => { img.removeEventListener('load', update); ro.disconnect(); };
-  }, []);
-
   const strokePx = (strokeWidth / 100) * imgSize.w;
   const editingItem = editingText ? items.find(a => a.id === editingText.id) : null;
 
   const activeCursor =
-    (isPanMode || spaceHeld) ? (panDragRef.current ? 'grabbing' : 'grab') :
+    tool === 'eraser' ? 'cell' :
     tool === 'select' ? 'default' :
     tool === 'text' ? 'text' :
     'crosshair';
 
-  // Which tools need color picker
-  const showColor = !['mosaic', 'select', 'pan', 'crop', 'spotlight'].includes(tool);
-  // Which tools need stroke width
-  const showStroke = !['text', 'mosaic', 'select', 'pan', 'crop', 'spotlight', 'marker'].includes(tool);
+  const showColor = !['mosaic', 'select', 'eraser', 'crop', 'spotlight'].includes(tool);
+  const showStroke = !['text', 'mosaic', 'select', 'eraser', 'crop', 'spotlight', 'marker'].includes(tool);
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 70, background: 'rgba(0,0,0,0.92)', display: 'flex', flexDirection: 'column' }}>
-
-      {/* ── Toolbar ── */}
-      <div style={{
-        height: '52px', flexShrink: 0,
-        background: '#1F2937',
-        borderBottom: '1px solid rgba(255,255,255,0.08)',
-        display: 'flex', alignItems: 'center',
-        padding: '0 16px', gap: '8px',
-      }}>
-        {/* Tool groups */}
-        {TOOL_GROUPS.map((group, gi) => (
-          <div key={gi} style={{ display: 'flex', gap: '2px', background: 'rgba(255,255,255,0.06)', borderRadius: '8px', padding: '3px' }}>
-            {group.tools.map(t => {
-              const active = tool === t;
-              return (
-                <button
-                  key={t}
-                  title={TOOL_CONFIG[t].label}
-                  onClick={() => {
-                    if (editingText) commitTextRef.current();
-                    if (t !== 'crop') setCropRect(null);
-                    setTool(t);
-                  }}
-                  style={{
-                    width: '34px', height: '34px', borderRadius: '6px', border: 'none',
-                    display: 'grid', placeItems: 'center', cursor: 'pointer',
-                    background: active ? 'white' : 'transparent',
-                    color: active ? '#111827' : 'rgba(255,255,255,0.65)',
-                    transition: 'all 0.12s',
-                  }}
-                  onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}
-                  onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent'; }}
-                >
-                  {TOOL_CONFIG[t].icon}
-                </button>
-              );
-            })}
-          </div>
-        ))}
-
-        <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.12)' }} />
-
-        {/* Color picker */}
-        {showColor && (
-          <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
-            {COLORS.map(c => (
-              <button key={c} onClick={() => setColor(c)}
-                style={{ width: '20px', height: '20px', borderRadius: '50%', background: c, border: color === c ? '2.5px solid white' : '2px solid transparent', cursor: 'pointer', flexShrink: 0, outline: 'none' }}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Stroke width */}
-        {showStroke && (
-          <>
-            <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.12)' }} />
-            <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-              {STROKE_OPTIONS.map((_, i) => (
-                <button key={i} onClick={() => setStrokeIdx(i)}
-                  style={{ width: '32px', height: '28px', borderRadius: '5px', border: strokeIdx === i ? '1.5px solid white' : '1.5px solid rgba(255,255,255,0.2)', background: 'transparent', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
-                >
-                  <div style={{ width: '14px', height: `${i * 2 + 2}px`, background: 'white', borderRadius: '2px' }} />
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-
-        {/* Mosaic hint */}
-        {tool === 'mosaic' && (
-          <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>블러 처리할 영역을 드래그하세요</span>
-        )}
-
-        {/* Spotlight hint */}
-        {tool === 'spotlight' && (
-          <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>강조할 영역을 드래그하세요 — 주변이 어두워집니다</span>
-        )}
-
-        {/* Crop pending actions */}
-        {cropRect && (
-          <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginLeft: '4px' }}>
-            <button
-              onClick={applyCrop}
-              style={{ height: '28px', padding: '0 12px', borderRadius: '6px', border: 'none', background: '#10B981', color: 'white', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
-            >적용</button>
-            <button
-              onClick={cancelCrop}
-              style={{ height: '28px', padding: '0 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: 'rgba(255,255,255,0.7)', fontSize: '12px', cursor: 'pointer' }}
-            >취소</button>
-          </div>
-        )}
-
-        <div style={{ flex: 1 }} />
-
-        {/* Zoom controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginRight: '8px' }}>
-          <button onClick={() => setZoom(z => Math.max(0.5, z / 1.3))}
-            style={{ width: '28px', height: '28px', borderRadius: '5px', border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: '16px', display: 'grid', placeItems: 'center' }}
-          >−</button>
-          <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
-            style={{ minWidth: '46px', height: '28px', borderRadius: '5px', border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: '11px', fontWeight: 600 }}
-          >{Math.round(zoom * 100)}%</button>
-          <button onClick={() => setZoom(z => Math.min(8, z * 1.3))}
-            style={{ width: '28px', height: '28px', borderRadius: '5px', border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: '16px', display: 'grid', placeItems: 'center' }}
-          >+</button>
-        </div>
-
-        <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.12)', marginRight: '8px' }} />
-
-        <button onClick={() => setItems(prev => prev.slice(0, -1))}
-          style={{ height: '34px', padding: '0 12px', borderRadius: '7px', border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(255,255,255,0.7)', fontSize: '12px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-        ><RotateCcw size={12} /> 되돌리기</button>
-
-        {selectedId && (
-          <button onClick={deleteSelected}
-            style={{ height: '34px', padding: '0 12px', borderRadius: '7px', border: '1px solid rgba(220,38,38,0.4)', background: 'rgba(220,38,38,0.1)', color: '#FCA5A5', fontSize: '12px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px', marginLeft: '4px' }}
-          ><Trash2 size={12} /> 삭제</button>
-        )}
-
-        <button onClick={onClose}
-          style={{ height: '34px', padding: '0 14px', borderRadius: '7px', border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(255,255,255,0.7)', fontSize: '12.5px', cursor: 'pointer', marginLeft: '8px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-        ><X size={13} /> 닫기</button>
-
-        <button onClick={handleSave}
-          style={{ height: '34px', padding: '0 18px', borderRadius: '7px', border: 'none', background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', color: 'white', fontSize: '12.5px', fontWeight: 600, cursor: 'pointer', marginLeft: '6px' }}
-          onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 12px rgba(79,70,229,0.5)'; }}
-          onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; }}
-        >저장</button>
-      </div>
-
-      {/* ── Canvas ── */}
+    // ── 배경 dimmer ──
+    <div
+      style={{ position: 'fixed', inset: 0, zIndex: 70, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      {/* ── 팝업 컨테이너 ── */}
       <div
         ref={containerRef}
         style={{
-          flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: '32px', overflow: 'hidden', position: 'relative',
-          cursor: activeCursor,
+          display: 'flex', flexDirection: 'column',
+          background: '#1a1a1a', borderRadius: '12px',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.7)',
+          overflow: 'hidden',
+          maxWidth: 'calc(100vw - 48px)',
+          maxHeight: 'calc(100vh - 48px)',
         }}
-        onMouseDown={e => { handleCanvasMouseDown(e); if (!isPanMode && !spaceHeldRef.current) handleMouseDown(e); }}
-        onMouseMove={handleMouseMove}
       >
+        {/* ── 툴바 ── */}
         <div style={{
-          position: 'relative', display: 'inline-block', userSelect: 'none',
-          transform: `scale(${zoom}) translate(${pan.x}px, ${pan.y}px)`,
-          transformOrigin: '0 0',
+          height: '48px', flexShrink: 0,
+          background: '#1F2937',
+          borderBottom: '1px solid rgba(255,255,255,0.08)',
+          display: 'flex', alignItems: 'center',
+          padding: '0 12px', gap: '6px',
         }}>
+          {/* Tool groups */}
+          {TOOL_GROUPS.map((group, gi) => (
+            <div key={gi} style={{ display: 'flex', gap: '2px', background: 'rgba(255,255,255,0.06)', borderRadius: '7px', padding: '3px' }}>
+              {group.tools.map(t => {
+                const active = tool === t;
+                return (
+                  <button
+                    key={t}
+                    title={TOOL_CONFIG[t].label}
+                    onClick={() => {
+                      if (editingText) commitTextRef.current();
+                      if (t !== 'crop') setCropRect(null);
+                      setTool(t);
+                    }}
+                    style={{
+                      width: '32px', height: '32px', borderRadius: '5px', border: 'none',
+                      display: 'grid', placeItems: 'center', cursor: 'pointer',
+                      background: active ? 'white' : 'transparent',
+                      color: active ? '#111827' : 'rgba(255,255,255,0.65)',
+                      transition: 'all 0.12s',
+                    }}
+                    onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}
+                    onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent'; }}
+                  >
+                    {TOOL_CONFIG[t].icon}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+
+          <div style={{ width: '1px', height: '22px', background: 'rgba(255,255,255,0.12)' }} />
+
+          {showColor && (
+            <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+              {COLORS.map(c => (
+                <button key={c} onClick={() => setColor(c)}
+                  style={{ width: '18px', height: '18px', borderRadius: '50%', background: c, border: color === c ? '2.5px solid white' : '2px solid transparent', cursor: 'pointer', flexShrink: 0, outline: 'none' }}
+                />
+              ))}
+            </div>
+          )}
+
+          {showStroke && (
+            <>
+              <div style={{ width: '1px', height: '22px', background: 'rgba(255,255,255,0.12)' }} />
+              <div style={{ display: 'flex', gap: '3px', alignItems: 'center' }}>
+                {STROKE_OPTIONS.map((_, i) => (
+                  <button key={i} onClick={() => setStrokeIdx(i)}
+                    style={{ width: '28px', height: '26px', borderRadius: '4px', border: strokeIdx === i ? '1.5px solid white' : '1.5px solid rgba(255,255,255,0.2)', background: 'transparent', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
+                  >
+                    <div style={{ width: '12px', height: `${i * 2 + 2}px`, background: 'white', borderRadius: '1px' }} />
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {tool === 'mosaic' && (
+            <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>블러 처리할 영역을 드래그</span>
+          )}
+          {tool === 'eraser' && (
+            <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>지울 요소 위에서 드래그</span>
+          )}
+          {tool === 'spotlight' && (
+            <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>강조할 영역을 드래그</span>
+          )}
+
+          {cropRect && (
+            <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+              <button onClick={applyCrop}
+                style={{ height: '26px', padding: '0 10px', borderRadius: '5px', border: 'none', background: '#10B981', color: 'white', fontSize: '11.5px', fontWeight: 600, cursor: 'pointer' }}
+              >적용</button>
+              <button onClick={cancelCrop}
+                style={{ height: '26px', padding: '0 10px', borderRadius: '5px', border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: 'rgba(255,255,255,0.7)', fontSize: '11.5px', cursor: 'pointer' }}
+              >취소</button>
+            </div>
+          )}
+
+          <div style={{ flex: 1 }} />
+
+          <button onClick={() => setItems(prev => prev.slice(0, -1))}
+            style={{ height: '32px', padding: '0 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(255,255,255,0.7)', fontSize: '11.5px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+          ><RotateCcw size={11} /> 되돌리기</button>
+
+          {selectedId && (
+            <button onClick={deleteSelected}
+              style={{ height: '32px', padding: '0 10px', borderRadius: '6px', border: '1px solid rgba(220,38,38,0.4)', background: 'rgba(220,38,38,0.1)', color: '#FCA5A5', fontSize: '11.5px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', marginLeft: '2px' }}
+            ><Trash2 size={11} /> 삭제</button>
+          )}
+
+          <button onClick={onClose}
+            style={{ height: '32px', padding: '0 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(255,255,255,0.7)', fontSize: '12px', cursor: 'pointer', marginLeft: '6px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+          ><X size={13} /> 닫기</button>
+
+          <button onClick={handleSave}
+            style={{ height: '32px', padding: '0 16px', borderRadius: '6px', border: 'none', background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', color: 'white', fontSize: '12px', fontWeight: 600, cursor: 'pointer', marginLeft: '4px' }}
+            onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 12px rgba(79,70,229,0.5)'; }}
+            onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; }}
+          >저장</button>
+        </div>
+
+        {/* ── 이미지 + SVG 레이어 ── */}
+        <div
+          style={{ position: 'relative', display: 'inline-block', lineHeight: 0, cursor: activeCursor, flexShrink: 0 }}
+          onMouseDown={e => handleMouseDown(e)}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+        >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img ref={imgRef} src={imageUrl} alt="편집 중" draggable={false}
-            style={{ display: 'block', maxWidth: 'min(900px, calc(100vw - 64px))', maxHeight: 'calc(100vh - 120px)', borderRadius: '6px' }}
+          <img
+            ref={imgRef}
+            src={imageUrl}
+            alt="편집 중"
+            draggable={false}
+            style={{
+              display: 'block',
+              maxWidth: 'min(1100px, calc(100vw - 48px))',
+              maxHeight: 'calc(100vh - 160px)',
+              objectFit: 'contain',
+            }}
           />
 
           <svg
@@ -658,7 +590,6 @@ export function ImageAnnotationEditor({
               </filter>
             </defs>
 
-            {/* Spotlight: render all spotlight annotations as a combined mask */}
             {items.some(a => a.type === 'spotlight') && (
               <SpotlightLayer items={items} imgW={imgSize.w} imgH={imgSize.h} />
             )}
@@ -667,7 +598,7 @@ export function ImageAnnotationEditor({
             )}
 
             {items.map(a => {
-              if (a.type === 'spotlight') return null; // rendered by SpotlightLayer
+              if (a.type === 'spotlight') return null;
               return (
                 <AnnotationShape
                   key={a.id}
@@ -696,26 +627,21 @@ export function ImageAnnotationEditor({
               />
             )}
 
-            {/* Crop rect preview */}
             {cropRect && (() => {
               const minX = Math.min(cropRect.x1, cropRect.x2) / 100 * imgSize.w;
               const minY = Math.min(cropRect.y1, cropRect.y2) / 100 * imgSize.h;
               const w = Math.abs(cropRect.x2 - cropRect.x1) / 100 * imgSize.w;
               const h = Math.abs(cropRect.y2 - cropRect.y1) / 100 * imgSize.h;
-              const cropMaskId = 'crop-preview-mask';
               return (
                 <g pointerEvents="none">
                   <defs>
-                    <mask id={cropMaskId}>
+                    <mask id="crop-preview-mask">
                       <rect x={0} y={0} width={imgSize.w} height={imgSize.h} fill="white" />
                       <rect x={minX} y={minY} width={w} height={h} fill="black" />
                     </mask>
                   </defs>
-                  {/* Darken outside crop area */}
-                  <rect x={0} y={0} width={imgSize.w} height={imgSize.h} fill="rgba(0,0,0,0.5)" mask={`url(#${cropMaskId})`} />
-                  {/* Dashed border */}
+                  <rect x={0} y={0} width={imgSize.w} height={imgSize.h} fill="rgba(0,0,0,0.5)" mask="url(#crop-preview-mask)" />
                   <rect x={minX} y={minY} width={w} height={h} fill="none" stroke="white" strokeWidth={1.5} strokeDasharray="5 3" />
-                  {/* Rule-of-thirds grid */}
                   <line x1={minX + w/3} y1={minY} x2={minX + w/3} y2={minY + h} stroke="rgba(255,255,255,0.3)" strokeWidth={1} />
                   <line x1={minX + 2*w/3} y1={minY} x2={minX + 2*w/3} y2={minY + h} stroke="rgba(255,255,255,0.3)" strokeWidth={1} />
                   <line x1={minX} y1={minY + h/3} x2={minX + w} y2={minY + h/3} stroke="rgba(255,255,255,0.3)" strokeWidth={1} />
@@ -725,7 +651,6 @@ export function ImageAnnotationEditor({
             })()}
           </svg>
 
-          {/* Text editing overlay */}
           {editingText && editingItem && (
             <div
               data-text-editor
@@ -740,8 +665,7 @@ export function ImageAnnotationEditor({
               onMouseDown={e => e.stopPropagation()}
               style={{
                 position: 'absolute',
-                left: `${editingItem.x1}%`,
-                top: `${editingItem.y1}%`,
+                left: `${editingItem.x1}%`, top: `${editingItem.y1}%`,
                 minWidth: '80px', maxWidth: '240px',
                 padding: '3px 6px',
                 background: 'rgba(0,0,0,0.65)',
@@ -757,61 +681,47 @@ export function ImageAnnotationEditor({
             />
           )}
         </div>
-      </div>
 
-      <div style={{ height: '28px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', color: 'rgba(255,255,255,0.3)' }}>
-        {tool === 'text' ? '클릭 후 텍스트 입력 · Enter 확정' :
-         tool === 'select' ? '클릭으로 선택 · 드래그로 이동 · 핸들로 크기 조절 · Delete 삭제' :
-         tool === 'pan' ? '드래그로 화면 이동 · 스크롤로 확대/축소 · Space+드래그도 가능' :
-         tool === 'crop' ? (cropRect ? '적용 또는 취소를 눌러주세요 · ESC로 취소' : '자를 영역을 드래그하세요') :
-         tool === 'mosaic' ? '블러 처리할 영역을 드래그하세요' :
-         tool === 'marker' ? '클릭하면 번호 마커가 추가됩니다' :
-         tool === 'spotlight' ? '강조할 영역을 드래그하세요' :
-         '클릭 후 드래그하여 그립니다 · 스크롤로 확대/축소 · Space+드래그로 이동'}
+        {/* ── 하단 힌트 ── */}
+        <div style={{ height: '26px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', color: 'rgba(255,255,255,0.3)', background: '#1a1a1a' }}>
+          {tool === 'text' ? '클릭 후 텍스트 입력 · Enter 확정' :
+           tool === 'select' ? '클릭으로 선택 · 드래그로 이동 · 핸들로 크기 조절 · Delete 삭제' :
+           tool === 'eraser' ? '지울 요소 위에서 드래그 · 클릭으로 바로 삭제' :
+           tool === 'crop' ? (cropRect ? '적용 또는 취소 · ESC 취소' : '자를 영역을 드래그') :
+           tool === 'mosaic' ? '블러 처리할 영역을 드래그' :
+           tool === 'marker' ? '클릭하면 번호 마커 추가' :
+           tool === 'spotlight' ? '강조할 영역을 드래그' :
+           '드래그하여 그리기 · Space+드래그로 이동'}
+        </div>
       </div>
     </div>
   );
 }
 
 // ── SpotlightLayer ──────────────────────────────────────────
-// 스포트라이트: 전체를 어둡게 하고 선택 영역만 밝게
 
 function SpotlightLayer({ items, imgW, imgH, preview }: {
-  items: Annotation[];
-  imgW: number; imgH: number;
-  preview?: boolean;
+  items: Annotation[]; imgW: number; imgH: number; preview?: boolean;
 }) {
   const spotlights = items.filter(a => a.type === 'spotlight');
   if (!spotlights.length) return null;
-
   const maskId = `spotlight-mask-${Math.random().toString(36).slice(2)}`;
-
   return (
     <g style={{ pointerEvents: 'none' }}>
       <defs>
         <mask id={maskId}>
           <rect x={0} y={0} width={imgW} height={imgH} fill="white" />
           {spotlights.map(a => {
-            const minX = Math.min(a.x1, a.x2) / 100 * imgW;
-            const minY = Math.min(a.y1, a.y2) / 100 * imgH;
-            const w = Math.abs(a.x2 - a.x1) / 100 * imgW;
-            const h = Math.abs(a.y2 - a.y1) / 100 * imgH;
+            const minX = Math.min(a.x1, a.x2) / 100 * imgW, minY = Math.min(a.y1, a.y2) / 100 * imgH;
+            const w = Math.abs(a.x2 - a.x1) / 100 * imgW, h = Math.abs(a.y2 - a.y1) / 100 * imgH;
             return <rect key={a.id} x={minX} y={minY} width={w} height={h} fill="black" rx={4} />;
           })}
         </mask>
       </defs>
-      <rect
-        x={0} y={0} width={imgW} height={imgH}
-        fill="rgba(0,0,0,0.62)"
-        mask={`url(#${maskId})`}
-        opacity={preview ? 0.7 : 1}
-      />
-      {/* Bright border around each spotlight area */}
+      <rect x={0} y={0} width={imgW} height={imgH} fill="rgba(0,0,0,0.62)" mask={`url(#${maskId})`} opacity={preview ? 0.7 : 1} />
       {spotlights.map(a => {
-        const minX = Math.min(a.x1, a.x2) / 100 * imgW;
-        const minY = Math.min(a.y1, a.y2) / 100 * imgH;
-        const w = Math.abs(a.x2 - a.x1) / 100 * imgW;
-        const h = Math.abs(a.y2 - a.y1) / 100 * imgH;
+        const minX = Math.min(a.x1, a.x2) / 100 * imgW, minY = Math.min(a.y1, a.y2) / 100 * imgH;
+        const w = Math.abs(a.x2 - a.x1) / 100 * imgW, h = Math.abs(a.y2 - a.y1) / 100 * imgH;
         return <rect key={a.id} x={minX} y={minY} width={w} height={h} fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth={1.5} rx={4} />;
       })}
     </g>
@@ -824,8 +734,7 @@ interface AnnotationShapeProps {
   annotation: Annotation;
   isSelected: boolean;
   tool: Tool;
-  imgW: number;
-  imgH: number;
+  imgW: number; imgH: number;
   strokePx: number;
   imageUrl: string;
   onBodyMouseDown?: (e: React.MouseEvent) => void;
@@ -838,20 +747,15 @@ function SelectionHandles({ minX, minY, w, h, onHandle }: {
 }) {
   const R = 5;
   const handles: [Handle, number, number][] = [
-    ['tl', minX,         minY        ],
-    ['tc', minX + w / 2, minY        ],
-    ['tr', minX + w,     minY        ],
-    ['ml', minX,         minY + h / 2],
-    ['mr', minX + w,     minY + h / 2],
-    ['bl', minX,         minY + h    ],
-    ['bc', minX + w / 2, minY + h    ],
-    ['br', minX + w,     minY + h    ],
+    ['tl', minX, minY], ['tc', minX + w/2, minY], ['tr', minX + w, minY],
+    ['ml', minX, minY + h/2], ['mr', minX + w, minY + h/2],
+    ['bl', minX, minY + h], ['bc', minX + w/2, minY + h], ['br', minX + w, minY + h],
   ];
   return (
     <g>
       <rect x={minX} y={minY} width={w} height={h} stroke="#2563EB" strokeWidth={1.5} fill="none" pointerEvents="none" />
       {handles.map(([hKey, cx, cy]) => (
-        <rect key={hKey} x={cx - R} y={cy - R} width={R * 2} height={R * 2}
+        <rect key={hKey} x={cx - R} y={cy - R} width={R*2} height={R*2}
           fill="white" stroke="#2563EB" strokeWidth={1.5}
           style={{ cursor: HANDLE_CURSOR[hKey] }}
           onMouseDown={e => { e.stopPropagation(); onHandle(e, hKey); }}
@@ -870,11 +774,9 @@ function ArrowHandles({ ax1, ay1, ax2, ay2, onHandle }: {
     <g>
       <line x1={ax1} y1={ay1} x2={ax2} y2={ay2} stroke="#2563EB" strokeWidth={1.5} strokeDasharray="4 2" pointerEvents="none" />
       {(['p1', 'p2'] as Handle[]).map(h => {
-        const cx = h === 'p1' ? ax1 : ax2;
-        const cy = h === 'p1' ? ay1 : ay2;
+        const cx = h === 'p1' ? ax1 : ax2, cy = h === 'p1' ? ay1 : ay2;
         return (
-          <circle key={h} cx={cx} cy={cy} r={R}
-            fill="white" stroke="#2563EB" strokeWidth={1.5}
+          <circle key={h} cx={cx} cy={cy} r={R} fill="white" stroke="#2563EB" strokeWidth={1.5}
             style={{ cursor: 'crosshair' }}
             onMouseDown={e => { e.stopPropagation(); onHandle(e, h); }}
           />
@@ -884,55 +786,35 @@ function ArrowHandles({ ax1, ay1, ax2, ay2, onHandle }: {
   );
 }
 
-function AnnotationShape({
-  annotation: a, isSelected, tool, imgW, imgH, strokePx, imageUrl,
-  onBodyMouseDown, onHandleMouseDown,
-}: AnnotationShapeProps) {
+function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx, imageUrl, onBodyMouseDown, onHandleMouseDown }: AnnotationShapeProps) {
   const { type, x1, y1, x2, y2, color, text } = a;
-
-  const ax1 = (x1 / 100) * imgW, ay1 = (y1 / 100) * imgH;
-  const ax2 = (x2 / 100) * imgW, ay2 = (y2 / 100) * imgH;
-  const minX = Math.min(ax1, ax2), minY = Math.min(ay1, ay2);
-  const w = Math.abs(ax2 - ax1), h = Math.abs(ay2 - ay1);
-
+  const ax1 = (x1/100)*imgW, ay1 = (y1/100)*imgH, ax2 = (x2/100)*imgW, ay2 = (y2/100)*imgH;
+  const minX = Math.min(ax1,ax2), minY = Math.min(ay1,ay2);
+  const w = Math.abs(ax2-ax1), h = Math.abs(ay2-ay1);
   const isSelectTool = tool === 'select';
-  const bodyCursor = isSelectTool ? 'move' : 'crosshair';
+  const bodyCursor = isSelectTool ? 'move' : tool === 'eraser' ? 'cell' : 'crosshair';
   const handleHandle = onHandleMouseDown ?? (() => {});
 
-  // ── recorderBox: 레코더가 찍어온 빨간 네모 ──
-  if (type === 'recorderBox') {
-    return (
-      <g>
-        <rect x={minX} y={minY} width={w} height={h}
-          rx={2} stroke="#EF4444" strokeWidth={Math.max(2, strokePx)} fill="rgba(239,68,68,0.08)"
-          style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown}
-        />
-        {isSelected && onHandleMouseDown && (
-          <SelectionHandles minX={minX} minY={minY} w={w} h={h} onHandle={handleHandle} />
-        )}
-      </g>
-    );
-  }
+  if (type === 'recorderBox') return (
+    <g>
+      <rect x={minX} y={minY} width={w} height={h} rx={2}
+        stroke="#EF4444" strokeWidth={Math.max(2, strokePx)} fill="rgba(239,68,68,0.08)"
+        style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown} />
+      {isSelected && onHandleMouseDown && <SelectionHandles minX={minX} minY={minY} w={w} h={h} onHandle={handleHandle} />}
+    </g>
+  );
 
-  // ── crop: 적용된 크롭 영역 표시 ──
-  if (type === 'crop') {
-    return (
-      <g>
-        <rect x={minX} y={minY} width={w} height={h}
-          fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth={1.5} strokeDasharray="5 3"
-          style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown}
-        />
-        {isSelected && onHandleMouseDown && (
-          <SelectionHandles minX={minX} minY={minY} w={w} h={h} onHandle={handleHandle} />
-        )}
-      </g>
-    );
-  }
+  if (type === 'crop') return (
+    <g>
+      <rect x={minX} y={minY} width={w} height={h}
+        fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth={1.5} strokeDasharray="5 3"
+        style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown} />
+      {isSelected && onHandleMouseDown && <SelectionHandles minX={minX} minY={minY} w={w} h={h} onHandle={handleHandle} />}
+    </g>
+  );
 
-  // ── marker: 번호 마커 ──
   if (type === 'marker') {
     const R = Math.max(10, imgW * 0.022);
-    const num = a.markerNumber ?? 1;
     return (
       <g style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown}>
         <circle cx={ax1} cy={ay1} r={R} fill={color} />
@@ -941,10 +823,8 @@ function AnnotationShape({
           textAnchor="middle" dominantBaseline="central"
           stroke="rgba(0,0,0,0.3)" strokeWidth={R * 0.15}
           style={{ paintOrder: 'stroke', pointerEvents: 'none' }}
-        >{num}</text>
-        {isSelected && (
-          <circle cx={ax1} cy={ay1} r={R + 4} fill="none" stroke="#2563EB" strokeWidth={1.5} strokeDasharray="4 2" />
-        )}
+        >{a.markerNumber ?? 1}</text>
+        {isSelected && <circle cx={ax1} cy={ay1} r={R+4} fill="none" stroke="#2563EB" strokeWidth={1.5} strokeDasharray="4 2" />}
       </g>
     );
   }
@@ -953,17 +833,13 @@ function AnnotationShape({
     const clipId = `mosaic-clip-${a.id}`;
     return (
       <g>
-        <defs>
-          <clipPath id={clipId}><rect x={minX} y={minY} width={w} height={h} /></clipPath>
-        </defs>
+        <defs><clipPath id={clipId}><rect x={minX} y={minY} width={w} height={h} /></clipPath></defs>
         <image href={imageUrl} x="0" y="0" width={imgW} height={imgH}
           preserveAspectRatio="none" filter="url(#mosaic-blur)" clipPath={`url(#${clipId})`}
           style={{ pointerEvents: 'none' }} />
         <rect x={minX} y={minY} width={w} height={h} fill="transparent"
           style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown} />
-        {isSelected && onHandleMouseDown && (
-          <SelectionHandles minX={minX} minY={minY} w={w} h={h} onHandle={handleHandle} />
-        )}
+        {isSelected && onHandleMouseDown && <SelectionHandles minX={minX} minY={minY} w={w} h={h} onHandle={handleHandle} />}
       </g>
     );
   }
@@ -972,9 +848,7 @@ function AnnotationShape({
     <g>
       <rect x={minX} y={minY} width={w} height={h} fill={color} opacity={0.35} rx={1}
         style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown} />
-      {isSelected && onHandleMouseDown && (
-        <SelectionHandles minX={minX} minY={minY} w={w} h={h} onHandle={handleHandle} />
-      )}
+      {isSelected && onHandleMouseDown && <SelectionHandles minX={minX} minY={minY} w={w} h={h} onHandle={handleHandle} />}
     </g>
   );
 
@@ -982,20 +856,16 @@ function AnnotationShape({
     <g>
       <rect x={minX} y={minY} width={w} height={h} rx={1} stroke={color} strokeWidth={strokePx} fill="none"
         style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown} />
-      {isSelected && onHandleMouseDown && (
-        <SelectionHandles minX={minX} minY={minY} w={w} h={h} onHandle={handleHandle} />
-      )}
+      {isSelected && onHandleMouseDown && <SelectionHandles minX={minX} minY={minY} w={w} h={h} onHandle={handleHandle} />}
     </g>
   );
 
   if (type === 'ellipse') return (
     <g>
-      <ellipse cx={(ax1 + ax2) / 2} cy={(ay1 + ay2) / 2} rx={w / 2} ry={h / 2}
+      <ellipse cx={(ax1+ax2)/2} cy={(ay1+ay2)/2} rx={w/2} ry={h/2}
         stroke={color} strokeWidth={strokePx} fill="none"
         style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown} />
-      {isSelected && onHandleMouseDown && (
-        <SelectionHandles minX={minX} minY={minY} w={w} h={h} onHandle={handleHandle} />
-      )}
+      {isSelected && onHandleMouseDown && <SelectionHandles minX={minX} minY={minY} w={w} h={h} onHandle={handleHandle} />}
     </g>
   );
 
@@ -1006,18 +876,15 @@ function AnnotationShape({
       <g>
         <defs>
           <marker id={markerId} markerWidth={mSize} markerHeight={mSize}
-            refX={mSize - 1} refY={mSize / 2} orient="auto" markerUnits="userSpaceOnUse">
-            <path d={`M0,0 L0,${mSize} L${mSize},${mSize / 2} z`} fill={color} />
+            refX={mSize-1} refY={mSize/2} orient="auto" markerUnits="userSpaceOnUse">
+            <path d={`M0,0 L0,${mSize} L${mSize},${mSize/2} z`} fill={color} />
           </marker>
         </defs>
         <line x1={ax1} y1={ay1} x2={ax2} y2={ay2} stroke="transparent"
-          strokeWidth={Math.max(10, strokePx * 3)}
-          style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown} />
+          strokeWidth={Math.max(10, strokePx*3)} style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown} />
         <line x1={ax1} y1={ay1} x2={ax2} y2={ay2} stroke={color} strokeWidth={strokePx}
           markerEnd={`url(#${markerId})`} strokeLinecap="round" style={{ pointerEvents: 'none' }} />
-        {isSelected && onHandleMouseDown && (
-          <ArrowHandles ax1={ax1} ay1={ay1} ax2={ax2} ay2={ay2} onHandle={handleHandle} />
-        )}
+        {isSelected && onHandleMouseDown && <ArrowHandles ax1={ax1} ay1={ay1} ax2={ax2} ay2={ay2} onHandle={handleHandle} />}
       </g>
     );
   }
@@ -1028,17 +895,13 @@ function AnnotationShape({
     const textW = text.length * fSize * 0.65;
     return (
       <g>
-        <rect x={ax1 - 2} y={ay1 - 2} width={textW + 4} height={fSize + 8} fill="transparent"
+        <rect x={ax1-2} y={ay1-2} width={textW+4} height={fSize+8} fill="transparent"
           style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown} />
         <text x={ax1} y={ay1} fill={color} fontSize={fSize} fontWeight="700"
           dominantBaseline="text-before-edge"
-          stroke="rgba(0,0,0,0.6)" strokeWidth={fSize * 0.12}
-          style={{ paintOrder: 'stroke', pointerEvents: 'none' }}>
-          {text}
-        </text>
-        {isSelected && onHandleMouseDown && (
-          <SelectionHandles minX={ax1 - 2} minY={ay1 - 2} w={textW + 4} h={fSize + 8} onHandle={handleHandle} />
-        )}
+          stroke="rgba(0,0,0,0.6)" strokeWidth={fSize*0.12}
+          style={{ paintOrder: 'stroke', pointerEvents: 'none' }}>{text}</text>
+        {isSelected && onHandleMouseDown && <SelectionHandles minX={ax1-2} minY={ay1-2} w={textW+4} h={fSize+8} onHandle={handleHandle} />}
       </g>
     );
   }
