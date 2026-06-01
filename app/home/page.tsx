@@ -233,10 +233,11 @@ function ContextMenu({ menu, folders, tutorials, workspaces, onMove, onMoveToWor
 
 // ── 튜토리얼 카드 ──────────────────────────────────────────
 
-function TutorialCard({ tutorial, onContextMenu, onTitleChange }: {
+function TutorialCard({ tutorial, onContextMenu, onTitleChange, onMenuClick }: {
   tutorial: Tutorial;
   onContextMenu: (e: React.MouseEvent, id: string) => void;
   onTitleChange: (id: string, title: string) => void;
+  onMenuClick: (e: React.MouseEvent, id: string) => void;
 }) {
   const router = useRouter();
   const [hovered, setHovered] = useState(false);
@@ -320,6 +321,18 @@ function TutorialCard({ tutorial, onContextMenu, onTitleChange }: {
           {tutorial.status === 'published' && <span style={{ fontSize: '10px', fontWeight: 600, color: '#16A34A', background: '#DCFCE7', padding: '1px 5px', borderRadius: '999px', flexShrink: 0 }}>공유</span>}
         </div>
       </div>
+      {/* hover 시 ⋯ 메뉴 버튼 */}
+      <button
+        onClick={e => { e.stopPropagation(); onMenuClick(e, tutorial.id); }}
+        style={{
+          flexShrink: 0, width: '28px', height: '28px', borderRadius: '6px',
+          border: 'none', background: hovered ? '#F3F4F6' : 'transparent',
+          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: '#6B7280', opacity: hovered ? 1 : 0, transition: 'opacity 0.1s',
+        }}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+      </button>
     </article>
   );
 }
@@ -908,7 +921,7 @@ export default function DashboardPage() {
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
                   {displayedTutorials.map(t => (
-                    <TutorialCard key={t.id} tutorial={t} onContextMenu={handleContextMenu} onTitleChange={handleTitleChange} />
+                    <TutorialCard key={t.id} tutorial={t} onContextMenu={handleContextMenu} onTitleChange={handleTitleChange} onMenuClick={handleContextMenu} />
                   ))}
                 </div>
               )}
