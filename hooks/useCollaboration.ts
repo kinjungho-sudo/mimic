@@ -41,6 +41,12 @@ export function useCollaboration({
   const stepsRef = useRef(steps);
   stepsRef.current = steps;
 
+  // 콜백을 ref로 래핑 — 채널 구독 클로저가 stale callback을 캡처하지 않도록
+  const onRemoteStepChangeRef = useRef(onRemoteStepChange);
+  onRemoteStepChangeRef.current = onRemoteStepChange;
+  const onCollaboratorsChangeRef = useRef(onCollaboratorsChange);
+  onCollaboratorsChangeRef.current = onCollaboratorsChange;
+
   // 원격 step 변경을 브로드캐스트
   const broadcastStepChange = useCallback((stepId: string, patch: Partial<ManualStep>) => {
     if (!channelRef.current || !workspaceId) return;
@@ -83,7 +89,7 @@ export function useCollaboration({
         };
         // 자신이 보낸 변경은 무시
         if (userId === currentUser.id) return;
-        onRemoteStepChange(stepId, patch);
+        onRemoteStepChangeRef.current(stepId, patch);
       })
       // Presence: 접속자 목록 변경
       .on('presence', { event: 'sync' }, () => {
@@ -91,14 +97,14 @@ export function useCollaboration({
         const collaborators: Collaborator[] = Object.values(state)
           .flat()
           .filter(p => p.userId !== currentUser.id);
-        onCollaboratorsChange(collaborators);
+        onCollaboratorsChangeRef.current(collaborators);
       })
       .on('presence', { event: 'leave' }, () => {
         const state = channel.presenceState<Collaborator>();
         const collaborators: Collaborator[] = Object.values(state)
           .flat()
           .filter(p => p.userId !== currentUser.id);
-        onCollaboratorsChange(collaborators);
+        onCollaboratorsChangeRef.current(collaborators);
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {

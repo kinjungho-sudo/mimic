@@ -97,8 +97,22 @@ export async function checkStepFreshness(
   }
 }
 
+// 사설망 IP 범위 차단 — SSRF 방지
+function isPrivateUrl(url: string): boolean {
+  try {
+    const { protocol, hostname } = new URL(url);
+    if (!['http:', 'https:'].includes(protocol)) return true;
+    if (/^(localhost|127\.|0\.0\.0\.0|::1$)/.test(hostname)) return true;
+    if (/^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|169\.254\.)/.test(hostname)) return true;
+    return false;
+  } catch {
+    return true;
+  }
+}
+
 // 페이지 URL에서 og:image 추출 (서버사이드 fetch)
 async function fetchOgImage(url: string): Promise<string | null> {
+  if (isPrivateUrl(url)) return null;
   try {
     const res = await fetch(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; MIMICBot/1.0)' },
@@ -112,9 +126,12 @@ async function fetchOgImage(url: string): Promise<string | null> {
     if (!match) return null;
     const ogUrl = match[1];
     // 상대경로 처리
-    if (ogUrl.startsWith('http')) return ogUrl;
-    const base = new URL(url);
-    return new URL(ogUrl, base.origin).toString();
+    const resolved = ogUrl.startsWith('http')
+      ? ogUrl
+      : new URL(ogUrl, new URL(url).origin).toString();
+    // OG 이미지 URL도 사설망 차단
+    if (isPrivateUrl(resolved)) return null;
+    return resolved;
   } catch {
     return null;
   }
