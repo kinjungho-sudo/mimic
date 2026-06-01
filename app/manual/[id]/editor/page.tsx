@@ -894,13 +894,11 @@ export default function EditorPage() {
               onSave={(stepId, patch) => {
                 if (stepId.startsWith('step-')) return;
                 clearTimeout(stepSaveTimers.current[stepId]);
-                const step = manualSteps.find(s => s.id === stepId);
-                if (!step) return;
-                const merged = { ...step, ...patch };
+                // patch만으로 직접 저장 — manualSteps 클로저 참조 제거
                 updateStep(stepId, {
-                  user_title: merged.actionTitle || null,
-                  user_script: merged.description || null,
-                  ...(merged.annotations !== undefined ? { user_annotations: merged.annotations } : {}),
+                  ...(patch.actionTitle !== undefined ? { user_title: patch.actionTitle || null } : {}),
+                  ...(patch.description !== undefined ? { user_script: patch.description || null } : {}),
+                  ...(patch.annotations !== undefined ? { user_annotations: patch.annotations } : {}),
                 }).catch(() => {});
               }}
             />
