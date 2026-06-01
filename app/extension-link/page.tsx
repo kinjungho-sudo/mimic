@@ -22,14 +22,14 @@ function BrandMark() {
 
 export default function ExtensionLinkPage() {
   const router = useRouter();
-  const { state, countdown, retry } = useExtensionLink(() => router.push('/dashboard'));
+  const { state, countdown, retry } = useExtensionLink(() => router.push('/home'));
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px', background: '#FAFAFA', fontFamily: "'Pretendard', -apple-system, sans-serif" }}>
       <div style={{ width: '100%', maxWidth: '480px', background: 'white', border: '1px solid #E5E7EB', borderRadius: '18px', padding: '44px 40px', textAlign: 'center', boxShadow: '0 4px 24px rgba(0,0,0,0.06)', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(500px 220px at 50% -120px, rgba(124,58,237,0.10), transparent 60%)', pointerEvents: 'none' }} />
 
-        <a href="/" style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 500, marginBottom: '28px', color: '#111827', textDecoration: 'none' }}>
+        <a href="/landingpage" style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 500, marginBottom: '28px', color: '#111827', textDecoration: 'none' }}>
           <BrandMark /> MIMIC
         </a>
 
@@ -59,7 +59,7 @@ export default function ExtensionLinkPage() {
               {countdown}초 후 워크스페이스로 이동합니다…
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '320px', margin: '0 auto' }}>
-              <button onClick={() => router.push('/dashboard')}
+              <button onClick={() => router.push('/home')}
                 style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', fontSize: '14px', fontWeight: 500, border: 'none', cursor: 'pointer', boxShadow: '0 4px 12px rgba(79,70,229,0.25)' }}>
                 지금 워크스페이스로 가기
               </button>
@@ -115,7 +115,7 @@ export default function ExtensionLinkPage() {
                 연결 다시 시도
               </button>
               <button
-                onClick={() => router.push('/dashboard')}
+                onClick={() => router.push('/home')}
                 style={{ width: '100%', padding: '10px 16px', borderRadius: '10px', background: 'none', color: '#9CA3AF', fontSize: '13px', fontWeight: 400, border: 'none', cursor: 'pointer' }}>
                 나중에 설치하고 워크스페이스로
               </button>
@@ -143,7 +143,7 @@ export default function ExtensionLinkPage() {
                 style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', fontSize: '14px', fontWeight: 500, border: 'none', cursor: 'pointer', boxShadow: '0 4px 12px rgba(79,70,229,0.25)' }}>
                 다시 시도
               </button>
-              <button onClick={() => router.push('/dashboard')}
+              <button onClick={() => router.push('/home')}
                 style={{ width: '100%', padding: '10px 16px', borderRadius: '10px', background: 'none', color: '#9CA3AF', fontSize: '13px', fontWeight: 400, border: 'none', cursor: 'pointer' }}>
                 건너뛰고 워크스페이스로
               </button>

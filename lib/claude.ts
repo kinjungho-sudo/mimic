@@ -8,10 +8,50 @@ function stripMarkdown(text: string): string {
   return text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
 }
 
+type ActionInfo = {
+  type?: string;
+  label?: string;
+  tag?: string;
+  role?: string;
+  href?: string;
+  text?: string;
+} | undefined;
+
 export async function analyzeScreenshot(
   base64Image: string,
-  pageUrl: string
+  pageUrl: string,
+  actionInfo?: ActionInfo
 ): Promise<{ title: string; description: string }> {
+  let domain = '';
+  try { domain = new URL(pageUrl).hostname; } catch { domain = pageUrl; }
+
+  // 행동 힌트 문자열 생성
+  let actionHint = '';
+  if (actionInfo) {
+    const { type, label, href, text } = actionInfo;
+    if (type === 'type' && text)
+      actionHint = `\n사용자가 입력한 내용: "${text}"`;
+    else if (type === 'navigate' && label)
+      actionHint = `\n사용자가 "${label}" 링크를 클릭했습니다${href ? ` (목적지: ${href})` : ''}.`;
+    else if (type === 'toggle' && label)
+      actionHint = `\n사용자가 "${label}" 체크박스/라디오를 선택했습니다.`;
+    else if (type === 'select' && label)
+      actionHint = `\n사용자가 드롭다운에서 "${label}"을 선택했습니다.`;
+    else if (type === 'focus_input' && label)
+      actionHint = `\n사용자가 "${label}" 입력 필드를 클릭했습니다.`;
+    else if (label)
+      actionHint = `\n사용자가 "${label}" 버튼/요소를 클릭했습니다.`;
+  }
+
+  const titleGuide = (() => {
+    const type = actionInfo?.type;
+    if (type === 'type') return '"[입력 내용] 입력" 형식 (예: "이메일 주소 입력")';
+    if (type === 'navigate') return '"[목적지] 이동" 형식 (예: "설정 페이지 이동")';
+    if (type === 'toggle') return '"[항목] 선택/해제" 형식';
+    if (type === 'select') return '"[항목] 선택" 형식';
+    return '"[대상] 클릭" 형식 (예: "로그인 버튼 클릭")';
+  })();
+
   const response = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 256,
@@ -29,13 +69,15 @@ export async function analyzeScreenshot(
           },
           {
             type: 'text',
-            text: `이 스크린샷을 분석해서 사용자가 무엇을 클릭/입력했는지 설명해줘.
-페이지 URL: ${pageUrl}
+            text: `이 스크린샷은 사용자가 "${domain}" 페이지에서 수행한 액션입니다.${actionHint}
+
+스크린샷과 위 행동 정보를 바탕으로 아래 JSON만 반환하세요. 다른 텍스트 없이.
+title은 ${titleGuide}으로 20자 이내로 작성하세요.
 
 응답 형식 (JSON만, 마크다운 없이):
 {
-  "title": "15자 이내 짧은 제목",
-  "description": "40자 이내 행동 설명"
+  "title": "행동 동사가 포함된 짧은 제목 (20자 이내)",
+  "description": "AI가 이 액션을 재현할 수 있도록 구체적 설명 (60자 이내)"
 }`,
           },
         ],
@@ -47,8 +89,8 @@ export async function analyzeScreenshot(
   try {
     const parsed = JSON.parse(stripMarkdown(text));
     return {
-      title: String(parsed.title || '').slice(0, 15),
-      description: String(parsed.description || '').slice(0, 40),
+      title: String(parsed.title || '').slice(0, 20),
+      description: String(parsed.description || '').slice(0, 60),
     };
   } catch {
     return { title: '스텝', description: '다음 단계를 진행하세요.' };

@@ -229,7 +229,7 @@ export default function EditorPage() {
       <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: '#F8F9FA' }}>
         <div style={{ textAlign: 'center', color: '#6B7280' }}>
           <p style={{ fontSize: '15px', marginBottom: '16px' }}>{error ?? '매뉴얼을 찾을 수 없어요.'}</p>
-          <button onClick={() => router.push('/dashboard')} style={{ padding: '10px 20px', borderRadius: '8px', background: '#4F46E5', color: 'white', border: 'none', cursor: 'pointer', fontSize: '14px' }}>
+          <button onClick={() => router.push('/home')} style={{ padding: '10px 20px', borderRadius: '8px', background: '#4F46E5', color: 'white', border: 'none', cursor: 'pointer', fontSize: '14px' }}>
             대시보드로 돌아가기
           </button>
         </div>
@@ -254,7 +254,7 @@ export default function EditorPage() {
         {/* Left: back button + logo area (60px sidebar width) */}
         <div style={{ width: '60px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <button
-            onClick={() => router.push('/dashboard')}
+            onClick={() => router.push('/home')}
             title="대시보드로 돌아가기"
             style={{
               width: '32px', height: '32px', borderRadius: '8px',

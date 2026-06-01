@@ -8,7 +8,7 @@ import { resetPassword } from '@/lib/auth-client';
 
 const NAV_ITEMS = [
   {
-    href: '/dashboard', label: '홈',
+    href: '/home', label: '홈',
     icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>,
   },
   {
@@ -109,7 +109,7 @@ export default function MyPage() {
       const res = await fetch('/api/user/delete', { method: 'DELETE' });
       if (res.ok) {
         await signOut();
-        router.push('/');
+        router.push('/landingpage');
       }
     } finally {
       setDeleteLoading(false);

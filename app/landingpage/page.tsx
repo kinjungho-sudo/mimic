@@ -1,0 +1,1032 @@
+'use client';
+
+import { useState, useEffect, useRef, useCallback } from 'react';
+import Link from 'next/link';
+
+const BrandMark = () => (
+  <span style={{
+    width: '28px', height: '28px', borderRadius: '8px',
+    background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
+    display: 'grid', placeItems: 'center',
+    boxShadow: '0 4px 10px rgba(79,70,229,0.32), inset 0 1px 0 rgba(255,255,255,0.2)',
+    flexShrink: 0,
+  }}>
+    <svg viewBox="0 0 24 24" fill="none" width="15" height="15">
+      <rect x="3.2" y="5.2" width="11" height="2.4" rx="1.2" fill="white" fillOpacity="0.5"/>
+      <rect x="3.2" y="10.8" width="14" height="2.4" rx="1.2" fill="white"/>
+      <rect x="3.2" y="16.4" width="8" height="2.4" rx="1.2" fill="white" fillOpacity="0.5"/>
+      <circle cx="18.7" cy="17.6" r="3.6" fill="white"/>
+      <path d="M17.6 16.1 L20.1 17.6 L17.6 19.1 Z" fill="#4F46E5"/>
+    </svg>
+  </span>
+);
+
+const CheckIcon = ({ size = 14, color = 'currentColor' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3">
+    <polyline points="20 6 9 17 4 12"/>
+  </svg>
+);
+
+const XIcon = ({ size = 14 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2.5">
+    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+  </svg>
+);
+
+const features = [
+  {
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
+        <circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>
+      </svg>
+    ),
+    title: '30초 매뉴얼 완성',
+    body: '웹에서 평소처럼 작업하기만 하면 자동으로 단계가 나뉘고, AI가 설명까지 완성합니다.',
+    comingSoon: false,
+  },
+  {
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
+        <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+      </svg>
+    ),
+    title: '클릭 한 번 AI 편집',
+    body: '텍스트를 클릭하면 바로 편집. AI 다듬기로 어색한 표현을 자연스럽게 고쳐줍니다.',
+    comingSoon: false,
+  },
+  {
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
+        <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/>
+      </svg>
+    ),
+    title: 'AI 자막 · 음성',
+    body: '스크린샷만 캡처해도 자막과 음성이 자동 생성됩니다. 마음에 안 들면 직접 조정 가능.',
+    comingSoon: true,
+  },
+  {
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
+        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>
+      </svg>
+    ),
+    title: '장면 줌인',
+    body: '시작·종료 장면을 드래그로 지정하면 영상 같은 줌 효과가 자동 적용됩니다.',
+    comingSoon: true,
+  },
+  {
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
+        <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+      </svg>
+    ),
+    title: '링크 한 줄로 공유',
+    body: '완성된 매뉴얼은 링크 하나로 어디든 공유. 앱 설치 없이 바로 보고 따라할 수 있습니다.',
+    comingSoon: false,
+  },
+];
+
+const useCases = [
+  {
+    emoji: '🎧',
+    tag: 'CS · 고객지원',
+    title: '반복 문의, 이제 링크 하나로 끝내세요',
+    body: '고객이 매번 묻는 설정법, 오류 해결 방법을 인터랙티브 매뉴얼로 만들어 링크만 공유하세요. 답변 시간이 줄고, 고객 만족도는 올라갑니다.',
+  },
+  {
+    emoji: '🧑‍💼',
+    tag: '사내 교육 · 온보딩',
+    title: '신입이 처음부터 혼자 따라할 수 있게',
+    body: '사내 툴 사용법, ERP 입력 방법, 결재 프로세스를 화면 그대로 녹화해 매뉴얼로. 구두 설명 없이도 누구나 보고 따라합니다.',
+  },
+  {
+    emoji: '📹',
+    tag: '크리에이터 · 튜토리얼',
+    title: '영상 없이도 영상처럼 설명하세요',
+    body: '유튜브 튜토리얼을 만들 시간이 없다면 MIMIC으로 대신하세요. 클릭 한 번에 인터랙티브 가이드가 완성됩니다.',
+  },
+  {
+    emoji: '🏢',
+    tag: 'SaaS · 솔루션 기업',
+    title: '제품 도입 후 이탈을 막는 가장 빠른 방법',
+    body: '고객이 제품을 제대로 쓸 수 있도록 기능별 가이드를 빠르게 제작하고 Help Center에 바로 배포하세요.',
+  },
+];
+
+function useScrollReveal() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setVisible(true); observer.disconnect(); } },
+      { threshold: 0.12 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  return { ref, visible };
+}
+
+function RevealSection({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+  const { ref, visible } = useScrollReveal();
+  return (
+    <div ref={ref} style={{ transition: 'opacity 0.6s ease, transform 0.6s ease', opacity: visible ? 1 : 0, transform: visible ? 'translateY(0)' : 'translateY(24px)', ...style }}>
+      {children}
+    </div>
+  );
+}
+
+// ── HeroSimulator ─────────────────────────────────────────
+
+const SCENES = ['record', 'editor', 'player'] as const;
+type Scene = typeof SCENES[number];
+
+const STEPS_DATA = [
+  { num: 1, title: '확장 아이콘 클릭', desc: '브라우저 우측 상단의 MIMIC 아이콘을 클릭하여 녹화를 시작하세요.' },
+  { num: 2, title: '로그인 버튼 클릭', desc: "'로그인' 버튼을 클릭하여 계정 인증을 진행합니다." },
+  { num: 3, title: '이메일 주소 입력', desc: '가입한 이메일 주소를 입력 필드에 입력하세요.' },
+  { num: 4, title: '비밀번호 입력', desc: '비밀번호를 입력하고 엔터 또는 로그인 버튼을 누릅니다.' },
+];
+
+function HeroSimulator() {
+  const [scene, setScene] = useState<Scene>('record');
+  const [recordStep, setRecordStep] = useState(0);
+  const [clickMarkers, setClickMarkers] = useState<{ x: number; y: number; id: number }[]>([]);
+  const [editorAiLoading, setEditorAiLoading] = useState(false);
+  const [editorAiDone, setEditorAiDone] = useState(false);
+  const [playerStep, setPlayerStep] = useState(0);
+  const markerIdRef = useRef(0);
+  const sceneTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recordTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const playerTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const SCENE_CLICKS: { x: number; y: number }[] = [
+    { x: 78, y: 22 }, { x: 62, y: 55 }, { x: 50, y: 68 }, { x: 50, y: 76 },
+  ];
+
+  const startScene = useCallback((s: Scene) => {
+    setScene(s);
+    if (s === 'record') {
+      setRecordStep(0);
+      setClickMarkers([]);
+    } else if (s === 'editor') {
+      setEditorAiLoading(false);
+      setEditorAiDone(false);
+    } else if (s === 'player') {
+      setPlayerStep(0);
+    }
+  }, []);
+
+  // 씬 1: 녹화 — 1초마다 클릭 마커 생성
+  useEffect(() => {
+    if (scene !== 'record') return;
+    recordTimerRef.current = setInterval(() => {
+      setRecordStep(prev => {
+        const next = prev + 1;
+        if (next >= SCENE_CLICKS.length) {
+          if (recordTimerRef.current) clearInterval(recordTimerRef.current);
+        }
+        const pos = SCENE_CLICKS[prev] ?? SCENE_CLICKS[0];
+        markerIdRef.current += 1;
+        setClickMarkers(m => [...m, { ...pos, id: markerIdRef.current }]);
+        return next;
+      });
+    }, 900);
+    return () => { if (recordTimerRef.current) clearInterval(recordTimerRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scene]);
+
+  // 씬 2: 에디터 — AI 버튼 로딩 시뮬레이션
+  useEffect(() => {
+    if (scene !== 'editor') return;
+    const t1 = setTimeout(() => setEditorAiLoading(true), 900);
+    const t2 = setTimeout(() => { setEditorAiLoading(false); setEditorAiDone(true); }, 2100);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [scene]);
+
+  // 씬 3: 플레이어 — 스텝 순서대로 하이라이트
+  useEffect(() => {
+    if (scene !== 'player') return;
+    playerTimerRef.current = setInterval(() => {
+      setPlayerStep(prev => (prev + 1) % STEPS_DATA.length);
+    }, 700);
+    return () => { if (playerTimerRef.current) clearInterval(playerTimerRef.current); };
+  }, [scene]);
+
+  // 씬 자동 전환 (각 4초)
+  useEffect(() => {
+    sceneTimerRef.current = setTimeout(() => {
+      const idx = SCENES.indexOf(scene);
+      startScene(SCENES[(idx + 1) % SCENES.length]);
+    }, 4000);
+    return () => { if (sceneTimerRef.current) clearTimeout(sceneTimerRef.current); };
+  }, [scene, startScene]);
+
+  const sceneIdx = SCENES.indexOf(scene);
+
+  return (
+    <div style={{ position: 'relative', maxWidth: '1080px', margin: '0 auto' }}>
+      {/* 상단 캡션 배지 */}
+      <div style={{ position: 'absolute', top: '-14px', left: '50%', transform: 'translateX(-50%)', zIndex: 10, background: 'white', border: '1px solid #E5E7EB', borderRadius: '999px', padding: '7px 16px', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 2px 12px rgba(0,0,0,0.07)', whiteSpace: 'nowrap', fontSize: '12.5px', fontWeight: 500, color: '#374151' }}>
+        {scene === 'record' && <><span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#EF4444', display: 'inline-block', animation: 'rec-blink 1.4s ease-in-out infinite' }} />자동 캡처 중 — 클릭마다 단계 생성</>}
+        {scene === 'editor' && <><span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#4F46E5', display: 'inline-block', animation: 'pulse-dot 1.8s ease-in-out infinite' }} />AI가 문장을 다듬는 중</>}
+        {scene === 'player' && <><span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10B981', display: 'inline-block', animation: 'pulse-dot 1.8s ease-in-out infinite' }} />완성된 가이드 — 링크로 공유 가능</>}
+      </div>
+
+      {/* 씬 전환 인디케이터 */}
+      <div style={{ position: 'absolute', top: '-14px', right: '24px', zIndex: 10, display: 'flex', gap: '5px', alignItems: 'center' }}>
+        {SCENES.map((s, i) => (
+          <button key={s} onClick={() => startScene(s)} style={{ width: i === sceneIdx ? '18px' : '6px', height: '6px', borderRadius: '999px', background: i === sceneIdx ? '#4F46E5' : '#D1D5DB', border: 'none', cursor: 'pointer', padding: 0, transition: 'all 0.3s ease' }} />
+        ))}
+      </div>
+
+      {/* 메인 프레임 */}
+      <div style={{ borderRadius: '16px', overflow: 'hidden', background: '#0E0E14', boxShadow: '0 40px 80px -20px rgba(79,70,229,0.22), 0 24px 48px -12px rgba(17,24,39,0.20)', border: '1px solid rgba(255,255,255,0.07)' }}>
+        {/* 브라우저 상단바 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: '#15151D', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#FF5F57', display: 'inline-block' }} />
+          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#FEBC2E', display: 'inline-block' }} />
+          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#28C840', display: 'inline-block' }} />
+          <span style={{ margin: '0 auto', fontSize: '11.5px', color: '#6B7280', padding: '3px 14px', borderRadius: '6px', background: 'rgba(255,255,255,0.04)' }}>
+            {scene === 'record' ? 'dashboard.supabase.com/project/auth/providers' : scene === 'editor' ? 'app.mimicflow.com/manual/supabase-oauth-guide/editor' : 'app.mimicflow.com/play/supabase-oauth-guide'}
+          </span>
+          <span style={{ marginLeft: 'auto' }} />
+        </div>
+
+        {/* 씬 컨텐츠 */}
+        <div style={{ minHeight: '400px', position: 'relative', overflow: 'hidden' }}>
+
+          {/* ── 씬 1: 녹화 ── */}
+          {scene === 'record' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 260px', minHeight: '400px', background: '#F8F9FA' }}>
+              {/* 실제 사이트처럼 생긴 캡처 대상 화면 */}
+              <div style={{ position: 'relative', padding: '24px', display: 'flex', flexDirection: 'column', gap: '0' }}>
+                {/* 사이트 헤더 */}
+                <div style={{ height: '48px', background: 'white', borderRadius: '10px 10px 0 0', borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', gap: '16px', padding: '0 18px', marginBottom: '0' }}>
+                  <div style={{ width: '80px', height: '14px', borderRadius: '4px', background: '#1E1B4B' }} />
+                  <div style={{ display: 'flex', gap: '16px', marginLeft: '8px' }}>
+                    {['Table Editor', 'SQL Editor', 'Authentication', 'Storage'].map((t, i) => (
+                      <div key={t} style={{ fontSize: '11px', color: i === 2 ? '#4F46E5' : '#6B7280', fontWeight: i === 2 ? 600 : 400, borderBottom: i === 2 ? '2px solid #4F46E5' : '2px solid transparent', paddingBottom: '2px' }}>{t}</div>
+                    ))}
+                  </div>
+                </div>
+                {/* 사이트 본문 */}
+                <div style={{ background: 'white', borderRadius: '0 0 10px 10px', flex: 1, padding: '18px', boxShadow: '0 4px 20px rgba(0,0,0,0.07)' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '14px' }}>Providers</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                    {[
+                      { name: 'Email', on: true }, { name: 'Google', on: false }, { name: 'GitHub', on: false },
+                      { name: 'Kakao', on: false }, { name: 'Apple', on: false }, { name: 'Twitter', on: false },
+                    ].map((p, i) => (
+                      <div key={p.name} style={{ padding: '10px 12px', border: `1.5px solid ${i === 1 && recordStep >= 2 ? '#4F46E5' : '#E5E7EB'}`, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: i === 1 && recordStep >= 2 ? '#EEF2FF' : 'white', transition: 'all 0.3s' }}>
+                        <span style={{ fontSize: '11.5px', color: '#374151', fontWeight: 500 }}>{p.name}</span>
+                        <div style={{ width: '28px', height: '15px', borderRadius: '999px', background: p.on || (i === 1 && recordStep >= 2) ? '#4F46E5' : '#D1D5DB', position: 'relative', transition: 'background 0.3s' }}>
+                          <div style={{ position: 'absolute', top: '2px', left: p.on || (i === 1 && recordStep >= 2) ? '15px' : '2px', width: '11px', height: '11px', borderRadius: '50%', background: 'white', transition: 'left 0.3s' }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {recordStep >= 2 && (
+                    <div style={{ marginTop: '14px', padding: '14px', background: '#F5F3FF', borderRadius: '8px', border: '1px solid #DDD6FE', animation: 'fadeIn 0.3s ease' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 600, color: '#4F46E5', marginBottom: '8px' }}>Google OAuth 설정</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ height: '28px', background: 'white', borderRadius: '5px', border: '1px solid #DDD6FE', padding: '0 8px', fontSize: '10px', color: '#9CA3AF', display: 'flex', alignItems: 'center' }}>Client ID</div>
+                        <div style={{ height: '28px', background: 'white', borderRadius: '5px', border: '1px solid #DDD6FE', padding: '0 8px', fontSize: '10px', color: '#9CA3AF', display: 'flex', alignItems: 'center' }}>Client Secret</div>
+                        <div style={{ height: '28px', background: '#4F46E5', borderRadius: '5px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: 'white', fontWeight: 600 }}>Save</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 클릭 마커들 */}
+                {clickMarkers.map((m, i) => (
+                  <div key={m.id} style={{ position: 'absolute', left: `${m.x}%`, top: `${m.y}%`, zIndex: 20, transform: 'translate(-50%, -50%)', animation: 'markerPop 0.4s ease-out forwards' }}>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', display: 'grid', placeItems: 'center', fontSize: '11px', fontWeight: 700, boxShadow: '0 0 0 6px rgba(79,70,229,0.20), 0 3px 10px rgba(79,70,229,0.5)' }}>
+                      {i + 1}
+                    </div>
+                  </div>
+                ))}
+
+                {/* MIMIC 오버레이 배지 */}
+                <div style={{ position: 'absolute', top: '32px', right: '32px', background: 'rgba(10,10,15,0.82)', color: 'white', padding: '6px 12px', borderRadius: '6px', fontSize: '11px', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#EF4444', animation: 'rec-blink 1.4s infinite' }} />
+                  {recordStep === 0 ? '녹화 시작' : `${recordStep}단계 캡처됨`}
+                </div>
+              </div>
+
+              {/* 우측 스텝 리스트 */}
+              <div style={{ background: '#0C0C13', borderLeft: '1px solid rgba(255,255,255,0.05)', padding: '16px', fontSize: '11.5px', color: '#9CA3AF' }}>
+                <div style={{ fontSize: '10px', color: '#6B7280', marginBottom: '10px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>캡처된 단계</div>
+                {STEPS_DATA.slice(0, Math.max(1, recordStep)).map((s, i) => (
+                  <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', padding: '8px 10px', borderRadius: '6px', marginBottom: '2px', background: i === recordStep - 1 ? 'rgba(79,70,229,0.14)' : 'transparent', animation: i === recordStep - 1 ? 'fadeIn 0.3s ease' : 'none' }}>
+                    <span style={{ width: '18px', height: '18px', borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: '10px', background: i === recordStep - 1 ? 'linear-gradient(135deg, #4F46E5, #7C3AED)' : 'rgba(255,255,255,0.06)', color: i === recordStep - 1 ? 'white' : '#9CA3AF', flexShrink: 0, marginTop: '1px' }}>{s.num}</span>
+                    <span style={{ fontSize: '11px', color: i === recordStep - 1 ? '#C7D2FE' : '#6B7280', lineHeight: 1.4 }}>{s.title}</span>
+                  </div>
+                ))}
+                {recordStep === 0 && (
+                  <div style={{ color: '#4B5563', fontSize: '11px', textAlign: 'center', marginTop: '24px', lineHeight: 1.6 }}>웹에서 작업하면<br/>자동으로 캡처됩니다</div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── 씬 2: 에디터 ── */}
+          {scene === 'editor' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', minHeight: '400px', background: '#F8F9FA' }}>
+              {/* 에디터 사이드바 */}
+              <div style={{ background: 'white', borderRight: '1px solid #E5E7EB', padding: '12px 0' }}>
+                <div style={{ padding: '8px 14px 10px', fontSize: '10px', fontWeight: 600, color: '#9CA3AF', letterSpacing: '0.06em', textTransform: 'uppercase', borderBottom: '1px solid #F3F4F6', marginBottom: '6px' }}>목차</div>
+                {STEPS_DATA.map((s, i) => (
+                  <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', padding: '7px 14px', background: i === 1 ? '#EEF2FF' : 'transparent', borderLeft: `3px solid ${i === 1 ? '#4F46E5' : 'transparent'}` }}>
+                    <span style={{ fontSize: '10px', fontWeight: 600, color: i === 1 ? '#4F46E5' : '#9CA3AF', flexShrink: 0, marginTop: '1px' }}>{String(s.num).padStart(2, '0')}</span>
+                    <span style={{ fontSize: '11px', color: i === 1 ? '#1E1B4B' : '#6B7280', lineHeight: 1.4, fontWeight: i === 1 ? 500 : 400 }}>{s.title}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* 에디터 메인 */}
+              <div style={{ padding: '24px', overflowY: 'auto' }}>
+                {/* 스텝 카드 */}
+                <div style={{ background: 'white', borderRadius: '12px', border: '1.5px solid #F59E0B', boxShadow: '0 0 0 3px rgba(245,158,11,0.10)', marginBottom: '16px' }}>
+                  {/* 툴바 */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '7px 12px', borderBottom: '1px solid #F3F4F6', background: '#FAFAFA', flexWrap: 'wrap' }}>
+                    <div style={{ fontSize: '10px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', borderRadius: '4px', padding: '2px 6px' }}>14px</div>
+                    <div style={{ width: '1px', height: '14px', background: '#E5E7EB', margin: '0 2px' }} />
+                    {['B', 'I', 'U'].map(t => <div key={t} style={{ width: '22px', height: '22px', borderRadius: '4px', background: 'transparent', display: 'grid', placeItems: 'center', fontSize: '11px', fontWeight: 700, color: '#6B7280' }}>{t}</div>)}
+                    <div style={{ width: '1px', height: '14px', background: '#E5E7EB', margin: '0 2px' }} />
+                    {/* AI 버튼 */}
+                    <span style={{ fontSize: '10px', color: '#7C3AED' }}>✦</span>
+                    {['문장 다듬기', '맞춤법 교정', '간략하게'].map((label, i) => (
+                      <div key={label} style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', height: '22px', padding: '0 7px', borderRadius: '4px', border: '1px solid #EDE9FE', background: editorAiLoading && i === 0 ? '#EDE9FE' : editorAiDone && i === 0 ? '#EDE9FE' : 'white', color: '#7C3AED', fontSize: '10px', fontWeight: 500, transition: 'all 0.2s' }}>
+                        {editorAiLoading && i === 0 && <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', border: '1.5px solid #7C3AED', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />}
+                        {label}
+                      </div>
+                    ))}
+                  </div>
+                  {/* 카드 본문 */}
+                  <div style={{ padding: '14px 18px' }}>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                      <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: '#F59E0B', color: 'white', fontSize: '11px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0 }}>02</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '5px' }}>로그인 버튼 클릭</div>
+                        <div style={{ fontSize: '12px', color: editorAiDone ? '#4F46E5' : '#4B5563', lineHeight: 1.6, transition: 'color 0.4s', padding: '4px 6px', borderRadius: '4px', background: editorAiDone ? '#EEF2FF' : 'transparent' }}>
+                          {editorAiDone
+                            ? "화면 상단에 위치한 '로그인' 버튼을 클릭하세요. 버튼 클릭 후 인증 페이지로 자동 이동합니다."
+                            : "로그인 버튼을 클릭하여 계정 인증을 진행합니다."}
+                        </div>
+                        {editorAiDone && (
+                          <div style={{ marginTop: '5px', fontSize: '10.5px', color: '#10B981', display: 'flex', alignItems: 'center', gap: '4px', animation: 'fadeIn 0.3s ease' }}>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+                            AI 다듬기 완료 · 자동 저장됨
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 다음 스텝 카드 (흐릿하게) */}
+                <div style={{ background: 'white', borderRadius: '12px', border: '1.5px solid #E5E7EB', opacity: 0.5, padding: '14px 18px' }}>
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: '#F59E0B', color: 'white', fontSize: '11px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0 }}>03</div>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}>이메일 주소 입력</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── 씬 3: 플레이어 ── */}
+          {scene === 'player' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', minHeight: '400px', background: '#0D0D14' }}>
+              {/* 플레이어 사이드바 */}
+              <div style={{ borderRight: '1px solid rgba(255,255,255,0.06)', padding: '16px' }}>
+                <div style={{ fontSize: '10px', color: '#4B5563', marginBottom: '10px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Supabase Google OAuth 설정</div>
+                {STEPS_DATA.map((s, i) => (
+                  <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', padding: '8px 10px', borderRadius: '6px', marginBottom: '2px', background: i === playerStep ? 'rgba(79,70,229,0.15)' : 'transparent', borderLeft: `2px solid ${i === playerStep ? '#4F46E5' : 'transparent'}`, transition: 'all 0.3s' }}>
+                    <span style={{ width: '18px', height: '18px', borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: '9px', flexShrink: 0, marginTop: '1px', background: i < playerStep ? '#10B981' : i === playerStep ? 'linear-gradient(135deg, #4F46E5, #7C3AED)' : 'rgba(255,255,255,0.06)', color: 'white' }}>
+                      {i < playerStep ? '✓' : s.num}
+                    </span>
+                    <span style={{ fontSize: '11px', color: i === playerStep ? '#C7D2FE' : '#4B5563', lineHeight: 1.4, fontWeight: i === playerStep ? 500 : 400, transition: 'color 0.3s' }}>{s.title}</span>
+                  </div>
+                ))}
+                <div style={{ marginTop: '16px', height: '3px', background: 'rgba(255,255,255,0.06)', borderRadius: '999px', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', background: 'linear-gradient(90deg, #4F46E5, #7C3AED)', width: `${(playerStep / (STEPS_DATA.length - 1)) * 100}%`, transition: 'width 0.6s ease', borderRadius: '999px' }} />
+                </div>
+                <div style={{ marginTop: '6px', fontSize: '10px', color: '#4B5563', textAlign: 'right' }}>{playerStep + 1} / {STEPS_DATA.length}</div>
+              </div>
+
+              {/* 플레이어 메인 */}
+              <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {/* 스크린샷 영역 */}
+                <div style={{ background: '#fff', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', flex: 1, position: 'relative', minHeight: '200px' }}>
+                  {/* 가짜 브라우저 */}
+                  <div style={{ height: '24px', background: '#F3F4F6', borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', gap: '5px', padding: '0 8px' }}>
+                    {['#FF5F57','#FEBC2E','#28C840'].map(c => <span key={c} style={{ width: '7px', height: '7px', borderRadius: '50%', background: c, display: 'inline-block' }} />)}
+                  </div>
+                  {/* 가짜 콘텐츠 */}
+                  <div style={{ padding: '14px', display: 'grid', gridTemplateColumns: '90px 1fr', gap: '10px', height: 'calc(100% - 24px)' }}>
+                    <div style={{ background: '#F9FAFB', borderRadius: '6px', padding: '8px' }}>
+                      {[75, 55, 65, 75, 55, 65].map((w, i) => <div key={i} style={{ height: '8px', borderRadius: '3px', background: i === playerStep ? '#4F46E5' : '#E5E7EB', width: `${w}%`, marginBottom: '6px', transition: 'background 0.3s' }} />)}
+                    </div>
+                    <div style={{ padding: '4px' }}>
+                      <div style={{ height: '12px', background: '#111827', borderRadius: '3px', width: '60%', marginBottom: '8px' }} />
+                      {[80, 95, 50, 70].map((w, i) => <div key={i} style={{ height: '8px', background: '#E5E7EB', borderRadius: '3px', width: `${w}%`, marginBottom: '5px' }} />)}
+                      <div style={{ marginTop: '10px', display: 'inline-flex', height: '26px', padding: '0 12px', borderRadius: '5px', background: '#4F46E5', color: 'white', fontSize: '10px', alignItems: 'center', fontWeight: 600 }}>Configure provider</div>
+                    </div>
+                  </div>
+                  {/* 클릭 마커 */}
+                  <div style={{ position: 'absolute', width: '24px', height: '24px', borderRadius: '50%', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', display: 'grid', placeItems: 'center', fontSize: '10px', fontWeight: 700, boxShadow: '0 0 0 6px rgba(79,70,229,0.2)', top: `${[30, 55, 65, 75][playerStep] ?? 50}%`, left: `${[15, 60, 40, 70][playerStep] ?? 50}%`, transition: 'all 0.5s ease' }}>
+                    {playerStep + 1}
+                  </div>
+                </div>
+
+                {/* 자막 */}
+                <div style={{ background: 'rgba(10,10,15,0.88)', color: 'white', padding: '10px 16px', borderRadius: '8px', fontSize: '12.5px', lineHeight: 1.6, border: '1px solid rgba(255,255,255,0.07)', backdropFilter: 'blur(8px)', transition: 'opacity 0.3s' }}>
+                  {STEPS_DATA[playerStep].desc}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function LandingPage() {
+  const [billing, setBilling] = useState<'month' | 'year'>('month');
+  const [faqOpen, setFaqOpen] = useState<number | null>(0);
+  const [email, setEmail] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+  const [demoOpen, setDemoOpen] = useState(false);
+  const [proModal, setProModal] = useState<'pro' | 'team' | null>(null);
+  const [proEmail, setProEmail] = useState('');
+  const [proSubmitted, setProSubmitted] = useState(false);
+
+  const handleProSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
+    try {
+      const res = await fetch('/api/pro-signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, plan_interested: 'pro', source: 'landing' }),
+      });
+      if (!res.ok) throw new Error(res.statusText);
+      setSubmitted(true);
+    } catch { /* ignore network/server errors — user can retry */ }
+  };
+
+  const handleProPlanSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!proEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(proEmail)) return;
+    try {
+      await fetch('/api/pro-signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: proEmail, plan_interested: proModal === 'pro' ? 'pro' : 'team', source: 'landing' }),
+      });
+      setProSubmitted(true);
+    } catch { /* ignore */ }
+  };
+
+  const prices = { pro: billing === 'month' ? '₩9,900' : '₩8,250' };
+
+  const faqs = [
+    { q: '언제든 취소할 수 있나요?', a: '네, 마이페이지에서 언제든 구독을 해지할 수 있어요. 해지 후에도 결제한 기간까지는 모든 기능을 그대로 사용하실 수 있습니다.' },
+    { q: '무료 플랜의 매뉴얼은 어떻게 보관되나요?', a: '무료 플랜에서 만든 매뉴얼은 영구 보관됩니다. 매일 만들 수 있는 개수만 3개로 제한되며, 기존에 만든 매뉴얼 열람·편집·공유는 평생 자유롭게 가능합니다.' },
+    { q: '어떤 결제 방법을 지원하나요?', a: '국내·해외 주요 신용카드와 카카오페이, 토스페이를 지원합니다. 기업 결제는 세금계산서 발행이 가능합니다.' },
+    { q: '플랜은 자유롭게 변경할 수 있나요?', a: '언제든 업그레이드·다운그레이드할 수 있어요. 업그레이드는 즉시 반영되고, 다운그레이드는 다음 결제 주기부터 적용됩니다.' },
+    { q: '환불 정책은 어떻게 되나요?', a: '결제 후 7일 이내, 유료 기능을 한 번도 사용하지 않은 경우 전액 환불이 가능합니다. 자세한 내용은 환불 정책 페이지를 참고해주세요.' },
+    { q: '팀이나 회사 단위로 사용하려면 어떻게 하나요?', a: '팀 워크스페이스 기능이 곧 출시됩니다. 우선 사용을 원하시면 기업 데모 신청을 통해 베타 액세스를 받으실 수 있습니다.' },
+  ];
+
+  return (
+    <div style={{ fontFamily: "'Pretendard', 'Pretendard Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif", color: '#111827', background: '#fff', WebkitFontSmoothing: 'antialiased' }}>
+
+      {/* 데모 모달 */}
+      {demoOpen && (
+        <div onClick={() => setDemoOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#0E0E14', borderRadius: '20px', overflow: 'hidden', width: '100%', maxWidth: '880px', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 40px 80px rgba(0,0,0,0.6)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              <span style={{ fontSize: '14px', fontWeight: 500, color: 'white' }}>MIMIC 데모 — Supabase Google OAuth 설정하기</span>
+              <button onClick={() => setDemoOpen(false)} style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', border: 'none', color: '#9CA3AF', cursor: 'pointer', display: 'grid', placeItems: 'center', fontSize: '16px' }}>×</button>
+            </div>
+            <div style={{ padding: '32px', textAlign: 'center' }}>
+              <div style={{ width: '64px', height: '64px', borderRadius: '16px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', margin: '0 auto 20px', display: 'grid', placeItems: 'center' }}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              </div>
+              <div style={{ fontSize: '18px', fontWeight: 600, color: 'white', marginBottom: '8px' }}>준비 중입니다</div>
+              <p style={{ fontSize: '14px', color: '#6B7280', lineHeight: 1.65, maxWidth: '360px', margin: '0 auto 24px' }}>실제 서비스 데모 영상을 제작 중입니다. 사전예약하시면 출시 즉시 알려드립니다.</p>
+              <Link href="/auth/login" onClick={() => setDemoOpen(false)} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '12px 24px', borderRadius: '10px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', fontWeight: 600, fontSize: '14px', textDecoration: 'none' }}>
+                직접 무료로 써보기 →
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pro 플랜 사전예약 모달 */}
+      {proModal && (
+        <div onClick={() => { setProModal(null); setProSubmitted(false); setProEmail(''); }} style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.60)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'white', borderRadius: '20px', padding: '40px', width: '100%', maxWidth: '440px', boxShadow: '0 40px 80px rgba(0,0,0,0.15)' }}>
+            <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '52px', height: '52px', borderRadius: '14px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', marginBottom: '16px' }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              </div>
+              <div style={{ fontSize: '20px', fontWeight: 700, color: '#0D0D14', marginBottom: '6px' }}>{proModal === 'pro' ? 'Pro' : 'Team'} 플랜 사전예약</div>
+              <p style={{ fontSize: '14px', color: '#6B7280', lineHeight: 1.6, margin: 0 }}>{proModal === 'pro' ? '출시 즉시 알림 + 얼리버드 할인 혜택을 드립니다.' : '담당자가 직접 연락드려 요금과 도입 조건을 안내해 드립니다.'}</p>
+            </div>
+            {!proSubmitted ? (
+              <form onSubmit={handleProPlanSignup}>
+                <input type="email" value={proEmail} onChange={e => setProEmail(e.target.value)} placeholder="이메일 주소" required style={{ width: '100%', height: '46px', padding: '0 14px', border: '1.5px solid #E5E7EB', borderRadius: '10px', fontSize: '14px', color: '#111827', outline: 'none', boxSizing: 'border-box', marginBottom: '12px', fontFamily: 'inherit' }} />
+                <button type="submit" style={{ width: '100%', height: '46px', borderRadius: '10px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', fontWeight: 700, fontSize: '14px', border: 'none', cursor: 'pointer' }}>{proModal === 'pro' ? '사전예약 신청하기' : '도입 문의 신청하기'}</button>
+              </form>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '16px', background: '#F0FDF4', borderRadius: '12px', color: '#15803D', fontSize: '14px', fontWeight: 500 }}>
+                ✓ {proModal === 'pro' ? '등록되었습니다. 출시일에 가장 먼저 알려드릴게요!' : '접수되었습니다. 담당자가 곧 연락드릴게요!'}
+              </div>
+            )}
+            <button onClick={() => { setProModal(null); setProSubmitted(false); setProEmail(''); }} style={{ width: '100%', marginTop: '12px', padding: '10px', background: 'none', border: 'none', color: '#9CA3AF', fontSize: '13px', cursor: 'pointer' }}>닫기</button>
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
+      <header style={{ position: 'sticky', top: 0, zIndex: 50, background: 'rgba(255,255,255,0.92)', backdropFilter: 'saturate(180%) blur(16px)', borderBottom: '1px solid #F3F4F6' }}>
+        <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px', display: 'flex', alignItems: 'center', gap: '32px', height: '64px' }}>
+          <Link href="/landingpage" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, fontSize: '15px', color: '#111827', textDecoration: 'none' }}>
+            <BrandMark />
+            MIMIC
+          </Link>
+          <nav style={{ display: 'flex', gap: '28px', marginLeft: '8px' }}>
+            {['기능', '사용 방법', '요금제', '기업 문의', 'FAQ'].map((item, i) => (
+              <a key={item} href={['#features', '#how', '#pricing', '#b2b', '#faq'][i]}
+                style={{ fontSize: '14px', color: '#4B5563', textDecoration: 'none', whiteSpace: 'nowrap', transition: 'color 0.15s' }}
+                onMouseEnter={e => e.currentTarget.style.color = '#111827'}
+                onMouseLeave={e => e.currentTarget.style.color = '#4B5563'}
+              >{item}</a>
+            ))}
+          </nav>
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Link href="/auth/login"
+              style={{ padding: '9px 16px', borderRadius: '8px', fontSize: '14px', fontWeight: 500, color: '#4B5563', textDecoration: 'none', transition: 'all 0.15s' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#F9FAFB'; (e.currentTarget as HTMLElement).style.color = '#111827'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = '#4B5563'; }}
+            >로그인</Link>
+            <Link href="/auth/login"
+              style={{ padding: '9px 18px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, color: 'white', background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', boxShadow: '0 2px 8px rgba(79,70,229,0.28)', textDecoration: 'none' }}
+            >무료로 시작</Link>
+          </div>
+        </div>
+      </header>
+
+      {/* Hero */}
+      <section style={{ padding: '72px 0 0', background: 'linear-gradient(180deg, #F8F7FF 0%, #ffffff 100%)', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: '-120px', left: '50%', transform: 'translateX(-50%)', width: '800px', height: '500px', background: 'radial-gradient(ellipse, rgba(79,70,229,0.12) 0%, transparent 70%)', pointerEvents: 'none' }} />
+
+        <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px', position: 'relative' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 14px', background: 'rgba(79,70,229,0.07)', border: '1px solid rgba(79,70,229,0.18)', borderRadius: '999px', fontSize: '12.5px', color: '#4F46E5', fontWeight: 500, marginBottom: '28px' }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#4F46E5', display: 'inline-block', animation: 'pulse-dot 1.8s ease-in-out infinite' }} />
+            AI 인터랙티브 매뉴얼 플랫폼
+          </span>
+
+          <h1 style={{ margin: '0 auto 20px', fontSize: '56px', lineHeight: 1.15, fontWeight: 700, letterSpacing: '-0.03em', maxWidth: '860px', color: '#0D0D14' }}>
+            길게 설명할 필요 없어요.<br />
+            <span style={{ background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>보고 따라 하게</span> 만드세요.
+          </h1>
+
+          <p style={{ fontSize: '18px', color: '#4B5563', maxWidth: '600px', margin: '0 auto 36px', lineHeight: 1.65 }}>
+            녹화된 화면을 그대로 매뉴얼로.<br />
+            <span style={{ fontFamily: "'JetBrains Mono','SF Mono', ui-monospace, monospace", fontSize: '13.5px', color: '#9CA3AF' }}>Don&apos;t Explain, Just Mimic.</span>
+          </p>
+
+          <div className="hero-cta-row" style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginBottom: '64px' }}>
+            <Link href="/auth/login"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '14px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 600, color: 'white', background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', boxShadow: '0 4px 16px rgba(79,70,229,0.30)', textDecoration: 'none' }}
+            >
+              무료로 시작하기
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </Link>
+            <button
+              onClick={() => setDemoOpen(true)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '14px 24px', borderRadius: '10px', fontSize: '15px', fontWeight: 500, color: '#374151', background: 'white', border: '1.5px solid #E5E7EB', cursor: 'pointer', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              데모 보기
+            </button>
+          </div>
+
+          {/* Hero Simulator */}
+          <div className="hero-preview">
+            <HeroSimulator />
+          </div>
+        </div>
+      </section>
+
+      {/* Problem */}
+      <section style={{ padding: '96px 0', background: '#FAFAFA' }}>
+        <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
+          <RevealSection>
+          <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#4F46E5', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>Problem</span>
+          <h2 style={{ textAlign: 'center', fontSize: '36px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 auto 14px', maxWidth: '720px', lineHeight: 1.2, color: '#0D0D14' }}>이런 문제, 한 번쯤 겪어보셨죠?</h2>
+          <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '560px', margin: '0 auto 56px', lineHeight: 1.65 }}>PDF는 쌓이기만 하고, 영상은 만들기 지옥이고, PPT는 만들다 하루가 갑니다.</p>
+
+          <div className="grid-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
+            {[
+              { emoji: '📄', title: 'PDF는 아무도 안 읽어요', body: '200페이지 매뉴얼을 만들어도 신입은 첫 페이지에서 멈춥니다. 검색도 안 되고 따라하기도 어렵죠.', quote: '"매뉴얼 어디 있어요?" — 매일 듣는 말', color: '#FEF3C7' },
+              { emoji: '🎥', title: '영상 제작은 지옥이에요', body: '대본 쓰고, 녹화하고, 편집하고, 자막 달면 하루가 그냥 갑니다. 한 줄 수정하려면 처음부터 다시.', quote: '"영상 5분 만드는 데 6시간"', color: '#FEE2E2' },
+              { emoji: '🖥️', title: 'PPT는 너무 오래 걸려요', body: '스크린샷 찍고, 자르고, 화살표 그리고, 정렬 맞추다 보면 한 슬라이드에 30분. UI는 또 바뀌어 있고요.', quote: '"디자인은 또 누가 다듬어?"', color: '#EEF2FF' },
+            ].map(p => (
+              <div key={p.title}
+                style={{ padding: '32px', background: 'white', border: '1.5px solid #E5E7EB', borderRadius: '16px', transition: 'all 0.2s ease' }}
+                onMouseEnter={e => { const el = e.currentTarget; el.style.transform = 'translateY(-4px)'; el.style.boxShadow = '0 12px 32px rgba(17,24,39,0.08)'; el.style.borderColor = '#D1D5DB'; }}
+                onMouseLeave={e => { const el = e.currentTarget; el.style.transform = 'none'; el.style.boxShadow = 'none'; el.style.borderColor = '#E5E7EB'; }}
+              >
+                <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: p.color, display: 'grid', placeItems: 'center', marginBottom: '20px', fontSize: '22px' }}>{p.emoji}</div>
+                <div style={{ fontSize: '18px', fontWeight: 600, marginBottom: '10px', color: '#0D0D14' }}>{p.title}</div>
+                <p style={{ fontSize: '14px', color: '#6B7280', lineHeight: 1.65, margin: 0 }}>{p.body}</p>
+                <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px dashed #E5E7EB', fontSize: '13px', color: '#9CA3AF', fontStyle: 'italic' }}>{p.quote}</div>
+              </div>
+            ))}
+          </div>
+          </RevealSection>
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section id="how" style={{ padding: '96px 0', background: 'white' }}>
+        <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
+          <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#4F46E5', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>How it works</span>
+          <h2 style={{ textAlign: 'center', fontSize: '36px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 auto 14px', maxWidth: '720px', lineHeight: 1.2, color: '#0D0D14' }}>3단계로 끝나는 매뉴얼 제작</h2>
+          <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '540px', margin: '0 auto 64px', lineHeight: 1.65 }}>기존 작업을 평소처럼 하기만 하면 됩니다. 나머지는 AI가 다 합니다.</p>
+
+          <div className="grid-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0', position: 'relative' }}>
+            <div style={{ position: 'absolute', top: '28px', left: 'calc(16.7% + 16px)', right: 'calc(16.7% + 16px)', height: '1px', background: 'linear-gradient(90deg, #4F46E5, #7C3AED)', opacity: 0.25, zIndex: 0 }} />
+            {[
+              { num: '01', title: 'MIMIC Recorder 확장으로 녹화', body: '웹 작업을 평소처럼 진행하면 클릭 위치와 화면이 자동 캡처됩니다.' },
+              { num: '02', title: 'AI가 자동 정리', body: '캡처된 스크린샷을 분석해 단계별 설명과 자막, 항목 마커까지 자동 생성합니다.' },
+              { num: '03', title: '링크로 공유', body: '완성된 매뉴얼은 링크 한 줄로 어디든 공유. 보는 사람은 클릭으로 따라하면 끝.' },
+            ].map(s => (
+              <div key={s.num} style={{ padding: '40px 36px', position: 'relative', zIndex: 1 }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '52px', height: '52px', borderRadius: '50%', background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', color: 'white', fontSize: '16px', fontWeight: 700, marginBottom: '24px', boxShadow: '0 8px 20px rgba(79,70,229,0.28)' }}>{s.num}</span>
+                <div style={{ fontSize: '19px', fontWeight: 600, marginBottom: '10px', color: '#0D0D14', letterSpacing: '-0.01em' }}>{s.title}</div>
+                <p style={{ fontSize: '14.5px', color: '#6B7280', lineHeight: 1.65, margin: 0 }}>{s.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Use Cases */}
+      <section style={{ padding: '96px 0', background: '#FAFAFA' }}>
+        <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
+          <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#4F46E5', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>Use Cases</span>
+          <h2 style={{ textAlign: 'center', fontSize: '36px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 auto 14px', maxWidth: '720px', lineHeight: 1.2, color: '#0D0D14' }}>어떤 팀에서 쓰고 있나요?</h2>
+          <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '540px', margin: '0 auto 56px', lineHeight: 1.65 }}>설명이 필요한 곳이라면 어디든 MIMIC으로 해결할 수 있습니다.</p>
+
+          <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px' }}>
+            {useCases.map(uc => (
+              <div key={uc.tag}
+                style={{ padding: '36px', background: 'white', border: '1.5px solid #E5E7EB', borderRadius: '20px', transition: 'all 0.2s ease' }}
+                onMouseEnter={e => { const el = e.currentTarget; el.style.borderColor = 'rgba(79,70,229,0.30)'; el.style.boxShadow = '0 12px 32px rgba(79,70,229,0.07)'; el.style.transform = 'translateY(-2px)'; }}
+                onMouseLeave={e => { const el = e.currentTarget; el.style.borderColor = '#E5E7EB'; el.style.boxShadow = 'none'; el.style.transform = 'none'; }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
+                  <span style={{ fontSize: '28px' }}>{uc.emoji}</span>
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#4F46E5', background: '#EEF2FF', padding: '4px 10px', borderRadius: '999px', letterSpacing: '0.02em' }}>{uc.tag}</span>
+                </div>
+                <div style={{ fontSize: '19px', fontWeight: 600, marginBottom: '10px', color: '#0D0D14', letterSpacing: '-0.01em', lineHeight: 1.3 }}>{uc.title}</div>
+                <p style={{ fontSize: '14.5px', color: '#6B7280', lineHeight: 1.7, margin: 0 }}>{uc.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Features */}
+      <section id="features" style={{ padding: '96px 0', background: 'white' }}>
+        <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
+          <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#4F46E5', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>Features</span>
+          <h2 style={{ textAlign: 'center', fontSize: '36px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 auto 14px', maxWidth: '720px', lineHeight: 1.2, color: '#0D0D14' }}>한 번 만들면, 세 가지 형태로 살아납니다</h2>
+          <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '560px', margin: '0 auto 64px', lineHeight: 1.65 }}>스크린샷 한 번에 가이드 문서 · 인터랙티브 튜토리얼 · 영상까지.</p>
+
+          <div className="grid-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+            {features.map(f => (
+              <div key={f.title}
+                style={{ padding: '28px', background: 'white', border: '1.5px solid #E5E7EB', borderRadius: '16px', transition: 'all 0.2s ease', position: 'relative' }}
+                onMouseEnter={e => { const el = e.currentTarget; el.style.borderColor = 'rgba(79,70,229,0.35)'; el.style.transform = 'translateY(-4px)'; el.style.boxShadow = '0 12px 32px rgba(79,70,229,0.08)'; }}
+                onMouseLeave={e => { const el = e.currentTarget; el.style.borderColor = '#E5E7EB'; el.style.transform = 'none'; el.style.boxShadow = 'none'; }}
+              >
+                {f.comingSoon && (
+                  <span style={{ position: 'absolute', top: '16px', right: '16px', fontSize: '10.5px', fontWeight: 600, color: '#7C3AED', background: '#F5F3FF', padding: '3px 8px', borderRadius: '999px', border: '1px solid #DDD6FE' }}>출시 예정</span>
+                )}
+                <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: f.comingSoon ? 'linear-gradient(135deg, #7C3AED 0%, #A78BFA 100%)' : 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', display: 'grid', placeItems: 'center', marginBottom: '18px', boxShadow: '0 4px 12px rgba(79,70,229,0.25)' }}>
+                  {f.icon}
+                </div>
+                <div style={{ fontSize: '16px', fontWeight: 600, marginBottom: '8px', color: '#0D0D14' }}>{f.title}</div>
+                <p style={{ fontSize: '13.5px', color: '#6B7280', lineHeight: 1.65, margin: 0 }}>{f.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Comparison */}
+      <section style={{ padding: '96px 0', background: '#FAFAFA' }}>
+        <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
+          <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#4F46E5', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>Why MIMIC</span>
+          <h2 style={{ textAlign: 'center', fontSize: '36px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 auto 56px', maxWidth: '720px', lineHeight: 1.2, color: '#0D0D14' }}>다른 방법과 무엇이 다른가요?</h2>
+
+          <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: '20px', overflow: 'hidden' }}>
+            {/* Header row */}
+            <div className="comparison-row" style={{ display: 'grid', gridTemplateColumns: '1fr repeat(3, 140px)', borderBottom: '1.5px solid #E5E7EB' }}>
+              <div style={{ padding: '18px 28px', fontSize: '13px', color: '#9CA3AF' }}>기능</div>
+              {['PPT / 문서', '영상 녹화', 'MIMIC'].map((col, i) => (
+                <div key={col} style={{ padding: '18px 0', textAlign: 'center', fontSize: '13.5px', fontWeight: 600, color: i === 2 ? '#4F46E5' : '#374151', background: i === 2 ? '#F5F3FF' : 'transparent', borderLeft: '1px solid #F3F4F6' }}>{col}</div>
+              ))}
+            </div>
+            {[
+              { label: '제작 시간', vals: ['1~3시간', '2~6시간', '30초~5분'] },
+              { label: '클릭으로 따라하기', vals: [false, false, true] },
+              { label: 'AI 자동 설명 생성', vals: [false, false, true] },
+              { label: '수정 용이성', vals: ['낮음', '낮음', '높음'] },
+              { label: 'AI 음성 · 자막', vals: [false, false, '출시 예정'] },
+            ].map((row, ri) => (
+              <div key={row.label} className="comparison-row" style={{ display: 'grid', gridTemplateColumns: '1fr repeat(3, 140px)', borderBottom: ri < 5 ? '1px solid #F3F4F6' : 'none' }}>
+                <div style={{ padding: '16px 28px', fontSize: '14px', color: '#374151', display: 'flex', alignItems: 'center' }}>{row.label}</div>
+                {row.vals.map((val, i) => (
+                  <div key={i} style={{ padding: '16px 0', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', background: i === 2 ? '#FAFAFE' : 'transparent', borderLeft: '1px solid #F3F4F6' }}>
+                    {val === true ? (
+                      <span style={{ color: '#4F46E5' }}><CheckIcon size={16} color="#4F46E5" /></span>
+                    ) : val === false ? (
+                      <XIcon size={16} />
+                    ) : (
+                      <span style={{ fontSize: '12.5px', color: i === 2 ? '#4F46E5' : '#6B7280', fontWeight: i === 2 ? 600 : 400 }}>{val}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing */}
+      <section id="pricing" style={{ padding: '96px 0', background: 'white' }}>
+        <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
+          <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#4F46E5', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>Pricing</span>
+          <h2 style={{ textAlign: 'center', fontSize: '36px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 auto 14px', maxWidth: '720px', lineHeight: 1.2, color: '#0D0D14' }}>필요한 만큼만 결제하세요</h2>
+          <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '560px', margin: '0 auto 40px', lineHeight: 1.65 }}>기본 매뉴얼은 누구나 무료로. 진짜 필요할 때만 업그레이드하세요.</p>
+
+          <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px', background: '#F3F4F6', border: '1px solid #E5E7EB', borderRadius: '12px' }}>
+              {(['month', 'year'] as const).map(b => (
+                <button key={b} onClick={() => setBilling(b)} style={{ padding: '9px 20px', borderRadius: '9px', fontSize: '13.5px', color: billing === b ? '#111827' : '#6B7280', fontWeight: 500, background: billing === b ? 'white' : 'transparent', boxShadow: billing === b ? '0 1px 4px rgba(0,0,0,0.08)' : 'none', cursor: 'pointer', whiteSpace: 'nowrap', border: 'none', transition: 'all 0.15s' }}>
+                  {b === 'month' ? '월간 결제' : <>연간 결제 <span style={{ display: 'inline-block', marginLeft: '6px', padding: '2px 8px', borderRadius: '999px', background: 'rgba(16,185,129,0.12)', color: '#059669', fontSize: '11px', fontWeight: 600 }}>2개월 무료</span></>}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="pricing-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', maxWidth: '1100px', margin: '0 auto' }}>
+            {([
+              {
+                name: 'Free', sub: '신용카드 없이 바로 시작', amount: '₩0', per: '/ 월', featured: false,
+                planKey: null as null | 'pro' | 'team',
+                features: ['매일 매뉴얼 3개', '기본 매뉴얼 작성', 'MIMIC Recorder 확장 설치', '텍스트·도형 편집', '링크 공유 + PDF', '500MB 저장 공간'],
+                cta: '무료로 시작',
+              },
+              {
+                name: 'Pro', sub: '개인 크리에이터와 파워 유저', amount: prices.pro, per: '/ 월', featured: true,
+                planKey: 'pro' as const,
+                features: ['매뉴얼 무제한 생성', 'AI 다듬기 무제한', '줌인 + 자막 효과 (출시 예정)', 'AI 음성 (출시 예정)', 'HTML·MD 내보내기', '비공개 + 비밀번호 보호', '5GB 저장 공간'],
+                cta: '출시 알림 받기',
+              },
+              {
+                name: 'Team', sub: '팀·기업을 위한 맞춤 플랜', amount: '협의', per: '', featured: false,
+                planKey: 'team' as const,
+                features: ['Pro 플랜 모든 기능', '팀 워크스페이스', '멤버 권한 관리', '무제한 저장 공간', '전용 온보딩 지원', '세금계산서 발행', '우선 지원 (SLA)'],
+                cta: '도입 문의하기',
+              },
+            ] as const).map(plan => (
+              <div key={plan.name} style={{ background: 'white', border: plan.featured ? '2px solid #4F46E5' : '1.5px solid #E5E7EB', borderRadius: '20px', padding: '36px 28px', position: 'relative', transform: plan.featured ? 'translateY(-10px)' : 'none', boxShadow: plan.featured ? '0 16px 48px rgba(79,70,229,0.12), 0 4px 12px rgba(17,24,39,0.06)' : 'none' }}>
+                {plan.featured && <span style={{ position: 'absolute', top: '-13px', left: '50%', transform: 'translateX(-50%)', background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', color: 'white', padding: '5px 14px', borderRadius: '999px', fontSize: '11.5px', fontWeight: 600, whiteSpace: 'nowrap' }}>가장 인기</span>}
+                <div style={{ fontSize: '14px', fontWeight: 700, color: plan.featured ? '#4F46E5' : '#6B7280', marginBottom: '4px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>{plan.name}</div>
+                <div style={{ fontSize: '13px', color: '#9CA3AF', marginBottom: '24px' }}>{plan.sub}</div>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', marginBottom: '24px' }}>
+                  <span style={{ fontSize: plan.amount === '협의' ? '32px' : '42px', fontWeight: 700, letterSpacing: '-0.03em', color: '#0D0D14', lineHeight: 1 }}>{plan.amount}</span>
+                  {plan.per && <span style={{ fontSize: '13.5px', color: '#9CA3AF', fontWeight: 400, paddingBottom: '4px' }}>{plan.per}</span>}
+                </div>
+                {plan.planKey ? (
+                  <button onClick={() => { setProModal(plan.planKey as 'pro' | 'team'); setProSubmitted(false); setProEmail(''); }} style={{ display: 'block', width: '100%', margin: '0 0 28px', padding: '13px 0', borderRadius: '10px', fontSize: '14px', fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: plan.featured ? 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)' : 'white', color: plan.featured ? 'white' : '#374151', border: plan.featured ? 'none' : '1.5px solid #E5E7EB', boxShadow: plan.featured ? '0 4px 12px rgba(79,70,229,0.28)' : 'none', fontFamily: 'inherit' }}>{plan.cta}</button>
+                ) : (
+                  <Link href="/auth/login" style={{ display: 'block', width: '100%', margin: '0 0 28px', padding: '13px 0', borderRadius: '10px', fontSize: '14px', fontWeight: 600, textAlign: 'center', textDecoration: 'none', background: 'white', color: '#374151', border: '1.5px solid #E5E7EB' }}>{plan.cta}</Link>
+                )}
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                  {plan.features.map(f => (
+                    <li key={f} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', fontSize: '13.5px', color: '#4B5563', padding: '7px 0' }}>
+                      <span style={{ flexShrink: 0, marginTop: '2px' }}><CheckIcon size={14} color="#4F46E5" /></span>
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* B2B */}
+      <section id="b2b" style={{ padding: '96px 0', background: 'radial-gradient(800px 320px at 80% 0%, rgba(124,58,237,0.20), transparent 60%), radial-gradient(700px 320px at 20% 100%, rgba(79,70,229,0.20), transparent 60%), #0A0A0F', color: 'white' }}>
+        <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
+          <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#A78BFA', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>For Enterprise</span>
+          <h2 style={{ textAlign: 'center', fontSize: '36px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 auto 16px', maxWidth: '720px', lineHeight: 1.2, color: 'white' }}>팀 전체가 같은 방식으로<br/>일할 수 있게</h2>
+          <p style={{ textAlign: 'center', fontSize: '16px', color: '#9CA3AF', maxWidth: '560px', margin: '0 auto 56px', lineHeight: 1.65 }}>반복 문의를 줄이고, 온보딩 시간을 단축하고, 지식을 조직 전체에 공유하세요. 기업 맞춤 도입 상담을 진행합니다.</p>
+
+          <div className="b2b-btns" style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+            <a href="mailto:hello@mimicflow.com?subject=기업 데모 신청" style={{ display: 'inline-flex', alignItems: 'center', padding: '15px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 600, background: 'white', color: '#111827', textDecoration: 'none', boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }}>기업 데모 신청하기</a>
+            <a href="mailto:hello@mimicflow.com?subject=자료 요청" style={{ display: 'inline-flex', alignItems: 'center', padding: '15px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 500, color: 'rgba(255,255,255,0.85)', border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.06)', textDecoration: 'none' }}>자료 다운로드</a>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section id="faq" style={{ padding: '96px 0', background: 'white' }}>
+        <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
+          <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#4F46E5', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>FAQ</span>
+          <h2 style={{ textAlign: 'center', fontSize: '36px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 auto 14px', maxWidth: '720px', lineHeight: 1.2, color: '#0D0D14' }}>자주 묻는 질문</h2>
+          <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '560px', margin: '0 auto 64px', lineHeight: 1.65 }}>결제, 사용법, 보안까지. 더 궁금한 점은 1:1 문의로 보내주세요.</p>
+
+          <div style={{ maxWidth: '760px', margin: '0 auto' }}>
+            {faqs.map((faq, i) => (
+              <div key={i} style={{ borderBottom: '1px solid #F3F4F6', overflow: 'hidden' }}>
+                <button
+                  onClick={() => setFaqOpen(faqOpen === i ? null : i)}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textAlign: 'left', padding: '22px 0', fontSize: '15.5px', fontWeight: 500, color: faqOpen === i ? '#4F46E5' : '#111827', cursor: 'pointer', background: 'none', border: 'none', transition: 'color 0.15s' }}
+                >
+                  {faq.q}
+                  <span style={{ flexShrink: 0, width: '28px', height: '28px', borderRadius: '50%', background: faqOpen === i ? '#EEF2FF' : '#F9FAFB', display: 'grid', placeItems: 'center', color: faqOpen === i ? '#4F46E5' : '#9CA3AF', transform: faqOpen === i ? 'rotate(45deg)' : 'none', transition: 'all 0.2s ease' }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  </span>
+                </button>
+                {faqOpen === i && (
+                  <div style={{ paddingBottom: '22px', fontSize: '14.5px', color: '#6B7280', lineHeight: 1.7, maxWidth: '94%' }}>{faq.a}</div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Final CTA */}
+      <section style={{ padding: '0 0 96px', background: '#FAFAFA' }}>
+        <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
+          <div className="final-cta-inner" style={{ background: 'linear-gradient(135deg, #3730A3 0%, #4F46E5 40%, #7C3AED 100%)', borderRadius: '28px', padding: '80px 56px', textAlign: 'center', color: 'white', position: 'relative', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', top: '-80px', right: '-80px', width: '320px', height: '320px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', bottom: '-100px', left: '-60px', width: '280px', height: '280px', borderRadius: '50%', background: 'rgba(255,255,255,0.04)', pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px)', backgroundSize: '36px 36px', pointerEvents: 'none' }} />
+
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '999px', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', fontSize: '12px', fontWeight: 600, marginBottom: '20px', position: 'relative', letterSpacing: '0.02em' }}>
+              ★ Pro 출시 알림 받기 · 사전예약
+            </span>
+            <h2 style={{ fontSize: '42px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 0 16px', position: 'relative', lineHeight: 1.15 }}>30초 만에 첫 매뉴얼을<br/>만들어보세요</h2>
+            <p style={{ fontSize: '17px', opacity: 0.85, maxWidth: '520px', margin: '0 auto 36px', position: 'relative', lineHeight: 1.6 }}>MIMIC Recorder 확장 설치 → 평소처럼 작업 → 링크 한 줄로 공유. 그게 전부입니다.</p>
+
+            {!submitted ? (
+              <form onSubmit={handleProSignup} style={{ position: 'relative', display: 'flex', gap: '8px', maxWidth: '440px', margin: '0 auto 28px', padding: '6px', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.22)', borderRadius: '14px' }}>
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="jungho@company.com" required style={{ flex: 1, height: '46px', padding: '0 16px', border: 'none', background: 'rgba(255,255,255,0.95)', borderRadius: '9px', fontSize: '14px', color: '#111827', outline: 'none' }} />
+                <button type="submit" style={{ height: '46px', padding: '0 20px', borderRadius: '9px', background: 'white', color: '#4F46E5', fontWeight: 700, fontSize: '14px', whiteSpace: 'nowrap', cursor: 'pointer', border: 'none' }}>사전예약 →</button>
+              </form>
+            ) : (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', margin: '0 auto 28px', padding: '12px 20px', borderRadius: '999px', background: 'rgba(16,185,129,0.18)', border: '1px solid rgba(16,185,129,0.40)', color: '#D1FAE5', fontSize: '14px', fontWeight: 500 }}>
+                <CheckIcon size={14} color="#6EE7B7" /> 등록되었습니다. Pro 출시일에 가장 먼저 알려드릴게요.
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', position: 'relative' }}>
+              <Link href="/auth/login" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '15px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 700, background: 'white', color: '#4F46E5', textDecoration: 'none', boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }}>
+                무료로 시작하기
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </Link>
+              <a href="mailto:hello@mimicflow.com?subject=기업 데모 신청" style={{ display: 'inline-flex', alignItems: 'center', padding: '15px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 500, color: 'rgba(255,255,255,0.9)', border: '1.5px solid rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.08)', textDecoration: 'none' }}>기업 데모 신청</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer style={{ background: '#0D0D14', borderTop: '1px solid rgba(255,255,255,0.06)', padding: '64px 0 32px', fontSize: '13px', color: '#6B7280' }}>
+        <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
+          <div className="footer-grid" style={{ display: 'grid', gridTemplateColumns: '1.6fr repeat(4, 1fr)', gap: '48px', paddingBottom: '48px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <div>
+              <Link href="/landingpage" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, fontSize: '15px', color: 'white', textDecoration: 'none' }}>
+                <BrandMark /> MIMIC
+              </Link>
+              <p style={{ maxWidth: '280px', fontSize: '13px', color: '#4B5563', margin: '14px 0 20px', lineHeight: 1.7 }}>
+                길게 설명할 필요 없어요. 보고 따라 하게 만드세요.<br/>
+                <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: '11px', opacity: 0.6 }}>Don&apos;t Explain, Just Mimic.</span>
+              </p>
+            </div>
+            {[
+              { title: '제품', links: ['기능', '사용 방법', '요금제', '변경 사항'] },
+              { title: '회사', links: ['소개', '블로그', '채용', '기업 문의'] },
+              { title: '지원', links: ['이용 가이드', 'FAQ', '고객센터', '상태 페이지'] },
+              { title: '법적 고지', links: ['이용약관', '개인정보처리방침', '보안', '환불 정책'] },
+            ].map(col => (
+              <div key={col.title}>
+                <h5 style={{ margin: '0 0 18px', fontSize: '11.5px', color: 'rgba(255,255,255,0.5)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{col.title}</h5>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                  {col.links.map(l => (
+                    <li key={l} style={{ padding: '5px 0' }}>
+                      <a href="#" style={{ color: '#4B5563', textDecoration: 'none', transition: 'color 0.15s' }}
+                        onMouseEnter={e => e.currentTarget.style.color = '#9CA3AF'}
+                        onMouseLeave={e => e.currentTarget.style.color = '#4B5563'}
+                      >{l}</a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '24px', fontSize: '12px', color: '#374151' }}>
+            <div>© 2026 코마인드웍스 · MIMIC</div>
+            <div style={{ display: 'flex', gap: '20px' }}>
+              {['한국어', 'English', 'hello@mimicflow.com'].map(l => (
+                <a key={l} href="#" style={{ color: '#374151', textDecoration: 'none' }}
+                  onMouseEnter={e => e.currentTarget.style.color = '#6B7280'}
+                  onMouseLeave={e => e.currentTarget.style.color = '#374151'}
+                >{l}</a>
+              ))}
+            </div>
+          </div>
+        </div>
+      </footer>
+
+      <style>{`
+        @keyframes rec-blink {
+          0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(239,68,68,0.6); }
+          50% { opacity: 0.6; box-shadow: 0 0 0 4px rgba(239,68,68,0); }
+        }
+        @keyframes pulse {
+          0%, 100% { box-shadow: 0 0 0 6px rgba(79,70,229,0.22), 0 2px 8px rgba(79,70,229,0.5); }
+          50% { box-shadow: 0 0 0 12px rgba(79,70,229,0.10), 0 2px 8px rgba(79,70,229,0.5); }
+        }
+        @keyframes pulse-dot {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.45; }
+        }
+        @keyframes markerPop {
+          0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+          60% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+          100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+        }
+
+        /* 모바일 반응형 */
+        @media (max-width: 768px) {
+          header nav { display: none !important; }
+          header > div { padding: 0 16px !important; }
+
+          h1 { font-size: 36px !important; }
+          section { padding: 64px 0 !important; }
+          section > div { padding: 0 16px !important; }
+
+          .hero-preview { display: none !important; }
+          .hero-cta-row { flex-direction: column !important; align-items: stretch !important; }
+
+          .grid-3col { grid-template-columns: 1fr !important; }
+          .grid-2col { grid-template-columns: 1fr !important; }
+
+
+          .pricing-grid { grid-template-columns: 1fr !important; }
+          .pricing-grid > div { transform: none !important; }
+
+          .comparison-row { grid-template-columns: 1fr repeat(4, 80px) !important; font-size: 11px !important; }
+
+          .footer-grid { grid-template-columns: 1fr 1fr !important; gap: 28px !important; }
+
+          .b2b-btns { flex-direction: column !important; align-items: center !important; }
+          .final-cta-inner { padding: 48px 20px !important; }
+          .final-cta-inner h2 { font-size: 28px !important; }
+        }
+
+        @media (max-width: 480px) {
+          h1 { font-size: 28px !important; }
+          h2 { font-size: 24px !important; }
+          .comparison-row { font-size: 10px !important; grid-template-columns: 1fr repeat(4, 64px) !important; }
+        }
+      `}</style>
+    </div>
+  );
+}

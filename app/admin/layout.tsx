@@ -63,7 +63,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         })}
 
         <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid #1E293B' }}>
-          <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', borderRadius: '7px', fontSize: '12.5px', color: '#64748B', textDecoration: 'none' }}>
+          <Link href="/home" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', borderRadius: '7px', fontSize: '12.5px', color: '#64748B', textDecoration: 'none' }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
             일반 대시보드로
           </Link>

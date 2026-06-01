@@ -264,7 +264,7 @@ export default function PlayerPage({ params }: { params: { token: string } }) {
           <div style={{ fontSize: '48px', marginBottom: '16px' }}>404</div>
           <h1 style={{ fontSize: '20px', fontWeight: 500, marginBottom: '8px' }}>매뉴얼을 찾을 수 없어요</h1>
           <p style={{ fontSize: '13.5px', color: 'rgba(255,255,255,0.5)', marginBottom: '24px' }}>링크가 만료되었거나 잘못된 주소입니다.</p>
-          <Link href="/" style={{ display: 'inline-block', padding: '10px 20px', borderRadius: '8px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', fontSize: '14px', fontWeight: 500, textDecoration: 'none' }}>홈으로</Link>
+          <Link href="/landingpage" style={{ display: 'inline-block', padding: '10px 20px', borderRadius: '8px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', fontSize: '14px', fontWeight: 500, textDecoration: 'none' }}>홈으로</Link>
         </div>
       </div>
     );

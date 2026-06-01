@@ -7,7 +7,7 @@ export default function PrivacyPage() {
     <div style={{ minHeight: '100vh', background: '#FAFAFA', fontFamily: "'Pretendard', -apple-system, sans-serif" }}>
       <header style={{ background: 'white', borderBottom: '1px solid #E5E7EB', padding: '0 24px' }}>
         <div style={{ maxWidth: '800px', margin: '0 auto', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 500, color: '#111827', textDecoration: 'none' }}>
+          <Link href="/landingpage" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 500, color: '#111827', textDecoration: 'none' }}>
             <span style={{ width: '24px', height: '24px', borderRadius: '6px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', display: 'grid', placeItems: 'center' }}>
               <svg viewBox="0 0 24 24" fill="none" width="13" height="13">
                 <rect x="3.2" y="5.2" width="11" height="2.4" rx="1.2" fill="white" fillOpacity="0.5"/>

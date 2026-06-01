@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 const clean = (v: string | undefined) => v?.replace(/^﻿/, '').trim() ?? '';
 
-const PROTECTED = ['/dashboard', '/editor', '/manual', '/mypage', '/extension-link', '/settings'];
+const PROTECTED = ['/home', '/editor', '/manual', '/mypage', '/extension-link', '/settings'];
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });

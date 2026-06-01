@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { signupSchema } from '@/lib/validators';
-import { createServerClient } from '@/lib/supabase/server';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 
 const INVISIBLE = new Set([0x00AD, 0x200B, 0x200C, 0x200D, 0x200E, 0x200F, 0xFEFF]);
@@ -26,22 +25,14 @@ export async function POST(request: NextRequest) {
   const email = sanitize(parsed.data.email);
   const password = sanitize(parsed.data.password);
 
-  const supabase = await createServerClient();
-  // eslint-disable-next-line prefer-const
-  let signUpResult: Awaited<ReturnType<typeof supabase.auth.signUp>>;
-  try {
-    signUpResult = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { name } },
-    });
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e);
-    console.error('[signup] unexpected throw:', msg);
-    return NextResponse.json({ error: msg }, { status: 400 });
-  }
+  const serviceClient = createServiceRoleClient();
 
-  const { data, error } = signUpResult;
+  const { data, error } = await serviceClient.auth.admin.createUser({
+    email,
+    password,
+    user_metadata: { name },
+    email_confirm: false,
+  });
 
   if (error) {
     console.error('[signup] supabase error:', error.message);
@@ -49,7 +40,6 @@ export async function POST(request: NextRequest) {
   }
 
   if (data.user) {
-    const serviceClient = createServiceRoleClient();
     await serviceClient
       .from('mm_users')
       .update({
@@ -62,5 +52,5 @@ export async function POST(request: NextRequest) {
       .eq('id', data.user.id);
   }
 
-  return NextResponse.json({ user: data.user, session: data.session });
+  return NextResponse.json({ user: data.user });
 }

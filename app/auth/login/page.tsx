@@ -20,7 +20,8 @@ const BrandMark = () => (
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get('next') ?? '/dashboard';
+  const next = searchParams.get('next') ?? '/home';
+  const signupSuccess = searchParams.get('signup') === 'success';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -30,7 +31,7 @@ function LoginForm() {
     setLoading(true);
     setError('');
     try {
-      await signInWithGoogle(next !== '/dashboard' ? next : undefined);
+      await signInWithGoogle(next !== '/home' ? next : undefined);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : '오류가 발생했습니다.');
       setLoading(false);
@@ -57,7 +58,7 @@ function LoginForm() {
       <aside style={{ background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', color: 'white', padding: '56px', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(600px 320px at 100% 0%, rgba(255,255,255,0.18), transparent 60%), radial-gradient(500px 280px at 0% 100%, rgba(0,0,0,0.18), transparent 60%)', pointerEvents: 'none' }} />
         <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '100%' }}>
-          <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', fontSize: '16px', fontWeight: 500, color: 'white', textDecoration: 'none' }}>
+          <Link href="/landingpage" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', fontSize: '16px', fontWeight: 500, color: 'white', textDecoration: 'none' }}>
             <BrandMark /> MIMIC
           </Link>
 
@@ -139,7 +140,8 @@ function LoginForm() {
               />
             </div>
 
-            {error && <p style={{ fontSize: '12.5px', color: '#DC2626', margin: '0 0 12px', padding: '10px 12px', background: 'rgba(220,38,38,0.06)', borderRadius: '8px', border: '1px solid rgba(220,38,38,0.2)' }}>{error}</p>}
+            {signupSuccess && <p style={{ fontSize: '12.5px', color: '#15803D', margin: '0 0 12px', padding: '10px 12px', background: 'rgba(21,128,61,0.06)', borderRadius: '8px', border: '1px solid rgba(21,128,61,0.2)' }}>회원가입이 완료됐습니다. 이메일과 비밀번호로 로그인하세요.</p>}
+          {error && <p style={{ fontSize: '12.5px', color: '#DC2626', margin: '0 0 12px', padding: '10px 12px', background: 'rgba(220,38,38,0.06)', borderRadius: '8px', border: '1px solid rgba(220,38,38,0.2)' }}>{error}</p>}
 
             <button type="submit" disabled={loading} style={{ width: '100%', height: '44px', borderRadius: '10px', background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', color: 'white', fontSize: '14px', fontWeight: 500, boxShadow: '0 4px 12px rgba(79,70,229,0.25)', cursor: loading ? 'not-allowed' : 'pointer', border: 'none', opacity: loading ? 0.7 : 1, transition: 'transform 0.18s ease, box-shadow 0.18s ease' }}
               onMouseEnter={e => { if (!loading) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 8px 18px rgba(79,70,229,0.32)'; } }}

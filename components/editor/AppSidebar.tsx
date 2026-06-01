@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 
 const NAV_ITEMS = [
-  { icon: LayoutDashboard, label: '홈', href: '/dashboard' },
+  { icon: LayoutDashboard, label: '홈', href: '/home' },
   { icon: BookOpen, label: '매뉴얼', href: '/manual' },
   { icon: Users, label: '팀', href: '#' },
   { icon: Zap, label: '자동화', href: '#' },

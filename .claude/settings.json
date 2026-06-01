@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/scripts/pre-deploy-check.mjs",
+            "timeout": 30,
+            "statusMessage": "Claude API 검증 중..."
+          }
+        ]
+      }
+    ]
+  }
+}

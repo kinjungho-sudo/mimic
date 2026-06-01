@@ -42,7 +42,7 @@ export async function signUpWithEmail(
   email: string,
   password: string,
   agreements: Omit<Agreements, 'agreed_at'>
-): Promise<{ user: User | null; session: unknown }> {
+): Promise<void> {
   const res = await fetch('/api/auth/signup-with-agreements', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -53,9 +53,6 @@ export async function signUpWithEmail(
     const err = await res.json();
     throw new Error(translateAuthError(err.error) ?? '회원가입에 실패했습니다.');
   }
-
-  const data = await res.json();
-  return data;
 }
 
 export async function signOut(): Promise<void> {

@@ -17,9 +17,19 @@ export const captureFinalizeSchema = z.object({
   title: z.string().min(1).max(200).optional(),
 });
 
+export const actionInfoSchema = z.object({
+  type: z.enum(['click', 'navigate', 'toggle', 'select', 'focus_input', 'type']),
+  label: z.string().max(200).optional(),
+  tag: z.string().max(30).optional(),
+  role: z.string().max(50).optional(),
+  href: z.string().max(500).optional(),
+  text: z.string().max(1000).optional(),
+}).optional();
+
 export const captureAnalyzeSchema = z.object({
   image: z.string().min(1),
   url: z.string().url(),
+  actionInfo: actionInfoSchema,
 });
 
 export const captureSaveStepSchema = z.object({

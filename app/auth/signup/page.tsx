@@ -81,7 +81,7 @@ export default function SignupPage() {
         privacy: agreePrivacy,
         marketing: agreeMarketing,
       });
-      router.push('/dashboard');
+      router.push('/auth/login?signup=success');
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : '회원가입 중 오류가 발생했습니다.');
       setLoading(false);
@@ -99,7 +99,7 @@ export default function SignupPage() {
       <aside style={{ background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', color: 'white', padding: '56px', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(600px 320px at 100% 0%, rgba(255,255,255,0.18), transparent 60%), radial-gradient(500px 280px at 0% 100%, rgba(0,0,0,0.18), transparent 60%)', pointerEvents: 'none' }} />
         <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '100%' }}>
-          <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', fontSize: '16px', fontWeight: 500, color: 'white', textDecoration: 'none' }}>
+          <Link href="/landingpage" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', fontSize: '16px', fontWeight: 500, color: 'white', textDecoration: 'none' }}>
             <BrandMark /> MIMIC
           </Link>
 

@@ -72,7 +72,7 @@ export function EditorHeader({ title, tutorialId, onTitleChange, onPreview, onSa
     }}>
       {/* 뒤로 */}
       <Link
-        href="/dashboard"
+        href="/home"
         style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', color: 'rgba(255,255,255,0.55)', whiteSpace: 'nowrap', textDecoration: 'none', transition: 'color 0.15s' }}
         onMouseEnter={e => (e.currentTarget.style.color = 'white')}
         onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.55)')}
