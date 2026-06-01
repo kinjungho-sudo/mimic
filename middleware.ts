@@ -44,7 +44,7 @@ export async function middleware(request: NextRequest) {
   }
 
   if (pathname.startsWith('/admin')) {
-    if (!user || user.email !== process.env.ADMIN_EMAIL) {
+    if (!user || user.email !== clean(process.env.ADMIN_EMAIL)) {
       const url = request.nextUrl.clone();
       url.pathname = '/auth/login';
       url.searchParams.set('next', pathname);

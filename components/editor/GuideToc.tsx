@@ -1,6 +1,21 @@
 'use client';
 
 import { useState } from 'react';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import type { ManualStep } from './ManualEditor';
 
 interface GuideTocProps {
@@ -11,28 +26,22 @@ interface GuideTocProps {
   onReorder?: (steps: ManualStep[]) => void;
   onAdd?: () => void;
   onDelete?: (id: string) => void;
+  onInsertAfter?: (afterId: string) => void;
 }
 
-export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onAdd, onDelete }: GuideTocProps) {
-  const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [dragOverId, setDragOverId] = useState<string | null>(null);
-  const [hoverId, setHoverId] = useState<string | null>(null);
+export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onAdd, onDelete, onInsertAfter }: GuideTocProps) {
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
-  const handleDragStart = (id: string) => setDraggingId(id);
-  const handleDragOver = (e: React.DragEvent, id: string) => { e.preventDefault(); setDragOverId(id); };
-  const handleDrop = (targetId: string) => {
-    if (!draggingId || draggingId === targetId || !onReorder) { setDraggingId(null); setDragOverId(null); return; }
-    const from = steps.findIndex(s => s.id === draggingId);
-    const to = steps.findIndex(s => s.id === targetId);
-    const next = [...steps];
-    const [moved] = next.splice(from, 1);
-    next.splice(to, 0, moved);
-    onReorder(next.map((s, i) => ({ ...s, number: i + 1 })));
-    setDraggingId(null); setDragOverId(null);
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !onReorder) return;
+    const oldIdx = steps.findIndex(s => s.id === active.id);
+    const newIdx = steps.findIndex(s => s.id === over.id);
+    const next = arrayMove(steps, oldIdx, newIdx).map((s, i) => ({ ...s, number: i + 1 }));
+    onReorder(next);
   };
 
-  // 도메인별 그룹핑 — Tango 스타일
-  // domainHostname 기준으로 연속된 그룹을 계산
+  // 도메인별 그룹핑
   type DomainGroup = { hostname: string | null; name: string | null; favicon: string | null; count: number };
   const domainGroups: DomainGroup[] = [];
   steps.forEach(step => {
@@ -44,7 +53,6 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onAdd
     }
   });
 
-  // 스텝 → 해당 도메인 그룹 인덱스 맵
   const stepGroupIdx: number[] = [];
   let gi = 0, cnt = 0;
   steps.forEach(() => {
@@ -54,151 +62,61 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onAdd
   });
 
   return (
-    <aside style={{
-      flex: 1,
-      display: 'flex', flexDirection: 'column',
-      overflow: 'hidden',
-      minHeight: 0,
-    }}>
-      {/* Header — 목차 레이블만 */}
-      <div style={{
-        padding: '12px 16px 10px',
-        borderBottom: '1px solid #F3F4F6',
-        flexShrink: 0,
-      }}>
+    <aside style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
+      <div style={{ padding: '12px 16px 10px', borderBottom: '1px solid #F3F4F6', flexShrink: 0 }}>
         <div style={{ fontSize: '11px', fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.07em', textTransform: 'uppercase' }}>
           목차
         </div>
       </div>
 
-      {/* Steps with domain section headers */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0 8px' }}>
-        {steps.map((step, idx) => {
-          const isActive = step.id === activeId;
-          const isDragOver = dragOverId === step.id && draggingId !== step.id;
-          const isHover = hoverId === step.id;
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={steps.map(s => s.id)} strategy={verticalListSortingStrategy}>
+            {steps.map((step, idx) => {
+              const prevGroup = idx > 0 ? stepGroupIdx[idx - 1] : -1;
+              const curGroup = stepGroupIdx[idx];
+              const showDomainHeader = curGroup !== prevGroup;
+              const group = domainGroups[curGroup];
 
-          // 이전 스텝과 도메인이 다를 때 섹션 헤더 표시
-          const prevGroup = idx > 0 ? stepGroupIdx[idx - 1] : -1;
-          const curGroup = stepGroupIdx[idx];
-          const showDomainHeader = curGroup !== prevGroup;
-          const group = domainGroups[curGroup];
+              return (
+                <div key={step.id}>
+                  {showDomainHeader && (group.hostname || group.name) && (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: `${idx === 0 ? '10px' : '14px'} 14px 6px` }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                        {group.favicon ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={group.favicon} alt="" width={14} height={14} style={{ borderRadius: '3px', flexShrink: 0 }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+                        ) : (
+                          <div style={{ width: '14px', height: '14px', borderRadius: '3px', background: '#E5E7EB', flexShrink: 0 }} />
+                        )}
+                        <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {group.name ?? group.hostname}
+                        </span>
+                      </div>
+                      <span style={{ fontSize: '10.5px', color: '#9CA3AF', flexShrink: 0, marginLeft: '6px' }}>{group.count} Steps</span>
+                    </div>
+                  )}
 
-          return (
-            <div key={step.id}>
-              {/* 도메인 섹션 헤더 — Tango 스타일 */}
-              {showDomainHeader && (group.hostname || group.name) && (
-                <div style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: `${idx === 0 ? '10px' : '14px'} 14px 6px`,
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
-                    {group.favicon ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={group.favicon}
-                        alt=""
-                        width={14} height={14}
-                        style={{ borderRadius: '3px', flexShrink: 0 }}
-                        onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                      />
-                    ) : (
-                      <div style={{ width: '14px', height: '14px', borderRadius: '3px', background: '#E5E7EB', flexShrink: 0 }} />
-                    )}
-                    <span style={{
-                      fontSize: '11.5px', fontWeight: 700, color: '#374151',
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                    }}>
-                      {group.name ?? group.hostname}
-                    </span>
-                  </div>
-                  <span style={{ fontSize: '10.5px', color: '#9CA3AF', flexShrink: 0, marginLeft: '6px' }}>
-                    {group.count} Steps
-                  </span>
+                  <SortableTocItem
+                    step={step}
+                    isActive={step.id === activeId}
+                    editable={!!editable}
+                    onSelect={() => onSelect(step.id)}
+                    onDelete={onDelete ? () => onDelete(step.id) : undefined}
+                    onInsertAfter={onInsertAfter ? () => onInsertAfter(step.id) : undefined}
+                  />
                 </div>
-              )}
-
-              {/* 스텝 아이템 */}
-              <div
-                draggable
-                onDragStart={() => handleDragStart(step.id)}
-                onDragOver={e => handleDragOver(e, step.id)}
-                onDrop={() => handleDrop(step.id)}
-                onDragEnd={() => { setDraggingId(null); setDragOverId(null); }}
-                onClick={() => onSelect(step.id)}
-                onMouseEnter={() => setHoverId(step.id)}
-                onMouseLeave={() => setHoverId(null)}
-                style={{
-                  padding: '7px 14px',
-                  display: 'flex', alignItems: 'center', gap: '8px',
-                  cursor: 'grab',
-                  background: isDragOver ? 'rgba(79,70,229,0.06)' : isActive ? '#EEF2FF' : isHover ? '#F9FAFB' : 'transparent',
-                  borderLeft: `3px solid ${isActive || isDragOver ? '#4F46E5' : 'transparent'}`,
-                  borderTop: isDragOver ? '2px solid #4F46E5' : '2px solid transparent',
-                  transition: 'background 0.12s',
-                  position: 'relative',
-                }}
-              >
-                {/* Step number badge */}
-                <div style={{
-                  width: '22px', height: '22px', borderRadius: '6px', flexShrink: 0,
-                  background: isActive ? '#4F46E5' : '#E5E7EB',
-                  color: isActive ? 'white' : '#6B7280',
-                  fontSize: '10px', fontWeight: 700,
-                  display: 'grid', placeItems: 'center',
-                }}>
-                  {step.number}
-                </div>
-
-                {/* Title */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{
-                    fontSize: '12px', fontWeight: isActive ? 600 : 400,
-                    color: isActive ? '#1E1B4B' : '#374151',
-                    lineHeight: 1.4,
-                    overflow: 'hidden', display: '-webkit-box',
-                    WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-                  }}>
-                    {step.actionTitle || '(제목 없음)'}
-                  </div>
-                </div>
-
-                {/* Delete button — shown on hover in edit mode */}
-                {editable && onDelete && isHover && (
-                  <button
-                    onClick={e => { e.stopPropagation(); onDelete(step.id); }}
-                    title="삭제"
-                    style={{
-                      position: 'absolute', top: '6px', right: '6px',
-                      width: '20px', height: '20px', borderRadius: '4px',
-                      border: 'none', background: 'rgba(220,38,38,0.08)',
-                      color: '#DC2626', display: 'grid', placeItems: 'center', cursor: 'pointer',
-                    }}
-                  >
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
-                    </svg>
-                  </button>
-                )}
-              </div>
-            </div>
-          );
-        })}
+              );
+            })}
+          </SortableContext>
+        </DndContext>
       </div>
 
-      {/* Add step (edit mode) */}
       {editable && onAdd && (
         <div style={{ padding: '10px 14px', borderTop: '1px solid #F3F4F6', flexShrink: 0 }}>
           <button
             onClick={onAdd}
-            style={{
-              width: '100%', height: '34px',
-              border: '1.5px dashed #D1D5DB', borderRadius: '7px',
-              background: 'transparent', color: '#6B7280',
-              fontSize: '12px', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px',
-              transition: 'all 0.15s',
-            }}
+            style={{ width: '100%', height: '34px', border: '1.5px dashed #D1D5DB', borderRadius: '7px', background: 'transparent', color: '#6B7280', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', transition: 'all 0.15s' }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = '#4F46E5'; e.currentTarget.style.color = '#4F46E5'; e.currentTarget.style.background = 'rgba(79,70,229,0.04)'; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = '#D1D5DB'; e.currentTarget.style.color = '#6B7280'; e.currentTarget.style.background = 'transparent'; }}
           >
@@ -208,5 +126,98 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onAdd
         </div>
       )}
     </aside>
+  );
+}
+
+interface SortableTocItemProps {
+  step: ManualStep;
+  isActive: boolean;
+  editable: boolean;
+  onSelect: () => void;
+  onDelete?: () => void;
+  onInsertAfter?: () => void;
+}
+
+function SortableTocItem({ step, isActive, editable, onSelect, onDelete, onInsertAfter }: SortableTocItemProps) {
+  const [hovering, setHovering] = useState(false);
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: step.id });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    position: 'relative',
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <div
+        onClick={onSelect}
+        onMouseEnter={() => setHovering(true)}
+        onMouseLeave={() => setHovering(false)}
+        style={{
+          padding: '7px 14px',
+          display: 'flex', alignItems: 'center', gap: '8px',
+          background: isActive ? '#EEF2FF' : hovering ? '#F9FAFB' : 'transparent',
+          borderLeft: `3px solid ${isActive ? '#4F46E5' : 'transparent'}`,
+          transition: 'background 0.12s',
+          cursor: 'pointer',
+          userSelect: 'none',
+        }}
+      >
+        {/* Drag handle */}
+        {editable && (
+          <span
+            {...attributes}
+            {...listeners}
+            style={{ color: '#CBD5E1', fontSize: '10px', cursor: 'grab', letterSpacing: '-1px', flexShrink: 0, lineHeight: 1 }}
+            onClick={e => e.stopPropagation()}
+          >⠿</span>
+        )}
+
+        {/* Step number badge */}
+        <div style={{ width: '22px', height: '22px', borderRadius: '6px', flexShrink: 0, background: isActive ? '#4F46E5' : '#E5E7EB', color: isActive ? 'white' : '#6B7280', fontSize: '10px', fontWeight: 700, display: 'grid', placeItems: 'center' }}>
+          {step.number}
+        </div>
+
+        {/* Title */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: '12px', fontWeight: isActive ? 600 : 400, color: isActive ? '#1E1B4B' : '#374151', lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+            {step.actionTitle || '(제목 없음)'}
+          </div>
+        </div>
+
+        {/* Delete button */}
+        {editable && onDelete && hovering && (
+          <button
+            onClick={e => { e.stopPropagation(); onDelete(); }}
+            title="삭제"
+            style={{ position: 'absolute', top: '6px', right: '6px', width: '20px', height: '20px', borderRadius: '4px', border: 'none', background: 'rgba(220,38,38,0.08)', color: '#DC2626', display: 'grid', placeItems: 'center', cursor: 'pointer', zIndex: 1 }}
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
+            </svg>
+          </button>
+        )}
+      </div>
+
+      {/* Insert after button — shown on hover in edit mode */}
+      {editable && onInsertAfter && hovering && (
+        <div
+          style={{ position: 'absolute', bottom: '-10px', left: '50%', transform: 'translateX(-50%)', zIndex: 10 }}
+          onMouseEnter={() => setHovering(true)}
+        >
+          <button
+            onClick={e => { e.stopPropagation(); onInsertAfter(); }}
+            title="이 단계 아래에 삽입"
+            style={{ width: '20px', height: '20px', borderRadius: '50%', border: '1.5px solid #4F46E5', background: 'white', color: '#4F46E5', display: 'grid', placeItems: 'center', cursor: 'pointer', boxShadow: '0 1px 4px rgba(0,0,0,0.15)', transition: 'background 0.12s' }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#EEF2FF'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
+          >
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

@@ -20,10 +20,13 @@ export function useTutorial(id: string): TutorialState {
 
   useEffect(() => {
     if (!id) return;
+    let cancelled = false;
     setLoading(true);
+    setError(null);
     getTutorial(id)
-      .then(data => { setTutorial(data); setLoading(false); })
-      .catch(e => { setError(e.message); setLoading(false); });
+      .then(data => { if (!cancelled) { setTutorial(data); setLoading(false); } })
+      .catch(e => { if (!cancelled) { setError(e.message); setLoading(false); } });
+    return () => { cancelled = true; };
   }, [id]);
 
   const update = useCallback(async (patch: Partial<Tutorial>) => {

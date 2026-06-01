@@ -87,11 +87,38 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   const { id } = await params;
   const supabase = createServiceRoleClient();
 
+  // 튜토리얼 조회 (소유자 확인 + 워크스페이스 확인)
+  const { data: tutorial } = await supabase
+    .from('mm_tutorials')
+    .select('id, user_id, workspace_id')
+    .eq('id', id)
+    .is('deleted_at', null)
+    .single();
+
+  if (!tutorial) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
+  // 팀 매뉴얼인 경우 admin 권한 필요
+  if (tutorial.workspace_id) {
+    const { data: membership } = await supabase
+      .from('mm_workspace_members')
+      .select('role')
+      .eq('workspace_id', tutorial.workspace_id)
+      .eq('user_id', auth.userId)
+      .single();
+    if (!membership || membership.role !== 'admin') {
+      return NextResponse.json({ error: '팀 매뉴얼은 관리자만 삭제할 수 있습니다.' }, { status: 403 });
+    }
+  } else if (tutorial.user_id !== auth.userId) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  // Soft-delete
   const { error } = await supabase
     .from('mm_tutorials')
-    .delete()
-    .eq('id', id)
-    .eq('user_id', auth.userId);
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', id);
 
   if (error) {
     return NextResponse.json({ error: 'Delete failed' }, { status: 500 });

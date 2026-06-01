@@ -25,6 +25,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const result = await rewriteSentence(parsed.data.text, parsed.data.instruction);
-  return NextResponse.json({ result });
+  try {
+    const result = await rewriteSentence(parsed.data.text, parsed.data.instruction);
+    return NextResponse.json({ result });
+  } catch (err) {
+    console.error('Rewrite error:', err);
+    return NextResponse.json({ error: 'AI rewrite failed' }, { status: 500 });
+  }
 }

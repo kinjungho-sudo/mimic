@@ -55,7 +55,8 @@ function sanitizeHref(href: string | undefined): string | undefined {
 export async function analyzeScreenshot(
   base64Image: string,
   pageUrl: string,
-  actionInfo?: ActionInfo
+  actionInfo?: ActionInfo,
+  mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif' = 'image/jpeg'
 ): Promise<{ title: string; description: string }> {
   let domain = '';
   try { domain = new URL(pageUrl).hostname; } catch { domain = pageUrl; }
@@ -104,7 +105,7 @@ export async function analyzeScreenshot(
             type: 'image',
             source: {
               type: 'base64',
-              media_type: 'image/jpeg',
+              media_type: mediaType,
               data: base64Image,
             },
           },

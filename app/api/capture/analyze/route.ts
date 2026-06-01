@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const result = await analyzeScreenshot(parsed.data.image, parsed.data.url, parsed.data.actionInfo);
+    const result = await analyzeScreenshot(parsed.data.image, parsed.data.url, parsed.data.actionInfo, parsed.data.mediaType);
     return NextResponse.json(result);
   } catch (err) {
     console.error('Claude analyze error:', err);

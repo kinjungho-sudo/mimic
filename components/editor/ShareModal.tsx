@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { X, Link2, Check, Send } from 'lucide-react';
+import { X, Link2, Check, Send, Code2 } from 'lucide-react';
 
 interface ShareModalProps {
   title: string;
@@ -17,6 +17,8 @@ export function ShareModal({ title, shareToken, shareUrl, onPublishAndShare, onU
   const [copied, setCopied] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [unpublishing, setUnpublishing] = useState(false);
+  const [embedTab, setEmbedTab] = useState<'link' | 'float' | 'auto'>('link');
+  const [snippetCopied, setSnippetCopied] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // If already published, url is ready
@@ -229,6 +231,79 @@ export function ShareModal({ title, shareToken, shareUrl, onPublishAndShare, onU
               {unpublishing ? '취소 중...' : '게시 취소'}
             </button>
           </div>
+
+          {/* Guide Me 웹사이트 삽입 */}
+          {url && (() => {
+            const token = shareToken ?? url.split('/').pop() ?? '';
+            const origin = typeof window !== 'undefined' ? window.location.origin : 'https://mimicflow.com';
+            const sdkSrc = `${origin}/sdk.js`;
+            const snippets: Record<typeof embedTab, string> = {
+              link: `<a href="${url}?mimic_guide=${token}" target="_blank">가이드 시작</a>`,
+              float: `<script src="${sdkSrc}" data-guide="${token}" data-float><\/script>`,
+              auto:  `<script src="${sdkSrc}" data-guide="${token}" data-auto><\/script>`,
+            };
+            const snippet = snippets[embedTab];
+            const copySnippet = () => {
+              navigator.clipboard.writeText(snippet).catch(() => {});
+              setSnippetCopied(true);
+              setTimeout(() => setSnippetCopied(false), 2000);
+            };
+            return (
+              <>
+                <div style={{ margin: '20px 0 14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Code2 size={13} style={{ color: '#6B7280', flexShrink: 0 }} />
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#374151' }}>웹사이트에 Guide Me 삽입</span>
+                </div>
+                {/* 탭 */}
+                <div style={{ display: 'flex', gap: '4px', marginBottom: '10px', background: '#F3F4F6', borderRadius: '8px', padding: '3px' }}>
+                  {(['link', 'float', 'auto'] as const).map(tab => (
+                    <button
+                      key={tab}
+                      onClick={() => setEmbedTab(tab)}
+                      style={{
+                        flex: 1, height: '28px', borderRadius: '6px', border: 'none', cursor: 'pointer',
+                        fontSize: '11.5px', fontWeight: embedTab === tab ? 600 : 400,
+                        background: embedTab === tab ? 'white' : 'transparent',
+                        color: embedTab === tab ? '#111827' : '#6B7280',
+                        boxShadow: embedTab === tab ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                        transition: 'all 0.12s',
+                      }}
+                    >
+                      {tab === 'link' ? '링크 버튼' : tab === 'float' ? '플로팅 버튼' : '자동 실행'}
+                    </button>
+                  ))}
+                </div>
+                {/* 설명 */}
+                <p style={{ fontSize: '11.5px', color: '#6B7280', margin: '0 0 8px', lineHeight: 1.5 }}>
+                  {embedTab === 'link' && '버튼 클릭 시 가이드 오버레이를 시작합니다.'}
+                  {embedTab === 'float' && '페이지 우하단에 ? 버튼이 표시됩니다. 클릭하면 가이드를 시작합니다.'}
+                  {embedTab === 'auto' && '페이지 로드 시 즉시 가이드를 시작합니다.'}
+                </p>
+                {/* 스니펫 + 복사 버튼 */}
+                <div style={{ position: 'relative', background: '#1E1E2E', borderRadius: '8px', overflow: 'hidden' }}>
+                  <pre style={{
+                    margin: 0, padding: '12px 14px', fontSize: '11px', lineHeight: 1.6,
+                    color: '#A5B4FC', fontFamily: 'ui-monospace, monospace',
+                    whiteSpace: 'pre-wrap', wordBreak: 'break-all', overflowX: 'auto',
+                  }}>{snippet}</pre>
+                  <button
+                    onClick={copySnippet}
+                    style={{
+                      position: 'absolute', top: '8px', right: '8px',
+                      height: '26px', padding: '0 10px', borderRadius: '6px', border: 'none',
+                      background: snippetCopied ? 'rgba(16,185,129,0.85)' : 'rgba(255,255,255,0.12)',
+                      color: 'white', fontSize: '11px', fontWeight: 500,
+                      cursor: 'pointer', transition: 'background 0.2s',
+                      display: 'flex', alignItems: 'center', gap: '4px',
+                    }}
+                  >
+                    {snippetCopied ? <Check size={11} /> : <></>}
+                    {snippetCopied ? '복사됨' : '복사'}
+                  </button>
+                </div>
+              </>
+            );
+          })()}
 
           {/* Divider */}
           <div style={{ margin: '20px 0', display: 'flex', alignItems: 'center', gap: '12px' }}>

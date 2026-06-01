@@ -3,8 +3,7 @@ import { createServiceRoleClient } from '@/lib/supabase/server';
 
 type Params = { params: Promise<{ token: string }> };
 
-export async function GET(request: NextRequest, { params }: Params) {
-  const { token } = await params;
+async function fetchTutorialData(token: string) {
   const supabase = createServiceRoleClient();
 
   const { data: tutorial, error } = await supabase
@@ -14,9 +13,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     .eq('status', 'published')
     .single();
 
-  if (error || !tutorial) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  }
+  if (error || !tutorial) return null;
 
   const { data: rawSteps } = await supabase
     .from('mm_steps')
@@ -33,13 +30,16 @@ export async function GET(request: NextRequest, { params }: Params) {
     supabase.from('mm_annotations').select('*').in('step_id', stepIds),
   ]);
 
-  // 플레이어가 기대하는 shape으로 정규화
   const normalizedSteps = steps.map((s, idx) => ({
     id: s.id,
     title: s.user_title ?? s.ai_title ?? `단계 ${idx + 1}`,
     caption: s.user_script ?? s.ai_description ?? '',
     screenshot_url: s.screenshot_url ?? null,
     order_index: s.order_index,
+    page_url: s.page_url ?? null,
+    element_selector: s.element_selector ?? null,
+    element_xpath: s.element_xpath ?? null,
+    crop_rect: s.crop_rect ?? null,
   }));
 
   const normalizedMarkers = (markersRes.data ?? []).map(m => ({
@@ -59,12 +59,51 @@ export async function GET(request: NextRequest, { params }: Params) {
     marker_index: idx,
   }));
 
-  return NextResponse.json({
-    id: tutorial.id,
-    title: tutorial.title,
-    steps: normalizedSteps,
-    markers: normalizedMarkers,
-    annotations: normalizedAnnotations,
-    audio_assets: audioRes.data ?? [],
-  });
+  return {
+    tutorial,
+    payload: {
+      id: tutorial.id,
+      title: tutorial.title,
+      steps: normalizedSteps,
+      markers: normalizedMarkers,
+      annotations: normalizedAnnotations,
+      audio_assets: audioRes.data ?? [],
+    },
+  };
+}
+
+// GET — returns { protected: true } if password-protected, full data otherwise
+export async function GET(_request: NextRequest, { params }: Params) {
+  const { token } = await params;
+  const result = await fetchTutorialData(token);
+
+  if (!result) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
+  if (result.tutorial.share_password) {
+    return NextResponse.json({ protected: true, title: result.tutorial.title });
+  }
+
+  return NextResponse.json(result.payload);
+}
+
+// POST — accepts { password } to unlock password-protected tutorials
+export async function POST(request: NextRequest, { params }: Params) {
+  const { token } = await params;
+  const body = await request.json().catch(() => ({}));
+  const { password } = body as { password?: string };
+
+  const result = await fetchTutorialData(token);
+  if (!result) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
+  if (result.tutorial.share_password) {
+    if (!password || password !== result.tutorial.share_password) {
+      return NextResponse.json({ error: 'Wrong password' }, { status: 401 });
+    }
+  }
+
+  return NextResponse.json(result.payload);
 }

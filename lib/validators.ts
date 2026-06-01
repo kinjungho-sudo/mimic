@@ -44,6 +44,7 @@ export const captureAnalyzeSchema = z.object({
   image: z.string().min(1),
   url: z.string().url(),
   actionInfo: actionInfoSchema,
+  mediaType: z.enum(['image/jpeg', 'image/png', 'image/webp', 'image/gif']).optional(),
 });
 
 export const captureSaveStepSchema = z.object({
@@ -58,6 +59,10 @@ export const captureSaveStepSchema = z.object({
   domain_hostname: z.string().max(200).optional().nullable(),
   domain_name:     z.string().max(200).optional().nullable(),
   domain_favicon:  z.string().max(500).optional().nullable(),
+  viewport_w:        z.number().int().positive().optional().nullable(),
+  viewport_h:        z.number().int().positive().optional().nullable(),
+  element_selector:  z.string().max(500).optional().nullable(),
+  element_xpath:     z.string().max(500).optional().nullable(),
 });
 
 export const tutorialPatchSchema = z.object({
@@ -69,6 +74,7 @@ export const tutorialPatchSchema = z.object({
   thumbnail_url: z.string().url().nullable().optional(),
   folder_id: z.string().uuid().nullable().optional(),
   workspace_id: z.string().uuid().nullable().optional(),
+  share_password: z.string().max(100).nullable().optional(),
 });
 
 export const generateScriptSchema = z.object({

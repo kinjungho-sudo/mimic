@@ -78,11 +78,56 @@ function FolderWsButton({ folderId, workspaces, onMove }: {
   );
 }
 
+// ── 삭제 확인 팝업 ────────────────────────────────────────
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function DeleteConfirmModal({ title, isTeam, onConfirm, onClose }: {
+  title: string;
+  isTeam: boolean;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 2000, display: 'grid', placeItems: 'center', background: 'rgba(10,10,15,0.5)', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}>
+      <div style={{ width: '100%', maxWidth: '380px', background: 'white', borderRadius: '16px', padding: '28px 24px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)', margin: '16px' }}
+        onClick={e => e.stopPropagation()}>
+        <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: '#FEF2F2', display: 'grid', placeItems: 'center', marginBottom: '16px' }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        </div>
+        <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#111827', margin: '0 0 8px' }}>매뉴얼을 삭제할까요?</h3>
+        <p style={{ fontSize: '13.5px', color: '#6B7280', margin: '0 0 6px', lineHeight: 1.5 }}>
+          <span style={{ fontWeight: 600, color: '#374151' }}>&ldquo;{title}&rdquo;</span>이 휴지통으로 이동됩니다.
+        </p>
+        {isTeam && (
+          <p style={{ fontSize: '12.5px', color: '#F59E0B', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '8px', padding: '8px 12px', margin: '10px 0 0' }}>
+            팀 매뉴얼입니다. 관리자 권한으로 삭제됩니다.
+          </p>
+        )}
+        <div style={{ display: 'flex', gap: '8px', marginTop: '20px' }}>
+          <button onClick={onClose}
+            style={{ flex: 1, height: '40px', borderRadius: '9px', border: '1px solid #E5E7EB', background: 'white', color: '#374151', fontSize: '13.5px', fontWeight: 500, cursor: 'pointer' }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#F9FAFB'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}>
+            취소
+          </button>
+          <button onClick={() => { onConfirm(); onClose(); }}
+            style={{ flex: 1, height: '40px', borderRadius: '9px', border: 'none', background: '#EF4444', color: 'white', fontSize: '13.5px', fontWeight: 600, cursor: 'pointer' }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#DC2626'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#EF4444'; }}>
+            휴지통으로 이동
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── 컨텍스트 메뉴 ──────────────────────────────────────────
 
 type CtxMenu = { x: number; y: number; tutorialId: string } | null;
 
-function ContextMenu({ menu, folders, tutorials, workspaces, onMove, onMoveToWorkspace, onDelete, onClose }: {
+function ContextMenu({ menu, folders, tutorials, workspaces, onMove, onMoveToWorkspace, onDelete, onClose, canDelete }: {
   menu: NonNullable<CtxMenu>;
   folders: Folder[];
   tutorials: Tutorial[];
@@ -91,6 +136,7 @@ function ContextMenu({ menu, folders, tutorials, workspaces, onMove, onMoveToWor
   onMoveToWorkspace: (tutorialId: string, workspaceId: string | null) => void;
   onDelete: (id: string) => void;
   onClose: () => void;
+  canDelete: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const tutorial = tutorials.find(t => t.id === menu.tutorialId);
@@ -219,24 +265,36 @@ function ContextMenu({ menu, folders, tutorials, workspaces, onMove, onMoveToWor
       <div style={{ height: '1px', background: '#F3F4F6', margin: '2px 4px' }} />
 
       {/* 삭제 */}
-      <button
-        style={{ ...itemStyle, color: '#EF4444' }}
-        onMouseEnter={e => (e.currentTarget.style.background = '#FEF2F2')}
-        onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-        onClick={() => { if (confirm('이 매뉴얼을 삭제할까요?')) { onDelete(menu.tutorialId); onClose(); } }}>
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
-        삭제
-      </button>
+      {canDelete ? (
+        <button
+          style={{ ...itemStyle, color: '#EF4444' }}
+          onMouseEnter={e => (e.currentTarget.style.background = '#FEF2F2')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+          onClick={() => { onDelete(menu.tutorialId); onClose(); }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+          휴지통으로 이동
+        </button>
+      ) : (
+        <button
+          disabled
+          style={{ ...itemStyle, color: '#D1D5DB', cursor: 'not-allowed' }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          삭제 (관리자 전용)
+        </button>
+      )}
     </div>
   );
 }
 
 // ── 튜토리얼 카드 ──────────────────────────────────────────
 
-function TutorialCard({ tutorial, onContextMenu, onTitleChange }: {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function TutorialCard({ tutorial, onContextMenu, onTitleChange, onDelete, canDelete }: {
   tutorial: Tutorial;
   onContextMenu: (e: React.MouseEvent, id: string) => void;
   onTitleChange: (id: string, title: string) => void;
+  onDelete: (id: string) => void;
+  canDelete: boolean;
 }) {
   const router = useRouter();
   const [hovered, setHovered] = useState(false);
@@ -320,6 +378,19 @@ function TutorialCard({ tutorial, onContextMenu, onTitleChange }: {
           {tutorial.status === 'published' && <span style={{ fontSize: '10px', fontWeight: 600, color: '#16A34A', background: '#DCFCE7', padding: '1px 5px', borderRadius: '999px', flexShrink: 0 }}>공유</span>}
         </div>
       </div>
+
+      {/* 삭제 버튼 (호버 시 노출) */}
+      {hovered && canDelete && (
+        <button
+          title="휴지통으로 이동"
+          onClick={e => { e.stopPropagation(); onDelete(tutorial.id); }}
+          style={{ width: '28px', height: '28px', borderRadius: '7px', border: 'none', background: 'transparent', color: '#D1D5DB', cursor: 'pointer', display: 'grid', placeItems: 'center', flexShrink: 0 }}
+          onMouseEnter={e => { e.currentTarget.style.background = '#FEE2E2'; e.currentTarget.style.color = '#EF4444'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#D1D5DB'; }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        </button>
+      )}
     </article>
   );
 }
@@ -388,6 +459,9 @@ export default function DashboardPage() {
   // 컨텍스트 메뉴
   const [ctxMenu, setCtxMenu] = useState<CtxMenu>(null);
 
+  // 삭제 확인 팝업
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string; isTeam: boolean } | null>(null);
+
   const newMenuRef = useRef<HTMLDivElement>(null);
 
   const loadTutorials = useCallback(async (workspaceId?: string) => {
@@ -447,12 +521,42 @@ export default function DashboardPage() {
     try {
       const tutorial = await createTutorial();
       router.push(`/manual/${tutorial.id}/editor`);
-    } catch { alert('생성 중 오류가 발생했습니다.'); setCreating(false); }
+    } catch {
+      alert('생성 중 오류가 발생했습니다.');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  // 삭제 버튼 클릭 → 팝업 열기 (권한 먼저 확인)
+  const handleDeleteRequest = (id: string) => {
+    const tutorial = tutorials.find(t => t.id === id);
+    if (!tutorial) return;
+    const isTeam = !!tutorial.workspace_id;
+    if (isTeam) {
+      const ws = workspaces.find(w => w.id === tutorial.workspace_id);
+      if (!ws || ws.my_role !== 'admin') {
+        alert('팀 매뉴얼은 관리자만 삭제할 수 있습니다.');
+        return;
+      }
+    }
+    setDeleteTarget({ id, title: tutorial.title, isTeam });
   };
 
   const handleRemove = async (id: string) => {
-    await fetch(`/api/tutorials/${id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/tutorials/${id}`, { method: 'DELETE' });
+    if (res.status === 403) {
+      alert('팀 매뉴얼은 관리자만 삭제할 수 있습니다.');
+      return;
+    }
     setTutorials(prev => prev.filter(t => t.id !== id));
+  };
+
+  // 현재 보고 있는 튜토리얼의 삭제 가능 여부
+  const canDeleteTutorial = (tutorial: Tutorial): boolean => {
+    if (!tutorial.workspace_id) return true;
+    const ws = workspaces.find(w => w.id === tutorial.workspace_id);
+    return !!ws && ws.my_role === 'admin';
   };
 
   const handleTitleChange = (id: string, title: string) => {
@@ -556,6 +660,14 @@ export default function DashboardPage() {
   return (
     <>
       {showRecordingModal && <RecordingModal onClose={() => setShowRecordingModal(false)} />}
+      {deleteTarget && (
+        <DeleteConfirmModal
+          title={deleteTarget.title}
+          isTeam={deleteTarget.isTeam}
+          onConfirm={() => handleRemove(deleteTarget.id)}
+          onClose={() => setDeleteTarget(null)}
+        />
+      )}
       {ctxMenu && (
         <ContextMenu
           menu={ctxMenu}
@@ -564,8 +676,9 @@ export default function DashboardPage() {
           workspaces={workspaces}
           onMove={handleMoveToFolder}
           onMoveToWorkspace={handleMoveToWorkspace}
-          onDelete={handleRemove}
+          onDelete={handleDeleteRequest}
           onClose={() => setCtxMenu(null)}
+          canDelete={canDeleteTutorial(tutorials.find(t => t.id === ctxMenu.tutorialId)!)}
         />
       )}
 
@@ -763,6 +876,15 @@ export default function DashboardPage() {
               )}
             </div>
 
+            {/* 휴지통 */}
+            <Link href="/trash"
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', borderRadius: '8px', fontSize: '13px', textDecoration: 'none', color: '#9CA3AF', marginTop: '8px' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = '#F3F4F6'; (e.currentTarget as HTMLAnchorElement).style.color = '#6B7280'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = 'transparent'; (e.currentTarget as HTMLAnchorElement).style.color = '#9CA3AF'; }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+              휴지통
+            </Link>
+
             {/* 사용량 */}
             {!authLoading && (
               <div style={{ marginTop: 'auto', padding: '12px 10px', borderRadius: '10px', background: '#F9FAFB', border: '1px solid #F3F4F6', marginBottom: '8px' }}>
@@ -908,7 +1030,14 @@ export default function DashboardPage() {
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
                   {displayedTutorials.map(t => (
-                    <TutorialCard key={t.id} tutorial={t} onContextMenu={handleContextMenu} onTitleChange={handleTitleChange} />
+                    <TutorialCard
+                      key={t.id}
+                      tutorial={t}
+                      onContextMenu={handleContextMenu}
+                      onTitleChange={handleTitleChange}
+                      onDelete={handleDeleteRequest}
+                      canDelete={canDeleteTutorial(t)}
+                    />
                   ))}
                 </div>
               )}

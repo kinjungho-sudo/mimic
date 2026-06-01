@@ -6,8 +6,10 @@ const required = [
   'OPENAI_API_KEY',
 ];
 
+const clean = (v: string | undefined) => v?.replace(/^﻿/, '').trim() ?? '';
+
 export function validateEnv() {
-  const missing = required.filter(key => !process.env[key]);
+  const missing = required.filter(key => !clean(process.env[key]));
   if (missing.length > 0) {
     throw new Error(`Missing required env vars: ${missing.join(', ')}`);
   }

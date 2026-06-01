@@ -45,119 +45,73 @@ type Tutorial = {
   audio_assets: AudioAsset[];
 };
 
-type SurveyState = {
-  ease: number;
-  reuse: number;
-  useful: number;
-  reproduce: boolean | null;
-  comment: string;
-};
+function PasswordGate({ protectedTitle, token, onUnlock }: { protectedTitle: string; token: string; onUnlock: (data: Tutorial) => void }) {
+  const [pw, setPw] = useState('');
+  const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-
-function StarRating({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  const [hovered, setHovered] = useState(0);
-  return (
-    <div style={{ display: 'inline-flex', gap: '4px' }}>
-      {[1,2,3,4,5].map(v => (
-        <button
-          key={v}
-          onClick={() => onChange(v)}
-          onMouseEnter={() => setHovered(v)}
-          onMouseLeave={() => setHovered(0)}
-          style={{
-            width: '32px', height: '32px', borderRadius: '6px',
-            display: 'grid', placeItems: 'center', fontSize: '18px', cursor: 'pointer',
-            background: (hovered || value) >= v ? 'rgba(245,158,11,0.16)' : '#F9FAFB',
-            color: (hovered || value) >= v ? '#F59E0B' : '#9CA3AF',
-            border: 'none', transition: 'all 0.15s ease',
-          }}
-        >★</button>
-      ))}
-    </div>
-  );
-}
-
-function SurveyModal({ tutorialId, viewerSessionId, onClose }: { tutorialId: string; viewerSessionId: string; onClose: () => void }) {
-  const [survey, setSurvey] = useState<SurveyState>({ ease: 0, reuse: 0, useful: 0, reproduce: null, comment: '' });
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleSubmit = async () => {
-    setSubmitting(true);
+  const submit = async () => {
+    if (!pw.trim()) return;
+    setLoading(true);
+    setError(false);
     try {
-      await fetch('/api/survey', {
+      const res = await fetch(`/api/play/${token}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tutorial_id: tutorialId,
-          viewer_session_id: viewerSessionId,
-          q1_easier_than_pdf: survey.ease || 3,
-          q2_would_use_again: survey.reuse || 3,
-          q3_useful_for_work: survey.useful || 3,
-          q4_can_reproduce: survey.reproduce ?? true,
-          q5_additional_feedback: survey.comment || undefined,
-        }),
+        body: JSON.stringify({ password: pw }),
       });
-    } catch {}
-    onClose();
+      if (!res.ok) { setError(true); return; }
+      const data = await res.json();
+      onUnlock(data);
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,15,0.78)', zIndex: 100, display: 'grid', placeItems: 'center', padding: '32px', backdropFilter: 'blur(8px)' }}>
-      <div style={{ width: '100%', maxWidth: '520px', background: 'white', color: '#111827', borderRadius: '18px', padding: '32px', boxShadow: '0 30px 80px rgba(0,0,0,0.5)', maxHeight: '90vh', overflowY: 'auto' }}>
-        {/* Head */}
-        <div style={{ marginBottom: '26px', textAlign: 'center' }}>
-          <div style={{ width: '64px', height: '64px', margin: '0 auto 16px', borderRadius: '16px', background: 'linear-gradient(135deg, #EEF2FF, #F5F3FF)', display: 'grid', placeItems: 'center', color: '#4F46E5' }}>
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M11 5.882V19.24a1.76 1.76 0 0 1-3.417.592l-2.147-6.15M18 13a3 3 0 1 0 0-6M5.436 13.683A4.001 4.001 0 0 1 7 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 0 1-1.564-.317z"/></svg>
+    <div style={{ position: 'fixed', inset: 0, background: '#0A0A0F', display: 'grid', placeItems: 'center', fontFamily: "'Pretendard', -apple-system, sans-serif" }}>
+      <div style={{ width: '100%', maxWidth: '380px', padding: '0 24px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <div style={{ width: '56px', height: '56px', borderRadius: '14px', background: 'rgba(79,70,229,0.15)', border: '1px solid rgba(79,70,229,0.3)', display: 'grid', placeItems: 'center', margin: '0 auto 20px', color: '#818CF8' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
           </div>
-          <h2 style={{ fontSize: '20px', fontWeight: 500, margin: '0 0 6px' }}>매뉴얼 어떠셨나요?</h2>
-          <p style={{ fontSize: '13px', color: '#6B7280', margin: 0 }}>5문항 · 30초면 끝나요. 다음 매뉴얼이 더 좋아질 거예요.</p>
+          <h1 style={{ fontSize: '18px', fontWeight: 600, color: 'white', margin: '0 0 8px' }}>{protectedTitle}</h1>
+          <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.45)', margin: 0 }}>이 매뉴얼은 비밀번호로 보호되어 있습니다.</p>
         </div>
 
-        {/* Q1 */}
-        <div style={{ marginBottom: '20px' }}>
-          <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '10px' }}>1. PDF보다 따라하기 쉬웠나요? <span style={{ fontSize: '11.5px', color: '#6B7280', fontWeight: 400 }}>(별점)</span></label>
-          <StarRating value={survey.ease} onChange={v => setSurvey(s => ({ ...s, ease: v }))} />
-        </div>
-
-        {/* Q2 */}
-        <div style={{ marginBottom: '20px' }}>
-          <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '10px' }}>2. 다시 사용할 의향이 있나요?</label>
-          <StarRating value={survey.reuse} onChange={v => setSurvey(s => ({ ...s, reuse: v }))} />
-        </div>
-
-        {/* Q3 */}
-        <div style={{ marginBottom: '20px' }}>
-          <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '10px' }}>3. 업무에 도움이 됐나요?</label>
-          <StarRating value={survey.useful} onChange={v => setSurvey(s => ({ ...s, useful: v }))} />
-        </div>
-
-        {/* Q4 */}
-        <div style={{ marginBottom: '20px' }}>
-          <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '10px' }}>4. 혼자 재현이 가능할 것 같나요?</label>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {[{ label: '네, 가능해요', value: true }, { label: '아니요', value: false }].map(opt => (
-              <button key={String(opt.value)} onClick={() => setSurvey(s => ({ ...s, reproduce: opt.value }))}
-                style={{ flex: 1, padding: '9px 12px', borderRadius: '8px', border: `1px solid ${survey.reproduce === opt.value ? '#4F46E5' : '#E5E7EB'}`, background: survey.reproduce === opt.value ? '#EEF2FF' : 'white', fontSize: '13px', color: survey.reproduce === opt.value ? '#4F46E5' : '#4B5563', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s ease' }}
-              >{opt.label}</button>
-            ))}
-          </div>
-        </div>
-
-        {/* Q5 */}
-        <div style={{ marginBottom: '24px' }}>
-          <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '10px' }}>5. 추가로 남기고 싶은 말씀이 있나요? <span style={{ fontSize: '11.5px', color: '#6B7280', fontWeight: 400 }}>(선택)</span></label>
-          <textarea value={survey.comment} onChange={e => setSurvey(s => ({ ...s, comment: e.target.value }))}
-            placeholder="자유롭게 의견을 남겨주세요. (예: 자막 속도, 음성 톤, 추가하면 좋을 기능 등)"
-            style={{ width: '100%', minHeight: '80px', padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontFamily: 'inherit', fontSize: '12.5px', lineHeight: 1.6, outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <input
+            type="password"
+            value={pw}
+            onChange={e => { setPw(e.target.value); setError(false); }}
+            onKeyDown={e => { if (e.key === 'Enter') submit(); }}
+            placeholder="비밀번호 입력"
+            autoFocus
+            style={{
+              width: '100%', height: '46px', padding: '0 16px',
+              background: 'rgba(255,255,255,0.06)', border: `1px solid ${error ? 'rgba(239,68,68,0.6)' : 'rgba(255,255,255,0.12)'}`,
+              borderRadius: '10px', color: 'white', fontSize: '14px', outline: 'none',
+              fontFamily: 'inherit', boxSizing: 'border-box', transition: 'border-color 0.15s',
+            }}
           />
-        </div>
-
-        {/* Footer */}
-        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', paddingTop: '16px', borderTop: '1px solid #F3F4F6' }}>
-          <button onClick={onClose} style={{ padding: '10px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: 500, color: '#6B7280', cursor: 'pointer', background: 'none', border: 'none' }}>건너뛰기</button>
-          <button onClick={handleSubmit} disabled={submitting}
-            style={{ padding: '10px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: 500, background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', border: 'none', cursor: submitting ? 'not-allowed' : 'pointer', boxShadow: '0 4px 12px rgba(79,70,229,0.25)', opacity: submitting ? 0.7 : 1 }}
-          >{submitting ? '제출 중...' : '제출하기'}</button>
+          {error && <p style={{ fontSize: '12px', color: '#F87171', margin: 0 }}>비밀번호가 틀렸습니다.</p>}
+          <button
+            onClick={submit}
+            disabled={loading || !pw.trim()}
+            style={{
+              height: '46px', borderRadius: '10px', border: 'none',
+              background: pw.trim() ? 'linear-gradient(135deg, #4F46E5, #7C3AED)' : 'rgba(255,255,255,0.08)',
+              color: pw.trim() ? 'white' : 'rgba(255,255,255,0.3)',
+              fontSize: '14px', fontWeight: 600, cursor: pw.trim() ? 'pointer' : 'not-allowed',
+              transition: 'all 0.15s', boxShadow: pw.trim() ? '0 4px 14px rgba(79,70,229,0.35)' : 'none',
+            }}
+          >
+            {loading ? '확인 중…' : '입장하기'}
+          </button>
         </div>
       </div>
     </div>
@@ -169,23 +123,28 @@ export default function PlayerPage({ params }: { params: { token: string } }) {
   const [tutorial, setTutorial] = useState<Tutorial | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [passwordRequired, setPasswordRequired] = useState(false);
+  const [protectedTitle, setProtectedTitle] = useState('');
   const [currentStep, setCurrentStep] = useState(0);
   const [showDesc, setShowDesc] = useState(true);
   const [showSidebar, setShowSidebar] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [showSurvey, setShowSurvey] = useState(false);
   const [speed, setSpeed] = useState('1.25x');
   const [isPlaying, setIsPlaying] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
   const playTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const viewerSessionId = useRef(crypto.randomUUID());
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     fetch(`/api/play/${token}`)
-      .then(r => r.ok ? r.json() : null)
+      .then(r => r.ok ? r.json() : Promise.reject())
       .then(data => {
-        if (!data) { setNotFound(true); setLoading(false); return; }
+        if (data.protected) {
+          setProtectedTitle(data.title ?? '');
+          setPasswordRequired(true);
+          setLoading(false);
+          return;
+        }
         setTutorial(data);
         setLoading(false);
       })
@@ -223,7 +182,6 @@ export default function PlayerPage({ params }: { params: { token: string } }) {
           if (s < tutorial.steps.length - 1) return s + 1;
           setIsPlaying(false);
           clearInterval(playTimerRef.current!);
-          setShowSurvey(true);
           return s;
         });
       }, 3000);
@@ -245,7 +203,7 @@ export default function PlayerPage({ params }: { params: { token: string } }) {
     );
   }
 
-  if (notFound || !tutorial) {
+  if (notFound) {
     return (
       <div style={{ position: 'fixed', inset: 0, background: '#0A0A0F', display: 'grid', placeItems: 'center', color: 'white' }}>
         <div style={{ textAlign: 'center' }}>
@@ -257,6 +215,12 @@ export default function PlayerPage({ params }: { params: { token: string } }) {
       </div>
     );
   }
+
+  if (passwordRequired && !tutorial) {
+    return <PasswordGate protectedTitle={protectedTitle} token={token} onUnlock={data => { setTutorial(data); setPasswordRequired(false); }} />;
+  }
+
+  if (!tutorial) return null;
 
   const step = tutorial.steps[currentStep] ?? null;
   const stepMarkers = step ? tutorial.markers.filter(m => m.step_id === step.id).sort((a, b) => a.order_index - b.order_index) : [];
@@ -290,7 +254,7 @@ export default function PlayerPage({ params }: { params: { token: string } }) {
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; }}
             >{btn.icon}</button>
           ))}
-          <button title="종료" onClick={() => setShowSurvey(true)}
+          <button title="종료" onClick={() => window.history.back()}
             style={{ width: '36px', height: '36px', borderRadius: '8px', display: 'grid', placeItems: 'center', color: 'rgba(255,255,255,0.7)', background: 'transparent', border: 'none', cursor: 'pointer', transition: 'all 0.18s ease' }}
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.10)'; e.currentTarget.style.color = 'white'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; }}
@@ -466,10 +430,6 @@ export default function PlayerPage({ params }: { params: { token: string } }) {
         </div>
       </div>
 
-      {/* Survey */}
-      {showSurvey && (
-        <SurveyModal tutorialId={tutorial.id} viewerSessionId={viewerSessionId.current} onClose={() => setShowSurvey(false)} />
-      )}
     </div>
   );
 }

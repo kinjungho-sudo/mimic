@@ -8,15 +8,15 @@ export async function DELETE(request: NextRequest) {
 
   const supabase = createServiceRoleClient();
 
-  // 사용자 데이터 삭제 (RLS bypass)
+  // Auth 계정 먼저 삭제 → 실패 시 DB 건드리지 않음
+  const { error: authError } = await supabase.auth.admin.deleteUser(auth.userId);
+  if (authError) {
+    return NextResponse.json({ error: authError.message }, { status: 500 });
+  }
+
+  // Auth 삭제 성공 후 DB 데이터 정리 (에러 무시 — cascade 또는 재시도 가능)
   await supabase.from('mm_tutorials').delete().eq('user_id', auth.userId);
   await supabase.from('mm_users').delete().eq('id', auth.userId);
-
-  // Supabase Auth 계정 삭제
-  const { error } = await supabase.auth.admin.deleteUser(auth.userId);
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
 
   return NextResponse.json({ success: true });
 }

@@ -63,6 +63,10 @@ export async function POST(request: NextRequest) {
       domain_hostname: d.domain_hostname ?? null,
       domain_name:     d.domain_name     ?? null,
       domain_favicon:  d.domain_favicon  ?? null,
+      viewport_w:        d.viewport_w        ?? null,
+      viewport_h:        d.viewport_h        ?? null,
+      element_selector:  d.element_selector  ?? null,
+      element_xpath:     d.element_xpath     ?? null,
     })
     .select('id')
     .single();

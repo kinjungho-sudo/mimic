@@ -26,10 +26,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Token expired' }, { status: 401 });
   }
 
-  await supabase
+  // used_at IS NULL 조건을 걸어 atomic하게 소각 — 동시 요청 시 하나만 성공
+  const { data: updated } = await supabase
     .from('mm_extension_tokens')
     .update({ used_at: new Date().toISOString() })
-    .eq('id', tokenRow.id);
+    .eq('id', tokenRow.id)
+    .is('used_at', null)
+    .select('id');
+
+  if (!updated || updated.length === 0) {
+    return NextResponse.json({ error: 'Token already used' }, { status: 401 });
+  }
 
   return NextResponse.json({ user_id: tokenRow.user_id });
 }

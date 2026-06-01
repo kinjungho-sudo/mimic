@@ -38,7 +38,16 @@ export async function POST(
     .single();
   if (!target) return NextResponse.json({ error: 'Tutorial not found' }, { status: 404 });
 
-  // 소스 튜토리얼 소유권 + 스텝 조회
+  // 소스 튜토리얼 소유권 확인
+  const { data: source } = await svc
+    .from('mm_tutorials')
+    .select('id')
+    .eq('id', sourceId)
+    .eq('user_id', userId)
+    .single();
+  if (!source) return NextResponse.json({ error: 'Source tutorial not found' }, { status: 404 });
+
+  // 소스 스텝 조회
   const { data: sourceSteps } = await svc
     .from('mm_steps')
     .select('*')

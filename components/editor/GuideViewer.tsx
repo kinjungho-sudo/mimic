@@ -259,7 +259,17 @@ function ViewerStepCard({ step, outputRatio }: { step: ManualStep; outputRatio: 
                 src={step.screenshotUrl}
                 alt={step.actionTitle}
                 draggable={false}
-                style={{ width: '100%', height: '100%', objectFit: 'fill', display: 'block', userSelect: 'none' }}
+                style={step.crop_rect ? {
+                  // 스마트 크롭: 전체 이미지를 컨테이너보다 크게 키운 뒤 crop 영역만 보이도록 이동
+                  position: 'absolute',
+                  width: `${100 / step.crop_rect.w}%`,
+                  height: `${100 / step.crop_rect.h}%`,
+                  left: `${-step.crop_rect.x / step.crop_rect.w * 100}%`,
+                  top: `${-step.crop_rect.y / step.crop_rect.h * 100}%`,
+                  display: 'block', userSelect: 'none',
+                } : {
+                  width: '100%', height: '100%', objectFit: 'fill', display: 'block', userSelect: 'none',
+                }}
               />
               {(step.annotations?.length ?? 0) > 0 && (
                 <AnnotationPreview annotations={step.annotations!} imageUrl={step.screenshotUrl!} />

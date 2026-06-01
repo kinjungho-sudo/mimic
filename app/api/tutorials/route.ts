@@ -16,10 +16,23 @@ export async function GET(request: NextRequest) {
     .order('updated_at', { ascending: false });
 
   if (workspaceId) {
+    // 워크스페이스 멤버십 확인
+    const { data: membership } = await supabase
+      .from('mm_workspace_members')
+      .select('id')
+      .eq('workspace_id', workspaceId)
+      .eq('user_id', auth.userId)
+      .single();
+    if (!membership) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     query = query.eq('workspace_id', workspaceId);
   } else {
     query = query.eq('user_id', auth.userId).is('workspace_id', null);
   }
+
+  // 삭제된 항목 제외
+  query = query.is('deleted_at', null);
 
   const { data, error } = await query;
 

@@ -1,4 +1,5 @@
-const SUPABASE_HOST = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).hostname
+const clean = (v: string | undefined) => v?.replace(/^﻿/, '').trim() ?? '';
+const SUPABASE_HOST = new URL(clean(process.env.NEXT_PUBLIC_SUPABASE_URL)).hostname
   .toLowerCase()
   .replace(/\.$/, '');
 
