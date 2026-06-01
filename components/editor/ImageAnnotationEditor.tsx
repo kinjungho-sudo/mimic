@@ -69,8 +69,10 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
   // ── Zoom / Pan ──
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
+  const panRef = useRef({ x: 0, y: 0 }); // always-current pan for wheel handler
   const panDragRef = useRef<{ startX: number; startY: number; origPanX: number; origPanY: number } | null>(null);
   const spaceHeldRef = useRef(false);
+  const [spaceHeld, setSpaceHeld] = useState(false);
 
   // Text editing overlay
   const [editingText, setEditingText] = useState<{ id: string } | null>(null);
@@ -112,6 +114,9 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
   }, [editingText]);
   useEffect(() => { commitTextRef.current = commitText; }, [commitText]);
 
+  // Keep panRef in sync so wheel handler always reads current pan
+  useEffect(() => { panRef.current = pan; }, [pan]);
+
   // ── Auto-zoom to focus point when image loads ──
   useEffect(() => {
     const img = imgRef.current;
@@ -146,17 +151,19 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
       const img = imgRef.current;
       if (!img) return;
       const rect = img.getBoundingClientRect();
-      const mx = e.clientX - rect.left; // mouse position relative to image (in screen px)
+      const mx = e.clientX - rect.left;
       const my = e.clientY - rect.top;
       const delta = e.deltaY > 0 ? 0.85 : 1 / 0.85;
       setZoom(prev => {
         const next = Math.max(0.5, Math.min(8, prev * delta));
-        // keep the point under cursor fixed
-        const _ratio = next / prev; void _ratio;
-        setPan(p => ({
-          x: mx / prev + p.x - mx / next,
-          y: my / prev + p.y - my / next,
-        }));
+        // Use panRef (always current) to avoid stale closure
+        const curPan = panRef.current;
+        const newPan = {
+          x: mx / prev + curPan.x - mx / next,
+          y: my / prev + curPan.y - my / next,
+        };
+        setPan(newPan);
+        panRef.current = newPan;
         return next;
       });
     };
@@ -166,8 +173,12 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
 
   // ── Space key → temporary pan mode ──
   useEffect(() => {
-    const down = (e: KeyboardEvent) => { if (e.code === 'Space' && !e.repeat) { spaceHeldRef.current = true; } };
-    const up = (e: KeyboardEvent) => { if (e.code === 'Space') { spaceHeldRef.current = false; } };
+    const down = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && !e.repeat) { spaceHeldRef.current = true; setSpaceHeld(true); }
+    };
+    const up = (e: KeyboardEvent) => {
+      if (e.code === 'Space') { spaceHeldRef.current = false; setSpaceHeld(false); }
+    };
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
     return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
@@ -452,7 +463,7 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
         style={{
           flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
           padding: '32px', overflow: 'hidden', position: 'relative',
-          cursor: (isPanMode || spaceHeldRef.current) ? (panDragRef.current ? 'grabbing' : 'grab') : cursor,
+          cursor: (isPanMode || spaceHeld) ? (panDragRef.current ? 'grabbing' : 'grab') : cursor,
         }}
         onMouseDown={e => { handleCanvasMouseDown(e); if (!isPanMode && !spaceHeldRef.current) handleMouseDown(e); }}
         onMouseMove={handleMouseMove}
