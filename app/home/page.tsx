@@ -7,7 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useTutorials } from '@/hooks/useTutorials';
 import { RecordingModal } from '@/components/dashboard/RecordingModal';
 import { createTutorial } from '@/lib/api/tutorials';
-import type { Tutorial } from '@/types';
+import type { Tutorial, Workspace } from '@/types';
 
 // ── 유틸 ──────────────────────────────────────────────────
 
@@ -255,6 +255,14 @@ export default function DashboardPage() {
   const [showRecordingModal, setShowRecordingModal] = useState(false);
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [creating, setCreating] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [showNewWsInput, setShowNewWsInput] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [newWsName, setNewWsName] = useState('');
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [creatingWs, setCreatingWs] = useState(false);
   const allManualsRef = useRef<HTMLElement>(null);
   const newMenuRef = useRef<HTMLDivElement>(null);
 
@@ -264,6 +272,31 @@ export default function DashboardPage() {
     document.addEventListener('visibilitychange', handler);
     return () => document.removeEventListener('visibilitychange', handler);
   }, [refresh]);
+
+  // 워크스페이스 목록 로드
+  useEffect(() => {
+    if (!user) return;
+    fetch('/api/workspaces').then(r => r.ok ? r.json() : []).then(setWorkspaces).catch(() => {});
+  }, [user]);
+
+  const handleCreateWorkspace = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newWsName.trim()) return;
+    setCreatingWs(true);
+    try {
+      const res = await fetch('/api/workspaces', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newWsName.trim() }),
+      });
+      if (res.ok) {
+        const ws = await res.json();
+        setWorkspaces(prev => [ws, ...prev]);
+        setNewWsName('');
+        setShowNewWsInput(false);
+      }
+    } finally { setCreatingWs(false); }
+  };
 
   const usedToday = user?.daily_manual_count ?? 0;
   const dailyLimit = user?.daily_limit ?? 3;
@@ -348,6 +381,62 @@ export default function DashboardPage() {
                 </Link>
               ))}
             </nav>
+
+            {/* 워크스페이스 */}
+            <div style={{ marginTop: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px', marginBottom: '6px' }}>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: '#9CA3AF', letterSpacing: '0.06em', textTransform: 'uppercase' }}>워크스페이스</span>
+                <button
+                  onClick={() => { setShowNewWsInput(v => !v); setNewWsName(''); }}
+                  style={{ width: '18px', height: '18px', borderRadius: '4px', border: 'none', background: 'transparent', color: '#9CA3AF', cursor: 'pointer', display: 'grid', placeItems: 'center', padding: 0 }}
+                  title="새 워크스페이스"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                </button>
+              </div>
+
+              {showNewWsInput && (
+                <form onSubmit={handleCreateWorkspace} style={{ padding: '0 10px', marginBottom: '6px', display: 'flex', gap: '4px' }}>
+                  <input
+                    autoFocus
+                    value={newWsName}
+                    onChange={e => setNewWsName(e.target.value)}
+                    placeholder="워크스페이스 이름"
+                    style={{ flex: 1, padding: '5px 8px', borderRadius: '7px', border: '1px solid #C7D2FE', fontSize: '12px', outline: 'none', fontFamily: 'inherit' }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={creatingWs || !newWsName.trim()}
+                    style={{ padding: '5px 8px', borderRadius: '7px', background: '#4F46E5', color: 'white', border: 'none', fontSize: '11px', fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}
+                  >
+                    {creatingWs ? '...' : '만들기'}
+                  </button>
+                </form>
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                {workspaces.length === 0 ? (
+                  <div style={{ padding: '6px 10px', fontSize: '12px', color: '#D1D5DB' }}>없음</div>
+                ) : workspaces.map(ws => (
+                  <Link
+                    key={ws.id}
+                    href={`/workspace/${ws.id}`}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', borderRadius: '8px',
+                      fontSize: '13px', textDecoration: 'none', color: '#4B5563',
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <div style={{ width: '20px', height: '20px', borderRadius: '5px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    </div>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{ws.name}</span>
+                    <span style={{ fontSize: '10.5px', color: '#9CA3AF', flexShrink: 0 }}>{ws.member_count ?? 0}명</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
 
             {/* 사용량 */}
             {!authLoading && (
