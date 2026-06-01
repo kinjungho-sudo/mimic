@@ -17,6 +17,41 @@ type ActionInfo = {
   text?: string;
 } | undefined;
 
+// input type 또는 필드 라벨이 민감정보에 해당하는지 판별
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const SENSITIVE_INPUT_TYPES = new Set(['password', 'tel', 'credit-card', 'card', 'cc']);
+const SENSITIVE_LABEL_PATTERNS = [
+  /비밀번호|패스워드|암호|password/i,
+  /카드\s*번호|card\s*number|카드번호/i,
+  /주민\s*등록|주민번호|resident|rrn|ssn|social.security/i,
+  /계좌\s*번호|account\s*number/i,
+  /개인\s*식별|identification|id\s*number|고유\s*번호/i,
+  /cvv|cvc|cvc2|보안코드|security\s*code/i,
+  /pin\b|핀\s*번호/i,
+  /otp|인증\s*번호|인증코드|verification\s*code/i,
+  /토큰|token|secret|api.?key/i,
+];
+
+function isSensitiveLabel(label: string | undefined): boolean {
+  if (!label) return false;
+  return SENSITIVE_LABEL_PATTERNS.some(re => re.test(label));
+}
+
+// href URL에서 민감 쿼리 파라미터(token, key, secret, code 등)를 제거하고 origin+path만 반환
+function sanitizeHref(href: string | undefined): string | undefined {
+  if (!href) return undefined;
+  try {
+    const url = new URL(href);
+    const SENSITIVE_PARAMS = ['token', 'key', 'secret', 'code', 'password', 'access_token',
+      'refresh_token', 'auth', 'api_key', 'apikey', 'session', 'sig', 'signature'];
+    SENSITIVE_PARAMS.forEach(p => url.searchParams.delete(p));
+    return url.origin + url.pathname;
+  } catch {
+    // 상대경로 등 파싱 불가 URL은 쿼리 제거 후 반환
+    return href.split('?')[0];
+  }
+}
+
 export async function analyzeScreenshot(
   base64Image: string,
   pageUrl: string,
@@ -26,21 +61,27 @@ export async function analyzeScreenshot(
   try { domain = new URL(pageUrl).hostname; } catch { domain = pageUrl; }
 
   // 행동 힌트 문자열 생성
+  // 규칙: text(실제 입력값)는 절대 포함 안 함, 민감 label도 포함 안 함, href는 쿼리 파라미터 제거
   let actionHint = '';
   if (actionInfo) {
-    const { type, label, href, text } = actionInfo;
-    if (type === 'type' && text)
-      actionHint = `\n사용자가 입력한 내용: "${text}"`;
-    else if (type === 'navigate' && label)
-      actionHint = `\n사용자가 "${label}" 링크를 클릭했습니다${href ? ` (목적지: ${href})` : ''}.`;
-    else if (type === 'toggle' && label)
-      actionHint = `\n사용자가 "${label}" 체크박스/라디오를 선택했습니다.`;
-    else if (type === 'select' && label)
-      actionHint = `\n사용자가 드롭다운에서 "${label}"을 선택했습니다.`;
-    else if (type === 'focus_input' && label)
-      actionHint = `\n사용자가 "${label}" 입력 필드를 클릭했습니다.`;
-    else if (label)
-      actionHint = `\n사용자가 "${label}" 버튼/요소를 클릭했습니다.`;
+    const { type, label, href } = actionInfo;
+    const safeLabel = isSensitiveLabel(label) ? undefined : label;
+    const safeHref = sanitizeHref(href);
+
+    if (type === 'type' && safeLabel)
+      actionHint = `\n사용자가 "${safeLabel}" 필드에 텍스트를 입력했습니다.`;
+    else if (type === 'type')
+      actionHint = `\n사용자가 입력 필드에 텍스트를 입력했습니다.`;
+    else if (type === 'navigate' && safeLabel)
+      actionHint = `\n사용자가 "${safeLabel}" 링크를 클릭했습니다${safeHref ? ` (목적지: ${safeHref})` : ''}.`;
+    else if (type === 'toggle' && safeLabel)
+      actionHint = `\n사용자가 "${safeLabel}" 체크박스/라디오를 선택했습니다.`;
+    else if (type === 'select' && safeLabel)
+      actionHint = `\n사용자가 드롭다운에서 "${safeLabel}"을 선택했습니다.`;
+    else if (type === 'focus_input' && safeLabel)
+      actionHint = `\n사용자가 "${safeLabel}" 입력 필드를 클릭했습니다.`;
+    else if (safeLabel)
+      actionHint = `\n사용자가 "${safeLabel}" 버튼/요소를 클릭했습니다.`;
   }
 
   const titleGuide = (() => {
