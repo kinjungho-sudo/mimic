@@ -5,7 +5,7 @@ import { X, Trash2, RotateCcw } from 'lucide-react';
 
 // ── Types ──────────────────────────────────────────────────
 
-type Tool = 'select' | 'arrow' | 'rect' | 'ellipse' | 'text' | 'highlight' | 'mosaic';
+type Tool = 'select' | 'pan' | 'arrow' | 'rect' | 'ellipse' | 'text' | 'highlight' | 'mosaic';
 type Color = string;
 // 8 resize handles for box shapes, 2 endpoint handles for arrows
 type Handle = 'tl'|'tc'|'tr'|'ml'|'mr'|'bl'|'bc'|'br'|'p1'|'p2';
@@ -25,6 +25,9 @@ interface ImageAnnotationEditorProps {
   annotations: Annotation[];
   onChange: (annotations: Annotation[]) => void;
   onClose: () => void;
+  // 0-100 pct: initial auto-zoom focus point (e.g. click position)
+  initialFocusX?: number;
+  initialFocusY?: number;
 }
 
 // ── Constants ──────────────────────────────────────────────
@@ -34,6 +37,7 @@ const STROKE_OPTIONS = [{ value: 0.3 }, { value: 0.5 }, { value: 0.9 }];
 
 const TOOL_CONFIG: Record<Tool, { label: string; icon: React.ReactNode }> = {
   select:    { label: '선택',    icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 3l14 9-7 1-4 7z"/></svg> },
+  pan:       { label: '이동',    icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M12 12v.01"/><path d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg> },
   arrow:     { label: '화살표',  icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="9 5 19 5 19 15"/></svg> },
   rect:      { label: '사각형',  icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg> },
   ellipse:   { label: '원',      icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><ellipse cx="12" cy="12" rx="10" ry="7"/></svg> },
@@ -54,13 +58,19 @@ function genId() { return Math.random().toString(36).slice(2, 9); }
 
 // ── Main Component ─────────────────────────────────────────
 
-export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose }: ImageAnnotationEditorProps) {
+export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose, initialFocusX = 50, initialFocusY = 50 }: ImageAnnotationEditorProps) {
   const [tool, setTool] = useState<Tool>('arrow');
   const [color, setColor] = useState<Color>('#EF4444');
   const [strokeIdx, setStrokeIdx] = useState(1);
   const [items, setItems] = useState<Annotation[]>(annotations);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawing, setDrawing] = useState<Partial<Annotation> | null>(null);
+
+  // ── Zoom / Pan ──
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const panDragRef = useRef<{ startX: number; startY: number; origPanX: number; origPanY: number } | null>(null);
+  const spaceHeldRef = useRef(false);
 
   // Text editing overlay
   const [editingText, setEditingText] = useState<{ id: string } | null>(null);
@@ -102,11 +112,97 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
   }, [editingText]);
   useEffect(() => { commitTextRef.current = commitText; }, [commitText]);
 
+  // ── Auto-zoom to focus point when image loads ──
+  useEffect(() => {
+    const img = imgRef.current;
+    if (!img) return;
+    const apply = () => {
+      const container = containerRef.current;
+      if (!container) return;
+      const cw = container.clientWidth, ch = container.clientHeight;
+      const iw = img.naturalWidth || img.clientWidth, ih = img.naturalHeight || img.clientHeight;
+      const renderedW = Math.min(900, cw - 64);
+      const scale = Math.min(renderedW / iw, (ch - 64) / ih);
+      const rw = iw * scale, rh = ih * scale;
+      const ZOOM = 2;
+      const focusPxX = (initialFocusX / 100) * rw;
+      const focusPxY = (initialFocusY / 100) * rh;
+      const px = (cw / 2 - focusPxX * ZOOM) / ZOOM;
+      const py = (ch / 2 - focusPxY * ZOOM) / ZOOM;
+      setZoom(ZOOM);
+      setPan({ x: px, y: py });
+    };
+    if (img.complete) apply();
+    else img.addEventListener('load', apply, { once: true });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Wheel zoom (always active, cursor-anchored) ──
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const img = imgRef.current;
+      if (!img) return;
+      const rect = img.getBoundingClientRect();
+      const mx = e.clientX - rect.left; // mouse position relative to image (in screen px)
+      const my = e.clientY - rect.top;
+      const delta = e.deltaY > 0 ? 0.85 : 1 / 0.85;
+      setZoom(prev => {
+        const next = Math.max(0.5, Math.min(8, prev * delta));
+        // keep the point under cursor fixed
+        const _ratio = next / prev; void _ratio;
+        setPan(p => ({
+          x: mx / prev + p.x - mx / next,
+          y: my / prev + p.y - my / next,
+        }));
+        return next;
+      });
+    };
+    container.addEventListener('wheel', onWheel, { passive: false });
+    return () => container.removeEventListener('wheel', onWheel);
+  }, []);
+
+  // ── Space key → temporary pan mode ──
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => { if (e.code === 'Space' && !e.repeat) { spaceHeldRef.current = true; } };
+    const up = (e: KeyboardEvent) => { if (e.code === 'Space') { spaceHeldRef.current = false; } };
+    window.addEventListener('keydown', down);
+    window.addEventListener('keyup', up);
+    return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
+  }, []);
+
+  // ── Pan drag (pan tool or space held) ──
+  const isPanMode = tool === 'pan';
+  const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
+    if (spaceHeldRef.current || isPanMode) {
+      e.preventDefault();
+      e.stopPropagation();
+      panDragRef.current = { startX: e.clientX, startY: e.clientY, origPanX: pan.x, origPanY: pan.y };
+      return;
+    }
+  }, [isPanMode, pan]);
+
+  useEffect(() => {
+    const move = (e: MouseEvent) => {
+      if (!panDragRef.current) return;
+      const dx = (e.clientX - panDragRef.current.startX) / zoom;
+      const dy = (e.clientY - panDragRef.current.startY) / zoom;
+      setPan({ x: panDragRef.current.origPanX + dx, y: panDragRef.current.origPanY + dy });
+    };
+    const up = () => { panDragRef.current = null; };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+    return () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
+  }, [zoom]);
+
   // ── Drawing ──
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('[data-text-editor]')) return;
     if (editingText) { commitTextRef.current(); return; }
     if (tool === 'select') { setSelectedId(null); return; }
+    if (tool === 'pan' || spaceHeldRef.current) return;
 
     e.preventDefault();
     setSelectedId(null);
@@ -310,6 +406,21 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
 
         <div style={{ flex: 1 }} />
 
+        {/* Zoom indicator + reset */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginRight: '8px' }}>
+          <button onClick={() => setZoom(z => Math.max(0.5, z / 1.3))}
+            style={{ width: '28px', height: '28px', borderRadius: '5px', border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: '16px', display: 'grid', placeItems: 'center' }}
+          >−</button>
+          <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
+            style={{ minWidth: '46px', height: '28px', borderRadius: '5px', border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: '11px', fontWeight: 600 }}
+          >{Math.round(zoom * 100)}%</button>
+          <button onClick={() => setZoom(z => Math.min(8, z * 1.3))}
+            style={{ width: '28px', height: '28px', borderRadius: '5px', border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: '16px', display: 'grid', placeItems: 'center' }}
+          >+</button>
+        </div>
+
+        <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.12)', marginRight: '8px' }} />
+
         <button onClick={() => setItems(prev => prev.slice(0, -1))}
           style={{ height: '34px', padding: '0 12px', borderRadius: '7px', border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(255,255,255,0.7)', fontSize: '12px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
           onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
@@ -338,11 +449,19 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
       {/* ── Canvas ── */}
       <div
         ref={containerRef}
-        style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px', overflow: 'auto', position: 'relative' }}
-        onMouseDown={handleMouseDown}
+        style={{
+          flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '32px', overflow: 'hidden', position: 'relative',
+          cursor: (isPanMode || spaceHeldRef.current) ? (panDragRef.current ? 'grabbing' : 'grab') : cursor,
+        }}
+        onMouseDown={e => { handleCanvasMouseDown(e); if (!isPanMode && !spaceHeldRef.current) handleMouseDown(e); }}
         onMouseMove={handleMouseMove}
       >
-        <div style={{ position: 'relative', display: 'inline-block', userSelect: 'none' }}>
+        <div style={{
+          position: 'relative', display: 'inline-block', userSelect: 'none',
+          transform: `scale(${zoom}) translate(${pan.x}px, ${pan.y}px)`,
+          transformOrigin: '0 0',
+        }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img ref={imgRef} src={imageUrl} alt="편집 중" draggable={false}
             style={{ display: 'block', maxWidth: 'min(900px, calc(100vw - 64px))', maxHeight: 'calc(100vh - 120px)', borderRadius: '6px' }}
@@ -423,8 +542,9 @@ export function ImageAnnotationEditor({ imageUrl, annotations, onChange, onClose
       <div style={{ height: '28px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', color: 'rgba(255,255,255,0.3)' }}>
         {tool === 'text' ? '클릭 후 텍스트 입력 · Enter 확정' :
          tool === 'select' ? '클릭으로 선택 · 드래그로 이동 · 핸들로 크기 조절 · Delete 삭제' :
+         tool === 'pan' ? '드래그로 화면 이동 · 스크롤로 확대/축소 · Space 누른 채 드래그도 가능' :
          tool === 'mosaic' ? '블러 처리할 영역을 드래그하세요' :
-         '클릭 후 드래그하여 그립니다'}
+         '클릭 후 드래그하여 그립니다 · 스크롤로 확대/축소 · Space+드래그로 이동'}
       </div>
     </div>
   );

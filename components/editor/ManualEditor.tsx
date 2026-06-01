@@ -18,6 +18,8 @@ export interface ManualStep {
   annotations?: Annotation[];
   domain_name?: string | null;
   domain_favicon?: string | null;
+  click_x?: number | null;   // 0-100 pct, for auto-zoom in annotation editor
+  click_y?: number | null;
 }
 
 interface ManualEditorProps {
@@ -177,6 +179,8 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
           <ImageAnnotationEditor
             imageUrl={step.screenshotUrl!}
             annotations={step.annotations ?? []}
+            initialFocusX={step.click_x ?? 50}
+            initialFocusY={step.click_y ?? 50}
             onChange={annotations => {
               updateStep(annotatingId, { annotations });
               onSave?.(annotatingId, { annotations });
