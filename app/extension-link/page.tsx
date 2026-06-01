@@ -2,23 +2,10 @@
 
 import { useRouter } from 'next/navigation';
 import { useExtensionLink } from '@/hooks/useExtensionLink';
+import { BrandMark } from '@/components/BrandMark';
 
 const EXTENSION_ID = process.env.NEXT_PUBLIC_EXTENSION_ID ?? '';
 const STORE_URL = `https://chromewebstore.google.com/detail/${EXTENSION_ID}`;
-
-function BrandMark() {
-  return (
-    <span style={{ width: '26px', height: '26px', borderRadius: '7px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-      <svg viewBox="0 0 24 24" fill="none" width="14" height="14">
-        <rect x="3.2" y="5.2" width="11" height="2.4" rx="1.2" fill="white" fillOpacity="0.5"/>
-        <rect x="3.2" y="10.8" width="14" height="2.4" rx="1.2" fill="white"/>
-        <rect x="3.2" y="16.4" width="8" height="2.4" rx="1.2" fill="white" fillOpacity="0.5"/>
-        <circle cx="18.7" cy="17.6" r="3.6" fill="white"/>
-        <path d="M17.6 16.1 L20.1 17.6 L17.6 19.1 Z" fill="#4F46E5"/>
-      </svg>
-    </span>
-  );
-}
 
 export default function ExtensionLinkPage() {
   const router = useRouter();

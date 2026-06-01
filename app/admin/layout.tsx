@@ -37,17 +37,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', minHeight: '100vh', fontFamily: "'Pretendard', 'Pretendard Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif", fontSize: '13.5px', color: '#111827' }}>
       <aside style={{ background: '#0F172A', borderRight: '1px solid #1E293B', padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: '4px', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px 16px', fontSize: '13px', fontWeight: 500, color: 'white' }}>
-          <span style={{ width: '22px', height: '22px', borderRadius: '6px', background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', display: 'grid', placeItems: 'center' }}>
-            <svg viewBox="0 0 24 24" fill="none" width="12" height="12">
-              <rect x="3.2" y="5.2" width="11" height="2.4" rx="1.2" fill="white" fillOpacity="0.5"/>
-              <rect x="3.2" y="10.8" width="14" height="2.4" rx="1.2" fill="white"/>
-              <rect x="3.2" y="16.4" width="8" height="2.4" rx="1.2" fill="white" fillOpacity="0.5"/>
-              <circle cx="18.7" cy="17.6" r="3.6" fill="white"/>
-              <path d="M17.6 16.1 L20.1 17.6 L17.6 19.1 Z" fill="#4F46E5"/>
-            </svg>
-          </span>
-          <span>MIMIC <span style={{ color: '#64748B', fontWeight: 400 }}>Admin</span></span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px 16px' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/mimic-logo.png" alt="MIMIC" style={{ height: '28px', width: 'auto', objectFit: 'contain' }} />
+          <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 400 }}>Admin</span>
         </div>
 
         <div style={{ padding: '10px 10px 6px', fontSize: '10.5px', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#475569', fontWeight: 500 }}>메뉴</div>

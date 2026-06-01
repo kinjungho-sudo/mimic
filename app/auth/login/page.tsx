@@ -4,24 +4,14 @@ import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signInWithGoogle, signInWithEmail } from '@/lib/auth-client';
-
-const BrandMark = () => (
-  <span style={{ width: '32px', height: '32px', borderRadius: '9px', background: 'rgba(255,255,255,0.20)', border: '1px solid rgba(255,255,255,0.30)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-    <svg viewBox="0 0 24 24" fill="none" width="16" height="16">
-      <rect x="3.2" y="5.2" width="11" height="2.4" rx="1.2" fill="white" fillOpacity="0.5"/>
-      <rect x="3.2" y="10.8" width="14" height="2.4" rx="1.2" fill="white"/>
-      <rect x="3.2" y="16.4" width="8" height="2.4" rx="1.2" fill="white" fillOpacity="0.5"/>
-      <circle cx="18.7" cy="17.6" r="3.6" fill="white"/>
-      <path d="M17.6 16.1 L20.1 17.6 L17.6 19.1 Z" fill="#4F46E5"/>
-    </svg>
-  </span>
-);
+import { BrandMark } from '@/components/BrandMark';
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get('next') ?? '/home';
   const signupSuccess = searchParams.get('signup') === 'success';
+  const resetSuccess = searchParams.get('reset') === 'success';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -132,7 +122,7 @@ function LoginForm() {
             <div style={{ marginBottom: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                 <label style={{ fontSize: '12.5px', fontWeight: 500, color: '#4B5563' }}>비밀번호</label>
-                <a href="#" style={{ fontSize: '11.5px', color: '#4F46E5', textDecoration: 'none' }}>비밀번호를 잊으셨나요?</a>
+                <Link href={`/auth/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ''}`} style={{ fontSize: '11.5px', color: '#4F46E5', textDecoration: 'none' }}>비밀번호를 잊으셨나요?</Link>
               </div>
               <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="비밀번호" required style={{ width: '100%', height: '40px', padding: '0 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '13.5px', outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.18s ease, box-shadow 0.18s ease' }}
                 onFocus={e => { e.currentTarget.style.borderColor = '#4F46E5'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(79,70,229,0.12)'; }}
@@ -141,7 +131,8 @@ function LoginForm() {
             </div>
 
             {signupSuccess && <p style={{ fontSize: '12.5px', color: '#15803D', margin: '0 0 12px', padding: '10px 12px', background: 'rgba(21,128,61,0.06)', borderRadius: '8px', border: '1px solid rgba(21,128,61,0.2)' }}>회원가입이 완료됐습니다. 이메일과 비밀번호로 로그인하세요.</p>}
-          {error && <p style={{ fontSize: '12.5px', color: '#DC2626', margin: '0 0 12px', padding: '10px 12px', background: 'rgba(220,38,38,0.06)', borderRadius: '8px', border: '1px solid rgba(220,38,38,0.2)' }}>{error}</p>}
+            {resetSuccess && <p style={{ fontSize: '12.5px', color: '#15803D', margin: '0 0 12px', padding: '10px 12px', background: 'rgba(21,128,61,0.06)', borderRadius: '8px', border: '1px solid rgba(21,128,61,0.2)' }}>비밀번호가 변경됐습니다. 새 비밀번호로 로그인하세요.</p>}
+            {error && <p style={{ fontSize: '12.5px', color: '#DC2626', margin: '0 0 12px', padding: '10px 12px', background: 'rgba(220,38,38,0.06)', borderRadius: '8px', border: '1px solid rgba(220,38,38,0.2)' }}>{error}</p>}
 
             <button type="submit" disabled={loading} style={{ width: '100%', height: '44px', borderRadius: '10px', background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', color: 'white', fontSize: '14px', fontWeight: 500, boxShadow: '0 4px 12px rgba(79,70,229,0.25)', cursor: loading ? 'not-allowed' : 'pointer', border: 'none', opacity: loading ? 0.7 : 1, transition: 'transform 0.18s ease, box-shadow 0.18s ease' }}
               onMouseEnter={e => { if (!loading) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 8px 18px rgba(79,70,229,0.32)'; } }}

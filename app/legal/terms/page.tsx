@@ -7,17 +7,9 @@ export default function TermsPage() {
     <div style={{ minHeight: '100vh', background: '#FAFAFA', fontFamily: "'Pretendard', -apple-system, sans-serif" }}>
       <header style={{ background: 'white', borderBottom: '1px solid #E5E7EB', padding: '0 24px' }}>
         <div style={{ maxWidth: '800px', margin: '0 auto', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Link href="/landingpage" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 500, color: '#111827', textDecoration: 'none' }}>
-            <span style={{ width: '24px', height: '24px', borderRadius: '6px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', display: 'grid', placeItems: 'center' }}>
-              <svg viewBox="0 0 24 24" fill="none" width="13" height="13">
-                <rect x="3.2" y="5.2" width="11" height="2.4" rx="1.2" fill="white" fillOpacity="0.5"/>
-                <rect x="3.2" y="10.8" width="14" height="2.4" rx="1.2" fill="white"/>
-                <rect x="3.2" y="16.4" width="8" height="2.4" rx="1.2" fill="white" fillOpacity="0.5"/>
-                <circle cx="18.7" cy="17.6" r="3.6" fill="white"/>
-                <path d="M17.6 16.1 L20.1 17.6 L17.6 19.1 Z" fill="#4F46E5"/>
-              </svg>
-            </span>
-            MIMIC
+          <Link href="/landingpage" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/mimic-logo.png" alt="MIMIC" style={{ height: '28px', width: 'auto', objectFit: 'contain' }} />
           </Link>
           <Link href="/auth/signup" style={{ fontSize: '13px', color: '#6B7280', textDecoration: 'none' }}>← 회원가입으로 돌아가기</Link>
         </div>

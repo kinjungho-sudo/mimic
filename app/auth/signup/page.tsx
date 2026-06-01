@@ -4,18 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { signInWithGoogle, signUpWithEmail } from '@/lib/auth-client';
-
-const BrandMark = () => (
-  <span style={{ width: '32px', height: '32px', borderRadius: '9px', background: 'rgba(255,255,255,0.20)', border: '1px solid rgba(255,255,255,0.30)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-    <svg viewBox="0 0 24 24" fill="none" width="16" height="16">
-      <rect x="3.2" y="5.2" width="11" height="2.4" rx="1.2" fill="white" fillOpacity="0.5"/>
-      <rect x="3.2" y="10.8" width="14" height="2.4" rx="1.2" fill="white"/>
-      <rect x="3.2" y="16.4" width="8" height="2.4" rx="1.2" fill="white" fillOpacity="0.5"/>
-      <circle cx="18.7" cy="17.6" r="3.6" fill="white"/>
-      <path d="M17.6 16.1 L20.1 17.6 L17.6 19.1 Z" fill="#4F46E5"/>
-    </svg>
-  </span>
-);
+import { BrandMark } from '@/components/BrandMark';
 
 function getPasswordStrength(pw: string): { level: number; label: string } {
   if (!pw) return { level: 0, label: '' };

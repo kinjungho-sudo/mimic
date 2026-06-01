@@ -82,11 +82,9 @@ export default function SettingsPage() {
       {/* Sidebar */}
       <aside style={{ width: '220px', flexShrink: 0, background: 'white', borderRight: '1px solid #F3F4F6', padding: '0 12px', display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: '100vh' }}>
         <div style={{ padding: '20px 8px 16px', borderBottom: '1px solid #F3F4F6', marginBottom: '8px' }}>
-          <Link href="/landingpage" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 600, color: '#111827', textDecoration: 'none' }}>
-            <span style={{ width: '26px', height: '26px', borderRadius: '7px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', display: 'grid', placeItems: 'center' }}>
-              <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><rect x="3.2" y="5.2" width="11" height="2.4" rx="1.2" fill="white" fillOpacity="0.5"/><rect x="3.2" y="10.8" width="14" height="2.4" rx="1.2" fill="white"/><rect x="3.2" y="16.4" width="8" height="2.4" rx="1.2" fill="white" fillOpacity="0.5"/><circle cx="18.7" cy="17.6" r="3.6" fill="white"/><path d="M17.6 16.1 L20.1 17.6 L17.6 19.1 Z" fill="#4F46E5"/></svg>
-            </span>
-            MIMIC
+          <Link href="/home" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/mimic-logo.png" alt="MIMIC" style={{ height: '32px', width: 'auto', objectFit: 'contain' }} />
           </Link>
         </div>
         <nav style={{ flex: 1 }}>

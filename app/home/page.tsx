@@ -31,18 +31,9 @@ function greeting(): string {
   return '안녕하세요';
 }
 
-// 매뉴얼 카드 썸네일 그라데이션 — 스크린샷 없을 때 폴백
-const THUMB_GRADIENTS = [
-  ['#667eea', '#764ba2'],
-  ['#4facfe', '#00f2fe'],
-  ['#43e97b', '#38f9d7'],
-  ['#fa709a', '#fee140'],
-  ['#a18cd1', '#fbc2eb'],
-  ['#f093fb', '#f5576c'],
-];
-function thumbColors(id: string) {
-  const n = id.charCodeAt(0) % THUMB_GRADIENTS.length;
-  return THUMB_GRADIENTS[n];
+const CARD_COLORS = ['#4F46E5', '#7C3AED', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444'];
+function cardColor(id: string) {
+  return CARD_COLORS[id.charCodeAt(0) % CARD_COLORS.length];
 }
 
 // ── 컴포넌트 ──────────────────────────────────────────────
@@ -73,30 +64,29 @@ function UpgradeBanner({ used, limit, isPro }: { used: number; limit: number; is
   );
 }
 
-function TutorialCard({ tutorial, onDelete, onTitleChange, author }: {
+function getDomain(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return null; }
+}
+
+function TutorialCard({ tutorial, onDelete, onTitleChange }: {
   tutorial: Tutorial;
   onDelete: (id: string) => void;
   onTitleChange: (id: string, title: string) => void;
-  author: { name: string; avatarUrl: string | null };
 }) {
   const router = useRouter();
   const [hovered, setHovered] = useState(false);
-  const [avatarError, setAvatarError] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(tutorial.title);
   const [savingTitle, setSavingTitle] = useState(false);
+  const [faviconError, setFaviconError] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
-  const fallbackColor = thumbColors(tutorial.id)[0];
-  const coverColor = tutorial.cover_color
-    ? tutorial.cover_color.split(',')[0].trim()
-    : fallbackColor;
-
+  const color = cardColor(tutorial.id);
   const stepCount = tutorial.step_count ?? 0;
   const dateStr = new Date(tutorial.updated_at).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\. /g, '.').replace(/\.$/, '');
-
-  const showAvatar = !!author.avatarUrl && !avatarError;
-  const authorInitial = author.name.charAt(0).toUpperCase() || '?';
+  const domain = getDomain(tutorial.first_page_url);
+  const faviconUrl = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=32` : null;
 
   const saveTitle = useCallback(async () => {
     const trimmed = titleDraft.trim();
@@ -126,100 +116,41 @@ function TutorialCard({ tutorial, onDelete, onTitleChange, author }: {
       onClick={() => { if (!editingTitle) router.push(`/manual/${tutorial.id}/editor`); }}
       style={{
         background: 'white',
-        borderRadius: '14px',
+        borderRadius: '12px',
         cursor: 'pointer',
-        border: '1px solid #E5E7EB',
-        boxShadow: hovered ? '0 6px 20px rgba(17,24,39,0.10)' : '0 1px 3px rgba(17,24,39,0.06)',
-        transition: 'box-shadow 0.18s, transform 0.18s',
-        transform: hovered ? 'translateY(-3px)' : 'none',
-        display: 'flex', flexDirection: 'column',
-        overflow: 'hidden',
+        border: `1px solid ${hovered ? '#C7D2FE' : '#E5E7EB'}`,
+        boxShadow: hovered ? '0 4px 16px rgba(79,70,229,0.08)' : '0 1px 3px rgba(17,24,39,0.05)',
+        transition: 'border-color 0.15s, box-shadow 0.15s',
+        display: 'flex', alignItems: 'center', gap: '14px',
+        padding: '14px 16px',
       }}
     >
-      {/* ── 썸네일 영역 (16:9) ── */}
-      <div style={{ position: 'relative', paddingTop: '56.25%', flexShrink: 0 }}>
-        {tutorial.thumbnail_url ? (
+      {/* 파비콘 또는 컬러 아이콘 */}
+      <div style={{
+        width: '40px', height: '40px', borderRadius: '10px', flexShrink: 0,
+        background: `${color}18`, display: 'grid', placeItems: 'center', overflow: 'hidden',
+      }}>
+        {faviconUrl && !faviconError ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={tutorial.thumbnail_url}
-            alt={tutorial.title}
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+            src={faviconUrl}
+            alt={domain ?? ''}
+            width={20} height={20}
+            onError={() => setFaviconError(true)}
+            style={{ width: '20px', height: '20px', objectFit: 'contain' }}
           />
         ) : (
-          /* 썸네일 없을 때: cover_color 배경 + 제목 중앙 정렬 */
-          <div style={{
-            position: 'absolute', inset: 0,
-            background: `linear-gradient(135deg, ${coverColor}ee 0%, ${coverColor}99 100%)`,
-            display: 'flex', flexDirection: 'column',
-            alignItems: 'center', justifyContent: 'center',
-            padding: '20px 18px', gap: '10px',
-          }}>
-            {/* 배경 장식 원 */}
-            <div style={{ position: 'absolute', right: '-18px', bottom: '-18px', width: '100px', height: '100px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', pointerEvents: 'none' }} />
-            <div style={{ position: 'absolute', left: '-10px', top: '-10px', width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(255,255,255,0.06)', pointerEvents: 'none' }} />
-            {/* 문서 아이콘 */}
-            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(255,255,255,0.18)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/>
-                <line x1="16" y1="13" x2="8" y2="13"/>
-                <line x1="16" y1="17" x2="8" y2="17"/>
-              </svg>
-            </div>
-            {/* 제목 */}
-            <div style={{
-              fontSize: '14px', fontWeight: 700, color: 'white', lineHeight: 1.45,
-              textAlign: 'center',
-              display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as const,
-              overflow: 'hidden',
-              textShadow: '0 1px 4px rgba(0,0,0,0.2)',
-              zIndex: 1,
-            }}>
-              {tutorial.title}
-            </div>
-          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
         )}
-
-        {/* 상태 뱃지 — 좌상단 */}
-        {tutorial.status === 'published' && (
-          <span style={{
-            position: 'absolute', top: '10px', left: '10px', zIndex: 2,
-            padding: '3px 8px', borderRadius: '6px', fontSize: '10.5px', fontWeight: 600,
-            background: 'rgba(22,163,74,0.9)', color: 'white', backdropFilter: 'blur(4px)',
-          }}>
-            공유
-          </span>
-        )}
-
-        {/* 단계 수 뱃지 — 우하단 */}
-        {stepCount > 0 && (
-          <span style={{
-            position: 'absolute', bottom: '10px', right: '10px', zIndex: 2,
-            padding: '3px 8px', borderRadius: '6px', fontSize: '10.5px', fontWeight: 500,
-            background: 'rgba(0,0,0,0.55)', color: 'white', backdropFilter: 'blur(4px)',
-          }}>
-            {stepCount} 단계
-          </span>
-        )}
-
-        {/* 삭제 버튼 — 호버 시 우상단 */}
-        <button
-          onClick={e => { e.stopPropagation(); if (confirm('이 매뉴얼을 삭제할까요?')) onDelete(tutorial.id); }}
-          style={{
-            position: 'absolute', top: '8px', right: '8px', zIndex: 3,
-            width: '28px', height: '28px', borderRadius: '8px',
-            background: 'rgba(0,0,0,0.45)', border: 'none', color: 'white',
-            display: 'grid', placeItems: 'center', cursor: 'pointer',
-            opacity: hovered ? 1 : 0, transition: 'opacity 0.15s',
-          }}
-        >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
-        </button>
       </div>
 
-      {/* ── 하단 정보 영역 ── */}
-      <div style={{ padding: '12px 14px 14px', display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
-        {/* 제목 */}
+      {/* 제목 + 메타 */}
+      <div style={{ flex: 1, minWidth: 0 }}>
         {editingTitle ? (
           <input
             ref={titleInputRef}
@@ -230,9 +161,9 @@ function TutorialCard({ tutorial, onDelete, onTitleChange, author }: {
             onClick={e => e.stopPropagation()}
             disabled={savingTitle}
             style={{
-              fontSize: '13.5px', fontWeight: 600, color: '#111827', lineHeight: 1.45,
+              fontSize: '14px', fontWeight: 600, color: '#111827',
               border: '1.5px solid #4F46E5', borderRadius: '6px',
-              padding: '4px 8px', outline: 'none', width: '100%', boxSizing: 'border-box',
+              padding: '2px 8px', outline: 'none', width: '100%', boxSizing: 'border-box',
               fontFamily: 'inherit',
             }}
           />
@@ -241,42 +172,45 @@ function TutorialCard({ tutorial, onDelete, onTitleChange, author }: {
             onClick={e => { e.stopPropagation(); setEditingTitle(true); }}
             title="클릭해서 제목 편집"
             style={{
-              fontSize: '13.5px', fontWeight: 600, color: '#111827', lineHeight: 1.5,
-              display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const,
-              overflow: 'hidden', cursor: 'text',
+              fontSize: '14px', fontWeight: 600, color: '#111827',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              cursor: 'text',
             }}
           >
             {tutorial.title}
           </div>
         )}
-
-        {/* 날짜 */}
-        <div style={{ fontSize: '11.5px', color: '#9CA3AF' }}>{dateStr}</div>
-
-        {/* 구분선 + 작성자 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', paddingTop: '6px', borderTop: '1px solid #F3F4F6' }}>
-          {showAvatar ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={author.avatarUrl!}
-              alt={author.name}
-              onError={() => setAvatarError(true)}
-              style={{ width: '20px', height: '20px', borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }}
-            />
-          ) : (
-            <div style={{
-              width: '20px', height: '20px', borderRadius: '50%', flexShrink: 0,
-              background: coverColor, display: 'grid', placeItems: 'center',
-              fontSize: '9px', fontWeight: 700, color: 'white',
-            }}>
-              {authorInitial}
-            </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+          {domain && (
+            <span style={{ fontSize: '11.5px', color: '#9CA3AF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '120px' }}>{domain}</span>
           )}
-          <span style={{ fontSize: '11.5px', color: '#6B7280', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {author.name}
-          </span>
+          {domain && <span style={{ width: '2px', height: '2px', borderRadius: '50%', background: '#D1D5DB', flexShrink: 0 }} />}
+          <span style={{ fontSize: '11.5px', color: '#9CA3AF', flexShrink: 0 }}>{dateStr}</span>
+          {stepCount > 0 && (
+            <>
+              <span style={{ width: '2px', height: '2px', borderRadius: '50%', background: '#D1D5DB', flexShrink: 0 }} />
+              <span style={{ fontSize: '11.5px', color: '#9CA3AF', flexShrink: 0 }}>{stepCount}단계</span>
+            </>
+          )}
+          {tutorial.status === 'published' && (
+            <span style={{ fontSize: '11px', fontWeight: 600, color: '#16A34A', background: '#DCFCE7', padding: '1px 7px', borderRadius: '999px', flexShrink: 0 }}>공유</span>
+          )}
         </div>
       </div>
+
+      {/* 삭제 버튼 */}
+      <button
+        onClick={e => { e.stopPropagation(); if (confirm('이 매뉴얼을 삭제할까요?')) onDelete(tutorial.id); }}
+        style={{
+          width: '28px', height: '28px', borderRadius: '8px', flexShrink: 0,
+          background: hovered ? '#FEE2E2' : 'transparent', border: 'none',
+          color: hovered ? '#EF4444' : '#D1D5DB',
+          display: 'grid', placeItems: 'center', cursor: 'pointer',
+          opacity: hovered ? 1 : 0, transition: 'opacity 0.15s, background 0.15s',
+        }}
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+      </button>
     </article>
   );
 }
@@ -389,17 +323,9 @@ export default function DashboardPage() {
             position: 'sticky', top: 0, height: '100vh', overflowY: 'auto',
           }}>
             {/* 로고 */}
-            <Link href="/home" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px 16px', fontSize: '14px', fontWeight: 700, textDecoration: 'none', color: '#111827', letterSpacing: '-0.02em' }}>
-              <span style={{ width: '26px', height: '26px', borderRadius: '7px', background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                <svg viewBox="0 0 24 24" fill="none" width="14" height="14">
-                  <rect x="3.2" y="5.2" width="11" height="2.4" rx="1.2" fill="white" fillOpacity="0.5"/>
-                  <rect x="3.2" y="10.8" width="14" height="2.4" rx="1.2" fill="white"/>
-                  <rect x="3.2" y="16.4" width="8" height="2.4" rx="1.2" fill="white" fillOpacity="0.5"/>
-                  <circle cx="18.7" cy="17.6" r="3.6" fill="white"/>
-                  <path d="M17.6 16.1 L20.1 17.6 L17.6 19.1 Z" fill="#4F46E5"/>
-                </svg>
-              </span>
-              MIMIC
+            <Link href="/home" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px 16px', textDecoration: 'none' }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/mimic-logo.png" alt="MIMIC" style={{ height: '36px', width: 'auto', objectFit: 'contain' }} />
             </Link>
 
             {/* 네비게이션 */}
@@ -423,8 +349,37 @@ export default function DashboardPage() {
               ))}
             </nav>
 
+            {/* 사용량 */}
+            {!authLoading && (
+              <div style={{ marginTop: 'auto', padding: '12px 10px', borderRadius: '10px', background: '#F9FAFB', border: '1px solid #F3F4F6', marginBottom: '8px' }}>
+                <div style={{ fontSize: '11px', color: '#9CA3AF', marginBottom: '8px', fontWeight: 500 }}>이번 달 사용량</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '12px', color: '#6B7280' }}>매뉴얼</span>
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#111827' }}>
+                    {usedToday}{isPro ? '' : ` / ${dailyLimit}`}
+                    {isPro && <span style={{ fontSize: '10px', color: '#10B981', marginLeft: '4px', fontWeight: 500 }}>무제한</span>}
+                  </span>
+                </div>
+                {!isPro && (
+                  <div style={{ height: '4px', borderRadius: '999px', background: '#E5E7EB', overflow: 'hidden' }}>
+                    <div style={{
+                      height: '100%', borderRadius: '999px',
+                      background: usedToday >= dailyLimit ? '#EF4444' : '#4F46E5',
+                      width: `${Math.min(100, (usedToday / dailyLimit) * 100)}%`,
+                      transition: 'width 0.3s',
+                    }} />
+                  </div>
+                )}
+                {!isPro && (
+                  <Link href="/mypage" style={{ display: 'block', marginTop: '10px', padding: '6px', borderRadius: '7px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', fontSize: '11.5px', fontWeight: 600, textDecoration: 'none', textAlign: 'center' }}>
+                    Pro로 업그레이드
+                  </Link>
+                )}
+              </div>
+            )}
+
             {/* 하단 유저 영역 */}
-            <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid #F3F4F6', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <div style={{ paddingTop: '16px', borderTop: '1px solid #F3F4F6', display: 'flex', flexDirection: 'column', gap: '2px' }}>
               <Link href="/mypage" style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '8px 10px', borderRadius: '8px', textDecoration: 'none', color: '#374151' }}>
                 {user?.avatar_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -465,13 +420,6 @@ export default function DashboardPage() {
               </div>
 
               <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                {/* 사용량 뱃지 */}
-                {!authLoading && (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '5px 10px', borderRadius: '999px', background: '#F9FAFB', border: '1px solid #E5E7EB', fontSize: '12px', color: '#4B5563' }}>
-                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: isPro ? '#10B981' : usedToday >= dailyLimit ? '#EF4444' : '#10B981', flexShrink: 0 }} />
-                    {isPro ? `오늘 ${usedToday}/∞` : `오늘 ${usedToday}/${dailyLimit}`}
-                  </span>
-                )}
                 {/* 새 매뉴얼 드롭다운 */}
                 <div ref={newMenuRef} style={{ position: 'relative' }}>
                   <button
@@ -547,8 +495,8 @@ export default function DashboardPage() {
                     <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: '#111827' }}>최근 작업</h2>
                     <button onClick={() => allManualsRef.current?.scrollIntoView({ behavior: 'smooth' })} style={{ fontSize: '12.5px', color: '#4F46E5', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}>전체 보기</button>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '20px' }}>
-                    {recentTutorials.map(t => <TutorialCard key={t.id} tutorial={t} onDelete={remove} onTitleChange={updateTitle} author={{ name: user?.name ?? '나', avatarUrl: user?.avatar_url ?? null }} />)}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {recentTutorials.map(t => <TutorialCard key={t.id} tutorial={t} onDelete={remove} onTitleChange={updateTitle} />)}
                   </div>
                 </section>
               )}
@@ -563,19 +511,13 @@ export default function DashboardPage() {
                 </div>
 
                 {tutLoading ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '20px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {[1, 2, 3].map(i => (
-                      <div key={i} style={{ borderRadius: '14px', background: 'white', border: '1px solid #E5E7EB', overflow: 'hidden' }}>
-                        <div style={{ paddingTop: '56.25%', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite' }} />
-                        <div style={{ padding: '12px 14px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          <div style={{ height: '13px', borderRadius: '6px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite' }} />
-                          <div style={{ height: '13px', width: '65%', borderRadius: '6px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite' }} />
-                          <div style={{ height: '11px', width: '40%', borderRadius: '6px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite' }} />
-                          <div style={{ height: '1px', background: '#F3F4F6' }} />
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite', flexShrink: 0 }} />
-                            <div style={{ height: '11px', width: '60px', borderRadius: '6px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite' }} />
-                          </div>
+                      <div key={i} style={{ borderRadius: '12px', background: 'white', border: '1px solid #E5E7EB', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+                        <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite', flexShrink: 0 }} />
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <div style={{ height: '14px', borderRadius: '6px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite' }} />
+                          <div style={{ height: '12px', width: '40%', borderRadius: '6px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite' }} />
                         </div>
                       </div>
                     ))}
@@ -583,8 +525,8 @@ export default function DashboardPage() {
                 ) : tutorials.length === 0 ? (
                   <EmptyState onRecord={handleNewManual} onBlank={handleCreateBlank} />
                 ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '20px' }}>
-                    {tutorials.map(t => <TutorialCard key={t.id} tutorial={t} onDelete={remove} onTitleChange={updateTitle} author={{ name: user?.name ?? '나', avatarUrl: user?.avatar_url ?? null }} />)}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {tutorials.map(t => <TutorialCard key={t.id} tutorial={t} onDelete={remove} onTitleChange={updateTitle} />)}
                   </div>
                 )}
               </section>

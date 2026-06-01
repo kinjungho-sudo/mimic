@@ -2,24 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
-
-const BrandMark = () => (
-  <span style={{
-    width: '28px', height: '28px', borderRadius: '8px',
-    background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
-    display: 'grid', placeItems: 'center',
-    boxShadow: '0 4px 10px rgba(79,70,229,0.32), inset 0 1px 0 rgba(255,255,255,0.2)',
-    flexShrink: 0,
-  }}>
-    <svg viewBox="0 0 24 24" fill="none" width="15" height="15">
-      <rect x="3.2" y="5.2" width="11" height="2.4" rx="1.2" fill="white" fillOpacity="0.5"/>
-      <rect x="3.2" y="10.8" width="14" height="2.4" rx="1.2" fill="white"/>
-      <rect x="3.2" y="16.4" width="8" height="2.4" rx="1.2" fill="white" fillOpacity="0.5"/>
-      <circle cx="18.7" cy="17.6" r="3.6" fill="white"/>
-      <path d="M17.6 16.1 L20.1 17.6 L17.6 19.1 Z" fill="#4F46E5"/>
-    </svg>
-  </span>
-);
+import { BrandMark } from '@/components/BrandMark';
 
 const CheckIcon = ({ size = 14, color = 'currentColor' }: { size?: number; color?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3">
