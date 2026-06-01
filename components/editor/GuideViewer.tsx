@@ -178,6 +178,34 @@ function ViewerStepCard({ step, outputRatio }: { step: ManualStep; outputRatio: 
   const paddingTop = RATIO_PADDING[outputRatio];
   const hasImage = !!step.screenshotUrl;
 
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const panRef = useRef({ x: 0, y: 0 });
+  const dragRef = useRef<{ startX: number; startY: number; panX: number; panY: number } | null>(null);
+
+  useEffect(() => { panRef.current = pan; }, [pan]);
+
+  const clampZoom = (z: number) => Math.min(4, Math.max(1, z));
+
+  const zoomIn  = () => setZoom(z => { const n = clampZoom(+(z + 0.5).toFixed(1)); if (n === 1) setPan({ x: 0, y: 0 }); return n; });
+  const zoomOut = () => setZoom(z => { const n = clampZoom(+(z - 0.5).toFixed(1)); if (n === 1) setPan({ x: 0, y: 0 }); return n; });
+  const resetZoom = () => { setZoom(1); setPan({ x: 0, y: 0 }); };
+
+  const onMouseDown = (e: React.MouseEvent) => {
+    if (zoom <= 1) return;
+    e.preventDefault();
+    dragRef.current = { startX: e.clientX, startY: e.clientY, panX: panRef.current.x, panY: panRef.current.y };
+    const onMove = (ev: MouseEvent) => {
+      if (!dragRef.current) return;
+      const newPan = { x: dragRef.current.panX + ev.clientX - dragRef.current.startX, y: dragRef.current.panY + ev.clientY - dragRef.current.startY };
+      setPan(newPan);
+      panRef.current = newPan;
+    };
+    const onUp = () => { dragRef.current = null; window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
+
   return (
     <div style={{
       background: 'white', borderRadius: '12px',
@@ -185,62 +213,75 @@ function ViewerStepCard({ step, outputRatio }: { step: ManualStep; outputRatio: 
       boxShadow: '0 1px 6px rgba(17,24,39,0.06)',
       overflow: 'hidden',
     }}>
-      {/* Screenshot — 상단 전체 너비, padding 없음 */}
-      {hasImage && (
-        <div style={{ position: 'relative', paddingTop, background: '#F3F4F6', borderBottom: '1px solid #E5E7EB' }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={step.screenshotUrl}
-            alt={step.actionTitle}
-            style={{
-              position: 'absolute', inset: 0,
-              width: '100%', height: '100%',
-              objectFit: 'fill',
-              display: 'block',
-            }}
-          />
-          {(step.annotations?.length ?? 0) > 0 && (
-            <AnnotationPreview annotations={step.annotations!} imageUrl={step.screenshotUrl!} />
-          )}
-          {/* 스텝 번호 배지 — 이미지 위 좌상단 */}
-          <div style={{
-            position: 'absolute', top: '12px', left: '12px',
-            width: '28px', height: '28px', borderRadius: '50%',
-            background: '#F59E0B', color: 'white',
-            fontSize: '12px', fontWeight: 700,
-            display: 'grid', placeItems: 'center',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.25)',
-          }}>
-            {String(step.number).padStart(2, '0')}
-          </div>
+      {/* 번호 + 제목 — 이미지 위 */}
+      <div style={{ padding: '14px 20px 12px', display: 'flex', alignItems: 'flex-start', gap: '10px', borderBottom: hasImage ? '1px solid #F3F4F6' : 'none' }}>
+        <div style={{
+          width: '28px', height: '28px', borderRadius: '8px', flexShrink: 0,
+          background: '#F59E0B', color: 'white',
+          fontSize: '12px', fontWeight: 700,
+          display: 'grid', placeItems: 'center', marginTop: '1px',
+        }}>
+          {String(step.number).padStart(2, '0')}
         </div>
-      )}
-
-      {/* 제목 + 설명 — 이미지 아래 */}
-      <div style={{ padding: hasImage ? '16px 20px 18px' : '20px 20px 18px', display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-        {/* 이미지 없을 때만 번호 배지를 텍스트 옆에 표시 */}
-        {!hasImage && (
-          <div style={{
-            width: '30px', height: '30px', borderRadius: '50%', flexShrink: 0,
-            background: '#F59E0B', color: 'white',
-            fontSize: '13px', fontWeight: 700,
-            display: 'grid', placeItems: 'center', marginTop: '1px',
-          }}>
-            {String(step.number).padStart(2, '0')}
-          </div>
-        )}
         <div style={{ flex: 1, minWidth: 0 }}>
           <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#111827', lineHeight: 1.45 }}>
             {step.actionTitle || <span style={{ color: '#9CA3AF', fontWeight: 400 }}>(제목 없음)</span>}
           </h3>
           {step.description && (
             <div
-              style={{ marginTop: '6px', fontSize: '13.5px', color: '#4B5563', lineHeight: 1.65 }}
+              style={{ marginTop: '5px', fontSize: '13.5px', color: '#4B5563', lineHeight: 1.65 }}
               dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(step.description, { USE_PROFILES: { html: true } }) }}
             />
           )}
         </div>
       </div>
+
+      {/* Screenshot with zoom/pan */}
+      {hasImage && (
+        <div style={{ position: 'relative', paddingTop, background: '#F3F4F6', overflow: 'hidden' }}>
+          {/* Image + annotations */}
+          <div
+            onMouseDown={onMouseDown}
+            style={{
+              position: 'absolute', inset: 0,
+              cursor: zoom > 1 ? 'grab' : 'default',
+              overflow: 'hidden',
+            }}
+          >
+            <div style={{
+              width: '100%', height: '100%',
+              transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`,
+              transformOrigin: 'center center',
+              transition: dragRef.current ? 'none' : 'transform 0.2s ease',
+            }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={step.screenshotUrl}
+                alt={step.actionTitle}
+                draggable={false}
+                style={{ width: '100%', height: '100%', objectFit: 'fill', display: 'block', userSelect: 'none' }}
+              />
+              {(step.annotations?.length ?? 0) > 0 && (
+                <AnnotationPreview annotations={step.annotations!} imageUrl={step.screenshotUrl!} />
+              )}
+            </div>
+          </div>
+
+          {/* Zoom controls */}
+          <div style={{
+            position: 'absolute', bottom: '10px', right: '10px',
+            display: 'flex', alignItems: 'center', gap: '2px',
+            background: 'rgba(20,20,30,0.72)', backdropFilter: 'blur(8px)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: '8px', padding: '3px',
+            zIndex: 5,
+          }}>
+            <button onClick={zoomOut} disabled={zoom <= 1} style={{ width: '26px', height: '26px', borderRadius: '5px', border: 'none', background: 'transparent', color: zoom <= 1 ? 'rgba(255,255,255,0.3)' : 'white', fontSize: '16px', cursor: zoom <= 1 ? 'not-allowed' : 'pointer', display: 'grid', placeItems: 'center', lineHeight: 1 }}>−</button>
+            <button onClick={resetZoom} style={{ height: '26px', padding: '0 6px', borderRadius: '5px', border: 'none', background: 'transparent', color: 'white', fontSize: '10.5px', fontWeight: 500, cursor: 'pointer', minWidth: '36px' }}>{Math.round(zoom * 100)}%</button>
+            <button onClick={zoomIn} disabled={zoom >= 4} style={{ width: '26px', height: '26px', borderRadius: '5px', border: 'none', background: 'transparent', color: zoom >= 4 ? 'rgba(255,255,255,0.3)' : 'white', fontSize: '16px', cursor: zoom >= 4 ? 'not-allowed' : 'pointer', display: 'grid', placeItems: 'center', lineHeight: 1 }}>+</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

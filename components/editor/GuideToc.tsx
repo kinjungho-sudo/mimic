@@ -129,8 +129,8 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onAdd
                 onMouseEnter={() => setHoverId(step.id)}
                 onMouseLeave={() => setHoverId(null)}
                 style={{
-                  padding: '8px 14px',
-                  display: 'flex', alignItems: 'flex-start', gap: '10px',
+                  padding: '7px 14px',
+                  display: 'flex', alignItems: 'center', gap: '8px',
                   cursor: 'grab',
                   background: isDragOver ? 'rgba(79,70,229,0.06)' : isActive ? '#EEF2FF' : isHover ? '#F9FAFB' : 'transparent',
                   borderLeft: `3px solid ${isActive || isDragOver ? '#4F46E5' : 'transparent'}`,
@@ -139,29 +139,15 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onAdd
                   position: 'relative',
                 }}
               >
-                {/* Thumbnail */}
+                {/* Step number badge */}
                 <div style={{
-                  width: '52px', height: '36px', borderRadius: '5px', flexShrink: 0,
-                  background: step.screenshotUrl ? `url(${step.screenshotUrl}) center/cover` : '#F3F4F6',
-                  border: `1px solid ${isActive ? '#C7D2FE' : '#E5E7EB'}`,
-                  overflow: 'hidden', position: 'relative',
+                  width: '22px', height: '22px', borderRadius: '6px', flexShrink: 0,
+                  background: isActive ? '#4F46E5' : '#E5E7EB',
+                  color: isActive ? 'white' : '#6B7280',
+                  fontSize: '10px', fontWeight: 700,
+                  display: 'grid', placeItems: 'center',
                 }}>
-                  {!step.screenshotUrl && (
-                    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', gap: '3px', padding: '5px' }}>
-                      {[70, 50, 60].map((w, i) => (
-                        <div key={i} style={{ height: '3px', width: `${w}%`, background: '#D1D5DB', borderRadius: '2px' }} />
-                      ))}
-                    </div>
-                  )}
-                  <div style={{
-                    position: 'absolute', bottom: '2px', left: '2px',
-                    width: '16px', height: '16px', borderRadius: '4px',
-                    background: isActive ? '#4F46E5' : '#6B7280',
-                    color: 'white', fontSize: '9px', fontWeight: 700,
-                    display: 'grid', placeItems: 'center',
-                  }}>
-                    {step.number}
-                  </div>
+                  {step.number}
                 </div>
 
                 {/* Title */}
