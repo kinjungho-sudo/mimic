@@ -279,23 +279,8 @@ export default function EditorPage() {
           </button>
         </div>
 
-        {/* TOC column header (240px) — shows title */}
-        <div style={{ width: '240px', flexShrink: 0, paddingLeft: '14px', paddingRight: '14px', borderLeft: '1px solid #E5E7EB', borderRight: '1px solid #E5E7EB', height: '100%', display: 'flex', alignItems: 'center' }}>
-          <input
-            value={title}
-            onChange={e => { setTitle(e.target.value); setTitleDirty(true); }}
-            style={{
-              fontSize: '13.5px', fontWeight: 600, color: '#111827',
-              background: 'transparent', border: 'none', outline: 'none',
-              width: '100%', cursor: 'text',
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            }}
-            placeholder="매뉴얼 제목"
-          />
-        </div>
-
         {/* Center: meta info */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', paddingLeft: '20px' }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', paddingLeft: '12px' }}>
           <span style={{ fontSize: '12px', color: '#9CA3AF' }}>{manualSteps.length}개 단계</span>
           {tutorial.status === 'published' && (
             <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '20px', background: 'rgba(16,185,129,0.1)', color: '#059669', fontWeight: 500 }}>
@@ -530,16 +515,36 @@ export default function EditorPage() {
         {/* Left app nav */}
         <AppSidebar />
 
-        {/* TOC panel */}
-        <GuideToc
-          steps={manualSteps}
-          activeId={activeId}
-          onSelect={setActiveId}
-          editable={editMode}
-          onReorder={setManualStepsWithHistory}
-          onAdd={handleAddStep}
-          onDelete={handleDeleteStep}
-        />
+        {/* TOC panel — 제목 + 목차 */}
+        <div style={{ width: '240px', flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid #E5E7EB', background: 'white', minHeight: 0 }}>
+          {/* 제목 입력 영역 */}
+          <div style={{ padding: '14px 16px 12px', borderBottom: '1px solid #F3F4F6', flexShrink: 0 }}>
+            <input
+              value={title}
+              onChange={e => { setTitle(e.target.value); setTitleDirty(true); }}
+              style={{
+                fontSize: '13.5px', fontWeight: 700, color: '#111827',
+                background: 'transparent', border: 'none', outline: 'none',
+                width: '100%', cursor: 'text', fontFamily: 'inherit',
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}
+              placeholder="매뉴얼 제목"
+            />
+            <div style={{ fontSize: '11.5px', color: '#9CA3AF', marginTop: '3px' }}>
+              {createdAt} 생성
+            </div>
+          </div>
+          {/* 목차 */}
+          <GuideToc
+            steps={manualSteps}
+            activeId={activeId}
+            onSelect={setActiveId}
+            editable={editMode}
+            onReorder={setManualStepsWithHistory}
+            onAdd={handleAddStep}
+            onDelete={handleDeleteStep}
+          />
+        </div>
 
         {/* Main content */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>

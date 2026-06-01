@@ -31,112 +31,170 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onAdd
     setDraggingId(null); setDragOverId(null);
   };
 
+  // 도메인별 그룹핑 — Tango 스타일
+  // domainHostname 기준으로 연속된 그룹을 계산
+  type DomainGroup = { hostname: string | null; name: string | null; favicon: string | null; count: number };
+  const domainGroups: DomainGroup[] = [];
+  steps.forEach(step => {
+    const last = domainGroups[domainGroups.length - 1];
+    if (last && last.hostname === (step.domainHostname ?? null)) {
+      last.count++;
+    } else {
+      domainGroups.push({ hostname: step.domainHostname ?? null, name: step.domainName ?? null, favicon: step.domainFavicon ?? null, count: 1 });
+    }
+  });
+
+  // 스텝 → 해당 도메인 그룹 인덱스 맵
+  const stepGroupIdx: number[] = [];
+  let gi = 0, cnt = 0;
+  steps.forEach(() => {
+    stepGroupIdx.push(gi);
+    cnt++;
+    if (cnt >= domainGroups[gi].count) { gi++; cnt = 0; }
+  });
+
   return (
     <aside style={{
-      width: '240px', flexShrink: 0,
-      background: 'white',
-      borderRight: '1px solid #E5E7EB',
+      flex: 1,
       display: 'flex', flexDirection: 'column',
       overflow: 'hidden',
+      minHeight: 0,
     }}>
-      {/* Header */}
+      {/* Header — 목차 레이블만 */}
       <div style={{
-        padding: '14px 16px 12px',
+        padding: '12px 16px 10px',
         borderBottom: '1px solid #F3F4F6',
         flexShrink: 0,
       }}>
         <div style={{ fontSize: '11px', fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.07em', textTransform: 'uppercase' }}>
           목차
         </div>
-        <div style={{ fontSize: '12px', color: '#6B7280', marginTop: '2px' }}>
-          {steps.length}개 단계
-        </div>
       </div>
 
-      {/* Steps */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
-        {steps.map(step => {
+      {/* Steps with domain section headers */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0 8px' }}>
+        {steps.map((step, idx) => {
           const isActive = step.id === activeId;
           const isDragOver = dragOverId === step.id && draggingId !== step.id;
           const isHover = hoverId === step.id;
 
+          // 이전 스텝과 도메인이 다를 때 섹션 헤더 표시
+          const prevGroup = idx > 0 ? stepGroupIdx[idx - 1] : -1;
+          const curGroup = stepGroupIdx[idx];
+          const showDomainHeader = curGroup !== prevGroup;
+          const group = domainGroups[curGroup];
+
           return (
-            <div
-              key={step.id}
-              draggable={editable}
-              onDragStart={() => handleDragStart(step.id)}
-              onDragOver={e => handleDragOver(e, step.id)}
-              onDrop={() => handleDrop(step.id)}
-              onDragEnd={() => { setDraggingId(null); setDragOverId(null); }}
-              onClick={() => onSelect(step.id)}
-              onMouseEnter={() => setHoverId(step.id)}
-              onMouseLeave={() => setHoverId(null)}
-              style={{
-                padding: '10px 14px',
-                display: 'flex', alignItems: 'flex-start', gap: '10px',
-                cursor: 'pointer',
-                background: isDragOver ? 'rgba(79,70,229,0.06)' : isActive ? '#EEF2FF' : isHover ? '#F9FAFB' : 'transparent',
-                borderLeft: `3px solid ${isActive || isDragOver ? '#4F46E5' : 'transparent'}`,
-                borderTop: isDragOver ? '2px solid #4F46E5' : '2px solid transparent',
-                transition: 'background 0.12s',
-                position: 'relative',
-              }}
-            >
-              {/* Thumbnail */}
-              <div style={{
-                width: '52px', height: '36px', borderRadius: '5px', flexShrink: 0,
-                background: step.screenshotUrl ? `url(${step.screenshotUrl}) center/cover` : '#F3F4F6',
-                border: `1px solid ${isActive ? '#C7D2FE' : '#E5E7EB'}`,
-                overflow: 'hidden', position: 'relative',
-              }}>
-                {!step.screenshotUrl && (
-                  <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', gap: '3px', padding: '5px' }}>
-                    {[70, 50, 60].map((w, i) => (
-                      <div key={i} style={{ height: '3px', width: `${w}%`, background: '#D1D5DB', borderRadius: '2px' }} />
-                    ))}
+            <div key={step.id}>
+              {/* 도메인 섹션 헤더 — Tango 스타일 */}
+              {showDomainHeader && group.hostname && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: `${idx === 0 ? '10px' : '14px'} 14px 6px`,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                    {group.favicon ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={group.favicon}
+                        alt=""
+                        width={14} height={14}
+                        style={{ borderRadius: '3px', flexShrink: 0 }}
+                        onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    ) : (
+                      <div style={{ width: '14px', height: '14px', borderRadius: '3px', background: '#E5E7EB', flexShrink: 0 }} />
+                    )}
+                    <span style={{
+                      fontSize: '11.5px', fontWeight: 700, color: '#374151',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>
+                      {group.name ?? group.hostname}
+                    </span>
                   </div>
-                )}
-                <div style={{
-                  position: 'absolute', bottom: '2px', left: '2px',
-                  width: '16px', height: '16px', borderRadius: '4px',
-                  background: isActive ? '#4F46E5' : '#6B7280',
-                  color: 'white', fontSize: '9px', fontWeight: 700,
-                  display: 'grid', placeItems: 'center',
-                }}>
-                  {step.number}
+                  <span style={{ fontSize: '10.5px', color: '#9CA3AF', flexShrink: 0, marginLeft: '6px' }}>
+                    {group.count} Steps
+                  </span>
                 </div>
-              </div>
-
-              {/* Title */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
-                  fontSize: '12px', fontWeight: isActive ? 600 : 400,
-                  color: isActive ? '#1E1B4B' : '#374151',
-                  lineHeight: 1.4,
-                  overflow: 'hidden', display: '-webkit-box',
-                  WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-                }}>
-                  {step.actionTitle || '(제목 없음)'}
-                </div>
-              </div>
-
-              {/* Delete button — shown on hover in edit mode */}
-              {editable && onDelete && isHover && (
-                <button
-                  onClick={e => { e.stopPropagation(); onDelete(step.id); }}
-                  title="삭제"
-                  style={{
-                    position: 'absolute', top: '6px', right: '6px',
-                    width: '20px', height: '20px', borderRadius: '4px',
-                    border: 'none', background: 'rgba(220,38,38,0.08)',
-                    color: '#DC2626', display: 'grid', placeItems: 'center', cursor: 'pointer',
-                  }}
-                >
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
-                  </svg>
-                </button>
               )}
+
+              {/* 스텝 아이템 */}
+              <div
+                draggable
+                onDragStart={() => handleDragStart(step.id)}
+                onDragOver={e => handleDragOver(e, step.id)}
+                onDrop={() => handleDrop(step.id)}
+                onDragEnd={() => { setDraggingId(null); setDragOverId(null); }}
+                onClick={() => onSelect(step.id)}
+                onMouseEnter={() => setHoverId(step.id)}
+                onMouseLeave={() => setHoverId(null)}
+                style={{
+                  padding: '8px 14px',
+                  display: 'flex', alignItems: 'flex-start', gap: '10px',
+                  cursor: 'grab',
+                  background: isDragOver ? 'rgba(79,70,229,0.06)' : isActive ? '#EEF2FF' : isHover ? '#F9FAFB' : 'transparent',
+                  borderLeft: `3px solid ${isActive || isDragOver ? '#4F46E5' : 'transparent'}`,
+                  borderTop: isDragOver ? '2px solid #4F46E5' : '2px solid transparent',
+                  transition: 'background 0.12s',
+                  position: 'relative',
+                }}
+              >
+                {/* Thumbnail */}
+                <div style={{
+                  width: '52px', height: '36px', borderRadius: '5px', flexShrink: 0,
+                  background: step.screenshotUrl ? `url(${step.screenshotUrl}) center/cover` : '#F3F4F6',
+                  border: `1px solid ${isActive ? '#C7D2FE' : '#E5E7EB'}`,
+                  overflow: 'hidden', position: 'relative',
+                }}>
+                  {!step.screenshotUrl && (
+                    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', gap: '3px', padding: '5px' }}>
+                      {[70, 50, 60].map((w, i) => (
+                        <div key={i} style={{ height: '3px', width: `${w}%`, background: '#D1D5DB', borderRadius: '2px' }} />
+                      ))}
+                    </div>
+                  )}
+                  <div style={{
+                    position: 'absolute', bottom: '2px', left: '2px',
+                    width: '16px', height: '16px', borderRadius: '4px',
+                    background: isActive ? '#4F46E5' : '#6B7280',
+                    color: 'white', fontSize: '9px', fontWeight: 700,
+                    display: 'grid', placeItems: 'center',
+                  }}>
+                    {step.number}
+                  </div>
+                </div>
+
+                {/* Title */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    fontSize: '12px', fontWeight: isActive ? 600 : 400,
+                    color: isActive ? '#1E1B4B' : '#374151',
+                    lineHeight: 1.4,
+                    overflow: 'hidden', display: '-webkit-box',
+                    WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                  }}>
+                    {step.actionTitle || '(제목 없음)'}
+                  </div>
+                </div>
+
+                {/* Delete button — shown on hover in edit mode */}
+                {editable && onDelete && isHover && (
+                  <button
+                    onClick={e => { e.stopPropagation(); onDelete(step.id); }}
+                    title="삭제"
+                    style={{
+                      position: 'absolute', top: '6px', right: '6px',
+                      width: '20px', height: '20px', borderRadius: '4px',
+                      border: 'none', background: 'rgba(220,38,38,0.08)',
+                      color: '#DC2626', display: 'grid', placeItems: 'center', cursor: 'pointer',
+                    }}
+                  >
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
+                    </svg>
+                  </button>
+                )}
+              </div>
             </div>
           );
         })}
