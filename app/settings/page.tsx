@@ -84,7 +84,7 @@ export default function SettingsPage() {
         <div style={{ padding: '20px 8px 16px', borderBottom: '1px solid #F3F4F6', marginBottom: '8px' }}>
           <Link href="/home" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/mimic-logo.png" alt="MIMIC" style={{ height: '32px', width: 'auto', objectFit: 'contain' }} />
+            <img src="/mimic-logo-2-2.png" alt="MIMIC" style={{ height: '32px', width: 'auto', objectFit: 'contain' }} />
           </Link>
         </div>
         <nav style={{ flex: 1 }}>

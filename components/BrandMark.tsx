@@ -2,7 +2,7 @@
 export function BrandMark({ size = 32 }: { size?: number }) {
   return (
     <img
-      src="/mimic-logo.png"
+      src="/mimic-logo-2-2.png"
       alt="MIMIC"
       width={size}
       height={size}

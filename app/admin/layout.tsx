@@ -39,7 +39,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <aside style={{ background: '#0F172A', borderRight: '1px solid #1E293B', padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: '4px', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px 16px' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/mimic-logo.png" alt="MIMIC" style={{ height: '28px', width: 'auto', objectFit: 'contain' }} />
+          <img src="/mimic-logo-2-2.png" alt="MIMIC" style={{ height: '28px', width: 'auto', objectFit: 'contain' }} />
           <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 400 }}>Admin</span>
         </div>
 

@@ -9,7 +9,7 @@ export default function TermsPage() {
         <div style={{ maxWidth: '800px', margin: '0 auto', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Link href="/landingpage" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/mimic-logo.png" alt="MIMIC" style={{ height: '28px', width: 'auto', objectFit: 'contain' }} />
+            <img src="/mimic-logo-2-2.png" alt="MIMIC" style={{ height: '28px', width: 'auto', objectFit: 'contain' }} />
           </Link>
           <Link href="/auth/signup" style={{ fontSize: '13px', color: '#6B7280', textDecoration: 'none' }}>← 회원가입으로 돌아가기</Link>
         </div>
