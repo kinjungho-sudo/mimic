@@ -26,6 +26,8 @@ export interface ManualStep {
   domain_favicon?: string | null;
   click_x?: number | null;   // 0-100 pct, for auto-zoom in annotation editor
   click_y?: number | null;
+  is_stale?: boolean;
+  crop_rect?: { x: number; y: number; w: number; h: number } | null;
 }
 
 interface ManualEditorProps {
@@ -497,23 +499,6 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
         position: 'relative',
       }}
     >
-      {/* Checkbox */}
-      <div
-        style={{ position: 'absolute', top: '10px', left: '10px', zIndex: 2 }}
-        onClick={e => { e.stopPropagation(); onToggleSelect(); }}
-      >
-        <div style={{
-          width: '18px', height: '18px', borderRadius: '5px',
-          border: `2px solid ${isSelected ? '#4F46E5' : '#D1D5DB'}`,
-          background: isSelected ? '#4F46E5' : 'white',
-          display: 'grid', placeItems: 'center',
-          cursor: 'pointer', transition: 'all 0.15s',
-          opacity: isSelected || hovering ? 1 : 0,
-        }}>
-          {isSelected && <Check size={11} color="white" strokeWidth={3} />}
-        </div>
-      </div>
-
       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
 
       {/* ── Text format toolbar (formatting only, no AI buttons) ── */}
@@ -528,6 +513,13 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
             <span style={{ fontSize: '15px', fontWeight: 700, color: '#F59E0B', flexShrink: 0, lineHeight: 1.4 }}>
               {String(step.number).padStart(2, '0')}.
             </span>
+            {step.is_stale && (
+              <span title="이 페이지의 UI가 변경되었을 수 있어요" style={{
+                fontSize: '10px', fontWeight: 600, padding: '1px 6px',
+                borderRadius: '20px', background: '#FEF3C7', color: '#D97706',
+                border: '1px solid #FDE68A', flexShrink: 0, cursor: 'default',
+              }}>업데이트 필요</span>
+            )}
             <input
               value={step.actionTitle}
               onChange={e => onUpdate({ actionTitle: e.target.value })}
@@ -573,7 +565,22 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
         </div>
 
         {/* Right action buttons */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', opacity: showControls ? 1 : 0, transition: 'opacity 0.18s ease', flexShrink: 0 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', opacity: showControls || isSelected ? 1 : 0, transition: 'opacity 0.18s ease', flexShrink: 0 }}>
+          {/* Checkbox — top of right column */}
+          <div
+            style={{ display: 'flex', justifyContent: 'center', marginBottom: '2px' }}
+            onClick={e => { e.stopPropagation(); onToggleSelect(); }}
+          >
+            <div style={{
+              width: '18px', height: '18px', borderRadius: '5px',
+              border: `2px solid ${isSelected ? '#4F46E5' : '#D1D5DB'}`,
+              background: isSelected ? '#4F46E5' : 'white',
+              display: 'grid', placeItems: 'center',
+              cursor: 'pointer', transition: 'all 0.15s',
+            }}>
+              {isSelected && <Check size={11} color="white" strokeWidth={3} />}
+            </div>
+          </div>
           {step.pageUrl && (
             <button
               title={step.pageUrl}
@@ -767,6 +774,18 @@ function ScreenshotArea({ step, onUploadClick, onDrop, onZoom, onAnnotate, onRem
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={step.screenshotUrl} alt={step.actionTitle} style={{ width: '100%', display: 'block' }} />
+
+      {/* 스마트 크롭 적용 뱃지 */}
+      {step.crop_rect && (
+        <div style={{
+          position: 'absolute', top: '8px', left: '8px',
+          fontSize: '10px', fontWeight: 600, padding: '2px 7px',
+          borderRadius: '20px', background: 'rgba(79,70,229,0.85)', color: 'white',
+          backdropFilter: 'blur(4px)', pointerEvents: 'none',
+        }}>
+          AI 크롭
+        </div>
+      )}
 
       {/* Annotation SVG overlay (read-only preview) */}
       {hasAnnotations && (

@@ -2,14 +2,14 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Share2, Check, Download, Pencil, Undo2, Settings, Video } from 'lucide-react';
+import { Share2, Check, Download, Pencil, Undo2, Redo2, Settings, PlayCircle, X } from 'lucide-react';
 import { GuideToc } from '@/components/editor/GuideToc';
 import { GuideViewer } from '@/components/editor/GuideViewer';
 import { ManualEditor, ManualStep } from '@/components/editor/ManualEditor';
 import { ShareModal } from '@/components/editor/ShareModal';
 import { useTutorial } from '@/hooks/useTutorial';
 import { useAutosave } from '@/hooks/useAutosave';
-import { updateStep } from '@/lib/api/steps';
+import { updateStep, createStep, deleteStep, reorderSteps } from '@/lib/api/steps';
 import type { Step, Tutorial } from '@/types';
 
 // ── Adapters ──────────────────────────────────────────────
@@ -26,9 +26,10 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
     domainHostname:  s.domain_hostname ?? null,
     domainName:      s.domain_name     ?? null,
     domainFavicon:   s.domain_favicon  ?? null,
-    // legacy fields kept for EditorDomainHeader in ManualEditor
     domain_name:    s.domain_name     ?? null,
     domain_favicon: s.domain_favicon  ?? null,
+    is_stale: (s as Step & { is_stale?: boolean }).is_stale ?? false,
+    crop_rect: (s as Step & { crop_rect?: { x: number; y: number; w: number; h: number } | null }).crop_rect ?? null,
   }));
 }
 
@@ -53,42 +54,66 @@ export default function EditorPage() {
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
   const [thumbnailUploading, setThumbnailUploading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [recording, setRecording] = useState(false);
+  const [sharePassword, setSharePassword] = useState('');
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [freshnessChecking, setFreshnessChecking] = useState(false);
+  const [freshnessResult, setFreshnessResult] = useState<{ checked: number; stale: number } | null>(null);
+  const [translateLang, setTranslateLang] = useState('en');
+  const [translating, setTranslating] = useState(false);
+  const [guideMePreviewUrl, setGuideMePreviewUrl] = useState<string | null>(null);
   const settingsRef = useRef<HTMLDivElement>(null);
   const thumbnailInputRef = useRef<HTMLInputElement>(null);
-  const mergePollerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
   const stepSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
-  // Undo history
-  const historyRef = useRef<ManualStep[][]>([]);
+  // Undo/Redo history
+  const undoRef = useRef<ManualStep[][]>([]);
+  const redoRef = useRef<ManualStep[][]>([]);
   const setManualStepsWithHistory = useCallback((next: ManualStep[]) => {
-    historyRef.current = [...historyRef.current.slice(-49), manualSteps];
+    undoRef.current = [...undoRef.current.slice(-49), manualSteps];
+    redoRef.current = [];
     setManualSteps(next);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [manualSteps]);
 
   const handleUndo = useCallback(() => {
-    if (historyRef.current.length === 0) return;
-    const prev = historyRef.current[historyRef.current.length - 1];
-    historyRef.current = historyRef.current.slice(0, -1);
+    if (undoRef.current.length === 0) return;
+    const prev = undoRef.current[undoRef.current.length - 1];
+    redoRef.current = [...redoRef.current, manualSteps];
+    undoRef.current = undoRef.current.slice(0, -1);
     setManualSteps(prev);
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [manualSteps]);
 
-  // Ctrl+Z shortcut (edit mode only, skip when typing)
+  const handleRedo = useCallback(() => {
+    if (redoRef.current.length === 0) return;
+    const next = redoRef.current[redoRef.current.length - 1];
+    undoRef.current = [...undoRef.current, manualSteps];
+    redoRef.current = redoRef.current.slice(0, -1);
+    setManualSteps(next);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [manualSteps]);
+
+  // Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y shortcuts (edit mode only, skip when typing)
   useEffect(() => {
     if (!editMode) return;
     const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
-        const active = document.activeElement;
-        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || (active as HTMLElement).isContentEditable)) return;
+      const ctrl = e.ctrlKey || e.metaKey;
+      if (!ctrl) return;
+      const active = document.activeElement;
+      const isTyping = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || (active as HTMLElement).isContentEditable);
+      if (e.key === 'z' && !e.shiftKey) {
+        if (isTyping) return;
         e.preventDefault();
         handleUndo();
+      } else if ((e.key === 'z' && e.shiftKey) || e.key === 'y') {
+        if (isTyping) return;
+        e.preventDefault();
+        handleRedo();
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [editMode, handleUndo]);
+  }, [editMode, handleUndo, handleRedo]);
 
   // Seed state from fetched tutorial
   useEffect(() => {
@@ -96,6 +121,7 @@ export default function EditorPage() {
     setTitle(tutorial.title);
     setOutputRatio(tutorial.output_ratio ?? '16:9');
     setThumbnailUrl(tutorial.thumbnail_url ?? null);
+    setSharePassword((tutorial as Tutorial & { share_password?: string }).share_password ?? '');
     const steps = stepsToManualSteps(tutorial.steps);
     setManualSteps(steps);
     if (tutorial.steps.length > 0 && !activeId) {
@@ -162,6 +188,57 @@ export default function EditorPage() {
     }
   }, [id]);
 
+  const handlePasswordSave = useCallback(async () => {
+    setPasswordSaving(true);
+    try {
+      await fetch(`/api/tutorials/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ share_password: sharePassword || null }),
+      });
+    } finally {
+      setPasswordSaving(false);
+    }
+  }, [id, sharePassword]);
+
+  const handleCheckFreshness = useCallback(async () => {
+    setFreshnessChecking(true);
+    setFreshnessResult(null);
+    try {
+      const res = await fetch(`/api/tutorials/${id}/check-freshness`, { method: 'POST' });
+      if (!res.ok) { alert('최신성 검사에 실패했습니다.'); return; }
+      const data = await res.json() as { checked: number; stale: number };
+      setFreshnessResult(data);
+      // stale 결과를 스텝에 반영하려면 페이지를 리로드하거나 데이터를 다시 가져와야 함
+      // 간단하게: stale > 0이면 알림 후 페이지 리로드
+      if (data.stale > 0) {
+        alert(`${data.checked}개 단계 중 ${data.stale}개에서 UI 변경이 감지되었습니다.\n"업데이트 필요" 뱃지를 확인하세요.`);
+        window.location.reload();
+      } else {
+        alert(`${data.checked}개 단계 모두 최신 상태입니다.`);
+      }
+    } finally {
+      setFreshnessChecking(false);
+    }
+  }, [id]);
+
+  const handleTranslate = useCallback(async () => {
+    setTranslating(true);
+    try {
+      const res = await fetch(`/api/tutorials/${id}/translate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lang: translateLang }),
+      });
+      if (!res.ok) { alert('번역에 실패했습니다.'); return; }
+      const data = await res.json() as { translated: number; cached?: number };
+      const total = data.translated + (data.cached ?? 0);
+      alert(`번역 완료! ${total}개 단계 (새로 번역: ${data.translated}개, 캐시: ${data.cached ?? 0}개)`);
+    } finally {
+      setTranslating(false);
+    }
+  }, [id, translateLang]);
+
   const handleRatioChange = useCallback(async (ratio: Tutorial['output_ratio']) => {
     setOutputRatio(ratio);
     setShowSettings(false);
@@ -203,85 +280,53 @@ export default function EditorPage() {
     }
   }, [publish]);
 
-  const handleAddRecording = useCallback(async () => {
-    const EXT_ID = process.env.NEXT_PUBLIC_EXTENSION_ID;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const cr = (window as any).chrome;
-    if (!EXT_ID || !cr?.runtime) {
-      alert('MIMIC Recorder 크롬 확장이 설치되어 있지 않습니다.\n확장을 설치한 후 다시 시도해주세요.');
-      return;
-    }
-
-    const recordingStartedAt = Date.now();
-
-    cr.runtime.sendMessage(EXT_ID, { action: 'GET_TABS' }, (res: { tabs?: { id: number; title: string; url: string }[] }) => {
-      const tabs = res?.tabs ?? [];
-      const eligible = tabs.filter((t: { url: string }) => t.url.startsWith('http'));
-      if (!eligible.length) {
-        alert('녹화 가능한 탭을 찾을 수 없습니다. 브라우저에서 웹페이지를 열어두세요.');
-        return;
-      }
-      const tabId = eligible[0].id;
-      cr.runtime.sendMessage(EXT_ID, { action: 'START_RECORDING', tabId }, (startRes: { ok?: boolean }) => {
-        if (!startRes?.ok) {
-          alert('녹화 시작에 실패했습니다. 확장 상태를 확인해주세요.');
-          return;
-        }
-        setRecording(true);
-        let attempts = 0;
-        const poll = setInterval(async () => {
-          attempts++;
-          if (attempts > 120) {
-            clearInterval(poll);
-            setRecording(false);
-            return;
-          }
-          try {
-            const res = await fetch('/api/tutorials');
-            if (!res.ok) return;
-            const tutorials = await res.json();
-            const newest = Array.isArray(tutorials) ? tutorials[0] : null;
-            if (newest && newest.id !== id && new Date(newest.created_at).getTime() > recordingStartedAt - 60_000) {
-              clearInterval(poll);
-              mergePollerRef.current = null;
-              setRecording(false);
-              const mergeRes = await fetch(`/api/tutorials/${id}/merge`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ source_tutorial_id: newest.id }),
-              });
-              if (!mergeRes.ok) {
-                alert('병합에 실패했습니다. 새로 생성된 매뉴얼에서 스텝을 수동으로 복사해주세요.');
-                return;
-              }
-              const { merged } = await mergeRes.json();
-              window.location.reload();
-              alert(`녹화 완료! ${merged}개 스텝이 추가되었습니다.`);
-            }
-          } catch { /* ignore */ }
-        }, 5000);
-        mergePollerRef.current = poll;
-      });
-    });
-  }, [id]);
-
   const handleDeleteStep = useCallback((stepId: string) => {
-    setManualStepsWithHistory(
-      manualSteps.filter(s => s.id !== stepId).map((s, i) => ({ ...s, number: i + 1 }))
-    );
-    if (activeId === stepId) setActiveId(manualSteps.find(s => s.id !== stepId)?.id ?? null);
+    const next = manualSteps.filter(s => s.id !== stepId).map((s, i) => ({ ...s, number: i + 1 }));
+    setManualStepsWithHistory(next);
+    if (activeId === stepId) setActiveId(next[0]?.id ?? null);
+    // DB 삭제 — 임시 ID(step-*)는 아직 DB에 없으므로 건너뜀
+    if (!stepId.startsWith('step-')) {
+      deleteStep(stepId).catch(() => {});
+    }
   }, [manualSteps, activeId, setManualStepsWithHistory]);
 
-  const handleAddStep = useCallback(() => {
-    const newStep: ManualStep = {
-      id: `step-${Date.now()}`,
-      number: manualSteps.length + 1,
-      actionTitle: '새 단계',
-      description: '',
-    };
-    setManualStepsWithHistory([...manualSteps, newStep]);
-    setActiveId(newStep.id);
-  }, [manualSteps, setManualStepsWithHistory]);
+  const handleAddStep = useCallback(async () => {
+    const stepNumber = manualSteps.length + 1;
+    const orderIndex = manualSteps.length;
+    // 낙관적 UI — 임시 ID로 먼저 추가
+    const tempId = `step-${Date.now()}`;
+    const optimistic: ManualStep = { id: tempId, number: stepNumber, actionTitle: '새 단계', description: '' };
+    setManualStepsWithHistory([...manualSteps, optimistic]);
+    setActiveId(tempId);
+    // DB INSERT 후 실제 ID로 교체
+    try {
+      const created = await createStep(id, orderIndex, stepNumber);
+      setManualSteps(prev => prev.map(s => s.id === tempId ? { ...s, id: created.id } : s));
+      setActiveId(created.id);
+    } catch {
+      // 실패해도 로컬 상태는 유지, 편집 완료 시 재저장
+    }
+  }, [manualSteps, setManualStepsWithHistory, id]);
+
+  const handleInsertAfter = useCallback(async (afterId: string) => {
+    const idx = manualSteps.findIndex(s => s.id === afterId);
+    if (idx === -1) return;
+    const stepNumber = idx + 2;
+    const orderIndex = idx + 1;
+    const tempId = `step-${Date.now()}`;
+    const next = [...manualSteps];
+    next.splice(idx + 1, 0, { id: tempId, number: stepNumber, actionTitle: '새 단계', description: '' });
+    setManualStepsWithHistory(next.map((s, i) => ({ ...s, number: i + 1 })));
+    setActiveId(tempId);
+    // DB INSERT 후 실제 ID로 교체
+    try {
+      const created = await createStep(id, orderIndex, stepNumber);
+      setManualSteps(prev => prev.map(s => s.id === tempId ? { ...s, id: created.id } : s));
+      setActiveId(created.id);
+    } catch {
+      // 실패해도 로컬 상태 유지
+    }
+  }, [manualSteps, setManualStepsWithHistory, id]);
 
   if (loading) {
     return (
@@ -363,45 +408,41 @@ export default function EditorPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
 
           {editMode ? (
-            /* ── 편집 모드: 녹화 추가 + 실행 취소 + 편집 완료 ── */
+            /* ── 편집 모드: 실행 취소 + 편집 완료 ── */
             <>
               <button
-                onClick={handleAddRecording}
-                disabled={recording}
-                title="녹화를 통해 스텝 추가"
-                style={{
-                  height: '32px', padding: '0 12px', borderRadius: '7px',
-                  fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px',
-                  color: recording ? '#DC2626' : '#374151',
-                  background: recording ? '#FEF2F2' : 'white',
-                  border: `1px solid ${recording ? '#FECACA' : '#E5E7EB'}`,
-                  cursor: recording ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.15s',
-                }}
-                onMouseEnter={e => { if (!recording) e.currentTarget.style.background = '#F9FAFB'; }}
-                onMouseLeave={e => { if (!recording) e.currentTarget.style.background = 'white'; }}
-              >
-                <Video size={13} />
-                {recording ? (
-                  <><span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#DC2626', display: 'inline-block', animation: 'pulse 1s ease-in-out infinite' }} /> 녹화 중…</>
-                ) : '녹화 추가'}
-              </button>
-              <button
                 onClick={handleUndo}
-                disabled={historyRef.current.length === 0}
+                disabled={undoRef.current.length === 0}
                 title="실행 취소 (Ctrl+Z)"
                 style={{
                   height: '32px', padding: '0 12px', borderRadius: '7px',
                   fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px',
-                  color: historyRef.current.length > 0 ? '#374151' : '#D1D5DB',
+                  color: undoRef.current.length > 0 ? '#374151' : '#D1D5DB',
                   background: 'white', border: '1px solid #E5E7EB',
-                  cursor: historyRef.current.length > 0 ? 'pointer' : 'not-allowed',
+                  cursor: undoRef.current.length > 0 ? 'pointer' : 'not-allowed',
                   transition: 'all 0.15s',
                 }}
-                onMouseEnter={e => { if (historyRef.current.length > 0) e.currentTarget.style.background = '#F9FAFB'; }}
+                onMouseEnter={e => { if (undoRef.current.length > 0) e.currentTarget.style.background = '#F9FAFB'; }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
               >
                 <Undo2 size={13} /> 실행 취소
+              </button>
+              <button
+                onClick={handleRedo}
+                disabled={redoRef.current.length === 0}
+                title="다시 실행 (Ctrl+Shift+Z)"
+                style={{
+                  height: '32px', padding: '0 12px', borderRadius: '7px',
+                  fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px',
+                  color: redoRef.current.length > 0 ? '#374151' : '#D1D5DB',
+                  background: 'white', border: '1px solid #E5E7EB',
+                  cursor: redoRef.current.length > 0 ? 'pointer' : 'not-allowed',
+                  transition: 'all 0.15s',
+                }}
+                onMouseEnter={e => { if (redoRef.current.length > 0) e.currentTarget.style.background = '#F9FAFB'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
+              >
+                <Redo2 size={13} /> 다시 실행
               </button>
 
               <button
@@ -543,6 +584,125 @@ export default function EditorPage() {
                         </button>
                       ))}
                     </div>
+
+                    {/* ── 구분선 ── */}
+                    <div style={{ height: '1px', background: '#F3F4F6', margin: '14px 0' }} />
+
+                    {/* ── 공유 비밀번호 ── */}
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: '#9CA3AF', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '10px' }}>
+                      공유 비밀번호
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <input
+                        type="password"
+                        value={sharePassword}
+                        onChange={e => setSharePassword(e.target.value)}
+                        placeholder="비밀번호 없음"
+                        style={{
+                          flex: 1, height: '32px', padding: '0 10px',
+                          border: '1px solid #E5E7EB', borderRadius: '7px',
+                          fontSize: '12px', color: '#111827', outline: 'none',
+                          fontFamily: 'inherit',
+                        }}
+                        onFocus={e => { e.currentTarget.style.borderColor = '#4F46E5'; }}
+                        onBlur={e => { e.currentTarget.style.borderColor = '#E5E7EB'; }}
+                      />
+                      <button
+                        onClick={handlePasswordSave}
+                        disabled={passwordSaving}
+                        style={{
+                          height: '32px', padding: '0 12px', borderRadius: '7px',
+                          border: 'none', background: '#4F46E5', color: 'white',
+                          fontSize: '12px', fontWeight: 500, cursor: passwordSaving ? 'not-allowed' : 'pointer',
+                          opacity: passwordSaving ? 0.6 : 1, whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {passwordSaving ? '저장 중' : '저장'}
+                      </button>
+                    </div>
+                    <p style={{ fontSize: '11px', color: '#9CA3AF', margin: '6px 0 0' }}>
+                      설정 시 뷰어 접근 시 비밀번호를 요구합니다. 비워두면 보호 해제.
+                    </p>
+
+                    {/* ── 구분선 ── */}
+                    <div style={{ height: '1px', background: '#F3F4F6', margin: '14px 0' }} />
+
+                    {/* ── 최신성 검사 ── */}
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: '#9CA3AF', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '10px' }}>
+                      가이드 최신성
+                    </div>
+                    <button
+                      onClick={handleCheckFreshness}
+                      disabled={freshnessChecking}
+                      style={{
+                        width: '100%', height: '34px', borderRadius: '7px',
+                        border: '1px solid #E5E7EB', background: freshnessChecking ? '#F9FAFB' : 'white',
+                        fontSize: '12px', fontWeight: 500, color: '#374151',
+                        cursor: freshnessChecking ? 'not-allowed' : 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                        opacity: freshnessChecking ? 0.7 : 1,
+                      }}
+                      onMouseEnter={e => { if (!freshnessChecking) e.currentTarget.style.background = '#F9FAFB'; }}
+                      onMouseLeave={e => { if (!freshnessChecking) e.currentTarget.style.background = 'white'; }}
+                    >
+                      {freshnessChecking ? '검사 중…' : '페이지 변경 감지 검사'}
+                    </button>
+                    {freshnessResult && (
+                      <p style={{ fontSize: '11px', color: '#6B7280', margin: '6px 0 0' }}>
+                        {freshnessResult.stale > 0
+                          ? `⚠️ ${freshnessResult.stale}개 단계 업데이트 필요`
+                          : `✓ ${freshnessResult.checked}개 단계 최신 상태`}
+                      </p>
+                    )}
+                    <p style={{ fontSize: '10.5px', color: '#9CA3AF', margin: '4px 0 0' }}>
+                      각 단계의 원본 페이지와 현재 UI를 비교합니다.
+                    </p>
+
+                    {/* ── 구분선 ── */}
+                    <div style={{ height: '1px', background: '#F3F4F6', margin: '14px 0' }} />
+
+                    {/* ── 다국어 번역 ── */}
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: '#9CA3AF', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '10px' }}>
+                      다국어 번역
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <select
+                        value={translateLang}
+                        onChange={e => setTranslateLang(e.target.value)}
+                        style={{
+                          flex: 1, height: '32px', padding: '0 8px',
+                          border: '1px solid #E5E7EB', borderRadius: '7px',
+                          fontSize: '12px', color: '#111827', background: 'white',
+                          outline: 'none', cursor: 'pointer',
+                        }}
+                      >
+                        <option value="en">English</option>
+                        <option value="ja">日本語</option>
+                        <option value="zh-CN">简体中文</option>
+                        <option value="es">Español</option>
+                        <option value="fr">Français</option>
+                        <option value="de">Deutsch</option>
+                        <option value="vi">Tiếng Việt</option>
+                        <option value="th">ภาษาไทย</option>
+                        <option value="id">Bahasa Indonesia</option>
+                      </select>
+                      <button
+                        onClick={handleTranslate}
+                        disabled={translating}
+                        style={{
+                          height: '32px', padding: '0 12px', borderRadius: '7px',
+                          border: 'none', background: '#4F46E5', color: 'white',
+                          fontSize: '12px', fontWeight: 500,
+                          cursor: translating ? 'not-allowed' : 'pointer',
+                          opacity: translating ? 0.6 : 1, whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {translating ? '번역 중…' : '번역'}
+                      </button>
+                    </div>
+                    <p style={{ fontSize: '10.5px', color: '#9CA3AF', margin: '6px 0 0' }}>
+                      Claude AI로 전체 단계를 번역합니다. 결과는 캐시됩니다.
+                    </p>
                   </div>
                 )}
               </div>
@@ -566,6 +726,23 @@ export default function EditorPage() {
               >
                 <Share2 size={13} /> 공유
               </button>
+
+              {/* Guide Me 미리보기 — page_url 있는 스텝이 있을 때만 표시 */}
+              {tutorial.share_token && manualSteps.some(s => s.pageUrl) && (
+                <button
+                  onClick={() => {
+                    const firstUrl = manualSteps.find(s => s.pageUrl)?.pageUrl;
+                    if (!firstUrl) return;
+                    setGuideMePreviewUrl(`${firstUrl}${firstUrl.includes('?') ? '&' : '?'}mimic_guide=${tutorial.share_token}`);
+                  }}
+                  title="실제 페이지에서 Guide Me 미리보기"
+                  style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#4F46E5', background: '#EEF2FF', border: '1px solid #C7D2FE', cursor: 'pointer', transition: 'all 0.15s' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#E0E7FF'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = '#EEF2FF'; }}
+                >
+                  <PlayCircle size={13} /> Guide Me
+                </button>
+              )}
 
               <button
                 onClick={() => setEditMode(true)}
@@ -603,9 +780,19 @@ export default function EditorPage() {
             activeId={activeId}
             onSelect={setActiveId}
             editable={editMode}
-            onReorder={setManualStepsWithHistory}
+            onReorder={(reordered) => {
+              setManualStepsWithHistory(reordered);
+              // DB order_index 일괄 저장 (임시 ID 제외)
+              const dbItems = reordered
+                .filter(s => !s.id.startsWith('step-'))
+                .map((s, i) => ({ id: s.id, order_index: i }));
+              if (dbItems.length > 0) {
+                reorderSteps(id, dbItems).catch(() => {});
+              }
+            }}
             onAdd={handleAddStep}
             onDelete={handleDeleteStep}
+            onInsertAfter={handleInsertAfter}
           />
         </div>
 
@@ -678,6 +865,60 @@ export default function EditorPage() {
           onUnpublish={unpublish}
           onClose={() => setShowShare(false)}
         />
+      )}
+
+      {/* Guide Me 미리보기 모달 */}
+      {guideMePreviewUrl && (
+        <>
+          <div
+            onClick={() => setGuideMePreviewUrl(null)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,15,0.6)', zIndex: 60, backdropFilter: 'blur(4px)' }}
+          />
+          <div style={{
+            position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
+            width: 'min(92vw, 1100px)', height: 'min(88vh, 700px)',
+            background: '#1E1E2E', borderRadius: '16px',
+            boxShadow: '0 30px 80px rgba(0,0,0,0.5)',
+            zIndex: 61, display: 'flex', flexDirection: 'column', overflow: 'hidden',
+          }}>
+            {/* iframe 헤더 */}
+            <div style={{
+              height: '44px', flexShrink: 0, display: 'flex', alignItems: 'center',
+              padding: '0 16px', gap: '10px', background: '#16161F',
+              borderBottom: '1px solid rgba(255,255,255,0.06)',
+            }}>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                {['#FF5F57','#FEBC2E','#28C840'].map((c, i) => (
+                  <div key={i} style={{ width: '12px', height: '12px', borderRadius: '50%', background: c }} />
+                ))}
+              </div>
+              <div style={{
+                flex: 1, height: '26px', background: 'rgba(255,255,255,0.06)',
+                borderRadius: '6px', display: 'flex', alignItems: 'center',
+                padding: '0 10px',
+              }}>
+                <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {guideMePreviewUrl}
+                </span>
+              </div>
+              <button
+                onClick={() => setGuideMePreviewUrl(null)}
+                style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', padding: '4px', lineHeight: 1 }}
+                onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.8)'; }}
+                onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.4)'; }}
+              >
+                <X size={15} />
+              </button>
+            </div>
+            {/* iframe */}
+            <iframe
+              src={guideMePreviewUrl}
+              style={{ flex: 1, border: 'none', display: 'block', background: 'white' }}
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+              title="Guide Me 미리보기"
+            />
+          </div>
+        </>
       )}
     </div>
   );
