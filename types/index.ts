@@ -41,8 +41,22 @@ export type Tutorial = {
   cover_color?: string | null;
   thumbnail_url?: string | null;
   first_page_url?: string | null;
+  folder_id?: string | null;
+  workspace_id?: string | null;
   // enriched by list API
   step_count?: number;
+};
+
+// ─────────────────────────────
+// Folder
+// ─────────────────────────────
+export type Folder = {
+  id: string;
+  user_id: string;
+  name: string;
+  color: string;
+  created_at: string;
+  updated_at: string;
 };
 
 export type TutorialDetail = Tutorial & {

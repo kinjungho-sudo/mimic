@@ -82,9 +82,10 @@ export default function SettingsPage() {
       {/* Sidebar */}
       <aside style={{ width: '220px', flexShrink: 0, background: 'white', borderRight: '1px solid #F3F4F6', padding: '0 12px', display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: '100vh' }}>
         <div style={{ padding: '20px 8px 16px', borderBottom: '1px solid #F3F4F6', marginBottom: '8px' }}>
-          <Link href="/home" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
+          <Link href="/home" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/mimic-logo-2-2.png" alt="MIMIC" style={{ height: '32px', width: 'auto', objectFit: 'contain' }} />
+            <img src="/mimic-logo-2-2.png" alt="MIMIC" style={{ height: '32px', width: '32px', objectFit: 'contain', flexShrink: 0 }} />
+            <span style={{ fontSize: '16px', fontWeight: 800, color: '#111827', letterSpacing: '-0.03em' }}>MIMIC</span>
           </Link>
         </div>
         <nav style={{ flex: 1 }}>

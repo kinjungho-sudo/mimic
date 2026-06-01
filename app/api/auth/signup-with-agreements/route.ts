@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { signupSchema } from '@/lib/validators';
 import { createServiceRoleClient } from '@/lib/supabase/server';
+import { sendWelcomeEmail } from '@/lib/email';
 
 const INVISIBLE = new Set([0x00AD, 0x200B, 0x200C, 0x200D, 0x200E, 0x200F, 0xFEFF]);
 
@@ -50,7 +51,12 @@ export async function POST(request: NextRequest) {
         },
       })
       .eq('id', data.user.id);
+
+    // 환영 이메일 발송 (실패해도 가입 자체는 성공 처리)
+    sendWelcomeEmail({ to: email, name }).catch(err =>
+      console.error('[signup] welcome email failed:', err)
+    );
   }
 
-  return NextResponse.json({ user: data.user });
+  return NextResponse.json({ ok: true });
 }

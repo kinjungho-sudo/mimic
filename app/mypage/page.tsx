@@ -133,9 +133,10 @@ export default function MyPage() {
 
       {/* Sidebar */}
       <aside style={{ background: '#FAFAFA', borderRight: '1px solid #F3F4F6', padding: '16px 12px', display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto' }}>
-        <Link href="/home" style={{ display: 'flex', alignItems: 'center', padding: '6px 10px 14px', textDecoration: 'none' }}>
+        <Link href="/home" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px 14px', textDecoration: 'none' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/mimic-logo-2-2.png" alt="MIMIC" style={{ height: '32px', width: 'auto', objectFit: 'contain' }} />
+          <img src="/mimic-logo-2-2.png" alt="MIMIC" style={{ height: '32px', width: '32px', objectFit: 'contain', flexShrink: 0 }} />
+          <span style={{ fontSize: '16px', fontWeight: 800, color: '#111827', letterSpacing: '-0.03em' }}>MIMIC</span>
         </Link>
 
         <div style={{ padding: '12px 10px 6px', fontSize: '10.5px', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#9CA3AF', fontWeight: 500 }}>메뉴</div>

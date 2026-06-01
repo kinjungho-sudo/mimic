@@ -31,11 +31,5 @@ export async function POST(request: NextRequest) {
     .update({ used_at: new Date().toISOString() })
     .eq('id', tokenRow.id);
 
-  const { data: user } = await supabase
-    .from('mm_users')
-    .select('id, email')
-    .eq('id', tokenRow.user_id)
-    .single();
-
-  return NextResponse.json({ user_id: tokenRow.user_id, email: user?.email ?? '' });
+  return NextResponse.json({ user_id: tokenRow.user_id });
 }

@@ -364,7 +364,8 @@ export default function DashboardPage() {
             {/* 로고 */}
             <Link href="/home" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px 16px', textDecoration: 'none' }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/mimic-logo-2-2.png" alt="MIMIC" style={{ height: '36px', width: 'auto', objectFit: 'contain' }} />
+              <img src="/mimic-logo-2-2.png" alt="MIMIC" style={{ height: '32px', width: '32px', objectFit: 'contain', flexShrink: 0 }} />
+              <span style={{ fontSize: '16px', fontWeight: 800, color: '#111827', letterSpacing: '-0.03em' }}>MIMIC</span>
             </Link>
 
             {/* 네비게이션 */}

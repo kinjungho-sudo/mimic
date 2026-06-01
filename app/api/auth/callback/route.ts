@@ -5,12 +5,19 @@ import { createServiceRoleClient } from '@/lib/supabase/server';
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
+  const type = searchParams.get('type');
   const rawNext = searchParams.get('next') ?? '/home';
   const next = (rawNext.startsWith('/') && !rawNext.startsWith('//') && !rawNext.startsWith('/\\')) ? rawNext : '/home';
 
   if (code) {
     const supabase = await createServerClient();
     const { data: sessionData, error } = await supabase.auth.exchangeCodeForSession(code);
+
+    // 비밀번호 재설정 콜백: 세션 교환 후 reset-password 페이지로 이동
+    if (type === 'recovery') {
+      if (error) return NextResponse.redirect(`${origin}/auth/forgot-password?error=link_expired`);
+      return NextResponse.redirect(`${origin}/auth/reset-password`);
+    }
 
     if (!error) {
       const user = sessionData?.user ?? null;
