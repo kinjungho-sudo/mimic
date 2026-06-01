@@ -69,18 +69,37 @@ export function AnnotationPreview({ annotations, imageUrl }: { annotations: Anno
         );
 
         if (type === 'arrow') {
-          const markerId = `arrow-${uid}-${a.id}`;
+          // % 좌표를 viewBox 없이 쓰려면 SVG가 100%×100%이므로 그대로 사용
+          // 화살촉을 삼각형으로 직접 계산 (% 단위)
+          const dx = x2 - x1, dy = y2 - y1;
+          const len = Math.sqrt(dx*dx + dy*dy);
+          if (len < 0.5) return null;
+          const ux = dx/len, uy = dy/len;
+          const headLen = sw * 8; // % 단위 화살촉 길이
+          const headW = headLen * 0.5;
+          const lx2 = x2 - ux*headLen*0.6, ly2 = y2 - uy*headLen*0.6;
+          const px = x2, py = y2;
+          const qx = x2 - ux*headLen + uy*headW, qy = y2 - uy*headLen - ux*headW;
+          const rx2 = x2 - ux*headLen - uy*headW, ry2 = y2 - uy*headLen + ux*headW;
           return (
             <g key={a.id}>
-              <defs><marker id={markerId} markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill={color} /></marker></defs>
-              <line x1={`${x1}%`} y1={`${y1}%`} x2={`${x2}%`} y2={`${y2}%`} stroke={color} strokeWidth={sw} markerEnd={`url(#${markerId})`} strokeLinecap="round" />
+              <line x1={`${x1}%`} y1={`${y1}%`} x2={`${lx2}%`} y2={`${ly2}%`}
+                stroke={color} strokeWidth={sw} strokeLinecap="round" />
+              <polygon points={`${px}%,${py}% ${qx}%,${qy}% ${rx2}%,${ry2}%`} fill={color} />
             </g>
           );
         }
 
-        if (type === 'text' && a.text) return (
-          <text key={a.id} x={`${x1}%`} y={`${y1}%`} fill={color} fontSize="1.8%" fontWeight="600" dominantBaseline="text-before-edge" stroke="rgba(0,0,0,0.5)" strokeWidth="0.3%" style={{ paintOrder: 'stroke' }}>{a.text}</text>
-        );
+        if (type === 'text' && a.text) {
+          const fSize = a.fontSize ? `${a.fontSize * 0.11}%` : '1.8%';
+          const fw = a.fontBold ? 700 : 400;
+          return (
+            <text key={a.id} x={`${x1}%`} y={`${y1}%`} fill={color}
+              fontSize={fSize} fontWeight={fw}
+              dominantBaseline="text-before-edge"
+            >{a.text}</text>
+          );
+        }
 
         if (type === 'marker') {
           return (

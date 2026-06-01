@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { X, Trash2, RotateCcw } from 'lucide-react';
+import { X, Trash2, RotateCcw, Bold } from 'lucide-react';
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -16,7 +16,9 @@ export interface Annotation {
   x2: number; y2: number;
   text?: string;
   color: Color;
-  strokeWidth: number;
+  strokeWidth: number;   // % of image width — for shapes/arrows
+  fontSize?: number;     // px — for text annotations
+  fontBold?: boolean;    // bold text
   markerNumber?: number;
 }
 
@@ -32,9 +34,16 @@ interface ImageAnnotationEditorProps {
 // ── Constants ──────────────────────────────────────────────
 
 const COLORS = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#111827'];
-const STROKE_OPTIONS = [{ value: 0.3 }, { value: 0.5 }, { value: 0.9 }];
 
-// Group A: 이미지 변환 / Group B: 그리기 도구
+// strokeWidth as % of image width
+const STROKE_OPTIONS = [
+  { value: 0.25, label: 'S' },
+  { value: 0.5,  label: 'M' },
+  { value: 0.9,  label: 'L' },
+];
+
+const FONT_SIZES = [12, 14, 16, 18, 22, 28, 36];
+
 const TOOL_GROUPS: { tools: Tool[] }[] = [
   { tools: ['crop', 'mosaic', 'eraser'] },
   { tools: ['select', 'ellipse', 'rect', 'arrow', 'text', 'marker', 'spotlight'] },
@@ -95,39 +104,33 @@ const HANDLE_CURSOR: Record<Handle, string> = {
   p1: 'crosshair', p2: 'crosshair',
 };
 
+// 도형 완성 후 자동으로 select로 돌아오는 툴
+const SHAPE_TOOLS: Tool[] = ['ellipse', 'rect', 'arrow', 'mosaic', 'spotlight'];
+
 function genId() { return Math.random().toString(36).slice(2, 9); }
 
-// 점과 선분 사이 거리 (% 단위, 이미지 비율 보정)
-function distToSegment(px: number, py: number, x1: number, y1: number, x2: number, y2: number, aspectW: number, aspectH: number) {
-  const dx = (x2 - x1) * aspectW, dy = (y2 - y1) * aspectH;
+// 지우개: annotation이 지우개 경로에 닿는지 판단
+function distToSegment(px: number, py: number, x1: number, y1: number, x2: number, y2: number, aw: number, ah: number) {
+  const dx = (x2 - x1) * aw, dy = (y2 - y1) * ah;
   const lenSq = dx * dx + dy * dy;
-  const ppx = (px - x1) * aspectW, ppy = (py - y1) * aspectH;
+  const ppx = (px - x1) * aw, ppy = (py - y1) * ah;
   const t = lenSq === 0 ? 0 : Math.max(0, Math.min(1, (ppx * dx + ppy * dy) / lenSq));
-  const rx = ppx - t * dx, ry = ppy - t * dy;
-  return Math.sqrt(rx * rx + ry * ry);
+  return Math.sqrt((ppx - t * dx) ** 2 + (ppy - t * dy) ** 2);
 }
 
-// 지우개: annotation이 지우개 경로에 닿는지 판단
-function hitTestAnnotation(a: Annotation, px: number, py: number, radiusPct: number, imgW: number, imgH: number): boolean {
-  const aspect = imgW / imgH;
-  const r = radiusPct * aspect;
-  const cx = (a.x1 + a.x2) / 2, cy = (a.y1 + a.y2) / 2;
-  const dx = (px - cx) * aspect, dy = py - cy;
-  const distCenter = Math.sqrt(dx * dx + dy * dy);
-
-  if (a.type === 'arrow') {
-    return distToSegment(px, py, a.x1, a.y1, a.x2, a.y2, aspect, 1) < r;
-  }
+function hitTestAnnotation(a: Annotation, px: number, py: number, r: number, imgW: number, imgH: number): boolean {
+  const aw = imgW / imgH;
+  if (a.type === 'arrow') return distToSegment(px, py, a.x1, a.y1, a.x2, a.y2, aw, 1) < r * aw;
   if (a.type === 'marker') {
-    return distCenter < r + 4;
+    const dx = (px - a.x1) * aw, dy = py - a.y1;
+    return Math.sqrt(dx * dx + dy * dy) < r * aw + 5;
   }
   if (a.type === 'text') {
-    return Math.abs((px - a.x1) * aspect) < r + 8 && Math.abs(py - a.y1) < r + 3;
+    return Math.abs((px - a.x1) * aw) < r * aw + 8 && Math.abs(py - a.y1) < r + 3;
   }
-  // box types: check if point is inside or near border
   const minX = Math.min(a.x1, a.x2), maxX = Math.max(a.x1, a.x2);
   const minY = Math.min(a.y1, a.y2), maxY = Math.max(a.y1, a.y2);
-  return px >= minX - radiusPct && px <= maxX + radiusPct && py >= minY - radiusPct && py <= maxY + radiusPct;
+  return px >= minX - r && px <= maxX + r && py >= minY - r && py <= maxY + r;
 }
 
 // ── Main Component ─────────────────────────────────────────
@@ -142,38 +145,42 @@ export function ImageAnnotationEditor({
   const [tool, setTool] = useState<Tool>('arrow');
   const [color, setColor] = useState<Color>('#EF4444');
   const [strokeIdx, setStrokeIdx] = useState(1);
+  const [fontSize, setFontSize] = useState(16);
+  const [fontBold, setFontBold] = useState(false);
+
+  // 마지막 설정 유지용 ref — 다음 annotation 생성 시 사용
+  const lastColor = useRef(color);
+  const lastStrokeIdx = useRef(strokeIdx);
+  const lastFontSize = useRef(fontSize);
+  const lastFontBold = useRef(fontBold);
+  useEffect(() => { lastColor.current = color; }, [color]);
+  useEffect(() => { lastStrokeIdx.current = strokeIdx; }, [strokeIdx]);
+  useEffect(() => { lastFontSize.current = fontSize; }, [fontSize]);
+  useEffect(() => { lastFontBold.current = fontBold; }, [fontBold]);
+
   const [items, setItems] = useState<Annotation[]>(annotations);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawing, setDrawing] = useState<Partial<Annotation> | null>(null);
-
-  // Crop
   const [cropRect, setCropRect] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
-
-  // Eraser drag state
   const eraserActiveRef = useRef(false);
 
-  // Marker number
   const nextMarkerNum = useCallback(() => {
     const nums = items.filter(a => a.type === 'marker' && a.markerNumber != null).map(a => a.markerNumber!);
     return nums.length > 0 ? Math.max(...nums) + 1 : 1;
   }, [items]);
 
-  // Text editing overlay
   const [editingText, setEditingText] = useState<{ id: string } | null>(null);
   const textInputRef = useRef<HTMLDivElement>(null);
 
   const [dragState, setDragState] = useState<{
-    id: string;
-    handle: Handle | null;
+    id: string; handle: Handle | null;
     startX: number; startY: number;
     origX1: number; origY1: number; origX2: number; origY2: number;
   } | null>(null);
 
   const imgRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const strokeWidth = STROKE_OPTIONS[strokeIdx].value;
 
-  // 이미지가 렌더링된 실제 px 크기 추적
   const [imgSize, setImgSize] = useState({ w: 1, h: 1 });
   useEffect(() => {
     const img = imgRef.current;
@@ -186,7 +193,7 @@ export function ImageAnnotationEditor({
     return () => { img.removeEventListener('load', update); ro.disconnect(); };
   }, []);
 
-  const toVB = useCallback((e: React.MouseEvent | MouseEvent): { x: number; y: number } => {
+  const toVB = useCallback((e: React.MouseEvent | MouseEvent) => {
     const img = imgRef.current;
     if (!img) return { x: 0, y: 0 };
     const rect = img.getBoundingClientRect();
@@ -211,6 +218,8 @@ export function ImageAnnotationEditor({
   useEffect(() => { commitTextRef.current = commitText; }, [commitText]);
 
   // ── Drawing ──
+  const strokeWidth = STROKE_OPTIONS[strokeIdx].value;
+
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('[data-text-editor]')) return;
     if (editingText) { commitTextRef.current(); return; }
@@ -222,13 +231,17 @@ export function ImageAnnotationEditor({
 
     if (tool === 'eraser') {
       eraserActiveRef.current = true;
-      // Erase at click point
       setItems(prev => prev.filter(a => !hitTestAnnotation(a, x, y, 4, imgSize.w, imgSize.h)));
       return;
     }
 
     if (tool === 'text') {
-      const newItem: Annotation = { id: genId(), type: 'text', x1: x, y1: y, x2: x, y2: y, text: '', color, strokeWidth };
+      const newItem: Annotation = {
+        id: genId(), type: 'text',
+        x1: x, y1: y, x2: x, y2: y,
+        text: '', color: lastColor.current, strokeWidth,
+        fontSize: lastFontSize.current, fontBold: lastFontBold.current,
+      };
       setItems(prev => [...prev, newItem]);
       setEditingText({ id: newItem.id });
       return;
@@ -236,8 +249,11 @@ export function ImageAnnotationEditor({
 
     if (tool === 'marker') {
       const num = nextMarkerNum();
-      const newItem: Annotation = { id: genId(), type: 'marker', x1: x, y1: y, x2: x + 4, y2: y + 4, color, strokeWidth, markerNumber: num };
-      setItems(prev => [...prev, newItem]);
+      setItems(prev => [...prev, {
+        id: genId(), type: 'marker',
+        x1: x, y1: y, x2: x + 4, y2: y + 4,
+        color: lastColor.current, strokeWidth, markerNumber: num,
+      }]);
       return;
     }
 
@@ -247,8 +263,11 @@ export function ImageAnnotationEditor({
     }
 
     const annType: Annotation['type'] = tool === 'spotlight' ? 'spotlight' : tool as Annotation['type'];
-    setDrawing({ type: annType, x1: x, y1: y, x2: x, y2: y, color, strokeWidth, id: genId() });
-  }, [tool, color, strokeWidth, editingText, toVB, nextMarkerNum, imgSize.w, imgSize.h]);
+    setDrawing({
+      type: annType, x1: x, y1: y, x2: x, y2: y,
+      color: lastColor.current, strokeWidth: STROKE_OPTIONS[lastStrokeIdx.current].value, id: genId(),
+    });
+  }, [tool, strokeWidth, editingText, toVB, nextMarkerNum, imgSize.w, imgSize.h]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (cropRect && tool === 'crop') {
@@ -286,7 +305,17 @@ export function ImageAnnotationEditor({
           final.y2 = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
         }
       }
-      setItems(cur => [...cur, final]);
+      setItems(cur => {
+        const next = [...cur, final];
+        // 도형 완성 후 자동 select 전환
+        if (SHAPE_TOOLS.includes(prev.type as Tool)) {
+          setTimeout(() => {
+            setTool('select');
+            setSelectedId(final.id);
+          }, 0);
+        }
+        return next;
+      });
       return null;
     });
   }, [cropRect]);
@@ -298,7 +327,6 @@ export function ImageAnnotationEditor({
     return () => window.removeEventListener('mouseup', up);
   }, [drawing, finishDrawing]);
 
-  // Crop mouseup
   useEffect(() => {
     if (!cropRect) return;
     const up = (e: MouseEvent) => {
@@ -316,13 +344,12 @@ export function ImageAnnotationEditor({
   const applyCrop = useCallback(() => {
     if (!cropRect) return;
     if (Math.abs(cropRect.x2 - cropRect.x1) < 1 || Math.abs(cropRect.y2 - cropRect.y1) < 1) { setCropRect(null); return; }
-    const ann: Annotation = {
+    setItems(prev => [...prev, {
       id: genId(), type: 'crop',
       x1: Math.min(cropRect.x1, cropRect.x2), y1: Math.min(cropRect.y1, cropRect.y2),
       x2: Math.max(cropRect.x1, cropRect.x2), y2: Math.max(cropRect.y1, cropRect.y2),
       color: 'transparent', strokeWidth: 0,
-    };
-    setItems(prev => [...prev, ann]);
+    }]);
     setCropRect(null);
     setTool('select');
   }, [cropRect]);
@@ -332,8 +359,7 @@ export function ImageAnnotationEditor({
   // ── Select / Move / Resize ──
   const startDrag = useCallback((e: React.MouseEvent, id: string, handle: Handle | null) => {
     if (tool !== 'select') return;
-    e.stopPropagation();
-    e.preventDefault();
+    e.stopPropagation(); e.preventDefault();
     setSelectedId(id);
     const { x, y } = toVB(e);
     const item = items.find(a => a.id === id);
@@ -357,14 +383,14 @@ export function ImageAnnotationEditor({
         if (handle === 'p1') return { ...a, x1: ox1 + dx, y1: oy1 + dy };
         if (handle === 'p2') return { ...a, x2: ox2 + dx, y2: oy2 + dy };
         let { x1, y1, x2, y2 } = a;
-        if (handle === 'tl') { x1 = ox1 + dx; y1 = oy1 + dy; }
-        if (handle === 'tc') { y1 = oy1 + dy; }
-        if (handle === 'tr') { x2 = ox2 + dx; y1 = oy1 + dy; }
-        if (handle === 'ml') { x1 = ox1 + dx; }
-        if (handle === 'mr') { x2 = ox2 + dx; }
-        if (handle === 'bl') { x1 = ox1 + dx; y2 = oy2 + dy; }
-        if (handle === 'bc') { y2 = oy2 + dy; }
-        if (handle === 'br') { x2 = ox2 + dx; y2 = oy2 + dy; }
+        if (handle === 'tl') { x1 = ox1+dx; y1 = oy1+dy; }
+        if (handle === 'tc') { y1 = oy1+dy; }
+        if (handle === 'tr') { x2 = ox2+dx; y1 = oy1+dy; }
+        if (handle === 'ml') { x1 = ox1+dx; }
+        if (handle === 'mr') { x2 = ox2+dx; }
+        if (handle === 'bl') { x1 = ox1+dx; y2 = oy2+dy; }
+        if (handle === 'bc') { y2 = oy2+dy; }
+        if (handle === 'br') { x2 = ox2+dx; y2 = oy2+dy; }
         return { ...a, x1, y1, x2, y2 };
       }));
     };
@@ -383,10 +409,7 @@ export function ImageAnnotationEditor({
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (editingText) return;
-      if (e.key === 'Escape') {
-        if (cropRect) { cancelCrop(); return; }
-        setSelectedId(null);
-      }
+      if (e.key === 'Escape') { if (cropRect) { cancelCrop(); return; } setSelectedId(null); }
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) { e.preventDefault(); deleteSelected(); }
     };
     window.addEventListener('keydown', handler);
@@ -415,6 +438,7 @@ export function ImageAnnotationEditor({
     onClose();
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const strokePx = (strokeWidth / 100) * imgSize.w;
   const editingItem = editingText ? items.find(a => a.id === editingText.id) : null;
 
@@ -426,14 +450,13 @@ export function ImageAnnotationEditor({
 
   const showColor = !['mosaic', 'select', 'eraser', 'crop', 'spotlight'].includes(tool);
   const showStroke = !['text', 'mosaic', 'select', 'eraser', 'crop', 'spotlight', 'marker'].includes(tool);
+  const showTextOptions = tool === 'text';
 
   return (
-    // ── 배경 dimmer ──
     <div
       style={{ position: 'fixed', inset: 0, zIndex: 70, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
       onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      {/* ── 팝업 컨테이너 ── */}
       <div
         ref={containerRef}
         style={{
@@ -447,11 +470,10 @@ export function ImageAnnotationEditor({
       >
         {/* ── 툴바 ── */}
         <div style={{
-          height: '48px', flexShrink: 0,
-          background: '#1F2937',
+          flexShrink: 0, background: '#1F2937',
           borderBottom: '1px solid rgba(255,255,255,0.08)',
           display: 'flex', alignItems: 'center',
-          padding: '0 12px', gap: '6px',
+          padding: '0 12px', gap: '6px', minHeight: '48px', flexWrap: 'wrap',
         }}>
           {/* Tool groups */}
           {TOOL_GROUPS.map((group, gi) => (
@@ -460,13 +482,8 @@ export function ImageAnnotationEditor({
                 const active = tool === t;
                 return (
                   <button
-                    key={t}
-                    title={TOOL_CONFIG[t].label}
-                    onClick={() => {
-                      if (editingText) commitTextRef.current();
-                      if (t !== 'crop') setCropRect(null);
-                      setTool(t);
-                    }}
+                    key={t} title={TOOL_CONFIG[t].label}
+                    onClick={() => { if (editingText) commitTextRef.current(); if (t !== 'crop') setCropRect(null); setTool(t); }}
                     style={{
                       width: '32px', height: '32px', borderRadius: '5px', border: 'none',
                       display: 'grid', placeItems: 'center', cursor: 'pointer',
@@ -476,9 +493,7 @@ export function ImageAnnotationEditor({
                     }}
                     onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}
                     onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent'; }}
-                  >
-                    {TOOL_CONFIG[t].icon}
-                  </button>
+                  >{TOOL_CONFIG[t].icon}</button>
                 );
               })}
             </div>
@@ -486,6 +501,7 @@ export function ImageAnnotationEditor({
 
           <div style={{ width: '1px', height: '22px', background: 'rgba(255,255,255,0.12)' }} />
 
+          {/* Color */}
           {showColor && (
             <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
               {COLORS.map(c => (
@@ -496,30 +512,66 @@ export function ImageAnnotationEditor({
             </div>
           )}
 
+          {/* Stroke width */}
           {showStroke && (
             <>
               <div style={{ width: '1px', height: '22px', background: 'rgba(255,255,255,0.12)' }} />
               <div style={{ display: 'flex', gap: '3px', alignItems: 'center' }}>
-                {STROKE_OPTIONS.map((_, i) => (
-                  <button key={i} onClick={() => setStrokeIdx(i)}
-                    style={{ width: '28px', height: '26px', borderRadius: '4px', border: strokeIdx === i ? '1.5px solid white' : '1.5px solid rgba(255,255,255,0.2)', background: 'transparent', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
-                  >
-                    <div style={{ width: '12px', height: `${i * 2 + 2}px`, background: 'white', borderRadius: '1px' }} />
-                  </button>
-                ))}
+                {STROKE_OPTIONS.map((opt, i) => {
+                  const active = strokeIdx === i;
+                  return (
+                    <button key={i} onClick={() => setStrokeIdx(i)} title={`굵기 ${opt.label}`}
+                      style={{
+                        width: '32px', height: '26px', borderRadius: '5px',
+                        border: active ? '1.5px solid white' : '1.5px solid rgba(255,255,255,0.2)',
+                        background: active ? 'rgba(255,255,255,0.15)' : 'transparent',
+                        cursor: 'pointer', display: 'grid', placeItems: 'center',
+                      }}
+                    >
+                      <div style={{ width: '14px', height: `${i * 2 + 2}px`, background: 'white', borderRadius: '2px' }} />
+                    </button>
+                  );
+                })}
               </div>
             </>
           )}
 
-          {tool === 'mosaic' && (
-            <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>블러 처리할 영역을 드래그</span>
+          {/* Text options */}
+          {showTextOptions && (
+            <>
+              <div style={{ width: '1px', height: '22px', background: 'rgba(255,255,255,0.12)' }} />
+              {/* Font size */}
+              <select
+                value={fontSize}
+                onChange={e => setFontSize(Number(e.target.value))}
+                style={{
+                  background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)',
+                  borderRadius: '5px', color: 'white', fontSize: '11.5px', padding: '3px 6px',
+                  cursor: 'pointer', outline: 'none',
+                }}
+              >
+                {FONT_SIZES.map(s => <option key={s} value={s}>{s}px</option>)}
+              </select>
+              {/* Bold */}
+              <button
+                onClick={() => setFontBold(v => !v)}
+                title="굵게"
+                style={{
+                  width: '30px', height: '26px', borderRadius: '5px',
+                  border: fontBold ? '1.5px solid white' : '1.5px solid rgba(255,255,255,0.2)',
+                  background: fontBold ? 'rgba(255,255,255,0.15)' : 'transparent',
+                  color: 'white', cursor: 'pointer', display: 'grid', placeItems: 'center',
+                }}
+              >
+                <Bold size={13} />
+              </button>
+            </>
           )}
-          {tool === 'eraser' && (
-            <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>지울 요소 위에서 드래그</span>
-          )}
-          {tool === 'spotlight' && (
-            <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>강조할 영역을 드래그</span>
-          )}
+
+          {/* Hints */}
+          {tool === 'mosaic' && <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>블러 처리할 영역을 드래그</span>}
+          {tool === 'eraser' && <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>지울 요소 위에서 드래그</span>}
+          {tool === 'spotlight' && <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>강조할 영역을 드래그</span>}
 
           {cropRect && (
             <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
@@ -559,19 +611,16 @@ export function ImageAnnotationEditor({
           >저장</button>
         </div>
 
-        {/* ── 이미지 + SVG 레이어 ── */}
+        {/* ── Canvas ── */}
         <div
           style={{ position: 'relative', display: 'inline-block', lineHeight: 0, cursor: activeCursor, flexShrink: 0 }}
-          onMouseDown={e => handleMouseDown(e)}
+          onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            ref={imgRef}
-            src={imageUrl}
-            alt="편집 중"
-            draggable={false}
+            ref={imgRef} src={imageUrl} alt="편집 중" draggable={false}
             style={{
               display: 'block',
               maxWidth: 'min(1100px, calc(100vw - 48px))',
@@ -601,13 +650,10 @@ export function ImageAnnotationEditor({
               if (a.type === 'spotlight') return null;
               return (
                 <AnnotationShape
-                  key={a.id}
-                  annotation={a}
+                  key={a.id} annotation={a}
                   isSelected={selectedId === a.id}
-                  tool={tool}
-                  imgW={imgSize.w}
-                  imgH={imgSize.h}
-                  strokePx={strokePx}
+                  tool={tool} imgW={imgSize.w} imgH={imgSize.h}
+                  strokePx={(a.strokeWidth / 100) * imgSize.w}
                   imageUrl={imageUrl}
                   onBodyMouseDown={e => startDrag(e, a.id, null)}
                   onHandleMouseDown={(e, h) => startDrag(e, a.id, h)}
@@ -617,11 +663,8 @@ export function ImageAnnotationEditor({
 
             {drawing && drawing.type !== 'spotlight' && (
               <AnnotationShape
-                annotation={drawing as Annotation}
-                isSelected={false}
-                tool={tool}
-                imgW={imgSize.w}
-                imgH={imgSize.h}
+                annotation={drawing as Annotation} isSelected={false}
+                tool={tool} imgW={imgSize.w} imgH={imgSize.h}
                 strokePx={(drawing.strokeWidth ?? strokeWidth) / 100 * imgSize.w}
                 imageUrl={imageUrl}
               />
@@ -642,15 +685,16 @@ export function ImageAnnotationEditor({
                   </defs>
                   <rect x={0} y={0} width={imgSize.w} height={imgSize.h} fill="rgba(0,0,0,0.5)" mask="url(#crop-preview-mask)" />
                   <rect x={minX} y={minY} width={w} height={h} fill="none" stroke="white" strokeWidth={1.5} strokeDasharray="5 3" />
-                  <line x1={minX + w/3} y1={minY} x2={minX + w/3} y2={minY + h} stroke="rgba(255,255,255,0.3)" strokeWidth={1} />
-                  <line x1={minX + 2*w/3} y1={minY} x2={minX + 2*w/3} y2={minY + h} stroke="rgba(255,255,255,0.3)" strokeWidth={1} />
-                  <line x1={minX} y1={minY + h/3} x2={minX + w} y2={minY + h/3} stroke="rgba(255,255,255,0.3)" strokeWidth={1} />
-                  <line x1={minX} y1={minY + 2*h/3} x2={minX + w} y2={minY + 2*h/3} stroke="rgba(255,255,255,0.3)" strokeWidth={1} />
+                  <line x1={minX+w/3} y1={minY} x2={minX+w/3} y2={minY+h} stroke="rgba(255,255,255,0.3)" strokeWidth={1} />
+                  <line x1={minX+2*w/3} y1={minY} x2={minX+2*w/3} y2={minY+h} stroke="rgba(255,255,255,0.3)" strokeWidth={1} />
+                  <line x1={minX} y1={minY+h/3} x2={minX+w} y2={minY+h/3} stroke="rgba(255,255,255,0.3)" strokeWidth={1} />
+                  <line x1={minX} y1={minY+2*h/3} x2={minX+w} y2={minY+2*h/3} stroke="rgba(255,255,255,0.3)" strokeWidth={1} />
                 </g>
               );
             })()}
           </svg>
 
+          {/* Text editing overlay */}
           {editingText && editingItem && (
             <div
               data-text-editor
@@ -666,32 +710,32 @@ export function ImageAnnotationEditor({
               style={{
                 position: 'absolute',
                 left: `${editingItem.x1}%`, top: `${editingItem.y1}%`,
-                minWidth: '80px', maxWidth: '240px',
-                padding: '3px 6px',
-                background: 'rgba(0,0,0,0.65)',
+                minWidth: '60px', maxWidth: '280px',
+                padding: '2px 4px',
+                background: 'transparent',
                 color: editingItem.color,
-                border: `1.5px solid ${editingItem.color}`,
-                borderRadius: '3px',
-                fontSize: '14px', fontWeight: 700, fontFamily: 'inherit',
+                fontSize: `${editingItem.fontSize ?? 16}px`,
+                fontWeight: editingItem.fontBold ? 700 : 400,
+                fontFamily: 'inherit',
                 outline: 'none', cursor: 'text',
                 whiteSpace: 'pre-wrap', wordBreak: 'break-all',
                 lineHeight: 1.4, zIndex: 10,
-                boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+                caretColor: editingItem.color,
               }}
             />
           )}
         </div>
 
-        {/* ── 하단 힌트 ── */}
+        {/* 하단 힌트 */}
         <div style={{ height: '26px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', color: 'rgba(255,255,255,0.3)', background: '#1a1a1a' }}>
           {tool === 'text' ? '클릭 후 텍스트 입력 · Enter 확정' :
            tool === 'select' ? '클릭으로 선택 · 드래그로 이동 · 핸들로 크기 조절 · Delete 삭제' :
-           tool === 'eraser' ? '지울 요소 위에서 드래그 · 클릭으로 바로 삭제' :
+           tool === 'eraser' ? '지울 요소 위에서 드래그' :
            tool === 'crop' ? (cropRect ? '적용 또는 취소 · ESC 취소' : '자를 영역을 드래그') :
            tool === 'mosaic' ? '블러 처리할 영역을 드래그' :
            tool === 'marker' ? '클릭하면 번호 마커 추가' :
            tool === 'spotlight' ? '강조할 영역을 드래그' :
-           '드래그하여 그리기 · Space+드래그로 이동'}
+           '드래그하여 그리기 · 완성 후 자동으로 선택 모드 전환'}
         </div>
       </div>
     </div>
@@ -712,16 +756,16 @@ function SpotlightLayer({ items, imgW, imgH, preview }: {
         <mask id={maskId}>
           <rect x={0} y={0} width={imgW} height={imgH} fill="white" />
           {spotlights.map(a => {
-            const minX = Math.min(a.x1, a.x2) / 100 * imgW, minY = Math.min(a.y1, a.y2) / 100 * imgH;
-            const w = Math.abs(a.x2 - a.x1) / 100 * imgW, h = Math.abs(a.y2 - a.y1) / 100 * imgH;
+            const minX = Math.min(a.x1, a.x2)/100*imgW, minY = Math.min(a.y1, a.y2)/100*imgH;
+            const w = Math.abs(a.x2-a.x1)/100*imgW, h = Math.abs(a.y2-a.y1)/100*imgH;
             return <rect key={a.id} x={minX} y={minY} width={w} height={h} fill="black" rx={4} />;
           })}
         </mask>
       </defs>
       <rect x={0} y={0} width={imgW} height={imgH} fill="rgba(0,0,0,0.62)" mask={`url(#${maskId})`} opacity={preview ? 0.7 : 1} />
       {spotlights.map(a => {
-        const minX = Math.min(a.x1, a.x2) / 100 * imgW, minY = Math.min(a.y1, a.y2) / 100 * imgH;
-        const w = Math.abs(a.x2 - a.x1) / 100 * imgW, h = Math.abs(a.y2 - a.y1) / 100 * imgH;
+        const minX = Math.min(a.x1, a.x2)/100*imgW, minY = Math.min(a.y1, a.y2)/100*imgH;
+        const w = Math.abs(a.x2-a.x1)/100*imgW, h = Math.abs(a.y2-a.y1)/100*imgH;
         return <rect key={a.id} x={minX} y={minY} width={w} height={h} fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth={1.5} rx={4} />;
       })}
     </g>
@@ -747,15 +791,15 @@ function SelectionHandles({ minX, minY, w, h, onHandle }: {
 }) {
   const R = 5;
   const handles: [Handle, number, number][] = [
-    ['tl', minX, minY], ['tc', minX + w/2, minY], ['tr', minX + w, minY],
-    ['ml', minX, minY + h/2], ['mr', minX + w, minY + h/2],
-    ['bl', minX, minY + h], ['bc', minX + w/2, minY + h], ['br', minX + w, minY + h],
+    ['tl', minX, minY], ['tc', minX+w/2, minY], ['tr', minX+w, minY],
+    ['ml', minX, minY+h/2], ['mr', minX+w, minY+h/2],
+    ['bl', minX, minY+h], ['bc', minX+w/2, minY+h], ['br', minX+w, minY+h],
   ];
   return (
     <g>
       <rect x={minX} y={minY} width={w} height={h} stroke="#2563EB" strokeWidth={1.5} fill="none" pointerEvents="none" />
       {handles.map(([hKey, cx, cy]) => (
-        <rect key={hKey} x={cx - R} y={cy - R} width={R*2} height={R*2}
+        <rect key={hKey} x={cx-R} y={cy-R} width={R*2} height={R*2}
           fill="white" stroke="#2563EB" strokeWidth={1.5}
           style={{ cursor: HANDLE_CURSOR[hKey] }}
           onMouseDown={e => { e.stopPropagation(); onHandle(e, hKey); }}
@@ -775,12 +819,7 @@ function ArrowHandles({ ax1, ay1, ax2, ay2, onHandle }: {
       <line x1={ax1} y1={ay1} x2={ax2} y2={ay2} stroke="#2563EB" strokeWidth={1.5} strokeDasharray="4 2" pointerEvents="none" />
       {(['p1', 'p2'] as Handle[]).map(h => {
         const cx = h === 'p1' ? ax1 : ax2, cy = h === 'p1' ? ay1 : ay2;
-        return (
-          <circle key={h} cx={cx} cy={cy} r={R} fill="white" stroke="#2563EB" strokeWidth={1.5}
-            style={{ cursor: 'crosshair' }}
-            onMouseDown={e => { e.stopPropagation(); onHandle(e, h); }}
-          />
-        );
+        return <circle key={h} cx={cx} cy={cy} r={R} fill="white" stroke="#2563EB" strokeWidth={1.5} style={{ cursor: 'crosshair' }} onMouseDown={e => { e.stopPropagation(); onHandle(e, h); }} />;
       })}
     </g>
   );
@@ -788,7 +827,7 @@ function ArrowHandles({ ax1, ay1, ax2, ay2, onHandle }: {
 
 function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx, imageUrl, onBodyMouseDown, onHandleMouseDown }: AnnotationShapeProps) {
   const { type, x1, y1, x2, y2, color, text } = a;
-  const ax1 = (x1/100)*imgW, ay1 = (y1/100)*imgH, ax2 = (x2/100)*imgW, ay2 = (y2/100)*imgH;
+  const ax1 = x1/100*imgW, ay1 = y1/100*imgH, ax2 = x2/100*imgW, ay2 = y2/100*imgH;
   const minX = Math.min(ax1,ax2), minY = Math.min(ay1,ay2);
   const w = Math.abs(ax2-ax1), h = Math.abs(ay2-ay1);
   const isSelectTool = tool === 'select';
@@ -821,8 +860,7 @@ function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx
         <circle cx={ax1} cy={ay1} r={R} fill="none" stroke="white" strokeWidth={1.5} opacity={0.5} />
         <text x={ax1} y={ay1} fill="white" fontSize={R * 1.1} fontWeight="700"
           textAnchor="middle" dominantBaseline="central"
-          stroke="rgba(0,0,0,0.3)" strokeWidth={R * 0.15}
-          style={{ paintOrder: 'stroke', pointerEvents: 'none' }}
+          style={{ pointerEvents: 'none' }}
         >{a.markerNumber ?? 1}</text>
         {isSelected && <circle cx={ax1} cy={ay1} r={R+4} fill="none" stroke="#2563EB" strokeWidth={1.5} strokeDasharray="4 2" />}
       </g>
@@ -870,38 +908,68 @@ function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx
   );
 
   if (type === 'arrow') {
-    const markerId = `arrow-${a.id}`;
-    const mSize = strokePx * 4;
+    // 화살표: 선 끝에 삼각형 화살촉을 직접 계산해서 그림 (marker API 대신)
+    const dx = ax2 - ax1, dy = ay2 - ay1;
+    const len = Math.sqrt(dx*dx + dy*dy);
+    if (len < 1) return null;
+    const ux = dx/len, uy = dy/len; // 단위벡터
+    const headLen = Math.max(strokePx * 4, 8); // 화살촉 길이
+    const headW  = headLen * 0.5;              // 화살촉 너비 반값
+    // 선 끝점은 화살촉 뒤쪽에서 만나도록 살짝 당김
+    const lx2 = ax2 - ux * headLen * 0.6;
+    const ly2 = ay2 - uy * headLen * 0.6;
+    // 화살촉 삼각형 꼭짓점
+    const px = ax2, py = ay2;                                   // 뾰족한 끝
+    const qx = ax2 - ux*headLen + uy*headW, qy = ay2 - uy*headLen - ux*headW; // 좌측 밑
+    const rx = ax2 - ux*headLen - uy*headW, ry = ay2 - uy*headLen + ux*headW; // 우측 밑
     return (
       <g>
-        <defs>
-          <marker id={markerId} markerWidth={mSize} markerHeight={mSize}
-            refX={mSize-1} refY={mSize/2} orient="auto" markerUnits="userSpaceOnUse">
-            <path d={`M0,0 L0,${mSize} L${mSize},${mSize/2} z`} fill={color} />
-          </marker>
-        </defs>
+        {/* 넓은 투명 히트 영역 */}
         <line x1={ax1} y1={ay1} x2={ax2} y2={ay2} stroke="transparent"
-          strokeWidth={Math.max(10, strokePx*3)} style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown} />
-        <line x1={ax1} y1={ay1} x2={ax2} y2={ay2} stroke={color} strokeWidth={strokePx}
-          markerEnd={`url(#${markerId})`} strokeLinecap="round" style={{ pointerEvents: 'none' }} />
-        {isSelected && onHandleMouseDown && <ArrowHandles ax1={ax1} ay1={ay1} ax2={ax2} ay2={ay2} onHandle={handleHandle} />}
+          strokeWidth={Math.max(12, strokePx*4)}
+          style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown} />
+        {/* 화살 줄기 */}
+        <line x1={ax1} y1={ay1} x2={lx2} y2={ly2}
+          stroke={color} strokeWidth={strokePx} strokeLinecap="round"
+          style={{ pointerEvents: 'none' }} />
+        {/* 화살촉 삼각형 */}
+        <polygon points={`${px},${py} ${qx},${qy} ${rx},${ry}`}
+          fill={color} style={{ pointerEvents: 'none' }} />
+        {isSelected && onHandleMouseDown && (
+          <ArrowHandles ax1={ax1} ay1={ay1} ax2={ax2} ay2={ay2} onHandle={handleHandle} />
+        )}
       </g>
     );
   }
 
   if (type === 'text') {
     if (!text) return null;
-    const fSize = Math.max(12, imgW * 0.018);
-    const textW = text.length * fSize * 0.65;
+    const fSize = a.fontSize ?? 16;
+    const bold = a.fontBold ?? false;
+    // 텍스트 크기 추정 (렌더링 전 근사값)
+    const charW = fSize * (bold ? 0.65 : 0.58);
+    const lines = text.split('\n');
+    const maxLineLen = Math.max(...lines.map(l => l.length));
+    const textW = maxLineLen * charW;
+    const textH = lines.length * fSize * 1.4;
+
     return (
       <g>
-        <rect x={ax1-2} y={ay1-2} width={textW+4} height={fSize+8} fill="transparent"
+        <rect x={ax1-2} y={ay1-2} width={textW+8} height={textH+4} fill="transparent"
           style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown} />
-        <text x={ax1} y={ay1} fill={color} fontSize={fSize} fontWeight="700"
-          dominantBaseline="text-before-edge"
-          stroke="rgba(0,0,0,0.6)" strokeWidth={fSize*0.12}
-          style={{ paintOrder: 'stroke', pointerEvents: 'none' }}>{text}</text>
-        {isSelected && onHandleMouseDown && <SelectionHandles minX={ax1-2} minY={ay1-2} w={textW+4} h={fSize+8} onHandle={handleHandle} />}
+        {lines.map((line, i) => (
+          <text key={i}
+            x={ax1} y={ay1 + i * fSize * 1.4}
+            fill={color}
+            fontSize={fSize}
+            fontWeight={bold ? 700 : 400}
+            dominantBaseline="text-before-edge"
+            style={{ pointerEvents: 'none' }}
+          >{line}</text>
+        ))}
+        {isSelected && onHandleMouseDown && (
+          <SelectionHandles minX={ax1-2} minY={ay1-2} w={textW+8} h={textH+4} onHandle={handleHandle} />
+        )}
       </g>
     );
   }
