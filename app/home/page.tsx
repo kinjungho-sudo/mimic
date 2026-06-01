@@ -598,152 +598,169 @@ export default function DashboardPage() {
             </nav>
 
             {/* ── 워크스페이스 트리 ── */}
-            <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
 
-              {/* 내 워크스페이스 섹션 헤더 */}
-              <button
-                onClick={() => { setActiveTab('my'); setActiveFolder('all'); }}
-                style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 10px', borderRadius: '9px', border: 'none', cursor: 'pointer', textAlign: 'left', background: activeTab === 'my' ? '#EEF2FF' : 'transparent' }}
-                onMouseEnter={e => { if (activeTab !== 'my') (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; }}
-                onMouseLeave={e => { if (activeTab !== 'my') (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
-                <div style={{ width: '26px', height: '26px', borderRadius: '7px', background: activeTab === 'my' ? '#4F46E5' : '#E5E7EB', display: 'grid', placeItems: 'center', flexShrink: 0, transition: 'background 0.15s' }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              {/* ① 내 워크스페이스 헤더 (클릭 = 접기/펼치기) */}
+              <button onClick={() => setMyOpen(v => !v)}
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '7px 8px', borderRadius: '8px', border: 'none', cursor: 'pointer', textAlign: 'left', background: 'transparent' }}
+                onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: activeTab === 'my' ? '#4F46E5' : '#E5E7EB', display: 'grid', placeItems: 'center', flexShrink: 0, transition: 'background 0.15s' }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                 </div>
-                <span style={{ fontSize: '13.5px', fontWeight: 700, color: activeTab === 'my' ? '#4F46E5' : '#111827', letterSpacing: '-0.01em' }}>내 워크스페이스</span>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: '#111827', flex: 1 }}>내 워크스페이스</span>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"
+                  style={{ transform: myOpen ? 'rotate(0)' : 'rotate(-90deg)', transition: 'transform 0.15s', flexShrink: 0 }}>
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
               </button>
 
-              {/* 내 워크스페이스 하위 항목 — 들여쓰기 */}
-              <div style={{ paddingLeft: '14px', display: 'flex', flexDirection: 'column', gap: '1px', borderLeft: '2px solid #F3F4F6', marginLeft: '22px' }}>
-                {/* 전체 */}
-                <button
-                  onClick={() => { setActiveTab('my'); setActiveFolder('all'); }}
-                  style={{ display: 'flex', alignItems: 'center', gap: '7px', width: '100%', padding: '5px 8px', borderRadius: '7px', border: 'none', cursor: 'pointer', fontSize: '12.5px', textAlign: 'left', background: folderItemActive('all') ? '#EEF2FF' : 'transparent', color: folderItemActive('all') ? '#4F46E5' : '#6B7280', fontWeight: folderItemActive('all') ? 600 : 400 }}
-                  onMouseEnter={e => { if (!folderItemActive('all')) (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; }}
-                  onMouseLeave={e => { if (!folderItemActive('all')) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
-                  <span style={{ flex: 1 }}>전체</span>
-                  {!tutLoading && <span style={{ fontSize: '10.5px', color: '#9CA3AF' }}>{tutorials.length}</span>}
-                </button>
+              {/* ① 내 워크스페이스 하위 */}
+              {myOpen && (
+                <div style={{ paddingLeft: '12px', marginLeft: '19px', borderLeft: '2px solid #F3F4F6', display: 'flex', flexDirection: 'column', gap: '1px', marginBottom: '2px' }}>
+                  {[
+                    { id: 'all' as const, label: '전체', count: tutorials.length },
+                    { id: null, label: '미분류', count: tutorials.filter(t => !t.folder_id).length },
+                  ].map(item => (
+                    <button key={String(item.id)} onClick={() => { setActiveTab('my'); setActiveFolder(item.id); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '7px', width: '100%', padding: '5px 8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', textAlign: 'left', background: folderItemActive(item.id) ? '#EEF2FF' : 'transparent', color: folderItemActive(item.id) ? '#4F46E5' : '#4B5563', fontWeight: folderItemActive(item.id) ? 600 : 400 }}
+                      onMouseEnter={e => { if (!folderItemActive(item.id)) (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; }}
+                      onMouseLeave={e => { if (!folderItemActive(item.id)) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
+                      <span style={{ flex: 1 }}>{item.label}</span>
+                      {!tutLoading && <span style={{ fontSize: '11px', color: '#9CA3AF' }}>{item.count}</span>}
+                    </button>
+                  ))}
 
-                {/* 미분류 */}
-                <button
-                  onClick={() => { setActiveTab('my'); setActiveFolder(null); }}
-                  style={{ display: 'flex', alignItems: 'center', gap: '7px', width: '100%', padding: '5px 8px', borderRadius: '7px', border: 'none', cursor: 'pointer', fontSize: '12.5px', textAlign: 'left', background: folderItemActive(null) ? '#EEF2FF' : 'transparent', color: folderItemActive(null) ? '#4F46E5' : '#6B7280', fontWeight: folderItemActive(null) ? 600 : 400 }}
-                  onMouseEnter={e => { if (!folderItemActive(null)) (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; }}
-                  onMouseLeave={e => { if (!folderItemActive(null)) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
-                  <span style={{ flex: 1 }}>미분류</span>
-                  {!tutLoading && <span style={{ fontSize: '10.5px', color: '#9CA3AF' }}>{tutorials.filter(t => !t.folder_id).length}</span>}
-                </button>
-
-              {/* 폴더 목록 */}
-              {folders.map(f => {
-                const folderTutorials = tutorials.filter(t => t.folder_id === f.id);
-                return (
-                  <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
-                    {editingFolderId === f.id ? (
-                      <input autoFocus value={editingFolderName}
-                        onChange={e => setEditingFolderName(e.target.value)}
-                        onBlur={() => handleRenameFolder(f.id)}
-                        onKeyDown={e => { if (e.key === 'Enter') handleRenameFolder(f.id); if (e.key === 'Escape') setEditingFolderId(null); }}
-                        style={{ flex: 1, margin: '2px 4px', padding: '4px 8px', borderRadius: '7px', border: '1.5px solid #4F46E5', fontSize: '12.5px', outline: 'none', fontFamily: 'inherit' }}
-                      />
-                    ) : (
-                      <button
-                        onClick={() => { setActiveTab('my'); setActiveFolder(f.id); }}
-                        onDoubleClick={() => { setEditingFolderId(f.id); setEditingFolderName(f.name); }}
-                        style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, padding: '7px 10px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '13px', textAlign: 'left', background: folderItemActive(f.id) ? `${f.color}15` : 'transparent', color: folderItemActive(f.id) ? f.color : '#4B5563', fontWeight: folderItemActive(f.id) ? 600 : 400 }}
-                        onMouseEnter={e => { if (!folderItemActive(f.id)) (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; }}
-                        onMouseLeave={e => { if (!folderItemActive(f.id)) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
-                        <span style={{ width: '14px', height: '14px', borderRadius: '3px', background: f.color, flexShrink: 0, display: 'grid', placeItems: 'center' }}>
-                          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-                        </span>
-                        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
-                        <span style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: 400, flexShrink: 0 }}>{folderTutorials.length}</span>
+                  {/* 폴더 목록 */}
+                  {(showAllFolders ? folders : folders.slice(0, FOLDER_LIMIT)).map(f => (
+                    <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
+                      {editingFolderId === f.id ? (
+                        <input autoFocus value={editingFolderName}
+                          onChange={e => setEditingFolderName(e.target.value)}
+                          onBlur={() => handleRenameFolder(f.id)}
+                          onKeyDown={e => { if (e.key === 'Enter') handleRenameFolder(f.id); if (e.key === 'Escape') setEditingFolderId(null); }}
+                          style={{ flex: 1, padding: '4px 7px', borderRadius: '6px', border: '1.5px solid #4F46E5', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
+                      ) : (
+                        <button
+                          onClick={() => { setActiveTab('my'); setActiveFolder(f.id); }}
+                          onDoubleClick={() => { setEditingFolderId(f.id); setEditingFolderName(f.name); }}
+                          style={{ display: 'flex', alignItems: 'center', gap: '7px', flex: 1, padding: '5px 8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', textAlign: 'left', background: folderItemActive(f.id) ? `${f.color}15` : 'transparent', color: folderItemActive(f.id) ? f.color : '#4B5563', fontWeight: folderItemActive(f.id) ? 600 : 400 }}
+                          onMouseEnter={e => { if (!folderItemActive(f.id)) (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; }}
+                          onMouseLeave={e => { if (!folderItemActive(f.id)) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
+                          <span style={{ width: '11px', height: '11px', borderRadius: '3px', background: f.color, flexShrink: 0, display: 'grid', placeItems: 'center' }}>
+                            <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                          </span>
+                          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+                          <span style={{ fontSize: '11px', color: '#9CA3AF', flexShrink: 0 }}>{tutorials.filter(t => t.folder_id === f.id).length}</span>
+                        </button>
+                      )}
+                      <button onClick={e => { e.stopPropagation(); handleDeleteFolder(f.id); }}
+                        style={{ width: '16px', height: '16px', borderRadius: '3px', border: 'none', background: 'transparent', color: '#D1D5DB', cursor: 'pointer', display: 'grid', placeItems: 'center', flexShrink: 0, opacity: 0 }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '1'; (e.currentTarget as HTMLButtonElement).style.color = '#EF4444'; (e.currentTarget as HTMLButtonElement).style.background = '#FEE2E2'; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '0'; (e.currentTarget as HTMLButtonElement).style.color = '#D1D5DB'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
+                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                       </button>
-                    )}
-                    {/* 삭제 버튼 — 호버 시 */}
-                    <button onClick={e => { e.stopPropagation(); handleDeleteFolder(f.id); }}
-                      style={{ width: '18px', height: '18px', borderRadius: '4px', border: 'none', background: 'transparent', color: '#D1D5DB', cursor: 'pointer', display: 'grid', placeItems: 'center', flexShrink: 0, opacity: 0, transition: 'opacity 0.12s' }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '1'; (e.currentTarget as HTMLButtonElement).style.color = '#EF4444'; (e.currentTarget as HTMLButtonElement).style.background = '#FEE2E2'; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '0'; (e.currentTarget as HTMLButtonElement).style.color = '#D1D5DB'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-                      title="폴더 삭제">
-                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </div>
+                  ))}
+
+                  {/* 더 보기 / 접기 */}
+                  {folders.length > FOLDER_LIMIT && (
+                    <button onClick={() => setShowAllFolders(v => !v)}
+                      style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 8px', borderRadius: '6px', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '13px', color: '#9CA3AF', width: '100%' }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#6B7280'; (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '#9CA3AF'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+                        style={{ transform: showAllFolders ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
+                        <polyline points="6 9 12 15 18 9"/>
+                      </svg>
+                      {showAllFolders ? '접기' : `${folders.length - FOLDER_LIMIT}개 더 보기`}
                     </button>
-                  </div>
-                );
-              })}
+                  )}
 
-                {/* 새 폴더 */}
-                {showNewFolderInput ? (
-                  <form onSubmit={handleCreateFolder} style={{ display: 'flex', gap: '4px', paddingTop: '2px' }}>
-                    <input autoFocus value={newFolderName} onChange={e => setNewFolderName(e.target.value)} placeholder="폴더 이름"
-                      onKeyDown={e => { if (e.key === 'Escape') setShowNewFolderInput(false); }}
-                      style={{ flex: 1, padding: '4px 7px', borderRadius: '6px', border: '1px solid #C7D2FE', fontSize: '11.5px', outline: 'none', fontFamily: 'inherit' }} />
-                    <button type="submit" disabled={creatingFolder || !newFolderName.trim()}
-                      style={{ padding: '4px 7px', borderRadius: '6px', background: '#4F46E5', color: 'white', border: 'none', fontSize: '11px', fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
-                      {creatingFolder ? '...' : '추가'}
+                  {/* 새 폴더 */}
+                  {showNewFolderInput ? (
+                    <form onSubmit={handleCreateFolder} style={{ display: 'flex', gap: '4px', paddingTop: '2px' }}>
+                      <input autoFocus value={newFolderName} onChange={e => setNewFolderName(e.target.value)} placeholder="폴더 이름"
+                        onKeyDown={e => { if (e.key === 'Escape') setShowNewFolderInput(false); }}
+                        style={{ flex: 1, padding: '4px 7px', borderRadius: '6px', border: '1px solid #C7D2FE', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
+                      <button type="submit" disabled={creatingFolder || !newFolderName.trim()}
+                        style={{ padding: '4px 8px', borderRadius: '6px', background: '#4F46E5', color: 'white', border: 'none', fontSize: '12px', fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
+                        {creatingFolder ? '...' : '추가'}
+                      </button>
+                    </form>
+                  ) : (
+                    <button onClick={() => { setShowNewFolderInput(true); setNewFolderName(''); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', padding: '4px 8px', borderRadius: '6px', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '13px', color: '#9CA3AF' }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#6B7280'; (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '#9CA3AF'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                      새 폴더
                     </button>
-                  </form>
-                ) : (
-                  <button onClick={() => { setShowNewFolderInput(true); setNewFolderName(''); }}
-                    style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', padding: '4px 8px', borderRadius: '6px', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '12px', color: '#9CA3AF' }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#6B7280'; (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '#9CA3AF'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    새 폴더
-                  </button>
-                )}
-              </div>{/* 들여쓰기 끝 */}
-
-              {/* 구분선 */}
-              <div style={{ height: '1px', background: '#F3F4F6', margin: '10px 4px 8px' }} />
-
-              {/* 팀 워크스페이스 섹션 헤더 */}
-              <button
-                style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 10px', borderRadius: '9px', border: 'none', cursor: 'default', textAlign: 'left', background: 'transparent' }}>
-                <div style={{ width: '26px', height: '26px', borderRadius: '7px', background: activeTab === 'team' ? '#4F46E5' : '#E5E7EB', display: 'grid', placeItems: 'center', flexShrink: 0, transition: 'background 0.15s' }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                  )}
                 </div>
-                <span style={{ fontSize: '13.5px', fontWeight: 700, color: '#111827', letterSpacing: '-0.01em', flex: 1 }}>팀 워크스페이스</span>
-                <button onClick={() => { setShowNewWsInput(v => !v); setNewWsName(''); }}
-                  style={{ width: '18px', height: '18px', border: 'none', background: 'transparent', color: '#9CA3AF', cursor: 'pointer', display: 'grid', placeItems: 'center', padding: 0, flexShrink: 0 }}
-                  title="새 워크스페이스">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                </button>
-              </button>
+              )}
 
-              {/* 팀 워크스페이스 하위 항목 — 들여쓰기 */}
-              <div style={{ paddingLeft: '14px', display: 'flex', flexDirection: 'column', gap: '1px', borderLeft: '2px solid #F3F4F6', marginLeft: '22px' }}>
-                {showNewWsInput && (
-                  <form onSubmit={handleCreateWorkspace} style={{ display: 'flex', gap: '4px', paddingBottom: '4px' }}>
-                    <input autoFocus value={newWsName} onChange={e => setNewWsName(e.target.value)} placeholder="워크스페이스 이름"
-                      style={{ flex: 1, padding: '4px 7px', borderRadius: '6px', border: '1px solid #C7D2FE', fontSize: '11.5px', outline: 'none', fontFamily: 'inherit' }} />
-                    <button type="submit" disabled={creatingWs || !newWsName.trim()}
-                      style={{ padding: '4px 7px', borderRadius: '6px', background: '#4F46E5', color: 'white', border: 'none', fontSize: '11px', fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
-                      {creatingWs ? '...' : '만들기'}
-                    </button>
-                  </form>
-                )}
-                {workspaces.length === 0
-                  ? <div style={{ padding: '4px 8px', fontSize: '12px', color: '#D1D5DB' }}>없음</div>
-                  : workspaces.map(ws => (
-                    <button key={ws.id}
-                      onClick={() => { setActiveTab('team'); setActiveWorkspace(ws.id); }}
-                      style={{ display: 'flex', alignItems: 'center', gap: '7px', width: '100%', padding: '5px 8px', borderRadius: '7px', border: 'none', cursor: 'pointer', fontSize: '12.5px', textAlign: 'left', background: activeTab === 'team' && activeWorkspace === ws.id ? '#EEF2FF' : 'transparent', color: activeTab === 'team' && activeWorkspace === ws.id ? '#4F46E5' : '#6B7280', fontWeight: activeTab === 'team' && activeWorkspace === ws.id ? 600 : 400 }}
-                      onMouseEnter={e => { if (!(activeTab === 'team' && activeWorkspace === ws.id)) (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; }}
-                      onMouseLeave={e => { if (!(activeTab === 'team' && activeWorkspace === ws.id)) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
-                      <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', flexShrink: 0 }} />
-                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ws.name}</span>
-                      <Link href={`/workspace/${ws.id}`} onClick={e => e.stopPropagation()}
-                        style={{ fontSize: '10px', color: '#9CA3AF', textDecoration: 'none', flexShrink: 0, padding: '1px 4px', borderRadius: '4px' }}
-                        onMouseEnter={e => (e.currentTarget.style.background = '#E5E7EB')}
-                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                        title="멤버 관리">
-                        ⚙
-                      </Link>
-                    </button>
-                  ))
-                }
-              </div>{/* 들여쓰기 끝 */}
+              {/* ② 팀 워크스페이스 헤더 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1px', marginTop: '4px' }}>
+                <button onClick={() => setTeamOpen(v => !v)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, padding: '7px 8px', borderRadius: '8px', border: 'none', cursor: 'pointer', textAlign: 'left', background: 'transparent' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                  <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: activeTab === 'team' ? '#4F46E5' : '#E5E7EB', display: 'grid', placeItems: 'center', flexShrink: 0, transition: 'background 0.15s' }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                  </div>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#111827', flex: 1 }}>팀 워크스페이스</span>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"
+                    style={{ transform: teamOpen ? 'rotate(0)' : 'rotate(-90deg)', transition: 'transform 0.15s', flexShrink: 0 }}>
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                </button>
+                <button onClick={() => { setShowNewWsInput(v => !v); setNewWsName(''); setTeamOpen(true); }}
+                  style={{ width: '24px', height: '24px', border: 'none', background: 'transparent', color: '#9CA3AF', cursor: 'pointer', display: 'grid', placeItems: 'center', borderRadius: '6px', flexShrink: 0 }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; (e.currentTarget as HTMLButtonElement).style.color = '#4B5563'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = '#9CA3AF'; }}
+                  title="새 워크스페이스">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                </button>
+              </div>
+
+              {/* ② 팀 워크스페이스 하위 */}
+              {teamOpen && (
+                <div style={{ paddingLeft: '12px', marginLeft: '19px', borderLeft: '2px solid #F3F4F6', display: 'flex', flexDirection: 'column', gap: '1px', marginBottom: '2px' }}>
+                  {showNewWsInput && (
+                    <form onSubmit={handleCreateWorkspace} style={{ display: 'flex', gap: '4px', paddingBottom: '4px' }}>
+                      <input autoFocus value={newWsName} onChange={e => setNewWsName(e.target.value)} placeholder="워크스페이스 이름"
+                        style={{ flex: 1, padding: '4px 7px', borderRadius: '6px', border: '1px solid #C7D2FE', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
+                      <button type="submit" disabled={creatingWs || !newWsName.trim()}
+                        style={{ padding: '4px 8px', borderRadius: '6px', background: '#4F46E5', color: 'white', border: 'none', fontSize: '12px', fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
+                        {creatingWs ? '...' : '만들기'}
+                      </button>
+                    </form>
+                  )}
+                  {workspaces.length === 0
+                    ? <div style={{ padding: '4px 8px', fontSize: '13px', color: '#D1D5DB' }}>없음</div>
+                    : workspaces.map(ws => (
+                      <div key={ws.id} style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
+                        <button onClick={() => { setActiveTab('team'); setActiveWorkspace(ws.id); }}
+                          style={{ display: 'flex', alignItems: 'center', gap: '7px', flex: 1, padding: '5px 8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', textAlign: 'left', background: activeTab === 'team' && activeWorkspace === ws.id ? '#EEF2FF' : 'transparent', color: activeTab === 'team' && activeWorkspace === ws.id ? '#4F46E5' : '#4B5563', fontWeight: activeTab === 'team' && activeWorkspace === ws.id ? 600 : 400 }}
+                          onMouseEnter={e => { if (!(activeTab === 'team' && activeWorkspace === ws.id)) (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; }}
+                          onMouseLeave={e => { if (!(activeTab === 'team' && activeWorkspace === ws.id)) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
+                          <div style={{ width: '10px', height: '10px', borderRadius: '3px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', flexShrink: 0 }} />
+                          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ws.name}</span>
+                          <span style={{ fontSize: '11px', color: '#9CA3AF', flexShrink: 0 }}>{ws.member_count ?? 0}명</span>
+                        </button>
+                        <Link href={`/workspace/${ws.id}`} onClick={e => e.stopPropagation()}
+                          style={{ width: '20px', height: '20px', borderRadius: '4px', display: 'grid', placeItems: 'center', color: '#9CA3AF', textDecoration: 'none', flexShrink: 0 }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = '#F3F4F6'; (e.currentTarget as HTMLAnchorElement).style.color = '#4B5563'; }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = 'transparent'; (e.currentTarget as HTMLAnchorElement).style.color = '#9CA3AF'; }}
+                          title="멤버 관리">
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1v.09a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-2.82-1l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1-.09H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-.09V4.5a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 .09 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 .09 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-.09 1z"/></svg>
+                        </Link>
+                      </div>
+                    ))
+                  }
+                </div>
+              )}
             </div>
 
             {/* 사용량 */}
