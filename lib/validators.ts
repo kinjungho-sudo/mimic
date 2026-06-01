@@ -17,13 +17,27 @@ export const captureFinalizeSchema = z.object({
   title: z.string().min(1).max(200).optional(),
 });
 
+// input[type=password/tel 등] 또는 민감 aria-label이면 label도 제거하는 변환
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const SENSITIVE_INPUT_TYPES_RE = /^(password|tel|credit.?card|cc.?num|ssn)$/i;
+const SENSITIVE_LABEL_RE = /비밀번호|패스워드|암호|password|카드.?번호|card.?number|주민.?번호|주민.?등록|rrn|ssn|계좌.?번호|account.?number|cvv|cvc|보안.?코드|security.?code|\bpin\b|otp|인증.?번호|인증.?코드|verification.?code|토큰|token|\bsecret\b|api.?key/i;
+
 export const actionInfoSchema = z.object({
   type: z.enum(['click', 'navigate', 'toggle', 'select', 'focus_input', 'type']),
   label: z.string().max(200).optional(),
   tag: z.string().max(30).optional(),
   role: z.string().max(50).optional(),
   href: z.string().max(500).optional(),
-  text: z.string().max(1000).optional(),
+  // text(실제 입력값)와 inputType은 수신하되 즉시 폐기 — password 등 민감정보가 서버/AI에 도달하지 않도록
+  text: z.string().max(1000).optional().transform(() => undefined),
+  inputType: z.string().max(30).optional().transform(() => undefined),
+}).transform(data => {
+  // input type이 민감하거나 label 자체가 민감 패턴이면 label도 제거
+  const rawLabel = (data as { label?: string }).label;
+  if (rawLabel && SENSITIVE_LABEL_RE.test(rawLabel)) {
+    return { ...data, label: undefined };
+  }
+  return data;
 }).optional();
 
 export const captureAnalyzeSchema = z.object({
