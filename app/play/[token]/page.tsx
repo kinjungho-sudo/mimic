@@ -77,6 +77,7 @@ function StarRating({ value, onChange }: { value: number; onChange: (v: number) 
   );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function SurveyModal({ tutorialId, viewerSessionId, onClose }: { tutorialId: string; viewerSessionId: string; onClose: () => void }) {
   const [survey, setSurvey] = useState<SurveyState>({ ease: 0, reuse: 0, useful: 0, reproduce: null, comment: '' });
   const [submitting, setSubmitting] = useState(false);
@@ -164,28 +165,192 @@ function SurveyModal({ tutorialId, viewerSessionId, onClose }: { tutorialId: str
   );
 }
 
+// ── 문서형 뷰 ─────────────────────────────────────────────
+
+function DocumentView({ tutorial }: { tutorial: Tutorial }) {
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', background: '#F8F9FA', padding: '40px 0 80px' }}>
+      <div style={{ maxWidth: '860px', margin: '0 auto', padding: '0 24px' }}>
+        <h1 style={{ fontSize: '26px', fontWeight: 700, color: '#111827', marginBottom: '32px', letterSpacing: '-0.02em' }}>
+          {tutorial.title}
+        </h1>
+        {tutorial.steps.map((step, idx) => {
+          const annotations = tutorial.annotations.filter(a => a.step_id === step.id);
+          return (
+            <div key={step.id} style={{ marginBottom: '40px', background: 'white', borderRadius: '14px', border: '1px solid #E5E7EB', overflow: 'hidden', boxShadow: '0 1px 6px rgba(17,24,39,0.06)' }}>
+              {/* 스텝 헤더 */}
+              <div style={{ padding: '18px 24px 16px', display: 'flex', alignItems: 'flex-start', gap: '12px', borderBottom: step.screenshot_url ? '1px solid #F3F4F6' : 'none' }}>
+                <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: '#4F46E5', color: 'white', fontSize: '13px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                  {String(idx + 1).padStart(2, '0')}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#111827', lineHeight: 1.4 }}>{step.title}</h3>
+                  {step.caption && <p style={{ margin: '6px 0 0', fontSize: '14px', color: '#4B5563', lineHeight: 1.65 }}>{step.caption}</p>}
+                </div>
+              </div>
+              {/* 스크린샷 */}
+              {step.screenshot_url && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={step.screenshot_url} alt={step.title} style={{ width: '100%', display: 'block' }} />
+              )}
+              {/* 어노테이션 */}
+              {annotations.length > 0 && (
+                <div style={{ padding: '16px 24px', borderTop: '1px solid #F3F4F6', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {annotations.map((ann, i) => (
+                    <div key={ann.id} style={{ display: 'flex', gap: '10px' }}>
+                      <span style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#EEF2FF', color: '#4F46E5', fontSize: '11px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0 }}>{i + 1}</span>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}>{ann.title}</div>
+                        {ann.body && <p style={{ fontSize: '12.5px', color: '#6B7280', margin: '2px 0 0', lineHeight: 1.5 }}>{ann.body}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── 공유 팝업 ─────────────────────────────────────────────
+
+function SharePopup({ title, url, onClose }: { title: string; url: string; onClose: () => void }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(url).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleKakao = () => {
+    // Kakao SDK 미설치 환경에서는 링크 복사 fallback
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const Kakao = (window as any).Kakao;
+    if (Kakao?.isInitialized?.()) {
+      Kakao.Share.sendDefault({
+        objectType: 'feed',
+        content: {
+          title,
+          description: 'MIMIC으로 만든 단계별 인터랙티브 매뉴얼',
+          imageUrl: '',
+          link: { mobileWebUrl: url, webUrl: url },
+        },
+        buttons: [{ title: '매뉴얼 보기', link: { mobileWebUrl: url, webUrl: url } }],
+      });
+    } else {
+      // fallback: KakaoTalk 공유 URL 스킴
+      window.open(`kakaotalk://msg/send?text=${encodeURIComponent(`${title}\n${url}`)}`, '_blank');
+    }
+  };
+
+  const handleEmail = () => {
+    const subject = encodeURIComponent(`[MIMIC] ${title}`);
+    const body = encodeURIComponent(`안녕하세요,\n\n아래 링크에서 MIMIC 매뉴얼을 확인해주세요.\n\n${title}\n${url}\n\nMIMIC으로 만든 단계별 인터랙티브 매뉴얼입니다.`);
+    window.open(`mailto:?subject=${subject}&body=${body}`, '_self');
+  };
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
+      <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '100%', maxWidth: '420px', background: 'white', borderRadius: '20px', boxShadow: '0 30px 80px rgba(0,0,0,0.3)', zIndex: 81, padding: '28px 24px', fontFamily: "'Pretendard', -apple-system, sans-serif", color: '#111827' }}>
+        {/* 닫기 */}
+        <button onClick={onClose} style={{ position: 'absolute', top: '16px', right: '16px', width: '30px', height: '30px', borderRadius: '8px', border: 'none', background: '#F3F4F6', color: '#6B7280', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
+          onMouseEnter={e => { e.currentTarget.style.background = '#E5E7EB'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = '#F3F4F6'; }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+
+        <h2 style={{ fontSize: '17px', fontWeight: 700, margin: '0 0 6px' }}>공유하기</h2>
+        <p style={{ fontSize: '13px', color: '#6B7280', margin: '0 0 20px' }}>{title}</p>
+
+        {/* 링크 복사 */}
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+          <input readOnly value={url} style={{ flex: 1, padding: '10px 12px', border: '1.5px solid #E5E7EB', borderRadius: '9px', fontSize: '12px', color: '#374151', background: '#F9FAFB', outline: 'none', fontFamily: 'ui-monospace, monospace', minWidth: 0 }} />
+          <button onClick={handleCopy} style={{ flexShrink: 0, padding: '0 16px', height: '40px', borderRadius: '9px', border: 'none', background: copied ? '#10B981' : '#111827', color: 'white', fontSize: '13px', fontWeight: 500, cursor: 'pointer', transition: 'background 0.18s', whiteSpace: 'nowrap' }}>
+            {copied ? '복사됨 ✓' : '링크 복사'}
+          </button>
+        </div>
+
+        {/* 구분선 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+          <div style={{ flex: 1, height: '1px', background: '#F3F4F6' }} />
+          <span style={{ fontSize: '11.5px', color: '#9CA3AF' }}>앱으로 공유</span>
+          <div style={{ flex: 1, height: '1px', background: '#F3F4F6' }} />
+        </div>
+
+        {/* 앱 공유 버튼 */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+          <button onClick={handleKakao} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', height: '46px', borderRadius: '10px', border: 'none', background: '#FEE500', color: '#391B1B', fontSize: '13.5px', fontWeight: 600, cursor: 'pointer', transition: 'filter 0.15s' }}
+            onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(0.95)'; }}
+            onMouseLeave={e => { e.currentTarget.style.filter = 'none'; }}>
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
+              <path d="M9 0C4.03 0 0 3.13 0 6.99c0 2.49 1.56 4.68 3.91 5.93l-.99 3.68c-.09.34.29.61.59.41L7.7 14.4c.43.06.87.09 1.3.09 4.97 0 9-3.13 9-6.99C18 3.13 13.97 0 9 0z"/>
+            </svg>
+            카카오톡
+          </button>
+          <button onClick={handleEmail} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', height: '46px', borderRadius: '10px', border: '1.5px solid #E5E7EB', background: 'white', color: '#374151', fontSize: '13.5px', fontWeight: 600, cursor: 'pointer', transition: 'border-color 0.15s' }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = '#4F46E5'; e.currentTarget.style.color = '#4F46E5'; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.color = '#374151'; }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
+            </svg>
+            이메일
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── .md 생성 ──────────────────────────────────────────────
+
+function buildMarkdown(tutorial: Tutorial): string {
+  const lines: string[] = [`# ${tutorial.title}`, ''];
+  tutorial.steps.forEach((step, idx) => {
+    lines.push(`## ${String(idx + 1).padStart(2, '0')}. ${step.title}`);
+    if (step.caption) lines.push('', step.caption);
+    if (step.screenshot_url) lines.push('', `![${step.title}](${step.screenshot_url})`);
+    const annotations = tutorial.annotations.filter(a => a.step_id === step.id);
+    if (annotations.length > 0) {
+      lines.push('');
+      annotations.forEach((ann, i) => {
+        lines.push(`**${i + 1}. ${ann.title}**`);
+        if (ann.body) lines.push(ann.body);
+      });
+    }
+    lines.push('');
+  });
+  return lines.join('\n');
+}
+
+// ── 플레이어 메인 ─────────────────────────────────────────
+
 export default function PlayerPage({ params }: { params: { token: string } }) {
   const token = params.token;
   const [tutorial, setTutorial] = useState<Tutorial | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [viewMode, setViewMode] = useState<'slides' | 'document'>('slides');
+  const [showShare, setShowShare] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [showDesc, setShowDesc] = useState(true);
   const [showSidebar, setShowSidebar] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [showSurvey, setShowSurvey] = useState(false);
   const [speed, setSpeed] = useState('1.25x');
   const [isPlaying, setIsPlaying] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
   const playTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const viewerSessionId = useRef(crypto.randomUUID());
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     fetch(`/api/play/${token}`)
-      .then(r => r.ok ? r.json() : null)
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(data => {
-        if (!data) { setNotFound(true); setLoading(false); return; }
+        if (data?.protected) { setNotFound(true); setLoading(false); return; }
         setTutorial(data);
         setLoading(false);
       })
@@ -223,7 +388,6 @@ export default function PlayerPage({ params }: { params: { token: string } }) {
           if (s < tutorial.steps.length - 1) return s + 1;
           setIsPlaying(false);
           clearInterval(playTimerRef.current!);
-          setShowSurvey(true);
           return s;
         });
       }, 3000);
@@ -268,46 +432,106 @@ export default function PlayerPage({ params }: { params: { token: string } }) {
     setIsPlaying(false);
   };
 
+  const pageUrl = typeof window !== 'undefined' ? window.location.href : '';
+
+  const handleDownloadMd = () => {
+    const md = buildMarkdown(tutorial);
+    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${tutorial.title.replace(/[/\\?%*:|"<>]/g, '-')}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const headerBtnStyle: React.CSSProperties = {
+    height: '32px', padding: '0 12px', borderRadius: '8px', display: 'inline-flex', alignItems: 'center', gap: '6px',
+    color: 'rgba(255,255,255,0.75)', background: 'transparent', border: '1px solid rgba(255,255,255,0.15)',
+    cursor: 'pointer', fontSize: '12.5px', fontWeight: 500, transition: 'all 0.15s ease', whiteSpace: 'nowrap',
+  };
+
   return (
-    <div style={{ position: 'fixed', inset: 0, background: '#0A0A0F', display: 'flex', flexDirection: 'column', fontFamily: "'Pretendard', -apple-system, sans-serif", color: 'white', overflow: 'hidden' }}>
+    <div style={{ position: 'fixed', inset: 0, background: viewMode === 'document' ? '#F8F9FA' : '#0A0A0F', display: 'flex', flexDirection: 'column', fontFamily: "'Pretendard', -apple-system, sans-serif", color: viewMode === 'document' ? '#111827' : 'white', overflow: 'hidden' }}>
 
       {/* Header */}
-      <header style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '18px 24px', display: 'flex', alignItems: 'center', gap: '14px', background: 'linear-gradient(180deg, rgba(0,0,0,0.5), transparent)', zIndex: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 500, opacity: 0.9 }}>
-          <BrandMark /> MIMIC
-          <span style={{ color: 'rgba(255,255,255,0.3)', margin: '0 8px' }}>·</span>
+      <header style={{
+        position: 'relative', zIndex: 30, flexShrink: 0,
+        height: '56px', padding: '0 20px',
+        display: 'flex', alignItems: 'center', gap: '12px',
+        background: viewMode === 'document' ? 'white' : 'rgba(10,10,15,0.85)',
+        borderBottom: viewMode === 'document' ? '1px solid #E5E7EB' : '1px solid rgba(255,255,255,0.06)',
+        backdropFilter: 'blur(12px)',
+      }}>
+        {/* 브랜드 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 700, flexShrink: 0, color: viewMode === 'document' ? '#111827' : 'white' }}>
+          <BrandMark />
+          <span>MIMIC</span>
         </div>
-        <span style={{ fontSize: '13.5px', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '380px' }}>{tutorial.title}</span>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: '4px' }}>
-          {[
-            { title: '공유', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg> },
-            { title: '다운로드', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> },
-            { title: '전체화면', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg> },
-          ].map(btn => (
-            <button key={btn.title} title={btn.title} onClick={btn.title === '전체화면' ? () => document.documentElement.requestFullscreen?.() : undefined}
-              style={{ width: '36px', height: '36px', borderRadius: '8px', display: 'grid', placeItems: 'center', color: 'rgba(255,255,255,0.7)', background: 'transparent', border: 'none', cursor: 'pointer', transition: 'all 0.18s ease' }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.10)'; e.currentTarget.style.color = 'white'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; }}
-            >{btn.icon}</button>
-          ))}
-          <button title="종료" onClick={() => setShowSurvey(true)}
-            style={{ width: '36px', height: '36px', borderRadius: '8px', display: 'grid', placeItems: 'center', color: 'rgba(255,255,255,0.7)', background: 'transparent', border: 'none', cursor: 'pointer', transition: 'all 0.18s ease' }}
+        <span style={{ color: viewMode === 'document' ? '#D1D5DB' : 'rgba(255,255,255,0.2)' }}>·</span>
+        <span style={{ fontSize: '13.5px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0, color: viewMode === 'document' ? '#374151' : 'rgba(255,255,255,0.9)' }}>
+          {tutorial.title}
+        </span>
+
+        {/* 우측 액션 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+          {/* 모드 토글 */}
+          <div style={{ display: 'flex', background: viewMode === 'document' ? '#F3F4F6' : 'rgba(255,255,255,0.08)', borderRadius: '8px', padding: '3px', gap: '2px' }}>
+            {([
+              { key: 'slides', label: '슬라이드', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> },
+              { key: 'document', label: '문서', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> },
+            ] as { key: 'slides' | 'document'; label: string; icon: React.ReactNode }[]).map(tab => {
+              const active = viewMode === tab.key;
+              const activeColor = viewMode === 'document' ? '#4F46E5' : 'white';
+              const inactiveColor = viewMode === 'document' ? '#6B7280' : 'rgba(255,255,255,0.5)';
+              return (
+                <button key={tab.key} onClick={() => setViewMode(tab.key)} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '5px 10px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: active ? 600 : 400, background: active ? (viewMode === 'document' ? 'white' : 'rgba(255,255,255,0.15)') : 'transparent', color: active ? activeColor : inactiveColor, transition: 'all 0.12s', boxShadow: active && viewMode === 'document' ? '0 1px 4px rgba(0,0,0,0.08)' : 'none' }}>
+                  {tab.icon}{tab.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* .md 다운로드 */}
+          <button onClick={handleDownloadMd} title="Markdown 다운로드" style={headerBtnStyle}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = 'white'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.75)'; }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            .md
+          </button>
+
+          {/* 공유 */}
+          <button onClick={() => setShowShare(true)} style={{ ...headerBtnStyle, background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', border: 'none', color: 'white' }}
+            onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 14px rgba(79,70,229,0.4)'; }}
+            onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            공유
+          </button>
+
+          {/* 전체화면 */}
+          <button title="전체화면" onClick={() => document.documentElement.requestFullscreen?.()}
+            style={{ width: '32px', height: '32px', borderRadius: '8px', display: 'grid', placeItems: 'center', color: 'rgba(255,255,255,0.6)', background: 'transparent', border: 'none', cursor: 'pointer' }}
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.10)'; e.currentTarget.style.color = 'white'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.6)'; }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
           </button>
         </div>
       </header>
 
+      {/* ── 문서형 모드 ── */}
+      {viewMode === 'document' && <DocumentView tutorial={tutorial} />}
+
+      {/* ── 슬라이드 모드 ── */}
+      {viewMode === 'slides' && <>
+
       {/* Sidebar trigger */}
-      <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: '30px', zIndex: 30, cursor: 'pointer' }}
+      <div style={{ position: 'absolute', top: '56px', left: 0, bottom: 0, width: '30px', zIndex: 30, cursor: 'pointer' }}
         onMouseEnter={() => setShowSidebar(true)} onMouseLeave={() => setShowSidebar(false)}
       />
 
       {/* Sidebar */}
       <aside onMouseEnter={() => setShowSidebar(true)} onMouseLeave={() => setShowSidebar(false)}
-        style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: '220px', background: 'rgba(20,20,28,0.85)', backdropFilter: 'blur(20px)', borderRight: '1px solid rgba(255,255,255,0.08)', padding: '64px 14px 20px', zIndex: 28, transform: showSidebar ? 'translateX(0)' : 'translateX(-100%)', transition: 'transform 0.2s ease' }}
+        style={{ position: 'absolute', top: '56px', left: 0, bottom: 0, width: '220px', background: 'rgba(20,20,28,0.85)', backdropFilter: 'blur(20px)', borderRight: '1px solid rgba(255,255,255,0.08)', padding: '20px 14px 20px', zIndex: 28, transform: showSidebar ? 'translateX(0)' : 'translateX(-100%)', transition: 'transform 0.2s ease' }}
       >
         <div style={{ fontSize: '10.5px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', padding: '0 6px', fontWeight: 500 }}>슬라이드</div>
         {tutorial.steps.map((s, idx) => {
@@ -466,10 +690,10 @@ export default function PlayerPage({ params }: { params: { token: string } }) {
         </div>
       </div>
 
-      {/* Survey */}
-      {showSurvey && (
-        <SurveyModal tutorialId={tutorial.id} viewerSessionId={viewerSessionId.current} onClose={() => setShowSurvey(false)} />
-      )}
+      </>}
+
+      {/* 공유 팝업 */}
+      {showShare && <SharePopup title={tutorial.title} url={pageUrl} onClose={() => setShowShare(false)} />}
     </div>
   );
 }
