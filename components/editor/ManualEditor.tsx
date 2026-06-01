@@ -103,61 +103,63 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
 
   return (
     <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
-      {/* ── Left TOC (hidden when parent provides its own) ── */}
-      <aside style={{ width: '220px', flexShrink: 0, background: 'white', borderRight: '1px solid #E5E7EB', display: hideToc ? 'none' : 'flex', flexDirection: 'column', overflowY: 'auto' }}>
-        <div style={{ padding: '16px 16px 10px', fontSize: '11px', fontWeight: 600, color: '#9CA3AF', letterSpacing: '0.06em', textTransform: 'uppercase', borderBottom: '1px solid #F3F4F6', flexShrink: 0 }}>
-          목차
-        </div>
-        <div style={{ flex: 1, padding: '8px 0' }}>
-          {steps.map((step, idx) => {
-            const prevHostname = idx > 0 ? steps[idx - 1].domainHostname : null;
-            const showHeader = !!step.domainHostname && step.domainHostname !== prevHostname;
-            return (
-              <div key={step.id}>
-                {showHeader && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 16px 4px', marginTop: idx === 0 ? 0 : '8px' }}>
-                    {step.domainFavicon && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={step.domainFavicon}
-                        alt=""
-                        width={14}
-                        height={14}
-                        style={{ borderRadius: '3px', flexShrink: 0 }}
-                        onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                      />
-                    )}
-                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {step.domainName ?? step.domainHostname}
-                    </span>
-                  </div>
-                )}
-                <TocItem
-                  step={step}
-                  isActive={activeId === step.id}
-                  isDragOver={dragOverId === step.id && draggingId !== step.id}
-                  onSelect={() => scrollToStep(step.id)}
-                  onRename={title => updateStep(step.id, { actionTitle: title })}
-                  onDragStart={() => handleDragStart(step.id)}
-                  onDragOver={e => handleDragOver(e, step.id)}
-                  onDrop={() => handleDrop(step.id)}
-                  onDragEnd={() => { setDraggingId(null); setDragOverId(null); }}
-                />
-              </div>
-            );
-          })}
-        </div>
-        <div style={{ padding: '8px 12px 16px', borderTop: '1px solid #F3F4F6', flexShrink: 0 }}>
-          <button
-            onClick={addStep}
-            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', height: '36px', border: '1.5px dashed #D1D5DB', borderRadius: '8px', background: 'transparent', fontSize: '12px', color: '#6B7280', cursor: 'pointer', transition: 'all 0.15s ease' }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = '#4F46E5'; e.currentTarget.style.color = '#4F46E5'; e.currentTarget.style.background = 'rgba(79,70,229,0.03)'; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = '#D1D5DB'; e.currentTarget.style.color = '#6B7280'; e.currentTarget.style.background = 'transparent'; }}
-          >
-            <Plus size={13} /> 단계 추가
-          </button>
-        </div>
-      </aside>
+      {/* ── Left TOC (shown only when hideToc is false) ── */}
+      {!hideToc && (
+        <aside style={{ width: '220px', flexShrink: 0, background: 'white', borderRight: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+          <div style={{ padding: '16px 16px 10px', fontSize: '11px', fontWeight: 600, color: '#9CA3AF', letterSpacing: '0.06em', textTransform: 'uppercase', borderBottom: '1px solid #F3F4F6', flexShrink: 0 }}>
+            목차
+          </div>
+          <div style={{ flex: 1, padding: '8px 0' }}>
+            {steps.map((step, idx) => {
+              const prevHostname = idx > 0 ? steps[idx - 1].domainHostname : null;
+              const showHeader = !!step.domainHostname && step.domainHostname !== prevHostname;
+              return (
+                <div key={step.id}>
+                  {showHeader && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 16px 4px', marginTop: idx === 0 ? 0 : '8px' }}>
+                      {step.domainFavicon && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={step.domainFavicon}
+                          alt=""
+                          width={14}
+                          height={14}
+                          style={{ borderRadius: '3px', flexShrink: 0 }}
+                          onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                        />
+                      )}
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {step.domainName ?? step.domainHostname}
+                      </span>
+                    </div>
+                  )}
+                  <TocItem
+                    step={step}
+                    isActive={activeId === step.id}
+                    isDragOver={dragOverId === step.id && draggingId !== step.id}
+                    onSelect={() => scrollToStep(step.id)}
+                    onRename={title => updateStep(step.id, { actionTitle: title })}
+                    onDragStart={() => handleDragStart(step.id)}
+                    onDragOver={e => handleDragOver(e, step.id)}
+                    onDrop={() => handleDrop(step.id)}
+                    onDragEnd={() => { setDraggingId(null); setDragOverId(null); }}
+                  />
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ padding: '8px 12px 16px', borderTop: '1px solid #F3F4F6', flexShrink: 0 }}>
+            <button
+              onClick={addStep}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', height: '36px', border: '1.5px dashed #D1D5DB', borderRadius: '8px', background: 'transparent', fontSize: '12px', color: '#6B7280', cursor: 'pointer', transition: 'all 0.15s ease' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#4F46E5'; e.currentTarget.style.color = '#4F46E5'; e.currentTarget.style.background = 'rgba(79,70,229,0.03)'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = '#D1D5DB'; e.currentTarget.style.color = '#6B7280'; e.currentTarget.style.background = 'transparent'; }}
+            >
+              <Plus size={13} /> 단계 추가
+            </button>
+          </div>
+        </aside>
+      )}
 
       {/* ── Right content ── */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '40px 0 80px', background: '#F8F9FA' }}>
