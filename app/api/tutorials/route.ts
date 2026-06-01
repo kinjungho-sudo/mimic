@@ -21,6 +21,9 @@ export async function GET(request: NextRequest) {
     query = query.eq('user_id', auth.userId).is('workspace_id', null);
   }
 
+  // 삭제된 항목 제외
+  query = query.is('deleted_at', null);
+
   const { data, error } = await query;
 
   if (error) {

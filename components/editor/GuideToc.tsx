@@ -11,9 +11,11 @@ interface GuideTocProps {
   onReorder?: (steps: ManualStep[]) => void;
   onAdd?: () => void;
   onDelete?: (id: string) => void;
+  onInsertAfter?: (afterId: string) => void;
 }
 
-export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onAdd, onDelete }: GuideTocProps) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onAdd, onDelete, onInsertAfter }: GuideTocProps) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [hoverId, setHoverId] = useState<string | null>(null);
@@ -181,6 +183,26 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onAdd
                   </button>
                 )}
               </div>
+
+              {/* Insert after button — shown on hover in edit mode */}
+              {editable && onInsertAfter && isHover && (
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '2px 0', position: 'relative', zIndex: 5 }}>
+                  <button
+                    onClick={e => { e.stopPropagation(); onInsertAfter(step.id); }}
+                    title="이 단계 아래에 삽입"
+                    style={{
+                      width: '20px', height: '20px', borderRadius: '50%',
+                      border: '1.5px solid #4F46E5', background: 'white',
+                      color: '#4F46E5', display: 'grid', placeItems: 'center',
+                      cursor: 'pointer', boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = '#EEF2FF'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  </button>
+                </div>
+              )}
             </div>
           );
         })}
