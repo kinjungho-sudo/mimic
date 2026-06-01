@@ -67,8 +67,9 @@ export type Step = {
   user_title: string | null;
   user_script: string | null;
   user_annotations?: unknown[] | null;
-  domain_name?: string | null;
-  domain_favicon?: string | null;
+  domain_hostname?: string | null;
+  domain_name?:     string | null;
+  domain_favicon?:  string | null;
   created_at: string;
 };
 
@@ -131,4 +132,42 @@ export type ProSignupData = {
   plan_interested: 'pro' | 'team';
   source: 'landing' | 'editor' | 'limit_modal' | 'mypage';
   user_id?: string;
+};
+
+// ─────────────────────────────
+// Workspace
+// ─────────────────────────────
+export type WorkspaceRole = 'admin' | 'editor' | 'viewer';
+
+export type Workspace = {
+  id: string;
+  name: string;
+  owner_id: string;
+  created_at: string;
+  updated_at: string;
+  // enriched
+  member_count?: number;
+  my_role?: WorkspaceRole;
+};
+
+export type WorkspaceMember = {
+  id: string;
+  workspace_id: string;
+  user_id: string;
+  role: WorkspaceRole;
+  joined_at: string;
+  // enriched
+  user?: { name: string; email: string; avatar_url: string | null };
+};
+
+export type WorkspaceInvitation = {
+  id: string;
+  workspace_id: string;
+  inviter_id: string;
+  email: string;
+  role: WorkspaceRole;
+  token: string;
+  status: 'pending' | 'accepted' | 'expired';
+  expires_at: string;
+  created_at: string;
 };

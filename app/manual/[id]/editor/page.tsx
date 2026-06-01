@@ -23,8 +23,13 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
     description: s.user_script ?? s.ai_description ?? '',
     screenshotUrl: s.screenshot_url || undefined,
     annotations: (s.user_annotations as import('@/components/editor/ImageAnnotationEditor').Annotation[] | null) ?? [],
-    domain_name: s.domain_name ?? null,
-    domain_favicon: s.domain_favicon ?? null,
+    pageUrl:         s.page_url        ?? null,
+    domainHostname:  s.domain_hostname ?? null,
+    domainName:      s.domain_name     ?? null,
+    domainFavicon:   s.domain_favicon  ?? null,
+    // legacy fields kept for EditorDomainHeader in ManualEditor
+    domain_name:    s.domain_name     ?? null,
+    domain_favicon: s.domain_favicon  ?? null,
   }));
 }
 

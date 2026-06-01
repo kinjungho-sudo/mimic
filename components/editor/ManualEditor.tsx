@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Plus, Trash2, ZoomIn, X, Pencil,
-  Bold, Italic, Underline, Sparkles, Loader2,
+  Bold, Italic, Underline, Sparkles, Loader2, ExternalLink,
 } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { ImageAnnotationEditor, type Annotation } from './ImageAnnotationEditor';
@@ -16,6 +16,11 @@ export interface ManualStep {
   description: string;       // stored as HTML string
   screenshotUrl?: string;
   annotations?: Annotation[];
+  pageUrl?:        string | null;
+  domainHostname?: string | null;
+  domainName?:     string | null;
+  domainFavicon?:  string | null;
+  // legacy snake_case kept for existing editor domain header logic
   domain_name?: string | null;
   domain_favicon?: string | null;
   click_x?: number | null;   // 0-100 pct, for auto-zoom in annotation editor
@@ -104,20 +109,43 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
           목차
         </div>
         <div style={{ flex: 1, padding: '8px 0' }}>
-          {steps.map(step => (
-            <TocItem
-              key={step.id}
-              step={step}
-              isActive={activeId === step.id}
-              isDragOver={dragOverId === step.id && draggingId !== step.id}
-              onSelect={() => scrollToStep(step.id)}
-              onRename={title => updateStep(step.id, { actionTitle: title })}
-              onDragStart={() => handleDragStart(step.id)}
-              onDragOver={e => handleDragOver(e, step.id)}
-              onDrop={() => handleDrop(step.id)}
-              onDragEnd={() => { setDraggingId(null); setDragOverId(null); }}
-            />
-          ))}
+          {steps.map((step, idx) => {
+            const prevHostname = idx > 0 ? steps[idx - 1].domainHostname : null;
+            const showHeader = !!step.domainHostname && step.domainHostname !== prevHostname;
+            return (
+              <div key={step.id}>
+                {showHeader && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 16px 4px', marginTop: idx === 0 ? 0 : '8px' }}>
+                    {step.domainFavicon && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={step.domainFavicon}
+                        alt=""
+                        width={14}
+                        height={14}
+                        style={{ borderRadius: '3px', flexShrink: 0 }}
+                        onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    )}
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {step.domainName ?? step.domainHostname}
+                    </span>
+                  </div>
+                )}
+                <TocItem
+                  step={step}
+                  isActive={activeId === step.id}
+                  isDragOver={dragOverId === step.id && draggingId !== step.id}
+                  onSelect={() => scrollToStep(step.id)}
+                  onRename={title => updateStep(step.id, { actionTitle: title })}
+                  onDragStart={() => handleDragStart(step.id)}
+                  onDragOver={e => handleDragOver(e, step.id)}
+                  onDrop={() => handleDrop(step.id)}
+                  onDragEnd={() => { setDraggingId(null); setDragOverId(null); }}
+                />
+              </div>
+            );
+          })}
         </div>
         <div style={{ padding: '8px 12px 16px', borderTop: '1px solid #F3F4F6', flexShrink: 0 }}>
           <button
@@ -410,6 +438,17 @@ function StepCard({ step, isActive, onFocus, onUpdate, onSave, onDelete, onZoom,
 
         {/* Right action buttons */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', opacity: showControls ? 1 : 0, transition: 'opacity 0.18s ease', flexShrink: 0 }}>
+          {step.pageUrl && (
+            <button
+              title={step.pageUrl}
+              onClick={() => window.open(step.pageUrl!, '_blank', 'noopener,noreferrer')}
+              style={iconBtn}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#4F46E5'; e.currentTarget.style.color = '#4F46E5'; e.currentTarget.style.background = 'rgba(79,70,229,0.04)'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.color = '#6B7280'; e.currentTarget.style.background = 'white'; }}
+            >
+              <ExternalLink size={13} />
+            </button>
+          )}
           {step.screenshotUrl && (
             <button title="이미지 확대" onClick={onZoom} style={iconBtn}>
               <ZoomIn size={13} />

@@ -80,11 +80,12 @@ export async function POST(request: NextRequest) {
     step_number: idx + 1,
     order_index: idx,
     screenshot_url: ev.screenshot_url,
-    page_url: ev.url,
-    ai_title: ev.ai_title ?? null,
-    ai_description: ev.ai_description ?? null,
-    domain_name: ev.domain_name ?? null,
-    domain_favicon: ev.domain_favicon ?? null,
+    page_url:        ev.url,
+    ai_title:        ev.ai_title        ?? null,
+    ai_description:  ev.ai_description  ?? null,
+    domain_hostname: ev.domain_hostname ?? null,
+    domain_name:     ev.domain_name     ?? null,
+    domain_favicon:  ev.domain_favicon  ?? null,
   }));
 
   const { error: stepsError } = await supabase
