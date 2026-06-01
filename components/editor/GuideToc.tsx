@@ -87,7 +87,7 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onAdd
           return (
             <div key={step.id}>
               {/* 도메인 섹션 헤더 — Tango 스타일 */}
-              {showDomainHeader && group.hostname && (
+              {showDomainHeader && (group.hostname || group.name) && (
                 <div style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                   padding: `${idx === 0 ? '10px' : '14px'} 14px 6px`,

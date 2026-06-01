@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Share2, Check, Download, Pencil, Undo2, Settings } from 'lucide-react';
-import { AppSidebar } from '@/components/editor/AppSidebar';
 import { GuideToc } from '@/components/editor/GuideToc';
 import { GuideViewer } from '@/components/editor/GuideViewer';
 import { ManualEditor, ManualStep } from '@/components/editor/ManualEditor';
@@ -512,29 +511,8 @@ export default function EditorPage() {
 
       {/* ── Body ── */}
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-        {/* Left app nav */}
-        <AppSidebar />
-
-        {/* TOC panel — 제목 + 목차 */}
+        {/* TOC panel */}
         <div style={{ width: '240px', flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid #E5E7EB', background: 'white', minHeight: 0 }}>
-          {/* 제목 입력 영역 */}
-          <div style={{ padding: '14px 16px 12px', borderBottom: '1px solid #F3F4F6', flexShrink: 0 }}>
-            <input
-              value={title}
-              onChange={e => { setTitle(e.target.value); setTitleDirty(true); }}
-              style={{
-                fontSize: '13.5px', fontWeight: 700, color: '#111827',
-                background: 'transparent', border: 'none', outline: 'none',
-                width: '100%', cursor: 'text', fontFamily: 'inherit',
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }}
-              placeholder="매뉴얼 제목"
-            />
-            <div style={{ fontSize: '11.5px', color: '#9CA3AF', marginTop: '3px' }}>
-              {createdAt} 생성
-            </div>
-          </div>
-          {/* 목차 */}
           <GuideToc
             steps={manualSteps}
             activeId={activeId}
@@ -548,6 +526,19 @@ export default function EditorPage() {
 
         {/* Main content */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
+          {/* Title banner */}
+          <div style={{ flexShrink: 0, padding: '20px 40px 16px', borderBottom: '1px solid #E5E7EB', background: 'white' }}>
+            <input
+              value={title}
+              onChange={e => { setTitle(e.target.value); setTitleDirty(true); }}
+              placeholder="매뉴얼 제목"
+              style={{
+                width: '100%', fontSize: '22px', fontWeight: 700, color: '#111827',
+                background: 'transparent', border: 'none', outline: 'none',
+                fontFamily: 'inherit', cursor: 'text',
+              }}
+            />
+          </div>
           {editMode ? (
             <ManualEditor
               steps={manualSteps}
