@@ -40,23 +40,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Session already finalized' }, { status: 409 });
   }
 
-  // 캡처 이벤트 조회
+  // 캡처 이벤트 조회 (created_at 기준 정렬 — timestamp 컬럼 없음)
   const { data: events } = await supabase
     .from('mm_capture_events')
     .select('*')
     .eq('session_id', session_id)
-    .order('timestamp', { ascending: true });
+    .order('created_at', { ascending: true });
 
   if (!events || events.length === 0) {
     return NextResponse.json({ error: 'No captured steps' }, { status: 422 });
   }
 
   // TODO: 정식 서비스 전 플랜별 한도 복구 (daily_limit 체크 비활성화 중)
-  const { data: user } = await supabase
-    .from('mm_users')
-    .select('daily_manual_count')
-    .eq('id', userId)
-    .single();
 
   // 튜토리얼 생성
   const tutorialTitle = title ?? `매뉴얼 ${new Date().toLocaleDateString('ko-KR')}`;
@@ -98,16 +93,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to create steps' }, { status: 500 });
   }
 
-  // 세션 완료 처리 + daily_manual_count 증가 (병렬)
+  // 세션 완료 처리 + daily_manual_count atomic 증가 (병렬, RPC로 race condition 방지)
   await Promise.all([
     supabase
       .from('mm_capture_sessions')
       .update({ status: 'done', ended_at: new Date().toISOString() })
       .eq('id', session_id),
-    supabase
-      .from('mm_users')
-      .update({ daily_manual_count: (user?.daily_manual_count ?? 0) + 1 })
-      .eq('id', userId),
+    supabase.rpc('increment_daily_manual_count', { uid: userId }),
   ]);
 
   // AI 초안 생성 — tutorial 제목 + 스텝별 user_title/user_script + 커버 색상

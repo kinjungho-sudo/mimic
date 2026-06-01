@@ -9,6 +9,9 @@ import { ManualEditor, ManualStep } from '@/components/editor/ManualEditor';
 import { ShareModal } from '@/components/editor/ShareModal';
 import { useTutorial } from '@/hooks/useTutorial';
 import { useAutosave } from '@/hooks/useAutosave';
+import { useAuth } from '@/hooks/useAuth';
+import { useCollaboration } from '@/hooks/useCollaboration';
+import type { Collaborator } from '@/hooks/useCollaboration';
 import { updateStep, createStep, deleteStep, reorderSteps } from '@/lib/api/steps';
 import type { Step, Tutorial } from '@/types';
 
@@ -39,6 +42,7 @@ export default function EditorPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { tutorial, loading, error, publish, unpublish } = useTutorial(id);
+  const { user } = useAuth();
 
   const [title, setTitle] = useState('');
   const [manualSteps, setManualSteps] = useState<ManualStep[]>([]);
@@ -61,9 +65,36 @@ export default function EditorPage() {
   const [translateLang, setTranslateLang] = useState('en');
   const [translating, setTranslating] = useState(false);
   const [guideMePreviewUrl, setGuideMePreviewUrl] = useState<string | null>(null);
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [collabToast, setCollabToast] = useState<{ stepId: string; name: string; color: string } | null>(null);
+  const collabToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const settingsRef = useRef<HTMLDivElement>(null);
   const thumbnailInputRef = useRef<HTMLInputElement>(null);
   const stepSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  // 실시간 협업 — 워크스페이스 튜토리얼에서만 활성
+  const workspaceId = tutorial
+    ? (tutorial as Tutorial & { workspace_id?: string | null }).workspace_id ?? null
+    : null;
+  const { broadcastStepChange, updatePresence } = useCollaboration({
+    tutorialId: id,
+    workspaceId,
+    currentUser: user ? { id: user.id, name: user.name } : null,
+    steps: manualSteps,
+    onRemoteStepChange: (stepId, patch) => {
+      setManualSteps(prev => prev.map(s => s.id === stepId ? { ...s, ...patch } : s));
+      setCollaborators(prev => {
+        const editor = prev.find(c => c.activeStepId === stepId);
+        if (editor) {
+          if (collabToastTimer.current) clearTimeout(collabToastTimer.current);
+          setCollabToast({ stepId, name: editor.name, color: editor.color });
+          collabToastTimer.current = setTimeout(() => setCollabToast(null), 3000);
+        }
+        return prev;
+      });
+    },
+    onCollaboratorsChange: setCollaborators,
+  });
 
   // Undo/Redo history
   const undoRef = useRef<ManualStep[][]>([]);
@@ -129,6 +160,9 @@ export default function EditorPage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tutorial?.id]);
+
+  // 활성 스텝 변경 시 Presence 전송 (협업 커서)
+  useEffect(() => { updatePresence(activeId); }, [activeId, updatePresence]);
 
   // 설정 패널 외부 클릭 닫기
   useEffect(() => {
@@ -406,6 +440,29 @@ export default function EditorPage() {
         {/* Right: actions */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
+
+          {/* 협업자 아바타 */}
+          {collaborators.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', marginRight: '4px' }}>
+              {collaborators.slice(0, 5).map(c => (
+                <div key={c.userId} title={`${c.name} 편집 중`} style={{
+                  width: '28px', height: '28px', borderRadius: '50%',
+                  background: c.color, border: '2px solid white',
+                  display: 'grid', placeItems: 'center',
+                  fontSize: '11px', fontWeight: 700, color: 'white',
+                  marginLeft: '-6px', flexShrink: 0,
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
+                }}>
+                  {c.name.charAt(0).toUpperCase()}
+                </div>
+              ))}
+              {collaborators.length > 5 && (
+                <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#6B7280', border: '2px solid white', display: 'grid', placeItems: 'center', fontSize: '10px', fontWeight: 700, color: 'white', marginLeft: '-6px' }}>
+                  +{collaborators.length - 5}
+                </div>
+              )}
+            </div>
+          )}
 
           {editMode ? (
             /* ── 편집 모드: 실행 취소 + 편집 완료 ── */
@@ -823,6 +880,8 @@ export default function EditorPage() {
                   if (!prev) return;
                   if (prev.actionTitle === step.actionTitle && prev.description === step.description) return;
                   if (step.id.startsWith('step-')) return;
+                  // 협업: 변경 브로드캐스트
+                  broadcastStepChange(step.id, { actionTitle: step.actionTitle, description: step.description });
                   clearTimeout(stepSaveTimers.current[step.id]);
                   stepSaveTimers.current[step.id] = setTimeout(() => {
                     updateStep(step.id, {
@@ -855,6 +914,25 @@ export default function EditorPage() {
           )}
         </div>
       </div>
+
+      {/* 협업 변경 토스트 */}
+      {collabToast && (
+        <div style={{
+          position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)',
+          display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 18px',
+          borderRadius: '10px', background: '#1E1E2E', color: 'white',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.25)', fontSize: '13px', fontWeight: 500,
+          zIndex: 100, pointerEvents: 'none', animation: 'mimicFadeIn 0.2s ease',
+        }}>
+          <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: collabToast.color, display: 'grid', placeItems: 'center', fontSize: '10px', fontWeight: 700, flexShrink: 0 }}>
+            {collabToast.name.charAt(0).toUpperCase()}
+          </div>
+          <span style={{ color: 'rgba(255,255,255,0.7)' }}>
+            <span style={{ color: 'white' }}>{collabToast.name}</span>님이 단계를 수정했어요
+          </span>
+        </div>
+      )}
+      <style>{`@keyframes mimicFadeIn { from { opacity:0; transform:translateX(-50%) translateY(8px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }`}</style>
 
       {showShare && (
         <ShareModal

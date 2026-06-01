@@ -357,14 +357,86 @@
   // ── 공개 API ───────────────────────────────────────────────
   var activeGuide = null;
 
+  // 비밀번호 입력 인라인 UI — prompt() 대신 사용 (sandbox iframe 호환)
+  function showPasswordUI(title, token, opts) {
+    injectStyles();
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:' + (Z - 1) + ';display:grid;place-items:center';
+
+    var box = document.createElement('div');
+    box.style.cssText = 'background:white;border-radius:14px;padding:28px 24px;width:min(360px,90vw);box-shadow:0 20px 60px rgba(0,0,0,0.25);font-family:-apple-system,BlinkMacSystemFont,sans-serif';
+
+    var heading = document.createElement('p');
+    heading.style.cssText = 'margin:0 0 8px;font-size:15px;font-weight:700;color:#111827';
+    heading.textContent = title || '가이드';
+
+    var sub = document.createElement('p');
+    sub.style.cssText = 'margin:0 0 16px;font-size:13px;color:#6B7280';
+    sub.textContent = '이 가이드는 비밀번호로 보호되어 있습니다.';
+
+    var input = document.createElement('input');
+    input.type = 'password';
+    input.placeholder = '비밀번호 입력';
+    input.style.cssText = 'width:100%;box-sizing:border-box;height:38px;padding:0 12px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;outline:none;margin-bottom:12px';
+    input.addEventListener('focus', function () { input.style.borderColor = '#4F46E5'; });
+    input.addEventListener('blur', function () { input.style.borderColor = '#E5E7EB'; });
+
+    var errMsg = document.createElement('p');
+    errMsg.style.cssText = 'margin:0 0 10px;font-size:12px;color:#EF4444;display:none';
+    errMsg.textContent = '비밀번호가 올바르지 않습니다.';
+
+    var btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;gap:8px';
+
+    var cancelBtn = document.createElement('button');
+    cancelBtn.className = 'mimic-btn mimic-btn-secondary';
+    cancelBtn.style.flex = '1';
+    cancelBtn.textContent = '취소';
+    cancelBtn.addEventListener('click', function () { overlay.remove(); });
+
+    var okBtn = document.createElement('button');
+    okBtn.className = 'mimic-btn mimic-btn-primary';
+    okBtn.style.flex = '1';
+    okBtn.textContent = '확인';
+
+    var submit = function () {
+      var pw = input.value.trim();
+      if (!pw) return;
+      okBtn.disabled = true;
+      okBtn.textContent = '확인 중…';
+      fetchGuide(token, pw)
+        .then(function (d2) { overlay.remove(); launchGuide(d2, opts); })
+        .catch(function () {
+          errMsg.style.display = 'block';
+          okBtn.disabled = false;
+          okBtn.textContent = '확인';
+          input.value = '';
+          input.focus();
+        });
+    };
+
+    okBtn.addEventListener('click', submit);
+    input.addEventListener('keydown', function (e) { if (e.key === 'Enter') submit(); });
+
+    btnRow.appendChild(cancelBtn);
+    btnRow.appendChild(okBtn);
+    box.appendChild(heading);
+    box.appendChild(sub);
+    box.appendChild(input);
+    box.appendChild(errMsg);
+    box.appendChild(btnRow);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    setTimeout(function () { input.focus(); }, 50);
+  }
+
   function startGuide(token, options) {
     var opts = options || {};
     fetchGuide(token, opts.password)
       .then(function (data) {
         if (data.protected) {
-          var pw = prompt('"' + (data.title || '가이드') + '"은 비밀번호로 보호되어 있습니다.\n비밀번호를 입력하세요:');
-          if (!pw) return;
-          return fetchGuide(token, pw).then(function (d2) { launchGuide(d2, opts); });
+          showPasswordUI(data.title, token, opts);
+          return;
         }
         launchGuide(data, opts);
       })

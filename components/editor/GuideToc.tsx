@@ -14,27 +14,72 @@ interface GuideTocProps {
   onInsertAfter?: (afterId: string) => void;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onAdd, onDelete, onInsertAfter }: GuideTocProps) {
-  const [draggingId, setDraggingId] = useState<string | null>(null);
+export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDelete }: GuideTocProps) {
+  const [draggingIds, setDraggingIds] = useState<Set<string>>(new Set());
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [dragOverPos, setDragOverPos] = useState<'before' | 'after'>('after');
   const [hoverId, setHoverId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const handleDragStart = (id: string) => setDraggingId(id);
-  const handleDragOver = (e: React.DragEvent, id: string) => { e.preventDefault(); setDragOverId(id); };
-  const handleDrop = (targetId: string) => {
-    if (!draggingId || draggingId === targetId || !onReorder) { setDraggingId(null); setDragOverId(null); return; }
-    const from = steps.findIndex(s => s.id === draggingId);
-    const to = steps.findIndex(s => s.id === targetId);
-    const next = [...steps];
-    const [moved] = next.splice(from, 1);
-    next.splice(to, 0, moved);
-    onReorder(next.map((s, i) => ({ ...s, number: i + 1 })));
-    setDraggingId(null); setDragOverId(null);
+  // ── 다중 선택 토글 ─────────────────────────────────────────
+  const toggleSelect = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
-  // 도메인별 그룹핑 — Tango 스타일
-  // domainHostname 기준으로 연속된 그룹을 계산
+  // ── 드래그 시작: 선택 집합 또는 단일 ──────────────────────
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    const dragging = selectedIds.has(id) && selectedIds.size > 1
+      ? new Set(selectedIds)
+      : new Set([id]);
+    setDraggingIds(dragging);
+    // 드래그 데이터에 ID 목록 저장
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', Array.from(dragging).join(','));
+  };
+
+  const handleDragOver = (e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    // 마우스가 아이템의 위/아래 절반 중 어디에 있는지 판단
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const pos = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+    setDragOverId(id);
+    setDragOverPos(pos);
+  };
+
+  const handleDrop = (targetId: string) => {
+    if (!onReorder || draggingIds.size === 0) { resetDrag(); return; }
+    if (draggingIds.has(targetId) && draggingIds.size === 1) { resetDrag(); return; }
+
+    // 드래그 대상 집합과 나머지를 분리
+    const moving = steps.filter(s => draggingIds.has(s.id));
+    const rest = steps.filter(s => !draggingIds.has(s.id));
+
+    // 삽입 위치: target 기준 before/after
+    const targetIdx = rest.findIndex(s => s.id === targetId);
+    const insertAt = targetIdx === -1
+      ? rest.length
+      : dragOverPos === 'before' ? targetIdx : targetIdx + 1;
+
+    const next = [...rest];
+    next.splice(insertAt, 0, ...moving);
+    onReorder(next.map((s, i) => ({ ...s, number: i + 1 })));
+    setSelectedIds(new Set());
+    resetDrag();
+  };
+
+  const resetDrag = () => {
+    setDraggingIds(new Set());
+    setDragOverId(null);
+  };
+
+  // ── 도메인 그룹핑 ──────────────────────────────────────────
   type DomainGroup = { hostname: string | null; name: string | null; favicon: string | null; count: number };
   const domainGroups: DomainGroup[] = [];
   steps.forEach(step => {
@@ -46,7 +91,6 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onAdd
     }
   });
 
-  // 스텝 → 해당 도메인 그룹 인덱스 맵
   const stepGroupIdx: number[] = [];
   let gi = 0, cnt = 0;
   steps.forEach(() => {
@@ -55,32 +99,62 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onAdd
     if (cnt >= domainGroups[gi].count) { gi++; cnt = 0; }
   });
 
+  const isDraggingActive = draggingIds.size > 0;
+  const selectedCount = selectedIds.size;
+
   return (
-    <aside style={{
-      flex: 1,
-      display: 'flex', flexDirection: 'column',
-      overflow: 'hidden',
-      minHeight: 0,
-    }}>
-      {/* Header — 목차 레이블만 */}
-      <div style={{
-        padding: '12px 16px 10px',
-        borderBottom: '1px solid #F3F4F6',
-        flexShrink: 0,
-      }}>
-        <div style={{ fontSize: '11px', fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.07em', textTransform: 'uppercase' }}>
-          목차
+    <aside style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
+      {/* Header */}
+      <div style={{ padding: '12px 16px 10px', borderBottom: '1px solid #F3F4F6', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.07em', textTransform: 'uppercase' }}>
+            목차
+          </div>
+          {/* 다중 선택 중일 때 선택 수 표시 */}
+          {editable && selectedCount > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: '#4F46E5' }}>
+                {selectedCount}개 선택
+              </span>
+              {onDelete && (
+                <button
+                  onClick={() => {
+                    Array.from(selectedIds).forEach(id => onDelete(id));
+                    setSelectedIds(new Set());
+                  }}
+                  title="선택 삭제"
+                  style={{ width: '18px', height: '18px', borderRadius: '4px', border: 'none', background: 'rgba(220,38,38,0.1)', color: '#DC2626', display: 'grid', placeItems: 'center', cursor: 'pointer' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(220,38,38,0.18)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(220,38,38,0.1)'; }}
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                  </svg>
+                </button>
+              )}
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                title="선택 해제"
+                style={{ width: '18px', height: '18px', borderRadius: '4px', border: 'none', background: '#F3F4F6', color: '#6B7280', display: 'grid', placeItems: 'center', cursor: 'pointer' }}
+              >
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Steps with domain section headers */}
+      {/* Steps */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0 8px' }}>
         {steps.map((step, idx) => {
           const isActive = step.id === activeId;
-          const isDragOver = dragOverId === step.id && draggingId !== step.id;
+          const isDragTarget = dragOverId === step.id && !draggingIds.has(step.id);
+          const isBeingDragged = draggingIds.has(step.id);
           const isHover = hoverId === step.id;
+          const isSelected = selectedIds.has(step.id);
 
-          // 이전 스텝과 도메인이 다를 때 섹션 헤더 표시
           const prevGroup = idx > 0 ? stepGroupIdx[idx - 1] : -1;
           const curGroup = stepGroupIdx[idx];
           const showDomainHeader = curGroup !== prevGroup;
@@ -88,29 +162,17 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onAdd
 
           return (
             <div key={step.id}>
-              {/* 도메인 섹션 헤더 — Tango 스타일 */}
+              {/* 도메인 헤더 */}
               {showDomainHeader && (group.hostname || group.name) && (
-                <div style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: `${idx === 0 ? '10px' : '14px'} 14px 6px`,
-                }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: `${idx === 0 ? '10px' : '14px'} 14px 6px` }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
                     {group.favicon ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={group.favicon}
-                        alt=""
-                        width={14} height={14}
-                        style={{ borderRadius: '3px', flexShrink: 0 }}
-                        onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                      />
+                      <img src={group.favicon} alt="" width={14} height={14} style={{ borderRadius: '3px', flexShrink: 0 }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
                     ) : (
                       <div style={{ width: '14px', height: '14px', borderRadius: '3px', background: '#E5E7EB', flexShrink: 0 }} />
                     )}
-                    <span style={{
-                      fontSize: '11.5px', fontWeight: 700, color: '#374151',
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                    }}>
+                    <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {group.name ?? group.hostname}
                     </span>
                   </div>
@@ -120,44 +182,76 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onAdd
                 </div>
               )}
 
+              {/* 드롭 before 인디케이터 */}
+              {isDragTarget && dragOverPos === 'before' && (
+                <div style={{ height: '2px', background: '#4F46E5', margin: '0 14px', borderRadius: '2px' }} />
+              )}
+
               {/* 스텝 아이템 */}
               <div
-                draggable
-                onDragStart={() => handleDragStart(step.id)}
-                onDragOver={e => handleDragOver(e, step.id)}
-                onDrop={() => handleDrop(step.id)}
-                onDragEnd={() => { setDraggingId(null); setDragOverId(null); }}
-                onClick={() => onSelect(step.id)}
+                draggable={editable}
+                onDragStart={e => handleDragStart(e, step.id)}
+                onDragOver={isDraggingActive ? e => handleDragOver(e, step.id) : undefined}
+                onDrop={isDraggingActive ? () => handleDrop(step.id) : undefined}
+                onDragEnd={resetDrag}
+                onClick={() => {
+                  onSelect(step.id);
+                  if (!editable) setSelectedIds(new Set());
+                }}
                 onMouseEnter={() => setHoverId(step.id)}
                 onMouseLeave={() => setHoverId(null)}
                 style={{
-                  padding: '7px 14px',
-                  display: 'flex', alignItems: 'center', gap: '8px',
-                  cursor: 'grab',
-                  background: isDragOver ? 'rgba(79,70,229,0.06)' : isActive ? '#EEF2FF' : isHover ? '#F9FAFB' : 'transparent',
-                  borderLeft: `3px solid ${isActive || isDragOver ? '#4F46E5' : 'transparent'}`,
-                  borderTop: isDragOver ? '2px solid #4F46E5' : '2px solid transparent',
+                  padding: '7px 10px 7px 14px',
+                  display: 'flex', alignItems: 'center', gap: '7px',
+                  cursor: editable ? 'grab' : 'pointer',
+                  opacity: isBeingDragged ? 0.4 : 1,
+                  background: isSelected
+                    ? 'rgba(79,70,229,0.08)'
+                    : isDragTarget ? 'rgba(79,70,229,0.06)'
+                    : isActive ? '#EEF2FF'
+                    : isHover ? '#F9FAFB'
+                    : 'transparent',
+                  borderLeft: `3px solid ${isSelected || isActive || isDragTarget ? '#4F46E5' : 'transparent'}`,
                   transition: 'background 0.12s',
                   position: 'relative',
+                  userSelect: 'none',
                 }}
               >
-                {/* Step number badge */}
+                {/* 편집 모드: 체크박스 */}
+                {editable && (
+                  <div
+                    onClick={e => toggleSelect(step.id, e)}
+                    style={{
+                      width: '15px', height: '15px', borderRadius: '4px', flexShrink: 0,
+                      border: `1.5px solid ${isSelected ? '#4F46E5' : '#D1D5DB'}`,
+                      background: isSelected ? '#4F46E5' : 'white',
+                      display: 'grid', placeItems: 'center', cursor: 'pointer',
+                      transition: 'all 0.12s',
+                    }}
+                  >
+                    {isSelected && (
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                    )}
+                  </div>
+                )}
+
+                {/* 스텝 번호 배지 */}
                 <div style={{
                   width: '22px', height: '22px', borderRadius: '6px', flexShrink: 0,
-                  background: isActive ? '#4F46E5' : '#E5E7EB',
-                  color: isActive ? 'white' : '#6B7280',
-                  fontSize: '10px', fontWeight: 700,
-                  display: 'grid', placeItems: 'center',
+                  background: isSelected ? '#4F46E5' : isActive ? '#4F46E5' : '#E5E7EB',
+                  color: isSelected || isActive ? 'white' : '#6B7280',
+                  fontSize: '10px', fontWeight: 700, display: 'grid', placeItems: 'center',
                 }}>
                   {step.number}
                 </div>
 
-                {/* Title */}
+                {/* 제목 */}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{
                     fontSize: '12px', fontWeight: isActive ? 600 : 400,
-                    color: isActive ? '#1E1B4B' : '#374151',
-                    lineHeight: 1.4,
+                    color: isActive ? '#1E1B4B' : '#374151', lineHeight: 1.4,
                     overflow: 'hidden', display: '-webkit-box',
                     WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
                   }}>
@@ -165,17 +259,18 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onAdd
                   </div>
                 </div>
 
-                {/* Delete button — shown on hover in edit mode */}
-                {editable && onDelete && isHover && (
+                {/* 호버 삭제 버튼 (단일, 선택 없을 때만) */}
+                {editable && onDelete && isHover && !isSelected && selectedCount === 0 && (
                   <button
                     onClick={e => { e.stopPropagation(); onDelete(step.id); }}
                     title="삭제"
                     style={{
-                      position: 'absolute', top: '6px', right: '6px',
-                      width: '20px', height: '20px', borderRadius: '4px',
+                      width: '20px', height: '20px', borderRadius: '4px', flexShrink: 0,
                       border: 'none', background: 'rgba(220,38,38,0.08)',
                       color: '#DC2626', display: 'grid', placeItems: 'center', cursor: 'pointer',
                     }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(220,38,38,0.15)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(220,38,38,0.08)'; }}
                   >
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                       <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
@@ -184,51 +279,14 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onAdd
                 )}
               </div>
 
-              {/* Insert after button — shown on hover in edit mode */}
-              {editable && onInsertAfter && isHover && (
-                <div style={{ display: 'flex', justifyContent: 'center', padding: '2px 0', position: 'relative', zIndex: 5 }}>
-                  <button
-                    onClick={e => { e.stopPropagation(); onInsertAfter(step.id); }}
-                    title="이 단계 아래에 삽입"
-                    style={{
-                      width: '20px', height: '20px', borderRadius: '50%',
-                      border: '1.5px solid #4F46E5', background: 'white',
-                      color: '#4F46E5', display: 'grid', placeItems: 'center',
-                      cursor: 'pointer', boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.background = '#EEF2FF'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
-                  >
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                  </button>
-                </div>
+              {/* 드롭 after 인디케이터 */}
+              {isDragTarget && dragOverPos === 'after' && (
+                <div style={{ height: '2px', background: '#4F46E5', margin: '0 14px', borderRadius: '2px' }} />
               )}
             </div>
           );
         })}
       </div>
-
-      {/* Add step (edit mode) */}
-      {editable && onAdd && (
-        <div style={{ padding: '10px 14px', borderTop: '1px solid #F3F4F6', flexShrink: 0 }}>
-          <button
-            onClick={onAdd}
-            style={{
-              width: '100%', height: '34px',
-              border: '1.5px dashed #D1D5DB', borderRadius: '7px',
-              background: 'transparent', color: '#6B7280',
-              fontSize: '12px', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px',
-              transition: 'all 0.15s',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = '#4F46E5'; e.currentTarget.style.color = '#4F46E5'; e.currentTarget.style.background = 'rgba(79,70,229,0.04)'; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = '#D1D5DB'; e.currentTarget.style.color = '#6B7280'; e.currentTarget.style.background = 'transparent'; }}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            단계 추가
-          </button>
-        </div>
-      )}
     </aside>
   );
 }
