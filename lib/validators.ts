@@ -68,6 +68,7 @@ export const tutorialPatchSchema = z.object({
   output_ratio: z.enum(['16:9', '1:1', '9:16']).optional(),
   thumbnail_url: z.string().url().nullable().optional(),
   folder_id: z.string().uuid().nullable().optional(),
+  workspace_id: z.string().uuid().nullable().optional(),
 });
 
 export const generateScriptSchema = z.object({
