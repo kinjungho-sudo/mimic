@@ -3,7 +3,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Plus, Trash2, ZoomIn, X, Pencil,
-  Bold, Italic, Underline, Sparkles, Loader2, ExternalLink,
+  Bold, Italic, Underline, ExternalLink, Sparkles, Loader2,
+  Check,
 } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { ImageAnnotationEditor, type Annotation } from './ImageAnnotationEditor';
@@ -31,9 +32,7 @@ interface ManualEditorProps {
   steps: ManualStep[];
   onChange: (steps: ManualStep[]) => void;
   onSave?: (id: string, patch: Partial<ManualStep>) => void;
-  // When true, hides the internal TOC sidebar (used when parent provides its own TOC)
   hideToc?: boolean;
-  // Expose scroll-to-step so parent TOC can drive navigation
   activeId?: string | null;
 }
 
@@ -49,6 +48,8 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
   const [annotatingId, setAnnotatingId] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkAiLoading, setBulkAiLoading] = useState<string | null>(null);
   const contentRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => {
@@ -70,6 +71,45 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
     const next = steps.filter(s => s.id !== id).map((s, i) => ({ ...s, number: i + 1 }));
     onChange(next);
     if (activeId === id) setActiveId(next[0]?.id ?? null);
+    setSelectedIds(prev => { const s = new Set(prev); s.delete(id); return s; });
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const s = new Set(prev);
+      if (s.has(id)) s.delete(id); else s.add(id);
+      return s;
+    });
+  };
+
+  const selectAll = () => setSelectedIds(new Set(steps.map(s => s.id)));
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const bulkAiRewrite = async (instruction: string, label: string) => {
+    const targets = steps.filter(s => selectedIds.has(s.id) && s.description);
+    if (!targets.length) return;
+    setBulkAiLoading(label);
+    try {
+      const results = await Promise.all(
+        targets.map(async s => {
+          const text = s.description.replace(/<[^>]+>/g, '').trim();
+          if (!text) return null;
+          const res = await fetch('/api/ai/rewrite', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text, instruction }),
+          });
+          const { result } = await res.json();
+          return result ? { id: s.id, description: result } : null;
+        })
+      );
+      const updated = new Map(results.filter(Boolean).map(r => [r!.id, r!.description]));
+      const next = steps.map(s => updated.has(s.id) ? { ...s, description: updated.get(s.id)! } : s);
+      onChange(next);
+      next.filter(s => updated.has(s.id)).forEach(s => onSave?.(s.id, { description: s.description }));
+    } finally {
+      setBulkAiLoading(null);
+    }
   };
 
   const addStep = () => {
@@ -162,7 +202,75 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
       )}
 
       {/* ── Right content ── */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '40px 0 80px', background: '#F8F9FA' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, background: '#F8F9FA' }}>
+        {/* ── Selection action bar ── */}
+        <div style={{
+          flexShrink: 0,
+          display: 'flex', alignItems: 'center', gap: '8px',
+          padding: '8px 40px',
+          borderBottom: '1px solid #E5E7EB',
+          background: selectedIds.size > 0 ? '#FFFBEB' : 'white',
+          transition: 'background 0.2s',
+        }}>
+          {/* Select all checkbox */}
+          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '12.5px', color: '#374151', userSelect: 'none' }}>
+            <input
+              type="checkbox"
+              checked={selectedIds.size === steps.length && steps.length > 0}
+              ref={el => { if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < steps.length; }}
+              onChange={e => e.target.checked ? selectAll() : clearSelection()}
+              style={{ width: '15px', height: '15px', accentColor: '#4F46E5', cursor: 'pointer' }}
+            />
+            전체 선택
+          </label>
+
+          {selectedIds.size > 0 && (
+            <>
+              <span style={{ fontSize: '12px', color: '#F59E0B', fontWeight: 600, marginLeft: '4px' }}>
+                {selectedIds.size}개 선택됨
+              </span>
+              <div style={{ width: '1px', height: '16px', background: '#E5E7EB', margin: '0 4px' }} />
+              <Sparkles size={12} style={{ color: '#7C3AED', flexShrink: 0 }} />
+              {([
+                { label: '문장 다듬기', instruction: '더 자연스럽고 읽기 쉽게 다듬어줘' },
+                { label: '맞춤법 교정', instruction: '맞춤법과 띄어쓰기를 교정해줘' },
+                { label: '간략하게', instruction: '핵심만 남기고 간략하게 요약해줘' },
+              ] as const).map(({ label, instruction }) => (
+                <button
+                  key={label}
+                  disabled={!!bulkAiLoading}
+                  onClick={() => bulkAiRewrite(instruction, label)}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '4px',
+                    height: '26px', padding: '0 10px', borderRadius: '5px',
+                    border: '1px solid #EDE9FE', background: bulkAiLoading === label ? '#EDE9FE' : 'white',
+                    color: '#7C3AED', fontSize: '11.5px', fontWeight: 500,
+                    cursor: bulkAiLoading ? 'not-allowed' : 'pointer',
+                    opacity: bulkAiLoading && bulkAiLoading !== label ? 0.45 : 1,
+                    flexShrink: 0,
+                  }}
+                >
+                  {bulkAiLoading === label ? <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> : null}
+                  {label}
+                </button>
+              ))}
+              <div style={{ width: '1px', height: '16px', background: '#E5E7EB', margin: '0 4px' }} />
+              <button
+                onClick={() => {
+                  if (!window.confirm(`선택한 ${selectedIds.size}개 단계를 삭제할까요?`)) return;
+                  const next = steps.filter(s => !selectedIds.has(s.id)).map((s, i) => ({ ...s, number: i + 1 }));
+                  onChange(next);
+                  clearSelection();
+                }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', height: '26px', padding: '0 10px', borderRadius: '5px', border: '1px solid #FEE2E2', background: 'white', color: '#EF4444', fontSize: '11.5px', fontWeight: 500, cursor: 'pointer', flexShrink: 0 }}
+              >
+                <Trash2 size={11} /> 삭제
+              </button>
+            </>
+          )}
+        </div>
+
+        <div style={{ flex: 1, overflowY: 'auto', padding: '40px 0 80px' }}>
         <div style={{ maxWidth: '760px', margin: '0 auto', padding: '0 40px' }}>
           {steps.map((step, idx) => {
             const prevDomain = idx > 0 ? steps[idx - 1].domain_name : null;
@@ -179,6 +287,8 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
                   <StepCard
                     step={step}
                     isActive={activeId === step.id}
+                    isSelected={selectedIds.has(step.id)}
+                    onToggleSelect={() => toggleSelect(step.id)}
                     onFocus={() => setActiveId(step.id)}
                     onUpdate={patch => updateStep(step.id, patch)}
                     onSave={patch => { updateStep(step.id, patch); onSave?.(step.id, patch); }}
@@ -199,6 +309,7 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
           >
             <Plus size={15} /> 단계 추가
           </button>
+        </div>
         </div>
       </div>
 
@@ -310,7 +421,8 @@ function TocItem({ step, isActive, isDragOver, onSelect, onRename, onDragStart, 
 interface StepCardProps {
   step: ManualStep;
   isActive: boolean;
-
+  isSelected: boolean;
+  onToggleSelect: () => void;
   onFocus: () => void;
   onUpdate: (patch: Partial<ManualStep>) => void;
   onSave: (patch: Partial<ManualStep>) => void;
@@ -320,7 +432,7 @@ interface StepCardProps {
   onRemoveImage: () => void;
 }
 
-function StepCard({ step, isActive, onFocus, onUpdate, onSave, onDelete, onZoom, onAnnotate, onRemoveImage }: StepCardProps) {
+function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdate, onSave, onDelete, onZoom, onAnnotate, onRemoveImage }: StepCardProps) {
   const [hovering, setHovering] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -376,15 +488,35 @@ function StepCard({ step, isActive, onFocus, onUpdate, onSave, onDelete, onZoom,
       onMouseLeave={() => setHovering(false)}
       style={{
         background: 'white', borderRadius: '12px',
-        border: `1.5px solid ${isActive ? '#F59E0B' : '#E5E7EB'}`,
-        boxShadow: isActive ? '0 0 0 3px rgba(245,158,11,0.10), 0 4px 16px rgba(17,24,39,0.06)' : '0 1px 4px rgba(17,24,39,0.04)',
+        border: `1.5px solid ${isSelected ? '#4F46E5' : isActive ? '#F59E0B' : '#E5E7EB'}`,
+        boxShadow: isSelected
+          ? '0 0 0 3px rgba(79,70,229,0.12), 0 4px 16px rgba(17,24,39,0.06)'
+          : isActive ? '0 0 0 3px rgba(245,158,11,0.10), 0 4px 16px rgba(17,24,39,0.06)' : '0 1px 4px rgba(17,24,39,0.04)',
         transition: 'border-color 0.18s ease, box-shadow 0.18s ease',
         overflow: 'hidden',
+        position: 'relative',
       }}
     >
+      {/* Checkbox */}
+      <div
+        style={{ position: 'absolute', top: '10px', left: '10px', zIndex: 2 }}
+        onClick={e => { e.stopPropagation(); onToggleSelect(); }}
+      >
+        <div style={{
+          width: '18px', height: '18px', borderRadius: '5px',
+          border: `2px solid ${isSelected ? '#4F46E5' : '#D1D5DB'}`,
+          background: isSelected ? '#4F46E5' : 'white',
+          display: 'grid', placeItems: 'center',
+          cursor: 'pointer', transition: 'all 0.15s',
+          opacity: isSelected || hovering ? 1 : 0,
+        }}>
+          {isSelected && <Check size={11} color="white" strokeWidth={3} />}
+        </div>
+      </div>
+
       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
 
-      {/* ── Always-visible text format toolbar ── */}
+      {/* ── Text format toolbar (formatting only, no AI buttons) ── */}
       <TextFormatToolbar editorRef={editorRef} />
 
       {/* Card header */}
@@ -486,21 +618,12 @@ const iconBtn: React.CSSProperties = {
   background: 'white', color: '#6B7280', cursor: 'pointer',
 };
 
-// ── TextFormatToolbar (always visible, uses execCommand) ──
-
-const AI_ACTIONS = [
-  { label: '문장 다듬기', instruction: '더 자연스럽고 읽기 쉽게 다듬어줘' },
-  { label: '맞춤법 교정', instruction: '맞춤법과 띄어쓰기를 교정해줘' },
-  { label: '간략하게', instruction: '핵심만 남기고 간략하게 요약해줘' },
-] as const;
+// ── TextFormatToolbar (formatting only) ──────────────────
 
 type ActiveState = { bold: boolean; italic: boolean; underline: boolean };
 
 function TextFormatToolbar({ editorRef }: { editorRef: React.RefObject<HTMLDivElement> }) {
-  const [active, setActive] = useState<ActiveState>({
-    bold: false, italic: false, underline: false,
-  });
-  const [aiLoading, setAiLoading] = useState<string | null>(null);
+  const [active, setActive] = useState<ActiveState>({ bold: false, italic: false, underline: false });
 
   const syncActive = useCallback(() => {
     const sel = window.getSelection();
@@ -532,49 +655,12 @@ function TextFormatToolbar({ editorRef }: { editorRef: React.RefObject<HTMLDivEl
     editorRef.current?.dispatchEvent(new Event('input', { bubbles: true }));
   };
 
-  const handleAiRewrite = async (instruction: string, label: string) => {
-    const el = editorRef.current;
-    if (!el) return;
-    const text = el.innerText.trim();
-    if (!text) return;
-    setAiLoading(label);
-    try {
-      const res = await fetch('/api/ai/rewrite', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, instruction }),
-      });
-      const { result } = await res.json();
-      if (result) {
-        el.innerText = result;
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-        el.dispatchEvent(new Event('blur', { bubbles: true }));
-      }
-    } finally {
-      setAiLoading(null);
-    }
-  };
-
   return (
-    <div
-      style={{
-        display: 'flex', alignItems: 'center', gap: '2px',
-        padding: '8px 14px',
-        borderBottom: '1px solid #F3F4F6',
-        background: '#FAFAFA',
-        flexWrap: 'wrap',
-      }}
-    >
-      {/* Font size dropdown */}
+    <div style={{ display: 'flex', alignItems: 'center', gap: '2px', padding: '8px 14px', borderBottom: '1px solid #F3F4F6', background: '#FAFAFA' }}>
       <select
         defaultValue="3"
         onChange={e => exec('fontSize', e.target.value)}
-        style={{
-          fontSize: '11.5px', color: '#374151', background: 'white',
-          border: '1px solid #E5E7EB', borderRadius: '5px',
-          padding: '3px 6px', cursor: 'pointer', marginRight: '6px',
-          outline: 'none',
-        }}
+        style={{ fontSize: '11.5px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', borderRadius: '5px', padding: '3px 6px', cursor: 'pointer', marginRight: '6px', outline: 'none' }}
       >
         <option value="1">10px</option>
         <option value="2">12px</option>
@@ -584,50 +670,10 @@ function TextFormatToolbar({ editorRef }: { editorRef: React.RefObject<HTMLDivEl
         <option value="6">24px</option>
         <option value="7">32px</option>
       </select>
-
       <Divider />
-
-      <ToolBtn title="굵게 (Ctrl+B)" isActive={active.bold} onMouseDown={e => { e.preventDefault(); exec('bold'); }}>
-        <Bold size={13} />
-      </ToolBtn>
-      <ToolBtn title="기울임 (Ctrl+I)" isActive={active.italic} onMouseDown={e => { e.preventDefault(); exec('italic'); }}>
-        <Italic size={13} />
-      </ToolBtn>
-      <ToolBtn title="밑줄 (Ctrl+U)" isActive={active.underline} onMouseDown={e => { e.preventDefault(); exec('underline'); }}>
-        <Underline size={13} />
-      </ToolBtn>
-
-      <Divider />
-
-      {/* AI rewrite buttons */}
-      <Sparkles size={12} style={{ color: '#7C3AED', marginLeft: '2px', flexShrink: 0 }} />
-      {AI_ACTIONS.map(({ label, instruction }) => (
-        <button
-          key={label}
-          disabled={!!aiLoading}
-          onClick={() => handleAiRewrite(instruction, label)}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: '4px',
-            height: '26px', padding: '0 9px',
-            borderRadius: '5px',
-            border: '1px solid #EDE9FE',
-            background: aiLoading === label ? '#EDE9FE' : 'white',
-            color: '#7C3AED',
-            fontSize: '11.5px', fontWeight: 500,
-            cursor: aiLoading ? 'not-allowed' : 'pointer',
-            opacity: aiLoading && aiLoading !== label ? 0.45 : 1,
-            transition: 'all 0.12s ease',
-            flexShrink: 0,
-          }}
-          onMouseEnter={e => { if (!aiLoading) { e.currentTarget.style.background = '#EDE9FE'; } }}
-          onMouseLeave={e => { if (aiLoading !== label) e.currentTarget.style.background = 'white'; }}
-        >
-          {aiLoading === label
-            ? <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} />
-            : null}
-          {label}
-        </button>
-      ))}
+      <ToolBtn title="굵게 (Ctrl+B)" isActive={active.bold} onMouseDown={e => { e.preventDefault(); exec('bold'); }}><Bold size={13} /></ToolBtn>
+      <ToolBtn title="기울임 (Ctrl+I)" isActive={active.italic} onMouseDown={e => { e.preventDefault(); exec('italic'); }}><Italic size={13} /></ToolBtn>
+      <ToolBtn title="밑줄 (Ctrl+U)" isActive={active.underline} onMouseDown={e => { e.preventDefault(); exec('underline'); }}><Underline size={13} /></ToolBtn>
     </div>
   );
 }

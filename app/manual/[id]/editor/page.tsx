@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Share2, Check, Download, Pencil, Undo2, Settings } from 'lucide-react';
+import { Share2, Check, Download, Pencil, Undo2, Settings, Video } from 'lucide-react';
 import { GuideToc } from '@/components/editor/GuideToc';
 import { GuideViewer } from '@/components/editor/GuideViewer';
 import { ManualEditor, ManualStep } from '@/components/editor/ManualEditor';
@@ -53,8 +53,10 @@ export default function EditorPage() {
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
   const [thumbnailUploading, setThumbnailUploading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [recording, setRecording] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
   const thumbnailInputRef = useRef<HTMLInputElement>(null);
+  const mergePollerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const stepSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
@@ -201,6 +203,68 @@ export default function EditorPage() {
     }
   }, [publish]);
 
+  const handleAddRecording = useCallback(async () => {
+    const EXT_ID = process.env.NEXT_PUBLIC_EXTENSION_ID;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cr = (window as any).chrome;
+    if (!EXT_ID || !cr?.runtime) {
+      alert('MIMIC Recorder 크롬 확장이 설치되어 있지 않습니다.\n확장을 설치한 후 다시 시도해주세요.');
+      return;
+    }
+
+    const recordingStartedAt = Date.now();
+
+    cr.runtime.sendMessage(EXT_ID, { action: 'GET_TABS' }, (res: { tabs?: { id: number; title: string; url: string }[] }) => {
+      const tabs = res?.tabs ?? [];
+      const eligible = tabs.filter((t: { url: string }) => t.url.startsWith('http'));
+      if (!eligible.length) {
+        alert('녹화 가능한 탭을 찾을 수 없습니다. 브라우저에서 웹페이지를 열어두세요.');
+        return;
+      }
+      const tabId = eligible[0].id;
+      cr.runtime.sendMessage(EXT_ID, { action: 'START_RECORDING', tabId }, (startRes: { ok?: boolean }) => {
+        if (!startRes?.ok) {
+          alert('녹화 시작에 실패했습니다. 확장 상태를 확인해주세요.');
+          return;
+        }
+        setRecording(true);
+        let attempts = 0;
+        const poll = setInterval(async () => {
+          attempts++;
+          if (attempts > 120) {
+            clearInterval(poll);
+            setRecording(false);
+            return;
+          }
+          try {
+            const res = await fetch('/api/tutorials');
+            if (!res.ok) return;
+            const tutorials = await res.json();
+            const newest = Array.isArray(tutorials) ? tutorials[0] : null;
+            if (newest && newest.id !== id && new Date(newest.created_at).getTime() > recordingStartedAt - 60_000) {
+              clearInterval(poll);
+              mergePollerRef.current = null;
+              setRecording(false);
+              const mergeRes = await fetch(`/api/tutorials/${id}/merge`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ source_tutorial_id: newest.id }),
+              });
+              if (!mergeRes.ok) {
+                alert('병합에 실패했습니다. 새로 생성된 매뉴얼에서 스텝을 수동으로 복사해주세요.');
+                return;
+              }
+              const { merged } = await mergeRes.json();
+              window.location.reload();
+              alert(`녹화 완료! ${merged}개 스텝이 추가되었습니다.`);
+            }
+          } catch { /* ignore */ }
+        }, 5000);
+        mergePollerRef.current = poll;
+      });
+    });
+  }, [id]);
+
   const handleDeleteStep = useCallback((stepId: string) => {
     setManualStepsWithHistory(
       manualSteps.filter(s => s.id !== stepId).map((s, i) => ({ ...s, number: i + 1 }))
@@ -299,8 +363,29 @@ export default function EditorPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
 
           {editMode ? (
-            /* ── 편집 모드: 실행 취소 + 편집 완료만 ── */
+            /* ── 편집 모드: 녹화 추가 + 실행 취소 + 편집 완료 ── */
             <>
+              <button
+                onClick={handleAddRecording}
+                disabled={recording}
+                title="녹화를 통해 스텝 추가"
+                style={{
+                  height: '32px', padding: '0 12px', borderRadius: '7px',
+                  fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px',
+                  color: recording ? '#DC2626' : '#374151',
+                  background: recording ? '#FEF2F2' : 'white',
+                  border: `1px solid ${recording ? '#FECACA' : '#E5E7EB'}`,
+                  cursor: recording ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.15s',
+                }}
+                onMouseEnter={e => { if (!recording) e.currentTarget.style.background = '#F9FAFB'; }}
+                onMouseLeave={e => { if (!recording) e.currentTarget.style.background = 'white'; }}
+              >
+                <Video size={13} />
+                {recording ? (
+                  <><span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#DC2626', display: 'inline-block', animation: 'pulse 1s ease-in-out infinite' }} /> 녹화 중…</>
+                ) : '녹화 추가'}
+              </button>
               <button
                 onClick={handleUndo}
                 disabled={historyRef.current.length === 0}
