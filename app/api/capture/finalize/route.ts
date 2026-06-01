@@ -83,6 +83,8 @@ export async function POST(request: NextRequest) {
     page_url: ev.url,
     ai_title: ev.ai_title ?? null,
     ai_description: ev.ai_description ?? null,
+    domain_name: ev.domain_name ?? null,
+    domain_favicon: ev.domain_favicon ?? null,
   }));
 
   const { error: stepsError } = await supabase

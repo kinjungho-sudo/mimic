@@ -16,6 +16,8 @@ export interface ManualStep {
   description: string;       // stored as HTML string
   screenshotUrl?: string;
   annotations?: Annotation[];
+  domain_name?: string | null;
+  domain_favicon?: string | null;
 }
 
 interface ManualEditorProps {
@@ -130,24 +132,32 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
       {/* ── Right content ── */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '40px 0 80px', background: '#F8F9FA' }}>
         <div style={{ maxWidth: '760px', margin: '0 auto', padding: '0 40px' }}>
-          {steps.map((step) => (
-            <div
-              key={step.id}
-              ref={el => { contentRefs.current[step.id] = el; }}
-              style={{ marginBottom: '48px', scrollMarginTop: '24px' }}
-            >
-              <StepCard
-                step={step}
-                isActive={activeId === step.id}
-                onFocus={() => setActiveId(step.id)}
-                onUpdate={patch => updateStep(step.id, patch)}
-                onSave={patch => { updateStep(step.id, patch); onSave?.(step.id, patch); }}
-                onDelete={() => deleteStep(step.id)}
-                onZoom={() => step.screenshotUrl && setZoomUrl(step.screenshotUrl)}
-                onAnnotate={() => step.screenshotUrl && setAnnotatingId(step.id)}
-              />
-            </div>
-          ))}
+          {steps.map((step, idx) => {
+            const prevDomain = idx > 0 ? steps[idx - 1].domain_name : null;
+            const showDomainHeader = !!step.domain_name && step.domain_name !== prevDomain;
+            return (
+              <div key={step.id}>
+                {showDomainHeader && (
+                  <EditorDomainHeader name={step.domain_name!} favicon={step.domain_favicon ?? null} />
+                )}
+                <div
+                  ref={el => { contentRefs.current[step.id] = el; }}
+                  style={{ marginBottom: '48px', scrollMarginTop: '24px' }}
+                >
+                  <StepCard
+                    step={step}
+                    isActive={activeId === step.id}
+                    onFocus={() => setActiveId(step.id)}
+                    onUpdate={patch => updateStep(step.id, patch)}
+                    onSave={patch => { updateStep(step.id, patch); onSave?.(step.id, patch); }}
+                    onDelete={() => deleteStep(step.id)}
+                    onZoom={() => step.screenshotUrl && setZoomUrl(step.screenshotUrl)}
+                    onAnnotate={() => step.screenshotUrl && setAnnotatingId(step.id)}
+                  />
+                </div>
+              </div>
+            );
+          })}
           <button
             onClick={addStep}
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%', height: '52px', border: '2px dashed #D1D5DB', borderRadius: '12px', background: 'transparent', fontSize: '13.5px', color: '#6B7280', cursor: 'pointer', transition: 'all 0.18s ease' }}
@@ -727,5 +737,27 @@ function ImageZoomModal({ url, onClose }: { url: string; onClose: () => void }) 
         <span style={{ fontSize: '10.5px', color: 'rgba(255,255,255,0.4)', marginLeft: '4px' }}>ESC로 닫기</span>
       </div>
     </>
+  );
+}
+
+// ── EditorDomainHeader ────────────────────────────────────
+
+function EditorDomainHeader({ name, favicon }: { name: string; favicon: string | null }) {
+  const [faviconOk, setFaviconOk] = useState(true);
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: '8px',
+      margin: '-24px 0 16px',
+      padding: '5px 10px',
+      background: '#F3F4F6',
+      border: '1px solid #E5E7EB',
+      borderRadius: '6px',
+    }}>
+      {favicon && faviconOk && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={favicon} alt="" width={13} height={13} style={{ flexShrink: 0 }} onError={() => setFaviconOk(false)} />
+      )}
+      <span style={{ fontSize: '11px', fontWeight: 600, color: '#6B7280', letterSpacing: '0.02em' }}>{name}</span>
+    </div>
   );
 }

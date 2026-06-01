@@ -22,6 +22,9 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
     actionTitle: s.user_title ?? s.ai_title ?? '',
     description: s.user_script ?? s.ai_description ?? '',
     screenshotUrl: s.screenshot_url || undefined,
+    annotations: (s.user_annotations as import('@/components/editor/ImageAnnotationEditor').Annotation[] | null) ?? [],
+    domain_name: s.domain_name ?? null,
+    domain_favicon: s.domain_favicon ?? null,
   }));
 }
 

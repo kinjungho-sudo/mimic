@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import DOMPurify from 'dompurify';
 import type { ManualStep } from './ManualEditor';
 import { AnnotationPreview } from './AnnotationPreview';
@@ -74,16 +74,24 @@ export function GuideViewer({ steps, activeId, onActiveChange, outputRatio = '16
         }}
       >
         <div style={{ maxWidth: '900px', margin: '0 auto', padding: '0 20px' }}>
-          {steps.map(step => (
-            <div
-              key={step.id}
-              data-step-id={step.id}
-              ref={el => { stepRefs.current[step.id] = el; }}
-              style={{ marginBottom: '28px', scrollMarginTop: '20px' }}
-            >
-              <ViewerStepCard step={step} outputRatio={outputRatio} />
-            </div>
-          ))}
+          {steps.map((step, idx) => {
+            const prevDomain = idx > 0 ? steps[idx - 1].domain_name : null;
+            const showDomainHeader = !!step.domain_name && step.domain_name !== prevDomain;
+            return (
+              <div key={step.id}>
+                {showDomainHeader && (
+                  <DomainSectionHeader name={step.domain_name!} favicon={step.domain_favicon ?? null} />
+                )}
+                <div
+                  data-step-id={step.id}
+                  ref={el => { stepRefs.current[step.id] = el; }}
+                  style={{ marginBottom: '28px', scrollMarginTop: '20px' }}
+                >
+                  <ViewerStepCard step={step} outputRatio={outputRatio} />
+                </div>
+              </div>
+            );
+          })}
 
           {steps.length === 0 && (
             <div style={{ textAlign: 'center', paddingTop: '80px', color: '#9CA3AF' }}>
@@ -131,6 +139,37 @@ export function GuideViewer({ steps, activeId, onActiveChange, outputRatio = '16
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
       </div>
+    </div>
+  );
+}
+
+function DomainSectionHeader({ name, favicon }: { name: string; favicon: string | null }) {
+  const [faviconOk, setFaviconOk] = useState(true);
+
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: '8px',
+      margin: '8px 0 12px',
+      padding: '6px 12px',
+      background: 'white',
+      border: '1px solid #E5E7EB',
+      borderRadius: '8px',
+      boxShadow: '0 1px 3px rgba(17,24,39,0.05)',
+    }}>
+      {favicon && faviconOk && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={favicon}
+          alt=""
+          width={14}
+          height={14}
+          style={{ flexShrink: 0 }}
+          onError={() => setFaviconOk(false)}
+        />
+      )}
+      <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#6B7280', letterSpacing: '0.02em' }}>
+        {name}
+      </span>
     </div>
   );
 }

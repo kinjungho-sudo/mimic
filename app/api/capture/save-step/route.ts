@@ -59,6 +59,8 @@ export async function POST(request: NextRequest) {
       element_text: d.title,
       ai_title: d.title || null,
       ai_description: d.description || null,
+      domain_name: d.domain_name ?? null,
+      domain_favicon: d.domain_favicon ?? null,
     })
     .select('id')
     .single();

@@ -40,6 +40,7 @@ export type Tutorial = {
   published_at: string | null;
   cover_color?: string | null;
   thumbnail_url?: string | null;
+  first_page_url?: string | null;
   // enriched by list API
   step_count?: number;
 };
@@ -65,6 +66,9 @@ export type Step = {
   ai_description: string | null;
   user_title: string | null;
   user_script: string | null;
+  user_annotations?: unknown[] | null;
+  domain_name?: string | null;
+  domain_favicon?: string | null;
   created_at: string;
 };
 
