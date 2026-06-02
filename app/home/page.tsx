@@ -15,7 +15,7 @@ function greeting(): string {
   return '안녕하세요';
 }
 
-const CARD_COLORS = ['#4F46E5', '#7C3AED', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444'];
+const CARD_COLORS = ['#3730a3', '#6d28d9', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444'];
 function cardColor(id: string) { return CARD_COLORS[id.charCodeAt(0) % CARD_COLORS.length]; }
 
 function getDomain(url: string | null | undefined): string | null {
@@ -47,7 +47,7 @@ function FolderWsButton({ folderId, workspaces, onMove }: {
         onClick={e => { e.stopPropagation(); setOpen(v => !v); }}
         title="팀 워크스페이스로 이동"
         style={{ width: '20px', height: '20px', borderRadius: '5px', border: 'none', background: 'transparent', color: '#D1D5DB', cursor: 'pointer', display: 'grid', placeItems: 'center', opacity: 0, transition: 'opacity 0.12s' }}
-        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '1'; (e.currentTarget as HTMLButtonElement).style.color = '#4F46E5'; (e.currentTarget as HTMLButtonElement).style.background = '#EEF2FF'; }}
+        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '1'; (e.currentTarget as HTMLButtonElement).style.color = '#3730a3'; (e.currentTarget as HTMLButtonElement).style.background = '#e0e7ff'; }}
         onMouseLeave={e => { if (!open) { (e.currentTarget as HTMLButtonElement).style.opacity = '0'; (e.currentTarget as HTMLButtonElement).style.color = '#D1D5DB'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; } }}
       >
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -68,7 +68,7 @@ function FolderWsButton({ folderId, workspaces, onMove }: {
               style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '6px 10px', border: 'none', background: 'none', borderRadius: '7px', cursor: 'pointer', fontSize: '12.5px', color: '#374151', textAlign: 'left' }}
               onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
               onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
-              <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', flexShrink: 0 }} />
+              <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', flexShrink: 0 }} />
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ws.name}</span>
             </button>
           ))}
@@ -142,7 +142,7 @@ function ContextMenu({ menu, folders, tutorials, workspaces, onMove, onMoveToWor
             minWidth: '160px',
           }}>
             <button
-              style={{ ...itemStyle, color: !tutorial?.folder_id ? '#4F46E5' : '#374151', fontWeight: !tutorial?.folder_id ? 600 : 400 }}
+              style={{ ...itemStyle, color: !tutorial?.folder_id ? '#3730a3' : '#374151', fontWeight: !tutorial?.folder_id ? 600 : 400 }}
               onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
               onMouseLeave={e => (e.currentTarget.style.background = 'none')}
               onClick={() => { onMove(menu.tutorialId, null); onClose(); }}>
@@ -202,11 +202,11 @@ function ContextMenu({ menu, folders, tutorials, workspaces, onMove, onMoveToWor
               )}
               {workspaces.map(ws => (
                 <button key={ws.id}
-                  style={{ ...itemStyle, color: tutorial?.workspace_id === ws.id ? '#4F46E5' : '#374151', fontWeight: tutorial?.workspace_id === ws.id ? 600 : 400 }}
+                  style={{ ...itemStyle, color: tutorial?.workspace_id === ws.id ? '#3730a3' : '#374151', fontWeight: tutorial?.workspace_id === ws.id ? 600 : 400 }}
                   onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'none')}
                   onClick={() => { onMoveToWorkspace(menu.tutorialId, ws.id); onClose(); }}>
-                  <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', flexShrink: 0 }} />
+                  <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', flexShrink: 0 }} />
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{ws.name}</span>
                   {tutorial?.workspace_id === ws.id && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}><polyline points="20 6 9 17 4 12"/></svg>}
                 </button>
@@ -280,8 +280,8 @@ function TutorialCard({ tutorial, onContextMenu, onTitleChange, onMenuClick }: {
       onClick={() => { if (!editingTitle) router.push(`/manual/${tutorial.id}/editor`); }}
       style={{
         background: 'white', borderRadius: '10px', cursor: 'pointer',
-        border: `1px solid ${hovered ? '#C7D2FE' : '#E5E7EB'}`,
-        boxShadow: hovered ? '0 3px 12px rgba(79,70,229,0.07)' : '0 1px 2px rgba(17,24,39,0.04)',
+        border: `1px solid ${hovered ? '#a5b4fc' : '#E5E7EB'}`,
+        boxShadow: hovered ? '0 3px 12px rgba(55,48,163,0.07)' : '0 1px 2px rgba(17,24,39,0.04)',
         transition: 'border-color 0.12s, box-shadow 0.12s',
         display: 'flex', alignItems: 'center', gap: '11px',
         padding: '11px 13px',
@@ -313,7 +313,7 @@ function TutorialCard({ tutorial, onContextMenu, onTitleChange, onMenuClick }: {
             onBlur={saveTitle}
             onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') { setEditingTitle(false); setTitleDraft(tutorial.title); } }}
             onClick={e => e.stopPropagation()} disabled={savingTitle}
-            style={{ fontSize: '13px', fontWeight: 600, color: '#111827', border: '1.5px solid #4F46E5', borderRadius: '5px', padding: '1px 6px', outline: 'none', width: '100%', boxSizing: 'border-box', fontFamily: 'inherit' }}
+            style={{ fontSize: '13px', fontWeight: 600, color: '#111827', border: '1.5px solid #3730a3', borderRadius: '5px', padding: '1px 6px', outline: 'none', width: '100%', boxSizing: 'border-box', fontFamily: 'inherit' }}
           />
         ) : (
           <div
@@ -352,17 +352,17 @@ function TutorialCard({ tutorial, onContextMenu, onTitleChange, onMenuClick }: {
 function EmptyState({ onRecord, onBlank, label }: { onRecord: () => void; onBlank: () => void; label?: string }) {
   return (
     <div style={{ padding: '60px 24px', textAlign: 'center' }}>
-      <div style={{ margin: '0 auto 16px', width: '56px', height: '56px', borderRadius: '14px', background: '#EEF2FF', display: 'grid', placeItems: 'center', color: '#4F46E5' }}>
+      <div style={{ margin: '0 auto 16px', width: '56px', height: '56px', borderRadius: '14px', background: '#e0e7ff', display: 'grid', placeItems: 'center', color: '#3730a3' }}>
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
       </div>
       <div style={{ fontSize: '14px', fontWeight: 600, color: '#111827', marginBottom: '6px' }}>{label ?? '매뉴얼이 없어요'}</div>
       <div style={{ fontSize: '12.5px', color: '#9CA3AF', marginBottom: '20px' }}>화면을 녹화하거나 직접 만들어보세요.</div>
       <div style={{ display: 'inline-flex', gap: '8px' }}>
-        <button onClick={onRecord} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', border: 'none', cursor: 'pointer' }}>
+        <button onClick={onRecord} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', border: 'none', cursor: 'pointer' }}>
           <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'rgba(255,255,255,0.8)', animation: 'recPulse 1.4s ease-in-out infinite' }} />
           화면 녹화
         </button>
-        <button onClick={onBlank} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: 'white', color: '#4F46E5', border: '1.5px solid #C7D2FE', cursor: 'pointer' }}>
+        <button onClick={onBlank} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: 'white', color: '#3730a3', border: '1.5px solid #a5b4fc', cursor: 'pointer' }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           직접 편집
         </button>
@@ -381,6 +381,7 @@ export default function DashboardPage() {
   const [tutLoading, setTutLoading] = useState(true);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const [activeTab, setActiveTab] = useState<'my' | 'team'>('my');
   const [activeFolder, setActiveFolder] = useState<string | null | 'all'>('all');
@@ -570,10 +571,17 @@ export default function DashboardPage() {
     setCtxMenu({ x, y, tutorialId: id });
   };
 
-  const displayedTutorials = activeTab === 'team' ? tutorials : (() => {
-    if (activeFolder === 'all') return tutorials;
-    if (activeFolder === null) return tutorials.filter(t => !t.folder_id);
-    return tutorials.filter(t => t.folder_id === activeFolder);
+  const displayedTutorials = (() => {
+    let list = activeTab === 'team' ? tutorials : (() => {
+      if (activeFolder === 'all') return tutorials;
+      if (activeFolder === null) return tutorials.filter(t => !t.folder_id);
+      return tutorials.filter(t => t.folder_id === activeFolder);
+    })();
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      list = list.filter(t => t.title.toLowerCase().includes(q));
+    }
+    return list;
   })();
 
   // 폴더 트리 아이템 공통 스타일 헬퍼
@@ -631,7 +639,7 @@ export default function DashboardPage() {
                 style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '7px 8px', borderRadius: '8px', border: 'none', cursor: 'pointer', textAlign: 'left', background: 'transparent' }}
                 onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: activeTab === 'my' ? '#4F46E5' : '#E5E7EB', display: 'grid', placeItems: 'center', flexShrink: 0, transition: 'background 0.15s' }}>
+                <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: activeTab === 'my' ? '#3730a3' : '#E5E7EB', display: 'grid', placeItems: 'center', flexShrink: 0, transition: 'background 0.15s' }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                 </div>
                 <span style={{ fontSize: '13px', fontWeight: 700, color: '#111827', flex: 1 }}>내 워크스페이스</span>
@@ -649,7 +657,7 @@ export default function DashboardPage() {
                     { id: null, label: '미분류', count: tutorials.filter(t => !t.folder_id).length },
                   ].map(item => (
                     <button key={String(item.id)} onClick={() => { setActiveTab('my'); setActiveFolder(item.id); }}
-                      style={{ display: 'flex', alignItems: 'center', gap: '7px', width: '100%', padding: '5px 8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', textAlign: 'left', background: folderItemActive(item.id) ? '#EEF2FF' : 'transparent', color: folderItemActive(item.id) ? '#4F46E5' : '#4B5563', fontWeight: folderItemActive(item.id) ? 600 : 400 }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '7px', width: '100%', padding: '5px 8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', textAlign: 'left', background: folderItemActive(item.id) ? '#e0e7ff' : 'transparent', color: folderItemActive(item.id) ? '#3730a3' : '#4B5563', fontWeight: folderItemActive(item.id) ? 600 : 400 }}
                       onMouseEnter={e => { if (!folderItemActive(item.id)) (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; }}
                       onMouseLeave={e => { if (!folderItemActive(item.id)) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
                       <span style={{ flex: 1 }}>{item.label}</span>
@@ -665,7 +673,7 @@ export default function DashboardPage() {
                           onChange={e => setEditingFolderName(e.target.value)}
                           onBlur={() => handleRenameFolder(f.id)}
                           onKeyDown={e => { if (e.key === 'Enter') handleRenameFolder(f.id); if (e.key === 'Escape') setEditingFolderId(null); }}
-                          style={{ flex: 1, padding: '4px 7px', borderRadius: '6px', border: '1.5px solid #4F46E5', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
+                          style={{ flex: 1, padding: '4px 7px', borderRadius: '6px', border: '1.5px solid #3730a3', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
                       ) : (
                         <button
                           onClick={() => { setActiveTab('my'); setActiveFolder(f.id); }}
@@ -708,9 +716,9 @@ export default function DashboardPage() {
                     <form onSubmit={handleCreateFolder} style={{ display: 'flex', gap: '4px', paddingTop: '2px' }}>
                       <input autoFocus value={newFolderName} onChange={e => setNewFolderName(e.target.value)} placeholder="폴더 이름"
                         onKeyDown={e => { if (e.key === 'Escape') setShowNewFolderInput(false); }}
-                        style={{ flex: 1, padding: '4px 7px', borderRadius: '6px', border: '1px solid #C7D2FE', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
+                        style={{ flex: 1, padding: '4px 7px', borderRadius: '6px', border: '1px solid #a5b4fc', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
                       <button type="submit" disabled={creatingFolder || !newFolderName.trim()}
-                        style={{ padding: '4px 8px', borderRadius: '6px', background: '#4F46E5', color: 'white', border: 'none', fontSize: '12px', fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
+                        style={{ padding: '4px 8px', borderRadius: '6px', background: '#3730a3', color: 'white', border: 'none', fontSize: '12px', fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
                         {creatingFolder ? '...' : '추가'}
                       </button>
                     </form>
@@ -732,7 +740,7 @@ export default function DashboardPage() {
                   style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, padding: '7px 8px', borderRadius: '8px', border: 'none', cursor: 'pointer', textAlign: 'left', background: 'transparent' }}
                   onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                  <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: activeTab === 'team' ? '#4F46E5' : '#E5E7EB', display: 'grid', placeItems: 'center', flexShrink: 0, transition: 'background 0.15s' }}>
+                  <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: activeTab === 'team' ? '#3730a3' : '#E5E7EB', display: 'grid', placeItems: 'center', flexShrink: 0, transition: 'background 0.15s' }}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                   </div>
                   <span style={{ fontSize: '13px', fontWeight: 700, color: '#111827', flex: 1 }}>팀 워크스페이스</span>
@@ -756,9 +764,9 @@ export default function DashboardPage() {
                   {showNewWsInput && (
                     <form onSubmit={handleCreateWorkspace} style={{ display: 'flex', gap: '4px', paddingBottom: '4px' }}>
                       <input autoFocus value={newWsName} onChange={e => setNewWsName(e.target.value)} placeholder="워크스페이스 이름"
-                        style={{ flex: 1, padding: '4px 7px', borderRadius: '6px', border: '1px solid #C7D2FE', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
+                        style={{ flex: 1, padding: '4px 7px', borderRadius: '6px', border: '1px solid #a5b4fc', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
                       <button type="submit" disabled={creatingWs || !newWsName.trim()}
-                        style={{ padding: '4px 8px', borderRadius: '6px', background: '#4F46E5', color: 'white', border: 'none', fontSize: '12px', fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
+                        style={{ padding: '4px 8px', borderRadius: '6px', background: '#3730a3', color: 'white', border: 'none', fontSize: '12px', fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
                         {creatingWs ? '...' : '만들기'}
                       </button>
                     </form>
@@ -768,10 +776,10 @@ export default function DashboardPage() {
                     : workspaces.map(ws => (
                       <div key={ws.id} style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
                         <button onClick={() => { setActiveTab('team'); setActiveWorkspace(ws.id); }}
-                          style={{ display: 'flex', alignItems: 'center', gap: '7px', flex: 1, padding: '5px 8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', textAlign: 'left', background: activeTab === 'team' && activeWorkspace === ws.id ? '#EEF2FF' : 'transparent', color: activeTab === 'team' && activeWorkspace === ws.id ? '#4F46E5' : '#4B5563', fontWeight: activeTab === 'team' && activeWorkspace === ws.id ? 600 : 400 }}
+                          style={{ display: 'flex', alignItems: 'center', gap: '7px', flex: 1, padding: '5px 8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', textAlign: 'left', background: activeTab === 'team' && activeWorkspace === ws.id ? '#e0e7ff' : 'transparent', color: activeTab === 'team' && activeWorkspace === ws.id ? '#3730a3' : '#4B5563', fontWeight: activeTab === 'team' && activeWorkspace === ws.id ? 600 : 400 }}
                           onMouseEnter={e => { if (!(activeTab === 'team' && activeWorkspace === ws.id)) (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; }}
                           onMouseLeave={e => { if (!(activeTab === 'team' && activeWorkspace === ws.id)) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
-                          <div style={{ width: '10px', height: '10px', borderRadius: '3px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', flexShrink: 0 }} />
+                          <div style={{ width: '10px', height: '10px', borderRadius: '3px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', flexShrink: 0 }} />
                           <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ws.name}</span>
                           <span style={{ fontSize: '11px', color: '#9CA3AF', flexShrink: 0 }}>{ws.member_count ?? 0}명</span>
                         </button>
@@ -802,10 +810,10 @@ export default function DashboardPage() {
                 </div>
                 {!isPro && (
                   <div style={{ height: '4px', borderRadius: '999px', background: '#E5E7EB', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', borderRadius: '999px', background: usedToday >= dailyLimit ? '#EF4444' : '#4F46E5', width: `${Math.min(100, (usedToday / dailyLimit) * 100)}%`, transition: 'width 0.3s' }} />
+                    <div style={{ height: '100%', borderRadius: '999px', background: usedToday >= dailyLimit ? '#EF4444' : '#3730a3', width: `${Math.min(100, (usedToday / dailyLimit) * 100)}%`, transition: 'width 0.3s' }} />
                   </div>
                 )}
-                {!isPro && <Link href="/settings" style={{ display: 'block', marginTop: '10px', padding: '6px', borderRadius: '7px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', fontSize: '11.5px', fontWeight: 600, textDecoration: 'none', textAlign: 'center' }}>Pro로 업그레이드</Link>}
+                {!isPro && <Link href="/settings" style={{ display: 'block', marginTop: '10px', padding: '6px', borderRadius: '7px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', fontSize: '11.5px', fontWeight: 600, textDecoration: 'none', textAlign: 'center' }}>Pro로 업그레이드</Link>}
               </div>
             )}
 
@@ -815,7 +823,7 @@ export default function DashboardPage() {
                 {user?.avatar_url
                   // eslint-disable-next-line @next/next/no-img-element
                   ? <img src={user.avatar_url} alt={user.name} style={{ width: '26px', height: '26px', borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }} />
-                  : <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', display: 'grid', placeItems: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>{authLoading ? '·' : firstName.charAt(0) || '?'}</div>
+                  : <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', display: 'grid', placeItems: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>{authLoading ? '·' : firstName.charAt(0) || '?'}</div>
                 }
                 <div style={{ overflow: 'hidden' }}>
                   <div style={{ fontSize: '13px', fontWeight: 500, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{authLoading ? '...' : (user?.name ?? '내 계정')}</div>
@@ -841,15 +849,33 @@ export default function DashboardPage() {
                   <span style={{ fontSize: '15px', fontWeight: 800, color: '#111827', letterSpacing: '-0.03em' }}>MIMIC</span>
                 </Link>
               </div>
-              <div className="home-search-bar" style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, maxWidth: '380px', height: '36px', padding: '0 12px', border: '1px solid #E5E7EB', borderRadius: '9px', background: '#F9FAFB', color: '#9CA3AF' }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <input placeholder="매뉴얼 검색..." style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '13px', fontFamily: 'inherit', color: '#374151' }} />
+              <div
+                className="home-search-bar"
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, maxWidth: '440px', height: '40px', padding: '0 14px', border: `1.5px solid ${searchQuery ? '#4F46E5' : '#E5E7EB'}`, borderRadius: '10px', background: searchQuery ? '#F5F3FF' : 'white', color: '#9CA3AF', transition: 'border-color 0.15s, background 0.15s', boxShadow: searchQuery ? '0 0 0 3px rgba(79,70,229,0.10)' : 'none' }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={searchQuery ? '#4F46E5' : '#9CA3AF'} strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, transition: 'stroke 0.15s' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input
+                  placeholder="매뉴얼 이름으로 검색..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '13.5px', fontFamily: 'inherit', color: '#111827' }}
+                  onFocus={e => { const p = e.currentTarget.parentElement!; p.style.borderColor = '#4F46E5'; p.style.boxShadow = '0 0 0 3px rgba(79,70,229,0.10)'; }}
+                  onBlur={e => { const p = e.currentTarget.parentElement!; if (!searchQuery) { p.style.borderColor = '#E5E7EB'; p.style.boxShadow = 'none'; } }}
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    style={{ width: '18px', height: '18px', borderRadius: '50%', background: '#9CA3AF', border: 'none', display: 'grid', placeItems: 'center', cursor: 'pointer', flexShrink: 0, padding: 0 }}
+                  >
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                )}
               </div>
               <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div ref={newMenuRef} style={{ position: 'relative' }}>
                   <button onClick={() => setShowNewMenu(v => !v)} disabled={creating}
                     className="home-new-btn"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '8px 14px', borderRadius: '9px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', border: 'none', cursor: creating ? 'not-allowed' : 'pointer', fontSize: '13.5px', fontWeight: 600, boxShadow: '0 2px 8px rgba(79,70,229,0.28)', opacity: creating ? 0.7 : 1, whiteSpace: 'nowrap' }}>
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '8px 14px', borderRadius: '9px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', border: 'none', cursor: creating ? 'not-allowed' : 'pointer', fontSize: '13.5px', fontWeight: 600, boxShadow: '0 2px 8px rgba(55,48,163,0.28)', opacity: creating ? 0.7 : 1, whiteSpace: 'nowrap' }}>
                     {creating
                       ? <span style={{ width: '12px', height: '12px', borderRadius: '50%', border: '2px solid rgba(255,255,255,0.4)', borderTopColor: 'white', animation: 'spin 0.8s linear infinite', flexShrink: 0 }} />
                       : <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'rgba(255,255,255,0.85)', animation: 'recPulse 1.4s ease-in-out infinite', flexShrink: 0 }} />
@@ -871,8 +897,8 @@ export default function DashboardPage() {
                       <button onClick={handleCreateBlank}
                         style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', width: '100%', padding: '13px 15px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left' }}
                         onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
-                        <span style={{ width: '30px', height: '30px', borderRadius: '8px', background: '#EEF2FF', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                        <span style={{ width: '30px', height: '30px', borderRadius: '8px', background: '#e0e7ff', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3730a3" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
                         </span>
                         <div><div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '2px' }}>직접 편집하기</div><div style={{ fontSize: '11.5px', color: '#6B7280' }}>이미지 업로드해 제작</div></div>
                       </button>
@@ -902,7 +928,7 @@ export default function DashboardPage() {
                 {([['my', '내 매뉴얼'], ['team', '팀 매뉴얼']] as const).map(([tab, label]) => (
                   <button key={tab}
                     onClick={() => { setActiveTab(tab); if (tab === 'team' && workspaces.length > 0) setActiveWorkspace(workspaces[0].id); }}
-                    style={{ padding: '7px 16px', border: 'none', background: 'none', cursor: 'pointer', fontSize: '13.5px', fontWeight: activeTab === tab ? 700 : 400, color: activeTab === tab ? '#4F46E5' : '#6B7280', borderBottom: `2px solid ${activeTab === tab ? '#4F46E5' : 'transparent'}`, marginBottom: '-2px', transition: 'color 0.15s' }}>
+                    style={{ padding: '7px 16px', border: 'none', background: 'none', cursor: 'pointer', fontSize: '13.5px', fontWeight: activeTab === tab ? 700 : 400, color: activeTab === tab ? '#3730a3' : '#6B7280', borderBottom: `2px solid ${activeTab === tab ? '#3730a3' : 'transparent'}`, marginBottom: '-2px', transition: 'color 0.15s' }}>
                     {label}
                     {tab === 'my' && !tutLoading && <span style={{ marginLeft: '5px', fontSize: '11.5px', fontWeight: 400, color: '#9CA3AF' }}>{displayedTutorials.length}</span>}
                   </button>
@@ -915,13 +941,13 @@ export default function DashboardPage() {
                   {workspaces.length === 0 ? (
                     <div style={{ padding: '28px', textAlign: 'center', background: 'white', borderRadius: '12px', border: '1px solid #E5E7EB' }}>
                       <div style={{ fontSize: '13.5px', color: '#6B7280', marginBottom: '12px' }}>참여 중인 워크스페이스가 없습니다.</div>
-                      <button onClick={() => setShowNewWsInput(true)} style={{ padding: '7px 14px', borderRadius: '8px', background: '#4F46E5', color: 'white', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>워크스페이스 만들기</button>
+                      <button onClick={() => setShowNewWsInput(true)} style={{ padding: '7px 14px', borderRadius: '8px', background: '#3730a3', color: 'white', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>워크스페이스 만들기</button>
                     </div>
                   ) : (
                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                       {workspaces.map(ws => (
                         <button key={ws.id} onClick={() => setActiveWorkspace(ws.id)}
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 12px', borderRadius: '999px', border: `1.5px solid ${activeWorkspace === ws.id ? '#4F46E5' : '#E5E7EB'}`, background: activeWorkspace === ws.id ? '#EEF2FF' : 'white', color: activeWorkspace === ws.id ? '#4F46E5' : '#6B7280', fontSize: '12.5px', fontWeight: activeWorkspace === ws.id ? 600 : 400, cursor: 'pointer' }}>
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 12px', borderRadius: '999px', border: `1.5px solid ${activeWorkspace === ws.id ? '#3730a3' : '#E5E7EB'}`, background: activeWorkspace === ws.id ? '#e0e7ff' : 'white', color: activeWorkspace === ws.id ? '#3730a3' : '#6B7280', fontSize: '12.5px', fontWeight: activeWorkspace === ws.id ? 600 : 400, cursor: 'pointer' }}>
                           {ws.name}
                         </button>
                       ))}
@@ -944,8 +970,21 @@ export default function DashboardPage() {
                   ))}
                 </div>
               ) : displayedTutorials.length === 0 ? (
-                <EmptyState onRecord={() => setShowRecordingModal(true)} onBlank={handleCreateBlank}
-                  label={activeTab === 'team' ? '팀 매뉴얼이 없어요' : activeFolder !== 'all' ? '이 폴더에 매뉴얼이 없어요' : undefined} />
+                searchQuery.trim() ? (
+                  <div style={{ textAlign: 'center', padding: '64px 24px', color: '#6B7280' }}>
+                    <div style={{ fontSize: '36px', marginBottom: '12px', opacity: 0.4 }}>🔍</div>
+                    <div style={{ fontSize: '15px', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>
+                      &ldquo;{searchQuery}&rdquo; 검색 결과 없음
+                    </div>
+                    <div style={{ fontSize: '13px' }}>다른 키워드로 검색해보세요.</div>
+                    <button onClick={() => setSearchQuery('')} style={{ marginTop: '16px', padding: '7px 16px', borderRadius: '8px', border: '1px solid #E5E7EB', background: 'white', fontSize: '13px', color: '#4B5563', cursor: 'pointer' }}>
+                      검색 초기화
+                    </button>
+                  </div>
+                ) : (
+                  <EmptyState onRecord={() => setShowRecordingModal(true)} onBlank={handleCreateBlank}
+                    label={activeTab === 'team' ? '팀 매뉴얼이 없어요' : activeFolder !== 'all' ? '이 폴더에 매뉴얼이 없어요' : undefined} />
+                )
               ) : (
                 <div className="home-card-grid">
                   {displayedTutorials.map(t => (
@@ -1006,7 +1045,7 @@ export default function DashboardPage() {
               {/* 내 워크스페이스 */}
               <button onClick={() => setMyOpen(v => !v)}
                 style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '7px 10px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'transparent', marginBottom: '2px' }}>
-                <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: activeTab === 'my' ? '#4F46E5' : '#E5E7EB', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: activeTab === 'my' ? '#3730a3' : '#E5E7EB', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                 </div>
                 <span style={{ fontSize: '13px', fontWeight: 700, color: '#111827', flex: 1, textAlign: 'left' }}>내 워크스페이스</span>
@@ -1023,7 +1062,7 @@ export default function DashboardPage() {
                   ].map(item => (
                     <button key={String(item.id)}
                       onClick={() => { setActiveTab('my'); setActiveFolder(item.id); setShowDrawer(false); }}
-                      style={{ display: 'flex', alignItems: 'center', gap: '7px', width: '100%', padding: '7px 8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', textAlign: 'left', background: folderItemActive(item.id) ? '#EEF2FF' : 'transparent', color: folderItemActive(item.id) ? '#4F46E5' : '#4B5563', fontWeight: folderItemActive(item.id) ? 600 : 400 }}>
+                      style={{ display: 'flex', alignItems: 'center', gap: '7px', width: '100%', padding: '7px 8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', textAlign: 'left', background: folderItemActive(item.id) ? '#e0e7ff' : 'transparent', color: folderItemActive(item.id) ? '#3730a3' : '#4B5563', fontWeight: folderItemActive(item.id) ? 600 : 400 }}>
                       <span style={{ flex: 1 }}>{item.label}</span>
                       <span style={{ fontSize: '11px', color: '#9CA3AF' }}>{item.count}</span>
                     </button>
@@ -1043,7 +1082,7 @@ export default function DashboardPage() {
               {/* 팀 워크스페이스 */}
               <button onClick={() => setTeamOpen(v => !v)}
                 style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '7px 10px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'transparent', marginBottom: '2px' }}>
-                <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: activeTab === 'team' ? '#4F46E5' : '#E5E7EB', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: activeTab === 'team' ? '#3730a3' : '#E5E7EB', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                 </div>
                 <span style={{ fontSize: '13px', fontWeight: 700, color: '#111827', flex: 1, textAlign: 'left' }}>팀 워크스페이스</span>
@@ -1059,8 +1098,8 @@ export default function DashboardPage() {
                     : workspaces.map(ws => (
                       <button key={ws.id}
                         onClick={() => { setActiveTab('team'); setActiveWorkspace(ws.id); setShowDrawer(false); }}
-                        style={{ display: 'flex', alignItems: 'center', gap: '7px', width: '100%', padding: '7px 8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', textAlign: 'left', background: activeTab === 'team' && activeWorkspace === ws.id ? '#EEF2FF' : 'transparent', color: activeTab === 'team' && activeWorkspace === ws.id ? '#4F46E5' : '#4B5563', fontWeight: activeTab === 'team' && activeWorkspace === ws.id ? 600 : 400 }}>
-                        <div style={{ width: '10px', height: '10px', borderRadius: '3px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', flexShrink: 0 }} />
+                        style={{ display: 'flex', alignItems: 'center', gap: '7px', width: '100%', padding: '7px 8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', textAlign: 'left', background: activeTab === 'team' && activeWorkspace === ws.id ? '#e0e7ff' : 'transparent', color: activeTab === 'team' && activeWorkspace === ws.id ? '#3730a3' : '#4B5563', fontWeight: activeTab === 'team' && activeWorkspace === ws.id ? 600 : 400 }}>
+                        <div style={{ width: '10px', height: '10px', borderRadius: '3px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', flexShrink: 0 }} />
                         <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ws.name}</span>
                         <span style={{ fontSize: '11px', color: '#9CA3AF' }}>{ws.member_count ?? 0}명</span>
                       </button>
@@ -1080,7 +1119,7 @@ export default function DashboardPage() {
                     <span style={{ fontSize: '12px', fontWeight: 600, color: '#111827' }}>{usedToday} / {dailyLimit}</span>
                   </div>
                   <div style={{ height: '4px', borderRadius: '999px', background: '#E5E7EB', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', borderRadius: '999px', background: usedToday >= dailyLimit ? '#EF4444' : '#4F46E5', width: `${Math.min(100, (usedToday / dailyLimit) * 100)}%` }} />
+                    <div style={{ height: '100%', borderRadius: '999px', background: usedToday >= dailyLimit ? '#EF4444' : '#3730a3', width: `${Math.min(100, (usedToday / dailyLimit) * 100)}%` }} />
                   </div>
                 </div>
               )}
@@ -1089,7 +1128,7 @@ export default function DashboardPage() {
                 {user?.avatar_url
                   // eslint-disable-next-line @next/next/no-img-element
                   ? <img src={user.avatar_url} alt={user.name} style={{ width: '28px', height: '28px', borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }} />
-                  : <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', display: 'grid', placeItems: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>{firstName.charAt(0) || '?'}</div>
+                  : <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', display: 'grid', placeItems: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>{firstName.charAt(0) || '?'}</div>
                 }
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: '13px', fontWeight: 500, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.name ?? '내 계정'}</div>
