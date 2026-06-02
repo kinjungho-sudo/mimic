@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { BrandMark } from '@/components/BrandMark';
 
@@ -122,32 +122,199 @@ function RevealSection({ children, style }: { children: React.ReactNode; style?:
   );
 }
 
-const DEMO_URL = 'https://mimic-nine-ashen.vercel.app/play/d3febce4cfc9d978baa42b217363d2fd';
+// 실제 API 데이터 기반 스텝 (주민등록등본 발급하기)
+const DEMO_STEPS = [
+  {
+    num: 1,
+    title: '정부24 홈페이지 이동',
+    caption: 'plus.gov.kr 링크를 클릭하여 정부24 웹사이트로 이동합니다.',
+    url: 'plus.gov.kr',
+    img: 'https://gqynptpjomcqzxyykqic.supabase.co/storage/v1/object/public/naviaction/68ca51fc-104b-43c9-bdfc-52d0e51570b9/step_02.jpg',
+  },
+  {
+    num: 2,
+    title: '주민등록표 등본 발급 페이지 이동',
+    caption: '주민등록표 등본(초본) 발급 서비스 페이지로 이동하여 신청 절차를 확인합니다.',
+    url: 'www.gov.kr/mw/AA020InfoCappView.do',
+    img: 'https://gqynptpjomcqzxyykqic.supabase.co/storage/v1/object/public/naviaction/68ca51fc-104b-43c9-bdfc-52d0e51570b9/step_03.jpg',
+  },
+  {
+    num: 3,
+    title: '간편인증 버튼 클릭',
+    caption: '네이버, 카카오 등의 전자서명으로 로그인하는 간편인증 버튼을 클릭합니다.',
+    url: 'plus.gov.kr/login',
+    img: 'https://gqynptpjomcqzxyykqic.supabase.co/storage/v1/object/public/naviaction/68ca51fc-104b-43c9-bdfc-52d0e51570b9/step_06.jpg',
+  },
+  {
+    num: 4,
+    title: '민원 신청 페이지 이동',
+    caption: '민원 신청 양식 페이지에서 주소 및 발급형태를 선택하고 신청하기를 클릭합니다.',
+    url: 'plus.gov.kr/minwon/apply',
+    img: 'https://gqynptpjomcqzxyykqic.supabase.co/storage/v1/object/public/naviaction/68ca51fc-104b-43c9-bdfc-52d0e51570b9/step_09.jpg',
+  },
+  {
+    num: 5,
+    title: '[신청하기] 버튼 클릭',
+    caption: '주민등록상 주소 및 발급형태 선택 후 우측 하단의 신청하기 버튼을 클릭합니다.',
+    url: 'plus.gov.kr/minwon/apply',
+    img: 'https://gqynptpjomcqzxyykqic.supabase.co/storage/v1/object/public/naviaction/68ca51fc-104b-43c9-bdfc-52d0e51570b9/step_12.jpg',
+  },
+];
 
 function HeroDemo() {
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [animating, setAnimating] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const goTo = useCallback((idx: number) => {
+    setAnimating(true);
+    setTimeout(() => {
+      setActiveIdx(idx);
+      setAnimating(false);
+    }, 200);
+  }, []);
+
+  useEffect(() => {
+    timerRef.current = setInterval(() => {
+      setActiveIdx(prev => {
+        const next = (prev + 1) % DEMO_STEPS.length;
+        setAnimating(true);
+        setTimeout(() => setAnimating(false), 200);
+        return next;
+      });
+    }, 3000);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, []);
+
+  const step = DEMO_STEPS[activeIdx];
+
   return (
-    <div style={{ position: 'relative', maxWidth: '1080px', margin: '0 auto' }}>
-      {/* 브라우저 프레임 */}
-      <div style={{ borderRadius: '16px', overflow: 'hidden', boxShadow: '0 40px 80px -20px rgba(79,70,229,0.20), 0 24px 48px -12px rgba(17,24,39,0.16)', border: '1px solid #E5E7EB' }}>
+    <div style={{ position: 'relative', maxWidth: '960px', margin: '0 auto' }}>
+      {/* 브라우저 프레임 — 하단이 잘린 구도 */}
+      <div style={{
+        borderRadius: '16px 16px 0 0',
+        overflow: 'hidden',
+        boxShadow: '0 -4px 0 0 rgba(79,70,229,0.08), 0 20px 60px -10px rgba(79,70,229,0.25), 0 40px 80px -20px rgba(17,24,39,0.18)',
+        border: '1px solid rgba(79,70,229,0.15)',
+        borderBottom: 'none',
+      }}>
         {/* 브라우저 상단바 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
-          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#FF5F57', display: 'inline-block' }} />
-          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#FEBC2E', display: 'inline-block' }} />
-          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#28C840', display: 'inline-block' }} />
-          <span style={{ flex: 1, margin: '0 12px', fontSize: '11.5px', color: '#6B7280', padding: '4px 12px', borderRadius: '6px', background: 'white', border: '1px solid #E5E7EB', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            mimic-nine-ashen.vercel.app/play/d3febce4cfc9d978baa42b217363d2fd
-          </span>
-          <Link href={DEMO_URL} target="_blank" style={{ fontSize: '11px', color: '#4F46E5', textDecoration: 'none', fontWeight: 500, whiteSpace: 'nowrap', flexShrink: 0 }}>
-            직접 열기 →
-          </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 16px', background: '#F3F4F6', borderBottom: '1px solid #E5E7EB' }}>
+          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#FF5F57' }} />
+          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#FEBC2E' }} />
+          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#28C840' }} />
+          <div style={{ flex: 1, margin: '0 12px', padding: '4px 12px', borderRadius: '6px', background: 'white', border: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            <span style={{ fontSize: '11.5px', color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {step.url}
+            </span>
+          </div>
+          {/* MIMIC 녹화 뱃지 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 10px', borderRadius: '5px', background: 'white', border: '1px solid #E5E7EB', fontSize: '11px', color: '#374151', fontWeight: 500, flexShrink: 0 }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#EF4444', animation: 'rec-blink 1.4s ease-in-out infinite', display: 'inline-block' }} />
+            MIMIC 녹화 중
+          </div>
         </div>
-        {/* iframe */}
-        <iframe
-          src={DEMO_URL}
-          style={{ width: '100%', height: '560px', border: 'none', display: 'block', background: '#F8F9FA' }}
-          title="MIMIC 데모 — 주민등록등본 발급하기"
-          loading="lazy"
-        />
+
+        {/* 스크린샷 영역 */}
+        <div style={{ position: 'relative', height: '460px', background: '#F8F9FA', overflow: 'hidden' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            key={activeIdx}
+            src={step.img}
+            alt={step.title}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              objectPosition: 'top',
+              display: 'block',
+              opacity: animating ? 0 : 1,
+              transition: 'opacity 0.25s ease',
+            }}
+          />
+
+          {/* 클릭 마커 오버레이 */}
+          <div style={{
+            position: 'absolute',
+            bottom: '28%',
+            right: '18%',
+            width: '28px', height: '28px',
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #4F46E5, #7C3AED)',
+            color: 'white',
+            display: 'grid', placeItems: 'center',
+            fontSize: '11px', fontWeight: 700,
+            boxShadow: '0 0 0 6px rgba(79,70,229,0.22), 0 4px 12px rgba(79,70,229,0.5)',
+            opacity: animating ? 0 : 1,
+            transition: 'opacity 0.25s ease',
+            zIndex: 5,
+          }}>
+            {step.num}
+          </div>
+
+          {/* 하단 캡션 오버레이 */}
+          <div style={{
+            position: 'absolute',
+            bottom: 0, left: 0, right: 0,
+            background: 'linear-gradient(to top, rgba(10,10,20,0.72) 0%, transparent 100%)',
+            padding: '40px 24px 20px',
+            opacity: animating ? 0 : 1,
+            transition: 'opacity 0.25s ease',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+              <div style={{ width: '24px', height: '24px', borderRadius: '7px', background: '#F59E0B', color: 'white', fontSize: '10px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                {String(step.num).padStart(2, '0')}
+              </div>
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: 'white', marginBottom: '3px' }}>{step.title}</div>
+                <div style={{ fontSize: '11.5px', color: 'rgba(255,255,255,0.72)', lineHeight: 1.5 }}>{step.caption}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 하단 스텝 인디케이터 — 프레임 밖 */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: '6px',
+        marginTop: '20px',
+      }}>
+        {DEMO_STEPS.map((s, i) => (
+          <button
+            key={i}
+            onClick={() => { if (timerRef.current) clearInterval(timerRef.current); goTo(i); }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              padding: i === activeIdx ? '5px 12px 5px 8px' : '5px 10px',
+              borderRadius: '999px',
+              border: `1px solid ${i === activeIdx ? 'rgba(79,70,229,0.35)' : 'rgba(79,70,229,0.12)'}`,
+              background: i === activeIdx ? 'rgba(79,70,229,0.08)' : 'transparent',
+              cursor: 'pointer',
+              transition: 'all 0.25s ease',
+            }}
+          >
+            <div style={{
+              width: '18px', height: '18px', borderRadius: '5px',
+              background: i === activeIdx ? '#F59E0B' : 'rgba(79,70,229,0.12)',
+              color: i === activeIdx ? 'white' : '#9CA3AF',
+              fontSize: '9px', fontWeight: 700,
+              display: 'grid', placeItems: 'center',
+              flexShrink: 0,
+              transition: 'all 0.25s ease',
+            }}>
+              {String(s.num).padStart(2, '0')}
+            </div>
+            {i === activeIdx && (
+              <span style={{ fontSize: '11px', fontWeight: 500, color: '#4F46E5', whiteSpace: 'nowrap' }}>
+                {s.title}
+              </span>
+            )}
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -282,42 +449,44 @@ export default function LandingPage() {
       </header>
 
       {/* Hero */}
-      <section style={{ padding: '72px 0 0', background: 'linear-gradient(180deg, #F8F7FF 0%, #ffffff 100%)', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', top: '-120px', left: '50%', transform: 'translateX(-50%)', width: '800px', height: '500px', background: 'radial-gradient(ellipse, rgba(79,70,229,0.12) 0%, transparent 70%)', pointerEvents: 'none' }} />
+      <section style={{ padding: '80px 0 0', background: 'linear-gradient(160deg, #EEE9FF 0%, #F5F0FF 40%, #FAFAFF 100%)', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+        {/* 배경 장식 */}
+        <div style={{ position: 'absolute', top: '-160px', left: '50%', transform: 'translateX(-50%)', width: '900px', height: '600px', background: 'radial-gradient(ellipse, rgba(124,58,237,0.10) 0%, transparent 65%)', pointerEvents: 'none' }} />
 
-        <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px', position: 'relative' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 14px', background: 'rgba(79,70,229,0.07)', border: '1px solid rgba(79,70,229,0.18)', borderRadius: '999px', fontSize: '12.5px', color: '#4F46E5', fontWeight: 500, marginBottom: '28px' }}>
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#4F46E5', display: 'inline-block', animation: 'pulse-dot 1.8s ease-in-out infinite' }} />
+        <div style={{ maxWidth: '1080px', margin: '0 auto', padding: '0 32px', position: 'relative' }}>
+          {/* 뱃지 */}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '5px 14px', background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.20)', borderRadius: '999px', fontSize: '12.5px', color: '#7C3AED', fontWeight: 500, marginBottom: '28px' }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#7C3AED', display: 'inline-block', animation: 'pulse-dot 1.8s ease-in-out infinite' }} />
             AI 인터랙티브 매뉴얼 플랫폼
           </span>
 
-          <h1 style={{ margin: '0 auto 20px', fontSize: '56px', lineHeight: 1.15, fontWeight: 700, letterSpacing: '-0.03em', maxWidth: '860px', color: '#0D0D14' }}>
-            길게 설명할 필요 없어요.<br />
-            <span style={{ background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>보고 따라 하게</span> 만드세요.
+          {/* 헤드라인 — Tango 패턴: 일반 + 이탤릭 강조 */}
+          <h1 style={{ margin: '0 auto 20px', fontSize: '58px', lineHeight: 1.12, fontWeight: 800, letterSpacing: '-0.03em', maxWidth: '820px', color: '#0D0D14' }}>
+            당신은 그냥 하세요.<br />
+            <em style={{ fontStyle: 'italic', fontWeight: 800, background: 'linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>매뉴얼은 MIMIC이</em> 만듭니다.
           </h1>
 
-          <p style={{ fontSize: '18px', color: '#4B5563', maxWidth: '600px', margin: '0 auto 36px', lineHeight: 1.65 }}>
-            녹화된 화면을 그대로 매뉴얼로.<br />
-            <span style={{ fontFamily: "'JetBrains Mono','SF Mono', ui-monospace, monospace", fontSize: '13.5px', color: '#9CA3AF' }}>Don&apos;t Explain, Just Mimic.</span>
+          <p style={{ fontSize: '18px', color: '#4B5563', maxWidth: '560px', margin: '0 auto 36px', lineHeight: 1.65 }}>
+            웹에서 작업하면 클릭마다 단계가 캡처되고, AI가 설명까지 완성합니다.<br />
+            링크 하나로 바로 공유.
           </p>
 
-          <div className="hero-cta-row" style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginBottom: '64px' }}>
+          {/* CTA */}
+          <div className="hero-cta-row" style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginBottom: '56px' }}>
             <Link href="/auth/login"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '14px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 600, color: 'white', background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', boxShadow: '0 4px 16px rgba(79,70,229,0.30)', textDecoration: 'none' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '14px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 600, color: 'white', background: 'linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)', boxShadow: '0 4px 20px rgba(124,58,237,0.35)', textDecoration: 'none' }}
             >
-              무료로 시작하기
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M9.5 9.5C9.5 7.57 10.79 6 12 6s2.5 1.57 2.5 3.5c0 2.5-2.5 4-2.5 6"/><circle cx="12" cy="18.5" r=".5" fill="white"/></svg>
+              무료 크롬 확장 설치
             </Link>
-            <button
-              onClick={() => setDemoOpen(true)}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '14px 24px', borderRadius: '10px', fontSize: '15px', fontWeight: 500, color: '#374151', background: 'white', border: '1.5px solid #E5E7EB', cursor: 'pointer', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}
+            <Link href="/auth/login"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '14px 24px', borderRadius: '10px', fontSize: '15px', fontWeight: 500, color: '#4B5563', background: 'white', border: '1.5px solid #E5E7EB', textDecoration: 'none', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-              데모 보기
-            </button>
+              서비스 둘러보기 →
+            </Link>
           </div>
 
-          {/* Hero Simulator */}
+          {/* Hero Demo */}
           <div className="hero-preview">
             <HeroDemo />
           </div>
