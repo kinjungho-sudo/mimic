@@ -52,10 +52,25 @@ function sanitizeHref(href: string | undefined): string | undefined {
   }
 }
 
+type ElementContext = {
+  clickX?: number;        // 0~1 정규화 클릭 좌표
+  clickY?: number;
+  elementRect?: {         // 클릭된 DOM 요소의 bounding box (CSS px 절대값)
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null;
+  viewportW?: number;     // 캡처 당시 window.innerWidth (CSS px)
+  viewportH?: number;
+  elementSelector?: string | null;
+};
+
 export async function analyzeScreenshot(
   base64Image: string,
   pageUrl: string,
-  actionInfo?: ActionInfo
+  actionInfo?: ActionInfo,
+  elementContext?: ElementContext
 ): Promise<{ title: string; description: string }> {
   let domain = '';
   try { domain = new URL(pageUrl).hostname; } catch { domain = pageUrl; }
@@ -84,6 +99,29 @@ export async function analyzeScreenshot(
       actionHint = `\n사용자가 "${safeLabel}" 버튼/요소를 클릭했습니다.`;
   }
 
+  // 클릭 위치 및 요소 위치 힌트 — 웹앱 편집기가 하이라이트/확대/화살표 위치를 결정할 때 사용
+  let locationHint = '';
+  if (elementContext) {
+    const { clickX, clickY, elementRect, viewportW, viewportH, elementSelector } = elementContext;
+
+    if (clickX != null && clickY != null) {
+      locationHint += `\n클릭 위치: 화면의 가로 ${Math.round(clickX * 100)}%, 세로 ${Math.round(clickY * 100)}% 지점`;
+    }
+
+    if (elementRect && viewportW && viewportH) {
+      // elementRect는 CSS px 절대값 → 비율로 변환해서 프롬프트에 포함
+      const rx = (elementRect.x / viewportW * 100).toFixed(1);
+      const ry = (elementRect.y / viewportH * 100).toFixed(1);
+      const rw = (elementRect.width / viewportW * 100).toFixed(1);
+      const rh = (elementRect.height / viewportH * 100).toFixed(1);
+      locationHint += `\n클릭된 요소 영역: 좌상단 (${rx}%, ${ry}%), 크기 ${rw}% × ${rh}%`;
+    }
+
+    if (elementSelector) {
+      locationHint += `\n요소 selector: ${elementSelector}`;
+    }
+  }
+
   const titleGuide = (() => {
     const type = actionInfo?.type;
     if (type === 'type') return '"[입력 내용] 입력" 형식 (예: "이메일 주소 입력")';
@@ -110,7 +148,7 @@ export async function analyzeScreenshot(
           },
           {
             type: 'text',
-            text: `이 스크린샷은 사용자가 "${domain}" 페이지에서 수행한 액션입니다.${actionHint}
+            text: `이 스크린샷은 사용자가 "${domain}" 페이지에서 수행한 액션입니다.${actionHint}${locationHint}
 
 스크린샷과 위 행동 정보를 바탕으로 아래 JSON만 반환하세요. 다른 텍스트 없이.
 title은 ${titleGuide}으로 20자 이내로 작성하세요.
@@ -337,7 +375,7 @@ JSON만 응답 (마크다운 없이):
       return { color1: parsed.color1, color2: parsed.color2 };
     }
   } catch { /* fallback */ }
-  return { color1: '#4F46E5', color2: '#7C3AED' };
+  return { color1: '#3730a3', color2: '#6d28d9' };
 }
 
 export async function rewriteSentence(
@@ -358,27 +396,96 @@ ${original}`,
   return response.content[0].type === 'text' ? response.content[0].text.trim() : original;
 }
 
-export async function generateAnnotations(userPrompt: string, stepContext: string) {
+type StepLocationData = {
+  clickX?: number | null;       // 0~1 정규화 클릭 좌표
+  clickY?: number | null;
+  elementRect?: {               // 클릭 요소 bounding box (0~1 정규화)
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null;
+  actionType?: string | null;   // click / navigate / toggle / focus_input / type
+  actionLabel?: string | null;  // 요소 레이블
+};
+
+export async function generateAnnotations(
+  userPrompt: string,
+  stepContext: string,
+  locationData?: StepLocationData
+) {
+  // 좌표 데이터를 프롬프트용 문자열로 변환
+  let locationSection = '';
+  if (locationData) {
+    const { clickX, clickY, elementRect, actionType, actionLabel } = locationData;
+    const parts: string[] = [];
+
+    if (clickX != null && clickY != null)
+      parts.push(`- 클릭 좌표: (${(clickX * 100).toFixed(1)}%, ${(clickY * 100).toFixed(1)}%) — 이미지 전체 크기 대비 비율`);
+
+    if (elementRect)
+      parts.push(`- 클릭된 요소 영역: 좌상단 (${(elementRect.x * 100).toFixed(1)}%, ${(elementRect.y * 100).toFixed(1)}%), 크기 ${(elementRect.width * 100).toFixed(1)}% × ${(elementRect.height * 100).toFixed(1)}%`);
+
+    if (actionType)
+      parts.push(`- 액션 유형: ${actionType}`);
+
+    if (actionLabel)
+      parts.push(`- 요소 이름: ${actionLabel}`);
+
+    if (parts.length > 0)
+      locationSection = `\n\n[클릭 위치 데이터]\n${parts.join('\n')}`;
+  }
+
   const response = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 2048,
     messages: [
       {
         role: 'user',
-        content: `사용자 요청: ${userPrompt}
+        content: `당신은 매뉴얼 편집기의 AI 주석 생성기입니다.
+사용자가 녹화한 스텝 이미지 위에 시각적 주석을 자동으로 배치해야 합니다.
 
-스텝 컨텍스트: ${stepContext}
+[스텝 정보]
+${stepContext}${locationSection}
 
-위 요청에 맞게 시각적 주석(annotation)을 생성해줘.
+[사용자 요청]
+${userPrompt}
 
-응답 형식 (JSON만):
+[좌표 규칙]
+- 모든 geometry 값은 0~1 정규화 (이미지 전체 크기 대비 비율)
+- x, y: 좌상단 기준
+- width, height: 요소 크기 비율
+- 클릭 위치 데이터가 있으면 반드시 해당 영역을 기준으로 주석 배치
+
+[주석 배치 원칙]
+- rectangle: 클릭된 요소 영역(elementRect)에 맞춰 하이라이트 박스 — 요소를 강조할 때
+- arrow: 클릭 좌표(clickX, clickY)를 향해 포인팅 — 어딜 눌러야 하는지 안내할 때
+- circle: 클릭 좌표 중심으로 작은 원 — 정확한 클릭 지점 표시 (width=height=0.06 정도의 작은 원)
+- text: 요소 바로 위나 옆에 설명 레이블 배치
+- 사용자가 여러 주석을 동시에 요청하면 annotations 배열에 모두 포함할 것
+
+[복합 요청 예시]
+사용자가 "하이라이트 박스 + 화살표 + 원 + 텍스트 캡션"을 모두 요청하면:
+1. rectangle — elementRect 기반 노란 하이라이트 박스
+2. arrow — 화면 우측 상단에서 clickX/Y 좌표로 향하는 빨간 화살표 (x1=clickX+0.15, y1=clickY-0.1 → x2=clickX, y2=clickY)
+3. circle — clickX/Y 중심 작은 빨간 원 (width=height=0.05)
+4. text — 클릭 지점 위에 "클릭" 또는 "여기를 클릭하세요" 레이블 (y는 clickY-0.07 정도 위)
+모두 annotations 배열에 순서대로 반환
+
+[스타일 가이드]
+- 하이라이트 rectangle: color "#FBBF24" (노랑), opacity 0.35
+- 포인팅 arrow: color "#EF4444" (빨강), opacity 1, strokeWidth 0.4
+- 클릭 circle: color "#EF4444", opacity 0.8, strokeWidth 0.3
+- 설명 text: color "#1e1e2e", opacity 1
+
+응답 형식 (JSON만, 마크다운 없이):
 {
   "annotations": [
     {
-      "type": "text" | "arrow" | "rectangle" | "circle" | "underline",
-      "style": { "color": "#F59E0B", "opacity": 1 },
-      "geometry": { "x": 0.1, "y": 0.2, "width": 0.3, "height": 0.1 },
-      "show_duration_ms": 3000
+      "type": "rectangle" | "arrow" | "circle" | "text" | "underline",
+      "style": { "color": "#FBBF24", "opacity": 0.35 },
+      "geometry": { "x": 0.1, "y": 0.2, "width": 0.3, "height": 0.05 },
+      "label": "선택 사항: text 타입일 때 표시할 문자열"
     }
   ]
 }`,

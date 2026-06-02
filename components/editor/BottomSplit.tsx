@@ -3,7 +3,13 @@
 import { useState, useRef } from 'react';
 import { Star, Play, Sparkles, Clock } from 'lucide-react';
 
-const SUGGESTION_CHIPS = ['주요 버튼 강조', '주변 어둡게', '화살표 추가', '캡션 친근하게'];
+const SUGGESTION_CHIPS = [
+  '클릭된 요소에 노란색 하이라이트 박스를 치고, 빨간 화살표로 가리켜줘. 클릭 지점 주변에 빨간 원을 그리고 "클릭" 캡션을 달아줘. 하이라이트 박스, 화살표, "여기를 클릭하세요" 텍스트를 모두 배치해줘.',
+  '클릭된 요소에 노란색 하이라이트 박스를 쳐줘.',
+  '클릭 지점을 빨간 화살표로 가리켜줘.',
+  '클릭된 요소 위에 "여기를 클릭하세요" 텍스트 캡션을 달아줘.',
+  '클릭된 요소 주변에 빨간 원을 그려줘.',
+];
 
 interface BottomSplitProps {
   slideTitle: string;
@@ -24,9 +30,7 @@ export function BottomSplit({
   onAiRegenerate,
   ttsDurationSec = 8.2,
 }: BottomSplitProps) {
-  const [prompt, setPrompt] = useState(
-    'Authentication 메뉴와 Configure provider 버튼을 강조해줘. 주변은 어둡게, 캡션은 Click "X" 형식으로 보여줘.'
-  );
+  const [prompt, setPrompt] = useState('');
   const [applying, setApplying] = useState(false);
   const [ttsPlaying, setTtsPlaying] = useState(false);
   const ttsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -78,7 +82,7 @@ export function BottomSplit({
               alignItems: 'center',
               gap: '4px',
               padding: '2px 7px',
-              background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
+              background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)',
               color: 'white',
               borderRadius: '999px',
               fontSize: '9.5px',
@@ -96,7 +100,7 @@ export function BottomSplit({
           <textarea
             value={prompt}
             onChange={e => setPrompt(e.target.value)}
-            placeholder="하이라이트할 영역과 멘트를 자연어로 입력하세요.&#10;예) Authentication 메뉴와 Configure 버튼을 강조해줘."
+            placeholder="어떻게 강조할지 입력하세요.&#10;예) 클릭된 요소에 노란색 하이라이트 박스를 치고, 클릭 지점을 빨간 화살표로 가리켜줘."
             style={{
               flex: 1,
               resize: 'none',
@@ -113,8 +117,8 @@ export function BottomSplit({
               minHeight: 0,
             }}
             onFocus={e => {
-              e.currentTarget.style.borderColor = '#4F46E5';
-              e.currentTarget.style.boxShadow = '0 0 0 3px rgba(79,70,229,0.10)';
+              e.currentTarget.style.borderColor = '#3730a3';
+              e.currentTarget.style.boxShadow = '0 0 0 3px rgba(55,48,163,0.10)';
             }}
             onBlur={e => {
               e.currentTarget.style.borderColor = '#E5E7EB';
@@ -140,8 +144,8 @@ export function BottomSplit({
                   transition: 'all 0.18s ease',
                 }}
                 onMouseEnter={e => {
-                  e.currentTarget.style.borderColor = '#4F46E5';
-                  e.currentTarget.style.color = '#4F46E5';
+                  e.currentTarget.style.borderColor = '#3730a3';
+                  e.currentTarget.style.color = '#3730a3';
                   e.currentTarget.style.background = 'white';
                 }}
                 onMouseLeave={e => {
@@ -180,11 +184,11 @@ export function BottomSplit({
                 gap: '6px',
                 padding: '8px 14px',
                 borderRadius: '7px',
-                background: applying ? 'rgba(79,70,229,0.5)' : 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
+                background: applying ? 'rgba(55,48,163,0.5)' : 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)',
                 color: 'white',
                 fontSize: '12.5px',
                 fontWeight: 500,
-                boxShadow: '0 3px 8px rgba(79,70,229,0.25)',
+                boxShadow: '0 3px 8px rgba(55,48,163,0.25)',
                 whiteSpace: 'nowrap',
                 cursor: applying ? 'not-allowed' : 'pointer',
                 border: 'none',
@@ -193,12 +197,12 @@ export function BottomSplit({
               onMouseEnter={e => {
                 if (!applying) {
                   e.currentTarget.style.transform = 'translateY(-1px)';
-                  e.currentTarget.style.boxShadow = '0 6px 14px rgba(79,70,229,0.32)';
+                  e.currentTarget.style.boxShadow = '0 6px 14px rgba(55,48,163,0.32)';
                 }
               }}
               onMouseLeave={e => {
                 e.currentTarget.style.transform = 'none';
-                e.currentTarget.style.boxShadow = '0 3px 8px rgba(79,70,229,0.25)';
+                e.currentTarget.style.boxShadow = '0 3px 8px rgba(55,48,163,0.25)';
               }}
             >
               <Play size={12} />
@@ -312,15 +316,15 @@ export function BottomSplit({
                   fontWeight: 500,
                   whiteSpace: 'nowrap',
                   cursor: 'pointer',
-                  border: `1px solid ${ttsPlaying ? 'rgba(124,58,237,0.25)' : '#E5E7EB'}`,
-                  background: ttsPlaying ? 'rgba(124,58,237,0.10)' : 'white',
-                  color: ttsPlaying ? '#7C3AED' : '#374151',
+                  border: `1px solid ${ttsPlaying ? 'rgba(109,40,217,0.25)' : '#E5E7EB'}`,
+                  background: ttsPlaying ? 'rgba(109,40,217,0.10)' : 'white',
+                  color: ttsPlaying ? '#6d28d9' : '#374151',
                   transition: 'all 0.18s ease',
                 }}
                 onMouseEnter={e => {
                   if (!ttsPlaying) {
-                    e.currentTarget.style.borderColor = '#4F46E5';
-                    e.currentTarget.style.color = '#4F46E5';
+                    e.currentTarget.style.borderColor = '#3730a3';
+                    e.currentTarget.style.color = '#3730a3';
                   }
                 }}
                 onMouseLeave={e => {
@@ -356,13 +360,13 @@ export function BottomSplit({
                   fontWeight: 500,
                   whiteSpace: 'nowrap',
                   cursor: 'pointer',
-                  border: '1px solid rgba(124,58,237,0.25)',
-                  background: 'rgba(124,58,237,0.10)',
-                  color: '#7C3AED',
+                  border: '1px solid rgba(109,40,217,0.25)',
+                  background: 'rgba(109,40,217,0.10)',
+                  color: '#6d28d9',
                   transition: 'background 0.18s ease',
                 }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(124,58,237,0.16)'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(124,58,237,0.10)'; }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(109,40,217,0.16)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(109,40,217,0.10)'; }}
               >
                 <Sparkles size={11} />
                 AI 재생성
@@ -390,7 +394,7 @@ function TtsBars() {
           key={i}
           style={{
             width: '2px',
-            background: '#7C3AED',
+            background: '#6d28d9',
             borderRadius: '1px',
             height: '8px',
             animation: `tts-bar 0.9s ease-in-out ${delay}s infinite`,
