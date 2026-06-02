@@ -391,7 +391,6 @@ export function ImageAnnotationEditor({
   };
 
   const editingItem = editingText ? items.find(a => a.id === editingText.id) : null;
-  const strokePx = (strokeWidth / 100) * imgSize.w;
 
   const activeCursor =
     tool === 'eraser' ? 'cell' :
