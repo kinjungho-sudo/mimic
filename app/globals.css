@@ -173,6 +173,13 @@ body {
   .home-hamburger-btn {
     display: grid !important;
   }
+  /* 녹화 버튼 — Chrome 확장 없으므로 숨김 */
+  .home-recording-btn {
+    display: none !important;
+  }
+  .home-recording-divider {
+    display: none !important;
+  }
 }
 
 /* 홈 카드 그리드 */
