@@ -190,16 +190,18 @@ function HeroDemo() {
   const SCENE_URLS   = ['chrome://extensions', 'app.notion.so/workspace', 'app.notion.so/workspace', 'app.mimic.so/editor', 'app.mimic.so/play/done'];
 
   // 씬 렌더 — 내부 Scene 컴포넌트 사용
+  // renderScene: 함수 호출 방식 (new 컴포넌트 타입 생성 방지 → 리마운트 없음)
   const renderScene = () => {
     switch(scene) {
-      case 0: return <Scene0 />;
-      case 2: return <Scene2 />;
+      case 0: return Scene0();
+      case 1: return Scene1();
+      case 2: return Scene2();
+      case 3: return Scene3();
+      case 4: return Scene4();
       default: return null;
     }
   };
 
-  // (아래 Scene0~Scene4 내부 선언은 미사용 — renderScene으로 교체됨)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const Scene0 = () => {
     const clicked = tick >= 1200;
     const recording = tick >= 1800;
