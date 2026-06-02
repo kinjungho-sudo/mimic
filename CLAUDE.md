@@ -63,3 +63,36 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+
+---
+
+## 5. Git 브랜치 규칙
+
+**반드시 따를 것 — 모든 에이전트/매니저 공통**
+
+```
+main  ←  프로덕션. Vercel 자동 배포. 직접 커밋 금지.
+dev   ←  개발 통합. 모든 작업은 여기서 시작.
+```
+
+### 작업 순서
+1. 세션 시작 시 반드시 `dev` 브랜치에 있는지 확인: `git branch`
+2. `main`에 있으면 즉시 전환: `git checkout dev`
+3. 코딩 → 커밋은 `dev`에서: `git commit -m "feat/fix/chore: ..."`
+4. 배포 요청이 오면:
+   - 빌드 확인: `npm run build`
+   - `main`에 병합: `git checkout main && git merge dev`
+   - 프로덕션 배포: `vercel --prod` (NODE_OPTIONS="--use-system-ca" 필요)
+   - 다시 `dev`로 복귀: `git checkout dev`
+
+### 커밋 메시지 규칙
+- `feat:` 새 기능
+- `fix:` 버그 수정
+- `chore:` 설정/정리
+- `style:` UI/스타일
+- `refactor:` 리팩토링
+
+### ⚠️ 절대 하지 말 것
+- `main`에 직접 커밋
+- 빌드 실패 상태로 배포
+- `--no-verify` 플래그 사용
