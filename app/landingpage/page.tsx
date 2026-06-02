@@ -765,7 +765,7 @@ export default function LandingPage() {
       )}
 
       {/* Header */}
-      <header style={{ position: 'sticky', top: 0, zIndex: 50, background: 'rgba(255,255,255,0.92)', backdropFilter: 'saturate(180%) blur(16px)', borderBottom: '1px solid #F3F4F6' }}>
+      <header style={{ position: 'sticky', top: 0, zIndex: 50, background: 'color-mix(in srgb, var(--mm-bg) 92%, transparent)', backdropFilter: 'saturate(180%) blur(16px)', borderBottom: '1px solid var(--mm-border-light)' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px', display: 'flex', alignItems: 'center', gap: '32px', height: '64px' }}>
           <Link href="/landingpage" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, fontSize: '15px', color: '#111827', textDecoration: 'none' }}>
             <BrandMark />
