@@ -7,7 +7,8 @@ import { AnnotationPreview } from './AnnotationPreview';
 
 type OutputRatio = '16:9' | '1:1' | '9:16';
 
-// 비율 → padding-top % (height/width * 100)
+// 비율 → padding-top % — 현재 미사용 (원본 비율 유지 방식으로 변경)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const RATIO_PADDING: Record<OutputRatio, string> = {
   '16:9': '56.25%',
   '1:1':  '100%',
@@ -174,8 +175,8 @@ function DomainSectionHeader({ name, favicon }: { name: string; favicon: string 
   );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function ViewerStepCard({ step, outputRatio }: { step: ManualStep; outputRatio: OutputRatio }) {
-  const paddingTop = RATIO_PADDING[outputRatio];
   const hasImage = !!step.screenshotUrl;
 
   const [zoom, setZoom] = useState(1);
@@ -236,22 +237,21 @@ function ViewerStepCard({ step, outputRatio }: { step: ManualStep; outputRatio: 
         </div>
       </div>
 
-      {/* Screenshot with zoom/pan */}
+      {/* Screenshot — 원본 비율 유지 (objectFit: fill 제거) */}
       {hasImage && (
-        <div style={{ position: 'relative', paddingTop, background: '#F3F4F6', overflow: 'hidden' }}>
+        <div style={{ position: 'relative', background: '#F3F4F6', overflow: 'hidden' }}>
           {/* Image + annotations */}
           <div
             onMouseDown={onMouseDown}
             style={{
-              position: 'absolute', inset: 0,
               cursor: zoom > 1 ? 'grab' : 'default',
               overflow: 'hidden',
             }}
           >
             <div style={{
-              width: '100%', height: '100%',
+              position: 'relative',
               transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`,
-              transformOrigin: 'center center',
+              transformOrigin: 'center top',
               transition: dragRef.current ? 'none' : 'transform 0.2s ease',
             }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -259,7 +259,7 @@ function ViewerStepCard({ step, outputRatio }: { step: ManualStep; outputRatio: 
                 src={step.screenshotUrl}
                 alt={step.actionTitle}
                 draggable={false}
-                style={{ width: '100%', height: '100%', objectFit: 'fill', display: 'block', userSelect: 'none' }}
+                style={{ width: '100%', height: 'auto', display: 'block', userSelect: 'none' }}
               />
               {(step.annotations?.length ?? 0) > 0 && (
                 <AnnotationPreview annotations={step.annotations!} imageUrl={step.screenshotUrl!} />
