@@ -10,12 +10,12 @@
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
 
 :root {
-  --mm-primary: #4F46E5;
-  --mm-primary-700: #4338CA;
-  --mm-primary-50: #EEF2FF;
-  --mm-accent: #7C3AED;
-  --mm-grad: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
-  --mm-grad-soft: linear-gradient(135deg, #EEF2FF 0%, #F5F3FF 100%);
+  --mm-primary: #3730a3;
+  --mm-primary-700: #312e81;
+  --mm-primary-50: #e0e7ff;
+  --mm-accent: #6d28d9;
+  --mm-grad: linear-gradient(135deg, #3730a3 0%, #6d28d9 100%);
+  --mm-grad-soft: linear-gradient(135deg, #e0e7ff 0%, #ede9fe 100%);
 
   /* Light mode tokens */
   --mm-bg: #FFFFFF;
@@ -206,6 +206,10 @@ body {
   .home-new-btn {
     padding: 8px 12px !important;
     font-size: 13px !important;
+  }
+  /* 햄버거 버튼 표시 */
+  .home-hamburger-btn {
+    display: grid !important;
   }
 }
 

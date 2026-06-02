@@ -833,12 +833,8 @@ export default function DashboardPage() {
           <main style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
             {/* 헤더 — 모바일에서는 로고+버튼만 */}
             <header style={{ display: 'flex', alignItems: 'center', gap: '12px', height: '60px', padding: '0 16px', background: 'var(--mm-bg)', borderBottom: '1px solid var(--mm-border-light)', position: 'sticky', top: 0, zIndex: 30 }}>
-              {/* 모바일 전용: 햄버거 + 로고 */}
-              <div className="home-mobile-logo" style={{ display: 'none', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                <button onClick={() => setShowDrawer(true)}
-                  style={{ width: '36px', height: '36px', borderRadius: '8px', border: '1px solid #E5E7EB', background: 'white', display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#374151', flexShrink: 0 }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-                </button>
+              {/* 모바일 전용: 로고 (햄버거는 우측으로 이동) */}
+              <div className="home-mobile-logo" style={{ display: 'none', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                 <Link href="/home" style={{ display: 'flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src="/mimic-logo-2-2.png" alt="MIMIC" style={{ height: '26px', width: '26px', objectFit: 'contain' }} />
@@ -883,6 +879,12 @@ export default function DashboardPage() {
                     </div>
                   )}
                 </div>
+                {/* 모바일 전용: 햄버거 버튼 (우측 상단) */}
+                <button className="home-hamburger-btn"
+                  onClick={() => setShowDrawer(true)}
+                  style={{ display: 'none', width: '36px', height: '36px', borderRadius: '8px', border: '1px solid #E5E7EB', background: 'white', placeItems: 'center', cursor: 'pointer', color: '#374151', flexShrink: 0 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                </button>
               </div>
             </header>
 
