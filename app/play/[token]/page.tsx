@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { BrandMark } from '@/components/BrandMark';
+import { AnnotationPreview } from '@/components/editor/AnnotationPreview';
+import type { Annotation as DrawAnnotation } from '@/components/editor/ImageAnnotationEditor';
 
 type Marker = {
   id: string;
@@ -27,6 +29,7 @@ type Step = {
   caption: string;
   screenshot_url: string | null;
   order_index: number;
+  user_annotations?: DrawAnnotation[];
 };
 
 type AudioAsset = {
@@ -403,6 +406,7 @@ export default function PlayerPage({ params }: { params: { token: string } }) {
   const [notFound, setNotFound] = useState(false);
   const [viewMode, setViewMode] = useState<'slides' | 'document'>('slides');
   const [showShare, setShowShare] = useState(false);
+  const [pdfExporting, setPdfExporting] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [showDesc, setShowDesc] = useState(true);
   const [showSidebar, setShowSidebar] = useState(false);
@@ -512,6 +516,21 @@ export default function PlayerPage({ params }: { params: { token: string } }) {
     URL.revokeObjectURL(url);
   };
 
+  const handleDownloadPdf = async () => {
+    setPdfExporting(true);
+    try {
+      const res = await fetch(`/api/export/pdf/token/${token}`);
+      if (!res.ok) { alert('PDF 생성 실패'); return; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = res.headers.get('content-disposition')?.match(/filename="(.+)"/)?.[1] ?? 'manual.pdf';
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally { setPdfExporting(false); }
+  };
+
   const headerBtnStyle: React.CSSProperties = {
     height: '32px', padding: '0 12px', borderRadius: '8px', display: 'inline-flex', alignItems: 'center', gap: '6px',
     color: 'rgba(255,255,255,0.75)', background: 'transparent', border: '1px solid rgba(255,255,255,0.15)',
@@ -558,6 +577,14 @@ export default function PlayerPage({ params }: { params: { token: string } }) {
               );
             })}
           </div>
+
+          {/* PDF 다운로드 */}
+          <button onClick={handleDownloadPdf} disabled={pdfExporting} title="PDF 다운로드" style={{ ...headerBtnStyle, opacity: pdfExporting ? 0.6 : 1, cursor: pdfExporting ? 'not-allowed' : 'pointer' }}
+            onMouseEnter={e => { if (!pdfExporting) { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = 'white'; } }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.75)'; }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            {pdfExporting ? 'PDF 생성 중…' : 'PDF'}
+          </button>
 
           {/* .md 다운로드 */}
           <button onClick={handleDownloadMd} title="Markdown 다운로드" style={headerBtnStyle}
@@ -639,7 +666,13 @@ export default function PlayerPage({ params }: { params: { token: string } }) {
 
         <div style={{ width: '100%', maxWidth: '1100px', aspectRatio: '16/9', background: 'white', borderRadius: '12px', position: 'relative', overflow: 'hidden', boxShadow: '0 30px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)' }}>
           {step?.screenshot_url ? (
-            <img src={step.screenshot_url} alt={step.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={step.screenshot_url} alt={step.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+              {(step.user_annotations?.length ?? 0) > 0 && (
+                <AnnotationPreview annotations={step.user_annotations!} imageUrl={step.screenshot_url} />
+              )}
+            </>
           ) : (
             <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F9FAFB' }}>
               <div style={{ textAlign: 'center', color: '#9CA3AF' }}>
@@ -658,7 +691,23 @@ export default function PlayerPage({ params }: { params: { token: string } }) {
 
           {/* Caption */}
           {step?.caption && (
-            <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', bottom: '24px', background: 'rgba(0,0,0,0.7)', color: 'white', padding: '10px 18px', borderRadius: '8px', fontSize: '13.5px', maxWidth: '76%', textAlign: 'center', zIndex: 6 }}>
+            <div style={{
+              position: 'absolute', left: '50%', transform: 'translateX(-50%)',
+              bottom: '20px',
+              background: 'rgba(0,0,0,0.82)',
+              backdropFilter: 'blur(8px)',
+              color: 'white',
+              padding: '12px 22px',
+              borderRadius: '10px',
+              fontSize: '15px',
+              fontWeight: 400,
+              lineHeight: 1.65,
+              maxWidth: '82%',
+              textAlign: 'center',
+              zIndex: 6,
+              boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+              letterSpacing: '0.01em',
+            }}>
               {step.caption}
             </div>
           )}
