@@ -505,7 +505,7 @@ function HeroDemo() {
   const CurrentScene = SCENES[scene];
 
   return (
-    <div style={{ position: 'relative', maxWidth: '960px', margin: '0 auto' }}>
+    <div style={{ position: 'relative', maxWidth: '1000px', margin: '0 auto' }}>
       {/* 브라우저 프레임 */}
       <div style={{
         borderRadius: '16px 16px 0 0',
@@ -532,7 +532,7 @@ function HeroDemo() {
         </div>
 
         {/* 씬 영역 */}
-        <div key={scene} style={{ height: '440px', position: 'relative', overflow: 'hidden', animation: 'sceneIn 0.35s ease both' }}>
+        <div key={scene} style={{ height: '480px', position: 'relative', overflow: 'hidden', animation: 'sceneIn 0.35s ease both' }}>
           <CurrentScene />
         </div>
       </div>
@@ -591,7 +591,7 @@ function HeroSection() {
       : { opacity: 1, transform: 'translateY(0)', clipPath: 'inset(0% 0% 0% 0%)' };
 
   return (
-    <section style={{ padding: '90px 0 0', background: 'linear-gradient(160deg, #EDE8FF 0%, #F8F0FF 50%, #FFF0F8 100%)', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+    <section style={{ padding: '90px 0 0', background: 'linear-gradient(160deg, #EDE8FF 0%, #F8F0FF 50%, #FFF0F8 100%)', textAlign: 'center', position: 'relative' }}>
       <div style={{ position: 'absolute', top: '-160px', left: '50%', transform: 'translateX(-50%)', width: '900px', height: '600px', background: 'radial-gradient(ellipse, rgba(124,58,237,0.10) 0%, transparent 65%)', pointerEvents: 'none' }} />
 
       <div style={{ maxWidth: '1080px', margin: '0 auto', padding: '0 32px', position: 'relative' }}>
