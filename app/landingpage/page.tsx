@@ -465,9 +465,8 @@ export default function LandingPage() {
             당신은 그냥 하세요. <em style={{ fontStyle: 'italic', fontWeight: 700, background: 'linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>매뉴얼은<br />MIMIC이</em> 만들어 드립니다.
           </h1>
 
-          <p style={{ fontSize: '18px', color: '#4B5563', maxWidth: '560px', margin: '0 auto 36px', lineHeight: 1.65 }}>
-            웹에서 작업하면 클릭마다 단계가 캡처되고, AI가 설명까지 완성합니다.<br />
-            링크 하나로 바로 공유.
+          <p style={{ fontSize: '18px', color: '#4B5563', maxWidth: '520px', margin: '0 auto 36px', lineHeight: 1.65 }}>
+            웹에서 작업하면 클릭마다 단계가 캡처되고, AI가 설명까지 완성합니다. 링크 하나로 바로 공유.
           </p>
 
           {/* CTA */}
