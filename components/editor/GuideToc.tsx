@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { ManualStep } from './ManualEditor';
+import { faviconUrl, faviconFallbackUrl } from '@/lib/favicon';
 
 interface GuideTocProps {
   steps: ManualStep[];
@@ -166,12 +167,8 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
               {showDomainHeader && (group.hostname || group.name) && (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: `${idx === 0 ? '10px' : '14px'} 14px 6px` }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
-                    {group.favicon ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={group.favicon} alt="" width={14} height={14} style={{ borderRadius: '3px', flexShrink: 0 }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
-                    ) : (
-                      <div style={{ width: '14px', height: '14px', borderRadius: '3px', background: '#E5E7EB', flexShrink: 0 }} />
-                    )}
+                    {/* favicon: DB값 → Google API → DuckDuckGo fallback */}
+                    <FaviconImg favicon={group.favicon} hostname={group.hostname} size={14} />
                     <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {group.name ?? group.hostname}
                     </span>
@@ -288,5 +285,34 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
         })}
       </div>
     </aside>
+  );
+}
+
+// ── FaviconImg — DB값 → Google API → DuckDuckGo 순 fallback ──
+function FaviconImg({ favicon, hostname, size }: { favicon: string | null; hostname: string | null; size: number }) {
+  const [src, setSrc] = useState<string | null>(() => faviconUrl(favicon, hostname, size));
+  const [failed, setFailed] = useState(false);
+
+  if (failed || !src) {
+    return <div style={{ width: `${size}px`, height: `${size}px`, borderRadius: '3px', background: '#E5E7EB', flexShrink: 0 }} />;
+  }
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt=""
+      width={size}
+      height={size}
+      style={{ borderRadius: '3px', flexShrink: 0 }}
+      onError={() => {
+        const fallback = faviconFallbackUrl(hostname);
+        if (fallback && src !== fallback) {
+          setSrc(fallback);
+        } else {
+          setFailed(true);
+        }
+      }}
+    />
   );
 }

@@ -3,6 +3,7 @@ import { requireExtensionToken } from '@/lib/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { captureFinalizeSchema } from '@/lib/validators';
 import { generateDraft, extractCoverColors } from '@/lib/claude';
+import { resolveFavicon } from '@/lib/favicon';
 
 export async function POST(request: NextRequest) {
   const auth = await requireExtensionToken(request);
@@ -69,6 +70,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to create tutorial' }, { status: 500 });
   }
 
+  // favicon 보완: 호스트명별로 한 번만 resolveFavicon 호출 (중복 요청 방지)
+  const faviconCache = new Map<string, string | null>();
+  await Promise.all(
+    Array.from(new Set(events.map(ev => ev.domain_hostname).filter(Boolean))).map(async hostname => {
+      if (!hostname) return;
+      const sample = events.find(ev => ev.domain_hostname === hostname);
+      const resolved = await resolveFavicon(sample?.domain_favicon, hostname, sample?.url).catch(() => null);
+      faviconCache.set(hostname, resolved);
+    })
+  );
+
   // 캡처 이벤트 → mm_steps 변환
   const steps = events.map((ev, idx) => ({
     tutorial_id: tutorial.id,
@@ -80,7 +92,9 @@ export async function POST(request: NextRequest) {
     ai_description:  ev.ai_description  ?? null,
     domain_hostname: ev.domain_hostname ?? null,
     domain_name:     ev.domain_name     ?? null,
-    domain_favicon:  ev.domain_favicon  ?? null,
+    domain_favicon:  ev.domain_hostname
+      ? (faviconCache.get(ev.domain_hostname) ?? ev.domain_favicon ?? null)
+      : (ev.domain_favicon ?? null),
   }));
 
   const { error: stepsError } = await supabase

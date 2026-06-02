@@ -9,6 +9,7 @@ import {
 import DOMPurify from 'dompurify';
 import { ImageAnnotationEditor, type Annotation } from './ImageAnnotationEditor';
 import { AnnotationPreview } from './AnnotationPreview';
+import { faviconUrl, faviconFallbackUrl } from '@/lib/favicon';
 
 export interface ManualStep {
   id: string;
@@ -159,17 +160,7 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
                 <div key={step.id}>
                   {showHeader && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 16px 4px', marginTop: idx === 0 ? 0 : '8px' }}>
-                      {step.domainFavicon && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={step.domainFavicon}
-                          alt=""
-                          width={14}
-                          height={14}
-                          style={{ borderRadius: '3px', flexShrink: 0 }}
-                          onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                        />
-                      )}
+                      <DomainFaviconImg favicon={step.domainFavicon} hostname={step.domainHostname} size={14} />
                       <span style={{ fontSize: '11px', fontWeight: 700, color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {step.domainName ?? step.domainHostname}
                       </span>
@@ -280,7 +271,7 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
             return (
               <div key={step.id}>
                 {showDomainHeader && (
-                  <EditorDomainHeader name={step.domain_name!} favicon={step.domain_favicon ?? null} />
+                  <EditorDomainHeader name={step.domain_name!} favicon={step.domain_favicon ?? null} hostname={step.domainHostname} />
                 )}
                 <div
                   ref={el => { contentRefs.current[step.id] = el; }}
@@ -864,8 +855,7 @@ function ImageZoomModal({ url, onClose }: { url: string; onClose: () => void }) 
 
 // ── EditorDomainHeader ────────────────────────────────────
 
-function EditorDomainHeader({ name, favicon }: { name: string; favicon: string | null }) {
-  const [faviconOk, setFaviconOk] = useState(true);
+function EditorDomainHeader({ name, favicon, hostname }: { name: string; favicon: string | null; hostname?: string | null }) {
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: '8px',
@@ -875,11 +865,37 @@ function EditorDomainHeader({ name, favicon }: { name: string; favicon: string |
       border: '1px solid #E5E7EB',
       borderRadius: '6px',
     }}>
-      {favicon && faviconOk && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={favicon} alt="" width={13} height={13} style={{ flexShrink: 0 }} onError={() => setFaviconOk(false)} />
-      )}
+      <DomainFaviconImg favicon={favicon} hostname={hostname ?? null} size={13} />
       <span style={{ fontSize: '11px', fontWeight: 600, color: '#6B7280', letterSpacing: '0.02em' }}>{name}</span>
     </div>
+  );
+}
+
+// ── DomainFaviconImg — DB값 → Google API → DuckDuckGo fallback ──
+function DomainFaviconImg({ favicon, hostname, size }: { favicon: string | null | undefined; hostname: string | null | undefined; size: number }) {
+  const [src, setSrc] = useState<string | null>(() => faviconUrl(favicon, hostname, size));
+  const [failed, setFailed] = useState(false);
+
+  if (failed || !src) {
+    return <div style={{ width: `${size}px`, height: `${size}px`, borderRadius: '3px', background: '#E5E7EB', flexShrink: 0 }} />;
+  }
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt=""
+      width={size}
+      height={size}
+      style={{ borderRadius: '3px', flexShrink: 0 }}
+      onError={() => {
+        const fallback = faviconFallbackUrl(hostname);
+        if (fallback && src !== fallback) {
+          setSrc(fallback);
+        } else {
+          setFailed(true);
+        }
+      }}
+    />
   );
 }

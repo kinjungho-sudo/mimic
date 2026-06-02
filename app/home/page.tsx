@@ -245,13 +245,17 @@ function TutorialCard({ tutorial, onContextMenu, onTitleChange, onMenuClick }: {
   const [titleDraft, setTitleDraft] = useState(tutorial.title);
   const [savingTitle, setSavingTitle] = useState(false);
   const [faviconError, setFaviconError] = useState(false);
+  const [faviconSrc, setFaviconSrc] = useState<string | null>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   const color = cardColor(tutorial.id);
   const stepCount = tutorial.step_count ?? 0;
   const dateStr = new Date(tutorial.updated_at).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }).replace(/\. /g, '/').replace(/\.$/, '');
   const domain = getDomain(tutorial.first_page_url);
-  const faviconUrl = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=32` : null;
+  // Google → DuckDuckGo fallback
+  const googleFavicon = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=32` : null;
+  const ddgFavicon = domain ? `https://icons.duckduckgo.com/ip3/${domain}.ico` : null;
+  const activeFavicon = faviconSrc ?? googleFavicon;
 
   const saveTitle = useCallback(async () => {
     const trimmed = titleDraft.trim();
@@ -285,9 +289,15 @@ function TutorialCard({ tutorial, onContextMenu, onTitleChange, onMenuClick }: {
     >
       {/* 아이콘 */}
       <div style={{ width: '34px', height: '34px', borderRadius: '8px', flexShrink: 0, background: `${color}12`, display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
-        {faviconUrl && !faviconError
+        {activeFavicon && !faviconError
           // eslint-disable-next-line @next/next/no-img-element
-          ? <img src={faviconUrl} alt="" width={16} height={16} onError={() => setFaviconError(true)} style={{ width: '16px', height: '16px', objectFit: 'contain' }} />
+          ? <img src={activeFavicon} alt="" width={16} height={16} onError={() => {
+              if (activeFavicon === googleFavicon && ddgFavicon) {
+                setFaviconSrc(ddgFavicon);
+              } else {
+                setFaviconError(true);
+              }
+            }} style={{ width: '16px', height: '16px', objectFit: 'contain' }} />
           : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
               <polyline points="14 2 14 8 20 8"/>
