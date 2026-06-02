@@ -55,21 +55,16 @@ export default function EditorPage() {
   const [saved, setSaved] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [outputRatio, setOutputRatio] = useState<Tutorial['output_ratio']>('16:9');
-  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
-  const [thumbnailUploading, setThumbnailUploading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [sharePassword, setSharePassword] = useState('');
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [freshnessChecking, setFreshnessChecking] = useState(false);
   const [freshnessResult, setFreshnessResult] = useState<{ checked: number; stale: number } | null>(null);
-  const [translateLang, setTranslateLang] = useState('en');
-  const [translating, setTranslating] = useState(false);
   const [guideMePreviewUrl, setGuideMePreviewUrl] = useState<string | null>(null);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [collabToast, setCollabToast] = useState<{ stepId: string; name: string; color: string } | null>(null);
   const collabToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const settingsRef = useRef<HTMLDivElement>(null);
-  const thumbnailInputRef = useRef<HTMLInputElement>(null);
   const stepSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   // 실시간 협업 — 워크스페이스 튜토리얼에서만 활성
@@ -151,7 +146,6 @@ export default function EditorPage() {
     if (!tutorial) return;
     setTitle(tutorial.title);
     setOutputRatio(tutorial.output_ratio ?? '16:9');
-    setThumbnailUrl(tutorial.thumbnail_url ?? null);
     setSharePassword((tutorial as Tutorial & { share_password?: string }).share_password ?? '');
     const steps = stepsToManualSteps(tutorial.steps);
     setManualSteps(steps);
@@ -214,7 +208,12 @@ export default function EditorPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = res.headers.get('content-disposition')?.match(/filename="(.+)"/)?.[1] ?? 'manual.pdf';
+      const cd = res.headers.get('content-disposition') ?? '';
+      const utf8Match = cd.match(/filename\*=UTF-8''([^;]+)/i);
+      const asciiMatch = cd.match(/filename="([^"]+)"/i);
+      a.download = utf8Match
+        ? decodeURIComponent(utf8Match[1])
+        : (asciiMatch?.[1] ?? `${title || 'manual'}.pdf`);
       a.click();
       URL.revokeObjectURL(url);
     } finally {
@@ -256,23 +255,6 @@ export default function EditorPage() {
     }
   }, [id]);
 
-  const handleTranslate = useCallback(async () => {
-    setTranslating(true);
-    try {
-      const res = await fetch(`/api/tutorials/${id}/translate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lang: translateLang }),
-      });
-      if (!res.ok) { alert('번역에 실패했습니다.'); return; }
-      const data = await res.json() as { translated: number; cached?: number };
-      const total = data.translated + (data.cached ?? 0);
-      alert(`번역 완료! ${total}개 단계 (새로 번역: ${data.translated}개, 캐시: ${data.cached ?? 0}개)`);
-    } finally {
-      setTranslating(false);
-    }
-  }, [id, translateLang]);
-
   const handleRatioChange = useCallback(async (ratio: Tutorial['output_ratio']) => {
     setOutputRatio(ratio);
     setShowSettings(false);
@@ -281,26 +263,6 @@ export default function EditorPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ output_ratio: ratio }),
     }).catch(() => {});
-  }, [id]);
-
-  const handleThumbnailUpload = useCallback(async (file: File) => {
-    setThumbnailUploading(true);
-    try {
-      const form = new FormData();
-      form.append('file', file);
-      const res = await fetch(`/api/tutorials/${id}/thumbnail`, { method: 'POST', body: form });
-      if (!res.ok) { alert('썸네일 업로드에 실패했습니다.'); return; }
-      const { thumbnail_url } = await res.json();
-      setThumbnailUrl(thumbnail_url);
-    } finally {
-      setThumbnailUploading(false);
-    }
-  }, [id]);
-
-  const handleThumbnailDelete = useCallback(async () => {
-    if (!confirm('썸네일을 삭제할까요?')) return;
-    await fetch(`/api/tutorials/${id}/thumbnail`, { method: 'DELETE' });
-    setThumbnailUrl(null);
   }, [id]);
 
   const handlePublish = useCallback(async () => {
@@ -542,73 +504,6 @@ export default function EditorPage() {
                     boxShadow: '0 8px 28px rgba(17,24,39,0.14), 0 0 0 1px rgba(0,0,0,0.06)',
                     padding: '16px', zIndex: 100,
                   }}>
-                    {/* ── 썸네일 ── */}
-                    <div style={{ fontSize: '11px', fontWeight: 600, color: '#9CA3AF', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '10px' }}>
-                      카드 썸네일
-                    </div>
-                    <input
-                      ref={thumbnailInputRef}
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,image/gif"
-                      style={{ display: 'none' }}
-                      onChange={e => { const f = e.target.files?.[0]; if (f) handleThumbnailUpload(f); e.target.value = ''; }}
-                    />
-                    {thumbnailUrl ? (
-                      <div style={{ marginBottom: '16px' }}>
-                        <div style={{ position: 'relative', paddingTop: '56.25%', borderRadius: '8px', overflow: 'hidden', border: '1px solid #E5E7EB' }}>
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={thumbnailUrl} alt="썸네일" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-                        </div>
-                        <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
-                          <button
-                            onClick={() => thumbnailInputRef.current?.click()}
-                            disabled={thumbnailUploading}
-                            style={{ flex: 1, padding: '6px 0', borderRadius: '7px', fontSize: '12px', fontWeight: 500, border: '1px solid #E5E7EB', background: 'white', color: '#374151', cursor: 'pointer' }}
-                            onMouseEnter={e => { e.currentTarget.style.background = '#F9FAFB'; }}
-                            onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
-                          >
-                            교체
-                          </button>
-                          <button
-                            onClick={handleThumbnailDelete}
-                            style={{ flex: 1, padding: '6px 0', borderRadius: '7px', fontSize: '12px', fontWeight: 500, border: '1px solid #FEE2E2', background: 'white', color: '#EF4444', cursor: 'pointer' }}
-                            onMouseEnter={e => { e.currentTarget.style.background = '#FEF2F2'; }}
-                            onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
-                          >
-                            삭제
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => thumbnailInputRef.current?.click()}
-                        disabled={thumbnailUploading}
-                        style={{
-                          width: '100%', paddingTop: '40%', position: 'relative',
-                          borderRadius: '8px', border: '1.5px dashed #D1D5DB',
-                          background: thumbnailUploading ? '#F9FAFB' : 'white',
-                          cursor: thumbnailUploading ? 'not-allowed' : 'pointer',
-                          marginBottom: '16px', transition: 'border-color 0.15s, background 0.15s',
-                        }}
-                        onMouseEnter={e => { if (!thumbnailUploading) { e.currentTarget.style.borderColor = '#4F46E5'; e.currentTarget.style.background = '#F5F3FF'; } }}
-                        onMouseLeave={e => { if (!thumbnailUploading) { e.currentTarget.style.borderColor = '#D1D5DB'; e.currentTarget.style.background = 'white'; } }}
-                      >
-                        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                          {thumbnailUploading ? (
-                            <div style={{ width: '18px', height: '18px', borderRadius: '50%', border: '2px solid #E5E7EB', borderTopColor: '#4F46E5', animation: 'spin 0.8s linear infinite' }} />
-                          ) : (
-                            <>
-                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                                <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
-                              </svg>
-                              <span style={{ fontSize: '11.5px', color: '#6B7280' }}>이미지 업로드</span>
-                              <span style={{ fontSize: '10.5px', color: '#9CA3AF' }}>JPG, PNG, WEBP · 최대 5MB</span>
-                            </>
-                          )}
-                        </div>
-                      </button>
-                    )}
-
                     {/* ── 구분선 ── */}
                     <div style={{ height: '1px', background: '#F3F4F6', marginBottom: '14px' }} />
 
@@ -715,51 +610,6 @@ export default function EditorPage() {
                       각 단계의 원본 페이지와 현재 UI를 비교합니다.
                     </p>
 
-                    {/* ── 구분선 ── */}
-                    <div style={{ height: '1px', background: '#F3F4F6', margin: '14px 0' }} />
-
-                    {/* ── 다국어 번역 ── */}
-                    <div style={{ fontSize: '11px', fontWeight: 600, color: '#9CA3AF', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '10px' }}>
-                      다국어 번역
-                    </div>
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                      <select
-                        value={translateLang}
-                        onChange={e => setTranslateLang(e.target.value)}
-                        style={{
-                          flex: 1, height: '32px', padding: '0 8px',
-                          border: '1px solid #E5E7EB', borderRadius: '7px',
-                          fontSize: '12px', color: '#111827', background: 'white',
-                          outline: 'none', cursor: 'pointer',
-                        }}
-                      >
-                        <option value="en">English</option>
-                        <option value="ja">日本語</option>
-                        <option value="zh-CN">简体中文</option>
-                        <option value="es">Español</option>
-                        <option value="fr">Français</option>
-                        <option value="de">Deutsch</option>
-                        <option value="vi">Tiếng Việt</option>
-                        <option value="th">ภาษาไทย</option>
-                        <option value="id">Bahasa Indonesia</option>
-                      </select>
-                      <button
-                        onClick={handleTranslate}
-                        disabled={translating}
-                        style={{
-                          height: '32px', padding: '0 12px', borderRadius: '7px',
-                          border: 'none', background: '#4F46E5', color: 'white',
-                          fontSize: '12px', fontWeight: 500,
-                          cursor: translating ? 'not-allowed' : 'pointer',
-                          opacity: translating ? 0.6 : 1, whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {translating ? '번역 중…' : '번역'}
-                      </button>
-                    </div>
-                    <p style={{ fontSize: '10.5px', color: '#9CA3AF', margin: '6px 0 0' }}>
-                      Claude AI로 전체 단계를 번역합니다. 결과는 캐시됩니다.
-                    </p>
                   </div>
                 )}
               </div>
