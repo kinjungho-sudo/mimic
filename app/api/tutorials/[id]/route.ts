@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { tutorialPatchSchema } from '@/lib/validators';
+import { hashPassword } from '@/lib/password';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -65,9 +66,14 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   }
 
   const supabase = createServiceRoleClient();
+  // share_password가 있으면 해싱 후 저장
+  const updateData = { ...parsed.data };
+  if (typeof updateData.share_password === 'string' && updateData.share_password.length > 0) {
+    updateData.share_password = await hashPassword(updateData.share_password);
+  }
   const { data, error } = await supabase
     .from('mm_tutorials')
-    .update(parsed.data)
+    .update(updateData)
     .eq('id', id)
     .eq('user_id', auth.userId)
     .select()

@@ -397,6 +397,77 @@ function buildMarkdown(tutorial: Tutorial): string {
   return lines.join('\n');
 }
 
+// ── 비밀번호 게이트 ──────────────────────────────────────
+function PasswordGate({ protectedTitle, token, onUnlock }: {
+  protectedTitle: string;
+  token: string;
+  onUnlock: (data: Tutorial) => void;
+}) {
+  const [pw, setPw] = useState('');
+  const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const submit = async () => {
+    if (!pw.trim()) return;
+    setLoading(true); setError(false);
+    try {
+      const res = await fetch(`/api/play/${token}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pw }),
+      });
+      if (!res.ok) { setError(true); return; }
+      onUnlock(await res.json());
+    } catch { setError(true); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: '#0A0A0F', display: 'grid', placeItems: 'center', fontFamily: "'Pretendard', -apple-system, sans-serif" }}>
+      <div style={{ width: '100%', maxWidth: '380px', padding: '0 24px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <div style={{ width: '56px', height: '56px', borderRadius: '14px', background: 'rgba(79,70,229,0.15)', border: '1px solid rgba(79,70,229,0.3)', display: 'grid', placeItems: 'center', margin: '0 auto 20px', color: '#818CF8' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+          </div>
+          <h1 style={{ fontSize: '20px', fontWeight: 700, color: 'white', margin: '0 0 8px' }}>비밀번호 보호됨</h1>
+          <p style={{ fontSize: '13.5px', color: 'rgba(255,255,255,0.5)', margin: 0 }}>
+            {protectedTitle || '이 매뉴얼'}을 보려면 비밀번호를 입력하세요.
+          </p>
+        </div>
+        <input
+          type="password"
+          value={pw}
+          onChange={e => { setPw(e.target.value); setError(false); }}
+          onKeyDown={e => { if (e.key === 'Enter') submit(); }}
+          placeholder="비밀번호"
+          autoFocus
+          style={{
+            width: '100%', boxSizing: 'border-box', height: '48px', padding: '0 16px',
+            background: 'rgba(255,255,255,0.06)', border: `1px solid ${error ? '#EF4444' : 'rgba(255,255,255,0.12)'}`,
+            borderRadius: '10px', color: 'white', fontSize: '15px', outline: 'none',
+            fontFamily: 'inherit', marginBottom: error ? '8px' : '16px',
+          }}
+        />
+        {error && <p style={{ fontSize: '12.5px', color: '#EF4444', margin: '0 0 16px' }}>비밀번호가 올바르지 않아요.</p>}
+        <button
+          onClick={submit}
+          disabled={loading || !pw.trim()}
+          style={{
+            width: '100%', height: '48px', borderRadius: '10px', border: 'none',
+            background: 'linear-gradient(135deg, #4F46E5, #7C3AED)',
+            color: 'white', fontSize: '15px', fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer',
+            opacity: loading || !pw.trim() ? 0.6 : 1,
+          }}
+        >
+          {loading ? '확인 중…' : '확인'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── 플레이어 메인 ─────────────────────────────────────────
 
 export default function PlayerPage({ params }: { params: { token: string } }) {
@@ -404,6 +475,8 @@ export default function PlayerPage({ params }: { params: { token: string } }) {
   const [tutorial, setTutorial] = useState<Tutorial | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [passwordRequired, setPasswordRequired] = useState(false);
+  const [protectedTitle, setProtectedTitle] = useState('');
   const [viewMode, setViewMode] = useState<'slides' | 'document'>('slides');
   const [showShare, setShowShare] = useState(false);
   const [pdfExporting, setPdfExporting] = useState(false);
@@ -421,7 +494,12 @@ export default function PlayerPage({ params }: { params: { token: string } }) {
     fetch(`/api/play/${token}`)
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(data => {
-        if (data?.protected) { setNotFound(true); setLoading(false); return; }
+        if (data?.protected) {
+          setProtectedTitle(data.title ?? '');
+          setPasswordRequired(true);
+          setLoading(false);
+          return;
+        }
         setTutorial(data);
         setLoading(false);
       })
@@ -478,6 +556,10 @@ export default function PlayerPage({ params }: { params: { token: string } }) {
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
+  }
+
+  if (passwordRequired) {
+    return <PasswordGate protectedTitle={protectedTitle} token={token} onUnlock={data => { setTutorial(data); setPasswordRequired(false); }} />;
   }
 
   if (notFound || !tutorial) {

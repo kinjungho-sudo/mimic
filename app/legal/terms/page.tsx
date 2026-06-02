@@ -1,6 +1,10 @@
 import Link from 'next/link';
 
-export const metadata = { title: '이용약관 — MIMIC' };
+import type { Metadata } from 'next';
+export const metadata: Metadata = {
+  title: '이용약관',
+  description: 'MIMIC 서비스 이용 시 적용되는 약관과 규정을 안내합니다.',
+};
 
 export default function TermsPage() {
   return (

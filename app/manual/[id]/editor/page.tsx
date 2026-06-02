@@ -61,6 +61,13 @@ export default function EditorPage() {
   const [freshnessChecking, setFreshnessChecking] = useState(false);
   const [freshnessResult, setFreshnessResult] = useState<{ checked: number; stale: number } | null>(null);
   const [guideMePreviewUrl, setGuideMePreviewUrl] = useState<string | null>(null);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [analyticsData, setAnalyticsData] = useState<{
+    total_views: number; completions: number; completion_rate: number;
+    step_funnel: { step: number; count: number; pct: number }[];
+    avg_exit_step: number | null;
+  } | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [collabToast, setCollabToast] = useState<{ stepId: string; name: string; color: string } | null>(null);
   const collabToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -221,6 +228,18 @@ export default function EditorPage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  const handleOpenAnalytics = useCallback(async () => {
+    setShowAnalytics(true);
+    if (analyticsData) return; // 이미 로드됨
+    setAnalyticsLoading(true);
+    try {
+      const res = await fetch(`/api/tutorials/${id}/analytics`);
+      if (res.ok) setAnalyticsData(await res.json());
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  }, [id, analyticsData]);
 
   const handlePasswordSave = useCallback(async () => {
     setPasswordSaving(true);
@@ -604,6 +623,20 @@ export default function EditorPage() {
                 )}
               </div>
 
+              {/* 분석 버튼 */}
+              <button
+                onClick={handleOpenAnalytics}
+                title="조회 통계 보기"
+                style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', cursor: 'pointer' }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#F9FAFB'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+                </svg>
+                분석
+              </button>
+
               <button
                 onClick={handleExport}
                 disabled={exporting}
@@ -745,6 +778,84 @@ export default function EditorPage() {
           )}
         </div>
       </div>
+
+      {/* 분석 모달 */}
+      {showAnalytics && (
+        <>
+          <div onClick={() => setShowAnalytics(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,15,0.55)', zIndex: 60, backdropFilter: 'blur(4px)' }} />
+          <div style={{
+            position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
+            width: 'min(520px, 92vw)', background: 'white', borderRadius: '20px',
+            boxShadow: '0 30px 80px rgba(0,0,0,0.22)', zIndex: 61, overflow: 'hidden',
+          }}>
+            {/* 헤더 */}
+            <div style={{ padding: '22px 24px 18px', borderBottom: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#111827' }}>조회 통계</h2>
+                <p style={{ margin: '3px 0 0', fontSize: '12px', color: '#9CA3AF' }}>{title}</p>
+              </div>
+              <button onClick={() => setShowAnalytics(false)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#9CA3AF', padding: '4px' }}
+                onMouseEnter={e => { e.currentTarget.style.color = '#374151'; }}
+                onMouseLeave={e => { e.currentTarget.style.color = '#9CA3AF'; }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* 바디 */}
+            <div style={{ padding: '24px' }}>
+              {analyticsLoading ? (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: '#9CA3AF', fontSize: '13px' }}>
+                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', border: '2px solid #E5E7EB', borderTopColor: '#4F46E5', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
+                  데이터 불러오는 중…
+                </div>
+              ) : analyticsData ? (
+                <>
+                  {/* 요약 카드 3개 */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '24px' }}>
+                    {[
+                      { label: '총 조회수', value: String(analyticsData.total_views), sub: '명' },
+                      { label: '완독 수', value: String(analyticsData.completions), sub: `/ ${analyticsData.total_views}명` },
+                      { label: '완독률', value: `${analyticsData.completion_rate}%`, sub: analyticsData.avg_exit_step != null ? `평균 ${analyticsData.avg_exit_step}단계서 이탈` : '데이터 없음' },
+                    ].map(card => (
+                      <div key={card.label} style={{ background: '#F9FAFB', borderRadius: '10px', padding: '14px 16px' }}>
+                        <div style={{ fontSize: '11px', color: '#9CA3AF', marginBottom: '6px' }}>{card.label}</div>
+                        <div style={{ fontSize: '22px', fontWeight: 700, color: '#111827', lineHeight: 1 }}>{card.value}</div>
+                        <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '4px' }}>{card.sub}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* 스텝별 funnel */}
+                  {analyticsData.step_funnel.length > 0 ? (
+                    <>
+                      <div style={{ fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '12px' }}>단계별 도달률</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '7px', maxHeight: '220px', overflowY: 'auto' }}>
+                        {analyticsData.step_funnel.map(row => (
+                          <div key={row.step} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={{ width: '28px', fontSize: '11px', color: '#9CA3AF', flexShrink: 0, textAlign: 'right' }}>{row.step}</div>
+                            <div style={{ flex: 1, background: '#F3F4F6', borderRadius: '4px', overflow: 'hidden', height: '8px' }}>
+                              <div style={{ width: `${row.pct}%`, height: '100%', background: 'linear-gradient(90deg,#4F46E5,#7C3AED)', borderRadius: '4px', transition: 'width 0.4s ease' }} />
+                            </div>
+                            <div style={{ width: '42px', fontSize: '11px', color: '#6B7280', flexShrink: 0 }}>{row.count}명</div>
+                            <div style={{ width: '32px', fontSize: '11px', color: '#9CA3AF', flexShrink: 0, textAlign: 'right' }}>{row.pct}%</div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: '20px 0', color: '#9CA3AF', fontSize: '13px' }}>
+                      아직 조회 데이터가 없어요.<br />
+                      <span style={{ fontSize: '12px' }}>매뉴얼을 공유하면 여기에 통계가 쌓입니다.</span>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: '#9CA3AF', fontSize: '13px' }}>데이터를 불러오지 못했습니다.</div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* 협업 변경 토스트 */}
       {collabToast && (

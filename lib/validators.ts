@@ -69,6 +69,7 @@ export const tutorialPatchSchema = z.object({
   thumbnail_url: z.string().url().nullable().optional(),
   folder_id: z.string().uuid().nullable().optional(),
   workspace_id: z.string().uuid().nullable().optional(),
+  share_password: z.string().max(100).nullable().optional(),
 });
 
 export const generateScriptSchema = z.object({

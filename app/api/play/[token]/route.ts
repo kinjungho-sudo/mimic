@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/lib/supabase/server';
+import { verifyPassword } from '@/lib/password';
 
 type Params = { params: Promise<{ token: string }> };
 
@@ -102,7 +103,8 @@ export async function POST(request: NextRequest, { params }: Params) {
   }
 
   if (result.tutorial.share_password) {
-    if (!password || password !== result.tutorial.share_password) {
+    const ok = password ? await verifyPassword(password, result.tutorial.share_password) : false;
+    if (!ok) {
       return NextResponse.json({ error: 'Wrong password' }, { status: 401 });
     }
   }
