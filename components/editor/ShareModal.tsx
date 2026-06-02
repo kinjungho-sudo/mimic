@@ -53,7 +53,15 @@ export function ShareModal({ title, shareToken, shareUrl, onPublishAndShare, onU
     if (!url) return;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const Kakao = (window as any).Kakao;
-    if (Kakao?.isInitialized?.()) {
+    if (!Kakao) {
+      window.open(`kakaotalk://msg/send?text=${encodeURIComponent(`${title}\n${url}`)}`, '_blank');
+      return;
+    }
+    if (!Kakao.isInitialized()) {
+      const jsKey = process.env.NEXT_PUBLIC_KAKAO_JS_KEY;
+      if (jsKey) Kakao.init(jsKey);
+    }
+    if (Kakao.isInitialized()) {
       Kakao.Share.sendDefault({
         objectType: 'feed',
         content: { title, description: 'MIMIC으로 만든 단계별 인터랙티브 매뉴얼', imageUrl: '', link: { webUrl: url, mobileWebUrl: url } },

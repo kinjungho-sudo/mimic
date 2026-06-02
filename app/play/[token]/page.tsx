@@ -227,15 +227,27 @@ function SharePopup({ title, url, onClose }: { title: string; url: string; onClo
   const [emailResult, setEmailResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [tab, setTab] = useState<'kakao' | 'email'>('kakao');
 
-  // Kakao SDK 초기화 (팝업 열릴 때 한 번)
+  // Kakao SDK 초기화 — async 로드 완료를 기다렸다가 init
   useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const Kakao = (window as any).Kakao;
-    if (!Kakao) return;
     const jsKey = process.env.NEXT_PUBLIC_KAKAO_JS_KEY;
-    if (jsKey && !Kakao.isInitialized()) {
-      Kakao.init(jsKey);
-    }
+    if (!jsKey) return;
+
+    const tryInit = () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const Kakao = (window as any).Kakao;
+      if (!Kakao) return false;
+      if (!Kakao.isInitialized()) Kakao.init(jsKey);
+      return true;
+    };
+
+    if (tryInit()) return;
+
+    // SDK가 아직 로드 중이면 load 이벤트 기다림
+    const script = document.querySelector('script[src*="kakao"]') as HTMLScriptElement | null;
+    if (!script) return;
+    const onLoad = () => tryInit();
+    script.addEventListener('load', onLoad);
+    return () => script.removeEventListener('load', onLoad);
   }, []);
 
   const handleCopy = async () => {
@@ -247,8 +259,16 @@ function SharePopup({ title, url, onClose }: { title: string; url: string; onClo
   const handleKakao = () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const Kakao = (window as any).Kakao;
-    if (!Kakao?.isInitialized?.()) {
-      alert('카카오 SDK를 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
+    if (!Kakao) {
+      window.open(`kakaotalk://msg/send?text=${encodeURIComponent(`${title}\n${url}`)}`, '_blank');
+      return;
+    }
+    if (!Kakao.isInitialized()) {
+      const jsKey = process.env.NEXT_PUBLIC_KAKAO_JS_KEY;
+      if (jsKey) Kakao.init(jsKey);
+    }
+    if (!Kakao.isInitialized()) {
+      window.open(`kakaotalk://msg/send?text=${encodeURIComponent(`${title}\n${url}`)}`, '_blank');
       return;
     }
     Kakao.Share.sendDefault({

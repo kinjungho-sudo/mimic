@@ -1,6 +1,12 @@
-const SUPABASE_HOST = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).hostname
-  .toLowerCase()
-  .replace(/\.$/, '');
+function getSupabaseHost(): string {
+  const raw = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!raw) return '';
+  try {
+    return new URL(raw).hostname.toLowerCase().replace(/\.$/, '');
+  } catch {
+    return '';
+  }
+}
 
 export function assertStorageUrl(url: string | null | undefined): string {
   if (!url) throw new Error('Missing URL');
@@ -12,6 +18,7 @@ export function assertStorageUrl(url: string | null | undefined): string {
   }
   if (parsed.protocol !== 'https:') throw new Error('Non-HTTPS URL');
   const host = parsed.hostname.toLowerCase().replace(/\.$/, '');
-  if (host !== SUPABASE_HOST) throw new Error('Untrusted host');
+  const supabaseHost = getSupabaseHost();
+  if (supabaseHost && host !== supabaseHost) throw new Error('Untrusted host');
   return url;
 }

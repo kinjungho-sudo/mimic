@@ -20,8 +20,9 @@ const XIcon = ({ size = 14 }: { size?: number }) => (
 const features = [
   {
     icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
-        <circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>
+      // 번개 / 빠른 생성
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="rgba(255,255,255,0.9)" stroke="rgba(255,255,255,0.4)" strokeWidth="1" strokeLinejoin="round"/>
       </svg>
     ),
     title: '30초 매뉴얼 완성',
@@ -30,8 +31,10 @@ const features = [
   },
   {
     icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
-        <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+      // 연필 / 편집
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" fill="rgba(255,255,255,0.9)" stroke="rgba(255,255,255,0.4)" strokeWidth="1" strokeLinejoin="round"/>
+        <path d="m15 5 4 4" stroke="rgba(255,255,255,0.5)" strokeWidth="1"/>
       </svg>
     ),
     title: '클릭 한 번 AI 편집',
@@ -40,8 +43,12 @@ const features = [
   },
   {
     icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
-        <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/>
+      // 마이크 / 음성
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <rect x="9" y="2" width="6" height="11" rx="3" fill="rgba(255,255,255,0.9)"/>
+        <path d="M5 10a7 7 0 0 0 14 0" stroke="rgba(255,255,255,0.7)" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
+        <line x1="12" y1="19" x2="12" y2="22" stroke="rgba(255,255,255,0.7)" strokeWidth="1.5" strokeLinecap="round"/>
+        <line x1="9" y1="22" x2="15" y2="22" stroke="rgba(255,255,255,0.7)" strokeWidth="1.5" strokeLinecap="round"/>
       </svg>
     ),
     title: 'AI 자막 · 음성',
@@ -50,8 +57,12 @@ const features = [
   },
   {
     icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
-        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>
+      // 돋보기 / 줌인
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <circle cx="10" cy="10" r="7" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.8)" strokeWidth="1.8"/>
+        <circle cx="10" cy="10" r="4" fill="rgba(255,255,255,0.25)"/>
+        <line x1="15.5" y1="15.5" x2="21" y2="21" stroke="rgba(255,255,255,0.9)" strokeWidth="2.2" strokeLinecap="round"/>
+        <path d="M8 10h4M10 8v4" stroke="rgba(255,255,255,0.8)" strokeWidth="1.5" strokeLinecap="round"/>
       </svg>
     ),
     title: '장면 줌인',
@@ -60,9 +71,10 @@ const features = [
   },
   {
     icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
-        <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
-        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+      // 링크 / 공유
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" stroke="rgba(255,255,255,0.9)" strokeWidth="1.8" strokeLinecap="round" fill="none"/>
+        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke="rgba(255,255,255,0.65)" strokeWidth="1.8" strokeLinecap="round" fill="none"/>
       </svg>
     ),
     title: '링크 한 줄로 공유',
@@ -621,7 +633,7 @@ function HeroSection() {
                 key={index}
                 style={{
                   display: 'inline-block',
-                  fontStyle: 'italic',
+                  fontStyle: 'normal',
                   fontWeight: 700,
                   background: 'linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)',
                   WebkitBackgroundClip: 'text',
@@ -835,9 +847,8 @@ export default function LandingPage() {
           <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '540px', margin: '0 auto 64px', lineHeight: 1.65 }}>기존 작업을 평소처럼 하기만 하면 됩니다. 나머지는 AI가 다 합니다.</p>
 
           <div className="grid-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0', position: 'relative' }}>
-            <div style={{ position: 'absolute', top: '28px', left: 'calc(16.7% + 16px)', right: 'calc(16.7% + 16px)', height: '1px', background: 'linear-gradient(90deg, #4F46E5, #7C3AED)', opacity: 0.25, zIndex: 0 }} />
             {[
-              { num: '01', title: 'MIMIC Recorder 확장으로 녹화', body: '웹 작업을 평소처럼 진행하면 클릭 위치와 화면이 자동 캡처됩니다.' },
+              { num: '01', title: '크롬 확장 설치 후 녹화 시작', body: '웹 작업을 평소처럼 진행하면 클릭 위치와 화면이 자동 캡처됩니다.' },
               { num: '02', title: 'AI가 자동 정리', body: '캡처된 스크린샷을 분석해 단계별 설명과 자막, 항목 마커까지 자동 생성합니다.' },
               { num: '03', title: '링크로 공유', body: '완성된 매뉴얼은 링크 한 줄로 어디든 공유. 보는 사람은 클릭으로 따라하면 끝.' },
             ].map(s => (
