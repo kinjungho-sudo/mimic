@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { BrandMark } from '@/components/BrandMark';
-import { ThemeToggle } from '@/components/ThemeToggle';
 
 const CheckIcon = ({ size = 14, color = 'currentColor' }: { size?: number; color?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3">
@@ -794,7 +793,6 @@ export default function LandingPage() {
             ))}
           </nav>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <ThemeToggle />
             <Link href="/auth/login"
               style={{ padding: '9px 16px', borderRadius: '8px', fontSize: '14px', fontWeight: 500, color: '#4B5563', textDecoration: 'none', transition: 'all 0.15s' }}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#F9FAFB'; (e.currentTarget as HTMLElement).style.color = '#111827'; }}

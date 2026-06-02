@@ -78,17 +78,6 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
         />
-        {/* 테마 초기화 — 깜빡임(FOUC) 방지. 렌더 전에 실행되어야 함 */}
-        <script dangerouslySetInnerHTML={{ __html: `
-(function(){
-  try {
-    var s = localStorage.getItem('mm-theme');
-    var sys = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    var theme = s === 'dark' || s === 'light' ? s : sys;
-    document.documentElement.setAttribute('data-theme', theme);
-  } catch(e){}
-})();
-        `}} />
         {/* Kakao SDK */}
         <script
           src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js"
