@@ -664,51 +664,57 @@ export default function PlayerPage({ params }: { params: { token: string } }) {
           </div>
         )}
 
-        <div style={{ width: '100%', maxWidth: '1100px', aspectRatio: '16/9', background: 'white', borderRadius: '12px', position: 'relative', overflow: 'hidden', boxShadow: '0 30px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)' }}>
+        {/* 이미지 컨테이너: 원본 비율 유지 — objectFit:cover 제거로 어노테이션 좌표 정확히 일치 */}
+        <div style={{ width: '100%', maxWidth: '1100px', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 30px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)', background: '#111' }}>
           {step?.screenshot_url ? (
-            <>
+            /* 이미지 + 어노테이션 + 마커 + 자막을 동일한 position:relative 컨테이너 안에 */
+            <div style={{ position: 'relative', lineHeight: 0 }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={step.screenshot_url} alt={step.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+              <img
+                src={step.screenshot_url}
+                alt={step.title}
+                style={{ width: '100%', height: 'auto', display: 'block' }}
+              />
+              {/* 어노테이션 — 이미지와 동일한 크기 SVG로 정확히 겹침 */}
               {(step.user_annotations?.length ?? 0) > 0 && (
                 <AnnotationPreview annotations={step.user_annotations!} imageUrl={step.screenshot_url} />
               )}
-            </>
+              {/* 마커 */}
+              {stepMarkers.map((m, i) => (
+                <span key={m.id} style={{ position: 'absolute', top: `${m.y_pct}%`, left: `${m.x_pct}%`, width: '32px', height: '32px', borderRadius: '50%', background: i === stepMarkers.length - 1 ? '#4F46E5' : '#DC2626', color: 'white', display: 'grid', placeItems: 'center', fontSize: '13px', fontWeight: 500, zIndex: 5, boxShadow: i === stepMarkers.length - 1 ? '0 0 0 8px rgba(79,70,229,0.25), 0 4px 12px rgba(79,70,229,0.5)' : '0 4px 12px rgba(220,38,38,0.4)', transform: 'translate(-50%, -50%)' }}>
+                  {m.label || (i + 1)}
+                </span>
+              ))}
+              {/* 자막 */}
+              {step.caption && (
+                <div style={{
+                  position: 'absolute', left: '50%', transform: 'translateX(-50%)',
+                  bottom: '20px',
+                  background: 'rgba(0,0,0,0.82)',
+                  backdropFilter: 'blur(8px)',
+                  color: 'white',
+                  padding: '12px 22px',
+                  borderRadius: '10px',
+                  fontSize: '15px',
+                  fontWeight: 400,
+                  lineHeight: 1.65,
+                  maxWidth: '82%',
+                  textAlign: 'center',
+                  zIndex: 6,
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+                  letterSpacing: '0.01em',
+                  whiteSpace: 'pre-wrap',
+                }}>
+                  {step.caption}
+                </div>
+              )}
+            </div>
           ) : (
-            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F9FAFB' }}>
+            <div style={{ aspectRatio: '16/9', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F9FAFB' }}>
               <div style={{ textAlign: 'center', color: '#9CA3AF' }}>
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: '12px', opacity: 0.4 }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                 <p style={{ fontSize: '13px', margin: 0 }}>{step?.title ?? '스크린샷 없음'}</p>
               </div>
-            </div>
-          )}
-
-          {/* Markers */}
-          {stepMarkers.map((m, i) => (
-            <span key={m.id} style={{ position: 'absolute', top: `${m.y_pct}%`, left: `${m.x_pct}%`, width: '32px', height: '32px', borderRadius: '50%', background: i === stepMarkers.length - 1 ? '#4F46E5' : '#DC2626', color: 'white', display: 'grid', placeItems: 'center', fontSize: '13px', fontWeight: 500, zIndex: 5, boxShadow: i === stepMarkers.length - 1 ? '0 0 0 8px rgba(79,70,229,0.25), 0 4px 12px rgba(79,70,229,0.5)' : '0 4px 12px rgba(220,38,38,0.4)', transform: 'translate(-50%, -50%)' }}>
-              {m.label || (i + 1)}
-            </span>
-          ))}
-
-          {/* Caption */}
-          {step?.caption && (
-            <div style={{
-              position: 'absolute', left: '50%', transform: 'translateX(-50%)',
-              bottom: '20px',
-              background: 'rgba(0,0,0,0.82)',
-              backdropFilter: 'blur(8px)',
-              color: 'white',
-              padding: '12px 22px',
-              borderRadius: '10px',
-              fontSize: '15px',
-              fontWeight: 400,
-              lineHeight: 1.65,
-              maxWidth: '82%',
-              textAlign: 'center',
-              zIndex: 6,
-              boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
-              letterSpacing: '0.01em',
-            }}>
-              {step.caption}
             </div>
           )}
         </div>

@@ -154,8 +154,7 @@ function useWordCycle(words: string[]) {
 }
 
 // 각 스텝 duration(ms) — 합계가 전체 루프 길이
-const SCENE_DURATIONS = [2800, 2600, 2800, 2600, 3000];
-const _TOTAL_DURATION = SCENE_DURATIONS.reduce((a, b) => a + b, 0); void _TOTAL_DURATION;
+const SCENE_DURATIONS = [3000, 2800, 3000, 2800, 3200];
 
 function HeroDemo() {
   const [scene, setScene] = useState(0);       // 0~4
@@ -188,9 +187,19 @@ function HeroDemo() {
 
   // 씬별 레이블 (인디케이터용)
   const SCENE_LABELS = ['확장 설치', '녹화 시작', '클릭 캡처', '영역 확대', '완성 & 공유'];
-  const SCENE_URLS = ['chrome://extensions', 'app.notion.so/workspace', 'app.notion.so/workspace', 'app.mimic.so/editor', 'app.mimic.so/play/done'];
+  const SCENE_URLS   = ['chrome://extensions', 'app.notion.so/workspace', 'app.notion.so/workspace', 'app.mimic.so/editor', 'app.mimic.so/play/done'];
 
-  // 씬 0: 크롬 확장 팝업
+  // 씬 렌더 — 내부 Scene 컴포넌트 사용
+  const renderScene = () => {
+    switch(scene) {
+      case 0: return <Scene0 />;
+      case 2: return <Scene2 />;
+      default: return null;
+    }
+  };
+
+  // (아래 Scene0~Scene4 내부 선언은 미사용 — renderScene으로 교체됨)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const Scene0 = () => {
     const clicked = tick >= 1200;
     const recording = tick >= 1800;
@@ -250,6 +259,7 @@ function HeroDemo() {
   };
 
   // 씬 1: 페이지 이동 + 녹화 오버레이
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const Scene1 = () => {
     const urlTyped = tick >= 600;
     const loaded = tick >= 1400;
@@ -375,6 +385,7 @@ function HeroDemo() {
   };
 
   // 씬 3: 특정 영역 확대 (zoom)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const Scene3 = () => {
     const zooming = tick >= 600;
     const zoomed = tick >= 1200;
@@ -444,6 +455,7 @@ function HeroDemo() {
   };
 
   // 씬 4: 완성 + 공유 링크
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const Scene4 = () => {
     const done = tick >= 400;
     const linkReady = tick >= 1000;
@@ -501,9 +513,6 @@ function HeroDemo() {
     );
   };
 
-  const SCENES = [Scene0, Scene1, Scene2, Scene3, Scene4];
-  const CurrentScene = SCENES[scene];
-
   return (
     <div style={{ position: 'relative', maxWidth: '1000px', margin: '0 auto' }}>
       {/* 브라우저 프레임 */}
@@ -533,7 +542,7 @@ function HeroDemo() {
 
         {/* 씬 영역 */}
         <div key={scene} style={{ height: '480px', position: 'relative', overflow: 'hidden', animation: 'sceneIn 0.35s ease both' }}>
-          <CurrentScene />
+          {renderScene()}
         </div>
       </div>
 
