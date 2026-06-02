@@ -411,6 +411,9 @@ export default function DashboardPage() {
   // 컨텍스트 메뉴
   const [ctxMenu, setCtxMenu] = useState<CtxMenu>(null);
 
+  // 모바일 드로어
+  const [showDrawer, setShowDrawer] = useState(false);
+
   const newMenuRef = useRef<HTMLDivElement>(null);
 
   const loadTutorials = useCallback(async (workspaceId?: string) => {
@@ -830,11 +833,18 @@ export default function DashboardPage() {
           <main style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
             {/* 헤더 — 모바일에서는 로고+버튼만 */}
             <header style={{ display: 'flex', alignItems: 'center', gap: '12px', height: '60px', padding: '0 16px', background: 'var(--mm-bg)', borderBottom: '1px solid var(--mm-border-light)', position: 'sticky', top: 0, zIndex: 30 }}>
-              {/* 모바일 전용 로고 */}
-              <Link href="/home" className="home-mobile-logo" style={{ display: 'none', alignItems: 'center', gap: '6px', textDecoration: 'none', flexShrink: 0 }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/mimic-logo-2-2.png" alt="MIMIC" style={{ height: '28px', width: '28px', objectFit: 'contain' }} />
-              </Link>
+              {/* 모바일 전용: 햄버거 + 로고 */}
+              <div className="home-mobile-logo" style={{ display: 'none', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                <button onClick={() => setShowDrawer(true)}
+                  style={{ width: '36px', height: '36px', borderRadius: '8px', border: '1px solid #E5E7EB', background: 'white', display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#374151', flexShrink: 0 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                </button>
+                <Link href="/home" style={{ display: 'flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/mimic-logo-2-2.png" alt="MIMIC" style={{ height: '26px', width: '26px', objectFit: 'contain' }} />
+                  <span style={{ fontSize: '15px', fontWeight: 800, color: '#111827', letterSpacing: '-0.03em' }}>MIMIC</span>
+                </Link>
+              </div>
               <div className="home-search-bar" style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, maxWidth: '380px', height: '36px', padding: '0 12px', border: '1px solid #E5E7EB', borderRadius: '9px', background: '#F9FAFB', color: '#9CA3AF' }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 <input placeholder="매뉴얼 검색..." style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '13px', fontFamily: 'inherit', color: '#374151' }} />
@@ -946,10 +956,159 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* ── 모바일 드로어 — 사이드바 내용 전체 ── */}
+      {showDrawer && (
+        <>
+          {/* 배경 오버레이 */}
+          <div onClick={() => setShowDrawer(false)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 200, backdropFilter: 'blur(2px)' }} />
+          {/* 드로어 본체 */}
+          <div style={{
+            position: 'fixed', left: 0, top: 0, bottom: 0, width: '280px',
+            background: 'var(--mm-bg)', zIndex: 201,
+            display: 'flex', flexDirection: 'column', overflowY: 'auto',
+            boxShadow: '4px 0 24px rgba(0,0,0,0.18)',
+            animation: 'drawerIn 0.22s ease',
+          }}>
+            {/* 드로어 헤더 */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 16px 12px', borderBottom: '1px solid var(--mm-border-light)', flexShrink: 0 }}>
+              <Link href="/home" onClick={() => setShowDrawer(false)} style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/mimic-logo-2-2.png" alt="MIMIC" style={{ height: '28px', width: '28px', objectFit: 'contain' }} />
+                <span style={{ fontSize: '16px', fontWeight: 800, color: '#111827', letterSpacing: '-0.03em' }}>MIMIC</span>
+              </Link>
+              <button onClick={() => setShowDrawer(false)} style={{ width: '32px', height: '32px', borderRadius: '8px', border: 'none', background: '#F3F4F6', cursor: 'pointer', display: 'grid', placeItems: 'center', color: '#6B7280' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+
+            <div style={{ flex: 1, padding: '12px', overflowY: 'auto' }}>
+              {/* 네비게이션 */}
+              <nav style={{ display: 'flex', flexDirection: 'column', gap: '1px', marginBottom: '16px' }}>
+                {[
+                  { label: '홈', href: '/home', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> },
+                  { label: '마이페이지', href: '/mypage', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> },
+                  { label: '설정', href: '/settings', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> },
+                ].map(item => (
+                  <Link key={item.label} href={item.href} onClick={() => setShowDrawer(false)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 10px', borderRadius: '8px', fontSize: '13.5px', textDecoration: 'none', color: '#374151', fontWeight: 500 }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                    {item.icon}{item.label}
+                  </Link>
+                ))}
+              </nav>
+
+              <div style={{ height: '1px', background: 'var(--mm-border-light)', marginBottom: '12px' }} />
+
+              {/* 내 워크스페이스 */}
+              <button onClick={() => setMyOpen(v => !v)}
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '7px 10px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'transparent', marginBottom: '2px' }}>
+                <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: activeTab === 'my' ? '#4F46E5' : '#E5E7EB', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                </div>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: '#111827', flex: 1, textAlign: 'left' }}>내 워크스페이스</span>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"
+                  style={{ transform: myOpen ? 'rotate(0)' : 'rotate(-90deg)', transition: 'transform 0.15s', flexShrink: 0 }}>
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </button>
+              {myOpen && (
+                <div style={{ paddingLeft: '10px', marginLeft: '18px', borderLeft: '2px solid #F3F4F6', marginBottom: '8px' }}>
+                  {[
+                    { id: 'all' as const, label: '전체', count: tutorials.length },
+                    { id: null, label: '미분류', count: tutorials.filter(t => !t.folder_id).length },
+                  ].map(item => (
+                    <button key={String(item.id)}
+                      onClick={() => { setActiveTab('my'); setActiveFolder(item.id); setShowDrawer(false); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '7px', width: '100%', padding: '7px 8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', textAlign: 'left', background: folderItemActive(item.id) ? '#EEF2FF' : 'transparent', color: folderItemActive(item.id) ? '#4F46E5' : '#4B5563', fontWeight: folderItemActive(item.id) ? 600 : 400 }}>
+                      <span style={{ flex: 1 }}>{item.label}</span>
+                      <span style={{ fontSize: '11px', color: '#9CA3AF' }}>{item.count}</span>
+                    </button>
+                  ))}
+                  {folders.map(f => (
+                    <button key={f.id}
+                      onClick={() => { setActiveTab('my'); setActiveFolder(f.id); setShowDrawer(false); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '7px', width: '100%', padding: '7px 8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', textAlign: 'left', background: folderItemActive(f.id) ? `${f.color}15` : 'transparent', color: folderItemActive(f.id) ? f.color : '#4B5563', fontWeight: folderItemActive(f.id) ? 600 : 400 }}>
+                      <span style={{ width: '10px', height: '10px', borderRadius: '3px', background: f.color, flexShrink: 0 }} />
+                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+                      <span style={{ fontSize: '11px', color: '#9CA3AF' }}>{tutorials.filter(t => t.folder_id === f.id).length}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* 팀 워크스페이스 */}
+              <button onClick={() => setTeamOpen(v => !v)}
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '7px 10px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'transparent', marginBottom: '2px' }}>
+                <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: activeTab === 'team' ? '#4F46E5' : '#E5E7EB', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                </div>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: '#111827', flex: 1, textAlign: 'left' }}>팀 워크스페이스</span>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"
+                  style={{ transform: teamOpen ? 'rotate(0)' : 'rotate(-90deg)', transition: 'transform 0.15s', flexShrink: 0 }}>
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </button>
+              {teamOpen && (
+                <div style={{ paddingLeft: '10px', marginLeft: '18px', borderLeft: '2px solid #F3F4F6', marginBottom: '8px' }}>
+                  {workspaces.length === 0
+                    ? <div style={{ padding: '6px 8px', fontSize: '13px', color: '#D1D5DB' }}>없음</div>
+                    : workspaces.map(ws => (
+                      <button key={ws.id}
+                        onClick={() => { setActiveTab('team'); setActiveWorkspace(ws.id); setShowDrawer(false); }}
+                        style={{ display: 'flex', alignItems: 'center', gap: '7px', width: '100%', padding: '7px 8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', textAlign: 'left', background: activeTab === 'team' && activeWorkspace === ws.id ? '#EEF2FF' : 'transparent', color: activeTab === 'team' && activeWorkspace === ws.id ? '#4F46E5' : '#4B5563', fontWeight: activeTab === 'team' && activeWorkspace === ws.id ? 600 : 400 }}>
+                        <div style={{ width: '10px', height: '10px', borderRadius: '3px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', flexShrink: 0 }} />
+                        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ws.name}</span>
+                        <span style={{ fontSize: '11px', color: '#9CA3AF' }}>{ws.member_count ?? 0}명</span>
+                      </button>
+                    ))
+                  }
+                </div>
+              )}
+            </div>
+
+            {/* 사용량 + 유저 (하단 고정) */}
+            <div style={{ flexShrink: 0, padding: '12px', borderTop: '1px solid var(--mm-border-light)' }}>
+              {/* 사용량 */}
+              {!authLoading && !isPro && (
+                <div style={{ padding: '10px', borderRadius: '10px', background: '#F9FAFB', border: '1px solid #F3F4F6', marginBottom: '10px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '12px', color: '#6B7280' }}>오늘 사용량</span>
+                    <span style={{ fontSize: '12px', fontWeight: 600, color: '#111827' }}>{usedToday} / {dailyLimit}</span>
+                  </div>
+                  <div style={{ height: '4px', borderRadius: '999px', background: '#E5E7EB', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', borderRadius: '999px', background: usedToday >= dailyLimit ? '#EF4444' : '#4F46E5', width: `${Math.min(100, (usedToday / dailyLimit) * 100)}%` }} />
+                  </div>
+                </div>
+              )}
+              {/* 유저 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '8px 10px', borderRadius: '8px' }}>
+                {user?.avatar_url
+                  // eslint-disable-next-line @next/next/no-img-element
+                  ? <img src={user.avatar_url} alt={user.name} style={{ width: '28px', height: '28px', borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }} />
+                  : <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', display: 'grid', placeItems: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>{firstName.charAt(0) || '?'}</div>
+                }
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '13px', fontWeight: 500, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.name ?? '내 계정'}</div>
+                  <div style={{ fontSize: '11px', color: '#9CA3AF' }}>{user?.plan === 'free' ? '무료 플랜' : user?.plan === 'team' ? 'Team' : 'Pro'}</div>
+                </div>
+                <button onClick={() => { handleSignOut(); setShowDrawer(false); }}
+                  title="로그아웃"
+                  style={{ width: '32px', height: '32px', borderRadius: '8px', border: 'none', background: '#F3F4F6', cursor: 'pointer', display: 'grid', placeItems: 'center', color: '#9CA3AF', flexShrink: 0 }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       <style>{`
         @keyframes recPulse { 0%,100% { opacity:0.5; transform:scale(1); } 50% { opacity:1; transform:scale(1.2); } }
         @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes drawerIn { from { transform: translateX(-100%); } to { transform: translateX(0); } }
       `}</style>
     </>
   );
