@@ -47,6 +47,22 @@ export function ShareModal({ title, shareToken, shareUrl, onPublishAndShare, onU
   };
 
   const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(`${title} - MIMIC 매뉴얼`)}&url=${encodeURIComponent(url)}`;
+  const emailUrl = url ? `mailto:?subject=${encodeURIComponent(`[MIMIC] ${title}`)}&body=${encodeURIComponent(`안녕하세요,\n\n아래 링크에서 MIMIC 매뉴얼을 확인해주세요.\n\n${title}\n${url}`)}` : undefined;
+
+  const handleKakao = () => {
+    if (!url) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const Kakao = (window as any).Kakao;
+    if (Kakao?.isInitialized?.()) {
+      Kakao.Share.sendDefault({
+        objectType: 'feed',
+        content: { title, description: 'MIMIC으로 만든 단계별 인터랙티브 매뉴얼', imageUrl: '', link: { webUrl: url, mobileWebUrl: url } },
+        buttons: [{ title: '매뉴얼 보기', link: { webUrl: url, mobileWebUrl: url } }],
+      });
+    } else {
+      window.open(`kakaotalk://msg/send?text=${encodeURIComponent(`${title}\n${url}`)}`, '_blank');
+    }
+  };
 
   return (
     <>
@@ -237,67 +253,47 @@ export function ShareModal({ title, shareToken, shareUrl, onPublishAndShare, onU
             <div style={{ flex: 1, height: '1px', background: '#F3F4F6' }} />
           </div>
 
-          {/* SNS buttons */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+          {/* 공유 버튼 */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+            {/* 카카오톡 */}
+            <button
+              onClick={handleKakao}
+              disabled={!url}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px', height: '44px', borderRadius: '10px', border: 'none', background: '#FEE500', color: '#391B1B', fontSize: '12.5px', fontWeight: 600, cursor: url ? 'pointer' : 'not-allowed', opacity: url ? 1 : 0.5, transition: 'filter 0.15s' }}
+              onMouseEnter={e => { if (url) e.currentTarget.style.filter = 'brightness(0.95)'; }}
+              onMouseLeave={e => { e.currentTarget.style.filter = 'none'; }}
+            >
+              <svg width="17" height="17" viewBox="0 0 18 18" fill="currentColor">
+                <path d="M9 0C4.03 0 0 3.13 0 6.99c0 2.49 1.56 4.68 3.91 5.93l-.99 3.68c-.09.34.29.61.59.41L7.7 14.4c.43.06.87.09 1.3.09 4.97 0 9-3.13 9-6.99C18 3.13 13.97 0 9 0z"/>
+              </svg>
+              카카오톡
+            </button>
+
+            {/* 이메일 */}
+            <a
+              href={emailUrl}
+              onClick={e => { if (!url) e.preventDefault(); }}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px', height: '44px', borderRadius: '10px', border: '1.5px solid #E5E7EB', background: 'white', color: '#374151', fontSize: '12.5px', fontWeight: 500, textDecoration: 'none', cursor: url ? 'pointer' : 'not-allowed', opacity: url ? 1 : 0.5, transition: 'border-color 0.15s, color 0.15s' }}
+              onMouseEnter={e => { if (url) { e.currentTarget.style.borderColor = '#4F46E5'; e.currentTarget.style.color = '#4F46E5'; } }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.color = '#374151'; }}
+            >
+              <Send size={14} />
+              이메일
+            </a>
+
+            {/* Twitter/X */}
             <a
               href={url ? twitterUrl : undefined}
               target="_blank"
               rel="noopener noreferrer"
               onClick={e => { if (!url) e.preventDefault(); }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                height: '42px',
-                borderRadius: '10px',
-                border: '1.5px solid #E5E7EB',
-                background: 'white',
-                fontSize: '13px',
-                fontWeight: 500,
-                color: '#374151',
-                textDecoration: 'none',
-                cursor: url ? 'pointer' : 'not-allowed',
-                opacity: url ? 1 : 0.5,
-                transition: 'border-color 0.15s, background 0.15s',
-              }}
-              onMouseEnter={e => { if (url) { e.currentTarget.style.borderColor = '#1DA1F2'; e.currentTarget.style.color = '#1DA1F2'; } }}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px', height: '44px', borderRadius: '10px', border: '1.5px solid #E5E7EB', background: 'white', color: '#374151', fontSize: '12.5px', fontWeight: 500, textDecoration: 'none', cursor: url ? 'pointer' : 'not-allowed', opacity: url ? 1 : 0.5, transition: 'border-color 0.15s, color 0.15s' }}
+              onMouseEnter={e => { if (url) { e.currentTarget.style.borderColor = '#111827'; e.currentTarget.style.color = '#111827'; } }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.color = '#374151'; }}
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.26 5.632zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-              Twitter / X
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.26 5.632zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+              Twitter/X
             </a>
-
-            <button
-              onClick={() => {
-                if (!url) return;
-                navigator.share?.({
-                  title,
-                  url,
-                }).catch(() => handleCopy());
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                height: '42px',
-                borderRadius: '10px',
-                border: '1.5px solid #E5E7EB',
-                background: 'white',
-                fontSize: '13px',
-                fontWeight: 500,
-                color: '#374151',
-                cursor: url ? 'pointer' : 'not-allowed',
-                opacity: url ? 1 : 0.5,
-                transition: 'border-color 0.15s',
-              }}
-              onMouseEnter={e => { if (url) { e.currentTarget.style.borderColor = '#4F46E5'; e.currentTarget.style.color = '#4F46E5'; } }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.color = '#374151'; }}
-            >
-              <Send size={15} />
-              더 많은 앱으로
-            </button>
           </div>
         </div>
       </div>
