@@ -219,6 +219,21 @@ function DocumentView({ tutorial }: { tutorial: Tutorial }) {
 
 function SharePopup({ title, url, onClose }: { title: string; url: string; onClose: () => void }) {
   const [copied, setCopied] = useState(false);
+  const [emailTo, setEmailTo] = useState('');
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailResult, setEmailResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [tab, setTab] = useState<'kakao' | 'email'>('kakao');
+
+  // Kakao SDK 초기화 (팝업 열릴 때 한 번)
+  useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const Kakao = (window as any).Kakao;
+    if (!Kakao) return;
+    const jsKey = process.env.NEXT_PUBLIC_KAKAO_JS_KEY;
+    if (jsKey && !Kakao.isInitialized()) {
+      Kakao.init(jsKey);
+    }
+  }, []);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(url).catch(() => {});
@@ -227,31 +242,54 @@ function SharePopup({ title, url, onClose }: { title: string; url: string; onClo
   };
 
   const handleKakao = () => {
-    // Kakao SDK 미설치 환경에서는 링크 복사 fallback
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const Kakao = (window as any).Kakao;
-    if (Kakao?.isInitialized?.()) {
-      Kakao.Share.sendDefault({
-        objectType: 'feed',
-        content: {
-          title,
-          description: 'MIMIC으로 만든 단계별 인터랙티브 매뉴얼',
-          imageUrl: '',
-          link: { mobileWebUrl: url, webUrl: url },
-        },
-        buttons: [{ title: '매뉴얼 보기', link: { mobileWebUrl: url, webUrl: url } }],
+    if (!Kakao?.isInitialized?.()) {
+      alert('카카오 SDK를 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
+    Kakao.Share.sendDefault({
+      objectType: 'feed',
+      content: {
+        title,
+        description: 'MIMIC으로 만든 단계별 인터랙티브 매뉴얼입니다.',
+        imageUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/mimic-logo.png`,
+        link: { mobileWebUrl: url, webUrl: url },
+      },
+      buttons: [{ title: '매뉴얼 보기', link: { mobileWebUrl: url, webUrl: url } }],
+    });
+  };
+
+  const handleEmailSend = async () => {
+    if (!emailTo.trim()) return;
+    setEmailSending(true);
+    setEmailResult(null);
+    try {
+      const res = await fetch('/api/share/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: emailTo.trim(), tutorialTitle: title, shareUrl: url }),
       });
-    } else {
-      // fallback: KakaoTalk 공유 URL 스킴
-      window.open(`kakaotalk://msg/send?text=${encodeURIComponent(`${title}\n${url}`)}`, '_blank');
+      const data = await res.json();
+      if (!res.ok) {
+        setEmailResult({ ok: false, msg: data.error ?? '발송 실패' });
+      } else {
+        setEmailResult({ ok: true, msg: `${emailTo}로 발송했습니다.` });
+        setEmailTo('');
+      }
+    } catch {
+      setEmailResult({ ok: false, msg: '네트워크 오류가 발생했습니다.' });
+    } finally {
+      setEmailSending(false);
     }
   };
 
-  const handleEmail = () => {
-    const subject = encodeURIComponent(`[MIMIC] ${title}`);
-    const body = encodeURIComponent(`안녕하세요,\n\n아래 링크에서 MIMIC 매뉴얼을 확인해주세요.\n\n${title}\n${url}\n\nMIMIC으로 만든 단계별 인터랙티브 매뉴얼입니다.`);
-    window.open(`mailto:?subject=${subject}&body=${body}`, '_self');
-  };
+  const tabBtn = (key: typeof tab, label: string) => (
+    <button
+      onClick={() => setTab(key)}
+      style={{ flex: 1, height: '36px', borderRadius: '7px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: tab === key ? 600 : 400, background: tab === key ? 'white' : 'transparent', color: tab === key ? '#111827' : '#9CA3AF', boxShadow: tab === key ? '0 1px 4px rgba(0,0,0,0.10)' : 'none', transition: 'all 0.12s' }}
+    >{label}</button>
+  );
 
   return (
     <>
@@ -264,43 +302,72 @@ function SharePopup({ title, url, onClose }: { title: string; url: string; onClo
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
 
-        <h2 style={{ fontSize: '17px', fontWeight: 700, margin: '0 0 6px' }}>공유하기</h2>
-        <p style={{ fontSize: '13px', color: '#6B7280', margin: '0 0 20px' }}>{title}</p>
+        <h2 style={{ fontSize: '17px', fontWeight: 700, margin: '0 0 4px' }}>공유하기</h2>
+        <p style={{ fontSize: '13px', color: '#6B7280', margin: '0 0 20px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</p>
 
         {/* 링크 복사 */}
         <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
           <input readOnly value={url} style={{ flex: 1, padding: '10px 12px', border: '1.5px solid #E5E7EB', borderRadius: '9px', fontSize: '12px', color: '#374151', background: '#F9FAFB', outline: 'none', fontFamily: 'ui-monospace, monospace', minWidth: 0 }} />
-          <button onClick={handleCopy} style={{ flexShrink: 0, padding: '0 16px', height: '40px', borderRadius: '9px', border: 'none', background: copied ? '#10B981' : '#111827', color: 'white', fontSize: '13px', fontWeight: 500, cursor: 'pointer', transition: 'background 0.18s', whiteSpace: 'nowrap' }}>
+          <button onClick={handleCopy} style={{ flexShrink: 0, padding: '0 14px', height: '40px', borderRadius: '9px', border: 'none', background: copied ? '#10B981' : '#111827', color: 'white', fontSize: '13px', fontWeight: 500, cursor: 'pointer', transition: 'background 0.18s', whiteSpace: 'nowrap' }}>
             {copied ? '복사됨 ✓' : '링크 복사'}
           </button>
         </div>
 
-        {/* 구분선 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-          <div style={{ flex: 1, height: '1px', background: '#F3F4F6' }} />
-          <span style={{ fontSize: '11.5px', color: '#9CA3AF' }}>앱으로 공유</span>
-          <div style={{ flex: 1, height: '1px', background: '#F3F4F6' }} />
+        {/* 탭 */}
+        <div style={{ display: 'flex', background: '#F3F4F6', borderRadius: '10px', padding: '3px', gap: '2px', marginBottom: '16px' }}>
+          {tabBtn('kakao', '카카오톡으로 보내기')}
+          {tabBtn('email', '이메일로 보내기')}
         </div>
 
-        {/* 앱 공유 버튼 */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-          <button onClick={handleKakao} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', height: '46px', borderRadius: '10px', border: 'none', background: '#FEE500', color: '#391B1B', fontSize: '13.5px', fontWeight: 600, cursor: 'pointer', transition: 'filter 0.15s' }}
-            onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(0.95)'; }}
-            onMouseLeave={e => { e.currentTarget.style.filter = 'none'; }}>
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
-              <path d="M9 0C4.03 0 0 3.13 0 6.99c0 2.49 1.56 4.68 3.91 5.93l-.99 3.68c-.09.34.29.61.59.41L7.7 14.4c.43.06.87.09 1.3.09 4.97 0 9-3.13 9-6.99C18 3.13 13.97 0 9 0z"/>
-            </svg>
-            카카오톡
-          </button>
-          <button onClick={handleEmail} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', height: '46px', borderRadius: '10px', border: '1.5px solid #E5E7EB', background: 'white', color: '#374151', fontSize: '13.5px', fontWeight: 600, cursor: 'pointer', transition: 'border-color 0.15s' }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = '#4F46E5'; e.currentTarget.style.color = '#4F46E5'; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.color = '#374151'; }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
-            </svg>
-            이메일
-          </button>
-        </div>
+        {/* 카카오톡 탭 */}
+        {tab === 'kakao' && (
+          <div>
+            <p style={{ fontSize: '13px', color: '#6B7280', margin: '0 0 14px', lineHeight: 1.5 }}>
+              카카오톡 친구 목록에서 보낼 대상을 선택합니다.
+            </p>
+            <button onClick={handleKakao} style={{ width: '100%', height: '48px', borderRadius: '10px', border: 'none', background: '#FEE500', color: '#391B1B', fontSize: '15px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'filter 0.15s' }}
+              onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(0.96)'; }}
+              onMouseLeave={e => { e.currentTarget.style.filter = 'none'; }}>
+              <svg width="20" height="20" viewBox="0 0 18 18" fill="currentColor">
+                <path d="M9 0C4.03 0 0 3.13 0 6.99c0 2.49 1.56 4.68 3.91 5.93l-.99 3.68c-.09.34.29.61.59.41L7.7 14.4c.43.06.87.09 1.3.09 4.97 0 9-3.13 9-6.99C18 3.13 13.97 0 9 0z"/>
+              </svg>
+              카카오톡으로 공유하기
+            </button>
+          </div>
+        )}
+
+        {/* 이메일 탭 */}
+        {tab === 'email' && (
+          <div>
+            <p style={{ fontSize: '13px', color: '#6B7280', margin: '0 0 12px', lineHeight: 1.5 }}>
+              받는 사람의 이메일 주소를 입력하면 매뉴얼 링크가 담긴 메일을 발송합니다.
+            </p>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input
+                type="email"
+                value={emailTo}
+                onChange={e => { setEmailTo(e.target.value); setEmailResult(null); }}
+                onKeyDown={e => { if (e.key === 'Enter') handleEmailSend(); }}
+                placeholder="example@email.com"
+                style={{ flex: 1, padding: '10px 14px', border: `1.5px solid ${emailResult?.ok === false ? '#EF4444' : '#E5E7EB'}`, borderRadius: '9px', fontSize: '13.5px', color: '#111827', outline: 'none', fontFamily: 'inherit', transition: 'border-color 0.15s' }}
+                onFocus={e => { e.currentTarget.style.borderColor = '#4F46E5'; }}
+                onBlur={e => { e.currentTarget.style.borderColor = emailResult?.ok === false ? '#EF4444' : '#E5E7EB'; }}
+              />
+              <button
+                onClick={handleEmailSend}
+                disabled={emailSending || !emailTo.trim()}
+                style={{ flexShrink: 0, padding: '0 16px', height: '42px', borderRadius: '9px', border: 'none', background: emailTo.trim() ? 'linear-gradient(135deg,#4F46E5,#7C3AED)' : '#E5E7EB', color: emailTo.trim() ? 'white' : '#9CA3AF', fontSize: '13.5px', fontWeight: 600, cursor: emailTo.trim() && !emailSending ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap', transition: 'background 0.15s', opacity: emailSending ? 0.7 : 1 }}
+              >
+                {emailSending ? '발송 중…' : '보내기'}
+              </button>
+            </div>
+            {emailResult && (
+              <p style={{ margin: '10px 0 0', fontSize: '12.5px', color: emailResult.ok ? '#10B981' : '#EF4444', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                {emailResult.ok ? '✓' : '✕'} {emailResult.msg}
+              </p>
+            )}
+          </div>
+        )}
       </div>
     </>
   );

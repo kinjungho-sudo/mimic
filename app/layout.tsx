@@ -44,12 +44,6 @@ export const metadata: Metadata = {
     description: "웹과 앱 화면을 30초 만에 인터랙티브 매뉴얼로. AI가 단계별 설명과 자막까지 자동 생성합니다.",
     images: [`${APP_URL}/api/og`],
   },
-  icons: {
-    icon: [
-      { url: "/mimic-logo.png", type: "image/png" },
-    ],
-    apple: "/mimic-logo.png",
-  },
   robots: {
     index: true,
     follow: true,
@@ -82,6 +76,13 @@ export default function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+        />
+        {/* Kakao SDK */}
+        <script
+          src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js"
+          integrity="sha384-OLBgp1GsljhM2TJ+sbHjaiH9txEUvgdDTAzHv2P24donTt6/529l+9Ua0vFImLlb"
+          crossOrigin="anonymous"
+          async
         />
       </head>
       <body
