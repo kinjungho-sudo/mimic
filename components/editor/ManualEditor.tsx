@@ -272,8 +272,8 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
           )}
         </div>
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: '40px 0 80px' }}>
-        <div style={{ maxWidth: '760px', margin: '0 auto', padding: '0 40px' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '24px 0 60px' }}>
+        <div style={{ maxWidth: '760px', margin: '0 auto', padding: '0 32px' }}>
           {steps.map((step, idx) => {
             const prevDomain = idx > 0 ? steps[idx - 1].domain_name : null;
             const showDomainHeader = !!step.domain_name && step.domain_name !== prevDomain;
@@ -284,7 +284,7 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
                 )}
                 <div
                   ref={el => { contentRefs.current[step.id] = el; }}
-                  style={{ marginBottom: '48px', scrollMarginTop: '24px' }}
+                  style={{ marginBottom: '28px', scrollMarginTop: '16px' }}
                 >
                   <StepCard
                     step={step}
@@ -326,8 +326,10 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
             initialFocusX={step.click_x ?? 50}
             initialFocusY={step.click_y ?? 50}
             onChange={annotations => {
-              updateStep(annotatingId, { annotations });
-              onSave?.(annotatingId, { annotations });
+              // 함수형 업데이트로 stale closure 방지
+              const id = annotatingId;
+              onChange(steps.map(s => s.id === id ? { ...s, annotations } : s));
+              onSave?.(id, { annotations });
             }}
             onClose={() => setAnnotatingId(null)}
           />
@@ -505,12 +507,12 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
       <TextFormatToolbar editorRef={editorRef} />
 
       {/* Card header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', padding: '12px 20px 16px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', padding: '8px 20px 10px' }}>
         {/* Title + description */}
         <div style={{ flex: 1, minWidth: 0 }}>
           {/* Number + Title row */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '15px', fontWeight: 700, color: '#F59E0B', flexShrink: 0, lineHeight: 1.4 }}>
+            <span style={{ fontSize: '13px', fontWeight: 700, color: '#F59E0B', flexShrink: 0, lineHeight: 1.4 }}>
               {String(step.number).padStart(2, '0')}.
             </span>
             {step.is_stale && (
@@ -527,7 +529,7 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
               onBlur={e => { e.currentTarget.style.background = 'transparent'; handleTitleBlur(e); }}
               placeholder="단계 제목을 입력하세요"
               style={{
-                flex: 1, fontSize: '15px', fontWeight: 600, color: '#111827',
+                flex: 1, fontSize: '13px', fontWeight: 600, color: '#111827',
                 background: 'transparent', border: 'none', outline: 'none',
                 padding: '3px 6px', margin: '0 -6px',
                 lineHeight: 1.4, borderRadius: '6px', cursor: 'text',
@@ -548,13 +550,13 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
             onBlur={e => { e.currentTarget.style.background = 'transparent'; handleEditorBlur(); }}
             data-placeholder="이 단계에 대한 설명을 입력하세요."
             style={{
-              width: '100%', marginTop: '6px',
-              fontSize: '13.5px', color: '#4B5563',
-              lineHeight: 1.6, fontFamily: 'inherit',
-              minHeight: '24px',
+              width: '100%', marginTop: '4px',
+              fontSize: '12.5px', color: '#4B5563',
+              lineHeight: 1.5, fontFamily: 'inherit',
+              minHeight: '20px',
               outline: 'none',
               borderRadius: '6px',
-              padding: '3px 6px', margin: '6px -6px 0',
+              padding: '2px 6px', margin: '4px -6px 0',
               cursor: 'text',
               transition: 'background 0.15s ease',
               boxSizing: 'border-box',
@@ -740,7 +742,7 @@ function ScreenshotArea({ step, onUploadClick, onDrop, onZoom, onAnnotate, onRem
         onDragOver={e => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
         style={{
-          margin: '0 20px 20px', height: '200px',
+          margin: '0 12px 12px', height: '180px',
           background: dragOver ? 'rgba(79,70,229,0.04)' : '#F9FAFB',
           border: `1.5px dashed ${dragOver ? '#4F46E5' : '#D1D5DB'}`,
           borderRadius: '8px',
@@ -768,7 +770,7 @@ function ScreenshotArea({ step, onUploadClick, onDrop, onZoom, onAnnotate, onRem
 
   return (
     <div
-      style={{ margin: '0 20px 20px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #E5E7EB', position: 'relative' }}
+      style={{ margin: '0 12px 12px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #E5E7EB', position: 'relative' }}
       onMouseEnter={() => setImgHover(true)}
       onMouseLeave={() => setImgHover(false)}
     >
