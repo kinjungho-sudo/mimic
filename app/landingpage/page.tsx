@@ -461,9 +461,8 @@ export default function LandingPage() {
           </span>
 
           {/* 헤드라인 — Tango 패턴: 일반 + 이탤릭 강조 */}
-          <h1 style={{ margin: '0 auto 20px', fontSize: '58px', lineHeight: 1.12, fontWeight: 800, letterSpacing: '-0.03em', maxWidth: '820px', color: '#0D0D14' }}>
-            당신은 그냥 하세요.<br />
-            <em style={{ fontStyle: 'italic', fontWeight: 800, background: 'linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>매뉴얼은 MIMIC이</em> 만듭니다.
+          <h1 style={{ margin: '0 auto 20px', fontSize: '56px', lineHeight: 1.15, fontWeight: 700, letterSpacing: '-0.03em', maxWidth: '760px', color: '#0D0D14' }}>
+            당신은 그냥 하세요. <em style={{ fontStyle: 'italic', fontWeight: 700, background: 'linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>매뉴얼은<br />MIMIC이</em> 만들어 드립니다.
           </h1>
 
           <p style={{ fontSize: '18px', color: '#4B5563', maxWidth: '560px', margin: '0 auto 36px', lineHeight: 1.65 }}>
