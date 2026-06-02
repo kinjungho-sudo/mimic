@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { RecordingModal } from '@/components/dashboard/RecordingModal';
 import { createTutorial } from '@/lib/api/tutorials';
 import type { Tutorial, Workspace, Folder } from '@/types';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -592,11 +593,11 @@ export default function DashboardPage() {
         />
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', fontFamily: "'Pretendard Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", fontSize: '13.5px', color: '#111827', background: '#F8F9FA' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', fontFamily: "'Pretendard Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", fontSize: '13.5px', color: 'var(--mm-text-1)', background: 'var(--mm-bg-soft)' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', flex: 1 }}>
 
           {/* ── 사이드바 ── */}
-          <aside style={{ background: 'white', borderRight: '1px solid #F3F4F6', padding: '16px 12px', display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto' }}>
+          <aside style={{ background: 'var(--mm-bg)', borderRight: '1px solid var(--mm-border-light)', padding: '16px 12px', display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto' }}>
 
             {/* 로고 */}
             <Link href="/home" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px 16px', textDecoration: 'none' }}>
@@ -829,12 +830,13 @@ export default function DashboardPage() {
           {/* ── 메인 ── */}
           <main style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
             {/* 헤더 */}
-            <header style={{ display: 'flex', alignItems: 'center', gap: '12px', height: '60px', padding: '0 32px', background: 'white', borderBottom: '1px solid #F3F4F6', position: 'sticky', top: 0, zIndex: 30 }}>
+            <header style={{ display: 'flex', alignItems: 'center', gap: '12px', height: '60px', padding: '0 32px', background: 'var(--mm-bg)', borderBottom: '1px solid var(--mm-border-light)', position: 'sticky', top: 0, zIndex: 30 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, maxWidth: '380px', height: '36px', padding: '0 12px', border: '1px solid #E5E7EB', borderRadius: '9px', background: '#F9FAFB', color: '#9CA3AF' }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 <input placeholder="매뉴얼 검색..." style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '13px', fontFamily: 'inherit', color: '#374151' }} />
               </div>
-              <div style={{ marginLeft: 'auto' }}>
+              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ThemeToggle />
                 <div ref={newMenuRef} style={{ position: 'relative' }}>
                   <button onClick={() => setShowNewMenu(v => !v)} disabled={creating}
                     style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '8px 14px', borderRadius: '9px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', border: 'none', cursor: creating ? 'not-allowed' : 'pointer', fontSize: '13.5px', fontWeight: 600, boxShadow: '0 2px 8px rgba(79,70,229,0.28)', opacity: creating ? 0.7 : 1 }}>

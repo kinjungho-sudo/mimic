@@ -17,8 +17,10 @@
   --mm-grad: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
   --mm-grad-soft: linear-gradient(135deg, #EEF2FF 0%, #F5F3FF 100%);
 
+  /* Light mode tokens */
   --mm-bg: #FFFFFF;
-  --mm-bg-soft: #FAFAFA;
+  --mm-bg-soft: #F8F9FA;
+  --mm-bg-subtle: #F3F4F6;
   --mm-bg-dark: #0A0A0F;
   --mm-bg-dark-2: #111827;
 
@@ -33,6 +35,10 @@
 
   --mm-border: #E5E7EB;
   --mm-border-light: #F3F4F6;
+
+  --mm-shadow-sm: 0 1px 3px rgba(17,24,39,0.08);
+  --mm-shadow-md: 0 4px 16px rgba(17,24,39,0.10);
+  --mm-shadow-lg: 0 8px 32px rgba(17,24,39,0.12);
 
   --mm-t: 0.18s ease;
 
@@ -49,6 +55,89 @@
   --border: var(--mm-border);
   --border-light: var(--mm-border-light);
   --t: var(--mm-t);
+}
+
+/* ── Dark mode tokens ── */
+html[data-theme="dark"] {
+  color-scheme: dark;
+
+  --mm-bg: #0F0F13;
+  --mm-bg-soft: #18181F;
+  --mm-bg-subtle: #1F1F28;
+
+  --mm-text-1: #F1F1F5;
+  --mm-text-2: #B0B3C6;
+  --mm-text-3: #8A8DA8;
+  --mm-text-4: #5C5F7A;
+
+  --mm-border: #2A2A38;
+  --mm-border-light: #22222E;
+
+  --mm-shadow-sm: 0 1px 3px rgba(0,0,0,0.30);
+  --mm-shadow-md: 0 4px 16px rgba(0,0,0,0.36);
+  --mm-shadow-lg: 0 8px 32px rgba(0,0,0,0.42);
+
+  --mm-grad-soft: linear-gradient(135deg, #1E1B4B 0%, #2D1B69 100%);
+  --mm-primary-50: #1E1B4B;
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --mm-bg: #0F0F13;
+    --mm-bg-soft: #18181F;
+    --mm-bg-subtle: #1F1F28;
+
+    --mm-text-1: #F1F1F5;
+    --mm-text-2: #B0B3C6;
+    --mm-text-3: #8A8DA8;
+    --mm-text-4: #5C5F7A;
+
+    --mm-border: #2A2A38;
+    --mm-border-light: #22222E;
+
+    --mm-shadow-sm: 0 1px 3px rgba(0,0,0,0.30);
+    --mm-shadow-md: 0 4px 16px rgba(0,0,0,0.36);
+    --mm-shadow-lg: 0 8px 32px rgba(0,0,0,0.42);
+
+    --mm-grad-soft: linear-gradient(135deg, #1E1B4B 0%, #2D1B69 100%);
+    --mm-primary-50: #1E1B4B;
+  }
+}
+
+/* ── Dark mode 공통 overrides ── */
+html[data-theme="dark"] body,
+html:not([data-theme="light"]) body {
+  background: var(--mm-bg);
+  color: var(--mm-text-1);
+}
+
+/* ── 공통 유틸 클래스 (다크모드 자동 반응) ── */
+.mm-bg        { background: var(--mm-bg); }
+.mm-bg-soft   { background: var(--mm-bg-soft); }
+.mm-bg-subtle { background: var(--mm-bg-subtle); }
+.mm-text-1    { color: var(--mm-text-1); }
+.mm-text-2    { color: var(--mm-text-2); }
+.mm-text-3    { color: var(--mm-text-3); }
+.mm-border    { border-color: var(--mm-border); }
+
+.mm-card {
+  background: var(--mm-bg);
+  border: 1px solid var(--mm-border);
+  border-radius: 12px;
+}
+
+.mm-sidebar {
+  background: var(--mm-bg);
+  border-color: var(--mm-border);
+}
+
+/* 다크모드 transition (테마 전환 시 부드럽게) */
+html.mm-theme-ready *,
+html.mm-theme-ready *::before,
+html.mm-theme-ready *::after {
+  transition: background-color 0.22s ease, border-color 0.22s ease, color 0.22s ease !important;
 }
 
 * { box-sizing: border-box; }

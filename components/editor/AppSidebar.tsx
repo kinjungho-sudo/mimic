@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, BookOpen, Users, Zap, Settings,
 } from 'lucide-react';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 const NAV_ITEMS = [
   { icon: LayoutDashboard, label: '홈', href: '/home' },
@@ -64,7 +65,8 @@ export function AppSidebar() {
       </div>
 
       {/* Bottom */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'center' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'center' }}>
+        <ThemeToggle variant="dark-surface" />
         <Link href="#" title="설정" style={{ width: '42px', height: '42px', borderRadius: '10px', display: 'grid', placeItems: 'center', color: 'rgba(255,255,255,0.35)', textDecoration: 'none', transition: 'all 0.15s' }}
           onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; }}
           onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.35)'; }}>
