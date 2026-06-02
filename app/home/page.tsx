@@ -839,10 +839,11 @@ export default function DashboardPage() {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 <input placeholder="매뉴얼 검색..." style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '13px', fontFamily: 'inherit', color: '#374151' }} />
               </div>
-              <div style={{ marginLeft: 'auto' }}>
+              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div ref={newMenuRef} style={{ position: 'relative' }}>
                   <button onClick={() => setShowNewMenu(v => !v)} disabled={creating}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '8px 14px', borderRadius: '9px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', border: 'none', cursor: creating ? 'not-allowed' : 'pointer', fontSize: '13.5px', fontWeight: 600, boxShadow: '0 2px 8px rgba(79,70,229,0.28)', opacity: creating ? 0.7 : 1 }}>
+                    className="home-new-btn"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '8px 14px', borderRadius: '9px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', border: 'none', cursor: creating ? 'not-allowed' : 'pointer', fontSize: '13.5px', fontWeight: 600, boxShadow: '0 2px 8px rgba(79,70,229,0.28)', opacity: creating ? 0.7 : 1, whiteSpace: 'nowrap' }}>
                     {creating
                       ? <span style={{ width: '12px', height: '12px', borderRadius: '50%', border: '2px solid rgba(255,255,255,0.4)', borderTopColor: 'white', animation: 'spin 0.8s linear infinite', flexShrink: 0 }} />
                       : <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'rgba(255,255,255,0.85)', animation: 'recPulse 1.4s ease-in-out infinite', flexShrink: 0 }} />
@@ -876,10 +877,10 @@ export default function DashboardPage() {
             </header>
 
             {/* 본문 */}
-            <div style={{ padding: '28px 32px', flex: 1 }}>
+            <div className="home-main-body" style={{ padding: '28px 32px', flex: 1 }}>
               {/* 인사말 */}
               <div style={{ marginBottom: '20px' }}>
-                <h1 style={{ fontSize: '24px', fontWeight: 700, letterSpacing: '-0.025em', margin: 0, color: '#0F172A' }}>
+                <h1 className="home-greeting" style={{ fontSize: '24px', fontWeight: 700, letterSpacing: '-0.025em', margin: 0, color: '#0F172A' }}>
                   {authLoading ? '' : `${greeting()}, ${firstName}님`} 👋
                 </h1>
               </div>
