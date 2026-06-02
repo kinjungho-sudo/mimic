@@ -1,11 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, BookOpen, Users, Zap, Settings,
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { useAuth } from '@/hooks/useAuth';
 
 const NAV_ITEMS = [
   { icon: LayoutDashboard, label: '홈', href: '/home' },
@@ -16,6 +17,12 @@ const NAV_ITEMS = [
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user } = useAuth();
+
+  const initials = user?.name
+    ? user.name.slice(0, 2).toUpperCase()
+    : user?.email?.slice(0, 2).toUpperCase() ?? '??';
 
   return (
     <aside style={{
@@ -66,12 +73,36 @@ export function AppSidebar() {
 
       {/* Bottom */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'center' }}>
-        <ThemeToggle variant="dark-surface" />
-        <Link href="#" title="설정" style={{ width: '42px', height: '42px', borderRadius: '10px', display: 'grid', placeItems: 'center', color: 'rgba(255,255,255,0.35)', textDecoration: 'none', transition: 'all 0.15s' }}
+        <ThemeToggle />
+        <Link href="/settings" title="설정" style={{ width: '42px', height: '42px', borderRadius: '10px', display: 'grid', placeItems: 'center', color: 'rgba(255,255,255,0.35)', textDecoration: 'none', transition: 'all 0.15s' }}
           onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; }}
           onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.35)'; }}>
           <Settings size={17} />
         </Link>
+        {/* User avatar → mypage */}
+        <button
+          onClick={() => router.push('/mypage')}
+          title={user?.name ?? user?.email ?? '마이페이지'}
+          style={{
+            width: '36px', height: '36px', borderRadius: '50%',
+            background: user?.avatar_url
+              ? 'transparent'
+              : 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
+            border: '2px solid rgba(255,255,255,0.15)',
+            display: 'grid', placeItems: 'center',
+            cursor: 'pointer', overflow: 'hidden',
+            padding: 0, flexShrink: 0,
+            transition: 'border-color 0.15s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.5)'; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'; }}
+        >
+          {user?.avatar_url ? (
+            <img src={user.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : (
+            <span style={{ fontSize: '12px', fontWeight: 700, color: 'white', lineHeight: 1 }}>{initials}</span>
+          )}
+        </button>
       </div>
     </aside>
   );
