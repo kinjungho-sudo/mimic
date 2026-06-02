@@ -186,3 +186,183 @@ input, textarea, select { font-family: inherit; }
   0%, 100% { box-shadow: 0 0 0 0 rgba(79,70,229,0.50), 0 0 0 3px white; }
   50% { box-shadow: 0 0 0 10px rgba(79,70,229,0), 0 0 0 3px white; }
 }
+
+/* ── 반응형 유틸 ── */
+
+/* 인증 페이지: 데스크톱 2단 / 모바일 1단 */
+.auth-grid {
+  display: grid;
+  grid-template-columns: 44% 56%;
+  min-height: 100vh;
+}
+.auth-brand-panel { display: flex; }
+
+@media (max-width: 768px) {
+  .auth-grid {
+    grid-template-columns: 1fr;
+  }
+  .auth-brand-panel { display: none; }
+  .auth-form-panel {
+    padding: 32px 24px !important;
+  }
+  .auth-form-inner {
+    max-width: 100% !important;
+    padding: 16px 0 !important;
+  }
+}
+
+/* 홈 카드 그리드 */
+.home-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+@media (max-width: 480px) {
+  .home-card-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+}
+
+@media (max-width: 360px) {
+  .home-card-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 홈 사이드바 */
+@media (max-width: 768px) {
+  .home-sidebar { display: none !important; }
+  .home-sidebar-mobile-btn { display: flex !important; }
+}
+
+/* 플레이어 */
+@media (max-width: 768px) {
+  .player-sidebar { display: none !important; }
+  .player-sidebar-open { display: flex !important; position: fixed; inset: 0; z-index: 50; }
+}
+
+/* 에디터 — 모바일은 뷰어 모드만 */
+@media (max-width: 768px) {
+  .editor-toc { display: none !important; }
+  .editor-edit-btn { display: none !important; }
+}
+
+/* 공통 모바일 터치 타겟 최소 44px */
+@media (max-width: 768px) {
+  button, [role="button"] {
+    min-height: 44px;
+  }
+}
+
+/* word-break: keep-all — 한국어 텍스트 줄바꿈 개선 */
+body {
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+/* 홈 레이아웃 반응형 */
+@media (max-width: 768px) {
+  .home-layout-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .home-mobile-logo {
+    display: flex !important;
+  }
+  .home-search-bar {
+    display: none !important;
+  }
+  .home-header-inner {
+    padding: 0 16px !important;
+  }
+}
+
+/* 홈 카드 그리드 */
+.home-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+@media (max-width: 640px) {
+  .home-card-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+}
+
+@media (max-width: 380px) {
+  .home-card-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 플레이어 반응형 */
+@media (max-width: 768px) {
+  .player-layout {
+    flex-direction: column !important;
+  }
+  .player-sidebar-desktop {
+    display: none !important;
+  }
+  .player-step-nav {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 50 !important;
+    border-top: 1px solid #E5E7EB !important;
+  }
+  .player-main-content {
+    padding-bottom: 80px !important;
+  }
+}
+
+/* 에디터 반응형 — 모바일에서 TOC 숨김, 편집 버튼 숨김 */
+@media (max-width: 768px) {
+  .editor-toc-panel {
+    display: none !important;
+  }
+  .editor-edit-only {
+    display: none !important;
+  }
+  .editor-header-padding {
+    padding: 0 12px !important;
+  }
+}
+
+/* 플레이어 하단 컨트롤 반응형 */
+@media (max-width: 640px) {
+  .player-controls {
+    padding: 14px 16px !important;
+    gap: 10px !important;
+  }
+  /* 진행 dots 숨기고 텍스트만 */
+  .player-dots {
+    display: none !important;
+  }
+  /* 챕터 카드 위치 조정 */
+  .player-chapter-card {
+    left: 12px !important;
+    top: 68px !important;
+    font-size: 11px !important;
+  }
+}
+
+/* 플레이어 헤더 — 모바일에서 모드 토글 레이블 숨김 */
+@media (max-width: 480px) {
+  .player-mode-label {
+    display: none !important;
+  }
+  .player-header-actions {
+    gap: 4px !important;
+  }
+}
+
+/* 뷰어(play/[token]) 문서 모드 — 모바일 패딩 */
+@media (max-width: 640px) {
+  .viewer-doc-step {
+    padding: 20px 16px !important;
+  }
+}

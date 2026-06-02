@@ -42,10 +42,10 @@ function LoginForm() {
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '44% 56%', minHeight: '100vh', fontFamily: "'Pretendard', 'Pretendard Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif" }}>
+    <div className="auth-grid" style={{ fontFamily: "'Pretendard', 'Pretendard Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif" }}>
 
-      {/* Left brand panel */}
-      <aside style={{ background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', color: 'white', padding: '56px', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
+      {/* Left brand panel — 모바일에서 숨김 */}
+      <aside className="auth-brand-panel" style={{ background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', color: 'white', padding: '56px', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(600px 320px at 100% 0%, rgba(255,255,255,0.18), transparent 60%), radial-gradient(500px 280px at 0% 100%, rgba(0,0,0,0.18), transparent 60%)', pointerEvents: 'none' }} />
         <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '100%' }}>
           <Link href="/landingpage" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', fontSize: '16px', fontWeight: 500, color: 'white', textDecoration: 'none' }}>
@@ -78,13 +78,13 @@ function LoginForm() {
       </aside>
 
       {/* Right form panel */}
-      <section style={{ display: 'flex', flexDirection: 'column', padding: '36px 64px', background: 'white' }}>
+      <section className="auth-form-panel" style={{ display: 'flex', flexDirection: 'column', padding: '36px 64px', background: 'white' }}>
         <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#6B7280' }}>
           계정이 없으신가요?
           <Link href="/auth/signup" style={{ color: '#4F46E5', fontWeight: 500, marginLeft: '4px', textDecoration: 'none' }}>회원가입</Link>
         </div>
 
-        <div style={{ width: '100%', maxWidth: '380px', margin: 'auto', padding: '24px 0' }}>
+        <div className="auth-form-inner" style={{ width: '100%', maxWidth: '380px', margin: 'auto', padding: '24px 0' }}>
           <h2 style={{ fontSize: '24px', fontWeight: 500, letterSpacing: '-0.01em', margin: '0 0 8px' }}>로그인</h2>
           <p style={{ color: '#6B7280', fontSize: '13.5px', margin: '0 0 28px', lineHeight: 1.55 }}>Google 계정으로 접속하여 회원 가입없이 시작하세요.</p>
 

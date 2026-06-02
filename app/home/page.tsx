@@ -594,10 +594,10 @@ export default function DashboardPage() {
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', fontFamily: "'Pretendard Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", fontSize: '13.5px', color: 'var(--mm-text-1)', background: 'var(--mm-bg-soft)' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', flex: 1 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', flex: 1 }} className="home-layout-grid">
 
-          {/* ── 사이드바 ── */}
-          <aside style={{ background: 'var(--mm-bg)', borderRight: '1px solid var(--mm-border-light)', padding: '16px 12px', display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto' }}>
+          {/* ── 사이드바 — 모바일에서 숨김 ── */}
+          <aside className="home-sidebar" style={{ background: 'var(--mm-bg)', borderRight: '1px solid var(--mm-border-light)', padding: '16px 12px', display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto' }}>
 
             {/* 로고 */}
             <Link href="/home" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px 16px', textDecoration: 'none' }}>
@@ -829,9 +829,14 @@ export default function DashboardPage() {
 
           {/* ── 메인 ── */}
           <main style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-            {/* 헤더 */}
-            <header style={{ display: 'flex', alignItems: 'center', gap: '12px', height: '60px', padding: '0 32px', background: 'var(--mm-bg)', borderBottom: '1px solid var(--mm-border-light)', position: 'sticky', top: 0, zIndex: 30 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, maxWidth: '380px', height: '36px', padding: '0 12px', border: '1px solid #E5E7EB', borderRadius: '9px', background: '#F9FAFB', color: '#9CA3AF' }}>
+            {/* 헤더 — 모바일에서는 로고+버튼만 */}
+            <header style={{ display: 'flex', alignItems: 'center', gap: '12px', height: '60px', padding: '0 16px', background: 'var(--mm-bg)', borderBottom: '1px solid var(--mm-border-light)', position: 'sticky', top: 0, zIndex: 30 }}>
+              {/* 모바일 전용 로고 */}
+              <Link href="/home" className="home-mobile-logo" style={{ display: 'none', alignItems: 'center', gap: '6px', textDecoration: 'none', flexShrink: 0 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/mimic-logo-2-2.png" alt="MIMIC" style={{ height: '28px', width: '28px', objectFit: 'contain' }} />
+              </Link>
+              <div className="home-search-bar" style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, maxWidth: '380px', height: '36px', padding: '0 12px', border: '1px solid #E5E7EB', borderRadius: '9px', background: '#F9FAFB', color: '#9CA3AF' }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 <input placeholder="매뉴얼 검색..." style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '13px', fontFamily: 'inherit', color: '#374151' }} />
               </div>
@@ -916,7 +921,7 @@ export default function DashboardPage() {
 
               {/* 그리드 */}
               {tutLoading ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                <div className="home-card-grid">
                   {[1,2,3,4,5,6].map(i => (
                     <div key={i} style={{ borderRadius: '10px', background: 'white', border: '1px solid #E5E7EB', padding: '11px 13px', display: 'flex', alignItems: 'center', gap: '11px' }}>
                       <div style={{ width: '34px', height: '34px', borderRadius: '8px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite', flexShrink: 0 }} />
@@ -931,7 +936,7 @@ export default function DashboardPage() {
                 <EmptyState onRecord={() => setShowRecordingModal(true)} onBlank={handleCreateBlank}
                   label={activeTab === 'team' ? '팀 매뉴얼이 없어요' : activeFolder !== 'all' ? '이 폴더에 매뉴얼이 없어요' : undefined} />
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                <div className="home-card-grid">
                   {displayedTutorials.map(t => (
                     <TutorialCard key={t.id} tutorial={t} onContextMenu={handleContextMenu} onTitleChange={handleTitleChange} onMenuClick={handleContextMenu} />
                   ))}

@@ -827,7 +827,7 @@ export default function PlayerPage({ params }: { params: { token: string } }) {
       )}
 
       {/* Bottom controls */}
-      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '18px 24px', background: 'linear-gradient(0deg, rgba(0,0,0,0.5), transparent)', display: 'flex', alignItems: 'center', gap: '18px', zIndex: 22 }}>
+      <div className="player-controls" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '18px 24px', background: 'linear-gradient(0deg, rgba(0,0,0,0.5), transparent)', display: 'flex', alignItems: 'center', gap: '18px', zIndex: 22 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button onClick={() => goTo(currentStep - 1)} disabled={currentStep === 0}
             style={{ width: '36px', height: '36px', borderRadius: '50%', display: 'grid', placeItems: 'center', background: 'rgba(255,255,255,0.08)', color: 'white', border: 'none', cursor: currentStep === 0 ? 'not-allowed' : 'pointer', opacity: currentStep === 0 ? 0.4 : 1 }}>

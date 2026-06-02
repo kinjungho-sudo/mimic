@@ -363,7 +363,7 @@ export default function EditorPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
       {/* ── Top header ── */}
-      <header style={{
+      <header className="editor-header-padding" style={{
         height: '52px', flexShrink: 0,
         display: 'flex', alignItems: 'center',
         padding: '0 16px',
@@ -693,8 +693,8 @@ export default function EditorPage() {
 
       {/* ── Body ── */}
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-        {/* TOC panel */}
-        <div style={{ width: '240px', flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid #E5E7EB', background: 'white', minHeight: 0 }}>
+        {/* TOC panel — 모바일에서 숨김 */}
+        <div className="editor-toc-panel" style={{ width: '240px', flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid #E5E7EB', background: 'white', minHeight: 0 }}>
           <GuideToc
             steps={manualSteps}
             activeId={activeId}
