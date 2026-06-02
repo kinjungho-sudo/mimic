@@ -241,8 +241,17 @@ ${JSON.stringify(stepsData, null, 2)}
 }
 
 export async function generateDraft(
-  steps: Array<{ id: string; ai_title: string | null; ai_description: string | null; page_url: string | null; step_number: number }>
+  steps: Array<{ id: string; ai_title: string | null; ai_description: string | null; page_url: string | null; step_number: number; domain_name?: string | null }>
 ): Promise<{ steps: Array<{ id: string; user_title: string; user_script: string }>; tutorial_title: string }> {
+  // 가장 많이 등장하는 domain_name을 서비스 이름으로 사용
+  const domainCounts = new Map<string, number>();
+  steps.forEach(s => {
+    if (s.domain_name) domainCounts.set(s.domain_name, (domainCounts.get(s.domain_name) ?? 0) + 1);
+  });
+  const mainService = domainCounts.size > 0
+    ? Array.from(domainCounts.entries()).sort((a, b) => b[1] - a[1])[0][0]
+    : null;
+
   const stepsText = steps
     .map(s =>
       `[Step ${s.step_number}] id=${s.id}\n` +
@@ -252,18 +261,20 @@ export async function generateDraft(
     )
     .join('\n\n');
 
+  const serviceHint = mainService ? `\n주요 서비스: ${mainService}` : '';
+
   const response = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 2048,
     messages: [
       {
         role: 'user',
-        content: `다음은 사용자가 녹화한 매뉴얼 단계들입니다. 각 단계에 대해 더 풍부하고 자연스러운 한국어 매뉴얼 초안을 작성해줘.
+        content: `다음은 사용자가 녹화한 매뉴얼 단계들입니다. 각 단계에 대해 더 풍부하고 자연스러운 한국어 매뉴얼 초안을 작성해줘.${serviceHint}
 
 ${stepsText}
 
 규칙:
-- tutorial_title: 이 매뉴얼 전체를 대표하는 30자 이내 제목 (예: "Slack 채널 만들기", "구글 드라이브 파일 공유 방법")
+- tutorial_title: 이 매뉴얼 전체를 대표하는 30자 이내 제목 (예: "Slack 채널 만들기", "구글 드라이브 파일 공유 방법"). 서비스 이름과 핵심 작업을 담아야 함
 - user_title: 각 단계를 20자 이내의 명확한 행동 제목으로 (예: "로그인 버튼 클릭", "이메일 주소 입력")
 - user_script: 각 단계를 독자가 따라하기 쉽게 2-3문장으로 설명 (존댓말, 구체적인 행동 묘사)
 - 모든 step id를 포함해야 함

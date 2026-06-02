@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
   try {
     const { data: createdSteps } = await supabase
       .from('mm_steps')
-      .select('id, step_number, ai_title, ai_description, page_url, screenshot_url')
+      .select('id, step_number, ai_title, ai_description, page_url, screenshot_url, domain_name')
       .eq('tutorial_id', tutorial.id)
       .order('step_number', { ascending: true });
 
