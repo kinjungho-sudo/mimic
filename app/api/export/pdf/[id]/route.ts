@@ -269,12 +269,20 @@ export async function GET(request: NextRequest, { params }: Params) {
   }
 
   const pdfBytes = await pdfDoc.save();
-  const filename = encodeURIComponent(tutorial.title.replace(/[/\\?%*:|"<>]/g, '-'));
+
+  // 파일명: "매뉴얼 제목_2026-06-02.pdf" — RFC 5987 UTF-8 인코딩
+  const dateStr = new Date().toLocaleDateString('ko-KR', {
+    year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Asia/Seoul',
+  }).replace(/\. /g, '-').replace(/\.$/, '');
+  const safeTitle = tutorial.title.replace(/[/\\?%*:|"<>]/g, '-').trim() || '매뉴얼';
+  const filenameRaw = `${safeTitle}_${dateStr}.pdf`;
+  const filenameEncoded = encodeURIComponent(filenameRaw);
 
   return new Response(pdfBytes.buffer as ArrayBuffer, {
     headers: {
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="${filename}.pdf"`,
+      // filename*= (RFC 5987): 한글/특수문자 브라우저 완전 지원
+      'Content-Disposition': `attachment; filename="${filenameEncoded}"; filename*=UTF-8''${filenameEncoded}`,
     },
   });
 }

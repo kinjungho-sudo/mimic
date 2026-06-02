@@ -265,17 +265,6 @@ export default function EditorPage() {
     }).catch(() => {});
   }, [id]);
 
-  const handlePublish = useCallback(async () => {
-    try {
-      const result = await publish();
-      const url = result.share_url ?? `${window.location.origin}/play/${result.share_token}`;
-      await navigator.clipboard.writeText(url).catch(() => {});
-      alert(`게시 완료!\n링크가 클립보드에 복사되었습니다:\n${url}`);
-    } catch {
-      alert('게시 중 오류가 발생했습니다.');
-    }
-  }, [publish]);
-
   const handleDeleteStep = useCallback((stepId: string) => {
     const next = manualSteps.filter(s => s.id !== stepId).map((s, i) => ({ ...s, number: i + 1 }));
     setManualStepsWithHistory(next);
@@ -660,14 +649,7 @@ export default function EditorPage() {
                 <Pencil size={13} /> 편집
               </button>
 
-              <button
-                onClick={handlePublish}
-                style={{ height: '32px', padding: '0 14px', borderRadius: '7px', fontSize: '12.5px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', color: 'white', background: '#111827', border: 'none', cursor: 'pointer', transition: 'background 0.15s' }}
-                onMouseEnter={e => { e.currentTarget.style.background = '#1F2937'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = '#111827'; }}
-              >
-                게시
-              </button>
+              {/* 게시 버튼 제거 — 공유 버튼에서 자동 게시 처리 */}
             </>
           )}
           </div>
