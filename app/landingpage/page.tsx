@@ -161,6 +161,36 @@ const DEMO_STEPS = [
   },
 ];
 
+const CYCLE_WORDS = ['자동으로 완성', '바로 공유', 'AI가 생성', '링크 하나로'];
+const WORD_INTERVAL_MS = 2500;
+const WORD_ANIM_MS = 350;
+
+type WordPhase = 'idle' | 'exit' | 'enter';
+
+function useWordCycle(words: string[]) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [phase, setPhase] = useState<WordPhase>('idle');
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    timerRef.current = setTimeout(function tick() {
+      setPhase('exit');
+      setTimeout(() => {
+        setCurrentIndex(prev => (prev + 1) % words.length);
+        setPhase('enter');
+        setTimeout(() => {
+          setPhase('idle');
+          timerRef.current = setTimeout(tick, WORD_INTERVAL_MS);
+        }, WORD_ANIM_MS);
+      }, WORD_ANIM_MS);
+    }, WORD_INTERVAL_MS);
+
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [words.length]);
+
+  return { index: currentIndex, phase };
+}
+
 function HeroDemo() {
   const [activeIdx, setActiveIdx] = useState(0);
   const [animating, setAnimating] = useState(false);
@@ -190,7 +220,6 @@ function HeroDemo() {
 
   return (
     <div style={{ position: 'relative', maxWidth: '960px', margin: '0 auto' }}>
-      {/* 브라우저 프레임 — 하단이 잘린 구도 */}
       <div style={{
         borderRadius: '16px 16px 0 0',
         overflow: 'hidden',
@@ -209,7 +238,6 @@ function HeroDemo() {
               {step.url}
             </span>
           </div>
-          {/* MIMIC 녹화 뱃지 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 10px', borderRadius: '5px', background: 'white', border: '1px solid #E5E7EB', fontSize: '11px', color: '#374151', fontWeight: 500, flexShrink: 0 }}>
             <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#EF4444', animation: 'rec-blink 1.4s ease-in-out infinite', display: 'inline-block' }} />
             MIMIC 녹화 중
@@ -230,11 +258,11 @@ function HeroDemo() {
               objectPosition: 'top',
               display: 'block',
               opacity: animating ? 0 : 1,
-              transition: 'opacity 0.25s ease',
+              transition: 'opacity 0.3s ease',
             }}
           />
 
-          {/* 클릭 마커 오버레이 */}
+          {/* 번호 마커 */}
           <div style={{
             position: 'absolute',
             bottom: '28%',
@@ -247,20 +275,20 @@ function HeroDemo() {
             fontSize: '11px', fontWeight: 700,
             boxShadow: '0 0 0 6px rgba(79,70,229,0.22), 0 4px 12px rgba(79,70,229,0.5)',
             opacity: animating ? 0 : 1,
-            transition: 'opacity 0.25s ease',
+            transition: 'opacity 0.3s ease',
             zIndex: 5,
           }}>
             {step.num}
           </div>
 
-          {/* 하단 캡션 오버레이 */}
+          {/* 하단 그라디언트 + 캡션 */}
           <div style={{
             position: 'absolute',
             bottom: 0, left: 0, right: 0,
             background: 'linear-gradient(to top, rgba(10,10,20,0.72) 0%, transparent 100%)',
             padding: '40px 24px 20px',
             opacity: animating ? 0 : 1,
-            transition: 'opacity 0.25s ease',
+            transition: 'opacity 0.3s ease',
           }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
               <div style={{ width: '24px', height: '24px', borderRadius: '7px', background: '#F59E0B', color: 'white', fontSize: '10px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
@@ -272,10 +300,40 @@ function HeroDemo() {
               </div>
             </div>
           </div>
+
+          {/* 아바타 배지 */}
+          <div style={{
+            position: 'absolute',
+            bottom: '20px',
+            right: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 12px 8px 8px',
+            borderRadius: '999px',
+            background: 'rgba(255,255,255,0.96)',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+            zIndex: 10,
+            animation: 'avatarPopIn 0.3s ease-out 0.5s both',
+          }}>
+            <div style={{
+              width: '28px', height: '28px', borderRadius: '50%',
+              background: 'linear-gradient(135deg, #7C3AED, #4F46E5)',
+              display: 'grid', placeItems: 'center',
+              flexShrink: 0,
+              fontSize: '12px', color: 'white', fontWeight: 700,
+            }}>
+              H
+            </div>
+            <div>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: '#111827', lineHeight: 1.2 }}>Henry James</div>
+              <div style={{ fontSize: '10px', color: '#6B7280', lineHeight: 1.2 }}>단계 따라하는 중</div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* 하단 스텝 인디케이터 — 프레임 밖 */}
+      {/* 하단 스텝 인디케이터 */}
       <div style={{
         display: 'flex',
         justifyContent: 'center',
@@ -317,6 +375,79 @@ function HeroDemo() {
         ))}
       </div>
     </div>
+  );
+}
+
+function HeroSection() {
+  const { index, phase } = useWordCycle(CYCLE_WORDS);
+
+  const animationStyle: React.CSSProperties =
+    phase === 'exit'
+      ? { animation: `wordExit ${WORD_ANIM_MS}ms cubic-bezier(0.4, 0, 0.2, 1) forwards` }
+      : phase === 'enter'
+      ? { animation: `wordEnter ${WORD_ANIM_MS}ms cubic-bezier(0.4, 0, 0.2, 1) forwards` }
+      : { opacity: 1, transform: 'translateY(0)', clipPath: 'inset(0% 0% 0% 0%)' };
+
+  return (
+    <section style={{ padding: '90px 0 0', background: 'linear-gradient(160deg, #EDE8FF 0%, #F8F0FF 50%, #FFF0F8 100%)', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+      <div style={{ position: 'absolute', top: '-160px', left: '50%', transform: 'translateX(-50%)', width: '900px', height: '600px', background: 'radial-gradient(ellipse, rgba(124,58,237,0.10) 0%, transparent 65%)', pointerEvents: 'none' }} />
+
+      <div style={{ maxWidth: '1080px', margin: '0 auto', padding: '0 32px', position: 'relative' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '5px 14px', background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.20)', borderRadius: '999px', fontSize: '12.5px', color: '#7C3AED', fontWeight: 500, marginBottom: '28px' }}>
+          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#7C3AED', display: 'inline-block', animation: 'pulse-dot 1.8s ease-in-out infinite' }} />
+          AI 인터랙티브 매뉴얼 플랫폼
+        </span>
+
+        <h1 style={{ margin: '0 auto 20px', fontSize: '56px', lineHeight: 1.2, fontWeight: 700, letterSpacing: '-0.03em', maxWidth: '760px', color: '#0D0D14' }}>
+          당신은 그냥 하세요.<br />
+          <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: '0.25em', flexWrap: 'wrap', justifyContent: 'center' }}>
+            <span>매뉴얼은</span>
+            <span style={{ display: 'inline-block', overflow: 'hidden', verticalAlign: 'bottom', position: 'relative' }}>
+              <span
+                key={index}
+                style={{
+                  display: 'inline-block',
+                  fontStyle: 'italic',
+                  fontWeight: 700,
+                  background: 'linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)',
+                  WebkitBackgroundClip: 'text',
+                  backgroundClip: 'text',
+                  color: 'transparent',
+                  willChange: 'transform, opacity, clip-path',
+                  ...animationStyle,
+                }}
+              >
+                {CYCLE_WORDS[index]}
+              </span>
+            </span>
+            <span>됩니다.</span>
+          </span>
+        </h1>
+
+        <p style={{ fontSize: '17px', color: '#4B5563', maxWidth: '520px', margin: '0 auto 36px', lineHeight: 1.7 }}>
+          MIMIC은 어떤 작업이든 단계별 가이드로 자동 변환합니다.<br />
+          캡처부터 공유까지 — 30초면 충분합니다.
+        </p>
+
+        <div className="hero-cta-row" style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginBottom: '56px' }}>
+          <Link href="/auth/login"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '14px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 600, color: 'white', background: '#7C3AED', boxShadow: '0 4px 20px rgba(124,58,237,0.35)', textDecoration: 'none' }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><path d="M8.56 2.75c4.37 6.03 6.02 9.42 8.03 17.72m2.54-15.38c-3.72 4.35-8.94 5.66-16.88 5.85m19.5 1.9c-3.5-.93-6.63-.82-8.94 0-2.58.92-5.01 2.86-7.44 6.32"/></svg>
+            무료 크롬 확장 설치
+          </Link>
+          <Link href="/auth/login"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '14px 24px', borderRadius: '10px', fontSize: '15px', fontWeight: 500, color: '#4B5563', background: 'white', border: '1.5px solid #E5E7EB', textDecoration: 'none', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}
+          >
+            데모 체험하기 →
+          </Link>
+        </div>
+
+        <div className="hero-preview">
+          <HeroDemo />
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -449,47 +580,7 @@ export default function LandingPage() {
       </header>
 
       {/* Hero */}
-      <section style={{ padding: '80px 0 0', background: 'linear-gradient(160deg, #EEE9FF 0%, #F5F0FF 40%, #FAFAFF 100%)', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
-        {/* 배경 장식 */}
-        <div style={{ position: 'absolute', top: '-160px', left: '50%', transform: 'translateX(-50%)', width: '900px', height: '600px', background: 'radial-gradient(ellipse, rgba(124,58,237,0.10) 0%, transparent 65%)', pointerEvents: 'none' }} />
-
-        <div style={{ maxWidth: '1080px', margin: '0 auto', padding: '0 32px', position: 'relative' }}>
-          {/* 뱃지 */}
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '5px 14px', background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.20)', borderRadius: '999px', fontSize: '12.5px', color: '#7C3AED', fontWeight: 500, marginBottom: '28px' }}>
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#7C3AED', display: 'inline-block', animation: 'pulse-dot 1.8s ease-in-out infinite' }} />
-            AI 인터랙티브 매뉴얼 플랫폼
-          </span>
-
-          {/* 헤드라인 — Tango 패턴: 일반 + 이탤릭 강조 */}
-          <h1 style={{ margin: '0 auto 20px', fontSize: '56px', lineHeight: 1.15, fontWeight: 700, letterSpacing: '-0.03em', maxWidth: '760px', color: '#0D0D14' }}>
-            당신은 그냥 하세요. <em style={{ fontStyle: 'italic', fontWeight: 700, background: 'linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>매뉴얼은<br />MIMIC이</em> 만들어 드립니다.
-          </h1>
-
-          <p style={{ fontSize: '18px', color: '#4B5563', maxWidth: '520px', margin: '0 auto 36px', lineHeight: 1.65 }}>
-            웹에서 작업하면 클릭마다 단계가 캡처되고, AI가 설명까지 완성합니다. 링크 하나로 바로 공유.
-          </p>
-
-          {/* CTA */}
-          <div className="hero-cta-row" style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginBottom: '56px' }}>
-            <Link href="/auth/login"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '14px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 600, color: 'white', background: 'linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)', boxShadow: '0 4px 20px rgba(124,58,237,0.35)', textDecoration: 'none' }}
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M9.5 9.5C9.5 7.57 10.79 6 12 6s2.5 1.57 2.5 3.5c0 2.5-2.5 4-2.5 6"/><circle cx="12" cy="18.5" r=".5" fill="white"/></svg>
-              무료 크롬 확장 설치
-            </Link>
-            <Link href="/auth/login"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '14px 24px', borderRadius: '10px', fontSize: '15px', fontWeight: 500, color: '#4B5563', background: 'white', border: '1.5px solid #E5E7EB', textDecoration: 'none', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}
-            >
-              서비스 둘러보기 →
-            </Link>
-          </div>
-
-          {/* Hero Demo */}
-          <div className="hero-preview">
-            <HeroDemo />
-          </div>
-        </div>
-      </section>
+      <HeroSection />
 
       {/* Problem */}
       <section style={{ padding: '96px 0', background: '#FAFAFA' }}>
@@ -831,6 +922,19 @@ export default function LandingPage() {
       </footer>
 
       <style>{`
+        @keyframes avatarPopIn {
+          0% { transform: scale(0.6); opacity: 0; }
+          70% { transform: scale(1.08); opacity: 1; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes wordExit {
+          0% { opacity: 1; transform: translateY(0); clip-path: inset(0% 0% 0% 0%); }
+          100% { opacity: 0; transform: translateY(-100%); clip-path: inset(0% 0% 100% 0%); }
+        }
+        @keyframes wordEnter {
+          0% { opacity: 0; transform: translateY(100%); clip-path: inset(100% 0% 0% 0%); }
+          100% { opacity: 1; transform: translateY(0); clip-path: inset(0% 0% 0% 0%); }
+        }
         @keyframes rec-blink {
           0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(239,68,68,0.6); }
           50% { opacity: 0.6; box-shadow: 0 0 0 4px rgba(239,68,68,0); }
