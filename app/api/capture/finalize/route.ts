@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
   if (!session) {
     return NextResponse.json({ error: 'Session not found' }, { status: 404 });
   }
-  if (session.status === 'done') {
+  if (session.status === 'completed') {
     return NextResponse.json({ error: 'Session already finalized' }, { status: 409 });
   }
 
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
   await Promise.all([
     supabase
       .from('mm_capture_sessions')
-      .update({ status: 'done', ended_at: new Date().toISOString() })
+      .update({ status: 'completed', ended_at: new Date().toISOString() })
       .eq('id', session_id),
     supabase.rpc('increment_daily_manual_count', { uid: userId }),
   ]);
