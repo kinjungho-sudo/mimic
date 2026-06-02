@@ -70,6 +70,11 @@ export function AnnotationPreview({ annotations, imageUrl }: { annotations: Anno
             strokeWidth={sw} fill={type === 'recorderBox' ? 'rgba(239,68,68,0.08)' : 'none'} rx="0.3%" />
         );
 
+        if (type === 'roundedRect') return (
+          <rect key={a.id} x={`${minX}%`} y={`${minY}%`} width={`${w}%`} height={`${h}%`}
+            stroke={color} strokeWidth={sw} fill="none" rx="3%" />
+        );
+
         if (type === 'ellipse') return (
           <ellipse key={a.id}
             cx={`${(x1+x2)/2}%`} cy={`${(y1+y2)/2}%`}
@@ -85,8 +90,8 @@ export function AnnotationPreview({ annotations, imageUrl }: { annotations: Anno
           if (len < 0.5) return null;
           const ux = dx / len, uy = dy / len;
           // 화살촉 크기 — strokeWidth 비례, % 단위
-          const headLen = a.strokeWidth * 4;
-          const headW = headLen * 0.5;
+          const headLen = Math.max(a.strokeWidth * 4, 1.5); // 최솟값 보장
+          const headW = headLen * 0.55;
           // 줄기 끝을 화살촉 안쪽으로 당김
           const lx2 = x2 - ux * headLen * 0.6;
           const ly2 = y2 - uy * headLen * 0.6;

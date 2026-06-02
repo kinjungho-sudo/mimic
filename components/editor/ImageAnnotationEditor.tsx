@@ -5,21 +5,20 @@ import { X, Trash2, RotateCcw, Bold } from 'lucide-react';
 
 // ── Types ──────────────────────────────────────────────────
 
-// crop 제거됨
-type Tool = 'select' | 'eraser' | 'mosaic' | 'ellipse' | 'rect' | 'arrow' | 'text' | 'marker' | 'spotlight';
+type Tool = 'select' | 'eraser' | 'mosaic' | 'ellipse' | 'rect' | 'roundedRect' | 'arrow' | 'text' | 'marker' | 'spotlight';
 type Color = string;
 type Handle = 'tl'|'tc'|'tr'|'ml'|'mr'|'bl'|'bc'|'br'|'p1'|'p2';
 
 export interface Annotation {
   id: string;
-  type: 'arrow' | 'rect' | 'ellipse' | 'text' | 'highlight' | 'mosaic' | 'marker' | 'spotlight' | 'recorderBox' | 'crop';
+  type: 'arrow' | 'rect' | 'roundedRect' | 'ellipse' | 'text' | 'highlight' | 'mosaic' | 'marker' | 'spotlight' | 'recorderBox' | 'crop';
   x1: number; y1: number; // 0–100 pct of image
   x2: number; y2: number;
   text?: string;
-  color: Color;           // 텍스트: 글자 색 / 도형: 선 색
-  borderColor?: string;   // 텍스트 박스 테두리 색 (opacity 포함 가능)
-  strokeWidth: number;    // % of image width
-  fontSize?: number;      // px
+  color: Color;
+  borderColor?: string;
+  strokeWidth: number;
+  fontSize?: number;
   fontBold?: boolean;
   markerNumber?: number;
 }
@@ -44,13 +43,12 @@ const STROKE_OPTIONS = [
 ];
 
 const FONT_SIZES = [12, 14, 16, 18, 22, 28, 36];
-
-// 텍스트 박스 기본 테두리 색 (반투명)
 const DEFAULT_BORDER = 'rgba(255,255,255,0.6)';
 
+// 그룹 A: 지우개/블러, 그룹 B: 도형/텍스트
 const TOOL_GROUPS: { tools: Tool[] }[] = [
   { tools: ['mosaic', 'eraser'] },
-  { tools: ['select', 'ellipse', 'rect', 'arrow', 'text', 'marker', 'spotlight'] },
+  { tools: ['select', 'ellipse', 'rect', 'roundedRect', 'arrow', 'text', 'marker', 'spotlight'] },
 ];
 
 const TOOL_CONFIG: Record<Tool, { label: string; icon: React.ReactNode }> = {
@@ -73,6 +71,10 @@ const TOOL_CONFIG: Record<Tool, { label: string; icon: React.ReactNode }> = {
   rect: {
     label: '사각형',
     icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><rect x="3" y="4" width="18" height="16" rx="1"/></svg>,
+  },
+  roundedRect: {
+    label: '둥근 사각형',
+    icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><rect x="3" y="4" width="18" height="16" rx="5"/></svg>,
   },
   arrow: {
     label: '화살표',
@@ -98,13 +100,14 @@ const TOOL_CONFIG: Record<Tool, { label: string; icon: React.ReactNode }> = {
 };
 
 const HANDLE_CURSOR: Record<Handle, string> = {
-  tl: 'nwse-resize', tc: 'ns-resize',   tr: 'nesw-resize',
-  ml: 'ew-resize',                        mr: 'ew-resize',
-  bl: 'nesw-resize', bc: 'ns-resize',   br: 'nwse-resize',
+  tl: 'nwse-resize', tc: 'ns-resize', tr: 'nesw-resize',
+  ml: 'ew-resize',                     mr: 'ew-resize',
+  bl: 'nesw-resize', bc: 'ns-resize', br: 'nwse-resize',
   p1: 'crosshair', p2: 'crosshair',
 };
 
-const SHAPE_TOOLS: Tool[] = ['ellipse', 'rect', 'arrow', 'mosaic', 'spotlight'];
+// 완성 후 select로 전환되는 툴
+const SHAPE_TOOLS: Tool[] = ['ellipse', 'rect', 'roundedRect', 'arrow', 'mosaic', 'spotlight', 'text'];
 
 function genId() { return Math.random().toString(36).slice(2, 9); }
 
@@ -122,9 +125,6 @@ function hitTestAnnotation(a: Annotation, px: number, py: number, r: number, img
   if (a.type === 'marker') {
     const dx = (px - a.x1) * aw, dy = py - a.y1;
     return Math.sqrt(dx * dx + dy * dy) < r * aw + 5;
-  }
-  if (a.type === 'text') {
-    return Math.abs((px - a.x1) * aw) < r * aw + 8 && Math.abs(py - a.y1) < r + 3;
   }
   const minX = Math.min(a.x1, a.x2), maxX = Math.max(a.x1, a.x2);
   const minY = Math.min(a.y1, a.y2), maxY = Math.max(a.y1, a.y2);
@@ -162,6 +162,8 @@ export function ImageAnnotationEditor({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawing, setDrawing] = useState<Partial<Annotation> | null>(null);
   const eraserActiveRef = useRef(false);
+  // 텍스트 드래그 중 박스 미리보기
+  const [textDrawing, setTextDrawing] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
 
   const nextMarkerNum = useCallback(() => {
     const nums = items.filter(a => a.type === 'marker' && a.markerNumber != null).map(a => a.markerNumber!);
@@ -233,19 +235,6 @@ export function ImageAnnotationEditor({
       return;
     }
 
-    if (tool === 'text') {
-      const newItem: Annotation = {
-        id: genId(), type: 'text',
-        x1: x, y1: y, x2: x, y2: y,
-        text: '', color: lastColor.current, strokeWidth,
-        fontSize: lastFontSize.current, fontBold: lastFontBold.current,
-        borderColor: lastBorderColor.current,
-      };
-      setItems(prev => [...prev, newItem]);
-      setEditingText({ id: newItem.id });
-      return;
-    }
-
     if (tool === 'marker') {
       const num = nextMarkerNum();
       setItems(prev => [...prev, {
@@ -256,7 +245,16 @@ export function ImageAnnotationEditor({
       return;
     }
 
-    const annType: Annotation['type'] = tool === 'spotlight' ? 'spotlight' : tool as Annotation['type'];
+    // 텍스트: 드래그로 박스 크기 지정
+    if (tool === 'text') {
+      setTextDrawing({ x1: x, y1: y, x2: x, y2: y });
+      return;
+    }
+
+    const annType: Annotation['type'] =
+      tool === 'spotlight' ? 'spotlight' :
+      tool === 'roundedRect' ? 'roundedRect' :
+      tool as Annotation['type'];
     setDrawing({
       type: annType, x1: x, y1: y, x2: x, y2: y,
       color: lastColor.current, strokeWidth: STROKE_OPTIONS[lastStrokeIdx.current].value, id: genId(),
@@ -269,12 +267,40 @@ export function ImageAnnotationEditor({
       setItems(prev => prev.filter(a => !hitTestAnnotation(a, x, y, 4, imgSize.w, imgSize.h)));
       return;
     }
+    if (textDrawing) {
+      const { x, y } = toVB(e);
+      setTextDrawing(prev => prev ? { ...prev, x2: x, y2: y } : null);
+      return;
+    }
     if (!drawing) return;
     const { x, y } = toVB(e);
     setDrawing(prev => prev ? { ...prev, x2: x, y2: y } : null);
-  }, [drawing, tool, toVB, imgSize.w, imgSize.h]);
+  }, [drawing, textDrawing, tool, toVB, imgSize.w, imgSize.h]);
 
-  const handleMouseUp = useCallback(() => { eraserActiveRef.current = false; }, []);
+  const handleMouseUp = useCallback((e: React.MouseEvent) => {
+    eraserActiveRef.current = false;
+
+    if (textDrawing) {
+      const { x, y } = toVB(e);
+      const finalX2 = x, finalY2 = y;
+      const dx = Math.abs(finalX2 - textDrawing.x1);
+      const dy = Math.abs(finalY2 - textDrawing.y1);
+      // 너무 작으면 기본 크기 사용
+      const x2 = dx < 2 ? textDrawing.x1 + 15 : finalX2;
+      const y2 = dy < 1 ? textDrawing.y1 + 6 : finalY2;
+      const newItem: Annotation = {
+        id: genId(), type: 'text',
+        x1: Math.min(textDrawing.x1, x2), y1: Math.min(textDrawing.y1, y2),
+        x2: Math.max(textDrawing.x1, x2), y2: Math.max(textDrawing.y1, y2),
+        text: '', color: lastColor.current, strokeWidth,
+        fontSize: lastFontSize.current, fontBold: lastFontBold.current,
+        borderColor: lastBorderColor.current,
+      };
+      setItems(prev => [...prev, newItem]);
+      setTextDrawing(null);
+      setEditingText({ id: newItem.id });
+    }
+  }, [textDrawing, toVB, strokeWidth]);
 
   const finishDrawing = useCallback((e?: MouseEvent) => {
     setDrawing(prev => {
@@ -309,6 +335,7 @@ export function ImageAnnotationEditor({
     return () => window.removeEventListener('mouseup', up);
   }, [drawing, finishDrawing]);
 
+  // startDrag: spotlight도 포함 (select tool 기반)
   const startDrag = useCallback((e: React.MouseEvent, id: string, handle: Handle | null) => {
     if (tool !== 'select') return;
     e.stopPropagation(); e.preventDefault();
@@ -391,16 +418,19 @@ export function ImageAnnotationEditor({
   };
 
   const editingItem = editingText ? items.find(a => a.id === editingText.id) : null;
+  const isTextTool = tool === 'text';
+  const isShapeTool = ['ellipse', 'rect', 'roundedRect', 'arrow'].includes(tool);
 
   const activeCursor =
     tool === 'eraser' ? 'cell' :
     tool === 'select' ? 'default' :
-    tool === 'text' ? 'text' :
+    tool === 'text' ? 'crosshair' :
     'crosshair';
 
+  // 툴바 표시 조건 — 단순화
   const showColor = !['mosaic', 'select', 'eraser', 'spotlight'].includes(tool);
-  const showStroke = !['text', 'mosaic', 'select', 'eraser', 'spotlight', 'marker'].includes(tool);
-  const showTextOptions = tool === 'text';
+  const showStroke = isShapeTool || tool === 'arrow';
+  const showTextOpts = isTextTool;
 
   return (
     <div
@@ -425,6 +455,7 @@ export function ImageAnnotationEditor({
           display: 'flex', alignItems: 'center',
           padding: '0 12px', gap: '6px', minHeight: '48px', flexWrap: 'wrap',
         }}>
+          {/* 툴 그룹 */}
           {TOOL_GROUPS.map((group, gi) => (
             <div key={gi} style={{ display: 'flex', gap: '2px', background: 'rgba(255,255,255,0.06)', borderRadius: '7px', padding: '3px' }}>
               {group.tools.map(t => {
@@ -447,9 +478,10 @@ export function ImageAnnotationEditor({
             </div>
           ))}
 
+          {/* 구분선 */}
           <div style={{ width: '1px', height: '22px', background: 'rgba(255,255,255,0.12)' }} />
 
-          {/* 색상 */}
+          {/* 색상 — 공통 */}
           {showColor && (
             <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
               {COLORS.map(c => (
@@ -460,7 +492,7 @@ export function ImageAnnotationEditor({
             </div>
           )}
 
-          {/* 굵기 */}
+          {/* 굵기 — 도형/화살표만 */}
           {showStroke && (
             <>
               <div style={{ width: '1px', height: '22px', background: 'rgba(255,255,255,0.12)' }} />
@@ -484,67 +516,46 @@ export function ImageAnnotationEditor({
             </>
           )}
 
-          {/* 텍스트 옵션 */}
-          {showTextOptions && (
+          {/* 텍스트 옵션 — 텍스트 툴만, 한 줄로 압축 */}
+          {showTextOpts && (
             <>
               <div style={{ width: '1px', height: '22px', background: 'rgba(255,255,255,0.12)' }} />
-              {/* 폰트 크기 — 불투명 배경으로 표시 */}
+              {/* 폰트 크기 */}
               <select
                 value={fontSize}
                 onChange={e => setFontSize(Number(e.target.value))}
-                style={{
-                  background: '#374151',
-                  border: '1px solid rgba(255,255,255,0.3)',
-                  borderRadius: '5px', color: 'white',
-                  fontSize: '12px', padding: '4px 8px',
-                  cursor: 'pointer', outline: 'none',
-                  fontWeight: 500,
-                }}
+                style={{ background: '#374151', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '5px', color: 'white', fontSize: '12px', padding: '4px 6px', cursor: 'pointer', outline: 'none' }}
               >
                 {FONT_SIZES.map(s => <option key={s} value={s} style={{ background: '#374151' }}>{s}px</option>)}
               </select>
               {/* 굵게 */}
-              <button
-                onClick={() => setFontBold(v => !v)}
-                title="굵게"
-                style={{
-                  width: '30px', height: '30px', borderRadius: '5px',
-                  border: fontBold ? '1.5px solid white' : '1.5px solid rgba(255,255,255,0.2)',
-                  background: fontBold ? 'rgba(255,255,255,0.15)' : 'transparent',
-                  color: 'white', cursor: 'pointer', display: 'grid', placeItems: 'center',
-                }}
+              <button onClick={() => setFontBold(v => !v)} title="굵게"
+                style={{ width: '28px', height: '28px', borderRadius: '5px', border: fontBold ? '1.5px solid white' : '1.5px solid rgba(255,255,255,0.2)', background: fontBold ? 'rgba(255,255,255,0.15)' : 'transparent', color: 'white', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
               >
-                <Bold size={13} />
+                <Bold size={12} />
               </button>
-              {/* 텍스트 박스 테두리 색 */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap' }}>박스</span>
-                {/* 투명(없음) */}
-                <button
-                  onClick={() => setBorderColor('transparent')}
-                  title="테두리 없음"
-                  style={{
-                    width: '18px', height: '18px', borderRadius: '50%',
-                    background: 'transparent',
-                    border: borderColor === 'transparent' ? '2.5px solid white' : '2px solid rgba(255,255,255,0.3)',
-                    cursor: 'pointer', outline: 'none',
-                    position: 'relative', overflow: 'hidden',
-                  }}
+              {/* 박스 테두리 색 — 컴팩트 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)' }}>박스</span>
+                <button onClick={() => setBorderColor('transparent')} title="테두리 없음"
+                  style={{ width: '16px', height: '16px', borderRadius: '50%', background: 'transparent', border: borderColor === 'transparent' ? '2px solid white' : '1.5px solid rgba(255,255,255,0.3)', cursor: 'pointer', outline: 'none', position: 'relative', overflow: 'hidden' }}
                 >
                   <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: '1.5px', background: '#EF4444', transform: 'translateY(-50%) rotate(45deg)' }} />
                 </button>
                 {COLORS.map(c => (
                   <button key={c} onClick={() => setBorderColor(c)}
-                    style={{ width: '18px', height: '18px', borderRadius: '50%', background: c, border: borderColor === c ? '2.5px solid white' : '2px solid transparent', cursor: 'pointer', flexShrink: 0, outline: 'none' }}
+                    style={{ width: '16px', height: '16px', borderRadius: '50%', background: c, border: borderColor === c ? '2px solid white' : '1.5px solid transparent', cursor: 'pointer', flexShrink: 0, outline: 'none' }}
                   />
                 ))}
               </div>
             </>
           )}
 
-          {tool === 'mosaic' && <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>블러 처리할 영역을 드래그</span>}
-          {tool === 'eraser' && <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>지울 요소 위에서 드래그</span>}
-          {tool === 'spotlight' && <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>강조할 영역을 드래그</span>}
+          {/* 힌트 텍스트 */}
+          {tool === 'mosaic' && <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>블러 영역 드래그</span>}
+          {tool === 'eraser' && <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>드래그로 삭제</span>}
+          {tool === 'spotlight' && <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>강조 영역 드래그</span>}
+          {tool === 'text' && <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>드래그로 박스 크기 지정</span>}
 
           <div style={{ flex: 1 }} />
 
@@ -583,12 +594,7 @@ export function ImageAnnotationEditor({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             ref={imgRef} src={imageUrl} alt="편집 중" draggable={false}
-            style={{
-              display: 'block',
-              maxWidth: 'min(1100px, calc(100vw - 48px))',
-              maxHeight: 'calc(100vh - 160px)',
-              objectFit: 'contain',
-            }}
+            style={{ display: 'block', maxWidth: 'min(1100px, calc(100vw - 48px))', maxHeight: 'calc(100vh - 160px)', objectFit: 'contain' }}
           />
 
           <svg
@@ -601,13 +607,20 @@ export function ImageAnnotationEditor({
               </filter>
             </defs>
 
-            {items.some(a => a.type === 'spotlight') && (
-              <SpotlightLayer items={items} imgW={imgSize.w} imgH={imgSize.h} />
-            )}
+            {/* 스포트라이트 레이어 — 선택 가능한 spotlight 포함 */}
+            <SpotlightLayer
+              items={items}
+              imgW={imgSize.w} imgH={imgSize.h}
+              tool={tool}
+              selectedId={selectedId}
+              onBodyMouseDown={(id, e) => startDrag(e, id, null)}
+              onHandleMouseDown={(id, h, e) => startDrag(e, id, h)}
+            />
             {drawing?.type === 'spotlight' && (
-              <SpotlightLayer items={[drawing as Annotation]} imgW={imgSize.w} imgH={imgSize.h} preview />
+              <SpotlightLayer items={[drawing as Annotation]} imgW={imgSize.w} imgH={imgSize.h} tool={tool} selectedId={null} preview />
             )}
 
+            {/* 일반 annotation shapes (spotlight 제외) */}
             {items.map(a => {
               if (a.type === 'spotlight') return null;
               return (
@@ -631,68 +644,101 @@ export function ImageAnnotationEditor({
                 imageUrl={imageUrl}
               />
             )}
+
+            {/* 텍스트 드래그 박스 미리보기 */}
+            {textDrawing && (() => {
+              const mx = Math.min(textDrawing.x1, textDrawing.x2) / 100 * imgSize.w;
+              const my = Math.min(textDrawing.y1, textDrawing.y2) / 100 * imgSize.h;
+              const mw = Math.abs(textDrawing.x2 - textDrawing.x1) / 100 * imgSize.w;
+              const mh = Math.abs(textDrawing.y2 - textDrawing.y1) / 100 * imgSize.h;
+              return (
+                <rect x={mx} y={my} width={mw} height={mh}
+                  fill="rgba(79,70,229,0.08)"
+                  stroke="#4F46E5" strokeWidth={1.5} strokeDasharray="5 3" rx={3}
+                  pointerEvents="none"
+                />
+              );
+            })()}
           </svg>
 
-          {/* 텍스트 편집 오버레이 — 박스 표시 + 색 지정 */}
-          {editingText && editingItem && (
-            <div
-              data-text-editor
-              ref={textInputRef}
-              contentEditable
-              suppressContentEditableWarning
-              onKeyDown={e => {
-                e.stopPropagation();
-                if (e.key === 'Escape') commitTextRef.current();
-                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitTextRef.current(); }
-              }}
-              onMouseDown={e => e.stopPropagation()}
-              style={{
-                position: 'absolute',
-                left: `${editingItem.x1}%`, top: `${editingItem.y1}%`,
-                minWidth: '60px', maxWidth: '280px',
-                padding: '4px 8px',
-                // 박스 배경: 반투명
-                background: 'rgba(0,0,0,0.25)',
-                // 테두리: borderColor 설정값
-                border: `1.5px solid ${editingItem.borderColor ?? DEFAULT_BORDER}`,
-                borderRadius: '3px',
-                color: editingItem.color,
-                fontSize: `${editingItem.fontSize ?? 16}px`,
-                fontWeight: editingItem.fontBold ? 700 : 400,
-                fontFamily: 'inherit',
-                outline: 'none', cursor: 'text',
-                whiteSpace: 'pre-wrap', wordBreak: 'break-all',
-                lineHeight: 1.4, zIndex: 10,
-                caretColor: editingItem.color,
-              }}
-            />
-          )}
+          {/* 텍스트 편집 오버레이 */}
+          {editingText && editingItem && (() => {
+            const boxW = Math.abs(editingItem.x2 - editingItem.x1);
+            const boxH = Math.abs(editingItem.y2 - editingItem.y1);
+            return (
+              <div
+                data-text-editor
+                ref={textInputRef}
+                contentEditable
+                suppressContentEditableWarning
+                onKeyDown={e => {
+                  e.stopPropagation();
+                  if (e.key === 'Escape') commitTextRef.current();
+                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitTextRef.current(); }
+                }}
+                onMouseDown={e => e.stopPropagation()}
+                style={{
+                  position: 'absolute',
+                  left: `${Math.min(editingItem.x1, editingItem.x2)}%`,
+                  top: `${Math.min(editingItem.y1, editingItem.y2)}%`,
+                  // 드래그로 지정한 너비/높이 사용 (최소값 보장)
+                  width: boxW > 2 ? `${boxW}%` : '80px',
+                  minHeight: boxH > 1 ? `${boxH}%` : '24px',
+                  padding: '4px 8px',
+                  background: 'rgba(0,0,0,0.25)',
+                  border: `1.5px solid ${editingItem.borderColor ?? DEFAULT_BORDER}`,
+                  borderRadius: '3px',
+                  color: editingItem.color,
+                  fontSize: `${editingItem.fontSize ?? 16}px`,
+                  fontWeight: editingItem.fontBold ? 700 : 400,
+                  fontFamily: 'inherit',
+                  outline: 'none', cursor: 'text',
+                  whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                  lineHeight: 1.4, zIndex: 10,
+                  caretColor: editingItem.color,
+                  boxSizing: 'border-box',
+                }}
+              />
+            );
+          })()}
         </div>
 
         <div style={{ height: '26px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', color: 'rgba(255,255,255,0.3)', background: '#1a1a1a' }}>
-          {tool === 'text' ? '클릭 후 텍스트 입력 · Enter 확정' :
+          {tool === 'text' ? '드래그로 텍스트 박스 크기 지정 · Enter 확정' :
            tool === 'select' ? '클릭으로 선택 · 드래그로 이동 · 핸들로 크기 조절 · Delete 삭제' :
            tool === 'eraser' ? '지울 요소 위에서 드래그' :
            tool === 'mosaic' ? '블러 처리할 영역을 드래그' :
            tool === 'marker' ? '클릭하면 번호 마커 추가' :
-           tool === 'spotlight' ? '강조할 영역을 드래그' :
-           '드래그하여 그리기 · 완성 후 자동으로 선택 모드 전환'}
+           tool === 'spotlight' ? '강조 영역 드래그 · 완성 후 선택 모드로 이동/크기 조절 가능' :
+           '드래그하여 그리기 · 완성 후 자동 선택 모드 전환'}
         </div>
       </div>
     </div>
   );
 }
 
-// ── SpotlightLayer ──────────────────────────────────────────
+// ── SpotlightLayer — 선택/편집 가능 ──────────────────────────
 
-function SpotlightLayer({ items, imgW, imgH, preview }: {
-  items: Annotation[]; imgW: number; imgH: number; preview?: boolean;
-}) {
+interface SpotlightLayerProps {
+  items: Annotation[];
+  imgW: number; imgH: number;
+  tool: Tool;
+  selectedId: string | null;
+  preview?: boolean;
+  onBodyMouseDown?: (id: string, e: React.MouseEvent) => void;
+  onHandleMouseDown?: (id: string, h: Handle, e: React.MouseEvent) => void;
+}
+
+function SpotlightLayer({ items, imgW, imgH, tool, selectedId, preview, onBodyMouseDown, onHandleMouseDown }: SpotlightLayerProps) {
   const spotlights = items.filter(a => a.type === 'spotlight');
   if (!spotlights.length) return null;
   const maskId = `spotlight-mask-${Math.random().toString(36).slice(2)}`;
+  const isSelectTool = tool === 'select';
+  const R = 5;
+  const handles: Handle[] = ['tl','tc','tr','ml','mr','bl','bc','br'];
+
   return (
-    <g style={{ pointerEvents: 'none' }}>
+    <g>
       <defs>
         <mask id={maskId}>
           <rect x={0} y={0} width={imgW} height={imgH} fill="white" />
@@ -703,11 +749,56 @@ function SpotlightLayer({ items, imgW, imgH, preview }: {
           })}
         </mask>
       </defs>
-      <rect x={0} y={0} width={imgW} height={imgH} fill="rgba(0,0,0,0.62)" mask={`url(#${maskId})`} opacity={preview ? 0.7 : 1} />
+      {/* 어두운 오버레이 */}
+      <rect x={0} y={0} width={imgW} height={imgH}
+        fill="rgba(0,0,0,0.62)" mask={`url(#${maskId})`}
+        opacity={preview ? 0.7 : 1} pointerEvents="none"
+      />
+      {/* 각 spotlight: 테두리 + 선택 핸들 */}
       {spotlights.map(a => {
         const minX = Math.min(a.x1, a.x2)/100*imgW, minY = Math.min(a.y1, a.y2)/100*imgH;
         const w = Math.abs(a.x2-a.x1)/100*imgW, h = Math.abs(a.y2-a.y1)/100*imgH;
-        return <rect key={a.id} x={minX} y={minY} width={w} height={h} fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth={1.5} rx={4} />;
+        const isSelected = selectedId === a.id;
+        const bodyCursor = isSelectTool ? 'move' : 'crosshair';
+
+        // 핸들 위치
+        const handlePos: Record<Handle, [number, number]> = {
+          tl: [minX,   minY],   tc: [minX+w/2, minY],   tr: [minX+w, minY],
+          ml: [minX,   minY+h/2],                         mr: [minX+w, minY+h/2],
+          bl: [minX,   minY+h], bc: [minX+w/2, minY+h], br: [minX+w, minY+h],
+          p1: [0,0], p2:[0,0],
+        };
+        const handleCursor: Record<Handle, string> = {
+          tl: 'nwse-resize', tc: 'ns-resize', tr: 'nesw-resize',
+          ml: 'ew-resize',                     mr: 'ew-resize',
+          bl: 'nesw-resize', bc: 'ns-resize', br: 'nwse-resize',
+          p1: 'crosshair', p2: 'crosshair',
+        };
+
+        return (
+          <g key={a.id}>
+            {/* 클릭 영역 (투명) */}
+            <rect x={minX} y={minY} width={w} height={h}
+              fill="transparent"
+              stroke={isSelected ? '#2563EB' : 'rgba(255,255,255,0.4)'}
+              strokeWidth={isSelected ? 1.5 : 1}
+              rx={4}
+              style={{ cursor: bodyCursor }}
+              onMouseDown={e => { if (isSelectTool && onBodyMouseDown) { e.stopPropagation(); onBodyMouseDown(a.id, e); } }}
+            />
+            {/* 선택 핸들 */}
+            {isSelected && onHandleMouseDown && handles.map(hKey => {
+              const [cx, cy] = handlePos[hKey];
+              return (
+                <rect key={hKey} x={cx-R} y={cy-R} width={R*2} height={R*2}
+                  fill="white" stroke="#2563EB" strokeWidth={1.5}
+                  style={{ cursor: handleCursor[hKey] }}
+                  onMouseDown={e => { e.stopPropagation(); onHandleMouseDown(a.id, hKey, e); }}
+                />
+              );
+            })}
+          </g>
+        );
       })}
     </g>
   );
@@ -775,7 +866,7 @@ function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx
   const bodyCursor = isSelectTool ? 'move' : tool === 'eraser' ? 'cell' : 'crosshair';
   const handleHandle = onHandleMouseDown ?? (() => {});
 
-  if (type === 'crop') return null; // crop 타입은 무시 (삭제된 기능)
+  if (type === 'crop') return null;
 
   if (type === 'recorderBox') return (
     <g>
@@ -793,8 +884,7 @@ function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx
         <circle cx={ax1} cy={ay1} r={R} fill={color} />
         <circle cx={ax1} cy={ay1} r={R} fill="none" stroke="white" strokeWidth={1.5} opacity={0.5} />
         <text x={ax1} y={ay1} fill="white" fontSize={R * 1.1} fontWeight="700"
-          textAnchor="middle" dominantBaseline="central"
-          style={{ pointerEvents: 'none' }}
+          textAnchor="middle" dominantBaseline="central" style={{ pointerEvents: 'none' }}
         >{a.markerNumber ?? 1}</text>
         {isSelected && <circle cx={ax1} cy={ay1} r={R+4} fill="none" stroke="#2563EB" strokeWidth={1.5} strokeDasharray="4 2" />}
       </g>
@@ -832,6 +922,17 @@ function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx
     </g>
   );
 
+  if (type === 'roundedRect') {
+    const rx = Math.min(w * 0.15, h * 0.15, 12);
+    return (
+      <g>
+        <rect x={minX} y={minY} width={w} height={h} rx={rx} stroke={color} strokeWidth={strokePx} fill="none"
+          style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown} />
+        {isSelected && onHandleMouseDown && <SelectionHandles minX={minX} minY={minY} w={w} h={h} onHandle={handleHandle} />}
+      </g>
+    );
+  }
+
   if (type === 'ellipse') return (
     <g>
       <ellipse cx={(ax1+ax2)/2} cy={(ay1+ay2)/2} rx={w/2} ry={h/2}
@@ -846,10 +947,10 @@ function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx
     const len = Math.sqrt(dx*dx + dy*dy);
     if (len < 1) return null;
     const ux = dx/len, uy = dy/len;
-    const headLen = Math.max(strokePx * 4, 8);
-    const headW  = headLen * 0.5;
-    const lx2 = ax2 - ux * headLen * 0.6;
-    const ly2 = ay2 - uy * headLen * 0.6;
+    const headLen = Math.max(strokePx * 4, 10); // 최솟값 보장
+    const headW  = headLen * 0.55;
+    const lx2 = ax2 - ux * headLen * 0.65;
+    const ly2 = ay2 - uy * headLen * 0.65;
     const px = ax2, py = ay2;
     const qx = ax2 - ux*headLen + uy*headW, qy = ay2 - uy*headLen - ux*headW;
     const rx = ax2 - ux*headLen - uy*headW, ry = ay2 - uy*headLen + ux*headW;
@@ -859,7 +960,7 @@ function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx
           strokeWidth={Math.max(12, strokePx*4)}
           style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown} />
         <line x1={ax1} y1={ay1} x2={lx2} y2={ly2}
-          stroke={color} strokeWidth={strokePx} strokeLinecap="round"
+          stroke={color} strokeWidth={Math.max(strokePx, 1)} strokeLinecap="round"
           style={{ pointerEvents: 'none' }} />
         <polygon points={`${px},${py} ${qx},${qy} ${rx},${ry}`}
           fill={color} style={{ pointerEvents: 'none' }} />
@@ -875,34 +976,29 @@ function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx
     const fSize = a.fontSize ?? 16;
     const bold = a.fontBold ?? false;
     const bColor = a.borderColor ?? DEFAULT_BORDER;
-    const charW = fSize * (bold ? 0.65 : 0.58);
-    const lines = text.split('\n');
-    const maxLineLen = Math.max(...lines.map(l => l.length));
-    const textW = maxLineLen * charW;
-    const textH = lines.length * fSize * 1.4;
+    // 드래그로 지정된 박스 크기 사용
+    const boxW = Math.abs(ax2 - ax1);
+    const boxH = Math.abs(ay2 - ay1);
     const padX = 8, padY = 4;
 
     return (
       <g style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown}>
-        {/* 박스 배경 (반투명) */}
-        <rect x={ax1 - padX/2} y={ay1 - padY/2} width={textW + padX} height={textH + padY}
+        <rect x={minX} y={minY} width={Math.max(boxW, 40)} height={Math.max(boxH, fSize + padY)}
           fill="rgba(0,0,0,0.25)"
           stroke={bColor !== 'transparent' ? bColor : 'none'}
           strokeWidth={bColor !== 'transparent' ? 1.5 : 0}
           rx={2}
         />
-        {lines.map((line, i) => (
+        {text.split('\n').map((line, i) => (
           <text key={i}
-            x={ax1} y={ay1 + i * fSize * 1.4}
-            fill={color}
-            fontSize={fSize}
-            fontWeight={bold ? 700 : 400}
+            x={minX + padX/2} y={minY + padY/2 + i * fSize * 1.4}
+            fill={color} fontSize={fSize} fontWeight={bold ? 700 : 400}
             dominantBaseline="text-before-edge"
             style={{ pointerEvents: 'none' }}
           >{line}</text>
         ))}
         {isSelected && onHandleMouseDown && (
-          <SelectionHandles minX={ax1 - padX/2} minY={ay1 - padY/2} w={textW + padX} h={textH + padY} onHandle={handleHandle} />
+          <SelectionHandles minX={minX} minY={minY} w={Math.max(boxW, 40)} h={Math.max(boxH, fSize + padY)} onHandle={handleHandle} />
         )}
       </g>
     );
