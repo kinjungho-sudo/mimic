@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  Plus, Trash2, ZoomIn, X, Pencil,
+  Plus, Trash2, ZoomIn, X,
   Bold, Italic, Underline, ExternalLink, Sparkles, Loader2,
   Check,
 } from 'lucide-react';
@@ -507,113 +507,109 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
       <TextFormatToolbar editorRef={editorRef} />
 
       {/* Card header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', padding: '8px 20px 10px' }}>
-        {/* Title + description */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          {/* Number + Title row */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '13px', fontWeight: 700, color: '#F59E0B', flexShrink: 0, lineHeight: 1.4 }}>
-              {String(step.number).padStart(2, '0')}.
-            </span>
-            {step.is_stale && (
-              <span title="이 페이지의 UI가 변경되었을 수 있어요" style={{
-                fontSize: '10px', fontWeight: 600, padding: '1px 6px',
-                borderRadius: '20px', background: '#FEF3C7', color: '#D97706',
-                border: '1px solid #FDE68A', flexShrink: 0, cursor: 'default',
-              }}>업데이트 필요</span>
-            )}
-            <input
-              value={step.actionTitle}
-              onChange={e => onUpdate({ actionTitle: e.target.value })}
-              onFocus={onFocus}
-              onBlur={e => { e.currentTarget.style.background = 'transparent'; handleTitleBlur(e); }}
-              placeholder="단계 제목을 입력하세요"
-              style={{
-                flex: 1, fontSize: '13px', fontWeight: 600, color: '#111827',
-                background: 'transparent', border: 'none', outline: 'none',
-                padding: '3px 6px', margin: '0 -6px',
-                lineHeight: 1.4, borderRadius: '6px', cursor: 'text',
-                transition: 'background 0.15s ease', boxSizing: 'border-box',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#F3F4F6'; }}
-              onMouseLeave={e => { if (document.activeElement !== e.currentTarget) e.currentTarget.style.background = 'transparent'; }}
-            />
-          </div>
-
-          {/* Rich text description (contenteditable) */}
-          <div
-            ref={editorRef}
-            contentEditable
-            suppressContentEditableWarning
+      <div style={{ padding: '8px 12px 8px 20px' }}>
+        {/* Number + Title + 우측 아이콘 가로 행 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ fontSize: '13px', fontWeight: 700, color: '#F59E0B', flexShrink: 0, lineHeight: 1.4 }}>
+            {String(step.number).padStart(2, '0')}.
+          </span>
+          {step.is_stale && (
+            <span title="이 페이지의 UI가 변경되었을 수 있어요" style={{
+              fontSize: '10px', fontWeight: 600, padding: '1px 6px',
+              borderRadius: '20px', background: '#FEF3C7', color: '#D97706',
+              border: '1px solid #FDE68A', flexShrink: 0, cursor: 'default',
+            }}>업데이트 필요</span>
+          )}
+          <input
+            value={step.actionTitle}
+            onChange={e => onUpdate({ actionTitle: e.target.value })}
             onFocus={onFocus}
-            onInput={handleEditorInput}
-            onBlur={e => { e.currentTarget.style.background = 'transparent'; handleEditorBlur(); }}
-            data-placeholder="이 단계에 대한 설명을 입력하세요."
+            onBlur={e => { e.currentTarget.style.background = 'transparent'; handleTitleBlur(e); }}
+            placeholder="단계 제목을 입력하세요"
             style={{
-              width: '100%', marginTop: '4px',
-              fontSize: '12.5px', color: '#4B5563',
-              lineHeight: 1.5, fontFamily: 'inherit',
-              minHeight: '20px',
-              outline: 'none',
-              borderRadius: '6px',
-              padding: '2px 6px', margin: '4px -6px 0',
-              cursor: 'text',
-              transition: 'background 0.15s ease',
-              boxSizing: 'border-box',
-            } as React.CSSProperties}
+              flex: 1, fontSize: '13px', fontWeight: 600, color: '#111827',
+              background: 'transparent', border: 'none', outline: 'none',
+              padding: '3px 6px', margin: '0 -6px',
+              lineHeight: 1.4, borderRadius: '6px', cursor: 'text',
+              transition: 'background 0.15s ease', boxSizing: 'border-box',
+            }}
             onMouseEnter={e => { e.currentTarget.style.background = '#F3F4F6'; }}
             onMouseLeave={e => { if (document.activeElement !== e.currentTarget) e.currentTarget.style.background = 'transparent'; }}
           />
-        </div>
-
-        {/* Right action buttons */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', opacity: showControls || isSelected ? 1 : 0, transition: 'opacity 0.18s ease', flexShrink: 0 }}>
-          {/* Checkbox — top of right column */}
-          <div
-            style={{ display: 'flex', justifyContent: 'center', marginBottom: '2px' }}
-            onClick={e => { e.stopPropagation(); onToggleSelect(); }}
-          >
-            <div style={{
-              width: '18px', height: '18px', borderRadius: '5px',
-              border: `2px solid ${isSelected ? '#4F46E5' : '#D1D5DB'}`,
-              background: isSelected ? '#4F46E5' : 'white',
-              display: 'grid', placeItems: 'center',
-              cursor: 'pointer', transition: 'all 0.15s',
-            }}>
+          {/* 우측 아이콘 — 가로 정렬 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', opacity: showControls || isSelected ? 1 : 0, transition: 'opacity 0.18s ease', flexShrink: 0 }}>
+            {/* 체크박스 */}
+            <div
+              onClick={e => { e.stopPropagation(); onToggleSelect(); }}
+              style={{
+                width: '22px', height: '22px', borderRadius: '5px',
+                border: `2px solid ${isSelected ? '#4F46E5' : '#D1D5DB'}`,
+                background: isSelected ? '#4F46E5' : 'white',
+                display: 'grid', placeItems: 'center',
+                cursor: 'pointer', transition: 'all 0.15s',
+              }}
+            >
               {isSelected && <Check size={11} color="white" strokeWidth={3} />}
             </div>
-          </div>
-          {step.pageUrl && (
-            <button
-              title={step.pageUrl}
-              onClick={() => window.open(step.pageUrl!, '_blank', 'noopener,noreferrer')}
-              style={iconBtn}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = '#4F46E5'; e.currentTarget.style.color = '#4F46E5'; e.currentTarget.style.background = 'rgba(79,70,229,0.04)'; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.color = '#6B7280'; e.currentTarget.style.background = 'white'; }}
+            {step.pageUrl && (
+              <button
+                title={step.pageUrl}
+                onClick={() => window.open(step.pageUrl!, '_blank', 'noopener,noreferrer')}
+                style={iconBtnSm}
+                onMouseEnter={e => { e.currentTarget.style.color = '#4F46E5'; }}
+                onMouseLeave={e => { e.currentTarget.style.color = '#9CA3AF'; }}
+              >
+                <ExternalLink size={13} />
+              </button>
+            )}
+            {step.screenshotUrl && (
+              <button title="이미지 확대" onClick={onZoom} style={iconBtnSm}
+                onMouseEnter={e => { e.currentTarget.style.color = '#374151'; }}
+                onMouseLeave={e => { e.currentTarget.style.color = '#9CA3AF'; }}
+              >
+                <ZoomIn size={13} />
+              </button>
+            )}
+            <button onClick={onDelete} title="단계 삭제" style={iconBtnSm}
+              onMouseEnter={e => { e.currentTarget.style.color = '#DC2626'; }}
+              onMouseLeave={e => { e.currentTarget.style.color = '#9CA3AF'; }}
             >
-              <ExternalLink size={13} />
+              <Trash2 size={13} />
             </button>
-          )}
-          {step.screenshotUrl && (
-            <button title="이미지 확대" onClick={onZoom} style={iconBtn}>
-              <ZoomIn size={13} />
-            </button>
-          )}
-          <button onClick={onDelete} title="삭제" style={iconBtn}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = '#DC2626'; e.currentTarget.style.color = '#DC2626'; e.currentTarget.style.background = 'rgba(220,38,38,0.04)'; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.color = '#6B7280'; e.currentTarget.style.background = 'white'; }}
-          >
-            <Trash2 size={12} />
-          </button>
+          </div>
         </div>
+
+        {/* Rich text description */}
+        <div
+          ref={editorRef}
+          contentEditable
+          suppressContentEditableWarning
+          onFocus={onFocus}
+          onInput={handleEditorInput}
+          onBlur={e => { e.currentTarget.style.background = 'transparent'; handleEditorBlur(); }}
+          data-placeholder="이 단계에 대한 설명을 입력하세요."
+          style={{
+            width: '100%', marginTop: '4px',
+            fontSize: '12.5px', color: '#4B5563',
+            lineHeight: 1.5, fontFamily: 'inherit',
+            minHeight: '20px',
+            outline: 'none',
+            borderRadius: '6px',
+            padding: '2px 6px', margin: '4px -6px 0',
+            cursor: 'text',
+            transition: 'background 0.15s ease',
+            boxSizing: 'border-box',
+          } as React.CSSProperties}
+          onMouseEnter={e => { e.currentTarget.style.background = '#F3F4F6'; }}
+          onMouseLeave={e => { if (document.activeElement !== e.currentTarget) e.currentTarget.style.background = 'transparent'; }}
+        />
       </div>
 
-      {/* Screenshot area */}
+      {/* Screenshot area — 클릭하면 바로 편집 진입 */}
       <ScreenshotArea
         step={step}
         onUploadClick={() => fileInputRef.current?.click()}
         onDrop={handleImgDrop}
-        onZoom={onZoom}
         onAnnotate={onAnnotate}
         onRemove={onRemoveImage}
       />
@@ -621,10 +617,12 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
   );
 }
 
-const iconBtn: React.CSSProperties = {
-  width: '30px', height: '30px', display: 'grid', placeItems: 'center',
-  borderRadius: '8px', border: '1px solid #E5E7EB',
-  background: 'white', color: '#6B7280', cursor: 'pointer',
+// 헤더 우측 작은 아이콘 버튼 (보더 없음, 투명 배경)
+const iconBtnSm: React.CSSProperties = {
+  width: '24px', height: '24px', display: 'grid', placeItems: 'center',
+  borderRadius: '5px', border: 'none',
+  background: 'transparent', color: '#9CA3AF', cursor: 'pointer',
+  padding: 0,
 };
 
 // ── TextFormatToolbar (formatting only) ──────────────────
@@ -725,12 +723,11 @@ interface ScreenshotAreaProps {
   step: ManualStep;
   onUploadClick: () => void;
   onDrop: (e: React.DragEvent) => void;
-  onZoom: () => void;
   onAnnotate: () => void;
   onRemove: () => void;
 }
 
-function ScreenshotArea({ step, onUploadClick, onDrop, onZoom, onAnnotate, onRemove }: ScreenshotAreaProps) {
+function ScreenshotArea({ step, onUploadClick, onDrop, onAnnotate, onRemove }: ScreenshotAreaProps) {
   const [dragOver, setDragOver] = useState(false);
   const [imgHover, setImgHover] = useState(false);
 
@@ -770,9 +767,10 @@ function ScreenshotArea({ step, onUploadClick, onDrop, onZoom, onAnnotate, onRem
 
   return (
     <div
-      style={{ margin: '0 12px 12px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #E5E7EB', position: 'relative' }}
+      style={{ margin: '0 12px 12px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #E5E7EB', position: 'relative', cursor: 'pointer' }}
       onMouseEnter={() => setImgHover(true)}
       onMouseLeave={() => setImgHover(false)}
+      onClick={onAnnotate}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={step.screenshotUrl} alt={step.actionTitle} style={{ width: '100%', display: 'block' }} />
@@ -794,28 +792,30 @@ function ScreenshotArea({ step, onUploadClick, onDrop, onZoom, onAnnotate, onRem
         <AnnotationPreview annotations={step.annotations!} imageUrl={step.screenshotUrl!} />
       )}
 
-      {/* Hover overlay */}
+      {/* hover 시 편집 힌트 + 우측 상단 삭제 버튼 */}
       {imgHover && (
-        <div style={{ position: 'absolute', inset: 0, background: 'rgba(10,10,15,0.32)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-          <button
-            onClick={e => { e.stopPropagation(); onAnnotate(); }}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', background: 'white', color: '#111827', border: 'none', fontSize: '12.5px', fontWeight: 500, cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.25)' }}
-          >
-            <Pencil size={13} /> {hasAnnotations ? '편집' : '이미지 편집'}
-          </button>
-          <button
-            onClick={e => { e.stopPropagation(); onZoom(); }}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', fontSize: '12.5px', fontWeight: 500, cursor: 'pointer' }}
-          >
-            <ZoomIn size={13} /> 확대
-          </button>
+        <>
+          {/* 살짝 어두운 overlay + 편집 힌트 */}
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+            <span style={{ fontSize: '12px', fontWeight: 500, color: 'white', background: 'rgba(0,0,0,0.45)', padding: '4px 10px', borderRadius: '6px', backdropFilter: 'blur(4px)' }}>
+              클릭하여 편집
+            </span>
+          </div>
+          {/* 우측 상단 삭제 버튼 */}
           <button
             onClick={e => { e.stopPropagation(); if (window.confirm('이미지를 삭제하시겠습니까?')) onRemove(); }}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', background: 'rgba(220,38,38,0.85)', color: 'white', border: '1px solid rgba(220,38,38,0.5)', fontSize: '12.5px', fontWeight: 500, cursor: 'pointer' }}
+            style={{
+              position: 'absolute', top: '6px', right: '6px',
+              width: '26px', height: '26px', borderRadius: '6px',
+              background: 'rgba(220,38,38,0.85)', border: 'none',
+              color: 'white', cursor: 'pointer', display: 'grid', placeItems: 'center',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+            }}
+            title="이미지 삭제"
           >
-            <Trash2 size={13} /> 삭제
+            <Trash2 size={12} />
           </button>
-        </div>
+        </>
       )}
     </div>
   );
