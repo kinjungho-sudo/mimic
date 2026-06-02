@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { BrandMark } from '@/components/BrandMark';
 
@@ -122,408 +122,32 @@ function RevealSection({ children, style }: { children: React.ReactNode; style?:
   );
 }
 
-// ── HeroSimulator ─────────────────────────────────────────
+const DEMO_URL = 'https://mimic-nine-ashen.vercel.app/play/d3febce4cfc9d978baa42b217363d2fd';
 
-const SCENES = ['record', 'editor', 'player'] as const;
-type Scene = typeof SCENES[number];
-
-const STEPS_DATA = [
-  { num: 1, title: 'MIMIC 확장 설치', desc: 'Chrome 웹 스토어에서 MIMIC Recorder를 설치하고 브라우저 우측 상단 아이콘을 클릭하세요.' },
-  { num: 2, title: '녹화 시작 클릭', desc: "팝업에서 '녹화 시작' 버튼을 클릭하면 화면 캡처가 즉시 시작됩니다." },
-  { num: 3, title: '이메일 입력', desc: '이메일 주소를 입력 필드에 입력하세요. 클릭 위치와 화면이 자동으로 캡처됩니다.' },
-  { num: 4, title: '로그인 완료', desc: '로그인 버튼을 클릭하면 단계가 완성됩니다. 녹화 중지 후 에디터에서 확인하세요.' },
-];
-
-function HeroSimulator() {
-  const [scene, setScene] = useState<Scene>('record');
-  const [recordStep, setRecordStep] = useState(0);
-  const [clickMarkers, setClickMarkers] = useState<{ x: number; y: number; id: number }[]>([]);
-  const [editorAiLoading, setEditorAiLoading] = useState(false);
-  const [editorAiDone, setEditorAiDone] = useState(false);
-  const [playerStep, setPlayerStep] = useState(0);
-  const markerIdRef = useRef(0);
-  const sceneTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const recordTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const playerTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const SCENE_CLICKS: { x: number; y: number }[] = [
-    { x: 72, y: 28 }, { x: 58, y: 52 }, { x: 45, y: 64 }, { x: 45, y: 76 },
-  ];
-
-  const startScene = useCallback((s: Scene) => {
-    setScene(s);
-    if (s === 'record') {
-      setRecordStep(0);
-      setClickMarkers([]);
-    } else if (s === 'editor') {
-      setEditorAiLoading(false);
-      setEditorAiDone(false);
-    } else if (s === 'player') {
-      setPlayerStep(0);
-    }
-  }, []);
-
-  // 씬 1: 녹화 — 1초마다 클릭 마커 생성
-  useEffect(() => {
-    if (scene !== 'record') return;
-    recordTimerRef.current = setInterval(() => {
-      setRecordStep(prev => {
-        const next = prev + 1;
-        if (next >= SCENE_CLICKS.length) {
-          if (recordTimerRef.current) clearInterval(recordTimerRef.current);
-        }
-        const pos = SCENE_CLICKS[prev] ?? SCENE_CLICKS[0];
-        markerIdRef.current += 1;
-        setClickMarkers(m => [...m, { ...pos, id: markerIdRef.current }]);
-        return next;
-      });
-    }, 900);
-    return () => { if (recordTimerRef.current) clearInterval(recordTimerRef.current); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scene]);
-
-  // 씬 2: 에디터 — AI 버튼 로딩 시뮬레이션
-  useEffect(() => {
-    if (scene !== 'editor') return;
-    const t1 = setTimeout(() => setEditorAiLoading(true), 900);
-    const t2 = setTimeout(() => { setEditorAiLoading(false); setEditorAiDone(true); }, 2100);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, [scene]);
-
-  // 씬 3: 플레이어 — 스텝 순서대로 하이라이트
-  useEffect(() => {
-    if (scene !== 'player') return;
-    playerTimerRef.current = setInterval(() => {
-      setPlayerStep(prev => (prev + 1) % STEPS_DATA.length);
-    }, 900);
-    return () => { if (playerTimerRef.current) clearInterval(playerTimerRef.current); };
-  }, [scene]);
-
-  // 씬 자동 전환 (각 4.5초)
-  useEffect(() => {
-    sceneTimerRef.current = setTimeout(() => {
-      const idx = SCENES.indexOf(scene);
-      startScene(SCENES[(idx + 1) % SCENES.length]);
-    }, 4500);
-    return () => { if (sceneTimerRef.current) clearTimeout(sceneTimerRef.current); };
-  }, [scene, startScene]);
-
-  const sceneIdx = SCENES.indexOf(scene);
-
+function HeroDemo() {
   return (
     <div style={{ position: 'relative', maxWidth: '1080px', margin: '0 auto' }}>
-      {/* 상단 캡션 배지 */}
-      <div style={{ position: 'absolute', top: '-14px', left: '50%', transform: 'translateX(-50%)', zIndex: 10, background: 'white', border: '1px solid #E5E7EB', borderRadius: '999px', padding: '7px 16px', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 2px 12px rgba(0,0,0,0.07)', whiteSpace: 'nowrap', fontSize: '12.5px', fontWeight: 500, color: '#374151' }}>
-        {scene === 'record' && <><span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#EF4444', display: 'inline-block', animation: 'rec-blink 1.4s ease-in-out infinite' }} />자동 캡처 중 — 클릭마다 단계 생성</>}
-        {scene === 'editor' && <><span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#4F46E5', display: 'inline-block', animation: 'pulse-dot 1.8s ease-in-out infinite' }} />AI가 문장을 다듬는 중</>}
-        {scene === 'player' && <><span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10B981', display: 'inline-block', animation: 'pulse-dot 1.8s ease-in-out infinite' }} />완성된 가이드 — 링크로 공유 가능</>}
-      </div>
-
-      {/* 씬 전환 인디케이터 */}
-      <div style={{ position: 'absolute', top: '-14px', right: '24px', zIndex: 10, display: 'flex', gap: '5px', alignItems: 'center' }}>
-        {SCENES.map((s, i) => (
-          <button key={s} onClick={() => startScene(s)} style={{ width: i === sceneIdx ? '18px' : '6px', height: '6px', borderRadius: '999px', background: i === sceneIdx ? '#4F46E5' : '#D1D5DB', border: 'none', cursor: 'pointer', padding: 0, transition: 'all 0.3s ease' }} />
-        ))}
-      </div>
-
-      {/* 메인 프레임 */}
-      <div style={{ borderRadius: '16px', overflow: 'hidden', background: '#F8F9FA', boxShadow: '0 40px 80px -20px rgba(79,70,229,0.18), 0 24px 48px -12px rgba(17,24,39,0.14)', border: '1px solid #E5E7EB' }}>
-        {/* 앱 상단바 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'white', borderBottom: '1px solid #E5E7EB' }}>
+      {/* 브라우저 프레임 */}
+      <div style={{ borderRadius: '16px', overflow: 'hidden', boxShadow: '0 40px 80px -20px rgba(79,70,229,0.20), 0 24px 48px -12px rgba(17,24,39,0.16)', border: '1px solid #E5E7EB' }}>
+        {/* 브라우저 상단바 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
           <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#FF5F57', display: 'inline-block' }} />
           <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#FEBC2E', display: 'inline-block' }} />
           <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#28C840', display: 'inline-block' }} />
-          <span style={{ margin: '0 auto', fontSize: '11.5px', color: '#6B7280', padding: '3px 14px', borderRadius: '6px', background: '#F3F4F6' }}>
-            {scene === 'record' ? 'notion.so/workspace/getting-started' : scene === 'editor' ? 'app.mimicflow.com/manual/notion-guide/editor' : 'app.mimicflow.com/play/notion-guide'}
+          <span style={{ flex: 1, margin: '0 12px', fontSize: '11.5px', color: '#6B7280', padding: '4px 12px', borderRadius: '6px', background: 'white', border: '1px solid #E5E7EB', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            mimic-nine-ashen.vercel.app/play/d3febce4cfc9d978baa42b217363d2fd
           </span>
-          <span style={{ marginLeft: 'auto' }} />
+          <Link href={DEMO_URL} target="_blank" style={{ fontSize: '11px', color: '#4F46E5', textDecoration: 'none', fontWeight: 500, whiteSpace: 'nowrap', flexShrink: 0 }}>
+            직접 열기 →
+          </Link>
         </div>
-
-        {/* 씬 컨텐츠 */}
-        <div style={{ minHeight: '420px', position: 'relative', overflow: 'hidden' }}>
-
-          {/* ── 씬 1: 녹화 ── */}
-          {scene === 'record' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 240px', minHeight: '420px' }}>
-              {/* 캡처 대상 화면 */}
-              <div style={{ position: 'relative', background: 'white', display: 'flex', flexDirection: 'column' }}>
-                {/* 사이트 헤더 */}
-                <div style={{ height: '44px', background: '#F7F6F3', borderBottom: '1px solid #E9E9E7', display: 'flex', alignItems: 'center', gap: '12px', padding: '0 16px' }}>
-                  <div style={{ width: '22px', height: '22px', borderRadius: '4px', background: '#191919', display: 'grid', placeItems: 'center' }}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="white"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>
-                  </div>
-                  <div style={{ display: 'flex', gap: '4px' }}>
-                    {['홈', '페이지', '데이터베이스', '설정'].map((t, i) => (
-                      <div key={t} style={{ fontSize: '11px', color: i === 2 ? '#191919' : '#9B9A97', fontWeight: i === 2 ? 600 : 400, padding: '3px 8px', borderRadius: '4px', background: i === 2 ? '#E9E9E7' : 'transparent' }}>{t}</div>
-                    ))}
-                  </div>
-                  <div style={{ marginLeft: 'auto', width: '28px', height: '28px', borderRadius: '50%', background: '#D3E5EF', display: 'grid', placeItems: 'center', fontSize: '11px', fontWeight: 600, color: '#2E7DAF' }}>M</div>
-                </div>
-                {/* 사이트 본문 */}
-                <div style={{ flex: 1, padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div style={{ fontSize: '22px', fontWeight: 700, color: '#191919', letterSpacing: '-0.01em' }}>시작하기</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                    {[
-                      { icon: '📝', label: '새 페이지 만들기', active: recordStep >= 1 },
-                      { icon: '📁', label: '템플릿 사용하기', active: false },
-                      { icon: '🔗', label: '가져오기', active: false },
-                      { icon: '⚙️', label: '설정 및 멤버', active: recordStep >= 3 },
-                    ].map((item) => (
-                      <div key={item.label} style={{ padding: '12px 14px', border: `1.5px solid ${item.active ? '#4F46E5' : '#E9E9E7'}`, borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px', background: item.active ? '#EEF2FF' : '#FAFAFA', transition: 'all 0.3s', cursor: 'default' }}>
-                        <span style={{ fontSize: '16px' }}>{item.icon}</span>
-                        <span style={{ fontSize: '12px', color: item.active ? '#4F46E5' : '#374151', fontWeight: item.active ? 600 : 400 }}>{item.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                  {recordStep >= 2 && (
-                    <div style={{ marginTop: '4px', padding: '12px 16px', background: '#F0FDF4', borderRadius: '8px', border: '1px solid #BBF7D0', animation: 'fadeIn 0.3s ease', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                      <span style={{ fontSize: '11.5px', color: '#15803D', fontWeight: 500 }}>새 페이지가 생성되었습니다</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* 클릭 마커들 */}
-                {clickMarkers.map((m, i) => (
-                  <div key={m.id} style={{ position: 'absolute', left: `${m.x}%`, top: `${m.y}%`, zIndex: 20, transform: 'translate(-50%, -50%)', animation: 'markerPop 0.4s ease-out forwards' }}>
-                    <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', display: 'grid', placeItems: 'center', fontSize: '10.5px', fontWeight: 700, boxShadow: '0 0 0 6px rgba(79,70,229,0.18), 0 3px 10px rgba(79,70,229,0.45)' }}>
-                      {i + 1}
-                    </div>
-                  </div>
-                ))}
-
-                {/* MIMIC 녹화 오버레이 */}
-                <div style={{ position: 'absolute', bottom: '16px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(10,10,15,0.82)', color: 'white', padding: '6px 14px', borderRadius: '999px', fontSize: '11px', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', gap: '7px', whiteSpace: 'nowrap' }}>
-                  <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#EF4444', animation: 'rec-blink 1.4s infinite', flexShrink: 0 }} />
-                  {recordStep === 0 ? 'MIMIC 녹화 중...' : `${recordStep}단계 캡처됨`}
-                </div>
-              </div>
-
-              {/* 우측 — 실제 에디터 TOC처럼 */}
-              <div style={{ background: 'white', borderLeft: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ padding: '12px 16px 10px', fontSize: '10px', fontWeight: 600, color: '#9CA3AF', letterSpacing: '0.06em', textTransform: 'uppercase', borderBottom: '1px solid #F3F4F6' }}>캡처된 단계</div>
-                <div style={{ flex: 1, padding: '8px 0' }}>
-                  {STEPS_DATA.slice(0, Math.max(1, recordStep)).map((s, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '7px 16px', background: i === recordStep - 1 ? '#EEF2FF' : 'transparent', borderLeft: `3px solid ${i === recordStep - 1 ? '#4F46E5' : 'transparent'}`, animation: i === recordStep - 1 ? 'fadeIn 0.3s ease' : 'none' }}>
-                      <div style={{ width: '20px', height: '20px', borderRadius: '6px', background: i === recordStep - 1 ? '#F59E0B' : '#F3F4F6', color: i === recordStep - 1 ? 'white' : '#9CA3AF', fontSize: '10px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0, marginTop: '1px' }}>
-                        {String(s.num).padStart(2, '0')}
-                      </div>
-                      <span style={{ fontSize: '11px', color: i === recordStep - 1 ? '#1E1B4B' : '#6B7280', lineHeight: 1.45, fontWeight: i === recordStep - 1 ? 500 : 400 }}>{s.title}</span>
-                    </div>
-                  ))}
-                  {recordStep === 0 && (
-                    <div style={{ color: '#9CA3AF', fontSize: '11px', textAlign: 'center', marginTop: '32px', lineHeight: 1.7, padding: '0 16px' }}>
-                      <div style={{ fontSize: '20px', marginBottom: '8px', opacity: 0.5 }}>🖱️</div>
-                      웹에서 작업하면<br />자동으로 캡처됩니다
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── 씬 2: 에디터 ── */}
-          {scene === 'editor' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', minHeight: '420px', background: '#F8F9FA' }}>
-              {/* 에디터 사이드바 — 실제 ManualEditor TOC */}
-              <div style={{ background: 'white', borderRight: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ padding: '12px 16px 10px', fontSize: '10px', fontWeight: 600, color: '#9CA3AF', letterSpacing: '0.06em', textTransform: 'uppercase', borderBottom: '1px solid #F3F4F6' }}>목차</div>
-                <div style={{ flex: 1, padding: '8px 0' }}>
-                  {STEPS_DATA.map((s, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '7px 16px', background: i === 1 ? '#EEF2FF' : 'transparent', borderLeft: `3px solid ${i === 1 ? '#4F46E5' : 'transparent'}` }}>
-                      <div style={{ width: '20px', height: '20px', borderRadius: '6px', background: i === 1 ? '#F59E0B' : '#F3F4F6', color: i === 1 ? 'white' : '#9CA3AF', fontSize: '10px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0, marginTop: '1px' }}>
-                        {String(s.num).padStart(2, '0')}
-                      </div>
-                      <span style={{ fontSize: '11px', color: i === 1 ? '#1E1B4B' : '#6B7280', lineHeight: 1.45, fontWeight: i === 1 ? 500 : 400 }}>{s.title}</span>
-                    </div>
-                  ))}
-                </div>
-                <div style={{ padding: '8px 12px 14px', borderTop: '1px solid #F3F4F6' }}>
-                  <div style={{ width: '100%', height: '32px', border: '1.5px dashed #D1D5DB', borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', fontSize: '11px', color: '#9CA3AF' }}>
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    단계 추가
-                  </div>
-                </div>
-              </div>
-
-              {/* 에디터 메인 — 실제 ManualEditor 레이아웃 */}
-              <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-                {/* 상단 action bar — 실제 선택/AI 바 */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 20px', borderBottom: '1px solid #E5E7EB', background: '#FFFBEB', flexShrink: 0 }}>
-                  <input type="checkbox" readOnly checked style={{ width: '13px', height: '13px', accentColor: '#4F46E5', cursor: 'default' }} />
-                  <span style={{ fontSize: '11.5px', color: '#374151' }}>전체 선택</span>
-                  <span style={{ fontSize: '11.5px', color: '#F59E0B', fontWeight: 600, marginLeft: '4px' }}>2개 선택됨</span>
-                  <div style={{ width: '1px', height: '14px', background: '#E5E7EB', margin: '0 2px' }} />
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="2"><path d="M12 3l1.9 5.8H20l-4.9 3.6 1.9 5.8-4.9-3.6-4.9 3.6 1.9-5.8L4.1 8.8H10z"/></svg>
-                  {['문장 다듬기', '맞춤법 교정', '간략하게'].map((label, i) => (
-                    <div key={label} style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', height: '24px', padding: '0 8px', borderRadius: '5px', border: '1px solid #EDE9FE', background: editorAiLoading && i === 0 ? '#EDE9FE' : 'white', color: '#7C3AED', fontSize: '11px', fontWeight: 500 }}>
-                      {editorAiLoading && i === 0 && <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', border: '1.5px solid #7C3AED', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />}
-                      {label}
-                    </div>
-                  ))}
-                </div>
-
-                {/* 스텝 카드 영역 */}
-                <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px 20px' }}>
-                  {/* 활성 스텝 카드 — 실제 StepCard 구조 */}
-                  <div style={{ background: 'white', borderRadius: '12px', border: `1.5px solid ${editorAiDone ? '#10B981' : '#F59E0B'}`, boxShadow: `0 0 0 3px ${editorAiDone ? 'rgba(16,185,129,0.10)' : 'rgba(245,158,11,0.10)'}`, marginBottom: '12px', transition: 'all 0.4s' }}>
-                    {/* 스텝 헤더 */}
-                    <div style={{ padding: '12px 16px 10px', display: 'flex', alignItems: 'flex-start', gap: '10px', borderBottom: '1px solid #F3F4F6' }}>
-                      <div style={{ width: '26px', height: '26px', borderRadius: '8px', background: '#F59E0B', color: 'white', fontSize: '11px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0 }}>02</div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '13.5px', fontWeight: 600, color: '#111827', marginBottom: '4px' }}>녹화 시작 클릭</div>
-                        <div style={{ fontSize: '12px', color: editorAiDone ? '#059669' : '#4B5563', lineHeight: 1.6, padding: '4px 6px', borderRadius: '4px', background: editorAiDone ? '#F0FDF4' : 'transparent', transition: 'all 0.4s' }}>
-                          {editorAiDone
-                            ? "팝업 상단의 '녹화 시작' 버튼을 클릭하면 현재 탭의 화면 캡처가 즉시 시작됩니다."
-                            : "팝업에서 '녹화 시작' 버튼을 클릭하면 화면 캡처가 즉시 시작됩니다."}
-                        </div>
-                        {editorAiDone && (
-                          <div style={{ marginTop: '5px', fontSize: '10.5px', color: '#10B981', display: 'flex', alignItems: 'center', gap: '4px', animation: 'fadeIn 0.3s ease' }}>
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
-                            AI 다듬기 완료 · 자동 저장됨
-                          </div>
-                        )}
-                      </div>
-                      <div style={{ display: 'flex', gap: '4px', flexShrink: 0, marginTop: '1px' }}>
-                        <div style={{ width: '24px', height: '24px', borderRadius: '6px', border: '1px solid #E5E7EB', display: 'grid', placeItems: 'center', background: 'white' }}>
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
-                        </div>
-                        <div style={{ width: '24px', height: '24px', borderRadius: '6px', border: '1px solid #FEE2E2', display: 'grid', placeItems: 'center', background: 'white' }}>
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
-                        </div>
-                      </div>
-                    </div>
-                    {/* 이미지 영역 — 실제처럼 */}
-                    <div style={{ position: 'relative', paddingTop: '38%', background: '#F3F4F6', overflow: 'hidden' }}>
-                      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {/* 스크린샷 목업 */}
-                        <div style={{ width: '90%', height: '85%', background: 'white', borderRadius: '6px', border: '1px solid #E5E7EB', padding: '10px', display: 'flex', flexDirection: 'column', gap: '6px', position: 'relative' }}>
-                          <div style={{ height: '10px', background: '#F3F4F6', borderRadius: '3px', width: '40%' }} />
-                          <div style={{ height: '8px', background: '#F3F4F6', borderRadius: '3px', width: '70%' }} />
-                          <div style={{ marginTop: '4px', display: 'flex', gap: '6px' }}>
-                            <div style={{ flex: 1, height: '24px', background: editorAiDone ? 'rgba(16,185,129,0.15)' : '#EEF2FF', borderRadius: '5px', border: `1px solid ${editorAiDone ? '#6EE7B7' : '#C7D2FE'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              <div style={{ width: '60%', height: '7px', background: editorAiDone ? '#6EE7B7' : '#A5B4FC', borderRadius: '2px', transition: 'all 0.4s' }} />
-                            </div>
-                            <div style={{ width: '50px', height: '24px', background: '#4F46E5', borderRadius: '5px', display: 'grid', placeItems: 'center' }}>
-                              <div style={{ width: '24px', height: '7px', background: 'rgba(255,255,255,0.7)', borderRadius: '2px' }} />
-                            </div>
-                          </div>
-                        </div>
-                        {/* 클릭 마커 */}
-                        <div style={{ position: 'absolute', bottom: '22%', right: '14%', width: '22px', height: '22px', borderRadius: '50%', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', display: 'grid', placeItems: 'center', fontSize: '9.5px', fontWeight: 700, boxShadow: '0 0 0 5px rgba(79,70,229,0.18)' }}>2</div>
-                      </div>
-                      {/* 줌 컨트롤 — 실제 GuideViewer와 동일 */}
-                      <div style={{ position: 'absolute', bottom: '8px', right: '8px', display: 'flex', alignItems: 'center', gap: '2px', background: 'rgba(20,20,30,0.72)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '7px', padding: '3px', zIndex: 5 }}>
-                        <div style={{ width: '24px', height: '24px', borderRadius: '4px', display: 'grid', placeItems: 'center', color: 'rgba(255,255,255,0.4)', fontSize: '15px' }}>−</div>
-                        <div style={{ height: '24px', padding: '0 5px', display: 'flex', alignItems: 'center', color: 'white', fontSize: '10px', fontWeight: 500, minWidth: '34px', justifyContent: 'center' }}>100%</div>
-                        <div style={{ width: '24px', height: '24px', borderRadius: '4px', display: 'grid', placeItems: 'center', color: 'white', fontSize: '15px' }}>+</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 다음 스텝 카드 (흐릿하게) */}
-                  <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #E5E7EB', opacity: 0.45, padding: '12px 16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={{ width: '26px', height: '26px', borderRadius: '8px', background: '#F59E0B', color: 'white', fontSize: '11px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0 }}>03</div>
-                      <div style={{ fontSize: '13.5px', fontWeight: 600, color: '#111827' }}>이메일 입력</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── 씬 3: 플레이어 (GuideViewer) ── */}
-          {scene === 'player' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', minHeight: '420px', background: '#F8F9FA' }}>
-              {/* 플레이어 사이드바 — 실제 GuideToc처럼 */}
-              <div style={{ background: 'white', borderRight: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ padding: '12px 16px 8px', borderBottom: '1px solid #F3F4F6' }}>
-                  <div style={{ fontSize: '11.5px', fontWeight: 600, color: '#111827', marginBottom: '2px' }}>Notion 시작 가이드</div>
-                  <div style={{ fontSize: '10px', color: '#9CA3AF' }}>4단계 · 약 2분</div>
-                </div>
-                <div style={{ flex: 1, padding: '8px 0' }}>
-                  {STEPS_DATA.map((s, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '7px 16px', background: i === playerStep ? '#EEF2FF' : 'transparent', borderLeft: `3px solid ${i === playerStep ? '#4F46E5' : 'transparent'}`, transition: 'all 0.3s' }}>
-                      <div style={{ width: '20px', height: '20px', borderRadius: '6px', flexShrink: 0, marginTop: '1px', display: 'grid', placeItems: 'center', fontSize: '9.5px', fontWeight: 700, background: i < playerStep ? '#10B981' : i === playerStep ? '#F59E0B' : '#F3F4F6', color: i < playerStep || i === playerStep ? 'white' : '#9CA3AF', transition: 'all 0.3s' }}>
-                        {i < playerStep ? <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg> : String(s.num).padStart(2, '0')}
-                      </div>
-                      <span style={{ fontSize: '11px', color: i === playerStep ? '#1E1B4B' : i < playerStep ? '#6B7280' : '#9CA3AF', lineHeight: 1.45, fontWeight: i === playerStep ? 600 : 400, transition: 'color 0.3s' }}>{s.title}</span>
-                    </div>
-                  ))}
-                </div>
-                {/* 진행 바 */}
-                <div style={{ padding: '10px 16px 14px', borderTop: '1px solid #F3F4F6' }}>
-                  <div style={{ height: '4px', background: '#E5E7EB', borderRadius: '999px', overflow: 'hidden', marginBottom: '5px' }}>
-                    <div style={{ height: '100%', background: 'linear-gradient(90deg, #4F46E5, #7C3AED)', width: `${((playerStep) / (STEPS_DATA.length - 1)) * 100}%`, transition: 'width 0.6s ease', borderRadius: '999px' }} />
-                  </div>
-                  <div style={{ fontSize: '10px', color: '#9CA3AF', textAlign: 'right' }}>{playerStep + 1} / {STEPS_DATA.length}</div>
-                </div>
-              </div>
-
-              {/* 플레이어 메인 — 실제 GuideViewer ViewerStepCard */}
-              <div style={{ padding: '20px', overflowY: 'auto', background: '#F8F9FA' }}>
-                {/* 현재 스텝 카드 — 실제 ViewerStepCard와 동일한 구조 */}
-                <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #E5E7EB', boxShadow: '0 1px 6px rgba(17,24,39,0.06)', overflow: 'hidden', marginBottom: '12px' }}>
-                  {/* 번호 + 제목 + 설명 */}
-                  <div style={{ padding: '14px 18px 12px', display: 'flex', alignItems: 'flex-start', gap: '10px', borderBottom: '1px solid #F3F4F6' }}>
-                    <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#F59E0B', color: 'white', fontSize: '12px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                      {String(STEPS_DATA[playerStep].num).padStart(2, '0')}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '14px', fontWeight: 600, color: '#111827', lineHeight: 1.4, marginBottom: '4px', transition: 'all 0.3s' }}>{STEPS_DATA[playerStep].title}</div>
-                      <div style={{ fontSize: '12.5px', color: '#4B5563', lineHeight: 1.65, transition: 'all 0.3s' }}>{STEPS_DATA[playerStep].desc}</div>
-                    </div>
-                  </div>
-                  {/* 스크린샷 영역 */}
-                  <div style={{ position: 'relative', paddingTop: '42%', background: '#F3F4F6', overflow: 'hidden' }}>
-                    <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {/* 스크린샷 목업 */}
-                      <div style={{ width: '88%', height: '80%', background: 'white', borderRadius: '8px', border: '1px solid #E5E7EB', overflow: 'hidden', boxShadow: '0 2px 8px rgba(17,24,39,0.08)', position: 'relative' }}>
-                        {/* 미니 브라우저 헤더 */}
-                        <div style={{ height: '22px', background: '#F7F6F3', borderBottom: '1px solid #E9E9E7', display: 'flex', alignItems: 'center', gap: '4px', padding: '0 8px' }}>
-                          {['#FF5F57','#FEBC2E','#28C840'].map(c => <span key={c} style={{ width: '6px', height: '6px', borderRadius: '50%', background: c, flexShrink: 0 }} />)}
-                        </div>
-                        {/* 페이지 콘텐츠 */}
-                        <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                          <div style={{ height: '14px', background: '#191919', borderRadius: '3px', width: '45%' }} />
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
-                            {[['📝', '새 페이지 만들기', playerStep === 0], ['📁', '템플릿 사용하기', false], ['🔗', '가져오기', playerStep === 2], ['⚙️', '설정 및 멤버', playerStep === 3]].map(([icon, , active], i) => (
-                              <div key={i} style={{ height: '20px', background: active ? '#EEF2FF' : '#F9FAFB', borderRadius: '4px', border: `1px solid ${active ? '#C7D2FE' : '#E5E7EB'}`, display: 'flex', alignItems: 'center', gap: '6px', padding: '0 8px', transition: 'all 0.3s' }}>
-                                <span style={{ fontSize: '10px' }}>{icon}</span>
-                                <div style={{ height: '6px', background: active ? '#A5B4FC' : '#E5E7EB', borderRadius: '2px', flex: 1, transition: 'all 0.3s' }} />
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        {/* 클릭 마커 */}
-                        <div style={{ position: 'absolute', width: '22px', height: '22px', borderRadius: '50%', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', display: 'grid', placeItems: 'center', fontSize: '9.5px', fontWeight: 700, boxShadow: '0 0 0 5px rgba(79,70,229,0.18)', top: `${[45, 55, 65, 78][playerStep] ?? 50}%`, left: `${[30, 75, 65, 75][playerStep] ?? 50}%`, transition: 'all 0.5s ease' }}>
-                          {STEPS_DATA[playerStep].num}
-                        </div>
-                      </div>
-                    </div>
-                    {/* 줌 컨트롤 */}
-                    <div style={{ position: 'absolute', bottom: '8px', right: '8px', display: 'flex', alignItems: 'center', gap: '2px', background: 'rgba(20,20,30,0.72)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '7px', padding: '3px', zIndex: 5 }}>
-                      <div style={{ width: '24px', height: '24px', borderRadius: '4px', display: 'grid', placeItems: 'center', color: 'rgba(255,255,255,0.4)', fontSize: '15px' }}>−</div>
-                      <div style={{ height: '24px', padding: '0 5px', display: 'flex', alignItems: 'center', color: 'white', fontSize: '10px', fontWeight: 500, minWidth: '34px', justifyContent: 'center' }}>100%</div>
-                      <div style={{ width: '24px', height: '24px', borderRadius: '4px', display: 'grid', placeItems: 'center', color: 'white', fontSize: '15px' }}>+</div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 다음 스텝 카드 (미리보기) */}
-                {playerStep < STEPS_DATA.length - 1 && (
-                  <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #E5E7EB', boxShadow: '0 1px 4px rgba(17,24,39,0.04)', padding: '12px 18px', opacity: 0.5, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#F3F4F6', color: '#9CA3AF', fontSize: '12px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                      {String(STEPS_DATA[playerStep + 1].num).padStart(2, '0')}
-                    </div>
-                    <div style={{ fontSize: '13.5px', fontWeight: 600, color: '#9CA3AF' }}>{STEPS_DATA[playerStep + 1].title}</div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
+        {/* iframe */}
+        <iframe
+          src={DEMO_URL}
+          style={{ width: '100%', height: '560px', border: 'none', display: 'block', background: '#F8F9FA' }}
+          title="MIMIC 데모 — 주민등록등본 발급하기"
+          loading="lazy"
+        />
       </div>
     </div>
   );
@@ -695,7 +319,7 @@ export default function LandingPage() {
 
           {/* Hero Simulator */}
           <div className="hero-preview">
-            <HeroSimulator />
+            <HeroDemo />
           </div>
         </div>
       </section>
