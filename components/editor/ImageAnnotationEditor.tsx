@@ -703,7 +703,7 @@ export function ImageAnnotationEditor({
           })()}
         </div>
 
-        <div style={{ height: '26px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', color: 'rgba(255,255,255,0.3)', background: '#1a1a1a' }}>
+        <div style={{ height: '26px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', color: 'rgba(255,255,255,0.6)', background: '#1a1a1a' }}>
           {tool === 'text' ? '드래그로 텍스트 박스 크기 지정 · Enter 확정' :
            tool === 'select' ? '클릭으로 선택 · 드래그로 이동 · 핸들로 크기 조절 · Delete 삭제' :
            tool === 'eraser' ? '지울 요소 위에서 드래그' :

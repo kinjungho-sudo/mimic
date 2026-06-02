@@ -148,7 +148,7 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
     <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
       {/* ── Left TOC (shown only when hideToc is false) ── */}
       {!hideToc && (
-        <aside style={{ width: '220px', flexShrink: 0, background: 'white', borderRight: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+        <aside style={{ width: '224px', flexShrink: 0, background: 'white', borderRight: '2px solid #E5E7EB', display: 'flex', flexDirection: 'column', overflowY: 'auto', boxShadow: '2px 0 6px rgba(0,0,0,0.04)' }}>
           <div style={{ padding: '16px 16px 10px', fontSize: '11px', fontWeight: 600, color: '#9CA3AF', letterSpacing: '0.06em', textTransform: 'uppercase', borderBottom: '1px solid #F3F4F6', flexShrink: 0 }}>
             목차
           </div>
@@ -194,32 +194,21 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
         </aside>
       )}
 
-      {/* ── Right content ── */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, background: '#F8F9FA' }}>
-        {/* ── Selection action bar ── */}
+      {/* ── Right content — 좌측 TOC와 시각적 분리를 위해 더 넓은 여백 + 배경 구분 ── */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, background: '#F1F3F5' }}>
+        {/* ── Selection action bar — 전체선택을 우측 끝에 ── */}
         <div style={{
           flexShrink: 0,
           display: 'flex', alignItems: 'center', gap: '8px',
-          padding: '8px 40px',
+          padding: '8px 24px',
           borderBottom: '1px solid #E5E7EB',
           background: selectedIds.size > 0 ? '#FFFBEB' : 'white',
           transition: 'background 0.2s',
         }}>
-          {/* Select all checkbox */}
-          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '12.5px', color: '#374151', userSelect: 'none' }}>
-            <input
-              type="checkbox"
-              checked={selectedIds.size === steps.length && steps.length > 0}
-              ref={el => { if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < steps.length; }}
-              onChange={e => e.target.checked ? selectAll() : clearSelection()}
-              style={{ width: '15px', height: '15px', accentColor: '#4F46E5', cursor: 'pointer' }}
-            />
-            전체 선택
-          </label>
-
+          {/* 선택 시 AI 액션 (왼쪽) */}
           {selectedIds.size > 0 && (
             <>
-              <span style={{ fontSize: '12px', color: '#F59E0B', fontWeight: 600, marginLeft: '4px' }}>
+              <span style={{ fontSize: '12px', color: '#F59E0B', fontWeight: 600 }}>
                 {selectedIds.size}개 선택됨
               </span>
               <div style={{ width: '1px', height: '16px', background: '#E5E7EB', margin: '0 4px' }} />
@@ -261,10 +250,22 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
               </button>
             </>
           )}
+
+          {/* 전체 선택 — 우측 끝 고정 */}
+          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '12px', color: '#6B7280', userSelect: 'none', marginLeft: 'auto', flexShrink: 0 }}>
+            <input
+              type="checkbox"
+              checked={selectedIds.size === steps.length && steps.length > 0}
+              ref={el => { if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < steps.length; }}
+              onChange={e => e.target.checked ? selectAll() : clearSelection()}
+              style={{ width: '14px', height: '14px', accentColor: '#4F46E5', cursor: 'pointer' }}
+            />
+            전체 선택
+          </label>
         </div>
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: '24px 0 60px' }}>
-        <div style={{ maxWidth: '760px', margin: '0 auto', padding: '0 32px' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '28px 0 60px' }}>
+        <div style={{ maxWidth: '740px', margin: '0 auto', padding: '0 28px' }}>
           {steps.map((step, idx) => {
             const prevDomain = idx > 0 ? steps[idx - 1].domain_name : null;
             const showDomainHeader = !!step.domain_name && step.domain_name !== prevDomain;

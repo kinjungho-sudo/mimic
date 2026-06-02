@@ -372,8 +372,8 @@ export default function EditorPage() {
         gap: '0',
         zIndex: 20,
       }}>
-        {/* Left: back button + logo area (60px sidebar width) */}
-        <div style={{ width: '60px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {/* Left: back button + page label */}
+        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '10px', paddingRight: '16px', borderRight: '1px solid #F3F4F6' }}>
           <button
             onClick={() => router.push('/home')}
             title="대시보드로 돌아가기"
@@ -381,7 +381,7 @@ export default function EditorPage() {
               width: '32px', height: '32px', borderRadius: '8px',
               border: '1px solid #E5E7EB', background: 'white',
               display: 'grid', placeItems: 'center',
-              color: '#6B7280', cursor: 'pointer', transition: 'all 0.15s',
+              color: '#6B7280', cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0,
             }}
             onMouseEnter={e => { e.currentTarget.style.background = '#F9FAFB'; e.currentTarget.style.color = '#111827'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'white'; e.currentTarget.style.color = '#6B7280'; }}
@@ -390,6 +390,7 @@ export default function EditorPage() {
               <polyline points="15 18 9 12 15 6" />
             </svg>
           </button>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151', whiteSpace: 'nowrap' }}>메뉴얼 편집기</span>
         </div>
 
         {/* Center: meta info */}
@@ -687,10 +688,6 @@ export default function EditorPage() {
             </>
           )}
           </div>
-          {/* Created date — small, below action row */}
-          <span style={{ fontSize: '10.5px', color: '#C4C9D4', paddingRight: '2px' }}>
-            {createdAt} 생성
-          </span>
         </div>
       </header>
 
@@ -722,17 +719,20 @@ export default function EditorPage() {
         {/* Main content */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
           {/* Title banner */}
-          <div style={{ flexShrink: 0, padding: '20px 40px 16px', borderBottom: '1px solid #E5E7EB', background: 'white' }}>
+          <div style={{ flexShrink: 0, padding: '14px 40px 12px', borderBottom: '1px solid #E5E7EB', background: 'white', display: 'flex', alignItems: 'baseline', gap: '12px' }}>
             <input
               value={title}
               onChange={e => { setTitle(e.target.value); setTitleDirty(true); }}
               placeholder="매뉴얼 제목"
               style={{
-                width: '100%', fontSize: '22px', fontWeight: 700, color: '#111827',
+                flex: 1, fontSize: '20px', fontWeight: 700, color: '#111827',
                 background: 'transparent', border: 'none', outline: 'none',
-                fontFamily: 'inherit', cursor: 'text',
+                fontFamily: 'inherit', cursor: 'text', minWidth: 0,
               }}
             />
+            <span style={{ fontSize: '11px', color: '#C4C9D4', whiteSpace: 'nowrap', flexShrink: 0 }}>
+              {createdAt} 생성
+            </span>
           </div>
           {editMode ? (
             <ManualEditor
