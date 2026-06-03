@@ -268,12 +268,12 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
         <div style={{ flex: 1, overflowY: 'auto', padding: '28px 0 60px' }}>
         <div style={{ maxWidth: '740px', margin: '0 auto', padding: '0 28px' }}>
           {steps.map((step, idx) => {
-            const prevDomain = idx > 0 ? steps[idx - 1].domain_name : null;
-            const showDomainHeader = !!step.domain_name && step.domain_name !== prevDomain;
+            const prevHostname = idx > 0 ? steps[idx - 1].domainHostname : null;
+            const showDomainHeader = !!step.domainHostname && step.domainHostname !== prevHostname;
             return (
               <div key={step.id}>
                 {showDomainHeader && (
-                  <EditorDomainHeader name={step.domain_name!} favicon={step.domain_favicon ?? null} hostname={step.domainHostname} />
+                  <EditorDomainHeader hostname={step.domainHostname!} name={step.domainName ?? null} favicon={step.domainFavicon ?? null} />
                 )}
                 <div
                   ref={el => { contentRefs.current[step.id] = el; }}
@@ -496,11 +496,28 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
     >
       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
 
+      {/* 선택 체크박스 — 카드 우측 상단 고정 */}
+      <div
+        onClick={e => { e.stopPropagation(); onToggleSelect(); }}
+        style={{
+          position: 'absolute', top: '8px', right: '8px',
+          width: '20px', height: '20px', borderRadius: '5px',
+          border: `2px solid ${isSelected ? '#3730a3' : '#D1D5DB'}`,
+          background: isSelected ? '#3730a3' : 'white',
+          display: 'grid', placeItems: 'center',
+          cursor: 'pointer', transition: 'all 0.15s',
+          opacity: showControls || isSelected ? 1 : 0,
+          zIndex: 2,
+        }}
+      >
+        {isSelected && <Check size={10} color="white" strokeWidth={3} />}
+      </div>
+
       {/* ── Text format toolbar (formatting only, no AI buttons) ── */}
       <TextFormatToolbar editorRef={editorRef} />
 
       {/* Card header */}
-      <div style={{ padding: '8px 12px 8px 20px' }}>
+      <div style={{ padding: '8px 36px 8px 20px' }}>
         {/* Number + Title + 우측 아이콘 가로 행 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ fontSize: '13px', fontWeight: 700, color: '#F59E0B', flexShrink: 0, lineHeight: 1.4 }}>
@@ -529,21 +546,8 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
             onMouseEnter={e => { e.currentTarget.style.background = '#F3F4F6'; }}
             onMouseLeave={e => { if (document.activeElement !== e.currentTarget) e.currentTarget.style.background = 'transparent'; }}
           />
-          {/* 우측 아이콘 — 가로 정렬 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', opacity: showControls || isSelected ? 1 : 0, transition: 'opacity 0.18s ease', flexShrink: 0 }}>
-            {/* 체크박스 */}
-            <div
-              onClick={e => { e.stopPropagation(); onToggleSelect(); }}
-              style={{
-                width: '22px', height: '22px', borderRadius: '5px',
-                border: `2px solid ${isSelected ? '#3730a3' : '#D1D5DB'}`,
-                background: isSelected ? '#3730a3' : 'white',
-                display: 'grid', placeItems: 'center',
-                cursor: 'pointer', transition: 'all 0.15s',
-              }}
-            >
-              {isSelected && <Check size={11} color="white" strokeWidth={3} />}
-            </div>
+          {/* 우측 아이콘 — 체크박스 제외 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', opacity: showControls ? 1 : 0, transition: 'opacity 0.18s ease', flexShrink: 0 }}>
             {step.pageUrl && (
               <button
                 title={step.pageUrl}
@@ -863,7 +867,8 @@ function ImageZoomModal({ url, onClose }: { url: string; onClose: () => void }) 
 
 // ── EditorDomainHeader ────────────────────────────────────
 
-function EditorDomainHeader({ name, favicon, hostname }: { name: string; favicon: string | null; hostname?: string | null }) {
+function EditorDomainHeader({ hostname, name, favicon }: { hostname: string; name: string | null; favicon: string | null }) {
+  const displayName = name || hostname;
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: '8px',
@@ -873,8 +878,9 @@ function EditorDomainHeader({ name, favicon, hostname }: { name: string; favicon
       border: '1px solid #E5E7EB',
       borderRadius: '6px',
     }}>
-      <DomainFaviconImg favicon={favicon} hostname={hostname ?? null} size={13} />
-      <span style={{ fontSize: '11px', fontWeight: 600, color: '#6B7280', letterSpacing: '0.02em' }}>{name}</span>
+      <DomainFaviconImg favicon={favicon} hostname={hostname} size={13} />
+      <span style={{ fontSize: '11px', fontWeight: 600, color: '#374151' }}>{displayName}</span>
+      <span style={{ fontSize: '10.5px', color: '#9CA3AF' }}>{hostname}</span>
     </div>
   );
 }

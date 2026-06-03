@@ -77,12 +77,12 @@ export function GuideViewer({ steps, activeId, onActiveChange, outputRatio = '16
       >
         <div style={{ maxWidth: '860px', margin: '0 auto', padding: '0 20px' }}>
           {steps.map((step, idx) => {
-            const prevDomain = idx > 0 ? steps[idx - 1].domain_name : null;
-            const showDomainHeader = !!step.domain_name && step.domain_name !== prevDomain;
+            const prevHostname = idx > 0 ? steps[idx - 1].domainHostname : null;
+            const showDomainHeader = !!step.domainHostname && step.domainHostname !== prevHostname;
             return (
               <div key={step.id}>
                 {showDomainHeader && (
-                  <DomainSectionHeader name={step.domain_name!} favicon={step.domain_favicon ?? null} />
+                  <DomainSectionHeader hostname={step.domainHostname!} name={step.domainName ?? null} favicon={step.domainFavicon ?? null} />
                 )}
                 <div
                   data-step-id={step.id}
@@ -145,23 +145,26 @@ export function GuideViewer({ steps, activeId, onActiveChange, outputRatio = '16
   );
 }
 
-function DomainSectionHeader({ name, favicon }: { name: string; favicon: string | null }) {
+function DomainSectionHeader({ hostname, name, favicon }: { hostname: string; name: string | null; favicon: string | null }) {
   const [faviconOk, setFaviconOk] = useState(true);
+  // favicon이 없으면 Google Favicon API fallback
+  const faviconSrc = favicon || `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`;
+  const displayName = name || hostname;
 
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: '8px',
-      margin: '8px 0 12px',
-      padding: '6px 12px',
+      margin: '8px 0 10px',
+      padding: '7px 14px',
       background: 'white',
       border: '1px solid #E5E7EB',
       borderRadius: '8px',
       boxShadow: '0 1px 3px rgba(17,24,39,0.05)',
     }}>
-      {favicon && faviconOk && (
+      {faviconOk && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={favicon}
+          src={faviconSrc}
           alt=""
           width={14}
           height={14}
@@ -169,8 +172,11 @@ function DomainSectionHeader({ name, favicon }: { name: string; favicon: string 
           onError={() => setFaviconOk(false)}
         />
       )}
-      <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#6B7280', letterSpacing: '0.02em' }}>
-        {name}
+      <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#374151' }}>
+        {displayName}
+      </span>
+      <span style={{ fontSize: '10.5px', color: '#9CA3AF' }}>
+        {hostname}
       </span>
     </div>
   );
