@@ -191,6 +191,13 @@ body {
   gap: 14px;
 }
 
+/* 홈 리스트/컴팩트 뷰 */
+.home-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 /* 모바일: 1열 (텍스트 잘림 방지) */
 @media (max-width: 640px) {
   .home-card-grid {

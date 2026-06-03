@@ -8,12 +8,6 @@ import { RecordingModal } from '@/components/dashboard/RecordingModal';
 import { createTutorial } from '@/lib/api/tutorials';
 import type { Tutorial, Workspace, Folder } from '@/types';
 
-function greeting(): string {
-  const h = new Date().getHours();
-  if (h < 12) return '좋은 아침이에요';
-  if (h < 18) return '안녕하세요';
-  return '안녕하세요';
-}
 
 const CARD_COLORS = ['#3730a3', '#6d28d9', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444'];
 function cardColor(id: string) { return CARD_COLORS[id.charCodeAt(0) % CARD_COLORS.length]; }
@@ -233,11 +227,14 @@ function ContextMenu({ menu, folders, tutorials, workspaces, onMove, onMoveToWor
 
 // ── 튜토리얼 카드 ──────────────────────────────────────────
 
-function TutorialCard({ tutorial, onContextMenu, onTitleChange, onMenuClick }: {
+type ViewMode = 'grid' | 'list' | 'compact';
+
+function TutorialCard({ tutorial, onContextMenu, onTitleChange, onMenuClick, viewMode = 'grid' }: {
   tutorial: Tutorial;
   onContextMenu: (e: React.MouseEvent, id: string) => void;
   onTitleChange: (id: string, title: string) => void;
   onMenuClick: (e: React.MouseEvent, id: string) => void;
+  viewMode?: ViewMode;
 }) {
   const router = useRouter();
   const [hovered, setHovered] = useState(false);
@@ -272,77 +269,126 @@ function TutorialCard({ tutorial, onContextMenu, onTitleChange, onMenuClick }: {
 
   useEffect(() => { if (editingTitle) titleInputRef.current?.focus(); }, [editingTitle]);
 
-  return (
-    <article
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      onContextMenu={e => { e.preventDefault(); onContextMenu(e, tutorial.id); }}
-      onClick={() => { if (!editingTitle) router.push(`/manual/${tutorial.id}`); }}
-      style={{
+  const iconEl = (size: number) => (
+    <div style={{ width: `${size}px`, height: `${size}px`, borderRadius: '7px', flexShrink: 0, background: `${color}12`, display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
+      {activeFavicon && !faviconError
+        // eslint-disable-next-line @next/next/no-img-element
+        ? <img src={activeFavicon} alt="" width={size * 0.47} height={size * 0.47} onError={() => {
+            if (activeFavicon === googleFavicon && ddgFavicon) setFaviconSrc(ddgFavicon);
+            else setFaviconError(true);
+          }} style={{ width: `${size * 0.47}px`, height: `${size * 0.47}px`, objectFit: 'contain' }} />
+        : <svg width={size * 0.41} height={size * 0.41} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+      }
+    </div>
+  );
+
+  const menuBtn = (
+    <button
+      onClick={e => { e.stopPropagation(); onMenuClick(e, tutorial.id); }}
+      style={{ flexShrink: 0, width: '28px', height: '28px', borderRadius: '6px', border: 'none', background: hovered ? '#F3F4F6' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6B7280', opacity: hovered ? 1 : 0, transition: 'opacity 0.1s' }}
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+    </button>
+  );
+
+  const titleEl = (
+    editingTitle ? (
+      <input ref={titleInputRef} value={titleDraft} onChange={e => setTitleDraft(e.target.value)}
+        onBlur={saveTitle}
+        onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') { setEditingTitle(false); setTitleDraft(tutorial.title); } }}
+        onClick={e => e.stopPropagation()} disabled={savingTitle}
+        style={{ fontSize: '13px', fontWeight: 600, color: '#111827', border: '1.5px solid #3730a3', borderRadius: '5px', padding: '1px 6px', outline: 'none', width: '100%', boxSizing: 'border-box', fontFamily: 'inherit' }}
+      />
+    ) : (
+      <div onClick={e => { e.stopPropagation(); setEditingTitle(true); }} title="클릭해서 제목 편집"
+        style={{ fontSize: '13px', fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'text' }}>
+        {tutorial.title}
+      </div>
+    )
+  );
+
+  const metaEl = (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '2px' }}>
+      {domain && <span style={{ fontSize: '11px', color: '#9CA3AF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '80px' }}>{domain}</span>}
+      {domain && <span style={{ width: '2px', height: '2px', borderRadius: '50%', background: '#D1D5DB', flexShrink: 0 }} />}
+      <span style={{ fontSize: '11px', color: '#9CA3AF', flexShrink: 0 }}>{dateStr}</span>
+      {stepCount > 0 && <><span style={{ width: '2px', height: '2px', borderRadius: '50%', background: '#D1D5DB', flexShrink: 0 }} /><span style={{ fontSize: '11px', color: '#9CA3AF', flexShrink: 0 }}>{stepCount}단계</span></>}
+      {tutorial.status === 'published' && <span style={{ fontSize: '10px', fontWeight: 600, color: '#16A34A', background: '#DCFCE7', padding: '1px 5px', borderRadius: '999px', flexShrink: 0 }}>공유</span>}
+    </div>
+  );
+
+  const commonArticleProps = {
+    onMouseEnter: () => setHovered(true),
+    onMouseLeave: () => setHovered(false),
+    onContextMenu: (e: React.MouseEvent) => { e.preventDefault(); onContextMenu(e, tutorial.id); },
+    onClick: () => { if (!editingTitle) router.push(`/manual/${tutorial.id}`); },
+  };
+
+  if (viewMode === 'compact') {
+    return (
+      <article {...commonArticleProps} style={{
+        background: 'white', borderRadius: '8px', cursor: 'pointer',
+        border: `1px solid ${hovered ? '#a5b4fc' : '#E5E7EB'}`,
+        boxShadow: hovered ? '0 2px 8px rgba(55,48,163,0.07)' : 'none',
+        transition: 'border-color 0.12s, box-shadow 0.12s',
+        display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px',
+      }}>
+        {iconEl(24)}
+        <div style={{ flex: 1, minWidth: 0, fontSize: '12.5px', fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {editingTitle ? (
+            <input ref={titleInputRef} value={titleDraft} onChange={e => setTitleDraft(e.target.value)}
+              onBlur={saveTitle}
+              onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') { setEditingTitle(false); setTitleDraft(tutorial.title); } }}
+              onClick={e => e.stopPropagation()} disabled={savingTitle}
+              style={{ fontSize: '12.5px', fontWeight: 600, color: '#111827', border: '1.5px solid #3730a3', borderRadius: '4px', padding: '1px 5px', outline: 'none', width: '100%', boxSizing: 'border-box', fontFamily: 'inherit' }}
+            />
+          ) : (
+            <span onClick={e => { e.stopPropagation(); setEditingTitle(true); }} title="클릭해서 제목 편집" style={{ cursor: 'text' }}>{tutorial.title}</span>
+          )}
+        </div>
+        {tutorial.status === 'published' && <span style={{ fontSize: '10px', fontWeight: 600, color: '#16A34A', background: '#DCFCE7', padding: '1px 5px', borderRadius: '999px', flexShrink: 0 }}>공유</span>}
+        {menuBtn}
+      </article>
+    );
+  }
+
+  if (viewMode === 'list') {
+    return (
+      <article {...commonArticleProps} style={{
         background: 'white', borderRadius: '10px', cursor: 'pointer',
         border: `1px solid ${hovered ? '#a5b4fc' : '#E5E7EB'}`,
-        boxShadow: hovered ? '0 3px 12px rgba(55,48,163,0.07)' : '0 1px 2px rgba(17,24,39,0.04)',
+        boxShadow: hovered ? '0 2px 10px rgba(55,48,163,0.07)' : '0 1px 2px rgba(17,24,39,0.03)',
         transition: 'border-color 0.12s, box-shadow 0.12s',
-        display: 'flex', alignItems: 'center', gap: '11px',
-        padding: '11px 13px',
-      }}
-    >
-      {/* 아이콘 */}
-      <div style={{ width: '34px', height: '34px', borderRadius: '8px', flexShrink: 0, background: `${color}12`, display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
-        {activeFavicon && !faviconError
-          // eslint-disable-next-line @next/next/no-img-element
-          ? <img src={activeFavicon} alt="" width={16} height={16} onError={() => {
-              if (activeFavicon === googleFavicon && ddgFavicon) {
-                setFaviconSrc(ddgFavicon);
-              } else {
-                setFaviconError(true);
-              }
-            }} style={{ width: '16px', height: '16px', objectFit: 'contain' }} />
-          : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-              <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
-            </svg>
-        }
-      </div>
-
-      {/* 텍스트 */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        {editingTitle ? (
-          <input ref={titleInputRef} value={titleDraft} onChange={e => setTitleDraft(e.target.value)}
-            onBlur={saveTitle}
-            onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') { setEditingTitle(false); setTitleDraft(tutorial.title); } }}
-            onClick={e => e.stopPropagation()} disabled={savingTitle}
-            style={{ fontSize: '13px', fontWeight: 600, color: '#111827', border: '1.5px solid #3730a3', borderRadius: '5px', padding: '1px 6px', outline: 'none', width: '100%', boxSizing: 'border-box', fontFamily: 'inherit' }}
-          />
-        ) : (
-          <div
-            onClick={e => { e.stopPropagation(); setEditingTitle(true); }}
-            title="클릭해서 제목 편집"
-            style={{ fontSize: '13px', fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'text' }}>
-            {tutorial.title}
-          </div>
-        )}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '2px' }}>
-          {domain && <span style={{ fontSize: '11px', color: '#9CA3AF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '80px' }}>{domain}</span>}
-          {domain && <span style={{ width: '2px', height: '2px', borderRadius: '50%', background: '#D1D5DB', flexShrink: 0 }} />}
-          <span style={{ fontSize: '11px', color: '#9CA3AF', flexShrink: 0 }}>{dateStr}</span>
-          {stepCount > 0 && <><span style={{ width: '2px', height: '2px', borderRadius: '50%', background: '#D1D5DB', flexShrink: 0 }} /><span style={{ fontSize: '11px', color: '#9CA3AF', flexShrink: 0 }}>{stepCount}단계</span></>}
-          {tutorial.status === 'published' && <span style={{ fontSize: '10px', fontWeight: 600, color: '#16A34A', background: '#DCFCE7', padding: '1px 5px', borderRadius: '999px', flexShrink: 0 }}>공유</span>}
+        display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px',
+      }}>
+        {iconEl(30)}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {titleEl}
+          {metaEl}
         </div>
+        {menuBtn}
+      </article>
+    );
+  }
+
+  return (
+    <article {...commonArticleProps} style={{
+      background: 'white', borderRadius: '10px', cursor: 'pointer',
+      border: `1px solid ${hovered ? '#a5b4fc' : '#E5E7EB'}`,
+      boxShadow: hovered ? '0 3px 12px rgba(55,48,163,0.07)' : '0 1px 2px rgba(17,24,39,0.04)',
+      transition: 'border-color 0.12s, box-shadow 0.12s',
+      display: 'flex', alignItems: 'center', gap: '11px', padding: '11px 13px',
+    }}>
+      {iconEl(34)}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {titleEl}
+        {metaEl}
       </div>
-      {/* hover 시 ⋯ 메뉴 버튼 */}
-      <button
-        onClick={e => { e.stopPropagation(); onMenuClick(e, tutorial.id); }}
-        style={{
-          flexShrink: 0, width: '28px', height: '28px', borderRadius: '6px',
-          border: 'none', background: hovered ? '#F3F4F6' : 'transparent',
-          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: '#6B7280', opacity: hovered ? 1 : 0, transition: 'opacity 0.1s',
-        }}
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
-      </button>
+      {menuBtn}
     </article>
   );
 }
@@ -414,6 +460,13 @@ export default function DashboardPage() {
 
   // 모바일 드로어
   const [showDrawer, setShowDrawer] = useState(false);
+
+  // 뷰 모드
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+
+  // 공지 배너
+  const [noticeDismissed, setNoticeDismissed] = useState(false);
+  const NOTICE = { type: 'info' as 'info' | 'warn' | 'error', text: '✨ AI 자동 어노테이션 기능이 업데이트되었습니다. 지금 바로 사용해보세요!', link: { label: '자세히 보기', href: '/home' } };
 
   const newMenuRef = useRef<HTMLDivElement>(null);
 
@@ -612,7 +665,7 @@ export default function DashboardPage() {
             {/* 로고 */}
             <Link href="/home" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px 16px', textDecoration: 'none' }}>
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="32" height="32" style={{ flexShrink: 0 }}><circle cx="50" cy="50" r="50" fill="#3730a3"/><text x="50" y="68" textAnchor="middle" fontFamily="Georgia, serif" fontSize="62" fontWeight="700" fill="white">M</text></svg>
-              <span style={{ fontSize: '16px', fontWeight: 800, color: '#111827', letterSpacing: '-0.03em' }}>MIMIC</span>
+              <span style={{ fontSize: '16px', fontWeight: 800, color: '#3730a3', letterSpacing: '-0.03em' }}>MIMIC</span>
             </Link>
 
             {/* ── 워크스페이스 트리 ── */}
@@ -843,17 +896,55 @@ export default function DashboardPage() {
 
           {/* ── 메인 ── */}
           <main style={{ display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, overflowY: 'auto' }}>
+            {/* 공지 배너 */}
+            {!noticeDismissed && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '10px',
+                padding: '9px 16px',
+                background: NOTICE.type === 'error' ? 'linear-gradient(90deg, #fef2f2, #fee2e2)' : NOTICE.type === 'warn' ? 'linear-gradient(90deg, #fffbeb, #fef3c7)' : 'linear-gradient(90deg, #eef2ff, #ede9fe)',
+                borderBottom: `1px solid ${NOTICE.type === 'error' ? '#fca5a5' : NOTICE.type === 'warn' ? '#fcd34d' : '#c7d2fe'}`,
+                flexShrink: 0, zIndex: 20,
+              }}>
+                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: NOTICE.type === 'error' ? '#ef4444' : NOTICE.type === 'warn' ? '#f59e0b' : '#3730a3', flexShrink: 0 }} />
+                <span style={{ flex: 1, fontSize: '13px', color: NOTICE.type === 'error' ? '#991b1b' : NOTICE.type === 'warn' ? '#92400e' : '#3730a3', fontWeight: 500 }}>
+                  {NOTICE.text}
+                </span>
+                {NOTICE.link && (
+                  <a href={NOTICE.link.href} style={{ fontSize: '12px', fontWeight: 700, color: NOTICE.type === 'error' ? '#b91c1c' : NOTICE.type === 'warn' ? '#b45309' : '#4338ca', textDecoration: 'underline', textUnderlineOffset: '2px', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                    {NOTICE.link.label}
+                  </a>
+                )}
+                <button onClick={() => setNoticeDismissed(true)} style={{ width: '20px', height: '20px', borderRadius: '50%', border: 'none', background: 'transparent', cursor: 'pointer', display: 'grid', placeItems: 'center', color: NOTICE.type === 'error' ? '#b91c1c' : NOTICE.type === 'warn' ? '#b45309' : '#6366f1', flexShrink: 0, opacity: 0.7 }}
+                  onMouseEnter={e => (e.currentTarget.style.opacity = '1')} onMouseLeave={e => (e.currentTarget.style.opacity = '0.7')}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+            )}
             {/* 헤더 — 모바일에서는 로고+버튼만 */}
             <header style={{ display: 'flex', alignItems: 'center', gap: '12px', height: '60px', padding: '0 16px', background: 'var(--mm-bg)', borderBottom: '1px solid var(--mm-border-light)', position: 'sticky', top: 0, zIndex: 30, flexShrink: 0 }}>
               {/* 모바일 전용: 로고 (햄버거는 우측으로 이동) */}
               <div className="home-mobile-logo" style={{ display: 'none', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                 <Link href="/home" style={{ display: 'flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}>
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="26" height="26"><circle cx="50" cy="50" r="50" fill="#3730a3"/><text x="50" y="68" textAnchor="middle" fontFamily="Georgia, serif" fontSize="62" fontWeight="700" fill="white">M</text></svg>
-                  <span style={{ fontSize: '15px', fontWeight: 800, color: '#111827', letterSpacing: '-0.03em' }}>MIMIC</span>
+                  <span style={{ fontSize: '15px', fontWeight: 800, color: '#3730a3', letterSpacing: '-0.03em' }}>MIMIC</span>
                 </Link>
               </div>
-              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div ref={newMenuRef} style={{ position: 'relative' }}>
+              {/* 모바일 전용: 햄버거 버튼 */}
+              <button className="home-hamburger-btn"
+                onClick={() => setShowDrawer(true)}
+                style={{ display: 'none', width: '36px', height: '36px', borderRadius: '8px', border: '1px solid #E5E7EB', background: 'white', placeItems: 'center', cursor: 'pointer', color: '#374151', flexShrink: 0, marginLeft: 'auto' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+              </button>
+            </header>
+
+            {/* 본문 */}
+            <div className="home-main-body" style={{ padding: '28px 32px', flex: 1, minHeight: 0 }}>
+              {/* 인사말 + 새 매뉴얼 버튼 */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', gap: '12px' }}>
+                <h1 className="home-greeting" style={{ fontSize: '22px', fontWeight: 700, letterSpacing: '-0.025em', margin: 0, color: '#0F172A' }}>
+                  {authLoading ? '' : `${firstName}님의 매뉴얼`}
+                </h1>
+                <div ref={newMenuRef} style={{ position: 'relative', flexShrink: 0 }}>
                   <button onClick={() => setShowNewMenu(v => !v)} disabled={creating}
                     className="home-new-btn"
                     style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '8px 14px', borderRadius: '9px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', border: 'none', cursor: creating ? 'not-allowed' : 'pointer', fontSize: '13.5px', fontWeight: 600, boxShadow: '0 2px 8px rgba(55,48,163,0.28)', opacity: creating ? 0.7 : 1, whiteSpace: 'nowrap' }}>
@@ -866,7 +957,6 @@ export default function DashboardPage() {
                   </button>
                   {showNewMenu && (
                     <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, width: '210px', background: 'white', borderRadius: '12px', boxShadow: '0 8px 28px rgba(17,24,39,0.14), 0 0 0 1px rgba(0,0,0,0.06)', overflow: 'hidden', zIndex: 100 }}>
-                      {/* 녹화 — 데스크톱 전용 (모바일에서 Chrome 확장 없음) */}
                       <button className="home-recording-btn" onClick={() => { setShowNewMenu(false); setShowRecordingModal(true); }}
                         style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', width: '100%', padding: '13px 15px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left' }}
                         onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
@@ -887,22 +977,6 @@ export default function DashboardPage() {
                     </div>
                   )}
                 </div>
-                {/* 모바일 전용: 햄버거 버튼 (우측 상단) */}
-                <button className="home-hamburger-btn"
-                  onClick={() => setShowDrawer(true)}
-                  style={{ display: 'none', width: '36px', height: '36px', borderRadius: '8px', border: '1px solid #E5E7EB', background: 'white', placeItems: 'center', cursor: 'pointer', color: '#374151', flexShrink: 0 }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-                </button>
-              </div>
-            </header>
-
-            {/* 본문 */}
-            <div className="home-main-body" style={{ padding: '28px 32px', flex: 1, minHeight: 0 }}>
-              {/* 인사말 */}
-              <div style={{ marginBottom: '20px' }}>
-                <h1 className="home-greeting" style={{ fontSize: '24px', fontWeight: 700, letterSpacing: '-0.025em', margin: 0, color: '#0F172A' }}>
-                  {authLoading ? '' : `${greeting()}, ${firstName}님`} 👋
-                </h1>
               </div>
 
               {/* 검색 */}
@@ -929,16 +1003,31 @@ export default function DashboardPage() {
                 )}
               </div>
 
-              {/* 탭 */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '20px', borderBottom: '2px solid #F3F4F6' }}>
-                {([['my', '내 매뉴얼'], ['team', '팀 매뉴얼']] as const).map(([tab, label]) => (
-                  <button key={tab}
-                    onClick={() => { setActiveTab(tab); if (tab === 'team' && workspaces.length > 0) setActiveWorkspace(workspaces[0].id); }}
-                    style={{ padding: '7px 16px', border: 'none', background: 'none', cursor: 'pointer', fontSize: '13.5px', fontWeight: activeTab === tab ? 700 : 400, color: activeTab === tab ? '#3730a3' : '#6B7280', borderBottom: `2px solid ${activeTab === tab ? '#3730a3' : 'transparent'}`, marginBottom: '-2px', transition: 'color 0.15s' }}>
-                    {label}
-                    {tab === 'my' && !tutLoading && <span style={{ marginLeft: '5px', fontSize: '11.5px', fontWeight: 400, color: '#9CA3AF' }}>{displayedTutorials.length}</span>}
-                  </button>
-                ))}
+              {/* 탭 + 뷰 토글 */}
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px', borderBottom: '2px solid #F3F4F6' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: 1 }}>
+                  {([['my', '내 매뉴얼'], ['team', '팀 매뉴얼']] as const).map(([tab, label]) => (
+                    <button key={tab}
+                      onClick={() => { setActiveTab(tab); if (tab === 'team' && workspaces.length > 0) setActiveWorkspace(workspaces[0].id); }}
+                      style={{ padding: '7px 16px', border: 'none', background: 'none', cursor: 'pointer', fontSize: '13.5px', fontWeight: activeTab === tab ? 700 : 400, color: activeTab === tab ? '#3730a3' : '#6B7280', borderBottom: `2px solid ${activeTab === tab ? '#3730a3' : 'transparent'}`, marginBottom: '-2px', transition: 'color 0.15s' }}>
+                      {label}
+                      {tab === 'my' && !tutLoading && <span style={{ marginLeft: '5px', fontSize: '11.5px', fontWeight: 400, color: '#9CA3AF' }}>{displayedTutorials.length}</span>}
+                    </button>
+                  ))}
+                </div>
+                {/* 뷰 모드 토글 */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginBottom: '6px', background: '#F3F4F6', borderRadius: '8px', padding: '3px' }}>
+                  {([
+                    { mode: 'grid' as ViewMode, title: '그리드', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg> },
+                    { mode: 'list' as ViewMode, title: '리스트', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1" fill="currentColor"/><circle cx="3" cy="12" r="1" fill="currentColor"/><circle cx="3" cy="18" r="1" fill="currentColor"/></svg> },
+                    { mode: 'compact' as ViewMode, title: '컴팩트', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="3" y1="5" x2="21" y2="5"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="3" y1="20" x2="21" y2="20"/></svg> },
+                  ]).map(({ mode, title, icon }) => (
+                    <button key={mode} onClick={() => setViewMode(mode)} title={title}
+                      style={{ width: '28px', height: '26px', borderRadius: '6px', border: 'none', cursor: 'pointer', display: 'grid', placeItems: 'center', background: viewMode === mode ? 'white' : 'transparent', color: viewMode === mode ? '#3730a3' : '#9CA3AF', boxShadow: viewMode === mode ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition: 'background 0.12s, color 0.12s' }}>
+                      {icon}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* 팀 탭: 워크스페이스 선택 */}
@@ -962,15 +1051,15 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {/* 그리드 */}
+              {/* 매뉴얼 목록 */}
               {tutLoading ? (
-                <div className="home-card-grid">
+                <div className={viewMode === 'grid' ? 'home-card-grid' : 'home-card-list'}>
                   {[1,2,3,4,5,6].map(i => (
-                    <div key={i} style={{ borderRadius: '10px', background: 'white', border: '1px solid #E5E7EB', padding: '11px 13px', display: 'flex', alignItems: 'center', gap: '11px' }}>
-                      <div style={{ width: '34px', height: '34px', borderRadius: '8px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite', flexShrink: 0 }} />
+                    <div key={i} style={{ borderRadius: '10px', background: 'white', border: '1px solid #E5E7EB', padding: viewMode === 'compact' ? '7px 10px' : '11px 13px', display: 'flex', alignItems: 'center', gap: '11px' }}>
+                      <div style={{ width: viewMode === 'compact' ? '24px' : '34px', height: viewMode === 'compact' ? '24px' : '34px', borderRadius: '7px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite', flexShrink: 0 }} />
                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         <div style={{ height: '12px', borderRadius: '6px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite' }} />
-                        <div style={{ height: '10px', width: '50%', borderRadius: '6px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite' }} />
+                        {viewMode !== 'compact' && <div style={{ height: '10px', width: '50%', borderRadius: '6px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite' }} />}
                       </div>
                     </div>
                   ))}
@@ -992,9 +1081,9 @@ export default function DashboardPage() {
                     label={activeTab === 'team' ? '팀 매뉴얼이 없어요' : activeFolder !== 'all' ? '이 폴더에 매뉴얼이 없어요' : undefined} />
                 )
               ) : (
-                <div className="home-card-grid">
+                <div className={viewMode === 'grid' ? 'home-card-grid' : 'home-card-list'}>
                   {displayedTutorials.map(t => (
-                    <TutorialCard key={t.id} tutorial={t} onContextMenu={handleContextMenu} onTitleChange={handleTitleChange} onMenuClick={handleContextMenu} />
+                    <TutorialCard key={t.id} tutorial={t} onContextMenu={handleContextMenu} onTitleChange={handleTitleChange} onMenuClick={handleContextMenu} viewMode={viewMode} />
                   ))}
                 </div>
               )}
@@ -1021,7 +1110,7 @@ export default function DashboardPage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 16px 12px', borderBottom: '1px solid var(--mm-border-light)', flexShrink: 0 }}>
               <Link href="/home" onClick={() => setShowDrawer(false)} style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="28" height="28"><circle cx="50" cy="50" r="50" fill="#3730a3"/><text x="50" y="68" textAnchor="middle" fontFamily="Georgia, serif" fontSize="62" fontWeight="700" fill="white">M</text></svg>
-                <span style={{ fontSize: '16px', fontWeight: 800, color: '#111827', letterSpacing: '-0.03em' }}>MIMIC</span>
+                <span style={{ fontSize: '16px', fontWeight: 800, color: '#3730a3', letterSpacing: '-0.03em' }}>MIMIC</span>
               </Link>
               <button onClick={() => setShowDrawer(false)} style={{ width: '32px', height: '32px', borderRadius: '8px', border: 'none', background: '#F3F4F6', cursor: 'pointer', display: 'grid', placeItems: 'center', color: '#6B7280' }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
