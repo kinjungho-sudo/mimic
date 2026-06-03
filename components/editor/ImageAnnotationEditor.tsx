@@ -1044,24 +1044,26 @@ function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx
     const align = a.textAlign ?? 'left';
     const bg = a.hasBg !== false;
     const boxW = Math.max(Math.abs(ax2 - ax1), 40);
-    const boxH = Math.max(Math.abs(ay2 - ay1), fSize + 8);
-    const padX = 8, padY = 4;
+    const boxH = Math.max(Math.abs(ay2 - ay1), fSize + 12);
+    const padX = 10, padY = 6;
     const textX = align === 'left' ? minX + padX : align === 'center' ? minX + boxW / 2 : minX + boxW - padX;
     const anchor = align === 'left' ? 'start' : align === 'center' ? 'middle' : 'end';
+    const bgFill = bg ? 'rgba(20,20,30,0.82)' : 'transparent';
+    const strokeColor = bColor !== 'transparent' ? bColor : 'none';
 
     return (
       <g style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown}>
         {bg && (
           <rect x={minX} y={minY} width={boxW} height={boxH}
-            fill="rgba(0,0,0,0.25)"
-            stroke={bColor !== 'transparent' ? bColor : 'none'}
-            strokeWidth={bColor !== 'transparent' ? 1.5 : 0}
-            rx={2}
+            fill={bgFill}
+            stroke={strokeColor}
+            strokeWidth={strokeColor !== 'none' ? 1.5 : 0}
+            rx={6}
           />
         )}
         {text.split('\n').map((line, i) => (
           <text key={i}
-            x={textX} y={minY + padY / 2 + i * fSize * 1.4}
+            x={textX} y={minY + padY + i * fSize * 1.4}
             fill={color} fontSize={fSize} fontWeight={bold ? 700 : 400}
             textAnchor={anchor}
             dominantBaseline="text-before-edge"

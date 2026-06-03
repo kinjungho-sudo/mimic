@@ -25,8 +25,9 @@ export interface ManualStep {
   // legacy snake_case kept for existing editor domain header logic
   domain_name?: string | null;
   domain_favicon?: string | null;
-  click_x?: number | null;   // 0-100 pct, for auto-zoom in annotation editor
+  click_x?: number | null;   // 0-100 pct
   click_y?: number | null;
+  element_rect?: { x: number; y: number; width: number; height: number } | null; // 0-1 normalized
   is_stale?: boolean;
   crop_rect?: { x: number; y: number; w: number; h: number } | null;
   imageZoom?: number;

@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireExtensionToken } from '@/lib/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { captureFinalizeSchema } from '@/lib/validators';
-import { generateDraft, extractCoverColors, generateAnnotations } from '@/lib/claude';
+import { generateDraft, extractCoverColors } from '@/lib/claude';
 import { resolveFavicon } from '@/lib/favicon';
-import { toEditorAnnotation, AUTO_ANNOTATION_PROMPT } from '@/lib/annotations';
+import { buildClickHighlight } from '@/lib/annotations';
 
 export async function POST(request: NextRequest) {
   const auth = await requireExtensionToken(request);
@@ -172,30 +172,24 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // 자동 어노테이션 생성 — click_x/y가 있는 스텝에 하이라이트+화살표+클릭 마커 자동 적용
-      // 스텝 좌표 데이터를 다시 조회 (click_x, click_y, element_rect 포함)
+      // 자동 어노테이션 생성 — element_rect가 있는 스텝에 Guidde 스타일 하이라이트 결정론적 배치
       const { data: stepsWithCoords } = await supabase
         .from('mm_steps')
-        .select('id, ai_title, ai_description, page_url, click_x, click_y, element_rect')
+        .select('id, step_number, ai_title, element_rect')
         .eq('tutorial_id', tutorial.id)
-        .not('click_x', 'is', null);
+        .not('element_rect', 'is', null);
 
       if (stepsWithCoords?.length) {
         await Promise.allSettled(
-          stepsWithCoords.map(async step => {
-            const locationData = {
-              clickX:      step.click_x / 10000,
-              clickY:      step.click_y / 10000,
-              elementRect: step.element_rect ?? null,
-              actionType:  null,
-              actionLabel: step.ai_title ?? null,
-            };
-            const stepContext = `제목: ${step.ai_title ?? ''}, 설명: ${step.ai_description ?? ''}, URL: ${step.page_url ?? ''}`;
+          stepsWithCoords.map(async (step, idx) => {
+            const rect = step.element_rect as { x: number; y: number; width: number; height: number } | null;
+            if (!rect) return;
 
-            const rawAnnotations = await generateAnnotations(AUTO_ANNOTATION_PROMPT, stepContext, locationData);
-            if (!rawAnnotations.length) return;
-
-            const annotations = (rawAnnotations as Record<string, unknown>[]).map(toEditorAnnotation);
+            const annotations = buildClickHighlight({
+              elementRect: rect,
+              stepNumber: step.step_number ?? idx + 1,
+              label: step.ai_title ?? '클릭',
+            });
 
             await supabase
               .from('mm_steps')

@@ -31,6 +31,7 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
     domain_favicon: s.domain_favicon  ?? null,
     is_stale: (s as Step & { is_stale?: boolean }).is_stale ?? false,
     crop_rect: (s as Step & { crop_rect?: { x: number; y: number; w: number; h: number } | null }).crop_rect ?? null,
+    element_rect: (s as Step & { element_rect?: { x: number; y: number; width: number; height: number } | null }).element_rect ?? null,
     imageZoom: (s as Step & { image_zoom?: number | null }).image_zoom ?? 1,
     // click_x/y: DB는 0~10000 정수, ManualStep은 0~100 퍼센트
     click_x: (s as Step & { click_x?: number | null }).click_x != null

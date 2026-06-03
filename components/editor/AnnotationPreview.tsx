@@ -65,7 +65,7 @@ export function AnnotationPreview({ annotations, imageUrl }: { annotations: Anno
       </defs>
 
       {spotlights.length > 0 && (
-        <rect x="0" y="0" width={imgW} height={imgH} fill="rgba(0,0,0,0.62)" mask={`url(#${spotlightMaskId})`} />
+        <rect x="0" y="0" width={imgW} height={imgH} fill="rgba(0,0,0,0.72)" mask={`url(#${spotlightMaskId})`} />
       )}
 
       {annotations.map(a => {
@@ -156,24 +156,27 @@ export function AnnotationPreview({ annotations, imageUrl }: { annotations: Anno
           const align = a.textAlign ?? 'left';
           const bg = a.hasBg !== false;
           const lines = a.text.split('\n');
-          const padX = 8, padY = 4;
+          const padX = 10, padY = 6;
           const boxW = Math.max(w, 40);
-          const boxH = Math.max(h, fSize + padY);
+          const boxH = Math.max(h, fSize + padY * 2);
           const textX = align === 'left' ? minX + padX : align === 'center' ? minX + boxW / 2 : minX + boxW - padX;
           const anchor = align === 'left' ? 'start' : align === 'center' ? 'middle' : 'end';
+          // Guidde 스타일: 어두운 배경 + 둥근 모서리
+          const bgFill = bg ? 'rgba(20,20,30,0.82)' : 'none';
+          const strokeColor = bColor && bColor !== 'transparent' ? bColor : 'none';
           return (
             <g key={a.id}>
               {bg && (
                 <rect x={minX} y={minY} width={boxW} height={boxH}
-                  fill="rgba(0,0,0,0.25)"
-                  stroke={bColor && bColor !== 'transparent' ? bColor : 'none'}
-                  strokeWidth={bColor && bColor !== 'transparent' ? 1.5 : 0}
-                  rx={2}
+                  fill={bgFill}
+                  stroke={strokeColor}
+                  strokeWidth={strokeColor !== 'none' ? 1.5 : 0}
+                  rx={6}
                 />
               )}
               {lines.map((line, i) => (
                 <text key={i}
-                  x={textX} y={minY + padY / 2 + i * fSize * 1.4}
+                  x={textX} y={minY + padY + i * fSize * 1.4}
                   fill={color} fontSize={fSize} fontWeight={bold ? 700 : 400}
                   textAnchor={anchor} dominantBaseline="text-before-edge"
                 >{line}</text>

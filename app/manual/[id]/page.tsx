@@ -30,6 +30,7 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
     domain_favicon: s.domain_favicon  ?? null,
     is_stale: (s as Step & { is_stale?: boolean }).is_stale ?? false,
     imageZoom: (s as Step & { image_zoom?: number | null }).image_zoom ?? 1,
+    element_rect: (s as Step & { element_rect?: { x: number; y: number; width: number; height: number } | null }).element_rect ?? null,
   }));
 }
 
