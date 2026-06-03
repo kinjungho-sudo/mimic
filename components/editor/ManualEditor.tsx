@@ -56,6 +56,7 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkAiLoading, setBulkAiLoading] = useState<string | null>(null);
   const contentRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!internalActiveId && steps.length > 0) setActiveId(steps[0].id);
@@ -216,9 +217,9 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
               <div style={{ width: '1px', height: '16px', background: '#E5E7EB', margin: '0 4px' }} />
               <Sparkles size={12} style={{ color: '#6d28d9', flexShrink: 0 }} />
               {([
-                { label: '문장 다듬기', instruction: '더 자연스럽고 읽기 쉽게 다듬어줘' },
+                { label: '문장 다듬기', instruction: '매뉴얼 가이드라인에 맞게 다듬어줘: 행동 하나만, 1문장, 존댓말, 특정 상품명/수량 제거, 결과 설명 문장 금지' },
                 { label: '맞춤법 교정', instruction: '맞춤법과 띄어쓰기를 교정해줘' },
-                { label: '간략하게', instruction: '핵심만 남기고 간략하게 요약해줘' },
+                { label: '개조식으로', instruction: '개조식으로 변환해줘: 마침표 없이 핵심 동작만 명사형으로 짧게 (예: "검색창에 키워드 입력 → 상품 목록 확인")' },
               ] as const).map(({ label, instruction }) => (
                 <button
                   key={label}
@@ -266,7 +267,7 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
           </label>
         </div>
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: '28px 0 60px' }}>
+        <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '28px 0 60px', position: 'relative' }}>
         <div style={{ maxWidth: '740px', margin: '0 auto', padding: '0 28px' }}>
           {steps.map((step, idx) => {
             const prevHostname = idx > 0 ? steps[idx - 1].domainHostname : null;
@@ -305,6 +306,25 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
           >
             <Plus size={15} /> 단계 추가
           </button>
+        </div>
+
+        {/* 맨위 / 맨아래 플로팅 버튼 */}
+        <div style={{ position: 'sticky', bottom: '24px', marginRight: '24px', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end', pointerEvents: 'none' }}>
+          {[
+            { title: '맨 위로', onClick: () => scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' }), path: 'M18 15 12 9 6 15' },
+            { title: '맨 아래로', onClick: () => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' }), path: 'M6 9 12 15 18 9' },
+          ].map(btn => (
+            <button
+              key={btn.title}
+              onClick={btn.onClick}
+              title={btn.title}
+              style={{ width: '36px', height: '36px', borderRadius: '9px', background: 'white', border: '1px solid #E5E7EB', boxShadow: '0 2px 8px rgba(17,24,39,0.10)', display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#6B7280', transition: 'all 0.15s', pointerEvents: 'auto' }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#F9FAFB'; e.currentTarget.style.color = '#111827'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'white'; e.currentTarget.style.color = '#6B7280'; }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points={btn.path}/></svg>
+            </button>
+          ))}
         </div>
         </div>
       </div>

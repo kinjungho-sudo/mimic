@@ -402,7 +402,12 @@ export async function rewriteSentence(
     max_tokens: 512,
     messages: [{
       role: 'user',
-      content: `다음 문장을 "${instruction}" 방식으로 다시 작성해줘. 수정된 문장만 반환하고, 설명이나 따옴표는 붙이지 마.
+      content: `다음 매뉴얼 스텝 설명을 "${instruction}" 방식으로 다시 작성해줘.
+
+[공통 규칙]
+- 수정된 결과만 반환 (설명, 따옴표, 부연 없이)
+- 특정 상품명·브랜드명·수량은 범용 표현으로 교체 (예: "신라면 120g" → "상품")
+- 문장 시작은 행동 동사나 명사로
 
 원문:
 ${original}`,
