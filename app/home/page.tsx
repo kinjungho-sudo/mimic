@@ -603,8 +603,8 @@ export default function DashboardPage() {
         />
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', fontFamily: "'Pretendard Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", fontSize: '13.5px', color: 'var(--mm-text-1)', background: 'var(--mm-bg-soft)' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', flex: 1 }} className="home-layout-grid">
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', fontFamily: "'Pretendard Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", fontSize: '13.5px', color: 'var(--mm-text-1)', background: 'var(--mm-bg-soft)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', flex: 1, minHeight: 0 }} className="home-layout-grid">
 
           {/* ── 사이드바 — 모바일에서 숨김 ── */}
           <aside className="home-sidebar" style={{ background: 'var(--mm-bg)', borderRight: '1px solid var(--mm-border-light)', padding: '16px 12px', display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto' }}>
@@ -837,9 +837,9 @@ export default function DashboardPage() {
           </aside>
 
           {/* ── 메인 ── */}
-          <main style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          <main style={{ display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, overflowY: 'auto' }}>
             {/* 헤더 — 모바일에서는 로고+버튼만 */}
-            <header style={{ display: 'flex', alignItems: 'center', gap: '12px', height: '60px', padding: '0 16px', background: 'var(--mm-bg)', borderBottom: '1px solid var(--mm-border-light)', position: 'sticky', top: 0, zIndex: 30 }}>
+            <header style={{ display: 'flex', alignItems: 'center', gap: '12px', height: '60px', padding: '0 16px', background: 'var(--mm-bg)', borderBottom: '1px solid var(--mm-border-light)', position: 'sticky', top: 0, zIndex: 30, flexShrink: 0 }}>
               {/* 모바일 전용: 로고 (햄버거는 우측으로 이동) */}
               <div className="home-mobile-logo" style={{ display: 'none', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                 <Link href="/home" style={{ display: 'flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}>
@@ -914,7 +914,7 @@ export default function DashboardPage() {
             </header>
 
             {/* 본문 */}
-            <div className="home-main-body" style={{ padding: '28px 32px', flex: 1 }}>
+            <div className="home-main-body" style={{ padding: '28px 32px', flex: 1, minHeight: 0 }}>
               {/* 인사말 */}
               <div style={{ marginBottom: '20px' }}>
                 <h1 className="home-greeting" style={{ fontSize: '24px', fontWeight: 700, letterSpacing: '-0.025em', margin: 0, color: '#0F172A' }}>

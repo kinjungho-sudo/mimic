@@ -146,6 +146,8 @@ body {
 @media (max-width: 768px) {
   .home-layout-grid {
     grid-template-columns: 1fr !important;
+    /* 모바일: grid가 부모 height를 가득 채우도록 */
+    height: 100%;
   }
   .home-mobile-logo {
     display: flex !important;
