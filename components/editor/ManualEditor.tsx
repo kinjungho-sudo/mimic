@@ -185,7 +185,7 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
             <button
               onClick={addStep}
               style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', height: '36px', border: '1.5px dashed #D1D5DB', borderRadius: '8px', background: 'transparent', fontSize: '12px', color: '#6B7280', cursor: 'pointer', transition: 'all 0.15s ease' }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = '#4F46E5'; e.currentTarget.style.color = '#4F46E5'; e.currentTarget.style.background = 'rgba(79,70,229,0.03)'; }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#3730a3'; e.currentTarget.style.color = '#3730a3'; e.currentTarget.style.background = 'rgba(55,48,163,0.03)'; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = '#D1D5DB'; e.currentTarget.style.color = '#6B7280'; e.currentTarget.style.background = 'transparent'; }}
             >
               <Plus size={13} /> 단계 추가
@@ -212,7 +212,7 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
                 {selectedIds.size}개 선택됨
               </span>
               <div style={{ width: '1px', height: '16px', background: '#E5E7EB', margin: '0 4px' }} />
-              <Sparkles size={12} style={{ color: '#7C3AED', flexShrink: 0 }} />
+              <Sparkles size={12} style={{ color: '#6d28d9', flexShrink: 0 }} />
               {([
                 { label: '문장 다듬기', instruction: '더 자연스럽고 읽기 쉽게 다듬어줘' },
                 { label: '맞춤법 교정', instruction: '맞춤법과 띄어쓰기를 교정해줘' },
@@ -226,7 +226,7 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
                     display: 'inline-flex', alignItems: 'center', gap: '4px',
                     height: '26px', padding: '0 10px', borderRadius: '5px',
                     border: '1px solid #EDE9FE', background: bulkAiLoading === label ? '#EDE9FE' : 'white',
-                    color: '#7C3AED', fontSize: '11.5px', fontWeight: 500,
+                    color: '#6d28d9', fontSize: '11.5px', fontWeight: 500,
                     cursor: bulkAiLoading ? 'not-allowed' : 'pointer',
                     opacity: bulkAiLoading && bulkAiLoading !== label ? 0.45 : 1,
                     flexShrink: 0,
@@ -258,7 +258,7 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
               checked={selectedIds.size === steps.length && steps.length > 0}
               ref={el => { if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < steps.length; }}
               onChange={e => e.target.checked ? selectAll() : clearSelection()}
-              style={{ width: '14px', height: '14px', accentColor: '#4F46E5', cursor: 'pointer' }}
+              style={{ width: '14px', height: '14px', accentColor: '#3730a3', cursor: 'pointer' }}
             />
             전체 선택
           </label>
@@ -298,7 +298,7 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
           <button
             onClick={addStep}
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%', height: '52px', border: '2px dashed #D1D5DB', borderRadius: '12px', background: 'transparent', fontSize: '13.5px', color: '#6B7280', cursor: 'pointer', transition: 'all 0.18s ease' }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = '#4F46E5'; e.currentTarget.style.color = '#4F46E5'; e.currentTarget.style.background = 'rgba(79,70,229,0.03)'; }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = '#3730a3'; e.currentTarget.style.color = '#3730a3'; e.currentTarget.style.background = 'rgba(55,48,163,0.03)'; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = '#D1D5DB'; e.currentTarget.style.color = '#6B7280'; e.currentTarget.style.background = 'transparent'; }}
           >
             <Plus size={15} /> 단계 추가
@@ -376,16 +376,16 @@ function TocItem({ step, isActive, isDragOver, onSelect, onRename, onDragStart, 
       onClick={() => { if (!editing) onSelect(); }}
       style={{
         display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '8px 16px',
-        background: isDragOver ? 'rgba(79,70,229,0.06)' : isActive ? '#EEF2FF' : 'transparent',
-        borderLeft: `3px solid ${isDragOver || isActive ? '#4F46E5' : 'transparent'}`,
-        borderTop: isDragOver ? '2px solid #4F46E5' : '2px solid transparent',
+        background: isDragOver ? 'rgba(55,48,163,0.06)' : isActive ? '#e0e7ff' : 'transparent',
+        borderLeft: `3px solid ${isDragOver || isActive ? '#3730a3' : 'transparent'}`,
+        borderTop: isDragOver ? '2px solid #3730a3' : '2px solid transparent',
         cursor: editing ? 'text' : 'grab', transition: 'background 0.15s ease', userSelect: 'none',
       }}
       onMouseEnter={e => { if (!isActive && !isDragOver) e.currentTarget.style.background = '#F9FAFB'; }}
       onMouseLeave={e => { if (!isActive && !isDragOver) e.currentTarget.style.background = 'transparent'; }}
     >
       <span style={{ color: '#CBD5E1', fontSize: '10px', lineHeight: 1.6, flexShrink: 0, cursor: 'grab', letterSpacing: '-1px' }}>⠿</span>
-      <span style={{ fontSize: '11px', fontWeight: 600, color: isActive ? '#4F46E5' : '#9CA3AF', minWidth: '20px', flexShrink: 0, lineHeight: 1.6 }}>
+      <span style={{ fontSize: '11px', fontWeight: 600, color: isActive ? '#3730a3' : '#9CA3AF', minWidth: '20px', flexShrink: 0, lineHeight: 1.6 }}>
         {String(step.number).padStart(2, '0')}
       </span>
       {editing ? (
@@ -396,7 +396,7 @@ function TocItem({ step, isActive, isDragOver, onSelect, onRename, onDragStart, 
           onBlur={commitEdit}
           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commitEdit(); } if (e.key === 'Escape') { setEditing(false); setDraft(step.actionTitle); } }}
           onClick={e => e.stopPropagation()}
-          style={{ flex: 1, fontSize: '12.5px', fontWeight: 500, color: '#111827', border: '1px solid #4F46E5', borderRadius: '4px', padding: '1px 6px', outline: 'none', background: 'white', lineHeight: 1.5 }}
+          style={{ flex: 1, fontSize: '12.5px', fontWeight: 500, color: '#111827', border: '1px solid #3730a3', borderRadius: '4px', padding: '1px 6px', outline: 'none', background: 'white', lineHeight: 1.5 }}
         />
       ) : (
         <span
@@ -484,9 +484,9 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
       onMouseLeave={() => setHovering(false)}
       style={{
         background: 'white', borderRadius: '12px',
-        border: `1.5px solid ${isSelected ? '#4F46E5' : isActive ? '#F59E0B' : '#E5E7EB'}`,
+        border: `1.5px solid ${isSelected ? '#3730a3' : isActive ? '#F59E0B' : '#E5E7EB'}`,
         boxShadow: isSelected
-          ? '0 0 0 3px rgba(79,70,229,0.12), 0 4px 16px rgba(17,24,39,0.06)'
+          ? '0 0 0 3px rgba(55,48,163,0.12), 0 4px 16px rgba(17,24,39,0.06)'
           : isActive ? '0 0 0 3px rgba(245,158,11,0.10), 0 4px 16px rgba(17,24,39,0.06)' : '0 1px 4px rgba(17,24,39,0.04)',
         transition: 'border-color 0.18s ease, box-shadow 0.18s ease',
         overflow: 'hidden',
@@ -535,8 +535,8 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
               onClick={e => { e.stopPropagation(); onToggleSelect(); }}
               style={{
                 width: '22px', height: '22px', borderRadius: '5px',
-                border: `2px solid ${isSelected ? '#4F46E5' : '#D1D5DB'}`,
-                background: isSelected ? '#4F46E5' : 'white',
+                border: `2px solid ${isSelected ? '#3730a3' : '#D1D5DB'}`,
+                background: isSelected ? '#3730a3' : 'white',
                 display: 'grid', placeItems: 'center',
                 cursor: 'pointer', transition: 'all 0.15s',
               }}
@@ -548,7 +548,7 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
                 title={step.pageUrl}
                 onClick={() => window.open(step.pageUrl!, '_blank', 'noopener,noreferrer')}
                 style={iconBtnSm}
-                onMouseEnter={e => { e.currentTarget.style.color = '#4F46E5'; }}
+                onMouseEnter={e => { e.currentTarget.style.color = '#3730a3'; }}
                 onMouseLeave={e => { e.currentTarget.style.color = '#9CA3AF'; }}
               >
                 <ExternalLink size={13} />
@@ -695,9 +695,9 @@ function ToolBtn({
       onMouseDown={onMouseDown}
       style={{
         width: '28px', height: '28px', display: 'grid', placeItems: 'center',
-        borderRadius: '6px', border: `1px solid ${isActive ? '#4F46E5' : 'transparent'}`,
-        background: isActive ? '#EEF2FF' : 'transparent',
-        color: isActive ? '#4F46E5' : '#4B5563',
+        borderRadius: '6px', border: `1px solid ${isActive ? '#3730a3' : 'transparent'}`,
+        background: isActive ? '#e0e7ff' : 'transparent',
+        color: isActive ? '#3730a3' : '#4B5563',
         cursor: 'pointer', transition: 'all 0.12s ease',
         flexShrink: 0,
       }}
@@ -732,17 +732,17 @@ function ScreenshotArea({ step, onUploadClick, onDrop, onAnnotate, onRemove }: S
         onDragLeave={() => setDragOver(false)}
         style={{
           margin: '0 12px 12px', height: '180px',
-          background: dragOver ? 'rgba(79,70,229,0.04)' : '#F9FAFB',
-          border: `1.5px dashed ${dragOver ? '#4F46E5' : '#D1D5DB'}`,
+          background: dragOver ? 'rgba(55,48,163,0.04)' : '#F9FAFB',
+          border: `1.5px dashed ${dragOver ? '#3730a3' : '#D1D5DB'}`,
           borderRadius: '8px',
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          gap: '10px', color: dragOver ? '#4F46E5' : '#9CA3AF',
+          gap: '10px', color: dragOver ? '#3730a3' : '#9CA3AF',
           fontSize: '12.5px', cursor: 'pointer', transition: 'all 0.15s ease',
         }}
-        onMouseEnter={e => { if (!dragOver) { e.currentTarget.style.borderColor = '#4F46E5'; e.currentTarget.style.color = '#4F46E5'; e.currentTarget.style.background = 'rgba(79,70,229,0.03)'; } }}
+        onMouseEnter={e => { if (!dragOver) { e.currentTarget.style.borderColor = '#3730a3'; e.currentTarget.style.color = '#3730a3'; e.currentTarget.style.background = 'rgba(55,48,163,0.03)'; } }}
         onMouseLeave={e => { if (!dragOver) { e.currentTarget.style.borderColor = '#D1D5DB'; e.currentTarget.style.color = '#9CA3AF'; e.currentTarget.style.background = '#F9FAFB'; } }}
       >
-        <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: dragOver ? 'rgba(79,70,229,0.10)' : '#F3F4F6', display: 'grid', placeItems: 'center', transition: 'background 0.15s' }}>
+        <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: dragOver ? 'rgba(55,48,163,0.10)' : '#F3F4F6', display: 'grid', placeItems: 'center', transition: 'background 0.15s' }}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
           </svg>
@@ -772,7 +772,7 @@ function ScreenshotArea({ step, onUploadClick, onDrop, onAnnotate, onRemove }: S
         <div style={{
           position: 'absolute', top: '8px', left: '8px',
           fontSize: '10px', fontWeight: 600, padding: '2px 7px',
-          borderRadius: '20px', background: 'rgba(79,70,229,0.85)', color: 'white',
+          borderRadius: '20px', background: 'rgba(55,48,163,0.85)', color: 'white',
           backdropFilter: 'blur(4px)', pointerEvents: 'none',
         }}>
           AI 크롭

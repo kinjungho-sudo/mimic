@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 
@@ -51,8 +51,8 @@ export default function AdminProSignupsPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '24px' }}>
         {[
           { label: '전체', value: signups.length, color: '#0F172A', bg: 'white' },
-          { label: 'Pro 플랜', value: proCount, color: '#4F46E5', bg: '#EEF2FF' },
-          { label: 'Team 플랜', value: teamCount, color: '#7C3AED', bg: '#F5F3FF' },
+          { label: 'Pro 플랜', value: proCount, color: '#3730a3', bg: '#e0e7ff' },
+          { label: 'Team 플랜', value: teamCount, color: '#6d28d9', bg: '#F5F3FF' },
           { label: '가장 많은 유입', value: Object.entries(sourceBreakdown).sort((a, b) => b[1] - a[1])[0]?.[0] ? SOURCE_LABELS[Object.entries(sourceBreakdown).sort((a, b) => b[1] - a[1])[0][0]] : '-', color: '#0369A1', bg: '#F0F9FF' },
         ].map(card => (
           <div key={card.label} style={{ background: card.bg, border: '1px solid #E2E8F0', borderRadius: '10px', padding: '16px 20px' }}>
@@ -106,7 +106,7 @@ export default function AdminProSignupsPage() {
               <tr key={s.id} style={{ borderTop: '1px solid #F1F5F9' }}>
                 <td style={{ padding: '13px 16px', fontSize: '13px', color: '#0F172A' }}>{s.email}</td>
                 <td style={{ padding: '13px 16px' }}>
-                  <span style={{ padding: '3px 8px', borderRadius: '5px', fontSize: '11.5px', fontWeight: 500, background: s.plan_interested === 'pro' ? '#EEF2FF' : '#F5F3FF', color: s.plan_interested === 'pro' ? '#4F46E5' : '#7C3AED' }}>
+                  <span style={{ padding: '3px 8px', borderRadius: '5px', fontSize: '11.5px', fontWeight: 500, background: s.plan_interested === 'pro' ? '#e0e7ff' : '#F5F3FF', color: s.plan_interested === 'pro' ? '#3730a3' : '#6d28d9' }}>
                     {s.plan_interested}
                   </span>
                 </td>

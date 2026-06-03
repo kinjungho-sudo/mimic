@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
   const supabase = createServiceRoleClient();
   const { data, error } = await supabase
     .from('mm_folders')
-    .insert({ user_id: auth.userId, name: parsed.data.name, color: parsed.data.color ?? '#4F46E5' })
+    .insert({ user_id: auth.userId, name: parsed.data.name, color: parsed.data.color ?? '#3730a3' })
     .select()
     .single();
 

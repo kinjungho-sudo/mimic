@@ -92,17 +92,17 @@ export function CanvasArea({ slideTitle, highlightCount, annotations, screenshot
               alignItems: 'center',
               gap: '6px',
               padding: '4px 10px',
-              background: 'linear-gradient(135deg, #EEF2FF 0%, #F5F3FF 100%)',
-              border: '1px solid rgba(79,70,229,0.20)',
+              background: 'linear-gradient(135deg, #e0e7ff 0%, #F5F3FF 100%)',
+              border: '1px solid rgba(55,48,163,0.20)',
               borderRadius: '999px',
               fontSize: '11px',
               fontWeight: 500,
-              color: '#4F46E5',
+              color: '#3730a3',
               whiteSpace: 'nowrap',
               cursor: 'pointer',
             }}
           >
-            <currentDevice.Icon size={13} color="#4F46E5" />
+            <currentDevice.Icon size={13} color="#3730a3" />
             <span>{currentDevice.label} · {currentDevice.size}</span>
             <ChevronDown size={10} />
           </button>
@@ -142,9 +142,9 @@ export function CanvasArea({ slideTitle, highlightCount, annotations, screenshot
                       borderRadius: '6px',
                       cursor: 'pointer',
                       fontSize: '12.5px',
-                      color: opt.type === device ? '#4F46E5' : '#4B5563',
+                      color: opt.type === device ? '#3730a3' : '#4B5563',
                       fontWeight: opt.type === device ? 500 : 400,
-                      background: opt.type === device ? '#EEF2FF' : 'transparent',
+                      background: opt.type === device ? '#e0e7ff' : 'transparent',
                       transition: 'background 0.18s ease',
                     }}
                     onMouseEnter={e => { if (opt.type !== device) e.currentTarget.style.background = '#F9FAFB'; }}
@@ -477,7 +477,7 @@ function MockScreenshot({ device }: { device: DeviceType }) {
         {!isMobile && (
           <div style={{ background: '#F9FAFB', borderRight: '1px solid #E5E7EB', padding: '14px 12px' }}>
             {[{ w: '80%', active: false }, { w: '60%', active: false }, { w: '70%', active: true }, { w: '80%', active: false }, { w: '60%', active: false }, { w: '80%', active: false }].map((r, i) => (
-              <div key={i} style={{ height: '10px', background: r.active ? '#4F46E5' : '#E5E7EB', borderRadius: '4px', marginBottom: '7px', width: r.w }} />
+              <div key={i} style={{ height: '10px', background: r.active ? '#3730a3' : '#E5E7EB', borderRadius: '4px', marginBottom: '7px', width: r.w }} />
             ))}
           </div>
         )}
@@ -506,7 +506,7 @@ function MockScreenshot({ device }: { device: DeviceType }) {
                 display: 'inline-flex',
                 alignItems: 'center',
                 padding: '8px 14px',
-                background: '#4F46E5',
+                background: '#3730a3',
                 color: 'white',
                 borderRadius: '6px',
                 fontSize: '12px',

@@ -86,8 +86,8 @@ export function SlidePanel({ slides, activeSlideId, onSlideSelect, onAddSlide }:
               borderRadius: '8px',
               marginBottom: '6px',
               cursor: 'pointer',
-              border: `2px solid ${isActive ? '#4F46E5' : 'transparent'}`,
-              background: isActive ? '#EEF2FF' : 'transparent',
+              border: `2px solid ${isActive ? '#3730a3' : 'transparent'}`,
+              background: isActive ? '#e0e7ff' : 'transparent',
               transition: 'background 0.18s ease, border-color 0.18s ease',
             }}
             onMouseEnter={e => {
@@ -104,7 +104,7 @@ export function SlidePanel({ slides, activeSlideId, onSlideSelect, onAddSlide }:
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 fontSize: '10.5px',
-                color: isActive ? '#4F46E5' : '#6B7280',
+                color: isActive ? '#3730a3' : '#6B7280',
                 fontWeight: 500,
                 marginBottom: '5px',
               }}
@@ -214,8 +214,8 @@ export function SlidePanel({ slides, activeSlideId, onSlideSelect, onAddSlide }:
           background: 'transparent',
         }}
         onMouseEnter={e => {
-          e.currentTarget.style.borderColor = '#4F46E5';
-          e.currentTarget.style.color = '#4F46E5';
+          e.currentTarget.style.borderColor = '#3730a3';
+          e.currentTarget.style.color = '#3730a3';
         }}
         onMouseLeave={e => {
           e.currentTarget.style.borderColor = '#E5E7EB';

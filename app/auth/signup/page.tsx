@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import Link from 'next/link';
@@ -78,14 +78,14 @@ export default function SignupPage() {
   };
 
   const inputStyle = { width: '100%', height: '40px', padding: '0 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '13.5px', outline: 'none', boxSizing: 'border-box' as const, transition: 'border-color 0.18s ease, box-shadow 0.18s ease' };
-  const inputFocus = (e: React.FocusEvent<HTMLInputElement>) => { e.currentTarget.style.borderColor = '#4F46E5'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(79,70,229,0.12)'; };
+  const inputFocus = (e: React.FocusEvent<HTMLInputElement>) => { e.currentTarget.style.borderColor = '#3730a3'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(55,48,163,0.12)'; };
   const inputBlur = (e: React.FocusEvent<HTMLInputElement>) => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.boxShadow = 'none'; };
 
   return (
     <div className="auth-grid" style={{ fontFamily: "'Pretendard', 'Pretendard Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif" }}>
 
       {/* Left brand panel — 모바일에서 숨김 */}
-      <aside className="auth-brand-panel" style={{ background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', color: 'white', padding: '56px', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
+      <aside className="auth-brand-panel" style={{ background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', color: 'white', padding: '56px', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(600px 320px at 100% 0%, rgba(255,255,255,0.18), transparent 60%), radial-gradient(500px 280px at 0% 100%, rgba(0,0,0,0.18), transparent 60%)', pointerEvents: 'none' }} />
         <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '100%' }}>
           <Link href="/landingpage" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', fontSize: '16px', fontWeight: 500, color: 'white', textDecoration: 'none' }}>
@@ -120,7 +120,7 @@ export default function SignupPage() {
       <section className="auth-form-panel" style={{ display: 'flex', flexDirection: 'column', padding: '36px 64px', background: 'white', overflowY: 'auto' }}>
         <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#6B7280' }}>
           이미 계정이 있으신가요?
-          <Link href="/auth/login" style={{ color: '#4F46E5', fontWeight: 500, marginLeft: '4px', textDecoration: 'none' }}>로그인</Link>
+          <Link href="/auth/login" style={{ color: '#3730a3', fontWeight: 500, marginLeft: '4px', textDecoration: 'none' }}>로그인</Link>
         </div>
 
         <div className="auth-form-inner" style={{ width: '100%', maxWidth: '380px', margin: 'auto', padding: '24px 0' }}>
@@ -183,7 +183,7 @@ export default function SignupPage() {
               <label style={{ display: 'flex', alignItems: 'center', gap: '10px', paddingBottom: '12px', borderBottom: '1px solid #F3F4F6', marginBottom: '12px', fontSize: '13px', fontWeight: 500, color: '#111827', cursor: 'pointer' }}>
                 <span style={{ position: 'relative', width: '16px', height: '16px', flexShrink: 0 }}>
                   <input type="checkbox" checked={allChecked} onChange={e => handleAgreeAll(e.target.checked)} style={{ position: 'absolute', opacity: 0, width: '100%', height: '100%', cursor: 'pointer', margin: 0 }} />
-                  <span style={{ display: 'block', width: '16px', height: '16px', border: `2px solid ${allChecked ? '#4F46E5' : '#D1D5DB'}`, borderRadius: '4px', background: allChecked ? '#4F46E5' : 'white', transition: 'all 0.15s' }}>
+                  <span style={{ display: 'block', width: '16px', height: '16px', border: `2px solid ${allChecked ? '#3730a3' : '#D1D5DB'}`, borderRadius: '4px', background: allChecked ? '#3730a3' : 'white', transition: 'all 0.15s' }}>
                     {allChecked && <svg viewBox="0 0 12 12" width="10" height="10" style={{ position: 'absolute', top: '1px', left: '1px' }}><path d="M2 6l3 3 5-5" stroke="white" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                   </span>
                 </span>
@@ -200,11 +200,11 @@ export default function SignupPage() {
                 <label key={row.text} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 0', fontSize: '12.5px', cursor: 'pointer' }}>
                   <span style={{ position: 'relative', width: '16px', height: '16px', flexShrink: 0 }}>
                     <input type="checkbox" checked={row.checked} onChange={e => row.set(e.target.checked)} style={{ position: 'absolute', opacity: 0, width: '100%', height: '100%', cursor: 'pointer', margin: 0 }} />
-                    <span style={{ display: 'block', width: '16px', height: '16px', border: `2px solid ${row.checked ? '#4F46E5' : '#D1D5DB'}`, borderRadius: '4px', background: row.checked ? '#4F46E5' : 'white', transition: 'all 0.15s' }}>
+                    <span style={{ display: 'block', width: '16px', height: '16px', border: `2px solid ${row.checked ? '#3730a3' : '#D1D5DB'}`, borderRadius: '4px', background: row.checked ? '#3730a3' : 'white', transition: 'all 0.15s' }}>
                       {row.checked && <svg viewBox="0 0 12 12" width="10" height="10" style={{ position: 'absolute', top: '1px', left: '1px' }}><path d="M2 6l3 3 5-5" stroke="white" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                     </span>
                   </span>
-                  <span style={{ color: row.label === '[선택]' ? '#6B7280' : '#4F46E5', fontWeight: 500, flexShrink: 0, fontSize: '11.5px' }}>{row.label}</span>
+                  <span style={{ color: row.label === '[선택]' ? '#6B7280' : '#3730a3', fontWeight: 500, flexShrink: 0, fontSize: '11.5px' }}>{row.label}</span>
                   <span style={{ flex: 1, color: '#374151' }}>{row.text}</span>
                   {row.link && <a href={row.link} style={{ marginLeft: 'auto', fontSize: '11px', color: '#9CA3AF', textDecoration: 'underline', flexShrink: 0 }} onClick={e => e.stopPropagation()}>보기</a>}
                 </label>
@@ -213,9 +213,9 @@ export default function SignupPage() {
 
             {error && <p style={{ fontSize: '12.5px', color: '#DC2626', margin: '0 0 12px', padding: '10px 12px', background: 'rgba(220,38,38,0.06)', borderRadius: '8px', border: '1px solid rgba(220,38,38,0.2)' }}>{error}</p>}
 
-            <button type="submit" disabled={loading} style={{ width: '100%', height: '44px', borderRadius: '10px', background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', color: 'white', fontSize: '14px', fontWeight: 500, boxShadow: '0 4px 12px rgba(79,70,229,0.25)', cursor: loading ? 'not-allowed' : 'pointer', border: 'none', opacity: loading ? 0.7 : 1, transition: 'transform 0.18s ease, box-shadow 0.18s ease' }}
-              onMouseEnter={e => { if (!loading) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 8px 18px rgba(79,70,229,0.32)'; } }}
-              onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(79,70,229,0.25)'; }}
+            <button type="submit" disabled={loading} style={{ width: '100%', height: '44px', borderRadius: '10px', background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', color: 'white', fontSize: '14px', fontWeight: 500, boxShadow: '0 4px 12px rgba(55,48,163,0.25)', cursor: loading ? 'not-allowed' : 'pointer', border: 'none', opacity: loading ? 0.7 : 1, transition: 'transform 0.18s ease, box-shadow 0.18s ease' }}
+              onMouseEnter={e => { if (!loading) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 8px 18px rgba(55,48,163,0.32)'; } }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(55,48,163,0.25)'; }}
             >
               {loading ? '처리 중...' : '무료로 시작하기'}
             </button>

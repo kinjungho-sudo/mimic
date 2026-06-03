@@ -9,10 +9,10 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        "mm-primary": "#4F46E5",
-        "mm-primary-700": "#4338CA",
-        "mm-primary-50": "#EEF2FF",
-        "mm-accent": "#7C3AED",
+        "mm-primary": "#3730a3",
+        "mm-primary-700": "#312e81",
+        "mm-primary-50": "#e0e7ff",
+        "mm-accent": "#6d28d9",
         "mm-success": "#10B981",
         "mm-warning": "#F59E0B",
         "mm-danger": "#DC2626",
@@ -33,13 +33,13 @@ const config: Config = {
         ],
       },
       backgroundImage: {
-        "mm-grad": "linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)",
-        "mm-grad-soft": "linear-gradient(135deg, #EEF2FF 0%, #F5F3FF 100%)",
+        "mm-grad": "linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)",
+        "mm-grad-soft": "linear-gradient(135deg, #e0e7ff 0%, #F5F3FF 100%)",
       },
       keyframes: {
         "marker-pulse": {
-          "0%, 100%": { boxShadow: "0 0 0 0 rgba(79,70,229,0.50), 0 0 0 3px white" },
-          "50%": { boxShadow: "0 0 0 10px rgba(79,70,229,0), 0 0 0 3px white" },
+          "0%, 100%": { boxShadow: "0 0 0 0 rgba(55,48,163,0.50), 0 0 0 3px white" },
+          "50%": { boxShadow: "0 0 0 10px rgba(55,48,163,0), 0 0 0 3px white" },
         },
         "hl-pulse": {
           "0%, 100%": {

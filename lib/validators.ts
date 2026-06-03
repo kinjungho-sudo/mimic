@@ -40,10 +40,24 @@ export const actionInfoSchema = z.object({
   return data;
 }).optional();
 
+const elementRectSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+  width: z.number(),
+  height: z.number(),
+}).nullable().optional();
+
 export const captureAnalyzeSchema = z.object({
   image: z.string().min(1),
   url: z.string().url(),
   actionInfo: actionInfoSchema,
+  // 클릭 위치 및 요소 위치 데이터 — AI 분석 정확도 향상용
+  elementRect:     elementRectSchema,
+  viewportW:       z.number().positive().optional().nullable(),
+  viewportH:       z.number().positive().optional().nullable(),
+  elementSelector: z.string().max(200).optional().nullable(),
+  clickX:          z.number().min(0).max(1).optional().nullable(),
+  clickY:          z.number().min(0).max(1).optional().nullable(),
 });
 
 export const captureSaveStepSchema = z.object({

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
@@ -231,7 +231,7 @@ function HeroDemo() {
         }}>
           {/* 팝업 헤더 */}
           <div style={{ padding: '16px 16px 12px', borderBottom: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'linear-gradient(135deg,#7C3AED,#4F46E5)', display: 'grid', placeItems: 'center' }}>
+            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'linear-gradient(135deg,#6d28d9,#3730a3)', display: 'grid', placeItems: 'center' }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
             </div>
             <div>
@@ -245,10 +245,10 @@ function HeroDemo() {
             <div style={{ fontSize: '12px', color: '#6B7280', marginBottom: '12px' }}>현재 탭에서 녹화를 시작하세요</div>
             <button style={{
               width: '100%', height: '44px', borderRadius: '10px',
-              background: clicked ? 'linear-gradient(135deg,#7C3AED,#4F46E5)' : 'linear-gradient(135deg,#7C3AED,#4F46E5)',
+              background: clicked ? 'linear-gradient(135deg,#6d28d9,#3730a3)' : 'linear-gradient(135deg,#6d28d9,#3730a3)',
               color: 'white', fontWeight: 700, fontSize: '14px', border: 'none',
               cursor: 'default',
-              boxShadow: clicked ? '0 0 0 4px rgba(124,58,237,0.25)' : 'none',
+              boxShadow: clicked ? '0 0 0 4px rgba(109,40,217,0.25)' : 'none',
               transform: clicked ? 'scale(0.97)' : 'scale(1)',
               transition: 'all 0.15s ease',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
@@ -265,7 +265,7 @@ function HeroDemo() {
           </div>
         </div>
         {/* 상태 레이블 */}
-        <div style={{ position: 'absolute', top: '16px', left: '16px', background: 'rgba(124,58,237,0.9)', color: 'white', fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '999px', backdropFilter: 'blur(4px)' }}>
+        <div style={{ position: 'absolute', top: '16px', left: '16px', background: 'rgba(109,40,217,0.9)', color: 'white', fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '999px', backdropFilter: 'blur(4px)' }}>
           Step 1 · 확장 프로그램 실행
         </div>
       </div>
@@ -305,21 +305,21 @@ function HeroDemo() {
         {/* URL 타이핑 레이블 */}
         <div style={{
           position: 'absolute', top: '16px', left: '50%', transform: 'translateX(-50%)',
-          background: 'white', border: '1.5px solid #7C3AED', borderRadius: '8px',
+          background: 'white', border: '1.5px solid #6d28d9', borderRadius: '8px',
           padding: '6px 14px', fontSize: '12px', color: '#374151', fontFamily: 'monospace',
-          boxShadow: '0 4px 16px rgba(124,58,237,0.15)',
+          boxShadow: '0 4px 16px rgba(109,40,217,0.15)',
           whiteSpace: 'nowrap',
           animation: 'sceneIn 0.3s ease both',
         }}>
           {urlTyped ? URL_TEXT : URL_TEXT.slice(0, Math.floor((tick / 600) * URL_TEXT.length))}
-          <span style={{ opacity: tick % 600 < 300 ? 1 : 0, color: '#7C3AED' }}>|</span>
+          <span style={{ opacity: tick % 600 < 300 ? 1 : 0, color: '#6d28d9' }}>|</span>
         </div>
         {/* MIMIC 녹화 뱃지 */}
         <div style={{ position: 'absolute', top: '16px', right: '16px', display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 12px', background: 'rgba(10,10,15,0.80)', backdropFilter: 'blur(6px)', borderRadius: '999px', fontSize: '11.5px', color: 'white', fontWeight: 500 }}>
           <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#EF4444', animation: 'rec-blink 1.2s infinite' }} />
           MIMIC 녹화 중 · 0단계
         </div>
-        <div style={{ position: 'absolute', top: '16px', left: '16px', background: 'rgba(124,58,237,0.9)', color: 'white', fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '999px' }}>
+        <div style={{ position: 'absolute', top: '16px', left: '16px', background: 'rgba(109,40,217,0.9)', color: 'white', fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '999px' }}>
           Step 2 · 페이지 이동
         </div>
       </div>
@@ -350,8 +350,8 @@ function HeroDemo() {
                 key={t}
                 style={{
                   padding: '8px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: i===0?600:400,
-                  background: i===0 ? (clicked ? '#7C3AED' : hovered ? '#F5F3FF' : '#191919') : '#F3F4F6',
-                  color: i===0 ? (hovered && !clicked ? '#7C3AED' : 'white') : '#6B7280',
+                  background: i===0 ? (clicked ? '#6d28d9' : hovered ? '#F5F3FF' : '#191919') : '#F3F4F6',
+                  color: i===0 ? (hovered && !clicked ? '#6d28d9' : 'white') : '#6B7280',
                   border: i===0 && hovered ? '2px solid #EF4444' : '2px solid transparent',
                   boxShadow: i===0 && hovered && !clicked ? '0 0 0 4px rgba(239,68,68,0.15)' : 'none',
                   transition: 'all 0.2s ease',
@@ -391,7 +391,7 @@ function HeroDemo() {
           <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#EF4444', animation: 'rec-blink 1.2s infinite' }} />
           {captured ? '1단계 캡처됨' : hovered ? '클릭 감지 중...' : 'MIMIC 녹화 중'}
         </div>
-        <div style={{ position: 'absolute', top: '16px', left: '16px', background: 'rgba(124,58,237,0.9)', color: 'white', fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '999px' }}>
+        <div style={{ position: 'absolute', top: '16px', left: '16px', background: 'rgba(109,40,217,0.9)', color: 'white', fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '999px' }}>
           Step 3 · 클릭 하이라이트
         </div>
       </div>
@@ -420,21 +420,21 @@ function HeroDemo() {
           <div style={{ padding: '16px' }}>
             <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
               <div style={{ width: '100px', background: '#F9FAFB', borderRadius: '6px', padding: '8px' }}>
-                {[75,55,65,75,50].map((w,i) => <div key={i} style={{ height: '7px', background: i===2 ? '#7C3AED' : '#E5E7EB', borderRadius: '2px', width: `${w}%`, marginBottom: '5px' }} />)}
+                {[75,55,65,75,50].map((w,i) => <div key={i} style={{ height: '7px', background: i===2 ? '#6d28d9' : '#E5E7EB', borderRadius: '2px', width: `${w}%`, marginBottom: '5px' }} />)}
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ height: '12px', background: '#111827', borderRadius: '3px', width: '50%', marginBottom: '8px' }} />
                 {/* 하이라이트 영역 */}
                 <div style={{
-                  padding: '8px 10px', background: '#F5F3FF', border: '2px solid #7C3AED', borderRadius: '7px', marginBottom: '6px',
-                  boxShadow: zoomed ? '0 0 0 3px rgba(124,58,237,0.20)' : 'none',
+                  padding: '8px 10px', background: '#F5F3FF', border: '2px solid #6d28d9', borderRadius: '7px', marginBottom: '6px',
+                  boxShadow: zoomed ? '0 0 0 3px rgba(109,40,217,0.20)' : 'none',
                   transition: 'box-shadow 0.4s',
                 }}>
                   <div style={{ height: '8px', background: '#DDD6FE', borderRadius: '2px', width: '80%', marginBottom: '4px' }} />
                   <div style={{ height: '8px', background: '#DDD6FE', borderRadius: '2px', width: '60%' }} />
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <div style={{ padding: '5px 12px', background: '#7C3AED', borderRadius: '5px', color: 'white', fontSize: '10px', fontWeight: 600 }}>신청하기</div>
+                  <div style={{ padding: '5px 12px', background: '#6d28d9', borderRadius: '5px', color: 'white', fontSize: '10px', fontWeight: 600 }}>신청하기</div>
                 </div>
               </div>
             </div>
@@ -454,14 +454,14 @@ function HeroDemo() {
         {zooming && (
           <div style={{
             position: 'absolute', top: '14px', left: '50%', transform: 'translateX(-50%)',
-            background: 'rgba(124,58,237,0.85)', color: 'white', fontSize: '11.5px', fontWeight: 600,
+            background: 'rgba(109,40,217,0.85)', color: 'white', fontSize: '11.5px', fontWeight: 600,
             padding: '5px 14px', borderRadius: '999px', whiteSpace: 'nowrap',
             animation: 'sceneIn 0.3s ease both',
           }}>
             ✦ AI 자동 확대 적용 중
           </div>
         )}
-        <div style={{ position: 'absolute', top: '16px', left: '16px', background: 'rgba(124,58,237,0.9)', color: 'white', fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '999px' }}>
+        <div style={{ position: 'absolute', top: '16px', left: '16px', background: 'rgba(109,40,217,0.9)', color: 'white', fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '999px' }}>
           Step 4 · 영역 확대
         </div>
       </div>
@@ -480,10 +480,10 @@ function HeroDemo() {
           {/* 완성 아이콘 */}
           <div style={{
             width: '72px', height: '72px', borderRadius: '20px',
-            background: 'linear-gradient(135deg,#7C3AED,#4F46E5)',
+            background: 'linear-gradient(135deg,#6d28d9,#3730a3)',
             margin: '0 auto 20px',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 0 0 12px rgba(124,58,237,0.15)',
+            boxShadow: '0 0 0 12px rgba(109,40,217,0.15)',
             animation: done ? 'checkPop 0.5s cubic-bezier(0.34,1.6,0.64,1) both' : 'none',
           }}>
             {done
@@ -504,7 +504,7 @@ function HeroDemo() {
                   mimic.so/play/abc123xyz
                 </div>
                 <button style={{
-                  padding: '10px 16px', background: copied ? '#10B981' : '#7C3AED',
+                  padding: '10px 16px', background: copied ? '#10B981' : '#6d28d9',
                   color: 'white', fontSize: '12px', fontWeight: 600, border: 'none',
                   cursor: 'default', transition: 'background 0.3s',
                   flexShrink: 0,
@@ -520,7 +520,7 @@ function HeroDemo() {
             </div>
           )}
         </div>
-        <div style={{ position: 'absolute', top: '16px', left: '16px', background: 'rgba(124,58,237,0.9)', color: 'white', fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '999px' }}>
+        <div style={{ position: 'absolute', top: '16px', left: '16px', background: 'rgba(109,40,217,0.9)', color: 'white', fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '999px' }}>
           Step 5 · 완성 & 공유
         </div>
       </div>
@@ -533,8 +533,8 @@ function HeroDemo() {
       <div style={{
         borderRadius: '16px 16px 0 0',
         overflow: 'hidden',
-        boxShadow: '0 20px 60px -10px rgba(79,70,229,0.28), 0 40px 80px -20px rgba(17,24,39,0.18)',
-        border: '1px solid rgba(79,70,229,0.15)',
+        boxShadow: '0 20px 60px -10px rgba(55,48,163,0.28), 0 40px 80px -20px rgba(17,24,39,0.18)',
+        border: '1px solid rgba(55,48,163,0.15)',
         borderBottom: 'none',
       }}>
         {/* 브라우저 상단바 */}
@@ -572,14 +572,14 @@ function HeroDemo() {
                 display: 'flex', alignItems: 'center', gap: '5px',
                 padding: isActive ? '5px 12px 5px 7px' : '5px 8px',
                 borderRadius: '999px',
-                border: `1px solid ${isActive ? 'rgba(124,58,237,0.40)' : isDone ? 'rgba(16,185,129,0.30)' : 'rgba(124,58,237,0.12)'}`,
-                background: isActive ? 'rgba(124,58,237,0.09)' : isDone ? 'rgba(16,185,129,0.06)' : 'transparent',
+                border: `1px solid ${isActive ? 'rgba(109,40,217,0.40)' : isDone ? 'rgba(16,185,129,0.30)' : 'rgba(109,40,217,0.12)'}`,
+                background: isActive ? 'rgba(109,40,217,0.09)' : isDone ? 'rgba(16,185,129,0.06)' : 'transparent',
                 transition: 'all 0.3s ease',
               }}
             >
               <div style={{
                 width: '18px', height: '18px', borderRadius: '5px', flexShrink: 0,
-                background: isActive ? '#7C3AED' : isDone ? '#10B981' : 'rgba(124,58,237,0.12)',
+                background: isActive ? '#6d28d9' : isDone ? '#10B981' : 'rgba(109,40,217,0.12)',
                 color: 'white',
                 fontSize: '9px', fontWeight: 700,
                 display: 'grid', placeItems: 'center',
@@ -591,7 +591,7 @@ function HeroDemo() {
                 }
               </div>
               {isActive && (
-                <span style={{ fontSize: '11px', fontWeight: 600, color: '#7C3AED', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: '#6d28d9', whiteSpace: 'nowrap' }}>
                   {label}
                 </span>
               )}
@@ -615,11 +615,11 @@ function HeroSection() {
 
   return (
     <section style={{ padding: '90px 0 0', background: 'linear-gradient(160deg, #EDE8FF 0%, #F8F0FF 50%, #FFF0F8 100%)', textAlign: 'center', position: 'relative' }}>
-      <div style={{ position: 'absolute', top: '-160px', left: '50%', transform: 'translateX(-50%)', width: '900px', height: '600px', background: 'radial-gradient(ellipse, rgba(124,58,237,0.10) 0%, transparent 65%)', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', top: '-160px', left: '50%', transform: 'translateX(-50%)', width: '900px', height: '600px', background: 'radial-gradient(ellipse, rgba(109,40,217,0.10) 0%, transparent 65%)', pointerEvents: 'none' }} />
 
       <div style={{ maxWidth: '1080px', margin: '0 auto', padding: '0 32px', position: 'relative' }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '5px 14px', background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.20)', borderRadius: '999px', fontSize: '12.5px', color: '#7C3AED', fontWeight: 500, marginBottom: '28px' }}>
-          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#7C3AED', display: 'inline-block', animation: 'pulse-dot 1.8s ease-in-out infinite' }} />
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '5px 14px', background: 'rgba(109,40,217,0.08)', border: '1px solid rgba(109,40,217,0.20)', borderRadius: '999px', fontSize: '12.5px', color: '#6d28d9', fontWeight: 500, marginBottom: '28px' }}>
+          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#6d28d9', display: 'inline-block', animation: 'pulse-dot 1.8s ease-in-out infinite' }} />
           AI 인터랙티브 매뉴얼 플랫폼
         </span>
 
@@ -634,7 +634,7 @@ function HeroSection() {
                   display: 'inline-block',
                   fontStyle: 'normal',
                   fontWeight: 700,
-                  background: 'linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)',
+                  background: 'linear-gradient(135deg, #6d28d9 0%, #3730a3 100%)',
                   WebkitBackgroundClip: 'text',
                   backgroundClip: 'text',
                   color: 'transparent',
@@ -656,7 +656,7 @@ function HeroSection() {
 
         <div className="hero-cta-row" style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginBottom: '56px' }}>
           <Link href="/auth/login"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '14px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 600, color: 'white', background: '#7C3AED', boxShadow: '0 4px 20px rgba(124,58,237,0.35)', textDecoration: 'none' }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '14px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 600, color: 'white', background: '#6d28d9', boxShadow: '0 4px 20px rgba(109,40,217,0.35)', textDecoration: 'none' }}
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
             무료로 시작하기
@@ -737,12 +737,12 @@ export default function LandingPage() {
               <button onClick={() => setDemoOpen(false)} style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', border: 'none', color: '#9CA3AF', cursor: 'pointer', display: 'grid', placeItems: 'center', fontSize: '16px' }}>×</button>
             </div>
             <div style={{ padding: '32px', textAlign: 'center' }}>
-              <div style={{ width: '64px', height: '64px', borderRadius: '16px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', margin: '0 auto 20px', display: 'grid', placeItems: 'center' }}>
+              <div style={{ width: '64px', height: '64px', borderRadius: '16px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', margin: '0 auto 20px', display: 'grid', placeItems: 'center' }}>
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
               </div>
               <div style={{ fontSize: '18px', fontWeight: 600, color: 'white', marginBottom: '8px' }}>준비 중입니다</div>
               <p style={{ fontSize: '14px', color: '#6B7280', lineHeight: 1.65, maxWidth: '360px', margin: '0 auto 24px' }}>실제 서비스 데모 영상을 제작 중입니다. 사전예약하시면 출시 즉시 알려드립니다.</p>
-              <Link href="/auth/login" onClick={() => setDemoOpen(false)} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '12px 24px', borderRadius: '10px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', fontWeight: 600, fontSize: '14px', textDecoration: 'none' }}>
+              <Link href="/auth/login" onClick={() => setDemoOpen(false)} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '12px 24px', borderRadius: '10px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', fontWeight: 600, fontSize: '14px', textDecoration: 'none' }}>
                 직접 무료로 써보기 →
               </Link>
             </div>
@@ -755,7 +755,7 @@ export default function LandingPage() {
         <div onClick={() => { setProModal(null); setProSubmitted(false); setProEmail(''); }} style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.60)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
           <div onClick={e => e.stopPropagation()} style={{ background: 'white', borderRadius: '20px', padding: '40px', width: '100%', maxWidth: '440px', boxShadow: '0 40px 80px rgba(0,0,0,0.15)' }}>
             <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-              <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '52px', height: '52px', borderRadius: '14px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', marginBottom: '16px' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '52px', height: '52px', borderRadius: '14px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', marginBottom: '16px' }}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
               </div>
               <div style={{ fontSize: '20px', fontWeight: 700, color: '#0D0D14', marginBottom: '6px' }}>{proModal === 'pro' ? 'Pro' : 'Team'} 플랜 사전예약</div>
@@ -764,7 +764,7 @@ export default function LandingPage() {
             {!proSubmitted ? (
               <form onSubmit={handleProPlanSignup}>
                 <input type="email" value={proEmail} onChange={e => setProEmail(e.target.value)} placeholder="이메일 주소" required style={{ width: '100%', height: '46px', padding: '0 14px', border: '1.5px solid #E5E7EB', borderRadius: '10px', fontSize: '14px', color: '#111827', outline: 'none', boxSizing: 'border-box', marginBottom: '12px', fontFamily: 'inherit' }} />
-                <button type="submit" style={{ width: '100%', height: '46px', borderRadius: '10px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', fontWeight: 700, fontSize: '14px', border: 'none', cursor: 'pointer' }}>{proModal === 'pro' ? '사전예약 신청하기' : '도입 문의 신청하기'}</button>
+                <button type="submit" style={{ width: '100%', height: '46px', borderRadius: '10px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', fontWeight: 700, fontSize: '14px', border: 'none', cursor: 'pointer' }}>{proModal === 'pro' ? '사전예약 신청하기' : '도입 문의 신청하기'}</button>
               </form>
             ) : (
               <div style={{ textAlign: 'center', padding: '16px', background: '#F0FDF4', borderRadius: '12px', color: '#15803D', fontSize: '14px', fontWeight: 500 }}>
@@ -799,7 +799,7 @@ export default function LandingPage() {
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = '#4B5563'; }}
             >로그인</Link>
             <Link href="/auth/login"
-              style={{ padding: '9px 18px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, color: 'white', background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', boxShadow: '0 2px 8px rgba(79,70,229,0.28)', textDecoration: 'none' }}
+              style={{ padding: '9px 18px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, color: 'white', background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', boxShadow: '0 2px 8px rgba(55,48,163,0.28)', textDecoration: 'none' }}
             >무료로 시작</Link>
           </div>
         </div>
@@ -812,7 +812,7 @@ export default function LandingPage() {
       <section style={{ padding: '96px 0', background: '#FAFAFA' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
           <RevealSection>
-          <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#4F46E5', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>Problem</span>
+          <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#3730a3', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>Problem</span>
           <h2 style={{ textAlign: 'center', fontSize: '36px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 auto 14px', maxWidth: '720px', lineHeight: 1.2, color: '#0D0D14' }}>이런 문제, 한 번쯤 겪어보셨죠?</h2>
           <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '560px', margin: '0 auto 56px', lineHeight: 1.65 }}>PDF는 쌓이기만 하고, 영상은 만들기 지옥이고, PPT는 만들다 하루가 갑니다.</p>
 
@@ -820,7 +820,7 @@ export default function LandingPage() {
             {[
               { emoji: '📄', title: 'PDF는 아무도 안 읽어요', body: '200페이지 매뉴얼을 만들어도 신입은 첫 페이지에서 멈춥니다. 검색도 안 되고 따라하기도 어렵죠.', quote: '"매뉴얼 어디 있어요?" — 매일 듣는 말', color: '#FEF3C7' },
               { emoji: '🎥', title: '영상 제작은 지옥이에요', body: '대본 쓰고, 녹화하고, 편집하고, 자막 달면 하루가 그냥 갑니다. 한 줄 수정하려면 처음부터 다시.', quote: '"영상 5분 만드는 데 6시간"', color: '#FEE2E2' },
-              { emoji: '🖥️', title: 'PPT는 너무 오래 걸려요', body: '스크린샷 찍고, 자르고, 화살표 그리고, 정렬 맞추다 보면 한 슬라이드에 30분. UI는 또 바뀌어 있고요.', quote: '"디자인은 또 누가 다듬어?"', color: '#EEF2FF' },
+              { emoji: '🖥️', title: 'PPT는 너무 오래 걸려요', body: '스크린샷 찍고, 자르고, 화살표 그리고, 정렬 맞추다 보면 한 슬라이드에 30분. UI는 또 바뀌어 있고요.', quote: '"디자인은 또 누가 다듬어?"', color: '#e0e7ff' },
             ].map(p => (
               <div key={p.title}
                 style={{ padding: '32px', background: 'white', border: '1.5px solid #E5E7EB', borderRadius: '16px', transition: 'all 0.2s ease' }}
@@ -841,7 +841,7 @@ export default function LandingPage() {
       {/* How it works */}
       <section id="how" style={{ padding: '96px 0', background: 'white' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
-          <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#4F46E5', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>How it works</span>
+          <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#3730a3', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>How it works</span>
           <h2 style={{ textAlign: 'center', fontSize: '36px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 auto 14px', maxWidth: '720px', lineHeight: 1.2, color: '#0D0D14' }}>3단계로 끝나는 매뉴얼 제작</h2>
           <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '540px', margin: '0 auto 64px', lineHeight: 1.65 }}>기존 작업을 평소처럼 하기만 하면 됩니다. 나머지는 AI가 다 합니다.</p>
 
@@ -852,7 +852,7 @@ export default function LandingPage() {
               { num: '03', title: '링크로 공유', body: '완성된 매뉴얼은 링크 한 줄로 어디든 공유. 보는 사람은 클릭으로 따라하면 끝.' },
             ].map(s => (
               <div key={s.num} style={{ padding: '40px 36px', position: 'relative', zIndex: 1 }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '52px', height: '52px', borderRadius: '50%', background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', color: 'white', fontSize: '16px', fontWeight: 700, marginBottom: '24px', boxShadow: '0 8px 20px rgba(79,70,229,0.28)' }}>{s.num}</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '52px', height: '52px', borderRadius: '50%', background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', color: 'white', fontSize: '16px', fontWeight: 700, marginBottom: '24px', boxShadow: '0 8px 20px rgba(55,48,163,0.28)' }}>{s.num}</span>
                 <div style={{ fontSize: '19px', fontWeight: 600, marginBottom: '10px', color: '#0D0D14', letterSpacing: '-0.01em' }}>{s.title}</div>
                 <p style={{ fontSize: '14.5px', color: '#6B7280', lineHeight: 1.65, margin: 0 }}>{s.body}</p>
               </div>
@@ -864,7 +864,7 @@ export default function LandingPage() {
       {/* Use Cases */}
       <section style={{ padding: '96px 0', background: '#FAFAFA' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
-          <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#4F46E5', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>Use Cases</span>
+          <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#3730a3', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>Use Cases</span>
           <h2 style={{ textAlign: 'center', fontSize: '36px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 auto 14px', maxWidth: '720px', lineHeight: 1.2, color: '#0D0D14' }}>어떤 팀에서 쓰고 있나요?</h2>
           <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '540px', margin: '0 auto 56px', lineHeight: 1.65 }}>설명이 필요한 곳이라면 어디든 MIMIC으로 해결할 수 있습니다.</p>
 
@@ -872,12 +872,12 @@ export default function LandingPage() {
             {useCases.map(uc => (
               <div key={uc.tag}
                 style={{ padding: '36px', background: 'white', border: '1.5px solid #E5E7EB', borderRadius: '20px', transition: 'all 0.2s ease' }}
-                onMouseEnter={e => { const el = e.currentTarget; el.style.borderColor = 'rgba(79,70,229,0.30)'; el.style.boxShadow = '0 12px 32px rgba(79,70,229,0.07)'; el.style.transform = 'translateY(-2px)'; }}
+                onMouseEnter={e => { const el = e.currentTarget; el.style.borderColor = 'rgba(55,48,163,0.30)'; el.style.boxShadow = '0 12px 32px rgba(55,48,163,0.07)'; el.style.transform = 'translateY(-2px)'; }}
                 onMouseLeave={e => { const el = e.currentTarget; el.style.borderColor = '#E5E7EB'; el.style.boxShadow = 'none'; el.style.transform = 'none'; }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
                   <span style={{ fontSize: '28px' }}>{uc.emoji}</span>
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#4F46E5', background: '#EEF2FF', padding: '4px 10px', borderRadius: '999px', letterSpacing: '0.02em' }}>{uc.tag}</span>
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#3730a3', background: '#e0e7ff', padding: '4px 10px', borderRadius: '999px', letterSpacing: '0.02em' }}>{uc.tag}</span>
                 </div>
                 <div style={{ fontSize: '19px', fontWeight: 600, marginBottom: '10px', color: '#0D0D14', letterSpacing: '-0.01em', lineHeight: 1.3 }}>{uc.title}</div>
                 <p style={{ fontSize: '14.5px', color: '#6B7280', lineHeight: 1.7, margin: 0 }}>{uc.body}</p>
@@ -890,7 +890,7 @@ export default function LandingPage() {
       {/* Features */}
       <section id="features" style={{ padding: '96px 0', background: 'white' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
-          <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#4F46E5', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>Features</span>
+          <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#3730a3', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>Features</span>
           <h2 style={{ textAlign: 'center', fontSize: '36px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 auto 14px', maxWidth: '720px', lineHeight: 1.2, color: '#0D0D14' }}>한 번 만들면, 세 가지 형태로 살아납니다</h2>
           <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '560px', margin: '0 auto 64px', lineHeight: 1.65 }}>스크린샷 한 번에 가이드 문서 · 인터랙티브 튜토리얼 · 영상까지.</p>
 
@@ -898,13 +898,13 @@ export default function LandingPage() {
             {features.map(f => (
               <div key={f.title}
                 style={{ padding: '28px', background: 'white', border: '1.5px solid #E5E7EB', borderRadius: '16px', transition: 'all 0.2s ease', position: 'relative' }}
-                onMouseEnter={e => { const el = e.currentTarget; el.style.borderColor = 'rgba(79,70,229,0.35)'; el.style.transform = 'translateY(-4px)'; el.style.boxShadow = '0 12px 32px rgba(79,70,229,0.08)'; }}
+                onMouseEnter={e => { const el = e.currentTarget; el.style.borderColor = 'rgba(55,48,163,0.35)'; el.style.transform = 'translateY(-4px)'; el.style.boxShadow = '0 12px 32px rgba(55,48,163,0.08)'; }}
                 onMouseLeave={e => { const el = e.currentTarget; el.style.borderColor = '#E5E7EB'; el.style.transform = 'none'; el.style.boxShadow = 'none'; }}
               >
                 {f.comingSoon && (
-                  <span style={{ position: 'absolute', top: '16px', right: '16px', fontSize: '10.5px', fontWeight: 600, color: '#7C3AED', background: '#F5F3FF', padding: '3px 8px', borderRadius: '999px', border: '1px solid #DDD6FE' }}>출시 예정</span>
+                  <span style={{ position: 'absolute', top: '16px', right: '16px', fontSize: '10.5px', fontWeight: 600, color: '#6d28d9', background: '#F5F3FF', padding: '3px 8px', borderRadius: '999px', border: '1px solid #DDD6FE' }}>출시 예정</span>
                 )}
-                <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: f.comingSoon ? 'linear-gradient(135deg, #7C3AED 0%, #A78BFA 100%)' : 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', display: 'grid', placeItems: 'center', marginBottom: '18px', boxShadow: '0 4px 12px rgba(79,70,229,0.25)' }}>
+                <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: f.comingSoon ? 'linear-gradient(135deg, #6d28d9 0%, #A78BFA 100%)' : 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', display: 'grid', placeItems: 'center', marginBottom: '18px', boxShadow: '0 4px 12px rgba(55,48,163,0.25)' }}>
                   {f.icon}
                 </div>
                 <div style={{ fontSize: '16px', fontWeight: 600, marginBottom: '8px', color: '#0D0D14' }}>{f.title}</div>
@@ -918,7 +918,7 @@ export default function LandingPage() {
       {/* Comparison */}
       <section style={{ padding: '96px 0', background: '#FAFAFA' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
-          <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#4F46E5', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>Why MIMIC</span>
+          <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#3730a3', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>Why MIMIC</span>
           <h2 style={{ textAlign: 'center', fontSize: '36px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 auto 56px', maxWidth: '720px', lineHeight: 1.2, color: '#0D0D14' }}>다른 방법과 무엇이 다른가요?</h2>
 
           <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: '20px', overflow: 'hidden' }}>
@@ -926,7 +926,7 @@ export default function LandingPage() {
             <div className="comparison-row" style={{ display: 'grid', gridTemplateColumns: '1fr repeat(3, 140px)', borderBottom: '1.5px solid #E5E7EB' }}>
               <div style={{ padding: '18px 28px', fontSize: '13px', color: '#9CA3AF' }}>기능</div>
               {['PPT / 문서', '영상 녹화', 'MIMIC'].map((col, i) => (
-                <div key={col} style={{ padding: '18px 0', textAlign: 'center', fontSize: '13.5px', fontWeight: 600, color: i === 2 ? '#4F46E5' : '#374151', background: i === 2 ? '#F5F3FF' : 'transparent', borderLeft: '1px solid #F3F4F6' }}>{col}</div>
+                <div key={col} style={{ padding: '18px 0', textAlign: 'center', fontSize: '13.5px', fontWeight: 600, color: i === 2 ? '#3730a3' : '#374151', background: i === 2 ? '#F5F3FF' : 'transparent', borderLeft: '1px solid #F3F4F6' }}>{col}</div>
               ))}
             </div>
             {[
@@ -941,11 +941,11 @@ export default function LandingPage() {
                 {row.vals.map((val, i) => (
                   <div key={i} style={{ padding: '16px 0', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', background: i === 2 ? '#FAFAFE' : 'transparent', borderLeft: '1px solid #F3F4F6' }}>
                     {val === true ? (
-                      <span style={{ color: '#4F46E5' }}><CheckIcon size={16} color="#4F46E5" /></span>
+                      <span style={{ color: '#3730a3' }}><CheckIcon size={16} color="#3730a3" /></span>
                     ) : val === false ? (
                       <XIcon size={16} />
                     ) : (
-                      <span style={{ fontSize: '12.5px', color: i === 2 ? '#4F46E5' : '#6B7280', fontWeight: i === 2 ? 600 : 400 }}>{val}</span>
+                      <span style={{ fontSize: '12.5px', color: i === 2 ? '#3730a3' : '#6B7280', fontWeight: i === 2 ? 600 : 400 }}>{val}</span>
                     )}
                   </div>
                 ))}
@@ -958,7 +958,7 @@ export default function LandingPage() {
       {/* Pricing */}
       <section id="pricing" style={{ padding: '96px 0', background: 'white' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
-          <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#4F46E5', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>Pricing</span>
+          <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#3730a3', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>Pricing</span>
           <h2 style={{ textAlign: 'center', fontSize: '36px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 auto 14px', maxWidth: '720px', lineHeight: 1.2, color: '#0D0D14' }}>필요한 만큼만 결제하세요</h2>
           <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '560px', margin: '0 auto 40px', lineHeight: 1.65 }}>기본 매뉴얼은 누구나 무료로. 진짜 필요할 때만 업그레이드하세요.</p>
 
@@ -993,23 +993,23 @@ export default function LandingPage() {
                 cta: '도입 문의하기',
               },
             ] as const).map(plan => (
-              <div key={plan.name} style={{ background: 'white', border: plan.featured ? '2px solid #4F46E5' : '1.5px solid #E5E7EB', borderRadius: '20px', padding: '36px 28px', position: 'relative', transform: plan.featured ? 'translateY(-10px)' : 'none', boxShadow: plan.featured ? '0 16px 48px rgba(79,70,229,0.12), 0 4px 12px rgba(17,24,39,0.06)' : 'none' }}>
-                {plan.featured && <span style={{ position: 'absolute', top: '-13px', left: '50%', transform: 'translateX(-50%)', background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', color: 'white', padding: '5px 14px', borderRadius: '999px', fontSize: '11.5px', fontWeight: 600, whiteSpace: 'nowrap' }}>가장 인기</span>}
-                <div style={{ fontSize: '14px', fontWeight: 700, color: plan.featured ? '#4F46E5' : '#6B7280', marginBottom: '4px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>{plan.name}</div>
+              <div key={plan.name} style={{ background: 'white', border: plan.featured ? '2px solid #3730a3' : '1.5px solid #E5E7EB', borderRadius: '20px', padding: '36px 28px', position: 'relative', transform: plan.featured ? 'translateY(-10px)' : 'none', boxShadow: plan.featured ? '0 16px 48px rgba(55,48,163,0.12), 0 4px 12px rgba(17,24,39,0.06)' : 'none' }}>
+                {plan.featured && <span style={{ position: 'absolute', top: '-13px', left: '50%', transform: 'translateX(-50%)', background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', color: 'white', padding: '5px 14px', borderRadius: '999px', fontSize: '11.5px', fontWeight: 600, whiteSpace: 'nowrap' }}>가장 인기</span>}
+                <div style={{ fontSize: '14px', fontWeight: 700, color: plan.featured ? '#3730a3' : '#6B7280', marginBottom: '4px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>{plan.name}</div>
                 <div style={{ fontSize: '13px', color: '#9CA3AF', marginBottom: '24px' }}>{plan.sub}</div>
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', marginBottom: '24px' }}>
                   <span style={{ fontSize: plan.amount === '협의' ? '32px' : '42px', fontWeight: 700, letterSpacing: '-0.03em', color: '#0D0D14', lineHeight: 1 }}>{plan.amount}</span>
                   {plan.per && <span style={{ fontSize: '13.5px', color: '#9CA3AF', fontWeight: 400, paddingBottom: '4px' }}>{plan.per}</span>}
                 </div>
                 {plan.planKey ? (
-                  <button onClick={() => { setProModal(plan.planKey as 'pro' | 'team'); setProSubmitted(false); setProEmail(''); }} style={{ display: 'block', width: '100%', margin: '0 0 28px', padding: '13px 0', borderRadius: '10px', fontSize: '14px', fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: plan.featured ? 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)' : 'white', color: plan.featured ? 'white' : '#374151', border: plan.featured ? 'none' : '1.5px solid #E5E7EB', boxShadow: plan.featured ? '0 4px 12px rgba(79,70,229,0.28)' : 'none', fontFamily: 'inherit' }}>{plan.cta}</button>
+                  <button onClick={() => { setProModal(plan.planKey as 'pro' | 'team'); setProSubmitted(false); setProEmail(''); }} style={{ display: 'block', width: '100%', margin: '0 0 28px', padding: '13px 0', borderRadius: '10px', fontSize: '14px', fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: plan.featured ? 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)' : 'white', color: plan.featured ? 'white' : '#374151', border: plan.featured ? 'none' : '1.5px solid #E5E7EB', boxShadow: plan.featured ? '0 4px 12px rgba(55,48,163,0.28)' : 'none', fontFamily: 'inherit' }}>{plan.cta}</button>
                 ) : (
                   <Link href="/auth/login" style={{ display: 'block', width: '100%', margin: '0 0 28px', padding: '13px 0', borderRadius: '10px', fontSize: '14px', fontWeight: 600, textAlign: 'center', textDecoration: 'none', background: 'white', color: '#374151', border: '1.5px solid #E5E7EB' }}>{plan.cta}</Link>
                 )}
                 <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                   {plan.features.map(f => (
                     <li key={f} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', fontSize: '13.5px', color: '#4B5563', padding: '7px 0' }}>
-                      <span style={{ flexShrink: 0, marginTop: '2px' }}><CheckIcon size={14} color="#4F46E5" /></span>
+                      <span style={{ flexShrink: 0, marginTop: '2px' }}><CheckIcon size={14} color="#3730a3" /></span>
                       {f}
                     </li>
                   ))}
@@ -1021,7 +1021,7 @@ export default function LandingPage() {
       </section>
 
       {/* B2B */}
-      <section id="b2b" style={{ padding: '96px 0', background: 'radial-gradient(800px 320px at 80% 0%, rgba(124,58,237,0.20), transparent 60%), radial-gradient(700px 320px at 20% 100%, rgba(79,70,229,0.20), transparent 60%), #0A0A0F', color: 'white' }}>
+      <section id="b2b" style={{ padding: '96px 0', background: 'radial-gradient(800px 320px at 80% 0%, rgba(109,40,217,0.20), transparent 60%), radial-gradient(700px 320px at 20% 100%, rgba(55,48,163,0.20), transparent 60%), #0A0A0F', color: 'white' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
           <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#A78BFA', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>For Enterprise</span>
           <h2 style={{ textAlign: 'center', fontSize: '36px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 auto 16px', maxWidth: '720px', lineHeight: 1.2, color: 'white' }}>팀 전체가 같은 방식으로<br/>일할 수 있게</h2>
@@ -1037,7 +1037,7 @@ export default function LandingPage() {
       {/* FAQ */}
       <section id="faq" style={{ padding: '96px 0', background: 'white' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
-          <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#4F46E5', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>FAQ</span>
+          <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#3730a3', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>FAQ</span>
           <h2 style={{ textAlign: 'center', fontSize: '36px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 auto 14px', maxWidth: '720px', lineHeight: 1.2, color: '#0D0D14' }}>자주 묻는 질문</h2>
           <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '560px', margin: '0 auto 64px', lineHeight: 1.65 }}>결제, 사용법, 보안까지. 더 궁금한 점은 1:1 문의로 보내주세요.</p>
 
@@ -1046,10 +1046,10 @@ export default function LandingPage() {
               <div key={i} style={{ borderBottom: '1px solid #F3F4F6', overflow: 'hidden' }}>
                 <button
                   onClick={() => setFaqOpen(faqOpen === i ? null : i)}
-                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textAlign: 'left', padding: '22px 0', fontSize: '15.5px', fontWeight: 500, color: faqOpen === i ? '#4F46E5' : '#111827', cursor: 'pointer', background: 'none', border: 'none', transition: 'color 0.15s' }}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textAlign: 'left', padding: '22px 0', fontSize: '15.5px', fontWeight: 500, color: faqOpen === i ? '#3730a3' : '#111827', cursor: 'pointer', background: 'none', border: 'none', transition: 'color 0.15s' }}
                 >
                   {faq.q}
-                  <span style={{ flexShrink: 0, width: '28px', height: '28px', borderRadius: '50%', background: faqOpen === i ? '#EEF2FF' : '#F9FAFB', display: 'grid', placeItems: 'center', color: faqOpen === i ? '#4F46E5' : '#9CA3AF', transform: faqOpen === i ? 'rotate(45deg)' : 'none', transition: 'all 0.2s ease' }}>
+                  <span style={{ flexShrink: 0, width: '28px', height: '28px', borderRadius: '50%', background: faqOpen === i ? '#e0e7ff' : '#F9FAFB', display: 'grid', placeItems: 'center', color: faqOpen === i ? '#3730a3' : '#9CA3AF', transform: faqOpen === i ? 'rotate(45deg)' : 'none', transition: 'all 0.2s ease' }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                   </span>
                 </button>
@@ -1065,7 +1065,7 @@ export default function LandingPage() {
       {/* Final CTA */}
       <section style={{ padding: '0 0 96px', background: '#FAFAFA' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
-          <div className="final-cta-inner" style={{ background: 'linear-gradient(135deg, #3730A3 0%, #4F46E5 40%, #7C3AED 100%)', borderRadius: '28px', padding: '80px 56px', textAlign: 'center', color: 'white', position: 'relative', overflow: 'hidden' }}>
+          <div className="final-cta-inner" style={{ background: 'linear-gradient(135deg, #3730A3 0%, #3730a3 40%, #6d28d9 100%)', borderRadius: '28px', padding: '80px 56px', textAlign: 'center', color: 'white', position: 'relative', overflow: 'hidden' }}>
             <div style={{ position: 'absolute', top: '-80px', right: '-80px', width: '320px', height: '320px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', pointerEvents: 'none' }} />
             <div style={{ position: 'absolute', bottom: '-100px', left: '-60px', width: '280px', height: '280px', borderRadius: '50%', background: 'rgba(255,255,255,0.04)', pointerEvents: 'none' }} />
             <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px)', backgroundSize: '36px 36px', pointerEvents: 'none' }} />
@@ -1079,7 +1079,7 @@ export default function LandingPage() {
             {!submitted ? (
               <form onSubmit={handleProSignup} style={{ position: 'relative', display: 'flex', gap: '8px', maxWidth: '440px', margin: '0 auto 28px', padding: '6px', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.22)', borderRadius: '14px' }}>
                 <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="jungho@company.com" required style={{ flex: 1, height: '46px', padding: '0 16px', border: 'none', background: 'rgba(255,255,255,0.95)', borderRadius: '9px', fontSize: '14px', color: '#111827', outline: 'none' }} />
-                <button type="submit" style={{ height: '46px', padding: '0 20px', borderRadius: '9px', background: 'white', color: '#4F46E5', fontWeight: 700, fontSize: '14px', whiteSpace: 'nowrap', cursor: 'pointer', border: 'none' }}>사전예약 →</button>
+                <button type="submit" style={{ height: '46px', padding: '0 20px', borderRadius: '9px', background: 'white', color: '#3730a3', fontWeight: 700, fontSize: '14px', whiteSpace: 'nowrap', cursor: 'pointer', border: 'none' }}>사전예약 →</button>
               </form>
             ) : (
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', margin: '0 auto 28px', padding: '12px 20px', borderRadius: '999px', background: 'rgba(16,185,129,0.18)', border: '1px solid rgba(16,185,129,0.40)', color: '#D1FAE5', fontSize: '14px', fontWeight: 500 }}>
@@ -1088,7 +1088,7 @@ export default function LandingPage() {
             )}
 
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', position: 'relative' }}>
-              <Link href="/auth/login" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '15px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 700, background: 'white', color: '#4F46E5', textDecoration: 'none', boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }}>
+              <Link href="/auth/login" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '15px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 700, background: 'white', color: '#3730a3', textDecoration: 'none', boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }}>
                 무료로 시작하기
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
               </Link>
@@ -1178,8 +1178,8 @@ export default function LandingPage() {
           50% { opacity: 0.6; box-shadow: 0 0 0 4px rgba(239,68,68,0); }
         }
         @keyframes pulse {
-          0%, 100% { box-shadow: 0 0 0 6px rgba(79,70,229,0.22), 0 2px 8px rgba(79,70,229,0.5); }
-          50% { box-shadow: 0 0 0 12px rgba(79,70,229,0.10), 0 2px 8px rgba(79,70,229,0.5); }
+          0%, 100% { box-shadow: 0 0 0 6px rgba(55,48,163,0.22), 0 2px 8px rgba(55,48,163,0.5); }
+          50% { box-shadow: 0 0 0 12px rgba(55,48,163,0.10), 0 2px 8px rgba(55,48,163,0.5); }
         }
         @keyframes pulse-dot {
           0%, 100% { opacity: 1; }

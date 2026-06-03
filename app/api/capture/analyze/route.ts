@@ -24,7 +24,15 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const result = await analyzeScreenshot(parsed.data.image, parsed.data.url, parsed.data.actionInfo);
+    const { image, url, actionInfo, elementRect, viewportW, viewportH, elementSelector, clickX, clickY } = parsed.data;
+    const result = await analyzeScreenshot(image, url, actionInfo, {
+      clickX:          clickX  ?? undefined,
+      clickY:          clickY  ?? undefined,
+      elementRect:     elementRect ?? undefined,
+      viewportW:       viewportW   ?? undefined,
+      viewportH:       viewportH   ?? undefined,
+      elementSelector: elementSelector ?? undefined,
+    });
     return NextResponse.json(result);
   } catch (err) {
     console.error('Claude analyze error:', err);

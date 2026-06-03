@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import Link from 'next/link';
@@ -119,7 +119,7 @@ export default function MyPage() {
   if (loading) {
     return (
       <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: '#FAFAFA' }}>
-        <div style={{ width: '32px', height: '32px', borderRadius: '50%', border: '3px solid rgba(79,70,229,0.15)', borderTopColor: '#4F46E5', animation: 'spin 0.8s linear infinite' }} />
+        <div style={{ width: '32px', height: '32px', borderRadius: '50%', border: '3px solid rgba(55,48,163,0.15)', borderTopColor: '#3730a3', animation: 'spin 0.8s linear infinite' }} />
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
@@ -134,16 +134,15 @@ export default function MyPage() {
       {/* Sidebar */}
       <aside style={{ background: '#FAFAFA', borderRight: '1px solid #F3F4F6', padding: '16px 12px', display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto' }}>
         <Link href="/home" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px 14px', textDecoration: 'none' }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/mimic-logo-2-2.png" alt="MIMIC" style={{ height: '32px', width: '32px', objectFit: 'contain', flexShrink: 0 }} />
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="32" height="32" style={{ flexShrink: 0 }}><circle cx="50" cy="50" r="50" fill="#3730a3"/><text x="50" y="68" textAnchor="middle" fontFamily="Georgia, serif" fontSize="62" fontWeight="700" fill="white">M</text></svg>
           <span style={{ fontSize: '16px', fontWeight: 800, color: '#111827', letterSpacing: '-0.03em' }}>MIMIC</span>
         </Link>
 
         <div style={{ padding: '12px 10px 6px', fontSize: '10.5px', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#9CA3AF', fontWeight: 500 }}>메뉴</div>
 
         {NAV_ITEMS.map(item => (
-          <Link key={item.href} href={item.href} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', borderRadius: '7px', fontSize: '13px', color: item.active ? '#4F46E5' : '#4B5563', background: item.active ? '#EEF2FF' : 'transparent', fontWeight: item.active ? 500 : 400, textDecoration: 'none', marginBottom: '2px' }}>
-            <span style={{ color: item.active ? '#4F46E5' : '#9CA3AF' }}>{item.icon}</span>
+          <Link key={item.href} href={item.href} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', borderRadius: '7px', fontSize: '13px', color: item.active ? '#3730a3' : '#4B5563', background: item.active ? '#e0e7ff' : 'transparent', fontWeight: item.active ? 500 : 400, textDecoration: 'none', marginBottom: '2px' }}>
+            <span style={{ color: item.active ? '#3730a3' : '#9CA3AF' }}>{item.icon}</span>
             {item.label}
           </Link>
         ))}
@@ -171,7 +170,7 @@ export default function MyPage() {
             // eslint-disable-next-line @next/next/no-img-element
             <img src={displayAvatar} alt={user?.name ?? ''} width={36} height={36} style={{ borderRadius: '50%', display: 'block', flexShrink: 0 }} referrerPolicy="no-referrer" />
           ) : (
-            <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', color: 'white', display: 'grid', placeItems: 'center', fontSize: '14px', fontWeight: 600, flexShrink: 0 }}>
+            <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', color: 'white', display: 'grid', placeItems: 'center', fontSize: '14px', fontWeight: 600, flexShrink: 0 }}>
               {user?.name?.charAt(0)?.toUpperCase() ?? ''}
             </div>
           )}
@@ -191,13 +190,13 @@ export default function MyPage() {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={displayAvatar} alt={user?.name ?? ''} width={52} height={52} style={{ borderRadius: '50%', display: 'block' }} referrerPolicy="no-referrer" />
               ) : (
-                <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', color: 'white', display: 'grid', placeItems: 'center', fontSize: '20px', fontWeight: 600 }}>
+                <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', color: 'white', display: 'grid', placeItems: 'center', fontSize: '20px', fontWeight: 600 }}>
                   {user?.name?.charAt(0)?.toUpperCase() ?? ''}
                 </div>
               )}
               {/* 이메일 계정만 업로드 버튼 표시 */}
               {!isGoogle && (
-                <label style={{ position: 'absolute', bottom: 0, right: 0, width: '20px', height: '20px', borderRadius: '50%', background: avatarLoading ? '#9CA3AF' : '#4F46E5', border: '2px solid white', display: 'grid', placeItems: 'center', cursor: avatarLoading ? 'default' : 'pointer' }}>
+                <label style={{ position: 'absolute', bottom: 0, right: 0, width: '20px', height: '20px', borderRadius: '50%', background: avatarLoading ? '#9CA3AF' : '#3730a3', border: '2px solid white', display: 'grid', placeItems: 'center', cursor: avatarLoading ? 'default' : 'pointer' }}>
                   <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={handleAvatarChange} disabled={avatarLoading} />
                   {avatarLoading ? (
                     <div style={{ width: '8px', height: '8px', borderRadius: '50%', border: '1.5px solid rgba(255,255,255,0.4)', borderTopColor: 'white', animation: 'spin 0.7s linear infinite' }} />
@@ -216,10 +215,10 @@ export default function MyPage() {
                       value={nameInput}
                       onChange={e => setNameInput(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') handleSaveName(); if (e.key === 'Escape') { setEditingName(false); setNameError(''); } }}
-                      style={{ fontSize: '15px', fontWeight: 600, border: '1.5px solid #4F46E5', borderRadius: '7px', padding: '5px 10px', outline: 'none', fontFamily: 'inherit', width: '180px' }}
+                      style={{ fontSize: '15px', fontWeight: 600, border: '1.5px solid #3730a3', borderRadius: '7px', padding: '5px 10px', outline: 'none', fontFamily: 'inherit', width: '180px' }}
                       autoFocus
                     />
-                    <button onClick={handleSaveName} disabled={nameLoading} style={{ padding: '6px 14px', borderRadius: '7px', fontSize: '12.5px', fontWeight: 500, background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', border: 'none', cursor: 'pointer' }}>
+                    <button onClick={handleSaveName} disabled={nameLoading} style={{ padding: '6px 14px', borderRadius: '7px', fontSize: '12.5px', fontWeight: 500, background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', border: 'none', cursor: 'pointer' }}>
                       {nameLoading ? '저장 중...' : '저장'}
                     </button>
                     <button onClick={() => { setEditingName(false); setNameError(''); }} style={{ padding: '6px 12px', borderRadius: '7px', fontSize: '12.5px', background: 'white', color: '#6B7280', border: '1px solid #E5E7EB', cursor: 'pointer' }}>
@@ -281,7 +280,7 @@ export default function MyPage() {
                   <span style={{ padding: '2px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 500, background: '#F3F4F6', color: '#6B7280' }}>무료</span>
                 )}
                 {user?.plan === 'pro' && (
-                  <span style={{ padding: '2px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 500, background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white' }}>Pro</span>
+                  <span style={{ padding: '2px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 500, background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white' }}>Pro</span>
                 )}
               </div>
               <div style={{ fontSize: '12.5px', color: '#6B7280' }}>
@@ -289,7 +288,7 @@ export default function MyPage() {
               </div>
             </div>
             {(user?.plan === 'free' || user?.plan === 'pro_waitlist' || !user?.plan) && (
-              <Link href="/#pricing" style={{ padding: '8px 16px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 500, background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', textDecoration: 'none', flexShrink: 0, boxShadow: '0 2px 8px rgba(79,70,229,0.25)' }}>
+              <Link href="/#pricing" style={{ padding: '8px 16px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 500, background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', textDecoration: 'none', flexShrink: 0, boxShadow: '0 2px 8px rgba(55,48,163,0.25)' }}>
                 업그레이드
               </Link>
             )}
@@ -301,7 +300,7 @@ export default function MyPage() {
               <span style={{ fontSize: '12.5px', fontWeight: 500, color: usagePercent >= 80 ? '#D97706' : '#6B7280' }}>{usedToday} / {dailyLimit}개</span>
             </div>
             <div style={{ height: '6px', borderRadius: '3px', background: '#F3F4F6', overflow: 'hidden' }}>
-              <div style={{ height: '100%', borderRadius: '3px', width: `${usagePercent}%`, background: usagePercent >= 80 ? 'linear-gradient(90deg, #F59E0B, #EF4444)' : 'linear-gradient(90deg, #4F46E5, #7C3AED)', transition: 'width 0.4s ease' }} />
+              <div style={{ height: '100%', borderRadius: '3px', width: `${usagePercent}%`, background: usagePercent >= 80 ? 'linear-gradient(90deg, #F59E0B, #EF4444)' : 'linear-gradient(90deg, #3730a3, #6d28d9)', transition: 'width 0.4s ease' }} />
             </div>
             <div style={{ fontSize: '11.5px', color: '#9CA3AF', marginTop: '6px' }}>매일 자정에 초기화됩니다</div>
           </div>
@@ -320,7 +319,7 @@ export default function MyPage() {
               </div>
             </div>
             {isGoogle ? (
-              <a href="https://myaccount.google.com/security" target="_blank" rel="noopener noreferrer" style={{ padding: '7px 14px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 500, color: '#4F46E5', border: '1.5px solid #4F46E5', textDecoration: 'none', flexShrink: 0, background: 'white' }}>
+              <a href="https://myaccount.google.com/security" target="_blank" rel="noopener noreferrer" style={{ padding: '7px 14px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 500, color: '#3730a3', border: '1.5px solid #3730a3', textDecoration: 'none', flexShrink: 0, background: 'white' }}>
                 Google 보안 →
               </a>
             ) : (
@@ -334,7 +333,7 @@ export default function MyPage() {
                     alert('이메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요.');
                   }
                 }}
-                style={{ padding: '7px 14px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 500, color: '#4F46E5', border: '1.5px solid #4F46E5', cursor: 'pointer', flexShrink: 0, background: 'white' }}
+                style={{ padding: '7px 14px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 500, color: '#3730a3', border: '1.5px solid #3730a3', cursor: 'pointer', flexShrink: 0, background: 'white' }}
               >
                 재설정 이메일 받기
               </button>

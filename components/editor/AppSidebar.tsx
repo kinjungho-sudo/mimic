@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, BookOpen, Users, Zap, Settings,
 } from 'lucide-react';
@@ -16,7 +16,6 @@ const NAV_ITEMS = [
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const router = useRouter();
   const { user } = useAuth();
 
   const initials = user?.name
@@ -36,7 +35,7 @@ export function AppSidebar() {
       {/* Logo */}
       <div style={{
         width: '36px', height: '36px', borderRadius: '10px',
-        background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
+        background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)',
         display: 'grid', placeItems: 'center',
         marginBottom: '16px', flexShrink: 0,
       }}>
@@ -78,18 +77,18 @@ export function AppSidebar() {
           <Settings size={17} />
         </Link>
         {/* User avatar → mypage */}
-        <button
-          onClick={() => router.push('/mypage')}
+        <Link
+          href="/mypage"
           title={user?.name ?? user?.email ?? '마이페이지'}
           style={{
             width: '36px', height: '36px', borderRadius: '50%',
             background: user?.avatar_url
               ? 'transparent'
-              : 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
+              : 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)',
             border: '2px solid rgba(255,255,255,0.15)',
             display: 'grid', placeItems: 'center',
-            cursor: 'pointer', overflow: 'hidden',
-            padding: 0, flexShrink: 0,
+            overflow: 'hidden', flexShrink: 0,
+            textDecoration: 'none',
             transition: 'border-color 0.15s',
           }}
           onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.5)'; }}
@@ -100,7 +99,7 @@ export function AppSidebar() {
           ) : (
             <span style={{ fontSize: '12px', fontWeight: 700, color: 'white', lineHeight: 1 }}>{initials}</span>
           )}
-        </button>
+        </Link>
       </div>
     </aside>
   );

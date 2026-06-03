@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
@@ -16,8 +16,8 @@ type WorkspaceDetail = {
 };
 
 const ROLE_LABEL: Record<WorkspaceRole, string> = { admin: '관리자', editor: '편집자', viewer: '뷰어' };
-const ROLE_COLOR: Record<WorkspaceRole, string> = { admin: '#4F46E5', editor: '#10B981', viewer: '#6B7280' };
-const ROLE_BG: Record<WorkspaceRole, string> = { admin: '#EEF2FF', editor: '#D1FAE5', viewer: '#F3F4F6' };
+const ROLE_COLOR: Record<WorkspaceRole, string> = { admin: '#3730a3', editor: '#10B981', viewer: '#6B7280' };
+const ROLE_BG: Record<WorkspaceRole, string> = { admin: '#e0e7ff', editor: '#D1FAE5', viewer: '#F3F4F6' };
 
 export default function WorkspacePage() {
   const { id } = useParams<{ id: string }>();
@@ -99,7 +99,7 @@ export default function WorkspacePage() {
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F8F9FA', fontFamily: "'Pretendard Variable', sans-serif" }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: '16px', fontWeight: 600, color: '#111827', marginBottom: '8px' }}>{error ?? '접근 권한이 없습니다.'}</div>
-          <Link href="/home" style={{ fontSize: '14px', color: '#4F46E5', textDecoration: 'none' }}>홈으로</Link>
+          <Link href="/home" style={{ fontSize: '14px', color: '#3730a3', textDecoration: 'none' }}>홈으로</Link>
         </div>
       </div>
     );
@@ -157,7 +157,7 @@ export default function WorkspacePage() {
                 type="submit"
                 disabled={inviting}
                 style={{
-                  padding: '9px 18px', borderRadius: '9px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)',
+                  padding: '9px 18px', borderRadius: '9px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)',
                   color: 'white', border: 'none', cursor: inviting ? 'not-allowed' : 'pointer',
                   fontSize: '13.5px', fontWeight: 600, opacity: inviting ? 0.7 : 1, flexShrink: 0,
                 }}
@@ -188,7 +188,7 @@ export default function WorkspacePage() {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={m.user.avatar_url} alt={m.user.name} style={{ width: '34px', height: '34px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
                   ) : (
-                    <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', display: 'grid', placeItems: 'center', fontSize: '13px', fontWeight: 700, flexShrink: 0 }}>{initial}</div>
+                    <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', display: 'grid', placeItems: 'center', fontSize: '13px', fontWeight: 700, flexShrink: 0 }}>{initial}</div>
                   )}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '13.5px', fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -276,7 +276,7 @@ export default function WorkspacePage() {
         <div style={{ marginTop: '24px', textAlign: 'center' }}>
           <button
             onClick={() => router.push('/home')}
-            style={{ padding: '10px 24px', borderRadius: '9px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: 600 }}
+            style={{ padding: '10px 24px', borderRadius: '9px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: 600 }}
           >
             워크스페이스 매뉴얼 보기 (홈)
           </button>

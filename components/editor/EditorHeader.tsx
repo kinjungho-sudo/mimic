@@ -197,8 +197,8 @@ export function EditorHeader({ title, tutorialId, onTitleChange, onPreview, onSa
 
         <button
           onClick={onPublish}
-          style={{ height: '32px', padding: '0 14px', borderRadius: '7px', fontSize: '12.5px', display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'white', background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'box-shadow 0.15s' }}
-          onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 12px rgba(79,70,229,0.4)'; }}
+          style={{ height: '32px', padding: '0 14px', borderRadius: '7px', fontSize: '12.5px', display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'white', background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'box-shadow 0.15s' }}
+          onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 12px rgba(55,48,163,0.4)'; }}
           onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; }}
         >
           게시

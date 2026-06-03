@@ -112,11 +112,11 @@ export function ShareModal({ title, shareToken, shareUrl, onPublishAndShare, onU
           <div
             style={{
               width: '44px', height: '44px', borderRadius: '12px', flexShrink: 0,
-              background: 'linear-gradient(135deg, #EEF2FF 0%, #F5F3FF 100%)',
+              background: 'linear-gradient(135deg, #e0e7ff 0%, #F5F3FF 100%)',
               display: 'grid', placeItems: 'center',
             }}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3730a3" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="18" cy="5" r="3"/>
               <circle cx="6" cy="12" r="3"/>
               <circle cx="18" cy="19" r="3"/>
@@ -158,7 +158,7 @@ export function ShareModal({ title, shareToken, shareUrl, onPublishAndShare, onU
               overflow: 'hidden',
               transition: 'border-color 0.15s',
             }}
-            onFocusCapture={e => { (e.currentTarget as HTMLDivElement).style.borderColor = '#4F46E5'; }}
+            onFocusCapture={e => { (e.currentTarget as HTMLDivElement).style.borderColor = '#3730a3'; }}
             onBlurCapture={e => { (e.currentTarget as HTMLDivElement).style.borderColor = '#E5E7EB'; }}
           >
             <input
@@ -185,7 +185,7 @@ export function ShareModal({ title, shareToken, shareUrl, onPublishAndShare, onU
                 alignItems: 'center',
                 gap: '6px',
                 padding: '0 16px',
-                background: copied ? '#10B981' : 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
+                background: copied ? '#10B981' : 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)',
                 color: 'white',
                 border: 'none',
                 fontSize: '12.5px',
@@ -282,7 +282,7 @@ export function ShareModal({ title, shareToken, shareUrl, onPublishAndShare, onU
               href={emailUrl}
               onClick={e => { if (!url) e.preventDefault(); }}
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px', height: '44px', borderRadius: '10px', border: '1.5px solid #E5E7EB', background: 'white', color: '#374151', fontSize: '12.5px', fontWeight: 500, textDecoration: 'none', cursor: url ? 'pointer' : 'not-allowed', opacity: url ? 1 : 0.5, transition: 'border-color 0.15s, color 0.15s' }}
-              onMouseEnter={e => { if (url) { e.currentTarget.style.borderColor = '#4F46E5'; e.currentTarget.style.color = '#4F46E5'; } }}
+              onMouseEnter={e => { if (url) { e.currentTarget.style.borderColor = '#3730a3'; e.currentTarget.style.color = '#3730a3'; } }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.color = '#374151'; }}
             >
               <Send size={14} />

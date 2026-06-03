@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useCallback, useEffect } from 'react';
 
@@ -94,7 +94,7 @@ function FavIcon({ url, favIconUrl }: { url: string; favIconUrl?: string }) {
 
   // 글자 fallback
   const letter = domain.replace('www.', '').charAt(0).toUpperCase() || '?';
-  const colors = ['#4F46E5','#7C3AED','#DB2777','#D97706','#059669','#0284C7'];
+  const colors = ['#3730a3','#6d28d9','#DB2777','#D97706','#059669','#0284C7'];
   const bg = colors[letter.charCodeAt(0) % colors.length];
   return (
     <span style={{ width: '16px', height: '16px', borderRadius: '3px', background: bg, color: 'white', display: 'grid', placeItems: 'center', fontSize: '9px', fontWeight: 700, flexShrink: 0 }}>
@@ -186,7 +186,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
         }}
       >
         {/* 헤더 */}
-        <div style={{ background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', padding: '22px 28px 18px', position: 'relative' }}>
+        <div style={{ background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', padding: '22px 28px 18px', position: 'relative' }}>
           <button
             onClick={onClose}
             aria-label="닫기"
@@ -219,7 +219,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '22px' }}>
               {GUIDE_STEPS.map((s, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                  <span style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#EEF2FF', color: '#4F46E5', fontSize: '11px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0, marginTop: '1px' }}>
+                  <span style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#e0e7ff', color: '#3730a3', fontSize: '11px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0, marginTop: '1px' }}>
                     {i + 1}
                   </span>
                   <div style={{ flex: 1 }}>
@@ -242,7 +242,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
             </div>
             <button
               onClick={enterTabSelect}
-              style={{ width: '100%', padding: '13px', borderRadius: '11px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: 'white', fontSize: '14.5px', fontWeight: 600, border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(79,70,229,0.30)' }}
+              style={{ width: '100%', padding: '13px', borderRadius: '11px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', fontSize: '14.5px', fontWeight: 600, border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(55,48,163,0.30)' }}
             >
               페이지 선택하기 →
             </button>
@@ -300,7 +300,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
                           display: 'flex', alignItems: 'center', gap: '10px',
                           width: '100%', padding: '10px 10px', borderRadius: '9px',
                           border: 'none', textAlign: 'left', cursor: 'pointer',
-                          background: isSelected ? '#EEF2FF' : 'transparent',
+                          background: isSelected ? '#e0e7ff' : 'transparent',
                           transition: 'background 0.12s',
                           marginBottom: '2px',
                         }}
@@ -309,7 +309,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
                       >
                         <FavIcon url={tab.url} favIconUrl={tab.favIconUrl} />
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: '13px', fontWeight: isSelected ? 600 : 400, color: isSelected ? '#4F46E5' : '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontSize: '13px', fontWeight: isSelected ? 600 : 400, color: isSelected ? '#3730a3' : '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {tab.title || domain}
                           </div>
                           <div style={{ fontSize: '11px', color: '#9CA3AF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '1px' }}>
@@ -317,7 +317,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
                           </div>
                         </div>
                         {isSelected && (
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}><polyline points="20 6 9 17 4 12"/></svg>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3730a3" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}><polyline points="20 6 9 17 4 12"/></svg>
                         )}
                       </button>
                     );
@@ -336,7 +336,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
                 <button
                   onClick={handleStart}
                   disabled={!selectedTab}
-                  style={{ flex: 2, padding: '10px', borderRadius: '9px', background: selectedTab ? 'linear-gradient(135deg, #4F46E5, #7C3AED)' : '#E5E7EB', color: selectedTab ? 'white' : '#9CA3AF', fontSize: '13.5px', fontWeight: 600, border: 'none', cursor: selectedTab ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px', boxShadow: selectedTab ? '0 3px 10px rgba(79,70,229,0.25)' : 'none', transition: 'all 0.15s' }}
+                  style={{ flex: 2, padding: '10px', borderRadius: '9px', background: selectedTab ? 'linear-gradient(135deg, #3730a3, #6d28d9)' : '#E5E7EB', color: selectedTab ? 'white' : '#9CA3AF', fontSize: '13.5px', fontWeight: 600, border: 'none', cursor: selectedTab ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px', boxShadow: selectedTab ? '0 3px 10px rgba(55,48,163,0.25)' : 'none', transition: 'all 0.15s' }}
                 >
                   <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: selectedTab ? 'rgba(255,255,255,0.8)' : '#9CA3AF', animation: selectedTab ? 'recPulse 1.4s infinite' : 'none' }} />
                   녹화 시작
@@ -378,7 +378,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: '12.5px', fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedTab.title}</div>
                     </div>
-                    <span style={{ fontSize: '11px', padding: '3px 8px', background: '#EEF2FF', color: '#4F46E5', borderRadius: '5px', fontWeight: 500, whiteSpace: 'nowrap' }}>선택됨</span>
+                    <span style={{ fontSize: '11px', padding: '3px 8px', background: '#e0e7ff', color: '#3730a3', borderRadius: '5px', fontWeight: 500, whiteSpace: 'nowrap' }}>선택됨</span>
                   </div>
                 </>
               ) : (
@@ -394,7 +394,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
         {/* ── 실행 중 ── */}
         {step === 'launching' && (
           <div style={{ padding: '48px 28px', textAlign: 'center' }}>
-            <div style={{ width: '52px', height: '52px', borderRadius: '50%', border: '3px solid rgba(79,70,229,0.15)', borderTopColor: '#4F46E5', animation: 'spin 0.9s linear infinite', margin: '0 auto 20px' }} />
+            <div style={{ width: '52px', height: '52px', borderRadius: '50%', border: '3px solid rgba(55,48,163,0.15)', borderTopColor: '#3730a3', animation: 'spin 0.9s linear infinite', margin: '0 auto 20px' }} />
             <p style={{ fontSize: '15px', fontWeight: 600, color: '#111827', marginBottom: '6px' }}>MIMIC Recorder 실행 중…</p>
             <p style={{ fontSize: '13px', color: '#6B7280' }}>선택한 페이지에서 녹화가 곧 시작됩니다</p>
           </div>

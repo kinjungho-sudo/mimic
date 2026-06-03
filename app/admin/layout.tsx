@@ -38,8 +38,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', minHeight: '100vh', fontFamily: "'Pretendard', 'Pretendard Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif", fontSize: '13.5px', color: '#111827' }}>
       <aside style={{ background: '#0F172A', borderRight: '1px solid #1E293B', padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: '4px', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px 16px' }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/mimic-logo-2-2.png" alt="MIMIC" style={{ height: '28px', width: 'auto', objectFit: 'contain' }} />
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="28" height="28"><circle cx="50" cy="50" r="50" fill="#3730a3"/><text x="50" y="68" textAnchor="middle" fontFamily="Georgia, serif" fontSize="62" fontWeight="700" fill="white">M</text></svg>
           <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 400 }}>Admin</span>
         </div>
 
@@ -48,7 +47,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {navItems.map(item => {
           const isActive = item.href === '/admin' ? pathname === '/admin' : pathname.startsWith(item.href);
           return (
-            <Link key={item.href} href={item.href} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', borderRadius: '7px', fontSize: '13px', color: isActive ? 'white' : '#94A3B8', background: isActive ? 'rgba(79,70,229,0.25)' : 'transparent', fontWeight: isActive ? 500 : 400, textDecoration: 'none', transition: 'background 0.15s, color 0.15s' }}>
+            <Link key={item.href} href={item.href} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', borderRadius: '7px', fontSize: '13px', color: isActive ? 'white' : '#94A3B8', background: isActive ? 'rgba(55,48,163,0.25)' : 'transparent', fontWeight: isActive ? 500 : 400, textDecoration: 'none', transition: 'background 0.15s, color 0.15s' }}>
               {item.icon}
               {item.label}
             </Link>

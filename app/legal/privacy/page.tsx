@@ -12,8 +12,7 @@ export default function PrivacyPage() {
       <header style={{ background: 'white', borderBottom: '1px solid #E5E7EB', padding: '0 24px' }}>
         <div style={{ maxWidth: '800px', margin: '0 auto', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Link href="/landingpage" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/mimic-logo-2-2.png" alt="MIMIC" style={{ height: '28px', width: 'auto', objectFit: 'contain' }} />
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="28" height="28"><circle cx="50" cy="50" r="50" fill="#3730a3"/><text x="50" y="68" textAnchor="middle" fontFamily="Georgia, serif" fontSize="62" fontWeight="700" fill="white">M</text></svg>
           </Link>
           <Link href="/auth/signup" style={{ fontSize: '13px', color: '#6B7280', textDecoration: 'none' }}>← 회원가입으로 돌아가기</Link>
         </div>
@@ -68,7 +67,7 @@ export default function PrivacyPage() {
         ))}
 
         <div style={{ marginTop: '48px', padding: '20px 24px', background: 'white', border: '1px solid #E5E7EB', borderRadius: '12px', fontSize: '13px', color: '#6B7280' }}>
-          개인정보 관련 문의: <a href="mailto:hello@mimicflow.com" style={{ color: '#4F46E5', fontWeight: 500 }}>hello@mimicflow.com</a> · 회사명: 코마인드웍스
+          개인정보 관련 문의: <a href="mailto:hello@mimicflow.com" style={{ color: '#3730a3', fontWeight: 500 }}>hello@mimicflow.com</a> · 회사명: 코마인드웍스
         </div>
       </main>
     </div>

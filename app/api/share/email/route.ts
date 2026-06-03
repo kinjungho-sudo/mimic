@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       <table width="560" cellpadding="0" cellspacing="0" style="background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
         <!-- 헤더 -->
         <tr>
-          <td style="background:linear-gradient(135deg,#4F46E5,#7C3AED);padding:32px 40px;text-align:center;">
+          <td style="background:linear-gradient(135deg,#3730a3,#6d28d9);padding:32px 40px;text-align:center;">
             <p style="margin:0;font-size:22px;font-weight:800;color:white;letter-spacing:-0.5px;">MIMIC</p>
             <p style="margin:6px 0 0;font-size:13px;color:rgba(255,255,255,0.7);">Don't Explain, Just Mimic.</p>
           </td>
@@ -62,13 +62,13 @@ export async function POST(request: NextRequest) {
               아래 버튼을 클릭하면 단계별 인터랙티브 매뉴얼을 바로 확인할 수 있어요.
             </p>
             <table cellpadding="0" cellspacing="0"><tr><td>
-              <a href="${shareUrl}" style="display:inline-block;padding:14px 28px;background:linear-gradient(135deg,#4F46E5,#7C3AED);color:white;font-size:15px;font-weight:600;text-decoration:none;border-radius:10px;letter-spacing:-0.2px;">
+              <a href="${shareUrl}" style="display:inline-block;padding:14px 28px;background:linear-gradient(135deg,#3730a3,#6d28d9);color:white;font-size:15px;font-weight:600;text-decoration:none;border-radius:10px;letter-spacing:-0.2px;">
                 매뉴얼 보러 가기 →
               </a>
             </td></tr></table>
             <p style="margin:24px 0 0;font-size:12px;color:#9CA3AF;">
               또는 이 링크를 브라우저에 복사하세요:<br>
-              <a href="${shareUrl}" style="color:#4F46E5;word-break:break-all;">${shareUrl}</a>
+              <a href="${shareUrl}" style="color:#3730a3;word-break:break-all;">${shareUrl}</a>
             </p>
           </td>
         </tr>

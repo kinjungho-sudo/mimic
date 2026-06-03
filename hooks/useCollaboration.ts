@@ -22,7 +22,7 @@ type CollaborationOptions = {
 };
 
 // 사용자별 고유 색상 (최대 8명)
-const COLORS = ['#4F46E5','#0EA5E9','#10B981','#F59E0B','#EF4444','#8B5CF6','#EC4899','#14B8A6'];
+const COLORS = ['#3730a3','#0EA5E9','#10B981','#F59E0B','#EF4444','#8B5CF6','#EC4899','#14B8A6'];
 function userColor(userId: string): string {
   let hash = 0;
   for (let i = 0; i < userId.length; i++) hash = (hash * 31 + userId.charCodeAt(i)) | 0;

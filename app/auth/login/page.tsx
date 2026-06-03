@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, Suspense } from 'react';
 import Link from 'next/link';
@@ -45,7 +45,7 @@ function LoginForm() {
     <div className="auth-grid" style={{ fontFamily: "'Pretendard', 'Pretendard Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif" }}>
 
       {/* Left brand panel — 모바일에서 숨김 */}
-      <aside className="auth-brand-panel" style={{ background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', color: 'white', padding: '56px', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
+      <aside className="auth-brand-panel" style={{ background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', color: 'white', padding: '56px', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(600px 320px at 100% 0%, rgba(255,255,255,0.18), transparent 60%), radial-gradient(500px 280px at 0% 100%, rgba(0,0,0,0.18), transparent 60%)', pointerEvents: 'none' }} />
         <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '100%' }}>
           <Link href="/landingpage" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', fontSize: '16px', fontWeight: 500, color: 'white', textDecoration: 'none' }}>
@@ -81,7 +81,7 @@ function LoginForm() {
       <section className="auth-form-panel" style={{ display: 'flex', flexDirection: 'column', padding: '36px 64px', background: 'white' }}>
         <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#6B7280' }}>
           계정이 없으신가요?
-          <Link href="/auth/signup" style={{ color: '#4F46E5', fontWeight: 500, marginLeft: '4px', textDecoration: 'none' }}>회원가입</Link>
+          <Link href="/auth/signup" style={{ color: '#3730a3', fontWeight: 500, marginLeft: '4px', textDecoration: 'none' }}>회원가입</Link>
         </div>
 
         <div className="auth-form-inner" style={{ width: '100%', maxWidth: '380px', margin: 'auto', padding: '24px 0' }}>
@@ -114,7 +114,7 @@ function LoginForm() {
             <div style={{ marginBottom: '16px' }}>
               <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 500, marginBottom: '6px', color: '#4B5563' }}>이메일</label>
               <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="name@company.com" required style={{ width: '100%', height: '40px', padding: '0 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '13.5px', outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.18s ease, box-shadow 0.18s ease' }}
-                onFocus={e => { e.currentTarget.style.borderColor = '#4F46E5'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(79,70,229,0.12)'; }}
+                onFocus={e => { e.currentTarget.style.borderColor = '#3730a3'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(55,48,163,0.12)'; }}
                 onBlur={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.boxShadow = 'none'; }}
               />
             </div>
@@ -122,10 +122,10 @@ function LoginForm() {
             <div style={{ marginBottom: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                 <label style={{ fontSize: '12.5px', fontWeight: 500, color: '#4B5563' }}>비밀번호</label>
-                <Link href={`/auth/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ''}`} style={{ fontSize: '11.5px', color: '#4F46E5', textDecoration: 'none' }}>비밀번호를 잊으셨나요?</Link>
+                <Link href={`/auth/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ''}`} style={{ fontSize: '11.5px', color: '#3730a3', textDecoration: 'none' }}>비밀번호를 잊으셨나요?</Link>
               </div>
               <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="비밀번호" required style={{ width: '100%', height: '40px', padding: '0 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '13.5px', outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.18s ease, box-shadow 0.18s ease' }}
-                onFocus={e => { e.currentTarget.style.borderColor = '#4F46E5'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(79,70,229,0.12)'; }}
+                onFocus={e => { e.currentTarget.style.borderColor = '#3730a3'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(55,48,163,0.12)'; }}
                 onBlur={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.boxShadow = 'none'; }}
               />
             </div>
@@ -134,16 +134,16 @@ function LoginForm() {
             {resetSuccess && <p style={{ fontSize: '12.5px', color: '#15803D', margin: '0 0 12px', padding: '10px 12px', background: 'rgba(21,128,61,0.06)', borderRadius: '8px', border: '1px solid rgba(21,128,61,0.2)' }}>비밀번호가 변경됐습니다. 새 비밀번호로 로그인하세요.</p>}
             {error && <p style={{ fontSize: '12.5px', color: '#DC2626', margin: '0 0 12px', padding: '10px 12px', background: 'rgba(220,38,38,0.06)', borderRadius: '8px', border: '1px solid rgba(220,38,38,0.2)' }}>{error}</p>}
 
-            <button type="submit" disabled={loading} style={{ width: '100%', height: '44px', borderRadius: '10px', background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', color: 'white', fontSize: '14px', fontWeight: 500, boxShadow: '0 4px 12px rgba(79,70,229,0.25)', cursor: loading ? 'not-allowed' : 'pointer', border: 'none', opacity: loading ? 0.7 : 1, transition: 'transform 0.18s ease, box-shadow 0.18s ease' }}
-              onMouseEnter={e => { if (!loading) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 8px 18px rgba(79,70,229,0.32)'; } }}
-              onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(79,70,229,0.25)'; }}
+            <button type="submit" disabled={loading} style={{ width: '100%', height: '44px', borderRadius: '10px', background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', color: 'white', fontSize: '14px', fontWeight: 500, boxShadow: '0 4px 12px rgba(55,48,163,0.25)', cursor: loading ? 'not-allowed' : 'pointer', border: 'none', opacity: loading ? 0.7 : 1, transition: 'transform 0.18s ease, box-shadow 0.18s ease' }}
+              onMouseEnter={e => { if (!loading) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 8px 18px rgba(55,48,163,0.32)'; } }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(55,48,163,0.25)'; }}
             >
               {loading ? '처리 중...' : '로그인'}
             </button>
           </form>
 
           <div style={{ marginTop: '22px', padding: '12px 14px', background: '#FAFAFA', border: '1px solid #F3F4F6', borderRadius: '10px', fontSize: '12px', color: '#4B5563', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ flexShrink: 0, width: '28px', height: '28px', borderRadius: '7px', background: 'rgba(79,70,229,0.10)', color: '#4F46E5', display: 'grid', placeItems: 'center' }}>
+            <span style={{ flexShrink: 0, width: '28px', height: '28px', borderRadius: '7px', background: 'rgba(55,48,163,0.10)', color: '#3730a3', display: 'grid', placeItems: 'center' }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             </span>
             Chrome 확장 사용자도 여기서 로그인하세요.

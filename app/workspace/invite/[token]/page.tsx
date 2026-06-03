@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
@@ -65,13 +65,13 @@ export default function WorkspaceInvitePage() {
         {/* 로고 */}
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
           <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', textDecoration: 'none', color: '#111827' }}>
-            <span style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', display: 'grid', placeItems: 'center' }}>
+            <span style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', display: 'grid', placeItems: 'center' }}>
               <svg viewBox="0 0 24 24" fill="none" width="16" height="16">
                 <rect x="3.2" y="5.2" width="11" height="2.4" rx="1.2" fill="white" fillOpacity="0.5"/>
                 <rect x="3.2" y="10.8" width="14" height="2.4" rx="1.2" fill="white"/>
                 <rect x="3.2" y="16.4" width="8" height="2.4" rx="1.2" fill="white" fillOpacity="0.5"/>
                 <circle cx="18.7" cy="17.6" r="3.6" fill="white"/>
-                <path d="M17.6 16.1 L20.1 17.6 L17.6 19.1 Z" fill="#4F46E5"/>
+                <path d="M17.6 16.1 L20.1 17.6 L17.6 19.1 Z" fill="#3730a3"/>
               </svg>
             </span>
             <span style={{ fontSize: '18px', fontWeight: 700, letterSpacing: '-0.02em' }}>MIMIC</span>
@@ -88,14 +88,14 @@ export default function WorkspaceInvitePage() {
               </div>
               <div style={{ fontSize: '16px', fontWeight: 600, color: '#111827', marginBottom: '8px' }}>초대를 사용할 수 없습니다</div>
               <div style={{ fontSize: '13.5px', color: '#6B7280', marginBottom: '24px' }}>{error}</div>
-              <Link href="/home" style={{ display: 'inline-block', padding: '10px 20px', borderRadius: '9px', background: '#4F46E5', color: 'white', textDecoration: 'none', fontSize: '14px', fontWeight: 600 }}>홈으로 돌아가기</Link>
+              <Link href="/home" style={{ display: 'inline-block', padding: '10px 20px', borderRadius: '9px', background: '#3730a3', color: 'white', textDecoration: 'none', fontSize: '14px', fontWeight: 600 }}>홈으로 돌아가기</Link>
             </div>
           ) : info ? (
             <div>
               {/* 워크스페이스 아이콘 */}
               <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                <div style={{ width: '60px', height: '60px', borderRadius: '14px', background: 'linear-gradient(135deg, #EEF2FF, #F5F3FF)', display: 'grid', placeItems: 'center', margin: '0 auto' }}>
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <div style={{ width: '60px', height: '60px', borderRadius: '14px', background: 'linear-gradient(135deg, #e0e7ff, #F5F3FF)', display: 'grid', placeItems: 'center', margin: '0 auto' }}>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#3730a3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
                     <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                   </svg>
@@ -107,7 +107,7 @@ export default function WorkspaceInvitePage() {
               </h1>
               <p style={{ fontSize: '14px', color: '#6B7280', textAlign: 'center', margin: '0 0 28px', lineHeight: 1.6 }}>
                 <strong style={{ color: '#111827' }}>{info.inviter.name}</strong>님이<br />
-                <strong style={{ color: '#4F46E5' }}>{info.workspace.name}</strong> 워크스페이스에 초대했습니다.
+                <strong style={{ color: '#3730a3' }}>{info.workspace.name}</strong> 워크스페이스에 초대했습니다.
               </p>
 
               {/* 초대 정보 */}
@@ -118,7 +118,7 @@ export default function WorkspaceInvitePage() {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '13px', color: '#6B7280' }}>부여 권한</span>
-                  <span style={{ fontSize: '12px', fontWeight: 600, padding: '2px 10px', borderRadius: '999px', background: '#EEF2FF', color: '#4F46E5' }}>{roleLabel(info.role)}</span>
+                  <span style={{ fontSize: '12px', fontWeight: 600, padding: '2px 10px', borderRadius: '999px', background: '#e0e7ff', color: '#3730a3' }}>{roleLabel(info.role)}</span>
                 </div>
               </div>
 
@@ -127,9 +127,9 @@ export default function WorkspaceInvitePage() {
                 disabled={accepting}
                 style={{
                   width: '100%', padding: '13px', borderRadius: '10px',
-                  background: accepting ? '#9CA3AF' : 'linear-gradient(135deg, #4F46E5, #7C3AED)',
+                  background: accepting ? '#9CA3AF' : 'linear-gradient(135deg, #3730a3, #6d28d9)',
                   color: 'white', border: 'none', cursor: accepting ? 'not-allowed' : 'pointer',
-                  fontSize: '15px', fontWeight: 600, boxShadow: '0 4px 14px rgba(79,70,229,0.28)',
+                  fontSize: '15px', fontWeight: 600, boxShadow: '0 4px 14px rgba(55,48,163,0.28)',
                 }}
               >
                 {accepting ? '수락 중...' : '초대 수락하기'}

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 
@@ -54,10 +54,10 @@ export default function AdminSurveysPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '24px' }}>
         {[
-          { label: 'PDF보다 쉬움', value: avg('q1_easier_than_pdf'), unit: '/ 5', color: '#4F46E5', bg: '#EEF2FF' },
+          { label: 'PDF보다 쉬움', value: avg('q1_easier_than_pdf'), unit: '/ 5', color: '#3730a3', bg: '#e0e7ff' },
           { label: '다시 사용 의향', value: avg('q2_would_use_again'), unit: '/ 5', color: '#0369A1', bg: '#F0F9FF' },
           { label: '업무 유용성', value: avg('q3_useful_for_work'), unit: '/ 5', color: '#059669', bg: '#ECFDF5' },
-          { label: '재현 가능', value: reproduceRate, unit: '', color: '#7C3AED', bg: '#F5F3FF' },
+          { label: '재현 가능', value: reproduceRate, unit: '', color: '#6d28d9', bg: '#F5F3FF' },
         ].map(card => (
           <div key={card.label} style={{ background: card.bg, border: '1px solid #E2E8F0', borderRadius: '10px', padding: '16px 20px' }}>
             <div style={{ fontSize: '11.5px', color: '#64748B', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>{card.label}</div>
