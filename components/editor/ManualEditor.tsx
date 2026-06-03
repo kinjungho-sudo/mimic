@@ -29,6 +29,7 @@ export interface ManualStep {
   click_y?: number | null;
   is_stale?: boolean;
   crop_rect?: { x: number; y: number; w: number; h: number } | null;
+  imageZoom?: number;
 }
 
 interface ManualEditorProps {
@@ -604,6 +605,7 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
         onDrop={handleImgDrop}
         onAnnotate={onAnnotate}
         onRemove={onRemoveImage}
+        onZoomChange={zoom => { onUpdate({ imageZoom: zoom }); onSave({ imageZoom: zoom }); }}
       />
     </div>
   );
@@ -717,11 +719,14 @@ interface ScreenshotAreaProps {
   onDrop: (e: React.DragEvent) => void;
   onAnnotate: () => void;
   onRemove: () => void;
+  onZoomChange: (zoom: number) => void;
 }
 
-function ScreenshotArea({ step, onUploadClick, onDrop, onAnnotate, onRemove }: ScreenshotAreaProps) {
+function ScreenshotArea({ step, onUploadClick, onDrop, onAnnotate, onRemove, onZoomChange }: ScreenshotAreaProps) {
   const [dragOver, setDragOver] = useState(false);
   const [imgHover, setImgHover] = useState(false);
+  const zoom = step.imageZoom ?? 1;
+  const clampZoom = (z: number) => Math.round(Math.min(4, Math.max(1, z)) * 10) / 10;
 
   if (!step.screenshotUrl) {
     return (
@@ -787,28 +792,30 @@ function ScreenshotArea({ step, onUploadClick, onDrop, onAnnotate, onRemove }: S
       {/* hover 시 편집 힌트 + 우측 상단 삭제 버튼 */}
       {imgHover && (
         <>
-          {/* 살짝 어두운 overlay + 편집 힌트 */}
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
             <span style={{ fontSize: '12px', fontWeight: 500, color: 'white', background: 'rgba(0,0,0,0.45)', padding: '4px 10px', borderRadius: '6px', backdropFilter: 'blur(4px)' }}>
               클릭하여 편집
             </span>
           </div>
-          {/* 우측 상단 삭제 버튼 */}
           <button
             onClick={e => { e.stopPropagation(); if (window.confirm('이미지를 삭제하시겠습니까?')) onRemove(); }}
-            style={{
-              position: 'absolute', top: '6px', right: '6px',
-              width: '26px', height: '26px', borderRadius: '6px',
-              background: 'rgba(220,38,38,0.85)', border: 'none',
-              color: 'white', cursor: 'pointer', display: 'grid', placeItems: 'center',
-              boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
-            }}
+            style={{ position: 'absolute', top: '6px', right: '6px', width: '26px', height: '26px', borderRadius: '6px', background: 'rgba(220,38,38,0.85)', border: 'none', color: 'white', cursor: 'pointer', display: 'grid', placeItems: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.3)' }}
             title="이미지 삭제"
           >
             <Trash2 size={12} />
           </button>
         </>
       )}
+
+      {/* 줌 컨트롤 — 뷰어 표시 배율 저장 */}
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ position: 'absolute', bottom: '8px', right: '8px', display: 'flex', alignItems: 'center', gap: '2px', background: 'rgba(20,20,30,0.72)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', padding: '3px', zIndex: 5 }}
+      >
+        <button onClick={() => onZoomChange(clampZoom(zoom - 0.5))} disabled={zoom <= 1} style={{ width: '24px', height: '24px', borderRadius: '5px', border: 'none', background: 'transparent', color: zoom <= 1 ? 'rgba(255,255,255,0.3)' : 'white', fontSize: '15px', cursor: zoom <= 1 ? 'not-allowed' : 'pointer', display: 'grid', placeItems: 'center', lineHeight: 1 }}>−</button>
+        <span style={{ height: '24px', padding: '0 5px', color: 'white', fontSize: '10px', fontWeight: 500, display: 'flex', alignItems: 'center', minWidth: '32px', justifyContent: 'center' }}>{Math.round(zoom * 100)}%</span>
+        <button onClick={() => onZoomChange(clampZoom(zoom + 0.5))} disabled={zoom >= 4} style={{ width: '24px', height: '24px', borderRadius: '5px', border: 'none', background: 'transparent', color: zoom >= 4 ? 'rgba(255,255,255,0.3)' : 'white', fontSize: '15px', cursor: zoom >= 4 ? 'not-allowed' : 'pointer', display: 'grid', placeItems: 'center', lineHeight: 1 }}>+</button>
+      </div>
     </div>
   );
 }

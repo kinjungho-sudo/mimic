@@ -33,6 +33,7 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
     domain_favicon: s.domain_favicon  ?? null,
     is_stale: (s as Step & { is_stale?: boolean }).is_stale ?? false,
     crop_rect: (s as Step & { crop_rect?: { x: number; y: number; w: number; h: number } | null }).crop_rect ?? null,
+    imageZoom: (s as Step & { image_zoom?: number | null }).image_zoom ?? 1,
     // click_x/y: DB는 0~10000 정수, ManualStep은 0~100 퍼센트
     click_x: (s as Step & { click_x?: number | null }).click_x != null
       ? (s as Step & { click_x: number }).click_x / 100
@@ -382,8 +383,8 @@ export default function EditorPage() {
         {/* Left: back button + page label */}
         <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '10px', paddingRight: '16px', borderRight: '1px solid #F3F4F6' }}>
           <button
-            onClick={() => router.push('/home')}
-            title="대시보드로 돌아가기"
+            onClick={() => router.push(`/manual/${id}`)}
+            title="매뉴얼로 돌아가기"
             style={{
               width: '32px', height: '32px', borderRadius: '8px',
               border: '1px solid #E5E7EB', background: 'white',
@@ -397,7 +398,7 @@ export default function EditorPage() {
               <polyline points="15 18 9 12 15 6" />
             </svg>
           </button>
-          <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151', whiteSpace: 'nowrap' }}>메뉴얼 편집기</span>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151', whiteSpace: 'nowrap' }}>편집기</span>
         </div>
 
         {/* Center: meta info */}
@@ -482,7 +483,7 @@ export default function EditorPage() {
               </button>
 
               <button
-                onClick={async () => { const ok = await handleSave(); if (ok) setEditMode(false); }}
+                onClick={async () => { const ok = await handleSave(); if (ok) router.push(`/manual/${id}`); }}
                 disabled={saving}
                 style={{
                   height: '32px', padding: '0 16px', borderRadius: '7px',
@@ -772,6 +773,7 @@ export default function EditorPage() {
                   ...(patch.actionTitle !== undefined ? { user_title: patch.actionTitle || null } : {}),
                   ...(patch.description !== undefined ? { user_script: patch.description || null } : {}),
                   ...(patch.annotations !== undefined ? { user_annotations: patch.annotations } : {}),
+                  ...(patch.imageZoom !== undefined ? { image_zoom: patch.imageZoom } : {}),
                 }).catch(() => {});
               }}
             />

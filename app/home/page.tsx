@@ -277,7 +277,7 @@ function TutorialCard({ tutorial, onContextMenu, onTitleChange, onMenuClick }: {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onContextMenu={e => { e.preventDefault(); onContextMenu(e, tutorial.id); }}
-      onClick={() => { if (!editingTitle) router.push(`/manual/${tutorial.id}/editor`); }}
+      onClick={() => { if (!editingTitle) router.push(`/manual/${tutorial.id}`); }}
       style={{
         background: 'white', borderRadius: '10px', cursor: 'pointer',
         border: `1px solid ${hovered ? '#a5b4fc' : '#E5E7EB'}`,
