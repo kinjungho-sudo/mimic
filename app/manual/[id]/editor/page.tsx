@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -33,6 +33,13 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
     domain_favicon: s.domain_favicon  ?? null,
     is_stale: (s as Step & { is_stale?: boolean }).is_stale ?? false,
     crop_rect: (s as Step & { crop_rect?: { x: number; y: number; w: number; h: number } | null }).crop_rect ?? null,
+    // click_x/y: DB는 0~10000 정수, ManualStep은 0~100 퍼센트
+    click_x: (s as Step & { click_x?: number | null }).click_x != null
+      ? (s as Step & { click_x: number }).click_x / 100
+      : null,
+    click_y: (s as Step & { click_y?: number | null }).click_y != null
+      ? (s as Step & { click_y: number }).click_y / 100
+      : null,
   }));
 }
 
@@ -337,7 +344,7 @@ export default function EditorPage() {
     return (
       <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: '#F8F9FA' }}>
         <div style={{ textAlign: 'center', color: '#6B7280' }}>
-          <div style={{ width: '40px', height: '40px', borderRadius: '50%', border: '3px solid rgba(79,70,229,0.18)', borderTopColor: '#4F46E5', animation: 'spin 0.9s linear infinite', margin: '0 auto 16px' }} />
+          <div style={{ width: '40px', height: '40px', borderRadius: '50%', border: '3px solid rgba(55,48,163,0.18)', borderTopColor: '#3730a3', animation: 'spin 0.9s linear infinite', margin: '0 auto 16px' }} />
           <p style={{ fontSize: '14px' }}>매뉴얼 불러오는 중…</p>
         </div>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -350,7 +357,7 @@ export default function EditorPage() {
       <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: '#F8F9FA' }}>
         <div style={{ textAlign: 'center', color: '#6B7280' }}>
           <p style={{ fontSize: '15px', marginBottom: '16px' }}>{error ?? '매뉴얼을 찾을 수 없어요.'}</p>
-          <button onClick={() => router.push('/home')} style={{ padding: '10px 20px', borderRadius: '8px', background: '#4F46E5', color: 'white', border: 'none', cursor: 'pointer', fontSize: '14px' }}>
+          <button onClick={() => router.push('/home')} style={{ padding: '10px 20px', borderRadius: '8px', background: '#3730a3', color: 'white', border: 'none', cursor: 'pointer', fontSize: '14px' }}>
             대시보드로 돌아가기
           </button>
         </div>
@@ -482,12 +489,12 @@ export default function EditorPage() {
                   fontSize: '12.5px', fontWeight: 600,
                   display: 'inline-flex', alignItems: 'center', gap: '6px',
                   color: 'white',
-                  background: saving ? 'rgba(79,70,229,0.6)' : 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
+                  background: saving ? 'rgba(55,48,163,0.6)' : 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)',
                   border: 'none', cursor: saving ? 'not-allowed' : 'pointer',
-                  boxShadow: '0 1px 6px rgba(79,70,229,0.3)', transition: 'box-shadow 0.15s',
+                  boxShadow: '0 1px 6px rgba(55,48,163,0.3)', transition: 'box-shadow 0.15s',
                 }}
-                onMouseEnter={e => { if (!saving) e.currentTarget.style.boxShadow = '0 4px 14px rgba(79,70,229,0.45)'; }}
-                onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 6px rgba(79,70,229,0.3)'; }}
+                onMouseEnter={e => { if (!saving) e.currentTarget.style.boxShadow = '0 4px 14px rgba(55,48,163,0.45)'; }}
+                onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 6px rgba(55,48,163,0.3)'; }}
               >
                 {saving ? '저장 중…' : <><Check size={13} /> 편집 완료</>}
               </button>
@@ -500,7 +507,7 @@ export default function EditorPage() {
                 <button
                   onClick={() => setShowSettings(v => !v)}
                   title="설정"
-                  style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: showSettings ? '#4F46E5' : '#374151', background: showSettings ? '#EEF2FF' : 'white', border: `1px solid ${showSettings ? '#C7D2FE' : '#E5E7EB'}`, cursor: 'pointer', transition: 'all 0.15s' }}
+                  style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: showSettings ? '#3730a3' : '#374151', background: showSettings ? '#e0e7ff' : 'white', border: `1px solid ${showSettings ? '#a5b4fc' : '#E5E7EB'}`, cursor: 'pointer', transition: 'all 0.15s' }}
                   onMouseEnter={e => { if (!showSettings) e.currentTarget.style.background = '#F9FAFB'; }}
                   onMouseLeave={e => { if (!showSettings) e.currentTarget.style.background = 'white'; }}
                 >
@@ -534,12 +541,12 @@ export default function EditorPage() {
                             display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
                             gap: '1px', padding: '8px 10px', borderRadius: '8px', border: 'none',
                             cursor: 'pointer', textAlign: 'left', transition: 'background 0.12s',
-                            background: outputRatio === opt.value ? '#EEF2FF' : 'transparent',
+                            background: outputRatio === opt.value ? '#e0e7ff' : 'transparent',
                           }}
                           onMouseEnter={e => { if (outputRatio !== opt.value) e.currentTarget.style.background = '#F9FAFB'; }}
                           onMouseLeave={e => { if (outputRatio !== opt.value) e.currentTarget.style.background = 'transparent'; }}
                         >
-                          <span style={{ fontSize: '12.5px', fontWeight: outputRatio === opt.value ? 600 : 400, color: outputRatio === opt.value ? '#4F46E5' : '#111827' }}>
+                          <span style={{ fontSize: '12.5px', fontWeight: outputRatio === opt.value ? 600 : 400, color: outputRatio === opt.value ? '#3730a3' : '#111827' }}>
                             {opt.label}
                           </span>
                           <span style={{ fontSize: '11px', color: '#9CA3AF' }}>{opt.desc}</span>
@@ -566,7 +573,7 @@ export default function EditorPage() {
                           fontSize: '12px', color: '#111827', outline: 'none',
                           fontFamily: 'inherit',
                         }}
-                        onFocus={e => { e.currentTarget.style.borderColor = '#4F46E5'; }}
+                        onFocus={e => { e.currentTarget.style.borderColor = '#3730a3'; }}
                         onBlur={e => { e.currentTarget.style.borderColor = '#E5E7EB'; }}
                       />
                       <button
@@ -574,7 +581,7 @@ export default function EditorPage() {
                         disabled={passwordSaving}
                         style={{
                           height: '32px', padding: '0 12px', borderRadius: '7px',
-                          border: 'none', background: '#4F46E5', color: 'white',
+                          border: 'none', background: '#3730a3', color: 'white',
                           fontSize: '12px', fontWeight: 500, cursor: passwordSaving ? 'not-allowed' : 'pointer',
                           opacity: passwordSaving ? 0.6 : 1, whiteSpace: 'nowrap',
                         }}
@@ -667,9 +674,9 @@ export default function EditorPage() {
                     setGuideMePreviewUrl(`${firstUrl}${firstUrl.includes('?') ? '&' : '?'}mimic_guide=${tutorial.share_token}`);
                   }}
                   title="실제 페이지에서 Guide Me 미리보기"
-                  style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#4F46E5', background: '#EEF2FF', border: '1px solid #C7D2FE', cursor: 'pointer', transition: 'all 0.15s' }}
+                  style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#3730a3', background: '#e0e7ff', border: '1px solid #a5b4fc', cursor: 'pointer', transition: 'all 0.15s' }}
                   onMouseEnter={e => { e.currentTarget.style.background = '#E0E7FF'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = '#EEF2FF'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = '#e0e7ff'; }}
                 >
                   <PlayCircle size={13} /> Guide Me
                 </button>
@@ -805,7 +812,7 @@ export default function EditorPage() {
             <div style={{ padding: '24px' }}>
               {analyticsLoading ? (
                 <div style={{ textAlign: 'center', padding: '40px 0', color: '#9CA3AF', fontSize: '13px' }}>
-                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', border: '2px solid #E5E7EB', borderTopColor: '#4F46E5', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
+                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', border: '2px solid #E5E7EB', borderTopColor: '#3730a3', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
                   데이터 불러오는 중…
                 </div>
               ) : analyticsData ? (
@@ -834,7 +841,7 @@ export default function EditorPage() {
                           <div key={row.step} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <div style={{ width: '28px', fontSize: '11px', color: '#9CA3AF', flexShrink: 0, textAlign: 'right' }}>{row.step}</div>
                             <div style={{ flex: 1, background: '#F3F4F6', borderRadius: '4px', overflow: 'hidden', height: '8px' }}>
-                              <div style={{ width: `${row.pct}%`, height: '100%', background: 'linear-gradient(90deg,#4F46E5,#7C3AED)', borderRadius: '4px', transition: 'width 0.4s ease' }} />
+                              <div style={{ width: `${row.pct}%`, height: '100%', background: 'linear-gradient(90deg,#3730a3,#6d28d9)', borderRadius: '4px', transition: 'width 0.4s ease' }} />
                             </div>
                             <div style={{ width: '42px', fontSize: '11px', color: '#6B7280', flexShrink: 0 }}>{row.count}명</div>
                             <div style={{ width: '32px', fontSize: '11px', color: '#9CA3AF', flexShrink: 0, textAlign: 'right' }}>{row.pct}%</div>
