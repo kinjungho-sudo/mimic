@@ -21,6 +21,8 @@ export interface Annotation {
   fontSize?: number;
   fontBold?: boolean;
   markerNumber?: number;
+  textAlign?: 'left' | 'center' | 'right';
+  hasBg?: boolean;
 }
 
 interface ImageAnnotationEditorProps {
@@ -146,17 +148,23 @@ export function ImageAnnotationEditor({
   const [fontSize, setFontSize] = useState(16);
   const [fontBold, setFontBold] = useState(false);
   const [borderColor, setBorderColor] = useState<string>(DEFAULT_BORDER);
+  const [textAlign, setTextAlign] = useState<'left' | 'center' | 'right'>('left');
+  const [hasBg, setHasBg] = useState(true);
 
   const lastColor = useRef(color);
   const lastStrokeIdx = useRef(strokeIdx);
   const lastFontSize = useRef(fontSize);
   const lastFontBold = useRef(fontBold);
   const lastBorderColor = useRef(borderColor);
+  const lastTextAlign = useRef(textAlign);
+  const lastHasBg = useRef(hasBg);
   useEffect(() => { lastColor.current = color; }, [color]);
   useEffect(() => { lastStrokeIdx.current = strokeIdx; }, [strokeIdx]);
   useEffect(() => { lastFontSize.current = fontSize; }, [fontSize]);
   useEffect(() => { lastFontBold.current = fontBold; }, [fontBold]);
   useEffect(() => { lastBorderColor.current = borderColor; }, [borderColor]);
+  useEffect(() => { lastTextAlign.current = textAlign; }, [textAlign]);
+  useEffect(() => { lastHasBg.current = hasBg; }, [hasBg]);
 
   const [items, setItems] = useState<Annotation[]>(annotations);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -295,10 +303,13 @@ export function ImageAnnotationEditor({
         text: '', color: lastColor.current, strokeWidth,
         fontSize: lastFontSize.current, fontBold: lastFontBold.current,
         borderColor: lastBorderColor.current,
+        textAlign: lastTextAlign.current,
+        hasBg: lastHasBg.current,
       };
       setItems(prev => [...prev, newItem]);
       setTextDrawing(null);
-      setEditingText({ id: newItem.id });
+      // 생성 직후 select 모드로 전환 + 자동 선택
+      setTimeout(() => { setTool('select'); setSelectedId(newItem.id); }, 0);
     }
   }, [textDrawing, toVB, strokeWidth]);
 
@@ -500,8 +511,8 @@ export function ImageAnnotationEditor({
             ><X size={13} /> 닫기</button>
 
             <button onClick={handleSave}
-              style={{ height: '32px', padding: '0 16px', borderRadius: '6px', border: 'none', background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)', color: 'white', fontSize: '12px', fontWeight: 600, cursor: 'pointer', marginLeft: '4px' }}
-              onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 12px rgba(79,70,229,0.5)'; }}
+              style={{ height: '32px', padding: '0 16px', borderRadius: '6px', border: 'none', background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', color: 'white', fontSize: '12px', fontWeight: 600, cursor: 'pointer', marginLeft: '4px' }}
+              onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 12px rgba(55,48,163,0.5)'; }}
               onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; }}
             >저장</button>
           </div>
@@ -570,8 +581,38 @@ export function ImageAnnotationEditor({
                   >
                     <Bold size={11} />
                   </button>
+
                   <div style={{ width: '1px', height: '18px', background: 'rgba(255,255,255,0.12)' }} />
-                  <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' }}>박스</span>
+
+                  {/* 정렬 */}
+                  <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' }}>정렬</span>
+                  {(['left', 'center', 'right'] as const).map(align => (
+                    <button key={align} title={align === 'left' ? '왼쪽' : align === 'center' ? '가운데' : '오른쪽'} onClick={() => setTextAlign(align)}
+                      style={{ width: '26px', height: '26px', borderRadius: '4px', border: textAlign === align ? '1.5px solid white' : '1.5px solid rgba(255,255,255,0.2)', background: textAlign === align ? 'rgba(255,255,255,0.15)' : 'transparent', color: 'white', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
+                    >
+                      <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                        {align === 'left'   && <><line x1="1" y1="3" x2="13" y2="3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="1" y1="7" x2="9"  y2="7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="1" y1="11" x2="11" y2="11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></>}
+                        {align === 'center' && <><line x1="1" y1="3" x2="13" y2="3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="3" y1="7" x2="11" y2="7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="2" y1="11" x2="12" y2="11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></>}
+                        {align === 'right'  && <><line x1="1" y1="3" x2="13" y2="3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="5" y1="7" x2="13" y2="7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="3" y1="11" x2="13" y2="11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></>}
+                      </svg>
+                    </button>
+                  ))}
+
+                  <div style={{ width: '1px', height: '18px', background: 'rgba(255,255,255,0.12)' }} />
+
+                  {/* 배경 on/off */}
+                  <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' }}>배경</span>
+                  <button onClick={() => setHasBg(v => !v)} title={hasBg ? '배경 끄기' : '배경 켜기'}
+                    style={{ width: '26px', height: '26px', borderRadius: '4px', border: hasBg ? '1.5px solid white' : '1.5px solid rgba(255,255,255,0.2)', background: hasBg ? 'rgba(255,255,255,0.15)' : 'transparent', color: 'white', cursor: 'pointer', display: 'grid', placeItems: 'center', position: 'relative', overflow: 'hidden' }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                      <rect x="1" y="1" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.5" fill={hasBg ? 'rgba(255,255,255,0.3)' : 'none'} />
+                      {!hasBg && <line x1="2" y1="12" x2="12" y2="2" stroke="#EF4444" strokeWidth="1.5" strokeLinecap="round"/>}
+                    </svg>
+                  </button>
+
+                  <div style={{ width: '1px', height: '18px', background: 'rgba(255,255,255,0.12)' }} />
+                  <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' }}>테두리</span>
                   <button onClick={() => setBorderColor('transparent')} title="테두리 없음"
                     style={{ width: '16px', height: '16px', borderRadius: '50%', background: 'transparent', border: borderColor === 'transparent' ? '2px solid white' : '1.5px solid rgba(255,255,255,0.3)', cursor: 'pointer', outline: 'none', position: 'relative', overflow: 'hidden', flexShrink: 0 }}
                   >
@@ -676,8 +717,8 @@ export function ImageAnnotationEditor({
               const mh = Math.abs(textDrawing.y2 - textDrawing.y1) / 100 * imgSize.h;
               return (
                 <rect x={mx} y={my} width={mw} height={mh}
-                  fill="rgba(79,70,229,0.08)"
-                  stroke="#4F46E5" strokeWidth={1.5} strokeDasharray="5 3" rx={3}
+                  fill="rgba(55,48,163,0.08)"
+                  stroke="#3730a3" strokeWidth={1.5} strokeDasharray="5 3" rx={3}
                   pointerEvents="none"
                 />
               );
@@ -704,16 +745,19 @@ export function ImageAnnotationEditor({
                   position: 'absolute',
                   left: `${Math.min(editingItem.x1, editingItem.x2)}%`,
                   top: `${Math.min(editingItem.y1, editingItem.y2)}%`,
-                  // 드래그로 지정한 너비/높이 사용 (최소값 보장)
                   width: boxW > 2 ? `${boxW}%` : '80px',
                   minHeight: boxH > 1 ? `${boxH}%` : '24px',
                   padding: '4px 8px',
-                  background: 'rgba(0,0,0,0.25)',
-                  border: `1.5px solid ${editingItem.borderColor ?? DEFAULT_BORDER}`,
+                  background: editingItem.hasBg !== false ? 'rgba(0,0,0,0.25)' : 'transparent',
+                  border: (() => {
+                    const bc = editingItem.borderColor ?? DEFAULT_BORDER;
+                    return bc !== 'transparent' ? `1.5px solid ${bc}` : '1.5px solid transparent';
+                  })(),
                   borderRadius: '3px',
                   color: editingItem.color,
                   fontSize: `${editingItem.fontSize ?? 16}px`,
                   fontWeight: editingItem.fontBold ? 700 : 400,
+                  textAlign: editingItem.textAlign ?? 'left',
                   fontFamily: 'inherit',
                   outline: 'none', cursor: 'text',
                   whiteSpace: 'pre-wrap', wordBreak: 'break-word',
@@ -997,29 +1041,35 @@ function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx
     const fSize = a.fontSize ?? 16;
     const bold = a.fontBold ?? false;
     const bColor = a.borderColor ?? DEFAULT_BORDER;
-    // 드래그로 지정된 박스 크기 사용
-    const boxW = Math.abs(ax2 - ax1);
-    const boxH = Math.abs(ay2 - ay1);
+    const align = a.textAlign ?? 'left';
+    const bg = a.hasBg !== false;
+    const boxW = Math.max(Math.abs(ax2 - ax1), 40);
+    const boxH = Math.max(Math.abs(ay2 - ay1), fSize + 8);
     const padX = 8, padY = 4;
+    const textX = align === 'left' ? minX + padX : align === 'center' ? minX + boxW / 2 : minX + boxW - padX;
+    const anchor = align === 'left' ? 'start' : align === 'center' ? 'middle' : 'end';
 
     return (
       <g style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown}>
-        <rect x={minX} y={minY} width={Math.max(boxW, 40)} height={Math.max(boxH, fSize + padY)}
-          fill="rgba(0,0,0,0.25)"
-          stroke={bColor !== 'transparent' ? bColor : 'none'}
-          strokeWidth={bColor !== 'transparent' ? 1.5 : 0}
-          rx={2}
-        />
+        {bg && (
+          <rect x={minX} y={minY} width={boxW} height={boxH}
+            fill="rgba(0,0,0,0.25)"
+            stroke={bColor !== 'transparent' ? bColor : 'none'}
+            strokeWidth={bColor !== 'transparent' ? 1.5 : 0}
+            rx={2}
+          />
+        )}
         {text.split('\n').map((line, i) => (
           <text key={i}
-            x={minX + padX/2} y={minY + padY/2 + i * fSize * 1.4}
+            x={textX} y={minY + padY / 2 + i * fSize * 1.4}
             fill={color} fontSize={fSize} fontWeight={bold ? 700 : 400}
+            textAnchor={anchor}
             dominantBaseline="text-before-edge"
             style={{ pointerEvents: 'none' }}
           >{line}</text>
         ))}
         {isSelected && onHandleMouseDown && (
-          <SelectionHandles minX={minX} minY={minY} w={Math.max(boxW, 40)} h={Math.max(boxH, fSize + padY)} onHandle={handleHandle} />
+          <SelectionHandles minX={minX} minY={minY} w={boxW} h={boxH} onHandle={handleHandle} />
         )}
       </g>
     );
