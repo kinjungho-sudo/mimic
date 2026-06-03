@@ -49,6 +49,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Session already finalized' }, { status: 409 });
   }
 
+  // element_rect: Extension이 CSS px 절대값으로 전송 → viewport 크기로 나눠 0~1 정규화
+  let elementRectNormalized: { x: number; y: number; width: number; height: number } | null = null;
+  if (d.element_rect && d.viewport_w && d.viewport_h) {
+    elementRectNormalized = {
+      x:      d.element_rect.x      / d.viewport_w,
+      y:      d.element_rect.y      / d.viewport_h,
+      width:  d.element_rect.width  / d.viewport_w,
+      height: d.element_rect.height / d.viewport_h,
+    };
+  }
+
   const { data: step, error } = await supabase
     .from('mm_capture_events')
     .insert({
@@ -63,6 +74,7 @@ export async function POST(request: NextRequest) {
       domain_hostname: d.domain_hostname ?? null,
       domain_name:     d.domain_name     ?? null,
       domain_favicon:  d.domain_favicon  ?? null,
+      element_rect:    elementRectNormalized,
     })
     .select('id')
     .single();

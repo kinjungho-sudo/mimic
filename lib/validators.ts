@@ -72,6 +72,14 @@ export const captureSaveStepSchema = z.object({
   domain_hostname: z.string().max(200).optional().nullable(),
   domain_name:     z.string().max(200).optional().nullable(),
   domain_favicon:  z.string().max(500).optional().nullable(),
+  element_rect: z.object({
+    x: z.number(),
+    y: z.number(),
+    width: z.number(),
+    height: z.number(),
+  }).nullable().optional(),
+  viewport_w: z.number().int().positive().optional().nullable(),
+  viewport_h: z.number().int().positive().optional().nullable(),
 });
 
 export const tutorialPatchSchema = z.object({
