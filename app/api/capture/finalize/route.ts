@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireExtensionToken } from '@/lib/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { captureFinalizeSchema } from '@/lib/validators';
-import { generateDraft, extractCoverColors } from '@/lib/claude';
+import { generateDraft, extractCoverColors, generateAnnotations } from '@/lib/claude';
 import { resolveFavicon } from '@/lib/favicon';
+import { toEditorAnnotation, AUTO_ANNOTATION_PROMPT } from '@/lib/annotations';
 
 export async function POST(request: NextRequest) {
   const auth = await requireExtensionToken(request);
@@ -170,9 +171,42 @@ export async function POST(request: NextRequest) {
           )
         );
       }
+
+      // 자동 어노테이션 생성 — click_x/y가 있는 스텝에 하이라이트+화살표+클릭 마커 자동 적용
+      // 스텝 좌표 데이터를 다시 조회 (click_x, click_y, element_rect 포함)
+      const { data: stepsWithCoords } = await supabase
+        .from('mm_steps')
+        .select('id, ai_title, ai_description, page_url, click_x, click_y, element_rect')
+        .eq('tutorial_id', tutorial.id)
+        .not('click_x', 'is', null);
+
+      if (stepsWithCoords?.length) {
+        await Promise.allSettled(
+          stepsWithCoords.map(async step => {
+            const locationData = {
+              clickX:      step.click_x / 10000,
+              clickY:      step.click_y / 10000,
+              elementRect: step.element_rect ?? null,
+              actionType:  null,
+              actionLabel: step.ai_title ?? null,
+            };
+            const stepContext = `제목: ${step.ai_title ?? ''}, 설명: ${step.ai_description ?? ''}, URL: ${step.page_url ?? ''}`;
+
+            const rawAnnotations = await generateAnnotations(AUTO_ANNOTATION_PROMPT, stepContext, locationData);
+            if (!rawAnnotations.length) return;
+
+            const annotations = (rawAnnotations as Record<string, unknown>[]).map(toEditorAnnotation);
+
+            await supabase
+              .from('mm_steps')
+              .update({ user_annotations: annotations })
+              .eq('id', step.id);
+          })
+        );
+      }
     }
   } catch {
-    // 초안 생성 실패는 무시 — 튜토리얼은 정상 생성됨
+    // 초안/어노테이션 생성 실패는 무시 — 튜토리얼은 정상 생성됨
   }
 
   return NextResponse.json({ tutorial_id: tutorial.id, step_count: steps.length });

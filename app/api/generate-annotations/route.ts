@@ -4,47 +4,7 @@ import { generateAnnotationsSchema } from '@/lib/validators';
 import { generateAnnotations } from '@/lib/claude';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { rateLimitAi } from '@/lib/rate-limit';
-
-// AI 원형 포맷 → 에디터 Annotation 타입 변환
-function toEditorAnnotation(raw: Record<string, unknown>, index: number) {
-  const type = raw.type as string;
-  const style = (raw.style ?? {}) as Record<string, unknown>;
-  const geo = (raw.geometry ?? {}) as Record<string, unknown>;
-  const label = raw.label as string | undefined;
-  const color = (style.color as string) ?? '#EF4444';
-
-  const x = (geo.x as number) * 100;
-  const y = (geo.y as number) * 100;
-  const w = (geo.width as number) * 100;
-  const h = (geo.height as number) * 100;
-
-  const base = {
-    id: `ai-${Date.now()}-${index}`,
-    color,
-    strokeWidth: 0.5,
-  };
-
-  if (type === 'rectangle') {
-    return { ...base, type: 'highlight' as const, x1: x, y1: y, x2: x + w, y2: y + h };
-  }
-  if (type === 'circle') {
-    return { ...base, type: 'ellipse' as const, strokeWidth: 0.3, x1: x, y1: y, x2: x + w, y2: y + h };
-  }
-  if (type === 'arrow') {
-    return { ...base, type: 'arrow' as const, x1: x, y1: y, x2: x + w, y2: y + h };
-  }
-  if (type === 'text') {
-    return {
-      ...base, type: 'text' as const,
-      x1: x, y1: y, x2: x + w, y2: y + h,
-      text: label ?? '',
-      fontSize: 14,
-      borderColor: 'rgba(255,255,255,0.6)',
-    };
-  }
-  // underline → rect 아웃라인으로 처리
-  return { ...base, type: 'rect' as const, x1: x, y1: y, x2: x + w, y2: y + h };
-}
+import { toEditorAnnotation } from '@/lib/annotations';
 
 export async function POST(request: NextRequest) {
   const auth = await requireAuth(request);
