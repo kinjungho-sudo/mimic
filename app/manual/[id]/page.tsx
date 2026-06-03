@@ -39,6 +39,7 @@ export default function ManualViewerPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { tutorial, loading, error, publish, unpublish } = useTutorial(id);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { user } = useAuth();
 
   const [title, setTitle] = useState('');

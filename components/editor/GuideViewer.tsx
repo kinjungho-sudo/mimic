@@ -22,6 +22,7 @@ interface GuideViewerProps {
   outputRatio?: OutputRatio;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function GuideViewer({ steps, activeId, onActiveChange, outputRatio = '16:9' }: GuideViewerProps) {
   const stepRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
