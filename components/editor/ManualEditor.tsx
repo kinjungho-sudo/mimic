@@ -271,11 +271,13 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
         <div style={{ maxWidth: '740px', margin: '0 auto', padding: '0 28px' }}>
           {steps.map((step, idx) => {
             const prevHostname = idx > 0 ? steps[idx - 1].domainHostname : null;
-            const showDomainHeader = !!step.domainHostname && step.domainHostname !== prevHostname;
+            const validHostname = step.domainHostname && step.domainHostname !== 'null' ? step.domainHostname : null;
+            const prevValid = prevHostname && prevHostname !== 'null' ? prevHostname : null;
+            const showDomainHeader = !!validHostname && validHostname !== prevValid;
             return (
               <div key={step.id}>
-                {showDomainHeader && (
-                  <EditorDomainHeader hostname={step.domainHostname!} name={step.domainName ?? null} favicon={step.domainFavicon ?? null} />
+                {showDomainHeader && validHostname && (
+                  <EditorDomainHeader hostname={validHostname} name={step.domainName && step.domainName !== 'null' ? step.domainName : null} favicon={step.domainFavicon ?? null} />
                 )}
                 <div
                   ref={el => { contentRefs.current[step.id] = el; }}

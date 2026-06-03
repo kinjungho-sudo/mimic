@@ -78,11 +78,13 @@ export function GuideViewer({ steps, activeId, onActiveChange, outputRatio = '16
         <div style={{ maxWidth: '860px', margin: '0 auto', padding: '0 20px' }}>
           {steps.map((step, idx) => {
             const prevHostname = idx > 0 ? steps[idx - 1].domainHostname : null;
-            const showDomainHeader = !!step.domainHostname && step.domainHostname !== prevHostname;
+            const validHostname = step.domainHostname && step.domainHostname !== 'null' ? step.domainHostname : null;
+            const prevValid = prevHostname && prevHostname !== 'null' ? prevHostname : null;
+            const showDomainHeader = !!validHostname && validHostname !== prevValid;
             return (
               <div key={step.id}>
-                {showDomainHeader && (
-                  <DomainSectionHeader hostname={step.domainHostname!} name={step.domainName ?? null} favicon={step.domainFavicon ?? null} />
+                {showDomainHeader && validHostname && (
+                  <DomainSectionHeader hostname={validHostname} name={step.domainName && step.domainName !== 'null' ? step.domainName : null} favicon={step.domainFavicon ?? null} />
                 )}
                 <div
                   data-step-id={step.id}
