@@ -168,12 +168,19 @@ export function AnnotationPreview({ annotations, imageUrl }: { annotations: Anno
           const align = a.textAlign ?? 'left';
           const bg = a.hasBg !== false;
           const lines = a.text.split('\n');
-          const padX = 10, padY = 6;
-          const boxW = Math.max(w, 40);
-          const boxH = Math.max(h, fSize + padY * 2);
+          const padX = 8, padY = 5;
+          // 글자 폭을 fontSize 기반으로 추정 (한글/영문 혼용 고려)
+          const charW = fSize * (bold ? 0.68 : 0.60);
+          const maxLineLen = Math.max(...lines.map(l => {
+            // 한글은 영문보다 넓음
+            return [...l].reduce((sum, ch) => sum + (ch.charCodeAt(0) > 0x3000 ? 1.0 : 0.6), 0);
+          }));
+          const textPixelW = maxLineLen * fSize + padX * 2;
+          // %→px 변환 없이 px 단위로 직접 배치 (viewBox 기반이므로 px 직접 사용)
+          const boxW = Math.max(textPixelW, fSize * 3);
+          const boxH = lines.length * fSize * 1.45 + padY * 2;
           const textX = align === 'left' ? minX + padX : align === 'center' ? minX + boxW / 2 : minX + boxW - padX;
           const anchor = align === 'left' ? 'start' : align === 'center' ? 'middle' : 'end';
-          // Guidde 스타일: 어두운 배경 + 둥근 모서리
           const bgFill = bg ? 'rgba(15,15,20,0.92)' : 'none';
           const strokeColor = bColor && bColor !== 'transparent' ? bColor : 'none';
           return (
@@ -183,12 +190,12 @@ export function AnnotationPreview({ annotations, imageUrl }: { annotations: Anno
                   fill={bgFill}
                   stroke={strokeColor}
                   strokeWidth={strokeColor !== 'none' ? 1.5 : 0}
-                  rx={6}
+                  rx={5}
                 />
               )}
               {lines.map((line, i) => (
                 <text key={i}
-                  x={textX} y={minY + padY + i * fSize * 1.4}
+                  x={textX} y={minY + padY + i * fSize * 1.45}
                   fill={color} fontSize={fSize} fontWeight={bold ? 700 : 400}
                   textAnchor={anchor} dominantBaseline="text-before-edge"
                 >{line}</text>

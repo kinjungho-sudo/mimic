@@ -391,20 +391,20 @@ export default function EditorPage() {
 
         {/* Main content */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
-          {/* Title banner */}
-          <div style={{ flexShrink: 0, padding: '14px 40px 12px', borderBottom: '1px solid #E5E7EB', background: 'white', display: 'flex', alignItems: 'baseline', gap: '12px' }}>
+          {/* Title banner — 컴팩트 */}
+          <div style={{ flexShrink: 0, padding: '8px 20px 7px', borderBottom: '1px solid #E5E7EB', background: 'white', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <input
               value={title}
               onChange={e => { setTitle(e.target.value); setTitleDirty(true); }}
               placeholder="매뉴얼 제목"
               style={{
-                flex: 1, fontSize: '20px', fontWeight: 700, color: '#111827',
+                flex: 1, fontSize: '14px', fontWeight: 600, color: '#111827',
                 background: 'transparent', border: 'none', outline: 'none',
                 fontFamily: 'inherit', cursor: 'text', minWidth: 0,
               }}
             />
-            <span style={{ fontSize: '11px', color: '#C4C9D4', whiteSpace: 'nowrap', flexShrink: 0 }}>
-              {createdAt} 생성
+            <span style={{ fontSize: '10.5px', color: '#C4C9D4', whiteSpace: 'nowrap', flexShrink: 0 }}>
+              {createdAt}
             </span>
           </div>
           <ManualEditor
