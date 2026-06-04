@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type { ManualStep } from './ManualEditor';
-import { faviconUrl, faviconFallbackUrl } from '@/lib/favicon';
+import { faviconUrl, faviconFallbackUrl, hostnameToServiceName } from '@/lib/favicon';
 
 interface GuideTocProps {
   steps: ManualStep[];
@@ -90,7 +90,7 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
     if (last && last.hostname === hostname) {
       last.count++;
     } else {
-      domainGroups.push({ hostname, name: step.domainName ?? hostname, favicon: step.domainFavicon ?? null, count: 1 });
+      domainGroups.push({ hostname, name: hostnameToServiceName(hostname), favicon: step.domainFavicon ?? null, count: 1 });
     }
   });
 

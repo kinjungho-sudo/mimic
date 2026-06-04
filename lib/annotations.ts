@@ -29,64 +29,62 @@ export function buildClickHighlight(params: {
   const ey2 = (r.y + r.height) * 100;
   const eCy = (ey1 + ey2) / 2;  // 요소 수직 중심
 
-  const rightRoom = 100 - ex2;
-  const leftRoom  = ex1;
+  const rightRoom  = 100 - ex2;
+  // leftRoom: 우선순위 낮아 현재 fallback에서만 사용
+  const topRoom    = ey1;
   const bottomRoom = 100 - ey2;
-  // 화살표 길이: 짧게 유지 (텍스트와 겹치지 않도록)
-  const arrowLen = 14;
+  const arrowLen   = 14;
 
-  // 방향 결정: 여백이 가장 넓은 쪽으로 진입
-  // 끝점: 요소 테두리 엣지 (내부 침범 없음)
+  // 방향 결정: 위쪽 공간 우선 (위→아래가 가장 자연스러움)
+  // 위 공간 부족하면 아래→위, 그다음 좌우
   let arrowX1: number, arrowY1: number;
   let arrowX2: number, arrowY2: number;
-  let direction: 'right' | 'left' | 'bottom' | 'top';
+  let direction: 'top' | 'bottom' | 'right' | 'left';
 
-  if (bottomRoom >= 16) {
-    // 아래에서 위로 — 두번째 사진의 형태 (가장 자연스러움)
-    direction = 'bottom';
-    const cx = (ex1 + ex2) / 2;
-    arrowX2 = cx; arrowY2 = ey2;              // 끝: 요소 하단 테두리
-    arrowX1 = cx; arrowY1 = Math.min(ey2 + arrowLen, 96); // 시작: 요소 아래 바깥
-  } else if (rightRoom >= 16) {
-    direction = 'right';
-    arrowX1 = Math.min(ex2 + arrowLen, 96);
-    arrowY1 = eCy;
-    arrowX2 = ex2; arrowY2 = eCy;
-  } else if (leftRoom >= 16) {
-    direction = 'left';
-    arrowX1 = Math.max(ex1 - arrowLen, 4);
-    arrowY1 = eCy;
-    arrowX2 = ex1; arrowY2 = eCy;
-  } else {
+  if (topRoom >= 16) {
+    // 위에서 아래 — 화살표가 요소 위에서 시작해 상단 테두리로
     direction = 'top';
     const cx = (ex1 + ex2) / 2;
-    arrowX1 = cx; arrowY1 = Math.max(ey1 - arrowLen, 4);
+    arrowX1 = cx; arrowY1 = Math.max(ey1 - arrowLen, 2);
     arrowX2 = cx; arrowY2 = ey1;
+  } else if (bottomRoom >= 16) {
+    // 아래에서 위
+    direction = 'bottom';
+    const cx = (ex1 + ex2) / 2;
+    arrowX1 = cx; arrowY1 = Math.min(ey2 + arrowLen, 97);
+    arrowX2 = cx; arrowY2 = ey2;
+  } else if (rightRoom >= 16) {
+    direction = 'right';
+    arrowX1 = Math.min(ex2 + arrowLen, 96); arrowY1 = eCy;
+    arrowX2 = ex2; arrowY2 = eCy;
+  } else {
+    direction = 'left';
+    arrowX1 = Math.max(ex1 - arrowLen, 4); arrowY1 = eCy;
+    arrowX2 = ex1; arrowY2 = eCy;
   }
 
-  // 텍스트 라벨 — 마커 없이 label만 표시
+  // 텍스트 라벨
   const labelText = label;
-
-  const estCharW = 0.72;
-  const textW = Math.min(labelText.length * estCharW + 4, 36);
-  const textH = 6;
+  // % 기준 텍스트 박스 크기 추정
+  const textW = Math.min(labelText.length * 0.9 + 5, 38);
+  const textH = 7;  // % 단위 높이 (fontSize 12 + padY*2 ≈ 이미지 높이의 7% 정도)
 
   let tx1: number, ty1: number;
-  if (direction === 'bottom') {
-    // 아래에서 위 화살표 → 시작점(아래) 바로 밑에 텍스트
+  if (direction === 'top') {
+    // 화살표가 위→아래: 시작점(위) 바로 위에 텍스트, 수평 중앙
     tx1 = arrowX1 - textW / 2;
-    ty1 = arrowY1 + 1;
+    ty1 = arrowY1 - textH - 0.5;
+  } else if (direction === 'bottom') {
+    // 화살표가 아래→위: 시작점(아래) 바로 밑
+    tx1 = arrowX1 - textW / 2;
+    ty1 = arrowY1 + 0.5;
   } else if (direction === 'right') {
-    // 우측 화살표 → 시작점 오른쪽 바깥 (화살표와 겹치지 않게)
+    // 화살표가 우측: 시작점 오른쪽 바깥
     tx1 = arrowX1 + 1;
     ty1 = arrowY1 - textH / 2;
-  } else if (direction === 'left') {
-    // 좌측 화살표 → 시작점 왼쪽 바깥
-    tx1 = arrowX1 - textW - 1;
-    ty1 = arrowY1 - textH / 2;
   } else {
-    // 위쪽 화살표 → 시작점 오른쪽
-    tx1 = arrowX1 + 2;
+    // 화살표가 좌측: 시작점 왼쪽 바깥
+    tx1 = arrowX1 - textW - 1;
     ty1 = arrowY1 - textH / 2;
   }
   tx1 = Math.max(1, Math.min(100 - textW - 1, tx1));
@@ -120,17 +118,17 @@ export function buildClickHighlight(params: {
       color: '#EF4444',
       strokeWidth: 0.55,
     },
-    // 4. 텍스트 라벨
+    // 4. 텍스트 라벨 — 어두운 배경 포함
     {
       id: base('label'),
       type: 'text' as const,
       x1: tx1, y1: ty1,
       x2: tx1 + textW, y2: ty1 + textH,
       text: labelText,
-      color: '#EF4444',
-      fontSize: 13,
+      color: '#FFFFFF',
+      fontSize: 12,
       fontBold: true,
-      hasBg: false,
+      hasBg: true,
       borderColor: 'transparent',
       strokeWidth: 0,
     },

@@ -9,7 +9,7 @@ import {
 import DOMPurify from 'dompurify';
 import { ImageAnnotationEditor, type Annotation } from './ImageAnnotationEditor';
 import { AnnotationPreview } from './AnnotationPreview';
-import { faviconUrl, faviconFallbackUrl } from '@/lib/favicon';
+import { faviconUrl, faviconFallbackUrl, hostnameToServiceName } from '@/lib/favicon';
 
 export interface ManualStep {
   id: string;
@@ -947,8 +947,8 @@ function ImageZoomModal({ url, onClose }: { url: string; onClose: () => void }) 
 // ── EditorDomainHeader ────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-function EditorDomainHeader({ hostname, name, favicon }: { hostname: string; name: string | null; favicon: string | null }) {
-  const displayName = name || hostname;
+function EditorDomainHeader({ hostname, favicon }: { hostname: string; name: string | null; favicon: string | null }) {
+  const displayName = hostnameToServiceName(hostname) || hostname;
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: '8px',

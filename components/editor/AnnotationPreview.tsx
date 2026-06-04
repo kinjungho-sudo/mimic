@@ -8,21 +8,33 @@ export function AnnotationPreview({ annotations, imageUrl }: { annotations: Anno
   const imgRef = useRef<HTMLImageElement | null>(null);
   const [imgSize, setImgSize] = useState<{ w: number; h: number } | null>(null);
 
-  // 부모 컨테이너의 실제 렌더 크기를 측정
+  // 부모 img의 실제 렌더 크기 측정 — load 완료 후 + ResizeObserver
   useEffect(() => {
-    const container = imgRef.current?.parentElement;
+    const svg = imgRef.current as unknown as SVGSVGElement | null;
+    const container = svg?.parentElement;
     if (!container) return;
     const img = container.querySelector('img') as HTMLImageElement | null;
     if (!img) return;
+
     const update = () => {
       const r = img.getBoundingClientRect();
-      if (r.width > 0) setImgSize({ w: r.width, h: r.height });
+      if (r.width > 0 && r.height > 0) setImgSize({ w: r.width, h: r.height });
     };
-    update();
+
+    // 이미지가 이미 로드된 경우 즉시 측정
+    if (img.complete && img.naturalWidth > 0) {
+      update();
+    } else {
+      img.addEventListener('load', update, { once: true });
+    }
+
     const ro = new ResizeObserver(update);
     ro.observe(img);
-    return () => ro.disconnect();
-  }, []);
+    return () => {
+      img.removeEventListener('load', update);
+      ro.disconnect();
+    };
+  }, [imageUrl]); // imageUrl 바뀌면 재측정
 
   const filterId = `mosaic-blur-${uid}`;
   const spotlightMaskId = `spotlight-mask-${uid}`;
@@ -162,7 +174,7 @@ export function AnnotationPreview({ annotations, imageUrl }: { annotations: Anno
           const textX = align === 'left' ? minX + padX : align === 'center' ? minX + boxW / 2 : minX + boxW - padX;
           const anchor = align === 'left' ? 'start' : align === 'center' ? 'middle' : 'end';
           // Guidde 스타일: 어두운 배경 + 둥근 모서리
-          const bgFill = bg ? 'rgba(20,20,30,0.82)' : 'none';
+          const bgFill = bg ? 'rgba(15,15,20,0.92)' : 'none';
           const strokeColor = bColor && bColor !== 'transparent' ? bColor : 'none';
           return (
             <g key={a.id}>
