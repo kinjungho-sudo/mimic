@@ -88,6 +88,7 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
     });
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const selectAll = () => setSelectedIds(new Set(steps.map(s => s.id)));
   const clearSelection = () => setSelectedIds(new Set());
 
