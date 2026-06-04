@@ -125,7 +125,7 @@ export function buildClickHighlight(params: {
       x1: tx1, y1: ty1,
       x2: tx1 + textW, y2: ty1 + textH,
       text: labelText,
-      color: '#FFFFFF',
+      color: '#EF4444',
       fontSize: 12,
       fontBold: true,
       hasBg: true,

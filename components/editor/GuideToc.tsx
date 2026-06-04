@@ -110,8 +110,22 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
       {/* Header */}
       <div style={{ padding: '12px 16px 10px', borderBottom: '1px solid #F3F4F6', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ fontSize: '11px', fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.07em', textTransform: 'uppercase' }}>
-            목차
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.07em', textTransform: 'uppercase' }}>
+              목차
+            </div>
+            {editable && (
+              <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', userSelect: 'none' }}>
+                <input
+                  type="checkbox"
+                  checked={selectedCount === steps.length && steps.length > 0}
+                  ref={el => { if (el) el.indeterminate = selectedCount > 0 && selectedCount < steps.length; }}
+                  onChange={e => e.target.checked ? setSelectedIds(new Set(steps.map(s => s.id))) : setSelectedIds(new Set())}
+                  style={{ width: '12px', height: '12px', accentColor: '#3730a3', cursor: 'pointer' }}
+                />
+                <span style={{ fontSize: '10px', color: '#9CA3AF' }}>전체</span>
+              </label>
+            )}
           </div>
           {/* 다중 선택 중일 때 선택 수 표시 */}
           {editable && selectedCount > 0 && (
