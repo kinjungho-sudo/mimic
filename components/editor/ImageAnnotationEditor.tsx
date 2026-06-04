@@ -749,11 +749,8 @@ export function ImageAnnotationEditor({
                   width: boxW > 2 ? `${boxW}%` : '80px',
                   minHeight: boxH > 1 ? `${boxH}%` : '24px',
                   padding: '4px 8px',
-                  background: editingItem.hasBg !== false ? 'rgba(0,0,0,0.25)' : 'transparent',
-                  border: (() => {
-                    const bc = editingItem.borderColor ?? DEFAULT_BORDER;
-                    return bc !== 'transparent' ? `1.5px solid ${bc}` : '1.5px solid transparent';
-                  })(),
+                  background: 'transparent',
+                  border: '1.5px dashed rgba(255,255,255,0.4)',
                   borderRadius: '3px',
                   color: editingItem.color,
                   fontSize: `${editingItem.fontSize ?? 16}px`,

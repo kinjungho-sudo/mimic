@@ -64,10 +64,8 @@ export function buildClickHighlight(params: {
     arrowX2 = cx; arrowY2 = ey1;
   }
 
-  // 텍스트 라벨: 화살표 시작점(요소 반대쪽) 바로 옆
-  // — 두번째 사진처럼 화살표 꼬리 끝에 텍스트 배치
-  const markerSymbol = numberToMarker(stepNumber);
-  const labelText = `${markerSymbol} ${label}`;
+  // 텍스트 라벨 — 마커 없이 label만 표시
+  const labelText = label;
 
   const estCharW = 0.72;
   const textW = Math.min(labelText.length * estCharW + 4, 36);
@@ -75,23 +73,22 @@ export function buildClickHighlight(params: {
 
   let tx1: number, ty1: number;
   if (direction === 'bottom') {
-    // 화살표가 아래에서 위로 → 텍스트는 화살표 시작점 아래, 수평 중앙
+    // 아래에서 위 화살표 → 시작점(아래) 바로 밑에 텍스트
     tx1 = arrowX1 - textW / 2;
-    ty1 = arrowY1 + 1;  // 시작점 바로 아래
+    ty1 = arrowY1 + 1;
   } else if (direction === 'right') {
-    // 화살표가 우측 → 텍스트는 시작점 위
-    tx1 = arrowX1 - textW / 2;
-    ty1 = arrowY1 - textH - 1;
+    // 우측 화살표 → 시작점 오른쪽 바깥 (화살표와 겹치지 않게)
+    tx1 = arrowX1 + 1;
+    ty1 = arrowY1 - textH / 2;
   } else if (direction === 'left') {
-    // 화살표가 좌측 → 텍스트는 시작점 위
-    tx1 = arrowX1 - textW / 2;
-    ty1 = arrowY1 - textH - 1;
+    // 좌측 화살표 → 시작점 왼쪽 바깥
+    tx1 = arrowX1 - textW - 1;
+    ty1 = arrowY1 - textH / 2;
   } else {
-    // 화살표가 위쪽 → 텍스트는 시작점 오른쪽
+    // 위쪽 화살표 → 시작점 오른쪽
     tx1 = arrowX1 + 2;
     ty1 = arrowY1 - textH / 2;
   }
-  // 이미지 경계 내로 clamp
   tx1 = Math.max(1, Math.min(100 - textW - 1, tx1));
   ty1 = Math.max(1, Math.min(100 - textH - 1, ty1));
 
