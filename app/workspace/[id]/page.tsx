@@ -34,6 +34,14 @@ export default function WorkspacePage() {
   const [inviting, setInviting] = useState(false);
   const [inviteMsg, setInviteMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
+  // 워크스페이스 이름 변경
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState('');
+  const [nameSaving, setNameSaving] = useState(false);
+
+  // 워크스페이스 삭제
+  const [deleting, setDeleting] = useState(false);
+
   const load = useCallback(async () => {
     try {
       const res = await fetch(`/api/workspaces/${id}`);
@@ -45,7 +53,43 @@ export default function WorkspacePage() {
 
   useEffect(() => { if (!authLoading) load(); }, [authLoading, load]);
 
-  const isAdmin = ws?.my_role === 'admin';
+  const isAdmin  = ws?.my_role === 'admin';
+  const isOwner  = ws ? ws.owner_id === user?.id : false;
+
+  const handleRenameSave = async () => {
+    const trimmed = nameInput.trim();
+    if (!trimmed || trimmed === ws?.name) { setEditingName(false); return; }
+    setNameSaving(true);
+    try {
+      const res = await fetch(`/api/workspaces/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: trimmed }),
+      });
+      if (res.ok) { await load(); setEditingName(false); }
+    } finally { setNameSaving(false); }
+  };
+
+  const handleDeleteWorkspace = async () => {
+    if (!confirm(`"${ws?.name}" 워크스페이스를 삭제할까요?\n\n포함된 팀 매뉴얼은 개인 매뉴얼로 이동합니다.`)) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/workspaces/${id}`, { method: 'DELETE' });
+      if (res.ok) router.push('/home');
+    } finally { setDeleting(false); }
+  };
+
+  const handleResendInvite = async (email: string, role: WorkspaceRole, token: string) => {
+    // 기존 초대 취소 후 재발송
+    await fetch(`/api/workspaces/${id}/invitations?token=${token}`, { method: 'DELETE' });
+    const res = await fetch(`/api/workspaces/${id}/invitations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, role }),
+    });
+    if (res.ok) { setInviteMsg({ ok: true, text: `${email}에 재발송했습니다.` }); load(); }
+    else setInviteMsg({ ok: false, text: '재발송 실패' });
+  };
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,7 +161,24 @@ export default function WorkspacePage() {
           홈
         </Link>
         <span style={{ color: '#D1D5DB' }}>/</span>
-        <span style={{ fontWeight: 600, color: '#111827' }}>{ws.name}</span>
+        {editingName ? (
+          <input
+            autoFocus
+            value={nameInput}
+            onChange={e => setNameInput(e.target.value)}
+            onBlur={handleRenameSave}
+            onKeyDown={e => { if (e.key === 'Enter') handleRenameSave(); if (e.key === 'Escape') setEditingName(false); }}
+            style={{ fontWeight: 600, fontSize: '13.5px', border: '1px solid #a5b4fc', borderRadius: '6px', padding: '2px 8px', outline: 'none', minWidth: '120px' }}
+          />
+        ) : (
+          <span
+            style={{ fontWeight: 600, color: '#111827', cursor: isAdmin ? 'text' : 'default' }}
+            title={isAdmin ? '클릭하여 이름 변경' : undefined}
+            onClick={() => { if (isAdmin) { setNameInput(ws.name); setEditingName(true); } }}
+          >
+            {nameSaving ? '저장 중…' : ws.name}
+          </span>
+        )}
         <span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '999px', background: ROLE_BG[ws.my_role], color: ROLE_COLOR[ws.my_role], marginLeft: '4px' }}>
           {ROLE_LABEL[ws.my_role]}
         </span>
@@ -257,6 +318,17 @@ export default function WorkspacePage() {
                   <span style={{ fontSize: '12px', fontWeight: 600, padding: '3px 10px', borderRadius: '999px', background: ROLE_BG[inv.role], color: ROLE_COLOR[inv.role], flexShrink: 0 }}>
                     {ROLE_LABEL[inv.role]}
                   </span>
+                  {/* 재발송 버튼 */}
+                  <button
+                    onClick={() => handleResendInvite(inv.email, inv.role, inv.token)}
+                    style={{ height: '28px', padding: '0 10px', borderRadius: '7px', border: '1px solid #E5E7EB', background: 'white', color: '#374151', cursor: 'pointer', fontSize: '11.5px', fontWeight: 500, flexShrink: 0 }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#3730a3'; (e.currentTarget as HTMLButtonElement).style.color = '#3730a3'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#E5E7EB'; (e.currentTarget as HTMLButtonElement).style.color = '#374151'; }}
+                    title="재발송"
+                  >
+                    재발송
+                  </button>
+                  {/* 취소 버튼 */}
                   <button
                     onClick={() => handleCancelInvite(inv.token)}
                     style={{ width: '28px', height: '28px', borderRadius: '7px', border: 'none', background: 'transparent', color: '#D1D5DB', cursor: 'pointer', display: 'grid', placeItems: 'center', flexShrink: 0 }}
@@ -272,14 +344,27 @@ export default function WorkspacePage() {
           </section>
         )}
 
-        {/* 공유 매뉴얼 — 추후 구현 */}
-        <div style={{ marginTop: '24px', textAlign: 'center' }}>
+        {/* 하단 액션 */}
+        <div style={{ marginTop: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
           <button
             onClick={() => router.push('/home')}
-            style={{ padding: '10px 24px', borderRadius: '9px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: 600 }}
+            style={{ padding: '9px 20px', borderRadius: '9px', background: 'white', border: '1px solid #E5E7EB', color: '#374151', cursor: 'pointer', fontSize: '13.5px', fontWeight: 500 }}
           >
-            워크스페이스 매뉴얼 보기 (홈)
+            ← 홈으로
           </button>
+
+          {/* 워크스페이스 삭제 — owner만 */}
+          {isOwner && (
+            <button
+              onClick={handleDeleteWorkspace}
+              disabled={deleting}
+              style={{ padding: '9px 20px', borderRadius: '9px', background: deleting ? '#F9FAFB' : 'white', border: '1px solid #FCA5A5', color: '#EF4444', cursor: deleting ? 'not-allowed' : 'pointer', fontSize: '13.5px', fontWeight: 600, opacity: deleting ? 0.6 : 1 }}
+              onMouseEnter={e => { if (!deleting) { (e.currentTarget as HTMLButtonElement).style.background = '#FEE2E2'; } }}
+              onMouseLeave={e => { if (!deleting) { (e.currentTarget as HTMLButtonElement).style.background = 'white'; } }}
+            >
+              {deleting ? '삭제 중…' : '워크스페이스 삭제'}
+            </button>
+          )}
         </div>
       </div>
     </div>

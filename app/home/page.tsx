@@ -318,6 +318,9 @@ function TutorialCard({ tutorial, onContextMenu, onTitleChange, onMenuClick, vie
       <span style={{ fontSize: '11px', color: '#9CA3AF', flexShrink: 0 }}>{dateStr}</span>
       {stepCount > 0 && <><span style={{ width: '2px', height: '2px', borderRadius: '50%', background: '#D1D5DB', flexShrink: 0 }} /><span style={{ fontSize: '11px', color: '#9CA3AF', flexShrink: 0 }}>{stepCount}단계</span></>}
       {tutorial.status === 'published' && <span style={{ fontSize: '10px', fontWeight: 600, color: '#16A34A', background: '#DCFCE7', padding: '1px 5px', borderRadius: '999px', flexShrink: 0 }}>공유</span>}
+      {(tutorial as Tutorial & { workspace_id?: string | null }).workspace_id && (
+        <span style={{ fontSize: '10px', fontWeight: 600, color: '#3730a3', background: '#e0e7ff', padding: '1px 5px', borderRadius: '999px', flexShrink: 0 }}>팀</span>
+      )}
     </div>
   );
 
@@ -351,6 +354,7 @@ function TutorialCard({ tutorial, onContextMenu, onTitleChange, onMenuClick, vie
           )}
         </div>
         {tutorial.status === 'published' && <span style={{ fontSize: '10px', fontWeight: 600, color: '#16A34A', background: '#DCFCE7', padding: '1px 5px', borderRadius: '999px', flexShrink: 0 }}>공유</span>}
+        {(tutorial as Tutorial & { workspace_id?: string | null }).workspace_id && <span style={{ fontSize: '10px', fontWeight: 600, color: '#3730a3', background: '#e0e7ff', padding: '1px 5px', borderRadius: '999px', flexShrink: 0 }}>팀</span>}
         {menuBtn}
       </article>
     );
