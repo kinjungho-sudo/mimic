@@ -80,6 +80,19 @@ const features = [
     body: '완성된 매뉴얼은 링크 하나로 어디든 공유. 앱 설치 없이 바로 보고 따라할 수 있습니다.',
     comingSoon: false,
   },
+  {
+    icon: (
+      // 자물쇠 / 프라이버시
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <rect x="5" y="11" width="14" height="10" rx="2" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.9)" strokeWidth="1.8"/>
+        <path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="rgba(255,255,255,0.9)" strokeWidth="1.8" strokeLinecap="round" fill="none"/>
+        <circle cx="12" cy="16" r="1.5" fill="rgba(255,255,255,0.9)"/>
+      </svg>
+    ),
+    title: '개인정보 유출 없이 캡처',
+    body: '비밀번호·개인정보는 캡처하지 않습니다. 민감한 화면은 기기 안에서 자동으로 처리되어, 원본 이미지는 서버에 전달되지 않습니다.',
+    comingSoon: false,
+  },
 ];
 
 const useCases = [
