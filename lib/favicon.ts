@@ -66,6 +66,34 @@ export async function fetchFaviconFromHtml(pageUrl: string): Promise<string | nu
 }
 
 /**
+ * hostname → 사람이 읽기 좋은 서비스명
+ *
+ * domain_name(페이지 타이틀)은 동적으로 바뀌어 신뢰할 수 없음.
+ * hostname의 2단계 도메인명을 대문자로 변환해 표시명으로 사용.
+ * 예: www.coupang.com → "Coupang"
+ *     checkout.coupang.com → "Coupang"
+ *     docs.google.com → "Google"
+ *     fin.land.naver.com → "Naver"
+ */
+export function hostnameToServiceName(hostname: string | null | undefined): string | null {
+  if (!hostname || hostname === 'null') return null;
+  try {
+    // TLD 앞 마지막 도메인 레벨 추출
+    // fin.land.naver.com → parts = ['fin','land','naver','com'] → 'naver'
+    const parts = hostname.replace(/^www\./, '').split('.');
+    // co.kr, com.au 등 2단 TLD 처리
+    const twoPartTLDs = new Set(['co.kr','co.uk','co.jp','com.au','co.nz','or.kr','go.kr','ne.jp']);
+    const tail2 = parts.slice(-2).join('.');
+    const nameIdx = twoPartTLDs.has(tail2) ? parts.length - 3 : parts.length - 2;
+    const name = parts[Math.max(0, nameIdx)];
+    // 첫 글자 대문자
+    return name.charAt(0).toUpperCase() + name.slice(1);
+  } catch {
+    return hostname;
+  }
+}
+
+/**
  * 서버사이드: Google → DuckDuckGo → HTML 파싱 순으로 시도
  * finalize에서 favicon null인 스텝 보완 시 사용
  */
