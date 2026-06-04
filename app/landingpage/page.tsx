@@ -135,35 +135,6 @@ function RevealSection({ children, style }: { children: React.ReactNode; style?:
 }
 
 
-const CYCLE_WORDS = ['자동으로 완성', '바로 공유', 'AI가 생성', '링크 하나로'];
-const WORD_INTERVAL_MS = 2500;
-const WORD_ANIM_MS = 350;
-
-type WordPhase = 'idle' | 'exit' | 'enter';
-
-function useWordCycle(words: string[]) {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [phase, setPhase] = useState<WordPhase>('idle');
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    timerRef.current = setTimeout(function tick() {
-      setPhase('exit');
-      setTimeout(() => {
-        setCurrentIndex(prev => (prev + 1) % words.length);
-        setPhase('enter');
-        setTimeout(() => {
-          setPhase('idle');
-          timerRef.current = setTimeout(tick, WORD_INTERVAL_MS);
-        }, WORD_ANIM_MS);
-      }, WORD_ANIM_MS);
-    }, WORD_INTERVAL_MS);
-
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [words.length]);
-
-  return { index: currentIndex, phase };
-}
 
 // 각 스텝 duration(ms) — 합계가 전체 루프 길이
 const SCENE_DURATIONS = [3000, 2800, 3000, 2800, 3200];
@@ -604,15 +575,6 @@ function HeroDemo() {
 }
 
 function HeroSection() {
-  const { index, phase } = useWordCycle(CYCLE_WORDS);
-
-  const animationStyle: React.CSSProperties =
-    phase === 'exit'
-      ? { animation: `wordExit ${WORD_ANIM_MS}ms cubic-bezier(0.4, 0, 0.2, 1) forwards` }
-      : phase === 'enter'
-      ? { animation: `wordEnter ${WORD_ANIM_MS}ms cubic-bezier(0.4, 0, 0.2, 1) forwards` }
-      : { opacity: 1, transform: 'translateY(0)', clipPath: 'inset(0% 0% 0% 0%)' };
-
   return (
     <section style={{ padding: '90px 0 0', background: 'linear-gradient(160deg, #EDE8FF 0%, #F8F0FF 50%, #FFF0F8 100%)', textAlign: 'center', position: 'relative' }}>
       <div style={{ position: 'absolute', top: '-160px', left: '50%', transform: 'translateX(-50%)', width: '900px', height: '600px', background: 'radial-gradient(ellipse, rgba(109,40,217,0.10) 0%, transparent 65%)', pointerEvents: 'none' }} />
@@ -623,34 +585,18 @@ function HeroSection() {
           AI 인터랙티브 매뉴얼 플랫폼
         </span>
 
-        <h1 style={{ margin: '0 auto 20px', fontSize: '56px', lineHeight: 1.2, fontWeight: 700, letterSpacing: '-0.03em', maxWidth: '760px', color: '#0D0D14' }}>
-          당신은 그냥 하세요.<br />
-          <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: '0.25em', flexWrap: 'wrap', justifyContent: 'center' }}>
-            <span>매뉴얼은</span>
-            <span style={{ display: 'inline-block', overflow: 'hidden', verticalAlign: 'bottom', position: 'relative' }}>
-              <span
-                key={index}
-                style={{
-                  display: 'inline-block',
-                  fontStyle: 'normal',
-                  fontWeight: 700,
-                  background: 'linear-gradient(135deg, #6d28d9 0%, #3730a3 100%)',
-                  WebkitBackgroundClip: 'text',
-                  backgroundClip: 'text',
-                  color: 'transparent',
-                  willChange: 'transform, opacity, clip-path',
-                  ...animationStyle,
-                }}
-              >
-                {CYCLE_WORDS[index]}
-              </span>
-            </span>
-            <span>됩니다.</span>
-          </span>
+        <h1 style={{ margin: '0 auto 20px', fontSize: '56px', lineHeight: 1.25, fontWeight: 700, letterSpacing: '-0.03em', maxWidth: '760px', color: '#0D0D14' }}>
+          작업 자체가<br />
+          <span style={{
+            background: 'linear-gradient(135deg, #6d28d9 0%, #3730a3 100%)',
+            WebkitBackgroundClip: 'text',
+            backgroundClip: 'text',
+            color: 'transparent',
+          }}>곧 기록이 된다.</span>
         </h1>
 
         <p style={{ fontSize: '17px', color: '#4B5563', maxWidth: '520px', margin: '0 auto 36px', lineHeight: 1.7 }}>
-          MIMIC은 어떤 작업이든 단계별 가이드로 자동 변환합니다.<br />
+          평소처럼 일하기만 하면 매뉴얼이 완성됩니다.<br />
           캡처부터 공유까지 — 30초면 충분합니다.
         </p>
 
@@ -807,6 +753,39 @@ export default function LandingPage() {
 
       {/* Hero */}
       <HeroSection />
+
+      {/* Manifesto */}
+      <section style={{ padding: '120px 0', background: '#0D0D14', overflow: 'hidden', position: 'relative' }}>
+        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 80% 60% at 50% 50%, rgba(109,40,217,0.18) 0%, transparent 70%)', pointerEvents: 'none' }} />
+        <div style={{ maxWidth: '900px', margin: '0 auto', padding: '0 32px', textAlign: 'center', position: 'relative' }}>
+          <RevealSection>
+            <p style={{ fontSize: '13px', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#6d28d9', marginBottom: '32px' }}>
+              The MIMIC Way
+            </p>
+            <h2 style={{ fontSize: 'clamp(36px, 5.5vw, 64px)', fontWeight: 700, lineHeight: 1.15, letterSpacing: '-0.03em', color: 'white', margin: '0 0 24px' }}>
+              평소처럼 일하면<br />
+              <span style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #818cf8 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>
+                자료가 나온다.
+              </span>
+            </h2>
+            <p style={{ fontSize: '18px', color: 'rgba(255,255,255,0.55)', maxWidth: '520px', margin: '0 auto 48px', lineHeight: 1.7, fontWeight: 400 }}>
+              녹화 버튼 하나만 켜면 됩니다. 클릭, 입력, 스크롤 — 당신의 모든 동작이 그대로 단계가 되고, AI가 설명을 붙입니다.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '40px', flexWrap: 'wrap' }}>
+              {[
+                { label: '별도 작업 없음', desc: '하던 일을 그대로 하면 됩니다' },
+                { label: '30초 완성', desc: 'AI가 즉시 정리합니다' },
+                { label: '링크 하나로 공유', desc: '앱 설치 없이 바로 공유' },
+              ].map(item => (
+                <div key={item.label} style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '15px', fontWeight: 700, color: 'white', marginBottom: '4px' }}>{item.label}</div>
+                  <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.40)' }}>{item.desc}</div>
+                </div>
+              ))}
+            </div>
+          </RevealSection>
+        </div>
+      </section>
 
       {/* Problem */}
       <section style={{ padding: '96px 0', background: '#FAFAFA' }}>
@@ -1165,15 +1144,7 @@ export default function LandingPage() {
           60%  { transform: scale(1.15) rotate(5deg);  opacity: 1; }
           100% { transform: scale(1) rotate(0deg);     opacity: 1; }
         }
-        @keyframes wordExit {
-          0% { opacity: 1; transform: translateY(0); clip-path: inset(0% 0% 0% 0%); }
-          100% { opacity: 0; transform: translateY(-100%); clip-path: inset(0% 0% 100% 0%); }
-        }
-        @keyframes wordEnter {
-          0% { opacity: 0; transform: translateY(100%); clip-path: inset(100% 0% 0% 0%); }
-          100% { opacity: 1; transform: translateY(0); clip-path: inset(0% 0% 0% 0%); }
-        }
-        @keyframes rec-blink {
+@keyframes rec-blink {
           0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(239,68,68,0.6); }
           50% { opacity: 0.6; box-shadow: 0 0 0 4px rgba(239,68,68,0); }
         }
