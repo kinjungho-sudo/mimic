@@ -11,7 +11,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCollaboration } from '@/hooks/useCollaboration';
 import type { Collaborator } from '@/hooks/useCollaboration';
 import { updateStep, createStep, deleteStep, reorderSteps } from '@/lib/api/steps';
-import { numberToMarker } from '@/lib/annotations';
 import type { Step, Tutorial } from '@/types';
 
 // ── Adapters ──────────────────────────────────────────────
@@ -156,22 +155,8 @@ export default function EditorPage() {
   const handleSave = useCallback(async (): Promise<boolean> => {
     setSaving(true);
     try {
-      // 저장 전: guidde 라벨 어노테이션의 마커 번호를 현재 스텝 순서에 맞게 재정렬
-      const reindexed = manualSteps.map(step => {
-        if (!step.annotations?.length) return step;
-        const newMarker = numberToMarker(step.number);
-        const updated = step.annotations.map(a => {
-          if (a.type !== 'text' || !a.text || !a.id.startsWith('guidde-')) return a;
-          // "① 검색창 클릭" → 마커 부분만 현재 스텝 번호로 교체
-          const replaced = a.text.replace(/^[①-⑳\d]+\s*/, newMarker + ' ');
-          return replaced !== a.text ? { ...a, text: replaced } : a;
-        });
-        const changed = updated.some((a, i) => a !== step.annotations![i]);
-        return changed ? { ...step, annotations: updated } : step;
-      });
-
       const results = await Promise.all(
-        reindexed
+        manualSteps
           .filter(s => !s.id.startsWith('step-'))
           .map(s => {
             clearTimeout(stepSaveTimers.current[s.id]);
