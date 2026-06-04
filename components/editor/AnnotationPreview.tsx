@@ -65,7 +65,7 @@ export function AnnotationPreview({ annotations, imageUrl }: { annotations: Anno
       </defs>
 
       {spotlights.length > 0 && (
-        <rect x="0" y="0" width={imgW} height={imgH} fill="rgba(0,0,0,0.72)" mask={`url(#${spotlightMaskId})`} />
+        <rect x="0" y="0" width={imgW} height={imgH} fill="rgba(0,0,0,0.52)" mask={`url(#${spotlightMaskId})`} />
       )}
 
       {annotations.map(a => {

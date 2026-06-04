@@ -31,58 +31,65 @@ export function buildClickHighlight(params: {
 
   const rightRoom = 100 - ex2;
   const leftRoom  = ex1;
-  const arrowLen  = 22; // 충분히 긴 화살표로 요소에서 멀리 시작
+  const bottomRoom = 100 - ey2;
+  // 화살표 길이: 짧게 유지 (텍스트와 겹치지 않도록)
+  const arrowLen = 14;
 
-  // 방향 결정 및 화살표 시작점/끝점 계산
-  // 끝점: 요소 테두리 엣지 (요소 내부로 들어가지 않음)
+  // 방향 결정: 여백이 가장 넓은 쪽으로 진입
+  // 끝점: 요소 테두리 엣지 (내부 침범 없음)
   let arrowX1: number, arrowY1: number;
   let arrowX2: number, arrowY2: number;
-  let direction: 'right' | 'left' | 'top';
+  let direction: 'right' | 'left' | 'bottom' | 'top';
 
-  if (rightRoom >= 22) {
+  if (bottomRoom >= 16) {
+    // 아래에서 위로 — 두번째 사진의 형태 (가장 자연스러움)
+    direction = 'bottom';
+    const cx = (ex1 + ex2) / 2;
+    arrowX2 = cx; arrowY2 = ey2;              // 끝: 요소 하단 테두리
+    arrowX1 = cx; arrowY1 = Math.min(ey2 + arrowLen, 96); // 시작: 요소 아래 바깥
+  } else if (rightRoom >= 16) {
     direction = 'right';
-    arrowX1 = Math.min(ex2 + arrowLen, 96);  // 시작: 요소 우측 바깥 멀리
+    arrowX1 = Math.min(ex2 + arrowLen, 96);
     arrowY1 = eCy;
-    arrowX2 = ex2;                             // 끝: 요소 우측 테두리
-    arrowY2 = eCy;
-  } else if (leftRoom >= 22) {
+    arrowX2 = ex2; arrowY2 = eCy;
+  } else if (leftRoom >= 16) {
     direction = 'left';
-    arrowX1 = Math.max(ex1 - arrowLen, 4);   // 시작: 요소 좌측 바깥 멀리
+    arrowX1 = Math.max(ex1 - arrowLen, 4);
     arrowY1 = eCy;
-    arrowX2 = ex1;                             // 끝: 요소 좌측 테두리
-    arrowY2 = eCy;
+    arrowX2 = ex1; arrowY2 = eCy;
   } else {
     direction = 'top';
-    arrowX1 = (ex1 + ex2) / 2;
-    arrowY1 = Math.max(ey1 - arrowLen, 4);   // 시작: 요소 위쪽 바깥 멀리
-    arrowX2 = (ex1 + ex2) / 2;
-    arrowY2 = ey1;                             // 끝: 요소 상단 테두리
+    const cx = (ex1 + ex2) / 2;
+    arrowX1 = cx; arrowY1 = Math.max(ey1 - arrowLen, 4);
+    arrowX2 = cx; arrowY2 = ey1;
   }
 
-  // 텍스트 라벨: 화살표 막대 위에 (막대 중간 지점의 위쪽)
+  // 텍스트 라벨: 화살표 시작점(요소 반대쪽) 바로 옆
+  // — 두번째 사진처럼 화살표 꼬리 끝에 텍스트 배치
   const markerSymbol = numberToMarker(stepNumber);
   const labelText = `${markerSymbol} ${label}`;
 
-  const estCharW = 0.75;
-  const textW = Math.min(labelText.length * estCharW + 5, 38);
-  const textH = 6.5;
-
-  // 화살표 막대 중간 지점 계산
-  const midX = (arrowX1 + arrowX2) / 2;
-  const midY = (arrowY1 + arrowY2) / 2;
+  const estCharW = 0.72;
+  const textW = Math.min(labelText.length * estCharW + 4, 36);
+  const textH = 6;
 
   let tx1: number, ty1: number;
-  if (direction === 'right') {
-    // 수평 화살표: 텍스트를 막대 위쪽 중간에
-    tx1 = midX - textW / 2;
-    ty1 = midY - textH - 1.5;
+  if (direction === 'bottom') {
+    // 화살표가 아래에서 위로 → 텍스트는 화살표 시작점 아래, 수평 중앙
+    tx1 = arrowX1 - textW / 2;
+    ty1 = arrowY1 + 1;  // 시작점 바로 아래
+  } else if (direction === 'right') {
+    // 화살표가 우측 → 텍스트는 시작점 위
+    tx1 = arrowX1 - textW / 2;
+    ty1 = arrowY1 - textH - 1;
   } else if (direction === 'left') {
-    tx1 = midX - textW / 2;
-    ty1 = midY - textH - 1.5;
+    // 화살표가 좌측 → 텍스트는 시작점 위
+    tx1 = arrowX1 - textW / 2;
+    ty1 = arrowY1 - textH - 1;
   } else {
-    // 수직 화살표: 텍스트를 막대 오른쪽 중간에
-    tx1 = midX + 2;
-    ty1 = midY - textH / 2;
+    // 화살표가 위쪽 → 텍스트는 시작점 오른쪽
+    tx1 = arrowX1 + 2;
+    ty1 = arrowY1 - textH / 2;
   }
   // 이미지 경계 내로 clamp
   tx1 = Math.max(1, Math.min(100 - textW - 1, tx1));

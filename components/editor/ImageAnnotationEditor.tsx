@@ -308,8 +308,8 @@ export function ImageAnnotationEditor({
       };
       setItems(prev => [...prev, newItem]);
       setTextDrawing(null);
-      // 생성 직후 select 모드로 전환 + 자동 선택
-      setTimeout(() => { setTool('select'); setSelectedId(newItem.id); }, 0);
+      // 생성 직후 바로 텍스트 편집 모드로 진입
+      setTimeout(() => { setTool('select'); setSelectedId(newItem.id); setEditingText({ id: newItem.id }); }, 0);
     }
   }, [textDrawing, toVB, strokeWidth]);
 
@@ -696,6 +696,7 @@ export function ImageAnnotationEditor({
                   imageUrl={imageUrl}
                   onBodyMouseDown={e => startDrag(e, a.id, null)}
                   onHandleMouseDown={(e, h) => startDrag(e, a.id, h)}
+                  onBodyDblClick={a.type === 'text' ? () => { setTool('select'); setSelectedId(a.id); setEditingText({ id: a.id }); } : undefined}
                 />
               );
             })}
@@ -816,7 +817,7 @@ function SpotlightLayer({ items, imgW, imgH, tool, selectedId, preview, onBodyMo
       </defs>
       {/* 어두운 오버레이 */}
       <rect x={0} y={0} width={imgW} height={imgH}
-        fill="rgba(0,0,0,0.62)" mask={`url(#${maskId})`}
+        fill="rgba(0,0,0,0.52)" mask={`url(#${maskId})`}
         opacity={preview ? 0.7 : 1} pointerEvents="none"
       />
       {/* 각 spotlight: 테두리 + 선택 핸들 */}
@@ -880,6 +881,7 @@ interface AnnotationShapeProps {
   imageUrl: string;
   onBodyMouseDown?: (e: React.MouseEvent) => void;
   onHandleMouseDown?: (e: React.MouseEvent, h: Handle) => void;
+  onBodyDblClick?: () => void;
 }
 
 function SelectionHandles({ minX, minY, w, h, onHandle }: {
@@ -922,7 +924,7 @@ function ArrowHandles({ ax1, ay1, ax2, ay2, onHandle }: {
   );
 }
 
-function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx, imageUrl, onBodyMouseDown, onHandleMouseDown }: AnnotationShapeProps) {
+function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx, imageUrl, onBodyMouseDown, onHandleMouseDown, onBodyDblClick }: AnnotationShapeProps) {
   const { type, x1, y1, x2, y2, color, text } = a;
   const ax1 = x1/100*imgW, ay1 = y1/100*imgH, ax2 = x2/100*imgW, ay2 = y2/100*imgH;
   const minX = Math.min(ax1,ax2), minY = Math.min(ay1,ay2);
@@ -1051,8 +1053,11 @@ function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx
     const bgFill = bg ? 'rgba(20,20,30,0.82)' : 'transparent';
     const strokeColor = bColor !== 'transparent' ? bColor : 'none';
 
+    const textCursor = isSelectTool ? (onBodyDblClick ? 'text' : 'move') : bodyCursor;
     return (
-      <g style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown}>
+      <g style={{ cursor: textCursor }} onMouseDown={onBodyMouseDown}
+        onDoubleClick={e => { e.stopPropagation(); onBodyDblClick?.(); }}
+      >
         {bg && (
           <rect x={minX} y={minY} width={boxW} height={boxH}
             fill={bgFill}
