@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
+import { guardTutorialAccess } from '@/lib/workspace-guard';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -9,6 +10,13 @@ export async function POST(request: NextRequest, { params }: Params) {
   if (!auth.ok) return auth.response;
 
   const { id } = await params;
+
+  // 게시 취소도 editor 이상 허용
+  const guard = await guardTutorialAccess(id, auth.userId, 'editor');
+  if (!guard.ok) {
+    return NextResponse.json({ error: guard.error }, { status: guard.status });
+  }
+
   const supabase = createServiceRoleClient();
 
   const { data, error } = await supabase
@@ -20,7 +28,6 @@ export async function POST(request: NextRequest, { params }: Params) {
       published_at: null,
     })
     .eq('id', id)
-    .eq('user_id', auth.userId)
     .select('id')
     .single();
 

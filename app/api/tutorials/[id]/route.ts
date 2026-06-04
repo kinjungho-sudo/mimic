@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { tutorialPatchSchema } from '@/lib/validators';
 import { hashPassword } from '@/lib/password';
+import { guardTutorialAccess } from '@/lib/workspace-guard';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -65,6 +66,12 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
+  // 워크스페이스 역할 체크 (개인 튜토리얼이면 소유자, 워크스페이스면 editor 이상)
+  const guard = await guardTutorialAccess(id, auth.userId, 'editor');
+  if (!guard.ok) {
+    return NextResponse.json({ error: guard.error }, { status: guard.status });
+  }
+
   const supabase = createServiceRoleClient();
   // share_password가 있으면 해싱 후 저장
   const updateData = { ...parsed.data };
@@ -75,7 +82,6 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     .from('mm_tutorials')
     .update(updateData)
     .eq('id', id)
-    .eq('user_id', auth.userId)
     .select()
     .single();
 
@@ -91,13 +97,19 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   if (!auth.ok) return auth.response;
 
   const { id } = await params;
+
+  // 워크스페이스 튜토리얼 삭제는 admin 이상만 허용
+  const guard = await guardTutorialAccess(id, auth.userId, 'admin');
+  if (!guard.ok) {
+    return NextResponse.json({ error: guard.error }, { status: guard.status });
+  }
+
   const supabase = createServiceRoleClient();
 
   const { error } = await supabase
     .from('mm_tutorials')
     .delete()
-    .eq('id', id)
-    .eq('user_id', auth.userId);
+    .eq('id', id);
 
   if (error) {
     return NextResponse.json({ error: 'Delete failed' }, { status: 500 });
