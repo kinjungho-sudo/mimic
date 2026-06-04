@@ -96,9 +96,11 @@ export async function POST(request: NextRequest) {
     domain_favicon:  ev.domain_hostname
       ? (faviconCache.get(ev.domain_hostname) ?? ev.domain_favicon ?? null)
       : (ev.domain_favicon ?? null),
-    click_x:         ev.click_x        ?? null,
-    click_y:         ev.click_y        ?? null,
-    element_rect:    ev.element_rect   ?? null,
+    click_x:           ev.click_x           ?? null,
+    click_y:           ev.click_y           ?? null,
+    element_rect:      ev.element_rect      ?? null,
+    element_selector:  ev.element_selector  ?? null,
+    element_xpath:     ev.element_xpath     ?? null,
   }));
 
   const { error: stepsError } = await supabase

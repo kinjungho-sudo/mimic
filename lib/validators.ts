@@ -80,6 +80,8 @@ export const captureSaveStepSchema = z.object({
   }).nullable().optional(),
   viewport_w: z.number().int().positive().optional().nullable(),
   viewport_h: z.number().int().positive().optional().nullable(),
+  element_selector: z.string().max(500).optional().nullable(),
+  element_xpath:    z.string().max(500).optional().nullable(),
 });
 
 export const tutorialPatchSchema = z.object({

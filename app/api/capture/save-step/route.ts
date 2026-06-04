@@ -71,10 +71,12 @@ export async function POST(request: NextRequest) {
       element_text: redactSensitive(d.title),
       ai_title: redactSensitive(d.title) || null,
       ai_description: redactSensitive(d.description) || null,
-      domain_hostname: d.domain_hostname ?? null,
-      domain_name:     d.domain_name     ?? null,
-      domain_favicon:  d.domain_favicon  ?? null,
-      element_rect:    elementRectNormalized,
+      domain_hostname:   d.domain_hostname   ?? null,
+      domain_name:       d.domain_name       ?? null,
+      domain_favicon:    d.domain_favicon    ?? null,
+      element_rect:      elementRectNormalized,
+      element_selector:  d.element_selector  ?? null,
+      element_xpath:     d.element_xpath     ?? null,
     })
     .select('id')
     .single();
