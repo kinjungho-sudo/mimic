@@ -173,7 +173,7 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
                     step={step}
                     isActive={activeId === step.id}
                     isDragOver={dragOverId === step.id && draggingId !== step.id}
-                    onSelect={() => scrollToStep(step.id)}
+                    onSelect={() => setActiveId(step.id)}
                     onRename={title => updateStep(step.id, { actionTitle: title })}
                     onDragStart={() => handleDragStart(step.id)}
                     onDragOver={e => handleDragOver(e, step.id)}
@@ -197,9 +197,10 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
         </aside>
       )}
 
-      {/* ── Right content — 좌측 TOC와 시각적 분리를 위해 더 넓은 여백 + 배경 구분 ── */}
+      {/* ── Right content — 슬라이드 1장씩 편집 ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, background: '#F1F3F5' }}>
-        {/* ── Selection action bar — 전체선택을 우측 끝에 ── */}
+
+        {/* ── 상단 툴바: AI 액션 + 전체선택 ── */}
         <div style={{
           flexShrink: 0,
           display: 'flex', alignItems: 'center', gap: '8px',
@@ -208,12 +209,9 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
           background: selectedIds.size > 0 ? '#FFFBEB' : 'white',
           transition: 'background 0.2s',
         }}>
-          {/* 선택 시 AI 액션 (왼쪽) */}
           {selectedIds.size > 0 && (
             <>
-              <span style={{ fontSize: '12px', color: '#F59E0B', fontWeight: 600 }}>
-                {selectedIds.size}개 선택됨
-              </span>
+              <span style={{ fontSize: '12px', color: '#F59E0B', fontWeight: 600 }}>{selectedIds.size}개 선택됨</span>
               <div style={{ width: '1px', height: '16px', background: '#E5E7EB', margin: '0 4px' }} />
               <Sparkles size={12} style={{ color: '#6d28d9', flexShrink: 0 }} />
               {([
@@ -221,19 +219,8 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
                 { label: '맞춤법 교정', instruction: '맞춤법과 띄어쓰기를 교정해줘' },
                 { label: '개조식으로', instruction: '개조식으로 변환해줘: 마침표 없이 핵심 동작만 명사형으로 짧게 (예: "검색창에 키워드 입력 → 상품 목록 확인")' },
               ] as const).map(({ label, instruction }) => (
-                <button
-                  key={label}
-                  disabled={!!bulkAiLoading}
-                  onClick={() => bulkAiRewrite(instruction, label)}
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', gap: '4px',
-                    height: '26px', padding: '0 10px', borderRadius: '5px',
-                    border: '1px solid #EDE9FE', background: bulkAiLoading === label ? '#EDE9FE' : 'white',
-                    color: '#6d28d9', fontSize: '11.5px', fontWeight: 500,
-                    cursor: bulkAiLoading ? 'not-allowed' : 'pointer',
-                    opacity: bulkAiLoading && bulkAiLoading !== label ? 0.45 : 1,
-                    flexShrink: 0,
-                  }}
+                <button key={label} disabled={!!bulkAiLoading} onClick={() => bulkAiRewrite(instruction, label)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', height: '26px', padding: '0 10px', borderRadius: '5px', border: '1px solid #EDE9FE', background: bulkAiLoading === label ? '#EDE9FE' : 'white', color: '#6d28d9', fontSize: '11.5px', fontWeight: 500, cursor: bulkAiLoading ? 'not-allowed' : 'pointer', opacity: bulkAiLoading && bulkAiLoading !== label ? 0.45 : 1, flexShrink: 0 }}
                 >
                   {bulkAiLoading === label ? <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> : null}
                   {label}
@@ -244,8 +231,7 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
                 onClick={() => {
                   if (!window.confirm(`선택한 ${selectedIds.size}개 단계를 삭제할까요?`)) return;
                   const next = steps.filter(s => !selectedIds.has(s.id)).map((s, i) => ({ ...s, number: i + 1 }));
-                  onChange(next);
-                  clearSelection();
+                  onChange(next); clearSelection();
                 }}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', height: '26px', padding: '0 10px', borderRadius: '5px', border: '1px solid #FEE2E2', background: 'white', color: '#EF4444', fontSize: '11.5px', fontWeight: 500, cursor: 'pointer', flexShrink: 0 }}
               >
@@ -253,12 +239,8 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
               </button>
             </>
           )}
-
-          {/* 전체 선택 — 우측 끝 고정 */}
           <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '12px', color: '#6B7280', userSelect: 'none', marginLeft: 'auto', flexShrink: 0 }}>
-            <input
-              type="checkbox"
-              checked={selectedIds.size === steps.length && steps.length > 0}
+            <input type="checkbox" checked={selectedIds.size === steps.length && steps.length > 0}
               ref={el => { if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < steps.length; }}
               onChange={e => e.target.checked ? selectAll() : clearSelection()}
               style={{ width: '14px', height: '14px', accentColor: '#3730a3', cursor: 'pointer' }}
@@ -267,28 +249,31 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
           </label>
         </div>
 
-        <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '28px 0 60px', position: 'relative' }}>
-        <div style={{ maxWidth: '740px', margin: '0 auto', padding: '0 28px' }}>
-          {steps.map((step, idx) => {
-            const prevHostname = idx > 0 ? steps[idx - 1].domainHostname : null;
-            const validHostname = step.domainHostname && step.domainHostname !== 'null' ? step.domainHostname : null;
-            const prevValid = prevHostname && prevHostname !== 'null' ? prevHostname : null;
-            const showDomainHeader = !!validHostname && validHostname !== prevValid;
-            return (
-              <div key={step.id}>
-                {showDomainHeader && validHostname && (
-                  <EditorDomainHeader hostname={validHostname} name={step.domainName && step.domainName !== 'null' ? step.domainName : null} favicon={step.domainFavicon ?? null} />
-                )}
-                <div
-                  ref={el => { contentRefs.current[step.id] = el; }}
-                  style={{ marginBottom: '28px', scrollMarginTop: '16px' }}
-                >
+        {/* ── 슬라이드 뷰: 현재 스텝 1장만 표시 ── */}
+        {(() => {
+          const currentIdx = steps.findIndex(s => s.id === activeId);
+          const step = currentIdx >= 0 ? steps[currentIdx] : steps[0];
+          if (!step) return (
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9CA3AF', fontSize: '14px' }}>
+              단계가 없습니다.
+            </div>
+          );
+          const idx = currentIdx >= 0 ? currentIdx : 0;
+          const goTo = (newIdx: number) => {
+            if (newIdx < 0 || newIdx >= steps.length) return;
+            setActiveId(steps[newIdx].id);
+          };
+          return (
+            <>
+              {/* 슬라이드 영역 */}
+              <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '24px 0 16px' }}>
+                <div style={{ maxWidth: '740px', margin: '0 auto', padding: '0 28px' }}>
                   <StepCard
                     step={step}
-                    isActive={activeId === step.id}
+                    isActive={true}
                     isSelected={selectedIds.has(step.id)}
                     onToggleSelect={() => toggleSelect(step.id)}
-                    onFocus={() => setActiveId(step.id)}
+                    onFocus={() => {}}
                     onUpdate={patch => updateStep(step.id, patch)}
                     onSave={patch => { updateStep(step.id, patch); onSave?.(step.id, patch); }}
                     onDelete={() => deleteStep(step.id)}
@@ -298,37 +283,88 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
                   />
                 </div>
               </div>
-            );
-          })}
-          <button
-            onClick={addStep}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%', height: '52px', border: '2px dashed #D1D5DB', borderRadius: '12px', background: 'transparent', fontSize: '13.5px', color: '#6B7280', cursor: 'pointer', transition: 'all 0.18s ease' }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = '#3730a3'; e.currentTarget.style.color = '#3730a3'; e.currentTarget.style.background = 'rgba(55,48,163,0.03)'; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = '#D1D5DB'; e.currentTarget.style.color = '#6B7280'; e.currentTarget.style.background = 'transparent'; }}
-          >
-            <Plus size={15} /> 단계 추가
-          </button>
-        </div>
 
-        {/* 맨위 / 맨아래 플로팅 버튼 */}
-        <div style={{ position: 'sticky', bottom: '24px', marginRight: '24px', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end', pointerEvents: 'none' }}>
-          {[
-            { title: '맨 위로', onClick: () => scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' }), path: 'M18 15 12 9 6 15' },
-            { title: '맨 아래로', onClick: () => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' }), path: 'M6 9 12 15 18 9' },
-          ].map(btn => (
-            <button
-              key={btn.title}
-              onClick={btn.onClick}
-              title={btn.title}
-              style={{ width: '36px', height: '36px', borderRadius: '9px', background: 'white', border: '1px solid #E5E7EB', boxShadow: '0 2px 8px rgba(17,24,39,0.10)', display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#6B7280', transition: 'all 0.15s', pointerEvents: 'auto' }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#F9FAFB'; e.currentTarget.style.color = '#111827'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'white'; e.currentTarget.style.color = '#6B7280'; }}
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points={btn.path}/></svg>
-            </button>
-          ))}
-        </div>
-        </div>
+              {/* ── 슬라이드 네비게이션 바 ── */}
+              <div style={{
+                flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '10px 28px',
+                borderTop: '1px solid #E5E7EB',
+                background: 'white',
+                gap: '12px',
+              }}>
+                {/* 이전 */}
+                <button
+                  onClick={() => goTo(idx - 1)}
+                  disabled={idx === 0}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', height: '34px', padding: '0 14px', borderRadius: '8px', border: '1px solid #E5E7EB', background: idx === 0 ? '#F9FAFB' : 'white', color: idx === 0 ? '#D1D5DB' : '#374151', fontSize: '12.5px', fontWeight: 500, cursor: idx === 0 ? 'not-allowed' : 'pointer', transition: 'all 0.15s' }}
+                  onMouseEnter={e => { if (idx > 0) e.currentTarget.style.background = '#F3F4F6'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = idx === 0 ? '#F9FAFB' : 'white'; }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+                  이전
+                </button>
+
+                {/* 페이지 표시 + 점 네비게이션 */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, justifyContent: 'center' }}>
+                  <span style={{ fontSize: '12px', color: '#6B7280', whiteSpace: 'nowrap', fontWeight: 500 }}>
+                    <span style={{ color: '#111827', fontWeight: 700 }}>{idx + 1}</span>
+                    <span style={{ color: '#D1D5DB', margin: '0 3px' }}>/</span>
+                    {steps.length}
+                  </span>
+                  {/* 점 표시 (최대 10개, 초과 시 생략) */}
+                  <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+                    {steps.length <= 15
+                      ? steps.map((s, i) => (
+                          <button
+                            key={s.id}
+                            onClick={() => goTo(i)}
+                            title={s.actionTitle || `${i + 1}단계`}
+                            style={{ width: i === idx ? '20px' : '7px', height: '7px', borderRadius: '999px', border: 'none', background: i === idx ? '#3730a3' : '#D1D5DB', cursor: 'pointer', padding: 0, transition: 'all 0.2s ease', flexShrink: 0 }}
+                          />
+                        ))
+                      : <>
+                          {[...Array(3)].map((_, i) => (
+                            <button key={i} onClick={() => goTo(i)} style={{ width: i === idx ? '20px' : '7px', height: '7px', borderRadius: '999px', border: 'none', background: i === idx ? '#3730a3' : '#D1D5DB', cursor: 'pointer', padding: 0, transition: 'all 0.2s ease' }} />
+                          ))}
+                          {idx > 2 && idx < steps.length - 3 && (
+                            <button onClick={() => {}} style={{ width: '20px', height: '7px', borderRadius: '999px', border: 'none', background: '#3730a3', cursor: 'pointer', padding: 0 }} />
+                          )}
+                          <span style={{ fontSize: '11px', color: '#9CA3AF' }}>…</span>
+                          {[steps.length - 3, steps.length - 2, steps.length - 1].filter(i => i > 2).map(i => (
+                            <button key={i} onClick={() => goTo(i)} style={{ width: i === idx ? '20px' : '7px', height: '7px', borderRadius: '999px', border: 'none', background: i === idx ? '#3730a3' : '#D1D5DB', cursor: 'pointer', padding: 0, transition: 'all 0.2s ease' }} />
+                          ))}
+                        </>
+                    }
+                  </div>
+                </div>
+
+                {/* 단계 추가 + 다음 */}
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={addStep}
+                    title="단계 추가"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', height: '34px', padding: '0 12px', borderRadius: '8px', border: '1.5px dashed #D1D5DB', background: 'transparent', color: '#6B7280', fontSize: '12px', cursor: 'pointer', transition: 'all 0.15s' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#3730a3'; e.currentTarget.style.color = '#3730a3'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = '#D1D5DB'; e.currentTarget.style.color = '#6B7280'; }}
+                  >
+                    <Plus size={13} /> 추가
+                  </button>
+                  <button
+                    onClick={() => goTo(idx + 1)}
+                    disabled={idx === steps.length - 1}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', height: '34px', padding: '0 14px', borderRadius: '8px', border: 'none', background: idx === steps.length - 1 ? '#F3F4F6' : 'linear-gradient(135deg,#3730a3 0%,#6d28d9 100%)', color: idx === steps.length - 1 ? '#D1D5DB' : 'white', fontSize: '12.5px', fontWeight: 600, cursor: idx === steps.length - 1 ? 'not-allowed' : 'pointer', transition: 'all 0.15s', boxShadow: idx === steps.length - 1 ? 'none' : '0 2px 8px rgba(55,48,163,0.3)' }}
+                    onMouseEnter={e => { if (idx < steps.length - 1) e.currentTarget.style.boxShadow = '0 4px 14px rgba(55,48,163,0.45)'; }}
+                    onMouseLeave={e => { if (idx < steps.length - 1) e.currentTarget.style.boxShadow = '0 2px 8px rgba(55,48,163,0.3)'; }}
+                  >
+                    다음
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+                  </button>
+                </div>
+              </div>
+            </>
+          );
+        })()}
       </div>
 
       {zoomUrl && <ImageZoomModal url={zoomUrl} onClose={() => setZoomUrl(null)} />}
