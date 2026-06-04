@@ -172,7 +172,7 @@ export function AnnotationPreview({ annotations, imageUrl }: { annotations: Anno
           // 글자 폭을 fontSize 기반으로 추정 (한글/영문 혼용 고려)
           const maxLineLen = Math.max(...lines.map(l => {
             // 한글은 영문보다 넓음
-            return [...l].reduce((sum, ch) => sum + (ch.charCodeAt(0) > 0x3000 ? 1.0 : 0.6), 0);
+            return Array.from(l).reduce((sum, ch) => sum + (ch.charCodeAt(0) > 0x3000 ? 1.0 : 0.6), 0);
           }));
           const textPixelW = maxLineLen * fSize + padX * 2;
           // %→px 변환 없이 px 단위로 직접 배치 (viewBox 기반이므로 px 직접 사용)
