@@ -558,18 +558,18 @@ function HeroSection() {
         </span>
 
         <h1 style={{ margin: '0 auto 20px', fontSize: '56px', lineHeight: 1.25, fontWeight: 700, letterSpacing: '-0.03em', maxWidth: '760px', color: '#0D0D14' }}>
-          작업 자체가<br />
+          읽는 매뉴얼 말고,<br />
           <span style={{
             background: 'linear-gradient(135deg, #6d28d9 0%, #3730a3 100%)',
             WebkitBackgroundClip: 'text',
             backgroundClip: 'text',
             color: 'transparent',
-          }}>곧 기록이 된다.</span>
+          }}>따라하는 매뉴얼</span>
         </h1>
 
         <p style={{ fontSize: '17px', color: '#4B5563', maxWidth: '520px', margin: '0 auto 36px', lineHeight: 1.7 }}>
-          평소처럼 일하기만 하면 매뉴얼이 완성됩니다.<br />
-          캡처부터 공유까지 — 30초면 충분합니다.
+          평소처럼 일하기만 하면 됩니다.<br />
+          클릭 한 번으로 따라할 수 있는 매뉴얼이 30초 만에 완성됩니다.
         </p>
 
         <div className="hero-cta-row" style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginBottom: '56px' }}>
