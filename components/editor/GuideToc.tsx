@@ -80,15 +80,17 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
     setDragOverId(null);
   };
 
-  // ── 도메인 그룹핑 ──────────────────────────────────────────
+  // ── 도메인 그룹핑 — hostname 기준 (domain_name이 달라도 hostname 같으면 동일 그룹) ──
   type DomainGroup = { hostname: string | null; name: string | null; favicon: string | null; count: number };
   const domainGroups: DomainGroup[] = [];
   steps.forEach(step => {
+    const hostname = step.domainHostname ?? null;
     const last = domainGroups[domainGroups.length - 1];
-    if (last && last.hostname === (step.domainHostname ?? null)) {
+    // hostname 기준으로만 그룹핑 — domain_name이 달라도 hostname이 같으면 동일 그룹
+    if (last && last.hostname === hostname) {
       last.count++;
     } else {
-      domainGroups.push({ hostname: step.domainHostname ?? null, name: step.domainName ?? null, favicon: step.domainFavicon ?? null, count: 1 });
+      domainGroups.push({ hostname, name: step.domainName ?? hostname, favicon: step.domainFavicon ?? null, count: 1 });
     }
   });
 

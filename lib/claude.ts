@@ -124,11 +124,11 @@ export async function analyzeScreenshot(
 
   const titleGuide = (() => {
     const type = actionInfo?.type;
-    if (type === 'type') return '"[입력 내용] 입력" 형식 (예: "이메일 주소 입력")';
-    if (type === 'navigate') return '"[목적지] 이동" 형식 (예: "설정 페이지 이동")';
+    if (type === 'type') return '"[필드명] 입력" 형식 (예: "검색창에 키워드 입력", "이메일 주소 입력")';
+    if (type === 'navigate') return '"[기능/메뉴명] 이동" 형식 — URL path(/new, /debate 등) 절대 사용 금지, 기능 이름으로 표현 (예: "새 토론 시작", "홈으로 이동", "설정 페이지 이동")';
     if (type === 'toggle') return '"[항목] 선택/해제" 형식';
     if (type === 'select') return '"[항목] 선택" 형식';
-    return '"[대상] 클릭" 형식 (예: "로그인 버튼 클릭")';
+    return '"[UI 요소] 클릭" 형식 (예: "로그인 버튼 클릭", "바로구매 버튼 클릭")';
   })();
 
   const response = await client.messages.create({
@@ -151,12 +151,21 @@ export async function analyzeScreenshot(
             text: `이 스크린샷은 사용자가 "${domain}" 페이지에서 수행한 액션입니다.${actionHint}${locationHint}
 
 스크린샷과 위 행동 정보를 바탕으로 아래 JSON만 반환하세요. 다른 텍스트 없이.
-title은 ${titleGuide}으로 20자 이내로 작성하세요.
+
+[title 규칙]
+- ${titleGuide}으로 20자 이내
+- 특정 상품명·브랜드명·수량·고유명사 절대 포함 금지
+- 나쁜 예: "신라면 120g 검색", "홍길동에게 송금" → 좋은 예: "검색창에 키워드 입력", "송금 버튼 클릭"
+
+[description 규칙]
+- 사용자가 클릭하거나 입력한 UI 요소를 범용적으로 설명 (60자 이내)
+- 특정 상품명·수량·고유명사 포함 금지 — 해당 내용은 "[상품명]", "[수량]"으로 대체
+- 결과 설명("이를 통해 ~됩니다") 금지, 행동만 서술
 
 응답 형식 (JSON만, 마크다운 없이):
 {
-  "title": "행동 동사가 포함된 짧은 제목 (20자 이내)",
-  "description": "AI가 이 액션을 재현할 수 있도록 구체적 설명 (60자 이내)"
+  "title": "...",
+  "description": "..."
 }`,
           },
         ],
@@ -317,6 +326,7 @@ ${stepsText}
 - 사용자가 이 매뉴얼로 배우는 "방법"을 표현할 것
 - 좋은 예: "쿠팡에서 상품 구매하기", "Slack 채널 만들기", "구글 드라이브 파일 공유하기"
 - 나쁜 예: "쿠팡에서 신라면 120g 5개 구매하기", "홍길동에게 5만원 송금하기"
+- "매뉴얼 2026. 6. 4" 같은 날짜 형식 절대 금지 — 스텝 내용을 분석해 의미 있는 제목 생성
 
 [스텝 제목 규칙 — user_title]
 - 20자 이내, 해당 화면에서 수행하는 핵심 행동 하나만

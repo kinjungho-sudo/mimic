@@ -31,7 +31,6 @@ export function buildClickHighlight(params: {
 
   const rightRoom = 100 - ex2;
   const leftRoom  = ex1;
-  const topRoom   = ey1;
   const arrowLen  = 22; // 충분히 긴 화살표로 요소에서 멀리 시작
 
   // 방향 결정 및 화살표 시작점/끝점 계산
