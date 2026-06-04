@@ -129,6 +129,7 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
     setActiveId(newStep.id);
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const scrollToStep = (id: string) => {
     setActiveId(id);
     contentRefs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -266,7 +267,7 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
           return (
             <>
               {/* 슬라이드 영역 */}
-              <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '24px 0 16px' }}>
+              <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '24px 0 16px', position: 'relative' }}>
                 <div style={{ maxWidth: '740px', margin: '0 auto', padding: '0 28px' }}>
                   <StepCard
                     step={step}
@@ -281,6 +282,25 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
                     onAnnotate={() => step.screenshotUrl && setAnnotatingId(step.id)}
                     onRemoveImage={() => { updateStep(step.id, { screenshotUrl: undefined, annotations: [] }); onSave?.(step.id, { screenshotUrl: undefined, annotations: [] }); }}
                   />
+                </div>
+                {/* 위/아래 스텝 이동 플로팅 버튼 */}
+                <div style={{ position: 'sticky', bottom: '16px', display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-end', paddingRight: '16px', pointerEvents: 'none' }}>
+                  {[
+                    { title: '이전 단계', disabled: idx === 0, onClick: () => goTo(idx - 1), path: 'M18 15 12 9 6 15' },
+                    { title: '다음 단계', disabled: idx === steps.length - 1, onClick: () => goTo(idx + 1), path: 'M6 9 12 15 18 9' },
+                  ].map(btn => (
+                    <button
+                      key={btn.title}
+                      onClick={btn.onClick}
+                      disabled={btn.disabled}
+                      title={btn.title}
+                      style={{ width: '36px', height: '36px', borderRadius: '9px', background: btn.disabled ? '#F3F4F6' : 'white', border: '1px solid #E5E7EB', boxShadow: btn.disabled ? 'none' : '0 2px 8px rgba(17,24,39,0.10)', display: 'grid', placeItems: 'center', cursor: btn.disabled ? 'not-allowed' : 'pointer', color: btn.disabled ? '#D1D5DB' : '#6B7280', transition: 'all 0.15s', pointerEvents: 'auto' }}
+                      onMouseEnter={e => { if (!btn.disabled) { e.currentTarget.style.background = '#F9FAFB'; e.currentTarget.style.color = '#111827'; } }}
+                      onMouseLeave={e => { if (!btn.disabled) { e.currentTarget.style.background = 'white'; e.currentTarget.style.color = '#6B7280'; } }}
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points={btn.path}/></svg>
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -926,6 +946,7 @@ function ImageZoomModal({ url, onClose }: { url: string; onClose: () => void }) 
 
 // ── EditorDomainHeader ────────────────────────────────────
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function EditorDomainHeader({ hostname, name, favicon }: { hostname: string; name: string | null; favicon: string | null }) {
   const displayName = name || hostname;
   return (
