@@ -525,7 +525,9 @@ export default function DashboardPage() {
   const handleCreateBlank = async () => {
     setShowNewMenu(false); setCreating(true);
     try {
-      const tutorial = await createTutorial();
+      // 팀 탭에서 워크스페이스가 선택돼 있으면 팀 매뉴얼로 생성
+      const wsId = activeTab === 'team' && activeWorkspace ? activeWorkspace : null;
+      const tutorial = await createTutorial(wsId ? { workspace_id: wsId } : undefined);
       router.push(`/manual/${tutorial.id}/editor`);
     } catch { alert('생성 중 오류가 발생했습니다.'); setCreating(false); }
   };
@@ -1040,12 +1042,20 @@ export default function DashboardPage() {
                     </div>
                   ) : (
                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                      {workspaces.map(ws => (
-                        <button key={ws.id} onClick={() => setActiveWorkspace(ws.id)}
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 12px', borderRadius: '999px', border: `1.5px solid ${activeWorkspace === ws.id ? '#3730a3' : '#E5E7EB'}`, background: activeWorkspace === ws.id ? '#e0e7ff' : 'white', color: activeWorkspace === ws.id ? '#3730a3' : '#6B7280', fontSize: '12.5px', fontWeight: activeWorkspace === ws.id ? 600 : 400, cursor: 'pointer' }}>
-                          {ws.name}
-                        </button>
-                      ))}
+                      {workspaces.map(ws => {
+                        const isActive = activeWorkspace === ws.id;
+                        const roleLabel = ws.my_role === 'admin' ? '관리자' : ws.my_role === 'editor' ? '편집자' : '뷰어';
+                        const roleColor = ws.my_role === 'admin' ? '#7C3AED' : ws.my_role === 'editor' ? '#0369A1' : '#6B7280';
+                        return (
+                          <button key={ws.id} onClick={() => setActiveWorkspace(ws.id)}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 12px', borderRadius: '999px', border: `1.5px solid ${isActive ? '#3730a3' : '#E5E7EB'}`, background: isActive ? '#e0e7ff' : 'white', color: isActive ? '#3730a3' : '#6B7280', fontSize: '12.5px', fontWeight: isActive ? 600 : 400, cursor: 'pointer' }}>
+                            {ws.name}
+                            <span style={{ fontSize: '10.5px', fontWeight: 500, color: isActive ? '#3730a3' : roleColor, background: isActive ? 'rgba(55,48,163,0.12)' : 'rgba(0,0,0,0.05)', padding: '1px 5px', borderRadius: '4px' }}>
+                              {roleLabel}
+                            </span>
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

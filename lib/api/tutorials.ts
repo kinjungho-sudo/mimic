@@ -17,8 +17,11 @@ export async function getTutorials(): Promise<Tutorial[]> {
   return apiFetch<Tutorial[]>('/api/tutorials');
 }
 
-export async function createTutorial(): Promise<Tutorial> {
-  return apiFetch<Tutorial>('/api/tutorials', { method: 'POST' });
+export async function createTutorial(options?: { workspace_id?: string | null }): Promise<Tutorial> {
+  return apiFetch<Tutorial>('/api/tutorials', {
+    method: 'POST',
+    body: options?.workspace_id ? JSON.stringify({ workspace_id: options.workspace_id }) : undefined,
+  });
 }
 
 export async function getTutorial(id: string): Promise<TutorialDetail> {

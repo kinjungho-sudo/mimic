@@ -1,6 +1,11 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
+import { z } from 'zod';
+
+const tutorialCreateSchema = z.object({
+  workspace_id: z.string().uuid().optional().nullable(),
+}).optional();
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request);
@@ -16,6 +21,29 @@ export async function GET(request: NextRequest) {
     .order('updated_at', { ascending: false });
 
   if (workspaceId) {
+    // 워크스페이스 멤버 또는 owner인지 확인
+    const { data: ws } = await supabase
+      .from('mm_workspaces')
+      .select('owner_id')
+      .eq('id', workspaceId)
+      .single();
+
+    if (!ws) return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
+
+    const isOwner = ws.owner_id === auth.userId;
+    if (!isOwner) {
+      const { data: member } = await supabase
+        .from('mm_workspace_members')
+        .select('role')
+        .eq('workspace_id', workspaceId)
+        .eq('user_id', auth.userId)
+        .single();
+
+      if (!member) {
+        return NextResponse.json({ error: 'Not a workspace member' }, { status: 403 });
+      }
+    }
+
     query = query.eq('workspace_id', workspaceId);
   } else {
     query = query.eq('user_id', auth.userId).is('workspace_id', null);
@@ -51,10 +79,49 @@ export async function POST(request: NextRequest) {
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
 
+  // workspace_id가 있으면 팀 매뉴얼로 생성 — 멤버 여부 확인
+  let workspaceId: string | null = null;
+  try {
+    const body = await request.json().catch(() => ({}));
+    const parsed = tutorialCreateSchema?.safeParse(body);
+    workspaceId = parsed?.data?.workspace_id ?? null;
+  } catch { /* body 없으면 개인 매뉴얼 */ }
+
   const supabase = createServiceRoleClient();
+
+  if (workspaceId) {
+    // 워크스페이스 멤버 또는 owner인지 확인 (editor 이상만 생성 가능)
+    const { data: ws } = await supabase
+      .from('mm_workspaces')
+      .select('owner_id')
+      .eq('id', workspaceId)
+      .single();
+
+    const isOwner = ws?.owner_id === auth.userId;
+
+    if (!isOwner) {
+      const { data: member } = await supabase
+        .from('mm_workspace_members')
+        .select('role')
+        .eq('workspace_id', workspaceId)
+        .eq('user_id', auth.userId)
+        .single();
+
+      if (!member || member.role === 'viewer') {
+        return NextResponse.json({ error: 'Requires editor role or above' }, { status: 403 });
+      }
+    }
+  }
+
   const { data, error } = await supabase
     .from('mm_tutorials')
-    .insert({ user_id: auth.userId, title: '제목 없음', status: 'draft', mode: 'guide' })
+    .insert({
+      user_id: auth.userId,
+      workspace_id: workspaceId,
+      title: '제목 없음',
+      status: 'draft',
+      mode: 'guide',
+    })
     .select()
     .single();
 
