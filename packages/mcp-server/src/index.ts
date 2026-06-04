@@ -3,11 +3,18 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 
+// ── 환경변수 검증 ─────────────────────────────────────────
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const OWNER_USER_ID = process.env.OWNER_USER_ID;
+
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !OWNER_USER_ID) {
+  console.error('필수 환경변수 누락: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, OWNER_USER_ID');
+  process.exit(1);
+}
+
 // ── Supabase ──────────────────────────────────────────────
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 // ── MCP Server ────────────────────────────────────────────
 const server = new McpServer({
@@ -17,10 +24,6 @@ const server = new McpServer({
 
 // ── Tools ─────────────────────────────────────────────────
 
-/**
- * 매뉴얼 목록 조회
- * Claude가 "어떤 매뉴얼이 있어?" 물어볼 때 사용
- */
 server.tool(
   'list_tutorials',
   'MIMIC에 저장된 매뉴얼 목록을 반환합니다. 실행할 워크플로우를 찾을 때 사용하세요.',
@@ -31,8 +34,8 @@ server.tool(
   async ({ query, limit }) => {
     let q = supabase
       .from('mm_tutorials')
-      .select('id, title, status, created_at, step_count:mm_steps(count)')
-      .eq('status', 'published')
+      .select('id, title, status, created_at')
+      .eq('user_id', OWNER_USER_ID)
       .order('created_at', { ascending: false })
       .limit(limit ?? 20);
 
@@ -41,26 +44,12 @@ server.tool(
     const { data, error } = await q;
     if (error) return { content: [{ type: 'text', text: `오류: ${error.message}` }] };
 
-    const list = (data ?? []).map(t => ({
-      id: t.id,
-      title: t.title,
-      status: t.status,
-      created_at: t.created_at,
-    }));
-
     return {
-      content: [{
-        type: 'text',
-        text: JSON.stringify(list, null, 2),
-      }],
+      content: [{ type: 'text', text: JSON.stringify(data ?? [], null, 2) }],
     };
   }
 );
 
-/**
- * 특정 매뉴얼의 step 목록 조회
- * Claude가 실행 계획을 세울 때 사용
- */
 server.tool(
   'get_steps',
   '매뉴얼의 전체 단계 목록을 반환합니다. 실행 전 전체 흐름을 파악할 때 사용하세요.',
@@ -68,6 +57,15 @@ server.tool(
     tutorial_id: z.string().uuid().describe('매뉴얼 ID (list_tutorials로 얻은 id)'),
   },
   async ({ tutorial_id }) => {
+    const { data: tut } = await supabase
+      .from('mm_tutorials')
+      .select('id')
+      .eq('id', tutorial_id)
+      .eq('user_id', OWNER_USER_ID)
+      .single();
+
+    if (!tut) return { content: [{ type: 'text', text: '매뉴얼을 찾을 수 없거나 접근 권한이 없습니다.' }] };
+
     const { data, error } = await supabase
       .from('mm_steps')
       .select('id, step_number, user_title, ai_title, page_url, element_selector, click_x, click_y')
@@ -82,24 +80,16 @@ server.tool(
       title: s.user_title ?? s.ai_title ?? `Step ${s.step_number}`,
       page_url: s.page_url,
       element_selector: s.element_selector,
-      // click_x/y: DB 0~10000 → 0~1 정규화
       click_x: s.click_x != null ? s.click_x / 10000 : null,
       click_y: s.click_y != null ? s.click_y / 10000 : null,
     }));
 
     return {
-      content: [{
-        type: 'text',
-        text: JSON.stringify(steps, null, 2),
-      }],
+      content: [{ type: 'text', text: JSON.stringify(steps, null, 2) }],
     };
   }
 );
 
-/**
- * 특정 step의 상세 정보 조회
- * Claude가 단계별로 실행할 때 사용
- */
 server.tool(
   'get_step_detail',
   '특정 단계의 상세 실행 정보를 반환합니다. element_selector, 좌표, 스크린샷 URL 등을 포함합니다.',
@@ -109,11 +99,12 @@ server.tool(
   async ({ step_id }) => {
     const { data, error } = await supabase
       .from('mm_steps')
-      .select('id, step_number, user_title, ai_title, user_script, ai_description, page_url, element_selector, element_xpath, element_rect, click_x, click_y, screenshot_url')
+      .select('id, step_number, user_title, ai_title, user_script, ai_description, page_url, element_selector, element_xpath, element_rect, click_x, click_y, screenshot_url, mm_tutorials!inner(user_id)')
       .eq('id', step_id)
+      .eq('mm_tutorials.user_id', OWNER_USER_ID)
       .single();
 
-    if (error) return { content: [{ type: 'text', text: `오류: ${error.message}` }] };
+    if (error || !data) return { content: [{ type: 'text', text: 'Step을 찾을 수 없거나 접근 권한이 없습니다.' }] };
 
     const detail = {
       id: data.id,
@@ -121,7 +112,6 @@ server.tool(
       title: data.user_title ?? data.ai_title,
       instruction: data.user_script ?? data.ai_description,
       page_url: data.page_url,
-      // 실행 데이터 — 선택자 우선, 좌표 fallback
       element_selector: data.element_selector,
       element_xpath: data.element_xpath,
       element_rect: data.element_rect,
@@ -131,10 +121,7 @@ server.tool(
     };
 
     return {
-      content: [{
-        type: 'text',
-        text: JSON.stringify(detail, null, 2),
-      }],
+      content: [{ type: 'text', text: JSON.stringify(detail, null, 2) }],
     };
   }
 );

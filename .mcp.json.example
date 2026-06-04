@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "mimic": {
+      "command": "node",
+      "args": ["<절대경로>/packages/mcp-server/dist/index.js"],
+      "env": {
+        "SUPABASE_URL": "https://gqynptpjomcqzxyykqic.supabase.co",
+        "SUPABASE_SERVICE_ROLE_KEY": "<service_role_key>",
+        "OWNER_USER_ID": "<your_supabase_user_id>"
+      }
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["@playwright/mcp@latest"]
+    }
+  }
+}
