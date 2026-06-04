@@ -170,7 +170,6 @@ export function AnnotationPreview({ annotations, imageUrl }: { annotations: Anno
           const lines = a.text.split('\n');
           const padX = 8, padY = 5;
           // 글자 폭을 fontSize 기반으로 추정 (한글/영문 혼용 고려)
-          const charW = fSize * (bold ? 0.68 : 0.60);
           const maxLineLen = Math.max(...lines.map(l => {
             // 한글은 영문보다 넓음
             return [...l].reduce((sum, ch) => sum + (ch.charCodeAt(0) > 0x3000 ? 1.0 : 0.6), 0);
