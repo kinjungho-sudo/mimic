@@ -181,12 +181,9 @@ function HeroDemo() {
   }, [scene]);
 
 
-  // 씬별 레이블 (인디케이터용)
-  const SCENE_LABELS = ['확장 설치', '녹화 시작', '클릭 캡처', '영역 확대', '완성 & 공유'];
-  const SCENE_URLS   = ['chrome://extensions', 'app.notion.so/workspace', 'app.notion.so/workspace', 'app.mimic.so/editor', 'app.mimic.so/play/done'];
+  const SCENE_LABELS = ['녹화 시작', '작업 캡처', 'AI 자동 정리', '어노테이션', '완성 & 공유'];
+  const SCENE_URLS   = ['app.mimic.so/home', 'notion.so/workspace', 'notion.so/workspace', 'app.mimic.so/editor', 'app.mimic.so/play'];
 
-  // 씬 렌더 — 내부 Scene 컴포넌트 사용
-  // renderScene: 함수 호출 방식 (new 컴포넌트 타입 생성 방지 → 리마운트 없음)
   const renderScene = () => {
     switch(scene) {
       case 0: return Scene0();

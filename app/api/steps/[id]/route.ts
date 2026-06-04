@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { z } from 'zod';
+import { guardStepAccess } from '@/lib/workspace-guard';
 
 const stepPatchSchema = z.object({
   user_title: z.string().max(200).nullable().optional(),
@@ -29,23 +30,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
+  // 워크스페이스 역할 체크 (개인이면 소유자, 워크스페이스면 editor 이상)
+  const guard = await guardStepAccess(id, auth.userId, 'editor');
+  if (!guard.ok) {
+    return NextResponse.json({ error: guard.error }, { status: guard.status });
+  }
+
   const supabase = createServiceRoleClient();
-
-  // user_id 소유 확인 — mm_tutorials 조인
-  const { data: step, error: findError } = await supabase
-    .from('mm_steps')
-    .select('id, tutorial_id, mm_tutorials!inner(user_id)')
-    .eq('id', id)
-    .single();
-
-  if (findError || !step) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  }
-
-  const tutorial = (step as unknown as { mm_tutorials: { user_id: string } }).mm_tutorials;
-  if (tutorial.user_id !== auth.userId) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
 
   const { data, error } = await supabase
     .from('mm_steps')
@@ -66,21 +57,14 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   if (!auth.ok) return auth.response;
 
   const { id } = await params;
-  const supabase = createServiceRoleClient();
 
-  const { data: step } = await supabase
-    .from('mm_steps')
-    .select('id, mm_tutorials!inner(user_id)')
-    .eq('id', id)
-    .single();
-
-  if (!step) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-
-  const owner = (step as unknown as { mm_tutorials: { user_id: string } }).mm_tutorials;
-  if (owner.user_id !== auth.userId) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  // 스텝 삭제는 editor 이상 허용
+  const guard = await guardStepAccess(id, auth.userId, 'editor');
+  if (!guard.ok) {
+    return NextResponse.json({ error: guard.error }, { status: guard.status });
   }
 
+  const supabase = createServiceRoleClient();
   const { error } = await supabase.from('mm_steps').delete().eq('id', id);
   if (error) return NextResponse.json({ error: 'Delete failed' }, { status: 500 });
 
