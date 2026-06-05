@@ -176,7 +176,7 @@ function HeroDemo() {
   }, [scene]);
 
   const SCENE_LABELS = ['녹화 준비', '카운트다운', '클릭 캡처', 'AI 자동 완성', '공유'];
-  const SCENE_URLS   = ['app.mimic.so/home', 'app.mimic.so/home', 'pexels.com/ko-kr', 'app.mimic.so/editor', 'app.mimic.so/manual'];
+  const SCENE_URLS   = ['app.mimic.so/home', 'app.mimic.so/home', 'erp.company.io/expense', 'app.mimic.so/editor', 'app.mimic.so/manual'];
 
   const renderScene = () => {
     switch(scene) {
@@ -238,9 +238,10 @@ function Scene0({ tick }: { tick: number }) {
   const tabHover  = tick >= 1900;
   const recClick  = tick >= 2800;
   const MANUALS = [
-    { title: 'Notion 페이지 만들기', sub: 'notion.so · 06/01 · 4단계', color: '#ede9fe' },
-    { title: 'Slack 채널 초대 방법',  sub: 'slack.com · 05/28 · 3단계', color: '#dbeafe' },
-    { title: 'Google Drive 공유 설정', sub: 'drive.google.com · 05/25 · 5단계', color: '#dcfce7' },
+    { title: '경비 청구서 제출하기',    sub: 'erp.company.io · 06/01 · 5단계', color: '#ede9fe' },
+    { title: '신규 직원 계정 생성',     sub: 'admin.company.io · 05/28 · 4단계', color: '#dbeafe' },
+    { title: '주간 업무 보고서 작성',   sub: 'notion.so · 05/25 · 6단계', color: '#dcfce7' },
+    { title: '급여 명세서 확인 방법',   sub: 'hr.company.io · 05/20 · 3단계', color: '#fef3c7' },
   ];
   return (
     <div style={{ width: '100%', height: '100%', background: '#F8F8FA', display: 'flex' }}>
@@ -260,7 +261,7 @@ function Scene0({ tick }: { tick: number }) {
       <div style={{ flex: 1, padding: '22px 24px', position: 'relative' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
           <div>
-            <div style={{ fontSize: '17px', fontWeight: 700, color: '#0F172A' }}>김정호님의 매뉴얼</div>
+            <div style={{ fontSize: '17px', fontWeight: 700, color: '#0F172A' }}>사용자님의 매뉴얼</div>
             <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '2px' }}>내 매뉴얼 17 · 팀 매뉴얼 5</div>
           </div>
           <div style={{ position: 'relative' }}>
@@ -284,9 +285,9 @@ function Scene0({ tick }: { tick: number }) {
                 </div>
                 <div style={{ maxHeight: '160px', overflowY: 'auto' }}>
                   {[
-                    { favicon: '🔍', title: 'Pexels — 무료 이미지', url: 'pexels.com', active: tabHover },
-                    { favicon: '📝', title: 'Notion — 워크스페이스', url: 'notion.so' },
-                    { favicon: '📁', title: 'Google Drive', url: 'drive.google.com' },
+                    { favicon: '🧾', title: '경비관리 시스템 — 청구서 제출', url: 'erp.company.io', active: tabHover },
+                    { favicon: '📝', title: 'Notion — 주간 보고서', url: 'notion.so' },
+                    { favicon: '👥', title: '인사관리 — HR 포털', url: 'hr.company.io' },
                   ].map((tab, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', background: tab.active ? '#F0EBFF' : 'white', borderBottom: i < 2 ? '1px solid #F3F4F6' : 'none', transition: 'background 0.2s' }}>
                       <span style={{ fontSize: '14px' }}>{tab.favicon}</span>
@@ -351,8 +352,8 @@ function Scene1({ tick }: { tick: number }) {
       </div>
       {/* 하단 상태 바 */}
       <div style={{ position: 'absolute', bottom: '20px', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: 'rgba(255,255,255,0.06)', borderRadius: '999px', border: '1px solid rgba(255,255,255,0.1)', whiteSpace: 'nowrap' }}>
-        <span style={{ fontSize: '12px' }}>🔍</span>
-        <span style={{ fontSize: '11.5px', color: 'rgba(255,255,255,0.6)' }}>pexels.com</span>
+        <span style={{ fontSize: '12px' }}>🧾</span>
+        <span style={{ fontSize: '11.5px', color: 'rgba(255,255,255,0.6)' }}>erp.company.io</span>
         <span style={{ width: '1px', height: '12px', background: 'rgba(255,255,255,0.15)', margin: '0 4px' }} />
         <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#EF4444', animation: 'rec-blink 1s infinite' }} />
         <span style={{ fontSize: '11px', color: '#FCA5A5', fontWeight: 500 }}>녹화 대기</span>
@@ -366,56 +367,94 @@ function Scene2({ tick }: { tick: number }) {
   const c1 = tick >= 600;
   const c2 = tick >= 1500;
   const c3 = tick >= 2500;
-  // 실제 UI 요소 위치에 맞춘 클릭 좌표
+  // ERP 폼 UI 요소 위치에 맞춘 클릭 좌표
   const CLICKS = [
-    { x: '52%', y: '11.5%' },  // 검색창 중앙
-    { x: '82%', y: '11.5%' },  // 가입 버튼
-    { x: '18%', y: '62%'   },  // 첫 번째 이미지
+    { x: '62%', y: '30%' },  // 비용 항목 드롭다운
+    { x: '62%', y: '52%' },  // 금액 입력 필드
+    { x: '72%', y: '80%' },  // 제출 버튼
   ];
   const active = [c1, c2, c3];
-  // 마우스 커서 SVG
   const Cursor = () => (
     <svg width="20" height="22" viewBox="0 0 20 22" fill="none" style={{ filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.4))' }}>
       <path d="M1 1l6.5 17 3-6 6 3L1 1z" fill="white" stroke="#1a1a1a" strokeWidth="1.5" strokeLinejoin="round"/>
     </svg>
   );
   return (
-    <div style={{ width: '100%', height: '100%', background: '#1A1A1A', position: 'relative' }}>
-      {/* 웹사이트 미모 — Pexels 스타일 */}
-      <div style={{ width: '100%', height: '100%', background: 'white', position: 'relative' }}>
-        {/* 상단 네비 */}
-        <div style={{ height: '48px', background: 'white', borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', padding: '0 20px', gap: '16px' }}>
-          <span style={{ fontSize: '14px', fontWeight: 700, color: '#111827', letterSpacing: '-0.03em' }}>pexels</span>
-          <div style={{ flex: 1, height: '32px', borderRadius: '6px', border: `2px solid ${c1 ? '#6d28d9' : '#E5E7EB'}`, background: c1 ? 'rgba(109,40,217,0.04)' : '#F9FAFB', display: 'flex', alignItems: 'center', padding: '0 10px', gap: '6px', transition: 'border-color 0.2s, background 0.2s' }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={c1 ? '#6d28d9' : '#9CA3AF'} strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-            <span style={{ fontSize: '11px', color: c1 ? '#3730a3' : '#9CA3AF' }}>{c2 ? '강아지' : c1 ? '강아지|' : '무료 사진 검색'}</span>
-          </div>
-          <div style={{ padding: '6px 14px', borderRadius: '6px', background: c2 ? '#374151' : '#111827', color: 'white', fontSize: '11px', fontWeight: 600, transition: 'background 0.15s' }}>가입</div>
-        </div>
-        {/* 이미지 그리드 */}
-        <div style={{ padding: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', height: 'calc(100% - 48px)' }}>
-          {['#BFDBFE','#FDE68A','#BBF7D0','#FECACA','#E9D5FF','#FED7AA'].map((c, i) => (
-            <div key={i} style={{ borderRadius: '8px', background: c, position: 'relative', overflow: 'hidden' }}>
-              <div style={{ position: 'absolute', inset: 0, opacity: 0.3, backgroundImage: 'repeating-linear-gradient(45deg, rgba(0,0,0,0.05) 0px, rgba(0,0,0,0.05) 1px, transparent 1px, transparent 8px)' }} />
-              {i === 0 && c3 && (
-                <div style={{ position: 'absolute', inset: '4px', border: '3px solid #6d28d9', borderRadius: '6px', background: 'rgba(109,40,217,0.08)', animation: 'sceneIn 0.2s ease both' }} />
-              )}
-            </div>
+    <div style={{ width: '100%', height: '100%', background: 'white', position: 'relative' }}>
+      {/* ERP 상단 네비 */}
+      <div style={{ height: '44px', background: '#1e3a5f', display: 'flex', alignItems: 'center', padding: '0 20px', gap: '20px' }}>
+        <span style={{ fontSize: '13px', fontWeight: 700, color: 'white', letterSpacing: '-0.02em' }}>Company ERP</span>
+        {['홈','경비관리','인사','보고서'].map((t, i) => (
+          <span key={t} style={{ fontSize: '11.5px', color: i === 1 ? '#93C5FD' : 'rgba(255,255,255,0.5)', fontWeight: i === 1 ? 600 : 400, borderBottom: i === 1 ? '2px solid #93C5FD' : 'none', paddingBottom: '2px' }}>{t}</span>
+        ))}
+      </div>
+      {/* 폼 영역 */}
+      <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', height: 'calc(100% - 44px)' }}>
+        {/* 좌측 메뉴 */}
+        <div style={{ background: '#F8FAFC', borderRight: '1px solid #E2E8F0', padding: '16px 0' }}>
+          {[
+            { label: '경비 청구', active: true },
+            { label: '승인 현황', active: false },
+            { label: '정산 내역', active: false },
+            { label: '영수증 관리', active: false },
+          ].map(item => (
+            <div key={item.label} style={{ padding: '8px 16px', fontSize: '11.5px', fontWeight: item.active ? 600 : 400, color: item.active ? '#1e3a5f' : '#64748B', background: item.active ? '#E0F2FE' : 'transparent', borderLeft: item.active ? '3px solid #1e3a5f' : '3px solid transparent' }}>{item.label}</div>
           ))}
+        </div>
+        {/* 우측 폼 */}
+        <div style={{ padding: '20px 24px', overflowY: 'auto' }}>
+          <div style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', marginBottom: '4px' }}>경비 청구서 제출</div>
+          <div style={{ fontSize: '10.5px', color: '#94A3B8', marginBottom: '18px' }}>* 표시 항목은 필수입니다</div>
+          {/* 폼 필드들 */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div>
+                <div style={{ fontSize: '10.5px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>청구일자 *</div>
+                <div style={{ padding: '7px 10px', border: '1px solid #E2E8F0', borderRadius: '6px', fontSize: '11px', color: '#111827', background: '#F8FAFC' }}>2026. 06. 05</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '10.5px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>부서 *</div>
+                <div style={{ padding: '7px 10px', border: '1px solid #E2E8F0', borderRadius: '6px', fontSize: '11px', color: '#111827', background: '#F8FAFC' }}>개발팀</div>
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: '10.5px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>비용 항목 *</div>
+              <div style={{ padding: '7px 10px', border: `1.5px solid ${c1 ? '#1e3a5f' : '#E2E8F0'}`, borderRadius: '6px', fontSize: '11px', color: c1 ? '#0F172A' : '#9CA3AF', background: c1 ? '#F0F7FF' : 'white', display: 'flex', justifyContent: 'space-between', transition: 'border-color 0.2s, background 0.2s' }}>
+                <span>{c1 ? '교통비' : '항목 선택'}</span>
+                <span style={{ color: '#94A3B8' }}>▾</span>
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: '10.5px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>청구 금액 *</div>
+              <div style={{ padding: '7px 10px', border: `1.5px solid ${c2 ? '#1e3a5f' : '#E2E8F0'}`, borderRadius: '6px', fontSize: '11px', color: c2 ? '#0F172A' : '#9CA3AF', background: c2 ? '#F0F7FF' : 'white', transition: 'border-color 0.2s, background 0.2s' }}>
+                {c2 ? '45,000 원' : '금액 입력'}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: '10.5px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>증빙 자료</div>
+              <div style={{ padding: '7px 10px', border: '1.5px dashed #CBD5E1', borderRadius: '6px', fontSize: '11px', color: '#94A3B8', textAlign: 'center' }}>
+                영수증 파일 첨부 (PDF, JPG)
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '4px' }}>
+              <div style={{ padding: '8px 16px', borderRadius: '7px', border: '1px solid #E2E8F0', fontSize: '11.5px', color: '#64748B', fontWeight: 500 }}>임시저장</div>
+              <div style={{ padding: '8px 20px', borderRadius: '7px', background: c3 ? '#10B981' : '#1e3a5f', fontSize: '11.5px', color: 'white', fontWeight: 600, transition: 'background 0.2s' }}>
+                {c3 ? '제출 완료 ✓' : '제출하기'}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       {/* 마우스 커서 + 클릭 리플 */}
       {active.map((show, i) => show && (
         <div key={i} style={{ position: 'absolute', left: CLICKS[i].x, top: CLICKS[i].y, pointerEvents: 'none', zIndex: 20 }}>
-          {/* 클릭 리플 */}
-          <div style={{ position: 'absolute', top: '10px', left: '6px', width: '28px', height: '28px', borderRadius: '50%', border: '2px solid rgba(109,40,217,0.5)', animation: 'rippleOut 0.8s ease-out infinite', transform: 'translate(-50%,-50%)' }} />
-          <div style={{ position: 'absolute', top: '10px', left: '6px', width: '14px', height: '14px', borderRadius: '50%', background: 'rgba(109,40,217,0.2)', transform: 'translate(-50%,-50%)' }} />
-          {/* 커서 */}
+          <div style={{ position: 'absolute', top: '10px', left: '6px', width: '28px', height: '28px', borderRadius: '50%', border: '2px solid rgba(30,58,95,0.5)', animation: 'rippleOut 0.8s ease-out infinite', transform: 'translate(-50%,-50%)' }} />
+          <div style={{ position: 'absolute', top: '10px', left: '6px', width: '14px', height: '14px', borderRadius: '50%', background: 'rgba(30,58,95,0.15)', transform: 'translate(-50%,-50%)' }} />
           <Cursor />
         </div>
       ))}
       {/* 우측 상단 녹화 상태 */}
-      <div style={{ position: 'absolute', top: '56px', right: '12px', display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 11px', background: 'rgba(10,10,15,0.85)', backdropFilter: 'blur(8px)', borderRadius: '999px', fontSize: '11px', color: 'white', fontWeight: 500 }}>
+      <div style={{ position: 'absolute', top: '52px', right: '12px', display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 11px', background: 'rgba(10,10,15,0.85)', backdropFilter: 'blur(8px)', borderRadius: '999px', fontSize: '11px', color: 'white', fontWeight: 500 }}>
         <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#EF4444', animation: 'rec-blink 1.2s infinite' }} />
         MIMIC 녹화 중
       </div>
@@ -430,7 +469,7 @@ function Scene3({ tick }: { tick: number }) {
   const arrow      = tick >= 1600;
   const caption    = tick >= 2400;
   const done       = tick >= 3200;
-  const STEPS_LIST = ['1. 검색창 클릭', '2. 검색 버튼', '3. 이미지 선택'];
+  const STEPS_LIST = ['1. 비용 항목 선택', '2. 금액 입력', '3. 제출하기'];
   return (
     <div style={{ width: '100%', height: '100%', background: '#111827', display: 'grid', gridTemplateColumns: '190px 1fr' }}>
       {/* 좌측 — 스텝 목록 */}
@@ -473,25 +512,23 @@ function Scene3({ tick }: { tick: number }) {
               <div style={{ width: '20px', height: '20px', borderRadius: '5px', background: 'linear-gradient(135deg,#6d28d9,#3730a3)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                 <span style={{ fontSize: '9px', color: 'white', fontWeight: 700 }}>1</span>
               </div>
-              검색창 클릭
+              비용 항목 선택
             </div>
-            {/* 스크린샷 */}
+            {/* 스크린샷 — ERP 폼 미모 */}
             <div style={{ borderRadius: '8px', overflow: 'visible', border: '1px solid rgba(255,255,255,0.1)', background: 'white', position: 'relative' }}>
-              <div style={{ height: '18px', background: '#EBEBEA', display: 'flex', alignItems: 'center', gap: '4px', padding: '0 8px', borderRadius: '8px 8px 0 0' }}>
-                {['#FF5F57','#FEBC2E','#28C840'].map(c => <span key={c} style={{ width: '5px', height: '5px', borderRadius: '50%', background: c }} />)}
+              <div style={{ height: '18px', background: '#1e3a5f', display: 'flex', alignItems: 'center', gap: '4px', padding: '0 8px', borderRadius: '8px 8px 0 0' }}>
+                <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>Company ERP · 경비관리</span>
               </div>
               <div style={{ padding: '10px 12px' }}>
-                <div style={{ fontSize: '11px', fontWeight: 700, color: '#111', marginBottom: '8px' }}>pexels</div>
-                {/* 검색바 영역 */}
-                <div style={{ position: 'relative', display: 'inline-block' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 10px', border: '1.5px solid #E5E7EB', borderRadius: '6px', background: '#F9FAFB', width: '200px' }}>
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                    <span style={{ fontSize: '10px', color: '#9CA3AF' }}>무료 사진 검색</span>
+                <div style={{ fontSize: '10.5px', fontWeight: 700, color: '#0F172A', marginBottom: '8px' }}>경비 청구서 제출</div>
+                <div style={{ position: 'relative', display: 'inline-block', width: '100%' }}>
+                  <div style={{ padding: '6px 10px', border: '1.5px solid #93C5FD', borderRadius: '6px', background: '#F0F7FF', fontSize: '10px', color: '#0F172A', display: 'flex', justifyContent: 'space-between' }}>
+                    <span>교통비</span><span style={{ color: '#94A3B8' }}>▾</span>
                   </div>
                   {/* 하이라이트 */}
                   {highlight && (
                     <div style={{ position: 'absolute', inset: '-4px', border: '2.5px solid #EF4444', borderRadius: '9px', background: 'rgba(239,68,68,0.06)', animation: 'sceneIn 0.3s ease both', pointerEvents: 'none' }}>
-                      <div style={{ position: 'absolute', top: '-20px', left: '0', background: '#EF4444', color: 'white', fontSize: '8.5px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', whiteSpace: 'nowrap' }}>검색창 클릭</div>
+                      <div style={{ position: 'absolute', top: '-20px', left: '0', background: '#EF4444', color: 'white', fontSize: '8.5px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', whiteSpace: 'nowrap' }}>비용 항목 드롭다운</div>
                     </div>
                   )}
                   {/* 화살표 */}
@@ -502,10 +539,12 @@ function Scene3({ tick }: { tick: number }) {
                     </svg>
                   )}
                 </div>
-                {/* 이미지 그리드 미모 */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '4px', marginTop: '28px' }}>
-                  {['#BFDBFE','#FDE68A','#BBF7D0','#FECACA','#E9D5FF','#FED7AA'].map((c, i) => (
-                    <div key={i} style={{ height: '28px', borderRadius: '4px', background: c }} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginTop: '26px' }}>
+                  {[['청구 금액', '45,000 원'], ['증빙 자료', '영수증.pdf']].map(([k, v]) => (
+                    <div key={k} style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                      <span style={{ fontSize: '9.5px', color: '#64748B', width: '55px' }}>{k}</span>
+                      <div style={{ flex: 1, padding: '4px 8px', border: '1px solid #E2E8F0', borderRadius: '4px', fontSize: '9.5px', color: '#0F172A', background: '#F8FAFC' }}>{v}</div>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -518,7 +557,7 @@ function Scene3({ tick }: { tick: number }) {
                   <span style={{ fontSize: '9px', color: '#a78bfa', fontWeight: 700 }}>AI 생성</span>
                 </div>
                 <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.8)', lineHeight: 1.5 }}>
-                  화면 상단 검색 입력 필드를 클릭하여 검색을 시작할 준비를 합니다.
+                  비용 항목 드롭다운을 클릭하여 청구할 경비 유형을 선택합니다.
                 </div>
               </div>
             )}
@@ -540,16 +579,16 @@ function Scene4({ tick }: { tick: number }) {
   const shareOpen = tick >= 1200;
   const linkCopied = tick >= 2800;
   const STEPS_VIEWER = [
-    { num: '01', title: '검색창 클릭', desc: '화면 상단 검색 입력 필드를 클릭하여 검색을 시작할 준비를 합니다.', color: '#FEF3C7' },
-    { num: '02', title: '검색 버튼',   desc: '"검색" 아이콘을 클릭하여 입력한 키워드로 이미지를 검색합니다.', color: '#DBEAFE' },
-    { num: '03', title: '이미지 선택', desc: '검색 결과 목록에서 원하는 이미지를 클릭하여 상세 페이지로 이동합니다.', color: '#D1FAE5' },
+    { num: '01', title: '비용 항목 선택', desc: '비용 항목 드롭다운을 클릭하여 청구할 경비 유형(교통비, 식비 등)을 선택합니다.', color: '#FEF3C7' },
+    { num: '02', title: '금액 입력',      desc: '청구 금액 필드에 실제 지출 금액을 입력합니다. 영수증 금액과 일치해야 합니다.', color: '#DBEAFE' },
+    { num: '03', title: '제출하기',       desc: '입력 내용을 확인한 후 "제출하기" 버튼을 클릭하면 담당자에게 승인 요청이 전송됩니다.', color: '#D1FAE5' },
   ];
   return (
     <div style={{ width: '100%', height: '100%', background: '#F8F8FA', position: 'relative', overflow: 'hidden' }}>
       {/* 뷰어 헤더 */}
       <div style={{ padding: '14px 20px 10px', borderBottom: '1px solid #EDEDED', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <div style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>Pexels 이미지 검색 후 다운로드</div>
+          <div style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>경비 청구서 제출하기</div>
           <div style={{ fontSize: '10.5px', color: '#9CA3AF', marginTop: '2px' }}>3단계</div>
         </div>
         <div style={{ display: 'flex', gap: '6px' }}>
@@ -593,7 +632,7 @@ function Scene4({ tick }: { tick: number }) {
               <div style={{ fontSize: '11px', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>공유 링크</div>
               <div style={{ display: 'flex', borderRadius: '8px', overflow: 'hidden', border: '1.5px solid #E5E7EB' }}>
                 <div style={{ flex: 1, padding: '8px 10px', background: '#F9FAFB', fontSize: '10.5px', color: '#6B7280', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  mimic.so/play/pexels-guide
+                  mimic.so/play/expense-claim-guide
                 </div>
                 <button style={{ padding: '8px 14px', background: linkCopied ? '#10B981' : 'linear-gradient(135deg,#3730a3,#6d28d9)', color: 'white', border: 'none', fontSize: '11px', fontWeight: 600, cursor: 'default', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '5px', transition: 'background 0.3s' }}>
                   {linkCopied ? '✓ 복사됨' : '🔗 링크 복사'}
