@@ -150,7 +150,7 @@ function RevealSection({ children, style }: { children: React.ReactNode; style?:
 
 
 // 각 씬 duration(ms)
-const SCENE_DURATIONS = [3500, 2000, 3500, 3500, 3500];
+const SCENE_DURATIONS = [5500, 3000, 6000, 6000, 6000];
 
 function HeroDemo() {
   const [scene, setScene] = useState(0);
@@ -177,6 +177,13 @@ function HeroDemo() {
 
   const SCENE_LABELS = ['녹화 준비', '카운트다운', '클릭 캡처', 'AI 자동 완성', '공유'];
   const SCENE_URLS   = ['app.mimic.so/home', 'app.mimic.so/home', 'erp.company.io/expense', 'app.mimic.so/editor', 'app.mimic.so/manual'];
+  const SCENE_CAPTIONS = [
+    { title: 'MIMIC 크롬 확장 프로그램을 설치하면 준비 끝', desc: '"새 매뉴얼" 버튼을 누르고 녹화할 탭을 선택합니다.' },
+    { title: '3·2·1 — 카운트다운과 함께 녹화가 시작됩니다', desc: '이제부터 평소처럼 업무를 진행하기만 하면 됩니다.' },
+    { title: '클릭할 때마다 화면이 자동으로 캡처됩니다', desc: '별도 조작 없이 마우스 클릭 순간마다 스텝이 기록됩니다.' },
+    { title: 'AI가 하이라이트·화살표·설명을 자동으로 완성합니다', desc: '녹화가 끝나면 어노테이션이 달린 매뉴얼이 즉시 생성됩니다.' },
+    { title: '링크 하나로 누구든 바로 따라할 수 있습니다', desc: '공유 링크를 받은 사람은 앱 설치 없이 인터랙티브 매뉴얼을 볼 수 있습니다.' },
+  ];
 
   const renderScene = () => {
     switch(scene) {
@@ -208,12 +215,21 @@ function HeroDemo() {
             </div>
           )}
         </div>
-        <div key={scene} style={{ height: '420px', position: 'relative', overflow: 'hidden', animation: 'sceneIn 0.35s ease both' }}>
+        <div key={scene} style={{ height: '380px', position: 'relative', overflow: 'hidden', animation: 'sceneIn 0.35s ease both' }}>
           {renderScene()}
+        </div>
+        {/* 자막 영역 */}
+        <div key={`cap-${scene}`} style={{ padding: '14px 20px', background: '#0F0F14', borderTop: '1px solid rgba(255,255,255,0.06)', animation: 'sceneIn 0.4s ease both' }}>
+          <div style={{ fontSize: '13px', fontWeight: 600, color: 'white', marginBottom: '4px', lineHeight: 1.4 }}>
+            {SCENE_CAPTIONS[scene].title}
+          </div>
+          <div style={{ fontSize: '11.5px', color: 'rgba(255,255,255,0.45)', lineHeight: 1.6 }}>
+            {SCENE_CAPTIONS[scene].desc}
+          </div>
         </div>
       </div>
       {/* 하단 스텝 인디케이터 */}
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px', marginTop: '18px' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px', marginTop: '16px' }}>
         {SCENE_LABELS.map((label, i) => {
           const isActive = i === scene;
           const isDone = i < scene;
@@ -233,10 +249,10 @@ function HeroDemo() {
 
 // ── 씬 0: MIMIC 홈 → 새 매뉴얼 클릭 → 탭 선택 팝업 ──────────
 function Scene0({ tick }: { tick: number }) {
-  const btnClick  = tick >= 800;
-  const popupIn   = tick >= 1200;
-  const tabHover  = tick >= 1900;
-  const recClick  = tick >= 2800;
+  const btnClick  = tick >= 1200;
+  const popupIn   = tick >= 1900;
+  const tabHover  = tick >= 3000;
+  const recClick  = tick >= 4500;
   const MANUALS = [
     { title: '경비 청구서 제출하기',    sub: 'erp.company.io · 06/01 · 5단계', color: '#ede9fe' },
     { title: '신규 직원 계정 생성',     sub: 'admin.company.io · 05/28 · 4단계', color: '#dbeafe' },
@@ -364,9 +380,9 @@ function Scene1({ tick }: { tick: number }) {
 
 // ── 씬 2: 실제 웹사이트 — 클릭할 때마다 캡처 발생 ──────────
 function Scene2({ tick }: { tick: number }) {
-  const c1 = tick >= 600;
-  const c2 = tick >= 1500;
-  const c3 = tick >= 2500;
+  const c1 = tick >= 1000;
+  const c2 = tick >= 2800;
+  const c3 = tick >= 4800;
   // ERP 폼 UI 요소 위치에 맞춘 클릭 좌표
   const CLICKS = [
     { x: '62%', y: '30%' },  // 비용 항목 드롭다운
@@ -464,11 +480,11 @@ function Scene2({ tick }: { tick: number }) {
 
 // ── 씬 3: AI가 자동으로 하이라이트·화살표·캡션 생성 ────────
 function Scene3({ tick }: { tick: number }) {
-  const showBase   = tick >= 200;
-  const highlight  = tick >= 800;
-  const arrow      = tick >= 1600;
-  const caption    = tick >= 2400;
-  const done       = tick >= 3200;
+  const showBase   = tick >= 400;
+  const highlight  = tick >= 1400;
+  const arrow      = tick >= 2800;
+  const caption    = tick >= 4200;
+  const done       = tick >= 5500;
   const STEPS_LIST = ['1. 비용 항목 선택', '2. 금액 입력', '3. 제출하기'];
   return (
     <div style={{ width: '100%', height: '100%', background: '#111827', display: 'grid', gridTemplateColumns: '190px 1fr' }}>
@@ -576,8 +592,8 @@ function Scene3({ tick }: { tick: number }) {
 
 // ── 씬 4: 완성된 뷰어 + 공유 모달 ───────────────────────────
 function Scene4({ tick }: { tick: number }) {
-  const shareOpen = tick >= 1200;
-  const linkCopied = tick >= 2800;
+  const shareOpen = tick >= 2000;
+  const linkCopied = tick >= 4500;
   const STEPS_VIEWER = [
     { num: '01', title: '비용 항목 선택', desc: '비용 항목 드롭다운을 클릭하여 청구할 경비 유형(교통비, 식비 등)을 선택합니다.', color: '#FEF3C7' },
     { num: '02', title: '금액 입력',      desc: '청구 금액 필드에 실제 지출 금액을 입력합니다. 영수증 금액과 일치해야 합니다.', color: '#DBEAFE' },
