@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { QUICK_QUESTIONS } from '@/lib/faq-data';
 
 // ── 정적 FAQ 데이터 ────────────────────────────────────────
 // Haiku API 없이 키워드 매칭으로 응답 — API 비용 0
@@ -84,19 +85,6 @@ const FAQ_DB: Record<string, FAQ> = {
   },
 };
 
-// 자주 묻는 질문 칩 목록 (항상 표시)
-export const QUICK_QUESTIONS = [
-  { id: 'what',      label: 'MIMIC이 뭔가요?' },
-  { id: 'install',   label: '확장 프로그램 설치' },
-  { id: 'record',    label: '매뉴얼 만드는 법' },
-  { id: 'guide-me',  label: 'Guide Me란?' },
-  { id: 'price',     label: '요금제 안내' },
-  { id: 'limit',     label: '생성 한도 초과' },
-  { id: 'share',     label: '공유 방법' },
-  { id: 'export',    label: 'PDF/PPTX 내보내기' },
-  { id: 'workspace', label: '팀 협업' },
-  { id: 'contact',   label: '문의하기' },
-];
 
 function findAnswer(query: string): { answer: string; related: string[] } {
   const q = query.toLowerCase();

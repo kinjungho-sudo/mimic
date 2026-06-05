@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Bot, X, Minus, Send, HelpCircle } from 'lucide-react';
+import { QUICK_QUESTIONS } from '@/lib/faq-data';
 
 interface Message {
   id: string;
