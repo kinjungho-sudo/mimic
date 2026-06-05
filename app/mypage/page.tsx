@@ -284,58 +284,57 @@ export default function MyPage() {
             <h2 style={{ fontSize: '11px', fontWeight: 600, color: '#9CA3AF', margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>플랜 & 사용량</h2>
           </div>
 
-          <div style={{ padding: '20px 24px', borderBottom: '1px solid #F3F4F6' }}>
-            <div style={{ fontSize: '12px', color: '#9CA3AF', marginBottom: '12px' }}>플랜 선택</div>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              {([
-                { plan: 'free', label: 'Free', desc: '하루 3개' },
-                { plan: 'pro', label: 'Pro', desc: '무제한' },
-              ] as const).map(({ plan, label, desc }) => {
-                const isActive = (user?.plan ?? 'free') === plan;
-                return (
-                  <button
-                    key={plan}
-                    disabled={isActive || planLoading}
-                    onClick={async () => {
-                      setPlanLoading(true);
-                      try {
-                        const res = await fetch('/api/user/plan', {
-                          method: 'PATCH',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ plan }),
-                        });
-                        if (res.ok) {
-                          const data = await res.json();
-                          updateUser({ plan: data.plan, daily_limit: data.daily_limit });
-                        }
-                      } finally {
-                        setPlanLoading(false);
-                      }
-                    }}
-                    style={{
-                      flex: 1,
-                      padding: '12px 16px',
-                      borderRadius: '10px',
-                      border: isActive ? '2px solid #3730a3' : '1.5px solid #E5E7EB',
-                      background: isActive ? '#EEF2FF' : 'white',
-                      cursor: isActive || planLoading ? 'default' : 'pointer',
-                      textAlign: 'left',
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                      <span style={{ fontSize: '13.5px', fontWeight: 600, color: isActive ? '#3730a3' : '#111827' }}>{label}</span>
-                      {isActive && (
-                        <span style={{ fontSize: '10px', fontWeight: 600, color: '#3730a3', background: '#C7D2FE', padding: '2px 7px', borderRadius: '999px' }}>현재</span>
-                      )}
-                    </div>
-                    <div style={{ fontSize: '12px', color: isActive ? '#6366f1' : '#9CA3AF' }}>{desc}</div>
-                  </button>
-                );
-              })}
+          {/* 현재 플랜 상태 */}
+          <div style={{ padding: '16px 24px', borderBottom: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+                <span style={{ fontSize: '15px', fontWeight: 600, color: '#111827' }}>{PLAN_LABELS[user?.plan ?? 'free']} 플랜</span>
+                {isPro
+                  ? <span style={{ padding: '2px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 600, background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white' }}>Pro</span>
+                  : <span style={{ padding: '2px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 500, background: '#F3F4F6', color: '#6B7280' }}>무료</span>
+                }
+              </div>
+              <div style={{ fontSize: '12px', color: '#9CA3AF' }}>{isPro ? '매뉴얼 무제한 생성' : '매일 최대 3개 매뉴얼 생성'}</div>
             </div>
-            <div style={{ fontSize: '11.5px', color: '#D1D5DB', marginTop: '10px' }}>결제 기능은 준비 중입니다. 테스트용으로 플랜을 전환할 수 있습니다.</div>
           </div>
+
+          {/* Free 유저에게만 Pro 업그레이드 카드 표시 */}
+          {!isPro && (
+            <div style={{ margin: '20px 24px', borderRadius: '14px', border: '2px solid #3730a3', overflow: 'hidden', boxShadow: '0 8px 24px rgba(55,48,163,0.10)' }}>
+              <div style={{ background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Pro 플랜으로 업그레이드</span>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', background: 'rgba(255,255,255,0.15)', padding: '2px 8px', borderRadius: '999px' }}>가장 인기</span>
+              </div>
+              <div style={{ background: 'white', padding: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', marginBottom: '16px' }}>
+                  <span style={{ fontSize: '36px', fontWeight: 700, letterSpacing: '-0.03em', color: '#0D0D14', lineHeight: 1 }}>₩9,900</span>
+                  <span style={{ fontSize: '13px', color: '#9CA3AF', paddingBottom: '4px' }}>/ 월</span>
+                </div>
+                <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {['매뉴얼 무제한 생성', 'AI 다듬기 무제한', 'HTML·MD 내보내기', '비공개 + 비밀번호 보호', '5GB 저장 공간'].map(f => (
+                    <li key={f} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#374151' }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3730a3" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  disabled={planLoading}
+                  onClick={async () => {
+                    setPlanLoading(true);
+                    try {
+                      alert('결제 기능은 준비 중입니다. 곧 출시될 예정이에요!');
+                    } finally {
+                      setPlanLoading(false);
+                    }
+                  }}
+                  style={{ display: 'block', width: '100%', padding: '13px 0', borderRadius: '10px', fontSize: '14px', fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', color: 'white', border: 'none', boxShadow: '0 4px 12px rgba(55,48,163,0.28)', fontFamily: 'inherit' }}
+                >
+                  Pro 구독하기
+                </button>
+              </div>
+            </div>
+          )}
 
           <div style={{ padding: '20px 24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
