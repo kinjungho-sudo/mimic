@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { RecordingModal } from '@/components/dashboard/RecordingModal';
+import { AgentChat } from '@/components/AgentChat';
 import { createTutorial } from '@/lib/api/tutorials';
 import type { Tutorial, Workspace, Folder } from '@/types';
 
@@ -1259,6 +1260,9 @@ export default function DashboardPage() {
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes drawerIn { from { transform: translateX(-100%); } to { transform: translateX(0); } }
       `}</style>
+
+      {/* AI 어시스턴트 챗봇 */}
+      <AgentChat />
     </>
   );
 }

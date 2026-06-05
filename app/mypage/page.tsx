@@ -1,10 +1,10 @@
 ﻿'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { resetPassword } from '@/lib/auth-client';
+import { resetPassword, getCurrentUser } from '@/lib/auth-client';
 
 const NAV_ITEMS = [
   {
@@ -47,6 +47,18 @@ export default function MyPage() {
   const [deleteInput, setDeleteInput] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  const [planLoading, setPlanLoading] = useState(false);
+
+  // 페이지 진입 시 최신 daily_manual_count 로드
+  useEffect(() => {
+    if (!loading && user) {
+      getCurrentUser().then(fresh => {
+        if (fresh) updateUser({ daily_manual_count: fresh.daily_manual_count });
+      }).catch(() => {});
+    }
+  }, [loading]);
+
+  const isPro = user?.plan === 'pro' || user?.plan === 'team';
   const usedToday = user?.daily_manual_count ?? 0;
   const dailyLimit = user?.daily_limit ?? 3;
   const usagePercent = Math.min((usedToday / dailyLimit) * 100, 100);
@@ -272,36 +284,73 @@ export default function MyPage() {
             <h2 style={{ fontSize: '11px', fontWeight: 600, color: '#9CA3AF', margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>플랜 & 사용량</h2>
           </div>
 
-          <div style={{ padding: '20px 24px', borderBottom: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                <span style={{ fontSize: '15px', fontWeight: 600, color: '#111827' }}>{PLAN_LABELS[user?.plan ?? 'free']} 플랜</span>
-                {(user?.plan === 'free' || !user?.plan) && (
-                  <span style={{ padding: '2px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 500, background: '#F3F4F6', color: '#6B7280' }}>무료</span>
-                )}
-                {user?.plan === 'pro' && (
-                  <span style={{ padding: '2px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 500, background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white' }}>Pro</span>
-                )}
-              </div>
-              <div style={{ fontSize: '12.5px', color: '#6B7280' }}>
-                {user?.plan === 'free' || !user?.plan ? '하루 최대 3개 매뉴얼 생성' : '무제한 매뉴얼 생성'}
-              </div>
+          <div style={{ padding: '20px 24px', borderBottom: '1px solid #F3F4F6' }}>
+            <div style={{ fontSize: '12px', color: '#9CA3AF', marginBottom: '12px' }}>플랜 선택</div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              {([
+                { plan: 'free', label: 'Free', desc: '하루 3개' },
+                { plan: 'pro', label: 'Pro', desc: '무제한' },
+              ] as const).map(({ plan, label, desc }) => {
+                const isActive = (user?.plan ?? 'free') === plan;
+                return (
+                  <button
+                    key={plan}
+                    disabled={isActive || planLoading}
+                    onClick={async () => {
+                      setPlanLoading(true);
+                      try {
+                        const res = await fetch('/api/user/plan', {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ plan }),
+                        });
+                        if (res.ok) {
+                          const data = await res.json();
+                          updateUser({ plan: data.plan, daily_limit: data.daily_limit });
+                        }
+                      } finally {
+                        setPlanLoading(false);
+                      }
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '12px 16px',
+                      borderRadius: '10px',
+                      border: isActive ? '2px solid #3730a3' : '1.5px solid #E5E7EB',
+                      background: isActive ? '#EEF2FF' : 'white',
+                      cursor: isActive || planLoading ? 'default' : 'pointer',
+                      textAlign: 'left',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <span style={{ fontSize: '13.5px', fontWeight: 600, color: isActive ? '#3730a3' : '#111827' }}>{label}</span>
+                      {isActive && (
+                        <span style={{ fontSize: '10px', fontWeight: 600, color: '#3730a3', background: '#C7D2FE', padding: '2px 7px', borderRadius: '999px' }}>현재</span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '12px', color: isActive ? '#6366f1' : '#9CA3AF' }}>{desc}</div>
+                  </button>
+                );
+              })}
             </div>
-            {(user?.plan === 'free' || user?.plan === 'pro_waitlist' || !user?.plan) && (
-              <Link href="/#pricing" style={{ padding: '8px 16px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 500, background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', textDecoration: 'none', flexShrink: 0, boxShadow: '0 2px 8px rgba(55,48,163,0.25)' }}>
-                업그레이드
-              </Link>
-            )}
+            <div style={{ fontSize: '11.5px', color: '#D1D5DB', marginTop: '10px' }}>결제 기능은 준비 중입니다. 테스트용으로 플랜을 전환할 수 있습니다.</div>
           </div>
 
           <div style={{ padding: '20px 24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <span style={{ fontSize: '13px', fontWeight: 500, color: '#111827' }}>오늘 생성한 매뉴얼</span>
-              <span style={{ fontSize: '12.5px', fontWeight: 500, color: usagePercent >= 80 ? '#D97706' : '#6B7280' }}>{usedToday} / {dailyLimit}개</span>
+              {isPro ? (
+                <span style={{ fontSize: '12.5px', fontWeight: 500, color: '#6B7280' }}>{usedToday}개 / 제한없음</span>
+              ) : (
+                <span style={{ fontSize: '12.5px', fontWeight: 500, color: usagePercent >= 80 ? '#D97706' : '#6B7280' }}>{usedToday} / {dailyLimit}개</span>
+              )}
             </div>
-            <div style={{ height: '6px', borderRadius: '3px', background: '#F3F4F6', overflow: 'hidden' }}>
-              <div style={{ height: '100%', borderRadius: '3px', width: `${usagePercent}%`, background: usagePercent >= 80 ? 'linear-gradient(90deg, #F59E0B, #EF4444)' : 'linear-gradient(90deg, #3730a3, #6d28d9)', transition: 'width 0.4s ease' }} />
-            </div>
+            {!isPro && (
+              <div style={{ height: '6px', borderRadius: '3px', background: '#F3F4F6', overflow: 'hidden' }}>
+                <div style={{ height: '100%', borderRadius: '3px', width: `${usagePercent}%`, background: usagePercent >= 80 ? 'linear-gradient(90deg, #F59E0B, #EF4444)' : 'linear-gradient(90deg, #3730a3, #6d28d9)', transition: 'width 0.4s ease' }} />
+              </div>
+            )}
             <div style={{ fontSize: '11.5px', color: '#9CA3AF', marginTop: '6px' }}>매일 자정에 초기화됩니다</div>
           </div>
         </div>
@@ -313,16 +362,12 @@ export default function MyPage() {
           </div>
           <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
             <div>
-              <div style={{ fontSize: '13.5px', fontWeight: 500, color: '#111827', marginBottom: '2px' }}>비밀번호</div>
+              <div style={{ fontSize: '13.5px', fontWeight: 500, color: '#111827', marginBottom: '2px' }}>비밀번호 변경</div>
               <div style={{ fontSize: '12px', color: '#9CA3AF' }}>
-                {isGoogle ? 'Google 계정으로 로그인 중입니다. Google에서 관리하세요.' : '이메일로 비밀번호 재설정 링크를 받습니다'}
+                {isGoogle ? 'Google 계정으로 로그인 중입니다' : '이메일로 비밀번호 재설정 링크를 받습니다'}
               </div>
             </div>
-            {isGoogle ? (
-              <a href="https://myaccount.google.com/security" target="_blank" rel="noopener noreferrer" style={{ padding: '7px 14px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 500, color: '#3730a3', border: '1.5px solid #3730a3', textDecoration: 'none', flexShrink: 0, background: 'white' }}>
-                Google 보안 →
-              </a>
-            ) : (
+            {!isGoogle && (
               <button
                 onClick={async () => {
                   if (!user?.email) return;
@@ -341,7 +386,7 @@ export default function MyPage() {
           </div>
         </div>
 
-        {/* ── 위험 구역: 계정 삭제 ── */}
+        {/* ── 위험 구역: 회원 탈퇴 ── */}
         <div style={{ background: 'white', border: '1.5px solid #FEE2E2', borderRadius: '14px', overflow: 'hidden' }}>
           <div style={{ padding: '14px 20px', borderBottom: '1px solid #FEE2E2', background: '#FFF5F5' }}>
             <h2 style={{ fontSize: '11px', fontWeight: 600, color: '#EF4444', margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>위험 구역</h2>
@@ -350,14 +395,14 @@ export default function MyPage() {
             {!deleteConfirm ? (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
                 <div>
-                  <div style={{ fontSize: '13.5px', fontWeight: 500, color: '#111827', marginBottom: '2px' }}>계정 삭제</div>
+                  <div style={{ fontSize: '13.5px', fontWeight: 500, color: '#111827', marginBottom: '2px' }}>회원 탈퇴</div>
                   <div style={{ fontSize: '12px', color: '#9CA3AF' }}>모든 매뉴얼과 데이터가 영구 삭제되며 복구할 수 없습니다</div>
                 </div>
                 <button
                   onClick={() => setDeleteConfirm(true)}
                   style={{ padding: '7px 16px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 500, background: 'white', color: '#EF4444', border: '1.5px solid #FCA5A5', cursor: 'pointer', flexShrink: 0 }}
                 >
-                  계정 삭제
+                  회원 탈퇴
                 </button>
               </div>
             ) : (
