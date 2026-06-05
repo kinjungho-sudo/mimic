@@ -23,7 +23,7 @@ const SENSITIVE_INPUT_TYPES_RE = /^(password|tel|credit.?card|cc.?num|ssn)$/i;
 const SENSITIVE_LABEL_RE = /비밀번호|패스워드|암호|password|카드.?번호|card.?number|주민.?번호|주민.?등록|rrn|ssn|계좌.?번호|account.?number|cvv|cvc|보안.?코드|security.?code|\bpin\b|otp|인증.?번호|인증.?코드|verification.?code|토큰|token|\bsecret\b|api.?key/i;
 
 export const actionInfoSchema = z.object({
-  type: z.enum(['click', 'navigate', 'toggle', 'select', 'focus_input', 'type']),
+  type: z.enum(['click', 'navigate', 'toggle', 'select', 'focus_input', 'type', 'upload']),
   label: z.string().max(200).optional(),
   tag: z.string().max(30).optional(),
   role: z.string().max(50).optional(),
