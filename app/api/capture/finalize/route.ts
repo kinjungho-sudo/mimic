@@ -82,26 +82,42 @@ export async function POST(request: NextRequest) {
     })
   );
 
+  // element_rect(0~1 정규화)로 crop_rect 계산 — Extension 재배포 없이 서버에서 처리
+  function calcCropRect(rect: { x: number; y: number; width: number; height: number } | null) {
+    if (!rect) return null;
+    const PAD = 0.05;
+    return {
+      x:      Math.max(0, rect.x - PAD),
+      y:      Math.max(0, rect.y - PAD),
+      width:  Math.min(1, rect.width  + PAD * 2),
+      height: Math.min(1, rect.height + PAD * 2),
+    };
+  }
+
   // 캡처 이벤트 → mm_steps 변환
-  const steps = events.map((ev, idx) => ({
-    tutorial_id: tutorial.id,
-    step_number: idx + 1,
-    order_index: idx,
-    screenshot_url: ev.screenshot_url,
-    page_url:        ev.url,
-    ai_title:        ev.ai_title        ?? null,
-    ai_description:  ev.ai_description  ?? null,
-    domain_hostname: ev.domain_hostname ?? null,
-    domain_name:     ev.domain_name     ?? null,
-    domain_favicon:  ev.domain_hostname
-      ? (faviconCache.get(ev.domain_hostname) ?? ev.domain_favicon ?? null)
-      : (ev.domain_favicon ?? null),
-    click_x:           ev.click_x           ?? null,
-    click_y:           ev.click_y           ?? null,
-    element_rect:      ev.element_rect      ?? null,
-    element_selector:  ev.element_selector  ?? null,
-    element_xpath:     ev.element_xpath     ?? null,
-  }));
+  const steps = events.map((ev, idx) => {
+    const elementRect = (ev.element_rect as { x: number; y: number; width: number; height: number } | null) ?? null;
+    return {
+      tutorial_id: tutorial.id,
+      step_number: idx + 1,
+      order_index: idx,
+      screenshot_url: ev.screenshot_url,
+      page_url:        ev.url,
+      ai_title:        ev.ai_title        ?? null,
+      ai_description:  ev.ai_description  ?? null,
+      domain_hostname: ev.domain_hostname ?? null,
+      domain_name:     ev.domain_name     ?? null,
+      domain_favicon:  ev.domain_hostname
+        ? (faviconCache.get(ev.domain_hostname) ?? ev.domain_favicon ?? null)
+        : (ev.domain_favicon ?? null),
+      click_x:           ev.click_x           ?? null,
+      click_y:           ev.click_y           ?? null,
+      element_rect:      elementRect,
+      element_selector:  ev.element_selector  ?? null,
+      element_xpath:     ev.element_xpath     ?? null,
+      crop_rect:         calcCropRect(elementRect),
+    };
+  });
 
   const { error: stepsError } = await supabase
     .from('mm_steps')

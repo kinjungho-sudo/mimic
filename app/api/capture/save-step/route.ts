@@ -49,22 +49,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Session already finalized' }, { status: 409 });
   }
 
-  // element_rect: Extension이 CSS px 절대값으로 전송 → viewport 크기로 나눠 0~1 정규화
-  let elementRectNormalized: { x: number; y: number; width: number; height: number } | null = null;
-  if (d.element_rect && d.viewport_w && d.viewport_h) {
-    elementRectNormalized = {
-      x:      d.element_rect.x      / d.viewport_w,
-      y:      d.element_rect.y      / d.viewport_h,
-      width:  d.element_rect.width  / d.viewport_w,
-      height: d.element_rect.height / d.viewport_h,
-    };
-  }
+  // element_rect: recorder가 이미 0~1로 정규화해서 전송 — 서버에서 추가 변환 없이 그대로 저장
+  const elementRectNormalized = d.element_rect ?? null;
 
   const { data: step, error } = await supabase
     .from('mm_capture_events')
     .insert({
       session_id: sessionId,
       screenshot_url: d.screenshot_url,
+      // click_x/y: recorder가 0~1로 전송, DB는 0~10000 정수로 저장 (editor에서 /100으로 읽어 0~100%)
       click_x: Math.round(d.click_x * 10000),
       click_y: Math.round(d.click_y * 10000),
       url: d.url,
