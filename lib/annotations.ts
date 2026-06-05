@@ -118,14 +118,14 @@ export function buildClickHighlight(params: {
       color: '#EF4444',
       strokeWidth: 0.55,
     },
-    // 4. 텍스트 라벨 — 어두운 배경 포함
+    // 4. 텍스트 라벨 — 반투명 배경 포함
     {
       id: base('label'),
       type: 'text' as const,
       x1: tx1, y1: ty1,
       x2: tx1 + textW, y2: ty1 + textH,
       text: labelText,
-      color: '#EF4444',
+      color: '#FFFFFF',
       fontSize: 12,
       fontBold: true,
       hasBg: true,

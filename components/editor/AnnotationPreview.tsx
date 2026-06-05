@@ -180,7 +180,7 @@ export function AnnotationPreview({ annotations, imageUrl }: { annotations: Anno
           const boxH = lines.length * fSize * 1.45 + padY * 2;
           const textX = align === 'left' ? minX + padX : align === 'center' ? minX + boxW / 2 : minX + boxW - padX;
           const anchor = align === 'left' ? 'start' : align === 'center' ? 'middle' : 'end';
-          const bgFill = bg ? 'rgba(15,15,20,0.92)' : 'none';
+          const bgFill = bg ? 'rgba(0,0,0,0.2)' : 'none';
           const strokeColor = bColor && bColor !== 'transparent' ? bColor : 'none';
           return (
             <g key={a.id}>
