@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Plus, Trash2, ZoomIn, X,
   Bold, Italic, Underline, ExternalLink, Sparkles, Loader2,
-  Check,
+  Check, Volume2,
 } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { ImageAnnotationEditor, type Annotation } from './ImageAnnotationEditor';
@@ -150,6 +150,7 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
     const [moved] = next.splice(fromIdx, 1);
     next.splice(toIdx, 0, moved);
     onChange(next.map((s, i) => ({ ...s, number: i + 1 })));
+    setActiveId(draggingId);
     setDraggingId(null); setDragOverId(null);
   };
 
@@ -274,36 +275,38 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
             ))
           )}
 
-          {/* 위/아래 이동 플로팅 버튼 */}
-          <div style={{ position: 'fixed', right: '24px', bottom: '80px', display: 'flex', flexDirection: 'column', gap: '6px', zIndex: 20 }}>
-            {(() => {
-              const currentIdx = steps.findIndex(s => s.id === activeId);
-              const idx = currentIdx >= 0 ? currentIdx : 0;
-              const goTo = (newIdx: number) => {
-                if (newIdx < 0 || newIdx >= steps.length) return;
-                const el = contentRefs.current[steps[newIdx].id];
-                el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                setActiveId(steps[newIdx].id);
-              };
-              return [
-                { title: '이전 단계 (▲)', disabled: idx === 0, onClick: () => goTo(idx - 1), d: 'M18 15 12 9 6 15' },
-                { title: '다음 단계 (▼)', disabled: idx === steps.length - 1, onClick: () => goTo(idx + 1), d: 'M6 9 12 15 18 9' },
-              ].map(btn => (
-                <button
-                  key={btn.title}
-                  onClick={btn.onClick}
-                  disabled={btn.disabled}
-                  title={btn.title}
-                  style={{ width: '38px', height: '38px', borderRadius: '10px', border: '1px solid #E5E7EB', background: btn.disabled ? '#F9FAFB' : 'white', boxShadow: btn.disabled ? 'none' : '0 2px 10px rgba(17,24,39,0.12)', display: 'grid', placeItems: 'center', cursor: btn.disabled ? 'not-allowed' : 'pointer', color: btn.disabled ? '#D1D5DB' : '#374151', transition: 'all 0.15s' }}
-                  onMouseEnter={e => { if (!btn.disabled) { e.currentTarget.style.background = '#F3F4F6'; e.currentTarget.style.color = '#111827'; } }}
-                  onMouseLeave={e => { if (!btn.disabled) { e.currentTarget.style.background = 'white'; e.currentTarget.style.color = '#374151'; } }}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points={btn.d} />
-                  </svg>
-                </button>
-              ));
-            })()}
+          {/* 위/아래 이동 플로팅 버튼 — sticky로 scroll-snap 컨테이너 안에 고정 */}
+          <div style={{ position: 'sticky', bottom: '16px', display: 'flex', justifyContent: 'flex-end', paddingRight: '20px', pointerEvents: 'none', zIndex: 20, scrollSnapAlign: 'none' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', pointerEvents: 'auto' }}>
+              {(() => {
+                const currentIdx = steps.findIndex(s => s.id === activeId);
+                const idx = currentIdx >= 0 ? currentIdx : 0;
+                const goTo = (newIdx: number) => {
+                  if (newIdx < 0 || newIdx >= steps.length) return;
+                  const container = scrollRef.current;
+                  const el = contentRefs.current[steps[newIdx].id];
+                  if (container && el) {
+                    container.scrollTo({ top: el.offsetTop, behavior: 'smooth' });
+                  }
+                  setActiveId(steps[newIdx].id);
+                };
+                return [
+                  { label: '▲ 이전', disabled: idx === 0, onClick: () => goTo(idx - 1) },
+                  { label: '▼ 다음', disabled: idx === steps.length - 1, onClick: () => goTo(idx + 1) },
+                ].map(btn => (
+                  <button
+                    key={btn.label}
+                    onClick={btn.onClick}
+                    disabled={btn.disabled}
+                    style={{ height: '32px', padding: '0 12px', borderRadius: '8px', border: '1px solid #E5E7EB', background: btn.disabled ? '#F9FAFB' : 'white', boxShadow: btn.disabled ? 'none' : '0 2px 10px rgba(17,24,39,0.12)', display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: btn.disabled ? 'not-allowed' : 'pointer', color: btn.disabled ? '#D1D5DB' : '#374151', fontSize: '12px', fontWeight: 500, transition: 'all 0.15s' }}
+                    onMouseEnter={e => { if (!btn.disabled) { e.currentTarget.style.background = '#F3F4F6'; e.currentTarget.style.color = '#111827'; } }}
+                    onMouseLeave={e => { if (!btn.disabled) { e.currentTarget.style.background = 'white'; e.currentTarget.style.color = '#374151'; } }}
+                  >
+                    {btn.label}
+                  </button>
+                ));
+              })()}
+            </div>
           </div>
 
           {/* 단계 추가 버튼 — 마지막 스텝 아래 */}
@@ -503,6 +506,28 @@ interface StepCardProps {
 }
 
 function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdate, onSave, onDelete, onZoom, onAnnotate, onRemoveImage }: StepCardProps) {
+  const [ttsLoading, setTtsLoading] = useState(false);
+  const [ttsAudioUrl, setTtsAudioUrl] = useState<string | null>(null);
+  const [ttsVoice, setTtsVoice] = useState<'nova' | 'alloy'>('nova');
+
+  const handleTts = async () => {
+    const plainText = step.description.replace(/<[^>]+>/g, '').trim();
+    if (!plainText) return;
+    setTtsLoading(true);
+    try {
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stepId: step.id, scriptText: plainText, voice: ttsVoice }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTtsAudioUrl(data.audio_url ?? null);
+      }
+    } finally {
+      setTtsLoading(false);
+    }
+  };
   const [hovering, setHovering] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -684,6 +709,36 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
         onRemove={onRemoveImage}
         onZoomChange={zoom => { onUpdate({ imageZoom: zoom }); onSave({ imageZoom: zoom }); }}
       />
+
+      {/* TTS 음성 합성 영역 */}
+      {step.description.replace(/<[^>]+>/g, '').trim() && (
+        <div style={{ padding: '8px 14px 12px', borderTop: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Volume2 size={13} style={{ color: '#6B7280', flexShrink: 0 }} />
+          <span style={{ fontSize: '11.5px', color: '#6B7280', flexShrink: 0 }}>AI 음성</span>
+          <select
+            value={ttsVoice}
+            onChange={e => setTtsVoice(e.target.value as 'nova' | 'alloy')}
+            onClick={e => e.stopPropagation()}
+            style={{ fontSize: '11px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', borderRadius: '5px', padding: '2px 6px', cursor: 'pointer', outline: 'none' }}
+          >
+            <option value="nova">Nova (여성)</option>
+            <option value="alloy">Alloy (남성)</option>
+          </select>
+          <button
+            onClick={e => { e.stopPropagation(); handleTts(); }}
+            disabled={ttsLoading}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', height: '26px', padding: '0 10px', borderRadius: '5px', border: '1px solid #E5E7EB', background: 'white', color: '#374151', fontSize: '11.5px', fontWeight: 500, cursor: ttsLoading ? 'not-allowed' : 'pointer', opacity: ttsLoading ? 0.6 : 1, flexShrink: 0 }}
+            onMouseEnter={e => { if (!ttsLoading) { e.currentTarget.style.borderColor = '#6d28d9'; e.currentTarget.style.color = '#6d28d9'; } }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.color = '#374151'; }}
+          >
+            {ttsLoading ? <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> : <Sparkles size={11} />}
+            {ttsAudioUrl ? '재생성' : '생성'}
+          </button>
+          {ttsAudioUrl && (
+            <audio key={ttsAudioUrl} controls src={ttsAudioUrl} style={{ height: '26px', flex: 1, minWidth: 0 }} />
+          )}
+        </div>
+      )}
     </div>
   );
 }
