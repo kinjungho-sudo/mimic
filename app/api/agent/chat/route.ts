@@ -5,12 +5,63 @@ import { createServiceRoleClient } from '@/lib/supabase/server';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 
-// ── 도구 정의 ──────────────────────────────────────────────
+// ── 모드 타입 ──────────────────────────────────────────────
 
-const TOOLS: Anthropic.Tool[] = [
+export type ChatMode = 'inquiry' | 'guide' | 'automation';
+
+// ── 모드별 시스템 프롬프트 ─────────────────────────────────
+
+const SYSTEM_PROMPTS: Record<ChatMode, string> = {
+  inquiry: `당신은 MIMIC 서비스의 고객 지원 챗봇입니다. 고객의 문의를 친절하고 정확하게 답변하세요.
+
+MIMIC 서비스 소개:
+- 업무 화면을 녹화해 인터랙티브 매뉴얼을 자동 생성하는 SaaS
+- Chrome 확장 프로그램으로 클릭 동작을 캡처
+- Guide Me 기능: 실제 페이지 위에 오버레이로 단계별 안내
+- 플랜: 무료(일 3회 생성), Pro(무제한), Team(협업)
+
+답변 규칙:
+- 한국어로 친근하고 정중하게 답변하세요
+- 모르는 내용은 솔직히 모른다고 하고 공식 채널을 안내하세요
+- 기술 문의는 구체적인 해결 방법을 제시하세요
+- 3문장 이내로 간결하게 답변하세요`,
+
+  guide: `당신은 MIMIC의 Guide Me 도우미입니다. 사용자가 매뉴얼을 따라 업무를 수행할 때 단계별로 안내합니다.
+
+역할:
+- 매뉴얼을 검색하고 단계를 파악한 뒤 Guide Me 오버레이를 시작해주세요
+- 사용자가 막히거나 어디를 눌러야 하는지 물으면 해당 단계를 구체적으로 설명하세요
+- "어디 있어요?", "무슨 버튼이에요?" 같은 질문에는 위치와 생김새를 설명하세요
+- Guide Me를 시작하면 오버레이가 자동으로 각 단계를 하이라이트합니다
+
+답변 규칙:
+- 한국어로 친근하게 답변하세요
+- 위치 설명 시 "화면 왼쪽 상단", "파란색 버튼" 등 직관적으로 표현하세요
+- 매뉴얼을 찾으면 단계 수와 첫 번째 단계를 먼저 알려주세요
+- 짧고 명확하게 답변하세요 (3문장 이내)`,
+
+  automation: `당신은 MIMIC의 AI 자동화 워크플로우 어시스턴트입니다. (현재 BETA — 일부 기능만 지원)
+
+지원 가능한 작업:
+- 매뉴얼 검색 및 단계 확인
+- Guide Me 오버레이 시작 (사용자가 직접 클릭)
+
+현재 미지원:
+- 브라우저 자동 클릭/입력 (로컬 Claude Code + Playwright 환경 필요)
+
+안내 규칙:
+- 자동화 요청 시 현재 지원 범위를 먼저 설명하세요
+- Guide Me로 대신할 수 있는 작업은 Guide Me를 제안하세요
+- 완전 자동화는 "Claude Code + Playwright 환경에서만 가능하다"고 안내하세요
+- 한국어로 친근하게 답변하세요 (3문장 이내)`,
+};
+
+// ── 모드별 도구 세트 ───────────────────────────────────────
+
+const TOOLS_GUIDE: Anthropic.Tool[] = [
   {
     name: 'search_tutorial',
-    description: '매뉴얼 이름으로 MIMIC에서 검색합니다. 사용자가 실행하려는 업무와 관련된 매뉴얼을 찾을 때 사용하세요.',
+    description: '매뉴얼 이름으로 MIMIC에서 검색합니다.',
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -21,7 +72,7 @@ const TOOLS: Anthropic.Tool[] = [
   },
   {
     name: 'get_tutorial_steps',
-    description: '매뉴얼의 전체 단계 목록을 가져옵니다. 매뉴얼을 찾은 후 내용을 파악할 때 사용하세요.',
+    description: '매뉴얼의 전체 단계 목록을 가져옵니다.',
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -32,7 +83,7 @@ const TOOLS: Anthropic.Tool[] = [
   },
   {
     name: 'open_guide_me',
-    description: 'Guide Me 오버레이를 시작할 URL을 생성합니다. 매뉴얼을 찾고 사용자가 실행을 원할 때 호출하세요. 반환된 guide_url을 사용자에게 제공하면 새 탭에서 Guide Me가 자동 시작됩니다.',
+    description: 'Guide Me 오버레이를 시작할 URL을 생성합니다. 버튼을 클릭하면 새 탭에서 Guide Me가 자동 시작됩니다.',
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -43,6 +94,12 @@ const TOOLS: Anthropic.Tool[] = [
     },
   },
 ];
+
+const TOOLS_BY_MODE: Record<ChatMode, Anthropic.Tool[]> = {
+  inquiry: [],           // 문의 챗봇은 도구 불필요
+  guide: TOOLS_GUIDE,    // Guide Me 전체 도구 사용
+  automation: TOOLS_GUIDE, // 자동화도 Guide Me 도구 사용 (완전 자동화는 미구현)
+};
 
 // ── 도구 실행 ──────────────────────────────────────────────
 
@@ -101,7 +158,6 @@ async function executeTool(
 
     if (!tut) return '매뉴얼 접근 권한이 없습니다.';
 
-    // 미발행 매뉴얼은 share_token이 없을 수 있음 — 임시 발행
     let token = tut.share_token;
     if (!token) {
       const newToken = Math.random().toString(36).slice(2, 14);
@@ -112,7 +168,6 @@ async function executeTool(
       token = newToken;
     }
 
-    // 첫 스텝의 page_url 가져오기
     const { data: firstStep } = await supabase
       .from('mm_steps')
       .select('page_url')
@@ -138,7 +193,7 @@ export async function POST(request: NextRequest) {
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
 
-  let body: { messages?: Anthropic.MessageParam[] };
+  let body: { messages?: Anthropic.MessageParam[]; mode?: ChatMode };
   try {
     body = await request.json();
   } catch {
@@ -146,9 +201,13 @@ export async function POST(request: NextRequest) {
   }
 
   const messages: Anthropic.MessageParam[] = body.messages ?? [];
+  const mode: ChatMode = body.mode ?? 'guide';
+
   if (!messages.length) return NextResponse.json({ error: 'messages required' }, { status: 400 });
 
   const encoder = new TextEncoder();
+  const systemPrompt = SYSTEM_PROMPTS[mode];
+  const tools = TOOLS_BY_MODE[mode];
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -157,36 +216,29 @@ export async function POST(request: NextRequest) {
       };
 
       try {
-        // 에이전트 루프 — 도구 호출이 끝날 때까지 반복
         const currentMessages = [...messages];
 
         for (let turn = 0; turn < 10; turn++) {
-          const response = await client.messages.create({
+          const createParams: Anthropic.MessageCreateParamsNonStreaming = {
             model: 'claude-haiku-4-5-20251001',
             max_tokens: 1024,
-            system: `당신은 MIMIC의 AI 어시스턴트입니다. 사용자가 업무 매뉴얼을 찾고 실행하도록 도와주세요.
-
-규칙:
-- 한국어로 친근하게 답변하세요
-- 매뉴얼을 찾으면 간략히 단계 수와 내용을 알려주세요
-- Guide Me를 시작할 때는 open_guide_me 도구를 호출하세요
-- 사용자가 막혔다고 하면 해당 단계를 구체적으로 설명해주세요
-- 짧고 명확하게 답변하세요 (3문장 이내)`,
+            system: systemPrompt,
             messages: currentMessages,
-            tools: TOOLS,
-          });
+          };
 
-          // 텍스트 블록 스트리밍
+          // 도구가 있을 때만 tools 포함 (inquiry 모드는 도구 없음)
+          if (tools.length > 0) createParams.tools = tools;
+
+          const response = await client.messages.create(createParams);
+
           for (const block of response.content) {
             if (block.type === 'text' && block.text) {
               send(JSON.stringify({ type: 'text', text: block.text }));
             }
           }
 
-          // 도구 호출 없으면 종료
           if (response.stop_reason !== 'tool_use') break;
 
-          // 도구 실행
           const toolResults: Anthropic.ToolResultBlockParam[] = [];
           for (const block of response.content) {
             if (block.type !== 'tool_use') continue;
@@ -199,7 +251,6 @@ export async function POST(request: NextRequest) {
               auth.userId
             );
 
-            // open_guide_me 결과는 클라이언트에 직접 전달
             if (block.name === 'open_guide_me') {
               try {
                 const parsed = JSON.parse(result);
@@ -210,7 +261,6 @@ export async function POST(request: NextRequest) {
             toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: result });
           }
 
-          // 다음 턴 메시지 구성
           currentMessages.push({ role: 'assistant', content: response.content });
           currentMessages.push({ role: 'user', content: toolResults });
         }
