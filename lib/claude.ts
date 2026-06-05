@@ -426,6 +426,40 @@ ${original}`,
   return response.content[0].type === 'text' ? response.content[0].text.trim() : original;
 }
 
+export async function rewriteAllSteps(
+  steps: { id: string; text: string }[],
+  instruction: string
+): Promise<{ id: string; result: string }[]> {
+  const numbered = steps.map((s, i) => `[${i + 1}] ${s.text}`).join('\n');
+  const response = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 4096,
+    messages: [{
+      role: 'user',
+      content: `다음은 매뉴얼 튜토리얼의 전체 스텝 목록이야. "${instruction}" 방식으로 전체를 다듬어줘.
+
+[공통 규칙]
+- 각 스텝의 순서와 번호를 유지할 것
+- 앞뒤 문맥을 고려해서 흐름이 자연스럽게 이어지도록 다듬을 것
+- 특정 상품명·브랜드명·수량은 범용 표현으로 교체
+- 문장 시작은 행동 동사나 명사로
+- 반드시 아래 형식으로만 반환: [번호] 수정된 문장 (설명, 따옴표, 부연 없이)
+
+스텝 목록:
+${numbered}`,
+    }],
+  });
+
+  if (response.content[0].type !== 'text') return steps.map(s => ({ id: s.id, result: s.text }));
+
+  const lines = response.content[0].text.trim().split('\n').filter(l => l.trim());
+  return steps.map((s, i) => {
+    const line = lines.find(l => l.startsWith(`[${i + 1}]`));
+    const result = line ? line.replace(/^\[\d+\]\s*/, '').trim() : s.text;
+    return { id: s.id, result };
+  });
+}
+
 type StepLocationData = {
   clickX?: number | null;       // 0~1 정규화 클릭 좌표
   clickY?: number | null;
