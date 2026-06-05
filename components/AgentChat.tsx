@@ -14,9 +14,6 @@ interface QuickQ { id: string; label: string }
 
 // 마크다운 링크 [text](url) 와 **bold** 렌더링
 function renderText(text: string) {
-  const parts = text.split(/(\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*)/g);
-  const result: React.ReactNode[] = [];
-  let i = 0;
   const lines = text.split('\n');
   return (
     <>
@@ -52,7 +49,6 @@ function renderText(text: string) {
       })}
     </>
   );
-  void parts; void i; // suppress unused
 }
 
 export function AgentChat() {
