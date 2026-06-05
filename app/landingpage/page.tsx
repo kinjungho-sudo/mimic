@@ -366,13 +366,19 @@ function Scene2({ tick }: { tick: number }) {
   const c1 = tick >= 600;
   const c2 = tick >= 1500;
   const c3 = tick >= 2500;
+  // 실제 UI 요소 위치에 맞춘 클릭 좌표
   const CLICKS = [
-    { label: '검색창 클릭', x: '38%', y: '46%', step: 1 },
-    { label: '검색 버튼',   x: '64%', y: '46%', step: 2 },
-    { label: '이미지 선택', x: '22%', y: '74%', step: 3 },
+    { x: '52%', y: '11.5%' },  // 검색창 중앙
+    { x: '82%', y: '11.5%' },  // 가입 버튼
+    { x: '18%', y: '62%'   },  // 첫 번째 이미지
   ];
   const active = [c1, c2, c3];
-  const capturedCount = active.filter(Boolean).length;
+  // 마우스 커서 SVG
+  const Cursor = () => (
+    <svg width="20" height="22" viewBox="0 0 20 22" fill="none" style={{ filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.4))' }}>
+      <path d="M1 1l6.5 17 3-6 6 3L1 1z" fill="white" stroke="#1a1a1a" strokeWidth="1.5" strokeLinejoin="round"/>
+    </svg>
+  );
   return (
     <div style={{ width: '100%', height: '100%', background: '#1A1A1A', position: 'relative' }}>
       {/* 웹사이트 미모 — Pexels 스타일 */}
@@ -384,38 +390,34 @@ function Scene2({ tick }: { tick: number }) {
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={c1 ? '#6d28d9' : '#9CA3AF'} strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
             <span style={{ fontSize: '11px', color: c1 ? '#3730a3' : '#9CA3AF' }}>{c2 ? '강아지' : c1 ? '강아지|' : '무료 사진 검색'}</span>
           </div>
-          <div style={{ padding: '6px 14px', borderRadius: '6px', background: '#111827', color: 'white', fontSize: '11px', fontWeight: 600 }}>가입</div>
+          <div style={{ padding: '6px 14px', borderRadius: '6px', background: c2 ? '#374151' : '#111827', color: 'white', fontSize: '11px', fontWeight: 600, transition: 'background 0.15s' }}>가입</div>
         </div>
-        {/* 히어로 영역 */}
+        {/* 이미지 그리드 */}
         <div style={{ padding: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', height: 'calc(100% - 48px)' }}>
           {['#BFDBFE','#FDE68A','#BBF7D0','#FECACA','#E9D5FF','#FED7AA'].map((c, i) => (
             <div key={i} style={{ borderRadius: '8px', background: c, position: 'relative', overflow: 'hidden' }}>
-              {/* 이미지 플레이스홀더 패턴 */}
               <div style={{ position: 'absolute', inset: 0, opacity: 0.3, backgroundImage: 'repeating-linear-gradient(45deg, rgba(0,0,0,0.05) 0px, rgba(0,0,0,0.05) 1px, transparent 1px, transparent 8px)' }} />
               {i === 0 && c3 && (
-                <div style={{ position: 'absolute', inset: '4px', border: '3px solid #EF4444', borderRadius: '6px', animation: 'sceneIn 0.2s ease both' }} />
+                <div style={{ position: 'absolute', inset: '4px', border: '3px solid #6d28d9', borderRadius: '6px', background: 'rgba(109,40,217,0.08)', animation: 'sceneIn 0.2s ease both' }} />
               )}
             </div>
           ))}
         </div>
       </div>
-      {/* 클릭 이펙트 */}
+      {/* 마우스 커서 + 클릭 리플 */}
       {active.map((show, i) => show && (
-        <div key={i} style={{ position: 'absolute', left: CLICKS[i].x, top: CLICKS[i].y, transform: 'translate(-50%,-50%)', pointerEvents: 'none', zIndex: 20 }}>
-          <div style={{ position: 'relative' }}>
-            <div style={{ position: 'absolute', inset: '-8px', borderRadius: '50%', border: '2px solid rgba(239,68,68,0.5)', animation: 'rippleOut 0.9s ease-out infinite' }} />
-            <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'rgba(239,68,68,0.85)', boxShadow: '0 0 0 3px rgba(239,68,68,0.25)' }} />
-          </div>
-          {/* 캡처 라벨 */}
-          <div style={{ position: 'absolute', top: '-26px', left: '50%', transform: 'translateX(-50%)', background: '#111827', color: 'white', fontSize: '9.5px', fontWeight: 600, padding: '2px 8px', borderRadius: '999px', whiteSpace: 'nowrap', animation: 'sceneIn 0.2s ease both' }}>
-            {CLICKS[i].step}단계 캡처됨
-          </div>
+        <div key={i} style={{ position: 'absolute', left: CLICKS[i].x, top: CLICKS[i].y, pointerEvents: 'none', zIndex: 20 }}>
+          {/* 클릭 리플 */}
+          <div style={{ position: 'absolute', top: '10px', left: '6px', width: '28px', height: '28px', borderRadius: '50%', border: '2px solid rgba(109,40,217,0.5)', animation: 'rippleOut 0.8s ease-out infinite', transform: 'translate(-50%,-50%)' }} />
+          <div style={{ position: 'absolute', top: '10px', left: '6px', width: '14px', height: '14px', borderRadius: '50%', background: 'rgba(109,40,217,0.2)', transform: 'translate(-50%,-50%)' }} />
+          {/* 커서 */}
+          <Cursor />
         </div>
       ))}
       {/* 우측 상단 녹화 상태 */}
       <div style={{ position: 'absolute', top: '56px', right: '12px', display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 11px', background: 'rgba(10,10,15,0.85)', backdropFilter: 'blur(8px)', borderRadius: '999px', fontSize: '11px', color: 'white', fontWeight: 500 }}>
         <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#EF4444', animation: 'rec-blink 1.2s infinite' }} />
-        {capturedCount > 0 ? `${capturedCount}단계 캡처됨` : 'MIMIC 녹화 중'}
+        MIMIC 녹화 중
       </div>
     </div>
   );
