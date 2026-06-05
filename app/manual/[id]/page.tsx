@@ -270,12 +270,14 @@ export default function ManualViewerPage() {
             <Share2 size={13} /> 공유
           </button>
 
-          {tutorial.share_token && manualSteps.some(s => s.pageUrl) && (
+          {manualSteps.some(s => s.pageUrl) && (
             <button
               onClick={() => {
                 const firstUrl = manualSteps.find(s => s.pageUrl)?.pageUrl;
                 if (!firstUrl) return;
-                setGuideMePreviewUrl(`${firstUrl}${firstUrl.includes('?') ? '&' : '?'}mimic_guide=${tutorial.share_token}`);
+                // published면 share_token, draft면 tutorial_id로 접근 (본인 소유자만)
+                const guideToken = tutorial.share_token ?? id;
+                setGuideMePreviewUrl(`${firstUrl}${firstUrl.includes('?') ? '&' : '?'}mimic_guide=${guideToken}`);
               }}
               style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#3730a3', background: '#e0e7ff', border: '1px solid #a5b4fc', cursor: 'pointer' }}>
               <PlayCircle size={13} /> Guide Me
