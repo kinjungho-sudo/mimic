@@ -386,6 +386,15 @@ export default function EditorPage() {
             onAdd={handleAddStep}
             onDelete={handleDeleteStep}
             onInsertAfter={handleInsertAfter}
+            onRenameDomain={(hostname, newName) => {
+              setManualSteps(prev => prev.map(s =>
+                s.domainHostname === hostname ? { ...s, domainName: newName } : s
+              ));
+              // 해당 hostname 스텝 DB 일괄 업데이트
+              manualSteps
+                .filter(s => s.domainHostname === hostname && !s.id.startsWith('step-'))
+                .forEach(s => updateStep(s.id, { domain_name: newName }).catch(() => {}));
+            }}
           />
         </div>
 

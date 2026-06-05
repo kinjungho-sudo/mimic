@@ -8,6 +8,8 @@ const stepPatchSchema = z.object({
   user_title: z.string().max(200).nullable().optional(),
   user_script: z.string().max(2000).nullable().optional(),
   user_annotations: z.array(z.unknown()).nullable().optional(),
+  image_zoom: z.number().min(0.5).max(4).nullable().optional(),
+  domain_name: z.string().max(100).nullable().optional(),
 });
 
 type Params = { params: Promise<{ id: string }> };

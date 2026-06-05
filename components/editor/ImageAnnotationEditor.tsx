@@ -568,6 +568,16 @@ export function ImageAnnotationEditor({
               {showTextOpts && (
                 <>
                   {showColor && <div style={{ width: '1px', height: '18px', background: 'rgba(255,255,255,0.12)' }} />}
+                  {/* 텍스트 글자색 */}
+                  <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' }}>글자색</span>
+                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                    {[...COLORS, '#FFFFFF'].map(c => (
+                      <button key={c} onClick={() => setColor(c)}
+                        style={{ width: '16px', height: '16px', borderRadius: '50%', background: c, border: color === c ? '2.5px solid white' : c === '#FFFFFF' ? '1.5px solid rgba(255,255,255,0.4)' : '2px solid transparent', cursor: 'pointer', flexShrink: 0, outline: 'none' }}
+                      />
+                    ))}
+                  </div>
+                  <div style={{ width: '1px', height: '18px', background: 'rgba(255,255,255,0.12)' }} />
                   <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' }}>크기</span>
                   <select
                     value={fontSize}

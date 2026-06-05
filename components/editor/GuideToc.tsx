@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import type { ManualStep } from './ManualEditor';
 import { faviconUrl, faviconFallbackUrl, hostnameToServiceName } from '@/lib/favicon';
 
@@ -13,9 +13,12 @@ interface GuideTocProps {
   onAdd?: () => void;
   onDelete?: (id: string) => void;
   onInsertAfter?: (afterId: string) => void;
+  onRenameDomain?: (hostname: string, newName: string) => void;
 }
 
-export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDelete }: GuideTocProps) {
+export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDelete, onRenameDomain }: GuideTocProps) {
+  const [editingDomain, setEditingDomain] = useState<{ hostname: string; value: string } | null>(null);
+  const domainInputRef = useRef<HTMLInputElement>(null);
   const [draggingIds, setDraggingIds] = useState<Set<string>>(new Set());
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [dragOverPos, setDragOverPos] = useState<'before' | 'after'>('after');
@@ -182,12 +185,40 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
               {/* 도메인 헤더 */}
               {showDomainHeader && (group.hostname || group.name) && (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: `${idx === 0 ? '10px' : '14px'} 14px 6px` }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
-                    {/* favicon: DB값 → Google API → DuckDuckGo fallback */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flex: 1 }}>
                     <FaviconImg favicon={group.favicon} hostname={group.hostname} size={14} />
-                    <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {group.name ?? group.hostname}
-                    </span>
+                    {editable && editingDomain?.hostname === group.hostname ? (
+                      <input
+                        ref={domainInputRef}
+                        value={editingDomain.value}
+                        onChange={e => setEditingDomain(prev => prev ? { ...prev, value: e.target.value } : null)}
+                        onBlur={() => {
+                          if (editingDomain && group.hostname) {
+                            onRenameDomain?.(group.hostname, editingDomain.value.trim() || (group.hostname ?? ''));
+                          }
+                          setEditingDomain(null);
+                        }}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); }
+                          if (e.key === 'Escape') setEditingDomain(null);
+                        }}
+                        style={{ fontSize: '11.5px', fontWeight: 700, color: '#3730a3', border: 'none', borderBottom: '1.5px solid #3730a3', outline: 'none', background: 'transparent', width: '100%', padding: '0', fontFamily: 'inherit' }}
+                        autoFocus
+                      />
+                    ) : (
+                      <span
+                        title={editable ? '클릭하여 이름 변경' : undefined}
+                        onClick={() => {
+                          if (!editable) return;
+                          setEditingDomain({ hostname: group.hostname ?? '', value: group.name ?? group.hostname ?? '' });
+                          setTimeout(() => domainInputRef.current?.select(), 0);
+                        }}
+                        style={{ fontSize: '11.5px', fontWeight: 700, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: editable ? 'text' : 'default', flex: 1 }}
+                      >
+                        {group.name ?? group.hostname}
+                        {editable && <span style={{ fontSize: '9px', color: '#D1D5DB', marginLeft: '4px' }}>✏</span>}
+                      </span>
+                    )}
                   </div>
                   <span style={{ fontSize: '10.5px', color: '#9CA3AF', flexShrink: 0, marginLeft: '6px' }}>
                     {group.count} Steps
