@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { X, Trash2, RotateCcw, Bold } from 'lucide-react';
+import { X, Trash2, RotateCcw, RotateCw, Bold } from 'lucide-react';
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -152,7 +152,7 @@ export function ImageAnnotationEditor({
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   initialFocusY = 50,
 }: ImageAnnotationEditorProps) {
-  const [tool, setTool] = useState<Tool>('arrow');
+  const [tool, setTool] = useState<Tool>('select');
   const [color, setColor] = useState<Color>('#EF4444');
   const [strokeIdx, setStrokeIdx] = useState(1);
   const [fontSize, setFontSize] = useState(16);
@@ -177,6 +177,32 @@ export function ImageAnnotationEditor({
   useEffect(() => { lastHasBg.current = hasBg; }, [hasBg]);
 
   const [items, setItems] = useState<Annotation[]>(annotations);
+  const historyRef = useRef<Annotation[][]>([annotations]);
+  const historyIdxRef = useRef(0);
+
+  // 히스토리에 스냅샷 저장 (드래그 완료, 새 오브젝트 추가, 삭제 시점에만)
+  const pushHistory = useCallback((next: Annotation[]) => {
+    const stack = historyRef.current.slice(0, historyIdxRef.current + 1);
+    stack.push(next);
+    if (stack.length > 50) stack.shift();
+    historyRef.current = stack;
+    historyIdxRef.current = stack.length - 1;
+  }, []);
+
+  const undo = useCallback(() => {
+    if (historyIdxRef.current <= 0) return;
+    historyIdxRef.current -= 1;
+    setItems(historyRef.current[historyIdxRef.current]);
+    setSelectedId(null);
+  }, []);
+
+  const redo = useCallback(() => {
+    if (historyIdxRef.current >= historyRef.current.length - 1) return;
+    historyIdxRef.current += 1;
+    setItems(historyRef.current[historyIdxRef.current]);
+    setSelectedId(null);
+  }, []);
+
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawing, setDrawing] = useState<Partial<Annotation> | null>(null);
   const eraserActiveRef = useRef(false);
@@ -256,11 +282,15 @@ export function ImageAnnotationEditor({
 
     if (tool === 'marker') {
       const num = nextMarkerNum();
-      setItems(prev => [...prev, {
-        id: genId(), type: 'marker',
-        x1: x, y1: y, x2: x + 4, y2: y + 4,
-        color: lastColor.current, strokeWidth, markerNumber: num,
-      }]);
+      setItems(prev => {
+        const next = [...prev, {
+          id: genId(), type: 'marker' as const,
+          x1: x, y1: y, x2: x + 4, y2: y + 4,
+          color: lastColor.current, strokeWidth, markerNumber: num,
+        }];
+        pushHistory(next);
+        return next;
+      });
       return;
     }
 
@@ -317,7 +347,7 @@ export function ImageAnnotationEditor({
         textAlign: lastTextAlign.current,
         hasBg: lastHasBg.current,
       };
-      setItems(prev => [...prev, newItem]);
+      setItems(prev => { const next = [...prev, newItem]; pushHistory(next); return next; });
       setTextDrawing(null);
       // 생성 직후 바로 텍스트 편집 모드로 진입
       setTimeout(() => { setTool('select'); setSelectedId(newItem.id); setEditingText({ id: newItem.id }); }, 0);
@@ -341,6 +371,7 @@ export function ImageAnnotationEditor({
       }
       setItems(cur => {
         const next = [...cur, final];
+        pushHistory(next);
         if (SHAPE_TOOLS.includes(prev.type as Tool)) {
           setTimeout(() => { setTool('select'); setSelectedId(final.id); }, 0);
         }
@@ -395,7 +426,10 @@ export function ImageAnnotationEditor({
         return { ...a, x1, y1, x2, y2 };
       }));
     };
-    const up = () => setDragState(null);
+    const up = () => {
+      setDragState(null);
+      setItems(cur => { pushHistory(cur); return cur; });
+    };
     window.addEventListener('mousemove', move);
     window.addEventListener('mouseup', up);
     return () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
@@ -403,19 +437,36 @@ export function ImageAnnotationEditor({
 
   const deleteSelected = useCallback(() => {
     if (!selectedId) return;
-    setItems(prev => prev.filter(a => a.id !== selectedId));
+    setItems(prev => { const next = prev.filter(a => a.id !== selectedId); pushHistory(next); return next; });
     setSelectedId(null);
-  }, [selectedId]);
+  }, [selectedId, pushHistory]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (editingText) return;
+
+      // Ctrl+Z 언두 / Ctrl+Y or Ctrl+Shift+Z 리두
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return; }
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); return; }
+
       if (e.key === 'Escape') setSelectedId(null);
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) { e.preventDefault(); deleteSelected(); }
+
+      // 방향키로 선택된 오브젝트 이동
+      if (selectedId && ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) {
+        e.preventDefault();
+        const step = e.shiftKey ? 1 : 0.2; // Shift = 5배 빠르게
+        const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
+        const dy = e.key === 'ArrowUp'   ? -step : e.key === 'ArrowDown'  ? step : 0;
+        setItems(cur => cur.map(a => a.id === selectedId
+          ? { ...a, x1: a.x1 + dx, y1: a.y1 + dy, x2: a.x2 + dx, y2: a.y2 + dy }
+          : a
+        ));
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [selectedId, editingText, deleteSelected]);
+  }, [selectedId, editingText, deleteSelected, undo, redo]);
 
   useEffect(() => {
     if (!editingText) return;
@@ -591,12 +642,17 @@ export function ImageAnnotationEditor({
 
             <div style={{ flex: 1 }} />
 
-            {/* 되돌리기 */}
-            <button onClick={() => setItems(prev => prev.slice(0, -1))}
+            {/* 언두/리두 */}
+            <button onClick={undo} title="실행 취소 (Ctrl+Z)"
               style={{ height: '32px', padding: '0 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(255,255,255,0.7)', fontSize: '11.5px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-            ><RotateCcw size={11} /> 되돌리기</button>
+            ><RotateCcw size={11} /> 취소</button>
+            <button onClick={redo} title="다시 실행 (Ctrl+Y)"
+              style={{ height: '32px', padding: '0 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(255,255,255,0.7)', fontSize: '11.5px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+            ><RotateCw size={11} /> 다시</button>
 
             {selectedId && (
               <button onClick={deleteSelected}
@@ -827,7 +883,7 @@ export function ImageAnnotationEditor({
         </div>
 
         <div style={{ height: '24px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10.5px', color: 'rgba(255,255,255,0.5)', background: '#1a1a1a' }}>
-          {tool === 'select' ? '클릭으로 선택 · 드래그로 이동 · 핸들로 크기 조절 · Delete 삭제' :
+          {tool === 'select' ? '클릭으로 선택 · 드래그로 이동 · 방향키로 미세 이동 · Delete 삭제 · Ctrl+Z 취소' :
            tool === 'marker' ? '클릭하면 번호 마커 추가' :
            tool === 'spotlight' ? '완성 후 선택 모드로 전환 — 이동 · 크기 조절 가능' :
            tool === 'text' ? '더블클릭으로 텍스트 편집 · Enter 줄바꿈 · Ctrl+Enter 또는 Esc 확정' :
