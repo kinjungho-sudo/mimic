@@ -126,6 +126,111 @@ server.tool(
   }
 );
 
+// ── Auto-Run Tools ────────────────────────────────────────
+
+server.tool(
+  'start_execution',
+  '매뉴얼 자동 실행 세션을 시작합니다. 실행 전 pre-flight 정보(실행 가능 스텝 수, 위험 스텝)를 반환합니다.',
+  {
+    tutorial_id: z.string().uuid().describe('실행할 매뉴얼 ID'),
+  },
+  async ({ tutorial_id }) => {
+    const { data: tut } = await supabase
+      .from('mm_tutorials')
+      .select('id, title')
+      .eq('id', tutorial_id)
+      .eq('user_id', OWNER_USER_ID)
+      .single();
+
+    if (!tut) return { content: [{ type: 'text', text: '매뉴얼을 찾을 수 없거나 접근 권한이 없습니다.' }] };
+
+    const { data: steps } = await supabase
+      .from('mm_steps')
+      .select('id, step_number, user_title, ai_title, page_url, element_selector, click_x, click_y')
+      .eq('tutorial_id', tutorial_id)
+      .order('step_number', { ascending: true });
+
+    const total = steps?.length ?? 0;
+    const runnable = steps?.filter(s => s.page_url && (s.element_selector || s.click_x)).length ?? 0;
+
+    // 위험 키워드 감지
+    const RISK_KEYWORDS = ['삭제', '제거', '결제', '주문', '구매', '탈퇴', '초기화', 'delete', 'remove', 'pay', 'checkout', 'purchase'];
+    const riskySteps = (steps ?? []).filter(s => {
+      const title = (s.user_title ?? s.ai_title ?? '').toLowerCase();
+      return RISK_KEYWORDS.some(k => title.includes(k));
+    }).map(s => ({ step_number: s.step_number, title: s.user_title ?? s.ai_title }));
+
+    const { data: session } = await supabase
+      .from('mm_execution_sessions')
+      .insert({
+        tutorial_id,
+        user_id: OWNER_USER_ID,
+        status: 'running',
+        total_steps: total,
+      })
+      .select('id')
+      .single();
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          execution_session_id: session?.id,
+          tutorial_title: tut.title,
+          pre_flight: { total, runnable, risky_steps: riskySteps },
+        }, null, 2),
+      }],
+    };
+  }
+);
+
+server.tool(
+  'save_step_result',
+  '스텝 실행 결과를 저장합니다. 각 스텝 실행 후 반드시 호출하세요.',
+  {
+    execution_session_id: z.string().uuid().describe('start_execution으로 얻은 세션 ID'),
+    step_id: z.string().uuid().describe('실행한 스텝 ID'),
+    step_number: z.number().int().describe('스텝 번호'),
+    status: z.enum(['success', 'failed', 'skipped']).describe('실행 결과'),
+    selector_used: z.string().optional().describe('실제 성공한 선택자 (selector/xpath/coordinate)'),
+    error_message: z.string().optional().describe('실패 시 오류 메시지'),
+  },
+  async ({ execution_session_id, step_id, step_number, status, selector_used, error_message }) => {
+    await supabase.from('mm_step_results').insert({
+      execution_session_id,
+      step_id,
+      step_number,
+      status,
+      selector_used: selector_used ?? null,
+      error_message: error_message ?? null,
+    });
+
+    if (status === 'success') {
+      await supabase.rpc('increment_execution_completed', { session_id: execution_session_id });
+    }
+
+    return { content: [{ type: 'text', text: JSON.stringify({ saved: true, step_number, status }) }] };
+  }
+);
+
+server.tool(
+  'finish_execution',
+  '매뉴얼 자동 실행 세션을 종료합니다. 모든 스텝 실행 후 반드시 호출하세요.',
+  {
+    execution_session_id: z.string().uuid().describe('종료할 세션 ID'),
+    status: z.enum(['completed', 'failed', 'paused']).describe('최종 상태'),
+  },
+  async ({ execution_session_id, status }) => {
+    await supabase
+      .from('mm_execution_sessions')
+      .update({ status, finished_at: new Date().toISOString() })
+      .eq('id', execution_session_id)
+      .eq('user_id', OWNER_USER_ID);
+
+    return { content: [{ type: 'text', text: JSON.stringify({ finished: true, status }) }] };
+  }
+);
+
 // ── Start ─────────────────────────────────────────────────
 const transport = new StdioServerTransport();
 await server.connect(transport);

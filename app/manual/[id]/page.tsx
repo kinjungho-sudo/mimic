@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Share2, Download, Pencil, PlayCircle, X } from 'lucide-react';
+import { Share2, Download, Pencil, PlayCircle, X, Bot, Play, Pause, Square } from 'lucide-react';
 import { GuideToc } from '@/components/editor/GuideToc';
 import { GuideViewer } from '@/components/editor/GuideViewer';
 import { ShareModal } from '@/components/editor/ShareModal';
@@ -34,6 +34,13 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
   }));
 }
 
+// ── Types ─────────────────────────────────────────────────
+
+type RiskyStep = { step_number: number; title: string | null };
+type StepResultStatus = 'success' | 'failed' | 'skipped' | 'paused' | 'running';
+type StepResult = { step_number: number; status: StepResultStatus; error_message?: string | null };
+type ExecutionStatus = 'pending' | 'running' | 'completed' | 'failed' | 'paused';
+
 // ── Page ──────────────────────────────────────────────────
 
 export default function ManualViewerPage() {
@@ -51,17 +58,92 @@ export default function ManualViewerPage() {
   const [exporting, setExporting] = useState(false);
   const [guideMePreviewUrl, setGuideMePreviewUrl] = useState<string | null>(null);
 
+  // Auto-Run 상태
+  const [showAutoRunModal, setShowAutoRunModal] = useState(false);
+  const [autoRunLoading, setAutoRunLoading] = useState(false);
+  const [preflight, setPreflight] = useState<{ total: number; runnable: number; risky_steps: RiskyStep[] } | null>(null);
+  const [agreed, setAgreed] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [execStatus, setExecStatus] = useState<ExecutionStatus | null>(null);
+  const [stepResults, setStepResults] = useState<StepResult[]>([]);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   useEffect(() => {
     if (!tutorial) return;
     setTitle(tutorial.title);
     setOutputRatio(tutorial.output_ratio ?? '16:9');
     const steps = stepsToManualSteps(tutorial.steps);
     setManualSteps(steps);
-    if (tutorial.steps.length > 0 && !activeId) {
-      setActiveId(tutorial.steps[0].id);
-    }
+    if (tutorial.steps.length > 0 && !activeId) setActiveId(tutorial.steps[0].id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tutorial?.id]);
+
+  // 실행 상태 폴링 (2초 간격)
+  useEffect(() => {
+    if (!sessionId || !execStatus || ['completed', 'failed'].includes(execStatus)) {
+      if (pollRef.current) clearInterval(pollRef.current);
+      return;
+    }
+    pollRef.current = setInterval(async () => {
+      const res = await fetch(`/api/tutorials/${id}/auto-run?session_id=${sessionId}`);
+      if (!res.ok) return;
+      const data = await res.json() as { status: ExecutionStatus; step_results: StepResult[] };
+      setExecStatus(data.status);
+      setStepResults(data.step_results ?? []);
+      if (['completed', 'failed'].includes(data.status)) clearInterval(pollRef.current!);
+    }, 2000);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [sessionId, execStatus, id]);
+
+  const handleOpenAutoRun = useCallback(async () => {
+    setAutoRunLoading(true);
+    setAgreed(false);
+    try {
+      const res = await fetch(`/api/tutorials/${id}/auto-run`, { method: 'POST' });
+      if (!res.ok) { alert('실행 세션 생성에 실패했습니다.'); return; }
+      const data = await res.json() as { execution_session_id: string; pre_flight: typeof preflight };
+      setSessionId(data.execution_session_id);
+      setPreflight(data.pre_flight);
+      setStepResults([]);
+      setExecStatus('pending');
+      setShowAutoRunModal(true);
+    } finally {
+      setAutoRunLoading(false);
+    }
+  }, [id]);
+
+  const handleStartAutoRun = useCallback(async () => {
+    if (!sessionId) return;
+    await fetch(`/api/tutorials/${id}/auto-run`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId, status: 'running' }),
+    });
+    setExecStatus('running');
+    setShowAutoRunModal(false);
+  }, [sessionId, id]);
+
+  const handlePauseResume = useCallback(async () => {
+    if (!sessionId) return;
+    const next = execStatus === 'paused' ? 'running' : 'paused';
+    await fetch(`/api/tutorials/${id}/auto-run`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId, status: next }),
+    });
+    setExecStatus(next);
+  }, [sessionId, execStatus, id]);
+
+  const handleStopAutoRun = useCallback(async () => {
+    if (!sessionId) return;
+    await fetch(`/api/tutorials/${id}/auto-run`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId, status: 'failed' }),
+    });
+    setExecStatus('failed');
+    setSessionId(null);
+  }, [sessionId, id]);
 
   const handleExport = useCallback(async () => {
     setExporting(true);
@@ -109,6 +191,9 @@ export default function ManualViewerPage() {
   }
 
   const createdAt = new Date(tutorial.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+  const isRunning = execStatus === 'running' || execStatus === 'paused';
+  const completedCount = stepResults.filter(r => r.status === 'success').length;
+  const totalSteps = manualSteps.length;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
@@ -118,22 +203,20 @@ export default function ManualViewerPage() {
         display: 'flex', alignItems: 'center',
         padding: '0 16px',
         background: 'white',
-        borderBottom: '1px solid #E5E7EB',
-        gap: '0',
-        zIndex: 20,
+        borderBottom: `1px solid ${isRunning ? '#a5b4fc' : '#E5E7EB'}`,
+        gap: '0', zIndex: 20,
+        transition: 'border-color 0.3s',
+        boxShadow: isRunning ? '0 0 0 2px rgba(99,102,241,0.15)' : 'none',
       }}>
         {/* Left */}
         <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '10px', paddingRight: '16px', borderRight: '1px solid #F3F4F6' }}>
           <button
             onClick={() => router.push('/home')}
-            title="대시보드로 돌아가기"
             style={{ width: '32px', height: '32px', borderRadius: '8px', border: '1px solid #E5E7EB', background: 'white', display: 'grid', placeItems: 'center', color: '#6B7280', cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0 }}
             onMouseEnter={e => { e.currentTarget.style.background = '#F9FAFB'; e.currentTarget.style.color = '#111827'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'white'; e.currentTarget.style.color = '#6B7280'; }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
           </button>
           <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151', whiteSpace: 'nowrap' }}>매뉴얼</span>
         </div>
@@ -142,31 +225,48 @@ export default function ManualViewerPage() {
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', paddingLeft: '12px' }}>
           <span style={{ fontSize: '12px', color: '#9CA3AF' }}>{manualSteps.length}개 단계</span>
           {tutorial.status === 'published' && (
-            <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '20px', background: 'rgba(16,185,129,0.1)', color: '#059669', fontWeight: 500 }}>
-              게시됨
+            <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '20px', background: 'rgba(16,185,129,0.1)', color: '#059669', fontWeight: 500 }}>게시됨</span>
+          )}
+          {/* Auto-Run 실행 중 상태 표시 */}
+          {isRunning && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#6366f1', fontWeight: 600 }}>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#6366f1', animation: 'pulse 1.2s ease-in-out infinite', display: 'inline-block' }} />
+              AI 실행 중 · BETA — {completedCount} / {totalSteps}
             </span>
+          )}
+          {execStatus === 'completed' && (
+            <span style={{ fontSize: '11px', color: '#10b981', fontWeight: 600 }}>✅ 자동 실행 완료</span>
           )}
         </div>
 
-        {/* Right: actions */}
+        {/* Right */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            onClick={handleExport}
-            disabled={exporting}
-            title="PDF 내보내기"
+          {/* Auto-Run 실행 중 제어 버튼 */}
+          {isRunning && (
+            <>
+              <button onClick={handlePauseResume}
+                style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#6366f1', background: '#eef2ff', border: '1px solid #c7d2fe', cursor: 'pointer' }}>
+                {execStatus === 'paused' ? <Play size={12} /> : <Pause size={12} />}
+                {execStatus === 'paused' ? '재개' : '일시정지'}
+              </button>
+              <button onClick={handleStopAutoRun}
+                style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#ef4444', background: '#fef2f2', border: '1px solid #fecaca', cursor: 'pointer' }}>
+                <Square size={12} /> 중단
+              </button>
+            </>
+          )}
+
+          <button onClick={handleExport} disabled={exporting}
             style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', cursor: exporting ? 'not-allowed' : 'pointer', opacity: exporting ? 0.6 : 1 }}
             onMouseEnter={e => { if (!exporting) e.currentTarget.style.background = '#F9FAFB'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
-          >
+            onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}>
             <Download size={13} /> {exporting ? '생성 중…' : 'PDF'}
           </button>
 
-          <button
-            onClick={() => setShowShare(true)}
+          <button onClick={() => setShowShare(true)}
             style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', cursor: 'pointer' }}
             onMouseEnter={e => { e.currentTarget.style.background = '#F9FAFB'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
-          >
+            onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}>
             <Share2 size={13} /> 공유
           </button>
 
@@ -177,20 +277,29 @@ export default function ManualViewerPage() {
                 if (!firstUrl) return;
                 setGuideMePreviewUrl(`${firstUrl}${firstUrl.includes('?') ? '&' : '?'}mimic_guide=${tutorial.share_token}`);
               }}
-              title="실제 페이지에서 Guide Me 미리보기"
-              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#3730a3', background: '#e0e7ff', border: '1px solid #a5b4fc', cursor: 'pointer' }}
-            >
+              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#3730a3', background: '#e0e7ff', border: '1px solid #a5b4fc', cursor: 'pointer' }}>
               <PlayCircle size={13} /> Guide Me
             </button>
           )}
 
-          {/* 편집 버튼 — 편집기 페이지로 이동 */}
-          <button
-            onClick={() => router.push(`/manual/${id}/editor`)}
-            style={{ height: '32px', padding: '0 14px', borderRadius: '7px', fontSize: '12.5px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'white', background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', border: 'none', cursor: 'pointer', boxShadow: '0 1px 6px rgba(55,48,163,0.3)', transition: 'box-shadow 0.15s' }}
-            onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 14px rgba(55,48,163,0.45)'; }}
-            onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 6px rgba(55,48,163,0.3)'; }}
-          >
+          {/* Auto-Run BETA 버튼 */}
+          {!isRunning && (
+            <button onClick={handleOpenAutoRun} disabled={autoRunLoading}
+              style={{ height: '32px', padding: '0 14px', borderRadius: '7px', fontSize: '12.5px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'white', background: autoRunLoading ? 'rgba(99,102,241,0.6)' : 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)', border: 'none', cursor: autoRunLoading ? 'not-allowed' : 'pointer', boxShadow: '0 1px 6px rgba(99,102,241,0.35)', transition: 'box-shadow 0.15s' }}
+              onMouseEnter={e => { if (!autoRunLoading) e.currentTarget.style.boxShadow = '0 4px 14px rgba(99,102,241,0.5)'; }}
+              onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 6px rgba(99,102,241,0.35)'; }}>
+              {autoRunLoading
+                ? <span style={{ width: '11px', height: '11px', borderRadius: '50%', border: '2px solid rgba(255,255,255,0.4)', borderTopColor: 'white', animation: 'spin 0.8s linear infinite', flexShrink: 0 }} />
+                : <Bot size={13} />}
+              Auto-Run
+              <span style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.05em', padding: '1px 5px', background: 'rgba(255,255,255,0.2)', borderRadius: '4px' }}>BETA</span>
+            </button>
+          )}
+
+          <button onClick={() => router.push(`/manual/${id}/editor`)}
+            style={{ height: '32px', padding: '0 14px', borderRadius: '7px', fontSize: '12.5px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', cursor: 'pointer', transition: 'all 0.15s' }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#F9FAFB'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}>
             <Pencil size={13} /> 편집
           </button>
         </div>
@@ -200,45 +309,147 @@ export default function ManualViewerPage() {
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         {/* TOC */}
         <div style={{ width: '240px', flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid #E5E7EB', background: 'white', minHeight: 0 }}>
-          <GuideToc
-            steps={manualSteps}
-            activeId={activeId}
-            onSelect={setActiveId}
-            editable={false}
-          />
+          <GuideToc steps={manualSteps} activeId={activeId} onSelect={setActiveId} editable={false} />
         </div>
 
         {/* Main */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
-          {/* Title banner */}
-          <div style={{ flexShrink: 0, padding: '14px 40px 12px', borderBottom: '1px solid #E5E7EB', background: 'white', display: 'flex', alignItems: 'baseline', gap: '12px' }}>
-            <h1 style={{ flex: 1, margin: 0, fontSize: '20px', fontWeight: 700, color: '#111827', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {title || '제목 없음'}
-            </h1>
-            <span style={{ fontSize: '11px', color: '#C4C9D4', whiteSpace: 'nowrap', flexShrink: 0 }}>
-              {createdAt} 생성
-            </span>
+        <div style={{ flex: 1, display: 'flex', minWidth: 0, minHeight: 0 }}>
+          {/* Viewer */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
+            <div style={{ flexShrink: 0, padding: '14px 40px 12px', borderBottom: '1px solid #E5E7EB', background: 'white', display: 'flex', alignItems: 'baseline', gap: '12px' }}>
+              <h1 style={{ flex: 1, margin: 0, fontSize: '20px', fontWeight: 700, color: '#111827', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title || '제목 없음'}</h1>
+              <span style={{ fontSize: '11px', color: '#C4C9D4', whiteSpace: 'nowrap', flexShrink: 0 }}>{createdAt} 생성</span>
+            </div>
+            <GuideViewer steps={manualSteps} activeId={activeId} onActiveChange={setActiveId} outputRatio={outputRatio} />
           </div>
 
-          <GuideViewer
-            steps={manualSteps}
-            activeId={activeId}
-            onActiveChange={setActiveId}
-            outputRatio={outputRatio}
-          />
+          {/* Auto-Run 진행 패널 */}
+          {(isRunning || execStatus === 'completed' || execStatus === 'failed') && stepResults.length > 0 && (
+            <div style={{ width: '220px', flexShrink: 0, borderLeft: '1px solid #E5E7EB', background: 'white', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+              <div style={{ padding: '12px 14px', borderBottom: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                <Bot size={13} color="#6366f1" />
+                <span style={{ fontSize: '12px', fontWeight: 600, color: '#374151' }}>실행 결과</span>
+                <span style={{ marginLeft: 'auto', fontSize: '11px', color: '#9CA3AF' }}>{completedCount}/{totalSteps}</span>
+              </div>
+              <div style={{ flex: 1, padding: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {manualSteps.map(step => {
+                  const result = stepResults.find(r => r.step_number === step.number);
+                  const status = result?.status;
+                  const icon = status === 'success' ? '✅' : status === 'failed' ? '❌' : status === 'skipped' ? '⏭' : status === 'running' ? '⏳' : '○';
+                  const color = status === 'success' ? '#10b981' : status === 'failed' ? '#ef4444' : status === 'skipped' ? '#9CA3AF' : '#6366f1';
+                  return (
+                    <div key={step.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 8px', borderRadius: '6px', background: status ? '#F9FAFB' : 'transparent' }}>
+                      <span style={{ fontSize: '12px', flexShrink: 0 }}>{icon}</span>
+                      <span style={{ fontSize: '11px', color, fontWeight: status ? 500 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {step.number}. {step.actionTitle || '(제목 없음)'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Guide Me iframe */}
+      {/* ── Auto-Run Pre-flight 모달 ── */}
+      {showAutoRunModal && preflight && (
+        <>
+          <div onClick={() => setShowAutoRunModal(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,15,0.55)', zIndex: 60, backdropFilter: 'blur(4px)' }} />
+          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 'min(440px, 92vw)', background: 'white', borderRadius: '20px', boxShadow: '0 30px 80px rgba(0,0,0,0.22)', zIndex: 61, overflow: 'hidden' }}>
+            {/* 헤더 */}
+            <div style={{ padding: '24px 24px 20px', borderBottom: '1px solid #F3F4F6' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(135deg, #4f46e5, #7c3aed)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                  <Bot size={18} color="white" />
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#111827' }}>AI 자동 실행</h2>
+                    <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 6px', background: '#eef2ff', color: '#4f46e5', borderRadius: '4px', letterSpacing: '0.05em' }}>BETA</span>
+                  </div>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#9CA3AF' }}>Claude 에이전트가 매뉴얼을 자동으로 실행합니다</p>
+                </div>
+                <button onClick={() => setShowAutoRunModal(false)} style={{ marginLeft: 'auto', border: 'none', background: 'transparent', cursor: 'pointer', color: '#9CA3AF', padding: '4px' }}>
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* 바디 */}
+            <div style={{ padding: '20px 24px' }}>
+              {/* 실행 가능 스텝 요약 */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '16px' }}>
+                <div style={{ padding: '12px', background: '#F9FAFB', borderRadius: '10px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '22px', fontWeight: 700, color: '#111827' }}>{preflight.total}</div>
+                  <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '2px' }}>전체 스텝</div>
+                </div>
+                <div style={{ padding: '12px', background: preflight.runnable === preflight.total ? 'rgba(16,185,129,0.05)' : 'rgba(245,158,11,0.05)', borderRadius: '10px', textAlign: 'center', border: `1px solid ${preflight.runnable === preflight.total ? 'rgba(16,185,129,0.2)' : 'rgba(245,158,11,0.2)'}` }}>
+                  <div style={{ fontSize: '22px', fontWeight: 700, color: preflight.runnable === preflight.total ? '#10b981' : '#f59e0b' }}>{preflight.runnable}</div>
+                  <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '2px' }}>실행 가능</div>
+                </div>
+              </div>
+
+              {/* 위험 스텝 경고 */}
+              {preflight.risky_steps.length > 0 && (
+                <div style={{ padding: '12px', background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '10px', marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '14px' }}>⚠️</span>
+                    <span style={{ fontSize: '12px', fontWeight: 600, color: '#dc2626' }}>위험 스텝 {preflight.risky_steps.length}개 감지</span>
+                  </div>
+                  {preflight.risky_steps.map((rs, i) => (
+                    <div key={i} style={{ fontSize: '11.5px', color: '#6B7280', paddingLeft: '20px', lineHeight: 1.7 }}>
+                      · Step {rs.step_number}: {rs.title}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* 실행 방법 안내 */}
+              <div style={{ padding: '12px', background: '#F9FAFB', borderRadius: '10px', marginBottom: '16px' }}>
+                <div style={{ fontSize: '11.5px', color: '#6B7280', lineHeight: 1.7 }}>
+                  <div style={{ fontWeight: 600, color: '#374151', marginBottom: '4px' }}>실행 방법</div>
+                  <div>1. 이 모달을 닫으면 Claude Code에서 실행을 시작하세요.</div>
+                  <div>2. <code style={{ background: '#E5E7EB', padding: '1px 4px', borderRadius: '3px', fontSize: '11px' }}>&quot;[매뉴얼 제목] 자동 실행해줘&quot;</code> 라고 입력하세요.</div>
+                  <div>3. Claude가 MIMIC MCP + Playwright로 자동 실행합니다.</div>
+                </div>
+              </div>
+
+              {/* 동의 체크박스 */}
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer', marginBottom: '20px' }}>
+                <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)}
+                  style={{ marginTop: '2px', flexShrink: 0, accentColor: '#4f46e5' }} />
+                <span style={{ fontSize: '12px', color: '#6B7280', lineHeight: 1.55 }}>
+                  AI 자동 실행 중 발생하는 결과(클릭, 입력, 이동 등)에 대한 책임은 사용자에게 있음에 동의합니다.
+                </span>
+              </label>
+
+              {/* 버튼 */}
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={() => setShowAutoRunModal(false)}
+                  style={{ flex: 1, height: '40px', borderRadius: '9px', border: '1px solid #E5E7EB', background: 'white', fontSize: '13px', color: '#374151', cursor: 'pointer' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#F9FAFB'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}>
+                  취소
+                </button>
+                <button onClick={handleStartAutoRun} disabled={!agreed}
+                  style={{ flex: 2, height: '40px', borderRadius: '9px', border: 'none', background: agreed ? 'linear-gradient(135deg, #4f46e5, #7c3aed)' : '#E5E7EB', color: agreed ? 'white' : '#9CA3AF', fontSize: '13.5px', fontWeight: 600, cursor: agreed ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'all 0.15s' }}>
+                  <Bot size={14} /> 실행 시작
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Guide Me iframe 모달 */}
       {guideMePreviewUrl && (
         <>
           <div onClick={() => setGuideMePreviewUrl(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,15,0.55)', zIndex: 60, backdropFilter: 'blur(4px)' }} />
           <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 'min(1100px, 94vw)', height: 'min(700px, 90vh)', background: 'white', borderRadius: '16px', boxShadow: '0 30px 80px rgba(0,0,0,0.25)', zIndex: 61, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             <div style={{ padding: '12px 16px', borderBottom: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
               <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>Guide Me 미리보기</span>
-              <button onClick={() => setGuideMePreviewUrl(null)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#9CA3AF', padding: '4px' }}>
-                <X size={16} />
-              </button>
+              <button onClick={() => setGuideMePreviewUrl(null)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#9CA3AF', padding: '4px' }}><X size={16} /></button>
             </div>
             <iframe src={guideMePreviewUrl} style={{ flex: 1, border: 'none', width: '100%' }} title="Guide Me 미리보기" />
           </div>
@@ -256,7 +467,10 @@ export default function ManualViewerPage() {
         />
       )}
 
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+      `}</style>
     </div>
   );
 }

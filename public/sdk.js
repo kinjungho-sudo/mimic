@@ -500,4 +500,193 @@
   } else {
     autoInit();
   }
+
+  // ── Auto-Run BETA ──────────────────────────────────────────
+  // Guide Me 확장: AI 에이전트가 브라우저를 제어하는 동안 시각적 오버레이 표시
+
+  var autoRunOverlay = null;
+  var autoRunCursor = null;
+  var autoRunBar = null;
+  var autoRunPaused = false;
+
+  function injectAutoRunStyles() {
+    if (document.getElementById('mimic-autorun-styles')) return;
+    var s = document.createElement('style');
+    s.id = 'mimic-autorun-styles';
+    s.textContent = [
+      // 파란 테두리 pulse — body에 직접 적용
+      '@keyframes mimicBorderPulse {',
+      '  0%,100% { box-shadow: inset 0 0 0 4px rgba(55,48,163,0.9), inset 0 0 0 6px rgba(55,48,163,0.3); }',
+      '  50%     { box-shadow: inset 0 0 0 4px rgba(99,102,241,1),   inset 0 0 0 10px rgba(99,102,241,0.2); }',
+      '}',
+      // 클릭 ripple
+      '@keyframes mimicRipple {',
+      '  0%   { transform: translate(-50%,-50%) scale(0); opacity: 1; }',
+      '  100% { transform: translate(-50%,-50%) scale(3); opacity: 0; }',
+      '}',
+      // 커서 등장
+      '@keyframes mimicCursorIn {',
+      '  from { opacity: 0; transform: scale(0.5); }',
+      '  to   { opacity: 1; transform: scale(1); }',
+      '}',
+      // 상태 바 등장
+      '@keyframes mimicBarIn {',
+      '  from { opacity: 0; transform: translateX(-50%) translateY(20px); }',
+      '  to   { opacity: 1; transform: translateX(-50%) translateY(0); }',
+      '}',
+      '#mimic-autorun-cursor {',
+      '  position: fixed; z-index: 2147483640; pointer-events: none;',
+      '  width: 24px; height: 24px;',
+      '  transition: left 0.35s cubic-bezier(.4,0,.2,1), top 0.35s cubic-bezier(.4,0,.2,1);',
+      '  animation: mimicCursorIn 0.3s ease;',
+      '  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));',
+      '}',
+      '#mimic-autorun-bar {',
+      '  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);',
+      '  z-index: 2147483641; pointer-events: auto;',
+      '  display: flex; align-items: center; gap: 12px;',
+      '  background: rgba(17,24,39,0.94); color: white;',
+      '  padding: 10px 20px; border-radius: 999px;',
+      '  font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;',
+      '  font-size: 13px; font-weight: 500;',
+      '  box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.08);',
+      '  animation: mimicBarIn 0.3s ease;',
+      '  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);',
+      '  white-space: nowrap;',
+      '}',
+      '#mimic-autorun-bar .mar-icon { font-size: 16px; }',
+      '#mimic-autorun-bar .mar-label { color: rgba(255,255,255,0.55); font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }',
+      '#mimic-autorun-bar .mar-title { max-width: 200px; overflow: hidden; text-overflow: ellipsis; }',
+      '#mimic-autorun-bar .mar-progress { display: flex; align-items: center; gap: 6px; color: rgba(255,255,255,0.5); font-size: 12px; }',
+      '#mimic-autorun-bar .mar-bar { width: 80px; height: 3px; background: rgba(255,255,255,0.15); border-radius: 999px; overflow: hidden; }',
+      '#mimic-autorun-bar .mar-bar-fill { height: 100%; background: #6366f1; border-radius: 999px; transition: width 0.4s ease; }',
+      '#mimic-autorun-bar .mar-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); color: white; border-radius: 6px; padding: 4px 10px; font-size: 11px; cursor: pointer; transition: background 0.15s; }',
+      '#mimic-autorun-bar .mar-btn:hover { background: rgba(255,255,255,0.2); }',
+      '#mimic-autorun-bar .mar-divider { width: 1px; height: 18px; background: rgba(255,255,255,0.12); }',
+      '.mimic-autorun-active { animation: mimicBorderPulse 2s ease-in-out infinite !important; }',
+    ].join('\n');
+    document.head.appendChild(s);
+  }
+
+  function createAutoRunCursor() {
+    var el = document.createElement('div');
+    el.id = 'mimic-autorun-cursor';
+    el.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none">'
+      + '<path d="M4 2 L18 12 L11 13 L8 20 Z" fill="white" stroke="#3730a3" stroke-width="1.5" stroke-linejoin="round"/>'
+      + '<circle cx="18" cy="18" r="4" fill="#6366f1"/>'
+      + '</svg>';
+    el.style.left = '-100px';
+    el.style.top = '-100px';
+    document.body.appendChild(el);
+    return el;
+  }
+
+  function createAutoRunBar(stepTitle, stepNum, totalSteps) {
+    var el = document.createElement('div');
+    el.id = 'mimic-autorun-bar';
+    var pct = totalSteps > 0 ? Math.round((stepNum / totalSteps) * 100) : 0;
+
+    // 정적 구조만 innerHTML로 (외부 데이터 없음)
+    el.innerHTML = '<span class="mar-icon">🤖</span>'
+      + '<span class="mar-label">AI 실행 중 · BETA</span>'
+      + '<span class="mar-divider"></span>'
+      + '<span class="mar-title" id="mimic-ar-title"></span>'
+      + '<span class="mar-progress">'
+      + '  <span id="mimic-ar-step"></span>'
+      + '  <span class="mar-bar"><span class="mar-bar-fill" id="mimic-ar-fill"></span></span>'
+      + '</span>'
+      + '<span class="mar-divider"></span>'
+      + '<button class="mar-btn" id="mimic-ar-pause">⏸ 일시정지</button>'
+      + '<button class="mar-btn" id="mimic-ar-stop">⏹ 중단</button>';
+
+    // 외부 데이터는 textContent로 안전하게 삽입
+    el.querySelector('#mimic-ar-title').textContent = stepTitle || '';
+    el.querySelector('#mimic-ar-step').textContent = stepNum + ' / ' + totalSteps;
+    el.querySelector('#mimic-ar-fill').style.width = pct + '%';
+
+    document.body.appendChild(el);
+
+    document.getElementById('mimic-ar-pause').onclick = function () {
+      autoRunPaused = !autoRunPaused;
+      this.textContent = autoRunPaused ? '▶ 재개' : '⏸ 일시정지';
+      if (window.MimicAutoRun && window.MimicAutoRun._onPause) window.MimicAutoRun._onPause(autoRunPaused);
+    };
+    document.getElementById('mimic-ar-stop').onclick = function () {
+      window.MimicAutoRun.stop();
+    };
+    return el;
+  }
+
+  function showClickRipple(xPct, yPct) {
+    var ripple = document.createElement('div');
+    ripple.style.cssText = [
+      'position:fixed',
+      'z-index:2147483642',
+      'pointer-events:none',
+      'left:' + xPct + '%',
+      'top:' + yPct + '%',
+      'width:40px',
+      'height:40px',
+      'border:3px solid #ef4444',
+      'border-radius:50%',
+      'animation:mimicRipple 0.5s ease-out forwards',
+    ].join(';');
+    document.body.appendChild(ripple);
+    setTimeout(function () { ripple.parentNode && ripple.parentNode.removeChild(ripple); }, 520);
+  }
+
+  // window.MimicAutoRun 공개 인터페이스
+  window.MimicAutoRun = {
+    // AI 에이전트가 실행 시작 시 호출
+    start: function (options) {
+      options = options || {};
+      injectAutoRunStyles();
+      document.documentElement.classList.add('mimic-autorun-active');
+      autoRunCursor = createAutoRunCursor();
+      autoRunBar = createAutoRunBar(options.stepTitle || '', options.stepNum || 0, options.totalSteps || 0);
+      autoRunPaused = false;
+    },
+
+    // AI가 다음 스텝으로 이동할 때 상태 업데이트
+    updateStep: function (stepNum, totalSteps, stepTitle) {
+      if (!autoRunBar) return;
+      var titleEl = document.getElementById('mimic-ar-title');
+      var stepEl = document.getElementById('mimic-ar-step');
+      var fillEl = document.getElementById('mimic-ar-fill');
+      if (titleEl) titleEl.textContent = stepTitle || '';
+      if (stepEl) stepEl.textContent = stepNum + ' / ' + totalSteps;
+      if (fillEl) fillEl.style.width = (totalSteps > 0 ? Math.round((stepNum / totalSteps) * 100) : 0) + '%';
+    },
+
+    // AI가 클릭하기 직전 커서 이동
+    moveCursor: function (xPct, yPct) {
+      if (!autoRunCursor) return;
+      autoRunCursor.style.left = xPct + '%';
+      autoRunCursor.style.top = yPct + '%';
+    },
+
+    // AI가 클릭할 때 ripple 효과
+    click: function (xPct, yPct) {
+      this.moveCursor(xPct, yPct);
+      showClickRipple(xPct, yPct);
+    },
+
+    // 일시정지 여부 확인
+    isPaused: function () { return autoRunPaused; },
+
+    // 실행 종료 (완료 또는 중단)
+    stop: function () {
+      document.documentElement.classList.remove('mimic-autorun-active');
+      if (autoRunCursor && autoRunCursor.parentNode) autoRunCursor.parentNode.removeChild(autoRunCursor);
+      if (autoRunBar && autoRunBar.parentNode) autoRunBar.parentNode.removeChild(autoRunBar);
+      autoRunCursor = null;
+      autoRunBar = null;
+      autoRunPaused = false;
+      if (this._onStop) this._onStop();
+    },
+
+    // 내부 콜백 (웹앱에서 설정)
+    _onPause: null,
+    _onStop: null,
+  };
 })();
