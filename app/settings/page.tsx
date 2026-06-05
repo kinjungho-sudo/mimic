@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
-import { useRouter } from 'next/navigation';
 
 const NAV_ITEMS = [
   { href: '/home', label: '홈', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> },
@@ -40,8 +39,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 
 export default function SettingsPage() {
-  const { user, loading, signOut, updateUser } = useAuth();
-  const router = useRouter();
+  const { user, loading, updateUser } = useAuth();
 
   const [marketing, setMarketing] = useState<boolean | null>(null);
   const currentMarketing = marketing !== null ? marketing : (user?.agreements?.marketing ?? false);
@@ -59,11 +57,6 @@ export default function SettingsPage() {
     } else {
       setMarketing(!value);
     }
-  };
-
-  const handleSignOut = async () => {
-    await signOut();
-    router.push('/auth/login');
   };
 
   if (loading) {
@@ -125,19 +118,11 @@ export default function SettingsPage() {
         </Section>
 
         <Section title="계정">
-          <div style={{ padding: '14px 20px', borderBottom: '1px solid #F9FAFB' }}>
+          <div style={{ padding: '14px 20px' }}>
             <a href="mailto:hello@mimicflow.com" style={{ fontSize: '13.5px', fontWeight: 500, color: '#111827', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span>고객 지원 문의</span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
             </a>
-          </div>
-          <div style={{ padding: '14px 20px' }}>
-            <button
-              onClick={handleSignOut}
-              style={{ fontSize: '13.5px', fontWeight: 500, color: '#EF4444', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-            >
-              로그아웃
-            </button>
           </div>
         </Section>
 

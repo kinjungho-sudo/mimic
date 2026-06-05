@@ -113,6 +113,16 @@ const SHAPE_TOOLS: Tool[] = ['ellipse', 'rect', 'roundedRect', 'arrow', 'mosaic'
 
 function genId() { return Math.random().toString(36).slice(2, 9); }
 
+function AlignIcon({ align }: { align: 'left' | 'center' | 'right' }) {
+  return (
+    <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+      {align === 'left'   && <><line x1="1" y1="3" x2="13" y2="3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="1" y1="7" x2="9"  y2="7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="1" y1="11" x2="11" y2="11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></>}
+      {align === 'center' && <><line x1="1" y1="3" x2="13" y2="3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="3" y1="7" x2="11" y2="7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="2" y1="11" x2="12" y2="11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></>}
+      {align === 'right'  && <><line x1="1" y1="3" x2="13" y2="3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="5" y1="7" x2="13" y2="7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="3" y1="11" x2="13" y2="11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></>}
+    </svg>
+  );
+}
+
 function distToSegment(px: number, py: number, x1: number, y1: number, x2: number, y2: number, aw: number) {
   const dx = (x2 - x1) * aw, dy = y2 - y1;
   const lenSq = dx * dx + dy * dy;
@@ -231,7 +241,7 @@ export function ImageAnnotationEditor({
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('[data-text-editor]')) return;
     if (editingText) { commitTextRef.current(); return; }
-    if (tool === 'select') { setSelectedId(null); return; }
+    if (tool === 'select') { setSelectedId(null); setColorPopover(null); setAlignOpen(false); return; }
 
     e.preventDefault();
     setSelectedId(null);
@@ -428,20 +438,83 @@ export function ImageAnnotationEditor({
     onClose();
   };
 
+  // 선택된 아이템 속성을 즉시 업데이트 (커서 모드에서 속성 변경)
+  const updateSelected = useCallback((patch: Partial<Annotation>) => {
+    if (!selectedId) return;
+    setItems(cur => cur.map(a => a.id === selectedId ? { ...a, ...patch } : a));
+  }, [selectedId]);
+
   const editingItem = editingText ? items.find(a => a.id === editingText.id) : null;
+  const selectedItem = selectedId ? items.find(a => a.id === selectedId) : null;
+
+  // 툴바 표시 조건 — tool 또는 select 모드에서 선택된 아이템 타입 기준
+  const effectiveType = tool === 'select'
+    ? (selectedItem?.type ?? null)
+    : tool;
+
   const isTextTool = tool === 'text';
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const isShapeTool = ['ellipse', 'rect', 'roundedRect', 'arrow'].includes(tool);
+
+  // 현재 편집 대상의 속성값 (select 모드에서는 선택 아이템 값, 아니면 전역 state)
+  /* eslint-disable @typescript-eslint/no-unused-vars */
+  const activeColor      = (tool === 'select' && selectedItem) ? selectedItem.color        : color;
+  const activeStrokeIdx  = (tool === 'select' && selectedItem) ? (() => {
+    const sw = selectedItem.strokeWidth;
+    const idx = STROKE_OPTIONS.findIndex(o => Math.abs(o.value - sw) < 0.1);
+    return idx >= 0 ? idx : strokeIdx;
+  })() : strokeIdx;
+  const activeFontSize   = (tool === 'select' && selectedItem?.fontSize)   ? selectedItem.fontSize   : fontSize;
+  const activeFontBold   = (tool === 'select' && selectedItem)             ? (selectedItem.fontBold ?? false) : fontBold;
+  const activeBorderColor= (tool === 'select' && selectedItem?.borderColor)? selectedItem.borderColor: borderColor;
+  const activeTextAlign  = (tool === 'select' && selectedItem?.textAlign)  ? selectedItem.textAlign  : textAlign;
+  const activeHasBg      = (tool === 'select' && selectedItem)             ? (selectedItem.hasBg !== false)  : hasBg;
+  /* eslint-enable @typescript-eslint/no-unused-vars */
+
+  // setter: select 모드면 아이템 직접 업데이트, 아니면 전역 state
+  /* eslint-disable @typescript-eslint/no-unused-vars */
+  const setActiveColor = (c: string) => {
+    if (tool === 'select' && selectedId) updateSelected({ color: c });
+    setColor(c);
+  };
+  const setActiveStrokeIdx = (i: number) => {
+    if (tool === 'select' && selectedId) updateSelected({ strokeWidth: STROKE_OPTIONS[i].value });
+    setStrokeIdx(i);
+  };
+  const setActiveFontSize = (s: number) => {
+    if (tool === 'select' && selectedId) updateSelected({ fontSize: s });
+    setFontSize(s);
+  };
+  const setActiveFontBold = (b: boolean) => {
+    if (tool === 'select' && selectedId) updateSelected({ fontBold: b });
+    setFontBold(b);
+  };
+  const setActiveBorderColor = (c: string) => {
+    if (tool === 'select' && selectedId) updateSelected({ borderColor: c });
+    setBorderColor(c);
+  };
+  const setActiveTextAlign = (a: 'left' | 'center' | 'right') => {
+    if (tool === 'select' && selectedId) updateSelected({ textAlign: a });
+    setTextAlign(a);
+  };
+  const setActiveHasBg = (b: boolean) => {
+    if (tool === 'select' && selectedId) updateSelected({ hasBg: b });
+    setHasBg(b);
+  };
+  /* eslint-enable @typescript-eslint/no-unused-vars */
+
+  const showColor    = effectiveType !== null && !['mosaic', 'eraser', 'spotlight'].includes(effectiveType);
+  const showStroke   = effectiveType !== null && ['ellipse', 'rect', 'roundedRect', 'arrow'].includes(effectiveType);
+  const showTextOpts = effectiveType === 'text';
+
+  const [colorPopover, setColorPopover] = useState<'main' | 'text' | 'border' | null>(null);
+  const [alignOpen, setAlignOpen] = useState(false);
 
   const activeCursor =
     tool === 'eraser' ? 'cell' :
     tool === 'select' ? 'default' :
     tool === 'text' ? 'crosshair' :
     'crosshair';
-
-  // 툴바 표시 조건 — 단순화
-  const showColor = !['mosaic', 'select', 'eraser', 'spotlight'].includes(tool);
-  const showStroke = isShapeTool || tool === 'arrow';
-  const showTextOpts = isTextTool;
 
   return (
     <div
@@ -462,7 +535,7 @@ export function ImageAnnotationEditor({
         {/* ── 툴바 — 2줄 구조 ── */}
         <div style={{ flexShrink: 0, background: '#1F2937', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
 
-          {/* ── 1줄: 도구 버튼 + 액션 ── */}
+          {/* ── 1줄: 도구 버튼 + 색상 + 액션 ── */}
           <div style={{ display: 'flex', alignItems: 'center', padding: '0 12px', gap: '6px', height: '48px' }}>
             {/* 툴 그룹 */}
             {TOOL_GROUPS.map((group, gi) => (
@@ -471,7 +544,7 @@ export function ImageAnnotationEditor({
                   const active = tool === t;
                   return (
                     <button key={t} title={TOOL_CONFIG[t].label}
-                      onClick={() => { if (editingText) commitTextRef.current(); setTool(t); }}
+                      onClick={() => { if (editingText) commitTextRef.current(); setTool(t); setColorPopover(null); setAlignOpen(false); }}
                       style={{
                         width: '32px', height: '32px', borderRadius: '5px', border: 'none',
                         display: 'grid', placeItems: 'center', cursor: 'pointer',
@@ -486,6 +559,26 @@ export function ImageAnnotationEditor({
                 })}
               </div>
             ))}
+
+            {/* 공통 색상 버튼 — 색상이 필요한 툴/선택 상태일 때만 표시 */}
+            {showColor && (
+              <div style={{ position: 'relative' }}>
+                <button
+                  title="색상 변경"
+                  onClick={e => { e.stopPropagation(); setColorPopover(colorPopover === 'main' ? null : 'main'); setAlignOpen(false); }}
+                  style={{ width: '28px', height: '28px', borderRadius: '50%', border: '2.5px solid rgba(255,255,255,0.5)', background: activeColor, cursor: 'pointer', outline: 'none', flexShrink: 0 }}
+                />
+                {colorPopover === 'main' && (
+                  <div onClick={e => e.stopPropagation()} style={{ position: 'absolute', top: '38px', left: '50%', transform: 'translateX(-50%)', zIndex: 200, background: '#1F2937', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '10px', padding: '8px 6px', display: 'flex', flexDirection: 'column', gap: '5px', boxShadow: '0 8px 24px rgba(0,0,0,0.6)' }}>
+                    {(showTextOpts ? [...COLORS, '#FFFFFF'] : COLORS).map(c => (
+                      <button key={c} onClick={() => { setActiveColor(c); setColorPopover(null); }}
+                        style={{ width: '22px', height: '22px', borderRadius: '50%', background: c, border: activeColor === c ? '2.5px solid white' : c === '#FFFFFF' ? '1.5px solid rgba(255,255,255,0.4)' : '2px solid transparent', cursor: 'pointer', outline: 'none', flexShrink: 0 }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div style={{ flex: 1 }} />
 
@@ -517,142 +610,87 @@ export function ImageAnnotationEditor({
             >저장</button>
           </div>
 
-          {/* ── 2줄: 선택된 툴의 옵션 (옵션이 있을 때만 표시) ── */}
-          {(showColor || showStroke || showTextOpts || ['mosaic','eraser','spotlight','text'].includes(tool)) && (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: '8px',
-              padding: '0 16px', height: '38px',
-              background: 'rgba(0,0,0,0.25)',
-              borderTop: '1px solid rgba(255,255,255,0.06)',
-            }}>
-              {/* 색상 */}
-              {showColor && (
-                <>
-                  <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' }}>색상</span>
-                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                    {COLORS.map(c => (
-                      <button key={c} onClick={() => setColor(c)}
-                        style={{ width: '16px', height: '16px', borderRadius: '50%', background: c, border: color === c ? '2.5px solid white' : '2px solid transparent', cursor: 'pointer', flexShrink: 0, outline: 'none' }}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {/* 굵기 — 도형/화살표 */}
+          {/* ── 2줄: 옵션 바 (색상은 1줄 공통 버튼으로 이동, 여기선 굵기/텍스트 속성/힌트만) ── */}
+          {(showStroke || showTextOpts || ['mosaic','eraser','spotlight'].includes(tool)) && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 12px', height: '38px', background: 'rgba(0,0,0,0.25)', borderTop: '1px solid rgba(255,255,255,0.06)' }}
+              onClick={() => { setAlignOpen(false); }}
+            >
+              {/* 굵기 */}
               {showStroke && (
                 <>
-                  {showColor && <div style={{ width: '1px', height: '18px', background: 'rgba(255,255,255,0.12)' }} />}
                   <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' }}>굵기</span>
-                  <div style={{ display: 'flex', gap: '3px', alignItems: 'center' }}>
-                    {STROKE_OPTIONS.map((opt, i) => {
-                      const active = strokeIdx === i;
-                      return (
-                        <button key={i} onClick={() => setStrokeIdx(i)} title={`굵기 ${opt.label}`}
-                          style={{
-                            width: '28px', height: '24px', borderRadius: '4px',
-                            border: active ? '1.5px solid white' : '1.5px solid rgba(255,255,255,0.2)',
-                            background: active ? 'rgba(255,255,255,0.15)' : 'transparent',
-                            cursor: 'pointer', display: 'grid', placeItems: 'center',
-                          }}
-                        >
-                          <div style={{ width: '12px', height: `${i * 2 + 2}px`, background: 'white', borderRadius: '1px' }} />
-                        </button>
-                      );
-                    })}
+                  <div style={{ display: 'flex', gap: '3px' }}>
+                    {STROKE_OPTIONS.map((_, i) => (
+                      <button key={i} onClick={() => setActiveStrokeIdx(i)}
+                        style={{ width: '28px', height: '24px', borderRadius: '4px', border: activeStrokeIdx === i ? '1.5px solid white' : '1.5px solid rgba(255,255,255,0.2)', background: activeStrokeIdx === i ? 'rgba(255,255,255,0.15)' : 'transparent', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
+                      ><div style={{ width: '12px', height: `${i * 2 + 2}px`, background: 'white', borderRadius: '1px' }} /></button>
+                    ))}
                   </div>
                 </>
               )}
 
-              {/* 텍스트 옵션 */}
+              {/* 텍스트 옵션 (글자색은 1줄 공통 색상 버튼으로 이동) */}
               {showTextOpts && (
                 <>
-                  {showColor && <div style={{ width: '1px', height: '18px', background: 'rgba(255,255,255,0.12)' }} />}
-                  {/* 텍스트 글자색 */}
-                  <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' }}>글자색</span>
-                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                    {[...COLORS, '#FFFFFF'].map(c => (
-                      <button key={c} onClick={() => setColor(c)}
-                        style={{ width: '16px', height: '16px', borderRadius: '50%', background: c, border: color === c ? '2.5px solid white' : c === '#FFFFFF' ? '1.5px solid rgba(255,255,255,0.4)' : '2px solid transparent', cursor: 'pointer', flexShrink: 0, outline: 'none' }}
-                      />
-                    ))}
-                  </div>
-                  <div style={{ width: '1px', height: '18px', background: 'rgba(255,255,255,0.12)' }} />
-                  <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' }}>크기</span>
-                  <select
-                    value={fontSize}
-                    onChange={e => setFontSize(Number(e.target.value))}
-                    style={{ background: '#374151', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '4px', color: 'white', fontSize: '11px', padding: '2px 6px', cursor: 'pointer', outline: 'none', height: '26px' }}
-                  >
-                    {FONT_SIZES.map(s => <option key={s} value={s} style={{ background: '#374151' }}>{s}px</option>)}
-                  </select>
-                  <button onClick={() => setFontBold(v => !v)} title="굵게"
-                    style={{ width: '26px', height: '26px', borderRadius: '4px', border: fontBold ? '1.5px solid white' : '1.5px solid rgba(255,255,255,0.2)', background: fontBold ? 'rgba(255,255,255,0.15)' : 'transparent', color: 'white', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
-                  >
-                    <Bold size={11} />
-                  </button>
+                  {/* 크기 */}
+                  <select value={activeFontSize} onChange={e => setActiveFontSize(Number(e.target.value))}
+                    style={{ background: '#374151', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '4px', color: 'white', fontSize: '11px', padding: '2px 4px', cursor: 'pointer', outline: 'none', height: '26px' }}
+                  >{FONT_SIZES.map(s => <option key={s} value={s} style={{ background: '#374151' }}>{s}px</option>)}</select>
+
+                  {/* 굵게 */}
+                  <button onClick={() => setActiveFontBold(!activeFontBold)} title="굵게"
+                    style={{ width: '26px', height: '26px', borderRadius: '4px', border: activeFontBold ? '1.5px solid white' : '1.5px solid rgba(255,255,255,0.2)', background: activeFontBold ? 'rgba(255,255,255,0.15)' : 'transparent', color: 'white', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
+                  ><Bold size={11} /></button>
 
                   <div style={{ width: '1px', height: '18px', background: 'rgba(255,255,255,0.12)' }} />
 
-                  {/* 정렬 */}
-                  <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' }}>정렬</span>
-                  {(['left', 'center', 'right'] as const).map(align => (
-                    <button key={align} title={align === 'left' ? '왼쪽' : align === 'center' ? '가운데' : '오른쪽'} onClick={() => setTextAlign(align)}
-                      style={{ width: '26px', height: '26px', borderRadius: '4px', border: textAlign === align ? '1.5px solid white' : '1.5px solid rgba(255,255,255,0.2)', background: textAlign === align ? 'rgba(255,255,255,0.15)' : 'transparent', color: 'white', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
+                  {/* 정렬 드롭다운 */}
+                  <div style={{ position: 'relative' }}>
+                    <button title="정렬" onClick={e => { e.stopPropagation(); setAlignOpen(v => !v); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '4px', height: '26px', padding: '0 8px', borderRadius: '5px', border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: 'rgba(255,255,255,0.8)', fontSize: '11px', cursor: 'pointer' }}
                     >
-                      <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-                        {align === 'left'   && <><line x1="1" y1="3" x2="13" y2="3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="1" y1="7" x2="9"  y2="7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="1" y1="11" x2="11" y2="11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></>}
-                        {align === 'center' && <><line x1="1" y1="3" x2="13" y2="3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="3" y1="7" x2="11" y2="7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="2" y1="11" x2="12" y2="11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></>}
-                        {align === 'right'  && <><line x1="1" y1="3" x2="13" y2="3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="5" y1="7" x2="13" y2="7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="3" y1="11" x2="13" y2="11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></>}
-                      </svg>
+                      <AlignIcon align={activeTextAlign} />
+                      <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1 2.5L4 5.5L7 2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
                     </button>
-                  ))}
+                    {alignOpen && (
+                      <div onClick={e => e.stopPropagation()} style={{ position: 'absolute', top: '34px', left: 0, zIndex: 100, background: '#1F2937', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', padding: '4px', display: 'flex', flexDirection: 'column', gap: '2px', boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}>
+                        {(['left', 'center', 'right'] as const).map(a => (
+                          <button key={a} onClick={() => { setActiveTextAlign(a); setAlignOpen(false); }}
+                            style={{ display: 'flex', alignItems: 'center', gap: '7px', height: '28px', padding: '0 10px', borderRadius: '5px', border: 'none', background: activeTextAlign === a ? 'rgba(255,255,255,0.1)' : 'transparent', color: 'rgba(255,255,255,0.8)', fontSize: '11px', cursor: 'pointer' }}
+                          >
+                            <AlignIcon align={a} />
+                            {a === 'left' ? '왼쪽' : a === 'center' ? '가운데' : '오른쪽'}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
 
                   <div style={{ width: '1px', height: '18px', background: 'rgba(255,255,255,0.12)' }} />
 
-                  {/* 배경 on/off */}
-                  <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' }}>배경</span>
-                  <button onClick={() => setHasBg(v => !v)} title={hasBg ? '배경 끄기' : '배경 켜기'}
-                    style={{ width: '26px', height: '26px', borderRadius: '4px', border: hasBg ? '1.5px solid white' : '1.5px solid rgba(255,255,255,0.2)', background: hasBg ? 'rgba(255,255,255,0.15)' : 'transparent', color: 'white', cursor: 'pointer', display: 'grid', placeItems: 'center', position: 'relative', overflow: 'hidden' }}
+                  {/* 배경 토글 */}
+                  <button onClick={() => setActiveHasBg(!activeHasBg)} title={activeHasBg ? '배경 끄기' : '배경 켜기'}
+                    style={{ display: 'flex', alignItems: 'center', gap: '4px', height: '26px', padding: '0 8px', borderRadius: '4px', border: activeHasBg ? '1.5px solid white' : '1.5px solid rgba(255,255,255,0.2)', background: activeHasBg ? 'rgba(255,255,255,0.15)' : 'transparent', color: 'rgba(255,255,255,0.8)', fontSize: '11px', cursor: 'pointer' }}
                   >
                     <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-                      <rect x="1" y="1" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.5" fill={hasBg ? 'rgba(255,255,255,0.3)' : 'none'} />
-                      {!hasBg && <line x1="2" y1="12" x2="12" y2="2" stroke="#EF4444" strokeWidth="1.5" strokeLinecap="round"/>}
+                      <rect x="1" y="1" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.5" fill={activeHasBg ? 'rgba(255,255,255,0.3)' : 'none'} />
+                      {!activeHasBg && <line x1="2" y1="12" x2="12" y2="2" stroke="#EF4444" strokeWidth="1.5" strokeLinecap="round"/>}
                     </svg>
+                    배경
                   </button>
 
-                  <div style={{ width: '1px', height: '18px', background: 'rgba(255,255,255,0.12)' }} />
-                  <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' }}>테두리</span>
-                  <button onClick={() => setBorderColor('transparent')} title="테두리 없음"
-                    style={{ width: '16px', height: '16px', borderRadius: '50%', background: 'transparent', border: borderColor === 'transparent' ? '2px solid white' : '1.5px solid rgba(255,255,255,0.3)', cursor: 'pointer', outline: 'none', position: 'relative', overflow: 'hidden', flexShrink: 0 }}
-                  >
-                    <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: '1.5px', background: '#EF4444', transform: 'translateY(-50%) rotate(45deg)' }} />
-                  </button>
-                  <div style={{ display: 'flex', gap: '3px', alignItems: 'center' }}>
-                    {COLORS.map(c => (
-                      <button key={c} onClick={() => setBorderColor(c)}
-                        style={{ width: '16px', height: '16px', borderRadius: '50%', background: c, border: borderColor === c ? '2px solid white' : '1.5px solid transparent', cursor: 'pointer', flexShrink: 0, outline: 'none' }}
-                      />
-                    ))}
-                  </div>
+                  <div style={{ flex: 1 }} />
+                  {isTextTool && <span style={{ fontSize: '10.5px', color: 'rgba(255,255,255,0.4)' }}>드래그로 박스 크기 지정 · Enter 확정</span>}
                 </>
               )}
 
-              {/* 힌트 텍스트 — 옵션 없는 툴 */}
-              {!showColor && !showStroke && !showTextOpts && (
+              {/* 힌트 — 색상/굵기/텍스트 없는 툴 */}
+              {!showStroke && !showTextOpts && (
                 <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.55)' }}>
                   {tool === 'mosaic' && '블러 처리할 영역을 드래그하세요'}
                   {tool === 'eraser' && '지울 요소 위에서 드래그하세요'}
                   {tool === 'spotlight' && '강조할 영역을 드래그하세요'}
                 </span>
-              )}
-
-              {/* 텍스트 툴 힌트 (옵션 줄 오른쪽) */}
-              {showTextOpts && (
-                <>
-                  <div style={{ flex: 1 }} />
-                  <span style={{ fontSize: '10.5px', color: 'rgba(255,255,255,0.4)' }}>드래그로 박스 크기 지정 · Enter 확정</span>
-                </>
               )}
             </div>
           )}

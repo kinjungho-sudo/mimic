@@ -93,24 +93,28 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
   const clearSelection = () => setSelectedIds(new Set());
 
   const bulkAiRewrite = async (instruction: string, label: string) => {
-    const targets = steps.filter(s => selectedIds.has(s.id) && s.description);
+    // 전체 스텝을 순서대로 보내되, 선택된 것만 실제로 교체
+    const allWithText = steps.map(s => ({
+      id: s.id,
+      text: s.description.replace(/<[^>]+>/g, '').trim(),
+    }));
+    const targets = allWithText.filter(s => selectedIds.has(s.id) && s.text);
     if (!targets.length) return;
     setBulkAiLoading(label);
     try {
-      const results = await Promise.all(
-        targets.map(async s => {
-          const text = s.description.replace(/<[^>]+>/g, '').trim();
-          if (!text) return null;
-          const res = await fetch('/api/ai/rewrite', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text, instruction }),
-          });
-          const { result } = await res.json();
-          return result ? { id: s.id, description: result } : null;
-        })
+      const res = await fetch('/api/ai/rewrite-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ steps: allWithText, instruction }),
+      });
+      const { results } = await res.json();
+      if (!Array.isArray(results)) return;
+      // 선택된 스텝만 업데이트
+      const updated = new Map(
+        results
+          .filter((r: { id: string; result: string }) => selectedIds.has(r.id) && r.result)
+          .map((r: { id: string; result: string }) => [r.id, r.result])
       );
-      const updated = new Map(results.filter(Boolean).map(r => [r!.id, r!.description]));
       const next = steps.map(s => updated.has(s.id) ? { ...s, description: updated.get(s.id)! } : s);
       onChange(next);
       next.filter(s => updated.has(s.id)).forEach(s => onSave?.(s.id, { description: s.description }));
@@ -320,10 +324,14 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
 
       {annotatingId && (() => {
         const step = steps.find(s => s.id === annotatingId)!;
+        // element_rect가 있고 annotations가 비어 있으면 화살표+라벨 자동 생성
+        const initialAnnotations = (step.annotations && step.annotations.length > 0)
+          ? step.annotations
+          : buildInputAnnotation(step);
         return (
           <ImageAnnotationEditor
             imageUrl={step.screenshotUrl!}
-            annotations={step.annotations ?? []}
+            annotations={initialAnnotations}
             initialFocusX={step.click_x ?? 50}
             initialFocusY={step.click_y ?? 50}
             onChange={annotations => {
@@ -338,6 +346,63 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
       })()}
     </div>
   );
+}
+
+// ── 입력 필드 annotation 자동 생성 ────────────────────────
+// element_rect(0-1)가 있을 때 화살표 + "내용 입력" 텍스트를 자동으로 배치
+function buildInputAnnotation(step: ManualStep): Annotation[] {
+  const r = step.element_rect;
+  if (!r || r.width === 0 || r.height === 0) return [];
+
+  // 0-1 → 0-100 변환
+  const left   = r.x      * 100;
+  void (r.y * 100); // top — 현재 미사용
+  const right  = (r.x + r.width)  * 100;
+  const bottom = (r.y + r.height) * 100;
+  const centerX = (left + right) / 2;
+
+  // 라벨 텍스트: actionTitle이 있으면 사용, 없으면 기본값
+  const labelText = step.actionTitle
+    ? step.actionTitle.replace(/^입력,?\s*/i, '').trim() || '내용 입력'
+    : '내용 입력';
+
+  // 화살표: 필드 중앙 아래 20% 지점에서 필드 하단 중앙으로
+  const arrowStartY = Math.min(bottom + 18, 95);
+  const arrowEndY   = bottom + 2;
+
+  const arrowId = Math.random().toString(36).slice(2, 9);
+  const textId  = Math.random().toString(36).slice(2, 9);
+
+  const arrow: Annotation = {
+    id: arrowId,
+    type: 'arrow',
+    x1: centerX, y1: arrowStartY,
+    x2: centerX, y2: arrowEndY,
+    color: '#3B82F6',
+    strokeWidth: 0.5,
+  };
+
+  // 텍스트 박스: 화살표 시작점 바로 아래
+  const textTop  = arrowStartY + 1;
+  const textLeft = Math.max(2, centerX - 12);
+  const textRight = Math.min(98, centerX + 12);
+
+  const text: Annotation = {
+    id: textId,
+    type: 'text',
+    x1: textLeft, y1: textTop,
+    x2: textRight, y2: textTop + 8,
+    text: labelText,
+    color: '#FFFFFF',
+    borderColor: 'transparent',
+    strokeWidth: 0.25,
+    fontSize: 14,
+    fontBold: true,
+    textAlign: 'center',
+    hasBg: true,
+  };
+
+  return [arrow, text];
 }
 
 // ── TocItem ───────────────────────────────────────────────
