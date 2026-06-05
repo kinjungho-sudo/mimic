@@ -113,12 +113,34 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
       {/* Header */}
       <div style={{ padding: '12px 16px 10px', borderBottom: '1px solid #F3F4F6', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.07em', textTransform: 'uppercase' }}>
+            목차
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <div style={{ fontSize: '11px', fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.07em', textTransform: 'uppercase' }}>
-              목차
-            </div>
+            {/* 선택 중일 때 개수 + 삭제/해제 버튼 */}
+            {editable && selectedCount > 0 && (
+              <>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: '#3730a3' }}>
+                  {selectedCount}개
+                </span>
+                {onDelete && (
+                  <button
+                    onClick={() => { Array.from(selectedIds).forEach(id => onDelete(id)); setSelectedIds(new Set()); }}
+                    title="선택 삭제"
+                    style={{ width: '18px', height: '18px', borderRadius: '4px', border: 'none', background: 'rgba(220,38,38,0.1)', color: '#DC2626', display: 'grid', placeItems: 'center', cursor: 'pointer' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(220,38,38,0.18)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(220,38,38,0.1)'; }}
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                    </svg>
+                  </button>
+                )}
+              </>
+            )}
+            {/* 전체 선택 체크박스 — 우측 끝 */}
             {editable && (
-              <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', userSelect: 'none' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer', userSelect: 'none' }}>
                 <input
                   type="checkbox"
                   checked={selectedCount === steps.length && steps.length > 0}
@@ -130,39 +152,6 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
               </label>
             )}
           </div>
-          {/* 다중 선택 중일 때 선택 수 표시 */}
-          {editable && selectedCount > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '11px', fontWeight: 600, color: '#3730a3' }}>
-                {selectedCount}개 선택
-              </span>
-              {onDelete && (
-                <button
-                  onClick={() => {
-                    Array.from(selectedIds).forEach(id => onDelete(id));
-                    setSelectedIds(new Set());
-                  }}
-                  title="선택 삭제"
-                  style={{ width: '18px', height: '18px', borderRadius: '4px', border: 'none', background: 'rgba(220,38,38,0.1)', color: '#DC2626', display: 'grid', placeItems: 'center', cursor: 'pointer' }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(220,38,38,0.18)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(220,38,38,0.1)'; }}
-                >
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
-                  </svg>
-                </button>
-              )}
-              <button
-                onClick={() => setSelectedIds(new Set())}
-                title="선택 해제"
-                style={{ width: '18px', height: '18px', borderRadius: '4px', border: 'none', background: '#F3F4F6', color: '#6B7280', display: 'grid', placeItems: 'center', cursor: 'pointer' }}
-              >
-                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-              </button>
-            </div>
-          )}
         </div>
       </div>
 
