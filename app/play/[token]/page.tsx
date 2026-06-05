@@ -42,6 +42,7 @@ type AudioAsset = {
 type Tutorial = {
   id: string;
   title: string;
+  tts_enabled: boolean;
   steps: Step[];
   markers: Marker[];
   annotations: Annotation[];
@@ -500,12 +501,14 @@ export default function PlayerPage({ params }: { params: { token: string } }) {
   const [viewMode, setViewMode] = useState<'slides' | 'document'>('slides');
   const [showShare, setShowShare] = useState(false);
   const [pdfExporting, setPdfExporting] = useState(false);
+  const [pptxExporting, setPptxExporting] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [showDesc, setShowDesc] = useState(true);
   const [showSidebar, setShowSidebar] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [speed, setSpeed] = useState('1.25x');
   const [isPlaying, setIsPlaying] = useState(false);
+  const [ttsEnabled, setTtsEnabled] = useState(true); // 뷰어에서 음소거 여부 (기본 켜짐)
   const settingsRef = useRef<HTMLDivElement>(null);
   const playTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -537,7 +540,11 @@ export default function PlayerPage({ params }: { params: { token: string } }) {
   }, []);
 
   useEffect(() => {
-    if (!tutorial) return;
+    if (!tutorial || !tutorial.tts_enabled) return;
+    if (!ttsEnabled) {
+      audioRef.current?.pause();
+      return;
+    }
     const asset = tutorial.audio_assets.find(a => a.step_id === tutorial.steps[currentStep]?.id);
     if (!asset) return;
     if (audioRef.current) {
@@ -548,7 +555,7 @@ export default function PlayerPage({ params }: { params: { token: string } }) {
     audioRef.current = audio;
     audio.play().catch(() => {});
     return () => { audio.pause(); };
-  }, [currentStep, tutorial]);
+  }, [currentStep, tutorial, ttsEnabled]);
 
   useEffect(() => {
     if (isPlaying && tutorial) {
@@ -633,6 +640,22 @@ export default function PlayerPage({ params }: { params: { token: string } }) {
     } finally { setPdfExporting(false); }
   };
 
+  const handleDownloadPptx = async () => {
+    if (!tutorial) return;
+    setPptxExporting(true);
+    try {
+      const res = await fetch(`/api/export/pptx/${tutorial.id}`);
+      if (!res.ok) { alert('PPTX 생성 실패'); return; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = res.headers.get('content-disposition')?.match(/filename="(.+)"/)?.[1] ?? 'manual.pptx';
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally { setPptxExporting(false); }
+  };
+
   const headerBtnStyle: React.CSSProperties = {
     height: '32px', padding: '0 12px', borderRadius: '8px', display: 'inline-flex', alignItems: 'center', gap: '6px',
     color: 'rgba(255,255,255,0.75)', background: 'transparent', border: '1px solid rgba(255,255,255,0.15)',
@@ -679,6 +702,14 @@ export default function PlayerPage({ params }: { params: { token: string } }) {
               );
             })}
           </div>
+
+          {/* PPTX 다운로드 */}
+          <button onClick={handleDownloadPptx} disabled={pptxExporting} title="PPTX 다운로드" style={{ ...headerBtnStyle, opacity: pptxExporting ? 0.6 : 1, cursor: pptxExporting ? 'not-allowed' : 'pointer' }}
+            onMouseEnter={e => { if (!pptxExporting) { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = 'white'; } }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.75)'; }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            {pptxExporting ? 'PPTX 생성 중…' : 'PPTX'}
+          </button>
 
           {/* PDF 다운로드 */}
           <button onClick={handleDownloadPdf} disabled={pdfExporting} title="PDF 다운로드" style={{ ...headerBtnStyle, opacity: pdfExporting ? 0.6 : 1, cursor: pdfExporting ? 'not-allowed' : 'pointer' }}
@@ -908,6 +939,21 @@ export default function PlayerPage({ params }: { params: { token: string } }) {
                     >{s}</button>
                   ))}
                 </div>
+                {tutorial.tts_enabled && (
+                  <>
+                    <div style={{ height: '1px', background: 'rgba(255,255,255,0.08)', margin: '12px 0' }} />
+                    <h4 style={{ fontSize: '10.5px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.5)', margin: '0 0 8px', fontWeight: 500 }}>AI 음성</h4>
+                    <button
+                      onClick={() => setTtsEnabled(v => !v)}
+                      style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', borderRadius: '7px', border: 'none', background: 'rgba(255,255,255,0.06)', color: 'white', fontSize: '12px', cursor: 'pointer' }}
+                    >
+                      <span>{ttsEnabled ? '🔊 음성 켜짐' : '🔇 음성 꺼짐'}</span>
+                      <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: ttsEnabled ? '#3730a3' : 'rgba(255,255,255,0.1)' }}>
+                        {ttsEnabled ? 'ON' : 'OFF'}
+                      </span>
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>

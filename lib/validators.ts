@@ -94,6 +94,8 @@ export const tutorialPatchSchema = z.object({
   folder_id: z.string().uuid().nullable().optional(),
   workspace_id: z.string().uuid().nullable().optional(),
   share_password: z.string().max(100).nullable().optional(),
+  tts_enabled: z.boolean().optional(),
+  tts_voice: z.enum(['nova', 'alloy']).optional(),
 });
 
 export const generateScriptSchema = z.object({

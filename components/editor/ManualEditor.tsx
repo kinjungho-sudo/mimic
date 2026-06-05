@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Plus, Trash2, ZoomIn, X,
   Bold, Italic, Underline, ExternalLink, Sparkles, Loader2,
-  Check, Volume2,
+  Check,
 } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { ImageAnnotationEditor, type Annotation } from './ImageAnnotationEditor';
@@ -506,28 +506,6 @@ interface StepCardProps {
 }
 
 function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdate, onSave, onDelete, onZoom, onAnnotate, onRemoveImage }: StepCardProps) {
-  const [ttsLoading, setTtsLoading] = useState(false);
-  const [ttsAudioUrl, setTtsAudioUrl] = useState<string | null>(null);
-  const [ttsVoice, setTtsVoice] = useState<'nova' | 'alloy'>('nova');
-
-  const handleTts = async () => {
-    const plainText = step.description.replace(/<[^>]+>/g, '').trim();
-    if (!plainText) return;
-    setTtsLoading(true);
-    try {
-      const res = await fetch('/api/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stepId: step.id, scriptText: plainText, voice: ttsVoice }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setTtsAudioUrl(data.audio_url ?? null);
-      }
-    } finally {
-      setTtsLoading(false);
-    }
-  };
   const [hovering, setHovering] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -710,35 +688,6 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
         onZoomChange={zoom => { onUpdate({ imageZoom: zoom }); onSave({ imageZoom: zoom }); }}
       />
 
-      {/* TTS 음성 합성 영역 */}
-      {step.description.replace(/<[^>]+>/g, '').trim() && (
-        <div style={{ padding: '8px 14px 12px', borderTop: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Volume2 size={13} style={{ color: '#6B7280', flexShrink: 0 }} />
-          <span style={{ fontSize: '11.5px', color: '#6B7280', flexShrink: 0 }}>AI 음성</span>
-          <select
-            value={ttsVoice}
-            onChange={e => setTtsVoice(e.target.value as 'nova' | 'alloy')}
-            onClick={e => e.stopPropagation()}
-            style={{ fontSize: '11px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', borderRadius: '5px', padding: '2px 6px', cursor: 'pointer', outline: 'none' }}
-          >
-            <option value="nova">Nova (여성)</option>
-            <option value="alloy">Alloy (남성)</option>
-          </select>
-          <button
-            onClick={e => { e.stopPropagation(); handleTts(); }}
-            disabled={ttsLoading}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', height: '26px', padding: '0 10px', borderRadius: '5px', border: '1px solid #E5E7EB', background: 'white', color: '#374151', fontSize: '11.5px', fontWeight: 500, cursor: ttsLoading ? 'not-allowed' : 'pointer', opacity: ttsLoading ? 0.6 : 1, flexShrink: 0 }}
-            onMouseEnter={e => { if (!ttsLoading) { e.currentTarget.style.borderColor = '#6d28d9'; e.currentTarget.style.color = '#6d28d9'; } }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.color = '#374151'; }}
-          >
-            {ttsLoading ? <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> : <Sparkles size={11} />}
-            {ttsAudioUrl ? '재생성' : '생성'}
-          </button>
-          {ttsAudioUrl && (
-            <audio key={ttsAudioUrl} controls src={ttsAudioUrl} style={{ height: '26px', flex: 1, minWidth: 0 }} />
-          )}
-        </div>
-      )}
     </div>
   );
 }
