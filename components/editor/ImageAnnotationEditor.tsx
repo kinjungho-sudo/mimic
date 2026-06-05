@@ -225,7 +225,8 @@ export function ImageAnnotationEditor({
   const commitTextRef = useRef<() => void>(() => {});
   const commitText = useCallback(() => {
     if (!editingText) return;
-    const rawText = textInputRef.current?.innerText?.trim() ?? '';
+    // innerText로 읽으면 줄바꿈(\n)이 보존됨
+    const rawText = (textInputRef.current?.innerText ?? '').replace(/\n$/, '').trimEnd();
     const id = editingText.id;
     setItems(cur => rawText
       ? cur.map(a => a.id === id ? { ...a, text: rawText } : a)
@@ -249,7 +250,7 @@ export function ImageAnnotationEditor({
 
     if (tool === 'eraser') {
       eraserActiveRef.current = true;
-      setItems(prev => prev.filter(a => !hitTestAnnotation(a, x, y, 4, imgSize.w, imgSize.h)));
+      setItems(prev => prev.filter(a => !hitTestAnnotation(a, x, y, 1.2, imgSize.w, imgSize.h)));
       return;
     }
 
@@ -282,7 +283,7 @@ export function ImageAnnotationEditor({
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (tool === 'eraser' && eraserActiveRef.current) {
       const { x, y } = toVB(e);
-      setItems(prev => prev.filter(a => !hitTestAnnotation(a, x, y, 4, imgSize.w, imgSize.h)));
+      setItems(prev => prev.filter(a => !hitTestAnnotation(a, x, y, 1.2, imgSize.w, imgSize.h)));
       return;
     }
     if (textDrawing) {
@@ -418,19 +419,27 @@ export function ImageAnnotationEditor({
 
   useEffect(() => {
     if (!editingText) return;
+    const item = items.find(a => a.id === editingText.id);
     const t = setTimeout(() => {
-      textInputRef.current?.focus();
+      const el = textInputRef.current;
+      if (!el) return;
+      // 기존 텍스트 로드 (빈 박스가 아닐 때만)
+      if (item?.text && el.innerText !== item.text) {
+        el.innerText = item.text;
+      }
+      el.focus();
+      // 커서를 맨 끝으로 (클릭 시 브라우저가 위치 잡아줌)
       const range = document.createRange();
       const sel = window.getSelection();
-      if (textInputRef.current && sel) {
-        range.selectNodeContents(textInputRef.current);
+      if (sel) {
+        range.selectNodeContents(el);
         range.collapse(false);
         sel.removeAllRanges();
         sel.addRange(range);
       }
     }, 0);
     return () => clearTimeout(t);
-  }, [editingText]);
+  }, [editingText]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSave = () => {
     if (editingText) commitTextRef.current();
@@ -680,7 +689,7 @@ export function ImageAnnotationEditor({
                   </button>
 
                   <div style={{ flex: 1 }} />
-                  {isTextTool && <span style={{ fontSize: '10.5px', color: 'rgba(255,255,255,0.4)' }}>드래그로 박스 크기 지정 · Enter 확정</span>}
+                  {isTextTool && <span style={{ fontSize: '10.5px', color: 'rgba(255,255,255,0.4)' }}>드래그로 박스 크기 지정 · Ctrl+Enter 또는 Esc 확정</span>}
                 </>
               )}
 
@@ -786,8 +795,9 @@ export function ImageAnnotationEditor({
                 suppressContentEditableWarning
                 onKeyDown={e => {
                   e.stopPropagation();
-                  if (e.key === 'Escape') commitTextRef.current();
-                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitTextRef.current(); }
+                  // Escape 또는 Ctrl+Enter로 확정, 일반 Enter는 줄바꿈
+                  if (e.key === 'Escape') { e.preventDefault(); commitTextRef.current(); }
+                  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); commitTextRef.current(); }
                 }}
                 onMouseDown={e => e.stopPropagation()}
                 style={{
@@ -820,7 +830,7 @@ export function ImageAnnotationEditor({
           {tool === 'select' ? '클릭으로 선택 · 드래그로 이동 · 핸들로 크기 조절 · Delete 삭제' :
            tool === 'marker' ? '클릭하면 번호 마커 추가' :
            tool === 'spotlight' ? '완성 후 선택 모드로 전환 — 이동 · 크기 조절 가능' :
-           tool === 'text' ? '' :
+           tool === 'text' ? '더블클릭으로 텍스트 편집 · Enter 줄바꿈 · Ctrl+Enter 또는 Esc 확정' :
            '드래그하여 그리기 · 완성 후 자동 선택 모드 전환'}
         </div>
       </div>
@@ -1095,7 +1105,7 @@ function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx
     const padX = 10, padY = 6;
     const textX = align === 'left' ? minX + padX : align === 'center' ? minX + boxW / 2 : minX + boxW - padX;
     const anchor = align === 'left' ? 'start' : align === 'center' ? 'middle' : 'end';
-    const bgFill = bg ? 'rgba(20,20,30,0.82)' : 'transparent';
+    const bgFill = bg ? 'rgba(10,10,15,0.92)' : 'transparent';
     const strokeColor = bColor !== 'transparent' ? bColor : 'none';
 
     const textCursor = isSelectTool ? (onBodyDblClick ? 'text' : 'move') : bodyCursor;
