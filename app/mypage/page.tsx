@@ -141,10 +141,10 @@ export default function MyPage() {
   const displayAvatar = user?.avatar_url ?? null;
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', minHeight: '100vh', fontFamily: "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif", fontSize: '13.5px', color: '#111827', background: '#FAFAFA' }}>
+    <div className="mypage-layout" style={{ display: 'grid', gridTemplateColumns: '220px 1fr', minHeight: '100vh', fontFamily: "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif", fontSize: '13.5px', color: '#111827', background: '#FAFAFA' }}>
 
       {/* Sidebar */}
-      <aside style={{ background: '#FAFAFA', borderRight: '1px solid #F3F4F6', padding: '16px 12px', display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto' }}>
+      <aside className="mypage-sidebar" style={{ background: '#FAFAFA', borderRight: '1px solid #F3F4F6', padding: '16px 12px', display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto' }}>
         <Link href="/home" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px 14px', textDecoration: 'none' }}>
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="32" height="32" style={{ flexShrink: 0 }}><circle cx="50" cy="50" r="50" fill="#3730a3"/><text x="50" y="68" textAnchor="middle" fontFamily="Georgia, serif" fontSize="62" fontWeight="700" fill="white">M</text></svg>
           <span style={{ fontSize: '16px', fontWeight: 800, color: '#111827', letterSpacing: '-0.03em' }}>MIMIC</span>
@@ -168,7 +168,22 @@ export default function MyPage() {
       </aside>
 
       {/* Main */}
-      <main style={{ padding: '36px 40px', maxWidth: '800px' }}>
+      <main className="mypage-main" style={{ padding: '36px 40px', maxWidth: '800px' }}>
+
+        {/* 모바일 전용 헤더 */}
+        <div className="mypage-mobile-header" style={{ display: 'none', alignItems: 'center', gap: '10px', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #F3F4F6' }}>
+          <Link href="/home" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="28" height="28"><circle cx="50" cy="50" r="50" fill="#3730a3"/><text x="50" y="68" textAnchor="middle" fontFamily="Georgia, serif" fontSize="62" fontWeight="700" fill="white">M</text></svg>
+            <span style={{ fontSize: '15px', fontWeight: 800, color: '#111827', letterSpacing: '-0.03em' }}>MIMIC</span>
+          </Link>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: '4px' }}>
+            {NAV_ITEMS.map(item => (
+              <Link key={item.href} href={item.href} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 10px', borderRadius: '7px', fontSize: '12px', color: item.active ? '#3730a3' : '#6B7280', background: item.active ? '#e0e7ff' : 'transparent', fontWeight: item.active ? 600 : 400, textDecoration: 'none' }}>
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        </div>
 
         {/* Page header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px' }}>
@@ -263,7 +278,7 @@ export default function MyPage() {
           </div>
 
           {/* 정보 그리드 */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+          <div className="mypage-info-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
             {[
               { label: '이메일', value: user?.email ?? '-' },
               { label: '가입일', value: user?.created_at ? formatDate(user.created_at) : '-' },

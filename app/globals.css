@@ -274,3 +274,40 @@ body {
     padding: 20px 16px !important;
   }
 }
+
+/* ── 마이페이지 반응형 ── */
+@media (max-width: 768px) {
+  .mypage-layout {
+    grid-template-columns: 1fr !important;
+  }
+  .mypage-sidebar {
+    display: none !important;
+  }
+  .mypage-main {
+    padding: 20px 16px !important;
+    max-width: 100% !important;
+  }
+  .mypage-info-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .mypage-mobile-header {
+    display: flex !important;
+  }
+}
+
+/* ── 설정 페이지 반응형 ── */
+@media (max-width: 768px) {
+  .settings-layout {
+    flex-direction: column !important;
+  }
+  .settings-sidebar {
+    display: none !important;
+  }
+  .settings-main {
+    padding: 20px 16px !important;
+    max-width: 100% !important;
+  }
+  .settings-mobile-header {
+    display: flex !important;
+  }
+}

@@ -69,10 +69,10 @@ export default function SettingsPage() {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#FAFAFA', fontFamily: "'Pretendard', -apple-system, sans-serif" }}>
+    <div className="settings-layout" style={{ display: 'flex', minHeight: '100vh', background: '#FAFAFA', fontFamily: "'Pretendard', -apple-system, sans-serif" }}>
 
       {/* Sidebar */}
-      <aside style={{ width: '220px', flexShrink: 0, background: 'white', borderRight: '1px solid #F3F4F6', padding: '0 12px', display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: '100vh' }}>
+      <aside className="settings-sidebar" style={{ width: '220px', flexShrink: 0, background: 'white', borderRight: '1px solid #F3F4F6', padding: '0 12px', display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: '100vh' }}>
         <div style={{ padding: '20px 8px 16px', borderBottom: '1px solid #F3F4F6', marginBottom: '8px' }}>
           <Link href="/home" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="32" height="32" style={{ flexShrink: 0 }}><circle cx="50" cy="50" r="50" fill="#3730a3"/><text x="50" y="68" textAnchor="middle" fontFamily="Georgia, serif" fontSize="62" fontWeight="700" fill="white">M</text></svg>
@@ -90,7 +90,23 @@ export default function SettingsPage() {
       </aside>
 
       {/* Main */}
-      <main style={{ flex: 1, padding: '32px 40px', maxWidth: '720px' }}>
+      <main className="settings-main" style={{ flex: 1, padding: '32px 40px', maxWidth: '720px' }}>
+
+        {/* 모바일 전용 헤더 */}
+        <div className="settings-mobile-header" style={{ display: 'none', alignItems: 'center', gap: '10px', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #F3F4F6' }}>
+          <Link href="/home" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="28" height="28"><circle cx="50" cy="50" r="50" fill="#3730a3"/><text x="50" y="68" textAnchor="middle" fontFamily="Georgia, serif" fontSize="62" fontWeight="700" fill="white">M</text></svg>
+            <span style={{ fontSize: '15px', fontWeight: 800, color: '#111827', letterSpacing: '-0.03em' }}>MIMIC</span>
+          </Link>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: '4px' }}>
+            {NAV_ITEMS.map(item => (
+              <Link key={item.href} href={item.href} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 10px', borderRadius: '7px', fontSize: '12px', color: item.active ? '#3730a3' : '#6B7280', background: item.active ? '#e0e7ff' : 'transparent', fontWeight: item.active ? 600 : 400, textDecoration: 'none' }}>
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+
         <div style={{ marginBottom: '28px' }}>
           <h1 style={{ fontSize: '22px', fontWeight: 600, margin: '0 0 4px', color: '#111827' }}>설정</h1>
           <p style={{ fontSize: '13.5px', color: '#6B7280', margin: 0 }}>확장 프로그램 연동 및 계정을 관리하세요</p>
