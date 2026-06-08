@@ -1,6 +1,7 @@
 ﻿'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { BrandMark } from '@/components/BrandMark';
 import { AnnotationPreview } from '@/components/editor/AnnotationPreview';
@@ -499,8 +500,8 @@ function PasswordGate({ protectedTitle, token, onUnlock }: {
 
 // ── 플레이어 메인 ─────────────────────────────────────────
 
-export default function PlayerPage({ params }: { params: { token: string } }) {
-  const token = params.token;
+export default function PlayerPage() {
+  const { token } = useParams<{ token: string }>();
   const [tutorial, setTutorial] = useState<Tutorial | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
