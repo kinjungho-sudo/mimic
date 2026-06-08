@@ -146,15 +146,9 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
     return () => window.removeEventListener('keydown', fn);
   }, [onClose]);
 
-  // 모달 진입 시 확장 설치+연동 여부 확인 (신규/기존 사용자 모두)
+  // 모달 진입 시 확장 설치 여부만 확인 (연동 강제 없음)
   useEffect(() => {
-    if (!isExtensionInstalled()) {
-      setStep('install');
-      return;
-    }
-    sendMessage('CONNECT').then(resp => {
-      setStep(resp ? 'guide' : 'install');
-    });
+    setStep('guide');
   }, []);
 
   // 탭 선택 단계 진입 시 목록 로드
