@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>MIMIC Recorder</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      width: 100%;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #fff;
+      color: #1e1e2e;
+      overflow-x: hidden;
+    }
+
+    /* ── 헤더 ── */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      border-bottom: 1px solid #e8e8f0;
+      position: sticky; top: 0; background: #fff; z-index: 10;
+    }
+    .logo { display: flex; align-items: center; gap: 8px; }
+    .logo-icon {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .logo-icon img { width: 100%; height: 100%; object-fit: cover; }
+    .logo-text { font-size: 16px; font-weight: 700; color: #1e1e2e; }
+
+    .header-right { display: flex; align-items: center; gap: 8px; }
+    .step-count {
+      font-size: 12px; color: #888;
+      background: #f3f3f8; padding: 3px 10px; border-radius: 20px;
+    }
+    .btn-settings {
+      width: 30px; height: 30px;
+      border: 1px solid #e8e8f0; border-radius: 8px;
+      background: #fff; color: #888; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s;
+    }
+    .btn-settings:hover { border-color: #4F46E5; color: #4F46E5; background: #f5f3ff; }
+
+    /* ── 녹화 전: 시작 버튼 ── */
+    #viewIdle { padding: 18px 18px 10px; }
+
+    .btn-start {
+      width: 100%; padding: 14px;
+      background: #4F46E5; color: #fff;
+      border: none; border-radius: 10px;
+      font-size: 15px; font-weight: 600;
+      cursor: pointer; transition: background 0.2s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-start:hover { background: #4338CA; }
+    .btn-start:disabled { background: #C7C4F0; cursor: not-allowed; }
+    /* ── 모바일 배지 ── */
+    .mobile-badge {
+      font-size: 11px; font-weight: 600;
+      background: #F0FDF4; color: #15803D;
+      border: 1px solid #BBF7D0;
+      border-radius: 20px; padding: 2px 8px;
+    }
+
+    /* ── 모바일 안내 모달 ── */
+    .mobile-modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5); z-index: 9998;
+      align-items: flex-end; justify-content: center;
+    }
+    .mobile-modal-overlay.open { display: flex; }
+    .mobile-modal {
+      background: #fff; width: 100%;
+      border-radius: 20px 20px 0 0;
+      padding: 24px 20px 28px;
+      display: flex; flex-direction: column; align-items: center; gap: 12px;
+      animation: slide-up 0.25s cubic-bezier(0.4,0,0.2,1);
+    }
+    @keyframes slide-up {
+      from { transform: translateY(100%); }
+      to   { transform: translateY(0); }
+    }
+    .mobile-modal-icon { font-size: 32px; }
+    .mobile-modal-title { font-size: 15px; font-weight: 700; color: #1e1e2e; }
+    .mobile-modal-desc { font-size: 12px; color: #666; text-align: center; line-height: 1.6; }
+
+    .mobile-modal-shortcut {
+      display: flex; align-items: center; gap: 6px;
+      background: #F5F3FF; border: 1px solid #DDD6FE;
+      border-radius: 10px; padding: 10px 16px;
+      width: 100%;
+    }
+    .shortcut-key {
+      background: #fff; border: 1px solid #C7C4F0;
+      border-radius: 5px; padding: 3px 8px;
+      font-size: 12px; font-weight: 700; color: #4F46E5;
+      box-shadow: 0 1px 0 #C7C4F0;
+    }
+    .shortcut-plus { font-size: 11px; color: #888; }
+    .shortcut-label { font-size: 11px; color: #666; margin-left: 4px; }
+
+    .mobile-modal-steps {
+      width: 100%; display: flex; flex-direction: column; gap: 8px;
+    }
+    .mobile-step {
+      display: flex; align-items: flex-start; gap: 10px;
+      font-size: 12px; color: #444; line-height: 1.5;
+    }
+    .mobile-step-num {
+      width: 20px; height: 20px; flex-shrink: 0;
+      background: #4F46E5; color: #fff;
+      border-radius: 50%; font-size: 11px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      margin-top: 1px;
+    }
+    .mobile-modal-btn {
+      width: 100%; padding: 13px;
+      background: #4F46E5; color: #fff;
+      border: none; border-radius: 10px;
+      font-size: 14px; font-weight: 700; cursor: pointer;
+      transition: background 0.2s;
+    }
+    .mobile-modal-btn:hover { background: #4338CA; }
+    .mobile-modal-cancel {
+      background: none; border: none;
+      font-size: 12px; color: #aaa; cursor: pointer; padding: 4px;
+    }
+    .mobile-modal-cancel:hover { color: #666; }
+
+    /* ── 되돌리기 토스트 ── */
+    .restore-toast {
+      display: none; position: fixed; bottom: 16px; left: 12px; right: 12px;
+      background: #1e1e2e; color: #fff;
+      border-radius: 12px; padding: 12px 14px;
+      align-items: center; gap: 10px;
+      z-index: 9999;
+      animation: toast-in 0.25s ease-out;
+    }
+    .restore-toast.show { display: flex; }
+    @keyframes toast-in {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .restore-toast-icon { font-size: 18px; flex-shrink: 0; }
+    .restore-toast-text { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+    .restore-toast-text strong { font-size: 12px; font-weight: 700; }
+    .restore-toast-text span { font-size: 11px; color: #aaa; }
+    .restore-toast-close {
+      background: none; border: none; color: #666;
+      font-size: 14px; cursor: pointer; padding: 2px 4px; flex-shrink: 0;
+    }
+    .restore-toast-close:hover { color: #fff; }
+
+    /* ── 녹화 중: 컨트롤 패널 ── */
+    #viewRecording { display: none; }
+
+    .rec-status {
+      display: flex; align-items: center; gap: 10px;
+      padding: 14px 18px 10px;
+    }
+    .rec-dot {
+      width: 9px; height: 9px; border-radius: 50%;
+      background: #EF4444;
+      animation: blink 1s ease-in-out infinite;
+      flex-shrink: 0;
+    }
+    .rec-dot.paused { background: #f59e0b; animation: none; }
+    .rec-label { font-size: 13px; font-weight: 700; color: #EF4444; letter-spacing: 0.5px; }
+    .rec-label.paused { color: #f59e0b; }
+    .rec-step-count {
+      margin-left: auto;
+      font-size: 12px; color: #888;
+      background: #f3f3f8; padding: 3px 10px; border-radius: 20px;
+    }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+
+    .ctrl-row { display: flex; gap: 8px; padding: 0 18px 14px; }
+    .ctrl-btn {
+      flex: 1; padding: 9px 4px;
+      border: 1px solid #e8e8f0; border-radius: 9px;
+      background: #fff; color: #444;
+      font-size: 11px; font-weight: 600;
+      cursor: pointer; transition: all 0.15s;
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+    }
+    .ctrl-btn:hover { border-color: #4F46E5; color: #4F46E5; background: #f5f3ff; }
+    .ctrl-btn:active { transform: scale(0.95); }
+    .ctrl-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+    .ctrl-btn.danger:hover { border-color: #EF4444; color: #EF4444; background: #fff5f5; }
+
+    .btn-finish {
+      width: calc(100% - 36px); margin: 0 18px 14px;
+      padding: 12px;
+      background: #4F46E5; color: #fff;
+      border: none; border-radius: 10px;
+      font-size: 14px; font-weight: 700;
+      cursor: pointer; transition: background 0.2s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-finish:hover { background: #4338CA; }
+    .btn-finish:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── 스텝 목록 ── */
+    .divider { height: 1px; background: #e8e8f0; }
+
+    .steps-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 18px 8px;
+    }
+    .steps-title { font-size: 12px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    .steps-list { padding: 0 18px 18px; display: flex; flex-direction: column; gap: 8px; }
+
+    .step-card {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 9px 10px; border: 1px solid #e8e8f0; border-radius: 9px;
+      cursor: pointer; transition: all 0.15s; background: #fff; position: relative;
+      animation: step-in 0.18s ease-out;
+    }
+    @keyframes step-in {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .step-card:hover { border-color: #4F46E5; box-shadow: 0 2px 8px rgba(79,70,229,0.1); }
+    .step-card.live-typing { border-color: #a78bfa; background: #faf9ff; }
+    .step-card.expanded { border-color: #4F46E5; box-shadow: 0 2px 12px rgba(79,70,229,0.15); }
+    .step-number {
+      width: 22px; height: 22px; background: #4F46E5; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 700; color: #fff; flex-shrink: 0; margin-top: 2px;
+    }
+    .step-info { flex: 1; min-width: 0; }
+
+    /* 액션 아이콘 + 레이블 행 */
+    .step-action-row { display: flex; align-items: center; gap: 5px; margin-bottom: 3px; }
+    .step-action-icon {
+      font-size: 11px; color: #4F46E5;
+      width: 16px; text-align: center; flex-shrink: 0;
+    }
+    .step-action-label {
+      font-size: 12px; font-weight: 600; color: #1e1e2e;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    /* 실시간 타이핑 미리보기 */
+    .step-typing-preview {
+      font-size: 11px; color: #7c3aed;
+      margin: 2px 0 3px 21px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      font-style: italic;
+    }
+
+    .step-time  { font-size: 10px; color: #ccc; margin-left: 21px; margin-top: 1px; }
+
+    /* ── 스텝 썸네일 ── */
+    .step-thumb {
+      width: 100%; margin-top: 8px;
+      border-radius: 6px; overflow: hidden;
+      border: 1px solid #e8e8f0;
+      cursor: zoom-in;
+      background: #f3f3f8;
+      flex-shrink: 0;
+    }
+    .step-thumb img {
+      width: 100%; display: block;
+      border-radius: 5px;
+    }
+    .step-thumb-placeholder {
+      width: 100%; height: 60px;
+      display: flex; align-items: center; justify-content: center;
+      color: #ccc; font-size: 11px;
+    }
+
+    /* ── 썸네일 확대 오버레이 (패널 내 전체) ── */
+    .thumb-zoom-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.92);
+      z-index: 99998;
+      flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 10px;
+      padding: 12px;
+    }
+    .thumb-zoom-overlay.open { display: flex; }
+    .thumb-zoom-overlay img {
+      width: 100%;
+      height: auto;
+      max-height: calc(100vh - 80px);
+      object-fit: contain;
+      border-radius: 8px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+      cursor: zoom-out;
+      image-rendering: -webkit-optimize-contrast;
+    }
+    .thumb-zoom-toolbar {
+      display: flex; gap: 8px; flex-shrink: 0;
+    }
+    .thumb-zoom-btn {
+      display: flex; align-items: center; gap: 5px;
+      padding: 7px 14px;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.1);
+      color: #fff; font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .thumb-zoom-btn:hover { background: rgba(255,255,255,0.22); }
+    .thumb-zoom-btn.active { background: rgba(79,70,229,0.6); border-color: #a78bfa; }
+    .thumb-zoom-close {
+      position: absolute; top: 10px; right: 10px;
+      width: 28px; height: 28px;
+      border: none; border-radius: 50%;
+      background: rgba(255,255,255,0.15);
+      color: #fff; font-size: 14px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .thumb-zoom-close:hover { background: rgba(255,255,255,0.28); }
+    .step-delete {
+      position: absolute; top: 5px; right: 5px;
+      width: 18px; height: 18px;
+      border: none; background: rgba(0,0,0,0.07); border-radius: 50%;
+      color: #888; font-size: 11px; cursor: pointer;
+      display: none; align-items: center; justify-content: center; transition: all 0.15s;
+    }
+    .step-card:hover .step-delete { display: flex; }
+    .step-delete:hover { background: #EF4444; color: #fff; }
+
+    /* ── 도메인 섹션 헤더 ── */
+    .domain-header {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 2px 4px;
+      margin-top: 4px;
+    }
+    .domain-header:first-child { margin-top: 0; }
+    .domain-favicon {
+      width: 14px; height: 14px; border-radius: 3px;
+      object-fit: contain; flex-shrink: 0;
+    }
+    .domain-name {
+      font-size: 11px; font-weight: 700;
+      color: #555; letter-spacing: 0.2px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .empty-state {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 36px 20px; color: #bbb; text-align: center; gap: 8px;
+    }
+    .empty-icon { font-size: 32px; opacity: 0.4; }
+    .empty-text { font-size: 13px; font-weight: 500; color: #ccc; }
+    .empty-subtext { font-size: 11px; color: #ddd; }
+
+    /* ── 설정 패널 (슬라이드 오버레이) ── */
+    .settings-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.3);
+      z-index: 100;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    .settings-overlay.open { opacity: 1; pointer-events: all; }
+
+    .settings-panel {
+      position: absolute; top: 0; right: 0; bottom: 0;
+      width: 100%;
+      background: #fff;
+      transform: translateX(100%);
+      transition: transform 0.25s cubic-bezier(0.4,0,0.2,1);
+      display: flex; flex-direction: column;
+      overflow-y: auto;
+    }
+    .settings-overlay.open .settings-panel { transform: translateX(0); }
+
+    .settings-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 14px 18px;
+      border-bottom: 1px solid #e8e8f0;
+      position: sticky; top: 0; background: #fff; z-index: 1;
+    }
+    .btn-back {
+      width: 28px; height: 28px;
+      border: none; background: none; cursor: pointer;
+      color: #555; display: flex; align-items: center; justify-content: center;
+      border-radius: 6px; transition: background 0.15s;
+    }
+    .btn-back:hover { background: #f3f3f8; color: #1e1e2e; }
+    .settings-title { font-size: 15px; font-weight: 700; color: #1e1e2e; }
+
+    .settings-section {
+      padding: 18px 18px 0;
+    }
+    .settings-section-title {
+      font-size: 11px; font-weight: 600; color: #aaa;
+      text-transform: uppercase; letter-spacing: 0.6px;
+      margin-bottom: 10px;
+    }
+
+    .setting-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid #f0f0f8;
+    }
+    .setting-row:last-child { border-bottom: none; }
+    .setting-info { flex: 1; min-width: 0; padding-right: 16px; }
+    .setting-label { font-size: 13px; font-weight: 600; color: #1e1e2e; margin-bottom: 2px; }
+    .setting-desc  { font-size: 11px; color: #aaa; line-height: 1.4; }
+
+    /* 토글 스위치 */
+    .toggle {
+      position: relative; width: 40px; height: 22px; flex-shrink: 0;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .toggle-track {
+      position: absolute; inset: 0;
+      background: #e0e0ec; border-radius: 11px;
+      cursor: pointer; transition: background 0.2s;
+    }
+    .toggle-track::after {
+      content: '';
+      position: absolute; top: 3px; left: 3px;
+      width: 16px; height: 16px;
+      background: #fff; border-radius: 50%;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      transition: transform 0.2s;
+    }
+    .toggle input:checked + .toggle-track { background: #4F46E5; }
+    .toggle input:checked + .toggle-track::after { transform: translateX(18px); }
+
+    /* 셀렉트 */
+    .setting-select {
+      padding: 6px 10px; font-size: 12px;
+      border: 1px solid #e0e0ec; border-radius: 7px;
+      background: #fff; color: #1e1e2e; cursor: pointer;
+      outline: none; transition: border-color 0.15s;
+      flex-shrink: 0;
+    }
+    .setting-select:focus { border-color: #4F46E5; }
+
+    /* 품질 슬라이더 */
+    .quality-wrap { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .quality-val { font-size: 12px; font-weight: 600; color: #4F46E5; min-width: 28px; text-align: right; }
+    input[type=range] {
+      width: 80px; accent-color: #4F46E5; cursor: pointer;
+    }
+
+    .settings-section-divider { height: 1px; background: #f0f0f8; margin: 6px 18px; }
+
+    /* ── 하단 액션 바 ── */
+    .bottom-action-bar {
+      position: sticky; bottom: 0;
+      display: flex; gap: 8px; align-items: center;
+      padding: 12px 18px;
+      background: #fff;
+      border-top: 1px solid #e8e8f0;
+      box-shadow: 0 -4px 12px rgba(0,0,0,0.06);
+      z-index: 10;
+    }
+    .btn-discard-bottom {
+      display: flex; align-items: center; gap: 5px;
+      padding: 10px 14px;
+      border: 1px solid #e8e8f0; border-radius: 9px;
+      background: #fff; color: #888;
+      font-size: 12px; font-weight: 600; cursor: pointer;
+      transition: all 0.15s; flex-shrink: 0;
+    }
+    .btn-discard-bottom:hover { border-color: #EF4444; color: #EF4444; background: #fff5f5; }
+    .bottom-action-bar .btn-finish {
+      flex: 1; margin: 0; width: auto;
+      padding: 10px 16px; font-size: 13px;
+    }
+
+    /* ── 이미지 모달 ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.75); z-index: 9999;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-content {
+      position: relative; max-width: 340px; width: 100%;
+      background: #1a1a2e; border-radius: 12px; overflow: hidden;
+    }
+    .modal-close {
+      position: absolute; top: 8px; right: 8px;
+      width: 26px; height: 26px;
+      background: rgba(255,255,255,0.15); border: none; border-radius: 50%;
+      color: #fff; font-size: 15px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; z-index: 1;
+    }
+    .modal-close:hover { background: rgba(255,255,255,0.25); }
+    .modal-img { width: 100%; display: block; cursor: zoom-in; }
+    .modal-meta { padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; }
+    .modal-step-num { font-size: 12px; font-weight: 600; color: #4F46E5; }
+    .modal-step-time { font-size: 11px; color: #888; }
+
+    /* ── 업로드 오버레이 ── */
+    .upload-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(10,8,30,0.92); z-index: 99999;
+      flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+    }
+    .upload-overlay.visible { display: flex; }
+    .upload-spinner { position: relative; width: 60px; height: 60px; }
+    .upload-spinner::before, .upload-spinner::after { content: ''; position: absolute; border-radius: 50%; }
+    .upload-spinner::before { inset: 0; border: 3px solid rgba(79,70,229,0.2); }
+    .upload-spinner::after {
+      inset: 0; border: 3px solid transparent;
+      border-top-color: #4F46E5; border-right-color: #a78bfa;
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .upload-icon {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center; font-size: 20px;
+      animation: float-up 1.4s ease-in-out infinite;
+    }
+    @keyframes float-up { 0%, 100% { transform: translateY(2px); opacity: 0.7; } 50% { transform: translateY(-4px); opacity: 1; } }
+    .upload-title { font-size: 14px; font-weight: 700; color: #fff; }
+    .upload-sub { font-size: 12px; color: #888; }
+    .upload-progress-wrap { width: 160px; }
+    .upload-progress-track { height: 3px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; }
+    .upload-progress-bar {
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, #4F46E5, #a78bfa); border-radius: 4px;
+      animation: progress-fill 3s ease-out forwards;
+    }
+    @keyframes progress-fill { 0% { width: 0%; } 60% { width: 75%; } 90% { width: 92%; } 100% { width: 100%; } }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="logo">
+      <div class="logo-icon"><img src="icons/icon48.png" alt="MIMIC"></div>
+      <span class="logo-text">MIMIC</span>
+    </div>
+    <div class="header-right">
+      <span class="step-count" id="stepCount">0 steps</span>
+      <button class="btn-settings" id="btnSettings" title="설정">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- 녹화 전 -->
+  <div id="viewIdle">
+    <div style="padding:18px 18px 10px;">
+      <button class="btn-start" id="btnStart">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg>
+        녹화 시작
+      </button>
+    </div>
+  </div>
+
+  <!-- 모바일 안내 모달 -->
+  <div class="mobile-modal-overlay" id="mobileModal">
+    <div class="mobile-modal">
+      <div class="mobile-modal-icon">📱</div>
+      <div class="mobile-modal-title">모바일 화면으로 전환하세요</div>
+      <div class="mobile-modal-desc">
+        Chrome DevTools의 <strong>기기 모드</strong>를 켜면<br>모바일 해상도로 녹화할 수 있습니다.
+      </div>
+      <div class="mobile-modal-shortcut">
+        <span class="shortcut-key">Ctrl</span>
+        <span class="shortcut-plus">+</span>
+        <span class="shortcut-key">Shift</span>
+        <span class="shortcut-plus">+</span>
+        <span class="shortcut-key">M</span>
+        <span class="shortcut-label">기기 모드 토글</span>
+      </div>
+      <div class="mobile-modal-steps">
+        <div class="mobile-step">
+          <span class="mobile-step-num">1</span>
+          <span>F12 또는 우클릭 → 검사로 DevTools 열기</span>
+        </div>
+        <div class="mobile-step">
+          <span class="mobile-step-num">2</span>
+          <span><strong>Ctrl+Shift+M</strong> 으로 기기 모드 켜기</span>
+        </div>
+        <div class="mobile-step">
+          <span class="mobile-step-num">3</span>
+          <span>상단에서 원하는 기기 선택 후 아래 버튼 클릭</span>
+        </div>
+      </div>
+      <button class="mobile-modal-btn" id="btnMobileReady">준비됐어요, 녹화 시작</button>
+      <button class="mobile-modal-cancel" id="btnMobileCancel">취소</button>
+    </div>
+  </div>
+
+  <!-- 녹화 종료 후 되돌리기 안내 토스트 -->
+  <div class="restore-toast" id="restoreToast">
+    <div class="restore-toast-icon">↩</div>
+    <div class="restore-toast-text">
+      <strong>모바일 모드를 해제해 주세요</strong>
+      <span>Ctrl+Shift+M 을 눌러 기기 모드를 끄세요</span>
+    </div>
+    <button class="restore-toast-close" id="btnRestoreClose">✕</button>
+  </div>
+
+  <!-- 녹화 중 컨트롤 패널 -->
+  <div id="viewRecording">
+    <div class="rec-status">
+      <div class="rec-dot" id="recDot"></div>
+      <span class="rec-label" id="recLabel">REC</span>
+      <span class="mobile-badge" id="mobileBadge" style="display:none">📱 모바일</span>
+      <span class="rec-step-count" id="recStepCount">0 steps</span>
+    </div>
+    <div class="ctrl-row">
+      <button class="ctrl-btn" id="btnPause" title="일시정지 / 재개">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="3" width="4" height="18" rx="1"/><rect x="15" y="3" width="4" height="18" rx="1"/></svg>
+        <span id="pauseLabel">일시정지</span>
+      </button>
+      <button class="ctrl-btn" id="btnSnap" title="수동 캡처">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        화면 캡처
+      </button>
+      <button class="ctrl-btn" id="btnUndo" title="마지막 스텝 취소">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
+        실행취소
+      </button>
+      <button class="ctrl-btn" id="btnBlurTool" title="영역 블러 처리">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>
+        블러
+      </button>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+  <div class="steps-header">
+    <span class="steps-title">캡처된 스텝</span>
+  </div>
+  <div class="steps-list" id="stepsList">
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">&#128247;</div>
+      <div class="empty-text">아직 캡처된 스텝이 없습니다</div>
+      <div class="empty-subtext">녹화 시작 후 웹페이지를 클릭하세요</div>
+    </div>
+  </div>
+
+  <!-- 녹화 중 하단 액션 바 -->
+  <div class="bottom-action-bar" id="bottomActionBar" style="display:none">
+    <button class="btn-discard-bottom" id="btnDiscard" title="저장 없이 종료">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      중지
+    </button>
+    <button class="btn-finish" id="btnFinish">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      녹화 완료 및 편집
+    </button>
+  </div>
+
+  <!-- ── 설정 패널 ── -->
+  <div class="settings-overlay" id="settingsOverlay">
+    <div class="settings-panel">
+      <div class="settings-header">
+        <button class="btn-back" id="btnBack">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <span class="settings-title">설정</span>
+      </div>
+
+      <!-- 캡처 시각 효과 -->
+      <div class="settings-section">
+        <div class="settings-section-title">캡처 시각 효과</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">클릭 하이라이트</div>
+            <div class="setting-desc">클릭한 요소 주변에 빨간 테두리를 표시합니다</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="settingHighlight" checked />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">캡처 플래시</div>
+            <div class="setting-desc">촬영 시 화면이 잠깐 반짝여 캡처되었음을 알립니다</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="settingFlash" checked />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-section-divider"></div>
+
+      <!-- 캡처 동작 -->
+      <div class="settings-section">
+        <div class="settings-section-title">캡처 동작</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">캡처 대상</div>
+            <div class="setting-desc">클릭 시 캡처할 요소의 범위를 설정합니다</div>
+          </div>
+          <select class="setting-select" id="settingCaptureMode">
+            <option value="interactive">자동 감지 (클릭 가능 요소만)</option>
+            <option value="all">모든 클릭</option>
+          </select>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">이미지 품질</div>
+            <div class="setting-desc">높을수록 선명하지만 업로드가 느려집니다</div>
+          </div>
+          <div class="quality-wrap">
+            <input type="range" id="settingQuality" min="50" max="100" step="5" value="82" />
+            <span class="quality-val" id="qualityVal">82%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section-divider"></div>
+
+      <!-- 개인정보 보호 -->
+      <div class="settings-section">
+        <div class="settings-section-title">개인정보 보호</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">PII 자동 블러</div>
+            <div class="setting-desc">이메일, 전화번호 등 개인정보가 포함된 영역을 캡처 시 자동으로 모자이크 처리합니다</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="settingPiiBlur" checked />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-section-divider"></div>
+
+      <!-- 자동화 -->
+      <div class="settings-section">
+        <div class="settings-section-title">자동화</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">자동 페이지 이동 감지</div>
+            <div class="setting-desc">URL 변경 시 자동으로 스크린샷을 추가합니다</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="settingAutoNav" checked />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-section-divider"></div>
+
+      <!-- 녹화 모드 -->
+      <div class="settings-section">
+        <div class="settings-section-title">녹화 모드</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">모바일 화면 녹화</div>
+            <div class="setting-desc">켜면 녹화 시작 시 모바일 기기 모드 설정을 안내합니다</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="settingMobileMode" />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+      </div>
+
+      <div style="height:24px;"></div>
+    </div>
+  </div>
+
+  <!-- 썸네일 확대 오버레이 -->
+  <div class="thumb-zoom-overlay" id="thumbZoomOverlay">
+    <button class="thumb-zoom-close" id="thumbZoomClose">✕</button>
+    <img id="thumbZoomImg" src="" alt="" />
+    <div class="thumb-zoom-toolbar">
+      <button class="thumb-zoom-btn" id="thumbZoomBlur">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>
+        영역 블러
+      </button>
+      <button class="thumb-zoom-btn" id="thumbZoomNewTab">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        새 탭에서 원본 열기
+      </button>
+    </div>
+  </div>
+
+  <!-- 이미지 모달 -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal-content">
+      <button class="modal-close" id="modalClose">&#10005;</button>
+      <img class="modal-img" id="modalImg" src="" alt="" />
+      <div class="modal-meta">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:600;color:#fff;margin-bottom:2px" id="modalTitle"></div>
+          <div style="font-size:11px;color:#aaa" id="modalDesc"></div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;margin-left:8px">
+          <div class="modal-step-num" id="modalStepNum"></div>
+          <div class="modal-step-time" id="modalStepTime"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 업로드 오버레이 -->
+  <div class="upload-overlay" id="uploadOverlay">
+    <div class="upload-spinner"><div class="upload-icon">&#8679;</div></div>
+    <div class="upload-title">데이터 전송 중...</div>
+    <div class="upload-progress-wrap">
+      <div class="upload-progress-track">
+        <div class="upload-progress-bar" id="uploadProgressBar"></div>
+      </div>
+    </div>
+    <div class="upload-sub" id="uploadSub">업로드 중...</div>
+  </div>
+
+  <!-- ── Guide Me 뷰 ── -->
+  <div id="viewGuide" style="display:none; flex-direction:column; height:100vh; overflow:hidden;">
+
+    <!-- 헤더 -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #e8e8f0;flex-shrink:0;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="width:26px;height:26px;border-radius:50%;overflow:hidden;flex-shrink:0;">
+          <img src="icons/icon48.png" alt="MIMIC" style="width:100%;height:100%;object-fit:cover;">
+        </div>
+        <span style="font-size:14px;font-weight:700;color:#1e1e2e;">Guide Me</span>
+      </div>
+      <button id="guideExitBtn" title="가이드 종료" style="width:28px;height:28px;border:1px solid #e8e8f0;border-radius:8px;background:#fff;color:#888;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;transition:all 0.15s;" onmouseover="this.style.borderColor='#EF4444';this.style.color='#EF4444';this.style.background='#fff5f5'" onmouseout="this.style.borderColor='#e8e8f0';this.style.color='#888';this.style.background='#fff'">✕</button>
+    </div>
+
+    <!-- 진행률 -->
+    <div style="padding:14px 16px 0;flex-shrink:0;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <span id="guideStepLabel" style="font-size:12px;font-weight:600;color:#888;">Step 1 / 1</span>
+        <span id="guidePctLabel" style="font-size:11px;color:#bbb;">0%</span>
+      </div>
+      <div style="height:4px;background:#f0f0f8;border-radius:4px;overflow:hidden;">
+        <div id="guideProgressBar" style="height:100%;width:0%;background:linear-gradient(90deg,#4F46E5,#a78bfa);border-radius:4px;transition:width 0.3s ease;"></div>
+      </div>
+    </div>
+
+    <!-- 스텝 내용 -->
+    <div style="flex:1;overflow-y:auto;padding:16px;">
+      <div style="font-size:16px;font-weight:700;color:#1e1e2e;margin-bottom:10px;line-height:1.4;" id="guideStepTitle"></div>
+      <div style="font-size:13px;color:#555;line-height:1.7;" id="guideStepInstruction"></div>
+    </div>
+
+    <!-- 이전 / 다음 버튼 -->
+    <div style="display:flex;gap:8px;padding:12px 16px;border-top:1px solid #e8e8f0;flex-shrink:0;">
+      <button id="guidePrevBtn" style="flex:1;padding:10px;border:1px solid #e8e8f0;border-radius:9px;background:#fff;color:#555;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;" onmouseover="this.style.borderColor='#4F46E5';this.style.color='#4F46E5';this.style.background='#f5f3ff'" onmouseout="this.style.borderColor='#e8e8f0';this.style.color='#555';this.style.background='#fff'">← 이전</button>
+      <button id="guideNextBtn" style="flex:2;padding:10px;border:none;border-radius:9px;background:#4F46E5;color:#fff;font-size:13px;font-weight:700;cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='#4338CA'" onmouseout="this.style.background='#4F46E5'">다음 →</button>
+    </div>
+
+    <!-- 스텝 번호 목록 -->
+    <div style="padding:0 16px 14px;flex-shrink:0;">
+      <div id="guideStepDots" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+    </div>
+  </div>
+
+  <!-- 캡처 차단 토스트 (DRM/보안 페이지) -->
+  <div class="capture-blocked-toast" id="captureBlockedToast" style="display:none;position:fixed;bottom:72px;left:12px;right:12px;background:#1e1e2e;color:#fff;border-radius:12px;padding:12px 14px;z-index:99999;animation:toast-in 0.25s ease-out;border-left:3px solid #f59e0b;">
+    <div style="display:flex;align-items:flex-start;gap:10px;">
+      <span style="font-size:18px;flex-shrink:0;">⚠️</span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12px;font-weight:700;margin-bottom:3px;">이 페이지는 자동 캡처가 제한됩니다</div>
+        <div style="font-size:11px;color:#aaa;margin-bottom:8px;">DRM 또는 보안 정책으로 인해 스크린샷을 찍을 수 없습니다.</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <label style="display:flex;align-items:center;gap:6px;padding:5px 10px;background:rgba(255,255,255,0.08);border-radius:7px;cursor:pointer;font-size:11px;font-weight:600;color:#a78bfa;border:1px solid rgba(167,139,250,0.3);">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            이미지 업로드
+            <input type="file" id="blockedFileInput" accept="image/*" style="display:none;">
+          </label>
+          <button id="blockedPasteBtn" style="display:flex;align-items:center;gap:5px;padding:5px 10px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:7px;color:#ccc;font-size:11px;font-weight:600;cursor:pointer;">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M17 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
+            클립보드 붙여넣기
+          </button>
+          <button id="blockedDismissBtn" style="margin-left:auto;background:none;border:none;color:#666;font-size:11px;cursor:pointer;padding:5px;">무시</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

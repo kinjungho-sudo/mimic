@@ -1,0 +1,454 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - link "MIMIC" [ref=e5] [cursor=pointer]:
+        - /url: /landingpage
+        - img [ref=e6]:
+          - generic [ref=e8]: M
+        - text: MIMIC
+      - navigation [ref=e9]:
+        - link "기능" [ref=e10] [cursor=pointer]:
+          - /url: "#features"
+        - link "사용 방법" [ref=e11] [cursor=pointer]:
+          - /url: "#how"
+        - link "요금제" [ref=e12] [cursor=pointer]:
+          - /url: "#pricing"
+        - link "기업 문의" [ref=e13] [cursor=pointer]:
+          - /url: "#b2b"
+        - link "FAQ" [ref=e14] [cursor=pointer]:
+          - /url: "#faq"
+      - generic [ref=e15]:
+        - link "로그인" [ref=e16] [cursor=pointer]:
+          - /url: /auth/login
+        - link "무료로 시작" [ref=e17] [cursor=pointer]:
+          - /url: /auth/login
+  - generic [ref=e19]:
+    - generic [ref=e20]: AI 인터랙티브 매뉴얼 플랫폼
+    - heading "작업 자체가 곧 기록이 된다." [level=1] [ref=e22]:
+      - text: 작업 자체가
+      - text: 곧 기록이 된다.
+    - paragraph [ref=e23]:
+      - text: 평소처럼 일하기만 하면 매뉴얼이 완성됩니다.
+      - text: 캡처부터 공유까지 — 30초면 충분합니다.
+    - generic [ref=e24]:
+      - link "무료로 시작하기" [ref=e25] [cursor=pointer]:
+        - /url: /auth/login
+        - img [ref=e26]
+        - text: 무료로 시작하기
+      - link "데모 보기" [ref=e28] [cursor=pointer]:
+        - /url: /play/d3febce4cfc9d978baa42b217363d2fd
+        - img [ref=e29]
+        - text: 데모 보기
+    - generic [ref=e32]:
+      - generic [ref=e33]:
+        - generic [ref=e34]:
+          - generic [ref=e38]:
+            - img [ref=e39]
+            - generic [ref=e42]: app.mimic.so/home
+          - generic [ref=e43]: MIMIC 녹화 중
+        - generic [ref=e46]:
+          - generic [ref=e47]:
+            - generic [ref=e48]:
+              - generic [ref=e50]: M
+              - generic [ref=e51]: MIMIC
+            - generic [ref=e52]: 전체
+            - generic [ref=e53]: 미분류
+            - generic [ref=e54]: 온보딩
+            - generic [ref=e55]: 고객지원
+          - generic [ref=e56]:
+            - generic [ref=e57]:
+              - generic [ref=e58]: 김정호님의 매뉴얼
+              - generic [ref=e60]:
+                - text: 새 매뉴얼
+                - img [ref=e62]
+            - generic [ref=e66]:
+              - generic [ref=e67]: Notion 페이지 만들기
+              - generic [ref=e68]: 06/01 · 4단계
+            - generic [ref=e71]:
+              - generic [ref=e72]: Slack 채널 초대 방법
+              - generic [ref=e73]: 05/28 · 3단계
+            - generic [ref=e76]:
+              - generic [ref=e77]: Google Drive 공유 설정
+              - generic [ref=e78]: 05/25 · 5단계
+      - generic [ref=e79]:
+        - generic [ref=e80]:
+          - generic [ref=e82]: "1"
+          - generic [ref=e83]: 녹화 시작
+        - generic [ref=e86]: "2"
+        - generic [ref=e89]: "3"
+        - generic [ref=e92]: "4"
+        - generic [ref=e95]: "5"
+  - generic [ref=e98]:
+    - paragraph [ref=e99]: The MIMIC Way
+    - heading "평소처럼 일하면 자료가 나온다." [level=2] [ref=e100]:
+      - text: 평소처럼 일하면
+      - text: 자료가 나온다.
+    - paragraph [ref=e101]: 녹화 버튼 하나만 켜면 됩니다. 클릭, 입력, 스크롤 — 당신의 모든 동작이 그대로 단계가 되고, AI가 설명을 붙입니다.
+    - generic [ref=e102]:
+      - generic [ref=e103]:
+        - generic [ref=e104]: 별도 작업 없음
+        - generic [ref=e105]: 하던 일을 그대로 하면 됩니다
+      - generic [ref=e106]:
+        - generic [ref=e107]: 30초 완성
+        - generic [ref=e108]: AI가 즉시 정리합니다
+      - generic [ref=e109]:
+        - generic [ref=e110]: 링크 하나로 공유
+        - generic [ref=e111]: 앱 설치 없이 바로 공유
+  - generic [ref=e114]:
+    - generic [ref=e115]: Problem
+    - heading "이런 문제, 한 번쯤 겪어보셨죠?" [level=2] [ref=e116]
+    - paragraph [ref=e117]: PDF는 쌓이기만 하고, 영상은 만들기 지옥이고, PPT는 만들다 하루가 갑니다.
+    - generic [ref=e118]:
+      - generic [ref=e119]:
+        - generic [ref=e120]: 📄
+        - generic [ref=e121]: PDF는 아무도 안 읽어요
+        - paragraph [ref=e122]: 200페이지 매뉴얼을 만들어도 신입은 첫 페이지에서 멈춥니다. 검색도 안 되고 따라하기도 어렵죠.
+        - generic [ref=e123]: "\"매뉴얼 어디 있어요?\" — 매일 듣는 말"
+      - generic [ref=e124]:
+        - generic [ref=e125]: 🎥
+        - generic [ref=e126]: 영상 제작은 지옥이에요
+        - paragraph [ref=e127]: 대본 쓰고, 녹화하고, 편집하고, 자막 달면 하루가 그냥 갑니다. 한 줄 수정하려면 처음부터 다시.
+        - generic [ref=e128]: "\"영상 5분 만드는 데 6시간\""
+      - generic [ref=e129]:
+        - generic [ref=e130]: 🖥️
+        - generic [ref=e131]: PPT는 너무 오래 걸려요
+        - paragraph [ref=e132]: 스크린샷 찍고, 자르고, 화살표 그리고, 정렬 맞추다 보면 한 슬라이드에 30분. UI는 또 바뀌어 있고요.
+        - generic [ref=e133]: "\"디자인은 또 누가 다듬어?\""
+  - generic [ref=e135]:
+    - generic [ref=e136]: How it works
+    - heading "3단계로 끝나는 매뉴얼 제작" [level=2] [ref=e137]
+    - paragraph [ref=e138]: 기존 작업을 평소처럼 하기만 하면 됩니다. 나머지는 AI가 다 합니다.
+    - generic [ref=e139]:
+      - generic [ref=e140]:
+        - generic [ref=e141]: "01"
+        - generic [ref=e142]: 크롬 확장 설치 후 녹화 시작
+        - paragraph [ref=e143]: 웹 작업을 평소처럼 진행하면 클릭 위치와 화면이 자동 캡처됩니다.
+      - generic [ref=e144]:
+        - generic [ref=e145]: "02"
+        - generic [ref=e146]: AI가 자동 정리
+        - paragraph [ref=e147]: 캡처된 스크린샷을 분석해 단계별 설명과 자막, 항목 마커까지 자동 생성합니다.
+      - generic [ref=e148]:
+        - generic [ref=e149]: "03"
+        - generic [ref=e150]: 링크로 공유
+        - paragraph [ref=e151]: 완성된 매뉴얼은 링크 한 줄로 어디든 공유. 보는 사람은 클릭으로 따라하면 끝.
+  - generic [ref=e153]:
+    - generic [ref=e154]: Use Cases
+    - heading "어떤 팀에서 쓰고 있나요?" [level=2] [ref=e155]
+    - paragraph [ref=e156]: 설명이 필요한 곳이라면 어디든 MIMIC으로 해결할 수 있습니다.
+    - generic [ref=e157]:
+      - generic [ref=e158]:
+        - generic [ref=e159]:
+          - generic [ref=e160]: 🎧
+          - generic [ref=e161]: CS · 고객지원
+        - generic [ref=e162]: 반복 문의, 이제 링크 하나로 끝내세요
+        - paragraph [ref=e163]: 고객이 매번 묻는 설정법, 오류 해결 방법을 인터랙티브 매뉴얼로 만들어 링크만 공유하세요. 답변 시간이 줄고, 고객 만족도는 올라갑니다.
+      - generic [ref=e164]:
+        - generic [ref=e165]:
+          - generic [ref=e166]: 🧑‍💼
+          - generic [ref=e167]: 사내 교육 · 온보딩
+        - generic [ref=e168]: 신입이 처음부터 혼자 따라할 수 있게
+        - paragraph [ref=e169]: 사내 툴 사용법, ERP 입력 방법, 결재 프로세스를 화면 그대로 녹화해 매뉴얼로. 구두 설명 없이도 누구나 보고 따라합니다.
+      - generic [ref=e170]:
+        - generic [ref=e171]:
+          - generic [ref=e172]: 📹
+          - generic [ref=e173]: 크리에이터 · 튜토리얼
+        - generic [ref=e174]: 영상 없이도 영상처럼 설명하세요
+        - paragraph [ref=e175]: 유튜브 튜토리얼을 만들 시간이 없다면 MIMIC으로 대신하세요. 클릭 한 번에 인터랙티브 가이드가 완성됩니다.
+      - generic [ref=e176]:
+        - generic [ref=e177]:
+          - generic [ref=e178]: 🏢
+          - generic [ref=e179]: SaaS · 솔루션 기업
+        - generic [ref=e180]: 제품 도입 후 이탈을 막는 가장 빠른 방법
+        - paragraph [ref=e181]: 고객이 제품을 제대로 쓸 수 있도록 기능별 가이드를 빠르게 제작하고 Help Center에 바로 배포하세요.
+  - generic [ref=e183]:
+    - generic [ref=e184]: Features
+    - heading "한 번 만들면, 세 가지 형태로 살아납니다" [level=2] [ref=e185]
+    - paragraph [ref=e186]: 스크린샷 한 번에 가이드 문서 · 인터랙티브 튜토리얼 · 영상까지.
+    - generic [ref=e187]:
+      - generic [ref=e188]:
+        - img [ref=e190]
+        - generic [ref=e192]: 30초 매뉴얼 완성
+        - paragraph [ref=e193]: 웹에서 평소처럼 작업하기만 하면 자동으로 단계가 나뉘고, AI가 설명까지 완성합니다.
+      - generic [ref=e194]:
+        - img [ref=e196]
+        - generic [ref=e199]: 클릭 한 번 AI 편집
+        - paragraph [ref=e200]: 텍스트를 클릭하면 바로 편집. AI 다듬기로 어색한 표현을 자연스럽게 고쳐줍니다.
+      - generic [ref=e201]:
+        - generic [ref=e202]: 출시 예정
+        - img [ref=e204]
+        - generic [ref=e207]: AI 자막 · 음성
+        - paragraph [ref=e208]: 스크린샷만 캡처해도 자막과 음성이 자동 생성됩니다. 마음에 안 들면 직접 조정 가능.
+      - generic [ref=e209]:
+        - generic [ref=e210]: 출시 예정
+        - img [ref=e212]
+        - generic [ref=e217]: 장면 줌인
+        - paragraph [ref=e218]: 시작·종료 장면을 드래그로 지정하면 영상 같은 줌 효과가 자동 적용됩니다.
+      - generic [ref=e219]:
+        - img [ref=e221]
+        - generic [ref=e224]: 링크 한 줄로 공유
+        - paragraph [ref=e225]: 완성된 매뉴얼은 링크 하나로 어디든 공유. 앱 설치 없이 바로 보고 따라할 수 있습니다.
+      - generic [ref=e226]:
+        - img [ref=e228]
+        - generic [ref=e232]: 개인정보 유출 없이 캡처
+        - paragraph [ref=e233]: 비밀번호·개인정보는 캡처하지 않습니다. 민감한 화면은 기기 안에서 자동으로 처리되어, 원본 이미지는 서버에 전달되지 않습니다.
+  - generic [ref=e235]:
+    - generic [ref=e236]: Why MIMIC
+    - heading "다른 방법과 무엇이 다른가요?" [level=2] [ref=e237]
+    - generic [ref=e238]:
+      - generic [ref=e239]:
+        - generic [ref=e240]: 기능
+        - generic [ref=e241]: PPT / 문서
+        - generic [ref=e242]: 영상 녹화
+        - generic [ref=e243]: MIMIC
+      - generic [ref=e244]:
+        - generic [ref=e245]: 제작 시간
+        - generic [ref=e247]: 1~3시간
+        - generic [ref=e249]: 2~6시간
+        - generic [ref=e251]: 30초~5분
+      - generic [ref=e252]:
+        - generic [ref=e253]: 클릭으로 따라하기
+        - img [ref=e255]
+        - img [ref=e259]
+        - img [ref=e264]
+      - generic [ref=e266]:
+        - generic [ref=e267]: AI 자동 설명 생성
+        - img [ref=e269]
+        - img [ref=e273]
+        - img [ref=e278]
+      - generic [ref=e280]:
+        - generic [ref=e281]: 수정 용이성
+        - generic [ref=e283]: 낮음
+        - generic [ref=e285]: 낮음
+        - generic [ref=e287]: 높음
+      - generic [ref=e288]:
+        - generic [ref=e289]: AI 음성 · 자막
+        - img [ref=e291]
+        - img [ref=e295]
+        - generic [ref=e299]: 출시 예정
+  - generic [ref=e301]:
+    - generic [ref=e302]: Pricing
+    - heading "필요한 만큼만 결제하세요" [level=2] [ref=e303]
+    - paragraph [ref=e304]: 기본 매뉴얼은 누구나 무료로. 진짜 필요할 때만 업그레이드하세요.
+    - generic [ref=e306]:
+      - button "월간 결제" [ref=e307] [cursor=pointer]
+      - button "연간 결제 2개월 무료" [ref=e308] [cursor=pointer]:
+        - text: 연간 결제
+        - generic [ref=e309]: 2개월 무료
+    - generic [ref=e310]:
+      - generic [ref=e311]:
+        - generic [ref=e312]: Free
+        - generic [ref=e313]: 신용카드 없이 바로 시작
+        - generic [ref=e314]:
+          - generic [ref=e315]: ₩0
+          - generic [ref=e316]: / 월
+        - link "무료로 시작" [ref=e317] [cursor=pointer]:
+          - /url: /auth/login
+        - list [ref=e318]:
+          - listitem [ref=e319]:
+            - img [ref=e321]
+            - text: 매일 매뉴얼 3개
+          - listitem [ref=e323]:
+            - img [ref=e325]
+            - text: 기본 매뉴얼 작성
+          - listitem [ref=e327]:
+            - img [ref=e329]
+            - text: MIMIC Recorder 확장 설치
+          - listitem [ref=e331]:
+            - img [ref=e333]
+            - text: 텍스트·도형 편집
+          - listitem [ref=e335]:
+            - img [ref=e337]
+            - text: 링크 공유 + PDF
+          - listitem [ref=e339]:
+            - img [ref=e341]
+            - text: 500MB 저장 공간
+      - generic [ref=e343]:
+        - generic [ref=e344]: 가장 인기
+        - generic [ref=e345]: Pro
+        - generic [ref=e346]: 개인 크리에이터와 파워 유저
+        - generic [ref=e347]:
+          - generic [ref=e348]: ₩9,900
+          - generic [ref=e349]: / 월
+        - button "출시 알림 받기" [ref=e350] [cursor=pointer]
+        - list [ref=e351]:
+          - listitem [ref=e352]:
+            - img [ref=e354]
+            - text: 매뉴얼 무제한 생성
+          - listitem [ref=e356]:
+            - img [ref=e358]
+            - text: AI 다듬기 무제한
+          - listitem [ref=e360]:
+            - img [ref=e362]
+            - text: 줌인 + 자막 효과 (출시 예정)
+          - listitem [ref=e364]:
+            - img [ref=e366]
+            - text: AI 음성 (출시 예정)
+          - listitem [ref=e368]:
+            - img [ref=e370]
+            - text: HTML·MD 내보내기
+          - listitem [ref=e372]:
+            - img [ref=e374]
+            - text: 비공개 + 비밀번호 보호
+          - listitem [ref=e376]:
+            - img [ref=e378]
+            - text: 5GB 저장 공간
+      - generic [ref=e380]:
+        - generic [ref=e381]: Team
+        - generic [ref=e382]: 팀·기업을 위한 맞춤 플랜
+        - generic [ref=e384]: 협의
+        - button "도입 문의하기" [ref=e385] [cursor=pointer]
+        - list [ref=e386]:
+          - listitem [ref=e387]:
+            - img [ref=e389]
+            - text: Pro 플랜 모든 기능
+          - listitem [ref=e391]:
+            - img [ref=e393]
+            - text: 팀 워크스페이스
+          - listitem [ref=e395]:
+            - img [ref=e397]
+            - text: 멤버 권한 관리
+          - listitem [ref=e399]:
+            - img [ref=e401]
+            - text: 무제한 저장 공간
+          - listitem [ref=e403]:
+            - img [ref=e405]
+            - text: 전용 온보딩 지원
+          - listitem [ref=e407]:
+            - img [ref=e409]
+            - text: 세금계산서 발행
+          - listitem [ref=e411]:
+            - img [ref=e413]
+            - text: 우선 지원 (SLA)
+  - generic [ref=e416]:
+    - generic [ref=e417]: For Enterprise
+    - heading "팀 전체가 같은 방식으로 일할 수 있게" [level=2] [ref=e418]:
+      - text: 팀 전체가 같은 방식으로
+      - text: 일할 수 있게
+    - paragraph [ref=e419]: 반복 문의를 줄이고, 온보딩 시간을 단축하고, 지식을 조직 전체에 공유하세요. 기업 맞춤 도입 상담을 진행합니다.
+    - generic [ref=e420]:
+      - link "기업 데모 신청하기" [ref=e421] [cursor=pointer]:
+        - /url: mailto:hello@mimicflow.com?subject=기업 데모 신청
+      - link "자료 다운로드" [ref=e422] [cursor=pointer]:
+        - /url: mailto:hello@mimicflow.com?subject=자료 요청
+  - generic [ref=e424]:
+    - generic [ref=e425]: FAQ
+    - heading "자주 묻는 질문" [level=2] [ref=e426]
+    - paragraph [ref=e427]: 결제, 사용법, 보안까지. 더 궁금한 점은 1:1 문의로 보내주세요.
+    - generic [ref=e428]:
+      - generic [ref=e429]:
+        - button "언제든 취소할 수 있나요?" [ref=e430] [cursor=pointer]:
+          - text: 언제든 취소할 수 있나요?
+          - img [ref=e432]
+        - generic [ref=e435]: 네, 마이페이지에서 언제든 구독을 해지할 수 있어요. 해지 후에도 결제한 기간까지는 모든 기능을 그대로 사용하실 수 있습니다.
+      - button "무료 플랜의 매뉴얼은 어떻게 보관되나요?" [ref=e437] [cursor=pointer]:
+        - text: 무료 플랜의 매뉴얼은 어떻게 보관되나요?
+        - img [ref=e439]
+      - button "어떤 결제 방법을 지원하나요?" [ref=e441] [cursor=pointer]:
+        - text: 어떤 결제 방법을 지원하나요?
+        - img [ref=e443]
+      - button "플랜은 자유롭게 변경할 수 있나요?" [ref=e445] [cursor=pointer]:
+        - text: 플랜은 자유롭게 변경할 수 있나요?
+        - img [ref=e447]
+      - button "환불 정책은 어떻게 되나요?" [ref=e449] [cursor=pointer]:
+        - text: 환불 정책은 어떻게 되나요?
+        - img [ref=e451]
+      - button "팀이나 회사 단위로 사용하려면 어떻게 하나요?" [ref=e453] [cursor=pointer]:
+        - text: 팀이나 회사 단위로 사용하려면 어떻게 하나요?
+        - img [ref=e455]
+  - generic [ref=e458]:
+    - generic [ref=e459]: ★ Pro 출시 알림 받기 · 사전예약
+    - heading "30초 만에 첫 매뉴얼을 만들어보세요" [level=2] [ref=e460]:
+      - text: 30초 만에 첫 매뉴얼을
+      - text: 만들어보세요
+    - paragraph [ref=e461]: MIMIC Recorder 확장 설치 → 평소처럼 작업 → 링크 한 줄로 공유. 그게 전부입니다.
+    - generic [ref=e462]:
+      - textbox "jungho@company.com" [ref=e463]
+      - button "사전예약 →" [ref=e464] [cursor=pointer]
+    - generic [ref=e465]:
+      - link "무료로 시작하기" [ref=e466] [cursor=pointer]:
+        - /url: /auth/login
+        - text: 무료로 시작하기
+        - img [ref=e467]
+      - link "기업 데모 신청" [ref=e469] [cursor=pointer]:
+        - /url: mailto:hello@mimicflow.com?subject=기업 데모 신청
+  - contentinfo [ref=e470]:
+    - generic [ref=e471]:
+      - generic [ref=e472]:
+        - generic [ref=e473]:
+          - link "MIMIC" [ref=e474] [cursor=pointer]:
+            - /url: /landingpage
+            - img [ref=e475]:
+              - generic [ref=e477]: M
+            - text: MIMIC
+          - paragraph [ref=e478]:
+            - text: 길게 설명할 필요 없어요. 보고 따라 하게 만드세요.
+            - text: Don't Explain, Just Mimic.
+        - generic [ref=e479]:
+          - heading "제품" [level=5] [ref=e480]
+          - list [ref=e481]:
+            - listitem [ref=e482]:
+              - link "기능" [ref=e483] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e484]:
+              - link "사용 방법" [ref=e485] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e486]:
+              - link "요금제" [ref=e487] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e488]:
+              - link "변경 사항" [ref=e489] [cursor=pointer]:
+                - /url: "#"
+        - generic [ref=e490]:
+          - heading "회사" [level=5] [ref=e491]
+          - list [ref=e492]:
+            - listitem [ref=e493]:
+              - link "소개" [ref=e494] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e495]:
+              - link "블로그" [ref=e496] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e497]:
+              - link "채용" [ref=e498] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e499]:
+              - link "기업 문의" [ref=e500] [cursor=pointer]:
+                - /url: "#"
+        - generic [ref=e501]:
+          - heading "지원" [level=5] [ref=e502]
+          - list [ref=e503]:
+            - listitem [ref=e504]:
+              - link "이용 가이드" [ref=e505] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e506]:
+              - link "FAQ" [ref=e507] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e508]:
+              - link "고객센터" [ref=e509] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e510]:
+              - link "상태 페이지" [ref=e511] [cursor=pointer]:
+                - /url: "#"
+        - generic [ref=e512]:
+          - heading "법적 고지" [level=5] [ref=e513]
+          - list [ref=e514]:
+            - listitem [ref=e515]:
+              - link "이용약관" [ref=e516] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e517]:
+              - link "개인정보처리방침" [ref=e518] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e519]:
+              - link "보안" [ref=e520] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e521]:
+              - link "환불 정책" [ref=e522] [cursor=pointer]:
+                - /url: "#"
+      - generic [ref=e523]:
+        - generic [ref=e524]: © 2026 코마인드웍스 · MIMIC
+        - generic [ref=e525]:
+          - link "한국어" [ref=e526] [cursor=pointer]:
+            - /url: "#"
+          - link "English" [ref=e527] [cursor=pointer]:
+            - /url: "#"
+          - link "hello@mimicflow.com" [ref=e528] [cursor=pointer]:
+            - /url: "#"

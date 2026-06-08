@@ -1,0 +1,70 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - link "MIMIC" [ref=e5] [cursor=pointer]:
+          - /url: /home
+          - img [ref=e6]:
+            - generic [ref=e8]: M
+          - generic [ref=e9]: MIMIC
+        - generic [ref=e10]: "|"
+        - generic [ref=e11]: 도움말
+      - link "대시보드로 →" [ref=e12] [cursor=pointer]:
+        - /url: /home
+    - generic [ref=e13]:
+      - navigation [ref=e14]:
+        - button "✦ MIMIC이란?" [ref=e16] [cursor=pointer]:
+          - generic [ref=e17]: ✦
+          - text: MIMIC이란?
+        - generic [ref=e18]:
+          - button "⚡ 빠른 시작" [ref=e19] [cursor=pointer]:
+            - generic [ref=e20]: ⚡
+            - text: 빠른 시작
+          - generic [ref=e21]:
+            - button "1. 확장 프로그램 설치" [ref=e22] [cursor=pointer]
+            - button "2. 화면 녹화하기" [ref=e23] [cursor=pointer]
+            - button "3. 매뉴얼 편집하기" [ref=e24] [cursor=pointer]
+            - button "4. 공유하기" [ref=e25] [cursor=pointer]
+        - generic [ref=e26]:
+          - button "◈ 주요 기능" [ref=e27] [cursor=pointer]:
+            - generic [ref=e28]: ◈
+            - text: 주요 기능
+          - generic [ref=e29]:
+            - button "대시보드" [ref=e30] [cursor=pointer]
+            - button "매뉴얼 에디터" [ref=e31] [cursor=pointer]
+            - button "Guide Me" [ref=e32] [cursor=pointer]
+            - button "내보내기" [ref=e33] [cursor=pointer]
+            - button "공유 링크" [ref=e34] [cursor=pointer]
+            - button "워크스페이스" [ref=e35] [cursor=pointer]
+        - button "◉ 요금제" [ref=e37] [cursor=pointer]:
+          - generic [ref=e38]: ◉
+          - text: 요금제
+        - button "? FAQ" [active] [ref=e40] [cursor=pointer]:
+          - generic [ref=e41]: "?"
+          - text: FAQ
+      - main [ref=e42]:
+        - generic [ref=e43]:
+          - heading "자주 묻는 질문" [level=2] [ref=e80]
+          - generic [ref=e81]:
+            - generic [ref=e82]: Q. 매뉴얼 생성이 안 돼요.
+            - generic [ref=e83]: A. 무료 플랜은 하루 3회까지 생성 가능합니다. 내일 다시 시도하거나 Pro 플랜으로 업그레이드하면 무제한으로 생성할 수 있습니다.
+          - generic [ref=e84]:
+            - generic [ref=e85]: Q. Guide Me가 버튼을 못 찾아요.
+            - generic [ref=e86]: A. 원본 페이지의 UI가 변경됐을 수 있습니다. 에디터에서 "페이지 변경 감지 검사"를 실행하면 변경된 단계를 확인할 수 있습니다.
+          - generic [ref=e87]:
+            - generic [ref=e88]: Q. 공유 링크로 들어갔는데 아무것도 안 보여요.
+            - generic [ref=e89]: A. 매뉴얼이 아직 초안(draft) 상태일 수 있습니다. "공유" 버튼 → "게시하고 공유"를 눌러 공개 상태로 전환해주세요.
+          - generic [ref=e90]:
+            - generic [ref=e91]: Q. PDF 내보내기가 느려요.
+            - generic [ref=e92]: A. 스크린샷이 많은 매뉴얼은 생성에 시간이 걸릴 수 있습니다. 페이지를 닫지 말고 잠시 기다려주세요.
+          - generic [ref=e93]:
+            - generic [ref=e94]: Q. 팀원을 초대하려면 어떻게 하나요?
+            - generic [ref=e95]: A. 팀 워크스페이스 설정에서 팀원 이메일로 초대 링크를 전송할 수 있습니다. Team 플랜이 필요합니다.
+          - generic [ref=e96]:
+            - generic [ref=e97]: Q. 확장 프로그램이 Chrome 외 브라우저에서도 동작하나요?
+            - generic [ref=e98]: A. Chromium 기반 브라우저(Edge, Brave 등)에서도 동작합니다. Firefox, Safari는 현재 지원하지 않습니다.
+          - generic [ref=e99]:
+            - generic [ref=e100]: 더 궁금한 점이 있으신가요?
+            - generic [ref=e101]: support@mimic.so로 문의해주세요. 빠르게 답변드리겠습니다.
+        - button "← 요금제" [ref=e102] [cursor=pointer]
+  - alert [ref=e56]

@@ -1,0 +1,53 @@
+{
+  "manifest_version": 3,
+  "name": "MIMIC Recorder",
+  "version": "1.0.0",
+  "description": "웹페이지의 클릭 동작을 단계별로 자동 캡처하여 매뉴얼·가이드 문서를 손쉽게 만들어주는 스크린샷 레코더입니다.",
+  "icons": {
+    "16":  "icons/icon16.png",
+    "48":  "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_icon": {
+      "16":  "icons/icon16.png",
+      "48":  "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "side_panel": {
+    "default_path": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "windows",
+    "storage",
+    "downloads",
+    "sidePanel",
+    "scripting"
+  ],
+  "host_permissions": [
+    "<all_urls>",
+    "https://*.supabase.co/*",
+    "https://mimic-nine-ashen.vercel.app/*"
+  ],
+  "externally_connectable": {
+    "matches": [
+      "https://mimic-nine-ashen.vercel.app/*",
+      "https://mimicflow.com/*",
+      "http://localhost:3000/*"
+    ]
+  }
+}

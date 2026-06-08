@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "mimic": {
+      "command": "node",
+      "args": ["c:/Users/ADMIN/Desktop/Project/Dev/mimic/packages/mcp-server/dist/index.js"],
+      "env": {
+        "SUPABASE_URL": "https://gqynptpjomcqzxyykqic.supabase.co",
+        "SUPABASE_SERVICE_ROLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxeW5wdHBqb21jcXp4eXlrcWljIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTU1NzI3MywiZXhwIjoyMDg3MTMzMjczfQ.Gp9FOhZWFu4Mgs1YIdgEGZNV4GsMOZiPzWygLxT-1Bc",
+        "OWNER_USER_ID": "2013c141-5736-4b4c-8202-b423cffdb29a",
+        "NODE_OPTIONS": "--use-system-ca"
+      }
+    },
+    "playwright": {
+      "command": "playwright-mcp",
+      "args": ["--isolated"],
+      "env": {
+        "NODE_OPTIONS": "--use-system-ca"
+      }
+    }
+  }
+}

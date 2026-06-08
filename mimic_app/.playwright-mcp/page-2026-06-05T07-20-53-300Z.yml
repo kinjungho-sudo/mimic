@@ -1,0 +1,48 @@
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e6]:
+        - generic [ref=e7]: 로드 중
+        - progressbar [ref=e8]
+      - main [ref=e87]:
+        - generic [ref=e88]:
+          - generic [ref=e91]:
+            - img [ref=e93]
+            - generic [ref=e98]: Google 계정으로 로그인
+          - generic [ref=e99]:
+            - heading "김정호" [level=1] [ref=e100]
+            - generic [ref=e107]: kinjungho@gmail.com
+        - generic [ref=e116]:
+          - generic [ref=e124]:
+            - textbox "비밀번호 입력" [active] [ref=e125]
+            - generic: 비밀번호 입력
+          - generic [ref=e132]:
+            - generic [ref=e135] [cursor=pointer]:
+              - checkbox "비밀번호 표시" [ref=e136]
+              - generic:
+                - img
+            - generic [ref=e139] [cursor=pointer]: 비밀번호 표시
+        - generic [ref=e141]:
+          - button "다음" [ref=e145]:
+            - generic [ref=e148]: 다음
+          - button "다른 방법 시도" [ref=e152]:
+            - generic [ref=e155]: 다른 방법 시도
+    - contentinfo [ref=e70]:
+      - combobox "언어 변경 한국어" [ref=e74] [cursor=pointer]:
+        - generic:
+          - generic: 한국어
+        - generic:
+          - img
+      - list [ref=e76]:
+        - listitem [ref=e77]:
+          - link "도움말" [ref=e78] [cursor=pointer]:
+            - /url: https://support.google.com/accounts?hl=ko&p=account_iph
+        - listitem [ref=e79]:
+          - link "개인정보처리방침" [ref=e80] [cursor=pointer]:
+            - /url: https://accounts.google.com/TOS?loc=KR&hl=ko&privacy=true
+        - listitem [ref=e81]:
+          - link "약관" [ref=e82] [cursor=pointer]:
+            - /url: https://accounts.google.com/TOS?loc=KR&hl=ko
+  - iframe [ref=e83]:
+    
+  - generic [ref=e158]: 김정호

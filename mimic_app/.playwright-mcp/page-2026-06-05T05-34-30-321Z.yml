@@ -1,0 +1,302 @@
+- generic [active] [ref=e1]:
+  - link "본문으로 바로가기" [ref=e2] [cursor=pointer]:
+    - /url: "#content"
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - heading "NAVER 메일" [level=1] [ref=e6]:
+          - link "NAVER" [ref=e7] [cursor=pointer]:
+            - /url: https://www.naver.com
+            - generic [ref=e8]: NAVER
+          - link "메일" [ref=e9] [cursor=pointer]:
+            - /url: https://mail.naver.com
+            - generic [ref=e10]: 메일
+        - generic [ref=e12]:
+          - strong [ref=e13]: 사용자 링크
+          - list [ref=e14]:
+            - listitem [ref=e15]:
+              - link "내 프로필 이미지 김정호 내정보 보기" [ref=e17] [cursor=pointer]:
+                - /url: javascript:;
+                - img "내 프로필 이미지" [ref=e18]
+                - generic [ref=e20]: 김정호
+                - emphasis [ref=e21]: 내정보 보기
+            - listitem [ref=e22]:
+              - link "네이버톡" [ref=e23] [cursor=pointer]:
+                - /url: https://talks.naver.com/?frm=pcgnb&anchor=&category=
+                - generic [ref=e24]: 네이버톡
+            - listitem [ref=e26]:
+              - link "알림 99 +" [ref=e27] [cursor=pointer]:
+                - /url: https://m.notify.naver.com/?from=pcmain
+                - generic [ref=e28]: 알림
+                - emphasis [ref=e30]:
+                  - generic [ref=e32]:
+                    - text: "99"
+                    - generic [ref=e33]: +
+            - listitem [ref=e34]:
+              - link "서비스 더보기" [ref=e35] [cursor=pointer]:
+                - /url: javascript:;
+                - generic [ref=e36]: 서비스 더보기
+        - generic [ref=e38]:
+          - heading "PWE서비스 바로가기" [level=2] [ref=e39]
+          - list [ref=e42]:
+            - listitem [ref=e43]:
+              - link "메일" [ref=e44] [cursor=pointer]:
+                - /url: https://mail.naver.com
+                - generic [ref=e45]: 메일
+            - listitem [ref=e46]:
+              - link "캘린더" [ref=e47] [cursor=pointer]:
+                - /url: https://calendar.naver.com
+                - generic [ref=e48]: 캘린더
+            - listitem [ref=e49]:
+              - link "메모" [ref=e50] [cursor=pointer]:
+                - /url: https://memo.naver.com
+                - generic [ref=e51]: 메모
+            - listitem [ref=e52]:
+              - link "주소록" [ref=e53] [cursor=pointer]:
+                - /url: https://contact.naver.com
+                - generic [ref=e54]: 주소록
+            - listitem [ref=e55]:
+              - link "MYBOX" [ref=e56] [cursor=pointer]:
+                - /url: https://mybox.naver.com
+                - generic [ref=e57]: MYBOX
+            - listitem [ref=e58]:
+              - link "폼" [ref=e59] [cursor=pointer]:
+                - /url: https://form.naver.com
+                - generic [ref=e60]: 폼
+            - listitem [ref=e61]:
+              - link "가계부" [ref=e62] [cursor=pointer]:
+                - /url: https://moneybook.naver.com
+                - generic [ref=e63]: 가계부
+            - listitem [ref=e64]:
+              - link "Keep" [ref=e65] [cursor=pointer]:
+                - /url: https://keep.naver.com
+                - generic [ref=e66]: Keep
+    - generic:
+      - text: +
+      - main [ref=e675]:
+        - generic [ref=e676]:
+          - generic [ref=e883]:
+            - iframe [ref=e886]:
+              - generic [active] [ref=f9e1]:
+                - link "새 창 광고 이미지 광고 이미지 네스프레소 2026 여름 한정 커피 유자 바닐라향 커피 출시! 더 알아보기" [ref=f9e5] [cursor=pointer]:
+                  - /url: https://g.tivan.naver.com/gfa/SBGeSnhp7hs7pOdS4hUQmfOpB-m5uuXhgGW2VazFoK1HBbYx5ssfuMVaerGcoj7Em4V5ThrFgPKDR35Gt2GpWkZjSyyLuIc_JbomGxXehZb4RwMy1IBNci658__xX_d3yjsM601LhAbmEdZarGFdFdf5xndB52O2Ty7_xGkkYUe0_HB83NF1V3mkT0DjgnC5bBI5dYLmQV523_p6pY1Di84xfOWjphoTRY-fIjLl9F9QnE4I1jyk6KDE3inpod1EWFyuagPmXtzdybxHVa6ORfimd5F5O0Tr6mBx13uinoekyJVyNSrnFGDKfnh-xWMjyrhxyIczn-Ui1JUdNmKqunM077wDM5xjozNwT2ZtN_BdCCpWA2m0LXJYlVYLDzz3vmD1WRB64oKDslVqdH51wCr3LvjjnU9DFhi7TTZ6kdKxoRwGxnEUM0WpqWFpxNlf616p6KZ_9n111PSkSSDR6J03UJX91yeaBexvqehoe9Sg9qYJzioTuJmIML_JAugTbK9mXI9UO04jDknYSAxQOsg87d4qgAhx_FRuy1o9dvR0RRYlPvb5HC6XvLXVKMo-WCAdnwPKfhcoDP993CrWcR4fBaUEvwpXCXF32IKiTdi890STi3SHWFQ2wx3VxybPoZmCleUupcvi8gGhBpk9-fdLrNk2OJ-yibSAvbhAlMh5Ciro47_FkCrVhuDrFU5uEeQHclI9aPdkHgLX53UAmcnEnkjVKvMPz_ZI_-j6tags2eDN1CdFF7Jfur8Hyi7VhFSKUUSJEilDeouMmJmfDHwdBihqmZo-W9SKNl2kbJjv3CrAqq3rkf-k26XdTYkXfVf_TUwkG1qyAdnTNR8FCPMf4tIqFd8k1EmZoTXCQr3RLieHqfwW5dxWjN0x7zFUkl0U3PZAKoklz3ZMPjjFqzMT2alKHKAzWgf2pUhwl6au043oFLHKLjhBBXG-sRULdnIr1zULhSI0-F8Jb6mqD_HfNcJgoJ3e9uZJ0mOBzVUhuSiMExq2yCqsA4q_6poj5Dh94mNVRb0iDWyKrepBLGr04msVd3A16lN7Yt9GscmmEevSpeaRYgrjdqfWS-AOID3Byh01NG6P_JWKdhAKpDv681clNK73miaKQ8wcIc85rrTKqi5X7-PmRZEDo3Xkos7WFV-arqFHa5GIrWE1hhvNchOEsfOG4MMt1YBwCURPHYnfQqwDRkGSvITRgljVuKeMp18Wi14kbOUm1gs6-d-Ap4RPfISDtYa5_mSP5lXWY60DkveKP07Ymt64eLvdZ-mxBAvT7hPl75dNXAYjBO-lYJWbqLvh3x3QCPJQtQpzY9Vcaf_aUzjNCasvyXuySNv_Ag0SYtnPTMvL_E_EfD75HUodJT4ELOUb5MkG7KQZZk-7ELMWTS6ADB_euJfR2kDdmdLu2Zty1P7JXnC1MvxNmFLIJTB3Bdtux9x7MZDF2RKarHI55f94FA63YnZn4zHoJrq0biZ6ghGgzk8lGYfs7SfgjZSmeLwyhmYmQQxjuuXZnu3h_dNsCHnUoM8fgizpF_-xx9usmbpyNFIsWrhgnpYMuas6ZbhI01XPXdc9FIR67K-DjsjNVrpEOzbXJ8C09e2s-oQ1lQqbZDlS8_zq2zudBlxJYRfAjUt0AlJGnZEKB2bWStj_Xvot-0lDpmIwMV7npyvkv3kBmAhU3gFuafO1MkQgmQx3B9A_8opeL4kwLT0eaZT3BUx4FWeWBJkUfP6deA1Xptbsld2XBb_s1EuJm-tBKibnoE3A_S8B_6MFIYrS64pns7vjIwamEEet5lBAjyy8XG5CtkTgMR15Uqvq61oYv2d1wrzFThAXHrxakDRcMAVHtVCdJSdZIbUM0CyJMFTuQvUJ_yaSXEUN7aQmwhP5QrgBL1OYvaI=/
+                  - generic [ref=f9e6]: 새 창
+                  - generic [ref=f9e7]:
+                    - generic [ref=f9e8]:
+                      - img "광고 이미지" [ref=f9e10]
+                      - img "광고 이미지" [ref=f9e12]
+                    - generic [ref=f9e16]:
+                      - strong [ref=f9e17]: 네스프레소 2026 여름 한정 커피
+                      - paragraph [ref=f9e18]: 유자 바닐라향 커피 출시!
+                    - generic [ref=f9e20]: 더 알아보기
+                - button "AD" [ref=f9e22] [cursor=pointer]:
+                  - generic [ref=f9e23]: AD
+            - button "오늘 그만 보기" [ref=e887] [cursor=pointer]
+          - generic [ref=e890]:
+            - img [ref=e892]
+            - strong [ref=e901]: 메일이 저장되었습니다.
+            - paragraph [ref=e902]: 내게쓴메일은 [내게쓴메일함]에서 확인할 수 있습니다.
+            - generic [ref=e903]:
+              - link "내게쓴메일함" [ref=e904] [cursor=pointer]:
+                - /url: "#"
+              - link "내게 쓰기" [ref=e905] [cursor=pointer]:
+                - /url: "#"
+      - navigation [ref=e507]:
+        - generic [ref=e508]:
+          - generic [ref=e509]:
+            - generic [ref=e510]:
+              - link "메일 쓰기" [ref=e511] [cursor=pointer]:
+                - /url: "#"
+                - generic [ref=e512]: 메일 쓰기
+              - link "내게 쓰기" [ref=e513] [cursor=pointer]:
+                - /url: "#"
+                - generic [ref=e514]: 내게 쓰기
+            - generic [ref=e515]:
+              - link "999+ 이상 개의 안읽음 메일 목록 선택됨" [ref=e516] [cursor=pointer]:
+                - /url: "#"
+                - generic [ref=e517]:
+                  - text: "999"
+                  - generic [ref=e518]:
+                    - text: +
+                    - generic [ref=e519]: 이상
+                - generic [ref=e520]: 개의
+                - text: 안읽음
+                - generic [ref=e521]: 메일 목록
+                - generic [ref=e522]: 선택됨
+              - link "중요 표시된 메일 목록" [ref=e523] [cursor=pointer]:
+                - /url: "#"
+                - text: 중요
+                - generic [ref=e524]: 표시된 메일 목록
+              - link "첨부 파일이 포함된 메일 목록" [ref=e525] [cursor=pointer]:
+                - /url: "#"
+                - text: 첨부
+                - generic [ref=e526]: 파일이 포함된 메일 목록
+              - link "TO 받은 사람이 나인 메일 목록" [ref=e527] [cursor=pointer]:
+                - /url: "#"
+                - text: TO
+                - generic [ref=e528]: 받은 사람이 나인 메일 목록
+          - generic [ref=e529]:
+            - generic [ref=e530]:
+              - list [ref=e531]:
+                - listitem [ref=e532]:
+                  - generic [ref=e533] [cursor=pointer]:
+                    - link "전체메일" [ref=e535]:
+                      - /url: "#"
+                    - button "정리하기" [ref=e536]
+                - listitem [ref=e537]:
+                  - generic [ref=e539] [cursor=pointer]:
+                    - link "받은메일함 선택됨" [ref=e540]:
+                      - /url: "#"
+                      - text: 받은메일함
+                      - generic [ref=e541]: 선택됨
+                    - link "안 읽은 메일 999+ 이상 개" [ref=e542]:
+                      - /url: "#"
+                      - generic [ref=e543]: 안 읽은 메일
+                      - generic [ref=e544]:
+                        - text: "999"
+                        - generic [ref=e545]:
+                          - text: +
+                          - generic [ref=e546]: 이상
+                      - generic [ref=e547]: 개
+                - listitem [ref=e548]:
+                  - link "보낸메일함" [ref=e551] [cursor=pointer]:
+                    - /url: "#"
+                - listitem [ref=e552]:
+                  - link "수신확인" [ref=e555] [cursor=pointer]:
+                    - /url: "#"
+                - listitem [ref=e556]:
+                  - link "임시보관함" [ref=e559] [cursor=pointer]:
+                    - /url: "#"
+                - listitem [ref=e560]:
+                  - generic [ref=e561] [cursor=pointer]:
+                    - generic [ref=e562]:
+                      - link "내게쓴메일함" [ref=e563]:
+                        - /url: "#"
+                      - link "안 읽은 메일 19 개" [ref=e564]:
+                        - /url: "#"
+                        - generic [ref=e565]: 안 읽은 메일
+                        - text: "19"
+                        - generic [ref=e566]: 개
+                    - button "하위 메일함 닫기" [ref=e567]:
+                      - generic [ref=e568]: 하위 메일함 닫기
+                  - list [ref=e569]:
+                    - listitem [ref=e570]:
+                      - link "새 메일함 (1)" [ref=e573] [cursor=pointer]:
+                        - /url: "#"
+                    - listitem [ref=e574]:
+                      - link "새 메일함 (2)" [ref=e577] [cursor=pointer]:
+                        - /url: "#"
+                    - listitem [ref=e578]:
+                      - link "새 메일함 (3)" [ref=e581] [cursor=pointer]:
+                        - /url: "#"
+                    - listitem [ref=e582]:
+                      - link "새 메일함 (4)" [ref=e585] [cursor=pointer]:
+                        - /url: "#"
+                - listitem [ref=e586]:
+                  - button "스마트메일함 하위 메일함 펼침" [ref=e588] [cursor=pointer]:
+                    - generic [ref=e589]: 스마트메일함
+                    - generic [ref=e590]: 하위 메일함 펼침
+                  - list [ref=e591]:
+                    - listitem [ref=e592]:
+                      - generic [ref=e594] [cursor=pointer]:
+                        - link "프로모션" [ref=e595]:
+                          - /url: "#"
+                        - link "안 읽은 메일 999+ 이상 개" [ref=e596]:
+                          - /url: "#"
+                          - generic [ref=e597]: 안 읽은 메일
+                          - generic [ref=e598]:
+                            - text: "999"
+                            - generic [ref=e599]:
+                              - text: +
+                              - generic [ref=e600]: 이상
+                          - generic [ref=e601]: 개
+                    - listitem [ref=e602]:
+                      - generic [ref=e604] [cursor=pointer]:
+                        - link "청구·결제" [ref=e605]:
+                          - /url: "#"
+                        - link "안 읽은 메일 750 개" [ref=e606]:
+                          - /url: "#"
+                          - generic [ref=e607]: 안 읽은 메일
+                          - text: "750"
+                          - generic [ref=e608]: 개
+                    - listitem [ref=e609]:
+                      - generic [ref=e611] [cursor=pointer]:
+                        - link "SNS" [ref=e612]:
+                          - /url: "#"
+                        - link "안 읽은 메일 999+ 이상 개" [ref=e613]:
+                          - /url: "#"
+                          - generic [ref=e614]: 안 읽은 메일
+                          - generic [ref=e615]:
+                            - text: "999"
+                            - generic [ref=e616]:
+                              - text: +
+                              - generic [ref=e617]: 이상
+                          - generic [ref=e618]: 개
+                    - listitem [ref=e619]:
+                      - generic [ref=e621] [cursor=pointer]:
+                        - link "카페" [ref=e622]:
+                          - /url: "#"
+                        - link "안 읽은 메일 999+ 이상 개" [ref=e623]:
+                          - /url: "#"
+                          - generic [ref=e624]: 안 읽은 메일
+                          - generic [ref=e625]:
+                            - text: "999"
+                            - generic [ref=e626]:
+                              - text: +
+                              - generic [ref=e627]: 이상
+                          - generic [ref=e628]: 개
+                - listitem [ref=e629]:
+                  - button "내 메일함 하위 메일함 펼침" [ref=e631] [cursor=pointer]:
+                    - generic [ref=e632]: 내 메일함
+                    - generic [ref=e633]: 하위 메일함 펼침
+                - listitem [ref=e634]:
+                  - generic [ref=e636] [cursor=pointer]:
+                    - link "스팸메일함" [ref=e637]:
+                      - /url: "#"
+                    - link "안 읽은 메일 2 개" [ref=e638]:
+                      - /url: "#"
+                      - generic [ref=e639]: 안 읽은 메일
+                      - text: "2"
+                      - generic [ref=e640]: 개
+                - listitem [ref=e641]:
+                  - generic [ref=e643] [cursor=pointer]:
+                    - link "휴지통" [ref=e644]:
+                      - /url: "#"
+                    - link "안 읽은 메일 799 개" [ref=e645]:
+                      - /url: "#"
+                      - generic [ref=e646]: 안 읽은 메일
+                      - text: "799"
+                      - generic [ref=e647]: 개
+                - listitem [ref=e648]:
+                  - link "환경설정" [ref=e650] [cursor=pointer]:
+                    - /url: "#"
+                    - generic [ref=e651]: 환경설정
+                - listitem [ref=e652]:
+                  - generic [ref=e653] [cursor=pointer]:
+                    - link "고객센터" [ref=e654]:
+                      - /url: "#"
+                      - generic [ref=e655]: 고객센터
+                    - link "스마트봇" [ref=e656]:
+                      - /url: "#"
+                - listitem [ref=e657]:
+                  - generic [ref=e658] [cursor=pointer]:
+                    - link "메일용량" [ref=e659]:
+                      - /url: "#"
+                      - generic [ref=e660]: 메일용량
+                    - generic [ref=e661]:
+                      - emphasis [ref=e662]:
+                        - generic [ref=e663]: 사용중
+                        - text: 3.33GB
+                      - generic [ref=e664]:
+                        - text: /
+                        - generic [ref=e665]: 전체
+                        - text: 5GB
+              - generic [ref=e666]:
+                - link "공지사항" [ref=e667] [cursor=pointer]:
+                  - /url: "#"
+                - link "네이버 메일 앱이 새로워졌습니다" [ref=e906] [cursor=pointer]:
+                  - /url: "#"
+            - generic [ref=e669]:
+              - button "메일 앱 다운로드" [ref=e671] [cursor=pointer]
+              - link "© NAVER Corp." [ref=e673] [cursor=pointer]:
+                - /url: "#"

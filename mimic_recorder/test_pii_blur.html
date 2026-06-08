@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>PII 블러 테스트 v2</title>
+  <style>
+    body { font-family: sans-serif; padding: 32px; max-width: 700px; }
+    h2 { margin-bottom: 20px; }
+    .section { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 20px; }
+    .section-title { font-size: 15px; font-weight: 700; color: #333; margin-bottom: 12px; }
+    .row { display: flex; gap: 12px; align-items: baseline; margin-bottom: 8px; font-size: 14px; }
+    .label { color: #888; min-width: 80px; }
+    .value { color: #222; }
+    input { padding: 7px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; width: 200px; }
+    button { padding: 9px 18px; background: #4F46E5; color: #fff; border: none; border-radius: 7px; font-size: 13px; cursor: pointer; margin-right: 8px; margin-bottom: 8px; }
+    button.s { background: #6b7280; }
+    #log { margin-top: 12px; font-size: 12px; white-space: pre-line; background: #f8f8f8; padding: 10px; border: 1px solid #ddd; border-radius: 6px; max-height: 180px; overflow-y: auto; }
+    img { max-width: 100%; border: 1px solid #ddd; border-radius: 6px; margin-top: 10px; }
+    .warn { color: #dc2626; font-weight: 600; }
+    .ok { color: #16a34a; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <h2>PII 블러 테스트 — 쿠팡 결제 페이지 구조</h2>
+
+  <!-- 쿠팡 결제 페이지와 유사한 DOM 구조 -->
+  <div class="section">
+    <div class="section-title">배송지</div>
+    <div class="row"><span class="label">이름</span><span class="value" id="nameVal">김정호</span></div>
+    <div class="row"><span class="label">주소</span><span class="value" id="addrVal">서울특별시 은평구 대조동 191-25 늘봄주택 502호</span></div>
+    <div class="row"><span class="label">연락처</span><span class="value" id="phoneVal">010-1234-5678</span></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">결제수단</div>
+    <div class="row"><span class="label">카드</span><span class="value" id="cardVal">와우 카드(KB) / 498761*****541*</span></div>
+    <div class="row"><span class="label">할인</span><span class="value">일시불</span></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">최종 결제 금액 (블러 불필요)</div>
+    <div class="row"><span class="label">총 금액</span><span class="value">100,000원</span></div>
+    <div class="row"><span class="label">배송비</span><span class="value">0원</span></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Input 필드</div>
+    <div class="row">
+      <label for="emailInp">이메일</label>
+      <input type="email" id="emailInp" value="user@example.com" />
+    </div>
+    <div class="row">
+      <label for="pwInp">비밀번호</label>
+      <input type="password" id="pwInp" value="secret1234" />
+    </div>
+  </div>
+
+  <div style="margin-bottom:12px">
+    <button onclick="runTest()">1. 테스트 실행 (DOM 블러)</button>
+    <button class="s" onclick="restore()">2. DOM 복원</button>
+    <button class="s" onclick="captureAndBlur()">3. 픽셀 블러 미리보기</button>
+    <button class="s" onclick="testPiiOff()">4. piiBlur=false 테스트</button>
+  </div>
+  <div id="log">대기 중...</div>
+  <img id="previewImg" style="display:none" />
+
+<script>
+// ── content.js 로직 인라인 복사 ──
+
+const PII_PATTERNS = [
+  { type: 'email',        re: /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g },
+  { type: 'phone_kr',     re: /0\d{1,2}[-\s]?\d{3,4}[-\s]?\d{4}/g },
+  { type: 'rrn',          re: /\d{6}-[1-4]\d{6}/g },
+  { type: 'credit_card',  re: /\b[\d*]{4}[-\s]?[\d*]{4,6}[-\s*]*[\d*]{3,6}[-\s*]*[\d*]{0,4}\b/g },
+  { type: 'account',      re: /\d{10,14}/g },
+  { type: 'address',      re: /(서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주)[^\n]{5,60}(로|길|동|읍|면|리)\s*\d+/g },
+];
+
+const SENSITIVE_INPUT_TYPES = new Set(['password', 'email', 'tel', 'number']);
+const SENSITIVE_LABEL_RE = /비밀번호|패스워드|카드|주민|계좌|전화|이메일|연락처|이름|name|email|phone|password|card|account|ssn|address/i;
+const SENSITIVE_CONTAINER_RE = /배송지|받는\s*분|수령인|주문자|결제자|카드\s*번호|카드정보/i;
+
+let _blurredEls = [];
+let piiBlurEnabled = true;
+
+function getFieldLabel(el) {
+  if (el.id) {
+    const label = document.querySelector(`label[for="${CSS.escape(el.id)}"]`);
+    if (label) return label.textContent.trim().slice(0, 60);
+  }
+  const parentLabel = el.closest('label');
+  if (parentLabel) return parentLabel.textContent.trim().slice(0, 60);
+  return (el.getAttribute('aria-label') || el.getAttribute('placeholder') || el.getAttribute('name') || '').trim().slice(0, 60);
+}
+
+function applyPIIBlur() {
+  if (!piiBlurEnabled) return [];
+  _blurredEls = [];
+  const regions = [];
+
+  // 1) 민감 input 필드
+  document.querySelectorAll('input, textarea, select').forEach(el => {
+    const type  = (el.type || '').toLowerCase();
+    const label = getFieldLabel(el);
+    if (!SENSITIVE_INPUT_TYPES.has(type) && !SENSITIVE_LABEL_RE.test(label)) return;
+    const rect = el.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+    const orig = el.style.cssText;
+    el.style.visibility = 'hidden';
+    el.style.color = 'transparent';
+    _blurredEls.push({ el, orig });
+    regions.push({ x: rect.x, y: rect.y, width: rect.width, height: rect.height, type: 'input' });
+  });
+
+  // 2) 텍스트 노드 PII 탐지
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  const textNodes = [];
+  let nd;
+  while ((nd = walker.nextNode())) textNodes.push(nd);
+
+  const processedNodes = new WeakSet();
+
+  for (const node of textNodes) {
+    if (processedNodes.has(node)) continue;
+    const text = node.textContent;
+    if (!text.trim()) continue;
+
+    let matched = false;
+
+    // 2-a) 정규식 매칭
+    for (const { type, re } of PII_PATTERNS) {
+      re.lastIndex = 0;
+      if (!re.test(text)) continue;
+      const range = document.createRange();
+      range.selectNode(node);
+      const rects = range.getClientRects();
+      for (const rect of rects) {
+        if (rect.width === 0 || rect.height === 0) continue;
+        regions.push({ x: rect.x, y: rect.y, width: rect.width, height: rect.height, type });
+      }
+      matched = true;
+      break;
+    }
+
+    // 2-b) 민감 컨테이너: 직계 앞 형제가 민감 레이블인 경우
+    if (!matched) {
+      const parent = node.parentElement;
+      if (parent) {
+        const prevSib = parent.previousElementSibling;
+        if (prevSib && SENSITIVE_CONTAINER_RE.test(prevSib.textContent.trim())) {
+          if (/^[가-힣]{2,5}$/.test(text.trim())) matched = true;
+        }
+      }
+    }
+
+    if (!matched) continue;
+
+    const span = document.createElement('span');
+    span.style.visibility = 'hidden';
+    span.dataset.mimicPii = 'detected';
+    node.parentNode.insertBefore(span, node);
+    span.appendChild(node);
+    processedNodes.add(node);
+    _blurredEls.push({ el: span, orig: '' });
+
+    const range = document.createRange();
+    range.selectNode(span);
+    const rects = range.getClientRects();
+    for (const rect of rects) {
+      if (rect.width === 0 || rect.height === 0) continue;
+      regions.push({ x: rect.x, y: rect.y, width: rect.width, height: rect.height, type: 'text' });
+    }
+  }
+
+  return regions;
+}
+
+function restorePIIBlur() {
+  for (const { el, orig } of _blurredEls) {
+    if (el.tagName === 'SPAN' && el.dataset.mimicPii) {
+      const parent = el.parentNode;
+      if (parent) {
+        while (el.firstChild) parent.insertBefore(el.firstChild, el);
+        parent.removeChild(el);
+      }
+    } else {
+      el.style.cssText = orig;
+    }
+  }
+  _blurredEls = [];
+}
+
+async function applyPixelBlur(pngDataUrl, piiRegions, viewportWidth, viewportHeight) {
+  if (!piiRegions || piiRegions.length === 0) return pngDataUrl;
+  const res  = await fetch(pngDataUrl);
+  const blob = await res.blob();
+  const bmp  = await createImageBitmap(blob);
+  const imgW = bmp.width, imgH = bmp.height;
+  const canvas = new OffscreenCanvas(imgW, imgH);
+  const ctx    = canvas.getContext('2d');
+  ctx.drawImage(bmp, 0, 0);
+  const scaleX = imgW / (viewportWidth  || imgW);
+  const scaleY = imgH / (viewportHeight || imgH);
+  for (const region of piiRegions) {
+    const rx = Math.max(0, Math.floor(region.x * scaleX));
+    const ry = Math.max(0, Math.floor(region.y * scaleY));
+    const rw = Math.min(imgW - rx, Math.ceil(region.width  * scaleX) + 2);
+    const rh = Math.min(imgH - ry, Math.ceil(region.height * scaleY) + 2);
+    if (rw <= 0 || rh <= 0) continue;
+    const PIXEL = 10;
+    const imgData = ctx.getImageData(rx, ry, rw, rh);
+    const d = imgData.data;
+    for (let py = 0; py < rh; py += PIXEL) {
+      for (let px2 = 0; px2 < rw; px2 += PIXEL) {
+        let r = 0, g = 0, b = 0, count = 0;
+        for (let dy = 0; dy < PIXEL && py+dy < rh; dy++)
+          for (let dx = 0; dx < PIXEL && px2+dx < rw; dx++) {
+            const i = ((py+dy)*rw+(px2+dx))*4;
+            r+=d[i]; g+=d[i+1]; b+=d[i+2]; count++;
+          }
+        r=Math.round(r/count); g=Math.round(g/count); b=Math.round(b/count);
+        for (let dy = 0; dy < PIXEL && py+dy < rh; dy++)
+          for (let dx = 0; dx < PIXEL && px2+dx < rw; dx++) {
+            const i = ((py+dy)*rw+(px2+dx))*4;
+            d[i]=r; d[i+1]=g; d[i+2]=b;
+          }
+      }
+    }
+    ctx.putImageData(imgData, rx, ry);
+  }
+  const outBlob = await canvas.convertToBlob({ type: 'image/png' });
+  return URL.createObjectURL(outBlob);
+}
+
+// ── 테스트 함수 ──
+
+function log(msg, cls) {
+  const el = document.getElementById('log');
+  const line = cls ? `<span class="${cls}">${msg}</span>` : msg;
+  el.innerHTML += '\n' + line;
+  el.scrollTop = el.scrollHeight;
+}
+
+const EXPECTED = ['김정호', '서울특별시', '010-1234-5678', '498761', 'user@example.com'];
+
+function runTest() {
+  document.getElementById('log').innerHTML = '=== 1. applyPIIBlur() 실행 ===';
+  const t0 = performance.now();
+  const regions = applyPIIBlur();
+  const elapsed = (performance.now() - t0).toFixed(1);
+
+  log(`regions: ${regions.length}개 (${elapsed}ms)`);
+  regions.forEach((r, i) =>
+    log(`  [${i}] type=${r.type}  x=${r.x.toFixed(0)} y=${r.y.toFixed(0)} w=${r.width.toFixed(0)} h=${r.height.toFixed(0)}`)
+  );
+
+  // 검증: 기대 PII 요소들이 화면에서 사라졌는지
+  const checks = [
+    { id: 'nameVal',  label: '이름(김정호)' },
+    { id: 'addrVal',  label: '주소' },
+    { id: 'phoneVal', label: '전화번호' },
+    { id: 'cardVal',  label: '카드번호' },
+    { id: 'emailInp', label: '이메일 input' },
+    { id: 'pwInp',    label: '비밀번호 input' },
+  ];
+
+  log('\n── 가시성 체크 ──');
+  let allHidden = true;
+  for (const { id, label } of checks) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    const vis = window.getComputedStyle(el).visibility;
+    const hidden = vis === 'hidden' || el.closest('[data-mimic-pii]') !== null ||
+                   (el.tagName === 'SPAN' && el.dataset.mimicPii);
+
+    // span 래핑 여부도 체크
+    const isWrapped = el.parentElement?.dataset?.mimicPii !== undefined ||
+                      (el.tagName !== 'INPUT' && el.style.visibility === 'hidden');
+
+    const ok = vis === 'hidden' || isWrapped;
+    if (!ok) allHidden = false;
+    log(`  ${ok ? '✓' : '✗'} ${label} — visibility:${vis}`, ok ? 'ok' : 'warn');
+  }
+
+  log(allHidden ? '\n✓ 모든 PII 요소 숨김 성공' : '\n✗ 일부 PII 요소 미처리', allHidden ? 'ok' : 'warn');
+}
+
+function restore() {
+  restorePIIBlur();
+  const el = document.getElementById('log');
+  el.innerHTML += '\n\n=== 2. restorePIIBlur() 완료 ===';
+
+  const checks = ['nameVal','addrVal','phoneVal','cardVal'];
+  let allRestored = true;
+  for (const id of checks) {
+    const el2 = document.getElementById(id);
+    if (!el2) continue;
+    const vis = window.getComputedStyle(el2).visibility;
+    if (vis !== 'visible') allRestored = false;
+  }
+  log(allRestored ? '✓ DOM 완전 복원' : '✗ 복원 실패 — 잔여 hidden 요소 있음', allRestored ? 'ok' : 'warn');
+}
+
+async function captureAndBlur() {
+  document.getElementById('log').innerHTML = '=== 3. 캡처 + 픽셀 블러 ===';
+  restorePIIBlur();
+
+  const t0 = performance.now();
+  const regions = applyPIIBlur();
+  log(`regions: ${regions.length}개`);
+  if (regions.length === 0) { log('✗ 감지된 PII 없음', 'warn'); restorePIIBlur(); return; }
+
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+  const w = window.innerWidth;
+  const h = document.body.scrollHeight;
+  const canvas = new OffscreenCanvas(w, h);
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, w, h);
+
+  // 감지된 영역을 빨간 박스로 표시
+  for (const r of regions) {
+    ctx.fillStyle = 'rgba(239,68,68,0.25)';
+    ctx.fillRect(r.x, r.y, r.width, r.height);
+    ctx.strokeStyle = '#EF4444';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(r.x, r.y, r.width, r.height);
+    ctx.fillStyle = '#EF4444';
+    ctx.font = '10px sans-serif';
+    ctx.fillText(r.type, r.x + 2, r.y + 11);
+  }
+
+  const pngBlob = await canvas.convertToBlob({ type: 'image/png' });
+  const pngUrl  = URL.createObjectURL(pngBlob);
+  const blurredUrl = await applyPixelBlur(pngUrl, regions, w, h);
+
+  const elapsed = (performance.now() - t0).toFixed(0);
+  log(`픽셀 블러 완료 — 총 ${elapsed}ms`);
+  log(Number(elapsed) < 200 ? '✓ 속도 기준 통과 (< 200ms)' : '✗ 속도 기준 초과', Number(elapsed) < 200 ? 'ok' : 'warn');
+
+  const img = document.getElementById('previewImg');
+  img.src = blurredUrl;
+  img.style.display = 'block';
+
+  restorePIIBlur();
+  log('✓ DOM 복원 완료', 'ok');
+}
+
+function testPiiOff() {
+  document.getElementById('log').innerHTML = '=== 4. piiBlur=false 테스트 ===';
+  piiBlurEnabled = false;
+  const regions = applyPIIBlur();
+  piiBlurEnabled = true;
+  log(`regions: ${regions.length}개`);
+  log(regions.length === 0 ? '✓ piiBlur=false → 블러 미적용 확인' : '✗ 예상과 다름', regions.length === 0 ? 'ok' : 'warn');
+}
+</script>
+</body>
+</html>
