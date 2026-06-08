@@ -1,6 +1,6 @@
 /**
  * MIMIC Guide Me SDK
- * Usage: <script src="https://mimicflow.com/sdk.js" data-guide="SHARE_TOKEN"></script>
+ * Usage: <script src="https://your-app.vercel.app/sdk.js" data-guide="SHARE_TOKEN"></script>
  * Or:    window.MimicSDK.start('SHARE_TOKEN')
  * Or:    ?mimic_guide=SHARE_TOKEN in URL
  */
@@ -18,7 +18,8 @@
         } catch (e) { /* ignore */ }
       }
     }
-    return 'https://mimicflow.com';
+    // SDK가 항상 같은 Next.js 앱에서 서빙되므로 location.origin을 fallback으로 사용
+    return location.origin;
   })();
 
   var Z = 2147483647;
