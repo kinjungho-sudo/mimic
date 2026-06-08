@@ -455,20 +455,34 @@
     }
   }
 
+  // ── URL 패턴 매칭 ─────────────────────────────────────────
+  // 현재 URL이 패턴과 일치하는지 확인 (* 와일드카드 지원)
+  function matchesPattern(pattern) {
+    try {
+      // * → .* 로 변환 후 정규식 매칭
+      var regexStr = '^' + pattern
+        .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+        .replace(/\*/g, '.*') + '$';
+      return new RegExp(regexStr).test(location.href);
+    } catch (e) { return false; }
+  }
+
   // ── 자동 초기화 ────────────────────────────────────────────
   function autoInit() {
     // 1. <script data-guide="TOKEN"> 방식
+    // data-float: 플로팅 버튼 모드 / data-manual: 자동 시작 안 함 / 기본: 즉시 자동 시작
     var scripts = document.querySelectorAll('script[data-guide]');
     for (var i = 0; i < scripts.length; i++) {
       var token = scripts[i].getAttribute('data-guide');
       var floatAttr = scripts[i].getAttribute('data-float');
-      var autoAttr = scripts[i].getAttribute('data-auto');
-      if (token) {
-        if (floatAttr !== null) {
-          startGuide(token, { float: true });
-        } else if (autoAttr !== null || floatAttr === null) {
-          startGuide(token, {});
-        }
+      var manualAttr = scripts[i].getAttribute('data-manual');
+      var urlPattern = scripts[i].getAttribute('data-url-pattern');
+      if (!token) continue;
+      if (urlPattern && !matchesPattern(urlPattern)) continue;
+      if (floatAttr !== null) {
+        startGuide(token, { float: true });
+      } else if (manualAttr === null) {
+        startGuide(token, {});
       }
     }
 
@@ -491,6 +505,11 @@
   window.MimicSDK = {
     start: function (token, options) { startGuide(token, options); },
     stop: function () { if (activeGuide) activeGuide.destroy(); },
+    // URL 패턴이 현재 페이지와 일치할 때만 가이드 시작 (* 와일드카드 지원)
+    // 예: MimicSDK.startOnUrl('https://app.example.com/dashboard*', 'TOKEN')
+    startOnUrl: function (urlPattern, token, options) {
+      if (matchesPattern(urlPattern)) startGuide(token, options);
+    },
     version: '1.0.0',
   };
 
