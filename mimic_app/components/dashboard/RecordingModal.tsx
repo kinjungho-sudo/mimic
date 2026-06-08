@@ -45,8 +45,30 @@ function sendMessage(action: string, payload?: Record<string, unknown>): Promise
   });
 }
 
+// Service Worker가 잠든 상태일 때 첫 메시지가 실패하는 경쟁 조건 방지.
+// CONNECT ping으로 먼저 깨운 뒤 실제 메시지를 전송한다.
+// 최대 3회 재시도, 회당 600ms 대기.
+async function wakeAndSend(action: string, payload?: Record<string, unknown>, retries = 3): Promise<unknown> {
+  const extensionId = process.env.NEXT_PUBLIC_EXTENSION_ID?.replace(/^﻿/, '').trim();
+  if (!extensionId || !isExtensionInstalled()) return null;
+
+  for (let i = 0; i < retries; i++) {
+    // ping
+    const ping = await sendMessage('CONNECT');
+    if (ping) {
+      // Service Worker 깨어남 — 실제 메시지 전송
+      return sendMessage(action, payload);
+    }
+    // 아직 안 깨어남 — 잠시 대기 후 재시도
+    await new Promise(r => setTimeout(r, 600));
+  }
+  // 모든 재시도 실패
+  console.warn('[MIMIC] Service Worker 웨이크업 실패:', action);
+  return null;
+}
+
 async function fetchOpenTabs(): Promise<ChromeTab[] | null> {
-  const resp = await sendMessage('GET_TABS') as { tabs?: ChromeTab[] } | null;
+  const resp = await wakeAndSend('GET_TABS') as { tabs?: ChromeTab[] } | null;
   if (!resp || !Array.isArray((resp as { tabs?: ChromeTab[] }).tabs)) {
     console.warn('[MIMIC] GET_TABS 실패 또는 빈 응답:', resp);
     return null;
@@ -55,9 +77,8 @@ async function fetchOpenTabs(): Promise<ChromeTab[] | null> {
 }
 
 async function sendStartRecording(tabId: number, url: string): Promise<boolean> {
-  const extensionId = process.env.NEXT_PUBLIC_EXTENSION_ID?.replace(/^﻿/, '').trim();
-  if (!extensionId || !isExtensionInstalled()) return true; // 바이패스
-  const resp = await sendMessage('START_RECORDING', { tabId, url }) as { ok?: boolean } | null;
+  if (!isExtensionInstalled()) return true; // 바이패스
+  const resp = await wakeAndSend('START_RECORDING', { tabId, url }) as { ok?: boolean } | null;
   return !!(resp && (resp as { ok?: boolean }).ok);
 }
 

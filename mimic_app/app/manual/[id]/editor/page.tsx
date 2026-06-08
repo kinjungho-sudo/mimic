@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Check, Undo2, Redo2, Volume2, VolumeX, Loader2 } from 'lucide-react';
+import { Check, Undo2, Redo2, Volume2, VolumeX, Loader2, RefreshCw } from 'lucide-react';
 import { GuideToc } from '@/components/editor/GuideToc';
 import { ManualEditor, ManualStep } from '@/components/editor/ManualEditor';
 import { useTutorial } from '@/hooks/useTutorial';
@@ -57,6 +57,8 @@ export default function EditorPage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [titleDirty, setTitleDirty] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [freshnessChecking, setFreshnessChecking] = useState(false);
+  const [freshnessResult, setFreshnessResult] = useState<{ checked: number; stale: number } | null>(null);
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const [ttsVoice, setTtsVoice] = useState<'nova' | 'alloy'>('nova');
   const [ttsGenerating, setTtsGenerating] = useState(false);
@@ -240,6 +242,24 @@ export default function EditorPage() {
   }, [manualSteps]);
 
 
+  const handleCheckFreshness = useCallback(async () => {
+    setFreshnessChecking(true);
+    setFreshnessResult(null);
+    try {
+      const res = await fetch(`/api/tutorials/${id}/check-freshness`, { method: 'POST' });
+      const data = await res.json();
+      setFreshnessResult(data);
+      // is_stale 업데이트된 스텝 반영을 위해 페이지 데이터 새로고침
+      if (data.stale > 0) {
+        setManualSteps(prev => prev.map(s => ({ ...s })));
+      }
+    } catch {
+      setFreshnessResult({ checked: 0, stale: -1 });
+    } finally {
+      setFreshnessChecking(false);
+    }
+  }, [id]);
+
   const handleDeleteStep = useCallback((stepId: string) => {
     const next = manualSteps.filter(s => s.id !== stepId).map((s, i) => ({ ...s, number: i + 1 }));
     setManualStepsWithHistory(next);
@@ -391,6 +411,42 @@ export default function EditorPage() {
 
           {/* 편집기 — 항상 편집 모드 */}
           <>
+            {/* 최신성 확인 버튼 */}
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={handleCheckFreshness}
+                disabled={freshnessChecking}
+                title="페이지 UI 변경 여부 확인"
+                style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', cursor: freshnessChecking ? 'not-allowed' : 'pointer', opacity: freshnessChecking ? 0.6 : 1, transition: 'all 0.15s' }}
+                onMouseEnter={e => { if (!freshnessChecking) e.currentTarget.style.background = '#F9FAFB'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
+              >
+                <RefreshCw size={13} style={freshnessChecking ? { animation: 'spin 1s linear infinite' } : {}} />
+                최신성 확인
+              </button>
+              {freshnessResult && (
+                <div style={{
+                  position: 'absolute', top: '38px', right: 0, zIndex: 30,
+                  background: 'white', border: '1px solid #E5E7EB', borderRadius: '10px',
+                  padding: '10px 14px', fontSize: '12px', color: '#374151',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.1)', whiteSpace: 'nowrap',
+                }}>
+                  {freshnessResult.stale === -1 ? (
+                    <span style={{ color: '#DC2626' }}>확인 중 오류가 발생했어요</span>
+                  ) : freshnessResult.checked === 0 ? (
+                    <span style={{ color: '#6B7280' }}>확인할 페이지 URL이 없어요</span>
+                  ) : freshnessResult.stale === 0 ? (
+                    <span style={{ color: '#059669' }}>✓ 모든 단계가 최신 상태예요 ({freshnessResult.checked}개 확인)</span>
+                  ) : (
+                    <span style={{ color: '#D97706' }}>⚠ {freshnessResult.stale}개 단계가 업데이트 필요해요</span>
+                  )}
+                  <button
+                    onClick={() => setFreshnessResult(null)}
+                    style={{ marginLeft: '10px', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', fontSize: '11px', padding: 0 }}
+                  >✕</button>
+                </div>
+              )}
+            </div>
             <button
               onClick={handleUndo}
               disabled={!canUndo}
