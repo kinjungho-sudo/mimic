@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Check, Undo2, Redo2, Volume2, VolumeX, Loader2, RefreshCw, MonitorPlay } from 'lucide-react';
+import { Check, Undo2, Redo2, Volume2, VolumeX, Loader2, RefreshCw, MonitorPlay, Wand2 } from 'lucide-react';
 import { GuideToc } from '@/components/editor/GuideToc';
 import { ManualEditor, ManualStep } from '@/components/editor/ManualEditor';
 import { SdkPreviewPanel } from '@/components/editor/SdkPreviewPanel';
@@ -34,13 +34,12 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
     crop_rect: (s as Step & { crop_rect?: { x: number; y: number; w: number; h: number } | null }).crop_rect ?? null,
     element_rect: (s as Step & { element_rect?: { x: number; y: number; width: number; height: number } | null }).element_rect ?? null,
     imageZoom: (s as Step & { image_zoom?: number | null }).image_zoom ?? 1,
-    // click_x/y: DB 0~10000 → / 100 → 0~100 (ManualEditor/ImageAnnotationEditor 계약)
-    // guide API 및 generate-annotations는 / 10000 → 0~1 (extension/Claude 계약) — 소비자별 단위 상이, 의도된 설계
+    // click_x/y: DB 0~1 (Extension이 clientX / viewportWidth로 저장) → × 100 → 0~100 pct (ManualEditor/SdkPreviewPanel CSS % 계약)
     click_x: (s as Step & { click_x?: number | null }).click_x != null
-      ? (s as Step & { click_x: number }).click_x / 100
+      ? (s as Step & { click_x: number }).click_x * 100
       : null,
     click_y: (s as Step & { click_y?: number | null }).click_y != null
-      ? (s as Step & { click_y: number }).click_y / 100
+      ? (s as Step & { click_y: number }).click_y * 100
       : null,
   }));
 }
@@ -61,6 +60,8 @@ export default function EditorPage() {
   const [freshnessChecking, setFreshnessChecking] = useState(false);
   const [freshnessResult, setFreshnessResult] = useState<{ checked: number; stale: number } | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [patching, setPatching] = useState(false);
+  const [patchResult, setPatchResult] = useState<{ patched: number } | null>(null);
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const [ttsVoice, setTtsVoice] = useState<'nova' | 'alloy'>('nova');
   const [ttsGenerating, setTtsGenerating] = useState(false);
@@ -262,6 +263,24 @@ export default function EditorPage() {
     }
   }, [id]);
 
+  const handlePatchSteps = useCallback(async () => {
+    setPatching(true);
+    setPatchResult(null);
+    try {
+      const res = await fetch(`/api/tutorials/${id}/patch-steps`, { method: 'POST' });
+      const data = await res.json();
+      setPatchResult(data);
+      // 보완된 내용 반영을 위해 로컬 상태 갱신 트리거 (페이지 새로고침 없이)
+      if (data.patched > 0) {
+        window.location.reload();
+      }
+    } catch {
+      setPatchResult({ patched: -1 });
+    } finally {
+      setPatching(false);
+    }
+  }, [id]);
+
   const handleDeleteStep = useCallback((stepId: string) => {
     const next = manualSteps.filter(s => s.id !== stepId).map((s, i) => ({ ...s, number: i + 1 }));
     setManualStepsWithHistory(next);
@@ -413,6 +432,36 @@ export default function EditorPage() {
 
           {/* 편집기 — 항상 편집 모드 */}
           <>
+            {/* 빈 스텝 보완 */}
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={handlePatchSteps}
+                disabled={patching}
+                title="어노테이션/제목이 없는 스텝 일괄 보완"
+                style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', cursor: patching ? 'not-allowed' : 'pointer', opacity: patching ? 0.6 : 1, transition: 'all 0.15s' }}
+                onMouseEnter={e => { if (!patching) e.currentTarget.style.background = '#F9FAFB'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
+              >
+                {patching ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Wand2 size={13} />}
+                빈 스텝 보완
+              </button>
+              {patchResult && patchResult.patched !== -1 && (
+                <div style={{
+                  position: 'absolute', top: '38px', right: 0, zIndex: 30,
+                  background: 'white', border: '1px solid #E5E7EB', borderRadius: '10px',
+                  padding: '10px 14px', fontSize: '12px', color: '#374151',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.1)', whiteSpace: 'nowrap',
+                }}>
+                  {patchResult.patched === 0 ? (
+                    <span style={{ color: '#059669' }}>✓ 모든 스텝이 이미 완성됐어요</span>
+                  ) : (
+                    <span style={{ color: '#4F46E5' }}>✓ {patchResult.patched}개 스텝을 보완했어요</span>
+                  )}
+                  <button onClick={() => setPatchResult(null)} style={{ marginLeft: '10px', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', fontSize: '11px', padding: 0 }}>✕</button>
+                </div>
+              )}
+            </div>
+
             {/* SDK 미리보기 토글 */}
             <button
               onClick={() => setShowPreview(v => !v)}
