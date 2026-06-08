@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Check, Undo2, Redo2, Volume2, VolumeX, Loader2, RefreshCw } from 'lucide-react';
+import { Check, Undo2, Redo2, Volume2, VolumeX, Loader2, RefreshCw, MonitorPlay } from 'lucide-react';
 import { GuideToc } from '@/components/editor/GuideToc';
 import { ManualEditor, ManualStep } from '@/components/editor/ManualEditor';
+import { SdkPreviewPanel } from '@/components/editor/SdkPreviewPanel';
 import { useTutorial } from '@/hooks/useTutorial';
 import { useAutosave } from '@/hooks/useAutosave';
 import { useAuth } from '@/hooks/useAuth';
@@ -59,6 +60,7 @@ export default function EditorPage() {
   const [saving, setSaving] = useState(false);
   const [freshnessChecking, setFreshnessChecking] = useState(false);
   const [freshnessResult, setFreshnessResult] = useState<{ checked: number; stale: number } | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const [ttsVoice, setTtsVoice] = useState<'nova' | 'alloy'>('nova');
   const [ttsGenerating, setTtsGenerating] = useState(false);
@@ -411,6 +413,18 @@ export default function EditorPage() {
 
           {/* 편집기 — 항상 편집 모드 */}
           <>
+            {/* SDK 미리보기 토글 */}
+            <button
+              onClick={() => setShowPreview(v => !v)}
+              title="SDK 툴팁 미리보기"
+              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: showPreview ? '#4F46E5' : '#374151', background: showPreview ? 'rgba(79,70,229,0.08)' : 'white', border: `1px solid ${showPreview ? '#4F46E5' : '#E5E7EB'}`, cursor: 'pointer', transition: 'all 0.15s', fontWeight: showPreview ? 600 : 400 }}
+              onMouseEnter={e => { if (!showPreview) e.currentTarget.style.background = '#F9FAFB'; }}
+              onMouseLeave={e => { if (!showPreview) e.currentTarget.style.background = 'white'; }}
+            >
+              <MonitorPlay size={13} />
+              미리보기
+            </button>
+
             {/* 최신성 확인 버튼 */}
             <div style={{ position: 'relative' }}>
               <button
@@ -565,6 +579,7 @@ export default function EditorPage() {
               {createdAt}
             </span>
           </div>
+          <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
           <ManualEditor
             steps={manualSteps}
             hideToc
@@ -597,6 +612,14 @@ export default function EditorPage() {
               }).catch(() => {});
             }}
           />
+          {showPreview && (
+            <SdkPreviewPanel
+              steps={manualSteps}
+              activeId={activeId}
+              onClose={() => setShowPreview(false)}
+            />
+          )}
+          </div>
         </div>
       </div>
 
