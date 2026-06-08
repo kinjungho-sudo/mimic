@@ -191,14 +191,18 @@ export async function POST(request: NextRequest) {
       }
 
       // 자동 어노테이션 생성 — element_rect 있으면 하이라이트, click_x/y만 있으면 원형 마커
+      // user_annotations가 이미 있는 스텝은 건너뜀 (유저 수정 덮어쓰기 방지)
       const { data: stepsForAnnotation } = await supabase
         .from('mm_steps')
-        .select('id, step_number, ai_title, element_rect, click_x, click_y')
+        .select('id, step_number, ai_title, element_rect, click_x, click_y, user_annotations')
         .eq('tutorial_id', tutorial.id);
 
       if (stepsForAnnotation?.length) {
         await Promise.allSettled(
           stepsForAnnotation.map(async (step) => {
+            // 이미 어노테이션이 있으면 건너뜀
+            if (Array.isArray(step.user_annotations) && step.user_annotations.length > 0) return;
+
             const rect = step.element_rect as { x: number; y: number; width: number; height: number } | null;
             const label = step.ai_title ?? '클릭';
             const num = step.step_number ?? 1;
@@ -207,9 +211,10 @@ export async function POST(request: NextRequest) {
             if (rect) {
               annotations = buildClickHighlight({ elementRect: rect, stepNumber: num, label });
             } else if (step.click_x != null && step.click_y != null) {
+              // DB click_x/y: 0~1 정규화값 (Extension이 / viewportWidth로 저장)
               annotations = buildClickPoint({
-                clickX: step.click_x / 10000,
-                clickY: step.click_y / 10000,
+                clickX: step.click_x,
+                clickY: step.click_y,
                 stepNumber: num,
                 label,
               });

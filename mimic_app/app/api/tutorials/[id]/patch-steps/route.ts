@@ -33,9 +33,9 @@ export async function POST(
 
   if (!steps?.length) return NextResponse.json({ patched: 0 });
 
-  let patched = 0;
-
-  await Promise.allSettled(
+  // Promise.allSettled 내부에서 공유 변수를 직접 증가시키면 race condition 발생 —
+  // 각 작업의 성공 여부를 결과로 돌려받아 집계
+  const results = await Promise.allSettled(
     steps.map(async (step) => {
       const patch: Record<string, unknown> = {};
 
@@ -49,9 +49,10 @@ export async function POST(
         if (rect) {
           patch.user_annotations = buildClickHighlight({ elementRect: rect, stepNumber: num, label });
         } else if (step.click_x != null && step.click_y != null) {
+          // DB click_x/y: 0~1 정규화값 (Extension이 / viewportWidth로 저장)
           patch.user_annotations = buildClickPoint({
-            clickX: step.click_x / 10000,
-            clickY: step.click_y / 10000,
+            clickX: step.click_x,
+            clickY: step.click_y,
             stepNumber: num,
             label,
           });
@@ -77,10 +78,12 @@ export async function POST(
 
       if (Object.keys(patch).length > 0) {
         await supabase.from('mm_steps').update(patch).eq('id', step.id);
-        patched++;
+        return true; // 보완됨
       }
+      return false; // 보완 불필요
     })
   );
 
+  const patched = results.filter(r => r.status === 'fulfilled' && r.value === true).length;
   return NextResponse.json({ patched });
 }
