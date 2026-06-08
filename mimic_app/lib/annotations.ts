@@ -135,6 +135,57 @@ export function buildClickHighlight(params: {
   ];
 }
 
+// ── buildClickPoint ───────────────────────────────────────
+//
+// element_rect 없이 click_x/y(0~1)만 있을 때 사용.
+// 클릭 지점에 원형 강조 + 텍스트 라벨만 생성.
+
+export function buildClickPoint(params: {
+  clickX: number;  // 0~1 정규화
+  clickY: number;  // 0~1 정규화
+  stepNumber: number;
+  label: string;
+}): Annotation[] {
+  const { clickX, clickY, stepNumber, label } = params;
+
+  const cx = clickX * 100;
+  const cy = clickY * 100;
+  const R = 4;
+
+  const textW = Math.min(label.length * 0.9 + 5, 38);
+  const textH = 7;
+
+  const rightRoom = 100 - cx;
+  let tx1 = rightRoom >= textW + 2 ? cx + R + 1 : cx - R - textW - 1;
+  tx1 = Math.max(1, Math.min(100 - textW - 1, tx1));
+  const ty1 = Math.max(1, Math.min(100 - textH - 1, cy - textH / 2));
+
+  const base = (suffix: string) => `guidde-${stepNumber}-${suffix}`;
+
+  return [
+    {
+      id: base('circle'),
+      type: 'ellipse' as const,
+      x1: cx - R, y1: cy - R, x2: cx + R, y2: cy + R,
+      color: '#EF4444',
+      strokeWidth: 0.4,
+    },
+    {
+      id: base('label'),
+      type: 'text' as const,
+      x1: tx1, y1: ty1,
+      x2: tx1 + textW, y2: ty1 + textH,
+      text: label,
+      color: '#FFFFFF',
+      fontSize: 12,
+      fontBold: true,
+      hasBg: true,
+      borderColor: 'transparent',
+      strokeWidth: 0,
+    },
+  ];
+}
+
 // ── numberToMarker ─────────────────────────────────────────
 // 스텝 번호 → 원문자 (①②③... 10 이상은 숫자 그대로)
 export function numberToMarker(n: number): string {

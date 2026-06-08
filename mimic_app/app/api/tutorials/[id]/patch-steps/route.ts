@@ -1,0 +1,86 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth-guard';
+import { createServiceRoleClient } from '@/lib/supabase/server';
+import { buildClickHighlight, buildClickPoint } from '@/lib/annotations';
+import { analyzeScreenshot } from '@/lib/claude';
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const auth = await requireAuth(request);
+  if (!auth.ok) return auth.response;
+
+  const supabase = createServiceRoleClient();
+
+  // 소유권 확인
+  const { data: tutorial } = await supabase
+    .from('mm_tutorials')
+    .select('id')
+    .eq('id', id)
+    .eq('user_id', auth.userId)
+    .single();
+
+  if (!tutorial) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  // 보완 대상 스텝 조회
+  const { data: steps } = await supabase
+    .from('mm_steps')
+    .select('id, step_number, ai_title, user_title, user_annotations, element_rect, click_x, click_y, screenshot_url, page_url')
+    .eq('tutorial_id', id)
+    .order('step_number', { ascending: true });
+
+  if (!steps?.length) return NextResponse.json({ patched: 0 });
+
+  let patched = 0;
+
+  await Promise.allSettled(
+    steps.map(async (step) => {
+      const patch: Record<string, unknown> = {};
+
+      // ── 어노테이션 보완 ──────────────────────────────────────
+      const hasAnnotations = Array.isArray(step.user_annotations) && step.user_annotations.length > 0;
+      if (!hasAnnotations) {
+        const rect = step.element_rect as { x: number; y: number; width: number; height: number } | null;
+        const label = step.user_title ?? step.ai_title ?? '클릭';
+        const num = step.step_number ?? 1;
+
+        if (rect) {
+          patch.user_annotations = buildClickHighlight({ elementRect: rect, stepNumber: num, label });
+        } else if (step.click_x != null && step.click_y != null) {
+          patch.user_annotations = buildClickPoint({
+            clickX: step.click_x / 10000,
+            clickY: step.click_y / 10000,
+            stepNumber: num,
+            label,
+          });
+        }
+      }
+
+      // ── 제목 보완 (user_title + ai_title 모두 없을 때) ──────
+      const hasTitle = step.user_title || step.ai_title;
+      if (!hasTitle && step.screenshot_url) {
+        try {
+          const imgRes = await fetch(step.screenshot_url);
+          if (imgRes.ok) {
+            const ct = imgRes.headers.get('content-type') ?? 'image/jpeg';
+            const mediaType = (['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as const)
+              .find(t => ct.includes(t)) ?? 'image/jpeg';
+            const buf = await imgRes.arrayBuffer();
+            const b64 = Buffer.from(buf).toString('base64');
+            const { title } = await analyzeScreenshot(b64, mediaType, step.page_url);
+            if (title) patch.ai_title = title;
+          }
+        } catch { /* 제목 생성 실패 무시 */ }
+      }
+
+      if (Object.keys(patch).length > 0) {
+        await supabase.from('mm_steps').update(patch).eq('id', step.id);
+        patched++;
+      }
+    })
+  );
+
+  return NextResponse.json({ patched });
+}

@@ -4,7 +4,7 @@ import { createServiceRoleClient } from '@/lib/supabase/server';
 import { captureFinalizeSchema } from '@/lib/validators';
 import { generateDraft, extractCoverColors } from '@/lib/claude';
 import { resolveFavicon } from '@/lib/favicon';
-import { buildClickHighlight } from '@/lib/annotations';
+import { buildClickHighlight, buildClickPoint } from '@/lib/annotations';
 
 export async function POST(request: NextRequest) {
   const auth = await requireExtensionToken(request);
@@ -190,24 +190,32 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // 자동 어노테이션 생성 — element_rect가 있는 스텝에 Guidde 스타일 하이라이트 결정론적 배치
-      const { data: stepsWithCoords } = await supabase
+      // 자동 어노테이션 생성 — element_rect 있으면 하이라이트, click_x/y만 있으면 원형 마커
+      const { data: stepsForAnnotation } = await supabase
         .from('mm_steps')
-        .select('id, step_number, ai_title, element_rect')
-        .eq('tutorial_id', tutorial.id)
-        .not('element_rect', 'is', null);
+        .select('id, step_number, ai_title, element_rect, click_x, click_y')
+        .eq('tutorial_id', tutorial.id);
 
-      if (stepsWithCoords?.length) {
+      if (stepsForAnnotation?.length) {
         await Promise.allSettled(
-          stepsWithCoords.map(async (step, idx) => {
+          stepsForAnnotation.map(async (step) => {
             const rect = step.element_rect as { x: number; y: number; width: number; height: number } | null;
-            if (!rect) return;
+            const label = step.ai_title ?? '클릭';
+            const num = step.step_number ?? 1;
+            let annotations;
 
-            const annotations = buildClickHighlight({
-              elementRect: rect,
-              stepNumber: step.step_number ?? idx + 1,
-              label: step.ai_title ?? '클릭',
-            });
+            if (rect) {
+              annotations = buildClickHighlight({ elementRect: rect, stepNumber: num, label });
+            } else if (step.click_x != null && step.click_y != null) {
+              annotations = buildClickPoint({
+                clickX: step.click_x / 10000,
+                clickY: step.click_y / 10000,
+                stepNumber: num,
+                label,
+              });
+            } else {
+              return; // 좌표 정보 없음
+            }
 
             await supabase
               .from('mm_steps')
