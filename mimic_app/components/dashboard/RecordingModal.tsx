@@ -11,7 +11,7 @@ interface ChromeTab {
   favIconUrl?: string;
 }
 
-type ModalStep = 'guide' | 'tab_select' | 'launching' | 'not_installed';
+type ModalStep = 'guide' | 'tab_select' | 'launching' | 'not_installed' | 'install';
 
 // ── 확장 통신 ─────────────────────────────────────────────
 
@@ -130,6 +130,8 @@ interface RecordingModalProps {
   onClose: () => void;
 }
 
+const STORE_URL = 'https://chromewebstore.google.com/detail/mimic-recorder/ehbhcdkapcbfehinjapabgoegcjmmbgd';
+
 export function RecordingModal({ onClose }: RecordingModalProps) {
   const [step, setStep] = useState<ModalStep>('guide');
   const [tabs, setTabs] = useState<ChromeTab[]>([]);
@@ -143,6 +145,18 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
     window.addEventListener('keydown', fn);
     return () => window.removeEventListener('keydown', fn);
   }, [onClose]);
+
+  // 최초 진입 시 확장 설치 여부 확인
+  useEffect(() => {
+    if (!isExtensionInstalled()) {
+      setStep('install');
+      return;
+    }
+    // 확장은 있는데 연동(토큰)이 안 된 경우를 CONNECT ping으로 확인
+    sendMessage('CONNECT').then(resp => {
+      if (!resp) setStep('install');
+    });
+  }, []);
 
   // 탭 선택 단계 진입 시 목록 로드
   const enterTabSelect = useCallback(async () => {
@@ -179,6 +193,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
 
   // 탭 선택 단계: 모달 넓게
   const isWide = step === 'tab_select';
+
 
   return (
     <>
@@ -224,12 +239,14 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
             {step === 'tab_select' && '녹화할 페이지 선택'}
             {step === 'launching' && 'Recorder 실행 중…'}
             {step === 'not_installed' && '확장 프로그램이 필요해요'}
+            {step === 'install' && 'MIMIC Recorder 설치 필요'}
           </h2>
           <p style={{ fontSize: '12.5px', color: 'rgba(255,255,255,0.72)', marginTop: '3px' }}>
             {step === 'guide' && '화면 녹화로 매뉴얼을 자동으로 만들어드릴게요'}
             {step === 'tab_select' && `열린 탭 ${tabs.length}개 · 페이지를 선택하면 오른쪽에 미리보기가 표시됩니다`}
             {step === 'launching' && '잠시만 기다려주세요'}
             {step === 'not_installed' && 'MIMIC Recorder를 먼저 설치해야 녹화할 수 있어요'}
+            {step === 'install' && '설치 후 연동하면 바로 녹화할 수 있어요'}
           </p>
         </div>
 
@@ -421,7 +438,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
           </div>
         )}
 
-        {/* ── 미설치 ── */}
+        {/* ── 미설치 (녹화 시도 후 실패) ── */}
         {step === 'not_installed' && (
           <div style={{ padding: '24px 28px 28px' }}>
             <div style={{ background: '#FEF3C7', border: '1px solid #FDE68A', borderRadius: '10px', padding: '14px 16px', marginBottom: '20px', display: 'flex', gap: '12px' }}>
@@ -431,12 +448,63 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
               </p>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <button disabled title="Chrome 웹스토어 등록 준비 중" style={{ width: '100%', padding: '12px', borderRadius: '10px', background: '#F3F4F6', color: '#9CA3AF', fontSize: '14px', fontWeight: 500, border: 'none', cursor: 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+              <a href={STORE_URL} target="_blank" rel="noopener noreferrer"
+                style={{ width: '100%', padding: '12px', borderRadius: '10px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', fontSize: '14px', fontWeight: 600, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', textDecoration: 'none', boxShadow: '0 4px 14px rgba(55,48,163,0.30)', boxSizing: 'border-box' }}>
                 MIMIC Recorder 설치하기
-                <span style={{ fontSize: '10.5px', background: '#E5E7EB', color: '#6B7280', padding: '2px 6px', borderRadius: '4px' }}>준비 중</span>
-              </button>
+              </a>
               <button onClick={enterTabSelect} style={{ width: '100%', padding: '12px', borderRadius: '10px', background: 'white', color: '#4B5563', fontSize: '14px', fontWeight: 500, border: '1.5px solid #E5E7EB', cursor: 'pointer' }}>
-                다시 시도
+                설치 완료 — 다시 시도
+              </button>
+              <button onClick={onClose} style={{ width: '100%', padding: '10px', borderRadius: '10px', background: 'none', color: '#9CA3AF', fontSize: '13px', border: 'none', cursor: 'pointer' }}>
+                나중에
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── 설치 유도 (최초 진입 시 미설치) ── */}
+        {step === 'install' && (
+          <div style={{ padding: '24px 28px 28px' }}>
+            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+              <div style={{ width: '72px', height: '72px', margin: '0 auto 16px', borderRadius: '20px', background: 'linear-gradient(135deg, #e0e7ff, #F5F3FF)', display: 'grid', placeItems: 'center' }}>
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#3730a3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="21.17" y1="8" x2="12" y2="8"/><line x1="3.95" y1="6.06" x2="8.54" y2="14"/><line x1="10.88" y1="21.94" x2="15.46" y2="14"/></svg>
+              </div>
+              <p style={{ fontSize: '13.5px', color: '#4B5563', lineHeight: 1.6, margin: '0 auto', maxWidth: '340px' }}>
+                화면 녹화로 매뉴얼을 만들려면<br/><strong style={{ color: '#111827' }}>MIMIC Recorder</strong> 확장 프로그램이 필요해요.
+              </p>
+            </div>
+            <div style={{ background: '#F9FAFB', border: '1px solid #F3F4F6', borderRadius: '12px', padding: '14px 18px', marginBottom: '20px' }}>
+              {[
+                'Chrome 웹스토어에서 설치',
+                '설치 후 이 창으로 돌아오기',
+                '\'연동 완료\' 버튼 클릭 후 바로 녹화',
+              ].map((text, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: i < 2 ? '10px' : 0 }}>
+                  <span style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#e0e7ff', color: '#3730a3', fontSize: '11px', fontWeight: 600, display: 'grid', placeItems: 'center', flexShrink: 0 }}>{i + 1}</span>
+                  <span style={{ fontSize: '13px', color: '#374151' }}>{text}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <a href={STORE_URL} target="_blank" rel="noopener noreferrer"
+                style={{ width: '100%', padding: '13px', borderRadius: '11px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', fontSize: '14.5px', fontWeight: 600, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', textDecoration: 'none', boxShadow: '0 4px 14px rgba(55,48,163,0.30)', boxSizing: 'border-box' }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                MIMIC Recorder 설치하기
+              </a>
+              <button
+                onClick={() => {
+                  if (isExtensionInstalled()) {
+                    sendMessage('CONNECT').then(resp => {
+                      if (resp) setStep('guide');
+                      else setStep('install');
+                    });
+                  } else {
+                    setStep('install');
+                  }
+                }}
+                style={{ width: '100%', padding: '12px', borderRadius: '10px', background: 'white', color: '#4B5563', fontSize: '14px', fontWeight: 500, border: '1.5px solid #E5E7EB', cursor: 'pointer' }}
+              >
+                설치 완료 — 연동하기
               </button>
               <button onClick={onClose} style={{ width: '100%', padding: '10px', borderRadius: '10px', background: 'none', color: '#9CA3AF', fontSize: '13px', border: 'none', cursor: 'pointer' }}>
                 나중에
