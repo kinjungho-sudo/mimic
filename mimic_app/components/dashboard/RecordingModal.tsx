@@ -11,7 +11,7 @@ interface ChromeTab {
   favIconUrl?: string;
 }
 
-type ModalStep = 'guide' | 'tab_select' | 'launching' | 'not_installed' | 'install';
+type ModalStep = 'checking' | 'guide' | 'tab_select' | 'launching' | 'not_installed' | 'install';
 
 // ── 확장 통신 ─────────────────────────────────────────────
 
@@ -133,7 +133,7 @@ interface RecordingModalProps {
 const STORE_URL = 'https://chromewebstore.google.com/detail/mimic-recorder/ehbhcdkapcbfehinjapabgoegcjmmbgd';
 
 export function RecordingModal({ onClose }: RecordingModalProps) {
-  const [step, setStep] = useState<ModalStep>('guide');
+  const [step, setStep] = useState<ModalStep>('checking');
   const [tabs, setTabs] = useState<ChromeTab[]>([]);
   const [tabsLoading, setTabsLoading] = useState(false);
   const [selectedTab, setSelectedTab] = useState<ChromeTab | null>(null);
@@ -146,15 +146,14 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
     return () => window.removeEventListener('keydown', fn);
   }, [onClose]);
 
-  // 최초 진입 시 확장 설치 여부 확인
+  // 모달 진입 시 확장 설치+연동 여부 확인 (신규/기존 사용자 모두)
   useEffect(() => {
     if (!isExtensionInstalled()) {
       setStep('install');
       return;
     }
-    // 확장은 있는데 연동(토큰)이 안 된 경우를 CONNECT ping으로 확인
     sendMessage('CONNECT').then(resp => {
-      if (!resp) setStep('install');
+      setStep(resp ? 'guide' : 'install');
     });
   }, []);
 
@@ -235,6 +234,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
             <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em' }}>MIMIC Recorder</span>
           </div>
           <h2 style={{ fontSize: '19px', fontWeight: 700, color: 'white', margin: 0, letterSpacing: '-0.02em' }}>
+            {step === 'checking' && '확장 프로그램 확인 중…'}
             {step === 'guide' && '새 매뉴얼 녹화 시작'}
             {step === 'tab_select' && '녹화할 페이지 선택'}
             {step === 'launching' && 'Recorder 실행 중…'}
@@ -242,6 +242,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
             {step === 'install' && 'MIMIC Recorder 설치 필요'}
           </h2>
           <p style={{ fontSize: '12.5px', color: 'rgba(255,255,255,0.72)', marginTop: '3px' }}>
+            {step === 'checking' && '잠시만 기다려주세요'}
             {step === 'guide' && '화면 녹화로 매뉴얼을 자동으로 만들어드릴게요'}
             {step === 'tab_select' && `열린 탭 ${tabs.length}개 · 페이지를 선택하면 오른쪽에 미리보기가 표시됩니다`}
             {step === 'launching' && '잠시만 기다려주세요'}
@@ -249,6 +250,13 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
             {step === 'install' && '설치 후 연동하면 바로 녹화할 수 있어요'}
           </p>
         </div>
+
+        {/* ── 확인 중 ── */}
+        {step === 'checking' && (
+          <div style={{ padding: '48px 28px', textAlign: 'center' }}>
+            <div style={{ width: '52px', height: '52px', borderRadius: '50%', border: '3px solid rgba(55,48,163,0.15)', borderTopColor: '#3730a3', animation: 'spin 0.9s linear infinite', margin: '0 auto' }} />
+          </div>
+        )}
 
         {/* ── 가이드 단계 ── */}
         {step === 'guide' && (
