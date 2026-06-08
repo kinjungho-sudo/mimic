@@ -526,6 +526,10 @@ export default function EditorPage() {
                 .filter(s => s.domainHostname === hostname && !s.id.startsWith('step-'))
                 .forEach(s => updateStep(s.id, { domain_name: newName }).catch(() => {}));
             }}
+            onDeleteCategory={(hostname) => {
+              const toDelete = manualSteps.filter(s => s.domainHostname === hostname);
+              toDelete.forEach(s => handleDeleteStep(s.id));
+            }}
           />
         </div>
 
@@ -584,6 +588,7 @@ export default function EditorPage() {
             steps={manualSteps}
             hideToc
             activeId={activeId}
+            onActiveChange={setActiveId}
             onChange={(next) => {
               setManualStepsWithHistory(next);
               next.forEach(step => {

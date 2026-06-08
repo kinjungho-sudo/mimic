@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { ManualStep } from './ManualEditor';
 import { faviconUrl, faviconFallbackUrl, hostnameToServiceName } from '@/lib/favicon';
 
@@ -14,9 +14,10 @@ interface GuideTocProps {
   onDelete?: (id: string) => void;
   onInsertAfter?: (afterId: string) => void;
   onRenameDomain?: (hostname: string, newName: string) => void;
+  onDeleteCategory?: (hostname: string | null) => void;
 }
 
-export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDelete, onRenameDomain }: GuideTocProps) {
+export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDelete, onRenameDomain, onDeleteCategory }: GuideTocProps) {
   const [editingDomain, setEditingDomain] = useState<{ hostname: string; value: string } | null>(null);
   const domainInputRef = useRef<HTMLInputElement>(null);
   const [draggingIds, setDraggingIds] = useState<Set<string>>(new Set());
@@ -24,6 +25,23 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
   const [dragOverPos, setDragOverPos] = useState<'before' | 'after'>('after');
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const listRef = useRef<HTMLDivElement>(null);
+
+  // activeId가 바뀌면 TOC 목록을 해당 항목으로 자동 스크롤
+  useEffect(() => {
+    if (!activeId) return;
+    const el = itemRefs.current[activeId];
+    const container = listRef.current;
+    if (!el || !container) return;
+    const elTop = el.offsetTop;
+    const elBottom = elTop + el.offsetHeight;
+    const cTop = container.scrollTop;
+    const cBottom = cTop + container.clientHeight;
+    if (elTop < cTop || elBottom > cBottom) {
+      container.scrollTo({ top: elTop - container.clientHeight / 3, behavior: 'smooth' });
+    }
+  }, [activeId]);
 
   // ── 다중 선택 토글 ─────────────────────────────────────────
   const toggleSelect = (id: string, e: React.MouseEvent) => {
@@ -156,7 +174,7 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
       </div>
 
       {/* Steps */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0 8px' }}>
+      <div ref={listRef} style={{ flex: 1, overflowY: 'auto', padding: '4px 0 8px' }}>
         {steps.map((step, idx) => {
           const isActive = step.id === activeId;
           const isDragTarget = dragOverId === step.id && !draggingIds.has(step.id);
@@ -209,9 +227,28 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
                       </span>
                     )}
                   </div>
-                  <span style={{ fontSize: '10.5px', color: '#9CA3AF', flexShrink: 0, marginLeft: '6px' }}>
-                    {group.count} Steps
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0, marginLeft: '6px' }}>
+                    <span style={{ fontSize: '10.5px', color: '#9CA3AF' }}>
+                      {group.count} Steps
+                    </span>
+                    {editable && onDeleteCategory && (
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`'${group.name ?? group.hostname}' 카테고리의 스텝 ${group.count}개를 모두 삭제할까요?`)) {
+                            onDeleteCategory(group.hostname);
+                          }
+                        }}
+                        title="카테고리 삭제"
+                        style={{ width: '16px', height: '16px', borderRadius: '3px', border: 'none', background: 'transparent', color: '#D1D5DB', display: 'grid', placeItems: 'center', cursor: 'pointer', padding: 0 }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(220,38,38,0.1)'; e.currentTarget.style.color = '#DC2626'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#D1D5DB'; }}
+                      >
+                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                        </svg>
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -222,6 +259,7 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
 
               {/* 스텝 아이템 */}
               <div
+                ref={el => { itemRefs.current[step.id] = el; }}
                 draggable={editable}
                 onDragStart={e => handleDragStart(e, step.id)}
                 onDragOver={isDraggingActive ? e => handleDragOver(e, step.id) : undefined}

@@ -62,7 +62,8 @@ export function AnnotationPreview({ annotations, imageUrl }: { annotations: Anno
     >
       <defs>
         <filter id={filterId} x="-5%" y="-5%" width="110%" height="110%">
-          <feGaussianBlur stdDeviation="4" />
+          <feGaussianBlur stdDeviation="8" result="blurred" />
+          <feColorMatrix type="saturate" values="0" />
         </filter>
         {spotlights.length > 0 && (
           <mask id={spotlightMaskId}>

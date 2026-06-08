@@ -39,11 +39,12 @@ interface ManualEditorProps {
   onSave?: (id: string, patch: Partial<ManualStep>) => void;
   hideToc?: boolean;
   activeId?: string | null;
+  onActiveChange?: (id: string) => void;
 }
 
 // ── ManualEditor ──────────────────────────────────────────
 
-export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: externalActiveId }: ManualEditorProps) {
+export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: externalActiveId, onActiveChange }: ManualEditorProps) {
   const [internalActiveId, setInternalActiveId] = useState<string | null>(
     steps.length > 0 ? steps[0].id : null
   );
@@ -57,6 +58,8 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
   const [bulkAiLoading, setBulkAiLoading] = useState<string | null>(null);
   const contentRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
+  // TOC 클릭으로 스크롤 중일 때 IntersectionObserver 역방향 업데이트 억제
+  const scrollingByClickRef = useRef(false);
 
   useEffect(() => {
     if (!internalActiveId && steps.length > 0) setActiveId(steps[0].id);
@@ -66,9 +69,43 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
   // When parent TOC drives navigation, scroll to the step
   useEffect(() => {
     if (!hideToc || !externalActiveId) return;
+    scrollingByClickRef.current = true;
     contentRefs.current[externalActiveId]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // smooth scroll 애니메이션이 끝날 때까지 observer 억제 (약 600ms)
+    const t = setTimeout(() => { scrollingByClickRef.current = false; }, 600);
+    return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [externalActiveId]);
+
+  // IntersectionObserver — 스크롤로 뷰에 들어온 스텝을 activeId로 반영
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (scrollingByClickRef.current) return;
+        // 가장 많이 보이는(intersectionRatio가 높은) 스텝을 active로 설정
+        let bestId: string | null = null;
+        let bestRatio = 0;
+        entries.forEach(entry => {
+          const id = (entry.target as HTMLElement).dataset.stepId;
+          if (!id) return;
+          if (entry.intersectionRatio > bestRatio) {
+            bestRatio = entry.intersectionRatio;
+            bestId = id;
+          }
+        });
+        if (bestId && bestRatio > 0.3) {
+          setActiveId(bestId);
+          onActiveChange?.(bestId);
+        }
+      },
+      { root: container, threshold: [0.3, 0.6, 0.9] }
+    );
+    Object.values(contentRefs.current).forEach(el => { if (el) observer.observe(el); });
+    return () => observer.disconnect();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [steps.length, onActiveChange]);
 
   const updateStep = (id: string, patch: Partial<ManualStep>) =>
     onChange(steps.map(s => s.id === id ? { ...s, ...patch } : s));
@@ -905,38 +942,87 @@ function ScreenshotArea({ step, onUploadClick, onDrop, onAnnotate, onRemove, onZ
 
 function ImageZoomModal({ url, onClose }: { url: string; onClose: () => void }) {
   const [scale, setScale] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const dragging = useRef<{ startX: number; startY: number; panX: number; panY: number } | null>(null);
+
+  const clampScale = (s: number) => Math.round(Math.min(5, Math.max(0.5, s)) * 10) / 10;
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
-      if (e.key === '+' || e.key === '=') setScale(s => Math.min(3, +(s + 0.2).toFixed(1)));
-      if (e.key === '-') setScale(s => Math.max(0.5, +(s - 0.2).toFixed(1)));
+      if (e.key === '+' || e.key === '=') setScale(s => clampScale(s + 0.2));
+      if (e.key === '-') setScale(s => clampScale(s - 0.2));
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [onClose]);
 
+  // scale 1일 때 pan 초기화
+  useEffect(() => { if (scale <= 1) setPan({ x: 0, y: 0 }); }, [scale]);
+
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.15 : 0.15;
+    setScale(s => clampScale(s + delta));
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (scale <= 1) return;
+    e.preventDefault();
+    dragging.current = { startX: e.clientX, startY: e.clientY, panX: pan.x, panY: pan.y };
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!dragging.current) return;
+    setPan({
+      x: dragging.current.panX + (e.clientX - dragging.current.startX),
+      y: dragging.current.panY + (e.clientY - dragging.current.startY),
+    });
+  };
+
+  const handleMouseUp = () => { dragging.current = null; };
+
+  const reset = () => { setScale(1); setPan({ x: 0, y: 0 }); };
+
   return (
     <>
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 60, backdropFilter: 'blur(6px)' }} />
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 61, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px', overflow: 'auto' }}>
+      <div
+        onWheel={handleWheel}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onClick={() => { if (!dragging.current) onClose(); }}
+        style={{ position: 'fixed', inset: 0, zIndex: 61, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', cursor: scale > 1 ? (dragging.current ? 'grabbing' : 'grab') : 'default' }}
+      >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={url} alt="확대 이미지" onClick={e => e.stopPropagation()}
-          style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: '10px', boxShadow: '0 30px 80px rgba(0,0,0,0.5)', transform: `scale(${scale})`, transformOrigin: 'center center', transition: 'transform 0.2s ease', cursor: 'default' }}
+          src={url} alt="확대 이미지"
+          onClick={e => e.stopPropagation()}
+          onMouseDown={e => e.preventDefault()}
+          draggable={false}
+          style={{
+            maxWidth: '90vw', maxHeight: '90vh',
+            borderRadius: '10px', boxShadow: '0 30px 80px rgba(0,0,0,0.5)',
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
+            transformOrigin: 'center center',
+            transition: dragging.current ? 'none' : 'transform 0.15s ease',
+            userSelect: 'none', pointerEvents: 'none',
+          }}
         />
       </div>
       <div style={{ position: 'fixed', bottom: '32px', left: '50%', transform: 'translateX(-50%)', zIndex: 62, display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(30,30,40,0.92)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: '12px', padding: '8px 16px', color: 'white' }}>
-        <button onClick={() => setScale(s => Math.max(0.5, +(s - 0.2).toFixed(1)))} style={{ width: '28px', height: '28px', borderRadius: '6px', display: 'grid', placeItems: 'center', border: 'none', background: 'rgba(255,255,255,0.08)', color: 'white', cursor: 'pointer', fontSize: '16px' }}>−</button>
+        <button onClick={() => setScale(s => clampScale(s - 0.2))} style={{ width: '28px', height: '28px', borderRadius: '6px', display: 'grid', placeItems: 'center', border: 'none', background: 'rgba(255,255,255,0.08)', color: 'white', cursor: 'pointer', fontSize: '16px' }}>−</button>
         <span style={{ fontSize: '12.5px', fontWeight: 500, minWidth: '44px', textAlign: 'center' }}>{Math.round(scale * 100)}%</span>
-        <button onClick={() => setScale(s => Math.min(3, +(s + 0.2).toFixed(1)))} style={{ width: '28px', height: '28px', borderRadius: '6px', display: 'grid', placeItems: 'center', border: 'none', background: 'rgba(255,255,255,0.08)', color: 'white', cursor: 'pointer', fontSize: '16px' }}>+</button>
+        <button onClick={() => setScale(s => clampScale(s + 0.2))} style={{ width: '28px', height: '28px', borderRadius: '6px', display: 'grid', placeItems: 'center', border: 'none', background: 'rgba(255,255,255,0.08)', color: 'white', cursor: 'pointer', fontSize: '16px' }}>+</button>
         <div style={{ width: '1px', height: '16px', background: 'rgba(255,255,255,0.15)', margin: '0 4px' }} />
-        <button onClick={() => setScale(1)} style={{ fontSize: '11.5px', fontWeight: 500, color: 'rgba(255,255,255,0.7)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px' }}>초기화</button>
+        <button onClick={reset} style={{ fontSize: '11.5px', fontWeight: 500, color: 'rgba(255,255,255,0.7)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px' }}>초기화</button>
         <div style={{ width: '1px', height: '16px', background: 'rgba(255,255,255,0.15)', margin: '0 4px' }} />
         <button onClick={onClose} style={{ width: '28px', height: '28px', borderRadius: '6px', display: 'grid', placeItems: 'center', border: 'none', background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)', cursor: 'pointer' }}>
           <X size={13} />
         </button>
-        <span style={{ fontSize: '10.5px', color: 'rgba(255,255,255,0.4)', marginLeft: '4px' }}>ESC로 닫기</span>
+        <span style={{ fontSize: '10.5px', color: 'rgba(255,255,255,0.4)', marginLeft: '4px' }}>휠로 확대 · 드래그로 이동 · ESC 닫기</span>
       </div>
     </>
   );

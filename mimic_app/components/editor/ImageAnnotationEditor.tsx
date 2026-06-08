@@ -780,7 +780,9 @@ export function ImageAnnotationEditor({
           >
             <defs>
               <filter id="mosaic-blur" x="-5%" y="-5%" width="110%" height="110%">
-                <feGaussianBlur stdDeviation="8" />
+                <feGaussianBlur stdDeviation="10" result="blurred" />
+                {/* 채도 제거 → 어두운/밝은 영역 모두 균일하게 흐릿하게만 보임 */}
+                <feColorMatrix type="saturate" values="0" />
               </filter>
             </defs>
 
