@@ -101,27 +101,20 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
     setDragOverId(null);
   };
 
-  // ── 도메인 그룹핑 — hostname 기준 (domain_name이 달라도 hostname 같으면 동일 그룹) ──
+  // ── 도메인 그룹핑 — hostname 기준 전역 중복 제거 (A→B→A = 2그룹이 아닌 동일 그룹) ──
   type DomainGroup = { hostname: string | null; name: string | null; favicon: string | null; count: number };
+  const hostnameToGroupIdx = new Map<string | null, number>();
   const domainGroups: DomainGroup[] = [];
   steps.forEach(step => {
     const hostname = step.domainHostname ?? null;
-    const last = domainGroups[domainGroups.length - 1];
-    // hostname 기준으로만 그룹핑 — domain_name이 달라도 hostname이 같으면 동일 그룹
-    if (last && last.hostname === hostname) {
-      last.count++;
-    } else {
-      domainGroups.push({ hostname, name: hostnameToServiceName(hostname), favicon: step.domainFavicon ?? null, count: 1 });
+    if (!hostnameToGroupIdx.has(hostname)) {
+      hostnameToGroupIdx.set(hostname, domainGroups.length);
+      domainGroups.push({ hostname, name: hostnameToServiceName(hostname), favicon: step.domainFavicon ?? null, count: 0 });
     }
+    domainGroups[hostnameToGroupIdx.get(hostname)!].count++;
   });
 
-  const stepGroupIdx: number[] = [];
-  let gi = 0, cnt = 0;
-  steps.forEach(() => {
-    stepGroupIdx.push(gi);
-    cnt++;
-    if (cnt >= domainGroups[gi].count) { gi++; cnt = 0; }
-  });
+  const stepGroupIdx: number[] = steps.map(step => hostnameToGroupIdx.get(step.domainHostname ?? null) ?? 0);
 
   const isDraggingActive = draggingIds.size > 0;
   const selectedCount = selectedIds.size;

@@ -304,7 +304,7 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
                     onSave={patch => { updateStep(step.id, patch); onSave?.(step.id, patch); }}
                     onDelete={() => deleteStep(step.id)}
                     onZoom={() => step.screenshotUrl && setZoomUrl(step.screenshotUrl)}
-                    onAnnotate={() => step.screenshotUrl && setAnnotatingId(step.id)}
+                    onAnnotate={() => { if (!step.screenshotUrl) return; setActiveId(step.id); setAnnotatingId(step.id); }}
                     onRemoveImage={() => { updateStep(step.id, { screenshotUrl: undefined, annotations: [] }); onSave?.(step.id, { screenshotUrl: undefined, annotations: [] }); }}
                   />
                 </div>

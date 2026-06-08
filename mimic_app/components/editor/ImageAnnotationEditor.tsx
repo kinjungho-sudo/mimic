@@ -161,6 +161,14 @@ export function ImageAnnotationEditor({
   const [textAlign, setTextAlign] = useState<'left' | 'center' | 'right'>('left');
   const [hasBg, setHasBg] = useState(true);
 
+  // ── 뷰 줌/팬 ──
+  const [viewScale, setViewScale] = useState(1);
+  const [viewPan, setViewPan] = useState({ x: 0, y: 0 });
+  const panDragging = useRef<{ startX: number; startY: number; panX: number; panY: number } | null>(null);
+  const [isPanning, setIsPanning] = useState(false);
+  const [spaceDown, setSpaceDown] = useState(false);
+  const clampScale = (s: number) => Math.round(Math.min(5, Math.max(0.25, s)) * 100) / 100;
+
   const lastColor = useRef(color);
   const lastStrokeIdx = useRef(strokeIdx);
   const lastFontSize = useRef(fontSize);
@@ -445,6 +453,9 @@ export function ImageAnnotationEditor({
     const handler = (e: KeyboardEvent) => {
       if (editingText) return;
 
+      // 스페이스바 → 팬 모드
+      if (e.key === ' ' && !e.repeat) { e.preventDefault(); setSpaceDown(true); return; }
+
       // Ctrl+Z 언두 / Ctrl+Y or Ctrl+Shift+Z 리두
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return; }
       if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); return; }
@@ -464,8 +475,10 @@ export function ImageAnnotationEditor({
         ));
       }
     };
+    const keyup = (e: KeyboardEvent) => { if (e.key === ' ') setSpaceDown(false); };
     window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+    window.addEventListener('keyup', keyup);
+    return () => { window.removeEventListener('keydown', handler); window.removeEventListener('keyup', keyup); };
   }, [selectedId, editingText, deleteSelected, undo, redo]);
 
   useEffect(() => {
@@ -642,6 +655,27 @@ export function ImageAnnotationEditor({
 
             <div style={{ flex: 1 }} />
 
+            {/* 줌 컨트롤 */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '2px', background: 'rgba(255,255,255,0.06)', borderRadius: '7px', padding: '3px' }}>
+              <button title="축소 (-)" onClick={() => { setViewScale(s => clampScale(s - 0.25)); }}
+                style={{ width: '26px', height: '26px', borderRadius: '4px', border: 'none', background: 'transparent', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', display: 'grid', placeItems: 'center', fontSize: '16px' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+              >−</button>
+              <button title="비율 초기화" onClick={() => { setViewScale(1); setViewPan({ x: 0, y: 0 }); }}
+                style={{ height: '26px', padding: '0 6px', borderRadius: '4px', border: 'none', background: 'transparent', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: '10.5px', minWidth: '42px' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+              >{Math.round(viewScale * 100)}%</button>
+              <button title="확대 (+)" onClick={() => { setViewScale(s => clampScale(s + 0.25)); }}
+                style={{ width: '26px', height: '26px', borderRadius: '4px', border: 'none', background: 'transparent', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', display: 'grid', placeItems: 'center', fontSize: '16px' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+              >+</button>
+            </div>
+
+            <div style={{ width: '1px', height: '22px', background: 'rgba(255,255,255,0.12)' }} />
+
             {/* 언두/리두 */}
             <button onClick={undo} title="실행 취소 (Ctrl+Z)"
               style={{ height: '32px', padding: '0 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(255,255,255,0.7)', fontSize: '11.5px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
@@ -761,17 +795,41 @@ export function ImageAnnotationEditor({
           )}
         </div>
 
+        {/* ── Canvas wrapper (스크롤 + 줌/팬) ── */}
+        <div
+          style={{ overflow: 'auto', flex: '1 1 0', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: spaceDown ? (isPanning ? 'grabbing' : 'grab') : activeCursor }}
+          onWheel={e => {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? -0.15 : 0.15;
+            setViewScale(s => clampScale(s + delta));
+          }}
+          onMouseDown={e => {
+            if (spaceDown || e.button === 1) {
+              e.preventDefault();
+              panDragging.current = { startX: e.clientX, startY: e.clientY, panX: viewPan.x, panY: viewPan.y };
+              setIsPanning(true);
+            }
+          }}
+          onMouseMove={e => {
+            if (!panDragging.current) return;
+            const dx = e.clientX - panDragging.current.startX;
+            const dy = e.clientY - panDragging.current.startY;
+            setViewPan({ x: panDragging.current.panX + dx, y: panDragging.current.panY + dy });
+          }}
+          onMouseUp={() => { panDragging.current = null; setIsPanning(false); }}
+          onMouseLeave={() => { panDragging.current = null; setIsPanning(false); }}
+        >
         {/* ── Canvas ── */}
         <div
-          style={{ position: 'relative', display: 'inline-block', lineHeight: 0, cursor: activeCursor, flexShrink: 0 }}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
+          style={{ position: 'relative', display: 'inline-block', lineHeight: 0, flexShrink: 0, transform: `translate(${viewPan.x}px, ${viewPan.y}px) scale(${viewScale})`, transformOrigin: 'center center', cursor: spaceDown ? (isPanning ? 'grabbing' : 'grab') : activeCursor }}
+          onMouseDown={e => { if (!spaceDown && e.button !== 1) handleMouseDown(e); }}
+          onMouseMove={e => { if (!isPanning) handleMouseMove(e); }}
+          onMouseUp={e => { if (!isPanning) handleMouseUp(e); }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             ref={imgRef} src={imageUrl} alt="편집 중" draggable={false}
-            style={{ display: 'block', maxWidth: 'min(1100px, calc(100vw - 48px))', maxHeight: 'calc(100vh - 160px)', objectFit: 'contain' }}
+            style={{ display: 'block', maxWidth: 'min(1100px, calc(100vw - 48px))', maxHeight: 'calc(100vh - 200px)', objectFit: 'contain' }}
           />
 
           <svg
@@ -883,9 +941,11 @@ export function ImageAnnotationEditor({
             );
           })()}
         </div>
+        </div>{/* end canvas wrapper */}
 
         <div style={{ height: '24px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10.5px', color: 'rgba(255,255,255,0.5)', background: '#1a1a1a' }}>
-          {tool === 'select' ? '클릭으로 선택 · 드래그로 이동 · 방향키로 미세 이동 · Delete 삭제 · Ctrl+Z 취소' :
+          {spaceDown ? '스페이스 + 드래그로 이동 · 마우스 휠로 확대/축소' :
+           tool === 'select' ? '클릭으로 선택 · 드래그로 이동 · 방향키로 미세 이동 · Delete 삭제 · Ctrl+Z 취소' :
            tool === 'marker' ? '클릭하면 번호 마커 추가' :
            tool === 'spotlight' ? '완성 후 선택 모드로 전환 — 이동 · 크기 조절 가능' :
            tool === 'text' ? '더블클릭으로 텍스트 편집 · Enter 줄바꿈 · Ctrl+Enter 또는 Esc 확정' :
