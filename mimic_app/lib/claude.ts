@@ -75,8 +75,6 @@ export async function analyzeScreenshot(
   let domain = '';
   try { domain = new URL(pageUrl).hostname; } catch { domain = pageUrl; }
 
-  // 행동 힌트 문자열 생성
-  // 규칙: text(실제 입력값)는 절대 포함 안 함, 민감 label도 포함 안 함, href는 쿼리 파라미터 제거
   let actionHint = '';
   if (actionInfo) {
     const { type, label, href } = actionInfo;
@@ -99,33 +97,26 @@ export async function analyzeScreenshot(
       actionHint = `\n사용자가 "${safeLabel}" 버튼/요소를 클릭했습니다.`;
   }
 
-  // 클릭 위치 및 요소 위치 힌트 — 웹앱 편집기가 하이라이트/확대/화살표 위치를 결정할 때 사용
   let locationHint = '';
   if (elementContext) {
     const { clickX, clickY, elementRect, viewportW, viewportH, elementSelector } = elementContext;
-
-    if (clickX != null && clickY != null) {
+    if (clickX != null && clickY != null)
       locationHint += `\n클릭 위치: 화면의 가로 ${Math.round(clickX * 100)}%, 세로 ${Math.round(clickY * 100)}% 지점`;
-    }
-
     if (elementRect && viewportW && viewportH) {
-      // elementRect는 CSS px 절대값 → 비율로 변환해서 프롬프트에 포함
       const rx = (elementRect.x / viewportW * 100).toFixed(1);
       const ry = (elementRect.y / viewportH * 100).toFixed(1);
       const rw = (elementRect.width / viewportW * 100).toFixed(1);
       const rh = (elementRect.height / viewportH * 100).toFixed(1);
       locationHint += `\n클릭된 요소 영역: 좌상단 (${rx}%, ${ry}%), 크기 ${rw}% × ${rh}%`;
     }
-
-    if (elementSelector) {
+    if (elementSelector)
       locationHint += `\n요소 selector: ${elementSelector}`;
-    }
   }
 
   const titleGuide = (() => {
     const type = actionInfo?.type;
     if (type === 'type') return '"[필드명] 입력" 형식 (예: "검색창에 키워드 입력", "이메일 주소 입력")';
-    if (type === 'navigate') return '"[기능/메뉴명] 이동" 형식 — URL path(/new, /debate 등) 절대 사용 금지, 기능 이름으로 표현 (예: "새 토론 시작", "홈으로 이동", "설정 페이지 이동")';
+    if (type === 'navigate') return '"[기능/메뉴명] 이동" 형식 — URL path 절대 사용 금지';
     if (type === 'toggle') return '"[항목] 선택/해제" 형식';
     if (type === 'select') return '"[항목] 선택" 형식';
     return '"[UI 요소] 클릭" 형식 (예: "로그인 버튼 클릭", "바로구매 버튼 클릭")';
@@ -133,40 +124,23 @@ export async function analyzeScreenshot(
 
   const response = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 256,
+    max_tokens: 128,
     messages: [
       {
         role: 'user',
         content: [
-          {
-            type: 'image',
-            source: {
-              type: 'base64',
-              media_type: 'image/jpeg',
-              data: base64Image,
-            },
-          },
+          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64Image } },
           {
             type: 'text',
             text: `이 스크린샷은 사용자가 "${domain}" 페이지에서 수행한 액션입니다.${actionHint}${locationHint}
 
-스크린샷과 위 행동 정보를 바탕으로 아래 JSON만 반환하세요. 다른 텍스트 없이.
+제목만 생성하세요. JSON만 반환, 다른 텍스트 없이.
 
 [title 규칙]
 - ${titleGuide}으로 20자 이내
 - 특정 상품명·브랜드명·수량·고유명사 절대 포함 금지
-- 나쁜 예: "신라면 120g 검색", "홍길동에게 송금" → 좋은 예: "검색창에 키워드 입력", "송금 버튼 클릭"
 
-[description 규칙]
-- 사용자가 클릭하거나 입력한 UI 요소를 범용적으로 설명 (60자 이내)
-- 특정 상품명·수량·고유명사 포함 금지 — 해당 내용은 "[상품명]", "[수량]"으로 대체
-- 결과 설명("이를 통해 ~됩니다") 금지, 행동만 서술
-
-응답 형식 (JSON만, 마크다운 없이):
-{
-  "title": "...",
-  "description": "..."
-}`,
+{"title": "..."}`,
           },
         ],
       },
@@ -178,11 +152,49 @@ export async function analyzeScreenshot(
     const parsed = JSON.parse(stripMarkdown(text));
     return {
       title: String(parsed.title || '').slice(0, 20),
-      description: String(parsed.description || '').slice(0, 60),
+      description: '',
     };
   } catch {
-    return { title: '스텝', description: '다음 단계를 진행하세요.' };
+    return { title: '스텝', description: '' };
   }
+}
+
+// 스텝 설명 1개 생성 — 에디터에서 ✨ 버튼 클릭 시 호출
+export async function generateStepDescription(
+  title: string,
+  pageUrl: string | null,
+  screenshotBase64?: string,
+  mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif' = 'image/jpeg'
+): Promise<string> {
+  let domain = '';
+  try { domain = pageUrl ? new URL(pageUrl).hostname : ''; } catch { domain = pageUrl ?? ''; }
+
+  const content: Anthropic.MessageParam['content'] = [];
+
+  if (screenshotBase64) {
+    content.push({ type: 'image', source: { type: 'base64', media_type: mediaType, data: screenshotBase64 } });
+  }
+
+  content.push({
+    type: 'text',
+    text: `매뉴얼 스텝의 설명을 작성해줘.
+스텝 제목: "${title}"${domain ? `\n페이지: ${domain}` : ''}
+
+[규칙]
+- 1~2문장, 존댓말
+- 행동 하나만 설명 (결과 설명 금지)
+- 특정 상품명·수량·고유명사 포함 금지, 범용 표현 사용
+- 좋은 예: "검색창에 원하는 상품명을 입력합니다."
+- 문장만 반환 (JSON, 따옴표, 부연 없이)`,
+  });
+
+  const response = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 128,
+    messages: [{ role: 'user', content }],
+  });
+
+  return response.content[0].type === 'text' ? response.content[0].text.trim() : '';
 }
 
 export async function generateScript(
@@ -290,6 +302,7 @@ ${JSON.stringify(stepsData, null, 2)}
 export async function generateDraft(
   steps: Array<{ id: string; ai_title: string | null; ai_description: string | null; page_url: string | null; step_number: number; domain_name?: string | null }>
 ): Promise<{ steps: Array<{ id: string; user_title: string; user_script: string }>; tutorial_title: string }> {
+  // NOTE: user_script는 더 이상 여기서 생성하지 않음. 에디터 ✨ 버튼으로 온디맨드 생성.
   // 가장 많이 등장하는 domain_name을 서비스 이름으로 사용
   const domainCounts = new Map<string, number>();
   steps.forEach(s => {
@@ -312,41 +325,30 @@ export async function generateDraft(
 
   const response = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 2048,
+    max_tokens: 1024,
     messages: [
       {
         role: 'user',
-        content: `다음은 사용자가 녹화한 매뉴얼 단계들입니다. 각 단계에 대해 더 풍부하고 자연스러운 한국어 매뉴얼 초안을 작성해줘.${serviceHint}
+        content: `다음은 사용자가 녹화한 매뉴얼 단계들입니다. 튜토리얼 제목과 각 스텝의 제목만 생성해줘.${serviceHint}
 
 ${stepsText}
 
 [제목 규칙 — tutorial_title]
 - 30자 이내, "서비스명 + 핵심 동작" 형식
 - 반드시 범용적인 행동 목적으로 작성 — 특정 상품명·수량·고유명사 절대 포함 금지
-- 사용자가 이 매뉴얼로 배우는 "방법"을 표현할 것
-- 좋은 예: "쿠팡에서 상품 구매하기", "Slack 채널 만들기", "구글 드라이브 파일 공유하기"
-- 나쁜 예: "쿠팡에서 신라면 120g 5개 구매하기", "홍길동에게 5만원 송금하기"
-- "매뉴얼 2026. 6. 4" 같은 날짜 형식 절대 금지 — 스텝 내용을 분석해 의미 있는 제목 생성
+- 좋은 예: "쿠팡에서 상품 구매하기", "Slack 채널 만들기"
+- "매뉴얼 2026. 6. 4" 같은 날짜 형식 절대 금지
 
 [스텝 제목 규칙 — user_title]
-- 20자 이내, 해당 화면에서 수행하는 핵심 행동 하나만
+- 20자 이내, 핵심 행동 하나만
 - 특정 상품명·브랜드명·수량 포함 금지
-- 좋은 예: "검색창에 키워드 입력", "바로구매 버튼 클릭", "결제 정보 확인"
-- 나쁜 예: "신라면 검색 및 상품 선택", "신라면 120g 5개 주문 완료"
-
-[스텝 설명 규칙 — user_script]
-- 1~2문장, 존댓말
-- 행동 하나만 설명 — "~합니다. 이를 통해 ~가 됩니다" 같은 결과 설명 문장 금지
-- 특정 상품명·수량 포함 금지, 범용 표현 사용
-- 좋은 예: "검색창에 원하는 상품명을 입력합니다."
-- 나쁜 예: "신라면 120g을 검색합니다. 이를 통해 상품 목록이 표시됩니다."
-- 모든 step id를 포함해야 함
+- 좋은 예: "검색창에 키워드 입력", "바로구매 버튼 클릭"
 
 응답 형식 (JSON만, 마크다운 없이):
 {
   "tutorial_title": "...",
   "steps": [
-    { "id": "uuid", "user_title": "...", "user_script": "..." }
+    { "id": "uuid", "user_title": "..." }
   ]
 }`,
       },
@@ -356,9 +358,12 @@ ${stepsText}
   const text = response.content[0].type === 'text' ? response.content[0].text : '{}';
   try {
     const parsed = JSON.parse(stripMarkdown(text));
+    const steps = Array.isArray(parsed.steps)
+      ? parsed.steps.map((s: { id: string; user_title: string }) => ({ id: s.id, user_title: s.user_title, user_script: '' }))
+      : [];
     return {
       tutorial_title: String(parsed.tutorial_title || ''),
-      steps: Array.isArray(parsed.steps) ? parsed.steps : [],
+      steps,
     };
   } catch {
     return { tutorial_title: '', steps: [] };

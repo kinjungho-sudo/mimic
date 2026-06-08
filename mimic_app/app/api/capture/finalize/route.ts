@@ -183,7 +183,7 @@ export async function POST(request: NextRequest) {
           safeDrafts.map(d =>
             supabase
               .from('mm_steps')
-              .update({ user_title: d.user_title, user_script: d.user_script })
+              .update({ user_title: d.user_title })
               .eq('id', d.id)
               .eq('tutorial_id', tutorial.id)
           )

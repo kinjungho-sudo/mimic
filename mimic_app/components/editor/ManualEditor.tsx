@@ -544,8 +544,29 @@ interface StepCardProps {
 
 function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdate, onSave, onDelete, onZoom, onAnnotate, onRemoveImage }: StepCardProps) {
   const [hovering, setHovering] = useState(false);
+  const [descGenerating, setDescGenerating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
+
+  const handleGenerateDescription = async () => {
+    if (descGenerating || step.id.startsWith('step-')) return;
+    setDescGenerating(true);
+    try {
+      const res = await fetch(`/api/steps/${step.id}/generate-description`, { method: 'POST' });
+      if (!res.ok) return;
+      const { description } = await res.json();
+      if (description) {
+        const html = DOMPurify.sanitize(description.replace(/\n/g, '<br>'), { USE_PROFILES: { html: true } });
+        onUpdate({ description: html });
+        onSave({ description: html });
+        if (editorRef.current && document.activeElement !== editorRef.current) {
+          editorRef.current.innerHTML = html;
+        }
+      }
+    } finally {
+      setDescGenerating(false);
+    }
+  };
 
   const showControls = hovering || isActive;
 
@@ -690,29 +711,56 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
         </div>
 
         {/* Rich text description */}
-        <div
-          ref={editorRef}
-          contentEditable
-          suppressContentEditableWarning
-          onFocus={onFocus}
-          onInput={handleEditorInput}
-          onBlur={e => { e.currentTarget.style.background = 'transparent'; handleEditorBlur(); }}
-          data-placeholder="이 단계에 대한 설명을 입력하세요."
-          style={{
-            width: '100%', marginTop: '4px',
-            fontSize: '12.5px', color: '#4B5563',
-            lineHeight: 1.5, fontFamily: 'inherit',
-            minHeight: '20px',
-            outline: 'none',
-            borderRadius: '6px',
-            padding: '2px 6px', margin: '4px -6px 0',
-            cursor: 'text',
-            transition: 'background 0.15s ease',
-            boxSizing: 'border-box',
-          } as React.CSSProperties}
-          onMouseEnter={e => { e.currentTarget.style.background = '#F3F4F6'; }}
-          onMouseLeave={e => { if (document.activeElement !== e.currentTarget) e.currentTarget.style.background = 'transparent'; }}
-        />
+        <div style={{ position: 'relative' }}>
+          <div
+            ref={editorRef}
+            contentEditable
+            suppressContentEditableWarning
+            onFocus={onFocus}
+            onInput={handleEditorInput}
+            onBlur={e => { e.currentTarget.style.background = 'transparent'; handleEditorBlur(); }}
+            data-placeholder="이 단계에 대한 설명을 입력하세요."
+            style={{
+              width: '100%', marginTop: '4px',
+              fontSize: '12.5px', color: '#4B5563',
+              lineHeight: 1.5, fontFamily: 'inherit',
+              minHeight: '20px',
+              outline: 'none',
+              borderRadius: '6px',
+              padding: '2px 6px', margin: '4px -6px 0',
+              cursor: 'text',
+              transition: 'background 0.15s ease',
+              boxSizing: 'border-box',
+            } as React.CSSProperties}
+            onMouseEnter={e => { e.currentTarget.style.background = '#F3F4F6'; }}
+            onMouseLeave={e => { if (document.activeElement !== e.currentTarget) e.currentTarget.style.background = 'transparent'; }}
+          />
+          {/* ✨ AI 설명 생성 버튼 — hover 시 표시 */}
+          {(showControls || descGenerating) && !step.id.startsWith('step-') && (
+            <button
+              onClick={handleGenerateDescription}
+              disabled={descGenerating}
+              title="AI로 설명 자동 생성"
+              style={{
+                position: 'absolute', bottom: '-2px', right: '-6px',
+                display: 'inline-flex', alignItems: 'center', gap: '3px',
+                height: '22px', padding: '0 8px',
+                borderRadius: '5px', border: '1px solid #EDE9FE',
+                background: descGenerating ? '#EDE9FE' : 'white',
+                color: '#6d28d9', fontSize: '11px', fontWeight: 500,
+                cursor: descGenerating ? 'not-allowed' : 'pointer',
+                opacity: descGenerating ? 0.8 : 1,
+                transition: 'all 0.15s',
+                boxShadow: '0 1px 4px rgba(109,40,217,0.12)',
+              }}
+            >
+              {descGenerating
+                ? <Loader2 size={10} style={{ animation: 'spin 1s linear infinite' }} />
+                : <Sparkles size={10} />}
+              {descGenerating ? '생성 중…' : 'AI 완성'}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Screenshot area — 클릭하면 바로 편집 진입 */}
@@ -722,7 +770,6 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
         onDrop={handleImgDrop}
         onAnnotate={onAnnotate}
         onRemove={onRemoveImage}
-        onZoomChange={zoom => { onUpdate({ imageZoom: zoom }); onSave({ imageZoom: zoom }); }}
       />
 
     </div>
@@ -837,14 +884,11 @@ interface ScreenshotAreaProps {
   onDrop: (e: React.DragEvent) => void;
   onAnnotate: () => void;
   onRemove: () => void;
-  onZoomChange: (zoom: number) => void;
 }
 
-function ScreenshotArea({ step, onUploadClick, onDrop, onAnnotate, onRemove, onZoomChange }: ScreenshotAreaProps) {
+function ScreenshotArea({ step, onUploadClick, onDrop, onAnnotate, onRemove }: ScreenshotAreaProps) {
   const [dragOver, setDragOver] = useState(false);
   const [imgHover, setImgHover] = useState(false);
-  const zoom = step.imageZoom ?? 1;
-  const clampZoom = (z: number) => Math.round(Math.min(4, Math.max(1, z)) * 10) / 10;
 
   if (!step.screenshotUrl) {
     return (
@@ -925,15 +969,6 @@ function ScreenshotArea({ step, onUploadClick, onDrop, onAnnotate, onRemove, onZ
         </>
       )}
 
-      {/* 줌 컨트롤 — 뷰어 표시 배율 저장 */}
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{ position: 'absolute', bottom: '8px', right: '8px', display: 'flex', alignItems: 'center', gap: '2px', background: 'rgba(20,20,30,0.72)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', padding: '3px', zIndex: 5 }}
-      >
-        <button onClick={() => onZoomChange(clampZoom(zoom - 0.5))} disabled={zoom <= 1} style={{ width: '24px', height: '24px', borderRadius: '5px', border: 'none', background: 'transparent', color: zoom <= 1 ? 'rgba(255,255,255,0.3)' : 'white', fontSize: '15px', cursor: zoom <= 1 ? 'not-allowed' : 'pointer', display: 'grid', placeItems: 'center', lineHeight: 1 }}>−</button>
-        <span style={{ height: '24px', padding: '0 5px', color: 'white', fontSize: '10px', fontWeight: 500, display: 'flex', alignItems: 'center', minWidth: '32px', justifyContent: 'center' }}>{Math.round(zoom * 100)}%</span>
-        <button onClick={() => onZoomChange(clampZoom(zoom + 0.5))} disabled={zoom >= 4} style={{ width: '24px', height: '24px', borderRadius: '5px', border: 'none', background: 'transparent', color: zoom >= 4 ? 'rgba(255,255,255,0.3)' : 'white', fontSize: '15px', cursor: zoom >= 4 ? 'not-allowed' : 'pointer', display: 'grid', placeItems: 'center', lineHeight: 1 }}>+</button>
-      </div>
     </div>
   );
 }
