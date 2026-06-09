@@ -91,25 +91,31 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
   if (message.action === 'START_RECORDING') {
     const tabId = message.tabId;
     if (tabId) {
-      // storage에 녹화 상태를 먼저 세팅해야 content.js 클릭 이벤트가 동작함
       const sessionId = crypto.randomUUID();
-      chrome.storage.local.set({ isRecording: true, sessionId, stepNumber: 0, steps: [], targetTabId: tabId }, () => {
-        chrome.tabs.get(tabId, (tab) => {
-          if (chrome.runtime.lastError || !tab) { sendResponse({ ok: false }); return; }
-          // 사이드패널을 탭 활성화 전에 먼저 열기 — user gesture context가 살아있는 시점
-          if (tab.windowId) chrome.sidePanel.open({ windowId: tab.windowId }).catch(() => {});
-          chrome.tabs.update(tabId, { active: true }, () => {
-            const sendToTab = () => {
-              chrome.tabs.sendMessage(tabId, { type: 'START_RECORDING' }, () => {
-                void chrome.runtime.lastError;
-                sendResponse({ ok: true });
-              });
-            };
-            if (tab.windowId) {
-              chrome.windows.update(tab.windowId, { focused: true }, sendToTab);
-            } else {
-              sendToTab();
-            }
+      // 1) targetTabId 먼저 저장 → _cachedTargetTabId 캐시 갱신 보장
+      chrome.storage.local.set({ targetTabId: tabId, sessionId, stepNumber: 0, steps: [] }, () => {
+        // 2) isRecording 세팅 — onChanged가 발화하지만 _directStartTabId로 중복 전송 차단
+        _directStartTabId = tabId;
+        chrome.storage.local.set({ isRecording: true }, () => {
+          chrome.tabs.get(tabId, (tab) => {
+            if (chrome.runtime.lastError || !tab) { _directStartTabId = null; sendResponse({ ok: false }); return; }
+            // 3) user gesture context 안에서 사이드패널 열기 (onChanged는 context 없어 실패)
+            if (tab.windowId) chrome.sidePanel.open({ windowId: tab.windowId }).catch(() => {});
+            // 4) 탭 활성화 후 카운트다운 트리거
+            chrome.tabs.update(tabId, { active: true }, () => {
+              const sendToTab = () => {
+                chrome.tabs.sendMessage(tabId, { type: 'START_RECORDING' }, () => {
+                  void chrome.runtime.lastError;
+                  _directStartTabId = null;
+                  sendResponse({ ok: true });
+                });
+              };
+              if (tab.windowId) {
+                chrome.windows.update(tab.windowId, { focused: true }, sendToTab);
+              } else {
+                sendToTab();
+              }
+            });
           });
         });
       });
@@ -124,24 +130,23 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
     const { token } = message;
     if (!token) { sendResponse({ ok: false, error: 'no token' }); return false; }
 
-    fetch(`${WEBAPP_ORIGIN}/api/extension/redeem`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ link_token: token }),
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error(`redeem failed: ${res.status}`);
-        return res.json();
-      })
-      .then(({ session_token }) => {
-        chrome.storage.local.set({ extensionToken: session_token }, () => {
-          sendResponse({ ok: true });
+    const origin = sender.origin || WEBAPP_ORIGIN;
+    (async () => {
+      try {
+        const res = await fetch(`${origin}/api/extension/redeem`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ link_token: token }),
         });
-      })
-      .catch((err) => {
+        if (!res.ok) throw new Error(`redeem failed: ${res.status}`);
+        const { session_token } = await res.json();
+        await chrome.storage.local.set({ extensionToken: session_token, webappOrigin: origin });
+        sendResponse({ ok: true });
+      } catch (err) {
         console.error('[MIMIC] redeem error:', err);
         sendResponse({ ok: false, error: err.message });
-      });
+      }
+    })();
     return true;
   }
 
@@ -154,7 +159,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
     const { share_token } = message;
     if (!share_token) { sendResponse({ ok: false, error: 'no share_token' }); return false; }
 
-    fetch(`${WEBAPP_ORIGIN}/api/guide/${share_token}`)
+    getWebappOrigin().then(origin => fetch(`${origin}/api/guide/${share_token}`))
       .then((res) => {
         if (!res.ok) throw new Error(`guide fetch failed: ${res.status}`);
         return res.json();
@@ -347,7 +352,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   // content.js → 사이드패널로 실시간 타이핑 중계
   if (message.type === 'TYPING_PROGRESS') {
-    chrome.runtime.sendMessage({ type: 'TYPING_PROGRESS', text: message.text }, () => {
+    chrome.runtime.sendMessage({ type: 'TYPING_PROGRESS', text: message.text, label: message.label, masked: message.masked }, () => {
       void chrome.runtime.lastError;
     });
     sendResponse({ ok: true });
@@ -393,6 +398,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   // ── 드래그 블러 ─────────────────────────────────────────────────
+  // region: { x, y, w, h } 모두 0~1 정규화 비율
   if (message.type === 'APPLY_BLUR') {
     const { stepNumber, region } = message;
     if (!stepNumber || !region) { sendResponse({ ok: false }); return false; }
@@ -405,25 +411,51 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const bmp = await createImageBitmap(blob);
         const iw = bmp.width, ih = bmp.height;
 
-        // OffscreenCanvas로 PNG dataURL 생성 → applyPixelBlur 재사용
+        // 0~1 정규화 → 실제 픽셀 좌표
+        const rx = Math.round(region.x * iw);
+        const ry = Math.round(region.y * ih);
+        const rw = Math.round(region.w * iw);
+        const rh = Math.round(region.h * ih);
+
+        if (rw < 2 || rh < 2) { sendResponse({ ok: false, error: 'region too small' }); return; }
+
+        // 픽셀화(모자이크) 블러 직접 적용
         const canvas = new OffscreenCanvas(iw, ih);
-        canvas.getContext('2d').drawImage(bmp, 0, 0);
-        const pngBlob = await canvas.convertToBlob({ type: 'image/png' });
-        const pngDataUrl = await blobToDataUrl(pngBlob);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(bmp, 0, 0);
 
-        // 0~1 정규화 → 픽셀 (applyPixelBlur는 픽셀 좌표 배열을 기대)
-        const piiRegions = [{
-          x:      Math.round(region.x * iw),
-          y:      Math.round(region.y * ih),
-          width:  Math.round(region.w * iw),
-          height: Math.round(region.h * ih),
-        }];
+        const BLOCK = Math.max(8, Math.round(Math.min(rw, rh) / 10));
+        const imgData = ctx.getImageData(rx, ry, rw, rh);
+        const d = imgData.data;
 
-        const blurredUrl = await applyPixelBlur(pngDataUrl, piiRegions, iw, ih);
-        const jpegBlob   = await compressToJpeg(blurredUrl, 0.82);
+        for (let by = 0; by < rh; by += BLOCK) {
+          for (let bx = 0; bx < rw; bx += BLOCK) {
+            let r = 0, g = 0, b = 0, count = 0;
+            for (let dy = 0; dy < BLOCK && by + dy < rh; dy++) {
+              for (let dx = 0; dx < BLOCK && bx + dx < rw; dx++) {
+                const i = ((by + dy) * rw + (bx + dx)) * 4;
+                r += d[i]; g += d[i+1]; b += d[i+2]; count++;
+              }
+            }
+            r = Math.round(r / count);
+            g = Math.round(g / count);
+            b = Math.round(b / count);
+            for (let dy = 0; dy < BLOCK && by + dy < rh; dy++) {
+              for (let dx = 0; dx < BLOCK && bx + dx < rw; dx++) {
+                const i = ((by + dy) * rw + (bx + dx)) * 4;
+                d[i] = r; d[i+1] = g; d[i+2] = b;
+              }
+            }
+          }
+        }
+        ctx.putImageData(imgData, rx, ry);
+
+        const { settings } = await chrome.storage.local.get('settings');
+        const quality = settings?.quality ? settings.quality / 100 : JPEG_QUALITY_DEFAULT;
+        const jpegBlob = await canvas.convertToBlob({ type: 'image/jpeg', quality });
         await idbPut(stepNumber, jpegBlob);
 
-        // Supabase 재업로드
+        // Supabase 재업로드 (imageUrl이 이미 있는 스텝)
         const { steps, sessionId } = await chrome.storage.local.get(['steps', 'sessionId']);
         const stepMeta = (steps || []).find(s => s.stepNumber === stepNumber);
         if (stepMeta?.imageUrl && sessionId) {
@@ -570,17 +602,20 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         return;
       }
 
+      const pendingStepNum = (r.stepNumber || 0) + 1;
+      chrome.storage.local.set({ stepNumber: pendingStepNum });
       chrome.storage.local.remove('pendingCapture');
       captureWithPII(tabId, tab).then((dataUrl) => {
         if (!dataUrl) return;
-        handleCapture(dataUrl, { ...pending, url: tab.url }, tab)
+        // 새 페이지 스크린샷 — 클릭 좌표는 이전 페이지 기준이므로 제거
+        handleCapture(dataUrl, { ...pending, url: tab.url, clickX: 0, clickY: 0, stepNumber: pendingStepNum }, tab)
           .then(() => updateBadge())
           .catch((err) => console.warn('[MIMIC] pending capture failed:', err.message));
       });
       return; // autoNav 중복 캡처 방지
     }
 
-    const autoNav = r.settings?.autoNav ?? true;
+    const autoNav = r.settings?.autoNav ?? false;
     if (!autoNav) return;
     // SPA 이동은 content.js MutationObserver가 단독 처리 중 — 중복 캡처 차단
     if (r.spaNavCapturing) return;
@@ -588,6 +623,8 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (r.lastCaptureTime && (Date.now() - r.lastCaptureTime) < 3000) return;
 
     const stepNum = (r.stepNumber || 0) + 1;
+    // stepNumber를 먼저 올려 저장 — captureWithPII가 느릴 때 tabs.onUpdated 재발화로 중복 방지
+    chrome.storage.local.set({ stepNumber: stepNum });
     captureWithPII(tabId, tab).then((dataUrl) => {
       if (!dataUrl) return;
       const stepData = {
@@ -792,24 +829,69 @@ function updateBadge() {
   });
 }
 
+// background SW 메모리 캐시 — storage remove 타이밍 경쟁 방지
+let _cachedTargetTabId = null;
+// onMessageExternal이 직접 START_RECORDING을 처리 중인 tabId — onChanged 중복 전송 차단용
+let _directStartTabId = null;
+// SW 시작 시 캐시 초기화
+chrome.storage.local.get('targetTabId', (r) => { _cachedTargetTabId = r.targetTabId ?? null; });
+
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') return;
   if ('isRecording' in changes || 'isPaused' in changes || 'stepNumber' in changes) {
     updateBadge();
   }
 
-  // isRecording 변화 감지 → 저장된 targetTabId로 탭에 직접 전달
+  // targetTabId 변경 시 메모리 캐시 갱신
+  if ('targetTabId' in changes) {
+    _cachedTargetTabId = changes.targetTabId.newValue ?? null;
+  }
+
+  // isRecording 변화 감지 → 캐시된 targetTabId로 탭에 직접 전달
   if ('isRecording' in changes) {
     const wasRecording = !!changes.isRecording.oldValue;
     const nowRecording = !!changes.isRecording.newValue;
     if (wasRecording === nowRecording) return;
+    // onMessageExternal이 직접 처리 중 — 중복 START_RECORDING 전송 차단
+    if (nowRecording && _directStartTabId) return;
 
     const msgType = nowRecording ? 'START_RECORDING' : 'STOP_RECORDING';
 
-    chrome.storage.local.get('targetTabId', ({ targetTabId }) => {
-      if (!targetTabId) return;
-      chrome.tabs.sendMessage(targetTabId, { type: msgType }, () => { void chrome.runtime.lastError; });
-    });
+    if (!nowRecording) {
+      // 녹화 종료 시 pendingCapture 즉시 제거 — 지연된 tabs.onUpdated가 유령 스텝 추가하는 것 방지
+      chrome.storage.local.remove(['pendingCapture', 'spaNavCapturing']);
+    }
+
+    // 메모리 캐시 우선 사용 → storage.get보다 빠르고 remove 타이밍 경쟁 없음
+    const tabId = _cachedTargetTabId;
+    if (tabId) {
+      // 녹화 시작 시 사이드패널 자동 열기
+      // onChanged는 user gesture context 밖이므로 tabId 기반으로 열기 (Chrome 116+)
+      if (nowRecording) {
+        chrome.tabs.get(tabId, (tab) => {
+          if (chrome.runtime.lastError || !tab) return;
+          chrome.sidePanel.open({ tabId }).catch(() => {
+            // tabId 방식 실패 시 windowId fallback
+            if (tab.windowId) chrome.sidePanel.open({ windowId: tab.windowId }).catch(() => {});
+          });
+        });
+      }
+      chrome.tabs.sendMessage(tabId, { type: msgType }, () => { void chrome.runtime.lastError; });
+    } else {
+      // SW 재시작 후 캐시가 비어있을 경우 fallback
+      chrome.storage.local.get('targetTabId', ({ targetTabId }) => {
+        if (!targetTabId) return;
+        if (nowRecording) {
+          chrome.tabs.get(targetTabId, (tab) => {
+            if (chrome.runtime.lastError || !tab) return;
+            chrome.sidePanel.open({ tabId: targetTabId }).catch(() => {
+              if (tab.windowId) chrome.sidePanel.open({ windowId: tab.windowId }).catch(() => {});
+            });
+          });
+        }
+        chrome.tabs.sendMessage(targetTabId, { type: msgType }, () => { void chrome.runtime.lastError; });
+      });
+    }
   }
 });
 
@@ -984,9 +1066,15 @@ async function authedFetch(url, options = {}) {
   return res;
 }
 
+async function getWebappOrigin() {
+  const { webappOrigin } = await chrome.storage.local.get('webappOrigin');
+  return webappOrigin || WEBAPP_ORIGIN;
+}
+
 // ── AI 분석 — 웹앱 API 경유 ──────────────────────────────────────
 async function analyzeWithClaude(base64Image, url, actionInfo, elementContext = {}) {
-  const res = await authedFetch(`${WEBAPP_ORIGIN}/api/capture/analyze`, {
+  const origin = await getWebappOrigin();
+  const res = await authedFetch(`${origin}/api/capture/analyze`, {
     method: 'POST',
     body: JSON.stringify({ image: base64Image, url, actionInfo, ...elementContext }),
   });
@@ -996,7 +1084,8 @@ async function analyzeWithClaude(base64Image, url, actionInfo, elementContext = 
 
 // ── 스텝 저장 — 웹앱 API 경유 ───────────────────────────────────
 async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, title, description, url, domainInfo, viewportW, viewportH, elementSelector, elementRect }) {
-  const res = await authedFetch(`${WEBAPP_ORIGIN}/api/capture/save-step`, {
+  const origin = await getWebappOrigin();
+  const res = await authedFetch(`${origin}/api/capture/save-step`, {
     method: 'POST',
     body: JSON.stringify({
       session_id:       sessionId,
@@ -1028,7 +1117,8 @@ async function finalizeSession(sessionId) {
     return { tutorial_id: null, step_count: 0 };
   }
 
-  const res = await authedFetch(`${WEBAPP_ORIGIN}/api/capture/finalize`, {
+  const origin = await getWebappOrigin();
+  const res = await authedFetch(`${origin}/api/capture/finalize`, {
     method: 'POST',
     body: JSON.stringify({ session_id: sessionId }),
   });
