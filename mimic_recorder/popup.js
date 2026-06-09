@@ -242,8 +242,7 @@ function renderSteps(steps) {
   }
   emptyState.style.display = 'none';
 
-  // 마지막 스텝을 자동 펼침
-  expandedStepId = steps[steps.length - 1].id;
+  expandedStepId = null;
 
   const hostnames = new Set(steps.map(s => s.domainInfo?.hostname).filter(Boolean));
   const showDomainHeaders = hostnames.size > 1;
@@ -256,12 +255,10 @@ function renderSteps(steps) {
       lastHostname = hostname;
     }
     const card = buildStepCard(step, i + 1);
-    // 마지막 스텝 카드는 즉시 펼침
-    if (step.id === expandedStepId) {
-      const tw = card.querySelector('.step-thumb');
-      if (tw) tw.style.display = 'block';
-      card.classList.add('expanded');
-    }
+    // 모든 스텝 썸네일 즉시 펼침
+    const tw = card.querySelector('.step-thumb');
+    if (tw) tw.style.display = 'block';
+    card.classList.add('expanded');
     stepsList.appendChild(card);
   });
 }
@@ -367,20 +364,7 @@ function buildStepCard(step, num) {
   topRow.style.cssText = 'display:flex;align-items:flex-start;gap:10px;cursor:pointer;';
   topRow.append(numBadge, info);
 
-  topRow.addEventListener('click', () => {
-    if (expandedStepId === step.id) {
-      // 이미 펼쳐져 있으면 접기
-      expandedStepId = null;
-      thumbWrap.style.display = 'none';
-      card.classList.remove('expanded');
-    } else {
-      // 다른 카드 접기
-      collapseAllThumb();
-      expandedStepId = step.id;
-      thumbWrap.style.display = 'block';
-      card.classList.add('expanded');
-    }
-  });
+  // 썸네일은 항상 펼쳐진 상태 — 클릭 토글 없음
 
   const delBtn = document.createElement('button');
   delBtn.className = 'step-delete';
@@ -412,13 +396,10 @@ async function loadThumb(step, imgEl, placeholder, overlayEl) {
   try {
     const blob = await idbGetScreenshot(step.stepNumber);
     let src = null;
-    let usedBlob = null;
 
     if (blob) {
-      // elementRect(0~1 정규화) 기준 크롭
-      const croppedBlob = await cropToElement(blob, step.elementRect);
-      usedBlob = croppedBlob || blob;
-      src = URL.createObjectURL(usedBlob);
+      // 전체 스크린샷 그대로 표시 (크롭 없음)
+      src = URL.createObjectURL(blob);
       _thumbObjectUrls.push(src);
     } else if (step.imageUrl) {
       src = step.imageUrl;
@@ -432,25 +413,23 @@ async function loadThumb(step, imgEl, placeholder, overlayEl) {
         const zoomOverlay = document.getElementById('thumbZoomOverlay');
         const zoomImg     = document.getElementById('thumbZoomImg');
         if (!zoomOverlay || !zoomImg) return;
-        // 원본 전체 이미지(blob)를 줌에 표시
         if (step.imageUrl) {
           zoomImg.src = step.imageUrl;
           zoomOverlay.dataset.imageUrl = step.imageUrl;
         } else {
-          const blobSrc = URL.createObjectURL(blob); // 크롭 아닌 원본 blob
+          const blobSrc = URL.createObjectURL(blob);
           _thumbObjectUrls.push(blobSrc);
           zoomImg.src = blobSrc;
           zoomOverlay.dataset.imageUrl = '';
           zoomOverlay._zoomUrl = blobSrc;
         }
-        // 블러에 필요한 step 정보를 오버레이에 저장
         zoomOverlay._step = step;
         zoomOverlay._blob = blob;
         zoomOverlay.classList.add('open');
       };
       placeholder.style.display = 'none';
-      // 크롭 썸네일 위에 클릭포인트/하이라이트 오버레이 렌더
-      if (overlayEl) renderThumbOverlay(overlayEl, imgEl, step, usedBlob);
+      // 전체 스크린샷 위에 클릭포인트/하이라이트 오버레이 렌더
+      if (overlayEl) renderThumbOverlay(overlayEl, imgEl, step, null);
     } else {
       placeholder.textContent = '이미지 없음';
     }
@@ -487,61 +466,92 @@ async function cropToElement(blob, elementRect) {
 }
 
 // 썸네일 위에 클릭포인트(빨간 원) + 하이라이트 박스 오버레이 렌더
-// 크롭된 영역 기준으로 좌표 재매핑
-function renderThumbOverlay(overlayEl, imgEl, step, usedBlob) {
+// 전체 스크린샷 기준 좌표 사용 (크롭 없음)
+function renderThumbOverlay(overlayEl, imgEl, step, _unused) {
   overlayEl.replaceChildren();
   const er = step.elementRect;
-  if (!er) {
-    // elementRect 없을 때 click_x/y가 유효한 경우만 점 표시
-    const cx = step.click_x, cy = step.click_y;
-    if (cx != null && cy != null && (cx > 0 || cy > 0)) {
-      renderClickDot(overlayEl, cx, cy);
-    }
-    return;
-  }
-
-  const PAD = 0.06;
-  const cropX = Math.max(0, er.x - PAD);
-  const cropY = Math.max(0, er.y - PAD);
-  const cropW = Math.min(1 - cropX, er.width  + PAD * 2);
-  const cropH = Math.min(1 - cropY, er.height + PAD * 2);
-  const cropped = usedBlob && (cropW * cropH < 0.70);
-
-  // 하이라이트 박스 좌표 (크롭 기준)
-  let hlX, hlY, hlW, hlH;
-  if (cropped) {
-    hlX = (er.x - cropX) / cropW;
-    hlY = (er.y - cropY) / cropH;
-    hlW = er.width  / cropW;
-    hlH = er.height / cropH;
-  } else {
-    hlX = er.x; hlY = er.y; hlW = er.width; hlH = er.height;
-  }
 
   // 하이라이트 박스
-  const hl = document.createElement('div');
-  hl.style.cssText = [
-    'position:absolute', 'box-sizing:border-box', 'pointer-events:none',
-    `left:${hlX * 100}%`, `top:${hlY * 100}%`,
-    `width:${hlW * 100}%`, `height:${hlH * 100}%`,
-    'border:2px solid #F59E0B',
-    'background:rgba(255,200,0,0.15)',
-    'border-radius:4px',
-  ].join(';');
-  overlayEl.appendChild(hl);
+  if (er && er.width > 0.002 && er.height > 0.002) {
+    const hl = document.createElement('div');
+    hl.style.cssText = [
+      'position:absolute', 'box-sizing:border-box', 'pointer-events:none',
+      `left:${er.x * 100}%`, `top:${er.y * 100}%`,
+      `width:${er.width * 100}%`, `height:${er.height * 100}%`,
+      'border:2px solid #F59E0B',
+      'background:rgba(255,200,0,0.15)',
+      'border-radius:4px',
+    ].join(';');
+    overlayEl.appendChild(hl);
+  }
 
   // 클릭 포인트
-  if (step.click_x != null && step.click_y != null) {
-    let dotX, dotY;
-    if (cropped) {
-      dotX = (step.click_x - cropX) / cropW;
-      dotY = (step.click_y - cropY) / cropH;
-    } else {
-      dotX = step.click_x; dotY = step.click_y;
-    }
-    if (dotX >= 0 && dotX <= 1 && dotY >= 0 && dotY <= 1) {
-      renderClickDot(overlayEl, dotX, dotY);
-    }
+  const cx = step.click_x, cy = step.click_y;
+  if (cx != null && cy != null && (cx > 0 || cy > 0) && cx >= 0 && cx <= 1 && cy >= 0 && cy <= 1) {
+    renderClickDot(overlayEl, cx, cy);
+
+    // 클릭 위치 확대경 박스 (우하단 코너)
+    renderZoomInset(overlayEl, imgEl, cx, cy);
+  }
+}
+
+// 클릭 위치 주변을 확대해서 우하단에 인셋으로 표시
+function renderZoomInset(overlayEl, imgEl, cx, cy) {
+  const INSET_SIZE = 80;  // px (인셋 박스 크기)
+  const ZOOM_RADIUS = 0.12; // 원본 이미지에서 확대할 영역 반경 (정규화)
+
+  const canvas = document.createElement('canvas');
+  canvas.width  = INSET_SIZE;
+  canvas.height = INSET_SIZE;
+  canvas.style.cssText = [
+    'position:absolute', 'bottom:6px', 'right:6px',
+    `width:${INSET_SIZE}px`, `height:${INSET_SIZE}px`,
+    'border-radius:8px',
+    'border:2px solid #fff',
+    'box-shadow:0 2px 8px rgba(0,0,0,0.4)',
+    'pointer-events:none',
+    'background:#000',
+  ].join(';');
+
+  overlayEl.appendChild(canvas);
+
+  // imgEl이 로드된 후 렌더
+  function drawInset() {
+    if (imgEl.naturalWidth === 0) return;
+    const iw = imgEl.naturalWidth;
+    const ih = imgEl.naturalHeight;
+
+    const sx = Math.max(0, (cx - ZOOM_RADIUS) * iw);
+    const sy = Math.max(0, (cy - ZOOM_RADIUS) * ih);
+    const sw = Math.min(iw - sx, ZOOM_RADIUS * 2 * iw);
+    const sh = Math.min(ih - sy, ZOOM_RADIUS * 2 * ih);
+
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(imgEl, sx, sy, sw, sh, 0, 0, INSET_SIZE, INSET_SIZE);
+
+    // 중앙 클릭 포인트 표시
+    const dotX = INSET_SIZE / 2;
+    const dotY = INSET_SIZE / 2;
+    ctx.beginPath();
+    ctx.arc(dotX, dotY, 7, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(239,68,68,0.9)';
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // 외부 링
+    ctx.beginPath();
+    ctx.arc(dotX, dotY, 12, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(239,68,68,0.5)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  if (imgEl.complete && imgEl.naturalWidth > 0) {
+    drawInset();
+  } else {
+    imgEl.addEventListener('load', drawInset, { once: true });
   }
 }
 
@@ -613,6 +623,7 @@ function startBlurMode(step, zoomImg, originalBlob) {
   document.body.appendChild(sel);
 
   let startX = 0, startY = 0, dragging = false, didDrag = false;
+  let _imgRect = null; // mousedown 시점에 고정
 
   function onMouseDown(e) {
     const imgRect = zoomImg.getBoundingClientRect();
@@ -623,6 +634,7 @@ function startBlurMode(step, zoomImg, originalBlob) {
     if (!insideImg) return;
     e.preventDefault();
     e.stopPropagation();
+    _imgRect = imgRect; // mousedown 시점에 고정
     startX = e.clientX; startY = e.clientY;
     dragging = true; didDrag = false;
     sel.style.display = 'block';
@@ -650,9 +662,10 @@ function startBlurMode(step, zoomImg, originalBlob) {
     dragging = false;
     sel.style.display = 'none';
 
-    if (!didDrag) { cleanup(); return; }
+    if (!didDrag || !_imgRect) { cleanup(); return; }
 
-    const imgRect = zoomImg.getBoundingClientRect();
+    // mousedown 시점에 고정된 imgRect로 비율 계산 (레이아웃 이동 무관)
+    const imgRect = _imgRect;
     const rx = (Math.min(startX, e.clientX) - imgRect.left) / imgRect.width;
     const ry = (Math.min(startY, e.clientY) - imgRect.top)  / imgRect.height;
     const rw = Math.abs(e.clientX - startX) / imgRect.width;
@@ -680,9 +693,16 @@ function startBlurMode(step, zoomImg, originalBlob) {
       if (newBlob) {
         const newSrc = URL.createObjectURL(newBlob);
         _thumbObjectUrls.push(newSrc);
+        // 줌 오버레이 갱신
         zoomImg.src = newSrc;
         const zoomOverlay = document.getElementById('thumbZoomOverlay');
         if (zoomOverlay) { zoomOverlay._blob = newBlob; zoomOverlay._zoomUrl = newSrc; }
+        // 스텝 카드 썸네일도 즉시 갱신
+        const card = stepsList.querySelector(`.step-card[data-step-id="${step.id}"]`);
+        if (card) {
+          const cardImg = card.querySelector('.step-thumb img');
+          if (cardImg) cardImg.src = newSrc;
+        }
       }
       showToast('블러 처리 완료 ✓');
     });
@@ -839,13 +859,20 @@ async function startRecording(mobile = false) {
   isPaused     = false;
 
   const sessionId = crypto.randomUUID();
+  // targetTabId를 먼저 저장해 background.js 캐시가 갱신된 뒤 isRecording을 세팅
+  await new Promise((resolve) => chrome.storage.local.set({ targetTabId: targetTab.id }, resolve));
   await chrome.storage.local.set({
     isRecording: true,
     sessionId,
     stepNumber: 0,
     steps: [],
-    targetTabId: targetTab?.id ?? null,
     isMobileMode: mobile,
+  });
+
+  // background.js의 storage.onChanged 경로와 별개로 content.js에 직접 전송 —
+  // 두 경로 중 먼저 도착한 것이 카운트다운을 트리거하고, 이미 녹화 중이면 무시됨
+  chrome.tabs.sendMessage(targetTab.id, { type: 'START_RECORDING' }, () => {
+    void chrome.runtime.lastError;
   });
 
   updateView();
@@ -958,8 +985,10 @@ btnDiscard.addEventListener('click', () => {
   isPaused    = false;
   hideCaptureBlockedToast();
   chrome.runtime.sendMessage({ type: 'CLEAR_STEPS' }, () => { void chrome.runtime.lastError; });
-  chrome.storage.local.remove(['targetTabId', 'steps', 'stepNumber', 'sessionId'], () => {
-    chrome.storage.local.set({ isRecording: false });
+  // isRecording: false 먼저 세팅 → background가 targetTabId로 STOP_RECORDING 전송
+  // 그 후 targetTabId 등 나머지 키 제거
+  chrome.storage.local.set({ isRecording: false }, () => {
+    chrome.storage.local.remove(['targetTabId', 'steps', 'stepNumber', 'sessionId']);
   });
   updateView();
   renderSteps([]);
@@ -979,8 +1008,10 @@ btnFinish.addEventListener('click', async () => {
   showUploadOverlay();
   showRestoreToast();
 
-  chrome.storage.local.remove(['targetTabId', 'steps', 'stepNumber'], () => {
-    chrome.storage.local.set({ isRecording: false, sessionId: null });
+  // isRecording: false 먼저 세팅 → background가 targetTabId로 STOP_RECORDING 전송
+  chrome.storage.local.set({ isRecording: false }, () => {
+    chrome.storage.local.remove(['targetTabId', 'steps', 'stepNumber']);
+    chrome.storage.local.set({ sessionId: null });
   });
 
   chrome.runtime.sendMessage({ type: 'FINALIZE_SESSION', sessionId }, (res) => {
@@ -1074,28 +1105,28 @@ chrome.runtime.onMessage.addListener((msg) => {
 
   const preview = liveCard.querySelector('.step-typing-preview');
   const labelEl = liveCard.querySelector('.step-action-label');
-  const text    = msg.text || '';
+  const value   = msg.text  || '';
+  const label   = msg.label || '';
   const masked  = !!msg.masked;
 
   if (preview) {
-    if (text) {
-      // 비밀번호 필드는 미리보기 숨김
-      if (masked) {
-        preview.style.display = 'none';
-      } else {
-        preview.textContent = `"${text}"`;
-        preview.style.display = 'block';
-      }
+    if (masked) {
+      preview.style.display = 'none';
+    } else if (value) {
+      preview.textContent = `"${value}"`;
+      preview.style.display = 'block';
     } else {
       preview.style.display = 'none';
     }
   }
-  // 레이블 실시간 반영
   if (labelEl) {
     if (masked) {
       labelEl.textContent = '비밀번호 입력 중...';
     } else {
-      labelEl.textContent = text ? `입력, ${text.slice(0, 30)}${text.length > 30 ? '…' : ''}` : '입력 중...';
+      const fieldName = label || '텍스트';
+      labelEl.textContent = value
+        ? `${fieldName}: ${value.slice(0, 28)}${value.length > 28 ? '…' : ''}`
+        : `${fieldName} 입력 중...`;
     }
   }
 });

@@ -48,26 +48,46 @@ export async function GET(request: NextRequest, { params }: Params) {
     fontSize: 18, color: 'C7D2FE', align: 'center',
   });
 
-  // 스텝별 슬라이드
+  // LAYOUT_WIDE: 13.33" × 7.5"
+  // 구도: 헤더(0.55") | 스크린샷 좌측(~8.8") | 설명 우측(~4.1") | 하단 페이지번호
+  const W = 13.33;
+  const H = 7.5;
+  const HEADER_H = 0.55;
+  const RIGHT_W = 4.13;
+  const LEFT_W = W - RIGHT_W; // ~9.2"
+  const BODY_Y = HEADER_H;
+  const BODY_H = H - HEADER_H;
+  const IMG_PAD = 0.22;
+
   for (const step of steps) {
     const slide = pptx.addSlide();
-    slide.background = { color: 'F8F9FA' };
+    slide.background = { color: '111827' };
 
     // 상단 헤더 바
     slide.addShape(pptx.ShapeType.rect, {
-      x: 0, y: 0, w: '100%', h: 0.6,
-      fill: { color: '111827' },
+      x: 0, y: 0, w: W, h: HEADER_H,
+      fill: { color: '1E2433' },
     });
 
-    // 스텝 번호 + 제목
     const stepTitle = step.user_title ?? step.ai_title ?? `단계 ${step.step_number}`;
     slide.addText(`${step.step_number}. ${stepTitle}`, {
-      x: 0.3, y: 0.08, w: '80%', h: 0.44,
-      fontSize: 16, bold: true, color: 'FFFFFF',
+      x: 0.3, y: 0, w: LEFT_W - 0.3, h: HEADER_H,
+      fontSize: 17, bold: true, color: 'FFFFFF',
       valign: 'middle',
     });
 
-    // 스크린샷 (왼쪽)
+    // 스크린샷 영역 배경
+    slide.addShape(pptx.ShapeType.rect, {
+      x: 0, y: BODY_Y, w: LEFT_W, h: BODY_H,
+      fill: { color: '1A1F2E' },
+    });
+
+    // 스크린샷 이미지 (상하좌우 패딩)
+    const imgX = IMG_PAD;
+    const imgY = BODY_Y + IMG_PAD;
+    const imgW = LEFT_W - IMG_PAD * 2;
+    const imgH = BODY_H - IMG_PAD * 2;
+
     try {
       const res = await fetch(assertStorageUrl(step.screenshot_url), { redirect: 'manual' });
       if (res.ok) {
@@ -76,48 +96,52 @@ export async function GET(request: NextRequest, { params }: Params) {
         const ext = contentType.includes('png') ? 'png' : 'jpg';
         slide.addImage({
           data: `data:image/${ext};base64,${imgBuf.toString('base64')}`,
-          x: 0.3, y: 0.75, w: 6.0, h: 4.5,
+          x: imgX, y: imgY, w: imgW, h: imgH,
+          sizing: { type: 'contain', w: imgW, h: imgH },
         });
       }
     } catch {
-      slide.addShape(pptx.ShapeType.rect, {
-        x: 0.3, y: 0.75, w: 6.0, h: 4.5,
-        fill: { color: 'E5E7EB' },
-      });
       slide.addText('이미지 없음', {
-        x: 0.3, y: 0.75, w: 6.0, h: 4.5,
-        fontSize: 14, color: '9CA3AF', align: 'center', valign: 'middle',
+        x: imgX, y: imgY, w: imgW, h: imgH,
+        fontSize: 14, color: '6B7280', align: 'center', valign: 'middle',
       });
     }
 
-    // 설명 텍스트 (오른쪽)
-    const desc = step.user_script ?? step.ai_description ?? '';
+    // 오른쪽 설명 패널
     slide.addShape(pptx.ShapeType.rect, {
-      x: 6.7, y: 0.75, w: 3.0, h: 4.5,
-      fill: { color: 'FFFFFF' },
-      line: { color: 'E5E7EB', width: 1 },
+      x: LEFT_W, y: BODY_Y, w: RIGHT_W, h: BODY_H,
+      fill: { color: 'F9FAFB' },
     });
+
+    const desc = step.user_script ?? step.ai_description ?? '';
+    const PAD = 0.25;
     slide.addText('설명', {
-      x: 6.85, y: 0.9, w: 2.7, h: 0.3,
-      fontSize: 11, bold: true, color: '4F46E5',
+      x: LEFT_W + PAD, y: BODY_Y + PAD,
+      w: RIGHT_W - PAD * 2, h: 0.35,
+      fontSize: 13, bold: true, color: '4F46E5',
     });
     if (desc) {
       slide.addText(desc, {
-        x: 6.85, y: 1.25, w: 2.7, h: 3.8,
-        fontSize: 12, color: '374151',
+        x: LEFT_W + PAD, y: BODY_Y + PAD + 0.4,
+        w: RIGHT_W - PAD * 2, h: BODY_H - PAD * 2 - 0.4 - 0.4,
+        fontSize: 13, color: '374151',
         valign: 'top', wrap: true,
+        lineSpacingMultiple: 1.3,
       });
     }
 
-    // 하단 페이지 번호
+    // 우하단 페이지 번호
     slide.addText(`${step.step_number} / ${steps.length}`, {
-      x: 9.3, y: 5.3, w: 0.8, h: 0.3,
-      fontSize: 10, color: '9CA3AF', align: 'right',
+      x: LEFT_W + PAD, y: H - 0.38,
+      w: RIGHT_W - PAD * 2, h: 0.3,
+      fontSize: 11, color: '9CA3AF', align: 'right',
     });
   }
 
   const pptxBuffer: Buffer = await pptx.write({ outputType: 'nodebuffer' });
-  const filename = encodeURIComponent(tutorial.title.replace(/[/\\?%*:|"<>]/g, '-'));
+  const safeTitle = tutorial.title.replace(/[/\\?%*:|"<>]/g, '-');
+  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const filename = encodeURIComponent(`MIMIC_${safeTitle}_${dateStr}`);
 
   return new Response(pptxBuffer.buffer as ArrayBuffer, {
     headers: {
