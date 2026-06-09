@@ -683,22 +683,22 @@ function HeroSection() {
       <div style={{ maxWidth: '1080px', margin: '0 auto', padding: '0 32px', position: 'relative' }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '5px 14px', background: 'rgba(109,40,217,0.08)', border: '1px solid rgba(109,40,217,0.20)', borderRadius: '999px', fontSize: '12.5px', color: '#6d28d9', fontWeight: 500, marginBottom: '28px' }}>
           <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#6d28d9', display: 'inline-block', animation: 'pulse-dot 1.8s ease-in-out infinite' }} />
-          B2B SaaS CS팀을 위한 인터랙티브 매뉴얼
+          AI 인터랙티브 매뉴얼 플랫폼
         </span>
 
-        <h1 style={{ margin: '0 auto 20px', fontSize: '56px', lineHeight: 1.25, fontWeight: 700, letterSpacing: '-0.03em', maxWidth: '800px', color: '#0D0D14' }}>
-          같은 말을 100번 하는 대신,<br />
+        <h1 style={{ margin: '0 auto 20px', fontSize: '56px', lineHeight: 1.25, fontWeight: 700, letterSpacing: '-0.03em', maxWidth: '760px', color: '#0D0D14' }}>
+          CS팀이 같은 말을<br />
           <span style={{
             background: 'linear-gradient(135deg, #6d28d9 0%, #3730a3 100%)',
             WebkitBackgroundClip: 'text',
             backgroundClip: 'text',
             color: 'transparent',
-          }}>링크 하나를 보내세요</span>
+          }}>100번 하지 않아도 되게</span>
         </h1>
 
-        <p style={{ fontSize: '17px', color: '#4B5563', maxWidth: '540px', margin: '0 auto 36px', lineHeight: 1.7 }}>
-          고객 온보딩, 반복 문의, 기능 설명 — 한 번만 녹화하면<br />
-          클릭으로 따라하는 인터랙티브 가이드가 30초 만에 완성됩니다.
+        <p style={{ fontSize: '17px', color: '#4B5563', maxWidth: '520px', margin: '0 auto 36px', lineHeight: 1.7 }}>
+          평소처럼 일하기만 하면 됩니다.<br />
+          클릭 한 번으로 따라할 수 있는 매뉴얼이 30초 만에 완성됩니다.
         </p>
 
         <div className="hero-cta-row" style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginBottom: '56px' }}>
