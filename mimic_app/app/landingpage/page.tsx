@@ -98,27 +98,27 @@ const features = [
 const useCases = [
   {
     emoji: '🎧',
-    tag: 'CS · 고객지원',
-    title: '반복 문의, 이제 링크 하나로 끝내세요',
-    body: '고객이 매번 묻는 설정법, 오류 해결 방법을 인터랙티브 매뉴얼로 만들어 링크만 공유하세요. 답변 시간이 줄고, 고객 만족도는 올라갑니다.',
+    tag: 'CS · 고객 온보딩',
+    title: '신규 고객 온보딩 콜, 이제 링크 하나로',
+    body: '매번 잡던 1시간짜리 온보딩 콜 대신 MIMIC 링크를 보내세요. 고객이 클릭으로 직접 따라하며 배웁니다. CS 담당자의 시간이 돌아옵니다.',
   },
   {
-    emoji: '🧑‍💼',
-    tag: '사내 교육 · 온보딩',
-    title: '신입이 처음부터 혼자 따라할 수 있게',
-    body: '사내 툴 사용법, ERP 입력 방법, 결재 프로세스를 화면 그대로 녹화해 매뉴얼로. 구두 설명 없이도 누구나 보고 따라합니다.',
+    emoji: '🔄',
+    tag: 'CS · 반복 문의 대응',
+    title: '같은 문의 100번, 이제 한 번만 답하세요',
+    body: '자주 오는 질문을 인터랙티브 가이드로 만들어두면 됩니다. 링크를 공유하면 고객이 스스로 따라하고, CS팀은 진짜 중요한 일에 집중합니다.',
   },
   {
-    emoji: '📹',
-    tag: '크리에이터 · 튜토리얼',
-    title: '영상 없이도 영상처럼 설명하세요',
-    body: '유튜브 튜토리얼을 만들 시간이 없다면 MIMIC으로 대신하세요. 클릭 한 번에 인터랙티브 가이드가 완성됩니다.',
+    emoji: '🚀',
+    tag: 'SaaS · 기능 도입',
+    title: '신규 기능, 고객에게 직접 체험시키세요',
+    body: '릴리즈 노트 대신 MIMIC 가이드를 보내세요. 고객이 새 기능을 직접 클릭하며 배우면 활성화율이 달라집니다.',
   },
   {
     emoji: '🏢',
-    tag: 'SaaS · 솔루션 기업',
-    title: '제품 도입 후 이탈을 막는 가장 빠른 방법',
-    body: '고객이 제품을 제대로 쓸 수 있도록 기능별 가이드를 빠르게 제작하고 Help Center에 바로 배포하세요.',
+    tag: '사내 · CS팀 교육',
+    title: '신입 CS팀원, 혼자 배우게 하세요',
+    body: '선배가 구두로 설명하던 내부 프로세스를 MIMIC으로 한 번만 녹화하면, 신입이 언제든 혼자 따라할 수 있는 가이드가 됩니다.',
   },
 ];
 
@@ -683,22 +683,22 @@ function HeroSection() {
       <div style={{ maxWidth: '1080px', margin: '0 auto', padding: '0 32px', position: 'relative' }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '5px 14px', background: 'rgba(109,40,217,0.08)', border: '1px solid rgba(109,40,217,0.20)', borderRadius: '999px', fontSize: '12.5px', color: '#6d28d9', fontWeight: 500, marginBottom: '28px' }}>
           <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#6d28d9', display: 'inline-block', animation: 'pulse-dot 1.8s ease-in-out infinite' }} />
-          AI 인터랙티브 매뉴얼 플랫폼
+          B2B SaaS CS팀을 위한 인터랙티브 매뉴얼
         </span>
 
-        <h1 style={{ margin: '0 auto 20px', fontSize: '56px', lineHeight: 1.25, fontWeight: 700, letterSpacing: '-0.03em', maxWidth: '760px', color: '#0D0D14' }}>
-          읽는 매뉴얼 말고,<br />
+        <h1 style={{ margin: '0 auto 20px', fontSize: '56px', lineHeight: 1.25, fontWeight: 700, letterSpacing: '-0.03em', maxWidth: '800px', color: '#0D0D14' }}>
+          같은 말을 100번 하는 대신,<br />
           <span style={{
             background: 'linear-gradient(135deg, #6d28d9 0%, #3730a3 100%)',
             WebkitBackgroundClip: 'text',
             backgroundClip: 'text',
             color: 'transparent',
-          }}>따라하는 매뉴얼</span>
+          }}>링크 하나를 보내세요</span>
         </h1>
 
-        <p style={{ fontSize: '17px', color: '#4B5563', maxWidth: '520px', margin: '0 auto 36px', lineHeight: 1.7 }}>
-          평소처럼 일하기만 하면 됩니다.<br />
-          클릭 한 번으로 따라할 수 있는 매뉴얼이 30초 만에 완성됩니다.
+        <p style={{ fontSize: '17px', color: '#4B5563', maxWidth: '540px', margin: '0 auto 36px', lineHeight: 1.7 }}>
+          고객 온보딩, 반복 문의, 기능 설명 — 한 번만 녹화하면<br />
+          클릭으로 따라하는 인터랙티브 가이드가 30초 만에 완성됩니다.
         </p>
 
         <div className="hero-cta-row" style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginBottom: '56px' }}>
@@ -864,19 +864,19 @@ export default function LandingPage() {
               The MIMIC Way
             </p>
             <h2 style={{ fontSize: 'clamp(36px, 5.5vw, 64px)', fontWeight: 700, lineHeight: 1.15, letterSpacing: '-0.03em', color: 'white', margin: '0 0 24px' }}>
-              평소처럼 일하면<br />
+              CS팀이<br />
               <span style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #818cf8 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>
-                자료가 나온다.
+                같은 말을 그만 반복해도 되는 날.
               </span>
             </h2>
-            <p style={{ fontSize: '18px', color: 'rgba(255,255,255,0.55)', maxWidth: '520px', margin: '0 auto 48px', lineHeight: 1.7, fontWeight: 400 }}>
-              녹화 버튼 하나만 켜면 됩니다. 클릭, 입력, 스크롤 — 당신의 모든 동작이 그대로 단계가 되고, AI가 설명을 붙입니다.
+            <p style={{ fontSize: '18px', color: 'rgba(255,255,255,0.55)', maxWidth: '560px', margin: '0 auto 48px', lineHeight: 1.7, fontWeight: 400 }}>
+              고객마다 같은 설명을 반복하는 것은 CS 담당자의 실력 문제가 아닙니다. 제대로 된 도구가 없었던 겁니다. MIMIC은 그 도구입니다.
             </p>
             <div style={{ display: 'flex', justifyContent: 'center', gap: '40px', flexWrap: 'wrap' }}>
               {[
-                { label: '별도 작업 없음', desc: '하던 일을 그대로 하면 됩니다' },
-                { label: '30초 완성', desc: 'AI가 즉시 정리합니다' },
-                { label: '링크 하나로 공유', desc: '앱 설치 없이 바로 공유' },
+                { label: 'CSM의 66%', desc: '반복 업무에 하루를 씁니다' },
+                { label: '72%', desc: '자동화하고 싶은 업무가 있다고 응답' },
+                { label: '연 120회', desc: '같은 온보딩 콜을 반복합니다' },
               ].map(item => (
                 <div key={item.label} style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: '15px', fontWeight: 700, color: 'white', marginBottom: '4px' }}>{item.label}</div>
@@ -893,14 +893,14 @@ export default function LandingPage() {
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
           <RevealSection>
           <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#3730a3', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>Problem</span>
-          <h2 style={{ textAlign: 'center', fontSize: '36px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 auto 14px', maxWidth: '720px', lineHeight: 1.2, color: '#0D0D14' }}>이런 문제, 한 번쯤 겪어보셨죠?</h2>
-          <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '560px', margin: '0 auto 56px', lineHeight: 1.65 }}>PDF는 쌓이기만 하고, 영상은 만들기 지옥이고, PPT는 만들다 하루가 갑니다.</p>
+          <h2 style={{ textAlign: 'center', fontSize: '36px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 auto 14px', maxWidth: '720px', lineHeight: 1.2, color: '#0D0D14' }}>CS 담당자라면 공감하는 장면</h2>
+          <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '580px', margin: '0 auto 56px', lineHeight: 1.65 }}>신규 고객이 올 때마다 같은 콜을 잡고, 같은 화면을 보여주고, 같은 설명을 반복합니다.</p>
 
           <div className="grid-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
             {[
-              { emoji: '📄', title: 'PDF는 아무도 안 읽어요', body: '200페이지 매뉴얼을 만들어도 신입은 첫 페이지에서 멈춥니다. 검색도 안 되고 따라하기도 어렵죠.', quote: '"매뉴얼 어디 있어요?" — 매일 듣는 말', color: '#FEF3C7' },
-              { emoji: '🎥', title: '영상 제작은 지옥이에요', body: '대본 쓰고, 녹화하고, 편집하고, 자막 달면 하루가 그냥 갑니다. 한 줄 수정하려면 처음부터 다시.', quote: '"영상 5분 만드는 데 6시간"', color: '#FEE2E2' },
-              { emoji: '🖥️', title: 'PPT는 너무 오래 걸려요', body: '스크린샷 찍고, 자르고, 화살표 그리고, 정렬 맞추다 보면 한 슬라이드에 30분. UI는 또 바뀌어 있고요.', quote: '"디자인은 또 누가 다듬어?"', color: '#e0e7ff' },
+              { emoji: '🔁', title: '한 달에 같은 말 수십 번', body: '신규 고객마다 온보딩 콜을 잡고 같은 화면을 보여줍니다. 1년이면 100번 이상. 이건 CS 담당자의 문제가 아닙니다.', quote: '"오늘도 같은 온보딩 3번..."', color: '#FEF3C7' },
+              { emoji: '📄', title: '만들어도 아무도 안 봐요', body: 'PDF 매뉴얼을 만들어봤지만 아무도 안 읽습니다. 결국 "그냥 직접 보여드리는 게 빠르다"로 끝납니다.', quote: '"매뉴얼 보냈는데 또 전화가 와요"', color: '#FEE2E2' },
+              { emoji: '⏱️', title: '가이드 만들 시간이 없어요', body: '교육 자료를 만들 전담 인력이 없습니다. CS 담당자가 직접 PPT를 찍고 스크린샷을 자르다 하루가 갑니다.', quote: '"만들 시간에 그냥 설명하는 게..."', color: '#e0e7ff' },
             ].map(p => (
               <div key={p.title}
                 style={{ padding: '32px', background: 'white', border: '1.5px solid #E5E7EB', borderRadius: '16px', transition: 'all 0.2s ease' }}
@@ -945,8 +945,8 @@ export default function LandingPage() {
       <section style={{ padding: '96px 0', background: '#FAFAFA' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
           <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#3730a3', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>Use Cases</span>
-          <h2 style={{ textAlign: 'center', fontSize: '36px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 auto 14px', maxWidth: '720px', lineHeight: 1.2, color: '#0D0D14' }}>어떤 팀에서 쓰고 있나요?</h2>
-          <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '540px', margin: '0 auto 56px', lineHeight: 1.65 }}>설명이 필요한 곳이라면 어디든 MIMIC으로 해결할 수 있습니다.</p>
+          <h2 style={{ textAlign: 'center', fontSize: '36px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 auto 14px', maxWidth: '720px', lineHeight: 1.2, color: '#0D0D14' }}>CS팀의 A타입 반복 업무를 없앱니다</h2>
+          <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '560px', margin: '0 auto 56px', lineHeight: 1.65 }}>이메일 자동화나 알림 봇으로는 해결 안 되는, 사람이 직접 설명해야 했던 그 업무들.</p>
 
           <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px' }}>
             {useCases.map(uc => (
@@ -1103,9 +1103,9 @@ export default function LandingPage() {
       {/* B2B */}
       <section id="b2b" style={{ padding: '96px 0', background: 'radial-gradient(800px 320px at 80% 0%, rgba(109,40,217,0.20), transparent 60%), radial-gradient(700px 320px at 20% 100%, rgba(55,48,163,0.20), transparent 60%), #0A0A0F', color: 'white' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
-          <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#A78BFA', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>For Enterprise</span>
-          <h2 style={{ textAlign: 'center', fontSize: '36px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 auto 16px', maxWidth: '720px', lineHeight: 1.2, color: 'white' }}>팀 전체가 같은 방식으로<br/>일할 수 있게</h2>
-          <p style={{ textAlign: 'center', fontSize: '16px', color: '#9CA3AF', maxWidth: '560px', margin: '0 auto 56px', lineHeight: 1.65 }}>반복 문의를 줄이고, 온보딩 시간을 단축하고, 지식을 조직 전체에 공유하세요. 기업 맞춤 도입 상담을 진행합니다.</p>
+          <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#A78BFA', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>For CS Teams</span>
+          <h2 style={{ textAlign: 'center', fontSize: '36px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 auto 16px', maxWidth: '720px', lineHeight: 1.2, color: 'white' }}>시리즈 A~B, 20~100인 B2B SaaS 기업<br/>CS팀을 위한 특별 도입 프로그램</h2>
+          <p style={{ textAlign: 'center', fontSize: '16px', color: '#9CA3AF', maxWidth: '600px', margin: '0 auto 56px', lineHeight: 1.65 }}>CS 담당자 1인이 매뉴얼을 만들고 팀 전체가 쓰는 구조. 온보딩 콜 횟수를 추적하고, 가이드 조회수를 분석해 반복 업무를 데이터로 증명합니다.</p>
 
           <div className="b2b-btns" style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
             <a href="mailto:hello@mimicflow.com?subject=기업 데모 신청" style={{ display: 'inline-flex', alignItems: 'center', padding: '15px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 600, background: 'white', color: '#111827', textDecoration: 'none', boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }}>기업 데모 신청하기</a>
