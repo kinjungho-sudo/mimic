@@ -32,7 +32,7 @@ export default function WorkspacePage() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<WorkspaceRole>('viewer');
   const [inviting, setInviting] = useState(false);
-  const [inviteMsg, setInviteMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [inviteMsg, setInviteMsg] = useState<{ ok: boolean; text: string; link?: string } | null>(null);
 
   // 워크스페이스 이름 변경
   const [editingName, setEditingName] = useState(false);
@@ -87,8 +87,12 @@ export default function WorkspacePage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, role }),
     });
-    if (res.ok) { setInviteMsg({ ok: true, text: `${email}에 재발송했습니다.` }); load(); }
-    else setInviteMsg({ ok: false, text: '재발송 실패' });
+    if (res.ok) {
+      const data = await res.json();
+      const inviteLink = `${window.location.origin}/workspace/invite/${data.token}`;
+      setInviteMsg({ ok: true, text: `${email}에 재발송했습니다.`, link: inviteLink });
+      load();
+    } else { setInviteMsg({ ok: false, text: '재발송 실패' }); }
   };
 
   const handleInvite = async (e: React.FormEvent) => {
@@ -103,7 +107,8 @@ export default function WorkspacePage() {
       });
       const data = await res.json();
       if (!res.ok) { setInviteMsg({ ok: false, text: data.error ?? '초대 실패' }); return; }
-      setInviteMsg({ ok: true, text: `${inviteEmail}에 초대장을 발송했습니다.` });
+      const inviteLink = `${window.location.origin}/workspace/invite/${data.token}`;
+      setInviteMsg({ ok: true, text: `${inviteEmail}에 초대장을 발송했습니다.`, link: inviteLink });
       setInviteEmail('');
       load();
     } catch { setInviteMsg({ ok: false, text: '오류가 발생했습니다.' }); }
@@ -227,7 +232,21 @@ export default function WorkspacePage() {
               </button>
             </form>
             {inviteMsg && (
-              <p style={{ margin: '10px 0 0', fontSize: '13px', color: inviteMsg.ok ? '#10B981' : '#EF4444' }}>{inviteMsg.text}</p>
+              <div style={{ margin: '10px 0 0' }}>
+                <p style={{ margin: '0 0 6px', fontSize: '13px', color: inviteMsg.ok ? '#10B981' : '#EF4444' }}>{inviteMsg.text}</p>
+                {inviteMsg.link && (
+                  <div style={{ background: '#F8F9FA', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '10px 12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '12px', color: '#6B7280', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inviteMsg.link}</span>
+                    <button
+                      type="button"
+                      onClick={() => { navigator.clipboard.writeText(inviteMsg.link!); }}
+                      style={{ flexShrink: 0, fontSize: '12px', color: '#3730a3', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
+                    >
+                      복사
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
           </section>
         )}
