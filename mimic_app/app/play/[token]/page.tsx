@@ -30,6 +30,8 @@ type Step = {
   caption: string;
   screenshot_url: string | null;
   order_index: number;
+  click_x: number | null;
+  click_y: number | null;
   user_annotations?: DrawAnnotation[];
 };
 
@@ -597,7 +599,21 @@ export default function PlayerPage() {
           <div style={{ width: '40px', height: '40px', borderRadius: '50%', border: '3px solid rgba(255,255,255,0.15)', borderTopColor: '#3730a3', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
           <p style={{ fontSize: '13.5px', color: 'rgba(255,255,255,0.6)', margin: 0 }}>불러오는 중...</p>
         </div>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <style>{`
+          @keyframes spin { to { transform: rotate(360deg); } }
+          @keyframes stepSlideIn {
+            from { opacity: 0; transform: translateY(10px) scale(0.995); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+          }
+          @keyframes hotspotPop {
+            from { opacity: 0; transform: translate(-50%, -50%) scale(0.4); }
+            to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+          }
+          @keyframes hotspotRing {
+            0%   { opacity: 0.8; transform: scale(1); }
+            100% { opacity: 0;   transform: scale(1.7); }
+          }
+        `}</style>
       </div>
     );
   }
@@ -840,7 +856,7 @@ export default function PlayerPage() {
         <div style={{ width: '100%', maxWidth: '1100px', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 30px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)', background: '#111' }}>
           {step?.screenshot_url ? (
             /* 이미지 + 어노테이션 + 마커 + 자막을 동일한 position:relative 컨테이너 안에 */
-            <div style={{ position: 'relative', lineHeight: 0 }}>
+            <div key={currentStep} style={{ position: 'relative', lineHeight: 0, animation: 'stepSlideIn 0.35s cubic-bezier(0.22,0.61,0.36,1) both' }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={step.screenshot_url}
@@ -850,6 +866,39 @@ export default function PlayerPage() {
               {/* 어노테이션 — 이미지와 동일한 크기 SVG로 정확히 겹침 */}
               {(step.user_annotations?.length ?? 0) > 0 && (
                 <AnnotationPreview annotations={step.user_annotations!} imageUrl={step.screenshot_url} />
+              )}
+              {/* Hotspot — click_x/y 있는 스텝에서 클릭 유도 원형 버튼 */}
+              {step.click_x != null && step.click_y != null && currentStep < totalSteps - 1 && (
+                <button
+                  onClick={() => goTo(currentStep + 1)}
+                  style={{
+                    position: 'absolute',
+                    left: `${step.click_x * 100}%`,
+                    top: `${step.click_y * 100}%`,
+                    transform: 'translate(-50%, -50%)',
+                    width: '44px', height: '44px',
+                    borderRadius: '50%',
+                    background: 'rgba(79,70,229,0.85)',
+                    border: '2.5px solid rgba(255,255,255,0.9)',
+                    cursor: 'pointer',
+                    zIndex: 10,
+                    animation: 'hotspotPop 0.4s cubic-bezier(0.34,1.56,0.64,1) both',
+                    animationDelay: '0.3s',
+                    outline: 'none',
+                    boxShadow: '0 0 0 0 rgba(79,70,229,0.6)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                  title="클릭하여 다음 단계로"
+                >
+                  {/* 펄스 링 1 */}
+                  <span style={{ position: 'absolute', inset: '-8px', borderRadius: '50%', border: '2px solid rgba(79,70,229,0.5)', animation: 'hotspotRing 1.8s ease-out infinite', animationDelay: '0.5s' }} />
+                  {/* 펄스 링 2 */}
+                  <span style={{ position: 'absolute', inset: '-16px', borderRadius: '50%', border: '2px solid rgba(79,70,229,0.3)', animation: 'hotspotRing 1.8s ease-out infinite', animationDelay: '0.9s' }} />
+                  {/* 화살표 아이콘 */}
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                    <polyline points="9 18 15 12 9 6"/>
+                  </svg>
+                </button>
               )}
               {/* 마커 */}
               {stepMarkers.map((m, i) => (
