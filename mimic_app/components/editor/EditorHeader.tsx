@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronLeft, Play, Share2, Check, Download, Undo2 } from 'lucide-react';
+import { ChevronLeft, Share2, Check, Download, Undo2, Zap } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useCallback, useEffect } from 'react';
 
@@ -9,8 +9,8 @@ export type EditorMode = 'document' | 'interactive';
 interface EditorHeaderProps {
   title: string;
   tutorialId: string;
+  shareToken?: string | null;
   onTitleChange: (v: string) => void;
-  onPreview: () => void;
   onSave: () => Promise<void>;
   onPublish: () => void;
   onShare: () => void;
@@ -20,7 +20,7 @@ interface EditorHeaderProps {
   onModeChange: (mode: EditorMode) => void;
 }
 
-export function EditorHeader({ title, tutorialId, onTitleChange, onPreview, onSave, onPublish, onShare, onUndo, canUndo, mode, onModeChange }: EditorHeaderProps) {
+export function EditorHeader({ title, tutorialId, shareToken, onTitleChange, onSave, onPublish, onShare, onUndo, canUndo, mode, onModeChange }: EditorHeaderProps) {
   const [localTitle, setLocalTitle] = useState(title);
   const [saving, setSaving] = useState(false);
 
@@ -57,6 +57,32 @@ export function EditorHeader({ title, tutorialId, onTitleChange, onPreview, onSa
       setSaving(false);
     }
   }, [onSave]);
+
+  const handleGuideMe = useCallback(() => {
+    const extensionId = process.env.NEXT_PUBLIC_EXTENSION_ID?.replace(/^﻿/, '').trim();
+    if (!extensionId) {
+      alert('Guide Me를 사용하려면 MIMIC 확장프로그램을 설치해주세요.');
+      return;
+    }
+    if (!shareToken) {
+      alert('먼저 게시(Publish) 후 Guide Me를 사용할 수 있습니다.');
+      return;
+    }
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (window as any).chrome?.runtime?.sendMessage(
+        extensionId,
+        { action: 'START_GUIDE', share_token: shareToken },
+        (response: { ok?: boolean } | undefined) => {
+          if (!response?.ok) {
+            alert('확장프로그램이 응답하지 않습니다. 설치 여부를 확인해주세요.');
+          }
+        }
+      );
+    } catch {
+      alert('Guide Me를 시작할 수 없습니다. 확장프로그램을 설치해주세요.');
+    }
+  }, [shareToken]);
 
   return (
     <header style={{
@@ -145,13 +171,14 @@ export function EditorHeader({ title, tutorialId, onTitleChange, onPreview, onSa
         </button>
 
         <button
-          onClick={onPreview}
-          style={{ height: '32px', padding: '0 14px', borderRadius: '7px', fontSize: '12.5px', display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'rgba(255,255,255,0.85)', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'background 0.15s' }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.14)'; e.currentTarget.style.color = 'white'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'rgba(255,255,255,0.85)'; }}
+          onClick={handleGuideMe}
+          title={shareToken ? 'Guide Me 시작 — 실제 화면에서 오버레이로 가이드' : '게시 후 사용 가능'}
+          style={{ height: '32px', padding: '0 14px', borderRadius: '7px', fontSize: '12.5px', display: 'inline-flex', alignItems: 'center', gap: '6px', color: shareToken ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.35)', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', cursor: shareToken ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap', transition: 'background 0.15s' }}
+          onMouseEnter={e => { if (shareToken) { e.currentTarget.style.background = 'rgba(255,255,255,0.14)'; e.currentTarget.style.color = 'white'; } }}
+          onMouseLeave={e => { if (shareToken) { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'rgba(255,255,255,0.85)'; } }}
         >
-          <Play size={13} />
-          미리보기
+          <Zap size={13} />
+          Guide Me
         </button>
 
         <button
