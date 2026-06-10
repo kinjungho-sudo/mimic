@@ -32,6 +32,7 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
     domain_name:    s.domain_name     ?? null,
     domain_favicon: s.domain_favicon  ?? null,
     is_stale: (s as Step & { is_stale?: boolean }).is_stale ?? false,
+    pii_detected: (s as Step & { pii_detected?: boolean }).pii_detected ?? false,
     crop_rect: (s as Step & { crop_rect?: { x: number; y: number; w: number; h: number } | null }).crop_rect ?? null,
     element_rect: (s as Step & { element_rect?: { x: number; y: number; width: number; height: number } | null }).element_rect ?? null,
     imageZoom: (s as Step & { image_zoom?: number | null }).image_zoom ?? 1,

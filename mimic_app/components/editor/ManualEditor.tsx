@@ -29,6 +29,7 @@ export interface ManualStep {
   click_y?: number | null;
   element_rect?: { x: number; y: number; width: number; height: number } | null; // 0-1 normalized
   is_stale?: boolean;
+  pii_detected?: boolean;
   crop_rect?: { x: number; y: number; w: number; h: number } | null;
   imageZoom?: number;
 }
@@ -996,6 +997,23 @@ function ScreenshotArea({ step, onUploadClick, onDrop, onAnnotate, onRemove }: S
           backdropFilter: 'blur(4px)', pointerEvents: 'none',
         }}>
           AI 크롭
+        </div>
+      )}
+
+      {/* PII 경고 배지 */}
+      {step.pii_detected && (
+        <div
+          title="개인정보가 노출되어 있습니다. 블러 처리를 권장합니다"
+          style={{
+            position: 'absolute', top: '8px', right: '8px',
+            fontSize: '10px', fontWeight: 700, padding: '2px 7px',
+            borderRadius: '20px', background: 'rgba(220,38,38,0.90)', color: 'white',
+            backdropFilter: 'blur(4px)', cursor: 'pointer', zIndex: 3,
+            boxShadow: '0 1px 4px rgba(0,0,0,0.25)',
+          }}
+          onClick={e => { e.stopPropagation(); onAnnotate(); }}
+        >
+          PII
         </div>
       )}
 

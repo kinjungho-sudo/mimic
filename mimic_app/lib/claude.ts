@@ -431,6 +431,33 @@ ${original}`,
   return response.content[0].type === 'text' ? response.content[0].text.trim() : original;
 }
 
+export async function detectPII(
+  imageBase64: string,
+  mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif' = 'image/jpeg'
+): Promise<boolean> {
+  const response = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 64,
+    messages: [{
+      role: 'user',
+      content: [
+        { type: 'image', source: { type: 'base64', media_type: mediaType, data: imageBase64 } },
+        {
+          type: 'text',
+          text: `이 스크린샷에 개인정보(이메일 주소, 전화번호, 주민등록번호, 신용카드 번호, 실명)가 화면에 노출되어 있으면 true, 없으면 false를 반환해줘.
+JSON만 응답: {"pii": true} 또는 {"pii": false}`,
+        },
+      ],
+    }],
+  });
+  const text = response.content[0].type === 'text' ? response.content[0].text : '{}';
+  try {
+    return JSON.parse(stripMarkdown(text)).pii === true;
+  } catch {
+    return false;
+  }
+}
+
 export async function rewriteAllSteps(
   steps: { id: string; text: string }[],
   instruction: string

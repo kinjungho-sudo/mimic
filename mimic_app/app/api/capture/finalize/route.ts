@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireExtensionToken } from '@/lib/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { captureFinalizeSchema } from '@/lib/validators';
-import { generateDraft, extractCoverColors } from '@/lib/claude';
+import { generateDraft, extractCoverColors, detectPII } from '@/lib/claude';
 import { resolveFavicon } from '@/lib/favicon';
 import { buildClickHighlight } from '@/lib/annotations';
 
@@ -279,6 +279,36 @@ export async function POST(request: NextRequest) {
   } catch {
     // 초안/어노테이션 생성 실패는 무시 — 튜토리얼은 정상 생성됨
   }
+
+  // PII 검사 — 응답 블로킹 없이 백그라운드 실행
+  void (async () => {
+    try {
+      const { data: stepsForPII } = await supabase
+        .from('mm_steps')
+        .select('id, screenshot_url')
+        .eq('tutorial_id', tutorial.id);
+
+      if (!stepsForPII?.length) return;
+
+      await Promise.allSettled(
+        stepsForPII.map(async (step) => {
+          if (!step.screenshot_url) return;
+          try {
+            const imgRes = await fetch(step.screenshot_url);
+            if (!imgRes.ok) return;
+            const ct = imgRes.headers.get('content-type') ?? 'image/jpeg';
+            const mediaType = (['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as const)
+              .find(t => ct.includes(t)) ?? 'image/jpeg';
+            const b64 = Buffer.from(await imgRes.arrayBuffer()).toString('base64');
+            const hasPII = await detectPII(b64, mediaType);
+            if (hasPII) {
+              await supabase.from('mm_steps').update({ pii_detected: true }).eq('id', step.id);
+            }
+          } catch { /* 개별 스텝 실패 무시 */ }
+        })
+      );
+    } catch { /* PII 검사 전체 실패 무시 */ }
+  })();
 
   return NextResponse.json({ tutorial_id: tutorial.id, step_count: steps.length });
 }
