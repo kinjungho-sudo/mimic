@@ -166,18 +166,23 @@
 
   function notifyTypingProgress(el) {
     const label = getFieldLabel(el);
-    chrome.runtime.sendMessage({ type: 'TYPING_PROGRESS', text: label }, () => { void chrome.runtime.lastError; });
+    const isMasked = SENSITIVE_INPUT_TYPES.has((el.type || '').toLowerCase()) || SENSITIVE_LABEL_RE.test(label);
+    const value = isMasked ? '' : (el.isContentEditable ? (el.textContent || '') : (el.value || ''));
+    chrome.runtime.sendMessage({ type: 'TYPING_PROGRESS', text: value, label, masked: isMasked }, () => { void chrome.runtime.lastError; });
   }
 
   function flushTyping(el) {
     clearTimeout(typingTimer);
     typingTimer = null;
     if (!isRecording || isPaused || isCapturing) { typingTarget = null; pendingInputStep = null; return; }
+    // isCapturing을 즉시 선점 — sendMessage 호출 전 다른 이벤트가 진입하지 못하도록
+    isCapturing = true;
     typingTarget = null;
     const hasValue = el ? (el.isContentEditable ? !!(el.textContent || '').trim() : !!(el.value || '').trim()) : false;
 
     if (!hasValue) {
       // 타이핑 없이 필드를 떠남 — focus_input 스텝은 이미 찍혔으니 그대로 유지
+      isCapturing = false;
       pendingInputStep = null;
       return;
     }
@@ -191,7 +196,6 @@
 
     if (overwriteStep !== null) {
       // 같은 stepNumber로 재캡처 — background.js의 saveStepLocally가 덮어씀
-      isCapturing = true;
       lastCapturedTarget = el;
       lastCapturedTime   = Date.now();
       chrome.runtime.sendMessage({
@@ -206,7 +210,6 @@
         },
       }, () => { void chrome.runtime.lastError; isCapturing = false; });
     } else {
-      isCapturing  = true;
       stepNumber  += 1;
       lastCapturedTarget = el;
       lastCapturedTime   = Date.now();
@@ -357,6 +360,7 @@
     // 파일 선택 직후 약간 대기 — UI가 파일명을 반영할 시간
     // 파일명 하이라이트 오버레이를 먼저 표시한 뒤 캡처
     setTimeout(() => {
+      if (!isRecording || isPaused) { isCapturing = false; return; }
       showFileHighlight(fileNames);
       requestAnimationFrame(() => requestAnimationFrame(() => {
         chrome.runtime.sendMessage({
@@ -406,10 +410,10 @@
   ].join(',');
 
   // ── 초기화 ───────────────────────────────────────────────────────
-  chrome.storage.local.get(['isRecording', 'isPaused', 'stepNumber', 'settings'], (r) => {
-    isRecording = !!r.isRecording;
-    isPaused    = !!r.isPaused;
-    stepNumber  = r.stepNumber || 0;
+  // 설정만 로드. isRecording/stepNumber는 START_RECORDING 메시지로만 세팅.
+  // stale storage로 인한 유령 녹화(페이지 이동 후 자동 녹화 시작) 방지.
+  chrome.storage.local.get(['settings', 'isPaused'], (r) => {
+    isPaused = !!r.isPaused;
     if (r.settings) settings = { ...settings, ...r.settings };
   });
 
@@ -471,9 +475,8 @@
     let i = 0;
     function tick() {
       if (i >= steps.length) {
-        overlay.style.transition = 'opacity 0.3s ease';
-        overlay.style.opacity = '0';
-        setTimeout(() => { overlay.remove(); onDone(); }, 320);
+        overlay.remove();
+        onDone();
         return;
       }
       const s = steps[i++];
@@ -488,20 +491,26 @@
     tick();
   }
 
+  // 카운트다운 진행 중 플래그 — 비동기 gap에서 중복 START_RECORDING 진입 차단
+  let _countingDown = false;
+
   // ── 메시지 수신 ──────────────────────────────────────────────────
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if (msg.type === 'START_RECORDING') {
-      // storage.onChanged 경로와 onMessageExternal 직접 경로에서 중복 수신 가능.
-      // 카운트다운이 이미 진행 중이거나 녹화 중이면 무시.
-      if (isRecording) { sendResponse({ ok: true }); return false; }
+      // 이미 녹화 중이거나 카운트다운 중이면 무시
+      if (isRecording || _countingDown) { sendResponse({ ok: true }); return false; }
+      _countingDown      = true;
       lastCapturedTarget = null;
       lastCapturedTime   = 0;
       sendResponse({ ok: true });
-      // 카운트다운 후 녹화 활성화
-      showCountdown(() => {
-        isRecording = true;
-        isPaused    = false;
-        stepNumber  = 0;
+      // stepNumber를 storage 기준으로 맞춤 — 페이지 이동 후 재주입 시 카운터 동기화
+      chrome.storage.local.get('stepNumber', (r) => {
+        stepNumber = r.stepNumber || 0;
+        showCountdown(() => {
+          isRecording   = true;
+          isPaused      = false;
+          _countingDown = false;
+        });
       });
       return false;
     }
@@ -528,13 +537,12 @@
     }
     // 캡처 직전 오버레이 숨김 — background가 sendMessage로 호출, 응답 후 captureVisibleTab
     if (msg.type === 'HIDE_OVERLAY_FOR_CAPTURE') {
-      hideHoverPointer();
+      // hover overlay는 제거하지 않음 — 캡처 스크린샷에 클릭 하이라이트로 포함
       // 타이핑 중인 필드 하이라이트 — 캡처 스크린샷에 포함 (파란 테두리)
       if (typingTarget && document.contains(typingTarget)) {
         showTypingHighlight(typingTarget);
       }
       const piiRegions = applyPIIBlur();
-      // rAF 두 프레임 대기 → visibility 변경 + span 래핑 repaint가 완전히 반영된 뒤 응답
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           sendResponse({ ok: true, piiRegions });
@@ -543,10 +551,11 @@
       return true; // 비동기 응답
     }
     if (msg.type === 'RESTORE_OVERLAY') {
+      hideHoverPointer(); // 캡처 완료 후 hover overlay 제거
       restorePIIBlur();
       removeTypingHighlight();
       removeFileHighlight();
-      // 캡처 완료 후 호버 상태 복원은 다음 mousemove에서 자동으로 처리됨
+      isCapturing = false;
       sendResponse({ ok: true });
       return false;
     }
@@ -731,9 +740,6 @@
 
   function handleClick(e) {
     if (!isRecording || isPaused || isCapturing) return;
-    // all_frames:true 환경에서 iframe 내 content.js가 중복 실행되지 않도록
-    // 이벤트 발생 프레임이 최상위가 아닌 경우 무시
-    if (window !== window.top) return;
 
     const target = findInteractiveTarget(e.target);
     if (!target) return;
@@ -767,15 +773,38 @@
       if (isCapturing) return;
     }
 
-    isCapturing        = true;
-    stepNumber        += 1;
-    lastCapturedTarget = target;
-    lastCapturedTime   = now;
-
     const rect  = target.getBoundingClientRect();
     const label = getElementLabel(target);
     const href  = target.getAttribute('href') || target.closest('a')?.getAttribute('href') || '';
     const vw = window.innerWidth, vh = window.innerHeight;
+
+    // navigate 클릭: background가 stepNumber 관리 + 캡처 단독 처리.
+    // content.js는 stepNumber를 올리지 않고 클릭 메타데이터만 저장.
+    if (actionType === 'navigate') {
+      lastCapturedTarget = target;
+      lastCapturedTime   = now;
+      const navStepData = {
+        url:             location.href,
+        timestamp:       Date.now(),
+        clickX:          e.clientX,
+        clickY:          e.clientY,
+        windowWidth:     vw,
+        windowHeight:    vh,
+        viewportW:       vw,
+        viewportH:       vh,
+        elementRect:     { x: rect.x / vw, y: rect.y / vh, width: rect.width / vw, height: rect.height / vh },
+        elementSelector: getElementSelector(target),
+        actionInfo:      { type: actionType, label, tag: target.tagName.toLowerCase(), href: href.slice(0, 200) },
+      };
+      // lastCaptureTime을 navigate 클릭 즉시 설정 — tabs.onUpdated 발화 전 autoNav 쿨다운 확보
+      chrome.storage.local.set({ pendingCapture: navStepData, lastCaptureTime: now });
+      return;
+    }
+
+    isCapturing        = true;
+    stepNumber        += 1;
+    lastCapturedTarget = target;
+    lastCapturedTime   = now;
 
     const stepData = {
       url:             location.href,
@@ -800,15 +829,17 @@
       showFileHighlight(fileName);
     }
 
-    // navigate 클릭: content.js에서 캡처하지 않고 pendingCapture만 저장.
-    // 실제 캡처는 tabs.onUpdated(페이지 이동 완료 후)에서 단독 처리 — 이중 캡처 방지.
-    if (actionType === 'navigate') {
-      chrome.storage.local.set({ pendingCapture: stepData });
+    // same-origin iframe에서 bubble된 클릭은 top frame에서 중복 처리 방지.
+    // iframe content.js가 이미 처리했으므로 top frame에서는 무시.
+    if (window === window.top && e.target.ownerDocument !== document) {
       isCapturing = false;
       return;
     }
 
+    // SW가 죽어 콜백이 안 와도 10초 후 자동 해제
+    const captureSafetyTimer = setTimeout(() => { isCapturing = false; }, 10000);
     chrome.runtime.sendMessage({ type: 'CAPTURE_SCREENSHOT', stepData }, () => {
+      clearTimeout(captureSafetyTimer);
       void chrome.runtime.lastError;
       isCapturing = false;
     });
@@ -838,7 +869,7 @@
       // background.js autoNav 중복 방지 플래그 세팅
       chrome.storage.local.set({ spaNavCapturing: true });
       setTimeout(() => {
-        if (!isRecording || isPaused) return;
+        if (!isRecording || isPaused || isCapturing) return;
         isCapturing = true;
         stepNumber += 1;
         chrome.runtime.sendMessage({
