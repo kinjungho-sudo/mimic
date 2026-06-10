@@ -151,8 +151,8 @@ export async function POST(request: NextRequest) {
       domain_favicon:  ev.domain_hostname
         ? (faviconCache.get(ev.domain_hostname) ?? ev.domain_favicon ?? null)
         : (ev.domain_favicon ?? null),
-      click_x:           ev.click_x           ?? null,
-      click_y:           ev.click_y           ?? null,
+      click_x:           ev.click_x != null ? ev.click_x / 10000 : null,
+      click_y:           ev.click_y != null ? ev.click_y / 10000 : null,
       element_rect:      elementRect,
       element_selector:  ev.element_selector  ?? null,
       element_xpath:     ev.element_xpath     ?? null,
@@ -256,16 +256,12 @@ export async function POST(request: NextRequest) {
             if (rect) {
               annotations = buildClickHighlight({ elementRect: rect, stepNumber: num, label });
             } else if (step.click_x != null && step.click_y != null && (step.click_x > 0 || step.click_y > 0)) {
-              // DB click_x/y: 0~10000 정수 → ÷10000 → 0~1 정규화
-              const cx = step.click_x / 10000;
-              const cy = step.click_y / 10000;
-              // 클릭 좌표 중심으로 버튼 크기를 추정한 rect로 하이라이트 생성
-              // 실제 저장하지 않고 어노테이션 계산에만 사용
+              // click_x/y는 이미 0~1 정규화값으로 저장됨 (steps 삽입 시 /10000 처리)
               const estimatedRect = {
-                x: Math.max(0, cx - 0.05),
-                y: Math.max(0, cy - 0.02),
-                width: 0.10,
-                height: 0.04,
+                x: Math.max(0, step.click_x - 0.05),
+                y: Math.max(0, step.click_y - 0.02),
+                width:  Math.min(0.10, 1 - Math.max(0, step.click_x - 0.05)),
+                height: Math.min(0.04, 1 - Math.max(0, step.click_y - 0.02)),
               };
               annotations = buildClickHighlight({ elementRect: estimatedRect, stepNumber: num, label });
             } else {
