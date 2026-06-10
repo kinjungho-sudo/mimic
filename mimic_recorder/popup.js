@@ -15,16 +15,6 @@ const recStepCount  = document.getElementById('recStepCount');
 const stepCount     = document.getElementById('stepCount');
 const stepsList     = document.getElementById('stepsList');
 const emptyState    = document.getElementById('emptyState');
-const modalOverlay  = document.getElementById('modalOverlay');
-const modalClose    = document.getElementById('modalClose');
-const modalImg      = document.getElementById('modalImg');
-const modalStepNum  = document.getElementById('modalStepNum');
-const modalStepTime = document.getElementById('modalStepTime');
-const modalTitle    = document.getElementById('modalTitle');
-const modalDesc     = document.getElementById('modalDesc');
-const uploadOverlay = document.getElementById('uploadOverlay');
-const uploadProgressBar = document.getElementById('uploadProgressBar');
-const uploadSub     = document.getElementById('uploadSub');
 const btnSettings      = document.getElementById('btnSettings');
 const settingsOverlay  = document.getElementById('settingsOverlay');
 const btnBack          = document.getElementById('btnBack');
@@ -52,19 +42,24 @@ const SETTINGS_DEFAULTS = {
   piiBlur:     true,
 };
 
+// ── chrome.storage.local 프로미스 헬퍼 ──────────────────────────
+function storageGet(keys) {
+  return new Promise((resolve) => chrome.storage.local.get(keys, resolve));
+}
+
+function storageSet(obj) {
+  return new Promise((resolve) => chrome.storage.local.set(obj, resolve));
+}
+
 // ── 초기화 ───────────────────────────────────────────────────────
-function init() {
-  chrome.storage.local.get(
-    ['isRecording', 'isPaused', 'steps', 'extensionToken', 'settings'],
-    (r) => {
-      isRecording = !!r.isRecording;
-      isPaused    = !!r.isPaused;
-      updateView();
-      renderSteps(r.steps || []);
-      updateLoginState(!!r.extensionToken);
-      loadSettingsUI(r.settings || {});
-    }
-  );
+async function init() {
+  const r = await storageGet(['isRecording', 'isPaused', 'steps', 'extensionToken', 'settings']);
+  isRecording = !!r.isRecording;
+  isPaused    = !!r.isPaused;
+  updateView();
+  renderSteps(r.steps || []);
+  updateLoginState(!!r.extensionToken);
+  loadSettingsUI(r.settings || {});
 }
 
 // ── 설정 UI 로드 ──────────────────────────────────────────────────
@@ -91,8 +86,7 @@ function saveSettings() {
     piiBlur:     settingPiiBlur.checked,
   };
   chrome.storage.local.set({ settings: s });
-  // content.js에 설정 변경 알림
-  chrome.storage.local.get('targetTabId', ({ targetTabId }) => {
+  storageGet('targetTabId').then(({ targetTabId }) => {
     if (!targetTabId) return;
     chrome.tabs.sendMessage(targetTabId, { type: 'UPDATE_SETTINGS', settings: s }, () => {
       void chrome.runtime.lastError;
@@ -438,33 +432,6 @@ async function loadThumb(step, imgEl, placeholder, overlayEl) {
   }
 }
 
-// elementRect(0~1 정규화)를 기준으로 Blob 이미지를 크롭해 반환
-// 패딩 5%(정규화), 전체의 70% 이상이면 원본 반환
-async function cropToElement(blob, elementRect) {
-  if (!elementRect) return null;
-  const { x, y, width, height } = elementRect;
-  if (width < 0.002 || height < 0.002) return null;
-
-  const PAD = 0.06; // 정규화 패딩 6%
-  const sx_n = Math.max(0, x - PAD);
-  const sy_n = Math.max(0, y - PAD);
-  const sw_n = Math.min(1 - sx_n, width  + PAD * 2);
-  const sh_n = Math.min(1 - sy_n, height + PAD * 2);
-
-  if (sw_n * sh_n > 0.70) return null; // 전체의 70% 이상이면 크롭 불필요
-
-  const bmp = await createImageBitmap(blob);
-  const iw = bmp.width, ih = bmp.height;
-  const sx = Math.round(sx_n * iw);
-  const sy = Math.round(sy_n * ih);
-  const sw = Math.min(iw - sx, Math.round(sw_n * iw));
-  const sh = Math.min(ih - sy, Math.round(sh_n * ih));
-
-  const canvas = new OffscreenCanvas(sw, sh);
-  canvas.getContext('2d').drawImage(bmp, sx, sy, sw, sh, 0, 0, sw, sh);
-  return canvas.convertToBlob({ type: 'image/jpeg', quality: 0.82 });
-}
-
 // 썸네일 위에 클릭포인트(빨간 원) + 하이라이트 박스 오버레이 렌더
 // 전체 스크린샷 기준 좌표 사용 (크롭 없음)
 function renderThumbOverlay(overlayEl, imgEl, step, _unused) {
@@ -772,41 +739,6 @@ function idbGetScreenshot(stepNumber) {
   });
 }
 
-// ── 모달 ─────────────────────────────────────────────────────────
-let _modalObjectUrl = null;
-
-async function openModal(step, num) {
-  // 이전 objectURL 해제
-  if (_modalObjectUrl) { URL.revokeObjectURL(_modalObjectUrl); _modalObjectUrl = null; }
-
-  modalImg.src = '';
-  modalStepNum.textContent  = `Step ${num}`;
-  modalStepTime.textContent = formatTime(step.timestamp);
-  modalTitle.textContent    = step.title || `Step ${num}`;
-  modalDesc.textContent     = step.description || '';
-  modalOverlay.classList.add('open');
-
-  // IndexedDB 우선, 없으면 imageUrl(Supabase) fallback
-  const blob = await idbGetScreenshot(step.stepNumber);
-  if (blob) {
-    _modalObjectUrl = URL.createObjectURL(blob);
-    modalImg.src = _modalObjectUrl;
-  } else if (step.imageUrl) {
-    modalImg.src = step.imageUrl;
-  }
-}
-modalImg.addEventListener('click', () => {
-  const src = modalImg.src;
-  if (src && !src.startsWith('blob:')) chrome.tabs.create({ url: src });
-});
-modalClose.addEventListener('click', closeModal);
-modalOverlay.addEventListener('click', (e) => { if (e.target === modalOverlay) closeModal(); });
-function closeModal() {
-  modalOverlay.classList.remove('open');
-  modalImg.src = '';
-  if (_modalObjectUrl) { URL.revokeObjectURL(_modalObjectUrl); _modalObjectUrl = null; }
-}
-
 // ── 녹화 차단 페이지 감지 ────────────────────────────────────────
 function isBlockedUrl(url) {
   if (!url) return true;
@@ -845,7 +777,6 @@ function hideBlockedBanner() {
 
 // ── 녹화 시작 공통 함수 ──────────────────────────────────────────
 async function startRecording(mobile = false) {
-  // currentWindow:true 필수 — 사이드패널은 별도 window context라 없으면 엉뚱한 탭 선택 가능
   const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
   const targetTab = tabs.find(t => t.url?.startsWith('http://') || t.url?.startsWith('https://'));
 
@@ -862,15 +793,12 @@ async function startRecording(mobile = false) {
   const sessionId = crypto.randomUUID();
 
   // 1) targetTabId 먼저 저장 → background _cachedTargetTabId 갱신 보장
-  await new Promise((resolve) => chrome.storage.local.set({ targetTabId: targetTab.id }, resolve));
+  await storageSet({ targetTabId: targetTab.id });
 
   // 2) 나머지 상태 저장
-  await new Promise((resolve) => chrome.storage.local.set({
-    sessionId, stepNumber: 0, steps: [], isMobileMode: mobile,
-  }, resolve));
+  await storageSet({ sessionId, stepNumber: 0, steps: [], isMobileMode: mobile });
 
   // 3) isRecording:true → background onChanged가 단일 경로로 START_RECORDING 전달
-  // popup에서 직접 sendMessage하면 두 경로 경합 → 카운트다운 스킵/중복 발생
   chrome.storage.local.set({ isRecording: true });
 
   updateView();
@@ -927,9 +855,13 @@ btnSnap.addEventListener('click', () => {
   btnSnap.disabled = true;
   chrome.storage.local.get('targetTabId', ({ targetTabId }) => {
     if (!targetTabId) { btnSnap.disabled = false; return; }
-    chrome.tabs.sendMessage(targetTabId, { type: 'MANUAL_CAPTURE' }, () => {
+    // captureVisibleTab은 active 탭만 캡처 가능 — 먼저 탭을 앞으로 가져옴
+    chrome.tabs.update(targetTabId, { active: true }, () => {
       void chrome.runtime.lastError;
-      btnSnap.disabled = false;
+      chrome.tabs.sendMessage(targetTabId, { type: 'MANUAL_CAPTURE' }, () => {
+        void chrome.runtime.lastError;
+        btnSnap.disabled = false;
+      });
     });
   });
 });
@@ -1025,7 +957,10 @@ btnFinish.addEventListener('click', async () => {
     void chrome.runtime.lastError;
     hideFinalizingOverlay();
     if (res?.ok && res?.tutorial_id) {
-      chrome.tabs.create({ url: `https://mimic-nine-ashen.vercel.app/manual/${res.tutorial_id}/editor` });
+      chrome.tabs.create({ url: `https://mimic-nine-ashen.vercel.app/manual/${res.tutorial_id}/editor` }, () => {
+        chrome.storage.local.set({ isRecording: false, isPaused: false, stepNumber: 0, steps: [], sessionId: null });
+        window.close();
+      });
     } else {
       // 실패 시 에러 안내
       showFinalizingError();
@@ -1111,33 +1046,6 @@ function showFinalizingError() {
   ov.append(icon, msg, sub, btn);
 }
 
-// ── 업로드 오버레이 ───────────────────────────────────────────────
-function showUploadOverlay() {
-  uploadProgressBar.style.animation = 'none';
-  uploadProgressBar.offsetHeight;
-  uploadProgressBar.style.animation = '';
-
-  uploadSub.textContent = '스크린샷 압축 중...';
-  uploadOverlay.classList.add('visible');
-
-  const messages = [
-    { delay: 900,  text: 'Storage 업로드 중...' },
-    { delay: 1800, text: 'AI 분석 완료 중...' },
-    { delay: 2600, text: '매뉴얼 생성 중...' },
-    { delay: 3200, text: '완료!' },
-  ];
-  messages.forEach(({ delay, text }) => {
-    setTimeout(() => {
-      if (uploadOverlay.classList.contains('visible')) uploadSub.textContent = text;
-    }, delay);
-  });
-
-  setTimeout(() => {
-    uploadOverlay.classList.remove('visible');
-    renderSteps([]);
-  }, 3800);
-}
-
 // ── storage 변경 감지 ─────────────────────────────────────────────
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') return;
@@ -1172,6 +1080,12 @@ chrome.runtime.onMessage.addListener((msg) => {
   // 캡처 차단 (DRM/보안 페이지) — 수동 업로드 토스트 표시
   if (msg.type === 'CAPTURE_BLOCKED') {
     showCaptureBlockedToast(msg.stepData);
+    return;
+  }
+
+  // 업로드 실패 — 사용자에게 토스트 알림
+  if (msg.type === 'UPLOAD_FAILED') {
+    showToast('이미지 업로드 실패 — 다시 시도해주세요', 3500);
     return;
   }
 
