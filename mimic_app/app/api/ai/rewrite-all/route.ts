@@ -25,6 +25,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const results = await rewriteAllSteps(parsed.data.steps, parsed.data.instruction);
+  let results: unknown;
+  try {
+    results = await rewriteAllSteps(parsed.data.steps, parsed.data.instruction);
+  } catch (err) {
+    console.error('[rewrite-all] Claude error:', err);
+    return NextResponse.json({ error: 'AI 처리 중 오류가 발생했습니다.' }, { status: 502 });
+  }
   return NextResponse.json({ results });
 }

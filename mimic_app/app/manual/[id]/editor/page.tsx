@@ -69,6 +69,8 @@ export default function EditorPage() {
   const [collabToast, setCollabToast] = useState<{ stepId: string; name: string; color: string } | null>(null);
   const collabToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stepSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const tempIdCounter = useRef(0);
+  const [tocSelectedIds, setTocSelectedIds] = useState<Set<string>>(new Set());
 
   // 실시간 협업 — 워크스페이스 튜토리얼에서만 활성
   const workspaceId = tutorial
@@ -295,7 +297,7 @@ export default function EditorPage() {
     const stepNumber = manualSteps.length + 1;
     const orderIndex = manualSteps.length;
     // 낙관적 UI — 임시 ID로 먼저 추가
-    const tempId = `step-${Date.now()}`;
+    const tempId = `step-tmp-${++tempIdCounter.current}`;
     const optimistic: ManualStep = { id: tempId, number: stepNumber, actionTitle: '새 단계', description: '' };
     setManualStepsWithHistory([...manualSteps, optimistic]);
     setActiveId(tempId);
@@ -314,7 +316,7 @@ export default function EditorPage() {
     if (idx === -1) return;
     const stepNumber = idx + 2;
     const orderIndex = idx + 1;
-    const tempId = `step-${Date.now()}`;
+    const tempId = `step-tmp-${++tempIdCounter.current}`;
     const next = [...manualSteps];
     next.splice(idx + 1, 0, { id: tempId, number: stepNumber, actionTitle: '새 단계', description: '' });
     setManualStepsWithHistory(next.map((s, i) => ({ ...s, number: i + 1 })));
@@ -553,6 +555,8 @@ export default function EditorPage() {
             activeId={activeId}
             onSelect={setActiveId}
             editable={true}
+            selectedIds={tocSelectedIds}
+            onSelectChange={setTocSelectedIds}
             onReorder={(reordered) => {
               setManualStepsWithHistory(reordered);
               // DB order_index 일괄 저장 (임시 ID 제외)
@@ -638,6 +642,8 @@ export default function EditorPage() {
             hideToc
             activeId={activeId}
             onActiveChange={setActiveId}
+            selectedIds={tocSelectedIds}
+            onSelectChange={setTocSelectedIds}
             onChange={(next) => {
               setManualStepsWithHistory(next);
               next.forEach(step => {

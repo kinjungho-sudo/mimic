@@ -40,11 +40,13 @@ interface ManualEditorProps {
   hideToc?: boolean;
   activeId?: string | null;
   onActiveChange?: (id: string) => void;
+  selectedIds?: Set<string>;
+  onSelectChange?: (ids: Set<string>) => void;
 }
 
 // ── ManualEditor ──────────────────────────────────────────
 
-export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: externalActiveId, onActiveChange }: ManualEditorProps) {
+export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: externalActiveId, onActiveChange, selectedIds: externalSelectedIds, onSelectChange }: ManualEditorProps) {
   const [internalActiveId, setInternalActiveId] = useState<string | null>(
     steps.length > 0 ? steps[0].id : null
   );
@@ -54,10 +56,18 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
   const [annotatingId, setAnnotatingId] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [internalSelectedIds, setInternalSelectedIds] = useState<Set<string>>(new Set());
+  const selectedIds = externalSelectedIds ?? internalSelectedIds;
+  const setSelectedIds = (nextOrUpdater: Set<string> | ((prev: Set<string>) => Set<string>)) => {
+    const next = typeof nextOrUpdater === 'function' ? nextOrUpdater(selectedIds) : nextOrUpdater;
+    setInternalSelectedIds(next);
+    onSelectChange?.(next);
+  };
   const [bulkAiLoading, setBulkAiLoading] = useState<string | null>(null);
+  const [bulkAiError, setBulkAiError] = useState<string | null>(null);
   const contentRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
+  const tempIdCounter = useRef(0);
   // TOC 클릭으로 스크롤 중일 때 IntersectionObserver 역방향 업데이트 억제
   const scrollingByClickRef = useRef(false);
 
@@ -131,19 +141,26 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
 
   const bulkAiRewrite = async (instruction: string, label: string) => {
     // 전체 스텝을 순서대로 보내되, 선택된 것만 실제로 교체
-    const allWithText = steps.map(s => ({
-      id: s.id,
-      text: s.description.replace(/<[^>]+>/g, '').trim(),
-    }));
+    const allWithText = steps
+      .filter(s => !s.id.startsWith('step-'))
+      .map(s => ({
+        id: s.id,
+        text: s.description.replace(/<[^>]+>/g, '').trim(),
+      }));
     const targets = allWithText.filter(s => selectedIds.has(s.id) && s.text);
     if (!targets.length) return;
     setBulkAiLoading(label);
+    setBulkAiError(null);
     try {
       const res = await fetch('/api/ai/rewrite-all', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ steps: allWithText, instruction }),
       });
+      if (!res.ok) {
+        setBulkAiError('AI 재작성에 실패했어요. 잠시 후 다시 시도해주세요.');
+        return;
+      }
       const { results } = await res.json();
       if (!Array.isArray(results)) return;
       // 선택된 스텝만 업데이트
@@ -162,7 +179,7 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
 
   const addStep = () => {
     const newStep: ManualStep = {
-      id: `step-${Date.now()}`,
+      id: `step-tmp-${++tempIdCounter.current}`,
       number: steps.length + 1,
       actionTitle: '새 단계',
       description: '',
@@ -272,6 +289,16 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
               style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', height: '26px', padding: '0 10px', borderRadius: '5px', border: '1px solid #FEE2E2', background: 'white', color: '#EF4444', fontSize: '11.5px', fontWeight: 500, cursor: 'pointer', flexShrink: 0 }}
             >
               <Trash2 size={11} /> 삭제
+            </button>
+          </div>
+        )}
+
+        {/* ── bulk AI 에러 메시지 ── */}
+        {bulkAiError && (
+          <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 20px', background: '#FEF2F2', borderBottom: '1px solid #FECACA' }}>
+            <span style={{ fontSize: '12px', color: '#DC2626' }}>{bulkAiError}</span>
+            <button onClick={() => setBulkAiError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', display: 'grid', placeItems: 'center', padding: 0 }}>
+              <X size={13} />
             </button>
           </div>
         )}
@@ -553,7 +580,10 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
     setDescGenerating(true);
     try {
       const res = await fetch(`/api/steps/${step.id}/generate-description`, { method: 'POST' });
-      if (!res.ok) return;
+      if (!res.ok) {
+        alert('설명 자동 생성에 실패했어요. 잠시 후 다시 시도해주세요.');
+        return;
+      }
       const { description } = await res.json();
       if (description) {
         const html = DOMPurify.sanitize(description.replace(/\n/g, '<br>'), { USE_PROFILES: { html: true } });
@@ -571,6 +601,16 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
   const showControls = hovering || isActive;
 
   const handleImageUpload = useCallback((file: File) => {
+    const ALLOWED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    const MAX_MB = 5;
+    if (!ALLOWED.includes(file.type)) {
+      alert('JPG, PNG, WEBP, GIF 형식만 지원합니다.');
+      return;
+    }
+    if (file.size > MAX_MB * 1024 * 1024) {
+      alert(`이미지 크기는 ${MAX_MB}MB 이하여야 합니다.`);
+      return;
+    }
     const reader = new FileReader();
     reader.onload = e => onUpdate({ screenshotUrl: e.target?.result as string });
     reader.readAsDataURL(file);

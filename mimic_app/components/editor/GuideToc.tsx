@@ -15,16 +15,24 @@ interface GuideTocProps {
   onInsertAfter?: (afterId: string) => void;
   onRenameDomain?: (hostname: string, newName: string) => void;
   onDeleteCategory?: (hostname: string | null) => void;
+  selectedIds?: Set<string>;
+  onSelectChange?: (ids: Set<string>) => void;
 }
 
-export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDelete, onRenameDomain, onDeleteCategory }: GuideTocProps) {
+export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDelete, onRenameDomain, onDeleteCategory, selectedIds: externalSelectedIds, onSelectChange }: GuideTocProps) {
   const [editingDomain, setEditingDomain] = useState<{ hostname: string; value: string } | null>(null);
   const domainInputRef = useRef<HTMLInputElement>(null);
   const [draggingIds, setDraggingIds] = useState<Set<string>>(new Set());
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [dragOverPos, setDragOverPos] = useState<'before' | 'after'>('after');
   const [hoverId, setHoverId] = useState<string | null>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [internalSelectedIds, setInternalSelectedIds] = useState<Set<string>>(new Set());
+  const selectedIds = externalSelectedIds ?? internalSelectedIds;
+  const setSelectedIds = (updater: Set<string> | ((prev: Set<string>) => Set<string>)) => {
+    const next = typeof updater === 'function' ? updater(selectedIds) : updater;
+    setInternalSelectedIds(next);
+    onSelectChange?.(next);
+  };
   const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const listRef = useRef<HTMLDivElement>(null);
 
