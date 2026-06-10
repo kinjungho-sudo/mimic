@@ -516,10 +516,11 @@ function FolderPanel({ folders, tutorials, activeFolder, isMyTab, onSelectFolder
 
   return (
     <div className="home-folder-panel" style={{
-      position: 'fixed', left: '220px', top: 0, bottom: 0, width: '264px', zIndex: 45,
+      // 그리드 컬럼으로 메인 콘텐츠를 밀어냄 (오버레이 시 카드가 가려져 DnD 불가)
+      position: 'sticky', top: 0, height: '100vh', width: '264px',
       background: 'white', borderRight: '1px solid #E5E7EB',
-      boxShadow: '16px 0 40px rgba(17,24,39,0.10)',
-      display: 'flex', flexDirection: 'column',
+      boxShadow: '12px 0 28px rgba(17,24,39,0.06)',
+      display: 'flex', flexDirection: 'column', overflow: 'hidden',
       animation: 'folderPanelIn 0.22s cubic-bezier(0.22,0.61,0.36,1)',
     }}>
       {/* 헤더 */}
@@ -907,7 +908,7 @@ export default function DashboardPage() {
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', fontFamily: "'Pretendard Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", fontSize: '13.5px', color: 'var(--mm-text-1)', background: 'var(--mm-bg-soft)' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', flex: 1, minHeight: 0 }} className="home-layout-grid">
+        <div style={{ display: 'grid', gridTemplateColumns: showFolderPanel ? '220px 264px 1fr' : '220px 1fr', flex: 1, minHeight: 0 }} className="home-layout-grid">
 
           {/* ── 사이드바 — 모바일에서 숨김 ── */}
           <aside className="home-sidebar" style={{ background: 'var(--mm-bg)', borderRight: '1px solid var(--mm-border-light)', padding: '16px 12px', display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto' }}>
