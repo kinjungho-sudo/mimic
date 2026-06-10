@@ -12,6 +12,7 @@ const CAPTURE_RAF_DELAY_MS    = 50;
 const UPLOAD_RETRY_DELAY_MS   = 1500;
 const SW_KEEPALIVE_MS         = 20000;
 const AUTONAV_COOLDOWN_MS     = 3000;
+const DEDUP_HASH_THRESHOLD    = 6;     // aHash(256bit) 해밍거리 ≤ 6 이면 동일 이미지로 간주
 
 // ── chrome.storage.local 프로미스 헬퍼 ──────────────────────────
 function storageGet(keys) {
@@ -87,11 +88,13 @@ chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => 
 let _cachedTargetTabId = null;  // storage remove 타이밍 경쟁 방지
 let _directStartTabId  = null;  // onChanged 중복 START_RECORDING 차단
 let _lastCaptureTime   = 0;     // autoNav 쿨다운 경쟁 방지
+let _lastSavedHash     = null;  // 직전 저장 이미지 aHash (중복 캡처 디덥용)
 
 // SW 시작 시 캐시 초기화
-storageGet(['targetTabId', 'lastCaptureTime']).then((r) => {
+storageGet(['targetTabId', 'lastCaptureTime', 'lastStepHash']).then((r) => {
   _cachedTargetTabId = r.targetTabId ?? null;
   _lastCaptureTime   = r.lastCaptureTime ?? 0;
+  _lastSavedHash     = r.lastStepHash ?? null;
 });
 
 // ── 유틸 ─────────────────────────────────────────────────────────
@@ -107,6 +110,69 @@ function captureTab(windowId) {
       resolve(chrome.runtime.lastError ? null : url);
     });
   });
+}
+
+// ── content.js 주입 보장 ─────────────────────────────────────────
+// 확장 설치/리로드 전에 열려 있던 탭에는 content_script가 없을 수 있다.
+// START_RECORDING/STOP/수동캡처 전에 호출해 메시지가 유실되지 않게 한다.
+// content.js 상단의 window.__mimicContentLoaded 가드가 중복 초기화를 막는다.
+function ensureContentScript(tabId) {
+  return new Promise((resolve) => {
+    chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] }, () => {
+      void chrome.runtime.lastError;  // chrome:// 등 주입 불가 페이지는 무시
+      resolve();
+    });
+  });
+}
+
+// ── 이미지 평균 해시(aHash) — 동일 이미지 중복 캡처 디덥 ─────────
+async function computeAHash(dataUrl) {
+  try {
+    const res  = await fetch(dataUrl);
+    const blob = await res.blob();
+    const bmp  = await createImageBitmap(blob);
+    const S = 16;
+    const canvas = new OffscreenCanvas(S, S);
+    const ctx    = canvas.getContext('2d');
+    ctx.drawImage(bmp, 0, 0, S, S);
+    const d = ctx.getImageData(0, 0, S, S).data;
+    const g = new Array(S * S);
+    let sum = 0;
+    for (let i = 0, p = 0; i < d.length; i += 4, p++) {
+      g[p] = d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114;
+      sum += g[p];
+    }
+    const avg = sum / g.length;
+    let bits = '';
+    for (let p = 0; p < g.length; p++) bits += g[p] >= avg ? '1' : '0';
+    return bits;
+  } catch {
+    return null;
+  }
+}
+
+function hammingDist(a, b) {
+  if (!a || !b || a.length !== b.length) return Infinity;
+  let d = 0;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) d++;
+  return d;
+}
+
+async function getLastSavedHash() {
+  if (_lastSavedHash !== null) return _lastSavedHash;
+  const { lastStepHash } = await storageGet('lastStepHash');
+  _lastSavedHash = lastStepHash ?? null;
+  return _lastSavedHash;
+}
+
+function setLastSavedHash(hash) {
+  _lastSavedHash = hash;
+  chrome.storage.local.set({ lastStepHash: hash });
+}
+
+function resetLastSavedHash() {
+  _lastSavedHash = null;
+  chrome.storage.local.remove('lastStepHash');
 }
 
 async function blobToDataUrl(blob) {
@@ -144,8 +210,13 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
     const tabId = message.tabId;
     if (!tabId) { sendResponse({ ok: true }); return false; }
 
+    // ★ 사이드패널은 user gesture가 살아있는 지금(=await 이전) 동기 호출해야 열린다.
+    //   웹앱이 클릭 핸들러에서 CONNECT 없이 바로 보낸 메시지라야 제스처가 유지됨.
+    try { chrome.sidePanel.open({ tabId }).catch(() => {}); } catch { /* no gesture */ }
+
     (async () => {
       const sessionId = crypto.randomUUID();
+      resetLastSavedHash();
 
       // 1) targetTabId 먼저 저장 → _cachedTargetTabId 캐시 갱신 보장
       await storageSet({ targetTabId: tabId, sessionId, stepNumber: 0, steps: [] });
@@ -155,7 +226,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
       }));
       if (!tab) { sendResponse({ ok: false }); return; }
 
-      // 2) user gesture context 안에서 사이드패널 열기
+      // 2) 보조 시도 (제스처 없으면 무시됨) — windowId 기준 한 번 더
       if (tab.windowId) chrome.sidePanel.open({ windowId: tab.windowId }).catch(() => {});
 
       // 3) 탭 활성화
@@ -181,7 +252,9 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         });
       }
 
-      // 5) START_RECORDING 전송 (1회 재시도)
+      // 5) content.js 주입 보장 후 START_RECORDING 전송 (1회 재시도)
+      //    주입이 없으면 카운트다운 메시지가 유실되어 녹화가 안 시작된다 (#1)
+      await ensureContentScript(tabId);
       const sent = await new Promise((res) => {
         const doSend = (retry) => {
           chrome.tabs.sendMessage(tabId, { type: 'START_RECORDING' }, () => {
@@ -369,11 +442,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === 'MANUAL_CAPTURE') {
+    // 수동 캡처는 content의 isRecording 상태에 의존하지 않고 background에서 직접 처리한다 (#6).
     const directTabId = sender.tab?.id;
     (async () => {
-      const { targetTabId, stepNumber } = await storageGet(['targetTabId', 'stepNumber']);
-      const tabId   = directTabId || _cachedTargetTabId || targetTabId;
-      const stepNum = (stepNumber || 0) + 1;
+      const { targetTabId } = await storageGet(['targetTabId']);
+      const tabId = directTabId || _cachedTargetTabId || targetTabId;
       if (!tabId) { sendResponse({ ok: false, error: 'no target tab' }); return; }
 
       const tab = await new Promise((res) => chrome.tabs.get(tabId, (t) => {
@@ -381,16 +454,40 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }));
       if (!tab) { sendResponse({ ok: false }); return; }
 
-      const dataUrl = await captureTab(tab.windowId);
-      if (!dataUrl) { sendResponse({ ok: false }); return; }
+      // 캡처 대상 탭을 활성화해야 captureVisibleTab이 올바른 화면을 잡는다
+      await new Promise((res) => chrome.tabs.update(tabId, { active: true }, () => { void chrome.runtime.lastError; res(); }));
+      if (tab.windowId) await new Promise((res) => chrome.windows.update(tab.windowId, { focused: true }, () => { void chrome.runtime.lastError; res(); }));
 
+      await ensureContentScript(tabId);
+
+      // 오버레이 숨김 + PII 영역 수집 (HIDE 핸들러는 녹화중이 아니어도 동작)
+      const response = await new Promise((res) => {
+        let done = false;
+        const to = setTimeout(() => { if (!done) res(null); }, CAPTURE_HIDE_TIMEOUT_MS);
+        chrome.tabs.sendMessage(tabId, { type: 'HIDE_OVERLAY_FOR_CAPTURE' }, (r) => {
+          done = true; clearTimeout(to);
+          res(chrome.runtime.lastError ? null : r);
+        });
+      });
+      await new Promise((r) => setTimeout(r, CAPTURE_RAF_DELAY_MS));
+
+      const rawDataUrl = await captureTab(tab.windowId);
+      sendTabMessage(tabId, { type: 'RESTORE_OVERLAY', flash: true });  // 캡처 플래시 피드백
+      if (!rawDataUrl) { sendResponse({ ok: false }); return; }
+
+      const piiRegions = response?.piiRegions ?? [];
+      const dataUrl = piiRegions.length > 0
+        ? await applyPixelBlur(rawDataUrl, piiRegions, tab.width || 1280, tab.height || 800).catch(() => rawDataUrl)
+        : rawDataUrl;
+
+      const { stepNumber } = await storageGet('stepNumber');
+      const stepNum = (stepNumber || 0) + 1;
       const stepData = {
         url: tab.url, timestamp: Date.now(),
         clickX: 0, clickY: 0,
         windowWidth: tab.width || 1280, windowHeight: tab.height || 800,
         stepNumber: stepNum, manual: true,
       };
-      await storageSet({ stepNumber: stepNum });
       await handleCapture(dataUrl, stepData, tab);
       updateBadge();
       sendResponse({ ok: true });
@@ -404,6 +501,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     });
     sendResponse({ ok: true });
     return false;
+  }
+
+  // 페이지 이동 후 content가 자기 탭의 녹화 상태를 복원할 때 사용 — 녹화 대상 탭에만 true 응답
+  if (message.type === 'GET_TAB_RECORDING_STATE') {
+    const tabId = sender.tab?.id;
+    (async () => {
+      const r = await storageGet(['isRecording', 'isPaused', 'stepNumber', 'targetTabId']);
+      const isTarget = !!r.isRecording && tabId != null && tabId === (r.targetTabId ?? _cachedTargetTabId);
+      sendResponse({ isRecording: isTarget, isPaused: !!r.isPaused, stepNumber: r.stepNumber || 0 });
+    })();
+    return true;
   }
 
   if (message.type === 'OPEN_TAB') {
@@ -436,6 +544,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.type === 'CLEAR_STEPS') {
     idbClear().catch(() => {});
+    resetLastSavedHash();
     storageSet({ steps: [], stepNumber: 0 }).then(() => { updateBadge(); sendResponse({ ok: true }); });
     return true;
   }
@@ -620,7 +729,9 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
       return;
     }
 
-    const pendingStepNum = (r.stepNumber || 0) + 1;
+    // 이동 전 source 캡처가 방금 stepNumber를 올렸을 수 있으므로 최신값 재조회 (collision 방지)
+    const { stepNumber: freshNum } = await storageGet('stepNumber');
+    const pendingStepNum = (freshNum || 0) + 1;
     _lastCaptureTime = Date.now();
     await storageSet({ stepNumber: pendingStepNum, lastCaptureTime: _lastCaptureTime });
     await storageRemove('pendingCapture');
@@ -640,7 +751,8 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   const lastCapture = Math.max(_lastCaptureTime, r.lastCaptureTime || 0);
   if (lastCapture && (Date.now() - lastCapture) < AUTONAV_COOLDOWN_MS) return;
 
-  const stepNum = (r.stepNumber || 0) + 1;
+  const { stepNumber: freshNum } = await storageGet('stepNumber');
+  const stepNum = (freshNum || 0) + 1;
   await storageSet({ stepNumber: stepNum });
 
   const dataUrl = await captureWithPII(tabId, tab);
@@ -820,7 +932,9 @@ chrome.storage.onChanged.addListener((changes, area) => {
     if (wasRecording === nowRecording) return;
     if (nowRecording && _directStartTabId) return;  // onMessageExternal이 직접 처리 중
 
-    if (!nowRecording) {
+    if (nowRecording) {
+      resetLastSavedHash();  // 새 녹화 → 디덥 기준 해시 초기화
+    } else {
       chrome.storage.local.remove(['pendingCapture', 'spaNavCapturing']);
     }
 
@@ -837,7 +951,8 @@ chrome.storage.onChanged.addListener((changes, area) => {
           });
         }
 
-        const doSend = () => sendTabMessage(tabId, { type: msgType });
+        // content.js 주입 보장 후 메시지 전송 (#1 카운트다운 유실 방지)
+        const doSend = () => ensureContentScript(tabId).then(() => sendTabMessage(tabId, { type: msgType }));
 
         if (nowRecording) {
           chrome.tabs.update(tabId, { active: true }, doSend);
@@ -905,6 +1020,20 @@ function extractDomainInfo(url, tab) {
 
 // ── 캡처 처리 ────────────────────────────────────────────────────
 async function handleCapture(pngDataUrl, stepData, tab) {
+  // ── 동일 이미지 중복 캡처 디덥 (#4) ───────────────────────────
+  //   '페이지 이동' 캡처에만 적용한다. (클릭/타이핑은 같은 화면에서 미세 변화만 있어도
+  //   서로 다른 스텝이므로 디덥하면 안 됨 — 사용자 요청은 "이동 시" 중복 제거였음.)
+  //   해시는 모든 저장 캡처에 대해 갱신해 다음 이동 캡처가 직전 화면과 비교되게 한다.
+  const isNavCapture = stepData.actionInfo?.type === 'navigate';
+  const candHash     = await computeAHash(pngDataUrl);
+  if (candHash && isNavCapture && !stepData.manual && !stepData.overwrite) {
+    const prev = await getLastSavedHash();
+    if (prev && hammingDist(candHash, prev) <= DEDUP_HASH_THRESHOLD) {
+      console.log('[MIMIC] 동일 이미지 중복 이동 캡처 스킵 (step', stepData.stepNumber, ')');
+      return;
+    }
+  }
+
   _lastCaptureTime = Date.now();
   chrome.storage.local.set({ lastCaptureTime: _lastCaptureTime });
 
@@ -928,6 +1057,7 @@ async function handleCapture(pngDataUrl, stepData, tab) {
 
   await idbPut(stepNum, jpegBlob);
   if (!stepData.overwrite) await storageSet({ stepNumber: stepNum });
+  if (candHash) setLastSavedHash(candHash);  // 다음 캡처 디덥 기준 갱신
 
   await processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base64Image, stepData, clickX, clickY, domainInfo, actionLabel });
 }

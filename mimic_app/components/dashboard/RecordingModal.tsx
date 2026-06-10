@@ -78,8 +78,14 @@ async function fetchOpenTabs(): Promise<ChromeTab[] | null> {
 
 async function sendStartRecording(tabId: number, url: string): Promise<boolean> {
   if (!isExtensionInstalled()) return true; // 바이패스
-  const resp = await wakeAndSend('START_RECORDING', { tabId, url }) as { ok?: boolean } | null;
-  return !!(resp && (resp as { ok?: boolean }).ok);
+  // 1차: user gesture를 유지한 채 CONNECT 없이 즉시 전송한다.
+  //      이래야 확장이 chrome.sidePanel.open()을 제스처 컨텍스트에서 호출해
+  //      사이드 패널을 자동으로 열 수 있다 (#2). 탭 선택 직전 GET_TABS로 SW는 이미 깨어있음.
+  let resp = await sendMessage('START_RECORDING', { tabId, url }) as { ok?: boolean } | null;
+  if (resp && resp.ok) return true;
+  // 2차: SW가 잠들어 1차가 실패하면 wake 후 재시도 (제스처 소실 → 패널은 수동 클릭 필요할 수 있음)
+  resp = await wakeAndSend('START_RECORDING', { tabId, url }) as { ok?: boolean } | null;
+  return !!(resp && resp.ok);
 }
 
 // ── 안내 단계 데이터 ──────────────────────────────────────
