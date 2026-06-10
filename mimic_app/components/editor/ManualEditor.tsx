@@ -415,30 +415,35 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
   );
 }
 
-// ── 입력 필드 annotation 자동 생성 ────────────────────────
-// element_rect(0-1)가 있을 때 화살표 + "내용 입력" 텍스트를 자동으로 배치
+// ── 클릭 지점 기반 annotation 자동 생성 ───────────────────
+// click_x/y(0-100) 또는 element_rect(0-1) 기반으로 화살표 + 텍스트 배치
 function buildInputAnnotation(step: ManualStep): Annotation[] {
-  const r = step.element_rect;
-  if (!r || r.width === 0 || r.height === 0) return [];
-
-  // 0-1 → 0-100 변환
-  const left   = r.x      * 100;
-  void (r.y * 100); // top — 현재 미사용
-  const right  = (r.x + r.width)  * 100;
-  const bottom = (r.y + r.height) * 100;
-  const centerX = (left + right) / 2;
-
-  // 라벨 텍스트: actionTitle이 있으면 사용, 없으면 기본값
   const labelText = step.actionTitle
-    ? step.actionTitle.replace(/^입력,?\s*/i, '').trim() || '내용 입력'
-    : '내용 입력';
-
-  // 화살표: 필드 중앙 아래 20% 지점에서 필드 하단 중앙으로
-  const arrowStartY = Math.min(bottom + 18, 95);
-  const arrowEndY   = bottom + 2;
+    ? step.actionTitle.replace(/^입력,?\s*/i, '').trim() || '클릭'
+    : '클릭';
 
   const arrowId = Math.random().toString(36).slice(2, 9);
   const textId  = Math.random().toString(36).slice(2, 9);
+
+  let centerX: number;
+  let centerY: number;
+
+  const r = step.element_rect;
+  if (r && r.width > 0 && r.height > 0) {
+    // element_rect: 0-1 → 0-100
+    centerX = (r.x + r.width  / 2) * 100;
+    centerY = (r.y + r.height / 2) * 100;
+  } else if (step.click_x != null && step.click_y != null) {
+    // click_x/y: 이미 0-100 pct
+    centerX = step.click_x;
+    centerY = step.click_y;
+  } else {
+    return [];
+  }
+
+  // 화살표: 클릭 지점에서 20px 위 → 클릭 지점
+  const arrowStartY = Math.max(centerY - 14, 2);
+  const arrowEndY   = Math.max(centerY - 2,  1);
 
   const arrow: Annotation = {
     id: arrowId,
@@ -449,10 +454,10 @@ function buildInputAnnotation(step: ManualStep): Annotation[] {
     strokeWidth: 0.5,
   };
 
-  // 텍스트 박스: 화살표 시작점 바로 아래
-  const textTop  = arrowStartY + 1;
-  const textLeft = Math.max(2, centerX - 12);
-  const textRight = Math.min(98, centerX + 12);
+  // 텍스트 박스: 화살표 위
+  const textTop   = Math.max(arrowStartY - 9, 1);
+  const textLeft  = Math.max(2,  centerX - 14);
+  const textRight = Math.min(98, centerX + 14);
 
   const text: Annotation = {
     id: textId,
