@@ -238,9 +238,20 @@ export function ImageAnnotationEditor({
   useEffect(() => {
     const img = imgRef.current;
     if (!img) return;
-    const update = () => { const r = img.getBoundingClientRect(); if (r.width > 0) setImgSize({ w: r.width, h: r.height }); };
+    const update = () => {
+      const r = img.getBoundingClientRect();
+      if (r.width > 0) {
+        setImgSize({ w: r.width, h: r.height });
+      } else if (img.naturalWidth > 0) {
+        // getBoundingClientRect가 아직 0이면 natural 크기로 fallback
+        setImgSize({ w: img.naturalWidth, h: img.naturalHeight });
+      }
+    };
+    // 이미 로드된 경우
+    if (img.complete && img.naturalWidth > 0) {
+      update();
+    }
     img.addEventListener('load', update);
-    update();
     const ro = new ResizeObserver(update);
     ro.observe(img);
     return () => { img.removeEventListener('load', update); ro.disconnect(); };
@@ -834,14 +845,8 @@ export function ImageAnnotationEditor({
             style={{ display: 'block', maxWidth: 'min(1100px, calc(100vw - 48px))', maxHeight: 'calc(100vh - 200px)', objectFit: 'contain' }}
           />
 
-          {!imgSize && (
-            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.4)', borderRadius: '4px' }}>
-              <div style={{ width: '32px', height: '32px', borderRadius: '50%', border: '3px solid rgba(255,255,255,0.2)', borderTopColor: 'white', animation: 'spin 0.8s linear infinite' }} />
-            </div>
-          )}
-
-          {imgSize && <svg
-            viewBox={`0 0 ${imgSize.w} ${imgSize.h}`}
+          <svg
+            viewBox={imgSize ? `0 0 ${imgSize.w} ${imgSize.h}` : '0 0 1600 900'}
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', cursor: activeCursor, overflow: 'visible' }}
           >
             <defs>
@@ -852,6 +857,7 @@ export function ImageAnnotationEditor({
               </filter>
             </defs>
 
+            {imgSize && <>
             {/* 스포트라이트 레이어 — 선택 가능한 spotlight 포함 */}
             <SpotlightLayer
               items={items}
@@ -905,7 +911,8 @@ export function ImageAnnotationEditor({
                 />
               );
             })()}
-          </svg>}
+            </>}
+          </svg>
 
           {/* 텍스트 편집 오버레이 */}
           {editingText && editingItem && (() => {
