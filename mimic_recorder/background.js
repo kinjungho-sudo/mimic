@@ -271,11 +271,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             dataUrl = await applyPixelBlur(rawDataUrl, piiRegions, stepData.windowWidth || 1280, stepData.windowHeight || 800).catch(() => rawDataUrl);
           }
 
-          // 5) 오버레이 복원 후 저장
+          // 5) 오버레이 복원 — content.js isCapturing 즉시 해제 (업로드 완료 전에)
           restore();
+          // 로컬 저장 + 업로드를 백그라운드에서 처리. content.js는 restore()로 이미 해제됨.
+          sendResponse({ ok: true });
           handleCapture(dataUrl, stepData, tab)
-            .then(() => { updateBadge(); sendResponse({ ok: true }); })
-            .catch((err) => { console.error('[MIMIC] handleCapture error:', err); sendResponse({ ok: false }); });
+            .then(() => { updateBadge(); })
+            .catch((err) => { console.error('[MIMIC] handleCapture error:', err); });
         });
       });
     });
@@ -394,8 +396,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     (async () => {
       try {
-        const blob = await idbGet(stepNumber);
-        if (!blob) { sendResponse({ ok: false, error: 'blob not found' }); return; }
+        let blob = await idbGet(stepNumber);
+        if (!blob) {
+          // IndexedDB에 없으면 steps 메타의 imageUrl에서 fetch
+          const { steps } = await chrome.storage.local.get('steps');
+          const meta = (steps || []).find(s => s.stepNumber === stepNumber);
+          if (!meta?.imageUrl) { sendResponse({ ok: false, error: 'blob not found' }); return; }
+          const fetchRes = await fetch(meta.imageUrl);
+          if (!fetchRes.ok) { sendResponse({ ok: false, error: 'fetch failed' }); return; }
+          blob = await fetchRes.blob();
+          await idbPut(stepNumber, blob); // 이후 재블러 시 재사용
+        }
 
         const bmp = await createImageBitmap(blob);
         const iw = bmp.width, ih = bmp.height;
@@ -852,34 +863,52 @@ chrome.storage.onChanged.addListener((changes, area) => {
       chrome.storage.local.remove(['pendingCapture', 'spaNavCapturing']);
     }
 
+    const sendMsgToTab = (tabId) => {
+      if (!tabId) return;
+      chrome.tabs.get(tabId, (tab) => {
+        if (chrome.runtime.lastError || !tab) return;
+
+        // 녹화 시작: 사이드패널 열기
+        if (nowRecording) {
+          chrome.sidePanel.open({ tabId }).catch(() => {
+            if (tab.windowId) chrome.sidePanel.open({ windowId: tab.windowId }).catch(() => {});
+          });
+        }
+
+        const doSend = () => {
+          chrome.tabs.sendMessage(tabId, { type: msgType }, (resp) => {
+            if (chrome.runtime.lastError) {
+              // content.js 미주입 상태 — inject 후 재시도
+              chrome.scripting.executeScript(
+                { target: { tabId, allFrames: false }, files: ['content.js'] },
+                () => {
+                  void chrome.runtime.lastError;
+                  setTimeout(() => {
+                    chrome.tabs.sendMessage(tabId, { type: msgType }, () => { void chrome.runtime.lastError; });
+                  }, 200);
+                }
+              );
+            }
+          });
+        };
+
+        if (nowRecording) {
+          // 탭을 앞으로 가져온 뒤 sendMessage — captureVisibleTab이 활성 탭 기준
+          chrome.tabs.update(tabId, { active: true }, doSend);
+        } else {
+          doSend();
+        }
+      });
+    };
+
     // 메모리 캐시 우선 사용 → storage.get보다 빠르고 remove 타이밍 경쟁 없음
     const tabId = _cachedTargetTabId;
     if (tabId) {
-      // 녹화 시작 시 사이드패널 자동 열기
-      // onChanged는 user gesture context 밖이므로 tabId 기반으로 열기 (Chrome 116+)
-      if (nowRecording) {
-        chrome.tabs.get(tabId, (tab) => {
-          if (chrome.runtime.lastError || !tab) return;
-          chrome.sidePanel.open({ tabId }).catch(() => {
-            // tabId 방식 실패 시 windowId fallback
-            if (tab.windowId) chrome.sidePanel.open({ windowId: tab.windowId }).catch(() => {});
-          });
-        });
-      }
-      chrome.tabs.sendMessage(tabId, { type: msgType }, () => { void chrome.runtime.lastError; });
+      sendMsgToTab(tabId);
     } else {
       // SW 재시작 후 캐시가 비어있을 경우 fallback
       chrome.storage.local.get('targetTabId', ({ targetTabId }) => {
-        if (!targetTabId) return;
-        if (nowRecording) {
-          chrome.tabs.get(targetTabId, (tab) => {
-            if (chrome.runtime.lastError || !tab) return;
-            chrome.sidePanel.open({ tabId: targetTabId }).catch(() => {
-              if (tab.windowId) chrome.sidePanel.open({ windowId: tab.windowId }).catch(() => {});
-            });
-          });
-        }
-        chrome.tabs.sendMessage(targetTabId, { type: msgType }, () => { void chrome.runtime.lastError; });
+        sendMsgToTab(targetTabId);
       });
     }
   }
