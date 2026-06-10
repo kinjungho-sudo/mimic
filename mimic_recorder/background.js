@@ -971,8 +971,20 @@ async function handleCapture(pngDataUrl, stepData, tab) {
   if (!stepData.overwrite) chrome.storage.local.set({ stepNumber: stepNum });
   updateBadge();
 
-  // 2단계: 업로드 + AI 분석은 백그라운드에서 비동기 처리 (캡처 응답 블로킹 없음)
-  (async () => {
+  // 2단계: 업로드 + AI 분석 — SW keepalive를 유지하며 처리
+  // MV3 Service Worker는 idle 30초 후 종료됨 → chrome.storage 접근으로 생명주기 연장
+  await processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base64Image, stepData, clickX, clickY, domainInfo });
+}
+
+// ── 스텝 업로드 처리 (SW keepalive 포함) ─────────────────────────
+// chrome.storage.local.set으로 주기적 keepalive 신호를 보내 SW 종료를 방지한다.
+async function processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base64Image, stepData, clickX, clickY, domainInfo }) {
+  // keepalive: storage 쓰기로 SW 활성 상태 유지 (30초 idle 타임아웃 리셋)
+  const keepaliveInterval = setInterval(() => {
+    chrome.storage.local.set({ _swKeepalive: Date.now() });
+  }, 20000);
+
+  try {
     const [imageResult, analysisResult] = await Promise.allSettled([
       uploadImage(imagePath, jpegBlob),
       analyzeWithClaude(base64Image, stepData.url, stepData.actionInfo, {
@@ -1015,7 +1027,9 @@ async function handleCapture(pngDataUrl, stepData, tab) {
         console.warn('[MIMIC] save-step failed:', err.message);
       }
     }
-  })();
+  } finally {
+    clearInterval(keepaliveInterval);
+  }
 }
 
 // ── 토큰 만료 처리 ───────────────────────────────────────────────
