@@ -4,7 +4,7 @@ import { createServiceRoleClient } from '@/lib/supabase/server';
 import { captureFinalizeSchema } from '@/lib/validators';
 import { generateDraft, extractCoverColors } from '@/lib/claude';
 import { resolveFavicon } from '@/lib/favicon';
-import { buildClickHighlight, buildClickPoint } from '@/lib/annotations';
+import { buildClickHighlight } from '@/lib/annotations';
 
 export async function POST(request: NextRequest) {
   const auth = await requireExtensionToken(request);
@@ -55,6 +55,29 @@ export async function POST(request: NextRequest) {
 
   // TODO: 정식 서비스 전 플랜별 한도 복구 (daily_limit 체크 비활성화 중)
 
+  // 중복 이벤트 제거:
+  //   1) 동일 screenshot_url 연속 → 첫 번째만 유지
+  //   2) 동일 page_url + created_at 차이 500ms 미만 연속 → 마지막만 유지 (타이핑 덮어쓰기)
+  //   3) screenshot_url 없는 이벤트 제거
+  const deduped = events.filter((ev, i, arr) => {
+    if (!ev.screenshot_url) return false;
+    const prev = arr[i - 1];
+    if (!prev) return true;
+    // 동일 screenshot_url 연속 제거 (첫 번째 유지)
+    if (ev.screenshot_url === prev.screenshot_url) return false;
+    // 동일 page_url이고 500ms 이내 연속 — 마지막만 유지 (i+1이 같은 조건이면 현재는 제거)
+    const next = arr[i + 1];
+    const tCur  = new Date(ev.created_at).getTime();
+    const tPrev = new Date(prev.created_at).getTime();
+    if (
+      ev.url === prev.url &&
+      tCur - tPrev < 500 &&
+      next && next.url === ev.url &&
+      new Date(next.created_at).getTime() - tCur < 500
+    ) return false;
+    return true;
+  });
+
   // 튜토리얼 생성
   const tutorialTitle = title ?? `매뉴얼 ${new Date().toLocaleDateString('ko-KR')}`;
   const { data: tutorial, error: tutError } = await supabase
@@ -74,28 +97,46 @@ export async function POST(request: NextRequest) {
   // favicon 보완: 호스트명별로 한 번만 resolveFavicon 호출 (중복 요청 방지)
   const faviconCache = new Map<string, string | null>();
   await Promise.all(
-    Array.from(new Set(events.map(ev => ev.domain_hostname).filter(Boolean))).map(async hostname => {
+    Array.from(new Set(deduped.map(ev => ev.domain_hostname).filter(Boolean))).map(async hostname => {
       if (!hostname) return;
-      const sample = events.find(ev => ev.domain_hostname === hostname);
+      const sample = deduped.find(ev => ev.domain_hostname === hostname);
       const resolved = await resolveFavicon(sample?.domain_favicon, hostname, sample?.url).catch(() => null);
       faviconCache.set(hostname, resolved);
     })
   );
 
-  // element_rect(0~1 정규화)로 crop_rect 계산 — Extension 재배포 없이 서버에서 처리
-  function calcCropRect(rect: { x: number; y: number; width: number; height: number } | null) {
+  // element_rect(0~1 정규화)로 crop_rect 계산 — 요소 크기에 따라 동적 패딩, 최소 크기 보장
+  function calcCropRect(
+    rect: { x: number; y: number; width: number; height: number } | null,
+    clickX?: number | null,
+    clickY?: number | null,
+  ) {
     if (!rect) return null;
-    const PAD = 0.05;
-    return {
-      x:      Math.max(0, rect.x - PAD),
-      y:      Math.max(0, rect.y - PAD),
-      width:  Math.min(1, rect.width  + PAD * 2),
-      height: Math.min(1, rect.height + PAD * 2),
-    };
+
+    // 요소가 작을수록 더 넓은 패딩 (컨텍스트 확보)
+    const size = Math.max(rect.width, rect.height);
+    const PAD = size < 0.05 ? 0.15 : size > 0.3 ? 0.05 : 0.10;
+
+    const MIN_W = 0.35;
+    const MIN_H = 0.25;
+
+    let cx = rect.x + rect.width / 2;
+    let cy = rect.y + rect.height / 2;
+    // click_x/y가 유효하면 crop 중심을 클릭 지점으로
+    if (clickX != null && clickX > 0 && clickY != null && clickY > 0) {
+      cx = clickX;
+      cy = clickY;
+    }
+
+    const w = Math.max(rect.width + PAD * 2, MIN_W);
+    const h = Math.max(rect.height + PAD * 2, MIN_H);
+    const x = Math.max(0, Math.min(1 - w, cx - w / 2));
+    const y = Math.max(0, Math.min(1 - h, cy - h / 2));
+    return { x, y, width: Math.min(1 - x, w), height: Math.min(1 - y, h) };
   }
 
   // 캡처 이벤트 → mm_steps 변환
-  const steps = events.map((ev, idx) => {
+  const steps = deduped.map((ev, idx) => {
     const elementRect = (ev.element_rect as { x: number; y: number; width: number; height: number } | null) ?? null;
     return {
       tutorial_id: tutorial.id,
@@ -115,7 +156,11 @@ export async function POST(request: NextRequest) {
       element_rect:      elementRect,
       element_selector:  ev.element_selector  ?? null,
       element_xpath:     ev.element_xpath     ?? null,
-      crop_rect:         calcCropRect(elementRect),
+      crop_rect:         calcCropRect(
+        elementRect,
+        ev.click_x != null ? ev.click_x / 10000 : null,
+        ev.click_y != null ? ev.click_y / 10000 : null,
+      ),
     };
   });
 
@@ -210,16 +255,21 @@ export async function POST(request: NextRequest) {
 
             if (rect) {
               annotations = buildClickHighlight({ elementRect: rect, stepNumber: num, label });
-            } else if (step.click_x != null && step.click_y != null) {
-              // DB click_x/y: 0~1 정규화값 (Extension이 / viewportWidth로 저장)
-              annotations = buildClickPoint({
-                clickX: step.click_x,
-                clickY: step.click_y,
-                stepNumber: num,
-                label,
-              });
+            } else if (step.click_x != null && step.click_y != null && (step.click_x > 0 || step.click_y > 0)) {
+              // DB click_x/y: 0~10000 정수 → ÷10000 → 0~1 정규화
+              const cx = step.click_x / 10000;
+              const cy = step.click_y / 10000;
+              // 클릭 좌표 중심으로 버튼 크기를 추정한 rect로 하이라이트 생성
+              // 실제 저장하지 않고 어노테이션 계산에만 사용
+              const estimatedRect = {
+                x: Math.max(0, cx - 0.05),
+                y: Math.max(0, cy - 0.02),
+                width: 0.10,
+                height: 0.04,
+              };
+              annotations = buildClickHighlight({ elementRect: estimatedRect, stepNumber: num, label });
             } else {
-              return; // 좌표 정보 없음
+              return; // 좌표 정보 없음 (navigate/autoNav 포함)
             }
 
             await supabase

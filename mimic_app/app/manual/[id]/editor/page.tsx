@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Check, Undo2, Redo2, Volume2, VolumeX, Loader2, RefreshCw, MonitorPlay, Wand2 } from 'lucide-react';
+import { Check, Undo2, Redo2, Volume2, VolumeX, Loader2, RefreshCw, MonitorPlay, Wand2, Zap } from 'lucide-react';
 import { GuideToc } from '@/components/editor/GuideToc';
 import { ManualEditor, ManualStep } from '@/components/editor/ManualEditor';
 import { SdkPreviewPanel } from '@/components/editor/SdkPreviewPanel';
@@ -12,6 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCollaboration } from '@/hooks/useCollaboration';
 import type { Collaborator } from '@/hooks/useCollaboration';
 import { updateStep, createStep, deleteStep, reorderSteps } from '@/lib/api/steps';
+import { getTutorial } from '@/lib/api/tutorials';
 import type { Step, Tutorial } from '@/types';
 
 // ── Adapters ──────────────────────────────────────────────
@@ -56,6 +57,8 @@ export default function EditorPage() {
   const [manualSteps, setManualSteps] = useState<ManualStep[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [titleDirty, setTitleDirty] = useState(false);
+  // 녹화 직후 진입 — 스텝 생성 대기 폴링
+  const [pollingState, setPollingState] = useState<'idle' | 'polling' | 'timeout'>('idle');
   const [saving, setSaving] = useState(false);
   const [freshnessChecking, setFreshnessChecking] = useState(false);
   const [freshnessResult, setFreshnessResult] = useState<{ checked: number; stale: number } | null>(null);
@@ -134,6 +137,33 @@ export default function EditorPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [manualSteps]);
 
+  const handleGuideMe = useCallback(() => {
+    const extensionId = process.env.NEXT_PUBLIC_EXTENSION_ID?.replace(/^﻿/, '').trim();
+    if (!extensionId) {
+      alert('Guide Me를 사용하려면 MIMIC 확장프로그램을 설치해주세요.');
+      return;
+    }
+    const shareToken = (tutorial as Tutorial & { share_token?: string | null })?.share_token;
+    if (!shareToken) {
+      alert('먼저 게시(Publish) 후 Guide Me를 사용할 수 있습니다.');
+      return;
+    }
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (window as any).chrome?.runtime?.sendMessage(
+        extensionId,
+        { action: 'START_GUIDE', share_token: shareToken },
+        (response: { ok?: boolean } | undefined) => {
+          if (!response?.ok) {
+            alert('확장프로그램이 응답하지 않습니다. 설치 여부를 확인해주세요.');
+          }
+        }
+      );
+    } catch {
+      alert('Guide Me를 시작할 수 없습니다. 확장프로그램을 설치해주세요.');
+    }
+  }, [tutorial]);
+
   // Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -170,6 +200,41 @@ export default function EditorPage() {
     setTtsVoice((t.tts_voice as 'nova' | 'alloy') ?? 'nova');
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tutorial?.id]);
+
+  // 녹화 직후 진입: 스텝이 없으면 2초마다 폴링 (최대 30초)
+  useEffect(() => {
+    if (loading) return;
+    if (!tutorial) return;
+    if (tutorial.steps.length > 0) return; // 이미 스텝 있으면 불필요
+
+    setPollingState('polling');
+    const INTERVAL = 2000;
+    const MAX_ATTEMPTS = 15; // 2s × 15 = 30s
+    let attempts = 0;
+
+    const timer = setInterval(async () => {
+      attempts += 1;
+      try {
+        const fresh = await getTutorial(id);
+        if (fresh.steps.length > 0) {
+          clearInterval(timer);
+          setPollingState('idle');
+          const steps = stepsToManualSteps(fresh.steps);
+          setManualSteps(steps);
+          setTitle(fresh.title);
+          if (!activeId) setActiveId(fresh.steps[0].id);
+        }
+      } catch { /* 네트워크 오류는 무시하고 계속 */ }
+
+      if (attempts >= MAX_ATTEMPTS) {
+        clearInterval(timer);
+        setPollingState('timeout');
+      }
+    }, INTERVAL);
+
+    return () => clearInterval(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tutorial?.id, loading]);
 
   // 에디터 최초 로드 시 description 없는 스텝 자동 AI 생성
   useEffect(() => {
@@ -399,6 +464,33 @@ export default function EditorPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+
+      {/* ── 매뉴얼 생성 대기 오버레이 (녹화 직후 진입 시) ── */}
+      {pollingState !== 'idle' && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(255,255,255,0.96)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px' }}>
+          {pollingState === 'polling' ? (
+            <>
+              <div style={{ width: '44px', height: '44px', borderRadius: '50%', border: '3px solid rgba(55,48,163,0.18)', borderTopColor: '#3730a3', animation: 'spin 0.9s linear infinite' }} />
+              <p style={{ fontSize: '16px', fontWeight: 600, color: '#111827', margin: 0 }}>매뉴얼을 자동으로 제작하고 있습니다</p>
+              <p style={{ fontSize: '13px', color: '#6B7280', margin: 0 }}>AI가 각 단계를 분석 중입니다 — 잠시만 기다려 주세요</p>
+            </>
+          ) : (
+            <>
+              <p style={{ fontSize: '16px', fontWeight: 600, color: '#111827', margin: 0 }}>제작 중 오류가 발생했습니다</p>
+              <p style={{ fontSize: '13px', color: '#6B7280', margin: 0 }}>스텝이 생성되지 않았습니다. 페이지를 새로고침하거나 다시 녹화해 주세요.</p>
+              <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                <button onClick={() => window.location.reload()} style={{ padding: '9px 18px', borderRadius: '8px', background: '#3730a3', color: 'white', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }}>
+                  새로고침
+                </button>
+                <button onClick={() => router.push('/home')} style={{ padding: '9px 18px', borderRadius: '8px', background: 'white', color: '#374151', border: '1px solid #D1D5DB', cursor: 'pointer', fontSize: '13px' }}>
+                  대시보드로
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       {/* ── Top header ── */}
       <header className="editor-header-padding" style={{
         height: '52px', flexShrink: 0,
@@ -514,6 +606,23 @@ export default function EditorPage() {
               <MonitorPlay size={13} />
               미리보기
             </button>
+
+            {/* Guide Me — 확장프로그램으로 실제 화면 오버레이 가이드 시작 */}
+            {(() => {
+              const shareToken = (tutorial as Tutorial & { share_token?: string | null })?.share_token;
+              return (
+                <button
+                  onClick={handleGuideMe}
+                  title={shareToken ? 'Guide Me 시작 — 실제 화면에서 오버레이 가이드' : '게시 후 사용 가능'}
+                  style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: shareToken ? '#374151' : '#D1D5DB', background: 'white', border: '1px solid #E5E7EB', cursor: shareToken ? 'pointer' : 'not-allowed', transition: 'all 0.15s' }}
+                  onMouseEnter={e => { if (shareToken) e.currentTarget.style.background = '#F9FAFB'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
+                >
+                  <Zap size={13} />
+                  Guide Me
+                </button>
+              );
+            })()}
 
             {/* 최신성 확인 버튼 */}
             <div style={{ position: 'relative' }}>

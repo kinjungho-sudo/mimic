@@ -1010,7 +1010,6 @@ btnFinish.addEventListener('click', async () => {
   isPaused    = false;
   hideCaptureBlockedToast();
   updateView();
-  showUploadOverlay();
   showRestoreToast();
 
   // isRecording: false 먼저 세팅 → background가 targetTabId로 STOP_RECORDING 전송
@@ -1019,14 +1018,98 @@ btnFinish.addEventListener('click', async () => {
     chrome.storage.local.set({ sessionId: null });
   });
 
+  // 로딩 UI로 전환
+  showFinalizingOverlay();
+
   chrome.runtime.sendMessage({ type: 'FINALIZE_SESSION', sessionId }, (res) => {
     void chrome.runtime.lastError;
+    hideFinalizingOverlay();
     if (res?.ok && res?.tutorial_id) {
       chrome.tabs.create({ url: `https://mimic-nine-ashen.vercel.app/manual/${res.tutorial_id}/editor` });
+    } else {
+      // 실패 시 에러 안내
+      showFinalizingError();
+      btnFinish.disabled = false;
     }
-    btnFinish.disabled = false;
   });
 });
+
+// ── 매뉴얼 생성 중 오버레이 ──────────────────────────────────────
+function showFinalizingOverlay() {
+  let ov = document.getElementById('finalizingOverlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'finalizingOverlay';
+    ov.style.cssText = [
+      'position:fixed', 'inset:0', 'z-index:9000',
+      'background:rgba(255,255,255,0.97)',
+      'display:flex', 'flex-direction:column',
+      'align-items:center', 'justify-content:center', 'gap:16px',
+    ].join(';');
+
+    const spinner = document.createElement('div');
+    spinner.style.cssText = [
+      'width:40px', 'height:40px', 'border-radius:50%',
+      'border:3px solid rgba(79,70,229,0.18)',
+      'border-top-color:#4F46E5',
+      'animation:popupSpin 0.9s linear infinite',
+    ].join(';');
+
+    const msg = document.createElement('p');
+    msg.id = 'finalizingMsg';
+    msg.style.cssText = 'font-size:14px;font-weight:600;color:#1F2937;margin:0;';
+    msg.textContent = '매뉴얼을 생성하고 있습니다...';
+
+    const sub = document.createElement('p');
+    sub.style.cssText = 'font-size:12px;color:#6B7280;margin:0;';
+    sub.textContent = 'AI 분석 중 — 잠시만 기다려 주세요';
+
+    const style = document.createElement('style');
+    style.textContent = '@keyframes popupSpin { to { transform: rotate(360deg); } }';
+
+    ov.append(style, spinner, msg, sub);
+    document.body.appendChild(ov);
+  }
+  // 에러 상태 초기화
+  const msgEl = document.getElementById('finalizingMsg');
+  if (msgEl) msgEl.textContent = '매뉴얼을 생성하고 있습니다...';
+  ov.style.display = 'flex';
+}
+
+function hideFinalizingOverlay() {
+  const ov = document.getElementById('finalizingOverlay');
+  if (ov) ov.style.display = 'none';
+}
+
+function showFinalizingError() {
+  const ov = document.getElementById('finalizingOverlay');
+  if (!ov) return;
+
+  ov.replaceChildren();
+  const icon = document.createElement('div');
+  icon.style.cssText = 'font-size:32px;';
+  icon.textContent = '⚠️';
+
+  const msg = document.createElement('p');
+  msg.style.cssText = 'font-size:14px;font-weight:600;color:#1F2937;margin:0;text-align:center;';
+  msg.textContent = '생성 실패 — 다시 시도해주세요';
+
+  const sub = document.createElement('p');
+  sub.style.cssText = 'font-size:12px;color:#6B7280;margin:0;';
+  sub.textContent = '네트워크 연결을 확인하고 다시 시도해 주세요';
+
+  const btn = document.createElement('button');
+  btn.style.cssText = [
+    'margin-top:4px', 'padding:8px 20px',
+    'background:#4F46E5', 'color:#fff',
+    'border:none', 'border-radius:8px',
+    'font-size:13px', 'font-weight:600', 'cursor:pointer',
+  ].join(';');
+  btn.textContent = '닫기';
+  btn.addEventListener('click', hideFinalizingOverlay);
+
+  ov.append(icon, msg, sub, btn);
+}
 
 // ── 업로드 오버레이 ───────────────────────────────────────────────
 function showUploadOverlay() {
