@@ -41,7 +41,12 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
     domain_favicon: s.domain_favicon  ?? null,
     is_stale: (s as Step & { is_stale?: boolean }).is_stale ?? false,
     pii_detected: (s as Step & { pii_detected?: boolean }).pii_detected ?? false,
-    crop_rect: (s as Step & { crop_rect?: { x: number; y: number; w: number; h: number } | null }).crop_rect ?? null,
+    crop_rect: (() => {
+      type CR = { x: number; y: number; width?: number; height?: number; w?: number; h?: number };
+      const cr = (s as Step & { crop_rect?: CR | null }).crop_rect;
+      if (!cr) return null;
+      return { x: cr.x, y: cr.y, w: cr.w ?? cr.width ?? 0, h: cr.h ?? cr.height ?? 0 };
+    })(),
     element_rect: (s as Step & { element_rect?: { x: number; y: number; width: number; height: number } | null }).element_rect ?? null,
     imageZoom: (s as Step & { image_zoom?: number | null }).image_zoom ?? 1,
     // click_x/y: DB 0~1 실수 → ×100 → 0~100 pct (ManualEditor CSS % 계약)

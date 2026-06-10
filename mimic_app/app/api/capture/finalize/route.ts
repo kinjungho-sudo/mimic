@@ -237,6 +237,14 @@ export async function POST(request: NextRequest) {
 
       // 자동 어노테이션 생성 — element_rect 있으면 하이라이트, click_x/y만 있으면 원형 마커
       // user_annotations가 이미 있는 스텝은 건너뜀 (유저 수정 덮어쓰기 방지)
+
+      // deduped 순서 = step_number - 1, action_info.type으로 라벨 분기
+      const actionTypeByStepNum = new Map<number, string>();
+      deduped.forEach((ev, idx) => {
+        const t = (ev.action_info as { type?: string } | null)?.type ?? 'click';
+        actionTypeByStepNum.set(idx + 1, t);
+      });
+
       const { data: stepsForAnnotation } = await supabase
         .from('mm_steps')
         .select('id, step_number, ai_title, element_rect, click_x, click_y, user_annotations')
@@ -249,7 +257,8 @@ export async function POST(request: NextRequest) {
             if (Array.isArray(step.user_annotations) && step.user_annotations.length > 0) return;
 
             const rect = step.element_rect as { x: number; y: number; width: number; height: number } | null;
-            const label = step.ai_title ?? '클릭';
+            const actionType = actionTypeByStepNum.get(step.step_number) ?? 'click';
+            const label = step.ai_title ?? (actionType === 'type' ? '입력' : '클릭');
             const num = step.step_number ?? 1;
             let annotations;
 

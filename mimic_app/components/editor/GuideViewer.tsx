@@ -103,6 +103,16 @@ export function GuideViewer({ steps, activeId, onActiveChange, outputRatio = '16
 function ViewerStepCard({ step }: { step: ManualStep }) {
   const hasImage = !!step.screenshotUrl;
   const zoom = step.imageZoom ?? 1;
+  const cr = step.crop_rect;
+  const hasCrop = !!cr && cr.w > 0 && cr.w < 0.99;
+  const [natH2W, setNatH2W] = useState<number | null>(null);
+
+  // crop_rect CSS clip: 1/w 배율로 이미지 확대 + x/y offset으로 원하는 영역만 표시
+  const imgScale = hasCrop ? 1 / cr!.w : 1;
+  const imgMarginLeft = hasCrop ? `-${(cr!.x / cr!.w) * 100}%` : undefined;
+  const imgMarginTop = hasCrop && natH2W !== null
+    ? `-${cr!.y * imgScale * natH2W * 100}%`
+    : undefined;
 
   return (
     <div style={{
@@ -139,8 +149,9 @@ function ViewerStepCard({ step }: { step: ManualStep }) {
         <div style={{ position: 'relative', background: '#F3F4F6', overflow: 'hidden', display: 'flex', justifyContent: 'center' }}>
           <div style={{
             position: 'relative',
-            transform: zoom > 1 ? `scale(${zoom})` : undefined,
+            transform: !hasCrop && zoom > 1 ? `scale(${zoom})` : undefined,
             transformOrigin: 'center top',
+            overflow: 'hidden',
           }}>
             {/* img 박스가 실제 콘텐츠와 정확히 일치해야 어노테이션 오버레이 좌표가 맞음 (letterbox 금지) */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -148,13 +159,27 @@ function ViewerStepCard({ step }: { step: ManualStep }) {
               src={step.screenshotUrl}
               alt={step.actionTitle}
               draggable={false}
-              style={{ maxWidth: '100%', width: 'auto', height: 'auto', display: 'block', userSelect: 'none', maxHeight: 'calc(100vh - 220px)' }}
+              onLoad={e => {
+                const img = e.currentTarget;
+                if (natH2W === null && img.naturalWidth > 0)
+                  setNatH2W(img.naturalHeight / img.naturalWidth);
+              }}
+              style={{
+                width: hasCrop ? `${imgScale * 100}%` : 'auto',
+                maxWidth: hasCrop ? 'none' : '100%',
+                height: 'auto',
+                display: 'block',
+                userSelect: 'none',
+                maxHeight: hasCrop ? 'none' : 'calc(100vh - 220px)',
+                marginLeft: imgMarginLeft,
+                marginTop: imgMarginTop,
+              }}
             />
             {(step.annotations?.length ?? 0) > 0 && (
               <AnnotationPreview annotations={step.annotations!} imageUrl={step.screenshotUrl!} />
             )}
           </div>
-          {zoom > 1 && (
+          {!hasCrop && zoom > 1 && (
             <div style={{ position: 'absolute', bottom: '8px', right: '8px', fontSize: '10px', fontWeight: 600, color: 'white', background: 'rgba(20,20,30,0.6)', backdropFilter: 'blur(6px)', padding: '2px 7px', borderRadius: '5px', pointerEvents: 'none' }}>
               {Math.round(zoom * 100)}%
             </div>
