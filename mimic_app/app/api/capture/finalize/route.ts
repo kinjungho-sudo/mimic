@@ -82,16 +82,34 @@ export async function POST(request: NextRequest) {
     })
   );
 
-  // element_rect(0~1 정규화)로 crop_rect 계산 — Extension 재배포 없이 서버에서 처리
-  function calcCropRect(rect: { x: number; y: number; width: number; height: number } | null) {
+  // element_rect(0~1 정규화)로 crop_rect 계산 — 요소 크기에 따라 동적 패딩, 최소 크기 보장
+  function calcCropRect(
+    rect: { x: number; y: number; width: number; height: number } | null,
+    clickX?: number | null,
+    clickY?: number | null,
+  ) {
     if (!rect) return null;
-    const PAD = 0.05;
-    return {
-      x:      Math.max(0, rect.x - PAD),
-      y:      Math.max(0, rect.y - PAD),
-      width:  Math.min(1, rect.width  + PAD * 2),
-      height: Math.min(1, rect.height + PAD * 2),
-    };
+
+    // 요소가 작을수록 더 넓은 패딩 (컨텍스트 확보)
+    const size = Math.max(rect.width, rect.height);
+    const PAD = size < 0.05 ? 0.15 : size > 0.3 ? 0.05 : 0.10;
+
+    const MIN_W = 0.35;
+    const MIN_H = 0.25;
+
+    let cx = rect.x + rect.width / 2;
+    let cy = rect.y + rect.height / 2;
+    // click_x/y가 유효하면 crop 중심을 클릭 지점으로
+    if (clickX != null && clickX > 0 && clickY != null && clickY > 0) {
+      cx = clickX;
+      cy = clickY;
+    }
+
+    const w = Math.max(rect.width + PAD * 2, MIN_W);
+    const h = Math.max(rect.height + PAD * 2, MIN_H);
+    const x = Math.max(0, Math.min(1 - w, cx - w / 2));
+    const y = Math.max(0, Math.min(1 - h, cy - h / 2));
+    return { x, y, width: Math.min(1 - x, w), height: Math.min(1 - y, h) };
   }
 
   // 캡처 이벤트 → mm_steps 변환
@@ -115,7 +133,7 @@ export async function POST(request: NextRequest) {
       element_rect:      elementRect,
       element_selector:  ev.element_selector  ?? null,
       element_xpath:     ev.element_xpath     ?? null,
-      crop_rect:         calcCropRect(elementRect),
+      crop_rect:         calcCropRect(elementRect, ev.click_x, ev.click_y),
     };
   });
 
@@ -210,16 +228,16 @@ export async function POST(request: NextRequest) {
 
             if (rect) {
               annotations = buildClickHighlight({ elementRect: rect, stepNumber: num, label });
-            } else if (step.click_x != null && step.click_y != null) {
-              // DB click_x/y: 0~1 정규화값 (Extension이 / viewportWidth로 저장)
+            } else if (step.click_x != null && step.click_y != null && (step.click_x > 0 || step.click_y > 0)) {
+              // DB click_x/y: 0~10000 정수 → ÷10000 → 0~1 정규화 후 buildClickPoint에 전달
               annotations = buildClickPoint({
-                clickX: step.click_x,
-                clickY: step.click_y,
+                clickX: step.click_x / 10000,
+                clickY: step.click_y / 10000,
                 stepNumber: num,
                 label,
               });
             } else {
-              return; // 좌표 정보 없음
+              return; // 좌표 정보 없음 (navigate/autoNav 포함)
             }
 
             await supabase

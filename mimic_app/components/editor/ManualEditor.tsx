@@ -217,9 +217,16 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
             목차
           </div>
           <div style={{ flex: 1, padding: '8px 0' }}>
-            {steps.map((step, idx) => {
-              const prevHostname = idx > 0 ? steps[idx - 1].domainHostname : null;
-              const showHeader = !!step.domainHostname && step.domainHostname !== prevHostname;
+            {(() => {
+              // 전역 hostname → 첫 등장 index 매핑 (A→B→A = 2그룹이 아닌 동일 그룹)
+              const hostnameFirstIdx = new Map<string, number>();
+              steps.forEach((s, i) => {
+                if (s.domainHostname && !hostnameFirstIdx.has(s.domainHostname)) {
+                  hostnameFirstIdx.set(s.domainHostname, i);
+                }
+              });
+              return steps.map((step, idx) => {
+              const showHeader = !!step.domainHostname && hostnameFirstIdx.get(step.domainHostname!) === idx;
               return (
                 <div key={step.id}>
                   {showHeader && (
@@ -243,7 +250,8 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
                   />
                 </div>
               );
-            })}
+            });
+            })()}
           </div>
           <div style={{ padding: '8px 12px 16px', borderTop: '1px solid #F3F4F6', flexShrink: 0 }}>
             <button
