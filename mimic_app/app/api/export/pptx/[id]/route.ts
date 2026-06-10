@@ -139,14 +139,17 @@ export async function GET(request: NextRequest, { params }: Params) {
   }
 
   const pptxBuffer: Buffer = await pptx.write({ outputType: 'nodebuffer' });
-  const safeTitle = tutorial.title.replace(/[/\\?%*:|"<>]/g, '-');
-  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  const filename = encodeURIComponent(`MIMIC_${safeTitle}_${dateStr}`);
+  const safeTitle = tutorial.title.replace(/[/\\?%*:|"<>]/g, '-').trim() || '매뉴얼';
+  const dateStr = new Date().toLocaleDateString('ko-KR', {
+    year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Asia/Seoul',
+  }).replace(/\. /g, '-').replace(/\.$/, '');
+  const filenameRaw = `${safeTitle}_${dateStr}.pptx`;
+  const filenameEncoded = encodeURIComponent(filenameRaw);
 
   return new Response(pptxBuffer.buffer as ArrayBuffer, {
     headers: {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      'Content-Disposition': `attachment; filename="${filename}.pptx"`,
+      'Content-Disposition': `attachment; filename="${filenameEncoded}"; filename*=UTF-8''${filenameEncoded}`,
     },
   });
 }
