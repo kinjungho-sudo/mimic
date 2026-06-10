@@ -43,6 +43,7 @@ async function fetchTutorialData(token: string) {
     crop_rect: (s as Record<string, unknown>).crop_rect ?? null,
     click_x: (s as Record<string, unknown>).click_x as number | null ?? null,
     click_y: (s as Record<string, unknown>).click_y as number | null ?? null,
+    image_zoom: (s as Record<string, unknown>).image_zoom as number | null ?? null,
     // 편집기에서 그린 도형/텍스트 어노테이션
     user_annotations: (s.user_annotations as unknown[] | null) ?? [],
   }));
