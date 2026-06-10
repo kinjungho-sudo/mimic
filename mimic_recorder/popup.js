@@ -848,20 +848,15 @@ btnPause.addEventListener('click', () => {
 });
 
 // ── 수동 캡처 ────────────────────────────────────────────────────
-// popup → background 직접 호출 시 sender.tab이 없어 captureVisibleTab 타깃을 못 잡음
-// → targetTabId로 content.js에 전달, content.js가 CAPTURE_SCREENSHOT을 보내면
-//   sender.tab이 정확히 채워져 background가 올바른 탭을 캡처함
-btnSnap.addEventListener('click', () => {
+btnSnap.addEventListener('click', async () => {
   btnSnap.disabled = true;
-  chrome.storage.local.get('targetTabId', ({ targetTabId }) => {
-    if (!targetTabId) { btnSnap.disabled = false; return; }
-    // captureVisibleTab은 active 탭만 캡처 가능 — 먼저 탭을 앞으로 가져옴
-    chrome.tabs.update(targetTabId, { active: true }, () => {
+  const { targetTabId } = await storageGet('targetTabId');
+  if (!targetTabId) { btnSnap.disabled = false; return; }
+  chrome.tabs.update(targetTabId, { active: true }, () => {
+    void chrome.runtime.lastError;
+    chrome.tabs.sendMessage(targetTabId, { type: 'MANUAL_CAPTURE' }, () => {
       void chrome.runtime.lastError;
-      chrome.tabs.sendMessage(targetTabId, { type: 'MANUAL_CAPTURE' }, () => {
-        void chrome.runtime.lastError;
-        btnSnap.disabled = false;
-      });
+      btnSnap.disabled = false;
     });
   });
 });
@@ -873,7 +868,7 @@ btnUndo.addEventListener('click', () => {
 
 // ── 블러 도구 — 마지막 스텝 이미지를 줌 오버레이에 열고 블러 모드 진입 ─
 btnBlurTool?.addEventListener('click', async () => {
-  const { steps } = await chrome.storage.local.get('steps');
+  const { steps } = await storageGet('steps');
   if (!steps || steps.length === 0) { showToast('블러할 스텝이 없습니다'); return; }
   const lastStep = steps[steps.length - 1];
 
@@ -923,8 +918,7 @@ btnDiscard.addEventListener('click', () => {
   hideCaptureBlockedToast();
   chrome.runtime.sendMessage({ type: 'CLEAR_STEPS' }, () => { void chrome.runtime.lastError; });
   // isRecording: false 먼저 세팅 → background가 targetTabId로 STOP_RECORDING 전송
-  // 그 후 targetTabId 등 나머지 키 제거
-  chrome.storage.local.set({ isRecording: false }, () => {
+  storageSet({ isRecording: false }).then(() => {
     chrome.storage.local.remove(['targetTabId', 'steps', 'stepNumber', 'sessionId']);
   });
   updateView();
@@ -936,7 +930,7 @@ btnDiscard.addEventListener('click', () => {
 btnFinish.addEventListener('click', async () => {
   btnFinish.disabled = true;
 
-  const { sessionId } = await chrome.storage.local.get('sessionId');
+  const { sessionId } = await storageGet('sessionId');
 
   isRecording = false;
   isPaused    = false;
@@ -945,7 +939,7 @@ btnFinish.addEventListener('click', async () => {
   showRestoreToast();
 
   // isRecording: false 먼저 세팅 → background가 targetTabId로 STOP_RECORDING 전송
-  chrome.storage.local.set({ isRecording: false }, () => {
+  storageSet({ isRecording: false }).then(() => {
     chrome.storage.local.remove(['targetTabId', 'steps', 'stepNumber']);
     chrome.storage.local.set({ sessionId: null });
   });
@@ -1344,7 +1338,7 @@ guideNextBtn.addEventListener('click', () => {
 });
 
 // Guide Me 활성화 여부 초기 체크 (사이드패널이 열릴 때)
-chrome.storage.local.get(['guideModeActive', 'guideSteps', 'guideCurrentStep'], (r) => {
+storageGet(['guideModeActive', 'guideSteps', 'guideCurrentStep']).then((r) => {
   if (r.guideModeActive && r.guideSteps?.length > 0) {
     guideSteps = r.guideSteps;
     guideCurrentStep = r.guideCurrentStep || 0;
@@ -1356,7 +1350,7 @@ chrome.storage.local.get(['guideModeActive', 'guideSteps', 'guideCurrentStep'], 
 // storage 변화 감지: START_GUIDE 이후 guideModeActive가 세팅되면 Guide Me 뷰로 전환
 chrome.storage.onChanged.addListener((changes) => {
   if (changes.guideModeActive?.newValue === true) {
-    chrome.storage.local.get(['guideSteps', 'guideCurrentStep'], (r) => {
+    storageGet(['guideSteps', 'guideCurrentStep']).then((r) => {
       guideSteps = r.guideSteps || [];
       guideCurrentStep = r.guideCurrentStep || 0;
       if (guideSteps.length > 0) {
