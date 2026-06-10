@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireExtensionToken } from '@/lib/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { captureFinalizeSchema } from '@/lib/validators';
-import { generateDraft, extractCoverColors } from '@/lib/claude';
+import { generateDraft, extractCoverColors, detectPII } from '@/lib/claude';
 import { resolveFavicon } from '@/lib/favicon';
 import { buildClickHighlight } from '@/lib/annotations';
 
@@ -151,8 +151,8 @@ export async function POST(request: NextRequest) {
       domain_favicon:  ev.domain_hostname
         ? (faviconCache.get(ev.domain_hostname) ?? ev.domain_favicon ?? null)
         : (ev.domain_favicon ?? null),
-      click_x:           ev.click_x           ?? null,
-      click_y:           ev.click_y           ?? null,
+      click_x:           ev.click_x != null ? ev.click_x / 10000 : null,
+      click_y:           ev.click_y != null ? ev.click_y / 10000 : null,
       element_rect:      elementRect,
       element_selector:  ev.element_selector  ?? null,
       element_xpath:     ev.element_xpath     ?? null,
@@ -256,16 +256,12 @@ export async function POST(request: NextRequest) {
             if (rect) {
               annotations = buildClickHighlight({ elementRect: rect, stepNumber: num, label });
             } else if (step.click_x != null && step.click_y != null && (step.click_x > 0 || step.click_y > 0)) {
-              // DB click_x/y: 0~10000 정수 → ÷10000 → 0~1 정규화
-              const cx = step.click_x / 10000;
-              const cy = step.click_y / 10000;
-              // 클릭 좌표 중심으로 버튼 크기를 추정한 rect로 하이라이트 생성
-              // 실제 저장하지 않고 어노테이션 계산에만 사용
+              // click_x/y는 이미 0~1 정규화값으로 저장됨 (steps 삽입 시 /10000 처리)
               const estimatedRect = {
-                x: Math.max(0, cx - 0.05),
-                y: Math.max(0, cy - 0.02),
-                width: 0.10,
-                height: 0.04,
+                x: Math.max(0, step.click_x - 0.05),
+                y: Math.max(0, step.click_y - 0.02),
+                width:  Math.min(0.10, 1 - Math.max(0, step.click_x - 0.05)),
+                height: Math.min(0.04, 1 - Math.max(0, step.click_y - 0.02)),
               };
               annotations = buildClickHighlight({ elementRect: estimatedRect, stepNumber: num, label });
             } else {
@@ -283,6 +279,36 @@ export async function POST(request: NextRequest) {
   } catch {
     // 초안/어노테이션 생성 실패는 무시 — 튜토리얼은 정상 생성됨
   }
+
+  // PII 검사 — 응답 블로킹 없이 백그라운드 실행
+  void (async () => {
+    try {
+      const { data: stepsForPII } = await supabase
+        .from('mm_steps')
+        .select('id, screenshot_url')
+        .eq('tutorial_id', tutorial.id);
+
+      if (!stepsForPII?.length) return;
+
+      await Promise.allSettled(
+        stepsForPII.map(async (step) => {
+          if (!step.screenshot_url) return;
+          try {
+            const imgRes = await fetch(step.screenshot_url);
+            if (!imgRes.ok) return;
+            const ct = imgRes.headers.get('content-type') ?? 'image/jpeg';
+            const mediaType = (['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as const)
+              .find(t => ct.includes(t)) ?? 'image/jpeg';
+            const b64 = Buffer.from(await imgRes.arrayBuffer()).toString('base64');
+            const hasPII = await detectPII(b64, mediaType);
+            if (hasPII) {
+              await supabase.from('mm_steps').update({ pii_detected: true }).eq('id', step.id);
+            }
+          } catch { /* 개별 스텝 실패 무시 */ }
+        })
+      );
+    } catch { /* PII 검사 전체 실패 무시 */ }
+  })();
 
   return NextResponse.json({ tutorial_id: tutorial.id, step_count: steps.length });
 }

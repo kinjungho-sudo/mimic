@@ -28,10 +28,12 @@ export interface Annotation {
 interface ImageAnnotationEditorProps {
   imageUrl: string;
   annotations: Annotation[];
-  onChange: (annotations: Annotation[]) => void;
+  // imageZoom: 저장 시점의 확대 배율 (0.5~4) — 스텝의 image_zoom으로 영속
+  onChange: (annotations: Annotation[], imageZoom: number) => void;
   onClose: () => void;
   initialFocusX?: number;
   initialFocusY?: number;
+  initialZoom?: number;
 }
 
 // ── Constants ──────────────────────────────────────────────
@@ -151,6 +153,7 @@ export function ImageAnnotationEditor({
   initialFocusX = 50,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   initialFocusY = 50,
+  initialZoom = 1,
 }: ImageAnnotationEditorProps) {
   const [tool, setTool] = useState<Tool>('select');
   const [color, setColor] = useState<Color>('#EF4444');
@@ -162,7 +165,7 @@ export function ImageAnnotationEditor({
   const [hasBg, setHasBg] = useState(true);
 
   // ── 뷰 줌/팬 ──
-  const [viewScale, setViewScale] = useState(1);
+  const [viewScale, setViewScale] = useState(() => Math.min(5, Math.max(0.25, initialZoom || 1)));
   const [viewPan, setViewPan] = useState({ x: 0, y: 0 });
   const panDragging = useRef<{ startX: number; startY: number; panX: number; panY: number } | null>(null);
   const [isPanning, setIsPanning] = useState(false);
@@ -520,7 +523,8 @@ export function ImageAnnotationEditor({
 
   const handleSave = () => {
     if (editingText) commitTextRef.current();
-    onChange(items);
+    // 확대 상태도 함께 저장 — image_zoom API 허용 범위(0.5~4)로 클램프
+    onChange(items, Math.min(4, Math.max(0.5, viewScale)));
     onClose();
   };
 

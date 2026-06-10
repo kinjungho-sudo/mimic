@@ -40,16 +40,7 @@ export function AnnotationPreview({ annotations, imageUrl }: { annotations: Anno
   const spotlightMaskId = `spotlight-mask-${uid}`;
   const spotlights = annotations.filter(a => a.type === 'spotlight');
 
-  // imgSize가 없으면 빈 SVG (측정 전)
-  if (!imgSize) {
-    return (
-      <svg ref={imgRef as React.RefObject<SVGSVGElement>}
-        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}
-      />
-    );
-  }
-
-  const { w: imgW, h: imgH } = imgSize;
+  const { w: imgW, h: imgH } = imgSize ?? { w: 1, h: 1 };
 
   // % 좌표 → 픽셀 좌표
   const px = (v: number) => v / 100 * imgW;
@@ -57,9 +48,11 @@ export function AnnotationPreview({ annotations, imageUrl }: { annotations: Anno
 
   return (
     <svg
-      viewBox={`0 0 ${imgW} ${imgH}`}
+      ref={imgRef as React.RefObject<SVGSVGElement>}
+      viewBox={imgSize ? `0 0 ${imgW} ${imgH}` : '0 0 1 1'}
       style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}
     >
+      {imgSize && (<>
       <defs>
         <filter id={filterId} x="-5%" y="-5%" width="110%" height="110%">
           <feGaussianBlur stdDeviation="8" result="blurred" />
@@ -206,6 +199,7 @@ export function AnnotationPreview({ annotations, imageUrl }: { annotations: Anno
 
         return null;
       })}
+      </>)}
     </svg>
   );
 }

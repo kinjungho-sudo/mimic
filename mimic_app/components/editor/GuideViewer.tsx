@@ -91,7 +91,7 @@ export function GuideViewer({ steps, activeId, onActiveChange, outputRatio = '16
             boxSizing: 'border-box',
           }}
         >
-          <div style={{ width: '100%', maxWidth: '860px' }}>
+          <div style={{ width: '100%', maxWidth: '1040px' }}>
             <ViewerStepCard step={step} />
           </div>
         </div>
@@ -136,18 +136,19 @@ function ViewerStepCard({ step }: { step: ManualStep }) {
 
       {/* 이미지 */}
       {hasImage && (
-        <div style={{ position: 'relative', background: '#F3F4F6', overflow: 'hidden' }}>
+        <div style={{ position: 'relative', background: '#F3F4F6', overflow: 'hidden', display: 'flex', justifyContent: 'center' }}>
           <div style={{
             position: 'relative',
             transform: zoom > 1 ? `scale(${zoom})` : undefined,
             transformOrigin: 'center top',
           }}>
+            {/* img 박스가 실제 콘텐츠와 정확히 일치해야 어노테이션 오버레이 좌표가 맞음 (letterbox 금지) */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={step.screenshotUrl}
               alt={step.actionTitle}
               draggable={false}
-              style={{ width: '100%', height: 'auto', display: 'block', userSelect: 'none', maxHeight: 'calc(100vh - 220px)', objectFit: 'contain' }}
+              style={{ maxWidth: '100%', width: 'auto', height: 'auto', display: 'block', userSelect: 'none', maxHeight: 'calc(100vh - 220px)' }}
             />
             {(step.annotations?.length ?? 0) > 0 && (
               <AnnotationPreview annotations={step.annotations!} imageUrl={step.screenshotUrl!} />

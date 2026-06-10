@@ -471,67 +471,23 @@
       transition: all 0.15s; flex-shrink: 0;
     }
     .btn-discard-bottom:hover { border-color: #EF4444; color: #EF4444; background: #fff5f5; }
+    /* 하단 바 화면 캡처 버튼 */
+    .btn-snap-bottom {
+      display: flex; align-items: center; gap: 5px;
+      padding: 10px 14px;
+      border: 1px solid #e8e8f0; border-radius: 9px;
+      background: #fff; color: #4F46E5;
+      font-size: 12px; font-weight: 700; cursor: pointer;
+      transition: all 0.15s; flex-shrink: 0;
+    }
+    .btn-snap-bottom:hover { border-color: #4F46E5; background: #f5f3ff; }
+    .btn-snap-bottom:active { transform: scale(0.95); }
+    .btn-snap-bottom:disabled { opacity: 0.5; cursor: not-allowed; }
     .bottom-action-bar .btn-finish {
       flex: 1; margin: 0; width: auto;
       padding: 10px 16px; font-size: 13px;
     }
 
-    /* ── 이미지 모달 ── */
-    .modal-overlay {
-      display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,0.75); z-index: 9999;
-      align-items: center; justify-content: center;
-    }
-    .modal-overlay.open { display: flex; }
-    .modal-content {
-      position: relative; max-width: 340px; width: 100%;
-      background: #1a1a2e; border-radius: 12px; overflow: hidden;
-    }
-    .modal-close {
-      position: absolute; top: 8px; right: 8px;
-      width: 26px; height: 26px;
-      background: rgba(255,255,255,0.15); border: none; border-radius: 50%;
-      color: #fff; font-size: 15px; cursor: pointer;
-      display: flex; align-items: center; justify-content: center; z-index: 1;
-    }
-    .modal-close:hover { background: rgba(255,255,255,0.25); }
-    .modal-img { width: 100%; display: block; cursor: zoom-in; }
-    .modal-meta { padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; }
-    .modal-step-num { font-size: 12px; font-weight: 600; color: #4F46E5; }
-    .modal-step-time { font-size: 11px; color: #888; }
-
-    /* ── 업로드 오버레이 ── */
-    .upload-overlay {
-      display: none; position: fixed; inset: 0;
-      background: rgba(10,8,30,0.92); z-index: 99999;
-      flex-direction: column; align-items: center; justify-content: center; gap: 18px;
-    }
-    .upload-overlay.visible { display: flex; }
-    .upload-spinner { position: relative; width: 60px; height: 60px; }
-    .upload-spinner::before, .upload-spinner::after { content: ''; position: absolute; border-radius: 50%; }
-    .upload-spinner::before { inset: 0; border: 3px solid rgba(79,70,229,0.2); }
-    .upload-spinner::after {
-      inset: 0; border: 3px solid transparent;
-      border-top-color: #4F46E5; border-right-color: #a78bfa;
-      animation: spin 0.9s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .upload-icon {
-      position: absolute; inset: 0;
-      display: flex; align-items: center; justify-content: center; font-size: 20px;
-      animation: float-up 1.4s ease-in-out infinite;
-    }
-    @keyframes float-up { 0%, 100% { transform: translateY(2px); opacity: 0.7; } 50% { transform: translateY(-4px); opacity: 1; } }
-    .upload-title { font-size: 14px; font-weight: 700; color: #fff; }
-    .upload-sub { font-size: 12px; color: #888; }
-    .upload-progress-wrap { width: 160px; }
-    .upload-progress-track { height: 3px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; }
-    .upload-progress-bar {
-      height: 100%; width: 0%;
-      background: linear-gradient(90deg, #4F46E5, #a78bfa); border-radius: 4px;
-      animation: progress-fill 3s ease-out forwards;
-    }
-    @keyframes progress-fill { 0% { width: 0%; } 60% { width: 75%; } 90% { width: 92%; } 100% { width: 100%; } }
   </style>
 </head>
 <body>
@@ -649,6 +605,10 @@
 
   <!-- 녹화 중 하단 액션 바 -->
   <div class="bottom-action-bar" id="bottomActionBar" style="display:none">
+    <button class="btn-snap-bottom" id="btnSnapBottom" title="화면 캡처">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      캡처
+    </button>
     <button class="btn-discard-bottom" id="btnDiscard" title="저장 없이 종료">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       중지
@@ -797,36 +757,6 @@
         새 탭에서 원본 열기
       </button>
     </div>
-  </div>
-
-  <!-- 이미지 모달 -->
-  <div class="modal-overlay" id="modalOverlay">
-    <div class="modal-content">
-      <button class="modal-close" id="modalClose">&#10005;</button>
-      <img class="modal-img" id="modalImg" src="" alt="" />
-      <div class="modal-meta">
-        <div style="flex:1;min-width:0">
-          <div style="font-size:12px;font-weight:600;color:#fff;margin-bottom:2px" id="modalTitle"></div>
-          <div style="font-size:11px;color:#aaa" id="modalDesc"></div>
-        </div>
-        <div style="text-align:right;flex-shrink:0;margin-left:8px">
-          <div class="modal-step-num" id="modalStepNum"></div>
-          <div class="modal-step-time" id="modalStepTime"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 업로드 오버레이 -->
-  <div class="upload-overlay" id="uploadOverlay">
-    <div class="upload-spinner"><div class="upload-icon">&#8679;</div></div>
-    <div class="upload-title">데이터 전송 중...</div>
-    <div class="upload-progress-wrap">
-      <div class="upload-progress-track">
-        <div class="upload-progress-bar" id="uploadProgressBar"></div>
-      </div>
-    </div>
-    <div class="upload-sub" id="uploadSub">업로드 중...</div>
   </div>
 
   <!-- ── Guide Me 뷰 ── -->
