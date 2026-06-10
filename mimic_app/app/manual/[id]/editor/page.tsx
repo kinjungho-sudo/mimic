@@ -17,6 +17,14 @@ import type { Step, Tutorial } from '@/types';
 
 // ── Adapters ──────────────────────────────────────────────
 
+// DB click 좌표 → 0~100 pct (현행 0~1 실수, 레거시 0~10000 정수 혼재 방어)
+function clickToPct(v: number | null | undefined): number | null {
+  if (v == null) return null;
+  if (v <= 1) return v * 100;
+  if (v > 100) return v / 100;
+  return v;
+}
+
 function stepsToManualSteps(steps: Step[]): ManualStep[] {
   return steps.map(s => ({
     id: s.id,
@@ -36,13 +44,9 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
     crop_rect: (s as Step & { crop_rect?: { x: number; y: number; w: number; h: number } | null }).crop_rect ?? null,
     element_rect: (s as Step & { element_rect?: { x: number; y: number; width: number; height: number } | null }).element_rect ?? null,
     imageZoom: (s as Step & { image_zoom?: number | null }).image_zoom ?? 1,
-    // click_x/y: DB 0~10000 정수 → ÷100 → 0~100 pct (ManualEditor CSS % 계약)
-    click_x: (s as Step & { click_x?: number | null }).click_x != null
-      ? (s as Step & { click_x: number }).click_x / 100
-      : null,
-    click_y: (s as Step & { click_y?: number | null }).click_y != null
-      ? (s as Step & { click_y: number }).click_y / 100
-      : null,
+    // click_x/y: DB 0~1 실수 → ×100 → 0~100 pct (ManualEditor CSS % 계약)
+    click_x: clickToPct((s as Step & { click_x?: number | null }).click_x),
+    click_y: clickToPct((s as Step & { click_y?: number | null }).click_y),
   }));
 }
 

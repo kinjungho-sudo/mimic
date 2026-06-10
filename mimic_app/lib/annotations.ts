@@ -35,24 +35,24 @@ export function buildClickHighlight(params: {
   const bottomRoom = 100 - ey2;
   const arrowLen   = 14;
 
-  // 방향 결정: 위쪽 공간 우선 (위→아래가 가장 자연스러움)
-  // 위 공간 부족하면 아래→위, 그다음 좌우
+  // 방향 결정: 아래쪽 공간 우선 — 클릭 영역 밑에 화살표 + 요약 라벨 배치
+  // 아래 공간 부족하면 위에서, 그다음 좌우
   let arrowX1: number, arrowY1: number;
   let arrowX2: number, arrowY2: number;
   let direction: 'top' | 'bottom' | 'right' | 'left';
 
-  if (topRoom >= 16) {
-    // 위에서 아래 — 화살표가 요소 위에서 시작해 상단 테두리로
-    direction = 'top';
-    const cx = (ex1 + ex2) / 2;
-    arrowX1 = cx; arrowY1 = Math.max(ey1 - arrowLen, 2);
-    arrowX2 = cx; arrowY2 = ey1;
-  } else if (bottomRoom >= 16) {
-    // 아래에서 위
+  if (bottomRoom >= 16) {
+    // 아래에서 위 — 화살표가 요소 아래에서 시작해 하단 테두리로
     direction = 'bottom';
     const cx = (ex1 + ex2) / 2;
     arrowX1 = cx; arrowY1 = Math.min(ey2 + arrowLen, 97);
     arrowX2 = cx; arrowY2 = ey2;
+  } else if (topRoom >= 16) {
+    // 위에서 아래
+    direction = 'top';
+    const cx = (ex1 + ex2) / 2;
+    arrowX1 = cx; arrowY1 = Math.max(ey1 - arrowLen, 2);
+    arrowX2 = cx; arrowY2 = ey1;
   } else if (rightRoom >= 16) {
     direction = 'right';
     arrowX1 = Math.min(ex2 + arrowLen, 96); arrowY1 = eCy;
