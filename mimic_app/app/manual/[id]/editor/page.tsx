@@ -34,12 +34,12 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
     crop_rect: (s as Step & { crop_rect?: { x: number; y: number; w: number; h: number } | null }).crop_rect ?? null,
     element_rect: (s as Step & { element_rect?: { x: number; y: number; width: number; height: number } | null }).element_rect ?? null,
     imageZoom: (s as Step & { image_zoom?: number | null }).image_zoom ?? 1,
-    // click_x/y: DB 0~1 (Extension이 clientX / viewportWidth로 저장) → × 100 → 0~100 pct (ManualEditor/SdkPreviewPanel CSS % 계약)
+    // click_x/y: DB 0~10000 정수 → ÷100 → 0~100 pct (ManualEditor CSS % 계약)
     click_x: (s as Step & { click_x?: number | null }).click_x != null
-      ? (s as Step & { click_x: number }).click_x * 100
+      ? (s as Step & { click_x: number }).click_x / 100
       : null,
     click_y: (s as Step & { click_y?: number | null }).click_y != null
-      ? (s as Step & { click_y: number }).click_y * 100
+      ? (s as Step & { click_y: number }).click_y / 100
       : null,
   }));
 }
