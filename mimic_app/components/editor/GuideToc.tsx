@@ -102,19 +102,33 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
   };
 
   // ── 도메인 그룹핑 — hostname 기준 전역 중복 제거 (A→B→A = 2그룹이 아닌 동일 그룹) ──
+  // null hostname 스텝은 앞뒤에서 가장 가까운 non-null hostname으로 병합
   type DomainGroup = { hostname: string | null; name: string | null; favicon: string | null; count: number };
+
+  // 1단계: null을 인접 hostname으로 채움
+  const resolvedHostnames: (string | null)[] = steps.map(s => s.domainHostname ?? null);
+  for (let i = 0; i < resolvedHostnames.length; i++) {
+    if (resolvedHostnames[i] !== null) continue;
+    // 앞에서 가장 가까운 non-null
+    const prev = resolvedHostnames.slice(0, i).reverse().find(h => h !== null) ?? null;
+    // 뒤에서 가장 가까운 non-null
+    const next = resolvedHostnames.slice(i + 1).find(h => h !== null) ?? null;
+    resolvedHostnames[i] = prev ?? next ?? null;
+  }
+
   const hostnameToGroupIdx = new Map<string | null, number>();
   const domainGroups: DomainGroup[] = [];
-  steps.forEach(step => {
-    const hostname = step.domainHostname ?? null;
+  steps.forEach((step, i) => {
+    const hostname = resolvedHostnames[i];
     if (!hostnameToGroupIdx.has(hostname)) {
       hostnameToGroupIdx.set(hostname, domainGroups.length);
-      domainGroups.push({ hostname, name: hostnameToServiceName(hostname), favicon: step.domainFavicon ?? null, count: 0 });
+      const favicon = hostname === step.domainHostname ? (step.domainFavicon ?? null) : null;
+      domainGroups.push({ hostname, name: hostnameToServiceName(hostname), favicon, count: 0 });
     }
     domainGroups[hostnameToGroupIdx.get(hostname)!].count++;
   });
 
-  const stepGroupIdx: number[] = steps.map(step => hostnameToGroupIdx.get(step.domainHostname ?? null) ?? 0);
+  const stepGroupIdx: number[] = resolvedHostnames.map(h => hostnameToGroupIdx.get(h) ?? 0);
 
   const isDraggingActive = draggingIds.size > 0;
   const selectedCount = selectedIds.size;
