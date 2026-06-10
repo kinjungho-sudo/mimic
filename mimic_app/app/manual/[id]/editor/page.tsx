@@ -71,6 +71,7 @@ export default function EditorPage() {
   const stepSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const tempIdCounter = useRef(0);
   const [tocSelectedIds, setTocSelectedIds] = useState<Set<string>>(new Set());
+  const [autoGenProgress, setAutoGenProgress] = useState<{ done: number; total: number } | null>(null);
 
   // 실시간 협업 — 워크스페이스 튜토리얼에서만 활성
   const workspaceId = tutorial
@@ -167,6 +168,44 @@ export default function EditorPage() {
     const t = tutorial as Tutorial & { tts_enabled?: boolean; tts_voice?: string };
     setTtsEnabled(t.tts_enabled ?? false);
     setTtsVoice((t.tts_voice as 'nova' | 'alloy') ?? 'nova');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tutorial?.id]);
+
+  // 에디터 최초 로드 시 description 없는 스텝 자동 AI 생성
+  useEffect(() => {
+    if (!tutorial) return;
+    const empty = tutorial.steps.filter(s =>
+      !s.id.startsWith('step-') &&
+      !(s.user_script ?? s.ai_description ?? '').trim()
+    );
+    if (empty.length === 0) return;
+
+    let cancelled = false;
+    setAutoGenProgress({ done: 0, total: empty.length });
+
+    (async () => {
+      for (let i = 0; i < empty.length; i++) {
+        if (cancelled) break;
+        const step = empty[i];
+        try {
+          const res = await fetch(`/api/steps/${step.id}/generate-description`, { method: 'POST' });
+          if (res.ok) {
+            const { description } = await res.json();
+            if (description && !cancelled) {
+              setManualSteps(prev => prev.map(s =>
+                s.id === step.id ? { ...s, description } : s
+              ));
+            }
+          }
+        } catch { /* 개별 실패는 무시하고 다음 스텝 계속 */ }
+        if (!cancelled) setAutoGenProgress({ done: i + 1, total: empty.length });
+      }
+      if (!cancelled) {
+        setAutoGenProgress(null);
+      }
+    })();
+
+    return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tutorial?.id]);
 
@@ -632,6 +671,13 @@ export default function EditorPage() {
                 </>
               )}
             </div>
+            {/* AI 자동 생성 진행 인디케이터 */}
+            {autoGenProgress && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, fontSize: '11.5px', color: '#6d28d9' }}>
+                <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} />
+                <span>AI 작성 중 {autoGenProgress.done}/{autoGenProgress.total}</span>
+              </div>
+            )}
             <span style={{ fontSize: '10.5px', color: '#C4C9D4', whiteSpace: 'nowrap', flexShrink: 0 }}>
               {createdAt}
             </span>
