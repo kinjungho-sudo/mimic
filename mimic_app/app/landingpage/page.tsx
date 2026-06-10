@@ -687,18 +687,18 @@ function HeroSection() {
         </span>
 
         <h1 style={{ margin: '0 auto 20px', fontSize: '56px', lineHeight: 1.25, fontWeight: 700, letterSpacing: '-0.03em', maxWidth: '760px', color: '#0D0D14' }}>
-          읽는 매뉴얼 말고,<br />
+          Don&apos;t Explain,{' '}
           <span style={{
             background: 'linear-gradient(135deg, #6d28d9 0%, #3730a3 100%)',
             WebkitBackgroundClip: 'text',
             backgroundClip: 'text',
             color: 'transparent',
-          }}>따라하는 매뉴얼</span>
+          }}>Just Mimic.</span>
         </h1>
 
-        <p style={{ fontSize: '17px', color: '#4B5563', maxWidth: '520px', margin: '0 auto 36px', lineHeight: 1.7 }}>
-          평소처럼 일하기만 하면 됩니다.<br />
-          클릭 한 번으로 따라할 수 있는 매뉴얼이 30초 만에 완성됩니다.
+        <p style={{ fontSize: '17px', color: '#4B5563', maxWidth: '560px', margin: '0 auto 36px', lineHeight: 1.7 }}>
+          클릭 한 번으로 인터랙티브 매뉴얼 제작을 자동화하고,<br />
+          누구나 따라 할 수 있는 매뉴얼 자동화 플랫폼
         </p>
 
         <div className="hero-cta-row" style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginBottom: '56px' }}>

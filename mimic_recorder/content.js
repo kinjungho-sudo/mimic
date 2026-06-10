@@ -173,29 +173,22 @@
 
   function flushTyping(el) {
     clearTimeout(typingTimer);
-    typingTimer = null;
-    if (!isRecording || isPaused || isCapturing) { typingTarget = null; pendingInputStep = null; return; }
-    // isCapturing을 즉시 선점 — sendMessage 호출 전 다른 이벤트가 진입하지 못하도록
-    isCapturing = true;
+    typingTimer  = null;
     typingTarget = null;
-    const hasValue = el ? (el.isContentEditable ? !!(el.textContent || '').trim() : !!(el.value || '').trim()) : false;
+    if (!isRecording || isPaused || isCapturing) { pendingInputStep = null; return; }
 
-    if (!hasValue) {
-      // 타이핑 없이 필드를 떠남 — focus_input 스텝은 이미 찍혔으니 그대로 유지
-      isCapturing = false;
-      pendingInputStep = null;
-      return;
-    }
+    const hasValue = el ? (el.isContentEditable ? !!(el.textContent || '').trim() : !!(el.value || '').trim()) : false;
+    if (!hasValue) { pendingInputStep = null; return; }
 
     const label = getFieldLabel(el);
-
-    // pendingInputStep이 있으면 focus_input 스텝을 type으로 덮어쓰기
-    // 없으면(타이핑만 감지된 경우) 새 스텝 생성
     const overwriteStep = pendingInputStep;
     pendingInputStep = null;
 
+    isCapturing = true;
+    const safetyTimer = setTimeout(() => { isCapturing = false; }, 5000);
+    const done = () => { clearTimeout(safetyTimer); isCapturing = false; };
+
     if (overwriteStep !== null) {
-      // 같은 stepNumber로 재캡처 — background.js의 saveStepLocally가 덮어씀
       lastCapturedTarget = el;
       lastCapturedTime   = Date.now();
       chrome.runtime.sendMessage({
@@ -208,9 +201,9 @@
           overwrite: true,
           actionInfo: { type: 'type', text: label },
         },
-      }, () => { void chrome.runtime.lastError; isCapturing = false; });
+      }, () => { void chrome.runtime.lastError; done(); });
     } else {
-      stepNumber  += 1;
+      stepNumber += 1;
       lastCapturedTarget = el;
       lastCapturedTime   = Date.now();
       chrome.runtime.sendMessage({
@@ -222,7 +215,7 @@
           stepNumber,
           actionInfo: { type: 'type', text: label },
         },
-      }, () => { void chrome.runtime.lastError; isCapturing = false; });
+      }, () => { void chrome.runtime.lastError; done(); });
     }
   }
 
@@ -363,6 +356,7 @@
       if (!isRecording || isPaused) { isCapturing = false; return; }
       showFileHighlight(fileNames);
       requestAnimationFrame(() => requestAnimationFrame(() => {
+        const safetyTimer = setTimeout(() => { isCapturing = false; }, 5000);
         chrome.runtime.sendMessage({
           type: 'CAPTURE_SCREENSHOT',
           stepData: {
@@ -372,7 +366,7 @@
             stepNumber,
             actionInfo: { type: 'upload', text: fileNames, tag: 'input' },
           },
-        }, () => { void chrome.runtime.lastError; isCapturing = false; });
+        }, () => { void chrome.runtime.lastError; clearTimeout(safetyTimer); isCapturing = false; });
       }));
     }, 400);
   }, true);
@@ -551,7 +545,6 @@
       return true; // 비동기 응답
     }
     if (msg.type === 'RESTORE_OVERLAY') {
-      hideHoverPointer(); // 캡처 완료 후 hover overlay 제거
       restorePIIBlur();
       removeTypingHighlight();
       removeFileHighlight();
@@ -628,7 +621,8 @@
   }
 
   document.addEventListener('mousemove', (e) => {
-    if (!isRecording || isPaused || isCapturing) { hideHoverPointer(); return; }
+    if (!isRecording || isPaused) { hideHoverPointer(); return; }
+    if (isCapturing) return; // 캡처 중에는 hover overlay 유지
     const target = findInteractiveTarget(e.target);
     if (!target) { hideHoverPointer(); return; }
     if (target === hoverTarget) return;
@@ -770,7 +764,6 @@
     // 진행 중이던 타이핑 — 다른 버튼 클릭으로 포커스 이동 = 입력 완료 신호
     if (typingTarget) {
       flushTyping(typingTarget);
-      if (isCapturing) return;
     }
 
     const rect  = target.getBoundingClientRect();
@@ -836,8 +829,8 @@
       return;
     }
 
-    // SW가 죽어 콜백이 안 와도 10초 후 자동 해제
-    const captureSafetyTimer = setTimeout(() => { isCapturing = false; }, 10000);
+    // SW가 죽어 콜백이 안 와도 5초 후 자동 해제
+    const captureSafetyTimer = setTimeout(() => { isCapturing = false; }, 5000);
     chrome.runtime.sendMessage({ type: 'CAPTURE_SCREENSHOT', stepData }, () => {
       clearTimeout(captureSafetyTimer);
       void chrome.runtime.lastError;

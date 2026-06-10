@@ -614,8 +614,10 @@ export function ImageAnnotationEditor({
           background: '#1a1a1a', borderRadius: '12px',
           boxShadow: '0 24px 64px rgba(0,0,0,0.7)',
           overflow: 'hidden',
-          maxWidth: 'calc(100vw - 48px)',
-          maxHeight: 'calc(100vh - 48px)',
+          width: 'calc(100vw - 48px)',
+          height: 'calc(100vh - 48px)',
+          maxWidth: '1148px',
+          maxHeight: '900px',
         }}
       >
         {/* ── 툴바 — 2줄 구조 ── */}

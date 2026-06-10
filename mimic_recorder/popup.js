@@ -590,9 +590,9 @@ document.getElementById('thumbZoomBlur')?.addEventListener('click', () => {
   const zoomOverlay = document.getElementById('thumbZoomOverlay');
   const zoomImg     = document.getElementById('thumbZoomImg');
   const step        = zoomOverlay?._step;
-  const blob        = zoomOverlay?._blob;
-  if (!zoomImg || !step || !blob) return;
-  startBlurMode(step, zoomImg, blob);
+  if (!zoomImg || !step) return;
+  // blob이 없어도 startBlurMode 진입 — APPLY_BLUR에서 imageUrl fallback 처리
+  startBlurMode(step, zoomImg, zoomOverlay._blob ?? null);
 });
 
 // 새 탭에서 원본 열기 — imageUrl(Supabase) 우선, 없으면 현재 objectURL
@@ -845,7 +845,8 @@ function hideBlockedBanner() {
 
 // ── 녹화 시작 공통 함수 ──────────────────────────────────────────
 async function startRecording(mobile = false) {
-  const tabs = await chrome.tabs.query({ active: true });
+  // currentWindow:true 필수 — 사이드패널은 별도 window context라 없으면 엉뚱한 탭 선택 가능
+  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
   const targetTab = tabs.find(t => t.url?.startsWith('http://') || t.url?.startsWith('https://'));
 
   if (!targetTab || isBlockedUrl(targetTab.url)) {
@@ -859,21 +860,18 @@ async function startRecording(mobile = false) {
   isPaused     = false;
 
   const sessionId = crypto.randomUUID();
-  // targetTabId를 먼저 저장해 background.js 캐시가 갱신된 뒤 isRecording을 세팅
-  await new Promise((resolve) => chrome.storage.local.set({ targetTabId: targetTab.id }, resolve));
-  await chrome.storage.local.set({
-    isRecording: true,
-    sessionId,
-    stepNumber: 0,
-    steps: [],
-    isMobileMode: mobile,
-  });
 
-  // background.js의 storage.onChanged 경로와 별개로 content.js에 직접 전송 —
-  // 두 경로 중 먼저 도착한 것이 카운트다운을 트리거하고, 이미 녹화 중이면 무시됨
-  chrome.tabs.sendMessage(targetTab.id, { type: 'START_RECORDING' }, () => {
-    void chrome.runtime.lastError;
-  });
+  // 1) targetTabId 먼저 저장 → background _cachedTargetTabId 갱신 보장
+  await new Promise((resolve) => chrome.storage.local.set({ targetTabId: targetTab.id }, resolve));
+
+  // 2) 나머지 상태 저장
+  await new Promise((resolve) => chrome.storage.local.set({
+    sessionId, stepNumber: 0, steps: [], isMobileMode: mobile,
+  }, resolve));
+
+  // 3) isRecording:true → background onChanged가 단일 경로로 START_RECORDING 전달
+  // popup에서 직접 sendMessage하면 두 경로 경합 → 카운트다운 스킵/중복 발생
+  chrome.storage.local.set({ isRecording: true });
 
   updateView();
   renderSteps([]);
@@ -946,18 +944,25 @@ btnBlurTool?.addEventListener('click', async () => {
   const { steps } = await chrome.storage.local.get('steps');
   if (!steps || steps.length === 0) { showToast('블러할 스텝이 없습니다'); return; }
   const lastStep = steps[steps.length - 1];
-  const blob = await idbGetScreenshot(lastStep.stepNumber);
-  if (!blob) { showToast('이미지를 불러올 수 없습니다'); return; }
 
   const zoomOverlay = document.getElementById('thumbZoomOverlay');
   const zoomImg     = document.getElementById('thumbZoomImg');
   if (!zoomOverlay || !zoomImg) return;
 
-  const blobSrc = URL.createObjectURL(blob);
-  _thumbObjectUrls.push(blobSrc);
-  zoomImg.src = blobSrc;
-  zoomOverlay.dataset.imageUrl = '';
-  zoomOverlay._zoomUrl = blobSrc;
+  let blob = await idbGetScreenshot(lastStep.stepNumber);
+  if (blob) {
+    const blobSrc = URL.createObjectURL(blob);
+    _thumbObjectUrls.push(blobSrc);
+    zoomImg.src = blobSrc;
+    zoomOverlay.dataset.imageUrl = '';
+    zoomOverlay._zoomUrl = blobSrc;
+  } else if (lastStep.imageUrl) {
+    // IndexedDB에 없으면 imageUrl로 표시 (APPLY_BLUR에서 fetch 처리)
+    zoomImg.src = lastStep.imageUrl;
+    zoomOverlay.dataset.imageUrl = lastStep.imageUrl;
+  } else {
+    showToast('이미지를 불러올 수 없습니다'); return;
+  }
   zoomOverlay._step = lastStep;
   zoomOverlay._blob = blob;
   zoomOverlay.classList.add('open');
