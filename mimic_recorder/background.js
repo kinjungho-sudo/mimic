@@ -233,61 +233,50 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     chrome.tabs.get(tabId, (tab) => {
       if (chrome.runtime.lastError || !tab) { sendResponse({ ok: false }); return; }
 
-      // 1) content.js에 오버레이 숨김 요청 → PII 좌표 포함 응답(repaint 완료) 후 캡처
+      const restore = () => chrome.tabs.sendMessage(tabId, { type: 'RESTORE_OVERLAY' }, () => { void chrome.runtime.lastError; });
+
+      // HIDE_OVERLAY_FOR_CAPTURE 응답 타임아웃 — content.js가 응답 못해도 isCapturing stuck 방지
+      let hideResponded = false;
+      const hideTimeout = setTimeout(() => {
+        if (!hideResponded) { restore(); sendResponse({ ok: false }); }
+      }, 3000);
+
+      // 1) hover overlay 포함 캡처: content.js에 오버레이 숨김 요청
       chrome.tabs.sendMessage(tabId, { type: 'HIDE_OVERLAY_FOR_CAPTURE' }, async (response) => {
-        void chrome.runtime.lastError;
-        // 2) 캡처 전 타겟 탭이 활성화되어 있는지 확인 — 다른 탭으로 전환된 경우 원복
-        await new Promise((resolve) => {
-          chrome.tabs.get(tabId, (t) => {
-            if (!chrome.runtime.lastError && t && !t.active) {
-              chrome.tabs.update(tabId, { active: true }, () => setTimeout(resolve, 80));
-            } else {
-              resolve();
-            }
-          });
+        hideResponded = true;
+        clearTimeout(hideTimeout);
+        if (chrome.runtime.lastError) { restore(); sendResponse({ ok: false }); return; }
+
+        // 2) rAF repaint 완료 대기 후 캡처
+        await new Promise((r) => setTimeout(r, 50));
+
+        chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' }, async (rawDataUrl) => {
+          if (chrome.runtime.lastError || !rawDataUrl) {
+            restore(); sendResponse({ ok: false }); return;
+          }
+
+          // 3) 검은 화면(캡처 차단) 감지
+          const black = await isBlackScreen(rawDataUrl).catch(() => false);
+          if (black) {
+            restore();
+            chrome.runtime.sendMessage({ type: 'CAPTURE_BLOCKED', stepNumber: stepData.stepNumber, stepData }, () => { void chrome.runtime.lastError; });
+            sendResponse({ ok: false, blocked: true });
+            return;
+          }
+
+          // 4) PII 픽셀 블러 적용
+          const piiRegions = response?.piiRegions ?? [];
+          let dataUrl = rawDataUrl;
+          if (piiRegions.length > 0) {
+            dataUrl = await applyPixelBlur(rawDataUrl, piiRegions, stepData.windowWidth || 1280, stepData.windowHeight || 800).catch(() => rawDataUrl);
+          }
+
+          // 5) 오버레이 복원 후 저장
+          restore();
+          handleCapture(dataUrl, stepData, tab)
+            .then(() => { updateBadge(); sendResponse({ ok: true }); })
+            .catch((err) => { console.error('[MIMIC] handleCapture error:', err); sendResponse({ ok: false }); });
         });
-        // 3) content.js rAF 응답 도착 후 추가로 한 틱 여유 → 캡처
-        setTimeout(async () => {
-          chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' }, async (rawDataUrl) => {
-            if (chrome.runtime.lastError || !rawDataUrl) {
-              chrome.tabs.sendMessage(tabId, { type: 'RESTORE_OVERLAY' }, () => { void chrome.runtime.lastError; });
-              sendResponse({ ok: false }); return;
-            }
-
-            // 3) 검은 화면(캡처 차단) 감지
-            const black = await isBlackScreen(rawDataUrl).catch(() => false);
-            if (black) {
-              chrome.tabs.sendMessage(tabId, { type: 'RESTORE_OVERLAY' }, () => { void chrome.runtime.lastError; });
-              // 사이드패널에 차단 알림 → 수동 업로드 UI 표시
-              chrome.runtime.sendMessage({
-                type: 'CAPTURE_BLOCKED',
-                stepNumber: stepData.stepNumber,
-                stepData,
-              }, () => { void chrome.runtime.lastError; });
-              sendResponse({ ok: false, blocked: true });
-              return;
-            }
-
-            // 4) PII 픽셀 블러 적용
-            const piiRegions = response?.piiRegions ?? [];
-            let dataUrl = rawDataUrl;
-            if (piiRegions.length > 0) {
-              dataUrl = await applyPixelBlur(
-                rawDataUrl,
-                piiRegions,
-                stepData.windowWidth  || 1280,
-                stepData.windowHeight || 800
-              ).catch(() => rawDataUrl);
-            }
-
-            // 5) 캡처 완료 → 오버레이 복원 신호
-            chrome.tabs.sendMessage(tabId, { type: 'RESTORE_OVERLAY' }, () => { void chrome.runtime.lastError; });
-
-            handleCapture(dataUrl, stepData, tab)
-              .then(() => { updateBadge(); sendResponse({ ok: true }); })
-              .catch((err) => { console.error('[MIMIC] handleCapture error:', err); sendResponse({ ok: false }); });
-          });
-        }, 0);
       });
     });
     return true;
@@ -603,7 +592,8 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
       }
 
       const pendingStepNum = (r.stepNumber || 0) + 1;
-      chrome.storage.local.set({ stepNumber: pendingStepNum });
+      // lastCaptureTime 즉시 세팅 — tabs.onUpdated 재발화로 autoNav 중복 캡처 방지
+      chrome.storage.local.set({ stepNumber: pendingStepNum, lastCaptureTime: Date.now() });
       chrome.storage.local.remove('pendingCapture');
       captureWithPII(tabId, tab).then((dataUrl) => {
         if (!dataUrl) return;
@@ -981,8 +971,20 @@ async function handleCapture(pngDataUrl, stepData, tab) {
   if (!stepData.overwrite) chrome.storage.local.set({ stepNumber: stepNum });
   updateBadge();
 
-  // 2단계: 업로드 + AI 분석은 백그라운드에서 비동기 처리 (캡처 응답 블로킹 없음)
-  (async () => {
+  // 2단계: 업로드 + AI 분석 — SW keepalive를 유지하며 처리
+  // MV3 Service Worker는 idle 30초 후 종료됨 → chrome.storage 접근으로 생명주기 연장
+  await processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base64Image, stepData, clickX, clickY, domainInfo });
+}
+
+// ── 스텝 업로드 처리 (SW keepalive 포함) ─────────────────────────
+// chrome.storage.local.set으로 주기적 keepalive 신호를 보내 SW 종료를 방지한다.
+async function processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base64Image, stepData, clickX, clickY, domainInfo }) {
+  // keepalive: storage 쓰기로 SW 활성 상태 유지 (30초 idle 타임아웃 리셋)
+  const keepaliveInterval = setInterval(() => {
+    chrome.storage.local.set({ _swKeepalive: Date.now() });
+  }, 20000);
+
+  try {
     const [imageResult, analysisResult] = await Promise.allSettled([
       uploadImage(imagePath, jpegBlob),
       analyzeWithClaude(base64Image, stepData.url, stepData.actionInfo, {
@@ -1025,7 +1027,9 @@ async function handleCapture(pngDataUrl, stepData, tab) {
         console.warn('[MIMIC] save-step failed:', err.message);
       }
     }
-  })();
+  } finally {
+    clearInterval(keepaliveInterval);
+  }
 }
 
 // ── 토큰 만료 처리 ───────────────────────────────────────────────
@@ -1126,9 +1130,9 @@ async function finalizeSession(sessionId) {
   return res.json();
 }
 
-// ── Supabase Storage 업로드 (그대로 유지) ────────────────────────
+// ── Supabase Storage 업로드 (실패 시 1회 재시도) ─────────────────
 async function uploadImage(path, blob) {
-  const res = await fetch(
+  const doUpload = () => fetch(
     `${SUPABASE_URL}/storage/v1/object/${SUPABASE_BUCKET}/${path}`,
     {
       method: 'POST',
@@ -1141,6 +1145,12 @@ async function uploadImage(path, blob) {
       body: blob,
     }
   );
+  let res = await doUpload();
+  if (!res.ok) {
+    // 1회 재시도 (일시적 네트워크 오류 대응)
+    await new Promise(r => setTimeout(r, 1500));
+    res = await doUpload();
+  }
   if (!res.ok) throw new Error(`Storage upload failed: ${await res.text()}`);
   return `${SUPABASE_URL}/storage/v1/object/public/${SUPABASE_BUCKET}/${path}`;
 }

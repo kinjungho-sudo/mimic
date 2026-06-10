@@ -234,7 +234,7 @@ export function ImageAnnotationEditor({
   const imgRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const [imgSize, setImgSize] = useState({ w: 1, h: 1 });
+  const [imgSize, setImgSize] = useState<{ w: number; h: number } | null>(null);
   useEffect(() => {
     const img = imgRef.current;
     if (!img) return;
@@ -248,13 +248,13 @@ export function ImageAnnotationEditor({
 
   const toVB = useCallback((e: React.MouseEvent | MouseEvent) => {
     const img = imgRef.current;
-    if (!img) return { x: 0, y: 0 };
+    if (!img || !imgSize) return { x: 0, y: 0 };
     const rect = img.getBoundingClientRect();
     return {
       x: Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100)),
       y: Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100)),
     };
-  }, []);
+  }, [imgSize]);
 
   const commitTextRef = useRef<() => void>(() => {});
   const commitText = useCallback(() => {
@@ -274,6 +274,7 @@ export function ImageAnnotationEditor({
   const strokeWidth = STROKE_OPTIONS[strokeIdx].value;
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (!imgSize) return;
     if ((e.target as HTMLElement).closest('[data-text-editor]')) return;
     if (editingText) { commitTextRef.current(); return; }
     if (tool === 'select') { setSelectedId(null); setColorPopover(null); setAlignOpen(false); return; }
@@ -316,9 +317,10 @@ export function ImageAnnotationEditor({
       type: annType, x1: x, y1: y, x2: x, y2: y,
       color: lastColor.current, strokeWidth: STROKE_OPTIONS[lastStrokeIdx.current].value, id: genId(),
     });
-  }, [tool, strokeWidth, editingText, toVB, nextMarkerNum, imgSize.w, imgSize.h]);
+  }, [tool, strokeWidth, editingText, toVB, nextMarkerNum, imgSize]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!imgSize) return;
     if (tool === 'eraser' && eraserActiveRef.current) {
       const { x, y } = toVB(e);
       setItems(prev => prev.filter(a => !hitTestAnnotation(a, x, y, 1.2, imgSize.w, imgSize.h)));
@@ -332,7 +334,7 @@ export function ImageAnnotationEditor({
     if (!drawing) return;
     const { x, y } = toVB(e);
     setDrawing(prev => prev ? { ...prev, x2: x, y2: y } : null);
-  }, [drawing, textDrawing, tool, toVB, imgSize.w, imgSize.h]);
+  }, [drawing, textDrawing, tool, toVB, imgSize]);
 
   const handleMouseUp = useCallback((e: React.MouseEvent) => {
     eraserActiveRef.current = false;
@@ -832,7 +834,13 @@ export function ImageAnnotationEditor({
             style={{ display: 'block', maxWidth: 'min(1100px, calc(100vw - 48px))', maxHeight: 'calc(100vh - 200px)', objectFit: 'contain' }}
           />
 
-          <svg
+          {!imgSize && (
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.4)', borderRadius: '4px' }}>
+              <div style={{ width: '32px', height: '32px', borderRadius: '50%', border: '3px solid rgba(255,255,255,0.2)', borderTopColor: 'white', animation: 'spin 0.8s linear infinite' }} />
+            </div>
+          )}
+
+          {imgSize && <svg
             viewBox={`0 0 ${imgSize.w} ${imgSize.h}`}
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', cursor: activeCursor, overflow: 'visible' }}
           >
@@ -897,7 +905,7 @@ export function ImageAnnotationEditor({
                 />
               );
             })()}
-          </svg>
+          </svg>}
 
           {/* 텍스트 편집 오버레이 */}
           {editingText && editingItem && (() => {
