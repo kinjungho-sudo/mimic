@@ -432,11 +432,12 @@ function EmptyState({ onRecord, onBlank, label }: { onRecord: () => void; onBlan
 
 const FOLDER_COLORS = ['#3730a3', '#6d28d9', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#6B7280'];
 
-function FolderPanel({ folders, tutorials, activeFolder, isMyTab, onSelectFolder, onClose, onCreate, onRename, onChangeColor, onDelete, onDropTutorial }: {
+function FolderPanel({ folders, tutorials, activeFolder, active, title, onSelectFolder, onClose, onCreate, onRename, onChangeColor, onDelete, onDropTutorial }: {
   folders: Folder[];
   tutorials: Tutorial[];
   activeFolder: string | null | 'all';
-  isMyTab: boolean;
+  active: boolean;
+  title: string;
   onSelectFolder: (id: string | null | 'all') => void;
   onClose: () => void;
   onCreate: (name: string) => Promise<void>;
@@ -502,7 +503,7 @@ function FolderPanel({ folders, tutorials, activeFolder, isMyTab, onSelectFolder
   });
 
   const unfiledCount = tutorials.filter(t => !t.folder_id).length;
-  const isActive = (id: string | null | 'all') => isMyTab && activeFolder === id;
+  const isActive = (id: string | null | 'all') => active && activeFolder === id;
 
   const rowStyle = (active: boolean, dragOver: boolean, color = '#3730a3'): React.CSSProperties => ({
     display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0,
@@ -528,7 +529,7 @@ function FolderPanel({ folders, tutorials, activeFolder, isMyTab, onSelectFolder
         <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: '#3730a3', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
         </div>
-        <span style={{ fontSize: '13.5px', fontWeight: 700, color: '#111827', flex: 1 }}>내 워크스페이스</span>
+        <span style={{ fontSize: '13.5px', fontWeight: 700, color: '#111827', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</span>
         <button onClick={onClose} title="패널 닫기 (Esc)"
           style={{ width: '26px', height: '26px', borderRadius: '6px', border: 'none', background: 'transparent', color: '#9CA3AF', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
           onMouseEnter={e => { e.currentTarget.style.background = '#F3F4F6'; e.currentTarget.style.color = '#4B5563'; }}
@@ -686,6 +687,7 @@ export default function DashboardPage() {
   const [tutorials, setTutorials] = useState<Tutorial[]>([]);
   const [tutLoading, setTutLoading] = useState(true);
   const [folders, setFolders] = useState<Folder[]>([]);
+  const [teamFolders, setTeamFolders] = useState<Folder[]>([]); // 활성 워크스페이스의 공유 폴더
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -738,6 +740,12 @@ export default function DashboardPage() {
     if (res.ok) setFolders(await res.json());
   }, []);
 
+  const loadTeamFolders = useCallback(async (workspaceId: string) => {
+    const res = await fetch(`/api/folders?workspace_id=${workspaceId}`);
+    if (res.ok) setTeamFolders(await res.json());
+    else setTeamFolders([]);
+  }, []);
+
   const loadWorkspaces = useCallback(async () => {
     const res = await fetch('/api/workspaces');
     if (res.ok) setWorkspaces(await res.json());
@@ -752,9 +760,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!user) return;
-    if (activeTab === 'team' && activeWorkspace) loadTutorials(activeWorkspace);
+    if (activeTab === 'team' && activeWorkspace) { loadTutorials(activeWorkspace); loadTeamFolders(activeWorkspace); }
     else if (activeTab === 'my') loadTutorials();
-  }, [activeTab, activeWorkspace, user, loadTutorials]);
+  }, [activeTab, activeWorkspace, user, loadTutorials, loadTeamFolders]);
 
   useEffect(() => {
     const handler = () => { if (document.visibilityState === 'visible') loadTutorials(activeTab === 'team' ? activeWorkspace ?? undefined : undefined); };
@@ -803,27 +811,32 @@ export default function DashboardPage() {
     setTutorials(prev => prev.map(t => t.id === tutorialId ? { ...t, folder_id: folderId } : t));
   };
 
+  // 폴더 컨텍스트 — 팀 탭이면 활성 워크스페이스의 공유 폴더, 아니면 개인 폴더
+  const isTeamCtx = activeTab === 'team' && !!activeWorkspace;
+  const panelFolders = isTeamCtx ? teamFolders : folders;
+  const setPanelFolders = isTeamCtx ? setTeamFolders : setFolders;
+
   const handleCreateFolder = async (name: string) => {
-    const res = await fetch('/api/folders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
-    if (res.ok) { const folder = await res.json(); setFolders(prev => [...prev, folder]); }
+    const res = await fetch('/api/folders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, workspace_id: isTeamCtx ? activeWorkspace : null }) });
+    if (res.ok) { const folder = await res.json(); setPanelFolders(prev => [...prev, folder]); }
   };
 
   const handleDeleteFolder = async (id: string) => {
     if (!confirm('폴더를 삭제할까요? 안의 매뉴얼은 유지됩니다.')) return;
     await fetch(`/api/folders/${id}`, { method: 'DELETE' });
-    setFolders(prev => prev.filter(f => f.id !== id));
+    setPanelFolders(prev => prev.filter(f => f.id !== id));
     setTutorials(prev => prev.map(t => t.folder_id === id ? { ...t, folder_id: null } : t));
     if (activeFolder === id) setActiveFolder('all');
   };
 
   const handleRenameFolder = async (id: string, name: string) => {
     await fetch(`/api/folders/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
-    setFolders(prev => prev.map(f => f.id === id ? { ...f, name } : f));
+    setPanelFolders(prev => prev.map(f => f.id === id ? { ...f, name } : f));
   };
 
   const handleChangeFolderColor = async (id: string, color: string) => {
     await fetch(`/api/folders/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ color }) });
-    setFolders(prev => prev.map(f => f.id === id ? { ...f, color } : f));
+    setPanelFolders(prev => prev.map(f => f.id === id ? { ...f, color } : f));
   };
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -878,11 +891,10 @@ export default function DashboardPage() {
   };
 
   const displayedTutorials = (() => {
-    let list = activeTab === 'team' ? tutorials : (() => {
-      if (activeFolder === 'all') return tutorials;
-      if (activeFolder === null) return tutorials.filter(t => !t.folder_id);
-      return tutorials.filter(t => t.folder_id === activeFolder);
-    })();
+    let list =
+      activeFolder === 'all' ? tutorials :
+      activeFolder === null ? tutorials.filter(t => !t.folder_id) :
+      tutorials.filter(t => t.folder_id === activeFolder);
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
       list = list.filter(t => t.title.toLowerCase().includes(q));
@@ -925,8 +937,8 @@ export default function DashboardPage() {
             <div style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
 
               {/* ① 내 워크스페이스 (클릭 = 폴더 패널 슬라이드 오픈) */}
-              <button onClick={() => { setActiveTab('my'); setShowFolderPanel(v => !v); }}
-                style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '7px 8px', borderRadius: '8px', border: 'none', cursor: 'pointer', textAlign: 'left', background: showFolderPanel ? '#F3F4F6' : 'transparent' }}
+              <button onClick={() => { if (activeTab !== 'my') { setActiveTab('my'); setActiveFolder('all'); setShowFolderPanel(true); } else { setShowFolderPanel(v => !v); } }}
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '7px 8px', borderRadius: '8px', border: 'none', cursor: 'pointer', textAlign: 'left', background: showFolderPanel && activeTab === 'my' ? '#F3F4F6' : 'transparent' }}
                 onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
                 onMouseLeave={e => (e.currentTarget.style.background = showFolderPanel ? '#F3F4F6' : 'transparent')}>
                 <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: activeTab === 'my' ? '#3730a3' : '#E5E7EB', display: 'grid', placeItems: 'center', flexShrink: 0, transition: 'background 0.15s' }}>
@@ -984,7 +996,7 @@ export default function DashboardPage() {
                     ? <div style={{ padding: '4px 8px', fontSize: '13px', color: '#D1D5DB' }}>없음</div>
                     : workspaces.map(ws => (
                       <div key={ws.id} style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
-                        <button onClick={() => { setActiveTab('team'); setActiveWorkspace(ws.id); }}
+                        <button onClick={() => { const switching = !(activeTab === 'team' && activeWorkspace === ws.id); setActiveTab('team'); setActiveWorkspace(ws.id); if (switching) setActiveFolder('all'); setShowFolderPanel(true); }}
                           style={{ display: 'flex', alignItems: 'center', gap: '7px', flex: 1, padding: '5px 8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', textAlign: 'left', background: activeTab === 'team' && activeWorkspace === ws.id ? '#e0e7ff' : 'transparent', color: activeTab === 'team' && activeWorkspace === ws.id ? '#3730a3' : '#4B5563', fontWeight: activeTab === 'team' && activeWorkspace === ws.id ? 600 : 400 }}
                           onMouseEnter={e => { if (!(activeTab === 'team' && activeWorkspace === ws.id)) (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; }}
                           onMouseLeave={e => { if (!(activeTab === 'team' && activeWorkspace === ws.id)) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
@@ -1069,11 +1081,12 @@ export default function DashboardPage() {
           {/* ── 폴더 슬라이드 패널 ── */}
           {showFolderPanel && (
             <FolderPanel
-              folders={folders}
+              folders={panelFolders}
               tutorials={tutorials}
               activeFolder={activeFolder}
-              isMyTab={activeTab === 'my'}
-              onSelectFolder={id => { setActiveTab('my'); setActiveFolder(id); }}
+              active={true}
+              title={isTeamCtx ? (workspaces.find(w => w.id === activeWorkspace)?.name ?? '팀 워크스페이스') : '내 워크스페이스'}
+              onSelectFolder={id => setActiveFolder(id)}
               onClose={() => setShowFolderPanel(false)}
               onCreate={handleCreateFolder}
               onRename={handleRenameFolder}
