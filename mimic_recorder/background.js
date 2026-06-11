@@ -14,6 +14,31 @@ const SW_KEEPALIVE_MS         = 20000;
 const AUTONAV_COOLDOWN_MS     = 3000;
 const DEDUP_HASH_THRESHOLD    = 6;     // aHash(256bit) 해밍거리 ≤ 6 이면 동일 이미지로 간주
 
+// ── 로그 시스템 ──────────────────────────────────────────────────
+const LOG_KEY      = '_mimicLogs';
+const LOG_MAX      = 300;
+const LOG_LEVELS   = { debug: 0, info: 1, warn: 2, error: 3 };
+
+function log(level, source, ...args) {
+  const msg = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
+  const entry = { t: Date.now(), level, source, msg };
+
+  // 콘솔 출력
+  const tag = `[MIMIC][${level.toUpperCase()}][${source}]`;
+  if (level === 'error')      console.error(tag, msg);
+  else if (level === 'warn')  console.warn(tag, msg);
+  else if (level === 'debug') console.debug(tag, msg);
+  else                        console.log(tag, msg);
+
+  // storage 링버퍼 (fire-and-forget)
+  chrome.storage.local.get(LOG_KEY, (r) => {
+    const logs = Array.isArray(r[LOG_KEY]) ? r[LOG_KEY] : [];
+    logs.push(entry);
+    if (logs.length > LOG_MAX) logs.splice(0, logs.length - LOG_MAX);
+    chrome.storage.local.set({ [LOG_KEY]: logs });
+  });
+}
+
 // ── chrome.storage.local 프로미스 헬퍼 ──────────────────────────
 function storageGet(keys) {
   return new Promise((resolve) => chrome.storage.local.get(keys, resolve));
@@ -293,7 +318,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         await storageSet({ extensionToken: session_token, webappOrigin: origin });
         sendResponse({ ok: true });
       } catch (err) {
-        console.error('[MIMIC] redeem error:', err);
+        log('error', 'bg', 'redeem error:', err.message);
         sendResponse({ ok: false, error: err.message });
       }
     })();
@@ -349,7 +374,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         }
         sendResponse({ ok: true });
       } catch (err) {
-        console.error('[MIMIC Guide] START_GUIDE error:', err);
+        log('error', 'bg', 'START_GUIDE error:', err.message);
         sendResponse({ ok: false, error: err.message });
       }
     })();
@@ -414,7 +439,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ ok: true });
       handleCapture(dataUrl, stepData, tab)
         .then(() => updateBadge())
-        .catch((err) => console.error('[MIMIC] handleCapture error:', err));
+        .catch((err) => log('error', 'bg', 'handleCapture error:', err.message));
     })();
     return true;
   }
@@ -523,7 +548,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'FINALIZE_SESSION') {
     finalizeSession(message.sessionId)
       .then((data) => sendResponse({ ok: true, ...data }))
-      .catch((err) => { console.error('[MIMIC] finalize error:', err); sendResponse({ ok: false }); });
+      .catch((err) => { log('error', 'bg', 'finalize error:', err.message); sendResponse({ ok: false }); });
     return true;
   }
 
@@ -614,7 +639,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
       sendResponse({ ok: true });
     })().catch((err) => {
-      console.error('[MIMIC] APPLY_BLUR error:', err);
+      log('error', 'bg', 'APPLY_BLUR error:', err.message);
       sendResponse({ ok: false, error: err.message });
     });
     return true;
@@ -683,6 +708,29 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     })();
     return true;
   }
+
+  if (message.type === 'RELAY_LOG') {
+    const entry = { t: Date.now(), level: message.level, source: message.source, msg: message.msg };
+    chrome.storage.local.get(LOG_KEY, (r) => {
+      const logs = Array.isArray(r[LOG_KEY]) ? r[LOG_KEY] : [];
+      logs.push(entry);
+      if (logs.length > LOG_MAX) logs.splice(0, logs.length - LOG_MAX);
+      chrome.storage.local.set({ [LOG_KEY]: logs });
+    });
+    return false;
+  }
+
+  if (message.type === 'GET_LOGS') {
+    chrome.storage.local.get(LOG_KEY, (r) => {
+      sendResponse({ logs: r[LOG_KEY] || [] });
+    });
+    return true;
+  }
+
+  if (message.type === 'CLEAR_LOGS') {
+    chrome.storage.local.remove(LOG_KEY, () => sendResponse({ ok: true }));
+    return true;
+  }
 });
 
 // ── 팝업 탭 녹화 대상 추가 ───────────────────────────────────────
@@ -740,7 +788,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     if (!dataUrl) return;
     handleCapture(dataUrl, { ...pending, url: tab.url, clickX: 0, clickY: 0, stepNumber: pendingStepNum }, tab)
       .then(() => updateBadge())
-      .catch((err) => console.warn('[MIMIC] pending capture failed:', err.message));
+      .catch((err) => log('warn', 'bg', 'pending capture failed:', err.message));
     return;
   }
 
@@ -765,7 +813,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     actionInfo: { type: 'navigate', label: tab.url },
   }, tab)
     .then(() => updateBadge())
-    .catch((err) => console.warn('[MIMIC] nav capture failed:', err.message));
+    .catch((err) => log('warn', 'bg', 'nav capture failed:', err.message));
 });
 
 // ── 페이지 렌더 완료 확인 후 캡처 ───────────────────────────────
@@ -1029,7 +1077,7 @@ async function handleCapture(pngDataUrl, stepData, tab) {
   if (candHash && isNavCapture && !stepData.manual && !stepData.overwrite) {
     const prev = await getLastSavedHash();
     if (prev && hammingDist(candHash, prev) <= DEDUP_HASH_THRESHOLD) {
-      console.log('[MIMIC] 동일 이미지 중복 이동 캡처 스킵 (step', stepData.stepNumber, ')');
+      log('debug', 'bg', `dedup skip nav capture step ${stepData.stepNumber}`);
       return;
     }
   }
@@ -1046,6 +1094,7 @@ async function handleCapture(pngDataUrl, stepData, tab) {
   const sessionId = await getOrCreateSessionId();
   const stepNum   = stepData.stepNumber;
   const imagePath = `${sessionId}/step_${String(stepNum).padStart(2, '0')}.jpg`;
+  log('debug', 'bg', `capture step ${stepNum} action=${stepData.actionInfo?.type ?? 'click'} url=${stepData.url}`);
 
   const winW   = stepData.windowWidth  || 1280;
   const winH   = stepData.windowHeight || 800;
@@ -1086,8 +1135,8 @@ async function processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base
       ? analysisResult.value
       : { title: null, description: null };
 
-    if (imageResult.status === 'rejected')   console.warn('[MIMIC] upload failed:', imageResult.reason.message);
-    if (analysisResult.status === 'rejected') console.warn('[MIMIC] analyze failed:', analysisResult.reason.message);
+    if (imageResult.status === 'rejected')    log('error', 'bg', `upload failed step ${stepNum}:`, imageResult.reason.message);
+    if (analysisResult.status === 'rejected') log('warn',  'bg', `analyze failed step ${stepNum}:`, analysisResult.reason.message);
 
     if (!uploadedUrl) {
       if (!stepData.overwrite) await storageSet({ stepNumber: stepNum - 1 });
@@ -1101,9 +1150,9 @@ async function processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base
 
     try {
       await saveStep({ sessionId, stepNumber: stepNum, screenshotUrl: uploadedUrl, clickX, clickY, title: title ?? '', description: description ?? '', url: stepData.url, domainInfo, viewportW: stepData.viewportW ?? stepData.windowWidth ?? null, viewportH: stepData.viewportH ?? stepData.windowHeight ?? null, elementSelector: stepData.elementSelector ?? null, elementRect: stepData.elementRect ?? null });
-      console.log(`[MIMIC] saved step ${stepNum}: "${title}"`);
+      log('info', 'bg', `saved step ${stepNum}: "${title}"`);
     } catch (err) {
-      console.warn('[MIMIC] save-step failed:', err.message);
+      log('warn', 'bg', `save-step API failed step ${stepNum}:`, err.message);
     }
   } finally {
     clearInterval(keepaliveInterval);
@@ -1157,7 +1206,7 @@ async function getOrCreateSessionId() {
 
 // ── 토큰 만료 처리 ───────────────────────────────────────────────
 async function handleTokenExpired() {
-  console.warn('[MIMIC] 토큰 만료 또는 무효 — 삭제 후 재연동 필요');
+  log('warn', 'bg', '토큰 만료 또는 무효 — 재연동 필요');
   await storageRemove('extensionToken');
   const { isRecording } = await storageGet('isRecording');
   if (isRecording) await storageSet({ isRecording: false, isPaused: false });
@@ -1232,7 +1281,7 @@ async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, 
 async function finalizeSession(sessionId) {
   const { extensionToken } = await storageGet('extensionToken');
   if (!extensionToken) {
-    console.warn('[MIMIC] extensionToken 없음 — /extension-link 에서 연동 필요');
+    log('warn', 'bg', 'extensionToken 없음 — /extension-link 에서 연동 필요');
     return { tutorial_id: null, step_count: 0 };
   }
   const origin = await getWebappOrigin();
@@ -1251,10 +1300,9 @@ async function uploadImage(path, blob) {
     {
       method: 'POST',
       headers: {
-        'apikey':        SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-        'Content-Type':  'image/jpeg',
-        'x-upsert':      'true',
+        'apikey':       SUPABASE_ANON_KEY,
+        'Content-Type': 'image/jpeg',
+        'x-upsert':     'true',
       },
       body: blob,
     }

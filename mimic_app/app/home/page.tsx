@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { RecordingModal } from '@/components/dashboard/RecordingModal';
 import { AgentChat } from '@/components/AgentChat';
 import { createTutorial } from '@/lib/api/tutorials';
+import { logError } from '@/lib/logger';
 import type { Tutorial, Workspace, Folder } from '@/types';
 
 
@@ -804,10 +805,11 @@ export default function DashboardPage() {
   };
 
   const handleMoveToFolder = async (tutorialId: string, folderId: string | null) => {
-    await fetch(`/api/tutorials/${tutorialId}`, {
+    const res = await fetch(`/api/tutorials/${tutorialId}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ folder_id: folderId }),
     });
+    if (!res.ok) { logError('tutorial.moveFolder.fail', { tutorialId, folderId, status: res.status }); return; }
     setTutorials(prev => prev.map(t => t.id === tutorialId ? { ...t, folder_id: folderId } : t));
   };
 
@@ -819,23 +821,27 @@ export default function DashboardPage() {
   const handleCreateFolder = async (name: string) => {
     const res = await fetch('/api/folders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, workspace_id: isTeamCtx ? activeWorkspace : null }) });
     if (res.ok) { const folder = await res.json(); setPanelFolders(prev => [...prev, folder]); }
+    else logError('folder.create.fail', { workspaceId: isTeamCtx ? activeWorkspace : null, status: res.status });
   };
 
   const handleDeleteFolder = async (id: string) => {
     if (!confirm('폴더를 삭제할까요? 안의 매뉴얼은 유지됩니다.')) return;
-    await fetch(`/api/folders/${id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/folders/${id}`, { method: 'DELETE' });
+    if (!res.ok) { logError('folder.delete.fail', { folderId: id, status: res.status }); return; }
     setPanelFolders(prev => prev.filter(f => f.id !== id));
     setTutorials(prev => prev.map(t => t.folder_id === id ? { ...t, folder_id: null } : t));
     if (activeFolder === id) setActiveFolder('all');
   };
 
   const handleRenameFolder = async (id: string, name: string) => {
-    await fetch(`/api/folders/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+    const res = await fetch(`/api/folders/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+    if (!res.ok) { logError('folder.rename.fail', { folderId: id, status: res.status }); return; }
     setPanelFolders(prev => prev.map(f => f.id === id ? { ...f, name } : f));
   };
 
   const handleChangeFolderColor = async (id: string, color: string) => {
-    await fetch(`/api/folders/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ color }) });
+    const res = await fetch(`/api/folders/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ color }) });
+    if (!res.ok) { logError('folder.color.fail', { folderId: id, status: res.status }); return; }
     setPanelFolders(prev => prev.map(f => f.id === id ? { ...f, color } : f));
   };
 

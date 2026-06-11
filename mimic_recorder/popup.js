@@ -1370,4 +1370,78 @@ chrome.storage.onChanged.addListener((changes) => {
   }
 });
 
+// ── 디버그 로그 뷰어 ─────────────────────────────────────────────
+const debugPanel    = document.getElementById('debugPanel');
+const debugLogList  = document.getElementById('debugLogList');
+const btnDebugClose = document.getElementById('btnDebugClose');
+const btnDebugCopy  = document.getElementById('btnDebugCopy');
+const btnDebugClear = document.getElementById('btnDebugClear');
+
+function openDebugPanel() {
+  chrome.runtime.sendMessage({ type: 'GET_LOGS' }, (r) => {
+    const logs = r?.logs || [];
+    renderDebugLogs(logs);
+    debugPanel.style.display = 'flex';
+  });
+}
+
+function renderDebugLogs(logs) {
+  if (!debugLogList) return;
+  debugLogList.textContent = '';
+  if (logs.length === 0) {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'color:#666;font-size:11px;padding:8px 0;';
+    empty.textContent = '로그 없음';
+    debugLogList.appendChild(empty);
+    return;
+  }
+  const LEVEL_COLOR = { error: '#f87171', warn: '#fbbf24', info: '#60a5fa', debug: '#9ca3af' };
+  logs.slice().reverse().forEach(entry => {
+    const d = new Date(entry.t);
+    const time = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}.${String(d.getMilliseconds()).padStart(3,'0')}`;
+
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:6px;padding:3px 0;border-bottom:1px solid #2a2a3e;font-size:10.5px;line-height:1.4;';
+
+    const tSpan = document.createElement('span');
+    tSpan.style.cssText = 'color:#555;flex-shrink:0;font-size:10px;';
+    tSpan.textContent = time;
+
+    const lSpan = document.createElement('span');
+    lSpan.style.cssText = `color:${LEVEL_COLOR[entry.level] || '#ccc'};flex-shrink:0;font-weight:600;min-width:36px;`;
+    lSpan.textContent = entry.level.toUpperCase();
+
+    const sSpan = document.createElement('span');
+    sSpan.style.cssText = 'color:#aaa;flex-shrink:0;min-width:48px;';
+    sSpan.textContent = `[${entry.source}]`;
+
+    const mSpan = document.createElement('span');
+    mSpan.style.cssText = 'color:#e2e2e2;word-break:break-all;';
+    mSpan.textContent = entry.msg;
+
+    row.appendChild(tSpan);
+    row.appendChild(lSpan);
+    row.appendChild(sSpan);
+    row.appendChild(mSpan);
+    debugLogList.appendChild(row);
+  });
+}
+
+if (btnDebugClose) btnDebugClose.addEventListener('click', () => { debugPanel.style.display = 'none'; });
+if (btnDebugCopy) btnDebugCopy.addEventListener('click', () => {
+  chrome.runtime.sendMessage({ type: 'GET_LOGS' }, (r) => {
+    const logs = r?.logs || [];
+    const text = logs.map(e => `[${new Date(e.t).toISOString()}][${e.level.toUpperCase()}][${e.source}] ${e.msg}`).join('\n');
+    navigator.clipboard.writeText(text).then(() => {
+      btnDebugCopy.textContent = '복사됨!';
+      setTimeout(() => { btnDebugCopy.textContent = '복사'; }, 1500);
+    });
+  });
+});
+if (btnDebugClear) btnDebugClear.addEventListener('click', () => {
+  chrome.runtime.sendMessage({ type: 'CLEAR_LOGS' }, () => {
+    renderDebugLogs([]);
+  });
+});
+
 init();
