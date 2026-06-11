@@ -350,6 +350,74 @@ if (window !== window.top) return;
     });
   }
 
+  // ── 클릭 위치 붉은 원형 펄스 + 일시 확대 ───────────────────────
+  function showClickHighlight(x, y) {
+    if (!settings.highlight) return;
+
+    // 붉은 원형 펄스
+    const pulse = document.createElement('div');
+    pulse.style.cssText = [
+      'position:fixed',
+      `left:${x}px`, `top:${y}px`,
+      'width:0', 'height:0',
+      'pointer-events:none', 'z-index:2147483647',
+    ].join(';');
+
+    const ring = document.createElement('div');
+    ring.style.cssText = [
+      'position:absolute',
+      'width:48px', 'height:48px',
+      'border-radius:50%',
+      'background:rgba(239,68,68,0.35)',
+      'border:2.5px solid #EF4444',
+      'transform:translate(-50%,-50%) scale(0)',
+      'transition:transform 0.32s cubic-bezier(0.22,1,0.36,1), opacity 0.32s ease',
+      'opacity:1',
+    ].join(';');
+
+    const dot = document.createElement('div');
+    dot.style.cssText = [
+      'position:absolute',
+      'width:12px', 'height:12px',
+      'border-radius:50%',
+      'background:#EF4444',
+      'transform:translate(-50%,-50%)',
+      'box-shadow:0 0 0 3px rgba(239,68,68,0.4)',
+    ].join(';');
+
+    pulse.append(ring, dot);
+    document.documentElement.appendChild(pulse);
+
+    requestAnimationFrame(() => {
+      ring.style.transform = 'translate(-50%,-50%) scale(1)';
+      setTimeout(() => {
+        ring.style.opacity = '0';
+        ring.style.transform = 'translate(-50%,-50%) scale(1.6)';
+        setTimeout(() => pulse.remove(), 350);
+      }, 300);
+    });
+
+    // 클릭 중심 화면 확대 (일시적 zoom-in 효과)
+    if (!settings.flash) return;
+    const el = document.documentElement;
+    const ox = (x / window.innerWidth  * 100).toFixed(1);
+    const oy = (y / window.innerHeight * 100).toFixed(1);
+    const prevTransform  = el.style.transform;
+    const prevTransformOrigin = el.style.transformOrigin;
+    const prevTransition = el.style.transition;
+    el.style.transformOrigin = `${ox}% ${oy}%`;
+    el.style.transition = 'transform 0.22s cubic-bezier(0.22,1,0.36,1)';
+    el.style.transform  = 'scale(1.06)';
+    setTimeout(() => {
+      el.style.transform = prevTransform || 'scale(1)';
+      setTimeout(() => {
+        el.style.transform      = prevTransform;
+        el.style.transformOrigin = prevTransformOrigin;
+        el.style.transition     = prevTransition;
+      }, 220);
+    }, 280);
+  }
+
   // ── 녹화 시작 카운트다운 오버레이 ──────────────────────────────
   function showCountdown(onDone) {
     const overlay = document.createElement('div');
@@ -629,6 +697,7 @@ if (window !== window.top) return;
       const now = Date.now();
       if (lastCapturedTarget === document.body && (now - lastCapturedTime) < DEDUP_SAME_ELEMENT) return;
 
+      showClickHighlight(e.clientX, e.clientY);
       const safetyTimer = startCapturingSafely();
       stepNumber        += 1;
       lastCapturedTarget = document.body;
@@ -651,17 +720,18 @@ if (window !== window.top) return;
 
     const actionType = getActionType(target);
 
-    // 텍스트 입력 필드: 클릭 시 캡처 안 함, typingTarget만 세팅
+    // 입력 필드 포커스: typingTarget 세팅 + 클릭 자체도 캡처 (항상 캡처 정책)
     if (actionType === 'focus_input') {
       if (typingTarget && typingTarget !== target) flushTyping(typingTarget);
-      if (typingTarget === target) return;
       typingTarget     = target;
       pendingInputStep = null;
-      return;
+      // 아래로 진행해서 캡처
+    } else {
+      // 진행 중이던 타이핑 flush
+      if (typingTarget) flushTyping(typingTarget);
     }
 
-    // 진행 중이던 타이핑 flush
-    if (typingTarget) flushTyping(typingTarget);
+    showClickHighlight(e.clientX, e.clientY);
 
     const rect  = target.getBoundingClientRect();
     const label = getElementLabel(target);
