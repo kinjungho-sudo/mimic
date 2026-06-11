@@ -493,7 +493,7 @@
 <body>
 
   <div class="header">
-    <div class="logo">
+    <div class="logo" id="logoArea" title="">
       <div class="logo-icon"><img src="icons/icon48.png" alt="MIMIC"></div>
       <span class="logo-text">MIMIC</span>
     </div>
@@ -825,6 +825,25 @@
     </div>
   </div>
 
+  <!-- ── 디버그 로그 패널 ── -->
+  <div id="debugPanel" style="display:none;position:fixed;inset:0;z-index:99999;background:#12121e;flex-direction:column;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid #2a2a3e;flex-shrink:0;">
+      <span style="font-size:13px;font-weight:700;color:#e2e2e2;">🔍 Debug Logs</span>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button id="btnDebugCopy" style="font-size:11px;padding:4px 10px;background:#1e1e30;border:1px solid #3a3a5e;border-radius:6px;color:#a0a0c0;cursor:pointer;">복사</button>
+        <button id="btnDebugClear" style="font-size:11px;padding:4px 10px;background:#1e1e30;border:1px solid #3a3a5e;border-radius:6px;color:#a0a0c0;cursor:pointer;">초기화</button>
+        <button id="btnDebugClose" style="font-size:11px;padding:4px 10px;background:#1e1e30;border:1px solid #3a3a5e;border-radius:6px;color:#a0a0c0;cursor:pointer;">✕</button>
+      </div>
+    </div>
+    <div id="debugLogList" style="flex:1;overflow-y:auto;padding:8px 12px;font-family:monospace;"></div>
+  </div>
+
   <script src="popup.js"></script>
+  <script>
+    // 로고 더블클릭으로 디버그 패널 열기
+    document.getElementById('logoArea').addEventListener('dblclick', () => {
+      if (typeof openDebugPanel === 'function') openDebugPanel();
+    });
+  </script>
 </body>
 </html>

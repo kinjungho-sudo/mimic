@@ -6,6 +6,18 @@ window.__mimicContentLoaded = true;
 if (window !== window.top) return;
 
 (() => {
+  // ── 로그 헬퍼 (background 링버퍼로 릴레이) ──────────────────────
+  function log(level, ...args) {
+    const msg = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
+    const tag = `[MIMIC][${level.toUpperCase()}][content]`;
+    if (level === 'error')      console.error(tag, msg);
+    else if (level === 'warn')  console.warn(tag, msg);
+    else if (level === 'debug') console.debug(tag, msg);
+    else                        console.log(tag, msg);
+    chrome.runtime.sendMessage({ type: 'RELAY_LOG', level, source: 'content', msg })
+      .catch(() => {});
+  }
+
   // ── 상수 ─────────────────────────────────────────────────────────
   const DEDUP_SAME_ELEMENT  = 1200;  // ms — 같은 요소 재클릭 무시 간격
   const DEDUP_DOUBLE_CLICK  = 400;   // ms — 더블클릭 감지 간격
@@ -679,7 +691,10 @@ if (window !== window.top) return;
   document.addEventListener('click', handleClick, true);
 
   function handleClick(e) {
-    if (!isRecording || isPaused || isCapturing) return;
+    if (!isRecording || isPaused || isCapturing) {
+      if (isCapturing) log('debug', `click skipped — isCapturing step ${stepNumber}`);
+      return;
+    }
 
     const clickedEl = e.target;
 
@@ -703,6 +718,7 @@ if (window !== window.top) return;
       lastCapturedTarget = document.body;
       lastCapturedTime   = now;
       const { vw, vh } = getViewportSize();
+      log('debug', `blank click step ${stepNumber} at (${e.clientX}, ${e.clientY})`);
       sendCapture({
         url: location.href, timestamp: Date.now(),
         clickX: e.clientX, clickY: e.clientY,
@@ -743,6 +759,7 @@ if (window !== window.top) return;
     //   ② 이동 후 도착 페이지는 background(onUpdated)가 pendingCapture로 캡처
     //   동일 이미지 중복은 background의 aHash 디덥에서 제거됨
     if (actionType === 'navigate') {
+      log('debug', `navigate click step ${stepNumber + 1} el=${target.tagName} href=${href.slice(0, 60)}`);
       const navSafetyTimer = startCapturingSafely();
       stepNumber        += 1;
       lastCapturedTarget = target;
