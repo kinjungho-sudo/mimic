@@ -95,6 +95,50 @@ export async function guardTutorialAccess(
 }
 
 /**
+ * 워크스페이스 직접 접근 권한 검사.
+ * 오너는 무조건 허용, 아니면 멤버이고 requiredRole 이상이어야 허용.
+ */
+export async function guardWorkspaceAccess(
+  workspaceId: string,
+  requestUserId: string,
+  requiredRole: WorkspaceRole = 'editor'
+): Promise<GuardResult> {
+  const supabase = createServiceRoleClient();
+
+  const { data: workspace, error } = await supabase
+    .from('mm_workspaces')
+    .select('owner_id')
+    .eq('id', workspaceId)
+    .single();
+
+  if (error || !workspace) {
+    return { ok: false, status: 404, error: 'Workspace not found' };
+  }
+
+  if (workspace.owner_id === requestUserId) {
+    return { ok: true, role: 'owner' };
+  }
+
+  const { data: member } = await supabase
+    .from('mm_workspace_members')
+    .select('role')
+    .eq('workspace_id', workspaceId)
+    .eq('user_id', requestUserId)
+    .single();
+
+  if (!member) {
+    return { ok: false, status: 403, error: 'Not a workspace member' };
+  }
+
+  const memberRole = member.role as WorkspaceRole;
+  if (!hasRole(memberRole, requiredRole)) {
+    return { ok: false, status: 403, error: `Requires '${requiredRole}' role or above (current: '${memberRole}')` };
+  }
+
+  return { ok: true, role: memberRole };
+}
+
+/**
  * 스텝 → 튜토리얼 경유 접근 권한 검사.
  * guardTutorialAccess와 동일하지만 step_id에서 tutorial_id를 먼저 조회합니다.
  */

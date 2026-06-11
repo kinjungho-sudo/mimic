@@ -39,6 +39,7 @@ interface ManualEditorProps {
   steps: ManualStep[];
   onChange: (steps: ManualStep[]) => void;
   onSave?: (id: string, patch: Partial<ManualStep>) => void;
+  onDeleteStep?: (id: string) => void;
   hideToc?: boolean;
   activeId?: string | null;
   onActiveChange?: (id: string) => void;
@@ -48,7 +49,7 @@ interface ManualEditorProps {
 
 // ── ManualEditor ──────────────────────────────────────────
 
-export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: externalActiveId, onActiveChange, selectedIds: externalSelectedIds, onSelectChange }: ManualEditorProps) {
+export function ManualEditor({ steps, onChange, onSave, onDeleteStep, hideToc, activeId: externalActiveId, onActiveChange, selectedIds: externalSelectedIds, onSelectChange }: ManualEditorProps) {
   const [internalActiveId, setInternalActiveId] = useState<string | null>(
     steps.length > 0 ? steps[0].id : null
   );
@@ -125,6 +126,7 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
   const deleteStep = (id: string) => {
     const next = steps.filter(s => s.id !== id).map((s, i) => ({ ...s, number: i + 1 }));
     onChange(next);
+    onDeleteStep?.(id); // DB 삭제 영속화 (onChange는 로컬 상태만 갱신)
     if (activeId === id) setActiveId(next[0]?.id ?? null);
     setSelectedIds(prev => { const s = new Set(prev); s.delete(id); return s; });
   };
@@ -293,8 +295,9 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
             <button
               onClick={() => {
                 if (!window.confirm(`선택한 ${selectedIds.size}개 단계를 삭제할까요?`)) return;
+                const removed = steps.filter(s => selectedIds.has(s.id)).map(s => s.id);
                 const next = steps.filter(s => !selectedIds.has(s.id)).map((s, i) => ({ ...s, number: i + 1 }));
-                onChange(next); clearSelection();
+                onChange(next); removed.forEach(id => onDeleteStep?.(id)); clearSelection();
               }}
               style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', height: '26px', padding: '0 10px', borderRadius: '5px', border: '1px solid #FEE2E2', background: 'white', color: '#EF4444', fontSize: '11.5px', fontWeight: 500, cursor: 'pointer', flexShrink: 0 }}
             >
