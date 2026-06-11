@@ -5,7 +5,7 @@ import { X, Trash2, RotateCcw, RotateCw, Bold } from 'lucide-react';
 
 // ── Types ──────────────────────────────────────────────────
 
-type Tool = 'select' | 'eraser' | 'mosaic' | 'ellipse' | 'rect' | 'roundedRect' | 'arrow' | 'text' | 'marker' | 'spotlight';
+type Tool = 'pan' | 'select' | 'eraser' | 'mosaic' | 'ellipse' | 'rect' | 'roundedRect' | 'arrow' | 'text' | 'marker' | 'spotlight';
 type Color = string;
 type Handle = 'tl'|'tc'|'tr'|'ml'|'mr'|'bl'|'bc'|'br'|'p1'|'p2';
 
@@ -51,11 +51,16 @@ const DEFAULT_BORDER = 'rgba(255,255,255,0.6)';
 
 // 그룹 A: 지우개/블러, 그룹 B: 도형/텍스트
 const TOOL_GROUPS: { tools: Tool[] }[] = [
+  { tools: ['pan'] },
   { tools: ['mosaic', 'eraser'] },
   { tools: ['select', 'ellipse', 'rect', 'roundedRect', 'arrow', 'text', 'marker', 'spotlight'] },
 ];
 
 const TOOL_CONFIG: Record<Tool, { label: string; icon: React.ReactNode }> = {
+  pan: {
+    label: '이동 (드래그로 화면 이동 · 휠로 확대/축소)',
+    icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 11V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2"/><path d="M14 10V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>,
+  },
   select: {
     label: '선택',
     icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M4 0 L18 10 L11 11 L8 18 Z"/></svg>,
@@ -167,6 +172,7 @@ export function ImageAnnotationEditor({
   // ── 뷰 줌/팬 ──
   const [viewScale, setViewScale] = useState(() => Math.min(5, Math.max(0.25, initialZoom || 1)));
   const [viewPan, setViewPan] = useState({ x: 0, y: 0 });
+  const viewportRef = useRef<HTMLDivElement>(null);
   const panDragging = useRef<{ startX: number; startY: number; panX: number; panY: number } | null>(null);
   const [isPanning, setIsPanning] = useState(false);
   const [spaceDown, setSpaceDown] = useState(false);
@@ -601,6 +607,7 @@ export function ImageAnnotationEditor({
   const [alignOpen, setAlignOpen] = useState(false);
 
   const activeCursor =
+    tool === 'pan' ? (isPanning ? 'grabbing' : 'grab') :
     tool === 'eraser' ? 'cell' :
     tool === 'select' ? 'default' :
     tool === 'text' ? 'crosshair' :
@@ -816,14 +823,29 @@ export function ImageAnnotationEditor({
 
         {/* ── Canvas wrapper (스크롤 + 줌/팬) ── */}
         <div
+          ref={viewportRef}
           style={{ overflow: 'auto', flex: '1 1 0', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: spaceDown ? (isPanning ? 'grabbing' : 'grab') : activeCursor }}
           onWheel={e => {
             e.preventDefault();
-            const delta = e.deltaY > 0 ? -0.15 : 0.15;
-            setViewScale(s => clampScale(s + delta));
+            const oldS = viewScale;
+            const newS = clampScale(oldS + (e.deltaY > 0 ? -0.15 : 0.15));
+            if (newS === oldS) return;
+            // 커서 위치를 고정점으로 확대/축소 (가리키는 곳이 커짐)
+            const vp = viewportRef.current;
+            if (vp) {
+              const rect = vp.getBoundingClientRect();
+              const cx = rect.left + rect.width / 2;
+              const cy = rect.top + rect.height / 2;
+              const f = newS / oldS;
+              setViewPan(p => ({
+                x: p.x + (e.clientX - (cx + p.x)) * (1 - f),
+                y: p.y + (e.clientY - (cy + p.y)) * (1 - f),
+              }));
+            }
+            setViewScale(newS);
           }}
           onMouseDown={e => {
-            if (spaceDown || e.button === 1) {
+            if (spaceDown || tool === 'pan' || e.button === 1) {
               e.preventDefault();
               panDragging.current = { startX: e.clientX, startY: e.clientY, panX: viewPan.x, panY: viewPan.y };
               setIsPanning(true);
@@ -841,7 +863,7 @@ export function ImageAnnotationEditor({
         {/* ── Canvas ── */}
         <div
           style={{ position: 'relative', display: 'inline-block', lineHeight: 0, flexShrink: 0, transform: `translate(${viewPan.x}px, ${viewPan.y}px) scale(${viewScale})`, transformOrigin: 'center center', cursor: spaceDown ? (isPanning ? 'grabbing' : 'grab') : activeCursor }}
-          onMouseDown={e => { if (!spaceDown && e.button !== 1) handleMouseDown(e); }}
+          onMouseDown={e => { if (!spaceDown && tool !== 'pan' && e.button !== 1) handleMouseDown(e); }}
           onMouseMove={e => { if (!isPanning) handleMouseMove(e); }}
           onMouseUp={e => { if (!isPanning) handleMouseUp(e); }}
         >
@@ -966,6 +988,7 @@ export function ImageAnnotationEditor({
 
         <div style={{ height: '24px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10.5px', color: 'rgba(255,255,255,0.5)', background: '#1a1a1a' }}>
           {spaceDown ? '스페이스 + 드래그로 이동 · 마우스 휠로 확대/축소' :
+           tool === 'pan' ? '드래그로 화면 이동 · 마우스 휠로 커서 위치 기준 확대/축소' :
            tool === 'select' ? '클릭으로 선택 · 드래그로 이동 · 방향키로 미세 이동 · Delete 삭제 · Ctrl+Z 취소' :
            tool === 'marker' ? '클릭하면 번호 마커 추가' :
            tool === 'spotlight' ? '완성 후 선택 모드로 전환 — 이동 · 크기 조절 가능' :

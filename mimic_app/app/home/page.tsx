@@ -542,9 +542,11 @@ function FolderPanel({ folders, tutorials, activeFolder, isMyTab, onSelectFolder
         {showInput ? (
           <form onSubmit={submitCreate} style={{ display: 'flex', gap: '5px' }}>
             <input autoFocus value={newName} onChange={e => setNewName(e.target.value)} placeholder="폴더 이름"
-              onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); setShowInput(false); } }}
+              onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); setShowInput(false); setNewName(''); } }}
+              onBlur={() => { if (!creating) { setShowInput(false); setNewName(''); } }}
               style={{ flex: 1, minWidth: 0, padding: '7px 9px', borderRadius: '7px', border: '1.5px solid #a5b4fc', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
             <button type="submit" disabled={creating || !newName.trim()}
+              onMouseDown={e => e.preventDefault()}
               style={{ padding: '0 11px', borderRadius: '7px', background: '#3730a3', color: 'white', border: 'none', fontSize: '12px', fontWeight: 600, cursor: 'pointer', flexShrink: 0, opacity: creating || !newName.trim() ? 0.6 : 1 }}>
               {creating ? '...' : '추가'}
             </button>

@@ -826,6 +826,12 @@ export default function EditorPage() {
                 }, 600);
               });
             }}
+            onDeleteStep={(stepId) => {
+              // 카드 🗑️ / 다중선택 삭제도 DB에 반영 (onChange는 로컬 상태만 갱신)
+              clearTimeout(stepSaveTimers.current[stepId]);
+              if (stepId.startsWith('step-')) return; // 임시 ID는 아직 DB에 없음
+              deleteStep(stepId).catch(() => alert('단계 삭제를 저장하지 못했습니다. 네트워크 연결을 확인 후 다시 시도해 주세요.'));
+            }}
             onSave={(stepId, patch) => {
               if (stepId.startsWith('step-')) return;
               clearTimeout(stepSaveTimers.current[stepId]);
