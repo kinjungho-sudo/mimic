@@ -13,6 +13,7 @@ import { useCollaboration } from '@/hooks/useCollaboration';
 import type { Collaborator } from '@/hooks/useCollaboration';
 import { updateStep, createStep, deleteStep, reorderSteps } from '@/lib/api/steps';
 import { getTutorial } from '@/lib/api/tutorials';
+import { logError } from '@/lib/logger';
 import type { Step, Tutorial } from '@/types';
 
 // ── Adapters ──────────────────────────────────────────────
@@ -351,6 +352,7 @@ export default function EditorPage() {
       );
       const allOk = results.every(r => r);
       if (!allOk) {
+        logError('step.bulkSave.fail', { tutorialId: id, failed: results.filter(r => !r).length, total: results.length });
         alert('일부 단계를 저장하지 못했습니다. 네트워크 연결을 확인 후 다시 시도해 주세요.');
         return false;
       }
@@ -403,7 +405,7 @@ export default function EditorPage() {
     if (activeId === stepId) setActiveId(next[0]?.id ?? null);
     // DB 삭제 — 임시 ID(step-*)는 아직 DB에 없으므로 건너뜀
     if (!stepId.startsWith('step-')) {
-      deleteStep(stepId).catch(() => {});
+      deleteStep(stepId).catch((e) => logError('step.delete.fail', { tutorialId: id, stepId, message: e instanceof Error ? e.message : String(e) }));
     }
   }, [manualSteps, activeId, setManualStepsWithHistory]);
 
@@ -420,8 +422,9 @@ export default function EditorPage() {
       const created = await createStep(id, orderIndex, stepNumber);
       setManualSteps(prev => prev.map(s => s.id === tempId ? { ...s, id: created.id } : s));
       setActiveId(created.id);
-    } catch {
+    } catch (e) {
       // 실패해도 로컬 상태는 유지, 편집 완료 시 재저장
+      logError('step.create.fail', { tutorialId: id, message: e instanceof Error ? e.message : String(e) });
     }
   }, [manualSteps, setManualStepsWithHistory, id]);
 
@@ -440,8 +443,9 @@ export default function EditorPage() {
       const created = await createStep(id, orderIndex, stepNumber);
       setManualSteps(prev => prev.map(s => s.id === tempId ? { ...s, id: created.id } : s));
       setActiveId(created.id);
-    } catch {
+    } catch (e) {
       // 실패해도 로컬 상태 유지
+      logError('step.insert.fail', { tutorialId: id, message: e instanceof Error ? e.message : String(e) });
     }
   }, [manualSteps, setManualStepsWithHistory, id]);
 
@@ -722,7 +726,7 @@ export default function EditorPage() {
                 .filter(s => !s.id.startsWith('step-'))
                 .map((s, i) => ({ id: s.id, order_index: i }));
               if (dbItems.length > 0) {
-                reorderSteps(id, dbItems).catch(() => {});
+                reorderSteps(id, dbItems).catch((e) => logError('step.reorder.fail', { tutorialId: id, message: e instanceof Error ? e.message : String(e) }));
               }
             }}
             onAdd={handleAddStep}
@@ -822,7 +826,7 @@ export default function EditorPage() {
                   updateStep(step.id, {
                     user_title: step.actionTitle || null,
                     user_script: step.description || null,
-                  }).catch(() => {});
+                  }).catch((e) => logError('step.autosave.fail', { tutorialId: id, stepId: step.id, message: e instanceof Error ? e.message : String(e) }));
                 }, 600);
               });
             }}
@@ -830,7 +834,10 @@ export default function EditorPage() {
               // 카드 🗑️ / 다중선택 삭제도 DB에 반영 (onChange는 로컬 상태만 갱신)
               clearTimeout(stepSaveTimers.current[stepId]);
               if (stepId.startsWith('step-')) return; // 임시 ID는 아직 DB에 없음
-              deleteStep(stepId).catch(() => alert('단계 삭제를 저장하지 못했습니다. 네트워크 연결을 확인 후 다시 시도해 주세요.'));
+              deleteStep(stepId).catch((e) => {
+                logError('step.delete.fail', { tutorialId: id, stepId, message: e instanceof Error ? e.message : String(e) });
+                alert('단계 삭제를 저장하지 못했습니다. 네트워크 연결을 확인 후 다시 시도해 주세요.');
+              });
             }}
             onSave={(stepId, patch) => {
               if (stepId.startsWith('step-')) return;
@@ -840,7 +847,7 @@ export default function EditorPage() {
                 ...(patch.description !== undefined ? { user_script: patch.description || null } : {}),
                 ...(patch.annotations !== undefined ? { user_annotations: patch.annotations } : {}),
                 ...(patch.imageZoom !== undefined ? { image_zoom: patch.imageZoom } : {}),
-              }).catch(() => {});
+              }).catch((e) => logError('step.save.fail', { tutorialId: id, stepId, message: e instanceof Error ? e.message : String(e) }));
             }}
           />
           {showPreview && (

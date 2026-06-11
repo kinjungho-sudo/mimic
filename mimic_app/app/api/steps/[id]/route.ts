@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { guardStepAccess } from '@/lib/workspace-guard';
+import { logServer } from '@/lib/logger-server';
 
 const stepPatchSchema = z.object({
   user_title: z.string().max(200).nullable().optional(),
@@ -48,6 +49,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     .single();
 
   if (error || !data) {
+    await logServer('error', 'step.update.fail', { stepId: id, userId: auth.userId, message: error?.message });
     return NextResponse.json({ error: 'Update failed' }, { status: 500 });
   }
 
@@ -68,7 +70,10 @@ export async function DELETE(request: NextRequest, { params }: Params) {
 
   const supabase = createServiceRoleClient();
   const { error } = await supabase.from('mm_steps').delete().eq('id', id);
-  if (error) return NextResponse.json({ error: 'Delete failed' }, { status: 500 });
+  if (error) {
+    await logServer('error', 'step.delete.fail', { stepId: id, userId: auth.userId, message: error.message });
+    return NextResponse.json({ error: 'Delete failed' }, { status: 500 });
+  }
 
   return new NextResponse(null, { status: 204 });
 }
