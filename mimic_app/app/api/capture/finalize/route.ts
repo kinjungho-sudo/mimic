@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireExtensionToken } from '@/lib/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { captureFinalizeSchema } from '@/lib/validators';
-import { generateDraft, generateEducationalDraft, extractCoverColors, detectPII } from '@/lib/claude';
+import { generateDraft, extractCoverColors, detectPII } from '@/lib/claude';
 import { resolveFavicon } from '@/lib/favicon';
 import { buildClickHighlight } from '@/lib/annotations';
 
@@ -66,17 +66,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'No captured steps' }, { status: 422 });
   }
 
-  // 교육 자료 모드는 Pro/Team 전용
-  if (content_mode === 'education') {
-    const { data: mmUser } = await supabase
-      .from('mm_users')
-      .select('plan')
-      .eq('id', userId)
-      .single();
-    if (!mmUser || mmUser.plan === 'free' || mmUser.plan === 'pro_waitlist') {
-      return NextResponse.json({ error: '교육 자료 모드는 Pro 플랜 이상에서만 사용할 수 있습니다.' }, { status: 403 });
-    }
-  }
+  // 무료 플랜 여부 확인 (어노테이션 생성 제한)
+  const { data: mmUser } = await supabase
+    .from('mm_users')
+    .select('plan')
+    .eq('id', userId)
+    .single();
+  const isFree = !mmUser || mmUser.plan === 'free' || mmUser.plan === 'pro_waitlist';
 
   // TODO: 정식 서비스 전 플랜별 한도 복구 (daily_limit 체크 비활성화 중)
 
@@ -297,21 +293,13 @@ export async function POST(request: NextRequest) {
         } catch { /* 색상 추출 실패 무시 */ }
       }
 
-      // draft 생성 — content_mode에 따라 분기
+      // draft 생성 (제목 + 스텝 타이틀)
       let tutorial_title = '';
       let drafts: Array<{ id: string; user_title: string; user_script: string }> = [];
 
-      if (content_mode === 'education') {
-        // 교육 자료 모드: Vision으로 스텝별 설명 생성
-        const eduResult = await generateEducationalDraft(createdSteps);
-        tutorial_title = eduResult.tutorial_title;
-        drafts = eduResult.steps;
-      } else {
-        // 업무 매뉴얼 기본 모드
-        const draftResult = await generateDraft(createdSteps);
-        tutorial_title = draftResult.tutorial_title;
-        drafts = draftResult.steps;
-      }
+      const draftResult = await generateDraft(createdSteps);
+      tutorial_title = draftResult.tutorial_title;
+      drafts = draftResult.steps;
 
       // tutorial 제목 + cover_color 업데이트
       const tutorialUpdate: Record<string, string> = {};
@@ -328,7 +316,6 @@ export async function POST(request: NextRequest) {
         await Promise.all(
           safeDrafts.map(d => {
             const patch: Record<string, string> = { user_title: d.user_title };
-            if (content_mode === 'education' && d.user_script) patch.user_script = d.user_script;
             return supabase
               .from('mm_steps')
               .update(patch)
@@ -338,54 +325,52 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // 자동 어노테이션 생성 — element_rect 있으면 하이라이트, click_x/y만 있으면 원형 마커
-      // user_annotations가 이미 있는 스텝은 건너뜀 (유저 수정 덮어쓰기 방지)
+      // 자동 어노테이션 생성 — 무료 플랜은 생략
+      if (!isFree) {
+        // deduped 순서 = step_number - 1, action_info.type으로 라벨 분기
+        const actionTypeByStepNum = new Map<number, string>();
+        deduped.forEach((ev, idx) => {
+          const t = (ev.action_info as { type?: string } | null)?.type ?? 'click';
+          actionTypeByStepNum.set(idx + 1, t);
+        });
 
-      // deduped 순서 = step_number - 1, action_info.type으로 라벨 분기
-      const actionTypeByStepNum = new Map<number, string>();
-      deduped.forEach((ev, idx) => {
-        const t = (ev.action_info as { type?: string } | null)?.type ?? 'click';
-        actionTypeByStepNum.set(idx + 1, t);
-      });
+        const { data: stepsForAnnotation } = await supabase
+          .from('mm_steps')
+          .select('id, step_number, ai_title, element_rect, click_x, click_y, user_annotations')
+          .eq('tutorial_id', tutorial.id);
 
-      const { data: stepsForAnnotation } = await supabase
-        .from('mm_steps')
-        .select('id, step_number, ai_title, element_rect, click_x, click_y, user_annotations')
-        .eq('tutorial_id', tutorial.id);
+        if (stepsForAnnotation?.length) {
+          await Promise.allSettled(
+            stepsForAnnotation.map(async (step) => {
+              if (Array.isArray(step.user_annotations) && step.user_annotations.length > 0) return;
 
-      if (stepsForAnnotation?.length) {
-        await Promise.allSettled(
-          stepsForAnnotation.map(async (step) => {
-            // 이미 어노테이션이 있으면 건너뜀
-            if (Array.isArray(step.user_annotations) && step.user_annotations.length > 0) return;
+              const rect = step.element_rect as { x: number; y: number; width: number; height: number } | null;
+              const actionType = actionTypeByStepNum.get(step.step_number) ?? 'click';
+              const label = step.ai_title ?? (actionType === 'type' ? '입력' : '클릭');
+              const num = step.step_number ?? 1;
+              let annotations;
 
-            const rect = step.element_rect as { x: number; y: number; width: number; height: number } | null;
-            const actionType = actionTypeByStepNum.get(step.step_number) ?? 'click';
-            const label = step.ai_title ?? (actionType === 'type' ? '입력' : '클릭');
-            const num = step.step_number ?? 1;
-            let annotations;
+              if (rect) {
+                annotations = buildClickHighlight({ elementRect: rect, stepNumber: num, label });
+              } else if (step.click_x != null && step.click_y != null && (step.click_x > 0 || step.click_y > 0)) {
+                const estimatedRect = {
+                  x: Math.max(0, step.click_x - 0.05),
+                  y: Math.max(0, step.click_y - 0.02),
+                  width:  Math.min(0.10, 1 - Math.max(0, step.click_x - 0.05)),
+                  height: Math.min(0.04, 1 - Math.max(0, step.click_y - 0.02)),
+                };
+                annotations = buildClickHighlight({ elementRect: estimatedRect, stepNumber: num, label });
+              } else {
+                return;
+              }
 
-            if (rect) {
-              annotations = buildClickHighlight({ elementRect: rect, stepNumber: num, label });
-            } else if (step.click_x != null && step.click_y != null && (step.click_x > 0 || step.click_y > 0)) {
-              // click_x/y는 이미 0~1 정규화값으로 저장됨 (steps 삽입 시 /10000 처리)
-              const estimatedRect = {
-                x: Math.max(0, step.click_x - 0.05),
-                y: Math.max(0, step.click_y - 0.02),
-                width:  Math.min(0.10, 1 - Math.max(0, step.click_x - 0.05)),
-                height: Math.min(0.04, 1 - Math.max(0, step.click_y - 0.02)),
-              };
-              annotations = buildClickHighlight({ elementRect: estimatedRect, stepNumber: num, label });
-            } else {
-              return; // 좌표 정보 없음 (navigate/autoNav 포함)
-            }
-
-            await supabase
-              .from('mm_steps')
-              .update({ user_annotations: annotations })
-              .eq('id', step.id);
-          })
-        );
+              await supabase
+                .from('mm_steps')
+                .update({ user_annotations: annotations })
+                .eq('id', step.id);
+            })
+          );
+        }
       }
     }
   } catch {

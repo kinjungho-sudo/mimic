@@ -6,6 +6,7 @@ import { Check, Undo2, Redo2, Volume2, VolumeX, Loader2, RefreshCw, MonitorPlay,
 import { GuideToc } from '@/components/editor/GuideToc';
 import { ManualEditor, ManualStep } from '@/components/editor/ManualEditor';
 import { SdkPreviewPanel } from '@/components/editor/SdkPreviewPanel';
+import { MergeModal } from '@/components/editor/MergeModal';
 import { useTutorial } from '@/hooks/useTutorial';
 import { useAutosave } from '@/hooks/useAutosave';
 import { useAuth } from '@/hooks/useAuth';
@@ -89,6 +90,7 @@ export default function EditorPage() {
   const tempIdCounter = useRef(0);
   const [tocSelectedIds, setTocSelectedIds] = useState<Set<string>>(new Set());
   const [autoGenProgress, setAutoGenProgress] = useState<{ done: number; total: number } | null>(null);
+  const [showMerge, setShowMerge] = useState(false);
 
   // 실시간 협업 — 워크스페이스 튜토리얼에서만 활성
   const workspaceId = tutorial
@@ -250,9 +252,10 @@ export default function EditorPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tutorial?.id, loading]);
 
-  // 에디터 최초 로드 시 description 없는 스텝 자동 AI 생성
+  // 에디터 최초 로드 시 description 없는 스텝 자동 AI 생성 (무료 플랜 제외)
   useEffect(() => {
     if (!tutorial) return;
+    if (user?.plan === 'free' || user?.plan === 'pro_waitlist') return;
     const empty = tutorial.steps.filter(s =>
       !s.id.startsWith('step-') &&
       !(s.user_script ?? s.ai_description ?? '').trim()
@@ -451,6 +454,19 @@ export default function EditorPage() {
       logError('step.insert.fail', { tutorialId: id, message: e instanceof Error ? e.message : String(e) });
     }
   }, [manualSteps, setManualStepsWithHistory, id]);
+
+  const handleImportSteps = useCallback(async (sourceTutorialId: string, stepIds: string[]) => {
+    const res = await fetch(`/api/tutorials/${id}/import-steps`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source_tutorial_id: sourceTutorialId, step_ids: stepIds }),
+    });
+    if (!res.ok) throw new Error('Import failed');
+    const { steps: imported } = await res.json();
+    if (imported?.length) {
+      setManualSteps(prev => [...prev, ...stepsToManualSteps(imported)]);
+    }
+  }, [id]);
 
   if (loading) {
     return (
@@ -787,6 +803,18 @@ export default function EditorPage() {
               toDelete.forEach(s => handleDeleteStep(s.id));
             }}
           />
+          {/* 다른 매뉴얼에서 불러오기 버튼 */}
+          <div style={{ padding: '8px 10px', borderTop: '1px solid #F3F4F6', flexShrink: 0 }}>
+            <button
+              onClick={() => setShowMerge(true)}
+              style={{ width: '100%', padding: '7px 10px', borderRadius: '7px', fontSize: '11.5px', fontWeight: 500, color: '#6B7280', background: 'transparent', border: '1px dashed #D1D5DB', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', transition: 'all 0.15s' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#a5b4fc'; e.currentTarget.style.color = '#3730a3'; e.currentTarget.style.background = '#EEF2FF'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = '#D1D5DB'; e.currentTarget.style.color = '#6B7280'; e.currentTarget.style.background = 'transparent'; }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+              다른 매뉴얼에서 불러오기
+            </button>
+          </div>
         </div>
 
         {/* Main content */}
@@ -924,6 +952,13 @@ export default function EditorPage() {
       )}
       <style>{`@keyframes mimicFadeIn { from { opacity:0; transform:translateX(-50%) translateY(8px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }`}</style>
 
+      {showMerge && (
+        <MergeModal
+          currentTutorialId={id}
+          onImport={handleImportSteps}
+          onClose={() => setShowMerge(false)}
+        />
+      )}
     </div>
   );
 }

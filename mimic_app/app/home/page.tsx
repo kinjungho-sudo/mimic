@@ -913,7 +913,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      {showRecordingModal && <RecordingModal onClose={() => setShowRecordingModal(false)} userPlan={user?.plan ?? 'free'} />}
+      {showRecordingModal && <RecordingModal onClose={() => setShowRecordingModal(false)} />}
       {ctxMenu && (
         <ContextMenu
           menu={ctxMenu}
