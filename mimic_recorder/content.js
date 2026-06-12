@@ -1,11 +1,12 @@
-// 중복 주입 방지 — all_frames:true 환경에서 같은 프레임에 두 번 실행되면 즉시 종료
-if (window.__mimicContentLoaded) return;
-window.__mimicContentLoaded = true;
-
-// iframe에서는 실행하지 않음 — 캡처는 top frame에서만
-if (window !== window.top) return;
-
 (() => {
+  // 중복 주입 방지 — 같은 프레임에 두 번 실행되면 즉시 종료
+  // (최상위 return은 classic script에서 SyntaxError — 반드시 IIFE 안에서)
+  if (window.__mimicContentLoaded) return;
+  window.__mimicContentLoaded = true;
+
+  // iframe에서는 실행하지 않음 — 캡처는 top frame에서만
+  if (window !== window.top) return;
+
   // ── 로그 헬퍼 (background 링버퍼로 릴레이) ──────────────────────
   function log(level, ...args) {
     const msg = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
@@ -363,6 +364,24 @@ if (window !== window.top) return;
   }
 
   // ── 클릭 위치 붉은 원형 펄스 + 일시 확대 ───────────────────────
+  // 캡처 직전 클릭 펄스/줌 효과 취소용 참조 — 스크린샷에 굽히지 않게
+  let _pulseEl   = null;
+  let _zoomState = null;
+
+  function cancelClickEffects() {
+    if (_pulseEl) { _pulseEl.remove(); _pulseEl = null; }
+    if (_zoomState) {
+      const z = _zoomState;
+      clearTimeout(z.t1);
+      clearTimeout(z.t2);
+      z.el.style.transition      = 'none';
+      z.el.style.transform       = z.prevTransform;
+      z.el.style.transformOrigin = z.prevOrigin;
+      requestAnimationFrame(() => { z.el.style.transition = z.prevTransition; });
+      _zoomState = null;
+    }
+  }
+
   function showClickHighlight(x, y) {
     if (!settings.highlight) return;
 
@@ -399,13 +418,17 @@ if (window !== window.top) return;
 
     pulse.append(ring, dot);
     document.documentElement.appendChild(pulse);
+    _pulseEl = pulse;
 
     requestAnimationFrame(() => {
       ring.style.transform = 'translate(-50%,-50%) scale(1)';
       setTimeout(() => {
         ring.style.opacity = '0';
         ring.style.transform = 'translate(-50%,-50%) scale(1.6)';
-        setTimeout(() => pulse.remove(), 350);
+        setTimeout(() => {
+          pulse.remove();
+          if (_pulseEl === pulse) _pulseEl = null;
+        }, 350);
       }, 300);
     });
 
@@ -420,12 +443,15 @@ if (window !== window.top) return;
     el.style.transformOrigin = `${ox}% ${oy}%`;
     el.style.transition = 'transform 0.22s cubic-bezier(0.22,1,0.36,1)';
     el.style.transform  = 'scale(1.06)';
-    setTimeout(() => {
+    const zoomState = { el, prevTransform, prevOrigin: prevTransformOrigin, prevTransition, t1: 0, t2: 0 };
+    _zoomState = zoomState;
+    zoomState.t1 = setTimeout(() => {
       el.style.transform = prevTransform || 'scale(1)';
-      setTimeout(() => {
+      zoomState.t2 = setTimeout(() => {
         el.style.transform      = prevTransform;
         el.style.transformOrigin = prevTransformOrigin;
         el.style.transition     = prevTransition;
+        if (_zoomState === zoomState) _zoomState = null;
       }, 220);
     }, 280);
   }
@@ -542,9 +568,11 @@ if (window !== window.top) return;
     }
 
     if (msg.type === 'HIDE_OVERLAY_FOR_CAPTURE') {
-      // 캡처 직전: 라이브 호버 테두리를 숨겨 스크린샷에 굽지 않게 한다.
+      // 캡처 직전: 라이브 호버 테두리/클릭 펄스/줌 효과를 모두 제거해 스크린샷에 굽지 않게 한다.
+      // (줌 scale(1.06)이 남아 있으면 캡처 이미지가 일그러져 어노테이션 좌표가 어긋난다)
       // 클릭/타이핑 위치 강조는 편집기가 element_rect 기준으로 비파괴 적용한다.
       hideHoverPointer();
+      cancelClickEffects();
       const piiRegions = applyPIIBlur();
       requestAnimationFrame(() => {
         requestAnimationFrame(() => { sendResponse({ ok: true, piiRegions }); });

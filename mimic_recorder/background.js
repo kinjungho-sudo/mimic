@@ -13,6 +13,7 @@ const UPLOAD_RETRY_DELAY_MS   = 1500;
 const SW_KEEPALIVE_MS         = 20000;
 const AUTONAV_COOLDOWN_MS     = 3000;
 const DEDUP_HASH_THRESHOLD    = 6;     // aHash(256bit) 해밍거리 ≤ 6 이면 동일 이미지로 간주
+const NAV_URL_DEDUP_MS        = 5000;  // 같은 페이지(origin+pathname) '이동' 재캡처 금지 윈도우
 
 // ── 로그 시스템 ──────────────────────────────────────────────────
 const LOG_KEY      = '_mimicLogs';
@@ -42,6 +43,19 @@ function log(level, source, ...args) {
 // ── chrome.storage.local 프로미스 헬퍼 ──────────────────────────
 function storageGet(keys) {
   return new Promise((resolve) => chrome.storage.local.get(keys, resolve));
+}
+
+// ── 실행 취소 스택 (Ctrl+Z 시맨틱) ──────────────────────────────
+// 'add'    : 스텝 캡처됨   → undo = 해당 스텝 제거
+// 'delete' : 스텝 삭제됨   → undo = 해당 스텝 복원
+const UNDO_MAX = 30;
+
+async function pushUndo(action) {
+  const { _undoStack } = await storageGet('_undoStack');
+  const stack = _undoStack || [];
+  stack.push(action);
+  if (stack.length > UNDO_MAX) stack.splice(0, stack.length - UNDO_MAX);
+  await storageSet({ _undoStack: stack });
 }
 
 function storageSet(obj) {
@@ -114,12 +128,18 @@ let _cachedTargetTabId = null;  // storage remove 타이밍 경쟁 방지
 let _directStartTabId  = null;  // onChanged 중복 START_RECORDING 차단
 let _lastCaptureTime   = 0;     // autoNav 쿨다운 경쟁 방지
 let _lastSavedHash     = null;  // 직전 저장 이미지 aHash (중복 캡처 디덥용)
+let _lastNavKey        = null;  // 직전 '이동' 캡처 페이지 키 (origin+pathname)
+let _lastNavKeyTime    = 0;
+const _navBusyTabs     = new Set();          // onUpdated complete 동시(중복) 이벤트 차단
+let _captureChain      = Promise.resolve();  // 캡처 디덥~로컬 저장 직렬화 큐
 
 // SW 시작 시 캐시 초기화
-storageGet(['targetTabId', 'lastCaptureTime', 'lastStepHash']).then((r) => {
+storageGet(['targetTabId', 'lastCaptureTime', 'lastStepHash', 'lastNavKey', 'lastNavKeyTime']).then((r) => {
   _cachedTargetTabId = r.targetTabId ?? null;
   _lastCaptureTime   = r.lastCaptureTime ?? 0;
   _lastSavedHash     = r.lastStepHash ?? null;
+  _lastNavKey        = r.lastNavKey ?? null;
+  _lastNavKeyTime    = r.lastNavKeyTime ?? 0;
 });
 
 // ── 유틸 ─────────────────────────────────────────────────────────
@@ -129,7 +149,67 @@ function sendTabMessage(tabId, msg) {
   });
 }
 
-function captureTab(windowId) {
+// ── Offscreen Document 관리 ──────────────────────────────────────
+const OFFSCREEN_URL = chrome.runtime.getURL('offscreen.html');
+let _streamActive   = false;  // offscreen 스트림 보유 여부
+
+async function ensureOffscreen() {
+  const existing = await chrome.offscreen.hasDocument().catch(() => false);
+  if (!existing) {
+    await chrome.offscreen.createDocument({
+      url:    OFFSCREEN_URL,
+      reasons: ['USER_MEDIA'],
+      justification: 'Tab screen capture via getDisplayMedia',
+    });
+  }
+}
+
+async function startDisplayStream(tabId) {
+  await ensureOffscreen();
+
+  // tabCapture.getMediaStreamId는 extension이 해당 탭에서 invoke된 적이 있어야 동작
+  // → 웹앱 원격 시작 구조에선 불가. desktopCapture로 picker를 띄워 사용자가 직접 선택.
+  const streamId = await new Promise((resolve, reject) => {
+    chrome.desktopCapture.chooseDesktopMedia(['tab', 'window', 'screen'], (id) => {
+      if (!id) reject(new Error('사용자가 화면 공유를 취소했습니다'));
+      else resolve(id);
+    });
+  });
+
+  const res = await chrome.runtime.sendMessage({ target: 'offscreen', type: 'START_STREAM', streamId });
+  if (res?.ok) {
+    _streamActive = true;
+    log('info', 'bg', `display stream started tabId=${tabId}`);
+  } else {
+    _streamActive = false;
+    log('warn', 'bg', 'display stream failed:', res?.error);
+  }
+  return !!res?.ok;
+}
+
+async function stopDisplayStream() {
+  _streamActive = false;
+  const existing = await chrome.offscreen.hasDocument().catch(() => false);
+  if (existing) {
+    await chrome.runtime.sendMessage({ target: 'offscreen', type: 'STOP_STREAM' }).catch(() => {});
+    await chrome.offscreen.closeDocument().catch(() => {});
+  }
+  log('info', 'bg', 'display stream stopped');
+}
+
+// captureTab: 스트림이 살아있으면 offscreen 프레임 추출, 아니면 captureVisibleTab 폴백
+async function captureTab(windowId) {
+  if (_streamActive) {
+    try {
+      await ensureOffscreen();
+      const res = await chrome.runtime.sendMessage({ target: 'offscreen', type: 'CAPTURE_FRAME' });
+      if (res?.dataUrl) return res.dataUrl;
+      log('warn', 'bg', 'offscreen frame null — falling back to captureVisibleTab');
+    } catch (err) {
+      log('warn', 'bg', 'offscreen capture error:', err.message);
+    }
+  }
+  // fallback
   return new Promise((resolve) => {
     chrome.tabs.captureVisibleTab(windowId, { format: 'png' }, (url) => {
       resolve(chrome.runtime.lastError ? null : url);
@@ -196,8 +276,29 @@ function setLastSavedHash(hash) {
 }
 
 function resetLastSavedHash() {
-  _lastSavedHash = null;
-  chrome.storage.local.remove('lastStepHash');
+  _lastSavedHash  = null;
+  _lastNavKey     = null;
+  _lastNavKeyTime = 0;
+  chrome.storage.local.remove(['lastStepHash', 'lastNavKey', 'lastNavKeyTime']);
+}
+
+// ── '이동' 캡처 URL 중복 가드 ────────────────────────────────────
+// 한 번의 이동에 onUpdated complete가 여러 번 오거나(리다이렉트/iframe 로드),
+// 사이트가 쿼리만 replaceState로 다시 쓰는 경우(쿠팡 checkout의 clientWidth 등)
+// 같은 화면이 2~4회 찍힌다. 같은 origin+pathname은 윈도우 내 1회만 캡처한다.
+function navUrlKey(url) {
+  try { const u = new URL(url); return u.origin + u.pathname; } catch { return url || ''; }
+}
+
+function isRecentNavDup(url) {
+  const key = navUrlKey(url);
+  return !!key && key === _lastNavKey && (Date.now() - _lastNavKeyTime) < NAV_URL_DEDUP_MS;
+}
+
+function markNavCaptured(url) {
+  _lastNavKey     = navUrlKey(url);
+  _lastNavKeyTime = Date.now();
+  chrome.storage.local.set({ lastNavKey: _lastNavKey, lastNavKeyTime: _lastNavKeyTime });
 }
 
 async function blobToDataUrl(blob) {
@@ -244,7 +345,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
       resetLastSavedHash();
 
       // 1) targetTabId 먼저 저장 → _cachedTargetTabId 캐시 갱신 보장
-      await storageSet({ targetTabId: tabId, sessionId, stepNumber: 0, steps: [] });
+      await storageSet({ targetTabId: tabId, sessionId, stepNumber: 0, steps: [], _undoStack: [] });
 
       const tab = await new Promise((res) => chrome.tabs.get(tabId, (t) => {
         res(chrome.runtime.lastError ? null : t);
@@ -293,6 +394,8 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
       if (!sent) { sendResponse({ ok: false }); return; }
 
       // 6) isRecording 세팅 — _directStartTabId로 onChanged 중복 차단
+      //    (캡처는 captureVisibleTab 사용 — Gemini/Docs 포함 일반 https 페이지 모두 동작 확인됨.
+      //     desktopCapture 스트림은 DRM 등 진짜 차단 페이지 대비용으로 코드만 유지)
       _directStartTabId = tabId;
       await storageSet({ isRecording: true });
       _directStartTabId = null;
@@ -546,23 +649,49 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === 'FINALIZE_SESSION') {
-    finalizeSession(message.sessionId)
-      .then((data) => sendResponse({ ok: true, ...data }))
-      .catch((err) => { log('error', 'bg', 'finalize error:', err.message); sendResponse({ ok: false }); });
+    (async () => {
+      try {
+        const data = await finalizeSession(message.sessionId, message.stepNumbers);
+        // 편집기 탭은 background가 직접 연다 — 사용자가 패널/탭을 닫아도
+        // service worker는 살아 있으므로 매뉴얼 생성 완료 후 정상 이동된다.
+        if (data?.tutorial_id) {
+          const origin = await getWebappOrigin();
+          chrome.tabs.create({ url: `${origin}/manual/${data.tutorial_id}/editor` });
+          await storageSet({ isRecording: false, isPaused: false, stepNumber: 0, steps: [], sessionId: null, _undoStack: [] });
+        }
+        sendResponse({ ok: true, ...data });
+      } catch (err) {
+        log('error', 'bg', 'finalize error:', err.message);
+        sendResponse({ ok: false });
+      }
+    })();
     return true;
   }
 
+  // 실행 취소 — 마지막 행동(캡처 추가/스텝 삭제)을 역으로 되돌린다 (Ctrl+Z 시맨틱)
   if (message.type === 'UNDO_STEP') {
     (async () => {
-      const { steps, stepNumber } = await storageGet(['steps', 'stepNumber']);
-      const arr = steps || [];
-      const n   = stepNumber || 0;
-      if (n <= 0 || arr.length === 0) { sendResponse({ ok: false }); return; }
-      const removed = arr.pop();
-      if (removed?.stepNumber) idbDelete(removed.stepNumber).catch(() => {});
-      await storageSet({ steps: arr, stepNumber: n - 1 });
+      const { _undoStack, steps } = await storageGet(['_undoStack', 'steps']);
+      const stack = _undoStack || [];
+      const action = stack.pop();
+      if (!action) { sendResponse({ ok: false, reason: 'nothing-to-undo' }); return; }
+
+      let arr = steps || [];
+      if (action.type === 'add') {
+        // 캡처 추가의 취소 → 그 스텝 제거
+        const removed = arr.find((s) => s.id === action.stepId);
+        arr = arr.filter((s) => s.id !== action.stepId);
+        if (removed?.stepNumber) idbDelete(removed.stepNumber).catch(() => {});
+      } else if (action.type === 'delete') {
+        // 스텝 삭제의 취소 → 복원
+        arr.push(action.step);
+        arr.sort((a, b) => a.stepNumber - b.stepNumber);
+      }
+
+      const maxNum = arr.reduce((m, s) => Math.max(m, s.stepNumber || 0), 0);
+      await storageSet({ steps: arr, stepNumber: maxNum, _undoStack: stack });
       updateBadge();
-      sendResponse({ ok: true });
+      sendResponse({ ok: true, undone: action.type });
     })();
     return true;
   }
@@ -570,7 +699,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'CLEAR_STEPS') {
     idbClear().catch(() => {});
     resetLastSavedHash();
-    storageSet({ steps: [], stepNumber: 0 }).then(() => { updateBadge(); sendResponse({ ok: true }); });
+    storageSet({ steps: [], stepNumber: 0, _undoStack: [] }).then(() => { updateBadge(); sendResponse({ ok: true }); });
     return true;
   }
 
@@ -697,16 +826,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.type === 'DELETE_STEP') {
     (async () => {
-      const { steps, stepNumber } = await storageGet(['steps', 'stepNumber']);
+      const { steps } = await storageGet(['steps']);
       const arr    = steps || [];
       const target = arr.find((s) => s.id === message.id);
-      if (target?.stepNumber) idbDelete(target.stepNumber).catch(() => {});
+      // idb Blob은 undo 복원 가능성 때문에 즉시 삭제하지 않는다 (녹화 종료 시 일괄 정리)
       const filtered = arr.filter((s) => s.id !== message.id);
-      await storageSet({ steps: filtered, stepNumber: filtered.length });
+      const maxNum = filtered.reduce((m, s) => Math.max(m, s.stepNumber || 0), 0);
+      if (target) await pushUndo({ type: 'delete', step: target });
+      await storageSet({ steps: filtered, stepNumber: maxNum });
       updateBadge();
       sendResponse({ ok: true });
     })();
     return true;
+  }
+
+  if (message.type === 'STREAM_ENDED') {
+    _streamActive = false;
+    log('warn', 'bg', 'display stream ended by user — captureVisibleTab fallback active');
+    return false;
   }
 
   if (message.type === 'RELAY_LOG') {
@@ -755,65 +892,92 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (changeInfo.status !== 'complete') return;
   if (!tab.url?.startsWith('http')) return;
 
-  const r = await storageGet(['isRecording', 'isPaused', 'targetTabId', 'stepNumber', 'settings', 'pendingCapture', 'guidePendingOverlay', 'guideSteps', 'guideCurrentStep', 'spaNavCapturing', 'lastCaptureTime']);
-
-  if (r.guidePendingOverlay) {
-    await storageRemove('guidePendingOverlay');
-    const step = (r.guideSteps || [])[r.guideCurrentStep || 0];
-    if (step) sendTabMessage(tabId, { type: 'SHOW_OVERLAY', step });
+  // 한 번의 이동에 complete가 여러 번 와도(리다이렉트/iframe 로드) 첫 이벤트만 처리
+  if (_navBusyTabs.has(tabId)) {
+    log('debug', 'bg', `onUpdated skip — tab ${tabId} nav handling in flight url=${tab.url}`);
+    return;
   }
+  _navBusyTabs.add(tabId);
 
-  if (!r.isRecording || r.isPaused) return;
-  if (r.targetTabId !== tabId) return;
+  try {
+    const r = await storageGet(['isRecording', 'isPaused', 'targetTabId', 'stepNumber', 'settings', 'pendingCapture', 'guidePendingOverlay', 'guideSteps', 'guideCurrentStep', 'spaNavCapturing', 'lastCaptureTime']);
 
-  const pending = r.pendingCapture ?? null;
-  if (pending) {
-    let pendingOriginPath = '', currentOriginPath = '';
-    try { pendingOriginPath = new URL(pending.url).origin + new URL(pending.url).pathname; } catch { /**/ }
-    try { currentOriginPath = new URL(tab.url).origin + new URL(tab.url).pathname; } catch { /**/ }
+    if (r.guidePendingOverlay) {
+      await storageRemove('guidePendingOverlay');
+      const step = (r.guideSteps || [])[r.guideCurrentStep || 0];
+      if (step) sendTabMessage(tabId, { type: 'SHOW_OVERLAY', step });
+    }
 
-    if (pendingOriginPath && pendingOriginPath === currentOriginPath) {
+    if (!r.isRecording || r.isPaused) return;
+    if (r.targetTabId !== tabId) return;
+
+    const pending = r.pendingCapture ?? null;
+    if (pending) {
+      let pendingOriginPath = '', currentOriginPath = '';
+      try { pendingOriginPath = new URL(pending.url).origin + new URL(pending.url).pathname; } catch { /**/ }
+      try { currentOriginPath = new URL(tab.url).origin + new URL(tab.url).pathname; } catch { /**/ }
+
+      if (pendingOriginPath && pendingOriginPath === currentOriginPath) {
+        await storageRemove('pendingCapture');
+        return;
+      }
+
+      // 도착 페이지가 방금 캡처된 URL이면 예약 폐기 (SPA 감지 등 다른 경로가 선처리한 경우)
+      if (isRecentNavDup(tab.url)) {
+        await storageRemove('pendingCapture');
+        log('info', 'bg', `pending nav skip — url recently captured: ${tab.url}`);
+        return;
+      }
+
+      // 이동 전 source 캡처가 방금 stepNumber를 올렸을 수 있으므로 최신값 재조회 (collision 방지)
+      const { stepNumber: freshNum } = await storageGet('stepNumber');
+      const pendingStepNum = (freshNum || 0) + 1;
+      _lastCaptureTime = Date.now();
+      await storageSet({ stepNumber: pendingStepNum, lastCaptureTime: _lastCaptureTime });
       await storageRemove('pendingCapture');
+
+      log('info', 'bg', `nav capture (pending) step ${pendingStepNum} url=${tab.url}`);
+      const dataUrl = await captureWithPII(tabId, tab);
+      if (!dataUrl) return;
+      handleCapture(dataUrl, { ...pending, url: tab.url, clickX: 0, clickY: 0, stepNumber: pendingStepNum }, tab)
+        .then(() => updateBadge())
+        .catch((err) => log('warn', 'bg', 'pending capture failed:', err.message));
       return;
     }
 
-    // 이동 전 source 캡처가 방금 stepNumber를 올렸을 수 있으므로 최신값 재조회 (collision 방지)
-    const { stepNumber: freshNum } = await storageGet('stepNumber');
-    const pendingStepNum = (freshNum || 0) + 1;
-    _lastCaptureTime = Date.now();
-    await storageSet({ stepNumber: pendingStepNum, lastCaptureTime: _lastCaptureTime });
-    await storageRemove('pendingCapture');
+    const autoNav = r.settings?.autoNav ?? false;
+    if (!autoNav) return;
+    if (r.spaNavCapturing) return;
 
+    const lastCapture = Math.max(_lastCaptureTime, r.lastCaptureTime || 0);
+    if (lastCapture && (Date.now() - lastCapture) < AUTONAV_COOLDOWN_MS) return;
+
+    if (isRecentNavDup(tab.url)) {
+      log('debug', 'bg', `autoNav skip — url recently captured: ${tab.url}`);
+      return;
+    }
+
+    const { stepNumber: freshNum } = await storageGet('stepNumber');
+    const stepNum = (freshNum || 0) + 1;
+    // 캡처 완료 전에 쿨다운 기준을 선반영 — 후속 complete 이벤트와의 경쟁 방지
+    _lastCaptureTime = Date.now();
+    await storageSet({ stepNumber: stepNum, lastCaptureTime: _lastCaptureTime });
+
+    log('info', 'bg', `nav capture (autoNav) step ${stepNum} url=${tab.url}`);
     const dataUrl = await captureWithPII(tabId, tab);
     if (!dataUrl) return;
-    handleCapture(dataUrl, { ...pending, url: tab.url, clickX: 0, clickY: 0, stepNumber: pendingStepNum }, tab)
+    handleCapture(dataUrl, {
+      url: tab.url, timestamp: Date.now(),
+      clickX: 0, clickY: 0,
+      windowWidth: tab.width || 1280, windowHeight: tab.height || 800,
+      stepNumber: stepNum,
+      actionInfo: { type: 'navigate', label: tab.url },
+    }, tab)
       .then(() => updateBadge())
-      .catch((err) => log('warn', 'bg', 'pending capture failed:', err.message));
-    return;
+      .catch((err) => log('warn', 'bg', 'nav capture failed:', err.message));
+  } finally {
+    _navBusyTabs.delete(tabId);
   }
-
-  const autoNav = r.settings?.autoNav ?? false;
-  if (!autoNav) return;
-  if (r.spaNavCapturing) return;
-
-  const lastCapture = Math.max(_lastCaptureTime, r.lastCaptureTime || 0);
-  if (lastCapture && (Date.now() - lastCapture) < AUTONAV_COOLDOWN_MS) return;
-
-  const { stepNumber: freshNum } = await storageGet('stepNumber');
-  const stepNum = (freshNum || 0) + 1;
-  await storageSet({ stepNumber: stepNum });
-
-  const dataUrl = await captureWithPII(tabId, tab);
-  if (!dataUrl) return;
-  handleCapture(dataUrl, {
-    url: tab.url, timestamp: Date.now(),
-    clickX: 0, clickY: 0,
-    windowWidth: tab.width || 1280, windowHeight: tab.height || 800,
-    stepNumber: stepNum,
-    actionInfo: { type: 'navigate', label: tab.url },
-  }, tab)
-    .then(() => updateBadge())
-    .catch((err) => log('warn', 'bg', 'nav capture failed:', err.message));
 });
 
 // ── 페이지 렌더 완료 확인 후 캡처 ───────────────────────────────
@@ -886,17 +1050,21 @@ async function isBlackScreen(pngDataUrl) {
     const ctx    = canvas.getContext('2d');
     ctx.drawImage(bmp, 0, 0);
 
-    let totalBrightness = 0;
-    const SAMPLES = 3;
+    // 진짜 차단 화면은 "균일한 완전 검정". 다크 테마(Gemini 등)는 텍스트/패널 등
+    // 밝은 픽셀이 섞여 있으므로 평균이 아닌 '최대 밝기'로 판정해야 오탐이 없다.
+    const SAMPLES = 8;
+    let maxBrightness = 0;
     for (let sy = 0; sy < SAMPLES; sy++) {
       for (let sx = 0; sx < SAMPLES; sx++) {
         const px = Math.floor(w * (sx + 1) / (SAMPLES + 1));
         const py = Math.floor(h * (sy + 1) / (SAMPLES + 1));
         const d  = ctx.getImageData(px, py, 1, 1).data;
-        totalBrightness += (d[0] + d[1] + d[2]) / 3;
+        const b  = (d[0] + d[1] + d[2]) / 3;
+        if (b > maxBrightness) maxBrightness = b;
+        if (maxBrightness >= 8) return false;  // 밝은 픽셀 발견 → 정상 화면
       }
     }
-    return (totalBrightness / (SAMPLES * SAMPLES)) < 5;
+    return maxBrightness < 8;
   } catch {
     return false;
   }
@@ -984,6 +1152,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
       resetLastSavedHash();  // 새 녹화 → 디덥 기준 해시 초기화
     } else {
       chrome.storage.local.remove(['pendingCapture', 'spaNavCapturing']);
+      stopDisplayStream().catch(() => {});
     }
 
     const msgType = nowRecording ? 'START_RECORDING' : 'STOP_RECORDING';
@@ -1067,18 +1236,38 @@ function extractDomainInfo(url, tab) {
 }
 
 // ── 캡처 처리 ────────────────────────────────────────────────────
+// 디덥 판정~로컬 저장(prepareCapture)은 _captureChain으로 직렬화한다.
+// 동시 nav 캡처 2건이 같은 lastStepHash/lastNavKey와 비교해 둘 다 통과하는 경쟁 방지.
+// 업로드(processStepUpload)는 종전대로 병렬 수행.
 async function handleCapture(pngDataUrl, stepData, tab) {
-  // ── 동일 이미지 중복 캡처 디덥 (#4) ───────────────────────────
-  //   '페이지 이동' 캡처에만 적용한다. (클릭/타이핑은 같은 화면에서 미세 변화만 있어도
-  //   서로 다른 스텝이므로 디덥하면 안 됨 — 사용자 요청은 "이동 시" 중복 제거였음.)
+  const queued = _captureChain.then(() => prepareCapture(pngDataUrl, stepData, tab));
+  _captureChain = queued.then(() => {}, () => {});
+  const prepared = await queued;
+  if (!prepared) return;  // 중복으로 스킵됨
+  await processStepUpload(prepared);
+}
+
+async function prepareCapture(pngDataUrl, stepData, tab) {
+  // ── '이동' 캡처 중복 디덥 (#4) ────────────────────────────────
+  //   클릭/타이핑은 같은 화면에서 미세 변화만 있어도 서로 다른 스텝이므로 디덥하면 안 됨.
+  //   1) URL 가드: 같은 페이지(origin+pathname)를 NAV_URL_DEDUP_MS 내 재캡처 금지
+  //   2) 이미지 가드: 직전 저장 캡처와 시각적으로 동일하면 스킵
   //   해시는 모든 저장 캡처에 대해 갱신해 다음 이동 캡처가 직전 화면과 비교되게 한다.
   const isNavCapture = stepData.actionInfo?.type === 'navigate';
-  const candHash     = await computeAHash(pngDataUrl);
+  if (isNavCapture && !stepData.manual && !stepData.overwrite) {
+    if (isRecentNavDup(stepData.url)) {
+      log('info', 'bg', `nav dedup(url) skip step ${stepData.stepNumber} url=${stepData.url}`);
+      return null;
+    }
+    markNavCaptured(stepData.url);
+  }
+
+  const candHash = await computeAHash(pngDataUrl);
   if (candHash && isNavCapture && !stepData.manual && !stepData.overwrite) {
     const prev = await getLastSavedHash();
     if (prev && hammingDist(candHash, prev) <= DEDUP_HASH_THRESHOLD) {
-      log('debug', 'bg', `dedup skip nav capture step ${stepData.stepNumber}`);
-      return;
+      log('info', 'bg', `nav dedup(image) skip step ${stepData.stepNumber}`);
+      return null;
     }
   }
 
@@ -1108,7 +1297,7 @@ async function handleCapture(pngDataUrl, stepData, tab) {
   if (!stepData.overwrite) await storageSet({ stepNumber: stepNum });
   if (candHash) setLastSavedHash(candHash);  // 다음 캡처 디덥 기준 갱신
 
-  await processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base64Image, stepData, clickX, clickY, domainInfo, actionLabel });
+  return { sessionId, stepNum, imagePath, jpegBlob, base64Image, stepData, clickX, clickY, domainInfo, actionLabel };
 }
 
 // ── 스텝 업로드 처리 (SW keepalive 포함) ─────────────────────────
@@ -1192,7 +1381,11 @@ async function saveStepLocally(stepData) {
     steps.push(newStep);
   }
 
+  // 업로드 완료 순서가 아닌 행동(stepNumber) 순서로 정렬 유지 — 1-3-2 순서 뒤바뀜 방지
+  steps.sort((a, b) => a.stepNumber - b.stepNumber);
+
   await storageSet({ steps });
+  if (!stepData.overwrite) await pushUndo({ type: 'add', stepId: newStep.id });
 }
 
 // ── sessionId 가져오기 (없으면 생성) ─────────────────────────────
@@ -1278,7 +1471,7 @@ async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, 
 }
 
 // ── 세션 완료 — 웹앱 API 경유 ───────────────────────────────────
-async function finalizeSession(sessionId) {
+async function finalizeSession(sessionId, stepNumbers) {
   const { extensionToken } = await storageGet('extensionToken');
   if (!extensionToken) {
     log('warn', 'bg', 'extensionToken 없음 — /extension-link 에서 연동 필요');
@@ -1287,22 +1480,29 @@ async function finalizeSession(sessionId) {
   const origin = await getWebappOrigin();
   const res = await authedFetch(`${origin}/api/capture/finalize`, {
     method: 'POST',
-    body: JSON.stringify({ session_id: sessionId }),
+    body: JSON.stringify({
+      session_id: sessionId,
+      // 패널에서 삭제/실행취소되지 않고 남은 스텝만 매뉴얼에 포함
+      ...(stepNumbers?.length ? { step_numbers: stepNumbers } : {}),
+    }),
   });
   if (!res.ok) throw new Error(`finalize failed: ${res.status}: ${await res.text()}`);
   return res.json();
 }
 
 // ── Supabase Storage 업로드 (실패 시 1회 재시도) ─────────────────
+// extensionToken은 웹앱 자체 토큰(Supabase JWT 아님)이라 쓸 수 없다 — anon key 고정.
+// x-upsert:true는 INSERT + UPDATE 정책 둘 다 필요 (naviaction에 anon 정책 적용됨)
 async function uploadImage(path, blob) {
   const doUpload = () => fetch(
     `${SUPABASE_URL}/storage/v1/object/${SUPABASE_BUCKET}/${path}`,
     {
       method: 'POST',
       headers: {
-        'apikey':       SUPABASE_ANON_KEY,
-        'Content-Type': 'image/jpeg',
-        'x-upsert':     'true',
+        'apikey':        SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type':  'image/jpeg',
+        'x-upsert':      'true',
       },
       body: blob,
     }

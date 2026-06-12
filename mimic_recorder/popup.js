@@ -226,6 +226,17 @@ function updateStepCounts(count) {
   recStepCount.textContent = text;
 }
 
+// ── 등록 도메인(eTLD+1) 추출 — 같은 서비스 서브도메인을 한 그룹으로 ──
+// 예: www/cart/checkout.coupang.com → coupang.com (vercel.com vs github.com은 분리 유지)
+const TWO_PART_TLDS = new Set(['co.kr', 'co.uk', 'co.jp', 'com.au', 'co.nz', 'or.kr', 'go.kr', 'ne.jp']);
+function baseDomain(hostname) {
+  if (!hostname) return null;
+  if (/^[\d.]+$/.test(hostname) || !hostname.includes('.')) return hostname;
+  const parts = hostname.split('.');
+  const keep = TWO_PART_TLDS.has(parts.slice(-2).join('.')) ? 3 : 2;
+  return parts.slice(-keep).join('.');
+}
+
 // ── 스텝 렌더 ────────────────────────────────────────────────────
 function renderSteps(steps) {
   stepsList.querySelectorAll('.step-card, .domain-header').forEach((c) => c.remove());
@@ -239,15 +250,15 @@ function renderSteps(steps) {
 
   expandedStepId = null;
 
-  const hostnames = new Set(steps.map(s => s.domainInfo?.hostname).filter(Boolean));
-  const showDomainHeaders = hostnames.size > 1;
+  const domains = new Set(steps.map(s => baseDomain(s.domainInfo?.hostname)).filter(Boolean));
+  const showDomainHeaders = domains.size > 1;
 
-  let lastHostname = null;
+  let lastDomain = null;
   steps.forEach((step, i) => {
-    const hostname = step.domainInfo?.hostname ?? null;
-    if (showDomainHeaders && hostname && hostname !== lastHostname) {
+    const domainKey = baseDomain(step.domainInfo?.hostname);
+    if (showDomainHeaders && domainKey && domainKey !== lastDomain) {
       stepsList.appendChild(buildDomainHeader(step.domainInfo));
-      lastHostname = hostname;
+      lastDomain = domainKey;
     }
     const card = buildStepCard(step, i + 1);
     // 모든 스텝 썸네일 즉시 펼침
@@ -272,7 +283,12 @@ function buildDomainHeader(domainInfo) {
 
   const name = document.createElement('span');
   name.className = 'domain-name';
-  name.textContent = domainInfo.name || domainInfo.hostname;
+  // 페이지 타이틀 기반 name은 동적이라 신뢰 불가 — 등록 도메인의 서비스명을 표시 (앱과 동일 규칙)
+  const base = baseDomain(domainInfo.hostname);
+  const service = base ? base.split('.')[0] : '';
+  name.textContent = service
+    ? service.charAt(0).toUpperCase() + service.slice(1)
+    : (domainInfo.name || domainInfo.hostname);
 
   header.append(favicon, name);
   return header;
@@ -934,8 +950,9 @@ btnDiscard.addEventListener('click', () => {
 btnFinish.addEventListener('click', async () => {
   btnFinish.disabled = true;
 
-  const { sessionId, webappOrigin } = await storageGet(['sessionId', 'webappOrigin']);
-  const origin = webappOrigin || 'https://mimic-nine-ashen.vercel.app';
+  // steps는 storage에서 지우기 전에 읽어 살아남은 stepNumber 목록을 확보
+  const { sessionId, steps } = await storageGet(['sessionId', 'steps']);
+  const stepNumbers = (steps || []).map(s => s.stepNumber).filter(n => n > 0);
 
   isRecording = false;
   isPaused    = false;
@@ -952,15 +969,12 @@ btnFinish.addEventListener('click', async () => {
   // 매뉴얼 생성 중 — 사용자 대기 UI
   showFinalizingOverlay();
 
-  chrome.runtime.sendMessage({ type: 'FINALIZE_SESSION', sessionId }, (res) => {
+  // 편집기 탭은 background가 연다 — 패널/탭이 닫혀도 생성 완료 후 정상 이동
+  chrome.runtime.sendMessage({ type: 'FINALIZE_SESSION', sessionId, stepNumbers }, (res) => {
     void chrome.runtime.lastError;
     hideFinalizingOverlay();
     if (res?.ok && res?.tutorial_id) {
-      // 편집기 페이지로 이동 + 사이드 패널 자동 닫기 (window.close)
-      chrome.tabs.create({ url: `${origin}/manual/${res.tutorial_id}/editor` }, () => {
-        chrome.storage.local.set({ isRecording: false, isPaused: false, stepNumber: 0, steps: [], sessionId: null });
-        window.close();
-      });
+      window.close();
     } else {
       // 실패 시 에러 안내
       showFinalizingError();
@@ -1056,8 +1070,8 @@ chrome.storage.onChanged.addListener((changes, area) => {
     isPaused = !!changes.isPaused.newValue;
     updateView();
   }
-  if (changes.isRecording && !changes.isRecording.newValue && isRecording) {
-    isRecording = false;
+  if (changes.isRecording && !!changes.isRecording.newValue !== isRecording) {
+    isRecording = !!changes.isRecording.newValue;
     updateView();
   }
   if (changes.extensionToken) {
@@ -1369,6 +1383,9 @@ chrome.storage.onChanged.addListener((changes) => {
     hideGuideView();
   }
 });
+
+// ── 로고 더블클릭 → 디버그 패널 ─────────────────────────────────
+document.getElementById('logoArea')?.addEventListener('dblclick', () => openDebugPanel());
 
 // ── 디버그 로그 뷰어 ─────────────────────────────────────────────
 const debugPanel    = document.getElementById('debugPanel');

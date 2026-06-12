@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { session_id, title } = parsed.data;
+  const { session_id, title, step_numbers } = parsed.data;
 
   // 세션 소유자 확인
   const { data: session } = await supabase
@@ -42,14 +42,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Session already finalized' }, { status: 409 });
   }
 
-  // 캡처 이벤트 조회 (created_at 기준 정렬 — timestamp 컬럼 없음)
+  // 캡처 이벤트 조회 — step_number(행동 순서) 우선, 없으면 created_at(저장 순서) 폴백.
+  // created_at만 쓰면 업로드 완료 순서로 뒤섞여 1-3-2 순서 버그 발생.
   const { data: events } = await supabase
     .from('mm_capture_events')
     .select('*')
     .eq('session_id', session_id)
+    .order('step_number', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: true });
 
   if (!events || events.length === 0) {
+    return NextResponse.json({ error: 'No captured steps' }, { status: 422 });
+  }
+
+  // recorder가 살아남은 스텝 번호를 전달한 경우 — 패널에서 삭제/실행취소된 스텝 제외.
+  // step_number가 null인 레거시 이벤트는 필터하지 않고 유지.
+  const liveEvents = step_numbers?.length
+    ? events.filter(ev => ev.step_number == null || step_numbers.includes(ev.step_number))
+    : events;
+
+  if (liveEvents.length === 0) {
     return NextResponse.json({ error: 'No captured steps' }, { status: 422 });
   }
 
@@ -59,7 +71,7 @@ export async function POST(request: NextRequest) {
   //   1) 동일 screenshot_url 연속 → 첫 번째만 유지
   //   2) 동일 page_url + created_at 차이 500ms 미만 연속 → 마지막만 유지 (타이핑 덮어쓰기)
   //   3) screenshot_url 없는 이벤트 제거
-  const deduped = events.filter((ev, i, arr) => {
+  const deduped = liveEvents.filter((ev, i, arr) => {
     if (!ev.screenshot_url) return false;
     const prev = arr[i - 1];
     if (!prev) return true;

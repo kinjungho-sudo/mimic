@@ -514,12 +514,11 @@ export function ImageAnnotationEditor({
         el.innerText = item.text;
       }
       el.focus();
-      // 커서를 맨 끝으로 (클릭 시 브라우저가 위치 잡아줌)
+      // 기존 텍스트 전체 선택 — 재편집 시 바로 덮어쓰거나 이어서 수정 (빈 박스면 캐럿만)
       const range = document.createRange();
       const sel = window.getSelection();
       if (sel) {
         range.selectNodeContents(el);
-        range.collapse(false);
         sel.removeAllRanges();
         sel.addRange(range);
       }
@@ -902,6 +901,7 @@ export function ImageAnnotationEditor({
             {/* 일반 annotation shapes (spotlight 제외) */}
             {items.map(a => {
               if (a.type === 'spotlight') return null;
+              if (editingText?.id === a.id) return null; // 편집 중엔 오버레이가 대신 표시 — 원본 겹침(복제처럼 보임) 방지
               return (
                 <AnnotationShape
                   key={a.id} annotation={a}
@@ -1283,15 +1283,22 @@ function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx
             rx={6}
           />
         )}
-        {text.split('\n').map((line, i) => (
-          <text key={i}
-            x={textX} y={minY + padY + i * fSize * 1.4}
-            fill={color} fontSize={fSize} fontWeight={bold ? 700 : 400}
-            textAnchor={anchor}
-            dominantBaseline="text-before-edge"
-            style={{ pointerEvents: 'none' }}
-          >{line}</text>
-        ))}
+        {text.split('\n').map((line, i) => {
+          // 가독성: 글자 외곽선 — 배경 박스 밖으로 넘치거나 배경 없음일 때도 읽힘
+          const hex = color.replace('#', '');
+          const luma = 0.299 * (parseInt(hex.slice(0, 2), 16) || 0) + 0.587 * (parseInt(hex.slice(2, 4), 16) || 0) + 0.114 * (parseInt(hex.slice(4, 6), 16) || 0);
+          const outline = luma > 160 ? 'rgba(0,0,0,0.75)' : 'rgba(255,255,255,0.85)';
+          return (
+            <text key={i}
+              x={textX} y={minY + padY + i * fSize * 1.4}
+              fill={color} fontSize={fSize} fontWeight={bold ? 700 : 400}
+              textAnchor={anchor}
+              dominantBaseline="text-before-edge"
+              stroke={outline} strokeWidth={Math.max(1.5, fSize / 8)} strokeLinejoin="round"
+              style={{ pointerEvents: 'none', paintOrder: 'stroke' }}
+            >{line}</text>
+          );
+        })}
         {isSelected && onHandleMouseDown && (
           <SelectionHandles minX={minX} minY={minY} w={boxW} h={boxH} onHandle={handleHandle} />
         )}
