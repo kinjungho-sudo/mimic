@@ -1,0 +1,56 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - link "MIMIC" [ref=e5] [cursor=pointer]:
+          - /url: /landingpage
+          - img [ref=e6]:
+            - generic [ref=e8]: M
+          - text: MIMIC
+        - generic [ref=e9]:
+          - heading "다시 오신 걸 환영해요" [level=1] [ref=e10]
+          - paragraph [ref=e11]: 매뉴얼은 만들어두고, 잊고 있던 사이에도 사람들은 따라하고 있습니다.
+          - generic [ref=e12]:
+            - generic [ref=e13]:
+              - img [ref=e15]
+              - generic [ref=e17]:
+                - strong [ref=e18]: 30초 만에 매뉴얼 제작
+                - text: Chrome 확장으로 평소처럼 일하면 끝.
+            - generic [ref=e19]:
+              - img [ref=e21]
+              - generic [ref=e23]:
+                - strong [ref=e24]: 3가지 형태로 자동 변환
+                - text: 가이드 문서 · 인터랙티브 튜토리얼 · 영상.
+            - generic [ref=e25]:
+              - img [ref=e27]
+              - generic [ref=e30]:
+                - strong [ref=e31]: 링크 한 줄로 공유
+                - text: 슬랙·카톡·이메일 어디에든 붙여넣기.
+        - generic [ref=e32]: © 2026 코마인드웍스
+    - generic [ref=e33]:
+      - generic [ref=e34]:
+        - text: 계정이 없으신가요?
+        - link "회원가입" [ref=e35] [cursor=pointer]:
+          - /url: /auth/signup
+      - generic [ref=e36]:
+        - heading "로그인" [level=2] [ref=e37]
+        - paragraph [ref=e38]: Google 계정으로 접속하여 회원 가입없이 시작하세요.
+        - button "Google로 로그인" [ref=e39] [cursor=pointer]:
+          - img [ref=e40]
+          - text: Google로 로그인
+        - generic [ref=e45]: 또는 이메일로
+        - generic [ref=e48]:
+          - generic [ref=e49]:
+            - generic [ref=e50]: 이메일
+            - textbox "name@company.com" [ref=e51]
+          - generic [ref=e52]:
+            - generic [ref=e53]:
+              - generic [ref=e54]: 비밀번호
+              - link "비밀번호를 잊으셨나요?" [ref=e55] [cursor=pointer]:
+                - /url: /auth/forgot-password
+            - textbox "비밀번호" [ref=e56]
+          - button "로그인" [ref=e57] [cursor=pointer]
+        - generic [ref=e58]:
+          - img [ref=e60]
+          - text: Chrome 확장 사용자도 여기서 로그인하세요.
+  - alert [ref=e63]

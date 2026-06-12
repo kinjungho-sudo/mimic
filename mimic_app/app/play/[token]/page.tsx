@@ -612,9 +612,13 @@ export default function PlayerPage() {
             from { opacity: 0; transform: translate(-50%, -50%) scale(0.4); }
             to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
           }
-          @keyframes hotspotRing {
-            0%   { opacity: 0.8; transform: scale(1); }
-            100% { opacity: 0;   transform: scale(1.7); }
+          @keyframes hotspotRipple {
+            0%   { opacity: 0.85; transform: scale(1); }
+            100% { opacity: 0;    transform: scale(7); }
+          }
+          @keyframes hotspotDotPulse {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.3; }
           }
         `}</style>
       </div>
@@ -879,28 +883,26 @@ export default function PlayerPage() {
                     left: `${step.click_x * 100}%`,
                     top: `${step.click_y * 100}%`,
                     transform: 'translate(-50%, -50%)',
-                    width: '44px', height: '44px',
+                    width: '64px', height: '64px',
                     borderRadius: '50%',
-                    background: 'rgba(79,70,229,0.85)',
-                    border: '2.5px solid rgba(255,255,255,0.9)',
+                    background: 'transparent',
+                    border: 'none',
                     cursor: 'pointer',
                     zIndex: 10,
                     animation: 'hotspotPop 0.4s cubic-bezier(0.34,1.56,0.64,1) both',
                     animationDelay: '0.3s',
                     outline: 'none',
-                    boxShadow: '0 0 0 0 rgba(79,70,229,0.6)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}
                   title="클릭하여 다음 단계로"
                 >
-                  {/* 펄스 링 1 */}
-                  <span style={{ position: 'absolute', inset: '-8px', borderRadius: '50%', border: '2px solid rgba(79,70,229,0.5)', animation: 'hotspotRing 1.8s ease-out infinite', animationDelay: '0.5s' }} />
-                  {/* 펄스 링 2 */}
-                  <span style={{ position: 'absolute', inset: '-16px', borderRadius: '50%', border: '2px solid rgba(79,70,229,0.3)', animation: 'hotspotRing 1.8s ease-out infinite', animationDelay: '0.9s' }} />
-                  {/* 화살표 아이콘 */}
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                    <polyline points="9 18 15 12 9 6"/>
-                  </svg>
+                  {/* 중심 점 */}
+                  <span style={{ position: 'absolute', top: '50%', left: '50%', width: '10px', height: '10px', marginTop: '-5px', marginLeft: '-5px', borderRadius: '50%', background: 'rgba(255,255,255,0.95)', boxShadow: '0 0 8px rgba(255,255,255,0.7), 0 0 16px rgba(99,102,241,0.5)', animation: 'hotspotDotPulse 1.8s ease-in-out infinite' }} />
+                  {/* 파문 링 1 */}
+                  <span style={{ position: 'absolute', top: '50%', left: '50%', width: '10px', height: '10px', marginTop: '-5px', marginLeft: '-5px', borderRadius: '50%', border: '1.5px solid rgba(255,255,255,0.75)', boxShadow: '0 0 4px rgba(99,102,241,0.4)', animation: 'hotspotRipple 2s ease-out infinite', animationDelay: '0s' }} />
+                  {/* 파문 링 2 */}
+                  <span style={{ position: 'absolute', top: '50%', left: '50%', width: '10px', height: '10px', marginTop: '-5px', marginLeft: '-5px', borderRadius: '50%', border: '1.5px solid rgba(255,255,255,0.55)', boxShadow: '0 0 4px rgba(99,102,241,0.3)', animation: 'hotspotRipple 2s ease-out infinite', animationDelay: '0.65s' }} />
+                  {/* 파문 링 3 */}
+                  <span style={{ position: 'absolute', top: '50%', left: '50%', width: '10px', height: '10px', marginTop: '-5px', marginLeft: '-5px', borderRadius: '50%', border: '1.5px solid rgba(255,255,255,0.35)', boxShadow: '0 0 4px rgba(99,102,241,0.2)', animation: 'hotspotRipple 2s ease-out infinite', animationDelay: '1.3s' }} />
                 </button>
               )}
               {/* 마커 */}

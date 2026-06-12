@@ -1,0 +1,55 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e65]:
+    - complementary [ref=e66]:
+      - link "MIMIC" [ref=e68] [cursor=pointer]:
+        - /url: /home
+        - img [ref=e69]:
+          - generic [ref=e71]: M
+        - generic [ref=e72]: MIMIC
+      - navigation [ref=e73]:
+        - link "홈" [ref=e74] [cursor=pointer]:
+          - /url: /home
+          - img [ref=e76]
+          - text: 홈
+        - link "설정" [ref=e81] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e83]
+          - text: 설정
+    - main [ref=e86]:
+      - generic [ref=e87]:
+        - heading "설정" [level=1] [ref=e88]
+        - paragraph [ref=e89]: 확장 프로그램 연동 및 계정을 관리하세요
+      - generic [ref=e90]:
+        - heading "알림" [level=2] [ref=e92]
+        - generic [ref=e94]:
+          - generic [ref=e95]:
+            - generic [ref=e96]: 이메일 수신 동의
+            - generic [ref=e97]: 서비스 소식, 새 기능 업데이트, 주요 활동 알림을 이메일로 받습니다
+          - button [ref=e98] [cursor=pointer]
+      - generic [ref=e100]:
+        - heading "브랜딩 — PPTX 내보내기" [level=2] [ref=e102]
+        - generic [ref=e104]: 불러오는 중...
+      - generic [ref=e105]:
+        - heading "Chrome 확장 프로그램" [level=2] [ref=e107]
+        - generic [ref=e109]:
+          - generic [ref=e110]:
+            - generic [ref=e111]: MIMIC Recorder
+            - generic [ref=e112]: 재설치하거나 연결이 끊겼을 때 다시 연결합니다 (30일 자동 유지)
+          - link "연결하기" [ref=e113] [cursor=pointer]:
+            - /url: /extension-link
+      - generic [ref=e114]:
+        - heading "계정" [level=2] [ref=e116]
+        - link "고객 지원 문의" [ref=e119] [cursor=pointer]:
+          - /url: mailto:hello@mimicflow.com
+          - generic [ref=e120]: 고객 지원 문의
+          - img [ref=e121]
+      - generic [ref=e123]:
+        - link "이용약관" [ref=e124] [cursor=pointer]:
+          - /url: /legal/terms
+        - text: ·
+        - link "개인정보 처리방침" [ref=e125] [cursor=pointer]:
+          - /url: /legal/privacy
+        - text: · hello@mimicflow.com
+  - link "?" [ref=e63] [cursor=pointer]:
+    - /url: /help
+  - alert [ref=e64]

@@ -1,0 +1,83 @@
+- generic:
+  - generic [ref=e1]:
+    - banner [ref=e6]:
+      - generic [ref=e7]:
+        - img [ref=e8]:
+          - generic [ref=e10]: M
+        - generic [ref=e11]: MIMIC
+      - generic [ref=e12]: ·
+      - generic [ref=e13]: 쿠팡에서 상품 구매
+      - generic [ref=e14]:
+        - generic [ref=e15]:
+          - button "슬라이드" [ref=e16] [cursor=pointer]:
+            - img [ref=e17]
+            - text: 슬라이드
+          - button "문서" [active] [ref=e19] [cursor=pointer]:
+            - img [ref=e20]
+            - text: 문서
+        - button "PPTX" [ref=e23] [cursor=pointer]:
+          - img [ref=e24]
+          - text: PPTX
+        - button "PDF" [ref=e27] [cursor=pointer]:
+          - img [ref=e28]
+          - text: PDF
+        - button ".md" [ref=e31] [cursor=pointer]:
+          - img [ref=e32]
+          - text: .md
+        - button "공유" [ref=e35] [cursor=pointer]:
+          - img [ref=e36]
+          - text: 공유
+        - button "전체화면" [ref=e42] [cursor=pointer]:
+          - img [ref=e43]
+    - generic [ref=e112]:
+      - heading "쿠팡에서 상품 구매" [level=1] [ref=e113]
+      - generic [ref=e114]:
+        - generic [ref=e115]:
+          - generic [ref=e116]: "01"
+          - generic [ref=e117]:
+            - heading "홈 페이지 접속" [level=3] [ref=e118]
+            - paragraph [ref=e119]: 쿠팡 메인 페이지 링크를 클릭하여 <u>홈 화면</u>으로 이동합니다.
+        - img "홈 페이지 접속" [ref=e120]
+      - generic [ref=e121]:
+        - generic [ref=e122]:
+          - generic [ref=e123]: "02"
+          - generic [ref=e124]:
+            - heading "검색창에 키워드 입력" [level=3] [ref=e125]
+            - paragraph [ref=e126]: 상단의 검색창 상품명 입력
+        - img "검색창에 키워드 입력" [ref=e127]
+      - generic [ref=e128]:
+        - generic [ref=e129]:
+          - generic [ref=e130]: "03"
+          - generic [ref=e131]:
+            - heading "상품 선택" [level=3] [ref=e132]
+            - paragraph [ref=e133]: 검색 결과에서 원하는 상품을 클릭하여 상세 페이지로 이동합니다.
+        - img "상품 선택" [ref=e134]
+      - generic [ref=e135]:
+        - generic [ref=e136]:
+          - generic [ref=e137]: "04"
+          - generic [ref=e138]:
+            - heading "바로구매 버튼 클릭" [level=3] [ref=e139]
+            - paragraph [ref=e140]: 상품 상세 페이지에서 바로구매 버튼을 클릭하여 구매 프로세스를 시작합니다.
+        - img "바로구매 버튼 클릭" [ref=e141]
+      - generic [ref=e142]:
+        - generic [ref=e143]:
+          - generic [ref=e144]: "05"
+          - generic [ref=e145]:
+            - heading "주문 정보 확인" [level=3] [ref=e146]
+            - paragraph [ref=e147]: 배송지와 결제 정보를 확인한 후 결제하기 버튼을 클릭합니다.
+        - img "주문 정보 확인" [ref=e148]
+      - generic [ref=e149]:
+        - generic [ref=e150]:
+          - generic [ref=e151]: "06"
+          - generic [ref=e152]:
+            - heading "결제 진행" [level=3] [ref=e153]
+            - paragraph [ref=e154]: 선택한 결제 수단으로 결제를 진행합니다.
+        - img "결제 진행" [ref=e155]
+      - generic [ref=e156]:
+        - generic [ref=e157]:
+          - generic [ref=e158]: "07"
+          - generic [ref=e159]:
+            - heading "주문 완료" [level=3] [ref=e160]
+            - paragraph [ref=e161]: 결제가 완료되면 주문 확인 페이지가 표시됩니다.
+        - img "주문 완료" [ref=e162]
+  - alert [ref=e5]
