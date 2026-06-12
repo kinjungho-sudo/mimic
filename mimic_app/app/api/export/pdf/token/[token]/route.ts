@@ -150,8 +150,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   const pdfBytes = await pdfDoc.save();
   const dateStr = new Date().toLocaleDateString('ko-KR', {
-    year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Asia/Seoul',
-  }).replace(/\. /g, '-').replace(/\.$/, '');
+    year: '2-digit', month: '2-digit', day: '2-digit', timeZone: 'Asia/Seoul',
+  }).replace(/\. /g, '_').replace(/\.$/, '');
   const safeTitle = tutorial.title.replace(/[/\\?%*:|"<>]/g, '-').trim() || '매뉴얼';
   const filenameRaw = `${safeTitle}_${dateStr}.pdf`;
   const filenameEncoded = encodeURIComponent(filenameRaw);

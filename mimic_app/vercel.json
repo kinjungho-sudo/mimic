@@ -3,5 +3,11 @@
     "app/api/capture/finalize/route.ts": {
       "maxDuration": 60
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/cleanup-sessions",
+      "schedule": "0 18 * * *"
+    }
+  ]
 }

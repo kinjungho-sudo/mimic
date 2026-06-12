@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { session_id, title, step_numbers, content_mode = 'action' } = parsed.data;
+  const { session_id, title, step_numbers, content_mode = 'action', auto_zoom = false } = parsed.data;
 
   // 세션 소유자 확인
   const { data: session } = await supabase
@@ -161,9 +161,52 @@ export async function POST(request: NextRequest) {
     return { x, y, width: Math.min(1 - x, w), height: Math.min(1 - y, h) };
   }
 
+  // '선택영역 확대' — 클릭/요소 영역이 크게 보이도록 image_zoom + offset을 선적용한다.
+  // 원본 이미지는 그대로이므로(표시 변환만) 편집기 줌/팬 도구로 언제든 되돌릴 수 있다.
+  // 표시 변환(editor/play): translate(ox*100%, oy*100%) scale(z), origin center
+  //   → 이미지 정규좌표 c가 화면 중앙에 오려면 offset = z * (0.5 - c)
+  function calcZoomFraming(
+    rect: { x: number; y: number; width: number; height: number } | null,
+    clickX?: number | null,
+    clickY?: number | null,
+  ) {
+    // 확대 중심 — 클릭 지점 우선, 없으면 요소 중심
+    let cx: number | null = null;
+    let cy: number | null = null;
+    if (clickX != null && clickY != null && (clickX > 0 || clickY > 0)) {
+      cx = clickX;
+      cy = clickY;
+    } else if (rect) {
+      cx = rect.x + rect.width / 2;
+      cy = rect.y + rect.height / 2;
+    }
+    if (cx == null || cy == null) return null; // 좌표 없음 (navigate/autoNav) → 확대 안 함
+
+    // 배율 — 요소가 작을수록 크게 (1.5~2.2)
+    let zoom = 2.0;
+    if (rect) {
+      const size = Math.max(rect.width, rect.height);
+      zoom = size > 0.45 ? 1.5 : size > 0.2 ? 1.8 : 2.2;
+    }
+
+    // 확대 후 보이는 창(1/zoom)이 이미지 밖으로 나가지 않게 중심 클램프
+    const half = 1 / (2 * zoom);
+    const ccx = Math.min(1 - half, Math.max(half, cx));
+    const ccy = Math.min(1 - half, Math.max(half, cy));
+
+    return {
+      image_zoom: zoom,
+      image_offset_x: Math.round(zoom * (0.5 - ccx) * 1000) / 1000,
+      image_offset_y: Math.round(zoom * (0.5 - ccy) * 1000) / 1000,
+    };
+  }
+
   // 캡처 이벤트 → mm_steps 변환
   const steps = deduped.map((ev, idx) => {
     const elementRect = (ev.element_rect as { x: number; y: number; width: number; height: number } | null) ?? null;
+    const clickX = ev.click_x != null ? ev.click_x / 10000 : null;
+    const clickY = ev.click_y != null ? ev.click_y / 10000 : null;
+    const zoomFraming = auto_zoom ? calcZoomFraming(elementRect, clickX, clickY) : null;
     return {
       tutorial_id: tutorial.id,
       step_number: idx + 1,
@@ -177,16 +220,13 @@ export async function POST(request: NextRequest) {
       domain_favicon:  ev.domain_hostname
         ? (faviconCache.get(ev.domain_hostname) ?? ev.domain_favicon ?? null)
         : (ev.domain_favicon ?? null),
-      click_x:           ev.click_x != null ? ev.click_x / 10000 : null,
-      click_y:           ev.click_y != null ? ev.click_y / 10000 : null,
+      click_x:           clickX,
+      click_y:           clickY,
       element_rect:      elementRect,
       element_selector:  ev.element_selector  ?? null,
       element_xpath:     ev.element_xpath     ?? null,
-      crop_rect:         calcCropRect(
-        elementRect,
-        ev.click_x != null ? ev.click_x / 10000 : null,
-        ev.click_y != null ? ev.click_y / 10000 : null,
-      ),
+      crop_rect:         calcCropRect(elementRect, clickX, clickY),
+      ...(zoomFraming ?? {}),
     };
   });
 
@@ -208,6 +248,28 @@ export async function POST(request: NextRequest) {
       .eq('id', session_id),
     supabase.rpc('increment_daily_manual_count', { uid: userId }),
   ]);
+
+  // staging 정리 — 매뉴얼 변환이 끝난 세션의 mm_capture_events 행과,
+  // 매뉴얼에 포함되지 않은(패널 삭제/중복 제거) 고아 스크린샷을 삭제한다.
+  // 포함된 이미지는 mm_steps.screenshot_url이 같은 파일을 가리키므로 건드리지 않는다.
+  try {
+    const usedUrls = new Set(steps.map(s => s.screenshot_url));
+    const STORAGE_PREFIX = '/storage/v1/object/public/naviaction/';
+    const orphanPaths = events
+      .filter(ev => ev.screenshot_url && !usedUrls.has(ev.screenshot_url))
+      .map(ev => {
+        const url = ev.screenshot_url as string;
+        const i = url.indexOf(STORAGE_PREFIX);
+        return i >= 0 ? decodeURIComponent(url.slice(i + STORAGE_PREFIX.length)) : null;
+      })
+      .filter((p): p is string => !!p);
+    if (orphanPaths.length) {
+      await supabase.storage.from('naviaction').remove(orphanPaths);
+    }
+    await supabase.from('mm_capture_events').delete().eq('session_id', session_id);
+  } catch {
+    /* 정리 실패는 무시 — cron 청소가 보완 */
+  }
 
   // AI 초안 생성 — tutorial 제목 + 스텝별 user_title/user_script + 커버 색상
   try {

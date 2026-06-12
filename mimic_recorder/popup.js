@@ -34,6 +34,7 @@ const SETTINGS_DEFAULTS = {
   autoNav:     true,
   mobileMode:  false,
   piiBlur:     true,
+  autoZoom:    false,  // 선택영역 확대 — 매뉴얼 이미지에 클릭 영역 확대 선적용
 };
 
 // ── chrome.storage.local 프로미스 헬퍼 ──────────────────────────
@@ -61,6 +62,7 @@ function loadSettingsUI(saved) {
   const s = { ...SETTINGS_DEFAULTS, ...saved };
   settingHighlight.checked      = s.highlight;
   settingFlash.checked          = s.flash;
+  settingAutoZoom.checked       = s.autoZoom;
   settingCaptureMode.value      = s.captureMode;
   settingQuality.value          = s.quality;
   qualityVal.textContent        = s.quality + '%';
@@ -73,6 +75,7 @@ function saveSettings() {
   const s = {
     highlight:   settingHighlight.checked,
     flash:       settingFlash.checked,
+    autoZoom:    settingAutoZoom.checked,
     captureMode: settingCaptureMode.value,
     quality:     Number(settingQuality.value),
     autoNav:     settingAutoNav.checked,
@@ -98,6 +101,7 @@ settingsOverlay.addEventListener('click', (e) => {
 // 각 설정 변경 시 즉시 저장
 settingHighlight.addEventListener('change',   saveSettings);
 settingFlash.addEventListener('change',       saveSettings);
+settingAutoZoom.addEventListener('change',    saveSettings);
 settingCaptureMode.addEventListener('change', saveSettings);
 settingAutoNav.addEventListener('change',     saveSettings);
 settingMobileMode.addEventListener('change',  saveSettings);
@@ -865,6 +869,19 @@ btnRestoreClose.addEventListener('click', () => {
   restoreToast.classList.remove('show');
 });
 
+// ── 전체 페이지 캡처 (녹화와 별개 단독 기능) ─────────────────────
+const btnFullPage = document.getElementById('btnFullPage');
+btnFullPage?.addEventListener('click', () => {
+  btnFullPage.disabled = true;
+  showToast('전체 페이지 캡처 중... 탭을 조작하지 마세요', 60000);
+  chrome.runtime.sendMessage({ type: 'FULL_PAGE_CAPTURE' }, (res) => {
+    void chrome.runtime.lastError;
+    btnFullPage.disabled = false;
+    if (res?.ok) showToast('전체 페이지 캡처 완료 — 다운로드됨 ✓', 3000);
+    else showToast(res?.error || '캡처 실패', 3000);
+  });
+});
+
 // ── 일시정지 / 재개 ───────────────────────────────────────────────
 btnPause.addEventListener('click', () => {
   isPaused = !isPaused;
@@ -937,10 +954,15 @@ function showRestoreToast() {
 }
 
 // ── 중지 (저장 없이) ─────────────────────────────────────────────
-btnDiscard.addEventListener('click', () => {
+btnDiscard.addEventListener('click', async () => {
   isRecording = false;
   isPaused    = false;
   hideCaptureBlockedToast();
+  // 서버 staging(mm_capture_events + Storage 이미지) 정리 — sessionId는 지우기 전에 확보
+  const { sessionId } = await storageGet('sessionId');
+  if (sessionId) {
+    chrome.runtime.sendMessage({ type: 'DISCARD_SESSION', sessionId }, () => { void chrome.runtime.lastError; });
+  }
   chrome.runtime.sendMessage({ type: 'CLEAR_STEPS' }, () => { void chrome.runtime.lastError; });
   // isRecording: false 먼저 세팅 → background가 targetTabId로 STOP_RECORDING 전송
   storageSet({ isRecording: false }).then(() => {
@@ -958,6 +980,14 @@ btnFinish.addEventListener('click', async () => {
   // steps는 storage에서 지우기 전에 읽어 살아남은 stepNumber 목록을 확보
   const { sessionId, steps } = await storageGet(['sessionId', 'steps']);
   const stepNumbers = (steps || []).map(s => s.stepNumber).filter(n => n > 0);
+
+  // 패널에 남은 스텝이 없으면 finalize 중단 — 빈 목록을 보내면 서버 필터가
+  // 비활성화되어 삭제했던 이벤트 전체가 매뉴얼에 포함되는 사고가 난다.
+  if (stepNumbers.length === 0) {
+    showToast('남은 스텝이 없습니다 — 캡처 후 완료해주세요', 3000);
+    btnFinish.disabled = false;
+    return;
+  }
 
   isRecording = false;
   isPaused    = false;

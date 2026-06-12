@@ -247,8 +247,8 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   // 파일명: "매뉴얼 제목_2026-06-02.pdf" — RFC 5987 UTF-8 인코딩
   const dateStr = new Date().toLocaleDateString('ko-KR', {
-    year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Asia/Seoul',
-  }).replace(/\. /g, '-').replace(/\.$/, '');
+    year: '2-digit', month: '2-digit', day: '2-digit', timeZone: 'Asia/Seoul',
+  }).replace(/\. /g, '_').replace(/\.$/, '');
   const safeTitle = tutorial.title.replace(/[/\\?%*:|"<>]/g, '-').trim() || '매뉴얼';
   const filenameRaw = `${safeTitle}_${dateStr}.pdf`;
   const filenameEncoded = encodeURIComponent(filenameRaw);

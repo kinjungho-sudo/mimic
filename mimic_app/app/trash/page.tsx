@@ -21,9 +21,9 @@ function daysAgo(iso: string): string {
   return `${days}일 전`;
 }
 
-// 삭제 30일 후 자동 영구삭제 — 남은 일수 계산
+// 삭제 7일 후 자동 영구삭제 — 남은 일수 계산
 function daysLeft(deletedAt: string): number {
-  const diff = 30 * 86400000 - (Date.now() - new Date(deletedAt).getTime());
+  const diff = 7 * 86400000 - (Date.now() - new Date(deletedAt).getTime());
   return Math.max(0, Math.ceil(diff / 86400000));
 }
 
@@ -164,7 +164,7 @@ export default function TrashPage() {
             <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
           </svg>
           <p style={{ fontSize: '13px', color: '#92400E', margin: 0, lineHeight: 1.5 }}>
-            휴지통의 매뉴얼은 <strong>30일 후 자동으로 영구 삭제</strong>됩니다. 복원이 필요하면 기한 내에 복원해주세요.
+            휴지통의 매뉴얼은 <strong>7일 후 자동으로 영구 삭제</strong>됩니다. 복원이 필요하면 기한 내에 복원해주세요.
           </p>
         </div>
 
@@ -186,7 +186,7 @@ export default function TrashPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             {items.map(item => {
               const remaining = daysLeft(item.deleted_at);
-              const isUrgent = remaining <= 7;
+              const isUrgent = remaining <= 2;
               const isLoading = actionLoading === item.id;
               return (
                 <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 14px', background: 'white', borderRadius: '10px', border: '1px solid #E5E7EB' }}>
