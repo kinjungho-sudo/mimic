@@ -1050,17 +1050,21 @@ async function isBlackScreen(pngDataUrl) {
     const ctx    = canvas.getContext('2d');
     ctx.drawImage(bmp, 0, 0);
 
-    let totalBrightness = 0;
-    const SAMPLES = 3;
+    // 진짜 차단 화면은 "균일한 완전 검정". 다크 테마(Gemini 등)는 텍스트/패널 등
+    // 밝은 픽셀이 섞여 있으므로 평균이 아닌 '최대 밝기'로 판정해야 오탐이 없다.
+    const SAMPLES = 8;
+    let maxBrightness = 0;
     for (let sy = 0; sy < SAMPLES; sy++) {
       for (let sx = 0; sx < SAMPLES; sx++) {
         const px = Math.floor(w * (sx + 1) / (SAMPLES + 1));
         const py = Math.floor(h * (sy + 1) / (SAMPLES + 1));
         const d  = ctx.getImageData(px, py, 1, 1).data;
-        totalBrightness += (d[0] + d[1] + d[2]) / 3;
+        const b  = (d[0] + d[1] + d[2]) / 3;
+        if (b > maxBrightness) maxBrightness = b;
+        if (maxBrightness >= 8) return false;  // 밝은 픽셀 발견 → 정상 화면
       }
     }
-    return (totalBrightness / (SAMPLES * SAMPLES)) < 5;
+    return maxBrightness < 8;
   } catch {
     return false;
   }
