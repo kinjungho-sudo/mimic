@@ -1,0 +1,8 @@
+- generic [active]:
+  - generic [ref=e2]:
+    - generic [ref=e3]: "404"
+    - heading "매뉴얼을 찾을 수 없어요" [level=1] [ref=e6]
+    - paragraph [ref=e7]: 링크가 만료되었거나 잘못된 주소입니다.
+    - link "홈으로" [ref=e8] [cursor=pointer]:
+      - /url: /landingpage
+  - alert [ref=e5]

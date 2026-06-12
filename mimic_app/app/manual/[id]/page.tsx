@@ -6,6 +6,7 @@ import { Share2, Download, Pencil, PlayCircle, X, Bot, Play, Pause, Square } fro
 import { GuideToc } from '@/components/editor/GuideToc';
 import { GuideViewer } from '@/components/editor/GuideViewer';
 import { ShareModal } from '@/components/editor/ShareModal';
+import { FollowAlongOverlay } from '@/components/viewer/FollowAlongOverlay';
 import { useTutorial } from '@/hooks/useTutorial';
 import { useAuth } from '@/hooks/useAuth';
 import type { ManualStep } from '@/components/editor/ManualEditor';
@@ -13,6 +14,13 @@ import type { Step, Tutorial } from '@/types';
 import type { Annotation } from '@/components/editor/ImageAnnotationEditor';
 
 // ── Adapter ───────────────────────────────────────────────
+
+function clickToPct(v: number | null | undefined): number | null {
+  if (v == null) return null;
+  if (v <= 1) return v * 100;
+  if (v > 100) return v / 100;
+  return v;
+}
 
 function stepsToManualSteps(steps: Step[]): ManualStep[] {
   return steps.map(s => ({
@@ -33,6 +41,8 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
     imageOffsetX: (s as Step & { image_offset_x?: number | null }).image_offset_x ?? 0,
     imageOffsetY: (s as Step & { image_offset_y?: number | null }).image_offset_y ?? 0,
     element_rect: (s as Step & { element_rect?: { x: number; y: number; width: number; height: number } | null }).element_rect ?? null,
+    click_x: clickToPct((s as Step & { click_x?: number | null }).click_x),
+    click_y: clickToPct((s as Step & { click_y?: number | null }).click_y),
   }));
 }
 
@@ -76,6 +86,7 @@ export default function ManualViewerPage() {
   const [stepResults, setStepResults] = useState<StepResult[]>([]);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [tocOpen, setTocOpen] = useState(false);
+  const [followMode, setFollowMode] = useState(false);
 
   useEffect(() => {
     if (!tutorial) return;
@@ -311,6 +322,17 @@ export default function ManualViewerPage() {
             <Share2 size={13} /> 공유
           </button>
 
+          {manualSteps.length > 0 && (
+            <button
+              onClick={() => setFollowMode(true)}
+              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#3730a3', background: '#e0e7ff', border: '1px solid #a5b4fc', cursor: 'pointer' }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#c7d2fe'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#e0e7ff'; }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0"/><path d="M12 8v4l3 3"/></svg>
+              따라하기
+            </button>
+          )}
+
           {tutorial.content_mode !== 'education' && manualSteps.some(s => s.pageUrl) && (
             <button
               onClick={() => {
@@ -531,6 +553,15 @@ export default function ManualViewerPage() {
           onPublishAndShare={publish}
           onUnpublish={unpublish}
           onClose={() => setShowShare(false)}
+        />
+      )}
+
+      {/* 따라하기 오버레이 */}
+      {followMode && (
+        <FollowAlongOverlay
+          steps={manualSteps}
+          initialIdx={manualSteps.findIndex(s => s.id === activeId) >= 0 ? manualSteps.findIndex(s => s.id === activeId) : 0}
+          onClose={() => setFollowMode(false)}
         />
       )}
 

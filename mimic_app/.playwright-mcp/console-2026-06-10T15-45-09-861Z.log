@@ -1,0 +1,48 @@
+[    2107ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/pages/hot-reloader-client.js:221
+[    4242ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/pages/hot-reloader-client.js:221
+[    4997ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/68a4377d18444414.webpack.hot-update.json:0
+[    4998ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/pages/hot-reloader-client.js:349
+[    5017ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/play/2d736a0adf6786ce513d127d8d40eb17:0
+[    5378ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///./node_modules/react-dom/cjs/react-dom.development.js:29889
+[    5418ms] Error: Cannot find module './1682.js'
+Require stack:
+- C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\.next\server\webpack-runtime.js
+- C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\.next\server\app\_not-found\page.js
+- C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\server\require.js
+- C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\server\load-components.js
+- C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\build\utils.js
+- C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\server\lib\start-server.js
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)
+    at <unknown> (file://C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\server\require-hook.js:55:36)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)
+    at Module._load (node:internal/modules/cjs/loader:1242:25)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)
+    at mod.require (file://C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\server\require-hook.js:65:28)
+    at require (node:internal/modules/helpers:152:16)
+    at __webpack_require__.f.require (file://C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\.next\server\webpack-runtime.js:198:28)
+    at <unknown> (file://C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\.next\server\webpack-runtime.js:111:40)
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e (file://C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\.next\server\webpack-runtime.js:110:67)
+    at Array.map (<anonymous>)
+    at __webpack_require__.X (file://C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\.next\server\webpack-runtime.js:162:22)
+    at <unknown> (file://C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\.next\server\pages\_document.js:1:340)
+    at Object.<anonymous> (file://C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\.next\server\pages\_document.js:1:383)
+    at Module._compile (node:internal/modules/cjs/loader:1812:14)
+    at Object..js (node:internal/modules/cjs/loader:1943:10)
+    at Module.load (node:internal/modules/cjs/loader:1533:32)
+    at Module._load (node:internal/modules/cjs/loader:1335:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)
+    at mod.require (file://C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\server\require-hook.js:65:28)
+    at require (node:internal/modules/helpers:152:16)
+    at requirePage (file://C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\server\require.js:109:84)
+    at <unknown> (file://C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\server\load-components.js:72:65)
+    at async loadComponentsImpl (file://C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\server\load-components.js:71:33)
+    at async DevServer.findPageComponentsImpl (file://C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\server\next-server.js:714:36)
+[    5422ms] [LOG] [HMR] connected @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/pages/websocket.js:38

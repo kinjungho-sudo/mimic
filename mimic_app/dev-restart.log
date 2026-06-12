@@ -1,0 +1,318 @@
+
+> mimic-app@0.1.0 dev
+> next dev
+
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3000
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 3.4s
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 733ms (126 modules)
+ ○ Compiling /auth/login ...
+ ✓ Compiled /auth/login in 2.9s (675 modules)
+ GET /auth/login 200 in 3242ms
+ ✓ Compiled in 392ms (325 modules)
+ GET /auth/login 200 in 51ms
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (101kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (231kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+ ✓ Compiled in 665ms (325 modules)
+ ✓ Compiled in 134ms (325 modules)
+ ✓ Compiled in 1901ms (325 modules)
+ ✓ Compiled in 205ms (325 modules)
+ ✓ Compiled in 298ms (325 modules)
+ ✓ Compiled in 240ms (325 modules)
+ ✓ Compiled in 84ms (325 modules)
+ ✓ Compiled in 92ms (325 modules)
+ ✓ Compiled in 86ms (325 modules)
+ ✓ Compiled in 144ms (325 modules)
+ ✓ Compiled in 140ms (325 modules)
+ ✓ Compiled in 103ms (325 modules)
+ ✓ Compiled in 89ms (325 modules)
+ ✓ Compiled in 76ms (325 modules)
+ ✓ Compiled in 132ms (325 modules)
+ ✓ Compiled in 82ms (325 modules)
+ ✓ Compiled in 78ms (325 modules)
+ ✓ Compiled in 135ms (325 modules)
+ ✓ Compiled in 81ms (325 modules)
+ ✓ Compiled in 436ms (325 modules)
+ ✓ Compiled in 299ms (325 modules)
+ ✓ Compiled in 149ms (325 modules)
+ ✓ Compiled in 229ms (325 modules)
+ ✓ Compiled in 348ms (325 modules)
+ ✓ Compiled in 174ms (325 modules)
+ ✓ Compiled in 79ms (325 modules)
+ ✓ Compiled in 111ms (325 modules)
+ ✓ Compiled in 145ms (325 modules)
+ ✓ Compiled in 185ms (325 modules)
+ ✓ Compiled in 128ms (325 modules)
+ ✓ Compiled in 103ms (325 modules)
+ ✓ Compiled in 84ms (325 modules)
+ ✓ Compiled in 114ms (325 modules)
+ ✓ Compiled in 56ms (325 modules)
+ ✓ Compiled in 104ms (325 modules)
+ ✓ Compiled in 108ms (325 modules)
+ ✓ Compiled in 93ms (325 modules)
+ ✓ Compiled in 103ms (325 modules)
+ ✓ Compiled in 85ms (325 modules)
+ ✓ Compiled in 1020ms (325 modules)
+ ✓ Compiled in 213ms (325 modules)
+ ✓ Compiled in 396ms (325 modules)
+ ✓ Compiled in 142ms (325 modules)
+ ✓ Compiled in 1564ms (451 modules)
+ ✓ Compiled in 103ms (325 modules)
+ ✓ Compiled in 300ms (325 modules)
+ ✓ Compiled in 217ms (325 modules)
+ ✓ Compiled in 211ms (325 modules)
+ ✓ Compiled in 309ms (325 modules)
+ ✓ Compiled in 165ms (325 modules)
+ ✓ Compiled in 110ms (325 modules)
+ ✓ Compiled in 268ms (325 modules)
+ ✓ Compiled in 254ms (325 modules)
+ ✓ Compiled in 103ms (325 modules)
+ ✓ Compiled in 214ms (325 modules)
+ ✓ Compiled in 194ms (325 modules)
+ ✓ Compiled in 217ms (325 modules)
+ ✓ Compiled in 178ms (325 modules)
+ ✓ Compiled in 156ms (325 modules)
+ ✓ Compiled in 1255ms (325 modules)
+ ✓ Compiled in 2.5s (451 modules)
+ ✓ Compiled in 530ms (325 modules)
+ ✓ Compiled in 193ms (325 modules)
+ ✓ Compiled in 617ms (451 modules)
+ ✓ Compiled in 2.8s (325 modules)
+ ✓ Compiled in 637ms (325 modules)
+ ✓ Compiled in 357ms (325 modules)
+ ✓ Compiled in 309ms (325 modules)
+ ✓ Compiled in 334ms (325 modules)
+ ✓ Compiled in 547ms (325 modules)
+ ✓ Compiled in 395ms (325 modules)
+ ✓ Compiled in 668ms (325 modules)
+ ✓ Compiled in 326ms (325 modules)
+ ✓ Compiled in 223ms (325 modules)
+ ✓ Compiled in 189ms (325 modules)
+ ✓ Compiled in 199ms (325 modules)
+ ✓ Compiled in 505ms (325 modules)
+ ✓ Compiled in 911ms (325 modules)
+ ✓ Compiled in 219ms (325 modules)
+ ✓ Compiled in 542ms (325 modules)
+ ✓ Compiled in 371ms (325 modules)
+ ✓ Compiled in 256ms (325 modules)
+ ✓ Compiled in 1160ms (325 modules)
+ ✓ Compiled in 225ms (325 modules)
+ ✓ Compiled in 1497ms (325 modules)
+ ✓ Compiled in 409ms (325 modules)
+ ✓ Compiled in 1137ms (325 modules)
+ ✓ Compiled in 279ms (325 modules)
+ ✓ Compiled in 596ms (325 modules)
+ ✓ Compiled in 290ms (325 modules)
+ ✓ Compiled in 309ms (325 modules)
+ ✓ Compiled in 404ms (325 modules)
+ ✓ Compiled in 324ms (325 modules)
+ ✓ Compiled in 255ms (325 modules)
+ ✓ Compiled in 267ms (325 modules)
+ ✓ Compiled in 427ms (325 modules)
+ ✓ Compiled in 436ms (325 modules)
+ ✓ Compiled in 347ms (325 modules)
+ ✓ Compiled in 360ms (325 modules)
+ ✓ Compiled in 299ms (325 modules)
+ ✓ Compiled in 231ms (325 modules)
+ ✓ Compiled in 516ms (325 modules)
+ ✓ Compiled in 349ms (325 modules)
+ ✓ Compiled in 258ms (325 modules)
+ ✓ Compiled in 333ms (325 modules)
+ ✓ Compiled in 470ms (325 modules)
+ ✓ Compiled in 343ms (325 modules)
+ ✓ Compiled in 252ms (325 modules)
+ ✓ Compiled in 461ms (325 modules)
+ ✓ Compiled in 400ms (325 modules)
+ ✓ Compiled in 205ms (325 modules)
+ ✓ Compiled in 396ms (325 modules)
+ ✓ Compiled in 418ms (325 modules)
+ ✓ Compiled in 296ms (325 modules)
+ ✓ Compiled in 236ms (325 modules)
+ ✓ Compiled in 382ms (325 modules)
+ ✓ Compiled in 234ms (325 modules)
+ ✓ Compiled in 227ms (325 modules)
+ ✓ Compiled in 293ms (325 modules)
+ ✓ Compiled in 487ms (325 modules)
+ ✓ Compiled in 228ms (325 modules)
+ ✓ Compiled in 244ms (325 modules)
+ ✓ Compiled in 380ms (325 modules)
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 3.9s (560 modules)
+ ✓ Compiled in 2.7s (510 modules)
+ ✓ Compiled in 321ms (510 modules)
+ ✓ Compiled in 209ms (510 modules)
+ ✓ Compiled in 155ms (510 modules)
+ ✓ Compiled in 203ms (510 modules)
+ ✓ Compiled in 3.8s (510 modules)
+ ✓ Compiled in 361ms (510 modules)
+ ✓ Compiled in 873ms (510 modules)
+ ✓ Compiled in 365ms (510 modules)
+ ✓ Compiled in 373ms (510 modules)
+ ✓ Compiled in 607ms (510 modules)
+ ✓ Compiled in 363ms (510 modules)
+ ✓ Compiled in 452ms (510 modules)
+ ✓ Compiled in 675ms (510 modules)
+ ✓ Compiled in 541ms (510 modules)
+ ✓ Compiled in 536ms (510 modules)
+ ✓ Compiled in 343ms (510 modules)
+ ✓ Compiled in 457ms (510 modules)
+ ✓ Compiled in 244ms (510 modules)
+ ✓ Compiled in 246ms (510 modules)
+ ✓ Compiled in 294ms (510 modules)
+ ✓ Compiled in 275ms (510 modules)
+ ✓ Compiled in 307ms (510 modules)
+ ✓ Compiled in 577ms (510 modules)
+ ✓ Compiled in 640ms (510 modules)
+ ✓ Compiled in 304ms (510 modules)
+ ✓ Compiled in 262ms (510 modules)
+ ✓ Compiled in 991ms (510 modules)
+ ✓ Compiled in 1455ms (510 modules)
+ ✓ Compiled in 287ms (510 modules)
+ ✓ Compiled in 1688ms (510 modules)
+ ✓ Compiled in 459ms (510 modules)
+ ✓ Compiled in 657ms (510 modules)
+ ✓ Compiled in 329ms (510 modules)
+ ✓ Compiled in 489ms (510 modules)
+ ✓ Compiled in 343ms (510 modules)
+ ✓ Compiled in 313ms (510 modules)
+ ✓ Compiled in 665ms (510 modules)
+ ✓ Compiled in 4s (684 modules)
+ ✓ Compiled in 1202ms (670 modules)
+ ✓ Compiled in 1307ms (684 modules)
+ ✓ Compiled in 290ms (510 modules)
+ ✓ Compiled in 465ms (510 modules)
+ ✓ Compiled in 302ms (510 modules)
+ ✓ Compiled in 422ms (510 modules)
+ ✓ Compiled in 289ms (510 modules)
+ ✓ Compiled in 399ms (510 modules)
+ ○ Compiling /auth/login ...
+ ✓ Compiled /auth/login in 4.7s (371 modules)
+ ⨯ TypeError: __webpack_modules__[moduleId] is not a function
+    at Object.__webpack_require__ [as require] (C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\.next\server\webpack-runtime.js:33:42)
+digest: "1821119296"
+TypeError: __webpack_modules__[moduleId] is not a function
+    at Object.__webpack_require__ [as require] (C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\.next\server\webpack-runtime.js:33:42)
+    at require (C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:40:20064)
+    at C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:108376
+    at ea (C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:108583)
+    at C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:110813
+    at Object._fromJSON (C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:111370)
+    at JSON.parse (<anonymous>)
+    at ec (C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:109078)
+    at eo (C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:108123)
+    at C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:115291
+    at C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:115308
+    at C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:115341
+    at C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:115358
+    at t (C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:115581)
+ ⨯ TypeError: __webpack_modules__[moduleId] is not a function
+    at Object.__webpack_require__ [as require] (C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\.next\server\webpack-runtime.js:33:42)
+    at require (C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:40:20064)
+    at C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:108376
+    at ea (C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:108583)
+    at C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:110813
+    at Object._fromJSON (C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:111370)
+    at JSON.parse (<anonymous>)
+    at ec (C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:109078)
+    at eo (C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:108123)
+    at C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:115291
+    at C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:115308
+    at C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:115341
+    at C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:115358
+    at t (C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:115581) {
+  page: '/auth/login'
+}
+ ✓ Compiled /_error in 440ms (869 modules)
+ ⨯ Error: Cannot find module './1682.js'
+Require stack:
+- C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\.next\server\webpack-runtime.js
+- C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\.next\server\pages\_document.js
+- C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\server\require.js
+- C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\server\load-components.js
+- C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\build\utils.js
+- C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\server\lib\start-server.js
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)
+    at C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\server\require-hook.js:55:36
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)
+    at Module._load (node:internal/modules/cjs/loader:1242:25)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)
+    at mod.require (C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\server\require-hook.js:65:28)
+    at require (node:internal/modules/helpers:152:16)
+    at __webpack_require__.f.require (C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\.next\server\webpack-runtime.js:198:28)
+    at C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\.next\server\webpack-runtime.js:111:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e (C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\.next\server\webpack-runtime.js:110:67)
+    at Array.map (<anonymous>)
+    at __webpack_require__.X (C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\.next\server\webpack-runtime.js:162:22)
+    at C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\.next\server\pages\_document.js:1:340
+    at Object.<anonymous> (C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\.next\server\pages\_document.js:1:383)
+    at Module._compile (node:internal/modules/cjs/loader:1812:14)
+    at Object..js (node:internal/modules/cjs/loader:1943:10)
+    at Module.load (node:internal/modules/cjs/loader:1533:32)
+    at Module._load (node:internal/modules/cjs/loader:1335:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)
+    at mod.require (C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\server\require-hook.js:65:28)
+    at require (node:internal/modules/helpers:152:16)
+    at requirePage (C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\server\require.js:109:84)
+    at C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\server\load-components.js:72:65
+    at async Promise.all (index 0)
+    at async loadComponentsImpl (C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\server\load-components.js:71:33)
+    at async DevServer.findPageComponentsImpl (C:\Users\ADMIN\Desktop\Project\Dev\mimic\mimic_app\node_modules\next\dist\server\next-server.js:714:36) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    'C:\\Users\\ADMIN\\Desktop\\Project\\Dev\\mimic\\mimic_app\\.next\\server\\webpack-runtime.js',
+    'C:\\Users\\ADMIN\\Desktop\\Project\\Dev\\mimic\\mimic_app\\.next\\server\\pages\\_document.js',
+    'C:\\Users\\ADMIN\\Desktop\\Project\\Dev\\mimic\\mimic_app\\node_modules\\next\\dist\\server\\require.js',
+    'C:\\Users\\ADMIN\\Desktop\\Project\\Dev\\mimic\\mimic_app\\node_modules\\next\\dist\\server\\load-components.js',
+    'C:\\Users\\ADMIN\\Desktop\\Project\\Dev\\mimic\\mimic_app\\node_modules\\next\\dist\\build\\utils.js',
+    'C:\\Users\\ADMIN\\Desktop\\Project\\Dev\\mimic\\mimic_app\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js',
+    'C:\\Users\\ADMIN\\Desktop\\Project\\Dev\\mimic\\mimic_app\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js',
+    'C:\\Users\\ADMIN\\Desktop\\Project\\Dev\\mimic\\mimic_app\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js',
+    'C:\\Users\\ADMIN\\Desktop\\Project\\Dev\\mimic\\mimic_app\\node_modules\\next\\dist\\server\\lib\\router-server.js',
+    'C:\\Users\\ADMIN\\Desktop\\Project\\Dev\\mimic\\mimic_app\\node_modules\\next\\dist\\server\\lib\\start-server.js'
+  ]
+}
+ GET /auth/login?next=%2Fsettings 200 in 408ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 831ms (870 modules)
+ GET /_next/static/css/app/layout.css?v=1781250988130 404 in 1040ms
+ GET /_next/static/chunks/main-app.js?v=1781250988130 404 in 1040ms
+ GET /_next/static/chunks/app/auth/login/page.js 404 in 1037ms
+ GET /_next/static/chunks/app-pages-internals.js 404 in 1034ms
+ ✓ Compiled /icon.svg in 494ms (404 modules)
+ GET /icon.svg?84daf67d62d2deb6 200 in 673ms
+ ✓ Compiled in 396ms (512 modules)
+ ✓ Compiled in 878ms (512 modules)
+ ✓ Compiled in 380ms (512 modules)
+ ✓ Compiled in 669ms (510 modules)
+ ✓ Compiled in 628ms (510 modules)
+ GET /auth/login?next=%2Fsettings 200 in 382ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 567ms (870 modules)
+ GET /_next/static/css/app/layout.css?v=1781251071090 404 in 896ms
+ GET /_next/static/chunks/main-app.js?v=1781251071090 404 in 878ms
+ GET /_next/static/chunks/app/auth/login/page.js 404 in 876ms
+ GET /_next/static/chunks/app-pages-internals.js 404 in 875ms
+ ✓ Compiled /icon.svg in 144ms (404 modules)
+ GET /icon.svg?84daf67d62d2deb6 200 in 314ms
+ ✓ Compiled in 441ms (512 modules)
+ GET /auth/login? 200 in 495ms
+ GET /_next/static/css/app/layout.css?v=1781251086322 404 in 84ms
+ GET /_next/static/chunks/main-app.js?v=1781251086322 404 in 97ms
+ GET /_next/static/chunks/app-pages-internals.js 404 in 93ms
+ GET /_next/static/chunks/app/auth/login/page.js 404 in 93ms
+ GET /icon.svg?84daf67d62d2deb6 200 in 32ms
+ ✓ Compiled in 1468ms (916 modules)
+ ✓ Compiled in 1013ms (919 modules)
+[?25h

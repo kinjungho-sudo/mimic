@@ -1,0 +1,68 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e7]:
+      - generic [ref=e8]:
+        - button [ref=e9] [cursor=pointer]:
+          - img [ref=e10]
+        - generic [ref=e12]: 매뉴얼
+      - generic [ref=e14]: 3개 단계
+      - generic [ref=e15]:
+        - button "PPTX" [ref=e16] [cursor=pointer]:
+          - img [ref=e17]
+          - text: PPTX
+        - button "PDF" [ref=e20] [cursor=pointer]:
+          - img [ref=e21]
+          - text: PDF
+        - button "공유" [ref=e24] [cursor=pointer]:
+          - img [ref=e25]
+          - text: 공유
+        - button "Guide Me" [ref=e31] [cursor=pointer]:
+          - img [ref=e32]
+          - text: Guide Me
+        - button "Auto-Run BETA" [ref=e35] [cursor=pointer]:
+          - img [ref=e36]
+          - text: Auto-Run
+          - generic [ref=e39]: BETA
+        - button "편집" [ref=e40] [cursor=pointer]:
+          - img [ref=e41]
+          - text: 편집
+    - generic [ref=e44]:
+      - complementary [ref=e46]:
+        - generic [ref=e49]: 목차
+        - generic [ref=e50]:
+          - generic [ref=e52] [cursor=pointer]:
+            - generic [ref=e53]: "1"
+            - generic [ref=e55]: 시작 버튼 클릭
+          - generic [ref=e57] [cursor=pointer]:
+            - generic [ref=e58]: "2"
+            - generic [ref=e60]: 타이핑 입력
+          - generic [ref=e62] [cursor=pointer]:
+            - generic [ref=e63]: "3"
+            - generic [ref=e65]: 검색 결과 확인
+      - generic [ref=e67]:
+        - generic [ref=e68]:
+          - heading "UI 검증용 매뉴얼" [level=1] [ref=e69]
+          - generic [ref=e70]: 2026년 6월 11일 생성
+        - generic [ref=e71]:
+          - generic [ref=e74]:
+            - generic [ref=e75]:
+              - generic [ref=e76]: "01"
+              - heading "시작 버튼 클릭" [level=3] [ref=e78]
+            - generic [ref=e79]:
+              - generic [ref=e80]:
+                - img "시작 버튼 클릭" [ref=e81]
+                - img:
+                  - generic:
+                    - generic: 시작 버튼 클릭
+              - generic: 150%
+          - generic [ref=e84]:
+            - generic [ref=e85]:
+              - generic [ref=e86]: "02"
+              - heading "타이핑 입력" [level=3] [ref=e88]
+            - img "타이핑 입력" [ref=e91]
+          - generic [ref=e94]:
+            - generic [ref=e95]:
+              - generic [ref=e96]: "03"
+              - heading "검색 결과 확인" [level=3] [ref=e98]
+            - img "검색 결과 확인" [ref=e101]
+  - alert [ref=e6]
