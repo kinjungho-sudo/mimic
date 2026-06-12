@@ -356,7 +356,7 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, hideToc, a
           )}
 
           {/* 위/아래 이동 플로팅 버튼 — sticky로 scroll-snap 컨테이너 안에 고정 */}
-          <div style={{ position: 'sticky', bottom: '16px', display: 'flex', justifyContent: 'flex-end', paddingRight: '20px', pointerEvents: 'none', zIndex: 20, scrollSnapAlign: 'none' }}>
+          <div className="editor-step-nav" style={{ position: 'sticky', bottom: '16px', display: 'flex', justifyContent: 'flex-end', paddingRight: '20px', pointerEvents: 'none', zIndex: 20, scrollSnapAlign: 'none' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', pointerEvents: 'auto' }}>
               {(() => {
                 const currentIdx = steps.findIndex(s => s.id === activeId);

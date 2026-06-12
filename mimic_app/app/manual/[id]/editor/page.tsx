@@ -82,6 +82,7 @@ export default function EditorPage() {
   const [ttsVoice, setTtsVoice] = useState<'nova' | 'alloy'>('nova');
   const [ttsGenerating, setTtsGenerating] = useState(false);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [mobileTocOpen, setMobileTocOpen] = useState(false);
   const [collabToast, setCollabToast] = useState<{ stepId: string; name: string; color: string } | null>(null);
   const collabToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stepSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -536,6 +537,14 @@ export default function EditorPage() {
             </svg>
           </button>
           <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151', whiteSpace: 'nowrap' }}>편집기</span>
+          {/* 모바일 전용: 목차 토글 버튼 */}
+          <button
+            className="editor-mobile-toc-btn"
+            onClick={() => setMobileTocOpen(v => !v)}
+            style={{ display: 'none', width: '32px', height: '32px', borderRadius: '8px', border: '1px solid #E5E7EB', background: mobileTocOpen ? '#e0e7ff' : 'white', alignItems: 'center', justifyContent: 'center', color: mobileTocOpen ? '#3730a3' : '#6B7280', cursor: 'pointer', flexShrink: 0 }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
         </div>
 
         {/* Center: meta info */}
@@ -711,8 +720,38 @@ export default function EditorPage() {
       </header>
 
       {/* ── Body ── */}
-      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-        {/* TOC panel — 모바일에서 숨김 */}
+      <div style={{ flex: 1, display: 'flex', minHeight: 0, position: 'relative' }}>
+        {/* 모바일 TOC 오버레이 */}
+        {mobileTocOpen && (
+          <>
+            <div onClick={() => setMobileTocOpen(false)}
+              style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 200, backdropFilter: 'blur(2px)' }} />
+            <div style={{ position: 'fixed', left: 0, top: 0, bottom: 0, width: '80%', maxWidth: '300px', background: 'white', zIndex: 201, display: 'flex', flexDirection: 'column', boxShadow: '4px 0 24px rgba(0,0,0,0.18)', animation: 'drawerIn 0.22s ease' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderBottom: '1px solid #F3F4F6', flexShrink: 0 }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: '#111827' }}>목차</span>
+                <button onClick={() => setMobileTocOpen(false)} style={{ width: '28px', height: '28px', borderRadius: '6px', border: 'none', background: '#F3F4F6', cursor: 'pointer', display: 'grid', placeItems: 'center', color: '#6B7280' }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                <GuideToc
+                  steps={manualSteps}
+                  activeId={activeId}
+                  onSelect={sid => { setActiveId(sid); setMobileTocOpen(false); }}
+                  editable={true}
+                  selectedIds={tocSelectedIds}
+                  onSelectChange={setTocSelectedIds}
+                  onReorder={(reordered) => { setManualStepsWithHistory(reordered); }}
+                  onAdd={handleAddStep}
+                  onDelete={handleDeleteStep}
+                  onInsertAfter={handleInsertAfter}
+                />
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* TOC panel — 데스크탑: 고정 / 모바일: 숨김 */}
         <div className="editor-toc-panel" style={{ width: '240px', flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid #E5E7EB', background: 'white', minHeight: 0 }}>
           <GuideToc
             steps={manualSteps}
