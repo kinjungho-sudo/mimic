@@ -17,7 +17,7 @@ export default function HelpButton() {
       style={{
         position: 'fixed',
         bottom: '24px',
-        right: '24px',
+        left: '24px',
         zIndex: 9000,
         width: '40px',
         height: '40px',

@@ -11,8 +11,7 @@ interface ChromeTab {
   favIconUrl?: string;
 }
 
-type ModalStep = 'checking' | 'guide' | 'mode_select' | 'tab_select' | 'launching' | 'not_installed' | 'install';
-type ContentMode = 'action' | 'education';
+type ModalStep = 'checking' | 'guide' | 'tab_select' | 'launching' | 'not_installed' | 'install';
 
 // ── 확장 통신 ─────────────────────────────────────────────
 
@@ -77,15 +76,15 @@ async function fetchOpenTabs(): Promise<ChromeTab[] | null> {
   return (resp as { tabs: ChromeTab[] }).tabs;
 }
 
-async function sendStartRecording(tabId: number, url: string, contentMode: ContentMode = 'action'): Promise<boolean> {
+async function sendStartRecording(tabId: number, url: string): Promise<boolean> {
   if (!isExtensionInstalled()) return true; // 바이패스
   // 1차: user gesture를 유지한 채 CONNECT 없이 즉시 전송한다.
   //      이래야 확장이 chrome.sidePanel.open()을 제스처 컨텍스트에서 호출해
   //      사이드 패널을 자동으로 열 수 있다 (#2). 탭 선택 직전 GET_TABS로 SW는 이미 깨어있음.
-  let resp = await sendMessage('START_RECORDING', { tabId, url, contentMode }) as { ok?: boolean } | null;
+  let resp = await sendMessage('START_RECORDING', { tabId, url }) as { ok?: boolean } | null;
   if (resp && resp.ok) return true;
   // 2차: SW가 잠들어 1차가 실패하면 wake 후 재시도 (제스처 소실 → 패널은 수동 클릭 필요할 수 있음)
-  resp = await wakeAndSend('START_RECORDING', { tabId, url, contentMode }) as { ok?: boolean } | null;
+  resp = await wakeAndSend('START_RECORDING', { tabId, url }) as { ok?: boolean } | null;
   return !!(resp && resp.ok);
 }
 
@@ -135,19 +134,16 @@ function FavIcon({ url, favIconUrl }: { url: string; favIconUrl?: string }) {
 
 interface RecordingModalProps {
   onClose: () => void;
-  userPlan?: 'free' | 'pro_waitlist' | 'pro' | 'team';
 }
 
 const STORE_URL = 'https://chromewebstore.google.com/detail/mimic-recorder/ehbhcdkapcbfehinjapabgoegcjmmbgd';
 
-export function RecordingModal({ onClose, userPlan = 'free' }: RecordingModalProps) {
+export function RecordingModal({ onClose }: RecordingModalProps) {
   const [step, setStep] = useState<ModalStep>('checking');
   const [tabs, setTabs] = useState<ChromeTab[]>([]);
   const [tabsLoading, setTabsLoading] = useState(false);
   const [selectedTab, setSelectedTab] = useState<ChromeTab | null>(null);
   const [search, setSearch] = useState('');
-  const [contentMode, setContentMode] = useState<ContentMode>('action');
-  const canUseEducation = userPlan === 'pro' || userPlan === 'team';
 
   // ESC 닫기
   useEffect(() => {
@@ -184,10 +180,10 @@ export function RecordingModal({ onClose, userPlan = 'free' }: RecordingModalPro
   const handleStart = useCallback(async () => {
     if (!selectedTab) return;
     setStep('launching');
-    const ok = await sendStartRecording(selectedTab.id, selectedTab.url, contentMode);
+    const ok = await sendStartRecording(selectedTab.id, selectedTab.url);
     if (!ok) { setStep('not_installed'); return; }
     onClose();
-  }, [selectedTab, onClose, contentMode]);
+  }, [selectedTab, onClose]);
 
   const filteredTabs = tabs.filter(t =>
     t.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -240,7 +236,6 @@ export function RecordingModal({ onClose, userPlan = 'free' }: RecordingModalPro
           <h2 style={{ fontSize: '19px', fontWeight: 700, color: 'white', margin: 0, letterSpacing: '-0.02em' }}>
             {step === 'checking' && '확장 프로그램 확인 중…'}
             {step === 'guide' && '새 매뉴얼 녹화 시작'}
-            {step === 'mode_select' && '매뉴얼 유형 선택'}
             {step === 'tab_select' && '녹화할 페이지 선택'}
             {step === 'launching' && 'Recorder 실행 중…'}
             {step === 'not_installed' && '확장 프로그램이 필요해요'}
@@ -249,7 +244,6 @@ export function RecordingModal({ onClose, userPlan = 'free' }: RecordingModalPro
           <p style={{ fontSize: '12.5px', color: 'rgba(255,255,255,0.72)', marginTop: '3px' }}>
             {step === 'checking' && '잠시만 기다려주세요'}
             {step === 'guide' && '화면 녹화로 매뉴얼을 자동으로 만들어드릴게요'}
-            {step === 'mode_select' && '녹화된 화면으로 어떤 자료를 만들지 선택해주세요'}
             {step === 'tab_select' && `열린 탭 ${tabs.length}개 · 페이지를 선택하면 오른쪽에 미리보기가 표시됩니다`}
             {step === 'launching' && '잠시만 기다려주세요'}
             {step === 'not_installed' && 'MIMIC Recorder를 먼저 설치해야 녹화할 수 있어요'}
@@ -293,94 +287,14 @@ export function RecordingModal({ onClose, userPlan = 'free' }: RecordingModalPro
               </p>
             </div>
             <button
-              onClick={() => setStep('mode_select')}
+              onClick={enterTabSelect}
               style={{ width: '100%', padding: '13px', borderRadius: '11px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', fontSize: '14.5px', fontWeight: 600, border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(55,48,163,0.30)' }}
             >
-              유형 선택하기 →
+              페이지 선택하기 →
             </button>
           </div>
         )}
 
-        {/* ── 모드 선택 단계 ── */}
-        {step === 'mode_select' && (
-          <div style={{ padding: '24px 28px 28px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '22px' }}>
-              {/* 업무 매뉴얼 */}
-              <button
-                onClick={() => setContentMode('action')}
-                style={{
-                  display: 'flex', alignItems: 'flex-start', gap: '14px', padding: '16px 18px',
-                  borderRadius: '12px', border: `2px solid ${contentMode === 'action' ? '#3730a3' : '#E5E7EB'}`,
-                  background: contentMode === 'action' ? '#EEF2FF' : 'white',
-                  cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s',
-                }}
-              >
-                <span style={{ fontSize: '22px', flexShrink: 0, marginTop: '1px' }}>📋</span>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                    <span style={{ fontSize: '14.5px', fontWeight: 700, color: '#111827' }}>업무 매뉴얼</span>
-                    <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '20px', background: '#D1FAE5', color: '#065F46', fontWeight: 600 }}>무료</span>
-                  </div>
-                  <p style={{ fontSize: '12.5px', color: '#4B5563', lineHeight: 1.55, margin: 0 }}>
-                    클릭·입력 행위를 단계별로 기록합니다.<br />
-                    <span style={{ color: '#6B7280' }}>예: &ldquo;로그인 버튼 클릭&rdquo;, &ldquo;검색창에 키워드 입력&rdquo;</span>
-                  </p>
-                </div>
-                {contentMode === 'action' && (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3730a3" strokeWidth="2.5" strokeLinecap="round" style={{ marginLeft: 'auto', flexShrink: 0, marginTop: '2px' }}><polyline points="20 6 9 17 4 12"/></svg>
-                )}
-              </button>
-
-              {/* 교육 자료 */}
-              <button
-                onClick={() => { if (canUseEducation) setContentMode('education'); }}
-                style={{
-                  display: 'flex', alignItems: 'flex-start', gap: '14px', padding: '16px 18px',
-                  borderRadius: '12px', border: `2px solid ${contentMode === 'education' ? '#7c3aed' : '#E5E7EB'}`,
-                  background: contentMode === 'education' ? '#F5F3FF' : 'white',
-                  cursor: canUseEducation ? 'pointer' : 'not-allowed', textAlign: 'left', transition: 'all 0.15s',
-                  opacity: canUseEducation ? 1 : 0.65,
-                }}
-              >
-                <span style={{ fontSize: '22px', flexShrink: 0, marginTop: '1px' }}>🎓</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                    <span style={{ fontSize: '14.5px', fontWeight: 700, color: '#111827' }}>교육 자료</span>
-                    <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '20px', background: '#EDE9FE', color: '#5B21B6', fontWeight: 600 }}>Pro</span>
-                    {!canUseEducation && <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '20px', background: '#FEF3C7', color: '#92400E', fontWeight: 600 }}>잠금</span>}
-                  </div>
-                  <p style={{ fontSize: '12.5px', color: '#4B5563', lineHeight: 1.55, margin: 0 }}>
-                    AI가 화면을 분석해 기능과 사용 이유를 설명합니다.<br />
-                    <span style={{ color: '#6B7280' }}>예: &ldquo;구글 계정으로 로그인하면 별도 비밀번호 없이 빠르게 접속할 수 있습니다.&rdquo;</span>
-                  </p>
-                  {!canUseEducation && (
-                    <p style={{ fontSize: '11.5px', color: '#7C3AED', marginTop: '8px', marginBottom: 0, fontWeight: 500 }}>
-                      Pro 플랜으로 업그레이드하면 사용할 수 있습니다
-                    </p>
-                  )}
-                </div>
-                {contentMode === 'education' && (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0, marginTop: '2px' }}><polyline points="20 6 9 17 4 12"/></svg>
-                )}
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                onClick={() => setStep('guide')}
-                style={{ flex: 1, padding: '11px', borderRadius: '9px', background: 'white', color: '#4B5563', fontSize: '13px', fontWeight: 500, border: '1.5px solid #E5E7EB', cursor: 'pointer' }}
-              >
-                ← 이전
-              </button>
-              <button
-                onClick={enterTabSelect}
-                style={{ flex: 2, padding: '11px', borderRadius: '9px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', fontSize: '13.5px', fontWeight: 600, border: 'none', cursor: 'pointer', boxShadow: '0 3px 10px rgba(55,48,163,0.25)' }}
-              >
-                페이지 선택하기 →
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* ── 탭 선택 단계 ── */}
         {step === 'tab_select' && (
