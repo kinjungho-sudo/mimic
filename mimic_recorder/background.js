@@ -129,7 +129,57 @@ function sendTabMessage(tabId, msg) {
   });
 }
 
-function captureTab(windowId) {
+// ── Offscreen Document 관리 ──────────────────────────────────────
+const OFFSCREEN_URL = chrome.runtime.getURL('offscreen.html');
+let _streamActive   = false;  // offscreen 스트림 보유 여부
+
+async function ensureOffscreen() {
+  const existing = await chrome.offscreen.hasDocument().catch(() => false);
+  if (!existing) {
+    await chrome.offscreen.createDocument({
+      url:    OFFSCREEN_URL,
+      reasons: ['USER_MEDIA'],
+      justification: 'Tab screen capture via getDisplayMedia',
+    });
+  }
+}
+
+async function startDisplayStream(tabId) {
+  await ensureOffscreen();
+  const res = await chrome.runtime.sendMessage({ target: 'offscreen', type: 'START_STREAM', tabId });
+  if (res?.ok) {
+    _streamActive = true;
+    log('info', 'bg', `display stream started tabId=${tabId}`);
+  } else {
+    _streamActive = false;
+    log('warn', 'bg', 'display stream failed:', res?.error);
+  }
+  return !!res?.ok;
+}
+
+async function stopDisplayStream() {
+  _streamActive = false;
+  const existing = await chrome.offscreen.hasDocument().catch(() => false);
+  if (existing) {
+    await chrome.runtime.sendMessage({ target: 'offscreen', type: 'STOP_STREAM' }).catch(() => {});
+    await chrome.offscreen.closeDocument().catch(() => {});
+  }
+  log('info', 'bg', 'display stream stopped');
+}
+
+// captureTab: 스트림이 살아있으면 offscreen 프레임 추출, 아니면 captureVisibleTab 폴백
+async function captureTab(windowId) {
+  if (_streamActive) {
+    try {
+      await ensureOffscreen();
+      const res = await chrome.runtime.sendMessage({ target: 'offscreen', type: 'CAPTURE_FRAME' });
+      if (res?.dataUrl) return res.dataUrl;
+      log('warn', 'bg', 'offscreen frame null — falling back to captureVisibleTab');
+    } catch (err) {
+      log('warn', 'bg', 'offscreen capture error:', err.message);
+    }
+  }
+  // fallback
   return new Promise((resolve) => {
     chrome.tabs.captureVisibleTab(windowId, { format: 'png' }, (url) => {
       resolve(chrome.runtime.lastError ? null : url);
@@ -292,7 +342,13 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
       });
       if (!sent) { sendResponse({ ok: false }); return; }
 
-      // 6) isRecording 세팅 — _directStartTabId로 onChanged 중복 차단
+      // 6) getDisplayMedia 스트림 획득 — picker가 한 번 뜬다
+      //    실패해도 captureVisibleTab 폴백이 있으므로 녹화는 계속 진행
+      await startDisplayStream(tabId).catch((err) => {
+        log('warn', 'bg', 'display stream init failed (will use captureVisibleTab):', err.message);
+      });
+
+      // 7) isRecording 세팅 — _directStartTabId로 onChanged 중복 차단
       _directStartTabId = tabId;
       await storageSet({ isRecording: true });
       _directStartTabId = null;
@@ -709,6 +765,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === 'STREAM_ENDED') {
+    _streamActive = false;
+    log('warn', 'bg', 'display stream ended by user — captureVisibleTab fallback active');
+    return false;
+  }
+
   if (message.type === 'RELAY_LOG') {
     const entry = { t: Date.now(), level: message.level, source: message.source, msg: message.msg };
     chrome.storage.local.get(LOG_KEY, (r) => {
@@ -984,6 +1046,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
       resetLastSavedHash();  // 새 녹화 → 디덥 기준 해시 초기화
     } else {
       chrome.storage.local.remove(['pendingCapture', 'spaNavCapturing']);
+      stopDisplayStream().catch(() => {});
     }
 
     const msgType = nowRecording ? 'START_RECORDING' : 'STOP_RECORDING';

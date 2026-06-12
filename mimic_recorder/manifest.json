@@ -32,11 +32,13 @@
   "permissions": [
     "activeTab",
     "tabs",
+    "tabCapture",
     "windows",
     "storage",
     "downloads",
     "sidePanel",
-    "scripting"
+    "scripting",
+    "offscreen"
   ],
   "host_permissions": [
     "<all_urls>",
