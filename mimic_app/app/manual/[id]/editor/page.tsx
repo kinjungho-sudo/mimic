@@ -50,6 +50,8 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
     })(),
     element_rect: (s as Step & { element_rect?: { x: number; y: number; width: number; height: number } | null }).element_rect ?? null,
     imageZoom: (s as Step & { image_zoom?: number | null }).image_zoom ?? 1,
+    imageOffsetX: (s as Step & { image_offset_x?: number | null }).image_offset_x ?? 0,
+    imageOffsetY: (s as Step & { image_offset_y?: number | null }).image_offset_y ?? 0,
     // click_x/y: DB 0~1 실수 → ×100 → 0~100 pct (ManualEditor CSS % 계약)
     click_x: clickToPct((s as Step & { click_x?: number | null }).click_x),
     click_y: clickToPct((s as Step & { click_y?: number | null }).click_y),
@@ -847,6 +849,8 @@ export default function EditorPage() {
                 ...(patch.description !== undefined ? { user_script: patch.description || null } : {}),
                 ...(patch.annotations !== undefined ? { user_annotations: patch.annotations } : {}),
                 ...(patch.imageZoom !== undefined ? { image_zoom: patch.imageZoom } : {}),
+                ...(patch.imageOffsetX !== undefined ? { image_offset_x: patch.imageOffsetX } : {}),
+                ...(patch.imageOffsetY !== undefined ? { image_offset_y: patch.imageOffsetY } : {}),
               }).catch((e) => logError('step.save.fail', { tutorialId: id, stepId, message: e instanceof Error ? e.message : String(e) }));
             }}
           />

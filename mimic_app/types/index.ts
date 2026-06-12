@@ -43,6 +43,7 @@ export type Tutorial = {
   first_page_url?: string | null;
   folder_id?: string | null;
   workspace_id?: string | null;
+  content_mode?: 'action' | 'education';
   // enriched by list API
   step_count?: number;
 };

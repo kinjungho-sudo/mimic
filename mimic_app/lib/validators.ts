@@ -18,6 +18,8 @@ export const captureFinalizeSchema = z.object({
   // recorder 패널에서 삭제/실행취소되지 않고 남은 스텝 번호 목록.
   // 전달되면 이 번호의 이벤트만 매뉴얼에 포함 (삭제 스텝의 서버 잔존 이벤트 제외)
   step_numbers: z.array(z.number().int().positive()).max(500).optional(),
+  // 'education' = 교육 자료 모드 (Pro 전용). 기본값 'action'(업무 매뉴얼)
+  content_mode: z.enum(['action', 'education']).default('action').optional(),
 });
 
 // input[type=password/tel 등] 또는 민감 aria-label이면 label도 제거하는 변환

@@ -3,6 +3,7 @@ import { requireExtensionToken } from '@/lib/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { captureSaveStepSchema } from '@/lib/validators';
 import { redactSensitive } from '@/lib/redact';
+import { logServer } from '@/lib/logger-server';
 
 export async function POST(request: NextRequest) {
   const auth = await requireExtensionToken(request);
@@ -52,26 +53,49 @@ export async function POST(request: NextRequest) {
   // element_rect: recorder가 이미 0~1로 정규화해서 전송 — 서버에서 추가 변환 없이 그대로 저장
   const elementRectNormalized = d.element_rect ?? null;
 
+  const row = {
+    screenshot_url: d.screenshot_url,
+    // click_x/y: recorder가 0~1로 전송, DB는 0~10000 정수로 저장 (editor에서 /100으로 읽어 0~100%)
+    click_x: Math.round(d.click_x * 10000),
+    click_y: Math.round(d.click_y * 10000),
+    url: d.url,
+    element_text: redactSensitive(d.title),
+    ai_title: redactSensitive(d.title) || null,
+    ai_description: redactSensitive(d.description) || null,
+    domain_hostname:   d.domain_hostname   ?? null,
+    domain_name:       d.domain_name       ?? null,
+    domain_favicon:    d.domain_favicon    ?? null,
+    element_rect:      elementRectNormalized,
+    element_selector:  d.element_selector  ?? null,
+    element_xpath:     d.element_xpath     ?? null,
+  };
+
+  // 같은 (session, step_number) 행이 있으면 갱신 — 타이핑 디바운스 overwrite 캡처가
+  // flush마다 새 행을 쌓지 않게 한다 (한 입력 = mm_capture_events 한 행).
+  const { data: existing } = await supabase
+    .from('mm_capture_events')
+    .select('id')
+    .eq('session_id', sessionId)
+    .eq('step_number', d.step_number)
+    .limit(1)
+    .maybeSingle();
+
+  if (existing) {
+    const { error: updateError } = await supabase
+      .from('mm_capture_events')
+      .update(row)
+      .eq('id', existing.id);
+
+    if (updateError) {
+      await logServer('error', 'capture.saveStep.updateFail', { sessionId, stepNumber: d.step_number, message: updateError.message });
+      return NextResponse.json({ error: 'Failed to save step' }, { status: 500 });
+    }
+    return NextResponse.json({ id: existing.id, step_number: d.step_number });
+  }
+
   const { data: step, error } = await supabase
     .from('mm_capture_events')
-    .insert({
-      session_id: sessionId,
-      step_number: d.step_number,
-      screenshot_url: d.screenshot_url,
-      // click_x/y: recorder가 0~1로 전송, DB는 0~10000 정수로 저장 (editor에서 /100으로 읽어 0~100%)
-      click_x: Math.round(d.click_x * 10000),
-      click_y: Math.round(d.click_y * 10000),
-      url: d.url,
-      element_text: redactSensitive(d.title),
-      ai_title: redactSensitive(d.title) || null,
-      ai_description: redactSensitive(d.description) || null,
-      domain_hostname:   d.domain_hostname   ?? null,
-      domain_name:       d.domain_name       ?? null,
-      domain_favicon:    d.domain_favicon    ?? null,
-      element_rect:      elementRectNormalized,
-      element_selector:  d.element_selector  ?? null,
-      element_xpath:     d.element_xpath     ?? null,
-    })
+    .insert({ session_id: sessionId, step_number: d.step_number, ...row })
     .select('id')
     .single();
 

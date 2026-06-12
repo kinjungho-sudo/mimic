@@ -30,6 +30,8 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
     domain_favicon: s.domain_favicon  ?? null,
     is_stale: (s as Step & { is_stale?: boolean }).is_stale ?? false,
     imageZoom: (s as Step & { image_zoom?: number | null }).image_zoom ?? 1,
+    imageOffsetX: (s as Step & { image_offset_x?: number | null }).image_offset_x ?? 0,
+    imageOffsetY: (s as Step & { image_offset_y?: number | null }).image_offset_y ?? 0,
     element_rect: (s as Step & { element_rect?: { x: number; y: number; width: number; height: number } | null }).element_rect ?? null,
   }));
 }
@@ -300,7 +302,7 @@ export default function ManualViewerPage() {
             <Share2 size={13} /> 공유
           </button>
 
-          {manualSteps.some(s => s.pageUrl) && (
+          {tutorial.content_mode !== 'education' && manualSteps.some(s => s.pageUrl) && (
             <button
               onClick={() => {
                 const firstUrl = manualSteps.find(s => s.pageUrl)?.pageUrl;
@@ -314,8 +316,8 @@ export default function ManualViewerPage() {
             </button>
           )}
 
-          {/* Auto-Run BETA 버튼 — viewer 숨김 */}
-          {canEdit && !isRunning && (
+          {/* Auto-Run BETA 버튼 — viewer 숨김 / 교육 자료 모드 숨김 */}
+          {canEdit && !isRunning && tutorial.content_mode !== 'education' && (
             <button onClick={handleOpenAutoRun} disabled={autoRunLoading}
               style={{ height: '32px', padding: '0 14px', borderRadius: '7px', fontSize: '12.5px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'white', background: autoRunLoading ? 'rgba(99,102,241,0.6)' : 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)', border: 'none', cursor: autoRunLoading ? 'not-allowed' : 'pointer', boxShadow: '0 1px 6px rgba(99,102,241,0.35)', transition: 'box-shadow 0.15s' }}
               onMouseEnter={e => { if (!autoRunLoading) e.currentTarget.style.boxShadow = '0 4px 14px rgba(99,102,241,0.5)'; }}

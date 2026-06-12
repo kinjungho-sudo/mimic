@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireExtensionToken } from '@/lib/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { captureFinalizeSchema } from '@/lib/validators';
-import { generateDraft, extractCoverColors, detectPII } from '@/lib/claude';
+import { generateDraft, generateEducationalDraft, extractCoverColors, detectPII } from '@/lib/claude';
 import { resolveFavicon } from '@/lib/favicon';
 import { buildClickHighlight } from '@/lib/annotations';
 
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { session_id, title, step_numbers } = parsed.data;
+  const { session_id, title, step_numbers, content_mode = 'action' } = parsed.data;
 
   // 세션 소유자 확인
   const { data: session } = await supabase
@@ -56,13 +56,26 @@ export async function POST(request: NextRequest) {
   }
 
   // recorder가 살아남은 스텝 번호를 전달한 경우 — 패널에서 삭제/실행취소된 스텝 제외.
-  // step_number가 null인 레거시 이벤트는 필터하지 않고 유지.
+  // step_number는 save-step에서 필수값이므로 null 이벤트도 엄격히 제외한다
+  // (느슨하게 유지하면 삭제된 스텝이 매뉴얼에 다시 포함되는 누수 발생).
   const liveEvents = step_numbers?.length
-    ? events.filter(ev => ev.step_number == null || step_numbers.includes(ev.step_number))
+    ? events.filter(ev => ev.step_number != null && step_numbers.includes(ev.step_number))
     : events;
 
   if (liveEvents.length === 0) {
     return NextResponse.json({ error: 'No captured steps' }, { status: 422 });
+  }
+
+  // 교육 자료 모드는 Pro/Team 전용
+  if (content_mode === 'education') {
+    const { data: mmUser } = await supabase
+      .from('mm_users')
+      .select('plan')
+      .eq('id', userId)
+      .single();
+    if (!mmUser || mmUser.plan === 'free' || mmUser.plan === 'pro_waitlist') {
+      return NextResponse.json({ error: '교육 자료 모드는 Pro 플랜 이상에서만 사용할 수 있습니다.' }, { status: 403 });
+    }
   }
 
   // TODO: 정식 서비스 전 플랜별 한도 복구 (daily_limit 체크 비활성화 중)
@@ -98,6 +111,7 @@ export async function POST(request: NextRequest) {
       user_id: userId,
       title: tutorialTitle,
       session_id,
+      content_mode,
     })
     .select('id')
     .single();
@@ -221,8 +235,21 @@ export async function POST(request: NextRequest) {
         } catch { /* 색상 추출 실패 무시 */ }
       }
 
-      // draft 생성 (tutorial 제목 + 스텝 초안 동시 생성)
-      const { tutorial_title, steps: drafts } = await generateDraft(createdSteps);
+      // draft 생성 — content_mode에 따라 분기
+      let tutorial_title = '';
+      let drafts: Array<{ id: string; user_title: string; user_script: string }> = [];
+
+      if (content_mode === 'education') {
+        // 교육 자료 모드: Vision으로 스텝별 설명 생성
+        const eduResult = await generateEducationalDraft(createdSteps);
+        tutorial_title = eduResult.tutorial_title;
+        drafts = eduResult.steps;
+      } else {
+        // 업무 매뉴얼 기본 모드
+        const draftResult = await generateDraft(createdSteps);
+        tutorial_title = draftResult.tutorial_title;
+        drafts = draftResult.steps;
+      }
 
       // tutorial 제목 + cover_color 업데이트
       const tutorialUpdate: Record<string, string> = {};
@@ -237,13 +264,15 @@ export async function POST(request: NextRequest) {
         const allowedIds = new Set(createdSteps.map(s => s.id));
         const safeDrafts = drafts.filter(d => allowedIds.has(d.id));
         await Promise.all(
-          safeDrafts.map(d =>
-            supabase
+          safeDrafts.map(d => {
+            const patch: Record<string, string> = { user_title: d.user_title };
+            if (content_mode === 'education' && d.user_script) patch.user_script = d.user_script;
+            return supabase
               .from('mm_steps')
-              .update({ user_title: d.user_title })
+              .update(patch)
               .eq('id', d.id)
-              .eq('tutorial_id', tutorial.id)
-          )
+              .eq('tutorial_id', tutorial.id);
+          })
         );
       }
 

@@ -10,6 +10,8 @@ const stepPatchSchema = z.object({
   user_script: z.string().max(2000).nullable().optional(),
   user_annotations: z.array(z.unknown()).nullable().optional(),
   image_zoom: z.number().min(0.5).max(4).nullable().optional(),
+  image_offset_x: z.number().min(-1.5).max(1.5).nullable().optional(),
+  image_offset_y: z.number().min(-1.5).max(1.5).nullable().optional(),
   domain_name: z.string().max(100).nullable().optional(),
 });
 
