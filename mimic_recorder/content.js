@@ -675,6 +675,9 @@
   // ── 호버 이벤트 ──────────────────────────────────────────────────
   document.addEventListener('mousemove', (e) => {
     if (!isRecording || isPaused) { hideHoverPointer(); return; }
+    // '클릭 하이라이트' 설정 OFF 시 호버 테두리도 표시하지 않는다
+    // (설정 문구가 "클릭한 요소 주변 빨간 테두리" — 펄스와 테두리 둘 다 이 설정 소관)
+    if (!settings.highlight) { hideHoverPointer(); return; }
     if (isCapturing && (Date.now() - isCapturingStart) >= CAPTURE_SAFETY_MS) isCapturing = false;
     if (isCapturing) return;
     const target = findInteractiveTarget(e.target);
@@ -910,6 +913,12 @@
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local') return;
     if ('isPaused' in changes) isPaused = !!changes.isPaused.newValue;
+    // 설정 변경을 storage에서 직접 동기화 — UPDATE_SETTINGS 메시지가 유실되어도
+    // (탭 이동 직후 등) 하이라이트/PII 토글이 즉시 반영되게 한다.
+    if ('settings' in changes) {
+      settings = { ...settings, ...(changes.settings.newValue || {}) };
+      if (!settings.highlight) hideHoverPointer();
+    }
     // background(페이지 이동 캡처 등)가 stepNumber를 올리면 로컬 카운터도 따라 올려
     // content/background 양쪽 카운터 desync로 인한 stepNumber 충돌을 방지한다.
     if ('stepNumber' in changes) {
