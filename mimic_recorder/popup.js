@@ -1370,6 +1370,9 @@ chrome.storage.onChanged.addListener((changes) => {
   }
 });
 
+// ── 로고 더블클릭 → 디버그 패널 ─────────────────────────────────
+document.getElementById('logoArea')?.addEventListener('dblclick', () => openDebugPanel());
+
 // ── 디버그 로그 뷰어 ─────────────────────────────────────────────
 const debugPanel    = document.getElementById('debugPanel');
 const debugLogList  = document.getElementById('debugLogList');

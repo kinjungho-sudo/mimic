@@ -146,7 +146,16 @@ async function ensureOffscreen() {
 
 async function startDisplayStream(tabId) {
   await ensureOffscreen();
-  const res = await chrome.runtime.sendMessage({ target: 'offscreen', type: 'START_STREAM', tabId });
+
+  // chrome.tabCapture은 service worker에서만 호출 가능 — streamId를 먼저 받아 offscreen으로 전달
+  const streamId = await new Promise((resolve, reject) => {
+    chrome.tabCapture.getMediaStreamId({ targetTabId: tabId }, (id) => {
+      if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+      else resolve(id);
+    });
+  });
+
+  const res = await chrome.runtime.sendMessage({ target: 'offscreen', type: 'START_STREAM', streamId });
   if (res?.ok) {
     _streamActive = true;
     log('info', 'bg', `display stream started tabId=${tabId}`);
@@ -1358,14 +1367,18 @@ async function finalizeSession(sessionId) {
 
 // ── Supabase Storage 업로드 (실패 시 1회 재시도) ─────────────────
 async function uploadImage(path, blob) {
+  const { extensionToken } = await storageGet('extensionToken');
+  const authToken = extensionToken || SUPABASE_ANON_KEY;
+
   const doUpload = () => fetch(
     `${SUPABASE_URL}/storage/v1/object/${SUPABASE_BUCKET}/${path}`,
     {
       method: 'POST',
       headers: {
-        'apikey':       SUPABASE_ANON_KEY,
-        'Content-Type': 'image/jpeg',
-        'x-upsert':     'true',
+        'apikey':        SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type':  'image/jpeg',
+        'x-upsert':      'true',
       },
       body: blob,
     }
