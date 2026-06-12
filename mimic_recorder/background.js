@@ -755,9 +755,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
       ctx.putImageData(imgData, rx, ry);
 
-      const { settings } = await storageGet('settings');
-      const quality  = settings?.quality ? settings.quality / 100 : JPEG_QUALITY_DEFAULT;
-      const jpegBlob = await canvas.convertToBlob({ type: 'image/jpeg', quality });
+      const jpegBlob = await canvas.convertToBlob({ type: 'image/jpeg', quality: JPEG_QUALITY_DEFAULT });
       await idbPut(stepNumber, jpegBlob);
 
       const { steps, sessionId } = await storageGet(['steps', 'sessionId']);
@@ -1274,9 +1272,7 @@ async function prepareCapture(pngDataUrl, stepData, tab) {
   _lastCaptureTime = Date.now();
   chrome.storage.local.set({ lastCaptureTime: _lastCaptureTime });
 
-  const { settings } = await storageGet('settings');
-  const quality    = settings?.quality ? settings.quality / 100 : JPEG_QUALITY_DEFAULT;
-  const jpegBlob   = await compressToJpeg(pngDataUrl, quality);
+  const jpegBlob   = await compressToJpeg(pngDataUrl, JPEG_QUALITY_DEFAULT);
   const jpegDataUrl = await blobToDataUrl(jpegBlob);
   const base64Image = jpegDataUrl.split(',')[1];
 

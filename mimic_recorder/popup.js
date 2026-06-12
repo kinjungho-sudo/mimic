@@ -3,13 +3,11 @@ const viewIdle      = document.getElementById('viewIdle');
 const viewRecording = document.getElementById('viewRecording');
 const btnStart      = document.getElementById('btnStart');
 const btnPause      = document.getElementById('btnPause');
-const btnSnap       = document.getElementById('btnSnap');
 const btnSnapBottom = document.getElementById('btnSnapBottom');
 const btnUndo       = document.getElementById('btnUndo');
 const btnBlurTool   = document.getElementById('btnBlurTool');
 const btnDiscard    = document.getElementById('btnDiscard');
 const btnFinish     = document.getElementById('btnFinish');
-const pauseLabel    = document.getElementById('pauseLabel');
 const recDot        = document.getElementById('recDot');
 const recLabel      = document.getElementById('recLabel');
 const recStepCount  = document.getElementById('recStepCount');
@@ -20,12 +18,7 @@ const btnSettings      = document.getElementById('btnSettings');
 const settingsOverlay  = document.getElementById('settingsOverlay');
 const btnBack          = document.getElementById('btnBack');
 const settingHighlight = document.getElementById('settingHighlight');
-const settingFlash     = document.getElementById('settingFlash');
-const settingCaptureMode = document.getElementById('settingCaptureMode');
-const settingQuality   = document.getElementById('settingQuality');
-const qualityVal       = document.getElementById('qualityVal');
 const settingAutoNav   = document.getElementById('settingAutoNav');
-const settingMobileMode = document.getElementById('settingMobileMode');
 const settingPiiBlur   = document.getElementById('settingPiiBlur');
 
 let isRecording  = false;
@@ -182,7 +175,6 @@ function updateView() {
       recLabel.classList.add('paused');
       recLabel.textContent = 'PAUSE';
       btnPause.title = '재개';
-      pauseLabel.textContent = '재개';
       // pause 버튼 아이콘 → play
       const svgPlay = btnPause.querySelector('svg');
       svgPlay.replaceChildren();
@@ -195,7 +187,6 @@ function updateView() {
       recLabel.classList.remove('paused');
       recLabel.textContent = 'REC';
       btnPause.title = '일시정지';
-      pauseLabel.textContent = '일시정지';
       // pause 버튼 아이콘 → pause
       const svgPause = btnPause.querySelector('svg');
       svgPause.replaceChildren();
@@ -238,12 +229,19 @@ function baseDomain(hostname) {
 }
 
 // ── 스텝 렌더 ────────────────────────────────────────────────────
+let _prevStepCount = 0;  // 자동 스크롤 판정용 — 스텝이 늘어난 렌더만 맨 아래로
+
+function scrollStepsToBottom() {
+  window.scrollTo({ top: document.documentElement.scrollHeight });
+}
+
 function renderSteps(steps) {
   stepsList.querySelectorAll('.step-card, .domain-header').forEach((c) => c.remove());
   updateStepCounts(steps.length);
   if (steps.length === 0) {
     emptyState.style.display = 'flex';
     expandedStepId = null;
+    _prevStepCount = 0;
     return;
   }
   emptyState.style.display = 'none';
@@ -267,6 +265,16 @@ function renderSteps(steps) {
     card.classList.add('expanded');
     stepsList.appendChild(card);
   });
+
+  // 새 캡처가 추가되면 맨 아래로 자동 스크롤해 방금 찍힌 스텝을 바로 확인할 수 있게 한다.
+  // 마지막 썸네일은 loadThumb(IndexedDB 조회)가 src를 늦게 설정하는 비동기 로드라
+  // 높이가 나중에 늘어남 — 로드 완료 시 한 번 더 내림.
+  if (steps.length > _prevStepCount) {
+    requestAnimationFrame(scrollStepsToBottom);
+    const lastImg = stepsList.lastElementChild?.querySelector('.step-thumb img');
+    lastImg?.addEventListener('load', scrollStepsToBottom, { once: true });
+  }
+  _prevStepCount = steps.length;
 }
 
 function buildDomainHeader(domainInfo) {
@@ -868,17 +876,14 @@ btnPause.addEventListener('click', () => {
 // background가 직접 캡처(activate→hide→PII→capture→restore)하므로
 // content의 isRecording 상태와 무관하게 동작한다 (#6).
 function triggerManualCapture() {
-  btnSnap.disabled = true;
   if (btnSnapBottom) btnSnapBottom.disabled = true;
   chrome.runtime.sendMessage({ type: 'MANUAL_CAPTURE' }, (res) => {
     void chrome.runtime.lastError;
-    btnSnap.disabled = false;
     if (btnSnapBottom) btnSnapBottom.disabled = false;
     if (!res?.ok) showToast('캡처 실패 — 페이지를 확인해주세요');
   });
 }
 
-btnSnap.addEventListener('click', triggerManualCapture);
 btnSnapBottom?.addEventListener('click', triggerManualCapture);
 
 // ── 실행취소 ─────────────────────────────────────────────────────

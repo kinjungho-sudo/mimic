@@ -40,18 +40,16 @@
   let stepNumber       = 0;
 
   let settings = {
-    highlight:   true,
-    flash:       true,
-    captureMode: 'interactive',
-    quality:     82,
-    autoNav:     false,
-    piiBlur:     true,
+    highlight: true,
+    autoNav:   true,
+    piiBlur:   true,
   };
 
   let lastCapturedTarget = null;
   let lastCapturedTime   = 0;
   let typingTarget       = null;
   let pendingInputStep   = null;
+  let typingUrl          = null;   // 입력 세션 시작 시 URL — 재마운트 필드 판정용
   let typingTimer        = null;
   let _countingDown      = false;
 
@@ -226,6 +224,14 @@
     chrome.runtime.sendMessage({ type: 'TYPING_PROGRESS', text: value, label, masked: isMasked }, () => { void chrome.runtime.lastError; });
   }
 
+  // ── 재마운트 필드 판정 ───────────────────────────────────────────
+  // Gemini(Quill) 같은 리치 에디터는 빈 값 전환·여러 줄 확장 시 입력 노드를 통째로
+  // 갈아끼운다. 옛 타겟이 DOM에서 분리됐고 같은 페이지의 진행 중 세션이 있으면
+  // 같은 논리적 필드로 간주해 세션(pendingInputStep)을 유지한다 — 입력 스텝 분할 방지.
+  function isRemountedTyping(oldEl) {
+    return !!oldEl && !oldEl.isConnected && pendingInputStep !== null && location.href === typingUrl;
+  }
+
   // ── 타이핑 flush ─────────────────────────────────────────────────
   // 한 입력 필드 = 한 스텝. 첫 입력 때 예약한 pendingInputStep을 계속 overwrite 한다.
   //   finalize=false : 입력 멈춤(디바운스) — 같은 스텝 갱신, 세션 유지
@@ -233,7 +239,7 @@
   function flushTyping(el, finalize = true) {
     clearTimeout(typingTimer);
     typingTimer = null;
-    const endSession = () => { if (finalize) { pendingInputStep = null; typingTarget = null; } };
+    const endSession = () => { if (finalize) { pendingInputStep = null; typingTarget = null; typingUrl = null; } };
 
     if (!isRecording || isPaused || isCapturing) { endSession(); return; }
 
@@ -243,6 +249,7 @@
     if (pendingInputStep === null) {
       stepNumber += 1;
       pendingInputStep = stepNumber;
+      typingUrl = location.href;
       chrome.storage.local.set({ stepNumber });  // 슬롯 예약 → nav 캡처와 번호 충돌 방지
     }
     const stepForThis = pendingInputStep;
@@ -365,21 +372,10 @@
 
   // ── 클릭 위치 붉은 원형 펄스 + 일시 확대 ───────────────────────
   // 캡처 직전 클릭 펄스/줌 효과 취소용 참조 — 스크린샷에 굽히지 않게
-  let _pulseEl   = null;
-  let _zoomState = null;
+  let _pulseEl = null;
 
   function cancelClickEffects() {
     if (_pulseEl) { _pulseEl.remove(); _pulseEl = null; }
-    if (_zoomState) {
-      const z = _zoomState;
-      clearTimeout(z.t1);
-      clearTimeout(z.t2);
-      z.el.style.transition      = 'none';
-      z.el.style.transform       = z.prevTransform;
-      z.el.style.transformOrigin = z.prevOrigin;
-      requestAnimationFrame(() => { z.el.style.transition = z.prevTransition; });
-      _zoomState = null;
-    }
   }
 
   function showClickHighlight(x, y) {
@@ -432,28 +428,6 @@
       }, 300);
     });
 
-    // 클릭 중심 화면 확대 (일시적 zoom-in 효과)
-    if (!settings.flash) return;
-    const el = document.documentElement;
-    const ox = (x / window.innerWidth  * 100).toFixed(1);
-    const oy = (y / window.innerHeight * 100).toFixed(1);
-    const prevTransform  = el.style.transform;
-    const prevTransformOrigin = el.style.transformOrigin;
-    const prevTransition = el.style.transition;
-    el.style.transformOrigin = `${ox}% ${oy}%`;
-    el.style.transition = 'transform 0.22s cubic-bezier(0.22,1,0.36,1)';
-    el.style.transform  = 'scale(1.06)';
-    const zoomState = { el, prevTransform, prevOrigin: prevTransformOrigin, prevTransition, t1: 0, t2: 0 };
-    _zoomState = zoomState;
-    zoomState.t1 = setTimeout(() => {
-      el.style.transform = prevTransform || 'scale(1)';
-      zoomState.t2 = setTimeout(() => {
-        el.style.transform      = prevTransform;
-        el.style.transformOrigin = prevTransformOrigin;
-        el.style.transition     = prevTransition;
-        if (_zoomState === zoomState) _zoomState = null;
-      }, 220);
-    }, 280);
   }
 
   // ── 녹화 시작 카운트다운 오버레이 ──────────────────────────────
@@ -551,6 +525,7 @@
       typingTimer        = null;
       typingTarget       = null;
       pendingInputStep   = null;
+      typingUrl          = null;
       lastCapturedTarget = null;
       sendResponse({ ok: true });
       return false;
@@ -600,7 +575,6 @@
   // ── 인터랙티브 타겟 탐색 ────────────────────────────────────────
   function findInteractiveTarget(el) {
     if (!el || el === document.documentElement) return null;
-    if (settings.captureMode === 'all') return el;
     if (document.designMode === 'on') return document.body;
 
     const found = el.closest(INTERACTIVE);
@@ -766,9 +740,12 @@
 
     // 입력 필드 포커스: typingTarget 세팅 + 클릭 자체도 캡처 (항상 캡처 정책)
     if (actionType === 'focus_input') {
-      if (typingTarget && typingTarget !== target) flushTyping(typingTarget);
-      typingTarget     = target;
-      pendingInputStep = null;
+      // 다른 필드로 옮겼을 때만 이전 입력을 마감(flush가 세션을 끝냄 → 새 스텝).
+      // 같은 필드 재클릭·리치 에디터 재마운트는 세션을 유지해 입력 스텝이 쪼개지지 않게 한다.
+      if (typingTarget && typingTarget !== target && !isRemountedTyping(typingTarget)) {
+        flushTyping(typingTarget);
+      }
+      typingTarget = target;
       // 아래로 진행해서 캡처
     } else {
       // 진행 중이던 타이핑 flush
@@ -862,13 +839,21 @@
     const isDesignModeBody = document.designMode === 'on' && el === document.body;
     if (!isDesignModeBody && !(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el.isContentEditable)) return;
 
-    if (typingTarget && typingTarget !== el) flushTyping(typingTarget);
+    if (typingTarget && typingTarget !== el) {
+      if (isRemountedTyping(typingTarget)) {
+        // 같은 필드의 노드 교체 — 세션 유지한 채 타겟만 갱신 (스텝 분할 금지)
+        log('debug', `typing target remounted — keep session step ${pendingInputStep}`);
+      } else {
+        flushTyping(typingTarget);  // 진짜 다른 필드 → 이전 입력 마감
+      }
+    }
     typingTarget = el;
     notifyTypingProgress(el);
 
     if (pendingInputStep === null) {
       stepNumber += 1;
       pendingInputStep = stepNumber;
+      typingUrl = location.href;
       chrome.storage.local.set({ stepNumber });  // 슬롯 예약 (nav 캡처 번호 충돌 방지)
     }
 
