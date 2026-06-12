@@ -7,6 +7,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error ?? `API error ${res.status}`);
   }
+  if (res.status === 204) return undefined as T; // DELETE 등 빈 응답 — json() 호출 시 throw 방지
   return res.json();
 }
 

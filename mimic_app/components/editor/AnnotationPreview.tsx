@@ -174,8 +174,12 @@ export function AnnotationPreview({ annotations, imageUrl }: { annotations: Anno
           const boxH = lines.length * fSize * 1.45 + padY * 2;
           const textX = align === 'left' ? minX + padX : align === 'center' ? minX + boxW / 2 : minX + boxW - padX;
           const anchor = align === 'left' ? 'start' : align === 'center' ? 'middle' : 'end';
-          const bgFill = bg ? 'rgba(0,0,0,0.2)' : 'none';
+          // 가독성: 편집기와 동일한 진한 배경 + 글자 외곽선(배경 밖으로 넘쳐도 읽힘)
+          const bgFill = bg ? 'rgba(10,10,15,0.92)' : 'none';
           const strokeColor = bColor && bColor !== 'transparent' ? bColor : 'none';
+          const hex = color.replace('#', '');
+          const luma = 0.299 * (parseInt(hex.slice(0, 2), 16) || 0) + 0.587 * (parseInt(hex.slice(2, 4), 16) || 0) + 0.114 * (parseInt(hex.slice(4, 6), 16) || 0);
+          const outline = luma > 160 ? 'rgba(0,0,0,0.75)' : 'rgba(255,255,255,0.85)'; // 밝은 글자→어두운 외곽선, 어두운 글자→밝은 외곽선
           return (
             <g key={a.id}>
               {bg && (
@@ -191,6 +195,8 @@ export function AnnotationPreview({ annotations, imageUrl }: { annotations: Anno
                   x={textX} y={minY + padY + i * fSize * 1.45}
                   fill={color} fontSize={fSize} fontWeight={bold ? 700 : 400}
                   textAnchor={anchor} dominantBaseline="text-before-edge"
+                  stroke={outline} strokeWidth={Math.max(1.5, fSize / 8)} strokeLinejoin="round"
+                  style={{ paintOrder: 'stroke' }}
                 >{line}</text>
               ))}
             </g>

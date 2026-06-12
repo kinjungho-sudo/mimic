@@ -65,9 +65,9 @@ export function buildClickHighlight(params: {
 
   // 텍스트 라벨
   const labelText = label;
-  // % 기준 텍스트 박스 크기 추정
-  const textW = Math.min(labelText.length * 0.9 + 5, 38);
-  const textH = 7;  // % 단위 높이 (fontSize 12 + padY*2 ≈ 이미지 높이의 7% 정도)
+  // % 기준 텍스트 박스 크기 추정 (fontSize 14 기준 — 한글 폭 보정)
+  const textW = Math.min(labelText.length * 1.05 + 6, 42);
+  const textH = 8;  // % 단위 높이 (fontSize 14 + padY*2 ≈ 이미지 높이의 8% 정도)
 
   let tx1: number, ty1: number;
   if (direction === 'top') {
@@ -126,7 +126,7 @@ export function buildClickHighlight(params: {
       x2: tx1 + textW, y2: ty1 + textH,
       text: labelText,
       color: '#FFFFFF',
-      fontSize: 12,
+      fontSize: 14,
       fontBold: true,
       hasBg: true,
       borderColor: 'transparent',
