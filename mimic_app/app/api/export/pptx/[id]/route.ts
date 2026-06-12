@@ -7,6 +7,14 @@ const PptxGenJS = require('pptxgenjs');
 
 type Params = { params: Promise<{ id: string }> };
 
+/** 밝은 색이면 true — 표지 텍스트를 어두운 색으로 전환할 때 사용 */
+function isLightColor(hex: string): boolean {
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  return 0.299 * r + 0.587 * g + 0.114 * b > 160;
+}
+
 export async function GET(request: NextRequest, { params }: Params) {
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
@@ -31,32 +39,67 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   if (!steps?.length) return NextResponse.json({ error: 'No steps' }, { status: 422 });
 
+  // 브랜딩 설정 (없으면 기본값)
+  const { data: branding } = await supabase
+    .from('mm_branding')
+    .select('logo_url, primary_color, company_name, footer_text')
+    .eq('user_id', auth.userId)
+    .maybeSingle();
+
+  const brandColor = (branding?.primary_color ?? '#4F46E5').replace('#', '').toUpperCase();
+  const coverTextColor = isLightColor(brandColor) ? '111827' : 'FFFFFF';
+
+  // 로고 이미지 미리 받아두기 (표지에 사용)
+  let logoData: string | null = null;
+  if (branding?.logo_url) {
+    try {
+      const res = await fetch(assertStorageUrl(branding.logo_url), { redirect: 'manual' });
+      if (res.ok) {
+        const buf = Buffer.from(await res.arrayBuffer());
+        const ct = res.headers.get('content-type') ?? '';
+        logoData = `data:image/${ct.includes('png') ? 'png' : 'jpeg'};base64,${buf.toString('base64')}`;
+      }
+    } catch { /* 로고 로드 실패 시 로고 없이 출력 */ }
+  }
+
   const pptx = new PptxGenJS();
   pptx.layout = 'LAYOUT_WIDE'; // 16:9
 
   // 표지 슬라이드
   const cover = pptx.addSlide();
-  cover.background = { color: '4F46E5' };
+  cover.background = { color: brandColor };
+  if (logoData) {
+    cover.addImage({
+      data: logoData,
+      x: 0.5, y: 0.45, w: 2.2, h: 0.75,
+      sizing: { type: 'contain', w: 2.2, h: 0.75 },
+    });
+  }
   cover.addText(tutorial.title, {
     x: 0.5, y: 2.2, w: '90%', h: 1.2,
-    fontSize: 36, bold: true, color: 'FFFFFF',
+    fontSize: 36, bold: true, color: coverTextColor,
     align: 'center', valign: 'middle',
     wrap: true,
   });
   cover.addText(`총 ${steps.length}단계`, {
     x: 0.5, y: 3.6, w: '90%', h: 0.5,
-    fontSize: 18, color: 'C7D2FE', align: 'center',
+    fontSize: 18, color: coverTextColor, transparency: 25, align: 'center',
   });
+  if (branding?.company_name) {
+    cover.addText(branding.company_name, {
+      x: 0.5, y: 6.85, w: '90%', h: 0.4,
+      fontSize: 13, color: coverTextColor, transparency: 25, align: 'center',
+    });
+  }
 
   // LAYOUT_WIDE: 13.33" × 7.5"
-  // 구도: 헤더(0.55") | 스크린샷 좌측(~8.8") | 설명 우측(~4.1") | 하단 페이지번호
+  // 구도: 헤더(0.55") | 스크린샷 전체 폭 | 하단 캡션 띠(1.25") — 이미지와 겹치지 않음
   const W = 13.33;
   const H = 7.5;
   const HEADER_H = 0.55;
-  const RIGHT_W = 4.13;
-  const LEFT_W = W - RIGHT_W; // ~9.2"
+  const CAPTION_H = 1.25;
   const BODY_Y = HEADER_H;
-  const BODY_H = H - HEADER_H;
+  const BODY_H = H - HEADER_H - CAPTION_H;
   const IMG_PAD = 0.22;
 
   for (const step of steps) {
@@ -71,21 +114,27 @@ export async function GET(request: NextRequest, { params }: Params) {
 
     const stepTitle = step.user_title ?? step.ai_title ?? `단계 ${step.step_number}`;
     slide.addText(`${step.step_number}. ${stepTitle}`, {
-      x: 0.3, y: 0, w: LEFT_W - 0.3, h: HEADER_H,
+      x: 0.3, y: 0, w: W - 1.5, h: HEADER_H,
       fontSize: 17, bold: true, color: 'FFFFFF',
       valign: 'middle',
     });
 
-    // 스크린샷 영역 배경
+    // 우상단 페이지 번호
+    slide.addText(`${step.step_number} / ${steps.length}`, {
+      x: W - 1.2, y: 0, w: 0.95, h: HEADER_H,
+      fontSize: 11, color: '9CA3AF', align: 'right', valign: 'middle',
+    });
+
+    // 스크린샷 영역 배경 (전체 폭)
     slide.addShape(pptx.ShapeType.rect, {
-      x: 0, y: BODY_Y, w: LEFT_W, h: BODY_H,
+      x: 0, y: BODY_Y, w: W, h: BODY_H,
       fill: { color: '1A1F2E' },
     });
 
     // 스크린샷 이미지 (상하좌우 패딩)
     const imgX = IMG_PAD;
     const imgY = BODY_Y + IMG_PAD;
-    const imgW = LEFT_W - IMG_PAD * 2;
+    const imgW = W - IMG_PAD * 2;
     const imgH = BODY_H - IMG_PAD * 2;
 
     try {
@@ -107,42 +156,41 @@ export async function GET(request: NextRequest, { params }: Params) {
       });
     }
 
-    // 오른쪽 설명 패널
+    // 하단 캡션 띠 (상단에 브랜드 컬러 라인)
     slide.addShape(pptx.ShapeType.rect, {
-      x: LEFT_W, y: BODY_Y, w: RIGHT_W, h: BODY_H,
+      x: 0, y: H - CAPTION_H, w: W, h: CAPTION_H,
       fill: { color: 'F9FAFB' },
+    });
+    slide.addShape(pptx.ShapeType.rect, {
+      x: 0, y: H - CAPTION_H, w: W, h: 0.04,
+      fill: { color: brandColor },
     });
 
     const desc = step.user_script ?? step.ai_description ?? '';
-    const PAD = 0.25;
-    slide.addText('설명', {
-      x: LEFT_W + PAD, y: BODY_Y + PAD,
-      w: RIGHT_W - PAD * 2, h: 0.35,
-      fontSize: 13, bold: true, color: '4F46E5',
-    });
     if (desc) {
       slide.addText(desc, {
-        x: LEFT_W + PAD, y: BODY_Y + PAD + 0.4,
-        w: RIGHT_W - PAD * 2, h: BODY_H - PAD * 2 - 0.4 - 0.4,
-        fontSize: 13, color: '374151',
-        valign: 'top', wrap: true,
-        lineSpacingMultiple: 1.3,
+        x: 0.6, y: H - CAPTION_H, w: W - 1.2, h: CAPTION_H,
+        fontSize: 14, color: '374151',
+        align: 'center', valign: 'middle', wrap: true,
+        lineSpacingMultiple: 1.2,
+        fit: 'shrink',
       });
     }
 
-    // 우하단 페이지 번호
-    slide.addText(`${step.step_number} / ${steps.length}`, {
-      x: LEFT_W + PAD, y: H - 0.38,
-      w: RIGHT_W - PAD * 2, h: 0.3,
-      fontSize: 11, color: '9CA3AF', align: 'right',
-    });
+    // 푸터 문구 (브랜딩 설정 시)
+    if (branding?.footer_text) {
+      slide.addText(branding.footer_text, {
+        x: 0.15, y: H - 0.32, w: 5, h: 0.28,
+        fontSize: 8.5, color: '9CA3AF', valign: 'middle',
+      });
+    }
   }
 
   const pptxBuffer: Buffer = await pptx.write({ outputType: 'nodebuffer' });
   const safeTitle = tutorial.title.replace(/[/\\?%*:|"<>]/g, '-').trim() || '매뉴얼';
   const dateStr = new Date().toLocaleDateString('ko-KR', {
-    year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Asia/Seoul',
-  }).replace(/\. /g, '-').replace(/\.$/, '');
+    year: '2-digit', month: '2-digit', day: '2-digit', timeZone: 'Asia/Seoul',
+  }).replace(/\. /g, '_').replace(/\.$/, '');
   const filenameRaw = `${safeTitle}_${dateStr}.pptx`;
   const filenameEncoded = encodeURIComponent(filenameRaw);
 
