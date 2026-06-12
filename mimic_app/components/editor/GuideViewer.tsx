@@ -91,7 +91,7 @@ export function GuideViewer({ steps, activeId, onActiveChange, outputRatio = '16
             boxSizing: 'border-box',
           }}
         >
-          <div style={{ width: '100%', maxWidth: '1040px' }}>
+          <div style={{ width: '100%', maxWidth: '1120px' }}>
             <ViewerStepCard step={step} />
           </div>
         </div>
@@ -103,6 +103,8 @@ export function GuideViewer({ steps, activeId, onActiveChange, outputRatio = '16
 function ViewerStepCard({ step }: { step: ManualStep }) {
   const hasImage = !!step.screenshotUrl;
   const zoom = step.imageZoom ?? 1;
+  const offX = step.imageOffsetX ?? 0;
+  const offY = step.imageOffsetY ?? 0;
   const cr = step.crop_rect;
   const hasCrop = !!cr && cr.w > 0 && cr.w < 0.99;
   const [natH2W, setNatH2W] = useState<number | null>(null);
@@ -132,12 +134,12 @@ function ViewerStepCard({ step }: { step: ManualStep }) {
           {String(step.number).padStart(2, '0')}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#111827', lineHeight: 1.45 }}>
+          <h3 style={{ margin: 0, fontSize: '15.5px', fontWeight: 600, color: '#111827', lineHeight: 1.45 }}>
             {step.actionTitle || <span style={{ color: '#9CA3AF', fontWeight: 400 }}>(제목 없음)</span>}
           </h3>
           {step.description && (
             <div
-              style={{ marginTop: '4px', fontSize: '12.5px', color: '#4B5563', lineHeight: 1.65 }}
+              style={{ marginTop: '4px', fontSize: '14px', color: '#4B5563', lineHeight: 1.65 }}
               dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(step.description, { USE_PROFILES: { html: true } }) }}
             />
           )}
@@ -149,8 +151,10 @@ function ViewerStepCard({ step }: { step: ManualStep }) {
         <div style={{ position: 'relative', background: '#F3F4F6', overflow: 'hidden', display: 'flex', justifyContent: 'center' }}>
           <div style={{
             position: 'relative',
-            transform: !hasCrop && zoom > 1 ? `scale(${zoom})` : undefined,
-            transformOrigin: 'center top',
+            transform: !hasCrop && zoom > 1
+              ? `translate(${offX * 100}%, ${offY * 100}%) scale(${zoom})`
+              : undefined,
+            transformOrigin: 'center center',
             overflow: 'hidden',
           }}>
             {/* img 박스가 실제 콘텐츠와 정확히 일치해야 어노테이션 오버레이 좌표가 맞음 (letterbox 금지) */}

@@ -33,6 +33,9 @@ export interface ManualStep {
   pii_detected?: boolean;
   crop_rect?: { x: number; y: number; w: number; h: number } | null;
   imageZoom?: number;
+  // 팬 오프셋 — 이미지 크기 대비 translate 비율 (0 = 중앙)
+  imageOffsetX?: number;
+  imageOffsetY?: number;
 }
 
 interface ManualEditorProps {
@@ -333,7 +336,7 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, hideToc, a
                 data-step-id={step.id}
                 style={{ scrollSnapAlign: 'start', minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px 0', boxSizing: 'border-box' }}
               >
-                <div style={{ width: '100%', maxWidth: '960px', padding: '0 24px', boxSizing: 'border-box' }}>
+                <div style={{ width: '100%', maxWidth: '1120px', padding: '0 24px', boxSizing: 'border-box' }}>
                   <StepCard
                     step={step}
                     isActive={activeId === step.id}
@@ -412,14 +415,11 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, hideToc, a
           <ImageAnnotationEditor
             imageUrl={step.screenshotUrl!}
             annotations={initialAnnotations}
-            initialFocusX={step.click_x ?? 50}
-            initialFocusY={step.click_y ?? 50}
-            initialZoom={step.imageZoom ?? 1}
-            onChange={(annotations, imageZoom) => {
+            onChange={annotations => {
               // 함수형 업데이트로 stale closure 방지
               const id = annotatingId;
-              onChange(steps.map(s => s.id === id ? { ...s, annotations, imageZoom } : s));
-              onSave?.(id, { annotations, imageZoom });
+              onChange(steps.map(s => s.id === id ? { ...s, annotations } : s));
+              onSave?.(id, { annotations });
             }}
             onClose={() => setAnnotatingId(null)}
           />
@@ -680,7 +680,7 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
       <div style={{ padding: '8px 36px 8px 20px' }}>
         {/* Number + Title + 우측 아이콘 가로 행 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '13px', fontWeight: 700, color: '#F59E0B', flexShrink: 0, lineHeight: 1.4 }}>
+          <span style={{ fontSize: '15px', fontWeight: 700, color: '#F59E0B', flexShrink: 0, lineHeight: 1.4 }}>
             {String(step.number).padStart(2, '0')}.
           </span>
           {step.is_stale && (
@@ -697,7 +697,7 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
             onBlur={e => { e.currentTarget.style.background = 'transparent'; handleTitleBlur(e); }}
             placeholder="단계 제목을 입력하세요"
             style={{
-              flex: 1, fontSize: '13px', fontWeight: 600, color: '#111827',
+              flex: 1, fontSize: '15px', fontWeight: 600, color: '#111827',
               background: 'transparent', border: 'none', outline: 'none',
               padding: '3px 6px', margin: '0 -6px',
               lineHeight: 1.4, borderRadius: '6px', cursor: 'text',
@@ -748,9 +748,9 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
             data-placeholder="이 단계에 대한 설명을 입력하세요."
             style={{
               width: '100%', marginTop: '4px',
-              fontSize: '12.5px', color: '#4B5563',
-              lineHeight: 1.5, fontFamily: 'inherit',
-              minHeight: '20px',
+              fontSize: '14px', color: '#4B5563',
+              lineHeight: 1.6, fontFamily: 'inherit',
+              minHeight: '24px',
               outline: 'none',
               borderRadius: '6px',
               padding: '2px 6px', margin: '4px -6px 0',
@@ -796,6 +796,7 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
         onDrop={handleImgDrop}
         onAnnotate={onAnnotate}
         onRemove={onRemoveImage}
+        onFraming={patch => onSave(patch)}
       />
 
     </div>
@@ -910,11 +911,126 @@ interface ScreenshotAreaProps {
   onDrop: (e: React.DragEvent) => void;
   onAnnotate: () => void;
   onRemove: () => void;
+  // 줌/팬 프레이밍 변경 영속화 (image_zoom + image_offset_x/y)
+  onFraming: (patch: { imageZoom: number; imageOffsetX: number; imageOffsetY: number }) => void;
 }
 
-function ScreenshotArea({ step, onUploadClick, onDrop, onAnnotate, onRemove }: ScreenshotAreaProps) {
+const clampZoom = (z: number) => Math.round(Math.min(4, Math.max(1, z)) * 100) / 100;
+// 이미지 가장자리가 프레임 안쪽으로 들어오지 않도록 팬 한계 = (z-1)/2
+const clampOffset = (v: number, z: number) => {
+  const m = Math.max(0, (z - 1) / 2);
+  return Math.min(m, Math.max(-m, v));
+};
+
+function ScreenshotArea({ step, onUploadClick, onDrop, onAnnotate, onRemove, onFraming }: ScreenshotAreaProps) {
   const [dragOver, setDragOver] = useState(false);
   const [imgHover, setImgHover] = useState(false);
+  const [panning, setPanning] = useState(false);
+
+  // 로컬 뷰 상태 — 드래그/휠 중에는 로컬이 진실, 커밋 시 onFraming으로 영속
+  const [view, setView] = useState({
+    z: step.imageZoom ?? 1,
+    x: step.imageOffsetX ?? 0,
+    y: step.imageOffsetY ?? 0,
+  });
+  const viewRef = useRef(view);
+  useEffect(() => { viewRef.current = view; });
+
+  // 외부(언두 등)에서 스텝 값이 바뀌면 로컬 동기화
+  useEffect(() => {
+    setView({ z: step.imageZoom ?? 1, x: step.imageOffsetX ?? 0, y: step.imageOffsetY ?? 0 });
+  }, [step.imageZoom, step.imageOffsetX, step.imageOffsetY]);
+
+  const frameRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ sx: number; sy: number; ox: number; oy: number; moved: boolean } | null>(null);
+  const commitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onFramingRef = useRef(onFraming);
+  useEffect(() => { onFramingRef.current = onFraming; });
+
+  const scheduleCommit = useCallback((immediate = false) => {
+    if (commitTimer.current) clearTimeout(commitTimer.current);
+    const fire = () => {
+      const v = viewRef.current;
+      onFramingRef.current({ imageZoom: v.z, imageOffsetX: v.x, imageOffsetY: v.y });
+    };
+    if (immediate) fire();
+    else commitTimer.current = setTimeout(fire, 500);
+  }, []);
+  useEffect(() => () => { if (commitTimer.current) clearTimeout(commitTimer.current); }, []);
+
+  // calc(z) → 새 배율. anchor(화면 좌표)가 있으면 그 지점 고정 줌(커서 기준)
+  const applyZoom = useCallback((calc: (z: number) => number, anchor?: { cx: number; cy: number }) => {
+    setView(v => {
+      const z2 = clampZoom(calc(v.z));
+      if (z2 === v.z) return v;
+      let { x, y } = v;
+      const el = frameRef.current;
+      const f = z2 / v.z;
+      if (anchor && el) {
+        const r = el.getBoundingClientRect();
+        const qx = anchor.cx - (r.left + r.width / 2);
+        const qy = anchor.cy - (r.top + r.height / 2);
+        x = (qx - f * (qx - x * r.width)) / r.width;
+        y = (qy - f * (qy - y * r.height)) / r.height;
+      } else {
+        x = v.x * f;
+        y = v.y * f;
+      }
+      const next = { z: z2, x: clampOffset(x, z2), y: clampOffset(y, z2) };
+      viewRef.current = next; // 커밋이 렌더 전에 실행돼도 최신값 보장
+      return next;
+    });
+    scheduleCommit();
+  }, [scheduleCommit]);
+
+  // Ctrl/⌘+휠 줌 — 브라우저 페이지 줌 차단 필요 → non-passive 네이티브 리스너
+  useEffect(() => {
+    const el = frameRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      e.preventDefault();
+      applyZoom(z => z + (e.deltaY > 0 ? -0.2 : 0.2), { cx: e.clientX, cy: e.clientY });
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [applyZoom, step.screenshotUrl]);
+
+  // 드래그 팬(줌>1) / 클릭(이동 없음) → 어노테이션 편집
+  const startPan = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    if ((e.target as HTMLElement).closest('button,[data-stop-pan]')) return;
+    e.preventDefault();
+    dragRef.current = { sx: e.clientX, sy: e.clientY, ox: viewRef.current.x, oy: viewRef.current.y, moved: false };
+    setPanning(true);
+    const onMove = (ev: MouseEvent) => {
+      const d = dragRef.current;
+      const el = frameRef.current;
+      if (!d || !el) return;
+      const dx = ev.clientX - d.sx;
+      const dy = ev.clientY - d.sy;
+      if (Math.abs(dx) + Math.abs(dy) > 4) d.moved = true;
+      if (viewRef.current.z <= 1) return;
+      const r = el.getBoundingClientRect();
+      setView(v => {
+        const next = { ...v, x: clampOffset(d.ox + dx / r.width, v.z), y: clampOffset(d.oy + dy / r.height, v.z) };
+        viewRef.current = next; // mouseup 즉시 커밋이 stale 값을 읽지 않도록 동기 갱신
+        return next;
+      });
+    };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      const d = dragRef.current;
+      dragRef.current = null;
+      setPanning(false);
+      if (!d) return;
+      if (d.moved && viewRef.current.z > 1) scheduleCommit(true);
+      else if (!d.moved) onAnnotate();
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
 
   if (!step.screenshotUrl) {
     return (
@@ -949,19 +1065,30 @@ function ScreenshotArea({ step, onUploadClick, onDrop, onAnnotate, onRemove }: S
   }
 
   const hasAnnotations = (step.annotations?.length ?? 0) > 0;
-  const zoom = step.imageZoom ?? 1;
+  const { z: zoom, x: offX, y: offY } = view;
 
   return (
     <div
-      style={{ margin: '0 12px 12px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #E5E7EB', position: 'relative', cursor: 'pointer' }}
+      ref={frameRef}
+      style={{
+        margin: '0 12px 12px', borderRadius: '8px', overflow: 'hidden',
+        border: '1px solid #E5E7EB', position: 'relative',
+        cursor: zoom > 1 ? (panning ? 'grabbing' : 'grab') : 'pointer',
+      }}
       onMouseEnter={() => setImgHover(true)}
       onMouseLeave={() => setImgHover(false)}
-      onClick={onAnnotate}
+      onMouseDown={startPan}
     >
-      {/* 저장된 확대 배율 적용 — 이미지+어노테이션이 함께 스케일 */}
-      <div style={{ position: 'relative', transform: zoom > 1 ? `scale(${zoom})` : undefined, transformOrigin: 'center top' }}>
+      {/* 저장된 확대 배율 + 팬 오프셋 적용 — 이미지+어노테이션이 함께 변환 */}
+      <div style={{
+        position: 'relative',
+        transform: zoom !== 1 || offX !== 0 || offY !== 0
+          ? `translate(${offX * 100}%, ${offY * 100}%) scale(${zoom})`
+          : undefined,
+        transformOrigin: 'center center',
+      }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={step.screenshotUrl} alt={step.actionTitle} style={{ width: '100%', display: 'block' }} />
+        <img src={step.screenshotUrl} alt={step.actionTitle} draggable={false} style={{ width: '100%', display: 'block', userSelect: 'none' }} />
 
         {/* Annotation SVG overlay (read-only preview) */}
         {hasAnnotations && (
@@ -969,10 +1096,34 @@ function ScreenshotArea({ step, onUploadClick, onDrop, onAnnotate, onRemove }: S
         )}
       </div>
 
-      {/* 확대 배율 표시 */}
-      {zoom > 1 && (
-        <div style={{ position: 'absolute', bottom: '8px', right: '8px', fontSize: '10px', fontWeight: 600, color: 'white', background: 'rgba(20,20,30,0.6)', backdropFilter: 'blur(6px)', padding: '2px 7px', borderRadius: '5px', pointerEvents: 'none' }}>
-          {Math.round(zoom * 100)}%
+      {/* 줌 컨트롤 — 호버 또는 확대 중일 때 표시 */}
+      {(imgHover || zoom > 1) && (
+        <div
+          data-stop-pan
+          onMouseDown={e => e.stopPropagation()}
+          style={{
+            position: 'absolute', bottom: '8px', left: '50%', transform: 'translateX(-50%)',
+            display: 'flex', alignItems: 'center', gap: '2px',
+            background: 'rgba(20,20,30,0.78)', backdropFilter: 'blur(8px)',
+            borderRadius: '8px', padding: '3px 5px', zIndex: 4,
+            boxShadow: '0 2px 10px rgba(0,0,0,0.25)',
+          }}
+        >
+          <button title="축소" onClick={() => applyZoom(z => z - 0.25)}
+            style={{ width: '24px', height: '24px', borderRadius: '5px', border: 'none', background: 'transparent', color: 'rgba(255,255,255,0.85)', cursor: 'pointer', fontSize: '15px', display: 'grid', placeItems: 'center', lineHeight: 1 }}
+          >−</button>
+          <span style={{ fontSize: '11px', fontWeight: 600, color: 'white', minWidth: '40px', textAlign: 'center' }}>{Math.round(zoom * 100)}%</span>
+          <button title="확대" onClick={() => applyZoom(z => z + 0.25)}
+            style={{ width: '24px', height: '24px', borderRadius: '5px', border: 'none', background: 'transparent', color: 'rgba(255,255,255,0.85)', cursor: 'pointer', fontSize: '15px', display: 'grid', placeItems: 'center', lineHeight: 1 }}
+          >+</button>
+          {(zoom !== 1 || offX !== 0 || offY !== 0) && (
+            <>
+              <div style={{ width: '1px', height: '14px', background: 'rgba(255,255,255,0.2)', margin: '0 2px' }} />
+              <button title="원본 보기" onClick={() => { viewRef.current = { z: 1, x: 0, y: 0 }; setView({ z: 1, x: 0, y: 0 }); scheduleCommit(true); }}
+                style={{ height: '24px', padding: '0 7px', borderRadius: '5px', border: 'none', background: 'transparent', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: '10.5px' }}
+              >초기화</button>
+            </>
+          )}
         </div>
       )}
 
@@ -991,6 +1142,7 @@ function ScreenshotArea({ step, onUploadClick, onDrop, onAnnotate, onRemove }: S
       {/* PII 경고 배지 */}
       {step.pii_detected && (
         <div
+          data-stop-pan
           title="개인정보가 노출되어 있습니다. 블러 처리를 권장합니다"
           style={{
             position: 'absolute', top: '8px', right: '8px',
@@ -1006,11 +1158,11 @@ function ScreenshotArea({ step, onUploadClick, onDrop, onAnnotate, onRemove }: S
       )}
 
       {/* hover 시 편집 힌트 + 우측 상단 삭제 버튼 */}
-      {imgHover && (
+      {imgHover && !panning && (
         <>
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
             <span style={{ fontSize: '12px', fontWeight: 500, color: 'white', background: 'rgba(0,0,0,0.45)', padding: '4px 10px', borderRadius: '6px', backdropFilter: 'blur(4px)' }}>
-              클릭하여 편집
+              {zoom > 1 ? '드래그로 위치 조정 · 클릭하여 편집' : '클릭하여 편집 · Ctrl+휠 확대'}
             </span>
           </div>
           <button
