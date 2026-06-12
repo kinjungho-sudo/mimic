@@ -370,6 +370,109 @@ ${stepsText}
   }
 }
 
+// 교육 자료 모드용 초안 생성 — Vision으로 각 스텝을 분석해 교육적 설명 생성 (Pro 전용)
+export async function generateEducationalDraft(
+  steps: Array<{
+    id: string;
+    screenshot_url: string;
+    ai_title: string | null;
+    page_url: string | null;
+    domain_name: string | null;
+    step_number: number;
+  }>
+): Promise<{ tutorial_title: string; steps: Array<{ id: string; user_title: string; user_script: string }> }> {
+  // 튜토리얼 제목 생성 (텍스트 콘텍스트 기반)
+  const domainCounts = new Map<string, number>();
+  steps.forEach(s => {
+    if (s.domain_name) domainCounts.set(s.domain_name, (domainCounts.get(s.domain_name) ?? 0) + 1);
+  });
+  const mainService = domainCounts.size > 0
+    ? Array.from(domainCounts.entries()).sort((a, b) => b[1] - a[1])[0][0]
+    : null;
+
+  const titleRes = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 64,
+    messages: [{
+      role: 'user',
+      content: `서비스명: ${mainService || '(알 수 없음)'}
+스텝 요약: ${steps.map(s => s.ai_title || '').filter(Boolean).join(', ')}
+
+이 내용을 교육 자료로 만들 때 적합한 제목을 작성해줘.
+[규칙] 30자 이내, "서비스명 이용 가이드" 또는 "서비스명 사용 방법" 형식, 특정 상품명 금지.
+JSON만: {"tutorial_title": "..."}`,
+    }],
+  }).catch(() => null);
+
+  let tutorial_title = '';
+  if (titleRes) {
+    const t = titleRes.content[0].type === 'text' ? titleRes.content[0].text : '{}';
+    try { tutorial_title = String(JSON.parse(stripMarkdown(t)).tutorial_title || ''); } catch { /* ignore */ }
+  }
+
+  // 스텝별 Vision 분석 — 병렬 실행
+  const stepResults = await Promise.allSettled(
+    steps.map(async (step) => {
+      let domain = '';
+      try { domain = step.page_url ? new URL(step.page_url).hostname : (step.domain_name ?? ''); } catch { domain = step.domain_name ?? ''; }
+
+      // 스크린샷 fetch
+      let b64 = '';
+      let mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif' = 'image/jpeg';
+      try {
+        const imgRes = await fetch(step.screenshot_url);
+        if (imgRes.ok) {
+          const ct = imgRes.headers.get('content-type') ?? 'image/jpeg';
+          mediaType = (['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as const)
+            .find(t => ct.includes(t)) ?? 'image/jpeg';
+          b64 = Buffer.from(await imgRes.arrayBuffer()).toString('base64');
+        }
+      } catch { /* fallback to text only */ }
+
+      const contentBlocks: Anthropic.MessageParam['content'] = [];
+      if (b64) {
+        contentBlocks.push({ type: 'image', source: { type: 'base64', media_type: mediaType, data: b64 } });
+      }
+      const actionHint = step.ai_title ? `\n현재 화면에서 수행한 행동: "${step.ai_title}"` : '';
+      contentBlocks.push({
+        type: 'text',
+        text: `이 스크린샷은 "${domain}" 서비스의 한 화면입니다.${actionHint}
+
+교육 자료 형식으로 이 화면을 설명해줘.
+
+[title 규칙] 이 화면/기능의 이름을 명사형으로 (15자 이내)
+[explanation 규칙] 이 기능이 무엇을 하는지, 왜 사용하는지 2문장, 존댓말, 범용 표현 (특정 상품명·수량 금지)
+
+JSON만 반환:
+{"title": "...", "explanation": "..."}`,
+      });
+
+      const res = await client.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 256,
+        messages: [{ role: 'user', content: contentBlocks }],
+      });
+
+      const text = res.content[0].type === 'text' ? res.content[0].text : '{}';
+      const parsed = JSON.parse(stripMarkdown(text));
+      return {
+        id: step.id,
+        user_title: String(parsed.title || step.ai_title || '').slice(0, 50),
+        user_script: String(parsed.explanation || '').slice(0, 500),
+      };
+    })
+  );
+
+  const draftSteps = stepResults
+    .map((r, i) =>
+      r.status === 'fulfilled'
+        ? r.value
+        : { id: steps[i].id, user_title: steps[i].ai_title ?? '', user_script: '' }
+    );
+
+  return { tutorial_title, steps: draftSteps };
+}
+
 // 스크린샷에서 dominant color 2개를 추출해 커버 그라데이션 색상 반환
 export async function extractCoverColors(
   screenshotBase64: string,

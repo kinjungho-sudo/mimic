@@ -345,7 +345,9 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
       resetLastSavedHash();
 
       // 1) targetTabId 먼저 저장 → _cachedTargetTabId 캐시 갱신 보장
-      await storageSet({ targetTabId: tabId, sessionId, stepNumber: 0, steps: [], _undoStack: [] });
+      // contentMode: 웹앱에서 선택한 매뉴얼 유형 ('action' | 'education'), 미전달 시 'action'
+      const contentMode = message.contentMode === 'education' ? 'education' : 'action';
+      await storageSet({ targetTabId: tabId, sessionId, stepNumber: 0, steps: [], _undoStack: [], contentMode });
 
       const tab = await new Promise((res) => chrome.tabs.get(tabId, (t) => {
         res(chrome.runtime.lastError ? null : t);
@@ -696,6 +698,31 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === 'FULL_PAGE_CAPTURE') {
+    (async () => {
+      const { isRecording } = await storageGet('isRecording');
+      if (isRecording) { sendResponse({ ok: false, error: '녹화 중에는 사용할 수 없습니다' }); return; }
+
+      const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+      const tab  = tabs.find(t => t.url?.startsWith('http://') || t.url?.startsWith('https://'));
+      if (!tab?.id) { sendResponse({ ok: false, error: '캡처 가능한 탭이 없습니다 (http/https 페이지에서 사용)' }); return; }
+
+      const dataUrl = await captureFullPage(tab);
+
+      let hostname = 'page';
+      try { hostname = new URL(tab.url).hostname.replace(/^www\./, ''); } catch { /**/ }
+      const d  = new Date();
+      const p2 = (n) => String(n).padStart(2, '0');
+      const stamp = `${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}_${p2(d.getHours())}${p2(d.getMinutes())}${p2(d.getSeconds())}`;
+      await chrome.downloads.download({ url: dataUrl, filename: `mimic_fullpage_${hostname}_${stamp}.png` });
+      sendResponse({ ok: true });
+    })().catch((err) => {
+      log('error', 'bg', 'full page capture error:', err.message);
+      sendResponse({ ok: false, error: '캡처 실패 — 페이지를 확인해주세요' });
+    });
+    return true;
+  }
+
   if (message.type === 'CLEAR_STEPS') {
     idbClear().catch(() => {});
     resetLastSavedHash();
@@ -943,7 +970,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
       return;
     }
 
-    const autoNav = r.settings?.autoNav ?? false;
+    const autoNav = r.settings?.autoNav ?? true;
     if (!autoNav) return;
     if (r.spaNavCapturing) return;
 
@@ -1033,6 +1060,95 @@ async function captureWithPII(tabId, tab) {
       resolve(blurred);
     });
   });
+}
+
+// ── 전체 페이지 스크롤 캡처 (녹화와 별개 단독 기능) ──────────────
+const FULLPAGE_MAX_HEIGHT_PX = 20000; // CSS px — OffscreenCanvas 높이 한계(65535) 내 dpr 여유 확보
+const FULLPAGE_SETTLE_MS     = 550;   // 스크롤 후 렌더 대기 + captureVisibleTab 쿼터(초당 2회) 준수
+
+async function captureFullPage(tab) {
+  const tabId = tab.id;
+
+  const [{ result: m } = {}] = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: () => ({
+      scrollHeight: Math.max(
+        document.documentElement.scrollHeight,
+        document.body ? document.body.scrollHeight : 0
+      ),
+      viewportH: window.innerHeight,
+      viewportW: window.innerWidth,
+      originalY: window.scrollY,
+    }),
+  });
+  if (!m || !m.viewportH) throw new Error('페이지 정보를 읽을 수 없습니다');
+
+  const totalH   = Math.max(m.viewportH, Math.min(m.scrollHeight, FULLPAGE_MAX_HEIGHT_PX));
+  const segments = Math.ceil(totalH / m.viewportH);
+
+  const restore = () => chrome.scripting.executeScript({
+    target: { tabId },
+    args: [m.originalY],
+    func: (origY) => {
+      if (window.__mimicFixedHidden) {
+        for (const { el, vis } of window.__mimicFixedHidden) el.style.visibility = vis;
+        delete window.__mimicFixedHidden;
+      }
+      window.scrollTo(0, origY);
+    },
+  }).catch(() => {});
+
+  const parts = [];
+  try {
+    for (let i = 0; i < segments; i++) {
+      const y = Math.max(0, Math.min(i * m.viewportH, totalH - m.viewportH));
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        args: [y, i > 0],
+        func: (scrollY, hideFixed) => {
+          // 두 번째 조각부터 fixed/sticky 요소 숨김 — 고정 헤더가 조각마다 반복되는 것 방지
+          // (visibility는 레이아웃을 유지하므로 스크롤 좌표가 어긋나지 않는다)
+          if (hideFixed && !window.__mimicFixedHidden) {
+            window.__mimicFixedHidden = [];
+            for (const el of document.querySelectorAll('body *')) {
+              const pos = getComputedStyle(el).position;
+              if (pos === 'fixed' || pos === 'sticky') {
+                window.__mimicFixedHidden.push({ el, vis: el.style.visibility });
+                el.style.visibility = 'hidden';
+              }
+            }
+          }
+          window.scrollTo(0, scrollY);
+        },
+      });
+      await new Promise((r) => setTimeout(r, FULLPAGE_SETTLE_MS));
+
+      const url = await new Promise((resolve) => {
+        chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' }, (u) => {
+          resolve(chrome.runtime.lastError ? null : u);
+        });
+      });
+      if (!url) throw new Error(`조각 ${i + 1}/${segments} 캡처 실패`);
+      parts.push({ y, url });
+    }
+  } finally {
+    await restore();
+  }
+
+  // 스티칭 — 실제 비트맵 폭 / 뷰포트 CSS 폭 비율로 dpr·브라우저 줌 보정
+  const bitmaps = [];
+  for (const p of parts) {
+    const blob = await (await fetch(p.url)).blob();
+    bitmaps.push(await createImageBitmap(blob));
+  }
+  const scale  = bitmaps[0].width / m.viewportW;
+  const canvas = new OffscreenCanvas(bitmaps[0].width, Math.round(totalH * scale));
+  const ctx    = canvas.getContext('2d');
+  parts.forEach((p, i) => ctx.drawImage(bitmaps[i], 0, Math.round(p.y * scale)));
+
+  const outBlob = await canvas.convertToBlob({ type: 'image/png' });
+  log('info', 'bg', `full page captured: ${segments} segments, ${canvas.width}x${canvas.height}px`);
+  return blobToDataUrl(outBlob);
 }
 
 // ── 검은 화면(캡처 차단) 감지 ────────────────────────────────────
@@ -1468,7 +1584,7 @@ async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, 
 
 // ── 세션 완료 — 웹앱 API 경유 ───────────────────────────────────
 async function finalizeSession(sessionId, stepNumbers) {
-  const { extensionToken } = await storageGet('extensionToken');
+  const { extensionToken, contentMode } = await storageGet(['extensionToken', 'contentMode']);
   if (!extensionToken) {
     log('warn', 'bg', 'extensionToken 없음 — /extension-link 에서 연동 필요');
     return { tutorial_id: null, step_count: 0 };
@@ -1480,6 +1596,8 @@ async function finalizeSession(sessionId, stepNumbers) {
       session_id: sessionId,
       // 패널에서 삭제/실행취소되지 않고 남은 스텝만 매뉴얼에 포함
       ...(stepNumbers?.length ? { step_numbers: stepNumbers } : {}),
+      // 웹앱에서 선택한 매뉴얼 유형 ('action' | 'education')
+      ...(contentMode && contentMode !== 'action' ? { content_mode: contentMode } : {}),
     }),
   });
   if (!res.ok) throw new Error(`finalize failed: ${res.status}: ${await res.text()}`);
