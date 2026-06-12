@@ -182,9 +182,37 @@ body {
   .home-recording-divider {
     display: none !important;
   }
+  /* 사이드바 — 모바일은 드로어 사용 */
+  .home-sidebar {
+    display: none !important;
+  }
   /* 폴더 슬라이드 패널 — 모바일은 드로어 사용 */
   .home-folder-panel {
     display: none !important;
+  }
+}
+
+/* 뷰어 TOC 패널 — 모바일에서 숨김 (토글 버튼으로 오버레이 표시) */
+@media (max-width: 768px) {
+  .viewer-toc-panel {
+    display: none !important;
+  }
+  .viewer-toc-toggle-btn {
+    display: flex !important;
+  }
+  /* 뷰어 헤더 액션 버튼 — 모바일에서 텍스트 숨김 */
+  .viewer-header-btn-label {
+    display: none !important;
+  }
+  /* 에디터 스텝 네비 — 모바일에서 왼쪽 정렬 (도움말 버튼과 겹침 방지) */
+  .editor-step-nav {
+    justify-content: flex-start !important;
+    padding-right: 0 !important;
+    padding-left: 20px !important;
+  }
+  /* 에디터 모바일 TOC 토글 버튼 표시 */
+  .editor-mobile-toc-btn {
+    display: flex !important;
   }
 }
 
