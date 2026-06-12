@@ -30,33 +30,30 @@ const features = [
   },
   {
     icon: (
-      // 연필 / 편집
+      // 나침반 / Guide Me
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" fill="rgba(255,255,255,0.9)" stroke="rgba(255,255,255,0.4)" strokeWidth="1" strokeLinejoin="round"/>
-        <path d="m15 5 4 4" stroke="rgba(255,255,255,0.5)" strokeWidth="1"/>
+        <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.9)" strokeWidth="1.8" fill="rgba(255,255,255,0.1)"/>
+        <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="rgba(255,255,255,0.9)"/>
       </svg>
     ),
-    title: '클릭 한 번 AI 편집',
-    body: '텍스트를 클릭하면 바로 편집. AI 다듬기로 어색한 표현을 자연스럽게 고쳐줍니다.',
+    title: 'Guide Me — 화면 위 안내',
+    body: '실제 웹페이지 위에 오버레이를 띄워 클릭할 곳을 하이라이트로 안내합니다. SDK 한 줄로 자사 서비스에도 삽입할 수 있습니다.',
     comingSoon: false,
   },
   {
     icon: (
-      // 마이크 / 음성
+      // 스파클 / 교육 자료 모드
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-        <rect x="9" y="2" width="6" height="11" rx="3" fill="rgba(255,255,255,0.9)"/>
-        <path d="M5 10a7 7 0 0 0 14 0" stroke="rgba(255,255,255,0.7)" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
-        <line x1="12" y1="19" x2="12" y2="22" stroke="rgba(255,255,255,0.7)" strokeWidth="1.5" strokeLinecap="round"/>
-        <line x1="9" y1="22" x2="15" y2="22" stroke="rgba(255,255,255,0.7)" strokeWidth="1.5" strokeLinecap="round"/>
+        <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" fill="rgba(255,255,255,0.9)"/>
       </svg>
     ),
-    title: 'AI 자막 · 음성',
-    body: '스크린샷만 캡처해도 자막과 음성이 자동 생성됩니다. 마음에 안 들면 직접 조정 가능.',
-    comingSoon: true,
+    title: '교육 자료 모드 (AI Vision)',
+    body: 'AI가 캡처된 화면을 직접 분석해 단계별 제목과 상세 설명을 자동 작성합니다. 교육 자료가 검수만 하면 되는 수준으로.',
+    comingSoon: false,
   },
   {
     icon: (
-      // 돋보기 / 줌인
+      // 돋보기 / 줌인 + 편집
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
         <circle cx="10" cy="10" r="7" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.8)" strokeWidth="1.8"/>
         <circle cx="10" cy="10" r="4" fill="rgba(255,255,255,0.25)"/>
@@ -64,20 +61,21 @@ const features = [
         <path d="M8 10h4M10 8v4" stroke="rgba(255,255,255,0.8)" strokeWidth="1.5" strokeLinecap="round"/>
       </svg>
     ),
-    title: '장면 줌인',
-    body: '시작·종료 장면을 드래그로 지정하면 영상 같은 줌 효과가 자동 적용됩니다.',
-    comingSoon: true,
+    title: '줌인 + 어노테이션 7종',
+    body: '강조할 영역을 드래그하면 확대 효과가 적용됩니다. 화살표·박스·마커·모자이크·스포트라이트로 어디를 봐야 할지 명확하게.',
+    comingSoon: false,
   },
   {
     icon: (
-      // 링크 / 공유
+      // 문서 내보내기
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" stroke="rgba(255,255,255,0.9)" strokeWidth="1.8" strokeLinecap="round" fill="none"/>
-        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke="rgba(255,255,255,0.65)" strokeWidth="1.8" strokeLinecap="round" fill="none"/>
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="rgba(255,255,255,0.9)" strokeWidth="1.8" fill="rgba(255,255,255,0.1)"/>
+        <polyline points="14 2 14 8 20 8" stroke="rgba(255,255,255,0.7)" strokeWidth="1.8" fill="none"/>
+        <path d="M12 18v-6M9 15l3 3 3-3" stroke="rgba(255,255,255,0.9)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
       </svg>
     ),
-    title: '링크 한 줄로 공유',
-    body: '완성된 매뉴얼은 링크 하나로 어디든 공유. 앱 설치 없이 바로 보고 따라할 수 있습니다.',
+    title: 'PDF · PPTX · Markdown 내보내기',
+    body: '링크 공유는 기본, 회사 양식이 필요하면 로고·브랜드 색상을 입힌 문서로 내보내세요. 팀 워크스페이스에선 실시간 공동 편집까지.',
     comingSoon: false,
   },
   {
@@ -675,10 +673,385 @@ function Scene4({ tick }: { tick: number }) {
   );
 }
 
+// ── 제품 쇼케이스: 영상이 있으면 영상, 없으면 실제 화면 목업 ──
+// 영상 파일은 public/landing/*.mp4 에 넣으면 자동으로 교체 표시됩니다.
+function ShowcaseMedia({ videoSrc, fallback }: { videoSrc: string; fallback: React.ReactNode }) {
+  const [ready, setReady] = useState(false);
+  return (
+    <div style={{ position: 'relative', borderRadius: '16px', overflow: 'hidden', border: '1px solid #E5E7EB', boxShadow: '0 24px 60px -16px rgba(55,48,163,0.18), 0 6px 20px rgba(17,24,39,0.06)', background: 'white' }}>
+      {!ready && fallback}
+      <video
+        src={videoSrc} muted loop autoPlay playsInline preload="metadata"
+        onCanPlay={() => setReady(true)}
+        style={{ display: ready ? 'block' : 'none', width: '100%', verticalAlign: 'top' }}
+      />
+    </div>
+  );
+}
+
+// 목업 공통: 브라우저/앱 상단바
+function MockTopBar({ url, dark }: { url: string; dark?: boolean }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 14px', background: dark ? '#18181B' : '#F3F4F6', borderBottom: `1px solid ${dark ? 'rgba(255,255,255,0.07)' : '#E5E7EB'}` }}>
+      <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#FF5F57' }} />
+      <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#FEBC2E' }} />
+      <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#28C840' }} />
+      <div style={{ flex: 1, margin: '0 10px', padding: '3px 11px', borderRadius: '6px', background: dark ? 'rgba(255,255,255,0.07)' : 'white', border: `1px solid ${dark ? 'rgba(255,255,255,0.1)' : '#E5E7EB'}`, fontSize: '10.5px', color: dark ? 'rgba(255,255,255,0.45)' : '#9CA3AF' }}>{url}</div>
+    </div>
+  );
+}
+
+// ① 녹화 — 클릭하면 자동 캡처
+function MockRecord() {
+  return (
+    <div style={{ height: '340px', background: 'white', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+      <MockTopBar url="docs.google.com/document/d/…" />
+      <div style={{ flex: 1, padding: '18px 22px', position: 'relative' }}>
+        <div style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', marginBottom: '12px' }}>2026 상반기 온보딩 문서</div>
+        {[92, 100, 78, 100, 64].map((w, i) => (
+          <div key={i} style={{ height: '9px', width: `${w}%`, borderRadius: '4px', background: '#F1F5F9', marginBottom: '9px' }} />
+        ))}
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '8px 16px', borderRadius: '8px', background: '#2563EB', color: 'white', fontSize: '12px', fontWeight: 600, marginTop: '10px', position: 'relative' }}>
+          공유
+          {/* 클릭 리플 */}
+          <span style={{ position: 'absolute', top: '50%', left: '50%', width: '34px', height: '34px', borderRadius: '50%', border: '2.5px solid rgba(109,40,217,0.55)', transform: 'translate(-50%,-50%)', animation: 'rippleOut 1.4s ease-out infinite' }} />
+        </div>
+        {/* 녹화 중 배지 */}
+        <div style={{ position: 'absolute', top: '14px', right: '16px', display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 11px', background: 'rgba(10,10,15,0.85)', borderRadius: '999px', fontSize: '10.5px', color: 'white', fontWeight: 500 }}>
+          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#EF4444', animation: 'rec-blink 1.2s infinite' }} />
+          MIMIC 녹화 중
+        </div>
+        {/* 캡처 토스트 */}
+        <div style={{ position: 'absolute', bottom: '16px', right: '16px', display: 'flex', alignItems: 'center', gap: '9px', padding: '10px 14px', background: 'white', borderRadius: '11px', border: '1px solid #E5E7EB', boxShadow: '0 10px 28px rgba(17,24,39,0.12)' }}>
+          <div style={{ width: '30px', height: '30px', borderRadius: '7px', background: 'linear-gradient(135deg,#3730a3,#6d28d9)', display: 'grid', placeItems: 'center' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div>
+            <div style={{ fontSize: '11.5px', fontWeight: 700, color: '#111827' }}>스텝 3 캡처됨</div>
+            <div style={{ fontSize: '10px', color: '#9CA3AF' }}>&quot;공유&quot; 버튼 클릭</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ② 에디터 — 어노테이션 + 줌인
+function MockEditor() {
+  const TOOLS = ['↖', '→', '▢', '◯', 'T', '#', '▩', '☀'];
+  return (
+    <div style={{ height: '340px', background: '#111827', display: 'flex', flexDirection: 'column' }}>
+      <MockTopBar url="app.mimic.so/editor" dark />
+      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '150px 1fr', minHeight: 0 }}>
+        <div style={{ borderRight: '1px solid rgba(255,255,255,0.07)', padding: '12px 9px' }}>
+          <div style={{ fontSize: '8.5px', color: '#6B7280', fontWeight: 700, letterSpacing: '0.1em', marginBottom: '7px', padding: '0 3px' }}>스텝 목록</div>
+          {['로그인 화면 열기', '공유 버튼 클릭', '권한 설정', '링크 복사'].map((s, i) => (
+            <div key={i} style={{ padding: '6px 8px', borderRadius: '6px', marginBottom: '4px', background: i === 1 ? 'rgba(109,40,217,0.22)' : 'rgba(255,255,255,0.04)', border: `1px solid ${i === 1 ? 'rgba(109,40,217,0.45)' : 'rgba(255,255,255,0.06)'}`, fontSize: '9.5px', color: i === 1 ? 'white' : '#6B7280', fontWeight: i === 1 ? 600 : 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {i + 1}. {s}
+            </div>
+          ))}
+        </div>
+        <div style={{ padding: '12px 14px', position: 'relative' }}>
+          {/* 어노테이션 툴바 */}
+          <div style={{ display: 'inline-flex', gap: '3px', padding: '4px', borderRadius: '8px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '10px' }}>
+            {TOOLS.map((t, i) => (
+              <span key={i} style={{ width: '22px', height: '22px', borderRadius: '5px', display: 'grid', placeItems: 'center', fontSize: '10px', color: i === 1 ? 'white' : '#9CA3AF', background: i === 1 ? '#6d28d9' : 'transparent' }}>{t}</span>
+            ))}
+          </div>
+          {/* 캔버스 */}
+          <div style={{ borderRadius: '8px', background: 'white', padding: '12px 14px', position: 'relative' }}>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: '#0F172A', marginBottom: '8px' }}>문서 공유 설정</div>
+            <div style={{ position: 'relative', display: 'inline-block' }}>
+              <div style={{ padding: '6px 14px', borderRadius: '6px', background: '#2563EB', color: 'white', fontSize: '10px', fontWeight: 600 }}>공유</div>
+              <div style={{ position: 'absolute', inset: '-5px', border: '2.5px solid #EF4444', borderRadius: '9px', pointerEvents: 'none' }}>
+                <span style={{ position: 'absolute', top: '-17px', left: 0, background: '#EF4444', color: 'white', fontSize: '8px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', whiteSpace: 'nowrap' }}>여기를 클릭</span>
+              </div>
+            </div>
+            <div style={{ marginTop: '14px', display: 'flex', gap: '6px' }}>
+              {[64, 44, 52].map((w, i) => <div key={i} style={{ height: '8px', width: `${w}px`, borderRadius: '4px', background: '#F1F5F9' }} />)}
+            </div>
+            {/* 줌 컨트롤 */}
+            <div style={{ position: 'absolute', bottom: '8px', right: '8px', display: 'flex', gap: '4px', padding: '3px 8px', borderRadius: '999px', background: 'rgba(17,24,39,0.85)', fontSize: '9px', color: 'white', alignItems: 'center' }}>
+              <span>−</span><span style={{ fontWeight: 700 }}>140%</span><span>+</span>
+            </div>
+          </div>
+          {/* AI 다듬기 배지 */}
+          <div style={{ position: 'absolute', bottom: '12px', left: '14px', display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 12px', borderRadius: '999px', background: 'rgba(109,40,217,0.15)', border: '1px solid rgba(109,40,217,0.4)', fontSize: '10px', color: '#C4B5FD', fontWeight: 600 }}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="#a78bfa"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>
+            AI 다듬기 적용됨
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ③ 교육 자료 모드 — AI Vision 설명 생성
+function MockEduMode() {
+  return (
+    <div style={{ height: '340px', background: 'white', display: 'flex', flexDirection: 'column' }}>
+      <MockTopBar url="app.mimic.so/manual" />
+      <div style={{ flex: 1, padding: '16px 20px', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+          <span style={{ fontSize: '13.5px', fontWeight: 700, color: '#0F172A' }}>거래처 등록 교육 자료</span>
+          <span style={{ fontSize: '9.5px', fontWeight: 700, color: '#6d28d9', background: '#F5F3FF', border: '1px solid #DDD6FE', padding: '2px 8px', borderRadius: '999px' }}>교육 자료 모드</span>
+        </div>
+        {[
+          { num: '01', title: '거래처 관리 메뉴 진입', desc: '상단 메뉴에서 [기준정보] > [거래처 관리]를 클릭합니다. 거래처 목록 화면이 표시되며, 우측 상단에서 신규 등록을 시작할 수 있습니다.' },
+          { num: '02', title: '신규 거래처 정보 입력', desc: '사업자등록번호를 먼저 입력하면 중복 여부가 자동 검증됩니다. 상호명과 대표자명은 사업자등록증과 동일하게 입력해 주세요.' },
+        ].map((s, i) => (
+          <div key={i} style={{ display: 'flex', gap: '10px', padding: '11px 13px', borderRadius: '11px', border: '1px solid #EDEDED', marginBottom: '9px', background: 'white' }}>
+            <div style={{ width: '24px', height: '24px', borderRadius: '7px', background: 'linear-gradient(135deg,#3730a3,#6d28d9)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+              <span style={{ fontSize: '9px', fontWeight: 800, color: 'white' }}>{s.num}</span>
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: '11.5px', fontWeight: 700, color: '#111827', marginBottom: '3px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {s.title}
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '8.5px', fontWeight: 700, color: '#7C3AED' }}>
+                  <svg width="8" height="8" viewBox="0 0 24 24" fill="#a78bfa"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>
+                  AI 생성
+                </span>
+              </div>
+              <div style={{ fontSize: '10.5px', color: '#6B7280', lineHeight: 1.6 }}>{s.desc}</div>
+            </div>
+          </div>
+        ))}
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 13px', borderRadius: '999px', background: 'rgba(109,40,217,0.08)', border: '1px dashed rgba(109,40,217,0.35)', fontSize: '10px', color: '#6d28d9', fontWeight: 600 }}>
+            <span style={{ display: 'inline-flex', gap: '2px' }}>
+              {[0, 1, 2].map(i => <span key={i} style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#6d28d9', animation: `dotBounce 1.2s ${i * 0.15}s ease-in-out infinite` }} />)}
+            </span>
+            AI Vision이 다음 화면을 분석하고 있어요
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ④ Guide Me — 실제 페이지 위 오버레이
+function MockGuideMe() {
+  return (
+    <div style={{ height: '340px', background: 'white', display: 'flex', flexDirection: 'column' }}>
+      <MockTopBar url="erp.company.io/expense" />
+      <div style={{ flex: 1, position: 'relative', background: 'rgba(13,13,20,0.45)' }}>
+        {/* 뒷배경 페이지 (딤 처리) */}
+        <div style={{ position: 'absolute', inset: 0, padding: '16px 20px', filter: 'brightness(0.75)' }}>
+          <div style={{ height: '34px', background: '#1e3a5f', borderRadius: '8px', marginBottom: '14px', display: 'flex', alignItems: 'center', padding: '0 14px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: 'white' }}>Company ERP</span>
+          </div>
+          {[88, 70, 94].map((w, i) => (
+            <div key={i} style={{ height: '11px', width: `${w}%`, borderRadius: '5px', background: '#E2E8F0', marginBottom: '11px' }} />
+          ))}
+        </div>
+        {/* 스포트라이트된 버튼 */}
+        <div style={{ position: 'absolute', top: '128px', left: '24px' }}>
+          <div style={{ padding: '9px 20px', borderRadius: '8px', background: '#1e3a5f', color: 'white', fontSize: '11.5px', fontWeight: 600, boxShadow: '0 0 0 4px rgba(109,40,217,0.45), 0 0 0 9999px rgba(13,13,20,0.0)', position: 'relative', zIndex: 2 }}>
+            경비 청구
+          </div>
+          <span style={{ position: 'absolute', inset: '-7px', borderRadius: '12px', border: '2px solid rgba(167,139,250,0.9)', animation: 'rippleOut 1.6s ease-out infinite' }} />
+        </div>
+        {/* 가이드 툴팁 */}
+        <div style={{ position: 'absolute', top: '108px', left: '170px', width: '250px', background: 'white', borderRadius: '13px', boxShadow: '0 18px 48px rgba(0,0,0,0.3)', overflow: 'hidden', zIndex: 3 }}>
+          <div style={{ background: 'linear-gradient(135deg,#3730a3,#6d28d9)', padding: '9px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '9.5px', fontWeight: 700, color: 'rgba(255,255,255,0.85)', letterSpacing: '0.06em' }}>GUIDE ME</span>
+            <span style={{ fontSize: '9.5px', color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>2 / 5</span>
+          </div>
+          <div style={{ padding: '12px 14px' }}>
+            <div style={{ fontSize: '11.5px', fontWeight: 700, color: '#111827', marginBottom: '4px' }}>경비 청구 메뉴를 클릭하세요</div>
+            <div style={{ fontSize: '10px', color: '#6B7280', lineHeight: 1.55, marginBottom: '10px' }}>좌측 메뉴에서 하이라이트된 버튼을 누르면 청구서 작성 화면으로 이동합니다.</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '10px', color: '#9CA3AF' }}>← 이전</span>
+              <span style={{ padding: '5px 14px', borderRadius: '7px', background: 'linear-gradient(135deg,#3730a3,#6d28d9)', color: 'white', fontSize: '10px', fontWeight: 700 }}>다음 →</span>
+            </div>
+          </div>
+        </div>
+        {/* 진행 바 */}
+        <div style={{ position: 'absolute', bottom: '14px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '5px' }}>
+          {[0, 1, 2, 3, 4].map(i => (
+            <span key={i} style={{ width: i === 1 ? '20px' : '7px', height: '7px', borderRadius: '999px', background: i <= 1 ? '#a78bfa' : 'rgba(255,255,255,0.35)', transition: 'all 0.3s' }} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ⑤ 공유·내보내기·팀
+function MockShare() {
+  return (
+    <div style={{ height: '340px', background: '#F8F8FA', display: 'flex', flexDirection: 'column' }}>
+      <MockTopBar url="app.mimic.so/manual" />
+      <div style={{ flex: 1, padding: '16px 20px', position: 'relative' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+          <div>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>경비 청구서 제출하기</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+              {['#FDE68A', '#BFDBFE', '#C7D2FE'].map((c, i) => (
+                <span key={i} style={{ width: '18px', height: '18px', borderRadius: '50%', background: c, border: '2px solid white', marginLeft: i > 0 ? '-8px' : 0, display: 'grid', placeItems: 'center', fontSize: '8px', fontWeight: 700, color: '#374151' }}>{['김', '이', '박'][i]}</span>
+              ))}
+              <span style={{ fontSize: '9.5px', color: '#9CA3AF' }}>팀원 3명이 함께 편집 중</span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '6px' }}>
+            {['PDF', 'PPTX', 'MD'].map(f => (
+              <span key={f} style={{ padding: '5px 11px', borderRadius: '7px', border: '1px solid #E5E7EB', background: 'white', fontSize: '10px', color: '#374151', fontWeight: 600 }}>{f} ↓</span>
+            ))}
+          </div>
+        </div>
+        {/* 공유 카드 */}
+        <div style={{ background: 'white', borderRadius: '13px', border: '1px solid #EDEDED', padding: '14px 16px', marginBottom: '10px' }}>
+          <div style={{ fontSize: '10.5px', fontWeight: 700, color: '#374151', marginBottom: '7px' }}>공유 링크</div>
+          <div style={{ display: 'flex', borderRadius: '8px', overflow: 'hidden', border: '1.5px solid #E5E7EB' }}>
+            <div style={{ flex: 1, padding: '8px 11px', background: '#F9FAFB', fontSize: '10px', color: '#6B7280', fontFamily: 'monospace', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>mimic.so/play/expense-claim</div>
+            <span style={{ padding: '8px 13px', background: 'linear-gradient(135deg,#3730a3,#6d28d9)', color: 'white', fontSize: '10px', fontWeight: 700, display: 'flex', alignItems: 'center' }}>링크 복사</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6d28d9" strokeWidth="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+            <span style={{ fontSize: '9.5px', color: '#6B7280' }}>비밀번호 보호 사용 중</span>
+          </div>
+        </div>
+        {/* 브랜딩 카드 */}
+        <div style={{ background: 'white', borderRadius: '13px', border: '1px solid #EDEDED', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: 'linear-gradient(135deg,#0EA5E9,#2563EB)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+            <span style={{ fontSize: '11px', fontWeight: 800, color: 'white' }}>C</span>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: '10.5px', fontWeight: 700, color: '#111827' }}>회사 브랜딩 적용</div>
+            <div style={{ fontSize: '9.5px', color: '#9CA3AF' }}>로고·브랜드 색상이 내보내기 문서에 자동 반영</div>
+          </div>
+          <div style={{ display: 'flex', gap: '4px' }}>
+            {['#0EA5E9', '#2563EB', '#1e3a5f'].map(c => <span key={c} style={{ width: '14px', height: '14px', borderRadius: '4px', background: c }} />)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const SHOWCASES = [
+  {
+    id: 'record',
+    eyebrow: 'STEP 1 · 녹화',
+    title: '평소처럼 클릭하세요.\n캡처는 MIMIC이 합니다',
+    desc: '크롬 확장을 켜고 하던 일을 그대로 하면 끝입니다. 클릭하는 순간마다 화면이 캡처되고 스텝이 만들어집니다. 대본도, 스크린샷 정리도 필요 없어요.',
+    bullets: [
+      '클릭하는 순간 자동 캡처 — 별도 조작 없음',
+      'Google Docs·사내 시스템 등 어떤 웹사이트든 지원',
+      '긴 화면은 전체 페이지 캡처로 한 번에',
+      '비밀번호·민감 정보는 기기 안에서 처리 후 모자이크',
+    ],
+    video: '/landing/record.mp4',
+    mock: <MockRecord />,
+    badge: null as string | null,
+  },
+  {
+    id: 'edit',
+    eyebrow: 'STEP 2 · 편집',
+    title: '화살표부터 모자이크까지,\n클릭 몇 번이면 끝',
+    desc: '화살표·박스·마커·모자이크·스포트라이트 등 7가지 도구로 중요한 부분을 강조하세요. 강조하고 싶은 영역을 드래그하면 줌인 효과가 적용되고, 어색한 문장은 AI가 자연스럽게 다듬어 줍니다.',
+    bullets: [
+      '화살표 · 박스 · 마커 · 모자이크 · 스포트라이트 도구',
+      '드래그 한 번으로 영역 확대(줌인) 효과',
+      'AI 문장 다듬기로 설명을 자연스럽게',
+      '드래그로 스텝 순서 변경, Ctrl+Z 실행 취소',
+    ],
+    video: '/landing/edit.mp4',
+    mock: <MockEditor />,
+    badge: null,
+  },
+  {
+    id: 'edu',
+    eyebrow: 'AI · 교육 자료 모드',
+    title: '스크린샷만 보고도\nAI가 설명을 써 드립니다',
+    desc: '교육 자료 모드로 녹화하면 AI가 각 화면을 직접 분석해 단계별 제목과 상세 설명을 자동으로 작성합니다. 신입 교육 자료, 고객 안내 문서가 "검수만 하면 되는" 수준으로 완성됩니다.',
+    bullets: [
+      'AI Vision이 화면을 분석해 맥락을 이해',
+      '단계별 제목·상세 설명 자동 작성',
+      '녹화 시작할 때 일반 모드 / 교육 자료 모드 선택',
+    ],
+    video: '/landing/edu.mp4',
+    mock: <MockEduMode />,
+    badge: 'NEW',
+  },
+  {
+    id: 'guideme',
+    eyebrow: 'GUIDE ME',
+    title: '문서를 읽게 하지 말고,\n화면 위에서 직접 안내하세요',
+    desc: 'Guide Me는 실제 웹페이지 위에 오버레이를 띄워 단계별로 안내합니다. 클릭할 버튼이 하이라이트되고 설명 툴팁이 따라다니죠. 매뉴얼과 실제 화면을 번갈아 볼 필요가 없습니다.',
+    bullets: [
+      '실제 페이지 위에서 단계별 오버레이 안내',
+      '클릭할 요소 자동 하이라이트 + 툴팁',
+      '스크립트 한 줄로 자사 서비스에 삽입 (SDK)',
+    ],
+    video: '/landing/guideme.mp4',
+    mock: <MockGuideMe />,
+    badge: '차별점',
+  },
+  {
+    id: 'share',
+    eyebrow: 'STEP 3 · 공유',
+    title: '링크 하나로, 또는\nPDF·PPTX·Markdown으로',
+    desc: '완성된 매뉴얼은 링크 한 줄로 공유하세요 — 보는 사람은 설치도 로그인도 필요 없습니다. 회사 양식이 필요하면 로고와 브랜드 색상을 입혀 문서로 내보내고, 팀 워크스페이스에서는 팀원과 실시간으로 함께 편집할 수 있습니다.',
+    bullets: [
+      '링크 공유 + 비밀번호 보호',
+      'PDF · PPTX · Markdown 내보내기 + 로고·색상 브랜딩',
+      '팀 워크스페이스 — 공유 폴더와 실시간 공동 편집',
+    ],
+    video: '/landing/share.mp4',
+    mock: <MockShare />,
+    badge: null,
+  },
+];
+
+function ProductShowcase() {
+  return (
+    <section id="tour" style={{ padding: '96px 0 32px', background: 'white' }}>
+      <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
+        <RevealSection>
+          <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#3730a3', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>Product Tour</span>
+          <h2 style={{ textAlign: 'center', fontSize: '36px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 auto 14px', maxWidth: '720px', lineHeight: 1.2, color: '#0D0D14' }}>실제 화면으로 보는 MIMIC</h2>
+          <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '560px', margin: '0 auto 80px', lineHeight: 1.65 }}>녹화부터 편집, 안내, 공유까지 — 아래 화면 그대로 작동합니다.</p>
+        </RevealSection>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '110px' }}>
+          {SHOWCASES.map((sc, i) => (
+            <RevealSection key={sc.id}>
+              <div className={`showcase-row${i % 2 === 1 ? ' flip' : ''}`}>
+                <div className="showcase-text" style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#6d28d9', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{sc.eyebrow}</span>
+                    {sc.badge && (
+                      <span style={{ fontSize: '10px', fontWeight: 700, color: 'white', background: 'linear-gradient(135deg,#3730a3,#6d28d9)', padding: '3px 9px', borderRadius: '999px', letterSpacing: '0.04em' }}>{sc.badge}</span>
+                    )}
+                  </div>
+                  <h3 style={{ fontSize: '30px', fontWeight: 700, letterSpacing: '-0.025em', lineHeight: 1.3, color: '#0D0D14', margin: '0 0 16px', whiteSpace: 'pre-line' }}>{sc.title}</h3>
+                  <p style={{ fontSize: '15.5px', color: '#6B7280', lineHeight: 1.75, margin: '0 0 24px' }}>{sc.desc}</p>
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                    {sc.bullets.map(b => (
+                      <li key={b} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', fontSize: '14px', color: '#374151', padding: '6px 0' }}>
+                        <span style={{ flexShrink: 0, marginTop: '3px', width: '17px', height: '17px', borderRadius: '5px', background: '#F5F3FF', display: 'grid', placeItems: 'center' }}>
+                          <CheckIcon size={10} color="#6d28d9" />
+                        </span>
+                        {b}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="showcase-media" style={{ flex: 1.15, minWidth: 0 }}>
+                  <ShowcaseMedia videoSrc={sc.video} fallback={sc.mock} />
+                </div>
+              </div>
+            </RevealSection>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function HeroSection() {
   return (
     <section style={{ padding: '90px 0 0', background: 'linear-gradient(160deg, #EDE8FF 0%, #F8F0FF 50%, #FFF0F8 100%)', textAlign: 'center', position: 'relative' }}>
-      <div style={{ position: 'absolute', top: '-160px', left: '50%', transform: 'translateX(-50%)', width: '900px', height: '600px', background: 'radial-gradient(ellipse, rgba(109,40,217,0.10) 0%, transparent 65%)', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', top: '-160px', left: '50%', transform: 'translateX(-50%)', width: 'min(900px, 100vw)', height: '600px', background: 'radial-gradient(ellipse, rgba(109,40,217,0.10) 0%, transparent 65%)', pointerEvents: 'none' }} />
 
       <div style={{ maxWidth: '1080px', margin: '0 auto', padding: '0 32px', position: 'relative' }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '5px 14px', background: 'rgba(109,40,217,0.08)', border: '1px solid rgba(109,40,217,0.20)', borderRadius: '999px', fontSize: '12.5px', color: '#6d28d9', fontWeight: 500, marginBottom: '28px' }}>
@@ -708,12 +1081,6 @@ function HeroSection() {
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
             무료로 시작하기
           </Link>
-          <Link href="/play/d3febce4cfc9d978baa42b217363d2fd"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '14px 24px', borderRadius: '10px', fontSize: '15px', fontWeight: 500, color: '#4B5563', background: 'white', border: '1.5px solid #E5E7EB', textDecoration: 'none', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-            데모 보기
-          </Link>
         </div>
 
         <div className="hero-preview">
@@ -729,7 +1096,6 @@ export default function LandingPage() {
   const [faqOpen, setFaqOpen] = useState<number | null>(0);
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
-  const [demoOpen, setDemoOpen] = useState(false);
   const [proModal, setProModal] = useState<'pro' | 'team' | null>(null);
   const [proEmail, setProEmail] = useState('');
   const [proSubmitted, setProSubmitted] = useState(false);
@@ -769,33 +1135,11 @@ export default function LandingPage() {
     { q: '어떤 결제 방법을 지원하나요?', a: '국내·해외 주요 신용카드와 카카오페이, 토스페이를 지원합니다. 기업 결제는 세금계산서 발행이 가능합니다.' },
     { q: '플랜은 자유롭게 변경할 수 있나요?', a: '언제든 업그레이드·다운그레이드할 수 있어요. 업그레이드는 즉시 반영되고, 다운그레이드는 다음 결제 주기부터 적용됩니다.' },
     { q: '환불 정책은 어떻게 되나요?', a: '결제 후 7일 이내, 유료 기능을 한 번도 사용하지 않은 경우 전액 환불이 가능합니다. 자세한 내용은 환불 정책 페이지를 참고해주세요.' },
-    { q: '팀이나 회사 단위로 사용하려면 어떻게 하나요?', a: '팀 워크스페이스 기능이 곧 출시됩니다. 우선 사용을 원하시면 기업 데모 신청을 통해 베타 액세스를 받으실 수 있습니다.' },
+    { q: '팀이나 회사 단위로 사용하려면 어떻게 하나요?', a: '팀 워크스페이스를 만들고 팀원을 초대하면 매뉴얼을 공유 폴더로 함께 관리하고, 같은 매뉴얼을 실시간으로 공동 편집할 수 있습니다. 기업 맞춤 도입(보안 검토, 세금계산서 등)은 기업 데모 신청을 통해 상담해 드립니다.' },
   ];
 
   return (
     <div style={{ fontFamily: "'Pretendard', 'Pretendard Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif", color: '#111827', background: '#fff', WebkitFontSmoothing: 'antialiased' }}>
-
-      {/* 데모 모달 */}
-      {demoOpen && (
-        <div onClick={() => setDemoOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#0E0E14', borderRadius: '20px', overflow: 'hidden', width: '100%', maxWidth: '880px', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 40px 80px rgba(0,0,0,0.6)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-              <span style={{ fontSize: '14px', fontWeight: 500, color: 'white' }}>MIMIC 데모 — Supabase Google OAuth 설정하기</span>
-              <button onClick={() => setDemoOpen(false)} style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', border: 'none', color: '#9CA3AF', cursor: 'pointer', display: 'grid', placeItems: 'center', fontSize: '16px' }}>×</button>
-            </div>
-            <div style={{ padding: '32px', textAlign: 'center' }}>
-              <div style={{ width: '64px', height: '64px', borderRadius: '16px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', margin: '0 auto 20px', display: 'grid', placeItems: 'center' }}>
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-              </div>
-              <div style={{ fontSize: '18px', fontWeight: 600, color: 'white', marginBottom: '8px' }}>준비 중입니다</div>
-              <p style={{ fontSize: '14px', color: '#6B7280', lineHeight: 1.65, maxWidth: '360px', margin: '0 auto 24px' }}>실제 서비스 데모 영상을 제작 중입니다. 사전예약하시면 출시 즉시 알려드립니다.</p>
-              <Link href="/auth/login" onClick={() => setDemoOpen(false)} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '12px 24px', borderRadius: '10px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', fontWeight: 600, fontSize: '14px', textDecoration: 'none' }}>
-                직접 무료로 써보기 →
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Pro 플랜 사전예약 모달 */}
       {proModal && (
@@ -831,8 +1175,8 @@ export default function LandingPage() {
             MIMIC
           </Link>
           <nav style={{ display: 'flex', gap: '28px', marginLeft: '8px' }}>
-            {['기능', '사용 방법', '요금제', '기업 문의', 'FAQ'].map((item, i) => (
-              <a key={item} href={['#features', '#how', '#pricing', '#b2b', '#faq'][i]}
+            {['제품 투어', '기능', '사용 방법', '요금제', '기업 문의', 'FAQ'].map((item, i) => (
+              <a key={item} href={['#tour', '#features', '#how', '#pricing', '#b2b', '#faq'][i]}
                 style={{ fontSize: '14px', color: '#4B5563', textDecoration: 'none', whiteSpace: 'nowrap', transition: 'color 0.15s' }}
                 onMouseEnter={e => e.currentTarget.style.color = '#111827'}
                 onMouseLeave={e => e.currentTarget.style.color = '#4B5563'}
@@ -941,6 +1285,9 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Product Showcase */}
+      <ProductShowcase />
+
       {/* Use Cases */}
       <section style={{ padding: '96px 0', background: '#FAFAFA' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
@@ -971,8 +1318,8 @@ export default function LandingPage() {
       <section id="features" style={{ padding: '96px 0', background: 'white' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
           <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#3730a3', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>Features</span>
-          <h2 style={{ textAlign: 'center', fontSize: '36px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 auto 14px', maxWidth: '720px', lineHeight: 1.2, color: '#0D0D14' }}>한 번 만들면, 세 가지 형태로 살아납니다</h2>
-          <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '560px', margin: '0 auto 64px', lineHeight: 1.65 }}>스크린샷 한 번에 가이드 문서 · 인터랙티브 튜토리얼 · 영상까지.</p>
+          <h2 style={{ textAlign: 'center', fontSize: '36px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 auto 14px', maxWidth: '720px', lineHeight: 1.2, color: '#0D0D14' }}>매뉴얼에 필요한 건 전부 들어 있습니다</h2>
+          <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '560px', margin: '0 auto 64px', lineHeight: 1.65 }}>가이드 문서 · 화면 위 안내 · 교육 자료까지, 녹화 한 번으로.</p>
 
           <div className="grid-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
             {features.map(f => (
@@ -1013,6 +1360,7 @@ export default function LandingPage() {
               { label: '제작 시간', vals: ['1~3시간', '2~6시간', '30초~5분'] },
               { label: '클릭으로 따라하기', vals: [false, false, true] },
               { label: 'AI 자동 설명 생성', vals: [false, false, true] },
+              { label: '실제 화면 위 안내 (Guide Me)', vals: [false, false, true] },
               { label: '수정 용이성', vals: ['낮음', '낮음', '높음'] },
               { label: 'AI 음성 · 자막', vals: [false, false, '출시 예정'] },
             ].map((row, ri) => (
@@ -1063,7 +1411,7 @@ export default function LandingPage() {
               {
                 name: 'Pro', sub: '개인 크리에이터와 파워 유저', amount: prices.pro, per: '/ 월', featured: true,
                 planKey: 'pro' as const,
-                features: ['매뉴얼 무제한 생성', 'AI 다듬기 무제한', '줌인 + 자막 효과 (출시 예정)', 'AI 음성 (출시 예정)', 'HTML·MD 내보내기', '비공개 + 비밀번호 보호', '5GB 저장 공간'],
+                features: ['매뉴얼 무제한 생성', 'AI 다듬기 무제한', '교육 자료 모드 (AI Vision)', 'PPTX·Markdown 내보내기 + 브랜딩', 'AI 음성 · 자막 (출시 예정)', '비공개 + 비밀번호 보호', '5GB 저장 공간'],
                 cta: '출시 알림 받기',
               },
               {
@@ -1287,8 +1635,15 @@ export default function LandingPage() {
           * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
         }
 
+        /* 제품 쇼케이스 */
+        .showcase-row { display: flex; gap: 64px; align-items: center; }
+        .showcase-row.flip { flex-direction: row-reverse; }
+
         /* 모바일 반응형 */
         @media (max-width: 768px) {
+          .showcase-row, .showcase-row.flip { flex-direction: column !important; gap: 28px !important; }
+          .showcase-row .showcase-text h3 { font-size: 24px !important; }
+          .showcase-row .showcase-media { width: 100% !important; }
           header nav { display: none !important; }
           header > div { padding: 0 16px !important; }
 
