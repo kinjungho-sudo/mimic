@@ -869,6 +869,19 @@ btnRestoreClose.addEventListener('click', () => {
   restoreToast.classList.remove('show');
 });
 
+// ── 전체 페이지 캡처 (녹화와 별개 단독 기능) ─────────────────────
+const btnFullPage = document.getElementById('btnFullPage');
+btnFullPage?.addEventListener('click', () => {
+  btnFullPage.disabled = true;
+  showToast('전체 페이지 캡처 중... 탭을 조작하지 마세요', 60000);
+  chrome.runtime.sendMessage({ type: 'FULL_PAGE_CAPTURE' }, (res) => {
+    void chrome.runtime.lastError;
+    btnFullPage.disabled = false;
+    if (res?.ok) showToast('전체 페이지 캡처 완료 — 다운로드됨 ✓', 3000);
+    else showToast(res?.error || '캡처 실패', 3000);
+  });
+});
+
 // ── 일시정지 / 재개 ───────────────────────────────────────────────
 btnPause.addEventListener('click', () => {
   isPaused = !isPaused;

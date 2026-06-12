@@ -20,6 +20,13 @@ export const captureFinalizeSchema = z.object({
   step_numbers: z.array(z.number().int().positive()).max(500).optional(),
   // 'education' = 교육 자료 모드 (Pro 전용). 기본값 'action'(업무 매뉴얼)
   content_mode: z.enum(['action', 'education']).default('action').optional(),
+  // '선택영역 확대' 설정 — 스텝 이미지에 클릭 영역 확대(image_zoom/offset)를 선적용
+  auto_zoom: z.boolean().optional(),
+});
+
+// 중지(저장 없이) 시 staging 정리 — events 행 + Storage 이미지 삭제
+export const captureDiscardSchema = z.object({
+  session_id: z.string().uuid(),
 });
 
 // input[type=password/tel 등] 또는 민감 aria-label이면 label도 제거하는 변환

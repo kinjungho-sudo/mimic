@@ -698,6 +698,28 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === 'DISCARD_SESSION') {
+    // 중지(저장 없이) 시 서버 staging 정리 — events 행 + Storage 이미지 삭제.
+    // 실패해도 무시한다 (주기 cron 청소가 보완).
+    const discardId = message.sessionId;
+    if (discardId) {
+      (async () => {
+        try {
+          const origin = await getWebappOrigin();
+          await authedFetch(`${origin}/api/capture/discard`, {
+            method: 'POST',
+            body: JSON.stringify({ session_id: discardId }),
+          });
+          log('info', 'bg', `session discarded: ${discardId}`);
+        } catch (err) {
+          log('warn', 'bg', 'discard cleanup failed (cron이 보완):', err.message);
+        }
+      })();
+    }
+    sendResponse({ ok: true });
+    return false;
+  }
+
   if (message.type === 'FULL_PAGE_CAPTURE') {
     (async () => {
       const { isRecording } = await storageGet('isRecording');
@@ -1584,7 +1606,7 @@ async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, 
 
 // ── 세션 완료 — 웹앱 API 경유 ───────────────────────────────────
 async function finalizeSession(sessionId, stepNumbers) {
-  const { extensionToken, contentMode } = await storageGet(['extensionToken', 'contentMode']);
+  const { extensionToken, contentMode, settings } = await storageGet(['extensionToken', 'contentMode', 'settings']);
   if (!extensionToken) {
     log('warn', 'bg', 'extensionToken 없음 — /extension-link 에서 연동 필요');
     return { tutorial_id: null, step_count: 0 };
@@ -1598,6 +1620,8 @@ async function finalizeSession(sessionId, stepNumbers) {
       ...(stepNumbers?.length ? { step_numbers: stepNumbers } : {}),
       // 웹앱에서 선택한 매뉴얼 유형 ('action' | 'education')
       ...(contentMode && contentMode !== 'action' ? { content_mode: contentMode } : {}),
+      // 선택영역 확대 설정 — 스텝 이미지에 클릭 영역 확대(image_zoom) 선적용
+      ...(settings?.autoZoom ? { auto_zoom: true } : {}),
     }),
   });
   if (!res.ok) throw new Error(`finalize failed: ${res.status}: ${await res.text()}`);
