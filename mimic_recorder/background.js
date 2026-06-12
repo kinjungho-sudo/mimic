@@ -352,13 +352,9 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
       });
       if (!sent) { sendResponse({ ok: false }); return; }
 
-      // 6) getDisplayMedia 스트림 획득 — picker가 한 번 뜬다
-      //    실패해도 captureVisibleTab 폴백이 있으므로 녹화는 계속 진행
-      await startDisplayStream(tabId).catch((err) => {
-        log('warn', 'bg', 'display stream init failed (will use captureVisibleTab):', err.message);
-      });
-
-      // 7) isRecording 세팅 — _directStartTabId로 onChanged 중복 차단
+      // 6) isRecording 세팅 — _directStartTabId로 onChanged 중복 차단
+      //    (캡처는 captureVisibleTab 사용 — Gemini/Docs 포함 일반 https 페이지 모두 동작 확인됨.
+      //     desktopCapture 스트림은 DRM 등 진짜 차단 페이지 대비용으로 코드만 유지)
       _directStartTabId = tabId;
       await storageSet({ isRecording: true });
       _directStartTabId = null;

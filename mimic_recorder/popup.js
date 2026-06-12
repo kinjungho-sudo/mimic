@@ -1056,8 +1056,8 @@ chrome.storage.onChanged.addListener((changes, area) => {
     isPaused = !!changes.isPaused.newValue;
     updateView();
   }
-  if (changes.isRecording && !changes.isRecording.newValue && isRecording) {
-    isRecording = false;
+  if (changes.isRecording && !!changes.isRecording.newValue !== isRecording) {
+    isRecording = !!changes.isRecording.newValue;
     updateView();
   }
   if (changes.extensionToken) {

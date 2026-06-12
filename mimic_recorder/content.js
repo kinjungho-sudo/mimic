@@ -1,11 +1,12 @@
-// 중복 주입 방지 — all_frames:true 환경에서 같은 프레임에 두 번 실행되면 즉시 종료
-if (window.__mimicContentLoaded) return;
-window.__mimicContentLoaded = true;
-
-// iframe에서는 실행하지 않음 — 캡처는 top frame에서만
-if (window !== window.top) return;
-
 (() => {
+  // 중복 주입 방지 — 같은 프레임에 두 번 실행되면 즉시 종료
+  // (최상위 return은 classic script에서 SyntaxError — 반드시 IIFE 안에서)
+  if (window.__mimicContentLoaded) return;
+  window.__mimicContentLoaded = true;
+
+  // iframe에서는 실행하지 않음 — 캡처는 top frame에서만
+  if (window !== window.top) return;
+
   // ── 로그 헬퍼 (background 링버퍼로 릴레이) ──────────────────────
   function log(level, ...args) {
     const msg = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
