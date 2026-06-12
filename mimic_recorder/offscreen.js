@@ -1,7 +1,7 @@
-// ── Offscreen Document — 탭 스트림 캡처 ────────────────────────────
-// background.js가 chrome.tabCapture.getMediaStreamId()로 streamId를 먼저 획득한 뒤
-// 이 문서로 전달한다. 여기서는 getUserMedia()로 스트림을 열고 프레임을 추출한다.
-// (offscreen document는 chrome.tabCapture API에 접근 불가)
+// ── Offscreen Document — 화면 스트림 캡처 ──────────────────────────
+// background.js가 chrome.desktopCapture.chooseDesktopMedia()로 picker를 띄워
+// streamId를 획득한 뒤 이 문서로 전달한다. 여기서는 getUserMedia()로 스트림을
+// 열고 캡처 요청마다 프레임을 추출한다. (offscreen은 chrome.* capture API 접근 불가)
 
 let stream  = null;
 let videoEl = null;
@@ -36,7 +36,7 @@ async function startStream(streamId) {
   stream = await navigator.mediaDevices.getUserMedia({
     video: {
       mandatory: {
-        chromeMediaSource:   'tab',
+        chromeMediaSource:   'desktop',
         chromeMediaSourceId: streamId,
       },
     },

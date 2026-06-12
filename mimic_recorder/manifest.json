@@ -32,7 +32,7 @@
   "permissions": [
     "activeTab",
     "tabs",
-    "tabCapture",
+    "desktopCapture",
     "windows",
     "storage",
     "downloads",

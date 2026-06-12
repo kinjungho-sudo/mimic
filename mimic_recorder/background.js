@@ -147,10 +147,11 @@ async function ensureOffscreen() {
 async function startDisplayStream(tabId) {
   await ensureOffscreen();
 
-  // chrome.tabCapture은 service worker에서만 호출 가능 — streamId를 먼저 받아 offscreen으로 전달
+  // tabCapture.getMediaStreamId는 extension이 해당 탭에서 invoke된 적이 있어야 동작
+  // → 웹앱 원격 시작 구조에선 불가. desktopCapture로 picker를 띄워 사용자가 직접 선택.
   const streamId = await new Promise((resolve, reject) => {
-    chrome.tabCapture.getMediaStreamId({ targetTabId: tabId }, (id) => {
-      if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+    chrome.desktopCapture.chooseDesktopMedia(['tab', 'window', 'screen'], (id) => {
+      if (!id) reject(new Error('사용자가 화면 공유를 취소했습니다'));
       else resolve(id);
     });
   });
@@ -1366,17 +1367,16 @@ async function finalizeSession(sessionId) {
 }
 
 // ── Supabase Storage 업로드 (실패 시 1회 재시도) ─────────────────
+// extensionToken은 웹앱 자체 토큰(Supabase JWT 아님)이라 쓸 수 없다 — anon key 고정.
+// x-upsert:true는 INSERT + UPDATE 정책 둘 다 필요 (naviaction에 anon 정책 적용됨)
 async function uploadImage(path, blob) {
-  const { extensionToken } = await storageGet('extensionToken');
-  const authToken = extensionToken || SUPABASE_ANON_KEY;
-
   const doUpload = () => fetch(
     `${SUPABASE_URL}/storage/v1/object/${SUPABASE_BUCKET}/${path}`,
     {
       method: 'POST',
       headers: {
         'apikey':        SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${authToken}`,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
         'Content-Type':  'image/jpeg',
         'x-upsert':      'true',
       },
