@@ -7,7 +7,8 @@ export default function HelpButton() {
   if (
     pathname === '/' ||
     pathname === '/help' ||
-    pathname.startsWith('/play/')
+    pathname.startsWith('/play/') ||
+    pathname.startsWith('/embed/')
   ) return null;
 
   return (

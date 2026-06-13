@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { X, Link2, Check, Send, Lock, Eye, EyeOff } from 'lucide-react';
+import { X, Link2, Check, Send, Lock, Eye, EyeOff, Code2 } from 'lucide-react';
 
 interface ShareModalProps {
   title: string;
@@ -17,6 +17,7 @@ interface ShareModalProps {
 export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPassword, onPublishAndShare, onUnpublish, onClose }: ShareModalProps) {
   const [url, setUrl] = useState(shareUrl ?? '');
   const [copied, setCopied] = useState(false);
+  const [embedCopied, setEmbedCopied] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [unpublishing, setUnpublishing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -85,6 +86,18 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
     setCopied(true);
     inputRef.current?.select();
     setTimeout(() => setCopied(false), 2200);
+  };
+
+  const embedUrl = url ? url.replace('/play/', '/embed/') : '';
+  const embedCode = embedUrl
+    ? `<iframe src="${embedUrl}" width="100%" height="640" style="border:1px solid #e5e7eb;border-radius:12px" loading="lazy" allowfullscreen></iframe>`
+    : '';
+
+  const handleCopyEmbed = async () => {
+    if (!embedCode) return;
+    await navigator.clipboard.writeText(embedCode).catch(() => {});
+    setEmbedCopied(true);
+    setTimeout(() => setEmbedCopied(false), 2200);
   };
 
   const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(`${title} - MIMIC 매뉴얼`)}&url=${encodeURIComponent(url)}`;
@@ -293,6 +306,37 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
             >
               {unpublishing ? '취소 중...' : '게시 취소'}
             </button>
+          </div>
+
+          {/* 임베드 — Notion/SharePoint 등에 삽입 */}
+          <div style={{ marginTop: '16px', padding: '14px 16px', background: '#F9FAFB', borderRadius: '10px', border: '1px solid #E5E7EB' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Code2 size={13} style={{ color: '#3730a3' }} />
+                <span style={{ fontSize: '12.5px', fontWeight: 600, color: '#374151' }}>임베드</span>
+              </div>
+              <button
+                onClick={handleCopyEmbed}
+                disabled={publishing || !embedCode}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '5px',
+                  padding: '4px 11px', borderRadius: '6px', fontSize: '11.5px', fontWeight: 500,
+                  background: embedCopied ? '#10B981' : 'white', color: embedCopied ? 'white' : '#3730a3',
+                  border: `1px solid ${embedCopied ? '#10B981' : '#C7D2FE'}`,
+                  cursor: publishing || !embedCode ? 'not-allowed' : 'pointer', opacity: publishing || !embedCode ? 0.6 : 1,
+                }}
+              >
+                {embedCopied ? <Check size={12} /> : <Code2 size={12} />}
+                {embedCopied ? '복사됨!' : '코드 복사'}
+              </button>
+            </div>
+            <code style={{ display: 'block', fontSize: '11px', color: '#4B5563', background: 'white', border: '1px solid #E5E7EB', borderRadius: '7px', padding: '9px 11px', fontFamily: 'ui-monospace, monospace', wordBreak: 'break-all', lineHeight: 1.5, maxHeight: '64px', overflow: 'auto' }}>
+              {publishing ? '링크 생성 중...' : embedCode}
+            </code>
+            <p style={{ margin: '7px 0 0', fontSize: '11px', color: '#9CA3AF', lineHeight: 1.5 }}>
+              Notion, SharePoint 등에 붙여넣으면 매뉴얼이 그대로 표시됩니다.
+              {pwEnabled && ' 비밀번호가 설정된 매뉴얼은 임베드로 표시되지 않습니다.'}
+            </p>
           </div>
 
           {/* 비밀번호 보호 */}
