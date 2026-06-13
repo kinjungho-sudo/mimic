@@ -132,6 +132,8 @@ let _lastNavKey        = null;  // 직전 '이동' 캡처 페이지 키 (origin+
 let _lastNavKeyTime    = 0;
 const _navBusyTabs     = new Set();          // onUpdated complete 동시(중복) 이벤트 차단
 let _captureChain      = Promise.resolve();  // 캡처 디덥~로컬 저장 직렬화 큐
+let _preCaptureFrame   = null;               // { dataUrl, time, tabId } — pointerdown 선캡처 프레임
+const PRECAPTURE_MAX_AGE_MS = 1500;          // 이보다 오래된 선캡처는 폐기 (클릭과 무관)
 
 // SW 시작 시 캐시 초기화
 storageGet(['targetTabId', 'lastCaptureTime', 'lastStepHash', 'lastNavKey', 'lastNavKeyTime']).then((r) => {
@@ -562,6 +564,20 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 
 // ── 내부 메시지 라우터 ────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // pointerdown 선캡처 — 클릭으로 화면이 바뀌기 전 프레임을 미리 잡아 버퍼에 보관
+  if (message.type === 'PRECAPTURE_FRAME') {
+    const tabId = sender.tab?.id;
+    if (tabId) {
+      (async () => {
+        const tab = await new Promise((res) => chrome.tabs.get(tabId, (t) => res(chrome.runtime.lastError ? null : t)));
+        if (!tab) return;
+        const url = await captureTab(tab.windowId).catch(() => null);
+        if (url) _preCaptureFrame = { dataUrl: url, time: Date.now(), tabId };
+      })();
+    }
+    return false;  // 응답 불필요
+  }
+
   if (message.type === 'CAPTURE_SCREENSHOT') {
     const { stepData } = message;
     const tabId = sender.tab?.id;
@@ -597,7 +613,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       await new Promise((r) => setTimeout(r, CAPTURE_RAF_DELAY_MS));
 
-      const capturedRaw = await captureTab(tab.windowId);
+      // 선캡처(pointerdown) 프레임이 있으면 그걸 사용 — 클릭 전 화면이라 좌표/하이라이트가 일치한다.
+      // 없거나 오래됐으면 지금 캡처 (기존 동작 폴백).
+      let capturedRaw = null;
+      if (stepData.usePrecapture && _preCaptureFrame
+          && _preCaptureFrame.tabId === tabId
+          && (Date.now() - _preCaptureFrame.time) < PRECAPTURE_MAX_AGE_MS) {
+        capturedRaw = _preCaptureFrame.dataUrl;
+      }
+      _preCaptureFrame = null;  // 1회용 — 소비 후 폐기
+      if (!capturedRaw) capturedRaw = await captureTab(tab.windowId);
       if (!capturedRaw) { restore(); sendResponse({ ok: false }); return; }
 
       const black = await isBlackScreen(capturedRaw).catch(() => false);

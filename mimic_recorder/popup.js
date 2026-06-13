@@ -89,19 +89,37 @@ settingHighlight.addEventListener('change',   saveSettings);
 settingAutoZoom.addEventListener('change',    saveSettings);
 settingAutoNav.addEventListener('change',     saveSettings);
 
-// 음성 녹음 토글 — 켤 때 마이크 권한을 사이드패널(가시 컨텍스트)에서 미리 받아둔다.
-// offscreen 문서는 권한 프롬프트를 띄울 수 없어, 여기서 확장 오리진에 권한을 부여해야
-// 녹화 중 offscreen이 getUserMedia(audio)로 녹음할 수 있다.
+// 음성 녹음 토글 — 켤 때 마이크 권한을 먼저 확보한다.
+// 사이드패널·offscreen은 마이크 프롬프트를 띄우지 못하고 즉시 거부되므로,
+// 전용 페이지(request-mic.html)를 작은 창으로 띄워 거기서 권한을 받는다.
+// 한 번 허용하면 확장 오리진 전체에 저장되어 이후 offscreen 녹음이 동작한다.
+function openMicPermissionWindow() {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (ok) => { if (settled) return; settled = true; chrome.storage.onChanged.removeListener(onChanged); resolve(ok); };
+    const onChanged = (changes, area) => {
+      if (area === 'local' && 'micPermissionGranted' in changes) finish(!!changes.micPermissionGranted.newValue);
+    };
+    chrome.storage.onChanged.addListener(onChanged);
+    chrome.windows.create({ url: chrome.runtime.getURL('request-mic.html'), type: 'popup', width: 460, height: 340 });
+    setTimeout(() => finish(false), 120000);  // 사용자가 방치하면 60초 후 실패 처리
+  });
+}
+
 settingVoiceRecord?.addEventListener('change', async () => {
   if (settingVoiceRecord.checked) {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach(t => t.stop());  // 권한만 획득, 즉시 해제
-    } catch {
-      settingVoiceRecord.checked = false;
-      showToast('마이크 권한이 필요합니다 — 브라우저 권한을 허용해주세요', 3500);
-      saveSettings();
-      return;
+    // 이미 허용돼 있으면 창을 띄우지 않고 통과
+    let state = 'prompt';
+    try { state = (await navigator.permissions.query({ name: 'microphone' })).state; } catch { /* 일부 버전은 query 미지원 */ }
+    if (state !== 'granted') {
+      await chrome.storage.local.remove('micPermissionGranted');
+      const ok = await openMicPermissionWindow();
+      if (!ok) {
+        settingVoiceRecord.checked = false;
+        showToast('마이크 권한이 필요합니다 — 열린 창에서 허용해주세요', 3500);
+        saveSettings();
+        return;
+      }
     }
   }
   saveSettings();

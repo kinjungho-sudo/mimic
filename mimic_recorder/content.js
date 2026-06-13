@@ -619,6 +619,19 @@
     if (e.relatedTarget === null) hideHoverPointer();
   });
 
+  // ── 클릭 직전 프레임 선캡처 ──────────────────────────────────────
+  // pointerdown은 click보다 먼저, 페이지가 클릭에 반응(리플로우/전환)하기 전에 발생한다.
+  // 이 시점에 미리 한 장 찍어두면, 클릭으로 레이아웃이 바뀌기 전 화면을 스텝
+  // 스크린샷으로 쓸 수 있어 클릭 좌표·하이라이트가 실제 화면과 어긋나지 않는다.
+  document.addEventListener('pointerdown', (e) => {
+    if (!isRecording || isPaused || isCapturing) return;
+    if (e.button !== undefined && e.button !== 0) return;  // 좌클릭만
+    const target = findInteractiveTarget(e.target);
+    if (!target) return;
+    hideHoverPointer();  // 호버 테두리가 선캡처에 굽히지 않게 즉시 제거
+    chrome.runtime.sendMessage({ type: 'PRECAPTURE_FRAME' }, () => { void chrome.runtime.lastError; });
+  }, true);
+
   // ── 클릭 캡처 ────────────────────────────────────────────────────
   document.addEventListener('click', handleClick, true);
 
@@ -705,7 +718,7 @@
         clickX: e.clientX, clickY: e.clientY,
         windowWidth: vw, windowHeight: vh,
         viewportW: vw, viewportH: vh,
-        stepNumber,
+        stepNumber, usePrecapture: true,
         elementRect:     normalizeRect(rect, vw, vh),
         elementSelector: getElementSelector(target),
         actionInfo:      { type: 'click', label, tag: target.tagName.toLowerCase(), href: href.slice(0, 200) },
@@ -739,7 +752,7 @@
       clickX: e.clientX, clickY: e.clientY,
       windowWidth: vw, windowHeight: vh,
       viewportW: vw, viewportH: vh,
-      stepNumber,
+      stepNumber, usePrecapture: true,
       elementRect:     normalizeRect(rect, vw, vh),
       elementSelector: getElementSelector(target),
       actionInfo:      { type: actionType, label, tag: target.tagName.toLowerCase(), href: href.slice(0, 200) },
