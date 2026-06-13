@@ -22,6 +22,8 @@ export const captureFinalizeSchema = z.object({
   content_mode: z.enum(['action', 'education']).default('action').optional(),
   // '선택영역 확대' 설정 — 스텝 이미지에 클릭 영역 확대(image_zoom/offset)를 선적용
   auto_zoom: z.boolean().optional(),
+  // 음성 녹음 파일 URL — 서버에서 Whisper 전사 후 스텝별 설명으로 배분
+  audio_url: z.string().url().optional().nullable(),
 });
 
 // 중지(저장 없이) 시 staging 정리 — events 행 + Storage 이미지 삭제
@@ -94,6 +96,8 @@ export const captureSaveStepSchema = z.object({
   viewport_h: z.number().int().positive().optional().nullable(),
   element_selector: z.string().max(500).optional().nullable(),
   element_xpath:    z.string().max(500).optional().nullable(),
+  // 음성 녹음 시작 기준 이 캡처의 상대 시각(ms) — Whisper 전사 구간 배분용
+  audio_offset_ms: z.number().int().min(0).optional().nullable(),
 });
 
 export const tutorialPatchSchema = z.object({

@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Plus, Trash2, ZoomIn, X,
   Bold, Italic, Underline, ExternalLink, Sparkles, Loader2,
-  Check,
+  Check, Mic, Play, Pause,
 } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { ImageAnnotationEditor, type Annotation } from './ImageAnnotationEditor';
@@ -36,6 +36,11 @@ export interface ManualStep {
   // 팬 오프셋 — 이미지 크기 대비 translate 비율 (0 = 중앙)
   imageOffsetX?: number;
   imageOffsetY?: number;
+  // 음성 전사 — 원본(다듬기 전) 토글 + 구간 재생
+  voiceTranscriptRaw?: string | null;
+  voiceAudioUrl?: string | null;
+  voiceAudioStartMs?: number | null;
+  voiceAudioEndMs?: number | null;
 }
 
 interface ManualEditorProps {
@@ -584,6 +589,46 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
     }
   };
 
+  // 음성 원본 전사 삽입 — 다듬은 본문 대신 Whisper 원문을 설명에 넣는다 (사용자가 이후 편집 가능)
+  const handleInsertRawTranscript = () => {
+    const raw = step.voiceTranscriptRaw;
+    if (!raw) return;
+    const html = DOMPurify.sanitize(raw.replace(/\n/g, '<br>'), { USE_PROFILES: { html: true } });
+    onUpdate({ description: html });
+    onSave({ description: html });
+    if (editorRef.current && document.activeElement !== editorRef.current) {
+      editorRef.current.innerHTML = html;
+    }
+  };
+
+  // 음성 구간 재생 — 세션 음성에서 이 스텝 구간([start,end])만 재생
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [audioPlaying, setAudioPlaying] = useState(false);
+  const handlePlayVoice = () => {
+    const url = step.voiceAudioUrl;
+    if (!url) return;
+    if (audioPlaying && audioRef.current) {
+      audioRef.current.pause();
+      setAudioPlaying(false);
+      return;
+    }
+    const audio = audioRef.current ?? new Audio(url);
+    audioRef.current = audio;
+    const startS = (step.voiceAudioStartMs ?? 0) / 1000;
+    const endS = step.voiceAudioEndMs != null ? step.voiceAudioEndMs / 1000 : null;
+    audio.currentTime = startS;
+    const onTime = () => {
+      if (endS != null && audio.currentTime >= endS) {
+        audio.pause();
+        audio.removeEventListener('timeupdate', onTime);
+        setAudioPlaying(false);
+      }
+    };
+    audio.addEventListener('timeupdate', onTime);
+    audio.onended = () => setAudioPlaying(false);
+    audio.play().then(() => setAudioPlaying(true)).catch(() => setAudioPlaying(false));
+  };
+
   const showControls = hovering || isActive;
 
   const handleImageUpload = useCallback((file: File) => {
@@ -785,6 +830,44 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
                 : <Sparkles size={10} />}
               {descGenerating ? '생성 중…' : 'AI 완성'}
             </button>
+          )}
+
+          {/* 🎙 음성 전사 컨트롤 — 원본 토글 + 구간 재생 (전사가 있을 때만) */}
+          {(step.voiceTranscriptRaw || step.voiceAudioUrl) && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '10px', color: '#6d28d9', fontWeight: 600 }}>
+                <Mic size={10} /> 음성 설명
+              </span>
+              {step.voiceAudioUrl && (
+                <button
+                  onClick={handlePlayVoice}
+                  title="이 단계 음성 듣기"
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '3px',
+                    height: '20px', padding: '0 7px', borderRadius: '5px',
+                    border: '1px solid #E5E7EB', background: 'white',
+                    color: '#374151', fontSize: '10px', fontWeight: 500, cursor: 'pointer',
+                  }}
+                >
+                  {audioPlaying ? <Pause size={9} /> : <Play size={9} />}
+                  {audioPlaying ? '정지' : '원본 듣기'}
+                </button>
+              )}
+              {step.voiceTranscriptRaw && (
+                <button
+                  onClick={handleInsertRawTranscript}
+                  title="다듬기 전 원본 전사를 설명에 넣기"
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '3px',
+                    height: '20px', padding: '0 7px', borderRadius: '5px',
+                    border: '1px solid #E5E7EB', background: 'white',
+                    color: '#374151', fontSize: '10px', fontWeight: 500, cursor: 'pointer',
+                  }}
+                >
+                  원본 전사 넣기
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>

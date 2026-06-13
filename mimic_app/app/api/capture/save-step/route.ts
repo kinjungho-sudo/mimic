@@ -68,6 +68,7 @@ export async function POST(request: NextRequest) {
     element_rect:      elementRectNormalized,
     element_selector:  d.element_selector  ?? null,
     element_xpath:     d.element_xpath     ?? null,
+    audio_offset_ms:   d.audio_offset_ms   ?? null,
   };
 
   // 같은 (session, step_number) 행이 있으면 갱신 — 타이핑 디바운스 overwrite 캡처가

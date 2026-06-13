@@ -159,7 +159,7 @@ async function ensureOffscreen() {
     await chrome.offscreen.createDocument({
       url:    OFFSCREEN_URL,
       reasons: ['USER_MEDIA'],
-      justification: 'Tab screen capture via getDisplayMedia',
+      justification: 'Screen capture via getDisplayMedia and voice narration via microphone',
     });
   }
 }
@@ -192,9 +192,82 @@ async function stopDisplayStream() {
   const existing = await chrome.offscreen.hasDocument().catch(() => false);
   if (existing) {
     await chrome.runtime.sendMessage({ target: 'offscreen', type: 'STOP_STREAM' }).catch(() => {});
-    await chrome.offscreen.closeDocument().catch(() => {});
+    // 음성 녹음이 같은 offscreen 문서에서 진행 중이면 문서를 닫지 않는다
+    // (닫으면 녹음 blob이 유실됨 — 음성 정지는 finalize/discard가 직접 처리)
+    if (!_audioActive) await chrome.offscreen.closeDocument().catch(() => {});
   }
   log('info', 'bg', 'display stream stopped');
+}
+
+// ── 음성 녹음 오케스트레이션 ─────────────────────────────────────
+// offscreen MediaRecorder를 제어한다. 캡처 시각 오프셋 기준점(audioStartTime)을
+// storage에 저장해, SW 재시작 후에도 각 캡처의 상대 시각을 계산할 수 있게 한다.
+let _audioActive = false;
+
+async function startVoiceRecording() {
+  if (_audioActive) return;  // 중복 시작 방지 (직접/onChanged 경로 동시 발화)
+  const { settings } = await storageGet('settings');
+  if (!settings?.voiceRecord) return;
+  try {
+    await ensureOffscreen();
+    const startedAt = Date.now();
+    const res = await chrome.runtime.sendMessage({ target: 'offscreen', type: 'START_AUDIO' });
+    if (res?.ok) {
+      _audioActive = true;
+      await storageSet({ audioStartTime: startedAt, audioRecording: true });
+      log('info', 'bg', 'voice recording started');
+    } else {
+      log('warn', 'bg', 'voice recording failed:', res?.error);
+    }
+  } catch (err) {
+    log('warn', 'bg', 'voice recording start error:', err.message);
+  }
+}
+
+async function pauseVoiceRecording() {
+  if (!_audioActive) return;
+  await chrome.runtime.sendMessage({ target: 'offscreen', type: 'PAUSE_AUDIO' }).catch(() => {});
+}
+
+async function resumeVoiceRecording() {
+  if (!_audioActive) return;
+  await chrome.runtime.sendMessage({ target: 'offscreen', type: 'RESUME_AUDIO' }).catch(() => {});
+}
+
+// 녹음 정지 + Storage 업로드 → 공개 URL 반환 (없으면 null). 항상 _audioActive 해제.
+async function stopAndUploadVoice(sessionId) {
+  if (!_audioActive) return null;
+  _audioActive = false;
+  let dataUrl = null;
+  try {
+    const res = await chrome.runtime.sendMessage({ target: 'offscreen', type: 'STOP_AUDIO' });
+    dataUrl = res?.dataUrl ?? null;
+  } catch (err) {
+    log('warn', 'bg', 'stop audio error:', err.message);
+  }
+  // offscreen 문서 정리 (display stream이 없을 때만 — captureVisibleTab 경로 기본)
+  if (!_streamActive) await chrome.offscreen.closeDocument().catch(() => {});
+  await storageRemove(['audioRecording']);
+
+  if (!dataUrl || !sessionId) return null;
+  try {
+    const blob = await (await fetch(dataUrl)).blob();
+    const path = `${sessionId}/voice.webm`;
+    const url  = await uploadImage(path, blob, 'audio/webm');
+    log('info', 'bg', `voice uploaded: ${path} (${Math.round(blob.size / 1024)}KB)`);
+    return url;
+  } catch (err) {
+    log('warn', 'bg', 'voice upload failed:', err.message);
+    return null;
+  }
+}
+
+async function discardVoiceRecording() {
+  if (!_audioActive) return;
+  _audioActive = false;
+  await chrome.runtime.sendMessage({ target: 'offscreen', type: 'STOP_AUDIO' }).catch(() => {});
+  if (!_streamActive) await chrome.offscreen.closeDocument().catch(() => {});
+  await storageRemove(['audioRecording', 'audioStartTime']);
 }
 
 // captureTab: 스트림이 살아있으면 offscreen 프레임 추출, 아니면 captureVisibleTab 폴백
@@ -663,7 +736,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'FINALIZE_SESSION') {
     (async () => {
       try {
-        const data = await finalizeSession(message.sessionId, message.stepNumbers);
+        // 음성 녹음 정지 + 업로드 → finalize에 audio_url 전달 (서버에서 Whisper 전사)
+        const audioUrl = await stopAndUploadVoice(message.sessionId);
+        const data = await finalizeSession(message.sessionId, message.stepNumbers, audioUrl);
         // 편집기 탭은 background가 직접 연다 — 사용자가 패널/탭을 닫아도
         // service worker는 살아 있으므로 매뉴얼 생성 완료 후 정상 이동된다.
         if (data?.tutorial_id) {
@@ -711,6 +786,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'DISCARD_SESSION') {
     // 중지(저장 없이) 시 서버 staging 정리 — events 행 + Storage 이미지 삭제.
     // 실패해도 무시한다 (주기 cron 청소가 보완).
+    discardVoiceRecording().catch(() => {});  // 음성 녹음 폐기
     const discardId = message.sessionId;
     if (discardId) {
       (async () => {
@@ -1355,6 +1431,17 @@ chrome.storage.onChanged.addListener((changes, area) => {
     _cachedTargetTabId = changes.targetTabId.newValue ?? null;
   }
 
+  // ── 음성 녹음 제어 — 직접/onChanged 시작 경로 모두 포함 (가드 없음) ──
+  //   정지(false) 시 오디오 정지/업로드는 finalize/discard 핸들러가 담당한다 (blob 보존).
+  if ('isRecording' in changes) {
+    const was = !!changes.isRecording.oldValue;
+    const now = !!changes.isRecording.newValue;
+    if (was !== now && now) startVoiceRecording().catch(() => {});
+  }
+  if ('isPaused' in changes && _audioActive) {
+    (changes.isPaused.newValue ? pauseVoiceRecording() : resumeVoiceRecording()).catch(() => {});
+  }
+
   if ('isRecording' in changes) {
     const wasRecording = !!changes.isRecording.oldValue;
     const nowRecording = !!changes.isRecording.newValue;
@@ -1549,7 +1636,12 @@ async function processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base
     idbDelete(stepNum).catch(() => {});
 
     try {
-      await saveStep({ sessionId, stepNumber: stepNum, screenshotUrl: uploadedUrl, clickX, clickY, title: title ?? '', description: description ?? '', url: stepData.url, domainInfo, viewportW: stepData.viewportW ?? stepData.windowWidth ?? null, viewportH: stepData.viewportH ?? stepData.windowHeight ?? null, elementSelector: stepData.elementSelector ?? null, elementRect: stepData.elementRect ?? null });
+      // 음성 녹음 기준점 대비 이 캡처의 상대 시각 — Whisper 전사 구간 배분에 사용
+      const { audioStartTime } = await storageGet('audioStartTime');
+      const audioOffsetMs = audioStartTime
+        ? Math.max(0, (stepData.timestamp || Date.now()) - audioStartTime)
+        : null;
+      await saveStep({ sessionId, stepNumber: stepNum, screenshotUrl: uploadedUrl, clickX, clickY, title: title ?? '', description: description ?? '', url: stepData.url, domainInfo, viewportW: stepData.viewportW ?? stepData.windowWidth ?? null, viewportH: stepData.viewportH ?? stepData.windowHeight ?? null, elementSelector: stepData.elementSelector ?? null, elementRect: stepData.elementRect ?? null, audioOffsetMs });
       log('info', 'bg', `saved step ${stepNum}: "${title}"`);
     } catch (err) {
       log('warn', 'bg', `save-step API failed step ${stepNum}:`, err.message);
@@ -1655,7 +1747,7 @@ async function analyzeWithClaude(base64Image, url, actionInfo, elementContext = 
 }
 
 // ── 스텝 저장 — 웹앱 API 경유 ───────────────────────────────────
-async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, title, description, url, domainInfo, viewportW, viewportH, elementSelector, elementRect }) {
+async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, title, description, url, domainInfo, viewportW, viewportH, elementSelector, elementRect, audioOffsetMs }) {
   const origin = await getWebappOrigin();
   const res = await authedFetch(`${origin}/api/capture/save-step`, {
     method: 'POST',
@@ -1675,6 +1767,7 @@ async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, 
       viewport_h:       viewportH             ?? null,
       element_selector: elementSelector       ?? null,
       element_rect:     elementRect           ?? null,
+      ...(audioOffsetMs != null ? { audio_offset_ms: audioOffsetMs } : {}),
     }),
   });
   if (!res.ok) throw new Error(`save-step failed: ${res.status}: ${await res.text()}`);
@@ -1682,7 +1775,7 @@ async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, 
 }
 
 // ── 세션 완료 — 웹앱 API 경유 ───────────────────────────────────
-async function finalizeSession(sessionId, stepNumbers) {
+async function finalizeSession(sessionId, stepNumbers, audioUrl = null) {
   const { extensionToken, contentMode, settings } = await storageGet(['extensionToken', 'contentMode', 'settings']);
   if (!extensionToken) {
     log('warn', 'bg', 'extensionToken 없음 — /extension-link 에서 연동 필요');
@@ -1699,16 +1792,20 @@ async function finalizeSession(sessionId, stepNumbers) {
       ...(contentMode && contentMode !== 'action' ? { content_mode: contentMode } : {}),
       // 선택영역 확대 설정 — 스텝 이미지에 클릭 영역 확대(image_zoom) 선적용
       ...(settings?.autoZoom ? { auto_zoom: true } : {}),
+      // 음성 녹음 URL — 서버에서 Whisper 전사 후 스텝별 설명으로 배분
+      ...(audioUrl ? { audio_url: audioUrl } : {}),
     }),
   });
   if (!res.ok) throw new Error(`finalize failed: ${res.status}: ${await res.text()}`);
+  // 음성 녹음 기준점 정리
+  await storageRemove(['audioStartTime']);
   return res.json();
 }
 
 // ── Supabase Storage 업로드 (실패 시 1회 재시도) ─────────────────
 // extensionToken은 웹앱 자체 토큰(Supabase JWT 아님)이라 쓸 수 없다 — anon key 고정.
 // x-upsert:true는 INSERT + UPDATE 정책 둘 다 필요 (naviaction에 anon 정책 적용됨)
-async function uploadImage(path, blob) {
+async function uploadImage(path, blob, contentType = 'image/jpeg') {
   const doUpload = () => fetch(
     `${SUPABASE_URL}/storage/v1/object/${SUPABASE_BUCKET}/${path}`,
     {
@@ -1716,7 +1813,7 @@ async function uploadImage(path, blob) {
       headers: {
         'apikey':        SUPABASE_ANON_KEY,
         'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-        'Content-Type':  'image/jpeg',
+        'Content-Type':  contentType,
         'x-upsert':      'true',
       },
       body: blob,

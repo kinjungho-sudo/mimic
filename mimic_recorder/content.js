@@ -42,7 +42,6 @@
   let settings = {
     highlight: true,
     autoNav:   true,
-    piiBlur:   true,
   };
 
   let lastCapturedTarget = null;
@@ -53,17 +52,9 @@
   let typingTimer        = null;
   let _countingDown      = false;
 
-  // ── PII 감지 패턴 ──────────────────────────────────────────────
-  const PII_PATTERNS = [
-    { type: 'email',    re: /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g },
-    { type: 'phone_kr', re: /0\d{1,2}[-\s]?\d{3,4}[-\s]?\d{4}/g },
-    { type: 'rrn',      re: /\d{6}-[1-4]\d{6}/g },
-  ];
-
+  // 비밀번호 등 민감 입력의 '타이핑 텍스트 저장'을 막는 마스킹용 (블러와 무관)
   const SENSITIVE_INPUT_TYPES = new Set(['password']);
   const SENSITIVE_LABEL_RE    = /비밀번호|패스워드|password/i;
-
-  let _blurredEls = [];
 
   // ── 초기화 ───────────────────────────────────────────────────────
   chrome.storage.local.get(['settings', 'isPaused'], (r) => {
@@ -135,85 +126,17 @@
   }
 
   // ── PII 블러 ──────────────────────────────────────────────────────
+  // 자동 PII 블러는 제거됨. 정규식 DOM 감지는 (1) 패턴 없는 이름·주소 등
+  // 진짜 민감정보는 못 잡고 (2) 공용 전화번호 등 덜 민감한 걸 오폭하며
+  // (3) 거짓 안심을 유발한다. 가림은 사용자 통제 하의 '수동 드래그 블러'(popup)로만.
+  // 서버 finalize의 Claude Vision detectPII가 비파괴 '검토 필요' 플래그로 보완한다.
+  // 두 함수는 캡처 파이프라인 시그니처 유지를 위해 no-op으로 남긴다.
   function applyPIIBlur() {
-    if (!settings.piiBlur) return [];
-    _blurredEls = [];
-    const regions = [];
-
-    document.querySelectorAll('input, textarea, select').forEach(el => {
-      const type  = (el.type || '').toLowerCase();
-      const label = getFieldLabel(el);
-      if (!SENSITIVE_INPUT_TYPES.has(type) && !SENSITIVE_LABEL_RE.test(label)) return;
-
-      const rect = el.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) return;
-
-      const orig = el.style.cssText;
-      el.style.visibility = 'hidden';
-      el.style.color = 'transparent';
-      _blurredEls.push({ el, orig });
-      regions.push({ x: rect.x, y: rect.y, width: rect.width, height: rect.height, type: 'input' });
-    });
-
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-    const textNodes = [];
-    let n;
-    while ((n = walker.nextNode())) textNodes.push(n);
-
-    const processedNodes = new WeakSet();
-
-    for (const node of textNodes) {
-      if (processedNodes.has(node)) continue;
-      const text = node.textContent;
-      if (!text.trim()) continue;
-
-      let matched = false;
-      for (const { type, re } of PII_PATTERNS) {
-        re.lastIndex = 0;
-        if (!re.test(text)) continue;
-        const range = document.createRange();
-        range.selectNode(node);
-        for (const rect of range.getClientRects()) {
-          if (rect.width === 0 || rect.height === 0) continue;
-          regions.push({ x: rect.x, y: rect.y, width: rect.width, height: rect.height, type });
-        }
-        matched = true;
-        break;
-      }
-      if (!matched) continue;
-
-      const span = document.createElement('span');
-      span.style.visibility = 'hidden';
-      span.dataset.mimicPii = 'detected';
-      node.parentNode.insertBefore(span, node);
-      span.appendChild(node);
-      processedNodes.add(node);
-      _blurredEls.push({ el: span, orig: '' });
-
-      const range = document.createRange();
-      range.selectNode(span);
-      for (const rect of range.getClientRects()) {
-        if (rect.width === 0 || rect.height === 0) continue;
-        regions.push({ x: rect.x, y: rect.y, width: rect.width, height: rect.height, type: 'text' });
-      }
-    }
-
-    return regions;
+    return [];
   }
 
   function restorePIIBlur() {
-    for (const { el, orig } of _blurredEls) {
-      if (el.tagName === 'SPAN' && el.dataset.mimicPii) {
-        const parent = el.parentNode;
-        if (parent) {
-          while (el.firstChild) parent.insertBefore(el.firstChild, el);
-          parent.removeChild(el);
-        }
-      } else {
-        el.style.cssText = orig;
-      }
-    }
-    _blurredEls = [];
+    /* no-op — 자동 블러 제거됨 */
   }
 
   // ── 타이핑 진행 알림 ─────────────────────────────────────────────
@@ -550,7 +473,11 @@
       cancelClickEffects();
       const piiRegions = applyPIIBlur();
       requestAnimationFrame(() => {
-        requestAnimationFrame(() => { sendResponse({ ok: true, piiRegions }); });
+        requestAnimationFrame(() => {
+          // viewport 크기 동봉 — 기기 에뮬레이션에서는 tab.width(실제 창)와 달라서
+          // background가 이 값으로 블러 좌표를 환산해야 위치가 맞는다
+          sendResponse({ ok: true, piiRegions, viewportW: window.innerWidth, viewportH: window.innerHeight });
+        });
       });
       return true;
     }

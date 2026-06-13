@@ -561,6 +561,50 @@ JSON만 응답: {"pii": true} 또는 {"pii": false}`,
   }
 }
 
+// 음성 전사 다듬기 — Whisper 원문의 맞춤법·구어체·중복을 정리해 매뉴얼 설명 문장으로.
+// 내용은 보존하고 표현만 다듬는다 (요약·창작 금지). step_number → 다듬은 문장.
+export async function cleanTranscripts(
+  items: Array<{ step_number: number; raw: string }>
+): Promise<Map<number, string>> {
+  const out = new Map<number, string>();
+  if (items.length === 0) return out;
+
+  const numbered = items.map(it => `[${it.step_number}] ${it.raw}`).join('\n');
+  const response = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 2048,
+    messages: [{
+      role: 'user',
+      content: `다음은 사용자가 화면을 녹화하며 각 단계를 말로 설명한 음성 전사문이다. 각 항목을 매뉴얼 설명 문장으로 다듬어줘.
+
+[규칙]
+- 맞춤법·띄어쓰기 교정, 구어체("어어", "그래서 이제" 등 군더더기) 제거, 자연스러운 문어체로
+- 내용은 보존 — 요약하거나 없는 내용을 지어내지 말 것
+- 1~2문장의 간결한 설명으로. 전사가 비어있거나 의미 없으면 빈 문자열("")
+- 존댓말 종결("~합니다", "~하세요") 유지
+
+[전사]
+${numbered}
+
+응답 형식 (JSON만, 마크다운 없이):
+{ "steps": [ { "step_number": 1, "text": "다듬은 문장" } ] }`,
+    }],
+  });
+
+  const text = response.content[0].type === 'text' ? response.content[0].text : '{}';
+  try {
+    const parsed = JSON.parse(stripMarkdown(text));
+    if (Array.isArray(parsed.steps)) {
+      for (const s of parsed.steps) {
+        const n = Number(s.step_number);
+        const t = String(s.text || '').trim();
+        if (Number.isFinite(n) && t) out.set(n, t);
+      }
+    }
+  } catch { /* 파싱 실패 — 빈 맵 반환, 원문 폴백은 호출부에서 */ }
+  return out;
+}
+
 export async function rewriteAllSteps(
   steps: { id: string; text: string }[],
   instruction: string
