@@ -77,102 +77,11 @@
       margin-top: 6px; text-align: center;
       font-size: 11px; color: #bbb;
     }
-    /* ── 모바일 배지 ── */
-    .mobile-badge {
-      font-size: 11px; font-weight: 600;
-      background: #F0FDF4; color: #15803D;
-      border: 1px solid #BBF7D0;
-      border-radius: 20px; padding: 2px 8px;
-    }
-
-    /* ── 모바일 안내 모달 ── */
-    .mobile-modal-overlay {
-      display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,0.5); z-index: 9998;
-      align-items: flex-end; justify-content: center;
-    }
-    .mobile-modal-overlay.open { display: flex; }
-    .mobile-modal {
-      background: #fff; width: 100%;
-      border-radius: 20px 20px 0 0;
-      padding: 24px 20px 28px;
-      display: flex; flex-direction: column; align-items: center; gap: 12px;
-      animation: slide-up 0.25s cubic-bezier(0.4,0,0.2,1);
-    }
-    @keyframes slide-up {
-      from { transform: translateY(100%); }
-      to   { transform: translateY(0); }
-    }
-    .mobile-modal-icon { font-size: 32px; }
-    .mobile-modal-title { font-size: 15px; font-weight: 700; color: #1e1e2e; }
-    .mobile-modal-desc { font-size: 12px; color: #666; text-align: center; line-height: 1.6; }
-
-    .mobile-modal-shortcut {
-      display: flex; align-items: center; gap: 6px;
-      background: #F5F3FF; border: 1px solid #DDD6FE;
-      border-radius: 10px; padding: 10px 16px;
-      width: 100%;
-    }
-    .shortcut-key {
-      background: #fff; border: 1px solid #C7C4F0;
-      border-radius: 5px; padding: 3px 8px;
-      font-size: 12px; font-weight: 700; color: #4F46E5;
-      box-shadow: 0 1px 0 #C7C4F0;
-    }
-    .shortcut-plus { font-size: 11px; color: #888; }
-    .shortcut-label { font-size: 11px; color: #666; margin-left: 4px; }
-
-    .mobile-modal-steps {
-      width: 100%; display: flex; flex-direction: column; gap: 8px;
-    }
-    .mobile-step {
-      display: flex; align-items: flex-start; gap: 10px;
-      font-size: 12px; color: #444; line-height: 1.5;
-    }
-    .mobile-step-num {
-      width: 20px; height: 20px; flex-shrink: 0;
-      background: #4F46E5; color: #fff;
-      border-radius: 50%; font-size: 11px; font-weight: 700;
-      display: flex; align-items: center; justify-content: center;
-      margin-top: 1px;
-    }
-    .mobile-modal-btn {
-      width: 100%; padding: 13px;
-      background: #4F46E5; color: #fff;
-      border: none; border-radius: 10px;
-      font-size: 14px; font-weight: 700; cursor: pointer;
-      transition: background 0.2s;
-    }
-    .mobile-modal-btn:hover { background: #4338CA; }
-    .mobile-modal-cancel {
-      background: none; border: none;
-      font-size: 12px; color: #aaa; cursor: pointer; padding: 4px;
-    }
-    .mobile-modal-cancel:hover { color: #666; }
-
-    /* ── 되돌리기 토스트 ── */
-    .restore-toast {
-      display: none; position: fixed; bottom: 16px; left: 12px; right: 12px;
-      background: #1e1e2e; color: #fff;
-      border-radius: 12px; padding: 12px 14px;
-      align-items: center; gap: 10px;
-      z-index: 9999;
-      animation: toast-in 0.25s ease-out;
-    }
-    .restore-toast.show { display: flex; }
+    /* 캡처 차단 토스트 등에서 공유하는 등장 애니메이션 */
     @keyframes toast-in {
       from { opacity: 0; transform: translateY(10px); }
       to   { opacity: 1; transform: translateY(0); }
     }
-    .restore-toast-icon { font-size: 18px; flex-shrink: 0; }
-    .restore-toast-text { flex: 1; display: flex; flex-direction: column; gap: 2px; }
-    .restore-toast-text strong { font-size: 12px; font-weight: 700; }
-    .restore-toast-text span { font-size: 11px; color: #aaa; }
-    .restore-toast-close {
-      background: none; border: none; color: #666;
-      font-size: 14px; cursor: pointer; padding: 2px 4px; flex-shrink: 0;
-    }
-    .restore-toast-close:hover { color: #fff; }
 
     /* ── 녹화 중: 컨트롤 패널 ── */
     #viewRecording { display: none; }
@@ -435,23 +344,6 @@
     .toggle input:checked + .toggle-track { background: #4F46E5; }
     .toggle input:checked + .toggle-track::after { transform: translateX(18px); }
 
-    /* 셀렉트 */
-    .setting-select {
-      padding: 6px 10px; font-size: 12px;
-      border: 1px solid #e0e0ec; border-radius: 7px;
-      background: #fff; color: #1e1e2e; cursor: pointer;
-      outline: none; transition: border-color 0.15s;
-      flex-shrink: 0;
-    }
-    .setting-select:focus { border-color: #4F46E5; }
-
-    /* 품질 슬라이더 */
-    .quality-wrap { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-    .quality-val { font-size: 12px; font-weight: 600; color: #4F46E5; min-width: 28px; text-align: right; }
-    input[type=range] {
-      width: 80px; accent-color: #4F46E5; cursor: pointer;
-    }
-
     .settings-section-divider { height: 1px; background: #f0f0f8; margin: 6px 18px; }
 
     /* ── 하단 액션 바 — 모든 녹화 도구 통합 ── */
@@ -526,57 +418,11 @@
     </div>
   </div>
 
-  <!-- 모바일 안내 모달 -->
-  <div class="mobile-modal-overlay" id="mobileModal">
-    <div class="mobile-modal">
-      <div class="mobile-modal-icon">📱</div>
-      <div class="mobile-modal-title">모바일 화면으로 전환하세요</div>
-      <div class="mobile-modal-desc">
-        Chrome DevTools의 <strong>기기 모드</strong>를 켜면<br>모바일 해상도로 녹화할 수 있습니다.
-      </div>
-      <div class="mobile-modal-shortcut">
-        <span class="shortcut-key">Ctrl</span>
-        <span class="shortcut-plus">+</span>
-        <span class="shortcut-key">Shift</span>
-        <span class="shortcut-plus">+</span>
-        <span class="shortcut-key">M</span>
-        <span class="shortcut-label">기기 모드 토글</span>
-      </div>
-      <div class="mobile-modal-steps">
-        <div class="mobile-step">
-          <span class="mobile-step-num">1</span>
-          <span>F12 또는 우클릭 → 검사로 DevTools 열기</span>
-        </div>
-        <div class="mobile-step">
-          <span class="mobile-step-num">2</span>
-          <span><strong>Ctrl+Shift+M</strong> 으로 기기 모드 켜기</span>
-        </div>
-        <div class="mobile-step">
-          <span class="mobile-step-num">3</span>
-          <span>상단에서 원하는 기기 선택 후 아래 버튼 클릭</span>
-        </div>
-      </div>
-      <button class="mobile-modal-btn" id="btnMobileReady">준비됐어요, 녹화 시작</button>
-      <button class="mobile-modal-cancel" id="btnMobileCancel">취소</button>
-    </div>
-  </div>
-
-  <!-- 녹화 종료 후 되돌리기 안내 토스트 -->
-  <div class="restore-toast" id="restoreToast">
-    <div class="restore-toast-icon">↩</div>
-    <div class="restore-toast-text">
-      <strong>모바일 모드를 해제해 주세요</strong>
-      <span>Ctrl+Shift+M 을 눌러 기기 모드를 끄세요</span>
-    </div>
-    <button class="restore-toast-close" id="btnRestoreClose">✕</button>
-  </div>
-
   <!-- 녹화 중 컨트롤 패널 — 도구 버튼은 모두 하단 액션 바에 있음 -->
   <div id="viewRecording">
     <div class="rec-status">
       <div class="rec-dot" id="recDot"></div>
       <span class="rec-label" id="recLabel">REC</span>
-      <span class="mobile-badge" id="mobileBadge" style="display:none">📱 모바일</span>
       <span class="rec-step-count" id="recStepCount">0 steps</span>
     </div>
   </div>
@@ -644,17 +490,6 @@
 
         <div class="setting-row">
           <div class="setting-info">
-            <div class="setting-label">캡처 플래시</div>
-            <div class="setting-desc">촬영 시 화면이 잠깐 반짝여 캡처되었음을 알립니다</div>
-          </div>
-          <label class="toggle">
-            <input type="checkbox" id="settingFlash" checked />
-            <span class="toggle-track"></span>
-          </label>
-        </div>
-
-        <div class="setting-row">
-          <div class="setting-info">
             <div class="setting-label">선택영역 확대</div>
             <div class="setting-desc">클릭한 영역이 크게 보이도록 매뉴얼 이미지에 확대를 적용합니다. 편집기에서 다시 조절할 수 있습니다</div>
           </div>
@@ -662,35 +497,6 @@
             <input type="checkbox" id="settingAutoZoom" />
             <span class="toggle-track"></span>
           </label>
-        </div>
-      </div>
-
-      <div class="settings-section-divider"></div>
-
-      <!-- 캡처 동작 -->
-      <div class="settings-section">
-        <div class="settings-section-title">캡처 동작</div>
-
-        <div class="setting-row">
-          <div class="setting-info">
-            <div class="setting-label">캡처 대상</div>
-            <div class="setting-desc">클릭 시 캡처할 요소의 범위를 설정합니다</div>
-          </div>
-          <select class="setting-select" id="settingCaptureMode">
-            <option value="interactive">자동 감지 (클릭 가능 요소만)</option>
-            <option value="all">모든 클릭</option>
-          </select>
-        </div>
-
-        <div class="setting-row">
-          <div class="setting-info">
-            <div class="setting-label">이미지 품질</div>
-            <div class="setting-desc">높을수록 선명하지만 업로드가 느려집니다</div>
-          </div>
-          <div class="quality-wrap">
-            <input type="range" id="settingQuality" min="50" max="100" step="5" value="82" />
-            <span class="quality-val" id="qualityVal">82%</span>
-          </div>
         </div>
       </div>
 
@@ -725,24 +531,6 @@
           </div>
           <label class="toggle">
             <input type="checkbox" id="settingAutoNav" checked />
-            <span class="toggle-track"></span>
-          </label>
-        </div>
-      </div>
-
-      <div class="settings-section-divider"></div>
-
-      <!-- 녹화 모드 -->
-      <div class="settings-section">
-        <div class="settings-section-title">녹화 모드</div>
-
-        <div class="setting-row">
-          <div class="setting-info">
-            <div class="setting-label">모바일 화면 녹화</div>
-            <div class="setting-desc">켜면 녹화 시작 시 모바일 기기 모드 설정을 안내합니다</div>
-          </div>
-          <label class="toggle">
-            <input type="checkbox" id="settingMobileMode" />
             <span class="toggle-track"></span>
           </label>
         </div>

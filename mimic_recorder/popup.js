@@ -23,16 +23,11 @@ const settingVoiceRecord = document.getElementById('settingVoiceRecord');
 
 let isRecording  = false;
 let isPaused     = false;
-let isMobileMode = false;
 
 // ── 설정 기본값 ──────────────────────────────────────────────────
 const SETTINGS_DEFAULTS = {
   highlight:   true,
-  flash:       true,
-  captureMode: 'interactive',
-  quality:     92,
   autoNav:     true,
-  mobileMode:  false,
   autoZoom:    false,  // 선택영역 확대 — 매뉴얼 이미지에 클릭 영역 확대 선적용
   voiceRecord: false,  // 음성 설명 녹음 — 녹화 중 마이크로 설명 → 스텝 전사
 };
@@ -61,25 +56,16 @@ async function init() {
 function loadSettingsUI(saved) {
   const s = { ...SETTINGS_DEFAULTS, ...saved };
   settingHighlight.checked      = s.highlight;
-  settingFlash.checked          = s.flash;
   settingAutoZoom.checked       = s.autoZoom;
-  settingCaptureMode.value      = s.captureMode;
-  settingQuality.value          = s.quality;
-  qualityVal.textContent        = s.quality + '%';
   settingAutoNav.checked        = s.autoNav;
-  settingMobileMode.checked     = s.mobileMode;
   if (settingVoiceRecord) settingVoiceRecord.checked = s.voiceRecord;
 }
 
 function saveSettings() {
   const s = {
     highlight:   settingHighlight.checked,
-    flash:       settingFlash.checked,
     autoZoom:    settingAutoZoom.checked,
-    captureMode: settingCaptureMode.value,
-    quality:     Number(settingQuality.value),
     autoNav:     settingAutoNav.checked,
-    mobileMode:  settingMobileMode.checked,
     voiceRecord: settingVoiceRecord ? settingVoiceRecord.checked : false,
   };
   chrome.storage.local.set({ settings: s });
@@ -100,15 +86,8 @@ settingsOverlay.addEventListener('click', (e) => {
 
 // 각 설정 변경 시 즉시 저장
 settingHighlight.addEventListener('change',   saveSettings);
-settingFlash.addEventListener('change',       saveSettings);
 settingAutoZoom.addEventListener('change',    saveSettings);
-settingCaptureMode.addEventListener('change', saveSettings);
 settingAutoNav.addEventListener('change',     saveSettings);
-settingMobileMode.addEventListener('change',  saveSettings);
-settingQuality.addEventListener('input', () => {
-  qualityVal.textContent = settingQuality.value + '%';
-  saveSettings();
-});
 
 // 음성 녹음 토글 — 켤 때 마이크 권한을 사이드패널(가시 컨텍스트)에서 미리 받아둔다.
 // offscreen 문서는 권한 프롬프트를 띄울 수 없어, 여기서 확장 오리진에 권한을 부여해야
@@ -219,9 +198,6 @@ function updateView() {
       rect2.setAttribute('width', '4'); rect2.setAttribute('height', '18'); rect2.setAttribute('rx', '1');
       svgPause.append(rect1, rect2);
     }
-    // 모바일 배지
-    const mobileBadgeEl = document.getElementById('mobileBadge');
-    if (mobileBadgeEl) mobileBadgeEl.style.display = isMobileMode ? 'inline-flex' : 'none';
   } else {
     viewIdle.style.display = 'block';
     viewRecording.style.display = 'none';
@@ -746,7 +722,7 @@ function startBlurMode(step, zoomImg, originalBlob) {
   window.addEventListener('keydown',   onKeyDown,   true);
 }
 
-// 간단 토스트 (기존 restoreToast와 별개의 경량 버전)
+// 간단 토스트 (경량 버전)
 let _toastTimer = null;
 function showToast(msg, ms = 2000) {
   let toast = document.getElementById('mimicToast');
@@ -822,7 +798,7 @@ function hideBlockedBanner() {
 }
 
 // ── 녹화 시작 공통 함수 ──────────────────────────────────────────
-async function startRecording(mobile = false) {
+async function startRecording() {
   const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
   const targetTab = tabs.find(t => t.url?.startsWith('http://') || t.url?.startsWith('https://'));
 
@@ -832,7 +808,6 @@ async function startRecording(mobile = false) {
   }
   hideBlockedBanner();
 
-  isMobileMode = mobile;
   isRecording  = true;
   isPaused     = false;
 
@@ -842,7 +817,7 @@ async function startRecording(mobile = false) {
   await storageSet({ targetTabId: targetTab.id });
 
   // 2) 나머지 상태 저장
-  await storageSet({ sessionId, stepNumber: 0, steps: [], isMobileMode: mobile });
+  await storageSet({ sessionId, stepNumber: 0, steps: [] });
 
   // 3) isRecording:true → background onChanged가 단일 경로로 START_RECORDING 전달
   chrome.storage.local.set({ isRecording: true });
@@ -852,39 +827,7 @@ async function startRecording(mobile = false) {
 }
 
 // ── 녹화 시작 버튼 ───────────────────────────────────────────────
-// 설정의 mobileMode가 켜져 있으면 안내 모달 먼저 표시
-btnStart.addEventListener('click', () => {
-  const mobile = settingMobileMode.checked;
-  if (mobile) {
-    document.getElementById('mobileModal').classList.add('open');
-  } else {
-    startRecording(false);
-  }
-});
-
-// ── 모바일 안내 모달 이벤트 ──────────────────────────────────────
-const mobileModal     = document.getElementById('mobileModal');
-const btnMobileReady  = document.getElementById('btnMobileReady');
-const btnMobileCancel = document.getElementById('btnMobileCancel');
-const restoreToast    = document.getElementById('restoreToast');
-const btnRestoreClose = document.getElementById('btnRestoreClose');
-
-btnMobileCancel.addEventListener('click', () => {
-  mobileModal.classList.remove('open');
-});
-
-mobileModal.addEventListener('click', (e) => {
-  if (e.target === mobileModal) mobileModal.classList.remove('open');
-});
-
-btnMobileReady.addEventListener('click', () => {
-  mobileModal.classList.remove('open');
-  startRecording(true);
-});
-
-btnRestoreClose.addEventListener('click', () => {
-  restoreToast.classList.remove('show');
-});
+btnStart.addEventListener('click', () => startRecording());
 
 // ── 전체 페이지 캡처 (녹화와 별개 단독 기능) ─────────────────────
 const btnFullPage = document.getElementById('btnFullPage');
@@ -957,19 +900,6 @@ btnBlurTool?.addEventListener('click', async () => {
   requestAnimationFrame(() => startBlurMode(lastStep, zoomImg, blob));
 });
 
-// ── 모바일 모드 해제 안내 토스트 ─────────────────────────────────
-function showRestoreToast() {
-  if (!isMobileMode) return;
-  isMobileMode = false;
-  chrome.storage.local.remove('isMobileMode');
-  const toast = document.getElementById('restoreToast');
-  if (toast) {
-    toast.classList.add('show');
-    // 10초 후 자동 닫힘
-    setTimeout(() => toast.classList.remove('show'), 10000);
-  }
-}
-
 // ── 중지 (저장 없이) ─────────────────────────────────────────────
 btnDiscard.addEventListener('click', async () => {
   isRecording = false;
@@ -987,7 +917,6 @@ btnDiscard.addEventListener('click', async () => {
   });
   updateView();
   renderSteps([]);
-  showRestoreToast();
 });
 
 // ── 완료 및 편집 ─────────────────────────────────────────────────
@@ -1010,7 +939,6 @@ btnFinish.addEventListener('click', async () => {
   isPaused    = false;
   hideCaptureBlockedToast();
   updateView();
-  showRestoreToast();
 
   // isRecording: false 먼저 세팅 → background가 targetTabId로 STOP_RECORDING 전송
   storageSet({ isRecording: false }).then(() => {
