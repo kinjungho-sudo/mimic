@@ -192,12 +192,13 @@ export async function GET(request: NextRequest, { params }: Params) {
     year: '2-digit', month: '2-digit', day: '2-digit', timeZone: 'Asia/Seoul',
   }).replace(/\. /g, '_').replace(/\.$/, '');
   const filenameRaw = `${safeTitle}_${dateStr}.pptx`;
+  const filenameAscii = filenameRaw.replace(/[^\x00-\x7F]/g, '_').replace(/_+/g, '_');
   const filenameEncoded = encodeURIComponent(filenameRaw);
 
   return new Response(pptxBuffer.buffer as ArrayBuffer, {
     headers: {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      'Content-Disposition': `attachment; filename="${filenameEncoded}"; filename*=UTF-8''${filenameEncoded}`,
+      'Content-Disposition': `attachment; filename="${filenameAscii}"; filename*=UTF-8''${filenameEncoded}`,
     },
   });
 }

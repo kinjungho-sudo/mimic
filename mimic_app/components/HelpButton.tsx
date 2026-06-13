@@ -16,8 +16,8 @@ export default function HelpButton() {
       title="도움말"
       style={{
         position: 'fixed',
-        bottom: '24px',
-        left: '24px',
+        top: '14px',
+        right: '24px',
         zIndex: 9000,
         width: '40px',
         height: '40px',

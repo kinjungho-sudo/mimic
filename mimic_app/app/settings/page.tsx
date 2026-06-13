@@ -43,6 +43,8 @@ function BrandingSection() {
   const [companyName, setCompanyName] = useState('');
   const [footerText, setFooterText] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
+  const companyComposing = useRef(false);
+  const footerComposing = useRef(false);
 
   useEffect(() => {
     (async () => {
@@ -182,7 +184,9 @@ function BrandingSection() {
         <input
           type="text"
           value={companyName}
-          onChange={e => setCompanyName(e.target.value)}
+          onChange={e => { if (!companyComposing.current) setCompanyName(e.target.value); }}
+          onCompositionStart={() => { companyComposing.current = true; }}
+          onCompositionEnd={e => { companyComposing.current = false; setCompanyName(e.currentTarget.value); }}
           placeholder="예: 주식회사 미믹"
           maxLength={50}
           style={{ ...inputStyle, maxWidth: '320px' }}
@@ -195,7 +199,9 @@ function BrandingSection() {
         <input
           type="text"
           value={footerText}
-          onChange={e => setFooterText(e.target.value)}
+          onChange={e => { if (!footerComposing.current) setFooterText(e.target.value); }}
+          onCompositionStart={() => { footerComposing.current = true; }}
+          onCompositionEnd={e => { footerComposing.current = false; setFooterText(e.currentTarget.value); }}
           placeholder="예: 사내 교육용 — 무단 배포 금지"
           maxLength={100}
           style={{ ...inputStyle, maxWidth: '420px' }}
