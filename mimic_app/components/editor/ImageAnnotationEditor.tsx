@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { X, Trash2, RotateCcw, RotateCw, Bold } from 'lucide-react';
+import { X, Trash2, RotateCcw, RotateCw, Bold, Palette } from 'lucide-react';
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -44,6 +44,24 @@ const STROKE_OPTIONS = [
 
 const FONT_SIZES = [12, 14, 16, 18, 22, 28, 36];
 const DEFAULT_BORDER = 'rgba(0,0,0,0.65)';
+
+// 도구 기본값 저장 — 다음 편집/세션에서도 같은 설정을 사용하도록 localStorage에 보존
+const DEFAULTS_KEY = 'mimic_annot_defaults_v1';
+interface ToolDefaults {
+  color: string; strokeIdx: number; fontSize: number;
+  fontBold: boolean; borderColor: string;
+  textAlign: 'left' | 'center' | 'right'; hasBg: boolean;
+}
+function loadDefaults(): Partial<ToolDefaults> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.localStorage.getItem(DEFAULTS_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+
+// 전체 색상 변경 대상 — 강조 도형(테두리) 타입
+const BORDER_TYPES = ['rect', 'roundedRect', 'ellipse', 'arrow', 'marker'];
 
 // 그룹 A: 지우개/블러, 그룹 B: 도형/텍스트
 const TOOL_GROUPS: { tools: Tool[] }[] = [
@@ -146,14 +164,15 @@ function hitTestAnnotation(a: Annotation, px: number, py: number, r: number, img
 export function ImageAnnotationEditor({
   imageUrl, annotations, onChange, onClose,
 }: ImageAnnotationEditorProps) {
+  const [savedDefaults] = useState<Partial<ToolDefaults>>(loadDefaults);
   const [tool, setTool] = useState<Tool>('select');
-  const [color, setColor] = useState<Color>('#FFFFFF');
-  const [strokeIdx, setStrokeIdx] = useState(1);
-  const [fontSize, setFontSize] = useState(18);
-  const [fontBold, setFontBold] = useState(true);
-  const [borderColor, setBorderColor] = useState<string>(DEFAULT_BORDER);
-  const [textAlign, setTextAlign] = useState<'left' | 'center' | 'right'>('center');
-  const [hasBg, setHasBg] = useState(true);
+  const [color, setColor] = useState<Color>(savedDefaults.color ?? '#FFFFFF');
+  const [strokeIdx, setStrokeIdx] = useState(savedDefaults.strokeIdx ?? 1);
+  const [fontSize, setFontSize] = useState(savedDefaults.fontSize ?? 18);
+  const [fontBold, setFontBold] = useState(savedDefaults.fontBold ?? true);
+  const [borderColor, setBorderColor] = useState<string>(savedDefaults.borderColor ?? DEFAULT_BORDER);
+  const [textAlign, setTextAlign] = useState<'left' | 'center' | 'right'>(savedDefaults.textAlign ?? 'center');
+  const [hasBg, setHasBg] = useState(savedDefaults.hasBg ?? true);
 
   const lastColor = useRef(color);
   const lastStrokeIdx = useRef(strokeIdx);
@@ -169,6 +188,15 @@ export function ImageAnnotationEditor({
   useEffect(() => { lastBorderColor.current = borderColor; }, [borderColor]);
   useEffect(() => { lastTextAlign.current = textAlign; }, [textAlign]);
   useEffect(() => { lastHasBg.current = hasBg; }, [hasBg]);
+
+  // 도구 기본값을 localStorage에 보존 (다음 편집/세션에서도 동일 설정 사용)
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(DEFAULTS_KEY, JSON.stringify({
+        color, strokeIdx, fontSize, fontBold, borderColor, textAlign, hasBg,
+      }));
+    } catch { /* localStorage 비활성 환경 무시 */ }
+  }, [color, strokeIdx, fontSize, fontBold, borderColor, textAlign, hasBg]);
 
   const [items, setItems] = useState<Annotation[]>(annotations);
   const historyRef = useRef<Annotation[][]>([annotations]);
@@ -274,6 +302,7 @@ export function ImageAnnotationEditor({
     if (!imgSize) return;
     if ((e.target as HTMLElement).closest('[data-text-editor]')) return;
     if (editingText) { commitTextRef.current(); return; }
+    setBulkOpen(false);
     if (tool === 'select') { setSelectedId(null); setColorPopover(null); setAlignOpen(false); return; }
 
     e.preventDefault();
@@ -510,6 +539,19 @@ export function ImageAnnotationEditor({
     setItems(cur => cur.map(a => a.id === selectedId ? { ...a, ...patch } : a));
   }, [selectedId]);
 
+  // 전체 색상 변경 — 모든 강조 도형의 테두리색 / 모든 텍스트의 글자색을 한 번에 통일
+  const recolorAll = useCallback((kind: 'border' | 'text', c: string) => {
+    setItems(cur => {
+      const next = cur.map(a =>
+        kind === 'border'
+          ? (BORDER_TYPES.includes(a.type) ? { ...a, color: c } : a)
+          : (a.type === 'text' ? { ...a, color: c } : a)
+      );
+      pushHistory(next);
+      return next;
+    });
+  }, [pushHistory]);
+
   const editingItem = editingText ? items.find(a => a.id === editingText.id) : null;
   const selectedItem = selectedId ? items.find(a => a.id === selectedId) : null;
 
@@ -575,6 +617,8 @@ export function ImageAnnotationEditor({
 
   const [colorPopover, setColorPopover] = useState<'main' | 'text' | 'border' | null>(null);
   const [alignOpen, setAlignOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const hasItems = items.length > 0;
 
   const activeCursor =
     tool === 'eraser' ? 'cell' :
@@ -611,7 +655,7 @@ export function ImageAnnotationEditor({
                   const active = tool === t;
                   return (
                     <button key={t} title={TOOL_CONFIG[t].label}
-                      onClick={() => { if (editingText) commitTextRef.current(); setTool(t); setColorPopover(null); setAlignOpen(false); }}
+                      onClick={() => { if (editingText) commitTextRef.current(); setTool(t); setColorPopover(null); setAlignOpen(false); setBulkOpen(false); }}
                       style={{
                         width: '32px', height: '32px', borderRadius: '5px', border: 'none',
                         display: 'grid', placeItems: 'center', cursor: 'pointer',
@@ -648,6 +692,43 @@ export function ImageAnnotationEditor({
             )}
 
             <div style={{ flex: 1 }} />
+
+            {/* 전체 색상 변경 — 모든 강조/글자 색을 한 번에 통일 */}
+            {hasItems && (
+              <div style={{ position: 'relative' }}>
+                <button title="전체 색상 변경"
+                  onClick={e => { e.stopPropagation(); setBulkOpen(v => !v); setColorPopover(null); setAlignOpen(false); }}
+                  style={{ height: '32px', padding: '0 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: bulkOpen ? 'rgba(255,255,255,0.12)' : 'transparent', color: 'rgba(255,255,255,0.7)', fontSize: '11.5px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                  onMouseEnter={e => { if (!bulkOpen) e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
+                  onMouseLeave={e => { if (!bulkOpen) e.currentTarget.style.background = 'transparent'; }}
+                ><Palette size={12} /> 전체 색상</button>
+                {bulkOpen && (
+                  <div onClick={e => e.stopPropagation()} style={{ position: 'absolute', top: '38px', right: 0, zIndex: 200, background: '#1F2937', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '10px', padding: '10px', display: 'flex', flexDirection: 'column', gap: '9px', boxShadow: '0 8px 24px rgba(0,0,0,0.6)', width: '212px' }}>
+                    <div>
+                      <div style={{ fontSize: '10.5px', color: 'rgba(255,255,255,0.55)', marginBottom: '6px' }}>강조 테두리 색</div>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        {COLORS.map(c => (
+                          <button key={c} onClick={() => recolorAll('border', c)}
+                            style={{ width: '22px', height: '22px', borderRadius: '50%', background: c, border: '2px solid rgba(255,255,255,0.15)', cursor: 'pointer', outline: 'none' }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)' }} />
+                    <div>
+                      <div style={{ fontSize: '10.5px', color: 'rgba(255,255,255,0.55)', marginBottom: '6px' }}>글자 색</div>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        {[...COLORS, '#FFFFFF'].map(c => (
+                          <button key={c} onClick={() => recolorAll('text', c)}
+                            style={{ width: '22px', height: '22px', borderRadius: '50%', background: c, border: c === '#FFFFFF' ? '1.5px solid rgba(255,255,255,0.4)' : '2px solid rgba(255,255,255,0.15)', cursor: 'pointer', outline: 'none' }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* 언두/리두 */}
             <button onClick={undo} title="실행 취소 (Ctrl+Z)"

@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Check, Undo2, Redo2, Volume2, VolumeX, Loader2, RefreshCw, MonitorPlay, Wand2, Zap } from 'lucide-react';
+import { Check, Undo2, Redo2, Volume2, VolumeX, Loader2, RefreshCw, MonitorPlay, Wand2, Zap, MessageSquare } from 'lucide-react';
 import { GuideToc } from '@/components/editor/GuideToc';
 import { ManualEditor, ManualStep } from '@/components/editor/ManualEditor';
 import { SdkPreviewPanel } from '@/components/editor/SdkPreviewPanel';
 import { MergeModal } from '@/components/editor/MergeModal';
+import { CommentsPanel } from '@/components/editor/CommentsPanel';
 import { useTutorial } from '@/hooks/useTutorial';
 import { useAutosave } from '@/hooks/useAutosave';
 import { useAuth } from '@/hooks/useAuth';
@@ -77,6 +78,7 @@ export default function EditorPage() {
   const [freshnessChecking, setFreshnessChecking] = useState(false);
   const [freshnessResult, setFreshnessResult] = useState<{ checked: number; stale: number } | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [showComments, setShowComments] = useState(false);
   const [patching, setPatching] = useState(false);
   const [patchResult, setPatchResult] = useState<{ patched: number } | null>(null);
   const [ttsEnabled, setTtsEnabled] = useState(false);
@@ -648,6 +650,18 @@ export default function EditorPage() {
               미리보기
             </button>
 
+            {/* 댓글 패널 토글 — 팀 협업 의견 공유 */}
+            <button
+              onClick={() => setShowComments(v => !v)}
+              title="댓글 — 팀원과 의견 공유"
+              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: showComments ? '#4F46E5' : '#374151', background: showComments ? 'rgba(79,70,229,0.08)' : 'white', border: `1px solid ${showComments ? '#4F46E5' : '#E5E7EB'}`, cursor: 'pointer', transition: 'all 0.15s', fontWeight: showComments ? 600 : 400 }}
+              onMouseEnter={e => { if (!showComments) e.currentTarget.style.background = '#F9FAFB'; }}
+              onMouseLeave={e => { if (!showComments) e.currentTarget.style.background = 'white'; }}
+            >
+              <MessageSquare size={13} />
+              댓글
+            </button>
+
             {/* Guide Me — 확장프로그램으로 실제 화면 오버레이 가이드 시작 */}
             {(() => {
               const shareToken = (tutorial as Tutorial & { share_token?: string | null })?.share_token;
@@ -926,6 +940,15 @@ export default function EditorPage() {
               steps={manualSteps}
               activeId={activeId}
               onClose={() => setShowPreview(false)}
+            />
+          )}
+          {showComments && (
+            <CommentsPanel
+              tutorialId={id}
+              activeStepId={activeId}
+              steps={manualSteps.map(s => ({ id: s.id, number: s.number }))}
+              currentUserId={user?.id ?? null}
+              onClose={() => setShowComments(false)}
             />
           )}
           </div>
