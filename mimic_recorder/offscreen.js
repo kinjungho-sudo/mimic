@@ -6,6 +6,11 @@
 let stream  = null;
 let videoEl = null;
 
+// ── 음성 녹음 상태 ──────────────────────────────────────────────
+let audioStream   = null;
+let audioRecorder = null;
+let audioChunks   = [];
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.target !== 'offscreen') return false;
 
@@ -28,7 +33,69 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     sendResponse({ ok: true });
     return false;
   }
+
+  if (msg.type === 'START_AUDIO') {
+    startAudio()
+      .then(() => sendResponse({ ok: true }))
+      .catch((err) => sendResponse({ ok: false, error: err.message }));
+    return true;
+  }
+
+  if (msg.type === 'PAUSE_AUDIO') {
+    try { if (audioRecorder?.state === 'recording') audioRecorder.pause(); } catch { /**/ }
+    sendResponse({ ok: true });
+    return false;
+  }
+
+  if (msg.type === 'RESUME_AUDIO') {
+    try { if (audioRecorder?.state === 'paused') audioRecorder.resume(); } catch { /**/ }
+    sendResponse({ ok: true });
+    return false;
+  }
+
+  if (msg.type === 'STOP_AUDIO') {
+    stopAudio()
+      .then((dataUrl) => sendResponse({ ok: true, dataUrl }))
+      .catch(() => sendResponse({ ok: false, dataUrl: null }));
+    return true;
+  }
 });
+
+// ── 음성 녹음 ────────────────────────────────────────────────────
+async function startAudio() {
+  await stopAudioTracks();
+  audioChunks = [];
+  audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+  // opus/webm — Whisper가 직접 처리 가능. 미지원 시 기본값 폴백.
+  const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+    ? 'audio/webm;codecs=opus'
+    : (MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '');
+  audioRecorder = mime ? new MediaRecorder(audioStream, { mimeType: mime }) : new MediaRecorder(audioStream);
+  audioRecorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) audioChunks.push(e.data); };
+  audioRecorder.start(1000);  // 1초 단위 청크 — 중간 종료 시에도 데이터 보존
+}
+
+async function stopAudio() {
+  if (!audioRecorder) { await stopAudioTracks(); return null; }
+  const rec = audioRecorder;
+  const done = new Promise((resolve) => { rec.onstop = resolve; });
+  try { if (rec.state !== 'inactive') rec.stop(); } catch { /**/ }
+  await done;
+  const mimeType = rec.mimeType || 'audio/webm';
+  await stopAudioTracks();
+
+  if (audioChunks.length === 0) return null;
+  const blob = new Blob(audioChunks, { type: mimeType });
+  audioChunks = [];
+  return blobToDataUrl(blob);
+}
+
+async function stopAudioTracks() {
+  try { audioStream?.getTracks().forEach((t) => t.stop()); } catch { /**/ }
+  audioStream   = null;
+  audioRecorder = null;
+}
 
 async function startStream(streamId) {
   stopStream();

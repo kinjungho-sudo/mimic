@@ -19,7 +19,7 @@ const settingsOverlay  = document.getElementById('settingsOverlay');
 const btnBack          = document.getElementById('btnBack');
 const settingHighlight = document.getElementById('settingHighlight');
 const settingAutoNav   = document.getElementById('settingAutoNav');
-const settingPiiBlur   = document.getElementById('settingPiiBlur');
+const settingVoiceRecord = document.getElementById('settingVoiceRecord');
 
 let isRecording  = false;
 let isPaused     = false;
@@ -33,8 +33,8 @@ const SETTINGS_DEFAULTS = {
   quality:     92,
   autoNav:     true,
   mobileMode:  false,
-  piiBlur:     true,
   autoZoom:    false,  // 선택영역 확대 — 매뉴얼 이미지에 클릭 영역 확대 선적용
+  voiceRecord: false,  // 음성 설명 녹음 — 녹화 중 마이크로 설명 → 스텝 전사
 };
 
 // ── chrome.storage.local 프로미스 헬퍼 ──────────────────────────
@@ -68,7 +68,7 @@ function loadSettingsUI(saved) {
   qualityVal.textContent        = s.quality + '%';
   settingAutoNav.checked        = s.autoNav;
   settingMobileMode.checked     = s.mobileMode;
-  settingPiiBlur.checked        = s.piiBlur;
+  if (settingVoiceRecord) settingVoiceRecord.checked = s.voiceRecord;
 }
 
 function saveSettings() {
@@ -80,7 +80,7 @@ function saveSettings() {
     quality:     Number(settingQuality.value),
     autoNav:     settingAutoNav.checked,
     mobileMode:  settingMobileMode.checked,
-    piiBlur:     settingPiiBlur.checked,
+    voiceRecord: settingVoiceRecord ? settingVoiceRecord.checked : false,
   };
   chrome.storage.local.set({ settings: s });
   storageGet('targetTabId').then(({ targetTabId }) => {
@@ -105,9 +105,26 @@ settingAutoZoom.addEventListener('change',    saveSettings);
 settingCaptureMode.addEventListener('change', saveSettings);
 settingAutoNav.addEventListener('change',     saveSettings);
 settingMobileMode.addEventListener('change',  saveSettings);
-settingPiiBlur.addEventListener('change',     saveSettings);
 settingQuality.addEventListener('input', () => {
   qualityVal.textContent = settingQuality.value + '%';
+  saveSettings();
+});
+
+// 음성 녹음 토글 — 켤 때 마이크 권한을 사이드패널(가시 컨텍스트)에서 미리 받아둔다.
+// offscreen 문서는 권한 프롬프트를 띄울 수 없어, 여기서 확장 오리진에 권한을 부여해야
+// 녹화 중 offscreen이 getUserMedia(audio)로 녹음할 수 있다.
+settingVoiceRecord?.addEventListener('change', async () => {
+  if (settingVoiceRecord.checked) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(t => t.stop());  // 권한만 획득, 즉시 해제
+    } catch {
+      settingVoiceRecord.checked = false;
+      showToast('마이크 권한이 필요합니다 — 브라우저 권한을 허용해주세요', 3500);
+      saveSettings();
+      return;
+    }
+  }
   saveSettings();
 });
 

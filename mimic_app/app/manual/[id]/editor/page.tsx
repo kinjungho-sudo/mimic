@@ -57,6 +57,11 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
     // click_x/y: DB 0~1 실수 → ×100 → 0~100 pct (ManualEditor CSS % 계약)
     click_x: clickToPct((s as Step & { click_x?: number | null }).click_x),
     click_y: clickToPct((s as Step & { click_y?: number | null }).click_y),
+    // 음성 전사 — 원본 토글 + 구간 재생용
+    voiceTranscriptRaw: (s as Step & { voice_transcript_raw?: string | null }).voice_transcript_raw ?? null,
+    voiceAudioUrl:      (s as Step & { voice_audio_url?: string | null }).voice_audio_url ?? null,
+    voiceAudioStartMs:  (s as Step & { voice_audio_start_ms?: number | null }).voice_audio_start_ms ?? null,
+    voiceAudioEndMs:    (s as Step & { voice_audio_end_ms?: number | null }).voice_audio_end_ms ?? null,
   }));
 }
 
