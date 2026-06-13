@@ -537,7 +537,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
           const tabs = await new Promise((res) => chrome.tabs.query({ active: true }, res));
           const tab  = tabs.find(t => t.url?.startsWith('http://') || t.url?.startsWith('https://'));
           if (tab?.id) {
-            const injectOverlay = (tabId) => sendTabMessage(tabId, { type: 'SHOW_OVERLAY', step: firstStep });
+            const injectOverlay = (tabId) => sendTabMessage(tabId, { type: 'SHOW_OVERLAY', step: firstStep, index: 0, total: steps.length });
             try {
               const currentUrl = new URL(tab.url);
               const targetUrl  = new URL(firstStep.page_url);
@@ -955,18 +955,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const tab  = tabs.find(t => t.url?.startsWith('http://') || t.url?.startsWith('https://'));
       if (!tab?.id) return;
 
-      if (step.page_url) {
+      if (step && step.page_url) {
         try {
           const currentUrl = new URL(tab.url);
           const targetUrl  = new URL(step.page_url);
           if (currentUrl.origin + currentUrl.pathname !== targetUrl.origin + targetUrl.pathname) {
-            chrome.tabs.update(tab.id, { url: step.page_url });
             await storageSet({ guidePendingOverlay: true });
+            // 자동진행(타깃 클릭)이면 클릭 자체가 이동을 유발하므로 중복 내비 방지.
+            // 수동 '다음'이면 직접 이동시킨다. (둘 다 onUpdated에서 오버레이 재주입)
+            if (!message.viaClick) chrome.tabs.update(tab.id, { url: step.page_url });
             return;
           }
         } catch { /* same-tab fallback */ }
       }
-      sendTabMessage(tab.id, { type: 'SHOW_OVERLAY', step });
+      sendTabMessage(tab.id, { type: 'SHOW_OVERLAY', step, index: idx, total: steps.length });
     })();
     return true;
   }
@@ -1062,8 +1064,11 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 
     if (r.guidePendingOverlay) {
       await storageRemove('guidePendingOverlay');
-      const step = (r.guideSteps || [])[r.guideCurrentStep || 0];
-      if (step) sendTabMessage(tabId, { type: 'SHOW_OVERLAY', step });
+      const gSteps = r.guideSteps || [];
+      const gIdx = r.guideCurrentStep || 0;
+      const step = gSteps[gIdx];
+      // 페이지 정착(특히 SPA) 후 오버레이 주입 — 요소 매칭 확률 ↑
+      if (step) setTimeout(() => sendTabMessage(tabId, { type: 'SHOW_OVERLAY', step, index: gIdx, total: gSteps.length }), 500);
     }
 
     if (!r.isRecording || r.isPaused) return;

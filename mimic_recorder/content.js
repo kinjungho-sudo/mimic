@@ -493,8 +493,17 @@
       return false;
     }
 
-    if (msg.type === 'SHOW_OVERLAY' && msg.step) { showGuideOverlay(msg.step); return false; }
-    if (msg.type === 'HIDE_OVERLAY') { removeGuideOverlay(); return false; }
+    if (msg.type === 'SHOW_OVERLAY' && msg.step) {
+      if (window.MimicGuide) window.MimicGuide.show(msg.step, {
+        index: msg.index ?? 0,
+        total: msg.total ?? 1,
+        onAdvance: (reason) => chrome.runtime.sendMessage({ type: 'GUIDE_NEXT', viaClick: reason === 'click' }),
+        onPrev:    () => chrome.runtime.sendMessage({ type: 'GUIDE_PREV' }),
+        onExit:    () => { chrome.runtime.sendMessage({ type: 'EXIT_GUIDE' }); window.MimicGuide.hide(); },
+      });
+      return false;
+    }
+    if (msg.type === 'HIDE_OVERLAY') { if (window.MimicGuide) window.MimicGuide.hide(); return false; }
 
     return false;
   });
@@ -940,103 +949,6 @@
   }, true);
 
   // ── Guide Me 오버레이 ────────────────────────────────────────────
-  let guideShadowHost = null;
-
-  function removeGuideOverlay() {
-    if (guideShadowHost) { guideShadowHost.remove(); guideShadowHost = null; }
-  }
-
-  function showGuideOverlay(step) {
-    removeGuideOverlay();
-
-    const host = document.createElement('div');
-    host.id = 'mimic-overlay-root';
-    host.style.cssText = 'all:initial;position:fixed;inset:0;pointer-events:none;z-index:2147483640;';
-    document.documentElement.appendChild(host);
-    guideShadowHost = host;
-
-    const shadow = host.attachShadow({ mode: 'closed' });
-
-    let hlRect = null;
-    if (step.element_selector) {
-      try {
-        const el = document.querySelector(step.element_selector);
-        if (el) hlRect = el.getBoundingClientRect();
-      } catch { /* invalid selector */ }
-    }
-    if (!hlRect && step.element_rect) {
-      const r = step.element_rect;
-      hlRect = {
-        left:   r.x      * window.innerWidth,
-        top:    r.y      * window.innerHeight,
-        width:  r.width  * window.innerWidth,
-        height: r.height * window.innerHeight,
-      };
-    }
-
-    if (hlRect && hlRect.width > 0 && hlRect.height > 0) {
-      const hl = document.createElement('div');
-      const P  = 4;
-      hl.style.cssText = [
-        'position:fixed', 'pointer-events:none', 'box-sizing:border-box',
-        `left:${hlRect.left - P}px`, `top:${hlRect.top - P}px`,
-        `width:${hlRect.width + P * 2}px`, `height:${hlRect.height + P * 2}px`,
-        'background:rgba(255,200,0,0.18)', 'border:2.5px solid #F59E0B',
-        'border-radius:6px', 'box-shadow:0 0 0 4px rgba(245,158,11,0.18)', 'z-index:2',
-      ].join(';');
-      shadow.appendChild(hl);
-    }
-
-    if (step.click_x != null && step.click_y != null) {
-      const cx = step.click_x * window.innerWidth;
-      const cy = step.click_y * window.innerHeight;
-
-      const style = document.createElement('style');
-      style.textContent = `
-        @keyframes mimic-ripple {
-          0%   { transform: scale(1);   opacity: 0.8; }
-          100% { transform: scale(2.5); opacity: 0; }
-        }
-        .mimic-pulse {
-          position: fixed;
-          width: 20px; height: 20px;
-          border-radius: 50%;
-          background: rgba(239,68,68,0.85);
-          pointer-events: none;
-          z-index: 3;
-        }
-        .mimic-pulse::after {
-          content: '';
-          position: absolute;
-          inset: -4px;
-          border-radius: 50%;
-          border: 2px solid rgba(239,68,68,0.7);
-          animation: mimic-ripple 1.2s ease-out infinite;
-        }
-      `;
-      shadow.appendChild(style);
-
-      const dot = document.createElement('div');
-      dot.className = 'mimic-pulse';
-      dot.style.left = `${cx - 10}px`;
-      dot.style.top  = `${cy - 10}px`;
-      shadow.appendChild(dot);
-    }
-
-    if (step.instruction) {
-      const bar = document.createElement('div');
-      bar.style.cssText = [
-        'position:fixed', 'bottom:24px', 'left:50%', 'transform:translateX(-50%)',
-        'max-width:600px', 'width:calc(100% - 48px)',
-        'background:rgba(0,0,0,0.82)', 'color:#fff',
-        'border-radius:12px', 'padding:12px 20px',
-        'font-size:15px', 'line-height:1.6',
-        'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
-        'pointer-events:none', 'z-index:4',
-        'box-shadow:0 4px 24px rgba(0,0,0,0.4)', 'text-align:center',
-      ].join(';');
-      bar.textContent = step.instruction;
-      shadow.appendChild(bar);
-    }
-  }
+  // 오버레이 렌더링/요소탐지/자동진행은 guide-engine.js(window.MimicGuide)가 담당.
+  // (content_scripts에서 content.js보다 먼저 로드됨) SHOW_OVERLAY/HIDE_OVERLAY 핸들러 참조.
 })();
