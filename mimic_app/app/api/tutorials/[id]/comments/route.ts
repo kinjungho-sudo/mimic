@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { guardTutorialAccess } from '@/lib/workspace-guard';
+import { logActivity } from '@/lib/activity';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest, { params }: Params) {
   const supabase = createServiceRoleClient();
   const { data, error } = await supabase
     .from('mm_comments')
-    .select('id, tutorial_id, step_id, parent_id, author_id, body, created_at, author:mm_users(name, avatar_url, email)')
+    .select('id, tutorial_id, step_id, parent_id, author_id, body, created_at, resolved_at, author:mm_users!mm_comments_author_id_fkey(name, avatar_url, email)')
     .eq('tutorial_id', id)
     .is('deleted_at', null)
     .order('created_at', { ascending: true });
@@ -55,9 +56,18 @@ export async function POST(request: NextRequest, { params }: Params) {
       author_id: auth.userId,
       body: text.trim(),
     })
-    .select('id, tutorial_id, step_id, parent_id, author_id, body, created_at, author:mm_users(name, avatar_url, email)')
+    .select('id, tutorial_id, step_id, parent_id, author_id, body, created_at, resolved_at, author:mm_users!mm_comments_author_id_fkey(name, avatar_url, email)')
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await logActivity({
+    tutorialId: id,
+    actorId: auth.userId,
+    action: parent_id ? 'reply_added' : 'comment_added',
+    stepId: step_id ?? null,
+    meta: { snippet: text.trim().slice(0, 60) },
+  });
+
   return NextResponse.json({ comment: data }, { status: 201 });
 }

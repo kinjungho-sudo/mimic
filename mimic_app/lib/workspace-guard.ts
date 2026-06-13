@@ -13,6 +13,35 @@ function hasRole(actual: WorkspaceRole, required: WorkspaceRole): boolean {
   return ROLE_RANK[actual] >= ROLE_RANK[required];
 }
 
+// 매뉴얼별 이메일 초대 공유(mm_manual_shares)로 부여된 역할을 조회.
+// user_id 또는 (요청자 이메일 == 초대 이메일)로 매칭. 이메일로만 매칭되면 user_id를 연결한다.
+async function resolveManualShareRole(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  tutorialId: string,
+  requestUserId: string
+): Promise<WorkspaceRole | null> {
+  const { data: shares } = await supabase
+    .from('mm_manual_shares')
+    .select('id, role, user_id, email')
+    .eq('tutorial_id', tutorialId);
+  if (!shares || shares.length === 0) return null;
+
+  let byId = shares.find(s => s.user_id === requestUserId);
+  if (!byId) {
+    const { data: me } = await supabase.from('mm_users').select('email').eq('id', requestUserId).single();
+    const email = me?.email?.toLowerCase();
+    if (email) {
+      const byEmail = shares.find(s => !s.user_id && s.email?.toLowerCase() === email);
+      if (byEmail) {
+        // 향후 빠른 매칭 + 활동 귀속을 위해 user_id 연결
+        await supabase.from('mm_manual_shares').update({ user_id: requestUserId }).eq('id', byEmail.id);
+        byId = byEmail;
+      }
+    }
+  }
+  return byId ? (byId.role as WorkspaceRole) : null;
+}
+
 type GuardResult =
   | { ok: true;  role: WorkspaceRole | 'owner' }
   | { ok: false; status: 403 | 404; error: string };
@@ -54,6 +83,11 @@ export async function guardTutorialAccess(
     if (tutorial.user_id === requestUserId) {
       return { ok: true, role: 'owner' };
     }
+    // 매뉴얼별 공유(이메일 초대)로 부여된 권한 확인
+    const sharedRole = await resolveManualShareRole(supabase, tutorialId, requestUserId);
+    if (sharedRole && hasRole(sharedRole, requiredRole)) {
+      return { ok: true, role: sharedRole };
+    }
     return { ok: false, status: 403, error: 'Forbidden' };
   }
 
@@ -77,21 +111,25 @@ export async function guardTutorialAccess(
     .eq('user_id', requestUserId)
     .single();
 
+  const memberRole = member?.role as WorkspaceRole | undefined;
+  if (memberRole && hasRole(memberRole, requiredRole)) {
+    return { ok: true, role: memberRole };
+  }
+
+  // 워크스페이스 권한이 없거나 부족하면 매뉴얼별 공유(이메일 초대) 확인
+  const sharedRole = await resolveManualShareRole(supabase, tutorialId, requestUserId);
+  if (sharedRole && hasRole(sharedRole, requiredRole)) {
+    return { ok: true, role: sharedRole };
+  }
+
   if (!member) {
     return { ok: false, status: 403, error: 'Not a workspace member' };
   }
-
-  const memberRole = member.role as WorkspaceRole;
-
-  if (!hasRole(memberRole, requiredRole)) {
-    return {
-      ok: false,
-      status: 403,
-      error: `Requires '${requiredRole}' role or above (current: '${memberRole}')`,
-    };
-  }
-
-  return { ok: true, role: memberRole };
+  return {
+    ok: false,
+    status: 403,
+    error: `Requires '${requiredRole}' role or above (current: '${memberRole}')`,
+  };
 }
 
 /**

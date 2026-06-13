@@ -25,35 +25,12 @@ export async function GET(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
-  // 접근 권한 확인 + my_role 계산
-  let myRole: 'owner' | 'admin' | 'editor' | 'viewer' | null = null;
-
-  if (tutorial.user_id === auth.userId) {
-    myRole = 'owner';
-  } else if (tutorial.workspace_id) {
-    const { data: member } = await supabase
-      .from('mm_workspace_members')
-      .select('role')
-      .eq('workspace_id', tutorial.workspace_id)
-      .eq('user_id', auth.userId)
-      .single();
-
-    const { data: ws } = await supabase
-      .from('mm_workspaces')
-      .select('owner_id')
-      .eq('id', tutorial.workspace_id)
-      .single();
-
-    if (ws?.owner_id === auth.userId) {
-      myRole = 'owner';
-    } else if (member) {
-      myRole = member.role as 'admin' | 'editor' | 'viewer';
-    }
+  // 접근 권한 확인 + my_role 계산 (개인/워크스페이스/매뉴얼 공유 모두 반영)
+  const accessGuard = await guardTutorialAccess(id, auth.userId, 'viewer');
+  if (!accessGuard.ok) {
+    return NextResponse.json({ error: accessGuard.error }, { status: accessGuard.status });
   }
-
-  if (!myRole) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  const myRole = accessGuard.role;
 
   const { data: steps } = await supabase
     .from('mm_steps')

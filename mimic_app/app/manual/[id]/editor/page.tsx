@@ -2,12 +2,14 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Check, Undo2, Redo2, Volume2, VolumeX, Loader2, RefreshCw, MonitorPlay, Wand2, Zap, MessageSquare } from 'lucide-react';
+import { Check, Undo2, Redo2, Volume2, VolumeX, Loader2, RefreshCw, MonitorPlay, Wand2, Zap, MessageSquare, Clock, Share2 } from 'lucide-react';
 import { GuideToc } from '@/components/editor/GuideToc';
 import { ManualEditor, ManualStep } from '@/components/editor/ManualEditor';
 import { SdkPreviewPanel } from '@/components/editor/SdkPreviewPanel';
 import { MergeModal } from '@/components/editor/MergeModal';
 import { CommentsPanel } from '@/components/editor/CommentsPanel';
+import { ActivityPanel } from '@/components/editor/ActivityPanel';
+import { ExportModal } from '@/components/editor/ExportModal';
 import { useTutorial } from '@/hooks/useTutorial';
 import { useAutosave } from '@/hooks/useAutosave';
 import { useAuth } from '@/hooks/useAuth';
@@ -84,6 +86,8 @@ export default function EditorPage() {
   const [freshnessResult, setFreshnessResult] = useState<{ checked: number; stale: number } | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [showComments, setShowComments] = useState(false);
+  const [showActivity, setShowActivity] = useState(false);
+  const [showExport, setShowExport] = useState(false);
   const [patching, setPatching] = useState(false);
   const [patchResult, setPatchResult] = useState<{ patched: number } | null>(null);
   const [ttsEnabled, setTtsEnabled] = useState(false);
@@ -657,7 +661,7 @@ export default function EditorPage() {
 
             {/* 댓글 패널 토글 — 팀 협업 의견 공유 */}
             <button
-              onClick={() => setShowComments(v => !v)}
+              onClick={() => { setShowComments(v => !v); setShowActivity(false); }}
               title="댓글 — 팀원과 의견 공유"
               style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: showComments ? '#4F46E5' : '#374151', background: showComments ? 'rgba(79,70,229,0.08)' : 'white', border: `1px solid ${showComments ? '#4F46E5' : '#E5E7EB'}`, cursor: 'pointer', transition: 'all 0.15s', fontWeight: showComments ? 600 : 400 }}
               onMouseEnter={e => { if (!showComments) e.currentTarget.style.background = '#F9FAFB'; }}
@@ -665,6 +669,29 @@ export default function EditorPage() {
             >
               <MessageSquare size={13} />
               댓글
+            </button>
+
+            {/* 활동 로그 토글 */}
+            <button
+              onClick={() => { setShowActivity(v => !v); setShowComments(false); }}
+              title="활동 로그 — 누가 무엇을 했는지"
+              style={{ height: '32px', width: '32px', borderRadius: '7px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: showActivity ? '#4F46E5' : '#374151', background: showActivity ? 'rgba(79,70,229,0.08)' : 'white', border: `1px solid ${showActivity ? '#4F46E5' : '#E5E7EB'}`, cursor: 'pointer', transition: 'all 0.15s' }}
+              onMouseEnter={e => { if (!showActivity) e.currentTarget.style.background = '#F9FAFB'; }}
+              onMouseLeave={e => { if (!showActivity) e.currentTarget.style.background = 'white'; }}
+            >
+              <Clock size={14} />
+            </button>
+
+            {/* 내보내기 — 사람 초대(권한 부여) */}
+            <button
+              onClick={() => setShowExport(true)}
+              title="내보내기 — 다른 사람을 초대해 권한 부여"
+              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', cursor: 'pointer', transition: 'all 0.15s' }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#F9FAFB'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
+            >
+              <Share2 size={13} />
+              내보내기
             </button>
 
             {/* Guide Me — 확장프로그램으로 실제 화면 오버레이 가이드 시작 */}
@@ -954,6 +981,13 @@ export default function EditorPage() {
               steps={manualSteps.map(s => ({ id: s.id, number: s.number }))}
               currentUserId={user?.id ?? null}
               onClose={() => setShowComments(false)}
+              onJumpToStep={(stepId) => setActiveId(stepId)}
+            />
+          )}
+          {showActivity && (
+            <ActivityPanel
+              tutorialId={id}
+              onClose={() => setShowActivity(false)}
             />
           )}
           </div>
@@ -985,6 +1019,13 @@ export default function EditorPage() {
           currentTutorialId={id}
           onImport={handleImportSteps}
           onClose={() => setShowMerge(false)}
+        />
+      )}
+      {showExport && (
+        <ExportModal
+          tutorialId={id}
+          title={title}
+          onClose={() => setShowExport(false)}
         />
       )}
     </div>

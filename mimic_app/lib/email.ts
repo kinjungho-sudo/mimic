@@ -151,6 +151,65 @@ export async function sendWelcomeEmail({ to, name }: { to: string; name: string 
   });
 }
 
+export async function sendManualShareInvitation({
+  to,
+  inviterName,
+  manualTitle,
+  role,
+  url,
+}: {
+  to: string;
+  inviterName: string;
+  manualTitle: string;
+  role: 'viewer' | 'editor';
+  url: string;
+}) {
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const roleLabel = role === 'editor' ? '편집' : '보기';
+
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject: `${inviterName}님이 '${manualTitle}' 매뉴얼을 공유했습니다`,
+    html: `
+<!DOCTYPE html>
+<html lang="ko">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#F0F0F5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:48px 20px">
+    <tr><td align="center">
+      <table width="520" cellpadding="0" cellspacing="0" style="background:white;border-radius:20px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.10)">
+        <tr><td style="background:linear-gradient(135deg,#3730a3 0%,#6d28d9 100%);padding:36px 40px;text-align:center">
+          <p style="margin:0;font-size:24px;font-weight:800;color:white;letter-spacing:-0.03em;line-height:1">MIMIC</p>
+        </td></tr>
+        <tr><td style="padding:40px 48px 36px;text-align:center">
+          <p style="margin:0 0 10px;font-size:22px;font-weight:800;color:#0F172A;letter-spacing:-0.02em">매뉴얼 공유</p>
+          <p style="margin:0 0 28px;font-size:15px;color:#6B7280;line-height:1.7">
+            <strong style="color:#111827">${inviterName}</strong>님이<br>
+            <strong style="color:#3730a3;font-size:16px">${manualTitle}</strong> 매뉴얼을<br>
+            <strong style="color:#111827">${roleLabel}</strong> 권한으로 공유했습니다.
+          </p>
+          <table cellpadding="0" cellspacing="0" style="margin:0 auto 28px">
+            <tr><td style="background:linear-gradient(135deg,#3730a3,#6d28d9);border-radius:12px">
+              <a href="${url}" style="display:block;padding:15px 36px;color:white;text-decoration:none;font-weight:700;font-size:15px;letter-spacing:-0.01em">매뉴얼 열기 &rarr;</a>
+            </td></tr>
+          </table>
+          <p style="margin:0;font-size:12.5px;color:#9CA3AF;line-height:1.8">
+            MIMIC 계정(${to})으로 로그인하면 접근할 수 있습니다.
+          </p>
+        </td></tr>
+        <tr><td style="padding:0 48px"><div style="height:1px;background:#F3F4F6"></div></td></tr>
+        <tr><td style="padding:24px 48px 28px;text-align:center">
+          <p style="margin:0;font-size:11.5px;color:#9CA3AF">매뉴얼을 더 쉽고 빠르게 · © 2026 MIMIC</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`,
+  });
+}
+
 export async function sendWorkspaceInvitation({
   to,
   inviterName,
