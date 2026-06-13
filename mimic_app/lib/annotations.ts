@@ -126,10 +126,11 @@ export function buildClickHighlight(params: {
       x2: tx1 + textW, y2: ty1 + textH,
       text: labelText,
       color: '#FFFFFF',
-      fontSize: 14,
+      fontSize: 18,
       fontBold: true,
+      textAlign: 'center' as const,
       hasBg: true,
-      borderColor: 'transparent',
+      borderColor: 'rgba(0,0,0,0.65)',
       strokeWidth: 0,
     },
   ];
@@ -228,8 +229,10 @@ export function toEditorAnnotation(raw: Record<string, unknown>, index: number):
       ...base, type: 'text' as const,
       x1: x, y1: y, x2: x + w, y2: y + h,
       text: label ?? '',
-      fontSize: 14,
-      borderColor: 'rgba(255,255,255,0.6)',
+      fontSize: 18,
+      fontBold: true,
+      textAlign: 'center' as const,
+      borderColor: 'rgba(0,0,0,0.65)',
     };
   }
   return { ...base, type: 'rect' as const, x1: x, y1: y, x2: x + w, y2: y + h };

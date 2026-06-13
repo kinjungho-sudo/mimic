@@ -30,7 +30,7 @@ const SETTINGS_DEFAULTS = {
   highlight:   true,
   flash:       true,
   captureMode: 'interactive',
-  quality:     82,
+  quality:     92,
   autoNav:     true,
   mobileMode:  false,
   piiBlur:     true,

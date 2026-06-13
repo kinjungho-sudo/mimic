@@ -43,7 +43,7 @@ const STROKE_OPTIONS = [
 ];
 
 const FONT_SIZES = [12, 14, 16, 18, 22, 28, 36];
-const DEFAULT_BORDER = 'rgba(255,255,255,0.6)';
+const DEFAULT_BORDER = 'rgba(0,0,0,0.65)';
 
 // 그룹 A: 지우개/블러, 그룹 B: 도형/텍스트
 const TOOL_GROUPS: { tools: Tool[] }[] = [
@@ -147,12 +147,12 @@ export function ImageAnnotationEditor({
   imageUrl, annotations, onChange, onClose,
 }: ImageAnnotationEditorProps) {
   const [tool, setTool] = useState<Tool>('select');
-  const [color, setColor] = useState<Color>('#EF4444');
+  const [color, setColor] = useState<Color>('#FFFFFF');
   const [strokeIdx, setStrokeIdx] = useState(1);
-  const [fontSize, setFontSize] = useState(16);
-  const [fontBold, setFontBold] = useState(false);
+  const [fontSize, setFontSize] = useState(18);
+  const [fontBold, setFontBold] = useState(true);
   const [borderColor, setBorderColor] = useState<string>(DEFAULT_BORDER);
-  const [textAlign, setTextAlign] = useState<'left' | 'center' | 'right'>('left');
+  const [textAlign, setTextAlign] = useState<'left' | 'center' | 'right'>('center');
   const [hasBg, setHasBg] = useState(true);
 
   const lastColor = useRef(color);

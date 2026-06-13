@@ -3,7 +3,7 @@ const SUPABASE_URL      = 'https://gqynptpjomcqzxyykqic.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxeW5wdHBqb21jcXp4eXlrcWljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NTcyNzMsImV4cCI6MjA4NzEzMzI3M30.7OgewnWhbE2GK1k0tTuuegrKUVkHuJrW_cpvbVRcH1E';
 const SUPABASE_BUCKET   = 'naviaction';
 const WEBAPP_ORIGIN     = 'https://mimic-nine-ashen.vercel.app';
-const JPEG_QUALITY_DEFAULT = 0.82;
+const JPEG_QUALITY_DEFAULT = 0.92;
 const MAX_STEPS         = 30;
 
 // タイムアウト 상수
@@ -524,16 +524,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       await new Promise((r) => setTimeout(r, CAPTURE_RAF_DELAY_MS));
 
-      const rawDataUrl = await captureTab(tab.windowId);
-      if (!rawDataUrl) { restore(); sendResponse({ ok: false }); return; }
+      const capturedRaw = await captureTab(tab.windowId);
+      if (!capturedRaw) { restore(); sendResponse({ ok: false }); return; }
 
-      const black = await isBlackScreen(rawDataUrl).catch(() => false);
+      const black = await isBlackScreen(capturedRaw).catch(() => false);
       if (black) {
         restore();
         chrome.runtime.sendMessage({ type: 'CAPTURE_BLOCKED', stepNumber: stepData.stepNumber, stepData }, () => { void chrome.runtime.lastError; });
         sendResponse({ ok: false, blocked: true });
         return;
       }
+
+      // 기기 에뮬레이션 레터박스 제거 — PII 블러 좌표 매핑 전에 수행해야 한다
+      const rawDataUrl = await normalizeCaptureGeometry(capturedRaw, stepData.windowWidth, stepData.windowHeight);
 
       const piiRegions = response?.piiRegions ?? [];
       const dataUrl = piiRegions.length > 0
@@ -601,13 +604,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       });
       await new Promise((r) => setTimeout(r, CAPTURE_RAF_DELAY_MS));
 
-      const rawDataUrl = await captureTab(tab.windowId);
+      const capturedRaw = await captureTab(tab.windowId);
       sendTabMessage(tabId, { type: 'RESTORE_OVERLAY', flash: true });  // 캡처 플래시 피드백
-      if (!rawDataUrl) { sendResponse({ ok: false }); return; }
+      if (!capturedRaw) { sendResponse({ ok: false }); return; }
+
+      // viewport는 content가 보고한 값 우선 — 기기 에뮬레이션에서는 tab.width(실제 창)와 다르다
+      const vpW = response?.viewportW || tab.width || 1280;
+      const vpH = response?.viewportH || tab.height || 800;
+
+      // 기기 에뮬레이션 레터박스 제거 — PII 블러 좌표 매핑 전에 수행해야 한다
+      const rawDataUrl = await normalizeCaptureGeometry(capturedRaw, vpW, vpH);
 
       const piiRegions = response?.piiRegions ?? [];
       const dataUrl = piiRegions.length > 0
-        ? await applyPixelBlur(rawDataUrl, piiRegions, tab.width || 1280, tab.height || 800).catch(() => rawDataUrl)
+        ? await applyPixelBlur(rawDataUrl, piiRegions, vpW, vpH).catch(() => rawDataUrl)
         : rawDataUrl;
 
       const { stepNumber } = await storageGet('stepNumber');
@@ -615,7 +625,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const stepData = {
         url: tab.url, timestamp: Date.now(),
         clickX: 0, clickY: 0,
-        windowWidth: tab.width || 1280, windowHeight: tab.height || 800,
+        windowWidth: vpW, windowHeight: vpH,
         stepNumber: stepNum, manual: true,
       };
       await handleCapture(dataUrl, stepData, tab);
@@ -1062,23 +1072,29 @@ async function waitForTabPaint(tabId, windowId, maxMs = 3000, intervalMs = 400) 
 
 // ── PII 블러 포함 캡처 (tabs.onUpdated 경로용) ───────────────────
 async function captureWithPII(tabId, tab) {
-  const rawDataUrl = await waitForTabPaint(tabId, tab.windowId, 3000);
-  if (!rawDataUrl) return null;
+  const firstPaint = await waitForTabPaint(tabId, tab.windowId, 3000);
+  if (!firstPaint) return null;
 
   return new Promise((resolve) => {
     chrome.tabs.sendMessage(tabId, { type: 'HIDE_OVERLAY_FOR_CAPTURE' }, async (response) => {
       void chrome.runtime.lastError;
       await new Promise((r) => setTimeout(r, 0));
 
-      const capturedUrl = await captureTab(tab.windowId);
+      const capturedRaw = await captureTab(tab.windowId);
       sendTabMessage(tabId, { type: 'RESTORE_OVERLAY' });
 
-      if (!capturedUrl) { resolve(rawDataUrl); return; }
+      // viewport는 content가 보고한 값 우선 — 기기 에뮬레이션에서는 tab.width(실제 창)와 다르다
+      const vpW = response?.viewportW || tab.width || 1280;
+      const vpH = response?.viewportH || tab.height || 800;
+
+      // 기기 에뮬레이션 레터박스 제거 — PII 블러 좌표 매핑 전에 수행해야 한다
+      const capturedUrl = await normalizeCaptureGeometry(capturedRaw || firstPaint, vpW, vpH);
+      if (!capturedUrl) { resolve(null); return; }
 
       const piiRegions = response?.piiRegions ?? [];
       if (piiRegions.length === 0) { resolve(capturedUrl); return; }
 
-      const blurred = await applyPixelBlur(capturedUrl, piiRegions, tab.width || 1280, tab.height || 800).catch(() => capturedUrl);
+      const blurred = await applyPixelBlur(capturedUrl, piiRegions, vpW, vpH).catch(() => capturedUrl);
       resolve(blurred);
     });
   });
@@ -1171,6 +1187,67 @@ async function captureFullPage(tab) {
   const outBlob = await canvas.convertToBlob({ type: 'image/png' });
   log('info', 'bg', `full page captured: ${segments} segments, ${canvas.width}x${canvas.height}px`);
   return blobToDataUrl(outBlob);
+}
+
+// ── 캡처 기하 보정 — DevTools 기기 에뮬레이션 레터박스 제거 ──────
+// 모바일(기기 모드) 녹화 시 captureVisibleTab은 에뮬레이션 화면 '주변 여백'(어두운
+// DevTools 배경)까지 통째로 찍는다. 그 결과:
+//   1) 세로 페이지가 검은 띠 낀 가로 이미지로 저장됨 (슬라이드 비율 깨짐)
+//   2) PII 블러가 viewport→이미지 비율로 좌표를 환산하므로 엉뚱한 위치에 찍힘
+// 이미지 비율이 viewport 비율과 다르면 가장자리 균일색 띠를 감지해 잘라낸다.
+async function normalizeCaptureGeometry(dataUrl, viewportW, viewportH) {
+  if (!dataUrl || !viewportW || !viewportH) return dataUrl;
+  try {
+    const res  = await fetch(dataUrl);
+    const blob = await res.blob();
+    const bmp  = await createImageBitmap(blob);
+    const iw = bmp.width, ih = bmp.height;
+
+    const imgAspect = iw / ih;
+    const vpAspect  = viewportW / viewportH;
+    if (Math.abs(imgAspect - vpAspect) / vpAspect < 0.08) return dataUrl;  // 정상 캡처
+
+    const canvas = new OffscreenCanvas(iw, ih);
+    const ctx    = canvas.getContext('2d');
+    ctx.drawImage(bmp, 0, 0);
+    const d = ctx.getImageData(0, 0, iw, ih).data;
+
+    const px   = (x, y) => { const i = (y * iw + x) * 4; return [d[i], d[i + 1], d[i + 2]]; };
+    const near = (a, b) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]) < 30;
+
+    const SAMPLES = 24;
+    const colUniform = (x, ref) => {
+      for (let s = 0; s < SAMPLES; s++) {
+        if (!near(px(x, Math.floor(ih * (s + 0.5) / SAMPLES)), ref)) return false;
+      }
+      return true;
+    };
+    const rowUniform = (y, ref, x0, x1) => {
+      for (let s = 0; s < SAMPLES; s++) {
+        if (!near(px(Math.floor(x0 + (x1 - x0) * (s + 0.5) / SAMPLES), y), ref)) return false;
+      }
+      return true;
+    };
+
+    const corner = px(0, 0);
+    let left = 0, right = iw - 1, top = 0, bottom = ih - 1;
+    while (left  < iw * 0.45 && colUniform(left, corner))  left++;
+    while (right > iw * 0.55 && colUniform(right, corner)) right--;
+    while (top    < ih * 0.45 && rowUniform(top, corner, left, right))    top++;
+    while (bottom > ih * 0.55 && rowUniform(bottom, corner, left, right)) bottom--;
+
+    const cw = right - left + 1, ch = bottom - top + 1;
+    if (cw < 100 || ch < 100) return dataUrl;                     // 과도 트림 방어
+    if ((iw * ih - cw * ch) / (iw * ih) < 0.04) return dataUrl;   // 의미 있는 여백 없음
+
+    const out = new OffscreenCanvas(cw, ch);
+    out.getContext('2d').drawImage(bmp, left, top, cw, ch, 0, 0, cw, ch);
+    const outBlob = await out.convertToBlob({ type: 'image/png' });
+    log('info', 'bg', `letterbox trim: ${iw}x${ih} → ${cw}x${ch} (vp ${viewportW}x${viewportH})`);
+    return blobToDataUrl(outBlob);
+  } catch {
+    return dataUrl;
+  }
 }
 
 // ── 검은 화면(캡처 차단) 감지 ────────────────────────────────────
