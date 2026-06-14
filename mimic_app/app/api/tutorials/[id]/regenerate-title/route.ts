@@ -1,0 +1,46 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth-guard';
+import { createServiceRoleClient } from '@/lib/supabase/server';
+import { generateDraft } from '@/lib/claude';
+
+type Params = { params: Promise<{ id: string }> };
+
+export async function POST(request: NextRequest, { params }: Params) {
+  const auth = await requireAuth(request);
+  if (!auth.ok) return auth.response;
+
+  const { id } = await params;
+  const supabase = createServiceRoleClient();
+
+  const { data: tutorial } = await supabase
+    .from('mm_tutorials')
+    .select('id, user_id')
+    .eq('id', id)
+    .eq('user_id', auth.userId)
+    .single();
+
+  if (!tutorial) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  const { data: steps } = await supabase
+    .from('mm_steps')
+    .select('id, ai_title, ai_description, page_url, step_number, domain_name')
+    .eq('tutorial_id', id)
+    .order('step_number', { ascending: true });
+
+  if (!steps?.length) return NextResponse.json({ error: 'No steps' }, { status: 422 });
+
+  // generateDraft는 단일 Haiku 호출로 제목+스텝 제목을 생성 — 여기선 tutorial_title만 사용
+  const { tutorial_title } = await generateDraft(steps);
+  if (!tutorial_title) {
+    return NextResponse.json({ error: '제목 생성에 실패했습니다. 다시 시도해주세요.' }, { status: 502 });
+  }
+
+  const { error } = await supabase
+    .from('mm_tutorials')
+    .update({ title: tutorial_title })
+    .eq('id', id);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  return NextResponse.json({ title: tutorial_title });
+}

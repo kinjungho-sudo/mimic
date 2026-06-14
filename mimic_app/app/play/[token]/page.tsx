@@ -784,7 +784,10 @@ export default function PlayerPage() {
 
           {/* 전체화면 — 모바일에서 숨김 */}
           {!isMobile && (
-            <button title="전체화면" onClick={() => document.documentElement.requestFullscreen?.()}
+            <button title="전체화면" onClick={() => {
+                if (document.fullscreenElement) document.exitFullscreen?.();
+                else document.documentElement.requestFullscreen?.();
+              }}
               style={{ width: '32px', height: '32px', borderRadius: '8px', display: 'grid', placeItems: 'center', color: 'rgba(255,255,255,0.6)', background: 'transparent', border: 'none', cursor: 'pointer' }}
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.10)'; e.currentTarget.style.color = 'white'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.6)'; }}>
@@ -860,9 +863,10 @@ export default function PlayerPage() {
         )}
 
         {/* 이미지 컨테이너: 원본 비율 유지 — objectFit:cover 제거로 어노테이션 좌표 정확히 일치 */}
-        <div style={{ width: '100%', maxWidth: '1100px', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 30px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)', background: '#111' }}>
+        <div style={{ position: 'relative', width: '100%', maxWidth: '1100px', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 30px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)', background: '#111' }}>
           {step?.screenshot_url ? (
-            /* 이미지 + 어노테이션 + 마커 + 자막을 동일한 position:relative 컨테이너 안에 */
+            <>
+            {/* 이미지 + 어노테이션 + 마커 — 확대 transform 적용 (자막은 이 밖에 둠) */}
             <div key={currentStep} style={{ position: 'relative', lineHeight: 0, animation: 'stepSlideIn 0.35s cubic-bezier(0.22,0.61,0.36,1) both', transform: (step.image_zoom ?? 1) > 1 ? `translate(${(step.image_offset_x ?? 0) * 100}%, ${(step.image_offset_y ?? 0) * 100}%) scale(${step.image_zoom})` : undefined, transformOrigin: 'center center' }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -874,10 +878,9 @@ export default function PlayerPage() {
               {(step.user_annotations?.length ?? 0) > 0 && (
                 <AnnotationPreview annotations={step.user_annotations!} imageUrl={step.screenshot_url} />
               )}
-              {/* Hotspot — click_x/y 있는 스텝에서 클릭 유도 원형 버튼 */}
+              {/* Hotspot — 클릭 위치 시각 표시만 (진행은 하단 컨트롤로, 클릭 강제 없음) */}
               {step.click_x != null && step.click_y != null && currentStep < totalSteps - 1 && (
-                <button
-                  onClick={() => goTo(currentStep + 1)}
+                <span
                   style={{
                     position: 'absolute',
                     left: `${step.click_x * 100}%`,
@@ -885,15 +888,11 @@ export default function PlayerPage() {
                     transform: 'translate(-50%, -50%)',
                     width: '64px', height: '64px',
                     borderRadius: '50%',
-                    background: 'transparent',
-                    border: 'none',
-                    cursor: 'pointer',
+                    pointerEvents: 'none',
                     zIndex: 10,
                     animation: 'hotspotPop 0.4s cubic-bezier(0.34,1.56,0.64,1) both',
                     animationDelay: '0.3s',
-                    outline: 'none',
                   }}
-                  title="클릭하여 다음 단계로"
                 >
                   {/* 중심 점 */}
                   <span style={{ position: 'absolute', top: '50%', left: '50%', width: '10px', height: '10px', marginTop: '-5px', marginLeft: '-5px', borderRadius: '50%', background: 'rgba(255,255,255,0.95)', boxShadow: '0 0 8px rgba(255,255,255,0.7), 0 0 16px rgba(99,102,241,0.5)', animation: 'hotspotDotPulse 1.8s ease-in-out infinite' }} />
@@ -903,7 +902,7 @@ export default function PlayerPage() {
                   <span style={{ position: 'absolute', top: '50%', left: '50%', width: '10px', height: '10px', marginTop: '-5px', marginLeft: '-5px', borderRadius: '50%', border: '1.5px solid rgba(255,255,255,0.55)', boxShadow: '0 0 4px rgba(99,102,241,0.3)', animation: 'hotspotRipple 2s ease-out infinite', animationDelay: '0.65s' }} />
                   {/* 파문 링 3 */}
                   <span style={{ position: 'absolute', top: '50%', left: '50%', width: '10px', height: '10px', marginTop: '-5px', marginLeft: '-5px', borderRadius: '50%', border: '1.5px solid rgba(255,255,255,0.35)', boxShadow: '0 0 4px rgba(99,102,241,0.2)', animation: 'hotspotRipple 2s ease-out infinite', animationDelay: '1.3s' }} />
-                </button>
+                </span>
               )}
               {/* 마커 */}
               {stepMarkers.map((m, i) => (
@@ -911,30 +910,31 @@ export default function PlayerPage() {
                   {m.label || (i + 1)}
                 </span>
               ))}
-              {/* 자막 */}
-              {step.caption && (
-                <div style={{
-                  position: 'absolute', left: '50%', transform: 'translateX(-50%)',
-                  bottom: '20px',
-                  background: 'rgba(0,0,0,0.82)',
-                  backdropFilter: 'blur(8px)',
-                  color: 'white',
-                  padding: '12px 22px',
-                  borderRadius: '10px',
-                  fontSize: '15px',
-                  fontWeight: 400,
-                  lineHeight: 1.65,
-                  maxWidth: '82%',
-                  textAlign: 'center',
-                  zIndex: 6,
-                  boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
-                  letterSpacing: '0.01em',
-                  whiteSpace: 'pre-wrap',
-                }}>
-                  {step.caption}
-                </div>
-              )}
             </div>
+            {/* 자막 — 확대 컨테이너 밖(프레임 직속)에 두어 확대 시에도 잘리지 않음 */}
+            {step.caption && (
+              <div style={{
+                position: 'absolute', left: '50%', transform: 'translateX(-50%)',
+                bottom: '20px',
+                background: 'rgba(0,0,0,0.82)',
+                backdropFilter: 'blur(8px)',
+                color: 'white',
+                padding: '12px 22px',
+                borderRadius: '10px',
+                fontSize: '15px',
+                fontWeight: 400,
+                lineHeight: 1.65,
+                maxWidth: '82%',
+                textAlign: 'center',
+                zIndex: 6,
+                boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+                letterSpacing: '0.01em',
+                whiteSpace: 'pre-wrap',
+              }}>
+                {step.caption}
+              </div>
+            )}
+            </>
           ) : (
             <div style={{ aspectRatio: '16/9', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F9FAFB' }}>
               <div style={{ textAlign: 'center', color: '#9CA3AF' }}>

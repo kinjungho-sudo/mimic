@@ -79,6 +79,7 @@ export default function EditorPage() {
   const [manualSteps, setManualSteps] = useState<ManualStep[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [titleDirty, setTitleDirty] = useState(false);
+  const [regeneratingTitle, setRegeneratingTitle] = useState(false);
   // 녹화 직후 진입 — 스텝 생성 대기 폴링
   const [pollingState, setPollingState] = useState<'idle' | 'polling' | 'timeout'>('idle');
   const [saving, setSaving] = useState(false);
@@ -321,6 +322,19 @@ export default function EditorPage() {
     setTtsEnabled(enabled);
     await saveTtsSetting(enabled, ttsVoice);
   }, [ttsVoice, saveTtsSetting]);
+
+  const handleRegenerateTitle = useCallback(async () => {
+    setRegeneratingTitle(true);
+    try {
+      const res = await fetch(`/api/tutorials/${id}/regenerate-title`, { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.title) { setTitle(data.title); setTitleDirty(false); }
+      }
+    } finally {
+      setRegeneratingTitle(false);
+    }
+  }, [id]);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleTtsVoiceChange = useCallback(async (voice: 'nova' | 'alloy') => {
@@ -877,6 +891,15 @@ export default function EditorPage() {
                 fontFamily: 'inherit', cursor: 'text', minWidth: 0,
               }}
             />
+            <button
+              onClick={handleRegenerateTitle}
+              disabled={regeneratingTitle}
+              title="AI로 제목 다시 생성"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', flexShrink: 0, height: '28px', padding: '0 10px', borderRadius: '6px', border: '1px solid #E5E7EB', background: 'white', color: '#6d28d9', fontSize: '12px', fontWeight: 500, cursor: regeneratingTitle ? 'not-allowed' : 'pointer', opacity: regeneratingTitle ? 0.65 : 1, transition: 'all 0.15s' }}
+            >
+              {regeneratingTitle ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Wand2 size={12} />}
+              제목 재생성
+            </button>
             {/* TTS 설정 — 튜토리얼 단위 ON/OFF */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, borderLeft: '1px solid #F3F4F6', paddingLeft: '12px' }}>
               <button

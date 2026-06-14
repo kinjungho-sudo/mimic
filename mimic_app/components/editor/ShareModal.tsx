@@ -18,6 +18,7 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
   const [url, setUrl] = useState(shareUrl ?? '');
   const [copied, setCopied] = useState(false);
   const [embedCopied, setEmbedCopied] = useState(false);
+  const [embedUrlCopied, setEmbedUrlCopied] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [unpublishing, setUnpublishing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -98,6 +99,13 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
     await navigator.clipboard.writeText(embedCode).catch(() => {});
     setEmbedCopied(true);
     setTimeout(() => setEmbedCopied(false), 2200);
+  };
+
+  const handleCopyEmbedUrl = async () => {
+    if (!embedUrl) return;
+    await navigator.clipboard.writeText(embedUrl).catch(() => {});
+    setEmbedUrlCopied(true);
+    setTimeout(() => setEmbedUrlCopied(false), 2200);
   };
 
   const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(`${title} - MIMIC 매뉴얼`)}&url=${encodeURIComponent(url)}`;
@@ -310,31 +318,50 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
 
           {/* 임베드 — Notion/SharePoint 등에 삽입 */}
           <div style={{ marginTop: '16px', padding: '14px 16px', background: '#F9FAFB', borderRadius: '10px', border: '1px solid #E5E7EB' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', gap: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Code2 size={13} style={{ color: '#3730a3' }} />
                 <span style={{ fontSize: '12.5px', fontWeight: 600, color: '#374151' }}>임베드</span>
               </div>
-              <button
-                onClick={handleCopyEmbed}
-                disabled={publishing || !embedCode}
-                style={{
-                  display: 'inline-flex', alignItems: 'center', gap: '5px',
-                  padding: '4px 11px', borderRadius: '6px', fontSize: '11.5px', fontWeight: 500,
-                  background: embedCopied ? '#10B981' : 'white', color: embedCopied ? 'white' : '#3730a3',
-                  border: `1px solid ${embedCopied ? '#10B981' : '#C7D2FE'}`,
-                  cursor: publishing || !embedCode ? 'not-allowed' : 'pointer', opacity: publishing || !embedCode ? 0.6 : 1,
-                }}
-              >
-                {embedCopied ? <Check size={12} /> : <Code2 size={12} />}
-                {embedCopied ? '복사됨!' : '코드 복사'}
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <button
+                  onClick={handleCopyEmbedUrl}
+                  disabled={publishing || !embedUrl}
+                  title="Notion 등 /embed 블록에 붙여넣는 링크"
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '5px',
+                    padding: '4px 11px', borderRadius: '6px', fontSize: '11.5px', fontWeight: 500,
+                    background: embedUrlCopied ? '#10B981' : '#3730a3', color: 'white',
+                    border: `1px solid ${embedUrlCopied ? '#10B981' : '#3730a3'}`,
+                    cursor: publishing || !embedUrl ? 'not-allowed' : 'pointer', opacity: publishing || !embedUrl ? 0.6 : 1,
+                  }}
+                >
+                  {embedUrlCopied ? <Check size={12} /> : <Link2 size={12} />}
+                  {embedUrlCopied ? '복사됨!' : 'Notion용 링크'}
+                </button>
+                <button
+                  onClick={handleCopyEmbed}
+                  disabled={publishing || !embedCode}
+                  title="웹사이트·SharePoint 등 HTML에 붙여넣는 iframe 코드"
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '5px',
+                    padding: '4px 11px', borderRadius: '6px', fontSize: '11.5px', fontWeight: 500,
+                    background: embedCopied ? '#10B981' : 'white', color: embedCopied ? 'white' : '#3730a3',
+                    border: `1px solid ${embedCopied ? '#10B981' : '#C7D2FE'}`,
+                    cursor: publishing || !embedCode ? 'not-allowed' : 'pointer', opacity: publishing || !embedCode ? 0.6 : 1,
+                  }}
+                >
+                  {embedCopied ? <Check size={12} /> : <Code2 size={12} />}
+                  {embedCopied ? '복사됨!' : 'iframe 코드'}
+                </button>
+              </div>
             </div>
             <code style={{ display: 'block', fontSize: '11px', color: '#4B5563', background: 'white', border: '1px solid #E5E7EB', borderRadius: '7px', padding: '9px 11px', fontFamily: 'ui-monospace, monospace', wordBreak: 'break-all', lineHeight: 1.5, maxHeight: '64px', overflow: 'auto' }}>
               {publishing ? '링크 생성 중...' : embedCode}
             </code>
-            <p style={{ margin: '7px 0 0', fontSize: '11px', color: '#9CA3AF', lineHeight: 1.5 }}>
-              Notion, SharePoint 등에 붙여넣으면 매뉴얼이 그대로 표시됩니다.
+            <p style={{ margin: '7px 0 0', fontSize: '11px', color: '#9CA3AF', lineHeight: 1.6 }}>
+              <strong style={{ color: '#6B7280', fontWeight: 600 }}>Notion</strong>은 <code style={{ background: '#EEF2FF', color: '#3730a3', padding: '1px 5px', borderRadius: '4px', fontSize: '10.5px' }}>/embed</code> 입력 후 <strong style={{ color: '#6B7280', fontWeight: 600 }}>Notion용 링크</strong>를 붙여넣으세요. iframe 코드를 그대로 붙이면 텍스트로 표시됩니다.<br />
+              <strong style={{ color: '#6B7280', fontWeight: 600 }}>웹사이트·SharePoint</strong>는 iframe 코드를 HTML에 붙여넣으세요.
               {pwEnabled && ' 비밀번호가 설정된 매뉴얼은 임베드로 표시되지 않습니다.'}
             </p>
           </div>

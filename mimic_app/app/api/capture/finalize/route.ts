@@ -101,7 +101,16 @@ export async function POST(request: NextRequest) {
   });
 
   // 튜토리얼 생성
-  const tutorialTitle = title ?? `매뉴얼 ${new Date().toLocaleDateString('ko-KR')}`;
+  // 폴백 제목: AI 제목 생성이 실패해도 날짜 대신 도메인 기반으로 — "매뉴얼 2026. 6. 14" 방지
+  let fallbackTitle = `매뉴얼 ${new Date().toLocaleDateString('ko-KR')}`;
+  const urlHint = deduped.find(ev => ev.url)?.url;
+  if (urlHint) {
+    try {
+      const host = new URL(urlHint).hostname.replace(/^www\./, '');
+      if (host) fallbackTitle = `${host} 가이드`;
+    } catch { /* 날짜 폴백 유지 */ }
+  }
+  const tutorialTitle = title ?? fallbackTitle;
   const { data: tutorial, error: tutError } = await supabase
     .from('mm_tutorials')
     .insert({
