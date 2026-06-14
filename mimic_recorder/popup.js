@@ -23,6 +23,8 @@ const settingVoiceRecord = document.getElementById('settingVoiceRecord');
 
 let isRecording  = false;
 let isPaused     = false;
+let _userIsPro   = false;   // 캡처별 음성 메모 게이팅 (GET_PLAN으로 갱신)
+let _voiceEnabled = false;  // 설정의 음성 메모 사용 여부 (마이크 버튼 노출)
 
 // ── 설정 기본값 ──────────────────────────────────────────────────
 const SETTINGS_DEFAULTS = {
@@ -46,10 +48,27 @@ async function init() {
   const r = await storageGet(['isRecording', 'isPaused', 'steps', 'extensionToken', 'settings']);
   isRecording = !!r.isRecording;
   isPaused    = !!r.isPaused;
+  _voiceEnabled = !!(r.settings && r.settings.voiceRecord);
   updateView();
   renderSteps(r.steps || []);
   updateLoginState(!!r.extensionToken);
   loadSettingsUI(r.settings || {});
+  // 플랜 조회 (캡처별 음성 메모 PRO 게이팅) — 연동돼 있을 때만
+  if (r.extensionToken) {
+    chrome.runtime.sendMessage({ type: 'GET_PLAN' }, (p) => {
+      void chrome.runtime.lastError;
+      _userIsPro = !!(p && p.isPro);
+    });
+  }
+}
+
+// 마이크 권한 확보 — 이미 허용이면 통과, 아니면 권한 창을 띄운다.
+async function ensureMicPermission() {
+  let state = 'prompt';
+  try { state = (await navigator.permissions.query({ name: 'microphone' })).state; } catch { /* 미지원 */ }
+  if (state === 'granted') return true;
+  await chrome.storage.local.remove('micPermissionGranted');
+  return openMicPermissionWindow();
 }
 
 // ── 설정 UI 로드 ──────────────────────────────────────────────────
@@ -108,20 +127,24 @@ function openMicPermissionWindow() {
 
 settingVoiceRecord?.addEventListener('change', async () => {
   if (settingVoiceRecord.checked) {
-    // 이미 허용돼 있으면 창을 띄우지 않고 통과
-    let state = 'prompt';
-    try { state = (await navigator.permissions.query({ name: 'microphone' })).state; } catch { /* 일부 버전은 query 미지원 */ }
-    if (state !== 'granted') {
-      await chrome.storage.local.remove('micPermissionGranted');
-      const ok = await openMicPermissionWindow();
-      if (!ok) {
-        settingVoiceRecord.checked = false;
-        showToast('마이크 권한이 필요합니다 — 열린 창에서 허용해주세요', 3500);
-        saveSettings();
-        return;
-      }
+    // PRO 전용 — 플랜 확인
+    const plan = await new Promise((res) => chrome.runtime.sendMessage({ type: 'GET_PLAN', refresh: true }, (p) => { void chrome.runtime.lastError; res(p); }));
+    _userIsPro = !!(plan && plan.isPro);
+    if (!_userIsPro) {
+      settingVoiceRecord.checked = false;
+      showToast('캡처별 음성 메모는 PRO 플랜 기능입니다', 3500);
+      return;
+    }
+    // 마이크 권한 확보
+    const ok = await ensureMicPermission();
+    if (!ok) {
+      settingVoiceRecord.checked = false;
+      showToast('마이크 권한이 필요합니다 — 열린 창에서 허용해주세요', 3500);
+      saveSettings();
+      return;
     }
   }
+  _voiceEnabled = settingVoiceRecord.checked;
   saveSettings();
 });
 
@@ -412,7 +435,62 @@ function buildStepCard(step, num) {
   card.style.cssText = 'flex-direction:column;align-items:stretch;';
   card.append(topRow, thumbWrap, delBtn);
 
+  // 캡처별 음성 메모 버튼 (PRO) — 설정에서 음성 메모를 켰을 때만 노출
+  if (_voiceEnabled) card.appendChild(buildStepVoiceButton(step));
+
   return card;
+}
+
+// 스텝 음성 메모 녹음 버튼 — 누르면 녹음 시작, 다시 누르면 정지·업로드.
+function buildStepVoiceButton(step) {
+  const btn = document.createElement('button');
+  btn.dataset.recording = '0';
+  const hasVoice = !!step.voiceAudioUrl;
+  btn.textContent = hasVoice ? '🎙 음성 메모 ✓ (다시 녹음)' : '🎙 음성 메모 녹음';
+  btn.style.cssText = [
+    'margin-top:6px', 'width:100%', 'padding:7px',
+    'border:1px solid #DDD6FE', 'border-radius:8px',
+    'background:#f5f3ff', 'color:#4F46E5',
+    'font-size:12px', 'font-weight:600', 'cursor:pointer',
+  ].join(';');
+
+  btn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (!_userIsPro) { showToast('음성 메모는 PRO 플랜 기능입니다', 3000); return; }
+
+    if (btn.dataset.recording === '1') {
+      // 정지
+      btn.dataset.recording = '0';
+      btn.textContent = '⏳ 저장 중…';
+      btn.disabled = true;
+      chrome.runtime.sendMessage({ type: 'STOP_STEP_VOICE' }, (res) => {
+        void chrome.runtime.lastError;
+        btn.disabled = false;
+        btn.style.background = '#f5f3ff'; btn.style.color = '#4F46E5'; btn.style.borderColor = '#DDD6FE';
+        btn.textContent = res?.ok ? '🎙 음성 메모 ✓ (다시 녹음)' : '🎙 음성 메모 녹음';
+        showToast(res?.ok ? '음성 메모 저장됨 ✓' : (res?.error || '저장 실패'), 2500);
+      });
+      return;
+    }
+
+    // 시작 — 권한 확보 후 녹음
+    const ok = await ensureMicPermission();
+    if (!ok) { showToast('마이크 권한이 필요합니다', 3000); return; }
+    btn.dataset.recording = '1';
+    btn.textContent = '⏺ 녹음 중… (정지)';
+    btn.style.background = '#fef2f2'; btn.style.color = '#dc2626'; btn.style.borderColor = '#fecaca';
+    chrome.runtime.sendMessage({ type: 'START_STEP_VOICE', stepNumber: step.stepNumber }, (res) => {
+      void chrome.runtime.lastError;
+      if (!res?.ok) {
+        btn.dataset.recording = '0';
+        btn.textContent = '🎙 음성 메모 녹음';
+        btn.style.background = '#f5f3ff'; btn.style.color = '#4F46E5'; btn.style.borderColor = '#DDD6FE';
+        showToast(res?.error || '마이크 시작 실패', 3000);
+      }
+    });
+  });
+
+  return btn;
 }
 
 function collapseAllThumb() {

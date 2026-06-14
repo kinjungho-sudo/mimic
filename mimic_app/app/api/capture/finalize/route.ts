@@ -5,7 +5,7 @@ import { captureFinalizeSchema } from '@/lib/validators';
 import { generateDraft, extractCoverColors, detectPII, cleanTranscripts } from '@/lib/claude';
 import { resolveFavicon } from '@/lib/favicon';
 import { buildClickHighlight } from '@/lib/annotations';
-import { transcribeAudio, assignSegmentsToSteps, computeStepWindows } from '@/lib/voice';
+import { transcribeAudio } from '@/lib/voice';
 
 export async function POST(request: NextRequest) {
   const auth = await requireExtensionToken(request);
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { session_id, title, step_numbers, content_mode = 'action', auto_zoom = false, audio_url = null } = parsed.data;
+  const { session_id, title, step_numbers, content_mode = 'action', auto_zoom = false, step_voice } = parsed.data;
 
   // 세션 소유자 확인
   const { data: session } = await supabase
@@ -251,7 +251,7 @@ export async function POST(request: NextRequest) {
   await Promise.all([
     supabase
       .from('mm_capture_sessions')
-      .update({ status: 'completed', ended_at: new Date().toISOString(), audio_url: audio_url ?? null })
+      .update({ status: 'completed', ended_at: new Date().toISOString() })
       .eq('id', session_id),
     supabase.rpc('increment_daily_manual_count', { uid: userId }),
   ]);
@@ -388,25 +388,32 @@ export async function POST(request: NextRequest) {
     // 초안/어노테이션 생성 실패는 무시 — 튜토리얼은 정상 생성됨
   }
 
-  // 음성 전사 → 스텝별 설명 — audio_url이 있으면 Whisper 전사 후 구간 배분.
-  // 다듬은 문장은 user_script(에디터 자동 로드)에, 원문은 voice_transcript_raw에 저장.
-  if (audio_url) {
+  // 캡처별 음성 메모(PRO) — step_voice { recorderStepNumber: audioUrl } 의 각 음성을
+  // 스텝별로 Whisper 전사 → 다듬어 user_script(에디터 자동 로드)에, 원문은 voice_transcript_raw에.
+  if (step_voice && Object.keys(step_voice).length) {
     try {
-      const segments = await transcribeAudio(audio_url);
-      if (segments.length) {
-        // deduped 순서 = step_number(idx+1). 각 스텝의 캡처 시각(audio_offset_ms) 매핑.
-        const stepOffsets = deduped.map((ev, idx) => ({
-          step_number: idx + 1,
-          offset_ms: (ev.audio_offset_ms as number | null) ?? null,
-        }));
+      // recorder stepNumber → mm_steps step_number(deduped 순서 idx+1) 매핑
+      const voiceByMmStep = new Map<number, string>();
+      deduped.forEach((ev, idx) => {
+        const sn = ev.step_number as number | null;
+        const url = sn != null ? step_voice[String(sn)] : undefined;
+        if (url) voiceByMmStep.set(idx + 1, url);
+      });
 
-        const rawByStep = assignSegmentsToSteps(segments, stepOffsets);
-        const totalMs = Math.round(Math.max(...segments.map(s => s.end)) * 1000);
-        const windows = computeStepWindows(stepOffsets, totalMs);
+      if (voiceByMmStep.size) {
+        // 각 음성 전사 (병렬)
+        const rawByStep = new Map<number, string>();
+        await Promise.allSettled(
+          Array.from(voiceByMmStep.entries()).map(async ([sn, url]) => {
+            const segs = await transcribeAudio(url).catch(() => []);
+            const raw = segs.map(s => s.text).join(' ').replace(/\s+/g, ' ').trim();
+            if (raw) rawByStep.set(sn, raw);
+          })
+        );
 
-        // 다듬기 — 전사가 있는 스텝만
-        const rawItems = Array.from(rawByStep.entries()).map(([step_number, raw]) => ({ step_number, raw }));
-        const cleanedByStep = await cleanTranscripts(rawItems).catch(() => new Map<number, string>());
+        const cleanedByStep = await cleanTranscripts(
+          Array.from(rawByStep.entries()).map(([step_number, raw]) => ({ step_number, raw }))
+        ).catch(() => new Map<number, string>());
 
         const { data: voiceSteps } = await supabase
           .from('mm_steps')
@@ -417,17 +424,15 @@ export async function POST(request: NextRequest) {
           await Promise.allSettled(
             voiceSteps.map(async (step) => {
               const raw = rawByStep.get(step.step_number);
-              if (!raw) return;
-              const cleaned = cleanedByStep.get(step.step_number) || raw;
-              const win = windows.get(step.step_number);
+              const url = voiceByMmStep.get(step.step_number);
+              if (!url) return;
+              const cleaned = (raw && cleanedByStep.get(step.step_number)) || raw || null;
               await supabase
                 .from('mm_steps')
                 .update({
-                  user_script:           cleaned,           // 에디터가 자동 로드
-                  voice_transcript_raw:  raw,               // '원본' 토글용
-                  voice_audio_url:       audio_url,
-                  voice_audio_start_ms:  win?.start_ms ?? null,
-                  voice_audio_end_ms:    win?.end_ms ?? null,
+                  ...(cleaned ? { user_script: cleaned } : {}),
+                  voice_transcript_raw: raw ?? null,
+                  voice_audio_url:      url,            // 에디터 '원본 듣기' 재생용
                 })
                 .eq('id', step.id);
             })
@@ -435,7 +440,7 @@ export async function POST(request: NextRequest) {
         }
       }
     } catch (err) {
-      console.error('voice transcription error:', err);
+      console.error('per-step voice transcription error:', err);
       // 전사 실패는 무시 — 매뉴얼은 정상 생성됨
     }
   }

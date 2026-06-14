@@ -269,9 +269,61 @@ async function stopAndUploadVoice(sessionId) {
 async function discardVoiceRecording() {
   if (!_audioActive) return;
   _audioActive = false;
+  _voiceStep = null;
   await chrome.runtime.sendMessage({ target: 'offscreen', type: 'STOP_AUDIO' }).catch(() => {});
   if (!_streamActive) await chrome.offscreen.closeDocument().catch(() => {});
   await storageRemove(['audioRecording', 'audioStartTime']);
+}
+
+// ── 캡처별 음성 메모 (PRO) ───────────────────────────────────────
+// 사용자가 사이드패널 스텝 카드의 🎙 버튼으로 해당 스텝에만 음성을 녹음한다.
+// 연속 녹음과 달리 명시적 start/stop, 스텝별 파일로 업로드 후 그 스텝에 URL 연결.
+let _voiceStep = null;  // 현재 녹음 중인 스텝 번호
+
+async function startStepVoice(stepNumber) {
+  if (_audioActive) return { ok: false, error: '이미 녹음 중입니다' };
+  try {
+    await ensureOffscreen();
+    const res = await chrome.runtime.sendMessage({ target: 'offscreen', type: 'START_AUDIO' });
+    if (!res?.ok) return { ok: false, error: res?.error || '마이크 시작 실패' };
+    _audioActive = true;
+    _voiceStep   = stepNumber;
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+
+async function stopStepVoice() {
+  if (!_audioActive) return { ok: false, error: 'not recording' };
+  const stepNum = _voiceStep;
+  _audioActive = false;
+  _voiceStep   = null;
+
+  let dataUrl = null;
+  try {
+    const res = await chrome.runtime.sendMessage({ target: 'offscreen', type: 'STOP_AUDIO' });
+    dataUrl = res?.dataUrl ?? null;
+  } catch (err) {
+    log('warn', 'bg', 'stop step voice error:', err.message);
+  }
+  if (!_streamActive) await chrome.offscreen.closeDocument().catch(() => {});
+
+  if (!dataUrl || stepNum == null) return { ok: false, error: '녹음 데이터 없음' };
+  try {
+    const { sessionId, steps } = await storageGet(['sessionId', 'steps']);
+    const blob = await (await fetch(dataUrl)).blob();
+    const path = `${sessionId}/voice_step_${String(stepNum).padStart(2, '0')}.webm`;
+    const url  = await uploadImage(path, blob, 'audio/webm');
+    const arr  = steps || [];
+    const idx  = arr.findIndex(s => s.stepNumber === stepNum);
+    if (idx >= 0) { arr[idx].voiceAudioUrl = url; await storageSet({ steps: arr }); }
+    log('info', 'bg', `step voice uploaded: step ${stepNum} (${Math.round(blob.size / 1024)}KB)`);
+    return { ok: true, url, stepNumber: stepNum };
+  } catch (err) {
+    log('warn', 'bg', 'step voice upload failed:', err.message);
+    return { ok: false, error: err.message };
+  }
 }
 
 // captureTab: 스트림이 살아있으면 offscreen 프레임 추출, 아니면 captureVisibleTab 폴백
@@ -784,9 +836,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'FINALIZE_SESSION') {
     (async () => {
       try {
-        // 음성 녹음 정지 + 업로드 → finalize에 audio_url 전달 (서버에서 Whisper 전사)
-        const audioUrl = await stopAndUploadVoice(message.sessionId);
-        const data = await finalizeSession(message.sessionId, message.stepNumbers, audioUrl);
+        // 진행 중이던 캡처별 음성이 있으면 마무리(업로드) 후 finalize
+        if (_audioActive) await stopStepVoice().catch(() => {});
+        const data = await finalizeSession(message.sessionId, message.stepNumbers);
         // 편집기 탭은 background가 직접 연다 — 사용자가 패널/탭을 닫아도
         // service worker는 살아 있으므로 매뉴얼 생성 완료 후 정상 이동된다.
         if (data?.tutorial_id) {
@@ -1080,6 +1132,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.type === 'CLEAR_LOGS') {
     chrome.storage.local.remove(LOG_KEY, () => sendResponse({ ok: true }));
+    return true;
+  }
+
+  // ── 플랜 조회 (PRO 게이팅) ───────────────────────────────────────
+  if (message.type === 'GET_PLAN') {
+    getUserPlan(!!message.refresh).then((p) => sendResponse(p));
+    return true;
+  }
+
+  // ── 캡처별 음성 메모 (PRO) ───────────────────────────────────────
+  if (message.type === 'START_STEP_VOICE') {
+    startStepVoice(message.stepNumber).then((r) => sendResponse(r));
+    return true;
+  }
+  if (message.type === 'STOP_STEP_VOICE') {
+    stopStepVoice().then((r) => sendResponse(r));
     return true;
   }
 });
@@ -1515,16 +1583,8 @@ chrome.storage.onChanged.addListener((changes, area) => {
     _cachedTargetTabId = changes.targetTabId.newValue ?? null;
   }
 
-  // ── 음성 녹음 제어 — 직접/onChanged 시작 경로 모두 포함 (가드 없음) ──
-  //   정지(false) 시 오디오 정지/업로드는 finalize/discard 핸들러가 담당한다 (blob 보존).
-  if ('isRecording' in changes) {
-    const was = !!changes.isRecording.oldValue;
-    const now = !!changes.isRecording.newValue;
-    if (was !== now && now) startVoiceRecording().catch(() => {});
-  }
-  if ('isPaused' in changes && _audioActive) {
-    (changes.isPaused.newValue ? pauseVoiceRecording() : resumeVoiceRecording()).catch(() => {});
-  }
+  // 음성은 '캡처별 메모'(PRO) 방식으로 전환됨 — 녹화 시작 시 연속 자동 녹음하지 않는다.
+  // (사용자가 각 스텝 카드의 🎙 버튼으로 명시적으로 녹음/정지) → startVoiceRecording 자동호출 제거.
 
   if ('isRecording' in changes) {
     const wasRecording = !!changes.isRecording.oldValue;
@@ -1819,6 +1879,30 @@ async function getWebappOrigin() {
   return webappOrigin || WEBAPP_ORIGIN;
 }
 
+// ── 사용자 플랜 조회 (PRO 기능 게이팅) ───────────────────────────
+// /api/extension/me를 호출해 플랜을 받아 짧은 TTL로 캐시한다 (업그레이드 즉시 반영 위해
+// 영구 저장 대신 on-demand 조회+캐시). 오프라인/실패 시 마지막 캐시 또는 free로 폴백.
+const PLAN_CACHE_TTL_MS = 10 * 60 * 1000;
+async function getUserPlan(forceRefresh = false) {
+  if (!forceRefresh) {
+    const { _planCache } = await storageGet('_planCache');
+    if (_planCache && (Date.now() - _planCache.time) < PLAN_CACHE_TTL_MS) return _planCache;
+  }
+  try {
+    const origin = await getWebappOrigin();
+    const res = await authedFetch(`${origin}/api/extension/me`, { method: 'GET' });
+    if (!res.ok) throw new Error(`me failed: ${res.status}`);
+    const data  = await res.json();
+    const cache = { plan: data.plan || 'free', isPro: !!data.isPro, time: Date.now() };
+    await storageSet({ _planCache: cache });
+    return cache;
+  } catch (err) {
+    log('warn', 'bg', 'getUserPlan failed:', err.message);
+    const { _planCache } = await storageGet('_planCache');
+    return _planCache || { plan: 'free', isPro: false, time: 0 };
+  }
+}
+
 // ── AI 분석 — 웹앱 API 경유 ──────────────────────────────────────
 async function analyzeWithClaude(base64Image, url, actionInfo, elementContext = {}) {
   const origin = await getWebappOrigin();
@@ -1859,12 +1943,17 @@ async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, 
 }
 
 // ── 세션 완료 — 웹앱 API 경유 ───────────────────────────────────
-async function finalizeSession(sessionId, stepNumbers, audioUrl = null) {
-  const { extensionToken, contentMode, settings } = await storageGet(['extensionToken', 'contentMode', 'settings']);
+async function finalizeSession(sessionId, stepNumbers) {
+  const { extensionToken, contentMode, settings, steps } = await storageGet(['extensionToken', 'contentMode', 'settings', 'steps']);
   if (!extensionToken) {
     log('warn', 'bg', 'extensionToken 없음 — /extension-link 에서 연동 필요');
     return { tutorial_id: null, step_count: 0 };
   }
+
+  // 캡처별 음성 메모 — { stepNumber: voiceAudioUrl } 맵 (있는 스텝만)
+  const stepVoice = {};
+  (steps || []).forEach(s => { if (s.voiceAudioUrl) stepVoice[s.stepNumber] = s.voiceAudioUrl; });
+
   const origin = await getWebappOrigin();
   const res = await authedFetch(`${origin}/api/capture/finalize`, {
     method: 'POST',
@@ -1876,13 +1965,11 @@ async function finalizeSession(sessionId, stepNumbers, audioUrl = null) {
       ...(contentMode && contentMode !== 'action' ? { content_mode: contentMode } : {}),
       // 선택영역 확대 설정 — 스텝 이미지에 클릭 영역 확대(image_zoom) 선적용
       ...(settings?.autoZoom ? { auto_zoom: true } : {}),
-      // 음성 녹음 URL — 서버에서 Whisper 전사 후 스텝별 설명으로 배분
-      ...(audioUrl ? { audio_url: audioUrl } : {}),
+      // 캡처별 음성 메모 — 서버에서 스텝별 Whisper 전사 후 설명에 반영
+      ...(Object.keys(stepVoice).length ? { step_voice: stepVoice } : {}),
     }),
   });
   if (!res.ok) throw new Error(`finalize failed: ${res.status}: ${await res.text()}`);
-  // 음성 녹음 기준점 정리
-  await storageRemove(['audioStartTime']);
   return res.json();
 }
 
