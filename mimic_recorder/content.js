@@ -24,7 +24,9 @@
   const DEDUP_DOUBLE_CLICK  = 400;   // ms — 더블클릭 감지 간격
   const TYPING_DEBOUNCE     = 1500;  // ms — 입력 멈춤 후 자동 캡처 대기
   const CAPTURE_SAFETY_MS   = 5000;  // ms — isCapturing stuck 방지 타임아웃
-  const TYPING_FRAME_THROTTLE = 600; // ms — 타이핑 중 '전송 직전' 롤링 프레임 캡처 간격
+  const TYPING_FRAME_THROTTLE = 300; // ms — 타이핑 중 '전송 직전' 롤링 프레임 캡처 간격
+  // (captureVisibleTab 쿼터는 초당 2회 — 300ms 시도 중 일부는 rate-limit으로 무시되나,
+  //  실패해도 직전 프레임을 유지하므로 안전. 성공분이 더 잦아져 텍스트가 더 최신에 가깝다.)
 
   const INTERACTIVE = [
     'a[href]', 'button', 'input', 'select', 'textarea', 'label',

@@ -610,6 +610,23 @@ document.getElementById('thumbZoomNewTab')?.addEventListener('click', (e) => {
   if (src) chrome.tabs.create({ url: src });
 });
 
+// 요소 박스가 아니라 '실제 렌더된 이미지' 영역을 계산 (object-fit:contain 레터박스 보정).
+// 세로로 긴 이미지는 max-height 제약으로 요소 박스 안에 여백이 생겨, 이를 보정하지 않으면
+// 드래그 정규화가 어긋나 블러가 짧게/엉뚱하게 적용된다.
+function renderedImageRect(imgEl) {
+  const box = imgEl.getBoundingClientRect();
+  const nw = imgEl.naturalWidth, nh = imgEl.naturalHeight;
+  if (!nw || !nh) return { left: box.left, top: box.top, width: box.width, height: box.height };
+  const scale = Math.min(box.width / nw, box.height / nh);
+  const dw = nw * scale, dh = nh * scale;
+  return {
+    left: box.left + (box.width  - dw) / 2,
+    top:  box.top  + (box.height - dh) / 2,
+    width:  dw,
+    height: dh,
+  };
+}
+
 // ── 드래그 블러 (줌 오버레이 기준) ──────────────────────────────
 function startBlurMode(step, zoomImg, originalBlob) {
   if (zoomImg.dataset.blurMode === '1') return;
@@ -633,7 +650,7 @@ function startBlurMode(step, zoomImg, originalBlob) {
   let _imgRect = null; // mousedown 시점에 고정
 
   function onMouseDown(e) {
-    const imgRect = zoomImg.getBoundingClientRect();
+    const imgRect = renderedImageRect(zoomImg);  // 실제 렌더 이미지 영역 (레터박스 보정)
     const insideImg = (
       e.clientX >= imgRect.left && e.clientX <= imgRect.right &&
       e.clientY >= imgRect.top  && e.clientY <= imgRect.bottom
