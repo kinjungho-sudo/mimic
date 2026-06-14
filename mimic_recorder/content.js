@@ -24,6 +24,7 @@
   const DEDUP_DOUBLE_CLICK  = 400;   // ms — 더블클릭 감지 간격
   const TYPING_DEBOUNCE     = 1500;  // ms — 입력 멈춤 후 자동 캡처 대기
   const CAPTURE_SAFETY_MS   = 5000;  // ms — isCapturing stuck 방지 타임아웃
+  const TYPING_FRAME_THROTTLE = 600; // ms — 타이핑 중 '전송 직전' 롤링 프레임 캡처 간격
 
   const INTERACTIVE = [
     'a[href]', 'button', 'input', 'select', 'textarea', 'label',
@@ -51,6 +52,7 @@
   let typingUrl          = null;   // 입력 세션 시작 시 URL — 재마운트 필드 판정용
   let typingTimer        = null;
   let _countingDown      = false;
+  let _lastTypingFrameTime = 0;     // 롤링 타이핑 프레임 throttle 기준
 
   // 비밀번호 등 민감 입력의 '타이핑 텍스트 저장'을 막는 마스킹용 (블러와 무관)
   const SENSITIVE_INPUT_TYPES = new Set(['password']);
@@ -193,7 +195,7 @@
       clickX: cx, clickY: cy,
       windowWidth: vw, windowHeight: vh,
       viewportW: vw, viewportH: vh,
-      stepNumber: stepForThis, overwrite: true,
+      stepNumber: stepForThis, overwrite: true, useTypingFrame: true,
       elementRect: normalizeRect(rect, vw, vh), elementSelector: getElementSelector(el),
       actionInfo: { type: 'type', text: label },
     }, done);
@@ -801,6 +803,15 @@
     }
     typingTarget = el;
     notifyTypingProgress(el);
+
+    // 전송 직전 화면을 확보하기 위한 롤링 프레임 — throttle로 쿼터(초당 2회) 보호.
+    // 확정(flushTyping) 시 background가 이 최신 프레임을 스텝 이미지로 사용한다.
+    const nowTf = Date.now();
+    if (nowTf - _lastTypingFrameTime > TYPING_FRAME_THROTTLE) {
+      _lastTypingFrameTime = nowTf;
+      hideHoverPointer();  // 호버 테두리가 프레임에 굽히지 않게
+      chrome.runtime.sendMessage({ type: 'TYPING_FRAME' }, () => { void chrome.runtime.lastError; });
+    }
 
     if (pendingInputStep === null) {
       stepNumber += 1;

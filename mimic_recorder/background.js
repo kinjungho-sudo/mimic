@@ -134,6 +134,8 @@ const _navBusyTabs     = new Set();          // onUpdated complete 동시(중복
 let _captureChain      = Promise.resolve();  // 캡처 디덥~로컬 저장 직렬화 큐
 let _preCaptureFrame   = null;               // { dataUrl, time, tabId } — pointerdown 선캡처 프레임
 const PRECAPTURE_MAX_AGE_MS = 1500;          // 이보다 오래된 선캡처는 폐기 (클릭과 무관)
+let _typingFrame       = null;               // { dataUrl, time, tabId } — 타이핑 중 롤링 프레임 (전송 직전 화면)
+const TYPING_FRAME_MAX_AGE_MS = 3000;        // 이보다 오래된 타이핑 프레임은 사용 안 함
 
 // SW 시작 시 캐시 초기화
 storageGet(['targetTabId', 'lastCaptureTime', 'lastStepHash', 'lastNavKey', 'lastNavKeyTime']).then((r) => {
@@ -578,6 +580,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return false;  // 응답 불필요
   }
 
+  // 타이핑 롤링 프레임 — 입력 중 '전송 직전' 화면을 주기적으로 버퍼에 보관 (소비하지 않음)
+  if (message.type === 'TYPING_FRAME') {
+    const tabId = sender.tab?.id;
+    if (tabId) {
+      (async () => {
+        const tab = await new Promise((res) => chrome.tabs.get(tabId, (t) => res(chrome.runtime.lastError ? null : t)));
+        if (!tab) return;
+        const url = await captureTab(tab.windowId).catch(() => null);
+        if (url) _typingFrame = { dataUrl: url, time: Date.now(), tabId };
+      })();
+    }
+    return false;  // 응답 불필요
+  }
+
   if (message.type === 'CAPTURE_SCREENSHOT') {
     const { stepData } = message;
     const tabId = sender.tab?.id;
@@ -622,6 +638,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         capturedRaw = _preCaptureFrame.dataUrl;
       }
       _preCaptureFrame = null;  // 1회용 — 소비 후 폐기
+      // 타이핑 확정: 전송 직전 롤링 프레임 사용 (비동기 캡처가 전송 후 빈 입력창을 잡는 문제 방지).
+      // 소비하지 않는다 — 같은 입력 세션의 여러 flush(soft/final)가 최신 프레임을 공유.
+      if (!capturedRaw && stepData.useTypingFrame && _typingFrame
+          && _typingFrame.tabId === tabId
+          && (Date.now() - _typingFrame.time) < TYPING_FRAME_MAX_AGE_MS) {
+        capturedRaw = _typingFrame.dataUrl;
+      }
       if (!capturedRaw) capturedRaw = await captureTab(tab.windowId);
       if (!capturedRaw) { restore(); sendResponse({ ok: false }); return; }
 
