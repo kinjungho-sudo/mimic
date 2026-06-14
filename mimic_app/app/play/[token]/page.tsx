@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { BrandMark } from '@/components/BrandMark';
 import { AnnotationPreview } from '@/components/editor/AnnotationPreview';
+import { InteractiveFollowPlayer } from '@/components/viewer/InteractiveFollowPlayer';
 import type { Annotation as DrawAnnotation } from '@/components/editor/ImageAnnotationEditor';
 
 type Marker = {
@@ -512,7 +513,7 @@ export default function PlayerPage() {
   const [notFound, setNotFound] = useState(false);
   const [passwordRequired, setPasswordRequired] = useState(false);
   const [protectedTitle, setProtectedTitle] = useState('');
-  const [viewMode, setViewMode] = useState<'slides' | 'document'>('slides');
+  const [viewMode, setViewMode] = useState<'follow' | 'slides' | 'document'>('slides');
   const [showShare, setShowShare] = useState(false);
   const [pdfExporting, setPdfExporting] = useState(false);
   const [pptxExporting, setPptxExporting] = useState(false);
@@ -729,9 +730,10 @@ export default function PlayerPage() {
           {/* 모드 토글 */}
           <div style={{ display: 'flex', background: viewMode === 'document' ? '#F3F4F6' : 'rgba(255,255,255,0.08)', borderRadius: '8px', padding: '3px', gap: '2px' }}>
             {([
+              { key: 'follow', label: '따라하기', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg> },
               { key: 'slides', label: '슬라이드', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> },
               { key: 'document', label: '문서', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> },
-            ] as { key: 'slides' | 'document'; label: string; icon: React.ReactNode }[]).map(tab => {
+            ] as { key: 'follow' | 'slides' | 'document'; label: string; icon: React.ReactNode }[]).map(tab => {
               const active = viewMode === tab.key;
               const activeColor = viewMode === 'document' ? '#3730a3' : 'white';
               const inactiveColor = viewMode === 'document' ? '#6B7280' : 'rgba(255,255,255,0.5)';
@@ -796,6 +798,23 @@ export default function PlayerPage() {
           )}
         </div>
       </header>
+
+      {/* ── 따라하기 (인터랙티브) 모드 ── */}
+      {viewMode === 'follow' && (
+        <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
+          <InteractiveFollowPlayer
+            steps={tutorial.steps.map(s => ({
+              title: s.title,
+              body: s.caption,
+              screenshotUrl: s.screenshot_url,
+              hotspotX: s.click_x != null ? s.click_x * 100 : null,
+              hotspotY: s.click_y != null ? s.click_y * 100 : null,
+              highlight: null,
+            }))}
+            onClose={() => setViewMode('slides')}
+          />
+        </div>
+      )}
 
       {/* ── 문서형 모드 ── */}
       {viewMode === 'document' && <DocumentView tutorial={tutorial} />}

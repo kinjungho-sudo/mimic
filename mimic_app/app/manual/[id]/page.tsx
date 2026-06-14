@@ -6,7 +6,7 @@ import { Share2, Download, Pencil, PlayCircle, X, Bot, Play, Pause, Square } fro
 import { GuideToc } from '@/components/editor/GuideToc';
 import { GuideViewer } from '@/components/editor/GuideViewer';
 import { ShareModal } from '@/components/editor/ShareModal';
-import { FollowAlongOverlay } from '@/components/viewer/FollowAlongOverlay';
+import { InteractiveFollowPlayer } from '@/components/viewer/InteractiveFollowPlayer';
 import { useTutorial } from '@/hooks/useTutorial';
 import { useAuth } from '@/hooks/useAuth';
 import type { ManualStep } from '@/components/editor/ManualEditor';
@@ -556,13 +556,23 @@ export default function ManualViewerPage() {
         />
       )}
 
-      {/* 따라하기 오버레이 */}
+      {/* 따라하기 (인터랙티브) 오버레이 */}
       {followMode && (
-        <FollowAlongOverlay
-          steps={manualSteps}
-          initialIdx={manualSteps.findIndex(s => s.id === activeId) >= 0 ? manualSteps.findIndex(s => s.id === activeId) : 0}
-          onClose={() => setFollowMode(false)}
-        />
+        <div style={{ position: 'fixed', inset: 0, zIndex: 70, background: 'rgba(5,5,10,0.88)', backdropFilter: 'blur(4px)' }}>
+          <InteractiveFollowPlayer
+            steps={manualSteps.map(s => ({
+              title: s.actionTitle,
+              body: s.description ? s.description.replace(/<[^>]+>/g, '') : undefined,
+              screenshotUrl: s.screenshotUrl,
+              hotspotX: s.click_x ?? null,
+              hotspotY: s.click_y ?? null,
+              highlight: s.element_rect
+                ? { x: s.element_rect.x * 100, y: s.element_rect.y * 100, w: s.element_rect.width * 100, h: s.element_rect.height * 100 }
+                : null,
+            }))}
+            onClose={() => setFollowMode(false)}
+          />
+        </div>
       )}
 
       <style>{`
