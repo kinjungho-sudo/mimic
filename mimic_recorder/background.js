@@ -973,6 +973,37 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  // 사이드패널에서 특정 스텝 도트를 클릭 → 해당 인덱스로 점프
+  if (message.type === 'SHOW_OVERLAY_FOR_STEP') {
+    (async () => {
+      const { guideSteps } = await storageGet(['guideSteps']);
+      const steps = guideSteps || [];
+      const idx = Math.max(0, Math.min(message.stepIndex || 0, steps.length - 1));
+      await storageSet({ guideCurrentStep: idx });
+      const step = steps[idx];
+      sendResponse({ ok: true, currentStep: idx, step });
+      if (!step) return;
+
+      const tabs = await new Promise((res) => chrome.tabs.query({ active: true }, res));
+      const tab  = tabs.find(t => t.url?.startsWith('http://') || t.url?.startsWith('https://'));
+      if (!tab?.id) return;
+
+      if (step.page_url) {
+        try {
+          const currentUrl = new URL(tab.url);
+          const targetUrl  = new URL(step.page_url);
+          if (currentUrl.origin + currentUrl.pathname !== targetUrl.origin + targetUrl.pathname) {
+            await storageSet({ guidePendingOverlay: true });
+            chrome.tabs.update(tab.id, { url: step.page_url });  // 수동 점프 → 직접 이동
+            return;
+          }
+        } catch { /* same-tab fallback */ }
+      }
+      sendTabMessage(tab.id, { type: 'SHOW_OVERLAY', step, index: idx, total: steps.length });
+    })();
+    return true;
+  }
+
   if (message.type === 'EXIT_GUIDE') {
     (async () => {
       await storageRemove(['guideSteps', 'guideCurrentStep', 'guideModeActive', 'guidePendingOverlay']);
