@@ -164,9 +164,9 @@ export function CommentsPanel({ tutorialId, activeStepId, steps, currentUserId, 
       <input
         value={replyDraft}
         autoFocus
-        onChange={e => { if (!imeOn.current) setReplyDraft(e.target.value); }}
+        onChange={e => setReplyDraft(e.target.value)}
         onCompositionStart={() => { imeOn.current = true; }}
-        onCompositionEnd={e => { imeOn.current = false; setReplyDraft(e.currentTarget.value); }}
+        onCompositionEnd={() => { imeOn.current = false; }}
         onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !imeOn.current) { e.preventDefault(); handleReply(parent); } }}
         placeholder="답글 입력..."
         style={{ flex: 1, fontSize: '12px', padding: '7px 10px', borderRadius: '8px', border: '1px solid #E5E7EB', outline: 'none' }}
@@ -213,9 +213,9 @@ export function CommentsPanel({ tutorialId, activeStepId, steps, currentUserId, 
             value={draft}
             autoFocus
             rows={3}
-            onChange={e => { if (!imeOn.current) setDraft(e.target.value); }}
+            onChange={e => setDraft(e.target.value)}
             onCompositionStart={() => { imeOn.current = true; }}
-            onCompositionEnd={e => { imeOn.current = false; setDraft(e.currentTarget.value); }}
+            onCompositionEnd={() => { imeOn.current = false; }}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !imeOn.current) { e.preventDefault(); handleAdd(); } }}
             placeholder="의견을 남겨보세요..."
             style={{ width: '100%', fontSize: '12.5px', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E5E7EB', outline: 'none', resize: 'none', fontFamily: 'inherit', lineHeight: 1.45, boxSizing: 'border-box' }}

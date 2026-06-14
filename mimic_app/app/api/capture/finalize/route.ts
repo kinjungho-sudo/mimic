@@ -179,12 +179,13 @@ export async function POST(request: NextRequest) {
     }
     if (cx == null || cy == null) return null; // 좌표 없음 (navigate/autoNav) → 확대 안 함
 
-    // 배율 — 요소가 작을수록 크게 (1.5~2.2)
-    let zoom = 2.0;
+    // 배율 — 가독성 우선. 큰 요소는 확대 안 하고, 작을수록 약하게만 확대 (1.35~1.6)
+    let zoom = 1.4;
     if (rect) {
       const size = Math.max(rect.width, rect.height);
-      zoom = size > 0.45 ? 1.5 : size > 0.2 ? 1.8 : 2.2;
+      zoom = size > 0.4 ? 1.0 : size > 0.2 ? 1.35 : 1.6;
     }
+    if (zoom <= 1.0) return null; // 충분히 큰 요소 → 전체 화면 그대로 유지(가독성)
 
     // 확대 후 보이는 창(1/zoom)이 이미지 밖으로 나가지 않게 중심 클램프
     const half = 1 / (2 * zoom);
