@@ -841,6 +841,17 @@
     if (isSingleLine || (isMultiLine && isModified)) flushTyping(el);
   }, true);
 
+  // ── focusout: 필드 이탈 = 입력 확정 (Tango식 "필드 단위 = 한 스텝") ───────
+  // 이메일·문서처럼 Enter로 끝나지 않는 긴 입력은, 다른 요소로 포커스가 옮겨갈 때
+  // 최종 내용을 한 번 캡처해 확정한다. relatedTarget(다음 포커스 대상)이 있을 때만 —
+  // 창 전환(사이드패널 클릭 등 window blur)으로 인한 조기 확정은 피한다.
+  document.addEventListener('focusout', (e) => {
+    if (!isRecording || isPaused) return;
+    if (!typingTarget || e.target !== typingTarget) return;
+    if (!e.relatedTarget) return;  // 페이지 밖으로 포커스 이탈(창 전환)은 무시
+    flushTyping(typingTarget);
+  }, true);
+
   // ── 파일 업로드 캡처 ─────────────────────────────────────────────
   document.addEventListener('change', (e) => {
     if (!isRecording || isPaused || isCapturing) return;
