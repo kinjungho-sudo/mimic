@@ -515,7 +515,6 @@ export default function PlayerPage() {
   const [protectedTitle, setProtectedTitle] = useState('');
   const [viewMode, setViewMode] = useState<'follow' | 'slides' | 'document'>('slides');
   const [showShare, setShowShare] = useState(false);
-  const [pdfExporting, setPdfExporting] = useState(false);
   const [pptxExporting, setPptxExporting] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [showDesc, setShowDesc] = useState(true);
@@ -666,21 +665,6 @@ export default function PlayerPage() {
     URL.revokeObjectURL(url);
   };
 
-  const handleDownloadPdf = async () => {
-    setPdfExporting(true);
-    try {
-      const res = await fetch(`/api/export/pdf/token/${token}`);
-      if (!res.ok) { alert('PDF 생성 실패'); return; }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = res.headers.get('content-disposition')?.match(/filename="(.+)"/)?.[1] ?? 'manual.pdf';
-      a.click();
-      URL.revokeObjectURL(url);
-    } finally { setPdfExporting(false); }
-  };
-
   const handleDownloadPptx = async () => {
     if (!tutorial) return;
     setPptxExporting(true);
@@ -732,13 +716,12 @@ export default function PlayerPage() {
             {([
               { key: 'follow', label: '따라하기', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg> },
               { key: 'slides', label: '슬라이드', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> },
-              { key: 'document', label: '문서', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> },
-            ] as { key: 'follow' | 'slides' | 'document'; label: string; icon: React.ReactNode }[]).map(tab => {
+            ] as { key: 'follow' | 'slides'; label: string; icon: React.ReactNode }[]).map(tab => {
               const active = viewMode === tab.key;
               const activeColor = viewMode === 'document' ? '#3730a3' : 'white';
               const inactiveColor = viewMode === 'document' ? '#6B7280' : 'rgba(255,255,255,0.5)';
               return (
-                <button key={tab.key} onClick={() => setViewMode(tab.key)} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: isMobile ? '5px 8px' : '5px 10px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: active ? 600 : 400, background: active ? (viewMode === 'document' ? 'white' : 'rgba(255,255,255,0.15)') : 'transparent', color: active ? activeColor : inactiveColor, transition: 'all 0.12s', boxShadow: active && viewMode === 'document' ? '0 1px 4px rgba(0,0,0,0.08)' : 'none' }}>
+                <button key={tab.key} onClick={() => setViewMode(tab.key)} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: isMobile ? '5px 8px' : '5px 10px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: active ? 600 : 400, background: active ? 'rgba(255,255,255,0.15)' : 'transparent', color: active ? activeColor : inactiveColor, transition: 'all 0.12s', boxShadow: 'none' }}>
                   {tab.icon}{!isMobile && tab.label}
                 </button>
               );
@@ -755,16 +738,6 @@ export default function PlayerPage() {
             </button>
           )}
 
-          {/* PDF 다운로드 */}
-          <button onClick={handleDownloadPdf} disabled={pdfExporting} title="PDF 다운로드"
-            style={isMobile
-              ? { width: '34px', height: '34px', borderRadius: '8px', display: 'grid', placeItems: 'center', background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.75)', cursor: pdfExporting ? 'not-allowed' : 'pointer', opacity: pdfExporting ? 0.6 : 1 }
-              : { ...headerBtnStyle, opacity: pdfExporting ? 0.6 : 1, cursor: pdfExporting ? 'not-allowed' : 'pointer' }}
-            onMouseEnter={e => { if (!pdfExporting) { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = 'white'; } }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.75)'; }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            {!isMobile && (pdfExporting ? 'PDF 생성 중…' : 'PDF')}
-          </button>
 
           {/* .md 다운로드 — 모바일에서 숨김 */}
           {!isMobile && (

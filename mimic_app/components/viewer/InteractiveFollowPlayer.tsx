@@ -109,53 +109,51 @@ export function InteractiveFollowPlayer({ steps, onClose, onComplete }: Props) {
               <div style={{ flex: 1, margin: '0 10px', height: '20px', background: 'white', borderRadius: '6px', display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: '11px', color: '#9CA3AF' }}>가상 화면 — 안전하게 따라해 보세요</div>
             </div>
 
-            {/* 스크린샷 + 인터랙션 레이어 */}
-            <div onClick={onImageClick} style={{ position: 'relative', flex: 1, minHeight: 0, cursor: 'pointer', background: '#0b0b0f', lineHeight: 0 }}>
+            {/* 스크린샷 + 인터랙션 레이어 — 오버레이는 이미지 박스 기준(inline-block)으로 정렬 */}
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0b0b0f', overflow: 'hidden' }}>
               {step.screenshotUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={step.screenshotUrl} alt={step.title} style={{ width: '100%', maxHeight: '64vh', objectFit: 'contain', display: 'block' }} />
+                <div onClick={onImageClick} style={{ position: 'relative', display: 'inline-block', lineHeight: 0, cursor: 'pointer', maxWidth: '100%' }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={step.screenshotUrl} alt={step.title} style={{ display: 'block', maxWidth: '100%', maxHeight: '62vh', width: 'auto', height: 'auto' }} />
+
+                  {/* 클릭 핫스팟 — 흰색 물결만 (가운데 점 없음) */}
+                  {hasHotspot && (
+                    <div style={{ position: 'absolute', left: `${hx}%`, top: `${hy}%`, transform: 'translate(-50%,-50%)', width: '22px', height: '22px', pointerEvents: 'none', zIndex: 4 }}>
+                      <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2.5px solid rgba(255,255,255,0.95)', animation: 'mfp-ripple 1.9s ease-out infinite' }} />
+                      <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2.5px solid rgba(255,255,255,0.8)', animation: 'mfp-ripple 1.9s ease-out infinite', animationDelay: '0.63s' }} />
+                      <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2.5px solid rgba(255,255,255,0.6)', animation: 'mfp-ripple 1.9s ease-out infinite', animationDelay: '1.26s' }} />
+                    </div>
+                  )}
+
+                  {/* AI 캐릭터 + 2단 말풍선 */}
+                  {hasHotspot && (
+                    <div style={{ position: 'absolute', left: `${hx}%`, top: `${hy}%`, zIndex: 6, pointerEvents: 'none', transform: `translate(${bubbleSide === 'left' ? 'calc(-100% - 24px)' : '24px'}, ${bubbleVert === 'above' ? 'calc(-100% - 16px)' : '16px'})`, animation: nudge ? 'mfp-nudge 0.4s' : undefined }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', maxWidth: '320px' }}>
+                        {bubbleSide === 'right' && <Mascot />}
+                        <div style={{ background: 'white', borderRadius: '14px', padding: '11px 14px', boxShadow: '0 8px 28px rgba(0,0,0,0.28)' }}>
+                          <div style={{ fontSize: '13.5px', fontWeight: 800, color: '#111827', lineHeight: 1.4 }}>👉 {step.title}</div>
+                          {step.body && <div style={{ fontSize: '12.5px', color: '#4B5563', lineHeight: 1.5, marginTop: '4px' }}>{step.body}</div>}
+                          <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '6px' }}>표시된 곳을 클릭하면 다음으로 넘어가요</div>
+                        </div>
+                        {bubbleSide === 'left' && <Mascot />}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 핫스팟 없는 스텝(설명형) — 하단 안내 */}
+                  {!hasHotspot && (
+                    <div style={{ position: 'absolute', left: '50%', bottom: '18px', transform: 'translateX(-50%)', zIndex: 6, pointerEvents: 'none', display: 'flex', alignItems: 'flex-end', gap: '8px', maxWidth: '92%' }}>
+                      <Mascot />
+                      <div style={{ background: 'white', borderRadius: '14px', padding: '11px 14px', boxShadow: '0 8px 28px rgba(0,0,0,0.28)' }}>
+                        <div style={{ fontSize: '13.5px', fontWeight: 800, color: '#111827' }}>{step.title}</div>
+                        {step.body && <div style={{ fontSize: '12.5px', color: '#4B5563', lineHeight: 1.5, marginTop: '4px' }}>{step.body}</div>}
+                        <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '6px' }}>화면을 클릭하면 다음으로 넘어가요</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               ) : (
                 <div style={{ height: '40vh', display: 'grid', placeItems: 'center', color: '#6B7280', fontSize: '13px' }}>이미지 없음</div>
-              )}
-
-              {/* 하이라이트 박스 */}
-              {step.highlight && (
-                <div style={{ position: 'absolute', left: `${step.highlight.x}%`, top: `${step.highlight.y}%`, width: `${step.highlight.w}%`, height: `${step.highlight.h}%`, border: '2.5px solid #F59E0B', borderRadius: '6px', boxShadow: '0 0 0 4px rgba(245,158,11,0.25), 0 0 0 9999px rgba(0,0,0,0.42)', pointerEvents: 'none', zIndex: 3 }} />
-              )}
-
-              {/* 클릭 핫스팟 */}
-              {hasHotspot && (
-                <div style={{ position: 'absolute', left: `${hx}%`, top: `${hy}%`, transform: 'translate(-50%,-50%)', width: '26px', height: '26px', pointerEvents: 'none', zIndex: 4 }}>
-                  <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(239,68,68,0.92)', boxShadow: '0 0 10px rgba(239,68,68,0.8)' }} />
-                  <span style={{ position: 'absolute', inset: '-6px', borderRadius: '50%', border: '2px solid rgba(239,68,68,0.7)', animation: 'mfp-ripple 1.4s ease-out infinite' }} />
-                </div>
-              )}
-
-              {/* AI 캐릭터 + 2단 말풍선 */}
-              {hasHotspot && (
-                <div style={{ position: 'absolute', left: `${hx}%`, top: `${hy}%`, zIndex: 6, pointerEvents: 'none', transform: `translate(${bubbleSide === 'left' ? 'calc(-100% - 26px)' : '26px'}, ${bubbleVert === 'above' ? 'calc(-100% - 18px)' : '18px'})`, animation: nudge ? 'mfp-nudge 0.4s' : undefined }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', maxWidth: '320px' }}>
-                    {bubbleSide === 'right' && <Mascot />}
-                    <div style={{ background: 'white', borderRadius: '14px', padding: '11px 14px', boxShadow: '0 8px 28px rgba(0,0,0,0.28)' }}>
-                      <div style={{ fontSize: '13.5px', fontWeight: 800, color: '#111827', lineHeight: 1.4 }}>👉 {step.title}</div>
-                      {step.body && <div style={{ fontSize: '12.5px', color: '#4B5563', lineHeight: 1.5, marginTop: '4px' }}>{step.body}</div>}
-                      <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '6px' }}>표시된 곳을 클릭하면 다음으로 넘어가요</div>
-                    </div>
-                    {bubbleSide === 'left' && <Mascot />}
-                  </div>
-                </div>
-              )}
-
-              {/* 핫스팟 없는 스텝(설명형) — 하단 안내 */}
-              {!hasHotspot && (
-                <div style={{ position: 'absolute', left: '50%', bottom: '18px', transform: 'translateX(-50%)', zIndex: 6, pointerEvents: 'none', display: 'flex', alignItems: 'flex-end', gap: '8px', maxWidth: '92%' }}>
-                  <Mascot />
-                  <div style={{ background: 'white', borderRadius: '14px', padding: '11px 14px', boxShadow: '0 8px 28px rgba(0,0,0,0.28)' }}>
-                    <div style={{ fontSize: '13.5px', fontWeight: 800, color: '#111827' }}>{step.title}</div>
-                    {step.body && <div style={{ fontSize: '12.5px', color: '#4B5563', lineHeight: 1.5, marginTop: '4px' }}>{step.body}</div>}
-                    <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '6px' }}>화면을 클릭하면 다음으로 넘어가요</div>
-                  </div>
-                </div>
               )}
             </div>
           </div>
@@ -171,7 +169,7 @@ export function InteractiveFollowPlayer({ steps, onClose, onComplete }: Props) {
       )}
 
       <style>{`
-        @keyframes mfp-ripple { 0%{opacity:.8;transform:scale(1)} 100%{opacity:0;transform:scale(2.8)} }
+        @keyframes mfp-ripple { 0%{opacity:.95;transform:scale(0.4)} 100%{opacity:0;transform:scale(3.4)} }
         @keyframes mfp-nudge { 0%,100%{} 25%{transform:translate(var(--tx,0),var(--ty,0)) translateX(-6px)} 75%{transform:translateX(6px)} }
       `}</style>
     </div>
