@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Resend } from 'resend';
 import { z } from 'zod';
 import { requireAuth } from '@/lib/auth-guard';
 
@@ -12,6 +11,9 @@ const schema = z.object({
 
 const clean = (v: string | undefined) => v?.replace(/^﻿/, '').trim() ?? '';
 
+// 공유 메일은 n8n 워크플로우(Webhook → Gmail 노드)로 발송한다.
+// Resend는 인증 도메인이 없어 보류 — n8n Gmail 노드는 사용자 Gmail 계정으로 인증하므로 도메인 불필요.
+// 앱은 완성된 HTML을 웹훅으로 넘기고, n8n은 받은 그대로 전송하는 얇은 릴레이 역할.
 export async function POST(request: NextRequest) {
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
@@ -27,25 +29,16 @@ export async function POST(request: NextRequest) {
   }
 
   const { to, tutorialTitle, shareUrl, senderName } = parsed.data;
-  const apiKey = clean(process.env.RESEND_API_KEY);
 
-  if (!apiKey) {
+  const webhookUrl = clean(process.env.N8N_SHARE_EMAIL_WEBHOOK_URL);
+  if (!webhookUrl) {
     return NextResponse.json({ error: 'Email service not configured' }, { status: 503 });
   }
 
-  const resend = new Resend(apiKey);
-  // ⚠️ Resend는 인증된 도메인에서만 발송 가능. gmail.com은 인증 불가라 실제 발송 시
-  // 거부될 수 있음(도메인 확보 후 교체 필요). 현재는 미연결 mimicflow.com 대신 Gmail로 표기만 정리.
-  const from = senderName
-    ? `${senderName} via MIMIC <kinjungho@gmail.com>`
-    : 'MIMIC <kinjungho@gmail.com>';
-
-  const { error } = await resend.emails.send({
-    from,
-    replyTo: 'kinjungho@gmail.com',
-    to,
-    subject: `[MIMIC] ${tutorialTitle}`,
-    html: `
+  const subject = `[MIMIC] ${tutorialTitle}`;
+  const fromName = senderName ? `${senderName} via MIMIC` : 'MIMIC';
+  const safeTitle = tutorialTitle.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const html = `
 <!DOCTYPE html>
 <html lang="ko">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -64,7 +57,7 @@ export async function POST(request: NextRequest) {
         <tr>
           <td style="padding:36px 40px;">
             <p style="margin:0 0 8px;font-size:14px;color:#6B7280;">매뉴얼을 공유받으셨어요</p>
-            <h1 style="margin:0 0 24px;font-size:22px;font-weight:700;color:#111827;line-height:1.4;">${tutorialTitle.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</h1>
+            <h1 style="margin:0 0 24px;font-size:22px;font-weight:700;color:#111827;line-height:1.4;">${safeTitle}</h1>
             <p style="margin:0 0 28px;font-size:15px;color:#4B5563;line-height:1.6;">
               아래 버튼을 클릭하면 단계별 인터랙티브 매뉴얼을 바로 확인할 수 있어요.
             </p>
@@ -91,11 +84,22 @@ export async function POST(request: NextRequest) {
     </td></tr>
   </table>
 </body>
-</html>`,
-  });
+</html>`;
 
-  if (error) {
-    console.error('[share/email] Resend error:', error);
+  // n8n 웹훅으로 발송 위임 (선택적 공유 시크릿 헤더로 무단 호출 방지)
+  const secret = clean(process.env.N8N_SHARE_EMAIL_SECRET);
+  try {
+    const res = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(secret ? { 'x-mimic-secret': secret } : {}) },
+      body: JSON.stringify({ to, subject, html, fromName, replyTo: 'kinjungho@gmail.com' }),
+    });
+    if (!res.ok) {
+      console.error('[share/email] n8n webhook error:', res.status, await res.text().catch(() => ''));
+      return NextResponse.json({ error: '이메일 발송에 실패했습니다.' }, { status: 500 });
+    }
+  } catch (e) {
+    console.error('[share/email] n8n webhook fetch failed:', e);
     return NextResponse.json({ error: '이메일 발송에 실패했습니다.' }, { status: 500 });
   }
 
