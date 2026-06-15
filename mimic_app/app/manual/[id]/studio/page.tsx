@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Play, Check, Loader2, MousePointerClick, Type, RotateCcw, EyeOff, Eye } from 'lucide-react';
+import { ArrowLeft, Play, Check, Loader2, MousePointerClick, Type, Ban, RotateCcw, EyeOff, Eye } from 'lucide-react';
 import { useTutorial } from '@/hooks/useTutorial';
 import { updateStep } from '@/lib/api/steps';
 import { clickToPct, inferKind, toFollowSteps } from '@/lib/follow';
 import { InteractiveFollowPlayer } from '@/components/viewer/InteractiveFollowPlayer';
+import { FollowStage } from '@/components/viewer/FollowStage';
 import { logError } from '@/lib/logger';
 import type { Step, Tutorial, FollowConfig } from '@/types';
 
@@ -36,12 +37,15 @@ function toStudioStep(s: Step): StudioStep {
 }
 
 // 저작값 + 자동추론을 합쳐 현재 적용되는 핫스팟/종류 계산 (캔버스 표시용)
+// none = 인디케이터 미표시 → 핫스팟 null
 function resolved(s: StudioStep) {
-  const fc = s.follow;
+  const rk = s.follow.kind ?? inferKind(s.autoTitle, s.autoBody);
+  const none = rk === 'none';
   return {
-    hotspotX: fc.hotspotX != null ? fc.hotspotX : s.clickXPct,
-    hotspotY: fc.hotspotY != null ? fc.hotspotY : s.clickYPct,
-    kind: (fc.kind ?? inferKind(s.autoTitle, s.autoBody)) as 'click' | 'type',
+    hotspotX: none ? null : (s.follow.hotspotX != null ? s.follow.hotspotX : s.clickXPct),
+    hotspotY: none ? null : (s.follow.hotspotY != null ? s.follow.hotspotY : s.clickYPct),
+    kind: (none ? 'click' : rk) as 'click' | 'type',
+    none,
   };
 }
 
@@ -197,31 +201,45 @@ export default function StudioPage() {
           })}
         </aside>
 
-        {/* 중앙 캔버스 */}
-        <main style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: '#070709' }}>
+        {/* 중앙 캔버스 — 플레이어와 동일한 FollowStage로 실제 보일 모습 그대로 표시(WYSIWYG) */}
+        <main style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, background: '#070709' }}>
           {!active ? (
             <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>스텝을 선택하세요</span>
           ) : !active.screenshotUrl ? (
             <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>이 스텝에는 스크린샷이 없습니다</span>
           ) : (
-            <div style={{ position: 'relative', maxWidth: '100%', maxHeight: '100%' }}>
-              <div ref={imgWrapRef}
-                onClick={e => placeHotspot(e.clientX, e.clientY, true)}
-                style={{ position: 'relative', display: 'inline-block', lineHeight: 0, cursor: 'crosshair', borderRadius: 8, overflow: 'hidden', boxShadow: '0 12px 50px rgba(0,0,0,0.5)', filter: hidden ? 'grayscale(0.7) brightness(0.6)' : 'none' }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={active.screenshotUrl} alt="" draggable={false} style={{ display: 'block', maxWidth: '100%', maxHeight: 'calc(100vh - 160px)', width: 'auto', height: 'auto', userSelect: 'none' }} />
-                {rv && rv.hotspotX != null && rv.hotspotY != null && (
-                  <div
-                    onPointerDown={e => { e.stopPropagation(); draggingRef.current = true; (e.target as HTMLElement).setPointerCapture?.(e.pointerId); }}
-                    style={{ position: 'absolute', left: `${rv.hotspotX}%`, top: `${rv.hotspotY}%`, transform: 'translate(-50%,-50%)', width: 26, height: 26, borderRadius: '50%', border: '2.5px solid ' + (rv.kind === 'type' ? '#60a5fa' : '#34d399'), background: 'rgba(0,0,0,0.25)', cursor: 'grab', display: 'grid', placeItems: 'center', boxShadow: '0 0 0 3px rgba(0,0,0,0.35)' }}>
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: rv.kind === 'type' ? '#60a5fa' : '#34d399' }} />
-                  </div>
-                )}
+            <>
+              <div style={{ position: 'relative', lineHeight: 0, boxShadow: '0 12px 50px rgba(0,0,0,0.5)', filter: hidden ? 'grayscale(0.75) brightness(0.5)' : 'none' }}>
+                <FollowStage
+                  screenshotUrl={active.screenshotUrl}
+                  hotspotX={rv?.hotspotX ?? null}
+                  hotspotY={rv?.hotspotY ?? null}
+                  kind={rv?.kind ?? 'click'}
+                  title={active.follow.instruction?.trim() || active.autoTitle}
+                  body={active.autoBody || undefined}
+                  imageCursor="crosshair"
+                  imgMaxHeight="calc(100vh - 170px)"
+                  wrapRef={imgWrapRef}
+                  onImageClick={e => placeHotspot(e.clientX, e.clientY, true)}
+                  onMascotClick={e => e.stopPropagation()}
+                  onBubbleClick={e => e.stopPropagation()}
+                >
+                  {/* 드래그 핸들 — 실제 인디케이터 위에 투명 링(WYSIWYG 유지) */}
+                  {rv && rv.hotspotX != null && rv.hotspotY != null && (
+                    <div
+                      onPointerDown={e => { e.stopPropagation(); draggingRef.current = true; (e.target as HTMLElement).setPointerCapture?.(e.pointerId); }}
+                      title="드래그해 위치 이동"
+                      style={{ position: 'absolute', left: `${rv.hotspotX}%`, top: `${rv.hotspotY}%`, transform: 'translate(-50%,-50%)', width: 42, height: 42, borderRadius: '50%', border: '2px dashed rgba(255,255,255,0.65)', background: 'rgba(0,0,0,0.1)', cursor: 'grab', zIndex: 7, pointerEvents: 'auto' }}
+                    />
+                  )}
+                </FollowStage>
               </div>
-              <p style={{ margin: '12px 0 0', textAlign: 'center', fontSize: 11.5, color: 'rgba(255,255,255,0.4)' }}>
-                {hidden ? '숨김 처리된 스텝입니다 — 따라하기에 노출되지 않습니다' : '이미지를 클릭하거나 점을 드래그해 핫스팟 위치를 지정하세요'}
+              <p style={{ margin: '14px 0 0', textAlign: 'center', fontSize: 11.5, color: 'rgba(255,255,255,0.4)' }}>
+                {hidden ? '숨김 처리된 스텝 — 따라하기에 노출되지 않습니다'
+                  : rv?.none ? '인디케이터 없음 — 핫스팟을 표시하지 않고 ‘다음’으로만 진행합니다'
+                  : '이미지를 클릭하거나 링을 드래그해 핫스팟 위치를 지정하세요'}
               </p>
-            </div>
+            </>
           )}
         </main>
 
@@ -246,29 +264,36 @@ export default function StudioPage() {
 
               {/* 종류 */}
               <SectionLabel>인디케이터 종류</SectionLabel>
-              <div style={{ display: 'flex', gap: 6 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                 {([
                   { key: null, label: '자동', icon: null },
                   { key: 'click', label: '클릭', icon: <MousePointerClick size={13} /> },
-                  { key: 'type', label: '입력', icon: <Type size={13} /> },
-                ] as { key: 'click' | 'type' | null; label: string; icon: React.ReactNode }[]).map(opt => {
+                  { key: 'type', label: '텍스트', icon: <Type size={13} /> },
+                  { key: 'none', label: '없음', icon: <Ban size={13} /> },
+                ] as { key: 'click' | 'type' | 'none' | null; label: string; icon: React.ReactNode }[]).map(opt => {
                   const sel = curKind === opt.key;
                   return (
                     <button key={String(opt.key)} disabled={hidden} onClick={() => patch(active.id, { kind: opt.key })}
-                      style={{ flex: 1, height: 34, borderRadius: 8, border: '1px solid ' + (sel ? 'rgba(124,58,237,0.7)' : 'rgba(255,255,255,0.12)'), background: sel ? 'rgba(124,58,237,0.2)' : 'transparent', color: sel ? 'white' : 'rgba(255,255,255,0.6)', fontSize: 11.5, fontWeight: 600, cursor: hidden ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4, opacity: hidden ? 0.5 : 1 }}>
+                      style={{ height: 34, borderRadius: 8, border: '1px solid ' + (sel ? 'rgba(124,58,237,0.7)' : 'rgba(255,255,255,0.12)'), background: sel ? 'rgba(124,58,237,0.2)' : 'transparent', color: sel ? 'white' : 'rgba(255,255,255,0.6)', fontSize: 11.5, fontWeight: 600, cursor: hidden ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4, opacity: hidden ? 0.5 : 1 }}>
                       {opt.icon}{opt.label}
                     </button>
                   );
                 })}
               </div>
-              <p style={hint}>‘자동’은 제목으로 추론합니다{curKind == null && rv ? ` (현재: ${rv.kind === 'type' ? '입력' : '클릭'})` : ''}.</p>
+              <p style={hint}>
+                {curKind === 'none'
+                  ? '핫스팟·인디케이터를 숨기고 ‘다음’으로만 진행합니다.'
+                  : `‘자동’은 제목으로 추론합니다${curKind == null && rv ? ` (현재: ${rv.kind === 'type' ? '텍스트' : '클릭'})` : ''}.`}
+              </p>
 
               <Divider />
 
               {/* 핫스팟 */}
               <SectionLabel>핫스팟 위치</SectionLabel>
               <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginBottom: 8 }}>
-                {rv && rv.hotspotX != null
+                {rv?.none
+                  ? <span style={{ color: 'rgba(255,255,255,0.4)' }}>인디케이터 ‘없음’ — 핫스팟 미표시</span>
+                  : rv && rv.hotspotX != null
                   ? <>X {rv.hotspotX.toFixed(1)}% · Y {rv.hotspotY!.toFixed(1)}% {active.follow.hotspotX != null ? <span style={{ color: '#a78bfa' }}>(수정됨)</span> : <span style={{ color: 'rgba(255,255,255,0.4)' }}>(녹화값)</span>}</>
                   : <span style={{ color: 'rgba(255,255,255,0.4)' }}>지정 안 됨 — 이미지를 클릭하세요</span>}
               </div>

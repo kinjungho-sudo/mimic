@@ -115,7 +115,7 @@ export type TutorialDetail = Tutorial & {
 export type FollowConfig = {
   hotspotX?: number | null;   // 0~100 (%) 핫스팟 위치 오버라이드. 미설정=녹화 click 좌표
   hotspotY?: number | null;
-  kind?: 'click' | 'type' | null;  // 인디케이터 종류 오버라이드. 미설정=제목 휴리스틱
+  kind?: 'click' | 'type' | 'none' | null;  // 인디케이터 종류 오버라이드. 미설정=제목 휴리스틱, none=핫스팟 미표시
   instruction?: string | null;     // 따라하기 전용 안내문구. 미설정=슬라이드 제목
   hidden?: boolean;                // 따라하기에서 이 스텝 제외 (슬라이드엔 유지)
 };

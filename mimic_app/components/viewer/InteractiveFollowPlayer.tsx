@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { FollowStage, Mascot, CORNER } from './FollowStage';
 
 // 좌표는 전부 0~100(%) 정규화로 받는다 — 호출부(play/manual)가 각자 변환해 넘긴다.
 export interface FollowStep {
@@ -22,24 +23,7 @@ interface Props {
   lockAfterStep?: number | null;       // 이 인덱스 이후로 진행 시 로그인 월(소프트 게이트). null=제한 없음
 }
 
-function Mascot({ size = 40 }: { size?: number }) {
-  return (
-    <div style={{ width: size, height: size, borderRadius: '50%', background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', display: 'grid', placeItems: 'center', flexShrink: 0, boxShadow: '0 4px 14px rgba(79,70,229,0.4)' }}>
-      <svg width={size * 0.62} height={size * 0.62} viewBox="0 0 24 24" fill="none">
-        <rect x="4" y="7" width="16" height="12" rx="4" fill="white" />
-        <circle cx="9.5" cy="13" r="1.7" fill="#4f46e5" />
-        <circle cx="14.5" cy="13" r="1.7" fill="#4f46e5" />
-        <path d="M9.5 16.2c1.6 1 3.4 1 5 0" stroke="#4f46e5" strokeWidth="1.2" strokeLinecap="round" />
-        <line x1="12" y1="3.5" x2="12" y2="7" stroke="white" strokeWidth="1.6" strokeLinecap="round" />
-        <circle cx="12" cy="3" r="1.3" fill="white" />
-      </svg>
-    </div>
-  );
-}
-
 const HIT_PCT = 7; // 핫스팟 정답 클릭 허용 반경(%)
-const CORNER = 1.5; // 좌상단 꼭지점(이동/캡처 단계의 0,0 가짜 핫스팟) 판정 임계
-const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
 export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, closeLabel = '닫기', lockAfterStep = null }: Props) {
   const [idx, setIdx] = useState(0);
@@ -48,9 +32,7 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
   const [minimized, setMinimized] = useState(false);
   const [showGate, setShowGate] = useState(false);  // 맛보기 후 로그인 월 (소프트 게이트)
   const [voiceOn, setVoiceOn] = useState(false);  // 음성 자동재생 토글 (기본 OFF — 아바타 클릭 재생)
-  const wrapRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [box, setBox] = useState({ w: 0, h: 0 });
 
   const total = steps.length;
   const step = steps[idx];
@@ -77,17 +59,6 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
     if (minimized) { setMinimized(false); return; }
     if (step.audioUrl) playVoice(step.audioUrl);
   };
-
-  // 이미지 박스 실측 — 말풍선 클램프 계산용
-  useEffect(() => {
-    const el = wrapRef.current;
-    if (!el) return;
-    const measure = () => { const r = el.getBoundingClientRect(); setBox({ w: r.width, h: r.height }); };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [idx, done]);
 
   const advance = useCallback(() => {
     // 맛보기 한도를 넘어가는 진행이면 로그인 월 (잠긴 콘텐츠가 남아있을 때만)
@@ -124,58 +95,6 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
   if (!step) return null;
 
   const hx = step.hotspotX, hy = step.hotspotY;
-  // 좌상단 꼭지점(이동/캡처 단계)은 핫스팟으로 보지 않음 (#2)
-  const hasHotspot = hx != null && hy != null && !(hx < CORNER && hy < CORNER);
-  const isType = step.kind === 'type';
-
-  // 말풍선 위치 — 이미지 박스 안으로 클램프 (잘림/겹침 방지)
-  const BW = box.w ? clamp(box.w - 28, 170, 340) : 300;
-  const UNIT_W = BW + 50, UNIT_H = 132;
-  let bubbleLeft = 0, bubbleTop = 0, bubbleSide: 'left' | 'right' = 'right';
-  if (hasHotspot && box.w) {
-    const hxPx = (hx! / 100) * box.w, hyPx = (hy! / 100) * box.h;
-    bubbleSide = hxPx < box.w / 2 ? 'right' : 'left';
-    bubbleLeft = bubbleSide === 'right' ? hxPx + 26 : hxPx - 26 - UNIT_W;
-    bubbleTop = hyPx - UNIT_H / 2;
-    bubbleLeft = clamp(bubbleLeft, 8, Math.max(8, box.w - UNIT_W - 8));
-    bubbleTop = clamp(bubbleTop, 8, Math.max(8, box.h - UNIT_H - 8));
-  }
-
-  const hint = !hasHotspot ? "아래 '다음 →'을 눌러 계속하세요" : isType ? '여기에 입력하면 돼요' : '표시된 곳을 클릭하면 다음으로 넘어가요';
-  const prefix = !hasHotspot ? '📄' : isType ? '✍️' : '👉';
-
-  const Bubble = (
-    <div style={{ background: 'white', borderRadius: '14px', padding: '11px 14px', boxShadow: '0 8px 28px rgba(0,0,0,0.28)', maxWidth: `${BW}px`, animation: nudge ? 'mfp-nudge 0.4s' : undefined }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-        <div style={{ fontSize: '13.5px', fontWeight: 800, color: '#111827', lineHeight: 1.4, flex: 1 }}>{prefix} {step.title}</div>
-        <span style={{ fontSize: '11px', color: '#C4C9D4', flexShrink: 0, marginTop: '1px' }}>—</span>
-      </div>
-      {step.body && (
-        <div style={{ fontSize: '12.5px', color: '#4B5563', lineHeight: 1.5, marginTop: '4px', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{step.body}</div>
-      )}
-      <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '6px' }}>{hint}</div>
-    </div>
-  );
-
-  // 아바타(음성 재생/펼치기) + 말풍선(접기) 분리 (#3·#5)
-  const MascotBtn = (
-    <button onClick={onMascotClick} title={step.audioUrl ? '음성 듣기' : '안내'} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, position: 'relative' }}>
-      <Mascot />
-      {step.audioUrl && <span style={{ position: 'absolute', bottom: -2, right: -2, width: 16, height: 16, borderRadius: '50%', background: '#fff', display: 'grid', placeItems: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.25)' }}><svg width="9" height="9" viewBox="0 0 24 24" fill="#4f46e5"><path d="M3 10v4h4l5 5V5L7 10H3z" /></svg></span>}
-    </button>
-  );
-  const BubbleBox = (
-    <div onClick={(e) => { e.stopPropagation(); setMinimized(true); }} title="눌러서 접기" style={{ cursor: 'pointer' }}>{Bubble}</div>
-  );
-  const renderUnit = (side: 'left' | 'right' | 'bottom') => (
-    minimized ? (
-      <button onClick={onMascotClick} title="안내 펼치기" style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, pointerEvents: 'auto' }}><Mascot /></button>
-    ) : (
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', pointerEvents: 'auto' }}>
-        {side === 'left' ? <>{BubbleBox}{MascotBtn}</> : <>{MascotBtn}{BubbleBox}</>}
-      </div>
-    )
-  );
 
   return (
     <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '10px', gap: '10px' }}>
@@ -201,43 +120,21 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
             </div>
 
             <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0b0b0f', overflow: 'hidden' }}>
-              {step.screenshotUrl ? (
-                <div ref={wrapRef} onClick={onImageClick} style={{ position: 'relative', display: 'inline-block', lineHeight: 0, cursor: 'pointer', maxWidth: '100%', maxHeight: '100%' }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={step.screenshotUrl} alt={step.title} style={{ display: 'block', maxWidth: '100%', maxHeight: 'calc(100vh - 150px)', width: 'auto', height: 'auto' }} />
-
-                  {/* 인디케이터 — 클릭(흰 물결) vs 타이핑(커서+칩) */}
-                  {hasHotspot && !isType && (
-                    <div style={{ position: 'absolute', left: `${hx}%`, top: `${hy}%`, transform: 'translate(-50%,-50%)', width: '22px', height: '22px', pointerEvents: 'none', zIndex: 4 }}>
-                      <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2.5px solid rgba(255,255,255,0.95)', animation: 'mfp-ripple 1.9s ease-out infinite' }} />
-                      <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2.5px solid rgba(255,255,255,0.8)', animation: 'mfp-ripple 1.9s ease-out infinite', animationDelay: '0.63s' }} />
-                      <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2.5px solid rgba(255,255,255,0.6)', animation: 'mfp-ripple 1.9s ease-out infinite', animationDelay: '1.26s' }} />
-                    </div>
-                  )}
-                  {hasHotspot && isType && (
-                    <div style={{ position: 'absolute', left: `${hx}%`, top: `${hy}%`, transform: 'translate(-50%,-50%)', pointerEvents: 'none', zIndex: 4, display: 'flex', alignItems: 'center', gap: '5px' }}>
-                      <span style={{ width: '2.5px', height: '20px', background: '#fff', borderRadius: '2px', boxShadow: '0 0 8px rgba(255,255,255,0.95)', animation: 'mfp-caret 1s step-end infinite' }} />
-                      <span style={{ fontSize: '10px', fontWeight: 700, color: '#fff', background: 'rgba(79,70,229,0.96)', padding: '2px 8px', borderRadius: '10px', whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(0,0,0,0.35)' }}>입력</span>
-                    </div>
-                  )}
-
-                  {/* AI 캐릭터 + 말풍선 (클램프 + 최소화) */}
-                  {hasHotspot && (
-                    <div style={{ position: 'absolute', left: `${bubbleLeft}px`, top: `${bubbleTop}px`, zIndex: 6, pointerEvents: 'none' }}>
-                      {renderUnit(bubbleSide)}
-                    </div>
-                  )}
-
-                  {/* 핫스팟 없는 이동/설명형 — 하단 중앙 */}
-                  {!hasHotspot && (
-                    <div style={{ position: 'absolute', left: '50%', bottom: '18px', transform: 'translateX(-50%)', zIndex: 6, pointerEvents: 'none', maxWidth: '92%' }}>
-                      {renderUnit('bottom')}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div style={{ height: '40vh', display: 'grid', placeItems: 'center', color: '#6B7280', fontSize: '13px' }}>이미지 없음</div>
-              )}
+              <FollowStage
+                screenshotUrl={step.screenshotUrl}
+                hotspotX={hx ?? null}
+                hotspotY={hy ?? null}
+                kind={step.kind ?? 'click'}
+                title={step.title}
+                body={step.body}
+                minimized={minimized}
+                showAudioBadge={!!step.audioUrl}
+                nudge={nudge}
+                imageCursor="pointer"
+                onImageClick={onImageClick}
+                onMascotClick={onMascotClick}
+                onBubbleClick={(e) => { e.stopPropagation(); setMinimized(true); }}
+              />
             </div>
           </div>
 

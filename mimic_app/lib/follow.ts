@@ -38,13 +38,16 @@ export function toFollowSteps(sources: FollowSource[]): FollowStep[] {
     .map(s => {
       const fc = s.followConfig ?? {};
       const instruction = fc.instruction?.trim();
+      const resolvedKind = fc.kind ?? inferKind(s.title, s.body);
+      // 'none' = 인디케이터 미표시 → 핫스팟 좌표를 null로 강제(플레이어가 하단 안내로 전환)
+      const isNone = resolvedKind === 'none';
       return {
         title: instruction || s.title,
         body: s.body ?? undefined,
         screenshotUrl: s.screenshotUrl,
-        hotspotX: fc.hotspotX != null ? fc.hotspotX : s.clickXPct,
-        hotspotY: fc.hotspotY != null ? fc.hotspotY : s.clickYPct,
-        kind: fc.kind ?? inferKind(s.title, s.body),
+        hotspotX: isNone ? null : (fc.hotspotX != null ? fc.hotspotX : s.clickXPct),
+        hotspotY: isNone ? null : (fc.hotspotY != null ? fc.hotspotY : s.clickYPct),
+        kind: isNone ? 'click' : resolvedKind,  // none이면 핫스팟 없으니 kind 값은 무의미
         audioUrl: s.audioUrl ?? null,
       };
     });
