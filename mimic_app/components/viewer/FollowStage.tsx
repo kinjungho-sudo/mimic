@@ -28,6 +28,8 @@ interface Props {
   hotspotX: number | null;          // 0~100 (%) — none/이동단계는 null
   hotspotY: number | null;
   kind: 'click' | 'type';
+  typeText?: string | null;         // type 인디케이터에 표시/입력될 텍스트
+  animateType?: boolean;            // true=뷰어(자동 타이핑 애니메이션), false/미설정=스튜디오(정적 표시)
   title: string;
   body?: string;
   minimized?: boolean;
@@ -43,7 +45,7 @@ interface Props {
 }
 
 export function FollowStage({
-  screenshotUrl, hotspotX: hx, hotspotY: hy, kind, title, body,
+  screenshotUrl, hotspotX: hx, hotspotY: hy, kind, typeText, animateType = false, title, body,
   minimized = false, showAudioBadge = false, nudge = false,
   imageCursor = 'default', imgMaxHeight = 'calc(100vh - 150px)',
   onImageClick, onMascotClick, onBubbleClick, wrapRef, children,
@@ -51,6 +53,20 @@ export function FollowStage({
   const innerRef = useRef<HTMLDivElement>(null);
   const ref = wrapRef ?? innerRef;
   const [box, setBox] = useState({ w: 0, h: 0 });
+
+  // 텍스트 인디케이터 자동 타이핑 — 뷰어에서만(animateType). 스튜디오는 입력값 그대로 표시
+  const [typed, setTyped] = useState(0);
+  useEffect(() => {
+    if (!animateType || kind !== 'type' || !typeText) { setTyped(0); return; }
+    setTyped(0);
+    let i = 0;
+    const id = setInterval(() => {
+      i += 1;
+      setTyped(i);
+      if (i >= typeText.length) clearInterval(id);
+    }, 42);
+    return () => clearInterval(id);
+  }, [animateType, kind, typeText]);
 
   useEffect(() => {
     const el = ref.current;
@@ -64,6 +80,9 @@ export function FollowStage({
 
   const hasHotspot = hx != null && hy != null && !(hx < CORNER && hy < CORNER);
   const isType = kind === 'type';
+  const typeStr = typeText ?? '';
+  const hasTypeText = typeStr.trim().length > 0;
+  const shownType = animateType ? typeStr.slice(0, typed) : typeStr;
 
   // 말풍선 위치 — 이미지 박스 안으로 클램프
   const BW = box.w ? clamp(box.w - 28, 170, 340) : 300;
@@ -134,9 +153,18 @@ export function FollowStage({
       {/* 타이핑 인디케이터 — Tango식 입력 필드 박스 + 깜빡 커서 + 라벨 */}
       {hasHotspot && isType && (
         <div style={{ position: 'absolute', left: `${hx}%`, top: `${hy}%`, transform: 'translate(-50%,-50%)', pointerEvents: 'none', zIndex: 4 }}>
-          <div style={{ position: 'relative', minWidth: '128px', height: '36px', borderRadius: '9px', border: '2px solid #60a5fa', background: 'rgba(37,99,235,0.16)', boxShadow: '0 0 0 4px rgba(96,165,250,0.18), 0 6px 18px rgba(0,0,0,0.32)', display: 'flex', alignItems: 'center', padding: '0 12px', animation: 'mfp-field 1.8s ease-in-out infinite' }}>
-            <span style={{ width: '2.5px', height: '20px', background: '#fff', borderRadius: '2px', boxShadow: '0 0 8px rgba(255,255,255,0.95)', animation: 'mfp-caret 1s step-end infinite' }} />
-            <span style={{ marginLeft: '7px', fontSize: '12px', color: 'rgba(255,255,255,0.75)', fontWeight: 500, letterSpacing: '0.04em' }}>텍스트 입력…</span>
+          <div style={{ position: 'relative', minWidth: '128px', maxWidth: '320px', height: '36px', borderRadius: '9px', border: '2px solid #60a5fa', background: 'rgba(37,99,235,0.16)', boxShadow: '0 0 0 4px rgba(96,165,250,0.18), 0 6px 18px rgba(0,0,0,0.32)', display: 'flex', alignItems: 'center', padding: '0 12px', animation: 'mfp-field 1.8s ease-in-out infinite' }}>
+            {hasTypeText ? (
+              <>
+                <span style={{ fontSize: '13px', color: '#fff', fontWeight: 600, letterSpacing: '0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{shownType}</span>
+                <span style={{ width: '2.5px', height: '20px', marginLeft: '2px', flexShrink: 0, background: '#fff', borderRadius: '2px', boxShadow: '0 0 8px rgba(255,255,255,0.95)', animation: 'mfp-caret 1s step-end infinite' }} />
+              </>
+            ) : (
+              <>
+                <span style={{ width: '2.5px', height: '20px', background: '#fff', borderRadius: '2px', boxShadow: '0 0 8px rgba(255,255,255,0.95)', animation: 'mfp-caret 1s step-end infinite' }} />
+                <span style={{ marginLeft: '7px', fontSize: '12px', color: 'rgba(255,255,255,0.55)', fontStyle: 'italic', fontWeight: 500, letterSpacing: '0.04em' }}>텍스트 입력…</span>
+              </>
+            )}
           </div>
           <span style={{ position: 'absolute', top: '-13px', left: '0', fontSize: '10px', fontWeight: 800, color: '#fff', background: '#2563eb', padding: '2px 8px', borderRadius: '8px 8px 8px 2px', boxShadow: '0 2px 8px rgba(0,0,0,0.3)', whiteSpace: 'nowrap', letterSpacing: '0.03em' }}>⌨ 입력</span>
         </div>

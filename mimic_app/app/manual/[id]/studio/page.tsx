@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Play, Check, Loader2, MousePointerClick, Type, Ban, RotateCcw, EyeOff, Eye } from 'lucide-react';
+import { ArrowLeft, Play, Check, Loader2, MousePointerClick, Type, Ban, RotateCcw, EyeOff, Eye, GripVertical } from 'lucide-react';
 import { useTutorial } from '@/hooks/useTutorial';
-import { updateStep } from '@/lib/api/steps';
+import { updateStep, reorderSteps } from '@/lib/api/steps';
 import { clickToPct, inferKind, toFollowSteps } from '@/lib/follow';
 import { InteractiveFollowPlayer } from '@/components/viewer/InteractiveFollowPlayer';
 import { FollowStage } from '@/components/viewer/FollowStage';
@@ -16,11 +16,11 @@ type StudioStep = {
   id: string;
   number: number;
   screenshotUrl: string | null;
-  autoTitle: string;          // 슬라이드 제목 (instruction 미설정 시 폴백)
-  autoBody: string;
-  clickXPct: number | null;   // 녹화 좌표 (0~100)
+  title: string;             // user_title (편집) — 문서 매뉴얼과 공유. ai_title 폴백으로 초기화
+  description: string;       // user_script (편집, HTML 제거) — 문서 매뉴얼과 공유
+  clickXPct: number | null;  // 녹화 좌표 (0~100)
   clickYPct: number | null;
-  follow: FollowConfig;       // 저작값 (편집 편의상 로컬은 항상 객체)
+  follow: FollowConfig;      // 따라하기 전용 시각 설정 (핫스팟·종류·숨김·typeText)
 };
 
 function toStudioStep(s: Step): StudioStep {
@@ -28,8 +28,8 @@ function toStudioStep(s: Step): StudioStep {
     id: s.id,
     number: s.step_number,
     screenshotUrl: s.screenshot_url || null,
-    autoTitle: s.user_title ?? s.ai_title ?? '',
-    autoBody: (s.user_script ?? s.ai_description ?? '').replace(/<[^>]+>/g, ''),
+    title: s.user_title ?? s.ai_title ?? '',
+    description: (s.user_script ?? s.ai_description ?? '').replace(/<[^>]+>/g, ''),
     clickXPct: clickToPct((s as Step & { click_x?: number | null }).click_x),
     clickYPct: clickToPct((s as Step & { click_y?: number | null }).click_y),
     follow: (s.follow_config as FollowConfig) ?? {},
@@ -39,7 +39,7 @@ function toStudioStep(s: Step): StudioStep {
 // 저작값 + 자동추론을 합쳐 현재 적용되는 핫스팟/종류 계산 (캔버스 표시용)
 // none = 인디케이터 미표시 → 핫스팟 null
 function resolved(s: StudioStep) {
-  const rk = s.follow.kind ?? inferKind(s.autoTitle, s.autoBody);
+  const rk = s.follow.kind ?? inferKind(s.title, s.description);
   const none = rk === 'none';
   return {
     hotspotX: none ? null : (s.follow.hotspotX != null ? s.follow.hotspotX : s.clickXPct),
@@ -55,7 +55,7 @@ function normalize(fc: FollowConfig): FollowConfig | null {
   if (fc.hotspotX != null) clean.hotspotX = fc.hotspotX;
   if (fc.hotspotY != null) clean.hotspotY = fc.hotspotY;
   if (fc.kind) clean.kind = fc.kind;
-  if (fc.instruction && fc.instruction.trim()) clean.instruction = fc.instruction.trim();
+  if (fc.typeText && fc.typeText.trim()) clean.typeText = fc.typeText.trim();
   if (fc.hidden) clean.hidden = true;
   return Object.keys(clean).length ? clean : null;
 }
@@ -72,6 +72,9 @@ export default function StudioPage() {
   const [showPreview, setShowPreview] = useState(false);
   const imgWrapRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
+  const contentTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const dragIdRef = useRef<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
   // 최신 steps 미러 — patch에서 동기적으로 현재 follow를 읽기 위함(setState 캡처는 비동기라 stale)
   const stepsRef = useRef<StudioStep[]>([]);
   stepsRef.current = steps;
@@ -105,6 +108,62 @@ export default function StudioPage() {
     }
   }, []);
 
+  // 제목/설명 편집 → 로컬 즉시 반영(실시간 WYSIWYG 동기화) + 디바운스 저장.
+  // user_title/user_script(문서 매뉴얼과 공유 컬럼)에 직접 저장.
+  const setContent = useCallback((stepId: string, field: 'title' | 'description', value: string) => {
+    stepsRef.current = stepsRef.current.map(s => s.id === stepId ? { ...s, [field]: value } : s);
+    setSteps(stepsRef.current);
+    const col = field === 'title' ? 'user_title' : 'user_script';
+    const key = stepId + col;
+    clearTimeout(contentTimers.current[key]);
+    contentTimers.current[key] = setTimeout(async () => {
+      setSavingId(stepId);
+      try {
+        await updateStep(stepId, { [col]: value });
+        setSavedTick(t => t + 1);
+      } catch (e) {
+        logError('studio.content.fail', { stepId, message: e instanceof Error ? e.message : String(e) });
+      } finally {
+        setSavingId(s => (s === stepId ? null : s));
+      }
+    }, 600);
+  }, []);
+
+  // 드래그앤드롭 순서 변경 → order_index 영속(문서 매뉴얼·따라하기 동시 반영)
+  const reorder = useCallback((fromId: string, toId: string) => {
+    if (fromId === toId) return;
+    const arr = [...stepsRef.current];
+    const from = arr.findIndex(s => s.id === fromId);
+    const to = arr.findIndex(s => s.id === toId);
+    if (from < 0 || to < 0) return;
+    const [moved] = arr.splice(from, 1);
+    arr.splice(to, 0, moved);
+    stepsRef.current = arr;
+    setSteps(arr);
+    reorderSteps(id, arr.map((s, i) => ({ id: s.id, order_index: i })))
+      .catch(e => logError('studio.reorder.fail', { tutorialId: id, message: e instanceof Error ? e.message : String(e) }));
+  }, [id]);
+
+  // 입력 텍스트(typeText) 편집 → 로컬 즉시 반영 + 디바운스 저장 (키 입력마다 저장 방지)
+  const setTypeText = useCallback((stepId: string, value: string) => {
+    stepsRef.current = stepsRef.current.map(s => s.id === stepId ? { ...s, follow: { ...s.follow, typeText: value } } : s);
+    setSteps(stepsRef.current);
+    const key = stepId + 'typeText';
+    clearTimeout(contentTimers.current[key]);
+    contentTimers.current[key] = setTimeout(async () => {
+      const fc = stepsRef.current.find(s => s.id === stepId)?.follow ?? {};
+      setSavingId(stepId);
+      try {
+        await updateStep(stepId, { follow_config: normalize(fc) });
+        setSavedTick(t => t + 1);
+      } catch (e) {
+        logError('studio.typetext.fail', { stepId, message: e instanceof Error ? e.message : String(e) });
+      } finally {
+        setSavingId(s => (s === stepId ? null : s));
+      }
+    }, 600);
+  }, []);
+
   // 이미지 클릭/드래그 → 핫스팟 위치 지정
   const placeHotspot = useCallback((clientX: number, clientY: number, commit: boolean) => {
     const el = imgWrapRef.current;
@@ -133,8 +192,8 @@ export default function StudioPage() {
   }, [placeHotspot]);
 
   const previewSteps = useMemo(() => toFollowSteps(steps.map(s => ({
-    title: s.autoTitle,
-    body: s.autoBody || null,
+    title: s.title,
+    body: s.description || null,
     screenshotUrl: s.screenshotUrl || undefined,
     clickXPct: s.clickXPct,
     clickYPct: s.clickYPct,
@@ -180,23 +239,32 @@ export default function StudioPage() {
       </header>
 
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-        {/* 좌측 스텝 리스트 */}
+        {/* 좌측 스텝 리스트 — 드래그앤드롭으로 순서 변경 */}
         <aside style={{ width: 220, flexShrink: 0, borderRight: '1px solid rgba(255,255,255,0.07)', overflowY: 'auto', padding: '10px 8px' }}>
           {steps.map((s, i) => {
             const sel = s.id === activeId;
             const r = resolved(s);
             const hasHot = r.hotspotX != null && r.hotspotY != null;
+            const isDragOver = dragOverId === s.id;
             return (
-              <button key={s.id} onClick={() => setActiveId(s.id)}
-                style={{ width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 9, padding: '8px 9px', marginBottom: 4, borderRadius: 9, border: '1px solid ' + (sel ? 'rgba(124,58,237,0.6)' : 'transparent'), background: sel ? 'rgba(124,58,237,0.16)' : 'transparent', color: 'white', cursor: 'pointer', opacity: s.follow.hidden ? 0.5 : 1 }}>
+              <div key={s.id}
+                draggable
+                onDragStart={e => { dragIdRef.current = s.id; e.dataTransfer.effectAllowed = 'move'; }}
+                onDragOver={e => { e.preventDefault(); if (dragOverId !== s.id) setDragOverId(s.id); }}
+                onDragLeave={() => { if (dragOverId === s.id) setDragOverId(null); }}
+                onDrop={e => { e.preventDefault(); if (dragIdRef.current) reorder(dragIdRef.current, s.id); dragIdRef.current = null; setDragOverId(null); }}
+                onDragEnd={() => { dragIdRef.current = null; setDragOverId(null); }}
+                onClick={() => setActiveId(s.id)}
+                style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 7px', marginBottom: 4, borderRadius: 9, border: '1px solid ' + (isDragOver ? '#7c3aed' : sel ? 'rgba(124,58,237,0.6)' : 'transparent'), background: sel ? 'rgba(124,58,237,0.16)' : isDragOver ? 'rgba(124,58,237,0.08)' : 'transparent', color: 'white', cursor: 'pointer', opacity: s.follow.hidden ? 0.5 : 1 }}>
+                <GripVertical size={13} color="rgba(255,255,255,0.3)" style={{ flexShrink: 0, cursor: 'grab' }} />
                 <span style={{ width: 22, height: 22, flexShrink: 0, borderRadius: 6, background: sel ? '#7c3aed' : 'rgba(255,255,255,0.1)', fontSize: 11, fontWeight: 700, display: 'grid', placeItems: 'center' }}>{i + 1}</span>
                 <span style={{ flex: 1, minWidth: 0, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'rgba(255,255,255,0.85)' }}>
-                  {s.follow.instruction || s.autoTitle || '(제목 없음)'}
+                  {s.title || '(제목 없음)'}
                 </span>
                 {s.follow.hidden
                   ? <EyeOff size={12} color="rgba(255,255,255,0.4)" />
                   : <span style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, background: hasHot ? (r.kind === 'type' ? '#60a5fa' : '#34d399') : 'rgba(255,255,255,0.25)' }} />}
-              </button>
+              </div>
             );
           })}
         </aside>
@@ -215,8 +283,9 @@ export default function StudioPage() {
                   hotspotX={rv?.hotspotX ?? null}
                   hotspotY={rv?.hotspotY ?? null}
                   kind={rv?.kind ?? 'click'}
-                  title={active.follow.instruction?.trim() || active.autoTitle}
-                  body={active.autoBody || undefined}
+                  typeText={active.follow.typeText}
+                  title={active.title}
+                  body={active.description || undefined}
                   imageCursor="crosshair"
                   imgMaxHeight="calc(100vh - 170px)"
                   wrapRef={imgWrapRef}
@@ -247,7 +316,23 @@ export default function StudioPage() {
         <aside style={{ width: 280, flexShrink: 0, borderLeft: '1px solid rgba(255,255,255,0.07)', overflowY: 'auto', padding: 18 }}>
           {!active ? null : (
             <>
-              <SectionLabel>스텝 {steps.findIndex(s => s.id === active.id) + 1}</SectionLabel>
+              <SectionLabel>스텝 {steps.findIndex(s => s.id === active.id) + 1} · 내용</SectionLabel>
+              <input
+                value={active.title}
+                onChange={e => setContent(active.id, 'title', e.target.value)}
+                placeholder="스텝 제목"
+                style={{ width: '100%', boxSizing: 'border-box', padding: '8px 11px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)', color: 'white', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', outline: 'none', marginBottom: 8 }}
+              />
+              <textarea
+                value={active.description}
+                onChange={e => setContent(active.id, 'description', e.target.value)}
+                placeholder="이 단계 설명 (말풍선에 표시)"
+                rows={3}
+                style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)', color: 'white', fontSize: 12.5, lineHeight: 1.5, fontFamily: 'inherit', resize: 'vertical', outline: 'none' }}
+              />
+              <p style={hint}>제목·설명은 문서 매뉴얼과 함께 수정됩니다 — 입력하면 위 미리보기에 바로 반영돼요.</p>
+
+              <Divider />
 
               {/* 표시/숨김 */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0' }}>
@@ -302,20 +387,20 @@ export default function StudioPage() {
                 <RotateCcw size={12} /> 녹화 위치로 초기화
               </button>
 
-              <Divider />
-
-              {/* 안내문구 */}
-              <SectionLabel>따라하기 안내문구</SectionLabel>
-              <textarea
-                key={active.id}
-                disabled={hidden}
-                defaultValue={active.follow.instruction ?? ''}
-                onBlur={e => { const v = e.target.value; if ((active.follow.instruction ?? '') !== v) patch(active.id, { instruction: v }); }}
-                placeholder={active.autoTitle || '예: 여기 로그인 버튼을 눌러요'}
-                rows={3}
-                style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)', color: 'white', fontSize: 12.5, lineHeight: 1.5, fontFamily: 'inherit', resize: 'vertical', outline: 'none', opacity: hidden ? 0.5 : 1 }}
-              />
-              <p style={hint}>비워두면 슬라이드 제목을 사용합니다.</p>
+              {/* 입력 텍스트 — 텍스트 인디케이터일 때만 */}
+              {!hidden && rv?.kind === 'type' && (
+                <>
+                  <Divider />
+                  <SectionLabel>입력 텍스트</SectionLabel>
+                  <input
+                    value={active.follow.typeText ?? ''}
+                    onChange={e => setTypeText(active.id, e.target.value)}
+                    placeholder="자동 입력될 텍스트 (비우면 ‘텍스트 입력…’ 안내만)"
+                    style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)', color: 'white', fontSize: 12.5, fontFamily: 'inherit', outline: 'none' }}
+                  />
+                  <p style={hint}>입력하면 뷰어에서 이 텍스트가 자동으로 타이핑됩니다(라이브 가이드에선 실제 입력 — 추후).</p>
+                </>
+              )}
             </>
           )}
         </aside>

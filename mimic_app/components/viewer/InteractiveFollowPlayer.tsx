@@ -11,6 +11,7 @@ export interface FollowStep {
   hotspotX?: number | null;            // 0~100 (%)
   hotspotY?: number | null;            // 0~100 (%)
   kind?: 'click' | 'type';             // 클릭 vs 타이핑 — 인디케이터 모양 결정
+  typeText?: string | null;            // type 인디케이터에 자동 타이핑될 텍스트
   audioUrl?: string | null;            // 스텝 TTS 오디오 (있으면 음성 재생)
 }
 
@@ -125,6 +126,8 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
                 hotspotX={hx ?? null}
                 hotspotY={hy ?? null}
                 kind={step.kind ?? 'click'}
+                typeText={step.typeText}
+                animateType
                 title={step.title}
                 body={step.body}
                 minimized={minimized}

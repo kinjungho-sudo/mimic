@@ -37,17 +37,18 @@ export function toFollowSteps(sources: FollowSource[]): FollowStep[] {
     .filter(s => !s.followConfig?.hidden)
     .map(s => {
       const fc = s.followConfig ?? {};
-      const instruction = fc.instruction?.trim();
       const resolvedKind = fc.kind ?? inferKind(s.title, s.body);
       // 'none' = 인디케이터 미표시 → 핫스팟 좌표를 null로 강제(플레이어가 하단 안내로 전환)
       const isNone = resolvedKind === 'none';
       return {
-        title: instruction || s.title,
+        // 제목·설명은 문서 매뉴얼과 공유 — user_title/user_script가 그대로 흐른다
+        title: s.title,
         body: s.body ?? undefined,
         screenshotUrl: s.screenshotUrl,
         hotspotX: isNone ? null : (fc.hotspotX != null ? fc.hotspotX : s.clickXPct),
         hotspotY: isNone ? null : (fc.hotspotY != null ? fc.hotspotY : s.clickYPct),
         kind: isNone ? 'click' : resolvedKind,  // none이면 핫스팟 없으니 kind 값은 무의미
+        typeText: fc.typeText?.trim() || null,
         audioUrl: s.audioUrl ?? null,
       };
     });

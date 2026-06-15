@@ -18,7 +18,7 @@ const stepPatchSchema = z.object({
     hotspotX: z.number().min(0).max(100).nullable().optional(),
     hotspotY: z.number().min(0).max(100).nullable().optional(),
     kind: z.enum(['click', 'type', 'none']).nullable().optional(),
-    instruction: z.string().max(500).nullable().optional(),
+    typeText: z.string().max(500).nullable().optional(),
     hidden: z.boolean().optional(),
   }).nullable().optional(),
 });
