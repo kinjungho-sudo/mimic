@@ -19,6 +19,7 @@ interface Props {
   onClose?: () => void;
   onComplete?: () => void;
   closeLabel?: string;
+  lockAfterStep?: number | null;       // 이 인덱스 이후로 진행 시 로그인 월(소프트 게이트). null=제한 없음
 }
 
 function Mascot({ size = 40 }: { size?: number }) {
@@ -40,11 +41,12 @@ const HIT_PCT = 7; // 핫스팟 정답 클릭 허용 반경(%)
 const CORNER = 1.5; // 좌상단 꼭지점(이동/캡처 단계의 0,0 가짜 핫스팟) 판정 임계
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
-export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, closeLabel = '닫기' }: Props) {
+export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, closeLabel = '닫기', lockAfterStep = null }: Props) {
   const [idx, setIdx] = useState(0);
   const [done, setDone] = useState(false);
   const [nudge, setNudge] = useState(false);
   const [minimized, setMinimized] = useState(false);
+  const [showGate, setShowGate] = useState(false);  // 맛보기 후 로그인 월 (소프트 게이트)
   const [voiceOn, setVoiceOn] = useState(false);  // 음성 자동재생 토글 (기본 OFF — 아바타 클릭 재생)
   const wrapRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -88,8 +90,10 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
   }, [idx, done]);
 
   const advance = useCallback(() => {
+    // 맛보기 한도를 넘어가는 진행이면 로그인 월 (잠긴 콘텐츠가 남아있을 때만)
+    if (lockAfterStep != null && idx >= lockAfterStep && idx + 1 < total) { setShowGate(true); return; }
     setIdx(i => { if (i + 1 >= total) { setDone(true); onComplete?.(); return i; } return i + 1; });
-  }, [total, onComplete]);
+  }, [total, onComplete, lockAfterStep, idx]);
   const goPrev = useCallback(() => setIdx(i => Math.max(0, i - 1)), []);
 
   useEffect(() => {
@@ -255,6 +259,19 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
             {onClose && <button onClick={onClose} style={{ height: '32px', padding: '0 12px', borderRadius: '8px', border: 'none', background: 'transparent', color: '#6B7280', fontSize: '12.5px', cursor: 'pointer' }}>{closeLabel}</button>}
           </div>
         </>
+      )}
+
+      {/* 맛보기 후 로그인 월 (소프트 게이트) */}
+      {showGate && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 20, background: 'rgba(10,10,18,0.78)', backdropFilter: 'blur(3px)', display: 'grid', placeItems: 'center', padding: '20px' }}>
+          <div style={{ background: 'white', borderRadius: '18px', padding: '32px 30px', textAlign: 'center', boxShadow: '0 24px 70px rgba(0,0,0,0.45)', maxWidth: '360px', width: '100%' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '14px' }}><Mascot size={52} /></div>
+            <div style={{ fontSize: '18px', fontWeight: 800, color: '#111827', marginBottom: '8px' }}>여기까지 미리보기예요</div>
+            <div style={{ fontSize: '13px', color: '#6B7280', lineHeight: 1.6, marginBottom: '20px' }}>무료로 로그인하면 끝까지 따라할 수 있어요.<br />가입은 몇 초면 끝나요.</div>
+            <button onClick={() => { const next = encodeURIComponent(window.location.pathname + window.location.search); window.location.href = `/auth/login?next=${next}`; }} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', color: 'white', fontSize: '14px', fontWeight: 700, cursor: 'pointer', marginBottom: '10px' }}>무료로 로그인하고 계속하기</button>
+            <button onClick={() => setShowGate(false)} style={{ width: '100%', padding: '10px', borderRadius: '10px', border: 'none', background: 'transparent', color: '#9CA3AF', fontSize: '12.5px', fontWeight: 600, cursor: 'pointer' }}>미리보기로 돌아가기</button>
+          </div>
+        </div>
       )}
 
       <style>{`

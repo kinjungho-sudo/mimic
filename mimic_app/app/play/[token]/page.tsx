@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { BrandMark } from '@/components/BrandMark';
 import { AnnotationPreview } from '@/components/editor/AnnotationPreview';
 import { InteractiveFollowPlayer } from '@/components/viewer/InteractiveFollowPlayer';
+import { createClient } from '@/lib/supabase/client';
 import type { Annotation as DrawAnnotation } from '@/components/editor/ImageAnnotationEditor';
 
 type Marker = {
@@ -527,6 +528,16 @@ export default function PlayerPage() {
   const playTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  // 따라하기 소프트 게이트: 비로그인은 맛보기(처음 2스텝)만 — 로그인 상태 확인
+  const [authChecked, setAuthChecked] = useState(false);
+  const [isAuthed, setIsAuthed] = useState(false);
+
+  useEffect(() => {
+    createClient().auth.getSession()
+      .then(({ data }) => { setIsAuthed(!!data.session); })
+      .catch(() => {})
+      .finally(() => setAuthChecked(true));
+  }, []);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 640);
@@ -777,6 +788,7 @@ export default function PlayerPage() {
         <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
           <InteractiveFollowPlayer
             title={tutorial.title}
+            lockAfterStep={authChecked && !isAuthed ? 1 : null}
             steps={tutorial.steps.map(s => {
               const t = `${s.title ?? ''} ${s.caption ?? ''}`;
               const isType = /입력|타이핑|작성|기입|텍스트/.test(t) && !/클릭|누르|선택|눌러|버튼|탭|체크|이동|열기/.test(t);
