@@ -787,6 +787,7 @@ export default function PlayerPage() {
                 hotspotX: s.click_x != null ? s.click_x * 100 : null,
                 hotspotY: s.click_y != null ? s.click_y * 100 : null,
                 kind: (isType ? 'type' : 'click') as 'type' | 'click',
+                audioUrl: tutorial.audio_assets?.find(a => a.step_id === s.id)?.audio_url ?? null,
               };
             })}
           />

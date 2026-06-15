@@ -10,6 +10,7 @@ export interface FollowStep {
   hotspotX?: number | null;            // 0~100 (%)
   hotspotY?: number | null;            // 0~100 (%)
   kind?: 'click' | 'type';             // 클릭 vs 타이핑 — 인디케이터 모양 결정
+  audioUrl?: string | null;            // 스텝 TTS 오디오 (있으면 음성 재생)
 }
 
 interface Props {
@@ -44,14 +45,36 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
   const [done, setDone] = useState(false);
   const [nudge, setNudge] = useState(false);
   const [minimized, setMinimized] = useState(false);
+  const [voiceOn, setVoiceOn] = useState(false);  // 음성 자동재생 토글 (기본 OFF — 아바타 클릭 재생)
   const wrapRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
 
   const total = steps.length;
   const step = steps[idx];
+  const hasAnyAudio = steps.some(s => !!s.audioUrl);
 
   // 스텝 바뀌면 툴팁 다시 펼침 (#3)
   useEffect(() => { setMinimized(false); }, [idx]);
+
+  // 음성 재생 (#5) — 직전 오디오 정지 후 재생
+  const playVoice = useCallback((url?: string | null) => {
+    if (!url) return;
+    try { if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; } } catch { /* noop */ }
+    try { const a = new Audio(url); audioRef.current = a; a.play().catch(() => {}); } catch { /* noop */ }
+  }, []);
+
+  // 음성 ON이면 스텝 넘어갈 때 자동재생 (다음 클릭 = 사용자 제스처라 autoplay 허용)
+  useEffect(() => {
+    if (voiceOn && !done) playVoice(step?.audioUrl);
+    return () => { try { audioRef.current?.pause(); } catch { /* noop */ } };
+  }, [idx, voiceOn, done, step?.audioUrl, playVoice]);
+
+  const onMascotClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (minimized) { setMinimized(false); return; }
+    if (step.audioUrl) playVoice(step.audioUrl);
+  };
 
   // 이미지 박스 실측 — 말풍선 클램프 계산용
   useEffect(() => {
@@ -130,12 +153,23 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
     </div>
   );
 
-  // 말풍선 묶음(최소화 토글) — 누르면 접힘/펼침 (#3)
-  const BubbleUnit = (children: React.ReactNode) => (
+  // 아바타(음성 재생/펼치기) + 말풍선(접기) 분리 (#3·#5)
+  const MascotBtn = (
+    <button onClick={onMascotClick} title={step.audioUrl ? '음성 듣기' : '안내'} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, position: 'relative' }}>
+      <Mascot />
+      {step.audioUrl && <span style={{ position: 'absolute', bottom: -2, right: -2, width: 16, height: 16, borderRadius: '50%', background: '#fff', display: 'grid', placeItems: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.25)' }}><svg width="9" height="9" viewBox="0 0 24 24" fill="#4f46e5"><path d="M3 10v4h4l5 5V5L7 10H3z" /></svg></span>}
+    </button>
+  );
+  const BubbleBox = (
+    <div onClick={(e) => { e.stopPropagation(); setMinimized(true); }} title="눌러서 접기" style={{ cursor: 'pointer' }}>{Bubble}</div>
+  );
+  const renderUnit = (side: 'left' | 'right' | 'bottom') => (
     minimized ? (
-      <button onClick={(e) => { e.stopPropagation(); setMinimized(false); }} title="안내 펼치기" style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, pointerEvents: 'auto' }}><Mascot /></button>
+      <button onClick={onMascotClick} title="안내 펼치기" style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, pointerEvents: 'auto' }}><Mascot /></button>
     ) : (
-      <div onClick={(e) => { e.stopPropagation(); setMinimized(true); }} title="눌러서 접기" style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', cursor: 'pointer', pointerEvents: 'auto' }}>{children}</div>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', pointerEvents: 'auto' }}>
+        {side === 'left' ? <>{BubbleBox}{MascotBtn}</> : <>{MascotBtn}{BubbleBox}</>}
+      </div>
     )
   );
 
@@ -186,14 +220,14 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
                   {/* AI 캐릭터 + 말풍선 (클램프 + 최소화) */}
                   {hasHotspot && (
                     <div style={{ position: 'absolute', left: `${bubbleLeft}px`, top: `${bubbleTop}px`, zIndex: 6, pointerEvents: 'none' }}>
-                      {BubbleUnit(<>{bubbleSide === 'right' && <Mascot />}{Bubble}{bubbleSide === 'left' && <Mascot />}</>)}
+                      {renderUnit(bubbleSide)}
                     </div>
                   )}
 
                   {/* 핫스팟 없는 이동/설명형 — 하단 중앙 */}
                   {!hasHotspot && (
                     <div style={{ position: 'absolute', left: '50%', bottom: '18px', transform: 'translateX(-50%)', zIndex: 6, pointerEvents: 'none', maxWidth: '92%' }}>
-                      {BubbleUnit(<><Mascot />{Bubble}</>)}
+                      {renderUnit('bottom')}
                     </div>
                   )}
                 </div>
@@ -206,6 +240,16 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
           {/* 컨트롤 바 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(255,255,255,0.95)', borderRadius: '12px', padding: '8px 14px', boxShadow: '0 6px 24px rgba(0,0,0,0.25)', flexShrink: 0 }}>
             <span style={{ fontSize: '12px', fontWeight: 700, color: '#4338ca', background: '#EEF2FF', padding: '3px 10px', borderRadius: '20px' }}>{idx + 1} / {total}</span>
+            {hasAnyAudio && (
+              <button onClick={() => setVoiceOn(v => !v)} title={voiceOn ? '음성 자동재생 끄기 (아바타 클릭으로 듣기)' : '음성 자동재생 켜기'}
+                style={{ height: '32px', padding: '0 10px', borderRadius: '8px', border: `1px solid ${voiceOn ? '#7c3aed' : '#E5E7EB'}`, background: voiceOn ? 'rgba(124,58,237,0.08)' : 'white', color: voiceOn ? '#6d28d9' : '#9CA3AF', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                  {voiceOn ? <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" /> : <><line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" /></>}
+                </svg>
+                음성
+              </button>
+            )}
             <button onClick={goPrev} disabled={idx === 0} style={{ height: '32px', padding: '0 12px', borderRadius: '8px', border: '1px solid #E5E7EB', background: 'white', color: idx === 0 ? '#D1D5DB' : '#374151', fontSize: '12.5px', fontWeight: 600, cursor: idx === 0 ? 'default' : 'pointer' }}>이전</button>
             <button onClick={advance} style={{ height: '32px', padding: '0 14px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', color: 'white', fontSize: '12.5px', fontWeight: 700, cursor: 'pointer' }}>{idx + 1 >= total ? '완료' : '다음 →'}</button>
             {onClose && <button onClick={onClose} style={{ height: '32px', padding: '0 12px', borderRadius: '8px', border: 'none', background: 'transparent', color: '#6B7280', fontSize: '12.5px', cursor: 'pointer' }}>{closeLabel}</button>}

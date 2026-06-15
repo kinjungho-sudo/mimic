@@ -571,6 +571,7 @@ export default function ManualViewerPage() {
                 hotspotX: s.click_x ?? null,
                 hotspotY: s.click_y ?? null,
                 kind: (isType ? 'type' : 'click') as 'type' | 'click',
+                audioUrl: s.voiceAudioUrl ?? null,
               };
             })}
             onClose={() => setFollowMode(false)}

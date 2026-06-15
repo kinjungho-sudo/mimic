@@ -300,7 +300,7 @@ ${JSON.stringify(stepsData, null, 2)}
 }
 
 export async function generateDraft(
-  steps: Array<{ id: string; ai_title: string | null; ai_description: string | null; page_url: string | null; step_number: number; domain_name?: string | null }>
+  steps: Array<{ id: string; ai_title: string | null; ai_description: string | null; page_url: string | null; step_number: number; domain_name?: string | null; noAction?: boolean }>
 ): Promise<{ steps: Array<{ id: string; user_title: string; user_script: string }>; tutorial_title: string }> {
   // NOTE: user_script는 더 이상 여기서 생성하지 않음. 에디터 ✨ 버튼으로 온디맨드 생성.
   // 가장 많이 등장하는 domain_name을 서비스 이름으로 사용
@@ -317,7 +317,8 @@ export async function generateDraft(
       `[Step ${s.step_number}] id=${s.id}\n` +
       `제목: ${s.ai_title || '없음'}\n` +
       `설명: ${s.ai_description || '없음'}\n` +
-      `URL: ${s.page_url || '없음'}`
+      `URL: ${s.page_url || '없음'}` +
+      (s.noAction ? `\n※ 이 단계는 특정 클릭 대상이 없음(전체화면/페이지 이동/캡처) — "○○ 클릭/누르기" 동작 제목 금지` : '')
     )
     .join('\n\n');
 
@@ -343,6 +344,7 @@ ${stepsText}
 - 20자 이내, 핵심 행동 하나만
 - 특정 상품명·브랜드명·수량 포함 금지
 - 좋은 예: "검색창에 키워드 입력", "바로구매 버튼 클릭"
+- ※ 표시된 단계(클릭 대상 없음)는 "○○ 클릭/누르기" 절대 금지 — "○○ 화면 확인", "○○ 페이지로 이동" 같은 중립 제목으로
 
 응답 형식 (JSON만, 마크다운 없이):
 {

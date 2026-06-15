@@ -208,11 +208,27 @@ export async function POST(request: NextRequest) {
     };
   }
 
+  // '행동 없음' 판정 — 빈영역 클릭/전체선택/페이지 이동/캡처는 특정 클릭 대상이 없으므로
+  // 가짜 '클릭 X' 설명·하이라이트·핫스팟을 만들지 않는다(편집 #1·#3, 따라하기 #2). 사용자가 수동으로 넣게.
+  const noActionByStepNum = new Map<number, boolean>();
+
   // 캡처 이벤트 → mm_steps 변환
   const steps = deduped.map((ev, idx) => {
-    const elementRect = (ev.element_rect as { x: number; y: number; width: number; height: number } | null) ?? null;
-    const clickX = ev.click_x != null ? ev.click_x / 10000 : null;
-    const clickY = ev.click_y != null ? ev.click_y / 10000 : null;
+    const rawRect = (ev.element_rect as { x: number; y: number; width: number; height: number } | null) ?? null;
+    let clickX = ev.click_x != null ? ev.click_x / 10000 : null;
+    let clickY = ev.click_y != null ? ev.click_y / 10000 : null;
+
+    const sel = (ev.element_selector as string | null) ?? null;
+    const hasGoodSelector = !!sel && !/^\s*(html|body)\s*$/i.test(sel.trim());
+    const hasClick = (clickX != null && clickX > 0.001) || (clickY != null && clickY > 0.001);
+    const hugeRect = !!rawRect && rawRect.width >= 0.7 && rawRect.height >= 0.7;
+    // 행동 없음: 클릭 좌표가 없거나(이동/캡처), 또는 좋은 셀렉터 없이 화면 전체에 가까운/없는 영역(빈영역/전체선택)
+    const noAction = !hasClick || (!hasGoodSelector && (hugeRect || !rawRect));
+    noActionByStepNum.set(idx + 1, noAction);
+
+    // 행동 없음 → 핫스팟/어노테이션/줌 근거(좌표·영역) 제거. 셀렉터는 향후 Guide Me 위해 유지.
+    if (noAction) { clickX = null; clickY = null; }
+    const elementRect = noAction ? null : rawRect;
     const zoomFraming = auto_zoom ? calcZoomFraming(elementRect, clickX, clickY) : null;
     return {
       tutorial_id: tutorial.id,
@@ -308,7 +324,9 @@ export async function POST(request: NextRequest) {
       let tutorial_title = '';
       let drafts: Array<{ id: string; user_title: string; user_script: string }> = [];
 
-      const draftResult = await generateDraft(createdSteps);
+      const draftResult = await generateDraft(
+        createdSteps.map(s => ({ ...s, noAction: noActionByStepNum.get(s.step_number) ?? false }))
+      );
       tutorial_title = draftResult.tutorial_title;
       drafts = draftResult.steps;
 

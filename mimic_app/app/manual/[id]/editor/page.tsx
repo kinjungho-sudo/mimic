@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Check, Undo2, Redo2, Volume2, VolumeX, Loader2, RefreshCw, MonitorPlay, Wand2, Zap, MessageSquare, Clock, Share2 } from 'lucide-react';
+import { Check, Undo2, Redo2, Volume2, VolumeX, Loader2, RefreshCw, MonitorPlay, Wand2, Zap, MessageSquare, Clock, Share2, Palette } from 'lucide-react';
 import { GuideToc } from '@/components/editor/GuideToc';
 import { ManualEditor, ManualStep } from '@/components/editor/ManualEditor';
 import { SdkPreviewPanel } from '@/components/editor/SdkPreviewPanel';
@@ -80,6 +80,7 @@ export default function EditorPage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [titleDirty, setTitleDirty] = useState(false);
   const [regeneratingTitle, setRegeneratingTitle] = useState(false);
+  const [bulkColorOpen, setBulkColorOpen] = useState(false);
   // 녹화 직후 진입 — 스텝 생성 대기 폴링
   const [pollingState, setPollingState] = useState<'idle' | 'polling' | 'timeout'>('idle');
   const [saving, setSaving] = useState(false);
@@ -142,6 +143,33 @@ export default function EditorPage() {
     setCanRedo(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [manualSteps]);
+
+  // 매뉴얼 전체 어노테이션 일괄 재색 (편집 #4) — 모든 스텝의 테두리/글자색을 한 번에 통일 후 저장
+  const recolorAllSteps = useCallback((kind: 'border' | 'text', colorVal: string) => {
+    const BORDER_TYPES = ['rect', 'roundedRect', 'ellipse', 'arrow', 'marker'];
+    const changed: ManualStep[] = [];
+    const next = manualSteps.map(s => {
+      if (!s.annotations?.length) return s;
+      let touched = false;
+      const anns = s.annotations.map(a => {
+        const hit = kind === 'border' ? BORDER_TYPES.includes(a.type) : a.type === 'text';
+        if (hit && a.color !== colorVal) { touched = true; return { ...a, color: colorVal }; }
+        return a;
+      });
+      if (!touched) return s;
+      const ns = { ...s, annotations: anns };
+      changed.push(ns);
+      return ns;
+    });
+    if (!changed.length) { setBulkColorOpen(false); return; }
+    setManualStepsWithHistory(next);
+    changed.forEach(s => {
+      if (s.id.startsWith('step-')) return;
+      updateStep(s.id, { user_annotations: s.annotations ?? [] })
+        .catch(e => logError('step.bulkcolor.fail', { tutorialId: id, stepId: s.id, message: e instanceof Error ? e.message : String(e) }));
+    });
+    setBulkColorOpen(false);
+  }, [manualSteps, setManualStepsWithHistory, id]);
 
   const handleUndo = useCallback(() => {
     if (undoRef.current.length === 0) return;
@@ -891,6 +919,35 @@ export default function EditorPage() {
                 fontFamily: 'inherit', cursor: 'text', minWidth: 0,
               }}
             />
+            {/* 전체 색상 — 모든 스텝 어노테이션 일괄 재색 (편집 #4) */}
+            <div style={{ position: 'relative', flexShrink: 0 }}>
+              <button
+                onClick={() => setBulkColorOpen(v => !v)}
+                title="모든 스텝의 강조 테두리·글자색을 한 번에 변경"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', height: '28px', padding: '0 10px', borderRadius: '6px', border: `1px solid ${bulkColorOpen ? '#6d28d9' : '#E5E7EB'}`, background: bulkColorOpen ? 'rgba(109,40,217,0.07)' : 'white', color: '#6d28d9', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}
+              >
+                <Palette size={13} /> 전체 색상
+              </button>
+              {bulkColorOpen && (
+                <>
+                  <div onClick={() => setBulkColorOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
+                  <div style={{ position: 'absolute', top: '34px', right: 0, zIndex: 41, background: 'white', border: '1px solid #E5E7EB', borderRadius: '10px', boxShadow: '0 8px 28px rgba(0,0,0,0.14)', padding: '12px', width: '224px' }}>
+                    <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '7px' }}>강조 테두리 색 · 모든 스텝</div>
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '12px' }}>
+                      {['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#111827'].map(c => (
+                        <button key={c} onClick={() => recolorAllSteps('border', c)} style={{ width: '22px', height: '22px', borderRadius: '50%', background: c, border: '2px solid rgba(0,0,0,0.08)', cursor: 'pointer' }} />
+                      ))}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '7px' }}>글자 색 · 모든 스텝</div>
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      {['#FFFFFF', '#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#111827'].map(c => (
+                        <button key={c} onClick={() => recolorAllSteps('text', c)} style={{ width: '22px', height: '22px', borderRadius: '50%', background: c, border: c === '#FFFFFF' ? '1.5px solid #D1D5DB' : '2px solid rgba(0,0,0,0.08)', cursor: 'pointer' }} />
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
             <button
               onClick={handleRegenerateTitle}
               disabled={regeneratingTitle}
