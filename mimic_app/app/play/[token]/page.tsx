@@ -776,15 +776,18 @@ export default function PlayerPage() {
       {viewMode === 'follow' && (
         <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
           <InteractiveFollowPlayer
-            steps={tutorial.steps.map(s => ({
-              title: s.title,
-              body: s.caption,
-              screenshotUrl: s.screenshot_url,
-              hotspotX: s.click_x != null ? s.click_x * 100 : null,
-              hotspotY: s.click_y != null ? s.click_y * 100 : null,
-              highlight: null,
-            }))}
-            onClose={() => setViewMode('slides')}
+            steps={tutorial.steps.map(s => {
+              const t = `${s.title ?? ''} ${s.caption ?? ''}`;
+              const isType = /입력|타이핑|작성|기입|텍스트/.test(t) && !/클릭|누르|선택|눌러|버튼|탭|체크|이동|열기/.test(t);
+              return {
+                title: s.title,
+                body: s.caption,
+                screenshotUrl: s.screenshot_url,
+                hotspotX: s.click_x != null ? s.click_x * 100 : null,
+                hotspotY: s.click_y != null ? s.click_y * 100 : null,
+                kind: (isType ? 'type' : 'click') as 'type' | 'click',
+              };
+            })}
           />
         </div>
       )}

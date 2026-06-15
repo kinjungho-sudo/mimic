@@ -560,16 +560,18 @@ export default function ManualViewerPage() {
       {followMode && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 70, background: 'rgba(5,5,10,0.88)', backdropFilter: 'blur(4px)' }}>
           <InteractiveFollowPlayer
-            steps={manualSteps.map(s => ({
-              title: s.actionTitle,
-              body: s.description ? s.description.replace(/<[^>]+>/g, '') : undefined,
-              screenshotUrl: s.screenshotUrl,
-              hotspotX: s.click_x ?? null,
-              hotspotY: s.click_y ?? null,
-              highlight: s.element_rect
-                ? { x: s.element_rect.x * 100, y: s.element_rect.y * 100, w: s.element_rect.width * 100, h: s.element_rect.height * 100 }
-                : null,
-            }))}
+            steps={manualSteps.map(s => {
+              const t = `${s.actionTitle ?? ''} ${s.description ?? ''}`;
+              const isType = /입력|타이핑|작성|기입|텍스트/.test(t) && !/클릭|누르|선택|눌러|버튼|탭|체크|이동|열기/.test(t);
+              return {
+                title: s.actionTitle,
+                body: s.description ? s.description.replace(/<[^>]+>/g, '') : undefined,
+                screenshotUrl: s.screenshotUrl,
+                hotspotX: s.click_x ?? null,
+                hotspotY: s.click_y ?? null,
+                kind: (isType ? 'type' : 'click') as 'type' | 'click',
+              };
+            })}
             onClose={() => setFollowMode(false)}
           />
         </div>
