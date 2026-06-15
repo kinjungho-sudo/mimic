@@ -37,6 +37,7 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
     actionTitle: s.user_title ?? s.ai_title ?? '',
     description: s.user_script ?? s.ai_description ?? '',
     screenshotUrl: s.screenshot_url || undefined,
+    originalScreenshotUrl: (s as Step & { original_screenshot_url?: string | null }).original_screenshot_url ?? null,
     annotations: (s.user_annotations as import('@/components/editor/ImageAnnotationEditor').Annotation[] | null) ?? [],
     pageUrl:         s.page_url        ?? null,
     domainHostname:  s.domain_hostname ?? null,

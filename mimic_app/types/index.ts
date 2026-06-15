@@ -60,6 +60,47 @@ export type Folder = {
   updated_at: string;
 };
 
+// ─────────────────────────────
+// Page (여러 가이드를 엮는 큐레이션 문서)
+// ─────────────────────────────
+export type PageBlockType = 'heading' | 'text' | 'video' | 'tutorial';
+
+export type PageBlock = {
+  id: string;
+  page_id: string;
+  order_index: number;
+  block_type: PageBlockType;
+  // block_type별 형태:
+  //   heading  → { text: string; level?: 1 | 2 | 3 }
+  //   text     → { markdown: string }
+  //   video    → { url: string }
+  //   tutorial → { tutorial_id: string; default_open?: boolean }
+  content: Record<string, unknown>;
+  created_at: string;
+};
+
+export type Page = {
+  id: string;
+  user_id: string;
+  title: string;
+  description?: string | null;
+  status: 'draft' | 'published';
+  visibility: 'private' | 'public';
+  share_token: string | null;
+  cover_color?: string | null;
+  folder_id?: string | null;
+  workspace_id?: string | null;
+  created_at: string;
+  updated_at: string;
+  published_at: string | null;
+  // enriched by list API
+  block_count?: number;
+};
+
+export type PageDetail = Page & {
+  blocks: PageBlock[];
+};
+
 export type TutorialDetail = Tutorial & {
   steps: Step[];
   markers: Marker[];

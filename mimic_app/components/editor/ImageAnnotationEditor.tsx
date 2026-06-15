@@ -2,10 +2,11 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { X, Trash2, RotateCcw, RotateCw, Bold, Palette } from 'lucide-react';
+import type { BlurRegion } from '@/lib/pixelate';
 
 // ── Types ──────────────────────────────────────────────────
 
-type Tool = 'select' | 'eraser' | 'mosaic' | 'ellipse' | 'rect' | 'roundedRect' | 'arrow' | 'text' | 'marker' | 'spotlight';
+type Tool = 'select' | 'eraser' | 'mosaic' | 'pixelate' | 'ellipse' | 'rect' | 'roundedRect' | 'arrow' | 'text' | 'marker' | 'spotlight';
 type Color = string;
 type Handle = 'tl'|'tc'|'tr'|'ml'|'mr'|'bl'|'bc'|'br'|'p1'|'p2';
 
@@ -30,6 +31,12 @@ interface ImageAnnotationEditorProps {
   annotations: Annotation[];
   onChange: (annotations: Annotation[]) => void;
   onClose: () => void;
+  // 파괴적 영역 블러(픽셀화) — 드래그한 정규화 region(0~1)을 받아 이미지에 영구 반영.
+  // 제공되지 않으면 '영구 블러' 도구는 숨겨진다.
+  onPixelate?: (region: BlurRegion) => Promise<void>;
+  // 블러 되돌리기 — 백업된 원본이 있을 때만 노출.
+  onRevertBlur?: () => Promise<void>;
+  canRevertBlur?: boolean;
 }
 
 // ── Constants ──────────────────────────────────────────────
@@ -64,6 +71,7 @@ function loadDefaults(): Partial<ToolDefaults> {
 const BORDER_TYPES = ['rect', 'roundedRect', 'ellipse', 'arrow', 'marker'];
 
 // 그룹 A: 지우개/블러, 그룹 B: 도형/텍스트
+// pixelate(영구 블러)는 onPixelate 핸들러가 있을 때만 동적으로 추가한다.
 const TOOL_GROUPS: { tools: Tool[] }[] = [
   { tools: ['mosaic', 'eraser'] },
   { tools: ['select', 'ellipse', 'rect', 'roundedRect', 'arrow', 'text', 'marker', 'spotlight'] },
@@ -79,8 +87,12 @@ const TOOL_CONFIG: Record<Tool, { label: string; icon: React.ReactNode }> = {
     icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 20H7L3 16l10-10 7 7-1.5 1.5"/><path d="M6 17l3-3"/></svg>,
   },
   mosaic: {
-    label: '모자이크',
+    label: '모자이크 (흐림 강조)',
     icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="2" width="5" height="5"/><rect x="9" y="2" width="5" height="5"/><rect x="16" y="2" width="5" height="5"/><rect x="2" y="9" width="5" height="5"/><rect x="9" y="9" width="5" height="5"/><rect x="16" y="9" width="5" height="5"/><rect x="2" y="16" width="5" height="5"/><rect x="9" y="16" width="5" height="5"/><rect x="16" y="16" width="5" height="5"/></svg>,
+  },
+  pixelate: {
+    label: '영구 블러 (민감정보 제거)',
+    icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="2" width="5" height="5"/><rect x="9" y="9" width="5" height="5"/><rect x="16" y="2" width="5" height="5"/><rect x="16" y="16" width="5" height="5"/><rect x="2" y="16" width="5" height="5"/><rect x="9" y="2" width="5" height="5" opacity="0.5"/><rect x="2" y="9" width="5" height="5" opacity="0.5"/><rect x="16" y="9" width="5" height="5" opacity="0.5"/><rect x="9" y="16" width="5" height="5" opacity="0.5"/></svg>,
   },
   ellipse: {
     label: '원',
@@ -163,7 +175,10 @@ function hitTestAnnotation(a: Annotation, px: number, py: number, r: number, img
 
 export function ImageAnnotationEditor({
   imageUrl, annotations, onChange, onClose,
+  onPixelate, onRevertBlur, canRevertBlur,
 }: ImageAnnotationEditorProps) {
+  // 영역 블러 처리 중 오버레이 (드래그→픽셀화→업로드 동안 입력 차단)
+  const [pixelating, setPixelating] = useState(false);
   const [savedDefaults] = useState<Partial<ToolDefaults>>(loadDefaults);
   const [tool, setTool] = useState<Tool>('select');
   const [color, setColor] = useState<Color>(savedDefaults.color ?? '#FFFFFF');
@@ -299,7 +314,7 @@ export function ImageAnnotationEditor({
   const strokeWidth = STROKE_OPTIONS[strokeIdx].value;
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (!imgSize) return;
+    if (!imgSize || pixelating) return;
     if ((e.target as HTMLElement).closest('[data-text-editor]')) return;
     if (editingText) { commitTextRef.current(); return; }
     setBulkOpen(false);
@@ -343,7 +358,7 @@ export function ImageAnnotationEditor({
       type: annType, x1: x, y1: y, x2: x, y2: y,
       color: lastColor.current, strokeWidth: STROKE_OPTIONS[lastStrokeIdx.current].value, id: genId(),
     });
-  }, [tool, strokeWidth, editingText, toVB, nextMarkerNum, imgSize]);
+  }, [tool, strokeWidth, editingText, toVB, nextMarkerNum, imgSize, pixelating]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!imgSize) return;
@@ -405,6 +420,25 @@ export function ImageAnnotationEditor({
           final.y2 = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
         }
       }
+
+      // 영구 블러: annotation을 만들지 않고 정규화 region(0~1)으로 픽셀화 호출.
+      // 이 에디터는 raw 전체 이미지를 표시하므로 0~100% 좌표가 곧 이미지 0~1이다(레터박스/줌 없음).
+      if ((final.type as string) === 'pixelate') {
+        const minX = Math.min(final.x1, final.x2), minY = Math.min(final.y1, final.y2);
+        const rx = Math.max(0, minX / 100), ry = Math.max(0, minY / 100);
+        const region: BlurRegion = {
+          x: rx, y: ry,
+          w: Math.min(1 - rx, Math.abs(final.x2 - final.x1) / 100),
+          h: Math.min(1 - ry, Math.abs(final.y2 - final.y1) / 100),
+        };
+        if (region.w >= 0.01 && region.h >= 0.01 && onPixelate) {
+          setTool('select');
+          setPixelating(true);
+          onPixelate(region).finally(() => setPixelating(false));
+        }
+        return null;
+      }
+
       setItems(cur => {
         const next = [...cur, final];
         pushHistory(next);
@@ -415,7 +449,7 @@ export function ImageAnnotationEditor({
       });
       return null;
     });
-  }, []);
+  }, [onPixelate]);
 
   useEffect(() => {
     if (!drawing) return;
@@ -611,7 +645,7 @@ export function ImageAnnotationEditor({
   };
   /* eslint-enable @typescript-eslint/no-unused-vars */
 
-  const showColor    = effectiveType !== null && !['mosaic', 'eraser', 'spotlight'].includes(effectiveType);
+  const showColor    = effectiveType !== null && !['mosaic', 'pixelate', 'eraser', 'spotlight'].includes(effectiveType);
   const showStroke   = effectiveType !== null && ['ellipse', 'rect', 'roundedRect', 'arrow'].includes(effectiveType);
   const showTextOpts = effectiveType === 'text';
 
@@ -648,8 +682,11 @@ export function ImageAnnotationEditor({
 
           {/* ── 1줄: 도구 버튼 + 색상 + 액션 ── */}
           <div style={{ display: 'flex', alignItems: 'center', padding: '0 12px', gap: '6px', height: '48px' }}>
-            {/* 툴 그룹 */}
-            {TOOL_GROUPS.map((group, gi) => (
+            {/* 툴 그룹 (pixelate는 onPixelate 핸들러가 있을 때만 그룹 A에 추가) */}
+            {(onPixelate
+              ? [{ tools: ['mosaic', 'pixelate', 'eraser'] as Tool[] }, TOOL_GROUPS[1]]
+              : TOOL_GROUPS
+            ).map((group, gi) => (
               <div key={gi} style={{ display: 'flex', gap: '2px', background: 'rgba(255,255,255,0.06)', borderRadius: '7px', padding: '3px' }}>
                 {group.tools.map(t => {
                   const active = tool === t;
@@ -764,7 +801,7 @@ export function ImageAnnotationEditor({
           </div>
 
           {/* ── 2줄: 옵션 바 (색상은 1줄 공통 버튼으로 이동, 여기선 굵기/텍스트 속성/힌트만) ── */}
-          {(showStroke || showTextOpts || ['mosaic','eraser','spotlight'].includes(tool)) && (
+          {(showStroke || showTextOpts || ['mosaic','pixelate','eraser','spotlight'].includes(tool)) && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 12px', height: '38px', background: 'rgba(0,0,0,0.25)', borderTop: '1px solid rgba(255,255,255,0.06)' }}
               onClick={() => { setAlignOpen(false); }}
             >
@@ -840,10 +877,23 @@ export function ImageAnnotationEditor({
               {/* 힌트 — 색상/굵기/텍스트 없는 툴 */}
               {!showStroke && !showTextOpts && (
                 <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.55)' }}>
-                  {tool === 'mosaic' && '블러 처리할 영역을 드래그하세요'}
+                  {tool === 'mosaic' && '블러 처리할 영역을 드래그하세요 (시각 강조 · 되돌릴 수 있음)'}
+                  {tool === 'pixelate' && '민감정보를 가릴 영역을 드래그하세요 — 이미지에 영구 반영됩니다'}
                   {tool === 'eraser' && '지울 요소 위에서 드래그하세요'}
                   {tool === 'spotlight' && '강조할 영역을 드래그하세요'}
                 </span>
+              )}
+
+              {/* 영구 블러 되돌리기 — 백업 원본이 있을 때만 */}
+              {tool === 'pixelate' && canRevertBlur && onRevertBlur && (
+                <>
+                  <div style={{ flex: 1 }} />
+                  <button
+                    onClick={() => { setPixelating(true); onRevertBlur().finally(() => setPixelating(false)); }}
+                    disabled={pixelating}
+                    style={{ height: '26px', padding: '0 10px', borderRadius: '5px', border: '1px solid rgba(255,255,255,0.25)', background: 'transparent', color: 'rgba(255,255,255,0.8)', fontSize: '11px', cursor: pixelating ? 'default' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                  ><RotateCcw size={11} /> 원본으로 되돌리기</button>
+                </>
               )}
             </div>
           )}
@@ -910,7 +960,7 @@ export function ImageAnnotationEditor({
               );
             })}
 
-            {drawing && drawing.type !== 'spotlight' && (
+            {drawing && drawing.type !== 'spotlight' && (drawing.type as string) !== 'pixelate' && (
               <AnnotationShape
                 annotation={drawing as Annotation} isSelected={false}
                 tool={tool} imgW={imgSize.w} imgH={imgSize.h}
@@ -918,6 +968,19 @@ export function ImageAnnotationEditor({
                 imageUrl={imageUrl}
               />
             )}
+
+            {/* 영구 블러 드래그 박스 미리보기 (점선 선택 영역) */}
+            {drawing && (drawing.type as string) === 'pixelate' && (() => {
+              const mx = Math.min(drawing.x1!, drawing.x2!) / 100 * imgSize.w;
+              const my = Math.min(drawing.y1!, drawing.y2!) / 100 * imgSize.h;
+              const mw = Math.abs(drawing.x2! - drawing.x1!) / 100 * imgSize.w;
+              const mh = Math.abs(drawing.y2! - drawing.y1!) / 100 * imgSize.h;
+              return (
+                <rect x={mx} y={my} width={mw} height={mh}
+                  fill="rgba(79,70,229,0.18)" stroke="#4F46E5" strokeWidth={1.5}
+                  strokeDasharray="5 3" pointerEvents="none" />
+              );
+            })()}
 
             {/* 텍스트 드래그 박스 미리보기 */}
             {textDrawing && (() => {
@@ -977,6 +1040,15 @@ export function ImageAnnotationEditor({
               />
             );
           })()}
+
+          {/* 영구 블러 처리 중 오버레이 */}
+          {pixelating && (
+            <div style={{ position: 'absolute', inset: 0, zIndex: 20, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', color: 'white', fontSize: '13px' }}>
+              <div style={{ width: '18px', height: '18px', border: '2.5px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'mimic-spin 0.7s linear infinite' }} />
+              블러 처리 중...
+              <style>{'@keyframes mimic-spin{to{transform:rotate(360deg)}}'}</style>
+            </div>
+          )}
         </div>
         </div>{/* end canvas wrapper */}
 

@@ -10,6 +10,7 @@ import DOMPurify from 'dompurify';
 import { ImageAnnotationEditor, type Annotation } from './ImageAnnotationEditor';
 import { AnnotationPreview } from './AnnotationPreview';
 import { buildClickHighlight } from '@/lib/annotations';
+import { pixelateRegion, type BlurRegion } from '@/lib/pixelate';
 import { faviconUrl, faviconFallbackUrl, hostnameToServiceName } from '@/lib/favicon';
 
 export interface ManualStep {
@@ -18,6 +19,8 @@ export interface ManualStep {
   actionTitle: string;
   description: string;       // stored as HTML string
   screenshotUrl?: string;
+  // 영구 블러 적용 전 원본 URL (있으면 '되돌리기' 가능)
+  originalScreenshotUrl?: string | null;
   annotations?: Annotation[];
   pageUrl?:        string | null;
   domainHostname?: string | null;
@@ -427,6 +430,38 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, hideToc, a
               onSave?.(id, { annotations });
             }}
             onClose={() => setAnnotatingId(null)}
+            onPixelate={async (region: BlurRegion) => {
+              const id = annotatingId;
+              const target = steps.find(s => s.id === id);
+              if (!target?.screenshotUrl) return;
+              try {
+                const blob = await pixelateRegion(target.screenshotUrl, region);
+                const fd = new FormData();
+                fd.append('file', new File([blob], 'blurred.jpg', { type: 'image/jpeg' }));
+                const res = await fetch(`/api/steps/${id}/blur`, { method: 'POST', body: fd });
+                if (!res.ok) throw new Error('upload failed');
+                const data = await res.json();
+                onChange(steps.map(s => s.id === id
+                  ? { ...s, screenshotUrl: data.screenshot_url, originalScreenshotUrl: data.original_screenshot_url }
+                  : s));
+              } catch {
+                alert('블러 처리에 실패했습니다. 다시 시도해 주세요.');
+              }
+            }}
+            onRevertBlur={async () => {
+              const id = annotatingId;
+              try {
+                const res = await fetch(`/api/steps/${id}/blur`, { method: 'DELETE' });
+                if (!res.ok) throw new Error('revert failed');
+                const data = await res.json();
+                onChange(steps.map(s => s.id === id
+                  ? { ...s, screenshotUrl: data.screenshot_url }
+                  : s));
+              } catch {
+                alert('되돌리기에 실패했습니다.');
+              }
+            }}
+            canRevertBlur={!!step.originalScreenshotUrl}
           />
         );
       })()}

@@ -177,6 +177,35 @@ export async function guardWorkspaceAccess(
 }
 
 /**
+ * Page 접근 권한 검사.
+ * 개인 페이지(workspace_id=null)는 소유자만, 워크스페이스 페이지는 멤버이고 requiredRole 이상.
+ */
+export async function guardPageAccess(
+  pageId: string,
+  requestUserId: string,
+  requiredRole: WorkspaceRole = 'editor'
+): Promise<GuardResult> {
+  const supabase = createServiceRoleClient();
+
+  const { data: page, error } = await supabase
+    .from('mm_pages')
+    .select('id, user_id, workspace_id')
+    .eq('id', pageId)
+    .single();
+
+  if (error || !page) {
+    return { ok: false, status: 404, error: 'Page not found' };
+  }
+
+  if (!page.workspace_id) {
+    if (page.user_id === requestUserId) return { ok: true, role: 'owner' };
+    return { ok: false, status: 403, error: 'Forbidden' };
+  }
+
+  return guardWorkspaceAccess(page.workspace_id, requestUserId, requiredRole);
+}
+
+/**
  * 스텝 → 튜토리얼 경유 접근 권한 검사.
  * guardTutorialAccess와 동일하지만 step_id에서 tutorial_id를 먼저 조회합니다.
  */
