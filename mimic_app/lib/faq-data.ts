@@ -4,7 +4,7 @@ export const QUICK_QUESTIONS = [
   { id: 'what',      label: 'MIMIC이 뭔가요?' },
   { id: 'install',   label: '확장 프로그램 설치' },
   { id: 'record',    label: '매뉴얼 만드는 법' },
-  { id: 'guide-me',  label: 'Guide Me란?' },
+  { id: 'guide-me',  label: '라이브 가이드란?' },
   { id: 'price',     label: '요금제 안내' },
   { id: 'limit',     label: '생성 한도 초과' },
   { id: 'share',     label: '공유 방법' },

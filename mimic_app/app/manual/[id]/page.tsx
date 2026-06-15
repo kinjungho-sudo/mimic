@@ -6,10 +6,9 @@ import { Share2, Download, Pencil, PlayCircle, X, Bot, Play, Pause, Square } fro
 import { GuideToc } from '@/components/editor/GuideToc';
 import { GuideViewer } from '@/components/editor/GuideViewer';
 import { ShareModal } from '@/components/editor/ShareModal';
-import { InteractiveFollowPlayer } from '@/components/viewer/InteractiveFollowPlayer';
+import { AgentChat } from '@/components/AgentChat';
 import { useTutorial } from '@/hooks/useTutorial';
 import { useAuth } from '@/hooks/useAuth';
-import { toFollowSteps } from '@/lib/follow';
 import type { ManualStep } from '@/components/editor/ManualEditor';
 import type { Step, Tutorial } from '@/types';
 import type { Annotation } from '@/components/editor/ImageAnnotationEditor';
@@ -73,8 +72,8 @@ export default function ManualViewerPage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [outputRatio, setOutputRatio] = useState<Tutorial['output_ratio']>('16:9');
   const [showShare, setShowShare] = useState(false);
-  const [exporting, setExporting] = useState(false);
-  const [pptxExporting, setPptxExporting] = useState(false);
+  const [downloadOpen, setDownloadOpen] = useState(false);
+  const [downloadingFmt, setDownloadingFmt] = useState<'pdf' | 'pptx' | 'docx' | null>(null);
   const [guideMePreviewUrl, setGuideMePreviewUrl] = useState<string | null>(null);
 
   // Auto-Run 상태
@@ -87,7 +86,6 @@ export default function ManualViewerPage() {
   const [stepResults, setStepResults] = useState<StepResult[]>([]);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [tocOpen, setTocOpen] = useState(false);
-  const [followMode, setFollowMode] = useState(false);
 
   useEffect(() => {
     if (!tutorial) return;
@@ -166,11 +164,12 @@ export default function ManualViewerPage() {
     setSessionId(null);
   }, [sessionId, id]);
 
-  const handleExport = useCallback(async () => {
-    setExporting(true);
+  // 통합 다운로드 — PDF / PPTX / Word(docx)를 하나의 핸들러로 처리
+  const handleDownload = useCallback(async (fmt: 'pdf' | 'pptx' | 'docx') => {
+    setDownloadingFmt(fmt);
     try {
-      const res = await fetch(`/api/export/pdf/${id}`);
-      if (!res.ok) { alert('내보내기 실패. 스텝이 없거나 오류가 발생했습니다.'); return; }
+      const res = await fetch(`/api/export/${fmt}/${id}`);
+      if (!res.ok) { alert('다운로드 실패. 스텝이 없거나 오류가 발생했습니다.'); return; }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -178,28 +177,12 @@ export default function ManualViewerPage() {
       const cd = res.headers.get('content-disposition') ?? '';
       const utf8Match = cd.match(/filename\*=UTF-8''([^;]+)/i);
       const asciiMatch = cd.match(/filename="([^"]+)"/i);
-      a.download = utf8Match ? decodeURIComponent(utf8Match[1]) : (asciiMatch?.[1] ?? `${title || 'manual'}.pdf`);
+      a.download = utf8Match ? decodeURIComponent(utf8Match[1]) : (asciiMatch?.[1] ?? `${title || 'manual'}.${fmt}`);
       a.click();
       URL.revokeObjectURL(url);
+      setDownloadOpen(false);
     } finally {
-      setExporting(false);
-    }
-  }, [id, title]);
-
-  const handlePptxExport = useCallback(async () => {
-    setPptxExporting(true);
-    try {
-      const res = await fetch(`/api/export/pptx/${id}`);
-      if (!res.ok) { alert('PPTX 생성 실패. 스텝이 없거나 오류가 발생했습니다.'); return; }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = res.headers.get('content-disposition')?.match(/filename="(.+)"/)?.[1] ?? `${title || 'manual'}.pptx`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } finally {
-      setPptxExporting(false);
+      setDownloadingFmt(null);
     }
   }, [id, title]);
 
@@ -302,19 +285,39 @@ export default function ManualViewerPage() {
             </>
           )}
 
-          <button onClick={handlePptxExport} disabled={pptxExporting}
-            style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', cursor: pptxExporting ? 'not-allowed' : 'pointer', opacity: pptxExporting ? 0.6 : 1 }}
-            onMouseEnter={e => { if (!pptxExporting) e.currentTarget.style.background = '#F9FAFB'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}>
-            <Download size={13} /> {pptxExporting ? '생성 중…' : 'PPTX'}
-          </button>
-
-          <button onClick={handleExport} disabled={exporting}
-            style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', cursor: exporting ? 'not-allowed' : 'pointer', opacity: exporting ? 0.6 : 1 }}
-            onMouseEnter={e => { if (!exporting) e.currentTarget.style.background = '#F9FAFB'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}>
-            <Download size={13} /> {exporting ? '생성 중…' : 'PDF'}
-          </button>
+          {/* 통합 다운로드 — 아이콘 클릭 시 PDF/PPTX/Word 선택 */}
+          <div style={{ position: 'relative' }}>
+            <button onClick={() => setDownloadOpen(o => !o)} disabled={!!downloadingFmt}
+              title="다운로드 (PDF · PPTX · Word)"
+              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#374151', background: downloadOpen ? '#F3F4F6' : 'white', border: '1px solid #E5E7EB', cursor: downloadingFmt ? 'not-allowed' : 'pointer', opacity: downloadingFmt ? 0.6 : 1 }}
+              onMouseEnter={e => { if (!downloadingFmt && !downloadOpen) e.currentTarget.style.background = '#F9FAFB'; }}
+              onMouseLeave={e => { if (!downloadOpen) e.currentTarget.style.background = 'white'; }}>
+              <Download size={14} />
+              {downloadingFmt ? '생성 중…' : '다운로드'}
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            {downloadOpen && (
+              <>
+                <div onClick={() => setDownloadOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
+                <div style={{ position: 'absolute', top: '38px', right: 0, zIndex: 41, background: 'white', border: '1px solid #E5E7EB', borderRadius: '10px', padding: '5px', minWidth: '180px', boxShadow: '0 8px 24px rgba(0,0,0,0.12)' }}>
+                  {([
+                    { fmt: 'pdf' as const, label: 'PDF 문서', desc: '.pdf' },
+                    { fmt: 'pptx' as const, label: 'PowerPoint', desc: '.pptx' },
+                    { fmt: 'docx' as const, label: 'Word 문서', desc: '.docx' },
+                  ]).map(opt => (
+                    <button key={opt.fmt} onClick={() => handleDownload(opt.fmt)} disabled={!!downloadingFmt}
+                      style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 10px', border: 'none', borderRadius: '6px', background: 'transparent', cursor: downloadingFmt ? 'not-allowed' : 'pointer', textAlign: 'left', fontSize: '12.5px', color: '#374151' }}
+                      onMouseEnter={e => { if (!downloadingFmt) e.currentTarget.style.background = '#F3F4F6'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
+                      <Download size={13} style={{ color: '#9CA3AF', flexShrink: 0 }} />
+                      <span style={{ flex: 1, fontWeight: 500 }}>{opt.label}</span>
+                      <span style={{ fontSize: '11px', color: '#9CA3AF' }}>{downloadingFmt === opt.fmt ? '생성 중…' : opt.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
 
           <button onClick={() => setShowShare(true)}
             style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', cursor: 'pointer' }}
@@ -322,17 +325,6 @@ export default function ManualViewerPage() {
             onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}>
             <Share2 size={13} /> 공유
           </button>
-
-          {manualSteps.length > 0 && (
-            <button
-              onClick={() => setFollowMode(true)}
-              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#3730a3', background: '#e0e7ff', border: '1px solid #a5b4fc', cursor: 'pointer' }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#c7d2fe'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = '#e0e7ff'; }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-              미리보기
-            </button>
-          )}
 
           {canEdit && manualSteps.length > 0 && (
             <button
@@ -356,7 +348,7 @@ export default function ManualViewerPage() {
                 setGuideMePreviewUrl(`${firstUrl}${firstUrl.includes('?') ? '&' : '?'}mimic_guide=${guideToken}`);
               }}
               style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#3730a3', background: '#e0e7ff', border: '1px solid #a5b4fc', cursor: 'pointer' }}>
-              <PlayCircle size={13} /> Guide Me
+              <PlayCircle size={13} /> 라이브 가이드
             </button>
           )}
 
@@ -542,16 +534,16 @@ export default function ManualViewerPage() {
         </>
       )}
 
-      {/* Guide Me iframe 모달 */}
+      {/* 라이브 가이드 iframe 모달 */}
       {guideMePreviewUrl && (
         <>
           <div onClick={() => setGuideMePreviewUrl(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,15,0.55)', zIndex: 60, backdropFilter: 'blur(4px)' }} />
           <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 'min(1100px, 94vw)', height: 'min(700px, 90vh)', background: 'white', borderRadius: '16px', boxShadow: '0 30px 80px rgba(0,0,0,0.25)', zIndex: 61, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             <div style={{ padding: '12px 16px', borderBottom: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>Guide Me 미리보기</span>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>라이브 가이드 미리보기</span>
               <button onClick={() => setGuideMePreviewUrl(null)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#9CA3AF', padding: '4px' }}><X size={16} /></button>
             </div>
-            <iframe src={guideMePreviewUrl} style={{ flex: 1, border: 'none', width: '100%' }} title="Guide Me 미리보기" />
+            <iframe src={guideMePreviewUrl} style={{ flex: 1, border: 'none', width: '100%' }} title="라이브 가이드 미리보기" />
           </div>
         </>
       )}
@@ -569,24 +561,8 @@ export default function ManualViewerPage() {
         />
       )}
 
-      {/* 따라하기 (인터랙티브) 오버레이 */}
-      {followMode && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 70, background: 'rgba(5,5,10,0.88)', backdropFilter: 'blur(4px)' }}>
-          <InteractiveFollowPlayer
-            title={title}
-            steps={toFollowSteps(tutorial.steps.map(s => ({
-              title: s.user_title ?? s.ai_title ?? '',
-              body: (s.user_script ?? s.ai_description ?? '').replace(/<[^>]+>/g, '') || null,
-              screenshotUrl: s.screenshot_url || undefined,
-              clickXPct: clickToPct((s as Step & { click_x?: number | null }).click_x),
-              clickYPct: clickToPct((s as Step & { click_y?: number | null }).click_y),
-              audioUrl: (s as Step & { voice_audio_url?: string | null }).voice_audio_url ?? null,
-              followConfig: s.follow_config ?? null,
-            })))}
-            onClose={() => setFollowMode(false)}
-          />
-        </div>
-      )}
+      {/* 챗봇 — 항상 떠있는 도우미 (우하단 고정) */}
+      <AgentChat />
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }

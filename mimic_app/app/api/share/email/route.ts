@@ -34,12 +34,15 @@ export async function POST(request: NextRequest) {
   }
 
   const resend = new Resend(apiKey);
+  // ⚠️ Resend는 인증된 도메인에서만 발송 가능. gmail.com은 인증 불가라 실제 발송 시
+  // 거부될 수 있음(도메인 확보 후 교체 필요). 현재는 미연결 mimicflow.com 대신 Gmail로 표기만 정리.
   const from = senderName
-    ? `${senderName} via MIMIC <noreply@mimicflow.com>`
-    : 'MIMIC <noreply@mimicflow.com>';
+    ? `${senderName} via MIMIC <kinjungho@gmail.com>`
+    : 'MIMIC <kinjungho@gmail.com>';
 
   const { error } = await resend.emails.send({
     from,
+    replyTo: 'kinjungho@gmail.com',
     to,
     subject: `[MIMIC] ${tutorialTitle}`,
     html: `

@@ -61,11 +61,11 @@ export function EditorHeader({ title, tutorialId, shareToken, onTitleChange, onS
   const handleGuideMe = useCallback(() => {
     const extensionId = process.env.NEXT_PUBLIC_EXTENSION_ID?.replace(/^﻿/, '').trim();
     if (!extensionId) {
-      alert('Guide Me를 사용하려면 MIMIC 확장프로그램을 설치해주세요.');
+      alert('라이브 가이드를 사용하려면 MIMIC 확장프로그램을 설치해주세요.');
       return;
     }
     if (!shareToken) {
-      alert('먼저 게시(Publish) 후 Guide Me를 사용할 수 있습니다.');
+      alert('먼저 게시(Publish) 후 라이브 가이드를 사용할 수 있습니다.');
       return;
     }
     try {
@@ -80,7 +80,7 @@ export function EditorHeader({ title, tutorialId, shareToken, onTitleChange, onS
         }
       );
     } catch {
-      alert('Guide Me를 시작할 수 없습니다. 확장프로그램을 설치해주세요.');
+      alert('라이브 가이드를 시작할 수 없습니다. 확장프로그램을 설치해주세요.');
     }
   }, [shareToken]);
 
@@ -172,13 +172,13 @@ export function EditorHeader({ title, tutorialId, shareToken, onTitleChange, onS
 
         <button
           onClick={handleGuideMe}
-          title={shareToken ? 'Guide Me 시작 — 실제 화면에서 오버레이로 가이드' : '게시 후 사용 가능'}
+          title={shareToken ? '라이브 가이드 시작 — 실제 화면에서 오버레이로 가이드' : '게시 후 사용 가능'}
           style={{ height: '32px', padding: '0 14px', borderRadius: '7px', fontSize: '12.5px', display: 'inline-flex', alignItems: 'center', gap: '6px', color: shareToken ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.35)', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', cursor: shareToken ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap', transition: 'background 0.15s' }}
           onMouseEnter={e => { if (shareToken) { e.currentTarget.style.background = 'rgba(255,255,255,0.14)'; e.currentTarget.style.color = 'white'; } }}
           onMouseLeave={e => { if (shareToken) { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'rgba(255,255,255,0.85)'; } }}
         >
           <Zap size={13} />
-          Guide Me
+          라이브 가이드
         </button>
 
         <button

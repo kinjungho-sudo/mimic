@@ -15,7 +15,7 @@ interface FAQ {
 const FAQ_DB: Record<string, FAQ> = {
   'what': {
     keywords: ['mimic', 'mimic이', '뭐야', '뭔가요', '무엇', '소개', '서비스'],
-    answer: `MIMIC은 Chrome 확장 프로그램으로 업무 화면을 녹화해 인터랙티브 매뉴얼을 자동 생성하는 서비스입니다.\n\n클릭 한 번 한 번이 자동으로 캡처되어 단계별 스크린샷과 설명이 만들어지고, 링크로 공유하거나 실제 페이지 위에 Guide Me 오버레이로 단계별 안내를 제공합니다.\n\n👉 자세한 소개는 [도움말](${HELP_URL}#intro)에서 확인하세요.`,
+    answer: `MIMIC은 Chrome 확장 프로그램으로 업무 화면을 녹화해 인터랙티브 매뉴얼을 자동 생성하는 서비스입니다.\n\n클릭 한 번 한 번이 자동으로 캡처되어 단계별 스크린샷과 설명이 만들어지고, 링크로 공유하거나 실제 페이지 위에 라이브 가이드 오버레이로 단계별 안내를 제공합니다.\n\n👉 자세한 소개는 [도움말](${HELP_URL}#intro)에서 확인하세요.`,
     related: ['install', 'price', 'guide-me'],
   },
   'install': {
@@ -40,7 +40,7 @@ const FAQ_DB: Record<string, FAQ> = {
   },
   'guide-me': {
     keywords: ['guide me', '가이드', '오버레이', '안내', '실제 페이지', '위에서'],
-    answer: `**Guide Me**는 실제 웹페이지 위에 오버레이를 띄워 단계별로 안내하는 기능입니다.\n\n**사용법**\n1. 매뉴얼 상단 "Guide Me" 버튼 클릭 (원본 URL이 저장된 매뉴얼만 활성화)\n2. 새 탭에서 원본 페이지 + 오버레이 자동 시작\n3. 각 단계에서 클릭 위치가 하이라이트됨\n\n**키보드**: → 다음 / ← 이전 / Esc 닫기\n\n👉 [Guide Me 상세 안내](${HELP_URL})`,
+    answer: `**라이브 가이드**는 실제 웹페이지 위에 오버레이를 띄워 단계별로 안내하는 기능입니다.\n\n**사용법**\n1. 매뉴얼 상단 "라이브 가이드" 버튼 클릭 (원본 URL이 저장된 매뉴얼만 활성화)\n2. 새 탭에서 원본 페이지 + 오버레이 자동 시작\n3. 각 단계에서 클릭 위치가 하이라이트됨\n\n**키보드**: → 다음 / ← 이전 / Esc 닫기\n\n👉 [라이브 가이드 상세 안내](${HELP_URL})`,
     related: ['share', 'sdk'],
   },
   'export': {
@@ -50,7 +50,7 @@ const FAQ_DB: Record<string, FAQ> = {
   },
   'price': {
     keywords: ['요금', '가격', '플랜', '유료', '무료', 'pro', 'team', '비용', '얼마'],
-    answer: `**요금제 안내**\n\n🆓 **무료**: 일 3회 매뉴얼 생성, 기본 공유, PDF 내보내기, Guide Me\n\n⭐ **Pro**: 무제한 생성, 모든 내보내기, 비밀번호 보호, 우선 지원\n\n👥 **Team**: Pro 포함 + 팀 워크스페이스, 실시간 협업, 멤버 관리\n\nPro/Team 가격 문의: support@mimic.so\n\n👉 [요금제 상세](${HELP_URL})`,
+    answer: `**요금제 안내**\n\n🆓 **무료**: 일 3회 매뉴얼 생성, 기본 공유, PDF 내보내기, 라이브 가이드\n\n⭐ **Pro**: 무제한 생성, 모든 내보내기, 비밀번호 보호, 우선 지원\n\n👥 **Team**: Pro 포함 + 팀 워크스페이스, 실시간 협업, 멤버 관리\n\nPro/Team 가격 문의: support@mimic.so\n\n👉 [요금제 상세](${HELP_URL})`,
     related: ['limit', 'workspace'],
   },
   'limit': {
@@ -65,7 +65,7 @@ const FAQ_DB: Record<string, FAQ> = {
   },
   'sdk': {
     keywords: ['sdk', '삽입', '스크립트', '임베드', '자체', '서비스에', '설치'],
-    answer: `자체 서비스에 Guide Me를 삽입하려면 아래 스크립트를 페이지에 추가하세요:\n\n\`\`\`html\n<script src="https://mimic.so/sdk.js"\n  data-guide="YOUR_TOKEN">\n</script>\n\`\`\`\n\n또는 URL 파라미터로 자동 시작:\n\`your-page.com?mimic_guide=TOKEN\`\n\n👉 [Guide Me SDK 안내](${HELP_URL})`,
+    answer: `자체 서비스에 라이브 가이드를 삽입하려면 아래 스크립트를 페이지에 추가하세요:\n\n\`\`\`html\n<script src="https://mimic.so/sdk.js"\n  data-guide="YOUR_TOKEN">\n</script>\n\`\`\`\n\n또는 URL 파라미터로 자동 시작:\n\`your-page.com?mimic_guide=TOKEN\`\n\n👉 [라이브 가이드 SDK 안내](${HELP_URL})`,
     related: ['guide-me'],
   },
   'freshness': {

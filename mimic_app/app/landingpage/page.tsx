@@ -30,13 +30,13 @@ const features = [
   },
   {
     icon: (
-      // 나침반 / Guide Me
+      // 나침반 / 라이브 가이드
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
         <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.9)" strokeWidth="1.8" fill="rgba(255,255,255,0.1)"/>
         <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="rgba(255,255,255,0.9)"/>
       </svg>
     ),
-    title: 'Guide Me — 화면 위 안내',
+    title: '라이브 가이드 — 화면 위 안내',
     body: '실제 웹페이지 위에 오버레이를 띄워 클릭할 곳을 하이라이트로 안내합니다. SDK 한 줄로 자사 서비스에도 삽입할 수 있습니다.',
     comingSoon: false,
   },
@@ -827,7 +827,7 @@ function MockEduMode() {
   );
 }
 
-// ④ Guide Me — 실제 페이지 위 오버레이
+// ④ 라이브 가이드 — 실제 페이지 위 오버레이
 function MockGuideMe() {
   return (
     <div style={{ height: '340px', background: 'white', display: 'flex', flexDirection: 'column' }}>
@@ -976,7 +976,7 @@ const SHOWCASES = [
     id: 'guideme',
     eyebrow: 'GUIDE ME',
     title: '문서를 읽게 하지 말고,\n화면 위에서 직접 안내하세요',
-    desc: 'Guide Me는 실제 웹페이지 위에 오버레이를 띄워 단계별로 안내합니다. 클릭할 버튼이 하이라이트되고 설명 툴팁이 따라다니죠. 매뉴얼과 실제 화면을 번갈아 볼 필요가 없습니다.',
+    desc: '라이브 가이드는 실제 웹페이지 위에 오버레이를 띄워 단계별로 안내합니다. 클릭할 버튼이 하이라이트되고 설명 툴팁이 따라다니죠. 매뉴얼과 실제 화면을 번갈아 볼 필요가 없습니다.',
     bullets: [
       '실제 페이지 위에서 단계별 오버레이 안내',
       '클릭할 요소 자동 하이라이트 + 툴팁',
@@ -1360,7 +1360,7 @@ export default function LandingPage() {
               { label: '제작 시간', vals: ['1~3시간', '2~6시간', '30초~5분'] },
               { label: '클릭으로 따라하기', vals: [false, false, true] },
               { label: 'AI 자동 설명 생성', vals: [false, false, true] },
-              { label: '실제 화면 위 안내 (Guide Me)', vals: [false, false, true] },
+              { label: '실제 화면 위 안내 (라이브 가이드)', vals: [false, false, true] },
               { label: '수정 용이성', vals: ['낮음', '낮음', '높음'] },
               { label: 'AI 음성 · 자막', vals: [false, false, '출시 예정'] },
             ].map((row, ri) => (

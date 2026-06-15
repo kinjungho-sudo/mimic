@@ -1,5 +1,5 @@
 /**
- * MIMIC Guide Me SDK
+ * MIMIC 라이브 가이드 SDK
  * Usage: <script src="https://mimic-nine-ashen.vercel.app/sdk.js" data-guide="SHARE_TOKEN"></script>
  * Or:    window.MimicSDK.start('SHARE_TOKEN')
  * Or:    ?mimic_guide=SHARE_TOKEN in URL
@@ -521,7 +521,7 @@
   }
 
   // ── Auto-Run BETA ──────────────────────────────────────────
-  // Guide Me 확장: AI 에이전트가 브라우저를 제어하는 동안 시각적 오버레이 표시
+  // 라이브 가이드 확장: AI 에이전트가 브라우저를 제어하는 동안 시각적 오버레이 표시
 
   var autoRunOverlay = null;
   var autoRunCursor = null;

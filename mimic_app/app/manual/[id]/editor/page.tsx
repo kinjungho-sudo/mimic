@@ -10,6 +10,7 @@ import { MergeModal } from '@/components/editor/MergeModal';
 import { CommentsPanel } from '@/components/editor/CommentsPanel';
 import { ActivityPanel } from '@/components/editor/ActivityPanel';
 import { ExportModal } from '@/components/editor/ExportModal';
+import { AgentChat } from '@/components/AgentChat';
 import { useTutorial } from '@/hooks/useTutorial';
 import { useAutosave } from '@/hooks/useAutosave';
 import { useAuth } from '@/hooks/useAuth';
@@ -80,7 +81,7 @@ export default function EditorPage() {
   const [manualSteps, setManualSteps] = useState<ManualStep[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [titleDirty, setTitleDirty] = useState(false);
-  const [regeneratingTitle, setRegeneratingTitle] = useState(false);
+  const [refiningText, setRefiningText] = useState(false);
   const [bulkColorOpen, setBulkColorOpen] = useState(false);
   // 녹화 직후 진입 — 스텝 생성 대기 폴링
   const [pollingState, setPollingState] = useState<'idle' | 'polling' | 'timeout'>('idle');
@@ -91,8 +92,6 @@ export default function EditorPage() {
   const [showComments, setShowComments] = useState(false);
   const [showActivity, setShowActivity] = useState(false);
   const [showExport, setShowExport] = useState(false);
-  const [patching, setPatching] = useState(false);
-  const [patchResult, setPatchResult] = useState<{ patched: number } | null>(null);
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const [ttsVoice, setTtsVoice] = useState<'nova' | 'alloy'>('nova');
   const [ttsGenerating, setTtsGenerating] = useState(false);
@@ -197,12 +196,12 @@ export default function EditorPage() {
   const handleGuideMe = useCallback(() => {
     const extensionId = process.env.NEXT_PUBLIC_EXTENSION_ID?.replace(/^﻿/, '').trim();
     if (!extensionId) {
-      alert('Guide Me를 사용하려면 MIMIC 확장프로그램을 설치해주세요.');
+      alert('라이브 가이드를 사용하려면 MIMIC 확장프로그램을 설치해주세요.');
       return;
     }
     const shareToken = (tutorial as Tutorial & { share_token?: string | null })?.share_token;
     if (!shareToken) {
-      alert('먼저 게시(Publish) 후 Guide Me를 사용할 수 있습니다.');
+      alert('먼저 게시(Publish) 후 라이브 가이드를 사용할 수 있습니다.');
       return;
     }
     try {
@@ -217,7 +216,7 @@ export default function EditorPage() {
         }
       );
     } catch {
-      alert('Guide Me를 시작할 수 없습니다. 확장프로그램을 설치해주세요.');
+      alert('라이브 가이드를 시작할 수 없습니다. 확장프로그램을 설치해주세요.');
     }
   }, [tutorial]);
 
@@ -352,18 +351,40 @@ export default function EditorPage() {
     await saveTtsSetting(enabled, ttsVoice);
   }, [ttsVoice, saveTtsSetting]);
 
-  const handleRegenerateTitle = useCallback(async () => {
-    setRegeneratingTitle(true);
+  // 전체 문장 다듬기 — 모든 스텝의 설명 문장을 매뉴얼 가이드라인에 맞게 일괄 정제
+  const handleRefineAllText = useCallback(async () => {
+    const allWithText = manualSteps
+      .filter(s => !s.id.startsWith('step-'))
+      .map(s => ({ id: s.id, text: s.description.replace(/<[^>]+>/g, '').trim() }));
+    if (!allWithText.some(s => s.text)) return;
+    setRefiningText(true);
     try {
-      const res = await fetch(`/api/tutorials/${id}/regenerate-title`, { method: 'POST' });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.title) { setTitle(data.title); setTitleDirty(false); }
-      }
+      const res = await fetch('/api/ai/rewrite-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          steps: allWithText,
+          instruction: '매뉴얼 가이드라인에 맞게 다듬어줘: 행동 하나만, 1문장, 존댓말, 특정 상품명/수량 제거, 결과 설명 문장 금지',
+        }),
+      });
+      if (!res.ok) return;
+      const { results } = await res.json();
+      if (!Array.isArray(results)) return;
+      const updated = new Map<string, string>(
+        results
+          .filter((r: { id: string; result: string }) => r.result)
+          .map((r: { id: string; result: string }) => [r.id, r.result])
+      );
+      if (updated.size === 0) return;
+      const next = manualSteps.map(s => updated.has(s.id) ? { ...s, description: updated.get(s.id)! } : s);
+      setManualStepsWithHistory(next);
+      next.filter(s => updated.has(s.id)).forEach(s =>
+        updateStep(s.id, { user_script: s.description || null }).catch(() => {})
+      );
     } finally {
-      setRegeneratingTitle(false);
+      setRefiningText(false);
     }
-  }, [id]);
+  }, [manualSteps, setManualStepsWithHistory]);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleTtsVoiceChange = useCallback(async (voice: 'nova' | 'alloy') => {
@@ -438,24 +459,6 @@ export default function EditorPage() {
       setFreshnessResult({ checked: 0, stale: -1 });
     } finally {
       setFreshnessChecking(false);
-    }
-  }, [id]);
-
-  const handlePatchSteps = useCallback(async () => {
-    setPatching(true);
-    setPatchResult(null);
-    try {
-      const res = await fetch(`/api/tutorials/${id}/patch-steps`, { method: 'POST' });
-      const data = await res.json();
-      setPatchResult(data);
-      // 보완된 내용 반영을 위해 로컬 상태 갱신 트리거 (페이지 새로고침 없이)
-      if (data.patched > 0) {
-        window.location.reload();
-      }
-    } catch {
-      setPatchResult({ patched: -1 });
-    } finally {
-      setPatching(false);
     }
   }, [id]);
 
@@ -660,36 +663,6 @@ export default function EditorPage() {
 
           {/* 편집기 — 항상 편집 모드 */}
           <>
-            {/* 빈 스텝 보완 */}
-            <div style={{ position: 'relative' }}>
-              <button
-                onClick={handlePatchSteps}
-                disabled={patching}
-                title="어노테이션/제목이 없는 스텝 일괄 보완"
-                style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', cursor: patching ? 'not-allowed' : 'pointer', opacity: patching ? 0.6 : 1, transition: 'all 0.15s' }}
-                onMouseEnter={e => { if (!patching) e.currentTarget.style.background = '#F9FAFB'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
-              >
-                {patching ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Wand2 size={13} />}
-                빈 스텝 보완
-              </button>
-              {patchResult && patchResult.patched !== -1 && (
-                <div style={{
-                  position: 'absolute', top: '38px', right: 0, zIndex: 30,
-                  background: 'white', border: '1px solid #E5E7EB', borderRadius: '10px',
-                  padding: '10px 14px', fontSize: '12px', color: '#374151',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.1)', whiteSpace: 'nowrap',
-                }}>
-                  {patchResult.patched === 0 ? (
-                    <span style={{ color: '#059669' }}>✓ 모든 스텝이 이미 완성됐어요</span>
-                  ) : (
-                    <span style={{ color: '#4F46E5' }}>✓ {patchResult.patched}개 스텝을 보완했어요</span>
-                  )}
-                  <button onClick={() => setPatchResult(null)} style={{ marginLeft: '10px', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', fontSize: '11px', padding: 0 }}>✕</button>
-                </div>
-              )}
-            </div>
-
             {/* SDK 미리보기 토글 */}
             <button
               onClick={() => setShowPreview(v => !v)}
@@ -737,19 +710,19 @@ export default function EditorPage() {
               내보내기
             </button>
 
-            {/* Guide Me — 확장프로그램으로 실제 화면 오버레이 가이드 시작 */}
+            {/* 라이브 가이드 — 확장프로그램으로 실제 화면 오버레이 가이드 시작 */}
             {(() => {
               const shareToken = (tutorial as Tutorial & { share_token?: string | null })?.share_token;
               return (
                 <button
                   onClick={handleGuideMe}
-                  title={shareToken ? 'Guide Me 시작 — 실제 화면에서 오버레이 가이드' : '게시 후 사용 가능'}
+                  title={shareToken ? '라이브 가이드 시작 — 실제 화면에서 오버레이 가이드' : '게시 후 사용 가능'}
                   style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: shareToken ? '#374151' : '#D1D5DB', background: 'white', border: '1px solid #E5E7EB', cursor: shareToken ? 'pointer' : 'not-allowed', transition: 'all 0.15s' }}
                   onMouseEnter={e => { if (shareToken) e.currentTarget.style.background = '#F9FAFB'; }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
                 >
                   <Zap size={13} />
-                  Guide Me
+                  라이브 가이드
                 </button>
               );
             })()}
@@ -950,13 +923,13 @@ export default function EditorPage() {
               )}
             </div>
             <button
-              onClick={handleRegenerateTitle}
-              disabled={regeneratingTitle}
-              title="AI로 제목 다시 생성"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', flexShrink: 0, height: '28px', padding: '0 10px', borderRadius: '6px', border: '1px solid #E5E7EB', background: 'white', color: '#6d28d9', fontSize: '12px', fontWeight: 500, cursor: regeneratingTitle ? 'not-allowed' : 'pointer', opacity: regeneratingTitle ? 0.65 : 1, transition: 'all 0.15s' }}
+              onClick={handleRefineAllText}
+              disabled={refiningText}
+              title="AI로 모든 스텝의 설명 문장을 매뉴얼 톤으로 다듬기"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', flexShrink: 0, height: '28px', padding: '0 10px', borderRadius: '6px', border: '1px solid #E5E7EB', background: 'white', color: '#6d28d9', fontSize: '12px', fontWeight: 500, cursor: refiningText ? 'not-allowed' : 'pointer', opacity: refiningText ? 0.65 : 1, transition: 'all 0.15s' }}
             >
-              {regeneratingTitle ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Wand2 size={12} />}
-              제목 재생성
+              {refiningText ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Wand2 size={12} />}
+              전체 문장 다듬기
             </button>
             {/* TTS 설정 — 튜토리얼 단위 ON/OFF */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, borderLeft: '1px solid #F3F4F6', paddingLeft: '12px' }}>
@@ -1109,6 +1082,9 @@ export default function EditorPage() {
           onClose={() => setShowExport(false)}
         />
       )}
+
+      {/* 챗봇 — 항상 떠있는 도우미 (우하단 고정, 다른 UI와 비겹침) */}
+      <AgentChat />
     </div>
   );
 }
