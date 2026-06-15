@@ -16,7 +16,7 @@
 <body>
 
 <h1>개인정보처리방침</h1>
-<p class="date">시행일: 2025년 6월 1일 &nbsp;|&nbsp; 최종 수정: 2025년 6월 1일</p>
+<p class="date">시행일: 2025년 6월 1일 &nbsp;|&nbsp; 최종 수정: 2026년 6월 15일</p>
 
 <p>MIMIC Recorder(이하 "본 확장 프로그램")는 사용자의 개인정보를 소중히 여기며, 관련 법령에 따라 아래와 같이 처리합니다.</p>
 
@@ -26,27 +26,30 @@
   <li>사용자가 클릭한 웹페이지의 <strong>스크린샷(이미지)</strong></li>
   <li>클릭이 발생한 <strong>페이지 URL</strong></li>
   <li>클릭 좌표 및 타임스탬프</li>
+  <li><strong>마이크 음성(선택)</strong> — 사용자가 "음성 설명" 기능을 직접 켠 경우(PRO 플랜)에 한해, 녹화 중 마이크 음성을 녹음합니다. 기능을 켜지 않으면 마이크에 접근하지 않습니다.</li>
 </ul>
 <p>계정 정보, 이름, 이메일 등 개인 식별 정보는 수집하지 않습니다.</p>
 
 <h2>2. 정보의 이용 목적</h2>
 <ul>
   <li>수집된 스크린샷을 AI(Claude)로 분석하여 액션 제목·설명을 자동 생성</li>
+  <li>녹음된 음성을 AI(OpenAI Whisper)로 텍스트로 전사하여 단계별 설명에 반영하고, 필요 시 AI 음성(TTS)으로 변환</li>
   <li>생성된 단계별 가이드를 사용자에게 제공</li>
 </ul>
 
 <h2>3. 정보의 저장 및 전송</h2>
 <ul>
-  <li>스크린샷은 <strong>Supabase 클라우드 스토리지</strong>에 업로드되어 저장됩니다.</li>
-  <li>AI 분석은 <strong>Anthropic Claude API</strong>를 통해 처리됩니다. API 키는 서버(Edge Function)에서만 관리되며 사용자 기기에 저장되지 않습니다.</li>
+  <li>스크린샷·음성 파일은 <strong>Supabase 클라우드 스토리지</strong>에 업로드되어 저장됩니다.</li>
+  <li>AI 분석은 <strong>Anthropic Claude API</strong>, 음성 전사·합성은 <strong>OpenAI API</strong>를 통해 처리됩니다. API 키는 서버에서만 관리되며 사용자 기기에 저장되지 않습니다.</li>
   <li>브라우저 로컬 스토리지(chrome.storage.local)에는 녹화 세션 동안 임시로 이미지가 저장되며, 전송 완료 후 자동 삭제됩니다.</li>
 </ul>
 
 <h2>4. 제3자 제공</h2>
 <p>수집된 정보는 아래 서비스 제공에 필요한 범위 내에서만 활용됩니다.</p>
 <ul>
-  <li><strong>Supabase</strong> (supabase.com) — 이미지 저장 및 데이터베이스</li>
-  <li><strong>Anthropic</strong> (anthropic.com) — AI 이미지 분석</li>
+  <li><strong>Supabase</strong> (supabase.com) — 이미지·음성 저장 및 데이터베이스</li>
+  <li><strong>Anthropic</strong> (anthropic.com) — AI 이미지 분석·텍스트 생성</li>
+  <li><strong>OpenAI</strong> (openai.com) — 음성 전사(Whisper) 및 음성 합성(TTS)</li>
 </ul>
 <p>마케팅, 광고, 기타 목적으로 제3자에게 정보를 판매하거나 제공하지 않습니다.</p>
 
