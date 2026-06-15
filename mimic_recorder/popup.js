@@ -694,21 +694,22 @@ document.getElementById('thumbZoomNewTab')?.addEventListener('click', (e) => {
 function renderedImageRect(imgEl) {
   const box = imgEl.getBoundingClientRect();
   const nw = imgEl.naturalWidth, nh = imgEl.naturalHeight;
-  if (!nw || !nh) return { left: box.left, top: box.top, width: box.width, height: box.height };
+  // right/bottom 포함 — onMouseDown의 insideImg 판정이 이 값들을 사용한다(없으면 항상 false)
+  if (!nw || !nh) {
+    return { left: box.left, top: box.top, right: box.right, bottom: box.bottom, width: box.width, height: box.height };
+  }
   const scale = Math.min(box.width / nw, box.height / nh);
   const dw = nw * scale, dh = nh * scale;
-  return {
-    left: box.left + (box.width  - dw) / 2,
-    top:  box.top  + (box.height - dh) / 2,
-    width:  dw,
-    height: dh,
-  };
+  const left = box.left + (box.width - dw) / 2;
+  const top  = box.top  + (box.height - dh) / 2;
+  return { left, top, right: left + dw, bottom: top + dh, width: dw, height: dh };
 }
 
 // ── 드래그 블러 (줌 오버레이 기준) ──────────────────────────────
 function startBlurMode(step, zoomImg, originalBlob) {
   if (zoomImg.dataset.blurMode === '1') return;
   zoomImg.dataset.blurMode = '1';
+  zoomImg.draggable = false;  // 브라우저 기본 이미지 드래그(고스트) 차단 — 블러 드래그와 충돌 방지
 
   // 블러 모드 진입 시 블러 버튼 활성화 표시
   const blurBtn = document.getElementById('thumbZoomBlur');
