@@ -776,6 +776,7 @@ export default function PlayerPage() {
       {viewMode === 'follow' && (
         <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
           <InteractiveFollowPlayer
+            title={tutorial.title}
             steps={tutorial.steps.map(s => {
               const t = `${s.title ?? ''} ${s.caption ?? ''}`;
               const isType = /입력|타이핑|작성|기입|텍스트/.test(t) && !/클릭|누르|선택|눌러|버튼|탭|체크|이동|열기/.test(t);

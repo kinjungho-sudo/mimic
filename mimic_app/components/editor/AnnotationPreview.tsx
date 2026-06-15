@@ -163,15 +163,10 @@ export function AnnotationPreview({ annotations, imageUrl }: { annotations: Anno
           const bg = a.hasBg !== false;
           const lines = a.text.split('\n');
           const padX = 8, padY = 5;
-          // 글자 폭을 fontSize 기반으로 추정 (한글/영문 혼용 고려)
-          const maxLineLen = Math.max(...lines.map(l => {
-            // 한글은 영문보다 넓음
-            return Array.from(l).reduce((sum, ch) => sum + (ch.charCodeAt(0) > 0x3000 ? 1.0 : 0.6), 0);
-          }));
-          const textPixelW = maxLineLen * fSize + padX * 2;
-          // %→px 변환 없이 px 단위로 직접 배치 (viewBox 기반이므로 px 직접 사용)
-          const boxW = Math.max(textPixelW, fSize * 3);
-          const boxH = lines.length * fSize * 1.45 + padY * 2;
+          // 박스 크기는 편집기와 동일하게 어노테이션의 고정 span(x/y 범위)을 사용.
+          // (기존엔 글자 길이로 boxW를 재계산 → 가운데정렬 시 textX=minX+boxW/2가 좌측으로 쏠려 화살표와 어긋났음)
+          const boxW = Math.max(w, 40);
+          const boxH = Math.max(h, fSize + 12);
           const textX = align === 'left' ? minX + padX : align === 'center' ? minX + boxW / 2 : minX + boxW - padX;
           const anchor = align === 'left' ? 'start' : align === 'center' ? 'middle' : 'end';
           // 가독성: 편집기와 동일한 진한 배경 + 글자 외곽선(배경 밖으로 넘쳐도 읽힘)

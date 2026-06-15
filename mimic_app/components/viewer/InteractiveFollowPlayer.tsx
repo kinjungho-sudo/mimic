@@ -14,6 +14,7 @@ export interface FollowStep {
 
 interface Props {
   steps: FollowStep[];
+  title?: string;
   onClose?: () => void;
   onComplete?: () => void;
   closeLabel?: string;
@@ -35,17 +36,22 @@ function Mascot({ size = 40 }: { size?: number }) {
 }
 
 const HIT_PCT = 7; // 핫스팟 정답 클릭 허용 반경(%)
+const CORNER = 1.5; // 좌상단 꼭지점(이동/캡처 단계의 0,0 가짜 핫스팟) 판정 임계
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
-export function InteractiveFollowPlayer({ steps, onClose, onComplete, closeLabel = '닫기' }: Props) {
+export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, closeLabel = '닫기' }: Props) {
   const [idx, setIdx] = useState(0);
   const [done, setDone] = useState(false);
   const [nudge, setNudge] = useState(false);
+  const [minimized, setMinimized] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
 
   const total = steps.length;
   const step = steps[idx];
+
+  // 스텝 바뀌면 툴팁 다시 펼침 (#3)
+  useEffect(() => { setMinimized(false); }, [idx]);
 
   // 이미지 박스 실측 — 말풍선 클램프 계산용
   useEffect(() => {
@@ -78,24 +84,26 @@ export function InteractiveFollowPlayer({ steps, onClose, onComplete, closeLabel
 
   const onImageClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (done) return;
+    const hx = step.hotspotX, hy = step.hotspotY;
+    // 클릭 타깃 없음(이동/캡처 단계 — 좌상단 0,0 포함) → 화면 클릭으로 진행하지 않음. '다음'으로만 이동 (#2)
+    if (hx == null || hy == null || (hx < CORNER && hy < CORNER)) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const xPct = ((e.clientX - rect.left) / rect.width) * 100;
     const yPct = ((e.clientY - rect.top) / rect.height) * 100;
-    if (step.hotspotX == null || step.hotspotY == null) { advance(); return; }
-    const dist = Math.hypot(xPct - step.hotspotX, yPct - step.hotspotY);
+    const dist = Math.hypot(xPct - hx, yPct - hy);
     if (dist <= HIT_PCT) advance(); else doNudge();
   };
 
   if (!step) return null;
 
   const hx = step.hotspotX, hy = step.hotspotY;
-  const hasHotspot = hx != null && hy != null;
+  // 좌상단 꼭지점(이동/캡처 단계)은 핫스팟으로 보지 않음 (#2)
+  const hasHotspot = hx != null && hy != null && !(hx < CORNER && hy < CORNER);
   const isType = step.kind === 'type';
 
   // 말풍선 위치 — 이미지 박스 안으로 클램프 (잘림/겹침 방지)
-  const BW = box.w ? clamp(box.w - 28, 170, 340) : 300;   // 말풍선 최대폭(자동 확장 상한)
-  const UNIT_W = BW + 50;   // 캐릭터 + 말풍선 묶음 폭
-  const UNIT_H = 132;       // 묶음 예상 높이
+  const BW = box.w ? clamp(box.w - 28, 170, 340) : 300;
+  const UNIT_W = BW + 50, UNIT_H = 132;
   let bubbleLeft = 0, bubbleTop = 0, bubbleSide: 'left' | 'right' = 'right';
   if (hasHotspot && box.w) {
     const hxPx = (hx! / 100) * box.w, hyPx = (hy! / 100) * box.h;
@@ -106,14 +114,29 @@ export function InteractiveFollowPlayer({ steps, onClose, onComplete, closeLabel
     bubbleTop = clamp(bubbleTop, 8, Math.max(8, box.h - UNIT_H - 8));
   }
 
+  const hint = !hasHotspot ? "아래 '다음 →'을 눌러 계속하세요" : isType ? '여기에 입력하면 돼요' : '표시된 곳을 클릭하면 다음으로 넘어가요';
+  const prefix = !hasHotspot ? '📄' : isType ? '✍️' : '👉';
+
   const Bubble = (
     <div style={{ background: 'white', borderRadius: '14px', padding: '11px 14px', boxShadow: '0 8px 28px rgba(0,0,0,0.28)', maxWidth: `${BW}px`, animation: nudge ? 'mfp-nudge 0.4s' : undefined }}>
-      <div style={{ fontSize: '13.5px', fontWeight: 800, color: '#111827', lineHeight: 1.4 }}>{isType ? '✍️' : '👉'} {step.title}</div>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+        <div style={{ fontSize: '13.5px', fontWeight: 800, color: '#111827', lineHeight: 1.4, flex: 1 }}>{prefix} {step.title}</div>
+        <span style={{ fontSize: '11px', color: '#C4C9D4', flexShrink: 0, marginTop: '1px' }}>—</span>
+      </div>
       {step.body && (
         <div style={{ fontSize: '12.5px', color: '#4B5563', lineHeight: 1.5, marginTop: '4px', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{step.body}</div>
       )}
-      <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '6px' }}>{isType ? '여기에 입력하면 돼요' : '표시된 곳을 클릭하면 다음으로 넘어가요'}</div>
+      <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '6px' }}>{hint}</div>
     </div>
+  );
+
+  // 말풍선 묶음(최소화 토글) — 누르면 접힘/펼침 (#3)
+  const BubbleUnit = (children: React.ReactNode) => (
+    minimized ? (
+      <button onClick={(e) => { e.stopPropagation(); setMinimized(false); }} title="안내 펼치기" style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, pointerEvents: 'auto' }}><Mascot /></button>
+    ) : (
+      <div onClick={(e) => { e.stopPropagation(); setMinimized(true); }} title="눌러서 접기" style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', cursor: 'pointer', pointerEvents: 'auto' }}>{children}</div>
+    )
   );
 
   return (
@@ -130,17 +153,15 @@ export function InteractiveFollowPlayer({ steps, onClose, onComplete, closeLabel
         </div>
       ) : (
         <>
-          {/* 가상 브라우저 창 — 크게 */}
+          {/* 가상 브라우저 창 */}
           <div style={{ position: 'relative', width: 'min(1280px, 97%)', flex: '1 1 auto', minHeight: 0, maxHeight: 'calc(100vh - 110px)', background: 'white', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 24px 70px rgba(0,0,0,0.45)', display: 'flex', flexDirection: 'column' }}>
-            {/* 창 상단바 */}
             <div style={{ height: '34px', background: '#E9EAEE', display: 'flex', alignItems: 'center', gap: '6px', padding: '0 12px', flexShrink: 0 }}>
               <span style={{ width: '11px', height: '11px', borderRadius: '50%', background: '#FF5F57' }} />
               <span style={{ width: '11px', height: '11px', borderRadius: '50%', background: '#FEBC2E' }} />
               <span style={{ width: '11px', height: '11px', borderRadius: '50%', background: '#28C840' }} />
-              <div style={{ flex: 1, margin: '0 10px', height: '20px', background: 'white', borderRadius: '6px', display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: '11px', color: '#9CA3AF' }}>가상 화면 — 안전하게 따라해 보세요</div>
+              <div style={{ flex: 1, margin: '0 10px', height: '20px', background: 'white', borderRadius: '6px', display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: '11px', color: '#6B7280', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{title || '가상 화면 — 안전하게 따라해 보세요'}</div>
             </div>
 
-            {/* 스크린샷 + 인터랙션 레이어 */}
             <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0b0b0f', overflow: 'hidden' }}>
               {step.screenshotUrl ? (
                 <div ref={wrapRef} onClick={onImageClick} style={{ position: 'relative', display: 'inline-block', lineHeight: 0, cursor: 'pointer', maxWidth: '100%', maxHeight: '100%' }}>
@@ -162,19 +183,17 @@ export function InteractiveFollowPlayer({ steps, onClose, onComplete, closeLabel
                     </div>
                   )}
 
-                  {/* AI 캐릭터 + 말풍선 (클램프된 절대 위치) */}
+                  {/* AI 캐릭터 + 말풍선 (클램프 + 최소화) */}
                   {hasHotspot && (
-                    <div style={{ position: 'absolute', left: `${bubbleLeft}px`, top: `${bubbleTop}px`, zIndex: 6, pointerEvents: 'none', display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
-                      {bubbleSide === 'right' && <Mascot />}
-                      {Bubble}
-                      {bubbleSide === 'left' && <Mascot />}
+                    <div style={{ position: 'absolute', left: `${bubbleLeft}px`, top: `${bubbleTop}px`, zIndex: 6, pointerEvents: 'none' }}>
+                      {BubbleUnit(<>{bubbleSide === 'right' && <Mascot />}{Bubble}{bubbleSide === 'left' && <Mascot />}</>)}
                     </div>
                   )}
 
-                  {/* 핫스팟 없는 설명형 — 하단 중앙 */}
+                  {/* 핫스팟 없는 이동/설명형 — 하단 중앙 */}
                   {!hasHotspot && (
-                    <div style={{ position: 'absolute', left: '50%', bottom: '18px', transform: 'translateX(-50%)', zIndex: 6, pointerEvents: 'none', display: 'flex', alignItems: 'flex-end', gap: '8px', maxWidth: '92%' }}>
-                      <Mascot />{Bubble}
+                    <div style={{ position: 'absolute', left: '50%', bottom: '18px', transform: 'translateX(-50%)', zIndex: 6, pointerEvents: 'none', maxWidth: '92%' }}>
+                      {BubbleUnit(<><Mascot />{Bubble}</>)}
                     </div>
                   )}
                 </div>

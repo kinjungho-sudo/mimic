@@ -328,8 +328,8 @@ export default function ManualViewerPage() {
               style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#3730a3', background: '#e0e7ff', border: '1px solid #a5b4fc', cursor: 'pointer' }}
               onMouseEnter={e => { e.currentTarget.style.background = '#c7d2fe'; }}
               onMouseLeave={e => { e.currentTarget.style.background = '#e0e7ff'; }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0"/><path d="M12 8v4l3 3"/></svg>
-              따라하기
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              미리보기
             </button>
           )}
 
@@ -560,6 +560,7 @@ export default function ManualViewerPage() {
       {followMode && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 70, background: 'rgba(5,5,10,0.88)', backdropFilter: 'blur(4px)' }}>
           <InteractiveFollowPlayer
+            title={title}
             steps={manualSteps.map(s => {
               const t = `${s.actionTitle ?? ''} ${s.description ?? ''}`;
               const isType = /입력|타이핑|작성|기입|텍스트/.test(t) && !/클릭|누르|선택|눌러|버튼|탭|체크|이동|열기/.test(t);
