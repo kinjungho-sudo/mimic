@@ -11,9 +11,11 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json();
 }
 
+import type { FollowConfig } from '@/types';
+
 export async function updateStep(
   id: string,
-  patch: { user_title?: string | null; user_script?: string | null; user_annotations?: unknown; image_zoom?: number | null; image_offset_x?: number | null; image_offset_y?: number | null; domain_name?: string | null }
+  patch: { user_title?: string | null; user_script?: string | null; user_annotations?: unknown; image_zoom?: number | null; image_offset_x?: number | null; image_offset_y?: number | null; domain_name?: string | null; follow_config?: FollowConfig | null }
 ): Promise<void> {
   await apiFetch(`/api/steps/${id}`, {
     method: 'PATCH',

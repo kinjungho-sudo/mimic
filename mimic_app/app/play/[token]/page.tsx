@@ -7,6 +7,8 @@ import { BrandMark } from '@/components/BrandMark';
 import { AnnotationPreview } from '@/components/editor/AnnotationPreview';
 import { InteractiveFollowPlayer } from '@/components/viewer/InteractiveFollowPlayer';
 import { createClient } from '@/lib/supabase/client';
+import { toFollowSteps, clickToPct } from '@/lib/follow';
+import type { FollowConfig } from '@/types';
 import type { Annotation as DrawAnnotation } from '@/components/editor/ImageAnnotationEditor';
 
 type Marker = {
@@ -38,6 +40,7 @@ type Step = {
   image_offset_x?: number | null;
   image_offset_y?: number | null;
   user_annotations?: DrawAnnotation[];
+  follow_config?: FollowConfig | null;
 };
 
 type AudioAsset = {
@@ -789,19 +792,15 @@ export default function PlayerPage() {
           <InteractiveFollowPlayer
             title={tutorial.title}
             lockAfterStep={authChecked && !isAuthed ? 1 : null}
-            steps={tutorial.steps.map(s => {
-              const t = `${s.title ?? ''} ${s.caption ?? ''}`;
-              const isType = /입력|타이핑|작성|기입|텍스트/.test(t) && !/클릭|누르|선택|눌러|버튼|탭|체크|이동|열기/.test(t);
-              return {
-                title: s.title,
-                body: s.caption,
-                screenshotUrl: s.screenshot_url,
-                hotspotX: s.click_x != null ? s.click_x * 100 : null,
-                hotspotY: s.click_y != null ? s.click_y * 100 : null,
-                kind: (isType ? 'type' : 'click') as 'type' | 'click',
-                audioUrl: tutorial.audio_assets?.find(a => a.step_id === s.id)?.audio_url ?? null,
-              };
-            })}
+            steps={toFollowSteps(tutorial.steps.map(s => ({
+              title: s.title,
+              body: s.caption,
+              screenshotUrl: s.screenshot_url,
+              clickXPct: clickToPct(s.click_x),
+              clickYPct: clickToPct(s.click_y),
+              audioUrl: tutorial.audio_assets?.find(a => a.step_id === s.id)?.audio_url ?? null,
+              followConfig: s.follow_config ?? null,
+            })))}
           />
         </div>
       )}

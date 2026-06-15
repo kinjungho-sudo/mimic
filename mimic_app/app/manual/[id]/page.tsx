@@ -9,6 +9,7 @@ import { ShareModal } from '@/components/editor/ShareModal';
 import { InteractiveFollowPlayer } from '@/components/viewer/InteractiveFollowPlayer';
 import { useTutorial } from '@/hooks/useTutorial';
 import { useAuth } from '@/hooks/useAuth';
+import { toFollowSteps } from '@/lib/follow';
 import type { ManualStep } from '@/components/editor/ManualEditor';
 import type { Step, Tutorial } from '@/types';
 import type { Annotation } from '@/components/editor/ImageAnnotationEditor';
@@ -333,6 +334,18 @@ export default function ManualViewerPage() {
             </button>
           )}
 
+          {canEdit && manualSteps.length > 0 && (
+            <button
+              onClick={() => router.push(`/manual/${id}/studio`)}
+              title="따라하기 핫스팟·문구를 직접 저작"
+              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#5b21b6', background: '#f3e8ff', border: '1px solid #d8b4fe', cursor: 'pointer' }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#e9d5ff'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#f3e8ff'; }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19 7-7 3 3-7 7-3-3z"/><path d="m18 13-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="m2 2 7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+              스튜디오
+            </button>
+          )}
+
           {manualSteps.some(s => s.pageUrl) && (
             <button
               onClick={() => {
@@ -561,19 +574,15 @@ export default function ManualViewerPage() {
         <div style={{ position: 'fixed', inset: 0, zIndex: 70, background: 'rgba(5,5,10,0.88)', backdropFilter: 'blur(4px)' }}>
           <InteractiveFollowPlayer
             title={title}
-            steps={manualSteps.map(s => {
-              const t = `${s.actionTitle ?? ''} ${s.description ?? ''}`;
-              const isType = /입력|타이핑|작성|기입|텍스트/.test(t) && !/클릭|누르|선택|눌러|버튼|탭|체크|이동|열기/.test(t);
-              return {
-                title: s.actionTitle,
-                body: s.description ? s.description.replace(/<[^>]+>/g, '') : undefined,
-                screenshotUrl: s.screenshotUrl,
-                hotspotX: s.click_x ?? null,
-                hotspotY: s.click_y ?? null,
-                kind: (isType ? 'type' : 'click') as 'type' | 'click',
-                audioUrl: s.voiceAudioUrl ?? null,
-              };
-            })}
+            steps={toFollowSteps(tutorial.steps.map(s => ({
+              title: s.user_title ?? s.ai_title ?? '',
+              body: (s.user_script ?? s.ai_description ?? '').replace(/<[^>]+>/g, '') || null,
+              screenshotUrl: s.screenshot_url || undefined,
+              clickXPct: clickToPct((s as Step & { click_x?: number | null }).click_x),
+              clickYPct: clickToPct((s as Step & { click_y?: number | null }).click_y),
+              audioUrl: (s as Step & { voice_audio_url?: string | null }).voice_audio_url ?? null,
+              followConfig: s.follow_config ?? null,
+            })))}
             onClose={() => setFollowMode(false)}
           />
         </div>

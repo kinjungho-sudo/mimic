@@ -13,6 +13,14 @@ const stepPatchSchema = z.object({
   image_offset_x: z.number().min(-1.5).max(1.5).nullable().optional(),
   image_offset_y: z.number().min(-1.5).max(1.5).nullable().optional(),
   domain_name: z.string().max(100).nullable().optional(),
+  // 따라하기 스튜디오 저작 데이터 (null=자동추론)
+  follow_config: z.object({
+    hotspotX: z.number().min(0).max(100).nullable().optional(),
+    hotspotY: z.number().min(0).max(100).nullable().optional(),
+    kind: z.enum(['click', 'type']).nullable().optional(),
+    instruction: z.string().max(500).nullable().optional(),
+    hidden: z.boolean().optional(),
+  }).nullable().optional(),
 });
 
 type Params = { params: Promise<{ id: string }> };
@@ -47,7 +55,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     .from('mm_steps')
     .update(parsed.data)
     .eq('id', id)
-    .select('id, user_title, user_script, user_annotations')
+    .select('id, user_title, user_script, user_annotations, follow_config')
     .single();
 
   if (error || !data) {
