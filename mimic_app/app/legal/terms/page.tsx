@@ -71,7 +71,7 @@ export default function TermsPage() {
         ))}
 
         <div style={{ marginTop: '48px', padding: '20px 24px', background: 'white', border: '1px solid #E5E7EB', borderRadius: '12px', fontSize: '13px', color: '#6B7280' }}>
-          문의: <a href="mailto:hello@mimicflow.com" style={{ color: '#3730a3', fontWeight: 500 }}>hello@mimicflow.com</a> · 회사명: 코마인드웍스
+          문의: <a href="mailto:kinjungho@gmail.com" style={{ color: '#3730a3', fontWeight: 500 }}>kinjungho@gmail.com</a> · 회사명: 코마인드웍스
         </div>
       </main>
     </div>

@@ -135,7 +135,7 @@ export async function sendWelcomeEmail({ to, name }: { to: string; name: string 
           <p style="margin:0 0 6px;font-size:14px;font-weight:800;color:#3730a3;letter-spacing:-0.02em">MIMIC</p>
           <p style="margin:0 0 12px;font-size:12px;color:#9CA3AF;line-height:1.7">
             매뉴얼을 더 쉽고 빠르게 · © 2026 코마인드웍스<br>
-            궁금한 점은 <a href="mailto:hello@mimicflow.com" style="color:#3730a3;text-decoration:none">hello@mimicflow.com</a>으로 문의해주세요.
+            궁금한 점은 <a href="mailto:kinjungho@gmail.com" style="color:#3730a3;text-decoration:none">kinjungho@gmail.com</a>으로 문의해주세요.
           </p>
           <p style="margin:0;font-size:11px;color:#D1D5DB">
             이 이메일은 ${to} 계정의 MIMIC 가입을 기념하여 발송됐습니다.

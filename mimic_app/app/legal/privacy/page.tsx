@@ -53,7 +53,7 @@ export default function PrivacyPage() {
           },
           {
             title: '제8조 (개인정보 보호책임자)',
-            body: '회사는 개인정보 처리에 관한 업무를 총괄해서 책임지고, 개인정보 처리와 관련한 정보주체의 불만처리 및 피해구제 등을 위하여 개인정보 보호책임자를 지정하고 있습니다. 개인정보 보호책임자: 김정호 (hello@mimicflow.com).',
+            body: '회사는 개인정보 처리에 관한 업무를 총괄해서 책임지고, 개인정보 처리와 관련한 정보주체의 불만처리 및 피해구제 등을 위하여 개인정보 보호책임자를 지정하고 있습니다. 개인정보 보호책임자: 김정호 (kinjungho@gmail.com).',
           },
           {
             title: '제9조 (개인정보 처리방침 변경)',
@@ -67,7 +67,7 @@ export default function PrivacyPage() {
         ))}
 
         <div style={{ marginTop: '48px', padding: '20px 24px', background: 'white', border: '1px solid #E5E7EB', borderRadius: '12px', fontSize: '13px', color: '#6B7280' }}>
-          개인정보 관련 문의: <a href="mailto:hello@mimicflow.com" style={{ color: '#3730a3', fontWeight: 500 }}>hello@mimicflow.com</a> · 회사명: 코마인드웍스
+          개인정보 관련 문의: <a href="mailto:kinjungho@gmail.com" style={{ color: '#3730a3', fontWeight: 500 }}>kinjungho@gmail.com</a> · 회사명: 코마인드웍스
         </div>
       </main>
     </div>

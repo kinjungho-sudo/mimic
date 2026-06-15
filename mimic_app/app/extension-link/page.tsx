@@ -110,7 +110,7 @@ export default function ExtensionLinkPage() {
 
             <div style={{ marginTop: '22px', paddingTop: '22px', borderTop: '1px solid #F3F4F6', fontSize: '11.5px', color: '#6B7280', position: 'relative' }}>
               설치에 어려움이 있으신가요?{' '}
-              <a href="mailto:hello@mimicflow.com" style={{ color: '#3730a3', fontWeight: 500 }}>문의하기</a>
+              <a href="mailto:kinjungho@gmail.com" style={{ color: '#3730a3', fontWeight: 500 }}>문의하기</a>
             </div>
           </div>
         )}
@@ -137,7 +137,7 @@ export default function ExtensionLinkPage() {
             </div>
             <div style={{ marginTop: '22px', paddingTop: '22px', borderTop: '1px solid #F3F4F6', fontSize: '11.5px', color: '#6B7280', position: 'relative' }}>
               문제가 계속되나요?{' '}
-              <a href="mailto:hello@mimicflow.com" style={{ color: '#3730a3', fontWeight: 500 }}>문의하기</a>
+              <a href="mailto:kinjungho@gmail.com" style={{ color: '#3730a3', fontWeight: 500 }}>문의하기</a>
             </div>
           </div>
         )}

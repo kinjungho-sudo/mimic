@@ -338,7 +338,7 @@ export default function SettingsPage() {
 
         <Section title="계정">
           <div style={{ padding: '14px 20px' }}>
-            <a href="mailto:hello@mimicflow.com" style={{ fontSize: '13.5px', fontWeight: 500, color: '#111827', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <a href="mailto:kinjungho@gmail.com" style={{ fontSize: '13.5px', fontWeight: 500, color: '#111827', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span>고객 지원 문의</span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
             </a>
@@ -350,7 +350,7 @@ export default function SettingsPage() {
           {' · '}
           <Link href="/legal/privacy" style={{ color: '#D1D5DB', textDecoration: 'none' }}>개인정보 처리방침</Link>
           {' · '}
-          hello@mimicflow.com
+          kinjungho@gmail.com
         </div>
       </main>
     </div>
