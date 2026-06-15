@@ -1,1 +1,6 @@
 .vercel
+
+# 시크릿·로컬 환경 (절대 커밋 금지)
+.env
+**/.env
+mimic_recorder/.env
