@@ -68,6 +68,9 @@ export default function StudioPage() {
   const [showPreview, setShowPreview] = useState(false);
   const imgWrapRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
+  // 최신 steps 미러 — patch에서 동기적으로 현재 follow를 읽기 위함(setState 캡처는 비동기라 stale)
+  const stepsRef = useRef<StudioStep[]>([]);
+  stepsRef.current = steps;
 
   const isViewer = tutorial ? (tutorial as Tutorial & { my_role?: string }).my_role === 'viewer' : false;
 
@@ -82,12 +85,10 @@ export default function StudioPage() {
 
   // follow_config 패치 → 로컬 갱신 + 서버 저장
   const patch = useCallback(async (stepId: string, change: Partial<FollowConfig>) => {
-    let nextFollow: FollowConfig = {};
-    setSteps(prev => prev.map(s => {
-      if (s.id !== stepId) return s;
-      nextFollow = { ...s.follow, ...change };
-      return { ...s, follow: nextFollow };
-    }));
+    const cur = stepsRef.current.find(s => s.id === stepId)?.follow ?? {};
+    const nextFollow: FollowConfig = { ...cur, ...change };
+    stepsRef.current = stepsRef.current.map(s => s.id === stepId ? { ...s, follow: nextFollow } : s);
+    setSteps(stepsRef.current);
     const payload = normalize(nextFollow);
     setSavingId(stepId);
     try {
