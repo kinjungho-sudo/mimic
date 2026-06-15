@@ -435,8 +435,8 @@ function buildStepCard(step, num) {
   card.style.cssText = 'flex-direction:column;align-items:stretch;';
   card.append(topRow, thumbWrap, delBtn);
 
-  // 캡처별 음성 메모 버튼 (PRO) — 설정에서 음성 메모를 켰을 때만 노출
-  if (_voiceEnabled) card.appendChild(buildStepVoiceButton(step));
+  // per-step 음성 버튼은 라이브 레코더에서 제거 — 연속 내레이션(Magic Mic식)이 주력.
+  // (per-step 보정은 추후 에디터 재녹음으로 제공. buildStepVoiceButton은 그때 재사용)
 
   return card;
 }

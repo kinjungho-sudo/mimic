@@ -212,6 +212,9 @@ async function startVoiceRecording() {
   if (_audioActive) return;  // 중복 시작 방지 (직접/onChanged 경로 동시 발화)
   const { settings } = await storageGet('settings');
   if (!settings?.voiceRecord) return;
+  // PRO 전용 — 플랜 확인 (아니면 조용히 미녹음)
+  const plan = await getUserPlan();
+  if (!plan?.isPro) { log('info', 'bg', 'voice skipped — not PRO'); return; }
   try {
     await ensureOffscreen();
     const startedAt = Date.now();
@@ -836,9 +839,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'FINALIZE_SESSION') {
     (async () => {
       try {
-        // 진행 중이던 캡처별 음성이 있으면 마무리(업로드) 후 finalize
-        if (_audioActive) await stopStepVoice().catch(() => {});
-        const data = await finalizeSession(message.sessionId, message.stepNumbers);
+        // 연속 내레이션 정지 + 업로드 → finalize에 audio_url 전달 (서버에서 Whisper 전사·구간 배분)
+        const audioUrl = await stopAndUploadVoice(message.sessionId);
+        const data = await finalizeSession(message.sessionId, message.stepNumbers, audioUrl);
         // 편집기 탭은 background가 직접 연다 — 사용자가 패널/탭을 닫아도
         // service worker는 살아 있으므로 매뉴얼 생성 완료 후 정상 이동된다.
         if (data?.tutorial_id) {
@@ -1583,8 +1586,16 @@ chrome.storage.onChanged.addListener((changes, area) => {
     _cachedTargetTabId = changes.targetTabId.newValue ?? null;
   }
 
-  // 음성은 '캡처별 메모'(PRO) 방식으로 전환됨 — 녹화 시작 시 연속 자동 녹음하지 않는다.
-  // (사용자가 각 스텝 카드의 🎙 버튼으로 명시적으로 녹음/정지) → startVoiceRecording 자동호출 제거.
+  // 음성: 연속 내레이션(Magic Mic식)이 주력. 녹화 시작 시 자동 녹음(PRO+설정),
+  //   일시정지 연동. 정지(false) 시 정지/업로드는 finalize/discard가 담당(blob 보존).
+  if ('isRecording' in changes) {
+    const was = !!changes.isRecording.oldValue;
+    const now = !!changes.isRecording.newValue;
+    if (was !== now && now) startVoiceRecording().catch(() => {});
+  }
+  if ('isPaused' in changes && _audioActive) {
+    (changes.isPaused.newValue ? pauseVoiceRecording() : resumeVoiceRecording()).catch(() => {});
+  }
 
   if ('isRecording' in changes) {
     const wasRecording = !!changes.isRecording.oldValue;
@@ -1943,14 +1954,14 @@ async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, 
 }
 
 // ── 세션 완료 — 웹앱 API 경유 ───────────────────────────────────
-async function finalizeSession(sessionId, stepNumbers) {
+async function finalizeSession(sessionId, stepNumbers, audioUrl = null) {
   const { extensionToken, contentMode, settings, steps } = await storageGet(['extensionToken', 'contentMode', 'settings', 'steps']);
   if (!extensionToken) {
     log('warn', 'bg', 'extensionToken 없음 — /extension-link 에서 연동 필요');
     return { tutorial_id: null, step_count: 0 };
   }
 
-  // 캡처별 음성 메모 — { stepNumber: voiceAudioUrl } 맵 (있는 스텝만)
+  // per-step 음성 보정(향후 에디터 재녹음용) — 현재는 비어 있을 수 있음
   const stepVoice = {};
   (steps || []).forEach(s => { if (s.voiceAudioUrl) stepVoice[s.stepNumber] = s.voiceAudioUrl; });
 
@@ -1965,11 +1976,14 @@ async function finalizeSession(sessionId, stepNumbers) {
       ...(contentMode && contentMode !== 'action' ? { content_mode: contentMode } : {}),
       // 선택영역 확대 설정 — 스텝 이미지에 클릭 영역 확대(image_zoom) 선적용
       ...(settings?.autoZoom ? { auto_zoom: true } : {}),
-      // 캡처별 음성 메모 — 서버에서 스텝별 Whisper 전사 후 설명에 반영
+      // 연속 내레이션 음성 — 서버에서 Whisper 전사 후 스텝별 구간 배분
+      ...(audioUrl ? { audio_url: audioUrl } : {}),
+      // per-step 음성 보정(있을 때만) — 해당 스텝은 이 클립으로 덮어씀
       ...(Object.keys(stepVoice).length ? { step_voice: stepVoice } : {}),
     }),
   });
   if (!res.ok) throw new Error(`finalize failed: ${res.status}: ${await res.text()}`);
+  await storageRemove(['audioStartTime']);
   return res.json();
 }
 

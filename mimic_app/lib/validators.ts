@@ -22,8 +22,9 @@ export const captureFinalizeSchema = z.object({
   content_mode: z.enum(['action', 'education']).default('action').optional(),
   // '선택영역 확대' 설정 — 스텝 이미지에 클릭 영역 확대(image_zoom/offset)를 선적용
   auto_zoom: z.boolean().optional(),
-  // 캡처별 음성 메모(PRO) — { recorderStepNumber(string): voiceAudioUrl } 맵.
-  // 서버에서 스텝별 Whisper 전사 후 설명에 반영.
+  // 연속 내레이션 음성 파일 URL — 서버에서 Whisper 전사 후 스텝별 구간 배분
+  audio_url: z.string().url().optional().nullable(),
+  // per-step 음성 보정 — { recorderStepNumber(string): voiceAudioUrl } (해당 스텝 덮어씀)
   step_voice: z.record(z.string(), z.string().url()).optional(),
 });
 
