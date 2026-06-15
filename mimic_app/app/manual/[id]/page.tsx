@@ -74,7 +74,6 @@ export default function ManualViewerPage() {
   const [showShare, setShowShare] = useState(false);
   const [downloadOpen, setDownloadOpen] = useState(false);
   const [downloadingFmt, setDownloadingFmt] = useState<'pdf' | 'pptx' | 'docx' | null>(null);
-  const [guideMePreviewUrl, setGuideMePreviewUrl] = useState<string | null>(null);
   // 라이브 가이드 유료 게이팅 — 소유자 플랜·잔여 무료 횟수 (Free 누적 5회)
   const [liveGuide, setLiveGuide] = useState<{ paid: boolean; remaining: number | null } | null>(null);
   const [showUpgrade, setShowUpgrade] = useState(false);
@@ -358,11 +357,27 @@ export default function ManualViewerPage() {
                   setShowUpgrade(true);
                   return;
                 }
-                const firstUrl = manualSteps.find(s => s.pageUrl)?.pageUrl;
-                if (!firstUrl) return;
-                // published면 share_token, draft면 tutorial_id로 접근 (본인 소유자만)
-                const guideToken = tutorial.share_token ?? id;
-                setGuideMePreviewUrl(`${firstUrl}${firstUrl.includes('?') ? '&' : '?'}mimic_guide=${guideToken}`);
+                // 익스텐션에 직접 명령 → 실제 사이트 새 탭 + 오버레이(guide-engine). sdk.js 불필요.
+                const extId = (process.env.NEXT_PUBLIC_EXTENSION_ID ?? '').replace(/^﻿/, '').trim();
+                if (!extId) { alert('라이브 가이드를 사용하려면 MIMIC 확장프로그램을 설치해주세요.'); return; }
+                if (!tutorial.share_token) { alert('먼저 공유(게시) 후 라이브 가이드를 사용할 수 있습니다.'); return; }
+                try {
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  (window as any).chrome?.runtime?.sendMessage(
+                    extId,
+                    { action: 'START_GUIDE', share_token: tutorial.share_token },
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    (res: any) => {
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      if ((window as any).chrome?.runtime?.lastError || !res?.ok) {
+                        if (res?.gated) { setShowUpgrade(true); return; }
+                        alert('확장프로그램이 응답하지 않습니다. 설치·활성화를 확인해주세요.');
+                      }
+                    }
+                  );
+                } catch {
+                  alert('라이브 가이드를 시작할 수 없습니다. 확장프로그램을 설치해주세요.');
+                }
               }}
               style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#3730a3', background: '#e0e7ff', border: '1px solid #a5b4fc', cursor: 'pointer' }}>
               <PlayCircle size={13} /> 라이브 가이드
@@ -552,20 +567,6 @@ export default function ManualViewerPage() {
                 </button>
               </div>
             </div>
-          </div>
-        </>
-      )}
-
-      {/* 라이브 가이드 iframe 모달 */}
-      {guideMePreviewUrl && (
-        <>
-          <div onClick={() => setGuideMePreviewUrl(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,15,0.55)', zIndex: 60, backdropFilter: 'blur(4px)' }} />
-          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 'min(1100px, 94vw)', height: 'min(700px, 90vh)', background: 'white', borderRadius: '16px', boxShadow: '0 30px 80px rgba(0,0,0,0.25)', zIndex: 61, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ padding: '12px 16px', borderBottom: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>라이브 가이드 미리보기</span>
-              <button onClick={() => setGuideMePreviewUrl(null)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#9CA3AF', padding: '4px' }}><X size={16} /></button>
-            </div>
-            <iframe src={guideMePreviewUrl} style={{ flex: 1, border: 'none', width: '100%' }} title="라이브 가이드 미리보기" />
           </div>
         </>
       )}
