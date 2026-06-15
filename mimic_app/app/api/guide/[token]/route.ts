@@ -88,24 +88,32 @@ async function fetchSteps(supabase: ReturnType<typeof createServiceRoleClient>, 
     .from('mm_steps')
     .select(
       'id, step_number, user_title, ai_title, user_script, ai_description, ' +
-      'page_url, element_selector, element_xpath, element_rect, click_x, click_y, screenshot_url'
+      'page_url, element_selector, element_xpath, element_rect, click_x, click_y, screenshot_url, follow_config'
     )
     .eq('tutorial_id', tutorialId)
-    .order('step_number');
+    .order('order_index');
 
-  const steps = ((rawSteps ?? []) as unknown as Record<string, unknown>[]).map(s => ({
-    id: s.id,
-    step_number: s.step_number,
-    title: (s.user_title ?? s.ai_title ?? `Step ${s.step_number}`) as string,
-    instruction: (s.user_script ?? s.ai_description ?? '') as string,
-    page_url: s.page_url ?? null,
-    element_selector: s.element_selector ?? null,
-    element_xpath: s.element_xpath ?? null,
-    element_rect: s.element_rect ?? null,
-    click_x: s.click_x != null ? (s.click_x as number) / 10000 : null,
-    click_y: s.click_y != null ? (s.click_y as number) / 10000 : null,
-    screenshot_url: s.screenshot_url ?? null,
-  }));
+  const steps = ((rawSteps ?? []) as unknown as Record<string, unknown>[]).map(s => {
+    const fc = (s.follow_config ?? {}) as { kind?: string | null; typeText?: string | null; hidden?: boolean };
+    return {
+      id: s.id,
+      step_number: s.step_number,
+      title: (s.user_title ?? s.ai_title ?? `Step ${s.step_number}`) as string,
+      instruction: (s.user_script ?? s.ai_description ?? '') as string,
+      page_url: s.page_url ?? null,
+      element_selector: s.element_selector ?? null,
+      element_xpath: s.element_xpath ?? null,
+      element_rect: s.element_rect ?? null,
+      click_x: s.click_x != null ? (s.click_x as number) / 10000 : null,
+      click_y: s.click_y != null ? (s.click_y as number) / 10000 : null,
+      screenshot_url: s.screenshot_url ?? null,
+      // 라이브 가이드 자동입력용 — follow_config의 kind/typeText 노출
+      kind: fc.kind ?? null,
+      type_text: fc.typeText ?? null,
+      hidden: !!fc.hidden,
+    };
+  });
 
-  return { tutorial_id: tutorialId, title, steps };
+  // 숨김 스텝은 따라하기/라이브 가이드에서 제외 (일관성)
+  return { tutorial_id: tutorialId, title, steps: steps.filter(s => !s.hidden) };
 }

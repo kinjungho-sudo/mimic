@@ -115,7 +115,10 @@
     root.appendChild(bar);
     shadow.appendChild(root);
 
-    state = { host, shadow, hl, pulse, bar, resolved, step, opts, idx, total, advanced: false, completed: false };
+    state = { host, shadow, hl, pulse, bar, resolved, step, opts, idx, total, advanced: false, completed: false, fillTimer: null };
+
+    // 라이브 가이드 자동입력 — type_text가 있고 타깃이 입력 요소면 자동으로 타이핑
+    if (step.type_text && resolved.el) autoFill(resolved.el, String(step.type_text));
 
     // 바 버튼: 페이지 클릭 감지와 섞이지 않도록 마킹 + stopPropagation
     bar.addEventListener('click', (e) => {
@@ -192,6 +195,34 @@
       </div>`;
   }
 
+  // 입력 요소에 텍스트 자동 타이핑 (React 등 제어 컴포넌트 대응: native setter + input 이벤트)
+  function autoFill(el, text) {
+    const tag = el.tagName ? el.tagName.toLowerCase() : '';
+    const isField = tag === 'input' || tag === 'textarea' || el.isContentEditable;
+    if (!isField) return;  // 입력 요소가 아니면 자동입력 안 함(클릭형 타깃 등)
+    try { el.focus({ preventScroll: true }); } catch { /* noop */ }
+    const setVal = (v) => {
+      if (el.isContentEditable) {
+        el.textContent = v;
+      } else {
+        const proto = tag === 'textarea' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+        const setter = Object.getOwnPropertyDescriptor(proto, 'value');
+        if (setter && setter.set) setter.set.call(el, v); else el.value = v;
+      }
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    let i = 0;
+    const tick = () => {
+      if (!state || state.completed) return;
+      i += 1;
+      setVal(text.slice(0, i));
+      if (i < text.length) { state.fillTimer = setTimeout(tick, 35); }
+      else { el.dispatchEvent(new Event('change', { bubbles: true })); }
+    };
+    // 하이라이트가 보인 직후 시작
+    state.fillTimer = setTimeout(tick, 280);
+  }
+
   function hide() {
     if (!state) {
       const stray = document.getElementById('mimic-overlay-root');
@@ -199,6 +230,7 @@
       return;
     }
     if (state.rafId) cancelAnimationFrame(state.rafId);
+    if (state.fillTimer) clearTimeout(state.fillTimer);
     if (state.onDocClick) document.removeEventListener('click', state.onDocClick, true);
     if (state.onKey) document.removeEventListener('keydown', state.onKey, true);
     if (state.host) state.host.remove();
