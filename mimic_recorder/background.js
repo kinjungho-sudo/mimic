@@ -577,6 +577,12 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         const res    = await fetch(`${origin}/api/guide/${share_token}`);
         if (!res.ok) throw new Error(`guide fetch failed: ${res.status}`);
         const data  = await res.json();
+        // 라이브 가이드 유료 게이팅 — 소유자 무료 한도(5회) 소진 시
+        if (data.gated) {
+          log('info', 'bg', `live guide gated (free limit ${data.limit})`);
+          sendResponse({ ok: false, gated: true, limit: data.limit, upgradeUrl: data.upgradeUrl });
+          return;
+        }
         const steps = data.steps || [];
         if (steps.length === 0) throw new Error('no steps');
 

@@ -75,6 +75,9 @@ export default function ManualViewerPage() {
   const [downloadOpen, setDownloadOpen] = useState(false);
   const [downloadingFmt, setDownloadingFmt] = useState<'pdf' | 'pptx' | 'docx' | null>(null);
   const [guideMePreviewUrl, setGuideMePreviewUrl] = useState<string | null>(null);
+  // 라이브 가이드 유료 게이팅 — 소유자 플랜·잔여 무료 횟수 (Free 누적 5회)
+  const [liveGuide, setLiveGuide] = useState<{ paid: boolean; remaining: number | null } | null>(null);
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
   // Auto-Run 상태
   const [showAutoRunModal, setShowAutoRunModal] = useState(false);
@@ -96,6 +99,15 @@ export default function ManualViewerPage() {
     if (tutorial.steps.length > 0 && !activeId) setActiveId(tutorial.steps[0].id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tutorial?.id]);
+
+  // 라이브 가이드 사용량 조회 (소유자만 — 페이월 UI용)
+  useEffect(() => {
+    if (!canEdit) return;
+    fetch('/api/user/plan')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (d) setLiveGuide({ paid: !!d.paid, remaining: d.liveGuide?.remaining ?? null }); })
+      .catch(() => {});
+  }, [canEdit]);
 
   // 실행 상태 폴링 (2초 간격)
   useEffect(() => {
@@ -341,6 +353,11 @@ export default function ManualViewerPage() {
           {manualSteps.some(s => s.pageUrl) && (
             <button
               onClick={() => {
+                // 소유자(Free)가 무료 한도 소진 → 페이월
+                if (canEdit && liveGuide && !liveGuide.paid && (liveGuide.remaining ?? 0) <= 0) {
+                  setShowUpgrade(true);
+                  return;
+                }
                 const firstUrl = manualSteps.find(s => s.pageUrl)?.pageUrl;
                 if (!firstUrl) return;
                 // published면 share_token, draft면 tutorial_id로 접근 (본인 소유자만)
@@ -349,6 +366,11 @@ export default function ManualViewerPage() {
               }}
               style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#3730a3', background: '#e0e7ff', border: '1px solid #a5b4fc', cursor: 'pointer' }}>
               <PlayCircle size={13} /> 라이브 가이드
+              {canEdit && liveGuide && !liveGuide.paid && (
+                <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '10px', background: (liveGuide.remaining ?? 0) > 0 ? 'rgba(55,48,163,0.14)' : '#FEE2E2', color: (liveGuide.remaining ?? 0) > 0 ? '#3730a3' : '#B91C1C' }}>
+                  {(liveGuide.remaining ?? 0) > 0 ? `무료 ${liveGuide.remaining}회` : '체험 종료'}
+                </span>
+              )}
             </button>
           )}
 
@@ -544,6 +566,22 @@ export default function ManualViewerPage() {
               <button onClick={() => setGuideMePreviewUrl(null)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#9CA3AF', padding: '4px' }}><X size={16} /></button>
             </div>
             <iframe src={guideMePreviewUrl} style={{ flex: 1, border: 'none', width: '100%' }} title="라이브 가이드 미리보기" />
+          </div>
+        </>
+      )}
+
+      {/* 라이브 가이드 무료 체험 종료 — 업그레이드 페이월 */}
+      {showUpgrade && (
+        <>
+          <div onClick={() => setShowUpgrade(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,15,0.6)', zIndex: 80, backdropFilter: 'blur(4px)' }} />
+          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 'min(380px, 92vw)', background: 'white', borderRadius: '18px', boxShadow: '0 30px 80px rgba(0,0,0,0.35)', zIndex: 81, padding: '30px 28px', textAlign: 'center' }}>
+            <div style={{ width: '52px', height: '52px', margin: '0 auto 14px', borderRadius: '14px', background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', display: 'grid', placeItems: 'center', color: 'white' }}>
+              <PlayCircle size={26} />
+            </div>
+            <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#111827', margin: '0 0 8px' }}>라이브 가이드 무료 체험이 끝났어요</h2>
+            <p style={{ fontSize: '13px', color: '#6B7280', lineHeight: 1.6, margin: '0 0 20px' }}>무료 플랜은 라이브 가이드를 5회까지 체험할 수 있어요.<br />Pro로 업그레이드하면 무제한으로 실제 화면 위에서 안내할 수 있습니다.</p>
+            <button onClick={() => router.push('/settings')} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', color: 'white', fontSize: '14px', fontWeight: 700, cursor: 'pointer', marginBottom: '10px' }}>Pro로 업그레이드</button>
+            <button onClick={() => setShowUpgrade(false)} style={{ width: '100%', padding: '10px', borderRadius: '10px', border: 'none', background: 'transparent', color: '#9CA3AF', fontSize: '12.5px', fontWeight: 600, cursor: 'pointer' }}>나중에</button>
           </div>
         </>
       )}

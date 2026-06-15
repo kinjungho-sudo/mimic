@@ -3,6 +3,34 @@ import { createServiceRoleClient, createServerClient } from '@/lib/supabase/serv
 
 type Params = { params: Promise<{ token: string }> };
 
+// 라이브 가이드 유료 게이팅 — 제작자(소유자) 과금. Free 소유자는 누적 5회 무료 후 페이월.
+const FREE_LIVE_GUIDE_LIMIT = 5;
+const PAID_PLANS = ['pro', 'team', 'enterprise'];
+const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://mimic-nine-ashen.vercel.app').replace(/^﻿/, '').trim();
+
+// 소유자 플랜·사용량으로 게이트 판정. 통과 시 카운트 증가(무료 한정). 반환: 막혔으면 gated 정보, 아니면 null.
+async function gateLiveGuide(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  ownerId: string,
+): Promise<{ gated: true; limit: number; used: number; upgradeUrl: string } | null> {
+  const { data: owner } = await supabase
+    .from('mm_users')
+    .select('plan, live_guide_runs')
+    .eq('id', ownerId)
+    .single();
+
+  const plan = owner?.plan ?? 'free';
+  if (PAID_PLANS.includes(plan)) return null; // 유료=무제한(미카운트)
+
+  const used = owner?.live_guide_runs ?? 0;
+  if (used >= FREE_LIVE_GUIDE_LIMIT) {
+    return { gated: true, limit: FREE_LIVE_GUIDE_LIMIT, used, upgradeUrl: `${APP_URL}/settings` };
+  }
+  // 무료 한도 내 — 1회 차감
+  await supabase.from('mm_users').update({ live_guide_runs: used + 1 }).eq('id', ownerId);
+  return null;
+}
+
 // GET /api/guide/{share_token}  — published, 인증 불필요 (Extension용)
 // GET /api/guide/{tutorial_id}  — draft 포함, 로그인한 소유자만 (본인 미리보기용)
 export async function GET(request: NextRequest, { params }: Params) {
@@ -22,7 +50,7 @@ export async function GET(request: NextRequest, { params }: Params) {
 
     const { data: tutorial } = await supabase
       .from('mm_tutorials')
-      .select('id, title')
+      .select('id, title, user_id')
       .eq('id', token)
       .eq('user_id', session.user.id)
       .single();
@@ -31,13 +59,16 @@ export async function GET(request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
+    const gated = await gateLiveGuide(supabase, tutorial.user_id);
+    if (gated) return NextResponse.json(gated);
+
     return NextResponse.json(await fetchSteps(supabase, tutorial.id, tutorial.title));
   }
 
   // share_token으로 published 튜토리얼 조회 (공개)
   const { data: tutorial } = await supabase
     .from('mm_tutorials')
-    .select('id, title')
+    .select('id, title, user_id')
     .eq('share_token', token)
     .eq('status', 'published')
     .single();
@@ -45,6 +76,9 @@ export async function GET(request: NextRequest, { params }: Params) {
   if (!tutorial) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
+
+  const gated = await gateLiveGuide(supabase, tutorial.user_id);
+  if (gated) return NextResponse.json(gated);
 
   return NextResponse.json(await fetchSteps(supabase, tutorial.id, tutorial.title));
 }
