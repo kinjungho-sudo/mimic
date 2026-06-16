@@ -243,7 +243,8 @@ export default function StudioPage() {
         <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.4)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
           {savingId ? <><Loader2 size={12} className="spin" /> 저장 중…</> : savedTick > 0 ? <><Check size={12} color="#34d399" /> 저장됨</> : null}
         </span>
-        <button onClick={() => setShowPreview(true)} style={ghostBtn}><Play size={13} /> 미리보기</button>
+        <button onClick={() => setShowPreview(true)} style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5 }}><Play size={13} /> 미리보기</button>
+        <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.12)', flexShrink: 0 }} />
         <button
           onClick={() => {
             if (liveGuide && !liveGuide.paid && (liveGuide.remaining ?? 0) <= 0) {

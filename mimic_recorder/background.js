@@ -612,20 +612,24 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
             if (!tab?.id) return;
 
             const firstStep = steps[0];
-            if (!firstStep.page_url) return;
-
             const injectOverlay = (tabId) => sendTabMessage(tabId, { type: 'SHOW_OVERLAY', step: firstStep, index: 0, total: steps.length });
-            try {
-              const currentUrl = new URL(tab.url);
-              const targetUrl  = new URL(firstStep.page_url);
-              if (currentUrl.origin + currentUrl.pathname === targetUrl.origin + targetUrl.pathname) {
-                injectOverlay(tab.id);
-              } else {
-                chrome.tabs.update(tab.id, { url: firstStep.page_url });
-                await storageSet({ guidePendingOverlay: true });
-              }
-            } catch {
+
+            if (!firstStep.page_url) {
+              // page_url 없음 → 현재 탭에 바로 오버레이 주입
               injectOverlay(tab.id);
+            } else {
+              try {
+                const currentUrl = new URL(tab.url);
+                const targetUrl  = new URL(firstStep.page_url);
+                if (currentUrl.origin + currentUrl.pathname === targetUrl.origin + targetUrl.pathname) {
+                  injectOverlay(tab.id);
+                } else {
+                  chrome.tabs.update(tab.id, { url: firstStep.page_url });
+                  await storageSet({ guidePendingOverlay: true });
+                }
+              } catch {
+                injectOverlay(tab.id);
+              }
             }
           } catch (err) {
             log('error', 'bg', 'guide overlay inject error:', err.message);
