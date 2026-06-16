@@ -252,71 +252,105 @@ function Scene0({ tick }: { tick: number }) {
   const tabHover  = tick >= 3000;
   const recClick  = tick >= 4500;
   const MANUALS = [
-    { title: '경비 청구서 제출하기',    sub: 'erp.company.io · 06/01 · 5단계', color: '#ede9fe' },
-    { title: '신규 직원 계정 생성',     sub: 'admin.company.io · 05/28 · 4단계', color: '#dbeafe' },
-    { title: '주간 업무 보고서 작성',   sub: 'notion.so · 05/25 · 6단계', color: '#dcfce7' },
-    { title: '급여 명세서 확인 방법',   sub: 'hr.company.io · 05/20 · 3단계', color: '#fef3c7' },
+    { title: '쿠팡에서 상품 검색하기', sub: '06/12 · 5단계', color: '#ede9fe' },
+    { title: 'nbs에서 이메일 보내기', sub: '06/11 · 3단계', color: '#dbeafe' },
+    { title: 'Google Gemini 활용법', sub: '06/10 · 4단계', color: '#dcfce7' },
+    { title: 'YouTube 동영상 업로드', sub: '06/09 · 6단계', color: '#fef3c7' },
+    { title: '정부24에서 민원 신청', sub: '06/08 · 5단계', color: '#fee2e2' },
+    { title: 'notebookLM 사용법', sub: '06/07 · 4단계', color: '#f0fdf4' },
+  ];
+  const FOLDERS = [
+    { name: '기획팀', count: 1 },
+    { name: '마케팅팀', count: 2 },
+    { name: '영업팀', count: 1 },
+    { name: 'CS팀', count: 4 },
+    { name: '감사팀', count: 1 },
   ];
   return (
-    <div style={{ width: '100%', height: '100%', background: '#F8F8FA', display: 'flex' }}>
+    <div style={{ width: '100%', height: '100%', background: '#F8F8FA', display: 'flex', fontSize: '11px' }}>
       {/* 사이드바 */}
-      <div style={{ width: '52px', background: 'white', borderRight: '1px solid #EDEDED', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '14px 0', gap: '6px' }}>
-        <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: 'linear-gradient(135deg,#3730a3,#6d28d9)', display: 'grid', placeItems: 'center', marginBottom: '8px' }}>
-          <span style={{ color: 'white', fontSize: '13px', fontWeight: 800, fontFamily: 'Georgia,serif' }}>M</span>
+      <div style={{ width: '178px', background: 'white', borderRight: '1px solid #EDEDED', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+        <div style={{ padding: '12px 12px 10px', display: 'flex', alignItems: 'center', gap: '7px', borderBottom: '1px solid #F3F4F6' }}>
+          <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: 'linear-gradient(135deg,#3730a3,#6d28d9)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+            <span style={{ color: 'white', fontSize: '11px', fontWeight: 800, fontFamily: 'Georgia,serif' }}>M</span>
+          </div>
+          <span style={{ fontSize: '12px', fontWeight: 700, color: '#111827' }}>MIMIC</span>
         </div>
-        {[
-          <svg key="home" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
-          <svg key="book" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6d28d9" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>,
-          <svg key="users" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
-          <svg key="settings" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>,
-        ]}
+        <div style={{ padding: '8px 8px 4px' }}>
+          <div style={{ fontSize: '9px', fontWeight: 700, color: '#B0B8C8', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: '3px', padding: '0 4px' }}>내 워크스페이스</div>
+          <div style={{ padding: '4px 8px', borderRadius: '6px', background: '#F5F3FF', display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6d28d9" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: '#3730a3', flex: 1 }}>내 매뉴얼</span>
+            <span style={{ fontSize: '9.5px', color: '#9CA3AF' }}>17</span>
+          </div>
+        </div>
+        <div style={{ padding: '6px 8px', flex: 1 }}>
+          <div style={{ fontSize: '9px', fontWeight: 700, color: '#B0B8C8', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: '3px', padding: '0 4px' }}>팀 워크스페이스</div>
+          {FOLDERS.map(f => (
+            <div key={f.name} style={{ padding: '3px 8px', display: 'flex', alignItems: 'center', gap: '5px', borderRadius: '5px' }}>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+              <span style={{ fontSize: '10.5px', color: '#6B7280', flex: 1 }}>{f.name}</span>
+              <span style={{ fontSize: '9px', color: '#D1D5DB' }}>{f.count}개</span>
+            </div>
+          ))}
+        </div>
+        <div style={{ padding: '8px 12px', borderTop: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'linear-gradient(135deg,#3730a3,#6d28d9)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+            <span style={{ color: 'white', fontSize: '9px', fontWeight: 700 }}>김</span>
+          </div>
+          <span style={{ fontSize: '10.5px', color: '#374151' }}>김정호</span>
+        </div>
       </div>
-      {/* 메인 */}
-      <div style={{ flex: 1, padding: '22px 24px', position: 'relative' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+
+      {/* 메인 콘텐츠 */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+        {/* 공지 배너 */}
+        <div style={{ padding: '5px 14px', background: '#EEF2FF', borderBottom: '1px solid #E0E7FF', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+          <span style={{ fontSize: '10px', color: '#4338CA', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>→ AI 자동 어노테이션 기능이 업데이트되었습니다. 지금 바로 사용해보세요!</span>
+          <span style={{ fontSize: '10px', color: '#6366F1', textDecoration: 'underline', marginLeft: 'auto', flexShrink: 0, cursor: 'pointer' }}>자세히 보기</span>
+        </div>
+        {/* 헤더 */}
+        <div style={{ padding: '12px 16px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div>
-            <div style={{ fontSize: '17px', fontWeight: 700, color: '#0F172A' }}>사용자님의 매뉴얼</div>
-            <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '2px' }}>내 매뉴얼 17 · 팀 매뉴얼 5</div>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>김정호님의 매뉴얼</div>
+            <div style={{ fontSize: '10px', color: '#9CA3AF', marginTop: '1px' }}>내 매뉴얼 17 · 팀 매뉴얼 5</div>
           </div>
           <div style={{ position: 'relative' }}>
             <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px',
-              borderRadius: '9px', background: 'linear-gradient(135deg,#3730a3,#6d28d9)', color: 'white',
-              fontSize: '12px', fontWeight: 600,
-              boxShadow: btnClick ? '0 0 0 5px rgba(109,40,217,0.18)' : '0 2px 8px rgba(55,48,163,0.3)',
+              display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 12px',
+              borderRadius: '8px', background: 'linear-gradient(135deg,#3730a3,#6d28d9)', color: 'white',
+              fontSize: '11.5px', fontWeight: 600,
+              boxShadow: btnClick ? '0 0 0 4px rgba(109,40,217,0.20)' : '0 2px 8px rgba(55,48,163,0.3)',
               transform: btnClick ? 'scale(0.96)' : 'scale(1)', transition: 'all 0.15s',
             }}>
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'rgba(255,255,255,0.85)', animation: 'recPulse 1.4s ease-in-out infinite' }} />
-              새 매뉴얼 ▾
+              <span style={{ fontSize: '14px', lineHeight: 1 }}>+</span>
+              새 매뉴얼
             </div>
-            {/* 탭 선택 팝업 */}
             {popupIn && (
-              <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, width: '320px', background: 'white', borderRadius: '14px', boxShadow: '0 12px 40px rgba(17,24,39,0.18), 0 0 0 1px rgba(0,0,0,0.06)', overflow: 'hidden', animation: 'sceneIn 0.25s cubic-bezier(0.34,1.4,0.64,1) both', zIndex: 30 }}>
-                <div style={{ background: 'linear-gradient(135deg,#3730a3,#6d28d9)', padding: '14px 16px' }}>
-                  <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.6)', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '3px' }}>MIMIC RECORDER</div>
-                  <div style={{ fontSize: '14px', fontWeight: 700, color: 'white' }}>녹화할 페이지 선택</div>
-                  <div style={{ fontSize: '10.5px', color: 'rgba(255,255,255,0.55)', marginTop: '2px' }}>열린 탭 3개 · 페이지를 선택하면 녹화가 시작됩니다</div>
+              <div style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, width: '280px', background: 'white', borderRadius: '12px', boxShadow: '0 12px 40px rgba(17,24,39,0.18), 0 0 0 1px rgba(0,0,0,0.06)', overflow: 'hidden', animation: 'sceneIn 0.25s cubic-bezier(0.34,1.4,0.64,1) both', zIndex: 30 }}>
+                <div style={{ background: 'linear-gradient(135deg,#3730a3,#6d28d9)', padding: '12px 14px' }}>
+                  <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.6)', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '2px' }}>MIMIC RECORDER</div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'white' }}>녹화할 페이지 선택</div>
+                  <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.55)', marginTop: '2px' }}>열린 탭 3개 · 선택하면 녹화가 시작됩니다</div>
                 </div>
-                <div style={{ maxHeight: '160px', overflowY: 'auto' }}>
-                  {[
-                    { favicon: '🧾', title: '경비관리 시스템 — 청구서 제출', url: 'erp.company.io', active: tabHover },
-                    { favicon: '📝', title: 'Notion — 주간 보고서', url: 'notion.so' },
-                    { favicon: '👥', title: '인사관리 — HR 포털', url: 'hr.company.io' },
-                  ].map((tab, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', background: tab.active ? '#F0EBFF' : 'white', borderBottom: i < 2 ? '1px solid #F3F4F6' : 'none', transition: 'background 0.2s' }}>
-                      <span style={{ fontSize: '14px' }}>{tab.favicon}</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '11.5px', fontWeight: tab.active ? 600 : 400, color: tab.active ? '#3730a3' : '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tab.title}</div>
-                        <div style={{ fontSize: '10px', color: '#9CA3AF' }}>{tab.url}</div>
-                      </div>
-                      {tab.active && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6d28d9" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>}
+                {[
+                  { favicon: '🧾', title: '경비관리 시스템 — 청구서 제출', url: 'erp.company.io', active: tabHover },
+                  { favicon: '📝', title: 'Notion — 주간 보고서', url: 'notion.so' },
+                  { favicon: '👥', title: '인사관리 — HR 포털', url: 'hr.company.io' },
+                ].map((tab, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '9px 12px', background: tab.active ? '#F0EBFF' : 'white', borderBottom: i < 2 ? '1px solid #F3F4F6' : 'none', transition: 'background 0.2s' }}>
+                    <span style={{ fontSize: '13px' }}>{tab.favicon}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '11px', fontWeight: tab.active ? 600 : 400, color: tab.active ? '#3730a3' : '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tab.title}</div>
+                      <div style={{ fontSize: '9px', color: '#9CA3AF' }}>{tab.url}</div>
                     </div>
-                  ))}
-                </div>
-                <div style={{ padding: '10px 14px', borderTop: '1px solid #F3F4F6', display: 'flex', gap: '8px' }}>
-                  <button style={{ flex: 1, padding: '8px', borderRadius: '8px', background: '#F3F4F6', border: 'none', fontSize: '12px', color: '#6B7280', fontWeight: 500, cursor: 'default' }}>← 이전</button>
-                  <button style={{ flex: 2, padding: '8px', borderRadius: '8px', background: recClick ? '#10B981' : 'linear-gradient(135deg,#3730a3,#6d28d9)', border: 'none', fontSize: '12px', color: 'white', fontWeight: 600, cursor: 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'background 0.3s' }}>
-                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'white' }} />
+                    {tab.active && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6d28d9" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>}
+                  </div>
+                ))}
+                <div style={{ padding: '8px 12px', borderTop: '1px solid #F3F4F6', display: 'flex', gap: '6px' }}>
+                  <button style={{ flex: 1, padding: '7px', borderRadius: '7px', background: '#F3F4F6', border: 'none', fontSize: '11px', color: '#6B7280', fontWeight: 500, cursor: 'default' }}>취소</button>
+                  <button style={{ flex: 2, padding: '7px', borderRadius: '7px', background: recClick ? '#10B981' : 'linear-gradient(135deg,#3730a3,#6d28d9)', border: 'none', fontSize: '11px', color: 'white', fontWeight: 600, cursor: 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', transition: 'background 0.3s' }}>
+                    <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'white' }} />
                     {recClick ? '녹화 시작!' : '● 녹화 시작'}
                   </button>
                 </div>
@@ -324,14 +358,27 @@ function Scene0({ tick }: { tick: number }) {
             )}
           </div>
         </div>
-        {/* 매뉴얼 목록 */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+        {/* 검색 + 탭 */}
+        <div style={{ padding: '0 16px 8px', display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+          <div style={{ flex: 1, padding: '5px 10px', borderRadius: '7px', background: 'white', border: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <span style={{ fontSize: '10.5px', color: '#D1D5DB' }}>매뉴얼 이름으로 검색...</span>
+          </div>
+          <div style={{ display: 'flex', gap: '1px', background: '#F3F4F6', padding: '2px', borderRadius: '7px', flexShrink: 0 }}>
+            <div style={{ padding: '3px 10px', borderRadius: '5px', background: 'white', fontSize: '10px', fontWeight: 600, color: '#374151', boxShadow: '0 1px 2px rgba(0,0,0,0.06)' }}>내 매뉴얼</div>
+            <div style={{ padding: '3px 10px', borderRadius: '5px', fontSize: '10px', color: '#9CA3AF' }}>팀 매뉴얼</div>
+          </div>
+        </div>
+        {/* 카드 그리드 */}
+        <div style={{ padding: '0 16px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '7px', overflow: 'hidden' }}>
           {MANUALS.map((m, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '10px', border: '1px solid #EDEDED', background: 'white' }}>
-              <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: m.color, flexShrink: 0 }} />
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: '11.5px', fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.title}</div>
-                <div style={{ fontSize: '10px', color: '#9CA3AF', marginTop: '1px' }}>{m.sub}</div>
+            <div key={i} style={{ borderRadius: '8px', border: '1px solid #E5E7EB', background: 'white', overflow: 'hidden' }}>
+              <div style={{ height: '58px', background: m.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'rgba(0,0,0,0.07)' }} />
+              </div>
+              <div style={{ padding: '7px 9px' }}>
+                <div style={{ fontSize: '10px', fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.title}</div>
+                <div style={{ fontSize: '9px', color: '#9CA3AF', marginTop: '2px' }}>{m.sub}</div>
               </div>
             </div>
           ))}
