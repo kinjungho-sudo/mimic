@@ -61,6 +61,35 @@ export function AgentChat() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  // 개발사 문의 모드
+  const [contactMode, setContactMode] = useState(false);
+  const [contactMsg, setContactMsg] = useState('');
+  const [contactSending, setContactSending] = useState(false);
+  const [contactResult, setContactResult] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  const handleContactSend = async () => {
+    if (!contactMsg.trim() || contactSending) return;
+    setContactSending(true);
+    setContactResult(null);
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: contactMsg.trim() }),
+      });
+      if (res.ok) {
+        setContactResult({ ok: true, msg: '문의가 접수되었어요.' });
+        setContactMsg('');
+      } else {
+        setContactResult({ ok: false, msg: '전송에 실패했어요. 다시 시도해주세요.' });
+      }
+    } catch {
+      setContactResult({ ok: false, msg: '네트워크 오류가 발생했어요.' });
+    } finally {
+      setContactSending(false);
+    }
+  };
+
   // 초기 로드: FAQ 목록 + 웰컴 메시지
   useEffect(() => {
     fetch('/api/agent/chat')
@@ -206,8 +235,57 @@ export function AgentChat() {
         </button>
       </div>
 
+      {/* 개발사 문의 모드 */}
+      {contactMode && (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '20px 16px', gap: '12px', overflowY: 'auto' }}>
+          <button onClick={() => { setContactMode(false); setContactResult(null); }} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280', fontSize: '12.5px', padding: 0, alignSelf: 'flex-start' }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+            FAQ로 돌아가기
+          </button>
+          <div>
+            <p style={{ margin: '0 0 4px', fontSize: '14px', fontWeight: 700, color: '#111827' }}>개발사에 문의하기</p>
+            <p style={{ margin: 0, fontSize: '12px', color: '#6B7280', lineHeight: 1.6 }}>챗봇으로 해결되지 않는 문제를 직접 문의해주세요.<br />담당자 이메일로 답변 드립니다.</p>
+          </div>
+          {contactResult?.ok ? (
+            <div style={{ padding: '20px', borderRadius: '12px', background: '#F0FDF4', border: '1px solid #BBF7D0', textAlign: 'center' }}>
+              <div style={{ fontSize: '28px', marginBottom: '8px' }}>✅</div>
+              <p style={{ margin: '0 0 6px', fontSize: '14px', fontWeight: 700, color: '#15803D' }}>문의가 접수되었어요!</p>
+              <p style={{ margin: 0, fontSize: '12px', color: '#4B5563', lineHeight: 1.7 }}>
+                답변은 <b>1~3 영업일</b> 내에 이메일로 드립니다.<br />
+                업무 시간: <b>평일 09:00 ~ 18:00</b>
+              </p>
+            </div>
+          ) : (
+            <>
+              <textarea
+                value={contactMsg}
+                onChange={e => setContactMsg(e.target.value)}
+                placeholder="문의 내용을 자세히 적어주세요. (어떤 기능에서, 어떤 문제가 발생했는지)"
+                rows={7}
+                style={{ resize: 'none', border: '1.5px solid #E5E7EB', borderRadius: '10px', padding: '10px 12px', fontSize: '13px', fontFamily: 'inherit', outline: 'none', lineHeight: 1.6, color: '#111827' }}
+                onFocus={e => { e.currentTarget.style.borderColor = '#3730a3'; }}
+                onBlur={e => { e.currentTarget.style.borderColor = '#E5E7EB'; }}
+              />
+              {contactResult && <p style={{ margin: 0, fontSize: '12px', color: '#EF4444' }}>✕ {contactResult.msg}</p>}
+              <div style={{ marginTop: 'auto' }}>
+                <button
+                  onClick={handleContactSend}
+                  disabled={!contactMsg.trim() || contactSending}
+                  style={{ width: '100%', height: '40px', borderRadius: '10px', border: 'none', background: contactMsg.trim() && !contactSending ? 'linear-gradient(135deg,#3730a3,#6d28d9)' : '#E5E7EB', color: contactMsg.trim() && !contactSending ? 'white' : '#9CA3AF', fontSize: '13.5px', fontWeight: 700, cursor: contactMsg.trim() && !contactSending ? 'pointer' : 'not-allowed' }}
+                >
+                  {contactSending ? '전송 중...' : '문의 보내기'}
+                </button>
+                <p style={{ margin: '8px 0 0', fontSize: '11px', color: '#9CA3AF', textAlign: 'center', lineHeight: 1.5 }}>
+                  답변은 평일 09:00~18:00 기준 1~3 영업일 내 이메일로 드립니다.
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       {/* 메시지 영역 */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      {!contactMode && <div style={{ flex: 1, overflowY: 'auto', padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {messages.map(msg => (
           <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start', gap: '8px' }}>
             {/* 말풍선 */}
@@ -260,10 +338,10 @@ export function AgentChat() {
         )}
 
         <div ref={bottomRef} />
-      </div>
+      </div>}
 
       {/* 자주 묻는 질문 가로 스크롤 */}
-      {quickQuestions.length > 0 && (
+      {!contactMode && quickQuestions.length > 0 && (
         <div style={{ flexShrink: 0, borderTop: '1px solid #F3F4F6', padding: '8px 12px 6px' }}>
           <div style={{ fontSize: '10.5px', color: '#9CA3AF', marginBottom: '6px', fontWeight: 500 }}>자주 묻는 질문</div>
           <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '2px' }}
@@ -286,33 +364,43 @@ export function AgentChat() {
         </div>
       )}
 
-      {/* 입력 */}
-      <div style={{ flexShrink: 0, padding: '8px 12px 10px', borderTop: '1px solid #F3F4F6', display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
-        <textarea ref={inputRef} value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="직접 질문을 입력하세요..."
-          rows={1}
-          style={{
-            flex: 1, resize: 'none', border: '1px solid #E5E7EB', borderRadius: '10px',
-            padding: '8px 12px', fontSize: '13px', fontFamily: 'inherit',
-            outline: 'none', lineHeight: 1.5, maxHeight: '72px', overflowY: 'auto',
-          }}
-          onFocus={e => { e.currentTarget.style.borderColor = '#3730a3'; }}
-          onBlur={e => { e.currentTarget.style.borderColor = '#E5E7EB'; }}
-        />
-        <button onClick={handleSend} disabled={!input.trim() || isLoading}
-          style={{
-            width: '36px', height: '36px', borderRadius: '10px', border: 'none',
-            background: input.trim() && !isLoading ? 'linear-gradient(135deg, #3730a3, #6d28d9)' : '#E5E7EB',
-            color: input.trim() && !isLoading ? 'white' : '#9CA3AF',
-            cursor: input.trim() && !isLoading ? 'pointer' : 'not-allowed',
-            display: 'grid', placeItems: 'center', flexShrink: 0,
-          }}
-        >
-          <Send size={15} />
-        </button>
-      </div>
+      {/* 입력 + 개발사 문의 버튼 */}
+      {!contactMode && (
+        <div style={{ flexShrink: 0, borderTop: '1px solid #F3F4F6' }}>
+          <div style={{ padding: '8px 12px 0', display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
+            <textarea ref={inputRef} value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="직접 질문을 입력하세요..."
+              rows={1}
+              style={{
+                flex: 1, resize: 'none', border: '1px solid #E5E7EB', borderRadius: '10px',
+                padding: '8px 12px', fontSize: '13px', fontFamily: 'inherit',
+                outline: 'none', lineHeight: 1.5, maxHeight: '72px', overflowY: 'auto',
+              }}
+              onFocus={e => { e.currentTarget.style.borderColor = '#3730a3'; }}
+              onBlur={e => { e.currentTarget.style.borderColor = '#E5E7EB'; }}
+            />
+            <button onClick={handleSend} disabled={!input.trim() || isLoading}
+              style={{
+                width: '36px', height: '36px', borderRadius: '10px', border: 'none',
+                background: input.trim() && !isLoading ? 'linear-gradient(135deg, #3730a3, #6d28d9)' : '#E5E7EB',
+                color: input.trim() && !isLoading ? 'white' : '#9CA3AF',
+                cursor: input.trim() && !isLoading ? 'pointer' : 'not-allowed',
+                display: 'grid', placeItems: 'center', flexShrink: 0,
+              }}
+            >
+              <Send size={15} />
+            </button>
+          </div>
+          <div style={{ padding: '6px 12px 10px', textAlign: 'center' }}>
+            <button onClick={() => { setContactMode(true); setContactResult(null); }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11.5px', color: '#9CA3AF', textDecoration: 'underline', textDecorationColor: 'rgba(156,163,175,0.4)' }}>
+              원하는 답변을 찾지 못했나요? 개발사에 문의하기 →
+            </button>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes bounce { 0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-4px)} }

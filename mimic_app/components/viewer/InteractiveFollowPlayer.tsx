@@ -145,6 +145,7 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
                   kind={step.kind ?? 'click'}
                   typeText={step.typeText}
                   animateType
+                  isFirstStep={idx === 0}
                   spotlight
                   title={step.title}
                   body={step.body}

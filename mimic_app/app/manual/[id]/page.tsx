@@ -286,12 +286,12 @@ export default function ManualViewerPage() {
             <>
               <button onClick={handlePauseResume}
                 style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#6366f1', background: '#eef2ff', border: '1px solid #c7d2fe', cursor: 'pointer' }}>
-                {execStatus === 'paused' ? <Play size={12} /> : <Pause size={12} />}
+                {execStatus === 'paused' ? <Play size={14} /> : <Pause size={14} />}
                 {execStatus === 'paused' ? '재개' : '일시정지'}
               </button>
               <button onClick={handleStopAutoRun}
                 style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#ef4444', background: '#fef2f2', border: '1px solid #fecaca', cursor: 'pointer' }}>
-                <Square size={12} /> 중단
+                <Square size={14} /> 중단
               </button>
             </>
           )}
@@ -303,7 +303,7 @@ export default function ManualViewerPage() {
               style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#374151', background: downloadOpen ? '#F3F4F6' : 'white', border: '1px solid #E5E7EB', cursor: downloadingFmt ? 'not-allowed' : 'pointer', opacity: downloadingFmt ? 0.6 : 1 }}
               onMouseEnter={e => { if (!downloadingFmt && !downloadOpen) e.currentTarget.style.background = '#F9FAFB'; }}
               onMouseLeave={e => { if (!downloadOpen) e.currentTarget.style.background = 'white'; }}>
-              <Download size={14} />
+              <Download size={16} />
               {downloadingFmt ? '생성 중…' : '다운로드'}
               <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
@@ -320,7 +320,7 @@ export default function ManualViewerPage() {
                       style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 10px', border: 'none', borderRadius: '6px', background: 'transparent', cursor: downloadingFmt ? 'not-allowed' : 'pointer', textAlign: 'left', fontSize: '12.5px', color: '#374151' }}
                       onMouseEnter={e => { if (!downloadingFmt) e.currentTarget.style.background = '#F3F4F6'; }}
                       onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
-                      <Download size={13} style={{ color: '#9CA3AF', flexShrink: 0 }} />
+                      <Download size={15} style={{ color: '#9CA3AF', flexShrink: 0 }} />
                       <span style={{ flex: 1, fontWeight: 500 }}>{opt.label}</span>
                       <span style={{ fontSize: '11px', color: '#9CA3AF' }}>{downloadingFmt === opt.fmt ? '생성 중…' : opt.desc}</span>
                     </button>
@@ -334,7 +334,7 @@ export default function ManualViewerPage() {
             style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', cursor: 'pointer' }}
             onMouseEnter={e => { e.currentTarget.style.background = '#F9FAFB'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}>
-            <Share2 size={13} /> 공유
+            <Share2 size={15} /> 공유
           </button>
 
           {canEdit && manualSteps.length > 0 && (
@@ -344,7 +344,7 @@ export default function ManualViewerPage() {
               style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#5b21b6', background: '#f3e8ff', border: '1px solid #d8b4fe', cursor: 'pointer' }}
               onMouseEnter={e => { e.currentTarget.style.background = '#e9d5ff'; }}
               onMouseLeave={e => { e.currentTarget.style.background = '#f3e8ff'; }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19 7-7 3 3-7 7-3-3z"/><path d="m18 13-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="m2 2 7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19 7-7 3 3-7 7-3-3z"/><path d="m18 13-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="m2 2 7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
               스튜디오
             </button>
           )}
@@ -380,7 +380,7 @@ export default function ManualViewerPage() {
                 }
               }}
               style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#3730a3', background: '#e0e7ff', border: '1px solid #a5b4fc', cursor: 'pointer' }}>
-              <PlayCircle size={13} /> 라이브 가이드
+              <PlayCircle size={15} /> 라이브 가이드
               {canEdit && liveGuide && !liveGuide.paid && (
                 <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '10px', background: (liveGuide.remaining ?? 0) > 0 ? 'rgba(55,48,163,0.14)' : '#FEE2E2', color: (liveGuide.remaining ?? 0) > 0 ? '#3730a3' : '#B91C1C' }}>
                   {(liveGuide.remaining ?? 0) > 0 ? `무료 ${liveGuide.remaining}회` : '체험 종료'}
@@ -594,6 +594,7 @@ export default function ManualViewerPage() {
           shareUrl={tutorial.share_token ? `${typeof window !== 'undefined' ? window.location.origin : ''}/play/${tutorial.share_token}` : null}
           tutorialId={id}
           hasPassword={!!(tutorial as typeof tutorial & { share_password?: string | null }).share_password}
+          visibility={tutorial.visibility}
           onPublishAndShare={publish}
           onUnpublish={unpublish}
           onClose={() => setShowShare(false)}

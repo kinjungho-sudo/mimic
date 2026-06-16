@@ -9,12 +9,13 @@ interface ShareModalProps {
   shareUrl: string | null;
   tutorialId: string;
   hasPassword?: boolean;
+  visibility?: 'private' | 'public';
   onPublishAndShare: () => Promise<{ share_token: string; share_url?: string }>;
   onUnpublish: () => Promise<void>;
   onClose: () => void;
 }
 
-export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPassword, onPublishAndShare, onUnpublish, onClose }: ShareModalProps) {
+export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPassword, visibility: initialVisibility = 'private', onPublishAndShare, onUnpublish, onClose }: ShareModalProps) {
   const [url, setUrl] = useState(shareUrl ?? '');
   const [copied, setCopied] = useState(false);
   const [embedCopied, setEmbedCopied] = useState(false);
@@ -29,6 +30,24 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
   const [pwSaving, setPwSaving] = useState(false);
   const [pwSaved, setPwSaved] = useState(false);
   const [pwEnabled, setPwEnabled] = useState(hasPassword ?? false);
+
+  // 공개 범위
+  const [vis, setVis] = useState<'private' | 'public'>(initialVisibility);
+  const [visSaving, setVisSaving] = useState(false);
+
+  const handleVisChange = async (next: 'private' | 'public') => {
+    setVis(next);
+    setVisSaving(true);
+    try {
+      await fetch(`/api/tutorials/${tutorialId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visibility: next }),
+      });
+    } finally {
+      setVisSaving(false);
+    }
+  };
 
   // 이메일 서버 발송 (n8n → Gmail) — mailto 대신, 클라이언트 불필요
   const [emailOpen, setEmailOpen] = useState(false);
@@ -289,28 +308,25 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
             </button>
           </div>
 
-          {/* Visibility badge */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '8px',
-              marginTop: '10px',
-              padding: '8px 12px',
-              background: '#F0FDF4',
-              border: '1px solid #BBF7D0',
-              borderRadius: '8px',
-              fontSize: '12px',
-              color: '#15803D',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                <circle cx="12" cy="12" r="3"/>
-              </svg>
-              링크를 가진 누구나 볼 수 있어요
+          {/* 공개 범위 드롭다운 + 게시 취소 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px' }}>
+            <div style={{ flex: 1, position: 'relative' }}>
+              <select
+                value={vis}
+                onChange={e => handleVisChange(e.target.value as 'private' | 'public')}
+                disabled={visSaving}
+                style={{
+                  width: '100%', height: '36px', padding: '0 32px 0 10px',
+                  borderRadius: '8px', border: '1.5px solid #E5E7EB',
+                  fontSize: '12.5px', color: '#111827', background: 'white',
+                  cursor: 'pointer', outline: 'none', appearance: 'none',
+                  fontFamily: 'inherit', opacity: visSaving ? 0.6 : 1,
+                }}
+              >
+                <option value="private">🔗 링크 공유 받은 사람만 열람 가능</option>
+                <option value="public">🌐 모든 사용자 열람 가능 (공개)</option>
+              </select>
+              <svg style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
             </div>
             <button
               onClick={async () => {
@@ -325,16 +341,10 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
               }}
               disabled={unpublishing}
               style={{
-                flexShrink: 0,
-                padding: '3px 10px',
-                borderRadius: '6px',
-                fontSize: '11.5px',
-                fontWeight: 500,
-                background: 'white',
-                color: '#DC2626',
-                border: '1px solid #FCA5A5',
-                cursor: unpublishing ? 'not-allowed' : 'pointer',
-                opacity: unpublishing ? 0.6 : 1,
+                flexShrink: 0, padding: '0 12px', height: '36px', borderRadius: '8px',
+                fontSize: '11.5px', fontWeight: 500, background: 'white',
+                color: '#DC2626', border: '1px solid #FCA5A5',
+                cursor: unpublishing ? 'not-allowed' : 'pointer', opacity: unpublishing ? 0.6 : 1,
               }}
             >
               {unpublishing ? '취소 중...' : '게시 취소'}

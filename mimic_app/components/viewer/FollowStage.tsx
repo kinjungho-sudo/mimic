@@ -29,7 +29,9 @@ interface Props {
   hotspotY: number | null;
   kind: 'click' | 'type';
   typeText?: string | null;         // type 인디케이터에 표시/입력될 텍스트
+  typeTextColor?: string;           // 타이핑 인디케이터 글자색 (기본 #111827)
   animateType?: boolean;            // true=뷰어(자동 타이핑 애니메이션), false/미설정=스튜디오(정적 표시)
+  isFirstStep?: boolean;            // true일 때만 클릭 힌트 표시
   title: string;
   body?: string;
   minimized?: boolean;
@@ -46,7 +48,8 @@ interface Props {
 }
 
 export function FollowStage({
-  screenshotUrl, hotspotX: hx, hotspotY: hy, kind, typeText, animateType = false, title, body,
+  screenshotUrl, hotspotX: hx, hotspotY: hy, kind, typeText, typeTextColor, animateType = false,
+  isFirstStep = false, title, body,
   minimized = false, showAudioBadge = false, nudge = false, spotlight = false,
   imageCursor = 'default', imgMaxHeight = 'calc(100vh - 150px)',
   onImageClick, onMascotClick, onBubbleClick, wrapRef, children,
@@ -58,16 +61,18 @@ export function FollowStage({
   const maskId = 'mfp' + rawId.replace(/:/g, '');
 
   // 텍스트 인디케이터 자동 타이핑 — 뷰어에서만(animateType). 스튜디오는 입력값 그대로 표시
+  // 짧을수록 느리게(70ms), 길수록 빠르게(최소 22ms)
   const [typed, setTyped] = useState(0);
   useEffect(() => {
     if (!animateType || kind !== 'type' || !typeText) { setTyped(0); return; }
     setTyped(0);
     let i = 0;
+    const speed = Math.max(22, 70 - typeText.length * 0.9);
     const id = setInterval(() => {
       i += 1;
       setTyped(i);
       if (i >= typeText.length) clearInterval(id);
-    }, 42);
+    }, speed);
     return () => clearInterval(id);
   }, [animateType, kind, typeText]);
 
@@ -104,17 +109,19 @@ export function FollowStage({
 
   const hint = !hasHotspot ? "아래 '다음 →'을 눌러 계속하세요" : isType ? '여기에 입력하면 돼요' : '표시된 곳을 클릭하면 다음으로 넘어가요';
   const prefix = !hasHotspot ? '📄' : isType ? '✍️' : '👉';
+  // 클릭 힌트는 첫 스텝에서만 표시 (type·이동형은 항상)
+  const showHint = !hasHotspot || isType || isFirstStep;
 
   const Bubble = (
-    <div style={{ background: 'white', borderRadius: '14px', padding: '11px 14px', boxShadow: '0 8px 28px rgba(0,0,0,0.28)', maxWidth: `${BW}px`, animation: nudge ? 'mfp-nudge 0.4s' : undefined }}>
+    <div style={{ background: 'white', borderRadius: '14px', padding: '15px 18px', boxShadow: '0 16px 48px rgba(0,0,0,0.30), 0 2px 8px rgba(0,0,0,0.12)', maxWidth: `${BW}px`, animation: nudge ? 'mfp-nudge 0.4s' : undefined }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-        <div style={{ fontSize: '13.5px', fontWeight: 800, color: '#111827', lineHeight: 1.4, flex: 1 }}>{prefix} {title}</div>
-        <span style={{ fontSize: '11px', color: '#C4C9D4', flexShrink: 0, marginTop: '1px' }}>—</span>
+        <div style={{ fontSize: '15px', fontWeight: 800, color: '#111827', lineHeight: 1.4, flex: 1 }}>{prefix} {title}</div>
+        <span style={{ fontSize: '11px', color: '#C4C9D4', flexShrink: 0, marginTop: '2px' }}>—</span>
       </div>
       {body && (
-        <div style={{ fontSize: '12.5px', color: '#4B5563', lineHeight: 1.5, marginTop: '4px', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{body}</div>
+        <div style={{ fontSize: '13.5px', color: '#4B5563', lineHeight: 1.55, marginTop: '6px', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{body}</div>
       )}
-      <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '6px' }}>{hint}</div>
+      {showHint && <div style={{ fontSize: '12px', color: '#6366F1', marginTop: '12px', fontWeight: 500 }}>{hint}</div>}
     </div>
   );
 
@@ -160,35 +167,35 @@ export function FollowStage({
         </svg>
       )}
 
-      {/* 클릭 인디케이터 — 물결 링 + 중심 도트(spotlight 시) */}
+      {/* 클릭 인디케이터 — 물결 링 + 중심 도트(spotlight 시). 서브 컬러(인디고) 25% 불투명 */}
       {hasHotspot && !isType && (
         <div style={{ position: 'absolute', left: `${hx}%`, top: `${hy}%`, transform: 'translate(-50%,-50%)', width: '22px', height: '22px', pointerEvents: 'none', zIndex: 4 }}>
-          <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2.5px solid rgba(255,255,255,0.95)', animation: 'mfp-ripple 1.9s ease-out infinite' }} />
-          <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2.5px solid rgba(255,255,255,0.8)', animation: 'mfp-ripple 1.9s ease-out infinite', animationDelay: '0.63s' }} />
-          <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2.5px solid rgba(255,255,255,0.6)', animation: 'mfp-ripple 1.9s ease-out infinite', animationDelay: '1.26s' }} />
+          <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2.5px solid rgba(99,102,241,0.30)', animation: 'mfp-ripple 1.9s ease-out infinite' }} />
+          <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2.5px solid rgba(99,102,241,0.22)', animation: 'mfp-ripple 1.9s ease-out infinite', animationDelay: '0.63s' }} />
+          <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2.5px solid rgba(99,102,241,0.15)', animation: 'mfp-ripple 1.9s ease-out infinite', animationDelay: '1.26s' }} />
           {spotlight && (
-            <span style={{ position: 'absolute', width: '10px', height: '10px', borderRadius: '50%', background: '#ff6b35', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', boxShadow: '0 0 0 2.5px white, 0 2px 10px rgba(0,0,0,0.5)' }} />
+            <span style={{ position: 'absolute', width: '10px', height: '10px', borderRadius: '50%', background: '#6366f1', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', boxShadow: '0 0 0 2.5px white, 0 2px 10px rgba(99,102,241,0.5)' }} />
           )}
         </div>
       )}
 
-      {/* 타이핑 인디케이터 — Tango식 입력 필드 박스 + 깜빡 커서 + 라벨 */}
+      {/* 타이핑 인디케이터 — 흰 배경 입력 필드 박스 + 깜빡 커서 + 라벨. 글자색 커스텀 가능(기본 #111827) */}
       {hasHotspot && isType && (
         <div style={{ position: 'absolute', left: `${hx}%`, top: `${hy}%`, transform: 'translate(-50%,-50%)', pointerEvents: 'none', zIndex: 4 }}>
-          <div style={{ position: 'relative', minWidth: '128px', maxWidth: '320px', height: '36px', borderRadius: '9px', border: '2px solid #60a5fa', background: 'rgba(37,99,235,0.16)', boxShadow: '0 0 0 4px rgba(96,165,250,0.18), 0 6px 18px rgba(0,0,0,0.32)', display: 'flex', alignItems: 'center', padding: '0 12px', animation: 'mfp-field 1.8s ease-in-out infinite' }}>
+          <div style={{ position: 'relative', minWidth: '128px', maxWidth: '320px', height: '38px', borderRadius: '9px', border: '2px solid #6366f1', background: 'rgba(255,255,255,0.96)', boxShadow: '0 0 0 4px rgba(99,102,241,0.18), 0 6px 20px rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', padding: '0 12px', animation: 'mfp-field 1.8s ease-in-out infinite' }}>
             {hasTypeText ? (
               <>
-                <span style={{ fontSize: '13px', color: '#fff', fontWeight: 600, letterSpacing: '0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{shownType}</span>
-                <span style={{ width: '2.5px', height: '20px', marginLeft: '2px', flexShrink: 0, background: '#fff', borderRadius: '2px', boxShadow: '0 0 8px rgba(255,255,255,0.95)', animation: 'mfp-caret 1s step-end infinite' }} />
+                <span style={{ fontSize: '13px', color: typeTextColor ?? '#111827', fontWeight: 600, letterSpacing: '0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{shownType}</span>
+                <span style={{ width: '2px', height: '18px', marginLeft: '2px', flexShrink: 0, background: typeTextColor ?? '#6366f1', borderRadius: '2px', animation: 'mfp-caret 1s step-end infinite' }} />
               </>
             ) : (
               <>
-                <span style={{ width: '2.5px', height: '20px', background: '#fff', borderRadius: '2px', boxShadow: '0 0 8px rgba(255,255,255,0.95)', animation: 'mfp-caret 1s step-end infinite' }} />
-                <span style={{ marginLeft: '7px', fontSize: '12px', color: 'rgba(255,255,255,0.55)', fontStyle: 'italic', fontWeight: 500, letterSpacing: '0.04em' }}>텍스트 입력…</span>
+                <span style={{ width: '2px', height: '18px', background: '#6366f1', borderRadius: '2px', animation: 'mfp-caret 1s step-end infinite' }} />
+                <span style={{ marginLeft: '7px', fontSize: '12px', color: '#9CA3AF', fontStyle: 'italic', fontWeight: 500, letterSpacing: '0.04em' }}>텍스트 입력…</span>
               </>
             )}
           </div>
-          <span style={{ position: 'absolute', top: '-13px', left: '0', fontSize: '10px', fontWeight: 800, color: '#fff', background: '#2563eb', padding: '2px 8px', borderRadius: '8px 8px 8px 2px', boxShadow: '0 2px 8px rgba(0,0,0,0.3)', whiteSpace: 'nowrap', letterSpacing: '0.03em' }}>⌨ 입력</span>
+          <span style={{ position: 'absolute', top: '-13px', left: '0', fontSize: '10px', fontWeight: 800, color: '#fff', background: '#6366f1', padding: '2px 8px', borderRadius: '8px 8px 8px 2px', boxShadow: '0 2px 8px rgba(0,0,0,0.3)', whiteSpace: 'nowrap', letterSpacing: '0.03em' }}>⌨ 입력</span>
         </div>
       )}
 
@@ -209,10 +216,10 @@ export function FollowStage({
       {children}
 
       <style>{`
-        @keyframes mfp-ripple { 0%{opacity:.95;transform:scale(0.4)} 100%{opacity:0;transform:scale(3.4)} }
+        @keyframes mfp-ripple { 0%{opacity:.95;transform:scale(0.3)} 100%{opacity:0;transform:scale(5.2)} }
         @keyframes mfp-caret { 50%{opacity:0} }
         @keyframes mfp-nudge { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
-        @keyframes mfp-field { 0%,100%{box-shadow:0 0 0 4px rgba(96,165,250,0.18), 0 6px 18px rgba(0,0,0,0.32)} 50%{box-shadow:0 0 0 7px rgba(96,165,250,0.28), 0 6px 22px rgba(0,0,0,0.4)} }
+        @keyframes mfp-field { 0%,100%{box-shadow:0 0 0 4px rgba(99,102,241,0.18), 0 6px 20px rgba(0,0,0,0.28)} 50%{box-shadow:0 0 0 7px rgba(99,102,241,0.28), 0 6px 24px rgba(0,0,0,0.35)} }
         @keyframes mfp-spotlight-in { from{opacity:0} to{opacity:1} }
       `}</style>
     </div>
