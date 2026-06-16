@@ -62,21 +62,7 @@
     .btn-start:hover { background: #4338CA; }
     .btn-start:disabled { background: #C7C4F0; cursor: not-allowed; }
 
-    /* ── 전체 페이지 캡처 (녹화와 별개 단독 기능) ── */
-    .btn-fullpage {
-      width: 100%; margin-top: 10px; padding: 12px;
-      background: #fff; color: #4F46E5;
-      border: 1px solid #DDD6FE; border-radius: 10px;
-      font-size: 14px; font-weight: 600;
-      cursor: pointer; transition: all 0.15s;
-      display: flex; align-items: center; justify-content: center; gap: 8px;
-    }
-    .btn-fullpage:hover { background: #f5f3ff; border-color: #4F46E5; }
-    .btn-fullpage:disabled { opacity: 0.5; cursor: not-allowed; }
-    .fullpage-hint {
-      margin-top: 6px; text-align: center;
-      font-size: 11px; color: #bbb;
-    }
+    /* 전체 페이지 캡처는 헤더의 작은 아이콘(btn-settings 스타일 재사용)으로 이동 */
     /* 캡처 차단 토스트 등에서 공유하는 등장 애니메이션 */
     @keyframes toast-in {
       from { opacity: 0; transform: translateY(10px); }
@@ -394,6 +380,9 @@
     </div>
     <div class="header-right">
       <span class="step-count" id="stepCount">0 steps</span>
+      <button class="btn-settings" id="btnFullPage" title="전체 페이지 캡처 (스크롤 끝까지 → PNG 저장)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="7" x2="12" y2="15"/><polyline points="9 12 12 15 15 12"/></svg>
+      </button>
       <button class="btn-settings" id="btnSettings" title="설정">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="3"/>
@@ -410,11 +399,6 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg>
         녹화 시작
       </button>
-      <button class="btn-fullpage" id="btnFullPage">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="7" x2="12" y2="15"/><polyline points="9 12 12 15 15 12"/></svg>
-        전체 페이지 캡처
-      </button>
-      <div class="fullpage-hint">현재 탭을 끝까지 스크롤 캡처해 PNG로 다운로드합니다</div>
     </div>
   </div>
 

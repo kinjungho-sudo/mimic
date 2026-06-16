@@ -721,12 +721,10 @@
     const href  = target.getAttribute('href') || target.closest('a')?.getAttribute('href') || '';
     const { vw, vh } = getViewportSize();
 
-    // navigate 클릭:
-    //   ① 이동 전 현재 페이지를 '여기 클릭' 스텝으로 즉시 캡처 (클릭 위치 표시)
-    //   ② 이동 후 도착 페이지는 background(onUpdated)가 pendingCapture로 캡처
-    //   동일 이미지 중복은 background의 aHash 디덥에서 제거됨
+    // navigate 클릭(링크 등)도 '사용자 클릭'이므로 클릭 스텝으로만 캡처한다.
+    // 이동 후 도착 페이지는 더 이상 자동 캡처하지 않는다 (페이지 이동 캡처 제거).
     if (actionType === 'navigate') {
-      log('debug', `navigate click step ${stepNumber + 1} el=${target.tagName} href=${href.slice(0, 60)}`);
+      log('debug', `navigate-as-click step ${stepNumber + 1} el=${target.tagName} href=${href.slice(0, 60)}`);
       const navSafetyTimer = startCapturingSafely();
       stepNumber        += 1;
       lastCapturedTarget = target;
@@ -742,20 +740,6 @@
         elementSelector: getElementSelector(target),
         actionInfo:      { type: 'click', label, tag: target.tagName.toLowerCase(), href: href.slice(0, 200) },
       };
-
-      // 도착 페이지 캡처 예약 — 실제 페이지 이동(#/javascript: 제외)일 때만
-      const isHashOrJs = !href || href.startsWith('#') || /^javascript:/i.test(href);
-      if (!isHashOrJs) {
-        const navStepData = {
-          url: location.href, timestamp: Date.now(),
-          clickX: 0, clickY: 0,
-          windowWidth: vw, windowHeight: vh,
-          viewportW: vw, viewportH: vh,
-          elementRect: null, elementSelector: null,
-          actionInfo:  { type: 'navigate', label, tag: target.tagName.toLowerCase(), href: href.slice(0, 200) },
-        };
-        chrome.storage.local.set({ pendingCapture: navStepData, lastCaptureTime: now });
-      }
 
       sendCapture(srcStep, () => { clearTimeout(navSafetyTimer); isCapturing = false; });
       return;
@@ -906,36 +890,8 @@
     }
   });
 
-  // ── SPA 이동 감지 (MutationObserver) ────────────────────────────
-  if (window === window.top) {
-    let lastUrl = location.href;
-    new MutationObserver(() => {
-      if (!isRecording || isPaused || isCapturing) return;
-      if (!settings.autoNav) return;
-      if (location.href === lastUrl) return;
-      lastUrl = location.href;
-      // SPA 이동은 여기서 도착 화면을 캡처하므로, 클릭 시 예약한 pendingCapture는 정리한다
-      // (full-load가 아니어서 onUpdated가 안 뜨고, 남으면 다음 이동에서 오라벨 캡처 유발).
-      chrome.storage.local.remove('pendingCapture');
-      chrome.storage.local.set({ spaNavCapturing: true });
-      setTimeout(() => {
-        if (!isRecording || isPaused || isCapturing) return;
-        const { vw, vh } = getViewportSize();
-        isCapturing = true;
-        stepNumber += 1;
-        sendCapture({
-          url: location.href, timestamp: Date.now(),
-          clickX: 0, clickY: 0,
-          windowWidth: vw, windowHeight: vh,
-          stepNumber,
-          actionInfo: { type: 'navigate', label: document.title || '' },
-        }, () => {
-          isCapturing = false;
-          chrome.storage.local.remove('spaNavCapturing');
-        });
-      }, 1500);
-    }).observe(document, { subtree: true, childList: true });
-  }
+  // SPA 페이지 이동 자동 캡처는 제거됨 — 사용자 클릭/타이핑만 스텝으로 담는다.
+  // (이동의 결과 화면은 다음 사용자 액션에서 자연스럽게 캡처됨)
 
   // ── 클립보드 붙여넣기로 수동 스크린샷 수신 ──────────────────────
   document.addEventListener('paste', (e) => {

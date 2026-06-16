@@ -1221,73 +1221,9 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
       if (step) setTimeout(() => sendTabMessage(tabId, { type: 'SHOW_OVERLAY', step, index: gIdx, total: gSteps.length }), 500);
     }
 
-    if (!r.isRecording || r.isPaused) return;
-    if (r.targetTabId !== tabId) return;
-
-    const pending = r.pendingCapture ?? null;
-    if (pending) {
-      let pendingOriginPath = '', currentOriginPath = '';
-      try { pendingOriginPath = new URL(pending.url).origin + new URL(pending.url).pathname; } catch { /**/ }
-      try { currentOriginPath = new URL(tab.url).origin + new URL(tab.url).pathname; } catch { /**/ }
-
-      if (pendingOriginPath && pendingOriginPath === currentOriginPath) {
-        await storageRemove('pendingCapture');
-        return;
-      }
-
-      // 도착 페이지가 방금 캡처된 URL이면 예약 폐기 (SPA 감지 등 다른 경로가 선처리한 경우)
-      if (isRecentNavDup(tab.url)) {
-        await storageRemove('pendingCapture');
-        log('info', 'bg', `pending nav skip — url recently captured: ${tab.url}`);
-        return;
-      }
-
-      // 이동 전 source 캡처가 방금 stepNumber를 올렸을 수 있으므로 최신값 재조회 (collision 방지)
-      const { stepNumber: freshNum } = await storageGet('stepNumber');
-      const pendingStepNum = (freshNum || 0) + 1;
-      _lastCaptureTime = Date.now();
-      await storageSet({ stepNumber: pendingStepNum, lastCaptureTime: _lastCaptureTime });
-      await storageRemove('pendingCapture');
-
-      log('info', 'bg', `nav capture (pending) step ${pendingStepNum} url=${tab.url}`);
-      const dataUrl = await captureWithPII(tabId, tab);
-      if (!dataUrl) return;
-      handleCapture(dataUrl, { ...pending, url: tab.url, clickX: 0, clickY: 0, stepNumber: pendingStepNum }, tab)
-        .then(() => updateBadge())
-        .catch((err) => log('warn', 'bg', 'pending capture failed:', err.message));
-      return;
-    }
-
-    const autoNav = r.settings?.autoNav ?? true;
-    if (!autoNav) return;
-    if (r.spaNavCapturing) return;
-
-    const lastCapture = Math.max(_lastCaptureTime, r.lastCaptureTime || 0);
-    if (lastCapture && (Date.now() - lastCapture) < AUTONAV_COOLDOWN_MS) return;
-
-    if (isRecentNavDup(tab.url)) {
-      log('debug', 'bg', `autoNav skip — url recently captured: ${tab.url}`);
-      return;
-    }
-
-    const { stepNumber: freshNum } = await storageGet('stepNumber');
-    const stepNum = (freshNum || 0) + 1;
-    // 캡처 완료 전에 쿨다운 기준을 선반영 — 후속 complete 이벤트와의 경쟁 방지
-    _lastCaptureTime = Date.now();
-    await storageSet({ stepNumber: stepNum, lastCaptureTime: _lastCaptureTime });
-
-    log('info', 'bg', `nav capture (autoNav) step ${stepNum} url=${tab.url}`);
-    const dataUrl = await captureWithPII(tabId, tab);
-    if (!dataUrl) return;
-    handleCapture(dataUrl, {
-      url: tab.url, timestamp: Date.now(),
-      clickX: 0, clickY: 0,
-      windowWidth: tab.width || 1280, windowHeight: tab.height || 800,
-      stepNumber: stepNum,
-      actionInfo: { type: 'navigate', label: tab.url },
-    }, tab)
-      .then(() => updateBadge())
-      .catch((err) => log('warn', 'bg', 'nav capture failed:', err.message));
+    // 페이지 이동 자동 캡처(도착 페이지 / 풀로드 / SPA)는 제거됨.
+    // 사용자 클릭·타이핑만 스텝으로 담는다. onUpdated는 가이드 오버레이 재주입만 담당.
+    // (녹화 상태는 content.js의 GET_TAB_RECORDING_STATE로 이동 후에도 복원되어 후속 클릭이 캡처됨)
   } finally {
     _navBusyTabs.delete(tabId);
   }
