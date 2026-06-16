@@ -211,10 +211,15 @@ function DocumentView({ tutorial }: { tutorial: Tutorial }) {
                   {step.caption && <p style={{ margin: '5px 0 0', fontSize: isMobileDoc ? '13px' : '14px', color: '#4B5563', lineHeight: 1.65 }}>{step.caption}</p>}
                 </div>
               </div>
-              {/* 스크린샷 */}
+              {/* 스크린샷 + 어노테이션 오버레이 */}
               {step.screenshot_url && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={step.screenshot_url} alt={step.title} style={{ width: '100%', display: 'block' }} />
+                <div style={{ position: 'relative', lineHeight: 0 }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={step.screenshot_url} alt={step.title} style={{ width: '100%', display: 'block' }} />
+                  {(step.user_annotations?.length ?? 0) > 0 && (
+                    <AnnotationPreview annotations={step.user_annotations!} imageUrl={step.screenshot_url} />
+                  )}
+                </div>
               )}
               {/* 어노테이션 */}
               {annotations.length > 0 && (
