@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useId } from 'react';
 
 // 따라하기 시각 레이어(이미지 + 핫스팟 인디케이터 + AI 캐릭터 말풍선).
 // 플레이어와 스튜디오가 동일 컴포넌트를 써서 "보는 사람이 보는 화면"이 100% 일치하도록 한다.
@@ -35,6 +35,7 @@ interface Props {
   minimized?: boolean;
   showAudioBadge?: boolean;
   nudge?: boolean;
+  spotlight?: boolean;              // true=플레이어 스포트라이트(배경 어두움 + 핫스팟만 밝음)
   imageCursor?: string;             // 'pointer'(플레이어) | 'crosshair'(스튜디오)
   imgMaxHeight?: string;
   onImageClick?: (e: React.MouseEvent<HTMLDivElement>) => void;
@@ -46,13 +47,15 @@ interface Props {
 
 export function FollowStage({
   screenshotUrl, hotspotX: hx, hotspotY: hy, kind, typeText, animateType = false, title, body,
-  minimized = false, showAudioBadge = false, nudge = false,
+  minimized = false, showAudioBadge = false, nudge = false, spotlight = false,
   imageCursor = 'default', imgMaxHeight = 'calc(100vh - 150px)',
   onImageClick, onMascotClick, onBubbleClick, wrapRef, children,
 }: Props) {
   const innerRef = useRef<HTMLDivElement>(null);
   const ref = wrapRef ?? innerRef;
   const [box, setBox] = useState({ w: 0, h: 0 });
+  const rawId = useId();
+  const maskId = 'mfp' + rawId.replace(/:/g, '');
 
   // 텍스트 인디케이터 자동 타이핑 — 뷰어에서만(animateType). 스튜디오는 입력값 그대로 표시
   const [typed, setTyped] = useState(0);
@@ -80,6 +83,8 @@ export function FollowStage({
 
   const hasHotspot = hx != null && hy != null && !(hx < CORNER && hy < CORNER);
   const isType = kind === 'type';
+  // 스포트라이트 구멍 반경: 이미지 너비의 9%, 최대 80px
+  const spotR = box.w ? Math.min(Math.round(box.w * 0.09), 80) : 72;
   const typeStr = typeText ?? '';
   const hasTypeText = typeStr.trim().length > 0;
   const shownType = animateType ? typeStr.slice(0, typed) : typeStr;
@@ -124,7 +129,8 @@ export function FollowStage({
   );
   const renderUnit = (side: 'left' | 'right' | 'bottom') => (
     minimized ? (
-      <button onClick={onMascotClick} title="안내 펼치기" style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, pointerEvents: 'auto' }}><Mascot /></button>
+      // side !== 'bottom': flex-end 정렬로 인한 mascot 하단 위치(UNIT_H - 40 = 92px)를 marginTop으로 보존 → 클릭 시 점프 없음
+      <button onClick={onMascotClick} title="안내 펼치기" style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, pointerEvents: 'auto', marginTop: side !== 'bottom' ? `${UNIT_H - 40}px` : undefined }}><Mascot /></button>
     ) : (
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', pointerEvents: 'auto' }}>
         {side === 'left' ? <>{BubbleBox}{MascotBtn}</> : <>{MascotBtn}{BubbleBox}</>}
@@ -141,12 +147,28 @@ export function FollowStage({
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={screenshotUrl} alt={title} draggable={false} style={{ display: 'block', maxWidth: '100%', maxHeight: imgMaxHeight, width: 'auto', height: 'auto', userSelect: 'none' }} />
 
-      {/* 클릭 인디케이터 — 흰 물결 */}
+      {/* 스포트라이트 오버레이 — 플레이어 전용(spotlight=true). SVG 마스크로 핫스팟 주변만 밝게 */}
+      {spotlight && hasHotspot && !isType && (
+        <svg aria-hidden style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 3, animation: 'mfp-spotlight-in 0.55s ease-out forwards' }}>
+          <defs>
+            <mask id={maskId}>
+              <rect width="100%" height="100%" fill="white" />
+              <circle cx={`${hx}%`} cy={`${hy}%`} r={spotR} fill="black" />
+            </mask>
+          </defs>
+          <rect width="100%" height="100%" fill="rgba(0,0,0,0.52)" mask={`url(#${maskId})`} />
+        </svg>
+      )}
+
+      {/* 클릭 인디케이터 — 물결 링 + 중심 도트(spotlight 시) */}
       {hasHotspot && !isType && (
         <div style={{ position: 'absolute', left: `${hx}%`, top: `${hy}%`, transform: 'translate(-50%,-50%)', width: '22px', height: '22px', pointerEvents: 'none', zIndex: 4 }}>
           <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2.5px solid rgba(255,255,255,0.95)', animation: 'mfp-ripple 1.9s ease-out infinite' }} />
           <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2.5px solid rgba(255,255,255,0.8)', animation: 'mfp-ripple 1.9s ease-out infinite', animationDelay: '0.63s' }} />
           <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2.5px solid rgba(255,255,255,0.6)', animation: 'mfp-ripple 1.9s ease-out infinite', animationDelay: '1.26s' }} />
+          {spotlight && (
+            <span style={{ position: 'absolute', width: '10px', height: '10px', borderRadius: '50%', background: '#ff6b35', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', boxShadow: '0 0 0 2.5px white, 0 2px 10px rgba(0,0,0,0.5)' }} />
+          )}
         </div>
       )}
 
@@ -177,9 +199,9 @@ export function FollowStage({
         </div>
       )}
 
-      {/* 핫스팟 없는 이동/설명형 — 하단 중앙 */}
+      {/* 핫스팟 없는 이동/설명형 — 우측 하단 */}
       {!hasHotspot && (
-        <div style={{ position: 'absolute', left: '50%', bottom: '18px', transform: 'translateX(-50%)', zIndex: 6, pointerEvents: 'none', maxWidth: '92%' }}>
+        <div style={{ position: 'absolute', right: '18px', bottom: '18px', zIndex: 6, pointerEvents: 'none', maxWidth: '92%' }}>
           {renderUnit('bottom')}
         </div>
       )}
@@ -191,6 +213,7 @@ export function FollowStage({
         @keyframes mfp-caret { 50%{opacity:0} }
         @keyframes mfp-nudge { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
         @keyframes mfp-field { 0%,100%{box-shadow:0 0 0 4px rgba(96,165,250,0.18), 0 6px 18px rgba(0,0,0,0.32)} 50%{box-shadow:0 0 0 7px rgba(96,165,250,0.28), 0 6px 22px rgba(0,0,0,0.4)} }
+        @keyframes mfp-spotlight-in { from{opacity:0} to{opacity:1} }
       `}</style>
     </div>
   );

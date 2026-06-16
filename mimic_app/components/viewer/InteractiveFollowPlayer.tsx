@@ -33,7 +33,9 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
   const [minimized, setMinimized] = useState(false);
   const [showGate, setShowGate] = useState(false);  // 맛보기 후 로그인 월 (소프트 게이트)
   const [voiceOn, setVoiceOn] = useState(false);  // 음성 자동재생 토글 (기본 OFF — 아바타 클릭 재생)
+  const [visible, setVisible] = useState(true);    // 스텝 전환 페이드 제어
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const transTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const total = steps.length;
   const step = steps[idx];
@@ -61,12 +63,24 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
     if (step.audioUrl) playVoice(step.audioUrl);
   };
 
+  // 스텝 전환: 페이드아웃 → 인덱스 변경 → 페이드인. 연속 클릭 시 마지막만 실행
+  const goTo = useCallback((nextIdx: number) => {
+    if (transTimer.current) clearTimeout(transTimer.current);
+    setVisible(false);
+    transTimer.current = setTimeout(() => {
+      setIdx(nextIdx);
+      setMinimized(false);
+      setVisible(true);
+    }, 210);
+  }, []);
+
   const advance = useCallback(() => {
     // 맛보기 한도를 넘어가는 진행이면 로그인 월 (잠긴 콘텐츠가 남아있을 때만)
     if (lockAfterStep != null && idx >= lockAfterStep && idx + 1 < total) { setShowGate(true); return; }
-    setIdx(i => { if (i + 1 >= total) { setDone(true); onComplete?.(); return i; } return i + 1; });
-  }, [total, onComplete, lockAfterStep, idx]);
-  const goPrev = useCallback(() => setIdx(i => Math.max(0, i - 1)), []);
+    if (idx + 1 >= total) { setDone(true); onComplete?.(); return; }
+    goTo(idx + 1);
+  }, [total, onComplete, lockAfterStep, idx, goTo]);
+  const goPrev = useCallback(() => { if (idx > 0) goTo(idx - 1); }, [idx, goTo]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -121,23 +135,28 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
             </div>
 
             <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0b0b0f', overflow: 'hidden' }}>
-              <FollowStage
-                screenshotUrl={step.screenshotUrl}
-                hotspotX={hx ?? null}
-                hotspotY={hy ?? null}
-                kind={step.kind ?? 'click'}
-                typeText={step.typeText}
-                animateType
-                title={step.title}
-                body={step.body}
-                minimized={minimized}
-                showAudioBadge={!!step.audioUrl}
-                nudge={nudge}
-                imageCursor="pointer"
-                onImageClick={onImageClick}
-                onMascotClick={onMascotClick}
-                onBubbleClick={(e) => { e.stopPropagation(); setMinimized(true); }}
-              />
+              {/* 스텝 전환 페이드: 빠른 아웃(0.18s) + 부드러운 인(0.28s) */}
+              <div style={{ opacity: visible ? 1 : 0, transition: visible ? 'opacity 0.28s ease' : 'opacity 0.18s ease', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <FollowStage
+                  key={idx}
+                  screenshotUrl={step.screenshotUrl}
+                  hotspotX={hx ?? null}
+                  hotspotY={hy ?? null}
+                  kind={step.kind ?? 'click'}
+                  typeText={step.typeText}
+                  animateType
+                  spotlight
+                  title={step.title}
+                  body={step.body}
+                  minimized={minimized}
+                  showAudioBadge={!!step.audioUrl}
+                  nudge={nudge}
+                  imageCursor="pointer"
+                  onImageClick={onImageClick}
+                  onMascotClick={onMascotClick}
+                  onBubbleClick={(e) => { e.stopPropagation(); setMinimized(true); }}
+                />
+              </div>
             </div>
           </div>
 
