@@ -418,7 +418,7 @@ export default function ManualViewerPage() {
       {/* ── Body ── */}
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         {/* TOC — 데스크탑: 고정 사이드 패널 / 모바일: CSS로 숨김 */}
-        <div className="viewer-toc-panel" style={{ width: '240px', flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid #E5E7EB', background: 'white', minHeight: 0 }}>
+        <div className="viewer-toc-panel" style={{ width: '280px', flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid #E5E7EB', background: 'white', minHeight: 0 }}>
           <GuideToc steps={manualSteps} activeId={activeId} onSelect={setActiveId} editable={false} />
         </div>
 

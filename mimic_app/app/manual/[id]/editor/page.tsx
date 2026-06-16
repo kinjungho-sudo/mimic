@@ -691,11 +691,12 @@ export default function EditorPage() {
             <button
               onClick={() => { setShowActivity(v => !v); setShowComments(false); }}
               title="활동 로그 — 누가 무엇을 했는지"
-              style={{ height: '32px', width: '32px', borderRadius: '7px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: showActivity ? '#4F46E5' : '#374151', background: showActivity ? 'rgba(79,70,229,0.08)' : 'white', border: `1px solid ${showActivity ? '#4F46E5' : '#E5E7EB'}`, cursor: 'pointer', transition: 'all 0.15s' }}
+              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: showActivity ? '#4F46E5' : '#374151', background: showActivity ? 'rgba(79,70,229,0.08)' : 'white', border: `1px solid ${showActivity ? '#4F46E5' : '#E5E7EB'}`, cursor: 'pointer', transition: 'all 0.15s', fontWeight: showActivity ? 600 : 400 }}
               onMouseEnter={e => { if (!showActivity) e.currentTarget.style.background = '#F9FAFB'; }}
               onMouseLeave={e => { if (!showActivity) e.currentTarget.style.background = 'white'; }}
             >
-              <Clock size={14} />
+              <Clock size={13} />
+              활동 기록
             </button>
 
             {/* 내보내기 — 사람 초대(권한 부여) */}
@@ -830,7 +831,7 @@ export default function EditorPage() {
         )}
 
         {/* TOC panel — 데스크탑: 고정 / 모바일: 숨김 */}
-        <div className="editor-toc-panel" style={{ width: '240px', flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid #E5E7EB', background: 'white', minHeight: 0 }}>
+        <div className="editor-toc-panel" style={{ width: '280px', flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid #E5E7EB', background: 'white', minHeight: 0 }}>
           <GuideToc
             steps={manualSteps}
             activeId={activeId}

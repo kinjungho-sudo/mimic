@@ -134,12 +134,12 @@ function ViewerStepCard({ step }: { step: ManualStep }) {
           {String(step.number).padStart(2, '0')}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <h3 style={{ margin: 0, fontSize: '15.5px', fontWeight: 600, color: '#111827', lineHeight: 1.45 }}>
+          <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 600, color: '#111827', lineHeight: 1.45 }}>
             {step.actionTitle || <span style={{ color: '#9CA3AF', fontWeight: 400 }}>(제목 없음)</span>}
           </h3>
           {step.description && (
             <div
-              style={{ marginTop: '4px', fontSize: '14px', color: '#4B5563', lineHeight: 1.65 }}
+              style={{ marginTop: '4px', fontSize: '16px', color: '#4B5563', lineHeight: 1.65 }}
               dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(step.description, { USE_PROFILES: { html: true } }) }}
             />
           )}

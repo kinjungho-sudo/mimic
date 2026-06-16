@@ -132,7 +132,7 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
       {/* Header */}
       <div style={{ padding: '12px 16px 10px', borderBottom: '1px solid #F3F4F6', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ fontSize: '11px', fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.07em', textTransform: 'uppercase' }}>
+          <div style={{ fontSize: '13px', fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.07em', textTransform: 'uppercase' }}>
             목차
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -210,7 +210,7 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
                           if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); }
                           if (e.key === 'Escape') setEditingDomain(null);
                         }}
-                        style={{ fontSize: '11.5px', fontWeight: 700, color: '#3730a3', border: 'none', borderBottom: '1.5px solid #3730a3', outline: 'none', background: 'transparent', width: '100%', padding: '0', fontFamily: 'inherit' }}
+                        style={{ fontSize: '13px', fontWeight: 700, color: '#3730a3', border: 'none', borderBottom: '1.5px solid #3730a3', outline: 'none', background: 'transparent', width: '100%', padding: '0', fontFamily: 'inherit' }}
                         autoFocus
                       />
                     ) : (
@@ -221,7 +221,7 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
                           setEditingDomain({ hostname: group.hostname ?? '', value: group.name ?? group.hostname ?? '' });
                           setTimeout(() => domainInputRef.current?.select(), 0);
                         }}
-                        style={{ fontSize: '11.5px', fontWeight: 700, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: editable ? 'text' : 'default', flex: 1 }}
+                        style={{ fontSize: '13px', fontWeight: 700, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: editable ? 'text' : 'default', flex: 1 }}
                       >
                         {group.name ?? group.hostname}
                         {editable && <span style={{ fontSize: '9px', color: '#D1D5DB', marginLeft: '4px' }}>✏</span>}
@@ -314,7 +314,7 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
                   width: '22px', height: '22px', borderRadius: '6px', flexShrink: 0,
                   background: isSelected ? '#3730a3' : isActive ? '#3730a3' : '#E5E7EB',
                   color: isSelected || isActive ? 'white' : '#6B7280',
-                  fontSize: '10px', fontWeight: 700, display: 'grid', placeItems: 'center',
+                  fontSize: '12px', fontWeight: 700, display: 'grid', placeItems: 'center',
                 }}>
                   {step.number}
                 </div>
@@ -322,7 +322,7 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
                 {/* 제목 */}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{
-                    fontSize: '12px', fontWeight: isActive ? 600 : 400,
+                    fontSize: '13px', fontWeight: isActive ? 600 : 400,
                     color: isActive ? '#1E1B4B' : '#374151', lineHeight: 1.4,
                     overflow: 'hidden', display: '-webkit-box',
                     WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
