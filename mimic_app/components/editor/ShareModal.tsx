@@ -30,6 +30,32 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
   const [pwSaved, setPwSaved] = useState(false);
   const [pwEnabled, setPwEnabled] = useState(hasPassword ?? false);
 
+  // 이메일 서버 발송 (n8n → Gmail) — mailto 대신, 클라이언트 불필요
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [emailTo, setEmailTo] = useState('');
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailResult, setEmailResult] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  const handleSendEmail = async () => {
+    if (!emailTo.trim() || !url) return;
+    setEmailSending(true);
+    setEmailResult(null);
+    try {
+      const res = await fetch('/api/share/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: emailTo.trim(), tutorialTitle: title, shareUrl: url }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) setEmailResult({ ok: false, msg: data.error ?? '발송에 실패했어요.' });
+      else { setEmailResult({ ok: true, msg: `${emailTo.trim()}로 보냈어요.` }); setEmailTo(''); }
+    } catch {
+      setEmailResult({ ok: false, msg: '네트워크 오류가 발생했어요.' });
+    } finally {
+      setEmailSending(false);
+    }
+  };
+
   const handleSavePassword = async () => {
     setPwSaving(true);
     try {
@@ -109,7 +135,6 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
   };
 
   const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(`${title} - MIMIC 매뉴얼`)}&url=${encodeURIComponent(url)}`;
-  const emailUrl = url ? `mailto:?subject=${encodeURIComponent(`[MIMIC] ${title}`)}&body=${encodeURIComponent(`안녕하세요,\n\n아래 링크에서 MIMIC 매뉴얼을 확인해주세요.\n\n${title}\n${url}`)}` : undefined;
 
   const handleKakao = () => {
     if (!url) return;
@@ -442,17 +467,16 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
               카카오톡
             </button>
 
-            {/* 이메일 */}
-            <a
-              href={emailUrl}
-              onClick={e => { if (!url) e.preventDefault(); }}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px', height: '44px', borderRadius: '10px', border: '1.5px solid #E5E7EB', background: 'white', color: '#374151', fontSize: '12.5px', fontWeight: 500, textDecoration: 'none', cursor: url ? 'pointer' : 'not-allowed', opacity: url ? 1 : 0.5, transition: 'border-color 0.15s, color 0.15s' }}
-              onMouseEnter={e => { if (url) { e.currentTarget.style.borderColor = '#3730a3'; e.currentTarget.style.color = '#3730a3'; } }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.color = '#374151'; }}
+            {/* 이메일 — 인앱 서버 발송(n8n). 메일 클라이언트 불필요 */}
+            <button
+              type="button"
+              onClick={() => { if (url) setEmailOpen(o => !o); }}
+              disabled={!url}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px', height: '44px', borderRadius: '10px', border: '1.5px solid ' + (emailOpen ? '#3730a3' : '#E5E7EB'), background: emailOpen ? '#EEF2FF' : 'white', color: emailOpen ? '#3730a3' : '#374151', fontSize: '12.5px', fontWeight: 500, cursor: url ? 'pointer' : 'not-allowed', opacity: url ? 1 : 0.5, transition: 'border-color 0.15s, color 0.15s' }}
             >
               <Send size={14} />
               이메일
-            </a>
+            </button>
 
             {/* Twitter/X */}
             <a
@@ -468,6 +492,36 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
               Twitter/X
             </a>
           </div>
+
+          {/* 이메일 인앱 발송 폼 (n8n → Gmail) */}
+          {emailOpen && url && (
+            <div style={{ marginTop: '12px', padding: '12px', borderRadius: '10px', background: '#F9FAFB', border: '1px solid #EEF0F3' }}>
+              <p style={{ margin: '0 0 8px', fontSize: '12px', color: '#6B7280' }}>받는 사람 이메일로 매뉴얼 링크를 보냅니다.</p>
+              <div style={{ display: 'flex', gap: '7px' }}>
+                <input
+                  type="email"
+                  value={emailTo}
+                  onChange={e => { setEmailTo(e.target.value); setEmailResult(null); }}
+                  onKeyDown={e => { if (e.key === 'Enter') handleSendEmail(); }}
+                  placeholder="example@email.com"
+                  style={{ flex: 1, minWidth: 0, height: '38px', padding: '0 12px', borderRadius: '9px', border: `1.5px solid ${emailResult?.ok === false ? '#EF4444' : '#E5E7EB'}`, fontSize: '13px', color: '#111827', outline: 'none', fontFamily: 'inherit' }}
+                />
+                <button
+                  type="button"
+                  onClick={handleSendEmail}
+                  disabled={emailSending || !emailTo.trim()}
+                  style={{ flexShrink: 0, padding: '0 16px', height: '38px', borderRadius: '9px', border: 'none', background: emailTo.trim() ? 'linear-gradient(135deg,#3730a3,#6d28d9)' : '#E5E7EB', color: emailTo.trim() ? 'white' : '#9CA3AF', fontSize: '13px', fontWeight: 600, cursor: emailTo.trim() && !emailSending ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap' }}
+                >
+                  {emailSending ? '발송 중…' : '보내기'}
+                </button>
+              </div>
+              {emailResult && (
+                <p style={{ margin: '8px 0 0', fontSize: '12px', color: emailResult.ok ? '#10B981' : '#EF4444', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  {emailResult.ok ? '✓' : '✕'} {emailResult.msg}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </>
