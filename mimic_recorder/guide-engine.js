@@ -18,20 +18,46 @@
   // ── 순수 로직 ────────────────────────────────────────────────
   function resolveTarget(step) {
     let el = null, rect = null, source = 'none';
+
+    // 1순위: CSS Selector
     if (step.element_selector) {
       try { el = document.querySelector(step.element_selector); } catch { el = null; }
       if (el) { rect = rectOf(el); source = 'selector'; }
     }
+
+    // 2순위: XPath
+    if (!rect && step.element_xpath) {
+      try {
+        const xr = document.evaluate(step.element_xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+        const xe = xr.singleNodeValue;
+        if (xe) { el = xe; rect = rectOf(xe); source = 'xpath'; }
+      } catch { /* noop */ }
+    }
+
+    // 3순위: 정규화 rect (0~1)
     if (!rect && step.element_rect) {
       const r = step.element_rect;
       rect = { left: r.x * window.innerWidth, top: r.y * window.innerHeight, width: r.width * window.innerWidth, height: r.height * window.innerHeight };
       source = 'rect';
     }
+
+    // 4순위: hotspot_x/y (follow_config.hotspotX/Y → 0~100%) — elementFromPoint 시도
+    if (!rect && step.hotspot_x != null && step.hotspot_y != null) {
+      const px = (step.hotspot_x / 100) * window.innerWidth;
+      const py = (step.hotspot_y / 100) * window.innerHeight;
+      const hitEl = document.elementFromPoint(px, py);
+      if (hitEl) { el = hitEl; rect = rectOf(hitEl); }
+      else { rect = { left: px - COORD_BOX / 2, top: py - COORD_BOX / 2, width: COORD_BOX, height: COORD_BOX }; }
+      source = 'coord';
+    }
+
+    // 5순위: click_x/y (0~1 정규화)
     if (!rect && step.click_x != null && step.click_y != null) {
       const cx = step.click_x * window.innerWidth, cy = step.click_y * window.innerHeight;
       rect = { left: cx - COORD_BOX / 2, top: cy - COORD_BOX / 2, width: COORD_BOX, height: COORD_BOX };
       source = 'coord';
     }
+
     return { el, rect, source };
   }
 
@@ -336,15 +362,27 @@
       }
       el.dispatchEvent(new Event('input', { bubbles: true }));
     };
-    let i = 0;
-    const tick = () => {
-      if (!state || state.completed) return;
-      i += 1;
-      setVal(text.slice(0, i));
-      if (i < text.length) { state.fillTimer = setTimeout(tick, 35); }
-      else { el.dispatchEvent(new Event('change', { bubbles: true })); }
-    };
-    state.fillTimer = setTimeout(tick, 280);
+
+    if (text.length > 50) {
+      // 긴 텍스트: 즉시 입력 후 사이드패널에 복사 힌트 전송
+      state.fillTimer = setTimeout(() => {
+        if (!state || state.completed) return;
+        setVal(text);
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        try { chrome.runtime.sendMessage({ type: 'SHOW_COPY_HINT', text }); } catch { /* noop */ }
+      }, 280);
+    } else {
+      // 짧은 텍스트: 35ms/글자 타이핑 애니메이션
+      let i = 0;
+      const tick = () => {
+        if (!state || state.completed) return;
+        i += 1;
+        setVal(text.slice(0, i));
+        if (i < text.length) { state.fillTimer = setTimeout(tick, 35); }
+        else { el.dispatchEvent(new Event('change', { bubbles: true })); }
+      };
+      state.fillTimer = setTimeout(tick, 280);
+    }
   }
 
   function hide() {
