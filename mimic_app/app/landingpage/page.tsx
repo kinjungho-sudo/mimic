@@ -1007,9 +1007,9 @@ function ProductShowcase() {
     <section id="tour" style={{ padding: '96px 0 32px', background: 'white' }}>
       <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
         <RevealSection>
-          <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#3730a3', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>Product Tour</span>
-          <h2 style={{ textAlign: 'center', fontSize: '36px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 auto 14px', maxWidth: '720px', lineHeight: 1.2, color: '#0D0D14' }}>실제 화면으로 보는 MIMIC</h2>
-          <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '560px', margin: '0 auto 80px', lineHeight: 1.65 }}>녹화부터 편집, 안내, 공유까지 — 아래 화면 그대로 작동합니다.</p>
+          <span style={{ display: 'block', textAlign: 'center', fontSize: '11px', color: '#5b21b6', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '16px' }}>Product Tour</span>
+          <h2 style={{ textAlign: 'center', fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 800, letterSpacing: '-0.035em', margin: '0 auto 14px', maxWidth: '640px', lineHeight: 1.18, color: '#0D0D14' }}>실제 화면으로 보는 MIMIC</h2>
+          <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '520px', margin: '0 auto 80px', lineHeight: 1.7 }}>녹화부터 편집, 안내, 공유까지 — 아래 화면 그대로 작동합니다.</p>
         </RevealSection>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '110px' }}>
@@ -1050,41 +1050,65 @@ function ProductShowcase() {
 
 function HeroSection() {
   return (
-    <section style={{ padding: '90px 0 0', background: 'linear-gradient(160deg, #EDE8FF 0%, #F8F0FF 50%, #FFF0F8 100%)', textAlign: 'center', position: 'relative' }}>
-      <div style={{ position: 'absolute', top: '-160px', left: '50%', transform: 'translateX(-50%)', width: 'min(900px, 100vw)', height: '600px', background: 'radial-gradient(ellipse, rgba(109,40,217,0.10) 0%, transparent 65%)', pointerEvents: 'none' }} />
+    <section style={{ padding: '96px 0 0', background: '#07070F', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+      {/* Animated ambient orbs */}
+      <div className="hero-orb hero-orb-1" />
+      <div className="hero-orb hero-orb-2" />
+      <div className="hero-orb hero-orb-3" />
+      {/* Subtle grid overlay */}
+      <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)', backgroundSize: '72px 72px', pointerEvents: 'none' }} />
 
       <div style={{ maxWidth: '1080px', margin: '0 auto', padding: '0 32px', position: 'relative' }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '5px 14px', background: 'rgba(109,40,217,0.08)', border: '1px solid rgba(109,40,217,0.20)', borderRadius: '999px', fontSize: '12.5px', color: '#6d28d9', fontWeight: 500, marginBottom: '28px' }}>
-          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#6d28d9', display: 'inline-block', animation: 'pulse-dot 1.8s ease-in-out infinite' }} />
-          AI 인터랙티브 매뉴얼 플랫폼
-        </span>
+        {/* Announcement badge */}
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '5px 16px 5px 6px', background: 'rgba(124,58,237,0.10)', border: '1px solid rgba(124,58,237,0.22)', borderRadius: '999px', fontSize: '12.5px', color: '#c4b5fd', fontWeight: 500, marginBottom: '36px', backdropFilter: 'blur(8px)' }}>
+          <span style={{ padding: '3px 10px', borderRadius: '999px', background: 'linear-gradient(135deg, #4f46e5, #7c3aed)', fontSize: '10px', fontWeight: 700, color: 'white', letterSpacing: '0.06em', flexShrink: 0 }}>NEW</span>
+          교육 자료 모드 — AI Vision이 화면 분석 후 설명 자동 작성
+        </div>
 
-        <h1 style={{ margin: '0 auto 20px', fontSize: '56px', lineHeight: 1.25, fontWeight: 700, letterSpacing: '-0.03em', maxWidth: '760px', color: '#0D0D14' }}>
+        <h1 style={{ margin: '0 auto 24px', fontSize: 'clamp(44px, 7vw, 84px)', lineHeight: 1.04, fontWeight: 800, letterSpacing: '-0.045em', maxWidth: '880px', color: 'white', wordBreak: 'keep-all' }}>
           Don&apos;t Explain,{' '}
-          <span style={{
-            background: 'linear-gradient(135deg, #6d28d9 0%, #3730a3 100%)',
-            WebkitBackgroundClip: 'text',
-            backgroundClip: 'text',
-            color: 'transparent',
-          }}>Just Mimic.</span>
+          <span style={{ background: 'linear-gradient(135deg, #e0d7ff 0%, #c4b5fd 40%, #a78bfa 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent', display: 'inline-block' }}>
+            Just Mimic.
+          </span>
         </h1>
 
-        <p style={{ fontSize: '17px', color: '#4B5563', maxWidth: '560px', margin: '0 auto 36px', lineHeight: 1.7 }}>
-          클릭 한 번으로 인터랙티브 매뉴얼 제작을 자동화하고,<br />
-          누구나 따라 할 수 있는 매뉴얼 자동화 플랫폼
+        <p style={{ fontSize: 'clamp(15px, 2vw, 18px)', color: 'rgba(255,255,255,0.48)', maxWidth: '520px', margin: '0 auto 48px', lineHeight: 1.8, fontWeight: 400 }}>
+          클릭하면 캡처되고, AI가 설명을 달고, 링크 하나로 공유됩니다.<br/>
+          매뉴얼 만드는 시간, 이제 30초면 충분합니다.
         </p>
 
-        <div className="hero-cta-row" style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginBottom: '56px' }}>
+        <div className="hero-cta-row" style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginBottom: '60px' }}>
           <Link href="/auth/login"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '14px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 600, color: 'white', background: '#6d28d9', boxShadow: '0 4px 20px rgba(109,40,217,0.35)', textDecoration: 'none' }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '14px 28px', borderRadius: '12px', fontSize: '15px', fontWeight: 700, color: 'white', background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)', boxShadow: '0 0 0 1px rgba(167,139,250,0.18), 0 8px 28px rgba(109,40,217,0.48)', textDecoration: 'none' }}
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
             무료로 시작하기
           </Link>
+          <a href="#tour" style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '14px 22px', borderRadius: '12px', fontSize: '15px', fontWeight: 500, color: 'rgba(255,255,255,0.60)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', textDecoration: 'none' }}>
+            제품 둘러보기
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+          </a>
         </div>
 
-        <div className="hero-preview">
-          <HeroDemo />
+        {/* Key metrics */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '64px' }}>
+          {[
+            { value: '30초', label: '평균 제작 시간' },
+            { value: '7종', label: '어노테이션 도구' },
+            { value: '3포맷', label: 'PDF · PPTX · MD' },
+          ].map((stat, i) => (
+            <div key={stat.label} style={{ textAlign: 'center', padding: '16px 40px', borderRight: i < 2 ? '1px solid rgba(255,255,255,0.07)' : 'none' }}>
+              <div style={{ fontSize: '30px', fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1, marginBottom: '6px', background: 'linear-gradient(180deg, #ffffff 0%, rgba(255,255,255,0.65) 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{stat.value}</div>
+              <div style={{ fontSize: '11.5px', color: 'rgba(255,255,255,0.28)', fontWeight: 400 }}>{stat.label}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="hero-preview" style={{ position: 'relative' }}>
+          <div style={{ position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '75%', height: '120px', background: 'radial-gradient(ellipse, rgba(109,40,217,0.32) 0%, transparent 70%)', filter: 'blur(32px)', pointerEvents: 'none', zIndex: 0 }} />
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <HeroDemo />
+          </div>
         </div>
       </div>
     </section>
@@ -1168,29 +1192,29 @@ export default function LandingPage() {
       )}
 
       {/* Header */}
-      <header style={{ position: 'sticky', top: 0, zIndex: 50, background: 'color-mix(in srgb, var(--mm-bg) 92%, transparent)', backdropFilter: 'saturate(180%) blur(16px)', borderBottom: '1px solid var(--mm-border-light)' }}>
+      <header style={{ position: 'sticky', top: 0, zIndex: 50, background: 'rgba(7,7,15,0.82)', backdropFilter: 'saturate(180%) blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px', display: 'flex', alignItems: 'center', gap: '32px', height: '64px' }}>
-          <Link href="/landingpage" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, fontSize: '15px', color: '#111827', textDecoration: 'none' }}>
+          <Link href="/landingpage" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '15px', color: 'white', textDecoration: 'none', letterSpacing: '-0.01em' }}>
             <BrandMark />
             MIMIC
           </Link>
           <nav style={{ display: 'flex', gap: '28px', marginLeft: '8px' }}>
             {['제품 투어', '기능', '사용 방법', '요금제', '기업 문의', 'FAQ'].map((item, i) => (
               <a key={item} href={['#tour', '#features', '#how', '#pricing', '#b2b', '#faq'][i]}
-                style={{ fontSize: '14px', color: '#4B5563', textDecoration: 'none', whiteSpace: 'nowrap', transition: 'color 0.15s' }}
-                onMouseEnter={e => e.currentTarget.style.color = '#111827'}
-                onMouseLeave={e => e.currentTarget.style.color = '#4B5563'}
+                style={{ fontSize: '13.5px', color: 'rgba(255,255,255,0.50)', textDecoration: 'none', whiteSpace: 'nowrap', transition: 'color 0.15s', fontWeight: 500 }}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.90)'}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.50)'}
               >{item}</a>
             ))}
           </nav>
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Link href="/auth/login"
-              style={{ padding: '9px 16px', borderRadius: '8px', fontSize: '14px', fontWeight: 500, color: '#4B5563', textDecoration: 'none', transition: 'all 0.15s' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#F9FAFB'; (e.currentTarget as HTMLElement).style.color = '#111827'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = '#4B5563'; }}
+              style={{ padding: '8px 16px', borderRadius: '8px', fontSize: '13.5px', fontWeight: 500, color: 'rgba(255,255,255,0.55)', textDecoration: 'none', transition: 'color 0.15s' }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.90)'}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.55)'}
             >로그인</Link>
             <Link href="/auth/login"
-              style={{ padding: '9px 18px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, color: 'white', background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', boxShadow: '0 2px 8px rgba(55,48,163,0.28)', textDecoration: 'none' }}
+              style={{ padding: '9px 18px', borderRadius: '9px', fontSize: '13.5px', fontWeight: 700, color: 'white', background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)', boxShadow: '0 0 0 1px rgba(167,139,250,0.2), 0 4px 12px rgba(109,40,217,0.35)', textDecoration: 'none' }}
             >무료로 시작</Link>
           </div>
         </div>
@@ -1200,31 +1224,34 @@ export default function LandingPage() {
       <HeroSection />
 
       {/* Manifesto */}
-      <section style={{ padding: '120px 0', background: '#0D0D14', overflow: 'hidden', position: 'relative' }}>
-        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 80% 60% at 50% 50%, rgba(109,40,217,0.18) 0%, transparent 70%)', pointerEvents: 'none' }} />
+      <section style={{ padding: '128px 0', background: 'linear-gradient(180deg, #07070F 0%, #0d0d1c 100%)', overflow: 'hidden', position: 'relative' }}>
+        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 70% 50% at 50% 50%, rgba(109,40,217,0.20) 0%, transparent 70%)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent 0%, rgba(109,40,217,0.35) 30%, rgba(109,40,217,0.35) 70%, transparent 100%)', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
         <div style={{ maxWidth: '900px', margin: '0 auto', padding: '0 32px', textAlign: 'center', position: 'relative' }}>
           <RevealSection>
-            <p style={{ fontSize: '13px', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#6d28d9', marginBottom: '32px' }}>
+            <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', fontSize: '11px', fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#7c3aed', marginBottom: '36px' }}>
+              <span style={{ flex: 1, maxWidth: '80px', height: '1px', background: 'linear-gradient(90deg, transparent, rgba(124,58,237,0.5))' }} />
               The MIMIC Way
+              <span style={{ flex: 1, maxWidth: '80px', height: '1px', background: 'linear-gradient(90deg, rgba(124,58,237,0.5), transparent)' }} />
             </p>
-            <h2 style={{ fontSize: 'clamp(36px, 5.5vw, 64px)', fontWeight: 700, lineHeight: 1.15, letterSpacing: '-0.03em', color: 'white', margin: '0 0 24px' }}>
+            <h2 style={{ fontSize: 'clamp(38px, 6vw, 72px)', fontWeight: 800, lineHeight: 1.1, letterSpacing: '-0.04em', color: 'white', margin: '0 0 28px', wordBreak: 'keep-all' }}>
               평소처럼 일하면<br />
-              <span style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #818cf8 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>
+              <span style={{ background: 'linear-gradient(135deg, #e0d7ff 0%, #c4b5fd 40%, #818cf8 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>
                 자료가 나온다.
               </span>
             </h2>
-            <p style={{ fontSize: '18px', color: 'rgba(255,255,255,0.55)', maxWidth: '520px', margin: '0 auto 48px', lineHeight: 1.7, fontWeight: 400 }}>
-              녹화 버튼 하나만 켜면 됩니다. 클릭, 입력, 스크롤 — 당신의 모든 동작이 그대로 단계가 되고, AI가 설명을 붙입니다.
+            <p style={{ fontSize: '18px', color: 'rgba(255,255,255,0.42)', maxWidth: '500px', margin: '0 auto 56px', lineHeight: 1.8, fontWeight: 400 }}>
+              녹화 버튼 하나만 켜면 됩니다. 클릭, 입력, 스크롤 — 당신의 모든 동작이 단계가 되고, AI가 설명을 붙입니다.
             </p>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '40px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'inline-flex', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '18px', overflow: 'hidden', background: 'rgba(255,255,255,0.02)', flexWrap: 'wrap' }}>
               {[
-                { label: '별도 작업 없음', desc: '하던 일을 그대로 하면 됩니다' },
-                { label: '30초 완성', desc: 'AI가 즉시 정리합니다' },
-                { label: '링크 하나로 공유', desc: '앱 설치 없이 바로 공유' },
-              ].map(item => (
-                <div key={item.label} style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '15px', fontWeight: 700, color: 'white', marginBottom: '4px' }}>{item.label}</div>
-                  <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.40)' }}>{item.desc}</div>
+                { label: '별도 작업 없음', desc: '하던 일 그대로' },
+                { label: '30초 완성', desc: 'AI가 즉시 정리' },
+                { label: '링크로 바로 공유', desc: '앱 설치 불필요' },
+              ].map((item, i) => (
+                <div key={item.label} style={{ padding: '24px 36px', borderRight: i < 2 ? '1px solid rgba(255,255,255,0.07)' : 'none', textAlign: 'center', background: i === 1 ? 'rgba(109,40,217,0.09)' : 'transparent', minWidth: '140px' }}>
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: 'white', marginBottom: '5px' }}>{item.label}</div>
+                  <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.32)' }}>{item.desc}</div>
                 </div>
               ))}
             </div>
@@ -1233,55 +1260,63 @@ export default function LandingPage() {
       </section>
 
       {/* Problem */}
-      <section style={{ padding: '96px 0', background: '#FAFAFA' }}>
+      <section style={{ padding: '100px 0', background: '#0A0A15' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
           <RevealSection>
-          <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#3730a3', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>Problem</span>
-          <h2 style={{ textAlign: 'center', fontSize: '36px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 auto 14px', maxWidth: '720px', lineHeight: 1.2, color: '#0D0D14' }}>이런 문제, 한 번쯤 겪어보셨죠?</h2>
-          <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '560px', margin: '0 auto 56px', lineHeight: 1.65 }}>PDF는 쌓이기만 하고, 영상은 만들기 지옥이고, PPT는 만들다 하루가 갑니다.</p>
+            <span style={{ display: 'block', textAlign: 'center', fontSize: '11px', color: '#7c3aed', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '16px' }}>Problem</span>
+            <h2 style={{ textAlign: 'center', fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 800, letterSpacing: '-0.035em', margin: '0 auto 14px', maxWidth: '640px', lineHeight: 1.18, color: 'white' }}>이런 문제, 한 번쯤 겪어보셨죠?</h2>
+            <p style={{ textAlign: 'center', fontSize: '16px', color: 'rgba(255,255,255,0.38)', maxWidth: '520px', margin: '0 auto 60px', lineHeight: 1.7 }}>PDF는 쌓이기만 하고, 영상은 만들기 지옥이고, PPT는 만들다 하루가 갑니다.</p>
 
-          <div className="grid-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
-            {[
-              { emoji: '📄', title: 'PDF는 아무도 안 읽어요', body: '200페이지 매뉴얼을 만들어도 신입은 첫 페이지에서 멈춥니다. 검색도 안 되고 따라하기도 어렵죠.', quote: '"매뉴얼 어디 있어요?" — 매일 듣는 말', color: '#FEF3C7' },
-              { emoji: '🎥', title: '영상 제작은 지옥이에요', body: '대본 쓰고, 녹화하고, 편집하고, 자막 달면 하루가 그냥 갑니다. 한 줄 수정하려면 처음부터 다시.', quote: '"영상 5분 만드는 데 6시간"', color: '#FEE2E2' },
-              { emoji: '🖥️', title: 'PPT는 너무 오래 걸려요', body: '스크린샷 찍고, 자르고, 화살표 그리고, 정렬 맞추다 보면 한 슬라이드에 30분. UI는 또 바뀌어 있고요.', quote: '"디자인은 또 누가 다듬어?"', color: '#e0e7ff' },
-            ].map(p => (
-              <div key={p.title}
-                style={{ padding: '32px', background: 'white', border: '1.5px solid #E5E7EB', borderRadius: '16px', transition: 'all 0.2s ease' }}
-                onMouseEnter={e => { const el = e.currentTarget; el.style.transform = 'translateY(-4px)'; el.style.boxShadow = '0 12px 32px rgba(17,24,39,0.08)'; el.style.borderColor = '#D1D5DB'; }}
-                onMouseLeave={e => { const el = e.currentTarget; el.style.transform = 'none'; el.style.boxShadow = 'none'; el.style.borderColor = '#E5E7EB'; }}
-              >
-                <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: p.color, display: 'grid', placeItems: 'center', marginBottom: '20px', fontSize: '22px' }}>{p.emoji}</div>
-                <div style={{ fontSize: '18px', fontWeight: 600, marginBottom: '10px', color: '#0D0D14' }}>{p.title}</div>
-                <p style={{ fontSize: '14px', color: '#6B7280', lineHeight: 1.65, margin: 0 }}>{p.body}</p>
-                <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px dashed #E5E7EB', fontSize: '13px', color: '#9CA3AF', fontStyle: 'italic' }}>{p.quote}</div>
-              </div>
-            ))}
-          </div>
+            <div className="grid-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+              {[
+                { emoji: '📄', title: 'PDF는 아무도 안 읽어요', body: '200페이지 매뉴얼을 만들어도 신입은 첫 페이지에서 멈춥니다. 검색도 안 되고 따라하기도 어렵죠.', quote: '"매뉴얼 어디 있어요?" — 매일 듣는 말', accent: '#F59E0B', accentRgb: '245,158,11' },
+                { emoji: '🎥', title: '영상 제작은 지옥이에요', body: '대본 쓰고, 녹화하고, 편집하고, 자막 달면 하루가 그냥 갑니다. 한 줄 수정하려면 처음부터 다시.', quote: '"영상 5분 만드는 데 6시간"', accent: '#EF4444', accentRgb: '239,68,68' },
+                { emoji: '🖥️', title: 'PPT는 너무 오래 걸려요', body: '스크린샷 찍고, 자르고, 화살표 그리고, 정렬 맞추다 보면 한 슬라이드에 30분. UI는 또 바뀌어 있고요.', quote: '"디자인은 또 누가 다듬어?"', accent: '#818cf8', accentRgb: '129,140,248' },
+              ].map(p => (
+                <div key={p.title}
+                  style={{ padding: '32px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '20px', transition: 'all 0.25s ease', position: 'relative', overflow: 'hidden' }}
+                  onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.transform = 'translateY(-6px)'; el.style.borderColor = `rgba(${p.accentRgb},0.32)`; el.style.boxShadow = `0 24px 48px rgba(0,0,0,0.5), 0 0 0 1px rgba(${p.accentRgb},0.10)`; el.style.background = 'rgba(255,255,255,0.05)'; }}
+                  onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.transform = 'none'; el.style.borderColor = 'rgba(255,255,255,0.07)'; el.style.boxShadow = 'none'; el.style.background = 'rgba(255,255,255,0.03)'; }}
+                >
+                  <div style={{ position: 'absolute', top: 0, left: '32px', right: '32px', height: '1.5px', background: `linear-gradient(90deg, transparent, ${p.accent}80, transparent)` }} />
+                  <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: `${p.accent}18`, border: `1px solid ${p.accent}30`, display: 'grid', placeItems: 'center', marginBottom: '20px', fontSize: '22px' }}>{p.emoji}</div>
+                  <div style={{ fontSize: '18px', fontWeight: 700, marginBottom: '10px', color: 'white', letterSpacing: '-0.02em' }}>{p.title}</div>
+                  <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.42)', lineHeight: 1.75, margin: 0 }}>{p.body}</p>
+                  <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.07)', fontSize: '12.5px', color: 'rgba(255,255,255,0.22)', fontStyle: 'italic' }}>{p.quote}</div>
+                </div>
+              ))}
+            </div>
           </RevealSection>
         </div>
       </section>
 
       {/* How it works */}
-      <section id="how" style={{ padding: '96px 0', background: 'white' }}>
+      <section id="how" style={{ padding: '100px 0', background: 'white' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
-          <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#3730a3', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>How it works</span>
-          <h2 style={{ textAlign: 'center', fontSize: '36px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 auto 14px', maxWidth: '720px', lineHeight: 1.2, color: '#0D0D14' }}>3단계로 끝나는 매뉴얼 제작</h2>
-          <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '540px', margin: '0 auto 64px', lineHeight: 1.65 }}>기존 작업을 평소처럼 하기만 하면 됩니다. 나머지는 AI가 다 합니다.</p>
+          <RevealSection>
+            <span style={{ display: 'block', textAlign: 'center', fontSize: '11px', color: '#5b21b6', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '16px' }}>How it works</span>
+            <h2 style={{ textAlign: 'center', fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 800, letterSpacing: '-0.035em', margin: '0 auto 14px', maxWidth: '640px', lineHeight: 1.18, color: '#0D0D14' }}>3단계로 끝나는 매뉴얼 제작</h2>
+            <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '520px', margin: '0 auto 72px', lineHeight: 1.7 }}>기존 작업을 평소처럼 하기만 하면 됩니다. 나머지는 AI가 다 합니다.</p>
 
-          <div className="grid-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0', position: 'relative' }}>
-            {[
-              { num: '01', title: '크롬 확장 설치 후 녹화 시작', body: '웹 작업을 평소처럼 진행하면 클릭 위치와 화면이 자동 캡처됩니다.' },
-              { num: '02', title: 'AI가 자동 정리', body: '캡처된 스크린샷을 분석해 단계별 설명과 자막, 항목 마커까지 자동 생성합니다.' },
-              { num: '03', title: '링크로 공유', body: '완성된 매뉴얼은 링크 한 줄로 어디든 공유. 보는 사람은 클릭으로 따라하면 끝.' },
-            ].map(s => (
-              <div key={s.num} style={{ padding: '40px 36px', position: 'relative', zIndex: 1 }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '52px', height: '52px', borderRadius: '50%', background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', color: 'white', fontSize: '16px', fontWeight: 700, marginBottom: '24px', boxShadow: '0 8px 20px rgba(55,48,163,0.28)' }}>{s.num}</span>
-                <div style={{ fontSize: '19px', fontWeight: 600, marginBottom: '10px', color: '#0D0D14', letterSpacing: '-0.01em' }}>{s.title}</div>
-                <p style={{ fontSize: '14.5px', color: '#6B7280', lineHeight: 1.65, margin: 0 }}>{s.body}</p>
-              </div>
-            ))}
-          </div>
+            <div className="grid-3col how-steps" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0', position: 'relative' }}>
+              {/* Connecting line */}
+              <div style={{ position: 'absolute', top: '42px', left: '20%', right: '20%', height: '2px', background: 'linear-gradient(90deg, rgba(109,40,217,0.15), rgba(109,40,217,0.5), rgba(109,40,217,0.15))', pointerEvents: 'none', zIndex: 0 }} />
+              {[
+                { num: '01', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.15)"/><path d="M8 12l2.5 2.5L16 9" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>, title: '크롬 확장 설치 후 녹화 시작', body: '웹 작업을 평소처럼 진행하면 클릭 위치와 화면이 자동 캡처됩니다.' },
+                { num: '02', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" fill="rgba(255,255,255,0.9)"/></svg>, title: 'AI가 설명과 어노테이션 자동 완성', body: '캡처된 화면을 분석해 단계별 설명·하이라이트·화살표를 자동 생성합니다.' },
+                { num: '03', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="18" cy="5" r="3" stroke="white" strokeWidth="1.8"/><circle cx="6" cy="12" r="3" stroke="white" strokeWidth="1.8"/><circle cx="18" cy="19" r="3" stroke="white" strokeWidth="1.8"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke="white" strokeWidth="1.8"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke="white" strokeWidth="1.8"/></svg>, title: '링크 하나로 즉시 공유', body: '완성된 매뉴얼은 링크 한 줄로 공유. 보는 사람은 앱 설치 없이 바로 따라합니다.' },
+              ].map((s, i) => (
+                <div key={s.num} style={{ padding: '0 40px 0', position: 'relative', zIndex: 1, textAlign: 'center' }}>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '84px', height: '84px', borderRadius: '50%', background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)', marginBottom: '28px', boxShadow: '0 0 0 8px rgba(109,40,217,0.08), 0 12px 28px rgba(55,48,163,0.32)', position: 'relative' }}>
+                    {s.icon}
+                    <span style={{ position: 'absolute', top: '-4px', right: '-4px', width: '24px', height: '24px', borderRadius: '50%', background: '#0D0D14', border: '2px solid #4f46e5', display: 'grid', placeItems: 'center', fontSize: '9px', fontWeight: 800, color: '#c4b5fd' }}>{i + 1}</span>
+                  </div>
+                  <div style={{ fontSize: '18px', fontWeight: 700, marginBottom: '10px', color: '#0D0D14', letterSpacing: '-0.02em' }}>{s.title}</div>
+                  <p style={{ fontSize: '14px', color: '#6B7280', lineHeight: 1.75, margin: 0 }}>{s.body}</p>
+                </div>
+              ))}
+            </div>
+          </RevealSection>
         </div>
       </section>
 
@@ -1289,64 +1324,70 @@ export default function LandingPage() {
       <ProductShowcase />
 
       {/* Use Cases */}
-      <section style={{ padding: '96px 0', background: '#FAFAFA' }}>
+      <section style={{ padding: '100px 0', background: '#FAFAFA' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
-          <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#3730a3', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>Use Cases</span>
-          <h2 style={{ textAlign: 'center', fontSize: '36px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 auto 14px', maxWidth: '720px', lineHeight: 1.2, color: '#0D0D14' }}>어떤 팀에서 쓰고 있나요?</h2>
-          <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '540px', margin: '0 auto 56px', lineHeight: 1.65 }}>설명이 필요한 곳이라면 어디든 MIMIC으로 해결할 수 있습니다.</p>
+          <RevealSection>
+            <span style={{ display: 'block', textAlign: 'center', fontSize: '11px', color: '#5b21b6', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '16px' }}>Use Cases</span>
+            <h2 style={{ textAlign: 'center', fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 800, letterSpacing: '-0.035em', margin: '0 auto 14px', maxWidth: '640px', lineHeight: 1.18, color: '#0D0D14' }}>어떤 팀에서 쓰고 있나요?</h2>
+            <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '520px', margin: '0 auto 60px', lineHeight: 1.7 }}>설명이 필요한 곳이라면 어디든 MIMIC으로 해결할 수 있습니다.</p>
 
-          <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px' }}>
-            {useCases.map(uc => (
-              <div key={uc.tag}
-                style={{ padding: '36px', background: 'white', border: '1.5px solid #E5E7EB', borderRadius: '20px', transition: 'all 0.2s ease' }}
-                onMouseEnter={e => { const el = e.currentTarget; el.style.borderColor = 'rgba(55,48,163,0.30)'; el.style.boxShadow = '0 12px 32px rgba(55,48,163,0.07)'; el.style.transform = 'translateY(-2px)'; }}
-                onMouseLeave={e => { const el = e.currentTarget; el.style.borderColor = '#E5E7EB'; el.style.boxShadow = 'none'; el.style.transform = 'none'; }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
-                  <span style={{ fontSize: '28px' }}>{uc.emoji}</span>
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#3730a3', background: '#e0e7ff', padding: '4px 10px', borderRadius: '999px', letterSpacing: '0.02em' }}>{uc.tag}</span>
+            <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
+              {useCases.map(uc => (
+                <div key={uc.tag}
+                  style={{ padding: '36px', background: 'white', border: '1.5px solid #E5E7EB', borderRadius: '20px', transition: 'all 0.25s ease', position: 'relative', overflow: 'hidden' }}
+                  onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'rgba(79,70,229,0.28)'; el.style.boxShadow = '0 16px 40px rgba(55,48,163,0.08)'; el.style.transform = 'translateY(-4px)'; }}
+                  onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = '#E5E7EB'; el.style.boxShadow = 'none'; el.style.transform = 'none'; }}
+                >
+                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(90deg, #4f46e5, #7c3aed)', opacity: 0, transition: 'opacity 0.25s' }} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                    <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: 'linear-gradient(135deg, #e0e7ff, #ede9fe)', display: 'grid', placeItems: 'center', fontSize: '24px', flexShrink: 0 }}>{uc.emoji}</div>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#5b21b6', background: '#ede9fe', padding: '4px 12px', borderRadius: '999px', letterSpacing: '0.04em' }}>{uc.tag}</span>
+                  </div>
+                  <div style={{ fontSize: '18px', fontWeight: 700, marginBottom: '10px', color: '#0D0D14', letterSpacing: '-0.02em', lineHeight: 1.35 }}>{uc.title}</div>
+                  <p style={{ fontSize: '14px', color: '#6B7280', lineHeight: 1.75, margin: 0 }}>{uc.body}</p>
                 </div>
-                <div style={{ fontSize: '19px', fontWeight: 600, marginBottom: '10px', color: '#0D0D14', letterSpacing: '-0.01em', lineHeight: 1.3 }}>{uc.title}</div>
-                <p style={{ fontSize: '14.5px', color: '#6B7280', lineHeight: 1.7, margin: 0 }}>{uc.body}</p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </RevealSection>
         </div>
       </section>
 
       {/* Features */}
-      <section id="features" style={{ padding: '96px 0', background: 'white' }}>
+      <section id="features" style={{ padding: '100px 0', background: '#0A0A15' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
-          <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#3730a3', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>Features</span>
-          <h2 style={{ textAlign: 'center', fontSize: '36px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 auto 14px', maxWidth: '720px', lineHeight: 1.2, color: '#0D0D14' }}>매뉴얼에 필요한 건 전부 들어 있습니다</h2>
-          <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '560px', margin: '0 auto 64px', lineHeight: 1.65 }}>가이드 문서 · 화면 위 안내 · 교육 자료까지, 녹화 한 번으로.</p>
+          <RevealSection>
+            <span style={{ display: 'block', textAlign: 'center', fontSize: '11px', color: '#7c3aed', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '16px' }}>Features</span>
+            <h2 style={{ textAlign: 'center', fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 800, letterSpacing: '-0.035em', margin: '0 auto 14px', maxWidth: '640px', lineHeight: 1.18, color: 'white' }}>매뉴얼에 필요한 건 전부 들어 있습니다</h2>
+            <p style={{ textAlign: 'center', fontSize: '16px', color: 'rgba(255,255,255,0.38)', maxWidth: '520px', margin: '0 auto 64px', lineHeight: 1.7 }}>가이드 문서 · 화면 위 안내 · 교육 자료까지, 녹화 한 번으로.</p>
 
-          <div className="grid-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
-            {features.map(f => (
-              <div key={f.title}
-                style={{ padding: '28px', background: 'white', border: '1.5px solid #E5E7EB', borderRadius: '16px', transition: 'all 0.2s ease', position: 'relative' }}
-                onMouseEnter={e => { const el = e.currentTarget; el.style.borderColor = 'rgba(55,48,163,0.35)'; el.style.transform = 'translateY(-4px)'; el.style.boxShadow = '0 12px 32px rgba(55,48,163,0.08)'; }}
-                onMouseLeave={e => { const el = e.currentTarget; el.style.borderColor = '#E5E7EB'; el.style.transform = 'none'; el.style.boxShadow = 'none'; }}
-              >
-                {f.comingSoon && (
-                  <span style={{ position: 'absolute', top: '16px', right: '16px', fontSize: '10.5px', fontWeight: 600, color: '#6d28d9', background: '#F5F3FF', padding: '3px 8px', borderRadius: '999px', border: '1px solid #DDD6FE' }}>출시 예정</span>
-                )}
-                <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: f.comingSoon ? 'linear-gradient(135deg, #6d28d9 0%, #A78BFA 100%)' : 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', display: 'grid', placeItems: 'center', marginBottom: '18px', boxShadow: '0 4px 12px rgba(55,48,163,0.25)' }}>
-                  {f.icon}
+            <div className="grid-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
+              {features.map(f => (
+                <div key={f.title}
+                  style={{ padding: '28px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '18px', transition: 'all 0.25s ease', position: 'relative', overflow: 'hidden' }}
+                  onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'rgba(124,58,237,0.40)'; el.style.transform = 'translateY(-5px)'; el.style.boxShadow = '0 20px 48px rgba(0,0,0,0.5), 0 0 30px rgba(109,40,217,0.12)'; el.style.background = 'rgba(109,40,217,0.06)'; }}
+                  onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'rgba(255,255,255,0.07)'; el.style.transform = 'none'; el.style.boxShadow = 'none'; el.style.background = 'rgba(255,255,255,0.03)'; }}
+                >
+                  {f.comingSoon && (
+                    <span style={{ position: 'absolute', top: '16px', right: '16px', fontSize: '9.5px', fontWeight: 700, color: '#c4b5fd', background: 'rgba(109,40,217,0.15)', padding: '3px 9px', borderRadius: '999px', border: '1px solid rgba(109,40,217,0.3)' }}>출시 예정</span>
+                  )}
+                  <div style={{ width: '46px', height: '46px', borderRadius: '13px', background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)', display: 'grid', placeItems: 'center', marginBottom: '20px', boxShadow: '0 4px 16px rgba(79,70,229,0.40)' }}>
+                    {f.icon}
+                  </div>
+                  <div style={{ fontSize: '15px', fontWeight: 700, marginBottom: '8px', color: 'white', letterSpacing: '-0.01em' }}>{f.title}</div>
+                  <p style={{ fontSize: '13.5px', color: 'rgba(255,255,255,0.42)', lineHeight: 1.75, margin: 0 }}>{f.body}</p>
                 </div>
-                <div style={{ fontSize: '16px', fontWeight: 600, marginBottom: '8px', color: '#0D0D14' }}>{f.title}</div>
-                <p style={{ fontSize: '13.5px', color: '#6B7280', lineHeight: 1.65, margin: 0 }}>{f.body}</p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </RevealSection>
         </div>
       </section>
 
       {/* Comparison */}
-      <section style={{ padding: '96px 0', background: '#FAFAFA' }}>
+      <section style={{ padding: '100px 0', background: '#FAFAFA' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
-          <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#3730a3', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>Why MIMIC</span>
-          <h2 style={{ textAlign: 'center', fontSize: '36px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 auto 56px', maxWidth: '720px', lineHeight: 1.2, color: '#0D0D14' }}>다른 방법과 무엇이 다른가요?</h2>
+          <RevealSection>
+          <span style={{ display: 'block', textAlign: 'center', fontSize: '11px', color: '#5b21b6', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '16px' }}>Why MIMIC</span>
+          <h2 style={{ textAlign: 'center', fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 800, letterSpacing: '-0.035em', margin: '0 auto 60px', maxWidth: '640px', lineHeight: 1.18, color: '#0D0D14' }}>다른 방법과 무엇이 다른가요?</h2>
 
           <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: '20px', overflow: 'hidden' }}>
             {/* Header row */}
@@ -1380,15 +1421,16 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
+          </RevealSection>
         </div>
       </section>
 
       {/* Pricing */}
-      <section id="pricing" style={{ padding: '96px 0', background: 'white' }}>
+      <section id="pricing" style={{ padding: '100px 0', background: 'white' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
-          <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#3730a3', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>Pricing</span>
-          <h2 style={{ textAlign: 'center', fontSize: '36px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 auto 14px', maxWidth: '720px', lineHeight: 1.2, color: '#0D0D14' }}>필요한 만큼만 결제하세요</h2>
-          <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '560px', margin: '0 auto 40px', lineHeight: 1.65 }}>기본 매뉴얼은 누구나 무료로. 진짜 필요할 때만 업그레이드하세요.</p>
+          <span style={{ display: 'block', textAlign: 'center', fontSize: '11px', color: '#5b21b6', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '16px' }}>Pricing</span>
+          <h2 style={{ textAlign: 'center', fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 800, letterSpacing: '-0.035em', margin: '0 auto 14px', maxWidth: '640px', lineHeight: 1.18, color: '#0D0D14' }}>필요한 만큼만 결제하세요</h2>
+          <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '520px', margin: '0 auto 40px', lineHeight: 1.7 }}>기본 매뉴얼은 누구나 무료로. 진짜 필요할 때만 업그레이드하세요.</p>
 
           <div style={{ textAlign: 'center', marginBottom: '48px' }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px', background: '#F3F4F6', border: '1px solid #E5E7EB', borderRadius: '12px' }}>
@@ -1491,18 +1533,21 @@ export default function LandingPage() {
       </section>
 
       {/* Final CTA */}
-      <section style={{ padding: '0 0 96px', background: '#FAFAFA' }}>
+      <section style={{ padding: '0 0 100px', background: '#FAFAFA' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
-          <div className="final-cta-inner" style={{ background: 'linear-gradient(135deg, #3730A3 0%, #3730a3 40%, #6d28d9 100%)', borderRadius: '28px', padding: '80px 56px', textAlign: 'center', color: 'white', position: 'relative', overflow: 'hidden' }}>
-            <div style={{ position: 'absolute', top: '-80px', right: '-80px', width: '320px', height: '320px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', pointerEvents: 'none' }} />
-            <div style={{ position: 'absolute', bottom: '-100px', left: '-60px', width: '280px', height: '280px', borderRadius: '50%', background: 'rgba(255,255,255,0.04)', pointerEvents: 'none' }} />
-            <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px)', backgroundSize: '36px 36px', pointerEvents: 'none' }} />
+          <div className="final-cta-inner" style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 35%, #4c1d95 70%, #5b21b6 100%)', borderRadius: '28px', padding: '84px 56px', textAlign: 'center', color: 'white', position: 'relative', overflow: 'hidden' }}>
+            {/* Noise grain texture */}
+            <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(rgba(255,255,255,0.07) 1px, transparent 1px)', backgroundSize: '28px 28px', pointerEvents: 'none', opacity: 0.6 }} />
+            {/* Ambient glow orbs */}
+            <div style={{ position: 'absolute', top: '-120px', right: '-80px', width: '380px', height: '380px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(167,139,250,0.22) 0%, transparent 70%)', filter: 'blur(40px)', pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', bottom: '-100px', left: '-60px', width: '320px', height: '320px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(99,102,241,0.20) 0%, transparent 70%)', filter: 'blur(40px)', pointerEvents: 'none' }} />
 
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '999px', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', fontSize: '12px', fontWeight: 600, marginBottom: '20px', position: 'relative', letterSpacing: '0.02em' }}>
-              ★ Pro 출시 알림 받기 · 사전예약
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '6px 16px', borderRadius: '999px', background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.18)', fontSize: '12px', fontWeight: 600, marginBottom: '24px', position: 'relative', letterSpacing: '0.03em', backdropFilter: 'blur(8px)' }}>
+              <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#c4b5fd', animation: 'pulse-dot 1.8s ease-in-out infinite' }} />
+              Pro 출시 알림 받기 · 사전예약
             </span>
-            <h2 style={{ fontSize: '42px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 0 16px', position: 'relative', lineHeight: 1.15 }}>30초 만에 첫 매뉴얼을<br/>만들어보세요</h2>
-            <p style={{ fontSize: '17px', opacity: 0.85, maxWidth: '520px', margin: '0 auto 36px', position: 'relative', lineHeight: 1.6 }}>MIMIC Recorder 확장 설치 → 평소처럼 작업 → 링크 한 줄로 공유. 그게 전부입니다.</p>
+            <h2 style={{ fontSize: 'clamp(32px, 5vw, 54px)', fontWeight: 800, letterSpacing: '-0.04em', margin: '0 0 18px', position: 'relative', lineHeight: 1.1, wordBreak: 'keep-all' }}>30초 만에 첫 매뉴얼을<br/>만들어보세요</h2>
+            <p style={{ fontSize: '17px', color: 'rgba(255,255,255,0.70)', maxWidth: '500px', margin: '0 auto 40px', position: 'relative', lineHeight: 1.7 }}>MIMIC Recorder 확장 설치 → 평소처럼 작업 → 링크 한 줄로 공유. 그게 전부입니다.</p>
 
             {!submitted ? (
               <form onSubmit={handleProSignup} style={{ position: 'relative', display: 'flex', gap: '8px', maxWidth: '440px', margin: '0 auto 28px', padding: '6px', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.22)', borderRadius: '14px' }}>
@@ -1575,6 +1620,7 @@ export default function LandingPage() {
       </footer>
 
       <style>{`
+        /* ── 기존 애니메이션 ── */
         @keyframes avatarPopIn {
           0% { transform: scale(0.6); opacity: 0; }
           70% { transform: scale(1.08); opacity: 1; }
@@ -1610,7 +1656,7 @@ export default function LandingPage() {
           0%, 80%, 100% { transform: translateY(0); }
           40% { transform: translateY(-4px); }
         }
-@keyframes rec-blink {
+        @keyframes rec-blink {
           0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(239,68,68,0.6); }
           50% { opacity: 0.6; box-shadow: 0 0 0 4px rgba(239,68,68,0); }
         }
@@ -1631,16 +1677,61 @@ export default function LandingPage() {
           from { opacity: 0; transform: translateY(4px); }
           to { opacity: 1; transform: translateY(0); }
         }
-        @media (prefers-reduced-motion: reduce) {
-          * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+
+        /* ── 신규: 히어로 애니메이션 ── */
+        .hero-orb {
+          position: absolute;
+          border-radius: 50%;
+          pointer-events: none;
+          filter: blur(80px);
+        }
+        .hero-orb-1 {
+          top: -80px; left: -120px;
+          width: 560px; height: 560px;
+          background: radial-gradient(circle, rgba(109,40,217,0.22) 0%, transparent 70%);
+          animation: orbFloat1 9s ease-in-out infinite;
+        }
+        .hero-orb-2 {
+          top: 40px; right: -80px;
+          width: 480px; height: 480px;
+          background: radial-gradient(circle, rgba(55,48,163,0.18) 0%, transparent 70%);
+          animation: orbFloat2 12s ease-in-out infinite;
+        }
+        .hero-orb-3 {
+          bottom: 120px; left: 35%;
+          width: 420px; height: 280px;
+          background: radial-gradient(circle, rgba(167,139,250,0.12) 0%, transparent 70%);
+          animation: orbFloat3 15s ease-in-out infinite;
+        }
+        @keyframes orbFloat1 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33% { transform: translate(60px, 50px) scale(1.08); }
+          66% { transform: translate(-40px, 70px) scale(0.94); }
+        }
+        @keyframes orbFloat2 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          40% { transform: translate(-55px, 35px) scale(1.06); }
+          70% { transform: translate(35px, -45px) scale(0.96); }
+        }
+        @keyframes orbFloat3 {
+          0%, 100% { transform: translate(0, 0); }
+          50% { transform: translate(-28px, -18px); }
         }
 
-        /* 제품 쇼케이스 */
+        /* ── 신규: How it works 연결선 ── */
+        .how-steps { padding: 0 20px; }
+
+        /* ── 제품 쇼케이스 ── */
         .showcase-row { display: flex; gap: 64px; align-items: center; }
         .showcase-row.flip { flex-direction: row-reverse; }
 
-        /* 모바일 반응형 */
+        /* ── 모바일 반응형 ── */
         @media (max-width: 768px) {
+          .hero-orb { filter: blur(50px) !important; }
+          .hero-orb-1 { width: 300px !important; height: 300px !important; }
+          .hero-orb-2 { width: 250px !important; height: 250px !important; }
+          .hero-orb-3 { display: none; }
+
           .showcase-row, .showcase-row.flip { flex-direction: column !important; gap: 28px !important; }
           .showcase-row .showcase-text h3 { font-size: 24px !important; }
           .showcase-row .showcase-media { width: 100% !important; }
@@ -1657,7 +1748,6 @@ export default function LandingPage() {
           .grid-3col { grid-template-columns: 1fr !important; }
           .grid-2col { grid-template-columns: 1fr !important; }
 
-
           .pricing-grid { grid-template-columns: 1fr !important; }
           .pricing-grid > div { transform: none !important; }
 
@@ -1668,12 +1758,19 @@ export default function LandingPage() {
           .b2b-btns { flex-direction: column !important; align-items: center !important; }
           .final-cta-inner { padding: 48px 20px !important; }
           .final-cta-inner h2 { font-size: 28px !important; }
+
+          .how-steps { padding: 0 !important; }
+          .how-steps > div:not(:first-child) { border-top: 1px solid rgba(0,0,0,0.07); padding-top: 32px !important; }
         }
 
         @media (max-width: 480px) {
           h1 { font-size: 28px !important; }
           h2 { font-size: 24px !important; }
           .comparison-row { font-size: 10px !important; grid-template-columns: 1fr repeat(4, 64px) !important; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
         }
       `}</style>
     </div>
