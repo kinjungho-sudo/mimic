@@ -15,11 +15,12 @@ interface GuideTocProps {
   onInsertAfter?: (afterId: string) => void;
   onRenameDomain?: (hostname: string, newName: string) => void;
   onDeleteCategory?: (hostname: string | null) => void;
+  onClearDomain?: (hostname: string | null) => void;
   selectedIds?: Set<string>;
   onSelectChange?: (ids: Set<string>) => void;
 }
 
-export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDelete, onRenameDomain, onDeleteCategory, selectedIds: externalSelectedIds, onSelectChange }: GuideTocProps) {
+export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDelete, onRenameDomain, onDeleteCategory, onClearDomain, selectedIds: externalSelectedIds, onSelectChange }: GuideTocProps) {
   const [editingDomain, setEditingDomain] = useState<{ hostname: string; value: string } | null>(null);
   const domainInputRef = useRef<HTMLInputElement>(null);
   const [draggingIds, setDraggingIds] = useState<Set<string>>(new Set());
@@ -124,6 +125,17 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
 
   const stepGroupIdx: number[] = steps.map(step => hostnameToGroupIdx.get(step.domainHostname ?? null) ?? 0);
 
+  // 중복 헤더 방지: 같은 그룹이 비연속으로 재등장할 때 헤더를 다시 표시하지 않음
+  const _shownGroupSet = new Set<number>();
+  const showHeaderArr = stepGroupIdx.map((curGroup, idx) => {
+    const prevGroup = idx > 0 ? stepGroupIdx[idx - 1] : -1;
+    if (curGroup !== prevGroup && !_shownGroupSet.has(curGroup)) {
+      _shownGroupSet.add(curGroup);
+      return true;
+    }
+    return false;
+  });
+
   const isDraggingActive = draggingIds.size > 0;
   const selectedCount = selectedIds.size;
 
@@ -183,9 +195,8 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
           const isHover = hoverId === step.id;
           const isSelected = selectedIds.has(step.id);
 
-          const prevGroup = idx > 0 ? stepGroupIdx[idx - 1] : -1;
           const curGroup = stepGroupIdx[idx];
-          const showDomainHeader = curGroup !== prevGroup;
+          const showDomainHeader = showHeaderArr[idx];
           const group = domainGroups[curGroup];
 
           return (
@@ -232,6 +243,19 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
                     <span style={{ fontSize: '10.5px', color: '#9CA3AF' }}>
                       {group.count} Steps
                     </span>
+                    {editable && onClearDomain && (
+                      <button
+                        onClick={() => onClearDomain(group.hostname)}
+                        title="도메인 카테고리만 제거 (스텝은 유지)"
+                        style={{ width: '16px', height: '16px', borderRadius: '3px', border: 'none', background: 'transparent', color: '#9CA3AF', display: 'grid', placeItems: 'center', cursor: 'pointer', padding: 0 }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(107,114,128,0.12)'; e.currentTarget.style.color = '#374151'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#9CA3AF'; }}
+                      >
+                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M18 6L6 18M6 6l12 12"/>
+                        </svg>
+                      </button>
+                    )}
                     {editable && onDeleteCategory && (
                       <button
                         onClick={() => {
@@ -239,7 +263,7 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
                             onDeleteCategory(group.hostname);
                           }
                         }}
-                        title="카테고리 삭제"
+                        title="카테고리 스텝 전체 삭제"
                         style={{ width: '16px', height: '16px', borderRadius: '3px', border: 'none', background: 'transparent', color: '#9CA3AF', display: 'grid', placeItems: 'center', cursor: 'pointer', padding: 0 }}
                         onMouseEnter={e => { e.currentTarget.style.background = 'rgba(220,38,38,0.1)'; e.currentTarget.style.color = '#DC2626'; }}
                         onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#9CA3AF'; }}

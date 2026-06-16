@@ -13,6 +13,7 @@ const stepPatchSchema = z.object({
   image_offset_x: z.number().min(-1.5).max(1.5).nullable().optional(),
   image_offset_y: z.number().min(-1.5).max(1.5).nullable().optional(),
   domain_name: z.string().max(100).nullable().optional(),
+  domain_hostname: z.string().max(255).nullable().optional(),
   // 따라하기 스튜디오 저작 데이터 (null=자동추론)
   follow_config: z.object({
     hotspotX: z.number().min(0).max(100).nullable().optional(),

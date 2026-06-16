@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Plus, Trash2, ZoomIn, X,
   Bold, Italic, Underline, ExternalLink, Sparkles, Loader2,
-  Check, Mic, Play, Pause,
+  Check, Mic, Play, Pause, MessageSquare,
 } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { ImageAnnotationEditor, type Annotation } from './ImageAnnotationEditor';
@@ -56,11 +56,12 @@ interface ManualEditorProps {
   onActiveChange?: (id: string) => void;
   selectedIds?: Set<string>;
   onSelectChange?: (ids: Set<string>) => void;
+  onAddComment?: (stepId: string) => void;
 }
 
 // ── ManualEditor ──────────────────────────────────────────
 
-export function ManualEditor({ steps, onChange, onSave, onDeleteStep, hideToc, activeId: externalActiveId, onActiveChange, selectedIds: externalSelectedIds, onSelectChange }: ManualEditorProps) {
+export function ManualEditor({ steps, onChange, onSave, onDeleteStep, hideToc, activeId: externalActiveId, onActiveChange, selectedIds: externalSelectedIds, onSelectChange, onAddComment }: ManualEditorProps) {
   const [internalActiveId, setInternalActiveId] = useState<string | null>(
     steps.length > 0 ? steps[0].id : null
   );
@@ -357,6 +358,7 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, hideToc, a
                     onZoom={() => step.screenshotUrl && setZoomUrl(step.screenshotUrl)}
                     onAnnotate={() => { if (!step.screenshotUrl) return; setActiveId(step.id); setAnnotatingId(step.id); }}
                     onRemoveImage={() => { updateStep(step.id, { screenshotUrl: undefined, annotations: [] }); onSave?.(step.id, { screenshotUrl: undefined, annotations: [] }); }}
+                    onAddComment={onAddComment ? () => onAddComment(step.id) : undefined}
                   />
                 </div>
               </div>
@@ -593,9 +595,10 @@ interface StepCardProps {
   onZoom: () => void;
   onAnnotate: () => void;
   onRemoveImage: () => void;
+  onAddComment?: () => void;
 }
 
-function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdate, onSave, onDelete, onZoom, onAnnotate, onRemoveImage }: StepCardProps) {
+function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdate, onSave, onDelete, onZoom, onAnnotate, onRemoveImage, onAddComment }: StepCardProps) {
   const [hovering, setHovering] = useState(false);
   const [descGenerating, setDescGenerating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -807,6 +810,14 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
                 <ZoomIn size={13} />
               </button>
             )}
+            {onAddComment && !step.id.startsWith('step-') && (
+              <button title="이 단계에 댓글 추가" onClick={onAddComment} style={iconBtnSm}
+                onMouseEnter={e => { e.currentTarget.style.color = '#4F46E5'; }}
+                onMouseLeave={e => { e.currentTarget.style.color = '#9CA3AF'; }}
+              >
+                <MessageSquare size={13} />
+              </button>
+            )}
             <button onClick={onDelete} title="단계 삭제" style={iconBtnSm}
               onMouseEnter={e => { e.currentTarget.style.color = '#DC2626'; }}
               onMouseLeave={e => { e.currentTarget.style.color = '#9CA3AF'; }}
@@ -862,7 +873,7 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
             >
               {descGenerating
                 ? <Loader2 size={10} style={{ animation: 'spin 1s linear infinite' }} />
-                : <Sparkles size={10} />}
+                : <Sparkles size={12} />}
               {descGenerating ? '생성 중…' : 'AI 완성'}
             </button>
           )}
@@ -871,7 +882,7 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
           {(step.voiceTranscriptRaw || step.voiceAudioUrl) && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '10px', color: '#6d28d9', fontWeight: 600 }}>
-                <Mic size={10} /> 음성 설명
+                <Mic size={12} /> 음성 설명
               </span>
               {step.voiceAudioUrl && (
                 <button
@@ -884,7 +895,7 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
                     color: '#374151', fontSize: '10px', fontWeight: 500, cursor: 'pointer',
                   }}
                 >
-                  {audioPlaying ? <Pause size={9} /> : <Play size={9} />}
+                  {audioPlaying ? <Pause size={11} /> : <Play size={11} />}
                   {audioPlaying ? '정지' : '원본 듣기'}
                 </button>
               )}

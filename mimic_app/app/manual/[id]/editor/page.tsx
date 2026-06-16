@@ -872,6 +872,18 @@ export default function EditorPage() {
                 .filter(s => !s.id.startsWith('step-'))
                 .forEach(s => deleteStep(s.id).catch(e => logError('step.delete.fail', { tutorialId: id, stepId: s.id, message: e instanceof Error ? e.message : String(e) })));
             }}
+            onClearDomain={(hostname) => {
+              setManualSteps(prev => prev.map(s =>
+                s.domainHostname === hostname
+                  ? { ...s, domainHostname: null, domainName: null, domainFavicon: null }
+                  : s
+              ));
+              manualSteps
+                .filter(s => s.domainHostname === hostname && !s.id.startsWith('step-'))
+                .forEach(s => updateStep(s.id, { domain_name: null, domain_hostname: null }).catch(e =>
+                  logError('step.cleardomain.fail', { tutorialId: id, stepId: s.id, message: e instanceof Error ? e.message : String(e) })
+                ));
+            }}
           />
           {/* 다른 매뉴얼에서 불러오기 버튼 */}
           <div style={{ padding: '8px 10px', borderTop: '1px solid #F3F4F6', flexShrink: 0 }}>
@@ -1015,6 +1027,10 @@ export default function EditorPage() {
                 logError('step.delete.fail', { tutorialId: id, stepId, message: e instanceof Error ? e.message : String(e) });
                 alert('단계 삭제를 저장하지 못했습니다. 네트워크 연결을 확인 후 다시 시도해 주세요.');
               });
+            }}
+            onAddComment={(stepId) => {
+              setActiveId(stepId);
+              setShowComments(true);
             }}
             onSave={(stepId, patch) => {
               if (stepId.startsWith('step-')) return;
