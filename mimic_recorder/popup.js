@@ -1372,6 +1372,29 @@ function renderGuideStep(steps, idx) {
   guideStepTitle.textContent    = step.title || `Step ${num}`;
   guideStepInstr.textContent    = step.instruction || '';
 
+  // 스텝 스크린샷
+  const imgEl = document.getElementById('guideStepImage');
+  if (imgEl) {
+    if (step.screenshot_url) {
+      imgEl.src = step.screenshot_url;
+      imgEl.style.display = 'block';
+    } else {
+      imgEl.style.display = 'none';
+    }
+  }
+
+  // type_text 복사 영역
+  const copyArea    = document.getElementById('guideStepCopyArea');
+  const copyContent = document.getElementById('guideStepCopyContent');
+  if (copyArea && copyContent) {
+    if (step.type_text) {
+      copyContent.textContent  = step.type_text;
+      copyArea.style.display   = 'block';
+    } else {
+      copyArea.style.display   = 'none';
+    }
+  }
+
   guidePrevBtn.disabled         = idx === 0;
   guidePrevBtn.style.opacity    = idx === 0 ? '0.4' : '1';
   guidePrevBtn.style.cursor     = idx === 0 ? 'not-allowed' : 'pointer';
@@ -1411,6 +1434,15 @@ function renderGuideStep(steps, idx) {
     guideStepDots.appendChild(dot);
   });
 }
+
+document.getElementById('guideStepCopyBtn')?.addEventListener('click', () => {
+  const text = document.getElementById('guideStepCopyContent')?.textContent;
+  const btn  = document.getElementById('guideStepCopyBtn');
+  if (!text || !btn) return;
+  navigator.clipboard.writeText(text)
+    .then(() => { btn.textContent = '✓ 복사됨'; setTimeout(() => { if (btn.isConnected) btn.textContent = '📋 복사하기'; }, 1500); })
+    .catch(() => {});
+});
 
 guideExitBtn.addEventListener('click', () => {
   chrome.runtime.sendMessage({ type: 'EXIT_GUIDE' }, () => {
@@ -1475,6 +1507,18 @@ chrome.storage.onChanged.addListener((changes) => {
   }
   if (changes.guideModeActive?.newValue === undefined && changes.guideModeActive?.oldValue) {
     hideGuideView();
+  }
+});
+
+// guide-engine.js → 긴 텍스트 즉시입력 후 복사 힌트 표시
+chrome.runtime.onMessage.addListener((msg) => {
+  if (msg.type === 'SHOW_COPY_HINT' && msg.text) {
+    const copyContent = document.getElementById('guideStepCopyContent');
+    const copyArea    = document.getElementById('guideStepCopyArea');
+    if (copyContent && copyArea) {
+      copyContent.textContent = msg.text;
+      copyArea.style.display  = 'block';
+    }
   }
 });
 

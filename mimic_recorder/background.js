@@ -586,6 +586,13 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         const steps = data.steps || [];
         if (steps.length === 0) throw new Error('no steps');
 
+        // 현재 활성 탭 조회 (카운트다운 + 오버레이 공통 사용)
+        const allTabs = await new Promise((resolve) => chrome.tabs.query({ active: true }, resolve));
+        const activeTab = allTabs.find(t => t.url?.startsWith('http://') || t.url?.startsWith('https://'));
+
+        // Live Guide 카운트다운 시작 (3×900 + 700 = 3400ms)
+        if (activeTab?.id) sendTabMessage(activeTab.id, { type: 'SHOW_GUIDE_COUNTDOWN' });
+
         await storageSet({ guideSteps: steps, guideCurrentStep: 0, guideModeActive: true });
 
         const openPanel = (windowId) => chrome.sidePanel.open({ windowId }).catch(() => {});
@@ -595,11 +602,18 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
           chrome.windows.getCurrent((win) => { if (win?.id) openPanel(win.id); });
         }
 
-        const firstStep = steps[0];
-        if (firstStep.page_url) {
-          const tabs = await new Promise((res) => chrome.tabs.query({ active: true }, res));
-          const tab  = tabs.find(t => t.url?.startsWith('http://') || t.url?.startsWith('https://'));
-          if (tab?.id) {
+        sendResponse({ ok: true });
+
+        // 카운트다운 완료 후 오버레이 주입 (+200ms 여유)
+        setTimeout(async () => {
+          try {
+            const freshTabs = await new Promise((resolve) => chrome.tabs.query({ active: true }, resolve));
+            const tab = freshTabs.find(t => t.url?.startsWith('http://') || t.url?.startsWith('https://'));
+            if (!tab?.id) return;
+
+            const firstStep = steps[0];
+            if (!firstStep.page_url) return;
+
             const injectOverlay = (tabId) => sendTabMessage(tabId, { type: 'SHOW_OVERLAY', step: firstStep, index: 0, total: steps.length });
             try {
               const currentUrl = new URL(tab.url);
@@ -613,9 +627,10 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
             } catch {
               injectOverlay(tab.id);
             }
+          } catch (err) {
+            log('error', 'bg', 'guide overlay inject error:', err.message);
           }
-        }
-        sendResponse({ ok: true });
+        }, 3600);
       } catch (err) {
         log('error', 'bg', 'START_GUIDE error:', err.message);
         sendResponse({ ok: false, error: err.message });

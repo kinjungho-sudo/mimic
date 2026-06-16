@@ -358,7 +358,7 @@
   }
 
   // ── 녹화 시작 카운트다운 오버레이 ──────────────────────────────
-  function showCountdown(onDone) {
+  function showCountdown(onDone, opts) {
     const overlay = document.createElement('div');
     overlay.style.cssText = [
       'position:fixed', 'inset:0', 'z-index:2147483647',
@@ -380,7 +380,7 @@
     const dot = document.createElement('span');
     dot.style.cssText = 'width:8px;height:8px;border-radius:50%;background:#EF4444;flex-shrink:0;animation:mimic-blink 1s infinite';
     const badgeText = document.createElement('span');
-    badgeText.textContent = '화면 녹화가 시작됩니다';
+    badgeText.textContent = opts && opts.label ? opts.label : '화면 녹화가 시작됩니다';
     badge.append(dot, badgeText);
 
     const numEl = document.createElement('div');
@@ -406,7 +406,7 @@
       { text: '3', color: '#fff',      anim: 'mimic-pop 0.35s ease forwards' },
       { text: '2', color: '#fff',      anim: 'mimic-pop 0.35s ease forwards' },
       { text: '1', color: '#fff',      anim: 'mimic-pop 0.35s ease forwards' },
-      { text: 'START', color: '#4ade80', anim: 'mimic-start 0.4s ease forwards', size: '56px' },
+      { text: opts && opts.startText ? opts.startText : 'START', color: opts && opts.accentColor ? opts.accentColor : '#4ade80', anim: 'mimic-start 0.4s ease forwards', size: '56px' },
     ];
 
     let i = 0;
@@ -493,6 +493,12 @@
       hoverTarget = null;
       // 수동 캡처(background 직접 처리)는 msg.flash로 캡처 플래시 신호를 받는다
       if (msg.flash) flashCapture();
+      sendResponse({ ok: true });
+      return false;
+    }
+
+    if (msg.type === 'SHOW_GUIDE_COUNTDOWN') {
+      showCountdown(() => {}, { label: 'Live Guide 시작됩니다', accentColor: '#a78bfa', startText: 'GO' });
       sendResponse({ ok: true });
       return false;
     }
