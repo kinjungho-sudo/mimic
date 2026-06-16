@@ -163,10 +163,15 @@ export function AnnotationPreview({ annotations, imageUrl }: { annotations: Anno
           const bg = a.hasBg !== false;
           const lines = a.text.split('\n');
           const padX = 8, padY = 5;
-          // 박스 크기는 편집기와 동일하게 어노테이션의 고정 span(x/y 범위)을 사용.
-          // (기존엔 글자 길이로 boxW를 재계산 → 가운데정렬 시 textX=minX+boxW/2가 좌측으로 쏠려 화살표와 어긋났음)
-          const boxW = Math.max(w, 40);
-          const boxH = Math.max(h, fSize + 12);
+          // 폰트 크기는 고정 px이지만 박스 좌표는 이미지 % 기반 → 뷰어에서 이미지 크기가 달라지면 박스만 커짐
+          // 텍스트 내용으로 박스 크기를 자동 계산: CJK ≈ fSize*0.95, 라틴/ASCII ≈ fSize*0.58
+          const estimateLineW = (line: string) => {
+            let cw = 0;
+            for (const ch of line) cw += /[ᄀ-힣　-鿿豈-￯]/.test(ch) ? fSize * 0.95 : fSize * 0.58;
+            return cw;
+          };
+          const boxW = Math.max(...lines.map(estimateLineW)) + 2 * padX;
+          const boxH = Math.max(lines.length * fSize * 1.45 + 2 * padY, fSize + 12);
           const textX = align === 'left' ? minX + padX : align === 'center' ? minX + boxW / 2 : minX + boxW - padX;
           const anchor = align === 'left' ? 'start' : align === 'center' ? 'middle' : 'end';
           // 가독성: 편집기와 동일한 진한 배경 + 글자 외곽선(배경 밖으로 넘쳐도 읽힘)
