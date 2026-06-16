@@ -95,14 +95,12 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({ to, subject, html, fromName, replyTo: 'kinjungho@gmail.com' }),
     });
     if (!res.ok) {
-      const body = await res.text().catch(() => '');
-      console.error('[share/email] n8n webhook error:', res.status, body);
-      return NextResponse.json({ error: `n8n ${res.status}: ${body.slice(0, 200)}` }, { status: 500 });
+      console.error('[share/email] n8n webhook error:', res.status, await res.text().catch(() => ''));
+      return NextResponse.json({ error: '이메일 발송에 실패했습니다.' }, { status: 500 });
     }
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    console.error('[share/email] n8n webhook fetch failed:', msg);
-    return NextResponse.json({ error: `fetch failed: ${msg}` }, { status: 500 });
+    console.error('[share/email] n8n webhook fetch failed:', e);
+    return NextResponse.json({ error: '이메일 발송에 실패했습니다.' }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });
