@@ -256,15 +256,13 @@ export default function StudioPage() {
               alert('먼저 스텝에 핫스팟을 편집한 후 실행하세요.');
               return;
             }
-            const token = (tutorial as Tutorial & { share_token?: string | null }).share_token;
             const extId = (process.env.NEXT_PUBLIC_EXTENSION_ID ?? '').replace(/^﻿/, '').trim();
             if (!extId) { alert('라이브 가이드를 사용하려면 MIMIC 확장프로그램을 설치해주세요.'); return; }
-            if (!token) { alert('먼저 매뉴얼을 공유(게시)한 후 실행하세요.'); return; }
             try {
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               (window as any).chrome?.runtime?.sendMessage(
                 extId,
-                { action: 'START_GUIDE', share_token: token },
+                { action: 'START_GUIDE', tutorial_id: id },
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (res: any) => {
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any

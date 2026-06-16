@@ -568,13 +568,13 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
   }
 
   if (message.action === 'START_GUIDE') {
-    const { share_token } = message;
-    if (!share_token) { sendResponse({ ok: false, error: 'no share_token' }); return false; }
+    const guideToken = message.tutorial_id || message.share_token;
+    if (!guideToken) { sendResponse({ ok: false, error: 'no token' }); return false; }
 
     (async () => {
       try {
         const origin = await getWebappOrigin();
-        const res    = await fetch(`${origin}/api/guide/${share_token}`);
+        const res    = await fetch(`${origin}/api/guide/${guideToken}`, { credentials: 'include' });
         if (!res.ok) throw new Error(`guide fetch failed: ${res.status}`);
         const data  = await res.json();
         // 라이브 가이드 유료 게이팅 — 소유자 무료 한도(5회) 소진 시
