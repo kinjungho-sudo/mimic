@@ -74,10 +74,6 @@ export default function ManualViewerPage() {
   const [showShare, setShowShare] = useState(false);
   const [downloadOpen, setDownloadOpen] = useState(false);
   const [downloadingFmt, setDownloadingFmt] = useState<'pdf' | 'pptx' | 'docx' | null>(null);
-  // 라이브 가이드 유료 게이팅 — 소유자 플랜·잔여 무료 횟수 (Free 누적 5회)
-  const [liveGuide, setLiveGuide] = useState<{ paid: boolean; remaining: number | null } | null>(null);
-  const [showUpgrade, setShowUpgrade] = useState(false);
-
   // Auto-Run 상태
   const [showAutoRunModal, setShowAutoRunModal] = useState(false);
   const [autoRunLoading, setAutoRunLoading] = useState(false);
@@ -98,15 +94,6 @@ export default function ManualViewerPage() {
     if (tutorial.steps.length > 0 && !activeId) setActiveId(tutorial.steps[0].id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tutorial?.id]);
-
-  // 라이브 가이드 사용량 조회 (소유자만 — 페이월 UI용)
-  useEffect(() => {
-    if (!canEdit) return;
-    fetch('/api/user/plan')
-      .then(r => (r.ok ? r.json() : null))
-      .then(d => { if (d) setLiveGuide({ paid: !!d.paid, remaining: d.liveGuide?.remaining ?? null }); })
-      .catch(() => {});
-  }, [canEdit]);
 
   // 실행 상태 폴링 (2초 간격)
   useEffect(() => {
@@ -340,52 +327,11 @@ export default function ManualViewerPage() {
           {canEdit && manualSteps.length > 0 && (
             <button
               onClick={() => router.push(`/manual/${id}/studio`)}
-              title="따라하기 핫스팟·문구를 직접 저작"
-              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#5b21b6', background: '#f3e8ff', border: '1px solid #d8b4fe', cursor: 'pointer' }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#e9d5ff'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = '#f3e8ff'; }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19 7-7 3 3-7 7-3-3z"/><path d="m18 13-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="m2 2 7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
-              스튜디오
-            </button>
-          )}
-
-          {manualSteps.some(s => s.pageUrl) && (
-            <button
-              onClick={() => {
-                // 소유자(Free)가 무료 한도 소진 → 페이월
-                if (canEdit && liveGuide && !liveGuide.paid && (liveGuide.remaining ?? 0) <= 0) {
-                  setShowUpgrade(true);
-                  return;
-                }
-                // 익스텐션에 직접 명령 → 실제 사이트 새 탭 + 오버레이(guide-engine). sdk.js 불필요.
-                const extId = (process.env.NEXT_PUBLIC_EXTENSION_ID ?? '').replace(/^﻿/, '').trim();
-                if (!extId) { alert('라이브 가이드를 사용하려면 MIMIC 확장프로그램을 설치해주세요.'); return; }
-                if (!tutorial.share_token) { alert('먼저 공유(게시) 후 라이브 가이드를 사용할 수 있습니다.'); return; }
-                try {
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  (window as any).chrome?.runtime?.sendMessage(
-                    extId,
-                    { action: 'START_GUIDE', share_token: tutorial.share_token },
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    (res: any) => {
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      if ((window as any).chrome?.runtime?.lastError || !res?.ok) {
-                        if (res?.gated) { setShowUpgrade(true); return; }
-                        alert('확장프로그램이 응답하지 않습니다. 설치·활성화를 확인해주세요.');
-                      }
-                    }
-                  );
-                } catch {
-                  alert('라이브 가이드를 시작할 수 없습니다. 확장프로그램을 설치해주세요.');
-                }
-              }}
-              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#3730a3', background: '#e0e7ff', border: '1px solid #a5b4fc', cursor: 'pointer' }}>
+              title="라이브 가이드 편집 및 실행"
+              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#3730a3', background: '#e0e7ff', border: '1px solid #a5b4fc', cursor: 'pointer' }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#c7d2fe'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#e0e7ff'; }}>
               <PlayCircle size={15} /> 라이브 가이드
-              {canEdit && liveGuide && !liveGuide.paid && (
-                <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '10px', background: (liveGuide.remaining ?? 0) > 0 ? 'rgba(55,48,163,0.14)' : '#FEE2E2', color: (liveGuide.remaining ?? 0) > 0 ? '#3730a3' : '#B91C1C' }}>
-                  {(liveGuide.remaining ?? 0) > 0 ? `무료 ${liveGuide.remaining}회` : '체험 종료'}
-                </span>
-              )}
             </button>
           )}
 
@@ -567,22 +513,6 @@ export default function ManualViewerPage() {
                 </button>
               </div>
             </div>
-          </div>
-        </>
-      )}
-
-      {/* 라이브 가이드 무료 체험 종료 — 업그레이드 페이월 */}
-      {showUpgrade && (
-        <>
-          <div onClick={() => setShowUpgrade(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,15,0.6)', zIndex: 80, backdropFilter: 'blur(4px)' }} />
-          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 'min(380px, 92vw)', background: 'white', borderRadius: '18px', boxShadow: '0 30px 80px rgba(0,0,0,0.35)', zIndex: 81, padding: '30px 28px', textAlign: 'center' }}>
-            <div style={{ width: '52px', height: '52px', margin: '0 auto 14px', borderRadius: '14px', background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', display: 'grid', placeItems: 'center', color: 'white' }}>
-              <PlayCircle size={26} />
-            </div>
-            <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#111827', margin: '0 0 8px' }}>라이브 가이드 무료 체험이 끝났어요</h2>
-            <p style={{ fontSize: '13px', color: '#6B7280', lineHeight: 1.6, margin: '0 0 20px' }}>무료 플랜은 라이브 가이드를 5회까지 체험할 수 있어요.<br />Pro로 업그레이드하면 무제한으로 실제 화면 위에서 안내할 수 있습니다.</p>
-            <button onClick={() => router.push('/settings')} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', color: 'white', fontSize: '14px', fontWeight: 700, cursor: 'pointer', marginBottom: '10px' }}>Pro로 업그레이드</button>
-            <button onClick={() => setShowUpgrade(false)} style={{ width: '100%', padding: '10px', borderRadius: '10px', border: 'none', background: 'transparent', color: '#9CA3AF', fontSize: '12.5px', fontWeight: 600, cursor: 'pointer' }}>나중에</button>
           </div>
         </>
       )}

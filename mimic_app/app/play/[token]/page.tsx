@@ -238,8 +238,7 @@ function DocumentView({ tutorial }: { tutorial: Tutorial }) {
   );
 }
 
-// ── 공유 팝업 ─────────────────────────────────────────────
-
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function SharePopup({ title, url, onClose }: { title: string; url: string; onClose: () => void }) {
   const [copied, setCopied] = useState(false);
   const [emailTo, setEmailTo] = useState('');
@@ -416,27 +415,6 @@ function SharePopup({ title, url, onClose }: { title: string; url: string; onClo
   );
 }
 
-// ── .md 생성 ──────────────────────────────────────────────
-
-function buildMarkdown(tutorial: Tutorial): string {
-  const lines: string[] = [`# ${tutorial.title}`, ''];
-  tutorial.steps.forEach((step, idx) => {
-    lines.push(`## ${String(idx + 1).padStart(2, '0')}. ${step.title}`);
-    if (step.caption) lines.push('', step.caption);
-    if (step.screenshot_url) lines.push('', `![${step.title}](${step.screenshot_url})`);
-    const annotations = tutorial.annotations.filter(a => a.step_id === step.id);
-    if (annotations.length > 0) {
-      lines.push('');
-      annotations.forEach((ann, i) => {
-        lines.push(`**${i + 1}. ${ann.title}**`);
-        if (ann.body) lines.push(ann.body);
-      });
-    }
-    lines.push('');
-  });
-  return lines.join('\n');
-}
-
 // ── 비밀번호 게이트 ──────────────────────────────────────
 function PasswordGate({ protectedTitle, token, onUnlock }: {
   protectedTitle: string;
@@ -517,9 +495,7 @@ export default function PlayerPage() {
   const [notFound, setNotFound] = useState(false);
   const [passwordRequired, setPasswordRequired] = useState(false);
   const [protectedTitle, setProtectedTitle] = useState('');
-  const [viewMode, setViewMode] = useState<'follow' | 'slides' | 'document'>('slides');
-  const [showShare, setShowShare] = useState(false);
-  const [pptxExporting, setPptxExporting] = useState(false);
+  const [viewMode, setViewMode] = useState<'follow' | 'slides' | 'document'>('document');
   const [currentStep, setCurrentStep] = useState(0);
   const [showDesc, setShowDesc] = useState(true);
   const [showSidebar, setShowSidebar] = useState(false);
@@ -666,41 +642,6 @@ export default function PlayerPage() {
     setIsPlaying(false);
   };
 
-  const pageUrl = typeof window !== 'undefined' ? window.location.href : '';
-
-  const handleDownloadMd = () => {
-    const md = buildMarkdown(tutorial);
-    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${tutorial.title.replace(/[/\\?%*:|"<>]/g, '-')}.md`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleDownloadPptx = async () => {
-    if (!tutorial) return;
-    setPptxExporting(true);
-    try {
-      const res = await fetch(`/api/export/pptx/${tutorial.id}`);
-      if (!res.ok) { alert('PPTX 생성 실패'); return; }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = res.headers.get('content-disposition')?.match(/filename="(.+)"/)?.[1] ?? 'manual.pptx';
-      a.click();
-      URL.revokeObjectURL(url);
-    } finally { setPptxExporting(false); }
-  };
-
-  const headerBtnStyle: React.CSSProperties = {
-    height: '32px', padding: '0 12px', borderRadius: '8px', display: 'inline-flex', alignItems: 'center', gap: '6px',
-    color: 'rgba(255,255,255,0.75)', background: 'transparent', border: '1px solid rgba(255,255,255,0.15)',
-    cursor: 'pointer', fontSize: '12.5px', fontWeight: 500, transition: 'all 0.15s ease', whiteSpace: 'nowrap',
-  };
-
   return (
     <div style={{ position: 'fixed', inset: 0, background: viewMode === 'document' ? '#F8F9FA' : '#0A0A0F', display: 'flex', flexDirection: 'column', fontFamily: "'Pretendard', -apple-system, sans-serif", color: viewMode === 'document' ? '#111827' : 'white', overflow: 'hidden' }}>
 
@@ -725,51 +666,23 @@ export default function PlayerPage() {
 
         {/* 우측 액션 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '4px' : '6px', flexShrink: 0 }}>
-          {/* 모드 토글 */}
+          {/* 모드 토글: 웹 문서 ↔ 슬라이드 */}
           <div style={{ display: 'flex', background: viewMode === 'document' ? '#F3F4F6' : 'rgba(255,255,255,0.08)', borderRadius: '8px', padding: '3px', gap: '2px' }}>
             {([
-              { key: 'follow', label: '따라하기', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg> },
+              { key: 'document', label: '웹 문서', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="12" y2="16"/></svg> },
               { key: 'slides', label: '슬라이드', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> },
-            ] as { key: 'follow' | 'slides'; label: string; icon: React.ReactNode }[]).map(tab => {
+            ] as { key: 'document' | 'slides'; label: string; icon: React.ReactNode }[]).map(tab => {
               const active = viewMode === tab.key;
               const activeColor = viewMode === 'document' ? '#3730a3' : 'white';
               const inactiveColor = viewMode === 'document' ? '#6B7280' : 'rgba(255,255,255,0.5)';
               return (
-                <button key={tab.key} onClick={() => setViewMode(tab.key)} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: isMobile ? '5px 8px' : '5px 10px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: active ? 600 : 400, background: active ? 'rgba(255,255,255,0.15)' : 'transparent', color: active ? activeColor : inactiveColor, transition: 'all 0.12s', boxShadow: 'none' }}>
+                <button key={tab.key} onClick={() => setViewMode(tab.key)} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: isMobile ? '5px 8px' : '5px 10px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: active ? 600 : 400, background: active ? (viewMode === 'document' ? 'rgba(55,48,163,0.1)' : 'rgba(255,255,255,0.15)') : 'transparent', color: active ? activeColor : inactiveColor, transition: 'all 0.12s', boxShadow: 'none' }}>
                   {tab.icon}{!isMobile && tab.label}
                 </button>
               );
             })}
           </div>
 
-          {/* PPTX 다운로드 — 모바일에서 숨김 */}
-          {!isMobile && (
-            <button onClick={handleDownloadPptx} disabled={pptxExporting} title="PPTX 다운로드" style={{ ...headerBtnStyle, opacity: pptxExporting ? 0.6 : 1, cursor: pptxExporting ? 'not-allowed' : 'pointer' }}
-              onMouseEnter={e => { if (!pptxExporting) { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = 'white'; } }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.75)'; }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              {pptxExporting ? 'PPTX 생성 중…' : 'PPTX'}
-            </button>
-          )}
-
-
-          {/* .md 다운로드 — 모바일에서 숨김 */}
-          {!isMobile && (
-            <button onClick={handleDownloadMd} title="Markdown 다운로드" style={headerBtnStyle}
-              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = 'white'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.75)'; }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              .md
-            </button>
-          )}
-
-          {/* 공유 */}
-          <button onClick={() => setShowShare(true)} style={{ ...headerBtnStyle, background: 'linear-gradient(135deg, #3730a3, #6d28d9)', border: 'none', color: 'white', padding: isMobile ? '0 10px' : '0 12px' }}
-            onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 14px rgba(55,48,163,0.4)'; }}
-            onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-            {!isMobile && '공유'}
-          </button>
 
           {/* 전체화면 — 모바일에서 숨김 */}
           {!isMobile && (
@@ -1070,8 +983,6 @@ export default function PlayerPage() {
 
       </>}
 
-      {/* 공유 팝업 */}
-      {showShare && <SharePopup title={tutorial.title} url={pageUrl} onClose={() => setShowShare(false)} />}
     </div>
   );
 }
