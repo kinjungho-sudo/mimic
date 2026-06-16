@@ -48,6 +48,12 @@ function describe(a: ActivityItem): string {
     case 'comment_reopened':return `${who}님이 ${step} 댓글을 다시 열었습니다`;
     case 'share_invited':   return `${who}님이 ${email}님을 ${role} 권한으로 초대했습니다`;
     case 'share_revoked':   return `${who}님이 ${email} 공유를 해제했습니다`;
+    case 'step_added':      return `${who}님이 ${step}을 추가했습니다`;
+    case 'step_deleted':    return `${who}님이 ${step}을 삭제했습니다`;
+    case 'step_reordered':  return `${who}님이 스텝 순서를 변경했습니다`;
+    case 'step_edited':     return `${who}님이 ${step} 내용을 수정했습니다`;
+    case 'annotation_edited': return `${who}님이 ${step} 이미지 편집을 했습니다`;
+    case 'tutorial_published': return `${who}님이 매뉴얼을 게시했습니다`;
     default:                return `${who}님의 활동`;
   }
 }
@@ -111,7 +117,7 @@ export function ActivityPanel({ tutorialId, onClose }: ActivityPanelProps) {
                 {typeof a.meta?.snippet === 'string' && a.meta.snippet && (
                   <div style={{ fontSize: '11.5px', color: '#9CA3AF', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>&ldquo;{a.meta.snippet as string}&rdquo;</div>
                 )}
-                <div style={{ fontSize: '10.5px', color: '#C4C9D4', marginTop: '2px' }}>{timeAgo(a.created_at)}</div>
+                <div style={{ fontSize: '12px', color: '#6B7280', marginTop: '2px' }}>{timeAgo(a.created_at)}</div>
               </div>
             </div>
           ))

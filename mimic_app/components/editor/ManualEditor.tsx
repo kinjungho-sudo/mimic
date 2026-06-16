@@ -777,7 +777,7 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
             onBlur={e => { e.currentTarget.style.background = 'transparent'; handleTitleBlur(e); }}
             placeholder="단계 제목을 입력하세요"
             style={{
-              flex: 1, fontSize: '15px', fontWeight: 600, color: '#111827',
+              flex: 1, fontSize: '20px', fontWeight: 600, color: '#111827',
               background: 'transparent', border: 'none', outline: 'none',
               padding: '3px 6px', margin: '0 -6px',
               lineHeight: 1.4, borderRadius: '6px', cursor: 'text',
@@ -828,7 +828,7 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
             data-placeholder="이 단계에 대한 설명을 입력하세요."
             style={{
               width: '100%', marginTop: '4px',
-              fontSize: '14px', color: '#4B5563',
+              fontSize: '16px', color: '#4B5563',
               lineHeight: 1.6, fontFamily: 'inherit',
               minHeight: '24px',
               outline: 'none',

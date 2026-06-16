@@ -80,44 +80,44 @@ const TOOL_GROUPS: { tools: Tool[] }[] = [
 const TOOL_CONFIG: Record<Tool, { label: string; icon: React.ReactNode }> = {
   select: {
     label: '선택',
-    icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M4 0 L18 10 L11 11 L8 18 Z"/></svg>,
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4 0 L18 10 L11 11 L8 18 Z"/></svg>,
   },
   eraser: {
     label: '지우개',
-    icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 20H7L3 16l10-10 7 7-1.5 1.5"/><path d="M6 17l3-3"/></svg>,
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 20H7L3 16l10-10 7 7-1.5 1.5"/><path d="M6 17l3-3"/></svg>,
   },
   mosaic: {
     label: '모자이크 (흐림 강조)',
-    icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="2" width="5" height="5"/><rect x="9" y="2" width="5" height="5"/><rect x="16" y="2" width="5" height="5"/><rect x="2" y="9" width="5" height="5"/><rect x="9" y="9" width="5" height="5"/><rect x="16" y="9" width="5" height="5"/><rect x="2" y="16" width="5" height="5"/><rect x="9" y="16" width="5" height="5"/><rect x="16" y="16" width="5" height="5"/></svg>,
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="2" width="5" height="5"/><rect x="9" y="2" width="5" height="5"/><rect x="16" y="2" width="5" height="5"/><rect x="2" y="9" width="5" height="5"/><rect x="9" y="9" width="5" height="5"/><rect x="16" y="9" width="5" height="5"/><rect x="2" y="16" width="5" height="5"/><rect x="9" y="16" width="5" height="5"/><rect x="16" y="16" width="5" height="5"/></svg>,
   },
   pixelate: {
     label: '영구 블러 (민감정보 제거)',
-    icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="2" width="5" height="5"/><rect x="9" y="9" width="5" height="5"/><rect x="16" y="2" width="5" height="5"/><rect x="16" y="16" width="5" height="5"/><rect x="2" y="16" width="5" height="5"/><rect x="9" y="2" width="5" height="5" opacity="0.5"/><rect x="2" y="9" width="5" height="5" opacity="0.5"/><rect x="16" y="9" width="5" height="5" opacity="0.5"/><rect x="9" y="16" width="5" height="5" opacity="0.5"/></svg>,
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="2" width="5" height="5"/><rect x="9" y="9" width="5" height="5"/><rect x="16" y="2" width="5" height="5"/><rect x="16" y="16" width="5" height="5"/><rect x="2" y="16" width="5" height="5"/><rect x="9" y="2" width="5" height="5" opacity="0.5"/><rect x="2" y="9" width="5" height="5" opacity="0.5"/><rect x="16" y="9" width="5" height="5" opacity="0.5"/><rect x="9" y="16" width="5" height="5" opacity="0.5"/></svg>,
   },
   ellipse: {
     label: '원',
-    icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><ellipse cx="12" cy="12" rx="10" ry="7"/></svg>,
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><ellipse cx="12" cy="12" rx="10" ry="7"/></svg>,
   },
   rect: {
     label: '사각형',
-    icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><rect x="3" y="4" width="18" height="16" rx="1"/></svg>,
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><rect x="3" y="4" width="18" height="16" rx="1"/></svg>,
   },
   roundedRect: {
     label: '둥근 사각형',
-    icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><rect x="3" y="4" width="18" height="16" rx="5"/></svg>,
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><rect x="3" y="4" width="18" height="16" rx="5"/></svg>,
   },
   arrow: {
     label: '화살표',
-    icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="9 5 19 5 19 15"/></svg>,
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="9 5 19 5 19 15"/></svg>,
   },
   text: {
     label: '텍스트',
-    icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>,
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>,
   },
   marker: {
     label: '마커',
     icon: (
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
         <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2"/>
         <text x="12" y="16" textAnchor="middle" fill="currentColor" fontSize="10" fontWeight="700">①</text>
       </svg>
@@ -125,7 +125,7 @@ const TOOL_CONFIG: Record<Tool, { label: string; icon: React.ReactNode }> = {
   },
   spotlight: {
     label: '스포트라이트',
-    icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>,
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>,
   },
 };
 
@@ -179,6 +179,7 @@ export function ImageAnnotationEditor({
 }: ImageAnnotationEditorProps) {
   // 영역 블러 처리 중 오버레이 (드래그→픽셀화→업로드 동안 입력 차단)
   const [pixelating, setPixelating] = useState(false);
+  const [canvasZoom, setCanvasZoom] = useState(1);
   const [savedDefaults] = useState<Partial<ToolDefaults>>(loadDefaults);
   const [tool, setTool] = useState<Tool>('select');
   const [color, setColor] = useState<Color>(savedDefaults.color ?? '#FFFFFF');
@@ -302,10 +303,33 @@ export function ImageAnnotationEditor({
     // innerText로 읽으면 줄바꿈(\n)이 보존됨
     const rawText = (textInputRef.current?.innerText ?? '').replace(/\n$/, '').trimEnd();
     const id = editingText.id;
-    setItems(cur => rawText
-      ? cur.map(a => a.id === id ? { ...a, text: rawText } : a)
-      : cur.filter(a => a.id !== id)
-    );
+    setItems(cur => {
+      if (!rawText) return cur.filter(a => a.id !== id);
+      const item = cur.find(a => a.id === id);
+      let x2Override: number | undefined, y2Override: number | undefined;
+      if (item && imgRef.current) {
+        const imgW = imgRef.current.getBoundingClientRect().width;
+        const imgH = imgRef.current.getBoundingClientRect().height;
+        if (imgW > 0 && imgH > 0) {
+          const fSize = item.fontSize ?? 18;
+          const bold = item.fontBold ?? true;
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.font = `${bold ? 700 : 400} ${fSize}px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif`;
+            const lines = rawText.split('\n');
+            const maxLineW = Math.max(...lines.map(l => ctx.measureText(l).width));
+            x2Override = item.x1 + ((maxLineW + 20) / imgW) * 100;
+            y2Override = item.y1 + ((lines.length * fSize * 1.4 + 12) / imgH) * 100;
+          }
+        }
+      }
+      return cur.map(a => a.id === id ? {
+        ...a, text: rawText,
+        ...(x2Override !== undefined ? { x2: x2Override } : {}),
+        ...(y2Override !== undefined ? { y2: y2Override } : {}),
+      } : a);
+    });
     setEditingText(null);
     if (textInputRef.current) textInputRef.current.innerText = '';
   }, [editingText]);
@@ -437,6 +461,16 @@ export function ImageAnnotationEditor({
           onPixelate(region).finally(() => setPixelating(false));
         }
         return null;
+      }
+
+      // 화살표 방향 정규화: 위→아래 or 왼쪽→오른쪽
+      if (final.type === 'arrow') {
+        const ddx = final.x2 - final.x1, ddy = final.y2 - final.y1;
+        if (Math.abs(ddy) >= Math.abs(ddx)) {
+          if (ddy < 0) { const tx = final.x1, ty = final.y1; final.x1 = final.x2; final.y1 = final.y2; final.x2 = tx; final.y2 = ty; }
+        } else {
+          if (ddx < 0) { const tx = final.x1, ty = final.y1; final.x1 = final.x2; final.y1 = final.y2; final.x2 = tx; final.y2 = ty; }
+        }
       }
 
       setItems(cur => {
@@ -772,17 +806,23 @@ export function ImageAnnotationEditor({
               style={{ height: '32px', padding: '0 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(255,255,255,0.7)', fontSize: '11.5px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-            ><RotateCcw size={11} /> 취소</button>
+            ><RotateCcw size={11} /> 실행 취소</button>
             <button onClick={redo} title="다시 실행 (Ctrl+Y)"
               style={{ height: '32px', padding: '0 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(255,255,255,0.7)', fontSize: '11.5px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-            ><RotateCw size={11} /> 다시</button>
+            ><RotateCw size={11} /> 재실행</button>
 
             {selectedId && (
               <button onClick={deleteSelected}
                 style={{ height: '32px', padding: '0 10px', borderRadius: '6px', border: '1px solid rgba(220,38,38,0.4)', background: 'rgba(220,38,38,0.1)', color: '#FCA5A5', fontSize: '11.5px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', marginLeft: '2px' }}
               ><Trash2 size={11} /> 삭제</button>
+            )}
+
+            {canvasZoom !== 1 && (
+              <button onClick={() => setCanvasZoom(1)}
+                style={{ height: '32px', padding: '0 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)', fontSize: '11.5px', cursor: 'pointer' }}
+              >{Math.round(canvasZoom * 100)}% 초기화</button>
             )}
 
             <div style={{ width: '1px', height: '22px', background: 'rgba(255,255,255,0.12)', margin: '0 4px' }} />
@@ -902,10 +942,15 @@ export function ImageAnnotationEditor({
         {/* ── Canvas wrapper ── */}
         <div
           style={{ overflow: 'auto', flex: '1 1 0', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: activeCursor }}
+          onWheel={(e) => {
+            if (selectedId) return;
+            e.preventDefault();
+            setCanvasZoom(z => Math.max(0.5, Math.min(3, z + (e.deltaY < 0 ? 0.1 : -0.1))));
+          }}
         >
         {/* ── Canvas ── */}
         <div
-          style={{ position: 'relative', display: 'inline-block', lineHeight: 0, flexShrink: 0, cursor: activeCursor }}
+          style={{ position: 'relative', display: 'inline-block', lineHeight: 0, flexShrink: 0, cursor: activeCursor, transform: canvasZoom !== 1 ? `scale(${canvasZoom})` : undefined, transformOrigin: 'center center' }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
@@ -1052,7 +1097,7 @@ export function ImageAnnotationEditor({
         </div>
         </div>{/* end canvas wrapper */}
 
-        <div style={{ height: '24px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10.5px', color: 'rgba(255,255,255,0.5)', background: '#1a1a1a' }}>
+        <div style={{ height: '36px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: 'rgba(255,255,255,0.65)', background: '#111' }}>
           {tool === 'select' ? '클릭으로 선택 · 드래그로 이동 · 방향키로 미세 이동 · Delete 삭제 · Ctrl+Z 취소' :
            tool === 'marker' ? '클릭하면 번호 마커 추가' :
            tool === 'spotlight' ? '완성 후 선택 모드로 전환 — 이동 · 크기 조절 가능' :
@@ -1348,18 +1393,13 @@ function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx
           />
         )}
         {text.split('\n').map((line, i) => {
-          // 가독성: 글자 외곽선 — 배경 박스 밖으로 넘치거나 배경 없음일 때도 읽힘
-          const hex = color.replace('#', '');
-          const luma = 0.299 * (parseInt(hex.slice(0, 2), 16) || 0) + 0.587 * (parseInt(hex.slice(2, 4), 16) || 0) + 0.114 * (parseInt(hex.slice(4, 6), 16) || 0);
-          const outline = luma > 160 ? 'rgba(0,0,0,0.75)' : 'rgba(255,255,255,0.85)';
           return (
             <text key={i}
               x={textX} y={minY + padY + i * fSize * 1.4}
               fill={color} fontSize={fSize} fontWeight={bold ? 700 : 400}
               textAnchor={anchor}
               dominantBaseline="text-before-edge"
-              stroke={outline} strokeWidth={Math.max(1.5, fSize / 8)} strokeLinejoin="round"
-              style={{ pointerEvents: 'none', paintOrder: 'stroke' }}
+              style={{ pointerEvents: 'none' }}
             >{line}</text>
           );
         })}

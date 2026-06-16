@@ -862,7 +862,14 @@ export default function EditorPage() {
             }}
             onDeleteCategory={(hostname) => {
               const toDelete = manualSteps.filter(s => s.domainHostname === hostname);
-              toDelete.forEach(s => handleDeleteStep(s.id));
+              const next = manualSteps
+                .filter(s => s.domainHostname !== hostname)
+                .map((s, i) => ({ ...s, number: i + 1 }));
+              setManualStepsWithHistory(next);
+              if (toDelete.some(s => s.id === activeId)) setActiveId(next[0]?.id ?? null);
+              toDelete
+                .filter(s => !s.id.startsWith('step-'))
+                .forEach(s => deleteStep(s.id).catch(e => logError('step.delete.fail', { tutorialId: id, stepId: s.id, message: e instanceof Error ? e.message : String(e) })));
             }}
           />
           {/* 다른 매뉴얼에서 불러오기 버튼 */}

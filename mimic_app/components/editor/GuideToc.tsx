@@ -117,7 +117,7 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
     const hostname = step.domainHostname ?? null;
     if (!hostnameToGroupIdx.has(hostname)) {
       hostnameToGroupIdx.set(hostname, domainGroups.length);
-      domainGroups.push({ hostname, name: hostnameToServiceName(hostname), favicon: step.domainFavicon ?? null, count: 0 });
+      domainGroups.push({ hostname, name: (step as { domainName?: string | null }).domainName ?? hostnameToServiceName(hostname), favicon: step.domainFavicon ?? null, count: 0 });
     }
     domainGroups[hostnameToGroupIdx.get(hostname)!].count++;
   });

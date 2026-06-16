@@ -252,7 +252,7 @@ export function CommentsPanel({ tutorialId, activeStepId, steps, currentUserId, 
                   <Avatar author={c.author} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '12.5px', fontWeight: 700, color: '#111827', lineHeight: 1.2 }}>{authorName(c.author)}</div>
-                    <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '1px' }}>{timeAgo(c.created_at)}</div>
+                    <div style={{ fontSize: '12px', color: '#6B7280', marginTop: '1px' }}>{timeAgo(c.created_at)}</div>
                   </div>
                   {/* 해결 토글 */}
                   <button onClick={() => handleResolve(c, !resolved)} title={resolved ? '다시 열기' : '해결로 표시'}
@@ -300,9 +300,9 @@ export function CommentsPanel({ tutorialId, activeStepId, steps, currentUserId, 
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px' }}>
                         <span style={{ fontSize: '12px', fontWeight: 700, color: '#111827' }}>{authorName(r.author)}</span>
-                        <span style={{ fontSize: '10.5px', color: '#9CA3AF' }}>{timeAgo(r.created_at)}</span>
+                        <span style={{ fontSize: '12px', color: '#6B7280' }}>{timeAgo(r.created_at)}</span>
                         {r.author_id === currentUserId && (
-                          <button onClick={() => handleDelete(r.id)} style={{ fontSize: '10.5px', color: '#9CA3AF', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginLeft: 'auto' }}>삭제</button>
+                          <button onClick={() => handleDelete(r.id)} style={{ fontSize: '11px', color: '#9CA3AF', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginLeft: 'auto' }}>삭제</button>
                         )}
                       </div>
                       <div style={{ fontSize: '12.5px', color: '#374151', lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word', marginTop: '2px' }}>{r.body}</div>

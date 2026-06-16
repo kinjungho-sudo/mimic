@@ -134,7 +134,7 @@ export function AgentChat() {
     return (
       <button onClick={() => setIsOpen(true)} title="문의하기"
         style={{
-          position: 'fixed', bottom: '24px', right: '24px', zIndex: 9000,
+          position: 'fixed', bottom: '90px', right: '24px', zIndex: 9000,
           width: '52px', height: '52px', borderRadius: '50%',
           background: 'linear-gradient(135deg, #3730a3, #6d28d9)',
           border: 'none', cursor: 'pointer',
@@ -154,7 +154,7 @@ export function AgentChat() {
   if (isMinimized) {
     return (
       <div style={{
-        position: 'fixed', bottom: '24px', right: '24px', zIndex: 9000,
+        position: 'fixed', bottom: '90px', right: '24px', zIndex: 9000,
         display: 'flex', alignItems: 'center', gap: '10px',
         background: 'white', borderRadius: '999px',
         boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
@@ -173,7 +173,7 @@ export function AgentChat() {
   // ── 풀 패널 ──
   return (
     <div style={{
-      position: 'fixed', bottom: '24px', right: '24px', zIndex: 9000,
+      position: 'fixed', bottom: '90px', right: '24px', zIndex: 9000,
       width: '360px', height: '540px',
       background: 'white', borderRadius: '16px',
       boxShadow: '0 8px 40px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)',
