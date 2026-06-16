@@ -6,14 +6,16 @@
   if (window.MimicGuide) return; // 중복 주입 방지
 
   const Z = 2147483640;
-  const COORD_BOX = 46;   // 좌표만 있을 때 핫스팟 한 변(px)
-  const HIT_PAD_EL = 6;   // 요소/rect 클릭 허용 여유(px)
-  const HIT_PAD_COORD = 28; // 좌표 핫스팟 클릭 허용 반경 여유(px)
+  const COORD_BOX = 46;
+  const HIT_PAD_EL = 6;
+  const HIT_PAD_COORD = 28;
+  const TIP_W = 300;  // 툴팁 고정 너비(px)
+  const TIP_GAP = 14; // 타깃과 툴팁 사이 간격(px)
+  const TIP_M = 8;    // 뷰포트 여백(px)
 
   let state = null;
-  // state: { host, shadow, els, resolved, opts, rafId, onDocClick, onKey, advanced, completed }
 
-  // ── 순수 로직 (하버스에서 단위 검증 가능) ──────────────────
+  // ── 순수 로직 ────────────────────────────────────────────────
   function resolveTarget(step) {
     let el = null, rect = null, source = 'none';
     if (step.element_selector) {
@@ -43,7 +45,6 @@
            y >= rect.top - pad && y <= rect.top + rect.height + pad;
   }
 
-  // 클릭이 현재 스텝 타깃에 해당하는가
   function isHit(clientX, clientY, target, eventTarget) {
     if (!target || !target.rect) return false;
     if (target.el && eventTarget && (target.el === eventTarget || target.el.contains(eventTarget))) return true;
@@ -52,13 +53,50 @@
     return pointInRect(clientX, clientY, live, pad);
   }
 
-  // ── 오버레이 렌더 ───────────────────────────────────────────
+  // 툴팁 위치 계산 — 타깃 rect 기준, 공간 여유에 따라 아래/위 자동 선택
+  function calcTipPos(r, tipH) {
+    const VW = window.innerWidth, VH = window.innerHeight;
+    const spaceBelow = VH - (r.top + r.height + TIP_GAP + TIP_M);
+    const spaceAbove = r.top - TIP_GAP - TIP_M;
+    const h = tipH || 200;
+
+    let top, arrowDir;
+    if (spaceBelow >= h || spaceBelow >= spaceAbove) {
+      top = r.top + r.height + TIP_GAP;
+      arrowDir = 'top';
+    } else {
+      top = r.top - h - TIP_GAP;
+      arrowDir = 'bottom';
+    }
+    top = Math.max(TIP_M, Math.min(VH - h - TIP_M, top));
+
+    let left = r.left + r.width / 2 - TIP_W / 2;
+    left = Math.max(TIP_M, Math.min(VW - TIP_W - TIP_M, left));
+
+    // 화살표 가로 위치: 타깃 중심 → 툴팁 내 상대 좌표
+    const arrowLeft = Math.max(16, Math.min(TIP_W - 32, r.left + r.width / 2 - left - 8));
+
+    return { left, top, arrowDir, arrowLeft };
+  }
+
+  // 마스코트 SVG HTML
+  const MASCOT_SVG = `<svg width="27" height="27" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="4" y="7" width="16" height="12" rx="4" fill="white"/>
+    <circle cx="9.5" cy="13" r="1.7" fill="#4f46e5"/>
+    <circle cx="14.5" cy="13" r="1.7" fill="#4f46e5"/>
+    <path d="M9.5 16.2c1.6 1 3.4 1 5 0" stroke="#4f46e5" stroke-width="1.2" stroke-linecap="round"/>
+    <line x1="12" y1="3.5" x2="12" y2="7" stroke="white" stroke-width="1.6" stroke-linecap="round"/>
+    <circle cx="12" cy="3" r="1.3" fill="white"/>
+  </svg>`;
+
+  const AVATAR_STYLE = `width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#4f46e5,#7c3aed);box-shadow:0 4px 16px rgba(79,70,229,.5);display:flex;align-items:center;justify-content:center;flex-shrink:0;`;
+
+  // ── 오버레이 렌더 ─────────────────────────────────────────────
   function show(step, opts) {
     hide();
     opts = opts || {};
     const resolved = resolveTarget(step);
 
-    // 화면 밖이면 스크롤해서 보이게
     if (resolved.el) {
       try {
         const r = resolved.el.getBoundingClientRect();
@@ -76,80 +114,162 @@
 
     const root = document.createElement('div');
     root.style.cssText = 'position:fixed;inset:0;pointer-events:none;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;';
+
     shadow.appendChild(style(`
       @keyframes mimic-ripple { 0%{transform:scale(1);opacity:.8} 100%{transform:scale(2.6);opacity:0} }
-      @keyframes mimic-nudge { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
-      .mimic-btn { pointer-events:auto; cursor:pointer; border:none; border-radius:8px; font-size:13px; font-weight:600; padding:7px 12px; }
+      @keyframes mimic-nudge  { 0%,100%{transform:none} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+      @keyframes mimic-avatar-in { 0%{transform:scale(0.5) translateY(8px);opacity:0} 65%{transform:scale(1.08)} 100%{transform:scale(1) translateY(0);opacity:1} }
+      @keyframes mimic-tip-in { 0%{opacity:0;transform:translateY(6px) scale(0.97)} 100%{opacity:1;transform:translateY(0) scale(1)} }
+      .mimic-btn { pointer-events:auto; cursor:pointer; border:none; border-radius:8px; font-size:13px; font-weight:600; padding:7px 12px; transition:opacity .15s; }
+      .mimic-btn:active { opacity:.75; }
     `));
 
-    // 하이라이트 박스
+    // 스포트라이트 하이라이트 (보라색 글로우 + 어두운 배경 오버레이)
     const hl = document.createElement('div');
-    hl.style.cssText = `position:fixed;pointer-events:none;box-sizing:border-box;border:2.5px solid #F59E0B;background:rgba(255,200,0,.16);border-radius:7px;box-shadow:0 0 0 4px rgba(245,158,11,.18),0 0 0 9999px rgba(0,0,0,.04);z-index:2;`;
+    hl.style.cssText = `position:fixed;pointer-events:none;box-sizing:border-box;border:2px solid rgba(99,102,241,0.85);background:rgba(99,102,241,.06);border-radius:8px;box-shadow:0 0 0 5px rgba(99,102,241,.18),0 0 0 9999px rgba(0,0,0,.65);z-index:2;transition:left .12s,top .12s,width .12s,height .12s;`;
     root.appendChild(hl);
 
-    // 클릭 핀(펄스)
+    // 클릭 핀 (인디고 펄스)
     const pulse = document.createElement('div');
-    pulse.style.cssText = `position:fixed;width:18px;height:18px;border-radius:50%;background:rgba(239,68,68,.9);pointer-events:none;z-index:3;`;
+    pulse.style.cssText = `position:fixed;width:16px;height:16px;border-radius:50%;background:rgba(99,102,241,.95);pointer-events:none;z-index:3;`;
     const ripple = document.createElement('div');
-    ripple.style.cssText = `position:absolute;inset:-4px;border-radius:50%;border:2px solid rgba(239,68,68,.7);animation:mimic-ripple 1.2s ease-out infinite;`;
+    ripple.style.cssText = `position:absolute;inset:-5px;border-radius:50%;border:2px solid rgba(99,102,241,.6);animation:mimic-ripple 1.2s ease-out infinite;`;
     pulse.appendChild(ripple);
     root.appendChild(pulse);
 
-    // 안내 + 진행/컨트롤 바
-    const bar = document.createElement('div');
-    bar.style.cssText = 'position:fixed;bottom:22px;left:50%;transform:translateX(-50%);width:calc(100% - 40px);max-width:560px;background:rgba(17,17,20,.92);color:#fff;border-radius:14px;padding:12px 14px;box-shadow:0 8px 30px rgba(0,0,0,.45);z-index:5;pointer-events:auto;';
+    // 플로팅 아바타 — 타깃 우상단 고정 (툴팁 안에도 별도 표시)
+    const avatar = document.createElement('div');
+    avatar.style.cssText = `position:fixed;${AVATAR_STYLE}pointer-events:none;z-index:6;animation:mimic-avatar-in 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards;`;
+    avatar.innerHTML = MASCOT_SVG;
+    root.appendChild(avatar);
+
+    // 플로팅 툴팁 카드
     const idx = opts.index ?? 0, total = opts.total ?? 1;
-    bar.innerHTML = `
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <span style="font-size:11px;font-weight:700;color:#A5B4FC;background:rgba(99,102,241,.2);padding:2px 8px;border-radius:20px">${idx + 1} / ${total}</span>
-        ${resolved.source === 'none' ? '<span style="font-size:11px;color:#FCA5A5">요소를 못 찾았어요 — 직접 진행</span>' : ''}
-        <div style="flex:1"></div>
-        <button class="mimic-btn" data-act="exit" style="background:transparent;color:rgba(255,255,255,.55);padding:4px 8px">종료</button>
+    const typeTextSnippet = step.type_text
+      ? escapeHtml(String(step.type_text).length > 60 ? String(step.type_text).slice(0, 60) + '…' : String(step.type_text))
+      : '';
+
+    const tooltip = document.createElement('div');
+    tooltip.style.cssText = `position:fixed;width:${TIP_W}px;box-sizing:border-box;background:rgba(17,17,20,.93);color:#fff;border-radius:14px;padding:14px;box-shadow:0 12px 40px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.07);z-index:5;pointer-events:auto;animation:mimic-tip-in 0.28s ease forwards;`;
+    tooltip.innerHTML = `
+      <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px">
+        <div style="${AVATAR_STYLE}">${MASCOT_SVG}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+            <span style="font-size:11px;font-weight:700;color:#A5B4FC;background:rgba(99,102,241,.25);padding:2px 8px;border-radius:20px">${idx + 1} / ${total}</span>
+            ${resolved.source === 'none' ? '<span style="font-size:10.5px;color:#FCA5A5">요소 미발견</span>' : ''}
+            <div style="flex:1"></div>
+            <button class="mimic-btn" data-act="exit" style="background:transparent;color:rgba(255,255,255,.4);padding:3px 6px;font-size:12px">✕</button>
+          </div>
+          <div style="font-size:14px;font-weight:600;line-height:1.5;color:#F3F4F6">${escapeHtml(step.title || '')}</div>
+          ${step.instruction && step.instruction !== step.title ? `<div style="font-size:12.5px;color:#9CA3AF;line-height:1.55;margin-top:3px">${escapeHtml(step.instruction)}</div>` : ''}
+        </div>
       </div>
-      <div data-role="instr" style="font-size:14.5px;line-height:1.55;text-align:left">${escapeHtml(step.instruction || step.title || '')}</div>
-      <div style="display:flex;gap:8px;margin-top:10px">
-        <button class="mimic-btn" data-act="prev" style="background:rgba(255,255,255,.12);color:#fff">이전</button>
+      ${step.type_text ? `
+        <div style="margin-bottom:10px;background:rgba(99,102,241,.18);border:1px solid rgba(99,102,241,.3);border-radius:8px;padding:8px 10px">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:11px;color:#A5B4FC;flex-shrink:0">⌨ 입력 텍스트</span>
+            <button class="mimic-btn" data-act="copy" style="margin-left:auto;background:rgba(255,255,255,.12);color:#e0e7ff;font-size:11px;padding:3px 9px">복사</button>
+          </div>
+          <div style="font-size:11.5px;color:#c7d2fe;line-height:1.5;margin-top:5px;word-break:break-all">${typeTextSnippet}</div>
+        </div>` : ''}
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="mimic-btn" data-act="prev" style="background:rgba(255,255,255,.1);color:#D1D5DB;font-size:12px;padding:6px 11px">← 이전</button>
         <div style="flex:1"></div>
-        <button class="mimic-btn" data-act="next" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff">${idx + 1 >= total ? '완료' : '다음'}</button>
+        <button class="mimic-btn" data-act="next" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:7px 16px">${idx + 1 >= total ? '완료 ✓' : '다음 →'}</button>
       </div>`;
-    root.appendChild(bar);
+
+    // 화살표 (툴팁 꼬리)
+    const arrow = document.createElement('div');
+    arrow.style.cssText = 'position:absolute;width:0;height:0;pointer-events:none;';
+    tooltip.appendChild(arrow);
+
+    root.appendChild(tooltip);
     shadow.appendChild(root);
 
-    state = { host, shadow, hl, pulse, bar, resolved, step, opts, idx, total, advanced: false, completed: false, fillTimer: null };
+    state = { host, shadow, hl, pulse, avatar, tooltip, arrow, resolved, step, opts, idx, total, advanced: false, completed: false, fillTimer: null };
 
-    // 라이브 가이드 자동입력 — type_text가 있고 타깃이 입력 요소면 자동으로 타이핑
+    // 자동입력
     if (step.type_text && resolved.el) autoFill(resolved.el, String(step.type_text));
 
-    // 바 버튼: 페이지 클릭 감지와 섞이지 않도록 마킹 + stopPropagation
-    bar.addEventListener('click', (e) => {
+    // 툴팁 버튼 이벤트
+    tooltip.addEventListener('click', (e) => {
       e.stopPropagation();
       const act = e.target.getAttribute && e.target.getAttribute('data-act');
       if (act === 'next') advance('manual');
       else if (act === 'prev') opts.onPrev && opts.onPrev();
       else if (act === 'exit') opts.onExit && opts.onExit();
+      else if (act === 'copy') {
+        const text = state && state.step && state.step.type_text;
+        if (text) {
+          navigator.clipboard.writeText(String(text))
+            .then(() => {
+              const b = e.target;
+              b.textContent = '✓ 복사됨';
+              setTimeout(() => { if (b.isConnected) b.textContent = '복사'; }, 1500);
+            })
+            .catch(() => {});
+        }
+      }
     }, true);
 
-    // 위치 추적 (스크롤/리사이즈/레이아웃 변화)
+    // 위치 추적 RAF
     const reposition = () => {
-      const t = state && state.resolved;
-      if (!t || !t.rect) { hl.style.display = 'none'; } else {
+      if (!state) return;
+      const t = state.resolved;
+      if (!t || !t.rect) {
+        hl.style.display = 'none';
+        pulse.style.display = 'none';
+        avatar.style.display = 'none';
+        tooltip.style.display = 'none';
+      } else {
         const r = t.el ? rectOf(t.el) : t.rect;
-        const P = 4;
+        const P = 5;
+
+        // 스포트라이트 박스
         hl.style.display = 'block';
-        hl.style.left = `${r.left - P}px`; hl.style.top = `${r.top - P}px`;
-        hl.style.width = `${r.width + P * 2}px`; hl.style.height = `${r.height + P * 2}px`;
+        hl.style.left = `${r.left - P}px`;
+        hl.style.top  = `${r.top  - P}px`;
+        hl.style.width  = `${r.width  + P * 2}px`;
+        hl.style.height = `${r.height + P * 2}px`;
+
+        // 클릭 핀
         const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
         pulse.style.display = 'block';
-        pulse.style.left = `${cx - 9}px`; pulse.style.top = `${cy - 9}px`;
+        pulse.style.left = `${cx - 8}px`;
+        pulse.style.top  = `${cy - 8}px`;
+
+        // 플로팅 아바타 (타깃 우상단)
+        const avSize = 44;
+        let avX = r.left + r.width - avSize * 0.3;
+        let avY = r.top - avSize * 0.7;
+        avX = Math.max(8, Math.min(window.innerWidth  - avSize - 8, avX));
+        avY = Math.max(8, Math.min(window.innerHeight - avSize - 8, avY));
+        avatar.style.display = 'flex';
+        avatar.style.left = `${avX}px`;
+        avatar.style.top  = `${avY}px`;
+
+        // 툴팁 위치 + 화살표
+        tooltip.style.display = 'block';
+        const tipH = tooltip.offsetHeight || 200;
+        const pos = calcTipPos(r, tipH);
+        tooltip.style.left = `${pos.left}px`;
+        tooltip.style.top  = `${pos.top}px`;
+
+        if (pos.arrowDir === 'top') {
+          arrow.style.cssText = `position:absolute;left:${pos.arrowLeft}px;top:-7px;width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:7px solid rgba(17,17,20,.93);pointer-events:none;`;
+        } else {
+          arrow.style.cssText = `position:absolute;left:${pos.arrowLeft}px;bottom:-7px;width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:7px solid rgba(17,17,20,.93);pointer-events:none;`;
+        }
       }
       state.rafId = requestAnimationFrame(reposition);
     };
     state.rafId = requestAnimationFrame(reposition);
 
-    // 자동 진행: 타깃 클릭 감지 (캡처 단계, 페이지 동작은 막지 않음)
+    // 클릭 감지 (캡처, 페이지 동작 막지 않음)
     const onDocClick = (e) => {
       if (state.advanced || state.completed) return;
-      if (e.target === host) return; // 우리 오버레이 클릭 무시
+      if (e.target === host) return;
       if (isHit(e.clientX, e.clientY, state.resolved, e.target)) {
         advance('click');
       } else {
@@ -176,9 +296,9 @@
   }
 
   function nudge() {
-    if (!state || !state.bar) return;
-    state.bar.style.animation = 'mimic-nudge .3s';
-    setTimeout(() => { if (state && state.bar) state.bar.style.animation = ''; }, 320);
+    if (!state || !state.tooltip) return;
+    state.tooltip.style.animation = 'mimic-nudge .3s';
+    setTimeout(() => { if (state && state.tooltip) state.tooltip.style.animation = ''; }, 320);
   }
 
   function showComplete() {
@@ -187,19 +307,24 @@
     state.completed = true;
     state.hl.style.display = 'none';
     state.pulse.style.display = 'none';
-    state.bar.innerHTML = `
-      <div style="text-align:center;padding:6px 4px">
-        <div style="font-size:22px;margin-bottom:6px">🎉</div>
-        <div style="font-size:15px;font-weight:700;margin-bottom:10px">가이드를 완료했습니다</div>
-        <button class="mimic-btn" data-act="exit" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:9px 22px">닫기</button>
+    state.avatar.style.display = 'none';
+    state.tooltip.innerHTML = `
+      <div style="text-align:center;padding:10px 4px">
+        <div style="${AVATAR_STYLE}margin:0 auto 12px;">${MASCOT_SVG}</div>
+        <div style="font-size:15px;font-weight:700;margin-bottom:6px">가이드 완료! 🎉</div>
+        <div style="font-size:12.5px;color:#9CA3AF;margin-bottom:14px">모든 스텝을 완료했습니다.</div>
+        <button class="mimic-btn" data-act="exit" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:9px 24px;width:100%">닫기</button>
       </div>`;
+    state.tooltip.style.left = `${Math.max(TIP_M, (window.innerWidth - TIP_W) / 2)}px`;
+    state.tooltip.style.top  = `${Math.max(TIP_M, (window.innerHeight - 220) / 2)}px`;
+    state.tooltip.style.animation = 'mimic-tip-in 0.3s ease forwards';
   }
 
-  // 입력 요소에 텍스트 자동 타이핑 (React 등 제어 컴포넌트 대응: native setter + input 이벤트)
+  // 자동 타이핑 (React 제어 컴포넌트 대응)
   function autoFill(el, text) {
     const tag = el.tagName ? el.tagName.toLowerCase() : '';
     const isField = tag === 'input' || tag === 'textarea' || el.isContentEditable;
-    if (!isField) return;  // 입력 요소가 아니면 자동입력 안 함(클릭형 타깃 등)
+    if (!isField) return;
     try { el.focus({ preventScroll: true }); } catch { /* noop */ }
     const setVal = (v) => {
       if (el.isContentEditable) {
@@ -219,7 +344,6 @@
       if (i < text.length) { state.fillTimer = setTimeout(tick, 35); }
       else { el.dispatchEvent(new Event('change', { bubbles: true })); }
     };
-    // 하이라이트가 보인 직후 시작
     state.fillTimer = setTimeout(tick, 280);
   }
 
@@ -237,7 +361,7 @@
     state = null;
   }
 
-  // ── 유틸 ────────────────────────────────────────────────────
+  // ── 유틸 ──────────────────────────────────────────────────────
   function style(css) { const s = document.createElement('style'); s.textContent = css; return s; }
   function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
