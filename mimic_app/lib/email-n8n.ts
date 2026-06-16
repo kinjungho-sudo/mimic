@@ -32,6 +32,47 @@ export async function sendMimicEmail(opts: {
   }
 }
 
+// 관리자 뉴스레터 — 평문 본문을 브랜드 템플릿으로 감싼다(관리자가 HTML 몰라도 됨).
+export function newsletterHtml(subject: string, bodyText: string): string {
+  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const paras = bodyText.split(/\n{2,}/).map(p =>
+    `<p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.75;">${esc(p).replace(/\n/g, '<br>')}</p>`
+  ).join('');
+  return `
+<!DOCTYPE html>
+<html lang="ko">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#F8F9FA;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#F8F9FA;padding:40px 0;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+        <tr>
+          <td style="background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:28px 40px;">
+            <p style="margin:0;font-size:20px;font-weight:800;color:white;letter-spacing:-0.5px;">MIMIC</p>
+            <p style="margin:6px 0 0;font-size:12px;color:rgba(255,255,255,0.7);">소식 · 업데이트</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px 40px;">
+            <h1 style="margin:0 0 18px;font-size:20px;font-weight:700;color:#111827;line-height:1.4;">${esc(subject)}</h1>
+            ${paras}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:18px 40px;border-top:1px solid #F3F4F6;text-align:center;">
+            <p style="margin:0;font-size:11.5px;color:#9CA3AF;line-height:1.6;">
+              MIMIC · AI 인터랙티브 매뉴얼 플랫폼<br>
+              이 메일은 수신 동의하신 분께만 발송됩니다. 수신 거부는 설정 &gt; 이메일 수신 동의에서 변경할 수 있어요.
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
 // 가입 환영 메일 HTML
 export function welcomeEmailHtml(name?: string | null): string {
   const greet = name ? `${name}님, ` : '';
