@@ -406,27 +406,20 @@ function Scene1({ tick }: { tick: number }) {
 
 // ── 씬 2: 정부24 클릭 캡처 + MIMIC Recorder 패널 ──────────
 function Scene2({ tick }: { tick: number }) {
-  // 클릭마다 스텝 누적
-  const steps = tick >= 4600 ? 2 : tick >= 1800 ? 1 : 0;
-  const clickHL = (tick >= 1200 && tick < 1800) || (tick >= 4000 && tick < 4600);
+  // 좌측 화면이 클릭에 따라 전환: 0=홈(주민등록등본 메뉴 클릭) → 1=발급 페이지(발급하기 클릭)
+  const substep = tick < 2600 ? 0 : 1;
+  // 우측 패널 스텝 누적 — 좌측 클릭과 동기화
+  const steps = tick >= 4800 ? 2 : tick >= 2000 ? 1 : 0;
   const REC_STEPS = [
     { label: '클릭, 주민등록등본(초본)', time: '15:36:03' },
     { label: '클릭, 발급하기', time: '15:36:18' },
   ];
   return (
     <div style={{ width: '100%', height: '100%', display: 'grid', gridTemplateColumns: '1fr 210px', position: 'relative', background: '#fff' }}>
-      {/* 좌측 정부24 */}
+      {/* 좌측 정부24 — substep별 화면 + 클릭 동작 */}
       <div style={{ position: 'relative', overflow: 'hidden' }}>
-        <Gov24Page />
-        {/* 발급하기 버튼 (우측 하단) + 하이라이트 */}
-        <div style={{ position: 'absolute', right: '24px', bottom: '40px', width: '150px' }}>
-          <div style={{ padding: '10px 0', borderRadius: '6px', background: '#1d4ed8', color: '#fff', fontSize: '12px', fontWeight: 700, textAlign: 'center', boxShadow: clickHL ? '0 0 0 3px rgba(239,68,68,0.9)' : 'none', transition: 'box-shadow 0.2s' }}>발급하기</div>
-          {clickHL && <div style={{ position: 'absolute', inset: '-3px', border: '2.5px solid #EF4444', borderRadius: '8px', pointerEvents: 'none', animation: 'sceneIn 0.2s ease both' }} />}
-        </div>
-        {/* 커서 */}
-        <div style={{ position: 'absolute', right: '90px', bottom: '36px', zIndex: 10, pointerEvents: 'none' }}>
-          {clickHL && <div style={{ position: 'absolute', top: '8px', left: '4px', width: '26px', height: '26px', borderRadius: '50%', border: '2px solid rgba(29,78,216,0.5)', transform: 'translate(-50%,-50%)', animation: 'rippleOut 0.8s ease-out infinite' }} />}
-          <CursorIcon />
+        <div key={substep} style={{ position: 'absolute', inset: 0, animation: 'sceneIn 0.4s ease both' }}>
+          <StepScreen step={substep} mode="record" />
         </div>
       </div>
       {/* 우측 MIMIC Recorder 패널 */}
@@ -532,10 +525,19 @@ function Gov24Mini() {
 
 // 스텝 화면 — step별 타겟(메뉴/버튼)을 명확히 그리고, 그 요소에 직접 어노테이션
 // mode='card' : 빨간 박스 + 화살표 + 캡션 / mode='guide' : 스포트라이트(주변 딤)
-function StepScreen({ step, mode }: { step: number; mode: 'card' | 'guide' }) {
+function StepScreen({ step, mode }: { step: number; mode: 'card' | 'guide' | 'record' }) {
   const isHome = step === 0;
   const cap = isHome ? '주민등록증 메뉴 클릭' : '발급하기 버튼 클릭';
   const isCard = mode === 'card';
+  const isRec = mode === 'record';
+
+  // 녹화 모드: 타겟에 커서 + 클릭 리플 (어노테이션 없음)
+  const recordOverlay = (
+    <>
+      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: '46px', height: '46px', borderRadius: '50%', border: '2px solid rgba(29,78,216,0.55)', animation: 'rippleOut 0.85s ease-out infinite', pointerEvents: 'none', zIndex: 5 }} />
+      <div style={{ position: 'absolute', top: '56%', left: '52%', zIndex: 6, pointerEvents: 'none' }}><CursorIcon /></div>
+    </>
+  );
 
   // 타겟 요소 자식으로 들어가는 오버레이
   const overlayBelow = (
@@ -567,9 +569,9 @@ function StepScreen({ step, mode }: { step: number; mode: 'card' | 'guide' }) {
             {SERVICES.map((s, i) => {
               const target = i === 1;
               return (
-                <div key={i} style={{ position: 'relative', padding: '9px 5px', borderRadius: '7px', border: `1.5px solid ${target && isCard ? '#EF4444' : '#E5E7EB'}`, background: target && isCard ? '#FEF2F2' : '#F9FAFB', fontSize: '8.5px', fontWeight: target ? 700 : 500, color: target ? '#111827' : '#6B7280', textAlign: 'center', lineHeight: 1.3, zIndex: target && mode === 'guide' ? 5 : 1 }}>
+                <div key={i} style={{ position: 'relative', padding: '9px 5px', borderRadius: '7px', border: `1.5px solid ${target ? (isCard ? '#EF4444' : isRec ? '#1d4ed8' : '#E5E7EB') : '#E5E7EB'}`, background: target ? (isCard ? '#FEF2F2' : isRec ? '#EFF6FF' : '#F9FAFB') : '#F9FAFB', fontSize: '8.5px', fontWeight: target ? 700 : 500, color: target ? '#111827' : '#6B7280', textAlign: 'center', lineHeight: 1.3, zIndex: target && (mode === 'guide' || isRec) ? 5 : 1 }}>
                   {s}
-                  {target && (isCard ? overlayBelow : spotlight)}
+                  {target && (isCard ? overlayBelow : isRec ? recordOverlay : spotlight)}
                 </div>
               );
             })}
@@ -594,10 +596,10 @@ function StepScreen({ step, mode }: { step: number; mode: 'card' | 'guide' }) {
           </div>
         ))}
         {/* 발급하기 버튼 (타겟) — 우측 중앙 */}
-        <div style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', width: '110px', zIndex: mode === 'guide' ? 5 : 1 }}>
-          <div style={{ position: 'relative', padding: '9px 0', borderRadius: '6px', background: '#1d4ed8', color: '#fff', fontSize: '10.5px', fontWeight: 700, textAlign: 'center', border: isCard ? '2px solid #EF4444' : 'none' }}>
+        <div style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', width: '110px', zIndex: (mode === 'guide' || isRec) ? 5 : 1 }}>
+          <div style={{ position: 'relative', padding: '9px 0', borderRadius: '6px', background: '#1d4ed8', color: '#fff', fontSize: '10.5px', fontWeight: 700, textAlign: 'center', border: isCard ? '2px solid #EF4444' : isRec ? '2px solid #93C5FD' : 'none' }}>
             발급하기
-            {isCard ? overlayAbove : spotlight}
+            {isCard ? overlayAbove : isRec ? recordOverlay : spotlight}
           </div>
         </div>
       </div>
