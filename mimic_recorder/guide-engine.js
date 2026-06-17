@@ -303,8 +303,21 @@
         pulse.style.display = 'none';
         avatar.style.display = 'none';
         tooltip.style.display = 'none';
+      } else if (t.el && !t.el.isConnected) {
+        // 요소가 DOM에서 분리됨(SPA 화면 전환) → 대기 모드로 되돌려 재탐색
+        show(state.step, state.opts);
+        return;
       } else {
         const r = t.el ? rectOf(t.el) : t.rect;
+        // 연결돼 있지만 숨겨졌거나 0크기면 이 프레임은 그리지 않음(깜빡임 방지)
+        if (t.el && (r.width < 1 || r.height < 1)) {
+          hl.style.display = 'none';
+          pulse.style.display = 'none';
+          avatar.style.display = 'none';
+          tooltip.style.display = 'none';
+          state.rafId = requestAnimationFrame(reposition);
+          return;
+        }
         const P = 5;
 
         // 스포트라이트 박스
@@ -446,19 +459,36 @@
       else if (act === 'next') opts.onAdvance && opts.onAdvance('manual');
     });
 
-    state = { host, shadow, waiting: true, findTimer: null };
+    state = { host, shadow, waiting: true, findObserver: null, findTimer: null };
 
-    // 요소 등장 폴링 — 셀렉터/XPath로 잡히면 정상 오버레이로 전환
-    const poll = () => {
-      if (!state || !state.waiting) return;
+    // 셀렉터/XPath로 요소가 잡히면 정상 오버레이로 전환
+    const tryResolve = () => {
+      if (!state || !state.waiting) return false;
       const r = resolveTarget(step);
       if (r.source === 'selector' || r.source === 'xpath') {
         show(step, opts);  // hide() 후 정상 오버레이 렌더
-        return;
+        return true;
       }
-      state.findTimer = setTimeout(poll, 500);
+      return false;
     };
-    state.findTimer = setTimeout(poll, 500);
+
+    // 1순위: MutationObserver — DOM이 바뀌는 즉시 재시도(rAF 디바운스). 폴링보다 빠르고 CPU 절약.
+    let pending = false;
+    const obs = new MutationObserver(() => {
+      if (pending) return;
+      pending = true;
+      requestAnimationFrame(() => { pending = false; tryResolve(); });
+    });
+    try { obs.observe(document.body, { childList: true, subtree: true }); } catch { /* noop */ }
+    state.findObserver = obs;
+
+    // 안전망: 옵저버가 못 잡는 속성-only/canvas 변경 대비 — 1s 저빈도 폴링
+    const safety = () => {
+      if (!state || !state.waiting) return;
+      if (tryResolve()) return;
+      state.findTimer = setTimeout(safety, 1000);
+    };
+    state.findTimer = setTimeout(safety, 1000);
   }
 
   // 자동 타이핑 (React 제어 컴포넌트 대응)
@@ -509,6 +539,7 @@
     if (state.rafId) cancelAnimationFrame(state.rafId);
     if (state.fillTimer) clearTimeout(state.fillTimer);
     if (state.findTimer) clearTimeout(state.findTimer);
+    if (state.findObserver) state.findObserver.disconnect();
     if (state.onDocClick) document.removeEventListener('click', state.onDocClick, true);
     if (state.onKey) document.removeEventListener('keydown', state.onKey, true);
     if (state.host) state.host.remove();
