@@ -138,6 +138,16 @@
 
     const resolved = resolveTarget(step);
 
+    // 요소 검증 — 셀렉터/XPath가 있는데 현재 DOM에서 못 찾으면(같은 URL의 다른 화면,
+    // 또는 녹화 때 차단돼 건너뛴 단계) 좌표로 엉뚱한 핫스팟을 찍지 않는다. 대기 모드로 두고
+    // 요소가 화면에 나타나면 자동으로 정상 오버레이로 전환한다.
+    const expectsEl = !!(step.element_selector || step.element_xpath);
+    const foundEl   = resolved.source === 'selector' || resolved.source === 'xpath';
+    if (expectsEl && !foundEl) {
+      showWaiting(step, opts);
+      return;
+    }
+
     if (resolved.el) {
       try {
         const r = resolved.el.getBoundingClientRect();
@@ -399,6 +409,58 @@
     state = { host: null, wrongPage: true };
   }
 
+  // 같은 URL이지만 녹화한 요소가 아직 화면에 없을 때 — 가짜 핫스팟 대신 '찾는 중' 카드를 띄우고
+  // 요소가 나타나면 정상 오버레이로 자동 전환한다. (Typeform 등 SPA·녹화 차단으로 건너뛴 단계 대응)
+  function showWaiting(step, opts) {
+    const host = document.createElement('div');
+    host.id = 'mimic-overlay-root';
+    host.style.cssText = `all:initial;position:fixed;inset:0;pointer-events:none;z-index:${Z};font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;`;
+    document.documentElement.appendChild(host);
+    const shadow = host.attachShadow({ mode: 'closed' });
+
+    const idx = opts.index ?? 0, total = opts.total ?? 1;
+
+    const card = document.createElement('div');
+    card.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);width:340px;max-width:calc(100vw - 32px);background:rgba(17,17,20,.94);color:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 12px 40px rgba(0,0,0,.5);pointer-events:auto';
+    card.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:11px;font-weight:700;color:#A5B4FC;background:rgba(99,102,241,.25);padding:2px 8px;border-radius:20px">${idx + 1} / ${total}</span>
+        <span style="font-size:11px;color:#9CA3AF">🔍 이 단계 화면을 찾는 중…</span>
+        <div style="flex:1"></div>
+        <button class="wt-btn" data-act="exit" style="background:transparent;color:rgba(255,255,255,.4);padding:3px 6px">✕</button>
+      </div>
+      <div style="font-size:13.5px;font-weight:600;color:#F3F4F6;margin-bottom:4px">${escapeHtml(step.title || '')}</div>
+      <div style="font-size:12px;color:#9CA3AF;line-height:1.5;margin-bottom:10px">안내할 항목이 화면에 아직 없습니다. 화면을 진행하면 자동으로 표시됩니다.</div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="wt-btn" data-act="prev" style="background:rgba(255,255,255,.1);color:#D1D5DB;font-size:12px;padding:6px 11px">← 이전</button>
+        <div style="flex:1"></div>
+        <button class="wt-btn" data-act="next" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:7px 16px">${idx + 1 >= total ? '완료 ✓' : '건너뛰기 →'}</button>
+      </div>`;
+    shadow.appendChild(style('.wt-btn{pointer-events:auto;cursor:pointer;border:none;border-radius:8px;font-size:13px;font-weight:600;padding:7px 12px;transition:opacity .15s}.wt-btn:active{opacity:.75}'));
+    shadow.appendChild(card);
+
+    card.addEventListener('click', (e) => {
+      const act = e.target && e.target.getAttribute && e.target.getAttribute('data-act');
+      if (act === 'exit') opts.onExit && opts.onExit();
+      else if (act === 'prev') opts.onPrev && opts.onPrev();
+      else if (act === 'next') opts.onAdvance && opts.onAdvance('manual');
+    });
+
+    state = { host, shadow, waiting: true, findTimer: null };
+
+    // 요소 등장 폴링 — 셀렉터/XPath로 잡히면 정상 오버레이로 전환
+    const poll = () => {
+      if (!state || !state.waiting) return;
+      const r = resolveTarget(step);
+      if (r.source === 'selector' || r.source === 'xpath') {
+        show(step, opts);  // hide() 후 정상 오버레이 렌더
+        return;
+      }
+      state.findTimer = setTimeout(poll, 500);
+    };
+    state.findTimer = setTimeout(poll, 500);
+  }
+
   // 자동 타이핑 (React 제어 컴포넌트 대응)
   function autoFill(el, text) {
     const tag = el.tagName ? el.tagName.toLowerCase() : '';
@@ -446,6 +508,7 @@
     }
     if (state.rafId) cancelAnimationFrame(state.rafId);
     if (state.fillTimer) clearTimeout(state.fillTimer);
+    if (state.findTimer) clearTimeout(state.findTimer);
     if (state.onDocClick) document.removeEventListener('click', state.onDocClick, true);
     if (state.onKey) document.removeEventListener('keydown', state.onKey, true);
     if (state.host) state.host.remove();
