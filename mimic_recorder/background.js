@@ -355,7 +355,7 @@ async function captureTab(windowId) {
 // content.js 상단의 window.__mimicContentLoaded 가드가 중복 초기화를 막는다.
 function ensureContentScript(tabId) {
   return new Promise((resolve) => {
-    chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] }, () => {
+    chrome.scripting.executeScript({ target: { tabId }, files: ['guide-engine.js', 'content.js'] }, () => {
       void chrome.runtime.lastError;  // chrome:// 등 주입 불가 페이지는 무시
       resolve();
     });
@@ -568,13 +568,33 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
   }
 
   if (message.action === 'START_GUIDE') {
-    const guideToken = message.tutorial_id || message.share_token;
-    if (!guideToken) { sendResponse({ ok: false, error: 'no token' }); return false; }
+    const rawToken = message.tutorial_id || message.share_token;
+    if (!rawToken) { sendResponse({ ok: false, error: 'no token' }); return false; }
+
+    // 경로 삽입 방지: UUID 또는 URL-안전 alphanumeric(1~80자)만 허용
+    const UUID_RE    = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const SHARE_RE   = /^[A-Za-z0-9_-]{1,80}$/;
+    if (!UUID_RE.test(rawToken) && !SHARE_RE.test(rawToken)) {
+      sendResponse({ ok: false, error: 'invalid token format' });
+      return false;
+    }
+    const guideToken = rawToken;
+    const isUuid = UUID_RE.test(guideToken);
+
+    // ★ user gesture 살아있는 지금(= await 이전) 동기 호출 — await 후에는 제스처 소멸
+    const openPanel = (windowId) => chrome.sidePanel.open({ windowId }).catch(() => {});
+    if (sender.tab?.windowId) {
+      openPanel(sender.tab.windowId);
+    } else {
+      chrome.windows.getCurrent((win) => { if (win?.id) openPanel(win.id); });
+    }
 
     (async () => {
       try {
         const origin = await getWebappOrigin();
-        const res    = await fetch(`${origin}/api/guide/${guideToken}`, { credentials: 'include' });
+        // UUID(소유자 미리보기)는 쿠키 필요; share_token(공개)은 불필요
+        const fetchOpts = isUuid ? { credentials: 'include' } : {};
+        const res    = await fetch(`${origin}/api/guide/${encodeURIComponent(guideToken)}`, fetchOpts);
         if (!res.ok) throw new Error(`guide fetch failed: ${res.status}`);
         const data  = await res.json();
         // 라이브 가이드 유료 게이팅 — 소유자 무료 한도(5회) 소진 시
@@ -590,17 +610,13 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         const allTabs = await new Promise((resolve) => chrome.tabs.query({ active: true }, resolve));
         const activeTab = allTabs.find(t => t.url?.startsWith('http://') || t.url?.startsWith('https://'));
 
-        // Live Guide 카운트다운 시작 (3×900 + 700 = 3400ms)
-        if (activeTab?.id) sendTabMessage(activeTab.id, { type: 'SHOW_GUIDE_COUNTDOWN' });
+        // content.js 주입 보장 후 카운트다운 시작 (3×900 + 700 = 3400ms)
+        if (activeTab?.id) {
+          await ensureContentScript(activeTab.id);
+          sendTabMessage(activeTab.id, { type: 'SHOW_GUIDE_COUNTDOWN' });
+        }
 
         await storageSet({ guideSteps: steps, guideCurrentStep: 0, guideModeActive: true });
-
-        const openPanel = (windowId) => chrome.sidePanel.open({ windowId }).catch(() => {});
-        if (sender.tab?.windowId) {
-          openPanel(sender.tab.windowId);
-        } else {
-          chrome.windows.getCurrent((win) => { if (win?.id) openPanel(win.id); });
-        }
 
         sendResponse({ ok: true });
 
@@ -611,7 +627,12 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
             const tab = freshTabs.find(t => t.url?.startsWith('http://') || t.url?.startsWith('https://'));
             if (!tab?.id) return;
 
+            // 가이드를 이 탭에 고정 — 이후 단계 전환이 활성 탭이 아니라 이 탭에서만 동작한다.
+            // (사용자가 다른 탭으로 전환해도 가이드가 엉뚱한 페이지로 새지 않게)
+            await storageSet({ guideTabId: tab.id });
+
             const firstStep = steps[0];
+            await ensureContentScript(tab.id);
             const injectOverlay = (tabId) => sendTabMessage(tabId, { type: 'SHOW_OVERLAY', step: firstStep, index: 0, total: steps.length });
 
             if (!firstStep.page_url) {
@@ -1054,8 +1075,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const step = steps[idx];
       sendResponse({ ok: true, currentStep: idx, step });
 
-      const tabs = await new Promise((res) => chrome.tabs.query({ active: true }, res));
-      const tab  = tabs.find(t => t.url?.startsWith('http://') || t.url?.startsWith('https://'));
+      // 가이드 시작 탭으로 고정 — 활성 탭(예: 다른 사이트)을 건드리지 않는다.
+      const tab = await getGuideTab();
       if (!tab?.id) return;
 
       if (step && step.page_url) {
@@ -1087,8 +1108,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ ok: true, currentStep: idx, step });
       if (!step) return;
 
-      const tabs = await new Promise((res) => chrome.tabs.query({ active: true }, res));
-      const tab  = tabs.find(t => t.url?.startsWith('http://') || t.url?.startsWith('https://'));
+      const tab = await getGuideTab();  // 가이드 고정 탭
       if (!tab?.id) return;
 
       if (step.page_url) {
@@ -1109,10 +1129,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.type === 'EXIT_GUIDE') {
     (async () => {
-      await storageRemove(['guideSteps', 'guideCurrentStep', 'guideModeActive', 'guidePendingOverlay']);
-      const tabs = await new Promise((res) => chrome.tabs.query({ active: true }, res));
-      const tab  = tabs.find(t => t.url?.startsWith('http://') || t.url?.startsWith('https://'));
+      const tab = await getGuideTab();  // 고정 탭의 오버레이를 정리
+      await storageRemove(['guideSteps', 'guideCurrentStep', 'guideModeActive', 'guidePendingOverlay', 'guideTabId']);
       if (tab?.id) sendTabMessage(tab.id, { type: 'HIDE_OVERLAY' });
+      // 혹시 다른 탭(메시지 발신 탭)에 남은 오버레이도 정리
+      if (sender.tab?.id && sender.tab.id !== tab?.id) sendTabMessage(sender.tab.id, { type: 'HIDE_OVERLAY' });
       sendResponse({ ok: true });
     })();
     return true;
@@ -1210,9 +1231,10 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   _navBusyTabs.add(tabId);
 
   try {
-    const r = await storageGet(['isRecording', 'isPaused', 'targetTabId', 'stepNumber', 'settings', 'pendingCapture', 'guidePendingOverlay', 'guideSteps', 'guideCurrentStep', 'spaNavCapturing', 'lastCaptureTime']);
+    const r = await storageGet(['isRecording', 'isPaused', 'targetTabId', 'stepNumber', 'settings', 'pendingCapture', 'guidePendingOverlay', 'guideSteps', 'guideCurrentStep', 'guideTabId', 'spaNavCapturing', 'lastCaptureTime']);
 
-    if (r.guidePendingOverlay) {
+    // 가이드 재주입은 '고정 탭'에서 로드가 끝났을 때만 — 다른 탭 로드에는 반응하지 않는다.
+    if (r.guidePendingOverlay && r.guideTabId === tabId) {
       await storageRemove('guidePendingOverlay');
       const gSteps = r.guideSteps || [];
       const gIdx = r.guideCurrentStep || 0;
@@ -1849,6 +1871,14 @@ async function authedFetch(url, options = {}) {
 async function getWebappOrigin() {
   const { webappOrigin } = await storageGet('webappOrigin');
   return webappOrigin || WEBAPP_ORIGIN;
+}
+
+// 가이드 고정 탭 조회 — START_GUIDE에서 저장한 guideTabId의 탭. 없거나 닫혔으면 null.
+// 활성 탭이 아니라 이 탭에서만 가이드가 동작해, 다른 탭으로 새거나 가로채는 것을 막는다.
+async function getGuideTab() {
+  const { guideTabId } = await storageGet('guideTabId');
+  if (!guideTabId) return null;
+  return new Promise((res) => chrome.tabs.get(guideTabId, (t) => res(chrome.runtime.lastError ? null : t)));
 }
 
 // ── 사용자 플랜 조회 (PRO 기능 게이팅) ───────────────────────────

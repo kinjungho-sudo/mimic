@@ -118,9 +118,24 @@
   const AVATAR_STYLE = `width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#4f46e5,#7c3aed);box-shadow:0 4px 16px rgba(79,70,229,.5);display:flex;align-items:center;justify-content:center;flex-shrink:0;`;
 
   // ── 오버레이 렌더 ─────────────────────────────────────────────
+  // 단계의 page_url과 현재 페이지(origin+pathname)가 같은지 — 다르면 핫스팟을 찍지 않는다.
+  function pageMatches(pageUrl) {
+    try {
+      const a = new URL(pageUrl), b = new URL(location.href);
+      return a.origin + a.pathname === b.origin + b.pathname;
+    } catch { return true; }  // 파싱 불가 시 막지 않음
+  }
+
   function show(step, opts) {
     hide();
     opts = opts || {};
+
+    // URL 검증 — 엉뚱한 페이지면 좌표 핫스팟을 찍지 말고 '다른 페이지' 안내만 표시
+    if (step && step.page_url && !pageMatches(step.page_url)) {
+      showWrongPage(step, opts);
+      return;
+    }
+
     const resolved = resolveTarget(step);
 
     if (resolved.el) {
@@ -344,6 +359,41 @@
     state.tooltip.style.left = `${Math.max(TIP_M, (window.innerWidth - TIP_W) / 2)}px`;
     state.tooltip.style.top  = `${Math.max(TIP_M, (window.innerHeight - 220) / 2)}px`;
     state.tooltip.style.animation = 'mimic-tip-in 0.3s ease forwards';
+  }
+
+  // 현재 페이지가 단계의 page_url과 다를 때 — 핫스팟 없이 안내 카드만 표시
+  function showWrongPage(step, opts) {
+    const host = document.createElement('div');
+    host.id = 'mimic-overlay-root';
+    host.style.cssText = `all:initial;position:fixed;inset:0;pointer-events:none;z-index:${Z};font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;`;
+    document.documentElement.appendChild(host);
+    const shadow = host.attachShadow({ mode: 'closed' });
+
+    let targetHost = '';
+    try { targetHost = new URL(step.page_url).host; } catch { /* noop */ }
+    const idx = opts.index ?? 0, total = opts.total ?? 1;
+
+    const card = document.createElement('div');
+    card.style.cssText = 'position:fixed;left:50%;bottom:28px;transform:translateX(-50%);width:340px;max-width:calc(100vw - 32px);background:#1f2937;color:#fff;border-radius:14px;padding:16px;box-shadow:0 10px 40px rgba(0,0,0,.4);pointer-events:auto';
+    card.innerHTML = `
+      <div style="font-size:11px;color:#9CA3AF;margin-bottom:6px">${idx + 1} / ${total}</div>
+      <div style="font-size:14px;font-weight:600;margin-bottom:6px">이 단계는 다른 페이지에서 진행됩니다</div>
+      <div style="font-size:12.5px;color:#9CA3AF;line-height:1.55;margin-bottom:12px">${escapeHtml(step.title || '')}<br>👉 <b style="color:#A5B4FC">${escapeHtml(targetHost)}</b> 페이지(탭)로 이동해 주세요.</div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button data-act="exit" class="wp-btn" style="background:#374151;color:#D1D5DB">종료</button>
+        ${idx > 0 ? '<button data-act="prev" class="wp-btn" style="background:#374151;color:#fff">이전</button>' : ''}
+        <button data-act="next" class="wp-btn" style="background:#4F46E5;color:#fff">다음</button>
+      </div>`;
+    shadow.appendChild(style('.wp-btn{border:none;border-radius:8px;font-size:12.5px;font-weight:600;padding:7px 12px;cursor:pointer}.wp-btn:active{opacity:.75}'));
+    shadow.appendChild(card);
+    card.addEventListener('click', (e) => {
+      const act = e.target && e.target.getAttribute && e.target.getAttribute('data-act');
+      if (act === 'exit') opts.onExit && opts.onExit();
+      else if (act === 'prev') opts.onPrev && opts.onPrev();
+      else if (act === 'next') opts.onAdvance && opts.onAdvance('manual');
+    });
+
+    state = { host, shadow, wrongPage: true };
   }
 
   // 자동 타이핑 (React 제어 컴포넌트 대응)
