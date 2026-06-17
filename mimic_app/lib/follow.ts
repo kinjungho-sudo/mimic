@@ -50,6 +50,7 @@ export function toFollowSteps(sources: FollowSource[]): FollowStep[] {
         kind: isNone ? 'click' : resolvedKind,  // none이면 핫스팟 없으니 kind 값은 무의미
         typeText: fc.typeText?.trim() || null,
         audioUrl: s.audioUrl ?? null,
+        bubbleAnchor: fc.bubbleAnchor ?? null,
       };
     });
 }

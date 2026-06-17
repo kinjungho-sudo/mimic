@@ -43,6 +43,7 @@ interface Props {
   onImageClick?: (e: React.MouseEvent<HTMLDivElement>) => void;
   onMascotClick?: (e: React.MouseEvent) => void;
   onBubbleClick?: (e: React.MouseEvent) => void;   // 플레이어: 접기
+  bubbleAnchor?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | null;  // 말풍선 고정 위치. 미설정=핫스팟 상대 자동
   wrapRef?: React.RefObject<HTMLDivElement>; // 스튜디오 드래그 측정용
   children?: React.ReactNode;       // 이미지 위 추가 오버레이(스튜디오 드래그 핸들 등)
 }
@@ -52,6 +53,7 @@ export function FollowStage({
   isFirstStep = false, title, body,
   minimized = false, showAudioBadge = false, nudge = false, spotlight = false,
   imageCursor = 'default', imgMaxHeight = 'calc(100vh - 150px)',
+  bubbleAnchor,
   onImageClick, onMascotClick, onBubbleClick, wrapRef, children,
 }: Props) {
   const innerRef = useRef<HTMLDivElement>(null);
@@ -94,11 +96,17 @@ export function FollowStage({
   const hasTypeText = typeStr.trim().length > 0;
   const shownType = animateType ? typeStr.slice(0, typed) : typeStr;
 
-  // 말풍선 위치 — 이미지 박스 안으로 클램프
+  // 말풍선 위치 — anchor 고정 위치 우선, 없으면 핫스팟 상대 위치
   const BW = box.w ? clamp(box.w - 28, 170, 340) : 300;
   const UNIT_W = BW + 50, UNIT_H = 132;
   let bubbleLeft = 0, bubbleTop = 0, bubbleSide: 'left' | 'right' = 'right';
-  if (hasHotspot && box.w) {
+  if (bubbleAnchor && box.w && box.h) {
+    const isRight = bubbleAnchor.includes('right');
+    const isBottom = bubbleAnchor.includes('bottom');
+    bubbleSide = isRight ? 'left' : 'right';
+    bubbleLeft = isRight ? box.w - UNIT_W - 12 : 12;
+    bubbleTop = isBottom ? box.h - UNIT_H - 12 : 12;
+  } else if (hasHotspot && box.w) {
     const hxPx = (hx! / 100) * box.w, hyPx = (hy! / 100) * box.h;
     bubbleSide = hxPx < box.w / 2 ? 'right' : 'left';
     bubbleLeft = bubbleSide === 'right' ? hxPx + 26 : hxPx - 26 - UNIT_W;
@@ -199,15 +207,15 @@ export function FollowStage({
         </div>
       )}
 
-      {/* AI 캐릭터 + 말풍선 */}
-      {hasHotspot && (
+      {/* AI 캐릭터 + 말풍선 — 핫스팟 기준 또는 bubbleAnchor 고정 위치 */}
+      {(hasHotspot || (bubbleAnchor && box.w > 0)) && (
         <div style={{ position: 'absolute', left: `${bubbleLeft}px`, top: `${bubbleTop}px`, zIndex: 6, pointerEvents: 'none' }}>
           {renderUnit(bubbleSide)}
         </div>
       )}
 
-      {/* 핫스팟 없는 이동/설명형 — 우측 하단 */}
-      {!hasHotspot && (
+      {/* 핫스팟 없고 앵커도 없는 이동/설명형 — 기본 우측 하단 */}
+      {!hasHotspot && !bubbleAnchor && (
         <div style={{ position: 'absolute', right: '18px', bottom: '18px', zIndex: 6, pointerEvents: 'none', maxWidth: '92%' }}>
           {renderUnit('bottom')}
         </div>

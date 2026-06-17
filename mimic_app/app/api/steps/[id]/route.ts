@@ -21,6 +21,7 @@ const stepPatchSchema = z.object({
     kind: z.enum(['click', 'type', 'none']).nullable().optional(),
     typeText: z.string().max(500).nullable().optional(),
     hidden: z.boolean().optional(),
+    bubbleAnchor: z.enum(['top-left', 'top-right', 'bottom-left', 'bottom-right']).nullable().optional(),
   }).nullable().optional(),
 });
 

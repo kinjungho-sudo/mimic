@@ -13,6 +13,7 @@ export interface FollowStep {
   kind?: 'click' | 'type';             // 클릭 vs 타이핑 — 인디케이터 모양 결정
   typeText?: string | null;            // type 인디케이터에 자동 타이핑될 텍스트
   audioUrl?: string | null;            // 스텝 TTS 오디오 (있으면 음성 재생)
+  bubbleAnchor?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | null;
 }
 
 interface Props {
@@ -144,6 +145,7 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
                   hotspotY={hy ?? null}
                   kind={step.kind ?? 'click'}
                   typeText={step.typeText}
+                  bubbleAnchor={step.bubbleAnchor}
                   animateType
                   isFirstStep={idx === 0}
                   spotlight

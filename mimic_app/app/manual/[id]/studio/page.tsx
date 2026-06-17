@@ -57,8 +57,18 @@ function normalize(fc: FollowConfig): FollowConfig | null {
   if (fc.kind) clean.kind = fc.kind;
   if (fc.typeText && fc.typeText.trim()) clean.typeText = fc.typeText.trim();
   if (fc.hidden) clean.hidden = true;
+  if (fc.bubbleAnchor) clean.bubbleAnchor = fc.bubbleAnchor;
   return Object.keys(clean).length ? clean : null;
 }
+
+type BubbleAnchorKey = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | null;
+const BUBBLE_OPTS: { key: BubbleAnchorKey; label: string; icon: string }[] = [
+  { key: null,           label: '자동',   icon: '↔' },
+  { key: 'top-left',     label: '좌상단', icon: '↖' },
+  { key: 'top-right',    label: '우상단', icon: '↗' },
+  { key: 'bottom-left',  label: '좌하단', icon: '↙' },
+  { key: 'bottom-right', label: '우하단', icon: '↘' },
+];
 
 export default function StudioPage() {
   const { id } = useParams<{ id: string }>();
@@ -347,6 +357,7 @@ export default function StudioPage() {
                   hotspotY={rv?.hotspotY ?? null}
                   kind={rv?.kind ?? 'click'}
                   typeText={active.follow.typeText}
+                  bubbleAnchor={active.follow.bubbleAnchor}
                   title={active.title}
                   body={active.description || undefined}
                   imageCursor="crosshair"
@@ -450,6 +461,24 @@ export default function StudioPage() {
                 <RotateCcw size={12} /> 녹화 위치로 초기화
               </button>
 
+              <Divider />
+
+              {/* 말풍선 위치 */}
+              <SectionLabel>말풍선 위치</SectionLabel>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4, marginBottom: 6 }}>
+                {BUBBLE_OPTS.map(opt => {
+                  const sel = (active.follow.bubbleAnchor ?? null) === opt.key;
+                  return (
+                    <button key={String(opt.key)} disabled={hidden} onClick={() => patch(active.id, { bubbleAnchor: opt.key })}
+                      style={{ height: 34, borderRadius: 7, border: '1px solid ' + (sel ? 'rgba(124,58,237,0.7)' : 'rgba(255,255,255,0.1)'), background: sel ? 'rgba(124,58,237,0.22)' : 'transparent', color: sel ? 'white' : 'rgba(255,255,255,0.55)', fontSize: 11, fontWeight: 600, cursor: hidden ? 'not-allowed' : 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, opacity: hidden ? 0.4 : 1, lineHeight: 1.2 }}>
+                      <span style={{ fontSize: 14 }}>{opt.icon}</span>
+                      <span>{opt.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p style={hint}>말풍선이 항상 지정 위치에 나타납니다.</p>
+
               {/* 입력 텍스트 — 텍스트 인디케이터일 때만 */}
               {!hidden && rv?.kind === 'type' && (
                 <>
@@ -459,7 +488,7 @@ export default function StudioPage() {
                     value={active.follow.typeText ?? ''}
                     onChange={e => setTypeText(active.id, e.target.value)}
                     placeholder="자동 입력될 텍스트 (비우면 ‘텍스트 입력…’ 안내만)"
-                    style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)', color: 'white', fontSize: 12.5, fontFamily: 'inherit', outline: 'none' }}
+                    style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.1)', color: '#F0F0FF', WebkitTextFillColor: '#F0F0FF', caretColor: '#a78bfa', fontSize: 12.5, fontFamily: 'inherit', outline: 'none' }}
                   />
                   <p style={hint}>입력하면 뷰어에서 이 텍스트가 자동으로 타이핑됩니다(라이브 가이드에선 실제 입력 — 추후).</p>
                 </>
