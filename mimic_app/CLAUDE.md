@@ -70,6 +70,8 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 **반드시 따를 것 — 모든 에이전트/매니저 공통**
 
+> 📋 기능 개발·배포 **표준 순서는 [DEV_PROCESS.md](./DEV_PROCESS.md)** 참조 (커밋 → dev push=Preview → 검증 → main push=Production).
+
 ```
 main  ←  프로덕션. Vercel 자동 배포. 직접 커밋 금지.
 dev   ←  개발 통합. 모든 작업은 여기서 시작.
