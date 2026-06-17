@@ -254,7 +254,7 @@ export default function StudioPage() {
         <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.4)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
           {savingId ? <><Loader2 size={12} className="spin" /> 저장 중…</> : savedTick > 0 ? <><Check size={12} color="#34d399" /> 저장됨</> : null}
         </span>
-        <button onClick={() => setShowPreview(true)} style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5 }}><Play size={13} /> 미리보기</button>
+        <button onClick={() => setShowPreview(true)} title="따라하기(웹) 화면으로 미리보기 — 핫스팟·말풍선·입력 텍스트 설정을 확인합니다. 실제 라이브 가이드 오버레이 외형과는 다를 수 있어요." style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5 }}><Play size={13} /> 따라하기 미리보기</button>
         {tutorial.status === 'published' ? (
           <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: 'rgba(16,185,129,0.12)', color: '#34d399', fontWeight: 600, border: '1px solid rgba(52,211,153,0.25)', flexShrink: 0 }}>게시됨</span>
         ) : (
@@ -490,7 +490,7 @@ export default function StudioPage() {
                     placeholder="자동 입력될 텍스트 (비우면 ‘텍스트 입력…’ 안내만)"
                     style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.1)', color: '#F0F0FF', WebkitTextFillColor: '#F0F0FF', caretColor: '#a78bfa', fontSize: 12.5, fontFamily: 'inherit', outline: 'none' }}
                   />
-                  <p style={hint}>입력하면 뷰어에서 이 텍스트가 자동으로 타이핑됩니다(라이브 가이드에선 실제 입력 — 추후).</p>
+                  <p style={hint}>입력하면 따라하기 미리보기에선 타이핑 애니메이션으로, 라이브 가이드에선 실제 입력란에 자동 입력됩니다.</p>
                 </>
               )}
             </>

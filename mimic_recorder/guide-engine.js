@@ -29,6 +29,15 @@
       return { el, rect, source: 'ai' };
     }
 
+    // 0.5순위: 소유자가 스튜디오에서 직접 보정한 핫스팟(0~100%) — 자동 탐지보다 우선(명시 수정한 위치)
+    if (step.hotspot_x != null && step.hotspot_y != null) {
+      const px = (step.hotspot_x / 100) * window.innerWidth, py = (step.hotspot_y / 100) * window.innerHeight;
+      const hit = document.elementFromPoint(px, py);
+      if (hit && hit.id !== 'mimic-overlay-root') { el = hit; rect = rectOf(hit); }
+      else { rect = { left: px - COORD_BOX / 2, top: py - COORD_BOX / 2, width: COORD_BOX, height: COORD_BOX }; }
+      return { el, rect, source: 'manual' };
+    }
+
     // 1순위: CSS Selector
     if (step.element_selector) {
       try { el = document.querySelector(step.element_selector); } catch { el = null; }
@@ -57,17 +66,7 @@
       source = 'rect';
     }
 
-    // 4순위: hotspot_x/y (follow_config.hotspotX/Y → 0~100%) — elementFromPoint 시도
-    if (!rect && step.hotspot_x != null && step.hotspot_y != null) {
-      const px = (step.hotspot_x / 100) * window.innerWidth;
-      const py = (step.hotspot_y / 100) * window.innerHeight;
-      const hitEl = document.elementFromPoint(px, py);
-      if (hitEl) { el = hitEl; rect = rectOf(hitEl); }
-      else { rect = { left: px - COORD_BOX / 2, top: py - COORD_BOX / 2, width: COORD_BOX, height: COORD_BOX }; }
-      source = 'coord';
-    }
-
-    // 5순위: click_x/y (0~1 정규화)
+    // 4순위: click_x/y (0~1 정규화) — 핫스팟은 0.5순위에서 이미 처리
     if (!rect && step.click_x != null && step.click_y != null) {
       const cx = step.click_x * window.innerWidth, cy = step.click_y * window.innerHeight;
       rect = { left: cx - COORD_BOX / 2, top: cy - COORD_BOX / 2, width: COORD_BOX, height: COORD_BOX };
@@ -170,7 +169,7 @@
   function isHit(clientX, clientY, target, eventTarget) {
     if (!target || !target.rect) return false;
     if (target.el && eventTarget && (target.el === eventTarget || target.el.contains(eventTarget))) return true;
-    const pad = target.source === 'coord' ? HIT_PAD_COORD : HIT_PAD_EL;
+    const pad = target.el ? HIT_PAD_EL : HIT_PAD_COORD;
     const live = target.el ? rectOf(target.el) : target.rect;
     return pointInRect(clientX, clientY, live, pad);
   }
@@ -238,7 +237,7 @@
     // 또는 녹화 때 차단돼 건너뛴 단계) 좌표로 엉뚱한 핫스팟을 찍지 않는다. 대기 모드로 두고
     // 요소가 화면에 나타나면 자동으로 정상 오버레이로 전환한다.
     const expectsEl = !!(step.element_selector || step.element_xpath);
-    const foundEl   = resolved.source === 'selector' || resolved.source === 'xpath' || resolved.source === 'fuzzy' || resolved.source === 'ai';
+    const foundEl   = resolved.source === 'selector' || resolved.source === 'xpath' || resolved.source === 'fuzzy' || resolved.source === 'ai' || resolved.source === 'manual';
     if (expectsEl && !foundEl) {
       showWaiting(step, opts);
       maybeReground(step, opts);  // AI 시각 재탐색 1회성 시도 (성공 시 좌표 오버레이로 전환)
@@ -451,6 +450,17 @@
           arrow.style.cssText = `position:absolute;left:${pos.arrowLeft}px;top:-7px;width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:7px solid rgba(17,17,20,.93);pointer-events:none;`;
         } else {
           arrow.style.cssText = `position:absolute;left:${pos.arrowLeft}px;bottom:-7px;width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:7px solid rgba(17,17,20,.93);pointer-events:none;`;
+        }
+
+        // 소유자가 스튜디오에서 지정한 말풍선 위치 — 뷰포트 고정 코너로 override(화살표 숨김)
+        const anchor = state.step && state.step.bubble_anchor;
+        if (anchor) {
+          const tH = tooltip.offsetHeight || tipH;
+          const left = anchor === 'top-left' || anchor === 'bottom-left' ? TIP_M : window.innerWidth - TIP_W - TIP_M;
+          const top  = anchor === 'top-left' || anchor === 'top-right'  ? TIP_M : window.innerHeight - tH - TIP_M;
+          tooltip.style.left = `${left}px`;
+          tooltip.style.top  = `${top}px`;
+          arrow.style.cssText = 'position:absolute;width:0;height:0;pointer-events:none;display:none;';
         }
         // 툴팁 숨김 모드 적용
         if (state.tooltipHidden) tooltip.style.display = 'none';

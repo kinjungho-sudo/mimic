@@ -105,7 +105,10 @@ async function fetchSteps(supabase: ReturnType<typeof createServiceRoleClient>, 
     .order('order_index');
 
   const steps = ((rawSteps ?? []) as unknown as Record<string, unknown>[]).map(s => {
-    const fc = (s.follow_config ?? {}) as { kind?: string | null; typeText?: string | null; hidden?: boolean };
+    const fc = (s.follow_config ?? {}) as {
+      kind?: string | null; typeText?: string | null; hidden?: boolean;
+      hotspotX?: number | null; hotspotY?: number | null; bubbleAnchor?: string | null;
+    };
     return {
       id: s.id,
       step_number: s.step_number,
@@ -122,6 +125,10 @@ async function fetchSteps(supabase: ReturnType<typeof createServiceRoleClient>, 
       kind: fc.kind ?? null,
       type_text: fc.typeText ?? null,
       hidden: !!fc.hidden,
+      // 소유자가 스튜디오에서 직접 보정한 핫스팟(0~100%)·말풍선 위치 — 라이브 가이드가 우선 적용
+      hotspot_x: fc.hotspotX ?? null,
+      hotspot_y: fc.hotspotY ?? null,
+      bubble_anchor: fc.bubbleAnchor ?? null,
     };
   });
 
