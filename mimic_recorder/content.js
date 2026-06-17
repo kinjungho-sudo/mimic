@@ -198,7 +198,7 @@
       windowWidth: vw, windowHeight: vh,
       viewportW: vw, viewportH: vh,
       stepNumber: stepForThis, overwrite: true, useTypingFrame: true,
-      elementRect: normalizeRect(rect, vw, vh), elementSelector: getElementSelector(el),
+      elementRect: normalizeRect(rect, vw, vh), elementSelector: getElementSelector(el), elementXPath: getElementXPath(el),
       actionInfo: { type: 'type', text: label },
     }, done);
 
@@ -562,9 +562,31 @@
     );
   }
 
+  // 클래스가 안정적인지 판정 — 상태 클래스·CSS-in-JS 해시·동적 토큰을 거부(셀렉터 견고성의 핵심)
+  function isStableClass(c) {
+    if (!c || c.length > 30) return false;
+    if (/is-|has-|active|hover|focus|selected|disabled|loading|error|open|closed/.test(c)) return false;
+    if (/^css-[0-9a-z]+/i.test(c)) return false;                   // emotion
+    if (/^sc-[0-9a-zA-Z]+$/.test(c)) return false;                 // styled-components
+    if (/^jsx-\d+$/.test(c)) return false;                         // styled-jsx
+    if (/__[A-Za-z0-9]{4,}$/.test(c)) return false;                // CSS Modules 해시 접미사
+    if (/(?:^|[-_])[0-9a-f]{6,}(?:[-_]|$)/i.test(c)) return false; // 16진 해시 세그먼트
+    if (/\d{4,}/.test(c)) return false;                            // 4자리+ 연속 숫자(카운터/해시)
+    return true;
+  }
+
+  // id가 안정적인지 판정 — 프레임워크 생성 동적 id(React useId, Radix 등)를 거부
+  function isStableId(id) {
+    if (!id || id.length > 60) return false;
+    if (/^(radix-|headlessui-|react-select-|downshift-|rc_select_|mui-|ember\d|:|«)/i.test(id)) return false;
+    if (/:r[0-9a-z]+:?/i.test(id)) return false;  // React useId
+    if (/[0-9a-f]{8,}/i.test(id)) return false;   // 긴 해시 세그먼트
+    return true;
+  }
+
   function getElementSelector(el) {
     try {
-      if (el.id) return `#${CSS.escape(el.id)}`;
+      if (el.id && isStableId(el.id)) return `#${CSS.escape(el.id)}`;
       const tag = el.tagName.toLowerCase();
       for (const attr of ['data-testid', 'data-cy', 'data-test', 'aria-label', 'name']) {
         const val = el.getAttribute(attr);
@@ -578,11 +600,9 @@
         if (depth <= 0 || !node || node === document.documentElement) return '';
         const t = node.tagName.toLowerCase();
         let sel = t;
-        if (node.id) return `#${CSS.escape(node.id)}`;
+        if (node.id && isStableId(node.id)) return `#${CSS.escape(node.id)}`;
 
-        const stableClasses = [...node.classList].filter(c =>
-          !/is-|has-|active|hover|focus|selected|disabled|loading|error|open|closed/.test(c)
-        ).slice(0, 2);
+        const stableClasses = [...node.classList].filter(isStableClass).slice(0, 2);
         if (stableClasses.length) sel += stableClasses.map(c => `.${CSS.escape(c)}`).join('');
 
         if (node.parentElement) {
@@ -600,8 +620,53 @@
         try { if (document.querySelectorAll(path).length === 1) return path; } catch { /**/ }
       }
 
-      const cls = [...el.classList].slice(0, 2).map(c => `.${CSS.escape(c)}`).join('');
+      const cls = [...el.classList].filter(isStableClass).slice(0, 2).map(c => `.${CSS.escape(c)}`).join('');
       return tag + cls;
+    } catch { return ''; }
+  }
+
+  // XPath 리터럴 — 텍스트에 따옴표가 섞여도 안전하게 감싼다
+  function xpathLiteral(s) {
+    if (s.indexOf("'") === -1) return `'${s}'`;
+    if (s.indexOf('"') === -1) return `"${s}"`;
+    return 'concat(' + s.split("'").map(p => `'${p}'`).join(`,"'",`) + ')';
+  }
+
+  function countXPath(xp) {
+    try {
+      return document.evaluate(xp, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null).snapshotLength;
+    } catch { return -1; }
+  }
+
+  // 안정 id를 앵커로 구조 XPath 생성 (id 없으면 루트까지 tag[index] 경로)
+  function buildXPath(node) {
+    const segs = [];
+    let cur = node;
+    while (cur && cur.nodeType === 1 && cur !== document.documentElement) {
+      if (cur.id && isStableId(cur.id)) {
+        segs.unshift(`//*[@id=${xpathLiteral(cur.id)}]`);
+        return segs.join('/');
+      }
+      const t = cur.tagName.toLowerCase();
+      const sibs = cur.parentElement ? [...cur.parentElement.children].filter(c => c.tagName === cur.tagName) : [cur];
+      const idx = sibs.indexOf(cur) + 1;
+      segs.unshift(sibs.length > 1 ? `${t}[${idx}]` : t);
+      cur = cur.parentElement;
+    }
+    return '/' + segs.join('/');
+  }
+
+  // 견고한 XPath — 짧고 고유한 보이는 텍스트 앵커 우선(Typeform 질문/버튼에 강함), 없으면 구조 경로
+  function getElementXPath(el) {
+    try {
+      const tag = el.tagName.toLowerCase();
+      const text = (el.textContent || '').trim().replace(/\s+/g, ' ');
+      if (text && text.length <= 40) {
+        const xp = `//${tag}[normalize-space(.)=${xpathLiteral(text)}]`;
+        if (countXPath(xp) === 1) return xp;
+      }
+      const path = buildXPath(el);
+      return path.length <= 480 ? path : '';
     } catch { return ''; }
   }
 
@@ -738,6 +803,7 @@
         stepNumber, usePrecapture: true,
         elementRect:     normalizeRect(rect, vw, vh),
         elementSelector: getElementSelector(target),
+        elementXPath:    getElementXPath(target),
         actionInfo:      { type: 'click', label, tag: target.tagName.toLowerCase(), href: href.slice(0, 200) },
       };
 
@@ -758,6 +824,7 @@
       stepNumber, usePrecapture: true,
       elementRect:     normalizeRect(rect, vw, vh),
       elementSelector: getElementSelector(target),
+      elementXPath:    getElementXPath(target),
       actionInfo:      { type: actionType, label, tag: target.tagName.toLowerCase(), href: href.slice(0, 200) },
     };
 

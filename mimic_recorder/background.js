@@ -1787,7 +1787,7 @@ async function processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base
       const audioOffsetMs = audioStartTime
         ? Math.max(0, (stepData.timestamp || Date.now()) - audioStartTime)
         : null;
-      await saveStep({ sessionId, stepNumber: stepNum, screenshotUrl: uploadedUrl, clickX, clickY, title: title ?? '', description: description ?? '', url: stepData.url, domainInfo, viewportW: stepData.viewportW ?? stepData.windowWidth ?? null, viewportH: stepData.viewportH ?? stepData.windowHeight ?? null, elementSelector: stepData.elementSelector ?? null, elementRect: stepData.elementRect ?? null, audioOffsetMs });
+      await saveStep({ sessionId, stepNumber: stepNum, screenshotUrl: uploadedUrl, clickX, clickY, title: title ?? '', description: description ?? '', url: stepData.url, domainInfo, viewportW: stepData.viewportW ?? stepData.windowWidth ?? null, viewportH: stepData.viewportH ?? stepData.windowHeight ?? null, elementSelector: stepData.elementSelector ?? null, elementXPath: stepData.elementXPath ?? null, elementRect: stepData.elementRect ?? null, audioOffsetMs });
       log('info', 'bg', `saved step ${stepNum}: "${title}"`);
     } catch (err) {
       log('warn', 'bg', `save-step API failed step ${stepNum}:`, err.message);
@@ -1925,7 +1925,7 @@ async function analyzeWithClaude(base64Image, url, actionInfo, elementContext = 
 }
 
 // ── 스텝 저장 — 웹앱 API 경유 ───────────────────────────────────
-async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, title, description, url, domainInfo, viewportW, viewportH, elementSelector, elementRect, audioOffsetMs }) {
+async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, title, description, url, domainInfo, viewportW, viewportH, elementSelector, elementXPath, elementRect, audioOffsetMs }) {
   const origin = await getWebappOrigin();
   const res = await authedFetch(`${origin}/api/capture/save-step`, {
     method: 'POST',
@@ -1944,6 +1944,7 @@ async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, 
       viewport_w:       viewportW             ?? null,
       viewport_h:       viewportH             ?? null,
       element_selector: elementSelector       ?? null,
+      element_xpath:    elementXPath          ?? null,
       element_rect:     elementRect           ?? null,
       ...(audioOffsetMs != null ? { audio_offset_ms: audioOffsetMs } : {}),
     }),
