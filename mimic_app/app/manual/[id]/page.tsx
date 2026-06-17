@@ -273,12 +273,12 @@ export default function ManualViewerPage() {
             <>
               <button onClick={handlePauseResume}
                 style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#6366f1', background: '#eef2ff', border: '1px solid #c7d2fe', cursor: 'pointer' }}>
-                {execStatus === 'paused' ? <Play size={14} /> : <Pause size={14} />}
+                {execStatus === 'paused' ? <Play size={16} /> : <Pause size={16} />}
                 {execStatus === 'paused' ? '재개' : '일시정지'}
               </button>
               <button onClick={handleStopAutoRun}
                 style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#ef4444', background: '#fef2f2', border: '1px solid #fecaca', cursor: 'pointer' }}>
-                <Square size={14} /> 중단
+                <Square size={16} /> 중단
               </button>
             </>
           )}
@@ -290,7 +290,7 @@ export default function ManualViewerPage() {
               style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#374151', background: downloadOpen ? '#F3F4F6' : 'white', border: '1px solid #E5E7EB', cursor: downloadingFmt ? 'not-allowed' : 'pointer', opacity: downloadingFmt ? 0.6 : 1 }}
               onMouseEnter={e => { if (!downloadingFmt && !downloadOpen) e.currentTarget.style.background = '#F9FAFB'; }}
               onMouseLeave={e => { if (!downloadOpen) e.currentTarget.style.background = 'white'; }}>
-              <Download size={16} />
+              <Download size={18} />
               {downloadingFmt ? '생성 중…' : '다운로드'}
               <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
@@ -321,7 +321,7 @@ export default function ManualViewerPage() {
             style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', cursor: 'pointer' }}
             onMouseEnter={e => { e.currentTarget.style.background = '#F9FAFB'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}>
-            <Share2 size={15} /> 공유
+            <Share2 size={17} /> 공유
           </button>
 
           {canEdit && manualSteps.length > 0 && (
@@ -331,7 +331,7 @@ export default function ManualViewerPage() {
               style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#3730a3', background: '#e0e7ff', border: '1px solid #a5b4fc', cursor: 'pointer' }}
               onMouseEnter={e => { e.currentTarget.style.background = '#c7d2fe'; }}
               onMouseLeave={e => { e.currentTarget.style.background = '#e0e7ff'; }}>
-              <PlayCircle size={15} /> 라이브 가이드
+              <PlayCircle size={17} /> 라이브 가이드
             </button>
           )}
 
@@ -343,7 +343,7 @@ export default function ManualViewerPage() {
               onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 6px rgba(99,102,241,0.35)'; }}>
               {autoRunLoading
                 ? <span style={{ width: '11px', height: '11px', borderRadius: '50%', border: '2px solid rgba(255,255,255,0.4)', borderTopColor: 'white', animation: 'spin 0.8s linear infinite', flexShrink: 0 }} />
-                : <Bot size={13} />}
+                : <Bot size={15} />}
               Auto-Run
               <span style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.05em', padding: '1px 5px', background: 'rgba(255,255,255,0.2)', borderRadius: '4px' }}>BETA</span>
             </button>
@@ -355,7 +355,7 @@ export default function ManualViewerPage() {
               style={{ height: '32px', padding: '0 14px', borderRadius: '7px', fontSize: '12.5px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', cursor: 'pointer', transition: 'all 0.15s' }}
               onMouseEnter={e => { e.currentTarget.style.background = '#F9FAFB'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}>
-              <Pencil size={13} /> 편집
+              <Pencil size={15} /> 편집
             </button>
           )}
         </div>

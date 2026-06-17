@@ -38,7 +38,9 @@ function actorName(a: Actor | null): string {
 
 function describe(a: ActivityItem): string {
   const who = actorName(a.actor);
-  const step = a.step ? `${a.step.step_number}단계` : '매뉴얼';
+  const step = a.step ? `${a.step.step_number}단계`
+    : a.meta?.step_number != null ? `${a.meta.step_number}단계`
+    : '매뉴얼';
   const email = (a.meta?.email as string) ?? '';
   const role = a.meta?.role === 'editor' ? '편집' : '보기';
   switch (a.action) {

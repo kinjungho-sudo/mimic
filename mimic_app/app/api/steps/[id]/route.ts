@@ -4,6 +4,7 @@ import { createServiceRoleClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { guardStepAccess } from '@/lib/workspace-guard';
 import { logServer } from '@/lib/logger-server';
+import { logActivity } from '@/lib/activity';
 
 const stepPatchSchema = z.object({
   user_title: z.string().max(200).nullable().optional(),
@@ -57,12 +58,22 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     .from('mm_steps')
     .update(parsed.data)
     .eq('id', id)
-    .select('id, user_title, user_script, user_annotations, follow_config')
+    .select('id, tutorial_id, user_title, user_script, user_annotations, follow_config')
     .single();
 
   if (error || !data) {
     await logServer('error', 'step.update.fail', { stepId: id, userId: auth.userId, message: error?.message });
     return NextResponse.json({ error: 'Update failed' }, { status: 500 });
+  }
+
+  // 이미지 편집(어노테이션 변경)은 활동 로그에 기록
+  if (parsed.data.user_annotations !== undefined) {
+    await logActivity({
+      tutorialId: data.tutorial_id,
+      actorId: auth.userId,
+      action: 'annotation_edited',
+      stepId: id,
+    });
   }
 
   return NextResponse.json(data);
@@ -81,10 +92,23 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   }
 
   const supabase = createServiceRoleClient();
+  // 삭제 전 단계 정보 확보 — 삭제 후엔 step_id 조인이 끊기므로 step_number를 meta에 남긴다
+  const { data: stepRow } = await supabase
+    .from('mm_steps').select('tutorial_id, step_number').eq('id', id).single();
+
   const { error } = await supabase.from('mm_steps').delete().eq('id', id);
   if (error) {
     await logServer('error', 'step.delete.fail', { stepId: id, userId: auth.userId, message: error.message });
     return NextResponse.json({ error: 'Delete failed' }, { status: 500 });
+  }
+
+  if (stepRow?.tutorial_id) {
+    await logActivity({
+      tutorialId: stepRow.tutorial_id,
+      actorId: auth.userId,
+      action: 'step_deleted',
+      meta: { step_number: stepRow.step_number },
+    });
   }
 
   return new NextResponse(null, { status: 204 });

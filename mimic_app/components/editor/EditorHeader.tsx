@@ -103,7 +103,7 @@ export function EditorHeader({ title, tutorialId, shareToken, onTitleChange, onS
         onMouseEnter={e => (e.currentTarget.style.color = 'white')}
         onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.55)')}
       >
-        <ChevronLeft size={14} />
+        <ChevronLeft size={16} />
         내 매뉴얼
       </Link>
 
@@ -126,10 +126,10 @@ export function EditorHeader({ title, tutorialId, shareToken, onTitleChange, onS
       <div style={{ marginLeft: 'auto', marginRight: 'auto', display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.07)', borderRadius: '8px', padding: '3px', gap: '2px' }}>
         {([
           { key: 'document',    label: '가이드 문서', icon: (
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
           )},
           { key: 'interactive', label: '인터랙티브', icon: (
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
           )},
         ] as { key: EditorMode; label: string; icon: React.ReactNode }[]).map(tab => {
           const active = mode === tab.key;
@@ -166,7 +166,7 @@ export function EditorHeader({ title, tutorialId, shareToken, onTitleChange, onS
           onMouseEnter={e => { if (canUndo) { e.currentTarget.style.background = 'rgba(255,255,255,0.14)'; e.currentTarget.style.color = 'white'; } }}
           onMouseLeave={e => { if (canUndo) { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'rgba(255,255,255,0.85)'; } }}
         >
-          <Undo2 size={13} />
+          <Undo2 size={15} />
           실행 취소
         </button>
 
@@ -177,7 +177,7 @@ export function EditorHeader({ title, tutorialId, shareToken, onTitleChange, onS
           onMouseEnter={e => { if (shareToken) { e.currentTarget.style.background = 'rgba(255,255,255,0.14)'; e.currentTarget.style.color = 'white'; } }}
           onMouseLeave={e => { if (shareToken) { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'rgba(255,255,255,0.85)'; } }}
         >
-          <Zap size={13} />
+          <Zap size={15} />
           라이브 가이드
         </button>
 
@@ -188,7 +188,7 @@ export function EditorHeader({ title, tutorialId, shareToken, onTitleChange, onS
           onMouseEnter={e => { if (!exporting) { e.currentTarget.style.background = 'rgba(255,255,255,0.14)'; e.currentTarget.style.color = 'white'; } }}
           onMouseLeave={e => { if (!exporting) { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'rgba(255,255,255,0.85)'; } }}
         >
-          <Download size={13} />
+          <Download size={15} />
           {exporting ? '생성 중...' : mode === 'document' ? 'PDF' : 'PPTX'}
         </button>
 
@@ -198,7 +198,7 @@ export function EditorHeader({ title, tutorialId, shareToken, onTitleChange, onS
           onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.14)'; e.currentTarget.style.color = 'white'; }}
           onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'rgba(255,255,255,0.85)'; }}
         >
-          <Share2 size={13} />
+          <Share2 size={15} />
           공유
         </button>
 
@@ -218,7 +218,7 @@ export function EditorHeader({ title, tutorialId, shareToken, onTitleChange, onS
           onMouseEnter={e => { if (!saving && !saved) { e.currentTarget.style.background = 'rgba(255,255,255,0.14)'; e.currentTarget.style.color = 'white'; } }}
           onMouseLeave={e => { if (!saving && !saved) { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'rgba(255,255,255,0.85)'; } }}
         >
-          {saved ? <Check size={13} /> : null}
+          {saved ? <Check size={15} /> : null}
           {saving ? '저장 중...' : saved ? '저장됨' : '편집 완료'}
         </button>
 

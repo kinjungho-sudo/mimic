@@ -944,8 +944,13 @@ const iconBtnSm: React.CSSProperties = {
 
 type ActiveState = { bold: boolean; italic: boolean; underline: boolean };
 
+const FONT_SIZE_OPTIONS = [10, 12, 14, 16, 18, 24, 32];
+const nearestFontSize = (px: number) =>
+  FONT_SIZE_OPTIONS.reduce((a, b) => (Math.abs(b - px) < Math.abs(a - px) ? b : a));
+
 function TextFormatToolbar({ editorRef }: { editorRef: React.RefObject<HTMLDivElement> }) {
   const [active, setActive] = useState<ActiveState>({ bold: false, italic: false, underline: false });
+  const [fontSize, setFontSize] = useState(16);
 
   const syncActive = useCallback(() => {
     const sel = window.getSelection();
@@ -955,6 +960,13 @@ function TextFormatToolbar({ editorRef }: { editorRef: React.RefObject<HTMLDivEl
       italic: document.queryCommandState('italic'),
       underline: document.queryCommandState('underline'),
     });
+    // 선택(또는 커서) 위치의 실제 글자 크기를 읽어 드롭다운에 반영
+    let node: Node | null = sel.anchorNode;
+    if (node && node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+    if (node instanceof Element) {
+      const px = parseFloat(window.getComputedStyle(node).fontSize);
+      if (!Number.isNaN(px)) setFontSize(nearestFontSize(Math.round(px)));
+    }
   }, [editorRef]);
 
   useEffect(() => {
@@ -977,25 +989,36 @@ function TextFormatToolbar({ editorRef }: { editorRef: React.RefObject<HTMLDivEl
     editorRef.current?.dispatchEvent(new Event('input', { bubbles: true }));
   };
 
+  // 실제 px 단위로 글자 크기 적용 — execCommand size 7을 임시 마커로 만들고 span(font-size:px)으로 치환
+  const applyFontSize = (px: number) => {
+    const el = editorRef.current;
+    if (!el) return;
+    el.focus();
+    document.execCommand('fontSize', false, '7');
+    el.querySelectorAll('font[size="7"]').forEach(font => {
+      const span = document.createElement('span');
+      span.style.fontSize = `${px}px`;
+      while (font.firstChild) span.appendChild(font.firstChild);
+      font.replaceWith(span);
+    });
+    setFontSize(px);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    requestAnimationFrame(syncActive);
+  };
+
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '2px', padding: '8px 14px', borderBottom: '1px solid #F3F4F6', background: '#FAFAFA' }}>
       <select
-        defaultValue="3"
-        onChange={e => exec('fontSize', e.target.value)}
-        style={{ fontSize: '11.5px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', borderRadius: '5px', padding: '3px 6px', cursor: 'pointer', marginRight: '6px', outline: 'none' }}
+        value={fontSize}
+        onChange={e => applyFontSize(parseInt(e.target.value, 10))}
+        style={{ fontSize: '12.5px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', borderRadius: '5px', padding: '4px 7px', cursor: 'pointer', marginRight: '6px', outline: 'none' }}
       >
-        <option value="1">10px</option>
-        <option value="2">12px</option>
-        <option value="3">14px</option>
-        <option value="4">16px</option>
-        <option value="5">18px</option>
-        <option value="6">24px</option>
-        <option value="7">32px</option>
+        {FONT_SIZE_OPTIONS.map(s => <option key={s} value={s}>{s}px</option>)}
       </select>
       <Divider />
-      <ToolBtn title="굵게 (Ctrl+B)" isActive={active.bold} onMouseDown={e => { e.preventDefault(); exec('bold'); }}><Bold size={13} /></ToolBtn>
-      <ToolBtn title="기울임 (Ctrl+I)" isActive={active.italic} onMouseDown={e => { e.preventDefault(); exec('italic'); }}><Italic size={13} /></ToolBtn>
-      <ToolBtn title="밑줄 (Ctrl+U)" isActive={active.underline} onMouseDown={e => { e.preventDefault(); exec('underline'); }}><Underline size={13} /></ToolBtn>
+      <ToolBtn title="굵게 (Ctrl+B)" isActive={active.bold} onMouseDown={e => { e.preventDefault(); exec('bold'); }}><Bold size={15} /></ToolBtn>
+      <ToolBtn title="기울임 (Ctrl+I)" isActive={active.italic} onMouseDown={e => { e.preventDefault(); exec('italic'); }}><Italic size={15} /></ToolBtn>
+      <ToolBtn title="밑줄 (Ctrl+U)" isActive={active.underline} onMouseDown={e => { e.preventDefault(); exec('underline'); }}><Underline size={15} /></ToolBtn>
     </div>
   );
 }

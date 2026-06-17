@@ -2,6 +2,7 @@
 
 import { useId, useRef, useState, useEffect } from 'react';
 import type { Annotation } from './ImageAnnotationEditor';
+import { FONT_REF_WIDTH } from './ImageAnnotationEditor';
 
 export function AnnotationPreview({ annotations, imageUrl }: { annotations: Annotation[]; imageUrl: string }) {
   const uid = useId().replace(/:/g, '');
@@ -41,6 +42,8 @@ export function AnnotationPreview({ annotations, imageUrl }: { annotations: Anno
   const spotlights = annotations.filter(a => a.type === 'spotlight');
 
   const { w: imgW, h: imgH } = imgSize ?? { w: 1, h: 1 };
+  // 편집기와 동일한 폰트 스케일 — 표시폭 ÷ 기준폭(FONT_REF_WIDTH)
+  const fontScale = imgW / FONT_REF_WIDTH;
 
   // % 좌표 → 픽셀 좌표
   const px = (v: number) => v / 100 * imgW;
@@ -122,6 +125,13 @@ export function AnnotationPreview({ annotations, imageUrl }: { annotations: Anno
             stroke={color} strokeWidth={Math.max(strokePx, 1)} fill="none" />
         );
 
+        if (type === 'line') {
+          return (
+            <line key={a.id} x1={ax1} y1={ay1} x2={ax2} y2={ay2}
+              stroke={color} strokeWidth={Math.max(strokePx, 1)} strokeLinecap="round" />
+          );
+        }
+
         if (type === 'arrow') {
           const dx = ax2 - ax1, dy = ay2 - ay1;
           const len = Math.sqrt(dx * dx + dy * dy);
@@ -156,30 +166,19 @@ export function AnnotationPreview({ annotations, imageUrl }: { annotations: Anno
         }
 
         if (type === 'text' && a.text) {
-          const fSize = a.fontSize ?? 16;
+          // 편집기와 100% 동일하게 렌더 — 저장된 박스 좌표 + 동일 패딩/줄간격, fontSize는 fontScale 보정
+          const fSize = (a.fontSize ?? 16) * fontScale;
           const bold = a.fontBold ?? false;
-          const bColor = a.borderColor;
+          const bColor = a.borderColor ?? 'rgba(0,0,0,0.65)';
           const align = a.textAlign ?? 'left';
           const bg = a.hasBg !== false;
-          const lines = a.text.split('\n');
-          const padX = 8, padY = 5;
-          // 폰트 크기는 고정 px이지만 박스 좌표는 이미지 % 기반 → 뷰어에서 이미지 크기가 달라지면 박스만 커짐
-          // 텍스트 내용으로 박스 크기를 자동 계산: CJK ≈ fSize*0.95, 라틴/ASCII ≈ fSize*0.58
-          const estimateLineW = (line: string) => {
-            let cw = 0;
-            for (const ch of line) cw += /[ᄀ-힣　-鿿豈-￯]/.test(ch) ? fSize * 0.95 : fSize * 0.58;
-            return cw;
-          };
-          const boxW = Math.max(...lines.map(estimateLineW)) + 2 * padX;
-          const boxH = Math.max(lines.length * fSize * 1.45 + 2 * padY, fSize + 12);
+          const boxW = Math.max(w, 40);
+          const boxH = Math.max(h, fSize + 12);
+          const padX = 10, padY = 6;
           const textX = align === 'left' ? minX + padX : align === 'center' ? minX + boxW / 2 : minX + boxW - padX;
           const anchor = align === 'left' ? 'start' : align === 'center' ? 'middle' : 'end';
-          // 가독성: 편집기와 동일한 진한 배경 + 글자 외곽선(배경 밖으로 넘쳐도 읽힘)
           const bgFill = bg ? 'rgba(10,10,15,0.92)' : 'none';
-          const strokeColor = bColor && bColor !== 'transparent' ? bColor : 'none';
-          const hex = color.replace('#', '');
-          const luma = 0.299 * (parseInt(hex.slice(0, 2), 16) || 0) + 0.587 * (parseInt(hex.slice(2, 4), 16) || 0) + 0.114 * (parseInt(hex.slice(4, 6), 16) || 0);
-          const outline = luma > 160 ? 'rgba(0,0,0,0.75)' : 'rgba(255,255,255,0.85)'; // 밝은 글자→어두운 외곽선, 어두운 글자→밝은 외곽선
+          const strokeColor = bColor !== 'transparent' ? bColor : 'none';
           return (
             <g key={a.id}>
               {bg && (
@@ -187,16 +186,14 @@ export function AnnotationPreview({ annotations, imageUrl }: { annotations: Anno
                   fill={bgFill}
                   stroke={strokeColor}
                   strokeWidth={strokeColor !== 'none' ? 1.5 : 0}
-                  rx={5}
+                  rx={6}
                 />
               )}
-              {lines.map((line, i) => (
+              {a.text.split('\n').map((line, i) => (
                 <text key={i}
-                  x={textX} y={minY + padY + i * fSize * 1.45}
+                  x={textX} y={minY + padY + i * fSize * 1.4}
                   fill={color} fontSize={fSize} fontWeight={bold ? 700 : 400}
                   textAnchor={anchor} dominantBaseline="text-before-edge"
-                  stroke={outline} strokeWidth={Math.max(1.5, fSize / 8)} strokeLinejoin="round"
-                  style={{ paintOrder: 'stroke' }}
                 >{line}</text>
               ))}
             </g>

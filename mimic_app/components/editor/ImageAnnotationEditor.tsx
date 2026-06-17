@@ -6,13 +6,13 @@ import type { BlurRegion } from '@/lib/pixelate';
 
 // ── Types ──────────────────────────────────────────────────
 
-type Tool = 'select' | 'eraser' | 'mosaic' | 'pixelate' | 'ellipse' | 'rect' | 'roundedRect' | 'arrow' | 'text' | 'marker' | 'spotlight';
+type Tool = 'select' | 'eraser' | 'mosaic' | 'pixelate' | 'ellipse' | 'rect' | 'roundedRect' | 'arrow' | 'line' | 'text' | 'marker' | 'spotlight';
 type Color = string;
 type Handle = 'tl'|'tc'|'tr'|'ml'|'mr'|'bl'|'bc'|'br'|'p1'|'p2';
 
 export interface Annotation {
   id: string;
-  type: 'arrow' | 'rect' | 'roundedRect' | 'ellipse' | 'text' | 'highlight' | 'mosaic' | 'marker' | 'spotlight' | 'recorderBox' | 'crop';
+  type: 'arrow' | 'line' | 'rect' | 'roundedRect' | 'ellipse' | 'text' | 'highlight' | 'mosaic' | 'marker' | 'spotlight' | 'recorderBox' | 'crop';
   x1: number; y1: number; // 0–100 pct of image
   x2: number; y2: number;
   text?: string;
@@ -51,6 +51,8 @@ const STROKE_OPTIONS = [
 
 const FONT_SIZES = [12, 14, 16, 18, 22, 28, 36];
 const DEFAULT_BORDER = 'rgba(0,0,0,0.65)';
+// 텍스트 폰트 크기 기준 너비 — 표시 폭을 이 값으로 나눈 비율로 fontSize를 보정(편집기↔뷰어 일치)
+export const FONT_REF_WIDTH = 1100;
 
 // 도구 기본값 저장 — 다음 편집/세션에서도 같은 설정을 사용하도록 localStorage에 보존
 const DEFAULTS_KEY = 'mimic_annot_defaults_v1';
@@ -68,56 +70,60 @@ function loadDefaults(): Partial<ToolDefaults> {
 }
 
 // 전체 색상 변경 대상 — 강조 도형(테두리) 타입
-const BORDER_TYPES = ['rect', 'roundedRect', 'ellipse', 'arrow', 'marker'];
+const BORDER_TYPES = ['rect', 'roundedRect', 'ellipse', 'arrow', 'line', 'marker'];
 
 // 그룹 A: 지우개/블러, 그룹 B: 도형/텍스트
 // pixelate(영구 블러)는 onPixelate 핸들러가 있을 때만 동적으로 추가한다.
 const TOOL_GROUPS: { tools: Tool[] }[] = [
   { tools: ['pixelate', 'eraser'] },
-  { tools: ['select', 'ellipse', 'rect', 'roundedRect', 'arrow', 'text', 'marker', 'spotlight'] },
+  { tools: ['select', 'ellipse', 'rect', 'roundedRect', 'arrow', 'line', 'text', 'marker', 'spotlight'] },
 ];
 
 const TOOL_CONFIG: Record<Tool, { label: string; icon: React.ReactNode }> = {
   select: {
     label: '선택',
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4 0 L18 10 L11 11 L8 18 Z"/></svg>,
+    icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M4 0 L18 10 L11 11 L8 18 Z"/></svg>,
   },
   eraser: {
     label: '지우개',
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 20H7L3 16l10-10 7 7-1.5 1.5"/><path d="M6 17l3-3"/></svg>,
+    icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 20H7L3 16l10-10 7 7-1.5 1.5"/><path d="M6 17l3-3"/></svg>,
   },
   mosaic: {
     label: '모자이크 (흐림 강조)',
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="2" width="5" height="5"/><rect x="9" y="2" width="5" height="5"/><rect x="16" y="2" width="5" height="5"/><rect x="2" y="9" width="5" height="5"/><rect x="9" y="9" width="5" height="5"/><rect x="16" y="9" width="5" height="5"/><rect x="2" y="16" width="5" height="5"/><rect x="9" y="16" width="5" height="5"/><rect x="16" y="16" width="5" height="5"/></svg>,
+    icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="2" width="5" height="5"/><rect x="9" y="2" width="5" height="5"/><rect x="16" y="2" width="5" height="5"/><rect x="2" y="9" width="5" height="5"/><rect x="9" y="9" width="5" height="5"/><rect x="16" y="9" width="5" height="5"/><rect x="2" y="16" width="5" height="5"/><rect x="9" y="16" width="5" height="5"/><rect x="16" y="16" width="5" height="5"/></svg>,
   },
   pixelate: {
     label: '블러',
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="2" width="5" height="5"/><rect x="9" y="9" width="5" height="5"/><rect x="16" y="2" width="5" height="5"/><rect x="16" y="16" width="5" height="5"/><rect x="2" y="16" width="5" height="5"/><rect x="9" y="2" width="5" height="5" opacity="0.5"/><rect x="2" y="9" width="5" height="5" opacity="0.5"/><rect x="16" y="9" width="5" height="5" opacity="0.5"/><rect x="9" y="16" width="5" height="5" opacity="0.5"/></svg>,
+    icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="2" width="5" height="5"/><rect x="9" y="9" width="5" height="5"/><rect x="16" y="2" width="5" height="5"/><rect x="16" y="16" width="5" height="5"/><rect x="2" y="16" width="5" height="5"/><rect x="9" y="2" width="5" height="5" opacity="0.5"/><rect x="2" y="9" width="5" height="5" opacity="0.5"/><rect x="16" y="9" width="5" height="5" opacity="0.5"/><rect x="9" y="16" width="5" height="5" opacity="0.5"/></svg>,
   },
   ellipse: {
     label: '원',
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><ellipse cx="12" cy="12" rx="10" ry="7"/></svg>,
+    icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><ellipse cx="12" cy="12" rx="10" ry="7"/></svg>,
   },
   rect: {
     label: '사각형',
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><rect x="3" y="4" width="18" height="16" rx="1"/></svg>,
+    icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><rect x="3" y="4" width="18" height="16" rx="1"/></svg>,
   },
   roundedRect: {
     label: '둥근 사각형',
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><rect x="3" y="4" width="18" height="16" rx="5"/></svg>,
+    icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><rect x="3" y="4" width="18" height="16" rx="5"/></svg>,
   },
   arrow: {
     label: '화살표',
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="9 5 19 5 19 15"/></svg>,
+    icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="9 5 19 5 19 15"/></svg>,
+  },
+  line: {
+    label: '선 (밑줄)',
+    icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="4" y1="18" x2="20" y2="18"/></svg>,
   },
   text: {
     label: '텍스트',
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>,
+    icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>,
   },
   marker: {
     label: '마커',
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
         <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2"/>
         <text x="12" y="16" textAnchor="middle" fill="currentColor" fontSize="10" fontWeight="700">①</text>
       </svg>
@@ -125,7 +131,7 @@ const TOOL_CONFIG: Record<Tool, { label: string; icon: React.ReactNode }> = {
   },
   spotlight: {
     label: '스포트라이트',
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>,
+    icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>,
   },
 };
 
@@ -319,16 +325,17 @@ export function ImageAnnotationEditor({
         const imgW = imgRef.current.getBoundingClientRect().width;
         const imgH = imgRef.current.getBoundingClientRect().height;
         if (imgW > 0 && imgH > 0) {
-          const fSize = item.fontSize ?? 18;
+          // 박스 크기는 화면 표시 px 기준으로 계산 → fontSize도 동일 스케일(effF)로 측정해야 박스가 글자에 맞음
+          const effF = (item.fontSize ?? 18) * (imgW / FONT_REF_WIDTH);
           const bold = item.fontBold ?? true;
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
           if (ctx) {
-            ctx.font = `${bold ? 700 : 400} ${fSize}px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif`;
+            ctx.font = `${bold ? 700 : 400} ${effF}px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif`;
             const lines = rawText.split('\n');
             const maxLineW = Math.max(...lines.map(l => ctx.measureText(l).width));
             x2Override = item.x1 + ((maxLineW + 20) / imgW) * 100;
-            y2Override = item.y1 + ((lines.length * fSize * 1.4 + 12) / imgH) * 100;
+            y2Override = item.y1 + ((lines.length * effF * 1.4 + 12) / imgH) * 100;
           }
         }
       }
@@ -644,6 +651,10 @@ export function ImageAnnotationEditor({
 
   const editingItem = editingText ? items.find(a => a.id === editingText.id) : null;
   const selectedItem = selectedId ? items.find(a => a.id === selectedId) : null;
+
+  // 텍스트 폰트 스케일 — fontSize를 표시 너비에 비례시켜 편집기/뷰어에서 이미지 대비 동일 비율로 보이게 한다.
+  // 기준 너비(FONT_REF_WIDTH ≈ 편집기 표시 폭)로 나눠 보정 → 편집기에선 거의 원본 px, 뷰어에선 비례 축소.
+  const fontScale = imgSize ? imgSize.w / FONT_REF_WIDTH : 1;
 
   // 툴바 표시 조건 — tool 또는 select 모드에서 선택된 아이템 타입 기준
   const effectiveType = tool === 'select'
@@ -1011,6 +1022,7 @@ export function ImageAnnotationEditor({
                   isSelected={selectedId === a.id}
                   tool={tool} imgW={imgSize.w} imgH={imgSize.h}
                   strokePx={(a.strokeWidth / 100) * imgSize.w}
+                  fontScale={fontScale}
                   imageUrl={imageUrl}
                   onBodyMouseDown={e => startDrag(e, a.id, null)}
                   onHandleMouseDown={(e, h) => startDrag(e, a.id, h)}
@@ -1024,6 +1036,7 @@ export function ImageAnnotationEditor({
                 annotation={drawing as Annotation} isSelected={false}
                 tool={tool} imgW={imgSize.w} imgH={imgSize.h}
                 strokePx={(drawing.strokeWidth ?? strokeWidth) / 100 * imgSize.w}
+                fontScale={fontScale}
                 imageUrl={imageUrl}
               />
             )}
@@ -1086,7 +1099,7 @@ export function ImageAnnotationEditor({
                   border: '1.5px dashed rgba(255,255,255,0.4)',
                   borderRadius: '3px',
                   color: editingItem.color,
-                  fontSize: `${editingItem.fontSize ?? 16}px`,
+                  fontSize: `${(editingItem.fontSize ?? 16) * fontScale}px`,
                   fontWeight: editingItem.fontBold ? 700 : 400,
                   textAlign: editingItem.textAlign ?? 'left',
                   fontFamily: 'inherit',
@@ -1210,6 +1223,7 @@ interface AnnotationShapeProps {
   tool: Tool;
   imgW: number; imgH: number;
   strokePx: number;
+  fontScale?: number;
   imageUrl: string;
   onBodyMouseDown?: (e: React.MouseEvent) => void;
   onHandleMouseDown?: (e: React.MouseEvent, h: Handle) => void;
@@ -1256,7 +1270,7 @@ function ArrowHandles({ ax1, ay1, ax2, ay2, onHandle }: {
   );
 }
 
-function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx, imageUrl, onBodyMouseDown, onHandleMouseDown, onBodyDblClick }: AnnotationShapeProps) {
+function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx, fontScale = 1, imageUrl, onBodyMouseDown, onHandleMouseDown, onBodyDblClick }: AnnotationShapeProps) {
   const { type, x1, y1, x2, y2, color, text } = a;
   const ax1 = x1/100*imgW, ay1 = y1/100*imgH, ax2 = x2/100*imgW, ay2 = y2/100*imgH;
   const minX = Math.min(ax1,ax2), minY = Math.min(ay1,ay2);
@@ -1343,6 +1357,22 @@ function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx
     </g>
   );
 
+  if (type === 'line') {
+    return (
+      <g>
+        <line x1={ax1} y1={ay1} x2={ax2} y2={ay2} stroke="transparent"
+          strokeWidth={Math.max(12, strokePx*4)}
+          style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown} />
+        <line x1={ax1} y1={ay1} x2={ax2} y2={ay2}
+          stroke={color} strokeWidth={Math.max(strokePx, 1)} strokeLinecap="round"
+          style={{ pointerEvents: 'none' }} />
+        {isSelected && onHandleMouseDown && (
+          <ArrowHandles ax1={ax1} ay1={ay1} ax2={ax2} ay2={ay2} onHandle={handleHandle} />
+        )}
+      </g>
+    );
+  }
+
   if (type === 'arrow') {
     const dx = ax2 - ax1, dy = ay2 - ay1;
     const len = Math.sqrt(dx*dx + dy*dy);
@@ -1374,7 +1404,7 @@ function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx
 
   if (type === 'text') {
     if (!text) return null;
-    const fSize = a.fontSize ?? 16;
+    const fSize = (a.fontSize ?? 16) * fontScale;
     const bold = a.fontBold ?? false;
     const bColor = a.borderColor ?? DEFAULT_BORDER;
     const align = a.textAlign ?? 'left';

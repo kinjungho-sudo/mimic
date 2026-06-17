@@ -6,7 +6,9 @@ export type ActivityAction =
   | 'comment_reopened'
   | 'reply_added'
   | 'share_invited'
-  | 'share_revoked';
+  | 'share_revoked'
+  | 'step_deleted'
+  | 'annotation_edited';
 
 // 협업 활동 기록. 실패해도 본 작업 흐름을 막지 않도록 throw 하지 않는다.
 export async function logActivity(params: {
