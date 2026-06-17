@@ -196,18 +196,14 @@ function HeroDemo() {
   return (
     <div style={{ position: 'relative', maxWidth: '1000px', margin: '0 auto' }}>
       <div style={{ borderRadius: '16px 16px 0 0', overflow: 'hidden', boxShadow: '0 20px 60px -10px rgba(55,48,163,0.28), 0 40px 80px -20px rgba(17,24,39,0.18)', border: '1px solid rgba(55,48,163,0.15)' }}>
-        {/* 브라우저 상단바 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 16px', background: '#18181B', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+        {/* 상단바 — 트래픽 라이트만 (주소창 제거) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '9px 14px', background: '#18181B', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
           <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#FF5F57' }} />
           <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#FEBC2E' }} />
           <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#28C840' }} />
-          <div style={{ flex: 1, margin: '0 12px', padding: '4px 12px', borderRadius: '6px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10"/></svg>
-            <span style={{ fontSize: '11.5px', color: 'rgba(255,255,255,0.45)' }}>app.mimic.so</span>
-          </div>
         </div>
-        {/* 영상 + 오버레이 */}
-        <div style={{ position: 'relative', background: '#0F0F14' }}>
+        {/* 영상 + 오버레이 — 원본 화면녹화에서 크롬 UI(상단 124px)·작업표시줄(하단 52px) CSS 크롭 */}
+        <div style={{ position: 'relative', width: '100%', aspectRatio: '1920 / 904', overflow: 'hidden', background: '#0F0F14' }}>
           <video
             ref={videoRef}
             autoPlay
@@ -215,7 +211,7 @@ function HeroDemo() {
             loop
             playsInline
             preload="auto"
-            style={{ width: '100%', display: 'block', opacity: ready ? 1 : 0, transition: 'opacity 0.5s ease' }}
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: 'auto', display: 'block', transform: 'translateY(-11.48%)', opacity: ready ? 1 : 0, transition: 'opacity 0.5s ease' }}
             src="/landing/Demo.mp4"
           />
           {/* 좌상단: 자동 생성 배지 */}
