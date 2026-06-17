@@ -147,10 +147,10 @@ function RevealSection({ children, style }: { children: React.ReactNode; style?:
 
 
 
-// 원본 66초 영상 중 "결과물" 구간(42~64초: 에디터→뷰어→슬라이드)만 1.45x로 루프 — 와우 포인트만 압축
+// 원본 66초 영상 중 "결과물" 구간(42~64초: 에디터→뷰어→슬라이드)만 원속도로 루프 — 와우 포인트만 노출
 const DEMO_LOOP_START = 42;
 const DEMO_LOOP_END   = 64;
-const DEMO_RATE       = 1.45;
+const DEMO_RATE       = 1.0;
 
 // 영상 위에 페이드되는 3비트 카피 (모션그래픽 레이어)
 const DEMO_BEATS = [
