@@ -14,10 +14,20 @@
   const TIP_M = 8;    // 뷰포트 여백(px)
 
   let state = null;
+  const regroundedSteps = new Set();  // AI 시각 재탐색 1회성 가드 (스텝당 1회)
 
   // ── 순수 로직 ────────────────────────────────────────────────
   function resolveTarget(step) {
     let el = null, rect = null, source = 'none';
+
+    // 0순위: AI 시각 재탐색 좌표 (셀렉터·XPath·퍼지 모두 실패 후 복구된 위치)
+    if (step._regroundXY) {
+      const px = step._regroundXY.x * window.innerWidth, py = step._regroundXY.y * window.innerHeight;
+      const hit = document.elementFromPoint(px, py);
+      if (hit && hit.id !== 'mimic-overlay-root') { el = hit; rect = rectOf(hit); }
+      else { rect = { left: px - COORD_BOX / 2, top: py - COORD_BOX / 2, width: COORD_BOX, height: COORD_BOX }; }
+      return { el, rect, source: 'ai' };
+    }
 
     // 1순위: CSS Selector
     if (step.element_selector) {
@@ -228,9 +238,10 @@
     // 또는 녹화 때 차단돼 건너뛴 단계) 좌표로 엉뚱한 핫스팟을 찍지 않는다. 대기 모드로 두고
     // 요소가 화면에 나타나면 자동으로 정상 오버레이로 전환한다.
     const expectsEl = !!(step.element_selector || step.element_xpath);
-    const foundEl   = resolved.source === 'selector' || resolved.source === 'xpath' || resolved.source === 'fuzzy';
+    const foundEl   = resolved.source === 'selector' || resolved.source === 'xpath' || resolved.source === 'fuzzy' || resolved.source === 'ai';
     if (expectsEl && !foundEl) {
       showWaiting(step, opts);
+      maybeReground(step, opts);  // AI 시각 재탐색 1회성 시도 (성공 시 좌표 오버레이로 전환)
       return;
     }
 
@@ -545,7 +556,7 @@
       else if (act === 'next') opts.onAdvance && opts.onAdvance('manual');
     });
 
-    state = { host, shadow, waiting: true, findObserver: null, findTimer: null };
+    state = { host, shadow, waiting: true, waitKey: `${opts.index ?? 0}:${step.id || step.title || ''}`, findObserver: null, findTimer: null };
 
     // 셀렉터/XPath로 요소가 잡히면 정상 오버레이로 전환
     const tryResolve = () => {
@@ -575,6 +586,31 @@
       state.findTimer = setTimeout(safety, 1000);
     };
     state.findTimer = setTimeout(safety, 1000);
+  }
+
+  // AI 시각 재탐색 (P3) — 1회성. 성공 시 step._regroundXY를 세팅하고 정상 오버레이로 재렌더.
+  // 셀렉터·XPath·퍼지가 모두 실패한 스텝에서만, 현재 화면 스크린샷을 Vision에 보내 위치 복구.
+  function maybeReground(step, opts) {
+    const key = `${opts.index ?? 0}:${step.id || step.title || ''}`;
+    if (regroundedSteps.has(key)) return;
+    regroundedSteps.add(key);
+    let elementText = '';
+    try { elementText = extractHint(step).text || ''; } catch { /* noop */ }
+    try {
+      chrome.runtime.sendMessage({
+        type: 'AI_REGROUND',
+        title: step.title || '',
+        instruction: step.instruction || '',
+        elementText,
+        actionType: step.kind || null,
+      }, (res) => {
+        void chrome.runtime.lastError;
+        // 응답 시점에도 같은 스텝을 대기 중일 때만 적용 (사용자가 넘어갔으면 무시)
+        if (!res || !res.found || !state || !state.waiting || state.waitKey !== key) return;
+        step._regroundXY = { x: res.x, y: res.y };
+        show(step, opts);  // resolveTarget 0순위가 좌표를 집어 정상 오버레이로 전환
+      });
+    } catch { /* noop */ }
   }
 
   // 자동 타이핑 (React 제어 컴포넌트 대응)

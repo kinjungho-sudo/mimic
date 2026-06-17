@@ -1147,6 +1147,39 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === 'AI_REGROUND') {
+    (async () => {
+      try {
+        const winId = sender.tab?.windowId;
+        const dataUrl = await new Promise((resolve) => {
+          chrome.tabs.captureVisibleTab(winId, { format: 'png' }, (u) => {
+            resolve(chrome.runtime.lastError ? null : u);
+          });
+        });
+        if (!dataUrl) { sendResponse({ found: false }); return; }
+        const image = String(dataUrl).replace(/^data:image\/\w+;base64,/, '');
+
+        const origin = await getWebappOrigin();
+        const res = await authedFetch(`${origin}/api/guide/reground`, {
+          method: 'POST',
+          body: JSON.stringify({
+            image, mediaType: 'image/png',
+            title:       message.title       ?? null,
+            instruction: message.instruction ?? null,
+            elementText: message.elementText ?? null,
+            actionType:  message.actionType  ?? null,
+          }),
+        });
+        if (!res.ok) { sendResponse({ found: false }); return; }
+        sendResponse(await res.json());
+      } catch (err) {
+        log('warn', 'bg', 'AI_REGROUND failed:', err.message);
+        sendResponse({ found: false });
+      }
+    })();
+    return true;
+  }
+
   if (message.type === 'DELETE_STEP') {
     (async () => {
       const { steps } = await storageGet(['steps']);

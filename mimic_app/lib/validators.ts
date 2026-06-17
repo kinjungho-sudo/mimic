@@ -76,6 +76,16 @@ export const captureAnalyzeSchema = z.object({
   clickY:          z.number().min(0).max(1).optional().nullable(),
 });
 
+// 라이브 가이드 AI 시각 재탐색 — 현재 화면 스크린샷에서 대상 요소 위치 복구
+export const guideRegroundSchema = z.object({
+  image:        z.string().min(1),           // base64 (현재 뷰포트 스크린샷)
+  mediaType:    z.enum(['image/jpeg', 'image/png', 'image/webp', 'image/gif']).optional().default('image/png'),
+  title:        z.string().max(200).optional().nullable(),
+  instruction:  z.string().max(500).optional().nullable(),
+  elementText:  z.string().max(200).optional().nullable(),
+  actionType:   z.string().max(40).optional().nullable(),
+});
+
 export const captureSaveStepSchema = z.object({
   session_id: z.string().uuid(),
   step_number: z.number().int().positive(),

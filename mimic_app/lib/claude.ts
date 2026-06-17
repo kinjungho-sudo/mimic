@@ -197,6 +197,54 @@ export async function generateStepDescription(
   return response.content[0].type === 'text' ? response.content[0].text.trim() : '';
 }
 
+// 라이브 가이드 AI 시각 재탐색 — 셀렉터·XPath·퍼지가 모두 실패했을 때 현재 화면
+// 스크린샷에서 대상 요소의 위치를 Vision으로 찾아 0~1 정규화 좌표로 반환한다.
+export async function regroundElement(
+  screenshotBase64: string,
+  mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif',
+  target: { title?: string; instruction?: string; elementText?: string; actionType?: string }
+): Promise<{ found: boolean; x: number; y: number; confidence: number }> {
+  const hints: string[] = [];
+  if (target.title)       hints.push(`단계 제목: ${target.title}`);
+  if (target.instruction) hints.push(`설명: ${target.instruction}`);
+  if (target.elementText) hints.push(`대상 요소에 보이는 텍스트: "${target.elementText}"`);
+  if (target.actionType)  hints.push(`동작 유형: ${target.actionType}`);
+
+  const response = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 128,
+    messages: [{
+      role: 'user',
+      content: [
+        { type: 'image', source: { type: 'base64', media_type: mediaType, data: screenshotBase64 } },
+        {
+          type: 'text',
+          text: `이 스크린샷에서 사용자가 다음으로 클릭/입력해야 할 UI 요소의 위치를 찾아줘.
+
+${hints.join('\n')}
+
+[규칙]
+- 해당 요소가 화면에 보이면 found=true, 그 요소 '중심'의 좌표 반환
+- x, y는 0~1 정규화 (x=가로 비율 왼→오, y=세로 비율 위→아래)
+- confidence는 0~1 (확신 정도). 비슷한 후보가 여럿이면 낮춰라
+- 화면에 명확히 없으면 found=false
+JSON만 반환 (마크다운 없이): {"found": true, "x": 0.5, "y": 0.3, "confidence": 0.9}`,
+        },
+      ],
+    }],
+  });
+
+  const text = response.content[0].type === 'text' ? response.content[0].text : '{}';
+  try {
+    const p = JSON.parse(stripMarkdown(text));
+    const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
+    if (p.found === true && typeof p.x === 'number' && typeof p.y === 'number') {
+      return { found: true, x: clamp01(p.x), y: clamp01(p.y), confidence: Number(p.confidence) || 0.5 };
+    }
+  } catch { /* ignore */ }
+  return { found: false, x: 0, y: 0, confidence: 0 };
+}
+
 export async function generateScript(
   steps: Step[],
   userDraft?: string
