@@ -79,12 +79,17 @@ export async function PATCH(request: NextRequest) {
 
   const updates = await Promise.all(
     parsed.data.order.map(({ id, order_index }) =>
-      supabase.from('mm_steps').update({ order_index }).eq('id', id).eq('tutorial_id', parsed.data.tutorial_id)
+      supabase.from('mm_steps').update({ order_index }, { count: 'exact' }).eq('id', id).eq('tutorial_id', parsed.data.tutorial_id)
     )
   );
 
   if (updates.some(r => r.error)) {
     return NextResponse.json({ error: 'Some updates failed' }, { status: 500 });
+  }
+
+  // 타 튜토리얼 step id가 섞이면 매칭 0행 — 조용히 204로 성공 위장하지 않고 거부
+  if (updates.some(r => r.count === 0)) {
+    return NextResponse.json({ error: 'Some steps do not belong to this tutorial' }, { status: 400 });
   }
 
   return new NextResponse(null, { status: 204 });

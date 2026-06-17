@@ -46,6 +46,12 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
   // 스텝 바뀌면 툴팁 다시 펼침 (#3)
   useEffect(() => { setMinimized(false); }, [idx]);
 
+  // 언마운트 정리: 전환 중 닫히면 setState 경고/오디오 누수가 나므로 타이머·오디오 해제
+  useEffect(() => () => {
+    if (transTimer.current) clearTimeout(transTimer.current);
+    try { audioRef.current?.pause(); if (audioRef.current) audioRef.current.src = ''; } catch { /* noop */ }
+  }, []);
+
   // 음성 재생 (#5) — 직전 오디오 정지 후 재생
   const playVoice = useCallback((url?: string | null) => {
     if (!url) return;

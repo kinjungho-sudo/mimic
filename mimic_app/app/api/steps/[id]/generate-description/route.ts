@@ -48,5 +48,8 @@ export async function POST(
 
   const description = await generateStepDescription(title, step.page_url, screenshotBase64, mediaType);
 
+  // 생성 결과를 ai_description에 저장 — 재로드 시 빈 값으로 판정돼 매번 재생성되던 AI 비용·지연 낭비 차단
+  await supabase.from('mm_steps').update({ ai_description: description }).eq('id', id);
+
   return NextResponse.json({ description });
 }
