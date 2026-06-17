@@ -213,7 +213,14 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
                         onChange={e => setEditingDomain(prev => prev ? { ...prev, value: e.target.value } : null)}
                         onBlur={() => {
                           if (editingDomain && group.hostname) {
-                            onRenameDomain?.(group.hostname, editingDomain.value.trim() || (group.hostname ?? ''));
+                            const v = editingDomain.value.trim();
+                            if (!v) {
+                              // 이름을 비우면 카테고리(도메인 그룹)를 제거 — 스텝은 유지.
+                              // (도메인 주소로 되돌아가던 버그 수정) clear 핸들러가 없으면 원래 이름 유지.
+                              onClearDomain?.(group.hostname);
+                            } else if (v !== (group.name ?? '')) {
+                              onRenameDomain?.(group.hostname, v);
+                            }
                           }
                           setEditingDomain(null);
                         }}

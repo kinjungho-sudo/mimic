@@ -53,6 +53,16 @@ const FONT_SIZES = [12, 14, 16, 18, 22, 28, 36];
 const DEFAULT_BORDER = 'rgba(0,0,0,0.65)';
 // 텍스트 폰트 크기 기준 너비 — 표시 폭을 이 값으로 나눈 비율로 fontSize를 보정(편집기↔뷰어 일치)
 export const FONT_REF_WIDTH = 1100;
+// 텍스트 박스를 글자에 딱 맞추기 위한 가장 긴 줄 너비 추정(편집기·뷰어 공통). CJK/전각은 넓게.
+export function estimateTextW(text: string, fSize: number): number {
+  let max = 0;
+  for (const line of text.split('\n')) {
+    let cw = 0;
+    for (const ch of line) cw += /[가-힣　-鿿＀-￯]/.test(ch) ? fSize * 0.98 : fSize * 0.56;
+    if (cw > max) max = cw;
+  }
+  return max;
+}
 
 // 도구 기본값 저장 — 다음 편집/세션에서도 같은 설정을 사용하도록 localStorage에 보존
 const DEFAULTS_KEY = 'mimic_annot_defaults_v1';
@@ -1101,7 +1111,7 @@ export function ImageAnnotationEditor({
                   color: editingItem.color,
                   fontSize: `${(editingItem.fontSize ?? 16) * fontScale}px`,
                   fontWeight: editingItem.fontBold ? 700 : 400,
-                  textAlign: editingItem.textAlign ?? 'left',
+                  textAlign: 'center',
                   fontFamily: 'inherit',
                   outline: 'none', cursor: 'text',
                   whiteSpace: 'pre-wrap', wordBreak: 'break-word',
@@ -1407,13 +1417,14 @@ function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx
     const fSize = (a.fontSize ?? 16) * fontScale;
     const bold = a.fontBold ?? false;
     const bColor = a.borderColor ?? DEFAULT_BORDER;
-    const align = a.textAlign ?? 'left';
     const bg = a.hasBg !== false;
-    const boxW = Math.max(Math.abs(ax2 - ax1), 40);
-    const boxH = Math.max(Math.abs(ay2 - ay1), fSize + 12);
-    const padX = 10, padY = 6;
-    const textX = align === 'left' ? minX + padX : align === 'center' ? minX + boxW / 2 : minX + boxW - padX;
-    const anchor = align === 'left' ? 'start' : align === 'center' ? 'middle' : 'end';
+    // 박스를 글자에 딱 맞추고(가로·세로) 텍스트는 중앙·가운데 정렬
+    const lines = text.split('\n');
+    const padX = 12, padY = 8;
+    const lineH = fSize * 1.4;
+    const boxW = estimateTextW(text, fSize) + 2 * padX;
+    const boxH = lines.length * lineH + 2 * padY;
+    const cx = minX + boxW / 2;
     const bgFill = bg ? 'rgba(10,10,15,0.92)' : 'transparent';
     const strokeColor = bColor !== 'transparent' ? bColor : 'none';
 
@@ -1430,17 +1441,15 @@ function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx
             rx={6}
           />
         )}
-        {text.split('\n').map((line, i) => {
-          return (
-            <text key={i}
-              x={textX} y={minY + padY + i * fSize * 1.4}
-              fill={color} fontSize={fSize} fontWeight={bold ? 700 : 400}
-              textAnchor={anchor}
-              dominantBaseline="text-before-edge"
-              style={{ pointerEvents: 'none' }}
-            >{line}</text>
-          );
-        })}
+        {lines.map((line, i) => (
+          <text key={i}
+            x={cx} y={minY + padY + i * lineH}
+            fill={color} fontSize={fSize} fontWeight={bold ? 700 : 400}
+            textAnchor="middle"
+            dominantBaseline="text-before-edge"
+            style={{ pointerEvents: 'none' }}
+          >{line}</text>
+        ))}
         {isSelected && onHandleMouseDown && (
           <SelectionHandles minX={minX} minY={minY} w={boxW} h={boxH} onHandle={handleHandle} />
         )}

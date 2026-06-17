@@ -57,7 +57,6 @@ export function AgentChat() {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [quickQuestions, setQuickQuestions] = useState<QuickQ[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -109,7 +108,6 @@ export function AgentChat() {
     fetch('/api/agent/chat')
       .then(r => r.json())
       .then(data => {
-        setQuickQuestions(data.quickQuestions ?? []);
         setMessages([{
           id: 'welcome',
           role: 'assistant',
@@ -177,7 +175,7 @@ export function AgentChat() {
     return (
       <button onClick={() => setIsOpen(true)} title="문의하기"
         style={{
-          position: 'fixed', bottom: '90px', right: '24px', zIndex: 9000,
+          position: 'fixed', bottom: '24px', right: '24px', zIndex: 9000,
           width: '52px', height: '52px', borderRadius: '50%',
           background: 'linear-gradient(135deg, #3730a3, #6d28d9)',
           border: 'none', cursor: 'pointer',
@@ -197,7 +195,7 @@ export function AgentChat() {
   if (isMinimized) {
     return (
       <div style={{
-        position: 'fixed', bottom: '90px', right: '24px', zIndex: 9000,
+        position: 'fixed', bottom: '24px', right: '24px', zIndex: 9000,
         display: 'flex', alignItems: 'center', gap: '10px',
         background: 'white', borderRadius: '999px',
         boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
@@ -373,29 +371,6 @@ export function AgentChat() {
 
         <div ref={bottomRef} />
       </div>}
-
-      {/* 자주 묻는 질문 가로 스크롤 */}
-      {!contactMode && quickQuestions.length > 0 && (
-        <div style={{ flexShrink: 0, padding: '8px 12px 6px', borderTop: '1px solid #F3F4F6' }}>
-          <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '2px' }}
-            className="hide-scrollbar">
-            {quickQuestions.map(q => (
-              <button key={q.id} onClick={() => ask(q.label, q.id)}
-                style={{
-                  padding: '4px 10px', borderRadius: '999px', flexShrink: 0,
-                  border: '1px solid #E5E7EB', background: 'white',
-                  color: '#374151', fontSize: '11.5px', cursor: 'pointer',
-                  transition: 'all 0.12s', whiteSpace: 'nowrap',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = '#F9FAFB'; e.currentTarget.style.borderColor = '#a5b4fc'; e.currentTarget.style.color = '#3730a3'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'white'; e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.color = '#374151'; }}
-              >
-                {q.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* 입력 영역 */}
       {!contactMode && (

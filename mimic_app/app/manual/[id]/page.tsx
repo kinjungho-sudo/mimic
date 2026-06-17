@@ -27,6 +27,7 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
     id: s.id,
     number: s.step_number,
     actionTitle: s.user_title ?? s.ai_title ?? '',
+    titleFontSize: (s as Step & { title_font_size?: number | null }).title_font_size ?? null,
     description: s.user_script ?? s.ai_description ?? '',
     screenshotUrl: s.screenshot_url || undefined,
     annotations: (s.user_annotations as Annotation[] | null) ?? [],

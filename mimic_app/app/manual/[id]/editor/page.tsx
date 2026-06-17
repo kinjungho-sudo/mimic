@@ -36,6 +36,7 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
     id: s.id,
     number: s.step_number,
     actionTitle: s.user_title ?? s.ai_title ?? '',
+    titleFontSize: (s as Step & { title_font_size?: number | null }).title_font_size ?? null,
     description: s.user_script ?? s.ai_description ?? '',
     screenshotUrl: s.screenshot_url || undefined,
     originalScreenshotUrl: (s as Step & { original_screenshot_url?: string | null }).original_screenshot_url ?? null,
@@ -1053,6 +1054,7 @@ export default function EditorPage() {
               clearTimeout(stepSaveTimers.current[stepId]);
               updateStep(stepId, {
                 ...(patch.actionTitle !== undefined ? { user_title: patch.actionTitle || null } : {}),
+                ...(patch.titleFontSize !== undefined ? { title_font_size: patch.titleFontSize } : {}),
                 ...(patch.description !== undefined ? { user_script: patch.description || null } : {}),
                 ...(patch.annotations !== undefined ? { user_annotations: patch.annotations } : {}),
                 ...(patch.imageZoom !== undefined ? { image_zoom: patch.imageZoom } : {}),

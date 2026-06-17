@@ -2,7 +2,7 @@
 
 import { useId, useRef, useState, useEffect } from 'react';
 import type { Annotation } from './ImageAnnotationEditor';
-import { FONT_REF_WIDTH } from './ImageAnnotationEditor';
+import { FONT_REF_WIDTH, estimateTextW } from './ImageAnnotationEditor';
 
 export function AnnotationPreview({ annotations, imageUrl }: { annotations: Annotation[]; imageUrl: string }) {
   const uid = useId().replace(/:/g, '');
@@ -166,17 +166,17 @@ export function AnnotationPreview({ annotations, imageUrl }: { annotations: Anno
         }
 
         if (type === 'text' && a.text) {
-          // 편집기와 100% 동일하게 렌더 — 저장된 박스 좌표 + 동일 패딩/줄간격, fontSize는 fontScale 보정
+          // 편집기와 100% 동일하게 렌더 — 박스를 글자에 딱 맞추고 중앙·가운데 정렬, fontSize는 fontScale 보정
           const fSize = (a.fontSize ?? 16) * fontScale;
           const bold = a.fontBold ?? false;
           const bColor = a.borderColor ?? 'rgba(0,0,0,0.65)';
-          const align = a.textAlign ?? 'left';
           const bg = a.hasBg !== false;
-          const boxW = Math.max(w, 40);
-          const boxH = Math.max(h, fSize + 12);
-          const padX = 10, padY = 6;
-          const textX = align === 'left' ? minX + padX : align === 'center' ? minX + boxW / 2 : minX + boxW - padX;
-          const anchor = align === 'left' ? 'start' : align === 'center' ? 'middle' : 'end';
+          const lines = a.text.split('\n');
+          const padX = 12, padY = 8;
+          const lineH = fSize * 1.4;
+          const boxW = estimateTextW(a.text, fSize) + 2 * padX;
+          const boxH = lines.length * lineH + 2 * padY;
+          const cx = minX + boxW / 2;
           const bgFill = bg ? 'rgba(10,10,15,0.92)' : 'none';
           const strokeColor = bColor !== 'transparent' ? bColor : 'none';
           return (
@@ -189,11 +189,11 @@ export function AnnotationPreview({ annotations, imageUrl }: { annotations: Anno
                   rx={6}
                 />
               )}
-              {a.text.split('\n').map((line, i) => (
+              {lines.map((line, i) => (
                 <text key={i}
-                  x={textX} y={minY + padY + i * fSize * 1.4}
+                  x={cx} y={minY + padY + i * lineH}
                   fill={color} fontSize={fSize} fontWeight={bold ? 700 : 400}
-                  textAnchor={anchor} dominantBaseline="text-before-edge"
+                  textAnchor="middle" dominantBaseline="text-before-edge"
                 >{line}</text>
               ))}
             </g>

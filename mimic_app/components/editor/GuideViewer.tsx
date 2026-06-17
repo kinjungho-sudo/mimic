@@ -91,7 +91,7 @@ export function GuideViewer({ steps, activeId, onActiveChange, outputRatio = '16
             boxSizing: 'border-box',
           }}
         >
-          <div style={{ width: '100%', maxWidth: '1120px' }}>
+          <div style={{ width: '100%', maxWidth: '1000px' }}>
             <ViewerStepCard step={step} />
           </div>
         </div>
@@ -134,7 +134,7 @@ function ViewerStepCard({ step }: { step: ManualStep }) {
           {String(step.number).padStart(2, '0')}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 600, color: '#111827', lineHeight: 1.45 }}>
+          <h3 style={{ margin: 0, fontSize: `${step.titleFontSize ?? 20}px`, fontWeight: 600, color: '#111827', lineHeight: 1.45 }}>
             {step.actionTitle || <span style={{ color: '#9CA3AF', fontWeight: 400 }}>(제목 없음)</span>}
           </h3>
           {step.description && (
@@ -174,7 +174,7 @@ function ViewerStepCard({ step }: { step: ManualStep }) {
                 height: 'auto',
                 display: 'block',
                 userSelect: 'none',
-                maxHeight: hasCrop ? 'none' : 'calc(100vh - 220px)',
+                maxHeight: hasCrop ? 'none' : 'calc(100vh - 320px)',
                 marginLeft: imgMarginLeft,
                 marginTop: imgMarginTop,
               }}

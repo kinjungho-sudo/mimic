@@ -9,6 +9,7 @@ import { logActivity } from '@/lib/activity';
 const stepPatchSchema = z.object({
   user_title: z.string().max(200).nullable().optional(),
   user_script: z.string().max(2000).nullable().optional(),
+  title_font_size: z.number().int().min(10).max(48).nullable().optional(),
   user_annotations: z.array(z.unknown()).nullable().optional(),
   image_zoom: z.number().min(0.5).max(4).nullable().optional(),
   image_offset_x: z.number().min(-1.5).max(1.5).nullable().optional(),

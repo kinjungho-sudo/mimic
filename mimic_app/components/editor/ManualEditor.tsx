@@ -17,6 +17,7 @@ export interface ManualStep {
   id: string;
   number: number;
   actionTitle: string;
+  titleFontSize?: number | null;  // 제목 글자 크기(px). null=기본 20px
   description: string;       // stored as HTML string
   screenshotUrl?: string;
   // 영구 블러 적용 전 원본 URL (있으면 '되돌리기' 가능)
@@ -366,7 +367,7 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, hideToc, a
           )}
 
           {/* 위/아래 이동 플로팅 버튼 — sticky로 scroll-snap 컨테이너 안에 고정 */}
-          <div className="editor-step-nav" style={{ position: 'sticky', bottom: '16px', display: 'flex', justifyContent: 'flex-end', paddingRight: '20px', pointerEvents: 'none', zIndex: 20, scrollSnapAlign: 'none' }}>
+          <div className="editor-step-nav" style={{ position: 'sticky', bottom: '16px', display: 'flex', justifyContent: 'flex-start', paddingLeft: '20px', pointerEvents: 'none', zIndex: 20, scrollSnapAlign: 'none' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', pointerEvents: 'auto' }}>
               {(() => {
                 const currentIdx = steps.findIndex(s => s.id === activeId);
@@ -603,6 +604,7 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
   const [descGenerating, setDescGenerating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLInputElement>(null);
 
   const handleGenerateDescription = async () => {
     if (descGenerating || step.id.startsWith('step-')) return;
@@ -757,7 +759,8 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
       </div>
 
       {/* ── Text format toolbar (formatting only, no AI buttons) ── */}
-      <TextFormatToolbar editorRef={editorRef} />
+      <TextFormatToolbar editorRef={editorRef} titleRef={titleRef}
+        onTitleFontSize={px => { onUpdate({ titleFontSize: px }); onSave({ titleFontSize: px }); }} />
 
       {/* Card header */}
       <div style={{ padding: '8px 36px 8px 20px' }}>
@@ -774,13 +777,14 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
             }}>업데이트 필요</span>
           )}
           <input
+            ref={titleRef}
             value={step.actionTitle}
             onChange={e => onUpdate({ actionTitle: e.target.value })}
             onFocus={onFocus}
             onBlur={e => { e.currentTarget.style.background = 'transparent'; handleTitleBlur(e); }}
             placeholder="단계 제목을 입력하세요"
             style={{
-              flex: 1, fontSize: '20px', fontWeight: 600, color: '#111827',
+              flex: 1, fontSize: `${step.titleFontSize ?? 20}px`, fontWeight: 600, color: '#111827',
               background: 'transparent', border: 'none', outline: 'none',
               padding: '3px 6px', margin: '0 -6px',
               lineHeight: 1.4, borderRadius: '6px', cursor: 'text',
@@ -799,7 +803,7 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
                 onMouseEnter={e => { e.currentTarget.style.color = '#3730a3'; }}
                 onMouseLeave={e => { e.currentTarget.style.color = '#9CA3AF'; }}
               >
-                <ExternalLink size={13} />
+                <ExternalLink size={16} />
               </button>
             )}
             {step.screenshotUrl && (
@@ -807,7 +811,7 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
                 onMouseEnter={e => { e.currentTarget.style.color = '#374151'; }}
                 onMouseLeave={e => { e.currentTarget.style.color = '#9CA3AF'; }}
               >
-                <ZoomIn size={13} />
+                <ZoomIn size={16} />
               </button>
             )}
             {onAddComment && !step.id.startsWith('step-') && (
@@ -815,14 +819,14 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
                 onMouseEnter={e => { e.currentTarget.style.color = '#4F46E5'; }}
                 onMouseLeave={e => { e.currentTarget.style.color = '#9CA3AF'; }}
               >
-                <MessageSquare size={13} />
+                <MessageSquare size={16} />
               </button>
             )}
             <button onClick={onDelete} title="단계 삭제" style={iconBtnSm}
               onMouseEnter={e => { e.currentTarget.style.color = '#DC2626'; }}
               onMouseLeave={e => { e.currentTarget.style.color = '#9CA3AF'; }}
             >
-              <Trash2 size={13} />
+              <Trash2 size={16} />
             </button>
           </div>
         </div>
@@ -944,15 +948,25 @@ const iconBtnSm: React.CSSProperties = {
 
 type ActiveState = { bold: boolean; italic: boolean; underline: boolean };
 
-const FONT_SIZE_OPTIONS = [10, 12, 14, 16, 18, 24, 32];
+const FONT_SIZE_OPTIONS = [10, 12, 14, 16, 18, 20, 24, 32];
 const nearestFontSize = (px: number) =>
   FONT_SIZE_OPTIONS.reduce((a, b) => (Math.abs(b - px) < Math.abs(a - px) ? b : a));
 
-function TextFormatToolbar({ editorRef }: { editorRef: React.RefObject<HTMLDivElement> }) {
+function TextFormatToolbar({ editorRef, titleRef, onTitleFontSize }: { editorRef: React.RefObject<HTMLDivElement>; titleRef?: React.RefObject<HTMLInputElement>; onTitleFontSize?: (px: number) => void }) {
   const [active, setActive] = useState<ActiveState>({ bold: false, italic: false, underline: false });
   const [fontSize, setFontSize] = useState(16);
+  const lastWasTitle = useRef(false);
 
   const syncActive = useCallback(() => {
+    // 제목(input)에 커서가 있으면 제목의 실제 글자 크기를 드롭다운에 반영
+    if (titleRef?.current && document.activeElement === titleRef.current) {
+      lastWasTitle.current = true;
+      setActive({ bold: false, italic: false, underline: false });
+      const px = parseFloat(window.getComputedStyle(titleRef.current).fontSize);
+      if (!Number.isNaN(px)) setFontSize(nearestFontSize(Math.round(px)));
+      return;
+    }
+    if (editorRef.current && document.activeElement === editorRef.current) lastWasTitle.current = false;
     const sel = window.getSelection();
     if (!sel || !editorRef.current?.contains(sel.anchorNode)) return;
     setActive({
@@ -967,20 +981,27 @@ function TextFormatToolbar({ editorRef }: { editorRef: React.RefObject<HTMLDivEl
       const px = parseFloat(window.getComputedStyle(node).fontSize);
       if (!Number.isNaN(px)) setFontSize(nearestFontSize(Math.round(px)));
     }
-  }, [editorRef]);
+  }, [editorRef, titleRef]);
 
   useEffect(() => {
     const el = editorRef.current;
     if (!el) return;
+    const title = titleRef?.current;
     el.addEventListener('keyup', syncActive);
     el.addEventListener('mouseup', syncActive);
+    title?.addEventListener('focus', syncActive);
+    title?.addEventListener('keyup', syncActive);
+    title?.addEventListener('click', syncActive);
     document.addEventListener('selectionchange', syncActive);
     return () => {
       el.removeEventListener('keyup', syncActive);
       el.removeEventListener('mouseup', syncActive);
+      title?.removeEventListener('focus', syncActive);
+      title?.removeEventListener('keyup', syncActive);
+      title?.removeEventListener('click', syncActive);
       document.removeEventListener('selectionchange', syncActive);
     };
-  }, [editorRef, syncActive]);
+  }, [editorRef, titleRef, syncActive]);
 
   const exec = (cmd: string, value?: string) => {
     editorRef.current?.focus();
@@ -991,6 +1012,12 @@ function TextFormatToolbar({ editorRef }: { editorRef: React.RefObject<HTMLDivEl
 
   // 실제 px 단위로 글자 크기 적용 — execCommand size 7을 임시 마커로 만들고 span(font-size:px)으로 치환
   const applyFontSize = (px: number) => {
+    // 제목에 커서가 있었으면 제목 글자 크기를 변경(저장)
+    if (lastWasTitle.current && onTitleFontSize) {
+      setFontSize(px);
+      onTitleFontSize(px);
+      return;
+    }
     const el = editorRef.current;
     if (!el) return;
     el.focus();
