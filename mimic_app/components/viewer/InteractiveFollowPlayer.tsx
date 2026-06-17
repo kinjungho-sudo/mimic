@@ -10,6 +10,7 @@ export interface FollowStep {
   screenshotUrl?: string | null;
   hotspotX?: number | null;            // 0~100 (%)
   hotspotY?: number | null;            // 0~100 (%)
+  hotspotUserPlaced?: boolean;         // 스튜디오에서 직접 찍은 좌표 — 좌상단도 유효(가짜 0,0 센티넬 제외)
   kind?: 'click' | 'type';             // 클릭 vs 타이핑 — 인디케이터 모양 결정
   typeText?: string | null;            // type 인디케이터에 자동 타이핑될 텍스트
   audioUrl?: string | null;            // 스텝 TTS 오디오 (있으면 음성 재생)
@@ -100,7 +101,8 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
     if (done) return;
     const hx = step.hotspotX, hy = step.hotspotY;
     // 클릭 타깃 없음(이동/캡처 단계 — 좌상단 0,0 포함) → 화면 클릭으로 진행하지 않음. '다음'으로만 이동 (#2)
-    if (hx == null || hy == null || (hx < CORNER && hy < CORNER)) return;
+    // 단, 사용자가 직접 찍은 좌상단 핫스팟은 유효 타깃으로 인정
+    if (hx == null || hy == null || (!step.hotspotUserPlaced && hx < CORNER && hy < CORNER)) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const xPct = ((e.clientX - rect.left) / rect.width) * 100;
     const yPct = ((e.clientY - rect.top) / rect.height) * 100;
@@ -143,6 +145,7 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
                   screenshotUrl={step.screenshotUrl}
                   hotspotX={hx ?? null}
                   hotspotY={hy ?? null}
+                  allowCornerHotspot={step.hotspotUserPlaced}
                   kind={step.kind ?? 'click'}
                   typeText={step.typeText}
                   bubbleAnchor={step.bubbleAnchor}

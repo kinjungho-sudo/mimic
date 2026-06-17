@@ -27,6 +27,7 @@ interface Props {
   screenshotUrl?: string | null;
   hotspotX: number | null;          // 0~100 (%) — none/이동단계는 null
   hotspotY: number | null;
+  allowCornerHotspot?: boolean;     // true=사용자가 직접 찍은 좌상단 핫스팟 허용(0,0 가짜 센티넬 억제 해제)
   kind: 'click' | 'type';
   typeText?: string | null;         // type 인디케이터에 표시/입력될 텍스트
   typeTextColor?: string;           // 타이핑 인디케이터 글자색 (기본 #111827)
@@ -49,7 +50,7 @@ interface Props {
 }
 
 export function FollowStage({
-  screenshotUrl, hotspotX: hx, hotspotY: hy, kind, typeText, typeTextColor, animateType = false,
+  screenshotUrl, hotspotX: hx, hotspotY: hy, allowCornerHotspot = false, kind, typeText, typeTextColor, animateType = false,
   isFirstStep = false, title, body,
   minimized = false, showAudioBadge = false, nudge = false, spotlight = false,
   imageCursor = 'default', imgMaxHeight = 'calc(100vh - 150px)',
@@ -88,7 +89,8 @@ export function FollowStage({
     return () => ro.disconnect();
   }, [ref, screenshotUrl]);
 
-  const hasHotspot = hx != null && hy != null && !(hx < CORNER && hy < CORNER);
+  // 좌상단 0,0 가짜 핫스팟(자동추론 아티팩트)은 억제하되, 사용자가 직접 찍은 좌표는 그대로 인정
+  const hasHotspot = hx != null && hy != null && (allowCornerHotspot || !(hx < CORNER && hy < CORNER));
   const isType = kind === 'type';
   // 스포트라이트 구멍 반경: 이미지 너비의 9%, 최대 80px
   const spotR = box.w ? Math.min(Math.round(box.w * 0.09), 80) : 72;

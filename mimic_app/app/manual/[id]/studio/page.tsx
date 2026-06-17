@@ -45,6 +45,7 @@ function resolved(s: StudioStep) {
     hotspotX: none ? null : (s.follow.hotspotX != null ? s.follow.hotspotX : s.clickXPct),
     hotspotY: none ? null : (s.follow.hotspotY != null ? s.follow.hotspotY : s.clickYPct),
     kind: (none ? 'click' : rk) as 'click' | 'type',
+    userPlaced: s.follow.hotspotX != null,  // 직접 찍은 좌표 — 좌상단도 표시 유지
     none,
   };
 }
@@ -355,6 +356,7 @@ export default function StudioPage() {
                   screenshotUrl={active.screenshotUrl}
                   hotspotX={rv?.hotspotX ?? null}
                   hotspotY={rv?.hotspotY ?? null}
+                  allowCornerHotspot={rv?.userPlaced}
                   kind={rv?.kind ?? 'click'}
                   typeText={active.follow.typeText}
                   bubbleAnchor={active.follow.bubbleAnchor}

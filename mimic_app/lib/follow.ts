@@ -47,6 +47,8 @@ export function toFollowSteps(sources: FollowSource[]): FollowStep[] {
         screenshotUrl: s.screenshotUrl,
         hotspotX: isNone ? null : (fc.hotspotX != null ? fc.hotspotX : s.clickXPct),
         hotspotY: isNone ? null : (fc.hotspotY != null ? fc.hotspotY : s.clickYPct),
+        // 스튜디오 저작 좌표는 좌상단도 유효 — 자동추론 0,0 아티팩트만 억제
+        hotspotUserPlaced: !isNone && fc.hotspotX != null,
         kind: isNone ? 'click' : resolvedKind,  // none이면 핫스팟 없으니 kind 값은 무의미
         typeText: fc.typeText?.trim() || null,
         audioUrl: s.audioUrl ?? null,
