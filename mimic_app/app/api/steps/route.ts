@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
+import { guardTutorialAccess } from '@/lib/workspace-guard';
 import { z } from 'zod';
 
 const stepCreateSchema = z.object({
@@ -23,18 +24,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const supabase = createServiceRoleClient();
-
-  const { data: tutorial } = await supabase
-    .from('mm_tutorials')
-    .select('id')
-    .eq('id', parsed.data.tutorial_id)
-    .eq('user_id', auth.userId)
-    .single();
-
-  if (!tutorial) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  // 워크스페이스/공유 협업자도 editor 이상이면 단계 추가 허용 (다른 스텝 라우트와 일관)
+  const access = await guardTutorialAccess(parsed.data.tutorial_id, auth.userId, 'editor');
+  if (!access.ok) {
+    return NextResponse.json({ error: access.error }, { status: access.status });
   }
+
+  const supabase = createServiceRoleClient();
 
   const { data, error } = await supabase
     .from('mm_steps')
@@ -73,18 +69,13 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const supabase = createServiceRoleClient();
-
-  const { data: tutorial } = await supabase
-    .from('mm_tutorials')
-    .select('id')
-    .eq('id', parsed.data.tutorial_id)
-    .eq('user_id', auth.userId)
-    .single();
-
-  if (!tutorial) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  // 워크스페이스/공유 협업자도 editor 이상이면 재정렬 허용 (다른 스텝 라우트와 일관)
+  const access = await guardTutorialAccess(parsed.data.tutorial_id, auth.userId, 'editor');
+  if (!access.ok) {
+    return NextResponse.json({ error: access.error }, { status: access.status });
   }
+
+  const supabase = createServiceRoleClient();
 
   const updates = await Promise.all(
     parsed.data.order.map(({ id, order_index }) =>

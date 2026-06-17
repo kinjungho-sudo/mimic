@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
+import { guardTutorialAccess } from '@/lib/workspace-guard';
 import { buildClickHighlight, buildClickPoint } from '@/lib/annotations';
 import { analyzeScreenshot } from '@/lib/claude';
 
@@ -12,17 +13,13 @@ export async function POST(
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
 
+  // 워크스페이스/공유 협업자도 editor 이상이면 AI 보완 허용 (다른 스텝 라우트와 일관)
+  const access = await guardTutorialAccess(id, auth.userId, 'editor');
+  if (!access.ok) {
+    return NextResponse.json({ error: access.error }, { status: access.status });
+  }
+
   const supabase = createServiceRoleClient();
-
-  // 소유권 확인
-  const { data: tutorial } = await supabase
-    .from('mm_tutorials')
-    .select('id')
-    .eq('id', id)
-    .eq('user_id', auth.userId)
-    .single();
-
-  if (!tutorial) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   // 보완 대상 스텝 조회
   const { data: steps } = await supabase

@@ -8,10 +8,13 @@ const FREE_LIVE_GUIDE_LIMIT = 5;
 const PAID_PLANS = ['pro', 'team', 'enterprise'];
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://mimic-nine-ashen.vercel.app').replace(/^﻿/, '').trim();
 
-// 소유자 플랜·사용량으로 게이트 판정. 통과 시 카운트 증가(무료 한정). 반환: 막혔으면 gated 정보, 아니면 null.
+// 소유자 플랜·사용량으로 게이트 판정. 반환: 막혔으면 gated 정보, 아니면 null.
+// charge=true(공개 실행)일 때만 카운트 차감 — RPC로 원자적 check-and-increment(race 방지).
+// charge=false(소유자 미리보기)는 읽기 전용 판정만 — 미리보기로 무료 한도가 소진되지 않게.
 async function gateLiveGuide(
   supabase: ReturnType<typeof createServiceRoleClient>,
   ownerId: string,
+  charge: boolean,
 ): Promise<{ gated: true; limit: number; used: number; upgradeUrl: string } | null> {
   const { data: owner } = await supabase
     .from('mm_users')
@@ -22,13 +25,19 @@ async function gateLiveGuide(
   const plan = owner?.plan ?? 'free';
   if (PAID_PLANS.includes(plan)) return null; // 유료=무제한(미카운트)
 
-  const used = owner?.live_guide_runs ?? 0;
-  if (used >= FREE_LIVE_GUIDE_LIMIT) {
-    return { gated: true, limit: FREE_LIVE_GUIDE_LIMIT, used, upgradeUrl: `${APP_URL}/settings` };
+  const gated = { gated: true as const, limit: FREE_LIVE_GUIDE_LIMIT, used: owner?.live_guide_runs ?? 0, upgradeUrl: `${APP_URL}/settings` };
+
+  if (!charge) {
+    // 미리보기 — 차감 없이 한도만 확인
+    return gated.used >= FREE_LIVE_GUIDE_LIMIT ? gated : null;
   }
-  // 무료 한도 내 — 1회 차감
-  await supabase.from('mm_users').update({ live_guide_runs: used + 1 }).eq('id', ownerId);
-  return null;
+
+  // 공개 실행 — 한도 미만일 때만 원자적으로 1회 차감. 한도 도달 시 RPC가 NULL 반환.
+  const { data: newCount } = await supabase.rpc('consume_free_live_guide_run', {
+    uid: ownerId,
+    free_limit: FREE_LIVE_GUIDE_LIMIT,
+  });
+  return newCount == null ? gated : null;
 }
 
 // GET /api/guide/{share_token}  — published, 인증 불필요 (Extension용)
@@ -59,7 +68,8 @@ export async function GET(request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
-    const gated = await gateLiveGuide(supabase, tutorial.user_id);
+    // 소유자 미리보기 — 차감 없이 한도만 확인
+    const gated = await gateLiveGuide(supabase, tutorial.user_id, false);
     if (gated) return NextResponse.json(gated);
 
     return NextResponse.json(await fetchSteps(supabase, tutorial.id, tutorial.title));
@@ -77,7 +87,8 @@ export async function GET(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
-  const gated = await gateLiveGuide(supabase, tutorial.user_id);
+  // 공개 실행 — 원자적 차감
+  const gated = await gateLiveGuide(supabase, tutorial.user_id, true);
   if (gated) return NextResponse.json(gated);
 
   return NextResponse.json(await fetchSteps(supabase, tutorial.id, tutorial.title));

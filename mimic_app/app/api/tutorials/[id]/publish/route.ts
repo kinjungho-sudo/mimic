@@ -20,7 +20,14 @@ export async function POST(request: NextRequest, { params }: Params) {
 
   const supabase = createServiceRoleClient();
 
-  const shareToken = randomBytes(16).toString('hex');
+  // 기존 share_token이 있으면 재사용 — 재게시 때마다 새 토큰을 발급하면 이미 공유된 링크가 죽음
+  const { data: existing } = await supabase
+    .from('mm_tutorials')
+    .select('share_token')
+    .eq('id', id)
+    .single();
+
+  const shareToken = existing?.share_token ?? randomBytes(16).toString('hex');
 
   const { data, error } = await supabase
     .from('mm_tutorials')

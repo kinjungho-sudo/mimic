@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
+import { guardStepAccess } from '@/lib/workspace-guard';
 import { generateStepDescription } from '@/lib/claude';
 
 export async function POST(
@@ -11,9 +12,14 @@ export async function POST(
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
 
+  // 워크스페이스/공유 협업자도 editor 이상이면 AI 설명 생성 허용 (다른 스텝 라우트와 일관)
+  const access = await guardStepAccess(id, auth.userId, 'editor');
+  if (!access.ok) {
+    return NextResponse.json({ error: access.error }, { status: access.status });
+  }
+
   const supabase = createServiceRoleClient();
 
-  // 소유권 확인 (step → tutorial → user)
   const { data: step } = await supabase
     .from('mm_steps')
     .select('id, ai_title, user_title, page_url, screenshot_url, tutorial_id')
@@ -21,15 +27,6 @@ export async function POST(
     .single();
 
   if (!step) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-
-  const { data: tutorial } = await supabase
-    .from('mm_tutorials')
-    .select('id')
-    .eq('id', step.tutorial_id)
-    .eq('user_id', auth.userId)
-    .single();
-
-  if (!tutorial) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const title = step.user_title || step.ai_title || '';
 

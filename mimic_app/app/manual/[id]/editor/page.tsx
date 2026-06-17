@@ -451,9 +451,18 @@ export default function EditorPage() {
       const res = await fetch(`/api/tutorials/${id}/check-freshness`, { method: 'POST' });
       const data = await res.json();
       setFreshnessResult(data);
-      // is_stale 업데이트된 스텝 반영을 위해 페이지 데이터 새로고침
+      // is_stale 업데이트된 스텝 반영 — 서버에서 재조회 후 is_stale 플래그만 머지
+      // (로컬 미저장 편집은 유지하기 위해 전체 재시드 대신 id 기준 플래그만 갱신)
       if (data.stale > 0) {
-        setManualSteps(prev => prev.map(s => ({ ...s })));
+        try {
+          const fresh = await getTutorial(id);
+          const staleById = new Map(
+            fresh.steps.map(s => [s.id, (s as Step & { is_stale?: boolean }).is_stale ?? false]),
+          );
+          setManualSteps(prev =>
+            prev.map(s => (staleById.has(s.id) ? { ...s, is_stale: staleById.get(s.id)! } : s)),
+          );
+        } catch { /* 재조회 실패 시 기존 상태 유지 */ }
       }
     } catch {
       setFreshnessResult({ checked: 0, stale: -1 });
@@ -486,8 +495,12 @@ export default function EditorPage() {
       setManualSteps(prev => prev.map(s => s.id === tempId ? { ...s, id: created.id } : s));
       setActiveId(created.id);
     } catch (e) {
-      // 실패해도 로컬 상태는 유지, 편집 완료 시 재저장
+      // INSERT 실패 — 임시 스텝은 어떤 저장 경로로도 영속되지 않으므로(step- 접두사 건너뜀) 롤백.
+      // 추가 직후(사용자 입력 전) 실패라 유실되는 내용 없음.
       logError('step.create.fail', { tutorialId: id, message: e instanceof Error ? e.message : String(e) });
+      setManualSteps(prev => prev.filter(s => s.id !== tempId).map((s, i) => ({ ...s, number: i + 1 })));
+      setActiveId(prev => (prev === tempId ? null : prev));
+      alert('단계를 추가하지 못했습니다. 네트워크 연결을 확인 후 다시 시도해 주세요.');
     }
   }, [manualSteps, setManualStepsWithHistory, id]);
 
@@ -507,8 +520,11 @@ export default function EditorPage() {
       setManualSteps(prev => prev.map(s => s.id === tempId ? { ...s, id: created.id } : s));
       setActiveId(created.id);
     } catch (e) {
-      // 실패해도 로컬 상태 유지
+      // INSERT 실패 — 임시 스텝은 영속 불가하므로 롤백(추가 직후라 유실 내용 없음).
       logError('step.insert.fail', { tutorialId: id, message: e instanceof Error ? e.message : String(e) });
+      setManualSteps(prev => prev.filter(s => s.id !== tempId).map((s, i) => ({ ...s, number: i + 1 })));
+      setActiveId(prev => (prev === tempId ? afterId : prev));
+      alert('단계를 추가하지 못했습니다. 네트워크 연결을 확인 후 다시 시도해 주세요.');
     }
   }, [manualSteps, setManualStepsWithHistory, id]);
 
