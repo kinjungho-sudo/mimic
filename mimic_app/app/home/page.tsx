@@ -409,7 +409,7 @@ function TutorialCard({ tutorial, onContextMenu, onTitleChange, onMenuClick, vie
 
 // ── 빈 상태 ───────────────────────────────────────────────
 
-function EmptyState({ onRecord, onBlank, label }: { onRecord: () => void; onBlank: () => void; label?: string }) {
+function EmptyState({ onRecord, onBlank, onGuidebook, label }: { onRecord: () => void; onBlank: () => void; onGuidebook?: () => void; label?: string }) {
   return (
     <div style={{ padding: '60px 24px', textAlign: 'center' }}>
       <div style={{ margin: '0 auto 16px', width: '56px', height: '56px', borderRadius: '14px', background: '#e0e7ff', display: 'grid', placeItems: 'center', color: '#3730a3' }}>
@@ -426,6 +426,12 @@ function EmptyState({ onRecord, onBlank, label }: { onRecord: () => void; onBlan
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           직접 편집
         </button>
+        {onGuidebook && (
+          <button onClick={onGuidebook} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: 'white', color: '#059669', border: '1.5px solid #86efac', cursor: 'pointer' }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            새 가이드북
+          </button>
+        )}
       </div>
     </div>
   );
@@ -804,6 +810,20 @@ export default function DashboardPage() {
       const wsId = activeTab === 'team' && activeWorkspace ? activeWorkspace : null;
       const tutorial = await createTutorial(wsId ? { workspace_id: wsId } : undefined);
       router.push(`/manual/${tutorial.id}/editor`);
+    } catch { alert('생성 중 오류가 발생했습니다.'); setCreating(false); }
+  };
+
+  const handleCreateGuidebook = async () => {
+    setShowNewMenu(false); setCreating(true);
+    try {
+      const wsId = activeTab === 'team' && activeWorkspace ? activeWorkspace : null;
+      const res = await fetch('/api/pages', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(wsId ? { workspace_id: wsId } : {}),
+      });
+      if (!res.ok) throw new Error('create failed');
+      const page = await res.json();
+      router.push(`/pages/${page.id}/editor`);
     } catch { alert('생성 중 오류가 발생했습니다.'); setCreating(false); }
   };
 
@@ -1191,7 +1211,7 @@ export default function DashboardPage() {
                       ? <span style={{ width: '12px', height: '12px', borderRadius: '50%', border: '2px solid rgba(255,255,255,0.4)', borderTopColor: 'white', animation: 'spin 0.8s linear infinite', flexShrink: 0 }} />
                       : <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'rgba(255,255,255,0.85)', animation: 'recPulse 1.4s ease-in-out infinite', flexShrink: 0 }} />
                     }
-                    새 매뉴얼
+                    새로 만들기
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ transform: showNewMenu ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}><polyline points="6 9 12 15 18 9"/></svg>
                   </button>
                   {showNewMenu && (
@@ -1212,6 +1232,15 @@ export default function DashboardPage() {
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3730a3" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
                         </span>
                         <div><div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '2px' }}>직접 편집하기</div><div style={{ fontSize: '11.5px', color: '#6B7280' }}>이미지 업로드해 제작</div></div>
+                      </button>
+                      <div className="home-recording-divider" style={{ height: '1px', background: '#F3F4F6', margin: '0 12px' }} />
+                      <button onClick={handleCreateGuidebook}
+                        style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', width: '100%', padding: '13px 15px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                        <span style={{ width: '30px', height: '30px', borderRadius: '8px', background: '#dcfce7', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                        </span>
+                        <div><div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '2px' }}>새 가이드북</div><div style={{ fontSize: '11.5px', color: '#6B7280' }}>여러 매뉴얼을 한 문서로</div></div>
                       </button>
                     </div>
                   )}
@@ -1324,7 +1353,7 @@ export default function DashboardPage() {
                     </button>
                   </div>
                 ) : (
-                  <EmptyState onRecord={() => setShowRecordingModal(true)} onBlank={handleCreateBlank}
+                  <EmptyState onRecord={() => setShowRecordingModal(true)} onBlank={handleCreateBlank} onGuidebook={handleCreateGuidebook}
                     label={activeTab === 'team' ? '팀 매뉴얼이 없어요' : activeFolder !== 'all' ? '이 폴더에 매뉴얼이 없어요' : undefined} />
                 )
               ) : (

@@ -12,11 +12,12 @@ const patchSchema = z.object({
   description: z.string().max(2000).nullable().optional(),
   cover_color: z.string().max(32).nullable().optional(),
   folder_id: z.string().uuid().nullable().optional(),
+  content: z.array(z.unknown()).max(1000).optional(),
   publish: z.boolean().optional(),
   unpublish: z.boolean().optional(),
 });
 
-// GET /api/pages/[id] — 페이지 + 정렬된 블록
+// GET /api/pages/[id] — 페이지(content) + 작성자
 export async function GET(request: NextRequest, { params }: Params) {
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
@@ -29,13 +30,13 @@ export async function GET(request: NextRequest, { params }: Params) {
   const { data: page } = await supabase.from('mm_pages').select('*').eq('id', id).single();
   if (!page) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const { data: blocks } = await supabase
-    .from('mm_page_blocks')
-    .select('*')
-    .eq('page_id', id)
-    .order('order_index', { ascending: true });
+  const { data: author } = await supabase
+    .from('mm_users')
+    .select('name, email, avatar_url')
+    .eq('id', page.user_id)
+    .single();
 
-  return NextResponse.json({ ...page, blocks: blocks ?? [] });
+  return NextResponse.json({ ...page, content: page.content ?? [], author: author ?? null });
 }
 
 // PATCH /api/pages/[id] — 메타 수정 / 게시 / 게시 취소
@@ -53,11 +54,12 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const supabase = createServiceRoleClient();
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
-  const { title, description, cover_color, folder_id, publish, unpublish } = parsed.data;
+  const { title, description, cover_color, folder_id, content, publish, unpublish } = parsed.data;
   if (title !== undefined) update.title = title;
   if (description !== undefined) update.description = description;
   if (cover_color !== undefined) update.cover_color = cover_color;
   if (folder_id !== undefined) update.folder_id = folder_id;
+  if (content !== undefined) update.content = content;
 
   if (publish) {
     const { data: cur } = await supabase.from('mm_pages').select('share_token').eq('id', id).single();

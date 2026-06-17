@@ -15,15 +15,17 @@ type StepRow = {
   user_annotations: unknown;
 };
 
-// GET /api/p/[token] — 공개 페이지 + 블록.
-// tutorial 블록은 페이지 작성자(또는 동일 워크스페이스) 소유 가이드만 본문(steps)을 함께 내려준다.
+type GuideBlockProps = { type?: string; props?: { tutorialId?: string } };
+
+// GET /api/p/[token] — 공개 가이드북 (BlockNote content) + 가이드 블록 본문 enrich.
+// 가이드(tutorial) 블록은 작성자(또는 동일 워크스페이스) 소유 가이드만 steps 를 함께 내려준다.
 export async function GET(_request: NextRequest, { params }: Params) {
   const { token } = await params;
   const supabase = createServiceRoleClient();
 
   const { data: page } = await supabase
     .from('mm_pages')
-    .select('id, user_id, workspace_id, title, description, cover_color, status, share_token, published_at')
+    .select('id, user_id, workspace_id, title, description, cover_color, status, share_token, published_at, content')
     .eq('share_token', token)
     .eq('status', 'published')
     .is('deleted_at', null)
@@ -31,23 +33,17 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
   if (!page) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const { data: blocks } = await supabase
-    .from('mm_page_blocks')
-    .select('*')
-    .eq('page_id', page.id)
-    .order('order_index', { ascending: true });
+  const content: GuideBlockProps[] = Array.isArray(page.content) ? page.content : [];
 
-  const blockList = blocks ?? [];
-
-  // tutorial 블록의 가이드 본문 enrich
+  // BlockNote content 내 guide 블록의 tutorialId 수집
   const tutorialIds = Array.from(new Set(
-    blockList
-      .filter(b => b.block_type === 'tutorial')
-      .map(b => (b.content as { tutorial_id?: string })?.tutorial_id)
-      .filter((v): v is string => typeof v === 'string')
+    content
+      .filter(b => b?.type === 'guide')
+      .map(b => b?.props?.tutorialId)
+      .filter((v): v is string => typeof v === 'string' && v.length > 0)
   ));
 
-  const tutorialMap = new Map<string, { id: string; title: string; steps: unknown[] }>();
+  const guides: Record<string, { id: string; title: string; steps: unknown[] }> = {};
 
   if (tutorialIds.length) {
     const { data: tutorials } = await supabase
@@ -87,15 +83,15 @@ export async function GET(_request: NextRequest, { params }: Params) {
         screenshot_url: s.screenshot_url,
         annotations: s.user_annotations ?? [],
       }));
-      tutorialMap.set(t.id, { id: t.id, title: t.title, steps });
+      guides[t.id] = { id: t.id, title: t.title, steps };
     }
   }
 
-  const enrichedBlocks = blockList.map(b => {
-    if (b.block_type !== 'tutorial') return b;
-    const tid = (b.content as { tutorial_id?: string })?.tutorial_id;
-    return { ...b, tutorial: tid ? tutorialMap.get(tid) ?? null : null };
-  });
+  const { data: author } = await supabase
+    .from('mm_users')
+    .select('name, email, avatar_url')
+    .eq('id', page.user_id)
+    .single();
 
   return NextResponse.json({
     id: page.id,
@@ -103,6 +99,8 @@ export async function GET(_request: NextRequest, { params }: Params) {
     description: page.description,
     cover_color: page.cover_color,
     published_at: page.published_at,
-    blocks: enrichedBlocks,
+    author: author ?? null,
+    content,
+    guides,
   });
 }

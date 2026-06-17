@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
 
   let query = supabase
     .from('mm_pages')
-    .select('*, mm_page_blocks(id)')
+    .select('*')
     .is('deleted_at', null)
     .order('updated_at', { ascending: false });
 
@@ -37,8 +37,8 @@ export async function GET(request: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const enriched = (data ?? []).map(p => {
-    const { mm_page_blocks, ...rest } = p as typeof p & { mm_page_blocks?: unknown[] };
-    return { ...rest, block_count: Array.isArray(mm_page_blocks) ? mm_page_blocks.length : 0 };
+    const content = (p as typeof p & { content?: unknown }).content;
+    return { ...p, block_count: Array.isArray(content) ? content.length : 0 };
   });
 
   return NextResponse.json(enriched);

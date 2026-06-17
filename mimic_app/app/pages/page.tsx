@@ -44,13 +44,13 @@ export default function PagesListPage() {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
           홈
         </Link>
-        <h1 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#111827' }}>Pages</h1>
+        <h1 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#111827' }}>가이드북</h1>
         <span style={{ fontSize: '12px', color: '#9CA3AF' }}>여러 가이드를 하나의 문서로 엮어보세요</span>
         <div style={{ flex: 1 }} />
         <button onClick={createPage} disabled={creating}
           style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', height: '38px', padding: '0 16px', borderRadius: '9px', border: 'none', background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', color: 'white', fontSize: '13px', fontWeight: 600, cursor: creating ? 'default' : 'pointer' }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          새 Page
+          새 가이드북
         </button>
       </div>
 
@@ -60,13 +60,13 @@ export default function PagesListPage() {
           <div style={{ padding: '60px', textAlign: 'center', color: '#9CA3AF', fontSize: '13px' }}>불러오는 중…</div>
         ) : pages.length === 0 ? (
           <div style={{ padding: '72px 24px', textAlign: 'center' }}>
-            <div style={{ fontSize: '15px', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>아직 만든 Page가 없어요</div>
+            <div style={{ fontSize: '15px', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>아직 만든 가이드북이 없어요</div>
             <div style={{ fontSize: '13px', color: '#9CA3AF', marginBottom: '20px', lineHeight: 1.6 }}>
               여러 가이드와 설명·영상을 한 페이지로 엮어<br />온보딩 문서나 업무 매뉴얼을 만들 수 있어요.
             </div>
             <button onClick={createPage} disabled={creating}
               style={{ height: '40px', padding: '0 20px', borderRadius: '9px', border: 'none', background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', color: 'white', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
-              첫 Page 만들기
+              첫 가이드북 만들기
             </button>
           </div>
         ) : (

@@ -61,23 +61,9 @@ export type Folder = {
 };
 
 // ─────────────────────────────
-// Page (여러 가이드를 엮는 큐레이션 문서)
+// 가이드북 (여러 가이드를 엮는 큐레이션 문서) — BlockNote 문서
 // ─────────────────────────────
-export type PageBlockType = 'heading' | 'text' | 'video' | 'tutorial';
-
-export type PageBlock = {
-  id: string;
-  page_id: string;
-  order_index: number;
-  block_type: PageBlockType;
-  // block_type별 형태:
-  //   heading  → { text: string; level?: 1 | 2 | 3 }
-  //   text     → { markdown: string }
-  //   video    → { url: string }
-  //   tutorial → { tutorial_id: string; default_open?: boolean }
-  content: Record<string, unknown>;
-  created_at: string;
-};
+export type PageAuthor = { name: string | null; email: string | null; avatar_url: string | null };
 
 export type Page = {
   id: string;
@@ -98,7 +84,8 @@ export type Page = {
 };
 
 export type PageDetail = Page & {
-  blocks: PageBlock[];
+  content: unknown[]; // BlockNote 문서 (Block[])
+  author?: PageAuthor | null;
 };
 
 export type TutorialDetail = Tutorial & {
