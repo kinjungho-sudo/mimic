@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth-guard';
+import { requireAuth } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { tutorialPatchSchema } from '@/lib/validators';
-import { hashPassword } from '@/lib/password';
-import { guardTutorialAccess } from '@/lib/workspace-guard';
+import { hashPassword } from '@/lib/auth/password';
+import { guardTutorialAccess } from '@/lib/auth/workspace-guard';
 
 type Params = { params: Promise<{ id: string }> };
 

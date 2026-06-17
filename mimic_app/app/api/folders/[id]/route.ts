@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth-guard';
+import { requireAuth } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
-import { guardWorkspaceAccess } from '@/lib/workspace-guard';
+import { guardWorkspaceAccess } from '@/lib/auth/workspace-guard';
 import { z } from 'zod';
 
 const patchSchema = z.object({

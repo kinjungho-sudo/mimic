@@ -1,7 +1,7 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth-guard';
+import { requireAuth } from '@/lib/auth/auth-guard';
 import { generateMarkersSchema } from '@/lib/validators';
-import { generateMarkers } from '@/lib/claude';
+import { generateMarkers } from '@/lib/ai/claude';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { rateLimitAi } from '@/lib/rate-limit';
 

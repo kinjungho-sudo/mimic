@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient, createServiceRoleClient } from './supabase/server';
+import { createServerClient, createServiceRoleClient } from '../supabase/server';
 
 type AuthGuardResult =
   | { ok: true; userId: string }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth-guard';
+import { requireAuth } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 
 const RISK_KEYWORDS = ['삭제', '제거', '결제', '주문', '구매', '탈퇴', '초기화', 'delete', 'remove', 'pay', 'checkout', 'purchase'];

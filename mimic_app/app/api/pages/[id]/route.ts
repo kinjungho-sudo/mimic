@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth-guard';
+import { requireAuth } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
-import { guardPageAccess } from '@/lib/workspace-guard';
+import { guardPageAccess } from '@/lib/auth/workspace-guard';
 import { randomBytes } from 'crypto';
 import { z } from 'zod';
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
-import { rewriteSentence } from '@/lib/claude';
+import { rewriteSentence } from '@/lib/ai/claude';
 import { z } from 'zod';
 
 const rewriteSchema = z.object({

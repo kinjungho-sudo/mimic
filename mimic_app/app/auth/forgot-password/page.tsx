@@ -3,8 +3,8 @@
 import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { resetPassword } from '@/lib/auth-client';
-import { BrandMark } from '@/components/BrandMark';
+import { resetPassword } from '@/lib/auth/auth-client';
+import { BrandMark } from '@/components/common/BrandMark';
 
 function ForgotPasswordForm() {
   const searchParams = useSearchParams();

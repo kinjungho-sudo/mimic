@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { signupSchema } from '@/lib/validators';
 import { createServiceRoleClient } from '@/lib/supabase/server';
-import { sendMimicEmail, welcomeEmailHtml } from '@/lib/email-n8n';
+import { sendMimicEmail, welcomeEmailHtml } from '@/lib/email/email-n8n';
 
 const INVISIBLE = new Set([0x00AD, 0x200B, 0x200C, 0x200D, 0x200E, 0x200F, 0xFEFF]);
 

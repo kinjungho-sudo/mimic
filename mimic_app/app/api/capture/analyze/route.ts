@@ -1,7 +1,7 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
-import { requireExtensionToken } from '@/lib/auth-guard';
+import { requireExtensionToken } from '@/lib/auth/auth-guard';
 import { captureAnalyzeSchema } from '@/lib/validators';
-import { analyzeScreenshot } from '@/lib/claude';
+import { analyzeScreenshot } from '@/lib/ai/claude';
 import { rateLimitAi } from '@/lib/rate-limit';
 
 export async function POST(request: NextRequest) {

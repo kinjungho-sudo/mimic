@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/auth-guard';
+import { requireAdmin } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
-import { sendMimicEmail, newsletterHtml } from '@/lib/email-n8n';
+import { sendMimicEmail, newsletterHtml } from '@/lib/email/email-n8n';
 import { z } from 'zod';
 
 const schema = z.object({

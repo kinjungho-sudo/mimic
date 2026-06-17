@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth-guard';
+import { requireAuth } from '@/lib/auth/auth-guard';
 import { generateScriptSchema } from '@/lib/validators';
-import { generateScript } from '@/lib/claude';
+import { generateScript } from '@/lib/ai/claude';
 import { rateLimitAi } from '@/lib/rate-limit';
 
 export async function POST(request: NextRequest) {

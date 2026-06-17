@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/lib/supabase/server';
-import { requireAdmin } from '@/lib/auth-guard';
+import { requireAdmin } from '@/lib/auth/auth-guard';
 
 export async function GET() {
   const auth = await requireAdmin();

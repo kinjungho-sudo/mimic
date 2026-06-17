@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth-guard';
+import { requireAuth } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
-import { checkStepFreshness } from '@/lib/freshness';
+import { checkStepFreshness } from '@/lib/ai/freshness';
 
 export async function POST(
   request: NextRequest,

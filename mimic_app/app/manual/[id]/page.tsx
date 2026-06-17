@@ -6,7 +6,7 @@ import { Share2, Download, Pencil, PlayCircle, X, Bot, Play, Pause, Square } fro
 import { GuideToc } from '@/components/editor/GuideToc';
 import { GuideViewer } from '@/components/editor/GuideViewer';
 import { ShareModal } from '@/components/editor/ShareModal';
-import { AgentChat } from '@/components/AgentChat';
+import { AgentChat } from '@/components/chat/AgentChat';
 import { useTutorial } from '@/hooks/useTutorial';
 import { useAuth } from '@/hooks/useAuth';
 import type { ManualStep } from '@/components/editor/ManualEditor';

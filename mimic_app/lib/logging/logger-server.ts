@@ -3,7 +3,7 @@
 //   debug/info: 콘솔만.
 //   절대 throw하지 않음 — await 없이 fire-and-forget로 호출해도 됨.
 import { createServiceRoleClient } from '@/lib/supabase/server';
-import type { LogLevel, LogContext } from '@/lib/logger';
+import type { LogLevel, LogContext } from '@/lib/logging/logger';
 
 export async function logServer(level: LogLevel, event: string, ctx: LogContext = {}): Promise<void> {
   const { message, userId, tutorialId, url, ...rest } = ctx;

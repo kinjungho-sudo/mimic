@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireExtensionToken } from '@/lib/auth-guard';
+import { requireExtensionToken } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { captureFinalizeSchema } from '@/lib/validators';
-import { generateDraft, extractCoverColors, detectPII, cleanTranscripts } from '@/lib/claude';
+import { generateDraft, extractCoverColors, detectPII, cleanTranscripts } from '@/lib/ai/claude';
 import { resolveFavicon } from '@/lib/favicon';
 import { buildClickHighlight } from '@/lib/annotations';
-import { transcribeAudio, assignSegmentsToSteps, computeStepWindows } from '@/lib/voice';
+import { transcribeAudio, assignSegmentsToSteps, computeStepWindows } from '@/lib/voice/voice';
 
 export async function POST(request: NextRequest) {
   const auth = await requireExtensionToken(request);

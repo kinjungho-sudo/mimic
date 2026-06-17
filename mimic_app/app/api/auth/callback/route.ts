@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { createServiceRoleClient } from '@/lib/supabase/server';
-import { sendMimicEmail, welcomeEmailHtml } from '@/lib/email-n8n';
+import { sendMimicEmail, welcomeEmailHtml } from '@/lib/email/email-n8n';
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);

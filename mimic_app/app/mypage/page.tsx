@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { resetPassword, getCurrentUser } from '@/lib/auth-client';
+import { resetPassword, getCurrentUser } from '@/lib/auth/auth-client';
 
 const NAV_ITEMS = [
   {

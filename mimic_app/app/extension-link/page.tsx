@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useExtensionLink } from '@/hooks/useExtensionLink';
-import { BrandMark } from '@/components/BrandMark';
+import { BrandMark } from '@/components/common/BrandMark';
 
 const EXTENSION_ID = process.env.NEXT_PUBLIC_EXTENSION_ID ?? '';
 const STORE_URL = `https://chromewebstore.google.com/detail/${EXTENSION_ID}`;

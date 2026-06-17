@@ -5,9 +5,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { RecordingModal } from '@/components/dashboard/RecordingModal';
-import { AgentChat } from '@/components/AgentChat';
+import { AgentChat } from '@/components/chat/AgentChat';
 import { createTutorial } from '@/lib/api/tutorials';
-import { logError } from '@/lib/logger';
+import { logError } from '@/lib/logging/logger';
 import type { Tutorial, Workspace, Folder } from '@/types';
 
 

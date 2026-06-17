@@ -1,7 +1,7 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth-guard';
+import { requireAuth } from '@/lib/auth/auth-guard';
 import { generateAnnotationsSchema } from '@/lib/validators';
-import { generateAnnotations } from '@/lib/claude';
+import { generateAnnotations } from '@/lib/ai/claude';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { rateLimitAi } from '@/lib/rate-limit';
 import { toEditorAnnotation } from '@/lib/annotations';

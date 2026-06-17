@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
-import { rewriteAllSteps } from '@/lib/claude';
+import { rewriteAllSteps } from '@/lib/ai/claude';
 import { z } from 'zod';
 
 const schema = z.object({

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireExtensionToken } from '@/lib/auth-guard';
+import { requireExtensionToken } from '@/lib/auth/auth-guard';
 import { guideRegroundSchema } from '@/lib/validators';
-import { regroundElement } from '@/lib/claude';
+import { regroundElement } from '@/lib/ai/claude';
 import { rateLimit } from '@/lib/rate-limit';
 
 // POST /api/guide/reground — 라이브 가이드 AI 시각 재탐색

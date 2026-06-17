@@ -10,7 +10,7 @@ import { MergeModal } from '@/components/editor/MergeModal';
 import { CommentsPanel } from '@/components/editor/CommentsPanel';
 import { ActivityPanel } from '@/components/editor/ActivityPanel';
 import { ExportModal } from '@/components/editor/ExportModal';
-import { AgentChat } from '@/components/AgentChat';
+import { AgentChat } from '@/components/chat/AgentChat';
 import { useTutorial } from '@/hooks/useTutorial';
 import { useAutosave } from '@/hooks/useAutosave';
 import { useAuth } from '@/hooks/useAuth';
@@ -18,7 +18,7 @@ import { useCollaboration } from '@/hooks/useCollaboration';
 import type { Collaborator } from '@/hooks/useCollaboration';
 import { updateStep, createStep, deleteStep, reorderSteps } from '@/lib/api/steps';
 import { getTutorial } from '@/lib/api/tutorials';
-import { logError } from '@/lib/logger';
+import { logError } from '@/lib/logging/logger';
 import type { Step, Tutorial } from '@/types';
 
 // ── Adapters ──────────────────────────────────────────────

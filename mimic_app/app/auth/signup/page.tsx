@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { signInWithGoogle, signUpWithEmail } from '@/lib/auth-client';
-import { BrandMark } from '@/components/BrandMark';
+import { signInWithGoogle, signUpWithEmail } from '@/lib/auth/auth-client';
+import { BrandMark } from '@/components/common/BrandMark';
 
 function getPasswordStrength(pw: string): { level: number; label: string } {
   if (!pw) return { level: 0, label: '' };

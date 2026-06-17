@@ -1,5 +1,5 @@
 ﻿import OpenAI from 'openai';
-import { createServiceRoleClient } from './supabase/server';
+import { createServiceRoleClient } from '../supabase/server';
 
 export async function generateTTS(
   stepId: string,

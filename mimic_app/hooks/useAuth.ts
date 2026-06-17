@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { getCurrentUser, signOut } from '@/lib/auth-client';
+import { getCurrentUser, signOut } from '@/lib/auth/auth-client';
 import type { User } from '@/types';
 
 type AuthState = {

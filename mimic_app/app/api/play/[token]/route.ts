@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/lib/supabase/server';
-import { verifyPassword } from '@/lib/password';
+import { verifyPassword } from '@/lib/auth/password';
 
 type Params = { params: Promise<{ token: string }> };
 

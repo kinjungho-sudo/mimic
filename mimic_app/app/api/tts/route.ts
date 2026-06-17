@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth-guard';
+import { requireAuth } from '@/lib/auth/auth-guard';
 import { ttsSchema } from '@/lib/validators';
-import { generateTTS } from '@/lib/openai-tts';
+import { generateTTS } from '@/lib/voice/openai-tts';
 import { rateLimitAi } from '@/lib/rate-limit';
 
 export async function POST(request: NextRequest) {

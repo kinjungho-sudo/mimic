@@ -3,8 +3,8 @@
 import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { signInWithGoogle, signInWithEmail } from '@/lib/auth-client';
-import { BrandMark } from '@/components/BrandMark';
+import { signInWithGoogle, signInWithEmail } from '@/lib/auth/auth-client';
+import { BrandMark } from '@/components/common/BrandMark';
 
 function LoginForm() {
   const router = useRouter();

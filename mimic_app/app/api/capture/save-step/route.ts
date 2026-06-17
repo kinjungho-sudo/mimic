@@ -1,9 +1,9 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
-import { requireExtensionToken } from '@/lib/auth-guard';
+import { requireExtensionToken } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { captureSaveStepSchema } from '@/lib/validators';
 import { redactSensitive } from '@/lib/redact';
-import { logServer } from '@/lib/logger-server';
+import { logServer } from '@/lib/logging/logger-server';
 
 export async function POST(request: NextRequest) {
   const auth = await requireExtensionToken(request);

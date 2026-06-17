@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth-guard';
+import { requireAuth } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { z } from 'zod';
-import { guardStepAccess } from '@/lib/workspace-guard';
-import { logServer } from '@/lib/logger-server';
+import { guardStepAccess } from '@/lib/auth/workspace-guard';
+import { logServer } from '@/lib/logging/logger-server';
 import { logActivity } from '@/lib/activity';
 
 const stepPatchSchema = z.object({

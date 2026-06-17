@@ -1,4 +1,4 @@
-﻿import { createClient } from './supabase/client';
+﻿import { createClient } from '../supabase/client';
 import type { User, Agreements } from '@/types';
 
 function translateAuthError(msg: string | undefined): string {

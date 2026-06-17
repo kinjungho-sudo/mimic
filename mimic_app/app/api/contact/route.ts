@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { sendMimicEmail } from '@/lib/email-n8n';
+import { sendMimicEmail } from '@/lib/email/email-n8n';
 
 const schema = z.object({
   message: z.string().min(5).max(10000),
