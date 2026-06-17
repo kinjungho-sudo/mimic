@@ -10,7 +10,7 @@
   const HIT_PAD_EL = 6;
   const HIT_PAD_COORD = 28;
   const TIP_W = 300;  // 툴팁 고정 너비(px)
-  const TIP_GAP = 14; // 타깃과 툴팁 사이 간격(px)
+  const TIP_GAP = 24; // 타깃과 툴팁 사이 간격(px)
   const TIP_M = 8;    // 뷰포트 여백(px)
 
   let state = null;
@@ -157,7 +157,7 @@
     root.style.cssText = 'position:fixed;inset:0;pointer-events:none;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;';
 
     shadow.appendChild(style(`
-      @keyframes mimic-ripple { 0%{transform:scale(1);opacity:.8} 100%{transform:scale(2.6);opacity:0} }
+      @keyframes mimic-ripple { 0%{transform:scale(1);opacity:.9} 100%{transform:scale(3.5);opacity:0} }
       @keyframes mimic-nudge  { 0%,100%{transform:none} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
       @keyframes mimic-avatar-in { 0%{transform:scale(0.5) translateY(8px);opacity:0} 65%{transform:scale(1.08)} 100%{transform:scale(1) translateY(0);opacity:1} }
       @keyframes mimic-tip-in { 0%{opacity:0;transform:translateY(6px) scale(0.97)} 100%{opacity:1;transform:translateY(0) scale(1)} }
@@ -170,12 +170,15 @@
     hl.style.cssText = `position:fixed;pointer-events:none;box-sizing:border-box;border:2px solid rgba(99,102,241,0.85);background:rgba(99,102,241,.06);border-radius:8px;box-shadow:0 0 0 5px rgba(99,102,241,.18),0 0 0 9999px rgba(0,0,0,.65);z-index:2;transition:left .12s,top .12s,width .12s,height .12s;`;
     root.appendChild(hl);
 
-    // 클릭 핀 (인디고 펄스)
+    // 클릭 핀 — 중심 보라 점 제거, 물결 애니메이션만
     const pulse = document.createElement('div');
-    pulse.style.cssText = `position:fixed;width:16px;height:16px;border-radius:50%;background:rgba(99,102,241,.95);pointer-events:none;z-index:3;`;
+    pulse.style.cssText = `position:fixed;width:0;height:0;pointer-events:none;z-index:3;`;
     const ripple = document.createElement('div');
-    ripple.style.cssText = `position:absolute;inset:-5px;border-radius:50%;border:2px solid rgba(99,102,241,.6);animation:mimic-ripple 1.2s ease-out infinite;`;
+    ripple.style.cssText = `position:absolute;width:44px;height:44px;margin-left:-22px;margin-top:-22px;border-radius:50%;border:2.5px solid rgba(99,102,241,.85);animation:mimic-ripple 1.5s ease-out infinite;`;
+    const ripple2 = document.createElement('div');
+    ripple2.style.cssText = `position:absolute;width:44px;height:44px;margin-left:-22px;margin-top:-22px;border-radius:50%;border:2px solid rgba(99,102,241,.55);animation:mimic-ripple 1.5s ease-out 0.75s infinite;`;
     pulse.appendChild(ripple);
+    pulse.appendChild(ripple2);
     root.appendChild(pulse);
 
     // 플로팅 아바타 — 타깃 우상단 고정 (툴팁 안에도 별도 표시)
@@ -200,6 +203,7 @@
             <span style="font-size:11px;font-weight:700;color:#A5B4FC;background:rgba(99,102,241,.25);padding:2px 8px;border-radius:20px">${idx + 1} / ${total}</span>
             ${resolved.source === 'none' ? '<span style="font-size:10.5px;color:#FCA5A5">요소 미발견</span>' : ''}
             <div style="flex:1"></div>
+            <button class="mimic-btn" data-act="hide-tooltip" title="툴팁 숨기기" style="background:transparent;color:rgba(255,255,255,.4);padding:3px 6px;font-size:11px">👁</button>
             <button class="mimic-btn" data-act="exit" style="background:transparent;color:rgba(255,255,255,.4);padding:3px 6px;font-size:12px">✕</button>
           </div>
           <div style="font-size:14px;font-weight:600;line-height:1.5;color:#F3F4F6">${escapeHtml(step.title || '')}</div>
@@ -226,9 +230,30 @@
     tooltip.appendChild(arrow);
 
     root.appendChild(tooltip);
+
+    // 툴팁 복원 버튼 (툴팁 숨김 상태일 때 우하단에 표시)
+    const restoreBtn = document.createElement('button');
+    restoreBtn.className = 'mimic-btn';
+    restoreBtn.style.cssText = `position:fixed;right:16px;bottom:16px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:8px 14px;border-radius:20px;box-shadow:0 4px 16px rgba(79,70,229,.5);pointer-events:auto;z-index:4;font-size:12px;font-weight:700;display:none;`;
+    restoreBtn.textContent = '💬 가이드 보기';
+    restoreBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!state) return;
+      state.tooltipHidden = false;
+      try { chrome.storage.local.set({ guideHideTooltip: false }); } catch { /* noop */ }
+    });
+    root.appendChild(restoreBtn);
+
     shadow.appendChild(root);
 
-    state = { host, shadow, hl, pulse, avatar, tooltip, arrow, resolved, step, opts, idx, total, advanced: false, completed: false, fillTimer: null };
+    state = { host, shadow, hl, pulse, avatar, tooltip, arrow, restoreBtn, resolved, step, opts, idx, total, advanced: false, completed: false, fillTimer: null, tooltipHidden: false };
+
+    // 툴팁 숨김 설정 불러오기
+    try {
+      chrome.storage.local.get(['guideHideTooltip'], (r) => {
+        if (state) state.tooltipHidden = !!r.guideHideTooltip;
+      });
+    } catch { /* noop */ }
 
     // 자동입력
     if (step.type_text && resolved.el) autoFill(resolved.el, String(step.type_text));
@@ -240,6 +265,11 @@
       if (act === 'next') advance('manual');
       else if (act === 'prev') opts.onPrev && opts.onPrev();
       else if (act === 'exit') opts.onExit && opts.onExit();
+      else if (act === 'hide-tooltip') {
+        if (!state) return;
+        state.tooltipHidden = true;
+        try { chrome.storage.local.set({ guideHideTooltip: true }); } catch { /* noop */ }
+      }
       else if (act === 'copy') {
         const text = state && state.step && state.step.type_text;
         if (text) {
@@ -277,8 +307,8 @@
         // 클릭 핀
         const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
         pulse.style.display = 'block';
-        pulse.style.left = `${cx - 8}px`;
-        pulse.style.top  = `${cy - 8}px`;
+        pulse.style.left = `${cx}px`;
+        pulse.style.top  = `${cy}px`;
 
         // 플로팅 아바타 (타깃 우상단)
         const avSize = 44;
@@ -302,6 +332,9 @@
         } else {
           arrow.style.cssText = `position:absolute;left:${pos.arrowLeft}px;bottom:-7px;width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:7px solid rgba(17,17,20,.93);pointer-events:none;`;
         }
+        // 툴팁 숨김 모드 적용
+        if (state.tooltipHidden) tooltip.style.display = 'none';
+        if (state.restoreBtn) state.restoreBtn.style.display = state.tooltipHidden ? 'flex' : 'none';
       }
       state.rafId = requestAnimationFrame(reposition);
     };
@@ -361,39 +394,9 @@
     state.tooltip.style.animation = 'mimic-tip-in 0.3s ease forwards';
   }
 
-  // 현재 페이지가 단계의 page_url과 다를 때 — 핫스팟 없이 안내 카드만 표시
+  // 현재 페이지가 단계의 page_url과 다를 때 — 오버레이 전부 숨김 (사이드패널에서만 안내)
   function showWrongPage(step, opts) {
-    const host = document.createElement('div');
-    host.id = 'mimic-overlay-root';
-    host.style.cssText = `all:initial;position:fixed;inset:0;pointer-events:none;z-index:${Z};font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;`;
-    document.documentElement.appendChild(host);
-    const shadow = host.attachShadow({ mode: 'closed' });
-
-    let targetHost = '';
-    try { targetHost = new URL(step.page_url).host; } catch { /* noop */ }
-    const idx = opts.index ?? 0, total = opts.total ?? 1;
-
-    const card = document.createElement('div');
-    card.style.cssText = 'position:fixed;left:50%;bottom:28px;transform:translateX(-50%);width:340px;max-width:calc(100vw - 32px);background:#1f2937;color:#fff;border-radius:14px;padding:16px;box-shadow:0 10px 40px rgba(0,0,0,.4);pointer-events:auto';
-    card.innerHTML = `
-      <div style="font-size:11px;color:#9CA3AF;margin-bottom:6px">${idx + 1} / ${total}</div>
-      <div style="font-size:14px;font-weight:600;margin-bottom:6px">이 단계는 다른 페이지에서 진행됩니다</div>
-      <div style="font-size:12.5px;color:#9CA3AF;line-height:1.55;margin-bottom:12px">${escapeHtml(step.title || '')}<br>👉 <b style="color:#A5B4FC">${escapeHtml(targetHost)}</b> 페이지(탭)로 이동해 주세요.</div>
-      <div style="display:flex;gap:8px;justify-content:flex-end">
-        <button data-act="exit" class="wp-btn" style="background:#374151;color:#D1D5DB">종료</button>
-        ${idx > 0 ? '<button data-act="prev" class="wp-btn" style="background:#374151;color:#fff">이전</button>' : ''}
-        <button data-act="next" class="wp-btn" style="background:#4F46E5;color:#fff">다음</button>
-      </div>`;
-    shadow.appendChild(style('.wp-btn{border:none;border-radius:8px;font-size:12.5px;font-weight:600;padding:7px 12px;cursor:pointer}.wp-btn:active{opacity:.75}'));
-    shadow.appendChild(card);
-    card.addEventListener('click', (e) => {
-      const act = e.target && e.target.getAttribute && e.target.getAttribute('data-act');
-      if (act === 'exit') opts.onExit && opts.onExit();
-      else if (act === 'prev') opts.onPrev && opts.onPrev();
-      else if (act === 'next') opts.onAdvance && opts.onAdvance('manual');
-    });
-
-    state = { host, shadow, wrongPage: true };
+    state = { host: null, wrongPage: true };
   }
 
   // 자동 타이핑 (React 제어 컴포넌트 대응)

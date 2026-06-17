@@ -1518,6 +1518,14 @@ chrome.storage.onChanged.addListener((changes) => {
   if (changes.guideModeActive?.newValue === undefined && changes.guideModeActive?.oldValue) {
     hideGuideView();
   }
+  // 오버레이에서 스텝 이동 시 사이드패널 동기화
+  if (changes.guideCurrentStep !== undefined && guideSteps.length > 0) {
+    const idx = changes.guideCurrentStep.newValue;
+    if (idx !== undefined && idx !== guideCurrentStep) {
+      guideCurrentStep = idx;
+      renderGuideStep(guideSteps, guideCurrentStep);
+    }
+  }
 });
 
 // guide-engine.js → 긴 텍스트 즉시입력 후 복사 힌트 표시
