@@ -362,6 +362,12 @@ function ensureContentScript(tabId) {
   });
 }
 
+// page_url이 http(s):// 인지 확인 — file:// · javascript: 등을 chrome.tabs.update에 넘기지 않음
+function isSafeNavUrl(url) {
+  try { const u = new URL(url); return u.protocol === 'http:' || u.protocol === 'https:'; }
+  catch { return false; }
+}
+
 // ── 이미지 평균 해시(aHash) — 동일 이미지 중복 캡처 디덥 ─────────
 async function computeAHash(dataUrl) {
   try {
@@ -581,10 +587,14 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
     const guideToken = rawToken;
     const isUuid = UUID_RE.test(guideToken);
 
+    // ★ await 이전에 동기 캡처 — async IIFE 안에서는 sender가 변질될 수 있음
+    const senderTabId    = sender.tab?.id    ?? null;
+    const senderWindowId = sender.tab?.windowId ?? null;
+
     // ★ user gesture 살아있는 지금(= await 이전) 동기 호출 — await 후에는 제스처 소멸
     const openPanel = (windowId) => chrome.sidePanel.open({ windowId }).catch(() => {});
-    if (sender.tab?.windowId) {
-      openPanel(sender.tab.windowId);
+    if (senderWindowId) {
+      openPanel(senderWindowId);
     } else {
       chrome.windows.getCurrent((win) => { if (win?.id) openPanel(win.id); });
     }
@@ -606,14 +616,10 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         const steps = data.steps || [];
         if (steps.length === 0) throw new Error('no steps');
 
-        // 현재 활성 탭 조회 (카운트다운 + 오버레이 공통 사용)
-        const allTabs = await new Promise((resolve) => chrome.tabs.query({ active: true }, resolve));
-        const activeTab = allTabs.find(t => t.url?.startsWith('http://') || t.url?.startsWith('https://'));
-
-        // content.js 주입 보장 후 카운트다운 시작 (3×900 + 700 = 3400ms)
-        if (activeTab?.id) {
-          await ensureContentScript(activeTab.id);
-          sendTabMessage(activeTab.id, { type: 'SHOW_GUIDE_COUNTDOWN' });
+        // sender 탭에 직접 카운트다운 전송 — active tab query는 다중창/탭전환 시 엉뚱한 탭을 잡음
+        if (senderTabId) {
+          await ensureContentScript(senderTabId);
+          sendTabMessage(senderTabId, { type: 'SHOW_GUIDE_COUNTDOWN' });
         }
 
         await storageSet({ guideSteps: steps, guideCurrentStep: 0, guideModeActive: true });
@@ -623,20 +629,22 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         // 카운트다운 완료 후 오버레이 주입 (+200ms 여유)
         setTimeout(async () => {
           try {
-            const freshTabs = await new Promise((resolve) => chrome.tabs.query({ active: true }, resolve));
-            const tab = freshTabs.find(t => t.url?.startsWith('http://') || t.url?.startsWith('https://'));
+            // sender 탭을 직접 사용 — active tab query 대신 (타이밍 경쟁 방지)
+            if (!senderTabId) return;
+            const tab = await new Promise((resolve) => chrome.tabs.get(senderTabId, (t) => {
+              resolve(chrome.runtime.lastError ? null : t);
+            }));
             if (!tab?.id) return;
 
             // 가이드를 이 탭에 고정 — 이후 단계 전환이 활성 탭이 아니라 이 탭에서만 동작한다.
-            // (사용자가 다른 탭으로 전환해도 가이드가 엉뚱한 페이지로 새지 않게)
             await storageSet({ guideTabId: tab.id });
 
             const firstStep = steps[0];
             await ensureContentScript(tab.id);
             const injectOverlay = (tabId) => sendTabMessage(tabId, { type: 'SHOW_OVERLAY', step: firstStep, index: 0, total: steps.length });
 
-            if (!firstStep.page_url) {
-              // page_url 없음 → 현재 탭에 바로 오버레이 주입
+            if (!firstStep.page_url || !isSafeNavUrl(firstStep.page_url)) {
+              // page_url 없음 또는 비안전 프로토콜 → 현재 탭에 바로 오버레이 주입
               injectOverlay(tab.id);
             } else {
               try {
@@ -1087,7 +1095,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             await storageSet({ guidePendingOverlay: true });
             // 자동진행(타깃 클릭)이면 클릭 자체가 이동을 유발하므로 중복 내비 방지.
             // 수동 '다음'이면 직접 이동시킨다. (둘 다 onUpdated에서 오버레이 재주입)
-            if (!message.viaClick) chrome.tabs.update(tab.id, { url: step.page_url });
+            if (!message.viaClick && isSafeNavUrl(step.page_url)) chrome.tabs.update(tab.id, { url: step.page_url });
             return;
           }
         } catch { /* same-tab fallback */ }
@@ -1117,7 +1125,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           const targetUrl  = new URL(step.page_url);
           if (currentUrl.origin + currentUrl.pathname !== targetUrl.origin + targetUrl.pathname) {
             await storageSet({ guidePendingOverlay: true });
-            chrome.tabs.update(tab.id, { url: step.page_url });  // 수동 점프 → 직접 이동
+            if (isSafeNavUrl(step.page_url)) chrome.tabs.update(tab.id, { url: step.page_url });  // 수동 점프 → 직접 이동
             return;
           }
         } catch { /* same-tab fallback */ }

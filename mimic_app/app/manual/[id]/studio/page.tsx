@@ -63,13 +63,14 @@ function normalize(fc: FollowConfig): FollowConfig | null {
 export default function StudioPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { tutorial, loading, error } = useTutorial(id);
+  const { tutorial, loading, error, publish } = useTutorial(id);
 
   const [steps, setSteps] = useState<StudioStep[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [savedTick, setSavedTick] = useState(0);
   const [showPreview, setShowPreview] = useState(false);
+  const [publishing, setPublishing] = useState(false);
   const [liveGuide, setLiveGuide] = useState<{ paid: boolean; remaining: number | null } | null>(null);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const imgWrapRef = useRef<HTMLDivElement>(null);
@@ -244,6 +245,20 @@ export default function StudioPage() {
           {savingId ? <><Loader2 size={12} className="spin" /> 저장 중…</> : savedTick > 0 ? <><Check size={12} color="#34d399" /> 저장됨</> : null}
         </span>
         <button onClick={() => setShowPreview(true)} style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5 }}><Play size={13} /> 미리보기</button>
+        {tutorial.status === 'published' ? (
+          <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: 'rgba(16,185,129,0.12)', color: '#34d399', fontWeight: 600, border: '1px solid rgba(52,211,153,0.25)', flexShrink: 0 }}>게시됨</span>
+        ) : (
+          <button
+            onClick={async () => {
+              setPublishing(true);
+              try { await publish(); } catch { alert('게시에 실패했습니다. 다시 시도해주세요.'); }
+              finally { setPublishing(false); }
+            }}
+            disabled={publishing}
+            style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5, opacity: publishing ? 0.6 : 1 }}>
+            {publishing ? <><Loader2 size={12} className="spin" /> 게시 중…</> : '게시'}
+          </button>
+        )}
         <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.12)', flexShrink: 0 }} />
         <button
           onClick={() => {
