@@ -265,6 +265,9 @@
   // ── 호버 포인터 ──────────────────────────────────────────────────
   let hoverOverlay = null;
   let hoverTarget  = null;
+  // 선캡처(pointerdown) 직전 호버 테두리를 제거한 뒤, 캡처가 끝나기 전 mousemove로
+  // 다시 그려져 스크린샷에 굽히는 것을 막기 위한 억제 만료 시각.
+  let suppressHoverUntil = 0;
 
   function showHoverPointer(target) {
     const rect = target.getBoundingClientRect();
@@ -691,6 +694,7 @@
     if (!settings.highlight) { hideHoverPointer(); return; }
     if (isCapturing && (Date.now() - isCapturingStart) >= CAPTURE_SAFETY_MS) isCapturing = false;
     if (isCapturing) return;
+    if (Date.now() < suppressHoverUntil) return;  // 선캡처 윈도우 — 테두리 재등장 금지
     const target = findInteractiveTarget(e.target);
     if (!target) { hideHoverPointer(); return; }
     const overlayAlive = hoverOverlay && document.documentElement.contains(hoverOverlay);
@@ -712,8 +716,13 @@
     if (e.button !== undefined && e.button !== 0) return;  // 좌클릭만
     const target = findInteractiveTarget(e.target);
     if (!target) return;
-    hideHoverPointer();  // 호버 테두리가 선캡처에 굽히지 않게 즉시 제거
-    chrome.runtime.sendMessage({ type: 'PRECAPTURE_FRAME' }, () => { void chrome.runtime.lastError; });
+    hideHoverPointer();                          // 호버 테두리 제거
+    suppressHoverUntil = Date.now() + 500;       // 캡처 끝날 때까지 재등장 억제
+    // 테두리 제거가 화면에 리페인트된 다음 프레임에 선캡처 요청 — 라이브 캡처 경로의
+    // double-rAF와 동일한 보장. (동기 전송 시 background가 리페인트 전 프레임을 잡아 테두리가 굽힘)
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      chrome.runtime.sendMessage({ type: 'PRECAPTURE_FRAME' }, () => { void chrome.runtime.lastError; });
+    }));
   }, true);
 
   // ── 클릭 캡처 ────────────────────────────────────────────────────
