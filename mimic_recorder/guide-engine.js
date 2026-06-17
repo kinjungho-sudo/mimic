@@ -34,6 +34,12 @@
       } catch { /* noop */ }
     }
 
+    // 2.5순위: 퍼지 자가복구 — 셀렉터·XPath가 모두 깨졌을 때 저장 힌트(텍스트·속성·위치)로 후보 점수화
+    if (!rect) {
+      const fz = fuzzyFind(step);
+      if (fz) { el = fz; rect = rectOf(fz); source = 'fuzzy'; }
+    }
+
     // 3순위: 정규화 rect (0~1)
     if (!rect && step.element_rect) {
       const r = step.element_rect;
@@ -64,6 +70,86 @@
   function rectOf(el) {
     const r = el.getBoundingClientRect();
     return { left: r.left, top: r.top, width: r.width, height: r.height };
+  }
+
+  // ── 퍼지 자가복구 (P2) ────────────────────────────────────────
+  // 셀렉터/XPath가 모두 깨졌을 때, 저장된 힌트(보이는 텍스트·속성·위치)로 현재 DOM 후보를
+  // 점수화해 같은 요소를 재발견한다. 좌표 폴백보다 정확하고, 화면이 바뀌면(텍스트 없음) null.
+  function normText(s) { return (s || '').trim().replace(/\s+/g, ' '); }
+
+  function isVisibleEl(el) {
+    if (!el || !el.isConnected) return false;
+    const r = el.getBoundingClientRect();
+    if (r.width < 1 || r.height < 1) return false;
+    const cs = getComputedStyle(el);
+    return cs.visibility !== 'hidden' && cs.display !== 'none' && parseFloat(cs.opacity || '1') > 0.01;
+  }
+
+  function tokenOverlap(a, b) {
+    const ta = new Set(a.split(' ').filter(Boolean));
+    const tb = new Set(b.split(' ').filter(Boolean));
+    if (!ta.size || !tb.size) return 0;
+    let inter = 0; ta.forEach(t => { if (tb.has(t)) inter += 1; });
+    return inter / (ta.size + tb.size - inter); // Jaccard
+  }
+
+  // 저장된 selector/xpath/좌표에서 매칭 힌트 추출 (P1 텍스트앵커 XPath가 보이는 텍스트를 인코딩)
+  function extractHint(step) {
+    const hint = { tag: null, text: null, attrName: null, attrVal: null, nx: null, ny: null };
+    const xp = step.element_xpath || '';
+    const m = xp.match(/^\/\/([a-z0-9]+)\[normalize-space\(\.\)=(['"])([\s\S]*?)\2\]$/i);
+    if (m) { hint.tag = m[1].toLowerCase(); hint.text = m[3]; }
+    const sel = step.element_selector || '';
+    const a = sel.match(/([a-z0-9]+)?\[(name|aria-label|data-testid)="([^"]*)"\]\s*$/i);
+    if (a) { if (!hint.tag && a[1]) hint.tag = a[1].toLowerCase(); hint.attrName = a[2]; hint.attrVal = a[3]; }
+    if (!hint.tag) { const t = sel.match(/([a-z0-9]+)\s*$/i); if (t) hint.tag = t[1].toLowerCase(); }
+    if (step.click_x != null && step.click_y != null) { hint.nx = step.click_x; hint.ny = step.click_y; }
+    else if (step.element_rect) { hint.nx = step.element_rect.x + step.element_rect.width / 2; hint.ny = step.element_rect.y + step.element_rect.height / 2; }
+    return hint;
+  }
+
+  function scoreCandidate(el, hint, vw, vh) {
+    if (!isVisibleEl(el)) return 0;
+    let score = 0, w = 0;
+    if (hint.text) {
+      w += 0.5;
+      const t = normText(el.textContent);
+      if (t && t === hint.text) score += 0.5;
+      else if (t && (t.includes(hint.text) || hint.text.includes(t))) score += 0.32;
+      else score += 0.5 * tokenOverlap(t, hint.text);
+    }
+    if (hint.attrVal) {
+      w += 0.3;
+      const v = el.getAttribute(hint.attrName);
+      if (v === hint.attrVal) score += 0.3;
+      else if (v && (v.includes(hint.attrVal) || hint.attrVal.includes(v))) score += 0.18;
+    }
+    if (hint.tag) { w += 0.1; if (el.tagName.toLowerCase() === hint.tag) score += 0.1; }
+    if (hint.nx != null) {
+      w += 0.1;
+      const r = el.getBoundingClientRect();
+      const cx = (r.left + r.width / 2) / vw, cy = (r.top + r.height / 2) / vh;
+      const d = Math.hypot(cx - hint.nx, cy - hint.ny);
+      score += 0.1 * Math.max(0, 1 - d / 0.5);
+    }
+    return w ? score / w : 0;
+  }
+
+  function fuzzyFind(step) {
+    const hint = extractHint(step);
+    if (!hint.text && !hint.attrVal) return null;  // 점수 근거 없음 → 시도 안 함(좌표 폴백 유지)
+    // 태그는 필터가 아닌 점수 신호 — 태그가 바뀐 경우(button→div[role=button])도 잡도록 합집합
+    let sel = 'a,button,input,select,textarea,label,[role],[onclick],[tabindex]';
+    if (hint.tag && /^[a-z][a-z0-9]*$/.test(hint.tag)) sel = hint.tag + ',' + sel;
+    let nodes;
+    try { nodes = document.querySelectorAll(sel); } catch { return null; }
+    const vw = window.innerWidth, vh = window.innerHeight;
+    let best = null, bestScore = 0;
+    for (const el of nodes) {
+      const s = scoreCandidate(el, hint, vw, vh);
+      if (s > bestScore) { bestScore = s; best = el; }
+    }
+    return bestScore >= 0.6 ? best : null;
   }
 
   function pointInRect(x, y, rect, pad) {
@@ -142,7 +228,7 @@
     // 또는 녹화 때 차단돼 건너뛴 단계) 좌표로 엉뚱한 핫스팟을 찍지 않는다. 대기 모드로 두고
     // 요소가 화면에 나타나면 자동으로 정상 오버레이로 전환한다.
     const expectsEl = !!(step.element_selector || step.element_xpath);
-    const foundEl   = resolved.source === 'selector' || resolved.source === 'xpath';
+    const foundEl   = resolved.source === 'selector' || resolved.source === 'xpath' || resolved.source === 'fuzzy';
     if (expectsEl && !foundEl) {
       showWaiting(step, opts);
       return;
