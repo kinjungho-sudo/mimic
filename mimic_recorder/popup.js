@@ -1344,16 +1344,26 @@ const guideStepDots   = document.getElementById('guideStepDots');
 let guideSteps = [];
 let guideCurrentStep = 0;
 
+// Live Guide는 녹화 UI와 완전히 분리해 단독으로 보이게 한다 —
+// 헤더(스텝 카운트·전체캡처·설정), '캡처된 스텝' 목록, 하단 액션 바를 모두 숨긴다.
+function setRecorderChromeHidden(hidden) {
+  const disp = hidden ? 'none' : '';
+  document.querySelectorAll('.header, .divider, .steps-header').forEach(el => { el.style.display = disp; });
+  if (stepsList) stepsList.style.display = disp;
+  const bar = document.getElementById('bottomActionBar');
+  if (bar && hidden) bar.style.display = 'none';  // 표시는 updateView가 녹화 상태에 맞게 복원
+}
+
 function showGuideView() {
   viewIdle.style.display      = 'none';
   viewRecording.style.display = 'none';
-  const bar = document.getElementById('bottomActionBar');
-  if (bar) bar.style.display = 'none';
+  setRecorderChromeHidden(true);   // 녹화 모드 UI 전부 숨김 → Live Guide 단독
   viewGuide.style.display = 'flex';
 }
 
 function hideGuideView() {
   viewGuide.style.display = 'none';
+  setRecorderChromeHidden(false);  // 녹화 UI 복원
   // 녹화 상태에 맞게 원래 뷰로 복원
   updateView();
 }
