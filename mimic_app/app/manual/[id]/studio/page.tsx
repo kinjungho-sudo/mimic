@@ -65,9 +65,6 @@ function normalize(fc: FollowConfig): FollowConfig | null {
 type BubbleAnchorKey = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | null;
 const BUBBLE_OPTS: { key: BubbleAnchorKey; label: string; icon: string }[] = [
   { key: null,           label: '자동',   icon: '↔' },
-  { key: 'top-left',     label: '좌상단', icon: '↖' },
-  { key: 'top-right',    label: '우상단', icon: '↗' },
-  { key: 'bottom-left',  label: '좌하단', icon: '↙' },
   { key: 'bottom-right', label: '우하단', icon: '↘' },
 ];
 
@@ -360,6 +357,7 @@ export default function StudioPage() {
                   kind={rv?.kind ?? 'click'}
                   typeText={active.follow.typeText}
                   bubbleAnchor={active.follow.bubbleAnchor}
+                  stepNumber={steps.findIndex(s => s.id === active.id) + 1}
                   title={active.title}
                   body={active.description || undefined}
                   imageCursor="crosshair"
@@ -467,7 +465,7 @@ export default function StudioPage() {
 
               {/* 말풍선 위치 */}
               <SectionLabel>말풍선 위치</SectionLabel>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4, marginBottom: 6 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, marginBottom: 6 }}>
                 {BUBBLE_OPTS.map(opt => {
                   const sel = (active.follow.bubbleAnchor ?? null) === opt.key;
                   return (

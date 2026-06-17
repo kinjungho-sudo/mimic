@@ -345,10 +345,10 @@ export default function SettingsPage() {
           </div>
         </Section>
 
-        <div style={{ fontSize: '12px', color: '#D1D5DB', textAlign: 'center', marginTop: '12px' }}>
-          <Link href="/legal/terms" style={{ color: '#D1D5DB', textDecoration: 'none' }}>이용약관</Link>
+        <div style={{ fontSize: '12.5px', color: '#9CA3AF', textAlign: 'center', marginTop: '12px' }}>
+          <Link href="/legal/terms" style={{ color: '#6B7280', textDecoration: 'underline', textUnderlineOffset: '2px' }}>이용약관</Link>
           {' · '}
-          <Link href="/legal/privacy" style={{ color: '#D1D5DB', textDecoration: 'none' }}>개인정보 처리방침</Link>
+          <Link href="/legal/privacy" style={{ color: '#6B7280', textDecoration: 'underline', textUnderlineOffset: '2px' }}>개인정보 처리방침</Link>
           {' · '}
           kinjungho@gmail.com
         </div>

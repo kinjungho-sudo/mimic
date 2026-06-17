@@ -68,6 +68,13 @@ function SectionContent({ id }: { id: string }) {
   const kbd = (text: string) => (
     <code style={{ display: 'inline-block', padding: '2px 7px', background: '#F3F4F6', border: '1px solid #E5E7EB', borderRadius: '5px', fontSize: '12.5px', color: '#374151', fontFamily: 'monospace' }}>{text}</code>
   );
+  const img = (src: string, caption: string) => (
+    <figure style={{ margin: '16px 0 20px' }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt={caption} style={{ display: 'block', width: '100%', borderRadius: '12px', border: '1px solid #E5E7EB', boxShadow: '0 4px 16px rgba(17,24,39,0.08)' }} />
+      <figcaption style={{ fontSize: '12.5px', color: '#9CA3AF', marginTop: '8px', textAlign: 'center' }}>{caption}</figcaption>
+    </figure>
+  );
 
   switch (id) {
     case 'intro':
@@ -75,6 +82,7 @@ function SectionContent({ id }: { id: string }) {
         <div>
           {h2('MIMIC이란?')}
           {p('MIMIC은 Chrome 확장 프로그램으로 업무 화면을 녹화해 인터랙티브 매뉴얼을 자동 생성하는 서비스입니다.')}
+          {img('/help/product-overview.png', 'MIMIC — 작업 자체가 곧 기록이 됩니다')}
           {p('클릭 한 번 한 번이 자동으로 캡처되어 단계별 스크린샷 + 설명이 만들어집니다. 완성된 매뉴얼은 링크로 공유하거나, 실제 페이지 위에 라이브 가이드 오버레이로 단계별 안내를 제공합니다.')}
           {h3('MIMIC으로 할 수 있는 것')}
           <ul style={{ paddingLeft: '20px', margin: '0 0 16px' }}>
@@ -189,6 +197,7 @@ function SectionContent({ id }: { id: string }) {
         <div>
           {h2('대시보드')}
           {p('대시보드는 매뉴얼을 관리하는 메인 화면입니다.')}
+          {img('/help/dashboard.png', '대시보드 — 사이드바·폴더·매뉴얼 목록')}
           {h3('매뉴얼 목록')}
           {p('내 워크스페이스와 팀 워크스페이스 탭으로 매뉴얼을 구분해 볼 수 있습니다. 그리드 / 리스트 / 컴팩트 세 가지 보기 방식을 지원합니다.')}
           {h3('검색')}
@@ -242,6 +251,7 @@ function SectionContent({ id }: { id: string }) {
         <div>
           {h2('라이브 가이드')}
           {p('라이브 가이드는 실제 웹페이지 위에 오버레이를 띄워 단계별로 안내하는 기능입니다. 사용자는 별도 화면 없이 실제 업무 페이지에서 바로 가이드를 받을 수 있습니다.')}
+          {img('/help/live-guide.jpg', '따라하기 스튜디오 — 단계별 핫스팟·말풍선 편집')}
           {h3('사용 방법')}
           <ol style={{ paddingLeft: '20px', margin: '0 0 16px' }}>
             {[
@@ -277,6 +287,7 @@ function SectionContent({ id }: { id: string }) {
         <div>
           {h2('내보내기')}
           {p('완성된 매뉴얼을 다양한 형식으로 내보낼 수 있습니다.')}
+          {img('/help/export.png', '공유 플레이어 상단의 PPTX·PDF·.md 내보내기 버튼')}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', margin: '0 0 24px' }}>
             {[
               { format: 'PDF', desc: '스크린샷 + 설명이 포함된 PDF 문서', badge: '#fee2e2', badgeText: '#dc2626' },
@@ -304,6 +315,7 @@ function SectionContent({ id }: { id: string }) {
         <div>
           {h2('공유 링크')}
           {p('매뉴얼을 링크로 공유하면 로그인 없이 누구나 볼 수 있습니다.')}
+          {img('/help/share-player.png', '공유 플레이어 — 슬라이드·웹 문서·따라하기로 볼 수 있어요')}
           {h3('공유 링크 생성')}
           <ol style={{ paddingLeft: '20px', margin: '0 0 16px' }}>
             {[

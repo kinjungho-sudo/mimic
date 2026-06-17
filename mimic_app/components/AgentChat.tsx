@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Bot, X, Minus, Send, HelpCircle, Mail } from 'lucide-react';
+import { Bot, X, Minus, Send, Mail } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 interface Message {
@@ -240,14 +240,13 @@ export function AgentChat() {
           <Bot size={15} color="white" />
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: '13px', fontWeight: 700 }}>MIMIC 도움말</div>
-          <div style={{ fontSize: '10.5px', opacity: 0.75 }}>자주 묻는 질문 · 서비스 안내</div>
+          <div style={{ fontSize: '13px', fontWeight: 700 }}>챗봇</div>
         </div>
-        <a href="/help" target="_blank" rel="noopener noreferrer"
-          title="도움말 전체 보기"
-          style={{ background: 'rgba(255,255,255,0.15)', border: 'none', cursor: 'pointer', color: 'white', borderRadius: '6px', padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', textDecoration: 'none' }}>
-          <HelpCircle size={12} /> 전체 도움말
-        </a>
+        <button onClick={() => { setContactMode(true); setContactResult(null); }}
+          title="개발사에 문의하기"
+          style={{ background: 'rgba(255,255,255,0.15)', border: 'none', cursor: 'pointer', color: 'white', borderRadius: '6px', padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}>
+          <Mail size={12} /> 개발사 문의하기
+        </button>
         <button onClick={() => setIsMinimized(true)} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', cursor: 'pointer', color: 'white', borderRadius: '6px', padding: '4px 6px', display: 'grid', placeItems: 'center' }}>
           <Minus size={13} />
         </button>
@@ -375,30 +374,9 @@ export function AgentChat() {
         <div ref={bottomRef} />
       </div>}
 
-      {/* 개발사 문의 버튼 */}
-      {!contactMode && (
-        <div style={{ flexShrink: 0, padding: '8px 12px 0', borderTop: '1px solid #F3F4F6' }}>
-          <button onClick={() => { setContactMode(true); setContactResult(null); }}
-            style={{
-              width: '100%', padding: '9px 12px', borderRadius: '9px',
-              background: '#F9FAFB', border: '1px solid #E5E7EB',
-              display: 'flex', alignItems: 'center', gap: '8px',
-              cursor: 'pointer', transition: 'all 0.12s',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#F3F4F6'; e.currentTarget.style.borderColor = '#a5b4fc'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#F9FAFB'; e.currentTarget.style.borderColor = '#E5E7EB'; }}
-          >
-            <Mail size={14} style={{ color: '#3730a3', flexShrink: 0 }} />
-            <span style={{ flex: 1, fontSize: '12.5px', fontWeight: 600, color: '#374151', textAlign: 'left' }}>개발사에 문의하기</span>
-            <span style={{ fontSize: '11px', color: '#9CA3AF' }}>버그 · 기능 요청 · 일반 문의</span>
-          </button>
-        </div>
-      )}
-
       {/* 자주 묻는 질문 가로 스크롤 */}
       {!contactMode && quickQuestions.length > 0 && (
-        <div style={{ flexShrink: 0, padding: '8px 12px 6px' }}>
-          <div style={{ fontSize: '10.5px', color: '#9CA3AF', marginBottom: '6px', fontWeight: 500 }}>자주 묻는 질문</div>
+        <div style={{ flexShrink: 0, padding: '8px 12px 6px', borderTop: '1px solid #F3F4F6' }}>
           <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '2px' }}
             className="hide-scrollbar">
             {quickQuestions.map(q => (

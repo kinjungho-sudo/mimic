@@ -675,9 +675,8 @@ export default function PlayerPage() {
           <div style={{ display: 'flex', background: viewMode === 'document' ? '#F3F4F6' : 'rgba(255,255,255,0.08)', borderRadius: '8px', padding: '3px', gap: '2px' }}>
             {([
               { key: 'document', label: '웹 문서', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="12" y2="16"/></svg> },
-              { key: 'follow', label: '따라하기', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg> },
               { key: 'slides', label: '슬라이드', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> },
-            ] as { key: 'document' | 'slides' | 'follow'; label: string; icon: React.ReactNode }[]).map(tab => {
+            ] as { key: 'document' | 'slides'; label: string; icon: React.ReactNode }[]).map(tab => {
               const active = viewMode === tab.key;
               const activeColor = viewMode === 'document' ? '#3730a3' : 'white';
               const inactiveColor = viewMode === 'document' ? '#6B7280' : 'rgba(255,255,255,0.5)';
@@ -688,6 +687,18 @@ export default function PlayerPage() {
               );
             })}
           </div>
+
+          {/* 따라하기 — 별도 강조 버튼(우측 분리, 특별 색상) */}
+          {(() => {
+            const active = viewMode === 'follow';
+            return (
+              <button onClick={() => setViewMode('follow')} title="따라하기 — 직접 클릭하며 실습"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: isMobile ? '6px 9px' : '6px 13px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 700, border: active ? 'none' : '1.5px solid #7c3aed', background: active ? 'linear-gradient(135deg,#4f46e5,#7c3aed)' : 'rgba(124,58,237,0.12)', color: active ? 'white' : '#7c3aed', boxShadow: active ? '0 2px 12px rgba(124,58,237,0.5)' : 'none', transition: 'all 0.12s' }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                {!isMobile && '따라하기'}
+              </button>
+            );
+          })()}
 
 
           {/* 전체화면 — 모바일에서 숨김 */}

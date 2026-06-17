@@ -303,22 +303,22 @@ function TutorialCard({ tutorial, onContextMenu, onTitleChange, onMenuClick, vie
         onBlur={saveTitle}
         onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') { setEditingTitle(false); setTitleDraft(tutorial.title); } }}
         onClick={e => e.stopPropagation()} disabled={savingTitle}
-        style={{ fontSize: '13px', fontWeight: 600, color: '#111827', border: '1.5px solid #3730a3', borderRadius: '5px', padding: '1px 6px', outline: 'none', width: '100%', boxSizing: 'border-box', fontFamily: 'inherit' }}
+        style={{ fontSize: '14px', fontWeight: 600, color: '#111827', border: '1.5px solid #3730a3', borderRadius: '5px', padding: '1px 6px', outline: 'none', width: '100%', boxSizing: 'border-box', fontFamily: 'inherit' }}
       />
     ) : (
       <div onClick={e => { e.stopPropagation(); setEditingTitle(true); }} title="클릭해서 제목 편집"
-        style={{ fontSize: '13px', fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'text' }}>
+        style={{ fontSize: '14px', fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'text' }}>
         {tutorial.title}
       </div>
     )
   );
 
   const metaEl = (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '2px' }}>
-      {domain && <span style={{ fontSize: '11px', color: '#9CA3AF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '80px' }}>{domain}</span>}
+    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '3px' }}>
+      {domain && <span style={{ fontSize: '12px', color: '#9CA3AF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '80px' }}>{domain}</span>}
       {domain && <span style={{ width: '2px', height: '2px', borderRadius: '50%', background: '#D1D5DB', flexShrink: 0 }} />}
-      <span style={{ fontSize: '11px', color: '#9CA3AF', flexShrink: 0 }}>{dateStr}</span>
-      {stepCount > 0 && <><span style={{ width: '2px', height: '2px', borderRadius: '50%', background: '#D1D5DB', flexShrink: 0 }} /><span style={{ fontSize: '11px', color: '#9CA3AF', flexShrink: 0 }}>{stepCount}단계</span></>}
+      <span style={{ fontSize: '12px', color: '#111827', flexShrink: 0, display: 'inline-flex', alignItems: 'center', lineHeight: 1 }}>{dateStr}</span>
+      {stepCount > 0 && <><span style={{ width: '2px', height: '2px', borderRadius: '50%', background: '#D1D5DB', flexShrink: 0 }} /><span style={{ fontSize: '12px', color: '#9CA3AF', flexShrink: 0 }}>{stepCount}단계</span></>}
       {tutorial.status === 'published' && <span style={{ fontSize: '10px', fontWeight: 600, color: '#16A34A', background: '#DCFCE7', padding: '1px 5px', borderRadius: '999px', flexShrink: 0 }}>공유</span>}
       {(tutorial as Tutorial & { workspace_id?: string | null }).workspace_id && (
         <span style={{ fontSize: '10px', fontWeight: 600, color: '#3730a3', background: '#e0e7ff', padding: '1px 5px', borderRadius: '999px', flexShrink: 0 }}>팀</span>
@@ -340,30 +340,32 @@ function TutorialCard({ tutorial, onContextMenu, onTitleChange, onMenuClick, vie
   };
 
   if (viewMode === 'compact') {
+    // 카드 뷰 — 첫 스텝 스크린샷을 섬네일로 표시
     return (
       <article {...commonArticleProps} style={{
-        background: 'white', borderRadius: '8px', cursor: 'pointer',
+        background: 'white', borderRadius: '12px', cursor: 'pointer',
         border: `1px solid ${hovered ? '#a5b4fc' : '#E5E7EB'}`,
-        boxShadow: hovered ? '0 2px 8px rgba(55,48,163,0.07)' : 'none',
+        boxShadow: hovered ? '0 4px 16px rgba(55,48,163,0.10)' : '0 1px 2px rgba(17,24,39,0.04)',
         transition: 'border-color 0.12s, box-shadow 0.12s',
-        display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px',
+        display: 'flex', flexDirection: 'column', overflow: 'hidden',
       }}>
-        {iconEl(24)}
-        <div style={{ flex: 1, minWidth: 0, fontSize: '12.5px', fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {editingTitle ? (
-            <input ref={titleInputRef} value={titleDraft} onChange={e => setTitleDraft(e.target.value)}
-              onBlur={saveTitle}
-              onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') { setEditingTitle(false); setTitleDraft(tutorial.title); } }}
-              onClick={e => e.stopPropagation()} disabled={savingTitle}
-              style={{ fontSize: '12.5px', fontWeight: 600, color: '#111827', border: '1.5px solid #3730a3', borderRadius: '4px', padding: '1px 5px', outline: 'none', width: '100%', boxSizing: 'border-box', fontFamily: 'inherit' }}
-            />
-          ) : (
-            <span onClick={e => { e.stopPropagation(); setEditingTitle(true); }} title="클릭해서 제목 편집" style={{ cursor: 'text' }}>{tutorial.title}</span>
-          )}
+        <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 10', background: `${color}10`, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
+          {tutorial.thumbnail_url
+            // eslint-disable-next-line @next/next/no-img-element
+            ? <img src={tutorial.thumbnail_url} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            : <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}>
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+              </svg>}
+          {tutorial.status === 'published' && <span style={{ position: 'absolute', top: 8, right: 8, fontSize: '10px', fontWeight: 600, color: '#16A34A', background: '#DCFCE7', padding: '1px 6px', borderRadius: '999px' }}>공유</span>}
         </div>
-        {tutorial.status === 'published' && <span style={{ fontSize: '10px', fontWeight: 600, color: '#16A34A', background: '#DCFCE7', padding: '1px 5px', borderRadius: '999px', flexShrink: 0 }}>공유</span>}
-        {(tutorial as Tutorial & { workspace_id?: string | null }).workspace_id && <span style={{ fontSize: '10px', fontWeight: 600, color: '#3730a3', background: '#e0e7ff', padding: '1px 5px', borderRadius: '999px', flexShrink: 0 }}>팀</span>}
-        {menuBtn}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '10px 12px' }}>
+          {iconEl(28)}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {titleEl}
+            {metaEl}
+          </div>
+          {menuBtn}
+        </div>
       </article>
     );
   }
@@ -938,7 +940,7 @@ export default function DashboardPage() {
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', fontFamily: "'Pretendard Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", fontSize: '13.5px', color: 'var(--mm-text-1)', background: 'var(--mm-bg-soft)' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: showFolderPanel ? '220px 264px 1fr' : '220px 1fr', flex: 1, minHeight: 0 }} className="home-layout-grid">
+        <div style={{ display: 'grid', gridTemplateColumns: showFolderPanel ? '220px 264px minmax(0, 1fr)' : '220px minmax(0, 1fr)', flex: 1, minHeight: 0 }} className="home-layout-grid">
 
           {/* ── 사이드바 — 모바일에서 숨김 ── */}
           <aside className="home-sidebar" style={{ background: 'var(--mm-bg)', borderRight: '1px solid var(--mm-border-light)', padding: '16px 12px', display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto' }}>
@@ -1157,8 +1159,8 @@ export default function DashboardPage() {
                 </button>
               </div>
             )}
-            {/* 헤더 — 모바일에서는 로고+버튼만 */}
-            <header style={{ display: 'flex', alignItems: 'center', gap: '12px', height: '60px', padding: '0 16px', background: 'var(--mm-bg)', borderBottom: '1px solid var(--mm-border-light)', position: 'sticky', top: 0, zIndex: 30, flexShrink: 0 }}>
+            {/* 헤더 — 모바일에서는 로고+버튼만 (PC에선 숨김, home-header 클래스로 제어) */}
+            <header className="home-header" style={{ display: 'none', alignItems: 'center', gap: '12px', height: '60px', padding: '0 16px', background: 'var(--mm-bg)', borderBottom: '1px solid var(--mm-border-light)', position: 'sticky', top: 0, zIndex: 30, flexShrink: 0 }}>
               {/* 모바일 전용: 로고 (햄버거는 우측으로 이동) */}
               <div className="home-mobile-logo" style={{ display: 'none', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                 <Link href="/home" style={{ display: 'flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}>
@@ -1178,7 +1180,7 @@ export default function DashboardPage() {
             <div className="home-main-body" style={{ padding: '28px 32px', flex: 1, minHeight: 0 }}>
               {/* 인사말 + 새 매뉴얼 버튼 */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', gap: '12px' }}>
-                <h1 className="home-greeting" style={{ fontSize: '22px', fontWeight: 700, letterSpacing: '-0.025em', margin: 0, color: '#0F172A' }}>
+                <h1 className="home-greeting" style={{ fontSize: '24px', fontWeight: 700, letterSpacing: '-0.025em', margin: 0, color: '#0F172A' }}>
                   {authLoading ? '' : `${firstName}님의 매뉴얼`}
                 </h1>
                 <div ref={newMenuRef} style={{ position: 'relative', flexShrink: 0 }}>
@@ -1226,7 +1228,7 @@ export default function DashboardPage() {
                   placeholder="매뉴얼 이름으로 검색..."
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '13.5px', fontFamily: 'inherit', color: '#111827' }}
+                  style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '14.5px', fontFamily: 'inherit', color: '#111827' }}
                   onFocus={e => { const p = e.currentTarget.parentElement!; p.style.borderColor = '#4F46E5'; p.style.boxShadow = '0 0 0 3px rgba(79,70,229,0.10)'; }}
                   onBlur={e => { const p = e.currentTarget.parentElement!; if (!searchQuery) { p.style.borderColor = '#E5E7EB'; p.style.boxShadow = 'none'; } }}
                 />
@@ -1246,9 +1248,9 @@ export default function DashboardPage() {
                   {([['my', '내 매뉴얼'], ['team', '팀 매뉴얼']] as const).map(([tab, label]) => (
                     <button key={tab}
                       onClick={() => { setActiveTab(tab); if (tab === 'team' && workspaces.length > 0) setActiveWorkspace(workspaces[0].id); }}
-                      style={{ padding: '7px 16px', border: 'none', background: 'none', cursor: 'pointer', fontSize: '13.5px', fontWeight: activeTab === tab ? 700 : 400, color: activeTab === tab ? '#3730a3' : '#6B7280', borderBottom: `2px solid ${activeTab === tab ? '#3730a3' : 'transparent'}`, marginBottom: '-2px', transition: 'color 0.15s' }}>
+                      style={{ padding: '7px 16px', border: 'none', background: 'none', cursor: 'pointer', fontSize: '14.5px', fontWeight: activeTab === tab ? 700 : 400, color: activeTab === tab ? '#3730a3' : '#6B7280', borderBottom: `2px solid ${activeTab === tab ? '#3730a3' : 'transparent'}`, marginBottom: '-2px', transition: 'color 0.15s' }}>
                       {label}
-                      {tab === 'my' && !tutLoading && <span style={{ marginLeft: '5px', fontSize: '11.5px', fontWeight: 400, color: '#9CA3AF' }}>{displayedTutorials.length}</span>}
+                      {tab === 'my' && !tutLoading && <span style={{ marginLeft: '5px', fontSize: '12.5px', fontWeight: 400, color: '#9CA3AF' }}>{displayedTutorials.length}</span>}
                     </button>
                   ))}
                 </div>
@@ -1257,7 +1259,7 @@ export default function DashboardPage() {
                   {([
                     { mode: 'grid' as ViewMode, title: '그리드', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg> },
                     { mode: 'list' as ViewMode, title: '리스트', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1" fill="currentColor"/><circle cx="3" cy="12" r="1" fill="currentColor"/><circle cx="3" cy="18" r="1" fill="currentColor"/></svg> },
-                    { mode: 'compact' as ViewMode, title: '컴팩트', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="3" y1="5" x2="21" y2="5"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="3" y1="20" x2="21" y2="20"/></svg> },
+                    { mode: 'compact' as ViewMode, title: '카드', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg> },
                   ]).map(({ mode, title, icon }) => (
                     <button key={mode} onClick={() => setViewMode(mode)} title={title}
                       style={{ width: '28px', height: '26px', borderRadius: '6px', border: 'none', cursor: 'pointer', display: 'grid', placeItems: 'center', background: viewMode === mode ? 'white' : 'transparent', color: viewMode === mode ? '#3730a3' : '#9CA3AF', boxShadow: viewMode === mode ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition: 'background 0.12s, color 0.12s' }}>
@@ -1298,7 +1300,7 @@ export default function DashboardPage() {
 
               {/* 매뉴얼 목록 */}
               {tutLoading ? (
-                <div className={viewMode === 'grid' ? 'home-card-grid' : 'home-card-list'}>
+                <div className={viewMode === 'list' ? 'home-card-list' : 'home-card-grid'}>
                   {[1,2,3,4,5,6].map(i => (
                     <div key={i} style={{ borderRadius: '10px', background: 'white', border: '1px solid #E5E7EB', padding: viewMode === 'compact' ? '7px 10px' : '11px 13px', display: 'flex', alignItems: 'center', gap: '11px' }}>
                       <div style={{ width: viewMode === 'compact' ? '24px' : '34px', height: viewMode === 'compact' ? '24px' : '34px', borderRadius: '7px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite', flexShrink: 0 }} />
@@ -1326,7 +1328,7 @@ export default function DashboardPage() {
                     label={activeTab === 'team' ? '팀 매뉴얼이 없어요' : activeFolder !== 'all' ? '이 폴더에 매뉴얼이 없어요' : undefined} />
                 )
               ) : (
-                <div className={viewMode === 'grid' ? 'home-card-grid' : 'home-card-list'}>
+                <div className={viewMode === 'list' ? 'home-card-list' : 'home-card-grid'}>
                   {displayedTutorials.map(t => (
                     <TutorialCard key={t.id} tutorial={t} onContextMenu={handleContextMenu} onTitleChange={handleTitleChange} onMenuClick={handleContextMenu} viewMode={viewMode} />
                   ))}

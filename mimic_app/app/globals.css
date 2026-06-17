@@ -68,7 +68,7 @@ body {
   background: var(--mm-bg);
   -webkit-font-smoothing: antialiased;
   line-height: 1.5;
-  font-size: 13.5px;
+  font-size: 14px;
   margin: 0;
   padding: 0;
 }
@@ -150,6 +150,10 @@ body {
     height: 100%;
   }
   .home-mobile-logo {
+    display: flex !important;
+  }
+  /* 홈 헤더 — PC에선 숨김(빈 공간 제거), 모바일에서만 표시 */
+  .home-header {
     display: flex !important;
   }
   .home-search-bar {

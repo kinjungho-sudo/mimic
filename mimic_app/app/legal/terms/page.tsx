@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { BackLink } from '../BackLink';
 
 import type { Metadata } from 'next';
 export const metadata: Metadata = {
@@ -14,7 +15,7 @@ export default function TermsPage() {
           <Link href="/landingpage" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="28" height="28"><circle cx="50" cy="50" r="50" fill="#3730a3"/><text x="50" y="68" textAnchor="middle" fontFamily="Georgia, serif" fontSize="62" fontWeight="700" fill="white">M</text></svg>
           </Link>
-          <Link href="/auth/signup" style={{ fontSize: '13px', color: '#6B7280', textDecoration: 'none' }}>← 회원가입으로 돌아가기</Link>
+          <BackLink />
         </div>
       </header>
 

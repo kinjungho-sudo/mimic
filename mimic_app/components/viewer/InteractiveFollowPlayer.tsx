@@ -157,6 +157,7 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
                   bubbleAnchor={step.bubbleAnchor}
                   animateType
                   isFirstStep={idx === 0}
+                  stepNumber={idx + 1}
                   spotlight
                   title={step.title}
                   body={step.body}

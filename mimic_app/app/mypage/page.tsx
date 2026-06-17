@@ -48,20 +48,22 @@ export default function MyPage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   const [planLoading, setPlanLoading] = useState(false);
+  const [totalManuals, setTotalManuals] = useState<number | null>(null);
 
-  // 페이지 진입 시 최신 daily_manual_count 로드
+  // 페이지 진입 시 최신 daily_manual_count + 전체 매뉴얼 수 로드
   useEffect(() => {
     if (!loading && user) {
       getCurrentUser().then(fresh => {
         if (fresh) updateUser({ daily_manual_count: fresh.daily_manual_count });
       }).catch(() => {});
+      fetch('/api/tutorials')
+        .then(r => r.ok ? r.json() : [])
+        .then(list => setTotalManuals(Array.isArray(list) ? list.length : 0))
+        .catch(() => setTotalManuals(0));
     }
   }, [loading]);
 
   const isPro = user?.plan === 'pro' || user?.plan === 'team';
-  const usedToday = user?.daily_manual_count ?? 0;
-  const dailyLimit = user?.daily_limit ?? 3;
-  const usagePercent = Math.min((usedToday / dailyLimit) * 100, 100);
 
   const handleSignOut = async () => {
     await signOut();
@@ -141,7 +143,7 @@ export default function MyPage() {
   const displayAvatar = user?.avatar_url ?? null;
 
   return (
-    <div className="mypage-layout" style={{ display: 'grid', gridTemplateColumns: '220px 1fr', minHeight: '100vh', fontFamily: "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif", fontSize: '13.5px', color: '#111827', background: '#FAFAFA' }}>
+    <div className="mypage-layout" style={{ display: 'grid', gridTemplateColumns: '220px 1fr', minHeight: '100vh', fontFamily: "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif", fontSize: '14px', color: '#111827', background: '#FAFAFA' }}>
 
       {/* Sidebar */}
       <aside className="mypage-sidebar" style={{ background: '#FAFAFA', borderRight: '1px solid #F3F4F6', padding: '16px 12px', display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto' }}>
@@ -273,7 +275,7 @@ export default function MyPage() {
                   )}
                 </div>
               )}
-              <p style={{ fontSize: '12.5px', color: '#6B7280', margin: 0 }}>{user?.email}</p>
+              <p style={{ fontSize: '13.5px', color: '#4B5563', margin: 0 }}>{user?.email}</p>
             </div>
           </div>
 
@@ -286,8 +288,8 @@ export default function MyPage() {
               { label: '현재 플랜', value: PLAN_LABELS[user?.plan ?? 'free'] ?? user?.plan ?? '-' },
             ].map((row, i) => (
               <div key={row.label} style={{ padding: '14px 20px', borderTop: '1px solid #F3F4F6', borderRight: i % 2 === 0 ? '1px solid #F3F4F6' : 'none' }}>
-                <div style={{ fontSize: '11px', color: '#9CA3AF', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{row.label}</div>
-                <div style={{ fontSize: '13.5px', fontWeight: 500, color: '#111827' }}>{row.value}</div>
+                <div style={{ fontSize: '12px', color: '#6B7280', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{row.label}</div>
+                <div style={{ fontSize: '14.5px', fontWeight: 500, color: '#111827' }}>{row.value}</div>
               </div>
             ))}
           </div>
@@ -309,7 +311,7 @@ export default function MyPage() {
                   : <span style={{ padding: '2px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 500, background: '#F3F4F6', color: '#6B7280' }}>무료</span>
                 }
               </div>
-              <div style={{ fontSize: '12px', color: '#9CA3AF' }}>{isPro ? '매뉴얼 무제한 생성' : '매일 최대 3개 매뉴얼 생성'}</div>
+              <div style={{ fontSize: '13px', color: '#6B7280' }}>{isPro ? '매뉴얼 무제한 생성' : '매일 최대 3개 매뉴얼 생성'}</div>
             </div>
           </div>
 
@@ -352,20 +354,10 @@ export default function MyPage() {
           )}
 
           <div style={{ padding: '20px 24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <span style={{ fontSize: '13px', fontWeight: 500, color: '#111827' }}>오늘 생성한 매뉴얼</span>
-              {isPro ? (
-                <span style={{ fontSize: '12.5px', fontWeight: 500, color: '#6B7280' }}>{usedToday}개 / 제한없음</span>
-              ) : (
-                <span style={{ fontSize: '12.5px', fontWeight: 500, color: usagePercent >= 80 ? '#D97706' : '#6B7280' }}>{usedToday} / {dailyLimit}개</span>
-              )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '14px', fontWeight: 500, color: '#111827' }}>전체 매뉴얼 등록 수</span>
+              <span style={{ fontSize: '14px', fontWeight: 600, color: '#3730a3' }}>{totalManuals == null ? '…' : `${totalManuals}개`}</span>
             </div>
-            {!isPro && (
-              <div style={{ height: '6px', borderRadius: '3px', background: '#F3F4F6', overflow: 'hidden' }}>
-                <div style={{ height: '100%', borderRadius: '3px', width: `${usagePercent}%`, background: usagePercent >= 80 ? 'linear-gradient(90deg, #F59E0B, #EF4444)' : 'linear-gradient(90deg, #3730a3, #6d28d9)', transition: 'width 0.4s ease' }} />
-              </div>
-            )}
-            <div style={{ fontSize: '11.5px', color: '#9CA3AF', marginTop: '6px' }}>매일 자정에 초기화됩니다</div>
           </div>
         </div>
 
@@ -456,10 +448,10 @@ export default function MyPage() {
           </div>
         </div>
 
-        <div style={{ fontSize: '12px', color: '#D1D5DB', textAlign: 'center', marginTop: '28px', paddingBottom: '40px' }}>
-          <Link href="/legal/terms" style={{ color: '#D1D5DB', textDecoration: 'none' }}>이용약관</Link>
+        <div style={{ fontSize: '12.5px', color: '#9CA3AF', textAlign: 'center', marginTop: '28px', paddingBottom: '40px' }}>
+          <Link href="/legal/terms" style={{ color: '#6B7280', textDecoration: 'underline', textUnderlineOffset: '2px' }}>이용약관</Link>
           {' · '}
-          <Link href="/legal/privacy" style={{ color: '#D1D5DB', textDecoration: 'none' }}>개인정보 처리방침</Link>
+          <Link href="/legal/privacy" style={{ color: '#6B7280', textDecoration: 'underline', textUnderlineOffset: '2px' }}>개인정보 처리방침</Link>
         </div>
       </main>
     </div>

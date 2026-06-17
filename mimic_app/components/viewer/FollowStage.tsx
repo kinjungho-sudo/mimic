@@ -33,6 +33,7 @@ interface Props {
   typeTextColor?: string;           // 타이핑 인디케이터 글자색 (기본 #111827)
   animateType?: boolean;            // true=뷰어(자동 타이핑 애니메이션), false/미설정=스튜디오(정적 표시)
   isFirstStep?: boolean;            // true일 때만 클릭 힌트 표시
+  stepNumber?: number | null;       // 말풍선 머리 넘버링(목차 순서). 있으면 손가락 이모지 대신 번호 배지
   title: string;
   body?: string;
   minimized?: boolean;
@@ -51,7 +52,7 @@ interface Props {
 
 export function FollowStage({
   screenshotUrl, hotspotX: hx, hotspotY: hy, allowCornerHotspot = false, kind, typeText, typeTextColor, animateType = false,
-  isFirstStep = false, title, body,
+  isFirstStep = false, stepNumber = null, title, body,
   minimized = false, showAudioBadge = false, nudge = false, spotlight = false,
   imageCursor = 'default', imgMaxHeight = 'calc(100vh - 150px)',
   bubbleAnchor,
@@ -64,13 +65,13 @@ export function FollowStage({
   const maskId = 'mfp' + rawId.replace(/:/g, '');
 
   // 텍스트 인디케이터 자동 타이핑 — 뷰어에서만(animateType). 스튜디오는 입력값 그대로 표시
-  // 짧을수록 느리게(70ms), 길수록 빠르게(최소 22ms)
+  // 글자당 110ms 고정 — 또박또박 읽을 수 있는 차분한 속도
   const [typed, setTyped] = useState(0);
   useEffect(() => {
     if (!animateType || kind !== 'type' || !typeText) { setTyped(0); return; }
     setTyped(0);
     let i = 0;
-    const speed = Math.max(22, 70 - typeText.length * 0.9);
+    const speed = 110;
     const id = setInterval(() => {
       i += 1;
       setTyped(i);
@@ -123,15 +124,18 @@ export function FollowStage({
   const showHint = !hasHotspot || isType || isFirstStep;
 
   const Bubble = (
-    <div style={{ background: 'white', borderRadius: '14px', padding: '15px 18px', boxShadow: '0 16px 48px rgba(0,0,0,0.30), 0 2px 8px rgba(0,0,0,0.12)', maxWidth: `${BW}px`, animation: nudge ? 'mfp-nudge 0.4s' : undefined }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-        <div style={{ fontSize: '15px', fontWeight: 800, color: '#111827', lineHeight: 1.4, flex: 1 }}>{prefix} {title}</div>
+    <div style={{ background: 'white', borderRadius: '14px', padding: '18px 20px', boxShadow: '0 16px 48px rgba(0,0,0,0.30), 0 2px 8px rgba(0,0,0,0.12)', maxWidth: `${BW}px`, animation: nudge ? 'mfp-nudge 0.4s' : undefined }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '9px' }}>
+        {stepNumber != null && (
+          <span style={{ flexShrink: 0, width: '24px', height: '24px', borderRadius: '50%', background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', color: '#fff', fontSize: '13px', fontWeight: 800, display: 'grid', placeItems: 'center', marginTop: '1px', boxShadow: '0 2px 6px rgba(79,70,229,0.4)' }}>{stepNumber}</span>
+        )}
+        <div style={{ fontSize: '15px', fontWeight: 800, color: '#111827', lineHeight: 1.4, flex: 1 }}>{stepNumber != null ? title : `${prefix} ${title}`}</div>
         <span style={{ fontSize: '11px', color: '#C4C9D4', flexShrink: 0, marginTop: '2px' }}>—</span>
       </div>
       {body && (
-        <div style={{ fontSize: '13.5px', color: '#4B5563', lineHeight: 1.55, marginTop: '6px', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{body}</div>
+        <div style={{ fontSize: '13.5px', color: '#4B5563', lineHeight: 1.55, marginTop: '14px', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{body}</div>
       )}
-      {showHint && <div style={{ fontSize: '12px', color: '#6366F1', marginTop: '12px', fontWeight: 500 }}>{hint}</div>}
+      {showHint && <div style={{ fontSize: '12px', color: '#6366F1', marginTop: '14px', fontWeight: 500 }}>{hint}</div>}
     </div>
   );
 
