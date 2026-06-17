@@ -147,7 +147,52 @@ function RevealSection({ children, style }: { children: React.ReactNode; style?:
 
 
 
+// 원본 66초 영상 중 "결과물" 구간(38~64초)만 1.45x로 루프 — 와우 포인트만 압축
+const DEMO_LOOP_START = 38;
+const DEMO_LOOP_END   = 64;
+const DEMO_RATE       = 1.45;
+
+// 영상 위에 페이드되는 3비트 카피 (모션그래픽 레이어)
+const DEMO_BEATS = [
+  { icon: '🎬', text: '화면 녹화만 하면 끝' },
+  { icon: '✨', text: 'AI가 하이라이트·설명을 자동 생성' },
+  { icon: '🔗', text: 'PPTX · PDF · 링크로 바로 공유' },
+];
+
 function HeroDemo() {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [ready, setReady] = useState(false);
+  const [beat, setBeat] = useState(0);
+
+  // 구간 루프 + 가속
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    const onMeta = () => { v.playbackRate = DEMO_RATE; v.currentTime = DEMO_LOOP_START; };
+    const onTime = () => {
+      if (v.currentTime >= DEMO_LOOP_END || v.currentTime < DEMO_LOOP_START - 0.5) {
+        v.currentTime = DEMO_LOOP_START;
+      }
+    };
+    const onSeeked = () => { if (!ready && v.currentTime >= DEMO_LOOP_START - 1) setReady(true); };
+    v.addEventListener('loadedmetadata', onMeta);
+    v.addEventListener('timeupdate', onTime);
+    v.addEventListener('seeked', onSeeked);
+    if (v.readyState >= 1) onMeta();
+    return () => {
+      v.removeEventListener('loadedmetadata', onMeta);
+      v.removeEventListener('timeupdate', onTime);
+      v.removeEventListener('seeked', onSeeked);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 카피 비트 순환
+  useEffect(() => {
+    const iv = setInterval(() => setBeat(b => (b + 1) % DEMO_BEATS.length), 3200);
+    return () => clearInterval(iv);
+  }, []);
+
   return (
     <div style={{ position: 'relative', maxWidth: '1000px', margin: '0 auto' }}>
       <div style={{ borderRadius: '16px 16px 0 0', overflow: 'hidden', boxShadow: '0 20px 60px -10px rgba(55,48,163,0.28), 0 40px 80px -20px rgba(17,24,39,0.18)', border: '1px solid rgba(55,48,163,0.15)' }}>
@@ -161,14 +206,33 @@ function HeroDemo() {
             <span style={{ fontSize: '11.5px', color: 'rgba(255,255,255,0.45)' }}>app.mimic.so</span>
           </div>
         </div>
-        <video
-          autoPlay
-          muted
-          loop
-          playsInline
-          style={{ width: '100%', display: 'block' }}
-          src="/landing/Demo.mp4"
-        />
+        {/* 영상 + 오버레이 */}
+        <div style={{ position: 'relative', background: '#0F0F14' }}>
+          <video
+            ref={videoRef}
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+            style={{ width: '100%', display: 'block', opacity: ready ? 1 : 0, transition: 'opacity 0.5s ease' }}
+            src="/landing/Demo.mp4"
+          />
+          {/* 좌상단: 자동 생성 배지 */}
+          <div style={{ position: 'absolute', top: '14px', left: '14px', display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 11px', borderRadius: '999px', background: 'rgba(15,15,20,0.72)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.12)', fontSize: '11.5px', fontWeight: 600, color: 'white' }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#A78BFA', boxShadow: '0 0 8px #A78BFA' }} />
+            MIMIC가 자동 생성한 매뉴얼
+          </div>
+          {/* 하단: 가독성 그라데이션 + 카피 비트 */}
+          <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '90px', background: 'linear-gradient(to top, rgba(7,7,15,0.78), transparent)', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', left: '18px', bottom: '16px', right: '18px' }}>
+            {DEMO_BEATS.map((b, i) => (
+              <div key={i} style={{ position: i === beat ? 'relative' : 'absolute', left: i === beat ? 0 : '18px', bottom: i === beat ? 'auto' : 0, display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '7px 14px', borderRadius: '10px', background: 'rgba(109,40,217,0.22)', backdropFilter: 'blur(10px)', border: '1px solid rgba(167,139,250,0.35)', fontSize: '13px', fontWeight: 600, color: 'white', opacity: i === beat ? 1 : 0, transform: i === beat ? 'translateY(0)' : 'translateY(8px)', transition: 'opacity 0.45s ease, transform 0.45s ease', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: '15px' }}>{b.icon}</span>{b.text}
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
