@@ -87,9 +87,10 @@ export async function GET(_request: NextRequest, { params }: Params) {
     }
   }
 
+  // 공개 응답에는 PII(email) 제외 — 바이라인은 name만 사용
   const { data: author } = await supabase
     .from('mm_users')
-    .select('name, email, avatar_url')
+    .select('name, avatar_url')
     .eq('id', page.user_id)
     .single();
 

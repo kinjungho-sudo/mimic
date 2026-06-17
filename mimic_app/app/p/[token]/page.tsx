@@ -15,7 +15,7 @@ interface PubPage {
   description: string | null;
   cover_color: string | null;
   published_at: string | null;
-  author: { name: string | null; email: string | null; avatar_url: string | null } | null;
+  author: { name: string | null; avatar_url: string | null } | null;
   content: unknown[];
   guides: Record<string, GuideData | null>;
 }
@@ -43,7 +43,7 @@ export default function PublicPage() {
   if (loading) return <div style={{ padding: '80px', textAlign: 'center', color: '#9CA3AF' }}>불러오는 중…</div>;
   if (!page) return <div style={{ padding: '80px', textAlign: 'center', color: '#6B7280' }}>페이지를 찾을 수 없습니다.</div>;
 
-  const authorLabel = page.author?.name || page.author?.email || '';
+  const authorLabel = page.author?.name || '익명';
 
   return (
     <div style={{ minHeight: '100vh', background: '#F9FAFB' }}>
