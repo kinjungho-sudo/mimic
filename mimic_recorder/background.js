@@ -1071,6 +1071,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  // 사이드패널 오픈 시 가이드 유효성 검증 — 고정 탭이 이미 닫혔으면(브라우저 재시작 등으로
+  // onRemoved가 못 돈 경우) 유령 상태를 정리하고 active:false 반환 → 죽은 스텝이 안 뜬다.
+  if (message.type === 'GUIDE_VALIDATE') {
+    (async () => {
+      const { guideModeActive, guideSteps, guideCurrentStep, guideTabId } =
+        await storageGet(['guideModeActive', 'guideSteps', 'guideCurrentStep', 'guideTabId']);
+      if (!guideModeActive || !(guideSteps?.length)) { sendResponse({ active: false }); return; }
+      // guideTabId가 아직 미지정이면 가이드 시작 직후(고정 전) — 정리하지 말고 그대로 둔다.
+      if (guideTabId != null) {
+        const tab = await getGuideTab();
+        if (!tab?.id) {
+          await storageRemove(['guideSteps', 'guideCurrentStep', 'guideModeActive', 'guidePendingOverlay', 'guideTabId']);
+          sendResponse({ active: false });
+          return;
+        }
+      }
+      sendResponse({ active: true, steps: guideSteps, currentStep: guideCurrentStep || 0 });
+    })();
+    return true;
+  }
+
   if (message.type === 'GUIDE_NEXT' || message.type === 'GUIDE_PREV') {
     (async () => {
       const { guideSteps, guideCurrentStep } = await storageGet(['guideSteps', 'guideCurrentStep']);
@@ -1252,6 +1273,13 @@ chrome.tabs.onCreated.addListener(async (tab) => {
 });
 
 chrome.tabs.onRemoved.addListener(async (tabId) => {
+  // 가이드 고정 탭이 닫히면 라이브 가이드 상태를 정리 — 안 그러면 다음 사이드패널 오픈 시
+  // guideModeActive가 남아 죽은 스텝(유령)이 뜬다. storage 변경이 popup의 onChanged를 깨워 뷰를 닫는다.
+  const { guideModeActive, guideTabId } = await storageGet(['guideModeActive', 'guideTabId']);
+  if (guideModeActive && guideTabId === tabId) {
+    await storageRemove(['guideSteps', 'guideCurrentStep', 'guideModeActive', 'guidePendingOverlay', 'guideTabId']);
+  }
+
   const { isRecording, targetTabId, _prevTargetTabId } = await storageGet(['isRecording', 'targetTabId', '_prevTargetTabId']);
   if (!isRecording) return;
   if (targetTabId !== tabId) return;

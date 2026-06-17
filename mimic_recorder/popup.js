@@ -1494,10 +1494,12 @@ guideNextBtn.addEventListener('click', () => {
 });
 
 // Guide Me 활성화 여부 초기 체크 (사이드패널이 열릴 때)
-storageGet(['guideModeActive', 'guideSteps', 'guideCurrentStep']).then((r) => {
-  if (r.guideModeActive && r.guideSteps?.length > 0) {
-    guideSteps = r.guideSteps;
-    guideCurrentStep = r.guideCurrentStep || 0;
+// background가 고정 탭 생존을 검증 — 탭이 닫힌 유령 상태면 정리되고 active:false가 와서 안 뜬다.
+chrome.runtime.sendMessage({ type: 'GUIDE_VALIDATE' }, (r) => {
+  void chrome.runtime.lastError;
+  if (r?.active && r.steps?.length > 0) {
+    guideSteps = r.steps;
+    guideCurrentStep = r.currentStep || 0;
     showGuideView();
     renderGuideStep(guideSteps, guideCurrentStep);
   }
