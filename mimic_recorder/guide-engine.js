@@ -14,7 +14,7 @@
   const TIP_M = 8;    // 뷰포트 여백(px)
 
   let state = null;
-  const regroundedSteps = new Set();  // AI 시각 재탐색 1회성 가드 (스텝당 1회)
+  const regroundCache = new Map();  // AI 시각 재탐색 결과 캐시(key→{x,y} 성공 / null 실패). 재방문 시 재사용
 
   // ── 순수 로직 ────────────────────────────────────────────────
   function resolveTarget(step) {
@@ -602,8 +602,11 @@
   // 셀렉터·XPath·퍼지가 모두 실패한 스텝에서만, 현재 화면 스크린샷을 Vision에 보내 위치 복구.
   function maybeReground(step, opts) {
     const key = `${opts.index ?? 0}:${step.id || step.title || ''}`;
-    if (regroundedSteps.has(key)) return;
-    regroundedSteps.add(key);
+    // 재방문: 이미 찾은 좌표가 있으면 AI 재호출 없이 즉시 적용(영구 대기 방지)
+    const cached = regroundCache.get(key);
+    if (cached) { step._regroundXY = cached; show(step, opts); return; }
+    if (regroundCache.has(key)) return;  // 이전에 실패(null) 마킹됨 → 재시도 안 함
+    regroundCache.set(key, null);        // 시도 마킹
     let elementText = '';
     try { elementText = extractHint(step).text || ''; } catch { /* noop */ }
     try {
@@ -615,9 +618,12 @@
         actionType: step.kind || null,
       }, (res) => {
         void chrome.runtime.lastError;
-        // 응답 시점에도 같은 스텝을 대기 중일 때만 적용 (사용자가 넘어갔으면 무시)
-        if (!res || !res.found || !state || !state.waiting || state.waitKey !== key) return;
-        step._regroundXY = { x: res.x, y: res.y };
+        if (!res || !res.found) return;
+        const xy = { x: res.x, y: res.y };
+        regroundCache.set(key, xy);  // 성공 캐시 — 재방문 시 재사용
+        // 응답 시점에도 같은 스텝을 대기 중일 때만 적용 (사용자가 넘어갔으면 캐시만 남김)
+        if (!state || !state.waiting || state.waitKey !== key) return;
+        step._regroundXY = xy;
         show(step, opts);  // resolveTarget 0순위가 좌표를 집어 정상 오버레이로 전환
       });
     } catch { /* noop */ }

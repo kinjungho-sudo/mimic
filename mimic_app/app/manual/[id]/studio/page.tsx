@@ -277,9 +277,9 @@ export default function StudioPage() {
               setShowUpgrade(true);
               return;
             }
-            const hasSteps = steps.some(s => s.clickXPct != null || s.follow.hotspotX != null);
+            const hasSteps = steps.some(s => !s.follow.hidden);
             if (!hasSteps) {
-              alert('먼저 스텝에 핫스팟을 편집한 후 실행하세요.');
+              alert('표시할 스텝이 없습니다. 최소 한 개 스텝을 표시(숨김 해제)한 후 실행하세요.');
               return;
             }
             const extId = (process.env.NEXT_PUBLIC_EXTENSION_ID ?? '').replace(/^﻿/, '').trim();
