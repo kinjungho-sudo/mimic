@@ -515,9 +515,99 @@ function MimicAppHeader({ mode }: { mode: 'doc' | 'guide' }) {
   );
 }
 
+// 정부24 미니 헤더 (스텝 화면 공용)
+function Gov24Mini() {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 11px', borderBottom: '1px solid #EEE', flexShrink: 0, background: '#fff' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+        <span style={{ fontSize: '12px' }}>🏛️</span>
+        <span style={{ fontSize: '11px', fontWeight: 800, color: '#1d4ed8' }}>정부24</span>
+      </div>
+      <div style={{ display: 'flex', gap: '8px', fontSize: '8px', color: '#9CA3AF' }}>
+        <span>로그인</span><span>회원가입</span>
+      </div>
+    </div>
+  );
+}
+
+// 스텝 화면 — step별 타겟(메뉴/버튼)을 명확히 그리고, 그 요소에 직접 어노테이션
+// mode='card' : 빨간 박스 + 화살표 + 캡션 / mode='guide' : 스포트라이트(주변 딤)
+function StepScreen({ step, mode }: { step: number; mode: 'card' | 'guide' }) {
+  const isHome = step === 0;
+  const cap = isHome ? '주민등록증 메뉴 클릭' : '발급하기 버튼 클릭';
+  const isCard = mode === 'card';
+
+  // 타겟 요소 자식으로 들어가는 오버레이
+  const overlayBelow = (
+    <>
+      <span style={{ position: 'absolute', left: '50%', top: 'calc(100% + 1px)', transform: 'translateX(-50%)', color: '#EF4444', fontSize: '11px', lineHeight: 1, zIndex: 6 }}>↑</span>
+      <div style={{ position: 'absolute', left: '50%', top: 'calc(100% + 13px)', transform: 'translateX(-50%)', background: '#1f2937', color: '#fff', fontSize: '8px', fontWeight: 700, padding: '3px 7px', borderRadius: '4px', whiteSpace: 'nowrap', zIndex: 6 }}>{cap}</div>
+    </>
+  );
+  const overlayAbove = (
+    <>
+      <div style={{ position: 'absolute', left: '50%', bottom: 'calc(100% + 13px)', transform: 'translateX(-50%)', background: '#1f2937', color: '#fff', fontSize: '8px', fontWeight: 700, padding: '3px 7px', borderRadius: '4px', whiteSpace: 'nowrap', zIndex: 6 }}>{cap}</div>
+      <span style={{ position: 'absolute', left: '50%', bottom: 'calc(100% + 1px)', transform: 'translateX(-50%)', color: '#EF4444', fontSize: '11px', lineHeight: 1, zIndex: 6 }}>↓</span>
+    </>
+  );
+  const spotlight = (
+    <div style={{ position: 'absolute', inset: '-6px', borderRadius: '10px', boxShadow: '0 0 0 3px #6d28d9, 0 0 0 2000px rgba(13,13,20,0.5)', zIndex: 4, pointerEvents: 'none' }}>
+      <div style={{ position: 'absolute', inset: '-5px', borderRadius: '12px', border: '2px solid rgba(167,139,250,0.7)', animation: 'rippleOut 1.4s ease-out infinite' }} />
+    </div>
+  );
+
+  if (isHome) {
+    const SERVICES = ['토지(임야)대장', '주민등록등본(초본)', '자동차등록원부', '건축물대장', '가족관계증명서', '여권 재발급'];
+    return (
+      <div style={{ width: '100%', height: '100%', background: '#fff', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <Gov24Mini />
+        <div style={{ padding: '10px 12px', flex: 1, position: 'relative' }}>
+          <div style={{ fontSize: '10px', fontWeight: 700, color: '#374151', marginBottom: '7px' }}>자주 찾는 서비스</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '7px' }}>
+            {SERVICES.map((s, i) => {
+              const target = i === 1;
+              return (
+                <div key={i} style={{ position: 'relative', padding: '9px 5px', borderRadius: '7px', border: `1.5px solid ${target && isCard ? '#EF4444' : '#E5E7EB'}`, background: target && isCard ? '#FEF2F2' : '#F9FAFB', fontSize: '8.5px', fontWeight: target ? 700 : 500, color: target ? '#111827' : '#6B7280', textAlign: 'center', lineHeight: 1.3, zIndex: target && mode === 'guide' ? 5 : 1 }}>
+                  {s}
+                  {target && (isCard ? overlayBelow : spotlight)}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 발급 페이지 — "발급하기" 버튼이 타겟
+  return (
+    <div style={{ width: '100%', height: '100%', background: '#fff', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <Gov24Mini />
+      <div style={{ padding: '10px 14px', flex: 1, position: 'relative' }}>
+        <div style={{ fontSize: '12px', fontWeight: 800, color: '#111827', marginBottom: '7px' }}>주민등록표 등본(초본) 발급</div>
+        <div style={{ fontSize: '8.5px', color: '#6B7280', marginBottom: '5px' }}>서비스 개요</div>
+        <div style={{ height: '1px', background: '#EEE', marginBottom: '7px' }} />
+        {[['신청방법', '인터넷, 방문, 무인발급기'], ['신청자격', '본인 또는 대리인'], ['처리기간', '즉시(근무시간 내 3시간)']].map(([k, v]) => (
+          <div key={k} style={{ display: 'flex', gap: '8px', marginBottom: '5px' }}>
+            <span style={{ fontSize: '8.5px', color: '#9CA3AF', width: '44px', flexShrink: 0 }}>{k}</span>
+            <span style={{ fontSize: '8.5px', color: '#374151' }}>{v}</span>
+          </div>
+        ))}
+        {/* 발급하기 버튼 (타겟) — 우측 중앙 */}
+        <div style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', width: '110px', zIndex: mode === 'guide' ? 5 : 1 }}>
+          <div style={{ position: 'relative', padding: '9px 0', borderRadius: '6px', background: '#1d4ed8', color: '#fff', fontSize: '10.5px', fontWeight: 700, textAlign: 'center', border: isCard ? '2px solid #EF4444' : 'none' }}>
+            발급하기
+            {isCard ? overlayAbove : spotlight}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── 씬 4: 매뉴얼 자동 완성 → 스크롤 ──────────
 function Scene4({ tick }: { tick: number }) {
-  const scrollY = Math.min(Math.max(tick - 900, 0) * 0.075, 250);
+  const scrollY = Math.min(Math.max(tick - 900, 0) * 0.085, 300);
   return (
     <div style={{ width: '100%', height: '100%', background: '#F8F8FA', display: 'grid', gridTemplateColumns: '150px 1fr', position: 'relative', overflow: 'hidden' }}>
       {/* 좌측 목차 */}
@@ -525,7 +615,7 @@ function Scene4({ tick }: { tick: number }) {
         <div style={{ fontSize: '9px', color: '#9CA3AF', fontWeight: 700, marginBottom: '8px', padding: '0 4px' }}>목차 · 6단계</div>
         {GUIDE_STEPS.map((s, i) => (
           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 7px', borderRadius: '7px', marginBottom: '2px', background: i === 0 ? '#EDE9FE' : 'transparent' }}>
-            <span style={{ width: '15px', height: '15px', borderRadius: '4px', background: i === 0 ? '#6d28d9' : '#E5E7EB', color: i === 0 ? '#fff' : '#9CA3AF', fontSize: '8px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0 }}>{i+1}</span>
+            <span style={{ width: '15px', height: '15px', borderRadius: '4px', background: i === 0 ? '#6d28d9' : '#E5E7EB', color: i === 0 ? '#fff' : '#9CA3AF', fontSize: '8px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0 }}>{i + 1}</span>
             <span style={{ fontSize: '9px', fontWeight: i === 0 ? 600 : 400, color: i === 0 ? '#4c1d95' : '#6B7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.title}</span>
           </div>
         ))}
@@ -542,22 +632,15 @@ function Scene4({ tick }: { tick: number }) {
                 <span style={{ fontSize: '12px', fontWeight: 700, color: '#111827' }}>{s.title}</span>
               </div>
               <div style={{ fontSize: '10px', color: '#6B7280', lineHeight: 1.5, marginBottom: '10px' }}>{s.desc}</div>
-              {/* 정부24 스크린샷 + 어노테이션 */}
-              <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #E5E7EB', position: 'relative', height: '120px' }}>
-                <div style={{ transform: 'scale(0.62)', transformOrigin: 'top left', width: '161%', height: '161%' }}>
-                  <Gov24Page />
-                </div>
-                {/* 빨간 하이라이트 박스 + 캡션 */}
-                <div style={{ position: 'absolute', top: '34%', left: '28%', width: '90px', height: '20px', border: '2px solid #EF4444', borderRadius: '4px', background: 'rgba(239,68,68,0.05)' }} />
-                <div style={{ position: 'absolute', top: '60%', left: '22%', background: '#1f2937', color: '#fff', fontSize: '8.5px', fontWeight: 700, padding: '4px 9px', borderRadius: '5px', whiteSpace: 'nowrap' }}>{s.title}</div>
-                <span style={{ position: 'absolute', top: '46%', left: '36%', color: '#EF4444', fontSize: '16px' }}>↑</span>
-                <div style={{ position: 'absolute', top: '7px', left: '7px', background: '#6d28d9', color: '#fff', fontSize: '7px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px' }}>AI 크롭</div>
+              {/* 스텝별 타겟 화면 + 정확한 어노테이션 */}
+              <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #E5E7EB', position: 'relative', height: '136px', background: '#fff' }}>
+                <StepScreen step={i} mode="card" />
+                <div style={{ position: 'absolute', top: '7px', left: '7px', background: '#6d28d9', color: '#fff', fontSize: '7px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', zIndex: 8 }}>AI 크롭</div>
               </div>
             </div>
           ))}
         </div>
-        {/* "자동 생성됨" 배지 */}
-        <div style={{ position: 'absolute', top: '52px', right: '14px', display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 10px', borderRadius: '999px', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', fontSize: '9px', fontWeight: 700, color: '#059669' }}>
+        <div style={{ position: 'absolute', top: '52px', right: '14px', display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 10px', borderRadius: '999px', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', fontSize: '9px', fontWeight: 700, color: '#059669', zIndex: 9 }}>
           <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
           6단계 자동 완성
         </div>
@@ -570,29 +653,23 @@ function Scene4({ tick }: { tick: number }) {
 function Scene5({ tick }: { tick: number }) {
   const step = tick < 3000 ? 0 : 1;
   const total = 6;
-  const POS = [{ top: '38%', left: '24%' }, { top: '46%', left: '70%' }];
   return (
     <div style={{ width: '100%', height: '100%', background: '#fff', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
       <MimicAppHeader mode="guide" />
-      {/* 정부24 화면 (딤) */}
+      {/* 타겟에 스포트라이트가 정확히 붙는 스텝 화면 */}
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', inset: 0 }}><Gov24Page /></div>
-        <div style={{ position: 'absolute', inset: 0, background: 'rgba(13,13,20,0.45)' }} />
-        {/* 스포트라이트 */}
-        <div key={step} style={{ position: 'absolute', top: POS[step].top, left: POS[step].left, transform: 'translate(-50%,-50%)', width: '90px', height: '90px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,255,255,0.95) 40%, rgba(255,255,255,0) 72%)', animation: 'sceneIn 0.4s ease both' }}>
-          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: '18px', height: '18px', borderRadius: '50%', border: '2px solid #6d28d9', animation: 'rippleOut 1.2s ease-out infinite' }} />
+        <div key={step} style={{ position: 'absolute', inset: 0, animation: 'sceneIn 0.4s ease both' }}>
+          <StepScreen step={step} mode="guide" />
         </div>
-        {/* 로봇 버튼 */}
-        <div style={{ position: 'absolute', top: POS[step].top, left: `calc(${POS[step].left} + 36px)`, transform: 'translateY(-50%)', width: '30px', height: '30px', borderRadius: '50%', background: 'linear-gradient(135deg,#6d28d9,#3730a3)', display: 'grid', placeItems: 'center', fontSize: '14px', boxShadow: '0 4px 14px rgba(109,40,217,0.5)', transition: 'top 0.5s ease, left 0.5s ease' }}>🤖</div>
-        {/* 말풍선 */}
-        <div key={`b${step}`} style={{ position: 'absolute', top: POS[step].top, left: `calc(${POS[step].left} + 76px)`, transform: 'translateY(-50%)', width: '230px', background: '#fff', borderRadius: '12px', padding: '12px 14px', boxShadow: '0 12px 40px rgba(0,0,0,0.25)', animation: 'sceneIn 0.4s cubic-bezier(0.34,1.4,0.64,1) both' }}>
-          <div style={{ fontSize: '11.5px', fontWeight: 700, color: '#111827', marginBottom: '5px' }}>👉 {GUIDE_STEPS[step].title}</div>
-          <div style={{ fontSize: '10px', color: '#6B7280', lineHeight: 1.5, marginBottom: '6px' }}>{GUIDE_STEPS[step].desc}</div>
+        {/* 안내 말풍선 — 하단 중앙 */}
+        <div key={`b${step}`} style={{ position: 'absolute', left: '50%', bottom: '54px', transform: 'translateX(-50%)', width: '300px', background: '#fff', borderRadius: '12px', padding: '11px 14px', boxShadow: '0 12px 40px rgba(0,0,0,0.35)', zIndex: 10, animation: 'sceneIn 0.4s cubic-bezier(0.34,1.4,0.64,1) both' }}>
+          <div style={{ fontSize: '11.5px', fontWeight: 700, color: '#111827', marginBottom: '4px' }}>👉 {GUIDE_STEPS[step].title}</div>
+          <div style={{ fontSize: '10px', color: '#6B7280', lineHeight: 1.5, marginBottom: '5px' }}>{GUIDE_STEPS[step].desc}</div>
           <div style={{ fontSize: '9.5px', color: '#6d28d9', fontWeight: 600 }}>표시된 곳을 클릭하면 다음으로 넘어가요</div>
         </div>
       </div>
       {/* 하단 페이지네이션 */}
-      <div style={{ position: 'absolute', bottom: '14px', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 14px', borderRadius: '999px', background: '#fff', boxShadow: '0 6px 20px rgba(0,0,0,0.15)', border: '1px solid #EEE' }}>
+      <div style={{ position: 'absolute', bottom: '12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 14px', borderRadius: '999px', background: '#fff', boxShadow: '0 6px 20px rgba(0,0,0,0.15)', border: '1px solid #EEE', zIndex: 11 }}>
         <span style={{ fontSize: '10px', fontWeight: 700, color: '#374151' }}>{step + 1} / {total}</span>
         <span style={{ padding: '4px 10px', borderRadius: '6px', background: '#F3F4F6', fontSize: '9.5px', color: '#9CA3AF', fontWeight: 600 }}>이전</span>
         <span style={{ padding: '4px 12px', borderRadius: '6px', background: 'linear-gradient(135deg,#6d28d9,#3730a3)', fontSize: '9.5px', color: '#fff', fontWeight: 700 }}>다음 →</span>
