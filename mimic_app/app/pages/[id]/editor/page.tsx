@@ -106,7 +106,7 @@ export default function PageEditor() {
       const p = await res.json();
       setStatus('published');
       setShareToken(p.share_token);
-      setShareOpen(true);
+      // 게시와 공유는 별도 동작 — 게시 후 공유 모달을 자동으로 열지 않음
     }
   };
   const unpublish = async () => {
@@ -134,12 +134,18 @@ export default function PageEditor() {
         <span style={{ fontSize: '11.5px', color: '#9CA3AF' }}>
           {saving ? '저장 중…' : savedAt ? '저장됨' : ''}
         </span>
-        {status === 'published' && shareToken && (
-          <button onClick={() => setShareOpen(true)} style={BTN}>공유 링크</button>
+        {status === 'published' ? (
+          <>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11.5px', color: '#059669', fontWeight: 600 }}>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981' }} />게시됨
+            </span>
+            {/* 공유는 게시된 뒤에만 가능 */}
+            <button onClick={() => setShareOpen(true)} style={{ ...BTN, border: 'none', background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', color: 'white', fontWeight: 600 }}>공유</button>
+            <button onClick={unpublish} style={BTN}>게시 취소</button>
+          </>
+        ) : (
+          <button onClick={publish} style={{ ...BTN, border: 'none', background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', color: 'white', fontWeight: 600 }}>게시하기</button>
         )}
-        {status === 'published'
-          ? <button onClick={unpublish} style={BTN}>게시 취소</button>
-          : <button onClick={publish} style={{ ...BTN, border: 'none', background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', color: 'white', fontWeight: 600 }}>게시하기</button>}
       </div>
 
       <div style={{ maxWidth: '820px', margin: '0 auto', padding: '40px 24px 120px' }}>
