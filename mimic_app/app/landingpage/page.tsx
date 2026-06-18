@@ -19,25 +19,25 @@ const XIcon = ({ size = 14 }: { size?: number }) => (
 const features = [
   {
     icon: (
-      // 번개 / 빠른 생성
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="rgba(255,255,255,0.9)" stroke="rgba(255,255,255,0.4)" strokeWidth="1" strokeLinejoin="round"/>
-      </svg>
-    ),
-    title: '30초 매뉴얼 완성',
-    body: '웹에서 평소처럼 작업하기만 하면 자동으로 단계가 나뉘고, AI가 설명까지 완성합니다.',
-    comingSoon: false,
-  },
-  {
-    icon: (
-      // 나침반 / 라이브 가이드
+      // 나침반 / Live Guide
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
         <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.9)" strokeWidth="1.8" fill="rgba(255,255,255,0.1)"/>
         <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="rgba(255,255,255,0.9)"/>
       </svg>
     ),
-    title: '라이브 가이드 — 화면 위 안내',
-    body: '실제 웹페이지 위에 오버레이를 띄워 클릭할 곳을 하이라이트로 안내합니다. SDK 한 줄로 자사 서비스에도 삽입할 수 있습니다.',
+    title: 'Live Guide — 읽지 말고 따라 하기',
+    body: '받는 사람 화면 위에 직접 안내를 띄워 다음 클릭할 곳을 짚어줍니다. 매뉴얼을 읽고 해석할 필요 없이 따라 클릭만 하면 끝. SDK 한 줄이면 자사 서비스에도 그대로 삽입됩니다.',
+    comingSoon: false,
+  },
+  {
+    icon: (
+      // 번개 / 빠른 생성
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="rgba(255,255,255,0.9)" stroke="rgba(255,255,255,0.4)" strokeWidth="1" strokeLinejoin="round"/>
+      </svg>
+    ),
+    title: '녹화 한 번이면 30초 제작',
+    body: '웹에서 평소처럼 작업하기만 하면 자동으로 단계가 나뉘고, AI가 설명까지 완성합니다. 만드는 건 입구일 뿐, 핵심은 그 다음입니다.',
     comingSoon: false,
   },
   {
@@ -253,9 +253,9 @@ function HeroDemo() {
 const GUIDE_STEPS = [
   { num: '01', title: '주민등록증 메뉴 클릭', desc: '화면 좌측의 자주 찾는 서비스 메뉴에서 주민등록증 관련 항목을 클릭합니다.' },
   { num: '02', title: '발급하기 버튼 클릭', desc: '우측 하단의 파란색 발급하기 버튼을 클릭합니다.' },
-  { num: '03', title: '발급하기 버튼 재클릭', desc: '화면 우측의 파란색 발급하기 버튼을 클릭합니다.' },
-  { num: '04', title: '간편인증 로그인', desc: '간편인증을 선택해 본인 인증을 진행합니다.' },
-  { num: '05', title: '신청하기 버튼 클릭', desc: '발급 형태를 확인한 뒤 신청하기 버튼을 클릭합니다.' },
+  { num: '03', title: '간편인증 로그인', desc: '간편인증을 선택해 본인 인증을 진행합니다.' },
+  { num: '04', title: '발급 형태 선택', desc: '전체 발급을 선택해 모든 정보가 표시되도록 합니다.' },
+  { num: '05', title: '신청하기 버튼 클릭', desc: '입력 내용을 확인한 뒤 신청하기 버튼을 클릭합니다.' },
   { num: '06', title: '나의 신청내역 확인', desc: 'MyGOV 신청내역에서 발급 완료된 문서를 출력합니다.' },
 ];
 
@@ -543,7 +543,8 @@ function Gov24Mini() {
 // mode='card' : 빨간 박스 + 화살표 + 캡션 / mode='guide' : 스포트라이트(주변 딤)
 function StepScreen({ step, mode }: { step: number; mode: 'card' | 'guide' | 'record' }) {
   const isHome = step === 0;
-  const cap = isHome ? '주민등록증 메뉴 클릭' : '발급하기 버튼 클릭';
+  const isAuth = step === 2;
+  const cap = isHome ? '주민등록증 메뉴 클릭' : isAuth ? '간편인증 선택' : '발급하기 버튼 클릭';
   const isCard = mode === 'card';
   const isRec = mode === 'record';
 
@@ -589,6 +590,36 @@ function StepScreen({ step, mode }: { step: number; mode: 'card' | 'guide' | 're
               return (
                 <div key={i} style={{ position: 'relative', padding: '9px 5px', borderRadius: '7px', border: `${target && isCard ? '2.5px' : '1.5px'} solid ${target ? (isCard ? '#EF4444' : isRec ? '#1d4ed8' : '#E5E7EB') : '#E5E7EB'}`, background: target ? (isCard ? '#FEF2F2' : isRec ? '#EFF6FF' : '#F9FAFB') : '#F9FAFB', fontSize: '8.5px', fontWeight: target ? 700 : 500, color: target ? '#111827' : '#6B7280', textAlign: 'center', lineHeight: 1.3, zIndex: target && (mode === 'guide' || isRec) ? 5 : 1 }}>
                   {s}
+                  {target && (isCard ? overlayBelow : isRec ? recordOverlay : spotlight)}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 간편인증 로그인 화면 — "간편인증"이 타겟
+  if (isAuth) {
+    const METHODS = [
+      { t: '간편인증', s: '네이버 · 카카오 · 금융기관 전자서명' },
+      { t: '공동인증서', s: '개인 컴퓨터 · USB 보관 인증서' },
+      { t: '금융인증서', s: '은행 앱 · 인터넷뱅킹 인증서' },
+    ];
+    return (
+      <div style={{ width: '100%', height: '100%', background: '#fff', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <Gov24Mini />
+        <div style={{ padding: '11px 14px', flex: 1, position: 'relative' }}>
+          <div style={{ fontSize: '12px', fontWeight: 800, color: '#111827', marginBottom: '2px' }}>로그인 방식을 선택해 주세요</div>
+          <div style={{ fontSize: '8.5px', color: '#6B7280', marginBottom: '9px' }}>한 번에 인증하고 모든 서비스 이용하기</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+            {METHODS.map((m, i) => {
+              const target = i === 0;
+              return (
+                <div key={i} style={{ position: 'relative', padding: '8px 11px', borderRadius: '8px', border: `${target && isCard ? '2.5px' : '1.5px'} solid ${target ? (isCard ? '#EF4444' : isRec ? '#1d4ed8' : '#E5E7EB') : '#E5E7EB'}`, background: target ? (isCard ? '#FEF2F2' : isRec ? '#EFF6FF' : '#F9FAFB') : '#F9FAFB', zIndex: target && (mode === 'guide' || isRec) ? 5 : 1 }}>
+                  <div style={{ fontSize: '10px', fontWeight: target ? 700 : 600, color: '#111827' }}>{m.t}</div>
+                  <div style={{ fontSize: '7.5px', color: '#9CA3AF', marginTop: '2px' }}>{m.s}</div>
                   {target && (isCard ? overlayBelow : isRec ? recordOverlay : spotlight)}
                 </div>
               );
@@ -1167,17 +1198,18 @@ const SHOWCASES = [
   },
   {
     id: 'guideme',
-    eyebrow: 'GUIDE ME',
-    title: '문서를 읽게 하지 말고,\n화면 위에서 직접 안내하세요',
-    desc: '라이브 가이드는 실제 웹페이지 위에 오버레이를 띄워 단계별로 안내합니다. 클릭할 버튼이 하이라이트되고 설명 툴팁이 따라다니죠. 매뉴얼과 실제 화면을 번갈아 볼 필요가 없습니다.',
+    eyebrow: 'LIVE GUIDE',
+    title: '문서를 읽게 하지 말고,\n화면 위에서 직접 따라오게 하세요',
+    desc: 'MIMIC의 핵심 차별점입니다. Live Guide는 받는 사람의 실제 웹페이지 위에 오버레이를 띄워 다음 클릭할 곳을 짚어줍니다. 클릭할 버튼이 하이라이트되고 안내가 따라다니니, 매뉴얼과 실제 화면을 번갈아 볼 필요 없이 따라 클릭만 하면 끝납니다.',
     bullets: [
-      '실제 페이지 위에서 단계별 오버레이 안내',
-      '클릭할 요소 자동 하이라이트 + 툴팁',
+      '실제 페이지 위에서 단계별 스포트라이트 안내',
+      '클릭할 요소 자동 하이라이트 + AI 가이드 말풍선',
+      '읽고 해석할 필요 없이 — 따라 하면 그대로 완료',
       '스크립트 한 줄로 자사 서비스에 삽입 (SDK)',
     ],
     video: '/landing/guideme.mp4',
     mock: <MockGuideMe />,
-    badge: '차별점',
+    badge: '핵심 차별점',
   },
   {
     id: 'share',
@@ -1202,7 +1234,7 @@ function ProductShowcase() {
         <RevealSection>
           <span style={{ display: 'block', textAlign: 'center', fontSize: '11px', color: '#5b21b6', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '16px' }}>Product Tour</span>
           <h2 style={{ textAlign: 'center', fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 800, letterSpacing: '-0.035em', margin: '0 auto 14px', maxWidth: '640px', lineHeight: 1.18, color: '#0D0D14' }}>실제 화면으로 보는 MIMIC</h2>
-          <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '520px', margin: '0 auto 80px', lineHeight: 1.7 }}>녹화부터 편집, 안내, 공유까지 — 아래 화면 그대로 작동합니다.</p>
+          <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '560px', margin: '0 auto 80px', lineHeight: 1.7 }}>녹화 30초로 만들고, 받는 사람은 Live Guide로 따라만 하면 끝 — 아래 화면 그대로 작동합니다.</p>
         </RevealSection>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '110px' }}>
@@ -1255,7 +1287,7 @@ function HeroSection() {
         {/* Announcement badge */}
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '5px 16px 5px 6px', background: 'rgba(124,58,237,0.10)', border: '1px solid rgba(124,58,237,0.22)', borderRadius: '999px', fontSize: '12.5px', color: '#c4b5fd', fontWeight: 500, marginBottom: '36px', backdropFilter: 'blur(8px)' }}>
           <span style={{ padding: '3px 10px', borderRadius: '999px', background: 'linear-gradient(135deg, #4f46e5, #7c3aed)', fontSize: '10px', fontWeight: 700, color: 'white', letterSpacing: '0.06em', flexShrink: 0 }}>NEW</span>
-          교육 자료 모드 — AI Vision이 화면 분석 후 설명 자동 작성
+          Live Guide — 사용자 화면 위에서 다음 클릭을 직접 안내합니다
         </div>
 
         <h1 style={{ margin: '0 auto 24px', fontSize: 'clamp(44px, 7vw, 84px)', lineHeight: 1.04, fontWeight: 800, letterSpacing: '-0.045em', maxWidth: '880px', color: 'white', wordBreak: 'keep-all' }}>
@@ -1265,9 +1297,9 @@ function HeroSection() {
           </span>
         </h1>
 
-        <p style={{ fontSize: 'clamp(15px, 2vw, 18px)', color: 'rgba(255,255,255,0.48)', maxWidth: '520px', margin: '0 auto 48px', lineHeight: 1.8, fontWeight: 400 }}>
-          클릭하면 캡처되고, AI가 설명을 달고, 링크 하나로 공유됩니다.<br/>
-          매뉴얼 만드는 시간, 이제 30초면 충분합니다.
+        <p style={{ fontSize: 'clamp(15px, 2vw, 18px)', color: 'rgba(255,255,255,0.48)', maxWidth: '560px', margin: '0 auto 48px', lineHeight: 1.8, fontWeight: 400 }}>
+          이제 매뉴얼은 읽는 게 아니라 따라 하는 겁니다.<br/>
+          받는 사람 화면 위에서 클릭할 곳을 짚어주니까요.
         </p>
 
         <div className="hero-cta-row" style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginBottom: '60px' }}>
@@ -1286,9 +1318,9 @@ function HeroSection() {
         {/* Key metrics */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '64px' }}>
           {[
-            { value: '30초', label: '평균 제작 시간' },
-            { value: '7종', label: '어노테이션 도구' },
-            { value: '3포맷', label: 'PDF · PPTX · MD' },
+            { value: '30초', label: '매뉴얼 제작' },
+            { value: '실시간', label: '화면 위 클릭 안내' },
+            { value: '클릭만', label: '읽지 않고 따라 실행' },
           ].map((stat, i) => (
             <div key={stat.label} style={{ textAlign: 'center', padding: '16px 40px', borderRight: i < 2 ? '1px solid rgba(255,255,255,0.07)' : 'none' }}>
               <div style={{ fontSize: '30px', fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1, marginBottom: '6px', background: 'linear-gradient(180deg, #ffffff 0%, rgba(255,255,255,0.65) 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{stat.value}</div>
@@ -1440,7 +1472,7 @@ export default function LandingPage() {
               {[
                 { label: '별도 작업 없음', desc: '하던 일 그대로' },
                 { label: '30초 완성', desc: 'AI가 즉시 정리' },
-                { label: '링크로 바로 공유', desc: '앱 설치 불필요' },
+                { label: 'Live Guide로 따라하기', desc: '읽을 필요 없이 실행' },
               ].map((item, i) => (
                 <div key={item.label} style={{ padding: '24px 36px', borderRight: i < 2 ? '1px solid rgba(255,255,255,0.07)' : 'none', textAlign: 'center', background: i === 1 ? 'rgba(109,40,217,0.09)' : 'transparent', minWidth: '140px' }}>
                   <div style={{ fontSize: '14px', fontWeight: 700, color: 'white', marginBottom: '5px' }}>{item.label}</div>
@@ -1497,7 +1529,7 @@ export default function LandingPage() {
               {[
                 { num: '01', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.15)"/><path d="M8 12l2.5 2.5L16 9" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>, title: '크롬 확장 설치 후 녹화 시작', body: '웹 작업을 평소처럼 진행하면 클릭 위치와 화면이 자동 캡처됩니다.' },
                 { num: '02', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" fill="rgba(255,255,255,0.9)"/></svg>, title: 'AI가 설명과 어노테이션 자동 완성', body: '캡처된 화면을 분석해 단계별 설명·하이라이트·화살표를 자동 생성합니다.' },
-                { num: '03', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="18" cy="5" r="3" stroke="white" strokeWidth="1.8"/><circle cx="6" cy="12" r="3" stroke="white" strokeWidth="1.8"/><circle cx="18" cy="19" r="3" stroke="white" strokeWidth="1.8"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke="white" strokeWidth="1.8"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke="white" strokeWidth="1.8"/></svg>, title: '링크 하나로 즉시 공유', body: '완성된 매뉴얼은 링크 한 줄로 공유. 보는 사람은 앱 설치 없이 바로 따라합니다.' },
+                { num: '03', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.12)"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="white"/></svg>, title: 'Live Guide로 — 따라만 하면 끝', body: '받는 사람은 매뉴얼을 읽지 않습니다. 자기 화면 위 안내를 따라 클릭만 하면 그대로 완료됩니다.' },
               ].map((s, i) => (
                 <div key={s.num} style={{ padding: '0 40px 0', position: 'relative', zIndex: 1, textAlign: 'center' }}>
                   <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '84px', height: '84px', borderRadius: '50%', background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)', marginBottom: '28px', boxShadow: '0 0 0 8px rgba(109,40,217,0.08), 0 12px 28px rgba(55,48,163,0.32)', position: 'relative' }}>

@@ -58,9 +58,9 @@ function LoginForm() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               {[
-                { icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>, title: '30초 만에 매뉴얼 제작', sub: 'Chrome 확장으로 평소처럼 일하면 끝.' },
-                { icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg>, title: '3가지 형태로 자동 변환', sub: '가이드 문서 · 인터랙티브 튜토리얼 · 영상.' },
-                { icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>, title: '링크 한 줄로 공유', sub: '슬랙·카톡·이메일 어디에든 붙여넣기.' },
+                { icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>, title: 'Live Guide로 따라만 하면 끝', sub: '받는 사람은 화면 위 안내를 따라 클릭만 하면 됩니다.' },
+                { icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>, title: '녹화 한 번이면 30초 제작', sub: 'Chrome 확장으로 평소처럼 일하면 끝.' },
+                { icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>, title: '링크 · PDF · PPTX로 공유', sub: '슬랙·카톡·이메일 어디에든 붙여넣기.' },
               ].map(pt => (
                 <div key={pt.title} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', fontSize: '13.5px' }}>
                   <span style={{ flexShrink: 0, width: '32px', height: '32px', borderRadius: '9px', background: 'rgba(255,255,255,0.16)', border: '1px solid rgba(255,255,255,0.20)', display: 'grid', placeItems: 'center' }}>{pt.icon}</span>
