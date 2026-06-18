@@ -744,6 +744,7 @@ export default function DashboardPage() {
   const NOTICE = { type: 'info' as 'info' | 'warn' | 'error', text: '✨ AI 자동 어노테이션 기능이 업데이트되었습니다. 지금 바로 사용해보세요!', link: { label: '자세히 보기', href: '/home' } };
 
   const newMenuRef = useRef<HTMLDivElement>(null);
+  const [liveGuide, setLiveGuide] = useState<{ used: number; limit: number; paid: boolean } | null>(null);
 
   const loadTutorials = useCallback(async (workspaceId?: string) => {
     setTutLoading(true);
@@ -775,6 +776,11 @@ export default function DashboardPage() {
     loadTutorials();
     loadFolders();
     loadWorkspaces();
+    // 라이브 가이드 사용량 — 홈 '이번 달 사용량'에 함께 표시
+    fetch('/api/user/plan')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.liveGuide) setLiveGuide({ used: d.liveGuide.used ?? 0, limit: d.liveGuide.limit ?? 5, paid: !!d.paid }); })
+      .catch(() => {});
   }, [user, loadTutorials, loadFolders, loadWorkspaces]);
 
   useEffect(() => {
@@ -783,11 +789,25 @@ export default function DashboardPage() {
     else if (activeTab === 'my') loadTutorials();
   }, [activeTab, activeWorkspace, user, loadTutorials, loadTeamFolders]);
 
+  // 초대받은 워크스페이스가 내 화면에도 항시 반영되도록 — 포커스/가시성 복귀 + 30초 폴링으로
+  // 워크스페이스 목록과 현재 탭 매뉴얼을 갱신(push 실시간 대신 폴링 기반).
   useEffect(() => {
-    const handler = () => { if (document.visibilityState === 'visible') loadTutorials(activeTab === 'team' ? activeWorkspace ?? undefined : undefined); };
-    document.addEventListener('visibilitychange', handler);
-    return () => document.removeEventListener('visibilitychange', handler);
-  }, [activeTab, activeWorkspace, loadTutorials]);
+    if (!user) return;
+    const refresh = () => {
+      loadWorkspaces();
+      if (activeTab === 'team' && activeWorkspace) { loadTutorials(activeWorkspace); loadTeamFolders(activeWorkspace); }
+      else loadTutorials();
+    };
+    const onVis = () => { if (document.visibilityState === 'visible') refresh(); };
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('focus', refresh);
+    const id = setInterval(refresh, 30000);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('focus', refresh);
+      clearInterval(id);
+    };
+  }, [user, activeTab, activeWorkspace, loadWorkspaces, loadTutorials, loadTeamFolders]);
 
   useEffect(() => {
     if (!showNewMenu) return;
@@ -949,7 +969,7 @@ export default function DashboardPage() {
       {ctxMenu && (
         <ContextMenu
           menu={ctxMenu}
-          folders={folders}
+          folders={panelFolders}
           tutorials={tutorials}
           workspaces={workspaces}
           onMove={handleMoveToFolder}
@@ -1073,6 +1093,22 @@ export default function DashboardPage() {
                 {!isPro && (
                   <div style={{ height: '4px', borderRadius: '999px', background: '#E5E7EB', overflow: 'hidden' }}>
                     <div style={{ height: '100%', borderRadius: '999px', background: usedToday >= dailyLimit ? '#EF4444' : '#3730a3', width: `${Math.min(100, (usedToday / dailyLimit) * 100)}%`, transition: 'width 0.3s' }} />
+                  </div>
+                )}
+                {/* 라이브 가이드 사용량 */}
+                {liveGuide && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
+                    <span style={{ fontSize: '12px', color: '#6B7280' }}>라이브 가이드</span>
+                    <span style={{ fontSize: '12px', fontWeight: 600, color: '#111827' }}>
+                      {liveGuide.paid
+                        ? <>{liveGuide.used}<span style={{ fontSize: '10px', color: '#10B981', marginLeft: '4px', fontWeight: 500 }}>무제한</span></>
+                        : `${liveGuide.used} / ${liveGuide.limit}`}
+                    </span>
+                  </div>
+                )}
+                {!isPro && liveGuide && !liveGuide.paid && (
+                  <div style={{ height: '4px', borderRadius: '999px', background: '#E5E7EB', overflow: 'hidden', marginTop: '6px' }}>
+                    <div style={{ height: '100%', borderRadius: '999px', background: liveGuide.used >= liveGuide.limit ? '#EF4444' : '#7c3aed', width: `${Math.min(100, (liveGuide.used / liveGuide.limit) * 100)}%`, transition: 'width 0.3s' }} />
                   </div>
                 )}
                 {!isPro && <Link href="/settings" style={{ display: 'block', marginTop: '10px', padding: '6px', borderRadius: '7px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', fontSize: '11.5px', fontWeight: 600, textDecoration: 'none', textAlign: 'center' }}>Pro로 업그레이드</Link>}
@@ -1200,9 +1236,23 @@ export default function DashboardPage() {
             <div className="home-main-body" style={{ padding: '28px 32px', flex: 1, minHeight: 0 }}>
               {/* 인사말 + 새 매뉴얼 버튼 */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', gap: '12px' }}>
-                <h1 className="home-greeting" style={{ fontSize: '24px', fontWeight: 700, letterSpacing: '-0.025em', margin: 0, color: '#0F172A' }}>
-                  {authLoading ? '' : `${firstName}님의 매뉴얼`}
-                </h1>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                  <h1 className="home-greeting" style={{ fontSize: '24px', fontWeight: 700, letterSpacing: '-0.025em', margin: 0, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {authLoading ? '' : isTeamCtx
+                      ? (workspaces.find(w => w.id === activeWorkspace)?.name ?? '팀 워크스페이스')
+                      : `${firstName}님의 매뉴얼`}
+                  </h1>
+                  {isTeamCtx && (
+                    <>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#3730a3', background: '#e0e7ff', padding: '2px 8px', borderRadius: '999px', flexShrink: 0 }}>팀</span>
+                      <Link href={`/workspace/${activeWorkspace}`} title="멤버 관리"
+                        style={{ fontSize: '12.5px', color: '#6B7280', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        멤버 관리
+                      </Link>
+                    </>
+                  )}
+                </div>
                 <div ref={newMenuRef} style={{ position: 'relative', flexShrink: 0 }}>
                   <button onClick={() => setShowNewMenu(v => !v)} disabled={creating}
                     className="home-new-btn"
@@ -1222,16 +1272,7 @@ export default function DashboardPage() {
                         <span style={{ width: '30px', height: '30px', borderRadius: '8px', background: '#FEE2E2', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3" fill="#EF4444"/></svg>
                         </span>
-                        <div><div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '2px' }}>화면 녹화로 만들기</div><div style={{ fontSize: '11.5px', color: '#6B7280' }}>클릭 동작을 자동 캡처</div></div>
-                      </button>
-                      <div className="home-recording-divider" style={{ height: '1px', background: '#F3F4F6', margin: '0 12px' }} />
-                      <button onClick={handleCreateBlank}
-                        style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', width: '100%', padding: '13px 15px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left' }}
-                        onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
-                        <span style={{ width: '30px', height: '30px', borderRadius: '8px', background: '#e0e7ff', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3730a3" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
-                        </span>
-                        <div><div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '2px' }}>직접 편집하기</div><div style={{ fontSize: '11.5px', color: '#6B7280' }}>이미지 업로드해 제작</div></div>
+                        <div><div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '2px' }}>새 매뉴얼(녹화)</div><div style={{ fontSize: '11.5px', color: '#6B7280' }}>클릭 동작을 자동 캡처</div></div>
                       </button>
                       <div className="home-recording-divider" style={{ height: '1px', background: '#F3F4F6', margin: '0 12px' }} />
                       <button onClick={handleCreateGuidebook}
@@ -1240,7 +1281,7 @@ export default function DashboardPage() {
                         <span style={{ width: '30px', height: '30px', borderRadius: '8px', background: '#dcfce7', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
                         </span>
-                        <div><div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '2px' }}>새 가이드북</div><div style={{ fontSize: '11.5px', color: '#6B7280' }}>여러 매뉴얼을 한 문서로</div></div>
+                        <div><div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '2px' }}>새 가이드북(통합 문서)</div><div style={{ fontSize: '11.5px', color: '#6B7280' }}>여러 매뉴얼을 한 문서로</div></div>
                       </button>
                     </div>
                   )}
@@ -1273,15 +1314,8 @@ export default function DashboardPage() {
 
               {/* 탭 + 뷰 토글 */}
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px', borderBottom: '2px solid #F3F4F6' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: 1 }}>
-                  {([['my', '내 매뉴얼'], ['team', '팀 매뉴얼']] as const).map(([tab, label]) => (
-                    <button key={tab}
-                      onClick={() => { setActiveTab(tab); if (tab === 'team' && workspaces.length > 0) setActiveWorkspace(workspaces[0].id); }}
-                      style={{ padding: '7px 16px', border: 'none', background: 'none', cursor: 'pointer', fontSize: '14.5px', fontWeight: activeTab === tab ? 700 : 400, color: activeTab === tab ? '#3730a3' : '#6B7280', borderBottom: `2px solid ${activeTab === tab ? '#3730a3' : 'transparent'}`, marginBottom: '-2px', transition: 'color 0.15s' }}>
-                      {label}
-                      {tab === 'my' && !tutLoading && <span style={{ marginLeft: '5px', fontSize: '12.5px', fontWeight: 400, color: '#9CA3AF' }}>{displayedTutorials.length}</span>}
-                    </button>
-                  ))}
+                <div style={{ flex: 1, padding: '7px 2px', fontSize: '13px', color: '#9CA3AF', fontWeight: 500 }}>
+                  {!tutLoading && `매뉴얼 ${displayedTutorials.length}개`}
                 </div>
                 {/* 뷰 모드 토글 */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginBottom: '6px', background: '#F3F4F6', borderRadius: '8px', padding: '3px' }}>
@@ -1297,35 +1331,6 @@ export default function DashboardPage() {
                   ))}
                 </div>
               </div>
-
-              {/* 팀 탭: 워크스페이스 선택 */}
-              {activeTab === 'team' && (
-                <div style={{ marginBottom: '20px' }}>
-                  {workspaces.length === 0 ? (
-                    <div style={{ padding: '28px', textAlign: 'center', background: 'white', borderRadius: '12px', border: '1px solid #E5E7EB' }}>
-                      <div style={{ fontSize: '13.5px', color: '#6B7280', marginBottom: '12px' }}>참여 중인 워크스페이스가 없습니다.</div>
-                      <button onClick={() => setShowNewWsInput(true)} style={{ padding: '7px 14px', borderRadius: '8px', background: '#3730a3', color: 'white', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>워크스페이스 만들기</button>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                      {workspaces.map(ws => {
-                        const isActive = activeWorkspace === ws.id;
-                        const roleLabel = ws.my_role === 'admin' ? '관리자' : ws.my_role === 'editor' ? '편집자' : '뷰어';
-                        const roleColor = ws.my_role === 'admin' ? '#7C3AED' : ws.my_role === 'editor' ? '#0369A1' : '#6B7280';
-                        return (
-                          <button key={ws.id} onClick={() => setActiveWorkspace(ws.id)}
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 12px', borderRadius: '999px', border: `1.5px solid ${isActive ? '#3730a3' : '#E5E7EB'}`, background: isActive ? '#e0e7ff' : 'white', color: isActive ? '#3730a3' : '#6B7280', fontSize: '12.5px', fontWeight: isActive ? 600 : 400, cursor: 'pointer' }}>
-                            {ws.name}
-                            <span style={{ fontSize: '10.5px', fontWeight: 500, color: isActive ? '#3730a3' : roleColor, background: isActive ? 'rgba(55,48,163,0.12)' : 'rgba(0,0,0,0.05)', padding: '1px 5px', borderRadius: '4px' }}>
-                              {roleLabel}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
 
               {/* 매뉴얼 목록 */}
               {tutLoading ? (

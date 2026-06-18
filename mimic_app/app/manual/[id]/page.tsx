@@ -73,6 +73,7 @@ export default function ManualViewerPage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [outputRatio, setOutputRatio] = useState<Tutorial['output_ratio']>('16:9');
   const [showShare, setShowShare] = useState(false);
+  const [showLiveGuideCreate, setShowLiveGuideCreate] = useState(false);
   const [downloadOpen, setDownloadOpen] = useState(false);
   const [downloadingFmt, setDownloadingFmt] = useState<'pdf' | 'pptx' | 'docx' | null>(null);
   // Auto-Run 상태
@@ -327,7 +328,7 @@ export default function ManualViewerPage() {
 
           {canEdit && manualSteps.length > 0 && (
             <button
-              onClick={() => router.push(`/manual/${id}/studio`)}
+              onClick={() => setShowLiveGuideCreate(true)}
               title="라이브 가이드 편집 및 실행"
               style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#3730a3', background: '#e0e7ff', border: '1px solid #a5b4fc', cursor: 'pointer' }}
               onMouseEnter={e => { e.currentTarget.style.background = '#c7d2fe'; }}
@@ -530,6 +531,33 @@ export default function ManualViewerPage() {
           onUnpublish={unpublish}
           onClose={() => setShowShare(false)}
         />
+      )}
+
+      {/* 라이브 가이드 — '생성'을 눌러야 스튜디오로 진입 */}
+      {showLiveGuideCreate && (
+        <div onClick={() => setShowLiveGuideCreate(false)}
+          style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(10,10,18,0.55)', backdropFilter: 'blur(3px)', display: 'grid', placeItems: 'center', padding: '20px' }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ width: '100%', maxWidth: '380px', background: 'white', borderRadius: '16px', padding: '26px 24px', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+            <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#e0e7ff', display: 'grid', placeItems: 'center', margin: '0 auto 14px' }}>
+              <PlayCircle size={24} style={{ color: '#3730a3' }} />
+            </div>
+            <div style={{ fontSize: '17px', fontWeight: 700, color: '#111827', marginBottom: '6px' }}>라이브 가이드 만들기</div>
+            <div style={{ fontSize: '13px', color: '#6B7280', lineHeight: 1.6, marginBottom: '20px' }}>
+              이 매뉴얼로 실제 화면 위에서 단계별로 안내하는<br />라이브 가이드를 생성합니다. 스튜디오에서 핫스팟·말풍선을 편집할 수 있어요.
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={() => setShowLiveGuideCreate(false)}
+                style={{ flex: 1, height: '40px', borderRadius: '10px', border: '1px solid #E5E7EB', background: 'white', color: '#6B7280', fontSize: '13.5px', fontWeight: 600, cursor: 'pointer' }}>
+                취소
+              </button>
+              <button onClick={() => { setShowLiveGuideCreate(false); router.push(`/manual/${id}/studio`); }}
+                style={{ flex: 1.6, height: '40px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', color: 'white', fontSize: '13.5px', fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                <PlayCircle size={15} /> 생성
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* 챗봇 — 항상 떠있는 도우미 (우하단 고정) */}
