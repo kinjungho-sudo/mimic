@@ -208,6 +208,26 @@ export async function POST(request: NextRequest) {
     };
   }
 
+  // Recorder가 캡처 시 결정한 확대 영역(crop_box, 원본 0~1) → image_zoom/offset 프레이밍으로 변환.
+  // 서버 휴리스틱(calcZoomFraming) 대신 사용. 표시 변환은 calcZoomFraming과 동일(center origin scale+translate).
+  function framingFromCropBox(box: { x: number; y: number; width: number; height: number } | null) {
+    if (!box) return null;
+    const w = Math.min(Math.max(box.width, 0.001), 1);
+    const h = Math.min(Math.max(box.height, 0.001), 1);
+    const z = Math.min(3, Math.max(1, 1 / Math.max(w, h))); // 큰 변 기준 가득 채움, 과확대 방지(최대 3x)
+    if (z <= 1.001) return null; // 거의 전체 → 확대 안 함(가독성)
+    const cx = box.x + box.width / 2;
+    const cy = box.y + box.height / 2;
+    const half = 1 / (2 * z);
+    const ccx = Math.min(1 - half, Math.max(half, cx));
+    const ccy = Math.min(1 - half, Math.max(half, cy));
+    return {
+      image_zoom: Math.round(z * 1000) / 1000,
+      image_offset_x: Math.round(z * (0.5 - ccx) * 1000) / 1000,
+      image_offset_y: Math.round(z * (0.5 - ccy) * 1000) / 1000,
+    };
+  }
+
   // '행동 없음' 판정 — 빈영역 클릭/전체선택/페이지 이동/캡처는 특정 클릭 대상이 없으므로
   // 가짜 '클릭 X' 설명·하이라이트·핫스팟을 만들지 않는다(편집 #1·#3, 따라하기 #2). 사용자가 수동으로 넣게.
   const noActionByStepNum = new Map<number, boolean>();
@@ -229,7 +249,10 @@ export async function POST(request: NextRequest) {
     // 행동 없음 → 핫스팟/어노테이션/줌 근거(좌표·영역) 제거. 셀렉터는 향후 Guide Me 위해 유지.
     if (noAction) { clickX = null; clickY = null; }
     const elementRect = noAction ? null : rawRect;
-    const zoomFraming = auto_zoom ? calcZoomFraming(elementRect, clickX, clickY) : null;
+    // 캡처 단계 확대: Recorder가 보낸 crop_box 우선(있으면 서버 휴리스틱 대체). 행동 없음 스텝은 확대 안 함.
+    const cropBox = noAction ? null : ((ev.crop_box as { x: number; y: number; width: number; height: number } | null) ?? null);
+    const recorderFraming = framingFromCropBox(cropBox);
+    const zoomFraming = recorderFraming ?? (auto_zoom ? calcZoomFraming(elementRect, clickX, clickY) : null);
     return {
       tutorial_id: tutorial.id,
       step_number: idx + 1,
@@ -248,7 +271,8 @@ export async function POST(request: NextRequest) {
       element_rect:      elementRect,
       element_selector:  ev.element_selector  ?? null,
       element_xpath:     ev.element_xpath     ?? null,
-      crop_rect:         calcCropRect(elementRect, clickX, clickY),
+      // crop_box(캡처 확대)가 있으면 image_zoom로 프레이밍하므로 crop_rect는 비움(렌더 경로 일관성).
+      crop_rect:         cropBox ? null : calcCropRect(elementRect, clickX, clickY),
       ...(zoomFraming ?? {}),
     };
   });

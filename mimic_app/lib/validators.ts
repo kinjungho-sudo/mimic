@@ -104,6 +104,14 @@ export const captureSaveStepSchema = z.object({
     width: z.number(),
     height: z.number(),
   }).nullable().optional(),
+  // 캡처 단계에서 Recorder가 결정한 확대(하이라이트) 영역 — 원본 이미지 기준 0~1 정규화.
+  // 있으면 서버 휴리스틱(calcCropRect/calcZoomFraming) 대신 이 영역으로 확대 프레이밍.
+  crop_box: z.object({
+    x: z.number().min(0).max(1),
+    y: z.number().min(0).max(1),
+    width: z.number().min(0).max(1),
+    height: z.number().min(0).max(1),
+  }).nullable().optional(),
   viewport_w: z.number().int().positive().optional().nullable(),
   viewport_h: z.number().int().positive().optional().nullable(),
   element_selector: z.string().max(500).optional().nullable(),
