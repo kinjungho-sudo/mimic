@@ -48,6 +48,7 @@ function GuideBlockRender(props: {
   return <GuideViewCard defaultOpen={defaultOpen} guide={ctx.guides[tutorialId] ?? null} />;
 }
 
+// createReactBlockSpec는 "생성자 함수"를 반환하므로 ()로 호출해 BlockSpec으로 만든다.
 const guideSpec = createReactBlockSpec(
   {
     type: 'guide',
@@ -56,7 +57,7 @@ const guideSpec = createReactBlockSpec(
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   { render: GuideBlockRender as any },
-);
+)();
 
 export const guidebookSchema = BlockNoteSchema.create({
   blockSpecs: {
