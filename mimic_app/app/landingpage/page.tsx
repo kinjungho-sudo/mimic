@@ -26,7 +26,7 @@ const features = [
       </svg>
     ),
     title: 'Live Guide — 읽지 말고 따라 하기',
-    body: '받는 사람 화면 위에 직접 안내를 띄워 다음 클릭할 곳을 짚어줍니다. 매뉴얼을 읽고 해석할 필요 없이 따라 클릭만 하면 끝. SDK 한 줄이면 자사 서비스에도 그대로 삽입됩니다.',
+    body: '받는 사람 화면 위에 직접 안내를 띄워 다음 클릭할 곳을 짚어줍니다. 버튼 위치가 바뀌거나 페이지가 달라져도 AI가 화면에서 요소를 자동으로 찾아 안내가 그대로 따라갑니다. SDK 한 줄이면 자사 서비스에도 삽입됩니다.',
     comingSoon: false,
   },
   {
@@ -37,18 +37,21 @@ const features = [
       </svg>
     ),
     title: '녹화 한 번이면 30초 제작',
-    body: '웹에서 평소처럼 작업하기만 하면 자동으로 단계가 나뉘고, AI가 설명까지 완성합니다. 만드는 건 입구일 뿐, 핵심은 그 다음입니다.',
+    body: '웹에서 평소처럼 작업하기만 하면 자동으로 단계가 나뉘고, AI Vision이 화면을 분석해 단계별 제목과 설명까지 완성합니다. 만드는 건 입구일 뿐, 핵심은 그 다음입니다.',
     comingSoon: false,
   },
   {
     icon: (
-      // 스파클 / 교육 자료 모드
+      // 팀 / 워크스페이스
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-        <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" fill="rgba(255,255,255,0.9)"/>
+        <circle cx="9" cy="8" r="3.1" stroke="rgba(255,255,255,0.9)" strokeWidth="1.8" fill="rgba(255,255,255,0.1)"/>
+        <path d="M3.5 20a5.5 5.5 0 0 1 11 0" stroke="rgba(255,255,255,0.9)" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
+        <circle cx="17.5" cy="9" r="2.3" stroke="rgba(255,255,255,0.7)" strokeWidth="1.6" fill="none"/>
+        <path d="M16.6 14.4a4.6 4.6 0 0 1 4 5.1" stroke="rgba(255,255,255,0.7)" strokeWidth="1.6" fill="none" strokeLinecap="round"/>
       </svg>
     ),
-    title: '교육 자료 모드 (AI Vision)',
-    body: 'AI가 캡처된 화면을 직접 분석해 단계별 제목과 상세 설명을 자동 작성합니다. 교육 자료가 검수만 하면 되는 수준으로.',
+    title: '팀 워크스페이스로 함께',
+    body: '워크스페이스에 매뉴얼을 모아 팀과 공유하고, 이메일 초대로 멤버를 추가하세요. Admin · Editor · Viewer 3단계 권한으로 누가 보고 누가 편집할지 정할 수 있습니다.',
     comingSoon: false,
   },
   {
@@ -75,7 +78,7 @@ const features = [
       </svg>
     ),
     title: 'PDF · PPTX · Markdown 내보내기',
-    body: '링크 공유는 기본, 회사 양식이 필요하면 로고·브랜드 색상을 입힌 문서로 내보내세요. 팀 워크스페이스에선 실시간 공동 편집까지.',
+    body: '링크 공유는 기본, 회사 양식이 필요하면 로고·브랜드 색상을 입힌 문서로 내보내세요. 웹 문서·슬라이드 어느 형태로도.',
     comingSoon: false,
   },
   {
@@ -87,8 +90,8 @@ const features = [
         <circle cx="12" cy="16" r="1.5" fill="rgba(255,255,255,0.9)"/>
       </svg>
     ),
-    title: '개인정보 유출 없이 캡처',
-    body: '비밀번호·개인정보는 캡처하지 않습니다. 민감한 화면은 기기 안에서 자동으로 처리되어, 원본 이미지는 서버에 전달되지 않습니다.',
+    title: '민감정보는 자동으로 가립니다',
+    body: '비밀번호·개인정보 입력 필드를 자동 감지해 입력 내용을 서버로 보내지 않고, 화면 속 민감 영역은 기기 안에서 모자이크 처리됩니다. 원본 이미지는 외부로 나가지 않습니다.',
     comingSoon: false,
   },
 ];
@@ -1583,7 +1586,7 @@ export default function LandingPage() {
           <RevealSection>
             <span style={{ display: 'block', textAlign: 'center', fontSize: '11px', color: '#7c3aed', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '16px' }}>Features</span>
             <h2 style={{ textAlign: 'center', fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 800, letterSpacing: '-0.035em', margin: '0 auto 14px', maxWidth: '640px', lineHeight: 1.18, color: 'white' }}>매뉴얼에 필요한 건 전부 들어 있습니다</h2>
-            <p style={{ textAlign: 'center', fontSize: '16px', color: 'rgba(255,255,255,0.38)', maxWidth: '520px', margin: '0 auto 64px', lineHeight: 1.7 }}>가이드 문서 · 화면 위 안내 · 교육 자료까지, 녹화 한 번으로.</p>
+            <p style={{ textAlign: 'center', fontSize: '16px', color: 'rgba(255,255,255,0.38)', maxWidth: '540px', margin: '0 auto 64px', lineHeight: 1.7 }}>화면 위 Live Guide · 팀 워크스페이스 · 민감정보 보호까지, 녹화 한 번으로.</p>
 
             <div className="grid-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
               {features.map(f => (
