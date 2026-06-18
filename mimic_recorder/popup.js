@@ -1401,7 +1401,7 @@ function renderGuideStep(steps, idx) {
   if (copyArea && copyContent) {
     if (step.type_text) {
       copyContent.textContent  = step.type_text;
-      copyArea.style.display   = 'block';
+      copyArea.style.display   = 'flex';
     } else {
       copyArea.style.display   = 'none';
     }
@@ -1452,7 +1452,7 @@ document.getElementById('guideStepCopyBtn')?.addEventListener('click', () => {
   const btn  = document.getElementById('guideStepCopyBtn');
   if (!text || !btn) return;
   navigator.clipboard.writeText(text)
-    .then(() => { btn.textContent = '✓ 복사됨'; setTimeout(() => { if (btn.isConnected) btn.textContent = '📋 복사하기'; }, 1500); })
+    .then(() => { btn.textContent = '✓'; setTimeout(() => { if (btn.isConnected) btn.textContent = '복사'; }, 1500); })
     .catch(() => {});
 });
 
@@ -1539,7 +1539,7 @@ chrome.runtime.onMessage.addListener((msg) => {
     const copyArea    = document.getElementById('guideStepCopyArea');
     if (copyContent && copyArea) {
       copyContent.textContent = msg.text;
-      copyArea.style.display  = 'block';
+      copyArea.style.display  = 'flex';
     }
   }
 });
