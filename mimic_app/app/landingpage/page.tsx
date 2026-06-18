@@ -148,7 +148,7 @@ function RevealSection({ children, style }: { children: React.ReactNode; style?:
 
 
 // 각 씬 duration(ms)
-const SCENE_DURATIONS = [4500, 2800, 6500, 3500, 6500, 6000];
+const SCENE_DURATIONS = [4500, 2800, 6500, 3500, 6500, 5200, 7000];
 
 function HeroDemo() {
   const [scene, setScene] = useState(0);
@@ -173,15 +173,16 @@ function HeroDemo() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scene]);
 
-  const SCENE_LABELS = ['새 매뉴얼', '카운트다운', '클릭 캡처', 'AI 생성 중', '매뉴얼 완성', '따라하기'];
-  const SCENE_URLS   = ['app.mimic.so/home', 'app.mimic.so/home', 'plus.gov.kr', 'plus.gov.kr', 'app.mimic.so/editor', 'app.mimic.so/play'];
+  const SCENE_LABELS = ['새 매뉴얼', '카운트다운', '클릭 캡처', 'AI 생성 중', '매뉴얼 완성', '공유', '따라하기'];
+  const SCENE_URLS   = ['app.mimic.so/home', 'app.mimic.so/home', 'plus.gov.kr', 'plus.gov.kr', 'app.mimic.so/editor', 'app.mimic.so/manual', 'app.mimic.so/play'];
   const SCENE_CAPTIONS = [
     { title: '홈에서 "새 매뉴얼" 버튼을 클릭하면 시작됩니다', desc: 'MIMIC 크롬 확장 프로그램이 녹화를 준비합니다.' },
     { title: '3·2·1 — 카운트다운과 함께 녹화가 시작됩니다', desc: '이제부터 평소처럼 업무를 진행하기만 하면 됩니다.' },
     { title: '클릭할 때마다 화면이 자동으로 캡처됩니다', desc: '정부24에서 주민등록증을 발급받는 과정이 단계별로 기록됩니다.' },
     { title: '"완료"를 누르면 AI가 매뉴얼을 자동 생성합니다', desc: '캡처된 화면을 분석해 제목·설명·하이라이트를 만듭니다.' },
-    { title: '어노테이션이 달린 매뉴얼이 완성됩니다', desc: '하이라이트·화살표·설명까지 자동으로 채워진 6단계 매뉴얼.' },
-    { title: '따라하기 모드로 누구나 바로 실습할 수 있습니다', desc: '화면 위 안내를 따라 클릭하면 실제 업무를 그대로 수행합니다.' },
+    { title: '편집 가능한 스텝 카드로 매뉴얼이 완성됩니다', desc: '각 단계를 카드로 보고, 제목·설명·이미지를 바로 편집할 수 있습니다.' },
+    { title: '링크 하나로 누구에게나 공유합니다', desc: 'PPTX·PDF로 내보내거나, 비밀번호·공개 범위까지 설정할 수 있습니다.' },
+    { title: '따라하기(Live Guide)로 누구나 바로 실습합니다', desc: 'AI 가이드가 클릭할 곳을 짚어주고, 누르면 다음 단계로 넘어갑니다.' },
   ];
 
   const renderScene = () => {
@@ -192,6 +193,7 @@ function HeroDemo() {
       case 3: return <Scene3 tick={tick} />;
       case 4: return <Scene4 tick={tick} />;
       case 5: return <Scene5 tick={tick} />;
+      case 6: return <Scene6 tick={tick} />;
       default: return null;
     }
   };
@@ -415,41 +417,48 @@ function Scene2({ tick }: { tick: number }) {
     { label: '클릭, 발급하기', time: '15:36:18' },
   ];
   return (
-    <div style={{ width: '100%', height: '100%', display: 'grid', gridTemplateColumns: '1fr 210px', position: 'relative', background: '#fff' }}>
-      {/* 좌측 정부24 — substep별 화면 + 클릭 동작 */}
-      <div style={{ position: 'relative', overflow: 'hidden' }}>
+    <div style={{ width: '100%', height: '100%', position: 'relative', background: 'linear-gradient(135deg,#2a2745,#1a1830)', overflow: 'hidden' }}>
+      {/* 좌측: 정부24 브라우저 화면 (우측 Recorder 공간 비움) */}
+      <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, right: '196px', overflow: 'hidden', background: '#fff', borderRight: '1px solid rgba(0,0,0,0.06)' }}>
         <div key={substep} style={{ position: 'absolute', inset: 0, animation: 'sceneIn 0.4s ease both' }}>
           <StepScreen step={substep} mode="record" />
         </div>
       </div>
-      {/* 우측 MIMIC Recorder 패널 */}
-      <div style={{ background: '#fff', borderLeft: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderBottom: '1px solid #F3F4F6' }}>
+      {/* 우측: 데스크톱 위에 떠있는 별도 MIMIC Recorder 창 */}
+      <div style={{ position: 'absolute', top: '14px', right: '14px', bottom: '14px', width: '172px', background: '#fff', borderRadius: '12px', boxShadow: '0 18px 48px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', overflow: 'hidden', zIndex: 20 }}>
+        {/* 창 헤더 — 그라데이션 + 창 컨트롤 (별도 창 느낌) */}
+        <div style={{ background: 'linear-gradient(135deg,#6d28d9,#3730a3)', padding: '9px 11px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <div style={{ width: '18px', height: '18px', borderRadius: '5px', background: 'linear-gradient(135deg,#6d28d9,#3730a3)', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 800, fontSize: '10px' }}>M</div>
-            <span style={{ fontSize: '11px', fontWeight: 800, color: '#1a1a2e' }}>MIMIC</span>
+            <div style={{ width: '18px', height: '18px', borderRadius: '5px', background: 'rgba(255,255,255,0.22)', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 800, fontSize: '10px' }}>M</div>
+            <span style={{ fontSize: '10.5px', fontWeight: 800, color: '#fff' }}>MIMIC Recorder</span>
+          </div>
+          <div style={{ display: 'flex', gap: '6px', fontSize: '9px', color: 'rgba(255,255,255,0.75)' }}><span>📌</span><span>⚙</span></div>
+        </div>
+        {/* REC + steps */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 11px', borderBottom: '1px solid #F3F4F6' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#EF4444', animation: 'rec-blink 1.2s infinite' }} />
+            <span style={{ fontSize: '10px', fontWeight: 700, color: '#EF4444' }}>REC</span>
+            <span style={{ fontSize: '8.5px', color: '#9CA3AF', fontFamily: 'monospace' }}>00:18</span>
           </div>
           <span style={{ fontSize: '9px', fontWeight: 700, color: '#6d28d9', background: '#EDE9FE', padding: '2px 7px', borderRadius: '999px' }}>{steps} steps</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 12px' }}>
-          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#EF4444', animation: 'rec-blink 1.2s infinite' }} />
-          <span style={{ fontSize: '10px', fontWeight: 700, color: '#EF4444' }}>REC</span>
-        </div>
-        <div style={{ fontSize: '8.5px', color: '#9CA3AF', fontWeight: 700, padding: '0 12px 6px' }}>캡처된 스텝</div>
-        <div style={{ flex: 1, overflow: 'hidden', padding: '0 10px', display: 'flex', flexDirection: 'column', gap: '7px' }}>
+        <div style={{ fontSize: '8.5px', color: '#9CA3AF', fontWeight: 700, padding: '7px 11px 5px' }}>캡처된 스텝</div>
+        <div style={{ flex: 1, overflow: 'hidden', padding: '0 9px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          {steps === 0 && <div style={{ fontSize: '8.5px', color: '#C4B5FD', textAlign: 'center', padding: '14px 6px', lineHeight: 1.5 }}>화면을 클릭하면<br/>자동으로 캡처됩니다</div>}
           {REC_STEPS.slice(0, steps).map((s, i) => (
             <div key={i} style={{ border: '1px solid #E5E7EB', borderRadius: '8px', overflow: 'hidden', animation: 'sceneIn 0.4s cubic-bezier(0.34,1.4,0.64,1) both' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 7px', background: '#FAFAFB' }}>
                 <span style={{ width: '14px', height: '14px', borderRadius: '4px', background: '#6d28d9', color: '#fff', fontSize: '8px', fontWeight: 700, display: 'grid', placeItems: 'center' }}>{i+1}</span>
-                <span style={{ fontSize: '8.5px', fontWeight: 600, color: '#374151', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.label}</span>
+                <span style={{ fontSize: '8px', fontWeight: 600, color: '#374151', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.label}</span>
               </div>
-              <div style={{ height: '46px', background: 'linear-gradient(135deg,#EFF6FF,#F8FAFC)', display: 'grid', placeItems: 'center', fontSize: '8px', color: '#93C5FD' }}>📄 화면 캡처</div>
+              <div style={{ height: '40px', background: 'linear-gradient(135deg,#EFF6FF,#F8FAFC)', display: 'grid', placeItems: 'center', fontSize: '7.5px', color: '#93C5FD' }}>📄 화면 캡처</div>
             </div>
           ))}
         </div>
-        {/* 패널 하단 컨트롤 */}
+        {/* 창 하단 컨트롤 */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', borderTop: '1px solid #F3F4F6' }}>
-          <div style={{ display: 'flex', gap: '6px', fontSize: '11px', color: '#9CA3AF' }}><span>📷</span><span>⏸</span><span>↩</span></div>
+          <div style={{ display: 'flex', gap: '7px', fontSize: '10px', color: '#9CA3AF' }}><span>📷</span><span>⏸</span><span>↩</span></div>
           <div style={{ padding: '5px 12px', borderRadius: '6px', background: 'linear-gradient(135deg,#3730a3,#6d28d9)', color: '#fff', fontSize: '9.5px', fontWeight: 700 }}>✓ 완료</div>
         </div>
       </div>
@@ -460,31 +469,33 @@ function Scene2({ tick }: { tick: number }) {
 // ── 씬 3: 완료 클릭 → 매뉴얼 자동 생성 중 (로딩) ──────────
 function Scene3({ tick }: { tick: number }) {
   return (
-    <div style={{ width: '100%', height: '100%', display: 'grid', gridTemplateColumns: '1fr 210px', position: 'relative', background: '#fff' }}>
-      <div style={{ position: 'relative', overflow: 'hidden' }}>
+    <div style={{ width: '100%', height: '100%', position: 'relative', background: 'linear-gradient(135deg,#2a2745,#1a1830)', overflow: 'hidden' }}>
+      {/* 좌측: 정부24 화면 (작업 멈춤 — 어둡게) */}
+      <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, right: '196px', overflow: 'hidden', background: '#fff', borderRight: '1px solid rgba(0,0,0,0.06)' }}>
         <Gov24Page dim />
       </div>
-      {/* 우측 패널 — 생성 중 */}
-      <div style={{ background: '#fff', borderLeft: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '14px', padding: '0 16px' }}>
-        <div style={{ width: '40px', height: '40px', borderRadius: '50%', border: '3px solid #EDE9FE', borderTopColor: '#6d28d9', animation: 'spin 0.8s linear infinite' }} />
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '11.5px', fontWeight: 700, color: '#374151', marginBottom: '4px' }}>매뉴얼을 생성하고 있습니다...</div>
-          <div style={{ fontSize: '9.5px', color: '#9CA3AF', lineHeight: 1.5 }}>AI 분석 중 — 잠시만 기다려 주세요</div>
+      {/* 우측: 떠있는 MIMIC Recorder 창 — 생성 중 */}
+      <div style={{ position: 'absolute', top: '14px', right: '14px', bottom: '14px', width: '172px', background: '#fff', borderRadius: '12px', boxShadow: '0 18px 48px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', overflow: 'hidden', zIndex: 20 }}>
+        <div style={{ background: 'linear-gradient(135deg,#6d28d9,#3730a3)', padding: '9px 11px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{ width: '18px', height: '18px', borderRadius: '5px', background: 'rgba(255,255,255,0.22)', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 800, fontSize: '10px' }}>M</div>
+          <span style={{ fontSize: '10.5px', fontWeight: 800, color: '#fff' }}>MIMIC Recorder</span>
         </div>
-        {/* 진행 단계 표시 */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginTop: '4px', width: '100%' }}>
-          {[
-            { label: '화면 분석', done: tick >= 600 },
-            { label: '단계 분리', done: tick >= 1400 },
-            { label: '설명 생성', done: tick >= 2200 },
-          ].map(it => (
-            <div key={it.label} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: it.done ? '#10B981' : '#E5E7EB', display: 'grid', placeItems: 'center', transition: 'background 0.3s' }}>
-                {it.done && <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '0 14px' }}>
+          <div style={{ width: '38px', height: '38px', borderRadius: '50%', border: '3px solid #EDE9FE', borderTopColor: '#6d28d9', animation: 'spin 0.8s linear infinite' }} />
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '10.5px', fontWeight: 700, color: '#374151', marginBottom: '4px' }}>매뉴얼을 생성하고 있습니다...</div>
+            <div style={{ fontSize: '9px', color: '#9CA3AF', lineHeight: 1.5 }}>AI 분석 중 — 잠시만 기다려 주세요</div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', width: '100%' }}>
+            {[{ label: '화면 분석', done: tick >= 600 }, { label: '단계 분리', done: tick >= 1400 }, { label: '설명 생성', done: tick >= 2200 }].map(it => (
+              <div key={it.label} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: it.done ? '#10B981' : '#E5E7EB', display: 'grid', placeItems: 'center', transition: 'background 0.3s' }}>
+                  {it.done && <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
+                </div>
+                <span style={{ fontSize: '9px', color: it.done ? '#374151' : '#9CA3AF', transition: 'color 0.3s' }}>{it.label}</span>
               </div>
-              <span style={{ fontSize: '9.5px', color: it.done ? '#374151' : '#9CA3AF', transition: 'color 0.3s' }}>{it.label}</span>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -555,6 +566,8 @@ function StepScreen({ step, mode }: { step: number; mode: 'card' | 'guide' | 're
   const spotlight = (
     <div style={{ position: 'absolute', inset: '-6px', borderRadius: '10px', boxShadow: '0 0 0 3px #6d28d9, 0 0 0 2000px rgba(13,13,20,0.5)', zIndex: 4, pointerEvents: 'none' }}>
       <div style={{ position: 'absolute', inset: '-5px', borderRadius: '12px', border: '2px solid rgba(167,139,250,0.7)', animation: 'rippleOut 1.4s ease-out infinite' }} />
+      {/* 사용자가 직접 클릭하는 마우스 커서 */}
+      <div style={{ position: 'absolute', top: '54%', left: '52%', zIndex: 7 }}><CursorIcon /></div>
     </div>
   );
 
@@ -607,71 +620,190 @@ function StepScreen({ step, mode }: { step: number; mode: 'card' | 'guide' | 're
   );
 }
 
-// ── 씬 4: 매뉴얼 자동 완성 → 스크롤 ──────────
+// ── 씬 4: 매뉴얼 완성 → 편집 가능한 스텝 카드 에디터 ──────────
 function Scene4({ tick }: { tick: number }) {
-  const scrollY = Math.min(Math.max(tick - 900, 0) * 0.085, 300);
+  const scrollY = Math.min(Math.max(tick - 1100, 0) * 0.08, 280);
   return (
-    <div style={{ width: '100%', height: '100%', background: '#F8F8FA', display: 'grid', gridTemplateColumns: '150px 1fr', position: 'relative', overflow: 'hidden' }}>
+    <div style={{ width: '100%', height: '100%', background: '#F4F4F7', display: 'grid', gridTemplateColumns: '146px 1fr', position: 'relative', overflow: 'hidden' }}>
       {/* 좌측 목차 */}
-      <div style={{ background: '#fff', borderRight: '1px solid #EEE', padding: '12px 8px', overflow: 'hidden' }}>
-        <div style={{ fontSize: '9px', color: '#9CA3AF', fontWeight: 700, marginBottom: '8px', padding: '0 4px' }}>목차 · 6단계</div>
+      <div style={{ background: '#fff', borderRight: '1px solid #EEE', padding: '11px 8px', overflow: 'hidden' }}>
+        <div style={{ fontSize: '8.5px', color: '#9CA3AF', fontWeight: 700, marginBottom: '7px', padding: '0 4px' }}>목차 · 6단계</div>
         {GUIDE_STEPS.map((s, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 7px', borderRadius: '7px', marginBottom: '2px', background: i === 0 ? '#EDE9FE' : 'transparent' }}>
-            <span style={{ width: '15px', height: '15px', borderRadius: '4px', background: i === 0 ? '#6d28d9' : '#E5E7EB', color: i === 0 ? '#fff' : '#9CA3AF', fontSize: '8px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0 }}>{i + 1}</span>
-            <span style={{ fontSize: '9px', fontWeight: i === 0 ? 600 : 400, color: i === 0 ? '#4c1d95' : '#6B7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.title}</span>
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 6px', borderRadius: '6px', marginBottom: '2px', background: i === 0 ? '#EDE9FE' : 'transparent' }}>
+            <span style={{ width: '14px', height: '14px', borderRadius: '4px', background: i === 0 ? '#6d28d9' : '#E5E7EB', color: i === 0 ? '#fff' : '#9CA3AF', fontSize: '7.5px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0 }}>{i + 1}</span>
+            <span style={{ fontSize: '8.5px', fontWeight: i === 0 ? 600 : 400, color: i === 0 ? '#4c1d95' : '#6B7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.title}</span>
           </div>
         ))}
       </div>
-      {/* 우측 콘텐츠 (스크롤) */}
-      <div style={{ position: 'relative', overflow: 'hidden' }}>
-        <MimicAppHeader mode="doc" />
-        <div style={{ padding: '14px 18px', transform: `translateY(${-scrollY}px)`, transition: 'transform 0.12s linear' }}>
-          <div style={{ fontSize: '15px', fontWeight: 800, color: '#111827', marginBottom: '12px' }}>정부24에서 주민등록증 발급받기</div>
-          {GUIDE_STEPS.slice(0, 3).map((s, i) => (
-            <div key={i} style={{ background: '#fff', borderRadius: '12px', border: '1px solid #EEE', padding: '12px 14px', marginBottom: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                <span style={{ width: '20px', height: '20px', borderRadius: '6px', background: '#6d28d9', color: '#fff', fontSize: '9px', fontWeight: 800, display: 'grid', placeItems: 'center' }}>{s.num}</span>
-                <span style={{ fontSize: '12px', fontWeight: 700, color: '#111827' }}>{s.title}</span>
-              </div>
-              <div style={{ fontSize: '10px', color: '#6B7280', lineHeight: 1.5, marginBottom: '10px' }}>{s.desc}</div>
-              {/* 스텝별 타겟 화면 + 정확한 어노테이션 */}
-              <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #E5E7EB', position: 'relative', height: '136px', background: '#fff' }}>
-                <StepScreen step={i} mode="card" />
-                <div style={{ position: 'absolute', top: '7px', left: '7px', background: '#6d28d9', color: '#fff', fontSize: '7px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', zIndex: 8 }}>AI 크롭</div>
-              </div>
-            </div>
-          ))}
+      {/* 우측 — 에디터 */}
+      <div style={{ position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        {/* 에디터 툴바 */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderBottom: '1px solid #EEE', background: '#fff', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '12px', color: '#9CA3AF' }}>←</span>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: '#374151' }}>편집기</span>
+            <span style={{ fontSize: '9px', color: '#9CA3AF' }}>6개 단계</span>
+            <span style={{ fontSize: '8.5px', color: '#10B981', fontWeight: 600 }}>● 자동 저장됨</span>
+          </div>
+          <div style={{ display: 'flex', gap: '5px' }}>
+            <span style={{ fontSize: '9px', color: '#6B7280', padding: '4px 8px', borderRadius: '6px', border: '1px solid #EEE' }}>미리보기</span>
+            <span style={{ fontSize: '9px', color: '#6B7280', padding: '4px 8px', borderRadius: '6px', border: '1px solid #EEE' }}>내보내기</span>
+            <span style={{ fontSize: '9px', color: '#fff', padding: '4px 10px', borderRadius: '6px', background: 'linear-gradient(135deg,#6d28d9,#3730a3)', fontWeight: 700 }}>편집 완료</span>
+          </div>
         </div>
-        <div style={{ position: 'absolute', top: '52px', right: '14px', display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 10px', borderRadius: '999px', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', fontSize: '9px', fontWeight: 700, color: '#059669', zIndex: 9 }}>
-          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
-          6단계 자동 완성
+        {/* 스크롤 본문 */}
+        <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+          <div style={{ padding: '14px 18px', transform: `translateY(${-scrollY}px)`, transition: 'transform 0.12s linear' }}>
+            <div style={{ fontSize: '15px', fontWeight: 800, color: '#111827', marginBottom: '2px' }}>정부24에서 주민등록증 발급받기</div>
+            <div style={{ fontSize: '9px', color: '#9CA3AF', marginBottom: '13px' }}>2026.06.18 · 6단계 · AI 자동 생성</div>
+            {GUIDE_STEPS.slice(0, 3).map((s, i) => {
+              const active = i === 0;
+              return (
+                <div key={i} style={{ background: '#fff', borderRadius: '12px', border: active ? '1.5px solid #C4B5FD' : '1px solid #EEE', boxShadow: active ? '0 6px 20px rgba(109,40,217,0.13)' : '0 1px 3px rgba(0,0,0,0.04)', padding: '11px 13px', marginBottom: '11px', position: 'relative' }}>
+                  {/* 카드 헤더 — 드래그 핸들 + 번호 + 제목 + 편집 아이콘 */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                      <span style={{ fontSize: '11px', color: '#D1D5DB' }}>⠿</span>
+                      <span style={{ width: '20px', height: '20px', borderRadius: '6px', background: '#6d28d9', color: '#fff', fontSize: '9px', fontWeight: 800, display: 'grid', placeItems: 'center' }}>{s.num}</span>
+                      <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#111827' }}>{s.title}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', fontSize: '10px' }}><span>✏️</span><span>🔍</span><span>🗑️</span></div>
+                  </div>
+                  {/* 편집 툴바 (활성 카드) */}
+                  {active && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '4px 9px', background: '#F9FAFB', borderRadius: '6px', marginBottom: '7px', border: '1px solid #EEE' }}>
+                      <span style={{ fontSize: '8.5px', color: '#6B7280' }}>14px ▾</span>
+                      <span style={{ fontSize: '10px', fontWeight: 800, color: '#6B7280' }}>B</span>
+                      <span style={{ fontSize: '10px', fontStyle: 'italic', color: '#6B7280' }}>I</span>
+                      <span style={{ fontSize: '10px', textDecoration: 'underline', color: '#6B7280' }}>U</span>
+                      <span style={{ marginLeft: 'auto', fontSize: '8.5px', color: '#6d28d9', fontWeight: 700 }}>✨ AI 완성</span>
+                    </div>
+                  )}
+                  {/* 설명 */}
+                  <div style={{ fontSize: '10px', color: '#6B7280', lineHeight: 1.5, marginBottom: '9px' }}>{s.desc}</div>
+                  {/* 스크린샷 + 어노테이션 */}
+                  <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #E5E7EB', position: 'relative', height: '130px' }}>
+                    <StepScreen step={i} mode="card" />
+                    <div style={{ position: 'absolute', top: '7px', left: '7px', background: '#6d28d9', color: '#fff', fontSize: '7px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', zIndex: 8 }}>AI 크롭</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {/* 자동 생성 배지 */}
+          <div style={{ position: 'absolute', top: '12px', right: '14px', display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 10px', borderRadius: '999px', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', fontSize: '9px', fontWeight: 700, color: '#059669', zIndex: 9 }}>
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+            6단계 자동 완성
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-// ── 씬 5: 따라하기 모드 — 마우스로 클릭 ──────────
+// ── 씬 5: 공유 — 링크/내보내기 모달 ──────────
 function Scene5({ tick }: { tick: number }) {
-  const step = tick < 3000 ? 0 : 1;
+  const copied = tick >= 2600;
+  return (
+    <div style={{ width: '100%', height: '100%', background: '#F4F4F7', position: 'relative', overflow: 'hidden' }}>
+      {/* 뒷배경: 완성된 매뉴얼 뷰어 (흐릿) */}
+      <div style={{ position: 'absolute', inset: 0, padding: '16px 22px', filter: 'blur(1px)' }}>
+        <div style={{ fontSize: '15px', fontWeight: 800, color: '#111827', marginBottom: '12px' }}>정부24에서 주민등록증 발급받기</div>
+        {GUIDE_STEPS.slice(0, 2).map((s, i) => (
+          <div key={i} style={{ background: '#fff', borderRadius: '12px', border: '1px solid #EEE', padding: '12px 14px', marginBottom: '11px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ width: '20px', height: '20px', borderRadius: '6px', background: '#6d28d9', color: '#fff', fontSize: '9px', fontWeight: 800, display: 'grid', placeItems: 'center' }}>{s.num}</span>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: '#111827' }}>{s.title}</span>
+          </div>
+        ))}
+      </div>
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(13,13,20,0.42)' }} />
+      {/* 공유 모달 */}
+      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: '326px', background: '#fff', borderRadius: '16px', boxShadow: '0 24px 60px rgba(0,0,0,0.3)', overflow: 'hidden', animation: 'sceneIn 0.4s cubic-bezier(0.34,1.4,0.64,1) both', zIndex: 10 }}>
+        <div style={{ padding: '15px 18px 11px', borderBottom: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: '#111827' }}>공유하기</div>
+            <div style={{ fontSize: '10px', color: '#9CA3AF', marginTop: '2px' }}>정부24에서 주민등록증 발급받기</div>
+          </div>
+          <span style={{ fontSize: '14px', color: '#D1D5DB' }}>✕</span>
+        </div>
+        <div style={{ padding: '14px 18px' }}>
+          {/* 공유 링크 */}
+          <div style={{ display: 'flex', borderRadius: '8px', overflow: 'hidden', border: '1.5px solid #E5E7EB', marginBottom: '11px' }}>
+            <div style={{ flex: 1, padding: '8px 10px', fontSize: '9.5px', color: '#6B7280', fontFamily: 'monospace', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', background: '#F9FAFB' }}>mimic.so/play/gov24-resident-cert</div>
+            <div style={{ padding: '8px 13px', background: copied ? '#10B981' : 'linear-gradient(135deg,#6d28d9,#3730a3)', color: '#fff', fontSize: '10px', fontWeight: 700, transition: 'background 0.3s', whiteSpace: 'nowrap' }}>{copied ? '✓ 복사됨' : '🔗 링크 복사'}</div>
+          </div>
+          {/* 공개 범위 + 비밀번호 */}
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+            <div style={{ flex: 1, padding: '8px 10px', borderRadius: '8px', border: '1px solid #EEE', fontSize: '9px', color: '#6B7280', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}><span>🔓 링크 공유</span><span>▾</span></div>
+            <div style={{ flex: 1, padding: '8px 10px', borderRadius: '8px', border: '1px solid #EEE', fontSize: '9px', color: '#6B7280', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}><span>🔒 비밀번호</span><span>▾</span></div>
+          </div>
+          {/* 내보내기 */}
+          <div style={{ fontSize: '8.5px', color: '#9CA3AF', fontWeight: 700, marginBottom: '6px' }}>문서로 내보내기</div>
+          <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
+            {[['PPTX', '#FFF7ED'], ['PDF', '#FEF2F2'], ['Markdown', '#F0F9FF']].map(([f, bg]) => (
+              <div key={f} style={{ flex: 1, padding: '8px', borderRadius: '8px', border: '1px solid #EEE', background: bg, textAlign: 'center', fontSize: '9.5px', fontWeight: 700, color: '#374151' }}>{f}</div>
+            ))}
+          </div>
+          {/* SNS */}
+          <div style={{ display: 'flex', gap: '6px' }}>
+            {[{ l: '카카오톡', bg: '#FEE500', c: '#111' }, { l: '이메일', bg: '#F3F4F6', c: '#374151' }, { l: 'X / Twitter', bg: '#F3F4F6', c: '#374151' }].map(b => (
+              <div key={b.l} style={{ flex: 1, padding: '7px', borderRadius: '8px', background: b.bg, textAlign: 'center', fontSize: '9.5px', fontWeight: 600, color: b.c }}>{b.l}</div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── 씬 6: 따라하기(Live Guide) — 마우스 클릭 + 우측 패널 + AI 로봇 ──────────
+function Scene6({ tick }: { tick: number }) {
+  const step = tick < 3500 ? 0 : 1;
   const total = 6;
   return (
     <div style={{ width: '100%', height: '100%', background: '#fff', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
       <MimicAppHeader mode="guide" />
-      {/* 타겟에 스포트라이트가 정확히 붙는 스텝 화면 */}
-      <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-        <div key={step} style={{ position: 'absolute', inset: 0, animation: 'sceneIn 0.4s ease both' }}>
-          <StepScreen step={step} mode="guide" />
+      <div style={{ flex: 1, display: 'flex', position: 'relative', overflow: 'hidden' }}>
+        {/* 좌측: 정부24 화면 + 스포트라이트(마우스 커서 포함) */}
+        <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+          <div key={step} style={{ position: 'absolute', inset: 0, animation: 'sceneIn 0.4s ease both' }}>
+            <StepScreen step={step} mode="guide" />
+          </div>
         </div>
-        {/* 안내 말풍선 — 하단 중앙 */}
-        <div key={`b${step}`} style={{ position: 'absolute', left: '50%', bottom: '54px', transform: 'translateX(-50%)', width: '300px', background: '#fff', borderRadius: '12px', padding: '11px 14px', boxShadow: '0 12px 40px rgba(0,0,0,0.35)', zIndex: 10, animation: 'sceneIn 0.4s cubic-bezier(0.34,1.4,0.64,1) both' }}>
-          <div style={{ fontSize: '11.5px', fontWeight: 700, color: '#111827', marginBottom: '4px' }}>👉 {GUIDE_STEPS[step].title}</div>
-          <div style={{ fontSize: '10px', color: '#6B7280', lineHeight: 1.5, marginBottom: '5px' }}>{GUIDE_STEPS[step].desc}</div>
-          <div style={{ fontSize: '9.5px', color: '#6d28d9', fontWeight: 600 }}>표시된 곳을 클릭하면 다음으로 넘어가요</div>
+        {/* 우측 사이드 패널 — Live Guide 진행 */}
+        <div style={{ width: '152px', borderLeft: '1px solid #EEE', background: '#FAFAFB', display: 'flex', flexDirection: 'column', flexShrink: 0, zIndex: 12 }}>
+          <div style={{ padding: '11px 11px 8px', borderBottom: '1px solid #EEE' }}>
+            <div style={{ fontSize: '9px', fontWeight: 800, color: '#6d28d9', display: 'flex', alignItems: 'center', gap: '4px' }}>● LIVE GUIDE</div>
+            <div style={{ fontSize: '8.5px', color: '#9CA3AF', marginTop: '3px' }}>{step + 1} / {total} 단계 진행 중</div>
+          </div>
+          <div style={{ flex: 1, overflow: 'hidden', padding: '8px' }}>
+            {GUIDE_STEPS.map((s, i) => {
+              const done = i < step, cur = i === step;
+              return (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 6px', borderRadius: '6px', marginBottom: '2px', background: cur ? '#EDE9FE' : 'transparent' }}>
+                  <span style={{ width: '14px', height: '14px', borderRadius: '50%', background: done ? '#10B981' : cur ? '#6d28d9' : '#E5E7EB', color: '#fff', fontSize: '7px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                    {done ? '✓' : i + 1}
+                  </span>
+                  <span style={{ fontSize: '8px', fontWeight: cur ? 600 : 400, color: cur ? '#4c1d95' : done ? '#9CA3AF' : '#6B7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textDecoration: done ? 'line-through' : 'none' }}>{s.title}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        {/* AI 로봇 아바타 + 말풍선 — 우측 하단 */}
+        <div key={`bot${step}`} style={{ position: 'absolute', right: '166px', bottom: '16px', display: 'flex', alignItems: 'flex-end', gap: '9px', zIndex: 14, animation: 'sceneIn 0.4s cubic-bezier(0.34,1.4,0.64,1) both' }}>
+          {/* 말풍선 */}
+          <div style={{ width: '232px', background: '#fff', borderRadius: '12px 12px 4px 12px', padding: '11px 13px', boxShadow: '0 12px 40px rgba(0,0,0,0.28), 0 0 0 1px rgba(0,0,0,0.04)' }}>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: '#111827', marginBottom: '4px' }}>👉 {GUIDE_STEPS[step].title}</div>
+            <div style={{ fontSize: '9.5px', color: '#6B7280', lineHeight: 1.5, marginBottom: '5px' }}>{GUIDE_STEPS[step].desc}</div>
+            <div style={{ fontSize: '9px', color: '#6d28d9', fontWeight: 600 }}>표시된 곳을 클릭하면 다음으로 넘어가요</div>
+          </div>
+          {/* 로봇 아바타 */}
+          <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg,#6d28d9,#3730a3)', display: 'grid', placeItems: 'center', fontSize: '20px', boxShadow: '0 8px 22px rgba(109,40,217,0.5)', flexShrink: 0 }}>🤖</div>
         </div>
       </div>
       {/* 하단 페이지네이션 */}
-      <div style={{ position: 'absolute', bottom: '12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 14px', borderRadius: '999px', background: '#fff', boxShadow: '0 6px 20px rgba(0,0,0,0.15)', border: '1px solid #EEE', zIndex: 11 }}>
+      <div style={{ position: 'absolute', bottom: '12px', left: 'calc(50% - 76px)', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 14px', borderRadius: '999px', background: '#fff', boxShadow: '0 6px 20px rgba(0,0,0,0.15)', border: '1px solid #EEE', zIndex: 13 }}>
         <span style={{ fontSize: '10px', fontWeight: 700, color: '#374151' }}>{step + 1} / {total}</span>
         <span style={{ padding: '4px 10px', borderRadius: '6px', background: '#F3F4F6', fontSize: '9.5px', color: '#9CA3AF', fontWeight: 600 }}>이전</span>
         <span style={{ padding: '4px 12px', borderRadius: '6px', background: 'linear-gradient(135deg,#6d28d9,#3730a3)', fontSize: '9.5px', color: '#fff', fontWeight: 700 }}>다음 →</span>
