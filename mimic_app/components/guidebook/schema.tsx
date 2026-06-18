@@ -186,8 +186,12 @@ function GuideViewCard({ defaultOpen, guide }: { defaultOpen: boolean; guide: Gu
                 </div>
               </div>
               {s.screenshot_url && (
-                <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #F3F4F6' }}>
-                  <AnnotationPreview imageUrl={s.screenshot_url} annotations={s.annotations ?? []} />
+                <div style={{ position: 'relative', lineHeight: 0, borderRadius: '8px', overflow: 'hidden', border: '1px solid #F3F4F6' }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={s.screenshot_url} alt={s.title} style={{ width: '100%', display: 'block' }} />
+                  {(s.annotations?.length ?? 0) > 0 && (
+                    <AnnotationPreview imageUrl={s.screenshot_url} annotations={s.annotations ?? []} />
+                  )}
                 </div>
               )}
             </div>
