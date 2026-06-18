@@ -745,7 +745,7 @@ export default function DashboardPage() {
 
   const newMenuRef = useRef<HTMLDivElement>(null);
   const [liveGuide, setLiveGuide] = useState<{ used: number; limit: number; paid: boolean } | null>(null);
-  const [playbookCount, setPlaybookCount] = useState<number | null>(null);
+  const [playbook, setPlaybook] = useState<{ used: number; limit: number; paid: boolean } | null>(null);
 
   const loadTutorials = useCallback(async (workspaceId?: string) => {
     setTutLoading(true);
@@ -777,15 +777,13 @@ export default function DashboardPage() {
     loadTutorials();
     loadFolders();
     loadWorkspaces();
-    // 라이브 가이드 사용량 — 홈 '이번 달 사용량'에 함께 표시
+    // 라이브 가이드·플레이북 사용량 — 홈 '이번 달 사용량'에 함께 표시
     fetch('/api/user/plan')
       .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.liveGuide) setLiveGuide({ used: d.liveGuide.used ?? 0, limit: d.liveGuide.limit ?? 5, paid: !!d.paid }); })
-      .catch(() => {});
-    // 플레이북 개수 — 홈 '이번 달 사용량'에 함께 표시
-    fetch('/api/pages')
-      .then(r => r.ok ? r.json() : [])
-      .then((d) => setPlaybookCount(Array.isArray(d) ? d.length : 0))
+      .then(d => {
+        if (d?.liveGuide) setLiveGuide({ used: d.liveGuide.used ?? 0, limit: d.liveGuide.limit ?? 5, paid: !!d.paid });
+        if (d?.playbook) setPlaybook({ used: d.playbook.used ?? 0, limit: d.playbook.limit ?? 3, paid: !!d.paid });
+      })
       .catch(() => {});
   }, [user, loadTutorials, loadFolders, loadWorkspaces]);
 
@@ -847,7 +845,12 @@ export default function DashboardPage() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(wsId ? { workspace_id: wsId } : {}),
       });
-      if (!res.ok) throw new Error('create failed');
+      if (!res.ok) {
+        const e = await res.json().catch(() => null);
+        alert(typeof e?.error === 'string' ? e.error : '생성 중 오류가 발생했습니다.');
+        setCreating(false);
+        return;
+      }
       const page = await res.json();
       router.push(`/pages/${page.id}/editor`);
     } catch { alert('생성 중 오류가 발생했습니다.'); setCreating(false); }
@@ -1117,11 +1120,20 @@ export default function DashboardPage() {
                     <div style={{ height: '100%', borderRadius: '999px', background: liveGuide.used >= liveGuide.limit ? '#EF4444' : '#7c3aed', width: `${Math.min(100, (liveGuide.used / liveGuide.limit) * 100)}%`, transition: 'width 0.3s' }} />
                   </div>
                 )}
-                {/* 플레이북 개수 */}
-                {playbookCount !== null && (
+                {/* 플레이북 사용량 (Free: N/한도, Pro: 무제한) */}
+                {playbook && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
                     <span style={{ fontSize: '12px', color: '#6B7280' }}>플레이북</span>
-                    <span style={{ fontSize: '12px', fontWeight: 600, color: '#111827' }}>{playbookCount}개</span>
+                    <span style={{ fontSize: '12px', fontWeight: 600, color: '#111827' }}>
+                      {playbook.paid
+                        ? <>{playbook.used}<span style={{ fontSize: '10px', color: '#10B981', marginLeft: '4px', fontWeight: 500 }}>무제한</span></>
+                        : `${playbook.used} / ${playbook.limit}`}
+                    </span>
+                  </div>
+                )}
+                {!isPro && playbook && !playbook.paid && (
+                  <div style={{ height: '4px', borderRadius: '999px', background: '#E5E7EB', overflow: 'hidden', marginTop: '6px' }}>
+                    <div style={{ height: '100%', borderRadius: '999px', background: playbook.used >= playbook.limit ? '#EF4444' : '#0EA5E9', width: `${Math.min(100, (playbook.used / playbook.limit) * 100)}%`, transition: 'width 0.3s' }} />
                   </div>
                 )}
                 {!isPro && <Link href="/settings" style={{ display: 'block', marginTop: '10px', padding: '6px', borderRadius: '7px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', fontSize: '11.5px', fontWeight: 600, textDecoration: 'none', textAlign: 'center' }}>Pro로 업그레이드</Link>}

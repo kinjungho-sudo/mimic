@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
+import { FREE_PLAYBOOK_LIMIT } from '@/lib/plan';
 import { z } from 'zod';
 
 const schema = z.object({
@@ -25,6 +26,15 @@ export async function GET(request: NextRequest) {
   const plan = data?.plan ?? 'free';
   const paid = PAID_PLANS.includes(plan);
   const used = data?.live_guide_runs ?? 0;
+
+  // 플레이북 보유 개수 (개인, 비삭제)
+  const { count: playbookUsed } = await supabase
+    .from('mm_pages')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', auth.userId)
+    .is('workspace_id', null)
+    .is('deleted_at', null);
+
   return NextResponse.json({
     plan,
     paid,
@@ -32,6 +42,11 @@ export async function GET(request: NextRequest) {
       used,
       limit: FREE_LIVE_GUIDE_LIMIT,
       remaining: paid ? null : Math.max(0, FREE_LIVE_GUIDE_LIMIT - used),
+    },
+    playbook: {
+      used: playbookUsed ?? 0,
+      limit: FREE_PLAYBOOK_LIMIT,
+      remaining: paid ? null : Math.max(0, FREE_PLAYBOOK_LIMIT - (playbookUsed ?? 0)),
     },
   });
 }

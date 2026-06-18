@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { guardWorkspaceAccess } from '@/lib/auth/workspace-guard';
+import { FREE_PLAYBOOK_LIMIT, isPaidPlan } from '@/lib/plan';
 import { z } from 'zod';
 
 const createSchema = z.object({
@@ -63,6 +64,26 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = createServiceRoleClient();
+
+  // 무료 플랜: 개인 플레이북 총 보유 한도(FREE_PLAYBOOK_LIMIT) 적용. Pro/Team은 무제한.
+  if (!workspaceId) {
+    const { data: u } = await supabase.from('mm_users').select('plan').eq('id', auth.userId).single();
+    if (!isPaidPlan(u?.plan)) {
+      const { count } = await supabase
+        .from('mm_pages')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', auth.userId)
+        .is('workspace_id', null)
+        .is('deleted_at', null);
+      if ((count ?? 0) >= FREE_PLAYBOOK_LIMIT) {
+        return NextResponse.json(
+          { error: `무료 플랜은 플레이북을 ${FREE_PLAYBOOK_LIMIT}개까지 만들 수 있어요. Pro로 업그레이드하면 무제한입니다.`, code: 'PLAYBOOK_LIMIT' },
+          { status: 403 },
+        );
+      }
+    }
+  }
+
   const { data, error } = await supabase
     .from('mm_pages')
     .insert({

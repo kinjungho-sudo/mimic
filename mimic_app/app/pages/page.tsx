@@ -28,7 +28,11 @@ export default function PagesListPage() {
     setCreating(true);
     try {
       const res = await fetch('/api/pages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-      if (!res.ok) return;
+      if (!res.ok) {
+        const e = await res.json().catch(() => null);
+        alert(typeof e?.error === 'string' ? e.error : '생성 중 오류가 발생했습니다.');
+        return;
+      }
       const page = await res.json();
       router.push(`/pages/${page.id}/editor`);
     } finally {
