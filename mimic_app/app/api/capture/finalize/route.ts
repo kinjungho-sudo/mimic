@@ -273,6 +273,8 @@ export async function POST(request: NextRequest) {
       element_xpath:     ev.element_xpath     ?? null,
       // crop_box(캡처 확대)가 있으면 image_zoom로 프레이밍하므로 crop_rect는 비움(렌더 경로 일관성).
       crop_rect:         cropBox ? null : calcCropRect(elementRect, clickX, clickY),
+      // 캡처 시 실제 입력된 텍스트 — 라이브 가이드 자동입력 폴백용
+      type_text:         (ev.type_text as string | null) ?? null,
       ...(zoomFraming ?? {}),
     };
   });

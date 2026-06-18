@@ -99,7 +99,7 @@ async function fetchSteps(supabase: ReturnType<typeof createServiceRoleClient>, 
     .from('mm_steps')
     .select(
       'id, step_number, user_title, ai_title, user_script, ai_description, ' +
-      'page_url, element_selector, element_xpath, element_rect, click_x, click_y, screenshot_url, follow_config'
+      'page_url, element_selector, element_xpath, element_rect, click_x, click_y, screenshot_url, follow_config, type_text'
     )
     .eq('tutorial_id', tutorialId)
     .order('order_index');
@@ -121,9 +121,9 @@ async function fetchSteps(supabase: ReturnType<typeof createServiceRoleClient>, 
       click_x: s.click_x ?? null,
       click_y: s.click_y ?? null,
       screenshot_url: s.screenshot_url ?? null,
-      // 라이브 가이드 자동입력용 — follow_config의 kind/typeText 노출
+      // 라이브 가이드 자동입력용 — 스튜디오 오버라이드(fc.typeText) 우선, 없으면 캡처 원문(s.type_text) 폴백
       kind: fc.kind ?? null,
-      type_text: fc.typeText ?? null,
+      type_text: fc.typeText ?? (s.type_text as string | null) ?? null,
       hidden: !!fc.hidden,
       // 소유자가 스튜디오에서 직접 보정한 핫스팟(0~100%)·말풍선 위치 — 라이브 가이드가 우선 적용
       hotspot_x: fc.hotspotX ?? null,

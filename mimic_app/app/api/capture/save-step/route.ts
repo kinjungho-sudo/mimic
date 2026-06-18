@@ -71,6 +71,8 @@ export async function POST(request: NextRequest) {
     audio_offset_ms:   d.audio_offset_ms   ?? null,
     // Recorder가 캡처 시 결정한 확대 영역(원본 0~1) — finalize에서 image_zoom 프레이밍으로 사용
     crop_box:          d.crop_box          ?? null,
+    // type 액션에서 실제 입력된 텍스트 — finalize에서 mm_steps.type_text로 전파
+    type_text:         d.type_text         ?? null,
   };
 
   // 같은 (session, step_number) 행이 있으면 갱신 — 타이핑 디바운스 overwrite 캡처가
