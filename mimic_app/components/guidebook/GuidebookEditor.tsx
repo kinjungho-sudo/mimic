@@ -5,6 +5,7 @@ import { BlockNoteView } from '@blocknote/mantine';
 import '@blocknote/mantine/style.css';
 import { useCreateBlockNote, SuggestionMenuController, getDefaultReactSlashMenuItems } from '@blocknote/react';
 import { filterSuggestionItems } from '@blocknote/core';
+import { ko } from '@blocknote/core/locales';
 import { guidebookSchema, GuideContext } from './schema';
 
 export default function GuidebookEditor({ initialContent, tutorials, onChange }: {
@@ -14,6 +15,7 @@ export default function GuidebookEditor({ initialContent, tutorials, onChange }:
 }) {
   const editor = useCreateBlockNote({
     schema: guidebookSchema,
+    dictionary: ko, // 도구·메뉴 한글화
     // 빈 문서는 undefined 로 넘겨야 함 (빈 배열은 오류)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     initialContent: (initialContent && initialContent.length ? initialContent : undefined) as any,
@@ -34,7 +36,10 @@ export default function GuidebookEditor({ initialContent, tutorials, onChange }:
           getItems={async query =>
             filterSuggestionItems(
               [
-                ...getDefaultReactSlashMenuItems(editor),
+                // 토글 제목(toggle_heading*) 변형 제거 — 토글은 '토글 목록' 하나만 유지
+                ...getDefaultReactSlashMenuItems(editor).filter(
+                  it => !String((it as { key?: string }).key ?? '').startsWith('toggle_heading'),
+                ),
                 {
                   title: '가이드 임베드',
                   subtext: '내 매뉴얼을 이 문서에 삽입',
