@@ -307,10 +307,10 @@ function Gov24Page({ dim }: { dim?: boolean }) {
 }
 
 // 화살표 커서
-function CursorIcon() {
+function CursorIcon({ size = 22 }: { size?: number }) {
   return (
-    <svg width="20" height="22" viewBox="0 0 20 22" fill="none" style={{ filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.45))' }}>
-      <path d="M1 1l6.5 17 3-6 6 3L1 1z" fill="white" stroke="#1a1a1a" strokeWidth="1.5" strokeLinejoin="round"/>
+    <svg width={size} height={Math.round(size * 26 / 22)} viewBox="0 0 22 26" fill="none" style={{ filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.45))' }}>
+      <path d="M4 2 L4 20 L8.5 15.8 L11.4 22.6 L14 21.4 L11.1 14.8 L17 14.8 Z" fill="white" stroke="#1a1a1a" strokeWidth="1.4" strokeLinejoin="round"/>
     </svg>
   );
 }
@@ -452,7 +452,12 @@ function Scene2({ tick }: { tick: number }) {
                 <span style={{ width: '14px', height: '14px', borderRadius: '4px', background: '#6d28d9', color: '#fff', fontSize: '8px', fontWeight: 700, display: 'grid', placeItems: 'center' }}>{i+1}</span>
                 <span style={{ fontSize: '8px', fontWeight: 600, color: '#374151', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.label}</span>
               </div>
-              <div style={{ height: '40px', background: 'linear-gradient(135deg,#EFF6FF,#F8FAFC)', display: 'grid', placeItems: 'center', fontSize: '7.5px', color: '#93C5FD' }}>📄 화면 캡처</div>
+              {/* 썸네일 — 클릭한 정부24 화면이 그대로 미리보기로 캡처됨 */}
+              <div style={{ height: '92px', overflow: 'hidden', position: 'relative', background: '#fff' }}>
+                <div style={{ width: '460px', height: '286px', transform: 'scale(0.335)', transformOrigin: 'top left', position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}>
+                  <StepScreen step={i} mode="card" />
+                </div>
+              </div>
             </div>
           ))}
         </div>
@@ -511,7 +516,7 @@ function MimicAppHeader({ mode }: { mode: 'doc' | 'guide' }) {
         <span style={{ fontSize: '11px', fontWeight: 700, color: '#374151' }}>정부24에서 주민등록증 발급받기</span>
       </div>
       <div style={{ display: 'flex', gap: '4px' }}>
-        {[['웹문서','doc'],['따라하기','guide'],['슬라이드','slide']].map(([label, key]) => (
+        {[['웹 문서','doc'],['Live Guide','guide'],['슬라이드','slide']].map(([label, key]) => (
           <div key={key} style={{ padding: '5px 11px', borderRadius: '7px', fontSize: '10px', fontWeight: 600, background: mode === key ? '#EDE9FE' : 'transparent', color: mode === key ? '#6d28d9' : '#9CA3AF', border: mode === key ? '1px solid rgba(109,40,217,0.3)' : '1px solid transparent' }}>{label}</div>
         ))}
       </div>
@@ -550,24 +555,24 @@ function StepScreen({ step, mode }: { step: number; mode: 'card' | 'guide' | 're
     </>
   );
 
-  // 타겟 요소 자식으로 들어가는 오버레이
+  // 타겟 요소 자식으로 들어가는 오버레이 (테두리·텍스트박스·화살표·글자 크게)
   const overlayBelow = (
     <>
-      <span style={{ position: 'absolute', left: '50%', top: 'calc(100% + 1px)', transform: 'translateX(-50%)', color: '#EF4444', fontSize: '11px', lineHeight: 1, zIndex: 6 }}>↑</span>
-      <div style={{ position: 'absolute', left: '50%', top: 'calc(100% + 13px)', transform: 'translateX(-50%)', background: '#1f2937', color: '#fff', fontSize: '8px', fontWeight: 700, padding: '3px 7px', borderRadius: '4px', whiteSpace: 'nowrap', zIndex: 6 }}>{cap}</div>
+      <span style={{ position: 'absolute', left: '50%', top: 'calc(100% + 2px)', transform: 'translateX(-50%)', color: '#EF4444', fontSize: '18px', fontWeight: 900, lineHeight: 1, zIndex: 6 }}>↑</span>
+      <div style={{ position: 'absolute', left: '50%', top: 'calc(100% + 21px)', transform: 'translateX(-50%)', background: '#1f2937', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '5px 12px', borderRadius: '7px', whiteSpace: 'nowrap', zIndex: 6, boxShadow: '0 4px 14px rgba(0,0,0,0.28)' }}>{cap}</div>
     </>
   );
   const overlayAbove = (
     <>
-      <div style={{ position: 'absolute', left: '50%', bottom: 'calc(100% + 13px)', transform: 'translateX(-50%)', background: '#1f2937', color: '#fff', fontSize: '8px', fontWeight: 700, padding: '3px 7px', borderRadius: '4px', whiteSpace: 'nowrap', zIndex: 6 }}>{cap}</div>
-      <span style={{ position: 'absolute', left: '50%', bottom: 'calc(100% + 1px)', transform: 'translateX(-50%)', color: '#EF4444', fontSize: '11px', lineHeight: 1, zIndex: 6 }}>↓</span>
+      <div style={{ position: 'absolute', left: '50%', bottom: 'calc(100% + 21px)', transform: 'translateX(-50%)', background: '#1f2937', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '5px 12px', borderRadius: '7px', whiteSpace: 'nowrap', zIndex: 6, boxShadow: '0 4px 14px rgba(0,0,0,0.28)' }}>{cap}</div>
+      <span style={{ position: 'absolute', left: '50%', bottom: 'calc(100% + 2px)', transform: 'translateX(-50%)', color: '#EF4444', fontSize: '18px', fontWeight: 900, lineHeight: 1, zIndex: 6 }}>↓</span>
     </>
   );
   const spotlight = (
-    <div style={{ position: 'absolute', inset: '-6px', borderRadius: '10px', boxShadow: '0 0 0 3px #6d28d9, 0 0 0 2000px rgba(13,13,20,0.5)', zIndex: 4, pointerEvents: 'none' }}>
-      <div style={{ position: 'absolute', inset: '-5px', borderRadius: '12px', border: '2px solid rgba(167,139,250,0.7)', animation: 'rippleOut 1.4s ease-out infinite' }} />
-      {/* 사용자가 직접 클릭하는 마우스 커서 */}
-      <div style={{ position: 'absolute', top: '54%', left: '52%', zIndex: 7 }}><CursorIcon /></div>
+    <div style={{ position: 'absolute', inset: '-7px', borderRadius: '12px', boxShadow: '0 0 0 4px #6d28d9, 0 0 0 2000px rgba(13,13,20,0.52)', zIndex: 4, pointerEvents: 'none' }}>
+      <div style={{ position: 'absolute', inset: '-6px', borderRadius: '14px', border: '3px solid rgba(167,139,250,0.8)', animation: 'rippleOut 1.4s ease-out infinite' }} />
+      {/* 사용자가 직접 타겟으로 이동해 클릭하는 마우스 커서 */}
+      <div style={{ position: 'absolute', top: '50%', left: '48%', zIndex: 7, animation: 'cursorClick 2.6s ease-in-out infinite' }}><CursorIcon size={28} /></div>
     </div>
   );
 
@@ -582,7 +587,7 @@ function StepScreen({ step, mode }: { step: number; mode: 'card' | 'guide' | 're
             {SERVICES.map((s, i) => {
               const target = i === 1;
               return (
-                <div key={i} style={{ position: 'relative', padding: '9px 5px', borderRadius: '7px', border: `1.5px solid ${target ? (isCard ? '#EF4444' : isRec ? '#1d4ed8' : '#E5E7EB') : '#E5E7EB'}`, background: target ? (isCard ? '#FEF2F2' : isRec ? '#EFF6FF' : '#F9FAFB') : '#F9FAFB', fontSize: '8.5px', fontWeight: target ? 700 : 500, color: target ? '#111827' : '#6B7280', textAlign: 'center', lineHeight: 1.3, zIndex: target && (mode === 'guide' || isRec) ? 5 : 1 }}>
+                <div key={i} style={{ position: 'relative', padding: '9px 5px', borderRadius: '7px', border: `${target && isCard ? '2.5px' : '1.5px'} solid ${target ? (isCard ? '#EF4444' : isRec ? '#1d4ed8' : '#E5E7EB') : '#E5E7EB'}`, background: target ? (isCard ? '#FEF2F2' : isRec ? '#EFF6FF' : '#F9FAFB') : '#F9FAFB', fontSize: '8.5px', fontWeight: target ? 700 : 500, color: target ? '#111827' : '#6B7280', textAlign: 'center', lineHeight: 1.3, zIndex: target && (mode === 'guide' || isRec) ? 5 : 1 }}>
                   {s}
                   {target && (isCard ? overlayBelow : isRec ? recordOverlay : spotlight)}
                 </div>
@@ -610,7 +615,7 @@ function StepScreen({ step, mode }: { step: number; mode: 'card' | 'guide' | 're
         ))}
         {/* 발급하기 버튼 (타겟) — 우측 중앙 */}
         <div style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', width: '110px', zIndex: (mode === 'guide' || isRec) ? 5 : 1 }}>
-          <div style={{ position: 'relative', padding: '9px 0', borderRadius: '6px', background: '#1d4ed8', color: '#fff', fontSize: '10.5px', fontWeight: 700, textAlign: 'center', border: isCard ? '2px solid #EF4444' : isRec ? '2px solid #93C5FD' : 'none' }}>
+          <div style={{ position: 'relative', padding: '9px 0', borderRadius: '6px', background: '#1d4ed8', color: '#fff', fontSize: '10.5px', fontWeight: 700, textAlign: 'center', border: isCard ? '3px solid #EF4444' : isRec ? '2px solid #93C5FD' : 'none' }}>
             발급하기
             {isCard ? overlayAbove : isRec ? recordOverlay : spotlight}
           </div>
@@ -684,7 +689,6 @@ function Scene4({ tick }: { tick: number }) {
                   {/* 스크린샷 + 어노테이션 */}
                   <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #E5E7EB', position: 'relative', height: '130px' }}>
                     <StepScreen step={i} mode="card" />
-                    <div style={{ position: 'absolute', top: '7px', left: '7px', background: '#6d28d9', color: '#fff', fontSize: '7px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', zIndex: 8 }}>AI 크롭</div>
                   </div>
                 </div>
               );
@@ -717,8 +721,8 @@ function Scene5({ tick }: { tick: number }) {
         ))}
       </div>
       <div style={{ position: 'absolute', inset: 0, background: 'rgba(13,13,20,0.42)' }} />
-      {/* 공유 모달 */}
-      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: '326px', background: '#fff', borderRadius: '16px', boxShadow: '0 24px 60px rgba(0,0,0,0.3)', overflow: 'hidden', animation: 'sceneIn 0.4s cubic-bezier(0.34,1.4,0.64,1) both', zIndex: 10 }}>
+      {/* 공유 모달 — 상단 정렬 (자막 겹침 방지) */}
+      <div style={{ position: 'absolute', top: '26px', left: '50%', transform: 'translateX(-50%)', width: '326px', background: '#fff', borderRadius: '16px', boxShadow: '0 24px 60px rgba(0,0,0,0.3)', overflow: 'hidden', animation: 'sceneIn 0.4s cubic-bezier(0.34,1.4,0.64,1) both', zIndex: 10 }}>
         <div style={{ padding: '15px 18px 11px', borderBottom: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <div style={{ fontSize: '14px', fontWeight: 700, color: '#111827' }}>공유하기</div>
@@ -1836,6 +1840,13 @@ export default function LandingPage() {
         @keyframes rippleOut {
           0%   { transform: scale(1); opacity: 0.6; }
           100% { transform: scale(2.4); opacity: 0; }
+        }
+        @keyframes cursorClick {
+          0%   { transform: translate(30px, 26px) scale(1.05); }
+          42%  { transform: translate(0, 0) scale(1); }
+          56%  { transform: translate(0, 0) scale(0.78); }
+          70%  { transform: translate(0, 0) scale(1); }
+          100% { transform: translate(0, 0) scale(1); }
         }
         @keyframes recPulse {
           0%, 100% { opacity: 1; }
