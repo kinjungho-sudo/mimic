@@ -4,7 +4,8 @@
 // 같은 블록 스펙을 편집기/공개뷰가 공유하며, GuideContext.mode 로 렌더를 분기한다.
 
 import { createContext, useContext, useState } from 'react';
-import { BlockNoteSchema, defaultBlockSpecs } from '@blocknote/core';
+import { BlockNoteSchema, defaultBlockSpecs, createCodeBlockSpec } from '@blocknote/core';
+import { codeBlockOptions } from '@blocknote/code-block';
 import { createReactBlockSpec } from '@blocknote/react';
 import { AnnotationPreview } from '@/components/editor/AnnotationPreview';
 import type { Annotation } from '@/components/editor/ImageAnnotationEditor';
@@ -62,6 +63,9 @@ const guideSpec = createReactBlockSpec(
 export const guidebookSchema = BlockNoteSchema.create({
   blockSpecs: {
     ...defaultBlockSpecs,
+    // Shiki 코드 하이라이팅 활성화
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    codeBlock: createCodeBlockSpec(codeBlockOptions as any),
     guide: guideSpec,
   },
   // 커스텀 블록 스펙 제네릭 추론 우회
