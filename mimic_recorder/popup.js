@@ -1067,12 +1067,14 @@ btnFinish.addEventListener('click', async () => {
   chrome.runtime.sendMessage({ type: 'FINALIZE_SESSION', sessionId, stepNumbers }, (res) => {
     void chrome.runtime.lastError;
     hideFinalizingOverlay();
+    renderSteps([]);             // window.close() 실패해도 스텝 목록 항상 초기화
+    btnFinish.disabled = false;  // window.close() 실패해도 버튼 항상 재활성화
     if (res?.ok && res?.tutorial_id) {
+      showToast('매뉴얼이 생성되었습니다! 편집기가 열립니다.', 2500);
       window.close();
     } else {
       // 실패 시 에러 안내
       showFinalizingError();
-      btnFinish.disabled = false;
     }
   });
 });

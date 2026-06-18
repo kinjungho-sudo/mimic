@@ -1,4 +1,5 @@
 ﻿import { createClient } from '../supabase/client';
+import { logAuditClient } from '@/lib/logging/logger';
 import type { User, Agreements } from '@/types';
 
 function translateAuthError(msg: string | undefined): string {
@@ -31,7 +32,11 @@ export async function signInWithEmail(
 ): Promise<{ user: User | null; session: unknown }> {
   const supabase = createClient();
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) throw new Error(translateAuthError(error.message));
+  if (error) {
+    logAuditClient('auth.login.fail', { email, method: 'password', reason: error.message }, 'warn');
+    throw new Error(translateAuthError(error.message));
+  }
+  logAuditClient('auth.login.success', { userId: data.user?.id ?? null, email, method: 'password' });
 
   const profile = await getCurrentUser();
   return { user: profile, session: data.session };

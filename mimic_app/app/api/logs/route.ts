@@ -6,6 +6,7 @@ import { z } from 'zod';
 // 인증 불필요(로그아웃 상태 오류도 수집). error/warn만 mm_logs에 저장.
 const schema = z.object({
   level: z.enum(['debug', 'info', 'warn', 'error']),
+  category: z.enum(['error', 'network', 'audit', 'system']).optional().default('error'),
   event: z.string().min(1).max(80),
   message: z.string().max(1000).nullable().optional(),
   context: z.record(z.string(), z.unknown()).nullable().optional(),
@@ -22,13 +23,15 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) return NextResponse.json({ ok: false }, { status: 400 });
 
   const d = parsed.data;
-  // 클라이언트는 error/warn만 보내지만 방어적으로 필터
-  if (d.level !== 'error' && d.level !== 'warn') return NextResponse.json({ ok: true });
+  // error 카테고리는 error/warn만 저장(기존 규칙). network/audit/system은 레벨과 무관하게 저장.
+  const shouldPersist = d.category === 'error' ? (d.level === 'error' || d.level === 'warn') : true;
+  if (!shouldPersist) return NextResponse.json({ ok: true });
 
   try {
     const supabase = createServiceRoleClient();
     await supabase.from('mm_logs').insert({
       level: d.level,
+      category: d.category,
       source: 'client',
       event: d.event,
       message: d.message ?? null,

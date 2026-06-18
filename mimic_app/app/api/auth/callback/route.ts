@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { sendMimicEmail, welcomeEmailHtml } from '@/lib/email/email-n8n';
+import { logAudit } from '@/lib/logging/logger-server';
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
@@ -22,7 +23,10 @@ export async function GET(request: NextRequest) {
 
     if (!error) {
       const user = sessionData?.user ?? null;
-      if (!user) return NextResponse.redirect(`${origin}/auth/login?error=oauth_callback_failed`);
+      if (!user) {
+        logAudit('auth.login.fail', { method: 'google', reason: 'no_user_in_session' }, 'warn');
+        return NextResponse.redirect(`${origin}/auth/login?error=oauth_callback_failed`);
+      }
 
       const service = createServiceRoleClient();
       const meta = user.user_metadata ?? {};
@@ -66,8 +70,12 @@ export async function GET(request: NextRequest) {
         }).eq('id', user.id);
       }
 
+      if (!existing) logAudit('auth.signup', { userId: user.id, email: user.email, method: 'google' });
+      logAudit('auth.login.success', { userId: user.id, email: user.email, method: 'google', isNew: !existing });
       return NextResponse.redirect(`${origin}${next}`);
     }
+
+    logAudit('auth.login.fail', { method: 'google', reason: error?.message ?? 'session_exchange_failed' }, 'warn');
   }
 
   return NextResponse.redirect(`${origin}/auth/login?error=oauth_callback_failed`);

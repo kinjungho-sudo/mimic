@@ -2,6 +2,8 @@
 // 웹훅은 받은 { to, subject, html } 을 그대로 Gmail로 보내는 범용 릴레이라,
 // 공유메일·환영메일 등 모든 메일이 같은 웹훅을 재사용한다(워크플로우 1개로 충분).
 
+import { logNetwork } from '@/lib/logging/logger-server';
+
 const clean = (v?: string) => v?.replace(/^﻿/, '').trim() ?? '';
 
 // 실패해도 throw 하지 않는다 — 호출부(가입 콜백 등)가 메일 때문에 막히지 않도록.
@@ -26,8 +28,13 @@ export async function sendMimicEmail(opts: {
         replyTo: 'kinjungho@gmail.com',
       }),
     });
+    // 외부서비스(n8n) 연동 결과 — PII 회피 위해 수신주소는 도메인만 기록.
+    const domain = opts.to.split('@')[1] ?? null;
+    if (res.ok) logNetwork('email.send', { service: 'n8n', subject: opts.subject, domain });
+    else logNetwork('email.send.fail', { service: 'n8n', subject: opts.subject, domain, status: res.status }, 'warn');
     return res.ok;
-  } catch {
+  } catch (e) {
+    logNetwork('email.send.fail', { service: 'n8n', subject: opts.subject, reason: e instanceof Error ? e.message : 'fetch_error' }, 'warn');
     return false;
   }
 }
