@@ -14,6 +14,7 @@ const SW_KEEPALIVE_MS         = 20000;
 const AUTONAV_COOLDOWN_MS     = 3000;
 const DEDUP_HASH_THRESHOLD    = 6;     // aHash(256bit) 해밍거리 ≤ 6 이면 동일 이미지로 간주
 const NAV_URL_DEDUP_MS        = 5000;  // 같은 페이지(origin+pathname) '이동' 재캡처 금지 윈도우
+const TYPED_LABEL_MAX         = 80;    // 이보다 짧은 입력은 라벨에 전문, 길면 프리뷰+총 글자수
 
 // ── 로그 시스템 ──────────────────────────────────────────────────
 const LOG_KEY      = '_mimicLogs';
@@ -134,6 +135,7 @@ const _navBusyTabs     = new Set();          // onUpdated complete 동시(중복
 let _captureChain      = Promise.resolve();  // 캡처 디덥~로컬 저장 직렬화 큐
 let _preCaptureFrame   = null;               // { dataUrl, time, tabId } — pointerdown 선캡처 프레임
 const PRECAPTURE_MAX_AGE_MS = 1500;          // 이보다 오래된 선캡처는 폐기 (클릭과 무관)
+const PRECAPTURE_WAIT_MS    = 500;           // 선캡처가 in-flight(쿼터 재시도)면 이만큼 기다려 받는다
 let _typingFrame       = null;               // { dataUrl, time, tabId } — 타이핑 중 롤링 프레임 (전송 직전 화면)
 const TYPING_FRAME_MAX_AGE_MS = 3000;        // 이보다 오래된 타이핑 프레임은 사용 안 함
 
@@ -682,8 +684,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       (async () => {
         const tab = await new Promise((res) => chrome.tabs.get(tabId, (t) => res(chrome.runtime.lastError ? null : t)));
         if (!tab) return;
-        const url = await captureTab(tab.windowId).catch(() => null);
-        if (url) _preCaptureFrame = { dataUrl: url, time: Date.now(), tabId };
+        // captureVisibleTab 쿼터(초당 2회) 초과로 실패하면 짧게 재시도 — 선캡처가 비면 클릭 후
+        // 라이브 폴백이 전환 중간 화면을 잡으므로(이슈 #3·#6), 선캡처를 최대한 확보한다.
+        for (let i = 0; i < 3; i++) {
+          const url = await captureTab(tab.windowId).catch(() => null);
+          if (url) { _preCaptureFrame = { dataUrl: url, time: Date.now(), tabId }; return; }
+          await new Promise((r) => setTimeout(r, 240));
+        }
       })();
     }
     return false;  // 응답 불필요
@@ -737,6 +744,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (response === null) { restore(); sendResponse({ ok: false }); return; }
 
       await new Promise((r) => setTimeout(r, CAPTURE_RAF_DELAY_MS));
+
+      // 선캡처가 아직 도착 안 했으면(쿼터로 재시도 중) 잠깐 기다린다 — 곧바로 라이브 폴백하면
+      // 클릭 후 전환 중간/이미 사라진 화면을 잡으므로(이슈 #3·#6), in-flight 선캡처를 받아낸다.
+      if (stepData.usePrecapture) {
+        const deadline = Date.now() + PRECAPTURE_WAIT_MS;
+        const ready = () => _preCaptureFrame && _preCaptureFrame.tabId === tabId
+          && (Date.now() - _preCaptureFrame.time) < PRECAPTURE_MAX_AGE_MS;
+        while (!ready() && Date.now() < deadline) await new Promise((r) => setTimeout(r, 30));
+      }
 
       // 선캡처(pointerdown) 프레임이 있으면 그걸 사용 — 클릭 전 화면이라 좌표/하이라이트가 일치한다.
       // 없거나 오래됐으면 지금 캡처 (기존 동작 폴백).
@@ -873,12 +889,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return false;
   }
 
-  // 페이지 이동 후 content가 자기 탭의 녹화 상태를 복원할 때 사용 — 녹화 대상 탭에만 true 응답
+  // 페이지 이동/로드 후 content가 자기 탭의 녹화 상태를 복원할 때 사용.
+  // 크로스 사이트 녹화: 단일 targetTabId 고정을 버리고, 녹화 중이면 로드되는 모든 http(s)
+  // 탭이 자가 무장한다(사용자가 새 탭·다른 도메인으로 가도 클릭/타이핑이 캡처됨).
+  // 실제 이벤트는 포커스된 탭에서만 발생하고, stepNumber는 storage.onChanged로 모든 탭이
+  // 동기화하므로 다중 탭 동시 무장은 충돌을 일으키지 않는다.
   if (message.type === 'GET_TAB_RECORDING_STATE') {
     const tabId = sender.tab?.id;
     (async () => {
-      const r = await storageGet(['isRecording', 'isPaused', 'stepNumber', 'targetTabId']);
-      const isTarget = !!r.isRecording && tabId != null && tabId === (r.targetTabId ?? _cachedTargetTabId);
+      const r = await storageGet(['isRecording', 'isPaused', 'stepNumber']);
+      const isTarget = !!r.isRecording && tabId != null;
       sendResponse({ isRecording: isTarget, isPaused: !!r.isPaused, stepNumber: r.stepNumber || 0 });
     })();
     return true;
@@ -1285,6 +1305,32 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
   if (targetTabId !== tabId) return;
   if (!_prevTargetTabId) return;
   await storageSet({ targetTabId: _prevTargetTabId, _prevTargetTabId: null });
+});
+
+// ── 크로스 사이트 녹화: 사용자가 활성화/전환한 탭을 세션에 편입 ──────────
+// 단일 targetTabId 고정 대신, 녹화 중 사용자가 실제로 보는 탭을 따라간다.
+//  - 새 탭·네비게이션: content.js 로드 시 GET_TAB_RECORDING_STATE로 자가 무장(위 핸들러).
+//  - 녹화 전부터 열려 있던(재로드 안 된) 탭: 활성화 시 여기서 RESYNC_RECORDING으로 무장.
+// 또 활성 탭을 targetTabId로 동기화해 수동 캡처·가이드·사이드패널이 올바른 탭을 가리키게 한다.
+async function followActiveTab(tabId) {
+  if (tabId == null) return;
+  const { isRecording, isPaused, stepNumber } = await storageGet(['isRecording', 'isPaused', 'stepNumber']);
+  if (!isRecording) return;
+  const tab = await new Promise((res) => chrome.tabs.get(tabId, (t) => res(chrome.runtime.lastError ? null : t)));
+  if (!tab || !tab.url?.startsWith('http')) return;  // chrome://·확장 페이지 등은 녹화 대상 아님
+  await storageSet({ targetTabId: tabId });
+  await ensureContentScript(tabId);  // 멱등 — 이미 주입돼 있으면 early-return
+  sendTabMessage(tabId, { type: 'RESYNC_RECORDING', isPaused: !!isPaused, stepNumber: stepNumber || 0 });
+}
+
+chrome.tabs.onActivated.addListener(({ tabId }) => { followActiveTab(tabId); });
+
+chrome.windows.onFocusChanged.addListener((windowId) => {
+  if (windowId === chrome.windows.WINDOW_ID_NONE) return;  // 모든 창이 포커스 잃음(다른 앱)
+  chrome.tabs.query({ active: true, windowId }, (tabs) => {
+    void chrome.runtime.lastError;
+    if (tabs && tabs[0]) followActiveTab(tabs[0].id);
+  });
 });
 
 // ── URL 변경 탐지 (cross-origin 이동 캡처) ───────────────────────
@@ -1705,6 +1751,33 @@ chrome.storage.onChanged.addListener((changes, area) => {
 });
 
 // ── 액션 레이블 생성 ─────────────────────────────────────────────
+// ── 캡처 단계 확대 영역(crop_box) 계산 ──────────────────────────
+// 클릭 요소(elementRect, 0~1) 기준으로 확대해서 보여줄 영역을 정한다(Tango식 프레이밍).
+// 반환: 원본 이미지 기준 0~1 {x,y,width,height}, 또는 null(요소 없음 → 확대 안 함).
+// 주의: 이미지를 자르는 게 아니라 "확대 영역"을 정의하는 메타데이터다.
+function computeCropBox(elementRect, clickX, clickY) {
+  if (!elementRect) return null;
+  const size = Math.max(elementRect.width, elementRect.height);
+  // 요소가 작을수록 더 넓은 패딩(컨텍스트 확보), 클수록 좁게
+  const PAD = size < 0.05 ? 0.15 : size > 0.3 ? 0.05 : 0.10;
+  const MIN_W = 0.35;   // 너무 작게 확대돼 글씨가 깨지지 않도록 최소 영역 보장
+  const MIN_H = 0.25;
+  // 확대 중심: 클릭 지점 우선, 없으면 요소 중심
+  let cx = elementRect.x + elementRect.width / 2;
+  let cy = elementRect.y + elementRect.height / 2;
+  if (clickX > 0 && clickY > 0) { cx = clickX; cy = clickY; }
+  const w = Math.max(elementRect.width + PAD * 2, MIN_W);
+  const h = Math.max(elementRect.height + PAD * 2, MIN_H);
+  const x = Math.max(0, Math.min(1 - w, cx - w / 2));
+  const y = Math.max(0, Math.min(1 - h, cy - h / 2));
+  return {
+    x: Math.round(x * 1000) / 1000,
+    y: Math.round(y * 1000) / 1000,
+    width: Math.round(Math.min(1 - x, w) * 1000) / 1000,
+    height: Math.round(Math.min(1 - y, h) * 1000) / 1000,
+  };
+}
+
 function makeActionLabel(actionInfo, stepNum, domainInfo) {
   if (!actionInfo) return `Step ${stepNum}`;
   const { type, label, text } = actionInfo;
@@ -1720,7 +1793,17 @@ function makeActionLabel(actionInfo, stepNum, domainInfo) {
     case 'toggle':      return name ? `선택, ${name}` : '선택';
     case 'select':      return name ? `선택, ${name}` : '드롭다운 선택';
     case 'focus_input': return name ? `입력, ${name}` : '입력 필드';
-    case 'type':        return actionInfo.masked ? '비밀번호 입력' : (name ? `입력, ${name}` : '텍스트 입력');
+    case 'type': {
+      if (actionInfo.masked) return '비밀번호 입력';
+      // 입력 내용 우선 — 짧으면 '입력, "내용"', 길면 앞부분 프리뷰 + 총 글자수.
+      const typed = (actionInfo.typedText || '').trim().replace(/\s+/g, ' ');
+      if (typed) {
+        return typed.length <= TYPED_LABEL_MAX
+          ? `입력, "${typed}"`
+          : `입력, "${typed.slice(0, 40)}…" (총 ${typed.length}자)`;
+      }
+      return name ? `입력, ${name}` : '텍스트 입력';
+    }
     default:            return name ? name : `Step ${stepNum}`;
   }
 }
@@ -1807,15 +1890,20 @@ async function prepareCapture(pngDataUrl, stepData, tab) {
   const domainInfo  = extractDomainInfo(stepData.url, tab);
   const actionLabel = makeActionLabel(stepData.actionInfo, stepNum, domainInfo);
 
+  // 행동 없음(이동/빈영역/요소 없음)에는 확대 영역을 만들지 않는다.
+  const cropBox = stepData.elementRect
+    ? computeCropBox(stepData.elementRect, clickX, clickY)
+    : null;
+
   await idbPut(stepNum, jpegBlob);
   if (!stepData.overwrite) await storageSet({ stepNumber: stepNum });
   if (candHash) setLastSavedHash(candHash);  // 다음 캡처 디덥 기준 갱신
 
-  return { sessionId, stepNum, imagePath, jpegBlob, base64Image, stepData, clickX, clickY, domainInfo, actionLabel };
+  return { sessionId, stepNum, imagePath, jpegBlob, base64Image, stepData, clickX, clickY, domainInfo, actionLabel, cropBox };
 }
 
 // ── 스텝 업로드 처리 (SW keepalive 포함) ─────────────────────────
-async function processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base64Image, stepData, clickX, clickY, domainInfo, actionLabel }) {
+async function processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base64Image, stepData, clickX, clickY, domainInfo, actionLabel, cropBox }) {
   const keepaliveInterval = setInterval(() => {
     chrome.storage.local.set({ _swKeepalive: Date.now() });
   }, SW_KEEPALIVE_MS);
@@ -1857,7 +1945,7 @@ async function processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base
       const audioOffsetMs = audioStartTime
         ? Math.max(0, (stepData.timestamp || Date.now()) - audioStartTime)
         : null;
-      await saveStep({ sessionId, stepNumber: stepNum, screenshotUrl: uploadedUrl, clickX, clickY, title: title ?? '', description: description ?? '', url: stepData.url, domainInfo, viewportW: stepData.viewportW ?? stepData.windowWidth ?? null, viewportH: stepData.viewportH ?? stepData.windowHeight ?? null, elementSelector: stepData.elementSelector ?? null, elementXPath: stepData.elementXPath ?? null, elementRect: stepData.elementRect ?? null, audioOffsetMs });
+      await saveStep({ sessionId, stepNumber: stepNum, screenshotUrl: uploadedUrl, clickX, clickY, title: title ?? '', description: description ?? '', url: stepData.url, domainInfo, viewportW: stepData.viewportW ?? stepData.windowWidth ?? null, viewportH: stepData.viewportH ?? stepData.windowHeight ?? null, elementSelector: stepData.elementSelector ?? null, elementXPath: stepData.elementXPath ?? null, elementRect: stepData.elementRect ?? null, typedText: stepData.typedText || null, cropBox, audioOffsetMs });
       log('info', 'bg', `saved step ${stepNum}: "${title}"`);
     } catch (err) {
       log('warn', 'bg', `save-step API failed step ${stepNum}:`, err.message);
@@ -1883,6 +1971,7 @@ async function saveStepLocally(stepData) {
     imageUrl:    stepData.imageUrl     ?? null,
     actionLabel: stepData.actionLabel  ?? null,
     actionInfo:  stepData.actionInfo   ?? null,
+    typedText:   stepData.typedText    || null,  // 입력 원문(매뉴얼 생성 참고·Live Guide 자동입력). 마스킹/빈값은 null
     domainInfo:  stepData.domainInfo   ?? null,
     elementRect: stepData.elementRect  ?? null,
     clickX:      stepData.clickX       ?? 0,
@@ -1995,7 +2084,7 @@ async function analyzeWithClaude(base64Image, url, actionInfo, elementContext = 
 }
 
 // ── 스텝 저장 — 웹앱 API 경유 ───────────────────────────────────
-async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, title, description, url, domainInfo, viewportW, viewportH, elementSelector, elementXPath, elementRect, audioOffsetMs }) {
+async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, title, description, url, domainInfo, viewportW, viewportH, elementSelector, elementXPath, elementRect, typedText, cropBox, audioOffsetMs }) {
   const origin = await getWebappOrigin();
   const res = await authedFetch(`${origin}/api/capture/save-step`, {
     method: 'POST',
@@ -2016,6 +2105,8 @@ async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, 
       element_selector: elementSelector       ?? null,
       element_xpath:    elementXPath          ?? null,
       element_rect:     elementRect           ?? null,
+      type_text:        typedText             || null,  // 입력 원문(매뉴얼 생성 참고·Live Guide 자동입력). 앱 측 컬럼 반영 전까진 무시됨
+      crop_box:         cropBox               ?? null,
       ...(audioOffsetMs != null ? { audio_offset_ms: audioOffsetMs } : {}),
     }),
   });

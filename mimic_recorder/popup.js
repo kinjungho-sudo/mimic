@@ -20,6 +20,7 @@ const btnBack          = document.getElementById('btnBack');
 const settingHighlight = document.getElementById('settingHighlight');
 const settingAutoNav   = document.getElementById('settingAutoNav');
 const settingVoiceRecord = document.getElementById('settingVoiceRecord');
+const settingSaveText    = document.getElementById('settingSaveText');
 
 let isRecording  = false;
 let isPaused     = false;
@@ -32,6 +33,7 @@ const SETTINGS_DEFAULTS = {
   autoNav:     true,
   autoZoom:    false,  // 선택영역 확대 — 매뉴얼 이미지에 클릭 영역 확대 선적용
   voiceRecord: false,  // 음성 설명 녹음 — 녹화 중 마이크로 설명 → 스텝 전사
+  saveText:    false,  // 타이핑 텍스트 저장 — Live Guide Ctrl+V 자동입력용
 };
 
 // ── chrome.storage.local 프로미스 헬퍼 ──────────────────────────
@@ -78,6 +80,7 @@ function loadSettingsUI(saved) {
   settingAutoZoom.checked       = s.autoZoom;
   settingAutoNav.checked        = s.autoNav;
   if (settingVoiceRecord) settingVoiceRecord.checked = s.voiceRecord;
+  if (settingSaveText)    settingSaveText.checked    = s.saveText;
 }
 
 function saveSettings() {
@@ -86,6 +89,7 @@ function saveSettings() {
     autoZoom:    settingAutoZoom.checked,
     autoNav:     settingAutoNav.checked,
     voiceRecord: settingVoiceRecord ? settingVoiceRecord.checked : false,
+    saveText:    settingSaveText    ? settingSaveText.checked    : false,
   };
   chrome.storage.local.set({ settings: s });
   storageGet('targetTabId').then(({ targetTabId }) => {
@@ -107,6 +111,7 @@ settingsOverlay.addEventListener('click', (e) => {
 settingHighlight.addEventListener('change',   saveSettings);
 settingAutoZoom.addEventListener('change',    saveSettings);
 settingAutoNav.addEventListener('change',     saveSettings);
+if (settingSaveText) settingSaveText.addEventListener('change', saveSettings);
 
 // 음성 녹음 토글 — 켤 때 마이크 권한을 먼저 확보한다.
 // 사이드패널·offscreen은 마이크 프롬프트를 띄우지 못하고 즉시 거부되므로,

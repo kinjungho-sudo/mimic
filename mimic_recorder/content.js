@@ -22,6 +22,7 @@
   // ── 상수 ─────────────────────────────────────────────────────────
   const DEDUP_SAME_ELEMENT  = 1200;  // ms — 같은 요소 재클릭 무시 간격
   const DEDUP_DOUBLE_CLICK  = 400;   // ms — 더블클릭 감지 간격
+  const DEDUP_REFOCUS_MS    = 10000; // ms — 같은 입력칸 재포커스 클릭 스텝 중복 방지(이 시간 지나면 재캡처 허용)
   const TYPING_DEBOUNCE     = 1500;  // ms — 입력 멈춤 후 자동 캡처 대기
   const CAPTURE_SAFETY_MS   = 5000;  // ms — isCapturing stuck 방지 타임아웃
   const TYPING_FRAME_THROTTLE = 300; // ms — 타이핑 중 '전송 직전' 롤링 프레임 캡처 간격
@@ -45,10 +46,13 @@
   let settings = {
     highlight: true,
     autoNav:   true,
+    saveText:  false,
   };
 
   let lastCapturedTarget = null;
   let lastCapturedTime   = 0;
+  let lastFocusInputTarget = null;  // 같은 입력칸 재포커스 dedup용
+  let lastFocusInputTime   = 0;
   let typingTarget       = null;
   let pendingInputStep   = null;
   let typingUrl          = null;   // 입력 세션 시작 시 URL — 재마운트 필드 판정용
@@ -104,8 +108,23 @@
     };
   }
 
+  // 뷰포트 교차 영역으로 클램프 — 화면보다 큰 요소(긴 텍스트 붙여넣기로 늘어난 textarea 등)의
+  // 하이라이트/저장 rect가 화면 밖으로 벗어나 어긋나지 않도록 보이는 부분만 강조·저장한다.
+  function clampRectToViewport(rect, vw, vh) {
+    const rx = rect.left != null ? rect.left : rect.x;
+    const ry = rect.top  != null ? rect.top  : rect.y;
+    const left   = Math.max(0, rx);
+    const top    = Math.max(0, ry);
+    const right  = Math.min(vw, rx + rect.width);
+    const bottom = Math.min(vh, ry + rect.height);
+    const width  = Math.max(0, right - left);
+    const height = Math.max(0, bottom - top);
+    return { x: left, y: top, left, top, width, height };
+  }
+
   function normalizeRect(rect, vw, vh) {
-    return { x: rect.x / vw, y: rect.y / vh, width: rect.width / vw, height: rect.height / vh };
+    const c = clampRectToViewport(rect, vw, vh);
+    return { x: c.x / vw, y: c.y / vh, width: c.width / vw, height: c.height / vh };
   }
 
   // ── 필드 레이블 추출 ─────────────────────────────────────────────
@@ -182,6 +201,10 @@
     const stepForThis = pendingInputStep;
 
     const label = getFieldLabel(el);
+    // 입력 원문 보관 — 비밀번호 등 민감 필드는 저장하지 않는다(라벨도 '비밀번호 입력').
+    // 짧으면 스텝 라벨에 '입력, "내용"'으로, 길면 본문(typedText)에 전문 보관해 매뉴얼 생성 참고자료로 쓴다.
+    const isMasked  = SENSITIVE_INPUT_TYPES.has((el.type || '').toLowerCase()) || SENSITIVE_LABEL_RE.test(label);
+    const typedText = (isMasked || !settings.saveText) ? '' : (el.isContentEditable ? (el.textContent || '') : (el.value || ''));
     const safetyTimer = startCapturingSafely();
     const done = () => { clearTimeout(safetyTimer); isCapturing = false; };
 
@@ -198,11 +221,28 @@
       windowWidth: vw, windowHeight: vh,
       viewportW: vw, viewportH: vh,
       stepNumber: stepForThis, overwrite: true, useTypingFrame: true,
+      typedText,
       elementRect: normalizeRect(rect, vw, vh), elementSelector: getElementSelector(el), elementXPath: getElementXPath(el),
-      actionInfo: { type: 'type', text: label },
+      actionInfo: { type: 'type', text: label, typedText, masked: isMasked },
     }, done);
 
     endSession();
+  }
+
+  // ── 녹화 해제(로컬) ──────────────────────────────────────────────
+  // STOP_RECORDING 메시지(활성 탭)와 storage.onChanged(모든 무장 탭) 양쪽에서 호출.
+  // 크로스 사이트 녹화에서 STOP은 활성 탭에만 전달되므로, 나머지 탭은 storage 전파로 해제된다.
+  function disarmRecordingLocal() {
+    if (typingTarget) flushTyping(typingTarget, true);  // 디바운스 전 마지막 입력 텍스트 저장
+    isRecording        = false;
+    isPaused           = false;
+    hideHoverPointer();
+    clearTimeout(typingTimer);
+    typingTimer        = null;
+    typingTarget       = null;
+    pendingInputStep   = null;
+    typingUrl          = null;
+    lastCapturedTarget = null;
   }
 
   // ── 오버레이 헬퍼 ────────────────────────────────────────────────
@@ -212,8 +252,10 @@
     return ov;
   }
 
-  function applyOverlayStyle(ov, rect) {
+  function applyOverlayStyle(ov, rawRect) {
     const P = 3;
+    // 화면보다 큰 요소(긴 텍스트 붙여넣기 등)는 보이는 영역으로 클램프 — 테두리가 화면 밖으로 나가지 않게
+    const rect = clampRectToViewport(rawRect, window.innerWidth, window.innerHeight);
     ov.style.cssText = [
       'position:fixed',
       `left:${rect.left - P}px`, `top:${rect.top - P}px`,
@@ -447,16 +489,19 @@
     }
 
     if (msg.type === 'STOP_RECORDING') {
-      if (typingTarget) flushTyping(typingTarget, true);  // 디바운스 전 마지막 입력 텍스트 저장
-      isRecording        = false;
-      isPaused           = false;
-      hideHoverPointer();
-      clearTimeout(typingTimer);
-      typingTimer        = null;
-      typingTarget       = null;
-      pendingInputStep   = null;
-      typingUrl          = null;
-      lastCapturedTarget = null;
+      disarmRecordingLocal();
+      sendResponse({ ok: true });
+      return false;
+    }
+
+    // 크로스 사이트 녹화: 녹화 전부터 열려 있던 탭을 사용자가 활성화하면 background가 보냄.
+    // 이미 무장됐거나 카운트다운 중이면 무시, 아니면 카운트다운 없이 조용히 녹화 재개.
+    if (msg.type === 'RESYNC_RECORDING') {
+      if (!isRecording && !_countingDown) {
+        isRecording = true;
+        isPaused    = !!msg.isPaused;
+        if ((msg.stepNumber || 0) > stepNumber) stepNumber = msg.stepNumber || 0;
+      }
       sendResponse({ ok: true });
       return false;
     }
@@ -547,6 +592,34 @@
         (cur.dataset && Object.keys(cur.dataset).length > 0 && cur.tagName !== 'INPUT')
       ) return cur;
       cur = cur.parentElement;
+    }
+
+    // 아이콘 버튼 보강 — svg/path/img/i 같은 아이콘을 클릭했는데 위 신호로 못 잡은 경우
+    // (cursor:pointer가 명시 안 된 커스텀 위젯·캔버스형 에디터의 작은 아이콘 버튼),
+    // 가장 가까운 '클릭 가능해 보이는' 작은 조상을 타겟으로 삼는다. 아이콘 클릭에만 한정해 오탐 방지.
+    const tag0 = el.tagName ? el.tagName.toLowerCase() : '';
+    const cls0 = typeof el.className === 'string' ? el.className : (el.className?.baseVal ?? '');
+    const ICON_TAG  = /^(svg|path|use|symbol|polygon|circle|rect|g|img|i)$/;
+    const ICONISH   = /(^|[-_ ])(icon|btn|button|action|clickable|toggle|chip|fab|plus|add|menu|caret|arrow|close|more|kebab|dots|trigger)([-_ ]|$)/i;
+    if (ICON_TAG.test(tag0) || ICONISH.test(cls0)) {
+      cur = el;
+      for (let i = 0; i < 6; i++) {
+        if (!cur || cur === document.documentElement || cur === document.body) break;
+        const cs   = window.getComputedStyle(cur);
+        const ccls = typeof cur.className === 'string' ? cur.className : (cur.className?.baseVal ?? '');
+        const looksClickable =
+          cs.cursor === 'pointer' ||
+          cur.getAttribute('role') ||
+          cur.getAttribute('aria-label') || cur.getAttribute('title') ||
+          cur.getAttribute('aria-haspopup') != null || cur.getAttribute('aria-expanded') != null ||
+          cur.hasAttribute('onclick') || cur.getAttribute('tabindex') != null ||
+          ICONISH.test(ccls);
+        const r = cur.getBoundingClientRect();
+        const sized = r.width > 0 && r.height > 0 &&
+                      r.width <= window.innerWidth * 0.5 && r.height <= window.innerHeight * 0.5;
+        if (looksClickable && sized) return cur;
+        cur = cur.parentElement;
+      }
     }
 
     return null;
@@ -733,6 +806,9 @@
       if (isCapturing) log('debug', `click skipped — isCapturing step ${stepNumber}`);
       return;
     }
+    // 크로스 사이트 녹화: 로드된 모든 탭이 무장되므로, 이 탭이 화면에 보일 때만 캡처한다.
+    // (백그라운드 탭의 프로그래매틱 클릭은 captureVisibleTab이 활성 탭을 잡아 오발됨)
+    if (document.visibilityState !== 'visible') return;
 
     const clickedEl = e.target;
 
@@ -776,12 +852,20 @@
 
     // 입력 필드 포커스: typingTarget 세팅 + 클릭 자체도 캡처 (항상 캡처 정책)
     if (actionType === 'focus_input') {
+      // 같은 입력칸을 짧은 간격으로 다시 클릭하면 중복 '입력 필드' 클릭 스텝을 만들지 않는다.
+      // (DEDUP_REFOCUS_MS 경과 후 재클릭은 의도가 있다고 보고 다시 캡처.) 타이핑 세션은 유지.
+      if (target === lastFocusInputTarget && (now - lastFocusInputTime) < DEDUP_REFOCUS_MS) {
+        typingTarget = target;
+        return;  // 클릭 스텝 캡처 생략
+      }
       // 다른 필드로 옮겼을 때만 이전 입력을 마감(flush가 세션을 끝냄 → 새 스텝).
       // 같은 필드 재클릭·리치 에디터 재마운트는 세션을 유지해 입력 스텝이 쪼개지지 않게 한다.
       if (typingTarget && typingTarget !== target && !isRemountedTyping(typingTarget)) {
         flushTyping(typingTarget);
       }
       typingTarget = target;
+      lastFocusInputTarget = target;
+      lastFocusInputTime   = now;
       // 아래로 진행해서 캡처
     } else {
       // 진행 중이던 타이핑 flush
@@ -857,6 +941,7 @@
   // ── input 이벤트 (타이핑 추적) ──────────────────────────────────
   document.addEventListener('input', (e) => {
     if (!isRecording || isPaused) return;
+    if (document.visibilityState !== 'visible') return;  // 보이는 탭에서만 (크로스 사이트 녹화)
     const el = e.target;
     const isDesignModeBody = document.designMode === 'on' && el === document.body;
     if (!isDesignModeBody && !(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el.isContentEditable)) return;
@@ -895,6 +980,15 @@
       flushTyping(el, false);
     }, TYPING_DEBOUNCE);
   }, true);
+
+  // 크로스 사이트 녹화: 타이핑 중 다른 탭으로 전환하면 진행 중 입력을 즉시 확정한다.
+  // 디바운스 타이머가 탭이 숨겨진 뒤 발동하면 captureVisibleTab이 새 활성 탭을 잡으므로,
+  // 아직 타이핑 프레임이 신선한 가시→비가시 전환 순간에 버퍼 프레임으로 마감한다.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden' && isRecording && !isPaused && typingTarget) {
+      flushTyping(typingTarget, true);
+    }
+  });
 
   // ── keydown: Enter = flush ────────────────────────────────────────
   document.addEventListener('keydown', (e) => {
@@ -951,6 +1045,11 @@
   // ── storage 변경 감지 (isPaused 동기화) ─────────────────────────
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local') return;
+    // 크로스 사이트 녹화: 녹화 종료를 storage로 전파받아 모든 무장 탭이 동시에 해제된다.
+    // (STOP_RECORDING 메시지는 활성 탭 하나에만 가므로, 다른 탭은 이 경로로 멈춘다.)
+    if ('isRecording' in changes && changes.isRecording.newValue === false && isRecording) {
+      disarmRecordingLocal();
+    }
     if ('isPaused' in changes) isPaused = !!changes.isPaused.newValue;
     // 설정 변경을 storage에서 직접 동기화 — UPDATE_SETTINGS 메시지가 유실되어도
     // (탭 이동 직후 등) 하이라이트/PII 토글이 즉시 반영되게 한다.
