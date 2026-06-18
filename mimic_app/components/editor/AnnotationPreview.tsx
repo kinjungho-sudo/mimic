@@ -4,7 +4,8 @@ import { useId, useRef, useState, useEffect } from 'react';
 import type { Annotation } from './ImageAnnotationEditor';
 import { FONT_REF_WIDTH, estimateTextW } from './ImageAnnotationEditor';
 
-export function AnnotationPreview({ annotations, imageUrl }: { annotations: Annotation[]; imageUrl: string }) {
+// sizeScale: 이미지가 크롭/줌으로 확대 표시될 때 어노테이션이 같이 커지지 않도록 선·글씨 크기를 역보정(크롭=cropW, 줌=1/zoom). 위치는 영향 없음.
+export function AnnotationPreview({ annotations, imageUrl, sizeScale = 1 }: { annotations: Annotation[]; imageUrl: string; sizeScale?: number }) {
   const uid = useId().replace(/:/g, '');
   const imgRef = useRef<HTMLImageElement | null>(null);
   const [imgSize, setImgSize] = useState<{ w: number; h: number } | null>(null);
@@ -42,8 +43,8 @@ export function AnnotationPreview({ annotations, imageUrl }: { annotations: Anno
   const spotlights = annotations.filter(a => a.type === 'spotlight');
 
   const { w: imgW, h: imgH } = imgSize ?? { w: 1, h: 1 };
-  // 편집기와 동일한 폰트 스케일 — 표시폭 ÷ 기준폭(FONT_REF_WIDTH)
-  const fontScale = imgW / FONT_REF_WIDTH;
+  // 편집기와 동일한 폰트 스케일 — 표시폭 ÷ 기준폭(FONT_REF_WIDTH). 크롭/줌 확대분은 sizeScale로 역보정.
+  const fontScale = imgW * sizeScale / FONT_REF_WIDTH;
 
   // % 좌표 → 픽셀 좌표
   const px = (v: number) => v / 100 * imgW;
@@ -79,8 +80,8 @@ export function AnnotationPreview({ annotations, imageUrl }: { annotations: Anno
 
       {annotations.map(a => {
         const { type, x1, y1, x2, y2, color } = a;
-        // strokeWidth는 이미지 너비의 % → 픽셀로 변환
-        const strokePx = (a.strokeWidth / 100) * imgW;
+        // strokeWidth는 이미지 너비의 % → 픽셀로 변환 (크롭/줌 확대분 역보정)
+        const strokePx = (a.strokeWidth / 100) * imgW * sizeScale;
         const ax1 = px(x1), ay1 = py(y1), ax2 = px(x2), ay2 = py(y2);
         const minX = Math.min(ax1, ax2), minY = Math.min(ay1, ay2);
         const w = Math.abs(ax2 - ax1), h = Math.abs(ay2 - ay1);
@@ -153,7 +154,7 @@ export function AnnotationPreview({ annotations, imageUrl }: { annotations: Anno
         }
 
         if (type === 'marker') {
-          const R = Math.max(10, imgW * 0.022);
+          const R = Math.max(10, imgW * sizeScale * 0.022);
           return (
             <g key={a.id}>
               <circle cx={ax1} cy={ay1} r={R} fill={color} />

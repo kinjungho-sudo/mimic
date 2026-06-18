@@ -812,9 +812,10 @@ export default function PlayerPage() {
                 alt={step.title}
                 style={{ width: '100%', height: 'auto', display: 'block' }}
               />
-              {/* 어노테이션 — 이미지와 동일한 크기 SVG로 정확히 겹침 */}
+              {/* 어노테이션 — 이미지와 동일한 크기 SVG로 정확히 겹침. 확대 시 어노테이션은 일정 크기 유지(역보정) */}
               {(step.user_annotations?.length ?? 0) > 0 && (
-                <AnnotationPreview annotations={step.user_annotations!} imageUrl={step.screenshot_url} />
+                <AnnotationPreview annotations={step.user_annotations!} imageUrl={step.screenshot_url}
+                  sizeScale={(step.image_zoom ?? 1) > 1 ? 1 / (step.image_zoom ?? 1) : 1} />
               )}
               {/* Hotspot — 클릭 위치 시각 표시만 (진행은 하단 컨트롤로, 클릭 강제 없음) */}
               {step.click_x != null && step.click_y != null && currentStep < totalSteps - 1 && (

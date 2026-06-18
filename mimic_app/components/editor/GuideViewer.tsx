@@ -180,7 +180,8 @@ function ViewerStepCard({ step }: { step: ManualStep }) {
               }}
             />
             {(step.annotations?.length ?? 0) > 0 && (
-              <AnnotationPreview annotations={step.annotations!} imageUrl={step.screenshotUrl!} />
+              <AnnotationPreview annotations={step.annotations!} imageUrl={step.screenshotUrl!}
+                sizeScale={hasCrop ? cr!.w : (zoom > 1 ? 1 / zoom : 1)} />
             )}
           </div>
           {!hasCrop && zoom > 1 && (
