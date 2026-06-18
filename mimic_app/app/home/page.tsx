@@ -227,6 +227,72 @@ function ContextMenu({ menu, folders, tutorials, workspaces, onMove, onMoveToWor
   );
 }
 
+// ── 플레이북 카드 ──────────────────────────────────────────
+
+function PageCard({ page, viewMode = 'grid' }: {
+  page: { id: string; title: string; updated_at: string; block_count?: number; workspace_id?: string | null };
+  viewMode?: 'grid' | 'list' | 'compact';
+}) {
+  const router = useRouter();
+  const [hovered, setHovered] = useState(false);
+  const color = cardColor(page.id);
+  const dateStr = new Date(page.updated_at).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }).replace(/\. /g, '/').replace(/\.$/, '');
+
+  const iconEl = (size: number) => (
+    <div style={{ width: `${size}px`, height: `${size}px`, borderRadius: '7px', flexShrink: 0, background: `${color}12`, display: 'grid', placeItems: 'center' }}>
+      <svg width={size * 0.47} height={size * 0.47} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round">
+        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+      </svg>
+    </div>
+  );
+
+  const metaEl = (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '3px' }}>
+      <span style={{ fontSize: '12px', color: '#111827', flexShrink: 0 }}>{dateStr}</span>
+      {(page.block_count ?? 0) > 0 && (
+        <><span style={{ width: '2px', height: '2px', borderRadius: '50%', background: '#D1D5DB', flexShrink: 0 }} /><span style={{ fontSize: '12px', color: '#9CA3AF', flexShrink: 0 }}>{page.block_count}블록</span></>
+      )}
+      {page.workspace_id && <span style={{ fontSize: '10px', fontWeight: 600, color: '#3730a3', background: '#e0e7ff', padding: '1px 5px', borderRadius: '999px', flexShrink: 0 }}>팀</span>}
+    </div>
+  );
+
+  const titleEl = (
+    <div style={{ fontSize: '14px', fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      {page.title || '제목 없음'}
+    </div>
+  );
+
+  const commonProps = {
+    onClick: () => router.push(`/pages/${page.id}/editor`),
+    onMouseEnter: () => setHovered(true),
+    onMouseLeave: () => setHovered(false),
+  };
+
+  if (viewMode === 'compact') {
+    return (
+      <article {...commonProps} style={{ background: 'white', borderRadius: '12px', cursor: 'pointer', border: `1px solid ${hovered ? '#86efac' : '#E5E7EB'}`, boxShadow: hovered ? '0 4px 16px rgba(5,150,105,0.10)' : '0 1px 2px rgba(17,24,39,0.04)', transition: 'border-color 0.12s, box-shadow 0.12s', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ width: '100%', aspectRatio: '16 / 10', background: `${color}10`, display: 'grid', placeItems: 'center' }}>
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" style={{ opacity: 0.5 }}>
+            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+          </svg>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '10px 12px' }}>
+          {iconEl(28)}
+          <div style={{ flex: 1, minWidth: 0 }}>{titleEl}{metaEl}</div>
+        </div>
+      </article>
+    );
+  }
+
+  return (
+    <article {...commonProps} style={{ background: 'white', borderRadius: '10px', cursor: 'pointer', border: `1px solid ${hovered ? '#86efac' : '#E5E7EB'}`, boxShadow: hovered ? '0 3px 12px rgba(5,150,105,0.07)' : '0 1px 2px rgba(17,24,39,0.04)', transition: 'border-color 0.12s, box-shadow 0.12s', display: 'flex', alignItems: 'center', gap: '11px', padding: viewMode === 'list' ? '10px 14px' : '11px 13px' }}>
+      {iconEl(viewMode === 'list' ? 30 : 34)}
+      <div style={{ flex: 1, minWidth: 0 }}>{titleEl}{metaEl}</div>
+    </article>
+  );
+}
+
 // ── 튜토리얼 카드 ──────────────────────────────────────────
 
 type ViewMode = 'grid' | 'list' | 'compact';
@@ -747,6 +813,11 @@ export default function DashboardPage() {
   const [liveGuide, setLiveGuide] = useState<{ used: number; limit: number; paid: boolean } | null>(null);
   const [playbook, setPlaybook] = useState<{ used: number; limit: number; paid: boolean } | null>(null);
 
+  // 콘텐츠 유형 탭
+  const [contentType, setContentType] = useState<'manual' | 'playbook' | 'liveguide'>('manual');
+  const [pages, setPages] = useState<{ id: string; title: string; updated_at: string; block_count?: number; workspace_id?: string | null }[]>([]);
+  const [pagesLoading, setPagesLoading] = useState(false);
+
   const loadTutorials = useCallback(async (workspaceId?: string) => {
     setTutLoading(true);
     try {
@@ -772,6 +843,15 @@ export default function DashboardPage() {
     if (res.ok) setWorkspaces(await res.json());
   }, []);
 
+  const loadPages = useCallback(async (workspaceId?: string) => {
+    setPagesLoading(true);
+    try {
+      const url = workspaceId ? `/api/pages?workspace_id=${workspaceId}` : '/api/pages';
+      const res = await fetch(url);
+      if (res.ok) setPages(await res.json());
+    } finally { setPagesLoading(false); }
+  }, []);
+
   useEffect(() => {
     if (!user) return;
     loadTutorials();
@@ -792,6 +872,12 @@ export default function DashboardPage() {
     if (activeTab === 'team' && activeWorkspace) { loadTutorials(activeWorkspace); loadTeamFolders(activeWorkspace); }
     else if (activeTab === 'my') loadTutorials();
   }, [activeTab, activeWorkspace, user, loadTutorials, loadTeamFolders]);
+
+  useEffect(() => {
+    if (!user || contentType !== 'playbook') return;
+    const wsId = activeTab === 'team' && activeWorkspace ? activeWorkspace : undefined;
+    loadPages(wsId);
+  }, [user, contentType, activeTab, activeWorkspace, loadPages]);
 
   // 초대받은 워크스페이스가 내 화면에도 항시 반영되도록 — 포커스/가시성 복귀 + 30초 폴링으로
   // 워크스페이스 목록과 현재 탭 매뉴얼을 갱신(push 실시간 대신 폴링 기반).
@@ -967,6 +1053,12 @@ export default function DashboardPage() {
       list = list.filter(t => t.title.toLowerCase().includes(q));
     }
     return list;
+  })();
+
+  const displayedPages = (() => {
+    if (!searchQuery.trim()) return pages;
+    const q = searchQuery.trim().toLowerCase();
+    return pages.filter(p => (p.title ?? '').toLowerCase().includes(q));
   })();
 
   // 폴더 트리 아이템 공통 스타일 헬퍼
@@ -1265,7 +1357,7 @@ export default function DashboardPage() {
                   <h1 className="home-greeting" style={{ fontSize: '24px', fontWeight: 700, letterSpacing: '-0.025em', margin: 0, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {authLoading ? '' : isTeamCtx
                       ? (workspaces.find(w => w.id === activeWorkspace)?.name ?? '팀 워크스페이스')
-                      : `${firstName}님의 매뉴얼`}
+                      : contentType === 'playbook' ? `${firstName}님의 플레이북` : contentType === 'liveguide' ? 'Live Guide' : `${firstName}님의 매뉴얼`}
                   </h1>
                   {isTeamCtx && (
                     <>
@@ -1313,6 +1405,22 @@ export default function DashboardPage() {
                 </div>
               </div>
 
+              {/* 콘텐츠 유형 탭 */}
+              <div style={{ display: 'flex', gap: '6px', marginBottom: '16px' }}>
+                {([
+                  { key: 'manual' as const, label: '매뉴얼', color: '#3730a3', bg: '#e0e7ff', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> },
+                  { key: 'playbook' as const, label: '플레이북', color: '#059669', bg: '#dcfce7', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg> },
+                  { key: 'liveguide' as const, label: 'Live Guide', color: '#7c3aed', bg: '#ede9fe', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg> },
+                ] as const).map(({ key, label, color, bg, icon }) => (
+                  <button key={key} onClick={() => setContentType(key)}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 14px', borderRadius: '9px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600, transition: 'background 0.12s, color 0.12s', background: contentType === key ? bg : '#F3F4F6', color: contentType === key ? color : '#6B7280', boxShadow: contentType === key ? `0 0 0 1.5px ${color}40` : 'none' }}
+                    onMouseEnter={e => { if (contentType !== key) (e.currentTarget as HTMLButtonElement).style.background = '#E9EAEC'; }}
+                    onMouseLeave={e => { if (contentType !== key) (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; }}>
+                    {icon}{label}
+                  </button>
+                ))}
+              </div>
+
               {/* 검색 */}
               <div
                 className="home-search-bar"
@@ -1320,7 +1428,7 @@ export default function DashboardPage() {
               >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={searchQuery ? '#4F46E5' : '#9CA3AF'} strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, transition: 'stroke 0.15s' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 <input
-                  placeholder="매뉴얼 이름으로 검색..."
+                  placeholder={contentType === 'playbook' ? '플레이북 이름으로 검색...' : contentType === 'liveguide' ? 'Live Guide 검색...' : '매뉴얼 이름으로 검색...'}
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '14.5px', fontFamily: 'inherit', color: '#111827' }}
@@ -1340,7 +1448,11 @@ export default function DashboardPage() {
               {/* 탭 + 뷰 토글 */}
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px', borderBottom: '2px solid #F3F4F6' }}>
                 <div style={{ flex: 1, padding: '7px 2px', fontSize: '13px', color: '#9CA3AF', fontWeight: 500 }}>
-                  {!tutLoading && `매뉴얼 ${displayedTutorials.length}개`}
+                  {contentType === 'playbook'
+                    ? (!pagesLoading && `플레이북 ${displayedPages.length}개`)
+                    : contentType === 'liveguide'
+                      ? (!tutLoading && `매뉴얼 ${displayedTutorials.length}개`)
+                      : (!tutLoading && `매뉴얼 ${displayedTutorials.length}개`)}
                 </div>
                 {/* 뷰 모드 토글 */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginBottom: '6px', background: '#F3F4F6', borderRadius: '8px', padding: '3px' }}>
@@ -1357,41 +1469,117 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* 매뉴얼 목록 */}
-              {tutLoading ? (
-                <div className={viewMode === 'list' ? 'home-card-list' : 'home-card-grid'}>
-                  {[1,2,3,4,5,6].map(i => (
-                    <div key={i} style={{ borderRadius: '10px', background: 'white', border: '1px solid #E5E7EB', padding: viewMode === 'compact' ? '7px 10px' : '11px 13px', display: 'flex', alignItems: 'center', gap: '11px' }}>
-                      <div style={{ width: viewMode === 'compact' ? '24px' : '34px', height: viewMode === 'compact' ? '24px' : '34px', borderRadius: '7px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite', flexShrink: 0 }} />
-                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        <div style={{ height: '12px', borderRadius: '6px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite' }} />
-                        {viewMode !== 'compact' && <div style={{ height: '10px', width: '50%', borderRadius: '6px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite' }} />}
+              {/* 콘텐츠 목록 */}
+              {contentType === 'playbook' ? (
+                pagesLoading ? (
+                  <div className={viewMode === 'list' ? 'home-card-list' : 'home-card-grid'}>
+                    {[1,2,3,4,5,6].map(i => (
+                      <div key={i} style={{ borderRadius: '10px', background: 'white', border: '1px solid #E5E7EB', padding: '11px 13px', display: 'flex', alignItems: 'center', gap: '11px' }}>
+                        <div style={{ width: '34px', height: '34px', borderRadius: '7px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite', flexShrink: 0 }} />
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <div style={{ height: '12px', borderRadius: '6px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite' }} />
+                          <div style={{ height: '10px', width: '50%', borderRadius: '6px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite' }} />
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              ) : displayedTutorials.length === 0 ? (
-                searchQuery.trim() ? (
-                  <div style={{ textAlign: 'center', padding: '64px 24px', color: '#6B7280' }}>
-                    <div style={{ fontSize: '36px', marginBottom: '12px', opacity: 0.4 }}>🔍</div>
-                    <div style={{ fontSize: '15px', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>
-                      &ldquo;{searchQuery}&rdquo; 검색 결과 없음
-                    </div>
-                    <div style={{ fontSize: '13px' }}>다른 키워드로 검색해보세요.</div>
-                    <button onClick={() => setSearchQuery('')} style={{ marginTop: '16px', padding: '7px 16px', borderRadius: '8px', border: '1px solid #E5E7EB', background: 'white', fontSize: '13px', color: '#4B5563', cursor: 'pointer' }}>
-                      검색 초기화
-                    </button>
+                    ))}
                   </div>
+                ) : displayedPages.length === 0 ? (
+                  searchQuery.trim() ? (
+                    <div style={{ textAlign: 'center', padding: '64px 24px', color: '#6B7280' }}>
+                      <div style={{ fontSize: '36px', marginBottom: '12px', opacity: 0.4 }}>🔍</div>
+                      <div style={{ fontSize: '15px', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>&ldquo;{searchQuery}&rdquo; 검색 결과 없음</div>
+                      <div style={{ fontSize: '13px' }}>다른 키워드로 검색해보세요.</div>
+                      <button onClick={() => setSearchQuery('')} style={{ marginTop: '16px', padding: '7px 16px', borderRadius: '8px', border: '1px solid #E5E7EB', background: 'white', fontSize: '13px', color: '#4B5563', cursor: 'pointer' }}>검색 초기화</button>
+                    </div>
+                  ) : (
+                    <div style={{ padding: '60px 24px', textAlign: 'center' }}>
+                      <div style={{ margin: '0 auto 16px', width: '56px', height: '56px', borderRadius: '14px', background: '#dcfce7', display: 'grid', placeItems: 'center', color: '#059669' }}>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                      </div>
+                      <div style={{ fontSize: '14px', fontWeight: 600, color: '#111827', marginBottom: '6px' }}>플레이북이 없어요</div>
+                      <div style={{ fontSize: '12.5px', color: '#9CA3AF', marginBottom: '20px' }}>여러 매뉴얼을 하나의 문서로 엮어보세요.</div>
+                      <button onClick={handleCreateGuidebook} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: '#059669', color: 'white', border: 'none', cursor: 'pointer' }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        새 플레이북 만들기
+                      </button>
+                    </div>
+                  )
                 ) : (
-                  <EmptyState onRecord={() => setShowRecordingModal(true)} onBlank={handleCreateBlank} onGuidebook={handleCreateGuidebook}
-                    label={activeTab === 'team' ? '팀 매뉴얼이 없어요' : activeFolder !== 'all' ? '이 폴더에 매뉴얼이 없어요' : undefined} />
+                  <div className={viewMode === 'list' ? 'home-card-list' : 'home-card-grid'}>
+                    {displayedPages.map(p => <PageCard key={p.id} page={p} viewMode={viewMode} />)}
+                  </div>
                 )
+              ) : contentType === 'liveguide' ? (
+                /* Live Guide 탭 — 기존 매뉴얼을 보여주되 Live Guide 안내 배너 추가 */
+                <>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '10px 14px', borderRadius: '10px', background: '#ede9fe', border: '1px solid #c4b5fd', marginBottom: '16px' }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: '1px' }}><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    <div style={{ fontSize: '12.5px', color: '#5b21b6', lineHeight: 1.6 }}>
+                      <b>Live Guide</b>는 MIMIC 익스텐션이 설치된 브라우저에서 매뉴얼을 단계별로 안내해주는 기능입니다. 아래에서 실행할 매뉴얼을 선택하세요.
+                      {liveGuide && !liveGuide.paid && (
+                        <span style={{ marginLeft: '6px', fontSize: '11px', color: '#7c3aed', fontWeight: 600 }}>(이번 달 {liveGuide.used}/{liveGuide.limit}회 사용)</span>
+                      )}
+                    </div>
+                  </div>
+                  {tutLoading ? (
+                    <div className={viewMode === 'list' ? 'home-card-list' : 'home-card-grid'}>
+                      {[1,2,3].map(i => (
+                        <div key={i} style={{ borderRadius: '10px', background: 'white', border: '1px solid #E5E7EB', padding: '11px 13px', display: 'flex', alignItems: 'center', gap: '11px' }}>
+                          <div style={{ width: '34px', height: '34px', borderRadius: '7px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite', flexShrink: 0 }} />
+                          <div style={{ flex: 1, height: '12px', borderRadius: '6px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite' }} />
+                        </div>
+                      ))}
+                    </div>
+                  ) : displayedTutorials.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '48px 24px', color: '#6B7280' }}>
+                      <div style={{ fontSize: '13px' }}>Live Guide로 실행할 매뉴얼이 없어요.</div>
+                      <button onClick={() => setContentType('manual')} style={{ marginTop: '12px', padding: '7px 14px', borderRadius: '8px', border: '1px solid #c4b5fd', background: 'white', fontSize: '13px', color: '#7c3aed', cursor: 'pointer', fontWeight: 600 }}>매뉴얼 보기</button>
+                    </div>
+                  ) : (
+                    <div className={viewMode === 'list' ? 'home-card-list' : 'home-card-grid'}>
+                      {displayedTutorials.map(t => (
+                        <TutorialCard key={t.id} tutorial={t} onContextMenu={handleContextMenu} onTitleChange={handleTitleChange} onMenuClick={handleContextMenu} viewMode={viewMode} />
+                      ))}
+                    </div>
+                  )}
+                </>
               ) : (
-                <div className={viewMode === 'list' ? 'home-card-list' : 'home-card-grid'}>
-                  {displayedTutorials.map(t => (
-                    <TutorialCard key={t.id} tutorial={t} onContextMenu={handleContextMenu} onTitleChange={handleTitleChange} onMenuClick={handleContextMenu} viewMode={viewMode} />
-                  ))}
-                </div>
+                /* 매뉴얼 탭 (기존) */
+                tutLoading ? (
+                  <div className={viewMode === 'list' ? 'home-card-list' : 'home-card-grid'}>
+                    {[1,2,3,4,5,6].map(i => (
+                      <div key={i} style={{ borderRadius: '10px', background: 'white', border: '1px solid #E5E7EB', padding: viewMode === 'compact' ? '7px 10px' : '11px 13px', display: 'flex', alignItems: 'center', gap: '11px' }}>
+                        <div style={{ width: viewMode === 'compact' ? '24px' : '34px', height: viewMode === 'compact' ? '24px' : '34px', borderRadius: '7px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite', flexShrink: 0 }} />
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <div style={{ height: '12px', borderRadius: '6px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite' }} />
+                          {viewMode !== 'compact' && <div style={{ height: '10px', width: '50%', borderRadius: '6px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite' }} />}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : displayedTutorials.length === 0 ? (
+                  searchQuery.trim() ? (
+                    <div style={{ textAlign: 'center', padding: '64px 24px', color: '#6B7280' }}>
+                      <div style={{ fontSize: '36px', marginBottom: '12px', opacity: 0.4 }}>🔍</div>
+                      <div style={{ fontSize: '15px', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>
+                        &ldquo;{searchQuery}&rdquo; 검색 결과 없음
+                      </div>
+                      <div style={{ fontSize: '13px' }}>다른 키워드로 검색해보세요.</div>
+                      <button onClick={() => setSearchQuery('')} style={{ marginTop: '16px', padding: '7px 16px', borderRadius: '8px', border: '1px solid #E5E7EB', background: 'white', fontSize: '13px', color: '#4B5563', cursor: 'pointer' }}>
+                        검색 초기화
+                      </button>
+                    </div>
+                  ) : (
+                    <EmptyState onRecord={() => setShowRecordingModal(true)} onBlank={handleCreateBlank} onGuidebook={handleCreateGuidebook}
+                      label={activeTab === 'team' ? '팀 매뉴얼이 없어요' : activeFolder !== 'all' ? '이 폴더에 매뉴얼이 없어요' : undefined} />
+                  )
+                ) : (
+                  <div className={viewMode === 'list' ? 'home-card-list' : 'home-card-grid'}>
+                    {displayedTutorials.map(t => (
+                      <TutorialCard key={t.id} tutorial={t} onContextMenu={handleContextMenu} onTitleChange={handleTitleChange} onMenuClick={handleContextMenu} viewMode={viewMode} />
+                    ))}
+                  </div>
+                )
               )}
             </div>
           </main>
