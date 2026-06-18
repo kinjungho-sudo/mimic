@@ -217,7 +217,7 @@ function HeroDemo() {
             </div>
           )}
         </div>
-        <div key={scene} style={{ height: '380px', position: 'relative', overflow: 'hidden', animation: 'sceneIn 0.35s ease both' }}>
+        <div key={scene} style={{ height: '470px', position: 'relative', overflow: 'hidden', animation: 'sceneIn 0.35s ease both' }}>
           {renderScene()}
         </div>
         {/* 자막 영역 */}
@@ -843,35 +843,73 @@ function MockTopBar({ url, dark }: { url: string; dark?: boolean }) {
   );
 }
 
-// ① 녹화 — 클릭하면 자동 캡처
+// ① 녹화 — 클릭하면 자동 캡처 (우측 MIMIC Recorder 사이드 패널에 동일 화면이 미리보기로 캡처됨)
 function MockRecord() {
+  const STEPS = [
+    { label: '문서 열기' },
+    { label: '메뉴 펼치기' },
+    { label: '"공유" 버튼 클릭', hl: true },
+  ];
   return (
-    <div style={{ height: '340px', background: 'white', position: 'relative', display: 'flex', flexDirection: 'column' }}>
-      <MockTopBar url="docs.google.com/document/d/…" />
-      <div style={{ flex: 1, padding: '18px 22px', position: 'relative' }}>
-        <div style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', marginBottom: '12px' }}>2026 상반기 온보딩 문서</div>
-        {[92, 100, 78, 100, 64].map((w, i) => (
-          <div key={i} style={{ height: '9px', width: `${w}%`, borderRadius: '4px', background: '#F1F5F9', marginBottom: '9px' }} />
-        ))}
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '8px 16px', borderRadius: '8px', background: '#2563EB', color: 'white', fontSize: '12px', fontWeight: 600, marginTop: '10px', position: 'relative' }}>
-          공유
-          {/* 클릭 리플 */}
-          <span style={{ position: 'absolute', top: '50%', left: '50%', width: '34px', height: '34px', borderRadius: '50%', border: '2.5px solid rgba(109,40,217,0.55)', transform: 'translate(-50%,-50%)', animation: 'rippleOut 1.4s ease-out infinite' }} />
-        </div>
-        {/* 녹화 중 배지 */}
-        <div style={{ position: 'absolute', top: '14px', right: '16px', display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 11px', background: 'rgba(10,10,15,0.85)', borderRadius: '999px', fontSize: '10.5px', color: 'white', fontWeight: 500 }}>
-          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#EF4444', animation: 'rec-blink 1.2s infinite' }} />
-          MIMIC 녹화 중
-        </div>
-        {/* 캡처 토스트 */}
-        <div style={{ position: 'absolute', bottom: '16px', right: '16px', display: 'flex', alignItems: 'center', gap: '9px', padding: '10px 14px', background: 'white', borderRadius: '11px', border: '1px solid #E5E7EB', boxShadow: '0 10px 28px rgba(17,24,39,0.12)' }}>
-          <div style={{ width: '30px', height: '30px', borderRadius: '7px', background: 'linear-gradient(135deg,#3730a3,#6d28d9)', display: 'grid', placeItems: 'center' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+    <div style={{ height: '340px', background: '#E9E9F0', position: 'relative', display: 'flex' }}>
+      {/* 좌측 — Google Docs (녹화 대상) */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        <MockTopBar url="docs.google.com/document/d/…" />
+        <div style={{ flex: 1, padding: '18px 22px', position: 'relative', background: 'white' }}>
+          <div style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', marginBottom: '12px' }}>2026 상반기 온보딩 문서</div>
+          {[92, 100, 78, 100, 64].map((w, i) => (
+            <div key={i} style={{ height: '9px', width: `${w}%`, borderRadius: '4px', background: '#F1F5F9', marginBottom: '9px' }} />
+          ))}
+          {/* 공유 버튼 + 클릭 하이라이트 + 커서 */}
+          <div style={{ position: 'relative', display: 'inline-block', marginTop: '10px' }}>
+            <div style={{ padding: '8px 18px', borderRadius: '8px', background: '#2563EB', color: 'white', fontSize: '12px', fontWeight: 600 }}>공유</div>
+            <div style={{ position: 'absolute', inset: '-4px', border: '2.5px solid #EF4444', borderRadius: '11px', pointerEvents: 'none' }} />
+            <span style={{ position: 'absolute', top: '50%', left: '50%', width: '40px', height: '40px', borderRadius: '50%', border: '2.5px solid rgba(37,99,235,0.5)', transform: 'translate(-50%,-50%)', animation: 'rippleOut 1.4s ease-out infinite' }} />
+            <div style={{ position: 'absolute', top: '62%', left: '58%', pointerEvents: 'none' }}><CursorIcon /></div>
           </div>
-          <div>
-            <div style={{ fontSize: '11.5px', fontWeight: 700, color: '#111827' }}>스텝 3 캡처됨</div>
-            <div style={{ fontSize: '10px', color: '#9CA3AF' }}>&quot;공유&quot; 버튼 클릭</div>
+          {/* 녹화 중 배지 */}
+          <div style={{ position: 'absolute', top: '14px', right: '16px', display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 11px', background: 'rgba(10,10,15,0.85)', borderRadius: '999px', fontSize: '10.5px', color: 'white', fontWeight: 500 }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#EF4444', animation: 'rec-blink 1.2s infinite' }} />
+            MIMIC 녹화 중
           </div>
+        </div>
+      </div>
+      {/* 우측 — MIMIC Recorder 사이드 패널 */}
+      <div style={{ width: '186px', background: 'white', borderLeft: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderBottom: '1px solid #F3F4F6' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ width: '19px', height: '19px', borderRadius: '6px', background: 'linear-gradient(135deg,#6d28d9,#3730a3)', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 800, fontSize: '10px' }}>M</div>
+            <span style={{ fontSize: '11px', fontWeight: 800, color: '#1a1a2e' }}>MIMIC Recorder</span>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 12px', borderBottom: '1px solid #F3F4F6' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#EF4444', animation: 'rec-blink 1.2s infinite' }} />
+            <span style={{ fontSize: '10px', fontWeight: 700, color: '#EF4444' }}>REC</span>
+            <span style={{ fontSize: '8.5px', color: '#9CA3AF', fontFamily: 'monospace' }}>00:24</span>
+          </div>
+          <span style={{ fontSize: '9px', fontWeight: 700, color: '#6d28d9', background: '#EDE9FE', padding: '2px 7px', borderRadius: '999px' }}>3 steps</span>
+        </div>
+        <div style={{ fontSize: '8.5px', color: '#9CA3AF', fontWeight: 700, padding: '7px 12px 5px' }}>캡처된 스텝</div>
+        <div style={{ flex: 1, overflow: 'hidden', padding: '0 9px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          {STEPS.map((s, i) => (
+            <div key={i} style={{ border: `1px solid ${s.hl ? '#C4B5FD' : '#E5E7EB'}`, borderRadius: '8px', overflow: 'hidden', boxShadow: s.hl ? '0 2px 10px rgba(109,40,217,0.16)' : 'none' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 7px', background: '#FAFAFB' }}>
+                <span style={{ width: '13px', height: '13px', borderRadius: '4px', background: '#6d28d9', color: '#fff', fontSize: '7.5px', fontWeight: 700, display: 'grid', placeItems: 'center' }}>{i + 1}</span>
+                <span style={{ fontSize: '8px', fontWeight: 600, color: '#374151', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.label}</span>
+              </div>
+              {/* 썸네일 — 좌측 문서 화면이 그대로 캡처됨 */}
+              <div style={{ height: '40px', background: '#fff', padding: '5px 7px', position: 'relative' }}>
+                <div style={{ height: '4px', width: '55%', borderRadius: '2px', background: '#E5E7EB', marginBottom: '3px' }} />
+                {[82, 96].map((w, j) => <div key={j} style={{ height: '3px', width: `${w}%`, borderRadius: '2px', background: '#F1F5F9', marginBottom: '3px' }} />)}
+                {s.hl && <div style={{ position: 'absolute', bottom: '5px', left: '7px', padding: '1.5px 6px', borderRadius: '3px', background: '#2563EB', color: '#fff', fontSize: '6px', fontWeight: 700, boxShadow: '0 0 0 1.5px #EF4444' }}>공유</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 11px', borderTop: '1px solid #F3F4F6' }}>
+          <div style={{ display: 'flex', gap: '7px', fontSize: '10px', color: '#9CA3AF' }}><span>📷</span><span>⏸</span><span>↩</span></div>
+          <div style={{ padding: '5px 12px', borderRadius: '6px', background: 'linear-gradient(135deg,#3730a3,#6d28d9)', color: '#fff', fontSize: '9.5px', fontWeight: 700 }}>✓ 완료</div>
         </div>
       </div>
     </div>
@@ -900,21 +938,30 @@ function MockEditor() {
               <span key={i} style={{ width: '22px', height: '22px', borderRadius: '5px', display: 'grid', placeItems: 'center', fontSize: '10px', color: i === 1 ? 'white' : '#9CA3AF', background: i === 1 ? '#6d28d9' : 'transparent' }}>{t}</span>
             ))}
           </div>
-          {/* 캔버스 */}
-          <div style={{ borderRadius: '8px', background: 'white', padding: '12px 14px', position: 'relative' }}>
-            <div style={{ fontSize: '11px', fontWeight: 700, color: '#0F172A', marginBottom: '8px' }}>문서 공유 설정</div>
-            <div style={{ position: 'relative', display: 'inline-block' }}>
-              <div style={{ padding: '6px 14px', borderRadius: '6px', background: '#2563EB', color: 'white', fontSize: '10px', fontWeight: 600 }}>공유</div>
-              <div style={{ position: 'absolute', inset: '-5px', border: '2.5px solid #EF4444', borderRadius: '9px', pointerEvents: 'none' }}>
-                <span style={{ position: 'absolute', top: '-17px', left: 0, background: '#EF4444', color: 'white', fontSize: '8px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', whiteSpace: 'nowrap' }}>여기를 클릭</span>
+          {/* 캔버스 — 캡처된 화면(스크린샷) 위에 어노테이션 */}
+          <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.12)', position: 'relative', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
+            {/* 미니 브라우저 바 */}
+            <div style={{ height: '22px', background: '#E9EAEE', display: 'flex', alignItems: 'center', gap: '4px', padding: '0 9px' }}>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#FF5F57' }} />
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#FEBC2E' }} />
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#28C840' }} />
+              <span style={{ fontSize: '8px', color: '#9CA3AF', marginLeft: '6px' }}>docs.google.com/document/d/…</span>
+            </div>
+            {/* 캡처된 문서 화면 */}
+            <div style={{ background: '#fff', padding: '13px 15px 26px', position: 'relative' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: '#0F172A', marginBottom: '9px' }}>2026 상반기 온보딩 문서</div>
+              {[90, 100, 72].map((w, i) => <div key={i} style={{ height: '6px', width: `${w}%`, borderRadius: '3px', background: '#F1F5F9', marginBottom: '7px' }} />)}
+              {/* 공유 버튼 + 어노테이션 (빨간 박스 + 화살표 + 캡션) */}
+              <div style={{ position: 'relative', display: 'inline-block', marginTop: '10px' }}>
+                <div style={{ padding: '6px 16px', borderRadius: '6px', background: '#2563EB', color: 'white', fontSize: '10px', fontWeight: 600 }}>공유</div>
+                <div style={{ position: 'absolute', inset: '-5px', border: '2.5px solid #EF4444', borderRadius: '9px', pointerEvents: 'none' }} />
+                <div style={{ position: 'absolute', bottom: 'calc(100% + 14px)', left: '50%', transform: 'translateX(-50%)', background: '#1f2937', color: '#fff', fontSize: '8px', fontWeight: 700, padding: '3px 8px', borderRadius: '4px', whiteSpace: 'nowrap' }}>여기를 클릭</div>
+                <span style={{ position: 'absolute', bottom: 'calc(100% + 1px)', left: '50%', transform: 'translateX(-50%)', color: '#EF4444', fontSize: '12px', lineHeight: 1 }}>↓</span>
               </div>
-            </div>
-            <div style={{ marginTop: '14px', display: 'flex', gap: '6px' }}>
-              {[64, 44, 52].map((w, i) => <div key={i} style={{ height: '8px', width: `${w}px`, borderRadius: '4px', background: '#F1F5F9' }} />)}
-            </div>
-            {/* 줌 컨트롤 */}
-            <div style={{ position: 'absolute', bottom: '8px', right: '8px', display: 'flex', gap: '4px', padding: '3px 8px', borderRadius: '999px', background: 'rgba(17,24,39,0.85)', fontSize: '9px', color: 'white', alignItems: 'center' }}>
-              <span>−</span><span style={{ fontWeight: 700 }}>140%</span><span>+</span>
+              {/* 줌 컨트롤 */}
+              <div style={{ position: 'absolute', bottom: '8px', right: '9px', display: 'flex', gap: '5px', padding: '3px 9px', borderRadius: '999px', background: 'rgba(17,24,39,0.85)', fontSize: '9px', color: 'white', alignItems: 'center' }}>
+                <span>−</span><span style={{ fontWeight: 700 }}>140%</span><span>+</span>
+              </div>
             </div>
           </div>
           {/* AI 다듬기 배지 */}
