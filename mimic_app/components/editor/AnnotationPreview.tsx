@@ -105,26 +105,34 @@ export function AnnotationPreview({ annotations, imageUrl, sizeScale = 1 }: { an
           <rect key={a.id} x={minX} y={minY} width={w} height={h} fill={color} opacity={0.35} rx={1} />
         );
 
-        if (type === 'rect' || type === 'recorderBox') return (
-          <rect key={a.id} x={minX} y={minY} width={w} height={h}
-            stroke={type === 'recorderBox' ? '#EF4444' : color}
-            strokeWidth={Math.max(strokePx, 1)} fill={type === 'recorderBox' ? 'rgba(239,68,68,0.08)' : 'none'} rx={1} />
-        );
-
-        if (type === 'roundedRect') {
-          const rx = Math.min(w * 0.15, h * 0.15, 12);
+        if (type === 'rect' || type === 'recorderBox') {
+          const sp = Math.max(strokePx, 1), o = sp / 2;
+          // 테두리를 요소 바깥쪽에 — 안쪽 콘텐츠/텍스트를 덮지 않도록
           return (
-            <rect key={a.id} x={minX} y={minY} width={w} height={h}
-              stroke={color} strokeWidth={Math.max(strokePx, 1)} fill="none" rx={rx} />
+            <rect key={a.id} x={minX - o} y={minY - o} width={w + sp} height={h + sp}
+              stroke={type === 'recorderBox' ? '#EF4444' : color}
+              strokeWidth={sp} fill={type === 'recorderBox' ? 'rgba(239,68,68,0.08)' : 'none'} rx={1} />
           );
         }
 
-        if (type === 'ellipse') return (
-          <ellipse key={a.id}
-            cx={(ax1 + ax2) / 2} cy={(ay1 + ay2) / 2}
-            rx={w / 2} ry={h / 2}
-            stroke={color} strokeWidth={Math.max(strokePx, 1)} fill="none" />
-        );
+        if (type === 'roundedRect') {
+          const sp = Math.max(strokePx, 1), o = sp / 2;
+          const rx = Math.min(w * 0.15, h * 0.15, 12) + o;
+          return (
+            <rect key={a.id} x={minX - o} y={minY - o} width={w + sp} height={h + sp}
+              stroke={color} strokeWidth={sp} fill="none" rx={rx} />
+          );
+        }
+
+        if (type === 'ellipse') {
+          const sp = Math.max(strokePx, 1), o = sp / 2;
+          return (
+            <ellipse key={a.id}
+              cx={(ax1 + ax2) / 2} cy={(ay1 + ay2) / 2}
+              rx={w / 2 + o} ry={h / 2 + o}
+              stroke={color} strokeWidth={sp} fill="none" />
+          );
+        }
 
         if (type === 'line') {
           return (

@@ -1291,14 +1291,15 @@ function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx
 
   if (type === 'crop') return null;
 
-  if (type === 'recorderBox') return (
+  if (type === 'recorderBox') { const sp = Math.max(2, strokePx), o = sp / 2; return (
     <g>
-      <rect x={minX} y={minY} width={w} height={h} rx={2}
-        stroke="#EF4444" strokeWidth={Math.max(2, strokePx)} fill="rgba(239,68,68,0.08)"
+      {/* 테두리를 요소 바깥쪽에 — 안쪽 콘텐츠/텍스트를 덮지 않도록 */}
+      <rect x={minX - o} y={minY - o} width={w + sp} height={h + sp} rx={2}
+        stroke="#EF4444" strokeWidth={sp} fill="rgba(239,68,68,0.08)"
         style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown} />
       {isSelected && onHandleMouseDown && <SelectionHandles minX={minX} minY={minY} w={w} h={h} onHandle={handleHandle} />}
     </g>
-  );
+  ); }
 
   if (type === 'marker') {
     const R = Math.max(10, imgW * 0.022);
@@ -1329,43 +1330,46 @@ function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx
     );
   }
 
-  if (type === 'highlight') return (
+  if (type === 'highlight') { const sp = Math.max(1.5, strokePx), o = sp / 2; return (
     <g>
       <rect x={minX} y={minY} width={w} height={h} fill={color} opacity={0.35} rx={1}
         style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown} />
-      <rect x={minX} y={minY} width={w} height={h} fill="none" stroke={color} strokeWidth={Math.max(1.5, strokePx)} opacity={0.85} rx={1}
+      {/* 테두리는 요소 바깥쪽에 */}
+      <rect x={minX - o} y={minY - o} width={w + sp} height={h + sp} fill="none" stroke={color} strokeWidth={sp} opacity={0.85} rx={1}
         style={{ pointerEvents: 'none' }} />
       {isSelected && onHandleMouseDown && <SelectionHandles minX={minX} minY={minY} w={w} h={h} onHandle={handleHandle} />}
     </g>
-  );
+  ); }
 
-  if (type === 'rect') return (
+  if (type === 'rect') { const sp = strokePx, o = sp / 2; return (
     <g>
-      <rect x={minX} y={minY} width={w} height={h} rx={1} stroke={color} strokeWidth={strokePx} fill="none"
+      {/* 테두리를 요소 바깥쪽에 — 안쪽 콘텐츠/텍스트를 덮지 않도록 */}
+      <rect x={minX - o} y={minY - o} width={w + sp} height={h + sp} rx={1} stroke={color} strokeWidth={sp} fill="none"
         style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown} />
       {isSelected && onHandleMouseDown && <SelectionHandles minX={minX} minY={minY} w={w} h={h} onHandle={handleHandle} />}
     </g>
-  );
+  ); }
 
   if (type === 'roundedRect') {
-    const rx = Math.min(w * 0.15, h * 0.15, 12);
+    const sp = strokePx, o = sp / 2;
+    const rx = Math.min(w * 0.15, h * 0.15, 12) + o;
     return (
       <g>
-        <rect x={minX} y={minY} width={w} height={h} rx={rx} stroke={color} strokeWidth={strokePx} fill="none"
+        <rect x={minX - o} y={minY - o} width={w + sp} height={h + sp} rx={rx} stroke={color} strokeWidth={sp} fill="none"
           style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown} />
         {isSelected && onHandleMouseDown && <SelectionHandles minX={minX} minY={minY} w={w} h={h} onHandle={handleHandle} />}
       </g>
     );
   }
 
-  if (type === 'ellipse') return (
+  if (type === 'ellipse') { const sp = strokePx, o = sp / 2; return (
     <g>
-      <ellipse cx={(ax1+ax2)/2} cy={(ay1+ay2)/2} rx={w/2} ry={h/2}
-        stroke={color} strokeWidth={strokePx} fill="none"
+      <ellipse cx={(ax1+ax2)/2} cy={(ay1+ay2)/2} rx={w/2 + o} ry={h/2 + o}
+        stroke={color} strokeWidth={sp} fill="none"
         style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown} />
       {isSelected && onHandleMouseDown && <SelectionHandles minX={minX} minY={minY} w={w} h={h} onHandle={handleHandle} />}
     </g>
-  );
+  ); }
 
   if (type === 'line') {
     return (

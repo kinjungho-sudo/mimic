@@ -369,7 +369,9 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, hideToc, a
           )}
 
           {/* 위/아래 이동 플로팅 버튼 — sticky로 scroll-snap 컨테이너 안에 고정 */}
-          <div className="editor-step-nav" style={{ position: 'sticky', bottom: '16px', display: 'flex', justifyContent: 'flex-start', paddingLeft: '20px', pointerEvents: 'none', zIndex: 20, scrollSnapAlign: 'none' }}>
+          <div className="editor-step-nav" style={{ position: 'sticky', bottom: '16px', display: 'flex', justifyContent: 'center', pointerEvents: 'none', zIndex: 20, scrollSnapAlign: 'none' }}>
+            {/* 중앙 카드(maxWidth 1120) 기준 우측 하단 정렬 */}
+            <div style={{ width: '100%', maxWidth: '1120px', padding: '0 24px', boxSizing: 'border-box', display: 'flex', justifyContent: 'flex-end' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', pointerEvents: 'auto' }}>
               {(() => {
                 const currentIdx = steps.findIndex(s => s.id === activeId);
@@ -399,6 +401,7 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, hideToc, a
                   </button>
                 ));
               })()}
+            </div>
             </div>
           </div>
 
@@ -607,29 +610,6 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
-
-  // 텍스트 입력 단계 모드 — none(클릭/이동) / generic(일반 안내) / exact(정확한 문구 자동입력)
-  const fc: FollowConfig = step.followConfig ?? {};
-  const inputMode: 'none' | 'generic' | 'exact' = fc.kind === 'type' ? (fc.typeText != null ? 'exact' : 'generic') : 'none';
-  const AUTO_DESC_RE = /^".*"라고 입력합니다\.$/;
-  const applyInputMode = (mode: 'none' | 'generic' | 'exact') => {
-    const nfc: FollowConfig = mode === 'none'
-      ? { ...fc, kind: null, typeText: null }
-      : mode === 'generic'
-        ? { ...fc, kind: 'type', typeText: null }
-        : { ...fc, kind: 'type', typeText: fc.typeText ?? '' };
-    onUpdate({ followConfig: nfc });
-    onSave({ followConfig: nfc });
-  };
-  const updateExact = (t: string, persist: boolean) => {
-    const nfc: FollowConfig = { ...fc, kind: 'type', typeText: t };
-    const cur = (step.description ?? '').replace(/<[^>]*>/g, '').trim();
-    const patch: Partial<ManualStep> = { followConfig: nfc };
-    // 본문이 비었거나 이전 자동문구일 때만 '"문구"라고 입력합니다.' 반영 (사용자 작성 본문은 보존)
-    if (t.trim() && (cur === '' || AUTO_DESC_RE.test(cur))) patch.description = `"${t}"라고 입력합니다.`;
-    onUpdate(patch);            // 로컬 즉시 반영(본문 미리보기)
-    if (persist) onSave(patch); // 저장은 blur 시 (키 입력마다 PATCH 방지)
-  };
 
   const handleGenerateDescription = async () => {
     if (descGenerating || step.id.startsWith('step-')) return;
@@ -943,29 +923,6 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
                 </button>
               )}
             </div>
-          )}
-
-          {/* 텍스트 입력 단계 — A 일반 안내 / B 정확한 문구 자동입력 (라이브 가이드·스튜디오 공유) */}
-          <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <div style={{ display: 'inline-flex', background: '#F3F4F6', borderRadius: '7px', padding: '2px', gap: '2px' }}>
-              {([['none', '클릭/이동'], ['generic', '텍스트 입력(안내)'], ['exact', '정확한 문구 입력']] as const).map(([m, label]) => {
-                const sel = inputMode === m;
-                return (
-                  <button key={m} onMouseDown={e => e.preventDefault()} onClick={() => applyInputMode(m)}
-                    style={{ padding: '4px 9px', borderRadius: '5px', border: 'none', cursor: 'pointer', fontSize: '11px', fontWeight: sel ? 700 : 400, background: sel ? 'white' : 'transparent', color: sel ? '#3730a3' : '#6B7280', boxShadow: sel ? '0 1px 2px rgba(0,0,0,0.08)' : 'none', transition: 'all 0.12s' }}>
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-            {inputMode === 'exact' && (
-              <input value={fc.typeText ?? ''} onChange={e => updateExact(e.target.value, false)} onBlur={e => updateExact(e.target.value, true)}
-                placeholder="예: Mimic 매뉴얼 자동화"
-                style={{ flex: 1, minWidth: '160px', padding: '5px 9px', borderRadius: '6px', border: '1px solid #E5E7EB', fontSize: '12.5px', outline: 'none', fontFamily: 'inherit', color: '#111827' }} />
-            )}
-          </div>
-          {inputMode === 'exact' && (
-            <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '4px' }}>라이브 가이드가 이 문구를 자동 입력하고, 본문에 “…라고 입력” 안내가 반영됩니다. (스튜디오에도 동일 반영)</div>
           )}
         </div>
       </div>
