@@ -6,6 +6,13 @@ import { v4 as uuidv4 } from 'uuid';
 const BUCKET = 'naviaction';
 const MAX_SIZE = 20 * 1024 * 1024; // 20MB
 
+const ALLOWED_TYPES: Record<string, string> = {
+  'image/png':  'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp',
+  'image/gif':  'gif',
+};
+
 export async function POST(request: NextRequest) {
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
@@ -18,13 +25,15 @@ export async function POST(request: NextRequest) {
 
   if (file.size > MAX_SIZE) return NextResponse.json({ error: '파일 크기 제한 20MB 초과' }, { status: 413 });
 
-  const ext = file.name.split('.').pop() ?? 'bin';
+  const ext = ALLOWED_TYPES[file.type];
+  if (!ext) return NextResponse.json({ error: '허용되지 않는 파일 형식입니다 (png/jpg/webp/gif만 허용)' }, { status: 415 });
+
   const path = `playbook-uploads/${auth.userId}/${uuidv4()}.${ext}`;
 
   const bytes = await file.arrayBuffer();
   const supabase = createServiceRoleClient();
   const { error } = await supabase.storage.from(BUCKET).upload(path, bytes, {
-    contentType: file.type || 'application/octet-stream',
+    contentType: file.type,
     upsert: false,
   });
 
