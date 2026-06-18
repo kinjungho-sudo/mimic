@@ -1300,16 +1300,25 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   _navBusyTabs.add(tabId);
 
   try {
-    const r = await storageGet(['isRecording', 'isPaused', 'targetTabId', 'stepNumber', 'settings', 'pendingCapture', 'guidePendingOverlay', 'guideSteps', 'guideCurrentStep', 'guideTabId', 'spaNavCapturing', 'lastCaptureTime']);
+    const r = await storageGet(['isRecording', 'isPaused', 'targetTabId', 'stepNumber', 'settings', 'pendingCapture', 'guideModeActive', 'guidePendingOverlay', 'guideSteps', 'guideCurrentStep', 'guideTabId', 'spaNavCapturing', 'lastCaptureTime']);
 
     // 가이드 재주입은 '고정 탭'에서 로드가 끝났을 때만 — 다른 탭 로드에는 반응하지 않는다.
-    if (r.guidePendingOverlay && r.guideTabId === tabId) {
-      await storageRemove('guidePendingOverlay');
-      const gSteps = r.guideSteps || [];
+    // (a) 가이드가 의도한 이동(guidePendingOverlay): 페이지 정착 후 주입.
+    // (b) 그 외 임의 이동(외부 링크·OAuth 리다이렉트 등)도 가이드 활성 탭이면 현재 스텝 복원 —
+    //     일회성 플래그에 의존하지 않는다. 도착지가 스텝 page_url이 아니면 guide-engine의
+    //     pageMatches()가 막아 조용히 대기(오버레이 없음), 스텝 페이지로 복귀하면 자동 표시.
+    if (r.guideModeActive && r.guideTabId === tabId && r.guideSteps?.length) {
+      const intended = !!r.guidePendingOverlay;
+      if (intended) await storageRemove('guidePendingOverlay');
+      const gSteps = r.guideSteps;
       const gIdx = r.guideCurrentStep || 0;
       const step = gSteps[gIdx];
-      // 페이지 정착(특히 SPA) 후 오버레이 주입 — 요소 매칭 확률 ↑
-      if (step) setTimeout(() => sendTabMessage(tabId, { type: 'SHOW_OVERLAY', step, index: gIdx, total: gSteps.length }), 500);
+      if (step) {
+        // 새 도메인엔 manifest content_scripts 주입이 늦거나 누락될 수 있어 보장(멱등).
+        await ensureContentScript(tabId);
+        // 페이지 정착(특히 SPA) 후 오버레이 주입 — 요소 매칭 확률 ↑
+        setTimeout(() => sendTabMessage(tabId, { type: 'SHOW_OVERLAY', step, index: gIdx, total: gSteps.length }), intended ? 500 : 400);
+      }
     }
 
     // 페이지 이동 자동 캡처(도착 페이지 / 풀로드 / SPA)는 제거됨.

@@ -352,9 +352,21 @@
     });
     root.appendChild(restoreBtn);
 
+    // 스크롤 방향 힌트 — 타깃(요소)이 뷰포트 밖으로 스크롤됐을 때 상/하단에 표시.
+    // 클릭하면 타깃을 화면 중앙으로 스크롤해 길을 잃지 않게 한다. (좌표 타깃은 뷰포트 고정이라 해당 없음)
+    const scrollHint = document.createElement('button');
+    scrollHint.className = 'mimic-btn';
+    scrollHint.style.cssText = `position:fixed;left:50%;transform:translateX(-50%);background:${TIP_BG};color:#fff;padding:9px 16px;border-radius:22px;box-shadow:0 6px 20px rgba(0,0,0,.4),0 0 0 1px rgba(165,180,252,.18);pointer-events:auto;z-index:7;font-size:12.5px;font-weight:700;display:none;white-space:nowrap;`;
+    scrollHint.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const t = state && state.resolved;
+      if (t && t.el && t.el.isConnected) t.el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
+    });
+    root.appendChild(scrollHint);
+
     shadow.appendChild(root);
 
-    state = { host, shadow, hl, pulse, avatar, tooltip, arrow, restoreBtn, resolved, step, opts, idx, total, advanced: false, completed: false, fillTimer: null, tooltipHidden: false };
+    state = { host, shadow, hl, pulse, avatar, tooltip, arrow, restoreBtn, scrollHint, resolved, step, opts, idx, total, advanced: false, completed: false, fillTimer: null, tooltipHidden: false };
 
     // 툴팁 숨김 설정 불러오기
     try {
@@ -401,6 +413,7 @@
         pulse.style.display = 'none';
         avatar.style.display = 'none';
         tooltip.style.display = 'none';
+        if (state.scrollHint) state.scrollHint.style.display = 'none';
       } else if (t.el && !t.el.isConnected) {
         // 요소가 DOM에서 분리됨(SPA 화면 전환) → 대기 모드로 되돌려 재탐색
         show(state.step, state.opts);
@@ -413,10 +426,27 @@
           pulse.style.display = 'none';
           avatar.style.display = 'none';
           tooltip.style.display = 'none';
+          if (state.scrollHint) state.scrollHint.style.display = 'none';
           state.rafId = requestAnimationFrame(reposition);
           return;
         }
         const P = 5;
+
+        // 타깃이 세로로 뷰포트 완전히 밖이면 방향 힌트 — 요소 타깃에서만(좌표는 뷰포트 고정)
+        if (state.scrollHint) {
+          const VH = window.innerHeight;
+          const above = t.el && (r.top + r.height < 8);
+          const below = t.el && (r.top > VH - 8);
+          if (above || below) {
+            const sh = state.scrollHint;
+            sh.textContent = above ? '↑ 여기로 스크롤' : '↓ 여기로 스크롤';
+            sh.style.top    = above ? '14px' : 'auto';
+            sh.style.bottom = below ? '20px' : 'auto';
+            sh.style.display = 'block';
+          } else {
+            state.scrollHint.style.display = 'none';
+          }
+        }
 
         // 스포트라이트 박스
         hl.style.display = 'block';
@@ -514,6 +544,7 @@
     state.hl.style.display = 'none';
     state.pulse.style.display = 'none';
     state.avatar.style.display = 'none';
+    if (state.scrollHint) state.scrollHint.style.display = 'none';
     state.tooltip.innerHTML = `
       <div style="text-align:center;padding:10px 4px">
         <div style="${AVATAR_STYLE}margin:0 auto 12px;">${MASCOT_SVG}</div>
