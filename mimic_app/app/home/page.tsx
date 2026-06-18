@@ -429,7 +429,7 @@ function EmptyState({ onRecord, onBlank, onGuidebook, label }: { onRecord: () =>
         {onGuidebook && (
           <button onClick={onGuidebook} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: 'white', color: '#059669', border: '1.5px solid #86efac', cursor: 'pointer' }}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-            새 가이드북
+            새 플레이북
           </button>
         )}
       </div>
@@ -745,6 +745,7 @@ export default function DashboardPage() {
 
   const newMenuRef = useRef<HTMLDivElement>(null);
   const [liveGuide, setLiveGuide] = useState<{ used: number; limit: number; paid: boolean } | null>(null);
+  const [playbookCount, setPlaybookCount] = useState<number | null>(null);
 
   const loadTutorials = useCallback(async (workspaceId?: string) => {
     setTutLoading(true);
@@ -780,6 +781,11 @@ export default function DashboardPage() {
     fetch('/api/user/plan')
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d?.liveGuide) setLiveGuide({ used: d.liveGuide.used ?? 0, limit: d.liveGuide.limit ?? 5, paid: !!d.paid }); })
+      .catch(() => {});
+    // 플레이북 개수 — 홈 '이번 달 사용량'에 함께 표시
+    fetch('/api/pages')
+      .then(r => r.ok ? r.json() : [])
+      .then((d) => setPlaybookCount(Array.isArray(d) ? d.length : 0))
       .catch(() => {});
   }, [user, loadTutorials, loadFolders, loadWorkspaces]);
 
@@ -1111,6 +1117,13 @@ export default function DashboardPage() {
                     <div style={{ height: '100%', borderRadius: '999px', background: liveGuide.used >= liveGuide.limit ? '#EF4444' : '#7c3aed', width: `${Math.min(100, (liveGuide.used / liveGuide.limit) * 100)}%`, transition: 'width 0.3s' }} />
                   </div>
                 )}
+                {/* 플레이북 개수 */}
+                {playbookCount !== null && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
+                    <span style={{ fontSize: '12px', color: '#6B7280' }}>플레이북</span>
+                    <span style={{ fontSize: '12px', fontWeight: 600, color: '#111827' }}>{playbookCount}개</span>
+                  </div>
+                )}
                 {!isPro && <Link href="/settings" style={{ display: 'block', marginTop: '10px', padding: '6px', borderRadius: '7px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', fontSize: '11.5px', fontWeight: 600, textDecoration: 'none', textAlign: 'center' }}>Pro로 업그레이드</Link>}
               </div>
             )}
@@ -1281,7 +1294,7 @@ export default function DashboardPage() {
                         <span style={{ width: '30px', height: '30px', borderRadius: '8px', background: '#dcfce7', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
                         </span>
-                        <div><div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '2px' }}>새 가이드북(통합 문서)</div><div style={{ fontSize: '11.5px', color: '#6B7280' }}>여러 매뉴얼을 한 문서로</div></div>
+                        <div><div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '2px' }}>새 플레이북(통합 문서)</div><div style={{ fontSize: '11.5px', color: '#6B7280' }}>여러 매뉴얼을 한 문서로</div></div>
                       </button>
                     </div>
                   )}

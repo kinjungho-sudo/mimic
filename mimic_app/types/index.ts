@@ -61,7 +61,7 @@ export type Folder = {
 };
 
 // ─────────────────────────────
-// 가이드북 (여러 가이드를 엮는 큐레이션 문서) — BlockNote 문서
+// 플레이북 (여러 가이드를 엮는 큐레이션 문서) — BlockNote 문서
 // ─────────────────────────────
 export type PageAuthor = { name: string | null; email: string | null; avatar_url: string | null };
 

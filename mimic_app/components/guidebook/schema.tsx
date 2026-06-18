@@ -1,6 +1,6 @@
 'use client';
 
-// 가이드북 공유 스키마 — BlockNote 기본 블록 + 커스텀 "가이드 임베드" 블록.
+// 플레이북 공유 스키마 — BlockNote 기본 블록 + 커스텀 "가이드 임베드" 블록.
 // 같은 블록 스펙을 편집기/공개뷰가 공유하며, GuideContext.mode 로 렌더를 분기한다.
 
 import { createContext, useContext, useState } from 'react';

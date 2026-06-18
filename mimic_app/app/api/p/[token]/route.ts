@@ -17,7 +17,7 @@ type StepRow = {
 
 type GuideBlockProps = { type?: string; props?: { tutorialId?: string } };
 
-// GET /api/p/[token] — 공개 가이드북 (BlockNote content) + 가이드 블록 본문 enrich.
+// GET /api/p/[token] — 공개 플레이북 (BlockNote content) + 가이드 블록 본문 enrich.
 // 가이드(tutorial) 블록은 작성자(또는 동일 워크스페이스) 소유 가이드만 steps 를 함께 내려준다.
 export async function GET(_request: NextRequest, { params }: Params) {
   const { token } = await params;

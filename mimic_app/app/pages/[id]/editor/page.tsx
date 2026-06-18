@@ -128,7 +128,7 @@ export default function PageEditor() {
       <div style={{ position: 'sticky', top: 0, zIndex: 20, display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 24px', borderBottom: '1px solid #E5E7EB', background: 'white' }}>
         <Link href="/pages" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#6B7280', textDecoration: 'none', fontSize: '13px' }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
-          가이드북
+          플레이북
         </Link>
         <div style={{ flex: 1 }} />
         <span style={{ fontSize: '11.5px', color: '#9CA3AF' }}>
@@ -147,7 +147,7 @@ export default function PageEditor() {
         <input
           value={title}
           onChange={e => onTitleChange(e.target.value)}
-          placeholder="제목 없는 가이드북"
+          placeholder="제목 없는 플레이북"
           style={{ width: '100%', border: 'none', outline: 'none', background: 'transparent', fontSize: '38px', fontWeight: 800, color: '#111827', fontFamily: 'inherit', lineHeight: 1.2 }}
         />
 
@@ -169,7 +169,7 @@ export default function PageEditor() {
         <div onClick={() => setShareOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div onClick={e => e.stopPropagation()} style={{ background: 'white', borderRadius: '14px', padding: '24px', width: '440px', maxWidth: 'calc(100vw - 32px)' }}>
             <div style={{ fontSize: '16px', fontWeight: 700, color: '#111827', marginBottom: '6px' }}>공유 링크</div>
-            <div style={{ fontSize: '12.5px', color: '#6B7280', marginBottom: '16px' }}>이 링크로 누구나 가이드북을 볼 수 있어요.</div>
+            <div style={{ fontSize: '12.5px', color: '#6B7280', marginBottom: '16px' }}>이 링크로 누구나 플레이북을 볼 수 있어요.</div>
             <div style={{ display: 'flex', gap: '8px' }}>
               <input readOnly value={shareUrl} style={{ flex: 1, height: '38px', padding: '0 12px', borderRadius: '8px', border: '1px solid #E5E7EB', fontSize: '12.5px', color: '#374151' }} />
               <button onClick={() => navigator.clipboard?.writeText(shareUrl)} style={{ ...BTN, border: 'none', background: '#3730a3', color: 'white', fontWeight: 600 }}>복사</button>
