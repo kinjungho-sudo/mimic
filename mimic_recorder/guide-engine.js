@@ -9,9 +9,10 @@
   const COORD_BOX = 46;
   const HIT_PAD_EL = 6;
   const HIT_PAD_COORD = 28;
-  const TIP_W = 300;  // 툴팁 고정 너비(px)
+  const TIP_W = 268;  // 툴팁 고정 너비(px) — Tango식 컴팩트
   const TIP_GAP = 24; // 타깃과 툴팁 사이 간격(px)
   const TIP_M = 8;    // 뷰포트 여백(px)
+  const TIP_BG = 'rgba(22,20,48,.96)'; // 툴팁/화살표/대기카드 공통 배경 — 짙은 남색·보라(흰 배경 가독성)
 
   let state = null;
   const regroundCache = new Map();  // AI 시각 재탐색 결과 캐시(key→{x,y} 성공 / null 실패). 재방문 시 재사용
@@ -264,6 +265,7 @@
 
     shadow.appendChild(style(`
       @keyframes mimic-ripple { 0%{transform:scale(1);opacity:.9} 100%{transform:scale(3.5);opacity:0} }
+      @keyframes mimic-glow   { 0%,100%{box-shadow:0 0 0 3px rgba(99,102,241,.22),0 0 14px 4px rgba(99,102,241,.40)} 50%{box-shadow:0 0 0 5px rgba(99,102,241,.32),0 0 26px 8px rgba(99,102,241,.62)} }
       @keyframes mimic-nudge  { 0%,100%{transform:none} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
       @keyframes mimic-avatar-in { 0%{transform:scale(0.5) translateY(8px);opacity:0} 65%{transform:scale(1.08)} 100%{transform:scale(1) translateY(0);opacity:1} }
       @keyframes mimic-tip-in { 0%{opacity:0;transform:translateY(6px) scale(0.97)} 100%{opacity:1;transform:translateY(0) scale(1)} }
@@ -271,9 +273,9 @@
       .mimic-btn:active { opacity:.75; }
     `));
 
-    // 스포트라이트 하이라이트 (보라색 글로우 + 어두운 배경 오버레이)
+    // 타깃 하이라이트 (네온 글로우 펄스 — 어둠막 없이 위치만 강조, Tango식)
     const hl = document.createElement('div');
-    hl.style.cssText = `position:fixed;pointer-events:none;box-sizing:border-box;border:2px solid rgba(99,102,241,0.85);background:rgba(99,102,241,.06);border-radius:8px;box-shadow:0 0 0 5px rgba(99,102,241,.18),0 0 0 9999px rgba(0,0,0,.65);z-index:2;transition:left .12s,top .12s,width .12s,height .12s;`;
+    hl.style.cssText = `position:fixed;pointer-events:none;box-sizing:border-box;border:2px solid rgba(99,102,241,0.95);background:rgba(99,102,241,.05);border-radius:8px;box-shadow:0 0 0 4px rgba(99,102,241,.22),0 0 18px 5px rgba(99,102,241,.45);z-index:2;transition:left .12s,top .12s,width .12s,height .12s;animation:mimic-glow 1.6s ease-in-out infinite;`;
     root.appendChild(hl);
 
     // 클릭 핀 — 중심 보라 점 제거, 물결 애니메이션만
@@ -300,7 +302,7 @@
       : '';
 
     const tooltip = document.createElement('div');
-    tooltip.style.cssText = `position:fixed;width:${TIP_W}px;box-sizing:border-box;background:rgba(17,17,20,.93);color:#fff;border-radius:14px;padding:14px;box-shadow:0 12px 40px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.07);z-index:5;pointer-events:auto;animation:mimic-tip-in 0.28s ease forwards;`;
+    tooltip.style.cssText = `position:fixed;width:${TIP_W}px;box-sizing:border-box;background:${TIP_BG};color:#fff;border-radius:13px;padding:13px;box-shadow:0 12px 40px rgba(0,0,0,.45),0 0 0 1px rgba(165,180,252,.14);z-index:5;pointer-events:auto;animation:mimic-tip-in 0.28s ease forwards;`;
     tooltip.innerHTML = `
       <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px">
         <div style="${AVATAR_STYLE}">${MASCOT_SVG}</div>
@@ -447,9 +449,9 @@
         tooltip.style.top  = `${pos.top}px`;
 
         if (pos.arrowDir === 'top') {
-          arrow.style.cssText = `position:absolute;left:${pos.arrowLeft}px;top:-7px;width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:7px solid rgba(17,17,20,.93);pointer-events:none;`;
+          arrow.style.cssText = `position:absolute;left:${pos.arrowLeft}px;top:-7px;width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:7px solid ${TIP_BG};pointer-events:none;`;
         } else {
-          arrow.style.cssText = `position:absolute;left:${pos.arrowLeft}px;bottom:-7px;width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:7px solid rgba(17,17,20,.93);pointer-events:none;`;
+          arrow.style.cssText = `position:absolute;left:${pos.arrowLeft}px;bottom:-7px;width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:7px solid ${TIP_BG};pointer-events:none;`;
         }
 
         // 소유자가 스튜디오에서 지정한 말풍선 위치 — 뷰포트 고정 코너로 override(화살표 숨김)
@@ -541,7 +543,7 @@
     const idx = opts.index ?? 0, total = opts.total ?? 1;
 
     const card = document.createElement('div');
-    card.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);width:340px;max-width:calc(100vw - 32px);background:rgba(17,17,20,.94);color:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 12px 40px rgba(0,0,0,.5);pointer-events:auto';
+    card.style.cssText = `position:fixed;left:50%;bottom:24px;transform:translateX(-50%);width:340px;max-width:calc(100vw - 32px);background:${TIP_BG};color:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 12px 40px rgba(0,0,0,.45),0 0 0 1px rgba(165,180,252,.14);pointer-events:auto`;
     card.innerHTML = `
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
         <span style="font-size:11px;font-weight:700;color:#A5B4FC;background:rgba(99,102,241,.25);padding:2px 8px;border-radius:20px">${idx + 1} / ${total}</span>
