@@ -105,6 +105,7 @@ export default function EditorPage() {
   const stepSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const tempIdCounter = useRef(0);
   const [tocSelectedIds, setTocSelectedIds] = useState<Set<string>>(new Set());
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [autoGenProgress, setAutoGenProgress] = useState<{ done: number; total: number } | null>(null);
   const [showMerge, setShowMerge] = useState(false);
 
@@ -474,15 +475,18 @@ export default function EditorPage() {
     }
   }, [id]);
 
-  const handleDeleteStep = useCallback((stepId: string) => {
+  const performDeleteStep = useCallback((stepId: string) => {
     const next = manualSteps.filter(s => s.id !== stepId).map((s, i) => ({ ...s, number: i + 1 }));
     setManualStepsWithHistory(next);
     if (activeId === stepId) setActiveId(next[0]?.id ?? null);
+    setPendingDeleteId(null);
     // DB 삭제 — 임시 ID(step-*)는 아직 DB에 없으므로 건너뜀
     if (!stepId.startsWith('step-')) {
       deleteStep(stepId).catch((e) => logError('step.delete.fail', { tutorialId: id, stepId, message: e instanceof Error ? e.message : String(e) }));
     }
   }, [manualSteps, activeId, setManualStepsWithHistory]);
+
+  const handleDeleteStep = useCallback((stepId: string) => setPendingDeleteId(stepId), []);
 
   const handleAddStep = useCallback(async () => {
     const stepNumber = manualSteps.length + 1;
@@ -1127,6 +1131,41 @@ export default function EditorPage() {
           onClose={() => setShowExport(false)}
         />
       )}
+
+      {/* 스텝 삭제 확인 모달 (GuideToc 경로) */}
+      {pendingDeleteId && (() => {
+        const step = manualSteps.find(s => s.id === pendingDeleteId);
+        return (
+          <div
+            onClick={() => setPendingDeleteId(null)}
+            style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(10,10,18,0.50)', backdropFilter: 'blur(3px)', display: 'grid', placeItems: 'center', padding: '20px' }}
+          >
+            <div onClick={e => e.stopPropagation()}
+              style={{ width: '100%', maxWidth: '360px', background: 'white', borderRadius: '16px', padding: '24px', boxShadow: '0 20px 60px rgba(0,0,0,0.28)' }}
+            >
+              <div style={{ marginBottom: '6px', fontSize: '16px', fontWeight: 700, color: '#111827' }}>단계 삭제</div>
+              {step && (
+                <div style={{ fontSize: '13px', color: '#6B7280', marginBottom: '6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {String(step.number).padStart(2, '0')}. {step.actionTitle || '(제목 없음)'}
+                </div>
+              )}
+              <div style={{ fontSize: '12.5px', color: '#9CA3AF', lineHeight: 1.6, marginBottom: '20px' }}>
+                이 단계를 삭제하면 실습하기와 Live Guide에서도 제거됩니다.
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={() => setPendingDeleteId(null)}
+                  style={{ flex: 1, height: '40px', borderRadius: '10px', border: '1px solid #E5E7EB', background: 'white', color: '#374151', fontSize: '13.5px', fontWeight: 500, cursor: 'pointer' }}>
+                  취소
+                </button>
+                <button onClick={() => performDeleteStep(pendingDeleteId!)}
+                  style={{ flex: 1, height: '40px', borderRadius: '10px', border: 'none', background: '#EF4444', color: 'white', fontSize: '13.5px', fontWeight: 700, cursor: 'pointer' }}>
+                  삭제
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 챗봇 — 항상 떠있는 도우미 (우하단 고정, 다른 UI와 비겹침) */}
       <AgentChat />
