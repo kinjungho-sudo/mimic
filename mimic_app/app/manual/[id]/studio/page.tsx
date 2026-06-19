@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Play, Check, Loader2, MousePointerClick, Type, Ban, RotateCcw, EyeOff, Eye, GripVertical, PlayCircle } from 'lucide-react';
+import { ArrowLeft, Play, Check, Loader2, MousePointerClick, Type, Ban, RotateCcw, EyeOff, Eye, GripVertical } from 'lucide-react';
 import { useTutorial } from '@/hooks/useTutorial';
 import { updateStep, reorderSteps } from '@/lib/api/steps';
 import { clickToPct, inferKind, toFollowSteps } from '@/lib/follow';
@@ -79,8 +79,6 @@ export default function StudioPage() {
   const [savedTick, setSavedTick] = useState(0);
   const [showPreview, setShowPreview] = useState(false);
   const [publishing, setPublishing] = useState(false);
-  const [liveGuide, setLiveGuide] = useState<{ paid: boolean; remaining: number | null } | null>(null);
-  const [showUpgrade, setShowUpgrade] = useState(false);
   const imgWrapRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
   const contentTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -99,11 +97,6 @@ export default function StudioPage() {
     setActiveId(prev => prev ?? ss[0]?.id ?? null);
   }, [tutorial]);
 
-  useEffect(() => {
-    fetch('/api/user/plan').then(r => r.ok ? r.json() : null).then(d => {
-      if (d) setLiveGuide({ paid: !!d.paid, remaining: d.liveGuide?.remaining ?? null });
-    }).catch(() => {});
-  }, []);
 
   const active = steps.find(s => s.id === activeId) ?? null;
 
@@ -267,46 +260,6 @@ export default function StudioPage() {
             {publishing ? <><Loader2 size={12} className="spin" /> 게시 중…</> : '게시'}
           </button>
         )}
-        <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.12)', flexShrink: 0 }} />
-        <button
-          onClick={() => {
-            if (liveGuide && !liveGuide.paid && (liveGuide.remaining ?? 0) <= 0) {
-              setShowUpgrade(true);
-              return;
-            }
-            const hasSteps = steps.some(s => !s.follow.hidden);
-            if (!hasSteps) {
-              alert('표시할 스텝이 없습니다. 최소 한 개 스텝을 표시(숨김 해제)한 후 실행하세요.');
-              return;
-            }
-            const extId = (process.env.NEXT_PUBLIC_EXTENSION_ID ?? '').replace(/^﻿/, '').trim();
-            if (!extId) { alert('라이브 가이드를 사용하려면 MIMIC 확장프로그램을 설치해주세요.'); return; }
-            try {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              (window as any).chrome?.runtime?.sendMessage(
-                extId,
-                { action: 'START_GUIDE', tutorial_id: id },
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (res: any) => {
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  if ((window as any).chrome?.runtime?.lastError || !res?.ok) {
-                    if (res?.gated) { setShowUpgrade(true); return; }
-                    alert('확장프로그램이 응답하지 않습니다. 설치·활성화를 확인해주세요.');
-                  }
-                }
-              );
-            } catch {
-              alert('라이브 가이드를 시작할 수 없습니다. 확장프로그램을 설치해주세요.');
-            }
-          }}
-          style={{ ...primaryBtn, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          <PlayCircle size={14} /> 실행
-          {liveGuide && !liveGuide.paid && (
-            <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '10px', background: (liveGuide.remaining ?? 0) > 0 ? 'rgba(255,255,255,0.2)' : 'rgba(220,38,38,0.3)', color: 'white', fontWeight: 700 }}>
-              {(liveGuide.remaining ?? 0) > 0 ? `무료 ${liveGuide.remaining}회` : '체험 종료'}
-            </span>
-          )}
-        </button>
       </header>
 
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
@@ -502,21 +455,6 @@ export default function StudioPage() {
       {showPreview && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(5,5,10,0.9)', backdropFilter: 'blur(4px)' }}>
           <InteractiveFollowPlayer title={tutorial.title} steps={previewSteps} onClose={() => setShowPreview(false)} closeLabel="편집으로" />
-        </div>
-      )}
-
-      {/* 업그레이드 모달 */}
-      {showUpgrade && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(10,10,15,0.85)', backdropFilter: 'blur(8px)', display: 'grid', placeItems: 'center', padding: '32px' }}>
-          <div style={{ background: 'white', color: '#111827', borderRadius: '18px', padding: '32px', maxWidth: '420px', width: '100%', boxShadow: '0 30px 80px rgba(0,0,0,0.5)', textAlign: 'center' }}>
-            <div style={{ fontSize: '40px', marginBottom: '12px' }}>🔒</div>
-            <h2 style={{ fontSize: '18px', fontWeight: 800, margin: '0 0 8px' }}>라이브 가이드 무료 체험이 끝났어요</h2>
-            <p style={{ fontSize: '13px', color: '#6B7280', lineHeight: 1.6, margin: '0 0 20px' }}>무료 플랜은 라이브 가이드를 5회까지 체험할 수 있어요.<br />Pro로 업그레이드하면 무제한으로 실제 화면 위에서 안내할 수 있습니다.</p>
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-              <button onClick={() => setShowUpgrade(false)} style={{ padding: '10px 18px', borderRadius: '8px', border: '1px solid #E5E7EB', background: 'white', fontSize: '13px', cursor: 'pointer', color: '#6B7280' }}>닫기</button>
-              <button onClick={() => router.push('/pricing')} style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>Pro 업그레이드</button>
-            </div>
-          </div>
         </div>
       )}
 
