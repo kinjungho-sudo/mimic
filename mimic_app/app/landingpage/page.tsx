@@ -107,7 +107,7 @@ const useCases = [
     emoji: '🧑‍💼',
     tag: '사내 교육 · 온보딩',
     title: '신입이 처음부터 혼자 따라할 수 있게',
-    body: '사내 툴 사용법, ERP 입력 방법, 결재 프로세스를 화면 그대로 녹화해 매뉴얼로. 구두 설명 없이도 누구나 보고 따라합니다.',
+    body: '사내 툴 사용법, ERP 입력 방법, 결재 SOP를 화면 그대로 녹화해 매뉴얼로. 구두 설명 없이도 누구나 보고 따라합니다.',
   },
   {
     emoji: '📹',
@@ -1360,7 +1360,7 @@ function HeroSection() {
         {/* Key metrics */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '64px' }}>
           {[
-            { value: '30초', label: '매뉴얼 제작' },
+            { value: '30초', label: 'SOP·매뉴얼 제작' },
             { value: '실시간', label: '화면 위 클릭 안내' },
             { value: '클릭만', label: '읽지 않고 따라 실행' },
           ].map((stat, i) => (
@@ -1532,7 +1532,7 @@ export default function LandingPage() {
           <RevealSection>
             <span style={{ display: 'block', textAlign: 'center', fontSize: '11px', color: '#7c3aed', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '16px' }}>Problem</span>
             <h2 style={{ textAlign: 'center', fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 800, letterSpacing: '-0.035em', margin: '0 auto 14px', maxWidth: '640px', lineHeight: 1.18, color: 'white' }}>이런 문제, 한 번쯤 겪어보셨죠?</h2>
-            <p style={{ textAlign: 'center', fontSize: '16px', color: 'rgba(255,255,255,0.38)', maxWidth: '520px', margin: '0 auto 60px', lineHeight: 1.7 }}>PDF는 쌓이기만 하고, 영상은 만들기 지옥이고, PPT는 만들다 하루가 갑니다.</p>
+            <p style={{ textAlign: 'center', fontSize: '16px', color: 'rgba(255,255,255,0.38)', maxWidth: '520px', margin: '0 auto 60px', lineHeight: 1.7 }}>SOP·매뉴얼을 만들어도 아무도 안 읽고, 영상은 만들기 지옥이고, PPT는 만들다 하루가 갑니다.</p>
 
             <div className="grid-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
               {[
