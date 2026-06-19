@@ -100,39 +100,14 @@ export function GuideViewer({ steps, activeId, onActiveChange, outputRatio = '16
   );
 }
 
-function expandCropForAnnotations(
-  cr: { x: number; y: number; w: number; h: number },
-  annotations: NonNullable<ManualStep['annotations']>
-): { x: number; y: number; w: number; h: number } {
-  let minX = cr.x, minY = cr.y;
-  let maxX = cr.x + cr.w, maxY = cr.y + cr.h;
-  for (const a of annotations) {
-    if (a.type === 'crop' || a.type === 'spotlight') continue;
-    const ax1 = Math.min(a.x1, a.x2) / 100;
-    const ay1 = Math.min(a.y1, a.y2) / 100;
-    const ax2 = Math.max(a.x1, a.x2) / 100;
-    const ay2 = Math.max(a.y1, a.y2) / 100;
-    minX = Math.min(minX, ax1);
-    minY = Math.min(minY, ay1);
-    maxX = Math.max(maxX, ax2);
-    maxY = Math.max(maxY, ay2);
-  }
-  const x = Math.max(0, minX), y = Math.max(0, minY);
-  return { x, y, w: Math.min(1, maxX) - x, h: Math.min(1, maxY) - y };
-}
-
 function ViewerStepCard({ step }: { step: ManualStep }) {
   const hasImage = !!step.screenshotUrl;
   const zoom = step.imageZoom ?? 1;
   const offX = step.imageOffsetX ?? 0;
   const offY = step.imageOffsetY ?? 0;
-  const rawCr = step.crop_rect;
-  const annotations = step.annotations ?? [];
-  // crop_rect를 어노테이션 바운딩 박스까지 포함하도록 자동 확장 — 화살표·텍스트가 잘리지 않도록
-  const cr = rawCr && annotations.length > 0
-    ? expandCropForAnnotations(rawCr, annotations)
-    : rawCr;
+  const cr = step.crop_rect;
   const hasCrop = !!cr && cr.w > 0 && cr.w < 0.99;
+  const imgRef = useRef<HTMLImageElement | null>(null);
   const [natH2W, setNatH2W] = useState<number | null>(null);
 
   // crop_rect CSS clip: 1/w 배율로 이미지 확대 + x/y offset으로 원하는 영역만 표시
@@ -186,6 +161,7 @@ function ViewerStepCard({ step }: { step: ManualStep }) {
             {/* img 박스가 실제 콘텐츠와 정확히 일치해야 어노테이션 오버레이 좌표가 맞음 (letterbox 금지) */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
+              ref={imgRef}
               src={step.screenshotUrl}
               alt={step.actionTitle}
               draggable={false}
@@ -205,11 +181,19 @@ function ViewerStepCard({ step }: { step: ManualStep }) {
                 marginTop: imgMarginTop,
               }}
             />
-            {(step.annotations?.length ?? 0) > 0 && (
-              <AnnotationPreview annotations={step.annotations!} imageUrl={step.screenshotUrl!}
-                sizeScale={hasCrop ? cr!.w : (zoom > 1 ? 1 / zoom : 1)} />
-            )}
           </div>
+          {/* SVG overlay: crop wrapper 밖에 배치 — overflow:hidden 영향 없이 어노테이션 표시 */}
+          {(step.annotations?.length ?? 0) > 0 && (
+            <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+              <AnnotationPreview
+                annotations={step.annotations!}
+                imageUrl={step.screenshotUrl!}
+                imgRef={imgRef}
+                cropRect={hasCrop ? cr! : undefined}
+                sizeScale={hasCrop ? cr!.w : (zoom > 1 ? 1 / zoom : 1)}
+              />
+            </div>
+          )}
           {!hasCrop && zoom > 1 && (
             <div style={{ position: 'absolute', bottom: '8px', right: '8px', fontSize: '10px', fontWeight: 600, color: 'white', background: 'rgba(20,20,30,0.6)', backdropFilter: 'blur(6px)', padding: '2px 7px', borderRadius: '5px', pointerEvents: 'none' }}>
               {Math.round(zoom * 100)}%

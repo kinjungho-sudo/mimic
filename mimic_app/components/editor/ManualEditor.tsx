@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Plus, Trash2, ZoomIn, X,
   Bold, Italic, Underline, ExternalLink, Sparkles, Loader2,
-  Check, Mic, Play, Pause, MessageSquare, Type,
+  Check, Mic, Play, Pause, MessageSquare, Type, Copy,
 } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { ImageAnnotationEditor, type Annotation } from './ImageAnnotationEditor';
@@ -148,6 +148,20 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, hideToc, a
     if (activeId === id) setActiveId(next[0]?.id ?? null);
     setSelectedIds(prev => { const s = new Set(prev); s.delete(id); return s; });
     setPendingDeleteId(null);
+  };
+
+  const duplicateStep = (id: string) => {
+    const idx = steps.findIndex(s => s.id === id);
+    if (idx < 0) return;
+    const src = steps[idx];
+    const newStep = { ...src, id: crypto.randomUUID() };
+    const next = [
+      ...steps.slice(0, idx + 1),
+      newStep,
+      ...steps.slice(idx + 1),
+    ].map((s, i) => ({ ...s, number: i + 1 }));
+    onChange(next);
+    setActiveId(newStep.id);
   };
 
   const deleteStep = (id: string) => setPendingDeleteId(id);
@@ -364,6 +378,7 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, hideToc, a
                     onUpdate={patch => updateStep(step.id, patch)}
                     onSave={patch => { updateStep(step.id, patch); onSave?.(step.id, patch); }}
                     onDelete={() => deleteStep(step.id)}
+                    onDuplicate={() => duplicateStep(step.id)}
                     onZoom={() => step.screenshotUrl && setZoomUrl(step.screenshotUrl)}
                     onAnnotate={() => { if (!step.screenshotUrl) return; setActiveId(step.id); setAnnotatingId(step.id); }}
                     onRemoveImage={() => { updateStep(step.id, { screenshotUrl: undefined, annotations: [] }); onSave?.(step.id, { screenshotUrl: undefined, annotations: [] }); }}
@@ -638,13 +653,14 @@ interface StepCardProps {
   onUpdate: (patch: Partial<ManualStep>) => void;
   onSave: (patch: Partial<ManualStep>) => void;
   onDelete: () => void;
+  onDuplicate: () => void;
   onZoom: () => void;
   onAnnotate: () => void;
   onRemoveImage: () => void;
   onAddComment?: () => void;
 }
 
-function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdate, onSave, onDelete, onZoom, onAnnotate, onRemoveImage, onAddComment }: StepCardProps) {
+function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdate, onSave, onDelete, onDuplicate, onZoom, onAnnotate, onRemoveImage, onAddComment }: StepCardProps) {
   const [hovering, setHovering] = useState(false);
   const [descGenerating, setDescGenerating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -867,6 +883,12 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
                 <MessageSquare size={16} />
               </button>
             )}
+            <button onClick={onDuplicate} title="단계 복제" style={iconBtnSm}
+              onMouseEnter={e => { e.currentTarget.style.color = '#0369a1'; }}
+              onMouseLeave={e => { e.currentTarget.style.color = '#9CA3AF'; }}
+            >
+              <Copy size={16} />
+            </button>
             <button onClick={onDelete} title="단계 삭제" style={iconBtnSm}
               onMouseEnter={e => { e.currentTarget.style.color = '#DC2626'; }}
               onMouseLeave={e => { e.currentTarget.style.color = '#9CA3AF'; }}

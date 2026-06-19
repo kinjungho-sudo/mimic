@@ -4,18 +4,21 @@ import { useId, useRef, useState, useEffect } from 'react';
 import type { Annotation } from './ImageAnnotationEditor';
 import { FONT_REF_WIDTH, estimateTextW } from './ImageAnnotationEditor';
 
-// sizeScale: 이미지가 크롭/줌으로 확대 표시될 때 어노테이션이 같이 커지지 않도록 선·글씨 크기를 역보정(크롭=cropW, 줌=1/zoom). 위치는 영향 없음.
-export function AnnotationPreview({ annotations, imageUrl, sizeScale = 1 }: { annotations: Annotation[]; imageUrl: string; sizeScale?: number }) {
+// sizeScale: 크롭/줌 확대 시 선·글씨 크기 역보정. cropRect: viewBox를 crop 영역으로 조정해 어노테이션 좌표 불일치 방지.
+export function AnnotationPreview({ annotations, imageUrl, sizeScale = 1, imgRef: externalImgRef, cropRect }: {
+  annotations: Annotation[]; imageUrl: string; sizeScale?: number;
+  imgRef?: React.RefObject<HTMLImageElement | null>;
+  cropRect?: { x: number; y: number; w: number; h: number };
+}) {
   const uid = useId().replace(/:/g, '');
-  const imgRef = useRef<HTMLImageElement | null>(null);
+  const svgRef = useRef<SVGSVGElement | null>(null);
   const [imgSize, setImgSize] = useState<{ w: number; h: number } | null>(null);
 
-  // 부모 img의 실제 렌더 크기 측정 — load 완료 후 + ResizeObserver
+  // img 실제 렌더 크기 측정 — 외부 imgRef 우선, 없으면 부모 querySelector
   useEffect(() => {
-    const svg = imgRef.current as unknown as SVGSVGElement | null;
-    const container = svg?.parentElement;
-    if (!container) return;
-    const img = container.querySelector('img') as HTMLImageElement | null;
+    const img: HTMLImageElement | null = externalImgRef
+      ? externalImgRef.current
+      : (svgRef.current?.parentElement?.querySelector('img') ?? null) as HTMLImageElement | null;
     if (!img) return;
 
     const update = () => {
@@ -23,7 +26,6 @@ export function AnnotationPreview({ annotations, imageUrl, sizeScale = 1 }: { an
       if (r.width > 0 && r.height > 0) setImgSize({ w: r.width, h: r.height });
     };
 
-    // 이미 로드된 경우 다음 프레임에 측정 (즉시 측정 시 getBoundingClientRect()=0 반환 방지)
     if (img.complete && img.naturalWidth > 0) {
       requestAnimationFrame(update);
     } else {
@@ -36,15 +38,20 @@ export function AnnotationPreview({ annotations, imageUrl, sizeScale = 1 }: { an
       img.removeEventListener('load', update);
       ro.disconnect();
     };
-  }, [imageUrl]); // imageUrl 바뀌면 재측정
+  }, [imageUrl, externalImgRef]);
 
   const filterId = `mosaic-blur-${uid}`;
   const spotlightMaskId = `spotlight-mask-${uid}`;
   const spotlights = annotations.filter(a => a.type === 'spotlight');
 
   const { w: imgW, h: imgH } = imgSize ?? { w: 1, h: 1 };
-  // 편집기와 동일한 폰트 스케일 — 표시폭 ÷ 기준폭(FONT_REF_WIDTH). 크롭/줌 확대분은 sizeScale로 역보정.
   const fontScale = imgW * sizeScale / FONT_REF_WIDTH;
+
+  // crop 적용 시 viewBox를 crop 영역으로 설정 — 어노테이션 좌표 불일치 해소 + crop 경계 밖 어노테이션도 렌더링
+  const vbX = cropRect ? cropRect.x * imgW : 0;
+  const vbY = cropRect ? cropRect.y * imgH : 0;
+  const vbW = cropRect ? cropRect.w * imgW : imgW;
+  const vbH = cropRect ? cropRect.h * imgH : imgH;
 
   // % 좌표 → 픽셀 좌표
   const px = (v: number) => v / 100 * imgW;
@@ -52,8 +59,8 @@ export function AnnotationPreview({ annotations, imageUrl, sizeScale = 1 }: { an
 
   return (
     <svg
-      ref={imgRef as React.RefObject<SVGSVGElement>}
-      viewBox={imgSize ? `0 0 ${imgW} ${imgH}` : '0 0 1 1'}
+      ref={svgRef}
+      viewBox={imgSize ? `${vbX} ${vbY} ${vbW} ${vbH}` : '0 0 1 1'}
       style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}
     >
       {imgSize && (<>
