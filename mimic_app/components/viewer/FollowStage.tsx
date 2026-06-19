@@ -137,6 +137,21 @@ export function FollowStage({
     bubbleTop = clamp(bubbleTop, 8, Math.max(8, box.h - UNIT_H - 8));
   }
 
+  // 줌 적용 시 말풍선은 zoom wrapper 밖에서 렌더링 → 시각적 핫스팟 위치로 재계산
+  // transform: scale(S) 후 점 (px,py)의 시각 위치 = pivot + (px-pivot)*S
+  let outBubbleLeft = bubbleLeft;
+  let outBubbleTop = bubbleTop;
+  if (hasHotspot && box.w && box.h && isAnimated) {
+    const zoomCXpx = (zoomCX / 100) * box.w;
+    const zoomCYpx = (zoomCY / 100) * box.h;
+    const visHxPx = zoomCXpx + ((hx! / 100) * box.w - zoomCXpx) * zoomScale;
+    const visHyPx = zoomCYpx + ((hy! / 100) * box.h - zoomCYpx) * zoomScale;
+    outBubbleLeft = bubbleSide === 'right' ? visHxPx + 26 : visHxPx - 26 - UNIT_W;
+    outBubbleTop = visHyPx - UNIT_H / 2;
+    outBubbleLeft = clamp(outBubbleLeft, 8, Math.max(8, box.w - UNIT_W - 8));
+    outBubbleTop = clamp(outBubbleTop, 8, Math.max(8, box.h - UNIT_H - 8));
+  }
+
   const hint = !hasHotspot ? "아래 '다음 →'을 눌러 계속하세요" : isType ? '여기에 입력하면 돼요' : '표시된 곳을 클릭하면 다음으로 넘어가요';
   const prefix = !hasHotspot ? '📄' : isType ? '✍️' : '👉';
   // 말풍선은 평문 렌더 — 설명에 섞인 HTML 태그(<font>, <b> 등)/엔티티가 그대로 노출되지 않도록 제거
@@ -254,20 +269,21 @@ export function FollowStage({
           </div>
         )}
 
-        {/* AI 캐릭터 + 말풍선 — focused 시만, fade-in */}
-        {showOverlays && (hasHotspot || (bubbleAnchor && box.w > 0)) && (
-          <div style={{ position: 'absolute', left: `${bubbleLeft}px`, top: `${bubbleTop}px`, zIndex: 6, pointerEvents: 'none', animation: isAnimated ? 'mfp-bubble-in 0.35s ease-out' : undefined }}>
-            {renderUnit(bubbleSide)}
-          </div>
-        )}
-
-        {/* 핫스팟 없고 앵커도 없는 이동/설명형 — focused 시만 */}
-        {showOverlays && !hasHotspot && !bubbleAnchor && (
-          <div style={{ position: 'absolute', right: '18px', bottom: '18px', zIndex: 6, pointerEvents: 'none', maxWidth: '92%' }}>
-            {renderUnit('bottom')}
-          </div>
-        )}
       </div>
+
+      {/* AI 캐릭터 + 말풍선 — zoom wrapper 밖 렌더링으로 확대 영향 없이 항상 화면 안에 표시 */}
+      {showOverlays && (hasHotspot || (bubbleAnchor && box.w > 0)) && (
+        <div style={{ position: 'absolute', left: `${outBubbleLeft}px`, top: `${outBubbleTop}px`, zIndex: 6, pointerEvents: 'none', animation: isAnimated ? 'mfp-bubble-in 0.35s ease-out' : undefined }}>
+          {renderUnit(bubbleSide)}
+        </div>
+      )}
+
+      {/* 핫스팟 없고 앵커도 없는 이동/설명형 — focused 시만 */}
+      {showOverlays && !hasHotspot && !bubbleAnchor && (
+        <div style={{ position: 'absolute', right: '18px', bottom: '18px', zIndex: 6, pointerEvents: 'none', maxWidth: '92%' }}>
+          {renderUnit('bottom')}
+        </div>
+      )}
 
       {children}
 

@@ -800,7 +800,7 @@ export default function DashboardPage() {
   const [playbook, setPlaybook] = useState<{ used: number; limit: number; paid: boolean } | null>(null);
 
   // 콘텐츠 유형 탭
-  const [contentType, setContentType] = useState<'manual' | 'playbook' | 'liveguide'>('manual');
+  const [contentType, setContentType] = useState<'manual' | 'practice' | 'playbook' | 'liveguide'>('manual');
   const [pages, setPages] = useState<{ id: string; title: string; updated_at: string; block_count?: number; workspace_id?: string | null }[]>([]);
   const [pagesLoading, setPagesLoading] = useState(false);
 
@@ -1040,6 +1040,8 @@ export default function DashboardPage() {
     }
     return list;
   })();
+
+  const practiceTutorials = displayedTutorials.filter(t => t.share_token);
 
   const displayedPages = (() => {
     if (!searchQuery.trim()) return pages;
@@ -1395,6 +1397,7 @@ export default function DashboardPage() {
               <div style={{ display: 'flex', gap: '6px', marginBottom: '16px' }}>
                 {([
                   { key: 'manual' as const, label: '매뉴얼', color: '#3730a3', bg: '#e0e7ff', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> },
+                  { key: 'practice' as const, label: '실습하기', color: '#0369a1', bg: '#e0f2fe', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg> },
                   { key: 'playbook' as const, label: '플레이북', color: '#059669', bg: '#dcfce7', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg> },
                   { key: 'liveguide' as const, label: 'Live Guide', color: '#7c3aed', bg: '#ede9fe', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg> },
                 ] as const).map(({ key, label, color, bg, icon }) => (
@@ -1414,7 +1417,7 @@ export default function DashboardPage() {
               >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={searchQuery ? '#4F46E5' : '#9CA3AF'} strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, transition: 'stroke 0.15s' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 <input
-                  placeholder={contentType === 'playbook' ? '플레이북 이름으로 검색...' : contentType === 'liveguide' ? 'Live Guide 검색...' : '매뉴얼 이름으로 검색...'}
+                  placeholder={contentType === 'playbook' ? '플레이북 이름으로 검색...' : contentType === 'liveguide' ? 'Live Guide 검색...' : contentType === 'practice' ? '실습하기 검색...' : '매뉴얼 이름으로 검색...'}
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '14.5px', fontFamily: 'inherit', color: '#111827' }}
@@ -1438,7 +1441,9 @@ export default function DashboardPage() {
                     ? (!pagesLoading && `플레이북 ${displayedPages.length}개`)
                     : contentType === 'liveguide'
                       ? (!tutLoading && `Live Guide ${displayedTutorials.length}개`)
-                      : (!tutLoading && `매뉴얼 ${displayedTutorials.length}개`)}
+                      : contentType === 'practice'
+                        ? (!tutLoading && `실습하기 ${practiceTutorials.length}개`)
+                        : (!tutLoading && `매뉴얼 ${displayedTutorials.length}개`)}
                 </div>
                 {/* 뷰 모드 토글 */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginBottom: '6px', background: '#F3F4F6', borderRadius: '8px', padding: '3px' }}>
@@ -1495,6 +1500,37 @@ export default function DashboardPage() {
                     {displayedPages.map(p => <PageCard key={p.id} page={p} viewMode={viewMode} />)}
                   </div>
                 )
+              ) : contentType === 'practice' ? (
+                /* 실습하기 탭 — share_token이 있는 published 튜토리얼만 표시 */
+                <>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '10px 14px', borderRadius: '10px', background: '#e0f2fe', border: '1px solid #bae6fd', marginBottom: '16px' }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0369a1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: '1px' }}><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+                    <div style={{ fontSize: '12.5px', color: '#0c4a6e', lineHeight: 1.6 }}>
+                      <b>실습하기</b>는 캡처한 화면 위에서 단계별로 직접 클릭해보며 익히는 인터랙티브 연습 모드입니다. 매뉴얼 상세 페이지에서 실습 링크를 공유할 수 있어요.
+                    </div>
+                  </div>
+                  {tutLoading ? (
+                    <div className={viewMode === 'list' ? 'home-card-list' : 'home-card-grid'}>
+                      {[1,2,3].map(i => (
+                        <div key={i} style={{ borderRadius: '10px', background: 'white', border: '1px solid #E5E7EB', padding: '11px 13px', display: 'flex', alignItems: 'center', gap: '11px' }}>
+                          <div style={{ width: '34px', height: '34px', borderRadius: '7px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite', flexShrink: 0 }} />
+                          <div style={{ flex: 1, height: '12px', borderRadius: '6px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite' }} />
+                        </div>
+                      ))}
+                    </div>
+                  ) : practiceTutorials.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '48px 24px', color: '#6B7280' }}>
+                      <div style={{ fontSize: '13px' }}>실습하기 가능한 매뉴얼이 없어요.<br/>녹화를 완료하면 자동으로 실습하기가 생성됩니다.</div>
+                      <button onClick={() => setContentType('manual')} style={{ marginTop: '12px', padding: '7px 14px', borderRadius: '8px', border: '1px solid #bae6fd', background: 'white', fontSize: '13px', color: '#0369a1', cursor: 'pointer', fontWeight: 600 }}>매뉴얼 보기</button>
+                    </div>
+                  ) : (
+                    <div className={viewMode === 'list' ? 'home-card-list' : 'home-card-grid'}>
+                      {practiceTutorials.map(t => (
+                        <TutorialCard key={t.id} tutorial={t} onContextMenu={handleContextMenu} onTitleChange={handleTitleChange} onMenuClick={handleContextMenu} viewMode={viewMode} />
+                      ))}
+                    </div>
+                  )}
+                </>
               ) : contentType === 'liveguide' ? (
                 /* Live Guide 탭 — 기존 매뉴얼을 보여주되 Live Guide 안내 배너 추가 */
                 <>
