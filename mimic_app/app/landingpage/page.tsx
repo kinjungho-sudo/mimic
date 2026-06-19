@@ -575,8 +575,19 @@ function StepScreen({ step, mode }: { step: number; mode: 'card' | 'guide' | 're
   const spotlight = (
     <div style={{ position: 'absolute', inset: '-7px', borderRadius: '12px', boxShadow: '0 0 0 4px #6d28d9, 0 0 0 2000px rgba(13,13,20,0.52)', zIndex: 4, pointerEvents: 'none' }}>
       <div style={{ position: 'absolute', inset: '-6px', borderRadius: '14px', border: '3px solid rgba(167,139,250,0.8)', animation: 'rippleOut 1.4s ease-out infinite' }} />
-      {/* 사용자가 직접 타겟으로 이동해 클릭하는 마우스 커서 */}
-      <div style={{ position: 'absolute', top: '50%', left: '48%', zIndex: 7, animation: 'cursorClick 2.6s ease-in-out infinite' }}><CursorIcon size={28} /></div>
+      {/* 커서 + AI 말풍선이 함께 이동 */}
+      <div style={{ position: 'absolute', top: '50%', left: '48%', zIndex: 7, animation: 'cursorClick 2.6s ease-in-out infinite' }}>
+        {/* AI 말풍선 — 커서 왼쪽 위에 고정 부착 */}
+        <div style={{ position: 'absolute', bottom: '100%', right: '4px', marginBottom: '10px', background: 'white', borderRadius: '10px 10px 10px 2px', padding: '9px 12px 8px', boxShadow: '0 10px 32px rgba(0,0,0,0.26), 0 0 0 1px rgba(0,0,0,0.05)', width: '190px', pointerEvents: 'none' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '5px' }}>
+            <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: 'linear-gradient(135deg,#6d28d9,#3730a3)', display: 'grid', placeItems: 'center', fontSize: '12px', flexShrink: 0 }}>🤖</div>
+            <span style={{ fontSize: '9px', fontWeight: 800, color: '#6d28d9', letterSpacing: '0.04em' }}>MIMIC AI</span>
+          </div>
+          <div style={{ fontSize: '10px', fontWeight: 700, color: '#111827', marginBottom: '3px' }}>{GUIDE_STEPS[step]?.title}</div>
+          <div style={{ fontSize: '8.5px', color: '#6B7280' }}>표시된 곳을 클릭하면 다음으로 넘어가요</div>
+        </div>
+        <CursorIcon size={28} />
+      </div>
     </div>
   );
 
@@ -827,17 +838,6 @@ function Scene6({ tick }: { tick: number }) {
               );
             })}
           </div>
-        </div>
-        {/* AI 로봇 아바타 + 말풍선 — 우측 하단 */}
-        <div key={`bot${step}`} style={{ position: 'absolute', right: '166px', bottom: '16px', display: 'flex', alignItems: 'flex-end', gap: '9px', zIndex: 14, animation: 'sceneIn 0.4s cubic-bezier(0.34,1.4,0.64,1) both' }}>
-          {/* 말풍선 */}
-          <div style={{ width: '232px', background: '#fff', borderRadius: '12px 12px 4px 12px', padding: '11px 13px', boxShadow: '0 12px 40px rgba(0,0,0,0.28), 0 0 0 1px rgba(0,0,0,0.04)' }}>
-            <div style={{ fontSize: '11px', fontWeight: 700, color: '#111827', marginBottom: '4px' }}>👉 {GUIDE_STEPS[step].title}</div>
-            <div style={{ fontSize: '9.5px', color: '#6B7280', lineHeight: 1.5, marginBottom: '5px' }}>{GUIDE_STEPS[step].desc}</div>
-            <div style={{ fontSize: '9px', color: '#6d28d9', fontWeight: 600 }}>표시된 곳을 클릭하면 다음으로 넘어가요</div>
-          </div>
-          {/* 로봇 아바타 */}
-          <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg,#6d28d9,#3730a3)', display: 'grid', placeItems: 'center', fontSize: '20px', boxShadow: '0 8px 22px rgba(109,40,217,0.5)', flexShrink: 0 }}>🤖</div>
         </div>
       </div>
       {/* 하단 페이지네이션 */}
