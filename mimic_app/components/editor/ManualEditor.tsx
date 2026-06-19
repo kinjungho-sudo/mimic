@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Plus, Trash2, ZoomIn, X,
   Bold, Italic, Underline, ExternalLink, Sparkles, Loader2,
-  Check, Mic, Play, Pause, MessageSquare,
+  Check, Mic, Play, Pause, MessageSquare, Type,
 } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { ImageAnnotationEditor, type Annotation } from './ImageAnnotationEditor';
@@ -47,6 +47,7 @@ export interface ManualStep {
   voiceAudioUrl?: string | null;
   voiceAudioStartMs?: number | null;
   voiceAudioEndMs?: number | null;
+  type_text?: string | null;
 }
 
 interface ManualEditorProps {
@@ -925,6 +926,20 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
           )}
         </div>
       </div>
+
+      {/* 타이핑 텍스트 표시 — followConfig 오버라이드 우선, 없으면 캡처 원문 */}
+      {(step.followConfig?.typeText || step.type_text) && (
+        <div style={{ padding: '0 24px 10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '10px', color: '#0369a1', fontWeight: 600, flexShrink: 0 }}>
+              <Type size={12} /> 타이핑
+            </span>
+            <span style={{ fontSize: '12px', color: '#1e40af', background: '#EFF6FF', padding: '2px 8px', borderRadius: '4px', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '400px' }}>
+              {step.followConfig?.typeText ?? step.type_text}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Screenshot area — 클릭하면 바로 편집 진입 */}
       <ScreenshotArea

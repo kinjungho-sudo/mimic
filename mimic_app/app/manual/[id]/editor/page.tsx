@@ -68,6 +68,7 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
     voiceAudioUrl:      (s as Step & { voice_audio_url?: string | null }).voice_audio_url ?? null,
     voiceAudioStartMs:  (s as Step & { voice_audio_start_ms?: number | null }).voice_audio_start_ms ?? null,
     voiceAudioEndMs:    (s as Step & { voice_audio_end_ms?: number | null }).voice_audio_end_ms ?? null,
+    type_text:          (s as Step & { type_text?: string | null }).type_text ?? null,
   }));
 }
 
