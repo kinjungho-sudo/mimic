@@ -75,7 +75,7 @@ export function AnnotationPreview({ annotations, imageUrl, sizeScale = 1 }: { an
       </defs>
 
       {spotlights.length > 0 && (
-        <rect x="0" y="0" width={imgW} height={imgH} fill="rgba(0,0,0,0.52)" mask={`url(#${spotlightMaskId})`} />
+        <rect x="0" y="0" width={imgW} height={imgH} fill="rgba(0,0,0,0.35)" mask={`url(#${spotlightMaskId})`} />
       )}
 
       {annotations.map(a => {
@@ -146,7 +146,7 @@ export function AnnotationPreview({ annotations, imageUrl, sizeScale = 1 }: { an
           const len = Math.sqrt(dx * dx + dy * dy);
           if (len < 1) return null;
           const ux = dx / len, uy = dy / len;
-          const headLen = Math.max(strokePx * 4, 10);
+          const headLen = Math.max(strokePx * 2, 8);
           const headW = headLen * 0.55;
           const lx2 = ax2 - ux * headLen * 0.65;
           const ly2 = ay2 - uy * headLen * 0.65;

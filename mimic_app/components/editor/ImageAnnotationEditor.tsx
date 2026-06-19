@@ -434,13 +434,15 @@ export function ImageAnnotationEditor({
       const finalX2 = x, finalY2 = y;
       const dx = Math.abs(finalX2 - textDrawing.x1);
       const dy = Math.abs(finalY2 - textDrawing.y1);
-      // 너무 작으면 기본 크기 사용
-      const x2 = dx < 2 ? textDrawing.x1 + 15 : finalX2;
-      const y2 = dy < 1 ? textDrawing.y1 + 6 : finalY2;
+      // 클릭(드래그 없음): Tango/Scribe 방식 — 상단 중앙 고정 크기 박스
+      // 드래그: 드래그 영역 그대로 사용
+      const isClick = dx < 2 && dy < 1;
       const newItem: Annotation = {
         id: genId(), type: 'text',
-        x1: Math.min(textDrawing.x1, x2), y1: Math.min(textDrawing.y1, y2),
-        x2: Math.max(textDrawing.x1, x2), y2: Math.max(textDrawing.y1, y2),
+        x1: isClick ? 25 : Math.min(textDrawing.x1, finalX2),
+        y1: isClick ? 5  : Math.min(textDrawing.y1, finalY2),
+        x2: isClick ? 75 : Math.max(textDrawing.x1, finalX2),
+        y2: isClick ? 18 : Math.max(textDrawing.y1, finalY2),
         text: '', color: lastColor.current, strokeWidth,
         fontSize: lastFontSize.current, fontBold: lastFontBold.current,
         borderColor: lastBorderColor.current,
@@ -1172,7 +1174,7 @@ function SpotlightLayer({ items, imgW, imgH, tool, selectedId, preview, onBodyMo
       </defs>
       {/* 어두운 오버레이 */}
       <rect x={0} y={0} width={imgW} height={imgH}
-        fill="rgba(0,0,0,0.52)" mask={`url(#${maskId})`}
+        fill="rgba(0,0,0,0.35)" mask={`url(#${maskId})`}
         opacity={preview ? 0.7 : 1} pointerEvents="none"
       />
       {/* 각 spotlight: 테두리 + 선택 핸들 */}
@@ -1392,7 +1394,7 @@ function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx
     const len = Math.sqrt(dx*dx + dy*dy);
     if (len < 1) return null;
     const ux = dx/len, uy = dy/len;
-    const headLen = Math.max(strokePx * 4, 10); // 최솟값 보장
+    const headLen = Math.max(strokePx * 2, 8);
     const headW  = headLen * 0.55;
     const lx2 = ax2 - ux * headLen * 0.65;
     const ly2 = ay2 - uy * headLen * 0.65;
