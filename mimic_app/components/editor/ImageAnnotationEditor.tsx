@@ -443,11 +443,11 @@ export function ImageAnnotationEditor({
         y1: isClick ? 5  : Math.min(textDrawing.y1, finalY2),
         x2: isClick ? 75 : Math.max(textDrawing.x1, finalX2),
         y2: isClick ? 18 : Math.max(textDrawing.y1, finalY2),
-        text: '', color: lastColor.current, strokeWidth,
-        fontSize: lastFontSize.current, fontBold: lastFontBold.current,
-        borderColor: lastBorderColor.current,
-        textAlign: lastTextAlign.current,
-        hasBg: lastHasBg.current,
+        text: '', color: '#FFFFFF', strokeWidth,
+        fontSize: 18, fontBold: true,
+        borderColor: DEFAULT_BORDER,
+        textAlign: 'center' as const,
+        hasBg: true,
       };
       setItems(prev => { const next = [...prev, newItem]; pushHistory(next); return next; });
       setTextDrawing(null);
@@ -1095,9 +1095,9 @@ export function ImageAnnotationEditor({
                 suppressContentEditableWarning
                 onKeyDown={e => {
                   e.stopPropagation();
-                  // Escape 또는 Ctrl+Enter로 확정, 일반 Enter는 줄바꿈
+                  // Escape 또는 Enter(Shift+Enter는 줄바꿈)로 확정
                   if (e.key === 'Escape') { e.preventDefault(); commitTextRef.current(); }
-                  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); commitTextRef.current(); }
+                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitTextRef.current(); }
                 }}
                 onMouseDown={e => e.stopPropagation()}
                 style={{
@@ -1132,7 +1132,7 @@ export function ImageAnnotationEditor({
           {tool === 'select' ? '클릭으로 선택 · 드래그로 이동 · 방향키로 미세 이동 · Delete 삭제 · Ctrl+Z 취소' :
            tool === 'marker' ? '클릭하면 번호 마커 추가' :
            tool === 'spotlight' ? '완성 후 선택 모드로 전환 — 이동 · 크기 조절 가능' :
-           tool === 'text' ? '더블클릭으로 텍스트 편집 · Enter 줄바꿈 · Ctrl+Enter 또는 Esc 확정' :
+           tool === 'text' ? '더블클릭으로 텍스트 편집 · Enter 확정 · Shift+Enter 줄바꿈 · Esc 취소' :
            '드래그하여 그리기 · 완성 후 자동 선택 모드 전환'}
         </div>
       </div>
