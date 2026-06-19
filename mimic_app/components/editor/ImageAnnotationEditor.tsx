@@ -1394,7 +1394,7 @@ function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx
     const len = Math.sqrt(dx*dx + dy*dy);
     if (len < 1) return null;
     const ux = dx/len, uy = dy/len;
-    const headLen = Math.max(strokePx * 2, 8);
+    const headLen = Math.max(strokePx * 3, 10);
     const headW  = headLen * 0.55;
     const lx2 = ax2 - ux * headLen * 0.65;
     const ly2 = ay2 - uy * headLen * 0.65;

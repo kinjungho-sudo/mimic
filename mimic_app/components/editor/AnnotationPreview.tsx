@@ -23,9 +23,9 @@ export function AnnotationPreview({ annotations, imageUrl, sizeScale = 1 }: { an
       if (r.width > 0 && r.height > 0) setImgSize({ w: r.width, h: r.height });
     };
 
-    // 이미지가 이미 로드된 경우 즉시 측정
+    // 이미 로드된 경우 다음 프레임에 측정 (즉시 측정 시 getBoundingClientRect()=0 반환 방지)
     if (img.complete && img.naturalWidth > 0) {
-      update();
+      requestAnimationFrame(update);
     } else {
       img.addEventListener('load', update, { once: true });
     }
@@ -146,7 +146,7 @@ export function AnnotationPreview({ annotations, imageUrl, sizeScale = 1 }: { an
           const len = Math.sqrt(dx * dx + dy * dy);
           if (len < 1) return null;
           const ux = dx / len, uy = dy / len;
-          const headLen = Math.max(strokePx * 2, 8);
+          const headLen = Math.max(strokePx * 3, 10);
           const headW = headLen * 0.55;
           const lx2 = ax2 - ux * headLen * 0.65;
           const ly2 = ay2 - uy * headLen * 0.65;
@@ -184,9 +184,8 @@ export function AnnotationPreview({ annotations, imageUrl, sizeScale = 1 }: { an
           const padX = 12, padY = 8;
           const lineH = fSize * 1.4;
           // 박스 너비: 그림 영역 너비와 텍스트 너비 중 큰 쪽. 중심은 그림 영역의 가로 중심.
-          const contentW = estimateTextW(a.text, fSize) + 2 * padX;
-          const boxW = Math.max(w, contentW);
-          const boxH = Math.max(h, lines.length * lineH + 2 * padY);
+          const boxW = estimateTextW(a.text, fSize) + 2 * padX;
+          const boxH = lines.length * lineH + 2 * padY;
           const cx = (ax1 + ax2) / 2;  // 그림 영역 가로 중심
           const boxX = cx - boxW / 2;
           const bgFill = bg ? 'rgba(10,10,15,0.92)' : 'none';
