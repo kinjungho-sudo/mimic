@@ -139,13 +139,18 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, hideToc, a
   const updateStep = (id: string, patch: Partial<ManualStep>) =>
     onChange(steps.map(s => s.id === id ? { ...s, ...patch } : s));
 
-  const deleteStep = (id: string) => {
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+
+  const performDelete = (id: string) => {
     const next = steps.filter(s => s.id !== id).map((s, i) => ({ ...s, number: i + 1 }));
     onChange(next);
-    onDeleteStep?.(id); // DB 삭제 영속화 (onChange는 로컬 상태만 갱신)
+    onDeleteStep?.(id);
     if (activeId === id) setActiveId(next[0]?.id ?? null);
     setSelectedIds(prev => { const s = new Set(prev); s.delete(id); return s; });
+    setPendingDeleteId(null);
   };
+
+  const deleteStep = (id: string) => setPendingDeleteId(id);
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
@@ -310,7 +315,7 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, hideToc, a
             <div style={{ width: '1px', height: '16px', background: '#E5E7EB', margin: '0 2px' }} />
             <button
               onClick={() => {
-                if (!window.confirm(`선택한 ${selectedIds.size}개 단계를 삭제할까요?`)) return;
+                if (!window.confirm(`선택한 ${selectedIds.size}개 단계를 삭제합니다. 실습하기와 Live Guide에서도 제거됩니다. 계속할까요?`)) return;
                 const removed = steps.filter(s => selectedIds.has(s.id)).map(s => s.id);
                 const next = steps.filter(s => !selectedIds.has(s.id)).map((s, i) => ({ ...s, number: i + 1 }));
                 onChange(next); removed.forEach(id => onDeleteStep?.(id)); clearSelection();
@@ -471,6 +476,41 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, hideToc, a
             }}
             canRevertBlur={!!step.originalScreenshotUrl}
           />
+        );
+      })()}
+
+      {/* 스텝 삭제 확인 모달 — 실습하기·Live Guide에도 영향 있음을 안내 */}
+      {pendingDeleteId && (() => {
+        const step = steps.find(s => s.id === pendingDeleteId);
+        return (
+          <div
+            onClick={() => setPendingDeleteId(null)}
+            style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(10,10,18,0.50)', backdropFilter: 'blur(3px)', display: 'grid', placeItems: 'center', padding: '20px' }}
+          >
+            <div onClick={e => e.stopPropagation()}
+              style={{ width: '100%', maxWidth: '360px', background: 'white', borderRadius: '16px', padding: '24px', boxShadow: '0 20px 60px rgba(0,0,0,0.28)' }}
+            >
+              <div style={{ marginBottom: '6px', fontSize: '16px', fontWeight: 700, color: '#111827' }}>단계 삭제</div>
+              {step && (
+                <div style={{ fontSize: '13px', color: '#6B7280', marginBottom: '6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {String(step.number).padStart(2, '0')}. {step.actionTitle || '(제목 없음)'}
+                </div>
+              )}
+              <div style={{ fontSize: '12.5px', color: '#9CA3AF', lineHeight: 1.6, marginBottom: '20px' }}>
+                이 단계를 삭제하면 실습하기와 Live Guide에서도 제거됩니다.
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={() => setPendingDeleteId(null)}
+                  style={{ flex: 1, height: '40px', borderRadius: '10px', border: '1px solid #E5E7EB', background: 'white', color: '#374151', fontSize: '13.5px', fontWeight: 500, cursor: 'pointer' }}>
+                  취소
+                </button>
+                <button onClick={() => performDelete(pendingDeleteId!)}
+                  style={{ flex: 1, height: '40px', borderRadius: '10px', border: 'none', background: '#EF4444', color: 'white', fontSize: '13.5px', fontWeight: 700, cursor: 'pointer' }}>
+                  삭제
+                </button>
+              </div>
+            </div>
+          </div>
         );
       })()}
     </div>

@@ -74,6 +74,7 @@ export default function ManualViewerPage() {
   const [outputRatio, setOutputRatio] = useState<Tutorial['output_ratio']>('16:9');
   const [showShare, setShowShare] = useState(false);
   const [showLiveGuideCreate, setShowLiveGuideCreate] = useState(false);
+  const [showPracticeCreate, setShowPracticeCreate] = useState(false);
   const [downloadOpen, setDownloadOpen] = useState(false);
   const [downloadingFmt, setDownloadingFmt] = useState<'pdf' | 'pptx' | 'docx' | null>(null);
   // Auto-Run 상태
@@ -326,6 +327,17 @@ export default function ManualViewerPage() {
             <Share2 size={17} /> 공유
           </button>
 
+          {canEdit && manualSteps.length > 0 && tutorial.share_token && (
+            <button
+              onClick={() => setShowPracticeCreate(true)}
+              title="실습하기 — 캡처 화면 위에서 단계별 인터랙티브 연습"
+              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', cursor: 'pointer' }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#F9FAFB'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}>
+              <Play size={16} /> 실습하기
+            </button>
+          )}
+
           {canEdit && manualSteps.length > 0 && (
             <button
               onClick={() => setShowLiveGuideCreate(true)}
@@ -531,6 +543,33 @@ export default function ManualViewerPage() {
           onUnpublish={unpublish}
           onClose={() => setShowShare(false)}
         />
+      )}
+
+      {/* 실습하기 — '시작'을 눌러야 플레이어로 진입 */}
+      {showPracticeCreate && tutorial.share_token && (
+        <div onClick={() => setShowPracticeCreate(false)}
+          style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(10,10,18,0.55)', backdropFilter: 'blur(3px)', display: 'grid', placeItems: 'center', padding: '20px' }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ width: '100%', maxWidth: '380px', background: 'white', borderRadius: '16px', padding: '26px 24px', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+            <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: '#f0fdf4', display: 'grid', placeItems: 'center', margin: '0 auto 14px' }}>
+              <Play size={24} style={{ color: '#16a34a' }} />
+            </div>
+            <div style={{ fontSize: '17px', fontWeight: 700, color: '#111827', marginBottom: '6px' }}>실습하기</div>
+            <div style={{ fontSize: '13px', color: '#6B7280', lineHeight: 1.6, marginBottom: '20px' }}>
+              캡처된 화면 위에서 단계별로 클릭을 연습합니다.<br />스튜디오에서 핫스팟·말풍선을 편집할 수도 있어요.
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={() => { setShowPracticeCreate(false); router.push(`/manual/${id}/studio`); }}
+                style={{ flex: 1, height: '40px', borderRadius: '10px', border: '1px solid #E5E7EB', background: 'white', color: '#6B7280', fontSize: '13px', fontWeight: 500, cursor: 'pointer' }}>
+                스튜디오 편집
+              </button>
+              <button onClick={() => { setShowPracticeCreate(false); window.open(`/play/${tutorial.share_token}`, '_blank'); }}
+                style={{ flex: 1.6, height: '40px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#16a34a,#15803d)', color: 'white', fontSize: '13.5px', fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                <Play size={15} /> 실습 시작
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* 라이브 가이드 — '생성'을 눌러야 스튜디오로 진입 */}
