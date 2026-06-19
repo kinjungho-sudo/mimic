@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { randomBytes } from 'crypto';
 import { requireExtensionToken } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { captureFinalizeSchema } from '@/lib/validators';
@@ -289,6 +290,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to create steps' }, { status: 500 });
   }
 
+  // 녹화 완료 즉시 자동 게시 — 편집 없이 매뉴얼 상세 페이지로 바로 이동
+  const shareToken = randomBytes(16).toString('hex');
+  await supabase
+    .from('mm_tutorials')
+    .update({
+      status: 'published',
+      visibility: 'public',
+      share_token: shareToken,
+      published_at: new Date().toISOString(),
+    })
+    .eq('id', tutorial.id);
+
   // 세션 완료 처리 + daily_manual_count atomic 증가 (병렬, RPC로 race condition 방지)
   await Promise.all([
     supabase
@@ -541,5 +554,5 @@ export async function POST(request: NextRequest) {
     } catch { /* PII 검사 전체 실패 무시 */ }
   })();
 
-  return NextResponse.json({ tutorial_id: tutorial.id, step_count: steps.length });
+  return NextResponse.json({ tutorial_id: tutorial.id, step_count: steps.length, share_token: shareToken });
 }
