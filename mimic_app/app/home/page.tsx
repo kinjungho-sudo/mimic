@@ -613,64 +613,37 @@ function FolderPanel({ folders, tutorials, activeFolder, active, title, onSelect
         </button>
       </div>
 
-      {/* 새 폴더 */}
-      <div style={{ padding: '12px 12px 6px', flexShrink: 0 }}>
-        {showInput ? (
-          <form onSubmit={submitCreate} style={{ display: 'flex', gap: '5px' }}>
-            <input autoFocus value={newName} onChange={e => setNewName(e.target.value)} placeholder="폴더 이름"
-              onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); setShowInput(false); setNewName(''); } }}
-              onBlur={() => { if (!creating) { setShowInput(false); setNewName(''); } }}
-              style={{ flex: 1, minWidth: 0, padding: '7px 9px', borderRadius: '7px', border: '1.5px solid #a5b4fc', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
-            <button type="submit" disabled={creating || !newName.trim()}
-              onMouseDown={e => e.preventDefault()}
-              style={{ padding: '0 11px', borderRadius: '7px', background: '#3730a3', color: 'white', border: 'none', fontSize: '12px', fontWeight: 600, cursor: 'pointer', flexShrink: 0, opacity: creating || !newName.trim() ? 0.6 : 1 }}>
-              {creating ? '...' : '추가'}
-            </button>
-          </form>
-        ) : (
-          <button onClick={() => { setShowInput(true); setNewName(''); }}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', width: '100%', padding: '8px', borderRadius: '8px', border: '1.5px dashed #C7D2FE', background: '#F5F3FF', cursor: 'pointer', fontSize: '12.5px', fontWeight: 600, color: '#4338CA' }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#EDE9FE'; e.currentTarget.style.borderColor = '#a5b4fc'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#F5F3FF'; e.currentTarget.style.borderColor = '#C7D2FE'; }}>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            새 폴더
-          </button>
-        )}
-      </div>
-
       {/* 목록 */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '4px 12px 12px' }}>
-        {/* 전체 */}
-        <button onClick={() => onSelectFolder('all')}
-          style={rowStyle(isActive('all'), false)}
-          onMouseEnter={e => { if (!isActive('all')) e.currentTarget.style.background = '#F3F4F6'; }}
-          onMouseLeave={e => { if (!isActive('all')) e.currentTarget.style.background = 'transparent'; }}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-          <span style={{ flex: 1 }}>전체</span>
-          <span style={{ fontSize: '11px', color: '#9CA3AF' }}>{tutorials.length}</span>
-        </button>
-
-        {/* 미분류 — 드롭 타깃 */}
-        <div {...dropProps('unfiled', null)}>
-          <button onClick={() => onSelectFolder(null)}
-            style={rowStyle(isActive(null), dragOverKey === 'unfiled', '#6B7280')}
-            onMouseEnter={e => { if (!isActive(null) && dragOverKey !== 'unfiled') e.currentTarget.style.background = '#F3F4F6'; }}
-            onMouseLeave={e => { if (!isActive(null) && dragOverKey !== 'unfiled') e.currentTarget.style.background = 'transparent'; }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
-            <span style={{ flex: 1 }}>미분류</span>
-            <span style={{ fontSize: '11px', color: '#9CA3AF' }}>{unfiledCount}</span>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px 4px' }}>
+        {/* 전체 / 미분류 — 좌우 나란히 */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', marginBottom: '8px' }}>
+          <button onClick={() => onSelectFolder('all')}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px', padding: '7px 9px', borderRadius: '7px', border: 'none', cursor: 'pointer', fontSize: '12.5px', textAlign: 'left', background: isActive('all') ? '#3730a314' : '#F9FAFB', color: isActive('all') ? '#3730a3' : '#374151', fontWeight: isActive('all') ? 600 : 400 }}
+            onMouseEnter={e => { if (!isActive('all')) (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; }}
+            onMouseLeave={e => { if (!isActive('all')) (e.currentTarget as HTMLButtonElement).style.background = '#F9FAFB'; }}>
+            <span>전체</span>
+            <span style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: 400 }}>{tutorials.length}</span>
           </button>
+          <div {...dropProps('unfiled', null)} style={{ display: 'contents' }}>
+            <button onClick={() => onSelectFolder(null)}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px', padding: '7px 9px', borderRadius: '7px', border: dragOverKey === 'unfiled' ? '1.5px solid #6366F1' : 'none', cursor: 'pointer', fontSize: '12.5px', textAlign: 'left', background: dragOverKey === 'unfiled' ? '#EEF2FF' : isActive(null) ? '#6B728014' : '#F9FAFB', color: isActive(null) ? '#6B7280' : '#374151', fontWeight: isActive(null) ? 600 : 400 }}
+              onMouseEnter={e => { if (!isActive(null) && dragOverKey !== 'unfiled') (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; }}
+              onMouseLeave={e => { if (!isActive(null) && dragOverKey !== 'unfiled') (e.currentTarget as HTMLButtonElement).style.background = '#F9FAFB'; }}>
+              <span>미분류</span>
+              <span style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: 400 }}>{unfiledCount}</span>
+            </button>
+          </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '12px 9px 6px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 9px 6px' }}>
           <span style={{ fontSize: '10.5px', fontWeight: 600, color: '#9CA3AF', letterSpacing: '0.05em', textTransform: 'uppercase' }}>폴더</span>
           <span style={{ fontSize: '10.5px', color: '#D1D5DB' }}>{folders.length}</span>
           <div style={{ flex: 1, height: '1px', background: '#F3F4F6' }} />
         </div>
 
         {folders.length === 0 && (
-          <div style={{ padding: '14px 9px', fontSize: '12px', color: '#9CA3AF', lineHeight: 1.6 }}>
-            아직 폴더가 없어요.<br />위의 <b style={{ color: '#4338CA' }}>새 폴더</b>로 매뉴얼을 정리해보세요.
+          <div style={{ padding: '10px 9px', fontSize: '12px', color: '#9CA3AF', lineHeight: 1.6 }}>
+            아직 폴더가 없어요.
           </div>
         )}
 
@@ -745,9 +718,32 @@ function FolderPanel({ folders, tutorials, activeFolder, active, title, onSelect
         ))}
       </div>
 
-      {/* 하단 힌트 */}
-      <div style={{ padding: '10px 14px', borderTop: '1px solid #F3F4F6', fontSize: '11px', color: '#9CA3AF', lineHeight: 1.5, flexShrink: 0 }}>
-        매뉴얼 카드를 폴더로 드래그해서 정리할 수 있어요.
+      {/* 새 폴더 — 하단 */}
+      <div style={{ padding: '8px 12px', borderTop: '1px solid #F3F4F6', flexShrink: 0 }}>
+        {showInput ? (
+          <form onSubmit={submitCreate} style={{ display: 'flex', gap: '5px' }}>
+            <input autoFocus value={newName} onChange={e => setNewName(e.target.value)} placeholder="폴더 이름"
+              onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); setShowInput(false); setNewName(''); } }}
+              onBlur={() => { if (!creating) { setShowInput(false); setNewName(''); } }}
+              style={{ flex: 1, minWidth: 0, padding: '7px 9px', borderRadius: '7px', border: '1.5px solid #a5b4fc', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
+            <button type="submit" disabled={creating || !newName.trim()}
+              onMouseDown={e => e.preventDefault()}
+              style={{ padding: '0 11px', borderRadius: '7px', background: '#3730a3', color: 'white', border: 'none', fontSize: '12px', fontWeight: 600, cursor: 'pointer', flexShrink: 0, opacity: creating || !newName.trim() ? 0.6 : 1 }}>
+              {creating ? '...' : '추가'}
+            </button>
+          </form>
+        ) : (
+          <button onClick={() => { setShowInput(true); setNewName(''); }}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', padding: '7px 9px', borderRadius: '7px', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '12.5px', color: '#9CA3AF' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; (e.currentTarget as HTMLButtonElement).style.color = '#4338CA'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = '#9CA3AF'; }}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            새 폴더 추가
+          </button>
+        )}
+      </div>
+      <div style={{ padding: '6px 14px 10px', fontSize: '11px', color: '#C4C9D4', lineHeight: 1.5, flexShrink: 0 }}>
+        카드를 폴더로 드래그해서 정리
       </div>
     </div>
   );
@@ -1414,7 +1410,7 @@ export default function DashboardPage() {
               {/* 검색 */}
               <div
                 className="home-search-bar"
-                style={{ display: 'flex', alignItems: 'center', gap: '8px', height: '40px', padding: '0 14px', border: `1.5px solid ${searchQuery ? '#4F46E5' : '#E5E7EB'}`, borderRadius: '10px', background: searchQuery ? '#F5F3FF' : 'white', color: '#9CA3AF', transition: 'border-color 0.15s, background 0.15s', boxShadow: searchQuery ? '0 0 0 3px rgba(79,70,229,0.10)' : 'none', marginBottom: '16px' }}
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', height: '36px', padding: '0 12px', border: `1.5px solid ${searchQuery ? '#4F46E5' : '#E5E7EB'}`, borderRadius: '9px', background: searchQuery ? '#F5F3FF' : 'white', color: '#9CA3AF', transition: 'border-color 0.15s, background 0.15s', boxShadow: searchQuery ? '0 0 0 3px rgba(79,70,229,0.10)' : 'none', marginBottom: '16px', maxWidth: '360px' }}
               >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={searchQuery ? '#4F46E5' : '#9CA3AF'} strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, transition: 'stroke 0.15s' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 <input
