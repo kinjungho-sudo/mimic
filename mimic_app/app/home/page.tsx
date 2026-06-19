@@ -1437,7 +1437,7 @@ export default function DashboardPage() {
                   {contentType === 'playbook'
                     ? (!pagesLoading && `플레이북 ${displayedPages.length}개`)
                     : contentType === 'liveguide'
-                      ? (!tutLoading && `매뉴얼 ${displayedTutorials.length}개`)
+                      ? (!tutLoading && `Live Guide ${displayedTutorials.length}개`)
                       : (!tutLoading && `매뉴얼 ${displayedTutorials.length}개`)}
                 </div>
                 {/* 뷰 모드 토글 */}
