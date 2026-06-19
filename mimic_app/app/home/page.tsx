@@ -640,16 +640,6 @@ function FolderPanel({ folders, tutorials, activeFolder, active, title, onSelect
 
       {/* 목록 */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '4px 12px 12px' }}>
-        {/* Pages — 여러 가이드를 엮는 큐레이션 문서 (별도 탭) */}
-        <Link href="/pages"
-          style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '7px 9px', borderRadius: '8px', textDecoration: 'none', color: '#4338CA', fontSize: '13px', fontWeight: 600, marginBottom: '4px', background: '#F5F3FF' }}
-          onMouseEnter={e => { e.currentTarget.style.background = '#EDE9FE'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = '#F5F3FF'; }}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-          <span style={{ flex: 1 }}>Pages</span>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
-        </Link>
-
         {/* 전체 */}
         <button onClick={() => onSelectFolder('all')}
           style={rowStyle(isActive('all'), false)}
@@ -818,13 +808,13 @@ export default function DashboardPage() {
   const [pages, setPages] = useState<{ id: string; title: string; updated_at: string; block_count?: number; workspace_id?: string | null }[]>([]);
   const [pagesLoading, setPagesLoading] = useState(false);
 
-  const loadTutorials = useCallback(async (workspaceId?: string) => {
-    setTutLoading(true);
+  const loadTutorials = useCallback(async (workspaceId?: string, silent = false) => {
+    if (!silent) setTutLoading(true);
     try {
       const url = workspaceId ? `/api/tutorials?workspace_id=${workspaceId}` : '/api/tutorials';
       const res = await fetch(url);
       if (res.ok) setTutorials(await res.json());
-    } finally { setTutLoading(false); }
+    } finally { if (!silent) setTutLoading(false); }
   }, []);
 
   const loadFolders = useCallback(async () => {
@@ -885,8 +875,8 @@ export default function DashboardPage() {
     if (!user) return;
     const refresh = () => {
       loadWorkspaces();
-      if (activeTab === 'team' && activeWorkspace) { loadTutorials(activeWorkspace); loadTeamFolders(activeWorkspace); }
-      else loadTutorials();
+      if (activeTab === 'team' && activeWorkspace) { loadTutorials(activeWorkspace, true); loadTeamFolders(activeWorkspace); }
+      else loadTutorials(undefined, true);
     };
     const onVis = () => { if (document.visibilityState === 'visible') refresh(); };
     document.addEventListener('visibilitychange', onVis);
