@@ -252,7 +252,7 @@ export default function StudioPage() {
         <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.4)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
           {savingId ? <><Loader2 size={12} className="spin" /> 저장 중…</> : savedTick > 0 ? <><Check size={12} color="#34d399" /> 저장됨</> : null}
         </span>
-        <button onClick={() => setShowPreview(true)} title="따라하기(웹) 화면으로 미리보기 — 핫스팟·말풍선·입력 텍스트 설정을 확인합니다. 실제 라이브 가이드 오버레이 외형과는 다를 수 있어요." style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5 }}><Play size={13} /> 따라하기 미리보기</button>
+        <button onClick={() => setShowPreview(true)} title="실습하기(웹) 화면으로 미리보기 — 핫스팟·말풍선·입력 텍스트 설정을 확인합니다. 실제 라이브 가이드 오버레이 외형과는 다를 수 있어요." style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5 }}><Play size={13} /> 실습하기 미리보기</button>
         {tutorial.status === 'published' ? (
           <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: 'rgba(16,185,129,0.12)', color: '#34d399', fontWeight: 600, border: '1px solid rgba(52,211,153,0.25)', flexShrink: 0 }}>게시됨</span>
         ) : (
@@ -378,7 +378,7 @@ export default function StudioPage() {
                 </FollowStage>
               </div>
               <p style={{ margin: '14px 0 0', textAlign: 'center', fontSize: 11.5, color: 'rgba(255,255,255,0.4)' }}>
-                {hidden ? '숨김 처리된 스텝 — 따라하기에 노출되지 않습니다'
+                {hidden ? '숨김 처리된 스텝 — 실습하기에 노출되지 않습니다'
                   : rv?.none ? '인디케이터 없음 — 핫스팟을 표시하지 않고 ‘다음’으로만 진행합니다'
                   : '이미지를 클릭하거나 링을 드래그해 핫스팟 위치를 지정하세요'}
               </p>
@@ -411,7 +411,7 @@ export default function StudioPage() {
               {/* 표시/숨김 */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0' }}>
                 <span style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.85)', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-                  {hidden ? <EyeOff size={14} /> : <Eye size={14} />} 따라하기에 표시
+                  {hidden ? <EyeOff size={14} /> : <Eye size={14} />} 실습하기에 표시
                 </span>
                 <button onClick={() => patch(active.id, { hidden: !hidden })} title="표시/숨김"
                   style={{ width: 40, height: 22, borderRadius: 11, border: 'none', cursor: 'pointer', background: hidden ? 'rgba(255,255,255,0.15)' : '#7c3aed', position: 'relative', transition: 'background 0.15s' }}>
@@ -490,7 +490,7 @@ export default function StudioPage() {
                     placeholder="자동 입력될 텍스트 (비우면 ‘텍스트 입력…’ 안내만)"
                     style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.1)', color: '#F0F0FF', WebkitTextFillColor: '#F0F0FF', caretColor: '#a78bfa', fontSize: 12.5, fontFamily: 'inherit', outline: 'none' }}
                   />
-                  <p style={hint}>입력하면 따라하기 미리보기에선 타이핑 애니메이션으로, 라이브 가이드에선 실제 입력란에 자동 입력됩니다.</p>
+                  <p style={hint}>입력하면 실습하기 미리보기에선 타이핑 애니메이션으로, 라이브 가이드에선 실제 입력란에 자동 입력됩니다.</p>
                 </>
               )}
             </>

@@ -173,7 +173,7 @@ function PanelHeader({ onClose }: { onClose: () => void }) {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
         </svg>
-        <span style={{ fontSize: '12px', fontWeight: 600, color: '#374151' }}>따라하기</span>
+        <span style={{ fontSize: '12px', fontWeight: 600, color: '#374151' }}>실습하기</span>
         <span style={{ fontSize: '10px', color: '#9CA3AF', background: '#F3F4F6', padding: '1px 6px', borderRadius: '4px' }}>가이드 미리보기</span>
       </div>
       <button

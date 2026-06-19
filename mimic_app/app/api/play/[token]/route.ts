@@ -48,6 +48,12 @@ async function fetchTutorialData(token: string) {
     image_offset_y: (s as Record<string, unknown>).image_offset_y as number | null ?? null,
     // 편집기에서 그린 도형/텍스트 어노테이션
     user_annotations: (s.user_annotations as unknown[] | null) ?? [],
+    // DOM 요소 bounding rect (0~100 pct) — 실습하기 직사각형 하이라이트·줌인에 사용
+    element_rect: (() => {
+      const raw = (s as Record<string, unknown>).element_rect as { x?: number; y?: number; width?: number; height?: number } | null;
+      if (!raw || raw.x == null) return null;
+      return { x: (raw.x ?? 0) * 100, y: (raw.y ?? 0) * 100, w: (raw.width ?? 0) * 100, h: (raw.height ?? 0) * 100 };
+    })(),
   }));
 
   const normalizedMarkers = (markersRes.data ?? []).map(m => ({

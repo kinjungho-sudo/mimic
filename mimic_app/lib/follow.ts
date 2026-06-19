@@ -29,6 +29,7 @@ export type FollowSource = {
   clickYPct: number | null;
   audioUrl?: string | null;
   followConfig?: FollowConfig | null;
+  domRect?: { x: number; y: number; w: number; h: number } | null; // element_rect × 100 (0~100 pct)
 };
 
 // follow_config 우선, 미설정 필드는 자동추론. hidden 스텝은 제외.
@@ -53,6 +54,7 @@ export function toFollowSteps(sources: FollowSource[]): FollowStep[] {
         typeText: fc.typeText?.trim() || null,
         audioUrl: s.audioUrl ?? null,
         bubbleAnchor: fc.bubbleAnchor ?? null,
+        domRect: s.domRect ?? null,
       };
     });
 }

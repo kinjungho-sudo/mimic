@@ -48,6 +48,9 @@ interface Props {
   bubbleAnchor?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | null;  // 말풍선 고정 위치. 미설정=핫스팟 상대 자동
   wrapRef?: React.RefObject<HTMLDivElement>; // 스튜디오 드래그 측정용
   children?: React.ReactNode;       // 이미지 위 추가 오버레이(스튜디오 드래그 핸들 등)
+  // 실습하기 시네마틱 시퀀스 — undefined=애니메이션 없음(스튜디오), 전달 시 raw→zooming→focused
+  animPhase?: 'raw' | 'zooming' | 'focused';
+  domRect?: { x: number; y: number; w: number; h: number } | null; // DOM bounding box (0~100 pct)
 }
 
 export function FollowStage({
@@ -55,7 +58,7 @@ export function FollowStage({
   isFirstStep = false, stepNumber = null, title, body,
   minimized = false, showAudioBadge = false, nudge = false, spotlight = false,
   imageCursor = 'default', imgMaxHeight = 'calc(100vh - 150px)',
-  bubbleAnchor,
+  bubbleAnchor, animPhase, domRect = null,
   onImageClick, onMascotClick, onBubbleClick, wrapRef, children,
 }: Props) {
   const innerRef = useRef<HTMLDivElement>(null);
@@ -93,8 +96,24 @@ export function FollowStage({
   // 좌상단 0,0 가짜 핫스팟(자동추론 아티팩트)은 억제하되, 사용자가 직접 찍은 좌표는 그대로 인정
   const hasHotspot = hx != null && hy != null && (allowCornerHotspot || !(hx < CORNER && hy < CORNER));
   const isType = kind === 'type';
-  // 스포트라이트 구멍 반경: 이미지 너비의 9%, 최대 80px
+  // 스포트라이트 구멍 반경: 이미지 너비의 9%, 최대 80px (domRect 없을 때 폴백)
   const spotR = box.w ? Math.min(Math.round(box.w * 0.09), 80) : 72;
+
+  // 시네마틱 시퀀스 — animPhase가 없으면(스튜디오) 애니메이션 없이 항상 focused 상태
+  const isAnimated = animPhase != null;
+  const phase = animPhase ?? 'focused';
+  const showMask = !isAnimated || phase !== 'raw';       // spotlight 마스크: zooming부터 표시
+  const showOverlays = !isAnimated || phase === 'focused'; // 핫스팟·말풍선: focused 시만 표시
+
+  // 줌 계산 — domRect 요소 중심으로 확대 (스케일: 기하평균 기반, 1.5~4배 클램프)
+  const zoomCX = domRect ? domRect.x + domRect.w / 2 : (hx ?? 50);
+  const zoomCY = domRect ? domRect.y + domRect.h / 2 : (hy ?? 50);
+  const zoomScale = (domRect && isAnimated && phase !== 'raw')
+    ? clamp(40 / Math.sqrt(Math.max(domRect.w * domRect.h, 0.25)), 1.5, 4)
+    : 1;
+  const zoomStyle = (domRect && isAnimated)
+    ? { transform: `scale(${zoomScale})`, transformOrigin: `${zoomCX}% ${zoomCY}%`, transition: 'transform 0.7s ease-in-out' }
+    : {};
   const typeStr = typeText ?? '';
   const hasTypeText = typeStr.trim().length > 0;
   const shownType = animateType ? typeStr.slice(0, typed) : typeStr;
@@ -170,67 +189,85 @@ export function FollowStage({
 
   return (
     <div ref={ref} onClick={onImageClick} style={{ position: 'relative', display: 'inline-block', lineHeight: 0, cursor: imageCursor, maxWidth: '100%', maxHeight: '100%' }}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={screenshotUrl} alt={title} draggable={false} style={{ display: 'block', maxWidth: '100%', maxHeight: imgMaxHeight, width: 'auto', height: 'auto', userSelect: 'none' }} />
+      {/* 줌 래퍼 — domRect+animPhase 있을 때만 scale 적용. children(스튜디오 핸들)은 밖에 둠 */}
+      <div style={{ position: 'relative', lineHeight: 0, ...zoomStyle }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={screenshotUrl} alt={title} draggable={false} style={{ display: 'block', maxWidth: '100%', maxHeight: imgMaxHeight, width: 'auto', height: 'auto', userSelect: 'none' }} />
 
-      {/* 스포트라이트 오버레이 — 플레이어 전용(spotlight=true). SVG 마스크로 핫스팟 주변만 밝게 */}
-      {spotlight && hasHotspot && !isType && (
-        <svg aria-hidden style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 3, animation: 'mfp-spotlight-in 0.55s ease-out forwards' }}>
-          <defs>
-            <mask id={maskId}>
-              <rect width="100%" height="100%" fill="white" />
-              <circle cx={`${hx}%`} cy={`${hy}%`} r={spotR} fill="black" />
-            </mask>
-          </defs>
-          <rect width="100%" height="100%" fill="rgba(0,0,0,0.52)" mask={`url(#${maskId})`} />
-        </svg>
-      )}
+        {/* 스포트라이트 오버레이 — zooming부터 표시. domRect 있으면 직사각형 구멍, 없으면 원형 */}
+        {showMask && spotlight && hasHotspot && !isType && (
+          <svg aria-hidden style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 2, animation: 'mfp-spotlight-in 0.55s ease-out forwards' }}>
+            <defs>
+              <mask id={maskId}>
+                <rect width="100%" height="100%" fill="white" />
+                {domRect
+                  ? <rect x={`${domRect.x}%`} y={`${domRect.y}%`} width={`${domRect.w}%`} height={`${domRect.h}%`} rx="6" fill="black" />
+                  : <circle cx={`${hx}%`} cy={`${hy}%`} r={spotR} fill="black" />
+                }
+              </mask>
+            </defs>
+            <rect width="100%" height="100%" fill="rgba(0,0,0,0.52)" mask={`url(#${maskId})`} />
+          </svg>
+        )}
 
-      {/* 클릭 인디케이터 — 물결 링 + 중심 도트(spotlight 시). 서브 컬러(인디고) 25% 불투명 */}
-      {hasHotspot && !isType && (
-        <div style={{ position: 'absolute', left: `${hx}%`, top: `${hy}%`, transform: 'translate(-50%,-50%)', width: '22px', height: '22px', pointerEvents: 'none', zIndex: 4 }}>
-          <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2.5px solid rgba(99,102,241,0.30)', animation: 'mfp-ripple 1.9s ease-out infinite' }} />
-          <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2.5px solid rgba(99,102,241,0.22)', animation: 'mfp-ripple 1.9s ease-out infinite', animationDelay: '0.63s' }} />
-          <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2.5px solid rgba(99,102,241,0.15)', animation: 'mfp-ripple 1.9s ease-out infinite', animationDelay: '1.26s' }} />
-          {spotlight && (
-            <span style={{ position: 'absolute', width: '10px', height: '10px', borderRadius: '50%', background: '#6366f1', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', boxShadow: '0 0 0 2.5px white, 0 2px 10px rgba(99,102,241,0.5)' }} />
-          )}
-        </div>
-      )}
+        {/* DOM 직사각형 하이라이트 — focused 시 등장. domRect 있을 때만 */}
+        {showOverlays && domRect && hasHotspot && !isType && (
+          <div style={{
+            position: 'absolute', left: `${domRect.x}%`, top: `${domRect.y}%`,
+            width: `${domRect.w}%`, height: `${domRect.h}%`,
+            border: '2.5px solid #6366f1', borderRadius: '6px',
+            boxShadow: '0 0 0 3px rgba(99,102,241,0.20)',
+            pointerEvents: 'none', zIndex: 3,
+            animation: isAnimated ? 'mfp-rect-in 0.35s ease-out' : undefined,
+          }} />
+        )}
 
-      {/* 타이핑 인디케이터 — 흰 배경 입력 필드 박스 + 깜빡 커서 + 라벨. 글자색 커스텀 가능(기본 #111827) */}
-      {hasHotspot && isType && (
-        <div style={{ position: 'absolute', left: `${hx}%`, top: `${hy}%`, transform: 'translate(-50%,-50%)', pointerEvents: 'none', zIndex: 4 }}>
-          <div style={{ position: 'relative', minWidth: '128px', maxWidth: '320px', height: '38px', borderRadius: '9px', border: '2px solid #6366f1', background: 'rgba(255,255,255,0.96)', boxShadow: '0 0 0 4px rgba(99,102,241,0.18), 0 6px 20px rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', padding: '0 12px', animation: 'mfp-field 1.8s ease-in-out infinite' }}>
-            {hasTypeText ? (
-              <>
-                <span style={{ fontSize: '13px', color: typeTextColor ?? '#111827', fontWeight: 600, letterSpacing: '0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{shownType}</span>
-                <span style={{ width: '2px', height: '18px', marginLeft: '2px', flexShrink: 0, background: typeTextColor ?? '#6366f1', borderRadius: '2px', animation: 'mfp-caret 1s step-end infinite' }} />
-              </>
-            ) : (
-              <>
-                <span style={{ width: '2px', height: '18px', background: '#6366f1', borderRadius: '2px', animation: 'mfp-caret 1s step-end infinite' }} />
-                <span style={{ marginLeft: '7px', fontSize: '12px', color: '#9CA3AF', fontStyle: 'italic', fontWeight: 500, letterSpacing: '0.04em' }}>텍스트 입력…</span>
-              </>
+        {/* 클릭 인디케이터 — 물결 링 + 중심 도트. focused 시만 */}
+        {showOverlays && hasHotspot && !isType && (
+          <div style={{ position: 'absolute', left: `${hx}%`, top: `${hy}%`, transform: 'translate(-50%,-50%)', width: '22px', height: '22px', pointerEvents: 'none', zIndex: 4 }}>
+            <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2.5px solid rgba(99,102,241,0.30)', animation: 'mfp-ripple 1.9s ease-out infinite' }} />
+            <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2.5px solid rgba(99,102,241,0.22)', animation: 'mfp-ripple 1.9s ease-out infinite', animationDelay: '0.63s' }} />
+            <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2.5px solid rgba(99,102,241,0.15)', animation: 'mfp-ripple 1.9s ease-out infinite', animationDelay: '1.26s' }} />
+            {spotlight && (
+              <span style={{ position: 'absolute', width: '10px', height: '10px', borderRadius: '50%', background: '#6366f1', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', boxShadow: '0 0 0 2.5px white, 0 2px 10px rgba(99,102,241,0.5)' }} />
             )}
           </div>
-          <span style={{ position: 'absolute', top: '-13px', left: '0', fontSize: '10px', fontWeight: 800, color: '#fff', background: '#6366f1', padding: '2px 8px', borderRadius: '8px 8px 8px 2px', boxShadow: '0 2px 8px rgba(0,0,0,0.3)', whiteSpace: 'nowrap', letterSpacing: '0.03em' }}>⌨ 입력</span>
-        </div>
-      )}
+        )}
 
-      {/* AI 캐릭터 + 말풍선 — 핫스팟 기준 또는 bubbleAnchor 고정 위치 */}
-      {(hasHotspot || (bubbleAnchor && box.w > 0)) && (
-        <div style={{ position: 'absolute', left: `${bubbleLeft}px`, top: `${bubbleTop}px`, zIndex: 6, pointerEvents: 'none' }}>
-          {renderUnit(bubbleSide)}
-        </div>
-      )}
+        {/* 타이핑 인디케이터 — focused 시만 */}
+        {showOverlays && hasHotspot && isType && (
+          <div style={{ position: 'absolute', left: `${hx}%`, top: `${hy}%`, transform: 'translate(-50%,-50%)', pointerEvents: 'none', zIndex: 4 }}>
+            <div style={{ position: 'relative', minWidth: '128px', maxWidth: '320px', height: '38px', borderRadius: '9px', border: '2px solid #6366f1', background: 'rgba(255,255,255,0.96)', boxShadow: '0 0 0 4px rgba(99,102,241,0.18), 0 6px 20px rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', padding: '0 12px', animation: 'mfp-field 1.8s ease-in-out infinite' }}>
+              {hasTypeText ? (
+                <>
+                  <span style={{ fontSize: '13px', color: typeTextColor ?? '#111827', fontWeight: 600, letterSpacing: '0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{shownType}</span>
+                  <span style={{ width: '2px', height: '18px', marginLeft: '2px', flexShrink: 0, background: typeTextColor ?? '#6366f1', borderRadius: '2px', animation: 'mfp-caret 1s step-end infinite' }} />
+                </>
+              ) : (
+                <>
+                  <span style={{ width: '2px', height: '18px', background: '#6366f1', borderRadius: '2px', animation: 'mfp-caret 1s step-end infinite' }} />
+                  <span style={{ marginLeft: '7px', fontSize: '12px', color: '#9CA3AF', fontStyle: 'italic', fontWeight: 500, letterSpacing: '0.04em' }}>텍스트 입력…</span>
+                </>
+              )}
+            </div>
+            <span style={{ position: 'absolute', top: '-13px', left: '0', fontSize: '10px', fontWeight: 800, color: '#fff', background: '#6366f1', padding: '2px 8px', borderRadius: '8px 8px 8px 2px', boxShadow: '0 2px 8px rgba(0,0,0,0.3)', whiteSpace: 'nowrap', letterSpacing: '0.03em' }}>⌨ 입력</span>
+          </div>
+        )}
 
-      {/* 핫스팟 없고 앵커도 없는 이동/설명형 — 기본 우측 하단 */}
-      {!hasHotspot && !bubbleAnchor && (
-        <div style={{ position: 'absolute', right: '18px', bottom: '18px', zIndex: 6, pointerEvents: 'none', maxWidth: '92%' }}>
-          {renderUnit('bottom')}
-        </div>
-      )}
+        {/* AI 캐릭터 + 말풍선 — focused 시만, fade-in */}
+        {showOverlays && (hasHotspot || (bubbleAnchor && box.w > 0)) && (
+          <div style={{ position: 'absolute', left: `${bubbleLeft}px`, top: `${bubbleTop}px`, zIndex: 6, pointerEvents: 'none', animation: isAnimated ? 'mfp-bubble-in 0.35s ease-out' : undefined }}>
+            {renderUnit(bubbleSide)}
+          </div>
+        )}
+
+        {/* 핫스팟 없고 앵커도 없는 이동/설명형 — focused 시만 */}
+        {showOverlays && !hasHotspot && !bubbleAnchor && (
+          <div style={{ position: 'absolute', right: '18px', bottom: '18px', zIndex: 6, pointerEvents: 'none', maxWidth: '92%' }}>
+            {renderUnit('bottom')}
+          </div>
+        )}
+      </div>
 
       {children}
 
@@ -240,6 +277,8 @@ export function FollowStage({
         @keyframes mfp-nudge { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
         @keyframes mfp-field { 0%,100%{box-shadow:0 0 0 4px rgba(99,102,241,0.18), 0 6px 20px rgba(0,0,0,0.28)} 50%{box-shadow:0 0 0 7px rgba(99,102,241,0.28), 0 6px 24px rgba(0,0,0,0.35)} }
         @keyframes mfp-spotlight-in { from{opacity:0} to{opacity:1} }
+        @keyframes mfp-rect-in { from{opacity:0;transform:scale(0.96)} to{opacity:1;transform:scale(1)} }
+        @keyframes mfp-bubble-in { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
       `}</style>
     </div>
   );

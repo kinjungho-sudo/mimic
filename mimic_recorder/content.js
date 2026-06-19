@@ -28,6 +28,8 @@
   const TYPING_FRAME_THROTTLE = 300; // ms — 타이핑 중 '전송 직전' 롤링 프레임 캡처 간격
   // (captureVisibleTab 쿼터는 초당 2회 — 300ms 시도 중 일부는 rate-limit으로 무시되나,
   //  실패해도 직전 프레임을 유지하므로 안전. 성공분이 더 잦아져 텍스트가 더 최신에 가깝다.)
+  const TYPING_FRAME_SETTLE  = 350;  // ms — 입력이 잠깐 멈춰 화면이 안정된 '완료' 시점에 1장 더 버퍼링
+  //  (throttle 프레임은 조합 중간값 "주"가 남을 수 있다 → 멈춤 시점 프레임으로 덮어써 완성 화면을 보장.)
 
   const INTERACTIVE = [
     'a[href]', 'button', 'input', 'select', 'textarea', 'label',
@@ -59,6 +61,7 @@
   let typingTimer        = null;
   let _countingDown      = false;
   let _lastTypingFrameTime = 0;     // 롤링 타이핑 프레임 throttle 기준
+  let _typingFrameTimer  = null;    // 입력 멈춤(완료) 시점 프레임 1장 예약 타이머
   let _isComposing       = false;   // 한/일/중 IME 조합 중 여부 — 조합 중간값 캡처 방지
 
   // 비밀번호 등 민감 입력의 '타이핑 텍스트 저장'을 막는 마스킹용 (블러와 무관)
@@ -183,10 +186,11 @@
   // 한 입력 필드 = 한 스텝. 첫 입력 때 예약한 pendingInputStep을 계속 overwrite 한다.
   //   finalize=false : 입력 멈춤(디바운스) — 같은 스텝 갱신, 세션 유지
   //   finalize=true  : 포커스 이동/Enter/녹화 종료 — 세션 종료(다음 입력은 새 스텝)
-  function flushTyping(el, finalize = true) {
+  //   opts.usePrecapture : Enter 등 액션 직전에 찍은 선캡처 프레임을 스텝 이미지로 우선 사용
+  function flushTyping(el, finalize = true, opts = {}) {
     clearTimeout(typingTimer);
     typingTimer = null;
-    const endSession = () => { if (finalize) { pendingInputStep = null; typingTarget = null; typingUrl = null; } };
+    const endSession = () => { if (finalize) { clearTimeout(_typingFrameTimer); pendingInputStep = null; typingTarget = null; typingUrl = null; } };
 
     if (!isRecording || isPaused || isCapturing) { endSession(); return; }
 
@@ -221,7 +225,7 @@
       clickX: cx, clickY: cy,
       windowWidth: vw, windowHeight: vh,
       viewportW: vw, viewportH: vh,
-      stepNumber: stepForThis, overwrite: true, useTypingFrame: true,
+      stepNumber: stepForThis, overwrite: true, useTypingFrame: true, usePrecapture: !!opts.usePrecapture,
       typedText,
       elementRect: normalizeRect(rect, vw, vh), elementSelector: getElementSelector(el), elementXPath: getElementXPath(el),
       actionInfo: { type: 'type', text: label, typedText, masked: isMasked },
@@ -239,7 +243,9 @@
     isPaused           = false;
     hideHoverPointer();
     clearTimeout(typingTimer);
+    clearTimeout(_typingFrameTimer);
     typingTimer        = null;
+    _typingFrameTimer  = null;
     typingTarget       = null;
     pendingInputStep   = null;
     typingUrl          = null;
@@ -939,6 +945,18 @@
     sendCapture(stepData, () => { clearTimeout(safetyTimer); isCapturing = false; });
   }
 
+  // ── 타이핑 '완료' 프레임 예약 ────────────────────────────────────
+  // 입력이 TYPING_FRAME_SETTLE 동안 멈추면(=조합 완료·화면 안정) '전송 직전' 프레임을 1장 버퍼링한다.
+  // 매 키 입력마다 찍는 throttle 프레임에는 조합 중간값("주")이 남을 수 있어, 멈춤 시점 프레임으로 덮어쓴다.
+  function scheduleTypingFrame() {
+    clearTimeout(_typingFrameTimer);
+    _typingFrameTimer = setTimeout(() => {
+      if (_isComposing) return;  // 아직 조합 중이면 미완성값 — 건너뜀
+      hideHoverPointer();        // 호버 테두리가 프레임에 끼지 않게
+      chrome.runtime.sendMessage({ type: 'TYPING_FRAME' }, () => { void chrome.runtime.lastError; });
+    }, TYPING_FRAME_SETTLE);
+  }
+
   // ── input 이벤트 (타이핑 추적) ──────────────────────────────────
   document.addEventListener('input', (e) => {
     if (!isRecording || isPaused) return;
@@ -960,12 +978,15 @@
 
     // 전송 직전 화면을 확보하기 위한 롤링 프레임 — throttle로 쿼터(초당 2회) 보호.
     // 확정(flushTyping) 시 background가 이 최신 프레임을 스텝 이미지로 사용한다.
+    // (즉시 Enter/이동 같은 멈춤 없는 케이스용 폴백 — 멈춤 시 settle 프레임이 덮어쓴다.)
     const nowTf = Date.now();
     if (nowTf - _lastTypingFrameTime > TYPING_FRAME_THROTTLE) {
       _lastTypingFrameTime = nowTf;
       hideHoverPointer();  // 호버 테두리가 프레임에 굽히지 않게
       chrome.runtime.sendMessage({ type: 'TYPING_FRAME' }, () => { void chrome.runtime.lastError; });
     }
+    // 입력이 잠깐 멈춘 '완료' 시점에 완성 화면을 1장 더 버퍼링 → 어느 경로로 flush되든 최종값 보장.
+    scheduleTypingFrame();
 
     if (pendingInputStep === null) {
       stepNumber += 1;
@@ -991,7 +1012,8 @@
     if (!isRecording || isPaused) return;
     const el = e.target;
     if (typingTarget !== el) return;
-    // 조합 완료 시점의 최종값으로 flush 재예약 (확정값 반영)
+    // 조합 완료 → 완성 화면 프레임을 다시 예약(버퍼를 최종값으로 갱신) + 최종값으로 flush 재예약
+    scheduleTypingFrame();
     clearTimeout(typingTimer);
     typingTimer = setTimeout(() => {
       if (typingTarget !== el || _isComposing) return;
@@ -1017,7 +1039,13 @@
     const isSingleLine  = el instanceof HTMLInputElement;
     const isMultiLine   = el instanceof HTMLTextAreaElement || el.isContentEditable;
     const isModified    = e.ctrlKey || e.metaKey;
-    if (isSingleLine || (isMultiLine && isModified)) flushTyping(el);
+    if (isSingleLine || (isMultiLine && isModified)) {
+      // Enter 제출 직전(폼 제출·페이지 이동·입력창 초기화 전) 화면을 그 순간 선캡처해
+      // 타이핑 스텝 이미지로 쓴다 — 클릭의 pointerdown 선캡처와 동일한 '액션 정렬' 기법.
+      hideHoverPointer();
+      chrome.runtime.sendMessage({ type: 'PRECAPTURE_FRAME' }, () => { void chrome.runtime.lastError; });
+      flushTyping(el, true, { usePrecapture: true });
+    }
   }, true);
 
   // ── focusout: 필드 이탈 = 입력 확정 (Tango식 "필드 단위 = 한 스텝") ───────
