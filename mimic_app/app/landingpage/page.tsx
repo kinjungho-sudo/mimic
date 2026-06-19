@@ -1340,8 +1340,8 @@ function HeroSection() {
         </h1>
 
         <p style={{ fontSize: 'clamp(15px, 2vw, 18px)', color: 'rgba(255,255,255,0.48)', maxWidth: '560px', margin: '0 auto 48px', lineHeight: 1.8, fontWeight: 400 }}>
-          이제 매뉴얼은 읽는 게 아니라 따라 하는 겁니다.<br/>
-          받는 사람 화면 위에서 클릭할 곳을 짚어주니까요.
+          평소처럼 업무하면 매뉴얼이 자동으로 만들어집니다.<br/>
+          받는 사람은 읽지 않아도 화면 위 안내를 따라 클릭만 하면 됩니다.
         </p>
 
         <div className="hero-cta-row" style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginBottom: '60px' }}>
