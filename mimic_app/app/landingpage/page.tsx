@@ -176,7 +176,7 @@ function HeroDemo() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scene]);
 
-  const SCENE_LABELS = ['새 매뉴얼', '카운트다운', '클릭 캡처', 'AI 생성 중', '매뉴얼 완성', '공유', '따라하기'];
+  const SCENE_LABELS = ['새 매뉴얼', '카운트다운', '클릭 캡처', 'AI 생성 중', '매뉴얼 완성', '공유', '실습하기'];
   const SCENE_URLS   = ['app.mimic.so/home', 'app.mimic.so/home', 'plus.gov.kr', 'plus.gov.kr', 'app.mimic.so/editor', 'app.mimic.so/manual', 'app.mimic.so/play'];
   const SCENE_CAPTIONS = [
     { title: '홈에서 "새 매뉴얼" 버튼을 클릭하면 시작됩니다', desc: 'MIMIC 크롬 확장 프로그램이 녹화를 준비합니다.' },
@@ -185,7 +185,7 @@ function HeroDemo() {
     { title: '"완료"를 누르면 AI가 매뉴얼을 자동 생성합니다', desc: '캡처된 화면을 분석해 제목·설명·하이라이트를 만듭니다.' },
     { title: '편집 가능한 스텝 카드로 매뉴얼이 완성됩니다', desc: '각 단계를 카드로 보고, 제목·설명·이미지를 바로 편집할 수 있습니다.' },
     { title: '링크 하나로 누구에게나 공유합니다', desc: 'PPTX·PDF로 내보내거나, 비밀번호·공개 범위까지 설정할 수 있습니다.' },
-    { title: '따라하기(Live Guide)로 누구나 바로 실습합니다', desc: 'AI 가이드가 클릭할 곳을 짚어주고, 누르면 다음 단계로 넘어갑니다.' },
+    { title: '실습하기 · Live Guide로 누구나 바로 시작합니다', desc: 'AI 가이드가 클릭할 곳을 짚어주고, 누르면 다음 단계로 넘어갑니다.' },
   ];
 
   const renderScene = () => {
@@ -1514,7 +1514,7 @@ export default function LandingPage() {
               {[
                 { label: '별도 작업 없음', desc: '하던 일 그대로' },
                 { label: '30초 완성', desc: 'AI가 즉시 정리' },
-                { label: 'Live Guide로 따라하기', desc: '읽을 필요 없이 실행' },
+                { label: 'Live Guide로 실습하기', desc: '읽을 필요 없이 실행' },
               ].map((item, i) => (
                 <div key={item.label} style={{ padding: '24px 36px', borderRight: i < 2 ? '1px solid rgba(255,255,255,0.07)' : 'none', textAlign: 'center', background: i === 1 ? 'rgba(109,40,217,0.09)' : 'transparent', minWidth: '140px' }}>
                   <div style={{ fontSize: '14px', fontWeight: 700, color: 'white', marginBottom: '5px' }}>{item.label}</div>
@@ -1666,7 +1666,7 @@ export default function LandingPage() {
             </div>
             {[
               { label: '제작 시간', vals: ['1~3시간', '2~6시간', '30초~5분'] },
-              { label: '클릭으로 따라하기', vals: [false, false, true] },
+              { label: '클릭으로 실습하기', vals: [false, false, true] },
               { label: 'AI 자동 설명 생성', vals: [false, false, true] },
               { label: '실제 화면 위 안내 (라이브 가이드)', vals: [false, false, true] },
               { label: '수정 용이성', vals: ['낮음', '낮음', '높음'] },

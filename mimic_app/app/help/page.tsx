@@ -251,7 +251,7 @@ function SectionContent({ id }: { id: string }) {
         <div>
           {h2('라이브 가이드')}
           {p('라이브 가이드는 실제 웹페이지 위에 오버레이를 띄워 단계별로 안내하는 기능입니다. 사용자는 별도 화면 없이 실제 업무 페이지에서 바로 가이드를 받을 수 있습니다.')}
-          {img('/help/live-guide.jpg', '따라하기 스튜디오 — 단계별 핫스팟·말풍선 편집')}
+          {img('/help/live-guide.jpg', '실습하기 스튜디오 — 단계별 핫스팟·말풍선 편집')}
           {h3('사용 방법')}
           <ol style={{ paddingLeft: '20px', margin: '0 0 16px' }}>
             {[
@@ -315,7 +315,7 @@ function SectionContent({ id }: { id: string }) {
         <div>
           {h2('공유 링크')}
           {p('매뉴얼을 링크로 공유하면 로그인 없이 누구나 볼 수 있습니다.')}
-          {img('/help/share-player.png', '공유 플레이어 — 슬라이드·웹 문서·따라하기로 볼 수 있어요')}
+          {img('/help/share-player.png', '공유 플레이어 — 슬라이드·웹 문서·실습하기로 볼 수 있어요')}
           {h3('공유 링크 생성')}
           <ol style={{ paddingLeft: '20px', margin: '0 0 16px' }}>
             {[
