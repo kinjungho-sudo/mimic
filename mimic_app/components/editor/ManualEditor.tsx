@@ -368,11 +368,10 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, hideToc, a
             ))
           )}
 
-          {/* 위/아래 이동 플로팅 버튼 — sticky로 scroll-snap 컨테이너 안에 고정 */}
-          <div className="editor-step-nav" style={{ position: 'sticky', bottom: '16px', display: 'flex', justifyContent: 'center', pointerEvents: 'none', zIndex: 20, scrollSnapAlign: 'none' }}>
-            {/* 중앙 카드(maxWidth 1120) 기준 우측 하단 정렬 */}
-            <div style={{ width: '100%', maxWidth: '1120px', padding: '0 24px', boxSizing: 'border-box', display: 'flex', justifyContent: 'flex-end' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', pointerEvents: 'auto' }}>
+          {/* 위/아래 이동 플로팅 버튼 — fixed로 뷰포트 우하단 고정, 카드와 겹치지 않음 */}
+          <div className="editor-step-nav" style={{ position: 'fixed', bottom: '32px', right: '32px', zIndex: 20, scrollSnapAlign: 'none' }}>
+            <div style={{}}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {(() => {
                 const currentIdx = steps.findIndex(s => s.id === activeId);
                 const idx = currentIdx >= 0 ? currentIdx : 0;

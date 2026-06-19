@@ -175,7 +175,7 @@ export function AnnotationPreview({ annotations, imageUrl, sizeScale = 1 }: { an
         }
 
         if (type === 'text' && a.text) {
-          // 편집기와 100% 동일하게 렌더 — 박스를 글자에 딱 맞추고 중앙·가운데 정렬, fontSize는 fontScale 보정
+          // 편집기와 100% 동일하게 렌더 — 그림 영역(x1~x2) 중심 기준, fontSize는 fontScale 보정
           const fSize = (a.fontSize ?? 16) * fontScale;
           const bold = a.fontBold ?? false;
           const bColor = a.borderColor ?? 'rgba(0,0,0,0.65)';
@@ -183,15 +183,18 @@ export function AnnotationPreview({ annotations, imageUrl, sizeScale = 1 }: { an
           const lines = a.text.split('\n');
           const padX = 12, padY = 8;
           const lineH = fSize * 1.4;
-          const boxW = estimateTextW(a.text, fSize) + 2 * padX;
-          const boxH = lines.length * lineH + 2 * padY;
-          const cx = minX + boxW / 2;
+          // 박스 너비: 그림 영역 너비와 텍스트 너비 중 큰 쪽. 중심은 그림 영역의 가로 중심.
+          const contentW = estimateTextW(a.text, fSize) + 2 * padX;
+          const boxW = Math.max(w, contentW);
+          const boxH = Math.max(h, lines.length * lineH + 2 * padY);
+          const cx = (ax1 + ax2) / 2;  // 그림 영역 가로 중심
+          const boxX = cx - boxW / 2;
           const bgFill = bg ? 'rgba(10,10,15,0.92)' : 'none';
           const strokeColor = bColor !== 'transparent' ? bColor : 'none';
           return (
             <g key={a.id}>
               {bg && (
-                <rect x={minX} y={minY} width={boxW} height={boxH}
+                <rect x={boxX} y={minY} width={boxW} height={boxH}
                   fill={bgFill}
                   stroke={strokeColor}
                   strokeWidth={strokeColor !== 'none' ? 1.5 : 0}
