@@ -916,11 +916,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // 연속 내레이션 정지 + 업로드 → finalize에 audio_url 전달 (서버에서 Whisper 전사·구간 배분)
         const audioUrl = await stopAndUploadVoice(message.sessionId);
         const data = await finalizeSession(message.sessionId, message.stepNumbers, audioUrl);
-        // 편집기 탭은 background가 직접 연다 — 사용자가 패널/탭을 닫아도
+        // 매뉴얼 상세 탭은 background가 직접 연다 — 사용자가 패널/탭을 닫아도
         // service worker는 살아 있으므로 매뉴얼 생성 완료 후 정상 이동된다.
         if (data?.tutorial_id) {
           const origin = await getWebappOrigin();
-          chrome.tabs.create({ url: `${origin}/manual/${data.tutorial_id}/editor` });
+          chrome.tabs.create({ url: `${origin}/manual/${data.tutorial_id}` });
           await storageSet({ isRecording: false, isPaused: false, stepNumber: 0, steps: [], sessionId: null, _undoStack: [] });
         }
         sendResponse({ ok: true, ...data });

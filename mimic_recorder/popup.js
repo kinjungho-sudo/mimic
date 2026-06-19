@@ -1068,14 +1068,14 @@ btnFinish.addEventListener('click', async () => {
   // 매뉴얼 생성 중 — 사용자 대기 UI
   showFinalizingOverlay();
 
-  // 편집기 탭은 background가 연다 — 패널/탭이 닫혀도 생성 완료 후 정상 이동
+  // 매뉴얼 상세 탭은 background가 연다 — 패널/탭이 닫혀도 생성 완료 후 정상 이동
   chrome.runtime.sendMessage({ type: 'FINALIZE_SESSION', sessionId, stepNumbers }, (res) => {
     void chrome.runtime.lastError;
     hideFinalizingOverlay();
     renderSteps([]);             // window.close() 실패해도 스텝 목록 항상 초기화
     btnFinish.disabled = false;  // window.close() 실패해도 버튼 항상 재활성화
     if (res?.ok && res?.tutorial_id) {
-      showToast('매뉴얼이 생성되었습니다! 편집기가 열립니다.', 2500);
+      showToast('매뉴얼이 생성되었습니다! 매뉴얼 페이지가 열립니다.', 2500);
       window.close();
     } else {
       // 실패 시 에러 안내
