@@ -59,6 +59,7 @@
   let typingTimer        = null;
   let _countingDown      = false;
   let _lastTypingFrameTime = 0;     // 롤링 타이핑 프레임 throttle 기준
+  let _isComposing       = false;   // 한/일/중 IME 조합 중 여부 — 조합 중간값 캡처 방지
 
   // 비밀번호 등 민감 입력의 '타이핑 텍스트 저장'을 막는 마스킹용 (블러와 무관)
   const SENSITIVE_INPUT_TYPES = new Set(['password']);
@@ -976,7 +977,24 @@
     // 입력 멈춤 → 같은 스텝을 갱신(soft). 포커스 이동/Enter/종료 시에만 세션 종료.
     clearTimeout(typingTimer);
     typingTimer = setTimeout(() => {
-      if (typingTarget !== el) return;
+      if (typingTarget !== el || _isComposing) return;  // 조합 중이면 미완성값 — skip
+      flushTyping(el, false);
+    }, TYPING_DEBOUNCE);
+  }, true);
+
+  // ── IME 조합 추적 (한/일/중) ──────────────────────────────────────
+  // compositionstart~end 사이의 input 값은 미완성 조합("중ㄱ")이다.
+  // 조합 중에는 디바운스 flush를 막고, 조합 완료(compositionend) 후 최종값("중계")으로 재예약한다.
+  document.addEventListener('compositionstart', () => { _isComposing = true; }, true);
+  document.addEventListener('compositionend', (e) => {
+    _isComposing = false;
+    if (!isRecording || isPaused) return;
+    const el = e.target;
+    if (typingTarget !== el) return;
+    // 조합 완료 시점의 최종값으로 flush 재예약 (확정값 반영)
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(() => {
+      if (typingTarget !== el || _isComposing) return;
       flushTyping(el, false);
     }, TYPING_DEBOUNCE);
   }, true);
@@ -993,6 +1011,7 @@
   // ── keydown: Enter = flush ────────────────────────────────────────
   document.addEventListener('keydown', (e) => {
     if (!isRecording || isPaused) return;
+    if (e.isComposing) return;  // IME 조합 확정용 Enter — 미완성값 flush 방지
     if (e.key !== 'Enter' || !typingTarget) return;
     const el            = e.target;
     const isSingleLine  = el instanceof HTMLInputElement;
