@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     url: `${APP_URL}/landingpage`,
     images: [
       {
-        url: `${APP_URL}/api/og?title=30초 만에 인터랙티브 매뉴얼&sub=AI가 단계별 설명과 자막까지 자동 완성합니다`,
+        url: `${APP_URL}/api/og?title=${encodeURIComponent('30초 만에 인터랙티브 매뉴얼')}&sub=${encodeURIComponent('AI가 단계별 설명과 자막까지 자동 완성합니다')}`,
         width: 1200,
         height: 630,
         alt: 'MIMIC — 30초 만에 인터랙티브 매뉴얼',
