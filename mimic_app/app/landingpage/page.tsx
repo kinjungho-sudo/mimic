@@ -156,7 +156,9 @@ const SCENE_DURATIONS = [4500, 2800, 6500, 3500, 6500, 5200, 7000];
 function HeroDemo() {
   const [scene, setScene] = useState(0);
   const [tick, setTick]   = useState(0);
+  const [active, setActive] = useState(true);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   const scheduleNext = useCallback((idx: number) => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -168,13 +170,23 @@ function HeroDemo() {
     }, SCENE_DURATIONS[idx]);
   }, []);
 
+  // 화면 밖(스크롤)·모바일(display:none) 에서는 타이머를 멈춰 불필요한 연산을 막는다
   useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([entry]) => setActive(entry.isIntersecting), { threshold: 0.01 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!active) return;
     setTick(0);
     scheduleNext(scene);
     const iv = setInterval(() => setTick(t => t + 100), 100);
     return () => { clearInterval(iv); if (timerRef.current) clearTimeout(timerRef.current); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scene]);
+  }, [scene, active]);
 
   const SCENE_LABELS = ['새 매뉴얼', '카운트다운', '클릭 캡처', 'AI 생성 중', '매뉴얼 완성', '공유', '실습하기'];
   const SCENE_URLS   = ['app.mimic.so/home', 'app.mimic.so/home', 'plus.gov.kr', 'plus.gov.kr', 'app.mimic.so/editor', 'app.mimic.so/manual', 'app.mimic.so/play'];
@@ -202,7 +214,7 @@ function HeroDemo() {
   };
 
   return (
-    <div style={{ position: 'relative', maxWidth: '1000px', margin: '0 auto' }}>
+    <div ref={rootRef} style={{ position: 'relative', maxWidth: '1000px', margin: '0 auto' }}>
       <div style={{ borderRadius: '16px 16px 0 0', overflow: 'hidden', boxShadow: '0 20px 60px -10px rgba(55,48,163,0.28), 0 40px 80px -20px rgba(17,24,39,0.18)', border: '1px solid rgba(55,48,163,0.15)', borderBottom: 'none' }}>
         {/* 브라우저 상단바 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 16px', background: '#18181B', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
@@ -1387,13 +1399,16 @@ export default function LandingPage() {
   const [faqOpen, setFaqOpen] = useState<number | null>(0);
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState('');
   const [proModal, setProModal] = useState<'pro' | 'team' | null>(null);
   const [proEmail, setProEmail] = useState('');
   const [proSubmitted, setProSubmitted] = useState(false);
+  const [proError, setProError] = useState('');
 
   const handleProSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setError('올바른 이메일 주소를 입력해 주세요.'); return; }
+    setError('');
     try {
       const res = await fetch('/api/pro-signup', {
         method: 'POST',
@@ -1402,20 +1417,22 @@ export default function LandingPage() {
       });
       if (!res.ok) throw new Error(res.statusText);
       setSubmitted(true);
-    } catch { /* ignore network/server errors — user can retry */ }
+    } catch { setError('일시적인 오류로 등록에 실패했어요. 잠시 후 다시 시도해 주세요.'); }
   };
 
   const handleProPlanSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!proEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(proEmail)) return;
+    if (!proEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(proEmail)) { setProError('올바른 이메일 주소를 입력해 주세요.'); return; }
+    setProError('');
     try {
-      await fetch('/api/pro-signup', {
+      const res = await fetch('/api/pro-signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: proEmail, plan_interested: proModal === 'pro' ? 'pro' : 'team', source: 'landing' }),
       });
+      if (!res.ok) throw new Error(res.statusText);
       setProSubmitted(true);
-    } catch { /* ignore */ }
+    } catch { setProError('일시적인 오류로 신청에 실패했어요. 잠시 후 다시 시도해 주세요.'); }
   };
 
   const prices = { pro: billing === 'month' ? '₩9,900' : '₩8,250' };
@@ -1434,7 +1451,7 @@ export default function LandingPage() {
 
       {/* Pro 플랜 사전예약 모달 */}
       {proModal && (
-        <div onClick={() => { setProModal(null); setProSubmitted(false); setProEmail(''); }} style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.60)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+        <div onClick={() => { setProModal(null); setProSubmitted(false); setProEmail(''); setProError(''); }} style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.60)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
           <div onClick={e => e.stopPropagation()} style={{ background: 'white', borderRadius: '20px', padding: '40px', width: '100%', maxWidth: '440px', boxShadow: '0 40px 80px rgba(0,0,0,0.15)' }}>
             <div style={{ textAlign: 'center', marginBottom: '28px' }}>
               <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '52px', height: '52px', borderRadius: '14px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', marginBottom: '16px' }}>
@@ -1447,13 +1464,14 @@ export default function LandingPage() {
               <form onSubmit={handleProPlanSignup}>
                 <input type="email" value={proEmail} onChange={e => setProEmail(e.target.value)} placeholder="이메일 주소" required style={{ width: '100%', height: '46px', padding: '0 14px', border: '1.5px solid #E5E7EB', borderRadius: '10px', fontSize: '14px', color: '#111827', outline: 'none', boxSizing: 'border-box', marginBottom: '12px', fontFamily: 'inherit' }} />
                 <button type="submit" style={{ width: '100%', height: '46px', borderRadius: '10px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', fontWeight: 700, fontSize: '14px', border: 'none', cursor: 'pointer' }}>{proModal === 'pro' ? '사전예약 신청하기' : '도입 문의 신청하기'}</button>
+                {proError && <div style={{ marginTop: '10px', fontSize: '12.5px', color: '#DC2626', textAlign: 'center' }}>{proError}</div>}
               </form>
             ) : (
               <div style={{ textAlign: 'center', padding: '16px', background: '#F0FDF4', borderRadius: '12px', color: '#15803D', fontSize: '14px', fontWeight: 500 }}>
                 ✓ {proModal === 'pro' ? '등록되었습니다. 출시일에 가장 먼저 알려드릴게요!' : '접수되었습니다. 담당자가 곧 연락드릴게요!'}
               </div>
             )}
-            <button onClick={() => { setProModal(null); setProSubmitted(false); setProEmail(''); }} style={{ width: '100%', marginTop: '12px', padding: '10px', background: 'none', border: 'none', color: '#9CA3AF', fontSize: '13px', cursor: 'pointer' }}>닫기</button>
+            <button onClick={() => { setProModal(null); setProSubmitted(false); setProEmail(''); setProError(''); }} style={{ width: '100%', marginTop: '12px', padding: '10px', background: 'none', border: 'none', color: '#9CA3AF', fontSize: '13px', cursor: 'pointer' }}>닫기</button>
           </div>
         </div>
       )}
@@ -1822,6 +1840,12 @@ export default function LandingPage() {
                 <button type="submit" style={{ height: '46px', padding: '0 20px', borderRadius: '9px', background: 'white', color: '#3730a3', fontWeight: 700, fontSize: '14px', whiteSpace: 'nowrap', cursor: 'pointer', border: 'none' }}>사전예약 →</button>
               </form>
             ) : (
+              <></>
+            )}
+            {!submitted && error && (
+              <div style={{ position: 'relative', margin: '0 auto 28px', maxWidth: '440px', fontSize: '13px', color: '#FCA5A5', textAlign: 'center' }}>{error}</div>
+            )}
+            {submitted && (
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', margin: '0 auto 28px', padding: '12px 20px', borderRadius: '999px', background: 'rgba(16,185,129,0.18)', border: '1px solid rgba(16,185,129,0.40)', color: '#D1FAE5', fontSize: '14px', fontWeight: 500 }}>
                 <CheckIcon size={14} color="#6EE7B7" /> 등록되었습니다. Pro 출시일에 가장 먼저 알려드릴게요.
               </div>
@@ -1852,20 +1876,20 @@ export default function LandingPage() {
               </p>
             </div>
             {[
-              { title: '제품', links: ['기능', '사용 방법', '요금제', '변경 사항'] },
-              { title: '회사', links: ['소개', '블로그', '채용', '기업 문의'] },
-              { title: '지원', links: ['이용 가이드', 'FAQ', '고객센터', '상태 페이지'] },
-              { title: '법적 고지', links: ['이용약관', '개인정보처리방침', '보안', '환불 정책'] },
+              { title: '제품', links: [{ label: '기능', href: '#features' }, { label: '사용 방법', href: '#how' }, { label: '요금제', href: '#pricing' }, { label: '변경 사항', href: '#' }] },
+              { title: '회사', links: [{ label: '소개', href: '#' }, { label: '블로그', href: '#' }, { label: '채용', href: '#' }, { label: '기업 문의', href: '#b2b' }] },
+              { title: '지원', links: [{ label: '이용 가이드', href: '/help' }, { label: 'FAQ', href: '#faq' }, { label: '고객센터', href: 'mailto:kinjungho@gmail.com' }, { label: '상태 페이지', href: '#' }] },
+              { title: '법적 고지', links: [{ label: '이용약관', href: '/legal/terms' }, { label: '개인정보처리방침', href: '/legal/privacy' }, { label: '보안', href: '#' }, { label: '환불 정책', href: '#' }] },
             ].map(col => (
               <div key={col.title}>
                 <h5 style={{ margin: '0 0 18px', fontSize: '11.5px', color: 'rgba(255,255,255,0.5)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{col.title}</h5>
                 <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                   {col.links.map(l => (
-                    <li key={l} style={{ padding: '5px 0' }}>
-                      <a href="#" style={{ color: '#4B5563', textDecoration: 'none', transition: 'color 0.15s' }}
+                    <li key={l.label} style={{ padding: '5px 0' }}>
+                      <a href={l.href} style={{ color: '#4B5563', textDecoration: 'none', transition: 'color 0.15s' }}
                         onMouseEnter={e => e.currentTarget.style.color = '#9CA3AF'}
                         onMouseLeave={e => e.currentTarget.style.color = '#4B5563'}
-                      >{l}</a>
+                      >{l.label}</a>
                     </li>
                   ))}
                 </ul>
@@ -1876,7 +1900,7 @@ export default function LandingPage() {
             <div>© 2026 코마인드웍스 · MIMIC</div>
             <div style={{ display: 'flex', gap: '20px' }}>
               {['한국어', 'English', 'kinjungho@gmail.com'].map(l => (
-                <a key={l} href="#" style={{ color: '#374151', textDecoration: 'none' }}
+                <a key={l} href={l.includes('@') ? `mailto:${l}` : '#'} style={{ color: '#374151', textDecoration: 'none' }}
                   onMouseEnter={e => e.currentTarget.style.color = '#6B7280'}
                   onMouseLeave={e => e.currentTarget.style.color = '#374151'}
                 >{l}</a>
@@ -1887,6 +1911,9 @@ export default function LandingPage() {
       </footer>
 
       <style>{`
+        /* ── 앵커 이동 시 sticky 헤더(64px)에 가려지지 않도록 보정 ── */
+        section[id] { scroll-margin-top: 80px; }
+
         /* ── 기존 애니메이션 ── */
         @keyframes avatarPopIn {
           0% { transform: scale(0.6); opacity: 0; }
@@ -2025,7 +2052,7 @@ export default function LandingPage() {
           .pricing-grid { grid-template-columns: 1fr !important; }
           .pricing-grid > div { transform: none !important; }
 
-          .comparison-row { grid-template-columns: 1fr repeat(4, 80px) !important; font-size: 11px !important; }
+          .comparison-row { grid-template-columns: 1fr repeat(3, 80px) !important; font-size: 11px !important; }
 
           .footer-grid { grid-template-columns: 1fr 1fr !important; gap: 28px !important; }
 
@@ -2040,7 +2067,7 @@ export default function LandingPage() {
         @media (max-width: 480px) {
           h1 { font-size: 28px !important; }
           h2 { font-size: 24px !important; }
-          .comparison-row { font-size: 10px !important; grid-template-columns: 1fr repeat(4, 64px) !important; }
+          .comparison-row { font-size: 10px !important; grid-template-columns: 1fr repeat(3, 64px) !important; }
         }
 
         @media (prefers-reduced-motion: reduce) {
