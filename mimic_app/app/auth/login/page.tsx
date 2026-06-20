@@ -41,6 +41,23 @@ function LoginForm() {
     }
   };
 
+  // 개발 모드 전용 게스트 로그인 — 시드된 dev 계정(project2)으로 원클릭 진입.
+  // prod 빌드에선 아래 자격증명이 NODE_ENV 분기로 ''가 되어 dead-code 제거되고, 버튼도 렌더되지 않음.
+  const handleGuest = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      await signInWithEmail(
+        process.env.NODE_ENV === 'development' ? 'devtest@mimic.dev' : '',
+        process.env.NODE_ENV === 'development' ? 'Devtest1234!' : '',
+      );
+      router.push(next);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : '게스트 로그인에 실패했습니다.');
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="auth-grid" style={{ fontFamily: "'Pretendard', 'Pretendard Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif" }}>
 
@@ -141,6 +158,14 @@ function LoginForm() {
               {loading ? '처리 중...' : '로그인'}
             </button>
           </form>
+
+          {/* 개발 모드 전용 게스트 로그인 (prod 빌드에선 렌더되지 않음) */}
+          {process.env.NODE_ENV === 'development' && (
+            <button type="button" onClick={handleGuest} disabled={loading}
+              style={{ width: '100%', height: '40px', marginTop: '12px', borderRadius: '10px', background: '#FFFBEB', color: '#92400E', border: '1px dashed #F59E0B', fontSize: '13px', fontWeight: 500, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}>
+              🧪 게스트로 테스트 입장 (개발 전용)
+            </button>
+          )}
 
           <div style={{ marginTop: '22px', padding: '12px 14px', background: '#FAFAFA', border: '1px solid #F3F4F6', borderRadius: '10px', fontSize: '12px', color: '#4B5563', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={{ flexShrink: 0, width: '28px', height: '28px', borderRadius: '7px', background: 'rgba(55,48,163,0.10)', color: '#3730a3', display: 'grid', placeItems: 'center' }}>
