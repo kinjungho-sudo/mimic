@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Check, Undo2, Redo2, Volume2, VolumeX, Loader2, RefreshCw, MonitorPlay, Wand2, Zap, MessageSquare, Clock, Share2, Palette } from 'lucide-react';
+import { Check, Undo2, Redo2, Volume2, VolumeX, Loader2, MonitorPlay, Wand2, Zap, MessageSquare, Clock, Share2, Palette } from 'lucide-react';
 import { GuideToc } from '@/components/editor/GuideToc';
 import { ManualEditor, ManualStep } from '@/components/editor/ManualEditor';
 import { SdkPreviewPanel } from '@/components/editor/SdkPreviewPanel';
@@ -89,8 +89,6 @@ export default function EditorPage() {
   // 녹화 직후 진입 — 스텝 생성 대기 폴링
   const [pollingState, setPollingState] = useState<'idle' | 'polling' | 'timeout'>('idle');
   const [saving, setSaving] = useState(false);
-  const [freshnessChecking, setFreshnessChecking] = useState(false);
-  const [freshnessResult, setFreshnessResult] = useState<{ checked: number; stale: number } | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [showActivity, setShowActivity] = useState(false);
@@ -447,34 +445,6 @@ export default function EditorPage() {
     }
   }, [manualSteps]);
 
-
-  const handleCheckFreshness = useCallback(async () => {
-    setFreshnessChecking(true);
-    setFreshnessResult(null);
-    try {
-      const res = await fetch(`/api/tutorials/${id}/check-freshness`, { method: 'POST' });
-      const data = await res.json();
-      setFreshnessResult(data);
-      // is_stale 업데이트된 스텝 반영 — 서버에서 재조회 후 is_stale 플래그만 머지
-      // (로컬 미저장 편집은 유지하기 위해 전체 재시드 대신 id 기준 플래그만 갱신)
-      if (data.stale > 0) {
-        try {
-          const fresh = await getTutorial(id);
-          const staleById = new Map(
-            fresh.steps.map(s => [s.id, (s as Step & { is_stale?: boolean }).is_stale ?? false]),
-          );
-          setManualSteps(prev =>
-            prev.map(s => (staleById.has(s.id) ? { ...s, is_stale: staleById.get(s.id)! } : s)),
-          );
-        } catch { /* 재조회 실패 시 기존 상태 유지 */ }
-      }
-    } catch {
-      setFreshnessResult({ checked: 0, stale: -1 });
-    } finally {
-      setFreshnessChecking(false);
-    }
-  }, [id]);
-
   const performDeleteStep = useCallback((stepId: string) => {
     const next = manualSteps.filter(s => s.id !== stepId).map((s, i) => ({ ...s, number: i + 1 }));
     setManualStepsWithHistory(next);
@@ -776,42 +746,6 @@ export default function EditorPage() {
               );
             })()}
 
-            {/* 최신성 확인 버튼 */}
-            <div style={{ position: 'relative' }}>
-              <button
-                onClick={handleCheckFreshness}
-                disabled={freshnessChecking}
-                title="페이지 UI 변경 여부 확인"
-                style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', cursor: freshnessChecking ? 'not-allowed' : 'pointer', opacity: freshnessChecking ? 0.6 : 1, transition: 'all 0.15s' }}
-                onMouseEnter={e => { if (!freshnessChecking) e.currentTarget.style.background = '#F9FAFB'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
-              >
-                <RefreshCw size={13} style={freshnessChecking ? { animation: 'spin 1s linear infinite' } : {}} />
-                최신성 확인
-              </button>
-              {freshnessResult && (
-                <div style={{
-                  position: 'absolute', top: '38px', right: 0, zIndex: 30,
-                  background: 'white', border: '1px solid #E5E7EB', borderRadius: '10px',
-                  padding: '10px 14px', fontSize: '12px', color: '#374151',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.1)', whiteSpace: 'nowrap',
-                }}>
-                  {freshnessResult.stale === -1 ? (
-                    <span style={{ color: '#DC2626' }}>확인 중 오류가 발생했어요</span>
-                  ) : freshnessResult.checked === 0 ? (
-                    <span style={{ color: '#6B7280' }}>확인할 페이지 URL이 없어요</span>
-                  ) : freshnessResult.stale === 0 ? (
-                    <span style={{ color: '#059669' }}>✓ 모든 단계가 최신 상태예요 ({freshnessResult.checked}개 확인)</span>
-                  ) : (
-                    <span style={{ color: '#D97706' }}>⚠ {freshnessResult.stale}개 단계가 업데이트 필요해요</span>
-                  )}
-                  <button
-                    onClick={() => setFreshnessResult(null)}
-                    style={{ marginLeft: '10px', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', fontSize: '11px', padding: 0 }}
-                  >✕</button>
-                </div>
-              )}
-            </div>
             <button
               onClick={handleUndo}
               disabled={!canUndo}
