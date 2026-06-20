@@ -91,7 +91,12 @@ export async function POST(request: NextRequest, { params }: Params) {
   const baseOrderIndex = (lastStep?.order_index ?? -1) + 1;
   const baseStepNumber = (lastStep?.step_number ?? 0) + 1;
 
-  const newSteps = sourceSteps.map((s, i) => ({
+  // 클라이언트가 보낸 step_ids 순서(=사용자가 화면에서 선택한 순서)를 권위로 삼는다.
+  // DB order_index로만 재정렬하면 표시 순서와 어긋날 수 있음.
+  const byId = new Map(sourceSteps.map(s => [s.id, s]));
+  const orderedSteps = step_ids.map(sid => byId.get(sid)).filter((s): s is NonNullable<typeof s> => !!s);
+
+  const newSteps = orderedSteps.map((s, i) => ({
     tutorial_id: targetId,
     order_index: baseOrderIndex + i,
     step_number: baseStepNumber + i,

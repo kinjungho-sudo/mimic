@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/auth-guard';
+import { guardTutorialAccess } from '@/lib/auth/workspace-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { assertStorageUrl } from '@/lib/validate-storage-url';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, ImageRun, AlignmentType } from 'docx';
@@ -32,11 +33,14 @@ export async function GET(request: NextRequest, { params }: Params) {
   const { id } = await params;
   const supabase = createServiceRoleClient();
 
+  // 소유자뿐 아니라 워크스페이스 멤버·이메일 공유 협업자(viewer 이상)도 내보내기 허용
+  const access = await guardTutorialAccess(id, auth.userId, 'viewer');
+  if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
+
   const { data: tutorial } = await supabase
     .from('mm_tutorials')
     .select('id, title, user_id')
     .eq('id', id)
-    .eq('user_id', auth.userId)
     .single();
 
   if (!tutorial) return NextResponse.json({ error: 'Not found' }, { status: 404 });
