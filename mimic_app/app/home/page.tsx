@@ -402,7 +402,8 @@ function TutorialCard({ tutorial, onContextMenu, onTitleChange, onMenuClick, vie
     onMouseEnter: () => setHovered(true),
     onMouseLeave: () => setHovered(false),
     onContextMenu: (e: React.MouseEvent) => { e.preventDefault(); onContextMenu(e, tutorial.id); },
-    onClick: () => { if (!editingTitle) router.push(`/manual/${tutorial.id}`); },
+    // 편집 우선 — 매뉴얼 클릭 시 편집기로 진입 (뷰어 권한자는 편집기에서 뷰어로 자동 리다이렉트됨)
+    onClick: () => { if (!editingTitle) router.push(`/manual/${tutorial.id}/editor`); },
   };
 
   if (viewMode === 'compact') {

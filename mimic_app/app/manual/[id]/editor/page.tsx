@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Check, Undo2, Redo2, Volume2, VolumeX, Loader2, MonitorPlay, Wand2, Zap, MessageSquare, Clock, Share2, Palette } from 'lucide-react';
+import { Check, Undo2, Redo2, Volume2, VolumeX, Loader2, MonitorPlay, Eye, Wand2, Zap, MessageSquare, Clock, Share2, Palette } from 'lucide-react';
 import { GuideToc } from '@/components/editor/GuideToc';
 import { ManualEditor, ManualStep } from '@/components/editor/ManualEditor';
 import { SdkPreviewPanel } from '@/components/editor/SdkPreviewPanel';
@@ -130,6 +130,14 @@ export default function EditorPage() {
     },
     onCollaboratorsChange: setCollaborators,
   });
+
+  // 뷰어 권한자가 편집 URL로 진입하면 뷰어로 돌려보낸다 (홈은 '편집 우선'이라 편집 URL로 라우팅됨)
+  useEffect(() => {
+    if (!tutorial) return;
+    if ((tutorial as Tutorial & { my_role?: string }).my_role === 'viewer') {
+      router.replace(`/manual/${id}`);
+    }
+  }, [tutorial, id, router]);
 
   // Undo/Redo history
   const undoRef = useRef<ManualStep[][]>([]);
@@ -681,7 +689,19 @@ export default function EditorPage() {
 
           {/* 편집기 — 항상 편집 모드 */}
           <>
-            {/* SDK 미리보기 토글 */}
+            {/* 미리보기 — 매뉴얼 뷰어를 새 탭에서 (편집 화면과 동일하게 보임) */}
+            <button
+              onClick={() => window.open(`/manual/${id}`, '_blank')}
+              title="매뉴얼 뷰어로 미리보기 (새 탭)"
+              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', cursor: 'pointer', transition: 'all 0.15s' }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#F9FAFB'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
+            >
+              <Eye size={14} />
+              미리보기
+            </button>
+
+            {/* SDK 툴팁 미리보기 토글 (Live Guide 오버레이 렌더 미리보기) */}
             <button
               onClick={() => setShowPreview(v => !v)}
               title="SDK 툴팁 미리보기"
@@ -690,7 +710,7 @@ export default function EditorPage() {
               onMouseLeave={e => { if (!showPreview) e.currentTarget.style.background = 'white'; }}
             >
               <MonitorPlay size={13} />
-              미리보기
+              SDK 미리보기
             </button>
 
             {/* 댓글 패널 토글 — 팀 협업 의견 공유 */}

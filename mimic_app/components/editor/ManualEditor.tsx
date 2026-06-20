@@ -1336,6 +1336,8 @@ function ScreenshotArea({ step, onUploadClick, onDrop, onAnnotate, onRemove, onF
       style={{
         margin: '0 12px 12px', borderRadius: '8px', overflow: 'hidden',
         border: '1px solid #E5E7EB', position: 'relative',
+        // 뷰어(ViewerStepCard)와 동일 박스: 중앙정렬 + 회색 배경 (편집 화면 = 최종 화면, WYSIWYG)
+        display: 'flex', justifyContent: 'center', background: '#F3F4F6',
         cursor: zoom > 1 ? (panning ? 'grabbing' : 'grab') : 'pointer',
       }}
       onMouseEnter={() => setImgHover(true)}
@@ -1351,7 +1353,7 @@ function ScreenshotArea({ step, onUploadClick, onDrop, onAnnotate, onRemove, onF
         transformOrigin: 'center center',
       }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={step.screenshotUrl} alt={step.actionTitle} draggable={false} style={{ width: '100%', display: 'block', userSelect: 'none' }} />
+        <img src={step.screenshotUrl} alt={step.actionTitle} draggable={false} style={{ width: 'auto', maxWidth: '100%', maxHeight: 'calc(100vh - 320px)', height: 'auto', display: 'block', userSelect: 'none' }} />
 
         {/* Annotation SVG overlay (read-only preview) — 확대 시 어노테이션은 일정 크기 유지(역보정) */}
         {hasAnnotations && (
