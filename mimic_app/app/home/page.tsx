@@ -929,7 +929,8 @@ export default function DashboardPage() {
   };
 
   const handleRemove = async (id: string) => {
-    await fetch(`/api/tutorials/${id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/tutorials/${id}`, { method: 'DELETE' });
+    if (!res.ok) { alert('삭제 중 오류가 발생했습니다.'); return; }
     setTutorials(prev => prev.filter(t => t.id !== id));
   };
 
@@ -1041,7 +1042,7 @@ export default function DashboardPage() {
     return list;
   })();
 
-  const practiceTutorials = displayedTutorials.filter(t => t.share_token);
+  const practiceTutorials = displayedTutorials.filter(t => t.share_token && t.status === 'published');
 
   const displayedPages = (() => {
     if (!searchQuery.trim()) return pages;

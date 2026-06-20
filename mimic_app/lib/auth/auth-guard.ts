@@ -22,7 +22,7 @@ export async function requireAuth(_request: NextRequest): Promise<AuthGuardResul
 
 // Admin 인증 — ADMIN_EMAIL 환경변수 기반
 export async function requireAdmin(): Promise<AuthGuardResult> {
-  const adminEmail = process.env.ADMIN_EMAIL;
+  const adminEmail = process.env.ADMIN_EMAIL?.replace(/^﻿/, '').trim();
   if (!adminEmail) {
     return { ok: false, response: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
   }

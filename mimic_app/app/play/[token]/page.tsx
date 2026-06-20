@@ -722,7 +722,7 @@ export default function PlayerPage() {
         <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
           <InteractiveFollowPlayer
             title={tutorial.title}
-            lockAfterStep={authChecked && !isAuthed ? 1 : null}
+            lockAfterStep={/* 인증 확인 전엔 보수적으로 잠금 — 로딩 윈도우 게이트 우회 차단 */ !authChecked || !isAuthed ? 1 : null}
             steps={toFollowSteps(tutorial.steps.map(s => ({
               title: s.title,
               body: s.caption,
@@ -824,8 +824,8 @@ export default function PlayerPage() {
                 <span
                   style={{
                     position: 'absolute',
-                    left: `${step.click_x * 100}%`,
-                    top: `${step.click_y * 100}%`,
+                    left: `${clickToPct(step.click_x) ?? 0}%`,
+                    top: `${clickToPct(step.click_y) ?? 0}%`,
                     transform: 'translate(-50%, -50%)',
                     width: '64px', height: '64px',
                     borderRadius: '50%',

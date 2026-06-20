@@ -16,7 +16,7 @@ import { useAutosave } from '@/hooks/useAutosave';
 import { useAuth } from '@/hooks/useAuth';
 import { useCollaboration } from '@/hooks/useCollaboration';
 import type { Collaborator } from '@/hooks/useCollaboration';
-import { updateStep, createStep, deleteStep, reorderSteps } from '@/lib/api/steps';
+import { updateStep, createStep, deleteStep, reorderSteps, duplicateStep } from '@/lib/api/steps';
 import { getTutorial } from '@/lib/api/tutorials';
 import { logError } from '@/lib/logging/logger';
 import type { Step, Tutorial } from '@/types';
@@ -535,6 +535,31 @@ export default function EditorPage() {
     }
   }, [manualSteps, setManualStepsWithHistory, id]);
 
+  const handleDuplicateStep = useCallback(async (srcId: string) => {
+    const idx = manualSteps.findIndex(s => s.id === srcId);
+    if (idx < 0) return;
+    const src = manualSteps[idx];
+    if (srcId.startsWith('step-')) return; // 임시 스텝은 아직 DB에 없어 복제 불가
+    // 디바운스 대기 중인 소스 텍스트 편집을 먼저 flush — 서버는 DB 행을 복사하므로 최신화 필요
+    clearTimeout(stepSaveTimers.current[srcId]);
+    try {
+      await updateStep(srcId, { user_title: src.actionTitle || null, user_script: src.description || null });
+      const created = await duplicateStep(srcId);
+      // 서버가 DB 전체를 복사 → 로컬은 소스 콘텐츠 그대로 복제하고 실제 id만 부여
+      setManualSteps(prev => {
+        const i = prev.findIndex(s => s.id === srcId);
+        if (i < 0) return prev;
+        const copy: ManualStep = { ...prev[i], id: created.id };
+        const next = [...prev.slice(0, i + 1), copy, ...prev.slice(i + 1)];
+        return next.map((s, n) => ({ ...s, number: n + 1 }));
+      });
+      setActiveId(created.id);
+    } catch (e) {
+      logError('step.duplicate.fail', { tutorialId: id, stepId: srcId, message: e instanceof Error ? e.message : String(e) });
+      alert('단계를 복제하지 못했습니다. 네트워크 연결을 확인 후 다시 시도해 주세요.');
+    }
+  }, [manualSteps, id]);
+
   const handleImportSteps = useCallback(async (sourceTutorialId: string, stepIds: string[]) => {
     const res = await fetch(`/api/tutorials/${id}/import-steps`, {
       method: 'POST',
@@ -1051,13 +1076,19 @@ export default function EditorPage() {
                 alert('단계 삭제를 저장하지 못했습니다. 네트워크 연결을 확인 후 다시 시도해 주세요.');
               });
             }}
+            onDuplicateStep={handleDuplicateStep}
             onAddComment={(stepId) => {
               setActiveId(stepId);
               setShowComments(true);
             }}
             onSave={(stepId, patch) => {
               if (stepId.startsWith('step-')) return;
-              clearTimeout(stepSaveTimers.current[stepId]);
+              // 텍스트(제목/본문)를 함께 저장할 때만 진행 중인 텍스트 디바운스를 취소한다.
+              // 어노테이션/줌/폰트 단독 저장은 다른 컬럼(부분 PATCH)이라, 텍스트 타이머를 죽이면
+              // 입력 직후 600ms 안에 어노테이션을 만진 경우 미저장 텍스트가 유실된다.
+              if (patch.actionTitle !== undefined || patch.description !== undefined) {
+                clearTimeout(stepSaveTimers.current[stepId]);
+              }
               updateStep(stepId, {
                 ...(patch.actionTitle !== undefined ? { user_title: patch.actionTitle || null } : {}),
                 ...(patch.titleFontSize !== undefined ? { title_font_size: patch.titleFontSize } : {}),

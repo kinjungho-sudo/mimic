@@ -141,7 +141,7 @@ export function FollowStage({
   // transform: scale(S) 후 점 (px,py)의 시각 위치 = pivot + (px-pivot)*S
   let outBubbleLeft = bubbleLeft;
   let outBubbleTop = bubbleTop;
-  if (hasHotspot && box.w && box.h && isAnimated) {
+  if (!bubbleAnchor && hasHotspot && box.w && box.h && isAnimated) {
     const zoomCXpx = (zoomCX / 100) * box.w;
     const zoomCYpx = (zoomCY / 100) * box.h;
     const visHxPx = zoomCXpx + ((hx! / 100) * box.w - zoomCXpx) * zoomScale;
@@ -203,9 +203,10 @@ export function FollowStage({
   }
 
   return (
-    <div ref={ref} onClick={onImageClick} style={{ position: 'relative', display: 'inline-block', lineHeight: 0, cursor: imageCursor, maxWidth: '100%', maxHeight: '100%' }}>
+    <div ref={ref} style={{ position: 'relative', display: 'inline-block', lineHeight: 0, cursor: imageCursor, maxWidth: '100%', maxHeight: '100%' }}>
       {/* 줌 래퍼 — domRect+animPhase 있을 때만 scale 적용. children(스튜디오 핸들)은 밖에 둠 */}
-      <div style={{ position: 'relative', lineHeight: 0, ...zoomStyle }}>
+      {/* onClick은 스케일 적용된 이 div에 부착 — getBoundingClientRect가 줌 후 박스를 반환해 클릭 좌표가 원본 이미지 좌표로 정확히 매핑됨 */}
+      <div onClick={onImageClick} style={{ position: 'relative', lineHeight: 0, ...zoomStyle }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={screenshotUrl} alt={title} draggable={false} style={{ display: 'block', maxWidth: '100%', maxHeight: imgMaxHeight, width: 'auto', height: 'auto', userSelect: 'none' }} />
 

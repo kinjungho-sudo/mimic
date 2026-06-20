@@ -38,6 +38,12 @@ export async function deleteStep(id: string): Promise<void> {
   await apiFetch(`/api/steps/${id}`, { method: 'DELETE' });
 }
 
+export async function duplicateStep(
+  id: string
+): Promise<{ id: string; step_number: number; order_index: number }> {
+  return apiFetch(`/api/steps/${id}/duplicate`, { method: 'POST' });
+}
+
 export async function reorderSteps(
   tutorialId: string,
   order: Array<{ id: string; order_index: number }>

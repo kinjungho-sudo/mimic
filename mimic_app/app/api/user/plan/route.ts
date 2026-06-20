@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth/auth-guard';
+import { requireAuth, requireAdmin } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { FREE_PLAYBOOK_LIMIT } from '@/lib/plan';
 import { z } from 'zod';
@@ -65,6 +65,12 @@ export async function PATCH(request: NextRequest) {
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: '유효하지 않은 플랜입니다.' }, { status: 400 });
+  }
+
+  // 유료 플랜(pro/team)은 관리자만 부여 가능 — 일반 유저의 자가 업그레이드 차단
+  if (parsed.data.plan === 'pro' || parsed.data.plan === 'team') {
+    const admin = await requireAdmin();
+    if (!admin.ok) return admin.response;
   }
 
   const supabase = createServiceRoleClient();

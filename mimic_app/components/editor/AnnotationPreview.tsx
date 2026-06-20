@@ -71,7 +71,7 @@ export function AnnotationPreview({ annotations, imageUrl, sizeScale = 1, imgRef
         </filter>
         {spotlights.length > 0 && (
           <mask id={spotlightMaskId}>
-            <rect x="0" y="0" width={imgW} height={imgH} fill="white" />
+            <rect x={vbX} y={vbY} width={vbW} height={vbH} fill="white" />
             {spotlights.map(a => {
               const minX = Math.min(a.x1, a.x2), minY = Math.min(a.y1, a.y2);
               const w = Math.abs(a.x2 - a.x1), h = Math.abs(a.y2 - a.y1);
@@ -82,7 +82,7 @@ export function AnnotationPreview({ annotations, imageUrl, sizeScale = 1, imgRef
       </defs>
 
       {spotlights.length > 0 && (
-        <rect x="0" y="0" width={imgW} height={imgH} fill="rgba(0,0,0,0.35)" mask={`url(#${spotlightMaskId})`} />
+        <rect x={vbX} y={vbY} width={vbW} height={vbH} fill="rgba(0,0,0,0.35)" mask={`url(#${spotlightMaskId})`} />
       )}
 
       {annotations.map(a => {

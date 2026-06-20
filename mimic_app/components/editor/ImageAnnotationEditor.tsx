@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useId } from 'react';
 import { X, Trash2, RotateCcw, RotateCw, Bold, Palette } from 'lucide-react';
 import type { BlurRegion } from '@/lib/pixelate';
 
@@ -191,7 +191,12 @@ function hitTestAnnotation(a: Annotation, px: number, py: number, r: number, img
 
 export function ImageAnnotationEditor({
   imageUrl, annotations, onChange, onClose,
+  onPixelate, onRevertBlur, canRevertBlur,
 }: ImageAnnotationEditorProps) {
+  // finishDrawing은 deps=[]로 고정돼 첫 렌더 클로저를 캡처 → 최신 onPixelate를 ref로 읽어 stale 방지
+  const onPixelateRef = useRef(onPixelate);
+  onPixelateRef.current = onPixelate;
+  const [blurProcessing, setBlurProcessing] = useState(false);
   const [canvasZoom, setCanvasZoom] = useState(1);
   const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
@@ -472,15 +477,20 @@ export function ImageAnnotationEditor({
         }
       }
 
-      // 블러: mosaic annotation으로 저장 — 지우개로 제거 가능
+      // 블러: 이미지에 영구 적용(파괴적) — 원본은 서버가 백업, '되돌리기'로 복원 가능
       if ((final.type as string) === 'pixelate') {
-        const blurAnnotation = { ...final, type: 'mosaic' as const };
-        setItems(cur => {
-          const next = [...cur, blurAnnotation];
-          pushHistory(next);
-          setTimeout(() => { setTool('select'); setSelectedId(blurAnnotation.id); }, 0);
-          return next;
-        });
+        const region = {
+          x: Math.min(final.x1, final.x2) / 100,
+          y: Math.min(final.y1, final.y2) / 100,
+          w: Math.abs(final.x2 - final.x1) / 100,
+          h: Math.abs(final.y2 - final.y1) / 100,
+        };
+        const fn = onPixelateRef.current;
+        if (fn && region.w > 0 && region.h > 0) {
+          setBlurProcessing(true);
+          Promise.resolve(fn(region)).finally(() => setBlurProcessing(false));
+        }
+        setTimeout(() => setTool('select'), 0);
         return null;
       }
 
@@ -958,11 +968,18 @@ export function ImageAnnotationEditor({
 
               {/* 힌트 — 색상/굵기/텍스트 없는 툴 */}
               {!showStroke && !showTextOpts && (
-                <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.55)' }}>
-                  {tool === 'pixelate' && '블러 처리할 영역을 드래그하세요 — 지우개로 제거할 수 있습니다'}
-                  {tool === 'eraser' && '지울 요소 위에서 드래그하세요'}
-                  {tool === 'spotlight' && '강조할 영역을 드래그하세요'}
-                </span>
+                <>
+                  <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.55)' }}>
+                    {tool === 'pixelate' && (blurProcessing ? '블러 적용 중…' : '민감정보 영역을 드래그하세요 — 이미지에 영구 적용됩니다 (되돌리기로 복원 가능)')}
+                    {tool === 'eraser' && '지울 요소 위에서 드래그하세요'}
+                    {tool === 'spotlight' && '강조할 영역을 드래그하세요'}
+                  </span>
+                  {tool === 'pixelate' && canRevertBlur && (
+                    <button onClick={() => onRevertBlur?.()} title="블러 적용 전 원본 이미지로 복원"
+                      style={{ marginLeft: 'auto', height: '26px', padding: '0 10px', borderRadius: '5px', border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: 'rgba(255,255,255,0.8)', fontSize: '11px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                    ><RotateCcw size={11} /> 원본으로 되돌리기</button>
+                  )}
+                </>
               )}
 
             </div>
@@ -1153,9 +1170,10 @@ interface SpotlightLayerProps {
 }
 
 function SpotlightLayer({ items, imgW, imgH, tool, selectedId, preview, onBodyMouseDown, onHandleMouseDown }: SpotlightLayerProps) {
+  const uid = useId().replace(/:/g, '');
   const spotlights = items.filter(a => a.type === 'spotlight');
   if (!spotlights.length) return null;
-  const maskId = `spotlight-mask-${Math.random().toString(36).slice(2)}`;
+  const maskId = `spotlight-mask-${uid}`;
   const isSelectTool = tool === 'select';
   const R = 5;
   const handles: Handle[] = ['tl','tc','tr','ml','mr','bl','bc','br'];

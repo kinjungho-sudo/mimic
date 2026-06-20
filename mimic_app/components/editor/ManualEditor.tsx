@@ -55,6 +55,7 @@ interface ManualEditorProps {
   onChange: (steps: ManualStep[]) => void;
   onSave?: (id: string, patch: Partial<ManualStep>) => void;
   onDeleteStep?: (id: string) => void;
+  onDuplicateStep?: (id: string) => void;
   hideToc?: boolean;
   activeId?: string | null;
   onActiveChange?: (id: string) => void;
@@ -65,7 +66,7 @@ interface ManualEditorProps {
 
 // ── ManualEditor ──────────────────────────────────────────
 
-export function ManualEditor({ steps, onChange, onSave, onDeleteStep, hideToc, activeId: externalActiveId, onActiveChange, selectedIds: externalSelectedIds, onSelectChange, onAddComment }: ManualEditorProps) {
+export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicateStep, hideToc, activeId: externalActiveId, onActiveChange, selectedIds: externalSelectedIds, onSelectChange, onAddComment }: ManualEditorProps) {
   const [internalActiveId, setInternalActiveId] = useState<string | null>(
     steps.length > 0 ? steps[0].id : null
   );
@@ -141,6 +142,11 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, hideToc, a
 
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
+  // 삭제 확인 모달이 열린 채 해당 스텝이 외부에서 제거되면 모달을 닫는다
+  useEffect(() => {
+    if (pendingDeleteId && !steps.some(s => s.id === pendingDeleteId)) setPendingDeleteId(null);
+  }, [steps, pendingDeleteId]);
+
   const performDelete = (id: string) => {
     const next = steps.filter(s => s.id !== id).map((s, i) => ({ ...s, number: i + 1 }));
     onChange(next);
@@ -148,20 +154,6 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, hideToc, a
     if (activeId === id) setActiveId(next[0]?.id ?? null);
     setSelectedIds(prev => { const s = new Set(prev); s.delete(id); return s; });
     setPendingDeleteId(null);
-  };
-
-  const duplicateStep = (id: string) => {
-    const idx = steps.findIndex(s => s.id === id);
-    if (idx < 0) return;
-    const src = steps[idx];
-    const newStep = { ...src, id: crypto.randomUUID() };
-    const next = [
-      ...steps.slice(0, idx + 1),
-      newStep,
-      ...steps.slice(idx + 1),
-    ].map((s, i) => ({ ...s, number: i + 1 }));
-    onChange(next);
-    setActiveId(newStep.id);
   };
 
   const deleteStep = (id: string) => setPendingDeleteId(id);
@@ -378,7 +370,7 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, hideToc, a
                     onUpdate={patch => updateStep(step.id, patch)}
                     onSave={patch => { updateStep(step.id, patch); onSave?.(step.id, patch); }}
                     onDelete={() => deleteStep(step.id)}
-                    onDuplicate={() => duplicateStep(step.id)}
+                    onDuplicate={() => onDuplicateStep?.(step.id)}
                     onZoom={() => step.screenshotUrl && setZoomUrl(step.screenshotUrl)}
                     onAnnotate={() => { if (!step.screenshotUrl) return; setActiveId(step.id); setAnnotatingId(step.id); }}
                     onRemoveImage={() => { updateStep(step.id, { screenshotUrl: undefined, annotations: [] }); onSave?.(step.id, { screenshotUrl: undefined, annotations: [] }); }}
@@ -705,6 +697,8 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
   // 음성 구간 재생 — 세션 음성에서 이 스텝 구간([start,end])만 재생
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [audioPlaying, setAudioPlaying] = useState(false);
+  // 언마운트 시 재생 중이던 음성 정지 — 카드가 사라져도 오디오가 계속 재생되는 누수 방지
+  useEffect(() => () => { try { audioRef.current?.pause(); } catch { /* noop */ } }, []);
   const handlePlayVoice = () => {
     const url = step.voiceAudioUrl;
     if (!url) return;
@@ -713,8 +707,12 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
       setAudioPlaying(false);
       return;
     }
-    const audio = audioRef.current ?? new Audio(url);
-    audioRef.current = audio;
+    // url이 바뀌면 기존 오디오 객체를 재사용하지 않는다(옛 스텝 음성 재생 방지)
+    if (!audioRef.current || audioRef.current.src !== url) {
+      try { audioRef.current?.pause(); } catch { /* noop */ }
+      audioRef.current = new Audio(url);
+    }
+    const audio = audioRef.current;
     const startS = (step.voiceAudioStartMs ?? 0) / 1000;
     const endS = step.voiceAudioEndMs != null ? step.voiceAudioEndMs / 1000 : null;
     audio.currentTime = startS;

@@ -136,6 +136,15 @@ export async function GET(
 
   const supabase = createServiceRoleClient();
 
+  // 공개(published) 튜토리얼만 번역 조회 허용 — 뷰어는 비로그인 접근이므로 published 여부로 가드
+  const { data: tutorial } = await supabase
+    .from('mm_tutorials')
+    .select('id')
+    .eq('id', id)
+    .eq('status', 'published')
+    .single();
+  if (!tutorial) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
   const { data: steps } = await supabase
     .from('mm_steps')
     .select('id')

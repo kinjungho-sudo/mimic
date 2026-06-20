@@ -64,15 +64,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ workspace_id: inv.workspace_id, already_member: true });
   }
 
-  // 멤버 추가 + 초대 상태 업데이트 (병렬)
-  await Promise.all([
-    supabase.from('mm_workspace_members').insert({
-      workspace_id: inv.workspace_id,
-      user_id: auth.userId,
-      role: inv.role,
-    }),
-    supabase.from('mm_workspace_invitations').update({ status: 'accepted' }).eq('token', token),
-  ]);
+  // 멤버 추가 — 실패 시 초대를 소진시키지 않고 에러 반환
+  const { error: memberErr } = await supabase.from('mm_workspace_members').insert({
+    workspace_id: inv.workspace_id,
+    user_id: auth.userId,
+    role: inv.role,
+  });
+  if (memberErr) {
+    return NextResponse.json({ error: '워크스페이스 참여에 실패했습니다.' }, { status: 500 });
+  }
+  await supabase.from('mm_workspace_invitations').update({ status: 'accepted' }).eq('token', token);
 
   return NextResponse.json({ workspace_id: inv.workspace_id });
 }
