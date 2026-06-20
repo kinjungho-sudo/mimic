@@ -134,8 +134,9 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
     );
     Object.values(contentRefs.current).forEach(el => { if (el) observer.observe(el); });
     return () => observer.disconnect();
+  // steps 개수뿐 아니라 순서/교체까지 반영해 재구독 (id 시그니처)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [steps.length, onActiveChange]);
+  }, [steps.map(s => s.id).join(','), onActiveChange]);
 
   const updateStep = (id: string, patch: Partial<ManualStep>) =>
     onChange(steps.map(s => s.id === id ? { ...s, ...patch } : s));
@@ -170,6 +171,10 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
   const selectAll = () => setSelectedIds(new Set(steps.map(s => s.id)));
   const clearSelection = () => setSelectedIds(new Set());
 
+  // 비동기(AI 재작성 등) 완료 시점에 최신 steps를 읽기 위한 ref — 진행 중 다른 스텝 편집을 덮어쓰지 않도록
+  const stepsRef = useRef(steps);
+  stepsRef.current = steps;
+
   const bulkAiRewrite = async (instruction: string, label: string) => {
     // 전체 스텝을 순서대로 보내되, 선택된 것만 실제로 교체
     const allWithText = steps
@@ -200,7 +205,7 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
           .filter((r: { id: string; result: string }) => selectedIds.has(r.id) && r.result)
           .map((r: { id: string; result: string }) => [r.id, r.result])
       );
-      const next = steps.map(s => updated.has(s.id) ? { ...s, description: updated.get(s.id)! } : s);
+      const next = stepsRef.current.map(s => updated.has(s.id) ? { ...s, description: updated.get(s.id)! } : s);
       onChange(next);
       next.filter(s => updated.has(s.id)).forEach(s => onSave?.(s.id, { description: s.description }));
     } finally {

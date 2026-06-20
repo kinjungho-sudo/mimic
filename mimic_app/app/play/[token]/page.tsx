@@ -576,7 +576,8 @@ export default function PlayerPage() {
   }, [currentStep, tutorial, ttsEnabled]);
 
   useEffect(() => {
-    if (isPlaying && tutorial) {
+    // 슬라이드 모드일 때만 자동재생 — 다른 모드로 전환 시 백그라운드로 인덱스가 진행되는 누수 방지
+    if (isPlaying && tutorial && viewMode === 'slides') {
       playTimerRef.current = setInterval(() => {
         setCurrentStep(s => {
           if (s < tutorial.steps.length - 1) return s + 1;
@@ -585,11 +586,11 @@ export default function PlayerPage() {
           return s;
         });
       }, 3000);
-    } else if (!isPlaying && playTimerRef.current) {
+    } else if (playTimerRef.current) {
       clearInterval(playTimerRef.current);
     }
     return () => { if (playTimerRef.current) clearInterval(playTimerRef.current); };
-  }, [isPlaying, tutorial]);
+  }, [isPlaying, tutorial, viewMode]);
 
   if (loading) {
     return (
