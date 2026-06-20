@@ -5,6 +5,8 @@ import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { readFile } from 'fs/promises';
 import path from 'path';
 import { assertStorageUrl } from '@/lib/validate-storage-url';
+import { drawAnnotationsOnPdf } from '@/lib/export/annotate-pdf';
+import type { ExportAnnotation } from '@/lib/export/annotations-shared';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const fontkit = require('@pdf-lib/fontkit');
 
@@ -70,7 +72,7 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   const { data: steps } = await supabase
     .from('mm_steps')
-    .select('step_number, screenshot_url, user_title, ai_title, user_script, ai_description')
+    .select('step_number, screenshot_url, user_title, ai_title, user_script, ai_description, user_annotations')
     .eq('tutorial_id', id)
     .order('step_number');
 
@@ -206,6 +208,13 @@ export async function GET(request: NextRequest, { params }: Params) {
           const drawX = imgX + (imgW - drawW) / 2;
           const drawY = cursorY - drawH;
           page.drawImage(img, { x: drawX, y: drawY, width: drawW, height: drawH });
+          // 스크린샷 위에 어노테이션(화살표·박스·마커·텍스트 등)을 벡터로 합성 — 뷰어와 일치
+          drawAnnotationsOnPdf(
+            page,
+            (step as { user_annotations?: unknown }).user_annotations as ExportAnnotation[] | null | undefined,
+            { x: drawX, y: drawY, w: drawW, h: drawH },
+            font, fontBold,
+          );
         }
       } else {
         imgBlockH = 140;
@@ -219,8 +228,9 @@ export async function GET(request: NextRequest, { params }: Params) {
 
     cursorY -= imgBlockH + 16;
 
-    // ── 설명 텍스트 ──
-    const desc = step.user_script ?? step.ai_description ?? '';
+    // ── 설명 텍스트 ── (HTML 태그 제거: 본문은 <br>/<b> 등이 포함된 HTML 문자열)
+    const desc = (step.user_script ?? step.ai_description ?? '')
+      .replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '').trim();
     if (desc && cursorY > 60) {
       page.drawLine({ start: { x: cardX, y: cursorY }, end: { x: cardX + cardW, y: cursorY }, thickness: 0.5, color: rgb(0.957, 0.961, 0.965) });
       cursorY -= 14;

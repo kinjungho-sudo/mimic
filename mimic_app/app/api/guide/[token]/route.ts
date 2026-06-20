@@ -102,7 +102,8 @@ async function fetchSteps(supabase: ReturnType<typeof createServiceRoleClient>, 
       'page_url, element_selector, element_xpath, element_rect, click_x, click_y, screenshot_url, follow_config, type_text'
     )
     .eq('tutorial_id', tutorialId)
-    .order('order_index');
+    .order('order_index')
+    .order('step_number'); // tie-break: order_index 동률/NULL(복제·레거시 데이터)일 때 순서 결정성 보장
 
   const steps = ((rawSteps ?? []) as unknown as Record<string, unknown>[]).map(s => {
     const fc = (s.follow_config ?? {}) as {

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { assertStorageUrl } from '@/lib/validate-storage-url';
+import { drawAnnotationsOnPptx } from '@/lib/export/annotate-pptx';
+import { getImageDims, type ExportAnnotation } from '@/lib/export/annotations-shared';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const PptxGenJS = require('pptxgenjs');
 
@@ -33,7 +35,7 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   const { data: steps } = await supabase
     .from('mm_steps')
-    .select('step_number, screenshot_url, user_title, ai_title, user_script, ai_description')
+    .select('step_number, screenshot_url, user_title, ai_title, user_script, ai_description, user_annotations')
     .eq('tutorial_id', id)
     .order('step_number');
 
@@ -148,6 +150,19 @@ export async function GET(request: NextRequest, { params }: Params) {
           x: imgX, y: imgY, w: imgW, h: imgH,
           sizing: { type: 'contain', w: imgW, h: imgH },
         });
+        // contain 레터박스 후 실제 표시 사각형 계산 → 그 위에 어노테이션 합성 (뷰어와 일치)
+        const dim = getImageDims(imgBuf);
+        let drawRect = { x: imgX, y: imgY, w: imgW, h: imgH };
+        if (dim && dim.w > 0 && dim.h > 0) {
+          const scale = Math.min(imgW / dim.w, imgH / dim.h);
+          const dw = dim.w * scale, dh = dim.h * scale;
+          drawRect = { x: imgX + (imgW - dw) / 2, y: imgY + (imgH - dh) / 2, w: dw, h: dh };
+        }
+        drawAnnotationsOnPptx(
+          pptx, slide,
+          (step as { user_annotations?: unknown }).user_annotations as ExportAnnotation[] | null | undefined,
+          drawRect,
+        );
       }
     } catch {
       slide.addText('이미지 없음', {
@@ -166,7 +181,8 @@ export async function GET(request: NextRequest, { params }: Params) {
       fill: { color: brandColor },
     });
 
-    const desc = step.user_script ?? step.ai_description ?? '';
+    const desc = (step.user_script ?? step.ai_description ?? '')
+      .replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '').trim();
     if (desc) {
       slide.addText(desc, {
         x: 0.6, y: H - CAPTION_H, w: W - 1.2, h: CAPTION_H,

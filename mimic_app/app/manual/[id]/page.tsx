@@ -41,6 +41,13 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
     imageZoom: (s as Step & { image_zoom?: number | null }).image_zoom ?? 1,
     imageOffsetX: (s as Step & { image_offset_x?: number | null }).image_offset_x ?? 0,
     imageOffsetY: (s as Step & { image_offset_y?: number | null }).image_offset_y ?? 0,
+    // crop_rect: DB는 {x,y,width,height} 또는 {x,y,w,h} 혼재 → 뷰어 계약({x,y,w,h})으로 정규화 (편집기 어댑터와 동일)
+    crop_rect: (() => {
+      type CR = { x: number; y: number; width?: number; height?: number; w?: number; h?: number };
+      const cr = (s as Step & { crop_rect?: CR | null }).crop_rect;
+      if (!cr) return null;
+      return { x: cr.x, y: cr.y, w: cr.w ?? cr.width ?? 0, h: cr.h ?? cr.height ?? 0 };
+    })(),
     element_rect: (s as Step & { element_rect?: { x: number; y: number; width: number; height: number } | null }).element_rect ?? null,
     click_x: clickToPct((s as Step & { click_x?: number | null }).click_x),
     click_y: clickToPct((s as Step & { click_y?: number | null }).click_y),
