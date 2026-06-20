@@ -186,7 +186,8 @@
   // 한 입력 필드 = 한 스텝. 첫 입력 때 예약한 pendingInputStep을 계속 overwrite 한다.
   //   finalize=false : 입력 멈춤(디바운스) — 같은 스텝 갱신, 세션 유지
   //   finalize=true  : 포커스 이동/Enter/녹화 종료 — 세션 종료(다음 입력은 새 스텝)
-  //   opts.usePrecapture : Enter 등 액션 직전에 찍은 선캡처 프레임을 스텝 이미지로 우선 사용
+  //   opts.usePrecapture : Enter/다른 요소 클릭 등 액션 직전 선캡처 프레임을 스텝 이미지로 우선 사용
+  //   opts.peekPrecapture : 선캡처 프레임을 소비(폐기)하지 않고 둠 — 뒤따르는 클릭 스텝이 같은 프레임 재사용
   function flushTyping(el, finalize = true, opts = {}) {
     clearTimeout(typingTimer);
     typingTimer = null;
@@ -225,7 +226,8 @@
       clickX: cx, clickY: cy,
       windowWidth: vw, windowHeight: vh,
       viewportW: vw, viewportH: vh,
-      stepNumber: stepForThis, overwrite: true, useTypingFrame: true, usePrecapture: !!opts.usePrecapture,
+      stepNumber: stepForThis, overwrite: true, useTypingFrame: true,
+      usePrecapture: !!opts.usePrecapture, peekPrecapture: !!opts.peekPrecapture,
       typedText,
       elementRect: normalizeRect(rect, vw, vh), elementSelector: getElementSelector(el), elementXPath: getElementXPath(el),
       actionInfo: { type: 'type', text: label, typedText, masked: isMasked },
@@ -868,15 +870,16 @@
       // 다른 필드로 옮겼을 때만 이전 입력을 마감(flush가 세션을 끝냄 → 새 스텝).
       // 같은 필드 재클릭·리치 에디터 재마운트는 세션을 유지해 입력 스텝이 쪼개지지 않게 한다.
       if (typingTarget && typingTarget !== target && !isRemountedTyping(typingTarget)) {
-        flushTyping(typingTarget);
+        flushTyping(typingTarget, true, { usePrecapture: true, peekPrecapture: true });
       }
       typingTarget = target;
       lastFocusInputTarget = target;
       lastFocusInputTime   = now;
       // 아래로 진행해서 캡처
     } else {
-      // 진행 중이던 타이핑 flush
-      if (typingTarget) flushTyping(typingTarget);
+      // 진행 중이던 타이핑 flush — 클릭(액션) 직전 선캡처 프레임을 타이핑 스텝 이미지로 쓰고,
+      // 소비하지 않아(peek) 아래 클릭 스텝이 같은 프레임을 재사용한다.
+      if (typingTarget) flushTyping(typingTarget, true, { usePrecapture: true, peekPrecapture: true });
     }
 
     showClickHighlight(e.clientX, e.clientY);
@@ -1056,7 +1059,9 @@
     if (!isRecording || isPaused) return;
     if (!typingTarget || e.target !== typingTarget) return;
     if (!e.relatedTarget) return;  // 페이지 밖으로 포커스 이탈(창 전환)은 무시
-    flushTyping(typingTarget);
+    // relatedTarget(다음 포커스 대상)이 있다 = 그 요소의 pointerdown 선캡처가 떠 있다.
+    // 그 '액션 직전' 프레임(완성 텍스트)을 타이핑 스텝 이미지로 쓰고, peek로 클릭 스텝과 공유한다.
+    flushTyping(typingTarget, true, { usePrecapture: true, peekPrecapture: true });
   }, true);
 
   // ── 파일 업로드 캡처 ─────────────────────────────────────────────

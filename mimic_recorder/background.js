@@ -762,7 +762,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           && (Date.now() - _preCaptureFrame.time) < PRECAPTURE_MAX_AGE_MS) {
         capturedRaw = _preCaptureFrame.dataUrl;
       }
-      _preCaptureFrame = null;  // 1회용 — 소비 후 폐기
+      // 기본은 1회용(소비 후 폐기). peek은 폐기하지 않고 둬, 같은 액션의 후속 클릭 스텝이
+      // 동일 프레임을 재사용하게 한다(타이핑 확정 → 그 클릭 캡처가 같은 '액션 직전' 화면 공유).
+      if (!stepData.peekPrecapture) _preCaptureFrame = null;
       // 타이핑 확정: 전송 직전 롤링 프레임 사용 (비동기 캡처가 전송 후 빈 입력창을 잡는 문제 방지).
       // 소비하지 않는다 — 같은 입력 세션의 여러 flush(soft/final)가 최신 프레임을 공유.
       if (!capturedRaw && stepData.useTypingFrame && _typingFrame
