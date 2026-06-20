@@ -62,7 +62,7 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
     const t2 = setTimeout(() => setAnimPhase('focused'), 1700);
     phaseTimers.current = [t1, t2];
     return () => { phaseTimers.current.forEach(clearTimeout); phaseTimers.current = []; };
-  }, [idx]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [idx, done]); // done 추가: '다시 실습하기'(idx 변화 없이 done→false)에서도 줌 시퀀스 재생 // eslint-disable-line react-hooks/exhaustive-deps
 
   // 언마운트 정리: 전환 중 닫히면 setState 경고/오디오 누수가 나므로 타이머·오디오 해제
   useEffect(() => () => {

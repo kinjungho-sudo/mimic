@@ -50,8 +50,9 @@ export function GuideViewer({ steps, activeId, onActiveChange, outputRatio = '16
     );
     els.forEach(([, el]) => obs.observe(el!));
     return () => obs.disconnect();
+  // steps 개수뿐 아니라 순서/교체까지 반영해 재구독 (id 시그니처)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [steps.length]);
+  }, [steps.map(s => s.id).join(',')]);
 
   if (!steps.length) {
     return (
