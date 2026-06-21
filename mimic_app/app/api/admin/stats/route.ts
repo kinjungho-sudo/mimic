@@ -15,13 +15,14 @@ export async function GET() {
   const [usersRes, tutorialsRes, viewsRes, proSignupsRes] = await Promise.all([
     service.from('mm_users').select('id, plan, created_at'),
     service.from('mm_tutorials').select('id, status, created_at'),
-    service.from('mm_view_events').select('id, event_type, timestamp, viewer_session_id'),
+    service.from('mm_view_events').select('id, event_type, timestamp, viewer_session_id').limit(100000), // 메모리 안전 상한(데이터 증가 시 SQL 집계로 전환)
     service.from('mm_pro_signups').select('id'),
   ]);
 
   const users = usersRes.data ?? [];
   const tutorials = tutorialsRes.data ?? [];
   const views = viewsRes.data ?? [];
+  if (views.length >= 100000) console.warn('[admin/stats] view_events 100k 상한 도달 — 집계 부정확, RPC 집계 전환 필요');
   const proSignups = proSignupsRes.data ?? [];
 
   const dailySignups: Record<string, number> = {};

@@ -37,8 +37,9 @@ export async function GET(request: NextRequest) {
   }
   if (q) {
     // event 또는 message 부분일치 (대소문자 무시)
-    const safe = q.replace(/[%,]/g, ' ');
-    query = query.or(`event.ilike.%${safe}%,message.ilike.%${safe}%`);
+    // PostgREST or() 문법·ilike 와일드카드 메타문자 제거 (필터 주입 방지)
+    const safe = q.replace(/[%_,()*\\"]/g, ' ').trim();
+    if (safe) query = query.or(`event.ilike.%${safe}%,message.ilike.%${safe}%`);
   }
   if (before) {
     query = query.lt('created_at', before);

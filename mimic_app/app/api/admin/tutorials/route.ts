@@ -15,10 +15,12 @@ export async function GET() {
     service
       .from('mm_view_events')
       .select('tutorial_id')
-      .eq('event_type', 'enter'),
+      .eq('event_type', 'enter')
+      .limit(100000), // 메모리 안전 상한 — 초과 시 view_count 부정확(데이터 증가 시 SQL 집계 RPC로 전환)
   ]);
 
   if (tutorialsRes.error) return NextResponse.json({ error: tutorialsRes.error.message }, { status: 500 });
+  if ((viewsRes.data?.length ?? 0) >= 100000) console.warn('[admin/tutorials] view_events 100k 상한 도달 — view_count 부정확, RPC 집계 전환 필요');
 
   const viewCounts: Record<string, number> = {};
   for (const v of viewsRes.data ?? []) {
