@@ -204,7 +204,11 @@ function updateLoginState(hasToken, expired = false) {
   });
   btn.textContent = expired ? '다시 연동하기' : '로그인 / 연동하기';
   btn.addEventListener('click', () => {
-    chrome.tabs.create({ url: 'https://mimic-nine-ashen.vercel.app/extension-link' });
+    // 웹스토어 배포본=운영 / 개발자 언패킹=dev(localhost) — chrome.runtime.id로 자동 분기
+    const origin = chrome.runtime.id === 'ehbhcdkapcbfehinjapabgoegcjmmbgd'
+      ? 'https://mimic-nine-ashen.vercel.app'
+      : 'http://localhost:3000';
+    chrome.tabs.create({ url: `${origin}/extension-link` });
   });
 
   notice.append(msgEl, btn);

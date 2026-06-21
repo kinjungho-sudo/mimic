@@ -1,8 +1,21 @@
-// ── 상수 ─────────────────────────────────────────────────────────
-const SUPABASE_URL      = 'https://gqynptpjomcqzxyykqic.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxeW5wdHBqb21jcXp4eXlrcWljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NTcyNzMsImV4cCI6MjA4NzEzMzI3M30.7OgewnWhbE2GK1k0tTuuegrKUVkHuJrW_cpvbVRcH1E';
+// ── 환경 자동 판별 ────────────────────────────────────────────────
+// 웹스토어 배포본(고정 ID)=운영 / 개발자 언패킹(다른 ID)=dev.
+// chrome.runtime.id로 자동 구분 → 배포본이 실수로 dev를 가리킬 위험 없음.
+const PROD_EXTENSION_ID = 'ehbhcdkapcbfehinjapabgoegcjmmbgd';
+const IS_DEV = chrome.runtime.id !== PROD_EXTENSION_ID;
+
+// ── 상수 (환경별) ─────────────────────────────────────────────────
+const SUPABASE_URL      = IS_DEV
+  ? 'https://dskphgxurxebblnpwhax.supabase.co'   // dev 전용 DB(도쿄)
+  : 'https://gqynptpjomcqzxyykqic.supabase.co';  // 운영(싱가포르)
+const SUPABASE_ANON_KEY = IS_DEV
+  ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRza3BoZ3h1cnhlYmJsbnB3aGF4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczNTUxNjcsImV4cCI6MjA5MjkzMTE2N30.xD80PAqMbzXX1Hdde1O0x2VpX8dXkNWum3jKhOml9ZM'
+  : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxeW5wdHBqb21jcXp4eXlrcWljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NTcyNzMsImV4cCI6MjA4NzEzMzI3M30.7OgewnWhbE2GK1k0tTuuegrKUVkHuJrW_cpvbVRcH1E';
 const SUPABASE_BUCKET   = 'naviaction';
-const WEBAPP_ORIGIN     = 'https://mimic-nine-ashen.vercel.app';
+const WEBAPP_ORIGIN     = IS_DEV
+  ? 'http://localhost:3000'                       // dev: 로컬 앱(포트 3000 고정 권장)
+  : 'https://mimic-nine-ashen.vercel.app';        // 운영
+if (IS_DEV) console.warn('[MIMIC Recorder] DEV 모드 — dev DB/localhost 연결 (id:', chrome.runtime.id, ')');
 const JPEG_QUALITY_DEFAULT = 0.92;
 const MAX_STEPS         = 30;
 
@@ -1193,6 +1206,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'AI_REGROUND') {
     (async () => {
       try {
+        // 공개/미연동 시청자(share_token, extensionToken 없음)는 AI 재탐색(비용) 생략 —
+        // 기존 best-effort 오버레이/대기 유지. doomed authedFetch·스크린샷 캡처 자체를 사전 차단.
+        // (연동된 소유자는 토큰이 있으므로 아래 정상 reground 경로로 진행)
+        const { extensionToken } = await storageGet('extensionToken');
+        if (!extensionToken) { sendResponse({ found: false }); return; }
+
         const winId = sender.tab?.windowId;
         const dataUrl = await new Promise((resolve) => {
           chrome.tabs.captureVisibleTab(winId, { format: 'png' }, (u) => {
