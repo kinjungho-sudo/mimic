@@ -602,7 +602,8 @@ insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
   ('audio','audio', true, null, null),
   ('avatars','avatars', true, 2097152, array['image/jpeg','image/png','image/webp','image/gif']),
   ('branding','branding', true, null, null),
-  ('mimic-tts','mimic-tts', true, 10485760, array['audio/mpeg','audio/mp3'])
+  ('mimic-tts','mimic-tts', true, 10485760, array['audio/mpeg','audio/mp3']),
+  ('naviaction','naviaction', true, null, null)   -- 확장(mimic_recorder) 원본 캡처 업로드 대상
 on conflict (id) do nothing;
 
 -- screenshots
@@ -617,6 +618,11 @@ create policy "audio_update_own" on storage.objects for update to authenticated 
 create policy "mimic_tts_public_select" on storage.objects for select to public using (bucket_id = 'mimic-tts');
 create policy "mimic_tts_auth_insert" on storage.objects for insert to authenticated with check (bucket_id = 'mimic-tts');
 create policy "mimic_tts_auth_update" on storage.objects for update to authenticated using (bucket_id = 'mimic-tts');
+-- naviaction (확장이 anon 키로 업로드 — INSERT+UPDATE(upsert)+SELECT 모두 anon 필요)
+create policy "anon upload" on storage.objects for insert to anon with check (bucket_id = 'naviaction');
+create policy "anon update naviaction" on storage.objects for update to anon using (bucket_id = 'naviaction') with check (bucket_id = 'naviaction');
+create policy "anon read" on storage.objects for select to anon using (bucket_id = 'naviaction');
+create policy "authenticated upload naviaction" on storage.objects for insert to authenticated with check (bucket_id = 'naviaction');
 -- avatars / branding: public 읽기 + 업로드는 서버(service role)에서 처리 → 추가 정책 불필요
 --   (운영에도 objects 정책이 없음. 만약 클라이언트 직접 업로드가 필요하면 정책 추가)
 
