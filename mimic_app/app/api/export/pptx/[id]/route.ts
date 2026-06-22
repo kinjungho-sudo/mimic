@@ -211,7 +211,7 @@ export async function GET(request: NextRequest, { params }: Params) {
   const dateStr = new Date().toLocaleDateString('ko-KR', {
     year: '2-digit', month: '2-digit', day: '2-digit', timeZone: 'Asia/Seoul',
   }).replace(/\. /g, '_').replace(/\.$/, '');
-  const filenameRaw = `${safeTitle}_${dateStr}.pptx`;
+  const filenameRaw = `${dateStr}_${safeTitle}.pptx`;
   const filenameAscii = filenameRaw.replace(/[^\x00-\x7F]/g, '_').replace(/_+/g, '_');
   const filenameEncoded = encodeURIComponent(filenameRaw);
 
