@@ -489,11 +489,19 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
     const tabId = message.tabId;
     if (!tabId) { sendResponse({ ok: true }); return false; }
 
-    // ★ 사이드패널은 user gesture가 살아있는 지금(=await 이전) 동기 호출해야 열린다.
-    //   웹앱이 클릭 핸들러에서 CONNECT 없이 바로 보낸 메시지라야 제스처가 유지됨.
-    try { chrome.sidePanel.open({ tabId }).catch(() => {}); } catch { /* no gesture */ }
-
     (async () => {
+      // ★ 연동 검사 — 미연동 상태에서는 한 스텝도 캡처하지 않고 즉시 반환.
+      //   sessionId 생성·targetTabId 저장·steps 초기화 등 사이드이펙트 절대 금지.
+      const { extensionToken } = await storageGet('extensionToken');
+      if (!extensionToken) {
+        sendResponse({ ok: false, reason: 'not_linked' });
+        return;
+      }
+
+      // ★ 사이드패널은 user gesture가 살아있는 지금 호출.
+      //   storage read(1회 await)는 빠르므로 제스처가 보통 유지된다.
+      try { chrome.sidePanel.open({ tabId }).catch(() => {}); } catch { /* no gesture */ }
+
       const sessionId = crypto.randomUUID();
       resetLastSavedHash();
 
@@ -584,8 +592,11 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
   }
 
   if (message.action === 'CONNECT') {
-    sendResponse({ ok: true });
-    return false;
+    (async () => {
+      const { extensionToken } = await storageGet('extensionToken');
+      sendResponse({ ok: true, linked: !!extensionToken });
+    })();
+    return true;
   }
 
   if (message.action === 'START_GUIDE') {
