@@ -1,6 +1,11 @@
 ﻿'use client';
 
 import { useState, useCallback, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+
+// 운영(Production)에서만 켜는 플래그 — Vercel Production env에 NEXT_PUBLIC_REQUIRE_EXTENSION=1.
+// 로컬(npm run dev)·Preview(dev)는 값이 없어 게이트가 꺼진다(개발자 버전 미설치로도 작업 가능).
+const REQUIRE_EXTENSION = process.env.NEXT_PUBLIC_REQUIRE_EXTENSION?.replace(/^﻿/, '').trim() === '1';
 
 // ── 타입 ──────────────────────────────────────────────────
 
@@ -139,6 +144,7 @@ interface RecordingModalProps {
 const STORE_URL = 'https://chromewebstore.google.com/detail/mimic-recorder/ehbhcdkapcbfehinjapabgoegcjmmbgd';
 
 export function RecordingModal({ onClose }: RecordingModalProps) {
+  const router = useRouter();
   const [step, setStep] = useState<ModalStep>('checking');
   const [tabs, setTabs] = useState<ChromeTab[]>([]);
   const [tabsLoading, setTabsLoading] = useState(false);
@@ -152,10 +158,22 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
     return () => window.removeEventListener('keydown', fn);
   }, [onClose]);
 
-  // 모달 진입 시 확장 설치 여부만 확인 (연동 강제 없음)
+  // 모달 진입 시:
+  // - dev/Preview(REQUIRE_EXTENSION 꺼짐): 확장 강제 없이 바로 가이드 (기존 동작)
+  // - 운영(REQUIRE_EXTENSION 켜짐): 확장 연동을 ping으로 확인 → 미설치/미응답이면
+  //   설치+연동 페이지(/extension-link)로 보내 '연동된 상태로 시작'하게 한다.
   useEffect(() => {
-    setStep('guide');
-  }, []);
+    if (!REQUIRE_EXTENSION) { setStep('guide'); return; }
+    let alive = true;
+    setStep('checking');
+    (async () => {
+      const resp = await wakeAndSend('CONNECT'); // SW 깨우고 연동 확인
+      if (!alive) return;
+      if (resp) setStep('guide');
+      else router.push('/extension-link');
+    })();
+    return () => { alive = false; };
+  }, [router]);
 
   // 탭 선택 단계 진입 시 목록 로드
   const enterTabSelect = useCallback(async () => {

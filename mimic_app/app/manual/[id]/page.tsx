@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { ensureExtension } from '@/lib/extensionGate';
 import { Share2, Download, Pencil, PlayCircle, X, Bot, Play, Pause, Square } from 'lucide-react';
 import { GuideToc } from '@/components/editor/GuideToc';
 import { GuideViewer } from '@/components/editor/GuideViewer';
@@ -336,7 +337,7 @@ export default function ManualViewerPage() {
 
           {canEdit && manualSteps.length > 0 && tutorial.share_token && (
             <button
-              onClick={() => setShowPracticeCreate(true)}
+              onClick={async () => { if (await ensureExtension(router)) setShowPracticeCreate(true); }}
               title="실습하기 — 캡처 화면 위에서 단계별 인터랙티브 연습"
               style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', cursor: 'pointer' }}
               onMouseEnter={e => { e.currentTarget.style.background = '#F9FAFB'; }}
@@ -347,7 +348,7 @@ export default function ManualViewerPage() {
 
           {canEdit && manualSteps.length > 0 && (
             <button
-              onClick={() => setShowLiveGuideCreate(true)}
+              onClick={async () => { if (await ensureExtension(router)) setShowLiveGuideCreate(true); }}
               title="라이브 가이드 편집 및 실행"
               style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#3730a3', background: '#e0e7ff', border: '1px solid #a5b4fc', cursor: 'pointer' }}
               onMouseEnter={e => { e.currentTarget.style.background = '#c7d2fe'; }}
