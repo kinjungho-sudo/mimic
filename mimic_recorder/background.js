@@ -489,6 +489,12 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
     const tabId = message.tabId;
     if (!tabId) { sendResponse({ ok: true }); return false; }
 
+    // ★ 사이드패널은 user gesture가 살아있는 지금(= 어떤 await보다도 먼저, 동기) 호출해야 열린다.
+    //   await가 한 번이라도 끼면 MV3 제스처가 끊겨 sidePanel.open()이 조용히 실패한다.
+    //   → 연동 검사(storageGet)보다 앞서 호출한다. 미연동이면 패널이 잠깐 열려도
+    //     패널 자체가 연동 게이트를 보여주므로 무해하다.
+    try { chrome.sidePanel.open({ tabId }).catch(() => {}); } catch { /* no gesture */ }
+
     (async () => {
       // ★ 연동 검사 — 미연동 상태에서는 한 스텝도 캡처하지 않고 즉시 반환.
       //   sessionId 생성·targetTabId 저장·steps 초기화 등 사이드이펙트 절대 금지.
@@ -497,10 +503,6 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         sendResponse({ ok: false, reason: 'not_linked' });
         return;
       }
-
-      // ★ 사이드패널은 user gesture가 살아있는 지금 호출.
-      //   storage read(1회 await)는 빠르므로 제스처가 보통 유지된다.
-      try { chrome.sidePanel.open({ tabId }).catch(() => {}); } catch { /* no gesture */ }
 
       const sessionId = crypto.randomUUID();
       resetLastSavedHash();
