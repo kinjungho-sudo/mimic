@@ -98,3 +98,34 @@ dev   ←  개발 통합. 모든 작업은 여기서 시작.
 - `main`에 직접 커밋
 - 빌드 실패 상태로 배포
 - `--no-verify` 플래그 사용
+
+---
+
+## 6. DB 안전 가드레일 (절대 규칙 — 모든 에이전트/세션 공통)
+
+> 🔴 **운영 DB 사고는 절대 안 된다.** dev와 운영은 완전히 분리된 별개 Supabase 프로젝트이며, 절대 섞거나 한쪽을 다른 쪽으로 옮기지 않는다. 상세 셋업은 [DEV_PROCESS.md](./DEV_PROCESS.md).
+
+### 프로젝트 식별 (혼동 금지)
+| 구분 | Supabase 프로젝트 | 비고 |
+|------|-------------------|------|
+| **운영(prod)** | `gqynptpjomcqzxyykqic` (싱가포르) | 실제 고객 데이터. Claude MCP로 **접근 가능** → 극도로 주의 |
+| **개발(dev)** | `dskphgxurxebblnpwhax` (도쿄, 별도 계정) | MIMIC 전용. **MCP 미연결** → 대시보드 SQL Editor / service_role REST로만 조작 |
+| (폐기) 옛 공유 dev | `xsfriegbpygydcqhsqqq` | MIMIC 안 씀. 타 앱 실데이터 있음 → **건드리지 말 것** |
+
+### 연결 배선 (고정 — 절대 변경 금지)
+- localhost(`npm run dev`) → **dev DB** (`.env.development.local`)
+- Vercel **Preview**(dev 브랜치) → **dev DB**
+- Vercel **Production**(main 브랜치) → **운영 DB**
+
+### ⛔ 절대 금지
+- 운영(`gqyn…`)에 **테스트/더미/시드 데이터 INSERT**
+- **dev↔운영 데이터 복사·이전·동기화** (어느 방향이든. 특히 dev를 운영으로 "마이그레이션"하거나 두 DB를 합치는 것)
+- env를 바꿔 **dev/Preview/localhost가 운영 DB를 가리키게**, 또는 **운영이 dev DB를 가리키게** 하는 것
+- 운영에 **DROP / DELETE / TRUNCATE / 스키마 마이그레이션을 사용자 확인 없이** 실행
+- MCP `apply_migration`/`execute_sql` 호출 전 **project_id 미확인** (반드시 `gqyn…`=운영인지 확인)
+
+### ✅ 기본 원칙
+- 모든 **테스트·시드·실험·디버깅 쿼리는 dev**에서. 운영은 읽기/진단도 최소화.
+- **스키마 변경 = "복사/이전"이 아니라 "양쪽에 같은 DDL을 각각 적용"**: 운영=MCP `apply_migration`(project_id 확인), dev=대시보드 SQL Editor. 데이터는 절대 옮기지 않는다.
+- 운영에 쓰기/마이그레이션이 꼭 필요하면 **실행 전 사용자에게 명시적으로 확인**받는다.
+- dev 테스트 계정: `test@naver.com`(PRO) / `testfree@naver.com`(FREE), 둘 다 `Devtest1234`.
