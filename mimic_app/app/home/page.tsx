@@ -1145,46 +1145,24 @@ export default function DashboardPage() {
                 </svg>
               </button>
 
-              {/* ② 팀 워크스페이스 헤더 */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1px', marginTop: '4px' }}>
-                <button onClick={() => setTeamOpen(v => !v)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, padding: '7px 8px', borderRadius: '8px', border: 'none', cursor: 'pointer', textAlign: 'left', background: 'transparent' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                  <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: activeTab === 'team' ? '#3730a3' : '#E5E7EB', display: 'grid', placeItems: 'center', flexShrink: 0, transition: 'background 0.15s' }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                  </div>
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#111827', flex: 1 }}>팀 워크스페이스</span>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"
-                    style={{ transform: teamOpen ? 'rotate(0)' : 'rotate(-90deg)', transition: 'transform 0.15s', flexShrink: 0 }}>
-                    <polyline points="6 9 12 15 18 9"/>
-                  </svg>
-                </button>
-                <button onClick={() => { setShowNewWsInput(v => !v); setNewWsName(''); setTeamOpen(true); }}
-                  style={{ width: '24px', height: '24px', border: 'none', background: 'transparent', color: '#9CA3AF', cursor: 'pointer', display: 'grid', placeItems: 'center', borderRadius: '6px', flexShrink: 0 }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; (e.currentTarget as HTMLButtonElement).style.color = '#4B5563'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = '#9CA3AF'; }}
-                  title="새 워크스페이스">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                </button>
-              </div>
+              {/* ② 팀 워크스페이스 헤더 — 내 워크스페이스와 동일하게 단독 버튼(+ 버튼 제거) */}
+              <button onClick={() => setTeamOpen(v => !v)}
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '7px 8px', borderRadius: '8px', border: 'none', cursor: 'pointer', textAlign: 'left', background: 'transparent', marginTop: '4px' }}
+                onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: activeTab === 'team' ? '#3730a3' : '#E5E7EB', display: 'grid', placeItems: 'center', flexShrink: 0, transition: 'background 0.15s' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                </div>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: '#111827', flex: 1 }}>팀 워크스페이스</span>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"
+                  style={{ transform: teamOpen ? 'rotate(0)' : 'rotate(-90deg)', transition: 'transform 0.15s', flexShrink: 0 }}>
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </button>
 
               {/* ② 팀 워크스페이스 하위 */}
               {teamOpen && (
                 <div style={{ paddingLeft: '12px', marginLeft: '19px', borderLeft: '2px solid #F3F4F6', display: 'flex', flexDirection: 'column', gap: '1px', marginBottom: '2px' }}>
-                  {showNewWsInput && (
-                    <form onSubmit={handleCreateWorkspace} style={{ display: 'flex', gap: '4px', paddingBottom: '4px' }}>
-                      <input autoFocus value={newWsName} onChange={e => setNewWsName(e.target.value)} placeholder="워크스페이스 이름"
-                        onBlur={() => { if (!creatingWs) { setShowNewWsInput(false); setNewWsName(''); } }}
-                        onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); setShowNewWsInput(false); setNewWsName(''); } }}
-                        style={{ flex: 1, padding: '4px 7px', borderRadius: '6px', border: '1px solid #a5b4fc', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
-                      <button type="submit" disabled={creatingWs || !newWsName.trim()}
-                        onMouseDown={e => e.preventDefault()}
-                        style={{ padding: '4px 8px', borderRadius: '6px', background: '#3730a3', color: 'white', border: 'none', fontSize: '12px', fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
-                        {creatingWs ? '...' : '만들기'}
-                      </button>
-                    </form>
-                  )}
                   {workspaces.length === 0
                     ? <div style={{ padding: '4px 8px', fontSize: '13px', color: '#D1D5DB' }}>없음</div>
                     : workspaces.map(ws => (
@@ -1207,6 +1185,28 @@ export default function DashboardPage() {
                       </div>
                     ))
                   }
+                  {/* 맨 아래: 새 워크스페이스 추가 (헤더의 + 버튼 대체) */}
+                  {showNewWsInput ? (
+                    <form onSubmit={handleCreateWorkspace} style={{ display: 'flex', gap: '4px', paddingTop: '4px' }}>
+                      <input autoFocus value={newWsName} onChange={e => setNewWsName(e.target.value)} placeholder="워크스페이스 이름"
+                        onBlur={() => { if (!creatingWs) { setShowNewWsInput(false); setNewWsName(''); } }}
+                        onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); setShowNewWsInput(false); setNewWsName(''); } }}
+                        style={{ flex: 1, padding: '4px 7px', borderRadius: '6px', border: '1px solid #a5b4fc', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
+                      <button type="submit" disabled={creatingWs || !newWsName.trim()}
+                        onMouseDown={e => e.preventDefault()}
+                        style={{ padding: '4px 8px', borderRadius: '6px', background: '#3730a3', color: 'white', border: 'none', fontSize: '12px', fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
+                        {creatingWs ? '...' : '만들기'}
+                      </button>
+                    </form>
+                  ) : (
+                    <button onClick={() => { setShowNewWsInput(true); setNewWsName(''); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '7px', width: '100%', padding: '5px 8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', textAlign: 'left', background: 'transparent', color: '#9CA3AF' }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; (e.currentTarget as HTMLButtonElement).style.color = '#4B5563'; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = '#9CA3AF'; }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                      <span>새 워크스페이스</span>
+                    </button>
+                  )}
                 </div>
               )}
             </div>

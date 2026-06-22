@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Undo2, Redo2, Volume2, VolumeX, Loader2, Eye, Wand2, MessageSquare, Clock, Share2, Palette, Download } from 'lucide-react';
+import { Undo2, Redo2, Volume2, VolumeX, Loader2, Eye, Wand2, MessageSquare, Clock, Share2, Palette, Download, Check, Link2 } from 'lucide-react';
 import { GuideToc } from '@/components/editor/GuideToc';
 import { ManualEditor, ManualStep } from '@/components/editor/ManualEditor';
 import { MergeModal } from '@/components/editor/MergeModal';
@@ -93,6 +93,7 @@ export default function EditorPage() {
   const [showActivity, setShowActivity] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [publishing, setPublishing] = useState(false);
   const [downloadOpen, setDownloadOpen] = useState(false);
   const [downloadingFmt, setDownloadingFmt] = useState<'pdf' | 'pptx' | 'docx' | null>(null);
   const [ttsEnabled, setTtsEnabled] = useState(false);
@@ -677,18 +678,6 @@ export default function EditorPage() {
               );
             })()}
 
-            {/* 스튜디오 — 연습 가이드·Live Guide 편집 진입 (매뉴얼 편집기와 역할 분리) */}
-            <button
-              onClick={() => router.push(`/manual/${id}/studio`)}
-              title="연습 가이드·Live Guide 편집 — 스튜디오 열기"
-              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#6d28d9', background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.35)', cursor: 'pointer', transition: 'all 0.15s' }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(124,58,237,0.16)'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(124,58,237,0.08)'; }}
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-              스튜디오
-            </button>
-
             {/* 댓글 패널 토글 — 팀 협업 의견 공유 */}
             <button
               onClick={() => { setShowComments(v => !v); setShowActivity(false); }}
@@ -780,15 +769,44 @@ export default function EditorPage() {
               <Redo2 size={13} /> 다시 실행
             </button>
 
-            {/* 게시 — ShareModal (공개 링크 생성 + URL 공유) */}
+            {/* 공유 — 게시 후에만. ShareModal(링크 복사·공개범위·임베드) */}
             <button
               onClick={() => setShowShare(true)}
-              style={{ height: '32px', padding: '0 16px', borderRadius: '7px', fontSize: '12.5px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'white', background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', border: 'none', cursor: 'pointer', boxShadow: '0 1px 6px rgba(55,48,163,0.3)', transition: 'box-shadow 0.15s' }}
-              onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 14px rgba(55,48,163,0.45)'; }}
-              onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 6px rgba(55,48,163,0.3)'; }}
+              disabled={tutorial.status !== 'published'}
+              title={tutorial.status === 'published' ? '공유 링크·공개 범위 설정' : '게시 후 공유할 수 있어요'}
+              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: tutorial.status === 'published' ? '#374151' : '#D1D5DB', background: 'white', border: '1px solid #E5E7EB', cursor: tutorial.status === 'published' ? 'pointer' : 'not-allowed', transition: 'all 0.15s' }}
+              onMouseEnter={e => { if (tutorial.status === 'published') e.currentTarget.style.background = '#F9FAFB'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
             >
-              <Share2 size={13} /> 게시
+              <Link2 size={13} /> 공유
             </button>
+
+            {/* 게시 — 누르면 즉시 Publish. 게시되면 '게시됨' 표시(공유는 옆 버튼에서) */}
+            {tutorial.status === 'published' ? (
+              <span
+                title="게시됨 — 공유는 '공유' 버튼에서, 게시 취소는 공유 창에서"
+                style={{ height: '32px', padding: '0 14px', borderRadius: '7px', fontSize: '12.5px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#059669', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.35)' }}
+              >
+                <Check size={14} /> 게시됨
+              </span>
+            ) : (
+              <button
+                onClick={async () => {
+                  setPublishing(true);
+                  try { await publish(); }
+                  catch { alert('게시에 실패했습니다. 다시 시도해주세요.'); }
+                  finally { setPublishing(false); }
+                }}
+                disabled={publishing}
+                title="외부에 공유 가능한 상태로 게시합니다"
+                style={{ height: '32px', padding: '0 16px', borderRadius: '7px', fontSize: '12.5px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'white', background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', border: 'none', cursor: publishing ? 'not-allowed' : 'pointer', boxShadow: '0 1px 6px rgba(55,48,163,0.3)', opacity: publishing ? 0.7 : 1, transition: 'box-shadow 0.15s' }}
+                onMouseEnter={e => { if (!publishing) e.currentTarget.style.boxShadow = '0 4px 14px rgba(55,48,163,0.45)'; }}
+                onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 6px rgba(55,48,163,0.3)'; }}
+              >
+                {publishing ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Share2 size={13} />}
+                {publishing ? '게시 중…' : '게시'}
+              </button>
+            )}
           </>
           </div>
         </div>
