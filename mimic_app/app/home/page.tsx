@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { RecordingModal } from '@/components/dashboard/RecordingModal';
-import { ensureExtension } from '@/lib/extensionGate';
 import { AgentChat } from '@/components/chat/AgentChat';
 import { createTutorial } from '@/lib/api/tutorials';
 import { logError } from '@/lib/logging/logger';
@@ -954,8 +953,6 @@ export default function DashboardPage() {
 
   const handleCreateGuidebook = async () => {
     setShowNewMenu(false);
-    // 플레이북도 녹화 기반 매뉴얼을 묶는 기능 → 운영에선 확장 필요(빈 매뉴얼만 예외)
-    if (!(await ensureExtension())) return;
     setCreating(true);
     try {
       const wsId = activeTab === 'team' && activeWorkspace ? activeWorkspace : null;
@@ -1794,11 +1791,11 @@ export default function DashboardPage() {
                   <div style={{ fontSize: '12.5px', color: '#6B7280', marginTop: '3px' }}>단계별 문서를 직접 편집해요</div>
                 </div>
               </button>
-              {/* Live Guide 스튜디오 */}
+              {/* Live Guide 스튜디오 — 파일럿 동안 게이트 없이 오픈 */}
               <button
-                onClick={() => { if (isPro) { router.push(`/manual/${manualActionModal}/studio`); setManualActionModal(null); } else { router.push('/mypage'); } }}
-                style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', padding: 0, borderRadius: '14px', border: '1.5px solid #E5E7EB', background: 'white', cursor: 'pointer', textAlign: 'left', transition: 'border-color 0.12s, box-shadow 0.12s', overflow: 'hidden', opacity: isPro ? 1 : 0.92 }}
-                onMouseEnter={e => { if (isPro) { e.currentTarget.style.borderColor = '#7c3aed'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(124,58,237,0.08)'; } }}
+                onClick={() => { router.push(`/manual/${manualActionModal}/studio`); setManualActionModal(null); }}
+                style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', padding: 0, borderRadius: '14px', border: '1.5px solid #E5E7EB', background: 'white', cursor: 'pointer', textAlign: 'left', transition: 'border-color 0.12s, box-shadow 0.12s', overflow: 'hidden' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#7c3aed'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(124,58,237,0.08)'; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.boxShadow = 'none'; }}>
                 {/* Live Guide 샘플 — 화면 위 코치마크 */}
                 <div style={{ width: '100%', aspectRatio: '16 / 10', background: 'linear-gradient(135deg, #f5f3ff, #ede9fe)', display: 'grid', placeItems: 'center', padding: '18px' }}>
@@ -1823,13 +1820,8 @@ export default function DashboardPage() {
                   </svg>
                 </div>
                 <div style={{ padding: '14px 16px 16px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontSize: '16px', fontWeight: 700, color: '#111827' }}>Live Guide 스튜디오</span>
-                    {!isPro && <span style={{ fontSize: '10px', fontWeight: 700, color: '#7c3aed', background: '#ede9fe', padding: '1px 6px', borderRadius: '999px' }}>Pro</span>}
-                  </div>
-                  <div style={{ fontSize: '12.5px', color: '#6B7280', marginTop: '3px' }}>
-                    {isPro ? '화면 위에서 실시간으로 단계를 안내해요' : 'Pro 플랜에서 이용할 수 있어요 →'}
-                  </div>
+                  <div style={{ fontSize: '16px', fontWeight: 700, color: '#111827' }}>Live Guide 스튜디오</div>
+                  <div style={{ fontSize: '12.5px', color: '#6B7280', marginTop: '3px' }}>화면 위에서 실시간으로 단계를 안내해요</div>
                 </div>
               </button>
             </div>

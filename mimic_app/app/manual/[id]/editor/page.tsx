@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Check, Undo2, Redo2, Volume2, VolumeX, Loader2, Eye, Wand2, MessageSquare, Clock, Share2, Palette, Download } from 'lucide-react';
+import { Undo2, Redo2, Volume2, VolumeX, Loader2, Eye, Wand2, MessageSquare, Clock, Share2, Palette, Download } from 'lucide-react';
 import { GuideToc } from '@/components/editor/GuideToc';
 import { ManualEditor, ManualStep } from '@/components/editor/ManualEditor';
 import { MergeModal } from '@/components/editor/MergeModal';
@@ -19,6 +19,7 @@ import type { Collaborator } from '@/hooks/useCollaboration';
 import { updateStep, createStep, deleteStep, reorderSteps, duplicateStep } from '@/lib/api/steps';
 import { getTutorial } from '@/lib/api/tutorials';
 import { logError } from '@/lib/logging/logger';
+import { hasGuideConfig } from '@/lib/follow';
 import type { Step, Tutorial } from '@/types';
 
 // ── Adapters ──────────────────────────────────────────────
@@ -88,7 +89,6 @@ export default function EditorPage() {
   const [bulkColorOpen, setBulkColorOpen] = useState(false);
   // 녹화 직후 진입 — 스텝 생성 대기 폴링
   const [pollingState, setPollingState] = useState<'idle' | 'polling' | 'timeout'>('idle');
-  const [saving, setSaving] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [showActivity, setShowActivity] = useState(false);
   const [showExport, setShowExport] = useState(false);
@@ -423,33 +423,6 @@ export default function EditorPage() {
     }
   }, [manualSteps, ttsVoice]);
 
-  const handleSave = useCallback(async (): Promise<boolean> => {
-    setSaving(true);
-    try {
-      const results = await Promise.all(
-        manualSteps
-          .filter(s => !s.id.startsWith('step-'))
-          .map(s => {
-            clearTimeout(stepSaveTimers.current[s.id]);
-            return updateStep(s.id, {
-              user_title: s.actionTitle || null,
-              user_script: s.description || null,
-              user_annotations: s.annotations ?? [],
-            }).then(() => true).catch(() => false);
-          })
-      );
-      const allOk = results.every(r => r);
-      if (!allOk) {
-        logError('step.bulkSave.fail', { tutorialId: id, failed: results.filter(r => !r).length, total: results.length });
-        alert('일부 단계를 저장하지 못했습니다. 네트워크 연결을 확인 후 다시 시도해 주세요.');
-        return false;
-      }
-      return true;
-    } finally {
-      setSaving(false);
-    }
-  }, [manualSteps]);
-
   const performDeleteStep = useCallback((stepId: string) => {
     const next = manualSteps.filter(s => s.id !== stepId).map((s, i) => ({ ...s, number: i + 1 }));
     setManualStepsWithHistory(next);
@@ -703,6 +676,18 @@ export default function EditorPage() {
                 </button>
               );
             })()}
+
+            {/* 스튜디오 — 연습 가이드·Live Guide 편집 진입 (매뉴얼 편집기와 역할 분리) */}
+            <button
+              onClick={() => router.push(`/manual/${id}/studio`)}
+              title="연습 가이드·Live Guide 편집 — 스튜디오 열기"
+              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#6d28d9', background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.35)', cursor: 'pointer', transition: 'all 0.15s' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(124,58,237,0.16)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(124,58,237,0.08)'; }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              스튜디오
+            </button>
 
             {/* 댓글 패널 토글 — 팀 협업 의견 공유 */}
             <button
@@ -1135,6 +1120,7 @@ export default function EditorPage() {
       {/* 스텝 삭제 확인 모달 (GuideToc 경로) */}
       {pendingDeleteId && (() => {
         const step = manualSteps.find(s => s.id === pendingDeleteId);
+        const hasGuide = hasGuideConfig(step?.followConfig);
         return (
           <div
             onClick={() => setPendingDeleteId(null)}
@@ -1149,8 +1135,13 @@ export default function EditorPage() {
                   {String(step.number).padStart(2, '0')}. {step.actionTitle || '(제목 없음)'}
                 </div>
               )}
+              {hasGuide && (
+                <div style={{ fontSize: '12.5px', color: '#B45309', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '8px', padding: '9px 11px', lineHeight: 1.55, marginBottom: '10px' }}>
+                  이 스텝의 <b>연습 가이드·Live Guide 설정</b>(핫스팟·말풍선·입력 텍스트 등)도 함께 삭제됩니다.
+                </div>
+              )}
               <div style={{ fontSize: '12.5px', color: '#9CA3AF', lineHeight: 1.6, marginBottom: '20px' }}>
-                이 단계를 삭제하면 실습하기와 Live Guide에서도 제거됩니다.
+                삭제 후 상단 <b>실행 취소</b>(Ctrl+Z)로 되돌릴 수 있어요.
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button onClick={() => setPendingDeleteId(null)}

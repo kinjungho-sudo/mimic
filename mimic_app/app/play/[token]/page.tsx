@@ -690,14 +690,14 @@ export default function PlayerPage() {
             })}
           </div>
 
-          {/* 실습하기 — 별도 강조 버튼(우측 분리, 특별 색상) */}
+          {/* 연습 가이드 — 별도 강조 버튼(우측 분리, 특별 색상) */}
           {(() => {
             const active = viewMode === 'follow';
             return (
-              <button onClick={() => setViewMode('follow')} title="실습하기 — 직접 클릭하며 실습"
+              <button onClick={() => setViewMode('follow')} title="연습 가이드 — 직접 클릭하며 연습"
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: isMobile ? '6px 9px' : '6px 13px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 700, border: active ? 'none' : '1.5px solid #7c3aed', background: active ? 'linear-gradient(135deg,#4f46e5,#7c3aed)' : 'rgba(124,58,237,0.12)', color: active ? 'white' : '#7c3aed', boxShadow: active ? '0 2px 12px rgba(124,58,237,0.5)' : 'none', transition: 'all 0.12s' }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-                {!isMobile && '실습하기'}
+                {!isMobile && '연습 가이드'}
               </button>
             );
           })()}

@@ -12,6 +12,7 @@ import { AnnotationPreview } from './AnnotationPreview';
 import { buildClickHighlight } from '@/lib/annotations';
 import { pixelateRegion, type BlurRegion } from '@/lib/pixelate';
 import { faviconUrl, faviconFallbackUrl, hostnameToServiceName } from '@/lib/favicon';
+import { hasGuideConfig } from '@/lib/follow';
 import type { FollowConfig } from '@/types';
 
 export interface ManualStep {
@@ -326,7 +327,7 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
             <div style={{ width: '1px', height: '16px', background: '#E5E7EB', margin: '0 2px' }} />
             <button
               onClick={() => {
-                if (!window.confirm(`선택한 ${selectedIds.size}개 단계를 삭제합니다. 실습하기와 Live Guide에서도 제거됩니다. 계속할까요?`)) return;
+                if (!window.confirm(`선택한 ${selectedIds.size}개 단계를 삭제합니다. 연습 가이드와 Live Guide에서도 제거됩니다. 계속할까요?`)) return;
                 const removed = steps.filter(s => selectedIds.has(s.id)).map(s => s.id);
                 const next = steps.filter(s => !selectedIds.has(s.id)).map((s, i) => ({ ...s, number: i + 1 }));
                 onChange(next); removed.forEach(id => onDeleteStep?.(id)); clearSelection();
@@ -491,9 +492,10 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
         );
       })()}
 
-      {/* 스텝 삭제 확인 모달 — 실습하기·Live Guide에도 영향 있음을 안내 */}
+      {/* 스텝 삭제 확인 모달 — 연습 가이드/Live Guide 설정이 있으면 함께 사라짐을 경고 */}
       {pendingDeleteId && (() => {
         const step = steps.find(s => s.id === pendingDeleteId);
+        const hasGuide = hasGuideConfig(step?.followConfig);
         return (
           <div
             onClick={() => setPendingDeleteId(null)}
@@ -508,8 +510,13 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
                   {String(step.number).padStart(2, '0')}. {step.actionTitle || '(제목 없음)'}
                 </div>
               )}
+              {hasGuide && (
+                <div style={{ fontSize: '12.5px', color: '#B45309', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '8px', padding: '9px 11px', lineHeight: 1.55, marginBottom: '10px' }}>
+                  이 스텝의 <b>연습 가이드·Live Guide 설정</b>(핫스팟·말풍선·입력 텍스트 등)도 함께 삭제됩니다.
+                </div>
+              )}
               <div style={{ fontSize: '12.5px', color: '#9CA3AF', lineHeight: 1.6, marginBottom: '20px' }}>
-                이 단계를 삭제하면 실습하기와 Live Guide에서도 제거됩니다.
+                삭제 후 상단 <b>실행 취소</b>(Ctrl+Z)로 되돌릴 수 있어요.
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button onClick={() => setPendingDeleteId(null)}
