@@ -189,11 +189,11 @@ export async function POST(request: NextRequest) {
     }
     if (cx == null || cy == null) return null; // 좌표 없음 (navigate/autoNav) → 확대 안 함
 
-    // 배율 — 가독성 우선. 큰 요소는 확대 안 하고, 작을수록 약하게만 확대 (1.35~1.6)
+    // 배율 — 가독성 우선. 큰 요소는 확대 안 하고, 작을수록 약하게만 확대 (자동 확대 상한 1.5)
     let zoom = 1.4;
     if (rect) {
       const size = Math.max(rect.width, rect.height);
-      zoom = size > 0.4 ? 1.0 : size > 0.2 ? 1.35 : 1.6;
+      zoom = size > 0.4 ? 1.0 : size > 0.2 ? 1.35 : 1.5;
     }
     if (zoom <= 1.0) return null; // 충분히 큰 요소 → 전체 화면 그대로 유지(가독성)
 
@@ -215,7 +215,7 @@ export async function POST(request: NextRequest) {
     if (!box) return null;
     const w = Math.min(Math.max(box.width, 0.001), 1);
     const h = Math.min(Math.max(box.height, 0.001), 1);
-    const z = Math.min(3, Math.max(1, 1 / Math.max(w, h))); // 큰 변 기준 가득 채움, 과확대 방지(최대 3x)
+    const z = Math.min(1.5, Math.max(1, 1 / Math.max(w, h))); // 큰 변 기준 가득 채움, 자동 확대 상한 1.5x
     if (z <= 1.001) return null; // 거의 전체 → 확대 안 함(가독성)
     const cx = box.x + box.width / 2;
     const cy = box.y + box.height / 2;

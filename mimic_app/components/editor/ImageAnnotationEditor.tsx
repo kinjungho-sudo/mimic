@@ -197,10 +197,6 @@ export function ImageAnnotationEditor({
   const onPixelateRef = useRef(onPixelate);
   onPixelateRef.current = onPixelate;
   const [blurProcessing, setBlurProcessing] = useState(false);
-  const [canvasZoom, setCanvasZoom] = useState(1);
-  const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
-  const [isPanning, setIsPanning] = useState(false);
-  const panRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
   const [canAnnotUndo, setCanAnnotUndo] = useState(false);
   const [canAnnotRedo, setCanAnnotRedo] = useState(false);
   const [savedDefaults] = useState<Partial<ToolDefaults>>(loadDefaults);
@@ -522,26 +518,6 @@ export function ImageAnnotationEditor({
     window.addEventListener('mouseup', up);
     return () => window.removeEventListener('mouseup', up);
   }, [drawing, finishDrawing]);
-
-  // 중간 마우스 버튼(휠 클릭) 패닝
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!panRef.current) return;
-      setCanvasOffset({
-        x: panRef.current.origX + (e.clientX - panRef.current.startX),
-        y: panRef.current.origY + (e.clientY - panRef.current.startY),
-      });
-    };
-    const handleMouseUp = (e: MouseEvent) => {
-      if (e.button === 1) { panRef.current = null; setIsPanning(false); }
-    };
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, []);
 
   // startDrag: spotlight도 포함 (select tool 기반)
   const startDrag = useCallback((e: React.MouseEvent, id: string, handle: Handle | null) => {
@@ -871,12 +847,6 @@ export function ImageAnnotationEditor({
               ><Trash2 size={11} /> 삭제</button>
             )}
 
-            {(canvasZoom !== 1 || canvasOffset.x !== 0 || canvasOffset.y !== 0) && (
-              <button onClick={() => { setCanvasZoom(1); setCanvasOffset({ x: 0, y: 0 }); }}
-                style={{ height: '32px', padding: '0 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)', fontSize: '11.5px', cursor: 'pointer' }}
-              >{Math.round(canvasZoom * 100)}% 초기화</button>
-            )}
-
             <div style={{ width: '1px', height: '22px', background: 'rgba(255,255,255,0.12)', margin: '0 4px' }} />
 
             <button onClick={onClose}
@@ -988,23 +958,11 @@ export function ImageAnnotationEditor({
 
         {/* ── Canvas wrapper ── */}
         <div
-          style={{ overflow: 'hidden', flex: '1 1 0', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: isPanning ? 'grabbing' : activeCursor }}
-          onWheel={(e) => {
-            if (selectedId) return;
-            e.preventDefault();
-            setCanvasZoom(z => Math.max(0.5, Math.min(3, z + (e.deltaY < 0 ? 0.1 : -0.1))));
-          }}
-          onMouseDown={(e) => {
-            if (e.button === 1) {
-              e.preventDefault();
-              panRef.current = { startX: e.clientX, startY: e.clientY, origX: canvasOffset.x, origY: canvasOffset.y };
-              setIsPanning(true);
-            }
-          }}
+          style={{ overflow: 'hidden', flex: '1 1 0', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: activeCursor }}
         >
         {/* ── Canvas ── */}
         <div
-          style={{ position: 'relative', display: 'inline-block', lineHeight: 0, flexShrink: 0, cursor: activeCursor, transform: (canvasZoom !== 1 || canvasOffset.x !== 0 || canvasOffset.y !== 0) ? `translate(${canvasOffset.x}px, ${canvasOffset.y}px) scale(${canvasZoom})` : undefined, transformOrigin: 'center center' }}
+          style={{ position: 'relative', display: 'inline-block', lineHeight: 0, flexShrink: 0, cursor: activeCursor }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}

@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { BrandMark } from '@/components/common/BrandMark';
 import { AnnotationPreview } from '@/components/editor/AnnotationPreview';
+import { annotationsBox, fitFramingToBox } from '@/lib/framing';
 import { InteractiveFollowPlayer } from '@/components/viewer/InteractiveFollowPlayer';
 import { createClient } from '@/lib/supabase/client';
 import { toFollowSteps, clickToPct } from '@/lib/follow';
@@ -642,6 +643,10 @@ export default function PlayerPage() {
   const step = tutorial.steps[currentStep] ?? null;
   const stepMarkers = step ? tutorial.markers.filter(m => m.step_id === step.id).sort((a, b) => a.order_index - b.order_index) : [];
   const stepAnnotations = step ? tutorial.annotations.filter(a => a.step_id === step.id).sort((a, b) => a.marker_index - b.marker_index) : [];
+  // 확대해도 어노테이션이 잘리지 않도록 프레이밍 보정
+  const framedStep = step
+    ? fitFramingToBox({ zoom: step.image_zoom ?? 1, offsetX: step.image_offset_x ?? 0, offsetY: step.image_offset_y ?? 0 }, annotationsBox(step.user_annotations))
+    : { zoom: 1, offsetX: 0, offsetY: 0 };
   const totalSteps = tutorial.steps.length;
 
   const goTo = (idx: number) => {
@@ -808,7 +813,7 @@ export default function PlayerPage() {
           {step?.screenshot_url ? (
             <>
             {/* 이미지 + 어노테이션 + 마커 — 확대 transform 적용 (자막은 이 밖에 둠) */}
-            <div key={currentStep} style={{ position: 'relative', lineHeight: 0, animation: 'stepSlideIn 0.35s cubic-bezier(0.22,0.61,0.36,1) both', transform: (step.image_zoom ?? 1) > 1 ? `translate(${(step.image_offset_x ?? 0) * 100}%, ${(step.image_offset_y ?? 0) * 100}%) scale(${step.image_zoom})` : undefined, transformOrigin: 'center center' }}>
+            <div key={currentStep} style={{ position: 'relative', lineHeight: 0, animation: 'stepSlideIn 0.35s cubic-bezier(0.22,0.61,0.36,1) both', transform: framedStep.zoom > 1 ? `translate(${framedStep.offsetX * 100}%, ${framedStep.offsetY * 100}%) scale(${framedStep.zoom})` : undefined, transformOrigin: 'center center' }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={step.screenshot_url}
@@ -818,7 +823,7 @@ export default function PlayerPage() {
               {/* 어노테이션 — 이미지와 동일한 크기 SVG로 정확히 겹침. 확대 시 어노테이션은 일정 크기 유지(역보정) */}
               {(step.user_annotations?.length ?? 0) > 0 && (
                 <AnnotationPreview annotations={step.user_annotations!} imageUrl={step.screenshot_url}
-                  sizeScale={(step.image_zoom ?? 1) > 1 ? 1 / (step.image_zoom ?? 1) : 1} />
+                  sizeScale={framedStep.zoom > 1 ? 1 / framedStep.zoom : 1} />
               )}
               {/* Hotspot — 클릭 위치 시각 표시만 (진행은 하단 컨트롤로, 클릭 강제 없음) */}
               {step.click_x != null && step.click_y != null && currentStep < totalSteps - 1 && (

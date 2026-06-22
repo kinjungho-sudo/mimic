@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import DOMPurify from 'dompurify';
 import type { ManualStep } from './ManualEditor';
 import { AnnotationPreview } from './AnnotationPreview';
+import { annotationsBox, fitFramingToBox } from '@/lib/framing';
 
 type OutputRatio = '16:9' | '1:1' | '9:16';
 
@@ -103,9 +104,11 @@ export function GuideViewer({ steps, activeId, onActiveChange, outputRatio = '16
 
 function ViewerStepCard({ step }: { step: ManualStep }) {
   const hasImage = !!step.screenshotUrl;
-  const zoom = step.imageZoom ?? 1;
-  const offX = step.imageOffsetX ?? 0;
-  const offY = step.imageOffsetY ?? 0;
+  // 확대해도 어노테이션이 잘리지 않도록 프레이밍 보정
+  const { zoom, offsetX: offX, offsetY: offY } = fitFramingToBox(
+    { zoom: step.imageZoom ?? 1, offsetX: step.imageOffsetX ?? 0, offsetY: step.imageOffsetY ?? 0 },
+    annotationsBox(step.annotations),
+  );
   const cr = step.crop_rect;
   const hasCrop = !!cr && cr.w > 0 && cr.w < 0.99;
   const imgRef = useRef<HTMLImageElement | null>(null);

@@ -13,6 +13,7 @@ import { buildClickHighlight } from '@/lib/annotations';
 import { pixelateRegion, type BlurRegion } from '@/lib/pixelate';
 import { faviconUrl, faviconFallbackUrl, hostnameToServiceName } from '@/lib/favicon';
 import { hasGuideConfig } from '@/lib/follow';
+import { annotationsBox, fitFramingToBox } from '@/lib/framing';
 import type { FollowConfig } from '@/types';
 
 export interface ManualStep {
@@ -1335,7 +1336,11 @@ function ScreenshotArea({ step, onUploadClick, onDrop, onAnnotate, onRemove, onF
   }
 
   const hasAnnotations = (step.annotations?.length ?? 0) > 0;
-  const { z: zoom, x: offX, y: offY } = view;
+  // 확대해도 어노테이션이 화면 밖으로 잘리지 않도록 표시 프레이밍 보정(저장값은 그대로, 표시만 fit)
+  const { zoom, offsetX: offX, offsetY: offY } = fitFramingToBox(
+    { zoom: view.z, offsetX: view.x, offsetY: view.y },
+    annotationsBox(step.annotations),
+  );
 
   return (
     <div
