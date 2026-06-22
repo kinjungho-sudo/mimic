@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "MIMIC Recorder",
+  "name": "MIMIC Recorder (dev)",
   "version": "1.5.3",
   "description": "웹페이지의 클릭 동작을 단계별로 자동 캡처하여 매뉴얼·가이드 문서를 손쉽게 만들어주는 스크린샷 레코더입니다.",
   "icons": {
