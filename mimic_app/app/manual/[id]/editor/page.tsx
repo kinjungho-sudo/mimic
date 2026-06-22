@@ -495,19 +495,16 @@ export default function EditorPage() {
       await updateStep(srcId, { user_title: src.actionTitle || null, user_script: src.description || null });
       const created = await duplicateStep(srcId);
       // 서버가 DB 전체를 복사 → 로컬은 소스 콘텐츠 그대로 복제하고 실제 id만 부여
-      setManualSteps(prev => {
-        const i = prev.findIndex(s => s.id === srcId);
-        if (i < 0) return prev;
-        const copy: ManualStep = { ...prev[i], id: created.id };
-        const next = [...prev.slice(0, i + 1), copy, ...prev.slice(i + 1)];
-        return next.map((s, n) => ({ ...s, number: n + 1 }));
-      });
+      const i = manualSteps.findIndex(s => s.id === srcId);
+      const copy: ManualStep = { ...manualSteps[i], id: created.id };
+      const next = [...manualSteps.slice(0, i + 1), copy, ...manualSteps.slice(i + 1)].map((s, n) => ({ ...s, number: n + 1 }));
+      setManualStepsWithHistory(next);
       setActiveId(created.id);
     } catch (e) {
       logError('step.duplicate.fail', { tutorialId: id, stepId: srcId, message: e instanceof Error ? e.message : String(e) });
       alert('단계를 복제하지 못했습니다. 네트워크 연결을 확인 후 다시 시도해 주세요.');
     }
-  }, [manualSteps, id]);
+  }, [manualSteps, id, setManualStepsWithHistory]);
 
   const handleImportSteps = useCallback(async (sourceTutorialId: string, stepIds: string[]) => {
     const res = await fetch(`/api/tutorials/${id}/import-steps`, {
@@ -1043,6 +1040,7 @@ export default function EditorPage() {
               });
             }}
             onDuplicateStep={handleDuplicateStep}
+            onInsertAfter={handleInsertAfter}
             onAddComment={(stepId) => {
               setActiveId(stepId);
               setShowComments(true);

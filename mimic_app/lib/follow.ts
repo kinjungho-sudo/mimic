@@ -69,6 +69,7 @@ export function toFollowSteps(sources: FollowSource[]): FollowStep[] {
         audioUrl: s.audioUrl ?? null,
         bubbleAnchor: fc.bubbleAnchor ?? null,
         domRect: s.domRect ?? null,
+        zoomAnim: fc.zoomAnim ?? false,
       };
     });
 }

@@ -112,7 +112,7 @@ export function FollowStage({
     ? clamp(40 / Math.sqrt(Math.max(domRect.w * domRect.h, 0.25)), 1.5, 4)
     : 1;
   const zoomStyle = (domRect && isAnimated)
-    ? { transform: `scale(${zoomScale})`, transformOrigin: `${zoomCX}% ${zoomCY}%`, transition: 'transform 0.7s ease-in-out' }
+    ? { transform: `scale(${zoomScale})`, transformOrigin: `${zoomCX}% ${zoomCY}%`, transition: 'transform 1.4s ease-in-out' }
     : {};
   const typeStr = typeText ?? '';
   const hasTypeText = typeStr.trim().length > 0;
@@ -238,15 +238,11 @@ export function FollowStage({
           }} />
         )}
 
-        {/* 클릭 인디케이터 — 물결 링 + 중심 도트. focused 시만 */}
+        {/* 클릭 인디케이터 — 물결 링만(중심 도트 없음). 버튼을 가리지 않게 작고 은은하게. focused 시만 */}
         {showOverlays && hasHotspot && !isType && (
-          <div style={{ position: 'absolute', left: `${hx}%`, top: `${hy}%`, transform: 'translate(-50%,-50%)', width: '22px', height: '22px', pointerEvents: 'none', zIndex: 4 }}>
-            <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2.5px solid rgba(99,102,241,0.30)', animation: 'mfp-ripple 1.9s ease-out infinite' }} />
-            <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2.5px solid rgba(99,102,241,0.22)', animation: 'mfp-ripple 1.9s ease-out infinite', animationDelay: '0.63s' }} />
-            <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2.5px solid rgba(99,102,241,0.15)', animation: 'mfp-ripple 1.9s ease-out infinite', animationDelay: '1.26s' }} />
-            {spotlight && (
-              <span style={{ position: 'absolute', width: '10px', height: '10px', borderRadius: '50%', background: '#6366f1', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', boxShadow: '0 0 0 2.5px white, 0 2px 10px rgba(99,102,241,0.5)' }} />
-            )}
+          <div style={{ position: 'absolute', left: `${hx}%`, top: `${hy}%`, transform: 'translate(-50%,-50%)', width: '16px', height: '16px', pointerEvents: 'none', zIndex: 4 }}>
+            <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2px solid rgba(99,102,241,0.28)', animation: 'mfp-ripple 2s ease-out infinite' }} />
+            <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2px solid rgba(99,102,241,0.18)', animation: 'mfp-ripple 2s ease-out infinite', animationDelay: '0.66s' }} />
           </div>
         )}
 
@@ -289,7 +285,7 @@ export function FollowStage({
       {children}
 
       <style>{`
-        @keyframes mfp-ripple { 0%{opacity:.95;transform:scale(0.3)} 100%{opacity:0;transform:scale(5.2)} }
+        @keyframes mfp-ripple { 0%{opacity:.8;transform:scale(0.4)} 100%{opacity:0;transform:scale(3.2)} }
         @keyframes mfp-caret { 50%{opacity:0} }
         @keyframes mfp-nudge { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
         @keyframes mfp-field { 0%,100%{box-shadow:0 0 0 4px rgba(99,102,241,0.18), 0 6px 20px rgba(0,0,0,0.28)} 50%{box-shadow:0 0 0 7px rgba(99,102,241,0.28), 0 6px 24px rgba(0,0,0,0.35)} }

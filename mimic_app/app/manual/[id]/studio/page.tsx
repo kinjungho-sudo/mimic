@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Play, Check, Loader2, MousePointerClick, Type, Ban, RotateCcw, EyeOff, Eye, GripVertical } from 'lucide-react';
+import { ArrowLeft, Play, Check, Loader2, MousePointerClick, Type, Ban, RotateCcw, EyeOff, Eye, GripVertical, ZoomIn } from 'lucide-react';
 import { useTutorial } from '@/hooks/useTutorial';
 import { updateStep, reorderSteps } from '@/lib/api/steps';
 import { clickToPct, inferKind, toFollowSteps } from '@/lib/follow';
@@ -20,6 +20,7 @@ type StudioStep = {
   description: string;       // user_script (편집, HTML 제거) — 문서 매뉴얼과 공유
   clickXPct: number | null;  // 녹화 좌표 (0~100)
   clickYPct: number | null;
+  domRect: { x: number; y: number; w: number; h: number } | null; // DOM 요소 영역(0~100 pct) — 확대 애니메이션 중심
   follow: FollowConfig;      // 따라하기 전용 시각 설정 (핫스팟·종류·숨김·typeText)
 };
 
@@ -32,6 +33,11 @@ function toStudioStep(s: Step): StudioStep {
     description: (s.user_script ?? s.ai_description ?? '').replace(/<[^>]+>/g, ''),
     clickXPct: clickToPct((s as Step & { click_x?: number | null }).click_x),
     clickYPct: clickToPct((s as Step & { click_y?: number | null }).click_y),
+    domRect: (() => {
+      const raw = (s as Step & { element_rect?: { x?: number; y?: number; width?: number; height?: number } | null }).element_rect;
+      if (!raw || raw.x == null) return null;
+      return { x: (raw.x ?? 0) * 100, y: (raw.y ?? 0) * 100, w: (raw.width ?? 0) * 100, h: (raw.height ?? 0) * 100 };
+    })(),
     follow: (s.follow_config as FollowConfig) ?? {},
   };
 }
@@ -59,6 +65,7 @@ function normalize(fc: FollowConfig): FollowConfig | null {
   if (fc.typeText && fc.typeText.trim()) clean.typeText = fc.typeText.trim();
   if (fc.hidden) clean.hidden = true;
   if (fc.bubbleAnchor) clean.bubbleAnchor = fc.bubbleAnchor;
+  if (fc.zoomAnim) clean.zoomAnim = true;
   return Object.keys(clean).length ? clean : null;
 }
 
@@ -209,6 +216,7 @@ export default function StudioPage() {
     clickYPct: s.clickYPct,
     audioUrl: null,
     followConfig: s.follow,
+    domRect: s.domRect,
   }))), [steps]);
 
   if (loading) {
@@ -230,6 +238,7 @@ export default function StudioPage() {
 
   const rv = active ? resolved(active) : null;
   const hidden = !!active?.follow.hidden;
+  const zoomAnim = !!active?.follow.zoomAnim;
   const curKind = active?.follow.kind ?? null;
 
   return (
@@ -369,6 +378,17 @@ export default function StudioPage() {
                 <button onClick={() => patch(active.id, { hidden: !hidden })} title="표시/숨김"
                   style={{ width: 40, height: 22, borderRadius: 11, border: 'none', cursor: 'pointer', background: hidden ? 'rgba(255,255,255,0.15)' : '#7c3aed', position: 'relative', transition: 'background 0.15s' }}>
                   <span style={{ position: 'absolute', top: 2, left: hidden ? 2 : 20, width: 18, height: 18, borderRadius: '50%', background: 'white', transition: 'left 0.15s' }} />
+                </button>
+              </div>
+
+              {/* 확대 애니메이션 — 켜면 연습 가이드에서 클릭 영역을 천천히 확대(기본 off) */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', opacity: hidden ? 0.4 : 1 }}>
+                <span style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.85)', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                  <ZoomIn size={14} /> 확대 애니메이션
+                </span>
+                <button disabled={hidden} onClick={() => patch(active.id, { zoomAnim: !zoomAnim })} title="연습 가이드에서 클릭 영역 확대"
+                  style={{ width: 40, height: 22, borderRadius: 11, border: 'none', cursor: hidden ? 'not-allowed' : 'pointer', background: zoomAnim ? '#7c3aed' : 'rgba(255,255,255,0.15)', position: 'relative', transition: 'background 0.15s' }}>
+                  <span style={{ position: 'absolute', top: 2, left: zoomAnim ? 20 : 2, width: 18, height: 18, borderRadius: '50%', background: 'white', transition: 'left 0.15s' }} />
                 </button>
               </div>
 

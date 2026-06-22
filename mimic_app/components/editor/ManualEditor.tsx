@@ -58,6 +58,7 @@ interface ManualEditorProps {
   onSave?: (id: string, patch: Partial<ManualStep>) => void;
   onDeleteStep?: (id: string) => void;
   onDuplicateStep?: (id: string) => void;
+  onInsertAfter?: (afterId: string) => void;
   hideToc?: boolean;
   activeId?: string | null;
   onActiveChange?: (id: string) => void;
@@ -68,13 +69,14 @@ interface ManualEditorProps {
 
 // ── ManualEditor ──────────────────────────────────────────
 
-export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicateStep, hideToc, activeId: externalActiveId, onActiveChange, selectedIds: externalSelectedIds, onSelectChange, onAddComment }: ManualEditorProps) {
+export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicateStep, onInsertAfter, hideToc, activeId: externalActiveId, onActiveChange, selectedIds: externalSelectedIds, onSelectChange, onAddComment }: ManualEditorProps) {
   const [internalActiveId, setInternalActiveId] = useState<string | null>(
     steps.length > 0 ? steps[0].id : null
   );
   const activeId = hideToc ? (externalActiveId ?? internalActiveId) : internalActiveId;
   const setActiveId = setInternalActiveId;
   const [zoomUrl, setZoomUrl] = useState<string | null>(null);
+  const [insertHoverId, setInsertHoverId] = useState<string | null>(null);
   const [annotatingId, setAnnotatingId] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
@@ -383,13 +385,30 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
                     onRemoveImage={() => { updateStep(step.id, { screenshotUrl: undefined, annotations: [] }); onSave?.(step.id, { screenshotUrl: undefined, annotations: [] }); }}
                     onAddComment={onAddComment ? () => onAddComment(step.id) : undefined}
                   />
+                  {/* 스텝 아래 hover 시 + — 빈 단계를 바로 아래에 추가 */}
+                  {onInsertAfter && !step.id.startsWith('step-') && (
+                    <div
+                      onMouseEnter={() => setInsertHoverId(step.id)}
+                      onMouseLeave={() => setInsertHoverId(prev => (prev === step.id ? null : prev))}
+                      style={{ height: '34px', marginTop: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}
+                    >
+                      <div style={{ position: 'absolute', left: 0, right: 0, height: '1px', background: insertHoverId === step.id ? '#c7d2fe' : 'transparent', transition: 'background 0.15s' }} />
+                      <button
+                        onClick={() => onInsertAfter(step.id)}
+                        title="여기에 빈 단계 추가"
+                        style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: '5px', height: '28px', padding: '0 12px', borderRadius: '999px', border: '1px solid #c7d2fe', background: 'white', color: '#3730a3', fontSize: '12px', fontWeight: 600, cursor: 'pointer', opacity: insertHoverId === step.id ? 1 : 0, transition: 'opacity 0.15s', boxShadow: '0 1px 4px rgba(55,48,163,0.12)' }}
+                      >
+                        <Plus size={14} /> 빈 단계 추가
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))
           )}
 
-          {/* 위/아래 이동 플로팅 버튼 — fixed로 뷰포트 우하단 고정, 카드와 겹치지 않음 */}
-          <div className="editor-step-nav" style={{ position: 'fixed', bottom: '32px', right: '32px', zIndex: 20, scrollSnapAlign: 'none' }}>
+          {/* 위/아래 이동 플로팅 버튼 — 챗봇(우하단)과 겹치지 않게 왼쪽으로 비켜 배치 */}
+          <div className="editor-step-nav" style={{ position: 'fixed', bottom: '28px', right: '92px', zIndex: 20, scrollSnapAlign: 'none' }}>
             <div style={{}}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {(() => {

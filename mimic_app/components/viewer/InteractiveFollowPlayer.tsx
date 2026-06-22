@@ -16,6 +16,7 @@ export interface FollowStep {
   audioUrl?: string | null;            // 스텝 TTS 오디오 (있으면 음성 재생)
   bubbleAnchor?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | null;
   domRect?: { x: number; y: number; w: number; h: number } | null; // DOM bounding box (0~100 pct)
+  zoomAnim?: boolean;                  // 스튜디오에서 켠 경우에만 클릭 영역 확대 애니메이션 (기본 off)
 }
 
 type AnimPhase = 'raw' | 'zooming' | 'focused';
@@ -51,18 +52,20 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
   // 스텝 바뀌면 툴팁 다시 펼침 (#3)
   useEffect(() => { setMinimized(false); }, [idx]);
 
-  // 줌인 시퀀스: domRect 있으면 raw→zooming(1s)→focused(1.7s), 없으면 즉시 focused
+  // 줌인 시퀀스: 스튜디오에서 확대 애니메이션을 켠(zoomAnim) 스텝 + domRect 있을 때만.
+  // 원본(raw)에서 확대(zooming→focused)로 한 번만 진행하고 그대로 유지 — 다시 좁아지는 효과 없음.
+  // 기본은 확대 애니메이션 없이 즉시 focused. 확대 속도는 FollowStage 트랜지션 1.4s(기존 대비 2배 느림).
   useEffect(() => {
     phaseTimers.current.forEach(clearTimeout);
     phaseTimers.current = [];
-    const hasDomRect = !!(steps[idx]?.domRect);
-    if (!hasDomRect) { setAnimPhase('focused'); return; }
+    const zoomOn = !!(steps[idx]?.domRect) && !!(steps[idx]?.zoomAnim);
+    if (!zoomOn) { setAnimPhase('focused'); return; }
     setAnimPhase('raw');
     const t1 = setTimeout(() => setAnimPhase('zooming'), 1000);
-    const t2 = setTimeout(() => setAnimPhase('focused'), 1700);
+    const t2 = setTimeout(() => setAnimPhase('focused'), 2400);
     phaseTimers.current = [t1, t2];
     return () => { phaseTimers.current.forEach(clearTimeout); phaseTimers.current = []; };
-  }, [idx, done]); // done 추가: '다시 실습하기'(idx 변화 없이 done→false)에서도 줌 시퀀스 재생 // eslint-disable-line react-hooks/exhaustive-deps
+  }, [idx, done]); // done 추가: '다시 연습하기'(idx 변화 없이 done→false)에서도 줌 시퀀스 재생 // eslint-disable-line react-hooks/exhaustive-deps
 
   // 언마운트 정리: 전환 중 닫히면 setState 경고/오디오 누수가 나므로 타이머·오디오 해제
   useEffect(() => () => {
