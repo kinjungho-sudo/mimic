@@ -182,16 +182,26 @@ function ViewerStepCard({ step }: { step: ManualStep }) {
                 marginTop: imgMarginTop,
               }}
             />
+            {/* 줌/일반: 어노테이션을 이미지와 같은 transform 컨텍스트에 겹쳐 zoom 확대분까지 함께 적용(정합 유지) */}
+            {!hasCrop && (step.annotations?.length ?? 0) > 0 && (
+              <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+                <AnnotationPreview
+                  annotations={step.annotations!}
+                  imageUrl={step.screenshotUrl!}
+                  imgRef={imgRef}
+                />
+              </div>
+            )}
           </div>
-          {/* SVG overlay: crop wrapper 밖에 배치 — overflow:hidden 영향 없이 어노테이션 표시 */}
-          {(step.annotations?.length ?? 0) > 0 && (
+          {/* crop: 오버레이를 crop wrapper 밖에 배치 — overflow:hidden 영향 없이 viewBox로 정렬 */}
+          {hasCrop && (step.annotations?.length ?? 0) > 0 && (
             <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
               <AnnotationPreview
                 annotations={step.annotations!}
                 imageUrl={step.screenshotUrl!}
                 imgRef={imgRef}
-                cropRect={hasCrop ? cr! : undefined}
-                sizeScale={hasCrop ? cr!.w : (zoom > 1 ? 1 / zoom : 1)}
+                cropRect={cr!}
+                sizeScale={cr!.w}
               />
             </div>
           )}
