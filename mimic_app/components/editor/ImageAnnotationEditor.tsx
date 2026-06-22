@@ -1077,8 +1077,10 @@ export function ImageAnnotationEditor({
                 onMouseDown={e => e.stopPropagation()}
                 style={{
                   position: 'absolute',
-                  left: `${Math.min(editingItem.x1, editingItem.x2)}%`,
+                  // 렌더 박스와 동일하게 그림 영역 가로 중심 기준으로 배치(translateX로 중앙 정렬)
+                  left: `${(Math.min(editingItem.x1, editingItem.x2) + Math.max(editingItem.x1, editingItem.x2)) / 2}%`,
                   top: `${Math.min(editingItem.y1, editingItem.y2)}%`,
+                  transform: 'translateX(-50%)',
                   width: boxW > 2 ? `${boxW}%` : '80px',
                   minHeight: boxH > 1 ? `${boxH}%` : '24px',
                   padding: '4px 8px',
@@ -1406,7 +1408,9 @@ function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx
     const lineH = fSize * 1.4;
     const boxW = estimateTextW(text, fSize) + 2 * padX;
     const boxH = lines.length * lineH + 2 * padY;
-    const cx = minX + boxW / 2;
+    // 그림 영역(x1~x2)의 가로 중심을 기준으로 박스를 배치 — 뷰어(AnnotationPreview)·PDF·PPTX·DOCX와 동일 규칙
+    const cx = (ax1 + ax2) / 2;
+    const boxX = cx - boxW / 2;
     const bgFill = bg ? 'rgba(10,10,15,0.92)' : 'transparent';
     const strokeColor = bColor !== 'transparent' ? bColor : 'none';
 
@@ -1416,7 +1420,7 @@ function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx
         onDoubleClick={e => { e.stopPropagation(); onBodyDblClick?.(); }}
       >
         {bg && (
-          <rect x={minX} y={minY} width={boxW} height={boxH}
+          <rect x={boxX} y={minY} width={boxW} height={boxH}
             fill={bgFill}
             stroke={strokeColor}
             strokeWidth={strokeColor !== 'none' ? 1.5 : 0}
@@ -1433,7 +1437,7 @@ function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx
           >{line}</text>
         ))}
         {isSelected && onHandleMouseDown && (
-          <SelectionHandles minX={minX} minY={minY} w={boxW} h={boxH} onHandle={handleHandle} />
+          <SelectionHandles minX={boxX} minY={minY} w={boxW} h={boxH} onHandle={handleHandle} />
         )}
       </g>
     );
