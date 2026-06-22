@@ -725,7 +725,7 @@ export default function EditorPage() {
               onMouseLeave={e => { if (!showActivity) e.currentTarget.style.background = 'white'; }}
             >
               <Clock size={13} />
-              활동 기록
+              기록
             </button>
 
             {/* 다운로드 — PDF / PPTX / Word */}
@@ -919,7 +919,7 @@ export default function EditorPage() {
               onChange={e => { setTitle(e.target.value); setTitleDirty(true); }}
               placeholder="매뉴얼 제목"
               style={{
-                flex: 1, fontSize: '14px', fontWeight: 600, color: '#111827',
+                flex: 1, fontSize: '20px', fontWeight: 600, color: '#111827',
                 background: 'transparent', border: 'none', outline: 'none',
                 fontFamily: 'inherit', cursor: 'text', minWidth: 0,
               }}

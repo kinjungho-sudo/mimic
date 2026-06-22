@@ -18,7 +18,7 @@ export interface ManualStep {
   id: string;
   number: number;
   actionTitle: string;
-  titleFontSize?: number | null;  // 제목 글자 크기(px). null=기본 20px
+  titleFontSize?: number | null;  // 제목 글자 크기(px). null=기본 18px
   followConfig?: FollowConfig | null;  // 라이브 가이드 설정(kind/typeText 등) — 편집기·스튜디오 공유
   description: string;       // stored as HTML string
   screenshotUrl?: string;
@@ -848,7 +848,7 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
             onBlur={e => { e.currentTarget.style.background = 'transparent'; handleTitleBlur(e); }}
             placeholder="단계 제목을 입력하세요"
             style={{
-              flex: 1, fontSize: `${step.titleFontSize ?? 20}px`, fontWeight: 600, color: '#111827',
+              flex: 1, fontSize: `${step.titleFontSize ?? 18}px`, fontWeight: 600, color: '#111827',
               background: 'transparent', border: 'none', outline: 'none',
               padding: '3px 6px', margin: '0 -6px',
               lineHeight: 1.4, borderRadius: '6px', cursor: 'text',
