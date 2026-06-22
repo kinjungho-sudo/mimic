@@ -298,12 +298,13 @@ function PageCard({ page, viewMode = 'grid' }: {
 
 type ViewMode = 'grid' | 'list' | 'compact';
 
-function TutorialCard({ tutorial, onContextMenu, onTitleChange, onMenuClick, viewMode = 'grid' }: {
+function TutorialCard({ tutorial, onContextMenu, onTitleChange, onMenuClick, viewMode = 'grid', onCardClick }: {
   tutorial: Tutorial;
   onContextMenu: (e: React.MouseEvent, id: string) => void;
   onTitleChange: (id: string, title: string) => void;
   onMenuClick: (e: React.MouseEvent, id: string) => void;
   viewMode?: ViewMode;
+  onCardClick?: (id: string) => void;
 }) {
   const router = useRouter();
   const [hovered, setHovered] = useState(false);
@@ -404,7 +405,7 @@ function TutorialCard({ tutorial, onContextMenu, onTitleChange, onMenuClick, vie
     onMouseLeave: () => setHovered(false),
     onContextMenu: (e: React.MouseEvent) => { e.preventDefault(); onContextMenu(e, tutorial.id); },
     // 편집 우선 — 매뉴얼 클릭 시 편집기로 진입 (뷰어 권한자는 편집기에서 뷰어로 자동 리다이렉트됨)
-    onClick: () => { if (!editingTitle) router.push(`/manual/${tutorial.id}/editor`); },
+    onClick: () => { if (!editingTitle) { if (onCardClick) onCardClick(tutorial.id); else router.push(`/manual/${tutorial.id}/editor`); } },
   };
 
   if (viewMode === 'compact') {
@@ -802,7 +803,8 @@ export default function DashboardPage() {
   const [playbook, setPlaybook] = useState<{ used: number; limit: number; paid: boolean } | null>(null);
 
   // 콘텐츠 유형 탭
-  const [contentType, setContentType] = useState<'manual' | 'practice' | 'playbook' | 'liveguide'>('manual');
+  const [contentType, setContentType] = useState<'manual' | 'playbook'>('manual');
+  const [manualActionModal, setManualActionModal] = useState<string | null>(null);
   const [pages, setPages] = useState<{ id: string; title: string; updated_at: string; block_count?: number; workspace_id?: string | null }[]>([]);
   const [pagesLoading, setPagesLoading] = useState(false);
 
@@ -1046,8 +1048,6 @@ export default function DashboardPage() {
     }
     return list;
   })();
-
-  const practiceTutorials = displayedTutorials.filter(t => t.share_token && t.status === 'published');
 
   const displayedPages = (() => {
     if (!searchQuery.trim()) return pages;
@@ -1350,8 +1350,8 @@ export default function DashboardPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
                   <h1 className="home-greeting" style={{ fontSize: '24px', fontWeight: 700, letterSpacing: '-0.025em', margin: 0, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {authLoading ? '' : isTeamCtx
-                      ? (workspaces.find(w => w.id === activeWorkspace)?.name ?? '팀 워크스페이스')
-                      : contentType === 'playbook' ? `${firstName}님의 플레이북` : contentType === 'liveguide' ? 'Live Guide' : `${firstName}님의 매뉴얼`}
+                      ? `${workspaces.find(w => w.id === activeWorkspace)?.name ?? '팀 워크스페이스'} 매뉴얼`
+                      : contentType === 'playbook' ? `${firstName}님의 플레이북` : `${firstName}님의 워크스페이스`}
                   </h1>
                   {isTeamCtx && (
                     <>
@@ -1403,9 +1403,7 @@ export default function DashboardPage() {
               <div style={{ display: 'flex', gap: '6px', marginBottom: '16px' }}>
                 {([
                   { key: 'manual' as const, label: '매뉴얼', color: '#3730a3', bg: '#e0e7ff', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> },
-                  { key: 'practice' as const, label: '실습하기', color: '#0369a1', bg: '#e0f2fe', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg> },
                   { key: 'playbook' as const, label: '플레이북', color: '#059669', bg: '#dcfce7', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg> },
-                  { key: 'liveguide' as const, label: 'Live Guide', color: '#7c3aed', bg: '#ede9fe', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg> },
                 ] as const).map(({ key, label, color, bg, icon }) => (
                   <button key={key} onClick={() => setContentType(key)}
                     style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 14px', borderRadius: '9px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600, transition: 'background 0.12s, color 0.12s', background: contentType === key ? bg : '#F3F4F6', color: contentType === key ? color : '#6B7280', boxShadow: contentType === key ? `0 0 0 1.5px ${color}40` : 'none' }}
@@ -1423,7 +1421,7 @@ export default function DashboardPage() {
               >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={searchQuery ? '#4F46E5' : '#9CA3AF'} strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, transition: 'stroke 0.15s' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 <input
-                  placeholder={contentType === 'playbook' ? '플레이북 이름으로 검색...' : contentType === 'liveguide' ? 'Live Guide 검색...' : contentType === 'practice' ? '실습하기 검색...' : '매뉴얼 이름으로 검색...'}
+                  placeholder={contentType === 'playbook' ? '플레이북 이름으로 검색...' : '매뉴얼 이름으로 검색...'}
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '14.5px', fontFamily: 'inherit', color: '#111827' }}
@@ -1445,11 +1443,7 @@ export default function DashboardPage() {
                 <div style={{ flex: 1, padding: '7px 2px', fontSize: '13px', color: '#9CA3AF', fontWeight: 500 }}>
                   {contentType === 'playbook'
                     ? (!pagesLoading && `플레이북 ${displayedPages.length}개`)
-                    : contentType === 'liveguide'
-                      ? (!tutLoading && `Live Guide ${displayedTutorials.length}개`)
-                      : contentType === 'practice'
-                        ? (!tutLoading && `실습하기 ${practiceTutorials.length}개`)
-                        : (!tutLoading && `매뉴얼 ${displayedTutorials.length}개`)}
+                    : (!tutLoading && `매뉴얼 ${displayedTutorials.length}개`)}
                 </div>
                 {/* 뷰 모드 토글 */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginBottom: '6px', background: '#F3F4F6', borderRadius: '8px', padding: '3px' }}>
@@ -1506,71 +1500,6 @@ export default function DashboardPage() {
                     {displayedPages.map(p => <PageCard key={p.id} page={p} viewMode={viewMode} />)}
                   </div>
                 )
-              ) : contentType === 'practice' ? (
-                /* 실습하기 탭 — share_token이 있는 published 튜토리얼만 표시 */
-                <>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '10px 14px', borderRadius: '10px', background: '#e0f2fe', border: '1px solid #bae6fd', marginBottom: '16px' }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0369a1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: '1px' }}><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
-                    <div style={{ fontSize: '12.5px', color: '#0c4a6e', lineHeight: 1.6 }}>
-                      <b>실습하기</b>는 캡처한 화면 위에서 단계별로 직접 클릭해보며 익히는 인터랙티브 연습 모드입니다. 매뉴얼 상세 페이지에서 실습 링크를 공유할 수 있어요.
-                    </div>
-                  </div>
-                  {tutLoading ? (
-                    <div className={viewMode === 'list' ? 'home-card-list' : 'home-card-grid'}>
-                      {[1,2,3].map(i => (
-                        <div key={i} style={{ borderRadius: '10px', background: 'white', border: '1px solid #E5E7EB', padding: '11px 13px', display: 'flex', alignItems: 'center', gap: '11px' }}>
-                          <div style={{ width: '34px', height: '34px', borderRadius: '7px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite', flexShrink: 0 }} />
-                          <div style={{ flex: 1, height: '12px', borderRadius: '6px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite' }} />
-                        </div>
-                      ))}
-                    </div>
-                  ) : practiceTutorials.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '48px 24px', color: '#6B7280' }}>
-                      <div style={{ fontSize: '13px' }}>실습하기 가능한 매뉴얼이 없어요.<br/>녹화를 완료하면 자동으로 실습하기가 생성됩니다.</div>
-                      <button onClick={() => setContentType('manual')} style={{ marginTop: '12px', padding: '7px 14px', borderRadius: '8px', border: '1px solid #bae6fd', background: 'white', fontSize: '13px', color: '#0369a1', cursor: 'pointer', fontWeight: 600 }}>매뉴얼 보기</button>
-                    </div>
-                  ) : (
-                    <div className={viewMode === 'list' ? 'home-card-list' : 'home-card-grid'}>
-                      {practiceTutorials.map(t => (
-                        <TutorialCard key={t.id} tutorial={t} onContextMenu={handleContextMenu} onTitleChange={handleTitleChange} onMenuClick={handleContextMenu} viewMode={viewMode} />
-                      ))}
-                    </div>
-                  )}
-                </>
-              ) : contentType === 'liveguide' ? (
-                /* Live Guide 탭 — 기존 매뉴얼을 보여주되 Live Guide 안내 배너 추가 */
-                <>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '10px 14px', borderRadius: '10px', background: '#ede9fe', border: '1px solid #c4b5fd', marginBottom: '16px' }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: '1px' }}><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                    <div style={{ fontSize: '12.5px', color: '#5b21b6', lineHeight: 1.6 }}>
-                      <b>Live Guide</b>는 MIMIC 익스텐션이 설치된 브라우저에서 매뉴얼을 단계별로 안내해주는 기능입니다. 아래에서 실행할 매뉴얼을 선택하세요.
-                      {liveGuide && !liveGuide.paid && (
-                        <span style={{ marginLeft: '6px', fontSize: '11px', color: '#7c3aed', fontWeight: 600 }}>(이번 달 {liveGuide.used}/{liveGuide.limit}회 사용)</span>
-                      )}
-                    </div>
-                  </div>
-                  {tutLoading ? (
-                    <div className={viewMode === 'list' ? 'home-card-list' : 'home-card-grid'}>
-                      {[1,2,3].map(i => (
-                        <div key={i} style={{ borderRadius: '10px', background: 'white', border: '1px solid #E5E7EB', padding: '11px 13px', display: 'flex', alignItems: 'center', gap: '11px' }}>
-                          <div style={{ width: '34px', height: '34px', borderRadius: '7px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite', flexShrink: 0 }} />
-                          <div style={{ flex: 1, height: '12px', borderRadius: '6px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite' }} />
-                        </div>
-                      ))}
-                    </div>
-                  ) : displayedTutorials.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '48px 24px', color: '#6B7280' }}>
-                      <div style={{ fontSize: '13px' }}>Live Guide로 실행할 매뉴얼이 없어요.</div>
-                      <button onClick={() => setContentType('manual')} style={{ marginTop: '12px', padding: '7px 14px', borderRadius: '8px', border: '1px solid #c4b5fd', background: 'white', fontSize: '13px', color: '#7c3aed', cursor: 'pointer', fontWeight: 600 }}>매뉴얼 보기</button>
-                    </div>
-                  ) : (
-                    <div className={viewMode === 'list' ? 'home-card-list' : 'home-card-grid'}>
-                      {displayedTutorials.map(t => (
-                        <TutorialCard key={t.id} tutorial={t} onContextMenu={handleContextMenu} onTitleChange={handleTitleChange} onMenuClick={handleContextMenu} viewMode={viewMode} />
-                      ))}
-                    </div>
-                  )}
-                </>
               ) : (
                 /* 매뉴얼 탭 (기존) */
                 tutLoading ? (
@@ -1604,7 +1533,7 @@ export default function DashboardPage() {
                 ) : (
                   <div className={viewMode === 'list' ? 'home-card-list' : 'home-card-grid'}>
                     {displayedTutorials.map(t => (
-                      <TutorialCard key={t.id} tutorial={t} onContextMenu={handleContextMenu} onTitleChange={handleTitleChange} onMenuClick={handleContextMenu} viewMode={viewMode} />
+                      <TutorialCard key={t.id} tutorial={t} onContextMenu={handleContextMenu} onTitleChange={handleTitleChange} onMenuClick={handleContextMenu} viewMode={viewMode} onCardClick={id => setManualActionModal(id)} />
                     ))}
                   </div>
                 )
@@ -1758,6 +1687,59 @@ export default function DashboardPage() {
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                 </button>
               </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* 매뉴얼 액션 선택 모달 */}
+      {manualActionModal && (
+        <>
+          <div onClick={() => setManualActionModal(null)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 300, backdropFilter: 'blur(3px)' }} />
+          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 301, background: 'white', borderRadius: '16px', padding: '28px 24px', width: '320px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <div>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>매뉴얼 열기</div>
+                <div style={{ fontSize: '15px', fontWeight: 700, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '220px' }}>
+                  {tutorials.find(t => t.id === manualActionModal)?.title ?? '매뉴얼'}
+                </div>
+              </div>
+              <button onClick={() => setManualActionModal(null)} style={{ width: '28px', height: '28px', borderRadius: '8px', border: 'none', background: '#F3F4F6', cursor: 'pointer', display: 'grid', placeItems: 'center', color: '#6B7280', flexShrink: 0 }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <button onClick={() => { router.push(`/manual/${manualActionModal}/editor`); setManualActionModal(null); }}
+                style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 16px', borderRadius: '12px', border: '1.5px solid #E5E7EB', background: 'white', cursor: 'pointer', textAlign: 'left', transition: 'border-color 0.12s, box-shadow 0.12s', width: '100%' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#3730a3'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(55,48,163,0.08)'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.boxShadow = 'none'; }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#e0e7ff', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3730a3" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                </div>
+                <div>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#111827' }}>매뉴얼 편집</div>
+                  <div style={{ fontSize: '12px', color: '#6B7280', marginTop: '2px' }}>내용을 직접 편집하고 관리해요</div>
+                </div>
+              </button>
+              <button
+                onClick={() => { if (isPro) { router.push(`/manual/${manualActionModal}/studio`); setManualActionModal(null); } else { router.push('/mypage'); } }}
+                style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 16px', borderRadius: '12px', border: '1.5px solid #E5E7EB', background: isPro ? 'white' : '#FAFAFA', cursor: 'pointer', textAlign: 'left', transition: 'border-color 0.12s, box-shadow 0.12s', width: '100%', opacity: isPro ? 1 : 0.75 }}
+                onMouseEnter={e => { if (isPro) { e.currentTarget.style.borderColor = '#7c3aed'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(124,58,237,0.08)'; } }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.boxShadow = 'none'; }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#ede9fe', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '14px', fontWeight: 600, color: '#111827' }}>Live Guide 스튜디오</span>
+                    {!isPro && <span style={{ fontSize: '10px', fontWeight: 700, color: '#7c3aed', background: '#ede9fe', padding: '1px 6px', borderRadius: '999px' }}>Pro</span>}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#6B7280', marginTop: '2px' }}>
+                    {isPro ? '브라우저에서 단계별 가이드를 안내해요' : 'Pro 플랜에서 이용할 수 있어요 →'}
+                  </div>
+                </div>
+              </button>
             </div>
           </div>
         </>
