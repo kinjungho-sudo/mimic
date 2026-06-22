@@ -158,8 +158,8 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
 
   // 모달 진입 시:
   // - dev/Preview(REQUIRE_EXTENSION 꺼짐): 확장 강제 없이 바로 가이드 (기존 동작)
-  // - 운영(REQUIRE_EXTENSION 켜짐): 확장 연동을 ping으로 확인 → 미설치/미응답이면
-  //   설치+연동 페이지(/extension-link)로 보내 '연동된 상태로 시작'하게 한다.
+  // - 운영(REQUIRE_EXTENSION 켜짐): CONNECT ping으로 설치 여부 확인 → 미설치/미응답이면
+  //   크롬 웹스토어 설치 페이지로 직접 보낸다.
   useEffect(() => {
     if (!REQUIRE_EXTENSION) { setStep('guide'); return; }
     let alive = true;
