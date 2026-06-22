@@ -13,9 +13,9 @@ const SUPABASE_ANON_KEY = IS_DEV
   : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxeW5wdHBqb21jcXp4eXlrcWljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NTcyNzMsImV4cCI6MjA4NzEzMzI3M30.7OgewnWhbE2GK1k0tTuuegrKUVkHuJrW_cpvbVRcH1E';
 const SUPABASE_BUCKET   = 'naviaction';
 const WEBAPP_ORIGIN     = IS_DEV
-  ? 'http://localhost:3000'                       // dev: 로컬 앱(포트 3000 고정 권장)
+  ? 'https://mimic-git-dev-kinjungho-7735s-projects.vercel.app'  // dev: Preview(주 테스트 대상). localhost는 sender.origin 우선으로 여전히 연동됨
   : 'https://mimic-nine-ashen.vercel.app';        // 운영
-if (IS_DEV) console.warn('[MIMIC Recorder] DEV 모드 — dev DB/localhost 연결 (id:', chrome.runtime.id, ')');
+if (IS_DEV) console.warn('[MIMIC Recorder] DEV 모드 — dev DB/Preview 연결 (id:', chrome.runtime.id, ')');
 const JPEG_QUALITY_DEFAULT = 0.92;
 const MAX_STEPS         = 30;
 
