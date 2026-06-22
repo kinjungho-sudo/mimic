@@ -7,6 +7,8 @@
 const REQUIRE_EXTENSION =
   process.env.NEXT_PUBLIC_REQUIRE_EXTENSION?.replace(/^﻿/, '').trim() === '1';
 const EXT_ID = process.env.NEXT_PUBLIC_EXTENSION_ID?.replace(/^﻿/, '').trim();
+// 미설치 시 보낼 크롬 웹스토어 설치 페이지 (운영 확장 하나뿐).
+const STORE_URL = 'https://chromewebstore.google.com/detail/mimic-recorder/ehbhcdkapcbfehinjapabgoegcjmmbgd';
 
 type ChromeRuntime = {
   runtime?: {
@@ -37,7 +39,7 @@ function pingOnce(): Promise<boolean> {
 }
 
 // Service Worker가 잠들어 첫 ping이 실패할 수 있어 몇 번 재시도해 깨운다.
-async function isExtensionLinked(retries = 3): Promise<boolean> {
+async function extensionResponds(retries = 3): Promise<boolean> {
   for (let i = 0; i < retries; i++) {
     if (await pingOnce()) return true;
     await new Promise(r => setTimeout(r, 500));
@@ -45,10 +47,11 @@ async function isExtensionLinked(retries = 3): Promise<boolean> {
   return false;
 }
 
-// 진행 허용이면 true. 운영에서 미연동이면 설치+연동 페이지로 보내고 false 반환.
-export async function ensureExtension(router: { push: (path: string) => void }): Promise<boolean> {
+// 진행 허용이면 true. 운영에서 확장이 설치 안 돼 있으면(미응답)
+// 크롬 웹스토어 설치 페이지로 직접 보내고 false 반환.
+export async function ensureExtension(): Promise<boolean> {
   if (!REQUIRE_EXTENSION) return true;
-  if (await isExtensionLinked()) return true;
-  router.push('/extension-link');
+  if (await extensionResponds()) return true;
+  window.location.href = STORE_URL;
   return false;
 }

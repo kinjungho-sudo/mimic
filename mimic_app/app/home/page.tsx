@@ -913,8 +913,8 @@ export default function DashboardPage() {
 
   const handleCreateGuidebook = async () => {
     setShowNewMenu(false);
-    // 플레이북도 녹화 기반 매뉴얼을 묶는 기능 → 운영에선 확장 연동 필요(빈 매뉴얼만 예외)
-    if (!(await ensureExtension(router))) return;
+    // 플레이북도 녹화 기반 매뉴얼을 묶는 기능 → 운영에선 확장 필요(빈 매뉴얼만 예외)
+    if (!(await ensureExtension())) return;
     setCreating(true);
     try {
       const wsId = activeTab === 'team' && activeWorkspace ? activeWorkspace : null;

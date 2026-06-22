@@ -1,7 +1,6 @@
 ﻿'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 
 // 운영(Production)에서만 켜는 플래그 — Vercel Production env에 NEXT_PUBLIC_REQUIRE_EXTENSION=1.
 // 로컬(npm run dev)·Preview(dev)는 값이 없어 게이트가 꺼진다(개발자 버전 미설치로도 작업 가능).
@@ -144,7 +143,6 @@ interface RecordingModalProps {
 const STORE_URL = 'https://chromewebstore.google.com/detail/mimic-recorder/ehbhcdkapcbfehinjapabgoegcjmmbgd';
 
 export function RecordingModal({ onClose }: RecordingModalProps) {
-  const router = useRouter();
   const [step, setStep] = useState<ModalStep>('checking');
   const [tabs, setTabs] = useState<ChromeTab[]>([]);
   const [tabsLoading, setTabsLoading] = useState(false);
@@ -167,13 +165,13 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
     let alive = true;
     setStep('checking');
     (async () => {
-      const resp = await wakeAndSend('CONNECT'); // SW 깨우고 연동 확인
+      const resp = await wakeAndSend('CONNECT'); // SW 깨우고 설치 여부 확인
       if (!alive) return;
       if (resp) setStep('guide');
-      else router.push('/extension-link');
+      else window.location.href = STORE_URL; // 미설치 → 크롬 웹스토어 설치 페이지로 직접
     })();
     return () => { alive = false; };
-  }, [router]);
+  }, []);
 
   // 탭 선택 단계 진입 시 목록 로드
   const enterTabSelect = useCallback(async () => {
