@@ -75,11 +75,59 @@ function FolderWsButton({ folderId, workspaces, onMove }: {
   );
 }
 
+// ── 이름 바꾸기 모달 ──────────────────────────────────────────
+
+function RenameModal({ currentTitle, onConfirm, onClose }: {
+  currentTitle: string;
+  onConfirm: (newTitle: string) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [value, setValue] = useState(currentTitle);
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { inputRef.current?.select(); }, []);
+
+  const handleSubmit = async () => {
+    if (!value.trim()) return;
+    setSaving(true);
+    await onConfirm(value);
+    setSaving(false);
+  };
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 400, backdropFilter: 'blur(2px)' }} />
+      <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 401, background: 'white', borderRadius: '14px', padding: '24px', width: '340px', boxShadow: '0 16px 48px rgba(0,0,0,0.18)' }}>
+        <div style={{ fontSize: '15px', fontWeight: 700, color: '#111827', marginBottom: '14px' }}>이름 바꾸기</div>
+        <input
+          ref={inputRef}
+          value={value}
+          onChange={e => setValue(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') handleSubmit(); if (e.key === 'Escape') onClose(); }}
+          disabled={saving}
+          style={{ width: '100%', boxSizing: 'border-box', padding: '9px 12px', border: '1.5px solid #3730a3', borderRadius: '8px', fontSize: '14px', fontFamily: 'inherit', outline: 'none', color: '#111827' }}
+        />
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
+          <button onClick={onClose} disabled={saving}
+            style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #E5E7EB', background: 'white', fontSize: '13px', cursor: 'pointer', color: '#374151', fontWeight: 500 }}>
+            취소
+          </button>
+          <button onClick={handleSubmit} disabled={saving || !value.trim()}
+            style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', background: '#3730a3', fontSize: '13px', cursor: 'pointer', color: 'white', fontWeight: 600, opacity: !value.trim() ? 0.5 : 1 }}>
+            {saving ? '저장 중...' : '저장'}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ── 컨텍스트 메뉴 ──────────────────────────────────────────
 
 type CtxMenu = { x: number; y: number; tutorialId: string } | null;
 
-function ContextMenu({ menu, folders, tutorials, workspaces, onMove, onMoveToWorkspace, onDelete, onClose }: {
+function ContextMenu({ menu, folders, tutorials, workspaces, onMove, onMoveToWorkspace, onDelete, onRename, onClose }: {
   menu: NonNullable<CtxMenu>;
   folders: Folder[];
   tutorials: Tutorial[];
@@ -87,6 +135,7 @@ function ContextMenu({ menu, folders, tutorials, workspaces, onMove, onMoveToWor
   onMove: (tutorialId: string, folderId: string | null) => void;
   onMoveToWorkspace: (tutorialId: string, workspaceId: string | null) => void;
   onDelete: (id: string) => void;
+  onRename: (id: string, currentTitle: string) => void;
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -213,6 +262,16 @@ function ContextMenu({ menu, folders, tutorials, workspaces, onMove, onMoveToWor
         </div>
       )}
 
+      {/* 이름 바꾸기 */}
+      <button
+        style={{ ...itemStyle }}
+        onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
+        onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+        onClick={() => { onRename(menu.tutorialId, tutorial?.title ?? ''); onClose(); }}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        이름 바꾸기
+      </button>
+
       <div style={{ height: '1px', background: '#F3F4F6', margin: '2px 4px' }} />
 
       {/* 삭제 */}
@@ -298,22 +357,17 @@ function PageCard({ page, viewMode = 'grid' }: {
 
 type ViewMode = 'grid' | 'list' | 'compact';
 
-function TutorialCard({ tutorial, onContextMenu, onTitleChange, onMenuClick, viewMode = 'grid', onCardClick }: {
+function TutorialCard({ tutorial, onContextMenu, onMenuClick, viewMode = 'grid', onCardClick }: {
   tutorial: Tutorial;
   onContextMenu: (e: React.MouseEvent, id: string) => void;
-  onTitleChange: (id: string, title: string) => void;
   onMenuClick: (e: React.MouseEvent, id: string) => void;
   viewMode?: ViewMode;
   onCardClick?: (id: string) => void;
 }) {
   const router = useRouter();
   const [hovered, setHovered] = useState(false);
-  const [editingTitle, setEditingTitle] = useState(false);
-  const [titleDraft, setTitleDraft] = useState(tutorial.title);
-  const [savingTitle, setSavingTitle] = useState(false);
   const [faviconError, setFaviconError] = useState(false);
   const [faviconSrc, setFaviconSrc] = useState<string | null>(null);
-  const titleInputRef = useRef<HTMLInputElement>(null);
 
   const color = cardColor(tutorial.id);
   const stepCount = tutorial.step_count ?? 0;
@@ -323,21 +377,6 @@ function TutorialCard({ tutorial, onContextMenu, onTitleChange, onMenuClick, vie
   const googleFavicon = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=32` : null;
   const ddgFavicon = domain ? `https://icons.duckduckgo.com/ip3/${domain}.ico` : null;
   const activeFavicon = faviconSrc ?? googleFavicon;
-
-  const saveTitle = useCallback(async () => {
-    const trimmed = titleDraft.trim();
-    if (!trimmed || trimmed === tutorial.title) { setEditingTitle(false); setTitleDraft(tutorial.title); return; }
-    setSavingTitle(true);
-    try {
-      await fetch(`/api/tutorials/${tutorial.id}`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: trimmed }),
-      });
-      onTitleChange(tutorial.id, trimmed);
-    } finally { setSavingTitle(false); setEditingTitle(false); }
-  }, [titleDraft, tutorial.id, tutorial.title, onTitleChange]);
-
-  useEffect(() => { if (editingTitle) titleInputRef.current?.focus(); }, [editingTitle]);
 
   const iconEl = (size: number) => (
     <div style={{ width: `${size}px`, height: `${size}px`, borderRadius: '7px', flexShrink: 0, background: `${color}12`, display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
@@ -366,19 +405,9 @@ function TutorialCard({ tutorial, onContextMenu, onTitleChange, onMenuClick, vie
   );
 
   const titleEl = (
-    editingTitle ? (
-      <input ref={titleInputRef} value={titleDraft} onChange={e => setTitleDraft(e.target.value)}
-        onBlur={saveTitle}
-        onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') { setEditingTitle(false); setTitleDraft(tutorial.title); } }}
-        onClick={e => e.stopPropagation()} disabled={savingTitle}
-        style={{ fontSize: '14px', fontWeight: 600, color: '#111827', border: '1.5px solid #3730a3', borderRadius: '5px', padding: '1px 6px', outline: 'none', width: '100%', boxSizing: 'border-box', fontFamily: 'inherit' }}
-      />
-    ) : (
-      <div onClick={e => { e.stopPropagation(); setEditingTitle(true); }} title="클릭해서 제목 편집"
-        style={{ fontSize: '14px', fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'text' }}>
-        {tutorial.title}
-      </div>
-    )
+    <div style={{ fontSize: '14px', fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      {tutorial.title}
+    </div>
   );
 
   const metaEl = (
@@ -396,7 +425,7 @@ function TutorialCard({ tutorial, onContextMenu, onTitleChange, onMenuClick, vie
 
   const commonArticleProps = {
     // 폴더 패널로 드래그해서 정리 (Scribe 스타일 DnD)
-    draggable: !editingTitle,
+    draggable: true,
     onDragStart: (e: React.DragEvent) => {
       e.dataTransfer.setData('text/mimic-tutorial', tutorial.id);
       e.dataTransfer.effectAllowed = 'move';
@@ -404,8 +433,7 @@ function TutorialCard({ tutorial, onContextMenu, onTitleChange, onMenuClick, vie
     onMouseEnter: () => setHovered(true),
     onMouseLeave: () => setHovered(false),
     onContextMenu: (e: React.MouseEvent) => { e.preventDefault(); onContextMenu(e, tutorial.id); },
-    // 편집 우선 — 매뉴얼 클릭 시 편집기로 진입 (뷰어 권한자는 편집기에서 뷰어로 자동 리다이렉트됨)
-    onClick: () => { if (!editingTitle) { if (onCardClick) onCardClick(tutorial.id); else router.push(`/manual/${tutorial.id}/editor`); } },
+    onClick: () => { if (onCardClick) onCardClick(tutorial.id); else router.push(`/manual/${tutorial.id}/editor`); },
   };
 
   if (viewMode === 'compact') {
@@ -787,6 +815,7 @@ export default function DashboardPage() {
 
   // 컨텍스트 메뉴
   const [ctxMenu, setCtxMenu] = useState<CtxMenu>(null);
+  const [renameModal, setRenameModal] = useState<{ id: string; title: string } | null>(null);
 
   // 모바일 드로어
   const [showDrawer, setShowDrawer] = useState(false);
@@ -1070,6 +1099,7 @@ export default function DashboardPage() {
           onMove={handleMoveToFolder}
           onMoveToWorkspace={handleMoveToWorkspace}
           onDelete={handleRemove}
+          onRename={(id, currentTitle) => setRenameModal({ id, title: currentTitle })}
           onClose={() => setCtxMenu(null)}
         />
       )}
@@ -1533,7 +1563,7 @@ export default function DashboardPage() {
                 ) : (
                   <div className={viewMode === 'list' ? 'home-card-list' : 'home-card-grid'}>
                     {displayedTutorials.map(t => (
-                      <TutorialCard key={t.id} tutorial={t} onContextMenu={handleContextMenu} onTitleChange={handleTitleChange} onMenuClick={handleContextMenu} viewMode={viewMode} onCardClick={id => setManualActionModal(id)} />
+                      <TutorialCard key={t.id} tutorial={t} onContextMenu={handleContextMenu} onMenuClick={handleContextMenu} viewMode={viewMode} onCardClick={id => setManualActionModal(id)} />
                     ))}
                   </div>
                 )
@@ -1690,6 +1720,25 @@ export default function DashboardPage() {
             </div>
           </div>
         </>
+      )}
+
+      {/* 이름 바꾸기 모달 */}
+      {renameModal && (
+        <RenameModal
+          currentTitle={renameModal.title}
+          onConfirm={async (newTitle) => {
+            const trimmed = newTitle.trim();
+            if (trimmed && trimmed !== renameModal.title) {
+              await fetch(`/api/tutorials/${renameModal.id}`, {
+                method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: trimmed }),
+              });
+              handleTitleChange(renameModal.id, trimmed);
+            }
+            setRenameModal(null);
+          }}
+          onClose={() => setRenameModal(null)}
+        />
       )}
 
       {/* 매뉴얼 액션 선택 모달 */}
