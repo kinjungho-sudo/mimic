@@ -2,14 +2,14 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Check, Undo2, Redo2, Volume2, VolumeX, Loader2, MonitorPlay, Eye, Wand2, Zap, MessageSquare, Clock, Share2, Palette } from 'lucide-react';
+import { Check, Undo2, Redo2, Volume2, VolumeX, Loader2, Eye, Wand2, MessageSquare, Clock, Share2, Palette, Download } from 'lucide-react';
 import { GuideToc } from '@/components/editor/GuideToc';
 import { ManualEditor, ManualStep } from '@/components/editor/ManualEditor';
-import { SdkPreviewPanel } from '@/components/editor/SdkPreviewPanel';
 import { MergeModal } from '@/components/editor/MergeModal';
 import { CommentsPanel } from '@/components/editor/CommentsPanel';
 import { ActivityPanel } from '@/components/editor/ActivityPanel';
 import { ExportModal } from '@/components/editor/ExportModal';
+import { ShareModal } from '@/components/editor/ShareModal';
 import { AgentChat } from '@/components/chat/AgentChat';
 import { useTutorial } from '@/hooks/useTutorial';
 import { useAutosave } from '@/hooks/useAutosave';
@@ -77,7 +77,7 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
 export default function EditorPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { tutorial, loading, error } = useTutorial(id);
+  const { tutorial, loading, error, publish, unpublish } = useTutorial(id);
   const { user } = useAuth();
 
   const [title, setTitle] = useState('');
@@ -89,10 +89,12 @@ export default function EditorPage() {
   // 녹화 직후 진입 — 스텝 생성 대기 폴링
   const [pollingState, setPollingState] = useState<'idle' | 'polling' | 'timeout'>('idle');
   const [saving, setSaving] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [showActivity, setShowActivity] = useState(false);
   const [showExport, setShowExport] = useState(false);
+  const [showShare, setShowShare] = useState(false);
+  const [downloadOpen, setDownloadOpen] = useState(false);
+  const [downloadingFmt, setDownloadingFmt] = useState<'pdf' | 'pptx' | 'docx' | null>(null);
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const [ttsVoice, setTtsVoice] = useState<'nova' | 'alloy'>('nova');
   const [ttsGenerating, setTtsGenerating] = useState(false);
@@ -203,32 +205,27 @@ export default function EditorPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [manualSteps]);
 
-  const handleGuideMe = useCallback(() => {
-    const extensionId = process.env.NEXT_PUBLIC_EXTENSION_ID?.replace(/^﻿/, '').trim();
-    if (!extensionId) {
-      alert('라이브 가이드를 사용하려면 MIMIC 확장프로그램을 설치해주세요.');
-      return;
-    }
-    const shareToken = (tutorial as Tutorial & { share_token?: string | null })?.share_token;
-    if (!shareToken) {
-      alert('먼저 게시(Publish) 후 라이브 가이드를 사용할 수 있습니다.');
-      return;
-    }
+  const handleDownload = useCallback(async (fmt: 'pdf' | 'pptx' | 'docx') => {
+    setDownloadingFmt(fmt);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (window as any).chrome?.runtime?.sendMessage(
-        extensionId,
-        { action: 'START_GUIDE', share_token: shareToken },
-        (response: { ok?: boolean } | undefined) => {
-          if (!response?.ok) {
-            alert('확장프로그램이 응답하지 않습니다. 설치 여부를 확인해주세요.');
-          }
-        }
-      );
-    } catch {
-      alert('라이브 가이드를 시작할 수 없습니다. 확장프로그램을 설치해주세요.');
+      const res = await fetch(`/api/export/${fmt}/${id}`);
+      if (!res.ok) { alert('다운로드 실패. 스텝이 없거나 오류가 발생했습니다.'); return; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const cd = res.headers.get('content-disposition') ?? '';
+      const utf8Match = cd.match(/filename\*=UTF-8''([^;]+)/i);
+      const asciiMatch = cd.match(/filename="([^"]+)"/i);
+      a.download = utf8Match ? decodeURIComponent(utf8Match[1]) : (asciiMatch?.[1] ?? `${title || 'manual'}.${fmt}`);
+      a.click();
+      URL.revokeObjectURL(url);
+      setDownloadOpen(false);
+    } finally {
+      setDownloadingFmt(null);
     }
-  }, [tutorial]);
+  }, [id, title]);
+
 
   // Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y shortcuts
   useEffect(() => {
@@ -620,8 +617,8 @@ export default function EditorPage() {
         {/* Left: back button + page label */}
         <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '10px', paddingRight: '16px', borderRight: '1px solid #F3F4F6' }}>
           <button
-            onClick={() => router.push(`/manual/${id}`)}
-            title="매뉴얼로 돌아가기"
+            onClick={() => router.push('/home')}
+            title="홈으로 돌아가기"
             style={{
               width: '32px', height: '32px', borderRadius: '8px',
               border: '1px solid #E5E7EB', background: 'white',
@@ -689,29 +686,23 @@ export default function EditorPage() {
 
           {/* 편집기 — 항상 편집 모드 */}
           <>
-            {/* 미리보기 — 매뉴얼 뷰어를 새 탭에서 (편집 화면과 동일하게 보임) */}
-            <button
-              onClick={() => window.open(`/manual/${id}`, '_blank')}
-              title="매뉴얼 뷰어로 미리보기 (새 탭)"
-              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', cursor: 'pointer', transition: 'all 0.15s' }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#F9FAFB'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
-            >
-              <Eye size={14} />
-              미리보기
-            </button>
-
-            {/* SDK 툴팁 미리보기 토글 (Live Guide 오버레이 렌더 미리보기) */}
-            <button
-              onClick={() => setShowPreview(v => !v)}
-              title="SDK 툴팁 미리보기"
-              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: showPreview ? '#4F46E5' : '#374151', background: showPreview ? 'rgba(79,70,229,0.08)' : 'white', border: `1px solid ${showPreview ? '#4F46E5' : '#E5E7EB'}`, cursor: 'pointer', transition: 'all 0.15s', fontWeight: showPreview ? 600 : 400 }}
-              onMouseEnter={e => { if (!showPreview) e.currentTarget.style.background = '#F9FAFB'; }}
-              onMouseLeave={e => { if (!showPreview) e.currentTarget.style.background = 'white'; }}
-            >
-              <MonitorPlay size={13} />
-              SDK 미리보기
-            </button>
+            {/* 미리보기 — 게시된 공개 뷰어 새 탭 */}
+            {(() => {
+              const shareToken = (tutorial as Tutorial & { share_token?: string | null })?.share_token;
+              return (
+                <button
+                  onClick={() => { if (shareToken) window.open(`/play/${shareToken}`, '_blank'); }}
+                  title={shareToken ? '공개 뷰어로 미리보기 (새 탭)' : '게시 후 미리보기 가능'}
+                  disabled={!shareToken}
+                  style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: shareToken ? '#374151' : '#D1D5DB', background: 'white', border: '1px solid #E5E7EB', cursor: shareToken ? 'pointer' : 'not-allowed', transition: 'all 0.15s' }}
+                  onMouseEnter={e => { if (shareToken) e.currentTarget.style.background = '#F9FAFB'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
+                >
+                  <Eye size={14} />
+                  미리보기
+                </button>
+              );
+            })()}
 
             {/* 댓글 패널 토글 — 팀 협업 의견 공유 */}
             <button
@@ -737,34 +728,51 @@ export default function EditorPage() {
               활동 기록
             </button>
 
-            {/* 내보내기 — 사람 초대(권한 부여) */}
+            {/* 다운로드 — PDF / PPTX / Word */}
+            <div style={{ position: 'relative' }}>
+              <button onClick={() => setDownloadOpen(o => !o)} disabled={!!downloadingFmt}
+                title="다운로드 (PDF · PPTX · Word)"
+                style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#374151', background: downloadOpen ? '#F3F4F6' : 'white', border: '1px solid #E5E7EB', cursor: downloadingFmt ? 'not-allowed' : 'pointer', opacity: downloadingFmt ? 0.6 : 1, transition: 'all 0.15s' }}
+                onMouseEnter={e => { if (!downloadingFmt && !downloadOpen) e.currentTarget.style.background = '#F9FAFB'; }}
+                onMouseLeave={e => { if (!downloadOpen) e.currentTarget.style.background = 'white'; }}>
+                <Download size={13} />
+                {downloadingFmt ? '생성 중…' : '다운로드'}
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              {downloadOpen && (
+                <>
+                  <div onClick={() => setDownloadOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
+                  <div style={{ position: 'absolute', top: '38px', right: 0, zIndex: 41, background: 'white', border: '1px solid #E5E7EB', borderRadius: '10px', padding: '5px', minWidth: '180px', boxShadow: '0 8px 24px rgba(0,0,0,0.12)' }}>
+                    {([
+                      { fmt: 'pdf' as const, label: 'PDF 문서', desc: '.pdf' },
+                      { fmt: 'pptx' as const, label: 'PowerPoint', desc: '.pptx' },
+                      { fmt: 'docx' as const, label: 'Word 문서', desc: '.docx' },
+                    ]).map(opt => (
+                      <button key={opt.fmt} onClick={() => handleDownload(opt.fmt)} disabled={!!downloadingFmt}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 10px', border: 'none', borderRadius: '6px', background: 'transparent', cursor: downloadingFmt ? 'not-allowed' : 'pointer', textAlign: 'left', fontSize: '12.5px', color: '#374151' }}
+                        onMouseEnter={e => { if (!downloadingFmt) e.currentTarget.style.background = '#F3F4F6'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
+                        <Download size={15} style={{ color: '#9CA3AF', flexShrink: 0 }} />
+                        <span style={{ flex: 1, fontWeight: 500 }}>{opt.label}</span>
+                        <span style={{ fontSize: '11px', color: '#9CA3AF' }}>{downloadingFmt === opt.fmt ? '생성 중…' : opt.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* 초대 — 이메일로 협업자 초대 */}
             <button
               onClick={() => setShowExport(true)}
-              title="내보내기 — 다른 사람을 초대해 권한 부여"
+              title="이메일로 협업자 초대"
               style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', cursor: 'pointer', transition: 'all 0.15s' }}
               onMouseEnter={e => { e.currentTarget.style.background = '#F9FAFB'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
             >
               <Share2 size={13} />
-              내보내기
+              초대
             </button>
-
-            {/* 라이브 가이드 — 확장프로그램으로 실제 화면 오버레이 가이드 시작 */}
-            {(() => {
-              const shareToken = (tutorial as Tutorial & { share_token?: string | null })?.share_token;
-              return (
-                <button
-                  onClick={handleGuideMe}
-                  title={shareToken ? '라이브 가이드 시작 — 실제 화면에서 오버레이 가이드' : '게시 후 사용 가능'}
-                  style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: shareToken ? '#374151' : '#D1D5DB', background: 'white', border: '1px solid #E5E7EB', cursor: shareToken ? 'pointer' : 'not-allowed', transition: 'all 0.15s' }}
-                  onMouseEnter={e => { if (shareToken) e.currentTarget.style.background = '#F9FAFB'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
-                >
-                  <Zap size={13} />
-                  라이브 가이드
-                </button>
-              );
-            })()}
 
             <button
               onClick={handleUndo}
@@ -786,14 +794,15 @@ export default function EditorPage() {
             >
               <Redo2 size={13} /> 다시 실행
             </button>
+
+            {/* 게시 — ShareModal (공개 링크 생성 + URL 공유) */}
             <button
-              onClick={async () => { const ok = await handleSave(); if (ok) router.push(`/manual/${id}`); }}
-              disabled={saving}
-              style={{ height: '32px', padding: '0 16px', borderRadius: '7px', fontSize: '12.5px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'white', background: saving ? 'rgba(55,48,163,0.6)' : 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', border: 'none', cursor: saving ? 'not-allowed' : 'pointer', boxShadow: '0 1px 6px rgba(55,48,163,0.3)', transition: 'box-shadow 0.15s' }}
-              onMouseEnter={e => { if (!saving) e.currentTarget.style.boxShadow = '0 4px 14px rgba(55,48,163,0.45)'; }}
+              onClick={() => setShowShare(true)}
+              style={{ height: '32px', padding: '0 16px', borderRadius: '7px', fontSize: '12.5px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'white', background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', border: 'none', cursor: 'pointer', boxShadow: '0 1px 6px rgba(55,48,163,0.3)', transition: 'box-shadow 0.15s' }}
+              onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 14px rgba(55,48,163,0.45)'; }}
               onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 6px rgba(55,48,163,0.3)'; }}
             >
-              {saving ? '저장 중…' : <><Check size={13} /> 편집 완료</>}
+              <Share2 size={13} /> 게시
             </button>
           </>
           </div>
@@ -1055,13 +1064,6 @@ export default function EditorPage() {
               }).catch((e) => logError('step.save.fail', { tutorialId: id, stepId, message: e instanceof Error ? e.message : String(e) }));
             }}
           />
-          {showPreview && (
-            <SdkPreviewPanel
-              steps={manualSteps}
-              activeId={activeId}
-              onClose={() => setShowPreview(false)}
-            />
-          )}
           {showComments && (
             <CommentsPanel
               tutorialId={id}
@@ -1114,6 +1116,19 @@ export default function EditorPage() {
           tutorialId={id}
           title={title}
           onClose={() => setShowExport(false)}
+        />
+      )}
+      {showShare && tutorial && (
+        <ShareModal
+          title={title}
+          shareToken={(tutorial as Tutorial & { share_token?: string | null }).share_token ?? null}
+          shareUrl={(tutorial as Tutorial & { share_token?: string | null }).share_token ? `${typeof window !== 'undefined' ? window.location.origin : ''}/play/${(tutorial as Tutorial & { share_token?: string | null }).share_token}` : null}
+          tutorialId={id}
+          hasPassword={!!(tutorial as Tutorial & { share_password?: string | null }).share_password}
+          visibility={(tutorial as Tutorial & { visibility?: 'private' | 'public' }).visibility}
+          onPublishAndShare={publish}
+          onUnpublish={unpublish}
+          onClose={() => setShowShare(false)}
         />
       )}
 
