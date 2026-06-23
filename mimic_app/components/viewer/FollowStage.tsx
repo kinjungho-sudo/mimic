@@ -6,6 +6,7 @@ import { useState, useEffect, useRef, useId } from 'react';
 // 플레이어와 스튜디오가 동일 컴포넌트를 써서 "보는 사람이 보는 화면"이 100% 일치하도록 한다.
 
 export const CORNER = 1.5; // 좌상단 0,0 가짜 핫스팟(이동/캡처 단계) 판정 임계
+const MAX_AUTO_ZOOM = 1.6;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
 export function Mascot({ size = 40 }: { size?: number }) {
@@ -109,7 +110,7 @@ export function FollowStage({
   const zoomCX = domRect ? domRect.x + domRect.w / 2 : (hx ?? 50);
   const zoomCY = domRect ? domRect.y + domRect.h / 2 : (hy ?? 50);
   const zoomScale = (domRect && isAnimated && phase !== 'raw')
-    ? clamp(40 / Math.sqrt(Math.max(domRect.w * domRect.h, 0.25)), 1.5, 4)
+    ? clamp(40 / Math.sqrt(Math.max(domRect.w * domRect.h, 0.25)), 1.5, MAX_AUTO_ZOOM)
     : 1;
   const zoomStyle = (domRect && isAnimated)
     ? { transform: `scale(${zoomScale})`, transformOrigin: `${zoomCX}% ${zoomCY}%`, transition: 'transform 1.4s ease-in-out' }

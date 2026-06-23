@@ -22,6 +22,8 @@ import { logError } from '@/lib/logging/logger';
 import { hasGuideConfig } from '@/lib/follow';
 import type { Step, Tutorial } from '@/types';
 
+const TOP_BAR_ICON_SIZE = 14;
+
 // ── Adapters ──────────────────────────────────────────────
 
 // DB click 좌표 → 0~100 pct (현행 0~1 실수, 레거시 0~10000 정수 혼재 방어)
@@ -669,7 +671,7 @@ export default function EditorPage() {
                   onMouseEnter={e => { if (shareToken) e.currentTarget.style.background = '#F9FAFB'; }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
                 >
-                  <Eye size={14} />
+                  <Eye size={TOP_BAR_ICON_SIZE} />
                   미리보기
                 </button>
               );
@@ -683,7 +685,7 @@ export default function EditorPage() {
               onMouseEnter={e => { if (!showComments) e.currentTarget.style.background = '#F9FAFB'; }}
               onMouseLeave={e => { if (!showComments) e.currentTarget.style.background = 'white'; }}
             >
-              <MessageSquare size={13} />
+              <MessageSquare size={TOP_BAR_ICON_SIZE} />
               댓글
             </button>
 
@@ -695,7 +697,7 @@ export default function EditorPage() {
               onMouseEnter={e => { if (!showActivity) e.currentTarget.style.background = '#F9FAFB'; }}
               onMouseLeave={e => { if (!showActivity) e.currentTarget.style.background = 'white'; }}
             >
-              <Clock size={13} />
+              <Clock size={TOP_BAR_ICON_SIZE} />
               기록
             </button>
 
@@ -706,7 +708,7 @@ export default function EditorPage() {
                 style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#374151', background: downloadOpen ? '#F3F4F6' : 'white', border: '1px solid #E5E7EB', cursor: downloadingFmt ? 'not-allowed' : 'pointer', opacity: downloadingFmt ? 0.6 : 1, transition: 'all 0.15s' }}
                 onMouseEnter={e => { if (!downloadingFmt && !downloadOpen) e.currentTarget.style.background = '#F9FAFB'; }}
                 onMouseLeave={e => { if (!downloadOpen) e.currentTarget.style.background = 'white'; }}>
-                <Download size={13} />
+                <Download size={TOP_BAR_ICON_SIZE} />
                 {downloadingFmt ? '생성 중…' : '다운로드'}
                 <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
               </button>
@@ -741,7 +743,7 @@ export default function EditorPage() {
               onMouseEnter={e => { e.currentTarget.style.background = '#F9FAFB'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
             >
-              <Share2 size={13} />
+              <Share2 size={TOP_BAR_ICON_SIZE} />
               초대
             </button>
 
@@ -753,7 +755,7 @@ export default function EditorPage() {
               onMouseEnter={e => { if (canUndo) e.currentTarget.style.background = '#F9FAFB'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
             >
-              <Undo2 size={13} /> 실행 취소
+              <Undo2 size={TOP_BAR_ICON_SIZE} /> 실행 취소
             </button>
             <button
               onClick={handleRedo}
@@ -763,7 +765,7 @@ export default function EditorPage() {
               onMouseEnter={e => { if (canRedo) e.currentTarget.style.background = '#F9FAFB'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
             >
-              <Redo2 size={13} /> 다시 실행
+              <Redo2 size={TOP_BAR_ICON_SIZE} /> 다시 실행
             </button>
 
             {/* 공유 — 게시 후에만. ShareModal(링크 복사·공개범위·임베드) */}
@@ -775,7 +777,7 @@ export default function EditorPage() {
               onMouseEnter={e => { if (tutorial.status === 'published') e.currentTarget.style.background = '#F9FAFB'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
             >
-              <Link2 size={13} /> 공유
+              <Link2 size={TOP_BAR_ICON_SIZE} /> 공유
             </button>
 
             {/* 게시 — 누르면 즉시 Publish. 게시되면 '게시됨' 표시(공유는 옆 버튼에서) */}
@@ -784,7 +786,7 @@ export default function EditorPage() {
                 title="게시됨 — 공유는 '공유' 버튼에서, 게시 취소는 공유 창에서"
                 style={{ height: '32px', padding: '0 14px', borderRadius: '7px', fontSize: '12.5px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#059669', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.35)' }}
               >
-                <Check size={14} /> 게시됨
+                <Check size={TOP_BAR_ICON_SIZE} /> 게시됨
               </span>
             ) : (
               <button
@@ -800,7 +802,7 @@ export default function EditorPage() {
                 onMouseEnter={e => { if (!publishing) e.currentTarget.style.boxShadow = '0 4px 14px rgba(55,48,163,0.45)'; }}
                 onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 6px rgba(55,48,163,0.3)'; }}
               >
-                {publishing ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Share2 size={13} />}
+                {publishing ? <Loader2 size={TOP_BAR_ICON_SIZE} style={{ animation: 'spin 1s linear infinite' }} /> : <Share2 size={TOP_BAR_ICON_SIZE} />}
                 {publishing ? '게시 중…' : '게시'}
               </button>
             )}
@@ -931,7 +933,7 @@ export default function EditorPage() {
                 title="모든 스텝의 강조 테두리·글자색을 한 번에 변경"
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', height: '28px', padding: '0 10px', borderRadius: '6px', border: `1px solid ${bulkColorOpen ? '#6d28d9' : '#E5E7EB'}`, background: bulkColorOpen ? 'rgba(109,40,217,0.07)' : 'white', color: '#6d28d9', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}
               >
-                <Palette size={13} /> 전체 색상
+                <Palette size={TOP_BAR_ICON_SIZE} /> 전체 색상
               </button>
               {bulkColorOpen && (
                 <>
@@ -959,7 +961,7 @@ export default function EditorPage() {
               title="AI로 모든 스텝의 설명 문장을 매뉴얼 톤으로 다듬기"
               style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', flexShrink: 0, height: '28px', padding: '0 10px', borderRadius: '6px', border: '1px solid #E5E7EB', background: 'white', color: '#6d28d9', fontSize: '12px', fontWeight: 500, cursor: refiningText ? 'not-allowed' : 'pointer', opacity: refiningText ? 0.65 : 1, transition: 'all 0.15s' }}
             >
-              {refiningText ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Wand2 size={12} />}
+              {refiningText ? <Loader2 size={TOP_BAR_ICON_SIZE} style={{ animation: 'spin 1s linear infinite' }} /> : <Wand2 size={TOP_BAR_ICON_SIZE} />}
               전체 문장 다듬기
             </button>
             {/* TTS 설정 — 튜토리얼 단위 ON/OFF */}
@@ -969,7 +971,7 @@ export default function EditorPage() {
                 title={ttsEnabled ? 'AI 음성 끄기' : 'AI 음성 켜기'}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', height: '28px', padding: '0 10px', borderRadius: '6px', border: `1px solid ${ttsEnabled ? '#6d28d9' : '#E5E7EB'}`, background: ttsEnabled ? 'rgba(109,40,217,0.07)' : 'white', color: ttsEnabled ? '#6d28d9' : '#9CA3AF', fontSize: '12px', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s' }}
               >
-                {ttsEnabled ? <Volume2 size={13} /> : <VolumeX size={13} />}
+                {ttsEnabled ? <Volume2 size={TOP_BAR_ICON_SIZE} /> : <VolumeX size={TOP_BAR_ICON_SIZE} />}
                 AI 음성
               </button>
               {ttsEnabled && (
@@ -988,7 +990,7 @@ export default function EditorPage() {
                     title="전체 스텝 음성 생성"
                     style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', height: '28px', padding: '0 10px', borderRadius: '6px', border: '1px solid #6d28d9', background: '#6d28d9', color: 'white', fontSize: '11.5px', fontWeight: 500, cursor: ttsGenerating ? 'not-allowed' : 'pointer', opacity: ttsGenerating ? 0.65 : 1, transition: 'all 0.15s' }}
                   >
-                    {ttsGenerating ? <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> : <Volume2 size={11} />}
+                    {ttsGenerating ? <Loader2 size={TOP_BAR_ICON_SIZE} style={{ animation: 'spin 1s linear infinite' }} /> : <Volume2 size={TOP_BAR_ICON_SIZE} />}
                     {ttsGenerating ? '생성 중…' : '전체 생성'}
                   </button>
                 </>
@@ -997,7 +999,7 @@ export default function EditorPage() {
             {/* AI 자동 생성 진행 인디케이터 */}
             {autoGenProgress && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, fontSize: '11.5px', color: '#6d28d9' }}>
-                <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} />
+                <Loader2 size={TOP_BAR_ICON_SIZE} style={{ animation: 'spin 1s linear infinite' }} />
                 <span>AI 작성 중 {autoGenProgress.done}/{autoGenProgress.total}</span>
               </div>
             )}

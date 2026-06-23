@@ -177,6 +177,7 @@ export async function POST(request: NextRequest) {
     clickX?: number | null,
     clickY?: number | null,
   ) {
+    const MAX_AUTO_ZOOM = 1.6;
     // 확대 중심 — 클릭 지점 우선, 없으면 요소 중심
     let cx: number | null = null;
     let cy: number | null = null;
@@ -195,6 +196,7 @@ export async function POST(request: NextRequest) {
       const size = Math.max(rect.width, rect.height);
       zoom = size > 0.4 ? 1.0 : size > 0.2 ? 1.35 : 1.5;
     }
+    zoom = Math.min(MAX_AUTO_ZOOM, zoom);
     if (zoom <= 1.0) return null; // 충분히 큰 요소 → 전체 화면 그대로 유지(가독성)
 
     // 확대 후 보이는 창(1/zoom)이 이미지 밖으로 나가지 않게 중심 클램프
@@ -212,10 +214,11 @@ export async function POST(request: NextRequest) {
   // Recorder가 캡처 시 결정한 확대 영역(crop_box, 원본 0~1) → image_zoom/offset 프레이밍으로 변환.
   // 서버 휴리스틱(calcZoomFraming) 대신 사용. 표시 변환은 calcZoomFraming과 동일(center origin scale+translate).
   function framingFromCropBox(box: { x: number; y: number; width: number; height: number } | null) {
+    const MAX_AUTO_ZOOM = 1.6;
     if (!box) return null;
     const w = Math.min(Math.max(box.width, 0.001), 1);
     const h = Math.min(Math.max(box.height, 0.001), 1);
-    const z = Math.min(1.5, Math.max(1, 1 / Math.max(w, h))); // 큰 변 기준 가득 채움, 자동 확대 상한 1.5x
+    const z = Math.min(MAX_AUTO_ZOOM, Math.max(1, 1 / Math.max(w, h))); // 큰 변 기준 가득 채움
     if (z <= 1.001) return null; // 거의 전체 → 확대 안 함(가독성)
     const cx = box.x + box.width / 2;
     const cy = box.y + box.height / 2;

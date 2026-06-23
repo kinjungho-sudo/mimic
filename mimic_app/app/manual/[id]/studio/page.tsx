@@ -11,6 +11,8 @@ import { FollowStage } from '@/components/viewer/FollowStage';
 import { logError } from '@/lib/logging/logger';
 import type { Step, Tutorial, FollowConfig } from '@/types';
 
+const TOP_BAR_ICON_SIZE = 14;
+
 // DB Step → 스튜디오 편집 단위
 type StudioStep = {
   id: string;
@@ -245,16 +247,16 @@ export default function StudioPage() {
     <div style={{ position: 'fixed', inset: 0, background: '#0A0A0F', display: 'flex', flexDirection: 'column', fontFamily: "'Pretendard', -apple-system, sans-serif", color: 'white', overflow: 'hidden' }}>
       {/* Header */}
       <header style={{ flexShrink: 0, height: 56, padding: '0 18px', display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(10,10,15,0.9)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-        <button onClick={() => router.push(`/manual/${id}/editor`)} style={ghostBtn} title="편집기로 돌아가기"><ArrowLeft size={16} /></button>
+        <button onClick={() => router.push(`/manual/${id}/editor`)} style={ghostBtn} title="편집기로 돌아가기"><ArrowLeft size={TOP_BAR_ICON_SIZE} /></button>
         <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           <span style={{ fontSize: 13.5, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Live Guide 편집</span>
           <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.45)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tutorial.title}</span>
         </div>
         <div style={{ flex: 1 }} />
         <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.4)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-          {savingId ? <><Loader2 size={12} className="spin" /> 저장 중…</> : savedTick > 0 ? <><Check size={12} color="#34d399" /> 저장됨</> : null}
+          {savingId ? <><Loader2 size={TOP_BAR_ICON_SIZE} className="spin" /> 저장 중…</> : savedTick > 0 ? <><Check size={TOP_BAR_ICON_SIZE} color="#34d399" /> 저장됨</> : null}
         </span>
-        <button onClick={() => setShowPreview(true)} title="연습 가이드(웹) 화면으로 미리보기 — 핫스팟·말풍선·입력 텍스트 설정을 확인합니다. 실제 Live Guide 오버레이 외형과는 다를 수 있어요." style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5 }}><Play size={13} /> 연습 가이드 미리보기</button>
+        <button onClick={() => setShowPreview(true)} title="연습 가이드(웹) 화면으로 미리보기 — 핫스팟·말풍선·입력 텍스트 설정을 확인합니다. 실제 Live Guide 오버레이 외형과는 다를 수 있어요." style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5 }}><Play size={TOP_BAR_ICON_SIZE} /> 연습 가이드 미리보기</button>
         {tutorial.status === 'published' ? (
           <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: 'rgba(16,185,129,0.12)', color: '#34d399', fontWeight: 600, border: '1px solid rgba(52,211,153,0.25)', flexShrink: 0 }}>게시됨</span>
         ) : (
@@ -266,7 +268,7 @@ export default function StudioPage() {
             }}
             disabled={publishing}
             style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5, opacity: publishing ? 0.6 : 1 }}>
-            {publishing ? <><Loader2 size={12} className="spin" /> 게시 중…</> : '게시'}
+            {publishing ? <><Loader2 size={TOP_BAR_ICON_SIZE} className="spin" /> 게시 중…</> : '게시'}
           </button>
         )}
       </header>
