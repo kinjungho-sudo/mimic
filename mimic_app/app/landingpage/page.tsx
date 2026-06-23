@@ -25,8 +25,8 @@ const features = [
         <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="rgba(255,255,255,0.9)"/>
       </svg>
     ),
-    title: 'Live Guide — 읽지 말고 따라 하기',
-    body: '받는 사람 화면 위에 직접 안내를 띄워 다음 클릭할 곳을 짚어줍니다. 버튼 위치가 바뀌거나 페이지가 달라져도 AI가 화면에서 요소를 자동으로 찾아 안내가 그대로 따라갑니다. SDK 한 줄이면 자사 서비스에도 삽입됩니다.',
+    title: '연습 가이드 + Live Guide 베타',
+    body: '공유받은 사람은 설치 없이 캡처 화면 위에서 먼저 연습할 수 있습니다. 확장 프로그램이 연결된 환경에서는 실제 페이지 위 안내도 베타로 실행할 수 있어요.',
     comingSoon: false,
   },
   {
@@ -36,8 +36,8 @@ const features = [
         <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="rgba(255,255,255,0.9)" stroke="rgba(255,255,255,0.4)" strokeWidth="1" strokeLinejoin="round"/>
       </svg>
     ),
-    title: '녹화 한 번이면 30초 제작',
-    body: '웹에서 평소처럼 작업하기만 하면 자동으로 단계가 나뉘고, AI Vision이 화면을 분석해 단계별 제목과 설명까지 완성합니다. 만드는 건 입구일 뿐, 핵심은 그 다음입니다.',
+    title: '녹화 한 번이면 초안 완성',
+    body: '웹에서 평소처럼 작업하면 클릭과 화면이 단계로 정리되고, AI가 제목과 설명 초안을 붙입니다. 사용자는 검수하고 다듬기만 하면 됩니다.',
     comingSoon: false,
   },
   {
@@ -77,8 +77,8 @@ const features = [
         <path d="M12 18v-6M9 15l3 3 3-3" stroke="rgba(255,255,255,0.9)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
       </svg>
     ),
-    title: 'PDF · PPTX · Markdown 내보내기',
-    body: '링크 공유는 기본, 회사 양식이 필요하면 로고·브랜드 색상을 입힌 문서로 내보내세요. 웹 문서·슬라이드 어느 형태로도.',
+    title: 'PDF · PPTX · Word 내보내기',
+    body: '링크 공유는 기본, 회사 양식이 필요하면 로고·브랜드 색상을 입힌 PDF, PPTX, Word 문서로 내보내세요.',
     comingSoon: false,
   },
   {
@@ -90,8 +90,8 @@ const features = [
         <circle cx="12" cy="16" r="1.5" fill="rgba(255,255,255,0.9)"/>
       </svg>
     ),
-    title: '민감정보는 자동으로 가립니다',
-    body: '비밀번호·개인정보 입력 필드를 자동 감지해 입력 내용을 서버로 보내지 않고, 화면 속 민감 영역은 기기 안에서 모자이크 처리됩니다. 원본 이미지는 외부로 나가지 않습니다.',
+    title: '민감정보 검수와 모자이크',
+    body: '비밀번호 입력값은 저장하지 않고, 캡처 후 편집기에서 민감한 영역을 모자이크 처리할 수 있습니다. AI 검토 배지는 확인이 필요한 화면을 알려줍니다.',
     comingSoon: false,
   },
 ];
@@ -196,8 +196,8 @@ function HeroDemo() {
     { title: '클릭할 때마다 화면이 자동으로 캡처됩니다', desc: '정부24에서 주민등록증을 발급받는 과정이 단계별로 기록됩니다.' },
     { title: '"완료"를 누르면 AI가 매뉴얼을 자동 생성합니다', desc: '캡처된 화면을 분석해 제목·설명·하이라이트를 만듭니다.' },
     { title: '편집 가능한 스텝 카드로 매뉴얼이 완성됩니다', desc: '각 단계를 카드로 보고, 제목·설명·이미지를 바로 편집할 수 있습니다.' },
-    { title: '링크 하나로 누구에게나 공유합니다', desc: 'PPTX·PDF로 내보내거나, 비밀번호·공개 범위까지 설정할 수 있습니다.' },
-    { title: '연습 가이드 · Live Guide로 누구나 바로 시작합니다', desc: 'AI 가이드가 클릭할 곳을 짚어주고, 누르면 다음 단계로 넘어갑니다.' },
+    { title: '링크 하나로 누구에게나 공유합니다', desc: 'PDF·PPTX·Word로 내보내거나, 비밀번호·공개 범위까지 설정할 수 있습니다.' },
+    { title: '연습 가이드로 먼저 따라 해봅니다', desc: '공유받은 사람은 캡처 화면 위에서 클릭할 위치를 확인하며 안전하게 연습합니다.' },
   ];
 
   const renderScene = () => {
@@ -801,7 +801,7 @@ function Scene5({ tick }: { tick: number }) {
           {/* 내보내기 */}
           <div style={{ fontSize: '8.5px', color: '#9CA3AF', fontWeight: 700, marginBottom: '6px' }}>문서로 내보내기</div>
           <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
-            {[['PPTX', '#FFF7ED'], ['PDF', '#FEF2F2'], ['Markdown', '#F0F9FF']].map(([f, bg]) => (
+            {[['PPTX', '#FFF7ED'], ['PDF', '#FEF2F2'], ['Word', '#F0F9FF']].map(([f, bg]) => (
               <div key={f} style={{ flex: 1, padding: '8px', borderRadius: '8px', border: '1px solid #EEE', background: bg, textAlign: 'center', fontSize: '9.5px', fontWeight: 700, color: '#374151' }}>{f}</div>
             ))}
           </div>
@@ -869,14 +869,17 @@ function Scene6({ tick }: { tick: number }) {
 // 영상 파일은 public/landing/*.mp4 에 넣으면 자동으로 교체 표시됩니다.
 function ShowcaseMedia({ videoSrc, fallback }: { videoSrc: string; fallback: React.ReactNode }) {
   const [ready, setReady] = useState(false);
+  const hasVideo = videoSrc.length > 0;
   return (
     <div style={{ position: 'relative', borderRadius: '16px', overflow: 'hidden', border: '1px solid #E5E7EB', boxShadow: '0 24px 60px -16px rgba(55,48,163,0.18), 0 6px 20px rgba(17,24,39,0.06)', background: 'white' }}>
       {!ready && fallback}
-      <video
-        src={videoSrc} muted loop autoPlay playsInline preload="metadata"
-        onCanPlay={() => setReady(true)}
-        style={{ display: ready ? 'block' : 'none', width: '100%', verticalAlign: 'top' }}
-      />
+      {hasVideo && (
+        <video
+          src={videoSrc} muted loop autoPlay playsInline preload="metadata"
+          onCanPlay={() => setReady(true)}
+          style={{ display: ready ? 'block' : 'none', width: '100%', verticalAlign: 'top' }}
+        />
+      )}
     </div>
   );
 }
@@ -1025,7 +1028,7 @@ function MockEditor() {
   );
 }
 
-// ③ 교육 자료 모드 — AI Vision 설명 생성
+// ③ AI 설명 초안 — AI Vision 설명 생성
 function MockEduMode() {
   return (
     <div style={{ height: '340px', background: 'white', display: 'flex', flexDirection: 'column' }}>
@@ -1033,7 +1036,7 @@ function MockEduMode() {
       <div style={{ flex: 1, padding: '16px 20px', overflow: 'hidden' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
           <span style={{ fontSize: '13.5px', fontWeight: 700, color: '#0F172A' }}>거래처 등록 교육 자료</span>
-          <span style={{ fontSize: '9.5px', fontWeight: 700, color: '#6d28d9', background: '#F5F3FF', border: '1px solid #DDD6FE', padding: '2px 8px', borderRadius: '999px' }}>교육 자료 모드</span>
+          <span style={{ fontSize: '9.5px', fontWeight: 700, color: '#6d28d9', background: '#F5F3FF', border: '1px solid #DDD6FE', padding: '2px 8px', borderRadius: '999px' }}>AI 설명 초안</span>
         </div>
         {[
           { num: '01', title: '거래처 관리 메뉴 진입', desc: '상단 메뉴에서 [기준정보] > [거래처 관리]를 클릭합니다. 거래처 목록 화면이 표시되며, 우측 상단에서 신규 등록을 시작할 수 있습니다.' },
@@ -1215,9 +1218,9 @@ const SHOWCASES = [
       '클릭하는 순간 자동 캡처 — 별도 조작 없음',
       'Google Docs·사내 시스템 등 어떤 웹사이트든 지원',
       '긴 화면은 전체 페이지 캡처로 한 번에',
-      '비밀번호·민감 정보는 기기 안에서 처리 후 모자이크',
+      '비밀번호 입력값은 저장하지 않고 민감 영역은 편집기에서 모자이크',
     ],
-    video: '/landing/record.mp4',
+    video: '/landing/Demo.mp4',
     mock: <MockRecord />,
     badge: null as string | null,
   },
@@ -1232,21 +1235,21 @@ const SHOWCASES = [
       'AI 문장 다듬기로 설명을 자연스럽게',
       '드래그로 스텝 순서 변경, Ctrl+Z 실행 취소',
     ],
-    video: '/landing/edit.mp4',
+    video: '',
     mock: <MockEditor />,
     badge: null,
   },
   {
     id: 'edu',
-    eyebrow: 'AI · 교육 자료 모드',
+    eyebrow: 'AI · 설명 초안',
     title: '스크린샷만 보고도\nAI가 설명을 써 드립니다',
-    desc: '교육 자료 모드로 녹화하면 AI가 각 화면을 직접 분석해 단계별 제목과 상세 설명을 자동으로 작성합니다. 신입 교육 자료, 고객 안내 문서가 "검수만 하면 되는" 수준으로 완성됩니다.',
+    desc: '녹화가 끝나면 AI가 각 화면을 분석해 단계별 제목과 설명 초안을 작성합니다. 신입 교육 자료나 고객 안내 문서를 검수 중심으로 빠르게 완성할 수 있습니다.',
     bullets: [
       'AI Vision이 화면을 분석해 맥락을 이해',
-      '단계별 제목·상세 설명 자동 작성',
-      '녹화 시작할 때 일반 모드 / 교육 자료 모드 선택',
+      '단계별 제목·설명 초안 자동 작성',
+      '어색한 문장은 에디터에서 AI 다듬기로 보완',
     ],
-    video: '/landing/edu.mp4',
+    video: '',
     mock: <MockEduMode />,
     badge: 'NEW',
   },
@@ -1254,28 +1257,28 @@ const SHOWCASES = [
     id: 'guideme',
     eyebrow: 'LIVE GUIDE',
     title: '문서를 읽게 하지 말고,\n화면 위에서 직접 따라오게 하세요',
-    desc: 'MIMIC의 핵심 차별점입니다. Live Guide는 받는 사람의 실제 웹페이지 위에 오버레이를 띄워 다음 클릭할 곳을 짚어줍니다. 클릭할 버튼이 하이라이트되고 안내가 따라다니니, 매뉴얼과 실제 화면을 번갈아 볼 필요 없이 따라 클릭만 하면 끝납니다.',
+    desc: '먼저 연습 가이드로 캡처 화면 위에서 안전하게 따라 해보고, 확장 프로그램이 연결된 환경에서는 실제 페이지 위 안내를 베타로 실행할 수 있습니다.',
     bullets: [
-      '실제 페이지 위에서 단계별 스포트라이트 안내',
-      '클릭할 요소 자동 하이라이트 + AI 가이드 말풍선',
-      '읽고 해석할 필요 없이 — 따라 하면 그대로 완료',
-      '스크립트 한 줄로 자사 서비스에 삽입 (SDK)',
+      '공유 링크에서는 설치 없는 연습 가이드 제공',
+      '확장 연결 시 실제 페이지 위 Live Guide 베타 실행',
+      '저장된 셀렉터와 좌표로 클릭 위치 안내',
+      'AI 재탐색은 일부 환경에서 보조적으로 사용',
     ],
-    video: '/landing/guideme.mp4',
+    video: '',
     mock: <MockGuideMe />,
-    badge: '핵심 차별점',
+    badge: 'BETA',
   },
   {
     id: 'share',
     eyebrow: 'STEP 3 · 공유',
-    title: '링크 하나로, 또는\nPDF·PPTX·Markdown으로',
-    desc: '완성된 매뉴얼은 링크 한 줄로 공유하세요 — 보는 사람은 설치도 로그인도 필요 없습니다. 회사 양식이 필요하면 로고와 브랜드 색상을 입혀 문서로 내보내고, 팀 워크스페이스에서는 팀원과 실시간으로 함께 편집할 수 있습니다.',
+    title: '링크 하나로, 또는\nPDF·PPTX·Word로',
+    desc: '완성된 매뉴얼은 링크 한 줄로 공유하세요 — 보는 사람은 설치도 로그인도 필요 없습니다. 회사 양식이 필요하면 로고와 브랜드 색상을 입혀 문서로 내보낼 수 있습니다.',
     bullets: [
       '링크 공유 + 비밀번호 보호',
-      'PDF · PPTX · Markdown 내보내기 + 로고·색상 브랜딩',
-      '팀 워크스페이스 — 공유 폴더와 실시간 공동 편집',
+      'PDF · PPTX · Word 내보내기 + 로고·색상 브랜딩',
+      '팀 워크스페이스와 멤버 권한 관리는 기업 플랜에서 제공',
     ],
-    video: '/landing/share.mp4',
+    video: '',
     mock: <MockShare />,
     badge: null,
   },
@@ -1341,7 +1344,7 @@ function HeroSection() {
         {/* Announcement badge */}
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '5px 16px 5px 6px', background: 'rgba(124,58,237,0.10)', border: '1px solid rgba(124,58,237,0.22)', borderRadius: '999px', fontSize: '12.5px', color: '#c4b5fd', fontWeight: 500, marginBottom: '36px', backdropFilter: 'blur(8px)' }}>
           <span style={{ padding: '3px 10px', borderRadius: '999px', background: 'linear-gradient(135deg, #4f46e5, #7c3aed)', fontSize: '10px', fontWeight: 700, color: 'white', letterSpacing: '0.06em', flexShrink: 0 }}>NEW</span>
-          Live Guide — 사용자 화면 위에서 다음 클릭을 직접 안내합니다
+          녹화하면 AI가 바로 공유 가능한 매뉴얼 초안을 만듭니다
         </div>
 
         <h1 style={{ margin: '0 auto 24px', fontSize: 'clamp(44px, 7vw, 84px)', lineHeight: 1.04, fontWeight: 800, letterSpacing: '-0.045em', maxWidth: '880px', color: 'white', wordBreak: 'keep-all' }}>
@@ -1352,8 +1355,8 @@ function HeroSection() {
         </h1>
 
         <p style={{ fontSize: 'clamp(15px, 2vw, 18px)', color: 'rgba(255,255,255,0.48)', maxWidth: '560px', margin: '0 auto 48px', lineHeight: 1.8, fontWeight: 400 }}>
-          평소처럼 업무하면 매뉴얼이 자동으로 만들어집니다.<br/>
-          받는 사람은 읽지 않아도 화면 위 안내를 따라 클릭만 하면 됩니다.
+          평소처럼 클릭하면 단계와 설명이 자동으로 정리됩니다.<br/>
+          링크로 공유하고, 필요하면 연습 가이드나 문서로 전달하세요.
         </p>
 
         <div className="hero-cta-row" style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginBottom: '60px' }}>
@@ -1400,7 +1403,7 @@ export default function LandingPage() {
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
-  const [proModal, setProModal] = useState<'pro' | 'team' | null>(null);
+  const [proModal, setProModal] = useState<'basic' | 'pro' | 'team' | null>(null);
   const [proEmail, setProEmail] = useState('');
   const [proSubmitted, setProSubmitted] = useState(false);
   const [proError, setProError] = useState('');
@@ -1428,14 +1431,17 @@ export default function LandingPage() {
       const res = await fetch('/api/pro-signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: proEmail, plan_interested: proModal === 'pro' ? 'pro' : 'team', source: 'landing' }),
+        body: JSON.stringify({ email: proEmail, plan_interested: proModal, source: 'landing' }),
       });
       if (!res.ok) throw new Error(res.statusText);
       setProSubmitted(true);
     } catch { setProError('일시적인 오류로 신청에 실패했어요. 잠시 후 다시 시도해 주세요.'); }
   };
 
-  const prices = { pro: billing === 'month' ? '₩9,900' : '₩8,250' };
+  const prices = {
+    basic: billing === 'month' ? '₩9,900' : '₩8,250',
+    pro: billing === 'month' ? '₩19,900' : '₩16,580',
+  };
 
   const faqs = [
     { q: '언제든 취소할 수 있나요?', a: '네, 마이페이지에서 언제든 구독을 해지할 수 있어요. 해지 후에도 결제한 기간까지는 모든 기능을 그대로 사용하실 수 있습니다.' },
@@ -1457,18 +1463,18 @@ export default function LandingPage() {
               <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '52px', height: '52px', borderRadius: '14px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', marginBottom: '16px' }}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
               </div>
-              <div style={{ fontSize: '20px', fontWeight: 700, color: '#0D0D14', marginBottom: '6px' }}>{proModal === 'pro' ? 'Pro' : 'Team'} 플랜 사전예약</div>
-              <p style={{ fontSize: '14px', color: '#6B7280', lineHeight: 1.6, margin: 0 }}>{proModal === 'pro' ? '출시 즉시 알림 + 얼리버드 할인 혜택을 드립니다.' : '담당자가 직접 연락드려 요금과 도입 조건을 안내해 드립니다.'}</p>
+              <div style={{ fontSize: '20px', fontWeight: 700, color: '#0D0D14', marginBottom: '6px' }}>{proModal === 'team' ? 'Team' : proModal === 'basic' ? 'Basic' : 'Pro'} 플랜 사전예약</div>
+              <p style={{ fontSize: '14px', color: '#6B7280', lineHeight: 1.6, margin: 0 }}>{proModal !== 'team' ? '출시 즉시 알림 + 얼리버드 할인 혜택을 드립니다.' : '담당자가 직접 연락드려 요금과 도입 조건을 안내해 드립니다.'}</p>
             </div>
             {!proSubmitted ? (
               <form onSubmit={handleProPlanSignup}>
                 <input type="email" value={proEmail} onChange={e => setProEmail(e.target.value)} placeholder="이메일 주소" required style={{ width: '100%', height: '46px', padding: '0 14px', border: '1.5px solid #E5E7EB', borderRadius: '10px', fontSize: '14px', color: '#111827', outline: 'none', boxSizing: 'border-box', marginBottom: '12px', fontFamily: 'inherit' }} />
-                <button type="submit" style={{ width: '100%', height: '46px', borderRadius: '10px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', fontWeight: 700, fontSize: '14px', border: 'none', cursor: 'pointer' }}>{proModal === 'pro' ? '사전예약 신청하기' : '도입 문의 신청하기'}</button>
+                <button type="submit" style={{ width: '100%', height: '46px', borderRadius: '10px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', fontWeight: 700, fontSize: '14px', border: 'none', cursor: 'pointer' }}>{proModal !== 'team' ? '사전예약 신청하기' : '도입 문의 신청하기'}</button>
                 {proError && <div style={{ marginTop: '10px', fontSize: '12.5px', color: '#DC2626', textAlign: 'center' }}>{proError}</div>}
               </form>
             ) : (
               <div style={{ textAlign: 'center', padding: '16px', background: '#F0FDF4', borderRadius: '12px', color: '#15803D', fontSize: '14px', fontWeight: 500 }}>
-                ✓ {proModal === 'pro' ? '등록되었습니다. 출시일에 가장 먼저 알려드릴게요!' : '접수되었습니다. 담당자가 곧 연락드릴게요!'}
+                ✓ {proModal !== 'team' ? '등록되었습니다. 출시일에 가장 먼저 알려드릴게요!' : '접수되었습니다. 담당자가 곧 연락드릴게요!'}
               </div>
             )}
             <button onClick={() => { setProModal(null); setProSubmitted(false); setProEmail(''); setProError(''); }} style={{ width: '100%', marginTop: '12px', padding: '10px', background: 'none', border: 'none', color: '#9CA3AF', fontSize: '13px', cursor: 'pointer' }}>닫기</button>
@@ -1686,9 +1692,9 @@ export default function LandingPage() {
               { label: '제작 시간', vals: ['1~3시간', '2~6시간', '30초~5분'] },
               { label: '캡처 화면 위 연습 (연습 가이드)', vals: [false, false, true] },
               { label: 'AI 자동 설명 생성', vals: [false, false, true] },
-              { label: '실제 화면 위 안내 (라이브 가이드)', vals: [false, false, true] },
+              { label: '실제 화면 위 안내 (라이브 가이드)', vals: [false, false, '베타'] },
               { label: '수정 용이성', vals: ['낮음', '낮음', '높음'] },
-              { label: 'AI 음성 · 자막', vals: [false, false, '출시 예정'] },
+              { label: 'AI 음성 편집', vals: [false, false, true] },
             ].map((row, ri) => (
               <div key={row.label} className="comparison-row" style={{ display: 'grid', gridTemplateColumns: '1fr repeat(3, 140px)', borderBottom: ri < 5 ? '1px solid #F3F4F6' : 'none' }}>
                 <div style={{ padding: '16px 28px', fontSize: '14px', color: '#374151', display: 'flex', alignItems: 'center' }}>{row.label}</div>
@@ -1714,8 +1720,8 @@ export default function LandingPage() {
       <section id="pricing" style={{ padding: '100px 0', background: 'white' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
           <span style={{ display: 'block', textAlign: 'center', fontSize: '11px', color: '#5b21b6', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '16px' }}>Pricing</span>
-          <h2 style={{ textAlign: 'center', fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 800, letterSpacing: '-0.035em', margin: '0 auto 14px', maxWidth: '640px', lineHeight: 1.18, color: '#0D0D14' }}>필요한 만큼만 결제하세요</h2>
-          <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '520px', margin: '0 auto 40px', lineHeight: 1.7 }}>기본 매뉴얼은 누구나 무료로. 진짜 필요할 때만 업그레이드하세요.</p>
+          <h2 style={{ textAlign: 'center', fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 800, letterSpacing: '-0.035em', margin: '0 auto 14px', maxWidth: '640px', lineHeight: 1.18, color: '#0D0D14' }}>무료로 시작하고, 필요한 기능은 출시 알림으로</h2>
+          <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '560px', margin: '0 auto 40px', lineHeight: 1.7 }}>현재는 무료로 매뉴얼 제작을 시작할 수 있습니다. Basic·Pro는 정식 출시 전 알림 신청을 받고 있어요.</p>
 
           <div style={{ textAlign: 'center', marginBottom: '48px' }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px', background: '#F3F4F6', border: '1px solid #E5E7EB', borderRadius: '12px' }}>
@@ -1727,24 +1733,30 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <div className="pricing-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', maxWidth: '1100px', margin: '0 auto' }}>
+          <div className="pricing-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', maxWidth: '1180px', margin: '0 auto' }}>
             {([
               {
                 name: 'Free', sub: '신용카드 없이 바로 시작', amount: '₩0', per: '/ 월', featured: false,
-                planKey: null as null | 'pro' | 'team',
-                features: ['매일 매뉴얼 3개', '기본 매뉴얼 작성', 'MIMIC Recorder 확장 설치', '텍스트·도형 편집', '링크 공유 + PDF', '500MB 저장 공간'],
+                planKey: null as null | 'basic' | 'pro' | 'team',
+                features: ['매일 매뉴얼 3개', 'MIMIC Recorder 확장 설치', '텍스트·도형 편집', '링크 공유 + PDF', '500MB 저장 공간'],
                 cta: '무료로 시작',
+              },
+              {
+                name: 'Basic', sub: '입문자와 가벼운 사용자', amount: prices.basic, per: '/ 월', featured: false,
+                planKey: 'basic' as const,
+                features: ['매뉴얼 생성 한도 확대', 'AI 다듬기 월 100회', 'PPTX·Word 내보내기', '비공개 + 비밀번호 보호', '2GB 저장 공간'],
+                cta: '출시 알림 받기',
               },
               {
                 name: 'Pro', sub: '개인 크리에이터와 파워 유저', amount: prices.pro, per: '/ 월', featured: true,
                 planKey: 'pro' as const,
-                features: ['매뉴얼 무제한 생성', 'AI 다듬기 무제한', '교육 자료 모드 (AI Vision)', 'PPTX·Markdown 내보내기 + 브랜딩', 'AI 음성 · 자막 (출시 예정)', '비공개 + 비밀번호 보호', '5GB 저장 공간'],
+                features: ['Basic 플랜 모든 기능', 'AI 다듬기 무제한', 'AI 상세 설명 생성', '연습 가이드 + Live Guide 베타', 'AI 음성 편집', '5GB 저장 공간'],
                 cta: '출시 알림 받기',
               },
               {
                 name: 'Team', sub: '팀·기업을 위한 맞춤 플랜', amount: '협의', per: '', featured: false,
                 planKey: 'team' as const,
-                features: ['Pro 플랜 모든 기능', '팀 워크스페이스', '멤버 권한 관리', '무제한 저장 공간', '전용 온보딩 지원', '세금계산서 발행', '우선 지원 (SLA)'],
+                features: ['Pro 플랜 모든 기능', '팀 워크스페이스', '멤버 권한 관리', '확장 저장 공간', '전용 온보딩 지원', '세금계산서 발행', '우선 지원 (SLA)'],
                 cta: '도입 문의하기',
               },
             ] as const).map(plan => (
@@ -1753,11 +1765,11 @@ export default function LandingPage() {
                 <div style={{ fontSize: '14px', fontWeight: 700, color: plan.featured ? '#3730a3' : '#6B7280', marginBottom: '4px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>{plan.name}</div>
                 <div style={{ fontSize: '13px', color: '#9CA3AF', marginBottom: '24px' }}>{plan.sub}</div>
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', marginBottom: '24px' }}>
-                  <span style={{ fontSize: plan.amount === '협의' ? '32px' : '42px', fontWeight: 700, letterSpacing: '-0.03em', color: '#0D0D14', lineHeight: 1 }}>{plan.amount}</span>
+                  <span style={{ fontSize: plan.amount === '협의' ? '30px' : '36px', fontWeight: 700, letterSpacing: '-0.03em', color: '#0D0D14', lineHeight: 1 }}>{plan.amount}</span>
                   {plan.per && <span style={{ fontSize: '13.5px', color: '#9CA3AF', fontWeight: 400, paddingBottom: '4px' }}>{plan.per}</span>}
                 </div>
                 {plan.planKey ? (
-                  <button onClick={() => { setProModal(plan.planKey as 'pro' | 'team'); setProSubmitted(false); setProEmail(''); }} style={{ display: 'block', width: '100%', margin: '0 0 28px', padding: '13px 0', borderRadius: '10px', fontSize: '14px', fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: plan.featured ? 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)' : 'white', color: plan.featured ? 'white' : '#374151', border: plan.featured ? 'none' : '1.5px solid #E5E7EB', boxShadow: plan.featured ? '0 4px 12px rgba(55,48,163,0.28)' : 'none', fontFamily: 'inherit' }}>{plan.cta}</button>
+                  <button onClick={() => { setProModal(plan.planKey as 'basic' | 'pro' | 'team'); setProSubmitted(false); setProEmail(''); }} style={{ display: 'block', width: '100%', margin: '0 0 28px', padding: '13px 0', borderRadius: '10px', fontSize: '14px', fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: plan.featured ? 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)' : 'white', color: plan.featured ? 'white' : '#374151', border: plan.featured ? 'none' : '1.5px solid #E5E7EB', boxShadow: plan.featured ? '0 4px 12px rgba(55,48,163,0.28)' : 'none', fontFamily: 'inherit' }}>{plan.cta}</button>
                 ) : (
                   <Link href="/auth/login" style={{ display: 'block', width: '100%', margin: '0 0 28px', padding: '13px 0', borderRadius: '10px', fontSize: '14px', fontWeight: 600, textAlign: 'center', textDecoration: 'none', background: 'white', color: '#374151', border: '1.5px solid #E5E7EB' }}>{plan.cta}</Link>
                 )}
@@ -1989,20 +2001,20 @@ export default function LandingPage() {
         .hero-orb-1 {
           top: -80px; left: -120px;
           width: 560px; height: 560px;
-          background: radial-gradient(circle, rgba(109,40,217,0.22) 0%, transparent 70%);
-          animation: orbFloat1 9s ease-in-out infinite;
+          background: radial-gradient(circle, rgba(109,40,217,0.13) 0%, transparent 70%);
+          animation: orbFloat1 14s ease-in-out infinite;
         }
         .hero-orb-2 {
           top: 40px; right: -80px;
           width: 480px; height: 480px;
-          background: radial-gradient(circle, rgba(55,48,163,0.18) 0%, transparent 70%);
-          animation: orbFloat2 12s ease-in-out infinite;
+          background: radial-gradient(circle, rgba(55,48,163,0.10) 0%, transparent 70%);
+          animation: orbFloat2 18s ease-in-out infinite;
         }
         .hero-orb-3 {
           bottom: 120px; left: 35%;
           width: 420px; height: 280px;
-          background: radial-gradient(circle, rgba(167,139,250,0.12) 0%, transparent 70%);
-          animation: orbFloat3 15s ease-in-out infinite;
+          background: radial-gradient(circle, rgba(167,139,250,0.08) 0%, transparent 70%);
+          animation: orbFloat3 22s ease-in-out infinite;
         }
         @keyframes orbFloat1 {
           0%, 100% { transform: translate(0, 0) scale(1); }
@@ -2026,6 +2038,12 @@ export default function LandingPage() {
         .showcase-row { display: flex; gap: 64px; align-items: center; }
         .showcase-row.flip { flex-direction: row-reverse; }
 
+        /* ── 태블릿 반응형 ── */
+        @media (max-width: 1024px) {
+          .pricing-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .pricing-grid > div { transform: none !important; }
+        }
+
         /* ── 모바일 반응형 ── */
         @media (max-width: 768px) {
           .hero-orb { filter: blur(50px) !important; }
@@ -2043,7 +2061,7 @@ export default function LandingPage() {
           section { padding: 64px 0 !important; }
           section > div { padding: 0 16px !important; }
 
-          .hero-preview { display: none !important; }
+          .hero-preview { transform: scale(0.78); transform-origin: top center; margin: -24px -38px -120px !important; }
           .hero-cta-row { flex-direction: column !important; align-items: stretch !important; }
 
           .grid-3col { grid-template-columns: 1fr !important; }
