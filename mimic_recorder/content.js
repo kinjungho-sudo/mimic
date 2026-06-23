@@ -23,7 +23,6 @@
   const DEDUP_SAME_ELEMENT  = 1200;  // ms — 같은 요소 재클릭 무시 간격
   const DEDUP_DOUBLE_CLICK  = 400;   // ms — 더블클릭 감지 간격
   const DEDUP_REFOCUS_MS    = 10000; // ms — 같은 입력칸 재포커스 클릭 스텝 중복 방지(이 시간 지나면 재캡처 허용)
-  const TYPING_DEBOUNCE     = 1500;  // ms — 입력 멈춤 후 자동 캡처 대기
   const CAPTURE_SAFETY_MS   = 5000;  // ms — isCapturing stuck 방지 타임아웃
   const TYPING_FRAME_THROTTLE = 300; // ms — 타이핑 중 '전송 직전' 롤링 프레임 캡처 간격
   // (captureVisibleTab 쿼터는 초당 2회 — 300ms 시도 중 일부는 rate-limit으로 무시되나,
@@ -998,12 +997,9 @@
       chrome.storage.local.set({ stepNumber });  // 슬롯 예약 (nav 캡처 번호 충돌 방지)
     }
 
-    // 입력 멈춤 → 같은 스텝을 갱신(soft). 포커스 이동/Enter/종료 시에만 세션 종료.
+    // 입력 중에는 캡처하지 않는다. Enter/포커스 이동/다른 요소 클릭/종료 시에만 확정 캡처한다.
     clearTimeout(typingTimer);
-    typingTimer = setTimeout(() => {
-      if (typingTarget !== el || _isComposing) return;  // 조합 중이면 미완성값 — skip
-      flushTyping(el, false);
-    }, TYPING_DEBOUNCE);
+    typingTimer = null;
   }, true);
 
   // ── IME 조합 추적 (한/일/중) ──────────────────────────────────────
@@ -1015,13 +1011,10 @@
     if (!isRecording || isPaused) return;
     const el = e.target;
     if (typingTarget !== el) return;
-    // 조합 완료 → 완성 화면 프레임을 다시 예약(버퍼를 최종값으로 갱신) + 최종값으로 flush 재예약
+    // 조합 완료 후 완성 화면 프레임만 갱신한다. 캡처는 명시적인 완료 신호에서만 한다.
     scheduleTypingFrame();
     clearTimeout(typingTimer);
-    typingTimer = setTimeout(() => {
-      if (typingTarget !== el || _isComposing) return;
-      flushTyping(el, false);
-    }, TYPING_DEBOUNCE);
+    typingTimer = null;
   }, true);
 
   // 크로스 사이트 녹화: 타이핑 중 다른 탭으로 전환하면 진행 중 입력을 즉시 확정한다.
