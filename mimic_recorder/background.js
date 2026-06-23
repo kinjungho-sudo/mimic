@@ -2056,14 +2056,24 @@ async function authedFetch(url, options = {}) {
   const { extensionToken } = await storageGet('extensionToken');
   if (!extensionToken) throw new Error('Not linked — extensionToken 없음');
 
-  const res = await fetch(url, {
+  const requestOptions = {
     ...options,
     headers: {
       'Authorization': `Bearer ${extensionToken}`,
       'Content-Type':  'application/json',
       ...(options.headers || {}),
     },
-  });
+  };
+
+  let res;
+  try {
+    res = await fetch(url, requestOptions);
+  } catch (err) {
+    const fallbackUrl = getWebappFallbackUrl(url);
+    if (!fallbackUrl) throw err;
+    log('warn', 'bg', `fetch failed for ${url}; retrying ${fallbackUrl}:`, err.message);
+    res = await fetch(fallbackUrl, requestOptions);
+  }
 
   if (res.status === 401) {
     await handleTokenExpired();
@@ -2072,6 +2082,16 @@ async function authedFetch(url, options = {}) {
   return res;
 }
 
+function getWebappFallbackUrl(url) {
+  try {
+    const current = new URL(url);
+    const fallback = new URL(WEBAPP_ORIGIN);
+    if (current.origin === fallback.origin) return null;
+    return `${fallback.origin}${current.pathname}${current.search}`;
+  } catch {
+    return null;
+  }
+}
 async function getWebappOrigin() {
   const { webappOrigin } = await storageGet('webappOrigin');
   return webappOrigin || WEBAPP_ORIGIN;
