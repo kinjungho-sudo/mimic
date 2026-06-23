@@ -947,7 +947,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // 매뉴얼 상세 탭은 background가 직접 연다 — 사용자가 패널/탭을 닫아도
         // service worker는 살아 있으므로 매뉴얼 생성 완료 후 정상 이동된다.
         if (data?.tutorial_id) {
-          const origin = await getWebappOrigin();
+          const origin = data.webapp_origin || await getWebappOrigin();
           chrome.tabs.create({ url: `${origin}/manual/${data.tutorial_id}` });
           await storageSet({ isRecording: false, isPaused: false, stepNumber: 0, steps: [], sessionId: null, _undoStack: [] });
         }
@@ -2249,7 +2249,10 @@ async function finalizeSession(sessionId, stepNumbers, audioUrl = null) {
   });
   if (!res.ok) throw new Error(`finalize failed: ${res.status}: ${await res.text()}`);
   await storageRemove(['audioStartTime']);
-  return res.json();
+  const data = await res.json();
+  const webappOrigin = new URL(res.url).origin;
+  await storageSet({ webappOrigin });
+  return { ...data, webapp_origin: webappOrigin };
 }
 
 // ── Supabase Storage 업로드 (실패 시 1회 재시도) ─────────────────
