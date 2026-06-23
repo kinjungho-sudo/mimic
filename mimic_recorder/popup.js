@@ -26,6 +26,7 @@ let isRecording  = false;
 let isPaused     = false;
 let _userIsPro   = false;   // 캡처별 음성 메모 게이팅 (GET_PLAN으로 갱신)
 let _voiceEnabled = false;  // 설정의 음성 메모 사용 여부 (마이크 버튼 노출)
+let capturedStepCount = 0;
 
 // ── 설정 기본값 ──────────────────────────────────────────────────
 const SETTINGS_DEFAULTS = {
@@ -48,11 +49,13 @@ function storageSet(obj) {
 // ── 초기화 ───────────────────────────────────────────────────────
 async function init() {
   const r = await storageGet(['isRecording', 'isPaused', 'steps', 'extensionToken', 'settings']);
+  const initialSteps = r.steps || [];
   isRecording = !!r.isRecording;
   isPaused    = !!r.isPaused;
+  capturedStepCount = initialSteps.length;
   _voiceEnabled = !!(r.settings && r.settings.voiceRecord);
   updateView();
-  renderSteps(r.steps || []);
+  renderSteps(initialSteps);
   updateLoginState(!!r.extensionToken);
   loadSettingsUI(r.settings || {});
   // 플랜 조회 (캡처별 음성 메모 PRO 게이팅) — 연동돼 있을 때만
@@ -252,9 +255,9 @@ function updateView() {
     viewIdle.style.display = 'block';
     viewRecording.style.display = 'none';
   }
-  // 하단 액션 바: 녹화 중일 때만 표시
+  // 하단 액션 바: 녹화 중이 아니어도 스텝이 남아 있으면 완료/재시도를 보여준다.
   const bar = document.getElementById('bottomActionBar');
-  if (bar) bar.style.display = isRecording ? 'flex' : 'none';
+  if (bar) bar.style.display = (isRecording || capturedStepCount > 0) ? 'flex' : 'none';
 }
 
 // ── 스텝 카운트 동기화 ────────────────────────────────────────────
@@ -283,6 +286,8 @@ function scrollStepsToBottom() {
 }
 
 function renderSteps(steps) {
+  capturedStepCount = steps.length;
+  updateView();
   stepsList.querySelectorAll('.step-card, .domain-header').forEach((c) => c.remove());
   updateStepCounts(steps.length);
   if (steps.length === 0) {
@@ -1058,15 +1063,12 @@ btnFinish.addEventListener('click', async () => {
     return;
   }
 
-  isRecording = false;
   isPaused    = false;
   hideCaptureBlockedToast();
-  updateView();
 
   // isRecording: false 먼저 세팅 → background가 targetTabId로 STOP_RECORDING 전송
   storageSet({ isRecording: false }).then(() => {
-    chrome.storage.local.remove(['targetTabId', 'steps', 'stepNumber', 'lastStepHash']);
-    chrome.storage.local.set({ sessionId: null });
+    chrome.storage.local.remove(['targetTabId', 'lastStepHash']);
   });
 
   // 매뉴얼 생성 중 — 사용자 대기 UI
@@ -1074,16 +1076,18 @@ btnFinish.addEventListener('click', async () => {
 
   // 매뉴얼 상세 탭은 background가 연다 — 패널/탭이 닫혀도 생성 완료 후 정상 이동
   chrome.runtime.sendMessage({ type: 'FINALIZE_SESSION', sessionId, stepNumbers }, (res) => {
-    void chrome.runtime.lastError;
+    const runtimeError = chrome.runtime.lastError?.message;
     hideFinalizingOverlay();
-    renderSteps([]);             // window.close() 실패해도 스텝 목록 항상 초기화
     btnFinish.disabled = false;  // window.close() 실패해도 버튼 항상 재활성화
     if (res?.ok && res?.tutorial_id) {
+      isRecording = false;
+      updateView();
+      renderSteps([]);             // window.close() 실패해도 성공 시에만 스텝 목록 초기화
       showToast('매뉴얼이 생성되었습니다! 매뉴얼 페이지가 열립니다.', 2500);
       window.close();
     } else {
       // 실패 시 에러 안내
-      showFinalizingError();
+      showFinalizingError(res?.error || runtimeError);
     }
   });
 });
@@ -1135,11 +1139,12 @@ function hideFinalizingOverlay() {
   if (ov) ov.style.display = 'none';
 }
 
-function showFinalizingError() {
+function showFinalizingError(detail) {
   const ov = document.getElementById('finalizingOverlay');
   if (!ov) return;
 
   ov.replaceChildren();
+  ov.style.display = 'flex';
   const icon = document.createElement('div');
   icon.style.cssText = 'font-size:32px;';
   icon.textContent = '⚠️';
@@ -1149,8 +1154,8 @@ function showFinalizingError() {
   msg.textContent = '생성 실패 — 다시 시도해주세요';
 
   const sub = document.createElement('p');
-  sub.style.cssText = 'font-size:12px;color:#6B7280;margin:0;';
-  sub.textContent = '네트워크 연결을 확인하고 다시 시도해 주세요';
+  sub.style.cssText = 'font-size:12px;color:#6B7280;margin:0;text-align:center;max-width:280px;line-height:1.4;';
+  sub.textContent = detail || '네트워크 연결을 확인하고 다시 시도해 주세요';
 
   const btn = document.createElement('button');
   btn.style.cssText = [

@@ -954,7 +954,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ ok: true, ...data });
       } catch (err) {
         log('error', 'bg', 'finalize error:', err.message);
-        sendResponse({ ok: false });
+        sendResponse({ ok: false, error: err.message });
       }
     })();
     return true;
@@ -1969,7 +1969,7 @@ async function processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base
       return;
     }
 
-    await saveStepLocally({ ...stepData, imageUrl: uploadedUrl, title, description, actionInfo: stepData.actionInfo ?? null, actionLabel, domainInfo, overwrite: !!stepData.overwrite });
+    await saveStepLocally({ ...stepData, imageUrl: uploadedUrl, title, description, actionInfo: stepData.actionInfo ?? null, actionLabel, domainInfo, cropBox, overwrite: !!stepData.overwrite });
     updateBadge();
     idbDelete(stepNum).catch(() => {});
 
@@ -2012,6 +2012,9 @@ async function saveStepLocally(stepData) {
     clickY:      stepData.clickY       ?? 0,
     windowWidth: stepData.windowWidth  ?? 1280,
     windowHeight:stepData.windowHeight ?? 800,
+    elementSelector: stepData.elementSelector ?? null,
+    elementXPath:    stepData.elementXPath    ?? null,
+    cropBox:         stepData.cropBox         ?? null,
     manual:      !!stepData.manual,
   };
 
@@ -2148,6 +2151,51 @@ async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, 
   return res.json();
 }
 
+function normalizeCoord(value, size) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  const normalized = n <= 1 ? n : (size ? n / size : 0);
+  return Math.max(0, Math.min(normalized, 1));
+}
+
+async function syncLocalStepsBeforeFinalize(sessionId, stepNumbers, localSteps) {
+  const wanted = new Set(stepNumbers || []);
+  const stepsToSync = (localSteps || [])
+    .filter((step) => step?.stepNumber && (!wanted.size || wanted.has(step.stepNumber)))
+    .sort((a, b) => a.stepNumber - b.stepNumber);
+
+  for (const step of stepsToSync) {
+    if (!step.imageUrl) {
+      throw new Error(`step ${step.stepNumber} has no uploaded image`);
+    }
+
+    const viewportW = step.windowWidth || step.viewportW || 1280;
+    const viewportH = step.windowHeight || step.viewportH || 800;
+    const clickX = normalizeCoord(step.clickX, viewportW);
+    const clickY = normalizeCoord(step.clickY, viewportH);
+    const cropBox = step.cropBox ?? computeCropBox(step.elementRect, clickX, clickY);
+
+    await saveStep({
+      sessionId,
+      stepNumber: step.stepNumber,
+      screenshotUrl: step.imageUrl,
+      clickX,
+      clickY,
+      title: step.title ?? '',
+      description: step.description ?? '',
+      url: step.url,
+      domainInfo: step.domainInfo ?? null,
+      viewportW,
+      viewportH,
+      elementSelector: step.elementSelector ?? null,
+      elementXPath: step.elementXPath ?? null,
+      elementRect: step.elementRect ?? null,
+      typedText: step.typedText || null,
+      cropBox,
+      audioOffsetMs: null,
+    });
+  }
+}
 // ── 세션 완료 — 웹앱 API 경유 ───────────────────────────────────
 async function finalizeSession(sessionId, stepNumbers, audioUrl = null) {
   const { extensionToken, contentMode, settings, steps } = await storageGet(['extensionToken', 'contentMode', 'settings', 'steps']);
@@ -2159,6 +2207,8 @@ async function finalizeSession(sessionId, stepNumbers, audioUrl = null) {
   // per-step 음성 보정(향후 에디터 재녹음용) — 현재는 비어 있을 수 있음
   const stepVoice = {};
   (steps || []).forEach(s => { if (s.voiceAudioUrl) stepVoice[s.stepNumber] = s.voiceAudioUrl; });
+
+  await syncLocalStepsBeforeFinalize(sessionId, stepNumbers, steps);
 
   const origin = await getWebappOrigin();
   const res = await authedFetch(`${origin}/api/capture/finalize`, {
