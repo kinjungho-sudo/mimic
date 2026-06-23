@@ -366,7 +366,7 @@ function Scene0({ tick }: { tick: number }) {
       <div style={{ padding: '16px 20px', position: 'relative' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
           <div>
-            <div style={{ fontSize: '16px', fontWeight: 800, color: '#111827' }}>김정호님의 매뉴얼</div>
+            <div style={{ fontSize: '16px', fontWeight: 800, color: '#111827' }}>사용자님의 매뉴얼</div>
             <div style={{ fontSize: '10px', color: '#9CA3AF', marginTop: '2px' }}>내 매뉴얼 19 · 팀 매뉴얼 5</div>
           </div>
           <div style={{ position: 'relative' }}>
