@@ -5,6 +5,7 @@ import { generateAnnotations } from '@/lib/ai/claude';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { rateLimitAi } from '@/lib/rate-limit';
 import { toEditorAnnotation } from '@/lib/annotations';
+import { guardStepAccess } from '@/lib/auth/workspace-guard';
 
 export async function POST(request: NextRequest) {
   const auth = await requireAuth(request);
@@ -26,6 +27,11 @@ export async function POST(request: NextRequest) {
   }
 
   const { stepId, userPrompt } = parsed.data;
+
+  const guard = await guardStepAccess(stepId, auth.userId, 'editor');
+  if (!guard.ok) {
+    return NextResponse.json({ error: guard.error }, { status: guard.status });
+  }
 
   // 스텝 컨텍스트 가져오기 (좌표 필드 포함)
   const supabase = createServiceRoleClient();

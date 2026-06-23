@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create session' }, { status: 500 });
     }
     sessionId = newSession.id;
-  } else if (existingSession.status === 'done') {
+  } else if (existingSession.status !== 'active') {
     return NextResponse.json({ error: 'Session already finalized' }, { status: 409 });
   }
 
@@ -68,6 +68,7 @@ export async function POST(request: NextRequest) {
     element_rect:      elementRectNormalized,
     element_selector:  d.element_selector  ?? null,
     element_xpath:     d.element_xpath     ?? null,
+    action_info:       d.action_info       ?? null,
     audio_offset_ms:   d.audio_offset_ms   ?? null,
     // Recorder가 캡처 시 결정한 확대 영역(원본 0~1) — finalize에서 image_zoom 프레이밍으로 사용
     crop_box:          d.crop_box          ?? null,

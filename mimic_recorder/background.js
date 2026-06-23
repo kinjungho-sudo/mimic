@@ -2003,7 +2003,7 @@ async function processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base
       const audioOffsetMs = audioStartTime
         ? Math.max(0, (stepData.timestamp || Date.now()) - audioStartTime)
         : null;
-      await saveStep({ sessionId, stepNumber: stepNum, screenshotUrl: uploadedUrl, clickX, clickY, title: title ?? '', description: description ?? '', url: stepData.url, domainInfo, viewportW: stepData.viewportW ?? stepData.windowWidth ?? null, viewportH: stepData.viewportH ?? stepData.windowHeight ?? null, elementSelector: stepData.elementSelector ?? null, elementXPath: stepData.elementXPath ?? null, elementRect: stepData.elementRect ?? null, typedText: stepData.typedText || null, cropBox, audioOffsetMs });
+      await saveStep({ sessionId, stepNumber: stepNum, screenshotUrl: uploadedUrl, clickX, clickY, title: title ?? '', description: description ?? '', url: stepData.url, domainInfo, viewportW: stepData.viewportW ?? stepData.windowWidth ?? null, viewportH: stepData.viewportH ?? stepData.windowHeight ?? null, elementSelector: stepData.elementSelector ?? null, elementXPath: stepData.elementXPath ?? null, elementRect: stepData.elementRect ?? null, actionInfo: stepData.actionInfo ?? null, typedText: stepData.typedText || null, cropBox, audioOffsetMs });
       log('info', 'bg', `saved step ${stepNum}: "${title}"`);
     } catch (err) {
       log('warn', 'bg', `save-step API failed step ${stepNum}:`, err.message);
@@ -2166,7 +2166,7 @@ async function analyzeWithClaude(base64Image, url, actionInfo, elementContext = 
 }
 
 // ── 스텝 저장 — 웹앱 API 경유 ───────────────────────────────────
-async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, title, description, url, domainInfo, viewportW, viewportH, elementSelector, elementXPath, elementRect, typedText, cropBox, audioOffsetMs }) {
+async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, title, description, url, domainInfo, viewportW, viewportH, elementSelector, elementXPath, elementRect, actionInfo, typedText, cropBox, audioOffsetMs }) {
   const origin = await getWebappOrigin();
   const res = await authedFetch(`${origin}/api/capture/save-step`, {
     method: 'POST',
@@ -2187,6 +2187,7 @@ async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, 
       element_selector: elementSelector       ?? null,
       element_xpath:    elementXPath          ?? null,
       element_rect:     elementRect           ?? null,
+      action_info:      actionInfo            ?? null,
       type_text:        typedText             || null,  // 입력 원문(매뉴얼 생성 참고·Live Guide 자동입력). 앱 측 컬럼 반영 전까진 무시됨
       crop_box:         cropBox               ?? null,
       ...(audioOffsetMs != null ? { audio_offset_ms: audioOffsetMs } : {}),
@@ -2235,6 +2236,7 @@ async function syncLocalStepsBeforeFinalize(sessionId, stepNumbers, localSteps) 
       elementSelector: step.elementSelector ?? null,
       elementXPath: step.elementXPath ?? null,
       elementRect: step.elementRect ?? null,
+      actionInfo: step.actionInfo ?? null,
       typedText: step.typedText || null,
       cropBox,
       audioOffsetMs: null,

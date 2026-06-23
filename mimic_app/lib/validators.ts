@@ -116,6 +116,7 @@ export const captureSaveStepSchema = z.object({
   viewport_h: z.number().int().positive().optional().nullable(),
   element_selector: z.string().max(500).optional().nullable(),
   element_xpath:    z.string().max(500).optional().nullable(),
+  action_info: actionInfoSchema,
   // 음성 녹음 시작 기준 이 캡처의 상대 시각(ms) — Whisper 전사 구간 배분용
   audio_offset_ms: z.number().int().min(0).optional().nullable(),
   // type 액션에서 실제 입력된 텍스트(최대 5000자) — follow_config.typeText(스튜디오 편집)와 별개

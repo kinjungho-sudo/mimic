@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
   if (!session) {
     return NextResponse.json({ error: 'Session not found' }, { status: 404 });
   }
-  if (session.status === 'completed') {
+  if (session.status !== 'active') {
     return NextResponse.json({ error: 'Session already finalized' }, { status: 409 });
   }
 
@@ -69,12 +69,6 @@ export async function POST(request: NextRequest) {
   }
 
   // 무료 플랜 여부 확인 (어노테이션 생성 제한)
-  const { data: mmUser } = await supabase
-    .from('mm_users')
-    .select('plan')
-    .eq('id', userId)
-    .single();
-  const isFree = !mmUser || mmUser.plan === 'free' || mmUser.plan === 'pro_waitlist';
 
   // TODO: 정식 서비스 전 플랜별 한도 복구 (daily_limit 체크 비활성화 중)
 
@@ -306,13 +300,18 @@ export async function POST(request: NextRequest) {
     .eq('id', tutorial.id);
 
   // 세션 완료 처리 + daily_manual_count atomic 증가 (병렬, RPC로 race condition 방지)
-  await Promise.all([
+  const [sessionUpdate, countUpdate] = await Promise.all([
     supabase
       .from('mm_capture_sessions')
-      .update({ status: 'completed', ended_at: new Date().toISOString(), audio_url: audio_url ?? null })
+      .update({ status: 'done', ended_at: new Date().toISOString(), audio_url: audio_url ?? null })
       .eq('id', session_id),
     supabase.rpc('increment_daily_manual_count', { uid: userId }),
   ]);
+
+  if (sessionUpdate.error || countUpdate.error) {
+    await supabase.from('mm_tutorials').delete().eq('id', tutorial.id);
+    return NextResponse.json({ error: 'Failed to finalize session' }, { status: 500 });
+  }
 
   // staging 정리 — 매뉴얼 변환이 끝난 세션의 mm_capture_events 행과,
   // 매뉴얼에 포함되지 않은(패널 삭제/중복 제거) 고아 스크린샷을 삭제한다.
@@ -386,7 +385,10 @@ export async function POST(request: NextRequest) {
         const safeDrafts = drafts.filter(d => allowedIds.has(d.id));
         await Promise.all(
           safeDrafts.map(d => {
-            const patch: Record<string, string> = { user_title: d.user_title };
+            const patch: Record<string, string> = {
+              user_title: d.user_title,
+              user_script: d.user_script,
+            };
             return supabase
               .from('mm_steps')
               .update(patch)
@@ -397,7 +399,7 @@ export async function POST(request: NextRequest) {
       }
 
       // 자동 어노테이션 생성 — 무료 플랜은 생략
-      if (!isFree) {
+      {
         // deduped 순서 = step_number - 1, action_info.type으로 라벨 분기
         const actionTypeByStepNum = new Map<number, string>();
         deduped.forEach((ev, idx) => {
@@ -407,7 +409,7 @@ export async function POST(request: NextRequest) {
 
         const { data: stepsForAnnotation } = await supabase
           .from('mm_steps')
-          .select('id, step_number, ai_title, element_rect, click_x, click_y, user_annotations')
+          .select('id, step_number, user_title, ai_title, element_rect, click_x, click_y, user_annotations')
           .eq('tutorial_id', tutorial.id);
 
         if (stepsForAnnotation?.length) {
@@ -417,7 +419,7 @@ export async function POST(request: NextRequest) {
 
               const rect = step.element_rect as { x: number; y: number; width: number; height: number } | null;
               const actionType = actionTypeByStepNum.get(step.step_number) ?? 'click';
-              const label = step.ai_title ?? (actionType === 'type' ? '입력' : '클릭');
+              const label = step.user_title ?? step.ai_title ?? (actionType === 'type' ? '입력' : '클릭');
               const num = step.step_number ?? 1;
               let annotations;
 

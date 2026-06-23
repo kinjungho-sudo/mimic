@@ -39,10 +39,11 @@ export async function GET(request: NextRequest) {
         await supabase.storage.from(BUCKET).remove(files.map(f => `${session.id}/${f.name}`));
       }
       await supabase.from('mm_capture_events').delete().eq('session_id', session.id);
-      await supabase
+      const { error: updateError } = await supabase
         .from('mm_capture_sessions')
-        .update({ status: 'abandoned', ended_at: new Date().toISOString() })
+        .update({ status: 'cancelled', ended_at: new Date().toISOString() })
         .eq('id', session.id);
+      if (updateError) throw updateError;
       cleaned++;
     } catch {
       /* 개별 세션 실패는 다음 실행에서 재시도 */
