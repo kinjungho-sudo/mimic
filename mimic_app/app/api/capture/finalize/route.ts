@@ -394,34 +394,45 @@ export async function POST(request: NextRequest) {
         } catch { /* 색상 추출 실패 무시 */ }
       }
 
-      // draft 생성 (제목 + 스텝 타이틀)
-      let tutorial_title = '';
-      let drafts: Array<{ id: string; user_title: string; user_script: string }> = [];
-
-      const draftResult = await generateDraft(
-        createdSteps.map(s => ({ ...s, noAction: noActionByStepNum.get(s.step_number) ?? false }))
-      );
-      tutorial_title = draftResult.tutorial_title;
-      drafts = draftResult.steps;
-
       const actionInfoByStepNum = new Map<number, DraftActionInfo | null>();
       deduped.forEach((ev, idx) => {
         actionInfoByStepNum.set(idx + 1, (ev.action_info as DraftActionInfo | null) ?? null);
       });
-      const aiDraftsById = new Map(drafts.map(d => [d.id, d]));
-      drafts = createdSteps.map(step => {
+
+      // Always save usable fallback drafts. AI can improve them, but an AI
+      // failure must not leave a generated manual with empty titles/scripts.
+      let tutorial_title = '';
+      let drafts: Array<{ id: string; user_title: string; user_script: string }> = createdSteps.map(step => {
         const fallback = buildFallbackDraft(
           step,
           noActionByStepNum.get(step.step_number) ?? false,
           actionInfoByStepNum.get(step.step_number)
         );
-        const aiDraft = aiDraftsById.get(step.id);
-        return {
-          id: step.id,
-          user_title: aiDraft?.user_title?.trim() || fallback.user_title,
-          user_script: aiDraft?.user_script?.trim() || fallback.user_script,
-        };
+        return fallback;
       });
+
+      try {
+        const draftResult = await generateDraft(
+          createdSteps.map(s => ({ ...s, noAction: noActionByStepNum.get(s.step_number) ?? false }))
+        );
+        tutorial_title = draftResult.tutorial_title;
+        const aiDraftsById = new Map(draftResult.steps.map(d => [d.id, d]));
+        drafts = createdSteps.map(step => {
+          const fallback = buildFallbackDraft(
+            step,
+            noActionByStepNum.get(step.step_number) ?? false,
+            actionInfoByStepNum.get(step.step_number)
+          );
+          const aiDraft = aiDraftsById.get(step.id);
+          return {
+            id: step.id,
+            user_title: aiDraft?.user_title?.trim() || fallback.user_title,
+            user_script: aiDraft?.user_script?.trim() || fallback.user_script,
+          };
+        });
+      } catch (err) {
+        console.error('capture finalize ai draft generation error:', err);
+      }
 
       // tutorial 제목 + cover_color 업데이트
       const tutorialUpdate: Record<string, string> = {};
