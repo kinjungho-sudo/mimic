@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import Anthropic from '@anthropic-ai/sdk';
+import { CLAUDE_MODEL } from '@/lib/ai/model';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -76,12 +77,12 @@ export async function POST(
 
   // Claude로 일괄 번역
   const stepsText = toTranslate
-    .map(s => `[${s.id}]\ntitle: ${s.user_title ?? s.ai_title ?? ''}\nscript: ${s.user_script ?? s.ai_description ?? ''}`)
+    .map(s => `[${s.id}]\ntitle: ${s.user_title || s.ai_title || ''}\nscript: ${s.user_script || s.ai_description || ''}`)
     .join('\n\n');
 
   const langName = SUPPORTED_LANGS[lang];
   const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: CLAUDE_MODEL,
     max_tokens: 4096,
     messages: [{
       role: 'user',

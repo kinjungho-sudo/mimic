@@ -33,8 +33,8 @@ async function fetchTutorialData(token: string) {
 
   const normalizedSteps = steps.map((s, idx) => ({
     id: s.id,
-    title: s.user_title ?? s.ai_title ?? `단계 ${idx + 1}`,
-    caption: s.user_script ?? s.ai_description ?? '',
+    title: s.user_title || s.ai_title || `단계 ${idx + 1}`,
+    caption: s.user_script || s.ai_description || '',
     screenshot_url: s.screenshot_url ?? null,
     order_index: s.order_index,
     page_url: s.page_url ?? null,

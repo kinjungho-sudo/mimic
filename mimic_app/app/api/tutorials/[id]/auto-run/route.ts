@@ -34,8 +34,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const total = steps?.length ?? 0;
   const runnable = steps?.filter(s => s.page_url && (s.element_selector || s.click_x)).length ?? 0;
   const riskySteps = (steps ?? [])
-    .filter(s => detectRisk(s.user_title ?? s.ai_title ?? ''))
-    .map(s => ({ step_number: s.step_number, title: s.user_title ?? s.ai_title }));
+    .filter(s => detectRisk(s.user_title || s.ai_title || ''))
+    .map(s => ({ step_number: s.step_number, title: s.user_title || s.ai_title }));
 
   const { data: session, error } = await supabase
     .from('mm_execution_sessions')
