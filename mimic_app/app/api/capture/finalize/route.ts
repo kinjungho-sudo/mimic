@@ -3,7 +3,7 @@ import { randomBytes } from 'crypto';
 import { requireExtensionToken } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { captureFinalizeSchema } from '@/lib/validators';
-import { generateDraft, extractCoverColors, detectPII, cleanTranscripts } from '@/lib/ai/claude';
+import { analyzeScreenshot, generateStepDescription, generateDraft, extractCoverColors, detectPII, cleanTranscripts } from '@/lib/ai/claude';
 import { resolveFavicon } from '@/lib/favicon';
 import { buildClickHighlight } from '@/lib/annotations';
 import { transcribeAudio, assignSegmentsToSteps, computeStepWindows } from '@/lib/voice/voice';
@@ -30,7 +30,7 @@ function buildFallbackDraft(
   const actionType = actionInfo?.type;
   const title = step.ai_title?.trim()
     || (actionLabel ? `${actionLabel} ${actionType === 'type' ? '입력' : '클릭'}` : '')
-    || (noAction ? '화면 확인' : `단계 ${step.step_number} 진행`);
+    || '화면 확인';
   const script = step.ai_description?.trim()
     || (noAction ? '화면 내용을 확인합니다.' : `${title}합니다.`);
 
@@ -38,6 +38,20 @@ function buildFallbackDraft(
     id: step.id,
     user_title: title.slice(0, 80),
     user_script: script,
+  };
+}
+
+async function fetchScreenshotForAi(url: string): Promise<{ base64: string; mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif' } | null> {
+  const res = await fetch(url);
+  if (!res.ok) return null;
+
+  const contentType = res.headers.get('content-type') ?? 'image/jpeg';
+  const mediaType = (['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as const)
+    .find(type => contentType.includes(type)) ?? 'image/jpeg';
+  const buffer = await res.arrayBuffer();
+  return {
+    base64: Buffer.from(buffer).toString('base64'),
+    mediaType,
   };
 }
 
@@ -129,16 +143,8 @@ export async function POST(request: NextRequest) {
   });
 
   // 튜토리얼 생성
-  // 폴백 제목: AI 제목 생성이 실패해도 날짜 대신 도메인 기반으로 — "매뉴얼 2026. 6. 14" 방지
-  let fallbackTitle = `매뉴얼 ${new Date().toLocaleDateString('ko-KR')}`;
-  const urlHint = deduped.find(ev => ev.url)?.url;
-  if (urlHint) {
-    try {
-      const host = new URL(urlHint).hostname.replace(/^www\./, '');
-      if (host) fallbackTitle = `${host} 가이드`;
-    } catch { /* 날짜 폴백 유지 */ }
-  }
-  const tutorialTitle = title ?? fallbackTitle;
+  // Actual title is updated after AI draft generation.
+  const tutorialTitle = title ?? '새 매뉴얼';
   const { data: tutorial, error: tutError } = await supabase
     .from('mm_tutorials')
     .insert({
@@ -377,9 +383,76 @@ export async function POST(request: NextRequest) {
       .order('step_number', { ascending: true });
 
     if (createdSteps?.length) {
+      const actionInfoByStepNum = new Map<number, DraftActionInfo | null>();
+      deduped.forEach((ev, idx) => {
+        actionInfoByStepNum.set(idx + 1, (ev.action_info as DraftActionInfo | null) ?? null);
+      });
+
+      const enrichedSteps = [];
+      for (const step of createdSteps) {
+        if ((step.ai_title?.trim() && step.ai_description?.trim()) || !step.screenshot_url) {
+          enrichedSteps.push(step);
+          continue;
+        }
+
+        try {
+          const image = await fetchScreenshotForAi(step.screenshot_url);
+          if (!image) {
+            enrichedSteps.push(step);
+            continue;
+          }
+
+          const event = deduped[step.step_number - 1];
+          const noAction = noActionByStepNum.get(step.step_number) ?? false;
+          const clickX = !noAction && event?.click_x != null ? event.click_x / 10000 : undefined;
+          const clickY = !noAction && event?.click_y != null ? event.click_y / 10000 : undefined;
+          const actionInfo = actionInfoByStepNum.get(step.step_number) ?? undefined;
+          const analysis = step.ai_title?.trim()
+            ? null
+            : await analyzeScreenshot(
+                image.base64,
+                step.page_url ?? '',
+                actionInfo,
+                { clickX, clickY },
+                image.mediaType
+              ).catch((err) => {
+                console.error('capture finalize step title retry error:', err);
+                return null;
+              });
+
+          const aiTitle = step.ai_title?.trim() || analysis?.title?.trim() || null;
+          const aiDescription = step.ai_description?.trim()
+            || (aiTitle
+              ? await generateStepDescription(aiTitle, step.page_url, image.base64, image.mediaType).catch((err) => {
+                  console.error('capture finalize step description retry error:', err);
+                  return null;
+                })
+              : null);
+
+          if (aiTitle || aiDescription) {
+            await supabase
+              .from('mm_steps')
+              .update({
+                ai_title: aiTitle ?? step.ai_title,
+                ai_description: aiDescription ?? step.ai_description,
+              })
+              .eq('id', step.id);
+          }
+
+          enrichedSteps.push({
+            ...step,
+            ai_title: aiTitle ?? step.ai_title,
+            ai_description: aiDescription ?? step.ai_description,
+          });
+        } catch (err) {
+          console.error('capture finalize step analysis retry error:', err);
+          enrichedSteps.push(step);
+        }
+      }
+
       // 첫 스크린샷 base64 fetch (커버 색상 추출용)
       let coverColors: { color1: string; color2: string } | null = null;
-      const firstScreenshotUrl = createdSteps[0]?.screenshot_url;
+      const firstScreenshotUrl = enrichedSteps[0]?.screenshot_url;
       if (firstScreenshotUrl) {
         try {
           const imgRes = await fetch(firstScreenshotUrl);
@@ -399,17 +472,13 @@ export async function POST(request: NextRequest) {
       let drafts: Array<{ id: string; user_title: string; user_script: string }> = [];
 
       const draftResult = await generateDraft(
-        createdSteps.map(s => ({ ...s, noAction: noActionByStepNum.get(s.step_number) ?? false }))
+        enrichedSteps.map(s => ({ ...s, noAction: noActionByStepNum.get(s.step_number) ?? false }))
       );
       tutorial_title = draftResult.tutorial_title;
       drafts = draftResult.steps;
 
-      const actionInfoByStepNum = new Map<number, DraftActionInfo | null>();
-      deduped.forEach((ev, idx) => {
-        actionInfoByStepNum.set(idx + 1, (ev.action_info as DraftActionInfo | null) ?? null);
-      });
       const aiDraftsById = new Map(drafts.map(d => [d.id, d]));
-      drafts = createdSteps.map(step => {
+      drafts = enrichedSteps.map(step => {
         const fallback = buildFallbackDraft(
           step,
           noActionByStepNum.get(step.step_number) ?? false,
@@ -433,7 +502,7 @@ export async function POST(request: NextRequest) {
 
       // 스텝 초안 업데이트
       if (drafts.length) {
-        const allowedIds = new Set(createdSteps.map(s => s.id));
+        const allowedIds = new Set(enrichedSteps.map(s => s.id));
         const safeDrafts = drafts.filter(d => allowedIds.has(d.id));
         await Promise.all(
           safeDrafts.map(d => {
