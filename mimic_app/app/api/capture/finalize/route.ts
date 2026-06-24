@@ -4,46 +4,29 @@ import { requireExtensionToken } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { captureFinalizeSchema } from '@/lib/validators';
 import { analyzeScreenshot, generateStepDescription, generateDraft, extractCoverColors, detectPII, cleanTranscripts } from '@/lib/ai/claude';
+import { buildCaptureFallbackDraft, buildCaptureFallbackTutorialTitle, type CaptureFallbackActionInfo } from '@/lib/ai/capture-fallback';
 import { resolveFavicon } from '@/lib/favicon';
 import { buildClickHighlight } from '@/lib/annotations';
 import { transcribeAudio, assignSegmentsToSteps, computeStepWindows } from '@/lib/voice/voice';
 
-type DraftStepInput = {
-  id: string;
-  ai_title: string | null;
-  ai_description: string | null;
-  page_url: string | null;
-  step_number: number;
-};
-
-type DraftActionInfo = {
-  type?: string;
-  label?: string;
-};
-
-function buildFallbackDraft(
-  step: DraftStepInput,
-  noAction: boolean,
-  actionInfo?: DraftActionInfo | null
-): { id: string; user_title: string; user_script: string } {
-  const actionLabel = actionInfo?.label?.trim();
-  const actionType = actionInfo?.type;
-  const title = step.ai_title?.trim()
-    || (actionLabel ? `${actionLabel} ${actionType === 'type' ? '입력' : '클릭'}` : '')
-    || '화면 확인';
-  const script = step.ai_description?.trim()
-    || (noAction ? '화면 내용을 확인합니다.' : `${title}합니다.`);
-
-  return {
-    id: step.id,
-    user_title: title.slice(0, 80),
-    user_script: script,
-  };
-}
-
 async function fetchScreenshotForAi(url: string): Promise<{ base64: string; mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif' } | null> {
+  if (url.startsWith('data:')) {
+    const match = /^data:(image\/(?:jpeg|png|webp|gif));base64,(.+)$/i.exec(url);
+    if (!match) {
+      console.warn('capture finalize screenshot data URL parse failed');
+      return null;
+    }
+    return {
+      base64: match[2],
+      mediaType: match[1].toLowerCase() as 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif',
+    };
+  }
+
   const res = await fetch(url);
-  if (!res.ok) return null;
+  if (!res.ok) {
+    console.warn('capture finalize screenshot fetch failed:', { status: res.status, url });
+    return null;
+  }
 
   const contentType = res.headers.get('content-type') ?? 'image/jpeg';
   const mediaType = (['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as const)
@@ -383,9 +366,11 @@ export async function POST(request: NextRequest) {
       .order('step_number', { ascending: true });
 
     if (createdSteps?.length) {
-      const actionInfoByStepNum = new Map<number, DraftActionInfo | null>();
+      const actionInfoByStepNum = new Map<number, CaptureFallbackActionInfo>();
+      const elementTextByStepNum = new Map<number, string | null>();
       deduped.forEach((ev, idx) => {
-        actionInfoByStepNum.set(idx + 1, (ev.action_info as DraftActionInfo | null) ?? null);
+        actionInfoByStepNum.set(idx + 1, (ev.action_info as CaptureFallbackActionInfo) ?? null);
+        elementTextByStepNum.set(idx + 1, (ev.element_text as string | null) ?? null);
       });
 
       const enrichedSteps = [];
@@ -471,13 +456,14 @@ export async function POST(request: NextRequest) {
       // failure must not leave a generated manual with empty titles/scripts.
       let tutorial_title = '';
       let drafts: Array<{ id: string; user_title: string; user_script: string }> = enrichedSteps.map(step => {
-        const fallback = buildFallbackDraft(
-          step,
-          noActionByStepNum.get(step.step_number) ?? false,
-          actionInfoByStepNum.get(step.step_number)
-        );
+        const fallback = buildCaptureFallbackDraft(step, {
+          noAction: noActionByStepNum.get(step.step_number) ?? false,
+          actionInfo: actionInfoByStepNum.get(step.step_number),
+          elementText: elementTextByStepNum.get(step.step_number),
+        });
         return fallback;
       });
+      let fallbackTutorialTitle = buildCaptureFallbackTutorialTitle(drafts);
 
       try {
         const draftResult = await generateDraft(
@@ -486,11 +472,11 @@ export async function POST(request: NextRequest) {
         tutorial_title = draftResult.tutorial_title;
         const aiDraftsById = new Map(draftResult.steps.map(d => [d.id, d]));
         drafts = enrichedSteps.map(step => {
-          const fallback = buildFallbackDraft(
-            step,
-            noActionByStepNum.get(step.step_number) ?? false,
-            actionInfoByStepNum.get(step.step_number)
-          );
+          const fallback = buildCaptureFallbackDraft(step, {
+            noAction: noActionByStepNum.get(step.step_number) ?? false,
+            actionInfo: actionInfoByStepNum.get(step.step_number),
+            elementText: elementTextByStepNum.get(step.step_number),
+          });
           const aiDraft = aiDraftsById.get(step.id);
           return {
             id: step.id,
@@ -498,13 +484,14 @@ export async function POST(request: NextRequest) {
             user_script: aiDraft?.user_script?.trim() || fallback.user_script,
           };
         });
+        fallbackTutorialTitle = buildCaptureFallbackTutorialTitle(drafts);
       } catch (err) {
         console.error('capture finalize ai draft generation error:', err);
       }
 
       // tutorial 제목 + cover_color 업데이트
       const tutorialUpdate: Record<string, string> = {};
-      if (tutorial_title) tutorialUpdate.title = tutorial_title;
+      if (tutorial_title || fallbackTutorialTitle) tutorialUpdate.title = tutorial_title || fallbackTutorialTitle;
       if (coverColors) tutorialUpdate.cover_color = `${coverColors.color1},${coverColors.color2}`;
       if (Object.keys(tutorialUpdate).length > 0) {
         await supabase.from('mm_tutorials').update(tutorialUpdate).eq('id', tutorial.id);
