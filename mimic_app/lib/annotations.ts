@@ -2,14 +2,13 @@ import type { Annotation } from '@/components/editor/ImageAnnotationEditor';
 
 // ── buildClickHighlight ────────────────────────────────────
 //
-// element_rect + click_x/y 기반으로 Guidde 스타일 어노테이션 4종을 결정론적으로 생성.
+// element_rect + click_x/y 기반으로 Guidde 스타일 어노테이션 3종을 결정론적으로 생성.
 // AI 좌표 계산 없음 — 모든 위치를 수식으로 확정.
 //
 // 생성 어노테이션:
-//   1. spotlight  — element_rect 영역만 밝게, 나머지 어둡게
-//   2. rect       — element_rect에 빨간 테두리
-//   3. arrow      — element_rect 바깥 → element_rect 중심
-//   4. text       — 화살표 시작점 옆, "① [label] 클릭" 형식
+//   1. rect       — element_rect에 빨간 테두리
+//   2. arrow      — element_rect 바깥 → element_rect 중심
+//   3. text       — 화살표 시작점 옆, "① [label] 클릭" 형식
 //
 // 좌표 단위: 모두 0-100 (이미지 % 기준, Annotation 타입 규격)
 
@@ -93,15 +92,7 @@ export function buildClickHighlight(params: {
   const base = (suffix: string) => `guidde-${stepNumber}-${suffix}`;
 
   return [
-    // 1. Spotlight
-    {
-      id: base('spotlight'),
-      type: 'spotlight' as const,
-      x1: ex1, y1: ey1, x2: ex2, y2: ey2,
-      color: '#000000',
-      strokeWidth: 0,
-    },
-    // 2. 빨간 테두리 rect
+    // 1. 빨간 테두리 rect
     {
       id: base('border'),
       type: 'rect' as const,
@@ -109,7 +100,7 @@ export function buildClickHighlight(params: {
       color: '#EF4444',
       strokeWidth: 0.5,
     },
-    // 3. 화살표
+    // 2. 화살표
     {
       id: base('arrow'),
       type: 'arrow' as const,
@@ -118,7 +109,7 @@ export function buildClickHighlight(params: {
       color: '#EF4444',
       strokeWidth: 0.55,
     },
-    // 4. 텍스트 라벨 — 반투명 배경 포함
+    // 3. 텍스트 라벨 — 반투명 배경 포함
     {
       id: base('label'),
       type: 'text' as const,
@@ -134,6 +125,12 @@ export function buildClickHighlight(params: {
       strokeWidth: 0,
     },
   ];
+}
+
+export function stripGeneratedSpotlights(annotations: Annotation[] | null | undefined): Annotation[] {
+  return (annotations ?? []).filter(a =>
+    !(a.type === 'spotlight' && /^guidde-\d+-spotlight$/.test(a.id))
+  );
 }
 
 // ── buildClickPoint ───────────────────────────────────────

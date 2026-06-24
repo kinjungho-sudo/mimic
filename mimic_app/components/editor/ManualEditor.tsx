@@ -577,7 +577,7 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
 
 // ── 클릭 지점 기반 annotation 자동 생성 ───────────────────
 // element_rect(0-1) 또는 click_x/y(0-100 pct) 기반으로
-// 스포트라이트(클릭 영역만 밝게) + 빨간 테두리 + 화살표 + 요약 라벨 생성
+// 빨간 테두리 + 화살표 + 요약 라벨 생성
 function buildInputAnnotation(step: ManualStep): Annotation[] {
   const labelText = step.actionTitle
     ? step.actionTitle.replace(/^입력,?\s*/i, '').trim() || '클릭'

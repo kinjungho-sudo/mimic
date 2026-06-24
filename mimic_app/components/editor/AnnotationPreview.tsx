@@ -3,6 +3,7 @@
 import { useId, useRef, useState, useEffect } from 'react';
 import type { Annotation } from './ImageAnnotationEditor';
 import { FONT_REF_WIDTH, estimateTextW } from './ImageAnnotationEditor';
+import { stripGeneratedSpotlights } from '@/lib/annotations';
 
 // sizeScale: 크롭/줌 확대 시 선·글씨 크기 역보정. cropRect: viewBox를 crop 영역으로 조정해 어노테이션 좌표 불일치 방지.
 export function AnnotationPreview({ annotations, imageUrl, sizeScale = 1, imgRef: externalImgRef, cropRect }: {
@@ -42,7 +43,8 @@ export function AnnotationPreview({ annotations, imageUrl, sizeScale = 1, imgRef
 
   const filterId = `mosaic-blur-${uid}`;
   const spotlightMaskId = `spotlight-mask-${uid}`;
-  const spotlights = annotations.filter(a => a.type === 'spotlight');
+  const visibleAnnotations = stripGeneratedSpotlights(annotations);
+  const spotlights = visibleAnnotations.filter(a => a.type === 'spotlight');
 
   const { w: imgW, h: imgH } = imgSize ?? { w: 1, h: 1 };
   const fontScale = imgW * sizeScale / FONT_REF_WIDTH;
@@ -85,7 +87,7 @@ export function AnnotationPreview({ annotations, imageUrl, sizeScale = 1, imgRef
         <rect x={vbX} y={vbY} width={vbW} height={vbH} fill="rgba(0,0,0,0.35)" mask={`url(#${spotlightMaskId})`} />
       )}
 
-      {annotations.map(a => {
+      {visibleAnnotations.map(a => {
         const { type, x1, y1, x2, y2, color } = a;
         // strokeWidth는 이미지 너비의 % → 픽셀로 변환 (크롭/줌 확대분 역보정)
         const strokePx = (a.strokeWidth / 100) * imgW * sizeScale;
