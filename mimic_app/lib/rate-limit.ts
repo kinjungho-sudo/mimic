@@ -29,11 +29,9 @@ export function rateLimit(key: string, limit: number, windowMs: number): NextRes
   return null;
 }
 
-// TODO: 정식 서비스 전 한도 복구
-// AI API 전용 — 테스트 기간 무제한
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function rateLimitAi(_userId: string): NextResponse | null {
-  return null;
+// AI API는 외부 모델 비용이 걸리므로 일반 API보다 낮게 제한한다.
+export function rateLimitAi(userId: string): NextResponse | null {
+  return rateLimit(`ai:${userId}`, 20, 60_000);
 }
 
 // 일반 API — 1분당 60회

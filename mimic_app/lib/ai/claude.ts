@@ -350,7 +350,6 @@ ${JSON.stringify(stepsData, null, 2)}
 export async function generateDraft(
   steps: Array<{ id: string; ai_title: string | null; ai_description: string | null; page_url: string | null; step_number: number; domain_name?: string | null; noAction?: boolean }>
 ): Promise<{ steps: Array<{ id: string; user_title: string; user_script: string }>; tutorial_title: string }> {
-  // NOTE: user_script는 더 이상 여기서 생성하지 않음. 에디터 ✨ 버튼으로 온디맨드 생성.
   // 가장 많이 등장하는 domain_name을 서비스 이름으로 사용
   const domainCounts = new Map<string, number>();
   steps.forEach(s => {
@@ -378,7 +377,7 @@ export async function generateDraft(
     messages: [
       {
         role: 'user',
-        content: `다음은 사용자가 녹화한 매뉴얼 단계들입니다. 튜토리얼 제목과 각 스텝의 제목만 생성해줘.${serviceHint}
+        content: `다음은 사용자가 녹화한 매뉴얼 단계들입니다. 튜토리얼 제목과 각 스텝의 제목/설명을 생성해줘.${serviceHint}
 
 ${stepsText}
 
@@ -394,11 +393,17 @@ ${stepsText}
 - 좋은 예: "검색창에 키워드 입력", "바로구매 버튼 클릭"
 - ※ 표시된 단계(클릭 대상 없음)는 "○○ 클릭/누르기" 절대 금지 — "○○ 화면 확인", "○○ 페이지로 이동" 같은 중립 제목으로
 
+[스텝 설명 규칙 — user_script]
+- 1~2문장, 사용자가 그대로 따라할 수 있게 구체적으로
+- 존댓말
+- 클릭 대상이 없는 단계는 화면 확인/이동 맥락으로 설명
+- 빈 문자열 금지
+
 응답 형식 (JSON만, 마크다운 없이):
 {
   "tutorial_title": "...",
   "steps": [
-    { "id": "uuid", "user_title": "..." }
+    { "id": "uuid", "user_title": "...", "user_script": "..." }
   ]
 }`,
       },
@@ -409,7 +414,11 @@ ${stepsText}
   try {
     const parsed = JSON.parse(stripMarkdown(text));
     const steps = Array.isArray(parsed.steps)
-      ? parsed.steps.map((s: { id: string; user_title: string }) => ({ id: s.id, user_title: s.user_title, user_script: '' }))
+      ? parsed.steps.map((s: { id: string; user_title: string; user_script?: string }) => ({
+          id: s.id,
+          user_title: s.user_title,
+          user_script: String(s.user_script || ''),
+        }))
       : [];
     return {
       tutorial_title: String(parsed.tutorial_title || ''),

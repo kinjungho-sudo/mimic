@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/auth/auth-guard';
 import { ttsSchema } from '@/lib/validators';
 import { generateTTS } from '@/lib/voice/openai-tts';
 import { rateLimitAi } from '@/lib/rate-limit';
+import { guardStepAccess } from '@/lib/auth/workspace-guard';
 
 export async function POST(request: NextRequest) {
   const auth = await requireAuth(request);
@@ -21,6 +22,11 @@ export async function POST(request: NextRequest) {
   const parsed = ttsSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
+
+  const guard = await guardStepAccess(parsed.data.stepId, auth.userId, 'editor');
+  if (!guard.ok) {
+    return NextResponse.json({ error: guard.error }, { status: guard.status });
   }
 
   try {
