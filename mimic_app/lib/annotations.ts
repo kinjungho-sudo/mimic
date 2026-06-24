@@ -92,6 +92,13 @@ export function buildClickHighlight(params: {
   const base = (suffix: string) => `guidde-${stepNumber}-${suffix}`;
 
   return [
+    {
+      id: base('spotlight'),
+      type: 'spotlight' as const,
+      x1: ex1, y1: ey1, x2: ex2, y2: ey2,
+      color: '#000000',
+      strokeWidth: 0,
+    },
     // 1. 빨간 테두리 rect
     {
       id: base('border'),
@@ -125,12 +132,6 @@ export function buildClickHighlight(params: {
       strokeWidth: 0,
     },
   ];
-}
-
-export function stripGeneratedSpotlights(annotations: Annotation[] | null | undefined): Annotation[] {
-  return (annotations ?? []).filter(a =>
-    !(a.type === 'spotlight' && /^guidde-\d+-spotlight$/.test(a.id))
-  );
 }
 
 // ── buildClickPoint ───────────────────────────────────────
