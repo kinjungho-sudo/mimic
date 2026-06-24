@@ -229,7 +229,7 @@
       usePrecapture: !!opts.usePrecapture, peekPrecapture: !!opts.peekPrecapture,
       typedText,
       elementRect: normalizeRect(rect, vw, vh), elementSelector: getElementSelector(el), elementXPath: getElementXPath(el),
-      actionInfo: { type: 'type', label, text: label, typedText, masked: isMasked, tag: el.tagName.toLowerCase(), role: el.getAttribute('role') || undefined },
+      actionInfo: { type: 'type', label, text: label, typedText, masked: isMasked, tag: el.tagName.toLowerCase(), role: el.getAttribute('role') || undefined, labelDebug: buildLabelDebug(el, label) },
     }, done);
 
     endSession();
@@ -638,6 +638,44 @@
     return (value || '').replace(/\s+/g, ' ').trim().slice(0, max);
   }
 
+  const GENERIC_LABEL_RE = /^(edit|button|menu|link|image|presentation|document|textbox|text box|input|field|item|option|open|close|more|toolbar)$/i;
+
+  function isGenericLabel(label) {
+    const cleaned = cleanLabelText(label).toLowerCase();
+    return !cleaned || GENERIC_LABEL_RE.test(cleaned);
+  }
+
+  function isGoogleFileAreaGeneric(label) {
+    const cleaned = cleanLabelText(label).toLowerCase();
+    return location.hostname === 'docs.google.com' && /^(edit|presentation|document)$/.test(cleaned);
+  }
+
+  function getGoogleFileTitle() {
+    if (location.hostname !== 'docs.google.com') return '';
+
+    const candidates = [
+      document.querySelector('[data-tooltip="Rename"]'),
+      document.querySelector('[aria-label*="Rename" i]'),
+      document.querySelector('[role="textbox"][aria-label*="title" i]'),
+      document.querySelector('[role="textbox"][aria-label*="name" i]'),
+      document.querySelector('input[aria-label*="title" i]'),
+      document.querySelector('input[aria-label*="name" i]'),
+    ].filter(Boolean);
+
+    for (const el of candidates) {
+      const text =
+        cleanLabelText(el.getAttribute('aria-label')) ||
+        cleanLabelText(el.getAttribute('data-tooltip')) ||
+        cleanLabelText(el.getAttribute('value')) ||
+        cleanLabelText(el.textContent);
+      const cleaned = text.replace(/^(rename|edit)\s*/i, '').trim();
+      if (cleaned && !isGenericLabel(cleaned)) return cleaned.slice(0, 80);
+    }
+
+    const title = cleanLabelText(document.title.replace(/\s*-\s*Google (Slides|Docs|Sheets).*$/i, ''));
+    return isGenericLabel(title) ? '' : title;
+  }
+
   function directText(el) {
     if (!el) return '';
     return cleanLabelText(
@@ -658,15 +696,65 @@
 
   function bestLabelFrom(el) {
     if (!el || !el.getAttribute) return '';
-    return (
-      cleanLabelText(el.getAttribute('aria-label')) ||
-      cleanLabelText(el.getAttribute('title')) ||
-      directText(el) ||
-      cleanLabelText(el.textContent) ||
-      cleanLabelText(el.getAttribute('placeholder')) ||
-      cleanLabelText(el.getAttribute('value')) ||
-      cleanLabelText(el.getAttribute('name'))
-    );
+    const raw = collectLabelCandidates(el);
+    const specific = [
+      raw.ariaLabel,
+      raw.title,
+      raw.describedBy,
+      raw.directText,
+      raw.rawText,
+      raw.placeholder,
+      raw.value,
+      raw.name,
+      raw.googleFileTitle,
+    ].find(v => v && !isGenericLabel(v));
+    return specific || raw.googleFileTitle || raw.directText || raw.rawText || raw.ariaLabel || raw.title || raw.role || '';
+  }
+
+  function textFromIds(ids) {
+    return (ids || '')
+      .split(/\s+/)
+      .map(id => document.getElementById(id))
+      .filter(Boolean)
+      .map(el => cleanLabelText(el.textContent))
+      .filter(Boolean)
+      .join(' ');
+  }
+
+  function collectLabelCandidates(el) {
+    return {
+      ariaLabel: cleanLabelText(el?.getAttribute?.('aria-label')),
+      title: cleanLabelText(el?.getAttribute?.('title')),
+      describedBy: cleanLabelText(textFromIds(el?.getAttribute?.('aria-describedby'))),
+      directText: directText(el),
+      rawText: cleanLabelText(el?.textContent),
+      placeholder: cleanLabelText(el?.getAttribute?.('placeholder')),
+      value: cleanLabelText(el?.getAttribute?.('value')),
+      name: cleanLabelText(el?.getAttribute?.('name')),
+      role: cleanLabelText(el?.getAttribute?.('role')),
+      googleFileTitle: getGoogleFileTitle(),
+    };
+  }
+
+  function labelFallbackReason(candidates, chosenLabel) {
+    if (!chosenLabel) return 'empty';
+    if (candidates.ariaLabel && isGenericLabel(candidates.ariaLabel) && chosenLabel !== candidates.ariaLabel) return 'generic-aria-label';
+    if (candidates.title && isGenericLabel(candidates.title) && chosenLabel !== candidates.title) return 'generic-title';
+    if (candidates.rawText && isGenericLabel(candidates.rawText) && chosenLabel !== candidates.rawText) return 'generic-visible-text';
+    return 'primary';
+  }
+
+  function buildLabelDebug(el, chosenLabel) {
+    const candidates = collectLabelCandidates(el);
+    return {
+      chosenLabel,
+      rawText: candidates.rawText || null,
+      ariaLabel: candidates.ariaLabel || null,
+      title: candidates.title || null,
+      role: candidates.role || null,
+      selector: getElementSelector(el),
+      fallbackReason: labelFallbackReason(candidates, chosenLabel),
+    };
   }
 
   function refineActionTarget(clickedEl, target) {
@@ -690,7 +778,13 @@
     const clickedLabel = clickedEl && clickedEl !== el && !isIconOnly(clickedEl)
       ? bestLabelFrom(clickedEl)
       : '';
-    return bestLabelFrom(el) || clickedLabel || '';
+    const ownLabel = bestLabelFrom(el);
+    if (ownLabel && !isGenericLabel(ownLabel)) return ownLabel;
+    if (clickedLabel && !isGenericLabel(clickedLabel)) return clickedLabel;
+    if (isGoogleFileAreaGeneric(ownLabel) || isGoogleFileAreaGeneric(clickedLabel)) {
+      return getGoogleFileTitle() || '파일명 영역';
+    }
+    return getGoogleFileTitle() || ownLabel || clickedLabel || '';
   }
 
   // 클래스가 안정적인지 판정 — 상태 클래스·CSS-in-JS 해시·동적 토큰을 거부(셀렉터 견고성의 핵심)
@@ -895,7 +989,7 @@
         viewportW: vw, viewportH: vh,
         stepNumber,
         elementRect: null, elementSelector: null,
-        actionInfo: { type: 'click', label: '화면 클릭', tag: clickedEl.tagName.toLowerCase() },
+        actionInfo: { type: 'click', label: '화면 클릭', tag: clickedEl.tagName.toLowerCase(), labelDebug: { chosenLabel: '화면 클릭', rawText: null, ariaLabel: null, title: null, role: null, selector: null, fallbackReason: 'blank-click' } },
       }, () => { clearTimeout(safetyTimer); isCapturing = false; });
       return;
     }
@@ -956,7 +1050,7 @@
         elementRect:     normalizeRect(rect, vw, vh),
         elementSelector: getElementSelector(captureEl),
         elementXPath:    getElementXPath(captureEl),
-        actionInfo:      { type: 'click', label, tag: captureEl.tagName.toLowerCase(), role, href: href.slice(0, 200) },
+        actionInfo:      { type: 'click', label, tag: captureEl.tagName.toLowerCase(), role, href: href.slice(0, 200), labelDebug: buildLabelDebug(captureEl, label) },
       };
 
       sendCapture(srcStep, () => { clearTimeout(navSafetyTimer); isCapturing = false; });
@@ -977,7 +1071,7 @@
       elementRect:     normalizeRect(rect, vw, vh),
       elementSelector: getElementSelector(captureEl),
       elementXPath:    getElementXPath(captureEl),
-      actionInfo:      { type: actionType, label, tag: captureEl.tagName.toLowerCase(), role, href: href.slice(0, 200) },
+      actionInfo:      { type: actionType, label, tag: captureEl.tagName.toLowerCase(), role, href: href.slice(0, 200), labelDebug: buildLabelDebug(captureEl, label) },
     };
 
     const downloadAttr    = target.getAttribute('download');

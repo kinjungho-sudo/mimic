@@ -2200,9 +2200,17 @@ async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, 
     crop_box:         cropBox               ?? null,
     ...(audioOffsetMs != null ? { audio_offset_ms: audioOffsetMs } : {}),
   };
+  const labelDebug = payload.action_info?.labelDebug ?? {};
   log('info', 'bg', 'save-step payload:', {
     step_number: payload.step_number,
     action_info: payload.action_info,
+    chosenLabel: labelDebug.chosenLabel ?? payload.action_info?.label ?? null,
+    rawText: labelDebug.rawText ?? null,
+    ariaLabel: labelDebug.ariaLabel ?? null,
+    title: labelDebug.title ?? null,
+    role: labelDebug.role ?? payload.action_info?.role ?? null,
+    selector: labelDebug.selector ?? payload.element_selector,
+    fallbackReason: labelDebug.fallbackReason ?? null,
     type_text: payload.type_text,
     click_x: payload.click_x,
     click_y: payload.click_y,
