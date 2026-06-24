@@ -113,7 +113,7 @@ export function FollowStage({
     ? clamp(40 / Math.sqrt(Math.max(domRect.w * domRect.h, 0.25)), 1.5, MAX_AUTO_ZOOM)
     : 1;
   const zoomStyle = (domRect && isAnimated)
-    ? { transform: `scale(${zoomScale})`, transformOrigin: `${zoomCX}% ${zoomCY}%`, transition: 'transform 1.4s ease-in-out' }
+    ? { transform: `scale(${zoomScale})`, transformOrigin: `${zoomCX}% ${zoomCY}%`, transition: phase === 'raw' ? 'none' : 'transform 1.4s ease-in-out' }
     : {};
   const typeStr = typeText ?? '';
   const hasTypeText = typeStr.trim().length > 0;
