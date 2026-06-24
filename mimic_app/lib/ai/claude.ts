@@ -4,6 +4,12 @@ import { CLAUDE_MODEL } from '@/lib/ai/model';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+function hasClaudeApiKey(operation: string): boolean {
+  if (process.env.ANTHROPIC_API_KEY?.trim()) return true;
+  console.error(`${operation} skipped: ANTHROPIC_API_KEY is not configured`);
+  return false;
+}
+
 // Haiku는 ```json ... ``` 블록으로 감싸서 응답하는 경향이 있어 파싱 전에 제거
 function stripMarkdown(text: string): string {
   return text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
@@ -88,6 +94,8 @@ export async function analyzeScreenshot(
   elementContext?: ElementContext,
   mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif' = 'image/jpeg'
 ): Promise<{ title: string; description: string }> {
+  if (!hasClaudeApiKey('analyzeScreenshot')) return { title: '', description: '' };
+
   let domain = '';
   try { domain = new URL(pageUrl).hostname; } catch { domain = pageUrl; }
 
@@ -182,6 +190,8 @@ export async function generateStepDescription(
   screenshotBase64?: string,
   mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif' = 'image/jpeg'
 ): Promise<string> {
+  if (!hasClaudeApiKey('generateStepDescription')) return '';
+
   let domain = '';
   try { domain = pageUrl ? new URL(pageUrl).hostname : ''; } catch { domain = pageUrl ?? ''; }
 
@@ -366,6 +376,8 @@ ${JSON.stringify(stepsData, null, 2)}
 export async function generateDraft(
   steps: Array<{ id: string; ai_title: string | null; ai_description: string | null; page_url: string | null; step_number: number; domain_name?: string | null; noAction?: boolean }>
 ): Promise<{ steps: Array<{ id: string; user_title: string; user_script: string }>; tutorial_title: string }> {
+  if (!hasClaudeApiKey('generateDraft')) return { tutorial_title: '', steps: [] };
+
   // 가장 많이 등장하는 domain_name을 서비스 이름으로 사용
   const domainCounts = new Map<string, number>();
   steps.forEach(s => {
@@ -441,7 +453,10 @@ ${stepsText}
       steps,
     };
   } catch (err) {
-    console.error('generateDraft parse error:', err);
+    console.error('generateDraft parse error:', {
+      error: err,
+      responsePreview: text.slice(0, 500),
+    });
     return { tutorial_title: '', steps: [] };
   }
 }
