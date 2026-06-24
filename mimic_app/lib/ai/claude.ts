@@ -9,6 +9,20 @@ function stripMarkdown(text: string): string {
   return text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
 }
 
+function parseJsonObject(text: string): unknown {
+  const clean = stripMarkdown(text);
+  try {
+    return JSON.parse(clean);
+  } catch {
+    const start = clean.indexOf('{');
+    const end = clean.lastIndexOf('}');
+    if (start >= 0 && end > start) {
+      return JSON.parse(clean.slice(start, end + 1));
+    }
+    throw new Error('No JSON object found in Claude response');
+  }
+}
+
 type ActionInfo = {
   type?: string;
   label?: string;
@@ -71,7 +85,8 @@ export async function analyzeScreenshot(
   base64Image: string,
   pageUrl: string,
   actionInfo?: ActionInfo,
-  elementContext?: ElementContext
+  elementContext?: ElementContext,
+  mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif' = 'image/jpeg'
 ): Promise<{ title: string; description: string }> {
   let domain = '';
   try { domain = new URL(pageUrl).hostname; } catch { domain = pageUrl; }
@@ -130,7 +145,7 @@ export async function analyzeScreenshot(
       {
         role: 'user',
         content: [
-          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64Image } },
+          { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64Image } },
           {
             type: 'text',
             text: `이 스크린샷은 사용자가 "${domain}" 페이지에서 수행한 액션입니다.${actionHint}${locationHint}
@@ -413,9 +428,9 @@ ${stepsText}
 
   const text = response.content[0].type === 'text' ? response.content[0].text : '{}';
   try {
-    const parsed = JSON.parse(stripMarkdown(text));
+    const parsed = parseJsonObject(text) as { tutorial_title?: string; steps?: Array<{ id: string; user_title: string; user_script?: string }> };
     const steps = Array.isArray(parsed.steps)
-      ? parsed.steps.map((s: { id: string; user_title: string; user_script?: string }) => ({
+      ? parsed.steps.map((s) => ({
           id: s.id,
           user_title: s.user_title,
           user_script: String(s.user_script || ''),
