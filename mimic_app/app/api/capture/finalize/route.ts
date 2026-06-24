@@ -303,7 +303,7 @@ export async function POST(request: NextRequest) {
   const [sessionUpdate, countUpdate] = await Promise.all([
     supabase
       .from('mm_capture_sessions')
-      .update({ status: 'done', ended_at: new Date().toISOString(), audio_url: audio_url ?? null })
+      .update({ status: 'completed', ended_at: new Date().toISOString(), audio_url: audio_url ?? null })
       .eq('id', session_id),
     supabase.rpc('increment_daily_manual_count', { uid: userId }),
   ]);
