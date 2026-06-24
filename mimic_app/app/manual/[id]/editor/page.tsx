@@ -38,10 +38,10 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
   return steps.map(s => ({
     id: s.id,
     number: s.step_number,
-    actionTitle: s.user_title ?? s.ai_title ?? '',
+    actionTitle: s.user_title || s.ai_title || '',
     titleFontSize: (s as Step & { title_font_size?: number | null }).title_font_size ?? null,
     followConfig: (s as Step & { follow_config?: import('@/types').FollowConfig | null }).follow_config ?? null,
-    description: s.user_script ?? s.ai_description ?? '',
+    description: s.user_script || s.ai_description || '',
     screenshotUrl: s.screenshot_url || undefined,
     originalScreenshotUrl: (s as Step & { original_screenshot_url?: string | null }).original_screenshot_url ?? null,
     annotations: (s.user_annotations as import('@/components/editor/ImageAnnotationEditor').Annotation[] | null) ?? [],
@@ -308,7 +308,7 @@ export default function EditorPage() {
     if (user?.plan === 'free' || user?.plan === 'pro_waitlist') return;
     const empty = tutorial.steps.filter(s =>
       !s.id.startsWith('step-') &&
-      !(s.user_script ?? s.ai_description ?? '').trim()
+      !(s.user_script || s.ai_description || '').trim()
     );
     if (empty.length === 0) return;
 

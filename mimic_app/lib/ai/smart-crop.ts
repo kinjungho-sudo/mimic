@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { CLAUDE_MODEL } from '@/lib/ai/model';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -27,7 +28,7 @@ export async function detectCropRect(
 ): Promise<CropRect> {
   try {
     const response = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: CLAUDE_MODEL,
       max_tokens: 128,
       messages: [{
         role: 'user',

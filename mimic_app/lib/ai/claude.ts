@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { Step } from '@/types';
+import { CLAUDE_MODEL } from '@/lib/ai/model';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -123,7 +124,7 @@ export async function analyzeScreenshot(
   })();
 
   const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: CLAUDE_MODEL,
     max_tokens: 128,
     messages: [
       {
@@ -189,7 +190,7 @@ export async function generateStepDescription(
   });
 
   const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: CLAUDE_MODEL,
     max_tokens: 128,
     messages: [{ role: 'user', content }],
   });
@@ -211,7 +212,7 @@ export async function regroundElement(
   if (target.actionType)  hints.push(`동작 유형: ${target.actionType}`);
 
   const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: CLAUDE_MODEL,
     max_tokens: 128,
     messages: [{
       role: 'user',
@@ -261,7 +262,7 @@ export async function generateScript(
   const draftSection = userDraft ? `\n사용자 초안:\n${userDraft}` : '';
 
   const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: CLAUDE_MODEL,
     max_tokens: 1024,
     messages: [
       {
@@ -305,7 +306,7 @@ export async function generateMarkers(steps: Step[]) {
   }));
 
   const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: CLAUDE_MODEL,
     max_tokens: 2048,
     messages: [
       {
@@ -372,7 +373,7 @@ export async function generateDraft(
   const serviceHint = mainService ? `\n주요 서비스: ${mainService}` : '';
 
   const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: CLAUDE_MODEL,
     max_tokens: 1024,
     messages: [
       {
@@ -424,7 +425,8 @@ ${stepsText}
       tutorial_title: String(parsed.tutorial_title || ''),
       steps,
     };
-  } catch {
+  } catch (err) {
+    console.error('generateDraft parse error:', err);
     return { tutorial_title: '', steps: [] };
   }
 }
@@ -450,7 +452,7 @@ export async function generateEducationalDraft(
     : null;
 
   const titleRes = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: CLAUDE_MODEL,
     max_tokens: 64,
     messages: [{
       role: 'user',
@@ -507,7 +509,7 @@ JSON만 반환:
       });
 
       const res = await client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
+        model: CLAUDE_MODEL,
         max_tokens: 256,
         messages: [{ role: 'user', content: contentBlocks }],
       });
@@ -538,7 +540,7 @@ export async function extractCoverColors(
   mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif' = 'image/jpeg'
 ): Promise<{ color1: string; color2: string }> {
   const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: CLAUDE_MODEL,
     max_tokens: 64,
     messages: [
       {
@@ -575,7 +577,7 @@ export async function rewriteSentence(
   instruction: string
 ): Promise<string> {
   const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: CLAUDE_MODEL,
     max_tokens: 512,
     messages: [{
       role: 'user',
@@ -598,7 +600,7 @@ export async function detectPII(
   mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif' = 'image/jpeg'
 ): Promise<boolean> {
   const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: CLAUDE_MODEL,
     max_tokens: 64,
     messages: [{
       role: 'user',
@@ -630,7 +632,7 @@ export async function cleanTranscripts(
 
   const numbered = items.map(it => `[${it.step_number}] ${it.raw}`).join('\n');
   const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: CLAUDE_MODEL,
     max_tokens: 2048,
     messages: [{
       role: 'user',
@@ -670,7 +672,7 @@ export async function rewriteAllSteps(
 ): Promise<{ id: string; result: string }[]> {
   const numbered = steps.map((s, i) => `[${i + 1}] ${s.text}`).join('\n');
   const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: CLAUDE_MODEL,
     max_tokens: 4096,
     messages: [{
       role: 'user',
@@ -739,7 +741,7 @@ export async function generateAnnotations(
   }
 
   const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: CLAUDE_MODEL,
     max_tokens: 2048,
     messages: [
       {

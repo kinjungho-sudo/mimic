@@ -31,8 +31,8 @@ function toStudioStep(s: Step): StudioStep {
     id: s.id,
     number: s.step_number,
     screenshotUrl: s.screenshot_url || null,
-    title: s.user_title ?? s.ai_title ?? '',
-    description: (s.user_script ?? s.ai_description ?? '').replace(/<[^>]+>/g, ''),
+    title: s.user_title || s.ai_title || '',
+    description: (s.user_script || s.ai_description || '').replace(/<[^>]+>/g, ''),
     clickXPct: clickToPct((s as Step & { click_x?: number | null }).click_x),
     clickYPct: clickToPct((s as Step & { click_y?: number | null }).click_y),
     domRect: (() => {

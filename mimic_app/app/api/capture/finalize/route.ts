@@ -8,6 +8,39 @@ import { resolveFavicon } from '@/lib/favicon';
 import { buildClickHighlight } from '@/lib/annotations';
 import { transcribeAudio, assignSegmentsToSteps, computeStepWindows } from '@/lib/voice/voice';
 
+type DraftStepInput = {
+  id: string;
+  ai_title: string | null;
+  ai_description: string | null;
+  page_url: string | null;
+  step_number: number;
+};
+
+type DraftActionInfo = {
+  type?: string;
+  label?: string;
+};
+
+function buildFallbackDraft(
+  step: DraftStepInput,
+  noAction: boolean,
+  actionInfo?: DraftActionInfo | null
+): { id: string; user_title: string; user_script: string } {
+  const actionLabel = actionInfo?.label?.trim();
+  const actionType = actionInfo?.type;
+  const title = step.ai_title?.trim()
+    || (actionLabel ? `${actionLabel} ${actionType === 'type' ? '입력' : '클릭'}` : '')
+    || (noAction ? '화면 확인' : `단계 ${step.step_number} 진행`);
+  const script = step.ai_description?.trim()
+    || (noAction ? '화면 내용을 확인합니다.' : `${title}합니다.`);
+
+  return {
+    id: step.id,
+    user_title: title.slice(0, 80),
+    user_script: script,
+  };
+}
+
 export async function POST(request: NextRequest) {
   const auth = await requireExtensionToken(request);
   if (!auth.ok) return auth.response;
@@ -371,6 +404,25 @@ export async function POST(request: NextRequest) {
       tutorial_title = draftResult.tutorial_title;
       drafts = draftResult.steps;
 
+      const actionInfoByStepNum = new Map<number, DraftActionInfo | null>();
+      deduped.forEach((ev, idx) => {
+        actionInfoByStepNum.set(idx + 1, (ev.action_info as DraftActionInfo | null) ?? null);
+      });
+      const aiDraftsById = new Map(drafts.map(d => [d.id, d]));
+      drafts = createdSteps.map(step => {
+        const fallback = buildFallbackDraft(
+          step,
+          noActionByStepNum.get(step.step_number) ?? false,
+          actionInfoByStepNum.get(step.step_number)
+        );
+        const aiDraft = aiDraftsById.get(step.id);
+        return {
+          id: step.id,
+          user_title: aiDraft?.user_title?.trim() || fallback.user_title,
+          user_script: aiDraft?.user_script?.trim() || fallback.user_script,
+        };
+      });
+
       // tutorial 제목 + cover_color 업데이트
       const tutorialUpdate: Record<string, string> = {};
       if (tutorial_title) tutorialUpdate.title = tutorial_title;
@@ -446,7 +498,8 @@ export async function POST(request: NextRequest) {
         }
       }
     }
-  } catch {
+  } catch (err) {
+    console.error('capture finalize draft generation error:', err);
     // 초안/어노테이션 생성 실패는 무시 — 튜토리얼은 정상 생성됨
   }
 
