@@ -28,7 +28,32 @@ const WEAK_TITLES = new Set([
   '단계 진행',
   '클릭',
   '입력',
+  '선택',
+  '이동',
 ]);
+
+const GENERIC_LABELS = new Set([
+  'edit',
+  'button',
+  'link',
+  'menu',
+  'untitled',
+  'click',
+  'submit',
+  'open',
+  'close',
+  'icon',
+  'image',
+  'svg',
+  'div',
+  'span',
+]);
+
+const GOOGLE_DOC_CONTEXTS: Array<{ pattern: RegExp; base: string; noActionBase: string }> = [
+  { pattern: /docs\.google\.com\/presentation/i, base: '파일명 영역', noActionBase: '슬라이드 편집 화면' },
+  { pattern: /docs\.google\.com\/spreadsheets/i, base: '파일명 영역', noActionBase: '스프레드시트 편집 화면' },
+  { pattern: /docs\.google\.com\/document/i, base: '파일명 영역', noActionBase: '문서 편집 화면' },
+];
 
 function cleanText(value: string | null | undefined): string {
   return (value ?? '')
@@ -37,9 +62,27 @@ function cleanText(value: string | null | undefined): string {
     .trim();
 }
 
+function normalized(value: string | null | undefined): string {
+  return cleanText(value).toLowerCase();
+}
+
+function isGenericLabel(value: string | null | undefined): boolean {
+  const text = normalized(value);
+  if (!text) return true;
+  if (GENERIC_LABELS.has(text)) return true;
+  return /^(edit|button|link|menu|click|untitled)(\s+\d+)?$/i.test(text);
+}
+
 function isWeakTitle(value: string | null | undefined): boolean {
   const text = cleanText(value);
   return !text || WEAK_TITLES.has(text) || /^단계\s*\d+\s*진행$/.test(text);
+}
+
+export function isLowQualityCaptureTitle(value: string | null | undefined): boolean {
+  const text = cleanText(value);
+  if (isWeakTitle(text)) return true;
+  if (isGenericLabel(text)) return true;
+  return /^(edit|button|link|menu|untitled|click)\s+(클릭|확인|선택|입력|이동)$/i.test(text);
 }
 
 function hasFinalConsonant(text: string): boolean {
@@ -82,16 +125,31 @@ function labelFromUrl(pageUrl: string | null | undefined): string {
       .split('/')
       .map(segment => decodeURIComponent(segment).replace(/[-_]+/g, ' ').trim())
       .filter(segment => segment && !/^[a-f0-9-]{12,}$/i.test(segment));
-    return cleanText(segments.at(-1) || '');
+    const label = cleanText(segments.at(-1) || '');
+    return isGenericLabel(label) ? '' : label;
   } catch {
     return '';
   }
 }
 
+function contextFromUrl(pageUrl: string | null | undefined, noAction: boolean): string {
+  if (!pageUrl) return '';
+  const match = GOOGLE_DOC_CONTEXTS.find(context => context.pattern.test(pageUrl));
+  if (match) return noAction ? match.noActionBase : match.base;
+  try {
+    const url = new URL(pageUrl);
+    const hostname = url.hostname.replace(/^www\./, '');
+    if (hostname) return noAction ? `${hostname} 화면` : `${hostname} 주요 영역`;
+  } catch {
+    return '';
+  }
+  return '';
+}
+
 function firstUseful(candidates: Array<string | null | undefined>): string {
   for (const candidate of candidates) {
     const text = cleanText(candidate);
-    if (text) return text;
+    if (text && !isGenericLabel(text)) return text;
   }
   return '';
 }
@@ -101,18 +159,21 @@ export function buildCaptureFallbackDraft(
   context: CaptureFallbackContext = {}
 ): { id: string; user_title: string; user_script: string } {
   const actionType = context.actionInfo?.type;
+  const noActionFromEvent = context.noAction ?? false;
+  const pageContext = contextFromUrl(step.page_url, noActionFromEvent);
   const specificBase = firstUseful([
-    !isWeakTitle(step.ai_title) ? step.ai_title : null,
+    !isLowQualityCaptureTitle(step.ai_title) ? step.ai_title : null,
     context.actionInfo?.label,
     context.actionInfo?.text,
     context.elementText,
     labelFromUrl(step.page_url),
+    pageContext,
     step.domain_name,
   ]);
   const base = specificBase || '화면';
-  const noAction = (context.noAction ?? false) || !specificBase;
+  const noAction = noActionFromEvent || !specificBase;
   const verb = verbForAction(actionType, noAction);
-  const userTitle = !isWeakTitle(step.ai_title)
+  const userTitle = !isLowQualityCaptureTitle(step.ai_title)
     ? cleanText(step.ai_title)
     : `${base} ${verb}`;
   const userScript = cleanText(step.ai_description) || scriptFor(base, verb);
@@ -129,7 +190,7 @@ export function buildCaptureFallbackTutorialTitle(
 ): string {
   const firstActionTitle = drafts
     .map(draft => cleanText(draft.user_title))
-    .find(title => title && !isWeakTitle(title) && title !== '화면 확인');
+    .find(title => title && !isLowQualityCaptureTitle(title) && title !== '화면 확인');
 
   if (!firstActionTitle) return '';
   if (firstActionTitle.endsWith('하기')) return firstActionTitle.slice(0, 30);

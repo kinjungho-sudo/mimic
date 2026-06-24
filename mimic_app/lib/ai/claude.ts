@@ -10,6 +10,21 @@ function hasClaudeApiKey(operation: string): boolean {
   return false;
 }
 
+export type GenerateDraftStatus =
+  | 'ok'
+  | 'missing_key'
+  | 'api_error'
+  | 'parse_error'
+  | 'empty_steps';
+
+export type GenerateDraftResult = {
+  steps: Array<{ id: string; user_title: string; user_script: string }>;
+  tutorial_title: string;
+  status: GenerateDraftStatus;
+  reason?: string;
+  responsePreview?: string;
+};
+
 // Haiku는 ```json ... ``` 블록으로 감싸서 응답하는 경향이 있어 파싱 전에 제거
 function stripMarkdown(text: string): string {
   return text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
@@ -375,8 +390,10 @@ ${JSON.stringify(stepsData, null, 2)}
 
 export async function generateDraft(
   steps: Array<{ id: string; ai_title: string | null; ai_description: string | null; page_url: string | null; step_number: number; domain_name?: string | null; noAction?: boolean }>
-): Promise<{ steps: Array<{ id: string; user_title: string; user_script: string }>; tutorial_title: string }> {
-  if (!hasClaudeApiKey('generateDraft')) return { tutorial_title: '', steps: [] };
+): Promise<GenerateDraftResult> {
+  if (!hasClaudeApiKey('generateDraft')) {
+    return { tutorial_title: '', steps: [], status: 'missing_key', reason: 'ANTHROPIC_API_KEY is not configured' };
+  }
 
   // 가장 많이 등장하는 domain_name을 서비스 이름으로 사용
   const domainCounts = new Map<string, number>();
@@ -399,13 +416,15 @@ export async function generateDraft(
 
   const serviceHint = mainService ? `\n주요 서비스: ${mainService}` : '';
 
-  const response = await client.messages.create({
-    model: CLAUDE_MODEL,
-    max_tokens: 1024,
-    messages: [
-      {
-        role: 'user',
-        content: `다음은 사용자가 녹화한 매뉴얼 단계들입니다. 튜토리얼 제목과 각 스텝의 제목/설명을 생성해줘.${serviceHint}
+  let text = '{}';
+  try {
+    const response = await client.messages.create({
+      model: CLAUDE_MODEL,
+      max_tokens: 1024,
+      messages: [
+        {
+          role: 'user',
+          content: `다음은 사용자가 녹화한 매뉴얼 단계들입니다. 튜토리얼 제목과 각 스텝의 제목/설명을 생성해줘.${serviceHint}
 
 ${stepsText}
 
@@ -434,11 +453,21 @@ ${stepsText}
     { "id": "uuid", "user_title": "...", "user_script": "..." }
   ]
 }`,
-      },
-    ],
-  });
+        },
+      ],
+    });
 
-  const text = response.content[0].type === 'text' ? response.content[0].text : '{}';
+    text = response.content[0].type === 'text' ? response.content[0].text : '{}';
+  } catch (err) {
+    console.error('generateDraft api error:', err);
+    return {
+      tutorial_title: '',
+      steps: [],
+      status: 'api_error',
+      reason: err instanceof Error ? err.message : String(err),
+    };
+  }
+
   try {
     const parsed = parseJsonObject(text) as { tutorial_title?: string; steps?: Array<{ id: string; user_title: string; user_script?: string }> };
     const steps = Array.isArray(parsed.steps)
@@ -448,16 +477,33 @@ ${stepsText}
           user_script: String(s.user_script || ''),
         }))
       : [];
+    if (steps.length === 0) {
+      console.warn('generateDraft returned empty steps:', { responsePreview: text.slice(0, 500) });
+      return {
+        tutorial_title: String(parsed.tutorial_title || ''),
+        steps,
+        status: 'empty_steps',
+        reason: 'Claude response contained no usable steps',
+        responsePreview: text.slice(0, 500),
+      };
+    }
     return {
       tutorial_title: String(parsed.tutorial_title || ''),
       steps,
+      status: 'ok',
     };
   } catch (err) {
     console.error('generateDraft parse error:', {
       error: err,
       responsePreview: text.slice(0, 500),
     });
-    return { tutorial_title: '', steps: [] };
+    return {
+      tutorial_title: '',
+      steps: [],
+      status: 'parse_error',
+      reason: err instanceof Error ? err.message : String(err),
+      responsePreview: text.slice(0, 500),
+    };
   }
 }
 
