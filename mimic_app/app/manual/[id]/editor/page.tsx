@@ -18,7 +18,6 @@ import { useCollaboration } from '@/hooks/useCollaboration';
 import type { Collaborator } from '@/hooks/useCollaboration';
 import { updateStep, createStep, deleteStep, reorderSteps, duplicateStep } from '@/lib/api/steps';
 import { getTutorial } from '@/lib/api/tutorials';
-import { stripGeneratedSpotlights } from '@/lib/annotations';
 import { logError } from '@/lib/logging/logger';
 import { hasGuideConfig } from '@/lib/follow';
 import type { Step, Tutorial } from '@/types';
@@ -45,7 +44,7 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
     description: s.user_script || s.ai_description || '',
     screenshotUrl: s.screenshot_url || undefined,
     originalScreenshotUrl: (s as Step & { original_screenshot_url?: string | null }).original_screenshot_url ?? null,
-    annotations: stripGeneratedSpotlights(s.user_annotations as import('@/components/editor/ImageAnnotationEditor').Annotation[] | null),
+    annotations: (s.user_annotations as import('@/components/editor/ImageAnnotationEditor').Annotation[] | null) ?? [],
     pageUrl:         s.page_url        ?? null,
     domainHostname:  s.domain_hostname ?? null,
     domainName:      s.domain_name     ?? null,
