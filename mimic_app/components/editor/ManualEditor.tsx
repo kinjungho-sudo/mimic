@@ -145,6 +145,25 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
   const updateStep = (id: string, patch: Partial<ManualStep>) =>
     onChange(steps.map(s => s.id === id ? { ...s, ...patch } : s));
 
+  const autoHydratedAnnotationIds = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const hydrated = new Map<string, Annotation[]>();
+    for (const step of steps) {
+      if ((step.annotations?.length ?? 0) > 0) continue;
+      if (autoHydratedAnnotationIds.current.has(step.id)) continue;
+      const annotations = buildInputAnnotation(step);
+      if (annotations.length > 0) hydrated.set(step.id, annotations);
+    }
+    if (hydrated.size === 0) return;
+
+    hydrated.forEach((_, stepId) => autoHydratedAnnotationIds.current.add(stepId));
+    onChange(steps.map(s => {
+      const annotations = hydrated.get(s.id);
+      return annotations ? { ...s, annotations } : s;
+    }));
+    hydrated.forEach((annotations, stepId) => onSave?.(stepId, { annotations }));
+  }, [steps, onChange, onSave]);
+
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   // 삭제 확인 모달이 열린 채 해당 스텝이 외부에서 제거되면 모달을 닫는다
