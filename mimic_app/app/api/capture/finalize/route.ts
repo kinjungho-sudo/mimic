@@ -4,10 +4,11 @@ import { requireExtensionToken } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { captureFinalizeSchema } from '@/lib/validators';
 import { analyzeScreenshot, generateStepDescription, generateDraft, extractCoverColors, detectPII, cleanTranscripts } from '@/lib/ai/claude';
-import { buildCaptureFallbackDraft, buildCaptureFallbackTutorialTitle, type CaptureFallbackActionInfo } from '@/lib/ai/capture-fallback';
+import { buildCaptureFallbackDraft, buildCaptureFallbackTutorialTitle, isLowQualityCaptureTitle, type CaptureFallbackActionInfo } from '@/lib/ai/capture-fallback';
 import { resolveFavicon } from '@/lib/favicon';
 import { buildClickHighlight } from '@/lib/annotations';
 import { transcribeAudio, assignSegmentsToSteps, computeStepWindows } from '@/lib/voice/voice';
+import { logSystem } from '@/lib/logging/logger-server';
 
 async function fetchScreenshotForAi(url: string): Promise<{ base64: string; mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif' } | null> {
   if (url.startsWith('data:')) {
@@ -383,6 +384,13 @@ export async function POST(request: NextRequest) {
         try {
           const image = await fetchScreenshotForAi(step.screenshot_url);
           if (!image) {
+            await logSystem('capture.finalize.screenshot_unavailable', {
+              userId,
+              tutorialId: tutorial.id,
+              sessionId: session_id,
+              stepNumber: step.step_number,
+              reason: 'image_fetch_or_data_url_failed',
+            }, 'warn');
             enrichedSteps.push(step);
             continue;
           }
@@ -400,16 +408,30 @@ export async function POST(request: NextRequest) {
                 actionInfo,
                 { clickX, clickY },
                 image.mediaType
-              ).catch((err) => {
+              ).catch(async (err) => {
                 console.error('capture finalize step title retry error:', err);
+                await logSystem('capture.finalize.step_title_ai_failed', {
+                  userId,
+                  tutorialId: tutorial.id,
+                  sessionId: session_id,
+                  stepNumber: step.step_number,
+                  reason: err instanceof Error ? err.message : String(err),
+                }, 'warn');
                 return null;
               });
 
           const aiTitle = step.ai_title?.trim() || analysis?.title?.trim() || null;
           const aiDescription = step.ai_description?.trim()
             || (aiTitle
-              ? await generateStepDescription(aiTitle, step.page_url, image.base64, image.mediaType).catch((err) => {
+              ? await generateStepDescription(aiTitle, step.page_url, image.base64, image.mediaType).catch(async (err) => {
                   console.error('capture finalize step description retry error:', err);
+                  await logSystem('capture.finalize.step_description_ai_failed', {
+                    userId,
+                    tutorialId: tutorial.id,
+                    sessionId: session_id,
+                    stepNumber: step.step_number,
+                    reason: err instanceof Error ? err.message : String(err),
+                  }, 'warn');
                   return null;
                 })
               : null);
@@ -431,6 +453,13 @@ export async function POST(request: NextRequest) {
           });
         } catch (err) {
           console.error('capture finalize step analysis retry error:', err);
+          await logSystem('capture.finalize.step_ai_analysis_failed', {
+            userId,
+            tutorialId: tutorial.id,
+            sessionId: session_id,
+            stepNumber: step.step_number,
+            reason: err instanceof Error ? err.message : String(err),
+          }, 'warn');
           enrichedSteps.push(step);
         }
       }
@@ -464,11 +493,14 @@ export async function POST(request: NextRequest) {
         return fallback;
       });
       let fallbackTutorialTitle = buildCaptureFallbackTutorialTitle(drafts);
+      let aiDraftStatus = 'not_called';
+      let discardedAiDrafts = 0;
 
       try {
         const draftResult = await generateDraft(
           enrichedSteps.map(s => ({ ...s, noAction: noActionByStepNum.get(s.step_number) ?? false }))
         );
+        aiDraftStatus = draftResult.status;
         tutorial_title = draftResult.tutorial_title;
         const aiDraftsById = new Map(draftResult.steps.map(d => [d.id, d]));
         drafts = enrichedSteps.map(step => {
@@ -478,16 +510,69 @@ export async function POST(request: NextRequest) {
             elementText: elementTextByStepNum.get(step.step_number),
           });
           const aiDraft = aiDraftsById.get(step.id);
+          const aiTitle = aiDraft?.user_title?.trim() || '';
+          const aiScript = aiDraft?.user_script?.trim() || '';
+          const useAiDraft = !!aiTitle && !!aiScript && !isLowQualityCaptureTitle(aiTitle);
+          if (aiDraft && !useAiDraft) discardedAiDrafts += 1;
           return {
             id: step.id,
-            user_title: aiDraft?.user_title?.trim() || fallback.user_title,
-            user_script: aiDraft?.user_script?.trim() || fallback.user_script,
+            user_title: useAiDraft ? aiTitle : fallback.user_title,
+            user_script: useAiDraft ? aiScript : fallback.user_script,
           };
         });
         fallbackTutorialTitle = buildCaptureFallbackTutorialTitle(drafts);
+        if (draftResult.status !== 'ok') {
+          await logSystem('capture.finalize.ai_draft_failed', {
+            userId,
+            tutorialId: tutorial.id,
+            sessionId: session_id,
+            status: draftResult.status,
+            reason: draftResult.reason ?? null,
+            responsePreview: draftResult.responsePreview ?? null,
+            fallbackOnly: true,
+          }, 'warn');
+        } else if (discardedAiDrafts > 0) {
+          await logSystem('capture.finalize.ai_draft_low_quality_discarded', {
+            userId,
+            tutorialId: tutorial.id,
+            sessionId: session_id,
+            discardedAiDrafts,
+            fallbackOnly: discardedAiDrafts === enrichedSteps.length,
+          }, 'warn');
+        } else {
+          await logSystem('capture.finalize.ai_draft_ok', {
+            userId,
+            tutorialId: tutorial.id,
+            sessionId: session_id,
+            aiSteps: draftResult.steps.length,
+            fallbackOnly: false,
+          }, 'info');
+        }
       } catch (err) {
         console.error('capture finalize ai draft generation error:', err);
+        aiDraftStatus = 'exception';
+        await logSystem('capture.finalize.ai_draft_exception', {
+          userId,
+          tutorialId: tutorial.id,
+          sessionId: session_id,
+          reason: err instanceof Error ? err.message : String(err),
+          fallbackOnly: true,
+        }, 'warn');
       }
+
+      const emptyTitles = drafts.filter(d => !d.user_title.trim()).length;
+      const emptyScripts = drafts.filter(d => !d.user_script.trim()).length;
+      const fallbackOnly = aiDraftStatus !== 'ok' || discardedAiDrafts === enrichedSteps.length;
+      await logSystem('capture.finalize.draft_summary', {
+        userId,
+        tutorialId: tutorial.id,
+        sessionId: session_id,
+        aiDraftStatus,
+        fallbackOnly,
+        discardedAiDrafts,
+        emptyTitles,
+        emptyScripts,
+      }, emptyTitles || emptyScripts ? 'warn' : 'info');
 
       // tutorial 제목 + cover_color 업데이트
       const tutorialUpdate: Record<string, string> = {};
