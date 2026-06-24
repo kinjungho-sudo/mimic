@@ -1836,6 +1836,16 @@ function computeCropBox(elementRect, clickX, clickY) {
   };
 }
 
+function denormalizeRectForAnalyze(elementRect, viewportW, viewportH) {
+  if (!elementRect || !viewportW || !viewportH) return elementRect ?? null;
+  return {
+    x: elementRect.x * viewportW,
+    y: elementRect.y * viewportH,
+    width: elementRect.width * viewportW,
+    height: elementRect.height * viewportH,
+  };
+}
+
 function makeActionLabel(actionInfo, stepNum, domainInfo) {
   if (!actionInfo) return `Step ${stepNum}`;
   const { type, label, text } = actionInfo;
@@ -1972,7 +1982,7 @@ async function processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base
       analyzeWithClaude(base64Image, stepData.url, stepData.actionInfo, {
         clickX:          stepData.clickX && stepData.windowWidth  ? stepData.clickX  / stepData.windowWidth  : null,
         clickY:          stepData.clickY && stepData.windowHeight ? stepData.clickY  / stepData.windowHeight : null,
-        elementRect:     stepData.elementRect     ?? null,
+        elementRect:     denormalizeRectForAnalyze(stepData.elementRect, stepData.windowWidth, stepData.windowHeight),
         viewportW:       stepData.windowWidth     ?? null,
         viewportH:       stepData.windowHeight    ?? null,
         elementSelector: stepData.elementSelector ?? null,
@@ -2168,30 +2178,42 @@ async function analyzeWithClaude(base64Image, url, actionInfo, elementContext = 
 // ── 스텝 저장 — 웹앱 API 경유 ───────────────────────────────────
 async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, title, description, url, domainInfo, viewportW, viewportH, elementSelector, elementXPath, elementRect, actionInfo, typedText, cropBox, audioOffsetMs }) {
   const origin = await getWebappOrigin();
+  const payload = {
+    session_id:       sessionId,
+    step_number:      stepNumber,
+    screenshot_url:   screenshotUrl,
+    click_x:          clickX,
+    click_y:          clickY,
+    title:            title ?? '',
+    description:      description ?? '',
+    url,
+    domain_hostname:  domainInfo?.hostname  ?? null,
+    domain_name:      domainInfo?.name      ?? null,
+    domain_favicon:   domainInfo?.favicon   ?? null,
+    viewport_w:       viewportW             ?? null,
+    viewport_h:       viewportH             ?? null,
+    element_selector: elementSelector       ?? null,
+    element_xpath:    elementXPath          ?? null,
+    element_rect:     elementRect           ?? null,
+    action_info:      actionInfo            ?? null,
+    type_text:        typedText             || null,
+    crop_box:         cropBox               ?? null,
+    ...(audioOffsetMs != null ? { audio_offset_ms: audioOffsetMs } : {}),
+  };
+  log('info', 'bg', 'save-step payload:', {
+    step_number: payload.step_number,
+    action_info: payload.action_info,
+    type_text: payload.type_text,
+    click_x: payload.click_x,
+    click_y: payload.click_y,
+    element_rect: payload.element_rect,
+    element_selector: payload.element_selector,
+    element_xpath: payload.element_xpath,
+  });
+
   const res = await authedFetch(`${origin}/api/capture/save-step`, {
     method: 'POST',
-    body: JSON.stringify({
-      session_id:       sessionId,
-      step_number:      stepNumber,
-      screenshot_url:   screenshotUrl,
-      click_x:          clickX,
-      click_y:          clickY,
-      title:            title ?? '',
-      description:      description ?? '',
-      url,
-      domain_hostname:  domainInfo?.hostname  ?? null,
-      domain_name:      domainInfo?.name      ?? null,
-      domain_favicon:   domainInfo?.favicon   ?? null,
-      viewport_w:       viewportW             ?? null,
-      viewport_h:       viewportH             ?? null,
-      element_selector: elementSelector       ?? null,
-      element_xpath:    elementXPath          ?? null,
-      element_rect:     elementRect           ?? null,
-      action_info:      actionInfo            ?? null,
-      type_text:        typedText             || null,  // 입력 원문(매뉴얼 생성 참고·Live Guide 자동입력). 앱 측 컬럼 반영 전까진 무시됨
-      crop_box:         cropBox               ?? null,
-      ...(audioOffsetMs != null ? { audio_offset_ms: audioOffsetMs } : {}),
-    }),
+    body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(`save-step failed: ${res.status}: ${await res.text()}`);
   return res.json();

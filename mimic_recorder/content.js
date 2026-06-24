@@ -209,7 +209,7 @@
     // 입력 원문 보관 — 비밀번호 등 민감 필드는 저장하지 않는다(라벨도 '비밀번호 입력').
     // 짧으면 스텝 라벨에 '입력, "내용"'으로, 길면 본문(typedText)에 전문 보관해 매뉴얼 생성 참고자료로 쓴다.
     const isMasked  = SENSITIVE_INPUT_TYPES.has((el.type || '').toLowerCase()) || SENSITIVE_LABEL_RE.test(label);
-    const typedText = (isMasked || !settings.saveText) ? '' : (el.isContentEditable ? (el.textContent || '') : (el.value || ''));
+    const typedText = isMasked ? '' : (el.isContentEditable ? (el.textContent || '') : (el.value || ''));
     const safetyTimer = startCapturingSafely();
     const done = () => { clearTimeout(safetyTimer); isCapturing = false; };
 
@@ -229,7 +229,7 @@
       usePrecapture: !!opts.usePrecapture, peekPrecapture: !!opts.peekPrecapture,
       typedText,
       elementRect: normalizeRect(rect, vw, vh), elementSelector: getElementSelector(el), elementXPath: getElementXPath(el),
-      actionInfo: { type: 'type', text: label, typedText, masked: isMasked },
+      actionInfo: { type: 'type', label, text: label, typedText, masked: isMasked, tag: el.tagName.toLowerCase(), role: el.getAttribute('role') || undefined },
     }, done);
 
     endSession();
@@ -634,16 +634,63 @@
   }
 
   // ── 엘리먼트 메타 추출 ───────────────────────────────────────────
-  function getElementLabel(el) {
-    return (
-      el.getAttribute('aria-label') ||
-      el.getAttribute('title') ||
-      (el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 60) ||
-      el.getAttribute('placeholder') ||
-      el.getAttribute('value') ||
-      el.getAttribute('name') ||
-      ''
+  function cleanLabelText(value, max = 80) {
+    return (value || '').replace(/\s+/g, ' ').trim().slice(0, max);
+  }
+
+  function directText(el) {
+    if (!el) return '';
+    return cleanLabelText(
+      [...el.childNodes]
+        .filter(n => n.nodeType === Node.TEXT_NODE)
+        .map(n => n.textContent || '')
+        .join(' ')
     );
+  }
+
+  function isIconOnly(el) {
+    if (!el || !el.tagName) return false;
+    const tag = el.tagName.toLowerCase();
+    if (/^(svg|path|use|symbol|polygon|circle|rect|g|img|i)$/.test(tag)) return true;
+    const cls = typeof el.className === 'string' ? el.className : (el.className?.baseVal ?? '');
+    return /(^|[-_ ])(icon|caret|arrow|close|more|kebab|dots)([-_ ]|$)/i.test(cls) && !cleanLabelText(el.textContent);
+  }
+
+  function bestLabelFrom(el) {
+    if (!el || !el.getAttribute) return '';
+    return (
+      cleanLabelText(el.getAttribute('aria-label')) ||
+      cleanLabelText(el.getAttribute('title')) ||
+      directText(el) ||
+      cleanLabelText(el.textContent) ||
+      cleanLabelText(el.getAttribute('placeholder')) ||
+      cleanLabelText(el.getAttribute('value')) ||
+      cleanLabelText(el.getAttribute('name'))
+    );
+  }
+
+  function refineActionTarget(clickedEl, target) {
+    if (!clickedEl || !target || clickedEl === target) return target;
+    const node = clickedEl.nodeType === Node.ELEMENT_NODE ? clickedEl : clickedEl.parentElement;
+    if (!node || !target.contains(node)) return target;
+
+    let cur = node;
+    while (cur && cur !== target && cur !== document.body && cur !== document.documentElement) {
+      const label = bestLabelFrom(cur);
+      if (label && !isIconOnly(cur)) return cur;
+      cur = cur.parentElement;
+    }
+
+    const semantic = node.closest('[role="menuitem"],[role="option"],[role="tab"],[role="button"],[role="link"],button,a[href],label,select,input,textarea,[onclick],[tabindex]:not([tabindex="-1"])');
+    if (semantic && target.contains(semantic)) return semantic;
+    return target;
+  }
+
+  function getElementLabel(el, clickedEl = null) {
+    const clickedLabel = clickedEl && clickedEl !== el && !isIconOnly(clickedEl)
+      ? bestLabelFrom(clickedEl)
+      : '';
+    return bestLabelFrom(el) || clickedLabel || '';
   }
 
   // 클래스가 안정적인지 판정 — 상태 클래스·CSS-in-JS 해시·동적 토큰을 거부(셀렉터 견고성의 핵심)
@@ -853,8 +900,9 @@
       return;
     }
 
+    const actionTarget = refineActionTarget(clickedEl, target);
     const now = Date.now();
-    if (target === lastCapturedTarget && (now - lastCapturedTime) < DEDUP_SAME_ELEMENT) return;
+    if (actionTarget === lastCapturedTarget && (now - lastCapturedTime) < DEDUP_SAME_ELEMENT) return;
 
     const actionType = getActionType(target);
 
@@ -883,9 +931,11 @@
 
     showClickHighlight(e.clientX, e.clientY);
 
-    const rect  = target.getBoundingClientRect();
-    const label = getElementLabel(target);
-    const href  = target.getAttribute('href') || target.closest('a')?.getAttribute('href') || '';
+    const captureEl = actionType === 'focus_input' ? target : actionTarget;
+    const rect  = captureEl.getBoundingClientRect();
+    const label = getElementLabel(captureEl, clickedEl);
+    const href  = captureEl.getAttribute('href') || captureEl.closest('a')?.getAttribute('href') || target.getAttribute('href') || target.closest('a')?.getAttribute('href') || '';
+    const role  = captureEl.getAttribute('role') || target.getAttribute('role') || undefined;
     const { vw, vh } = getViewportSize();
 
     // navigate 클릭(링크 등)도 '사용자 클릭'이므로 클릭 스텝으로만 캡처한다.
@@ -894,7 +944,7 @@
       log('debug', `navigate-as-click step ${stepNumber + 1} el=${target.tagName} href=${href.slice(0, 60)}`);
       const navSafetyTimer = startCapturingSafely();
       stepNumber        += 1;
-      lastCapturedTarget = target;
+      lastCapturedTarget = captureEl;
       lastCapturedTime   = now;
 
       const srcStep = {
@@ -904,9 +954,9 @@
         viewportW: vw, viewportH: vh,
         stepNumber, usePrecapture: true,
         elementRect:     normalizeRect(rect, vw, vh),
-        elementSelector: getElementSelector(target),
-        elementXPath:    getElementXPath(target),
-        actionInfo:      { type: 'click', label, tag: target.tagName.toLowerCase(), href: href.slice(0, 200) },
+        elementSelector: getElementSelector(captureEl),
+        elementXPath:    getElementXPath(captureEl),
+        actionInfo:      { type: 'click', label, tag: captureEl.tagName.toLowerCase(), role, href: href.slice(0, 200) },
       };
 
       sendCapture(srcStep, () => { clearTimeout(navSafetyTimer); isCapturing = false; });
@@ -915,7 +965,7 @@
 
     const safetyTimer = startCapturingSafely();
     stepNumber        += 1;
-    lastCapturedTarget = target;
+    lastCapturedTarget = captureEl;
     lastCapturedTime   = now;
 
     const stepData = {
@@ -925,9 +975,9 @@
       viewportW: vw, viewportH: vh,
       stepNumber, usePrecapture: true,
       elementRect:     normalizeRect(rect, vw, vh),
-      elementSelector: getElementSelector(target),
-      elementXPath:    getElementXPath(target),
-      actionInfo:      { type: actionType, label, tag: target.tagName.toLowerCase(), href: href.slice(0, 200) },
+      elementSelector: getElementSelector(captureEl),
+      elementXPath:    getElementXPath(captureEl),
+      actionInfo:      { type: actionType, label, tag: captureEl.tagName.toLowerCase(), role, href: href.slice(0, 200) },
     };
 
     const downloadAttr    = target.getAttribute('download');
@@ -1081,7 +1131,7 @@
           clickX: fileCX, clickY: fileCY,
           windowWidth: vw, windowHeight: vh,
           stepNumber,
-          actionInfo: { type: 'upload', text: fileNames, tag: 'input' },
+          actionInfo: { type: 'upload', label: fileNames, text: fileNames, tag: 'input' },
         }, () => { clearTimeout(safetyTimer); isCapturing = false; });
       }));
     }, 400);
