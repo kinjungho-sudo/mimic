@@ -322,18 +322,21 @@ export async function POST(request: NextRequest) {
     })
     .eq('id', tutorial.id);
 
-  // 세션 완료 처리 + daily_manual_count atomic 증가 (병렬, RPC로 race condition 방지)
-  const [sessionUpdate, countUpdate] = await Promise.all([
-    supabase
-      .from('mm_capture_sessions')
-      .update({ status: 'completed', ended_at: new Date().toISOString(), audio_url: audio_url ?? null })
-      .eq('id', session_id),
-    supabase.rpc('increment_daily_manual_count', { uid: userId }),
-  ]);
+  // 세션 완료 처리는 필수. daily_manual_count 증가는 운영 DB에 RPC가 늦게
+  // 적용된 경우에도 매뉴얼 생성을 막지 않도록 best-effort로 처리한다.
+  const sessionUpdate = await supabase
+    .from('mm_capture_sessions')
+    .update({ status: 'completed', ended_at: new Date().toISOString(), audio_url: audio_url ?? null })
+    .eq('id', session_id);
 
-  if (sessionUpdate.error || countUpdate.error) {
+  if (sessionUpdate.error) {
     await supabase.from('mm_tutorials').delete().eq('id', tutorial.id);
     return NextResponse.json({ error: 'Failed to finalize session' }, { status: 500 });
+  }
+
+  const countUpdate = await supabase.rpc('increment_daily_manual_count', { uid: userId });
+  if (countUpdate.error) {
+    console.warn('capture finalize daily count update failed:', countUpdate.error.message);
   }
 
   // staging 정리 — 매뉴얼 변환이 끝난 세션의 mm_capture_events 행과,
