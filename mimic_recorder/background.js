@@ -1895,11 +1895,22 @@ function extractDomainInfo(url, tab) {
     name = name.slice(0, 40) || hostname;
   }
 
-  const favicon = tab?.favIconUrl && !tab.favIconUrl.startsWith('chrome://')
-    ? tab.favIconUrl
-    : `https://${hostname}/favicon.ico`;
+  const fallbackFavicon = hostname ? `https://${hostname}/favicon.ico` : null;
+  const favicon = normalizeFaviconUrl(tab?.favIconUrl) ?? fallbackFavicon;
 
   return { hostname, name, favicon };
+}
+
+function normalizeFaviconUrl(raw) {
+  if (typeof raw !== 'string') return null;
+  const value = raw.trim();
+  if (!value || value.length > 500) return null;
+  try {
+    const parsed = new URL(value);
+    return (parsed.protocol === 'http:' || parsed.protocol === 'https:') ? value : null;
+  } catch {
+    return null;
+  }
 }
 
 // ── 캡처 처리 ────────────────────────────────────────────────────
@@ -2217,6 +2228,7 @@ async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, 
     element_rect: payload.element_rect,
     element_selector: payload.element_selector,
     element_xpath: payload.element_xpath,
+    domain_favicon: payload.domain_favicon,
   });
 
   const res = await authedFetch(`${origin}/api/capture/save-step`, {
