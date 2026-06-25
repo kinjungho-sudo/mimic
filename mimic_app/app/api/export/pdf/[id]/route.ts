@@ -265,7 +265,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     year: '2-digit', month: '2-digit', day: '2-digit', timeZone: 'Asia/Seoul',
   }).replace(/\. /g, '_').replace(/\.$/, '');
   const safeTitle = tutorial.title.replace(/[/\\?%*:|"<>]/g, '-').trim() || '매뉴얼';
-  const filenameRaw = `${safeTitle}_${dateStr}.pdf`;
+  const filenameRaw = `${dateStr}_${safeTitle}.pdf`;
   const filenameEncoded = encodeURIComponent(filenameRaw);
 
   return new Response(pdfBytes.buffer as ArrayBuffer, {

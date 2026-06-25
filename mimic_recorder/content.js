@@ -23,7 +23,6 @@
   const DEDUP_SAME_ELEMENT  = 1200;  // ms — 같은 요소 재클릭 무시 간격
   const DEDUP_DOUBLE_CLICK  = 400;   // ms — 더블클릭 감지 간격
   const DEDUP_REFOCUS_MS    = 10000; // ms — 같은 입력칸 재포커스 클릭 스텝 중복 방지(이 시간 지나면 재캡처 허용)
-  const TYPING_DEBOUNCE     = 1500;  // ms — 입력 멈춤 후 자동 캡처 대기
   const CAPTURE_SAFETY_MS   = 5000;  // ms — isCapturing stuck 방지 타임아웃
   const TYPING_FRAME_THROTTLE = 300; // ms — 타이핑 중 '전송 직전' 롤링 프레임 캡처 간격
   // (captureVisibleTab 쿼터는 초당 2회 — 300ms 시도 중 일부는 rate-limit으로 무시되나,
@@ -210,7 +209,7 @@
     // 입력 원문 보관 — 비밀번호 등 민감 필드는 저장하지 않는다(라벨도 '비밀번호 입력').
     // 짧으면 스텝 라벨에 '입력, "내용"'으로, 길면 본문(typedText)에 전문 보관해 매뉴얼 생성 참고자료로 쓴다.
     const isMasked  = SENSITIVE_INPUT_TYPES.has((el.type || '').toLowerCase()) || SENSITIVE_LABEL_RE.test(label);
-    const typedText = (isMasked || !settings.saveText) ? '' : (el.isContentEditable ? (el.textContent || '') : (el.value || ''));
+    const typedText = isMasked ? '' : (el.isContentEditable ? (el.textContent || '') : (el.value || ''));
     const safetyTimer = startCapturingSafely();
     const done = () => { clearTimeout(safetyTimer); isCapturing = false; };
 
@@ -230,7 +229,7 @@
       usePrecapture: !!opts.usePrecapture, peekPrecapture: !!opts.peekPrecapture,
       typedText,
       elementRect: normalizeRect(rect, vw, vh), elementSelector: getElementSelector(el), elementXPath: getElementXPath(el),
-      actionInfo: { type: 'type', text: label, typedText, masked: isMasked },
+      actionInfo: { type: 'type', label, text: label, typedText, masked: isMasked, tag: el.tagName.toLowerCase(), role: el.getAttribute('role') || undefined, labelDebug: buildLabelDebug(el, label) },
     }, done);
 
     endSession();
@@ -635,16 +634,157 @@
   }
 
   // ── 엘리먼트 메타 추출 ───────────────────────────────────────────
-  function getElementLabel(el) {
-    return (
-      el.getAttribute('aria-label') ||
-      el.getAttribute('title') ||
-      (el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 60) ||
-      el.getAttribute('placeholder') ||
-      el.getAttribute('value') ||
-      el.getAttribute('name') ||
-      ''
+  function cleanLabelText(value, max = 80) {
+    return (value || '').replace(/\s+/g, ' ').trim().slice(0, max);
+  }
+
+  const GENERIC_LABEL_RE = /^(edit|button|menu|link|image|presentation|document|textbox|text box|input|field|item|option|open|close|more|toolbar)$/i;
+
+  function isGenericLabel(label) {
+    const cleaned = cleanLabelText(label).toLowerCase();
+    return !cleaned || GENERIC_LABEL_RE.test(cleaned);
+  }
+
+  function isGoogleFileAreaGeneric(label) {
+    const cleaned = cleanLabelText(label).toLowerCase();
+    return location.hostname === 'docs.google.com' && /^(edit|presentation|document)$/.test(cleaned);
+  }
+
+  function getGoogleFileTitle() {
+    if (location.hostname !== 'docs.google.com') return '';
+
+    const candidates = [
+      document.querySelector('[data-tooltip="Rename"]'),
+      document.querySelector('[aria-label*="Rename" i]'),
+      document.querySelector('[role="textbox"][aria-label*="title" i]'),
+      document.querySelector('[role="textbox"][aria-label*="name" i]'),
+      document.querySelector('input[aria-label*="title" i]'),
+      document.querySelector('input[aria-label*="name" i]'),
+    ].filter(Boolean);
+
+    for (const el of candidates) {
+      const text =
+        cleanLabelText(el.getAttribute('aria-label')) ||
+        cleanLabelText(el.getAttribute('data-tooltip')) ||
+        cleanLabelText(el.getAttribute('value')) ||
+        cleanLabelText(el.textContent);
+      const cleaned = text.replace(/^(rename|edit)\s*/i, '').trim();
+      if (cleaned && !isGenericLabel(cleaned)) return cleaned.slice(0, 80);
+    }
+
+    const title = cleanLabelText(document.title.replace(/\s*-\s*Google (Slides|Docs|Sheets).*$/i, ''));
+    return isGenericLabel(title) ? '' : title;
+  }
+
+  function directText(el) {
+    if (!el) return '';
+    return cleanLabelText(
+      [...el.childNodes]
+        .filter(n => n.nodeType === Node.TEXT_NODE)
+        .map(n => n.textContent || '')
+        .join(' ')
     );
+  }
+
+  function isIconOnly(el) {
+    if (!el || !el.tagName) return false;
+    const tag = el.tagName.toLowerCase();
+    if (/^(svg|path|use|symbol|polygon|circle|rect|g|img|i)$/.test(tag)) return true;
+    const cls = typeof el.className === 'string' ? el.className : (el.className?.baseVal ?? '');
+    return /(^|[-_ ])(icon|caret|arrow|close|more|kebab|dots)([-_ ]|$)/i.test(cls) && !cleanLabelText(el.textContent);
+  }
+
+  function bestLabelFrom(el) {
+    if (!el || !el.getAttribute) return '';
+    const raw = collectLabelCandidates(el);
+    const specific = [
+      raw.ariaLabel,
+      raw.title,
+      raw.describedBy,
+      raw.directText,
+      raw.rawText,
+      raw.placeholder,
+      raw.value,
+      raw.name,
+      raw.googleFileTitle,
+    ].find(v => v && !isGenericLabel(v));
+    return specific || raw.googleFileTitle || raw.directText || raw.rawText || raw.ariaLabel || raw.title || raw.role || '';
+  }
+
+  function textFromIds(ids) {
+    return (ids || '')
+      .split(/\s+/)
+      .map(id => document.getElementById(id))
+      .filter(Boolean)
+      .map(el => cleanLabelText(el.textContent))
+      .filter(Boolean)
+      .join(' ');
+  }
+
+  function collectLabelCandidates(el) {
+    return {
+      ariaLabel: cleanLabelText(el?.getAttribute?.('aria-label')),
+      title: cleanLabelText(el?.getAttribute?.('title')),
+      describedBy: cleanLabelText(textFromIds(el?.getAttribute?.('aria-describedby'))),
+      directText: directText(el),
+      rawText: cleanLabelText(el?.textContent),
+      placeholder: cleanLabelText(el?.getAttribute?.('placeholder')),
+      value: cleanLabelText(el?.getAttribute?.('value')),
+      name: cleanLabelText(el?.getAttribute?.('name')),
+      role: cleanLabelText(el?.getAttribute?.('role')),
+      googleFileTitle: getGoogleFileTitle(),
+    };
+  }
+
+  function labelFallbackReason(candidates, chosenLabel) {
+    if (!chosenLabel) return 'empty';
+    if (candidates.ariaLabel && isGenericLabel(candidates.ariaLabel) && chosenLabel !== candidates.ariaLabel) return 'generic-aria-label';
+    if (candidates.title && isGenericLabel(candidates.title) && chosenLabel !== candidates.title) return 'generic-title';
+    if (candidates.rawText && isGenericLabel(candidates.rawText) && chosenLabel !== candidates.rawText) return 'generic-visible-text';
+    return 'primary';
+  }
+
+  function buildLabelDebug(el, chosenLabel) {
+    const candidates = collectLabelCandidates(el);
+    return {
+      chosenLabel,
+      rawText: candidates.rawText || null,
+      ariaLabel: candidates.ariaLabel || null,
+      title: candidates.title || null,
+      role: candidates.role || null,
+      selector: getElementSelector(el),
+      fallbackReason: labelFallbackReason(candidates, chosenLabel),
+    };
+  }
+
+  function refineActionTarget(clickedEl, target) {
+    if (!clickedEl || !target || clickedEl === target) return target;
+    const node = clickedEl.nodeType === Node.ELEMENT_NODE ? clickedEl : clickedEl.parentElement;
+    if (!node || !target.contains(node)) return target;
+
+    let cur = node;
+    while (cur && cur !== target && cur !== document.body && cur !== document.documentElement) {
+      const label = bestLabelFrom(cur);
+      if (label && !isIconOnly(cur)) return cur;
+      cur = cur.parentElement;
+    }
+
+    const semantic = node.closest('[role="menuitem"],[role="option"],[role="tab"],[role="button"],[role="link"],button,a[href],label,select,input,textarea,[onclick],[tabindex]:not([tabindex="-1"])');
+    if (semantic && target.contains(semantic)) return semantic;
+    return target;
+  }
+
+  function getElementLabel(el, clickedEl = null) {
+    const clickedLabel = clickedEl && clickedEl !== el && !isIconOnly(clickedEl)
+      ? bestLabelFrom(clickedEl)
+      : '';
+    const ownLabel = bestLabelFrom(el);
+    if (ownLabel && !isGenericLabel(ownLabel)) return ownLabel;
+    if (clickedLabel && !isGenericLabel(clickedLabel)) return clickedLabel;
+    if (isGoogleFileAreaGeneric(ownLabel) || isGoogleFileAreaGeneric(clickedLabel)) {
+      return getGoogleFileTitle() || '파일명 영역';
+    }
+    return getGoogleFileTitle() || ownLabel || clickedLabel || '';
   }
 
   // 클래스가 안정적인지 판정 — 상태 클래스·CSS-in-JS 해시·동적 토큰을 거부(셀렉터 견고성의 핵심)
@@ -849,13 +989,14 @@
         viewportW: vw, viewportH: vh,
         stepNumber,
         elementRect: null, elementSelector: null,
-        actionInfo: { type: 'click', label: '화면 클릭', tag: clickedEl.tagName.toLowerCase() },
+        actionInfo: { type: 'click', label: '화면 클릭', tag: clickedEl.tagName.toLowerCase(), labelDebug: { chosenLabel: '화면 클릭', rawText: null, ariaLabel: null, title: null, role: null, selector: null, fallbackReason: 'blank-click' } },
       }, () => { clearTimeout(safetyTimer); isCapturing = false; });
       return;
     }
 
+    const actionTarget = refineActionTarget(clickedEl, target);
     const now = Date.now();
-    if (target === lastCapturedTarget && (now - lastCapturedTime) < DEDUP_SAME_ELEMENT) return;
+    if (actionTarget === lastCapturedTarget && (now - lastCapturedTime) < DEDUP_SAME_ELEMENT) return;
 
     const actionType = getActionType(target);
 
@@ -884,9 +1025,11 @@
 
     showClickHighlight(e.clientX, e.clientY);
 
-    const rect  = target.getBoundingClientRect();
-    const label = getElementLabel(target);
-    const href  = target.getAttribute('href') || target.closest('a')?.getAttribute('href') || '';
+    const captureEl = actionType === 'focus_input' ? target : actionTarget;
+    const rect  = captureEl.getBoundingClientRect();
+    const label = getElementLabel(captureEl, clickedEl);
+    const href  = captureEl.getAttribute('href') || captureEl.closest('a')?.getAttribute('href') || target.getAttribute('href') || target.closest('a')?.getAttribute('href') || '';
+    const role  = captureEl.getAttribute('role') || target.getAttribute('role') || undefined;
     const { vw, vh } = getViewportSize();
 
     // navigate 클릭(링크 등)도 '사용자 클릭'이므로 클릭 스텝으로만 캡처한다.
@@ -895,7 +1038,7 @@
       log('debug', `navigate-as-click step ${stepNumber + 1} el=${target.tagName} href=${href.slice(0, 60)}`);
       const navSafetyTimer = startCapturingSafely();
       stepNumber        += 1;
-      lastCapturedTarget = target;
+      lastCapturedTarget = captureEl;
       lastCapturedTime   = now;
 
       const srcStep = {
@@ -905,9 +1048,9 @@
         viewportW: vw, viewportH: vh,
         stepNumber, usePrecapture: true,
         elementRect:     normalizeRect(rect, vw, vh),
-        elementSelector: getElementSelector(target),
-        elementXPath:    getElementXPath(target),
-        actionInfo:      { type: 'click', label, tag: target.tagName.toLowerCase(), href: href.slice(0, 200) },
+        elementSelector: getElementSelector(captureEl),
+        elementXPath:    getElementXPath(captureEl),
+        actionInfo:      { type: 'click', label, tag: captureEl.tagName.toLowerCase(), role, href: href.slice(0, 200), labelDebug: buildLabelDebug(captureEl, label) },
       };
 
       sendCapture(srcStep, () => { clearTimeout(navSafetyTimer); isCapturing = false; });
@@ -916,7 +1059,7 @@
 
     const safetyTimer = startCapturingSafely();
     stepNumber        += 1;
-    lastCapturedTarget = target;
+    lastCapturedTarget = captureEl;
     lastCapturedTime   = now;
 
     const stepData = {
@@ -926,9 +1069,9 @@
       viewportW: vw, viewportH: vh,
       stepNumber, usePrecapture: true,
       elementRect:     normalizeRect(rect, vw, vh),
-      elementSelector: getElementSelector(target),
-      elementXPath:    getElementXPath(target),
-      actionInfo:      { type: actionType, label, tag: target.tagName.toLowerCase(), href: href.slice(0, 200) },
+      elementSelector: getElementSelector(captureEl),
+      elementXPath:    getElementXPath(captureEl),
+      actionInfo:      { type: actionType, label, tag: captureEl.tagName.toLowerCase(), role, href: href.slice(0, 200), labelDebug: buildLabelDebug(captureEl, label) },
     };
 
     const downloadAttr    = target.getAttribute('download');
@@ -998,12 +1141,9 @@
       chrome.storage.local.set({ stepNumber });  // 슬롯 예약 (nav 캡처 번호 충돌 방지)
     }
 
-    // 입력 멈춤 → 같은 스텝을 갱신(soft). 포커스 이동/Enter/종료 시에만 세션 종료.
+    // 입력 중에는 캡처하지 않는다. Enter/포커스 이동/다른 요소 클릭/종료 시에만 확정 캡처한다.
     clearTimeout(typingTimer);
-    typingTimer = setTimeout(() => {
-      if (typingTarget !== el || _isComposing) return;  // 조합 중이면 미완성값 — skip
-      flushTyping(el, false);
-    }, TYPING_DEBOUNCE);
+    typingTimer = null;
   }, true);
 
   // ── IME 조합 추적 (한/일/중) ──────────────────────────────────────
@@ -1015,13 +1155,10 @@
     if (!isRecording || isPaused) return;
     const el = e.target;
     if (typingTarget !== el) return;
-    // 조합 완료 → 완성 화면 프레임을 다시 예약(버퍼를 최종값으로 갱신) + 최종값으로 flush 재예약
+    // 조합 완료 후 완성 화면 프레임만 갱신한다. 캡처는 명시적인 완료 신호에서만 한다.
     scheduleTypingFrame();
     clearTimeout(typingTimer);
-    typingTimer = setTimeout(() => {
-      if (typingTarget !== el || _isComposing) return;
-      flushTyping(el, false);
-    }, TYPING_DEBOUNCE);
+    typingTimer = null;
   }, true);
 
   // 크로스 사이트 녹화: 타이핑 중 다른 탭으로 전환하면 진행 중 입력을 즉시 확정한다.
@@ -1088,7 +1225,7 @@
           clickX: fileCX, clickY: fileCY,
           windowWidth: vw, windowHeight: vh,
           stepNumber,
-          actionInfo: { type: 'upload', text: fileNames, tag: 'input' },
+          actionInfo: { type: 'upload', label: fileNames, text: fileNames, tag: 'input' },
         }, () => { clearTimeout(safetyTimer); isCapturing = false; });
       }));
     }, 400);

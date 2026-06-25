@@ -5,6 +5,10 @@ import { captureSaveStepSchema } from '@/lib/validators';
 import { redactSensitive } from '@/lib/redact';
 import { logServer } from '@/lib/logging/logger-server';
 
+function isMissingActionInfoColumn(error: { code?: string; message?: string } | null | undefined) {
+  return error?.code === '42703' || /action_info/i.test(error?.message ?? '');
+}
+
 export async function POST(request: NextRequest) {
   const auth = await requireExtensionToken(request);
   if (!auth.ok) return auth.response;
@@ -46,14 +50,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create session' }, { status: 500 });
     }
     sessionId = newSession.id;
-  } else if (existingSession.status === 'done') {
+  } else if (existingSession.status !== 'active') {
     return NextResponse.json({ error: 'Session already finalized' }, { status: 409 });
   }
 
   // element_rect: recorder가 이미 0~1로 정규화해서 전송 — 서버에서 추가 변환 없이 그대로 저장
   const elementRectNormalized = d.element_rect ?? null;
 
-  const row = {
+  const row: Record<string, unknown> = {
     screenshot_url: d.screenshot_url,
     // click_x/y: recorder가 0~1로 전송, DB는 0~10000 정수로 저장 (editor에서 /100으로 읽어 0~100%)
     click_x: Math.round(d.click_x * 10000),
@@ -68,6 +72,7 @@ export async function POST(request: NextRequest) {
     element_rect:      elementRectNormalized,
     element_selector:  d.element_selector  ?? null,
     element_xpath:     d.element_xpath     ?? null,
+    action_info:       d.action_info       ?? null,
     audio_offset_ms:   d.audio_offset_ms   ?? null,
     // Recorder가 캡처 시 결정한 확대 영역(원본 0~1) — finalize에서 image_zoom 프레이밍으로 사용
     crop_box:          d.crop_box          ?? null,
@@ -86,10 +91,20 @@ export async function POST(request: NextRequest) {
     .maybeSingle();
 
   if (existing) {
-    const { error: updateError } = await supabase
+    let { error: updateError } = await supabase
       .from('mm_capture_events')
       .update(row)
       .eq('id', existing.id);
+
+    if (isMissingActionInfoColumn(updateError)) {
+      const legacyRow = { ...row };
+      delete legacyRow.action_info;
+      const retry = await supabase
+        .from('mm_capture_events')
+        .update(legacyRow)
+        .eq('id', existing.id);
+      updateError = retry.error;
+    }
 
     if (updateError) {
       await logServer('error', 'capture.saveStep.updateFail', { sessionId, stepNumber: d.step_number, message: updateError.message });
@@ -98,13 +113,25 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ id: existing.id, step_number: d.step_number });
   }
 
-  const { data: step, error } = await supabase
+  let { data: step, error } = await supabase
     .from('mm_capture_events')
     .insert({ session_id: sessionId, step_number: d.step_number, ...row })
     .select('id')
     .single();
 
-  if (error) {
+  if (isMissingActionInfoColumn(error)) {
+    const legacyRow = { ...row };
+    delete legacyRow.action_info;
+    const retry = await supabase
+      .from('mm_capture_events')
+      .insert({ session_id: sessionId, step_number: d.step_number, ...legacyRow })
+      .select('id')
+      .single();
+    step = retry.data;
+    error = retry.error;
+  }
+
+  if (error || !step) {
     console.error('save-step error:', error);
     return NextResponse.json({ error: 'Failed to save step' }, { status: 500 });
   }

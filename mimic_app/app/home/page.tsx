@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { RecordingModal } from '@/components/dashboard/RecordingModal';
-import { ensureExtension } from '@/lib/extensionGate';
 import { AgentChat } from '@/components/chat/AgentChat';
 import { createTutorial } from '@/lib/api/tutorials';
 import { logError } from '@/lib/logging/logger';
@@ -75,11 +74,59 @@ function FolderWsButton({ folderId, workspaces, onMove }: {
   );
 }
 
+// ── 이름 바꾸기 모달 ──────────────────────────────────────────
+
+function RenameModal({ currentTitle, onConfirm, onClose }: {
+  currentTitle: string;
+  onConfirm: (newTitle: string) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [value, setValue] = useState(currentTitle);
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { inputRef.current?.select(); }, []);
+
+  const handleSubmit = async () => {
+    if (!value.trim()) return;
+    setSaving(true);
+    await onConfirm(value);
+    setSaving(false);
+  };
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 400, backdropFilter: 'blur(2px)' }} />
+      <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 401, background: 'white', borderRadius: '14px', padding: '24px', width: '340px', boxShadow: '0 16px 48px rgba(0,0,0,0.18)' }}>
+        <div style={{ fontSize: '15px', fontWeight: 700, color: '#111827', marginBottom: '14px' }}>이름 바꾸기</div>
+        <input
+          ref={inputRef}
+          value={value}
+          onChange={e => setValue(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') handleSubmit(); if (e.key === 'Escape') onClose(); }}
+          disabled={saving}
+          style={{ width: '100%', boxSizing: 'border-box', padding: '9px 12px', border: '1.5px solid #3730a3', borderRadius: '8px', fontSize: '14px', fontFamily: 'inherit', outline: 'none', color: '#111827' }}
+        />
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
+          <button onClick={onClose} disabled={saving}
+            style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #E5E7EB', background: 'white', fontSize: '13px', cursor: 'pointer', color: '#374151', fontWeight: 500 }}>
+            취소
+          </button>
+          <button onClick={handleSubmit} disabled={saving || !value.trim()}
+            style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', background: '#3730a3', fontSize: '13px', cursor: 'pointer', color: 'white', fontWeight: 600, opacity: !value.trim() ? 0.5 : 1 }}>
+            {saving ? '저장 중...' : '저장'}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ── 컨텍스트 메뉴 ──────────────────────────────────────────
 
 type CtxMenu = { x: number; y: number; tutorialId: string } | null;
 
-function ContextMenu({ menu, folders, tutorials, workspaces, onMove, onMoveToWorkspace, onDelete, onClose }: {
+function ContextMenu({ menu, folders, tutorials, workspaces, onMove, onMoveToWorkspace, onDelete, onRename, onClose }: {
   menu: NonNullable<CtxMenu>;
   folders: Folder[];
   tutorials: Tutorial[];
@@ -87,6 +134,7 @@ function ContextMenu({ menu, folders, tutorials, workspaces, onMove, onMoveToWor
   onMove: (tutorialId: string, folderId: string | null) => void;
   onMoveToWorkspace: (tutorialId: string, workspaceId: string | null) => void;
   onDelete: (id: string) => void;
+  onRename: (id: string, currentTitle: string) => void;
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -213,6 +261,16 @@ function ContextMenu({ menu, folders, tutorials, workspaces, onMove, onMoveToWor
         </div>
       )}
 
+      {/* 이름 바꾸기 */}
+      <button
+        style={{ ...itemStyle }}
+        onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
+        onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+        onClick={() => { onRename(menu.tutorialId, tutorial?.title ?? ''); onClose(); }}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        이름 바꾸기
+      </button>
+
       <div style={{ height: '1px', background: '#F3F4F6', margin: '2px 4px' }} />
 
       {/* 삭제 */}
@@ -273,14 +331,20 @@ function PageCard({ page, viewMode = 'grid' }: {
   if (viewMode === 'compact') {
     return (
       <article {...commonProps} style={{ background: 'white', borderRadius: '12px', cursor: 'pointer', border: `1px solid ${hovered ? '#86efac' : '#E5E7EB'}`, boxShadow: hovered ? '0 4px 16px rgba(5,150,105,0.10)' : '0 1px 2px rgba(17,24,39,0.04)', transition: 'border-color 0.12s, box-shadow 0.12s', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div style={{ width: '100%', aspectRatio: '16 / 10', background: `${color}10`, display: 'grid', placeItems: 'center' }}>
+        <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 10', background: `${color}10`, display: 'grid', placeItems: 'center' }}>
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" style={{ opacity: 0.5 }}>
             <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
           </svg>
+          <div style={{ position: 'absolute', inset: 0, boxShadow: 'inset 0 0 0 1px rgba(17,24,39,0.05)', pointerEvents: 'none' }} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '10px 12px' }}>
-          {iconEl(28)}
-          <div style={{ flex: 1, minWidth: 0 }}>{titleEl}{metaEl}</div>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '12px 13px' }}>
+          {iconEl(30)}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: '14.5px', fontWeight: 600, color: '#111827', lineHeight: 1.35, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' }}>
+              {page.title || '제목 없음'}
+            </div>
+            {metaEl}
+          </div>
         </div>
       </article>
     );
@@ -298,21 +362,17 @@ function PageCard({ page, viewMode = 'grid' }: {
 
 type ViewMode = 'grid' | 'list' | 'compact';
 
-function TutorialCard({ tutorial, onContextMenu, onTitleChange, onMenuClick, viewMode = 'grid' }: {
+function TutorialCard({ tutorial, onContextMenu, onMenuClick, viewMode = 'grid', onCardClick }: {
   tutorial: Tutorial;
   onContextMenu: (e: React.MouseEvent, id: string) => void;
-  onTitleChange: (id: string, title: string) => void;
   onMenuClick: (e: React.MouseEvent, id: string) => void;
   viewMode?: ViewMode;
+  onCardClick?: (id: string) => void;
 }) {
   const router = useRouter();
   const [hovered, setHovered] = useState(false);
-  const [editingTitle, setEditingTitle] = useState(false);
-  const [titleDraft, setTitleDraft] = useState(tutorial.title);
-  const [savingTitle, setSavingTitle] = useState(false);
   const [faviconError, setFaviconError] = useState(false);
   const [faviconSrc, setFaviconSrc] = useState<string | null>(null);
-  const titleInputRef = useRef<HTMLInputElement>(null);
 
   const color = cardColor(tutorial.id);
   const stepCount = tutorial.step_count ?? 0;
@@ -322,21 +382,6 @@ function TutorialCard({ tutorial, onContextMenu, onTitleChange, onMenuClick, vie
   const googleFavicon = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=32` : null;
   const ddgFavicon = domain ? `https://icons.duckduckgo.com/ip3/${domain}.ico` : null;
   const activeFavicon = faviconSrc ?? googleFavicon;
-
-  const saveTitle = useCallback(async () => {
-    const trimmed = titleDraft.trim();
-    if (!trimmed || trimmed === tutorial.title) { setEditingTitle(false); setTitleDraft(tutorial.title); return; }
-    setSavingTitle(true);
-    try {
-      await fetch(`/api/tutorials/${tutorial.id}`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: trimmed }),
-      });
-      onTitleChange(tutorial.id, trimmed);
-    } finally { setSavingTitle(false); setEditingTitle(false); }
-  }, [titleDraft, tutorial.id, tutorial.title, onTitleChange]);
-
-  useEffect(() => { if (editingTitle) titleInputRef.current?.focus(); }, [editingTitle]);
 
   const iconEl = (size: number) => (
     <div style={{ width: `${size}px`, height: `${size}px`, borderRadius: '7px', flexShrink: 0, background: `${color}12`, display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
@@ -365,19 +410,9 @@ function TutorialCard({ tutorial, onContextMenu, onTitleChange, onMenuClick, vie
   );
 
   const titleEl = (
-    editingTitle ? (
-      <input ref={titleInputRef} value={titleDraft} onChange={e => setTitleDraft(e.target.value)}
-        onBlur={saveTitle}
-        onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') { setEditingTitle(false); setTitleDraft(tutorial.title); } }}
-        onClick={e => e.stopPropagation()} disabled={savingTitle}
-        style={{ fontSize: '14px', fontWeight: 600, color: '#111827', border: '1.5px solid #3730a3', borderRadius: '5px', padding: '1px 6px', outline: 'none', width: '100%', boxSizing: 'border-box', fontFamily: 'inherit' }}
-      />
-    ) : (
-      <div onClick={e => { e.stopPropagation(); setEditingTitle(true); }} title="클릭해서 제목 편집"
-        style={{ fontSize: '14px', fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'text' }}>
-        {tutorial.title}
-      </div>
-    )
+    <div style={{ fontSize: '14px', fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      {tutorial.title}
+    </div>
   );
 
   const metaEl = (
@@ -395,7 +430,7 @@ function TutorialCard({ tutorial, onContextMenu, onTitleChange, onMenuClick, vie
 
   const commonArticleProps = {
     // 폴더 패널로 드래그해서 정리 (Scribe 스타일 DnD)
-    draggable: !editingTitle,
+    draggable: true,
     onDragStart: (e: React.DragEvent) => {
       e.dataTransfer.setData('text/mimic-tutorial', tutorial.id);
       e.dataTransfer.effectAllowed = 'move';
@@ -403,8 +438,7 @@ function TutorialCard({ tutorial, onContextMenu, onTitleChange, onMenuClick, vie
     onMouseEnter: () => setHovered(true),
     onMouseLeave: () => setHovered(false),
     onContextMenu: (e: React.MouseEvent) => { e.preventDefault(); onContextMenu(e, tutorial.id); },
-    // 편집 우선 — 매뉴얼 클릭 시 편집기로 진입 (뷰어 권한자는 편집기에서 뷰어로 자동 리다이렉트됨)
-    onClick: () => { if (!editingTitle) router.push(`/manual/${tutorial.id}/editor`); },
+    onClick: () => { if (onCardClick) onCardClick(tutorial.id); else router.push(`/manual/${tutorial.id}/editor`); },
   };
 
   if (viewMode === 'compact') {
@@ -420,16 +454,20 @@ function TutorialCard({ tutorial, onContextMenu, onTitleChange, onMenuClick, vie
         <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 10', background: `${color}10`, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
           {tutorial.thumbnail_url
             // eslint-disable-next-line @next/next/no-img-element
-            ? <img src={tutorial.thumbnail_url} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            ? <img src={tutorial.thumbnail_url} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', filter: 'saturate(0.82) brightness(0.98)' }} />
             : <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}>
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
               </svg>}
+          {/* 섬네일 일괄 톤다운: 옅은 베일 + 안쪽 테두리 (눈부심 완화) */}
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(255,255,255,0.05), rgba(17,24,39,0.05))', boxShadow: 'inset 0 0 0 1px rgba(17,24,39,0.05)', pointerEvents: 'none' }} />
           {tutorial.status === 'published' && <span style={{ position: 'absolute', top: 8, right: 8, fontSize: '10px', fontWeight: 600, color: '#16A34A', background: '#DCFCE7', padding: '1px 6px', borderRadius: '999px' }}>공유</span>}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '10px 12px' }}>
-          {iconEl(28)}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '12px 13px' }}>
+          {iconEl(30)}
           <div style={{ flex: 1, minWidth: 0 }}>
-            {titleEl}
+            <div style={{ fontSize: '14.5px', fontWeight: 600, color: '#111827', lineHeight: 1.35, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' }}>
+              {tutorial.title}
+            </div>
             {metaEl}
           </div>
           {menuBtn}
@@ -786,12 +824,13 @@ export default function DashboardPage() {
 
   // 컨텍스트 메뉴
   const [ctxMenu, setCtxMenu] = useState<CtxMenu>(null);
+  const [renameModal, setRenameModal] = useState<{ id: string; title: string } | null>(null);
 
   // 모바일 드로어
   const [showDrawer, setShowDrawer] = useState(false);
 
   // 뷰 모드
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [viewMode, setViewMode] = useState<ViewMode>('compact');
 
   // 공지 배너
   const [noticeDismissed, setNoticeDismissed] = useState(false);
@@ -802,7 +841,8 @@ export default function DashboardPage() {
   const [playbook, setPlaybook] = useState<{ used: number; limit: number; paid: boolean } | null>(null);
 
   // 콘텐츠 유형 탭
-  const [contentType, setContentType] = useState<'manual' | 'practice' | 'playbook' | 'liveguide'>('manual');
+  const [contentType, setContentType] = useState<'manual' | 'playbook'>('manual');
+  const [manualActionModal, setManualActionModal] = useState<string | null>(null);
   const [pages, setPages] = useState<{ id: string; title: string; updated_at: string; block_count?: number; workspace_id?: string | null }[]>([]);
   const [pagesLoading, setPagesLoading] = useState(false);
 
@@ -913,8 +953,6 @@ export default function DashboardPage() {
 
   const handleCreateGuidebook = async () => {
     setShowNewMenu(false);
-    // 플레이북도 녹화 기반 매뉴얼을 묶는 기능 → 운영에선 확장 필요(빈 매뉴얼만 예외)
-    if (!(await ensureExtension())) return;
     setCreating(true);
     try {
       const wsId = activeTab === 'team' && activeWorkspace ? activeWorkspace : null;
@@ -1047,8 +1085,6 @@ export default function DashboardPage() {
     return list;
   })();
 
-  const practiceTutorials = displayedTutorials.filter(t => t.share_token && t.status === 'published');
-
   const displayedPages = (() => {
     if (!searchQuery.trim()) return pages;
     const q = searchQuery.trim().toLowerCase();
@@ -1070,6 +1106,7 @@ export default function DashboardPage() {
           onMove={handleMoveToFolder}
           onMoveToWorkspace={handleMoveToWorkspace}
           onDelete={handleRemove}
+          onRename={(id, currentTitle) => setRenameModal({ id, title: currentTitle })}
           onClose={() => setCtxMenu(null)}
         />
       )}
@@ -1108,46 +1145,24 @@ export default function DashboardPage() {
                 </svg>
               </button>
 
-              {/* ② 팀 워크스페이스 헤더 */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1px', marginTop: '4px' }}>
-                <button onClick={() => setTeamOpen(v => !v)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, padding: '7px 8px', borderRadius: '8px', border: 'none', cursor: 'pointer', textAlign: 'left', background: 'transparent' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                  <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: activeTab === 'team' ? '#3730a3' : '#E5E7EB', display: 'grid', placeItems: 'center', flexShrink: 0, transition: 'background 0.15s' }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                  </div>
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#111827', flex: 1 }}>팀 워크스페이스</span>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"
-                    style={{ transform: teamOpen ? 'rotate(0)' : 'rotate(-90deg)', transition: 'transform 0.15s', flexShrink: 0 }}>
-                    <polyline points="6 9 12 15 18 9"/>
-                  </svg>
-                </button>
-                <button onClick={() => { setShowNewWsInput(v => !v); setNewWsName(''); setTeamOpen(true); }}
-                  style={{ width: '24px', height: '24px', border: 'none', background: 'transparent', color: '#9CA3AF', cursor: 'pointer', display: 'grid', placeItems: 'center', borderRadius: '6px', flexShrink: 0 }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; (e.currentTarget as HTMLButtonElement).style.color = '#4B5563'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = '#9CA3AF'; }}
-                  title="새 워크스페이스">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                </button>
-              </div>
+              {/* ② 팀 워크스페이스 헤더 — 내 워크스페이스와 동일하게 단독 버튼(+ 버튼 제거) */}
+              <button onClick={() => setTeamOpen(v => !v)}
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '7px 8px', borderRadius: '8px', border: 'none', cursor: 'pointer', textAlign: 'left', background: 'transparent', marginTop: '4px' }}
+                onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: activeTab === 'team' ? '#3730a3' : '#E5E7EB', display: 'grid', placeItems: 'center', flexShrink: 0, transition: 'background 0.15s' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                </div>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: '#111827', flex: 1 }}>팀 워크스페이스</span>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"
+                  style={{ transform: teamOpen ? 'rotate(0)' : 'rotate(-90deg)', transition: 'transform 0.15s', flexShrink: 0 }}>
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </button>
 
               {/* ② 팀 워크스페이스 하위 */}
               {teamOpen && (
                 <div style={{ paddingLeft: '12px', marginLeft: '19px', borderLeft: '2px solid #F3F4F6', display: 'flex', flexDirection: 'column', gap: '1px', marginBottom: '2px' }}>
-                  {showNewWsInput && (
-                    <form onSubmit={handleCreateWorkspace} style={{ display: 'flex', gap: '4px', paddingBottom: '4px' }}>
-                      <input autoFocus value={newWsName} onChange={e => setNewWsName(e.target.value)} placeholder="워크스페이스 이름"
-                        onBlur={() => { if (!creatingWs) { setShowNewWsInput(false); setNewWsName(''); } }}
-                        onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); setShowNewWsInput(false); setNewWsName(''); } }}
-                        style={{ flex: 1, padding: '4px 7px', borderRadius: '6px', border: '1px solid #a5b4fc', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
-                      <button type="submit" disabled={creatingWs || !newWsName.trim()}
-                        onMouseDown={e => e.preventDefault()}
-                        style={{ padding: '4px 8px', borderRadius: '6px', background: '#3730a3', color: 'white', border: 'none', fontSize: '12px', fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
-                        {creatingWs ? '...' : '만들기'}
-                      </button>
-                    </form>
-                  )}
                   {workspaces.length === 0
                     ? <div style={{ padding: '4px 8px', fontSize: '13px', color: '#D1D5DB' }}>없음</div>
                     : workspaces.map(ws => (
@@ -1170,6 +1185,28 @@ export default function DashboardPage() {
                       </div>
                     ))
                   }
+                  {/* 맨 아래: 새 워크스페이스 추가 (헤더의 + 버튼 대체) */}
+                  {showNewWsInput ? (
+                    <form onSubmit={handleCreateWorkspace} style={{ display: 'flex', gap: '4px', paddingTop: '4px' }}>
+                      <input autoFocus value={newWsName} onChange={e => setNewWsName(e.target.value)} placeholder="워크스페이스 이름"
+                        onBlur={() => { if (!creatingWs) { setShowNewWsInput(false); setNewWsName(''); } }}
+                        onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); setShowNewWsInput(false); setNewWsName(''); } }}
+                        style={{ flex: 1, padding: '4px 7px', borderRadius: '6px', border: '1px solid #a5b4fc', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
+                      <button type="submit" disabled={creatingWs || !newWsName.trim()}
+                        onMouseDown={e => e.preventDefault()}
+                        style={{ padding: '4px 8px', borderRadius: '6px', background: '#3730a3', color: 'white', border: 'none', fontSize: '12px', fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
+                        {creatingWs ? '...' : '만들기'}
+                      </button>
+                    </form>
+                  ) : (
+                    <button onClick={() => { setShowNewWsInput(true); setNewWsName(''); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '7px', width: '100%', padding: '5px 8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', textAlign: 'left', background: 'transparent', color: '#9CA3AF' }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; (e.currentTarget as HTMLButtonElement).style.color = '#4B5563'; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = '#9CA3AF'; }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                      <span>새 워크스페이스</span>
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -1350,8 +1387,8 @@ export default function DashboardPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
                   <h1 className="home-greeting" style={{ fontSize: '24px', fontWeight: 700, letterSpacing: '-0.025em', margin: 0, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {authLoading ? '' : isTeamCtx
-                      ? (workspaces.find(w => w.id === activeWorkspace)?.name ?? '팀 워크스페이스')
-                      : contentType === 'playbook' ? `${firstName}님의 플레이북` : contentType === 'liveguide' ? 'Live Guide' : `${firstName}님의 매뉴얼`}
+                      ? `${workspaces.find(w => w.id === activeWorkspace)?.name ?? '팀 워크스페이스'} 매뉴얼`
+                      : contentType === 'playbook' ? `${firstName}님의 플레이북` : `${firstName}님의 워크스페이스`}
                   </h1>
                   {isTeamCtx && (
                     <>
@@ -1403,9 +1440,7 @@ export default function DashboardPage() {
               <div style={{ display: 'flex', gap: '6px', marginBottom: '16px' }}>
                 {([
                   { key: 'manual' as const, label: '매뉴얼', color: '#3730a3', bg: '#e0e7ff', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> },
-                  { key: 'practice' as const, label: '실습하기', color: '#0369a1', bg: '#e0f2fe', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg> },
                   { key: 'playbook' as const, label: '플레이북', color: '#059669', bg: '#dcfce7', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg> },
-                  { key: 'liveguide' as const, label: 'Live Guide', color: '#7c3aed', bg: '#ede9fe', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg> },
                 ] as const).map(({ key, label, color, bg, icon }) => (
                   <button key={key} onClick={() => setContentType(key)}
                     style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 14px', borderRadius: '9px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600, transition: 'background 0.12s, color 0.12s', background: contentType === key ? bg : '#F3F4F6', color: contentType === key ? color : '#6B7280', boxShadow: contentType === key ? `0 0 0 1.5px ${color}40` : 'none' }}
@@ -1423,7 +1458,7 @@ export default function DashboardPage() {
               >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={searchQuery ? '#4F46E5' : '#9CA3AF'} strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, transition: 'stroke 0.15s' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 <input
-                  placeholder={contentType === 'playbook' ? '플레이북 이름으로 검색...' : contentType === 'liveguide' ? 'Live Guide 검색...' : contentType === 'practice' ? '실습하기 검색...' : '매뉴얼 이름으로 검색...'}
+                  placeholder={contentType === 'playbook' ? '플레이북 이름으로 검색...' : '매뉴얼 이름으로 검색...'}
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '14.5px', fontFamily: 'inherit', color: '#111827' }}
@@ -1445,11 +1480,7 @@ export default function DashboardPage() {
                 <div style={{ flex: 1, padding: '7px 2px', fontSize: '13px', color: '#9CA3AF', fontWeight: 500 }}>
                   {contentType === 'playbook'
                     ? (!pagesLoading && `플레이북 ${displayedPages.length}개`)
-                    : contentType === 'liveguide'
-                      ? (!tutLoading && `Live Guide ${displayedTutorials.length}개`)
-                      : contentType === 'practice'
-                        ? (!tutLoading && `실습하기 ${practiceTutorials.length}개`)
-                        : (!tutLoading && `매뉴얼 ${displayedTutorials.length}개`)}
+                    : (!tutLoading && `매뉴얼 ${displayedTutorials.length}개`)}
                 </div>
                 {/* 뷰 모드 토글 */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginBottom: '6px', background: '#F3F4F6', borderRadius: '8px', padding: '3px' }}>
@@ -1469,7 +1500,7 @@ export default function DashboardPage() {
               {/* 콘텐츠 목록 */}
               {contentType === 'playbook' ? (
                 pagesLoading ? (
-                  <div className={viewMode === 'list' ? 'home-card-list' : 'home-card-grid'}>
+                  <div className={viewMode === 'list' ? 'home-card-list' : viewMode === 'compact' ? 'home-card-thumb-grid' : 'home-card-grid'}>
                     {[1,2,3,4,5,6].map(i => (
                       <div key={i} style={{ borderRadius: '10px', background: 'white', border: '1px solid #E5E7EB', padding: '11px 13px', display: 'flex', alignItems: 'center', gap: '11px' }}>
                         <div style={{ width: '34px', height: '34px', borderRadius: '7px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite', flexShrink: 0 }} />
@@ -1502,79 +1533,14 @@ export default function DashboardPage() {
                     </div>
                   )
                 ) : (
-                  <div className={viewMode === 'list' ? 'home-card-list' : 'home-card-grid'}>
+                  <div className={viewMode === 'list' ? 'home-card-list' : viewMode === 'compact' ? 'home-card-thumb-grid' : 'home-card-grid'}>
                     {displayedPages.map(p => <PageCard key={p.id} page={p} viewMode={viewMode} />)}
                   </div>
                 )
-              ) : contentType === 'practice' ? (
-                /* 실습하기 탭 — share_token이 있는 published 튜토리얼만 표시 */
-                <>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '10px 14px', borderRadius: '10px', background: '#e0f2fe', border: '1px solid #bae6fd', marginBottom: '16px' }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0369a1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: '1px' }}><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
-                    <div style={{ fontSize: '12.5px', color: '#0c4a6e', lineHeight: 1.6 }}>
-                      <b>실습하기</b>는 캡처한 화면 위에서 단계별로 직접 클릭해보며 익히는 인터랙티브 연습 모드입니다. 매뉴얼 상세 페이지에서 실습 링크를 공유할 수 있어요.
-                    </div>
-                  </div>
-                  {tutLoading ? (
-                    <div className={viewMode === 'list' ? 'home-card-list' : 'home-card-grid'}>
-                      {[1,2,3].map(i => (
-                        <div key={i} style={{ borderRadius: '10px', background: 'white', border: '1px solid #E5E7EB', padding: '11px 13px', display: 'flex', alignItems: 'center', gap: '11px' }}>
-                          <div style={{ width: '34px', height: '34px', borderRadius: '7px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite', flexShrink: 0 }} />
-                          <div style={{ flex: 1, height: '12px', borderRadius: '6px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite' }} />
-                        </div>
-                      ))}
-                    </div>
-                  ) : practiceTutorials.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '48px 24px', color: '#6B7280' }}>
-                      <div style={{ fontSize: '13px' }}>실습하기 가능한 매뉴얼이 없어요.<br/>녹화를 완료하면 자동으로 실습하기가 생성됩니다.</div>
-                      <button onClick={() => setContentType('manual')} style={{ marginTop: '12px', padding: '7px 14px', borderRadius: '8px', border: '1px solid #bae6fd', background: 'white', fontSize: '13px', color: '#0369a1', cursor: 'pointer', fontWeight: 600 }}>매뉴얼 보기</button>
-                    </div>
-                  ) : (
-                    <div className={viewMode === 'list' ? 'home-card-list' : 'home-card-grid'}>
-                      {practiceTutorials.map(t => (
-                        <TutorialCard key={t.id} tutorial={t} onContextMenu={handleContextMenu} onTitleChange={handleTitleChange} onMenuClick={handleContextMenu} viewMode={viewMode} />
-                      ))}
-                    </div>
-                  )}
-                </>
-              ) : contentType === 'liveguide' ? (
-                /* Live Guide 탭 — 기존 매뉴얼을 보여주되 Live Guide 안내 배너 추가 */
-                <>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '10px 14px', borderRadius: '10px', background: '#ede9fe', border: '1px solid #c4b5fd', marginBottom: '16px' }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: '1px' }}><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                    <div style={{ fontSize: '12.5px', color: '#5b21b6', lineHeight: 1.6 }}>
-                      <b>Live Guide</b>는 MIMIC 익스텐션이 설치된 브라우저에서 매뉴얼을 단계별로 안내해주는 기능입니다. 아래에서 실행할 매뉴얼을 선택하세요.
-                      {liveGuide && !liveGuide.paid && (
-                        <span style={{ marginLeft: '6px', fontSize: '11px', color: '#7c3aed', fontWeight: 600 }}>(이번 달 {liveGuide.used}/{liveGuide.limit}회 사용)</span>
-                      )}
-                    </div>
-                  </div>
-                  {tutLoading ? (
-                    <div className={viewMode === 'list' ? 'home-card-list' : 'home-card-grid'}>
-                      {[1,2,3].map(i => (
-                        <div key={i} style={{ borderRadius: '10px', background: 'white', border: '1px solid #E5E7EB', padding: '11px 13px', display: 'flex', alignItems: 'center', gap: '11px' }}>
-                          <div style={{ width: '34px', height: '34px', borderRadius: '7px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite', flexShrink: 0 }} />
-                          <div style={{ flex: 1, height: '12px', borderRadius: '6px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite' }} />
-                        </div>
-                      ))}
-                    </div>
-                  ) : displayedTutorials.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '48px 24px', color: '#6B7280' }}>
-                      <div style={{ fontSize: '13px' }}>Live Guide로 실행할 매뉴얼이 없어요.</div>
-                      <button onClick={() => setContentType('manual')} style={{ marginTop: '12px', padding: '7px 14px', borderRadius: '8px', border: '1px solid #c4b5fd', background: 'white', fontSize: '13px', color: '#7c3aed', cursor: 'pointer', fontWeight: 600 }}>매뉴얼 보기</button>
-                    </div>
-                  ) : (
-                    <div className={viewMode === 'list' ? 'home-card-list' : 'home-card-grid'}>
-                      {displayedTutorials.map(t => (
-                        <TutorialCard key={t.id} tutorial={t} onContextMenu={handleContextMenu} onTitleChange={handleTitleChange} onMenuClick={handleContextMenu} viewMode={viewMode} />
-                      ))}
-                    </div>
-                  )}
-                </>
               ) : (
                 /* 매뉴얼 탭 (기존) */
                 tutLoading ? (
-                  <div className={viewMode === 'list' ? 'home-card-list' : 'home-card-grid'}>
+                  <div className={viewMode === 'list' ? 'home-card-list' : viewMode === 'compact' ? 'home-card-thumb-grid' : 'home-card-grid'}>
                     {[1,2,3,4,5,6].map(i => (
                       <div key={i} style={{ borderRadius: '10px', background: 'white', border: '1px solid #E5E7EB', padding: viewMode === 'compact' ? '7px 10px' : '11px 13px', display: 'flex', alignItems: 'center', gap: '11px' }}>
                         <div style={{ width: viewMode === 'compact' ? '24px' : '34px', height: viewMode === 'compact' ? '24px' : '34px', borderRadius: '7px', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite', flexShrink: 0 }} />
@@ -1602,9 +1568,9 @@ export default function DashboardPage() {
                       label={activeTab === 'team' ? '팀 매뉴얼이 없어요' : activeFolder !== 'all' ? '이 폴더에 매뉴얼이 없어요' : undefined} />
                   )
                 ) : (
-                  <div className={viewMode === 'list' ? 'home-card-list' : 'home-card-grid'}>
+                  <div className={viewMode === 'list' ? 'home-card-list' : viewMode === 'compact' ? 'home-card-thumb-grid' : 'home-card-grid'}>
                     {displayedTutorials.map(t => (
-                      <TutorialCard key={t.id} tutorial={t} onContextMenu={handleContextMenu} onTitleChange={handleTitleChange} onMenuClick={handleContextMenu} viewMode={viewMode} />
+                      <TutorialCard key={t.id} tutorial={t} onContextMenu={handleContextMenu} onMenuClick={handleContextMenu} viewMode={viewMode} onCardClick={id => setManualActionModal(id)} />
                     ))}
                   </div>
                 )
@@ -1758,6 +1724,106 @@ export default function DashboardPage() {
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                 </button>
               </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* 이름 바꾸기 모달 */}
+      {renameModal && (
+        <RenameModal
+          currentTitle={renameModal.title}
+          onConfirm={async (newTitle) => {
+            const trimmed = newTitle.trim();
+            if (trimmed && trimmed !== renameModal.title) {
+              await fetch(`/api/tutorials/${renameModal.id}`, {
+                method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: trimmed }),
+              });
+              handleTitleChange(renameModal.id, trimmed);
+            }
+            setRenameModal(null);
+          }}
+          onClose={() => setRenameModal(null)}
+        />
+      )}
+
+      {/* 매뉴얼 액션 선택 모달 */}
+      {manualActionModal && (
+        <>
+          <div onClick={() => setManualActionModal(null)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 300, backdropFilter: 'blur(3px)' }} />
+          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 301, background: 'white', borderRadius: '18px', padding: '28px', width: 'min(760px, calc(100vw - 40px))', boxShadow: '0 24px 70px rgba(0,0,0,0.22)' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '22px' }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '5px' }}>매뉴얼 열기</div>
+                <div style={{ fontSize: '19px', fontWeight: 700, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '600px' }}>
+                  {tutorials.find(t => t.id === manualActionModal)?.title ?? '매뉴얼'}
+                </div>
+              </div>
+              <button onClick={() => setManualActionModal(null)} style={{ width: '30px', height: '30px', borderRadius: '8px', border: 'none', background: '#F3F4F6', cursor: 'pointer', display: 'grid', placeItems: 'center', color: '#6B7280', flexShrink: 0 }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+              {/* 매뉴얼 편집 */}
+              <button onClick={() => { router.push(`/manual/${manualActionModal}/editor`); setManualActionModal(null); }}
+                style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', padding: 0, borderRadius: '14px', border: '1.5px solid #E5E7EB', background: 'white', cursor: 'pointer', textAlign: 'left', transition: 'border-color 0.12s, box-shadow 0.12s', overflow: 'hidden' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#3730a3'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(55,48,163,0.08)'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.boxShadow = 'none'; }}>
+                {/* 매뉴얼 모양 샘플 */}
+                <div style={{ width: '100%', aspectRatio: '16 / 10', background: 'linear-gradient(135deg, #eef2ff, #e0e7ff)', display: 'grid', placeItems: 'center', padding: '18px' }}>
+                  <svg viewBox="0 0 220 130" width="100%" style={{ display: 'block', filter: 'drop-shadow(0 6px 14px rgba(55,48,163,0.18))' }}>
+                    <rect x="14" y="8" width="192" height="114" rx="9" fill="white"/>
+                    {[0, 1, 2].map(i => (
+                      <g key={i} transform={`translate(28, ${20 + i * 34})`}>
+                        <circle cx="8" cy="11" r="8" fill="#3730a3"/>
+                        <text x="8" y="15" textAnchor="middle" fontSize="9" fontWeight="700" fill="white">{i + 1}</text>
+                        <rect x="24" y="0" width="36" height="22" rx="4" fill="#c7d2fe"/>
+                        <rect x="70" y="3" width="104" height="6" rx="3" fill="#e5e7eb"/>
+                        <rect x="70" y="14" width="72" height="6" rx="3" fill="#eef2f7"/>
+                      </g>
+                    ))}
+                  </svg>
+                </div>
+                <div style={{ padding: '14px 16px 16px' }}>
+                  <div style={{ fontSize: '16px', fontWeight: 700, color: '#111827' }}>매뉴얼 편집</div>
+                  <div style={{ fontSize: '12.5px', color: '#6B7280', marginTop: '3px' }}>단계별 문서를 직접 편집해요</div>
+                </div>
+              </button>
+              {/* Live Guide 스튜디오 — 파일럿 동안 게이트 없이 오픈 */}
+              <button
+                onClick={() => { router.push(`/manual/${manualActionModal}/studio`); setManualActionModal(null); }}
+                style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', padding: 0, borderRadius: '14px', border: '1.5px solid #E5E7EB', background: 'white', cursor: 'pointer', textAlign: 'left', transition: 'border-color 0.12s, box-shadow 0.12s', overflow: 'hidden' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#7c3aed'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(124,58,237,0.08)'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.boxShadow = 'none'; }}>
+                {/* Live Guide 샘플 — 화면 위 코치마크 */}
+                <div style={{ width: '100%', aspectRatio: '16 / 10', background: 'linear-gradient(135deg, #f5f3ff, #ede9fe)', display: 'grid', placeItems: 'center', padding: '18px' }}>
+                  <svg viewBox="0 0 220 130" width="100%" style={{ display: 'block', filter: 'drop-shadow(0 6px 14px rgba(124,58,237,0.18))' }}>
+                    <rect x="14" y="10" width="192" height="110" rx="9" fill="white"/>
+                    <rect x="14" y="10" width="192" height="20" rx="9" fill="#f3f0ff"/>
+                    <circle cx="26" cy="20" r="2.5" fill="#d8b4fe"/><circle cx="35" cy="20" r="2.5" fill="#d8b4fe"/><circle cx="44" cy="20" r="2.5" fill="#d8b4fe"/>
+                    <rect x="28" y="44" width="80" height="7" rx="3.5" fill="#ece9f5"/>
+                    <rect x="28" y="58" width="120" height="7" rx="3.5" fill="#f1eef8"/>
+                    {/* 강조된 버튼 + 글로우 */}
+                    <rect x="118" y="82" width="64" height="24" rx="6" fill="#7c3aed"/>
+                    <rect x="113" y="77" width="74" height="34" rx="9" fill="none" stroke="#7c3aed" strokeWidth="2" opacity="0.45"/>
+                    {/* 툴팁 */}
+                    <g transform="translate(40, 80)">
+                      <rect x="0" y="0" width="70" height="30" rx="7" fill="#111827"/>
+                      <rect x="9" y="8" width="44" height="5" rx="2.5" fill="#ffffff"/>
+                      <rect x="9" y="18" width="30" height="5" rx="2.5" fill="#9ca3af"/>
+                      <path d="M70 14 l9 6 l-9 5 z" fill="#111827"/>
+                    </g>
+                    {/* 커서 */}
+                    <path d="M150 96 l0 18 l5 -5 l4 7 l3 -1.5 l-4 -7 l7 0 z" fill="#111827" stroke="white" strokeWidth="1"/>
+                  </svg>
+                </div>
+                <div style={{ padding: '14px 16px 16px' }}>
+                  <div style={{ fontSize: '16px', fontWeight: 700, color: '#111827' }}>Live Guide 스튜디오</div>
+                  <div style={{ fontSize: '12.5px', color: '#6B7280', marginTop: '3px' }}>화면 위에서 실시간으로 단계를 안내해요</div>
+                </div>
+              </button>
             </div>
           </div>
         </>

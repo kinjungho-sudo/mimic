@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { BrandMark } from '@/components/common/BrandMark';
 import { AnnotationPreview } from '@/components/editor/AnnotationPreview';
+import { annotationsBox, fitFramingToBox } from '@/lib/framing';
 import { InteractiveFollowPlayer } from '@/components/viewer/InteractiveFollowPlayer';
 import { createClient } from '@/lib/supabase/client';
 import { toFollowSteps, clickToPct } from '@/lib/follow';
@@ -212,16 +213,24 @@ function DocumentView({ tutorial }: { tutorial: Tutorial }) {
                   {step.caption && <p style={{ margin: '5px 0 0', fontSize: isMobileDoc ? '13px' : '14px', color: '#4B5563', lineHeight: 1.65 }}>{step.caption}</p>}
                 </div>
               </div>
-              {/* 스크린샷 + 어노테이션 오버레이 */}
-              {step.screenshot_url && (
-                <div style={{ position: 'relative', lineHeight: 0 }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={step.screenshot_url} alt={step.title} style={{ width: '100%', display: 'block' }} />
-                  {(step.user_annotations?.length ?? 0) > 0 && (
-                    <AnnotationPreview annotations={step.user_annotations!} imageUrl={step.screenshot_url} />
-                  )}
-                </div>
-              )}
+              {/* 스크린샷 + 어노테이션 오버레이 — 편집기에서 잡은 확대(image_zoom) 반영 */}
+              {step.screenshot_url && (() => {
+                const f = fitFramingToBox(
+                  { zoom: step.image_zoom ?? 1, offsetX: step.image_offset_x ?? 0, offsetY: step.image_offset_y ?? 0 },
+                  annotationsBox(step.user_annotations),
+                );
+                return (
+                  <div style={{ position: 'relative', overflow: 'hidden' }}>
+                    <div style={{ position: 'relative', lineHeight: 0, transform: f.zoom > 1 ? `translate(${f.offsetX * 100}%, ${f.offsetY * 100}%) scale(${f.zoom})` : undefined, transformOrigin: 'center center' }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={step.screenshot_url} alt={step.title} style={{ width: '100%', display: 'block' }} />
+                      {(step.user_annotations?.length ?? 0) > 0 && (
+                        <AnnotationPreview annotations={step.user_annotations!} imageUrl={step.screenshot_url} sizeScale={f.zoom > 1 ? 1 / f.zoom : 1} />
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
               {/* 어노테이션 */}
               {annotations.length > 0 && (
                 <div style={{ padding: isMobileDoc ? '12px 16px' : '16px 24px', borderTop: '1px solid #F3F4F6', display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -642,6 +651,10 @@ export default function PlayerPage() {
   const step = tutorial.steps[currentStep] ?? null;
   const stepMarkers = step ? tutorial.markers.filter(m => m.step_id === step.id).sort((a, b) => a.order_index - b.order_index) : [];
   const stepAnnotations = step ? tutorial.annotations.filter(a => a.step_id === step.id).sort((a, b) => a.marker_index - b.marker_index) : [];
+  // 확대해도 어노테이션이 잘리지 않도록 프레이밍 보정
+  const framedStep = step
+    ? fitFramingToBox({ zoom: step.image_zoom ?? 1, offsetX: step.image_offset_x ?? 0, offsetY: step.image_offset_y ?? 0 }, annotationsBox(step.user_annotations))
+    : { zoom: 1, offsetX: 0, offsetY: 0 };
   const totalSteps = tutorial.steps.length;
 
   const goTo = (idx: number) => {
@@ -689,19 +702,6 @@ export default function PlayerPage() {
               );
             })}
           </div>
-
-          {/* 실습하기 — 별도 강조 버튼(우측 분리, 특별 색상) */}
-          {(() => {
-            const active = viewMode === 'follow';
-            return (
-              <button onClick={() => setViewMode('follow')} title="실습하기 — 직접 클릭하며 실습"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: isMobile ? '6px 9px' : '6px 13px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 700, border: active ? 'none' : '1.5px solid #7c3aed', background: active ? 'linear-gradient(135deg,#4f46e5,#7c3aed)' : 'rgba(124,58,237,0.12)', color: active ? 'white' : '#7c3aed', boxShadow: active ? '0 2px 12px rgba(124,58,237,0.5)' : 'none', transition: 'all 0.12s' }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-                {!isMobile && '실습하기'}
-              </button>
-            );
-          })()}
-
 
           {/* 전체화면 — 모바일에서 숨김 */}
           {!isMobile && (
@@ -808,7 +808,7 @@ export default function PlayerPage() {
           {step?.screenshot_url ? (
             <>
             {/* 이미지 + 어노테이션 + 마커 — 확대 transform 적용 (자막은 이 밖에 둠) */}
-            <div key={currentStep} style={{ position: 'relative', lineHeight: 0, animation: 'stepSlideIn 0.35s cubic-bezier(0.22,0.61,0.36,1) both', transform: (step.image_zoom ?? 1) > 1 ? `translate(${(step.image_offset_x ?? 0) * 100}%, ${(step.image_offset_y ?? 0) * 100}%) scale(${step.image_zoom})` : undefined, transformOrigin: 'center center' }}>
+            <div key={currentStep} style={{ position: 'relative', lineHeight: 0, animation: 'stepSlideIn 0.35s cubic-bezier(0.22,0.61,0.36,1) both', transform: framedStep.zoom > 1 ? `translate(${framedStep.offsetX * 100}%, ${framedStep.offsetY * 100}%) scale(${framedStep.zoom})` : undefined, transformOrigin: 'center center' }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={step.screenshot_url}
@@ -818,7 +818,7 @@ export default function PlayerPage() {
               {/* 어노테이션 — 이미지와 동일한 크기 SVG로 정확히 겹침. 확대 시 어노테이션은 일정 크기 유지(역보정) */}
               {(step.user_annotations?.length ?? 0) > 0 && (
                 <AnnotationPreview annotations={step.user_annotations!} imageUrl={step.screenshot_url}
-                  sizeScale={(step.image_zoom ?? 1) > 1 ? 1 / (step.image_zoom ?? 1) : 1} />
+                  sizeScale={framedStep.zoom > 1 ? 1 / framedStep.zoom : 1} />
               )}
               {/* Hotspot — 클릭 위치 시각 표시만 (진행은 하단 컨트롤로, 클릭 강제 없음) */}
               {step.click_x != null && step.click_y != null && currentStep < totalSteps - 1 && (

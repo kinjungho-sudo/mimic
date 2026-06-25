@@ -16,6 +16,7 @@ export interface FollowStep {
   audioUrl?: string | null;            // 스텝 TTS 오디오 (있으면 음성 재생)
   bubbleAnchor?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | null;
   domRect?: { x: number; y: number; w: number; h: number } | null; // DOM bounding box (0~100 pct)
+  zoomAnim?: boolean;                  // 스튜디오에서 켠 경우에만 클릭 영역 확대 애니메이션 (기본 off)
 }
 
 type AnimPhase = 'raw' | 'zooming' | 'focused';
@@ -51,18 +52,20 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
   // 스텝 바뀌면 툴팁 다시 펼침 (#3)
   useEffect(() => { setMinimized(false); }, [idx]);
 
-  // 줌인 시퀀스: domRect 있으면 raw→zooming(1s)→focused(1.7s), 없으면 즉시 focused
+  // 줌인 시퀀스: 스튜디오에서 확대 애니메이션을 켠(zoomAnim) 스텝 + domRect 있을 때만.
+  // 원본(raw)에서 확대(zooming→focused)로 한 번만 진행하고 그대로 유지 — 다시 좁아지는 효과 없음.
+  // 기본은 확대 애니메이션 없이 즉시 focused. 확대 속도는 FollowStage 트랜지션 1.4s(기존 대비 2배 느림).
   useEffect(() => {
     phaseTimers.current.forEach(clearTimeout);
     phaseTimers.current = [];
-    const hasDomRect = !!(steps[idx]?.domRect);
-    if (!hasDomRect) { setAnimPhase('focused'); return; }
+    const zoomOn = !!(steps[idx]?.domRect) && !!(steps[idx]?.zoomAnim);
+    if (!zoomOn) { setAnimPhase('focused'); return; }
     setAnimPhase('raw');
     const t1 = setTimeout(() => setAnimPhase('zooming'), 1000);
-    const t2 = setTimeout(() => setAnimPhase('focused'), 1700);
+    const t2 = setTimeout(() => setAnimPhase('focused'), 2400);
     phaseTimers.current = [t1, t2];
     return () => { phaseTimers.current.forEach(clearTimeout); phaseTimers.current = []; };
-  }, [idx, done]); // done 추가: '다시 실습하기'(idx 변화 없이 done→false)에서도 줌 시퀀스 재생 // eslint-disable-line react-hooks/exhaustive-deps
+  }, [idx, done]); // done 추가: '다시 연습하기'(idx 변화 없이 done→false)에서도 줌 시퀀스 재생 // eslint-disable-line react-hooks/exhaustive-deps
 
   // 언마운트 정리: 전환 중 닫히면 setState 경고/오디오 누수가 나므로 타이머·오디오 해제
   useEffect(() => () => {
@@ -146,10 +149,10 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
       {done ? (
         <div style={{ background: 'white', borderRadius: '18px', padding: '36px 40px', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', maxWidth: '380px' }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}><Mascot size={56} /></div>
-          <div style={{ fontSize: '20px', fontWeight: 800, color: '#111827', marginBottom: '6px' }}>실습을 완료하셨어요! 🎉</div>
+          <div style={{ fontSize: '20px', fontWeight: 800, color: '#111827', marginBottom: '6px' }}>연습을 완료하셨어요! 🎉</div>
           <div style={{ fontSize: '13.5px', color: '#6B7280', lineHeight: 1.6, marginBottom: '18px' }}>{total}단계를 모두 완료했습니다.</div>
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-            <button onClick={() => { setIdx(0); setDone(false); }} style={{ padding: '10px 18px', borderRadius: '9px', border: '1px solid #E5E7EB', background: 'white', color: '#374151', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>다시 실습하기</button>
+            <button onClick={() => { setIdx(0); setDone(false); }} style={{ padding: '10px 18px', borderRadius: '9px', border: '1px solid #E5E7EB', background: 'white', color: '#374151', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>다시 연습하기</button>
             {onClose && <button onClick={onClose} style={{ padding: '10px 22px', borderRadius: '9px', border: 'none', background: 'linear-gradient(135deg,#3730a3,#6d28d9)', color: 'white', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>{closeLabel}</button>}
           </div>
         </div>
@@ -161,7 +164,7 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
               <span style={{ width: '11px', height: '11px', borderRadius: '50%', background: '#FF5F57' }} />
               <span style={{ width: '11px', height: '11px', borderRadius: '50%', background: '#FEBC2E' }} />
               <span style={{ width: '11px', height: '11px', borderRadius: '50%', background: '#28C840' }} />
-              <div style={{ flex: 1, margin: '0 10px', height: '20px', background: 'white', borderRadius: '6px', display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: '11px', color: '#6B7280', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{title || '가상 화면 — 안전하게 실습해 보세요'}</div>
+              <div style={{ flex: 1, margin: '0 10px', height: '20px', background: 'white', borderRadius: '6px', display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: '11px', color: '#6B7280', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{title || '가상 화면 — 안전하게 연습해 보세요'}</div>
             </div>
 
             <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0b0b0f', overflow: 'hidden' }}>

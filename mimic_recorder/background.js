@@ -13,9 +13,9 @@ const SUPABASE_ANON_KEY = IS_DEV
   : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxeW5wdHBqb21jcXp4eXlrcWljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NTcyNzMsImV4cCI6MjA4NzEzMzI3M30.7OgewnWhbE2GK1k0tTuuegrKUVkHuJrW_cpvbVRcH1E';
 const SUPABASE_BUCKET   = 'naviaction';
 const WEBAPP_ORIGIN     = IS_DEV
-  ? 'http://localhost:3000'                       // dev: 로컬 앱(포트 3000 고정 권장)
+  ? 'https://mimic-git-dev-kinjungho-7735s-projects.vercel.app'  // dev: Preview(주 테스트 대상). localhost는 sender.origin 우선으로 여전히 연동됨
   : 'https://mimic-nine-ashen.vercel.app';        // 운영
-if (IS_DEV) console.warn('[MIMIC Recorder] DEV 모드 — dev DB/localhost 연결 (id:', chrome.runtime.id, ')');
+if (IS_DEV) console.warn('[MIMIC Recorder] DEV 모드 — dev DB/Preview 연결 (id:', chrome.runtime.id, ')');
 const JPEG_QUALITY_DEFAULT = 0.92;
 const MAX_STEPS         = 30;
 
@@ -33,6 +33,7 @@ const TYPED_LABEL_MAX         = 80;    // 이보다 짧은 입력은 라벨에 �
 const LOG_KEY      = '_mimicLogs';
 const LOG_MAX      = 300;
 const LOG_LEVELS   = { debug: 0, info: 1, warn: 2, error: 3 };
+const _tabWindowIdCache = new Map();
 
 function log(level, source, ...args) {
   const msg = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
@@ -136,6 +137,27 @@ async function idbClear() {
 
 // ── 아이콘 클릭 → 사이드패널 자동 열림 설정 ────────────────────
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
+
+function openRecorderPanel(tabId, windowId) {
+  if (tabId) {
+    try {
+      chrome.sidePanel.open({ tabId }).catch((err) => {
+        log('warn', 'bg', 'sidePanel.open(tabId) failed:', err?.message || err);
+      });
+    } catch (err) {
+      log('warn', 'bg', 'sidePanel.open(tabId) threw:', err?.message || err);
+    }
+  }
+  if (windowId) {
+    try {
+      chrome.sidePanel.open({ windowId }).catch((err) => {
+        log('warn', 'bg', 'sidePanel.open(windowId) failed:', err?.message || err);
+      });
+    } catch (err) {
+      log('warn', 'bg', 'sidePanel.open(windowId) threw:', err?.message || err);
+    }
+  }
+}
 
 // ── 메모리 캐시 ──────────────────────────────────────────────────
 let _cachedTargetTabId = null;  // storage remove 타이밍 경쟁 방지
@@ -479,7 +501,10 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
     chrome.tabs.query({}).then((tabs) => {
       const result = tabs
         .filter(t => t.url && !t.url.startsWith('chrome://') && !t.url.startsWith('chrome-extension://'))
-        .map(t => ({ id: t.id, title: t.title ?? '', url: t.url ?? '', favIconUrl: t.favIconUrl ?? '' }));
+        .map(t => {
+          if (t.id && t.windowId) _tabWindowIdCache.set(t.id, t.windowId);
+          return { id: t.id, title: t.title ?? '', url: t.url ?? '', favIconUrl: t.favIconUrl ?? '' };
+        });
       sendResponse({ tabs: result });
     }).catch(() => sendResponse({ tabs: [] }));
     return true;
@@ -489,11 +514,21 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
     const tabId = message.tabId;
     if (!tabId) { sendResponse({ ok: true }); return false; }
 
-    // ★ 사이드패널은 user gesture가 살아있는 지금(=await 이전) 동기 호출해야 열린다.
-    //   웹앱이 클릭 핸들러에서 CONNECT 없이 바로 보낸 메시지라야 제스처가 유지됨.
-    try { chrome.sidePanel.open({ tabId }).catch(() => {}); } catch { /* no gesture */ }
+    // ★ 사이드패널은 user gesture가 살아있는 지금(= 어떤 await보다도 먼저, 동기) 호출해야 열린다.
+    //   await가 한 번이라도 끼면 MV3 제스처가 끊겨 sidePanel.open()이 조용히 실패한다.
+    //   → 연동 검사(storageGet)보다 앞서 호출한다. 미연동이면 패널이 잠깐 열려도
+    //     패널 자체가 연동 게이트를 보여주므로 무해하다.
+    openRecorderPanel(tabId, _tabWindowIdCache.get(tabId));
 
     (async () => {
+      // ★ 연동 검사 — 미연동 상태에서는 한 스텝도 캡처하지 않고 즉시 반환.
+      //   sessionId 생성·targetTabId 저장·steps 초기화 등 사이드이펙트 절대 금지.
+      const { extensionToken } = await storageGet('extensionToken');
+      if (!extensionToken) {
+        sendResponse({ ok: false, reason: 'not_linked' });
+        return;
+      }
+
       const sessionId = crypto.randomUUID();
       resetLastSavedHash();
 
@@ -506,9 +541,10 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         res(chrome.runtime.lastError ? null : t);
       }));
       if (!tab) { sendResponse({ ok: false }); return; }
+      if (tab.windowId) _tabWindowIdCache.set(tabId, tab.windowId);
 
       // 2) 보조 시도 (제스처 없으면 무시됨) — windowId 기준 한 번 더
-      if (tab.windowId) chrome.sidePanel.open({ windowId: tab.windowId }).catch(() => {});
+      openRecorderPanel(tabId, tab.windowId);
 
       // 3) 탭 활성화
       await new Promise((res) => chrome.tabs.update(tabId, { active: true }, res));
@@ -584,8 +620,11 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
   }
 
   if (message.action === 'CONNECT') {
-    sendResponse({ ok: true });
-    return false;
+    (async () => {
+      const { extensionToken } = await storageGet('extensionToken');
+      sendResponse({ ok: true, linked: !!extensionToken });
+    })();
+    return true;
   }
 
   if (message.action === 'START_GUIDE') {
@@ -934,14 +973,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // 매뉴얼 상세 탭은 background가 직접 연다 — 사용자가 패널/탭을 닫아도
         // service worker는 살아 있으므로 매뉴얼 생성 완료 후 정상 이동된다.
         if (data?.tutorial_id) {
-          const origin = await getWebappOrigin();
+          const origin = data.webapp_origin || await getWebappOrigin();
           chrome.tabs.create({ url: `${origin}/manual/${data.tutorial_id}` });
           await storageSet({ isRecording: false, isPaused: false, stepNumber: 0, steps: [], sessionId: null, _undoStack: [] });
         }
         sendResponse({ ok: true, ...data });
       } catch (err) {
         log('error', 'bg', 'finalize error:', err.message);
-        sendResponse({ ok: false });
+        sendResponse({ ok: false, error: err.message });
       }
     })();
     return true;
@@ -1746,9 +1785,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
         if (chrome.runtime.lastError || !tab) return;
 
         if (nowRecording) {
-          chrome.sidePanel.open({ tabId }).catch(() => {
-            if (tab.windowId) chrome.sidePanel.open({ windowId: tab.windowId }).catch(() => {});
-          });
+          openRecorderPanel(tabId, tab.windowId);
         }
 
         // content.js 주입 보장 후 메시지 전송 (#1 카운트다운 유실 방지)
@@ -1796,6 +1833,16 @@ function computeCropBox(elementRect, clickX, clickY) {
     y: Math.round(y * 1000) / 1000,
     width: Math.round(Math.min(1 - x, w) * 1000) / 1000,
     height: Math.round(Math.min(1 - y, h) * 1000) / 1000,
+  };
+}
+
+function denormalizeRectForAnalyze(elementRect, viewportW, viewportH) {
+  if (!elementRect || !viewportW || !viewportH) return elementRect ?? null;
+  return {
+    x: elementRect.x * viewportW,
+    y: elementRect.y * viewportH,
+    width: elementRect.width * viewportW,
+    height: elementRect.height * viewportH,
   };
 }
 
@@ -1848,11 +1895,22 @@ function extractDomainInfo(url, tab) {
     name = name.slice(0, 40) || hostname;
   }
 
-  const favicon = tab?.favIconUrl && !tab.favIconUrl.startsWith('chrome://')
-    ? tab.favIconUrl
-    : `https://${hostname}/favicon.ico`;
+  const fallbackFavicon = hostname ? `https://${hostname}/favicon.ico` : null;
+  const favicon = normalizeFaviconUrl(tab?.favIconUrl) ?? fallbackFavicon;
 
   return { hostname, name, favicon };
+}
+
+function normalizeFaviconUrl(raw) {
+  if (typeof raw !== 'string') return null;
+  const value = raw.trim();
+  if (!value || value.length > 500) return null;
+  try {
+    const parsed = new URL(value);
+    return (parsed.protocol === 'http:' || parsed.protocol === 'https:') ? value : null;
+  } catch {
+    return null;
+  }
 }
 
 // ── 캡처 처리 ────────────────────────────────────────────────────
@@ -1935,7 +1993,7 @@ async function processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base
       analyzeWithClaude(base64Image, stepData.url, stepData.actionInfo, {
         clickX:          stepData.clickX && stepData.windowWidth  ? stepData.clickX  / stepData.windowWidth  : null,
         clickY:          stepData.clickY && stepData.windowHeight ? stepData.clickY  / stepData.windowHeight : null,
-        elementRect:     stepData.elementRect     ?? null,
+        elementRect:     denormalizeRectForAnalyze(stepData.elementRect, stepData.windowWidth, stepData.windowHeight),
         viewportW:       stepData.windowWidth     ?? null,
         viewportH:       stepData.windowHeight    ?? null,
         elementSelector: stepData.elementSelector ?? null,
@@ -1956,7 +2014,7 @@ async function processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base
       return;
     }
 
-    await saveStepLocally({ ...stepData, imageUrl: uploadedUrl, title, description, actionInfo: stepData.actionInfo ?? null, actionLabel, domainInfo, overwrite: !!stepData.overwrite });
+    await saveStepLocally({ ...stepData, imageUrl: uploadedUrl, title, description, actionInfo: stepData.actionInfo ?? null, actionLabel, domainInfo, cropBox, overwrite: !!stepData.overwrite });
     updateBadge();
     idbDelete(stepNum).catch(() => {});
 
@@ -1966,7 +2024,7 @@ async function processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base
       const audioOffsetMs = audioStartTime
         ? Math.max(0, (stepData.timestamp || Date.now()) - audioStartTime)
         : null;
-      await saveStep({ sessionId, stepNumber: stepNum, screenshotUrl: uploadedUrl, clickX, clickY, title: title ?? '', description: description ?? '', url: stepData.url, domainInfo, viewportW: stepData.viewportW ?? stepData.windowWidth ?? null, viewportH: stepData.viewportH ?? stepData.windowHeight ?? null, elementSelector: stepData.elementSelector ?? null, elementXPath: stepData.elementXPath ?? null, elementRect: stepData.elementRect ?? null, typedText: stepData.typedText || null, cropBox, audioOffsetMs });
+      await saveStep({ sessionId, stepNumber: stepNum, screenshotUrl: uploadedUrl, clickX, clickY, title: title ?? '', description: description ?? '', url: stepData.url, domainInfo, viewportW: stepData.viewportW ?? stepData.windowWidth ?? null, viewportH: stepData.viewportH ?? stepData.windowHeight ?? null, elementSelector: stepData.elementSelector ?? null, elementXPath: stepData.elementXPath ?? null, elementRect: stepData.elementRect ?? null, actionInfo: stepData.actionInfo ?? null, typedText: stepData.typedText || null, cropBox, audioOffsetMs });
       log('info', 'bg', `saved step ${stepNum}: "${title}"`);
     } catch (err) {
       log('warn', 'bg', `save-step API failed step ${stepNum}:`, err.message);
@@ -1999,6 +2057,9 @@ async function saveStepLocally(stepData) {
     clickY:      stepData.clickY       ?? 0,
     windowWidth: stepData.windowWidth  ?? 1280,
     windowHeight:stepData.windowHeight ?? 800,
+    elementSelector: stepData.elementSelector ?? null,
+    elementXPath:    stepData.elementXPath    ?? null,
+    cropBox:         stepData.cropBox         ?? null,
     manual:      !!stepData.manual,
   };
 
@@ -2040,20 +2101,41 @@ async function authedFetch(url, options = {}) {
   const { extensionToken } = await storageGet('extensionToken');
   if (!extensionToken) throw new Error('Not linked — extensionToken 없음');
 
-  const res = await fetch(url, {
+  const requestOptions = {
     ...options,
     headers: {
       'Authorization': `Bearer ${extensionToken}`,
       'Content-Type':  'application/json',
       ...(options.headers || {}),
     },
-  });
+  };
+
+  let res;
+  try {
+    res = await fetch(url, requestOptions);
+  } catch (err) {
+    const fallbackUrl = getWebappFallbackUrl(url);
+    if (!fallbackUrl) throw err;
+    log('warn', 'bg', `fetch failed for ${url}; retrying ${fallbackUrl}:`, err.message);
+    res = await fetch(fallbackUrl, requestOptions);
+  }
 
   if (res.status === 401) {
     await handleTokenExpired();
     throw new Error('TOKEN_EXPIRED');
   }
   return res;
+}
+
+function getWebappFallbackUrl(url) {
+  try {
+    const current = new URL(url);
+    const fallback = new URL(WEBAPP_ORIGIN);
+    if (current.origin === fallback.origin) return null;
+    return `${fallback.origin}${current.pathname}${current.search}`;
+  } catch {
+    return null;
+  }
 }
 
 async function getWebappOrigin() {
@@ -2105,34 +2187,103 @@ async function analyzeWithClaude(base64Image, url, actionInfo, elementContext = 
 }
 
 // ── 스텝 저장 — 웹앱 API 경유 ───────────────────────────────────
-async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, title, description, url, domainInfo, viewportW, viewportH, elementSelector, elementXPath, elementRect, typedText, cropBox, audioOffsetMs }) {
+async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, title, description, url, domainInfo, viewportW, viewportH, elementSelector, elementXPath, elementRect, actionInfo, typedText, cropBox, audioOffsetMs }) {
   const origin = await getWebappOrigin();
+  const payload = {
+    session_id:       sessionId,
+    step_number:      stepNumber,
+    screenshot_url:   screenshotUrl,
+    click_x:          clickX,
+    click_y:          clickY,
+    title:            title ?? '',
+    description:      description ?? '',
+    url,
+    domain_hostname:  domainInfo?.hostname  ?? null,
+    domain_name:      domainInfo?.name      ?? null,
+    domain_favicon:   domainInfo?.favicon   ?? null,
+    viewport_w:       viewportW             ?? null,
+    viewport_h:       viewportH             ?? null,
+    element_selector: elementSelector       ?? null,
+    element_xpath:    elementXPath          ?? null,
+    element_rect:     elementRect           ?? null,
+    action_info:      actionInfo            ?? null,
+    type_text:        typedText             || null,
+    crop_box:         cropBox               ?? null,
+    ...(audioOffsetMs != null ? { audio_offset_ms: audioOffsetMs } : {}),
+  };
+  const labelDebug = payload.action_info?.labelDebug ?? {};
+  log('info', 'bg', 'save-step payload:', {
+    step_number: payload.step_number,
+    action_info: payload.action_info,
+    chosenLabel: labelDebug.chosenLabel ?? payload.action_info?.label ?? null,
+    rawText: labelDebug.rawText ?? null,
+    ariaLabel: labelDebug.ariaLabel ?? null,
+    title: labelDebug.title ?? null,
+    role: labelDebug.role ?? payload.action_info?.role ?? null,
+    selector: labelDebug.selector ?? payload.element_selector,
+    fallbackReason: labelDebug.fallbackReason ?? null,
+    type_text: payload.type_text,
+    click_x: payload.click_x,
+    click_y: payload.click_y,
+    element_rect: payload.element_rect,
+    element_selector: payload.element_selector,
+    element_xpath: payload.element_xpath,
+    domain_favicon: payload.domain_favicon,
+  });
+
   const res = await authedFetch(`${origin}/api/capture/save-step`, {
     method: 'POST',
-    body: JSON.stringify({
-      session_id:       sessionId,
-      step_number:      stepNumber,
-      screenshot_url:   screenshotUrl,
-      click_x:          clickX,
-      click_y:          clickY,
-      title:            title ?? '',
-      description:      description ?? '',
-      url,
-      domain_hostname:  domainInfo?.hostname  ?? null,
-      domain_name:      domainInfo?.name      ?? null,
-      domain_favicon:   domainInfo?.favicon   ?? null,
-      viewport_w:       viewportW             ?? null,
-      viewport_h:       viewportH             ?? null,
-      element_selector: elementSelector       ?? null,
-      element_xpath:    elementXPath          ?? null,
-      element_rect:     elementRect           ?? null,
-      type_text:        typedText             || null,  // 입력 원문(매뉴얼 생성 참고·Live Guide 자동입력). 앱 측 컬럼 반영 전까진 무시됨
-      crop_box:         cropBox               ?? null,
-      ...(audioOffsetMs != null ? { audio_offset_ms: audioOffsetMs } : {}),
-    }),
+    body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(`save-step failed: ${res.status}: ${await res.text()}`);
   return res.json();
+}
+
+function normalizeCoord(value, size) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  const normalized = n <= 1 ? n : (size ? n / size : 0);
+  return Math.max(0, Math.min(normalized, 1));
+}
+
+async function syncLocalStepsBeforeFinalize(sessionId, stepNumbers, localSteps) {
+  const wanted = new Set(stepNumbers || []);
+  const stepsToSync = (localSteps || [])
+    .filter((step) => step?.stepNumber && (!wanted.size || wanted.has(step.stepNumber)))
+    .sort((a, b) => a.stepNumber - b.stepNumber);
+
+  for (const step of stepsToSync) {
+    if (!step.imageUrl) {
+      throw new Error(`step ${step.stepNumber} has no uploaded image`);
+    }
+
+    const viewportW = step.windowWidth || step.viewportW || 1280;
+    const viewportH = step.windowHeight || step.viewportH || 800;
+    const clickX = normalizeCoord(step.clickX, viewportW);
+    const clickY = normalizeCoord(step.clickY, viewportH);
+    const cropBox = step.cropBox ?? computeCropBox(step.elementRect, clickX, clickY);
+
+    await saveStep({
+      sessionId,
+      stepNumber: step.stepNumber,
+      screenshotUrl: step.imageUrl,
+      clickX,
+      clickY,
+      title: step.title ?? '',
+      description: step.description ?? '',
+      url: step.url,
+      domainInfo: step.domainInfo ?? null,
+      viewportW,
+      viewportH,
+      elementSelector: step.elementSelector ?? null,
+      elementXPath: step.elementXPath ?? null,
+      elementRect: step.elementRect ?? null,
+      actionInfo: step.actionInfo ?? null,
+      typedText: step.typedText || null,
+      cropBox,
+      audioOffsetMs: null,
+    });
+  }
 }
 
 // ── 세션 완료 — 웹앱 API 경유 ───────────────────────────────────
@@ -2146,6 +2297,8 @@ async function finalizeSession(sessionId, stepNumbers, audioUrl = null) {
   // per-step 음성 보정(향후 에디터 재녹음용) — 현재는 비어 있을 수 있음
   const stepVoice = {};
   (steps || []).forEach(s => { if (s.voiceAudioUrl) stepVoice[s.stepNumber] = s.voiceAudioUrl; });
+
+  await syncLocalStepsBeforeFinalize(sessionId, stepNumbers, steps);
 
   const origin = await getWebappOrigin();
   const res = await authedFetch(`${origin}/api/capture/finalize`, {
@@ -2166,7 +2319,10 @@ async function finalizeSession(sessionId, stepNumbers, audioUrl = null) {
   });
   if (!res.ok) throw new Error(`finalize failed: ${res.status}: ${await res.text()}`);
   await storageRemove(['audioStartTime']);
-  return res.json();
+  const data = await res.json();
+  const webappOrigin = new URL(res.url).origin;
+  await storageSet({ webappOrigin });
+  return { ...data, webapp_origin: webappOrigin };
 }
 
 // ── Supabase Storage 업로드 (실패 시 1회 재시도) ─────────────────

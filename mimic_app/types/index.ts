@@ -106,6 +106,7 @@ export type FollowConfig = {
   typeText?: string | null;        // 텍스트(type) 인디케이터에 입력될 실제 텍스트. 뷰어에서 자동 타이핑 애니메이션, 라이브 가이드에서 자동 입력
   hidden?: boolean;                // 따라하기에서 이 스텝 제외 (슬라이드엔 유지)
   bubbleAnchor?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | null; // 말풍선 고정 위치. 미설정=핫스팟 상대 위치(자동)
+  zoomAnim?: boolean;              // 연습 가이드에서 클릭 영역 확대 애니메이션 사용 (기본 off — 스튜디오에서 켤 때만)
   // 제목·설명은 follow_config에 두지 않는다 — user_title/user_script(문서 매뉴얼과 공유)에 직접 저장
 };
 

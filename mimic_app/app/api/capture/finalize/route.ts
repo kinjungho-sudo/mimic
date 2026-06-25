@@ -3,10 +3,41 @@ import { randomBytes } from 'crypto';
 import { requireExtensionToken } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { captureFinalizeSchema } from '@/lib/validators';
-import { generateDraft, extractCoverColors, detectPII, cleanTranscripts } from '@/lib/ai/claude';
+import { analyzeScreenshot, generateStepDescription, generateDraft, extractCoverColors, detectPII, cleanTranscripts } from '@/lib/ai/claude';
+import { buildCaptureFallbackDraft, buildCaptureFallbackTutorialTitle, isLowQualityCaptureTitle, type CaptureFallbackActionInfo } from '@/lib/ai/capture-fallback';
 import { resolveFavicon } from '@/lib/favicon';
 import { buildClickHighlight } from '@/lib/annotations';
 import { transcribeAudio, assignSegmentsToSteps, computeStepWindows } from '@/lib/voice/voice';
+import { logSystem } from '@/lib/logging/logger-server';
+
+async function fetchScreenshotForAi(url: string): Promise<{ base64: string; mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif' } | null> {
+  if (url.startsWith('data:')) {
+    const match = /^data:(image\/(?:jpeg|png|webp|gif));base64,(.+)$/i.exec(url);
+    if (!match) {
+      console.warn('capture finalize screenshot data URL parse failed');
+      return null;
+    }
+    return {
+      base64: match[2],
+      mediaType: match[1].toLowerCase() as 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif',
+    };
+  }
+
+  const res = await fetch(url);
+  if (!res.ok) {
+    console.warn('capture finalize screenshot fetch failed:', { status: res.status, url });
+    return null;
+  }
+
+  const contentType = res.headers.get('content-type') ?? 'image/jpeg';
+  const mediaType = (['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as const)
+    .find(type => contentType.includes(type)) ?? 'image/jpeg';
+  const buffer = await res.arrayBuffer();
+  return {
+    base64: Buffer.from(buffer).toString('base64'),
+    mediaType,
+  };
+}
 
 export async function POST(request: NextRequest) {
   const auth = await requireExtensionToken(request);
@@ -40,7 +71,7 @@ export async function POST(request: NextRequest) {
   if (!session) {
     return NextResponse.json({ error: 'Session not found' }, { status: 404 });
   }
-  if (session.status === 'completed') {
+  if (session.status !== 'active') {
     return NextResponse.json({ error: 'Session already finalized' }, { status: 409 });
   }
 
@@ -69,12 +100,6 @@ export async function POST(request: NextRequest) {
   }
 
   // 무료 플랜 여부 확인 (어노테이션 생성 제한)
-  const { data: mmUser } = await supabase
-    .from('mm_users')
-    .select('plan')
-    .eq('id', userId)
-    .single();
-  const isFree = !mmUser || mmUser.plan === 'free' || mmUser.plan === 'pro_waitlist';
 
   // TODO: 정식 서비스 전 플랜별 한도 복구 (daily_limit 체크 비활성화 중)
 
@@ -102,16 +127,8 @@ export async function POST(request: NextRequest) {
   });
 
   // 튜토리얼 생성
-  // 폴백 제목: AI 제목 생성이 실패해도 날짜 대신 도메인 기반으로 — "매뉴얼 2026. 6. 14" 방지
-  let fallbackTitle = `매뉴얼 ${new Date().toLocaleDateString('ko-KR')}`;
-  const urlHint = deduped.find(ev => ev.url)?.url;
-  if (urlHint) {
-    try {
-      const host = new URL(urlHint).hostname.replace(/^www\./, '');
-      if (host) fallbackTitle = `${host} 가이드`;
-    } catch { /* 날짜 폴백 유지 */ }
-  }
-  const tutorialTitle = title ?? fallbackTitle;
+  // Actual title is updated after AI draft generation.
+  const tutorialTitle = title ?? '새 매뉴얼';
   const { data: tutorial, error: tutError } = await supabase
     .from('mm_tutorials')
     .insert({
@@ -177,6 +194,7 @@ export async function POST(request: NextRequest) {
     clickX?: number | null,
     clickY?: number | null,
   ) {
+    const MAX_AUTO_ZOOM = 1.6;
     // 확대 중심 — 클릭 지점 우선, 없으면 요소 중심
     let cx: number | null = null;
     let cy: number | null = null;
@@ -189,12 +207,13 @@ export async function POST(request: NextRequest) {
     }
     if (cx == null || cy == null) return null; // 좌표 없음 (navigate/autoNav) → 확대 안 함
 
-    // 배율 — 가독성 우선. 큰 요소는 확대 안 하고, 작을수록 약하게만 확대 (1.35~1.6)
+    // 배율 — 가독성 우선. 큰 요소는 확대 안 하고, 작을수록 약하게만 확대 (자동 확대 상한 1.5)
     let zoom = 1.4;
     if (rect) {
       const size = Math.max(rect.width, rect.height);
-      zoom = size > 0.4 ? 1.0 : size > 0.2 ? 1.35 : 1.6;
+      zoom = size > 0.4 ? 1.0 : size > 0.2 ? 1.35 : 1.5;
     }
+    zoom = Math.min(MAX_AUTO_ZOOM, zoom);
     if (zoom <= 1.0) return null; // 충분히 큰 요소 → 전체 화면 그대로 유지(가독성)
 
     // 확대 후 보이는 창(1/zoom)이 이미지 밖으로 나가지 않게 중심 클램프
@@ -212,10 +231,11 @@ export async function POST(request: NextRequest) {
   // Recorder가 캡처 시 결정한 확대 영역(crop_box, 원본 0~1) → image_zoom/offset 프레이밍으로 변환.
   // 서버 휴리스틱(calcZoomFraming) 대신 사용. 표시 변환은 calcZoomFraming과 동일(center origin scale+translate).
   function framingFromCropBox(box: { x: number; y: number; width: number; height: number } | null) {
+    const MAX_AUTO_ZOOM = 1.6;
     if (!box) return null;
     const w = Math.min(Math.max(box.width, 0.001), 1);
     const h = Math.min(Math.max(box.height, 0.001), 1);
-    const z = Math.min(3, Math.max(1, 1 / Math.max(w, h))); // 큰 변 기준 가득 채움, 과확대 방지(최대 3x)
+    const z = Math.min(MAX_AUTO_ZOOM, Math.max(1, 1 / Math.max(w, h))); // 큰 변 기준 가득 채움
     if (z <= 1.001) return null; // 거의 전체 → 확대 안 함(가독성)
     const cx = box.x + box.width / 2;
     const cy = box.y + box.height / 2;
@@ -303,13 +323,18 @@ export async function POST(request: NextRequest) {
     .eq('id', tutorial.id);
 
   // 세션 완료 처리 + daily_manual_count atomic 증가 (병렬, RPC로 race condition 방지)
-  await Promise.all([
+  const [sessionUpdate, countUpdate] = await Promise.all([
     supabase
       .from('mm_capture_sessions')
       .update({ status: 'completed', ended_at: new Date().toISOString(), audio_url: audio_url ?? null })
       .eq('id', session_id),
     supabase.rpc('increment_daily_manual_count', { uid: userId }),
   ]);
+
+  if (sessionUpdate.error || countUpdate.error) {
+    await supabase.from('mm_tutorials').delete().eq('id', tutorial.id);
+    return NextResponse.json({ error: 'Failed to finalize session' }, { status: 500 });
+  }
 
   // staging 정리 — 매뉴얼 변환이 끝난 세션의 mm_capture_events 행과,
   // 매뉴얼에 포함되지 않은(패널 삭제/중복 제거) 고아 스크린샷을 삭제한다.
@@ -342,9 +367,106 @@ export async function POST(request: NextRequest) {
       .order('step_number', { ascending: true });
 
     if (createdSteps?.length) {
+      const actionInfoByStepNum = new Map<number, CaptureFallbackActionInfo>();
+      const elementTextByStepNum = new Map<number, string | null>();
+      deduped.forEach((ev, idx) => {
+        actionInfoByStepNum.set(idx + 1, (ev.action_info as CaptureFallbackActionInfo) ?? null);
+        elementTextByStepNum.set(idx + 1, (ev.element_text as string | null) ?? null);
+      });
+
+      const enrichedSteps = [];
+      for (const step of createdSteps) {
+        if ((step.ai_title?.trim() && step.ai_description?.trim()) || !step.screenshot_url) {
+          enrichedSteps.push(step);
+          continue;
+        }
+
+        try {
+          const image = await fetchScreenshotForAi(step.screenshot_url);
+          if (!image) {
+            await logSystem('capture.finalize.screenshot_unavailable', {
+              userId,
+              tutorialId: tutorial.id,
+              sessionId: session_id,
+              stepNumber: step.step_number,
+              reason: 'image_fetch_or_data_url_failed',
+            }, 'warn');
+            enrichedSteps.push(step);
+            continue;
+          }
+
+          const event = deduped[step.step_number - 1];
+          const noAction = noActionByStepNum.get(step.step_number) ?? false;
+          const clickX = !noAction && event?.click_x != null ? event.click_x / 10000 : undefined;
+          const clickY = !noAction && event?.click_y != null ? event.click_y / 10000 : undefined;
+          const actionInfo = actionInfoByStepNum.get(step.step_number) ?? undefined;
+          const analysis = step.ai_title?.trim()
+            ? null
+            : await analyzeScreenshot(
+                image.base64,
+                step.page_url ?? '',
+                actionInfo,
+                { clickX, clickY },
+                image.mediaType
+              ).catch(async (err) => {
+                console.error('capture finalize step title retry error:', err);
+                await logSystem('capture.finalize.step_title_ai_failed', {
+                  userId,
+                  tutorialId: tutorial.id,
+                  sessionId: session_id,
+                  stepNumber: step.step_number,
+                  reason: err instanceof Error ? err.message : String(err),
+                }, 'warn');
+                return null;
+              });
+
+          const aiTitle = step.ai_title?.trim() || analysis?.title?.trim() || null;
+          const aiDescription = step.ai_description?.trim()
+            || (aiTitle
+              ? await generateStepDescription(aiTitle, step.page_url, image.base64, image.mediaType).catch(async (err) => {
+                  console.error('capture finalize step description retry error:', err);
+                  await logSystem('capture.finalize.step_description_ai_failed', {
+                    userId,
+                    tutorialId: tutorial.id,
+                    sessionId: session_id,
+                    stepNumber: step.step_number,
+                    reason: err instanceof Error ? err.message : String(err),
+                  }, 'warn');
+                  return null;
+                })
+              : null);
+
+          if (aiTitle || aiDescription) {
+            await supabase
+              .from('mm_steps')
+              .update({
+                ai_title: aiTitle ?? step.ai_title,
+                ai_description: aiDescription ?? step.ai_description,
+              })
+              .eq('id', step.id);
+          }
+
+          enrichedSteps.push({
+            ...step,
+            ai_title: aiTitle ?? step.ai_title,
+            ai_description: aiDescription ?? step.ai_description,
+          });
+        } catch (err) {
+          console.error('capture finalize step analysis retry error:', err);
+          await logSystem('capture.finalize.step_ai_analysis_failed', {
+            userId,
+            tutorialId: tutorial.id,
+            sessionId: session_id,
+            stepNumber: step.step_number,
+            reason: err instanceof Error ? err.message : String(err),
+          }, 'warn');
+          enrichedSteps.push(step);
+        }
+      }
+
       // 첫 스크린샷 base64 fetch (커버 색상 추출용)
       let coverColors: { color1: string; color2: string } | null = null;
-      const firstScreenshotUrl = createdSteps[0]?.screenshot_url;
+      const firstScreenshotUrl = enrichedSteps[0]?.screenshot_url;
       if (firstScreenshotUrl) {
         try {
           const imgRes = await fetch(firstScreenshotUrl);
@@ -359,19 +481,102 @@ export async function POST(request: NextRequest) {
         } catch { /* 색상 추출 실패 무시 */ }
       }
 
-      // draft 생성 (제목 + 스텝 타이틀)
+      // Always save usable fallback drafts. AI can improve them, but an AI
+      // failure must not leave a generated manual with empty titles/scripts.
       let tutorial_title = '';
-      let drafts: Array<{ id: string; user_title: string; user_script: string }> = [];
+      let drafts: Array<{ id: string; user_title: string; user_script: string }> = enrichedSteps.map(step => {
+        const fallback = buildCaptureFallbackDraft(step, {
+          noAction: noActionByStepNum.get(step.step_number) ?? false,
+          actionInfo: actionInfoByStepNum.get(step.step_number),
+          elementText: elementTextByStepNum.get(step.step_number),
+        });
+        return fallback;
+      });
+      let fallbackTutorialTitle = buildCaptureFallbackTutorialTitle(drafts);
+      let aiDraftStatus = 'not_called';
+      let discardedAiDrafts = 0;
 
-      const draftResult = await generateDraft(
-        createdSteps.map(s => ({ ...s, noAction: noActionByStepNum.get(s.step_number) ?? false }))
-      );
-      tutorial_title = draftResult.tutorial_title;
-      drafts = draftResult.steps;
+      try {
+        const draftResult = await generateDraft(
+          enrichedSteps.map(s => ({ ...s, noAction: noActionByStepNum.get(s.step_number) ?? false }))
+        );
+        aiDraftStatus = draftResult.status;
+        tutorial_title = draftResult.tutorial_title;
+        const aiDraftsById = new Map(draftResult.steps.map(d => [d.id, d]));
+        drafts = enrichedSteps.map(step => {
+          const fallback = buildCaptureFallbackDraft(step, {
+            noAction: noActionByStepNum.get(step.step_number) ?? false,
+            actionInfo: actionInfoByStepNum.get(step.step_number),
+            elementText: elementTextByStepNum.get(step.step_number),
+          });
+          const aiDraft = aiDraftsById.get(step.id);
+          const aiTitle = aiDraft?.user_title?.trim() || '';
+          const aiScript = aiDraft?.user_script?.trim() || '';
+          const useAiDraft = !!aiTitle && !!aiScript && !isLowQualityCaptureTitle(aiTitle);
+          if (aiDraft && !useAiDraft) discardedAiDrafts += 1;
+          return {
+            id: step.id,
+            user_title: useAiDraft ? aiTitle : fallback.user_title,
+            user_script: useAiDraft ? aiScript : fallback.user_script,
+          };
+        });
+        fallbackTutorialTitle = buildCaptureFallbackTutorialTitle(drafts);
+        if (draftResult.status !== 'ok') {
+          await logSystem('capture.finalize.ai_draft_failed', {
+            userId,
+            tutorialId: tutorial.id,
+            sessionId: session_id,
+            status: draftResult.status,
+            reason: draftResult.reason ?? null,
+            responsePreview: draftResult.responsePreview ?? null,
+            fallbackOnly: true,
+          }, 'warn');
+        } else if (discardedAiDrafts > 0) {
+          await logSystem('capture.finalize.ai_draft_low_quality_discarded', {
+            userId,
+            tutorialId: tutorial.id,
+            sessionId: session_id,
+            discardedAiDrafts,
+            fallbackOnly: discardedAiDrafts === enrichedSteps.length,
+          }, 'warn');
+        } else {
+          await logSystem('capture.finalize.ai_draft_ok', {
+            userId,
+            tutorialId: tutorial.id,
+            sessionId: session_id,
+            aiSteps: draftResult.steps.length,
+            fallbackOnly: false,
+          }, 'info');
+        }
+      } catch (err) {
+        console.error('capture finalize ai draft generation error:', err);
+        aiDraftStatus = 'exception';
+        await logSystem('capture.finalize.ai_draft_exception', {
+          userId,
+          tutorialId: tutorial.id,
+          sessionId: session_id,
+          reason: err instanceof Error ? err.message : String(err),
+          fallbackOnly: true,
+        }, 'warn');
+      }
+
+      const emptyTitles = drafts.filter(d => !d.user_title.trim()).length;
+      const emptyScripts = drafts.filter(d => !d.user_script.trim()).length;
+      const fallbackOnly = aiDraftStatus !== 'ok' || discardedAiDrafts === enrichedSteps.length;
+      await logSystem('capture.finalize.draft_summary', {
+        userId,
+        tutorialId: tutorial.id,
+        sessionId: session_id,
+        aiDraftStatus,
+        fallbackOnly,
+        discardedAiDrafts,
+        emptyTitles,
+        emptyScripts,
+      }, emptyTitles || emptyScripts ? 'warn' : 'info');
 
       // tutorial 제목 + cover_color 업데이트
       const tutorialUpdate: Record<string, string> = {};
-      if (tutorial_title) tutorialUpdate.title = tutorial_title;
+      if (tutorial_title || fallbackTutorialTitle) tutorialUpdate.title = tutorial_title || fallbackTutorialTitle;
       if (coverColors) tutorialUpdate.cover_color = `${coverColors.color1},${coverColors.color2}`;
       if (Object.keys(tutorialUpdate).length > 0) {
         await supabase.from('mm_tutorials').update(tutorialUpdate).eq('id', tutorial.id);
@@ -379,11 +584,14 @@ export async function POST(request: NextRequest) {
 
       // 스텝 초안 업데이트
       if (drafts.length) {
-        const allowedIds = new Set(createdSteps.map(s => s.id));
+        const allowedIds = new Set(enrichedSteps.map(s => s.id));
         const safeDrafts = drafts.filter(d => allowedIds.has(d.id));
         await Promise.all(
           safeDrafts.map(d => {
-            const patch: Record<string, string> = { user_title: d.user_title };
+            const patch: Record<string, string> = {
+              user_title: d.user_title,
+              user_script: d.user_script,
+            };
             return supabase
               .from('mm_steps')
               .update(patch)
@@ -394,7 +602,7 @@ export async function POST(request: NextRequest) {
       }
 
       // 자동 어노테이션 생성 — 무료 플랜은 생략
-      if (!isFree) {
+      {
         // deduped 순서 = step_number - 1, action_info.type으로 라벨 분기
         const actionTypeByStepNum = new Map<number, string>();
         deduped.forEach((ev, idx) => {
@@ -404,7 +612,7 @@ export async function POST(request: NextRequest) {
 
         const { data: stepsForAnnotation } = await supabase
           .from('mm_steps')
-          .select('id, step_number, ai_title, element_rect, click_x, click_y, user_annotations')
+          .select('id, step_number, user_title, ai_title, element_rect, click_x, click_y, user_annotations')
           .eq('tutorial_id', tutorial.id);
 
         if (stepsForAnnotation?.length) {
@@ -414,7 +622,7 @@ export async function POST(request: NextRequest) {
 
               const rect = step.element_rect as { x: number; y: number; width: number; height: number } | null;
               const actionType = actionTypeByStepNum.get(step.step_number) ?? 'click';
-              const label = step.ai_title ?? (actionType === 'type' ? '입력' : '클릭');
+              const label = step.user_title ?? step.ai_title ?? (actionType === 'type' ? '입력' : '클릭');
               const num = step.step_number ?? 1;
               let annotations;
 
@@ -441,7 +649,8 @@ export async function POST(request: NextRequest) {
         }
       }
     }
-  } catch {
+  } catch (err) {
+    console.error('capture finalize draft generation error:', err);
     // 초안/어노테이션 생성 실패는 무시 — 튜토리얼은 정상 생성됨
   }
 

@@ -43,7 +43,13 @@ def main():
 
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
         for f in FILES:
-            z.write(os.path.join(ROOT, f), arcname=f)  # forward-slash arcname
+            if f == "manifest.json":
+                # 운영 패키지는 dev 표식 제거 — 소스 manifest는 언팩 dev 구분용으로 "(dev)"를 달고 있다.
+                with open(os.path.join(ROOT, f), encoding="utf-8") as mf:
+                    text = mf.read().replace("MIMIC Recorder (dev)", "MIMIC Recorder")
+                z.writestr(f, text)
+            else:
+                z.write(os.path.join(ROOT, f), arcname=f)  # forward-slash arcname
         for i in ICONS:
             z.write(os.path.join(ROOT, "icons", i), arcname=f"icons/{i}")
 

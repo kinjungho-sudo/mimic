@@ -1,11 +1,47 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { Step } from '@/types';
+import { CLAUDE_MODEL } from '@/lib/ai/model';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+function hasClaudeApiKey(operation: string): boolean {
+  if (process.env.ANTHROPIC_API_KEY?.trim()) return true;
+  console.error(`${operation} skipped: ANTHROPIC_API_KEY is not configured`);
+  return false;
+}
+
+export type GenerateDraftStatus =
+  | 'ok'
+  | 'missing_key'
+  | 'api_error'
+  | 'parse_error'
+  | 'empty_steps';
+
+export type GenerateDraftResult = {
+  steps: Array<{ id: string; user_title: string; user_script: string }>;
+  tutorial_title: string;
+  status: GenerateDraftStatus;
+  reason?: string;
+  responsePreview?: string;
+};
 
 // Haiku는 ```json ... ``` 블록으로 감싸서 응답하는 경향이 있어 파싱 전에 제거
 function stripMarkdown(text: string): string {
   return text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+}
+
+function parseJsonObject(text: string): unknown {
+  const clean = stripMarkdown(text);
+  try {
+    return JSON.parse(clean);
+  } catch {
+    const start = clean.indexOf('{');
+    const end = clean.lastIndexOf('}');
+    if (start >= 0 && end > start) {
+      return JSON.parse(clean.slice(start, end + 1));
+    }
+    throw new Error('No JSON object found in Claude response');
+  }
 }
 
 type ActionInfo = {
@@ -70,8 +106,11 @@ export async function analyzeScreenshot(
   base64Image: string,
   pageUrl: string,
   actionInfo?: ActionInfo,
-  elementContext?: ElementContext
+  elementContext?: ElementContext,
+  mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif' = 'image/jpeg'
 ): Promise<{ title: string; description: string }> {
+  if (!hasClaudeApiKey('analyzeScreenshot')) return { title: '', description: '' };
+
   let domain = '';
   try { domain = new URL(pageUrl).hostname; } catch { domain = pageUrl; }
 
@@ -123,13 +162,13 @@ export async function analyzeScreenshot(
   })();
 
   const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: CLAUDE_MODEL,
     max_tokens: 128,
     messages: [
       {
         role: 'user',
         content: [
-          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64Image } },
+          { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64Image } },
           {
             type: 'text',
             text: `이 스크린샷은 사용자가 "${domain}" 페이지에서 수행한 액션입니다.${actionHint}${locationHint}
@@ -166,6 +205,8 @@ export async function generateStepDescription(
   screenshotBase64?: string,
   mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif' = 'image/jpeg'
 ): Promise<string> {
+  if (!hasClaudeApiKey('generateStepDescription')) return '';
+
   let domain = '';
   try { domain = pageUrl ? new URL(pageUrl).hostname : ''; } catch { domain = pageUrl ?? ''; }
 
@@ -189,7 +230,7 @@ export async function generateStepDescription(
   });
 
   const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: CLAUDE_MODEL,
     max_tokens: 128,
     messages: [{ role: 'user', content }],
   });
@@ -211,7 +252,7 @@ export async function regroundElement(
   if (target.actionType)  hints.push(`동작 유형: ${target.actionType}`);
 
   const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: CLAUDE_MODEL,
     max_tokens: 128,
     messages: [{
       role: 'user',
@@ -261,7 +302,7 @@ export async function generateScript(
   const draftSection = userDraft ? `\n사용자 초안:\n${userDraft}` : '';
 
   const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: CLAUDE_MODEL,
     max_tokens: 1024,
     messages: [
       {
@@ -305,7 +346,7 @@ export async function generateMarkers(steps: Step[]) {
   }));
 
   const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: CLAUDE_MODEL,
     max_tokens: 2048,
     messages: [
       {
@@ -349,8 +390,11 @@ ${JSON.stringify(stepsData, null, 2)}
 
 export async function generateDraft(
   steps: Array<{ id: string; ai_title: string | null; ai_description: string | null; page_url: string | null; step_number: number; domain_name?: string | null; noAction?: boolean }>
-): Promise<{ steps: Array<{ id: string; user_title: string; user_script: string }>; tutorial_title: string }> {
-  // NOTE: user_script는 더 이상 여기서 생성하지 않음. 에디터 ✨ 버튼으로 온디맨드 생성.
+): Promise<GenerateDraftResult> {
+  if (!hasClaudeApiKey('generateDraft')) {
+    return { tutorial_title: '', steps: [], status: 'missing_key', reason: 'ANTHROPIC_API_KEY is not configured' };
+  }
+
   // 가장 많이 등장하는 domain_name을 서비스 이름으로 사용
   const domainCounts = new Map<string, number>();
   steps.forEach(s => {
@@ -372,13 +416,15 @@ export async function generateDraft(
 
   const serviceHint = mainService ? `\n주요 서비스: ${mainService}` : '';
 
-  const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 1024,
-    messages: [
-      {
-        role: 'user',
-        content: `다음은 사용자가 녹화한 매뉴얼 단계들입니다. 튜토리얼 제목과 각 스텝의 제목만 생성해줘.${serviceHint}
+  let text = '{}';
+  try {
+    const response = await client.messages.create({
+      model: CLAUDE_MODEL,
+      max_tokens: 1024,
+      messages: [
+        {
+          role: 'user',
+          content: `다음은 사용자가 녹화한 매뉴얼 단계들입니다. 튜토리얼 제목과 각 스텝의 제목/설명을 생성해줘.${serviceHint}
 
 ${stepsText}
 
@@ -394,29 +440,70 @@ ${stepsText}
 - 좋은 예: "검색창에 키워드 입력", "바로구매 버튼 클릭"
 - ※ 표시된 단계(클릭 대상 없음)는 "○○ 클릭/누르기" 절대 금지 — "○○ 화면 확인", "○○ 페이지로 이동" 같은 중립 제목으로
 
+[스텝 설명 규칙 — user_script]
+- 1~2문장, 사용자가 그대로 따라할 수 있게 구체적으로
+- 존댓말
+- 클릭 대상이 없는 단계는 화면 확인/이동 맥락으로 설명
+- 빈 문자열 금지
+
 응답 형식 (JSON만, 마크다운 없이):
 {
   "tutorial_title": "...",
   "steps": [
-    { "id": "uuid", "user_title": "..." }
+    { "id": "uuid", "user_title": "...", "user_script": "..." }
   ]
 }`,
-      },
-    ],
-  });
+        },
+      ],
+    });
 
-  const text = response.content[0].type === 'text' ? response.content[0].text : '{}';
+    text = response.content[0].type === 'text' ? response.content[0].text : '{}';
+  } catch (err) {
+    console.error('generateDraft api error:', err);
+    return {
+      tutorial_title: '',
+      steps: [],
+      status: 'api_error',
+      reason: err instanceof Error ? err.message : String(err),
+    };
+  }
+
   try {
-    const parsed = JSON.parse(stripMarkdown(text));
+    const parsed = parseJsonObject(text) as { tutorial_title?: string; steps?: Array<{ id: string; user_title: string; user_script?: string }> };
     const steps = Array.isArray(parsed.steps)
-      ? parsed.steps.map((s: { id: string; user_title: string }) => ({ id: s.id, user_title: s.user_title, user_script: '' }))
+      ? parsed.steps.map((s) => ({
+          id: s.id,
+          user_title: s.user_title,
+          user_script: String(s.user_script || ''),
+        }))
       : [];
+    if (steps.length === 0) {
+      console.warn('generateDraft returned empty steps:', { responsePreview: text.slice(0, 500) });
+      return {
+        tutorial_title: String(parsed.tutorial_title || ''),
+        steps,
+        status: 'empty_steps',
+        reason: 'Claude response contained no usable steps',
+        responsePreview: text.slice(0, 500),
+      };
+    }
     return {
       tutorial_title: String(parsed.tutorial_title || ''),
       steps,
+      status: 'ok',
     };
-  } catch {
-    return { tutorial_title: '', steps: [] };
+  } catch (err) {
+    console.error('generateDraft parse error:', {
+      error: err,
+      responsePreview: text.slice(0, 500),
+    });
+    return {
+      tutorial_title: '',
+      steps: [],
+      status: 'parse_error',
+      reason: err instanceof Error ? err.message : String(err),
+      responsePreview: text.slice(0, 500),
+    };
   }
 }
 
@@ -441,7 +528,7 @@ export async function generateEducationalDraft(
     : null;
 
   const titleRes = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: CLAUDE_MODEL,
     max_tokens: 64,
     messages: [{
       role: 'user',
@@ -498,7 +585,7 @@ JSON만 반환:
       });
 
       const res = await client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
+        model: CLAUDE_MODEL,
         max_tokens: 256,
         messages: [{ role: 'user', content: contentBlocks }],
       });
@@ -529,7 +616,7 @@ export async function extractCoverColors(
   mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif' = 'image/jpeg'
 ): Promise<{ color1: string; color2: string }> {
   const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: CLAUDE_MODEL,
     max_tokens: 64,
     messages: [
       {
@@ -566,7 +653,7 @@ export async function rewriteSentence(
   instruction: string
 ): Promise<string> {
   const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: CLAUDE_MODEL,
     max_tokens: 512,
     messages: [{
       role: 'user',
@@ -589,7 +676,7 @@ export async function detectPII(
   mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif' = 'image/jpeg'
 ): Promise<boolean> {
   const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: CLAUDE_MODEL,
     max_tokens: 64,
     messages: [{
       role: 'user',
@@ -621,7 +708,7 @@ export async function cleanTranscripts(
 
   const numbered = items.map(it => `[${it.step_number}] ${it.raw}`).join('\n');
   const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: CLAUDE_MODEL,
     max_tokens: 2048,
     messages: [{
       role: 'user',
@@ -661,7 +748,7 @@ export async function rewriteAllSteps(
 ): Promise<{ id: string; result: string }[]> {
   const numbered = steps.map((s, i) => `[${i + 1}] ${s.text}`).join('\n');
   const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: CLAUDE_MODEL,
     max_tokens: 4096,
     messages: [{
       role: 'user',
@@ -730,7 +817,7 @@ export async function generateAnnotations(
   }
 
   const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: CLAUDE_MODEL,
     max_tokens: 2048,
     messages: [
       {

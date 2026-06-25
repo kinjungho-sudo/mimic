@@ -12,13 +12,15 @@ import { AnnotationPreview } from './AnnotationPreview';
 import { buildClickHighlight } from '@/lib/annotations';
 import { pixelateRegion, type BlurRegion } from '@/lib/pixelate';
 import { faviconUrl, faviconFallbackUrl, hostnameToServiceName } from '@/lib/favicon';
+import { hasGuideConfig } from '@/lib/follow';
+import { annotationsBox, fitFramingToBox } from '@/lib/framing';
 import type { FollowConfig } from '@/types';
 
 export interface ManualStep {
   id: string;
   number: number;
   actionTitle: string;
-  titleFontSize?: number | null;  // 제목 글자 크기(px). null=기본 20px
+  titleFontSize?: number | null;  // 제목 글자 크기(px). null=기본 18px
   followConfig?: FollowConfig | null;  // 라이브 가이드 설정(kind/typeText 등) — 편집기·스튜디오 공유
   description: string;       // stored as HTML string
   screenshotUrl?: string;
@@ -56,6 +58,7 @@ interface ManualEditorProps {
   onSave?: (id: string, patch: Partial<ManualStep>) => void;
   onDeleteStep?: (id: string) => void;
   onDuplicateStep?: (id: string) => void;
+  onInsertAfter?: (afterId: string) => void;
   hideToc?: boolean;
   activeId?: string | null;
   onActiveChange?: (id: string) => void;
@@ -66,13 +69,14 @@ interface ManualEditorProps {
 
 // ── ManualEditor ──────────────────────────────────────────
 
-export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicateStep, hideToc, activeId: externalActiveId, onActiveChange, selectedIds: externalSelectedIds, onSelectChange, onAddComment }: ManualEditorProps) {
+export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicateStep, onInsertAfter, hideToc, activeId: externalActiveId, onActiveChange, selectedIds: externalSelectedIds, onSelectChange, onAddComment }: ManualEditorProps) {
   const [internalActiveId, setInternalActiveId] = useState<string | null>(
     steps.length > 0 ? steps[0].id : null
   );
   const activeId = hideToc ? (externalActiveId ?? internalActiveId) : internalActiveId;
   const setActiveId = setInternalActiveId;
   const [zoomUrl, setZoomUrl] = useState<string | null>(null);
+  const [insertHoverId, setInsertHoverId] = useState<string | null>(null);
   const [annotatingId, setAnnotatingId] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
@@ -140,6 +144,25 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
 
   const updateStep = (id: string, patch: Partial<ManualStep>) =>
     onChange(steps.map(s => s.id === id ? { ...s, ...patch } : s));
+
+  const autoHydratedAnnotationIds = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const hydrated = new Map<string, Annotation[]>();
+    for (const step of steps) {
+      if ((step.annotations?.length ?? 0) > 0) continue;
+      if (autoHydratedAnnotationIds.current.has(step.id)) continue;
+      const annotations = buildInputAnnotation(step);
+      if (annotations.length > 0) hydrated.set(step.id, annotations);
+    }
+    if (hydrated.size === 0) return;
+
+    hydrated.forEach((_, stepId) => autoHydratedAnnotationIds.current.add(stepId));
+    onChange(steps.map(s => {
+      const annotations = hydrated.get(s.id);
+      return annotations ? { ...s, annotations } : s;
+    }));
+    hydrated.forEach((annotations, stepId) => onSave?.(stepId, { annotations }));
+  }, [steps, onChange, onSave]);
 
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
@@ -326,7 +349,7 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
             <div style={{ width: '1px', height: '16px', background: '#E5E7EB', margin: '0 2px' }} />
             <button
               onClick={() => {
-                if (!window.confirm(`선택한 ${selectedIds.size}개 단계를 삭제합니다. 실습하기와 Live Guide에서도 제거됩니다. 계속할까요?`)) return;
+                if (!window.confirm(`선택한 ${selectedIds.size}개 단계를 삭제합니다. 연습 가이드와 Live Guide에서도 제거됩니다. 계속할까요?`)) return;
                 const removed = steps.filter(s => selectedIds.has(s.id)).map(s => s.id);
                 const next = steps.filter(s => !selectedIds.has(s.id)).map((s, i) => ({ ...s, number: i + 1 }));
                 onChange(next); removed.forEach(id => onDeleteStep?.(id)); clearSelection();
@@ -381,13 +404,30 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
                     onRemoveImage={() => { updateStep(step.id, { screenshotUrl: undefined, annotations: [] }); onSave?.(step.id, { screenshotUrl: undefined, annotations: [] }); }}
                     onAddComment={onAddComment ? () => onAddComment(step.id) : undefined}
                   />
+                  {/* 스텝 아래 hover 시 + — 빈 단계를 바로 아래에 추가 */}
+                  {onInsertAfter && !step.id.startsWith('step-') && (
+                    <div
+                      onMouseEnter={() => setInsertHoverId(step.id)}
+                      onMouseLeave={() => setInsertHoverId(prev => (prev === step.id ? null : prev))}
+                      style={{ height: '34px', marginTop: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}
+                    >
+                      <div style={{ position: 'absolute', left: 0, right: 0, height: '1px', background: insertHoverId === step.id ? '#c7d2fe' : 'transparent', transition: 'background 0.15s' }} />
+                      <button
+                        onClick={() => onInsertAfter(step.id)}
+                        title="여기에 빈 단계 추가"
+                        style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: '5px', height: '28px', padding: '0 12px', borderRadius: '999px', border: '1px solid #c7d2fe', background: 'white', color: '#3730a3', fontSize: '12px', fontWeight: 600, cursor: 'pointer', opacity: insertHoverId === step.id ? 1 : 0, transition: 'opacity 0.15s', boxShadow: '0 1px 4px rgba(55,48,163,0.12)' }}
+                      >
+                        <Plus size={14} /> 빈 단계 추가
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))
           )}
 
-          {/* 위/아래 이동 플로팅 버튼 — fixed로 뷰포트 우하단 고정, 카드와 겹치지 않음 */}
-          <div className="editor-step-nav" style={{ position: 'fixed', bottom: '32px', right: '32px', zIndex: 20, scrollSnapAlign: 'none' }}>
+          {/* 위/아래 이동 플로팅 버튼 — 챗봇(우하단)과 겹치지 않게 왼쪽으로 비켜 배치 */}
+          <div className="editor-step-nav" style={{ position: 'fixed', bottom: '28px', right: '92px', zIndex: 20, scrollSnapAlign: 'none' }}>
             <div style={{}}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {(() => {
@@ -491,9 +531,10 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
         );
       })()}
 
-      {/* 스텝 삭제 확인 모달 — 실습하기·Live Guide에도 영향 있음을 안내 */}
+      {/* 스텝 삭제 확인 모달 — 연습 가이드/Live Guide 설정이 있으면 함께 사라짐을 경고 */}
       {pendingDeleteId && (() => {
         const step = steps.find(s => s.id === pendingDeleteId);
+        const hasGuide = hasGuideConfig(step?.followConfig);
         return (
           <div
             onClick={() => setPendingDeleteId(null)}
@@ -508,8 +549,13 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
                   {String(step.number).padStart(2, '0')}. {step.actionTitle || '(제목 없음)'}
                 </div>
               )}
+              {hasGuide && (
+                <div style={{ fontSize: '12.5px', color: '#B45309', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '8px', padding: '9px 11px', lineHeight: 1.55, marginBottom: '10px' }}>
+                  이 스텝의 <b>연습 가이드·Live Guide 설정</b>(핫스팟·말풍선·입력 텍스트 등)도 함께 삭제됩니다.
+                </div>
+              )}
               <div style={{ fontSize: '12.5px', color: '#9CA3AF', lineHeight: 1.6, marginBottom: '20px' }}>
-                이 단계를 삭제하면 실습하기와 Live Guide에서도 제거됩니다.
+                삭제 후 상단 <b>실행 취소</b>(Ctrl+Z)로 되돌릴 수 있어요.
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button onClick={() => setPendingDeleteId(null)}
@@ -531,7 +577,7 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
 
 // ── 클릭 지점 기반 annotation 자동 생성 ───────────────────
 // element_rect(0-1) 또는 click_x/y(0-100 pct) 기반으로
-// 스포트라이트(클릭 영역만 밝게) + 빨간 테두리 + 화살표 + 요약 라벨 생성
+// 빨간 테두리 + 화살표 + 요약 라벨 생성
 function buildInputAnnotation(step: ManualStep): Annotation[] {
   const labelText = step.actionTitle
     ? step.actionTitle.replace(/^입력,?\s*/i, '').trim() || '클릭'
@@ -848,7 +894,7 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
             onBlur={e => { e.currentTarget.style.background = 'transparent'; handleTitleBlur(e); }}
             placeholder="단계 제목을 입력하세요"
             style={{
-              flex: 1, fontSize: `${step.titleFontSize ?? 20}px`, fontWeight: 600, color: '#111827',
+              flex: 1, fontSize: `${step.titleFontSize ?? 18}px`, fontWeight: 600, color: '#111827',
               background: 'transparent', border: 'none', outline: 'none',
               padding: '3px 6px', margin: '0 -6px',
               lineHeight: 1.4, borderRadius: '6px', cursor: 'text',
@@ -1328,7 +1374,11 @@ function ScreenshotArea({ step, onUploadClick, onDrop, onAnnotate, onRemove, onF
   }
 
   const hasAnnotations = (step.annotations?.length ?? 0) > 0;
-  const { z: zoom, x: offX, y: offY } = view;
+  // 확대해도 어노테이션이 화면 밖으로 잘리지 않도록 표시 프레이밍 보정(저장값은 그대로, 표시만 fit)
+  const { zoom, offsetX: offX, offsetY: offY } = fitFramingToBox(
+    { zoom: view.z, offsetX: view.x, offsetY: view.y },
+    annotationsBox(step.annotations),
+  );
 
   return (
     <div

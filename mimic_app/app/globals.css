@@ -227,6 +227,13 @@ body {
   gap: 14px;
 }
 
+/* 홈 카드(섬네일) 그리드 — 한 줄 최대 3개 (YouTube 스타일) */
+.home-card-thumb-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
 /* 홈 리스트/컴팩트 뷰 */
 .home-card-list {
   display: flex;
@@ -234,11 +241,23 @@ body {
   gap: 6px;
 }
 
+/* 태블릿: 카드 2열 */
+@media (max-width: 1100px) {
+  .home-card-thumb-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+}
+
 /* 모바일: 1열 (텍스트 잘림 방지) */
 @media (max-width: 640px) {
   .home-card-grid {
     grid-template-columns: 1fr;
     gap: 8px;
+  }
+  .home-card-thumb-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
 }
 

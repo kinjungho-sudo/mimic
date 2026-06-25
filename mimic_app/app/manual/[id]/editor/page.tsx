@@ -2,14 +2,14 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Check, Undo2, Redo2, Volume2, VolumeX, Loader2, MonitorPlay, Eye, Wand2, Zap, MessageSquare, Clock, Share2, Palette } from 'lucide-react';
+import { Undo2, Redo2, Volume2, VolumeX, Loader2, Eye, Wand2, MessageSquare, Clock, Share2, Palette, Download, Check, Link2 } from 'lucide-react';
 import { GuideToc } from '@/components/editor/GuideToc';
 import { ManualEditor, ManualStep } from '@/components/editor/ManualEditor';
-import { SdkPreviewPanel } from '@/components/editor/SdkPreviewPanel';
 import { MergeModal } from '@/components/editor/MergeModal';
 import { CommentsPanel } from '@/components/editor/CommentsPanel';
 import { ActivityPanel } from '@/components/editor/ActivityPanel';
 import { ExportModal } from '@/components/editor/ExportModal';
+import { ShareModal } from '@/components/editor/ShareModal';
 import { AgentChat } from '@/components/chat/AgentChat';
 import { useTutorial } from '@/hooks/useTutorial';
 import { useAutosave } from '@/hooks/useAutosave';
@@ -19,7 +19,10 @@ import type { Collaborator } from '@/hooks/useCollaboration';
 import { updateStep, createStep, deleteStep, reorderSteps, duplicateStep } from '@/lib/api/steps';
 import { getTutorial } from '@/lib/api/tutorials';
 import { logError } from '@/lib/logging/logger';
+import { hasGuideConfig } from '@/lib/follow';
 import type { Step, Tutorial } from '@/types';
+
+const TOP_BAR_ICON_SIZE = 14;
 
 // ── Adapters ──────────────────────────────────────────────
 
@@ -35,10 +38,10 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
   return steps.map(s => ({
     id: s.id,
     number: s.step_number,
-    actionTitle: s.user_title ?? s.ai_title ?? '',
+    actionTitle: s.user_title || s.ai_title || '',
     titleFontSize: (s as Step & { title_font_size?: number | null }).title_font_size ?? null,
     followConfig: (s as Step & { follow_config?: import('@/types').FollowConfig | null }).follow_config ?? null,
-    description: s.user_script ?? s.ai_description ?? '',
+    description: s.user_script || s.ai_description || '',
     screenshotUrl: s.screenshot_url || undefined,
     originalScreenshotUrl: (s as Step & { original_screenshot_url?: string | null }).original_screenshot_url ?? null,
     annotations: (s.user_annotations as import('@/components/editor/ImageAnnotationEditor').Annotation[] | null) ?? [],
@@ -77,7 +80,7 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
 export default function EditorPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { tutorial, loading, error } = useTutorial(id);
+  const { tutorial, loading, error, publish, unpublish } = useTutorial(id);
   const { user } = useAuth();
 
   const [title, setTitle] = useState('');
@@ -88,11 +91,13 @@ export default function EditorPage() {
   const [bulkColorOpen, setBulkColorOpen] = useState(false);
   // 녹화 직후 진입 — 스텝 생성 대기 폴링
   const [pollingState, setPollingState] = useState<'idle' | 'polling' | 'timeout'>('idle');
-  const [saving, setSaving] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [showActivity, setShowActivity] = useState(false);
   const [showExport, setShowExport] = useState(false);
+  const [showShare, setShowShare] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [downloadOpen, setDownloadOpen] = useState(false);
+  const [downloadingFmt, setDownloadingFmt] = useState<'pdf' | 'pptx' | 'docx' | null>(null);
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const [ttsVoice, setTtsVoice] = useState<'nova' | 'alloy'>('nova');
   const [ttsGenerating, setTtsGenerating] = useState(false);
@@ -203,32 +208,27 @@ export default function EditorPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [manualSteps]);
 
-  const handleGuideMe = useCallback(() => {
-    const extensionId = process.env.NEXT_PUBLIC_EXTENSION_ID?.replace(/^﻿/, '').trim();
-    if (!extensionId) {
-      alert('라이브 가이드를 사용하려면 MIMIC 확장프로그램을 설치해주세요.');
-      return;
-    }
-    const shareToken = (tutorial as Tutorial & { share_token?: string | null })?.share_token;
-    if (!shareToken) {
-      alert('먼저 게시(Publish) 후 라이브 가이드를 사용할 수 있습니다.');
-      return;
-    }
+  const handleDownload = useCallback(async (fmt: 'pdf' | 'pptx' | 'docx') => {
+    setDownloadingFmt(fmt);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (window as any).chrome?.runtime?.sendMessage(
-        extensionId,
-        { action: 'START_GUIDE', share_token: shareToken },
-        (response: { ok?: boolean } | undefined) => {
-          if (!response?.ok) {
-            alert('확장프로그램이 응답하지 않습니다. 설치 여부를 확인해주세요.');
-          }
-        }
-      );
-    } catch {
-      alert('라이브 가이드를 시작할 수 없습니다. 확장프로그램을 설치해주세요.');
+      const res = await fetch(`/api/export/${fmt}/${id}`);
+      if (!res.ok) { alert('다운로드 실패. 스텝이 없거나 오류가 발생했습니다.'); return; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const cd = res.headers.get('content-disposition') ?? '';
+      const utf8Match = cd.match(/filename\*=UTF-8''([^;]+)/i);
+      const asciiMatch = cd.match(/filename="([^"]+)"/i);
+      a.download = utf8Match ? decodeURIComponent(utf8Match[1]) : (asciiMatch?.[1] ?? `${title || 'manual'}.${fmt}`);
+      a.click();
+      URL.revokeObjectURL(url);
+      setDownloadOpen(false);
+    } finally {
+      setDownloadingFmt(null);
     }
-  }, [tutorial]);
+  }, [id, title]);
+
 
   // Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y shortcuts
   useEffect(() => {
@@ -308,7 +308,7 @@ export default function EditorPage() {
     if (user?.plan === 'free' || user?.plan === 'pro_waitlist') return;
     const empty = tutorial.steps.filter(s =>
       !s.id.startsWith('step-') &&
-      !(s.user_script ?? s.ai_description ?? '').trim()
+      !(s.user_script || s.ai_description || '').trim()
     );
     if (empty.length === 0) return;
 
@@ -426,33 +426,6 @@ export default function EditorPage() {
     }
   }, [manualSteps, ttsVoice]);
 
-  const handleSave = useCallback(async (): Promise<boolean> => {
-    setSaving(true);
-    try {
-      const results = await Promise.all(
-        manualSteps
-          .filter(s => !s.id.startsWith('step-'))
-          .map(s => {
-            clearTimeout(stepSaveTimers.current[s.id]);
-            return updateStep(s.id, {
-              user_title: s.actionTitle || null,
-              user_script: s.description || null,
-              user_annotations: s.annotations ?? [],
-            }).then(() => true).catch(() => false);
-          })
-      );
-      const allOk = results.every(r => r);
-      if (!allOk) {
-        logError('step.bulkSave.fail', { tutorialId: id, failed: results.filter(r => !r).length, total: results.length });
-        alert('일부 단계를 저장하지 못했습니다. 네트워크 연결을 확인 후 다시 시도해 주세요.');
-        return false;
-      }
-      return true;
-    } finally {
-      setSaving(false);
-    }
-  }, [manualSteps]);
-
   const performDeleteStep = useCallback((stepId: string) => {
     const next = manualSteps.filter(s => s.id !== stepId).map((s, i) => ({ ...s, number: i + 1 }));
     setManualStepsWithHistory(next);
@@ -524,19 +497,16 @@ export default function EditorPage() {
       await updateStep(srcId, { user_title: src.actionTitle || null, user_script: src.description || null });
       const created = await duplicateStep(srcId);
       // 서버가 DB 전체를 복사 → 로컬은 소스 콘텐츠 그대로 복제하고 실제 id만 부여
-      setManualSteps(prev => {
-        const i = prev.findIndex(s => s.id === srcId);
-        if (i < 0) return prev;
-        const copy: ManualStep = { ...prev[i], id: created.id };
-        const next = [...prev.slice(0, i + 1), copy, ...prev.slice(i + 1)];
-        return next.map((s, n) => ({ ...s, number: n + 1 }));
-      });
+      const i = manualSteps.findIndex(s => s.id === srcId);
+      const copy: ManualStep = { ...manualSteps[i], id: created.id };
+      const next = [...manualSteps.slice(0, i + 1), copy, ...manualSteps.slice(i + 1)].map((s, n) => ({ ...s, number: n + 1 }));
+      setManualStepsWithHistory(next);
       setActiveId(created.id);
     } catch (e) {
       logError('step.duplicate.fail', { tutorialId: id, stepId: srcId, message: e instanceof Error ? e.message : String(e) });
       alert('단계를 복제하지 못했습니다. 네트워크 연결을 확인 후 다시 시도해 주세요.');
     }
-  }, [manualSteps, id]);
+  }, [manualSteps, id, setManualStepsWithHistory]);
 
   const handleImportSteps = useCallback(async (sourceTutorialId: string, stepIds: string[]) => {
     const res = await fetch(`/api/tutorials/${id}/import-steps`, {
@@ -620,8 +590,8 @@ export default function EditorPage() {
         {/* Left: back button + page label */}
         <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '10px', paddingRight: '16px', borderRight: '1px solid #F3F4F6' }}>
           <button
-            onClick={() => router.push(`/manual/${id}`)}
-            title="매뉴얼로 돌아가기"
+            onClick={() => router.push('/home')}
+            title="홈으로 돌아가기"
             style={{
               width: '32px', height: '32px', borderRadius: '8px',
               border: '1px solid #E5E7EB', background: 'white',
@@ -689,29 +659,23 @@ export default function EditorPage() {
 
           {/* 편집기 — 항상 편집 모드 */}
           <>
-            {/* 미리보기 — 매뉴얼 뷰어를 새 탭에서 (편집 화면과 동일하게 보임) */}
-            <button
-              onClick={() => window.open(`/manual/${id}`, '_blank')}
-              title="매뉴얼 뷰어로 미리보기 (새 탭)"
-              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', cursor: 'pointer', transition: 'all 0.15s' }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#F9FAFB'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
-            >
-              <Eye size={14} />
-              미리보기
-            </button>
-
-            {/* SDK 툴팁 미리보기 토글 (Live Guide 오버레이 렌더 미리보기) */}
-            <button
-              onClick={() => setShowPreview(v => !v)}
-              title="SDK 툴팁 미리보기"
-              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: showPreview ? '#4F46E5' : '#374151', background: showPreview ? 'rgba(79,70,229,0.08)' : 'white', border: `1px solid ${showPreview ? '#4F46E5' : '#E5E7EB'}`, cursor: 'pointer', transition: 'all 0.15s', fontWeight: showPreview ? 600 : 400 }}
-              onMouseEnter={e => { if (!showPreview) e.currentTarget.style.background = '#F9FAFB'; }}
-              onMouseLeave={e => { if (!showPreview) e.currentTarget.style.background = 'white'; }}
-            >
-              <MonitorPlay size={13} />
-              SDK 미리보기
-            </button>
+            {/* 미리보기 — 게시된 공개 뷰어 새 탭 */}
+            {(() => {
+              const shareToken = (tutorial as Tutorial & { share_token?: string | null })?.share_token;
+              return (
+                <button
+                  onClick={() => { if (shareToken) window.open(`/play/${shareToken}`, '_blank'); }}
+                  title={shareToken ? '공개 뷰어로 미리보기 (새 탭)' : '게시 후 미리보기 가능'}
+                  disabled={!shareToken}
+                  style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: shareToken ? '#374151' : '#D1D5DB', background: 'white', border: '1px solid #E5E7EB', cursor: shareToken ? 'pointer' : 'not-allowed', transition: 'all 0.15s' }}
+                  onMouseEnter={e => { if (shareToken) e.currentTarget.style.background = '#F9FAFB'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
+                >
+                  <Eye size={TOP_BAR_ICON_SIZE} />
+                  미리보기
+                </button>
+              );
+            })()}
 
             {/* 댓글 패널 토글 — 팀 협업 의견 공유 */}
             <button
@@ -721,7 +685,7 @@ export default function EditorPage() {
               onMouseEnter={e => { if (!showComments) e.currentTarget.style.background = '#F9FAFB'; }}
               onMouseLeave={e => { if (!showComments) e.currentTarget.style.background = 'white'; }}
             >
-              <MessageSquare size={13} />
+              <MessageSquare size={TOP_BAR_ICON_SIZE} />
               댓글
             </button>
 
@@ -733,38 +697,55 @@ export default function EditorPage() {
               onMouseEnter={e => { if (!showActivity) e.currentTarget.style.background = '#F9FAFB'; }}
               onMouseLeave={e => { if (!showActivity) e.currentTarget.style.background = 'white'; }}
             >
-              <Clock size={13} />
-              활동 기록
+              <Clock size={TOP_BAR_ICON_SIZE} />
+              기록
             </button>
 
-            {/* 내보내기 — 사람 초대(권한 부여) */}
+            {/* 다운로드 — PDF / PPTX / Word */}
+            <div style={{ position: 'relative' }}>
+              <button onClick={() => setDownloadOpen(o => !o)} disabled={!!downloadingFmt}
+                title="다운로드 (PDF · PPTX · Word)"
+                style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#374151', background: downloadOpen ? '#F3F4F6' : 'white', border: '1px solid #E5E7EB', cursor: downloadingFmt ? 'not-allowed' : 'pointer', opacity: downloadingFmt ? 0.6 : 1, transition: 'all 0.15s' }}
+                onMouseEnter={e => { if (!downloadingFmt && !downloadOpen) e.currentTarget.style.background = '#F9FAFB'; }}
+                onMouseLeave={e => { if (!downloadOpen) e.currentTarget.style.background = 'white'; }}>
+                <Download size={TOP_BAR_ICON_SIZE} />
+                {downloadingFmt ? '생성 중…' : '다운로드'}
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              {downloadOpen && (
+                <>
+                  <div onClick={() => setDownloadOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
+                  <div style={{ position: 'absolute', top: '38px', right: 0, zIndex: 41, background: 'white', border: '1px solid #E5E7EB', borderRadius: '10px', padding: '5px', minWidth: '180px', boxShadow: '0 8px 24px rgba(0,0,0,0.12)' }}>
+                    {([
+                      { fmt: 'pdf' as const, label: 'PDF 문서', desc: '.pdf' },
+                      { fmt: 'pptx' as const, label: 'PowerPoint', desc: '.pptx' },
+                      { fmt: 'docx' as const, label: 'Word 문서', desc: '.docx' },
+                    ]).map(opt => (
+                      <button key={opt.fmt} onClick={() => handleDownload(opt.fmt)} disabled={!!downloadingFmt}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 10px', border: 'none', borderRadius: '6px', background: 'transparent', cursor: downloadingFmt ? 'not-allowed' : 'pointer', textAlign: 'left', fontSize: '12.5px', color: '#374151' }}
+                        onMouseEnter={e => { if (!downloadingFmt) e.currentTarget.style.background = '#F3F4F6'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
+                        <Download size={15} style={{ color: '#9CA3AF', flexShrink: 0 }} />
+                        <span style={{ flex: 1, fontWeight: 500 }}>{opt.label}</span>
+                        <span style={{ fontSize: '11px', color: '#9CA3AF' }}>{downloadingFmt === opt.fmt ? '생성 중…' : opt.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* 초대 — 이메일로 협업자 초대 */}
             <button
               onClick={() => setShowExport(true)}
-              title="내보내기 — 다른 사람을 초대해 권한 부여"
+              title="이메일로 협업자 초대"
               style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', cursor: 'pointer', transition: 'all 0.15s' }}
               onMouseEnter={e => { e.currentTarget.style.background = '#F9FAFB'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
             >
-              <Share2 size={13} />
-              내보내기
+              <Share2 size={TOP_BAR_ICON_SIZE} />
+              초대
             </button>
-
-            {/* 라이브 가이드 — 확장프로그램으로 실제 화면 오버레이 가이드 시작 */}
-            {(() => {
-              const shareToken = (tutorial as Tutorial & { share_token?: string | null })?.share_token;
-              return (
-                <button
-                  onClick={handleGuideMe}
-                  title={shareToken ? '라이브 가이드 시작 — 실제 화면에서 오버레이 가이드' : '게시 후 사용 가능'}
-                  style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: shareToken ? '#374151' : '#D1D5DB', background: 'white', border: '1px solid #E5E7EB', cursor: shareToken ? 'pointer' : 'not-allowed', transition: 'all 0.15s' }}
-                  onMouseEnter={e => { if (shareToken) e.currentTarget.style.background = '#F9FAFB'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
-                >
-                  <Zap size={13} />
-                  라이브 가이드
-                </button>
-              );
-            })()}
 
             <button
               onClick={handleUndo}
@@ -774,7 +755,7 @@ export default function EditorPage() {
               onMouseEnter={e => { if (canUndo) e.currentTarget.style.background = '#F9FAFB'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
             >
-              <Undo2 size={13} /> 실행 취소
+              <Undo2 size={TOP_BAR_ICON_SIZE} /> 실행 취소
             </button>
             <button
               onClick={handleRedo}
@@ -784,17 +765,47 @@ export default function EditorPage() {
               onMouseEnter={e => { if (canRedo) e.currentTarget.style.background = '#F9FAFB'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
             >
-              <Redo2 size={13} /> 다시 실행
+              <Redo2 size={TOP_BAR_ICON_SIZE} /> 다시 실행
             </button>
+
+            {/* 공유 — 게시 후에만. ShareModal(링크 복사·공개범위·임베드) */}
             <button
-              onClick={async () => { const ok = await handleSave(); if (ok) router.push(`/manual/${id}`); }}
-              disabled={saving}
-              style={{ height: '32px', padding: '0 16px', borderRadius: '7px', fontSize: '12.5px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'white', background: saving ? 'rgba(55,48,163,0.6)' : 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', border: 'none', cursor: saving ? 'not-allowed' : 'pointer', boxShadow: '0 1px 6px rgba(55,48,163,0.3)', transition: 'box-shadow 0.15s' }}
-              onMouseEnter={e => { if (!saving) e.currentTarget.style.boxShadow = '0 4px 14px rgba(55,48,163,0.45)'; }}
-              onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 6px rgba(55,48,163,0.3)'; }}
+              onClick={() => setShowShare(true)}
+              disabled={tutorial.status !== 'published'}
+              title={tutorial.status === 'published' ? '공유 링크·공개 범위 설정' : '게시 후 공유할 수 있어요'}
+              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: tutorial.status === 'published' ? '#374151' : '#D1D5DB', background: 'white', border: '1px solid #E5E7EB', cursor: tutorial.status === 'published' ? 'pointer' : 'not-allowed', transition: 'all 0.15s' }}
+              onMouseEnter={e => { if (tutorial.status === 'published') e.currentTarget.style.background = '#F9FAFB'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
             >
-              {saving ? '저장 중…' : <><Check size={13} /> 편집 완료</>}
+              <Link2 size={TOP_BAR_ICON_SIZE} /> 공유
             </button>
+
+            {/* 게시 — 누르면 즉시 Publish. 게시되면 '게시됨' 표시(공유는 옆 버튼에서) */}
+            {tutorial.status === 'published' ? (
+              <span
+                title="게시됨 — 공유는 '공유' 버튼에서, 게시 취소는 공유 창에서"
+                style={{ height: '32px', padding: '0 14px', borderRadius: '7px', fontSize: '12.5px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#059669', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.35)' }}
+              >
+                <Check size={TOP_BAR_ICON_SIZE} /> 게시됨
+              </span>
+            ) : (
+              <button
+                onClick={async () => {
+                  setPublishing(true);
+                  try { await publish(); }
+                  catch { alert('게시에 실패했습니다. 다시 시도해주세요.'); }
+                  finally { setPublishing(false); }
+                }}
+                disabled={publishing}
+                title="외부에 공유 가능한 상태로 게시합니다"
+                style={{ height: '32px', padding: '0 16px', borderRadius: '7px', fontSize: '12.5px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'white', background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', border: 'none', cursor: publishing ? 'not-allowed' : 'pointer', boxShadow: '0 1px 6px rgba(55,48,163,0.3)', opacity: publishing ? 0.7 : 1, transition: 'box-shadow 0.15s' }}
+                onMouseEnter={e => { if (!publishing) e.currentTarget.style.boxShadow = '0 4px 14px rgba(55,48,163,0.45)'; }}
+                onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 6px rgba(55,48,163,0.3)'; }}
+              >
+                {publishing ? <Loader2 size={TOP_BAR_ICON_SIZE} style={{ animation: 'spin 1s linear infinite' }} /> : <Share2 size={TOP_BAR_ICON_SIZE} />}
+                {publishing ? '게시 중…' : '게시'}
+              </button>
+            )}
           </>
           </div>
         </div>
@@ -910,7 +921,7 @@ export default function EditorPage() {
               onChange={e => { setTitle(e.target.value); setTitleDirty(true); }}
               placeholder="매뉴얼 제목"
               style={{
-                flex: 1, fontSize: '14px', fontWeight: 600, color: '#111827',
+                flex: 1, fontSize: '20px', fontWeight: 600, color: '#111827',
                 background: 'transparent', border: 'none', outline: 'none',
                 fontFamily: 'inherit', cursor: 'text', minWidth: 0,
               }}
@@ -922,7 +933,7 @@ export default function EditorPage() {
                 title="모든 스텝의 강조 테두리·글자색을 한 번에 변경"
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', height: '28px', padding: '0 10px', borderRadius: '6px', border: `1px solid ${bulkColorOpen ? '#6d28d9' : '#E5E7EB'}`, background: bulkColorOpen ? 'rgba(109,40,217,0.07)' : 'white', color: '#6d28d9', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}
               >
-                <Palette size={13} /> 전체 색상
+                <Palette size={TOP_BAR_ICON_SIZE} /> 전체 색상
               </button>
               {bulkColorOpen && (
                 <>
@@ -950,7 +961,7 @@ export default function EditorPage() {
               title="AI로 모든 스텝의 설명 문장을 매뉴얼 톤으로 다듬기"
               style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', flexShrink: 0, height: '28px', padding: '0 10px', borderRadius: '6px', border: '1px solid #E5E7EB', background: 'white', color: '#6d28d9', fontSize: '12px', fontWeight: 500, cursor: refiningText ? 'not-allowed' : 'pointer', opacity: refiningText ? 0.65 : 1, transition: 'all 0.15s' }}
             >
-              {refiningText ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Wand2 size={12} />}
+              {refiningText ? <Loader2 size={TOP_BAR_ICON_SIZE} style={{ animation: 'spin 1s linear infinite' }} /> : <Wand2 size={TOP_BAR_ICON_SIZE} />}
               전체 문장 다듬기
             </button>
             {/* TTS 설정 — 튜토리얼 단위 ON/OFF */}
@@ -960,7 +971,7 @@ export default function EditorPage() {
                 title={ttsEnabled ? 'AI 음성 끄기' : 'AI 음성 켜기'}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', height: '28px', padding: '0 10px', borderRadius: '6px', border: `1px solid ${ttsEnabled ? '#6d28d9' : '#E5E7EB'}`, background: ttsEnabled ? 'rgba(109,40,217,0.07)' : 'white', color: ttsEnabled ? '#6d28d9' : '#9CA3AF', fontSize: '12px', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s' }}
               >
-                {ttsEnabled ? <Volume2 size={13} /> : <VolumeX size={13} />}
+                {ttsEnabled ? <Volume2 size={TOP_BAR_ICON_SIZE} /> : <VolumeX size={TOP_BAR_ICON_SIZE} />}
                 AI 음성
               </button>
               {ttsEnabled && (
@@ -979,7 +990,7 @@ export default function EditorPage() {
                     title="전체 스텝 음성 생성"
                     style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', height: '28px', padding: '0 10px', borderRadius: '6px', border: '1px solid #6d28d9', background: '#6d28d9', color: 'white', fontSize: '11.5px', fontWeight: 500, cursor: ttsGenerating ? 'not-allowed' : 'pointer', opacity: ttsGenerating ? 0.65 : 1, transition: 'all 0.15s' }}
                   >
-                    {ttsGenerating ? <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> : <Volume2 size={11} />}
+                    {ttsGenerating ? <Loader2 size={TOP_BAR_ICON_SIZE} style={{ animation: 'spin 1s linear infinite' }} /> : <Volume2 size={TOP_BAR_ICON_SIZE} />}
                     {ttsGenerating ? '생성 중…' : '전체 생성'}
                   </button>
                 </>
@@ -988,7 +999,7 @@ export default function EditorPage() {
             {/* AI 자동 생성 진행 인디케이터 */}
             {autoGenProgress && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, fontSize: '11.5px', color: '#6d28d9' }}>
-                <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} />
+                <Loader2 size={TOP_BAR_ICON_SIZE} style={{ animation: 'spin 1s linear infinite' }} />
                 <span>AI 작성 중 {autoGenProgress.done}/{autoGenProgress.total}</span>
               </div>
             )}
@@ -1031,6 +1042,7 @@ export default function EditorPage() {
               });
             }}
             onDuplicateStep={handleDuplicateStep}
+            onInsertAfter={handleInsertAfter}
             onAddComment={(stepId) => {
               setActiveId(stepId);
               setShowComments(true);
@@ -1055,13 +1067,6 @@ export default function EditorPage() {
               }).catch((e) => logError('step.save.fail', { tutorialId: id, stepId, message: e instanceof Error ? e.message : String(e) }));
             }}
           />
-          {showPreview && (
-            <SdkPreviewPanel
-              steps={manualSteps}
-              activeId={activeId}
-              onClose={() => setShowPreview(false)}
-            />
-          )}
           {showComments && (
             <CommentsPanel
               tutorialId={id}
@@ -1116,10 +1121,24 @@ export default function EditorPage() {
           onClose={() => setShowExport(false)}
         />
       )}
+      {showShare && tutorial && (
+        <ShareModal
+          title={title}
+          shareToken={(tutorial as Tutorial & { share_token?: string | null }).share_token ?? null}
+          shareUrl={(tutorial as Tutorial & { share_token?: string | null }).share_token ? `${typeof window !== 'undefined' ? window.location.origin : ''}/play/${(tutorial as Tutorial & { share_token?: string | null }).share_token}` : null}
+          tutorialId={id}
+          hasPassword={!!(tutorial as Tutorial & { share_password?: string | null }).share_password}
+          visibility={(tutorial as Tutorial & { visibility?: 'private' | 'public' }).visibility}
+          onPublishAndShare={publish}
+          onUnpublish={unpublish}
+          onClose={() => setShowShare(false)}
+        />
+      )}
 
       {/* 스텝 삭제 확인 모달 (GuideToc 경로) */}
       {pendingDeleteId && (() => {
         const step = manualSteps.find(s => s.id === pendingDeleteId);
+        const hasGuide = hasGuideConfig(step?.followConfig);
         return (
           <div
             onClick={() => setPendingDeleteId(null)}
@@ -1134,8 +1153,13 @@ export default function EditorPage() {
                   {String(step.number).padStart(2, '0')}. {step.actionTitle || '(제목 없음)'}
                 </div>
               )}
+              {hasGuide && (
+                <div style={{ fontSize: '12.5px', color: '#B45309', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '8px', padding: '9px 11px', lineHeight: 1.55, marginBottom: '10px' }}>
+                  이 스텝의 <b>연습 가이드·Live Guide 설정</b>(핫스팟·말풍선·입력 텍스트 등)도 함께 삭제됩니다.
+                </div>
+              )}
               <div style={{ fontSize: '12.5px', color: '#9CA3AF', lineHeight: 1.6, marginBottom: '20px' }}>
-                이 단계를 삭제하면 실습하기와 Live Guide에서도 제거됩니다.
+                삭제 후 상단 <b>실행 취소</b>(Ctrl+Z)로 되돌릴 수 있어요.
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button onClick={() => setPendingDeleteId(null)}

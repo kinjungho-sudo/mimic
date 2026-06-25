@@ -78,8 +78,8 @@ export async function GET(_request: NextRequest, { params }: Params) {
     for (const t of allowed) {
       const steps = (stepsByTutorial.get(t.id) ?? []).map(s => ({
         step_number: s.step_number,
-        title: s.user_title ?? s.ai_title ?? '',
-        caption: s.user_script ?? s.ai_description ?? '',
+        title: s.user_title || s.ai_title || '',
+        caption: s.user_script || s.ai_description || '',
         screenshot_url: s.screenshot_url,
         annotations: s.user_annotations ?? [],
       }));

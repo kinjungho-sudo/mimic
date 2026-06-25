@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Session not found' }, { status: 404 });
   }
   // 이미 매뉴얼로 변환된 세션은 건드리지 않는다 (mm_steps가 이미지를 참조 중)
-  if (session.status === 'completed') {
+  if (session.status !== 'active') {
     return NextResponse.json({ error: 'Session already finalized' }, { status: 409 });
   }
 
@@ -49,10 +49,13 @@ export async function POST(request: NextRequest) {
     await supabase.storage.from(BUCKET).remove(files.map(f => `${session_id}/${f.name}`));
   }
   await supabase.from('mm_capture_events').delete().eq('session_id', session_id);
-  await supabase
+  const { error: updateError } = await supabase
     .from('mm_capture_sessions')
-    .update({ status: 'abandoned', ended_at: new Date().toISOString() })
+    .update({ status: 'cancelled', ended_at: new Date().toISOString() })
     .eq('id', session_id);
+  if (updateError) {
+    return NextResponse.json({ error: 'Failed to discard session' }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true });
 }

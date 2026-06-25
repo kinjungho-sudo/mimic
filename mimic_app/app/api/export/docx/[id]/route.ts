@@ -4,6 +4,11 @@ import { guardTutorialAccess } from '@/lib/auth/workspace-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { assertStorageUrl } from '@/lib/validate-storage-url';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, ImageRun, AlignmentType } from 'docx';
+import { readFile } from 'fs/promises';
+import path from 'path';
+import { Resvg } from '@resvg/resvg-js';
+import { buildAnnotatedSvg } from '@/lib/export/annotate-svg';
+import type { ExportAnnotation } from '@/lib/export/annotations-shared';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -47,11 +52,21 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   const { data: steps } = await supabase
     .from('mm_steps')
-    .select('step_number, screenshot_url, user_title, ai_title, user_script, ai_description')
+    .select('step_number, screenshot_url, user_title, ai_title, user_script, ai_description, user_annotations')
     .eq('tutorial_id', id)
     .order('step_number');
 
   if (!steps?.length) return NextResponse.json({ error: 'No steps' }, { status: 422 });
+
+  // 어노테이션을 이미지에 굽기 위한 한글 폰트(PDF 내보내기와 동일 폰트). 실패 시 어노테이션 없이 원본만.
+  const fontFiles = await (async (): Promise<string[] | null> => {
+    try {
+      const dir = path.join(process.cwd(), 'public', 'fonts');
+      const files = [path.join(dir, 'NotoSansKR-Regular.ttf'), path.join(dir, 'NotoSansKR-Bold.ttf')];
+      await Promise.all(files.map(f => readFile(f))); // 존재 확인
+      return files;
+    } catch { return null; }
+  })();
 
   const { data: branding } = await supabase
     .from('mm_branding')
@@ -95,10 +110,28 @@ export async function GET(request: NextRequest, { params }: Params) {
         const ratio = dim && dim.w > 0 ? dim.h / dim.w : 9 / 16;
         const w = MAX_W;
         const h = Math.round(MAX_W * ratio);
+
+        // 어노테이션이 있으면 이미지에 합성(굽기) — Word는 PDF/PPTX처럼 벡터 오버레이가 불가하므로
+        // SVG로 합성 후 resvg로 PNG 래스터화한다(좌표 규칙은 뷰어와 동일).
+        let imgData: Buffer = buf;
+        let imgType: 'png' | 'jpg' = isPng ? 'png' : 'jpg';
+        const annos = (step.user_annotations as ExportAnnotation[] | null) ?? null;
+        if (annos?.length && dim && dim.w > 0 && dim.h > 0 && fontFiles) {
+          try {
+            const dataUri = `data:image/${isPng ? 'png' : 'jpeg'};base64,${buf.toString('base64')}`;
+            const svg = buildAnnotatedSvg(dataUri, dim.w, dim.h, annos);
+            const png = new Resvg(svg, {
+              font: { fontFiles, defaultFontFamily: 'Noto Sans KR', loadSystemFonts: false },
+            }).render().asPng();
+            imgData = Buffer.from(png);
+            imgType = 'png';
+          } catch { /* 합성 실패 시 원본 이미지로 폴백 */ }
+        }
+
         children.push(new Paragraph({
           children: [new ImageRun({
-            data: buf,
-            type: isPng ? 'png' : 'jpg',
+            data: imgData,
+            type: imgType,
             transformation: { width: w, height: h },
           })],
           spacing: { after: 200 },
@@ -122,7 +155,7 @@ export async function GET(request: NextRequest, { params }: Params) {
   const dateStr = new Date().toLocaleDateString('ko-KR', {
     year: '2-digit', month: '2-digit', day: '2-digit', timeZone: 'Asia/Seoul',
   }).replace(/\. /g, '_').replace(/\.$/, '');
-  const filenameRaw = `${safeTitle}_${dateStr}.docx`;
+  const filenameRaw = `${dateStr}_${safeTitle}.docx`;
   const filenameAscii = filenameRaw.replace(/[^\x00-\x7F]/g, '_').replace(/_+/g, '_');
   const filenameEncoded = encodeURIComponent(filenameRaw);
 

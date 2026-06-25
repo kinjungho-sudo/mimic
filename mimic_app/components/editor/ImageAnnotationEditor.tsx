@@ -197,10 +197,6 @@ export function ImageAnnotationEditor({
   const onPixelateRef = useRef(onPixelate);
   onPixelateRef.current = onPixelate;
   const [blurProcessing, setBlurProcessing] = useState(false);
-  const [canvasZoom, setCanvasZoom] = useState(1);
-  const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
-  const [isPanning, setIsPanning] = useState(false);
-  const panRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
   const [canAnnotUndo, setCanAnnotUndo] = useState(false);
   const [canAnnotRedo, setCanAnnotRedo] = useState(false);
   const [savedDefaults] = useState<Partial<ToolDefaults>>(loadDefaults);
@@ -522,26 +518,6 @@ export function ImageAnnotationEditor({
     window.addEventListener('mouseup', up);
     return () => window.removeEventListener('mouseup', up);
   }, [drawing, finishDrawing]);
-
-  // 중간 마우스 버튼(휠 클릭) 패닝
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!panRef.current) return;
-      setCanvasOffset({
-        x: panRef.current.origX + (e.clientX - panRef.current.startX),
-        y: panRef.current.origY + (e.clientY - panRef.current.startY),
-      });
-    };
-    const handleMouseUp = (e: MouseEvent) => {
-      if (e.button === 1) { panRef.current = null; setIsPanning(false); }
-    };
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, []);
 
   // startDrag: spotlight도 포함 (select tool 기반)
   const startDrag = useCallback((e: React.MouseEvent, id: string, handle: Handle | null) => {
@@ -871,12 +847,6 @@ export function ImageAnnotationEditor({
               ><Trash2 size={11} /> 삭제</button>
             )}
 
-            {(canvasZoom !== 1 || canvasOffset.x !== 0 || canvasOffset.y !== 0) && (
-              <button onClick={() => { setCanvasZoom(1); setCanvasOffset({ x: 0, y: 0 }); }}
-                style={{ height: '32px', padding: '0 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)', fontSize: '11.5px', cursor: 'pointer' }}
-              >{Math.round(canvasZoom * 100)}% 초기화</button>
-            )}
-
             <div style={{ width: '1px', height: '22px', background: 'rgba(255,255,255,0.12)', margin: '0 4px' }} />
 
             <button onClick={onClose}
@@ -988,23 +958,11 @@ export function ImageAnnotationEditor({
 
         {/* ── Canvas wrapper ── */}
         <div
-          style={{ overflow: 'hidden', flex: '1 1 0', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: isPanning ? 'grabbing' : activeCursor }}
-          onWheel={(e) => {
-            if (selectedId) return;
-            e.preventDefault();
-            setCanvasZoom(z => Math.max(0.5, Math.min(3, z + (e.deltaY < 0 ? 0.1 : -0.1))));
-          }}
-          onMouseDown={(e) => {
-            if (e.button === 1) {
-              e.preventDefault();
-              panRef.current = { startX: e.clientX, startY: e.clientY, origX: canvasOffset.x, origY: canvasOffset.y };
-              setIsPanning(true);
-            }
-          }}
+          style={{ overflow: 'hidden', flex: '1 1 0', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: activeCursor }}
         >
         {/* ── Canvas ── */}
         <div
-          style={{ position: 'relative', display: 'inline-block', lineHeight: 0, flexShrink: 0, cursor: activeCursor, transform: (canvasZoom !== 1 || canvasOffset.x !== 0 || canvasOffset.y !== 0) ? `translate(${canvasOffset.x}px, ${canvasOffset.y}px) scale(${canvasZoom})` : undefined, transformOrigin: 'center center' }}
+          style={{ position: 'relative', display: 'inline-block', lineHeight: 0, flexShrink: 0, cursor: activeCursor }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
@@ -1119,8 +1077,10 @@ export function ImageAnnotationEditor({
                 onMouseDown={e => e.stopPropagation()}
                 style={{
                   position: 'absolute',
-                  left: `${Math.min(editingItem.x1, editingItem.x2)}%`,
+                  // 렌더 박스와 동일하게 그림 영역 가로 중심 기준으로 배치(translateX로 중앙 정렬)
+                  left: `${(Math.min(editingItem.x1, editingItem.x2) + Math.max(editingItem.x1, editingItem.x2)) / 2}%`,
                   top: `${Math.min(editingItem.y1, editingItem.y2)}%`,
+                  transform: 'translateX(-50%)',
                   width: boxW > 2 ? `${boxW}%` : '80px',
                   minHeight: boxH > 1 ? `${boxH}%` : '24px',
                   padding: '4px 8px',
@@ -1448,7 +1408,9 @@ function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx
     const lineH = fSize * 1.4;
     const boxW = estimateTextW(text, fSize) + 2 * padX;
     const boxH = lines.length * lineH + 2 * padY;
-    const cx = minX + boxW / 2;
+    // 그림 영역(x1~x2)의 가로 중심을 기준으로 박스를 배치 — 뷰어(AnnotationPreview)·PDF·PPTX·DOCX와 동일 규칙
+    const cx = (ax1 + ax2) / 2;
+    const boxX = cx - boxW / 2;
     const bgFill = bg ? 'rgba(10,10,15,0.92)' : 'transparent';
     const strokeColor = bColor !== 'transparent' ? bColor : 'none';
 
@@ -1458,7 +1420,7 @@ function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx
         onDoubleClick={e => { e.stopPropagation(); onBodyDblClick?.(); }}
       >
         {bg && (
-          <rect x={minX} y={minY} width={boxW} height={boxH}
+          <rect x={boxX} y={minY} width={boxW} height={boxH}
             fill={bgFill}
             stroke={strokeColor}
             strokeWidth={strokeColor !== 'none' ? 1.5 : 0}
@@ -1475,7 +1437,7 @@ function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx
           >{line}</text>
         ))}
         {isSelected && onHandleMouseDown && (
-          <SelectionHandles minX={minX} minY={minY} w={boxW} h={boxH} onHandle={handleHandle} />
+          <SelectionHandles minX={boxX} minY={minY} w={boxW} h={boxH} onHandle={handleHandle} />
         )}
       </g>
     );

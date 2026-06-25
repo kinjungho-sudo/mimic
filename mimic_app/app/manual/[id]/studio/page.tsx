@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Play, Check, Loader2, MousePointerClick, Type, Ban, RotateCcw, EyeOff, Eye, GripVertical } from 'lucide-react';
+import { ArrowLeft, Play, Check, Loader2, MousePointerClick, Type, Ban, RotateCcw, EyeOff, Eye, GripVertical, ZoomIn } from 'lucide-react';
 import { useTutorial } from '@/hooks/useTutorial';
 import { updateStep, reorderSteps } from '@/lib/api/steps';
 import { clickToPct, inferKind, toFollowSteps } from '@/lib/follow';
@@ -10,6 +10,8 @@ import { InteractiveFollowPlayer } from '@/components/viewer/InteractiveFollowPl
 import { FollowStage } from '@/components/viewer/FollowStage';
 import { logError } from '@/lib/logging/logger';
 import type { Step, Tutorial, FollowConfig } from '@/types';
+
+const TOP_BAR_ICON_SIZE = 14;
 
 // DB Step → 스튜디오 편집 단위
 type StudioStep = {
@@ -20,6 +22,7 @@ type StudioStep = {
   description: string;       // user_script (편집, HTML 제거) — 문서 매뉴얼과 공유
   clickXPct: number | null;  // 녹화 좌표 (0~100)
   clickYPct: number | null;
+  domRect: { x: number; y: number; w: number; h: number } | null; // DOM 요소 영역(0~100 pct) — 확대 애니메이션 중심
   follow: FollowConfig;      // 따라하기 전용 시각 설정 (핫스팟·종류·숨김·typeText)
 };
 
@@ -28,10 +31,15 @@ function toStudioStep(s: Step): StudioStep {
     id: s.id,
     number: s.step_number,
     screenshotUrl: s.screenshot_url || null,
-    title: s.user_title ?? s.ai_title ?? '',
-    description: (s.user_script ?? s.ai_description ?? '').replace(/<[^>]+>/g, ''),
+    title: s.user_title || s.ai_title || '',
+    description: (s.user_script || s.ai_description || '').replace(/<[^>]+>/g, ''),
     clickXPct: clickToPct((s as Step & { click_x?: number | null }).click_x),
     clickYPct: clickToPct((s as Step & { click_y?: number | null }).click_y),
+    domRect: (() => {
+      const raw = (s as Step & { element_rect?: { x?: number; y?: number; width?: number; height?: number } | null }).element_rect;
+      if (!raw || raw.x == null) return null;
+      return { x: (raw.x ?? 0) * 100, y: (raw.y ?? 0) * 100, w: (raw.width ?? 0) * 100, h: (raw.height ?? 0) * 100 };
+    })(),
     follow: (s.follow_config as FollowConfig) ?? {},
   };
 }
@@ -59,6 +67,7 @@ function normalize(fc: FollowConfig): FollowConfig | null {
   if (fc.typeText && fc.typeText.trim()) clean.typeText = fc.typeText.trim();
   if (fc.hidden) clean.hidden = true;
   if (fc.bubbleAnchor) clean.bubbleAnchor = fc.bubbleAnchor;
+  if (fc.zoomAnim) clean.zoomAnim = true;
   return Object.keys(clean).length ? clean : null;
 }
 
@@ -209,6 +218,7 @@ export default function StudioPage() {
     clickYPct: s.clickYPct,
     audioUrl: null,
     followConfig: s.follow,
+    domRect: s.domRect,
   }))), [steps]);
 
   if (loading) {
@@ -230,22 +240,23 @@ export default function StudioPage() {
 
   const rv = active ? resolved(active) : null;
   const hidden = !!active?.follow.hidden;
+  const zoomAnim = !!active?.follow.zoomAnim;
   const curKind = active?.follow.kind ?? null;
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#0A0A0F', display: 'flex', flexDirection: 'column', fontFamily: "'Pretendard', -apple-system, sans-serif", color: 'white', overflow: 'hidden' }}>
       {/* Header */}
       <header style={{ flexShrink: 0, height: 56, padding: '0 18px', display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(10,10,15,0.9)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-        <button onClick={() => router.push(`/manual/${id}`)} style={ghostBtn} title="매뉴얼로 돌아가기"><ArrowLeft size={16} /></button>
+        <button onClick={() => router.push(`/manual/${id}/editor`)} style={ghostBtn} title="편집기로 돌아가기"><ArrowLeft size={TOP_BAR_ICON_SIZE} /></button>
         <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          <span style={{ fontSize: 13.5, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>라이브 가이드 편집</span>
+          <span style={{ fontSize: 13.5, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>연습 가이드 편집</span>
           <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.45)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tutorial.title}</span>
         </div>
         <div style={{ flex: 1 }} />
         <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.4)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-          {savingId ? <><Loader2 size={12} className="spin" /> 저장 중…</> : savedTick > 0 ? <><Check size={12} color="#34d399" /> 저장됨</> : null}
+          {savingId ? <><Loader2 size={TOP_BAR_ICON_SIZE} className="spin" /> 저장 중…</> : savedTick > 0 ? <><Check size={TOP_BAR_ICON_SIZE} color="#34d399" /> 저장됨</> : null}
         </span>
-        <button onClick={() => setShowPreview(true)} title="실습하기(웹) 화면으로 미리보기 — 핫스팟·말풍선·입력 텍스트 설정을 확인합니다. 실제 라이브 가이드 오버레이 외형과는 다를 수 있어요." style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5 }}><Play size={13} /> 실습하기 미리보기</button>
+        <button onClick={() => setShowPreview(true)} title="연습 가이드(웹) 화면으로 미리보기 — 핫스팟·말풍선·입력 텍스트 설정을 확인합니다. 실제 Live Guide 오버레이 외형과는 다를 수 있어요." style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5 }}><Play size={TOP_BAR_ICON_SIZE} /> 연습 가이드 미리보기</button>
         {tutorial.status === 'published' ? (
           <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: 'rgba(16,185,129,0.12)', color: '#34d399', fontWeight: 600, border: '1px solid rgba(52,211,153,0.25)', flexShrink: 0 }}>게시됨</span>
         ) : (
@@ -257,7 +268,7 @@ export default function StudioPage() {
             }}
             disabled={publishing}
             style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5, opacity: publishing ? 0.6 : 1 }}>
-            {publishing ? <><Loader2 size={12} className="spin" /> 게시 중…</> : '게시'}
+            {publishing ? <><Loader2 size={TOP_BAR_ICON_SIZE} className="spin" /> 게시 중…</> : '게시'}
           </button>
         )}
       </header>
@@ -331,7 +342,7 @@ export default function StudioPage() {
                 </FollowStage>
               </div>
               <p style={{ margin: '14px 0 0', textAlign: 'center', fontSize: 11.5, color: 'rgba(255,255,255,0.4)' }}>
-                {hidden ? '숨김 처리된 스텝 — 실습하기에 노출되지 않습니다'
+                {hidden ? '숨김 처리된 스텝 — 연습 가이드에 노출되지 않습니다'
                   : rv?.none ? '인디케이터 없음 — 핫스팟을 표시하지 않고 ‘다음’으로만 진행합니다'
                   : '이미지를 클릭하거나 링을 드래그해 핫스팟 위치를 지정하세요'}
               </p>
@@ -364,11 +375,22 @@ export default function StudioPage() {
               {/* 표시/숨김 */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0' }}>
                 <span style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.85)', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-                  {hidden ? <EyeOff size={14} /> : <Eye size={14} />} 실습하기에 표시
+                  {hidden ? <EyeOff size={14} /> : <Eye size={14} />} 연습 가이드에 표시
                 </span>
                 <button onClick={() => patch(active.id, { hidden: !hidden })} title="표시/숨김"
                   style={{ width: 40, height: 22, borderRadius: 11, border: 'none', cursor: 'pointer', background: hidden ? 'rgba(255,255,255,0.15)' : '#7c3aed', position: 'relative', transition: 'background 0.15s' }}>
                   <span style={{ position: 'absolute', top: 2, left: hidden ? 2 : 20, width: 18, height: 18, borderRadius: '50%', background: 'white', transition: 'left 0.15s' }} />
+                </button>
+              </div>
+
+              {/* 확대 애니메이션 — 켜면 연습 가이드에서 클릭 영역을 천천히 확대(기본 off) */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', opacity: hidden ? 0.4 : 1 }}>
+                <span style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.85)', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                  <ZoomIn size={14} /> 확대 애니메이션
+                </span>
+                <button disabled={hidden} onClick={() => patch(active.id, { zoomAnim: !zoomAnim })} title="연습 가이드에서 클릭 영역 확대"
+                  style={{ width: 40, height: 22, borderRadius: 11, border: 'none', cursor: hidden ? 'not-allowed' : 'pointer', background: zoomAnim ? '#7c3aed' : 'rgba(255,255,255,0.15)', position: 'relative', transition: 'background 0.15s' }}>
+                  <span style={{ position: 'absolute', top: 2, left: zoomAnim ? 20 : 2, width: 18, height: 18, borderRadius: '50%', background: 'white', transition: 'left 0.15s' }} />
                 </button>
               </div>
 
@@ -443,7 +465,7 @@ export default function StudioPage() {
                     placeholder="자동 입력될 텍스트 (비우면 ‘텍스트 입력…’ 안내만)"
                     style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.1)', color: '#F0F0FF', WebkitTextFillColor: '#F0F0FF', caretColor: '#a78bfa', fontSize: 12.5, fontFamily: 'inherit', outline: 'none' }}
                   />
-                  <p style={hint}>입력하면 실습하기 미리보기에선 타이핑 애니메이션으로, 라이브 가이드에선 실제 입력란에 자동 입력됩니다.</p>
+                  <p style={hint}>입력하면 연습 가이드 미리보기에선 타이핑 애니메이션으로, Live Guide에선 실제 입력란에 자동 입력됩니다.</p>
                 </>
               )}
             </>
