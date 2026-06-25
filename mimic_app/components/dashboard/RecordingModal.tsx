@@ -15,6 +15,11 @@ interface ChromeTab {
   favIconUrl?: string;
 }
 
+interface ExtensionLinkResponse {
+  ok?: boolean;
+  error?: string;
+}
+
 type ModalStep = 'checking' | 'guide' | 'tab_select' | 'launching' | 'not_installed' | 'install';
 
 // ── 확장 통신 ─────────────────────────────────────────────
@@ -78,6 +83,32 @@ async function fetchOpenTabs(): Promise<ChromeTab[] | null> {
     return null;
   }
   return (resp as { tabs: ChromeTab[] }).tabs;
+}
+
+async function linkExtensionToCurrentUser(): Promise<boolean> {
+  const extensionId = process.env.NEXT_PUBLIC_EXTENSION_ID?.replace(/^﻿/, '').trim();
+  if (!extensionId || !isExtensionInstalled()) return !REQUIRE_EXTENSION;
+
+  try {
+    const res = await fetch('/api/extension/link', { method: 'POST' });
+    if (!res.ok) {
+      console.warn('[MIMIC] extension link token 발급 실패:', res.status);
+      return false;
+    }
+
+    const data = await res.json() as { token?: string };
+    if (!data.token) return false;
+
+    const resp = await wakeAndSend('LINK_USER', { token: data.token }) as ExtensionLinkResponse | null;
+    if (!resp?.ok) {
+      console.warn('[MIMIC] extension LINK_USER 실패:', resp?.error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('[MIMIC] extension 재연동 실패:', err);
+    return false;
+  }
 }
 
 async function sendStartRecording(tabId: number, url: string): Promise<boolean> {
@@ -179,6 +210,13 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
     setTabsLoading(true);
     setSelectedTab(null);
     setTabs([]);
+
+    const linked = await linkExtensionToCurrentUser();
+    if (!linked) {
+      setTabsLoading(false);
+      setStep('not_installed');
+      return;
+    }
 
     const fetched = await fetchOpenTabs();
 
