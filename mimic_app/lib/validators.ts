@@ -1,5 +1,16 @@
 import { z } from 'zod';
 
+const optionalShortString = (maxLength: number) =>
+  z.preprocess(
+    value => {
+      if (value == null || value === '') return null;
+      if (typeof value !== 'string') return null;
+      const trimmed = value.trim();
+      return trimmed && trimmed.length <= maxLength ? trimmed : null;
+    },
+    z.string().max(maxLength).nullable()
+  ).optional().nullable();
+
 export const signupSchema = z.object({
   name: z.string().min(1).max(50),
   email: z.string().email(),
@@ -97,7 +108,7 @@ export const captureSaveStepSchema = z.object({
   url: z.string().url(),
   domain_hostname: z.string().max(200).optional().nullable(),
   domain_name:     z.string().max(200).optional().nullable(),
-  domain_favicon:  z.string().max(500).optional().nullable(),
+  domain_favicon:  optionalShortString(500),
   element_rect: z.object({
     x: z.number(),
     y: z.number(),
