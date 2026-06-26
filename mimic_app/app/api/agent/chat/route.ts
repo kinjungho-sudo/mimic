@@ -50,7 +50,7 @@ const FAQ_DB: Record<string, FAQ> = {
   },
   'price': {
     keywords: ['요금', '가격', '플랜', '유료', '무료', 'pro', 'team', '비용', '얼마'],
-    answer: `**요금제 안내**\n\n🆓 **무료**: 일 3회 매뉴얼 생성, 기본 공유, PDF 내보내기, 라이브 가이드\n\n⭐ **Pro**: 무제한 생성, 모든 내보내기, 비밀번호 보호, 우선 지원\n\n👥 **Team**: Pro 포함 + 팀 워크스페이스, 실시간 협업, 멤버 관리\n\nPro/Team 가격 문의: support@mimic.so\n\n👉 [요금제 상세](${HELP_URL})`,
+    answer: `**요금제 안내**\n\n🆓 **무료**: 일 3회 매뉴얼 생성, 기본 공유, PDF 내보내기, 라이브 가이드 체험 5회\n\n⭐ **Pro**: 무제한 생성, 모든 내보내기, 비밀번호 보호, 라이브 가이드 무제한\n\n👥 **Team**: Pro 포함 + 팀 워크스페이스, 실시간 협업, 멤버 관리\n\nPro/Team 가격 문의: support@mimic.so\n\n👉 [요금제 상세](${HELP_URL})`,
     related: ['limit', 'workspace'],
   },
   'limit': {

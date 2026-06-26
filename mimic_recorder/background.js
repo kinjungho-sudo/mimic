@@ -393,10 +393,26 @@ async function captureTab(windowId) {
 function ensureContentScript(tabId) {
   return new Promise((resolve) => {
     chrome.scripting.executeScript({ target: { tabId }, files: ['guide-engine.js', 'content.js'] }, () => {
-      void chrome.runtime.lastError;  // chrome:// 등 주입 불가 페이지는 무시
-      resolve();
+      const error = chrome.runtime.lastError?.message || null;
+      if (error) {
+        log('warn', 'bg', 'content script injection failed:', { tabId, error });
+        resolve({ ok: false, error });
+        return;
+      }
+      resolve({ ok: true });
     });
   });
+}
+
+function classifyRecordableUrl(url) {
+  if (!url) return { ok: true };
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return { ok: true };
+    return { ok: false, reason: 'unsupported_url', message: `${parsed.protocol} 페이지는 녹화할 수 없습니다.` };
+  } catch {
+    return { ok: false, reason: 'unsupported_url', message: '지원하지 않는 탭 주소입니다.' };
+  }
 }
 
 // page_url이 http(s):// 인지 확인 — file:// · javascript: 등을 chrome.tabs.update에 넘기지 않음
@@ -498,21 +514,57 @@ async function compressToJpeg(pngDataUrl, quality = JPEG_QUALITY_DEFAULT) {
 // ── 외부(웹페이지) 메시지 라우터 ────────────────────────────────
 chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
   if (message.action === 'GET_TABS') {
+    const toRecordableTab = (t) => {
+      if (!t || typeof t.id !== 'number') return null;
+
+      const url = typeof t.url === 'string' ? t.url : '';
+      if (
+        url.startsWith('chrome://') ||
+        url.startsWith('chrome-extension://') ||
+        url.startsWith('edge://') ||
+        url.startsWith('about:')
+      ) {
+        return null;
+      }
+
+      if (t.windowId) _tabWindowIdCache.set(t.id, t.windowId);
+      return {
+        id: t.id,
+        title: t.title || (url ? url : '브라우저 탭'),
+        url,
+        favIconUrl: typeof t.favIconUrl === 'string' ? t.favIconUrl : '',
+        urlAccess: Boolean(url),
+      };
+    };
+
     chrome.tabs.query({}).then((tabs) => {
-      const result = tabs
-        .filter(t => t.url && !t.url.startsWith('chrome://') && !t.url.startsWith('chrome-extension://'))
-        .map(t => {
-          if (t.id && t.windowId) _tabWindowIdCache.set(t.id, t.windowId);
-          return { id: t.id, title: t.title ?? '', url: t.url ?? '', favIconUrl: t.favIconUrl ?? '' };
-        });
-      sendResponse({ tabs: result });
-    }).catch(() => sendResponse({ tabs: [] }));
+      const result = tabs.map(toRecordableTab).filter(Boolean);
+      sendResponse({
+        ok: true,
+        tabs: result,
+        diagnostics: {
+          total: tabs.length,
+          returned: result.length,
+          missingUrl: result.filter(t => !t.urlAccess).length,
+        },
+      });
+    }).catch((error) => {
+      log('warn', 'bg', 'GET_TABS failed:', error?.message || error);
+      sendResponse({
+        ok: false,
+        tabs: [],
+        error: error?.message || 'tabs_query_failed',
+      });
+    });
     return true;
   }
 
   if (message.action === 'START_RECORDING') {
     const tabId = message.tabId;
-    if (!tabId) { sendResponse({ ok: true }); return false; }
+    if (!tabId) {
+      sendResponse({ ok: false, reason: 'missing_tab', message: '녹화할 탭을 찾지 못했습니다.' });
+      return false;
+    }
 
     // ★ 사이드패널은 user gesture가 살아있는 지금(= 어떤 await보다도 먼저, 동기) 호출해야 열린다.
     //   await가 한 번이라도 끼면 MV3 제스처가 끊겨 sidePanel.open()이 조용히 실패한다.
@@ -540,7 +592,15 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
       const tab = await new Promise((res) => chrome.tabs.get(tabId, (t) => {
         res(chrome.runtime.lastError ? null : t);
       }));
-      if (!tab) { sendResponse({ ok: false }); return; }
+      if (!tab) {
+        sendResponse({ ok: false, reason: 'tab_not_found', message: '선택한 탭을 찾지 못했습니다.' });
+        return;
+      }
+      const initialUrlCheck = classifyRecordableUrl(tab.url || message.url || '');
+      if (!initialUrlCheck.ok) {
+        sendResponse(initialUrlCheck);
+        return;
+      }
       if (tab.windowId) _tabWindowIdCache.set(tabId, tab.windowId);
 
       // 2) 보조 시도 (제스처 없으면 무시됨) — windowId 기준 한 번 더
@@ -556,7 +616,15 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
       const freshTab = await new Promise((res) => chrome.tabs.get(tabId, (t) => {
         res(chrome.runtime.lastError ? null : t);
       }));
-      if (!freshTab) { sendResponse({ ok: false }); return; }
+      if (!freshTab) {
+        sendResponse({ ok: false, reason: 'tab_not_found', message: '선택한 탭을 다시 확인하지 못했습니다.' });
+        return;
+      }
+      const freshUrlCheck = classifyRecordableUrl(freshTab.url || message.url || '');
+      if (!freshUrlCheck.ok) {
+        sendResponse(freshUrlCheck);
+        return;
+      }
 
       if (freshTab.status !== 'complete') {
         await new Promise((res) => {
@@ -571,18 +639,33 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 
       // 5) content.js 주입 보장 후 START_RECORDING 전송 (1회 재시도)
       //    주입이 없으면 카운트다운 메시지가 유실되어 녹화가 안 시작된다 (#1)
-      await ensureContentScript(tabId);
+      const injection = await ensureContentScript(tabId);
+      if (!injection?.ok) {
+        sendResponse({
+          ok: false,
+          reason: 'content_script_failed',
+          message: injection?.error || '선택한 페이지에 녹화 스크립트를 주입하지 못했습니다.',
+        });
+        return;
+      }
       const sent = await new Promise((res) => {
         const doSend = (retry) => {
           chrome.tabs.sendMessage(tabId, { type: 'START_RECORDING' }, () => {
             if (chrome.runtime.lastError && !retry) { setTimeout(() => doSend(true), 300); return; }
-            void chrome.runtime.lastError;
-            res(true);
+            const error = chrome.runtime.lastError?.message || null;
+            res(error ? { ok: false, error } : { ok: true });
           });
         };
         doSend(false);
       });
-      if (!sent) { sendResponse({ ok: false }); return; }
+      if (!sent?.ok) {
+        sendResponse({
+          ok: false,
+          reason: 'content_script_unreachable',
+          message: sent?.error || '선택한 페이지가 녹화 시작 메시지에 응답하지 않았습니다.',
+        });
+        return;
+      }
 
       // 6) isRecording 세팅 — _directStartTabId로 onChanged 중복 차단
       //    (캡처는 captureVisibleTab 사용 — Gemini/Docs 포함 일반 https 페이지 모두 동작 확인됨.
