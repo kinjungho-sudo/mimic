@@ -435,14 +435,14 @@ function SectionContent({ id }: { id: string }) {
                 price: '₩0',
                 color: '#F9FAFB',
                 border: '#E5E7EB',
-                features: ['일 3회 매뉴얼 생성', '기본 공유 링크', 'PDF 내보내기', '라이브 가이드'],
+                features: ['일 3회 매뉴얼 생성', '기본 공유 링크', 'PDF 내보내기', '라이브 가이드 체험 5회'],
               },
               {
                 name: 'Pro',
                 price: '문의',
                 color: '#EEF2FF',
                 border: '#a5b4fc',
-                features: ['무제한 매뉴얼 생성', '모든 내보내기 형식', '비밀번호 보호', '우선 지원'],
+                features: ['무제한 매뉴얼 생성', '모든 내보내기 형식', '비밀번호 보호', '라이브 가이드 무제한'],
                 highlight: true,
               },
               {
@@ -527,7 +527,7 @@ function SectionContent({ id }: { id: string }) {
             },
             {
               q: '무료 플랜과 Pro 플랜의 차이는 무엇인가요?',
-              a: '무료는 일 3회 매뉴얼 생성, 기본 공유, PDF 내보내기를 지원합니다. Pro는 무제한 생성, 모든 내보내기 형식(PDF/PPTX/MD), 비밀번호 보호, 우선 지원을 포함합니다. 가격 문의는 support@mimic.so로 연락해주세요.',
+              a: '무료는 일 3회 매뉴얼 생성, 기본 공유, PDF 내보내기, 라이브 가이드 체험 5회를 지원합니다. Pro는 무제한 생성, 모든 내보내기 형식(PDF/PPTX/MD), 비밀번호 보호, 라이브 가이드 무제한 실행을 포함합니다. 가격 문의는 support@mimic.so로 연락해주세요.',
             },
             {
               q: '문의는 어떻게 하나요?',
