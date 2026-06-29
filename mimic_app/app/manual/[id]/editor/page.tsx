@@ -112,6 +112,7 @@ export default function EditorPage() {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [autoGenProgress, setAutoGenProgress] = useState<{ done: number; total: number } | null>(null);
   const [showMerge, setShowMerge] = useState(false);
+  const [duplicatingStepId, setDuplicatingStepId] = useState<string | null>(null);
 
   // 실시간 협업 — 워크스페이스 튜토리얼에서만 활성
   const workspaceId = tutorial
@@ -492,8 +493,10 @@ export default function EditorPage() {
     if (idx < 0) return;
     const src = manualSteps[idx];
     if (srcId.startsWith('step-')) return; // 임시 스텝은 아직 DB에 없어 복제 불가
+    if (duplicatingStepId) return;
     // 디바운스 대기 중인 소스 텍스트 편집을 먼저 flush — 서버는 DB 행을 복사하므로 최신화 필요
     clearTimeout(stepSaveTimers.current[srcId]);
+    setDuplicatingStepId(srcId);
     try {
       await updateStep(srcId, { user_title: src.actionTitle || null, user_script: src.description || null });
       const created = await duplicateStep(srcId);
@@ -506,8 +509,10 @@ export default function EditorPage() {
     } catch (e) {
       logError('step.duplicate.fail', { tutorialId: id, stepId: srcId, message: e instanceof Error ? e.message : String(e) });
       alert('단계를 복제하지 못했습니다. 네트워크 연결을 확인 후 다시 시도해 주세요.');
+    } finally {
+      setDuplicatingStepId(null);
     }
-  }, [manualSteps, id, setManualStepsWithHistory]);
+  }, [manualSteps, id, setManualStepsWithHistory, duplicatingStepId]);
 
   const handleImportSteps = useCallback(async (sourceTutorialId: string, stepIds: string[]) => {
     const res = await fetch(`/api/tutorials/${id}/import-steps`, {
@@ -1071,7 +1076,9 @@ export default function EditorPage() {
               });
             }}
             onDuplicateStep={handleDuplicateStep}
+            duplicatingStepId={duplicatingStepId}
             onInsertAfter={handleInsertAfter}
+            onAddStep={handleAddStep}
             onAddComment={(stepId) => {
               setActiveId(stepId);
               setShowComments(true);

@@ -31,14 +31,46 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = createServiceRoleClient();
+  const { tutorial_id, order_index, step_number } = parsed.data;
+
+  const { data: afterSteps, error: afterError } = await supabase
+    .from('mm_steps')
+    .select('id, order_index, step_number')
+    .eq('tutorial_id', tutorial_id)
+    .gte('order_index', order_index);
+
+  if (afterError) {
+    return NextResponse.json({ error: 'Failed to prepare insert position' }, { status: 500 });
+  }
+
+  if (afterSteps?.length) {
+    const shifts = await Promise.all(
+      afterSteps
+        .sort((a, b) => b.order_index - a.order_index)
+        .map(s =>
+          supabase
+            .from('mm_steps')
+            .update({ order_index: s.order_index + 1, step_number: s.step_number + 1 })
+            .eq('id', s.id)
+        )
+    );
+    if (shifts.some(r => r.error)) {
+      return NextResponse.json({ error: 'Failed to shift steps' }, { status: 500 });
+    }
+  }
 
   const { data, error } = await supabase
     .from('mm_steps')
     .insert({
-      tutorial_id: parsed.data.tutorial_id,
-      order_index: parsed.data.order_index,
-      step_number: parsed.data.step_number,
+      tutorial_id,
+      order_index,
+      step_number,
       user_title: '새 단계',
+      user_script: '',
+      screenshot_url: '',
+      page_url: null,
+      ai_title: null,
+      ai_description: null,
     })
     .select('id, step_number, order_index, user_title, user_script, screenshot_url, page_url, domain_hostname, domain_name, domain_favicon, ai_title, ai_description')
     .single();
