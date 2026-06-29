@@ -49,6 +49,15 @@ const GENERIC_LABELS = new Set([
   'span',
 ]);
 
+const RAW_CAPTURE_LABELS = new Set([
+  'apps',
+  'app',
+  'oauth',
+  'general',
+  'functions',
+  'function',
+]);
+
 const GOOGLE_DOC_CONTEXTS: Array<{ pattern: RegExp; base: string; noActionBase: string }> = [
   { pattern: /docs\.google\.com\/presentation/i, base: '파일명 영역', noActionBase: '슬라이드 편집 화면' },
   { pattern: /docs\.google\.com\/spreadsheets/i, base: '파일명 영역', noActionBase: '스프레드시트 편집 화면' },
@@ -60,6 +69,8 @@ const SLACK_LABEL_CONTEXTS = new Map([
   ['app', '앱 메뉴'],
   ['oauth', 'OAuth 설정'],
   ['general', 'general 채널'],
+  ['functions', 'Functions 메뉴'],
+  ['function', 'Functions 메뉴'],
 ]);
 
 function cleanText(value: string | null | undefined): string {
@@ -80,6 +91,11 @@ function isGenericLabel(value: string | null | undefined): boolean {
   return /^(edit|button|link|menu|click|untitled)(\s+\d+)?$/i.test(text);
 }
 
+function isRawCaptureLabel(value: string | null | undefined): boolean {
+  const text = normalized(value);
+  return RAW_CAPTURE_LABELS.has(text);
+}
+
 function isWeakTitle(value: string | null | undefined): boolean {
   const text = cleanText(value);
   return !text || WEAK_TITLES.has(text) || /^단계\s*\d+\s*진행$/.test(text);
@@ -89,7 +105,15 @@ export function isLowQualityCaptureTitle(value: string | null | undefined): bool
   const text = cleanText(value);
   if (isWeakTitle(text)) return true;
   if (isGenericLabel(text)) return true;
-  return /^(edit|button|link|menu|untitled|click)\s+(클릭|확인|선택|입력|이동)$/i.test(text);
+  const rawLabelPattern = Array.from(RAW_CAPTURE_LABELS).join('|');
+  return new RegExp(`^(${rawLabelPattern}|edit|button|link|menu|untitled|click)\\s+(클릭|확인|선택|입력|이동)$`, 'i').test(text);
+}
+
+export function isLowQualityCaptureScript(value: string | null | undefined): boolean {
+  const text = cleanText(value);
+  if (!text) return true;
+  const rawLabelPattern = Array.from(RAW_CAPTURE_LABELS).join('|');
+  return new RegExp(`^(${rawLabelPattern}|edit|button|link|menu|untitled|click)(을|를)?\\s*(클릭|확인|선택|입력|이동)합니다\\.?$`, 'i').test(text);
 }
 
 function hasFinalConsonant(text: string): boolean {
@@ -184,7 +208,7 @@ function contextFromLabel(
 function firstUseful(candidates: Array<string | null | undefined>): string {
   for (const candidate of candidates) {
     const text = cleanText(candidate);
-    if (text && !isGenericLabel(text)) return text;
+    if (text && !isGenericLabel(text) && !isRawCaptureLabel(text)) return text;
   }
   return '';
 }
@@ -218,7 +242,9 @@ export function buildCaptureFallbackDraft(
   const userTitle = !isLowQualityCaptureTitle(step.ai_title)
     ? cleanText(step.ai_title)
     : `${base} ${verb}`;
-  const userScript = cleanText(step.ai_description) || scriptFor(base, verb);
+  const userScript = !isLowQualityCaptureScript(step.ai_description)
+    ? cleanText(step.ai_description)
+    : scriptFor(base, verb);
 
   return {
     id: step.id,
