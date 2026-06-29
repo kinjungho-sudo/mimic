@@ -2,6 +2,7 @@ async function main() {
   const {
     buildCaptureFallbackDraft,
     buildCaptureFallbackTutorialTitle,
+    isLowQualityCaptureScript,
     isLowQualityCaptureTitle,
   } = await import('../lib/ai/capture-fallback.ts');
 
@@ -49,8 +50,29 @@ async function main() {
       script: 'OAuth 설정을 클릭합니다.',
     },
     {
+      name: 'weak slack oauth ai draft is replaced',
+      step: { id: '4c2', step_number: 4, ai_title: 'oauth 클릭', ai_description: 'oauth를 클릭합니다.', page_url: 'https://api.slack.com/apps/A0BCYXSD1RD/oauth', domain_name: 'Slack' },
+      context: { actionInfo: { type: 'click', label: 'oauth' } },
+      title: 'OAuth 설정 클릭',
+      script: 'OAuth 설정을 클릭합니다.',
+    },
+    {
+      name: 'slack functions label uses menu context',
+      step: { id: '4c3', step_number: 4, ai_title: 'functions 클릭', ai_description: 'functions를 클릭합니다.', page_url: 'https://api.slack.com/apps/A0BCYXSD1RD/functions', domain_name: 'Slack' },
+      context: { actionInfo: { type: 'click', label: 'functions' } },
+      title: 'Functions 메뉴 클릭',
+      script: 'Functions 메뉴를 클릭합니다.',
+    },
+    {
       name: 'slack general label uses channel context',
       step: { id: '4d', step_number: 4, ai_title: null, ai_description: null, page_url: 'https://app.slack.com/client/T123/C123', domain_name: 'jungho Slack' },
+      context: { actionInfo: { type: 'click', label: 'general' } },
+      title: 'general 채널 클릭',
+      script: 'general 채널을 클릭합니다.',
+    },
+    {
+      name: 'weak slack general ai draft is replaced',
+      step: { id: '4d2', step_number: 4, ai_title: 'general 클릭', ai_description: 'general을 클릭합니다.', page_url: 'https://app.slack.com/client/T123/C123', domain_name: 'jungho Slack' },
       context: { actionInfo: { type: 'click', label: 'general' } },
       title: 'general 채널 클릭',
       script: 'general 채널을 클릭합니다.',
@@ -80,8 +102,11 @@ async function main() {
     if (!actual.user_title.trim() || !actual.user_script.trim()) {
       failures.push({ name: `${testCase.name} empty guard`, actual });
     }
-    if (/^edit\s+(클릭|확인|선택|입력|이동)$/i.test(actual.user_title)) {
-      failures.push({ name: `${testCase.name} generic label guard`, actual });
+    if (/^(edit|oauth|general|functions)\s+(클릭|확인|선택|입력|이동)$/i.test(actual.user_title)) {
+      failures.push({ name: `${testCase.name} raw label title guard`, actual });
+    }
+    if (/^(edit|oauth|general|functions)(을|를)?\s*(클릭|확인|선택|입력|이동)합니다\.?$/i.test(actual.user_script)) {
+      failures.push({ name: `${testCase.name} raw label script guard`, actual });
     }
   }
 
@@ -95,6 +120,12 @@ async function main() {
 
   if (!isLowQualityCaptureTitle('edit 클릭')) {
     failures.push({ name: 'low quality title detector', expected: true, actual: false });
+  }
+  if (!isLowQualityCaptureTitle('oauth 클릭')) {
+    failures.push({ name: 'raw oauth title detector', expected: true, actual: false });
+  }
+  if (!isLowQualityCaptureScript('oauth를 클릭합니다.')) {
+    failures.push({ name: 'raw oauth script detector', expected: true, actual: false });
   }
 
   if (failures.length) {
