@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
 // ── 목차 구조 ──────────────────────────────────────────────
@@ -49,6 +49,8 @@ const SECTIONS = [
   },
 ];
 
+const ALL_SECTION_IDS = SECTIONS.flatMap(s => [s.id, ...(s.children?.map(c => c.id) ?? [])]);
+
 // ── 섹션 컨텐츠 ────────────────────────────────────────────
 
 function SectionContent({ id }: { id: string }) {
@@ -85,15 +87,15 @@ function SectionContent({ id }: { id: string }) {
           {h2('MIMIC이란?')}
           {p('MIMIC은 Chrome 확장 프로그램으로 업무 화면을 녹화해 인터랙티브 매뉴얼을 자동 생성하는 서비스입니다.')}
           {img('/help/product-overview.png', 'MIMIC — 작업 자체가 곧 기록이 됩니다')}
-          {p('클릭 한 번 한 번이 자동으로 캡처되어 단계별 스크린샷 + 설명이 만들어집니다. 완성된 매뉴얼은 링크로 공유하거나, 실제 페이지 위에 라이브 가이드 오버레이로 단계별 안내를 제공합니다.')}
+          {p('클릭 한 번 한 번이 자동으로 캡처되어 단계별 스크린샷 + 설명이 만들어집니다. 완성된 매뉴얼은 링크로 공유하고, 필요하면 연습 가이드나 확장 프로그램 기반 라이브 가이드로 따라할 수 있습니다.')}
           {h3('MIMIC으로 할 수 있는 것')}
           <ul style={{ paddingLeft: '20px', margin: '0 0 16px' }}>
             {[
               '신규 직원 온보딩 매뉴얼 30초 만에 제작',
               '고객 지원용 서비스 이용 가이드 공유',
               '반복 업무 프로세스 문서화',
-              '실제 페이지 위에서 라이브 가이드로 단계별 안내',
-              'PDF, PPTX, Markdown으로 내보내기',
+              '캡처 화면 위에서 연습 가이드로 단계별 훈련',
+              'PDF, PPTX, Word로 내보내기',
             ].map(li)}
           </ul>
         </div>
@@ -181,7 +183,7 @@ function SectionContent({ id }: { id: string }) {
       return (
         <div>
           {h2('4. 공유하기')}
-          {p('완성된 매뉴얼을 링크로 공유하거나, 라이브 가이드 오버레이로 실제 페이지에서 안내할 수 있습니다.')}
+          {p('완성된 매뉴얼은 링크로 공유할 수 있습니다. 원본 URL과 확장 프로그램 조건이 맞으면 라이브 가이드로 실제 페이지 위에서 안내할 수도 있습니다.')}
           {h3('링크 공유')}
           <ol style={{ paddingLeft: '20px', margin: '0 0 16px' }}>
             {[
@@ -193,7 +195,7 @@ function SectionContent({ id }: { id: string }) {
           {h3('비밀번호 보호')}
           {p('설정 메뉴에서 공유 링크에 비밀번호를 설정할 수 있습니다. 비밀번호를 설정하면 링크에 접속 시 비밀번호 입력이 요구됩니다.')}
           {h3('라이브 가이드 미리보기')}
-          {p('매뉴얼에 원본 페이지 URL이 저장되어 있으면 "라이브 가이드" 버튼이 활성화됩니다. 클릭하면 실제 페이지 위에서 오버레이 가이드를 미리볼 수 있습니다.')}
+          {p('매뉴얼에 원본 페이지 URL이 저장되어 있고 확장 프로그램이 연결되어 있으면 "라이브 가이드" 버튼이 활성화됩니다. 실제 페이지의 UI가 크게 바뀐 경우 일부 단계는 다시 녹화하거나 핫스팟을 조정해야 할 수 있습니다.')}
         </div>
       );
 
@@ -257,8 +259,8 @@ function SectionContent({ id }: { id: string }) {
               '단계 삭제: 목차 단계 우측 메뉴(⋮) → 삭제',
             ].map(li)}
           </ul>
-          {h3('실시간 협업')}
-          {p('같은 워크스페이스의 팀원들과 동시에 편집할 수 있습니다. 다른 사람이 수정 중인 단계는 상단에 협업자 아바타로 표시됩니다.')}
+          {h3('팀 작업')}
+          {p('팀 워크스페이스에서는 매뉴얼을 함께 관리하고, 팀원 초대와 권한 기반 접근을 사용할 수 있습니다. 여러 사용자의 동시 편집 상태를 실시간으로 보여주는 기능은 아직 제한적으로 제공됩니다.')}
         </div>
       );
 
@@ -266,7 +268,7 @@ function SectionContent({ id }: { id: string }) {
       return (
         <div>
           {h2('연습 가이드')}
-          {p('연습 가이드는 녹화된 화면 위에서 직접 클릭해보며 단계를 익히는 인터랙티브 연습입니다. 영상을 보거나 문서를 읽는 대신, 실제 캡처 화면 위의 핫스팟을 클릭하며 진행합니다. 라이브 가이드와 짝을 이룹니다.')}
+          {p('연습 가이드는 녹화된 화면 위에서 직접 클릭해보며 단계를 익히는 인터랙티브 연습입니다. 영상을 보거나 문서를 읽는 대신, 실제 캡처 화면 위의 핫스팟을 클릭하며 진행합니다. 받는 사람은 별도 설치 없이 브라우저에서 연습할 수 있습니다.')}
           {h3('연습 가이드 만들기')}
           {p('매뉴얼의 스튜디오에서 연습 가이드를 생성·편집·공유합니다. 녹화된 매뉴얼이면 스튜디오에서 연습 가이드를 만들 수 있습니다.')}
           {h3('연습 가이드 공유')}
@@ -284,7 +286,7 @@ function SectionContent({ id }: { id: string }) {
           <ul style={{ paddingLeft: '20px', margin: '0 0 16px' }}>
             {[
               '연습 가이드 — 캡처된 스크린샷 위에서 연습 (실제 사이트 미접속)',
-              '라이브 가이드 — 실제 웹사이트 위에서 MIMIC 익스텐션이 직접 안내',
+              '라이브 가이드 — 원본 URL과 확장 프로그램 조건이 맞을 때 실제 웹사이트 위에서 안내',
             ].map(li)}
           </ul>
         </div>
@@ -322,16 +324,15 @@ function SectionContent({ id }: { id: string }) {
       return (
         <div>
           {h2('라이브 가이드')}
-          {p('라이브 가이드는 실제 웹페이지 위에 오버레이를 띄워 단계별로 안내하는 기능입니다. 받는 사람은 별도 화면 없이 자기 브라우저에서 바로 안내를 받을 수 있습니다.')}
+          {p('라이브 가이드는 실제 웹페이지 위에 오버레이를 띄워 단계별로 안내하는 기능입니다. 현재는 원본 URL이 저장된 매뉴얼과 MIMIC Recorder 확장 프로그램이 필요하며, 페이지 구조가 바뀌면 일부 단계가 맞지 않을 수 있습니다.')}
           {img('/help/live-guide.jpg', '라이브 가이드 — 실제 페이지 위 AI 말풍선·핫스팟')}
           {h3('사용 조건')}
-          {p('MIMIC Recorder 확장 프로그램이 설치되어 있어야 합니다. 녹화 시 원본 페이지 URL이 자동으로 저장됩니다.')}
+          {p('MIMIC Recorder 확장 프로그램이 설치되어 있고, 녹화 시 원본 페이지 URL이 저장되어 있어야 합니다. 무료 플랜에서는 사용량 제한이 적용될 수 있습니다.')}
           {h3('실행 방법 (받는 사람)')}
           <ol style={{ paddingLeft: '20px', margin: '0 0 16px' }}>
             {[
-              '공유 링크로 접속한 후 "라이브 가이드 시작" 버튼을 클릭합니다.',
-              '또는 대시보드 "Live Guide" 탭에서 실행할 매뉴얼을 선택합니다.',
-              '새 탭에서 원본 페이지가 열리면서 오버레이 안내가 시작됩니다.',
+              '매뉴얼 또는 스튜디오에서 "라이브 가이드" 버튼을 클릭합니다.',
+              '원본 페이지가 새 탭에서 열리고 확장 프로그램이 오버레이를 표시합니다.',
               '각 단계에서 클릭해야 할 요소가 하이라이트되고 AI 말풍선으로 설명이 표시됩니다.',
               '표시된 곳을 클릭하면 다음 단계로 자동으로 넘어갑니다.',
             ].map(li)}
@@ -359,12 +360,12 @@ function SectionContent({ id }: { id: string }) {
         <div>
           {h2('내보내기')}
           {p('완성된 매뉴얼을 다양한 형식으로 내보낼 수 있습니다.')}
-          {img('/help/export.png', '공유 플레이어 상단의 PPTX·PDF·.md 내보내기 버튼')}
+          {img('/help/export.png', '매뉴얼 상단의 PDF·PPTX·Word 내보내기 버튼')}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', margin: '0 0 24px' }}>
             {[
               { format: 'PDF', desc: '스크린샷 + 설명이 포함된 PDF 문서', badge: '#fee2e2', badgeText: '#dc2626' },
               { format: 'PPTX', desc: '슬라이드 형식의 파워포인트 파일', badge: '#fef3c7', badgeText: '#d97706' },
-              { format: 'Markdown', desc: '제목, 설명, 이미지 링크가 포함된 .md 파일', badge: '#d1fae5', badgeText: '#059669' },
+              { format: 'Word', desc: '문서 편집과 공유에 적합한 .docx 파일', badge: '#d1fae5', badgeText: '#059669' },
             ].map(({ format, desc, badge, badgeText }) => (
               <div key={format} style={{ padding: '14px', background: '#F9FAFB', borderRadius: '10px', border: '1px solid #E5E7EB' }}>
                 {chip(format, badge, badgeText)}
@@ -375,8 +376,8 @@ function SectionContent({ id }: { id: string }) {
           {h3('내보내기 위치')}
           <ul style={{ paddingLeft: '20px', margin: '0 0 16px' }}>
             {[
-              '매뉴얼 뷰어 상단: PDF, PPTX 버튼',
-              '공유 플레이어: PDF, PPTX, Markdown 버튼',
+              '매뉴얼 뷰어 상단: PDF, PPTX, Word 버튼',
+              '공유 플레이어: PDF, PPTX, Word 버튼',
             ].map(li)}
           </ul>
         </div>
@@ -399,7 +400,7 @@ function SectionContent({ id }: { id: string }) {
           {h3('비밀번호 보호')}
           {p('설정(⚙) → 공유 비밀번호에서 비밀번호를 입력하면 링크 접속 시 비밀번호가 요구됩니다. 비워두면 보호가 해제됩니다.')}
           {h3('공유 플레이어')}
-          {p('공유 링크로 접속하면 슬라이드 모드와 문서 모드 두 가지로 매뉴얼을 볼 수 있습니다. 자동 재생, 속도 조절, PDF/PPTX/MD 내보내기도 지원합니다.')}
+          {p('공유 링크로 접속하면 슬라이드 모드와 문서 모드 두 가지로 매뉴얼을 볼 수 있습니다. 자동 재생, 속도 조절, PDF/PPTX/Word 내보내기도 지원합니다.')}
         </div>
       );
 
@@ -419,8 +420,8 @@ function SectionContent({ id }: { id: string }) {
           {p('워크스페이스 설정에서 팀원 이메일로 초대 링크를 보낼 수 있습니다.')}
           {h3('매뉴얼 이동')}
           {p('개인 매뉴얼을 팀 워크스페이스로 이동하거나, 팀 매뉴얼을 다시 개인으로 이동할 수 있습니다. 카드 메뉴(⋮) → "팀으로 이동"을 선택하세요.')}
-          {h3('실시간 협업')}
-          {p('워크스페이스 내 매뉴얼은 여러 팀원이 동시에 편집할 수 있습니다. 편집 중인 팀원의 아바타가 에디터 상단에 표시됩니다.')}
+          {h3('팀 작업')}
+          {p('워크스페이스 내 매뉴얼을 팀원이 함께 관리할 수 있습니다. 초대 링크와 멤버 관리로 접근 권한을 나누고, 필요한 매뉴얼을 개인 워크스페이스와 팀 워크스페이스 사이에서 이동할 수 있습니다.')}
         </div>
       );
 
@@ -435,14 +436,14 @@ function SectionContent({ id }: { id: string }) {
                 price: '₩0',
                 color: '#F9FAFB',
                 border: '#E5E7EB',
-                features: ['일 3회 매뉴얼 생성', '기본 공유 링크', 'PDF 내보내기', '라이브 가이드'],
+                features: ['일 3회 매뉴얼 생성', '기본 공유 링크', 'PDF 내보내기', '제한된 라이브 가이드 사용'],
               },
               {
                 name: 'Pro',
                 price: '문의',
                 color: '#EEF2FF',
                 border: '#a5b4fc',
-                features: ['무제한 매뉴얼 생성', '모든 내보내기 형식', '비밀번호 보호', '우선 지원'],
+                features: ['무제한 매뉴얼 생성', 'PDF/PPTX/Word 내보내기', '비밀번호 보호', '연습·라이브 가이드 제작'],
                 highlight: true,
               },
               {
@@ -450,7 +451,7 @@ function SectionContent({ id }: { id: string }) {
                 price: '문의',
                 color: '#F5F3FF',
                 border: '#c4b5fd',
-                features: ['Pro 포함 전체 기능', '팀 워크스페이스', '실시간 협업', '멤버 관리'],
+                features: ['Pro 포함 전체 기능', '팀 워크스페이스', '멤버 관리', '팀 단위 지원'],
               },
             ].map(({ name, price, color, border, features, highlight }) => (
               <div key={name} style={{ padding: '20px', background: color, border: `1px solid ${border}`, borderRadius: '12px' }}>
@@ -475,7 +476,7 @@ function SectionContent({ id }: { id: string }) {
           {[
             {
               q: 'MIMIC이 뭔가요?',
-              a: 'Chrome 확장 프로그램으로 업무 화면을 녹화해 인터랙티브 매뉴얼을 자동 생성하는 서비스입니다. 클릭 동작이 자동 캡처되어 단계별 스크린샷과 설명이 만들어지고, 링크로 공유하거나 라이브 가이드 오버레이로 실제 페이지에서 단계별 안내를 제공합니다.',
+              a: 'Chrome 확장 프로그램으로 업무 화면을 녹화해 인터랙티브 매뉴얼을 자동 생성하는 서비스입니다. 클릭 동작이 자동 캡처되어 단계별 스크린샷과 설명이 만들어지고, 링크로 공유하거나 연습 가이드로 따라할 수 있습니다. 조건이 맞으면 라이브 가이드로 실제 페이지 위 안내도 사용할 수 있습니다.',
             },
             {
               q: '확장 프로그램은 어디서 설치하나요?',
@@ -491,7 +492,7 @@ function SectionContent({ id }: { id: string }) {
             },
             {
               q: '라이브 가이드는 어떻게 사용하나요?',
-              a: '매뉴얼에 원본 페이지 URL이 저장되어 있으면 상단 "라이브 가이드" 버튼이 활성화됩니다. 클릭하면 새 탭에서 원본 페이지가 열리면서 오버레이가 자동 시작됩니다. → 다음, ← 이전, Esc 닫기 키보드도 지원합니다.',
+              a: '매뉴얼에 원본 페이지 URL이 저장되어 있고 확장 프로그램이 연결되어 있으면 "라이브 가이드" 버튼이 활성화됩니다. 클릭하면 새 탭에서 원본 페이지가 열리고 오버레이 안내가 시작됩니다. → 다음, ← 이전, Esc 닫기 키보드도 지원합니다.',
             },
             {
               q: '공유 링크로 들어갔는데 아무것도 안 보여요.',
@@ -503,7 +504,7 @@ function SectionContent({ id }: { id: string }) {
             },
             {
               q: 'PDF, PPTX 외에 다른 형식도 지원하나요?',
-              a: 'Markdown(.md) 형식도 지원합니다. 공유 플레이어 페이지에서 PDF, PPTX, Markdown 세 가지 형식을 내보낼 수 있습니다.',
+              a: 'Word(.docx) 형식도 지원합니다. 매뉴얼 뷰어와 공유 플레이어에서 PDF, PPTX, Word 형식으로 내보낼 수 있습니다.',
             },
             {
               q: '공유 링크에 비밀번호를 설정하고 싶어요.',
@@ -519,7 +520,7 @@ function SectionContent({ id }: { id: string }) {
             },
             {
               q: '연습 가이드와 라이브 가이드의 차이가 뭔가요?',
-              a: '연습 가이드는 캡처된 스크린샷 위에서 연습하는 모드로, 실제 사이트에 접속하지 않습니다. 라이브 가이드는 MIMIC 익스텐션이 실제 웹사이트 위에 오버레이를 띄워 직접 안내합니다. 학습용에는 연습 가이드, 실제 업무 수행 안내에는 라이브 가이드를 사용하세요.',
+              a: '연습 가이드는 캡처된 스크린샷 위에서 연습하는 모드로, 실제 사이트에 접속하지 않습니다. 라이브 가이드는 원본 URL과 확장 프로그램 조건이 맞을 때 실제 웹사이트 위에 오버레이를 띄워 안내합니다. 먼저 연습 가이드로 안정적으로 공유하고, 실제 업무 수행 안내가 필요할 때 라이브 가이드를 사용하세요.',
             },
             {
               q: '플레이북이 뭔가요?',
@@ -527,7 +528,7 @@ function SectionContent({ id }: { id: string }) {
             },
             {
               q: '무료 플랜과 Pro 플랜의 차이는 무엇인가요?',
-              a: '무료는 일 3회 매뉴얼 생성, 기본 공유, PDF 내보내기를 지원합니다. Pro는 무제한 생성, 모든 내보내기 형식(PDF/PPTX/MD), 비밀번호 보호, 우선 지원을 포함합니다. 가격 문의는 support@mimic.so로 연락해주세요.',
+              a: '무료는 일 3회 매뉴얼 생성, 기본 공유, PDF 내보내기를 지원합니다. Pro는 무제한 생성, PDF/PPTX/Word 내보내기, 비밀번호 보호, 연습·라이브 가이드 제작을 포함합니다. 가격 문의는 support@mimic.so로 연락해주세요.',
             },
             {
               q: '문의는 어떻게 하나요?',
@@ -556,7 +557,21 @@ function SectionContent({ id }: { id: string }) {
 export default function HelpPage() {
   const [activeId, setActiveId] = useState('intro');
 
-  const allIds = SECTIONS.flatMap(s => [s.id, ...(s.children?.map(c => c.id) ?? [])]);
+  useEffect(() => {
+    const syncFromHash = () => {
+      const nextId = window.location.hash.replace('#', '');
+      if (nextId && ALL_SECTION_IDS.includes(nextId)) setActiveId(nextId);
+    };
+
+    syncFromHash();
+    window.addEventListener('hashchange', syncFromHash);
+    return () => window.removeEventListener('hashchange', syncFromHash);
+  }, []);
+
+  const selectSection = (id: string) => {
+    setActiveId(id);
+    window.history.replaceState(null, '', `#${id}`);
+  };
 
   return (
     <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
@@ -584,7 +599,7 @@ export default function HelpPage() {
           {SECTIONS.map(section => (
             <div key={section.id}>
               <button
-                onClick={() => setActiveId(section.id)}
+                onClick={() => selectSection(section.id)}
                 style={{
                   width: '100%', display: 'flex', alignItems: 'center', gap: '8px',
                   padding: '8px 10px', borderRadius: '8px', border: 'none',
@@ -603,7 +618,7 @@ export default function HelpPage() {
                   {section.children.map(child => (
                     <button
                       key={child.id}
-                      onClick={() => setActiveId(child.id)}
+                      onClick={() => selectSection(child.id)}
                       style={{
                         width: '100%', padding: '6px 10px', borderRadius: '6px',
                         border: 'none', background: activeId === child.id ? '#EEF2FF' : 'transparent',
@@ -629,9 +644,9 @@ export default function HelpPage() {
           {/* 이전/다음 */}
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '48px', paddingTop: '24px', borderTop: '1px solid #F3F4F6' }}>
             {(() => {
-              const idx = allIds.indexOf(activeId);
-              const prevId = idx > 0 ? allIds[idx - 1] : null;
-              const nextId = idx < allIds.length - 1 ? allIds[idx + 1] : null;
+              const idx = ALL_SECTION_IDS.indexOf(activeId);
+              const prevId = idx > 0 ? ALL_SECTION_IDS[idx - 1] : null;
+              const nextId = idx < ALL_SECTION_IDS.length - 1 ? ALL_SECTION_IDS[idx + 1] : null;
               const findLabel = (id: string) => {
                 for (const s of SECTIONS) {
                   if (s.id === id) return s.title;
@@ -642,10 +657,10 @@ export default function HelpPage() {
               return (
                 <>
                   {prevId
-                    ? <button onClick={() => setActiveId(prevId)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', border: '1px solid #E5E7EB', background: 'white', cursor: 'pointer', fontSize: '13px', color: '#374151' }}>← {findLabel(prevId)}</button>
+                    ? <button onClick={() => selectSection(prevId)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', border: '1px solid #E5E7EB', background: 'white', cursor: 'pointer', fontSize: '13px', color: '#374151' }}>← {findLabel(prevId)}</button>
                     : <div />}
                   {nextId
-                    ? <button onClick={() => setActiveId(nextId)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', border: '1px solid #E5E7EB', background: 'white', cursor: 'pointer', fontSize: '13px', color: '#374151' }}>{findLabel(nextId)} →</button>
+                    ? <button onClick={() => selectSection(nextId)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', border: '1px solid #E5E7EB', background: 'white', cursor: 'pointer', fontSize: '13px', color: '#374151' }}>{findLabel(nextId)} →</button>
                     : <div />}
                 </>
               );

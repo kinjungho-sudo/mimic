@@ -62,7 +62,7 @@ export function AgentChat() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // 개발사 문의 모드
+  // 문의 모드
   const [contactMode, setContactMode] = useState(false);
   const [contactCategory, setContactCategory] = useState<ContactCategory>('일반 문의');
   const [contactMsg, setContactMsg] = useState('');
@@ -111,12 +111,12 @@ export function AgentChat() {
         setMessages([{
           id: 'welcome',
           role: 'assistant',
-          text: '안녕하세요! MIMIC에 대해 궁금한 점을 아래에서 선택하거나 직접 입력해주세요.',
+          text: '안녕하세요! MIMIC 도움말 봇입니다. 자주 묻는 질문을 고르거나 궁금한 점을 입력해주세요.',
           related: (data.quickQuestions ?? []).slice(0, 5),
         }]);
       })
       .catch(() => {
-        setMessages([{ id: 'welcome', role: 'assistant', text: '안녕하세요! MIMIC에 대해 궁금한 점을 입력해주세요.' }]);
+        setMessages([{ id: 'welcome', role: 'assistant', text: '안녕하세요! MIMIC 도움말 봇입니다. 궁금한 점을 입력해주세요.' }]);
       });
   }, []);
 
@@ -173,7 +173,7 @@ export function AgentChat() {
   // ── 토글 버튼 ──
   if (!isOpen) {
     return (
-      <button onClick={() => setIsOpen(true)} title="문의하기"
+      <button onClick={() => setIsOpen(true)} title="도움말 열기"
         style={{
           position: 'fixed', bottom: '24px', right: '24px', zIndex: 9000,
           width: '52px', height: '52px', borderRadius: '50%',
@@ -204,7 +204,7 @@ export function AgentChat() {
         <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', display: 'grid', placeItems: 'center' }}>
           <Bot size={15} color="white" />
         </div>
-        <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>문의하기</span>
+        <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>도움말 봇</span>
         <button onClick={() => setIsMinimized(false)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#9CA3AF', marginLeft: '4px', fontSize: '13px' }}>열기</button>
         <button onClick={() => { setIsOpen(false); setIsMinimized(false); }} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#9CA3AF' }}><X size={14} /></button>
       </div>
@@ -222,7 +222,7 @@ export function AgentChat() {
   return (
     <div style={{
       position: 'fixed', bottom: '90px', right: '24px', zIndex: 9000,
-      width: '360px', height: '540px',
+      width: 'min(360px, calc(100vw - 32px))', height: 'min(540px, calc(100vh - 120px))',
       background: 'white', borderRadius: '16px',
       boxShadow: '0 8px 40px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)',
       display: 'flex', flexDirection: 'column', overflow: 'hidden',
@@ -238,12 +238,13 @@ export function AgentChat() {
           <Bot size={15} color="white" />
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: '13px', fontWeight: 700 }}>챗봇</div>
+          <div style={{ fontSize: '13px', fontWeight: 700 }}>도움말 봇</div>
+          <div style={{ fontSize: '11px', opacity: 0.78, marginTop: '1px' }}>FAQ 기반 빠른 답변</div>
         </div>
         <button onClick={() => { setContactMode(true); setContactResult(null); }}
-          title="개발사에 문의하기"
+          title="문의하기"
           style={{ background: 'rgba(255,255,255,0.15)', border: 'none', cursor: 'pointer', color: 'white', borderRadius: '6px', padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}>
-          <Mail size={12} /> 개발사 문의하기
+          <Mail size={12} /> 문의하기
         </button>
         <button onClick={() => setIsMinimized(true)} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', cursor: 'pointer', color: 'white', borderRadius: '6px', padding: '4px 6px', display: 'grid', placeItems: 'center' }}>
           <Minus size={13} />
@@ -253,7 +254,7 @@ export function AgentChat() {
         </button>
       </div>
 
-      {/* 개발사 문의 모드 */}
+      {/* 문의 모드 */}
       {contactMode && (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '16px', gap: '10px', overflowY: 'auto' }}>
           <button onClick={() => { setContactMode(false); setContactResult(null); setContactMsg(''); }} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280', fontSize: '12.5px', padding: 0, alignSelf: 'flex-start' }}>
@@ -276,7 +277,7 @@ export function AgentChat() {
           ) : (
             <>
               <div>
-                <p style={{ margin: '0 0 8px', fontSize: '14px', fontWeight: 700, color: '#111827' }}>개발사에 문의하기</p>
+                <p style={{ margin: '0 0 8px', fontSize: '14px', fontWeight: 700, color: '#111827' }}>문의하기</p>
                 <p style={{ margin: 0, fontSize: '12px', color: '#6B7280', lineHeight: 1.5 }}>문의 유형을 선택하고 내용을 입력해주세요.</p>
               </div>
 
