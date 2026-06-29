@@ -389,7 +389,18 @@ ${JSON.stringify(stepsData, null, 2)}
 }
 
 export async function generateDraft(
-  steps: Array<{ id: string; ai_title: string | null; ai_description: string | null; page_url: string | null; step_number: number; domain_name?: string | null; noAction?: boolean }>
+  steps: Array<{
+    id: string;
+    ai_title: string | null;
+    ai_description: string | null;
+    page_url: string | null;
+    step_number: number;
+    domain_name?: string | null;
+    noAction?: boolean;
+    action_type?: string | null;
+    action_label?: string | null;
+    element_text?: string | null;
+  }>
 ): Promise<GenerateDraftResult> {
   if (!hasClaudeApiKey('generateDraft')) {
     return { tutorial_title: '', steps: [], status: 'missing_key', reason: 'ANTHROPIC_API_KEY is not configured' };
@@ -409,7 +420,9 @@ export async function generateDraft(
       `[Step ${s.step_number}] id=${s.id}\n` +
       `제목: ${s.ai_title || '없음'}\n` +
       `설명: ${s.ai_description || '없음'}\n` +
-      `URL: ${s.page_url || '없음'}` +
+      `URL: ${s.page_url || '없음'}\n` +
+      `Action: type=${s.action_type || 'unknown'}, label=${s.action_label || '없음'}\n` +
+      `Element text: ${s.element_text || '없음'}` +
       (s.noAction ? `\n※ 이 단계는 특정 클릭 대상이 없음(전체화면/페이지 이동/캡처) — "○○ 클릭/누르기" 동작 제목 금지` : '')
     )
     .join('\n\n');

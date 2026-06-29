@@ -55,6 +55,13 @@ const GOOGLE_DOC_CONTEXTS: Array<{ pattern: RegExp; base: string; noActionBase: 
   { pattern: /docs\.google\.com\/document/i, base: '파일명 영역', noActionBase: '문서 편집 화면' },
 ];
 
+const SLACK_LABEL_CONTEXTS = new Map([
+  ['apps', '앱 메뉴'],
+  ['app', '앱 메뉴'],
+  ['oauth', 'OAuth 설정'],
+  ['general', 'general 채널'],
+]);
+
 function cleanText(value: string | null | undefined): string {
   return (value ?? '')
     .replace(/\s+/g, ' ')
@@ -146,6 +153,34 @@ function contextFromUrl(pageUrl: string | null | undefined, noAction: boolean): 
   return '';
 }
 
+function hasSlackContext(pageUrl: string | null | undefined, domainName: string | null | undefined): boolean {
+  if (/slack/i.test(domainName ?? '')) return true;
+  if (!pageUrl) return false;
+  try {
+    return /slack/i.test(new URL(pageUrl).hostname);
+  } catch {
+    return /slack/i.test(pageUrl);
+  }
+}
+
+function contextFromLabel(
+  label: string | null | undefined,
+  pageUrl: string | null | undefined,
+  domainName: string | null | undefined,
+  noAction: boolean
+): string {
+  const text = cleanText(label);
+  const key = text.toLowerCase();
+  if (!text || !hasSlackContext(pageUrl, domainName)) return '';
+  if (/^A[A-Z0-9]{8,}$/i.test(text)) return noAction ? '워크스페이스 화면' : '워크스페이스 항목';
+  const slackContext = SLACK_LABEL_CONTEXTS.get(key);
+  if (!slackContext) return '';
+  if (noAction && (key === 'apps' || key === 'app')) return '앱 관리 화면';
+  if (noAction && key === 'oauth') return 'OAuth 설정 화면';
+  if (noAction && key === 'general') return 'general 채널 화면';
+  return slackContext;
+}
+
 function firstUseful(candidates: Array<string | null | undefined>): string {
   for (const candidate of candidates) {
     const text = cleanText(candidate);
@@ -161,8 +196,15 @@ export function buildCaptureFallbackDraft(
   const actionType = context.actionInfo?.type;
   const noActionFromEvent = context.noAction ?? false;
   const pageContext = contextFromUrl(step.page_url, noActionFromEvent);
+  const labelContext = contextFromLabel(
+    context.actionInfo?.label,
+    step.page_url,
+    step.domain_name,
+    noActionFromEvent
+  );
   const specificBase = firstUseful([
     !isLowQualityCaptureTitle(step.ai_title) ? step.ai_title : null,
+    labelContext,
     context.actionInfo?.label,
     context.actionInfo?.text,
     context.elementText,
