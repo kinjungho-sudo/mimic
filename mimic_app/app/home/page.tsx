@@ -1187,15 +1187,16 @@ export default function DashboardPage() {
                   }
                   {/* 맨 아래: 새 워크스페이스 추가 (헤더의 + 버튼 대체) */}
                   {showNewWsInput ? (
-                    <form onSubmit={handleCreateWorkspace} style={{ display: 'flex', gap: '4px', paddingTop: '4px' }}>
+                    <form onSubmit={handleCreateWorkspace} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 30px', gap: '4px', paddingTop: '4px', width: '100%' }}>
                       <input autoFocus value={newWsName} onChange={e => setNewWsName(e.target.value)} placeholder="워크스페이스 이름"
                         onBlur={() => { if (!creatingWs) { setShowNewWsInput(false); setNewWsName(''); } }}
                         onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); setShowNewWsInput(false); setNewWsName(''); } }}
-                        style={{ flex: 1, padding: '4px 7px', borderRadius: '6px', border: '1px solid #a5b4fc', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
+                        style={{ minWidth: 0, width: '100%', boxSizing: 'border-box', padding: '4px 7px', borderRadius: '6px', border: '1px solid #a5b4fc', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
                       <button type="submit" disabled={creatingWs || !newWsName.trim()}
+                        title="워크스페이스 만들기"
                         onMouseDown={e => e.preventDefault()}
-                        style={{ padding: '4px 8px', borderRadius: '6px', background: '#3730a3', color: 'white', border: 'none', fontSize: '12px', fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
-                        {creatingWs ? '...' : '만들기'}
+                        style={{ width: '30px', height: '30px', borderRadius: '6px', background: '#3730a3', color: 'white', border: 'none', fontSize: '14px', fontWeight: 700, cursor: creatingWs || !newWsName.trim() ? 'not-allowed' : 'pointer', display: 'grid', placeItems: 'center', opacity: creatingWs || !newWsName.trim() ? 0.55 : 1 }}>
+                        {creatingWs ? '…' : '✓'}
                       </button>
                     </form>
                   ) : (
