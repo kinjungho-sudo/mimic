@@ -863,10 +863,7 @@ function Scene6({ tick }: { tick: number }) {
 }
 
 
-// ── 제품 쇼케이스: 영상이 있으면 영상, 없으면 실제 화면 목업 ──
-
-// ── 제품 쇼케이스: 영상이 있으면 영상, 없으면 실제 화면 목업 ──
-// 영상 파일은 public/landing/*.mp4 에 넣으면 자동으로 교체 표시됩니다.
+// ── 제품 쇼케이스: 코드로 그린 실제 화면 목업 ──
 function ShowcaseMedia({ videoSrc, fallback }: { videoSrc: string; fallback: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const hasVideo = videoSrc.length > 0;
@@ -904,7 +901,8 @@ function MockRecord() {
     { label: '"공유" 버튼 클릭', hl: true },
   ];
   return (
-    <div style={{ height: '340px', background: '#E9E9F0', position: 'relative', display: 'flex' }}>
+    <div className="record-flash-demo" style={{ height: '340px', background: '#E9E9F0', position: 'relative', display: 'flex' }}>
+      <div className="capture-sweep" />
       {/* 좌측 — Google Docs (녹화 대상) */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <MockTopBar url="docs.google.com/document/d/…" />
@@ -918,7 +916,12 @@ function MockRecord() {
             <div style={{ padding: '8px 18px', borderRadius: '8px', background: '#2563EB', color: 'white', fontSize: '12px', fontWeight: 600 }}>공유</div>
             <div style={{ position: 'absolute', inset: '-4px', border: '2.5px solid #EF4444', borderRadius: '11px', pointerEvents: 'none' }} />
             <span style={{ position: 'absolute', top: '50%', left: '50%', width: '40px', height: '40px', borderRadius: '50%', border: '2.5px solid rgba(37,99,235,0.5)', transform: 'translate(-50%,-50%)', animation: 'rippleOut 1.4s ease-out infinite' }} />
-            <div style={{ position: 'absolute', top: '62%', left: '58%', pointerEvents: 'none' }}><CursorIcon /></div>
+            <span className="capture-flash" />
+            <div className="record-cursor" style={{ position: 'absolute', top: '62%', left: '58%', pointerEvents: 'none' }}><CursorIcon /></div>
+          </div>
+          <div className="capture-toast" style={{ position: 'absolute', left: '22px', bottom: '18px', display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '10px', background: '#111827', boxShadow: '0 10px 28px rgba(17,24,39,0.28)', color: 'white' }}>
+            <span style={{ width: '22px', height: '22px', borderRadius: '7px', background: 'linear-gradient(135deg,#7C3AED,#3730A3)', display: 'grid', placeItems: 'center', fontSize: '12px', fontWeight: 800 }}>✓</span>
+            <span style={{ fontSize: '10.5px', lineHeight: 1.35 }}><strong style={{ display: 'block', fontSize: '11.5px' }}>클릭 캡처 완료</strong>새 스텝이 자동으로 추가됐어요</span>
           </div>
           {/* 녹화 중 배지 */}
           <div style={{ position: 'absolute', top: '14px', right: '16px', display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 11px', background: 'rgba(10,10,15,0.85)', borderRadius: '999px', fontSize: '10.5px', color: 'white', fontWeight: 500 }}>
@@ -946,7 +949,7 @@ function MockRecord() {
         <div style={{ fontSize: '8.5px', color: '#9CA3AF', fontWeight: 700, padding: '7px 12px 5px' }}>캡처된 스텝</div>
         <div style={{ flex: 1, overflow: 'hidden', padding: '0 9px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
           {STEPS.map((s, i) => (
-            <div key={i} style={{ border: `1px solid ${s.hl ? '#C4B5FD' : '#E5E7EB'}`, borderRadius: '8px', overflow: 'hidden', boxShadow: s.hl ? '0 2px 10px rgba(109,40,217,0.16)' : 'none' }}>
+            <div key={i} className="record-step-card" style={{ animationDelay: `${i * 0.24}s`, border: `1px solid ${s.hl ? '#C4B5FD' : '#E5E7EB'}`, borderRadius: '8px', overflow: 'hidden', boxShadow: s.hl ? '0 2px 10px rgba(109,40,217,0.16)' : 'none' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 7px', background: '#FAFAFB' }}>
                 <span style={{ width: '13px', height: '13px', borderRadius: '4px', background: '#6d28d9', color: '#fff', fontSize: '7.5px', fontWeight: 700, display: 'grid', placeItems: 'center' }}>{i + 1}</span>
                 <span style={{ fontSize: '8px', fontWeight: 600, color: '#374151', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.label}</span>
@@ -1220,7 +1223,7 @@ const SHOWCASES = [
       '긴 화면은 전체 페이지 캡처로 한 번에',
       '비밀번호 입력값은 저장하지 않고 민감 영역은 편집기에서 모자이크',
     ],
-    video: '/landing/Demo.mp4',
+    video: '',
     mock: <MockRecord />,
     badge: null as string | null,
   },
@@ -1922,7 +1925,7 @@ export default function LandingPage() {
         </div>
       </footer>
 
-      <style>{`
+      <style suppressHydrationWarning>{`
         /* ── 앵커 이동 시 sticky 헤더(64px)에 가려지지 않도록 보정 ── */
         section[id] { scroll-margin-top: 80px; }
 
@@ -1989,6 +1992,59 @@ export default function LandingPage() {
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(4px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes captureSweep {
+          0%, 18% { transform: translateX(-120%); opacity: 0; }
+          28% { opacity: 0.86; }
+          42% { transform: translateX(130%); opacity: 0; }
+          100% { transform: translateX(130%); opacity: 0; }
+        }
+        @keyframes captureFlash {
+          0%, 35%, 100% { opacity: 0; transform: scale(0.82); }
+          43% { opacity: 0.95; transform: scale(1); }
+          58% { opacity: 0; transform: scale(1.55); }
+        }
+        @keyframes captureToast {
+          0%, 34% { opacity: 0; transform: translateY(10px) scale(0.96); }
+          45%, 82% { opacity: 1; transform: translateY(0) scale(1); }
+          100% { opacity: 0; transform: translateY(4px) scale(0.98); }
+        }
+        @keyframes recordStepPop {
+          0%, 22% { opacity: 0; transform: translateX(12px) scale(0.98); }
+          38%, 100% { opacity: 1; transform: translateX(0) scale(1); }
+        }
+        @keyframes recordCursorMove {
+          0%, 18% { transform: translate(-42px, -30px) scale(1.02); }
+          42% { transform: translate(0, 0) scale(1); }
+          50% { transform: translate(0, 0) scale(0.82); }
+          60%, 100% { transform: translate(0, 0) scale(1); }
+        }
+        .record-flash-demo .capture-sweep {
+          position: absolute;
+          inset: 0;
+          z-index: 6;
+          pointer-events: none;
+          background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.02) 34%, rgba(255,255,255,0.72) 50%, rgba(167,139,250,0.22) 62%, transparent 100%);
+          mix-blend-mode: screen;
+          animation: captureSweep 3.2s ease-in-out infinite;
+        }
+        .record-flash-demo .capture-flash {
+          position: absolute;
+          inset: -10px;
+          border-radius: 16px;
+          pointer-events: none;
+          background: radial-gradient(circle, rgba(255,255,255,0.92) 0%, rgba(167,139,250,0.28) 48%, transparent 72%);
+          animation: captureFlash 3.2s ease-out infinite;
+        }
+        .record-flash-demo .capture-toast {
+          animation: captureToast 3.2s ease-in-out infinite;
+        }
+        .record-flash-demo .record-cursor {
+          animation: recordCursorMove 3.2s ease-in-out infinite;
+        }
+        .record-flash-demo .record-step-card {
+          opacity: 0;
+          animation: recordStepPop 3.2s ease-out infinite forwards;
         }
 
         /* ── 신규: 히어로 애니메이션 ── */
