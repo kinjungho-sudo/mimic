@@ -58,7 +58,9 @@ interface ManualEditorProps {
   onSave?: (id: string, patch: Partial<ManualStep>) => void;
   onDeleteStep?: (id: string) => void;
   onDuplicateStep?: (id: string) => void;
+  duplicatingStepId?: string | null;
   onInsertAfter?: (afterId: string) => void;
+  onAddStep?: () => void;
   hideToc?: boolean;
   activeId?: string | null;
   onActiveChange?: (id: string) => void;
@@ -69,7 +71,7 @@ interface ManualEditorProps {
 
 // ── ManualEditor ──────────────────────────────────────────
 
-export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicateStep, onInsertAfter, hideToc, activeId: externalActiveId, onActiveChange, selectedIds: externalSelectedIds, onSelectChange, onAddComment }: ManualEditorProps) {
+export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicateStep, duplicatingStepId, onInsertAfter, onAddStep, hideToc, activeId: externalActiveId, onActiveChange, selectedIds: externalSelectedIds, onSelectChange, onAddComment }: ManualEditorProps) {
   const [internalActiveId, setInternalActiveId] = useState<string | null>(
     steps.length > 0 ? steps[0].id : null
   );
@@ -314,7 +316,7 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
           </div>
           <div style={{ padding: '8px 12px 16px', borderTop: '1px solid #F3F4F6', flexShrink: 0 }}>
             <button
-              onClick={addStep}
+              onClick={onAddStep ?? addStep}
               style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', height: '36px', border: '1.5px dashed #D1D5DB', borderRadius: '8px', background: 'transparent', fontSize: '12px', color: '#6B7280', cursor: 'pointer', transition: 'all 0.15s ease' }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = '#3730a3'; e.currentTarget.style.color = '#3730a3'; e.currentTarget.style.background = 'rgba(55,48,163,0.03)'; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = '#D1D5DB'; e.currentTarget.style.color = '#6B7280'; e.currentTarget.style.background = 'transparent'; }}
@@ -399,6 +401,7 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
                     onSave={patch => { updateStep(step.id, patch); onSave?.(step.id, patch); }}
                     onDelete={() => deleteStep(step.id)}
                     onDuplicate={() => onDuplicateStep?.(step.id)}
+                    isDuplicating={duplicatingStepId === step.id}
                     onZoom={() => step.screenshotUrl && setZoomUrl(step.screenshotUrl)}
                     onAnnotate={() => { if (!step.screenshotUrl) return; setActiveId(step.id); setAnnotatingId(step.id); }}
                     onRemoveImage={() => { updateStep(step.id, { screenshotUrl: undefined, annotations: [] }); onSave?.(step.id, { screenshotUrl: undefined, annotations: [] }); }}
@@ -465,7 +468,7 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
           {/* 단계 추가 버튼 — 마지막 스텝 아래 */}
           <div style={{ scrollSnapAlign: 'none', display: 'flex', justifyContent: 'center', padding: '20px 0 40px' }}>
             <button
-              onClick={addStep}
+              onClick={onAddStep ?? addStep}
               style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', height: '44px', padding: '0 24px', borderRadius: '10px', border: '2px dashed #D1D5DB', background: 'transparent', fontSize: '13px', color: '#6B7280', cursor: 'pointer', transition: 'all 0.18s ease' }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = '#3730a3'; e.currentTarget.style.color = '#3730a3'; e.currentTarget.style.background = 'rgba(55,48,163,0.03)'; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = '#D1D5DB'; e.currentTarget.style.color = '#6B7280'; e.currentTarget.style.background = 'transparent'; }}
@@ -697,13 +700,14 @@ interface StepCardProps {
   onSave: (patch: Partial<ManualStep>) => void;
   onDelete: () => void;
   onDuplicate: () => void;
+  isDuplicating?: boolean;
   onZoom: () => void;
   onAnnotate: () => void;
   onRemoveImage: () => void;
   onAddComment?: () => void;
 }
 
-function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdate, onSave, onDelete, onDuplicate, onZoom, onAnnotate, onRemoveImage, onAddComment }: StepCardProps) {
+function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdate, onSave, onDelete, onDuplicate, isDuplicating, onZoom, onAnnotate, onRemoveImage, onAddComment }: StepCardProps) {
   const [hovering, setHovering] = useState(false);
   const [descGenerating, setDescGenerating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -932,11 +936,11 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
                 <MessageSquare size={16} />
               </button>
             )}
-            <button onClick={onDuplicate} title="단계 복제" style={iconBtnSm}
-              onMouseEnter={e => { e.currentTarget.style.color = '#0369a1'; }}
-              onMouseLeave={e => { e.currentTarget.style.color = '#9CA3AF'; }}
+            <button onClick={onDuplicate} disabled={isDuplicating} title={isDuplicating ? '복제 중…' : '단계 복제'} style={{ ...iconBtnSm, opacity: isDuplicating ? 0.65 : 1, cursor: isDuplicating ? 'wait' : iconBtnSm.cursor }}
+              onMouseEnter={e => { if (!isDuplicating) e.currentTarget.style.color = '#0369a1'; }}
+              onMouseLeave={e => { if (!isDuplicating) e.currentTarget.style.color = '#9CA3AF'; }}
             >
-              <Copy size={16} />
+              {isDuplicating ? <Loader2 size={16} className="spin" /> : <Copy size={16} />}
             </button>
             <button onClick={onDelete} title="단계 삭제" style={iconBtnSm}
               onMouseEnter={e => { e.currentTarget.style.color = '#DC2626'; }}
