@@ -35,6 +35,27 @@ async function main() {
       script: '자료 다운로드를 클릭합니다.',
     },
     {
+      name: 'slack apps label uses menu context',
+      step: { id: '4b', step_number: 4, ai_title: null, ai_description: null, page_url: 'https://app.slack.com/client/T123/apps', domain_name: 'Slack' },
+      context: { actionInfo: { type: 'click', label: 'apps' } },
+      title: '앱 메뉴 클릭',
+      script: '앱 메뉴를 클릭합니다.',
+    },
+    {
+      name: 'slack oauth label uses settings context',
+      step: { id: '4c', step_number: 4, ai_title: null, ai_description: null, page_url: 'https://api.slack.com/apps/A0BCYXSD1RD/oauth', domain_name: 'Slack' },
+      context: { actionInfo: { type: 'click', label: 'oauth' } },
+      title: 'OAuth 설정 클릭',
+      script: 'OAuth 설정을 클릭합니다.',
+    },
+    {
+      name: 'slack general label uses channel context',
+      step: { id: '4d', step_number: 4, ai_title: null, ai_description: null, page_url: 'https://app.slack.com/client/T123/C123', domain_name: 'jungho Slack' },
+      context: { actionInfo: { type: 'click', label: 'general' } },
+      title: 'general 채널 클릭',
+      script: 'general 채널을 클릭합니다.',
+    },
+    {
       name: 'weak ai title ignored',
       step: { id: '5', step_number: 5, ai_title: '단계 5 진행', ai_description: '', page_url: 'https://example.com', domain_name: null },
       context: { actionInfo: { type: 'select', label: '계정' } },

@@ -370,7 +370,10 @@ export async function POST(request: NextRequest) {
 
       const enrichedSteps = [];
       for (const step of createdSteps) {
-        if ((step.ai_title?.trim() && step.ai_description?.trim()) || !step.screenshot_url) {
+        const existingAiTitle = step.ai_title?.trim() || null;
+        const existingAiDescription = step.ai_description?.trim() || null;
+        const existingTitleUsable = !!existingAiTitle && !isLowQualityCaptureTitle(existingAiTitle);
+        if ((existingTitleUsable && existingAiDescription) || !step.screenshot_url) {
           enrichedSteps.push(step);
           continue;
         }
@@ -394,7 +397,7 @@ export async function POST(request: NextRequest) {
           const clickX = !noAction && event?.click_x != null ? event.click_x / 10000 : undefined;
           const clickY = !noAction && event?.click_y != null ? event.click_y / 10000 : undefined;
           const actionInfo = actionInfoByStepNum.get(step.step_number) ?? undefined;
-          const analysis = step.ai_title?.trim()
+          const analysis = existingTitleUsable
             ? null
             : await analyzeScreenshot(
                 image.base64,
@@ -414,8 +417,8 @@ export async function POST(request: NextRequest) {
                 return null;
               });
 
-          const aiTitle = step.ai_title?.trim() || analysis?.title?.trim() || null;
-          const aiDescription = step.ai_description?.trim()
+          const aiTitle = existingTitleUsable ? existingAiTitle : analysis?.title?.trim() || null;
+          const aiDescription = existingAiDescription
             || (aiTitle
               ? await generateStepDescription(aiTitle, step.page_url, image.base64, image.mediaType).catch(async (err) => {
                   console.error('capture finalize step description retry error:', err);
@@ -492,7 +495,16 @@ export async function POST(request: NextRequest) {
 
       try {
         const draftResult = await generateDraft(
-          enrichedSteps.map(s => ({ ...s, noAction: noActionByStepNum.get(s.step_number) ?? false }))
+          enrichedSteps.map(s => {
+            const actionInfo = actionInfoByStepNum.get(s.step_number);
+            return {
+              ...s,
+              noAction: noActionByStepNum.get(s.step_number) ?? false,
+              action_type: actionInfo?.type ?? null,
+              action_label: actionInfo?.label ?? actionInfo?.text ?? null,
+              element_text: elementTextByStepNum.get(s.step_number) ?? null,
+            };
+          })
         );
         aiDraftStatus = draftResult.status;
         tutorial_title = draftResult.tutorial_title;
