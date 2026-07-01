@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 const clean = (v: string | undefined) => v?.replace(/^﻿/, '').trim() ?? '';
 
-const PROTECTED = ['/home', '/editor', '/manual', '/mypage', '/extension-link', '/settings'];
+const PROTECTED = ['/editor', '/manual', '/mypage', '/extension-link', '/settings'];
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -34,6 +34,12 @@ export async function middleware(request: NextRequest) {
   const user = session?.user ?? null;
 
   const { pathname } = request.nextUrl;
+  if (pathname === '/home') {
+    const url = request.nextUrl.clone();
+    url.pathname = '/landingpage';
+    return NextResponse.redirect(url);
+  }
+
   const isProtected = PROTECTED.some(p => pathname.startsWith(p));
 
   if (isProtected && !user) {
