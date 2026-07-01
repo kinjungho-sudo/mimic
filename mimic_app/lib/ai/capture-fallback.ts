@@ -96,6 +96,23 @@ function isRawCaptureLabel(value: string | null | undefined): boolean {
   return RAW_CAPTURE_LABELS.has(text);
 }
 
+function hasMachineToken(value: string | null | undefined): boolean {
+  const text = cleanText(value);
+  if (!text) return false;
+  const tokens = text.match(/[a-z0-9][a-z0-9_-]{7,}/gi) ?? [];
+  return tokens.some(token => {
+    const compact = token.replace(/[-_]/g, '');
+    if (/^[a-f0-9]{12,}$/i.test(compact)) return true;
+    if (/^[a-z0-9]{16,}$/i.test(compact) && /\d/.test(compact) && /[a-z]/i.test(compact)) return true;
+    return /^[a-z]?[a-z0-9]{8,}$/i.test(compact) && /\d/.test(compact) && /[a-f0-9]{8,}/i.test(compact);
+  });
+}
+
+export function isLowQualityCaptureLabel(value: string | null | undefined): boolean {
+  const text = cleanText(value);
+  return !text || isGenericLabel(text) || isRawCaptureLabel(text) || hasMachineToken(text);
+}
+
 function isWeakTitle(value: string | null | undefined): boolean {
   const text = cleanText(value);
   return !text || WEAK_TITLES.has(text) || /^단계\s*\d+\s*진행$/.test(text);
@@ -104,7 +121,7 @@ function isWeakTitle(value: string | null | undefined): boolean {
 export function isLowQualityCaptureTitle(value: string | null | undefined): boolean {
   const text = cleanText(value);
   if (isWeakTitle(text)) return true;
-  if (isGenericLabel(text)) return true;
+  if (isLowQualityCaptureLabel(text)) return true;
   const rawLabelPattern = Array.from(RAW_CAPTURE_LABELS).join('|');
   return new RegExp(`^(${rawLabelPattern}|edit|button|link|menu|untitled|click)\\s+(클릭|확인|선택|입력|이동)$`, 'i').test(text);
 }
@@ -112,6 +129,7 @@ export function isLowQualityCaptureTitle(value: string | null | undefined): bool
 export function isLowQualityCaptureScript(value: string | null | undefined): boolean {
   const text = cleanText(value);
   if (!text) return true;
+  if (hasMachineToken(text)) return true;
   const rawLabelPattern = Array.from(RAW_CAPTURE_LABELS).join('|');
   return new RegExp(`^(${rawLabelPattern}|edit|button|link|menu|untitled|click)(을|를)?\\s*(클릭|확인|선택|입력|이동)합니다\\.?$`, 'i').test(text);
 }
@@ -208,7 +226,7 @@ function contextFromLabel(
 function firstUseful(candidates: Array<string | null | undefined>): string {
   for (const candidate of candidates) {
     const text = cleanText(candidate);
-    if (text && !isGenericLabel(text) && !isRawCaptureLabel(text)) return text;
+    if (text && !isLowQualityCaptureLabel(text)) return text;
   }
   return '';
 }

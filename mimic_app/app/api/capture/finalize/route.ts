@@ -3,7 +3,7 @@ import { requireExtensionToken } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { captureFinalizeSchema } from '@/lib/validators';
 import { analyzeScreenshot, generateStepDescription, generateDraft, extractCoverColors, detectPII, cleanTranscripts } from '@/lib/ai/claude';
-import { buildCaptureFallbackDraft, buildCaptureFallbackTutorialTitle, isLowQualityCaptureScript, isLowQualityCaptureTitle, type CaptureFallbackActionInfo } from '@/lib/ai/capture-fallback';
+import { buildCaptureFallbackDraft, buildCaptureFallbackTutorialTitle, isLowQualityCaptureLabel, isLowQualityCaptureScript, isLowQualityCaptureTitle, type CaptureFallbackActionInfo } from '@/lib/ai/capture-fallback';
 import { resolveFavicon } from '@/lib/favicon';
 import { buildClickHighlight } from '@/lib/annotations';
 import { transcribeAudio, assignSegmentsToSteps, computeStepWindows } from '@/lib/voice/voice';
@@ -35,6 +35,15 @@ async function fetchScreenshotForAi(url: string): Promise<{ base64: string; medi
   return {
     base64: Buffer.from(buffer).toString('base64'),
     mediaType,
+  };
+}
+
+function cleanActionInfoForDraft(actionInfo: CaptureFallbackActionInfo): CaptureFallbackActionInfo {
+  if (!actionInfo) return actionInfo;
+  return {
+    ...actionInfo,
+    label: isLowQualityCaptureLabel(actionInfo.label) ? undefined : actionInfo.label,
+    text: isLowQualityCaptureLabel(actionInfo.text) ? undefined : actionInfo.text,
   };
 }
 
@@ -364,8 +373,9 @@ export async function POST(request: NextRequest) {
       const actionInfoByStepNum = new Map<number, CaptureFallbackActionInfo>();
       const elementTextByStepNum = new Map<number, string | null>();
       deduped.forEach((ev, idx) => {
-        actionInfoByStepNum.set(idx + 1, (ev.action_info as CaptureFallbackActionInfo) ?? null);
-        elementTextByStepNum.set(idx + 1, (ev.element_text as string | null) ?? null);
+        actionInfoByStepNum.set(idx + 1, cleanActionInfoForDraft((ev.action_info as CaptureFallbackActionInfo) ?? null));
+        const elementText = (ev.element_text as string | null) ?? null;
+        elementTextByStepNum.set(idx + 1, isLowQualityCaptureLabel(elementText) ? null : elementText);
       });
 
       const enrichedSteps = [];
@@ -496,12 +506,14 @@ export async function POST(request: NextRequest) {
       try {
         const draftResult = await generateDraft(
           enrichedSteps.map(s => {
-            const actionInfo = actionInfoByStepNum.get(s.step_number);
-            return {
-              ...s,
-              noAction: noActionByStepNum.get(s.step_number) ?? false,
-              action_type: actionInfo?.type ?? null,
-              action_label: actionInfo?.label ?? actionInfo?.text ?? null,
+          const actionInfo = actionInfoByStepNum.get(s.step_number);
+          return {
+            ...s,
+            ai_title: isLowQualityCaptureTitle(s.ai_title) ? null : s.ai_title,
+            ai_description: isLowQualityCaptureScript(s.ai_description) ? null : s.ai_description,
+            noAction: noActionByStepNum.get(s.step_number) ?? false,
+            action_type: actionInfo?.type ?? null,
+            action_label: actionInfo?.label ?? actionInfo?.text ?? null,
               element_text: elementTextByStepNum.get(s.step_number) ?? null,
             };
           })
