@@ -9,6 +9,22 @@ function isMissingActionInfoColumn(error: { code?: string; message?: string } | 
   return error?.code === '42703' || /action_info/i.test(error?.message ?? '');
 }
 
+function isMissingExceptionStepColumns(error: { code?: string; message?: string } | null | undefined) {
+  return error?.code === '42703'
+    || /step_type|capture_source|capture_failure_reason/i.test(error?.message ?? '');
+}
+
+function removeUnsupportedColumns(row: Record<string, unknown>, error: { code?: string; message?: string } | null | undefined) {
+  const legacyRow = { ...row };
+  if (isMissingActionInfoColumn(error)) delete legacyRow.action_info;
+  if (isMissingExceptionStepColumns(error)) {
+    delete legacyRow.step_type;
+    delete legacyRow.capture_source;
+    delete legacyRow.capture_failure_reason;
+  }
+  return legacyRow;
+}
+
 export async function POST(request: NextRequest) {
   const auth = await requireExtensionToken(request);
   if (!auth.ok) return auth.response;
@@ -56,16 +72,23 @@ export async function POST(request: NextRequest) {
 
   // element_rect: recorder가 이미 0~1로 정규화해서 전송 — 서버에서 추가 변환 없이 그대로 저장
   const elementRectNormalized = d.element_rect ?? null;
+  const clickX = d.click_x ?? null;
+  const clickY = d.click_y ?? null;
+  const hasClick = clickX != null && clickY != null;
+  const captureSource = d.screenshot_url ? d.capture_source : 'none';
 
   const row: Record<string, unknown> = {
-    screenshot_url: d.screenshot_url,
+    screenshot_url: d.screenshot_url ?? null,
     // click_x/y: recorder가 0~1로 전송, DB는 0~10000 정수로 저장 (editor에서 /100으로 읽어 0~100%)
-    click_x: Math.round(d.click_x * 10000),
-    click_y: Math.round(d.click_y * 10000),
+    click_x: hasClick ? Math.round(clickX * 10000) : null,
+    click_y: hasClick ? Math.round(clickY * 10000) : null,
     url: d.url,
     element_text: redactSensitive(d.title),
     ai_title: redactSensitive(d.title) || null,
     ai_description: redactSensitive(d.description) || null,
+    step_type:        d.step_type,
+    capture_source:   captureSource,
+    capture_failure_reason: d.capture_failure_reason ?? null,
     domain_hostname:   d.domain_hostname   ?? null,
     domain_name:       d.domain_name       ?? null,
     domain_favicon:    d.domain_favicon    ?? null,
@@ -96,9 +119,8 @@ export async function POST(request: NextRequest) {
       .update(row)
       .eq('id', existing.id);
 
-    if (isMissingActionInfoColumn(updateError)) {
-      const legacyRow = { ...row };
-      delete legacyRow.action_info;
+    if (isMissingActionInfoColumn(updateError) || isMissingExceptionStepColumns(updateError)) {
+      const legacyRow = removeUnsupportedColumns(row, updateError);
       const retry = await supabase
         .from('mm_capture_events')
         .update(legacyRow)
@@ -119,9 +141,8 @@ export async function POST(request: NextRequest) {
     .select('id')
     .single();
 
-  if (isMissingActionInfoColumn(error)) {
-    const legacyRow = { ...row };
-    delete legacyRow.action_info;
+  if (isMissingActionInfoColumn(error) || isMissingExceptionStepColumns(error)) {
+    const legacyRow = removeUnsupportedColumns(row, error);
     const retry = await supabase
       .from('mm_capture_events')
       .insert({ session_id: sessionId, step_number: d.step_number, ...legacyRow })

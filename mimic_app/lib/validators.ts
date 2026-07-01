@@ -77,6 +77,17 @@ const elementRectSchema = z.object({
   height: z.number(),
 }).nullable().optional();
 
+export const stepTypeSchema = z.enum([
+  'normal_interactive_step',
+  'visual_only_step',
+  'visual_overlay_step',
+  'manual_capture_step',
+  'blocked_step',
+  'skipped_step',
+]);
+
+export const captureSourceSchema = z.enum(['auto', 'manual', 'none']);
+
 export const captureAnalyzeSchema = z.object({
   image: z.string().min(1),
   url: z.string().url(),
@@ -103,9 +114,12 @@ export const guideRegroundSchema = z.object({
 export const captureSaveStepSchema = z.object({
   session_id: z.string().uuid(),
   step_number: z.number().int().positive(),
-  screenshot_url: z.string().url(),
-  click_x: z.number().min(0).max(1),
-  click_y: z.number().min(0).max(1),
+  screenshot_url: z.string().url().nullable().optional(),
+  click_x: z.number().min(0).max(1).nullable().optional(),
+  click_y: z.number().min(0).max(1).nullable().optional(),
+  step_type: stepTypeSchema.optional().default('normal_interactive_step'),
+  capture_source: captureSourceSchema.optional().default('auto'),
+  capture_failure_reason: z.string().max(100).nullable().optional(),
   title: z.string().max(100).optional().default(''),
   description: z.string().max(500).optional().default(''),
   url: z.string().url(),

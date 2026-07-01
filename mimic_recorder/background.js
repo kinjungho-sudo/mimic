@@ -2092,7 +2092,33 @@ async function processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base
     if (analysisResult.status === 'rejected') log('warn',  'bg', `analyze failed step ${stepNum}:`, analysisResult.reason.message);
 
     if (!uploadedUrl) {
-      if (!stepData.overwrite) await storageSet({ stepNumber: stepNum - 1 });
+      try {
+        await saveStep({
+          sessionId,
+          stepNumber: stepNum,
+          screenshotUrl: null,
+          clickX: null,
+          clickY: null,
+          title: actionLabel || '수동으로 진행할 단계',
+          description: '자동 캡처를 저장하지 못한 단계입니다. 실제 화면에서 필요한 작업을 완료한 뒤 다음을 눌러주세요.',
+          url: stepData.url,
+          domainInfo,
+          viewportW: stepData.viewportW ?? stepData.windowWidth ?? null,
+          viewportH: stepData.viewportH ?? stepData.windowHeight ?? null,
+          elementSelector: null,
+          elementXPath: null,
+          elementRect: null,
+          actionInfo: stepData.actionInfo ?? null,
+          typedText: null,
+          cropBox: null,
+          audioOffsetMs: null,
+          stepType: 'blocked_step',
+          captureSource: 'none',
+          captureFailureReason: 'upload_failed',
+        });
+      } catch (err) {
+        log('warn', 'bg', `blocked save-step API failed step ${stepNum}:`, err.message);
+      }
       chrome.runtime.sendMessage({ type: 'UPLOAD_FAILED', stepNumber: stepNum }, () => { void chrome.runtime.lastError; });
       return;
     }
@@ -2270,7 +2296,7 @@ async function analyzeWithClaude(base64Image, url, actionInfo, elementContext = 
 }
 
 // ── 스텝 저장 — 웹앱 API 경유 ───────────────────────────────────
-async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, title, description, url, domainInfo, viewportW, viewportH, elementSelector, elementXPath, elementRect, actionInfo, typedText, cropBox, audioOffsetMs }) {
+async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, title, description, url, domainInfo, viewportW, viewportH, elementSelector, elementXPath, elementRect, actionInfo, typedText, cropBox, audioOffsetMs, stepType, captureSource, captureFailureReason }) {
   const origin = await getWebappOrigin();
   const payload = {
     session_id:       sessionId,
@@ -2278,6 +2304,9 @@ async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, 
     screenshot_url:   screenshotUrl,
     click_x:          clickX,
     click_y:          clickY,
+    step_type:        stepType ?? 'normal_interactive_step',
+    capture_source:   captureSource ?? (screenshotUrl ? 'auto' : 'none'),
+    capture_failure_reason: captureFailureReason ?? null,
     title:            title ?? '',
     description:      description ?? '',
     url,

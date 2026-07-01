@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Play, Check, Loader2, MousePointerClick, Type, Ban, RotateCcw, EyeOff, Eye, GripVertical, ZoomIn, Zap, Link2 } from 'lucide-react';
+import { ArrowLeft, Play, Check, Loader2, MousePointerClick, Type, Ban, RotateCcw, EyeOff, Eye, GripVertical, ZoomIn, Zap, Link2, ImagePlus, PenTool } from 'lucide-react';
 import { useTutorial } from '@/hooks/useTutorial';
 import { updateStep, reorderSteps } from '@/lib/api/steps';
 import { clickToPct, inferKind, toFollowSteps } from '@/lib/follow';
 import { startLiveGuide } from '@/lib/api/liveGuide';
 import { InteractiveFollowPlayer } from '@/components/viewer/InteractiveFollowPlayer';
 import { FollowStage } from '@/components/viewer/FollowStage';
+import { ImageAnnotationEditor, type Annotation } from '@/components/editor/ImageAnnotationEditor';
 import { logError } from '@/lib/logging/logger';
 import type { Step, Tutorial, FollowConfig } from '@/types';
 
@@ -24,6 +25,8 @@ type StudioStep = {
   description: string;       // user_script (편집, HTML 제거) — 문서 매뉴얼과 공유
   clickXPct: number | null;  // 녹화 좌표 (0~100)
   clickYPct: number | null;
+  stepType: string | null;
+  annotations: Annotation[];
   domRect: { x: number; y: number; w: number; h: number } | null; // DOM 요소 영역(0~100 pct) — 확대 애니메이션 중심
   follow: FollowConfig;      // 따라하기 전용 시각 설정 (핫스팟·종류·숨김·typeText)
 };
@@ -38,6 +41,8 @@ function toStudioStep(s: Step): StudioStep {
     description: (s.user_script || s.ai_description || '').replace(/<[^>]+>/g, ''),
     clickXPct: clickToPct((s as Step & { click_x?: number | null }).click_x),
     clickYPct: clickToPct((s as Step & { click_y?: number | null }).click_y),
+    stepType: s.step_type ?? null,
+    annotations: (s.user_annotations as Annotation[] | null) ?? [],
     domRect: (() => {
       const raw = (s as Step & { element_rect?: { x?: number; y?: number; width?: number; height?: number } | null }).element_rect;
       if (!raw || raw.x == null) return null;
@@ -93,6 +98,9 @@ export default function StudioPage() {
   const [publishing, setPublishing] = useState(false);
   const [liveStarting, setLiveStarting] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [uploadingStepId, setUploadingStepId] = useState<string | null>(null);
+  const [annotatingId, setAnnotatingId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const imgWrapRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
   const contentTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -189,6 +197,47 @@ export default function StudioPage() {
   }, []);
 
   // 이미지 클릭/드래그 → 핫스팟 위치 지정
+  const uploadManualCapture = useCallback(async (file: File) => {
+    const target = active;
+    if (!target) return;
+    const fd = new FormData();
+    fd.append('file', file);
+    setUploadingStepId(target.id);
+    try {
+      const res = await fetch(`/api/steps/${target.id}/image`, { method: 'POST', body: fd });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      const nextFollow: FollowConfig = { ...target.follow, kind: 'none' };
+      stepsRef.current = stepsRef.current.map(s => s.id === target.id
+        ? { ...s, screenshotUrl: data.screenshot_url, stepType: data.step_type ?? 'visual_overlay_step', clickXPct: null, clickYPct: null, domRect: null, follow: nextFollow }
+        : s);
+      setSteps(stepsRef.current);
+      setSavedTick(t => t + 1);
+    } catch (e) {
+      logError('studio.manualCapture.fail', { stepId: target.id, message: e instanceof Error ? e.message : String(e) });
+      alert('수동 캡처 이미지를 저장하지 못했습니다. 다시 시도해주세요.');
+    } finally {
+      setUploadingStepId(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }, [active]);
+
+  const saveAnnotations = useCallback(async (stepId: string, annotations: Annotation[]) => {
+    const current = stepsRef.current.find(s => s.id === stepId);
+    const nextFollow = { ...(current?.follow ?? {}), kind: 'none' as const };
+    stepsRef.current = stepsRef.current.map(s => s.id === stepId ? { ...s, annotations, follow: nextFollow, stepType: s.stepType ?? 'visual_overlay_step' } : s);
+    setSteps(stepsRef.current);
+    setSavingId(stepId);
+    try {
+      await updateStep(stepId, { user_annotations: annotations, follow_config: normalize(nextFollow) });
+      setSavedTick(t => t + 1);
+    } catch (e) {
+      logError('studio.annotations.fail', { stepId, message: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setSavingId(s => (s === stepId ? null : s));
+    }
+  }, []);
+
   const placeHotspot = useCallback((clientX: number, clientY: number, commit: boolean) => {
     const el = imgWrapRef.current;
     if (!el || !active) return;
@@ -223,6 +272,8 @@ export default function StudioPage() {
     clickYPct: s.clickYPct,
     audioUrl: null,
     followConfig: s.follow,
+    stepType: s.stepType,
+    annotations: s.annotations,
     domRect: s.domRect,
   }))), [steps]);
 
@@ -305,6 +356,16 @@ export default function StudioPage() {
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#0A0A0F', display: 'flex', flexDirection: 'column', fontFamily: "'Pretendard', -apple-system, sans-serif", color: 'white', overflow: 'hidden' }}>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        hidden
+        onChange={e => {
+          const file = e.target.files?.[0];
+          if (file) uploadManualCapture(file);
+        }}
+      />
       {/* Header */}
       <header style={{ flexShrink: 0, height: 56, padding: '0 18px', display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(10,10,15,0.9)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
         <button onClick={() => router.push(`/manual/${id}/editor`)} style={ghostBtn} title="편집기로 돌아가기"><ArrowLeft size={TOP_BAR_ICON_SIZE} /></button>
@@ -380,7 +441,20 @@ export default function StudioPage() {
           {!active ? (
             <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>스텝을 선택하세요</span>
           ) : !active.screenshotUrl ? (
-            <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>이 스텝에는 스크린샷이 없습니다</span>
+            <div style={{ width: 'min(460px, 100%)', border: '1px dashed rgba(167,139,250,0.45)', background: 'rgba(124,58,237,0.08)', borderRadius: 14, padding: 28, textAlign: 'center' }}>
+              <ImagePlus size={34} color="#c4b5fd" style={{ marginBottom: 12 }} />
+              <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 7 }}>수동 캡처가 필요한 단계</div>
+              <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.62)', lineHeight: 1.6, marginBottom: 16 }}>
+                보안 화면이나 제한된 페이지는 이미지를 직접 추가한 뒤 Visual Overlay로 안내를 완성할 수 있습니다.
+              </div>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingStepId === active.id}
+                style={{ ...primaryBtn, height: 36, display: 'inline-flex', alignItems: 'center', gap: 7, opacity: uploadingStepId === active.id ? 0.65 : 1 }}
+              >
+                {uploadingStepId === active.id ? <Loader2 size={14} className="spin" /> : <ImagePlus size={14} />} 이미지 추가
+              </button>
+            </div>
           ) : (
             <>
               <div style={{ position: 'relative', lineHeight: 0, boxShadow: '0 12px 50px rgba(0,0,0,0.5)', filter: hidden ? 'grayscale(0.75) brightness(0.5)' : 'none' }}>
@@ -391,6 +465,8 @@ export default function StudioPage() {
                   allowCornerHotspot={rv?.userPlaced}
                   kind={rv?.kind ?? 'click'}
                   typeText={active.follow.typeText}
+                  guideMode={rv?.none ? 'explanation' : 'interactive'}
+                  annotations={active.annotations}
                   bubbleAnchor={active.follow.bubbleAnchor}
                   stepNumber={steps.findIndex(s => s.id === active.id) + 1}
                   title={active.title}
@@ -440,6 +516,27 @@ export default function StudioPage() {
                 style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)', color: 'white', fontSize: 12.5, lineHeight: 1.5, fontFamily: 'inherit', resize: 'vertical', outline: 'none' }}
               />
               <p style={hint}>제목·설명은 문서 매뉴얼과 함께 수정됩니다 — 입력하면 위 미리보기에 바로 반영돼요.</p>
+
+              <Divider />
+
+              <SectionLabel>Visual Overlay</SectionLabel>
+              <div style={{ display: 'grid', gap: 8 }}>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingStepId === active.id}
+                  style={{ ...subtleBtn, opacity: uploadingStepId === active.id ? 0.65 : 1 }}
+                >
+                  {uploadingStepId === active.id ? <Loader2 size={12} className="spin" /> : <ImagePlus size={12} />} {active.screenshotUrl ? '이미지 교체' : '이미지 추가'}
+                </button>
+                <button
+                  onClick={() => active.screenshotUrl && setAnnotatingId(active.id)}
+                  disabled={!active.screenshotUrl}
+                  style={{ ...subtleBtn, opacity: active.screenshotUrl ? 1 : 0.45, cursor: active.screenshotUrl ? 'pointer' : 'not-allowed' }}
+                >
+                  <PenTool size={12} /> Overlay 편집
+                </button>
+              </div>
+              <p style={hint}>DOM과 연결되지 않는 Rectangle, Circle, Spotlight, Arrow, Tooltip을 이미지 위에 배치합니다.</p>
 
               <Divider />
 
@@ -550,6 +647,19 @@ export default function StudioPage() {
           <InteractiveFollowPlayer title={tutorial.title} steps={previewSteps} onClose={() => setShowPreview(false)} closeLabel="편집으로" />
         </div>
       )}
+
+      {annotatingId && (() => {
+        const step = steps.find(s => s.id === annotatingId);
+        if (!step?.screenshotUrl) return null;
+        return (
+          <ImageAnnotationEditor
+            imageUrl={step.screenshotUrl}
+            annotations={step.annotations}
+            onChange={annotations => saveAnnotations(step.id, annotations)}
+            onClose={() => setAnnotatingId(null)}
+          />
+        );
+      })()}
 
       <Styles />
     </div>

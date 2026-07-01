@@ -222,9 +222,24 @@
     } catch { return true; }  // 파싱 불가 시 막지 않음
   }
 
+  function isExplanationStep(step) {
+    if (!step) return false;
+    return step.guide_mode === 'explanation'
+      || step.kind === 'none'
+      || step.step_type === 'visual_only_step'
+      || step.step_type === 'visual_overlay_step'
+      || step.step_type === 'manual_capture_step'
+      || step.step_type === 'blocked_step';
+  }
+
   function show(step, opts) {
     hide();
     opts = opts || {};
+
+    if (isExplanationStep(step)) {
+      showExplanation(step, opts);
+      return;
+    }
 
     // URL 검증 — 엉뚱한 페이지면 좌표 핫스팟을 찍지 말고 '다른 페이지' 안내만 표시
     if (step && step.page_url && !pageMatches(step.page_url)) {
@@ -564,6 +579,105 @@
 
   // 같은 URL이지만 녹화한 요소가 아직 화면에 없을 때 — 가짜 핫스팟 대신 '찾는 중' 카드를 띄우고
   // 요소가 나타나면 정상 오버레이로 자동 전환한다. (Typeform 등 SPA·녹화 차단으로 건너뛴 단계 대응)
+  function safeCssColor(value, fallback) {
+    const s = String(value || '').trim();
+    return /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(s) || /^rgba?\([\d\s.,%]+\)$/i.test(s) ? s : fallback;
+  }
+
+  function pctBox(a) {
+    const x1 = Number(a.x1), y1 = Number(a.y1), x2 = Number(a.x2), y2 = Number(a.y2);
+    if (![x1, y1, x2, y2].every(Number.isFinite)) return null;
+    const left = Math.max(0, Math.min(x1, x2));
+    const top = Math.max(0, Math.min(y1, y2));
+    const width = Math.max(1, Math.abs(x2 - x1));
+    const height = Math.max(1, Math.abs(y2 - y1));
+    return { left, top, width, height, x1, y1, x2, y2 };
+  }
+
+  function renderGuideAnnotation(a) {
+    const box = pctBox(a);
+    if (!box) return '';
+    const color = safeCssColor(a.color || a.borderColor, '#7c3aed');
+    const borderColor = safeCssColor(a.borderColor || a.color, color);
+    const stroke = Math.max(1, Math.min(8, Number(a.strokeWidth) || 3));
+    const base = `position:absolute;left:${box.left}%;top:${box.top}%;width:${box.width}%;height:${box.height}%;box-sizing:border-box;pointer-events:none;`;
+    if (a.type === 'text') {
+      return `<div style="${base}width:auto;min-width:72px;max-width:70%;height:auto;background:rgba(17,24,39,.88);color:#fff;border:1px solid rgba(255,255,255,.24);border-radius:8px;padding:6px 8px;font-size:11px;line-height:1.35;box-shadow:0 8px 24px rgba(0,0,0,.28)">${escapeHtml(a.text || '')}</div>`;
+    }
+    if (a.type === 'marker') {
+      return `<div style="position:absolute;left:${box.x1}%;top:${box.y1}%;transform:translate(-50%,-50%);width:22px;height:22px;border-radius:50%;background:${color};color:#fff;display:grid;place-items:center;font-size:11px;font-weight:800;box-shadow:0 6px 16px rgba(0,0,0,.25);pointer-events:none">${escapeHtml(a.markerNumber || '')}</div>`;
+    }
+    if (a.type === 'arrow' || a.type === 'line') {
+      const dx = box.x2 - box.x1, dy = box.y2 - box.y1;
+      const length = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+      const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+      const head = a.type === 'arrow'
+        ? `<span style="position:absolute;right:-2px;top:50%;width:8px;height:8px;border-top:${stroke}px solid ${color};border-right:${stroke}px solid ${color};transform:translateY(-50%) rotate(45deg);transform-origin:center"></span>`
+        : '';
+      return `<div style="position:absolute;left:${box.x1}%;top:${box.y1}%;width:${length}%;height:${stroke}px;background:${color};transform-origin:0 50%;transform:rotate(${angle}deg);border-radius:${stroke}px;pointer-events:none">${head}</div>`;
+    }
+    const radius = a.type === 'ellipse' ? '999px' : a.type === 'roundedRect' ? '10px' : '4px';
+    const shadow = a.type === 'spotlight' ? 'box-shadow:0 0 0 9999px rgba(0,0,0,.42),0 0 0 2px rgba(255,255,255,.75);' : '';
+    const fill = a.type === 'spotlight' ? 'background:transparent;' : 'background:rgba(124,58,237,.08);';
+    return `<div style="${base}${fill}border:${stroke}px solid ${borderColor};border-radius:${radius};${shadow}"></div>`;
+  }
+
+  function renderVisualGuideImage(step) {
+    if (!step || !step.screenshot_url) return '';
+    const annotations = Array.isArray(step.user_annotations)
+      ? step.user_annotations
+      : Array.isArray(step.annotations) ? step.annotations : [];
+    const overlay = annotations.map(renderGuideAnnotation).join('');
+    return `
+      <div style="position:relative;margin:0 0 14px;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.12);background:#050507;line-height:0">
+        <img src="${escapeHtml(step.screenshot_url)}" alt="" style="display:block;width:100%;max-height:240px;object-fit:contain;background:#050507">
+        ${overlay ? `<div style="position:absolute;inset:0;pointer-events:none;overflow:hidden">${overlay}</div>` : ''}
+      </div>`;
+  }
+
+  function showExplanation(step, opts) {
+    const host = document.createElement('div');
+    host.id = 'mimic-overlay-root';
+    host.style.cssText = `all:initial;position:fixed;inset:0;pointer-events:none;z-index:${Z};font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;`;
+    document.documentElement.appendChild(host);
+    const shadow = host.attachShadow({ mode: 'closed' });
+
+    const idx = opts.index ?? 0, total = opts.total ?? 1;
+    const title = step.title || `Step ${idx + 1}`;
+    const text = step.instruction || '이 단계는 직접 진행한 뒤 다음을 눌러주세요.';
+
+    const card = document.createElement('div');
+    card.style.cssText = `position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:420px;max-width:calc(100vw - 32px);background:${TIP_BG};color:#fff;border-radius:16px;padding:18px 18px 16px;box-shadow:0 18px 55px rgba(0,0,0,.48),0 0 0 1px rgba(165,180,252,.14);pointer-events:auto`;
+    card.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <div style="${AVATAR_STYLE}width:38px;height:38px;">${MASCOT_SVG}</div>
+        <div style="min-width:0">
+          <div style="font-size:11px;font-weight:700;color:#A5B4FC;margin-bottom:3px">${idx + 1} / ${total}</div>
+          <div style="font-size:15px;font-weight:800;line-height:1.35">${escapeHtml(title)}</div>
+        </div>
+        <div style="flex:1"></div>
+        <button class="ex-btn" data-act="exit" style="background:transparent;color:rgba(255,255,255,.45);padding:4px 7px">×</button>
+      </div>
+      <div style="font-size:13px;color:#D1D5DB;line-height:1.55;margin-bottom:14px">${escapeHtml(text)}</div>
+      ${renderVisualGuideImage(step)}
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="ex-btn" data-act="prev" style="background:rgba(255,255,255,.1);color:#D1D5DB;font-size:12px;padding:7px 12px">이전</button>
+        <div style="flex:1"></div>
+        <button class="ex-btn" data-act="next" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:8px 18px">${idx + 1 >= total ? '완료' : '다음'}</button>
+      </div>`;
+    shadow.appendChild(style('.ex-btn{pointer-events:auto;cursor:pointer;border:none;border-radius:8px;font-size:13px;font-weight:700;transition:opacity .15s}.ex-btn:active{opacity:.75}'));
+    shadow.appendChild(card);
+
+    card.addEventListener('click', (e) => {
+      const act = e.target && e.target.getAttribute && e.target.getAttribute('data-act');
+      if (act === 'exit') opts.onExit && opts.onExit();
+      else if (act === 'prev') opts.onPrev && opts.onPrev();
+      else if (act === 'next') opts.onAdvance && opts.onAdvance('manual');
+    });
+
+    state = { host, shadow, explanation: true };
+  }
+
   function showWaiting(step, opts) {
     const host = document.createElement('div');
     host.id = 'mimic-overlay-root';

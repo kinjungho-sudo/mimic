@@ -110,12 +110,22 @@ export type FollowConfig = {
   // 제목·설명은 follow_config에 두지 않는다 — user_title/user_script(문서 매뉴얼과 공유)에 직접 저장
 };
 
+export type StepType =
+  | 'normal_interactive_step'
+  | 'visual_only_step'
+  | 'visual_overlay_step'
+  | 'manual_capture_step'
+  | 'blocked_step'
+  | 'skipped_step';
+
+export type CaptureSource = 'auto' | 'manual' | 'none';
+
 export type Step = {
   id: string;
   tutorial_id: string;
   step_number: number;
   order_index: number;
-  screenshot_url: string;
+  screenshot_url: string | null;
   page_url: string | null;
   ai_title: string | null;
   ai_description: string | null;
@@ -123,6 +133,9 @@ export type Step = {
   user_script: string | null;
   user_annotations?: unknown[] | null;
   follow_config?: FollowConfig | null;
+  step_type?: StepType | null;
+  capture_source?: CaptureSource | null;
+  capture_failure_reason?: string | null;
   domain_hostname?: string | null;
   domain_name?:     string | null;
   domain_favicon?:  string | null;

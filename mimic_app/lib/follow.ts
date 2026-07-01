@@ -1,7 +1,8 @@
 // 따라하기(인터랙티브) 스텝 해석 — follow_config 오버라이드 + hidden 필터를 한 곳에서.
 // 슬라이드/녹화 데이터(자동추론)와 스튜디오 저작값(follow_config)을 합쳐 플레이어 입력을 만든다.
-import type { FollowConfig } from '@/types';
+import type { FollowConfig, StepType } from '@/types';
 import type { FollowStep } from '@/components/viewer/InteractiveFollowPlayer';
+import type { Annotation } from '@/components/editor/ImageAnnotationEditor';
 
 const TYPE_RE = /입력|타이핑|작성|기입|텍스트/;
 const CLICK_RE = /클릭|누르|선택|눌러|버튼|탭|체크|이동|열기/;
@@ -43,8 +44,17 @@ export type FollowSource = {
   clickYPct: number | null;
   audioUrl?: string | null;
   followConfig?: FollowConfig | null;
+  stepType?: StepType | string | null;
+  annotations?: Annotation[] | null;
   domRect?: { x: number; y: number; w: number; h: number } | null; // element_rect × 100 (0~100 pct)
 };
+
+function isExplanationStepType(stepType?: StepType | string | null): boolean {
+  return stepType === 'visual_only_step'
+    || stepType === 'visual_overlay_step'
+    || stepType === 'manual_capture_step'
+    || stepType === 'blocked_step';
+}
 
 // follow_config 우선, 미설정 필드는 자동추론. hidden 스텝은 제외.
 export function toFollowSteps(sources: FollowSource[]): FollowStep[] {
@@ -54,7 +64,7 @@ export function toFollowSteps(sources: FollowSource[]): FollowStep[] {
       const fc = s.followConfig ?? {};
       const resolvedKind = fc.kind ?? inferKind(s.title, s.body);
       // 'none' = 인디케이터 미표시 → 핫스팟 좌표를 null로 강제(플레이어가 하단 안내로 전환)
-      const isNone = resolvedKind === 'none';
+      const isNone = resolvedKind === 'none' || isExplanationStepType(s.stepType);
       return {
         // 제목·설명은 문서 매뉴얼과 공유 — user_title/user_script가 그대로 흐른다
         title: s.title,
@@ -70,6 +80,9 @@ export function toFollowSteps(sources: FollowSource[]): FollowStep[] {
         bubbleAnchor: fc.bubbleAnchor ?? null,
         domRect: s.domRect ?? null,
         zoomAnim: fc.zoomAnim ?? false,
+        stepType: s.stepType ?? null,
+        annotations: s.annotations ?? null,
+        guideMode: isNone ? 'explanation' : 'interactive',
       };
     });
 }

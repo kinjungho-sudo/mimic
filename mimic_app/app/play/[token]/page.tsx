@@ -43,6 +43,7 @@ type Step = {
   image_offset_y?: number | null;
   user_annotations?: DrawAnnotation[];
   follow_config?: FollowConfig | null;
+  step_type?: string | null;
   element_rect?: { x: number; y: number; w: number; h: number } | null;
 };
 
@@ -754,6 +755,8 @@ export default function PlayerPage() {
               clickYPct: clickToPct(s.click_y),
               audioUrl: tutorial.audio_assets?.find(a => a.step_id === s.id)?.audio_url ?? null,
               followConfig: s.follow_config ?? null,
+              stepType: s.step_type ?? null,
+              annotations: s.user_annotations ?? null,
               domRect: s.element_rect ?? null,
             })))}
           />

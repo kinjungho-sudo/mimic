@@ -47,6 +47,65 @@ function cleanActionInfoForDraft(actionInfo: CaptureFallbackActionInfo): Capture
   };
 }
 
+type GuideStepType =
+  | 'normal_interactive_step'
+  | 'visual_only_step'
+  | 'visual_overlay_step'
+  | 'manual_capture_step'
+  | 'blocked_step'
+  | 'skipped_step';
+
+const GUIDE_STEP_TYPES = new Set<string>([
+  'normal_interactive_step',
+  'visual_only_step',
+  'visual_overlay_step',
+  'manual_capture_step',
+  'blocked_step',
+  'skipped_step',
+]);
+
+function normalizeStepType(value: unknown): GuideStepType | null {
+  return typeof value === 'string' && GUIDE_STEP_TYPES.has(value)
+    ? value as GuideStepType
+    : null;
+}
+
+function classifyStepType(
+  ev: Record<string, unknown>,
+  noAction: boolean,
+  hasTarget: boolean,
+  hasScreenshot: boolean,
+): GuideStepType {
+  const explicit = normalizeStepType(ev.step_type);
+  if (explicit && explicit !== 'normal_interactive_step') return explicit;
+  if ((ev.capture_source as string | null) === 'manual' && hasScreenshot) return 'manual_capture_step';
+  if (!hasScreenshot) return 'blocked_step';
+  if (noAction || !hasTarget) return 'visual_only_step';
+  return 'normal_interactive_step';
+}
+
+function blockedStepMessage(reason: unknown): string {
+  if (reason === 'upload_failed') {
+    return '자동 캡처를 저장하지 못한 단계입니다. 실제 화면에서 필요한 작업을 완료한 뒤 다음을 눌러주세요.';
+  }
+  return '이 단계는 보안 정책이나 브라우저 제한으로 자동 캡처되지 않았습니다. 화면 안내에 따라 직접 진행한 뒤 다음을 눌러주세요.';
+}
+
+function isMissingExceptionStepColumns(error: { code?: string; message?: string } | null | undefined) {
+  return error?.code === '42703'
+    || /step_type|capture_source|capture_failure_reason/i.test(error?.message ?? '');
+}
+
+function stripExceptionStepColumns<T extends Record<string, unknown>>(steps: T[]): T[] {
+  return steps.map(step => {
+    const next = { ...step };
+    delete next.step_type;
+    delete next.capture_source;
+    delete next.capture_failure_reason;
+    return next;
+  });
+}
+
 export async function POST(request: NextRequest) {
   const auth = await requireExtensionToken(request);
   if (!auth.ok) return auth.response;
@@ -116,11 +175,10 @@ export async function POST(request: NextRequest) {
   //   2) 동일 page_url + created_at 차이 500ms 미만 연속 → 마지막만 유지 (타이핑 덮어쓰기)
   //   3) screenshot_url 없는 이벤트 제거
   const deduped = liveEvents.filter((ev, i, arr) => {
-    if (!ev.screenshot_url) return false;
     const prev = arr[i - 1];
     if (!prev) return true;
     // 동일 screenshot_url 연속 제거 (첫 번째 유지)
-    if (ev.screenshot_url === prev.screenshot_url) return false;
+    if (ev.screenshot_url && ev.screenshot_url === prev.screenshot_url) return false;
     // 동일 page_url이고 500ms 이내 연속 — 마지막만 유지 (i+1이 같은 조건이면 현재는 제거)
     const next = arr[i + 1];
     const tCur  = new Date(ev.created_at).getTime();
@@ -278,10 +336,14 @@ export async function POST(request: NextRequest) {
     // 행동 없음: 클릭 좌표가 없거나(이동/캡처), 또는 좋은 셀렉터 없이 화면 전체에 가까운/없는 영역(빈영역/전체선택)
     const noAction = !hasClick || (!hasGoodSelector && (hugeRect || !rawRect));
     noActionByStepNum.set(idx + 1, noAction);
+    const hasScreenshot = !!ev.screenshot_url;
+    const hasTarget = hasGoodSelector || !!rawRect || hasClick;
+    const stepType = classifyStepType(ev as Record<string, unknown>, noAction, hasTarget, hasScreenshot);
+    const explanationOnly = stepType !== 'normal_interactive_step';
 
     // 행동 없음 → 핫스팟/어노테이션/줌 근거(좌표·영역) 제거. 셀렉터는 향후 Guide Me 위해 유지.
-    if (noAction) { clickX = null; clickY = null; }
-    const elementRect = noAction ? null : rawRect;
+    if (noAction || explanationOnly) { clickX = null; clickY = null; }
+    const elementRect = noAction || explanationOnly ? null : rawRect;
     // 캡처 단계 확대: Recorder가 보낸 crop_box 우선(있으면 서버 휴리스틱 대체). 행동 없음 스텝은 확대 안 함.
     const cropBox = noAction ? null : ((ev.crop_box as { x: number; y: number; width: number; height: number } | null) ?? null);
     const recorderFraming = framingFromCropBox(cropBox);
@@ -290,10 +352,13 @@ export async function POST(request: NextRequest) {
       tutorial_id: tutorial.id,
       step_number: idx + 1,
       order_index: idx,
-      screenshot_url: ev.screenshot_url,
+      screenshot_url: ev.screenshot_url ?? null,
       page_url:        ev.url,
-      ai_title:        ev.ai_title        ?? null,
-      ai_description:  ev.ai_description  ?? null,
+      ai_title:        ev.ai_title        ?? (stepType === 'blocked_step' ? '수동으로 진행할 단계' : null),
+      ai_description:  ev.ai_description  ?? (stepType === 'blocked_step' ? blockedStepMessage(ev.capture_failure_reason) : null),
+      step_type:       stepType,
+      capture_source:  ev.capture_source ?? (hasScreenshot ? 'auto' : 'none'),
+      capture_failure_reason: ev.capture_failure_reason ?? null,
       domain_hostname: ev.domain_hostname ?? null,
       domain_name:     ev.domain_name     ?? null,
       domain_favicon:  ev.domain_hostname
@@ -302,8 +367,9 @@ export async function POST(request: NextRequest) {
       click_x:           clickX,
       click_y:           clickY,
       element_rect:      elementRect,
-      element_selector:  ev.element_selector  ?? null,
-      element_xpath:     ev.element_xpath     ?? null,
+      element_selector:  explanationOnly ? null : (ev.element_selector  ?? null),
+      element_xpath:     explanationOnly ? null : (ev.element_xpath     ?? null),
+      follow_config:     explanationOnly ? { kind: 'none' } : null,
       // crop_box(캡처 확대)가 있으면 image_zoom로 프레이밍하므로 crop_rect는 비움(렌더 경로 일관성).
       crop_rect:         cropBox ? null : calcCropRect(elementRect, clickX, clickY),
       // 캡처 시 실제 입력된 텍스트 — 라이브 가이드 자동입력 폴백용
@@ -312,9 +378,16 @@ export async function POST(request: NextRequest) {
     };
   });
 
-  const { error: stepsError } = await supabase
+  let { error: stepsError } = await supabase
     .from('mm_steps')
     .insert(steps);
+
+  if (isMissingExceptionStepColumns(stepsError)) {
+    const retry = await supabase
+      .from('mm_steps')
+      .insert(stripExceptionStepColumns(steps));
+    stepsError = retry.error;
+  }
 
   if (stepsError) {
     // 롤백: 생성한 튜토리얼 삭제

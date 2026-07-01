@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef, useId } from 'react';
+import { AnnotationPreview } from '@/components/editor/AnnotationPreview';
+import type { Annotation } from '@/components/editor/ImageAnnotationEditor';
 
 // 따라하기 시각 레이어(이미지 + 핫스팟 인디케이터 + AI 캐릭터 말풍선).
 // 플레이어와 스튜디오가 동일 컴포넌트를 써서 "보는 사람이 보는 화면"이 100% 일치하도록 한다.
@@ -30,6 +32,8 @@ interface Props {
   hotspotY: number | null;
   allowCornerHotspot?: boolean;     // true=사용자가 직접 찍은 좌상단 핫스팟 허용(0,0 가짜 센티넬 억제 해제)
   kind: 'click' | 'type';
+  guideMode?: 'interactive' | 'explanation';
+  annotations?: Annotation[] | null;
   typeText?: string | null;         // type 인디케이터에 표시/입력될 텍스트
   typeTextColor?: string;           // 타이핑 인디케이터 글자색 (기본 #111827)
   animateType?: boolean;            // true=뷰어(자동 타이핑 애니메이션), false/미설정=스튜디오(정적 표시)
@@ -55,7 +59,7 @@ interface Props {
 }
 
 export function FollowStage({
-  screenshotUrl, hotspotX: hx, hotspotY: hy, allowCornerHotspot = false, kind, typeText, typeTextColor, animateType = false,
+  screenshotUrl, hotspotX: hx, hotspotY: hy, allowCornerHotspot = false, kind, typeText, guideMode = 'interactive', annotations = null, typeTextColor, animateType = false,
   isFirstStep = false, stepNumber = null, title, body,
   minimized = false, showAudioBadge = false, nudge = false, spotlight = false,
   imageCursor = 'default', imgMaxHeight = 'calc(100vh - 150px)',
@@ -153,7 +157,9 @@ export function FollowStage({
     outBubbleTop = clamp(outBubbleTop, 8, Math.max(8, box.h - UNIT_H - 8));
   }
 
-  const hint = !hasHotspot ? "아래 '다음 →'을 눌러 계속하세요" : isType ? '여기에 입력하면 돼요' : '표시된 곳을 클릭하면 다음으로 넘어가요';
+  const hint = guideMode === 'explanation'
+    ? "안내를 확인한 뒤 아래 '다음 →'을 눌러 계속하세요"
+    : !hasHotspot ? "아래 '다음 →'을 눌러 계속하세요" : isType ? '여기에 입력하면 돼요' : '표시된 곳을 클릭하면 다음으로 넘어가요';
   // 말풍선은 평문 렌더 — 설명에 섞인 HTML 태그(<font>, <b> 등)/엔티티가 그대로 노출되지 않도록 제거
   const plainBody = body
     ? body.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '')
@@ -199,7 +205,14 @@ export function FollowStage({
   );
 
   if (!screenshotUrl) {
-    return <div style={{ height: '40vh', display: 'grid', placeItems: 'center', color: '#6B7280', fontSize: '13px' }}>이미지 없음</div>;
+    return (
+      <div style={{ width: 'min(520px, calc(100vw - 32px))', minHeight: '260px', display: 'grid', placeItems: 'center', padding: '24px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E5E7EB' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '10px', maxWidth: '420px' }}>
+          <Mascot />
+          {Bubble}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -209,6 +222,9 @@ export function FollowStage({
       <div onClick={onImageClick} style={{ position: 'relative', lineHeight: 0, ...zoomStyle }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={screenshotUrl} alt={title} draggable={false} style={{ display: 'block', maxWidth: '100%', maxHeight: imgMaxHeight, width: 'auto', height: 'auto', userSelect: 'none' }} />
+        {!!annotations?.length && (
+          <AnnotationPreview annotations={annotations} imageUrl={screenshotUrl} />
+        )}
 
         {/* 스포트라이트 오버레이 — zooming부터 표시. domRect 있으면 직사각형 구멍, 없으면 원형 */}
         {showMask && spotlight && hasHotspot && !isType && (

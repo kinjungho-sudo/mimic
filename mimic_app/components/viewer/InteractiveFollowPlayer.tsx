@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { FollowStage, Mascot, CORNER } from './FollowStage';
+import type { Annotation } from '@/components/editor/ImageAnnotationEditor';
 
 // 좌표는 전부 0~100(%) 정규화로 받는다 — 호출부(play/manual)가 각자 변환해 넘긴다.
 export interface FollowStep {
@@ -16,6 +17,9 @@ export interface FollowStep {
   audioUrl?: string | null;            // 스텝 TTS 오디오 (있으면 음성 재생)
   bubbleAnchor?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | null;
   domRect?: { x: number; y: number; w: number; h: number } | null; // DOM bounding box (0~100 pct)
+  stepType?: string | null;
+  guideMode?: 'interactive' | 'explanation';
+  annotations?: Annotation[] | null;
   zoomAnim?: boolean;                  // 스튜디오에서 켠 경우에만 클릭 영역 확대 애니메이션 (기본 off)
 }
 
@@ -191,6 +195,8 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
                   allowCornerHotspot={step.hotspotUserPlaced}
                   kind={step.kind ?? 'click'}
                   typeText={step.typeText}
+                  guideMode={step.guideMode}
+                  annotations={step.annotations}
                   bubbleAnchor={step.bubbleAnchor}
                   animateType
                   isFirstStep={idx === 0}
