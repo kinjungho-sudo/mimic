@@ -154,12 +154,12 @@ export function FollowStage({
   }
 
   const hint = !hasHotspot ? "아래 '다음 →'을 눌러 계속하세요" : isType ? '여기에 입력하면 돼요' : '표시된 곳을 클릭하면 다음으로 넘어가요';
-  const prefix = !hasHotspot ? '📄' : isType ? '✍️' : '👉';
   // 말풍선은 평문 렌더 — 설명에 섞인 HTML 태그(<font>, <b> 등)/엔티티가 그대로 노출되지 않도록 제거
   const plainBody = body
     ? body.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '')
         .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim()
     : body;
+  const bubbleText = plainBody || title;
   // 클릭 힌트는 첫 스텝에서만 표시 (type·이동형은 항상)
   const showHint = !hasHotspot || isType || isFirstStep;
 
@@ -169,12 +169,11 @@ export function FollowStage({
         {stepNumber != null && (
           <span style={{ flexShrink: 0, width: '24px', height: '24px', borderRadius: '50%', background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', color: '#fff', fontSize: '13px', fontWeight: 800, display: 'grid', placeItems: 'center', marginTop: '1px', boxShadow: '0 2px 6px rgba(79,70,229,0.4)' }}>{stepNumber}</span>
         )}
-        <div style={{ fontSize: '15px', fontWeight: 800, color: '#111827', lineHeight: 1.4, flex: 1 }}>{stepNumber != null ? title : `${prefix} ${title}`}</div>
+        {bubbleText && (
+          <div style={{ fontSize: '13.5px', color: '#4B5563', lineHeight: 1.55, flex: 1, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{bubbleText}</div>
+        )}
         <span style={{ fontSize: '11px', color: '#C4C9D4', flexShrink: 0, marginTop: '2px' }}>—</span>
       </div>
-      {plainBody && (
-        <div style={{ fontSize: '13.5px', color: '#4B5563', lineHeight: 1.55, marginTop: '14px', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{plainBody}</div>
-      )}
       {showHint && <div style={{ fontSize: '12px', color: '#6366F1', marginTop: '14px', fontWeight: 500 }}>{hint}</div>}
     </div>
   );

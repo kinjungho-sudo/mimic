@@ -300,6 +300,7 @@
     const typeTextSnippet = step.type_text
       ? escapeHtml(String(step.type_text).length > 60 ? String(step.type_text).slice(0, 60) + '…' : String(step.type_text))
       : '';
+    const tooltipText = step.instruction || step.title || '';
 
     const tooltip = document.createElement('div');
     tooltip.style.cssText = `position:fixed;width:${TIP_W}px;box-sizing:border-box;background:${TIP_BG};color:#fff;border-radius:13px;padding:13px;box-shadow:0 12px 40px rgba(0,0,0,.45),0 0 0 1px rgba(165,180,252,.14);z-index:5;pointer-events:auto;animation:mimic-tip-in 0.28s ease forwards;`;
@@ -314,8 +315,7 @@
             <button class="mimic-btn" data-act="hide-tooltip" title="툴팁 숨기기" style="background:transparent;color:rgba(255,255,255,.4);padding:3px 6px;font-size:11px">👁</button>
             <button class="mimic-btn" data-act="exit" style="background:transparent;color:rgba(255,255,255,.4);padding:3px 6px;font-size:12px">✕</button>
           </div>
-          <div style="font-size:14px;font-weight:600;line-height:1.5;color:#F3F4F6">${escapeHtml(step.title || '')}</div>
-          ${step.instruction && step.instruction !== step.title ? `<div style="font-size:12.5px;color:#9CA3AF;line-height:1.55;margin-top:3px">${escapeHtml(step.instruction)}</div>` : ''}
+          ${tooltipText ? `<div style="font-size:12.5px;color:#D1D5DB;line-height:1.55;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${escapeHtml(tooltipText)}</div>` : ''}
         </div>
       </div>
       ${step.type_text ? `
@@ -572,6 +572,7 @@
     const shadow = host.attachShadow({ mode: 'closed' });
 
     const idx = opts.index ?? 0, total = opts.total ?? 1;
+    const waitingText = step.instruction || '안내할 항목이 화면에 아직 없습니다. 화면을 진행하면 자동으로 표시됩니다.';
 
     const card = document.createElement('div');
     card.style.cssText = `position:fixed;left:50%;bottom:24px;transform:translateX(-50%);width:340px;max-width:calc(100vw - 32px);background:${TIP_BG};color:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 12px 40px rgba(0,0,0,.45),0 0 0 1px rgba(165,180,252,.14);pointer-events:auto`;
@@ -582,8 +583,7 @@
         <div style="flex:1"></div>
         <button class="wt-btn" data-act="exit" style="background:transparent;color:rgba(255,255,255,.4);padding:3px 6px">✕</button>
       </div>
-      <div style="font-size:13.5px;font-weight:600;color:#F3F4F6;margin-bottom:4px">${escapeHtml(step.title || '')}</div>
-      <div style="font-size:12px;color:#9CA3AF;line-height:1.5;margin-bottom:10px">안내할 항목이 화면에 아직 없습니다. 화면을 진행하면 자동으로 표시됩니다.</div>
+      <div style="font-size:12px;color:#9CA3AF;line-height:1.5;margin-bottom:10px">${escapeHtml(waitingText)}</div>
       <div style="display:flex;gap:6px;align-items:center">
         <button class="wt-btn" data-act="prev" style="background:rgba(255,255,255,.1);color:#D1D5DB;font-size:12px;padding:6px 11px">← 이전</button>
         <div style="flex:1"></div>
