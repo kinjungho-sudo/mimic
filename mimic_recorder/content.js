@@ -4,8 +4,8 @@
   if (window.__mimicContentLoaded) return;
   window.__mimicContentLoaded = true;
 
-  // iframe에서는 실행하지 않음 — 캡처는 top frame에서만
-  if (window !== window.top) return;
+  // iframe editors need typing capture; visual guide UI stays in the top frame.
+  const IS_TOP_FRAME = window === window.top;
 
   // ── 로그 헬퍼 (background 링버퍼로 릴레이) ──────────────────────
   function log(level, ...args) {
@@ -34,6 +34,7 @@
     'a[href]', 'button', 'input', 'select', 'textarea', 'label',
     '[role="button"]', '[role="link"]', '[role="menuitem"]', '[role="tab"]',
     '[role="checkbox"]', '[role="radio"]', '[role="switch"]', '[role="option"]',
+    '[role="textbox"]', '[contenteditable="true"]', '[contenteditable="plaintext-only"]',
     '[onclick]', '[tabindex]:not([tabindex="-1"])',
   ].join(',');
 
@@ -101,14 +102,55 @@
   }
 
   function getViewportSize() {
-    return { vw: window.innerWidth, vh: window.innerHeight };
+    try {
+      return { vw: window.top.innerWidth, vh: window.top.innerHeight };
+    } catch {
+      return { vw: window.innerWidth, vh: window.innerHeight };
+    }
+  }
+
+  function getFrameOffsetToTop() {
+    let x = 0;
+    let y = 0;
+    let win = window;
+    try {
+      while (win !== win.top) {
+        const frame = win.frameElement;
+        if (!frame) break;
+        const rect = frame.getBoundingClientRect();
+        x += rect.left;
+        y += rect.top;
+        win = win.parent;
+      }
+    } catch {
+      return { x: 0, y: 0 };
+    }
+    return { x, y };
+  }
+
+  function toTopRect(rect) {
+    const offset = getFrameOffsetToTop();
+    return {
+      x: rect.x + offset.x,
+      y: rect.y + offset.y,
+      left: rect.left + offset.x,
+      top: rect.top + offset.y,
+      width: rect.width,
+      height: rect.height,
+    };
+  }
+
+  function toTopPoint(x, y) {
+    const offset = getFrameOffsetToTop();
+    return { x: x + offset.x, y: y + offset.y };
   }
 
   function rectCenter(el) {
     const rect = el ? el.getBoundingClientRect() : null;
+    const point = rect ? toTopPoint(rect.left + rect.width / 2, rect.top + rect.height / 2) : { x: 0, y: 0 };
     return {
-      cx: rect ? rect.left + rect.width  / 2 : 0,
-      cy: rect ? rect.top  + rect.height / 2 : 0,
+      cx: point.x,
+      cy: point.y,
     };
   }
 
@@ -158,6 +200,42 @@
   // (3) 거짓 안심을 유발한다. 가림은 사용자 통제 하의 '수동 드래그 블러'(popup)로만.
   // 서버 finalize의 Claude Vision detectPII가 비파괴 '검토 필요' 플래그로 보완한다.
   // 두 함수는 캡처 파이프라인 시그니처 유지를 위해 no-op으로 남긴다.
+
+  function getEditableTarget(el) {
+    if (!el) return null;
+    if (document.designMode === 'on') return document.body;
+    const node = el.nodeType === Node.ELEMENT_NODE ? el : el.parentElement;
+    if (!node) return null;
+    if (node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement) return node;
+    const editor = node.closest?.(
+      '[contenteditable="true"],[contenteditable="plaintext-only"],[role="textbox"],.ProseMirror,.ql-editor,.se2_inputarea,.se_editArea,.note-editable,[data-contents="true"]'
+    );
+    if (editor && editor.isContentEditable) {
+      let root = editor;
+      while (root.parentElement && root.parentElement.isContentEditable) root = root.parentElement;
+      return root;
+    }
+    if (node.isContentEditable) {
+      let root = node;
+      while (root.parentElement && root.parentElement.isContentEditable) root = root.parentElement;
+      return root;
+    }
+    return null;
+  }
+
+  function getEditableText(el) {
+    if (!el) return '';
+    if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return el.value || '';
+    const text = typeof el.innerText === 'string' && el.innerText.trim()
+      ? el.innerText
+      : (el.textContent || '');
+    return text
+      .replace(/\u00a0/g, ' ')
+      .replace(/[\u200b\u200c\u200d\ufeff]/g, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
   function applyPIIBlur() {
     return [];
   }
@@ -170,7 +248,7 @@
   function notifyTypingProgress(el) {
     const label    = getFieldLabel(el);
     const isMasked = SENSITIVE_INPUT_TYPES.has((el.type || '').toLowerCase()) || SENSITIVE_LABEL_RE.test(label);
-    const value    = isMasked ? '' : (el.isContentEditable ? (el.textContent || '') : (el.value || ''));
+    const value    = isMasked ? '' : getEditableText(el);
     chrome.runtime.sendMessage({ type: 'TYPING_PROGRESS', text: value, label, masked: isMasked }, () => { void chrome.runtime.lastError; });
   }
 
@@ -195,7 +273,8 @@
 
     if (!isRecording || isPaused || isCapturing) { endSession(); return; }
 
-    const hasValue = el ? (el.isContentEditable ? !!(el.textContent || '').trim() : !!(el.value || '').trim()) : false;
+    const textValue = getEditableText(el);
+    const hasValue = !!textValue.trim();
     if (!hasValue) { endSession(); return; }
 
     if (pendingInputStep === null) {
@@ -210,7 +289,7 @@
     // 입력 원문 보관 — 비밀번호 등 민감 필드는 저장하지 않는다(라벨도 '비밀번호 입력').
     // 짧으면 스텝 라벨에 '입력, "내용"'으로, 길면 본문(typedText)에 전문 보관해 매뉴얼 생성 참고자료로 쓴다.
     const isMasked  = SENSITIVE_INPUT_TYPES.has((el.type || '').toLowerCase()) || SENSITIVE_LABEL_RE.test(label);
-    const typedText = isMasked ? '' : (el.isContentEditable ? (el.textContent || '') : (el.value || ''));
+    const typedText = isMasked ? '' : textValue;
     const safetyTimer = startCapturingSafely();
     const done = () => { clearTimeout(safetyTimer); isCapturing = false; };
 
@@ -229,7 +308,7 @@
       stepNumber: stepForThis, overwrite: true, useTypingFrame: true,
       usePrecapture: !!opts.usePrecapture, peekPrecapture: !!opts.peekPrecapture,
       typedText,
-      elementRect: normalizeRect(rect, vw, vh), elementSelector: getElementSelector(el), elementXPath: getElementXPath(el),
+      elementRect: normalizeRect(toTopRect(rect), vw, vh), elementSelector: getElementSelector(el), elementXPath: getElementXPath(el),
       actionInfo: { type: 'type', label, text: label, typedText, masked: isMasked, tag: el.tagName.toLowerCase(), role: el.getAttribute('role') || undefined, labelDebug: buildLabelDebug(el, label) },
     }, done);
 
@@ -482,6 +561,12 @@
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if (msg.type === 'START_RECORDING') {
       if (isRecording || _countingDown) { sendResponse({ ok: true }); return false; }
+      if (!IS_TOP_FRAME) {
+        isRecording = true;
+        isPaused = false;
+        sendResponse({ ok: true });
+        return false;
+      }
       _countingDown      = true;
       lastCapturedTarget = null;
       lastCapturedTime   = 0;
@@ -555,12 +640,14 @@
     }
 
     if (msg.type === 'SHOW_GUIDE_COUNTDOWN') {
+      if (!IS_TOP_FRAME) { sendResponse({ ok: true }); return false; }
       showCountdown(() => {}, { label: 'Live Guide 시작됩니다', accentColor: '#a78bfa', startText: 'GO' });
       sendResponse({ ok: true });
       return false;
     }
 
     if (msg.type === 'SHOW_OVERLAY' && msg.step) {
+      if (!IS_TOP_FRAME) return false;
       if (window.MimicGuide) window.MimicGuide.show(msg.step, {
         index: msg.index ?? 0,
         total: msg.total ?? 1,
@@ -570,7 +657,7 @@
       });
       return false;
     }
-    if (msg.type === 'HIDE_OVERLAY') { if (window.MimicGuide) window.MimicGuide.hide(); return false; }
+    if (msg.type === 'HIDE_OVERLAY') { if (IS_TOP_FRAME && window.MimicGuide) window.MimicGuide.hide(); return false; }
 
     return false;
   });
@@ -800,7 +887,7 @@
       time: Date.now(),
       x: event.clientX,
       y: event.clientY,
-      elementRect: normalizeRect(rect, vw, vh),
+      elementRect: normalizeRect(toTopRect(rect), vw, vh),
       elementSelector: getElementSelector(captureEl),
       elementXPath: getElementXPath(captureEl),
       label,
@@ -933,7 +1020,7 @@
     if (tag === 'select') return 'select';
     if (el.getAttribute('list')) return 'select';
     if (el.getAttribute('role') === 'combobox') return 'select';
-    if (tag === 'input' || tag === 'textarea' || el.isContentEditable) return 'focus_input';
+    if (tag === 'input' || tag === 'textarea' || el.isContentEditable || el.getAttribute('role') === 'textbox') return 'focus_input';
     if (document.designMode === 'on' && tag === 'body') return 'focus_input';
     return 'click';
   }
@@ -1015,10 +1102,11 @@
       lastCapturedTarget = document.body;
       lastCapturedTime   = now;
       const { vw, vh } = getViewportSize();
+      const topClick = toTopPoint(e.clientX, e.clientY);
       log('debug', `blank click step ${stepNumber} at (${e.clientX}, ${e.clientY})`);
       sendCapture({
         url: location.href, timestamp: Date.now(),
-        clickX: e.clientX, clickY: e.clientY,
+        clickX: topClick.x, clickY: topClick.y,
         windowWidth: vw, windowHeight: vh,
         viewportW: vw, viewportH: vh,
         stepNumber,
@@ -1066,7 +1154,8 @@
     const href  = captureEl.getAttribute('href') || captureEl.closest('a')?.getAttribute('href') || target.getAttribute('href') || target.closest('a')?.getAttribute('href') || '';
     const role  = pointerSnapshot?.role || captureEl.getAttribute('role') || target.getAttribute('role') || undefined;
     const { vw, vh } = getViewportSize();
-    const elementRect = pointerSnapshot?.elementRect ?? normalizeRect(rect, vw, vh);
+    const topClick = toTopPoint(e.clientX, e.clientY);
+    const elementRect = pointerSnapshot?.elementRect ?? normalizeRect(toTopRect(rect), vw, vh);
     const elementSelector = pointerSnapshot?.elementSelector ?? getElementSelector(captureEl);
     const elementXPath = pointerSnapshot?.elementXPath ?? getElementXPath(captureEl);
     const labelDebug = pointerSnapshot?.labelDebug ?? buildLabelDebug(captureEl, label);
@@ -1082,7 +1171,7 @@
 
       const srcStep = {
         url: location.href, timestamp: Date.now(),
-        clickX: e.clientX, clickY: e.clientY,
+        clickX: topClick.x, clickY: topClick.y,
         windowWidth: vw, windowHeight: vh,
         viewportW: vw, viewportH: vh,
         stepNumber, usePrecapture: true,
@@ -1103,7 +1192,7 @@
 
     const stepData = {
       url: location.href, timestamp: Date.now(),
-      clickX: e.clientX, clickY: e.clientY,
+      clickX: topClick.x, clickY: topClick.y,
       windowWidth: vw, windowHeight: vh,
       viewportW: vw, viewportH: vh,
       stepNumber, usePrecapture: true,
@@ -1146,9 +1235,8 @@
   document.addEventListener('input', (e) => {
     if (!isRecording || isPaused) return;
     if (document.visibilityState !== 'visible') return;  // 보이는 탭에서만 (크로스 사이트 녹화)
-    const el = e.target;
-    const isDesignModeBody = document.designMode === 'on' && el === document.body;
-    if (!isDesignModeBody && !(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el.isContentEditable)) return;
+    const el = getEditableTarget(e.target);
+    if (!el) return;
 
     if (typingTarget && typingTarget !== el) {
       if (isRemountedTyping(typingTarget)) {
@@ -1192,7 +1280,7 @@
   document.addEventListener('compositionend', (e) => {
     _isComposing = false;
     if (!isRecording || isPaused) return;
-    const el = e.target;
+    const el = getEditableTarget(e.target);
     if (typingTarget !== el) return;
     // 조합 완료 후 완성 화면 프레임만 갱신한다. 캡처는 명시적인 완료 신호에서만 한다.
     scheduleTypingFrame();
@@ -1214,7 +1302,8 @@
     if (!isRecording || isPaused) return;
     if (e.isComposing) return;  // IME 조합 확정용 Enter — 미완성값 flush 방지
     if (e.key !== 'Enter' || !typingTarget) return;
-    const el            = e.target;
+    const el            = getEditableTarget(e.target);
+    if (!el) return;
     const isSingleLine  = el instanceof HTMLInputElement;
     const isMultiLine   = el instanceof HTMLTextAreaElement || el.isContentEditable;
     const isModified    = e.ctrlKey || e.metaKey;
@@ -1233,8 +1322,9 @@
   // 창 전환(사이드패널 클릭 등 window blur)으로 인한 조기 확정은 피한다.
   document.addEventListener('focusout', (e) => {
     if (!isRecording || isPaused) return;
-    if (!typingTarget || e.target !== typingTarget) return;
-    if (!e.relatedTarget) return;  // 페이지 밖으로 포커스 이탈(창 전환)은 무시
+    const el = getEditableTarget(e.target);
+    if (!typingTarget || el !== typingTarget) return;
+    if (!e.relatedTarget && IS_TOP_FRAME) return;  // 페이지 밖으로 포커스 이탈(창 전환)은 무시
     // relatedTarget(다음 포커스 대상)이 있다 = 그 요소의 pointerdown 선캡처가 떠 있다.
     // 그 '액션 직전' 프레임(완성 텍스트)을 타이핑 스텝 이미지로 쓰고, peek로 클릭 스텝과 공유한다.
     flushTyping(typingTarget, true, { usePrecapture: true, peekPrecapture: true });
@@ -1300,11 +1390,7 @@
   document.addEventListener('paste', (e) => {
     if (!isRecording || isPaused || isCapturing) return;
     const active = document.activeElement;
-    if (active && (
-      active instanceof HTMLInputElement ||
-      active instanceof HTMLTextAreaElement ||
-      active.isContentEditable
-    )) return;
+    if (getEditableTarget(active)) return;
 
     const items = e.clipboardData?.items;
     if (!items) return;

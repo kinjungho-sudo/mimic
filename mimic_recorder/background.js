@@ -392,7 +392,7 @@ async function captureTab(windowId) {
 // content.js 상단의 window.__mimicContentLoaded 가드가 중복 초기화를 막는다.
 function ensureContentScript(tabId) {
   return new Promise((resolve) => {
-    chrome.scripting.executeScript({ target: { tabId }, files: ['guide-engine.js', 'content.js'] }, () => {
+    chrome.scripting.executeScript({ target: { tabId, allFrames: true }, files: ['guide-engine.js', 'content.js'] }, () => {
       const error = chrome.runtime.lastError?.message || null;
       if (error) {
         log('warn', 'bg', 'content script injection failed:', { tabId, error });
