@@ -3,7 +3,7 @@ import { requireExtensionToken } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { captureFinalizeSchema } from '@/lib/validators';
 import { analyzeScreenshot, generateStepDescription, generateDraft, extractCoverColors, detectPII, cleanTranscripts } from '@/lib/ai/claude';
-import { buildCaptureAnnotationLabel, buildCaptureFallbackDraft, buildCaptureFallbackTutorialTitle, isLowQualityCaptureLabel, isLowQualityCaptureScript, isLowQualityCaptureTitle, type CaptureFallbackActionInfo } from '@/lib/ai/capture-fallback';
+import { buildCaptureAnnotationLabel, buildCaptureFallbackDraft, buildCaptureFallbackTutorialTitle, isLowQualityCaptureLabel, isLowQualityCaptureScript, isLowQualityCaptureTitle, isLowQualityCaptureTutorialTitle, type CaptureFallbackActionInfo } from '@/lib/ai/capture-fallback';
 import { resolveFavicon } from '@/lib/favicon';
 import { buildClickHighlight } from '@/lib/annotations';
 import { transcribeAudio, assignSegmentsToSteps, computeStepWindows } from '@/lib/voice/voice';
@@ -597,7 +597,7 @@ export async function POST(request: NextRequest) {
 
       // tutorial 제목 + cover_color 업데이트
       const tutorialUpdate: Record<string, string> = {};
-      const safeTutorialTitle = !isLowQualityCaptureTitle(tutorial_title) ? tutorial_title : '';
+      const safeTutorialTitle = !isLowQualityCaptureTutorialTitle(tutorial_title) ? tutorial_title : '';
       if (safeTutorialTitle || fallbackTutorialTitle) tutorialUpdate.title = safeTutorialTitle || fallbackTutorialTitle;
       if (coverColors) tutorialUpdate.cover_color = `${coverColors.color1},${coverColors.color2}`;
       if (Object.keys(tutorialUpdate).length > 0) {

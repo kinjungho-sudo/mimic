@@ -2,6 +2,12 @@
 
 Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
 
+## MIMIC Manual Content Rule
+
+When changing capture/finalize, Claude prompts, fallback title/script generation, annotation labels, or manual editor rendering, follow [docs/MANUAL_CONTENT_RULES.md](./docs/MANUAL_CONTENT_RULES.md) first.
+
+Manual content must be written from the user's task goal, not from raw click targets. Avoid defaulting to `{domain or element text} + 클릭합니다`. The title explains the purpose, the body explains what the user should do and why, and the annotation label only marks the target location.
+
 **Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
 
 ## 1. Think Before Coding

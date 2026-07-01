@@ -340,12 +340,34 @@ export function buildCaptureAnnotationLabel(title: string | null | undefined, ac
   return text.slice(0, 18);
 }
 
+export function isLowQualityCaptureTutorialTitle(value: string | null | undefined): boolean {
+  const text = cleanText(value);
+  if (!text) return true;
+  if (isLowQualityCaptureTitle(text.replace(/하기$/, ''))) return true;
+  if (/(클릭|선택|입력)하기$/.test(text) && !/(작성|발송|보내기|구매|가입|신청|설정|만들기|등록)/.test(text)) return true;
+  return /^(메일|메뉴|버튼|링크|아이콘)\s*(클릭|선택)하기$/.test(text);
+}
+
 export function buildCaptureFallbackTutorialTitle(
   drafts: Array<{ user_title: string }>
 ): string {
-  const firstActionTitle = drafts
+  const titles = drafts
     .map(draft => cleanText(draft.user_title))
-    .find(title => title && !isLowQualityCaptureTitle(title) && title !== '화면 확인');
+    .filter(title => title && !isLowQualityCaptureTitle(title) && title !== '화면 확인');
+
+  const hasMailContext = titles.some(title => /메일|받은편지함|받는 사람|참조|본문|제목|보내기|발송/.test(title));
+  if (hasMailContext) {
+    const hasCompose = titles.some(title => /메일 쓰기|받는 사람|참조|본문|제목 입력|메일 본문|메일 작성/.test(title));
+    const hasSend = titles.some(title => /보내기|보내기 클릭|발송|메일 보내기/.test(title));
+    if (hasCompose && hasSend) return '메일 작성 후 보내기';
+    if (hasCompose) return '메일 작성하기';
+    if (titles.some(title => /메일함|받은편지함/.test(title))) return '메일함 확인하기';
+  }
+
+  const completionTitle = [...titles].reverse().find(title =>
+    /(보내기|발송|완료|저장|게시|등록|신청|구매|생성|만들기|공유|초대|로그인|제출)/.test(title)
+  );
+  const firstActionTitle = completionTitle || titles.find(title => !/(^.+\s클릭$|^.+\s선택$)/.test(title)) || titles[0];
 
   if (!firstActionTitle) return '';
   if (firstActionTitle.endsWith('하기')) return firstActionTitle.slice(0, 30);

@@ -684,13 +684,13 @@ export default function EditorPage() {
 
             <button
               onClick={() => router.push(`/manual/${id}/studio`)}
-              title="Live Guide Studio에서 실행 조건을 확인하고 고객용 링크를 준비합니다"
+              title="연습 가이드 편집/실행 화면으로 이동합니다"
               style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#4F46E5', background: 'rgba(79,70,229,0.08)', border: '1px solid rgba(79,70,229,0.35)', cursor: 'pointer', transition: 'all 0.15s', fontWeight: 600 }}
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(79,70,229,0.13)'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'rgba(79,70,229,0.08)'; }}
             >
               <Zap size={TOP_BAR_ICON_SIZE} />
-              Live Guide Studio
+              연습 가이드
             </button>
 
             {/* 댓글 패널 토글 — 팀 협업 의견 공유 */}

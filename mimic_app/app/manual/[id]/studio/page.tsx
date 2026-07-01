@@ -263,6 +263,18 @@ export default function StudioPage() {
     }
   }, [ensurePublished, hasTargetUrl]);
 
+  const handleOpenPracticeGuide = useCallback(async () => {
+    setPublishing(true);
+    try {
+      const token = await ensurePublished();
+      window.open(`/play/${token}?mode=practice`, '_blank', 'noopener,noreferrer');
+    } catch {
+      alert('연습 가이드를 열지 못했습니다. 다시 시도해주세요.');
+    } finally {
+      setPublishing(false);
+    }
+  }, [ensurePublished]);
+
   const handleCopyCustomerLink = useCallback(async () => {
     if (!hasTargetUrl) {
       const ok = confirm('이 매뉴얼에는 Live Guide가 이동할 대상 URL이 없습니다. 매뉴얼/연습 가이드 링크로만 전달할까요?');
@@ -271,7 +283,7 @@ export default function StudioPage() {
     setPublishing(true);
     try {
       const token = await ensurePublished();
-      await navigator.clipboard.writeText(`${window.location.origin}/play/${token}`).catch(() => {});
+      await navigator.clipboard.writeText(`${window.location.origin}/play/${token}?mode=practice`).catch(() => {});
       setLinkCopied(true);
       setTimeout(() => setLinkCopied(false), 2200);
     } catch {
@@ -322,11 +334,14 @@ export default function StudioPage() {
           </span>
         )}
         <button onClick={() => setShowPreview(true)} title="연습 가이드(웹) 화면으로 미리보기 — 핫스팟·말풍선·입력 텍스트 설정을 확인합니다. 실제 Live Guide 오버레이 외형과는 다를 수 있어요." style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5 }}><Play size={TOP_BAR_ICON_SIZE} /> 연습 가이드 미리보기</button>
+        <button onClick={handleOpenPracticeGuide} disabled={publishing} title="고객에게 전달되는 연습 가이드 실행 화면을 새 탭에서 엽니다" style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5, opacity: publishing ? 0.6 : 1 }}>
+          {publishing ? <Loader2 size={TOP_BAR_ICON_SIZE} className="spin" /> : <Play size={TOP_BAR_ICON_SIZE} />} 연습 가이드 실행
+        </button>
         <button onClick={handleStartLiveGuide} disabled={liveStarting || publishing || !hasTargetUrl} title={hasTargetUrl ? '현재 브라우저에서 Live Guide를 실행합니다' : '실행할 대상 URL이 필요합니다'} style={{ ...primaryBtn, height: 34, opacity: liveStarting || publishing || !hasTargetUrl ? 0.55 : 1, cursor: liveStarting || publishing || !hasTargetUrl ? 'not-allowed' : 'pointer' }}>
           {liveStarting ? <Loader2 size={TOP_BAR_ICON_SIZE} className="spin" /> : <Zap size={TOP_BAR_ICON_SIZE} />} Live Guide 실행
         </button>
-        <button onClick={handleCopyCustomerLink} disabled={publishing} title="고객에게 전달할 매뉴얼/연습 가이드 링크를 복사합니다" style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5, opacity: publishing ? 0.6 : 1 }}>
-          {linkCopied ? <Check size={TOP_BAR_ICON_SIZE} color="#34d399" /> : <Link2 size={TOP_BAR_ICON_SIZE} />} {linkCopied ? '복사됨' : '고객 링크 복사'}
+        <button onClick={handleCopyCustomerLink} disabled={publishing} title="고객에게 전달할 연습 가이드 링크를 복사합니다" style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5, opacity: publishing ? 0.6 : 1 }}>
+          {linkCopied ? <Check size={TOP_BAR_ICON_SIZE} color="#34d399" /> : <Link2 size={TOP_BAR_ICON_SIZE} />} {linkCopied ? '복사됨' : '연습 링크 복사'}
         </button>
         {tutorial.status === 'published' ? (
           <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: 'rgba(16,185,129,0.12)', color: '#34d399', fontWeight: 600, border: '1px solid rgba(52,211,153,0.25)', flexShrink: 0 }}>게시됨</span>

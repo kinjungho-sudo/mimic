@@ -528,6 +528,13 @@ export default function PlayerPage() {
   const [isAuthed, setIsAuthed] = useState(false);
 
   useEffect(() => {
+    const mode = new URLSearchParams(window.location.search).get('mode');
+    if (mode === 'practice' || mode === 'follow') {
+      setViewMode('follow');
+    }
+  }, []);
+
+  useEffect(() => {
     createClient().auth.getSession()
       .then(({ data }) => { setIsAuthed(!!data.session); })
       .catch(() => {})
@@ -708,12 +715,13 @@ export default function PlayerPage() {
             {!isMobile && '라이브 가이드'}
           </button>
 
-          {/* 모드 토글: 웹 문서 ↔ 슬라이드 */}
+          {/* 모드 토글: 연습 가이드 ↔ 웹 문서 ↔ 슬라이드 */}
           <div style={{ display: 'flex', background: viewMode === 'document' ? '#F3F4F6' : 'rgba(255,255,255,0.08)', borderRadius: '8px', padding: '3px', gap: '2px' }}>
             {([
+              { key: 'follow', label: '연습 가이드', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m10 8 6 4-6 4V8z"/></svg> },
               { key: 'document', label: '웹 문서', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="12" y2="16"/></svg> },
               { key: 'slides', label: '슬라이드', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> },
-            ] as { key: 'document' | 'slides'; label: string; icon: React.ReactNode }[]).map(tab => {
+            ] as { key: 'follow' | 'document' | 'slides'; label: string; icon: React.ReactNode }[]).map(tab => {
               const active = viewMode === tab.key;
               const activeColor = viewMode === 'document' ? '#3730a3' : 'white';
               const inactiveColor = viewMode === 'document' ? '#6B7280' : 'rgba(255,255,255,0.5)';

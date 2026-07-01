@@ -5,6 +5,7 @@ async function main() {
     buildCaptureAnnotationLabel,
     isLowQualityCaptureScript,
     isLowQualityCaptureTitle,
+    isLowQualityCaptureTutorialTitle,
   } = await import('../lib/ai/capture-fallback.ts');
 
   const cases = [
@@ -133,6 +134,19 @@ async function main() {
     failures.push({ name: 'tutorial title fallback', expected: '대회소개 클릭하기', actual: fallbackTitle });
   }
 
+  const mailTutorialTitle = buildCaptureFallbackTutorialTitle([
+    { user_title: '메일함 확인' },
+    { user_title: '메일 쓰기 클릭' },
+    { user_title: '받는 사람 입력' },
+    { user_title: '참조 입력' },
+    { user_title: '메일 본문 입력' },
+    { user_title: '제목 입력' },
+    { user_title: '메일 보내기 클릭' },
+  ]);
+  if (mailTutorialTitle !== '메일 작성 후 보내기') {
+    failures.push({ name: 'mail tutorial title fallback', expected: '메일 작성 후 보내기', actual: mailTutorialTitle });
+  }
+
   if (!isLowQualityCaptureTitle('edit 클릭')) {
     failures.push({ name: 'low quality title detector', expected: true, actual: false });
   }
@@ -141,6 +155,9 @@ async function main() {
   }
   if (!isLowQualityCaptureScript('oauth를 클릭합니다.')) {
     failures.push({ name: 'raw oauth script detector', expected: true, actual: false });
+  }
+  if (!isLowQualityCaptureTutorialTitle('메일 클릭하기')) {
+    failures.push({ name: 'direct click tutorial title detector', expected: true, actual: false });
   }
   if (!isLowQualityCaptureTitle('메일, 읽지 않은 메일 2458개 클릭')) {
     failures.push({ name: 'gmail unread count title detector', expected: true, actual: false });

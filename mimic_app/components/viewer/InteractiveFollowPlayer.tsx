@@ -31,6 +31,7 @@ interface Props {
 }
 
 const HIT_PCT = 7; // 핫스팟 정답 클릭 허용 반경(%)
+const normalizeTyped = (value: string) => value.replace(/\s+/g, ' ').trim();
 
 export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, closeLabel = '닫기', lockAfterStep = null }: Props) {
   const [idx, setIdx] = useState(0);
@@ -41,6 +42,8 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
   const [voiceOn, setVoiceOn] = useState(false);  // 음성 자동재생 토글 (기본 OFF — 아바타 클릭 재생)
   const [visible, setVisible] = useState(true);    // 스텝 전환 페이드 제어
   const [animPhase, setAnimPhase] = useState<AnimPhase>('raw'); // 줌인 시퀀스: raw→zooming→focused
+  const [typedAnswer, setTypedAnswer] = useState('');
+  const [typeError, setTypeError] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const transTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const phaseTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -48,9 +51,16 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
   const total = steps.length;
   const step = steps[idx];
   const hasAnyAudio = steps.some(s => !!s.audioUrl);
+  const isTypeStep = (step?.kind ?? 'click') === 'type';
+  const expectedTypeText = step?.typeText?.trim() ?? '';
+  const needsTypePractice = isTypeStep && expectedTypeText.length > 0;
 
   // 스텝 바뀌면 툴팁 다시 펼침 (#3)
-  useEffect(() => { setMinimized(false); }, [idx]);
+  useEffect(() => {
+    setMinimized(false);
+    setTypedAnswer('');
+    setTypeError(false);
+  }, [idx]);
 
   // 줌인 시퀀스: 스튜디오에서 확대 애니메이션을 켠(zoomAnim) 스텝 + domRect 있을 때만.
   // 원본(raw)에서 확대(zooming→focused)로 한 번만 진행하고 그대로 유지 — 다시 좁아지는 효과 없음.
@@ -104,17 +114,26 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
     }, 210);
   }, []);
 
+  const doNudge = useCallback(() => { setNudge(true); setTimeout(() => setNudge(false), 420); }, []);
+
   const advance = useCallback(() => {
+    if (needsTypePractice && normalizeTyped(typedAnswer) !== normalizeTyped(expectedTypeText)) {
+      setTypeError(true);
+      doNudge();
+      return;
+    }
     // 맛보기 한도를 넘어가는 진행이면 로그인 월 (잠긴 콘텐츠가 남아있을 때만)
     if (lockAfterStep != null && idx >= lockAfterStep && idx + 1 < total) { setShowGate(true); return; }
     if (idx + 1 >= total) { setDone(true); onComplete?.(); return; }
     goTo(idx + 1);
-  }, [total, onComplete, lockAfterStep, idx, goTo]);
+  }, [total, onComplete, lockAfterStep, idx, goTo, expectedTypeText, needsTypePractice, typedAnswer, doNudge]);
   const goPrev = useCallback(() => { if (idx > 0) goTo(idx - 1); }, [idx, goTo]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (done) return;
+      const target = e.target as HTMLElement | null;
+      if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA') return;
       if (e.key === 'ArrowRight' || e.key === 'Enter') advance();
       else if (e.key === 'ArrowLeft') goPrev();
       else if (e.key === 'Escape') onClose?.();
@@ -123,10 +142,23 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
     return () => window.removeEventListener('keydown', onKey);
   }, [advance, goPrev, onClose, done]);
 
-  const doNudge = () => { setNudge(true); setTimeout(() => setNudge(false), 420); };
+  const submitTypeAnswer = useCallback(() => {
+    if (!needsTypePractice) {
+      advance();
+      return;
+    }
+    if (normalizeTyped(typedAnswer) === normalizeTyped(expectedTypeText)) {
+      setTypeError(false);
+      advance();
+      return;
+    }
+    setTypeError(true);
+    doNudge();
+  }, [advance, doNudge, expectedTypeText, needsTypePractice, typedAnswer]);
 
   const onImageClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (done) return;
+    if (needsTypePractice) return;
     const hx = step.hotspotX, hy = step.hotspotY;
     // 클릭 타깃 없음(이동/캡처 단계 — 좌상단 0,0 포함) → 화면 클릭으로 진행하지 않음. '다음'으로만 이동 (#2)
     // 단, 사용자가 직접 찍은 좌상단 핫스팟은 유효 타깃으로 인정
@@ -179,7 +211,7 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
                   kind={step.kind ?? 'click'}
                   typeText={step.typeText}
                   bubbleAnchor={step.bubbleAnchor}
-                  animateType
+                  animateType={false}
                   isFirstStep={idx === 0}
                   stepNumber={idx + 1}
                   spotlight
@@ -200,6 +232,30 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
           </div>
 
           {/* 컨트롤 바 */}
+          {needsTypePractice && (
+            <div style={{ width: 'min(720px, 94%)', background: 'rgba(255,255,255,0.96)', border: `1px solid ${typeError ? '#FCA5A5' : 'rgba(99,102,241,0.18)'}`, borderRadius: '14px', padding: '12px 14px', boxShadow: '0 8px 28px rgba(0,0,0,0.24)', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '8px' }}>
+                <span style={{ color: '#4338ca', fontSize: '12px', fontWeight: 800 }}>직접 입력하기</span>
+                <span style={{ color: '#6B7280', fontSize: '12px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>입력할 내용: {expectedTypeText}</span>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  value={typedAnswer}
+                  onChange={e => { setTypedAnswer(e.target.value); if (typeError) setTypeError(false); }}
+                  onKeyDown={e => {
+                    e.stopPropagation();
+                    if (e.key === 'Enter') submitTypeAnswer();
+                  }}
+                  placeholder={expectedTypeText}
+                  autoFocus
+                  style={{ flex: 1, height: '38px', borderRadius: '9px', border: `1px solid ${typeError ? '#EF4444' : '#D1D5DB'}`, padding: '0 12px', color: '#111827', fontSize: '13px', fontWeight: 600, outline: 'none', background: 'white' }}
+                />
+                <button onClick={submitTypeAnswer} style={{ height: '38px', padding: '0 14px', borderRadius: '9px', border: 'none', background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', color: 'white', fontSize: '12.5px', fontWeight: 800, cursor: 'pointer', flexShrink: 0 }}>확인</button>
+              </div>
+              {typeError && <div style={{ color: '#EF4444', fontSize: '12px', fontWeight: 600, marginTop: '7px' }}>안내된 문구와 같게 입력하면 다음 단계로 넘어갑니다.</div>}
+            </div>
+          )}
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(255,255,255,0.95)', borderRadius: '12px', padding: '8px 14px', boxShadow: '0 6px 24px rgba(0,0,0,0.25)', flexShrink: 0 }}>
             <span style={{ fontSize: '12px', fontWeight: 700, color: '#4338ca', background: '#EEF2FF', padding: '3px 10px', borderRadius: '20px' }}>{idx + 1} / {total}</span>
             {hasAnyAudio && (
