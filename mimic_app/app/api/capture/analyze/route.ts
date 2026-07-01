@@ -25,7 +25,16 @@ export async function POST(request: NextRequest) {
 
   try {
     const { image, url, actionInfo, elementRect, viewportW, viewportH, elementSelector, clickX, clickY } = parsed.data;
-    const result = await analyzeScreenshot(image, url, actionInfo, {
+    const normalizedActionInfo = actionInfo
+      ? {
+          ...actionInfo,
+          label: actionInfo.label ?? undefined,
+          tag: actionInfo.tag ?? undefined,
+          role: actionInfo.role ?? undefined,
+          href: actionInfo.href ?? undefined,
+        }
+      : undefined;
+    const result = await analyzeScreenshot(image, url, normalizedActionInfo, {
       clickX:          clickX  ?? undefined,
       clickY:          clickY  ?? undefined,
       elementRect:     elementRect ?? undefined,

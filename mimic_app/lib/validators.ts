@@ -11,6 +11,9 @@ const optionalShortString = (maxLength: number) =>
     z.string().max(maxLength).nullable()
   ).optional().nullable();
 
+const optionalActionString = (maxLength: number) =>
+  z.string().max(maxLength).optional().nullable();
+
 export const signupSchema = z.object({
   name: z.string().min(1).max(50),
   email: z.string().email(),
@@ -51,13 +54,13 @@ const SENSITIVE_LABEL_RE = /비밀번호|패스워드|암호|password|카드.?�
 
 export const actionInfoSchema = z.object({
   type: z.enum(['click', 'navigate', 'toggle', 'select', 'focus_input', 'type', 'upload']),
-  label: z.string().max(200).optional(),
-  tag: z.string().max(30).optional(),
-  role: z.string().max(50).optional(),
-  href: z.string().max(500).optional(),
+  label: optionalActionString(200),
+  tag: optionalActionString(30),
+  role: optionalActionString(50),
+  href: optionalActionString(500),
   // text(실제 입력값)와 inputType은 수신하되 즉시 폐기 — password 등 민감정보가 서버/AI에 도달하지 않도록
-  text: z.string().max(1000).optional().transform(() => undefined),
-  inputType: z.string().max(30).optional().transform(() => undefined),
+  text: optionalActionString(1000).transform(() => undefined),
+  inputType: optionalActionString(30).transform(() => undefined),
 }).transform(data => {
   // input type이 민감하거나 label 자체가 민감 패턴이면 label도 제거
   const rawLabel = (data as { label?: string }).label;
@@ -65,7 +68,7 @@ export const actionInfoSchema = z.object({
     return { ...data, label: undefined };
   }
   return data;
-}).optional();
+}).optional().nullable();
 
 const elementRectSchema = z.object({
   x: z.number(),
