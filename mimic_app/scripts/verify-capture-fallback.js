@@ -29,6 +29,13 @@ async function main() {
       script: '슬라이드 편집 화면을 확인합니다.',
     },
     {
+      name: 'numeric gmail label uses mail context',
+      step: { id: '3b', step_number: 3, ai_title: '0 클릭', ai_description: '0를 클릭합니다.', page_url: 'https://mail.google.com/mail/u/0/#inbox', domain_name: 'Gmail' },
+      context: { actionInfo: { type: 'click', label: '0' }, elementText: '0' },
+      title: 'Gmail 작업 영역 클릭',
+      script: 'Gmail 작업 영역을 클릭합니다.',
+    },
+    {
       name: 'element text fallback',
       step: { id: '4', step_number: 4, ai_title: null, ai_description: null, page_url: 'https://example.com', domain_name: null },
       context: { actionInfo: { type: 'click' }, elementText: '자료 다운로드' },
@@ -102,10 +109,10 @@ async function main() {
     if (!actual.user_title.trim() || !actual.user_script.trim()) {
       failures.push({ name: `${testCase.name} empty guard`, actual });
     }
-    if (/^(edit|oauth|general|functions)\s+(클릭|확인|선택|입력|이동)$/i.test(actual.user_title)) {
+    if (/^(edit|oauth|general|functions|\d+)\s+(클릭|확인|선택|입력|이동)$/i.test(actual.user_title)) {
       failures.push({ name: `${testCase.name} raw label title guard`, actual });
     }
-    if (/^(edit|oauth|general|functions)(을|를)?\s*(클릭|확인|선택|입력|이동)합니다\.?$/i.test(actual.user_script)) {
+    if (/^(edit|oauth|general|functions|\d+)(을|를)?\s*(클릭|확인|선택|입력|이동)합니다\.?$/i.test(actual.user_script)) {
       failures.push({ name: `${testCase.name} raw label script guard`, actual });
     }
   }
@@ -124,8 +131,14 @@ async function main() {
   if (!isLowQualityCaptureTitle('oauth 클릭')) {
     failures.push({ name: 'raw oauth title detector', expected: true, actual: false });
   }
+  if (!isLowQualityCaptureTitle('0 클릭')) {
+    failures.push({ name: 'numeric title detector', expected: true, actual: false });
+  }
   if (!isLowQualityCaptureScript('oauth를 클릭합니다.')) {
     failures.push({ name: 'raw oauth script detector', expected: true, actual: false });
+  }
+  if (!isLowQualityCaptureScript('0를 클릭합니다.')) {
+    failures.push({ name: 'numeric script detector', expected: true, actual: false });
   }
 
   if (failures.length) {
