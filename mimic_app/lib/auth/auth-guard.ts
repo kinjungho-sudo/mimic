@@ -5,19 +5,26 @@ type AuthGuardResult =
   | { ok: true; userId: string }
   | { ok: false; response: NextResponse };
 
+async function getVerifiedClaims() {
+  const supabase = await createServerClient();
+  const { data, error } = await supabase.auth.getClaims();
+  if (error) return null;
+  return data?.claims ?? null;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function requireAuth(_request: NextRequest): Promise<AuthGuardResult> {
-  const supabase = await createServerClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const claims = await getVerifiedClaims();
+  const userId = typeof claims?.sub === 'string' ? claims.sub : null;
 
-  if (!session?.user) {
+  if (!userId) {
     return {
       ok: false,
       response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
     };
   }
 
-  return { ok: true, userId: session.user.id };
+  return { ok: true, userId };
 }
 
 // Admin 인증 — ADMIN_EMAIL 환경변수 기반
@@ -27,14 +34,15 @@ export async function requireAdmin(): Promise<AuthGuardResult> {
     return { ok: false, response: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
   }
 
-  const supabase = await createServerClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const claims = await getVerifiedClaims();
+  const userId = typeof claims?.sub === 'string' ? claims.sub : null;
+  const email = typeof claims?.email === 'string' ? claims.email : null;
 
-  if (!session?.user || session.user.email !== adminEmail) {
+  if (!userId || email !== adminEmail) {
     return { ok: false, response: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
   }
 
-  return { ok: true, userId: session.user.id };
+  return { ok: true, userId };
 }
 
 // Extension token 인증 — MIMIC Recorder가 Bearer 토큰으로 호출

@@ -17,11 +17,14 @@ export async function middleware(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet, headersToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           supabaseResponse = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
+          );
+          Object.entries(headersToSet).forEach(([name, value]) =>
+            supabaseResponse.headers.set(name, value)
           );
         },
       },
@@ -29,14 +32,16 @@ export async function middleware(request: NextRequest) {
   );
 
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  const user = session?.user ?? null;
+    data: claimsData,
+  } = await supabase.auth.getClaims();
+  const claims = claimsData?.claims;
+  const userId = typeof claims?.sub === 'string' ? claims.sub : null;
+  const userEmail = typeof claims?.email === 'string' ? claims.email : null;
 
   const { pathname } = request.nextUrl;
   const isProtected = PROTECTED.some(p => pathname.startsWith(p));
 
-  if (isProtected && !user) {
+  if (isProtected && !userId) {
     const url = request.nextUrl.clone();
     url.pathname = '/auth/login';
     url.searchParams.set('next', pathname);
@@ -44,7 +49,7 @@ export async function middleware(request: NextRequest) {
   }
 
   if (pathname.startsWith('/admin')) {
-    if (!user || user.email !== clean(process.env.ADMIN_EMAIL)) {
+    if (!userId || userEmail !== clean(process.env.ADMIN_EMAIL)) {
       const url = request.nextUrl.clone();
       url.pathname = '/auth/login';
       url.searchParams.set('next', pathname);
