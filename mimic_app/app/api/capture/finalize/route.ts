@@ -373,7 +373,8 @@ export async function POST(request: NextRequest) {
         const existingAiTitle = step.ai_title?.trim() || null;
         const existingAiDescription = step.ai_description?.trim() || null;
         const existingTitleUsable = !!existingAiTitle && !isLowQualityCaptureTitle(existingAiTitle);
-        if ((existingTitleUsable && existingAiDescription) || !step.screenshot_url) {
+        const existingDescriptionUsable = !!existingAiDescription && !isLowQualityCaptureScript(existingAiDescription);
+        if ((existingTitleUsable && existingDescriptionUsable) || !step.screenshot_url) {
           enrichedSteps.push(step);
           continue;
         }
@@ -418,20 +419,21 @@ export async function POST(request: NextRequest) {
               });
 
           const aiTitle = existingTitleUsable ? existingAiTitle : analysis?.title?.trim() || null;
-          const aiDescription = existingAiDescription
-            || (aiTitle
-              ? await generateStepDescription(aiTitle, step.page_url, image.base64, image.mediaType).catch(async (err) => {
-                  console.error('capture finalize step description retry error:', err);
-                  await logSystem('capture.finalize.step_description_ai_failed', {
-                    userId,
-                    tutorialId: tutorial.id,
-                    sessionId: session_id,
-                    stepNumber: step.step_number,
-                    reason: err instanceof Error ? err.message : String(err),
-                  }, 'warn');
-                  return null;
-                })
-              : null);
+          const aiDescription = existingDescriptionUsable
+            ? existingAiDescription
+            : (aiTitle
+                ? await generateStepDescription(aiTitle, step.page_url, image.base64, image.mediaType).catch(async (err) => {
+                    console.error('capture finalize step description retry error:', err);
+                    await logSystem('capture.finalize.step_description_ai_failed', {
+                      userId,
+                      tutorialId: tutorial.id,
+                      sessionId: session_id,
+                      stepNumber: step.step_number,
+                      reason: err instanceof Error ? err.message : String(err),
+                    }, 'warn');
+                    return null;
+                  })
+                : null);
 
           if (aiTitle || aiDescription) {
             await supabase

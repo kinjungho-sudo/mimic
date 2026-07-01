@@ -62,6 +62,7 @@ const GOOGLE_DOC_CONTEXTS: Array<{ pattern: RegExp; base: string; noActionBase: 
   { pattern: /docs\.google\.com\/presentation/i, base: '파일명 영역', noActionBase: '슬라이드 편집 화면' },
   { pattern: /docs\.google\.com\/spreadsheets/i, base: '파일명 영역', noActionBase: '스프레드시트 편집 화면' },
   { pattern: /docs\.google\.com\/document/i, base: '파일명 영역', noActionBase: '문서 편집 화면' },
+  { pattern: /mail\.google\.com/i, base: 'Gmail 작업 영역', noActionBase: 'Gmail 화면' },
 ];
 
 const SLACK_LABEL_CONTEXTS = new Map([
@@ -87,6 +88,7 @@ function normalized(value: string | null | undefined): string {
 function isGenericLabel(value: string | null | undefined): boolean {
   const text = normalized(value);
   if (!text) return true;
+  if (/^\d+$/.test(text)) return true;
   if (GENERIC_LABELS.has(text)) return true;
   return /^(edit|button|link|menu|click|untitled)(\s+\d+)?$/i.test(text);
 }
@@ -105,6 +107,7 @@ export function isLowQualityCaptureTitle(value: string | null | undefined): bool
   const text = cleanText(value);
   if (isWeakTitle(text)) return true;
   if (isGenericLabel(text)) return true;
+  if (/^\d+\s+(클릭|확인|선택|입력|이동)$/i.test(text)) return true;
   const rawLabelPattern = Array.from(RAW_CAPTURE_LABELS).join('|');
   return new RegExp(`^(${rawLabelPattern}|edit|button|link|menu|untitled|click)\\s+(클릭|확인|선택|입력|이동)$`, 'i').test(text);
 }
@@ -112,6 +115,7 @@ export function isLowQualityCaptureTitle(value: string | null | undefined): bool
 export function isLowQualityCaptureScript(value: string | null | undefined): boolean {
   const text = cleanText(value);
   if (!text) return true;
+  if (/^\d+(을|를)?\s*(클릭|확인|선택|입력|이동)합니다\.?$/i.test(text)) return true;
   const rawLabelPattern = Array.from(RAW_CAPTURE_LABELS).join('|');
   return new RegExp(`^(${rawLabelPattern}|edit|button|link|menu|untitled|click)(을|를)?\\s*(클릭|확인|선택|입력|이동)합니다\\.?$`, 'i').test(text);
 }
