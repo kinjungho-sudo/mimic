@@ -8,6 +8,7 @@ import path from 'path';
 import { assertStorageUrl } from '@/lib/validate-storage-url';
 import { drawAnnotationsOnPdf } from '@/lib/export/annotate-pdf';
 import type { ExportAnnotation } from '@/lib/export/annotations-shared';
+import { renderStepImage } from '@/lib/export/render-step-image';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const fontkit = require('@pdf-lib/fontkit');
 
@@ -77,7 +78,7 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   const { data: steps } = await supabase
     .from('mm_steps')
-    .select('step_number, screenshot_url, user_title, ai_title, user_script, ai_description, user_annotations')
+    .select('step_number, screenshot_url, user_title, ai_title, user_script, ai_description, user_annotations, image_zoom, image_offset_x, image_offset_y')
     .eq('tutorial_id', id)
     .order('step_number');
 
@@ -98,6 +99,12 @@ export async function GET(request: NextRequest, { params }: Params) {
   const fontBold = boldBytes
     ? await pdfDoc.embedFont(boldBytes)
     : await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const fontFiles = regularBytes && boldBytes
+    ? [
+      path.join(process.cwd(), 'public', 'fonts', 'NotoSansKR-Regular.ttf'),
+      path.join(process.cwd(), 'public', 'fonts', 'NotoSansKR-Bold.ttf'),
+    ]
+    : null;
 
   // ── 표지 페이지 ──────────────────────────────────────────
   const cover = pdfDoc.addPage([PW, PH]);
@@ -141,6 +148,33 @@ export async function GET(request: NextRequest, { params }: Params) {
     end: { x: PW - MR, y: PH * 0.6 - 1 },
     thickness: 1,
     color: rgb(0.85, 0.85, 0.9),
+  });
+  cover.drawText('실제 화면 흐름과 하이라이트를 따라 실행할 수 있는 업무 매뉴얼입니다.', {
+    x: ML,
+    y: PH * 0.48,
+    size: 13,
+    font,
+    color: rgb(0.23, 0.25, 0.32),
+  });
+  const cardY = PH * 0.31;
+  cover.drawRectangle({ x: ML, y: cardY, width: CONTENT_W, height: 86, color: rgb(0.965, 0.969, 0.976) });
+  cover.drawText('포함 내용', { x: ML + 20, y: cardY + 55, size: 12, font: fontBold, color: rgb(0.07, 0.09, 0.15) });
+  cover.drawText('단계별 화면 캡처 · 하이라이트 주석 · 실행 설명', {
+    x: ML + 20,
+    y: cardY + 30,
+    size: 11,
+    font,
+    color: rgb(0.33, 0.36, 0.43),
+  });
+  const generatedAt = new Date().toLocaleDateString('ko-KR', {
+    year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Seoul',
+  });
+  cover.drawText(generatedAt, {
+    x: ML,
+    y: 64,
+    size: 10,
+    font,
+    color: rgb(0.55, 0.58, 0.65),
   });
 
   // ── 스텝 페이지 (한 스텝 = 한 페이지, 웹 문서형과 동일한 카드 스타일) ──
@@ -200,12 +234,21 @@ export async function GET(request: NextRequest, { params }: Params) {
       if (screenshotUrl) {
         const res = await fetch(assertStorageUrl(screenshotUrl), { redirect: 'manual' });
         if (res.ok) {
-          const imgBytes = await res.arrayBuffer();
+          const imgBytes = Buffer.from(await res.arrayBuffer());
           const contentType = res.headers.get('content-type') ?? '';
-          const img = contentType.includes('png')
-            ? await pdfDoc.embedPng(imgBytes)
-            : await pdfDoc.embedJpg(imgBytes);
-          const { width: iw, height: ih } = img.scale(1);
+          const annos = (step as { user_annotations?: unknown }).user_annotations as ExportAnnotation[] | null | undefined;
+          const rendered = renderStepImage({
+            imageBytes: imgBytes,
+            contentType,
+            annotations: annos,
+            frame: step,
+            fontFiles,
+          });
+          const img = rendered.type === 'png'
+            ? await pdfDoc.embedPng(rendered.data)
+            : await pdfDoc.embedJpg(rendered.data);
+          const iw = rendered.width;
+          const ih = rendered.height;
           const scale = Math.min(imgW / iw, maxImgH / ih);
           const drawW = iw * scale;
           const drawH = ih * scale;
@@ -213,13 +256,9 @@ export async function GET(request: NextRequest, { params }: Params) {
           const drawX = imgX + (imgW - drawW) / 2;
           const drawY = cursorY - drawH;
           page.drawImage(img, { x: drawX, y: drawY, width: drawW, height: drawH });
-          // 스크린샷 위에 어노테이션(화살표·박스·마커·텍스트 등)을 벡터로 합성 — 뷰어와 일치
-          drawAnnotationsOnPdf(
-            page,
-            (step as { user_annotations?: unknown }).user_annotations as ExportAnnotation[] | null | undefined,
-            { x: drawX, y: drawY, w: drawW, h: drawH },
-            font, fontBold,
-          );
+          if (rendered.data === imgBytes && annos?.length) {
+            drawAnnotationsOnPdf(page, annos, { x: drawX, y: drawY, w: drawW, h: drawH }, font, fontBold);
+          }
         }
       } else {
         imgBlockH = 140;

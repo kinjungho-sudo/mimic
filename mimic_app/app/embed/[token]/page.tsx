@@ -2,12 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import { AnnotationPreview } from '@/components/editor/AnnotationPreview';
+import type { Annotation } from '@/components/editor/ImageAnnotationEditor';
 
 interface EmbedStep {
   id: string;
   title: string;
   caption: string;
   screenshot_url: string | null;
+  user_annotations?: Annotation[];
 }
 
 interface EmbedAnnotation {
@@ -98,8 +101,16 @@ export default function EmbedPage() {
                 </div>
               </div>
               {step.screenshot_url && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={step.screenshot_url} alt={step.title} style={{ width: '100%', display: 'block' }} />
+                <div style={{ position: 'relative', background: '#F3F4F6' }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={step.screenshot_url} alt={step.title} style={{ width: '100%', display: 'block' }} />
+                  {(step.user_annotations?.length ?? 0) > 0 && (
+                    <AnnotationPreview
+                      annotations={step.user_annotations!}
+                      imageUrl={step.screenshot_url}
+                    />
+                  )}
+                </div>
               )}
               {annotations.length > 0 && (
                 <div style={{ padding: isMobile ? '12px 15px' : '14px 22px', borderTop: '1px solid #F3F4F6', display: 'flex', flexDirection: 'column', gap: '10px' }}>

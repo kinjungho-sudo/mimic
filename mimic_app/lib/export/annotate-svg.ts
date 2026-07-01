@@ -24,14 +24,24 @@ export function buildAnnotatedSvg(
   imgW: number,
   imgH: number,
   annotations: Annotation[] | null | undefined,
+  frame?: { zoom?: number | null; offsetX?: number | null; offsetY?: number | null },
 ): string {
   const px = (v: number) => (v / 100) * imgW;
   const py = (v: number) => (v / 100) * imgH;
   const fontScale = imgW / FONT_REF_WIDTH;
   const anns = annotations ?? [];
   const parts: string[] = [];
+  const zoom = Math.max(1, Number(frame?.zoom ?? 1) || 1);
+  const offsetX = Number(frame?.offsetX ?? 0) || 0;
+  const offsetY = Number(frame?.offsetY ?? 0) || 0;
+  const needsFrame = zoom > 1.001 || Math.abs(offsetX) > 0.001 || Math.abs(offsetY) > 0.001;
+  const openFrame = needsFrame
+    ? `<g transform="translate(${imgW / 2 + offsetX * imgW} ${imgH / 2 + offsetY * imgH}) scale(${zoom}) translate(${-imgW / 2} ${-imgH / 2})">`
+    : '';
+  const closeFrame = needsFrame ? '</g>' : '';
 
   // 배경: 원본 스크린샷
+  if (openFrame) parts.push(openFrame);
   parts.push(`<image href="${imgDataUri}" x="0" y="0" width="${imgW}" height="${imgH}" preserveAspectRatio="none"/>`);
 
   // ── spotlight: 어두운 오버레이 + 구멍(주변 4개 띠) ──
@@ -126,5 +136,7 @@ export function buildAnnotatedSvg(
     }
   }
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${imgW}" height="${imgH}" viewBox="0 0 ${imgW} ${imgH}">${parts.join('')}</svg>`;
+  if (closeFrame) parts.push(closeFrame);
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${imgW}" height="${imgH}" viewBox="0 0 ${imgW} ${imgH}" overflow="hidden">${parts.join('')}</svg>`;
 }

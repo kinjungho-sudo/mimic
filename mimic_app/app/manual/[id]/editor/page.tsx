@@ -18,7 +18,6 @@ import { useCollaboration } from '@/hooks/useCollaboration';
 import type { Collaborator } from '@/hooks/useCollaboration';
 import { updateStep, createStep, deleteStep, reorderSteps, duplicateStep } from '@/lib/api/steps';
 import { getTutorial } from '@/lib/api/tutorials';
-import { startLiveGuide } from '@/lib/api/liveGuide';
 import { logError } from '@/lib/logging/logger';
 import { hasGuideConfig } from '@/lib/follow';
 import type { Step, Tutorial } from '@/types';
@@ -527,22 +526,6 @@ export default function EditorPage() {
     }
   }, [id]);
 
-  const handleStartLiveGuide = useCallback(async () => {
-    const shareToken = (tutorial as Tutorial & { share_token?: string | null })?.share_token;
-    if (!shareToken) {
-      alert('라이브 가이드는 게시된 매뉴얼에서 실행할 수 있어요. 먼저 게시해 주세요.');
-      return;
-    }
-
-    const result = await startLiveGuide(shareToken);
-    if (result.ok) return;
-    if (result.reason === 'gated' && result.upgradeUrl && confirm(`${result.message}\n설정 화면으로 이동할까요?`)) {
-      window.location.href = result.upgradeUrl;
-      return;
-    }
-    alert(result.message);
-  }, [tutorial]);
-
   if (loading) {
     return (
       <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: '#F8F9FA' }}>
@@ -700,15 +683,14 @@ export default function EditorPage() {
             })()}
 
             <button
-              onClick={handleStartLiveGuide}
-              disabled={tutorial.status !== 'published'}
-              title={tutorial.status === 'published' ? '현재 브라우저 탭에서 라이브 가이드를 실행합니다' : '게시 후 라이브 가이드를 실행할 수 있어요'}
-              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: tutorial.status === 'published' ? '#4F46E5' : '#D1D5DB', background: tutorial.status === 'published' ? 'rgba(79,70,229,0.08)' : 'white', border: `1px solid ${tutorial.status === 'published' ? 'rgba(79,70,229,0.35)' : '#E5E7EB'}`, cursor: tutorial.status === 'published' ? 'pointer' : 'not-allowed', transition: 'all 0.15s', fontWeight: 600 }}
-              onMouseEnter={e => { if (tutorial.status === 'published') e.currentTarget.style.background = 'rgba(79,70,229,0.13)'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = tutorial.status === 'published' ? 'rgba(79,70,229,0.08)' : 'white'; }}
+              onClick={() => router.push(`/manual/${id}/studio`)}
+              title="Live Guide Studio에서 실행 조건을 확인하고 고객용 링크를 준비합니다"
+              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#4F46E5', background: 'rgba(79,70,229,0.08)', border: '1px solid rgba(79,70,229,0.35)', cursor: 'pointer', transition: 'all 0.15s', fontWeight: 600 }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(79,70,229,0.13)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(79,70,229,0.08)'; }}
             >
               <Zap size={TOP_BAR_ICON_SIZE} />
-              라이브 가이드
+              Live Guide Studio
             </button>
 
             {/* 댓글 패널 토글 — 팀 협업 의견 공유 */}
