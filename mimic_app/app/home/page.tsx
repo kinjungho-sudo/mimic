@@ -846,6 +846,10 @@ export default function DashboardPage() {
   const [pages, setPages] = useState<{ id: string; title: string; updated_at: string; block_count?: number; workspace_id?: string | null }[]>([]);
   const [pagesLoading, setPagesLoading] = useState(false);
 
+  useEffect(() => {
+    if (!authLoading && !user) router.replace('/landingpage');
+  }, [authLoading, user, router]);
+
   const loadTutorials = useCallback(async (workspaceId?: string, silent = false) => {
     if (!silent) setTutLoading(true);
     try {

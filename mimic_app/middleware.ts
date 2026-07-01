@@ -34,12 +34,6 @@ export async function middleware(request: NextRequest) {
   const user = session?.user ?? null;
 
   const { pathname } = request.nextUrl;
-  if (pathname === '/home' && !user) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/landingpage';
-    return NextResponse.redirect(url);
-  }
-
   const isProtected = PROTECTED.some(p => pathname.startsWith(p));
 
   if (isProtected && !user) {
