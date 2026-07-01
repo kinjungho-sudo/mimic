@@ -369,6 +369,15 @@ function getActionIcon(actionInfo) {
 }
 
 // 현재 펼쳐진 스텝 ID (최신 스텝 자동 펼침)
+function getStepDisplayLabel(step, num) {
+  const info = step.actionInfo || {};
+  if (info.type === 'type' || info.type === 'focus_input' || step.typedText) {
+    const label = (info.label || info.text || '').trim();
+    return label && !label.startsWith('\uC785\uB825, "') ? `\uC785\uB825, ${label}` : '\uC785\uB825';
+  }
+  return step.actionLabel || step.title || `Step ${num}`;
+}
+
 let expandedStepId = null;
 
 function buildStepCard(step, num) {
@@ -393,7 +402,7 @@ function buildStepCard(step, num) {
   const labelEl = document.createElement('span');
   labelEl.className = 'step-action-label';
   labelEl.dataset.stepLabel = '';
-  labelEl.textContent = step.actionLabel || step.title || `Step ${num}`;
+  labelEl.textContent = getStepDisplayLabel(step, num);
 
   actionRow.append(iconEl, labelEl);
 
@@ -626,20 +635,41 @@ function backgroundPositionFor(start, size) {
   return clamp((start / (1 - size)) * 100, 0, 100);
 }
 
+function fitFrameToAspect(frame, imageAspect, targetAspect) {
+  if (!frame || !imageAspect || !targetAspect) return frame;
+  let { x, y, width, height } = frame;
+  const currentAspect = (width * imageAspect) / height;
+
+  if (currentAspect > targetAspect) {
+    const nextHeight = Math.min(1, (width * imageAspect) / targetAspect);
+    const centerY = y + height / 2;
+    height = nextHeight;
+    y = clamp(centerY - height / 2, 0, 1 - height);
+  } else {
+    const nextWidth = Math.min(1, (height * targetAspect) / imageAspect);
+    const centerX = x + width / 2;
+    width = nextWidth;
+    x = clamp(centerX - width / 2, 0, 1 - width);
+  }
+  return { x, y, width, height };
+}
+
 function applyThumbPreviewZoom(step, imgEl, overlayEl, src) {
   const wrap = imgEl.closest('.step-thumb');
   const zoomLayer = wrap?.querySelector('.step-thumb-zoom-layer');
-  const frame = computePreviewFrame(step);
+  let frame = computePreviewFrame(step);
   if (!wrap || !zoomLayer || !overlayEl || !isValidFrame(frame)) return;
 
   const vw = Number(step.windowWidth || step.viewportW || 1280);
   const vh = Number(step.windowHeight || step.viewportH || 800);
-  const ratio = clamp((frame.width * vw) / Math.max(1, frame.height * vh), 1.12, 2.05);
+  const imageAspect = vw / Math.max(1, vh);
+  const targetAspect = clamp((frame.width * vw) / Math.max(1, frame.height * vh), 1.12, 1.72);
+  frame = fitFrameToAspect(frame, imageAspect, targetAspect);
 
   wrap.classList.add('preview-zoom');
-  wrap.style.aspectRatio = String(ratio);
+  wrap.style.aspectRatio = String(targetAspect);
   zoomLayer.style.backgroundImage = `url(${JSON.stringify(src)})`;
-  zoomLayer.style.backgroundSize = `${100 / frame.width}% ${100 / frame.height}%`;
+  zoomLayer.style.backgroundSize = `${100 / frame.width}% auto`;
   zoomLayer.style.backgroundPosition = `${backgroundPositionFor(frame.x, frame.width)}% ${backgroundPositionFor(frame.y, frame.height)}%`;
 
   overlayEl.dataset.previewZoom = '1';
@@ -654,28 +684,18 @@ function renderThumbOverlay(overlayEl, imgEl, step, _unused) {
   thumbWrap?.querySelector('.step-type-badge')?.remove();
   const er = step.elementRect;
 
-  // 하이라이트 박스
   if (er && er.width > 0.002 && er.height > 0.002) {
     const hl = document.createElement('div');
     hl.style.cssText = [
       'position:absolute', 'box-sizing:border-box', 'pointer-events:none',
       `left:${er.x * 100}%`, `top:${er.y * 100}%`,
       `width:${er.width * 100}%`, `height:${er.height * 100}%`,
-      'border:2px solid #F59E0B',
-      'background:rgba(255,200,0,0.15)',
+      'border:2px solid #EF4444',
+      'background:transparent',
       'border-radius:4px',
+      'box-shadow:0 0 0 2px rgba(239,68,68,0.18)',
     ].join(';');
     overlayEl.appendChild(hl);
-  }
-
-  // 클릭 포인트
-  const click = getNormalizedClick(step);
-  const cx = click?.x, cy = click?.y;
-  if (cx != null && cy != null && (cx > 0 || cy > 0) && cx >= 0 && cx <= 1 && cy >= 0 && cy <= 1) {
-    renderClickDot(overlayEl, cx, cy);
-
-    // 클릭 위치 확대경 박스 (우하단 코너)
-    if (overlayEl.dataset.previewZoom !== '1') renderZoomInset(overlayEl, imgEl, cx, cy);
   }
   renderTypingBadge(thumbWrap, step);
 }
@@ -699,81 +719,6 @@ function renderTypingBadge(thumbWrap, step) {
   thumbWrap.appendChild(badge);
 }
 
-// 클릭 위치 주변을 확대해서 우하단에 인셋으로 표시
-function renderZoomInset(overlayEl, imgEl, cx, cy) {
-  const INSET_SIZE = 80;  // px (인셋 박스 크기)
-  const ZOOM_RADIUS = 0.12; // 원본 이미지에서 확대할 영역 반경 (정규화)
-
-  const canvas = document.createElement('canvas');
-  canvas.width  = INSET_SIZE;
-  canvas.height = INSET_SIZE;
-  canvas.style.cssText = [
-    'position:absolute', 'bottom:6px', 'right:6px',
-    `width:${INSET_SIZE}px`, `height:${INSET_SIZE}px`,
-    'border-radius:8px',
-    'border:2px solid #fff',
-    'box-shadow:0 2px 8px rgba(0,0,0,0.4)',
-    'pointer-events:none',
-    'background:#000',
-  ].join(';');
-
-  overlayEl.appendChild(canvas);
-
-  // imgEl이 로드된 후 렌더
-  function drawInset() {
-    if (imgEl.naturalWidth === 0) return;
-    const iw = imgEl.naturalWidth;
-    const ih = imgEl.naturalHeight;
-
-    const sx = Math.max(0, (cx - ZOOM_RADIUS) * iw);
-    const sy = Math.max(0, (cy - ZOOM_RADIUS) * ih);
-    const sw = Math.min(iw - sx, ZOOM_RADIUS * 2 * iw);
-    const sh = Math.min(ih - sy, ZOOM_RADIUS * 2 * ih);
-
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(imgEl, sx, sy, sw, sh, 0, 0, INSET_SIZE, INSET_SIZE);
-
-    // 중앙 클릭 포인트 표시
-    const dotX = INSET_SIZE / 2;
-    const dotY = INSET_SIZE / 2;
-    ctx.beginPath();
-    ctx.arc(dotX, dotY, 7, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(239,68,68,0.9)';
-    ctx.fill();
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    // 외부 링
-    ctx.beginPath();
-    ctx.arc(dotX, dotY, 12, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(239,68,68,0.5)';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-  }
-
-  if (imgEl.complete && imgEl.naturalWidth > 0) {
-    drawInset();
-  } else {
-    imgEl.addEventListener('load', drawInset, { once: true });
-  }
-}
-
-function renderClickDot(overlayEl, nx, ny) {
-  const dot = document.createElement('div');
-  dot.style.cssText = [
-    'position:absolute', 'pointer-events:none',
-    'width:14px', 'height:14px', 'border-radius:50%',
-    'background:rgba(239,68,68,0.9)',
-    'border:2px solid #fff',
-    'box-shadow:0 0 0 3px rgba(239,68,68,0.35)',
-    'transform:translate(-50%,-50%)',
-    `left:${nx * 100}%`, `top:${ny * 100}%`,
-  ].join(';');
-  overlayEl.appendChild(dot);
-}
-
-// 줌 오버레이 닫기
 function closeZoomOverlay() {
   const overlay = document.getElementById('thumbZoomOverlay');
   if (!overlay) return;
