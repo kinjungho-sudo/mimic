@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { BrandMark } from '@/components/common/BrandMark';
+import { FollowStage } from '@/components/viewer/FollowStage';
 
 const CheckIcon = ({ size = 14, color = 'currentColor' }: { size?: number; color?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3">
@@ -15,6 +16,159 @@ const XIcon = ({ size = 14 }: { size?: number }) => (
     <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
   </svg>
 );
+
+type SimulatorStep = {
+  eyebrow: string;
+  title: string;
+  body: string;
+  screen: string;
+  hotspotX: number;
+  hotspotY: number;
+  kind: 'click' | 'type';
+  typeText?: string;
+};
+
+const svgDataUri = (svg: string) => `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+
+const simulatorSteps: SimulatorStep[] = [
+  {
+    eyebrow: 'Record',
+    title: '평소처럼 클릭하면 기록이 시작됩니다',
+    body: '브라우저에서 하던 작업을 그대로 진행하면 MIMIC Recorder가 클릭 위치와 화면을 함께 캡처합니다.',
+    hotspotX: 78,
+    hotspotY: 21,
+    kind: 'click',
+    screen: svgDataUri(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="1120" height="680" viewBox="0 0 1120 680">
+        <rect width="1120" height="680" rx="28" fill="#f8fafc"/>
+        <rect x="0" y="0" width="1120" height="72" rx="28" fill="#111827"/>
+        <circle cx="34" cy="36" r="8" fill="#ef4444"/><circle cx="62" cy="36" r="8" fill="#f59e0b"/><circle cx="90" cy="36" r="8" fill="#22c55e"/>
+        <rect x="138" y="19" width="520" height="34" rx="17" fill="#1f2937"/>
+        <text x="168" y="41" font-family="Inter, Arial" font-size="15" fill="#cbd5e1">app.example.com/settings/billing</text>
+        <rect x="938" y="18" width="134" height="36" rx="18" fill="#4f46e5"/>
+        <text x="969" y="41" font-family="Inter, Arial" font-size="14" font-weight="700" fill="white">녹화 중</text>
+        <rect x="44" y="108" width="1032" height="516" rx="22" fill="white" stroke="#e5e7eb"/>
+        <text x="86" y="166" font-family="Inter, Arial" font-size="28" font-weight="800" fill="#111827">결제 설정</text>
+        <text x="86" y="196" font-family="Inter, Arial" font-size="16" fill="#64748b">팀 결제 수단과 영수증 정보를 관리합니다.</text>
+        <rect x="80" y="238" width="460" height="92" rx="18" fill="#f1f5f9"/>
+        <text x="112" y="274" font-family="Inter, Arial" font-size="16" font-weight="700" fill="#111827">현재 플랜</text>
+        <text x="112" y="302" font-family="Inter, Arial" font-size="15" fill="#64748b">Team Pro, 월 결제</text>
+        <rect x="80" y="366" width="460" height="118" rx="18" fill="#f8fafc" stroke="#e2e8f0"/>
+        <text x="112" y="404" font-family="Inter, Arial" font-size="17" font-weight="700" fill="#111827">카드 정보</text>
+        <text x="112" y="436" font-family="Inter, Arial" font-size="15" fill="#64748b">Visa ending 4242</text>
+        <rect x="732" y="122" width="296" height="372" rx="24" fill="#0f172a"/>
+        <text x="762" y="164" font-family="Inter, Arial" font-size="17" font-weight="800" fill="white">MIMIC Recorder</text>
+        <rect x="762" y="190" width="212" height="38" rx="19" fill="#312e81"/>
+        <text x="788" y="214" font-family="Inter, Arial" font-size="13" font-weight="700" fill="#ddd6fe">캡처 04개 저장됨</text>
+        <rect x="762" y="258" width="184" height="48" rx="16" fill="#4f46e5"/>
+        <text x="801" y="288" font-family="Inter, Arial" font-size="15" font-weight="800" fill="white">이 단계 저장</text>
+        <rect x="762" y="340" width="226" height="88" rx="16" fill="#1e293b"/>
+        <text x="784" y="374" font-family="Inter, Arial" font-size="14" font-weight="700" fill="#e2e8f0">클릭 위치와 화면을</text>
+        <text x="784" y="402" font-family="Inter, Arial" font-size="14" font-weight="700" fill="#e2e8f0">함께 기록하고 있어요</text>
+      </svg>
+    `),
+  },
+  {
+    eyebrow: 'AI Draft',
+    title: 'AI가 화면을 읽고 설명을 붙입니다',
+    body: '캡처된 화면은 매뉴얼 초안으로 정리되고, 사용자는 필요한 문장만 다듬으면 됩니다.',
+    hotspotX: 41,
+    hotspotY: 48,
+    kind: 'type',
+    typeText: '결제 수단 변경 버튼을 클릭합니다',
+    screen: svgDataUri(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="1120" height="680" viewBox="0 0 1120 680">
+        <rect width="1120" height="680" rx="28" fill="#fafafa"/>
+        <rect x="42" y="42" width="252" height="596" rx="24" fill="#111827"/>
+        <text x="76" y="96" font-family="Inter, Arial" font-size="19" font-weight="800" fill="white">MIMIC Editor</text>
+        <rect x="72" y="132" width="174" height="36" rx="18" fill="#312e81"/>
+        <text x="96" y="155" font-family="Inter, Arial" font-size="13" font-weight="700" fill="#ddd6fe">AI 초안 작성됨</text>
+        <rect x="72" y="204" width="188" height="64" rx="16" fill="#1f2937"/>
+        <text x="94" y="230" font-family="Inter, Arial" font-size="14" font-weight="700" fill="white">01 결제 설정 열기</text>
+        <text x="94" y="252" font-family="Inter, Arial" font-size="12" fill="#94a3b8">클릭 안내 생성</text>
+        <rect x="72" y="288" width="188" height="64" rx="16" fill="#4f46e5"/>
+        <text x="94" y="314" font-family="Inter, Arial" font-size="14" font-weight="700" fill="white">02 카드 정보 선택</text>
+        <text x="94" y="336" font-family="Inter, Arial" font-size="12" fill="#ddd6fe">입력 설명 보정</text>
+        <rect x="330" y="58" width="738" height="564" rx="26" fill="white" stroke="#e5e7eb"/>
+        <text x="374" y="112" font-family="Inter, Arial" font-size="26" font-weight="800" fill="#111827">팀 결제 수단 변경하기</text>
+        <rect x="374" y="154" width="612" height="74" rx="18" fill="#eef2ff" stroke="#c7d2fe"/>
+        <text x="408" y="184" font-family="Inter, Arial" font-size="15" font-weight="800" fill="#3730a3">AI가 붙인 단계 설명</text>
+        <text x="408" y="211" font-family="Inter, Arial" font-size="15" fill="#4338ca">결제 설정 화면에서 카드 정보 영역을 확인합니다.</text>
+        <rect x="374" y="270" width="612" height="236" rx="22" fill="#f8fafc" stroke="#e2e8f0"/>
+        <text x="412" y="314" font-family="Inter, Arial" font-size="18" font-weight="800" fill="#111827">02. 카드 정보 선택</text>
+        <rect x="412" y="348" width="432" height="48" rx="14" fill="white" stroke="#cbd5e1"/>
+        <text x="436" y="378" font-family="Inter, Arial" font-size="15" fill="#0f172a">결제 수단 변경 버튼을 클릭합니다</text>
+        <rect x="412" y="428" width="236" height="46" rx="14" fill="#4f46e5"/>
+        <text x="458" y="457" font-family="Inter, Arial" font-size="15" font-weight="800" fill="white">문장 적용</text>
+      </svg>
+    `),
+  },
+  {
+    eyebrow: 'Guide',
+    title: '받는 사람은 화면 위 안내를 따라갑니다',
+    body: '읽고 해석하는 문서가 아니라, 어디를 눌러야 하는지 실제 화면 위에서 바로 확인합니다.',
+    hotspotX: 72,
+    hotspotY: 64,
+    kind: 'click',
+    screen: svgDataUri(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="1120" height="680" viewBox="0 0 1120 680">
+        <rect width="1120" height="680" rx="28" fill="#0f172a"/>
+        <rect x="50" y="54" width="1020" height="572" rx="28" fill="#f8fafc"/>
+        <rect x="50" y="54" width="1020" height="66" rx="28" fill="#111827"/>
+        <text x="92" y="94" font-family="Inter, Arial" font-size="16" font-weight="800" fill="white">Live Guide Preview</text>
+        <rect x="92" y="158" width="438" height="360" rx="22" fill="white" stroke="#e5e7eb"/>
+        <text x="132" y="212" font-family="Inter, Arial" font-size="27" font-weight="800" fill="#111827">결제 설정</text>
+        <text x="132" y="248" font-family="Inter, Arial" font-size="16" fill="#64748b">새 결제 수단을 등록합니다.</text>
+        <rect x="132" y="304" width="318" height="54" rx="15" fill="#f1f5f9"/>
+        <text x="158" y="337" font-family="Inter, Arial" font-size="15" font-weight="700" fill="#334155">카드 번호</text>
+        <rect x="132" y="386" width="202" height="52" rx="16" fill="#4f46e5"/>
+        <text x="179" y="419" font-family="Inter, Arial" font-size="15" font-weight="800" fill="white">저장하기</text>
+        <rect x="592" y="158" width="392" height="360" rx="26" fill="white" stroke="#e5e7eb"/>
+        <text x="632" y="210" font-family="Inter, Arial" font-size="20" font-weight="800" fill="#111827">MIMIC 안내</text>
+        <rect x="632" y="250" width="294" height="78" rx="20" fill="#eef2ff"/>
+        <text x="660" y="281" font-family="Inter, Arial" font-size="15" font-weight="800" fill="#3730a3">03. 저장하기 버튼 클릭</text>
+        <text x="660" y="308" font-family="Inter, Arial" font-size="14" fill="#4338ca">오른쪽 아래 보라색 버튼을 누르세요.</text>
+        <rect x="632" y="372" width="120" height="44" rx="14" fill="#111827"/>
+        <text x="664" y="400" font-family="Inter, Arial" font-size="14" font-weight="800" fill="white">다음</text>
+        <rect x="762" y="372" width="164" height="44" rx="14" fill="#f8fafc" stroke="#cbd5e1"/>
+        <text x="800" y="400" font-family="Inter, Arial" font-size="14" font-weight="700" fill="#334155">음성 안내</text>
+      </svg>
+    `),
+  },
+  {
+    eyebrow: 'Share',
+    title: '링크와 문서로 바로 전달합니다',
+    body: '완성된 매뉴얼은 링크로 공유하고, 필요한 팀에는 PDF, PPTX, Word 문서로 넘길 수 있습니다.',
+    hotspotX: 76,
+    hotspotY: 29,
+    kind: 'click',
+    screen: svgDataUri(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="1120" height="680" viewBox="0 0 1120 680">
+        <rect width="1120" height="680" rx="28" fill="#f8fafc"/>
+        <rect x="62" y="54" width="996" height="572" rx="28" fill="white" stroke="#e5e7eb"/>
+        <text x="112" y="124" font-family="Inter, Arial" font-size="28" font-weight="800" fill="#111827">팀 결제 수단 변경하기</text>
+        <text x="112" y="158" font-family="Inter, Arial" font-size="16" fill="#64748b">4개의 단계가 준비되었습니다.</text>
+        <rect x="780" y="92" width="198" height="52" rx="18" fill="#4f46e5"/>
+        <text x="832" y="124" font-family="Inter, Arial" font-size="15" font-weight="800" fill="white">공유 링크 복사</text>
+        <rect x="112" y="214" width="594" height="316" rx="24" fill="#f8fafc" stroke="#e2e8f0"/>
+        <rect x="146" y="250" width="528" height="54" rx="16" fill="white" stroke="#e5e7eb"/>
+        <text x="174" y="283" font-family="Inter, Arial" font-size="15" font-weight="700" fill="#111827">01. 결제 설정 화면으로 이동</text>
+        <rect x="146" y="326" width="528" height="54" rx="16" fill="white" stroke="#e5e7eb"/>
+        <text x="174" y="359" font-family="Inter, Arial" font-size="15" font-weight="700" fill="#111827">02. 카드 정보 영역 확인</text>
+        <rect x="146" y="402" width="528" height="54" rx="16" fill="#eef2ff" stroke="#c7d2fe"/>
+        <text x="174" y="435" font-family="Inter, Arial" font-size="15" font-weight="800" fill="#3730a3">03. 저장하기 버튼 클릭</text>
+        <rect x="762" y="214" width="250" height="316" rx="24" fill="#111827"/>
+        <text x="798" y="264" font-family="Inter, Arial" font-size="18" font-weight="800" fill="white">내보내기</text>
+        <rect x="798" y="302" width="166" height="46" rx="15" fill="#1f2937"/>
+        <text x="850" y="331" font-family="Inter, Arial" font-size="14" font-weight="800" fill="#e5e7eb">PDF</text>
+        <rect x="798" y="370" width="166" height="46" rx="15" fill="#1f2937"/>
+        <text x="842" y="399" font-family="Inter, Arial" font-size="14" font-weight="800" fill="#e5e7eb">PPTX</text>
+        <rect x="798" y="438" width="166" height="46" rx="15" fill="#4f46e5"/>
+        <text x="841" y="467" font-family="Inter, Arial" font-size="14" font-weight="800" fill="white">Word</text>
+      </svg>
+    `),
+  },
+];
 
 const features = [
   {
@@ -1333,6 +1487,86 @@ function ProductShowcase() {
   );
 }
 
+function ServiceSimulatorSection() {
+  const [active, setActive] = useState(0);
+  const step = simulatorSteps[active];
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setActive((current) => (current + 1) % simulatorSteps.length);
+    }, 3600);
+    return () => window.clearInterval(id);
+  }, []);
+
+  return (
+    <section id="simulator" className="service-simulator" style={{ padding: '104px 0', background: '#07070F', position: 'relative', overflow: 'hidden' }}>
+      <div className="simulator-glow simulator-glow-a" />
+      <div className="simulator-glow simulator-glow-b" />
+      <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px', position: 'relative', zIndex: 1 }}>
+        <RevealSection>
+          <div className="simulator-grid">
+            <div className="simulator-copy">
+              <span className="simulator-eyebrow">Live Simulator</span>
+              <h2>랜딩에서 바로 보는 실제 MIMIC 흐름</h2>
+              <p>
+                녹화, AI 초안, 따라하기 가이드, 공유까지 한 화면 안에서 자동으로 재생됩니다.
+                기존 플레이어 컴포넌트를 사용해 영상보다 실제 사용감에 가깝게 보여줍니다.
+              </p>
+              <div className="simulator-steps" role="tablist" aria-label="MIMIC product simulator steps">
+                {simulatorSteps.map((item, index) => (
+                  <button
+                    key={item.eyebrow}
+                    type="button"
+                    role="tab"
+                    aria-selected={active === index}
+                    className={`simulator-step${active === index ? ' active' : ''}`}
+                    onClick={() => setActive(index)}
+                  >
+                    <span>{String(index + 1).padStart(2, '0')}</span>
+                    <strong>{item.eyebrow}</strong>
+                    <small>{item.title}</small>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="simulator-stage-shell" aria-live="polite">
+              <div className="simulator-stage-header">
+                <div>
+                  <span>{step.eyebrow}</span>
+                  <strong>{step.title}</strong>
+                </div>
+                <div className="simulator-rec-dot">
+                  <i />
+                  실시간 데모
+                </div>
+              </div>
+              <div className="simulator-follow-wrap">
+                <FollowStage
+                  key={step.eyebrow}
+                  screenshotUrl={step.screen}
+                  hotspotX={step.hotspotX}
+                  hotspotY={step.hotspotY}
+                  kind={step.kind}
+                  typeText={step.typeText}
+                  animateType={step.kind === 'type'}
+                  title={step.title}
+                  body={step.body}
+                  spotlight
+                  stepNumber={active + 1}
+                  isFirstStep={active === 0}
+                  imgMaxHeight="470px"
+                  bubbleAnchor="bottom-left"
+                />
+              </div>
+            </div>
+          </div>
+        </RevealSection>
+      </div>
+    </section>
+  );
+}
+
 function HeroSection() {
   return (
     <section style={{ padding: '96px 0 0', background: '#07070F', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
@@ -1516,6 +1750,9 @@ export default function LandingPage() {
 
       {/* Hero */}
       <HeroSection />
+
+      {/* Product Simulator */}
+      <ServiceSimulatorSection />
 
       {/* Manifesto */}
       <section style={{ padding: '128px 0', background: 'linear-gradient(180deg, #07070F 0%, #0d0d1c 100%)', overflow: 'hidden', position: 'relative' }}>
@@ -2090,6 +2327,167 @@ export default function LandingPage() {
         /* ── 신규: How it works 연결선 ── */
         .how-steps { padding: 0 20px; }
 
+        /* Product simulator */
+        .service-simulator {
+          border-top: 1px solid rgba(255,255,255,0.06);
+          border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .simulator-glow {
+          position: absolute;
+          border-radius: 999px;
+          filter: blur(72px);
+          pointer-events: none;
+        }
+        .simulator-glow-a {
+          width: 440px;
+          height: 440px;
+          top: 40px;
+          right: -120px;
+          background: rgba(79,70,229,0.22);
+        }
+        .simulator-glow-b {
+          width: 360px;
+          height: 360px;
+          bottom: -130px;
+          left: -90px;
+          background: rgba(124,58,237,0.18);
+        }
+        .simulator-grid {
+          display: grid;
+          grid-template-columns: minmax(300px, 0.82fr) minmax(0, 1.38fr);
+          gap: 44px;
+          align-items: center;
+        }
+        .simulator-copy h2 {
+          margin: 0 0 18px;
+          color: white;
+          font-size: clamp(34px, 4vw, 56px);
+          line-height: 1.08;
+          letter-spacing: -0.045em;
+          font-weight: 850;
+          word-break: keep-all;
+        }
+        .simulator-copy p {
+          margin: 0 0 30px;
+          color: rgba(255,255,255,0.56);
+          font-size: 16px;
+          line-height: 1.8;
+          max-width: 440px;
+        }
+        .simulator-eyebrow {
+          display: inline-flex;
+          margin-bottom: 18px;
+          color: #c4b5fd;
+          background: rgba(124,58,237,0.12);
+          border: 1px solid rgba(167,139,250,0.22);
+          border-radius: 999px;
+          padding: 7px 12px;
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: 0.15em;
+          text-transform: uppercase;
+        }
+        .simulator-steps {
+          display: grid;
+          gap: 10px;
+        }
+        .simulator-step {
+          appearance: none;
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 16px;
+          background: rgba(255,255,255,0.035);
+          color: rgba(255,255,255,0.72);
+          padding: 16px 18px;
+          text-align: left;
+          cursor: pointer;
+          transition: border-color .2s ease, background .2s ease, transform .2s ease;
+        }
+        .simulator-step:hover,
+        .simulator-step:focus-visible {
+          border-color: rgba(167,139,250,0.36);
+          background: rgba(255,255,255,0.06);
+          outline: none;
+        }
+        .simulator-step.active {
+          border-color: rgba(167,139,250,0.42);
+          background: linear-gradient(135deg, rgba(79,70,229,0.30), rgba(124,58,237,0.18));
+          transform: translateX(6px);
+        }
+        .simulator-step span {
+          display: inline-flex;
+          margin-right: 10px;
+          color: #c4b5fd;
+          font-size: 11px;
+          font-weight: 900;
+          letter-spacing: 0.08em;
+        }
+        .simulator-step strong {
+          font-size: 13px;
+          color: white;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+        }
+        .simulator-step small {
+          display: block;
+          margin-top: 6px;
+          color: rgba(255,255,255,0.48);
+          font-size: 13px;
+          line-height: 1.45;
+        }
+        .simulator-stage-shell {
+          overflow: hidden;
+          border: 1px solid rgba(255,255,255,0.10);
+          border-radius: 28px;
+          background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.035));
+          box-shadow: 0 34px 90px rgba(0,0,0,0.46), inset 0 1px 0 rgba(255,255,255,0.10);
+          backdrop-filter: blur(16px);
+        }
+        .simulator-stage-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 16px;
+          padding: 18px 20px;
+          border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        .simulator-stage-header span {
+          display: block;
+          color: #a78bfa;
+          font-size: 11px;
+          font-weight: 850;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          margin-bottom: 4px;
+        }
+        .simulator-stage-header strong {
+          color: white;
+          font-size: 16px;
+          letter-spacing: -0.02em;
+        }
+        .simulator-rec-dot {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          color: rgba(255,255,255,0.58);
+          font-size: 12px;
+          font-weight: 700;
+          white-space: nowrap;
+        }
+        .simulator-rec-dot i {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: #ef4444;
+          box-shadow: 0 0 0 5px rgba(239,68,68,0.14);
+          animation: recPulse 1.2s ease-in-out infinite;
+        }
+        .simulator-follow-wrap {
+          padding: 18px;
+        }
+        .simulator-follow-wrap > div {
+          width: 100%;
+        }
+
         /* ── 제품 쇼케이스 ── */
         .showcase-row { display: flex; gap: 64px; align-items: center; }
         .showcase-row.flip { flex-direction: row-reverse; }
@@ -2098,6 +2496,10 @@ export default function LandingPage() {
         @media (max-width: 1024px) {
           .pricing-grid { grid-template-columns: repeat(2, 1fr) !important; }
           .pricing-grid > div { transform: none !important; }
+          .simulator-grid { grid-template-columns: 1fr !important; }
+          .simulator-copy p { max-width: 680px !important; }
+          .simulator-steps { grid-template-columns: repeat(2, 1fr) !important; }
+          .simulator-step.active { transform: none !important; }
         }
 
         /* ── 모바일 반응형 ── */
@@ -2110,6 +2512,10 @@ export default function LandingPage() {
           .showcase-row, .showcase-row.flip { flex-direction: column !important; gap: 28px !important; }
           .showcase-row .showcase-text h3 { font-size: 24px !important; }
           .showcase-row .showcase-media { width: 100% !important; }
+          .simulator-grid { gap: 26px !important; }
+          .simulator-steps { grid-template-columns: 1fr !important; }
+          .simulator-stage-header { align-items: flex-start !important; flex-direction: column !important; }
+          .simulator-follow-wrap { padding: 10px !important; }
           header nav { display: none !important; }
           header > div { padding: 0 16px !important; }
 

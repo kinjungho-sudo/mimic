@@ -547,7 +547,7 @@ function EmptyState({ onRecord, onBlank, onGuidebook, label }: { onRecord: () =>
 
 const FOLDER_COLORS = ['#3730a3', '#6d28d9', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#6B7280'];
 
-function FolderPanel({ folders, tutorials, activeFolder, active, title, onSelectFolder, onClose, onCreate, onRename, onChangeColor, onDelete, onDropTutorial }: {
+function FolderPanel({ folders, tutorials, activeFolder, active, title, onSelectFolder, onClose, onRename, onChangeColor, onDelete, onDropTutorial }: {
   folders: Folder[];
   tutorials: Tutorial[];
   activeFolder: string | null | 'all';
@@ -555,15 +555,11 @@ function FolderPanel({ folders, tutorials, activeFolder, active, title, onSelect
   title: string;
   onSelectFolder: (id: string | null | 'all') => void;
   onClose: () => void;
-  onCreate: (name: string) => Promise<void>;
   onRename: (id: string, name: string) => void;
   onChangeColor: (id: string, color: string) => void;
   onDelete: (id: string) => void;
   onDropTutorial: (tutorialId: string, folderId: string | null) => void;
 }) {
-  const [showInput, setShowInput] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [menuId, setMenuId] = useState<string | null>(null);
@@ -584,14 +580,6 @@ function FolderPanel({ folders, tutorials, activeFolder, active, title, onSelect
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [menuId]);
-
-  const submitCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const name = newName.trim();
-    if (!name) return;
-    setCreating(true);
-    try { await onCreate(name); setNewName(''); setShowInput(false); } finally { setCreating(false); }
-  };
 
   const commitRename = (id: string) => {
     const name = editName.trim();
@@ -758,30 +746,6 @@ function FolderPanel({ folders, tutorials, activeFolder, active, title, onSelect
         ))}
       </div>
 
-      {/* 새 폴더 — 하단 */}
-      <div style={{ padding: '8px 12px', borderTop: '1px solid #F3F4F6', flexShrink: 0 }}>
-        {showInput ? (
-          <form onSubmit={submitCreate} style={{ display: 'flex', gap: '5px' }}>
-            <input autoFocus value={newName} onChange={e => setNewName(e.target.value)} placeholder="폴더 이름"
-              onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); setShowInput(false); setNewName(''); } }}
-              onBlur={() => { if (!creating) { setShowInput(false); setNewName(''); } }}
-              style={{ flex: 1, minWidth: 0, padding: '7px 9px', borderRadius: '7px', border: '1.5px solid #a5b4fc', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
-            <button type="submit" disabled={creating || !newName.trim()}
-              onMouseDown={e => e.preventDefault()}
-              style={{ padding: '0 11px', borderRadius: '7px', background: '#3730a3', color: 'white', border: 'none', fontSize: '12px', fontWeight: 600, cursor: 'pointer', flexShrink: 0, opacity: creating || !newName.trim() ? 0.6 : 1 }}>
-              {creating ? '...' : '추가'}
-            </button>
-          </form>
-        ) : (
-          <button onClick={() => { setShowInput(true); setNewName(''); }}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', padding: '7px 9px', borderRadius: '7px', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '12.5px', color: '#9CA3AF' }}
-            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; (e.currentTarget as HTMLButtonElement).style.color = '#4338CA'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = '#9CA3AF'; }}>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            새 폴더 추가
-          </button>
-        )}
-      </div>
       <div style={{ padding: '6px 14px 10px', fontSize: '11px', color: '#C4C9D4', lineHeight: 1.5, flexShrink: 0 }}>
         카드를 폴더로 드래그해서 정리
       </div>
@@ -808,6 +772,9 @@ export default function DashboardPage() {
 
   const [showRecordingModal, setShowRecordingModal] = useState(false);
   const [showNewMenu, setShowNewMenu] = useState(false);
+  const [showNewFolderInput, setShowNewFolderInput] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [creatingFolder, setCreatingFolder] = useState(false);
   const [creating, setCreating] = useState(false);
 
   // 워크스페이스 생성
@@ -934,6 +901,12 @@ export default function DashboardPage() {
     return () => document.removeEventListener('mousedown', handler);
   }, [showNewMenu]);
 
+  useEffect(() => {
+    if (showNewMenu) return;
+    setShowNewFolderInput(false);
+    setNewFolderName('');
+  }, [showNewMenu]);
+
   const usedToday = user?.daily_manual_count ?? 0;
   const dailyLimit = user?.daily_limit ?? 3;
   const isPro = user?.plan === 'pro' || user?.plan === 'team';
@@ -997,8 +970,30 @@ export default function DashboardPage() {
 
   const handleCreateFolder = async (name: string) => {
     const res = await fetch('/api/folders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, workspace_id: isTeamCtx ? activeWorkspace : null }) });
-    if (res.ok) { const folder = await res.json(); setPanelFolders(prev => [...prev, folder]); }
-    else logError('folder.create.fail', { workspaceId: isTeamCtx ? activeWorkspace : null, status: res.status });
+    if (res.ok) {
+      const folder = await res.json();
+      setPanelFolders(prev => [...prev, folder]);
+      return folder as Folder;
+    }
+    logError('folder.create.fail', { workspaceId: isTeamCtx ? activeWorkspace : null, status: res.status });
+    return null;
+  };
+
+  const handleCreateFolderFromMenu = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = newFolderName.trim();
+    if (!name) return;
+    setCreatingFolder(true);
+    try {
+      const folder = await handleCreateFolder(name);
+      if (folder) {
+        setActiveFolder(folder.id);
+        setShowFolderPanel(true);
+        setShowNewMenu(false);
+      }
+    } finally {
+      setCreatingFolder(false);
+    }
   };
 
   const handleDeleteFolder = async (id: string) => {
@@ -1329,7 +1324,6 @@ export default function DashboardPage() {
               title={isTeamCtx ? (workspaces.find(w => w.id === activeWorkspace)?.name ?? '팀 워크스페이스') : '내 워크스페이스'}
               onSelectFolder={id => setActiveFolder(id)}
               onClose={() => setShowFolderPanel(false)}
-              onCreate={handleCreateFolder}
               onRename={handleRenameFolder}
               onChangeColor={handleChangeFolderColor}
               onDelete={handleDeleteFolder}
@@ -1413,24 +1407,36 @@ export default function DashboardPage() {
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ transform: showNewMenu ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}><polyline points="6 9 12 15 18 9"/></svg>
                   </button>
                   {showNewMenu && (
-                    <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, width: '210px', background: 'white', borderRadius: '12px', boxShadow: '0 8px 28px rgba(17,24,39,0.14), 0 0 0 1px rgba(0,0,0,0.06)', overflow: 'hidden', zIndex: 100 }}>
+                    <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, width: '220px', background: 'white', borderRadius: '12px', boxShadow: '0 8px 28px rgba(17,24,39,0.14), 0 0 0 1px rgba(0,0,0,0.06)', overflow: 'hidden', zIndex: 100 }}>
                       <button className="home-recording-btn" onClick={() => { setShowNewMenu(false); setShowRecordingModal(true); }}
-                        style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', width: '100%', padding: '13px 15px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left' }}
+                        style={{ display: 'block', width: '100%', padding: '11px 14px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontSize: '13px', fontWeight: 600, color: '#111827' }}
                         onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
-                        <span style={{ width: '30px', height: '30px', borderRadius: '8px', background: '#FEE2E2', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3" fill="#EF4444"/></svg>
-                        </span>
-                        <div><div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '2px' }}>새 매뉴얼(녹화)</div><div style={{ fontSize: '11.5px', color: '#6B7280' }}>클릭 동작을 자동 캡처</div></div>
+                        새 매뉴얼(녹화)
                       </button>
                       <div className="home-recording-divider" style={{ height: '1px', background: '#F3F4F6', margin: '0 12px' }} />
                       <button onClick={handleCreateGuidebook}
-                        style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', width: '100%', padding: '13px 15px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left' }}
+                        style={{ display: 'block', width: '100%', padding: '11px 14px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontSize: '13px', fontWeight: 600, color: '#111827' }}
                         onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
-                        <span style={{ width: '30px', height: '30px', borderRadius: '8px', background: '#dcfce7', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-                        </span>
-                        <div><div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '2px' }}>새 플레이북(통합 문서)</div><div style={{ fontSize: '11.5px', color: '#6B7280' }}>여러 매뉴얼을 한 문서로</div></div>
+                        새 플레이북(통합 문서)
                       </button>
+                      <div style={{ height: '1px', background: '#F3F4F6', margin: '0 12px' }} />
+                      {!showNewFolderInput ? (
+                        <button onClick={() => { setShowNewFolderInput(true); setNewFolderName(''); }}
+                          style={{ display: 'block', width: '100%', padding: '11px 14px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontSize: '13px', fontWeight: 600, color: '#111827' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                          폴더
+                        </button>
+                      ) : (
+                        <form onSubmit={handleCreateFolderFromMenu} style={{ padding: '10px 12px 12px', display: 'flex', gap: '6px' }}>
+                          <input autoFocus value={newFolderName} onChange={e => setNewFolderName(e.target.value)} placeholder="폴더 이름"
+                            onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); setShowNewFolderInput(false); setNewFolderName(''); } }}
+                            style={{ flex: 1, minWidth: 0, height: '32px', padding: '0 9px', borderRadius: '8px', border: '1.5px solid #a5b4fc', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
+                          <button type="submit" disabled={creatingFolder || !newFolderName.trim()}
+                            style={{ height: '32px', padding: '0 10px', borderRadius: '8px', background: '#3730a3', color: 'white', border: 'none', fontSize: '12px', fontWeight: 600, cursor: 'pointer', flexShrink: 0, opacity: creatingFolder || !newFolderName.trim() ? 0.6 : 1 }}>
+                            {creatingFolder ? '...' : '추가'}
+                          </button>
+                        </form>
+                      )}
                     </div>
                   )}
                 </div>
