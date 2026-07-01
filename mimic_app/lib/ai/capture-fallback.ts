@@ -73,6 +73,15 @@ const SLACK_LABEL_CONTEXTS = new Map([
   ['function', 'Functions 메뉴'],
 ]);
 
+const GMAIL_CONTEXTS: Array<{ pattern: RegExp; base: string }> = [
+  { pattern: /받은\s*편지함|받은편지함|inbox/i, base: '받은편지함' },
+  { pattern: /읽지\s*않은\s*메일|메일함|mail/i, base: '메일함' },
+  { pattern: /답장|reply/i, base: '답장' },
+  { pattern: /보내기|send/i, base: '메일 보내기' },
+  { pattern: /본문|body|message/i, base: '메일 본문' },
+  { pattern: /받는\s*사람|recipient|to:/i, base: '받는 사람' },
+];
+
 function cleanText(value: string | null | undefined): string {
   return (value ?? '')
     .replace(/\s+/g, ' ')
@@ -96,6 +105,17 @@ function isRawCaptureLabel(value: string | null | undefined): boolean {
   return RAW_CAPTURE_LABELS.has(text);
 }
 
+function isLongCapturedContent(value: string | null | undefined): boolean {
+  const text = cleanText(value);
+  if (text.length < 45) return false;
+  return /감사|보내주신|받는\s*사람|성함|업데이트|프롬프트|어노테이션|텍스트\s*박스|메일|내용/.test(text);
+}
+
+function hasCountNoise(value: string | null | undefined): boolean {
+  const text = cleanText(value);
+  return /(\d[\d,.\s]*개|[\d,]{3,})/.test(text) && /메일|알림|읽지|받은편지함|badge|count/i.test(text);
+}
+
 function hasMachineToken(value: string | null | undefined): boolean {
   const text = cleanText(value);
   if (!text) return false;
@@ -110,7 +130,7 @@ function hasMachineToken(value: string | null | undefined): boolean {
 
 export function isLowQualityCaptureLabel(value: string | null | undefined): boolean {
   const text = cleanText(value);
-  return !text || isGenericLabel(text) || isRawCaptureLabel(text) || hasMachineToken(text);
+  return !text || isGenericLabel(text) || isRawCaptureLabel(text) || hasMachineToken(text) || isLongCapturedContent(text);
 }
 
 function isWeakTitle(value: string | null | undefined): boolean {
@@ -122,6 +142,7 @@ export function isLowQualityCaptureTitle(value: string | null | undefined): bool
   const text = cleanText(value);
   if (isWeakTitle(text)) return true;
   if (isLowQualityCaptureLabel(text)) return true;
+  if (hasCountNoise(text)) return true;
   const rawLabelPattern = Array.from(RAW_CAPTURE_LABELS).join('|');
   return new RegExp(`^(${rawLabelPattern}|edit|button|link|menu|untitled|click)\\s+(클릭|확인|선택|입력|이동)$`, 'i').test(text);
 }
@@ -130,6 +151,9 @@ export function isLowQualityCaptureScript(value: string | null | undefined): boo
   const text = cleanText(value);
   if (!text) return true;
   if (hasMachineToken(text)) return true;
+  if (hasCountNoise(text)) return true;
+  if (isLongCapturedContent(text)) return true;
+  if (/어노테이션|텍스트\s*박스|포함/.test(text)) return true;
   const rawLabelPattern = Array.from(RAW_CAPTURE_LABELS).join('|');
   return new RegExp(`^(${rawLabelPattern}|edit|button|link|menu|untitled|click)(을|를)?\\s*(클릭|확인|선택|입력|이동)합니다\\.?$`, 'i').test(text);
 }
@@ -158,12 +182,29 @@ function verbForAction(type: string | undefined, noAction: boolean): '클릭' | 
   return '클릭';
 }
 
+function titleVerbFor(base: string, actionType: string | undefined, noAction: boolean): ReturnType<typeof verbForAction> {
+  const verb = verbForAction(actionType, noAction);
+  if (/메일함|받은편지함/.test(base)) return '확인';
+  if (/메일 보내기/.test(base)) return '클릭';
+  if (verb === '입력' && /입력$/.test(base)) return '확인';
+  return verb;
+}
+
 function scriptFor(base: string, verb: ReturnType<typeof verbForAction>): string {
   if (verb === '입력') return `${base}${locationParticle(base)} 내용을 입력합니다.`;
   if (verb === '선택') return `${base}${objectParticle(base)} 선택합니다.`;
   if (verb === '이동') return `${base}${locationParticle(base)} 이동합니다.`;
   if (verb === '확인') return `${base}${objectParticle(base)} 확인합니다.`;
   return `${base}${objectParticle(base)} 클릭합니다.`;
+}
+
+function contextFromCapturedLabel(label: string | null | undefined): string {
+  const text = cleanText(label);
+  if (!text) return '';
+  const gmail = GMAIL_CONTEXTS.find(context => context.pattern.test(text));
+  if (gmail) return gmail.base;
+  if (/프롬프트|prompt/i.test(text)) return '프롬프트';
+  return '';
 }
 
 function labelFromUrl(pageUrl: string | null | undefined): string {
@@ -231,12 +272,24 @@ function firstUseful(candidates: Array<string | null | undefined>): string {
   return '';
 }
 
+function dedupeActionNoun(title: string): string {
+  return cleanText(title)
+    .replace(/(입력)\s+\1/g, '$1')
+    .replace(/(클릭)\s+\1/g, '$1')
+    .replace(/(확인)\s+\1/g, '$1');
+}
+
 export function buildCaptureFallbackDraft(
   step: CaptureFallbackStepInput,
   context: CaptureFallbackContext = {}
 ): { id: string; user_title: string; user_script: string } {
   const actionType = context.actionInfo?.type;
   const noActionFromEvent = context.noAction ?? false;
+  const capturedValues = [context.actionInfo?.label, context.actionInfo?.text, context.elementText, step.ai_title];
+  const capturedInputContext = (actionType === 'type' || actionType === 'focus_input')
+    && capturedValues.some(value => isLongCapturedContent(value))
+    ? '메일 본문'
+    : '';
   const pageContext = contextFromUrl(step.page_url, noActionFromEvent);
   const labelContext = contextFromLabel(
     context.actionInfo?.label,
@@ -244,8 +297,14 @@ export function buildCaptureFallbackDraft(
     step.domain_name,
     noActionFromEvent
   );
+  const capturedLabelContext = capturedInputContext
+    || contextFromCapturedLabel(context.actionInfo?.label)
+    || contextFromCapturedLabel(context.actionInfo?.text)
+    || contextFromCapturedLabel(context.elementText)
+    || contextFromCapturedLabel(step.ai_title);
   const specificBase = firstUseful([
     !isLowQualityCaptureTitle(step.ai_title) ? step.ai_title : null,
+    capturedLabelContext,
     labelContext,
     context.actionInfo?.label,
     context.actionInfo?.text,
@@ -256,9 +315,9 @@ export function buildCaptureFallbackDraft(
   ]);
   const base = specificBase || '화면';
   const noAction = noActionFromEvent || !specificBase;
-  const verb = verbForAction(actionType, noAction);
+  const verb = titleVerbFor(base, actionType, noAction);
   const userTitle = !isLowQualityCaptureTitle(step.ai_title)
-    ? cleanText(step.ai_title)
+    ? dedupeActionNoun(cleanText(step.ai_title))
     : `${base} ${verb}`;
   const userScript = !isLowQualityCaptureScript(step.ai_description)
     ? cleanText(step.ai_description)
@@ -269,6 +328,16 @@ export function buildCaptureFallbackDraft(
     user_title: userTitle.slice(0, 80),
     user_script: userScript,
   };
+}
+
+export function buildCaptureAnnotationLabel(title: string | null | undefined, actionType?: string | null): string {
+  const text = dedupeActionNoun(title ?? '').replace(/하기$/, '');
+  if (actionType === 'type' || actionType === 'focus_input') return '입력 적용';
+  if (!text || isLowQualityCaptureTitle(text) || text.length > 18) {
+    return actionType === 'select' || actionType === 'toggle' ? '선택 적용' : '대상 확인';
+  }
+  if (/메일함|받은편지함/.test(text)) return '메일함 확인';
+  return text.slice(0, 18);
 }
 
 export function buildCaptureFallbackTutorialTitle(
