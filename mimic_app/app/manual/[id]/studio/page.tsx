@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Play, Check, Loader2, MousePointerClick, Type, Ban, RotateCcw, EyeOff, Eye, GripVertical, ZoomIn } from 'lucide-react';
+import { ArrowLeft, Play, Check, Loader2, MousePointerClick, Type, Ban, RotateCcw, EyeOff, Eye, GripVertical, ZoomIn, Zap, Link2 } from 'lucide-react';
 import { useTutorial } from '@/hooks/useTutorial';
 import { updateStep, reorderSteps } from '@/lib/api/steps';
 import { clickToPct, inferKind, toFollowSteps } from '@/lib/follow';
+import { startLiveGuide } from '@/lib/api/liveGuide';
 import { InteractiveFollowPlayer } from '@/components/viewer/InteractiveFollowPlayer';
 import { FollowStage } from '@/components/viewer/FollowStage';
 import { logError } from '@/lib/logging/logger';
@@ -18,6 +19,7 @@ type StudioStep = {
   id: string;
   number: number;
   screenshotUrl: string | null;
+  pageUrl: string | null;
   title: string;             // user_title (편집) — 문서 매뉴얼과 공유. ai_title 폴백으로 초기화
   description: string;       // user_script (편집, HTML 제거) — 문서 매뉴얼과 공유
   clickXPct: number | null;  // 녹화 좌표 (0~100)
@@ -31,6 +33,7 @@ function toStudioStep(s: Step): StudioStep {
     id: s.id,
     number: s.step_number,
     screenshotUrl: s.screenshot_url || null,
+    pageUrl: s.page_url ?? null,
     title: s.user_title || s.ai_title || '',
     description: (s.user_script || s.ai_description || '').replace(/<[^>]+>/g, ''),
     clickXPct: clickToPct((s as Step & { click_x?: number | null }).click_x),
@@ -88,6 +91,8 @@ export default function StudioPage() {
   const [savedTick, setSavedTick] = useState(0);
   const [showPreview, setShowPreview] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [liveStarting, setLiveStarting] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const imgWrapRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
   const contentTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -221,6 +226,61 @@ export default function StudioPage() {
     domRect: s.domRect,
   }))), [steps]);
 
+  const visibleSteps = steps.filter(s => !s.follow.hidden);
+  const hasTargetUrl = visibleSteps.some(s => !!s.pageUrl);
+
+  const ensurePublished = useCallback(async () => {
+    const existing = (tutorial as Tutorial & { share_token?: string | null } | null)?.share_token;
+    if (existing) return existing;
+    setPublishing(true);
+    try {
+      const result = await publish();
+      return result.share_token;
+    } finally {
+      setPublishing(false);
+    }
+  }, [publish, tutorial]);
+
+  const handleStartLiveGuide = useCallback(async () => {
+    if (!hasTargetUrl) {
+      alert('Live Guide를 실행할 대상 URL이 없습니다. 녹화 기반 매뉴얼이거나 스텝의 페이지 URL이 있는지 확인해주세요.');
+      return;
+    }
+    setLiveStarting(true);
+    try {
+      const token = await ensurePublished();
+      const result = await startLiveGuide(token);
+      if (result.ok) return;
+      if (result.reason === 'gated' && result.upgradeUrl && confirm(`${result.message}\n설정 화면으로 이동할까요?`)) {
+        window.location.href = result.upgradeUrl;
+        return;
+      }
+      alert(result.message);
+    } catch {
+      alert('Live Guide 실행 준비에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setLiveStarting(false);
+    }
+  }, [ensurePublished, hasTargetUrl]);
+
+  const handleCopyCustomerLink = useCallback(async () => {
+    if (!hasTargetUrl) {
+      const ok = confirm('이 매뉴얼에는 Live Guide가 이동할 대상 URL이 없습니다. 매뉴얼/연습 가이드 링크로만 전달할까요?');
+      if (!ok) return;
+    }
+    setPublishing(true);
+    try {
+      const token = await ensurePublished();
+      await navigator.clipboard.writeText(`${window.location.origin}/play/${token}`).catch(() => {});
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2200);
+    } catch {
+      alert('고객 전달 링크를 만들지 못했습니다. 다시 시도해주세요.');
+    } finally {
+      setPublishing(false);
+    }
+  }, [ensurePublished, hasTargetUrl]);
+
   if (loading) {
     return <div style={pageBg}><div style={{ color: 'rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', gap: 10 }}><Loader2 size={18} className="spin" /> 불러오는 중…</div><Styles /></div>;
   }
@@ -256,7 +316,18 @@ export default function StudioPage() {
         <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.4)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
           {savingId ? <><Loader2 size={TOP_BAR_ICON_SIZE} className="spin" /> 저장 중…</> : savedTick > 0 ? <><Check size={TOP_BAR_ICON_SIZE} color="#34d399" /> 저장됨</> : null}
         </span>
+        {!hasTargetUrl && (
+          <span title="URL이 없으면 고객이 Live Guide 실행 시 실제 서비스 화면으로 자동 이동할 수 없습니다." style={{ fontSize: 11.5, color: '#fbbf24', border: '1px solid rgba(251,191,36,0.22)', background: 'rgba(251,191,36,0.08)', borderRadius: 999, padding: '5px 9px', whiteSpace: 'nowrap' }}>
+            실행 URL 없음
+          </span>
+        )}
         <button onClick={() => setShowPreview(true)} title="연습 가이드(웹) 화면으로 미리보기 — 핫스팟·말풍선·입력 텍스트 설정을 확인합니다. 실제 Live Guide 오버레이 외형과는 다를 수 있어요." style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5 }}><Play size={TOP_BAR_ICON_SIZE} /> 연습 가이드 미리보기</button>
+        <button onClick={handleStartLiveGuide} disabled={liveStarting || publishing || !hasTargetUrl} title={hasTargetUrl ? '현재 브라우저에서 Live Guide를 실행합니다' : '실행할 대상 URL이 필요합니다'} style={{ ...primaryBtn, height: 34, opacity: liveStarting || publishing || !hasTargetUrl ? 0.55 : 1, cursor: liveStarting || publishing || !hasTargetUrl ? 'not-allowed' : 'pointer' }}>
+          {liveStarting ? <Loader2 size={TOP_BAR_ICON_SIZE} className="spin" /> : <Zap size={TOP_BAR_ICON_SIZE} />} Live Guide 실행
+        </button>
+        <button onClick={handleCopyCustomerLink} disabled={publishing} title="고객에게 전달할 매뉴얼/연습 가이드 링크를 복사합니다" style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5, opacity: publishing ? 0.6 : 1 }}>
+          {linkCopied ? <Check size={TOP_BAR_ICON_SIZE} color="#34d399" /> : <Link2 size={TOP_BAR_ICON_SIZE} />} {linkCopied ? '복사됨' : '고객 링크 복사'}
+        </button>
         {tutorial.status === 'published' ? (
           <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: 'rgba(16,185,129,0.12)', color: '#34d399', fontWeight: 600, border: '1px solid rgba(52,211,153,0.25)', flexShrink: 0 }}>게시됨</span>
         ) : (

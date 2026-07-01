@@ -6,9 +6,8 @@ import { assertStorageUrl } from '@/lib/validate-storage-url';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, ImageRun, AlignmentType } from 'docx';
 import { readFile } from 'fs/promises';
 import path from 'path';
-import { Resvg } from '@resvg/resvg-js';
-import { buildAnnotatedSvg } from '@/lib/export/annotate-svg';
 import type { ExportAnnotation } from '@/lib/export/annotations-shared';
+import { renderStepImage } from '@/lib/export/render-step-image';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -52,7 +51,7 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   const { data: steps } = await supabase
     .from('mm_steps')
-    .select('step_number, screenshot_url, user_title, ai_title, user_script, ai_description, user_annotations')
+    .select('step_number, screenshot_url, user_title, ai_title, user_script, ai_description, user_annotations, image_zoom, image_offset_x, image_offset_y')
     .eq('tutorial_id', id)
     .order('step_number');
 
@@ -76,11 +75,35 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   const MAX_W = 560; // 본문 폭(px)에 맞춘 이미지 최대 너비
 
+  const generatedAt = new Date().toLocaleDateString('ko-KR', {
+    year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Seoul',
+  });
   const children: Paragraph[] = [
-    new Paragraph({ text: tutorial.title, heading: HeadingLevel.TITLE }),
     new Paragraph({
-      children: [new TextRun({ text: `총 ${steps.length}단계`, color: '6B7280', size: 22 })],
-      spacing: { after: 240 },
+      children: [new TextRun({ text: branding?.company_name ?? 'MIMIC Manual', bold: true, color: '4F46E5', size: 24 })],
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 520, after: 260 },
+    }),
+    new Paragraph({
+      text: tutorial.title,
+      heading: HeadingLevel.TITLE,
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 160 },
+    }),
+    new Paragraph({
+      children: [new TextRun({ text: `총 ${steps.length}단계 · ${generatedAt}`, color: '6B7280', size: 22 })],
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 280 },
+    }),
+    new Paragraph({
+      children: [new TextRun({ text: '실제 화면 흐름과 하이라이트를 따라 실행할 수 있는 업무 매뉴얼입니다.', color: '374151', size: 22 })],
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 360 },
+    }),
+    new Paragraph({
+      children: [new TextRun({ text: '────────────────────────', color: 'CBD5E1', size: 18 })],
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 360 },
     }),
   ];
 
@@ -105,33 +128,24 @@ export async function GET(request: NextRequest, { params }: Params) {
       if (res.ok) {
         const buf = Buffer.from(await res.arrayBuffer());
         const ct = res.headers.get('content-type') ?? '';
-        const isPng = ct.includes('png');
         const dim = imageSize(buf);
         const ratio = dim && dim.w > 0 ? dim.h / dim.w : 9 / 16;
         const w = MAX_W;
         const h = Math.round(MAX_W * ratio);
 
-        // 어노테이션이 있으면 이미지에 합성(굽기) — Word는 PDF/PPTX처럼 벡터 오버레이가 불가하므로
-        // SVG로 합성 후 resvg로 PNG 래스터화한다(좌표 규칙은 뷰어와 동일).
-        let imgData: Buffer = buf;
-        let imgType: 'png' | 'jpg' = isPng ? 'png' : 'jpg';
         const annos = (step.user_annotations as ExportAnnotation[] | null) ?? null;
-        if (annos?.length && dim && dim.w > 0 && dim.h > 0 && fontFiles) {
-          try {
-            const dataUri = `data:image/${isPng ? 'png' : 'jpeg'};base64,${buf.toString('base64')}`;
-            const svg = buildAnnotatedSvg(dataUri, dim.w, dim.h, annos);
-            const png = new Resvg(svg, {
-              font: { fontFiles, defaultFontFamily: 'Noto Sans KR', loadSystemFonts: false },
-            }).render().asPng();
-            imgData = Buffer.from(png);
-            imgType = 'png';
-          } catch { /* 합성 실패 시 원본 이미지로 폴백 */ }
-        }
+        const rendered = renderStepImage({
+          imageBytes: buf,
+          contentType: ct,
+          annotations: annos,
+          frame: step,
+          fontFiles,
+        });
 
         children.push(new Paragraph({
           children: [new ImageRun({
-            data: imgData,
-            type: imgType,
+            data: rendered.data,
+            type: rendered.type,
             transformation: { width: w, height: h },
           })],
           spacing: { after: 200 },

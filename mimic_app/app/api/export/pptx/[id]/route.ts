@@ -3,8 +3,10 @@ import { requireAuth } from '@/lib/auth/auth-guard';
 import { guardTutorialAccess } from '@/lib/auth/workspace-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { assertStorageUrl } from '@/lib/validate-storage-url';
-import { drawAnnotationsOnPptx } from '@/lib/export/annotate-pptx';
-import { getImageDims, type ExportAnnotation } from '@/lib/export/annotations-shared';
+import type { ExportAnnotation } from '@/lib/export/annotations-shared';
+import { renderStepImage } from '@/lib/export/render-step-image';
+import { readFile } from 'fs/promises';
+import path from 'path';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const PptxGenJS = require('pptxgenjs');
 
@@ -39,7 +41,7 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   const { data: steps } = await supabase
     .from('mm_steps')
-    .select('step_number, screenshot_url, user_title, ai_title, user_script, ai_description, user_annotations')
+    .select('step_number, screenshot_url, user_title, ai_title, user_script, ai_description, user_annotations, image_zoom, image_offset_x, image_offset_y')
     .eq('tutorial_id', id)
     .order('step_number');
 
@@ -67,6 +69,14 @@ export async function GET(request: NextRequest, { params }: Params) {
       }
     } catch { /* 로고 로드 실패 시 로고 없이 출력 */ }
   }
+  const fontFiles = await (async (): Promise<string[] | null> => {
+    try {
+      const dir = path.join(process.cwd(), 'public', 'fonts');
+      const files = [path.join(dir, 'NotoSansKR-Regular.ttf'), path.join(dir, 'NotoSansKR-Bold.ttf')];
+      await Promise.all(files.map(f => readFile(f)));
+      return files;
+    } catch { return null; }
+  })();
 
   const pptx = new PptxGenJS();
   pptx.layout = 'LAYOUT_WIDE'; // 16:9
@@ -91,6 +101,21 @@ export async function GET(request: NextRequest, { params }: Params) {
     x: 0.5, y: 3.6, w: '90%', h: 0.5,
     fontSize: 18, color: coverTextColor, transparency: 25, align: 'center',
   });
+  cover.addShape(pptx.ShapeType.roundRect, {
+    x: 3.05, y: 4.45, w: 7.25, h: 0.95,
+    fill: { color: isLightColor(brandColor) ? 'FFFFFF' : '111827', transparency: 12 },
+    line: { color: coverTextColor, transparency: 75, width: 1 },
+  });
+  cover.addText('화면 캡처 · 하이라이트 주석 · 실행 설명', {
+    x: 3.25, y: 4.63, w: 6.85, h: 0.35,
+    fontSize: 14, bold: true, color: coverTextColor,
+    align: 'center', valign: 'middle',
+  });
+  cover.addText('실제 업무 흐름을 따라 볼 수 있는 매뉴얼 자료', {
+    x: 3.25, y: 4.98, w: 6.85, h: 0.25,
+    fontSize: 10.5, color: coverTextColor, transparency: 22,
+    align: 'center', valign: 'middle',
+  });
   if (branding?.company_name) {
     cover.addText(branding.company_name, {
       x: 0.5, y: 6.85, w: '90%', h: 0.4,
@@ -99,13 +124,12 @@ export async function GET(request: NextRequest, { params }: Params) {
   }
 
   // LAYOUT_WIDE: 13.33" × 7.5"
-  // 구도: 헤더(0.55") | 스크린샷 전체 폭 | 하단 캡션 띠(1.25") — 이미지와 겹치지 않음
+  // 구도: 헤더 아래 전체를 스크린샷으로 쓰고 설명은 웹 뷰어처럼 이미지 위에 오버레이한다.
   const W = 13.33;
   const H = 7.5;
   const HEADER_H = 0.55;
-  const CAPTION_H = 1.25;
   const BODY_Y = HEADER_H;
-  const BODY_H = H - HEADER_H - CAPTION_H;
+  const BODY_H = H - HEADER_H;
   const IMG_PAD = 0.22;
 
   for (const step of steps) {
@@ -148,25 +172,19 @@ export async function GET(request: NextRequest, { params }: Params) {
       if (res.ok) {
         const imgBuf = Buffer.from(await res.arrayBuffer());
         const contentType = res.headers.get('content-type') ?? '';
-        const ext = contentType.includes('png') ? 'png' : 'jpg';
+        const annos = (step as { user_annotations?: unknown }).user_annotations as ExportAnnotation[] | null | undefined;
+        const rendered = renderStepImage({
+          imageBytes: imgBuf,
+          contentType,
+          annotations: annos,
+          frame: step,
+          fontFiles,
+        });
         slide.addImage({
-          data: `data:image/${ext};base64,${imgBuf.toString('base64')}`,
+          data: `data:image/${rendered.type};base64,${rendered.data.toString('base64')}`,
           x: imgX, y: imgY, w: imgW, h: imgH,
           sizing: { type: 'contain', w: imgW, h: imgH },
         });
-        // contain 레터박스 후 실제 표시 사각형 계산 → 그 위에 어노테이션 합성 (뷰어와 일치)
-        const dim = getImageDims(imgBuf);
-        let drawRect = { x: imgX, y: imgY, w: imgW, h: imgH };
-        if (dim && dim.w > 0 && dim.h > 0) {
-          const scale = Math.min(imgW / dim.w, imgH / dim.h);
-          const dw = dim.w * scale, dh = dim.h * scale;
-          drawRect = { x: imgX + (imgW - dw) / 2, y: imgY + (imgH - dh) / 2, w: dw, h: dh };
-        }
-        drawAnnotationsOnPptx(
-          pptx, slide,
-          (step as { user_annotations?: unknown }).user_annotations as ExportAnnotation[] | null | undefined,
-          drawRect,
-        );
       }
     } catch {
       slide.addText('이미지 없음', {
@@ -175,22 +193,19 @@ export async function GET(request: NextRequest, { params }: Params) {
       });
     }
 
-    // 하단 캡션 띠 (상단에 브랜드 컬러 라인)
-    slide.addShape(pptx.ShapeType.rect, {
-      x: 0, y: H - CAPTION_H, w: W, h: CAPTION_H,
-      fill: { color: 'F9FAFB' },
-    });
-    slide.addShape(pptx.ShapeType.rect, {
-      x: 0, y: H - CAPTION_H, w: W, h: 0.04,
-      fill: { color: brandColor },
-    });
-
     const desc = (step.user_script ?? step.ai_description ?? '')
       .replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '').trim();
     if (desc) {
+      const overlayH = 0.9;
+      const overlayY = H - overlayH - 0.28;
+      slide.addShape(pptx.ShapeType.roundRect, {
+        x: 0.45, y: overlayY, w: W - 0.9, h: overlayH,
+        fill: { color: '111827', transparency: 15 },
+        line: { color: brandColor, transparency: 15, width: 1 },
+      });
       slide.addText(desc, {
-        x: 0.6, y: H - CAPTION_H, w: W - 1.2, h: CAPTION_H,
-        fontSize: 14, color: '374151',
+        x: 0.75, y: overlayY + 0.1, w: W - 1.5, h: overlayH - 0.2,
+        fontSize: 14, color: 'FFFFFF',
         align: 'center', valign: 'middle', wrap: true,
         lineSpacingMultiple: 1.2,
         fit: 'shrink',
