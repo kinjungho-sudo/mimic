@@ -58,6 +58,7 @@
   let pendingInputStep   = null;
   let typingUrl          = null;   // 입력 세션 시작 시 URL — 재마운트 필드 판정용
   let typingTimer        = null;
+  let _pointerDownSnapshot = null;
   let _countingDown      = false;
   let _lastTypingFrameTime = 0;     // 롤링 타이핑 프레임 throttle 기준
   let _typingFrameTimer  = null;    // 입력 멈춤(완료) 시점 프레임 1장 예약 타이머
@@ -787,6 +788,35 @@
     return getGoogleFileTitle() || ownLabel || clickedLabel || '';
   }
 
+  // Freeze click metadata before the target DOM can react or move.
+
+  function buildPointerDownSnapshot(captureEl, target, clickedEl, event) {
+    if (!captureEl || typeof captureEl.getBoundingClientRect !== 'function') return null;
+    const rect = captureEl.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+    const { vw, vh } = getViewportSize();
+    const label = getElementLabel(captureEl, clickedEl);
+    return {
+      time: Date.now(),
+      x: event.clientX,
+      y: event.clientY,
+      elementRect: normalizeRect(rect, vw, vh),
+      elementSelector: getElementSelector(captureEl),
+      elementXPath: getElementXPath(captureEl),
+      label,
+      role: captureEl.getAttribute('role') || target.getAttribute('role') || undefined,
+      labelDebug: buildLabelDebug(captureEl, label),
+    };
+  }
+
+  function getRecentPointerSnapshot(event) {
+    if (!_pointerDownSnapshot) return null;
+    if ((Date.now() - _pointerDownSnapshot.time) > 1200) return null;
+    if (Math.abs(_pointerDownSnapshot.x - event.clientX) > 12) return null;
+    if (Math.abs(_pointerDownSnapshot.y - event.clientY) > 12) return null;
+    return _pointerDownSnapshot;
+  }
+
   // 클래스가 안정적인지 판정 — 상태 클래스·CSS-in-JS 해시·동적 토큰을 거부(셀렉터 견고성의 핵심)
   function isStableClass(c) {
     if (!c || c.length > 30) return false;
@@ -938,6 +968,10 @@
     if (e.button !== undefined && e.button !== 0) return;  // 좌클릭만
     const target = findInteractiveTarget(e.target);
     if (!target) return;
+    const actionTarget = refineActionTarget(e.target, target);
+    const actionType = getActionType(target);
+    const captureEl = actionType === 'focus_input' ? target : actionTarget;
+    _pointerDownSnapshot = buildPointerDownSnapshot(captureEl, target, e.target, e);
     hideHoverPointer();                          // 호버 테두리 제거
     suppressHoverUntil = Date.now() + 500;       // 캡처 끝날 때까지 재등장 억제
     // 테두리 제거가 화면에 리페인트된 다음 프레임에 선캡처 요청 — 라이브 캡처 경로의
@@ -1026,11 +1060,16 @@
     showClickHighlight(e.clientX, e.clientY);
 
     const captureEl = actionType === 'focus_input' ? target : actionTarget;
+    const pointerSnapshot = getRecentPointerSnapshot(e);
     const rect  = captureEl.getBoundingClientRect();
-    const label = getElementLabel(captureEl, clickedEl);
+    const label = pointerSnapshot?.label || getElementLabel(captureEl, clickedEl);
     const href  = captureEl.getAttribute('href') || captureEl.closest('a')?.getAttribute('href') || target.getAttribute('href') || target.closest('a')?.getAttribute('href') || '';
-    const role  = captureEl.getAttribute('role') || target.getAttribute('role') || undefined;
+    const role  = pointerSnapshot?.role || captureEl.getAttribute('role') || target.getAttribute('role') || undefined;
     const { vw, vh } = getViewportSize();
+    const elementRect = pointerSnapshot?.elementRect ?? normalizeRect(rect, vw, vh);
+    const elementSelector = pointerSnapshot?.elementSelector ?? getElementSelector(captureEl);
+    const elementXPath = pointerSnapshot?.elementXPath ?? getElementXPath(captureEl);
+    const labelDebug = pointerSnapshot?.labelDebug ?? buildLabelDebug(captureEl, label);
 
     // navigate 클릭(링크 등)도 '사용자 클릭'이므로 클릭 스텝으로만 캡처한다.
     // 이동 후 도착 페이지는 더 이상 자동 캡처하지 않는다 (페이지 이동 캡처 제거).
@@ -1047,10 +1086,10 @@
         windowWidth: vw, windowHeight: vh,
         viewportW: vw, viewportH: vh,
         stepNumber, usePrecapture: true,
-        elementRect:     normalizeRect(rect, vw, vh),
-        elementSelector: getElementSelector(captureEl),
-        elementXPath:    getElementXPath(captureEl),
-        actionInfo:      { type: 'click', label, tag: captureEl.tagName.toLowerCase(), role, href: href.slice(0, 200), labelDebug: buildLabelDebug(captureEl, label) },
+        elementRect,
+        elementSelector,
+        elementXPath,
+        actionInfo:      { type: 'click', label, tag: captureEl.tagName.toLowerCase(), role, href: href.slice(0, 200), labelDebug },
       };
 
       sendCapture(srcStep, () => { clearTimeout(navSafetyTimer); isCapturing = false; });
@@ -1068,10 +1107,10 @@
       windowWidth: vw, windowHeight: vh,
       viewportW: vw, viewportH: vh,
       stepNumber, usePrecapture: true,
-      elementRect:     normalizeRect(rect, vw, vh),
-      elementSelector: getElementSelector(captureEl),
-      elementXPath:    getElementXPath(captureEl),
-      actionInfo:      { type: actionType, label, tag: captureEl.tagName.toLowerCase(), role, href: href.slice(0, 200), labelDebug: buildLabelDebug(captureEl, label) },
+      elementRect,
+      elementSelector,
+      elementXPath,
+      actionInfo:      { type: actionType, label, tag: captureEl.tagName.toLowerCase(), role, href: href.slice(0, 200), labelDebug },
     };
 
     const downloadAttr    = target.getAttribute('download');

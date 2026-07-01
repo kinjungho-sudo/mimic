@@ -666,16 +666,21 @@ function applyThumbPreviewZoom(step, imgEl, overlayEl, src) {
   const targetAspect = clamp((frame.width * vw) / Math.max(1, frame.height * vh), 1.12, 1.72);
   frame = fitFrameToAspect(frame, imageAspect, targetAspect);
 
-  wrap.classList.add('preview-zoom');
   wrap.style.aspectRatio = String(targetAspect);
   zoomLayer.style.backgroundImage = `url(${JSON.stringify(src)})`;
   zoomLayer.style.backgroundSize = `${100 / frame.width}% auto`;
   zoomLayer.style.backgroundPosition = `${backgroundPositionFor(frame.x, frame.width)}% ${backgroundPositionFor(frame.y, frame.height)}%`;
 
+  overlayEl._previewFrame = frame;
   overlayEl.dataset.previewZoom = '1';
-  overlayEl.style.transformOrigin = 'top left';
-  overlayEl.style.transform = `translate(${-frame.x * 100}%, ${-frame.y * 100}%) scale(${1 / frame.width}, ${1 / frame.height})`;
-  overlayEl.style.transition = 'transform 0.48s cubic-bezier(0.22,0.61,0.36,1)';
+  overlayEl.style.opacity = '0';
+  overlayEl.style.transition = 'opacity 0.22s ease';
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      wrap.classList.add('preview-zoom');
+      overlayEl.style.opacity = '1';
+    }, 180);
+  });
 }
 
 function renderThumbOverlay(overlayEl, imgEl, step, _unused) {
@@ -683,13 +688,30 @@ function renderThumbOverlay(overlayEl, imgEl, step, _unused) {
   const thumbWrap = overlayEl.closest('.step-thumb');
   thumbWrap?.querySelector('.step-type-badge')?.remove();
   const er = step.elementRect;
+  const frame = overlayEl._previewFrame;
+  const rect = frame && isValidFrame(frame)
+    ? {
+        x: (er?.x - frame.x) / frame.width,
+        y: (er?.y - frame.y) / frame.height,
+        width: er?.width / frame.width,
+        height: er?.height / frame.height,
+      }
+    : er;
 
-  if (er && er.width > 0.002 && er.height > 0.002) {
+  if (rect && rect.width > 0.002 && rect.height > 0.002) {
+    const left = clamp(rect.x, 0, 1);
+    const top = clamp(rect.y, 0, 1);
+    const right = clamp(rect.x + rect.width, 0, 1);
+    const bottom = clamp(rect.y + rect.height, 0, 1);
+    if (right <= left || bottom <= top) {
+      renderTypingBadge(thumbWrap, step);
+      return;
+    }
     const hl = document.createElement('div');
     hl.style.cssText = [
       'position:absolute', 'box-sizing:border-box', 'pointer-events:none',
-      `left:${er.x * 100}%`, `top:${er.y * 100}%`,
-      `width:${er.width * 100}%`, `height:${er.height * 100}%`,
+      `left:${left * 100}%`, `top:${top * 100}%`,
+      `width:${(right - left) * 100}%`, `height:${(bottom - top) * 100}%`,
       'border:2px solid #EF4444',
       'background:transparent',
       'border-radius:4px',
