@@ -413,6 +413,9 @@ function buildStepCard(step, num) {
   thumbWrap.style.display = 'none'; // 기본 접힘
   thumbWrap.style.position = 'relative';
 
+  const thumbZoomLayer = document.createElement('div');
+  thumbZoomLayer.className = 'step-thumb-zoom-layer';
+
   const thumbImg = document.createElement('img');
   thumbImg.alt = '';
   thumbImg.style.cssText = 'display:none;width:100%;border-radius:5px;display:block;';
@@ -423,9 +426,9 @@ function buildStepCard(step, num) {
 
   // ── 클릭포인트 + 하이라이트 오버레이 ─────────────────────────
   const thumbOverlay = document.createElement('div');
-  thumbOverlay.style.cssText = 'position:absolute;inset:0;pointer-events:none;border-radius:5px;overflow:hidden;';
+  thumbOverlay.style.cssText = 'position:absolute;inset:0;pointer-events:none;border-radius:5px;overflow:hidden;z-index:2;';
 
-  thumbWrap.append(thumbImg, thumbPlaceholder, thumbOverlay);
+  thumbWrap.append(thumbZoomLayer, thumbImg, thumbPlaceholder, thumbOverlay);
 
   // 썸네일 로드 후 오버레이 렌더
   loadThumb(step, thumbImg, thumbPlaceholder, thumbOverlay);
@@ -553,7 +556,11 @@ async function loadThumb(step, imgEl, placeholder, overlayEl) {
         zoomOverlay._blob = blob;
         zoomOverlay.classList.add('open');
       };
+      imgEl.parentElement.onclick = (e) => {
+        if (e.target === imgEl.parentElement || e.target === imgEl || e.target === overlayEl) imgEl.onclick();
+      };
       placeholder.style.display = 'none';
+      applyThumbPreviewZoom(step, imgEl, overlayEl, src);
       // 전체 스크린샷 위에 클릭포인트/하이라이트 오버레이 렌더
       if (overlayEl) renderThumbOverlay(overlayEl, imgEl, step, null);
     } else {
@@ -566,8 +573,85 @@ async function loadThumb(step, imgEl, placeholder, overlayEl) {
 
 // 썸네일 위에 클릭포인트(빨간 원) + 하이라이트 박스 오버레이 렌더
 // 전체 스크린샷 기준 좌표 사용 (크롭 없음)
+function clamp01(value) {
+  return Math.max(0, Math.min(1, Number(value) || 0));
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function getNormalizedClick(step) {
+  const sx = Number(step.click_x ?? step.clickX ?? 0);
+  const sy = Number(step.click_y ?? step.clickY ?? 0);
+  const vw = Number(step.windowWidth || step.viewportW || 0);
+  const vh = Number(step.windowHeight || step.viewportH || 0);
+  const x = sx > 1 && vw ? sx / vw : sx;
+  const y = sy > 1 && vh ? sy / vh : sy;
+  if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0 || x > 1 || y > 1 || (x === 0 && y === 0)) return null;
+  return { x, y };
+}
+
+function isValidFrame(frame) {
+  return frame && frame.width > 0.05 && frame.height > 0.05 && frame.width <= 1 && frame.height <= 1;
+}
+
+function computePreviewFrame(step) {
+  if (isValidFrame(step.cropBox)) return step.cropBox;
+
+  const er = step.elementRect;
+  const click = getNormalizedClick(step);
+  if (!er && !click) return null;
+
+  const isType = step.actionInfo?.type === 'type' || step.actionInfo?.type === 'focus_input' || !!step.typedText;
+  const pad = isType ? 0.08 : 0.10;
+  const minW = isType ? 0.46 : 0.42;
+  const minH = isType ? 0.30 : 0.32;
+
+  const cx = click?.x ?? clamp01((er?.x ?? 0) + (er?.width ?? 0) / 2);
+  const cy = click?.y ?? clamp01((er?.y ?? 0) + (er?.height ?? 0) / 2);
+  let width = er ? Math.max(er.width + pad * 2, minW) : minW;
+  let height = er ? Math.max(er.height + pad * 2, minH) : minH;
+
+  width = Math.min(width, 0.82);
+  height = Math.min(height, 0.72);
+
+  const x = clamp(cx - width / 2, 0, 1 - width);
+  const y = clamp(cy - height / 2, 0, 1 - height);
+  return { x, y, width, height };
+}
+
+function backgroundPositionFor(start, size) {
+  if (size >= 0.999) return 50;
+  return clamp((start / (1 - size)) * 100, 0, 100);
+}
+
+function applyThumbPreviewZoom(step, imgEl, overlayEl, src) {
+  const wrap = imgEl.closest('.step-thumb');
+  const zoomLayer = wrap?.querySelector('.step-thumb-zoom-layer');
+  const frame = computePreviewFrame(step);
+  if (!wrap || !zoomLayer || !overlayEl || !isValidFrame(frame)) return;
+
+  const vw = Number(step.windowWidth || step.viewportW || 1280);
+  const vh = Number(step.windowHeight || step.viewportH || 800);
+  const ratio = clamp((frame.width * vw) / Math.max(1, frame.height * vh), 1.12, 2.05);
+
+  wrap.classList.add('preview-zoom');
+  wrap.style.aspectRatio = String(ratio);
+  zoomLayer.style.backgroundImage = `url(${JSON.stringify(src)})`;
+  zoomLayer.style.backgroundSize = `${100 / frame.width}% ${100 / frame.height}%`;
+  zoomLayer.style.backgroundPosition = `${backgroundPositionFor(frame.x, frame.width)}% ${backgroundPositionFor(frame.y, frame.height)}%`;
+
+  overlayEl.dataset.previewZoom = '1';
+  overlayEl.style.transformOrigin = 'top left';
+  overlayEl.style.transform = `translate(${-frame.x * 100}%, ${-frame.y * 100}%) scale(${1 / frame.width}, ${1 / frame.height})`;
+  overlayEl.style.transition = 'transform 0.48s cubic-bezier(0.22,0.61,0.36,1)';
+}
+
 function renderThumbOverlay(overlayEl, imgEl, step, _unused) {
   overlayEl.replaceChildren();
+  const thumbWrap = overlayEl.closest('.step-thumb');
+  thumbWrap?.querySelector('.step-type-badge')?.remove();
   const er = step.elementRect;
 
   // 하이라이트 박스
@@ -585,13 +669,34 @@ function renderThumbOverlay(overlayEl, imgEl, step, _unused) {
   }
 
   // 클릭 포인트
-  const cx = step.click_x, cy = step.click_y;
+  const click = getNormalizedClick(step);
+  const cx = click?.x, cy = click?.y;
   if (cx != null && cy != null && (cx > 0 || cy > 0) && cx >= 0 && cx <= 1 && cy >= 0 && cy <= 1) {
     renderClickDot(overlayEl, cx, cy);
 
     // 클릭 위치 확대경 박스 (우하단 코너)
-    renderZoomInset(overlayEl, imgEl, cx, cy);
+    if (overlayEl.dataset.previewZoom !== '1') renderZoomInset(overlayEl, imgEl, cx, cy);
   }
+  renderTypingBadge(thumbWrap, step);
+}
+
+function renderTypingBadge(thumbWrap, step) {
+  const typed = (step.typedText || step.actionInfo?.typedText || '').trim();
+  if (!thumbWrap || !typed) return;
+  const badge = document.createElement('div');
+  badge.className = 'step-type-badge';
+  badge.textContent = `${'\uC785\uB825'}: ${typed.length > 42 ? `${typed.slice(0, 42)}...` : typed}`;
+  badge.style.cssText = [
+    'position:absolute', 'left:8px', 'bottom:8px', 'max-width:calc(100% - 16px)',
+    'padding:5px 8px', 'border-radius:8px',
+    'background:rgba(17,24,39,0.82)', 'color:#fff',
+    'font-size:11px', 'font-weight:700', 'line-height:1.35',
+    'white-space:nowrap', 'overflow:hidden', 'text-overflow:ellipsis',
+    'box-shadow:0 4px 14px rgba(0,0,0,0.30)',
+    'z-index:3',
+    'pointer-events:none',
+  ].join(';');
+  thumbWrap.appendChild(badge);
 }
 
 // 클릭 위치 주변을 확대해서 우하단에 인셋으로 표시
