@@ -105,7 +105,7 @@ async function main() {
       step: { id: '8', step_number: 8, ai_title: '감사하다는 내용과 함께, 꼭 다음번에 같이하자는 내용 써줘.업데이트[받는 사람 성함]님,보내주신 메일 잘 확인했습니다. 감사드립니다.이번에는 아를 클릭합니다.', ai_description: '감사하다는 내용과 함께, 꼭 다음번에 같이하자는 내용 써줘.업데이트[받는 사람 성함]님,보내주신 메일 잘 확인했습니다. 감사드립니다.이번에는 아를 클릭합니다.', page_url: 'https://mail.google.com/mail/u/0/#inbox', domain_name: 'Gmail' },
       context: { actionInfo: { type: 'type', label: '감사하다는 내용과 함께, 꼭 다음번에 같이하자는 내용 써줘.업데이트[받는 사람 성함]님,보내주신 메일 잘 확인했습니다. 감사드립니다.이번에는 아를 클릭합니다.' } },
       title: '메일 본문 입력',
-      script: '메일 본문으로 내용을 입력합니다.',
+      script: '메일 본문을 입력합니다.',
     },
   ];
 

@@ -24,12 +24,12 @@ export type CaptureFallbackContext = {
 };
 
 const WEAK_TITLES = new Set([
-  '?붾㈃ ?뺤씤',
-  '?④퀎 吏꾪뻾',
-  '?대┃',
-  '?낅젰',
-  '?좏깮',
-  '?대룞',
+  '화면 확인',
+  '단계 진행',
+  '클릭',
+  '입력',
+  '선택',
+  '이동',
 ]);
 
 const GENERIC_LABELS = new Set([
@@ -59,18 +59,18 @@ const RAW_CAPTURE_LABELS = new Set([
 ]);
 
 const GOOGLE_DOC_CONTEXTS: Array<{ pattern: RegExp; base: string; noActionBase: string }> = [
-  { pattern: /docs\.google\.com\/presentation/i, base: '?뚯씪紐??곸뿭', noActionBase: '?щ씪?대뱶 ?몄쭛 ?붾㈃' },
-  { pattern: /docs\.google\.com\/spreadsheets/i, base: '?뚯씪紐??곸뿭', noActionBase: '?ㅽ봽?덈뱶?쒗듃 ?몄쭛 ?붾㈃' },
-  { pattern: /docs\.google\.com\/document/i, base: '?뚯씪紐??곸뿭', noActionBase: '臾몄꽌 ?몄쭛 ?붾㈃' },
+  { pattern: /docs\.google\.com\/presentation/i, base: '파일명 영역', noActionBase: '슬라이드 편집 화면' },
+  { pattern: /docs\.google\.com\/spreadsheets/i, base: '파일명 영역', noActionBase: '스프레드시트 편집 화면' },
+  { pattern: /docs\.google\.com\/document/i, base: '파일명 영역', noActionBase: '문서 편집 화면' },
 ];
 
 const SLACK_LABEL_CONTEXTS = new Map([
-  ['apps', '??硫붾돱'],
-  ['app', '??硫붾돱'],
-  ['oauth', 'OAuth ?ㅼ젙'],
-  ['general', 'general 梨꾨꼸'],
-  ['functions', 'Functions 硫붾돱'],
-  ['function', 'Functions 硫붾돱'],
+  ['apps', '앱 메뉴'],
+  ['app', '앱 메뉴'],
+  ['oauth', 'OAuth 설정'],
+  ['general', 'general 채널'],
+  ['functions', 'Functions 메뉴'],
+  ['function', 'Functions 메뉴'],
 ]);
 
 const GMAIL_CONTEXTS: Array<{ pattern: RegExp; base: string }> = [
@@ -88,7 +88,7 @@ const GMAIL_CONTEXTS: Array<{ pattern: RegExp; base: string }> = [
 function cleanText(value: string | null | undefined): string {
   return (value ?? '')
     .replace(/\s+/g, ' ')
-    .replace(/^[쨌??-\s]+|[쨌??-\s]+$/g, '')
+    .replace(/^[·•\-\s]+|[·•\-\s]+$/g, '')
     .trim();
 }
 
@@ -111,12 +111,12 @@ function isRawCaptureLabel(value: string | null | undefined): boolean {
 function isLongCapturedContent(value: string | null | undefined): boolean {
   const text = cleanText(value);
   if (text.length < 45) return false;
-  return /媛먯궗|蹂대궡二쇱떊|諛쏅뒗\s*?щ엺|?깊븿|?낅뜲?댄듃|?꾨＼?꾪듃|?대끂?뚯씠???띿뒪??s*諛뺤뒪|硫붿씪|?댁슜/.test(text);
+  return /감사|보내주신|받는\s*사람|성함|업데이트|프롬프트|어노테이션|텍스트\s*박스|메일|내용/.test(text);
 }
 
 function hasCountNoise(value: string | null | undefined): boolean {
   const text = cleanText(value);
-  return /(\d[\d,.\s]*媛?[\d,]{3,})/.test(text) && /硫붿씪|?뚮┝|?쎌?|諛쏆??몄???badge|count/i.test(text);
+  return /(\d[\d,.\s]*개|[\d,]{3,})/.test(text) && /메일|알림|읽지|받은편지함|badge|count/i.test(text);
 }
 
 function hasMachineToken(value: string | null | undefined): boolean {
@@ -142,7 +142,7 @@ export function isLowQualityCaptureLabel(value: string | null | undefined): bool
 
 function isWeakTitle(value: string | null | undefined): boolean {
   const text = cleanText(value);
-  return !text || WEAK_TITLES.has(text) || /^?④퀎\s*\d+\s*吏꾪뻾$/.test(text);
+  return !text || WEAK_TITLES.has(text) || /^단계\s*\d+\s*진행$/.test(text);
 }
 
 export function isLowQualityCaptureTitle(value: string | null | undefined): boolean {
@@ -151,9 +151,9 @@ export function isLowQualityCaptureTitle(value: string | null | undefined): bool
   if (isLowQualityCaptureLabel(text)) return true;
   if (hasEmailAddress(text)) return true;
   if (hasCountNoise(text)) return true;
-  if (/^\d+\s+(\uD074\uB9AD|\uD655\uC778|\uC120\uD0DD|\uC785\uB825|\uC774\uB3D9)$/i.test(text)) return true;
+  if (/^\d+\s+(클릭|확인|선택|입력|이동)$/i.test(text)) return true;
   const rawLabelPattern = Array.from(RAW_CAPTURE_LABELS).join('|');
-  return new RegExp(`^(${rawLabelPattern}|edit|button|link|menu|untitled|click)\\s+(?대┃|?뺤씤|?좏깮|?낅젰|?대룞)$`, 'i').test(text);
+  return new RegExp(`^(${rawLabelPattern}|edit|button|link|menu|untitled|click)\\s+(클릭|확인|선택|입력|이동)$`, 'i').test(text);
 }
 
 export function isLowQualityCaptureScript(value: string | null | undefined): boolean {
@@ -163,10 +163,10 @@ export function isLowQualityCaptureScript(value: string | null | undefined): boo
   if (hasEmailAddress(text)) return true;
   if (hasCountNoise(text)) return true;
   if (isLongCapturedContent(text)) return true;
-  if (/^\d+(\uC744|\uB97C)?\s*(\uD074\uB9AD|\uD655\uC778|\uC120\uD0DD|\uC785\uB825|\uC774\uB3D9)\uD569\uB2C8\uB2E4\.?$/i.test(text)) return true;
-  if (/?대끂?뚯씠???띿뒪??s*諛뺤뒪|?ы븿/.test(text)) return true;
+  if (/^\d+(을|를)?\s*(클릭|확인|선택|입력|이동)합니다\.?$/i.test(text)) return true;
+  if (/어노테이션|텍스트\s*박스|포함/.test(text)) return true;
   const rawLabelPattern = Array.from(RAW_CAPTURE_LABELS).join('|');
-  return new RegExp(`^(${rawLabelPattern}|edit|button|link|menu|untitled|click)(??瑜??\\s*(?대┃|?뺤씤|?좏깮|?낅젰|?대룞)?⑸땲??\.?$`, 'i').test(text);
+  return new RegExp(`^(${rawLabelPattern}|edit|button|link|menu|untitled|click)(을|를)?\\s*(클릭|확인|선택|입력|이동)합니다\\.?$`, 'i').test(text);
 }
 
 function hasFinalConsonant(text: string): boolean {
@@ -178,19 +178,19 @@ function hasFinalConsonant(text: string): boolean {
 }
 
 function objectParticle(text: string): string {
-  return hasFinalConsonant(text) ? '?? : '瑜?;
+  return hasFinalConsonant(text) ? '을' : '를';
 }
 
 function locationParticle(text: string): string {
-  return hasFinalConsonant(text) ? '?쇰줈' : '濡?;
+  return hasFinalConsonant(text) ? '으로' : '로';
 }
 
-function verbForAction(type: string | undefined, noAction: boolean): '?대┃' | '?낅젰' | '?좏깮' | '?대룞' | '?뺤씤' {
-  if (type === 'type' || type === 'focus_input') return '?낅젰';
-  if (type === 'select' || type === 'toggle') return '?좏깮';
-  if (type === 'navigate') return '?대룞';
-  if (noAction) return '?뺤씤';
-  return '?대┃';
+function verbForAction(type: string | undefined, noAction: boolean): '클릭' | '입력' | '선택' | '이동' | '확인' {
+  if (type === 'type' || type === 'focus_input') return '입력';
+  if (type === 'select' || type === 'toggle') return '선택';
+  if (type === 'navigate') return '이동';
+  if (noAction) return '확인';
+  return '클릭';
 }
 
 function titleVerbFor(base: string, actionType: string | undefined, noAction: boolean): ReturnType<typeof verbForAction> {
@@ -236,7 +236,7 @@ function contextFromCapturedLabel(label: string | null | undefined): string {
   }
   const gmail = GMAIL_CONTEXTS.find(context => context.pattern.test(text));
   if (gmail) return gmail.base;
-  if (/?꾨＼?꾪듃|prompt/i.test(text)) return '?꾨＼?꾪듃';
+  if (/프롬프트|prompt/i.test(text)) return '프롬프트';
   return '';
 }
 
@@ -262,7 +262,7 @@ function contextFromUrl(pageUrl: string | null | undefined, noAction: boolean): 
   try {
     const url = new URL(pageUrl);
     const hostname = url.hostname.replace(/^www\./, '');
-    if (hostname) return noAction ? `${hostname} ?붾㈃` : `${hostname} 二쇱슂 ?곸뿭`;
+    if (hostname) return noAction ? `${hostname} 화면` : `${hostname} 주요 영역`;
   } catch {
     return '';
   }
@@ -288,12 +288,12 @@ function contextFromLabel(
   const text = cleanText(label);
   const key = text.toLowerCase();
   if (!text || !hasSlackContext(pageUrl, domainName)) return '';
-  if (/^A[A-Z0-9]{8,}$/i.test(text)) return noAction ? '?뚰겕?ㅽ럹?댁뒪 ?붾㈃' : '?뚰겕?ㅽ럹?댁뒪 ??ぉ';
+  if (/^A[A-Z0-9]{8,}$/i.test(text)) return noAction ? '워크스페이스 화면' : '워크스페이스 항목';
   const slackContext = SLACK_LABEL_CONTEXTS.get(key);
   if (!slackContext) return '';
-  if (noAction && (key === 'apps' || key === 'app')) return '??愿由??붾㈃';
-  if (noAction && key === 'oauth') return 'OAuth ?ㅼ젙 ?붾㈃';
-  if (noAction && key === 'general') return 'general 梨꾨꼸 ?붾㈃';
+  if (noAction && (key === 'apps' || key === 'app')) return '앱 관리 화면';
+  if (noAction && key === 'oauth') return 'OAuth 설정 화면';
+  if (noAction && key === 'general') return 'general 채널 화면';
   return slackContext;
 }
 
@@ -307,9 +307,9 @@ function firstUseful(candidates: Array<string | null | undefined>): string {
 
 function dedupeActionNoun(title: string): string {
   return cleanText(title)
-    .replace(/(?낅젰)\s+\1/g, '$1')
-    .replace(/(?대┃)\s+\1/g, '$1')
-    .replace(/(?뺤씤)\s+\1/g, '$1');
+    .replace(/(입력)\s+\1/g, '$1')
+    .replace(/(클릭)\s+\1/g, '$1')
+    .replace(/(확인)\s+\1/g, '$1');
 }
 
 export function buildCaptureFallbackDraft(
@@ -321,7 +321,7 @@ export function buildCaptureFallbackDraft(
   const capturedValues = [context.actionInfo?.label, context.actionInfo?.text, context.elementText, step.ai_title];
   const capturedInputContext = (actionType === 'type' || actionType === 'focus_input')
     && capturedValues.some(value => isLongCapturedContent(value))
-    ? '硫붿씪 蹂몃Ц'
+    ? '메일 본문'
     : '';
   const pageContext = contextFromUrl(step.page_url, noActionFromEvent);
   const labelContext = contextFromLabel(
@@ -346,7 +346,7 @@ export function buildCaptureFallbackDraft(
     pageContext,
     step.domain_name,
   ]);
-  const base = specificBase || '?붾㈃';
+  const base = specificBase || '화면';
   const noAction = noActionFromEvent || !specificBase;
   const verb = titleVerbFor(base, actionType, noAction);
   const userTitle = !isLowQualityCaptureTitle(step.ai_title)
@@ -364,12 +364,12 @@ export function buildCaptureFallbackDraft(
 }
 
 export function buildCaptureAnnotationLabel(title: string | null | undefined, actionType?: string | null): string {
-  const text = dedupeActionNoun(title ?? '').replace(/?섍린$/, '');
-  if (actionType === 'type' || actionType === 'focus_input') return '?낅젰 ?곸슜';
+  const text = dedupeActionNoun(title ?? '').replace(/하기$/, '');
+  if (actionType === 'type' || actionType === 'focus_input') return '입력 적용';
   if (!text || isLowQualityCaptureTitle(text) || text.length > 18) {
-    return actionType === 'select' || actionType === 'toggle' ? '?좏깮 ?곸슜' : '????뺤씤';
+    return actionType === 'select' || actionType === 'toggle' ? '선택 적용' : '대상 확인';
   }
-  if (/硫붿씪??諛쏆??몄???.test(text)) return '硫붿씪???뺤씤';
+  if (/메일함|받은편지함/.test(text)) return '메일함 확인';
   return text.slice(0, 18);
 }
 
@@ -384,14 +384,36 @@ export function isUsableCaptureDraft(
     && !isLowQualityCaptureScript(script);
 }
 
+export function isLowQualityCaptureTutorialTitle(value: string | null | undefined): boolean {
+  const text = cleanText(value);
+  if (!text) return true;
+  if (isLowQualityCaptureTitle(text.replace(/하기$/, ''))) return true;
+  if (/(클릭|선택|입력)하기$/.test(text) && !/(작성|발송|보내기|구매|가입|신청|설정|만들기|등록)/.test(text)) return true;
+  return /^(메일|메뉴|버튼|링크|아이콘)\s*(클릭|선택)하기$/.test(text);
+}
+
 export function buildCaptureFallbackTutorialTitle(
   drafts: Array<{ user_title: string }>
 ): string {
-  const firstActionTitle = drafts
+  const titles = drafts
     .map(draft => cleanText(draft.user_title))
-    .find(title => title && !isLowQualityCaptureTitle(title) && title !== '?붾㈃ ?뺤씤');
+    .filter(title => title && !isLowQualityCaptureTitle(title) && title !== '화면 확인');
+
+  const hasMailContext = titles.some(title => /메일|받은편지함|받는 사람|참조|본문|제목|보내기|발송/.test(title));
+  if (hasMailContext) {
+    const hasCompose = titles.some(title => /메일 쓰기|받는 사람|참조|본문|제목 입력|메일 본문|메일 작성/.test(title));
+    const hasSend = titles.some(title => /보내기|보내기 클릭|발송|메일 보내기/.test(title));
+    if (hasCompose && hasSend) return '메일 작성 후 보내기';
+    if (hasCompose) return '메일 작성하기';
+    if (titles.some(title => /메일함|받은편지함/.test(title))) return '메일함 확인하기';
+  }
+
+  const completionTitle = [...titles].reverse().find(title =>
+    /(보내기|발송|완료|저장|게시|등록|신청|구매|생성|만들기|공유|초대|로그인|제출)/.test(title)
+  );
+  const firstActionTitle = completionTitle || titles.find(title => !/(^.+\s클릭$|^.+\s선택$)/.test(title)) || titles[0];
 
   if (!firstActionTitle) return '';
-  if (firstActionTitle.endsWith('?섍린')) return firstActionTitle.slice(0, 30);
-  return `${firstActionTitle}?섍린`.slice(0, 30);
+  if (firstActionTitle.endsWith('하기')) return firstActionTitle.slice(0, 30);
+  return `${firstActionTitle}하기`.slice(0, 30);
 }
