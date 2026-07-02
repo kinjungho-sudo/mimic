@@ -4,12 +4,16 @@ export const signupSchema = z.object({
   name: z.string().min(1).max(50),
   email: z.string().email(),
   password: z.string().min(8),
+  passwordConfirm: z.string().min(8),
   agreements: z.object({
     age14: z.literal(true),
     terms: z.literal(true),
     privacy: z.literal(true),
     marketing: z.boolean(),
   }),
+}).refine(data => data.password === data.passwordConfirm, {
+  message: '비밀번호가 일치하지 않습니다.',
+  path: ['passwordConfirm'],
 });
 
 export const captureFinalizeSchema = z.object({

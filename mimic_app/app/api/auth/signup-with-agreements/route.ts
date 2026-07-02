@@ -20,7 +20,10 @@ export async function POST(request: NextRequest) {
 
   const parsed = signupSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    const errors = parsed.error.flatten().fieldErrors;
+    return NextResponse.json({
+      error: errors.passwordConfirm?.[0] ?? errors.password?.[0] ?? errors.email?.[0] ?? '회원가입 정보를 확인해주세요.',
+    }, { status: 400 });
   }
 
   const { name, agreements } = parsed.data;
@@ -33,7 +36,7 @@ export async function POST(request: NextRequest) {
     email,
     password,
     user_metadata: { name },
-    email_confirm: false,
+    email_confirm: true,
   });
 
   if (error) {
