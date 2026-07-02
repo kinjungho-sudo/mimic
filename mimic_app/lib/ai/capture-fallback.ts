@@ -74,14 +74,14 @@ const SLACK_LABEL_CONTEXTS = new Map([
 ]);
 
 const GMAIL_CONTEXTS: Array<{ pattern: RegExp; base: string }> = [
-  { pattern: /諛쏆?\s*?몄???諛쏆??몄???inbox/i, base: '諛쏆??몄??? },
-  { pattern: /?쎌?\s*?딆?\s*硫붿씪|硫붿씪??mail/i, base: '硫붿씪?? },
-  { pattern: /?듭옣|reply/i, base: '?듭옣' },
-  { pattern: /蹂대궡湲?send/i, base: '硫붿씪 蹂대궡湲? },
-  { pattern: /蹂몃Ц|body|message/i, base: '硫붿씪 蹂몃Ц' },
-  { pattern: /?⑥?\s*李몄“|bcc/i, base: '?⑥?李몄“ ?섏떊?? },
-  { pattern: /李몄“|\bcc\b/i, base: '李몄“ ?섏떊?? },
-  { pattern: /諛쏅뒗\s*?щ엺|recipient|to:/i, base: '諛쏅뒗 ?щ엺' },
+  { pattern: /받은\s*편지함|받은편지함|inbox/i, base: '받은편지함' },
+  { pattern: /읽지\s*않은\s*메일|메일함|mail/i, base: '메일함' },
+  { pattern: /답장|reply/i, base: '답장' },
+  { pattern: /보내기|send/i, base: '메일 보내기' },
+  { pattern: /본문|body|message/i, base: '메일 본문' },
+  { pattern: /숨은\s*참조|bcc/i, base: '숨은참조 수신자' },
+  { pattern: /참조|\bcc\b/i, base: '참조 수신자' },
+  { pattern: /받는\s*사람|recipient|to:/i, base: '받는 사람' },
 ];
 
 function cleanText(value: string | null | undefined): string {
@@ -212,9 +212,9 @@ function contextFromCapturedLabel(label: string | null | undefined): string {
   const text = cleanText(label);
   if (!text) return '';
   if (hasEmailAddress(text)) {
-    if (/?⑥?\s*李몄“|bcc/i.test(text)) return '?⑥?李몄“ ?섏떊???먮룞 ?꾩꽦';
-    if (/李몄“|\bcc\b/i.test(text)) return '李몄“ ?섏떊???먮룞 ?꾩꽦';
-    return '?섏떊???먮룞 ?꾩꽦';
+    if (/숨은\s*참조|bcc/i.test(text)) return '숨은참조 수신자 자동 완성';
+    if (/참조|\bcc\b/i.test(text)) return '참조 수신자 자동 완성';
+    return '수신자 자동 완성';
   }
   const gmail = GMAIL_CONTEXTS.find(context => context.pattern.test(text));
   if (gmail) return gmail.base;
