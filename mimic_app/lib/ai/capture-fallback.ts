@@ -79,6 +79,8 @@ const GMAIL_CONTEXTS: Array<{ pattern: RegExp; base: string }> = [
   { pattern: /답장|reply/i, base: '답장' },
   { pattern: /보내기|send/i, base: '메일 보내기' },
   { pattern: /본문|body|message/i, base: '메일 본문' },
+  { pattern: /숨은\s*참조|bcc/i, base: '숨은참조 수신자' },
+  { pattern: /참조|\bcc\b/i, base: '참조 수신자' },
   { pattern: /받는\s*사람|recipient|to:/i, base: '받는 사람' },
 ];
 
@@ -128,6 +130,10 @@ function hasMachineToken(value: string | null | undefined): boolean {
   });
 }
 
+function hasEmailAddress(value: string | null | undefined): boolean {
+  return /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(cleanText(value));
+}
+
 export function isLowQualityCaptureLabel(value: string | null | undefined): boolean {
   const text = cleanText(value);
   return !text || isGenericLabel(text) || isRawCaptureLabel(text) || hasMachineToken(text) || isLongCapturedContent(text);
@@ -142,6 +148,7 @@ export function isLowQualityCaptureTitle(value: string | null | undefined): bool
   const text = cleanText(value);
   if (isWeakTitle(text)) return true;
   if (isLowQualityCaptureLabel(text)) return true;
+  if (hasEmailAddress(text)) return true;
   if (hasCountNoise(text)) return true;
   if (/^\d+\s+(\uD074\uB9AD|\uD655\uC778|\uC120\uD0DD|\uC785\uB825|\uC774\uB3D9)$/i.test(text)) return true;
   const rawLabelPattern = Array.from(RAW_CAPTURE_LABELS).join('|');
@@ -152,6 +159,7 @@ export function isLowQualityCaptureScript(value: string | null | undefined): boo
   const text = cleanText(value);
   if (!text) return true;
   if (hasMachineToken(text)) return true;
+  if (hasEmailAddress(text)) return true;
   if (hasCountNoise(text)) return true;
   if (isLongCapturedContent(text)) return true;
   if (/^\d+(\uC744|\uB97C)?\s*(\uD074\uB9AD|\uD655\uC778|\uC120\uD0DD|\uC785\uB825|\uC774\uB3D9)\uD569\uB2C8\uB2E4\.?$/i.test(text)) return true;
@@ -203,6 +211,11 @@ function scriptFor(base: string, verb: ReturnType<typeof verbForAction>): string
 function contextFromCapturedLabel(label: string | null | undefined): string {
   const text = cleanText(label);
   if (!text) return '';
+  if (hasEmailAddress(text)) {
+    if (/숨은\s*참조|bcc/i.test(text)) return '숨은참조 수신자 자동 완성';
+    if (/참조|\bcc\b/i.test(text)) return '참조 수신자 자동 완성';
+    return '수신자 자동 완성';
+  }
   const gmail = GMAIL_CONTEXTS.find(context => context.pattern.test(text));
   if (gmail) return gmail.base;
   if (/프롬프트|prompt/i.test(text)) return '프롬프트';
