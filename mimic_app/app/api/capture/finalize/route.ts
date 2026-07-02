@@ -3,7 +3,7 @@ import { requireExtensionToken } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { captureFinalizeSchema } from '@/lib/validators';
 import { analyzeScreenshot, generateStepDescription, generateDraft, extractCoverColors, detectPII, cleanTranscripts } from '@/lib/ai/claude';
-import { buildCaptureFallbackDraft, buildCaptureFallbackTutorialTitle, isLowQualityCaptureScript, isLowQualityCaptureTitle, type CaptureFallbackActionInfo } from '@/lib/ai/capture-fallback';
+import { buildCaptureFallbackDraft, buildCaptureFallbackTutorialTitle, isLowQualityCaptureScript, isLowQualityCaptureTitle, isUsableCaptureDraft, type CaptureFallbackActionInfo } from '@/lib/ai/capture-fallback';
 import { resolveFavicon } from '@/lib/favicon';
 import { buildClickHighlight } from '@/lib/annotations';
 import { transcribeAudio, assignSegmentsToSteps, computeStepWindows } from '@/lib/voice/voice';
@@ -520,10 +520,7 @@ export async function POST(request: NextRequest) {
           const aiDraft = aiDraftsById.get(step.id);
           const aiTitle = aiDraft?.user_title?.trim() || '';
           const aiScript = aiDraft?.user_script?.trim() || '';
-          const useAiDraft = !!aiTitle
-            && !!aiScript
-            && !isLowQualityCaptureTitle(aiTitle)
-            && !isLowQualityCaptureScript(aiScript);
+          const useAiDraft = isUsableCaptureDraft(aiDraft);
           if (aiDraft && !useAiDraft) discardedAiDrafts += 1;
           return {
             id: step.id,

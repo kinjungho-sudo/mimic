@@ -4,6 +4,7 @@ async function main() {
     buildCaptureFallbackTutorialTitle,
     isLowQualityCaptureScript,
     isLowQualityCaptureTitle,
+    isUsableCaptureDraft,
   } = await import('../lib/ai/capture-fallback.ts');
 
   const cases = [
@@ -139,6 +140,25 @@ async function main() {
   }
   if (!isLowQualityCaptureScript('0를 클릭합니다.')) {
     failures.push({ name: 'numeric script detector', expected: true, actual: false });
+  }
+
+  if (isUsableCaptureDraft({
+    user_title: '\ud3b8\uc9c0\uc4f0\uae30 \ud074\ub9ad',
+    user_script: '0\ub97c \ud074\ub9ad\ud569\ub2c8\ub2e4.',
+  })) {
+    failures.push({ name: 'usable draft rejects numeric script', expected: false, actual: true });
+  }
+  if (isUsableCaptureDraft({
+    user_title: '0 \ud074\ub9ad',
+    user_script: '\ud3b8\uc9c0\uc4f0\uae30\ub97c \ud074\ub9ad\ud569\ub2c8\ub2e4.',
+  })) {
+    failures.push({ name: 'usable draft rejects numeric title', expected: false, actual: true });
+  }
+  if (!isUsableCaptureDraft({
+    user_title: '\ud3b8\uc9c0\uc4f0\uae30 \ud074\ub9ad',
+    user_script: '\ud3b8\uc9c0\uc4f0\uae30\ub97c \ud074\ub9ad\ud569\ub2c8\ub2e4.',
+  })) {
+    failures.push({ name: 'usable draft accepts meaningful title and script', expected: true, actual: false });
   }
 
   if (failures.length) {

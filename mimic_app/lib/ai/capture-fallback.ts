@@ -257,6 +257,17 @@ export function buildCaptureFallbackDraft(
   };
 }
 
+export function isUsableCaptureDraft(
+  draft: { user_title?: string | null; user_script?: string | null } | null | undefined
+): boolean {
+  const title = draft?.user_title?.trim() || '';
+  const script = draft?.user_script?.trim() || '';
+  return !!title
+    && !!script
+    && !isLowQualityCaptureTitle(title)
+    && !isLowQualityCaptureScript(script);
+}
+
 export function buildCaptureFallbackTutorialTitle(
   drafts: Array<{ user_title: string }>
 ): string {
