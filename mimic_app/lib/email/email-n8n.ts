@@ -102,7 +102,7 @@ export function welcomeEmailHtml(name?: string | null): string {
             <h1 style="margin:0 0 14px;font-size:21px;font-weight:700;color:#111827;line-height:1.4;">${greet}MIMIC 가입을 환영해요 🎉</h1>
             <p style="margin:0 0 22px;font-size:15px;color:#4B5563;line-height:1.7;">
               이제 클릭 몇 번이면 업무 화면이 <b>단계별 인터랙티브 매뉴얼</b>로 완성됩니다.
-              만든 매뉴얼은 링크로 공유하거나, 실제 화면 위에서 <b>라이브 가이드</b>로 안내할 수 있어요.
+              만든 매뉴얼은 링크로 공유하거나, 실제 화면 위에서 <b>라이브 가이드 Beta</b>로 안내할 수 있어요.
             </p>
             <table cellpadding="0" cellspacing="0"><tr><td>
               <a href="https://mimic-nine-ashen.vercel.app/home" style="display:inline-block;padding:14px 28px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:white;font-size:15px;font-weight:600;text-decoration:none;border-radius:10px;">

@@ -674,7 +674,7 @@
 
     if (msg.type === 'SHOW_GUIDE_COUNTDOWN') {
       if (!IS_TOP_FRAME) { sendResponse({ ok: true }); return false; }
-      showCountdown(() => {}, { label: 'Live Guide 시작됩니다', accentColor: '#a78bfa', startText: 'GO' });
+      showCountdown(() => {}, { label: 'Live Guide Beta 시작됩니다', accentColor: '#a78bfa', startText: 'GO' });
       sendResponse({ ok: true });
       return false;
     }

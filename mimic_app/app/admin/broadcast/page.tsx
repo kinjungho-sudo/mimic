@@ -52,7 +52,7 @@ export default function BroadcastPage() {
 
       <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '22px' }}>
         <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>제목</label>
-        <input value={subject} onChange={e => { setSubject(e.target.value); setResult(null); }} placeholder="예: MIMIC 6월 업데이트 — 라이브 가이드 자동입력 출시" style={{ ...inputStyle, marginBottom: '16px' }} maxLength={200} />
+        <input value={subject} onChange={e => { setSubject(e.target.value); setResult(null); }} placeholder="예: MIMIC 6월 업데이트 — 라이브 가이드 Beta 자동입력 출시" style={{ ...inputStyle, marginBottom: '16px' }} maxLength={200} />
 
         <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>본문</label>
         <textarea value={body} onChange={e => { setBody(e.target.value); setResult(null); }} rows={12}

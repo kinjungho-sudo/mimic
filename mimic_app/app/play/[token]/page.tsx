@@ -685,13 +685,13 @@ export default function PlayerPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '4px' : '6px', flexShrink: 0 }}>
           <button
             onClick={handleStartLiveGuide}
-            title="현재 브라우저 탭에서 라이브 가이드를 실행합니다"
+            title="현재 브라우저 탭에서 라이브 가이드 Beta를 실행합니다"
             style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', height: '32px', padding: isMobile ? '0 9px' : '0 12px', borderRadius: '8px', border: viewMode === 'document' ? '1px solid rgba(79,70,229,0.35)' : '1px solid rgba(255,255,255,0.14)', background: viewMode === 'document' ? 'rgba(79,70,229,0.08)' : 'rgba(255,255,255,0.10)', color: viewMode === 'document' ? '#4F46E5' : 'white', cursor: 'pointer', fontSize: '12px', fontWeight: 700, transition: 'all 0.15s' }}
             onMouseEnter={e => { e.currentTarget.style.background = viewMode === 'document' ? 'rgba(79,70,229,0.13)' : 'rgba(255,255,255,0.16)'; }}
             onMouseLeave={e => { e.currentTarget.style.background = viewMode === 'document' ? 'rgba(79,70,229,0.08)' : 'rgba(255,255,255,0.10)'; }}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-            {!isMobile && '라이브 가이드'}
+            {!isMobile && '라이브 가이드 Beta'}
           </button>
 
           {/* 모드 토글: 웹 문서 ↔ 슬라이드 */}

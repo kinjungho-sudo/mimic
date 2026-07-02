@@ -56,13 +56,13 @@ export function startLiveGuide(shareToken: string): Promise<LiveGuideResult> {
           resolve({
             ok: false,
             reason: 'gated',
-            message: `무료 라이브 가이드 실행 한도(${data.limit ?? 5}회)를 모두 사용했습니다.`,
+            message: `무료 라이브 가이드 Beta 실행 한도(${data.limit ?? 5}회)를 모두 사용했습니다.`,
             upgradeUrl: data.upgradeUrl,
           });
           return;
         }
 
-        resolve({ ok: false, reason: 'error', message: data.error ?? '라이브 가이드를 시작하지 못했습니다.' });
+        resolve({ ok: false, reason: 'error', message: data.error ?? '라이브 가이드 Beta를 시작하지 못했습니다.' });
       }
     );
   });

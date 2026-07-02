@@ -425,7 +425,7 @@ export default function StudioPage() {
         <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.4)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
           {savingId ? <><Loader2 size={TOP_BAR_ICON_SIZE} className="spin" /> 저장 중…</> : savedTick > 0 ? <><Check size={TOP_BAR_ICON_SIZE} color="#34d399" /> 저장됨</> : null}
         </span>
-        <button onClick={() => setShowPreview(true)} title="연습 가이드(웹) 화면으로 미리보기 — 핫스팟·말풍선·입력 텍스트 설정을 확인합니다. 실제 Live Guide 오버레이 외형과는 다를 수 있어요." style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5 }}><Play size={TOP_BAR_ICON_SIZE} /> 연습 가이드 미리보기</button>
+        <button onClick={() => setShowPreview(true)} title="연습 가이드(웹) 화면으로 미리보기 — 핫스팟·말풍선·입력 텍스트 설정을 확인합니다. 실제 Live Guide Beta 오버레이 외형과는 다를 수 있어요." style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5 }}><Play size={TOP_BAR_ICON_SIZE} /> 연습 가이드 미리보기</button>
         <button onClick={handleOpenPracticeGuide} disabled={publishing} title="고객에게 전달되는 연습 가이드 실행 화면을 새 탭에서 엽니다" style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5, opacity: publishing ? 0.6 : 1 }}>
           {publishing ? <Loader2 size={TOP_BAR_ICON_SIZE} className="spin" /> : <Play size={TOP_BAR_ICON_SIZE} />} 연습 가이드 실행
         </button>
@@ -594,7 +594,7 @@ export default function StudioPage() {
                   </>
                 )}
               </div>
-              <p style={hint}>각 스텝 설명에 작성한 문장을 읽어줍니다. 음성은 연습 가이드와 Live Guide에서만 사용되고, 문서/슬라이드 매뉴얼에서는 재생되지 않습니다.</p>
+              <p style={hint}>각 스텝 설명에 작성한 문장을 읽어줍니다. 음성은 연습 가이드와 Live Guide Beta에서만 사용되고, 문서/슬라이드 매뉴얼에서는 재생되지 않습니다.</p>
 
               <Divider />
 
@@ -712,7 +712,7 @@ export default function StudioPage() {
                     placeholder="자동 입력될 텍스트 (비우면 ‘텍스트 입력…’ 안내만)"
                     style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.1)', color: '#F0F0FF', WebkitTextFillColor: '#F0F0FF', caretColor: '#a78bfa', fontSize: 12.5, fontFamily: 'inherit', outline: 'none' }}
                   />
-                  <p style={hint}>입력하면 연습 가이드 미리보기에선 타이핑 애니메이션으로, Live Guide에선 실제 입력란에 자동 입력됩니다.</p>
+                  <p style={hint}>입력하면 연습 가이드 미리보기에선 타이핑 애니메이션으로, Live Guide Beta에선 실제 입력란에 자동 입력됩니다.</p>
                 </>
               )}
             </>

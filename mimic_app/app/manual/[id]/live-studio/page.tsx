@@ -86,7 +86,7 @@ function toPatch(step: LiveStep) {
 
 function health(step: LiveStep): { label: string; color: string; detail: string } {
   if (!step.pageUrl.trim()) return { label: 'URL 필요', color: '#fbbf24', detail: '실제 페이지로 이동할 기준 URL이 없습니다.' };
-  if (step.selector.trim()) return { label: 'Selector 우선', color: '#34d399', detail: '라이브 가이드가 selector로 먼저 대상을 찾습니다.' };
+  if (step.selector.trim()) return { label: 'Selector 우선', color: '#34d399', detail: '라이브 가이드 Beta가 selector로 먼저 대상을 찾습니다.' };
   if (step.xpath.trim()) return { label: 'XPath 대기', color: '#60a5fa', detail: 'selector가 없으면 XPath로 대상을 찾습니다.' };
   if (Object.values(step.rect).every(Boolean)) return { label: 'Rect fallback', color: '#c084fc', detail: 'DOM 매칭 실패 시 저장된 위치 영역을 사용합니다.' };
   if (step.clickX.trim() && step.clickY.trim()) return { label: 'Click fallback', color: '#fb7185', detail: '마지막으로 클릭 좌표를 기준으로 안내합니다.' };
@@ -137,7 +137,7 @@ export default function LiveStudioPage() {
       setSavedTick(t => t + 1);
     } catch (err) {
       logError('live-studio.save.fail', { stepId: step.id, message: err instanceof Error ? err.message : String(err) });
-      alert('라이브 가이드 대상 저장에 실패했습니다. 입력값을 확인해주세요.');
+      alert('라이브 가이드 Beta 대상 저장에 실패했습니다. 입력값을 확인해주세요.');
     } finally {
       setSavingId(current => (current === step.id ? null : current));
     }
@@ -157,7 +157,7 @@ export default function LiveStudioPage() {
 
   const handleStartLiveGuide = useCallback(async () => {
     if (!targetUrlCount) {
-      alert('라이브 가이드를 실행할 대상 URL이 없습니다. 먼저 스텝 URL을 저장해주세요.');
+      alert('라이브 가이드 Beta를 실행할 대상 URL이 없습니다. 먼저 스텝 URL을 저장해주세요.');
       return;
     }
     setLiveStarting(true);
@@ -171,7 +171,7 @@ export default function LiveStudioPage() {
       }
       alert(result.message);
     } catch {
-      alert('라이브 가이드 실행 준비에 실패했습니다. 다시 시도해주세요.');
+      alert('라이브 가이드 Beta 실행 준비에 실패했습니다. 다시 시도해주세요.');
     } finally {
       setLiveStarting(false);
     }
@@ -201,7 +201,7 @@ export default function LiveStudioPage() {
       <header style={header}>
         <button onClick={() => router.push(`/manual/${id}/editor`)} style={iconBtn} title="편집기로 돌아가기"><ArrowLeft size={ICON} /></button>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 800 }}>라이브 가이드 스튜디오</div>
+          <div style={{ fontSize: 14, fontWeight: 800 }}>라이브 가이드 Beta 스튜디오</div>
           <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.48)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tutorial.title}</div>
         </div>
         <div style={{ flex: 1 }} />
@@ -211,7 +211,7 @@ export default function LiveStudioPage() {
           {savingId ? <><Loader2 size={ICON} className="spin" /> 저장 중</> : savedTick > 0 ? <><Check size={ICON} color="#34d399" /> 저장됨</> : null}
         </span>
         <button onClick={handleStartLiveGuide} disabled={liveStarting || publishing || !targetUrlCount} style={{ ...primaryBtn, opacity: liveStarting || publishing || !targetUrlCount ? 0.55 : 1 }}>
-          {liveStarting ? <Loader2 size={ICON} className="spin" /> : <Zap size={ICON} />} 라이브 실행
+          {liveStarting ? <Loader2 size={ICON} className="spin" /> : <Zap size={ICON} />} Beta 실행
         </button>
       </header>
 
@@ -254,7 +254,7 @@ export default function LiveStudioPage() {
                     <ExternalLink size={ICON} />
                   </button>
                 </div>
-                <p style={hint}>라이브 가이드는 이 URL에서 시작한 뒤 각 스텝의 DOM 대상을 순서대로 찾습니다.</p>
+                <p style={hint}>라이브 가이드 Beta는 이 URL에서 시작한 뒤 각 스텝의 DOM 대상을 순서대로 찾습니다.</p>
               </section>
 
               <section style={panel}>

@@ -657,7 +657,7 @@
     state.tooltip.innerHTML = `
       <div style="text-align:center;padding:10px 4px">
         <div style="${AVATAR_STYLE}margin:0 auto 12px;">${MASCOT_SVG}</div>
-        <div style="font-size:15px;font-weight:700;margin-bottom:6px">Live Guide 완료! 🎉</div>
+        <div style="font-size:15px;font-weight:700;margin-bottom:6px">Live Guide Beta 완료! 🎉</div>
         <div style="font-size:12.5px;color:#9CA3AF;margin-bottom:14px">모든 스텝을 완료했습니다.</div>
         <button class="mimic-btn" data-act="exit" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:9px 24px;width:100%">닫기</button>
       </div>`;

@@ -1233,7 +1233,7 @@ export default function DashboardPage() {
                 {/* 라이브 가이드 사용량 */}
                 {liveGuide && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
-                    <span style={{ fontSize: '12px', color: '#6B7280' }}>라이브 가이드</span>
+                    <span style={{ fontSize: '12px', color: '#6B7280' }}>라이브 가이드 Beta</span>
                     <span style={{ fontSize: '12px', fontWeight: 600, color: '#111827' }}>
                       {liveGuide.paid
                         ? <>{liveGuide.used}<span style={{ fontSize: '10px', color: '#10B981', marginLeft: '4px', fontWeight: 500 }}>무제한</span></>
@@ -1797,7 +1797,7 @@ export default function DashboardPage() {
               </button>
               {/* Live Guide 스튜디오 — 파일럿 동안 게이트 없이 오픈 */}
               <button
-                onClick={() => { router.push(`/manual/${manualActionModal}/studio`); setManualActionModal(null); }}
+                onClick={() => { router.push(`/manual/${manualActionModal}/live-studio`); setManualActionModal(null); }}
                 style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', padding: 0, borderRadius: '14px', border: '1.5px solid #E5E7EB', background: 'white', cursor: 'pointer', textAlign: 'left', transition: 'border-color 0.12s, box-shadow 0.12s', overflow: 'hidden' }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = '#7c3aed'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(124,58,237,0.08)'; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.boxShadow = 'none'; }}>
@@ -1824,7 +1824,7 @@ export default function DashboardPage() {
                   </svg>
                 </div>
                 <div style={{ padding: '14px 16px 16px' }}>
-                  <div style={{ fontSize: '16px', fontWeight: 700, color: '#111827' }}>Live Guide 스튜디오</div>
+                  <div style={{ fontSize: '16px', fontWeight: 700, color: '#111827' }}>Live Guide Beta 스튜디오</div>
                   <div style={{ fontSize: '12.5px', color: '#6B7280', marginTop: '3px' }}>화면 위에서 실시간으로 단계를 안내해요</div>
                 </div>
               </button>
