@@ -43,6 +43,7 @@
     if (step.element_selector) {
       try { el = document.querySelector(step.element_selector); } catch { el = null; }
       if (el) { rect = rectOf(el); source = 'selector'; }
+      if (rect && !isGeometryMatch(el, rect, step)) { el = null; rect = null; source = 'none'; }
     }
 
     // 2순위: XPath
@@ -52,26 +53,33 @@
         const xe = xr.singleNodeValue;
         if (xe) { el = xe; rect = rectOf(xe); source = 'xpath'; }
       } catch { /* noop */ }
+      if (rect && !isGeometryMatch(el, rect, step)) { el = null; rect = null; source = 'none'; }
     }
 
     // 2.5순위: 퍼지 자가복구 — 셀렉터·XPath가 모두 깨졌을 때 저장 힌트(텍스트·속성·위치)로 후보 점수화
     if (!rect) {
       const fz = fuzzyFind(step);
       if (fz) { el = fz; rect = rectOf(fz); source = 'fuzzy'; }
+      if (rect && !isGeometryMatch(el, rect, step)) { el = null; rect = null; source = 'none'; }
     }
 
     // 3순위: 정규화 rect (0~1)
     if (!rect && step.element_rect) {
-      const r = step.element_rect;
-      rect = { left: r.x * window.innerWidth, top: r.y * window.innerHeight, width: r.width * window.innerWidth, height: r.height * window.innerHeight };
-      source = 'rect';
+      const r = normalizedElementRect(step);
+      if (r) {
+        rect = { left: r.x * window.innerWidth, top: r.y * window.innerHeight, width: r.width * window.innerWidth, height: r.height * window.innerHeight };
+        source = 'rect';
+      }
     }
 
     // 4순위: click_x/y (0~1 정규화) — 핫스팟은 0.5순위에서 이미 처리
     if (!rect && step.click_x != null && step.click_y != null) {
-      const cx = step.click_x * window.innerWidth, cy = step.click_y * window.innerHeight;
-      rect = { left: cx - COORD_BOX / 2, top: cy - COORD_BOX / 2, width: COORD_BOX, height: COORD_BOX };
-      source = 'coord';
+      const p = normalizedClickPoint(step);
+      if (p) {
+        const cx = p.x * window.innerWidth, cy = p.y * window.innerHeight;
+        rect = { left: cx - COORD_BOX / 2, top: cy - COORD_BOX / 2, width: COORD_BOX, height: COORD_BOX };
+        source = 'coord';
+      }
     }
 
     return { el, rect, source };
@@ -85,6 +93,90 @@
   // ── 퍼지 자가복구 (P2) ────────────────────────────────────────
   // 셀렉터/XPath가 모두 깨졌을 때, 저장된 힌트(보이는 텍스트·속성·위치)로 현재 DOM 후보를
   // 점수화해 같은 요소를 재발견한다. 좌표 폴백보다 정확하고, 화면이 바뀌면(텍스트 없음) null.
+  function normalizeUnit(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return null;
+    let v = n;
+    if (v > 100) v = v / 10000;
+    else if (v > 1) v = v / 100;
+    if (!Number.isFinite(v)) return null;
+    return Math.max(0, Math.min(1, v));
+  }
+
+  function normalizedClickPoint(step) {
+    const x = normalizeUnit(step.click_x);
+    const y = normalizeUnit(step.click_y);
+    return x == null || y == null ? null : { x, y };
+  }
+
+  function normalizedElementRect(step) {
+    const r = step.element_rect;
+    if (!r) return null;
+    const x = normalizeUnit(r.x);
+    const y = normalizeUnit(r.y);
+    const width = normalizeUnit(r.width);
+    const height = normalizeUnit(r.height);
+    if (x == null || y == null || width == null || height == null || width <= 0 || height <= 0) return null;
+    return { x, y, width, height };
+  }
+
+  function expectedGeometry(step) {
+    const p = normalizedClickPoint(step);
+    const nr = normalizedElementRect(step);
+    const rect = nr ? {
+      left: nr.x * window.innerWidth,
+      top: nr.y * window.innerHeight,
+      width: nr.width * window.innerWidth,
+      height: nr.height * window.innerHeight,
+    } : null;
+    const point = p ? { x: p.x * window.innerWidth, y: p.y * window.innerHeight }
+      : rect ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
+      : null;
+    return { point, rect };
+  }
+
+  function rectOverlapRatio(a, b) {
+    const left = Math.max(a.left, b.left);
+    const top = Math.max(a.top, b.top);
+    const right = Math.min(a.left + a.width, b.left + b.width);
+    const bottom = Math.min(a.top + a.height, b.top + b.height);
+    const area = Math.max(0, right - left) * Math.max(0, bottom - top);
+    const minArea = Math.max(1, Math.min(a.width * a.height, b.width * b.height));
+    return area / minArea;
+  }
+
+  function isTextInputLike(el) {
+    if (!el) return false;
+    const tag = (el.tagName || '').toLowerCase();
+    const role = (el.getAttribute && (el.getAttribute('role') || '') || '').toLowerCase();
+    return tag === 'input' || tag === 'textarea' || el.isContentEditable || role === 'textbox';
+  }
+
+  function isGeometryMatch(el, rect, step) {
+    const expected = expectedGeometry(step);
+    if (!expected.point && !expected.rect) return true;
+
+    const viewportArea = Math.max(1, window.innerWidth * window.innerHeight);
+    const targetArea = Math.max(1, rect.width * rect.height);
+    if (!isTextInputLike(el) && targetArea / viewportArea > 0.45) return false;
+
+    if (expected.point && pointInRect(expected.point.x, expected.point.y, rect, 48)) return true;
+    if (expected.rect) {
+      const center = {
+        x: expected.rect.left + expected.rect.width / 2,
+        y: expected.rect.top + expected.rect.height / 2,
+      };
+      if (pointInRect(center.x, center.y, rect, 48)) return true;
+      if (rectOverlapRatio(rect, expected.rect) >= 0.25) return true;
+    }
+    if (expected.point) {
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      return Math.hypot(cx - expected.point.x, cy - expected.point.y) <= 96;
+    }
+    return false;
+  }
+
   function normText(s) { return (s || '').trim().replace(/\s+/g, ' '); }
 
   function isVisibleEl(el) {
@@ -113,8 +205,10 @@
     const a = sel.match(/([a-z0-9]+)?\[(name|aria-label|data-testid)="([^"]*)"\]\s*$/i);
     if (a) { if (!hint.tag && a[1]) hint.tag = a[1].toLowerCase(); hint.attrName = a[2]; hint.attrVal = a[3]; }
     if (!hint.tag) { const t = sel.match(/([a-z0-9]+)\s*$/i); if (t) hint.tag = t[1].toLowerCase(); }
-    if (step.click_x != null && step.click_y != null) { hint.nx = step.click_x; hint.ny = step.click_y; }
-    else if (step.element_rect) { hint.nx = step.element_rect.x + step.element_rect.width / 2; hint.ny = step.element_rect.y + step.element_rect.height / 2; }
+    const p = normalizedClickPoint(step);
+    const r = normalizedElementRect(step);
+    if (p) { hint.nx = p.x; hint.ny = p.y; }
+    else if (r) { hint.nx = r.x + r.width / 2; hint.ny = r.y + r.height / 2; }
     return hint;
   }
 
