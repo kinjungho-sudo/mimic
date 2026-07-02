@@ -30,143 +30,101 @@ type SimulatorStep = {
 
 const svgDataUri = (svg: string) => `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 
-const simulatorSteps: SimulatorStep[] = [
+const simulatorDemos: SimulatorStep[] = [
   {
-    eyebrow: 'Record',
-    title: '평소처럼 클릭하면 기록이 시작됩니다',
-    body: '브라우저에서 하던 작업을 그대로 진행하면 MIMIC Recorder가 클릭 위치와 화면을 함께 캡처합니다.',
-    hotspotX: 78,
-    hotspotY: 21,
-    kind: 'click',
+    eyebrow: 'Demo 1 · Capture to share',
+    title: '캡처한 업무가 공유 가능한 매뉴얼로 정리됩니다',
+    body: '클릭 위치와 화면 맥락을 단계로 정리하고, 실제 주석을 입힌 뒤 링크와 문서로 바로 공유합니다.',
     screen: svgDataUri(`
       <svg xmlns="http://www.w3.org/2000/svg" width="1120" height="680" viewBox="0 0 1120 680">
-        <rect width="1120" height="680" rx="28" fill="#f8fafc"/>
-        <rect x="0" y="0" width="1120" height="72" rx="28" fill="#111827"/>
-        <circle cx="34" cy="36" r="8" fill="#ef4444"/><circle cx="62" cy="36" r="8" fill="#f59e0b"/><circle cx="90" cy="36" r="8" fill="#22c55e"/>
-        <rect x="138" y="19" width="520" height="34" rx="17" fill="#1f2937"/>
-        <text x="168" y="41" font-family="Inter, Arial" font-size="15" fill="#cbd5e1">app.example.com/settings/billing</text>
-        <rect x="938" y="18" width="134" height="36" rx="18" fill="#4f46e5"/>
-        <text x="969" y="41" font-family="Inter, Arial" font-size="14" font-weight="700" fill="white">녹화 중</text>
-        <rect x="44" y="108" width="1032" height="516" rx="22" fill="white" stroke="#e5e7eb"/>
-        <text x="86" y="166" font-family="Inter, Arial" font-size="28" font-weight="800" fill="#111827">결제 설정</text>
-        <text x="86" y="196" font-family="Inter, Arial" font-size="16" fill="#64748b">팀 결제 수단과 영수증 정보를 관리합니다.</text>
-        <rect x="80" y="238" width="460" height="92" rx="18" fill="#f1f5f9"/>
-        <text x="112" y="274" font-family="Inter, Arial" font-size="16" font-weight="700" fill="#111827">현재 플랜</text>
-        <text x="112" y="302" font-family="Inter, Arial" font-size="15" fill="#64748b">Team Pro, 월 결제</text>
-        <rect x="80" y="366" width="460" height="118" rx="18" fill="#f8fafc" stroke="#e2e8f0"/>
-        <text x="112" y="404" font-family="Inter, Arial" font-size="17" font-weight="700" fill="#111827">카드 정보</text>
-        <text x="112" y="436" font-family="Inter, Arial" font-size="15" fill="#64748b">Visa ending 4242</text>
-        <rect x="732" y="122" width="296" height="372" rx="24" fill="#0f172a"/>
-        <text x="762" y="164" font-family="Inter, Arial" font-size="17" font-weight="800" fill="white">MIMIC Recorder</text>
-        <rect x="762" y="190" width="212" height="38" rx="19" fill="#312e81"/>
-        <text x="788" y="214" font-family="Inter, Arial" font-size="13" font-weight="700" fill="#ddd6fe">캡처 04개 저장됨</text>
-        <rect x="762" y="258" width="184" height="48" rx="16" fill="#4f46e5"/>
-        <text x="801" y="288" font-family="Inter, Arial" font-size="15" font-weight="800" fill="white">이 단계 저장</text>
-        <rect x="762" y="340" width="226" height="88" rx="16" fill="#1e293b"/>
-        <text x="784" y="374" font-family="Inter, Arial" font-size="14" font-weight="700" fill="#e2e8f0">클릭 위치와 화면을</text>
-        <text x="784" y="402" font-family="Inter, Arial" font-size="14" font-weight="700" fill="#e2e8f0">함께 기록하고 있어요</text>
+        <rect width="1120" height="680" rx="28" fill="#f7f8fc"/>
+        <rect x="42" y="36" width="1036" height="608" rx="26" fill="white" stroke="#e5e7eb"/>
+        <rect x="42" y="36" width="1036" height="66" rx="26" fill="#111827"/>
+        <circle cx="76" cy="69" r="8" fill="#ef4444"/><circle cx="104" cy="69" r="8" fill="#f59e0b"/><circle cx="132" cy="69" r="8" fill="#22c55e"/>
+        <rect x="176" y="52" width="376" height="34" rx="17" fill="#1f2937"/>
+        <text x="204" y="74" font-family="Inter, Arial" font-size="15" fill="#cbd5e1">app.mimic.so/manual/new</text>
+        <rect x="84" y="142" width="260" height="450" rx="22" fill="#0f172a"/>
+        <text x="116" y="188" font-family="Inter, Arial" font-size="19" font-weight="800" fill="white">MIMIC Recorder</text>
+        <rect x="116" y="218" width="154" height="34" rx="17" fill="#312e81"/>
+        <text x="138" y="240" font-family="Inter, Arial" font-size="13" font-weight="700" fill="#ddd6fe">4 steps captured</text>
+        <rect x="116" y="282" width="188" height="56" rx="16" fill="#4f46e5"/>
+        <text x="158" y="316" font-family="Inter, Arial" font-size="16" font-weight="800" fill="white">Finish capture</text>
+        <rect x="116" y="378" width="184" height="116" rx="16" fill="#1e293b"/>
+        <text x="140" y="414" font-family="Inter, Arial" font-size="14" font-weight="800" fill="#e2e8f0">Click positions</text>
+        <text x="140" y="442" font-family="Inter, Arial" font-size="14" fill="#cbd5e1">Screenshots</text>
+        <text x="140" y="470" font-family="Inter, Arial" font-size="14" fill="#cbd5e1">Form context</text>
+        <rect x="390" y="142" width="606" height="450" rx="24" fill="#fafafa" stroke="#e5e7eb"/>
+        <text x="430" y="198" font-family="Inter, Arial" font-size="29" font-weight="850" fill="#111827">신규 입사자 계정 발급 매뉴얼</text>
+        <text x="430" y="232" font-family="Inter, Arial" font-size="16" fill="#64748b">캡처한 업무 흐름이 단계 카드와 주석으로 정리되었습니다.</text>
+        <rect x="430" y="274" width="498" height="70" rx="18" fill="white" stroke="#e5e7eb"/>
+        <circle cx="466" cy="309" r="17" fill="#4f46e5"/><text x="461" y="315" font-family="Inter, Arial" font-size="15" font-weight="800" fill="white">1</text>
+        <text x="500" y="303" font-family="Inter, Arial" font-size="15" font-weight="800" fill="#111827">관리자 메뉴에서 사용자 관리를 엽니다</text>
+        <text x="500" y="326" font-family="Inter, Arial" font-size="13" fill="#64748b">캡처 화면 위에 클릭 영역이 자동 표시됩니다.</text>
+        <rect x="430" y="366" width="498" height="70" rx="18" fill="#eef2ff" stroke="#c7d2fe"/>
+        <circle cx="466" cy="401" r="17" fill="#4f46e5"/><text x="461" y="407" font-family="Inter, Arial" font-size="15" font-weight="800" fill="white">2</text>
+        <text x="500" y="395" font-family="Inter, Arial" font-size="15" font-weight="800" fill="#312e81">사용자 정보를 입력하고 초대를 보냅니다</text>
+        <text x="500" y="418" font-family="Inter, Arial" font-size="13" fill="#4338ca">주석, 제목, 설명을 편집한 뒤 공유합니다.</text>
+        <rect x="430" y="476" width="206" height="52" rx="16" fill="#111827"/>
+        <text x="482" y="508" font-family="Inter, Arial" font-size="15" font-weight="800" fill="white">PDF export</text>
+        <rect x="656" y="476" width="240" height="52" rx="16" fill="#4f46e5"/>
+        <text x="718" y="508" font-family="Inter, Arial" font-size="15" font-weight="800" fill="white">Copy share link</text>
+        <rect x="650" y="470" width="252" height="64" rx="20" fill="none" stroke="#ef4444" stroke-width="4"/>
+        <path d="M776 456 L776 440" stroke="#ef4444" stroke-width="4" stroke-linecap="round"/>
+        <rect x="676" y="388" width="248" height="42" rx="12" fill="#1f2937"/>
+        <text x="704" y="415" font-family="Inter, Arial" font-size="14" font-weight="800" fill="white">공유 링크를 눌러 전달</text>
       </svg>
     `),
+    hotspotX: 79,
+    hotspotY: 74,
+    kind: 'click',
   },
   {
-    eyebrow: 'AI Draft',
-    title: 'AI가 화면을 읽고 설명을 붙입니다',
-    body: '캡처된 화면은 매뉴얼 초안으로 정리되고, 사용자는 필요한 문장만 다듬으면 됩니다.',
-    hotspotX: 41,
-    hotspotY: 48,
+    eyebrow: 'Demo 2 · Live Guide',
+    title: 'Live Guide가 클릭과 입력을 끝까지 옆에서 안내합니다',
+    body: '다음 클릭 위치를 실제 화면 위에 짚고, 필요한 텍스트는 입력창 안에서 자동으로 채워지는 흐름을 보여줍니다.',
+    screen: svgDataUri(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="1120" height="680" viewBox="0 0 1120 680">
+        <rect width="1120" height="680" rx="28" fill="#f3f4f6"/>
+        <rect x="42" y="36" width="1036" height="608" rx="26" fill="white" stroke="#e5e7eb"/>
+        <rect x="42" y="36" width="1036" height="66" rx="26" fill="#0f172a"/>
+        <circle cx="76" cy="69" r="8" fill="#ef4444"/><circle cx="104" cy="69" r="8" fill="#f59e0b"/><circle cx="132" cy="69" r="8" fill="#22c55e"/>
+        <rect x="176" y="52" width="420" height="34" rx="17" fill="#1f2937"/>
+        <text x="204" y="74" font-family="Inter, Arial" font-size="15" fill="#cbd5e1">admin.example.com/users/new</text>
+        <rect x="88" y="138" width="642" height="454" rx="24" fill="#ffffff" stroke="#d1d5db"/>
+        <text x="130" y="194" font-family="Inter, Arial" font-size="29" font-weight="850" fill="#111827">신규 사용자 초대</text>
+        <text x="130" y="226" font-family="Inter, Arial" font-size="15" fill="#64748b">계정 정보를 입력하고 권한을 선택하세요.</text>
+        <text x="130" y="286" font-family="Inter, Arial" font-size="14" font-weight="800" fill="#374151">이메일</text>
+        <rect x="130" y="304" width="416" height="58" rx="14" fill="#f8fafc" stroke="#cbd5e1"/>
+        <text x="156" y="340" font-family="Inter, Arial" font-size="17" font-weight="700" fill="#111827">kim@company.com</text>
+        <text x="130" y="414" font-family="Inter, Arial" font-size="14" font-weight="800" fill="#374151">역할</text>
+        <rect x="130" y="432" width="160" height="52" rx="14" fill="#eef2ff" stroke="#6366f1"/>
+        <text x="180" y="464" font-family="Inter, Arial" font-size="15" font-weight="800" fill="#3730a3">Editor</text>
+        <rect x="314" y="432" width="160" height="52" rx="14" fill="#f8fafc" stroke="#cbd5e1"/>
+        <text x="362" y="464" font-family="Inter, Arial" font-size="15" font-weight="700" fill="#64748b">Viewer</text>
+        <rect x="486" y="510" width="166" height="54" rx="16" fill="#4f46e5"/>
+        <text x="534" y="544" font-family="Inter, Arial" font-size="15" font-weight="850" fill="white">초대 보내기</text>
+        <rect x="480" y="504" width="178" height="66" rx="20" fill="none" stroke="#ef4444" stroke-width="4"/>
+        <path d="M570 490 L570 472" stroke="#ef4444" stroke-width="4" stroke-linecap="round"/>
+        <rect x="450" y="420" width="244" height="42" rx="12" fill="#1f2937"/>
+        <text x="480" y="447" font-family="Inter, Arial" font-size="14" font-weight="800" fill="white">다음 목표: 초대 보내기 클릭</text>
+        <rect x="764" y="138" width="270" height="454" rx="24" fill="#111827"/>
+        <text x="794" y="184" font-family="Inter, Arial" font-size="14" font-weight="900" fill="#a78bfa">LIVE GUIDE</text>
+        <text x="794" y="214" font-family="Inter, Arial" font-size="19" font-weight="850" fill="white">신규 계정 발급</text>
+        <rect x="794" y="246" width="200" height="76" rx="18" fill="#1f2937"/>
+        <text x="820" y="278" font-family="Inter, Arial" font-size="14" font-weight="800" fill="#e5e7eb">2 / 5</text>
+        <text x="820" y="304" font-family="Inter, Arial" font-size="13" fill="#c4b5fd">이메일을 자동 입력 중</text>
+        <rect x="794" y="354" width="198" height="42" rx="12" fill="#10b981"/>
+        <text x="836" y="381" font-family="Inter, Arial" font-size="13" font-weight="850" fill="white">1. 메뉴 진입 완료</text>
+        <rect x="794" y="410" width="198" height="42" rx="12" fill="#312e81"/>
+        <text x="830" y="437" font-family="Inter, Arial" font-size="13" font-weight="850" fill="white">2. 이메일 입력</text>
+        <rect x="794" y="466" width="198" height="42" rx="12" fill="#1f2937" stroke="#374151"/>
+        <text x="832" y="493" font-family="Inter, Arial" font-size="13" fill="#9ca3af">3. 초대 보내기</text>
+      </svg>
+    `),
+    hotspotX: 30,
+    hotspotY: 49,
     kind: 'type',
-    typeText: '결제 수단 변경 버튼을 클릭합니다',
-    screen: svgDataUri(`
-      <svg xmlns="http://www.w3.org/2000/svg" width="1120" height="680" viewBox="0 0 1120 680">
-        <rect width="1120" height="680" rx="28" fill="#fafafa"/>
-        <rect x="42" y="42" width="252" height="596" rx="24" fill="#111827"/>
-        <text x="76" y="96" font-family="Inter, Arial" font-size="19" font-weight="800" fill="white">MIMIC Editor</text>
-        <rect x="72" y="132" width="174" height="36" rx="18" fill="#312e81"/>
-        <text x="96" y="155" font-family="Inter, Arial" font-size="13" font-weight="700" fill="#ddd6fe">AI 초안 작성됨</text>
-        <rect x="72" y="204" width="188" height="64" rx="16" fill="#1f2937"/>
-        <text x="94" y="230" font-family="Inter, Arial" font-size="14" font-weight="700" fill="white">01 결제 설정 열기</text>
-        <text x="94" y="252" font-family="Inter, Arial" font-size="12" fill="#94a3b8">클릭 안내 생성</text>
-        <rect x="72" y="288" width="188" height="64" rx="16" fill="#4f46e5"/>
-        <text x="94" y="314" font-family="Inter, Arial" font-size="14" font-weight="700" fill="white">02 카드 정보 선택</text>
-        <text x="94" y="336" font-family="Inter, Arial" font-size="12" fill="#ddd6fe">입력 설명 보정</text>
-        <rect x="330" y="58" width="738" height="564" rx="26" fill="white" stroke="#e5e7eb"/>
-        <text x="374" y="112" font-family="Inter, Arial" font-size="26" font-weight="800" fill="#111827">팀 결제 수단 변경하기</text>
-        <rect x="374" y="154" width="612" height="74" rx="18" fill="#eef2ff" stroke="#c7d2fe"/>
-        <text x="408" y="184" font-family="Inter, Arial" font-size="15" font-weight="800" fill="#3730a3">AI가 붙인 단계 설명</text>
-        <text x="408" y="211" font-family="Inter, Arial" font-size="15" fill="#4338ca">결제 설정 화면에서 카드 정보 영역을 확인합니다.</text>
-        <rect x="374" y="270" width="612" height="236" rx="22" fill="#f8fafc" stroke="#e2e8f0"/>
-        <text x="412" y="314" font-family="Inter, Arial" font-size="18" font-weight="800" fill="#111827">02. 카드 정보 선택</text>
-        <rect x="412" y="348" width="432" height="48" rx="14" fill="white" stroke="#cbd5e1"/>
-        <text x="436" y="378" font-family="Inter, Arial" font-size="15" fill="#0f172a">결제 수단 변경 버튼을 클릭합니다</text>
-        <rect x="412" y="428" width="236" height="46" rx="14" fill="#4f46e5"/>
-        <text x="458" y="457" font-family="Inter, Arial" font-size="15" font-weight="800" fill="white">문장 적용</text>
-      </svg>
-    `),
-  },
-  {
-    eyebrow: 'Guide',
-    title: '받는 사람은 화면 위 안내를 따라갑니다',
-    body: '읽고 해석하는 문서가 아니라, 어디를 눌러야 하는지 실제 화면 위에서 바로 확인합니다.',
-    hotspotX: 72,
-    hotspotY: 64,
-    kind: 'click',
-    screen: svgDataUri(`
-      <svg xmlns="http://www.w3.org/2000/svg" width="1120" height="680" viewBox="0 0 1120 680">
-        <rect width="1120" height="680" rx="28" fill="#0f172a"/>
-        <rect x="50" y="54" width="1020" height="572" rx="28" fill="#f8fafc"/>
-        <rect x="50" y="54" width="1020" height="66" rx="28" fill="#111827"/>
-        <text x="92" y="94" font-family="Inter, Arial" font-size="16" font-weight="800" fill="white">Live Guide Preview</text>
-        <rect x="92" y="158" width="438" height="360" rx="22" fill="white" stroke="#e5e7eb"/>
-        <text x="132" y="212" font-family="Inter, Arial" font-size="27" font-weight="800" fill="#111827">결제 설정</text>
-        <text x="132" y="248" font-family="Inter, Arial" font-size="16" fill="#64748b">새 결제 수단을 등록합니다.</text>
-        <rect x="132" y="304" width="318" height="54" rx="15" fill="#f1f5f9"/>
-        <text x="158" y="337" font-family="Inter, Arial" font-size="15" font-weight="700" fill="#334155">카드 번호</text>
-        <rect x="132" y="386" width="202" height="52" rx="16" fill="#4f46e5"/>
-        <text x="179" y="419" font-family="Inter, Arial" font-size="15" font-weight="800" fill="white">저장하기</text>
-        <rect x="592" y="158" width="392" height="360" rx="26" fill="white" stroke="#e5e7eb"/>
-        <text x="632" y="210" font-family="Inter, Arial" font-size="20" font-weight="800" fill="#111827">MIMIC 안내</text>
-        <rect x="632" y="250" width="294" height="78" rx="20" fill="#eef2ff"/>
-        <text x="660" y="281" font-family="Inter, Arial" font-size="15" font-weight="800" fill="#3730a3">03. 저장하기 버튼 클릭</text>
-        <text x="660" y="308" font-family="Inter, Arial" font-size="14" fill="#4338ca">오른쪽 아래 보라색 버튼을 누르세요.</text>
-        <rect x="632" y="372" width="120" height="44" rx="14" fill="#111827"/>
-        <text x="664" y="400" font-family="Inter, Arial" font-size="14" font-weight="800" fill="white">다음</text>
-        <rect x="762" y="372" width="164" height="44" rx="14" fill="#f8fafc" stroke="#cbd5e1"/>
-        <text x="800" y="400" font-family="Inter, Arial" font-size="14" font-weight="700" fill="#334155">음성 안내</text>
-      </svg>
-    `),
-  },
-  {
-    eyebrow: 'Share',
-    title: '링크와 문서로 바로 전달합니다',
-    body: '완성된 매뉴얼은 링크로 공유하고, 필요한 팀에는 PDF, PPTX, Word 문서로 넘길 수 있습니다.',
-    hotspotX: 76,
-    hotspotY: 29,
-    kind: 'click',
-    screen: svgDataUri(`
-      <svg xmlns="http://www.w3.org/2000/svg" width="1120" height="680" viewBox="0 0 1120 680">
-        <rect width="1120" height="680" rx="28" fill="#f8fafc"/>
-        <rect x="62" y="54" width="996" height="572" rx="28" fill="white" stroke="#e5e7eb"/>
-        <text x="112" y="124" font-family="Inter, Arial" font-size="28" font-weight="800" fill="#111827">팀 결제 수단 변경하기</text>
-        <text x="112" y="158" font-family="Inter, Arial" font-size="16" fill="#64748b">4개의 단계가 준비되었습니다.</text>
-        <rect x="780" y="92" width="198" height="52" rx="18" fill="#4f46e5"/>
-        <text x="832" y="124" font-family="Inter, Arial" font-size="15" font-weight="800" fill="white">공유 링크 복사</text>
-        <rect x="112" y="214" width="594" height="316" rx="24" fill="#f8fafc" stroke="#e2e8f0"/>
-        <rect x="146" y="250" width="528" height="54" rx="16" fill="white" stroke="#e5e7eb"/>
-        <text x="174" y="283" font-family="Inter, Arial" font-size="15" font-weight="700" fill="#111827">01. 결제 설정 화면으로 이동</text>
-        <rect x="146" y="326" width="528" height="54" rx="16" fill="white" stroke="#e5e7eb"/>
-        <text x="174" y="359" font-family="Inter, Arial" font-size="15" font-weight="700" fill="#111827">02. 카드 정보 영역 확인</text>
-        <rect x="146" y="402" width="528" height="54" rx="16" fill="#eef2ff" stroke="#c7d2fe"/>
-        <text x="174" y="435" font-family="Inter, Arial" font-size="15" font-weight="800" fill="#3730a3">03. 저장하기 버튼 클릭</text>
-        <rect x="762" y="214" width="250" height="316" rx="24" fill="#111827"/>
-        <text x="798" y="264" font-family="Inter, Arial" font-size="18" font-weight="800" fill="white">내보내기</text>
-        <rect x="798" y="302" width="166" height="46" rx="15" fill="#1f2937"/>
-        <text x="850" y="331" font-family="Inter, Arial" font-size="14" font-weight="800" fill="#e5e7eb">PDF</text>
-        <rect x="798" y="370" width="166" height="46" rx="15" fill="#1f2937"/>
-        <text x="842" y="399" font-family="Inter, Arial" font-size="14" font-weight="800" fill="#e5e7eb">PPTX</text>
-        <rect x="798" y="438" width="166" height="46" rx="15" fill="#4f46e5"/>
-        <text x="841" y="467" font-family="Inter, Arial" font-size="14" font-weight="800" fill="white">Word</text>
-      </svg>
-    `),
+    typeText: 'kim@company.com',
   },
 ];
 
@@ -1498,11 +1456,11 @@ function ProductShowcase() {
 
 function ServiceSimulatorSection() {
   const [active, setActive] = useState(0);
-  const step = simulatorSteps[active];
+  const step = simulatorDemos[active];
 
   useEffect(() => {
     const id = window.setInterval(() => {
-      setActive((current) => (current + 1) % simulatorSteps.length);
+      setActive((current) => (current + 1) % simulatorDemos.length);
     }, 3600);
     return () => window.clearInterval(id);
   }, []);
@@ -1513,14 +1471,14 @@ function ServiceSimulatorSection() {
         <RevealSection>
           <div className="simulator-grid">
             <div className="simulator-copy">
-              <span className="simulator-eyebrow">Live Simulator</span>
-              <h2>문서로 남기고, 화면 위에서 실행하게 합니다</h2>
+              <span className="simulator-eyebrow">Two live demos</span>
+              <h2>매뉴얼 생성과 Live Guide 실행을 따로 보여줍니다</h2>
               <p>
-                녹화, AI 초안, 따라하기 가이드, 공유까지 한 화면 안에서 자동으로 재생됩니다.
-                MIMIC은 매뉴얼을 만드는 데서 멈추지 않고 실제 업무 순간까지 이어줍니다.
+                첫 번째 데모는 캡처 후 매뉴얼이 자동 생성되고 공유되는 흐름입니다.
+                두 번째 데모는 Live Guide가 클릭 위치와 자동 텍스트 입력까지 안내해 최종 목적지까지 도달하는 흐름입니다.
               </p>
               <div className="simulator-steps" role="tablist" aria-label="MIMIC product simulator steps">
-                {simulatorSteps.map((item, index) => (
+                {simulatorDemos.map((item, index) => (
                   <button
                     key={item.eyebrow}
                     type="button"
@@ -1545,7 +1503,7 @@ function ServiceSimulatorSection() {
                 </div>
                 <div className="simulator-rec-dot">
                   <i />
-                  실시간 데모
+                  실제 화면 흐름
                 </div>
               </div>
               <div className="simulator-follow-wrap">
@@ -1556,6 +1514,7 @@ function ServiceSimulatorSection() {
                   hotspotY={step.hotspotY}
                   kind={step.kind}
                   typeText={step.typeText}
+                  typeTextColor="#111827"
                   animateType={step.kind === 'type'}
                   title={step.title}
                   body={step.body}
@@ -1588,7 +1547,7 @@ function HeroSection() {
         {/* Announcement badge */}
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '5px 16px 5px 6px', background: 'rgba(124,58,237,0.10)', border: '1px solid rgba(124,58,237,0.22)', borderRadius: '999px', fontSize: '12.5px', color: '#c4b5fd', fontWeight: 500, marginBottom: '36px', backdropFilter: 'blur(8px)' }}>
           <span style={{ padding: '3px 10px', borderRadius: '999px', background: 'linear-gradient(135deg, #4f46e5, #7c3aed)', fontSize: '10px', fontWeight: 700, color: 'white', letterSpacing: '0.06em', flexShrink: 0 }}>NEW</span>
-          SOP를 만들고, 실행 순간에는 화면 위에서 안내합니다
+          매뉴얼을 만들고, Live Guide로 끝까지 실행까지 안내합니다
         </div>
 
         <h1 style={{ margin: '0 auto 24px', fontSize: 'clamp(44px, 7vw, 84px)', lineHeight: 1.04, fontWeight: 800, letterSpacing: '-0.045em', maxWidth: '880px', color: 'white', wordBreak: 'keep-all' }}>
@@ -1599,8 +1558,8 @@ function HeroSection() {
         </h1>
 
         <p style={{ fontSize: 'clamp(15px, 2vw, 18px)', color: 'rgba(255,255,255,0.48)', maxWidth: '560px', margin: '0 auto 48px', lineHeight: 1.8, fontWeight: 400 }}>
-          평소처럼 클릭하면 SOP와 매뉴얼이 자동으로 정리됩니다.<br/>
-          공유한 지식은 문서로 남고, 필요한 순간에는 화면 위 가이드로 이어집니다.
+          클릭 위치만 알려주는 데서 멈추지 않습니다. 필요한 텍스트는 화면 위에서 자동으로 입력하고,<br/>
+          사용자가 하려는 일을 처음부터 최종 목적지까지 차근차근 따라가게 합니다.
         </p>
 
         <div className="hero-cta-row" style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginBottom: '60px' }}>
@@ -1620,8 +1579,8 @@ function HeroSection() {
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '64px' }}>
           {[
             { value: '30초', label: 'SOP·매뉴얼 초안' },
-            { value: '실시간', label: '화면 위 실행 안내' },
-            { value: '끝까지', label: '업무 완료까지 연결' },
+            { value: 'Live', label: '클릭 + 자동 입력 안내' },
+            { value: '끝까지', label: '목표 완료까지 동행' },
           ].map((stat, i) => (
             <div key={stat.label} style={{ textAlign: 'center', padding: '16px 40px', borderRight: i < 2 ? '1px solid rgba(255,255,255,0.07)' : 'none' }}>
               <div style={{ fontSize: '30px', fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1, marginBottom: '6px', background: 'linear-gradient(180deg, #ffffff 0%, rgba(255,255,255,0.65) 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{stat.value}</div>
