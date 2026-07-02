@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { Undo2, Redo2, Loader2, Eye, Wand2, MessageSquare, Clock, Share2, Palette, Download, Check, Link2, Zap } from 'lucide-react';
+import { Undo2, Redo2, Loader2, Eye, Wand2, MessageSquare, Clock, Share2, Palette, Download, Check, Link2, Play, Zap } from 'lucide-react';
 import { GuideToc } from '@/components/editor/GuideToc';
 import { ManualEditor, ManualStep } from '@/components/editor/ManualEditor';
 import { MergeModal } from '@/components/editor/MergeModal';
@@ -636,10 +636,21 @@ export default function EditorPage() {
 
             <button
               onClick={() => router.push(`/manual/${id}/studio`)}
-              title="Live Guide Studio에서 실행 조건을 확인하고 고객용 링크를 준비합니다"
+              title="연습 가이드의 화면 안내, 핫스팟, 입력 텍스트를 편집합니다"
               style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#4F46E5', background: 'rgba(79,70,229,0.08)', border: '1px solid rgba(79,70,229,0.35)', cursor: 'pointer', transition: 'all 0.15s', fontWeight: 600 }}
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(79,70,229,0.13)'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'rgba(79,70,229,0.08)'; }}
+            >
+              <Play size={TOP_BAR_ICON_SIZE} />
+              연습 가이드
+            </button>
+
+            <button
+              onClick={() => router.push(`/manual/${id}/live-studio`)}
+              title="Live Guide 실행 대상과 고객용 실행 흐름을 확인합니다"
+              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#2563EB', background: 'rgba(37,99,235,0.08)', border: '1px solid rgba(37,99,235,0.32)', cursor: 'pointer', transition: 'all 0.15s', fontWeight: 600 }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,99,235,0.13)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,99,235,0.08)'; }}
             >
               <Zap size={TOP_BAR_ICON_SIZE} />
               Live Guide Studio

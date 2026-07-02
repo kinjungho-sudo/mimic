@@ -137,6 +137,12 @@ export type Step = {
   voice_audio_end_ms?: number | null;
   user_annotations?: unknown[] | null;
   follow_config?: FollowConfig | null;
+  element_selector?: string | null;
+  element_xpath?: string | null;
+  element_rect?: { x: number; y: number; width: number; height: number } | null;
+  click_x?: number | null;
+  click_y?: number | null;
+  type_text?: string | null;
   step_type?: StepType | null;
   capture_source?: CaptureSource | null;
   capture_failure_reason?: string | null;

@@ -17,6 +17,17 @@ const stepPatchSchema = z.object({
   domain_name: z.string().max(100).nullable().optional(),
   domain_hostname: z.string().max(255).nullable().optional(),
   // 따라하기 스튜디오 저작 데이터 (null=자동추론)
+  page_url: z.string().url().nullable().optional(),
+  element_selector: z.string().max(500).nullable().optional(),
+  element_xpath: z.string().max(500).nullable().optional(),
+  element_rect: z.object({
+    x: z.number().min(0).max(1),
+    y: z.number().min(0).max(1),
+    width: z.number().min(0).max(1),
+    height: z.number().min(0).max(1),
+  }).nullable().optional(),
+  click_x: z.number().min(0).max(1).nullable().optional(),
+  click_y: z.number().min(0).max(1).nullable().optional(),
   follow_config: z.object({
     hotspotX: z.number().min(0).max(100).nullable().optional(),
     hotspotY: z.number().min(0).max(100).nullable().optional(),
@@ -60,7 +71,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     .from('mm_steps')
     .update(parsed.data)
     .eq('id', id)
-    .select('id, tutorial_id, user_title, user_script, user_annotations, follow_config')
+    .select('id, tutorial_id, user_title, user_script, user_annotations, follow_config, page_url, element_selector, element_xpath, element_rect, click_x, click_y')
     .single();
 
   if (error || !data) {
