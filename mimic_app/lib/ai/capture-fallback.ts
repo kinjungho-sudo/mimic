@@ -78,6 +78,7 @@ const GMAIL_CONTEXTS: Array<{ pattern: RegExp; base: string }> = [
   { pattern: /읽지\s*않은\s*메일|메일함|mail/i, base: '메일함' },
   { pattern: /답장|reply/i, base: '답장' },
   { pattern: /보내기|send/i, base: '메일 보내기' },
+  { pattern: /제목|subject/i, base: '메일 제목' },
   { pattern: /본문|body|message/i, base: '메일 본문' },
   { pattern: /숨은\s*참조|bcc/i, base: '숨은참조 수신자' },
   { pattern: /참조|\bcc\b/i, base: '참조 수신자' },
@@ -194,11 +195,28 @@ function titleVerbFor(base: string, actionType: string | undefined, noAction: bo
   const verb = verbForAction(actionType, noAction);
   if (/메일함|받은편지함/.test(base)) return '확인';
   if (/메일 보내기/.test(base)) return '클릭';
+  if (/자동 완성/.test(base)) return '클릭';
   if (verb === '입력' && /입력$/.test(base)) return '확인';
   return verb;
 }
 
+function recipientTarget(base: string): string {
+  if (/숨은참조/.test(base)) return '숨은참조 수신자';
+  if (/참조/.test(base)) return '참조 수신자';
+  if (/받는 사람|수신자/.test(base)) return '수신자';
+  return base;
+}
+
 function scriptFor(base: string, verb: ReturnType<typeof verbForAction>): string {
+  if (/자동 완성/.test(base)) {
+    return `${recipientTarget(base)}를 자동완성 목록에서 선택합니다.`;
+  }
+  if (/^(받는 사람|수신자|참조 수신자|숨은참조 수신자)$/.test(base) && verb === '입력') {
+    return `${recipientTarget(base)} 칸에 이메일 주소를 입력합니다.`;
+  }
+  if (base === '메일 제목' && verb === '입력') return '메일 제목을 입력합니다.';
+  if (base === '메일 본문' && verb === '입력') return '메일 본문을 입력합니다.';
+  if (base === '메일 보내기' && verb === '클릭') return '보내기 버튼을 클릭합니다.';
   if (verb === '입력') return `${base}${locationParticle(base)} 내용을 입력합니다.`;
   if (verb === '선택') return `${base}${objectParticle(base)} 선택합니다.`;
   if (verb === '이동') return `${base}${locationParticle(base)} 이동합니다.`;
