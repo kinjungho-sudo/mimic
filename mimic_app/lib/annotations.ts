@@ -17,9 +17,13 @@ type Rect = { x: number; y: number; width: number; height: number }; // 0-1 norm
 export function buildClickHighlight(params: {
   elementRect: Rect;
   stepNumber: number;
+  clickX?: number | null;
+  clickY?: number | null;
+  actionType?: string | null;
   label: string;       // ai_title 등 짧은 액션 설명
 }): Annotation[] {
-  const { elementRect: r, stepNumber, label } = params;
+  const { elementRect, stepNumber, label } = params;
+  const r = refineHighlightRect(elementRect, params.clickX, params.clickY, params.actionType);
 
   // element_rect (0-1) → 0-100%
   const ex1 = r.x * 100;
@@ -138,6 +142,50 @@ export function buildClickHighlight(params: {
 //
 // element_rect 없이 click_x/y(0~1)만 있을 때 사용.
 // 클릭 지점에 원형 강조 + 텍스트 라벨만 생성.
+
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function normalizeUnit(value: number | null | undefined): number | null {
+  if (value == null || !Number.isFinite(value)) return null;
+  if (value > 100) return clamp01(value / 10000);
+  if (value > 1) return clamp01(value / 100);
+  return clamp01(value);
+}
+
+function refineHighlightRect(rect: Rect, clickX?: number | null, clickY?: number | null, actionType?: string | null): Rect {
+  const cx = normalizeUnit(clickX);
+  const cy = normalizeUnit(clickY);
+  if (cx == null || cy == null) return rect;
+
+  const isLarge = rect.width > 0.34 || rect.height > 0.16 || rect.width * rect.height > 0.055;
+  if (!isLarge) return rect;
+
+  const isTyping = actionType === 'type' || actionType === 'focus_input';
+  const width = isTyping
+    ? clamp(rect.width * 0.55, 0.18, 0.38)
+    : clamp(rect.width * 0.42, 0.08, 0.24);
+  const height = isTyping
+    ? clamp(rect.height * 0.35, 0.045, 0.10)
+    : clamp(rect.height * 0.42, 0.045, 0.12);
+
+  const minX = Math.max(0, rect.x);
+  const minY = Math.max(0, rect.y);
+  const maxX = Math.min(1 - width, rect.x + rect.width - width);
+  const maxY = Math.min(1 - height, rect.y + rect.height - height);
+
+  return {
+    x: clamp(cx - width / 2, minX, Math.max(minX, maxX)),
+    y: clamp(cy - height / 2, minY, Math.max(minY, maxY)),
+    width,
+    height,
+  };
+}
 
 export function buildClickPoint(params: {
   clickX: number;  // 0~1 정규화

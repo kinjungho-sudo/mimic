@@ -721,7 +721,7 @@ export async function POST(request: NextRequest) {
               let annotations;
 
               if (rect) {
-                annotations = buildClickHighlight({ elementRect: rect, stepNumber: num, label });
+                annotations = buildClickHighlight({ elementRect: rect, stepNumber: num, label, clickX: step.click_x, clickY: step.click_y, actionType });
               } else if (step.click_x != null && step.click_y != null && (step.click_x > 0 || step.click_y > 0)) {
                 const estimatedRect = {
                   x: Math.max(0, step.click_x - 0.05),
@@ -729,7 +729,7 @@ export async function POST(request: NextRequest) {
                   width:  Math.min(0.10, 1 - Math.max(0, step.click_x - 0.05)),
                   height: Math.min(0.04, 1 - Math.max(0, step.click_y - 0.02)),
                 };
-                annotations = buildClickHighlight({ elementRect: estimatedRect, stepNumber: num, label });
+                annotations = buildClickHighlight({ elementRect: estimatedRect, stepNumber: num, label, clickX: step.click_x, clickY: step.click_y, actionType });
               } else {
                 return;
               }

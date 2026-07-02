@@ -607,18 +607,51 @@ function getNormalizedClick(step) {
   return { x, y };
 }
 
+function isTypeStep(step) {
+  return step.actionInfo?.type === 'type' || step.actionInfo?.type === 'focus_input' || !!step.typedText;
+}
+
+function isOversizedElementRect(rect) {
+  return !!rect && (rect.width > 0.34 || rect.height > 0.16 || rect.width * rect.height > 0.055);
+}
+
+function refinedPreviewRect(step) {
+  const er = step.elementRect;
+  const click = getNormalizedClick(step);
+  if (!er || !click || !isOversizedElementRect(er)) return er;
+
+  const isType = isTypeStep(step);
+  const width = isType
+    ? clamp(er.width * 0.55, 0.18, 0.38)
+    : clamp(er.width * 0.42, 0.08, 0.24);
+  const height = isType
+    ? clamp(er.height * 0.35, 0.045, 0.10)
+    : clamp(er.height * 0.42, 0.045, 0.12);
+
+  const minX = Math.max(0, er.x);
+  const minY = Math.max(0, er.y);
+  const maxX = Math.min(1 - width, er.x + er.width - width);
+  const maxY = Math.min(1 - height, er.y + er.height - height);
+
+  return {
+    x: clamp(click.x - width / 2, minX, Math.max(minX, maxX)),
+    y: clamp(click.y - height / 2, minY, Math.max(minY, maxY)),
+    width,
+    height,
+  };
+}
+
 function isValidFrame(frame) {
   return frame && frame.width > 0.05 && frame.height > 0.05 && frame.width <= 1 && frame.height <= 1;
 }
 
 function computePreviewFrame(step) {
-  if (isValidFrame(step.cropBox)) return step.cropBox;
-
-  const er = step.elementRect;
+  const er = refinedPreviewRect(step) || step.elementRect;
   const click = getNormalizedClick(step);
+  if (isValidFrame(step.cropBox) && !isOversizedElementRect(step.elementRect)) return step.cropBox;
   if (!er && !click) return null;
 
-  const isType = step.actionInfo?.type === 'type' || step.actionInfo?.type === 'focus_input' || !!step.typedText;
+  const isType = isTypeStep(step);
   const pad = isType ? 0.08 : 0.10;
   const minW = isType ? 0.46 : 0.42;
   const minH = isType ? 0.30 : 0.32;
@@ -693,7 +726,7 @@ function renderThumbOverlay(overlayEl, imgEl, step, _unused) {
   overlayEl.replaceChildren();
   const thumbWrap = overlayEl.closest('.step-thumb');
   thumbWrap?.querySelector('.step-type-badge')?.remove();
-  const er = step.elementRect;
+  const er = refinedPreviewRect(step) || step.elementRect;
   const frame = overlayEl._previewFrame;
   const rect = frame && isValidFrame(frame)
     ? {

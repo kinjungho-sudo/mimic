@@ -1897,8 +1897,27 @@ chrome.storage.onChanged.addListener((changes, area) => {
 // 클릭 요소(elementRect, 0~1) 기준으로 확대해서 보여줄 영역을 정한다(Tango식 프레이밍).
 // 반환: 원본 이미지 기준 0~1 {x,y,width,height}, 또는 null(요소 없음 → 확대 안 함).
 // 주의: 이미지를 자르는 게 아니라 "확대 영역"을 정의하는 메타데이터다.
-function computeCropBox(elementRect, clickX, clickY) {
+function computeCropBox(elementRect, clickX, clickY, actionInfo) {
   if (!elementRect) return null;
+  const actionType = actionInfo?.type;
+  const isTyping = actionType === 'type' || actionType === 'focus_input';
+  const isLarge = elementRect.width > 0.34 || elementRect.height > 0.16 || elementRect.width * elementRect.height > 0.055;
+  if (isLarge && clickX > 0 && clickY > 0) {
+    const width = isTyping
+      ? Math.max(0.46, Math.min(0.62, elementRect.width * 0.7))
+      : Math.max(0.38, Math.min(0.54, elementRect.width * 0.56));
+    const height = isTyping
+      ? Math.max(0.28, Math.min(0.44, elementRect.height * 0.7))
+      : Math.max(0.26, Math.min(0.40, elementRect.height * 0.56));
+    const x = Math.max(0, Math.min(1 - width, clickX - width / 2));
+    const y = Math.max(0, Math.min(1 - height, clickY - height / 2));
+    return {
+      x: Math.round(x * 1000) / 1000,
+      y: Math.round(y * 1000) / 1000,
+      width: Math.round(Math.min(1 - x, width) * 1000) / 1000,
+      height: Math.round(Math.min(1 - y, height) * 1000) / 1000,
+    };
+  }
   const size = Math.max(elementRect.width, elementRect.height);
   // 요소가 작을수록 더 넓은 패딩(컨텍스트 확보), 클수록 좁게
   const PAD = size < 0.05 ? 0.15 : size > 0.3 ? 0.05 : 0.10;
@@ -2055,7 +2074,7 @@ async function prepareCapture(pngDataUrl, stepData, tab) {
 
   // 행동 없음(이동/빈영역/요소 없음)에는 확대 영역을 만들지 않는다.
   const cropBox = stepData.elementRect
-    ? computeCropBox(stepData.elementRect, clickX, clickY)
+    ? computeCropBox(stepData.elementRect, clickX, clickY, stepData.actionInfo)
     : null;
 
   await idbPut(stepNum, jpegBlob);
@@ -2374,7 +2393,7 @@ async function syncLocalStepsBeforeFinalize(sessionId, stepNumbers, localSteps) 
     const viewportH = step.windowHeight || step.viewportH || 800;
     const clickX = normalizeCoord(step.clickX, viewportW);
     const clickY = normalizeCoord(step.clickY, viewportH);
-    const cropBox = step.cropBox ?? computeCropBox(step.elementRect, clickX, clickY);
+    const cropBox = step.cropBox ?? computeCropBox(step.elementRect, clickX, clickY, step.actionInfo);
 
     await saveStep({
       sessionId,

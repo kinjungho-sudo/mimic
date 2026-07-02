@@ -44,7 +44,7 @@ export async function POST(
         const num = step.step_number ?? 1;
 
         if (rect) {
-          patch.user_annotations = buildClickHighlight({ elementRect: rect, stepNumber: num, label });
+          patch.user_annotations = buildClickHighlight({ elementRect: rect, stepNumber: num, label, clickX: step.click_x, clickY: step.click_y });
         } else if (step.click_x != null && step.click_y != null) {
           // DB click_x/y: 0~1 정규화값 (Extension이 / viewportWidth로 저장)
           patch.user_annotations = buildClickPoint({
