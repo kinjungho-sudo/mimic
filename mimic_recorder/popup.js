@@ -18,9 +18,11 @@ const btnSettings      = document.getElementById('btnSettings');
 const settingsOverlay  = document.getElementById('settingsOverlay');
 const btnBack          = document.getElementById('btnBack');
 const settingHighlight = document.getElementById('settingHighlight');
+const settingAutoZoom  = document.getElementById('settingAutoZoom');
 const settingAutoNav   = document.getElementById('settingAutoNav');
 const settingVoiceRecord = document.getElementById('settingVoiceRecord');
 const settingSaveText    = document.getElementById('settingSaveText');
+const settingCaptureInputClicks = document.getElementById('settingCaptureInputClicks');
 
 let isRecording  = false;
 let isPaused     = false;
@@ -32,12 +34,13 @@ let capturedStepCount = 0;
 const SETTINGS_DEFAULTS = {
   highlight:   true,
   autoNav:     true,
-  autoZoom:    false,  // 선택영역 확대 — 매뉴얼 이미지에 클릭 영역 확대 선적용
-  voiceRecord: false,  // 음성 설명 녹음 — 녹화 중 마이크로 설명 → 스텝 전사
-  saveText:    false,  // 타이핑 텍스트 저장 — Live Guide Ctrl+V 자동입력용
+  autoZoom:    false,
+  voiceRecord: false,
+  saveText:    false,
+  captureInputClicks: false,
 };
 
-// ── chrome.storage.local 프로미스 헬퍼 ──────────────────────────
+// Storage helpers
 function storageGet(keys) {
   return new Promise((resolve) => chrome.storage.local.get(keys, resolve));
 }
@@ -84,6 +87,7 @@ function loadSettingsUI(saved) {
   settingAutoNav.checked        = s.autoNav;
   if (settingVoiceRecord) settingVoiceRecord.checked = s.voiceRecord;
   if (settingSaveText)    settingSaveText.checked    = s.saveText;
+  if (settingCaptureInputClicks) settingCaptureInputClicks.checked = s.captureInputClicks;
 }
 
 function saveSettings() {
@@ -93,6 +97,7 @@ function saveSettings() {
     autoNav:     settingAutoNav.checked,
     voiceRecord: settingVoiceRecord ? settingVoiceRecord.checked : false,
     saveText:    settingSaveText    ? settingSaveText.checked    : false,
+    captureInputClicks: settingCaptureInputClicks ? settingCaptureInputClicks.checked : false,
   };
   chrome.storage.local.set({ settings: s });
   storageGet('targetTabId').then(({ targetTabId }) => {
@@ -115,6 +120,7 @@ settingHighlight.addEventListener('change',   saveSettings);
 settingAutoZoom.addEventListener('change',    saveSettings);
 settingAutoNav.addEventListener('change',     saveSettings);
 if (settingSaveText) settingSaveText.addEventListener('change', saveSettings);
+if (settingCaptureInputClicks) settingCaptureInputClicks.addEventListener('change', saveSettings);
 
 // 음성 녹음 토글 — 켤 때 마이크 권한을 먼저 확보한다.
 // 사이드패널·offscreen은 마이크 프롬프트를 띄우지 못하고 즉시 거부되므로,

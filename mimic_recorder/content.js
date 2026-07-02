@@ -49,6 +49,7 @@
     highlight: true,
     autoNav:   true,
     saveText:  false,
+    captureInputClicks: false,
   };
 
   let lastCapturedTarget = null;
@@ -60,6 +61,7 @@
   let typingUrl          = null;   // 입력 세션 시작 시 URL — 재마운트 필드 판정용
   let typingTimer        = null;
   let _pointerDownSnapshot = null;
+  let typingFocusSnapshot = null;
   let _countingDown      = false;
   let _lastTypingFrameTime = 0;     // 롤링 타이핑 프레임 throttle 기준
   let _typingFrameTimer  = null;    // 입력 멈춤(완료) 시점 프레임 1장 예약 타이머
@@ -269,7 +271,15 @@
   function flushTyping(el, finalize = true, opts = {}) {
     clearTimeout(typingTimer);
     typingTimer = null;
-    const endSession = () => { if (finalize) { clearTimeout(_typingFrameTimer); pendingInputStep = null; typingTarget = null; typingUrl = null; } };
+    const endSession = () => {
+      if (finalize) {
+        clearTimeout(_typingFrameTimer);
+        pendingInputStep = null;
+        typingTarget = null;
+        typingUrl = null;
+        typingFocusSnapshot = null;
+      }
+    };
 
     if (!isRecording || isPaused || isCapturing) { endSession(); return; }
 
@@ -295,21 +305,29 @@
 
     const { cx, cy } = rectCenter(el);
     const { vw, vh } = getViewportSize();
-    // 타이핑 위치도 클릭처럼 element_rect/selector를 보내 편집기가 입력 필드를 강조한다.
+    // Preserve the original input-click target for Live Guide replay.
     const rect = el.getBoundingClientRect();
+    const focusSnapshot = typingFocusSnapshot;
+    const elementRect = focusSnapshot?.elementRect ?? normalizeRect(toTopRect(rect), vw, vh);
+    const elementSelector = focusSnapshot?.elementSelector ?? getElementSelector(el);
+    const elementXPath = focusSnapshot?.elementXPath ?? getElementXPath(el);
+    const clickX = focusSnapshot?.clickX ?? cx;
+    const clickY = focusSnapshot?.clickY ?? cy;
+    const role = focusSnapshot?.role || el.getAttribute('role') || undefined;
+    const labelDebug = focusSnapshot?.labelDebug ?? buildLabelDebug(el, label);
 
     lastCapturedTarget = el;
     lastCapturedTime   = Date.now();
     sendCapture({
       url: location.href, timestamp: Date.now(),
-      clickX: cx, clickY: cy,
+      clickX, clickY,
       windowWidth: vw, windowHeight: vh,
       viewportW: vw, viewportH: vh,
       stepNumber: stepForThis, overwrite: true, useTypingFrame: true,
       usePrecapture: !!opts.usePrecapture, peekPrecapture: !!opts.peekPrecapture,
       typedText,
-      elementRect: normalizeRect(toTopRect(rect), vw, vh), elementSelector: getElementSelector(el), elementXPath: getElementXPath(el),
-      actionInfo: { type: 'type', label, text: label, typedText, masked: isMasked, tag: el.tagName.toLowerCase(), role: el.getAttribute('role') || undefined, labelDebug: buildLabelDebug(el, label) },
+      elementRect, elementSelector, elementXPath,
+      actionInfo: { type: 'type', label, text: label, typedText, masked: isMasked, tag: el.tagName.toLowerCase(), role, labelDebug },
     }, done);
 
     endSession();
@@ -329,6 +347,7 @@
     _typingFrameTimer  = null;
     typingTarget       = null;
     pendingInputStep   = null;
+    typingFocusSnapshot = null;
     typingUrl          = null;
     lastCapturedTarget = null;
   }
@@ -416,17 +435,18 @@
 
   // ── 캡처 완료 플래시 ─────────────────────────────────────────────
   function flashCapture() {
+    if (!IS_TOP_FRAME) return;
     const flash = document.createElement('div');
     flash.style.cssText = [
       'position:fixed', 'inset:0',
-      'background:#fff', 'opacity:0.5',
+      'background:#fff', 'opacity:0.72',
       'pointer-events:none', 'z-index:2147483647',
-      'transition:opacity 0.22s ease-out',
+      'transition:opacity 0.28s ease-out',
     ].join(';');
     document.documentElement.appendChild(flash);
     requestAnimationFrame(() => {
       flash.style.opacity = '0';
-      setTimeout(() => flash.remove(), 250);
+      setTimeout(() => flash.remove(), 320);
     });
   }
 
@@ -633,8 +653,12 @@
       removeFileHighlight();
       isCapturing = false;
       hoverTarget = null;
-      // 수동 캡처(background 직접 처리)는 msg.flash로 캡처 플래시 신호를 받는다
-      if (msg.flash) flashCapture();
+      sendResponse({ ok: true });
+      return false;
+    }
+
+    if (msg.type === 'MANUAL_CAPTURE_FLASH') {
+      flashCapture();
       sendResponse({ ok: true });
       return false;
     }
@@ -882,11 +906,15 @@
     const rect = captureEl.getBoundingClientRect();
     if (!rect.width || !rect.height) return null;
     const { vw, vh } = getViewportSize();
+    const topClick = toTopPoint(event.clientX, event.clientY);
     const label = getElementLabel(captureEl, clickedEl);
     return {
+      target: captureEl,
       time: Date.now(),
       x: event.clientX,
       y: event.clientY,
+      clickX: topClick.x,
+      clickY: topClick.y,
       elementRect: normalizeRect(toTopRect(rect), vw, vh),
       elementSelector: getElementSelector(captureEl),
       elementXPath: getElementXPath(captureEl),
@@ -1118,9 +1146,8 @@
 
     const actionTarget = refineActionTarget(clickedEl, target);
     const now = Date.now();
-    if (actionTarget === lastCapturedTarget && (now - lastCapturedTime) < DEDUP_SAME_ELEMENT) return;
-
     const actionType = getActionType(target);
+    if (actionType !== 'focus_input' && actionTarget === lastCapturedTarget && (now - lastCapturedTime) < DEDUP_SAME_ELEMENT) return;
 
     // 입력 필드 포커스: typingTarget 세팅 + 클릭 자체도 캡처 (항상 캡처 정책)
     if (actionType === 'focus_input') {
@@ -1128,6 +1155,7 @@
       // (DEDUP_REFOCUS_MS 경과 후 재클릭은 의도가 있다고 보고 다시 캡처.) 타이핑 세션은 유지.
       if (target === lastFocusInputTarget && (now - lastFocusInputTime) < DEDUP_REFOCUS_MS) {
         typingTarget = target;
+        typingFocusSnapshot = getRecentPointerSnapshot(e) || typingFocusSnapshot;
         return;  // 클릭 스텝 캡처 생략
       }
       // 다른 필드로 옮겼을 때만 이전 입력을 마감(flush가 세션을 끝냄 → 새 스텝).
@@ -1136,8 +1164,10 @@
         flushTyping(typingTarget, true, { usePrecapture: true, peekPrecapture: true });
       }
       typingTarget = target;
+      typingFocusSnapshot = getRecentPointerSnapshot(e);
       lastFocusInputTarget = target;
       lastFocusInputTime   = now;
+      if (!settings.captureInputClicks) return;
       // 아래로 진행해서 캡처
     } else {
       // 진행 중이던 타이핑 flush — 클릭(액션) 직전 선캡처 프레임을 타이핑 스텝 이미지로 쓰고,

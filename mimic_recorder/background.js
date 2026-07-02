@@ -988,7 +988,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       await new Promise((r) => setTimeout(r, CAPTURE_RAF_DELAY_MS));
 
       const capturedRaw = await captureTab(tab.windowId);
-      sendTabMessage(tabId, { type: 'RESTORE_OVERLAY', flash: true });  // 캡처 플래시 피드백
+      if (capturedRaw) sendTabMessage(tabId, { type: 'MANUAL_CAPTURE_FLASH' });
+      sendTabMessage(tabId, { type: 'RESTORE_OVERLAY' });
       if (!capturedRaw) { sendResponse({ ok: false }); return; }
 
       // viewport는 content가 보고한 값 우선 — 기기 에뮬레이션에서는 tab.width(실제 창)와 다르다
