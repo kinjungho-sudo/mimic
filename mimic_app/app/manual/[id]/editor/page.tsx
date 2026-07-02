@@ -645,6 +645,17 @@ export default function EditorPage() {
               연습 가이드
             </button>
 
+            <button
+              onClick={() => router.push(`/manual/${id}/live-studio`)}
+              title="Open live guide target studio"
+              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#2563EB', background: 'rgba(37,99,235,0.08)', border: '1px solid rgba(37,99,235,0.32)', cursor: 'pointer', transition: 'all 0.15s', fontWeight: 600 }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,99,235,0.13)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,99,235,0.08)'; }}
+            >
+              <Zap size={TOP_BAR_ICON_SIZE} />
+              Live Studio
+            </button>
+
             {/* 댓글 패널 토글 — 팀 협업 의견 공유 */}
             <button
               onClick={() => { setShowComments(v => !v); setShowActivity(false); }}

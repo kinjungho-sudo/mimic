@@ -123,6 +123,12 @@ export type Step = {
   user_script: string | null;
   user_annotations?: unknown[] | null;
   follow_config?: FollowConfig | null;
+  element_selector?: string | null;
+  element_xpath?: string | null;
+  element_rect?: { x: number; y: number; width: number; height: number } | null;
+  click_x?: number | null;
+  click_y?: number | null;
+  type_text?: string | null;
   domain_hostname?: string | null;
   domain_name?:     string | null;
   domain_favicon?:  string | null;
