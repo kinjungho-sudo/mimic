@@ -3,8 +3,10 @@ async function main() {
     buildCaptureFallbackDraft,
     buildCaptureFallbackTutorialTitle,
     buildCaptureAnnotationLabel,
+    cleanCaptureTypeText,
     isLowQualityCaptureScript,
     isLowQualityCaptureTitle,
+    isLowQualityCaptureTutorialTitle,
     isUsableCaptureDraft,
   } = await import('../lib/ai/capture-fallback.ts');
 
@@ -130,8 +132,8 @@ async function main() {
     { user_title: '화면 확인' },
     { user_title: '대회소개 클릭' },
   ]);
-  if (fallbackTitle !== '대회소개 클릭하기') {
-    failures.push({ name: 'tutorial title fallback', expected: '대회소개 클릭하기', actual: fallbackTitle });
+  if (fallbackTitle !== '대회소개하기') {
+    failures.push({ name: 'tutorial title fallback', expected: '대회소개하기', actual: fallbackTitle });
   }
 
   if (!isLowQualityCaptureTitle('edit 클릭')) {
@@ -145,6 +147,32 @@ async function main() {
   }
   if (!isLowQualityCaptureTitle('메일, 읽지 않은 메일 2458개 클릭')) {
     failures.push({ name: 'gmail unread count title detector', expected: true, actual: false });
+  }
+  const rawDomTitles = [
+    '파일 등 추가 클릭',
+    '페이지 클릭',
+    '데이터베이스 클릭',
+    'p 확인',
+    'Create documentation — Generate PRDs, tech specs, and architecture... 클릭',
+    '코스피, 미국 기술주 약세 영향으로 5%대 급락 클릭',
+  ];
+  for (const title of rawDomTitles) {
+    if (!isLowQualityCaptureTitle(title)) {
+      failures.push({ name: 'raw DOM title detector', expected: true, actual: false, title });
+    }
+    if (isUsableCaptureDraft({
+      user_title: title,
+      user_script: `${title.replace(/\s+(클릭|확인|선택|입력|이동)$/i, '')}를 클릭합니다.`,
+    })) {
+      failures.push({ name: 'raw DOM draft rejected', expected: false, actual: true, title });
+    }
+  }
+  if (!isLowQualityCaptureTutorialTitle('메일 보내기 클릭하기')) {
+    failures.push({ name: 'click tutorial title rejected', expected: true, actual: false });
+  }
+  const cleanedTypeText = cleanCaptureTypeText('아이콘 추가 커버 추가 댓글 추가 뉴스 클리핑 시작하기 AI 기능은 스페이스 키, 명령에는 /를 입력하세요.');
+  if (cleanedTypeText !== '뉴스 클리핑') {
+    failures.push({ name: 'notion chrome stripped from type text', expected: '뉴스 클리핑', actual: cleanedTypeText });
   }
   if (!isLowQualityCaptureScript('감사하다는 내용과 함께, 꼭 다음번에 같이하자는 내용 써줘.업데이트[받는 사람 성함]님,보내주신 메일 잘 확인했습니다. 감사드립니다.이번에는 아를 클릭합니다. 이걸 어노테이션 텍스트 박스에 포함')) {
     failures.push({ name: 'long captured content script detector', expected: true, actual: false });

@@ -213,16 +213,29 @@
       '[contenteditable="true"],[contenteditable="plaintext-only"],[role="textbox"],.ProseMirror,.ql-editor,.se2_inputarea,.se_editArea,.note-editable,[data-contents="true"]'
     );
     if (editor && editor.isContentEditable) {
-      let root = editor;
-      while (root.parentElement && root.parentElement.isContentEditable) root = root.parentElement;
-      return root;
+      return editor;
     }
     if (node.isContentEditable) {
-      let root = node;
-      while (root.parentElement && root.parentElement.isContentEditable) root = root.parentElement;
-      return root;
+      return node;
     }
     return null;
+  }
+
+  function cleanCapturedEditableText(value) {
+    const raw = String(value || '')
+      .replace(/\u00a0/g, ' ')
+      .replace(/[\u200b\u200c\u200d\ufeff]/g, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+    const hasNotionChrome = /아이콘 추가|커버 추가|댓글 추가/.test(raw);
+    let text = raw.replace(/^(?:아이콘 추가\s+)?(?:커버 추가\s+)?(?:댓글 추가\s+)*/g, '').trim();
+    if (hasNotionChrome) {
+      text = text
+        .replace(/\s+AI 기능은.*$/i, '')
+        .replace(/\s+시작하기(?:\s+.*)?$/i, '')
+        .trim();
+    }
+    return text;
   }
 
   function getEditableText(el) {
@@ -231,11 +244,7 @@
     const text = typeof el.innerText === 'string' && el.innerText.trim()
       ? el.innerText
       : (el.textContent || '');
-    return text
-      .replace(/\u00a0/g, ' ')
-      .replace(/[\u200b\u200c\u200d\ufeff]/g, '')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
+    return cleanCapturedEditableText(text);
   }
 
   function applyPIIBlur() {

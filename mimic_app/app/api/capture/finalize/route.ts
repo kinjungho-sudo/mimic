@@ -3,7 +3,7 @@ import { requireExtensionToken } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { captureFinalizeSchema } from '@/lib/validators';
 import { analyzeScreenshot, generateStepDescription, generateDraft, extractCoverColors, detectPII, cleanTranscripts } from '@/lib/ai/claude';
-import { buildCaptureAnnotationLabel, buildCaptureFallbackDraft, buildCaptureFallbackTutorialTitle, isLowQualityCaptureLabel, isLowQualityCaptureScript, isLowQualityCaptureTitle, isUsableCaptureDraft, type CaptureFallbackActionInfo } from '@/lib/ai/capture-fallback';
+import { buildCaptureAnnotationLabel, buildCaptureFallbackDraft, buildCaptureFallbackTutorialTitle, cleanCaptureTypeText, isLowQualityCaptureLabel, isLowQualityCaptureScript, isLowQualityCaptureTitle, isUsableCaptureDraft, type CaptureFallbackActionInfo } from '@/lib/ai/capture-fallback';
 import { resolveFavicon } from '@/lib/favicon';
 import { buildClickHighlight } from '@/lib/annotations';
 import { transcribeAudio, assignSegmentsToSteps, computeStepWindows } from '@/lib/voice/voice';
@@ -373,7 +373,7 @@ export async function POST(request: NextRequest) {
       // crop_box(캡처 확대)가 있으면 image_zoom로 프레이밍하므로 crop_rect는 비움(렌더 경로 일관성).
       crop_rect:         cropBox ? null : calcCropRect(elementRect, clickX, clickY),
       // 캡처 시 실제 입력된 텍스트 — 라이브 가이드 자동입력 폴백용
-      type_text:         (ev.type_text as string | null) ?? null,
+      type_text:         cleanCaptureTypeText(ev.type_text as string | null),
       ...(zoomFraming ?? {}),
     };
   });

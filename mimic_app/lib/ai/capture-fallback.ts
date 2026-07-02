@@ -135,14 +135,65 @@ function hasEmailAddress(value: string | null | undefined): boolean {
   return /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(cleanText(value));
 }
 
+function hasCapturedEditorChrome(value: string | null | undefined): boolean {
+  const text = cleanText(value);
+  return /아이콘 추가|커버 추가|댓글 추가|AI 기능은|명령에는/.test(text);
+}
+
+export function cleanCaptureTypeText(value: string | null | undefined): string | null {
+  const raw = cleanText(value);
+  if (!raw) return null;
+  const hasNotionChrome = /아이콘 추가|커버 추가|댓글 추가/.test(raw);
+  let text = raw.replace(/^(?:아이콘 추가\s+)?(?:커버 추가\s+)?(?:댓글 추가\s+)*/g, '').trim();
+  if (hasNotionChrome) {
+    text = text
+      .replace(/\s+AI 기능은.*$/i, '')
+      .replace(/\s+시작하기(?:\s+.*)?$/i, '')
+      .trim();
+  }
+  return text || null;
+}
+
 export function isLowQualityCaptureLabel(value: string | null | undefined): boolean {
   const text = cleanText(value);
-  return !text || isGenericLabel(text) || isRawCaptureLabel(text) || hasMachineToken(text) || isLongCapturedContent(text);
+  return !text
+    || isGenericLabel(text)
+    || isRawCaptureLabel(text)
+    || hasMachineToken(text)
+    || isLongCapturedContent(text)
+    || hasCapturedEditorChrome(text);
 }
 
 function isWeakTitle(value: string | null | undefined): boolean {
   const text = cleanText(value);
   return !text || WEAK_TITLES.has(text) || /^단계\s*\d+\s*진행$/.test(text);
+}
+
+function actionBaseFromTitle(value: string): string {
+  return cleanText(value)
+    .replace(/\s*(클릭|확인|선택|입력|이동|하기)$/i, '')
+    .trim();
+}
+
+function isLikelyRawDomActionBase(value: string): boolean {
+  const text = cleanText(value);
+  if (!text) return true;
+  if (/^[a-z]$/i.test(text)) return true;
+  if (/\.{3}|…|—/.test(text)) return true;
+  if (/아이콘 추가|커버 추가|댓글 추가/.test(text)) return true;
+  if (/^(\+|파일 등 추가|페이지|새 페이지|텍스트|데이터베이스|ChatGPT와 채팅)$/i.test(text)) return true;
+  if (/^Create documentation\b/i.test(text)) return true;
+  if (/^블록을 아래에 추가하려면/i.test(text)) return true;
+  if (/%|PRDs|tech specs/i.test(text)) return true;
+  if (text.length > 32 && /클릭|선택|입력|확인|%|PRDs|tech specs/i.test(text)) return true;
+  return false;
+}
+
+function isLikelyRawDomActionTitle(value: string | null | undefined): boolean {
+  const text = cleanText(value);
+  if (!text) return true;
+  if (!/(클릭|확인|선택|입력|이동)$/.test(text)) return false;
+  return isLikelyRawDomActionBase(actionBaseFromTitle(text));
 }
 
 export function isLowQualityCaptureTitle(value: string | null | undefined): boolean {
@@ -151,6 +202,7 @@ export function isLowQualityCaptureTitle(value: string | null | undefined): bool
   if (isLowQualityCaptureLabel(text)) return true;
   if (hasEmailAddress(text)) return true;
   if (hasCountNoise(text)) return true;
+  if (isLikelyRawDomActionTitle(text)) return true;
   if (/^\d+\s+(클릭|확인|선택|입력|이동)$/i.test(text)) return true;
   const rawLabelPattern = Array.from(RAW_CAPTURE_LABELS).join('|');
   return new RegExp(`^(${rawLabelPattern}|edit|button|link|menu|untitled|click)\\s+(클릭|확인|선택|입력|이동)$`, 'i').test(text);
@@ -163,7 +215,10 @@ export function isLowQualityCaptureScript(value: string | null | undefined): boo
   if (hasEmailAddress(text)) return true;
   if (hasCountNoise(text)) return true;
   if (isLongCapturedContent(text)) return true;
+  if (hasCapturedEditorChrome(text)) return true;
   if (/^\d+(을|를)?\s*(클릭|확인|선택|입력|이동)합니다\.?$/i.test(text)) return true;
+  const actionScriptMatch = /^(.+?)(을|를)?\s*(클릭|확인|선택|입력|이동)합니다\.?$/i.exec(text);
+  if (actionScriptMatch && isLikelyRawDomActionBase(actionScriptMatch[1])) return true;
   if (/어노테이션|텍스트\s*박스|포함/.test(text)) return true;
   const rawLabelPattern = Array.from(RAW_CAPTURE_LABELS).join('|');
   return new RegExp(`^(${rawLabelPattern}|edit|button|link|menu|untitled|click)(을|를)?\\s*(클릭|확인|선택|입력|이동)합니다\\.?$`, 'i').test(text);
@@ -388,7 +443,7 @@ export function isLowQualityCaptureTutorialTitle(value: string | null | undefine
   const text = cleanText(value);
   if (!text) return true;
   if (isLowQualityCaptureTitle(text.replace(/하기$/, ''))) return true;
-  if (/(클릭|선택|입력)하기$/.test(text) && !/(작성|발송|보내기|구매|가입|신청|설정|만들기|등록)/.test(text)) return true;
+  if (/(클릭|선택|입력)하기$/.test(text)) return true;
   return /^(메일|메뉴|버튼|링크|아이콘)\s*(클릭|선택)하기$/.test(text);
 }
 
@@ -415,5 +470,10 @@ export function buildCaptureFallbackTutorialTitle(
 
   if (!firstActionTitle) return '';
   if (firstActionTitle.endsWith('하기')) return firstActionTitle.slice(0, 30);
+  const actionBase = actionBaseFromTitle(firstActionTitle);
+  if (actionBase && actionBase !== firstActionTitle) {
+    if (/(하기|보내기|발송|전송|작성|생성|등록|저장|다운로드)$/.test(actionBase)) return actionBase.slice(0, 30);
+    return `${actionBase}하기`.slice(0, 30);
+  }
   return `${firstActionTitle}하기`.slice(0, 30);
 }
