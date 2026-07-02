@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Play, Check, Loader2, MousePointerClick, Type, Ban, RotateCcw, EyeOff, Eye, GripVertical, ZoomIn, Zap, Link2, ImagePlus, PenTool } from 'lucide-react';
+import { ArrowLeft, Play, Check, Loader2, MousePointerClick, Type, Ban, RotateCcw, EyeOff, Eye, GripVertical, ZoomIn, Zap, Link2, ImagePlus, PenTool, Volume2, VolumeX } from 'lucide-react';
 import { useTutorial } from '@/hooks/useTutorial';
 import { updateStep, reorderSteps } from '@/lib/api/steps';
 import { clickToPct, inferKind, toFollowSteps } from '@/lib/follow';
 import { startLiveGuide } from '@/lib/api/liveGuide';
+import { resolveStepAudio } from '@/lib/voice/playback';
 import { InteractiveFollowPlayer } from '@/components/viewer/InteractiveFollowPlayer';
 import { FollowStage } from '@/components/viewer/FollowStage';
 import { ImageAnnotationEditor, type Annotation } from '@/components/editor/ImageAnnotationEditor';
@@ -27,8 +28,19 @@ type StudioStep = {
   clickYPct: number | null;
   stepType: string | null;
   annotations: Annotation[];
+  voiceAudioUrl: string | null;
+  voiceAudioStartMs: number | null;
+  voiceAudioEndMs: number | null;
   domRect: { x: number; y: number; w: number; h: number } | null; // DOM 요소 영역(0~100 pct) — 확대 애니메이션 중심
   follow: FollowConfig;      // 따라하기 전용 시각 설정 (핫스팟·종류·숨김·typeText)
+};
+
+type StudioAudioAsset = {
+  id?: string;
+  step_id: string;
+  audio_url: string;
+  duration_ms?: number | null;
+  script_text?: string | null;
 };
 
 function toStudioStep(s: Step): StudioStep {
@@ -43,6 +55,9 @@ function toStudioStep(s: Step): StudioStep {
     clickYPct: clickToPct((s as Step & { click_y?: number | null }).click_y),
     stepType: s.step_type ?? null,
     annotations: (s.user_annotations as Annotation[] | null) ?? [],
+    voiceAudioUrl: s.voice_audio_url ?? null,
+    voiceAudioStartMs: s.voice_audio_start_ms ?? null,
+    voiceAudioEndMs: s.voice_audio_end_ms ?? null,
     domRect: (() => {
       const raw = (s as Step & { element_rect?: { x?: number; y?: number; width?: number; height?: number } | null }).element_rect;
       if (!raw || raw.x == null) return null;
@@ -95,6 +110,10 @@ export default function StudioPage() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [savedTick, setSavedTick] = useState(0);
   const [showPreview, setShowPreview] = useState(false);
+  const [ttsEnabled, setTtsEnabled] = useState(false);
+  const [ttsVoice, setTtsVoice] = useState<'nova' | 'alloy'>('nova');
+  const [ttsGenerating, setTtsGenerating] = useState(false);
+  const [audioAssets, setAudioAssets] = useState<StudioAudioAsset[]>([]);
   const [publishing, setPublishing] = useState(false);
   const [liveStarting, setLiveStarting] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
@@ -116,6 +135,9 @@ export default function StudioPage() {
     if (!tutorial) return;
     const ss = tutorial.steps.map(toStudioStep);
     setSteps(ss);
+    setAudioAssets((tutorial.audio_assets ?? []) as StudioAudioAsset[]);
+    setTtsEnabled((tutorial as Tutorial & { tts_enabled?: boolean }).tts_enabled ?? false);
+    setTtsVoice(((tutorial as Tutorial & { tts_voice?: string }).tts_voice as 'nova' | 'alloy') ?? 'nova');
     setActiveId(prev => prev ?? ss[0]?.id ?? null);
   }, [tutorial]);
 
@@ -197,6 +219,55 @@ export default function StudioPage() {
   }, []);
 
   // 이미지 클릭/드래그 → 핫스팟 위치 지정
+  const saveTtsSetting = useCallback(async (enabled: boolean, voice: 'nova' | 'alloy') => {
+    await fetch(`/api/tutorials/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tts_enabled: enabled, tts_voice: voice }),
+    });
+  }, [id]);
+
+  const handleTtsToggle = useCallback(async (enabled: boolean) => {
+    setTtsEnabled(enabled);
+    await saveTtsSetting(enabled, ttsVoice);
+  }, [saveTtsSetting, ttsVoice]);
+
+  const handleTtsVoiceChange = useCallback(async (voice: 'nova' | 'alloy') => {
+    setTtsVoice(voice);
+    await saveTtsSetting(ttsEnabled, voice);
+  }, [saveTtsSetting, ttsEnabled]);
+
+  const handleGenerateAllTts = useCallback(async () => {
+    const targets = stepsRef.current.filter(s => !s.follow.hidden && s.description.trim());
+    if (!targets.length) return;
+    setTtsGenerating(true);
+    try {
+      const results = await Promise.all(targets.map(async s => {
+        const scriptText = s.description.trim();
+        const res = await fetch('/api/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ stepId: s.id, scriptText, voice: ttsVoice }),
+        });
+        if (!res.ok) return null;
+        const data = await res.json();
+        return {
+          step_id: s.id,
+          audio_url: data.audio_url as string,
+          duration_ms: data.duration_ms as number | null,
+          script_text: scriptText,
+        };
+      }));
+      const next = new Map(audioAssets.map(asset => [asset.step_id, asset]));
+      for (const asset of results) {
+        if (asset) next.set(asset.step_id, asset);
+      }
+      setAudioAssets(Array.from(next.values()));
+    } finally {
+      setTtsGenerating(false);
+    }
+  }, [audioAssets, ttsVoice]);
+
   const uploadManualCapture = useCallback(async (file: File) => {
     const target = active;
     if (!target) return;
@@ -264,18 +335,29 @@ export default function StudioPage() {
     return () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); };
   }, [placeHotspot]);
 
-  const previewSteps = useMemo(() => toFollowSteps(steps.map(s => ({
-    title: s.title,
-    body: s.description || null,
-    screenshotUrl: s.screenshotUrl || undefined,
-    clickXPct: s.clickXPct,
-    clickYPct: s.clickYPct,
-    audioUrl: null,
-    followConfig: s.follow,
-    stepType: s.stepType,
-    annotations: s.annotations,
-    domRect: s.domRect,
-  }))), [steps]);
+  const previewSteps = useMemo(() => toFollowSteps(steps.map(s => {
+    const audio = resolveStepAudio({
+      id: s.id,
+      user_script: s.description,
+      voice_audio_url: s.voiceAudioUrl,
+      voice_audio_start_ms: s.voiceAudioStartMs,
+      voice_audio_end_ms: s.voiceAudioEndMs,
+    }, audioAssets, ttsEnabled);
+    return {
+      title: s.title,
+      body: s.description || null,
+      screenshotUrl: s.screenshotUrl || undefined,
+      clickXPct: s.clickXPct,
+      clickYPct: s.clickYPct,
+      audioUrl: audio?.url ?? null,
+      audioStartMs: audio?.startMs ?? null,
+      audioEndMs: audio?.endMs ?? null,
+      followConfig: s.follow,
+      stepType: s.stepType,
+      annotations: s.annotations,
+      domRect: s.domRect,
+    };
+  })), [audioAssets, steps, ttsEnabled]);
 
   const visibleSteps = steps.filter(s => !s.follow.hidden);
   const hasTargetUrl = visibleSteps.some(s => !!s.pageUrl);
@@ -516,6 +598,45 @@ export default function StudioPage() {
                 style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)', color: 'white', fontSize: 12.5, lineHeight: 1.5, fontFamily: 'inherit', resize: 'vertical', outline: 'none' }}
               />
               <p style={hint}>제목·설명은 문서 매뉴얼과 함께 수정됩니다 — 입력하면 위 미리보기에 바로 반영돼요.</p>
+
+              <Divider />
+
+              <SectionLabel>AI 음성</SectionLabel>
+              <div style={{ display: 'grid', gap: 8 }}>
+                <button
+                  onClick={() => handleTtsToggle(!ttsEnabled)}
+                  style={{ ...subtleBtn, justifyContent: 'space-between' }}
+                >
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                    {ttsEnabled ? <Volume2 size={12} /> : <VolumeX size={12} />}
+                    {ttsEnabled ? '연습 가이드 음성 켜짐' : '연습 가이드 음성 꺼짐'}
+                  </span>
+                  <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 999, background: ttsEnabled ? '#7c3aed' : 'rgba(255,255,255,0.1)' }}>
+                    {ttsEnabled ? 'ON' : 'OFF'}
+                  </span>
+                </button>
+                {ttsEnabled && (
+                  <>
+                    <select
+                      value={ttsVoice}
+                      onChange={e => handleTtsVoiceChange(e.target.value as 'nova' | 'alloy')}
+                      style={{ width: '100%', height: 32, borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: '#14121c', color: 'white', padding: '0 10px', fontSize: 12 }}
+                    >
+                      <option value="nova">Nova</option>
+                      <option value="alloy">Alloy</option>
+                    </select>
+                    <button
+                      onClick={handleGenerateAllTts}
+                      disabled={ttsGenerating}
+                      style={{ ...subtleBtn, opacity: ttsGenerating ? 0.65 : 1 }}
+                    >
+                      {ttsGenerating ? <Loader2 size={12} className="spin" /> : <Volume2 size={12} />}
+                      스텝 설명으로 음성 생성
+                    </button>
+                  </>
+                )}
+              </div>
+              <p style={hint}>각 스텝 설명에 작성한 문장을 읽어줍니다. 음성은 연습 가이드와 Live Guide에서만 사용되고, 문서/슬라이드 매뉴얼에서는 재생되지 않습니다.</p>
 
               <Divider />
 

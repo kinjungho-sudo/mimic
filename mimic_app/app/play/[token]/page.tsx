@@ -10,6 +10,7 @@ import { InteractiveFollowPlayer } from '@/components/viewer/InteractiveFollowPl
 import { createClient } from '@/lib/supabase/client';
 import { toFollowSteps, clickToPct } from '@/lib/follow';
 import { startLiveGuide } from '@/lib/api/liveGuide';
+import { resolveStepAudio } from '@/lib/voice/playback';
 import type { FollowConfig } from '@/types';
 import type { Annotation as DrawAnnotation } from '@/components/editor/ImageAnnotationEditor';
 
@@ -45,6 +46,9 @@ type Step = {
   follow_config?: FollowConfig | null;
   step_type?: string | null;
   element_rect?: { x: number; y: number; w: number; h: number } | null;
+  voice_audio_url?: string | null;
+  voice_audio_start_ms?: number | null;
+  voice_audio_end_ms?: number | null;
 };
 
 type AudioAsset = {
@@ -52,6 +56,7 @@ type AudioAsset = {
   step_id: string;
   audio_url: string;
   duration_ms: number;
+  script_text?: string | null;
 };
 
 type Tutorial = {
@@ -519,10 +524,8 @@ export default function PlayerPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [speed, setSpeed] = useState('1.25x');
   const [isPlaying, setIsPlaying] = useState(false);
-  const [ttsEnabled, setTtsEnabled] = useState(true); // 뷰어에서 음소거 여부 (기본 켜짐)
   const settingsRef = useRef<HTMLDivElement>(null);
   const playTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   // 따라하기 소프트 게이트: 비로그인은 맛보기(처음 2스텝)만 — 로그인 상태 확인
   const [authChecked, setAuthChecked] = useState(false);
@@ -567,24 +570,6 @@ export default function PlayerPage() {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
-
-  useEffect(() => {
-    if (!tutorial || !tutorial.tts_enabled) return;
-    if (!ttsEnabled) {
-      audioRef.current?.pause();
-      return;
-    }
-    const asset = tutorial.audio_assets.find(a => a.step_id === tutorial.steps[currentStep]?.id);
-    if (!asset) return;
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.src = '';
-    }
-    const audio = new Audio(asset.audio_url);
-    audioRef.current = audio;
-    audio.play().catch(() => {});
-    return () => { audio.pause(); };
-  }, [currentStep, tutorial, ttsEnabled]);
 
   useEffect(() => {
     // 슬라이드 모드일 때만 자동재생 — 다른 모드로 전환 시 백그라운드로 인덱스가 진행되는 누수 방지
@@ -753,7 +738,9 @@ export default function PlayerPage() {
               screenshotUrl: s.screenshot_url,
               clickXPct: clickToPct(s.click_x),
               clickYPct: clickToPct(s.click_y),
-              audioUrl: tutorial.audio_assets?.find(a => a.step_id === s.id)?.audio_url ?? null,
+              audioUrl: resolveStepAudio(s, tutorial.audio_assets, tutorial.tts_enabled)?.url ?? null,
+              audioStartMs: resolveStepAudio(s, tutorial.audio_assets, tutorial.tts_enabled)?.startMs ?? null,
+              audioEndMs: resolveStepAudio(s, tutorial.audio_assets, tutorial.tts_enabled)?.endMs ?? null,
               followConfig: s.follow_config ?? null,
               stepType: s.step_type ?? null,
               annotations: s.user_annotations ?? null,
@@ -1006,21 +993,6 @@ export default function PlayerPage() {
                     >{s}</button>
                   ))}
                 </div>
-                {tutorial.tts_enabled && (
-                  <>
-                    <div style={{ height: '1px', background: 'rgba(255,255,255,0.08)', margin: '12px 0' }} />
-                    <h4 style={{ fontSize: '10.5px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.5)', margin: '0 0 8px', fontWeight: 500 }}>AI 음성</h4>
-                    <button
-                      onClick={() => setTtsEnabled(v => !v)}
-                      style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', borderRadius: '7px', border: 'none', background: 'rgba(255,255,255,0.06)', color: 'white', fontSize: '12px', cursor: 'pointer' }}
-                    >
-                      <span>{ttsEnabled ? '🔊 음성 켜짐' : '🔇 음성 꺼짐'}</span>
-                      <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: ttsEnabled ? '#3730a3' : 'rgba(255,255,255,0.1)' }}>
-                        {ttsEnabled ? 'ON' : 'OFF'}
-                      </span>
-                    </button>
-                  </>
-                )}
               </div>
             )}
           </div>

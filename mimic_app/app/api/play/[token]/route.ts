@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { verifyPassword } from '@/lib/auth/password';
+import { isPaidPlan } from '@/lib/plan';
+import { isFreshVoiceAsset } from '@/lib/voice/playback';
 
 type Params = { params: Promise<{ token: string }> };
 
@@ -15,6 +17,13 @@ async function fetchTutorialData(token: string) {
     .single();
 
   if (error || !tutorial) return null;
+
+  const { data: owner } = await supabase
+    .from('mm_users')
+    .select('plan')
+    .eq('id', tutorial.user_id)
+    .single();
+  const voiceEnabled = isPaidPlan(owner?.plan) && tutorial.tts_enabled;
 
   const { data: rawSteps } = await supabase
     .from('mm_steps')
@@ -31,10 +40,20 @@ async function fetchTutorialData(token: string) {
     supabase.from('mm_annotations').select('*').in('step_id', stepIds),
   ]);
 
+  const freshAudioAssets = voiceEnabled
+    ? (audioRes.data ?? []).filter(asset => {
+        const step = steps.find(s => s.id === asset.step_id);
+        return isFreshVoiceAsset(step, asset);
+      })
+    : [];
+
   const normalizedSteps = steps.map((s, idx) => ({
     id: s.id,
     title: s.user_title || s.ai_title || `단계 ${idx + 1}`,
     caption: s.user_script || s.ai_description || '',
+    voice_audio_url: voiceEnabled ? ((s as Record<string, unknown>).voice_audio_url as string | null ?? null) : null,
+    voice_audio_start_ms: voiceEnabled ? ((s as Record<string, unknown>).voice_audio_start_ms as number | null ?? null) : null,
+    voice_audio_end_ms: voiceEnabled ? ((s as Record<string, unknown>).voice_audio_end_ms as number | null ?? null) : null,
     screenshot_url: s.screenshot_url ?? null,
     order_index: s.order_index,
     page_url: s.page_url ?? null,
@@ -78,10 +97,11 @@ async function fetchTutorialData(token: string) {
     payload: {
       id: tutorial.id,
       title: tutorial.title,
+      tts_enabled: voiceEnabled,
       steps: normalizedSteps,
       markers: normalizedMarkers,
       annotations: normalizedAnnotations,
-      audio_assets: audioRes.data ?? [],
+      audio_assets: freshAudioAssets,
     },
   };
 }

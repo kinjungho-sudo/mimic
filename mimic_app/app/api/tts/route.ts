@@ -4,6 +4,8 @@ import { ttsSchema } from '@/lib/validators';
 import { generateTTS } from '@/lib/voice/openai-tts';
 import { rateLimitAi } from '@/lib/rate-limit';
 import { guardStepAccess } from '@/lib/auth/workspace-guard';
+import { createServiceRoleClient } from '@/lib/supabase/server';
+import { isPaidPlan } from '@/lib/plan';
 
 export async function POST(request: NextRequest) {
   const auth = await requireAuth(request);
@@ -27,6 +29,20 @@ export async function POST(request: NextRequest) {
   const guard = await guardStepAccess(parsed.data.stepId, auth.userId, 'editor');
   if (!guard.ok) {
     return NextResponse.json({ error: guard.error }, { status: guard.status });
+  }
+
+  const supabase = createServiceRoleClient();
+  const { data: user } = await supabase
+    .from('mm_users')
+    .select('plan')
+    .eq('id', auth.userId)
+    .single();
+
+  if (!isPaidPlan(user?.plan)) {
+    return NextResponse.json(
+      { error: 'AI voice is available on Pro or Team plans.' },
+      { status: 403 }
+    );
   }
 
   try {

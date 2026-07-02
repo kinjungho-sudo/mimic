@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceRoleClient, createServerClient } from '@/lib/supabase/server';
+import { isPaidPlan } from '@/lib/plan';
+import { resolveStepAudio } from '@/lib/voice/playback';
 
 type Params = { params: Promise<{ token: string }> };
 
@@ -64,7 +66,7 @@ export async function GET(request: NextRequest, { params }: Params) {
 
     const { data: tutorial } = await supabase
       .from('mm_tutorials')
-      .select('id, title, user_id')
+      .select('id, title, user_id, tts_enabled')
       .eq('id', token)
       .eq('user_id', session.user.id)
       .single();
@@ -77,13 +79,13 @@ export async function GET(request: NextRequest, { params }: Params) {
     const gated = await gateLiveGuide(supabase, tutorial.user_id, false);
     if (gated) return NextResponse.json(gated);
 
-    return NextResponse.json(await fetchSteps(supabase, tutorial.id, tutorial.title));
+    return NextResponse.json(await fetchSteps(supabase, tutorial.id, tutorial.title, tutorial.user_id, !!tutorial.tts_enabled));
   }
 
   // share_token으로 published 튜토리얼 조회 (공개)
   const { data: tutorial } = await supabase
     .from('mm_tutorials')
-    .select('id, title, user_id')
+    .select('id, title, user_id, tts_enabled')
     .eq('share_token', token)
     .eq('status', 'published')
     .single();
@@ -96,13 +98,14 @@ export async function GET(request: NextRequest, { params }: Params) {
   const gated = await gateLiveGuide(supabase, tutorial.user_id, true);
   if (gated) return NextResponse.json(gated);
 
-  return NextResponse.json(await fetchSteps(supabase, tutorial.id, tutorial.title));
+  return NextResponse.json(await fetchSteps(supabase, tutorial.id, tutorial.title, tutorial.user_id, !!tutorial.tts_enabled));
 }
 
-async function fetchSteps(supabase: ReturnType<typeof createServiceRoleClient>, tutorialId: string, title: string) {
+async function fetchSteps(supabase: ReturnType<typeof createServiceRoleClient>, tutorialId: string, title: string, ownerId: string, ttsEnabled: boolean) {
   const baseSelect =
     'id, step_number, user_title, ai_title, user_script, ai_description, ' +
-    'page_url, element_selector, element_xpath, element_rect, click_x, click_y, screenshot_url, user_annotations, follow_config, type_text';
+    'page_url, element_selector, element_xpath, element_rect, click_x, click_y, screenshot_url, user_annotations, follow_config, type_text, ' +
+    'voice_audio_url, voice_audio_start_ms, voice_audio_end_ms';
   let { data: rawSteps, error: stepsError } = await supabase
     .from('mm_steps')
     .select(`${baseSelect}, step_type, capture_source, capture_failure_reason`)
@@ -125,6 +128,25 @@ async function fetchSteps(supabase: ReturnType<typeof createServiceRoleClient>, 
     return { tutorial_id: tutorialId, title, steps: [] };
   }
 
+  let voiceEnabled = false;
+  let audioAssets: { step_id: string; audio_url: string; duration_ms?: number | null; script_text?: string | null }[] = [];
+  if (ttsEnabled && rawSteps?.length) {
+    const { data: owner } = await supabase
+      .from('mm_users')
+      .select('plan')
+      .eq('id', ownerId)
+      .single();
+    voiceEnabled = isPaidPlan(owner?.plan);
+    if (voiceEnabled) {
+      const stepIds = rawSteps.map(s => s.id).filter((stepId): stepId is string => typeof stepId === 'string');
+      const { data: assets } = await supabase
+        .from('mm_audio_assets')
+        .select('step_id, audio_url, duration_ms, script_text')
+        .in('step_id', stepIds);
+      audioAssets = assets ?? [];
+    }
+  }
+
   const steps = ((rawSteps ?? []) as unknown as Record<string, unknown>[]).map(s => {
     const fc = (s.follow_config ?? {}) as {
       kind?: string | null; typeText?: string | null; hidden?: boolean;
@@ -137,6 +159,13 @@ async function fetchSteps(supabase: ReturnType<typeof createServiceRoleClient>, 
       || stepType === 'blocked_step'
       || fc.kind === 'none'
       || (!s.element_selector && !s.element_xpath && s.click_x == null && s.click_y == null);
+    const audio = resolveStepAudio({
+      id: s.id as string,
+      user_script: (s.user_script || s.ai_description || '') as string,
+      voice_audio_url: (s.voice_audio_url as string | null) ?? null,
+      voice_audio_start_ms: (s.voice_audio_start_ms as number | null) ?? null,
+      voice_audio_end_ms: (s.voice_audio_end_ms as number | null) ?? null,
+    }, audioAssets, voiceEnabled);
     return {
       id: s.id,
       step_number: s.step_number,
@@ -162,9 +191,12 @@ async function fetchSteps(supabase: ReturnType<typeof createServiceRoleClient>, 
       hotspot_x: fc.hotspotX ?? null,
       hotspot_y: fc.hotspotY ?? null,
       bubble_anchor: fc.bubbleAnchor ?? null,
+      audio_url: audio?.url ?? null,
+      audio_start_ms: audio?.startMs ?? null,
+      audio_end_ms: audio?.endMs ?? null,
     };
   });
 
   // 숨김 스텝은 따라하기/라이브 가이드에서 제외 (일관성)
-  return { tutorial_id: tutorialId, title, steps: steps.filter(s => !s.hidden) };
+  return { tutorial_id: tutorialId, title, tts_enabled: voiceEnabled, steps: steps.filter(s => !s.hidden) };
 }

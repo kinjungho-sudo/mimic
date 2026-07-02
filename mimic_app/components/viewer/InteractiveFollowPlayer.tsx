@@ -15,6 +15,8 @@ export interface FollowStep {
   kind?: 'click' | 'type';             // 클릭 vs 타이핑 — 인디케이터 모양 결정
   typeText?: string | null;            // type 인디케이터에 자동 타이핑될 텍스트
   audioUrl?: string | null;            // 스텝 TTS 오디오 (있으면 음성 재생)
+  audioStartMs?: number | null;
+  audioEndMs?: number | null;
   bubbleAnchor?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | null;
   domRect?: { x: number; y: number; w: number; h: number } | null; // DOM bounding box (0~100 pct)
   stepType?: string | null;
@@ -79,22 +81,37 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
   }, []);
 
   // 음성 재생 (#5) — 직전 오디오 정지 후 재생
-  const playVoice = useCallback((url?: string | null) => {
-    if (!url) return;
+  const playVoice = useCallback((audio?: Pick<FollowStep, 'audioUrl' | 'audioStartMs' | 'audioEndMs'> | null) => {
+    if (!audio?.audioUrl) return;
     try { if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; } } catch { /* noop */ }
-    try { const a = new Audio(url); audioRef.current = a; a.play().catch(() => {}); } catch { /* noop */ }
+    try {
+      const a = new Audio(audio.audioUrl);
+      audioRef.current = a;
+      const startS = (audio.audioStartMs ?? 0) / 1000;
+      const endS = audio.audioEndMs != null ? audio.audioEndMs / 1000 : null;
+      a.currentTime = startS;
+      const onTime = () => {
+        if (endS != null && a.currentTime >= endS) {
+          a.pause();
+          a.removeEventListener('timeupdate', onTime);
+        }
+      };
+      a.addEventListener('timeupdate', onTime);
+      a.onended = () => a.removeEventListener('timeupdate', onTime);
+      a.play().catch(() => {});
+    } catch { /* noop */ }
   }, []);
 
   // 음성 ON이면 스텝 넘어갈 때 자동재생 (다음 클릭 = 사용자 제스처라 autoplay 허용)
   useEffect(() => {
-    if (voiceOn && !done) playVoice(step?.audioUrl);
+    if (voiceOn && !done) playVoice(step);
     return () => { try { audioRef.current?.pause(); } catch { /* noop */ } };
-  }, [idx, voiceOn, done, step?.audioUrl, playVoice]);
+  }, [idx, voiceOn, done, step, playVoice]);
 
   const onMascotClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (minimized) { setMinimized(false); return; }
-    if (step.audioUrl) playVoice(step.audioUrl);
+    if (step.audioUrl) playVoice(step);
   };
 
   // 스텝 전환: 페이드아웃 → 인덱스 변경 → 페이드인. 연속 클릭 시 마지막만 실행

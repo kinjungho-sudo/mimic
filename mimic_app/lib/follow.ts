@@ -43,6 +43,8 @@ export type FollowSource = {
   clickXPct: number | null;        // 0~100 (녹화 좌표, 이미 변환됨)
   clickYPct: number | null;
   audioUrl?: string | null;
+  audioStartMs?: number | null;
+  audioEndMs?: number | null;
   followConfig?: FollowConfig | null;
   stepType?: StepType | string | null;
   annotations?: Annotation[] | null;
@@ -77,6 +79,8 @@ export function toFollowSteps(sources: FollowSource[]): FollowStep[] {
         kind: isNone ? 'click' : resolvedKind,  // none이면 핫스팟 없으니 kind 값은 무의미
         typeText: fc.typeText?.trim() || null,
         audioUrl: s.audioUrl ?? null,
+        audioStartMs: s.audioStartMs ?? null,
+        audioEndMs: s.audioEndMs ?? null,
         bubbleAnchor: fc.bubbleAnchor ?? null,
         domRect: s.domRect ?? null,
         zoomAnim: fc.zoomAnim ?? false,

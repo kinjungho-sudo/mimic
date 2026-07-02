@@ -131,6 +131,10 @@ export type Step = {
   ai_description: string | null;
   user_title: string | null;
   user_script: string | null;
+  voice_transcript_raw?: string | null;
+  voice_audio_url?: string | null;
+  voice_audio_start_ms?: number | null;
+  voice_audio_end_ms?: number | null;
   user_annotations?: unknown[] | null;
   follow_config?: FollowConfig | null;
   step_type?: StepType | null;
