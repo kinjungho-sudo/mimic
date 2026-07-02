@@ -118,6 +118,7 @@ export function FollowStage({
   const typeStr = typeText ?? '';
   const hasTypeText = typeStr.trim().length > 0;
   const shownType = animateType ? typeStr.slice(0, typed) : typeStr;
+  const typeIndicatorColor = typeTextColor ?? '#111827';
 
   // 말풍선 위치 — anchor 고정 위치 우선, 없으면 핫스팟 상대 위치
   const BW = box.w ? clamp(box.w - 28, 170, 340) : 300;
@@ -252,13 +253,13 @@ export function FollowStage({
             <div style={{ position: 'relative', minWidth: '128px', maxWidth: '320px', height: '38px', borderRadius: '9px', border: '2px solid #6366f1', background: 'rgba(255,255,255,0.96)', boxShadow: '0 0 0 4px rgba(99,102,241,0.18), 0 6px 20px rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', padding: '0 12px', animation: 'mfp-field 1.8s ease-in-out infinite' }}>
               {hasTypeText ? (
                 <>
-                  <span style={{ fontSize: '13px', color: typeTextColor ?? '#111827', fontWeight: 600, letterSpacing: '0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{shownType}</span>
-                  <span style={{ width: '2px', height: '18px', marginLeft: '2px', flexShrink: 0, background: typeTextColor ?? '#6366f1', borderRadius: '2px', animation: 'mfp-caret 1s step-end infinite' }} />
+                  <span style={{ fontSize: '13px', color: typeIndicatorColor, WebkitTextFillColor: typeIndicatorColor, fontWeight: 600, letterSpacing: '0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{shownType}</span>
+                  <span style={{ width: '2px', height: '18px', marginLeft: '2px', flexShrink: 0, background: typeIndicatorColor, borderRadius: '2px', animation: 'mfp-caret 1s step-end infinite' }} />
                 </>
               ) : (
                 <>
                   <span style={{ width: '2px', height: '18px', background: '#6366f1', borderRadius: '2px', animation: 'mfp-caret 1s step-end infinite' }} />
-                  <span style={{ marginLeft: '7px', fontSize: '12px', color: '#9CA3AF', fontStyle: 'italic', fontWeight: 500, letterSpacing: '0.04em' }}>텍스트 입력…</span>
+                  <span style={{ marginLeft: '7px', fontSize: '12px', color: typeIndicatorColor, WebkitTextFillColor: typeIndicatorColor, fontStyle: 'italic', fontWeight: 600, letterSpacing: '0.04em' }}>텍스트 입력…</span>
                 </>
               )}
             </div>
