@@ -1167,9 +1167,7 @@ export default function DashboardPage() {
               {/* ② 팀 워크스페이스 하위 */}
               {teamOpen && (
                 <div style={{ paddingLeft: '12px', marginLeft: '19px', borderLeft: '2px solid #F3F4F6', display: 'flex', flexDirection: 'column', gap: '1px', marginBottom: '2px' }}>
-                  {workspaces.length === 0
-                    ? <div style={{ padding: '4px 8px', fontSize: '13px', color: '#D1D5DB' }}>없음</div>
-                    : workspaces.map(ws => (
+                  {workspaces.map(ws => (
                       <div key={ws.id} style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
                         <button onClick={() => { const switching = !(activeTab === 'team' && activeWorkspace === ws.id); setActiveTab('team'); setActiveWorkspace(ws.id); if (switching) setActiveFolder('all'); setShowFolderPanel(true); }}
                           style={{ display: 'flex', alignItems: 'center', gap: '7px', flex: 1, padding: '5px 8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', textAlign: 'left', background: activeTab === 'team' && activeWorkspace === ws.id ? '#e0e7ff' : 'transparent', color: activeTab === 'team' && activeWorkspace === ws.id ? '#3730a3' : '#4B5563', fontWeight: activeTab === 'team' && activeWorkspace === ws.id ? 600 : 400 }}
@@ -1264,7 +1262,7 @@ export default function DashboardPage() {
                     <div style={{ height: '100%', borderRadius: '999px', background: playbook.used >= playbook.limit ? '#EF4444' : '#0EA5E9', width: `${Math.min(100, (playbook.used / playbook.limit) * 100)}%`, transition: 'width 0.3s' }} />
                   </div>
                 )}
-                {!isPro && <Link href="/settings" style={{ display: 'block', marginTop: '10px', padding: '6px', borderRadius: '7px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', fontSize: '11.5px', fontWeight: 600, textDecoration: 'none', textAlign: 'center' }}>Pro로 업그레이드</Link>}
+                {!isPro && <Link href="/landingpage#pricing" style={{ display: 'block', marginTop: '10px', padding: '6px', borderRadius: '7px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', fontSize: '11.5px', fontWeight: 600, textDecoration: 'none', textAlign: 'center' }}>Pro로 업그레이드</Link>}
               </div>
             )}
 
@@ -1682,9 +1680,7 @@ export default function DashboardPage() {
               </button>
               {teamOpen && (
                 <div style={{ paddingLeft: '10px', marginLeft: '18px', borderLeft: '2px solid #F3F4F6', marginBottom: '8px' }}>
-                  {workspaces.length === 0
-                    ? <div style={{ padding: '6px 8px', fontSize: '13px', color: '#D1D5DB' }}>없음</div>
-                    : workspaces.map(ws => (
+                  {workspaces.map(ws => (
                       <button key={ws.id}
                         onClick={() => { setActiveTab('team'); setActiveWorkspace(ws.id); setShowDrawer(false); }}
                         style={{ display: 'flex', alignItems: 'center', gap: '7px', width: '100%', padding: '7px 8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', textAlign: 'left', background: activeTab === 'team' && activeWorkspace === ws.id ? '#e0e7ff' : 'transparent', color: activeTab === 'team' && activeWorkspace === ws.id ? '#3730a3' : '#4B5563', fontWeight: activeTab === 'team' && activeWorkspace === ws.id ? 600 : 400 }}>

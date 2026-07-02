@@ -32,7 +32,7 @@ async function gateLiveGuide(
   const plan = owner?.plan ?? 'free';
   if (PAID_PLANS.includes(plan)) return null; // 유료=무제한(미카운트)
 
-  const gated = { gated: true as const, limit: FREE_LIVE_GUIDE_LIMIT, used: owner?.live_guide_runs ?? 0, upgradeUrl: `${APP_URL}/settings` };
+  const gated = { gated: true as const, limit: FREE_LIVE_GUIDE_LIMIT, used: owner?.live_guide_runs ?? 0, upgradeUrl: `${APP_URL}/landingpage#pricing` };
 
   if (!charge) {
     // 미리보기 — 차감 없이 한도만 확인

@@ -47,7 +47,6 @@ export default function MyPage() {
   const [deleteInput, setDeleteInput] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const [planLoading, setPlanLoading] = useState(false);
   const [totalManuals, setTotalManuals] = useState<number | null>(null);
 
   // 페이지 진입 시 최신 daily_manual_count + 전체 매뉴얼 수 로드
@@ -336,15 +335,7 @@ export default function MyPage() {
                   ))}
                 </ul>
                 <button
-                  disabled={planLoading}
-                  onClick={async () => {
-                    setPlanLoading(true);
-                    try {
-                      alert('결제 기능은 준비 중입니다. 곧 출시될 예정이에요!');
-                    } finally {
-                      setPlanLoading(false);
-                    }
-                  }}
+                  onClick={() => router.push('/landingpage#pricing')}
                   style={{ display: 'block', width: '100%', padding: '13px 0', borderRadius: '10px', fontSize: '14px', fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', color: 'white', border: 'none', boxShadow: '0 4px 12px rgba(55,48,163,0.28)', fontFamily: 'inherit' }}
                 >
                   Pro 구독하기

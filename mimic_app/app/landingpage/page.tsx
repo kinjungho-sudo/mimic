@@ -342,10 +342,10 @@ function HeroDemo() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scene, active]);
 
-  const SCENE_LABELS = ['새 매뉴얼', '카운트다운', '클릭 캡처', 'AI 생성 중', '매뉴얼 완성', '공유', '연습 가이드'];
+  const SCENE_LABELS = ['새로 만들기', '카운트다운', '클릭 캡처', 'AI 생성 중', '매뉴얼 완성', '공유', '연습 가이드'];
   const SCENE_URLS   = ['app.mimic.so/home', 'app.mimic.so/home', 'plus.gov.kr', 'plus.gov.kr', 'app.mimic.so/editor', 'app.mimic.so/manual', 'app.mimic.so/play'];
   const SCENE_CAPTIONS = [
-    { title: '홈에서 "새 매뉴얼" 버튼을 클릭하면 시작됩니다', desc: 'MIMIC 크롬 확장 프로그램이 녹화를 준비합니다.' },
+    { title: '홈에서 "새로 만들기"를 열고 새 매뉴얼(녹화)을 선택합니다', desc: 'MIMIC 크롬 확장 프로그램이 녹화를 준비합니다.' },
     { title: '3·2·1 — 카운트다운과 함께 녹화가 시작됩니다', desc: '이제부터 평소처럼 업무를 진행하기만 하면 됩니다.' },
     { title: '클릭할 때마다 화면이 자동으로 캡처됩니다', desc: '정부24에서 주민등록증을 발급받는 과정이 단계별로 기록됩니다.' },
     { title: '"완료"를 누르면 AI가 매뉴얼을 자동 생성합니다', desc: '캡처된 화면을 분석해 제목·설명·하이라이트를 만듭니다.' },
@@ -499,7 +499,7 @@ function Scene0({ tick }: { tick: number }) {
   const FOLDERS = ['MIMIC','OZ코딩스쿨','바이브코딩','네이버','쿠팡','기타'];
   return (
     <div style={{ width: '100%', height: '100%', background: '#fff', display: 'grid', gridTemplateColumns: '150px 1fr', position: 'relative' }}>
-      {/* 좌측 사이드바 */}
+      {/* 왼쪽 사이드바 */}
       <div style={{ background: '#FAFAFB', borderRight: '1px solid #EEE', padding: '14px 10px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
           <div style={{ width: '20px', height: '20px', borderRadius: '6px', background: 'linear-gradient(135deg,#6d28d9,#3730a3)', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 800, fontSize: '11px' }}>M</div>
@@ -525,9 +525,18 @@ function Scene0({ tick }: { tick: number }) {
           </div>
           <div style={{ position: 'relative' }}>
             <div style={{ padding: '9px 16px', borderRadius: '9px', background: click ? '#5b21b6' : 'linear-gradient(135deg,#6d28d9,#3730a3)', color: '#fff', fontSize: '12px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px', boxShadow: hover ? '0 6px 22px rgba(109,40,217,0.5)' : '0 2px 8px rgba(109,40,217,0.3)', transform: click ? 'scale(0.95)' : 'scale(1)', transition: 'all 0.2s' }}>
-              <span style={{ fontSize: '14px', lineHeight: 1 }}>+</span> 새 매뉴얼
+              <span style={{ fontSize: '14px', lineHeight: 1 }}>+</span> 새로 만들기
             </div>
             {click && <div style={{ position: 'absolute', top: '50%', left: '50%', width: '64px', height: '64px', borderRadius: '50%', border: '2px solid rgba(109,40,217,0.55)', transform: 'translate(-50%,-50%)', animation: 'rippleOut 0.7s ease-out' }} />}
+            {click && (
+              <div style={{ position: 'absolute', top: '42px', right: 0, width: '164px', borderRadius: '12px', border: '1px solid #E5E7EB', background: '#fff', overflow: 'hidden', boxShadow: '0 18px 40px rgba(15,23,42,0.16)', zIndex: 12 }}>
+                {['새 매뉴얼(녹화)', '새 플레이북(통합 문서)', '폴더'].map((label, idx) => (
+                  <div key={label} style={{ padding: '10px 12px', borderBottom: idx === 2 ? 'none' : '1px solid #F3F4F6', color: '#111827', fontSize: '11px', fontWeight: 700, lineHeight: 1.2 }}>
+                    {label}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
         <div style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #EEE', background: '#FAFAFB', fontSize: '10.5px', color: '#9CA3AF', marginBottom: '12px' }}>🔍 매뉴얼 이름으로 검색...</div>
@@ -542,7 +551,7 @@ function Scene0({ tick }: { tick: number }) {
             </div>
           ))}
         </div>
-        {/* 마우스 커서 → 새 매뉴얼 버튼 */}
+        {/* 마우스 커서 → 새로 만들기 버튼 */}
         <div style={{ position: 'absolute', top: hover ? '22px' : '150px', right: hover ? '24px' : '40px', transition: 'top 0.8s cubic-bezier(0.4,0,0.2,1), right 0.8s cubic-bezier(0.4,0,0.2,1)', zIndex: 20, pointerEvents: 'none' }}>
           <CursorIcon />
         </div>
@@ -1330,7 +1339,7 @@ function MockShare() {
             </div>
           </div>
           <div style={{ display: 'flex', gap: '6px' }}>
-            {['PDF', 'PPTX', 'MD'].map(f => (
+            {['PDF', 'PPTX', 'Word'].map(f => (
               <span key={f} style={{ padding: '5px 11px', borderRadius: '7px', border: '1px solid #E5E7EB', background: 'white', fontSize: '10px', color: '#374151', fontWeight: 600 }}>{f} ↓</span>
             ))}
           </div>
@@ -1413,8 +1422,8 @@ const SHOWCASES = [
   {
     id: 'guideme',
     eyebrow: 'LIVE GUIDE',
-    title: '문서를 읽게 하지 말고,\n화면 위에서 직접 따라오게 하세요',
-    desc: '먼저 연습 가이드로 캡처 화면 위에서 안전하게 따라 해보고, 확장 프로그램이 연결된 환경에서는 실제 페이지 위 안내를 베타로 실행할 수 있습니다.',
+    title: '매뉴얼을 실행 순간까지\n화면 위에서 이어주세요',
+    desc: '먼저 연습 가이드로 캡처 화면 위에서 안전하게 따라 해보고, 확장 프로그램이 연결된 환경에서는 실제 페이지 위 안내를 베타로 실행할 수 있습니다. 문서로 정리한 지식이 실제 행동까지 이어집니다.',
     bullets: [
       '공유 링크에서는 설치 없는 연습 가이드 제공',
       '확장 연결 시 실제 페이지 위 Live Guide 베타 실행',
@@ -1447,8 +1456,8 @@ function ProductShowcase() {
       <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
         <RevealSection>
           <span style={{ display: 'block', textAlign: 'center', fontSize: '11px', color: '#5b21b6', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '16px' }}>Product Tour</span>
-          <h2 style={{ textAlign: 'center', fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 800, letterSpacing: '-0.035em', margin: '0 auto 14px', maxWidth: '640px', lineHeight: 1.18, color: '#0D0D14' }}>실제 화면으로 보는 MIMIC</h2>
-          <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '560px', margin: '0 auto 80px', lineHeight: 1.7 }}>녹화 30초로 만들고, 받는 사람은 Live Guide로 따라만 하면 끝 — 아래 화면 그대로 작동합니다.</p>
+          <h2 style={{ textAlign: 'center', fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 800, letterSpacing: '-0.035em', margin: '0 auto 14px', maxWidth: '640px', lineHeight: 1.18, color: '#0D0D14' }}>매뉴얼 제작부터 실행 안내까지</h2>
+          <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '560px', margin: '0 auto 80px', lineHeight: 1.7 }}>SOP를 빠르게 만들고, 필요한 순간에는 화면 위 가이드로 실제 업무 완료까지 연결합니다.</p>
         </RevealSection>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '110px' }}>
@@ -1505,10 +1514,10 @@ function ServiceSimulatorSection() {
           <div className="simulator-grid">
             <div className="simulator-copy">
               <span className="simulator-eyebrow">Live Simulator</span>
-              <h2>랜딩에서 바로 보는 실제 MIMIC 흐름</h2>
+              <h2>문서로 남기고, 화면 위에서 실행하게 합니다</h2>
               <p>
                 녹화, AI 초안, 따라하기 가이드, 공유까지 한 화면 안에서 자동으로 재생됩니다.
-                기존 플레이어 컴포넌트를 사용해 영상보다 실제 사용감에 가깝게 보여줍니다.
+                MIMIC은 매뉴얼을 만드는 데서 멈추지 않고 실제 업무 순간까지 이어줍니다.
               </p>
               <div className="simulator-steps" role="tablist" aria-label="MIMIC product simulator steps">
                 {simulatorSteps.map((item, index) => (
@@ -1579,7 +1588,7 @@ function HeroSection() {
         {/* Announcement badge */}
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '5px 16px 5px 6px', background: 'rgba(124,58,237,0.10)', border: '1px solid rgba(124,58,237,0.22)', borderRadius: '999px', fontSize: '12.5px', color: '#c4b5fd', fontWeight: 500, marginBottom: '36px', backdropFilter: 'blur(8px)' }}>
           <span style={{ padding: '3px 10px', borderRadius: '999px', background: 'linear-gradient(135deg, #4f46e5, #7c3aed)', fontSize: '10px', fontWeight: 700, color: 'white', letterSpacing: '0.06em', flexShrink: 0 }}>NEW</span>
-          녹화하면 AI가 바로 공유 가능한 매뉴얼 초안을 만듭니다
+          SOP를 만들고, 실행 순간에는 화면 위에서 안내합니다
         </div>
 
         <h1 style={{ margin: '0 auto 24px', fontSize: 'clamp(44px, 7vw, 84px)', lineHeight: 1.04, fontWeight: 800, letterSpacing: '-0.045em', maxWidth: '880px', color: 'white', wordBreak: 'keep-all' }}>
@@ -1590,8 +1599,8 @@ function HeroSection() {
         </h1>
 
         <p style={{ fontSize: 'clamp(15px, 2vw, 18px)', color: 'rgba(255,255,255,0.48)', maxWidth: '560px', margin: '0 auto 48px', lineHeight: 1.8, fontWeight: 400 }}>
-          평소처럼 클릭하면 단계와 설명이 자동으로 정리됩니다.<br/>
-          링크로 공유하고, 필요하면 연습 가이드나 문서로 전달하세요.
+          평소처럼 클릭하면 SOP와 매뉴얼이 자동으로 정리됩니다.<br/>
+          공유한 지식은 문서로 남고, 필요한 순간에는 화면 위 가이드로 이어집니다.
         </p>
 
         <div className="hero-cta-row" style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginBottom: '60px' }}>
@@ -1610,9 +1619,9 @@ function HeroSection() {
         {/* Key metrics */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '64px' }}>
           {[
-            { value: '30초', label: 'SOP·매뉴얼 제작' },
-            { value: '실시간', label: '화면 위 클릭 안내' },
-            { value: '클릭만', label: '읽지 않고 따라 실행' },
+            { value: '30초', label: 'SOP·매뉴얼 초안' },
+            { value: '실시간', label: '화면 위 실행 안내' },
+            { value: '끝까지', label: '업무 완료까지 연결' },
           ].map((stat, i) => (
             <div key={stat.label} style={{ textAlign: 'center', padding: '16px 40px', borderRight: i < 2 ? '1px solid rgba(255,255,255,0.07)' : 'none' }}>
               <div style={{ fontSize: '30px', fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1, marginBottom: '6px', background: 'linear-gradient(180deg, #ffffff 0%, rgba(255,255,255,0.65) 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{stat.value}</div>
@@ -1684,7 +1693,7 @@ export default function LandingPage() {
     { q: '어떤 결제 방법을 지원하나요?', a: '국내·해외 주요 신용카드와 카카오페이, 토스페이를 지원합니다. 기업 결제는 세금계산서 발행이 가능합니다.' },
     { q: '플랜은 자유롭게 변경할 수 있나요?', a: '언제든 업그레이드·다운그레이드할 수 있어요. 업그레이드는 즉시 반영되고, 다운그레이드는 다음 결제 주기부터 적용됩니다.' },
     { q: '환불 정책은 어떻게 되나요?', a: '결제 후 7일 이내, 유료 기능을 한 번도 사용하지 않은 경우 전액 환불이 가능합니다. 자세한 내용은 환불 정책 페이지를 참고해주세요.' },
-    { q: '팀이나 회사 단위로 사용하려면 어떻게 하나요?', a: '팀 워크스페이스를 만들고 팀원을 초대하면 매뉴얼을 공유 폴더로 함께 관리하고, 같은 매뉴얼을 실시간으로 공동 편집할 수 있습니다. 기업 맞춤 도입(보안 검토, 세금계산서 등)은 기업 데모 신청을 통해 상담해 드립니다.' },
+    { q: '팀이나 회사 단위로 사용하려면 어떻게 하나요?', a: '팀 워크스페이스를 만들고 팀원을 초대하면 매뉴얼을 공유 폴더로 함께 관리할 수 있습니다. 멤버 권한으로 볼 수 있는 사람과 편집할 수 있는 사람을 나누고, 기업 맞춤 도입(보안 검토, 세금계산서 등)은 기업 데모 신청을 통해 상담해 드립니다.' },
   ];
 
   return (
@@ -1764,19 +1773,19 @@ export default function LandingPage() {
               <span style={{ flex: 1, maxWidth: '80px', height: '1px', background: 'linear-gradient(90deg, rgba(124,58,237,0.5), transparent)' }} />
             </p>
             <h2 style={{ fontSize: 'clamp(38px, 6vw, 72px)', fontWeight: 800, lineHeight: 1.1, letterSpacing: '-0.04em', color: 'white', margin: '0 0 28px', wordBreak: 'keep-all' }}>
-              평소처럼 일하면<br />
+              절차를 기록하면<br />
               <span style={{ background: 'linear-gradient(135deg, #e0d7ff 0%, #c4b5fd 40%, #818cf8 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>
-                자료가 나온다.
+                실행까지 이어진다.
               </span>
             </h2>
             <p style={{ fontSize: '18px', color: 'rgba(255,255,255,0.42)', maxWidth: '500px', margin: '0 auto 56px', lineHeight: 1.8, fontWeight: 400 }}>
-              녹화 버튼 하나만 켜면 됩니다. 클릭, 입력, 스크롤 — 당신의 모든 동작이 단계가 되고, AI가 설명을 붙입니다.
+              녹화 버튼 하나만 켜면 됩니다. 클릭, 입력, 스크롤 — 당신의 모든 동작이 SOP가 되고, 필요한 순간에는 화면 위 안내가 됩니다.
             </p>
             <div style={{ display: 'inline-flex', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '18px', overflow: 'hidden', background: 'rgba(255,255,255,0.02)', flexWrap: 'wrap' }}>
               {[
-                { label: '별도 작업 없음', desc: '하던 일 그대로' },
-                { label: '30초 완성', desc: 'AI가 즉시 정리' },
-                { label: 'Live Guide로 따라하기', desc: '읽을 필요 없이 실행' },
+                { label: '절차 기록', desc: '하던 일 그대로' },
+                { label: 'AI 정리', desc: 'SOP 초안 생성' },
+                { label: '실행 연결', desc: '화면 위 가이드' },
               ].map((item, i) => (
                 <div key={item.label} style={{ padding: '24px 36px', borderRight: i < 2 ? '1px solid rgba(255,255,255,0.07)' : 'none', textAlign: 'center', background: i === 1 ? 'rgba(109,40,217,0.09)' : 'transparent', minWidth: '140px' }}>
                   <div style={{ fontSize: '14px', fontWeight: 700, color: 'white', marginBottom: '5px' }}>{item.label}</div>
@@ -1793,14 +1802,14 @@ export default function LandingPage() {
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
           <RevealSection>
             <span style={{ display: 'block', textAlign: 'center', fontSize: '11px', color: '#7c3aed', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '16px' }}>Problem</span>
-            <h2 style={{ textAlign: 'center', fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 800, letterSpacing: '-0.035em', margin: '0 auto 14px', maxWidth: '640px', lineHeight: 1.18, color: 'white' }}>이런 문제, 한 번쯤 겪어보셨죠?</h2>
-            <p style={{ textAlign: 'center', fontSize: '16px', color: 'rgba(255,255,255,0.38)', maxWidth: '520px', margin: '0 auto 60px', lineHeight: 1.7 }}>SOP·매뉴얼을 만들어도 아무도 안 읽고, 영상은 만들기 지옥이고, PPT는 만들다 하루가 갑니다.</p>
+            <h2 style={{ textAlign: 'center', fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 800, letterSpacing: '-0.035em', margin: '0 auto 14px', maxWidth: '680px', lineHeight: 1.18, color: 'white' }}>좋은 매뉴얼도 실행 순간에는 멀어집니다</h2>
+            <p style={{ textAlign: 'center', fontSize: '16px', color: 'rgba(255,255,255,0.38)', maxWidth: '600px', margin: '0 auto 60px', lineHeight: 1.7 }}>SOP와 매뉴얼은 꼭 필요합니다. 문제는 그 지식이 실제 화면 앞에서 바로 행동으로 이어지기 어렵다는 점입니다.</p>
 
             <div className="grid-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
               {[
-                { emoji: '📄', title: 'PDF는 아무도 안 읽어요', body: '200페이지 매뉴얼을 만들어도 신입은 첫 페이지에서 멈춥니다. 검색도 안 되고 따라하기도 어렵죠.', quote: '"매뉴얼 어디 있어요?" — 매일 듣는 말', accent: '#F59E0B', accentRgb: '245,158,11' },
-                { emoji: '🎥', title: '영상 제작은 지옥이에요', body: '대본 쓰고, 녹화하고, 편집하고, 자막 달면 하루가 그냥 갑니다. 한 줄 수정하려면 처음부터 다시.', quote: '"영상 5분 만드는 데 6시간"', accent: '#EF4444', accentRgb: '239,68,68' },
-                { emoji: '🖥️', title: 'PPT는 너무 오래 걸려요', body: '스크린샷 찍고, 자르고, 화살표 그리고, 정렬 맞추다 보면 한 슬라이드에 30분. UI는 또 바뀌어 있고요.', quote: '"디자인은 또 누가 다듬어?"', accent: '#818cf8', accentRgb: '129,140,248' },
+                { emoji: '📄', title: '문서는 남지만 실행은 따로입니다', body: '정리된 SOP가 있어도 사용자는 실제 화면 앞에서 어느 버튼을 눌러야 할지 다시 확인해야 합니다.', quote: '"지금 화면에서는 어디를 눌러요?"', accent: '#F59E0B', accentRgb: '245,158,11' },
+                { emoji: '🎥', title: '영상은 흐름을 보여주지만 수정이 어렵습니다', body: '업무 화면이 바뀌면 다시 녹화하고 편집해야 합니다. 필요한 순간에 특정 단계만 바로 고치기도 어렵습니다.', quote: '"버튼 위치가 바뀌었네요"', accent: '#EF4444', accentRgb: '239,68,68' },
+                { emoji: '🖥️', title: '스크린샷 자료는 제작 부담이 큽니다', body: '화면을 찍고, 자르고, 표시하고, 설명을 붙이는 일이 반복됩니다. 지식을 남기는 과정이 또 하나의 업무가 됩니다.', quote: '"정리하다가 하루가 지나갔어요"', accent: '#818cf8', accentRgb: '129,140,248' },
               ].map(p => (
                 <div key={p.title}
                   style={{ padding: '32px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '20px', transition: 'all 0.25s ease', position: 'relative', overflow: 'hidden' }}
@@ -1824,8 +1833,8 @@ export default function LandingPage() {
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
           <RevealSection>
             <span style={{ display: 'block', textAlign: 'center', fontSize: '11px', color: '#5b21b6', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '16px' }}>How it works</span>
-            <h2 style={{ textAlign: 'center', fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 800, letterSpacing: '-0.035em', margin: '0 auto 14px', maxWidth: '640px', lineHeight: 1.18, color: '#0D0D14' }}>3단계로 끝나는 매뉴얼 제작</h2>
-            <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '520px', margin: '0 auto 72px', lineHeight: 1.7 }}>기존 작업을 평소처럼 하기만 하면 됩니다. 나머지는 AI가 다 합니다.</p>
+            <h2 style={{ textAlign: 'center', fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 800, letterSpacing: '-0.035em', margin: '0 auto 14px', maxWidth: '680px', lineHeight: 1.18, color: '#0D0D14' }}>3단계로 이어지는 실행형 SOP</h2>
+            <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '560px', margin: '0 auto 72px', lineHeight: 1.7 }}>업무 절차를 기록하고, AI가 매뉴얼로 정리하고, 필요한 순간에는 화면 위 가이드로 이어집니다.</p>
 
             <div className="grid-3col how-steps" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0', position: 'relative' }}>
               {/* Connecting line */}
@@ -1833,7 +1842,7 @@ export default function LandingPage() {
               {[
                 { num: '01', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.15)"/><path d="M8 12l2.5 2.5L16 9" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>, title: '크롬 확장 설치 후 녹화 시작', body: '웹 작업을 평소처럼 진행하면 클릭 위치와 화면이 자동 캡처됩니다.' },
                 { num: '02', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" fill="rgba(255,255,255,0.9)"/></svg>, title: 'AI가 설명과 어노테이션 자동 완성', body: '캡처된 화면을 분석해 단계별 설명·하이라이트·화살표를 자동 생성합니다.' },
-                { num: '03', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.12)"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="white"/></svg>, title: 'Live Guide로 — 따라만 하면 끝', body: '받는 사람은 매뉴얼을 읽지 않습니다. 자기 화면 위 안내를 따라 클릭만 하면 그대로 완료됩니다.' },
+                { num: '03', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.12)"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="white"/></svg>, title: 'Live Guide로 실행까지 연결', body: '정리된 SOP를 실제 화면 위 안내로 이어서, 사용자가 어느 단계에서 막혔는지 덜 고민하고 업무를 끝낼 수 있게 돕습니다.' },
               ].map((s, i) => (
                 <div key={s.num} style={{ padding: '0 40px 0', position: 'relative', zIndex: 1, textAlign: 'center' }}>
                   <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '84px', height: '84px', borderRadius: '50%', background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)', marginBottom: '28px', boxShadow: '0 0 0 8px rgba(109,40,217,0.08), 0 12px 28px rgba(55,48,163,0.32)', position: 'relative' }}>
@@ -1886,8 +1895,8 @@ export default function LandingPage() {
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
           <RevealSection>
             <span style={{ display: 'block', textAlign: 'center', fontSize: '11px', color: '#7c3aed', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '16px' }}>Features</span>
-            <h2 style={{ textAlign: 'center', fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 800, letterSpacing: '-0.035em', margin: '0 auto 14px', maxWidth: '640px', lineHeight: 1.18, color: 'white' }}>매뉴얼에 필요한 건 전부 들어 있습니다</h2>
-            <p style={{ textAlign: 'center', fontSize: '16px', color: 'rgba(255,255,255,0.38)', maxWidth: '540px', margin: '0 auto 64px', lineHeight: 1.7 }}>화면 위 Live Guide · 팀 워크스페이스 · 민감정보 보호까지, 녹화 한 번으로.</p>
+            <h2 style={{ textAlign: 'center', fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 800, letterSpacing: '-0.035em', margin: '0 auto 14px', maxWidth: '680px', lineHeight: 1.18, color: 'white' }}>SOP를 만들고, 실행까지 돕는 기능</h2>
+            <p style={{ textAlign: 'center', fontSize: '16px', color: 'rgba(255,255,255,0.38)', maxWidth: '560px', margin: '0 auto 64px', lineHeight: 1.7 }}>화면 위 Live Guide · 팀 워크스페이스 · 민감정보 보호까지, 업무 지식이 실제 행동으로 이어지도록.</p>
 
             <div className="grid-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
               {features.map(f => (
@@ -2081,8 +2090,8 @@ export default function LandingPage() {
               <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#c4b5fd', animation: 'pulse-dot 1.8s ease-in-out infinite' }} />
               Pro 출시 알림 받기 · 사전예약
             </span>
-            <h2 style={{ fontSize: 'clamp(32px, 5vw, 54px)', fontWeight: 800, letterSpacing: '-0.04em', margin: '0 0 18px', position: 'relative', lineHeight: 1.1, wordBreak: 'keep-all' }}>30초 만에 첫 매뉴얼을<br/>만들어보세요</h2>
-            <p style={{ fontSize: '17px', color: 'rgba(255,255,255,0.70)', maxWidth: '500px', margin: '0 auto 40px', position: 'relative', lineHeight: 1.7 }}>MIMIC Recorder 확장 설치 → 평소처럼 작업 → 링크 한 줄로 공유. 그게 전부입니다.</p>
+            <h2 style={{ fontSize: 'clamp(32px, 5vw, 54px)', fontWeight: 800, letterSpacing: '-0.04em', margin: '0 0 18px', position: 'relative', lineHeight: 1.1, wordBreak: 'keep-all' }}>첫 실행형 매뉴얼을<br/>만들어보세요</h2>
+            <p style={{ fontSize: '17px', color: 'rgba(255,255,255,0.70)', maxWidth: '520px', margin: '0 auto 40px', position: 'relative', lineHeight: 1.7 }}>MIMIC Recorder 확장 설치 후 평소처럼 작업하세요. SOP는 문서로 남고, 필요한 순간에는 화면 위 안내로 이어집니다.</p>
 
             {!submitted ? (
               <form onSubmit={handleProSignup} style={{ position: 'relative', display: 'flex', gap: '8px', maxWidth: '440px', margin: '0 auto 28px', padding: '6px', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.22)', borderRadius: '14px' }}>
