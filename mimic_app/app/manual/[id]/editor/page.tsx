@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { Undo2, Redo2, Volume2, VolumeX, Loader2, Eye, Wand2, MessageSquare, Clock, Share2, Palette, Download, Check, Link2, Zap } from 'lucide-react';
+import { Undo2, Redo2, Loader2, Eye, Wand2, MessageSquare, Clock, Share2, Palette, Download, Check, Link2, Zap } from 'lucide-react';
 import { GuideToc } from '@/components/editor/GuideToc';
 import { ManualEditor, ManualStep } from '@/components/editor/ManualEditor';
 import { MergeModal } from '@/components/editor/MergeModal';
@@ -100,9 +100,6 @@ export default function EditorPage() {
   const [publishing, setPublishing] = useState(false);
   const [downloadOpen, setDownloadOpen] = useState(false);
   const [downloadingFmt, setDownloadingFmt] = useState<'pdf' | 'pptx' | 'docx' | null>(null);
-  const [ttsEnabled, setTtsEnabled] = useState(false);
-  const [ttsVoice, setTtsVoice] = useState<'nova' | 'alloy'>('nova');
-  const [ttsGenerating, setTtsGenerating] = useState(false);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [mobileTocOpen, setMobileTocOpen] = useState(false);
   const [collabToast, setCollabToast] = useState<{ stepId: string; name: string; color: string } | null>(null);
@@ -263,10 +260,6 @@ export default function EditorPage() {
     if (tutorial.steps.length > 0 && !activeId) {
       setActiveId(tutorial.steps[0].id);
     }
-    // TTS 설정 초기화
-    const t = tutorial as Tutorial & { tts_enabled?: boolean; tts_voice?: string };
-    setTtsEnabled(t.tts_enabled ?? false);
-    setTtsVoice((t.tts_voice as 'nova' | 'alloy') ?? 'nova');
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tutorial?.id]);
 
@@ -351,20 +344,6 @@ export default function EditorPage() {
   // Autosave title
   useAutosave(id, titleDirty ? { title } : null);
 
-  const saveTtsSetting = useCallback(async (enabled: boolean, voice: 'nova' | 'alloy') => {
-    await fetch(`/api/tutorials/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tts_enabled: enabled, tts_voice: voice }),
-    });
-  }, [id]);
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleTtsToggle = useCallback(async (enabled: boolean) => {
-    setTtsEnabled(enabled);
-    await saveTtsSetting(enabled, ttsVoice);
-  }, [ttsVoice, saveTtsSetting]);
-
   // 전체 문장 다듬기 — 모든 스텝의 설명 문장을 매뉴얼 가이드라인에 맞게 일괄 정제
   const handleRefineAllText = useCallback(async () => {
     const allWithText = manualSteps
@@ -399,36 +378,6 @@ export default function EditorPage() {
       setRefiningText(false);
     }
   }, [manualSteps, setManualStepsWithHistory]);
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleTtsVoiceChange = useCallback(async (voice: 'nova' | 'alloy') => {
-    setTtsVoice(voice);
-    await saveTtsSetting(ttsEnabled, voice);
-  }, [ttsEnabled, saveTtsSetting]);
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleGenerateAllTts = useCallback(async () => {
-    const targets = manualSteps.filter(s =>
-      !s.id.startsWith('step-') && s.description.replace(/<[^>]+>/g, '').trim()
-    );
-    if (!targets.length) return;
-    setTtsGenerating(true);
-    try {
-      await Promise.all(targets.map(s =>
-        fetch('/api/tts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            stepId: s.id,
-            scriptText: s.description.replace(/<[^>]+>/g, '').trim(),
-            voice: ttsVoice,
-          }),
-        })
-      ));
-    } finally {
-      setTtsGenerating(false);
-    }
-  }, [manualSteps, ttsVoice]);
 
   const performDeleteStep = useCallback((stepId: string) => {
     const next = manualSteps.filter(s => s.id !== stepId).map((s, i) => ({ ...s, number: i + 1 }));
@@ -983,38 +932,6 @@ export default function EditorPage() {
               {refiningText ? <Loader2 size={TOP_BAR_ICON_SIZE} style={{ animation: 'spin 1s linear infinite' }} /> : <Wand2 size={TOP_BAR_ICON_SIZE} />}
               전체 문장 다듬기
             </button>
-            {/* TTS 설정 — 튜토리얼 단위 ON/OFF */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, borderLeft: '1px solid #F3F4F6', paddingLeft: '12px' }}>
-              <button
-                onClick={() => handleTtsToggle(!ttsEnabled)}
-                title={ttsEnabled ? 'AI 음성 끄기' : 'AI 음성 켜기'}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', height: '28px', padding: '0 10px', borderRadius: '6px', border: `1px solid ${ttsEnabled ? '#6d28d9' : '#E5E7EB'}`, background: ttsEnabled ? 'rgba(109,40,217,0.07)' : 'white', color: ttsEnabled ? '#6d28d9' : '#9CA3AF', fontSize: '12px', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s' }}
-              >
-                {ttsEnabled ? <Volume2 size={TOP_BAR_ICON_SIZE} /> : <VolumeX size={TOP_BAR_ICON_SIZE} />}
-                AI 음성
-              </button>
-              {ttsEnabled && (
-                <>
-                  <select
-                    value={ttsVoice}
-                    onChange={e => handleTtsVoiceChange(e.target.value as 'nova' | 'alloy')}
-                    style={{ fontSize: '11.5px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', borderRadius: '5px', padding: '3px 6px', cursor: 'pointer', outline: 'none', height: '28px' }}
-                  >
-                    <option value="nova">Nova (여성)</option>
-                    <option value="alloy">Alloy (남성)</option>
-                  </select>
-                  <button
-                    onClick={handleGenerateAllTts}
-                    disabled={ttsGenerating}
-                    title="전체 스텝 음성 생성"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', height: '28px', padding: '0 10px', borderRadius: '6px', border: '1px solid #6d28d9', background: '#6d28d9', color: 'white', fontSize: '11.5px', fontWeight: 500, cursor: ttsGenerating ? 'not-allowed' : 'pointer', opacity: ttsGenerating ? 0.65 : 1, transition: 'all 0.15s' }}
-                  >
-                    {ttsGenerating ? <Loader2 size={TOP_BAR_ICON_SIZE} style={{ animation: 'spin 1s linear infinite' }} /> : <Volume2 size={TOP_BAR_ICON_SIZE} />}
-                    {ttsGenerating ? '생성 중…' : '전체 생성'}
-                  </button>
-                </>
-              )}
-            </div>
             {/* AI 자동 생성 진행 인디케이터 */}
             {autoGenProgress && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, fontSize: '11.5px', color: '#6d28d9' }}>
