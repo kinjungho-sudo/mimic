@@ -1,7 +1,7 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Undo2, Redo2, Volume2, VolumeX, Loader2, Eye, Wand2, MessageSquare, Clock, Share2, Palette, Download, Check, Link2, Zap } from 'lucide-react';
 import { GuideToc } from '@/components/editor/GuideToc';
 import { ManualEditor, ManualStep } from '@/components/editor/ManualEditor';
@@ -80,8 +80,10 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
 export default function EditorPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { tutorial, loading, error, publish, unpublish } = useTutorial(id);
   const { user } = useAuth();
+  const isRecordingFinalizeView = searchParams.get('from') === 'recording';
 
   const [title, setTitle] = useState('');
   const [manualSteps, setManualSteps] = useState<ManualStep[]>([]);
@@ -270,6 +272,7 @@ export default function EditorPage() {
 
   // 녹화 직후 진입: 스텝이 없으면 2초마다 폴링 (최대 30초)
   useEffect(() => {
+    if (!isRecordingFinalizeView) return;
     if (loading) return;
     if (!tutorial) return;
     if (tutorial.steps.length > 0) return; // 이미 스텝 있으면 불필요
@@ -301,7 +304,7 @@ export default function EditorPage() {
 
     return () => clearInterval(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tutorial?.id, loading]);
+  }, [tutorial?.id, loading, isRecordingFinalizeView]);
 
   // 에디터 최초 로드 시 description 없는 스텝 자동 AI 생성 (무료 플랜 제외)
   useEffect(() => {
