@@ -161,6 +161,7 @@
     this.current = 0;
     this._els = {};
     this._running = false;
+    this._audio = null;
   }
 
   Guide.prototype.start = function (startIndex) {
@@ -169,6 +170,25 @@
     this.current = startIndex || 0;
     injectStyles();
     this._render();
+  };
+
+  Guide.prototype._stopAudio = function () {
+    try {
+      if (this._audio) {
+        this._audio.pause();
+        this._audio.src = '';
+      }
+    } catch (e) { /* noop */ }
+    this._audio = null;
+  };
+
+  Guide.prototype._playAudio = function (url) {
+    if (!url) return;
+    this._stopAudio();
+    try {
+      this._audio = new Audio(url);
+      this._audio.play().catch(function () {});
+    } catch (e) { /* noop */ }
   };
 
   Guide.prototype._render = function () {
@@ -259,6 +279,14 @@
     var btnGroup = document.createElement('div');
     btnGroup.style.cssText = 'display:flex;gap:6px;align-items:center';
 
+    if (step.audio_url) {
+      var audioBtn = document.createElement('button');
+      audioBtn.className = 'mimic-btn mimic-btn-secondary';
+      audioBtn.textContent = '음성';
+      audioBtn.addEventListener('click', function () { self._playAudio(step.audio_url); });
+      btnGroup.appendChild(audioBtn);
+    }
+
     if (this.current > 0) {
       var prevBtn = document.createElement('button');
       prevBtn.className = 'mimic-btn mimic-btn-secondary';
@@ -301,9 +329,11 @@
       if (e.key === 'Escape') self.destroy();
     };
     document.addEventListener('keydown', this._keyHandler);
+    this._playAudio(step.audio_url);
   };
 
   Guide.prototype._clean = function () {
+    this._stopAudio();
     ['highlight', 'backdrop', 'tooltip'].forEach(function (k) {
       if (this._els[k]) { this._els[k].remove(); delete this._els[k]; }
     }, this);
