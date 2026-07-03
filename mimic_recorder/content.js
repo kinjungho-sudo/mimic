@@ -61,6 +61,7 @@
   let typingUrl          = null;   // 입력 세션 시작 시 URL — 재마운트 필드 판정용
   let typingTimer        = null;
   let _pointerDownSnapshot = null;
+  let _pointerClickFallbackTimer = null;
   let typingFocusSnapshot = null;
   let _countingDown      = false;
   let _lastTypingFrameTime = 0;     // 롤링 타이핑 프레임 throttle 기준
@@ -917,6 +918,7 @@
     const { vw, vh } = getViewportSize();
     const topClick = toTopPoint(event.clientX, event.clientY);
     const label = getElementLabel(captureEl, clickedEl);
+    const href = captureEl.getAttribute('href') || captureEl.closest('a')?.getAttribute('href') || target.getAttribute('href') || target.closest('a')?.getAttribute('href') || '';
     return {
       target: captureEl,
       time: Date.now(),
@@ -929,6 +931,8 @@
       elementXPath: getElementXPath(captureEl),
       label,
       role: captureEl.getAttribute('role') || target.getAttribute('role') || undefined,
+      actionType: getActionType(target),
+      href,
       labelDebug: buildLabelDebug(captureEl, label),
     };
   }
@@ -939,6 +943,57 @@
     if (Math.abs(_pointerDownSnapshot.x - event.clientX) > 12) return null;
     if (Math.abs(_pointerDownSnapshot.y - event.clientY) > 12) return null;
     return _pointerDownSnapshot;
+  }
+
+  function clearPointerClickFallback() {
+    if (_pointerClickFallbackTimer) clearTimeout(_pointerClickFallbackTimer);
+    _pointerClickFallbackTimer = null;
+  }
+
+  function schedulePointerClickFallback(event) {
+    clearPointerClickFallback();
+    const snapshot = getRecentPointerSnapshot(event);
+    if (!snapshot || snapshot.actionType === 'focus_input') return;
+
+    _pointerClickFallbackTimer = setTimeout(() => {
+      _pointerClickFallbackTimer = null;
+      if (!isRecording || isPaused || isCapturing || document.visibilityState !== 'visible') return;
+      if ((Date.now() - snapshot.time) > 1200) return;
+
+      const now = Date.now();
+      if (snapshot.target === lastCapturedTarget && (now - lastCapturedTime) < DEDUP_SAME_ELEMENT) return;
+
+      const safetyTimer = startCapturingSafely();
+      stepNumber += 1;
+      lastCapturedTarget = snapshot.target;
+      lastCapturedTime = now;
+
+      log('debug', `pointer fallback capture step ${stepNumber} el=${snapshot.target.tagName}`);
+      sendCapture({
+        url: location.href,
+        timestamp: Date.now(),
+        clickX: snapshot.clickX,
+        clickY: snapshot.clickY,
+        windowWidth: getViewportSize().vw,
+        windowHeight: getViewportSize().vh,
+        viewportW: getViewportSize().vw,
+        viewportH: getViewportSize().vh,
+        stepNumber,
+        usePrecapture: true,
+        elementRect: snapshot.elementRect,
+        elementSelector: snapshot.elementSelector,
+        elementXPath: snapshot.elementXPath,
+        actionInfo: {
+          type: snapshot.actionType === 'navigate' ? 'click' : snapshot.actionType,
+          label: snapshot.label,
+          tag: snapshot.target.tagName.toLowerCase(),
+          role: snapshot.role,
+          href: (snapshot.href || '').slice(0, 200),
+          labelDebug: snapshot.labelDebug,
+          fallbackReason: 'pointerup-no-click',
+        },
+      }, () => { clearTimeout(safetyTimer); isCapturing = false; });
+    }, 120);
   }
 
   // 클래스가 안정적인지 판정 — 상태 클래스·CSS-in-JS 해시·동적 토큰을 거부(셀렉터 견고성의 핵심)
@@ -1105,10 +1160,17 @@
     }));
   }, true);
 
+  document.addEventListener('pointerup', (e) => {
+    if (!isRecording || isPaused || isCapturing) return;
+    if (e.button !== undefined && e.button !== 0) return;
+    schedulePointerClickFallback(e);
+  }, true);
+
   // ── 클릭 캡처 ────────────────────────────────────────────────────
   document.addEventListener('click', handleClick, true);
 
   function handleClick(e) {
+    clearPointerClickFallback();
     if (!isRecording || isPaused || isCapturing) {
       if (isCapturing) log('debug', `click skipped — isCapturing step ${stepNumber}`);
       return;
