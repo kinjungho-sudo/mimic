@@ -59,7 +59,7 @@ export async function GET(request: NextRequest, { params }: Params) {
 
     const { data: tutorial } = await supabase
       .from('mm_tutorials')
-      .select('id, title, user_id')
+      .select('id, title, user_id, tts_enabled')
       .eq('id', token)
       .eq('user_id', session.user.id)
       .single();
@@ -72,13 +72,13 @@ export async function GET(request: NextRequest, { params }: Params) {
     const gated = await gateLiveGuide(supabase, tutorial.user_id, false);
     if (gated) return NextResponse.json(gated);
 
-    return NextResponse.json(await fetchSteps(supabase, tutorial.id, tutorial.title));
+    return NextResponse.json(await fetchSteps(supabase, tutorial.id, tutorial.title, tutorial.tts_enabled));
   }
 
   // share_token으로 published 튜토리얼 조회 (공개)
   const { data: tutorial } = await supabase
     .from('mm_tutorials')
-    .select('id, title, user_id')
+    .select('id, title, user_id, tts_enabled')
     .eq('share_token', token)
     .eq('status', 'published')
     .single();
@@ -91,10 +91,15 @@ export async function GET(request: NextRequest, { params }: Params) {
   const gated = await gateLiveGuide(supabase, tutorial.user_id, true);
   if (gated) return NextResponse.json(gated);
 
-  return NextResponse.json(await fetchSteps(supabase, tutorial.id, tutorial.title));
+  return NextResponse.json(await fetchSteps(supabase, tutorial.id, tutorial.title, tutorial.tts_enabled));
 }
 
-async function fetchSteps(supabase: ReturnType<typeof createServiceRoleClient>, tutorialId: string, title: string) {
+async function fetchSteps(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  tutorialId: string,
+  title: string,
+  ttsEnabled: boolean | null = false
+) {
   const { data: rawSteps } = await supabase
     .from('mm_steps')
     .select(
@@ -105,7 +110,21 @@ async function fetchSteps(supabase: ReturnType<typeof createServiceRoleClient>, 
     .order('order_index')
     .order('step_number'); // tie-break: order_index 동률/NULL(복제·레거시 데이터)일 때 순서 결정성 보장
 
-  const steps = ((rawSteps ?? []) as unknown as Record<string, unknown>[]).map(s => {
+  const rawStepRecords = (rawSteps ?? []) as unknown as Record<string, unknown>[];
+  const stepIds = rawStepRecords
+    .map(s => s.id)
+    .filter((id): id is string => typeof id === 'string');
+  const { data: audioAssets } = ttsEnabled && stepIds.length
+    ? await supabase
+        .from('mm_audio_assets')
+        .select('step_id, audio_url')
+        .in('step_id', stepIds)
+    : { data: [] };
+  const audioUrlByStepId = new Map(
+    (audioAssets ?? []).map(asset => [asset.step_id, asset.audio_url])
+  );
+
+  const steps = rawStepRecords.map(s => {
     const fc = (s.follow_config ?? {}) as {
       kind?: string | null; typeText?: string | null; hidden?: boolean;
       hotspotX?: number | null; hotspotY?: number | null; bubbleAnchor?: string | null;
@@ -122,6 +141,7 @@ async function fetchSteps(supabase: ReturnType<typeof createServiceRoleClient>, 
       click_x: s.click_x ?? null,
       click_y: s.click_y ?? null,
       screenshot_url: s.screenshot_url ?? null,
+      audio_url: typeof s.id === 'string' ? audioUrlByStepId.get(s.id) ?? null : null,
       // 라이브 가이드 자동입력용 — 스튜디오 오버라이드(fc.typeText) 우선, 없으면 캡처 원문(s.type_text) 폴백
       kind: fc.kind ?? null,
       type_text: fc.typeText ?? (s.type_text as string | null) ?? null,
