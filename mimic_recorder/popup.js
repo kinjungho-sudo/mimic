@@ -575,9 +575,15 @@ async function loadThumb(step, imgEl, placeholder, overlayEl) {
         if (e.target === imgEl.parentElement || e.target === imgEl || e.target === overlayEl) imgEl.onclick();
       };
       placeholder.style.display = 'none';
-      applyThumbPreviewZoom(step, imgEl, overlayEl, src);
-      // 전체 스크린샷 위에 클릭포인트/하이라이트 오버레이 렌더
-      if (overlayEl) renderThumbOverlay(overlayEl, imgEl, step, null);
+      if (overlayEl) {
+        syncThumbPreview(step, imgEl, overlayEl, src);
+        installThumbPreviewResizeSync(step, imgEl, overlayEl, src);
+        if (imgEl.complete && imgEl.naturalWidth > 0) {
+          requestAnimationFrame(() => syncThumbPreview(step, imgEl, overlayEl, src));
+        } else {
+          imgEl.addEventListener('load', () => syncThumbPreview(step, imgEl, overlayEl, src), { once: true });
+        }
+      }
     } else {
       placeholder.textContent = '이미지 없음';
     }
@@ -693,16 +699,27 @@ function fitFrameToAspect(frame, imageAspect, targetAspect) {
   return { x, y, width, height };
 }
 
+function getPreviewImageAspect(step, imgEl) {
+  if (imgEl?.naturalWidth > 0 && imgEl?.naturalHeight > 0) {
+    return imgEl.naturalWidth / imgEl.naturalHeight;
+  }
+  const vw = Number(step.windowWidth || step.viewportW || 1280);
+  const vh = Number(step.windowHeight || step.viewportH || 800);
+  return vw / Math.max(1, vh);
+}
+
+function clearThumbHighlights(thumbWrap) {
+  thumbWrap?.querySelectorAll('.step-thumb-highlight').forEach((node) => node.remove());
+}
+
 function applyThumbPreviewZoom(step, imgEl, overlayEl, src) {
   const wrap = imgEl.closest('.step-thumb');
   const zoomLayer = wrap?.querySelector('.step-thumb-zoom-layer');
   let frame = computePreviewFrame(step);
   if (!wrap || !zoomLayer || !overlayEl || !isValidFrame(frame)) return;
 
-  const vw = Number(step.windowWidth || step.viewportW || 1280);
-  const vh = Number(step.windowHeight || step.viewportH || 800);
-  const imageAspect = vw / Math.max(1, vh);
-  const targetAspect = clamp((frame.width * vw) / Math.max(1, frame.height * vh), 1.12, 1.72);
+  const imageAspect = getPreviewImageAspect(step, imgEl);
+  const targetAspect = clamp((frame.width * imageAspect) / Math.max(0.001, frame.height), 1.12, 1.72);
   frame = fitFrameToAspect(frame, imageAspect, targetAspect);
 
   wrap.style.aspectRatio = String(targetAspect);
@@ -712,8 +729,12 @@ function applyThumbPreviewZoom(step, imgEl, overlayEl, src) {
 
   overlayEl._previewFrame = frame;
   overlayEl.dataset.previewZoom = '1';
-  overlayEl.style.opacity = '0';
   overlayEl.style.transition = 'opacity 0.22s ease';
+  if (wrap.classList.contains('preview-zoom')) {
+    overlayEl.style.opacity = '1';
+    return;
+  }
+  overlayEl.style.opacity = '0';
   requestAnimationFrame(() => {
     setTimeout(() => {
       wrap.classList.add('preview-zoom');
@@ -725,9 +746,12 @@ function applyThumbPreviewZoom(step, imgEl, overlayEl, src) {
 function renderThumbOverlay(overlayEl, imgEl, step, _unused) {
   overlayEl.replaceChildren();
   const thumbWrap = overlayEl.closest('.step-thumb');
+  clearThumbHighlights(thumbWrap);
   thumbWrap?.querySelector('.step-type-badge')?.remove();
+  const zoomLayer = thumbWrap?.querySelector('.step-thumb-zoom-layer');
   const er = refinedPreviewRect(step) || step.elementRect;
   const frame = overlayEl._previewFrame;
+  const renderInZoomLayer = frame && isValidFrame(frame) && zoomLayer;
   const rect = frame && isValidFrame(frame)
     ? {
         x: (er?.x - frame.x) / frame.width,
@@ -747,6 +771,7 @@ function renderThumbOverlay(overlayEl, imgEl, step, _unused) {
       return;
     }
     const hl = document.createElement('div');
+    hl.className = 'step-thumb-highlight';
     hl.style.cssText = [
       'position:absolute', 'box-sizing:border-box', 'pointer-events:none',
       `left:${left * 100}%`, `top:${top * 100}%`,
@@ -756,9 +781,38 @@ function renderThumbOverlay(overlayEl, imgEl, step, _unused) {
       'border-radius:4px',
       'box-shadow:0 0 0 2px rgba(239,68,68,0.18)',
     ].join(';');
-    overlayEl.appendChild(hl);
+    (renderInZoomLayer ? zoomLayer : overlayEl).appendChild(hl);
   }
   renderTypingBadge(thumbWrap, step);
+}
+
+function syncThumbPreview(step, imgEl, overlayEl, src) {
+  if (!overlayEl || !imgEl?.closest('.step-thumb')) return;
+  applyThumbPreviewZoom(step, imgEl, overlayEl, src);
+  renderThumbOverlay(overlayEl, imgEl, step, null);
+}
+
+function installThumbPreviewResizeSync(step, imgEl, overlayEl, src) {
+  const wrap = imgEl.closest('.step-thumb');
+  if (!wrap || !overlayEl || typeof ResizeObserver === 'undefined') return;
+  if (overlayEl._previewResizeObserver) overlayEl._previewResizeObserver.disconnect();
+
+  let rafId = 0;
+  const schedule = () => {
+    if (!document.body.contains(wrap)) {
+      ro.disconnect();
+      return;
+    }
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(() => {
+      rafId = 0;
+      syncThumbPreview(step, imgEl, overlayEl, src);
+    });
+  };
+
+  const ro = new ResizeObserver(schedule);
+  ro.observe(wrap);
+  overlayEl._previewResizeObserver = ro;
 }
 
 function renderTypingBadge(thumbWrap, step) {
