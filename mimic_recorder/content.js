@@ -563,6 +563,7 @@
       if (window.MimicGuide) window.MimicGuide.show(msg.step, {
         index: msg.index ?? 0,
         total: msg.total ?? 1,
+        survey: msg.survey || null,
         onAdvance: (reason) => chrome.runtime.sendMessage({ type: 'GUIDE_NEXT', viaClick: reason === 'click' }),
         onPrev:    () => chrome.runtime.sendMessage({ type: 'GUIDE_PREV' }),
         onExit:    () => { chrome.runtime.sendMessage({ type: 'EXIT_GUIDE' }); window.MimicGuide.hide(); },

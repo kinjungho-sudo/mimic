@@ -494,6 +494,17 @@
       if (act === 'next') advance('manual');
       else if (act === 'prev') opts.onPrev && opts.onPrev();
       else if (act === 'exit') opts.onExit && opts.onExit();
+      else if (act && act.startsWith('survey-rate:')) {
+        const [, group, value] = act.split(':');
+        setSurveyChoice(group, value);
+      }
+      else if (act && act.startsWith('survey-bool:')) {
+        const [, group, value] = act.split(':');
+        setSurveyChoice(group, value);
+      }
+      else if (act === 'survey-submit') {
+        submitGuideSurvey(e.target);
+      }
       else if (act === 'hide-tooltip') {
         if (!state) return;
         state.tooltipHidden = true;
@@ -646,6 +657,66 @@
     setTimeout(() => { if (state && state.tooltip) state.tooltip.style.animation = ''; }, 320);
   }
 
+  function setSurveyChoice(group, value) {
+    if (!state || !state.tooltip) return;
+    state.tooltip.querySelectorAll(`[data-survey-group="${group}"]`).forEach((btn) => {
+      const selected = btn.getAttribute('data-survey-value') === value;
+      btn.setAttribute('aria-pressed', selected ? 'true' : 'false');
+      btn.style.background = selected ? '#eef2ff' : 'white';
+      btn.style.color = selected ? '#3730a3' : '#4b5563';
+      btn.style.borderColor = selected ? '#3730a3' : '#e5e7eb';
+    });
+  }
+
+  function getSurveyChoice(group, fallback) {
+    if (!state || !state.tooltip) return fallback;
+    const selected = state.tooltip.querySelector(`[data-survey-group="${group}"][aria-pressed="true"]`);
+    return selected ? selected.getAttribute('data-survey-value') : fallback;
+  }
+
+  function submitGuideSurvey(button) {
+    if (!state || !state.tooltip) return;
+    const survey = state.opts && state.opts.survey;
+    if (!survey || !survey.enabled) return;
+    const q1 = Number(getSurveyChoice('q1', '3')) || 3;
+    const q2 = Number(getSurveyChoice('q2', '3')) || 3;
+    const q3 = Number(getSurveyChoice('q3', '3')) || 3;
+    const completed = getSurveyChoice('q4', 'true') !== 'false';
+    const issue = String(getSurveyChoice('issue', '막힌 단계 없음') || '막힌 단계 없음');
+    const comment = state.tooltip.querySelector('[data-survey-comment]')?.value || '';
+    if (button) {
+      button.textContent = '제출 중...';
+      button.disabled = true;
+    }
+    chrome.runtime.sendMessage({
+      type: 'SUBMIT_GUIDE_SURVEY',
+      payload: {
+        tutorial_id: survey.tutorialId,
+        viewer_session_id: survey.viewerSessionId,
+        q1_easier_than_pdf: q1,
+        q2_would_use_again: q2,
+        q3_useful_for_work: q3,
+        q4_can_reproduce: completed,
+        q5_additional_feedback: JSON.stringify({
+          survey_context: 'live_guide',
+          selected_issue: issue,
+          comment: comment.trim() || null,
+          schema_version: 1,
+        }),
+      },
+    }, () => {
+      void chrome.runtime.lastError;
+      if (!state || !state.tooltip) return;
+      state.tooltip.innerHTML = `
+        <div style="text-align:center;padding:12px 4px">
+          <div style="${AVATAR_STYLE}margin:0 auto 12px;">${MASCOT_SVG}</div>
+          <div style="font-size:15px;font-weight:800;margin-bottom:6px">고마워요. 반영해둘게요.</div>
+          <div style="font-size:12.5px;color:#9CA3AF;margin-bottom:14px">Live Guide Beta를 더 정확하게 다듬는 데 사용할게요.</div>
+          <button class="mimic-btn" data-act="exit" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:9px 24px;width:100%">닫기</button>
+        </div>`;
+    });
+  }
+
   function showComplete() {
     if (!state) return;
     if (state.rafId) cancelAnimationFrame(state.rafId);
@@ -661,6 +732,40 @@
         <div style="font-size:12.5px;color:#9CA3AF;margin-bottom:14px">모든 스텝을 완료했습니다.</div>
         <button class="mimic-btn" data-act="exit" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:9px 24px;width:100%">닫기</button>
       </div>`;
+    const survey = state.opts && state.opts.survey && state.opts.survey.enabled ? state.opts.survey : null;
+    if (survey) {
+      const rating = (group) => [1, 2, 3, 4, 5].map(n => `<button class="mimic-btn" data-act="survey-rate:${group}:${n}" data-survey-group="${group}" data-survey-value="${n}" aria-pressed="false" style="width:30px;height:28px;padding:0;background:white;color:#4b5563;border:1px solid #e5e7eb">${n}</button>`).join('');
+      const issueBtn = (label, selected) => `<button class="mimic-btn" data-act="survey-rate:issue:${escapeHtml(label)}" data-survey-group="issue" data-survey-value="${escapeHtml(label)}" aria-pressed="${selected ? 'true' : 'false'}" style="padding:6px 8px;background:${selected ? '#eef2ff' : 'white'};color:${selected ? '#3730a3' : '#4b5563'};border:1px solid ${selected ? '#3730a3' : '#e5e7eb'};font-size:11.5px">${escapeHtml(label)}</button>`;
+      state.tooltip.innerHTML = `
+        <div style="padding:6px 2px;color:#111827">
+          <div style="display:flex;gap:9px;align-items:center;margin-bottom:10px">
+            <div style="${AVATAR_STYLE}width:38px;height:38px;flex-shrink:0">${MASCOT_SVG}</div>
+            <div>
+              <div style="font-size:15px;font-weight:800">Live Guide Beta는 어땠나요?</div>
+              <div style="font-size:12px;color:#6B7280;margin-top:2px">선택만 해도 충분해요.</div>
+            </div>
+          </div>
+          <div style="display:grid;gap:9px;font-size:12px">
+            <label style="display:grid;gap:5px;font-weight:700">1. 작업 완료에 도움이 됐나요?<div style="display:flex;gap:5px">${rating('q1')}</div></label>
+            <label style="display:grid;gap:5px;font-weight:700">2. 클릭 위치나 다음 행동 안내가 정확했나요?<div style="display:flex;gap:5px">${rating('q2')}</div></label>
+            <label style="display:grid;gap:5px;font-weight:700">3. 다음에도 쓰고 싶나요?<div style="display:flex;gap:5px">${rating('q3')}</div></label>
+            <div style="display:grid;gap:5px;font-weight:700">4. 이번 작업을 끝까지 완료했나요?
+              <div style="display:flex;gap:6px">
+                <button class="mimic-btn" data-act="survey-bool:q4:true" data-survey-group="q4" data-survey-value="true" aria-pressed="true" style="flex:1;background:#eef2ff;color:#3730a3;border:1px solid #3730a3">예</button>
+                <button class="mimic-btn" data-act="survey-bool:q4:false" data-survey-group="q4" data-survey-value="false" aria-pressed="false" style="flex:1;background:white;color:#4b5563;border:1px solid #e5e7eb">아니오</button>
+              </div>
+            </div>
+            <div style="display:grid;gap:5px;font-weight:700">5. 가장 불편했던 점은 무엇인가요?
+              <div style="display:flex;gap:5px;flex-wrap:wrap">${['막힌 단계 없음','클릭 위치 부정확','설명 부족','화면 전환 문제','자동 입력 문제','완료 못함'].map((label, i) => issueBtn(label, i === 0)).join('')}</div>
+            </div>
+            <textarea data-survey-comment placeholder="더 남기고 싶은 의견이 있으면 적어주세요. (선택)" style="width:100%;min-height:58px;box-sizing:border-box;border:1px solid #e5e7eb;border-radius:8px;padding:8px;font-size:12px;font-family:inherit;resize:vertical"></textarea>
+          </div>
+          <div style="display:flex;gap:7px;margin-top:12px">
+            <button class="mimic-btn" data-act="exit" style="flex:1;background:white;color:#6b7280;border:1px solid #e5e7eb;padding:9px 10px">건너뛰기</button>
+            <button class="mimic-btn" data-act="survey-submit" style="flex:1;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:9px 10px">제출하기</button>
+          </div>
+        </div>`;
+    }
     state.tooltip.style.left = `${Math.max(TIP_M, (window.innerWidth - TIP_W) / 2)}px`;
     state.tooltip.style.top  = `${Math.max(TIP_M, (window.innerHeight - 220) / 2)}px`;
     state.tooltip.style.animation = 'mimic-tip-in 0.3s ease forwards';
