@@ -653,13 +653,13 @@ export default function EditorPage() {
 
             <button
               onClick={() => router.push(`/manual/${id}/studio`)}
-              title="연습 가이드의 화면 안내, 핫스팟, 입력 텍스트를 편집합니다"
+              title="학습 가이드의 화면 안내, 핫스팟, 입력 텍스트를 편집합니다"
               style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#4F46E5', background: 'rgba(79,70,229,0.08)', border: '1px solid rgba(79,70,229,0.35)', cursor: 'pointer', transition: 'all 0.15s', fontWeight: 600 }}
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(79,70,229,0.13)'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'rgba(79,70,229,0.08)'; }}
             >
               <Play size={TOP_BAR_ICON_SIZE} />
-              연습 가이드
+              학습 가이드
             </button>
 
             {/* 댓글 패널 토글 — 팀 협업 의견 공유 */}
@@ -1119,7 +1119,7 @@ export default function EditorPage() {
               )}
               {hasGuide && (
                 <div style={{ fontSize: '12.5px', color: '#B45309', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '8px', padding: '9px 11px', lineHeight: 1.55, marginBottom: '10px' }}>
-                  이 스텝의 <b>연습 가이드·Live Guide Beta 설정</b>(핫스팟·말풍선·입력 텍스트 등)도 함께 삭제됩니다.
+                  이 스텝의 <b>학습 가이드·Live Guide Beta 설정</b>(핫스팟·말풍선·입력 텍스트 등)도 함께 삭제됩니다.
                 </div>
               )}
               <div style={{ fontSize: '12.5px', color: '#9CA3AF', lineHeight: 1.6, marginBottom: '20px' }}>

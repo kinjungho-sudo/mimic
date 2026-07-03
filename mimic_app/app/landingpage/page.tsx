@@ -137,7 +137,7 @@ const features = [
         <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="rgba(255,255,255,0.9)"/>
       </svg>
     ),
-    title: '연습 가이드 + Live Guide Beta',
+    title: '학습 가이드 + Live Guide Beta',
     body: '공유받은 사람은 설치 없이 캡처 화면 위에서 먼저 연습할 수 있습니다. 확장 프로그램이 연결된 환경에서는 실제 페이지 위 안내도 베타로 실행할 수 있어요.',
     comingSoon: false,
   },
@@ -300,7 +300,7 @@ function HeroDemo() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scene, active]);
 
-  const SCENE_LABELS = ['새로 만들기', '카운트다운', '클릭 캡처', 'AI 생성 중', '매뉴얼 완성', '공유', '연습 가이드'];
+  const SCENE_LABELS = ['새로 만들기', '카운트다운', '클릭 캡처', 'AI 생성 중', '매뉴얼 완성', '공유', '학습 가이드'];
   const SCENE_URLS   = ['app.mimic.so/home', 'app.mimic.so/home', 'plus.gov.kr', 'plus.gov.kr', 'app.mimic.so/editor', 'app.mimic.so/manual', 'app.mimic.so/play'];
   const SCENE_CAPTIONS = [
     { title: '홈에서 "새로 만들기"를 열고 새 매뉴얼(녹화)을 선택합니다', desc: 'MIMIC 크롬 확장 프로그램이 녹화를 준비합니다.' },
@@ -309,7 +309,7 @@ function HeroDemo() {
     { title: '"완료"를 누르면 AI가 매뉴얼을 자동 생성합니다', desc: '캡처된 화면을 분석해 제목·설명·하이라이트를 만듭니다.' },
     { title: '편집 가능한 스텝 카드로 매뉴얼이 완성됩니다', desc: '각 단계를 카드로 보고, 제목·설명·이미지를 바로 편집할 수 있습니다.' },
     { title: '링크 하나로 누구에게나 공유합니다', desc: 'PDF·PPTX·Word로 내보내거나, 비밀번호·공개 범위까지 설정할 수 있습니다.' },
-    { title: '연습 가이드로 먼저 따라 해봅니다', desc: '공유받은 사람은 캡처 화면 위에서 클릭할 위치를 확인하며 안전하게 연습합니다.' },
+    { title: '학습 가이드로 먼저 따라 해봅니다', desc: '공유받은 사람은 캡처 화면 위에서 클릭할 위치를 확인하며 안전하게 연습합니다.' },
   ];
 
   const renderScene = () => {
@@ -1381,9 +1381,9 @@ const SHOWCASES = [
     id: 'guideme',
     eyebrow: 'LIVE GUIDE BETA',
     title: '매뉴얼을 실행 순간까지\n화면 위에서 이어주세요',
-    desc: '먼저 연습 가이드로 캡처 화면 위에서 안전하게 따라 해보고, 확장 프로그램이 연결된 환경에서는 실제 페이지 위 안내를 베타로 실행할 수 있습니다. 문서로 정리한 지식이 실제 행동까지 이어집니다.',
+    desc: '먼저 학습 가이드로 캡처 화면 위에서 안전하게 따라 해보고, 확장 프로그램이 연결된 환경에서는 실제 페이지 위 안내를 베타로 실행할 수 있습니다. 문서로 정리한 지식이 실제 행동까지 이어집니다.',
     bullets: [
-      '공유 링크에서는 설치 없는 연습 가이드 제공',
+      '공유 링크에서는 설치 없는 학습 가이드 제공',
       '확장 연결 시 실제 페이지 위 Live Guide Beta 실행',
       '저장된 셀렉터와 좌표로 클릭 위치 안내',
       'AI 재탐색은 일부 환경에서 보조적으로 사용',
@@ -1896,7 +1896,7 @@ export default function LandingPage() {
             </div>
             {[
               { label: '제작 시간', vals: ['1~3시간', '2~6시간', '30초~5분'] },
-              { label: '캡처 화면 위 연습 (연습 가이드)', vals: [false, false, true] },
+              { label: '캡처 화면 위 연습 (학습 가이드)', vals: [false, false, true] },
               { label: 'AI 자동 설명 생성', vals: [false, false, true] },
               { label: '실제 화면 위 안내 (라이브 가이드 Beta)', vals: [false, false, 'Beta'] },
               { label: '수정 용이성', vals: ['낮음', '낮음', '높음'] },
@@ -1956,7 +1956,7 @@ export default function LandingPage() {
               {
                 name: 'Pro', sub: '개인 크리에이터와 파워 유저', amount: prices.pro, per: '/ 월', featured: true,
                 planKey: 'pro' as const,
-                features: ['Basic 플랜 모든 기능', 'AI 다듬기 무제한', 'AI 상세 설명 생성', '연습 가이드 + Live Guide Beta', 'AI 음성 편집', '5GB 저장 공간'],
+                features: ['Basic 플랜 모든 기능', 'AI 다듬기 무제한', 'AI 상세 설명 생성', '학습 가이드 + Live Guide Beta', 'AI 음성 편집', '5GB 저장 공간'],
                 cta: '출시 알림 받기',
               },
               {

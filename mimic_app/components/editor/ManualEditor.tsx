@@ -353,7 +353,7 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
             <div style={{ width: '1px', height: '16px', background: '#E5E7EB', margin: '0 2px' }} />
             <button
               onClick={() => {
-                if (!window.confirm(`선택한 ${selectedIds.size}개 단계를 삭제합니다. 연습 가이드와 Live Guide Beta에서도 제거됩니다. 계속할까요?`)) return;
+                if (!window.confirm(`선택한 ${selectedIds.size}개 단계를 삭제합니다. 학습 가이드와 Live Guide에서도 제거됩니다. 계속할까요?`)) return;
                 const removed = steps.filter(s => selectedIds.has(s.id)).map(s => s.id);
                 const next = steps.filter(s => !selectedIds.has(s.id)).map((s, i) => ({ ...s, number: i + 1 }));
                 onChange(next); removed.forEach(id => onDeleteStep?.(id)); clearSelection();
@@ -537,7 +537,7 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
         );
       })()}
 
-      {/* 스텝 삭제 확인 모달 — 연습 가이드/Live Guide 설정이 있으면 함께 사라짐을 경고 */}
+      {/* 스텝 삭제 확인 모달 — 학습 가이드/Live Guide 설정이 있으면 함께 사라짐을 경고 */}
       {pendingDeleteId && (() => {
         const step = steps.find(s => s.id === pendingDeleteId);
         const hasGuide = hasGuideConfig(step?.followConfig);
@@ -557,7 +557,7 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
               )}
               {hasGuide && (
                 <div style={{ fontSize: '12.5px', color: '#B45309', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '8px', padding: '9px 11px', lineHeight: 1.55, marginBottom: '10px' }}>
-                  이 스텝의 <b>연습 가이드·Live Guide Beta 설정</b>(핫스팟·말풍선·입력 텍스트 등)도 함께 삭제됩니다.
+                  이 스텝의 <b>학습 가이드·Live Guide 설정</b>(핫스팟·말풍선·입력 텍스트 등)도 함께 삭제됩니다.
                 </div>
               )}
               <div style={{ fontSize: '12.5px', color: '#9CA3AF', lineHeight: 1.6, marginBottom: '20px' }}>

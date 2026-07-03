@@ -13,6 +13,8 @@
   const TIP_GAP = 24; // 타깃과 툴팁 사이 간격(px)
   const TIP_M = 8;    // 뷰포트 여백(px)
   const TIP_BG = 'rgba(22,20,48,.96)'; // 툴팁/화살표/대기카드 공통 배경 — 짙은 남색·보라(흰 배경 가독성)
+  const TYPE_START_DELAY_MS = 560;
+  const TYPE_CHAR_DELAY_MS = 70;
 
   let state = null;
   const regroundCache = new Map();  // AI 시각 재탐색 결과 캐시(key→{x,y} 성공 / null 실패). 재방문 시 재사용
@@ -500,7 +502,6 @@
       e.stopPropagation();
       if (!state) return;
       state.tooltipHidden = false;
-      try { chrome.storage.local.set({ guideHideTooltip: false }); } catch { /* noop */ }
     });
     root.appendChild(restoreBtn);
 
@@ -519,13 +520,6 @@
     shadow.appendChild(root);
 
     state = { host, shadow, hl, pulse, avatar, tooltip, arrow, restoreBtn, scrollHint, resolved, step, opts, idx, total, advanced: false, completed: false, fillTimer: null, tooltipHidden: false };
-
-    // 툴팁 숨김 설정 불러오기
-    try {
-      chrome.storage.local.get(['guideHideTooltip'], (r) => {
-        if (state) state.tooltipHidden = !!r.guideHideTooltip;
-      });
-    } catch { /* noop */ }
 
     // 자동입력
     if (step.type_text && resolved.el) autoFill(resolved.el, String(step.type_text));
@@ -551,7 +545,6 @@
       else if (act === 'hide-tooltip') {
         if (!state) return;
         state.tooltipHidden = true;
-        try { chrome.storage.local.set({ guideHideTooltip: true }); } catch { /* noop */ }
       }
       else if (act === 'copy') {
         const text = state && state.step && state.step.type_text;
@@ -965,7 +958,7 @@
     const tryResolve = () => {
       if (!state || !state.waiting) return false;
       const r = resolveTarget(step);
-      if (r.source === 'selector' || r.source === 'xpath') {
+      if ((r.source === 'selector' || r.source === 'xpath' || r.source === 'fuzzy') && r.el) {
         show(step, opts);  // hide() 후 정상 오버레이 렌더
         return true;
       }
@@ -974,13 +967,19 @@
 
     // 1순위: MutationObserver — DOM이 바뀌는 즉시 재시도(rAF 디바운스). 폴링보다 빠르고 CPU 절약.
     let pending = false;
-    const obs = new MutationObserver(() => {
+    const scheduleTryResolve = () => {
       if (pending) return;
       pending = true;
       requestAnimationFrame(() => { pending = false; tryResolve(); });
-    });
+    };
+    const obs = new MutationObserver(scheduleTryResolve);
     try { obs.observe(document.body, { childList: true, subtree: true }); } catch { /* noop */ }
     state.findObserver = obs;
+    try {
+      window.addEventListener('scroll', scheduleTryResolve, true);
+      window.addEventListener('resize', scheduleTryResolve, true);
+      state.onWaitViewportChange = scheduleTryResolve;
+    } catch { /* noop */ }
 
     // 안전망: 옵저버가 못 잡는 속성-only/canvas 변경 대비 — 1s 저빈도 폴링
     const safety = () => {
@@ -1046,18 +1045,18 @@
         setVal(text);
         el.dispatchEvent(new Event('change', { bubbles: true }));
         try { chrome.runtime.sendMessage({ type: 'SHOW_COPY_HINT', text }); } catch { /* noop */ }
-      }, 280);
+      }, TYPE_START_DELAY_MS);
     } else {
-      // 짧은 텍스트: 35ms/글자 타이핑 애니메이션
+      // 짧은 텍스트: 글자별 타이핑 애니메이션
       let i = 0;
       const tick = () => {
         if (!state || state.completed) return;
         i += 1;
         setVal(text.slice(0, i));
-        if (i < text.length) { state.fillTimer = setTimeout(tick, 35); }
+        if (i < text.length) { state.fillTimer = setTimeout(tick, TYPE_CHAR_DELAY_MS); }
         else { el.dispatchEvent(new Event('change', { bubbles: true })); }
       };
-      state.fillTimer = setTimeout(tick, 280);
+      state.fillTimer = setTimeout(tick, TYPE_START_DELAY_MS);
     }
   }
 
@@ -1071,6 +1070,10 @@
     if (state.fillTimer) clearTimeout(state.fillTimer);
     if (state.findTimer) clearTimeout(state.findTimer);
     if (state.findObserver) state.findObserver.disconnect();
+    if (state.onWaitViewportChange) {
+      window.removeEventListener('scroll', state.onWaitViewportChange, true);
+      window.removeEventListener('resize', state.onWaitViewportChange, true);
+    }
     if (state.onDocClick) document.removeEventListener('click', state.onDocClick, true);
     if (state.onKey) document.removeEventListener('keydown', state.onKey, true);
     if (state.host) state.host.remove();

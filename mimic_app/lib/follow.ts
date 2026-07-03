@@ -21,7 +21,7 @@ export function clickToPct(v: number | null | undefined): number | null {
   return v;
 }
 
-// follow_config에 '연습 가이드/Live Guide'에서 의미있는 저작값이 있는지 — 스텝 삭제 경고용.
+// follow_config에 '학습 가이드/Live Guide'에서 의미있는 저작값이 있는지 — 스텝 삭제 경고용.
 // 녹화 좌표(clickX/Y)는 follow_config가 아니므로 여기 포함하지 않는다(스튜디오에서 직접 저작한 값만 감지).
 export function hasGuideConfig(fc?: FollowConfig | null): boolean {
   if (!fc) return false;
