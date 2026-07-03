@@ -87,6 +87,9 @@ function normalize(fc: FollowConfig): FollowConfig | null {
   if (fc.hotspotY != null) clean.hotspotY = fc.hotspotY;
   if (fc.kind) clean.kind = fc.kind;
   if (fc.typeText && fc.typeText.trim()) clean.typeText = fc.typeText.trim();
+  if (fc.typeInputMode) clean.typeInputMode = fc.typeInputMode;
+  if (fc.typeBoxWidth != null) clean.typeBoxWidth = fc.typeBoxWidth;
+  if (fc.typeBoxHeight != null) clean.typeBoxHeight = fc.typeBoxHeight;
   if (fc.hidden) clean.hidden = true;
   if (fc.bubbleAnchor) clean.bubbleAnchor = fc.bubbleAnchor;
   if (fc.zoomAnim) clean.zoomAnim = true;
@@ -213,6 +216,25 @@ export default function StudioPage() {
         setSavingId(s => (s === stepId ? null : s));
       }
     }, 600);
+  }, []);
+
+  const setTypeBoxSize = useCallback((stepId: string, field: 'typeBoxWidth' | 'typeBoxHeight', value: number | null) => {
+    stepsRef.current = stepsRef.current.map(s => s.id === stepId ? { ...s, follow: { ...s.follow, [field]: value } } : s);
+    setSteps(stepsRef.current);
+    const key = stepId + field;
+    clearTimeout(contentTimers.current[key]);
+    contentTimers.current[key] = setTimeout(async () => {
+      const fc = stepsRef.current.find(s => s.id === stepId)?.follow ?? {};
+      setSavingId(stepId);
+      try {
+        await updateStep(stepId, { follow_config: normalize(fc) });
+        setSavedTick(t => t + 1);
+      } catch (e) {
+        logError('studio.typebox.fail', { stepId, field, message: e instanceof Error ? e.message : String(e) });
+      } finally {
+        setSavingId(s => (s === stepId ? null : s));
+      }
+    }, 500);
   }, []);
 
   // 이미지 클릭/드래그 → 핫스팟 위치 지정
@@ -505,6 +527,9 @@ export default function StudioPage() {
                   allowCornerHotspot={rv?.userPlaced}
                   kind={rv?.kind ?? 'click'}
                   typeText={active.follow.typeText}
+                  typeInputMode={active.follow.typeInputMode}
+                  typeBoxWidth={active.follow.typeBoxWidth}
+                  typeBoxHeight={active.follow.typeBoxHeight}
                   guideMode={rv?.none ? 'explanation' : 'interactive'}
                   annotations={active.annotations}
                   bubbleAnchor={active.follow.bubbleAnchor}
@@ -709,10 +734,81 @@ export default function StudioPage() {
                   <input
                     value={active.follow.typeText ?? ''}
                     onChange={e => setTypeText(active.id, e.target.value)}
-                    placeholder="자동 입력될 텍스트 (비우면 ‘텍스트 입력…’ 안내만)"
+                    placeholder="복사해 입력할 텍스트 (비우면 ‘텍스트 입력…’ 안내만)"
                     style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.1)', color: '#F0F0FF', WebkitTextFillColor: '#F0F0FF', caretColor: '#a78bfa', fontSize: 12.5, fontFamily: 'inherit', outline: 'none' }}
                   />
-                  <p style={hint}>입력하면 연습 가이드 미리보기에선 타이핑 애니메이션으로, Live Guide Beta에선 실제 입력란에 자동 입력됩니다.</p>
+                  <p style={hint}>기본은 사용자가 복사해서 직접 붙여넣는 방식입니다.</p>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginTop: 10 }}>
+                    {([
+                      { key: 'copy', label: '복사 입력' },
+                      { key: 'auto', label: '자동 타이핑' },
+                    ] as { key: 'copy' | 'auto'; label: string }[]).map(opt => {
+                      const sel = (active.follow.typeInputMode ?? 'copy') === opt.key;
+                      return (
+                        <button key={opt.key} onClick={() => patch(active.id, { typeInputMode: opt.key })}
+                          style={{ height: 32, borderRadius: 8, border: '1px solid ' + (sel ? 'rgba(124,58,237,0.7)' : 'rgba(255,255,255,0.12)'), background: sel ? 'rgba(124,58,237,0.22)' : 'transparent', color: sel ? 'white' : 'rgba(255,255,255,0.62)', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
+                    {active.domRect && (
+                      <button
+                        onClick={() => {
+                          const width = imgWrapRef.current ? Math.round((active.domRect!.w / 100) * imgWrapRef.current.getBoundingClientRect().width) : null;
+                          const height = imgWrapRef.current ? Math.round((active.domRect!.h / 100) * imgWrapRef.current.getBoundingClientRect().height) : null;
+                          if (width != null) setTypeBoxSize(active.id, 'typeBoxWidth', Math.max(120, Math.min(520, width)));
+                          if (height != null) setTypeBoxSize(active.id, 'typeBoxHeight', Math.max(32, Math.min(96, height)));
+                        }}
+                        style={subtleBtn}
+                      >
+                        <RotateCcw size={12} /> 감지된 입력창 크기로 맞춤
+                      </button>
+                    )}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: 'rgba(255,255,255,0.65)', marginBottom: 5 }}>
+                        <span>입력창 너비</span>
+                        <span>{active.follow.typeBoxWidth ?? 220}px</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={120}
+                        max={520}
+                        step={10}
+                        value={active.follow.typeBoxWidth ?? 220}
+                        onChange={e => setTypeBoxSize(active.id, 'typeBoxWidth', Number(e.target.value))}
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: 'rgba(255,255,255,0.65)', marginBottom: 5 }}>
+                        <span>입력창 높이</span>
+                        <span>{active.follow.typeBoxHeight ?? 38}px</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={32}
+                        max={96}
+                        step={2}
+                        value={active.follow.typeBoxHeight ?? 38}
+                        onChange={e => setTypeBoxSize(active.id, 'typeBoxHeight', Number(e.target.value))}
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+                    <button
+                      disabled={active.follow.typeBoxWidth == null && active.follow.typeBoxHeight == null}
+                      onClick={() => {
+                        setTypeBoxSize(active.id, 'typeBoxWidth', null);
+                        setTypeBoxSize(active.id, 'typeBoxHeight', null);
+                      }}
+                      style={{ ...subtleBtn, opacity: active.follow.typeBoxWidth == null && active.follow.typeBoxHeight == null ? 0.45 : 1 }}
+                    >
+                      <RotateCcw size={12} /> 입력창 기본 크기
+                    </button>
+                  </div>
                 </>
               )}
             </>

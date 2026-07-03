@@ -35,6 +35,9 @@ interface Props {
   guideMode?: 'interactive' | 'explanation';
   annotations?: Annotation[] | null;
   typeText?: string | null;         // type 인디케이터에 표시/입력될 텍스트
+  typeInputMode?: 'copy' | 'auto' | null; // copy=복사 후 직접 입력, auto=자동 타이핑 연출
+  typeBoxWidth?: number | null;     // type 인디케이터 너비(px)
+  typeBoxHeight?: number | null;    // type 인디케이터 높이(px)
   typeTextColor?: string;           // 타이핑 인디케이터 글자색 (기본 #111827)
   animateType?: boolean;            // true=뷰어(자동 타이핑 애니메이션), false/미설정=스튜디오(정적 표시)
   isFirstStep?: boolean;            // true일 때만 클릭 힌트 표시
@@ -59,7 +62,7 @@ interface Props {
 }
 
 export function FollowStage({
-  screenshotUrl, hotspotX: hx, hotspotY: hy, allowCornerHotspot = false, kind, typeText, guideMode = 'interactive', annotations = null, typeTextColor, animateType = false,
+  screenshotUrl, hotspotX: hx, hotspotY: hy, allowCornerHotspot = false, kind, typeText, typeInputMode, typeBoxWidth, typeBoxHeight, guideMode = 'interactive', annotations = null, animateType = false,
   isFirstStep = false, stepNumber = null, title, body,
   minimized = false, showAudioBadge = false, nudge = false, spotlight = false,
   imageCursor = 'default', imgMaxHeight = 'calc(100vh - 150px)',
@@ -75,8 +78,10 @@ export function FollowStage({
   // 텍스트 인디케이터 자동 타이핑 — 뷰어에서만(animateType). 스튜디오는 입력값 그대로 표시
   // 글자당 110ms 고정 — 또박또박 읽을 수 있는 차분한 속도
   const [typed, setTyped] = useState(0);
+  const [copied, setCopied] = useState(false);
+  const isAutoType = typeInputMode === 'auto' || (typeInputMode == null && animateType);
   useEffect(() => {
-    if (!animateType || kind !== 'type' || !typeText) { setTyped(0); return; }
+    if (!animateType || !isAutoType || kind !== 'type' || !typeText) { setTyped(0); return; }
     setTyped(0);
     let i = 0;
     const speed = 110;
@@ -86,7 +91,7 @@ export function FollowStage({
       if (i >= typeText.length) clearInterval(id);
     }, speed);
     return () => clearInterval(id);
-  }, [animateType, kind, typeText]);
+  }, [animateType, isAutoType, kind, typeText]);
 
   useEffect(() => {
     const el = ref.current;
@@ -121,8 +126,22 @@ export function FollowStage({
     : {};
   const typeStr = typeText ?? '';
   const hasTypeText = typeStr.trim().length > 0;
-  const shownType = animateType ? typeStr.slice(0, typed) : typeStr;
-  const typeIndicatorColor = typeTextColor ?? '#111827';
+  const shownType = animateType && isAutoType ? typeStr.slice(0, typed) : typeStr;
+  const typeIndicatorWidth = typeBoxWidth != null ? clamp(typeBoxWidth, 120, 520) : null;
+  const typeIndicatorHeight = clamp(typeBoxHeight ?? 38, 32, 96);
+  const typeIndicatorFontSize = clamp(Math.round(typeIndicatorHeight * 0.34), 12, 18);
+  const showCopyControl = isType && !isAutoType && hasTypeText;
+  const copyTypeText = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!typeStr.trim()) return;
+    try {
+      await navigator.clipboard.writeText(typeStr);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1200);
+    } catch {
+      setCopied(false);
+    }
+  };
 
   // 말풍선 위치 — anchor 고정 위치 우선, 없으면 핫스팟 상대 위치
   const BW = box.w ? clamp(box.w - 28, 170, 340) : 300;
@@ -265,21 +284,27 @@ export function FollowStage({
 
         {/* 타이핑 인디케이터 — focused 시만 */}
         {showOverlays && hasHotspot && isType && (
-          <div style={{ position: 'absolute', left: `${hx}%`, top: `${hy}%`, transform: 'translate(-50%,-50%)', pointerEvents: 'none', zIndex: 4 }}>
-            <div style={{ position: 'relative', minWidth: '128px', maxWidth: '320px', height: '38px', borderRadius: '9px', border: '2px solid #6366f1', background: 'rgba(255,255,255,0.96)', boxShadow: '0 0 0 4px rgba(99,102,241,0.18), 0 6px 20px rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', padding: '0 12px', animation: 'mfp-field 1.8s ease-in-out infinite' }}>
+          <div style={{ position: 'absolute', left: `${hx}%`, top: `${hy}%`, transform: 'translate(-50%,-50%)', pointerEvents: showCopyControl ? 'auto' : 'none', zIndex: 4 }}>
+            <div style={{ position: 'relative', minWidth: typeIndicatorWidth == null ? '128px' : undefined, width: typeIndicatorWidth == null ? undefined : `${typeIndicatorWidth}px`, maxWidth: typeIndicatorWidth == null ? '320px' : undefined, height: `${typeIndicatorHeight}px`, borderRadius: '9px', border: '2px solid #6366f1', background: 'rgba(255,255,255,0.96)', boxShadow: '0 0 0 4px rgba(99,102,241,0.18), 0 6px 20px rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', padding: '0 12px', animation: 'mfp-field 1.8s ease-in-out infinite' }}>
               {hasTypeText ? (
                 <>
-                  <span style={{ fontSize: '13px', color: typeIndicatorColor, WebkitTextFillColor: typeIndicatorColor, fontWeight: 600, letterSpacing: '0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{shownType}</span>
-                  <span style={{ width: '2px', height: '18px', marginLeft: '2px', flexShrink: 0, background: typeIndicatorColor, borderRadius: '2px', animation: 'mfp-caret 1s step-end infinite' }} />
+                  <span style={{ flex: 1, minWidth: 0, fontSize: `${typeIndicatorFontSize}px`, color: '#111827', WebkitTextFillColor: '#111827', fontWeight: 600, letterSpacing: '0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{shownType}</span>
+                  {isAutoType ? (
+                    <span style={{ width: '2px', height: `${Math.max(18, Math.round(typeIndicatorHeight * 0.48))}px`, marginLeft: '2px', flexShrink: 0, background: '#111827', borderRadius: '2px', animation: 'mfp-caret 1s step-end infinite' }} />
+                  ) : (
+                    <button onClick={copyTypeText} style={{ flexShrink: 0, marginLeft: 8, height: Math.max(24, Math.min(30, typeIndicatorHeight - 8)), padding: '0 9px', borderRadius: 7, border: '1px solid #C7D2FE', background: copied ? '#EEF2FF' : '#F8FAFC', color: '#3730a3', fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>
+                      {copied ? '복사됨' : '복사'}
+                    </button>
+                  )}
                 </>
               ) : (
                 <>
-                  <span style={{ width: '2px', height: '18px', background: '#6366f1', borderRadius: '2px', animation: 'mfp-caret 1s step-end infinite' }} />
-                  <span style={{ marginLeft: '7px', fontSize: '12px', color: typeIndicatorColor, WebkitTextFillColor: typeIndicatorColor, fontStyle: 'italic', fontWeight: 600, letterSpacing: '0.04em' }}>텍스트 입력…</span>
+                  <span style={{ width: '2px', height: `${Math.max(18, Math.round(typeIndicatorHeight * 0.48))}px`, background: '#6366f1', borderRadius: '2px', animation: 'mfp-caret 1s step-end infinite' }} />
+                  <span style={{ marginLeft: '7px', fontSize: `${Math.max(12, typeIndicatorFontSize - 1)}px`, color: '#111827', WebkitTextFillColor: '#111827', fontStyle: 'italic', fontWeight: 600, letterSpacing: '0.04em' }}>텍스트 입력…</span>
                 </>
               )}
             </div>
-            <span style={{ position: 'absolute', top: '-13px', left: '0', fontSize: '10px', fontWeight: 800, color: '#fff', background: '#6366f1', padding: '2px 8px', borderRadius: '8px 8px 8px 2px', boxShadow: '0 2px 8px rgba(0,0,0,0.3)', whiteSpace: 'nowrap', letterSpacing: '0.03em' }}>⌨ 입력</span>
+            <span style={{ position: 'absolute', top: '-13px', left: '0', fontSize: '10px', fontWeight: 800, color: '#fff', background: '#6366f1', padding: '2px 8px', borderRadius: '8px 8px 8px 2px', boxShadow: '0 2px 8px rgba(0,0,0,0.3)', whiteSpace: 'nowrap', letterSpacing: '0.03em' }}>{isAutoType ? '⌨ 자동 입력' : '⌨ 복사 후 입력'}</span>
           </div>
         )}
 

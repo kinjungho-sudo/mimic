@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { Undo2, Redo2, Loader2, Eye, Wand2, MessageSquare, Clock, Share2, Palette, Download, Check, Link2, Play, Zap } from 'lucide-react';
+import { Undo2, Redo2, Loader2, Eye, Wand2, MessageSquare, Clock, Share2, Palette, Download, Check, Link2, Play } from 'lucide-react';
 import { GuideToc } from '@/components/editor/GuideToc';
 import { ManualEditor, ManualStep } from '@/components/editor/ManualEditor';
 import { MergeModal } from '@/components/editor/MergeModal';
@@ -643,17 +643,6 @@ export default function EditorPage() {
             >
               <Play size={TOP_BAR_ICON_SIZE} />
               연습 가이드
-            </button>
-
-            <button
-              onClick={() => router.push(`/manual/${id}/live-studio`)}
-              title="Live Guide Beta 실행 대상과 고객용 실행 흐름을 확인합니다"
-              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#2563EB', background: 'rgba(37,99,235,0.08)', border: '1px solid rgba(37,99,235,0.32)', cursor: 'pointer', transition: 'all 0.15s', fontWeight: 600 }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,99,235,0.13)'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(37,99,235,0.08)'; }}
-            >
-              <Zap size={TOP_BAR_ICON_SIZE} />
-              Live Guide Beta Studio
             </button>
 
             {/* 댓글 패널 토글 — 팀 협업 의견 공유 */}

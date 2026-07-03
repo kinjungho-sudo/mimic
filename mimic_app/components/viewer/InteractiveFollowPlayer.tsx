@@ -14,6 +14,9 @@ export interface FollowStep {
   hotspotUserPlaced?: boolean;         // 스튜디오에서 직접 찍은 좌표 — 좌상단도 유효(가짜 0,0 센티넬 제외)
   kind?: 'click' | 'type';             // 클릭 vs 타이핑 — 인디케이터 모양 결정
   typeText?: string | null;            // type 인디케이터에 자동 타이핑될 텍스트
+  typeInputMode?: 'copy' | 'auto' | null;
+  typeBoxWidth?: number | null;
+  typeBoxHeight?: number | null;
   audioUrl?: string | null;            // 스텝 TTS 오디오 (있으면 음성 재생)
   audioStartMs?: number | null;
   audioEndMs?: number | null;
@@ -212,10 +215,13 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
                   allowCornerHotspot={step.hotspotUserPlaced}
                   kind={step.kind ?? 'click'}
                   typeText={step.typeText}
+                  typeInputMode={step.typeInputMode}
+                  typeBoxWidth={step.typeBoxWidth}
+                  typeBoxHeight={step.typeBoxHeight}
                   guideMode={step.guideMode}
                   annotations={step.annotations}
                   bubbleAnchor={step.bubbleAnchor}
-                  animateType
+                  animateType={step.typeInputMode === 'auto'}
                   isFirstStep={idx === 0}
                   stepNumber={idx + 1}
                   spotlight
