@@ -87,7 +87,7 @@ const simulatorDemos: SimulatorStep[] = [
     domRect: { x: 66.2, y: 26.2, w: 19.8, h: 8.6 },
   },
   {
-    eyebrow: 'Demo 2 · Live Guide Beta 자동 입력',
+    eyebrow: 'Demo 2 · Auto typing',
     title: '빈 입력칸에 필요한 텍스트가 자동으로 입력됩니다',
     body: '한 번 저장한 텍스트가 실제 입력창 안에 그대로 타이핑되고, AI 아바타가 어떤 값을 넣는지 옆에서 설명합니다.',
     screen: svgDataUri(`
@@ -123,7 +123,7 @@ const simulatorDemos: SimulatorStep[] = [
         <rect x="450" y="420" width="244" height="42" rx="12" fill="#1f2937"/>
         <text x="480" y="447" font-family="Inter, Arial" font-size="14" font-weight="800" fill="white">다음 목표: 초대 보내기 클릭</text>
         <rect x="764" y="138" width="270" height="454" rx="24" fill="#111827"/>
-        <text x="794" y="184" font-family="Inter, Arial" font-size="14" font-weight="900" fill="#a78bfa">LIVE GUIDE BETA</text>
+        <text x="794" y="184" font-family="Inter, Arial" font-size="14" font-weight="900" fill="#a78bfa">LIVE GUIDE</text>
         <text x="794" y="214" font-family="Inter, Arial" font-size="19" font-weight="850" fill="white">신규 계정 발급</text>
         <rect x="794" y="246" width="200" height="76" rx="18" fill="#1f2937"/>
         <text x="820" y="278" font-family="Inter, Arial" font-size="14" font-weight="800" fill="#e5e7eb">2 / 5</text>
@@ -154,8 +154,8 @@ const features = [
         <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="rgba(255,255,255,0.9)"/>
       </svg>
     ),
-    title: '학습 가이드 + Live Guide Beta',
-    body: '공유받은 사람은 설치 없이 캡처 화면 위에서 먼저 연습할 수 있습니다. 확장 프로그램이 연결된 환경에서는 실제 페이지 위 Live Guide Beta로 업무를 이어갈 수 있어요.',
+    title: '학습 가이드 + Live Guide',
+    body: '공유받은 학습자는 설치 없이 캡처 화면 위에서 먼저 연습할 수 있습니다. 확장 프로그램이 연결된 환경에서는 실제 페이지 위 안내로 이어갈 수 있어요.',
     comingSoon: false,
   },
   {
@@ -303,7 +303,7 @@ function HeroDemo() {
   const phases = [
     { label: 'Capture', title: '클릭과 화면을 단계로 기록', body: '업무를 평소처럼 진행하면, MIMIC이 필요한 장면을 자동으로 모읍니다.' },
     { label: 'Manual', title: '공유 가능한 매뉴얼로 정리', body: '제목, 설명, 하이라이트가 붙은 실행 매뉴얼이 바로 완성됩니다.' },
-    { label: 'Live Guide Beta', title: '최종 목적지까지 옆에서 안내', body: '사용자는 실제 흐름을 따라가며 클릭 위치와 입력할 텍스트까지 차근차근 확인합니다.' },
+    { label: 'Live Guide', title: '최종 목적지까지 옆에서 안내', body: '사용자는 실제 흐름을 따라가며 클릭 위치와 입력할 텍스트까지 차근차근 확인합니다.' },
   ];
   const current = phases[phase];
 
@@ -660,7 +660,7 @@ function MimicAppHeader({ mode }: { mode: 'doc' | 'guide' }) {
         <span style={{ fontSize: '11px', fontWeight: 700, color: '#374151' }}>정부24에서 주민등록증 발급받기</span>
       </div>
       <div style={{ display: 'flex', gap: '4px' }}>
-        {[['웹 문서','doc'],['Live Guide Beta','guide'],['슬라이드','slide']].map(([label, key]) => (
+        {[['웹 문서','doc'],['Live Guide','guide'],['슬라이드','slide']].map(([label, key]) => (
           <div key={key} style={{ padding: '5px 11px', borderRadius: '7px', fontSize: '10px', fontWeight: 600, background: mode === key ? '#EDE9FE' : 'transparent', color: mode === key ? '#6d28d9' : '#9CA3AF', border: mode === key ? '1px solid rgba(109,40,217,0.3)' : '1px solid transparent' }}>{label}</div>
         ))}
       </div>
@@ -963,7 +963,7 @@ function Scene6({ tick }: { tick: number }) {
         {/* 우측 사이드 패널 — Live Guide 진행 */}
         <div style={{ width: '152px', borderLeft: '1px solid #EEE', background: '#FAFAFB', display: 'flex', flexDirection: 'column', flexShrink: 0, zIndex: 12 }}>
           <div style={{ padding: '11px 11px 8px', borderBottom: '1px solid #EEE' }}>
-            <div style={{ fontSize: '9px', fontWeight: 800, color: '#6d28d9', display: 'flex', alignItems: 'center', gap: '4px' }}>● LIVE GUIDE BETA</div>
+            <div style={{ fontSize: '9px', fontWeight: 800, color: '#6d28d9', display: 'flex', alignItems: 'center', gap: '4px' }}>● LIVE GUIDE</div>
             <div style={{ fontSize: '8.5px', color: '#9CA3AF', marginTop: '3px' }}>{step + 1} / {total} 단계 진행 중</div>
           </div>
           <div style={{ flex: 1, overflow: 'hidden', padding: '8px' }}>
@@ -1246,7 +1246,7 @@ function MockGuideMe() {
         <div style={{ width: '168px', background: '#0d0d14', display: 'flex', flexDirection: 'column', flexShrink: 0, borderLeft: '1px solid rgba(109,40,217,0.35)' }}>
           {/* 패널 헤더 */}
           <div style={{ background: 'linear-gradient(135deg,#3730a3,#6d28d9)', padding: '9px 12px' }}>
-            <div style={{ fontSize: '8.5px', fontWeight: 800, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.1em', marginBottom: '2px' }}>LIVE GUIDE BETA</div>
+            <div style={{ fontSize: '8.5px', fontWeight: 800, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.1em', marginBottom: '2px' }}>LIVE GUIDE</div>
             <div style={{ fontSize: '10px', fontWeight: 700, color: 'white' }}>주민등록초본 발급</div>
           </div>
           {/* AI 로봇 아바타 + 말풍선 */}
@@ -1387,12 +1387,12 @@ const SHOWCASES = [
   },
   {
     id: 'guideme',
-    eyebrow: 'LIVE GUIDE BETA',
+    eyebrow: 'LIVE GUIDE',
     title: '매뉴얼을 실행 순간까지\n화면 위에서 이어주세요',
-    desc: '먼저 학습 가이드로 캡처 화면 위에서 안전하게 따라 해보고, 확장 프로그램이 연결된 환경에서는 실제 페이지 위 안내를 베타로 실행할 수 있습니다. 문서로 정리한 지식이 실제 행동까지 이어집니다.',
+    desc: '먼저 학습 가이드로 캡처 화면 위에서 안전하게 따라 해보고, 확장 프로그램이 연결된 환경에서는 실제 페이지 위 안내로 이어갈 수 있습니다. 문서로 정리한 지식이 실제 행동까지 이어집니다.',
     bullets: [
       '공유 링크에서는 설치 없는 학습 가이드 제공',
-      '확장 연결 시 실제 페이지 위 Live Guide Beta 실행',
+      '확장 연결 시 실제 페이지 위 Live Guide 실행',
       '저장된 셀렉터와 좌표로 클릭 위치 안내',
       'AI 재탐색은 일부 환경에서 보조적으로 사용',
     ],
@@ -1479,7 +1479,7 @@ function ServiceSimulatorSection() {
         <div className="simulator-grid">
             <div className="simulator-copy">
               <span className="simulator-eyebrow">Two live demos</span>
-              <h2>Live Guide Beta가 실제 화면 위에서 어떻게 움직이는지 보여줍니다</h2>
+              <h2>Live Guide가 실제 화면 위에서 어떻게 움직이는지 보여줍니다</h2>
               <p>
                 첫 번째 데모는 눌러야 할 버튼이 화면 위에서 하이라이트되는 흐름입니다.
                 두 번째 데모는 저장해둔 텍스트가 실제 입력칸 안에 자동으로 입력되는 흐름입니다.
@@ -1555,7 +1555,7 @@ function HeroSection() {
         {/* Announcement badge */}
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '5px 16px 5px 6px', background: 'rgba(124,58,237,0.10)', border: '1px solid rgba(124,58,237,0.22)', borderRadius: '999px', fontSize: '12.5px', color: '#c4b5fd', fontWeight: 500, marginBottom: '36px', backdropFilter: 'blur(8px)' }}>
           <span style={{ padding: '3px 10px', borderRadius: '999px', background: 'linear-gradient(135deg, #4f46e5, #7c3aed)', fontSize: '10px', fontWeight: 700, color: 'white', letterSpacing: '0.06em', flexShrink: 0 }}>NEW</span>
-          매뉴얼을 만들고, Live Guide Beta로 끝까지 실행까지 안내합니다
+          매뉴얼을 만들고, Live Guide로 끝까지 실행까지 안내합니다
         </div>
 
         <h1 style={{ margin: '0 auto 24px', fontSize: 'clamp(44px, 7vw, 84px)', lineHeight: 1.04, fontWeight: 800, letterSpacing: '-0.045em', maxWidth: '880px', color: 'white', wordBreak: 'keep-all' }}>
@@ -1809,7 +1809,7 @@ export default function LandingPage() {
               {[
                 { num: '01', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.15)"/><path d="M8 12l2.5 2.5L16 9" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>, title: '크롬 확장 설치 후 녹화 시작', body: '웹 작업을 평소처럼 진행하면 클릭 위치와 화면이 자동 캡처됩니다.' },
                 { num: '02', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" fill="rgba(255,255,255,0.9)"/></svg>, title: 'AI가 설명과 어노테이션 자동 완성', body: '캡처된 화면을 분석해 단계별 설명·하이라이트·화살표를 자동 생성합니다.' },
-                { num: '03', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.12)"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="white"/></svg>, title: 'Live Guide Beta로 실행까지 연결', body: '정리된 SOP를 실제 화면 위 안내로 이어서, 사용자가 어느 단계에서 막혔는지 덜 고민하고 업무를 끝낼 수 있게 돕습니다.' },
+                { num: '03', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.12)"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="white"/></svg>, title: 'Live Guide로 실행까지 연결', body: '정리된 SOP를 실제 화면 위 안내로 이어서, 사용자가 어느 단계에서 막혔는지 덜 고민하고 업무를 끝낼 수 있게 돕습니다.' },
               ].map((s, i) => (
                 <div key={s.num} style={{ padding: '0 40px 0', position: 'relative', zIndex: 1, textAlign: 'center' }}>
                   <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '84px', height: '84px', borderRadius: '50%', background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)', marginBottom: '28px', boxShadow: '0 0 0 8px rgba(109,40,217,0.08), 0 12px 28px rgba(55,48,163,0.32)', position: 'relative' }}>
@@ -1863,7 +1863,7 @@ export default function LandingPage() {
           <RevealSection>
             <span style={{ display: 'block', textAlign: 'center', fontSize: '11px', color: '#7c3aed', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '16px' }}>Features</span>
             <h2 style={{ textAlign: 'center', fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 800, letterSpacing: '-0.035em', margin: '0 auto 14px', maxWidth: '680px', lineHeight: 1.18, color: 'white' }}>SOP를 만들고, 실행까지 돕는 기능</h2>
-            <p style={{ textAlign: 'center', fontSize: '16px', color: 'rgba(255,255,255,0.38)', maxWidth: '560px', margin: '0 auto 64px', lineHeight: 1.7 }}>화면 위 Live Guide Beta · 팀 워크스페이스 · 민감정보 보호까지, 업무 지식이 실제 행동으로 이어지도록.</p>
+            <p style={{ textAlign: 'center', fontSize: '16px', color: 'rgba(255,255,255,0.38)', maxWidth: '560px', margin: '0 auto 64px', lineHeight: 1.7 }}>화면 위 Live Guide · 팀 워크스페이스 · 민감정보 보호까지, 업무 지식이 실제 행동으로 이어지도록.</p>
 
             <div className="grid-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
               {features.map(f => (
@@ -1906,7 +1906,7 @@ export default function LandingPage() {
               { label: '제작 시간', vals: ['1~3시간', '2~6시간', '30초~5분'] },
               { label: '캡처 화면 위 연습 (학습 가이드)', vals: [false, false, true] },
               { label: 'AI 자동 설명 생성', vals: [false, false, true] },
-              { label: '실제 화면 위 안내 (라이브 가이드 Beta)', vals: [false, false, 'Beta'] },
+              { label: '실제 화면 위 안내 (라이브 가이드)', vals: [false, false, true] },
               { label: '수정 용이성', vals: ['낮음', '낮음', '높음'] },
               { label: 'AI 음성 편집', vals: [false, false, true] },
             ].map((row, ri) => (
@@ -1964,7 +1964,7 @@ export default function LandingPage() {
               {
                 name: 'Pro', sub: '개인 크리에이터와 파워 유저', amount: prices.pro, per: '/ 월', featured: true,
                 planKey: 'pro' as const,
-                features: ['Basic 플랜 모든 기능', 'AI 다듬기 무제한', 'AI 상세 설명 생성', '학습 가이드 + Live Guide Beta', 'AI 음성 편집', '5GB 저장 공간'],
+                features: ['Basic 플랜 모든 기능', 'AI 다듬기 무제한', 'AI 상세 설명 생성', '학습 가이드 + Live Guide', 'AI 음성 편집', '5GB 저장 공간'],
                 cta: '출시 알림 받기',
               },
               {
