@@ -33,6 +33,7 @@ interface Props {
   typeText?: string | null;         // type 인디케이터에 표시/입력될 텍스트
   typeTextColor?: string;           // 타이핑 인디케이터 글자색 (기본 #111827)
   animateType?: boolean;            // true=뷰어(자동 타이핑 애니메이션), false/미설정=스튜디오(정적 표시)
+  showTypeIndicator?: boolean;      // false=말풍선만 표시하고 필드 위 입력 오버레이는 숨김
   isFirstStep?: boolean;            // true일 때만 클릭 힌트 표시
   stepNumber?: number | null;       // 말풍선 머리 넘버링(목차 순서). 있으면 손가락 이모지 대신 번호 배지
   title: string;
@@ -56,6 +57,7 @@ interface Props {
 
 export function FollowStage({
   screenshotUrl, hotspotX: hx, hotspotY: hy, allowCornerHotspot = false, kind, typeText, typeTextColor, animateType = false,
+  showTypeIndicator = true,
   isFirstStep = false, stepNumber = null, title, body,
   minimized = false, showAudioBadge = false, nudge = false, spotlight = false,
   imageCursor = 'default', imgMaxHeight = 'calc(100vh - 150px)',
@@ -248,7 +250,7 @@ export function FollowStage({
         )}
 
         {/* 타이핑 인디케이터 — focused 시만 */}
-        {showOverlays && hasHotspot && isType && (
+        {showTypeIndicator && showOverlays && hasHotspot && isType && (
           <div style={{ position: 'absolute', left: `${hx}%`, top: `${hy}%`, transform: 'translate(-50%,-50%)', pointerEvents: 'none', zIndex: 4 }}>
             <div style={{ position: 'relative', minWidth: '128px', maxWidth: '320px', height: '38px', borderRadius: '9px', border: '2px solid #6366f1', background: 'rgba(255,255,255,0.96)', boxShadow: '0 0 0 4px rgba(99,102,241,0.18), 0 6px 20px rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', padding: '0 12px', animation: 'mfp-field 1.8s ease-in-out infinite' }}>
               {hasTypeText ? (
