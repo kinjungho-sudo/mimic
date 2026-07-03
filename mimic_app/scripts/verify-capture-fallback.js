@@ -109,6 +109,20 @@ async function main() {
       title: '메일 본문 입력',
       script: '메일 본문을 입력합니다.',
     },
+    {
+      name: 'raw search label becomes search box context',
+      step: { id: '9', step_number: 9, ai_title: 'search 클릭', ai_description: 'search를 클릭합니다.', page_url: 'https://www.coupang.com/np/search?q=%EB%8D%B0%EB%A6%AC%EC%95%BC%EB%81%BC', domain_name: 'Coupang' },
+      context: { actionInfo: { type: 'click', label: 'search' } },
+      title: '검색창 클릭',
+      script: '검색창을 클릭합니다.',
+    },
+    {
+      name: 'stale add-to-cart label rejected on checkout page',
+      step: { id: '10', step_number: 10, ai_title: '장바구니 담기 클릭', ai_description: '장바구니 담기를 클릭합니다.', page_url: 'https://www.coupang.com/order/checkout', domain_name: 'Coupang' },
+      context: { actionInfo: { type: 'click', label: '장바구니 담기' } },
+      title: '주문 정보 확인',
+      script: '주문 정보를 확인합니다.',
+    },
   ];
 
   const failures = [];
@@ -148,6 +162,9 @@ async function main() {
   if (!isLowQualityCaptureTitle('메일, 읽지 않은 메일 2458개 클릭')) {
     failures.push({ name: 'gmail unread count title detector', expected: true, actual: false });
   }
+  if (!isLowQualityCaptureTitle('search 클릭')) {
+    failures.push({ name: 'raw search title detector', expected: true, actual: false });
+  }
   const rawDomTitles = [
     '파일 등 추가 클릭',
     '페이지 클릭',
@@ -182,6 +199,8 @@ async function main() {
     { name: 'type annotation label', actual: buildCaptureAnnotationLabel('프롬프트 입력 입력', 'type'), expected: '입력 적용' },
     { name: 'gmail annotation label', actual: buildCaptureAnnotationLabel('메일함 확인', 'click'), expected: '메일함 확인' },
     { name: 'long annotation label', actual: buildCaptureAnnotationLabel('감사하다는 내용과 함께, 꼭 다음번에 같이하자는 내용 써줘.업데이트[받는 사람 성함]님', 'click'), expected: '대상 확인' },
+    { name: 'search annotation label', actual: buildCaptureAnnotationLabel('search 클릭', 'click'), expected: '검색창 선택' },
+    { name: 'checkout stale annotation label', actual: buildCaptureAnnotationLabel('장바구니 담기 클릭', 'click', 'https://www.coupang.com/order/checkout'), expected: '주문 정보 확인' },
   ];
   for (const check of annotationChecks) {
     if (check.actual !== check.expected) failures.push(check);
@@ -204,6 +223,12 @@ async function main() {
     user_script: '\ud3b8\uc9c0\uc4f0\uae30\ub97c \ud074\ub9ad\ud569\ub2c8\ub2e4.',
   })) {
     failures.push({ name: 'usable draft accepts meaningful title and script', expected: true, actual: false });
+  }
+  if (isUsableCaptureDraft({
+    user_title: '장바구니 담기 클릭',
+    user_script: '장바구니 담기를 클릭합니다.',
+  }, { pageUrl: 'https://www.coupang.com/order/checkout' })) {
+    failures.push({ name: 'usable draft rejects stale checkout cart action', expected: false, actual: true });
   }
 
   if (isUsableCaptureDraft({

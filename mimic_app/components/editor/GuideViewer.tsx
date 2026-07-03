@@ -5,6 +5,7 @@ import DOMPurify from 'dompurify';
 import type { ManualStep } from './ManualEditor';
 import { AnnotationPreview } from './AnnotationPreview';
 import { annotationsBox, fitFramingToBox } from '@/lib/framing';
+import { displayAutoAnnotationsFor } from '@/lib/auto-annotations';
 
 type OutputRatio = '16:9' | '1:1' | '9:16';
 
@@ -104,10 +105,11 @@ export function GuideViewer({ steps, activeId, onActiveChange, outputRatio = '16
 
 function ViewerStepCard({ step }: { step: ManualStep }) {
   const hasImage = !!step.screenshotUrl;
+  const displayAnnotations = displayAutoAnnotationsFor(step);
   // 확대해도 어노테이션이 잘리지 않도록 프레이밍 보정
   const { zoom, offsetX: offX, offsetY: offY } = fitFramingToBox(
     { zoom: step.imageZoom ?? 1, offsetX: step.imageOffsetX ?? 0, offsetY: step.imageOffsetY ?? 0 },
-    annotationsBox(step.annotations),
+    annotationsBox(displayAnnotations),
   );
   const cr = step.crop_rect;
   const hasCrop = !!cr && cr.w > 0 && cr.w < 0.99;
@@ -186,10 +188,10 @@ function ViewerStepCard({ step }: { step: ManualStep }) {
               }}
             />
             {/* 줌/일반: 어노테이션을 이미지와 같은 transform 컨텍스트에 겹쳐 zoom 확대분까지 함께 적용(정합 유지) */}
-            {!hasCrop && (step.annotations?.length ?? 0) > 0 && (
+            {!hasCrop && displayAnnotations.length > 0 && (
               <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
                 <AnnotationPreview
-                  annotations={step.annotations!}
+                  annotations={displayAnnotations}
                   imageUrl={step.screenshotUrl!}
                   imgRef={imgRef}
                 />
@@ -197,10 +199,10 @@ function ViewerStepCard({ step }: { step: ManualStep }) {
             )}
           </div>
           {/* crop: 오버레이를 crop wrapper 밖에 배치 — overflow:hidden 영향 없이 viewBox로 정렬 */}
-          {hasCrop && (step.annotations?.length ?? 0) > 0 && (
+          {hasCrop && displayAnnotations.length > 0 && (
             <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
               <AnnotationPreview
-                annotations={step.annotations!}
+                annotations={displayAnnotations}
                 imageUrl={step.screenshotUrl!}
                 imgRef={imgRef}
                 cropRect={cr!}

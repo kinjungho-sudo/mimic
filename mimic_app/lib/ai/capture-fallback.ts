@@ -47,6 +47,15 @@ const GENERIC_LABELS = new Set([
   'svg',
   'div',
   'span',
+  'checkout',
+  'payment',
+  'pay',
+  'order',
+  'orders',
+  'cart',
+  'basket',
+  'product',
+  'products',
 ]);
 
 const RAW_CAPTURE_LABELS = new Set([
@@ -83,6 +92,13 @@ const GMAIL_CONTEXTS: Array<{ pattern: RegExp; base: string }> = [
   { pattern: /숨은\s*참조|bcc/i, base: '숨은참조 수신자' },
   { pattern: /참조|\bcc\b/i, base: '참조 수신자' },
   { pattern: /받는\s*사람|recipient|to:/i, base: '받는 사람' },
+];
+
+const ECOMMERCE_URL_CONTEXTS: Array<{ pattern: RegExp; base: string; noActionBase?: string }> = [
+  { pattern: /\/(np\/)?search|[?&]q=|[?&]keyword=/i, base: '검색 결과' },
+  { pattern: /cart|basket/i, base: '장바구니' },
+  { pattern: /checkout|payment|pay|order|orders|주문|결제/i, base: '주문 정보', noActionBase: '주문 화면' },
+  { pattern: /product|products|goods|item|items|\/vp\//i, base: '상품 정보' },
 ];
 
 function cleanText(value: string | null | undefined): string {
@@ -179,6 +195,7 @@ function isLikelyRawDomActionBase(value: string): boolean {
   const text = cleanText(value);
   if (!text) return true;
   if (/^[a-z]$/i.test(text)) return true;
+  if (/^(search|검색)$/i.test(text)) return true;
   if (/\.{3}|…|—/.test(text)) return true;
   if (/아이콘 추가|커버 추가|댓글 추가/.test(text)) return true;
   if (/^(\+|파일 등 추가|페이지|새 페이지|텍스트|데이터베이스|ChatGPT와 채팅)$/i.test(text)) return true;
@@ -251,6 +268,7 @@ function verbForAction(type: string | undefined, noAction: boolean): '클릭' | 
 function titleVerbFor(base: string, actionType: string | undefined, noAction: boolean): ReturnType<typeof verbForAction> {
   const verb = verbForAction(actionType, noAction);
   if (/메일함|받은편지함/.test(base)) return '확인';
+  if (/주문 정보|주문 화면|결제 정보|결제 화면/.test(base)) return '확인';
   if (/메일 보내기/.test(base)) return '클릭';
   if (/자동 완성/.test(base)) return '클릭';
   if (verb === '입력' && /입력$/.test(base)) return '확인';
@@ -284,6 +302,8 @@ function scriptFor(base: string, verb: ReturnType<typeof verbForAction>): string
 function contextFromCapturedLabel(label: string | null | undefined): string {
   const text = cleanText(label);
   if (!text) return '';
+  if (/^(search|검색)$/i.test(text) || /검색\s*(창|어|필드|입력)/i.test(text)) return '검색창';
+  if (/장바구니\s*담기|add\s*to\s*cart/i.test(text)) return '장바구니 담기 버튼';
   if (hasEmailAddress(text)) {
     if (/숨은\s*참조|bcc/i.test(text)) return '숨은참조 수신자 자동 완성';
     if (/참조|\bcc\b/i.test(text)) return '참조 수신자 자동 완성';
@@ -314,6 +334,8 @@ function contextFromUrl(pageUrl: string | null | undefined, noAction: boolean): 
   if (!pageUrl) return '';
   const match = GOOGLE_DOC_CONTEXTS.find(context => context.pattern.test(pageUrl));
   if (match) return noAction ? match.noActionBase : match.base;
+  const ecommerce = ECOMMERCE_URL_CONTEXTS.find(context => context.pattern.test(pageUrl));
+  if (ecommerce) return noAction && ecommerce.noActionBase ? ecommerce.noActionBase : ecommerce.base;
   try {
     const url = new URL(pageUrl);
     const hostname = url.hostname.replace(/^www\./, '');
@@ -322,6 +344,17 @@ function contextFromUrl(pageUrl: string | null | undefined, noAction: boolean): 
     return '';
   }
   return '';
+}
+
+function isCheckoutLikeUrl(pageUrl: string | null | undefined): boolean {
+  return !!pageUrl && /checkout|payment|pay|order|orders|주문|결제/i.test(pageUrl);
+}
+
+function isContextuallyStaleLabel(value: string | null | undefined, pageUrl: string | null | undefined): boolean {
+  const text = cleanText(value);
+  if (!text || !pageUrl) return false;
+  if (isCheckoutLikeUrl(pageUrl) && /장바구니\s*담기|add\s*to\s*cart/i.test(text)) return true;
+  return false;
 }
 
 function hasSlackContext(pageUrl: string | null | undefined, domainName: string | null | undefined): boolean {
@@ -373,7 +406,12 @@ export function buildCaptureFallbackDraft(
 ): { id: string; user_title: string; user_script: string } {
   const actionType = context.actionInfo?.type;
   const noActionFromEvent = context.noAction ?? false;
-  const capturedValues = [context.actionInfo?.label, context.actionInfo?.text, context.elementText, step.ai_title];
+  const isStale = (value: string | null | undefined) => isContextuallyStaleLabel(value, step.page_url);
+  const safeActionLabel = isStale(context.actionInfo?.label) ? null : context.actionInfo?.label;
+  const safeActionText = isStale(context.actionInfo?.text) ? null : context.actionInfo?.text;
+  const safeElementText = isStale(context.elementText) ? null : context.elementText;
+  const safeAiTitle = isStale(step.ai_title) ? null : step.ai_title;
+  const capturedValues = [safeActionLabel, safeActionText, safeElementText, safeAiTitle];
   const capturedInputContext = (actionType === 'type' || actionType === 'focus_input')
     && capturedValues.some(value => isLongCapturedContent(value))
     ? '메일 본문'
@@ -386,17 +424,17 @@ export function buildCaptureFallbackDraft(
     noActionFromEvent
   );
   const capturedLabelContext = capturedInputContext
-    || contextFromCapturedLabel(context.actionInfo?.label)
-    || contextFromCapturedLabel(context.actionInfo?.text)
-    || contextFromCapturedLabel(context.elementText)
-    || contextFromCapturedLabel(step.ai_title);
+    || contextFromCapturedLabel(safeActionLabel)
+    || contextFromCapturedLabel(safeActionText)
+    || contextFromCapturedLabel(safeElementText)
+    || contextFromCapturedLabel(safeAiTitle);
   const specificBase = firstUseful([
-    !isLowQualityCaptureTitle(step.ai_title) ? step.ai_title : null,
+    safeAiTitle && !isLowQualityCaptureTitle(safeAiTitle) ? safeAiTitle : null,
     capturedLabelContext,
     labelContext,
-    context.actionInfo?.label,
-    context.actionInfo?.text,
-    context.elementText,
+    safeActionLabel,
+    safeActionText,
+    safeElementText,
     labelFromUrl(step.page_url),
     pageContext,
     step.domain_name,
@@ -404,10 +442,10 @@ export function buildCaptureFallbackDraft(
   const base = specificBase || '화면';
   const noAction = noActionFromEvent || !specificBase;
   const verb = titleVerbFor(base, actionType, noAction);
-  const userTitle = !isLowQualityCaptureTitle(step.ai_title)
-    ? dedupeActionNoun(cleanText(step.ai_title))
+  const userTitle = safeAiTitle && !isLowQualityCaptureTitle(safeAiTitle)
+    ? dedupeActionNoun(cleanText(safeAiTitle))
     : `${base} ${verb}`;
-  const userScript = !isLowQualityCaptureScript(step.ai_description)
+  const userScript = !isContextuallyStaleLabel(step.ai_description, step.page_url) && !isLowQualityCaptureScript(step.ai_description)
     ? cleanText(step.ai_description)
     : scriptFor(base, verb);
 
@@ -418,8 +456,13 @@ export function buildCaptureFallbackDraft(
   };
 }
 
-export function buildCaptureAnnotationLabel(title: string | null | undefined, actionType?: string | null): string {
+export function buildCaptureAnnotationLabel(title: string | null | undefined, actionType?: string | null, pageUrl?: string | null): string {
   const text = dedupeActionNoun(title ?? '').replace(/하기$/, '');
+  if (isContextuallyStaleLabel(text, pageUrl)) {
+    const pageContext = contextFromUrl(pageUrl, false);
+    return pageContext ? `${pageContext} 확인`.slice(0, 18) : '대상 확인';
+  }
+  if (/^(search|검색)(\s*(클릭|확인|선택|입력|이동))?$/i.test(text)) return '검색창 선택';
   if (actionType === 'type' || actionType === 'focus_input') return '입력 적용';
   if (!text || isLowQualityCaptureTitle(text) || text.length > 18) {
     return actionType === 'select' || actionType === 'toggle' ? '선택 적용' : '대상 확인';
@@ -429,12 +472,15 @@ export function buildCaptureAnnotationLabel(title: string | null | undefined, ac
 }
 
 export function isUsableCaptureDraft(
-  draft: { user_title?: string | null; user_script?: string | null } | null | undefined
+  draft: { user_title?: string | null; user_script?: string | null } | null | undefined,
+  context: { pageUrl?: string | null } = {}
 ): boolean {
   const title = draft?.user_title?.trim() || '';
   const script = draft?.user_script?.trim() || '';
   return !!title
     && !!script
+    && !isContextuallyStaleLabel(title, context.pageUrl)
+    && !isContextuallyStaleLabel(script, context.pageUrl)
     && !isLowQualityCaptureTitle(title)
     && !isLowQualityCaptureScript(script);
 }

@@ -605,7 +605,7 @@ export async function POST(request: NextRequest) {
           const aiDraft = aiDraftsById.get(step.id);
           const aiTitle = aiDraft?.user_title?.trim() || '';
           const aiScript = aiDraft?.user_script?.trim() || '';
-          const useAiDraft = isUsableCaptureDraft(aiDraft);
+          const useAiDraft = isUsableCaptureDraft(aiDraft, { pageUrl: step.page_url });
           if (aiDraft && !useAiDraft) discardedAiDrafts += 1;
           return {
             id: step.id,
@@ -706,7 +706,7 @@ export async function POST(request: NextRequest) {
 
         const { data: stepsForAnnotation } = await supabase
           .from('mm_steps')
-          .select('id, step_number, user_title, ai_title, element_rect, click_x, click_y, user_annotations')
+          .select('id, step_number, user_title, ai_title, page_url, element_rect, click_x, click_y, user_annotations')
           .eq('tutorial_id', tutorial.id);
 
         if (stepsForAnnotation?.length) {
@@ -716,7 +716,7 @@ export async function POST(request: NextRequest) {
 
               const rect = step.element_rect as { x: number; y: number; width: number; height: number } | null;
               const actionType = actionTypeByStepNum.get(step.step_number) ?? 'click';
-              const label = buildCaptureAnnotationLabel(step.user_title ?? step.ai_title, actionType);
+              const label = buildCaptureAnnotationLabel(step.user_title ?? step.ai_title, actionType, step.page_url);
               const num = step.step_number ?? 1;
               let annotations;
 

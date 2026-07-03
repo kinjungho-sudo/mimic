@@ -422,7 +422,7 @@
             ${resolved.source === 'none' ? '<span style="font-size:10.5px;color:#FCA5A5">요소 미발견</span>' : ''}
             <div style="flex:1"></div>
             <button class="mimic-btn" data-act="hide-tooltip" title="툴팁 숨기기" style="background:transparent;color:rgba(255,255,255,.4);padding:3px 6px;font-size:11px">👁</button>
-            <button class="mimic-btn" data-act="exit" style="background:transparent;color:rgba(255,255,255,.4);padding:3px 6px;font-size:12px">✕</button>
+            <button class="mimic-btn" data-act="hide-tooltip" title="툴팁 닫기" style="background:transparent;color:rgba(255,255,255,.4);padding:3px 6px;font-size:12px">✕</button>
           </div>
           ${tooltipText ? `<div style="font-size:12.5px;color:#D1D5DB;line-height:1.55;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${escapeHtml(tooltipText)}</div>` : ''}
         </div>
@@ -666,9 +666,14 @@
     state.tooltip.style.animation = 'mimic-tip-in 0.3s ease forwards';
   }
 
-  // 현재 페이지가 단계의 page_url과 다를 때 — 오버레이 전부 숨김 (사이드패널에서만 안내)
+  // 현재 페이지가 단계의 page_url과 다를 때 — 세션을 끝내지 않고 참고 카드로 다음 행동을 안내한다.
   function showWrongPage(step, opts) {
-    state = { host: null, wrongPage: true };
+    showExplanation({
+      ...step,
+      guide_mode: 'explanation',
+      kind: 'none',
+      instruction: step.instruction || '이 단계의 대상 화면이 아닙니다. 필요한 화면으로 이동한 뒤 진행해주세요.',
+    }, opts);
   }
 
   // 같은 URL이지만 녹화한 요소가 아직 화면에 없을 때 — 가짜 핫스팟 대신 '찾는 중' 카드를 띄우고
@@ -741,31 +746,31 @@
     const text = step.instruction || '이 단계는 직접 진행한 뒤 다음을 눌러주세요.';
 
     const card = document.createElement('div');
-    card.style.cssText = `position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:420px;max-width:calc(100vw - 32px);background:${TIP_BG};color:#fff;border-radius:16px;padding:18px 18px 16px;box-shadow:0 18px 55px rgba(0,0,0,.48),0 0 0 1px rgba(165,180,252,.14);pointer-events:auto`;
+    card.style.cssText = `position:fixed;right:16px;bottom:16px;width:360px;max-width:calc(100vw - 32px);max-height:calc(100vh - 32px);overflow:auto;background:${TIP_BG};color:#fff;border-radius:16px;padding:16px;box-shadow:0 18px 55px rgba(0,0,0,.48),0 0 0 1px rgba(165,180,252,.14);pointer-events:auto`;
     card.innerHTML = `
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
         <div style="${AVATAR_STYLE}width:38px;height:38px;">${MASCOT_SVG}</div>
         <div style="min-width:0">
-          <div style="font-size:11px;font-weight:700;color:#A5B4FC;margin-bottom:3px">${idx + 1} / ${total}</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+            <span style="font-size:11px;font-weight:700;color:#A5B4FC">${idx + 1} / ${total}</span>
+            <span style="font-size:10.5px;font-weight:800;color:#C4B5FD;background:rgba(99,102,241,.22);padding:2px 7px;border-radius:999px">참고 단계</span>
+          </div>
           <div style="font-size:15px;font-weight:800;line-height:1.35">${escapeHtml(title)}</div>
         </div>
-        <div style="flex:1"></div>
-        <button class="ex-btn" data-act="exit" style="background:transparent;color:rgba(255,255,255,.45);padding:4px 7px">×</button>
       </div>
       <div style="font-size:13px;color:#D1D5DB;line-height:1.55;margin-bottom:14px">${escapeHtml(text)}</div>
       ${renderVisualGuideImage(step)}
       <div style="display:flex;gap:8px;align-items:center">
         <button class="ex-btn" data-act="prev" style="background:rgba(255,255,255,.1);color:#D1D5DB;font-size:12px;padding:7px 12px">이전</button>
         <div style="flex:1"></div>
-        <button class="ex-btn" data-act="next" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:8px 18px">${idx + 1 >= total ? '완료' : '다음'}</button>
+        <button class="ex-btn" data-act="next" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:8px 18px">${idx + 1 >= total ? '완료' : '건너뛰기 →'}</button>
       </div>`;
     shadow.appendChild(style('.ex-btn{pointer-events:auto;cursor:pointer;border:none;border-radius:8px;font-size:13px;font-weight:700;transition:opacity .15s}.ex-btn:active{opacity:.75}'));
     shadow.appendChild(card);
 
     card.addEventListener('click', (e) => {
       const act = e.target && e.target.getAttribute && e.target.getAttribute('data-act');
-      if (act === 'exit') opts.onExit && opts.onExit();
-      else if (act === 'prev') opts.onPrev && opts.onPrev();
+      if (act === 'prev') opts.onPrev && opts.onPrev();
       else if (act === 'next') opts.onAdvance && opts.onAdvance('manual');
     });
 
@@ -789,7 +794,7 @@
         <span style="font-size:11px;font-weight:700;color:#A5B4FC;background:rgba(99,102,241,.25);padding:2px 8px;border-radius:20px">${idx + 1} / ${total}</span>
         <span style="font-size:11px;color:#9CA3AF">🔍 이 단계 화면을 찾는 중…</span>
         <div style="flex:1"></div>
-        <button class="wt-btn" data-act="exit" style="background:transparent;color:rgba(255,255,255,.4);padding:3px 6px">✕</button>
+        <button class="wt-btn" data-act="next" title="이 단계 건너뛰기" style="background:transparent;color:rgba(255,255,255,.65);padding:3px 8px">건너뛰기</button>
       </div>
       <div style="font-size:12px;color:#9CA3AF;line-height:1.5;margin-bottom:10px">${escapeHtml(waitingText)}</div>
       <div style="display:flex;gap:6px;align-items:center">
@@ -802,8 +807,7 @@
 
     card.addEventListener('click', (e) => {
       const act = e.target && e.target.getAttribute && e.target.getAttribute('data-act');
-      if (act === 'exit') opts.onExit && opts.onExit();
-      else if (act === 'prev') opts.onPrev && opts.onPrev();
+      if (act === 'prev') opts.onPrev && opts.onPrev();
       else if (act === 'next') opts.onAdvance && opts.onAdvance('manual');
     });
 

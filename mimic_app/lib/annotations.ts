@@ -158,15 +158,33 @@ function normalizeUnit(value: number | null | undefined): number | null {
   return clamp01(value);
 }
 
+function containsPoint(rect: Rect, x: number, y: number, tolerance = 0.025): boolean {
+  return x >= rect.x - tolerance
+    && x <= rect.x + rect.width + tolerance
+    && y >= rect.y - tolerance
+    && y <= rect.y + rect.height + tolerance;
+}
+
 function refineHighlightRect(rect: Rect, clickX?: number | null, clickY?: number | null, actionType?: string | null): Rect {
   const cx = normalizeUnit(clickX);
   const cy = normalizeUnit(clickY);
   if (cx == null || cy == null) return rect;
 
+  const isTyping = actionType === 'type' || actionType === 'focus_input';
+  if (!containsPoint(rect, cx, cy)) {
+    const width = isTyping ? 0.24 : 0.12;
+    const height = isTyping ? 0.07 : 0.06;
+    return {
+      x: clamp(cx - width / 2, 0, 1 - width),
+      y: clamp(cy - height / 2, 0, 1 - height),
+      width,
+      height,
+    };
+  }
+
   const isLarge = rect.width > 0.34 || rect.height > 0.16 || rect.width * rect.height > 0.055;
   if (!isLarge) return rect;
 
-  const isTyping = actionType === 'type' || actionType === 'focus_input';
   const width = isTyping
     ? clamp(rect.width * 0.55, 0.18, 0.38)
     : clamp(rect.width * 0.42, 0.08, 0.24);
