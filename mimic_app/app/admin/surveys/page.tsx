@@ -25,6 +25,26 @@ function Stars({ value }: { value: number }) {
   );
 }
 
+function parseFeedback(raw: string | null) {
+  if (!raw) return { context: 'manual_viewer', issue: '', comment: '' };
+  try {
+    const data = JSON.parse(raw) as { survey_context?: string; selected_issue?: string; comment?: string | null };
+    return {
+      context: data.survey_context ?? 'manual_viewer',
+      issue: data.selected_issue ?? '',
+      comment: data.comment ?? '',
+    };
+  } catch {
+    return { context: 'manual_viewer', issue: '', comment: raw };
+  }
+}
+
+function contextLabel(context: string) {
+  if (context === 'manual_created') return '생성 직후';
+  if (context === 'live_guide') return 'Live Guide';
+  return '매뉴얼 뷰어';
+}
+
 export default function AdminSurveysPage() {
   const [surveys, setSurveys] = useState<SurveyResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,14 +92,18 @@ export default function AdminSurveysPage() {
         <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '20px 24px', marginBottom: '20px' }}>
           <div style={{ fontSize: '13px', fontWeight: 600, color: '#0F172A', marginBottom: '14px' }}>주관식 피드백 ({feedbackCount}개)</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {surveys.filter(s => s.q5_additional_feedback).map(s => (
-              <div key={s.id} style={{ padding: '12px 14px', background: '#F8FAFC', borderRadius: '8px', fontSize: '13px', color: '#374151' }}>
-                <div style={{ marginBottom: '6px', color: '#94A3B8', fontSize: '11.5px' }}>
-                  {s.mm_tutorials?.title ?? '(삭제된 튜토리얼)'} · {new Date(s.created_at).toLocaleDateString('ko-KR')}
+            {surveys.filter(s => s.q5_additional_feedback).map(s => {
+              const feedback = parseFeedback(s.q5_additional_feedback);
+              return (
+                <div key={s.id} style={{ padding: '12px 14px', background: '#F8FAFC', borderRadius: '8px', fontSize: '13px', color: '#374151' }}>
+                  <div style={{ marginBottom: '6px', color: '#94A3B8', fontSize: '11.5px' }}>
+                    {contextLabel(feedback.context)} · {s.mm_tutorials?.title ?? '(삭제된 튜토리얼)'} · {new Date(s.created_at).toLocaleDateString('ko-KR')}
+                  </div>
+                  {feedback.issue && <div style={{ fontWeight: 600, color: '#0F172A', marginBottom: feedback.comment ? 4 : 0 }}>{feedback.issue}</div>}
+                  {feedback.comment}
                 </div>
-                {s.q5_additional_feedback}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -88,34 +112,38 @@ export default function AdminSurveysPage() {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: '#F8FAFC' }}>
-              {['튜토리얼', 'PDF보다 쉬움', '재사용 의향', '업무 유용성', '재현 가능', '응답일'].map(h => (
+              {['구분', '튜토리얼', 'Q1', 'Q2', 'Q3', '완료/재현', '응답일'].map(h => (
                 <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: '11.5px', fontWeight: 600, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: '#94A3B8', fontSize: '13px' }}>로딩 중...</td></tr>
+              <tr><td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: '#94A3B8', fontSize: '13px' }}>로딩 중...</td></tr>
             ) : surveys.length === 0 ? (
-              <tr><td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: '#94A3B8', fontSize: '13px' }}>응답이 없습니다.</td></tr>
-            ) : surveys.map(s => (
-              <tr key={s.id} style={{ borderTop: '1px solid #F1F5F9' }}>
-                <td style={{ padding: '13px 16px', fontSize: '13px', color: '#0F172A', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {s.mm_tutorials?.title ?? <span style={{ color: '#94A3B8' }}>(삭제됨)</span>}
-                </td>
-                <td style={{ padding: '13px 16px' }}><Stars value={s.q1_easier_than_pdf} /></td>
-                <td style={{ padding: '13px 16px' }}><Stars value={s.q2_would_use_again} /></td>
-                <td style={{ padding: '13px 16px' }}><Stars value={s.q3_useful_for_work} /></td>
-                <td style={{ padding: '13px 16px' }}>
-                  <span style={{ padding: '3px 8px', borderRadius: '5px', fontSize: '11.5px', fontWeight: 500, background: s.q4_can_reproduce ? '#DCFCE7' : '#FEE2E2', color: s.q4_can_reproduce ? '#16A34A' : '#DC2626' }}>
-                    {s.q4_can_reproduce ? '가능' : '불가'}
-                  </span>
-                </td>
-                <td style={{ padding: '13px 16px', fontSize: '12px', color: '#94A3B8' }}>
-                  {new Date(s.created_at).toLocaleDateString('ko-KR')}
-                </td>
-              </tr>
-            ))}
+              <tr><td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: '#94A3B8', fontSize: '13px' }}>응답이 없습니다.</td></tr>
+            ) : surveys.map(s => {
+              const feedback = parseFeedback(s.q5_additional_feedback);
+              return (
+                <tr key={s.id} style={{ borderTop: '1px solid #F1F5F9' }}>
+                  <td style={{ padding: '13px 16px', fontSize: '12px', color: '#475569', whiteSpace: 'nowrap' }}>{contextLabel(feedback.context)}</td>
+                  <td style={{ padding: '13px 16px', fontSize: '13px', color: '#0F172A', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {s.mm_tutorials?.title ?? <span style={{ color: '#94A3B8' }}>(삭제됨)</span>}
+                  </td>
+                  <td style={{ padding: '13px 16px' }}><Stars value={s.q1_easier_than_pdf} /></td>
+                  <td style={{ padding: '13px 16px' }}><Stars value={s.q2_would_use_again} /></td>
+                  <td style={{ padding: '13px 16px' }}><Stars value={s.q3_useful_for_work} /></td>
+                  <td style={{ padding: '13px 16px' }}>
+                    <span style={{ padding: '3px 8px', borderRadius: '5px', fontSize: '11.5px', fontWeight: 500, background: s.q4_can_reproduce ? '#DCFCE7' : '#FEE2E2', color: s.q4_can_reproduce ? '#16A34A' : '#DC2626' }}>
+                      {s.q4_can_reproduce ? '예' : '아니오'}
+                    </span>
+                  </td>
+                  <td style={{ padding: '13px 16px', fontSize: '12px', color: '#94A3B8' }}>
+                    {new Date(s.created_at).toLocaleDateString('ko-KR')}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

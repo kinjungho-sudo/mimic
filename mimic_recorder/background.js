@@ -752,6 +752,11 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         }
         const steps = data.steps || [];
         if (steps.length === 0) throw new Error('no steps');
+        const guideSurvey = data.survey?.enabled ? {
+          enabled: true,
+          tutorialId: data.tutorial_id,
+          viewerSessionId: `live_guide:${data.tutorial_id}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`,
+        } : null;
 
         // sender 탭에 직접 카운트다운 전송 — active tab query는 다중창/탭전환 시 엉뚱한 탭을 잡음
         if (senderTabId) {
@@ -759,7 +764,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
           sendTabMessage(senderTabId, { type: 'SHOW_GUIDE_COUNTDOWN' });
         }
 
-        await storageSet({ guideSteps: steps, guideCurrentStep: 0, guideModeActive: true });
+        await storageSet({ guideSteps: steps, guideCurrentStep: 0, guideModeActive: true, guideSurvey });
 
         sendResponse({ ok: true });
 
@@ -778,7 +783,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 
             const firstStep = steps[0];
             await ensureContentScript(tab.id);
-            const injectOverlay = (tabId) => sendTabMessage(tabId, { type: 'SHOW_OVERLAY', step: firstStep, index: 0, total: steps.length });
+            const injectOverlay = (tabId) => sendTabMessage(tabId, { type: 'SHOW_OVERLAY', step: firstStep, index: 0, total: steps.length, survey: guideSurvey });
 
             if (!firstStep.page_url || !isSafeNavUrl(firstStep.page_url)) {
               // page_url 없음 또는 비안전 프로토콜 → 현재 탭에 바로 오버레이 주입
@@ -1240,7 +1245,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (guideTabId != null) {
         const tab = await getGuideTab();
         if (!tab?.id) {
-          await storageRemove(['guideSteps', 'guideCurrentStep', 'guideModeActive', 'guidePendingOverlay', 'guideTabId']);
+          await storageRemove(['guideSteps', 'guideCurrentStep', 'guideModeActive', 'guidePendingOverlay', 'guideTabId', 'guideSurvey']);
           sendResponse({ active: false });
           return;
         }
@@ -1252,7 +1257,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.type === 'GUIDE_NEXT' || message.type === 'GUIDE_PREV') {
     (async () => {
-      const { guideSteps, guideCurrentStep } = await storageGet(['guideSteps', 'guideCurrentStep']);
+      const { guideSteps, guideCurrentStep, guideSurvey } = await storageGet(['guideSteps', 'guideCurrentStep', 'guideSurvey']);
       const steps = guideSteps || [];
       let idx = guideCurrentStep || 0;
       if (message.type === 'GUIDE_NEXT') idx = Math.min(idx + 1, steps.length - 1);
@@ -1279,7 +1284,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           }
         } catch { /* same-tab fallback */ }
       }
-      sendTabMessage(tab.id, { type: 'SHOW_OVERLAY', step, index: idx, total: steps.length });
+      sendTabMessage(tab.id, { type: 'SHOW_OVERLAY', step, index: idx, total: steps.length, survey: guideSurvey || null });
     })();
     return true;
   }
@@ -1287,7 +1292,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // 사이드패널에서 특정 스텝 도트를 클릭 → 해당 인덱스로 점프
   if (message.type === 'SHOW_OVERLAY_FOR_STEP') {
     (async () => {
-      const { guideSteps } = await storageGet(['guideSteps']);
+      const { guideSteps, guideSurvey } = await storageGet(['guideSteps', 'guideSurvey']);
       const steps = guideSteps || [];
       const idx = Math.max(0, Math.min(message.stepIndex || 0, steps.length - 1));
       await storageSet({ guideCurrentStep: idx });
@@ -1309,7 +1314,31 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           }
         } catch { /* same-tab fallback */ }
       }
-      sendTabMessage(tab.id, { type: 'SHOW_OVERLAY', step, index: idx, total: steps.length });
+      sendTabMessage(tab.id, { type: 'SHOW_OVERLAY', step, index: idx, total: steps.length, survey: guideSurvey || null });
+    })();
+    return true;
+  }
+
+  if (message.type === 'SUBMIT_GUIDE_SURVEY') {
+    (async () => {
+      try {
+        const payload = message.payload || {};
+        const tutorialId = payload.tutorial_id;
+        const viewerSessionId = payload.viewer_session_id;
+        if (!tutorialId || !viewerSessionId) {
+          sendResponse({ ok: false, error: 'missing survey identifiers' });
+          return;
+        }
+        const origin = await getWebappOrigin();
+        const res = await fetch(`${origin}/api/survey`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        sendResponse({ ok: res.ok });
+      } catch (err) {
+        sendResponse({ ok: false, error: err?.message || String(err) });
+      }
     })();
     return true;
   }
@@ -1317,7 +1346,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'EXIT_GUIDE') {
     (async () => {
       const tab = await getGuideTab();  // 고정 탭의 오버레이를 정리
-      await storageRemove(['guideSteps', 'guideCurrentStep', 'guideModeActive', 'guidePendingOverlay', 'guideTabId']);
+      await storageRemove(['guideSteps', 'guideCurrentStep', 'guideModeActive', 'guidePendingOverlay', 'guideTabId', 'guideSurvey']);
       if (tab?.id) sendTabMessage(tab.id, { type: 'HIDE_OVERLAY' });
       // 혹시 다른 탭(메시지 발신 탭)에 남은 오버레이도 정리
       if (sender.tab?.id && sender.tab.id !== tab?.id) sendTabMessage(sender.tab.id, { type: 'HIDE_OVERLAY' });
@@ -1441,7 +1470,7 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
   // guideModeActive가 남아 죽은 스텝(유령)이 뜬다. storage 변경이 popup의 onChanged를 깨워 뷰를 닫는다.
   const { guideModeActive, guideTabId } = await storageGet(['guideModeActive', 'guideTabId']);
   if (guideModeActive && guideTabId === tabId) {
-    await storageRemove(['guideSteps', 'guideCurrentStep', 'guideModeActive', 'guidePendingOverlay', 'guideTabId']);
+    await storageRemove(['guideSteps', 'guideCurrentStep', 'guideModeActive', 'guidePendingOverlay', 'guideTabId', 'guideSurvey']);
   }
 
   const { isRecording, targetTabId, _prevTargetTabId } = await storageGet(['isRecording', 'targetTabId', '_prevTargetTabId']);
@@ -1490,7 +1519,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   _navBusyTabs.add(tabId);
 
   try {
-    const r = await storageGet(['isRecording', 'isPaused', 'targetTabId', 'stepNumber', 'settings', 'pendingCapture', 'guideModeActive', 'guidePendingOverlay', 'guideSteps', 'guideCurrentStep', 'guideTabId', 'spaNavCapturing', 'lastCaptureTime']);
+    const r = await storageGet(['isRecording', 'isPaused', 'targetTabId', 'stepNumber', 'settings', 'pendingCapture', 'guideModeActive', 'guidePendingOverlay', 'guideSteps', 'guideCurrentStep', 'guideTabId', 'guideSurvey', 'spaNavCapturing', 'lastCaptureTime']);
 
     // 가이드 재주입은 '고정 탭'에서 로드가 끝났을 때만 — 다른 탭 로드에는 반응하지 않는다.
     // (a) 가이드가 의도한 이동(guidePendingOverlay): 페이지 정착 후 주입.
@@ -1507,7 +1536,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
         // 새 도메인엔 manifest content_scripts 주입이 늦거나 누락될 수 있어 보장(멱등).
         await ensureContentScript(tabId);
         // 페이지 정착(특히 SPA) 후 오버레이 주입 — 요소 매칭 확률 ↑
-        setTimeout(() => sendTabMessage(tabId, { type: 'SHOW_OVERLAY', step, index: gIdx, total: gSteps.length }), intended ? 500 : 400);
+        setTimeout(() => sendTabMessage(tabId, { type: 'SHOW_OVERLAY', step, index: gIdx, total: gSteps.length, survey: r.guideSurvey || null }), intended ? 500 : 400);
       }
     }
 

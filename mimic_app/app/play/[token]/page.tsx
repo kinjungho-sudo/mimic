@@ -7,6 +7,7 @@ import { BrandMark } from '@/components/common/BrandMark';
 import { AnnotationPreview } from '@/components/editor/AnnotationPreview';
 import { annotationsBox, fitFramingToBox } from '@/lib/framing';
 import { InteractiveFollowPlayer } from '@/components/viewer/InteractiveFollowPlayer';
+import { FeedbackSurveyModal } from '@/components/survey/FeedbackSurveyModal';
 import { createClient } from '@/lib/supabase/client';
 import { toFollowSteps, clickToPct } from '@/lib/follow';
 import { startLiveGuide } from '@/lib/api/liveGuide';
@@ -63,6 +64,7 @@ type Tutorial = {
   id: string;
   title: string;
   tts_enabled: boolean;
+  survey_enabled?: boolean;
   steps: Step[];
   markers: Marker[];
   annotations: Annotation[];
@@ -538,6 +540,8 @@ export default function PlayerPage() {
   // 따라하기 소프트 게이트: 비로그인은 맛보기(처음 2스텝)만 — 로그인 상태 확인
   const [authChecked, setAuthChecked] = useState(false);
   const [isAuthed, setIsAuthed] = useState(false);
+  const [showViewerSurvey, setShowViewerSurvey] = useState(false);
+  const viewerSessionIdRef = useRef(`viewer:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`);
   const liveAutoStartedRef = useRef(false);
 
   useEffect(() => {
@@ -574,6 +578,19 @@ export default function PlayerPage() {
       })
       .catch(() => { setNotFound(true); setLoading(false); });
   }, [token]);
+
+  useEffect(() => {
+    if (!tutorial?.id || !tutorial.survey_enabled) return;
+    const key = `mimic:survey:manual_viewer:${tutorial.id}`;
+    if (window.localStorage.getItem(key)) return;
+    const timer = setTimeout(() => setShowViewerSurvey(true), 12000);
+    return () => clearTimeout(timer);
+  }, [tutorial?.id, tutorial?.survey_enabled]);
+
+  const closeViewerSurvey = () => {
+    if (tutorial?.id) window.localStorage.setItem(`mimic:survey:manual_viewer:${tutorial.id}`, '1');
+    setShowViewerSurvey(false);
+  };
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -1021,6 +1038,15 @@ export default function PlayerPage() {
       </div>
 
       </>}
+
+      {showViewerSurvey && tutorial && (
+        <FeedbackSurveyModal
+          kind="manual_viewer"
+          tutorialId={tutorial.id}
+          viewerSessionId={viewerSessionIdRef.current}
+          onClose={closeViewerSurvey}
+        />
+      )}
 
     </div>
   );

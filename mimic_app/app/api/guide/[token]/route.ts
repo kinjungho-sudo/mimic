@@ -128,15 +128,17 @@ async function fetchSteps(supabase: ReturnType<typeof createServiceRoleClient>, 
     return { tutorial_id: tutorialId, title, steps: [] };
   }
 
+  const { data: owner } = await supabase
+    .from('mm_users')
+    .select('plan')
+    .eq('id', ownerId)
+    .single();
+  const ownerPlan = owner?.plan ?? 'free';
+
   let voiceEnabled = false;
   let audioAssets: { step_id: string; audio_url: string; duration_ms?: number | null; script_text?: string | null }[] = [];
   if (ttsEnabled && rawSteps?.length) {
-    const { data: owner } = await supabase
-      .from('mm_users')
-      .select('plan')
-      .eq('id', ownerId)
-      .single();
-    voiceEnabled = isPaidPlan(owner?.plan);
+    voiceEnabled = isPaidPlan(ownerPlan);
     if (voiceEnabled) {
       const stepIds = rawSteps.map(s => s.id).filter((stepId): stepId is string => typeof stepId === 'string');
       const { data: assets } = await supabase
@@ -198,5 +200,14 @@ async function fetchSteps(supabase: ReturnType<typeof createServiceRoleClient>, 
   });
 
   // 숨김 스텝은 따라하기/라이브 가이드에서 제외 (일관성)
-  return { tutorial_id: tutorialId, title, tts_enabled: voiceEnabled, steps: steps.filter(s => !s.hidden) };
+  return {
+    tutorial_id: tutorialId,
+    title,
+    tts_enabled: voiceEnabled,
+    survey: {
+      enabled: !isPaidPlan(ownerPlan),
+      context: 'live_guide',
+    },
+    steps: steps.filter(s => !s.hidden),
+  };
 }

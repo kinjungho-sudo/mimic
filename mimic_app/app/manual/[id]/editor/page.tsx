@@ -11,6 +11,7 @@ import { ActivityPanel } from '@/components/editor/ActivityPanel';
 import { ExportModal } from '@/components/editor/ExportModal';
 import { ShareModal } from '@/components/editor/ShareModal';
 import { AgentChat } from '@/components/chat/AgentChat';
+import { FeedbackSurveyModal } from '@/components/survey/FeedbackSurveyModal';
 import { useTutorial } from '@/hooks/useTutorial';
 import { useAutosave } from '@/hooks/useAutosave';
 import { useAuth } from '@/hooks/useAuth';
@@ -111,6 +112,7 @@ export default function EditorPage() {
   const [autoGenProgress, setAutoGenProgress] = useState<{ done: number; total: number } | null>(null);
   const [showMerge, setShowMerge] = useState(false);
   const [duplicatingStepId, setDuplicatingStepId] = useState<string | null>(null);
+  const [showCreationSurvey, setShowCreationSurvey] = useState(false);
 
   // 실시간 협업 — 워크스페이스 튜토리얼에서만 활성
   const workspaceId = tutorial
@@ -298,6 +300,21 @@ export default function EditorPage() {
     return () => clearInterval(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tutorial?.id, loading, isRecordingFinalizeView]);
+
+  useEffect(() => {
+    if (!isRecordingFinalizeView || !tutorial?.id || !user) return;
+    if (user.plan !== 'free' && user.plan !== 'pro_waitlist') return;
+    if (tutorial.steps.length === 0) return;
+    const key = `mimic:survey:manual_created:${tutorial.id}`;
+    if (window.localStorage.getItem(key)) return;
+    const timer = setTimeout(() => setShowCreationSurvey(true), 1200);
+    return () => clearTimeout(timer);
+  }, [isRecordingFinalizeView, tutorial?.id, tutorial?.steps.length, user]);
+
+  const closeCreationSurvey = useCallback(() => {
+    if (tutorial?.id) window.localStorage.setItem(`mimic:survey:manual_created:${tutorial.id}`, '1');
+    setShowCreationSurvey(false);
+  }, [tutorial?.id]);
 
   // 에디터 최초 로드 시 description 없는 스텝 자동 AI 생성 (무료 플랜 제외)
   useEffect(() => {
@@ -1074,6 +1091,15 @@ export default function EditorPage() {
       )}
 
       {/* 스텝 삭제 확인 모달 (GuideToc 경로) */}
+      {showCreationSurvey && tutorial && (
+        <FeedbackSurveyModal
+          kind="manual_created"
+          tutorialId={tutorial.id}
+          viewerSessionId={`manual_created:${tutorial.id}`}
+          onClose={closeCreationSurvey}
+        />
+      )}
+
       {pendingDeleteId && (() => {
         const step = manualSteps.find(s => s.id === pendingDeleteId);
         const hasGuide = hasGuideConfig(step?.followConfig);

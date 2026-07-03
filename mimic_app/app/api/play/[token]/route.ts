@@ -23,7 +23,8 @@ async function fetchTutorialData(token: string) {
     .select('plan')
     .eq('id', tutorial.user_id)
     .single();
-  const voiceEnabled = isPaidPlan(owner?.plan) && tutorial.tts_enabled;
+  const ownerPlan = owner?.plan ?? 'free';
+  const voiceEnabled = isPaidPlan(ownerPlan) && tutorial.tts_enabled;
 
   const { data: rawSteps } = await supabase
     .from('mm_steps')
@@ -98,6 +99,7 @@ async function fetchTutorialData(token: string) {
       id: tutorial.id,
       title: tutorial.title,
       tts_enabled: voiceEnabled,
+      survey_enabled: !isPaidPlan(ownerPlan),
       steps: normalizedSteps,
       markers: normalizedMarkers,
       annotations: normalizedAnnotations,
