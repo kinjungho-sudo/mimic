@@ -49,6 +49,15 @@ const GENERIC_LABELS = new Set([
   'span',
 ]);
 
+const RAW_CAPTURE_LABELS = new Set([
+  'apps',
+  'app',
+  'oauth',
+  'general',
+  'functions',
+  'function',
+]);
+
 const GOOGLE_DOC_CONTEXTS: Array<{ pattern: RegExp; base: string; noActionBase: string }> = [
   { pattern: /docs\.google\.com\/presentation/i, base: '파일명 영역', noActionBase: '슬라이드 편집 화면' },
   { pattern: /docs\.google\.com\/spreadsheets/i, base: '파일명 영역', noActionBase: '스프레드시트 편집 화면' },
@@ -73,6 +82,46 @@ function isGenericLabel(value: string | null | undefined): boolean {
   return /^(edit|button|link|menu|click|untitled)(\s+\d+)?$/i.test(text);
 }
 
+function isRawCaptureLabel(value: string | null | undefined): boolean {
+  return RAW_CAPTURE_LABELS.has(normalized(value));
+}
+
+function isLongCapturedContent(value: string | null | undefined): boolean {
+  const text = cleanText(value);
+  if (text.length < 45) return false;
+  return /감사|보내주신|받는\s*사람|성함|업데이트|프롬프트|어노테이션|텍스트\s*박스|메일|내용/.test(text);
+}
+
+function hasCountNoise(value: string | null | undefined): boolean {
+  const text = cleanText(value);
+  return /(\d[\d,.\s]*개|[\d,]{3,})/.test(text) && /메일|알림|읽지|받은편지함|badge|count/i.test(text);
+}
+
+function hasMachineToken(value: string | null | undefined): boolean {
+  const text = cleanText(value);
+  if (!text) return false;
+  const tokens = text.match(/[a-z0-9][a-z0-9_-]{7,}/gi) ?? [];
+  return tokens.some(token => {
+    const compact = token.replace(/[-_]/g, '');
+    if (/^[a-f0-9]{12,}$/i.test(compact)) return true;
+    if (/^[a-z0-9]{16,}$/i.test(compact) && /\d/.test(compact) && /[a-z]/i.test(compact)) return true;
+    return /^[a-z]?[a-z0-9]{8,}$/i.test(compact) && /\d/.test(compact) && /[a-f0-9]{8,}/i.test(compact);
+  });
+}
+
+function hasEmailAddress(value: string | null | undefined): boolean {
+  return /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(cleanText(value));
+}
+
+export function isLowQualityCaptureLabel(value: string | null | undefined): boolean {
+  const text = cleanText(value);
+  return !text
+    || isGenericLabel(text)
+    || isRawCaptureLabel(text)
+    || hasMachineToken(text)
+    || isLongCapturedContent(text);
+}
+
 function isWeakTitle(value: string | null | undefined): boolean {
   const text = cleanText(value);
   return !text || WEAK_TITLES.has(text) || /^단계\s*\d+\s*진행$/.test(text);
@@ -81,8 +130,23 @@ function isWeakTitle(value: string | null | undefined): boolean {
 export function isLowQualityCaptureTitle(value: string | null | undefined): boolean {
   const text = cleanText(value);
   if (isWeakTitle(text)) return true;
-  if (isGenericLabel(text)) return true;
+  if (isLowQualityCaptureLabel(text)) return true;
+  if (hasEmailAddress(text)) return true;
+  if (hasCountNoise(text)) return true;
   return /^(edit|button|link|menu|untitled|click)\s+(클릭|확인|선택|입력|이동)$/i.test(text);
+}
+
+export function isLowQualityCaptureScript(value: string | null | undefined): boolean {
+  const text = cleanText(value);
+  if (!text) return true;
+  if (hasMachineToken(text)) return true;
+  if (hasEmailAddress(text)) return true;
+  if (hasCountNoise(text)) return true;
+  if (isLongCapturedContent(text)) return true;
+  if (/^\d+(을|를)?\s*(클릭|확인|선택|입력|이동)합니다\.?$/i.test(text)) return true;
+  if (/어노테이션|텍스트\s*박스|포함/.test(text)) return true;
+  const rawLabelPattern = Array.from(RAW_CAPTURE_LABELS).join('|');
+  return new RegExp(`^(${rawLabelPattern}|edit|button|link|menu|untitled|click)(을|를)?\\s*(클릭|확인|선택|입력|이동)합니다\\.?$`, 'i').test(text);
 }
 
 function hasFinalConsonant(text: string): boolean {
@@ -195,4 +259,11 @@ export function buildCaptureFallbackTutorialTitle(
   if (!firstActionTitle) return '';
   if (firstActionTitle.endsWith('하기')) return firstActionTitle.slice(0, 30);
   return `${firstActionTitle}하기`.slice(0, 30);
+}
+
+export function buildCaptureAnnotationLabel(title: string | null | undefined, actionType?: string | null, pageUrl?: string | null): string {
+  const safeTitle = cleanText(title);
+  if (safeTitle && !isLowQualityCaptureTitle(safeTitle)) return safeTitle.slice(0, 40);
+  const base = contextFromUrl(pageUrl, false) || labelFromUrl(pageUrl) || '화면';
+  return `${base} ${verbForAction(actionType ?? undefined, false)}`.slice(0, 40);
 }

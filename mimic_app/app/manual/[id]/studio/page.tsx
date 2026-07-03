@@ -1,15 +1,13 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Play, Check, Loader2, MousePointerClick, Type, Ban, RotateCcw, EyeOff, Eye, GripVertical, ZoomIn, ImagePlus, PenTool, Volume2, VolumeX } from 'lucide-react';
+import { ArrowLeft, Play, Check, Loader2, MousePointerClick, Type, Ban, RotateCcw, EyeOff, Eye, GripVertical, ZoomIn, ImagePlus, Volume2, VolumeX, Copy, Zap } from 'lucide-react';
 import { useTutorial } from '@/hooks/useTutorial';
 import { updateStep, reorderSteps } from '@/lib/api/steps';
-import { clickToPct, inferKind, toFollowSteps } from '@/lib/follow';
-import { resolveStepAudio } from '@/lib/voice/playback';
-import { InteractiveFollowPlayer } from '@/components/viewer/InteractiveFollowPlayer';
+import { clickToPct, inferKind } from '@/lib/follow';
+import { startLiveGuide } from '@/lib/api/liveGuide';
 import { FollowStage } from '@/components/viewer/FollowStage';
-import { ImageAnnotationEditor, type Annotation } from '@/components/editor/ImageAnnotationEditor';
 import { logError } from '@/lib/logging/logger';
 import type { Step, Tutorial, FollowConfig } from '@/types';
 
@@ -26,7 +24,6 @@ type StudioStep = {
   clickXPct: number | null;  // 녹화 좌표 (0~100)
   clickYPct: number | null;
   stepType: string | null;
-  annotations: Annotation[];
   voiceAudioUrl: string | null;
   voiceAudioStartMs: number | null;
   voiceAudioEndMs: number | null;
@@ -53,7 +50,6 @@ function toStudioStep(s: Step): StudioStep {
     clickXPct: clickToPct((s as Step & { click_x?: number | null }).click_x),
     clickYPct: clickToPct((s as Step & { click_y?: number | null }).click_y),
     stepType: s.step_type ?? null,
-    annotations: (s.user_annotations as Annotation[] | null) ?? [],
     voiceAudioUrl: s.voice_audio_url ?? null,
     voiceAudioStartMs: s.voice_audio_start_ms ?? null,
     voiceAudioEndMs: s.voice_audio_end_ms ?? null,
@@ -111,14 +107,12 @@ export default function StudioPage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [savedTick, setSavedTick] = useState(0);
-  const [showPreview, setShowPreview] = useState(false);
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const [ttsVoice, setTtsVoice] = useState<'nova' | 'alloy'>('nova');
   const [ttsGenerating, setTtsGenerating] = useState(false);
   const [audioAssets, setAudioAssets] = useState<StudioAudioAsset[]>([]);
   const [publishing, setPublishing] = useState(false);
   const [uploadingStepId, setUploadingStepId] = useState<string | null>(null);
-  const [annotatingId, setAnnotatingId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imgWrapRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
@@ -312,22 +306,6 @@ export default function StudioPage() {
     }
   }, [active]);
 
-  const saveAnnotations = useCallback(async (stepId: string, annotations: Annotation[]) => {
-    const current = stepsRef.current.find(s => s.id === stepId);
-    const nextFollow = { ...(current?.follow ?? {}), kind: 'none' as const };
-    stepsRef.current = stepsRef.current.map(s => s.id === stepId ? { ...s, annotations, follow: nextFollow, stepType: s.stepType ?? 'visual_overlay_step' } : s);
-    setSteps(stepsRef.current);
-    setSavingId(stepId);
-    try {
-      await updateStep(stepId, { user_annotations: annotations, follow_config: normalize(nextFollow) });
-      setSavedTick(t => t + 1);
-    } catch (e) {
-      logError('studio.annotations.fail', { stepId, message: e instanceof Error ? e.message : String(e) });
-    } finally {
-      setSavingId(s => (s === stepId ? null : s));
-    }
-  }, []);
-
   const placeHotspot = useCallback((clientX: number, clientY: number, commit: boolean) => {
     const el = imgWrapRef.current;
     if (!el || !active) return;
@@ -354,30 +332,6 @@ export default function StudioPage() {
     return () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); };
   }, [placeHotspot]);
 
-  const previewSteps = useMemo(() => toFollowSteps(steps.map(s => {
-    const audio = resolveStepAudio({
-      id: s.id,
-      user_script: s.description,
-      voice_audio_url: s.voiceAudioUrl,
-      voice_audio_start_ms: s.voiceAudioStartMs,
-      voice_audio_end_ms: s.voiceAudioEndMs,
-    }, audioAssets, ttsEnabled);
-    return {
-      title: s.title,
-      body: s.description || null,
-      screenshotUrl: s.screenshotUrl || undefined,
-      clickXPct: s.clickXPct,
-      clickYPct: s.clickYPct,
-      audioUrl: audio?.url ?? null,
-      audioStartMs: audio?.startMs ?? null,
-      audioEndMs: audio?.endMs ?? null,
-      followConfig: s.follow,
-      stepType: s.stepType,
-      annotations: s.annotations,
-      domRect: s.domRect,
-    };
-  })), [audioAssets, steps, ttsEnabled]);
-
   const ensurePublished = useCallback(async () => {
     const existing = (tutorial as Tutorial & { share_token?: string | null } | null)?.share_token;
     if (existing) return existing;
@@ -397,6 +351,42 @@ export default function StudioPage() {
       window.open(`/play/${token}?mode=practice`, '_blank', 'noopener,noreferrer');
     } catch {
       alert('연습 가이드를 열지 못했습니다. 다시 시도해주세요.');
+    } finally {
+      setPublishing(false);
+    }
+  }, [ensurePublished]);
+
+  const copyGuideLink = useCallback(async (mode: 'practice' | 'live') => {
+    setPublishing(true);
+    try {
+      const token = await ensurePublished();
+      const url = `${window.location.origin}/play/${token}?mode=${mode}`;
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+        alert(mode === 'practice' ? '연습 가이드 공유 링크를 복사했습니다.' : '라이브 가이드 공유 링크를 복사했습니다.');
+      } else {
+        window.prompt('공유 링크를 복사하세요.', url);
+      }
+    } catch {
+      alert('공유 링크를 만들지 못했습니다. 다시 시도해주세요.');
+    } finally {
+      setPublishing(false);
+    }
+  }, [ensurePublished]);
+
+  const handleOpenLiveGuide = useCallback(async () => {
+    setPublishing(true);
+    try {
+      const token = await ensurePublished();
+      const result = await startLiveGuide(token);
+      if (result.ok) return;
+      if (result.reason === 'gated' && result.upgradeUrl && confirm(`${result.message}\n설정 화면으로 이동할까요?`)) {
+        window.location.href = result.upgradeUrl;
+        return;
+      }
+      alert(result.message);
+    } catch {
+      alert('라이브 가이드를 실행하지 못했습니다. Recorder 연결 상태를 확인해주세요.');
     } finally {
       setPublishing(false);
     }
@@ -447,9 +437,17 @@ export default function StudioPage() {
         <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.4)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
           {savingId ? <><Loader2 size={TOP_BAR_ICON_SIZE} className="spin" /> 저장 중…</> : savedTick > 0 ? <><Check size={TOP_BAR_ICON_SIZE} color="#34d399" /> 저장됨</> : null}
         </span>
-        <button onClick={() => setShowPreview(true)} title="연습 가이드(웹) 화면으로 미리보기 — 핫스팟·말풍선·입력 텍스트 설정을 확인합니다. 실제 Live Guide Beta 오버레이 외형과는 다를 수 있어요." style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5 }}><Play size={TOP_BAR_ICON_SIZE} /> 연습 가이드 미리보기</button>
-        <button onClick={handleOpenPracticeGuide} disabled={publishing} title="고객에게 전달되는 연습 가이드 실행 화면을 새 탭에서 엽니다" style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5, opacity: publishing ? 0.6 : 1 }}>
+        <button onClick={handleOpenPracticeGuide} disabled={publishing} title="연습 가이드 실행 화면을 새 탭에서 엽니다." style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5, opacity: publishing ? 0.6 : 1 }}>
           {publishing ? <Loader2 size={TOP_BAR_ICON_SIZE} className="spin" /> : <Play size={TOP_BAR_ICON_SIZE} />} 연습 가이드 실행
+        </button>
+        <button onClick={handleOpenLiveGuide} disabled={publishing} title="현재 브라우저 탭에서 라이브 가이드 Beta를 실행합니다." style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5, opacity: publishing ? 0.6 : 1 }}>
+          {publishing ? <Loader2 size={TOP_BAR_ICON_SIZE} className="spin" /> : <Zap size={TOP_BAR_ICON_SIZE} />} 라이브 가이드 실행
+        </button>
+        <button onClick={() => copyGuideLink('practice')} disabled={publishing} title="연습 가이드 공유 링크를 복사합니다." style={{ ...ghostBtn, width: 'auto', padding: '0 10px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12, opacity: publishing ? 0.6 : 1 }}>
+          <Copy size={TOP_BAR_ICON_SIZE} /> 연습 공유
+        </button>
+        <button onClick={() => copyGuideLink('live')} disabled={publishing} title="라이브 가이드 공유 링크를 복사합니다." style={{ ...ghostBtn, width: 'auto', padding: '0 10px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12, opacity: publishing ? 0.6 : 1 }}>
+          <Copy size={TOP_BAR_ICON_SIZE} /> 라이브 공유
         </button>
         {tutorial.status === 'published' ? (
           <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: 'rgba(16,185,129,0.12)', color: '#34d399', fontWeight: 600, border: '1px solid rgba(52,211,153,0.25)', flexShrink: 0 }}>게시됨</span>
@@ -531,7 +529,7 @@ export default function StudioPage() {
                   typeBoxWidth={active.follow.typeBoxWidth}
                   typeBoxHeight={active.follow.typeBoxHeight}
                   guideMode={rv?.none ? 'explanation' : 'interactive'}
-                  annotations={active.annotations}
+                  annotations={[]}
                   bubbleAnchor={active.follow.bubbleAnchor}
                   stepNumber={steps.findIndex(s => s.id === active.id) + 1}
                   title={active.title}
@@ -623,7 +621,7 @@ export default function StudioPage() {
 
               <Divider />
 
-              <SectionLabel>Visual Overlay</SectionLabel>
+              <SectionLabel>원본 이미지</SectionLabel>
               <div style={{ display: 'grid', gap: 8 }}>
                 <button
                   onClick={() => fileInputRef.current?.click()}
@@ -632,15 +630,8 @@ export default function StudioPage() {
                 >
                   {uploadingStepId === active.id ? <Loader2 size={12} className="spin" /> : <ImagePlus size={12} />} {active.screenshotUrl ? '이미지 교체' : '이미지 추가'}
                 </button>
-                <button
-                  onClick={() => active.screenshotUrl && setAnnotatingId(active.id)}
-                  disabled={!active.screenshotUrl}
-                  style={{ ...subtleBtn, opacity: active.screenshotUrl ? 1 : 0.45, cursor: active.screenshotUrl ? 'pointer' : 'not-allowed' }}
-                >
-                  <PenTool size={12} /> Overlay 편집
-                </button>
               </div>
-              <p style={hint}>DOM과 연결되지 않는 Rectangle, Circle, Spotlight, Arrow, Tooltip을 이미지 위에 배치합니다.</p>
+              <p style={hint}>연습 가이드는 매뉴얼 어노테이션을 덧씌우지 않고 원본 캡처 이미지와 핫스팟을 사용합니다.</p>
 
               <Divider />
 
@@ -815,26 +806,6 @@ export default function StudioPage() {
           )}
         </aside>
       </div>
-
-      {/* 미리보기 오버레이 */}
-      {showPreview && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(5,5,10,0.9)', backdropFilter: 'blur(4px)' }}>
-          <InteractiveFollowPlayer title={tutorial.title} steps={previewSteps} onClose={() => setShowPreview(false)} closeLabel="편집으로" />
-        </div>
-      )}
-
-      {annotatingId && (() => {
-        const step = steps.find(s => s.id === annotatingId);
-        if (!step?.screenshotUrl) return null;
-        return (
-          <ImageAnnotationEditor
-            imageUrl={step.screenshotUrl}
-            annotations={step.annotations}
-            onChange={annotations => saveAnnotations(step.id, annotations)}
-            onClose={() => setAnnotatingId(null)}
-          />
-        );
-      })()}
 
       <Styles />
     </div>

@@ -302,7 +302,7 @@ export default function EditorPage() {
   // 에디터 최초 로드 시 description 없는 스텝 자동 AI 생성 (무료 플랜 제외)
   useEffect(() => {
     if (!tutorial) return;
-    if (user?.plan === 'free' || user?.plan === 'pro_waitlist') return;
+    if (!isRecordingFinalizeView && (user?.plan === 'free' || user?.plan === 'pro_waitlist')) return;
     const empty = tutorial.steps.filter(s =>
       !s.id.startsWith('step-') &&
       !(s.user_script || s.ai_description || '').trim()
@@ -336,7 +336,7 @@ export default function EditorPage() {
 
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tutorial?.id]);
+  }, [tutorial?.id, isRecordingFinalizeView]);
 
   // 활성 스텝 변경 시 Presence 전송 (협업 커서)
   useEffect(() => { updatePresence(activeId); }, [activeId, updatePresence]);
