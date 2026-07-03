@@ -42,8 +42,11 @@
     // 1순위: CSS Selector
     if (step.element_selector) {
       try { el = document.querySelector(step.element_selector); } catch { el = null; }
-      if (el) { rect = rectOf(el); source = 'selector'; }
-      if (rect && !isGeometryMatch(el, rect, step)) { el = null; rect = null; source = 'none'; }
+      if (el) {
+        const accepted = acceptElementTarget(el, rectOf(el), 'selector', step);
+        if (accepted) return accepted;
+        el = null; rect = null; source = 'none';
+      }
     }
 
     // 2순위: XPath
@@ -51,16 +54,22 @@
       try {
         const xr = document.evaluate(step.element_xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
         const xe = xr.singleNodeValue;
-        if (xe) { el = xe; rect = rectOf(xe); source = 'xpath'; }
+        if (xe) {
+          const accepted = acceptElementTarget(xe, rectOf(xe), 'xpath', step);
+          if (accepted) return accepted;
+          el = null; rect = null; source = 'none';
+        }
       } catch { /* noop */ }
-      if (rect && !isGeometryMatch(el, rect, step)) { el = null; rect = null; source = 'none'; }
     }
 
     // 2.5순위: 퍼지 자가복구 — 셀렉터·XPath가 모두 깨졌을 때 저장 힌트(텍스트·속성·위치)로 후보 점수화
     if (!rect) {
       const fz = fuzzyFind(step);
-      if (fz) { el = fz; rect = rectOf(fz); source = 'fuzzy'; }
-      if (rect && !isGeometryMatch(el, rect, step)) { el = null; rect = null; source = 'none'; }
+      if (fz) {
+        const accepted = acceptElementTarget(fz, rectOf(fz), 'fuzzy', step);
+        if (accepted) return accepted;
+        el = null; rect = null; source = 'none';
+      }
     }
 
     // 3순위: 정규화 rect (0~1)
@@ -93,6 +102,40 @@
   // ── 퍼지 자가복구 (P2) ────────────────────────────────────────
   // 셀렉터/XPath가 모두 깨졌을 때, 저장된 힌트(보이는 텍스트·속성·위치)로 현재 DOM 후보를
   // 점수화해 같은 요소를 재발견한다. 좌표 폴백보다 정확하고, 화면이 바뀌면(텍스트 없음) null.
+  function rectIntersectsViewport(rect, margin) {
+    const m = margin == null ? 8 : margin;
+    return rect.left + rect.width > m &&
+      rect.top + rect.height > m &&
+      rect.left < window.innerWidth - m &&
+      rect.top < window.innerHeight - m;
+  }
+
+  function rectOutsideViewport(rect, margin) {
+    return !rectIntersectsViewport(rect, margin);
+  }
+
+  function revealElementInViewport(el) {
+    if (!el || !el.isConnected) return null;
+    try {
+      el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'auto' });
+      return rectOf(el);
+    } catch {
+      return null;
+    }
+  }
+
+  function acceptElementTarget(el, rect, source, step) {
+    if (!el || !rect || rect.width < 1 || rect.height < 1) return null;
+    if (isGeometryMatch(el, rect, step)) return { el, rect, source };
+    if (!rectOutsideViewport(rect)) return null;
+
+    const revealed = revealElementInViewport(el);
+    if (revealed && revealed.width >= 1 && revealed.height >= 1 && rectIntersectsViewport(revealed, 0)) {
+      return { el, rect: revealed, source };
+    }
+    return null;
+  }
+
   function normalizeUnit(value) {
     const n = Number(value);
     if (!Number.isFinite(n)) return null;
