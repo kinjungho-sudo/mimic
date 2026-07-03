@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Play, Check, Loader2, MousePointerClick, Type, Ban, RotateCcw, EyeOff, Eye, GripVertical, ZoomIn, ImagePlus, PenTool, Volume2, VolumeX } from 'lucide-react';
+import { ArrowLeft, Play, Check, Loader2, MousePointerClick, Type, Ban, RotateCcw, EyeOff, Eye, GripVertical, ZoomIn, ImagePlus, PenTool, Volume2, VolumeX, Link2 } from 'lucide-react';
 import { useTutorial } from '@/hooks/useTutorial';
 import { updateStep, reorderSteps } from '@/lib/api/steps';
 import { clickToPct, inferKind, toFollowSteps } from '@/lib/follow';
@@ -10,6 +10,7 @@ import { resolveStepAudio } from '@/lib/voice/playback';
 import { InteractiveFollowPlayer } from '@/components/viewer/InteractiveFollowPlayer';
 import { FollowStage } from '@/components/viewer/FollowStage';
 import { ImageAnnotationEditor, type Annotation } from '@/components/editor/ImageAnnotationEditor';
+import { ShareModal } from '@/components/editor/ShareModal';
 import { logError } from '@/lib/logging/logger';
 import type { Step, Tutorial, FollowConfig } from '@/types';
 
@@ -105,18 +106,18 @@ const BUBBLE_OPTS: { key: BubbleAnchorKey; label: string; icon: string }[] = [
 export default function StudioPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { tutorial, loading, error, publish } = useTutorial(id);
+  const { tutorial, loading, error, publish, unpublish } = useTutorial(id);
 
   const [steps, setSteps] = useState<StudioStep[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [savedTick, setSavedTick] = useState(0);
   const [showPreview, setShowPreview] = useState(false);
+  const [showShare, setShowShare] = useState(false);
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const [ttsVoice, setTtsVoice] = useState<'nova' | 'alloy'>('nova');
   const [ttsGenerating, setTtsGenerating] = useState(false);
   const [audioAssets, setAudioAssets] = useState<StudioAudioAsset[]>([]);
-  const [publishing, setPublishing] = useState(false);
   const [uploadingStepId, setUploadingStepId] = useState<string | null>(null);
   const [annotatingId, setAnnotatingId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -378,30 +379,6 @@ export default function StudioPage() {
     };
   })), [audioAssets, steps, ttsEnabled]);
 
-  const ensurePublished = useCallback(async () => {
-    const existing = (tutorial as Tutorial & { share_token?: string | null } | null)?.share_token;
-    if (existing) return existing;
-    setPublishing(true);
-    try {
-      const result = await publish();
-      return result.share_token;
-    } finally {
-      setPublishing(false);
-    }
-  }, [publish, tutorial]);
-
-  const handleOpenPracticeGuide = useCallback(async () => {
-    setPublishing(true);
-    try {
-      const token = await ensurePublished();
-      window.open(`/play/${token}?mode=practice`, '_blank', 'noopener,noreferrer');
-    } catch {
-      alert('연습 가이드를 열지 못했습니다. 다시 시도해주세요.');
-    } finally {
-      setPublishing(false);
-    }
-  }, [ensurePublished]);
-
   if (loading) {
     return <div style={pageBg}><div style={{ color: 'rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', gap: 10 }}><Loader2 size={18} className="spin" /> 불러오는 중…</div><Styles /></div>;
   }
@@ -440,31 +417,17 @@ export default function StudioPage() {
       <header style={{ flexShrink: 0, height: 56, padding: '0 18px', display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(10,10,15,0.9)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
         <button onClick={() => router.push(`/manual/${id}/editor`)} style={ghostBtn} title="편집기로 돌아가기"><ArrowLeft size={TOP_BAR_ICON_SIZE} /></button>
         <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          <span style={{ fontSize: 13.5, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>연습 가이드 편집</span>
+          <span style={{ fontSize: 13.5, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>학습 가이드 편집</span>
           <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.45)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tutorial.title}</span>
         </div>
         <div style={{ flex: 1 }} />
         <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.4)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
           {savingId ? <><Loader2 size={TOP_BAR_ICON_SIZE} className="spin" /> 저장 중…</> : savedTick > 0 ? <><Check size={TOP_BAR_ICON_SIZE} color="#34d399" /> 저장됨</> : null}
         </span>
-        <button onClick={() => setShowPreview(true)} title="연습 가이드(웹) 화면으로 미리보기 — 핫스팟·말풍선·입력 텍스트 설정을 확인합니다. 실제 Live Guide Beta 오버레이 외형과는 다를 수 있어요." style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5 }}><Play size={TOP_BAR_ICON_SIZE} /> 연습 가이드 미리보기</button>
-        <button onClick={handleOpenPracticeGuide} disabled={publishing} title="고객에게 전달되는 연습 가이드 실행 화면을 새 탭에서 엽니다" style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5, opacity: publishing ? 0.6 : 1 }}>
-          {publishing ? <Loader2 size={TOP_BAR_ICON_SIZE} className="spin" /> : <Play size={TOP_BAR_ICON_SIZE} />} 연습 가이드 실행
+        <button onClick={() => setShowPreview(true)} title="학습 가이드(웹) 화면으로 미리보기 — 핫스팟·말풍선·입력 텍스트 설정을 확인합니다. 실제 Live Guide Beta 오버레이 외형과는 다를 수 있어요." style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5 }}><Play size={TOP_BAR_ICON_SIZE} /> 학습 가이드 미리보기</button>
+        <button onClick={() => setShowShare(true)} title="학습 가이드와 Live Guide Beta에서 함께 쓰는 공유 링크를 엽니다" style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5 }}>
+          <Link2 size={TOP_BAR_ICON_SIZE} /> 공유
         </button>
-        {tutorial.status === 'published' ? (
-          <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: 'rgba(16,185,129,0.12)', color: '#34d399', fontWeight: 600, border: '1px solid rgba(52,211,153,0.25)', flexShrink: 0 }}>게시됨</span>
-        ) : (
-          <button
-            onClick={async () => {
-              setPublishing(true);
-              try { await publish(); } catch { alert('게시에 실패했습니다. 다시 시도해주세요.'); }
-              finally { setPublishing(false); }
-            }}
-            disabled={publishing}
-            style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5, opacity: publishing ? 0.6 : 1 }}>
-            {publishing ? <><Loader2 size={TOP_BAR_ICON_SIZE} className="spin" /> 게시 중…</> : '게시'}
-          </button>
-        )}
       </header>
 
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
@@ -554,7 +517,7 @@ export default function StudioPage() {
                 </FollowStage>
               </div>
               <p style={{ margin: '14px 0 0', textAlign: 'center', fontSize: 11.5, color: 'rgba(255,255,255,0.4)' }}>
-                {hidden ? '숨김 처리된 스텝 — 연습 가이드에 노출되지 않습니다'
+                {hidden ? '숨김 처리된 스텝 — 학습 가이드에 노출되지 않습니다'
                   : rv?.none ? '인디케이터 없음 — 핫스팟을 표시하지 않고 ‘다음’으로만 진행합니다'
                   : '이미지를 클릭하거나 링을 드래그해 핫스팟 위치를 지정하세요'}
               </p>
@@ -592,7 +555,7 @@ export default function StudioPage() {
                 >
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
                     {ttsEnabled ? <Volume2 size={12} /> : <VolumeX size={12} />}
-                    {ttsEnabled ? '연습 가이드 음성 켜짐' : '연습 가이드 음성 꺼짐'}
+                    {ttsEnabled ? '학습 가이드 음성 켜짐' : '학습 가이드 음성 꺼짐'}
                   </span>
                   <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 999, background: ttsEnabled ? '#7c3aed' : 'rgba(255,255,255,0.1)' }}>
                     {ttsEnabled ? 'ON' : 'OFF'}
@@ -619,7 +582,7 @@ export default function StudioPage() {
                   </>
                 )}
               </div>
-              <p style={hint}>각 스텝 설명에 작성한 문장을 읽어줍니다. 음성은 연습 가이드와 Live Guide Beta에서만 사용되고, 문서/슬라이드 매뉴얼에서는 재생되지 않습니다.</p>
+              <p style={hint}>각 스텝 설명에 작성한 문장을 읽어줍니다. 음성은 학습 가이드와 Live Guide Beta에서만 사용되고, 문서/슬라이드 매뉴얼에서는 재생되지 않습니다.</p>
 
               <Divider />
 
@@ -647,7 +610,7 @@ export default function StudioPage() {
               {/* 표시/숨김 */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0' }}>
                 <span style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.85)', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-                  {hidden ? <EyeOff size={14} /> : <Eye size={14} />} 연습 가이드에 표시
+                  {hidden ? <EyeOff size={14} /> : <Eye size={14} />} 학습 가이드에 표시
                 </span>
                 <button onClick={() => patch(active.id, { hidden: !hidden })} title="표시/숨김"
                   style={{ width: 40, height: 22, borderRadius: 11, border: 'none', cursor: 'pointer', background: hidden ? 'rgba(255,255,255,0.15)' : '#7c3aed', position: 'relative', transition: 'background 0.15s' }}>
@@ -655,12 +618,12 @@ export default function StudioPage() {
                 </button>
               </div>
 
-              {/* 확대 애니메이션 — 켜면 연습 가이드에서 클릭 영역을 천천히 확대(기본 off) */}
+              {/* 확대 애니메이션 — 켜면 학습 가이드에서 클릭 영역을 천천히 확대(기본 off) */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', opacity: hidden ? 0.4 : 1 }}>
                 <span style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.85)', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
                   <ZoomIn size={14} /> 확대 애니메이션
                 </span>
-                <button disabled={hidden} onClick={() => patch(active.id, { zoomAnim: !zoomAnim })} title="연습 가이드에서 클릭 영역 확대"
+                <button disabled={hidden} onClick={() => patch(active.id, { zoomAnim: !zoomAnim })} title="학습 가이드에서 클릭 영역 확대"
                   style={{ width: 40, height: 22, borderRadius: 11, border: 'none', cursor: hidden ? 'not-allowed' : 'pointer', background: zoomAnim ? '#7c3aed' : 'rgba(255,255,255,0.15)', position: 'relative', transition: 'background 0.15s' }}>
                   <span style={{ position: 'absolute', top: 2, left: zoomAnim ? 20 : 2, width: 18, height: 18, borderRadius: '50%', background: 'white', transition: 'left 0.15s' }} />
                 </button>
@@ -835,6 +798,20 @@ export default function StudioPage() {
           />
         );
       })()}
+
+      {showShare && tutorial && (
+        <ShareModal
+          title={tutorial.title}
+          shareToken={(tutorial as Tutorial & { share_token?: string | null }).share_token ?? null}
+          shareUrl={(tutorial as Tutorial & { share_token?: string | null }).share_token ? `${typeof window !== 'undefined' ? window.location.origin : ''}/play/${(tutorial as Tutorial & { share_token?: string | null }).share_token}` : null}
+          tutorialId={id}
+          hasPassword={!!(tutorial as Tutorial & { share_password?: string | null }).share_password}
+          visibility={(tutorial as Tutorial & { visibility?: 'private' | 'public' }).visibility}
+          onPublishAndShare={publish}
+          onUnpublish={unpublish}
+          onClose={() => setShowShare(false)}
+        />
+      )}
 
       <Styles />
     </div>

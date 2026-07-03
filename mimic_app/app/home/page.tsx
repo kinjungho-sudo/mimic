@@ -1795,13 +1795,13 @@ export default function DashboardPage() {
                   <div style={{ fontSize: '12.5px', color: '#6B7280', marginTop: '3px' }}>단계별 문서를 직접 편집해요</div>
                 </div>
               </button>
-              {/* 연습 가이드 스튜디오 */}
+              {/* 학습 가이드 스튜디오 */}
               <button
                 onClick={() => { router.push(`/manual/${manualActionModal}/studio`); setManualActionModal(null); }}
                 style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', padding: 0, borderRadius: '14px', border: '1.5px solid #E5E7EB', background: 'white', cursor: 'pointer', textAlign: 'left', transition: 'border-color 0.12s, box-shadow 0.12s', overflow: 'hidden' }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = '#7c3aed'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(124,58,237,0.08)'; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.boxShadow = 'none'; }}>
-                {/* 연습 가이드 샘플 — 화면 위 코치마크 */}
+                {/* 학습 가이드 샘플 — 화면 위 코치마크 */}
                 <div style={{ width: '100%', aspectRatio: '16 / 10', background: 'linear-gradient(135deg, #f5f3ff, #ede9fe)', display: 'grid', placeItems: 'center', padding: '18px' }}>
                   <svg viewBox="0 0 220 130" width="100%" style={{ display: 'block', filter: 'drop-shadow(0 6px 14px rgba(124,58,237,0.18))' }}>
                     <rect x="14" y="10" width="192" height="110" rx="9" fill="white"/>
@@ -1824,7 +1824,7 @@ export default function DashboardPage() {
                   </svg>
                 </div>
                 <div style={{ padding: '14px 16px 16px' }}>
-                  <div style={{ fontSize: '16px', fontWeight: 700, color: '#111827' }}>연습 가이드 스튜디오</div>
+                  <div style={{ fontSize: '16px', fontWeight: 700, color: '#111827' }}>학습 가이드 스튜디오</div>
                   <div style={{ fontSize: '12.5px', color: '#6B7280', marginTop: '3px' }}>캡처 화면 위에서 단계별로 연습해요</div>
                 </div>
               </button>
