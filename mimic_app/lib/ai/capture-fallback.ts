@@ -120,8 +120,7 @@ function isGenericLabel(value: string | null | undefined): boolean {
 }
 
 function isRawCaptureLabel(value: string | null | undefined): boolean {
-  const text = normalized(value);
-  return RAW_CAPTURE_LABELS.has(text);
+  return RAW_CAPTURE_LABELS.has(normalized(value));
 }
 
 function isLongCapturedContent(value: string | null | undefined): boolean {
@@ -522,4 +521,11 @@ export function buildCaptureFallbackTutorialTitle(
     return `${actionBase}하기`.slice(0, 30);
   }
   return `${firstActionTitle}하기`.slice(0, 30);
+}
+
+export function buildCaptureAnnotationLabel(title: string | null | undefined, actionType?: string | null, pageUrl?: string | null): string {
+  const safeTitle = cleanText(title);
+  if (safeTitle && !isLowQualityCaptureTitle(safeTitle)) return safeTitle.slice(0, 40);
+  const base = contextFromUrl(pageUrl, false) || labelFromUrl(pageUrl) || '화면';
+  return `${base} ${verbForAction(actionType ?? undefined, false)}`.slice(0, 40);
 }

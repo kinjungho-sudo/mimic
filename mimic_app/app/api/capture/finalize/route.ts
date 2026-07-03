@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { randomBytes } from 'crypto';
 import { requireExtensionToken } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { captureFinalizeSchema } from '@/lib/validators';
@@ -394,6 +395,18 @@ export async function POST(request: NextRequest) {
     await supabase.from('mm_tutorials').delete().eq('id', tutorial.id);
     return NextResponse.json({ error: 'Failed to create steps' }, { status: 500 });
   }
+
+  // 녹화 완료 즉시 자동 게시 — 편집 없이 매뉴얼 상세 페이지로 바로 이동
+  const shareToken = randomBytes(16).toString('hex');
+  await supabase
+    .from('mm_tutorials')
+    .update({
+      status: 'published',
+      visibility: 'public',
+      share_token: shareToken,
+      published_at: new Date().toISOString(),
+    })
+    .eq('id', tutorial.id);
 
   // 세션 완료 처리는 필수. daily_manual_count 증가는 운영 DB에 RPC가 늦게
   // 적용된 경우에도 매뉴얼 생성을 막지 않도록 best-effort로 처리한다.
@@ -994,7 +1007,7 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({
     tutorial_id: tutorial.id,
     step_count: steps.length,
-    share_token: null,
+    share_token: shareToken,
     completion_pending: true,
   });
 }
