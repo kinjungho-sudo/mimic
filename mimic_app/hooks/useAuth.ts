@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { getCurrentUser, signOut } from '@/lib/auth/auth-client';
 import type { User } from '@/types';
+import type { Session } from '@supabase/supabase-js';
 
 type AuthState = {
   user: User | null;
@@ -20,38 +21,44 @@ export function useAuth(): AuthState {
     const supabase = createClient();
     let cancelled = false;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const applySession = (session: Session | null) => {
       if (cancelled) return;
 
-      if (event === 'INITIAL_SESSION') {
-        if (session?.user) {
-          setUser({ id: session.user.id, email: session.user.email ?? '' } as User);
-          setLoading(false);
-          getCurrentUser().then(u => {
-            if (!cancelled && u) setUser(u);
-          }).catch(() => {});
-        } else {
-          setUser(null);
-          setLoading(false);
-        }
-      } else if (event === 'SIGNED_IN') {
-        // 로그인 직후에만 DB 프로필 로드 (TOKEN_REFRESHED로 인한 재발화 무시)
-        if (session?.user) {
-          setLoading(false);
-          getCurrentUser().then(u => {
-            if (!cancelled && u) setUser(u);
-          }).catch(() => {});
-        }
+      if (!session?.user) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      const authUser = { id: session.user.id, email: session.user.email ?? '' } as User;
+      setUser(authUser);
+      setLoading(false);
+
+      getCurrentUser().then(profile => {
+        if (!cancelled) setUser(profile ?? authUser);
+      }).catch(() => {
+        if (!cancelled) setUser(authUser);
+      });
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+        applySession(session);
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setLoading(false);
       }
-      // TOKEN_REFRESHED, USER_UPDATED 등은 무시 — user state 불필요한 갱신 방지
     });
 
-    // 안전망: 4초 후에도 loading 중이면 강제 해제
     const fallback = setTimeout(() => {
-      if (!cancelled) setLoading(false);
+      supabase.auth.getSession()
+        .then(({ data: { session } }) => applySession(session))
+        .catch(() => {
+          if (!cancelled) {
+            setUser(null);
+            setLoading(false);
+          }
+        });
     }, 4000);
 
     return () => {

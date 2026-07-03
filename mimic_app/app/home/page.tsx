@@ -846,6 +846,10 @@ export default function DashboardPage() {
   const [pages, setPages] = useState<{ id: string; title: string; updated_at: string; block_count?: number; workspace_id?: string | null }[]>([]);
   const [pagesLoading, setPagesLoading] = useState(false);
 
+  useEffect(() => {
+    if (!authLoading && !user) router.replace('/landingpage');
+  }, [authLoading, user, router]);
+
   const loadTutorials = useCallback(async (workspaceId?: string, silent = false) => {
     if (!silent) setTutLoading(true);
     try {
@@ -1163,9 +1167,7 @@ export default function DashboardPage() {
               {/* ② 팀 워크스페이스 하위 */}
               {teamOpen && (
                 <div style={{ paddingLeft: '12px', marginLeft: '19px', borderLeft: '2px solid #F3F4F6', display: 'flex', flexDirection: 'column', gap: '1px', marginBottom: '2px' }}>
-                  {workspaces.length === 0
-                    ? <div style={{ padding: '4px 8px', fontSize: '13px', color: '#D1D5DB' }}>없음</div>
-                    : workspaces.map(ws => (
+                  {workspaces.map(ws => (
                       <div key={ws.id} style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
                         <button onClick={() => { const switching = !(activeTab === 'team' && activeWorkspace === ws.id); setActiveTab('team'); setActiveWorkspace(ws.id); if (switching) setActiveFolder('all'); setShowFolderPanel(true); }}
                           style={{ display: 'flex', alignItems: 'center', gap: '7px', flex: 1, padding: '5px 8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', textAlign: 'left', background: activeTab === 'team' && activeWorkspace === ws.id ? '#e0e7ff' : 'transparent', color: activeTab === 'team' && activeWorkspace === ws.id ? '#3730a3' : '#4B5563', fontWeight: activeTab === 'team' && activeWorkspace === ws.id ? 600 : 400 }}
@@ -1187,15 +1189,16 @@ export default function DashboardPage() {
                   }
                   {/* 맨 아래: 새 워크스페이스 추가 (헤더의 + 버튼 대체) */}
                   {showNewWsInput ? (
-                    <form onSubmit={handleCreateWorkspace} style={{ display: 'flex', gap: '4px', paddingTop: '4px' }}>
+                    <form onSubmit={handleCreateWorkspace} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 30px', gap: '4px', paddingTop: '4px', width: '100%' }}>
                       <input autoFocus value={newWsName} onChange={e => setNewWsName(e.target.value)} placeholder="워크스페이스 이름"
                         onBlur={() => { if (!creatingWs) { setShowNewWsInput(false); setNewWsName(''); } }}
                         onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); setShowNewWsInput(false); setNewWsName(''); } }}
-                        style={{ flex: 1, padding: '4px 7px', borderRadius: '6px', border: '1px solid #a5b4fc', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
+                        style={{ minWidth: 0, width: '100%', boxSizing: 'border-box', padding: '4px 7px', borderRadius: '6px', border: '1px solid #a5b4fc', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
                       <button type="submit" disabled={creatingWs || !newWsName.trim()}
+                        title="워크스페이스 만들기"
                         onMouseDown={e => e.preventDefault()}
-                        style={{ padding: '4px 8px', borderRadius: '6px', background: '#3730a3', color: 'white', border: 'none', fontSize: '12px', fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
-                        {creatingWs ? '...' : '만들기'}
+                        style={{ width: '30px', height: '30px', borderRadius: '6px', background: '#3730a3', color: 'white', border: 'none', fontSize: '14px', fontWeight: 700, cursor: creatingWs || !newWsName.trim() ? 'not-allowed' : 'pointer', display: 'grid', placeItems: 'center', opacity: creatingWs || !newWsName.trim() ? 0.55 : 1 }}>
+                        {creatingWs ? '…' : '✓'}
                       </button>
                     </form>
                   ) : (
@@ -1230,7 +1233,7 @@ export default function DashboardPage() {
                 {/* 라이브 가이드 사용량 */}
                 {liveGuide && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
-                    <span style={{ fontSize: '12px', color: '#6B7280' }}>라이브 가이드</span>
+                    <span style={{ fontSize: '12px', color: '#6B7280' }}>라이브 가이드 Beta</span>
                     <span style={{ fontSize: '12px', fontWeight: 600, color: '#111827' }}>
                       {liveGuide.paid
                         ? <>{liveGuide.used}<span style={{ fontSize: '10px', color: '#10B981', marginLeft: '4px', fontWeight: 500 }}>무제한</span></>
@@ -1259,7 +1262,7 @@ export default function DashboardPage() {
                     <div style={{ height: '100%', borderRadius: '999px', background: playbook.used >= playbook.limit ? '#EF4444' : '#0EA5E9', width: `${Math.min(100, (playbook.used / playbook.limit) * 100)}%`, transition: 'width 0.3s' }} />
                   </div>
                 )}
-                {!isPro && <Link href="/settings" style={{ display: 'block', marginTop: '10px', padding: '6px', borderRadius: '7px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', fontSize: '11.5px', fontWeight: 600, textDecoration: 'none', textAlign: 'center' }}>Pro로 업그레이드</Link>}
+                {!isPro && <Link href="/landingpage#pricing" style={{ display: 'block', marginTop: '10px', padding: '6px', borderRadius: '7px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', fontSize: '11.5px', fontWeight: 600, textDecoration: 'none', textAlign: 'center' }}>Pro로 업그레이드</Link>}
               </div>
             )}
 
@@ -1297,8 +1300,8 @@ export default function DashboardPage() {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                 도움말
               </Link>
-              {/* 사용자 배지 — 클릭 시 마이페이지 이동 */}
-              <Link href="/mypage"
+              {/* 사용자 배지 — 클릭 시 요금제 선택 화면 이동 */}
+              <Link href="/landingpage#pricing"
                 style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '8px 10px', borderRadius: '8px', color: '#374151', textDecoration: 'none', marginTop: '2px' }}
                 onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
@@ -1677,9 +1680,7 @@ export default function DashboardPage() {
               </button>
               {teamOpen && (
                 <div style={{ paddingLeft: '10px', marginLeft: '18px', borderLeft: '2px solid #F3F4F6', marginBottom: '8px' }}>
-                  {workspaces.length === 0
-                    ? <div style={{ padding: '6px 8px', fontSize: '13px', color: '#D1D5DB' }}>없음</div>
-                    : workspaces.map(ws => (
+                  {workspaces.map(ws => (
                       <button key={ws.id}
                         onClick={() => { setActiveTab('team'); setActiveWorkspace(ws.id); setShowDrawer(false); }}
                         style={{ display: 'flex', alignItems: 'center', gap: '7px', width: '100%', padding: '7px 8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', textAlign: 'left', background: activeTab === 'team' && activeWorkspace === ws.id ? '#e0e7ff' : 'transparent', color: activeTab === 'team' && activeWorkspace === ws.id ? '#3730a3' : '#4B5563', fontWeight: activeTab === 'team' && activeWorkspace === ws.id ? 600 : 400 }}>
@@ -1709,15 +1710,18 @@ export default function DashboardPage() {
               )}
               {/* 유저 */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '8px 10px', borderRadius: '8px' }}>
-                {user?.avatar_url
-                  // eslint-disable-next-line @next/next/no-img-element
-                  ? <img src={user.avatar_url} alt={user.name} style={{ width: '28px', height: '28px', borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }} />
-                  : <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', display: 'grid', placeItems: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>{firstName.charAt(0) || '?'}</div>
-                }
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: '13px', fontWeight: 500, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.name ?? '내 계정'}</div>
-                  <div style={{ fontSize: '11px', color: '#9CA3AF' }}>{user?.plan === 'free' ? '무료 플랜' : user?.plan === 'team' ? 'Team' : 'Pro'}</div>
-                </div>
+                <Link href="/landingpage#pricing" onClick={() => setShowDrawer(false)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '9px', flex: 1, minWidth: 0, color: 'inherit', textDecoration: 'none' }}>
+                  {user?.avatar_url
+                    // eslint-disable-next-line @next/next/no-img-element
+                    ? <img src={user.avatar_url} alt={user.name} style={{ width: '28px', height: '28px', borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }} />
+                    : <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', display: 'grid', placeItems: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>{firstName.charAt(0) || '?'}</div>
+                  }
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '13px', fontWeight: 500, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.name ?? '내 계정'}</div>
+                    <div style={{ fontSize: '11px', color: '#9CA3AF' }}>{user?.plan === 'free' ? '무료 플랜' : user?.plan === 'team' ? 'Team' : 'Pro'}</div>
+                  </div>
+                </Link>
                 <button onClick={() => { handleSignOut(); setShowDrawer(false); }}
                   title="로그아웃"
                   style={{ width: '32px', height: '32px', borderRadius: '8px', border: 'none', background: '#F3F4F6', cursor: 'pointer', display: 'grid', placeItems: 'center', color: '#9CA3AF', flexShrink: 0 }}>
@@ -1791,13 +1795,13 @@ export default function DashboardPage() {
                   <div style={{ fontSize: '12.5px', color: '#6B7280', marginTop: '3px' }}>단계별 문서를 직접 편집해요</div>
                 </div>
               </button>
-              {/* Live Guide 스튜디오 — 파일럿 동안 게이트 없이 오픈 */}
+              {/* 연습 가이드 스튜디오 */}
               <button
                 onClick={() => { router.push(`/manual/${manualActionModal}/studio`); setManualActionModal(null); }}
                 style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', padding: 0, borderRadius: '14px', border: '1.5px solid #E5E7EB', background: 'white', cursor: 'pointer', textAlign: 'left', transition: 'border-color 0.12s, box-shadow 0.12s', overflow: 'hidden' }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = '#7c3aed'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(124,58,237,0.08)'; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.boxShadow = 'none'; }}>
-                {/* Live Guide 샘플 — 화면 위 코치마크 */}
+                {/* 연습 가이드 샘플 — 화면 위 코치마크 */}
                 <div style={{ width: '100%', aspectRatio: '16 / 10', background: 'linear-gradient(135deg, #f5f3ff, #ede9fe)', display: 'grid', placeItems: 'center', padding: '18px' }}>
                   <svg viewBox="0 0 220 130" width="100%" style={{ display: 'block', filter: 'drop-shadow(0 6px 14px rgba(124,58,237,0.18))' }}>
                     <rect x="14" y="10" width="192" height="110" rx="9" fill="white"/>
@@ -1820,8 +1824,8 @@ export default function DashboardPage() {
                   </svg>
                 </div>
                 <div style={{ padding: '14px 16px 16px' }}>
-                  <div style={{ fontSize: '16px', fontWeight: 700, color: '#111827' }}>Live Guide 스튜디오</div>
-                  <div style={{ fontSize: '12.5px', color: '#6B7280', marginTop: '3px' }}>화면 위에서 실시간으로 단계를 안내해요</div>
+                  <div style={{ fontSize: '16px', fontWeight: 700, color: '#111827' }}>연습 가이드 스튜디오</div>
+                  <div style={{ fontSize: '12.5px', color: '#6B7280', marginTop: '3px' }}>캡처 화면 위에서 단계별로 연습해요</div>
                 </div>
               </button>
             </div>

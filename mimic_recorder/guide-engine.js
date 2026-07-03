@@ -43,6 +43,7 @@
     if (step.element_selector) {
       try { el = document.querySelector(step.element_selector); } catch { el = null; }
       if (el) { rect = rectOf(el); source = 'selector'; }
+      if (rect && !isGeometryMatch(el, rect, step)) { el = null; rect = null; source = 'none'; }
     }
 
     // 2순위: XPath
@@ -52,26 +53,33 @@
         const xe = xr.singleNodeValue;
         if (xe) { el = xe; rect = rectOf(xe); source = 'xpath'; }
       } catch { /* noop */ }
+      if (rect && !isGeometryMatch(el, rect, step)) { el = null; rect = null; source = 'none'; }
     }
 
     // 2.5순위: 퍼지 자가복구 — 셀렉터·XPath가 모두 깨졌을 때 저장 힌트(텍스트·속성·위치)로 후보 점수화
     if (!rect) {
       const fz = fuzzyFind(step);
       if (fz) { el = fz; rect = rectOf(fz); source = 'fuzzy'; }
+      if (rect && !isGeometryMatch(el, rect, step)) { el = null; rect = null; source = 'none'; }
     }
 
     // 3순위: 정규화 rect (0~1)
     if (!rect && step.element_rect) {
-      const r = step.element_rect;
-      rect = { left: r.x * window.innerWidth, top: r.y * window.innerHeight, width: r.width * window.innerWidth, height: r.height * window.innerHeight };
-      source = 'rect';
+      const r = normalizedElementRect(step);
+      if (r) {
+        rect = { left: r.x * window.innerWidth, top: r.y * window.innerHeight, width: r.width * window.innerWidth, height: r.height * window.innerHeight };
+        source = 'rect';
+      }
     }
 
     // 4순위: click_x/y (0~1 정규화) — 핫스팟은 0.5순위에서 이미 처리
     if (!rect && step.click_x != null && step.click_y != null) {
-      const cx = step.click_x * window.innerWidth, cy = step.click_y * window.innerHeight;
-      rect = { left: cx - COORD_BOX / 2, top: cy - COORD_BOX / 2, width: COORD_BOX, height: COORD_BOX };
-      source = 'coord';
+      const p = normalizedClickPoint(step);
+      if (p) {
+        const cx = p.x * window.innerWidth, cy = p.y * window.innerHeight;
+        rect = { left: cx - COORD_BOX / 2, top: cy - COORD_BOX / 2, width: COORD_BOX, height: COORD_BOX };
+        source = 'coord';
+      }
     }
 
     return { el, rect, source };
@@ -85,6 +93,90 @@
   // ── 퍼지 자가복구 (P2) ────────────────────────────────────────
   // 셀렉터/XPath가 모두 깨졌을 때, 저장된 힌트(보이는 텍스트·속성·위치)로 현재 DOM 후보를
   // 점수화해 같은 요소를 재발견한다. 좌표 폴백보다 정확하고, 화면이 바뀌면(텍스트 없음) null.
+  function normalizeUnit(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return null;
+    let v = n;
+    if (v > 100) v = v / 10000;
+    else if (v > 1) v = v / 100;
+    if (!Number.isFinite(v)) return null;
+    return Math.max(0, Math.min(1, v));
+  }
+
+  function normalizedClickPoint(step) {
+    const x = normalizeUnit(step.click_x);
+    const y = normalizeUnit(step.click_y);
+    return x == null || y == null ? null : { x, y };
+  }
+
+  function normalizedElementRect(step) {
+    const r = step.element_rect;
+    if (!r) return null;
+    const x = normalizeUnit(r.x);
+    const y = normalizeUnit(r.y);
+    const width = normalizeUnit(r.width);
+    const height = normalizeUnit(r.height);
+    if (x == null || y == null || width == null || height == null || width <= 0 || height <= 0) return null;
+    return { x, y, width, height };
+  }
+
+  function expectedGeometry(step) {
+    const p = normalizedClickPoint(step);
+    const nr = normalizedElementRect(step);
+    const rect = nr ? {
+      left: nr.x * window.innerWidth,
+      top: nr.y * window.innerHeight,
+      width: nr.width * window.innerWidth,
+      height: nr.height * window.innerHeight,
+    } : null;
+    const point = p ? { x: p.x * window.innerWidth, y: p.y * window.innerHeight }
+      : rect ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
+      : null;
+    return { point, rect };
+  }
+
+  function rectOverlapRatio(a, b) {
+    const left = Math.max(a.left, b.left);
+    const top = Math.max(a.top, b.top);
+    const right = Math.min(a.left + a.width, b.left + b.width);
+    const bottom = Math.min(a.top + a.height, b.top + b.height);
+    const area = Math.max(0, right - left) * Math.max(0, bottom - top);
+    const minArea = Math.max(1, Math.min(a.width * a.height, b.width * b.height));
+    return area / minArea;
+  }
+
+  function isTextInputLike(el) {
+    if (!el) return false;
+    const tag = (el.tagName || '').toLowerCase();
+    const role = (el.getAttribute && (el.getAttribute('role') || '') || '').toLowerCase();
+    return tag === 'input' || tag === 'textarea' || el.isContentEditable || role === 'textbox';
+  }
+
+  function isGeometryMatch(el, rect, step) {
+    const expected = expectedGeometry(step);
+    if (!expected.point && !expected.rect) return true;
+
+    const viewportArea = Math.max(1, window.innerWidth * window.innerHeight);
+    const targetArea = Math.max(1, rect.width * rect.height);
+    if (!isTextInputLike(el) && targetArea / viewportArea > 0.45) return false;
+
+    if (expected.point && pointInRect(expected.point.x, expected.point.y, rect, 48)) return true;
+    if (expected.rect) {
+      const center = {
+        x: expected.rect.left + expected.rect.width / 2,
+        y: expected.rect.top + expected.rect.height / 2,
+      };
+      if (pointInRect(center.x, center.y, rect, 48)) return true;
+      if (rectOverlapRatio(rect, expected.rect) >= 0.25) return true;
+    }
+    if (expected.point) {
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      return Math.hypot(cx - expected.point.x, cy - expected.point.y) <= 96;
+    }
+    return false;
+  }
+
   function normText(s) { return (s || '').trim().replace(/\s+/g, ' '); }
 
   function isVisibleEl(el) {
@@ -113,8 +205,10 @@
     const a = sel.match(/([a-z0-9]+)?\[(name|aria-label|data-testid)="([^"]*)"\]\s*$/i);
     if (a) { if (!hint.tag && a[1]) hint.tag = a[1].toLowerCase(); hint.attrName = a[2]; hint.attrVal = a[3]; }
     if (!hint.tag) { const t = sel.match(/([a-z0-9]+)\s*$/i); if (t) hint.tag = t[1].toLowerCase(); }
-    if (step.click_x != null && step.click_y != null) { hint.nx = step.click_x; hint.ny = step.click_y; }
-    else if (step.element_rect) { hint.nx = step.element_rect.x + step.element_rect.width / 2; hint.ny = step.element_rect.y + step.element_rect.height / 2; }
+    const p = normalizedClickPoint(step);
+    const r = normalizedElementRect(step);
+    if (p) { hint.nx = p.x; hint.ny = p.y; }
+    else if (r) { hint.nx = r.x + r.width / 2; hint.ny = r.y + r.height / 2; }
     return hint;
   }
 
@@ -222,9 +316,24 @@
     } catch { return true; }  // 파싱 불가 시 막지 않음
   }
 
+  function isExplanationStep(step) {
+    if (!step) return false;
+    return step.guide_mode === 'explanation'
+      || step.kind === 'none'
+      || step.step_type === 'visual_only_step'
+      || step.step_type === 'visual_overlay_step'
+      || step.step_type === 'manual_capture_step'
+      || step.step_type === 'blocked_step';
+  }
+
   function show(step, opts) {
     hide();
     opts = opts || {};
+
+    if (isExplanationStep(step)) {
+      showExplanation(step, opts);
+      return;
+    }
 
     // URL 검증 — 엉뚱한 페이지면 좌표 핫스팟을 찍지 말고 '다른 페이지' 안내만 표시
     if (step && step.page_url && !pageMatches(step.page_url)) {
@@ -300,6 +409,7 @@
     const typeTextSnippet = step.type_text
       ? escapeHtml(String(step.type_text).length > 60 ? String(step.type_text).slice(0, 60) + '…' : String(step.type_text))
       : '';
+    const tooltipText = step.instruction || step.title || '';
 
     const tooltip = document.createElement('div');
     tooltip.style.cssText = `position:fixed;width:${TIP_W}px;box-sizing:border-box;background:${TIP_BG};color:#fff;border-radius:13px;padding:13px;box-shadow:0 12px 40px rgba(0,0,0,.45),0 0 0 1px rgba(165,180,252,.14);z-index:5;pointer-events:auto;animation:mimic-tip-in 0.28s ease forwards;`;
@@ -312,10 +422,9 @@
             ${resolved.source === 'none' ? '<span style="font-size:10.5px;color:#FCA5A5">요소 미발견</span>' : ''}
             <div style="flex:1"></div>
             <button class="mimic-btn" data-act="hide-tooltip" title="툴팁 숨기기" style="background:transparent;color:rgba(255,255,255,.4);padding:3px 6px;font-size:11px">👁</button>
-            <button class="mimic-btn" data-act="exit" style="background:transparent;color:rgba(255,255,255,.4);padding:3px 6px;font-size:12px">✕</button>
+            <button class="mimic-btn" data-act="hide-tooltip" title="툴팁 닫기" style="background:transparent;color:rgba(255,255,255,.4);padding:3px 6px;font-size:12px">✕</button>
           </div>
-          <div style="font-size:14px;font-weight:600;line-height:1.5;color:#F3F4F6">${escapeHtml(step.title || '')}</div>
-          ${step.instruction && step.instruction !== step.title ? `<div style="font-size:12.5px;color:#9CA3AF;line-height:1.55;margin-top:3px">${escapeHtml(step.instruction)}</div>` : ''}
+          ${tooltipText ? `<div style="font-size:12.5px;color:#D1D5DB;line-height:1.55;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${escapeHtml(tooltipText)}</div>` : ''}
         </div>
       </div>
       ${step.type_text ? `
@@ -548,7 +657,7 @@
     state.tooltip.innerHTML = `
       <div style="text-align:center;padding:10px 4px">
         <div style="${AVATAR_STYLE}margin:0 auto 12px;">${MASCOT_SVG}</div>
-        <div style="font-size:15px;font-weight:700;margin-bottom:6px">Live Guide 완료! 🎉</div>
+        <div style="font-size:15px;font-weight:700;margin-bottom:6px">Live Guide Beta 완료! 🎉</div>
         <div style="font-size:12.5px;color:#9CA3AF;margin-bottom:14px">모든 스텝을 완료했습니다.</div>
         <button class="mimic-btn" data-act="exit" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:9px 24px;width:100%">닫기</button>
       </div>`;
@@ -557,13 +666,117 @@
     state.tooltip.style.animation = 'mimic-tip-in 0.3s ease forwards';
   }
 
-  // 현재 페이지가 단계의 page_url과 다를 때 — 오버레이 전부 숨김 (사이드패널에서만 안내)
+  // 현재 페이지가 단계의 page_url과 다를 때 — 세션을 끝내지 않고 참고 카드로 다음 행동을 안내한다.
   function showWrongPage(step, opts) {
-    state = { host: null, wrongPage: true };
+    showExplanation({
+      ...step,
+      guide_mode: 'explanation',
+      kind: 'none',
+      instruction: step.instruction || '이 단계의 대상 화면이 아닙니다. 필요한 화면으로 이동한 뒤 진행해주세요.',
+    }, opts);
   }
 
   // 같은 URL이지만 녹화한 요소가 아직 화면에 없을 때 — 가짜 핫스팟 대신 '찾는 중' 카드를 띄우고
   // 요소가 나타나면 정상 오버레이로 자동 전환한다. (Typeform 등 SPA·녹화 차단으로 건너뛴 단계 대응)
+  function safeCssColor(value, fallback) {
+    const s = String(value || '').trim();
+    return /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(s) || /^rgba?\([\d\s.,%]+\)$/i.test(s) ? s : fallback;
+  }
+
+  function pctBox(a) {
+    const x1 = Number(a.x1), y1 = Number(a.y1), x2 = Number(a.x2), y2 = Number(a.y2);
+    if (![x1, y1, x2, y2].every(Number.isFinite)) return null;
+    const left = Math.max(0, Math.min(x1, x2));
+    const top = Math.max(0, Math.min(y1, y2));
+    const width = Math.max(1, Math.abs(x2 - x1));
+    const height = Math.max(1, Math.abs(y2 - y1));
+    return { left, top, width, height, x1, y1, x2, y2 };
+  }
+
+  function renderGuideAnnotation(a) {
+    const box = pctBox(a);
+    if (!box) return '';
+    const color = safeCssColor(a.color || a.borderColor, '#7c3aed');
+    const borderColor = safeCssColor(a.borderColor || a.color, color);
+    const stroke = Math.max(1, Math.min(8, Number(a.strokeWidth) || 3));
+    const base = `position:absolute;left:${box.left}%;top:${box.top}%;width:${box.width}%;height:${box.height}%;box-sizing:border-box;pointer-events:none;`;
+    if (a.type === 'text') {
+      return `<div style="${base}width:auto;min-width:72px;max-width:70%;height:auto;background:rgba(17,24,39,.88);color:#fff;border:1px solid rgba(255,255,255,.24);border-radius:8px;padding:6px 8px;font-size:11px;line-height:1.35;box-shadow:0 8px 24px rgba(0,0,0,.28)">${escapeHtml(a.text || '')}</div>`;
+    }
+    if (a.type === 'marker') {
+      return `<div style="position:absolute;left:${box.x1}%;top:${box.y1}%;transform:translate(-50%,-50%);width:22px;height:22px;border-radius:50%;background:${color};color:#fff;display:grid;place-items:center;font-size:11px;font-weight:800;box-shadow:0 6px 16px rgba(0,0,0,.25);pointer-events:none">${escapeHtml(a.markerNumber || '')}</div>`;
+    }
+    if (a.type === 'arrow' || a.type === 'line') {
+      const dx = box.x2 - box.x1, dy = box.y2 - box.y1;
+      const length = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+      const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+      const head = a.type === 'arrow'
+        ? `<span style="position:absolute;right:-2px;top:50%;width:8px;height:8px;border-top:${stroke}px solid ${color};border-right:${stroke}px solid ${color};transform:translateY(-50%) rotate(45deg);transform-origin:center"></span>`
+        : '';
+      return `<div style="position:absolute;left:${box.x1}%;top:${box.y1}%;width:${length}%;height:${stroke}px;background:${color};transform-origin:0 50%;transform:rotate(${angle}deg);border-radius:${stroke}px;pointer-events:none">${head}</div>`;
+    }
+    const radius = a.type === 'ellipse' ? '999px' : a.type === 'roundedRect' ? '10px' : '4px';
+    const shadow = a.type === 'spotlight' ? 'box-shadow:0 0 0 9999px rgba(0,0,0,.42),0 0 0 2px rgba(255,255,255,.75);' : '';
+    const fill = a.type === 'spotlight' ? 'background:transparent;' : 'background:rgba(124,58,237,.08);';
+    return `<div style="${base}${fill}border:${stroke}px solid ${borderColor};border-radius:${radius};${shadow}"></div>`;
+  }
+
+  function renderVisualGuideImage(step) {
+    if (!step || !step.screenshot_url) return '';
+    const annotations = Array.isArray(step.user_annotations)
+      ? step.user_annotations
+      : Array.isArray(step.annotations) ? step.annotations : [];
+    const overlay = annotations.map(renderGuideAnnotation).join('');
+    return `
+      <div style="position:relative;margin:0 0 14px;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.12);background:#050507;line-height:0">
+        <img src="${escapeHtml(step.screenshot_url)}" alt="" style="display:block;width:100%;max-height:240px;object-fit:contain;background:#050507">
+        ${overlay ? `<div style="position:absolute;inset:0;pointer-events:none;overflow:hidden">${overlay}</div>` : ''}
+      </div>`;
+  }
+
+  function showExplanation(step, opts) {
+    const host = document.createElement('div');
+    host.id = 'mimic-overlay-root';
+    host.style.cssText = `all:initial;position:fixed;inset:0;pointer-events:none;z-index:${Z};font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;`;
+    document.documentElement.appendChild(host);
+    const shadow = host.attachShadow({ mode: 'closed' });
+
+    const idx = opts.index ?? 0, total = opts.total ?? 1;
+    const title = step.title || `Step ${idx + 1}`;
+    const text = step.instruction || '이 단계는 직접 진행한 뒤 다음을 눌러주세요.';
+
+    const card = document.createElement('div');
+    card.style.cssText = `position:fixed;right:16px;bottom:16px;width:360px;max-width:calc(100vw - 32px);max-height:calc(100vh - 32px);overflow:auto;background:${TIP_BG};color:#fff;border-radius:16px;padding:16px;box-shadow:0 18px 55px rgba(0,0,0,.48),0 0 0 1px rgba(165,180,252,.14);pointer-events:auto`;
+    card.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <div style="${AVATAR_STYLE}width:38px;height:38px;">${MASCOT_SVG}</div>
+        <div style="min-width:0">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+            <span style="font-size:11px;font-weight:700;color:#A5B4FC">${idx + 1} / ${total}</span>
+            <span style="font-size:10.5px;font-weight:800;color:#C4B5FD;background:rgba(99,102,241,.22);padding:2px 7px;border-radius:999px">참고 단계</span>
+          </div>
+          <div style="font-size:15px;font-weight:800;line-height:1.35">${escapeHtml(title)}</div>
+        </div>
+      </div>
+      <div style="font-size:13px;color:#D1D5DB;line-height:1.55;margin-bottom:14px">${escapeHtml(text)}</div>
+      ${renderVisualGuideImage(step)}
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="ex-btn" data-act="prev" style="background:rgba(255,255,255,.1);color:#D1D5DB;font-size:12px;padding:7px 12px">이전</button>
+        <div style="flex:1"></div>
+        <button class="ex-btn" data-act="next" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:8px 18px">${idx + 1 >= total ? '완료' : '건너뛰기 →'}</button>
+      </div>`;
+    shadow.appendChild(style('.ex-btn{pointer-events:auto;cursor:pointer;border:none;border-radius:8px;font-size:13px;font-weight:700;transition:opacity .15s}.ex-btn:active{opacity:.75}'));
+    shadow.appendChild(card);
+
+    card.addEventListener('click', (e) => {
+      const act = e.target && e.target.getAttribute && e.target.getAttribute('data-act');
+      if (act === 'prev') opts.onPrev && opts.onPrev();
+      else if (act === 'next') opts.onAdvance && opts.onAdvance('manual');
+    });
+
+    state = { host, shadow, explanation: true };
+  }
+
   function showWaiting(step, opts) {
     const host = document.createElement('div');
     host.id = 'mimic-overlay-root';
@@ -572,6 +785,7 @@
     const shadow = host.attachShadow({ mode: 'closed' });
 
     const idx = opts.index ?? 0, total = opts.total ?? 1;
+    const waitingText = step.instruction || '안내할 항목이 화면에 아직 없습니다. 화면을 진행하면 자동으로 표시됩니다.';
 
     const card = document.createElement('div');
     card.style.cssText = `position:fixed;left:50%;bottom:24px;transform:translateX(-50%);width:340px;max-width:calc(100vw - 32px);background:${TIP_BG};color:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 12px 40px rgba(0,0,0,.45),0 0 0 1px rgba(165,180,252,.14);pointer-events:auto`;
@@ -580,10 +794,9 @@
         <span style="font-size:11px;font-weight:700;color:#A5B4FC;background:rgba(99,102,241,.25);padding:2px 8px;border-radius:20px">${idx + 1} / ${total}</span>
         <span style="font-size:11px;color:#9CA3AF">🔍 이 단계 화면을 찾는 중…</span>
         <div style="flex:1"></div>
-        <button class="wt-btn" data-act="exit" style="background:transparent;color:rgba(255,255,255,.4);padding:3px 6px">✕</button>
+        <button class="wt-btn" data-act="next" title="이 단계 건너뛰기" style="background:transparent;color:rgba(255,255,255,.65);padding:3px 8px">건너뛰기</button>
       </div>
-      <div style="font-size:13.5px;font-weight:600;color:#F3F4F6;margin-bottom:4px">${escapeHtml(step.title || '')}</div>
-      <div style="font-size:12px;color:#9CA3AF;line-height:1.5;margin-bottom:10px">안내할 항목이 화면에 아직 없습니다. 화면을 진행하면 자동으로 표시됩니다.</div>
+      <div style="font-size:12px;color:#9CA3AF;line-height:1.5;margin-bottom:10px">${escapeHtml(waitingText)}</div>
       <div style="display:flex;gap:6px;align-items:center">
         <button class="wt-btn" data-act="prev" style="background:rgba(255,255,255,.1);color:#D1D5DB;font-size:12px;padding:6px 11px">← 이전</button>
         <div style="flex:1"></div>
@@ -594,8 +807,7 @@
 
     card.addEventListener('click', (e) => {
       const act = e.target && e.target.getAttribute && e.target.getAttribute('data-act');
-      if (act === 'exit') opts.onExit && opts.onExit();
-      else if (act === 'prev') opts.onPrev && opts.onPrev();
+      if (act === 'prev') opts.onPrev && opts.onPrev();
       else if (act === 'next') opts.onAdvance && opts.onAdvance('manual');
     });
 

@@ -24,6 +24,7 @@ export default function SignupPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordConfirm, setPasswordConfirm] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [agreeAge, setAgreeAge] = useState(false);
@@ -42,6 +43,7 @@ export default function SignupPage() {
   };
 
   const { level, label } = getPasswordStrength(password);
+  const passwordMismatch = passwordConfirm.length > 0 && password !== passwordConfirm;
 
   const handleGoogle = async () => {
     setLoading(true);
@@ -61,10 +63,11 @@ export default function SignupPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!allRequired) { setError('필수 항목에 모두 동의해주세요.'); return; }
+    if (password !== passwordConfirm) { setError('비밀번호가 일치하지 않습니다.'); return; }
     setLoading(true);
     setError('');
     try {
-      await signUpWithEmail(sanitize(name), sanitize(email), sanitize(password), {
+      await signUpWithEmail(sanitize(name), sanitize(email), sanitize(password), sanitize(passwordConfirm), {
         age14: agreeAge,
         terms: agreeTerms,
         privacy: agreePrivacy,
@@ -174,6 +177,29 @@ export default function SignupPage() {
                   </div>
                   <div style={{ fontSize: '11px', color: '#6B7280', marginTop: '6px' }}>{label}</div>
                 </>
+              )}
+            </div>
+
+            {/* Password confirm */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 500, marginBottom: '6px', color: '#4B5563' }}>비밀번호 확인</label>
+              <input
+                type="password"
+                value={passwordConfirm}
+                onChange={e => setPasswordConfirm(e.target.value)}
+                placeholder="비밀번호를 한 번 더 입력"
+                required
+                style={{ ...inputStyle, borderColor: passwordMismatch ? '#DC2626' : '#E5E7EB' }}
+                onFocus={inputFocus}
+                onBlur={e => {
+                  e.currentTarget.style.borderColor = passwordMismatch ? '#DC2626' : '#E5E7EB';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              />
+              {passwordConfirm && (
+                <div style={{ fontSize: '11px', color: passwordMismatch ? '#DC2626' : '#16A34A', marginTop: '6px' }}>
+                  {passwordMismatch ? '비밀번호가 일치하지 않습니다.' : '비밀번호가 일치합니다.'}
+                </div>
               )}
             </div>
 

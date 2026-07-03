@@ -2,12 +2,14 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Play, Check, Loader2, MousePointerClick, Type, Ban, RotateCcw, EyeOff, Eye, GripVertical, ZoomIn } from 'lucide-react';
+import { ArrowLeft, Play, Check, Loader2, MousePointerClick, Type, Ban, RotateCcw, EyeOff, Eye, GripVertical, ZoomIn, ImagePlus, PenTool, Volume2, VolumeX } from 'lucide-react';
 import { useTutorial } from '@/hooks/useTutorial';
 import { updateStep, reorderSteps } from '@/lib/api/steps';
 import { clickToPct, inferKind, toFollowSteps } from '@/lib/follow';
+import { resolveStepAudio } from '@/lib/voice/playback';
 import { InteractiveFollowPlayer } from '@/components/viewer/InteractiveFollowPlayer';
 import { FollowStage } from '@/components/viewer/FollowStage';
+import { ImageAnnotationEditor, type Annotation } from '@/components/editor/ImageAnnotationEditor';
 import { logError } from '@/lib/logging/logger';
 import type { Step, Tutorial, FollowConfig } from '@/types';
 
@@ -18,12 +20,26 @@ type StudioStep = {
   id: string;
   number: number;
   screenshotUrl: string | null;
+  pageUrl: string | null;
   title: string;             // user_title (편집) — 문서 매뉴얼과 공유. ai_title 폴백으로 초기화
   description: string;       // user_script (편집, HTML 제거) — 문서 매뉴얼과 공유
   clickXPct: number | null;  // 녹화 좌표 (0~100)
   clickYPct: number | null;
+  stepType: string | null;
+  annotations: Annotation[];
+  voiceAudioUrl: string | null;
+  voiceAudioStartMs: number | null;
+  voiceAudioEndMs: number | null;
   domRect: { x: number; y: number; w: number; h: number } | null; // DOM 요소 영역(0~100 pct) — 확대 애니메이션 중심
   follow: FollowConfig;      // 따라하기 전용 시각 설정 (핫스팟·종류·숨김·typeText)
+};
+
+type StudioAudioAsset = {
+  id?: string;
+  step_id: string;
+  audio_url: string;
+  duration_ms?: number | null;
+  script_text?: string | null;
 };
 
 function toStudioStep(s: Step): StudioStep {
@@ -31,10 +47,16 @@ function toStudioStep(s: Step): StudioStep {
     id: s.id,
     number: s.step_number,
     screenshotUrl: s.screenshot_url || null,
+    pageUrl: s.page_url ?? null,
     title: s.user_title || s.ai_title || '',
     description: (s.user_script || s.ai_description || '').replace(/<[^>]+>/g, ''),
     clickXPct: clickToPct((s as Step & { click_x?: number | null }).click_x),
     clickYPct: clickToPct((s as Step & { click_y?: number | null }).click_y),
+    stepType: s.step_type ?? null,
+    annotations: (s.user_annotations as Annotation[] | null) ?? [],
+    voiceAudioUrl: s.voice_audio_url ?? null,
+    voiceAudioStartMs: s.voice_audio_start_ms ?? null,
+    voiceAudioEndMs: s.voice_audio_end_ms ?? null,
     domRect: (() => {
       const raw = (s as Step & { element_rect?: { x?: number; y?: number; width?: number; height?: number } | null }).element_rect;
       if (!raw || raw.x == null) return null;
@@ -65,6 +87,9 @@ function normalize(fc: FollowConfig): FollowConfig | null {
   if (fc.hotspotY != null) clean.hotspotY = fc.hotspotY;
   if (fc.kind) clean.kind = fc.kind;
   if (fc.typeText && fc.typeText.trim()) clean.typeText = fc.typeText.trim();
+  if (fc.typeInputMode) clean.typeInputMode = fc.typeInputMode;
+  if (fc.typeBoxWidth != null) clean.typeBoxWidth = fc.typeBoxWidth;
+  if (fc.typeBoxHeight != null) clean.typeBoxHeight = fc.typeBoxHeight;
   if (fc.hidden) clean.hidden = true;
   if (fc.bubbleAnchor) clean.bubbleAnchor = fc.bubbleAnchor;
   if (fc.zoomAnim) clean.zoomAnim = true;
@@ -87,7 +112,14 @@ export default function StudioPage() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [savedTick, setSavedTick] = useState(0);
   const [showPreview, setShowPreview] = useState(false);
+  const [ttsEnabled, setTtsEnabled] = useState(false);
+  const [ttsVoice, setTtsVoice] = useState<'nova' | 'alloy'>('nova');
+  const [ttsGenerating, setTtsGenerating] = useState(false);
+  const [audioAssets, setAudioAssets] = useState<StudioAudioAsset[]>([]);
   const [publishing, setPublishing] = useState(false);
+  const [uploadingStepId, setUploadingStepId] = useState<string | null>(null);
+  const [annotatingId, setAnnotatingId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const imgWrapRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
   const contentTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -103,6 +135,9 @@ export default function StudioPage() {
     if (!tutorial) return;
     const ss = tutorial.steps.map(toStudioStep);
     setSteps(ss);
+    setAudioAssets((tutorial.audio_assets ?? []) as StudioAudioAsset[]);
+    setTtsEnabled((tutorial as Tutorial & { tts_enabled?: boolean }).tts_enabled ?? false);
+    setTtsVoice(((tutorial as Tutorial & { tts_voice?: string }).tts_voice as 'nova' | 'alloy') ?? 'nova');
     setActiveId(prev => prev ?? ss[0]?.id ?? null);
   }, [tutorial]);
 
@@ -183,7 +218,116 @@ export default function StudioPage() {
     }, 600);
   }, []);
 
+  const setTypeBoxSize = useCallback((stepId: string, field: 'typeBoxWidth' | 'typeBoxHeight', value: number | null) => {
+    stepsRef.current = stepsRef.current.map(s => s.id === stepId ? { ...s, follow: { ...s.follow, [field]: value } } : s);
+    setSteps(stepsRef.current);
+    const key = stepId + field;
+    clearTimeout(contentTimers.current[key]);
+    contentTimers.current[key] = setTimeout(async () => {
+      const fc = stepsRef.current.find(s => s.id === stepId)?.follow ?? {};
+      setSavingId(stepId);
+      try {
+        await updateStep(stepId, { follow_config: normalize(fc) });
+        setSavedTick(t => t + 1);
+      } catch (e) {
+        logError('studio.typebox.fail', { stepId, field, message: e instanceof Error ? e.message : String(e) });
+      } finally {
+        setSavingId(s => (s === stepId ? null : s));
+      }
+    }, 500);
+  }, []);
+
   // 이미지 클릭/드래그 → 핫스팟 위치 지정
+  const saveTtsSetting = useCallback(async (enabled: boolean, voice: 'nova' | 'alloy') => {
+    await fetch(`/api/tutorials/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tts_enabled: enabled, tts_voice: voice }),
+    });
+  }, [id]);
+
+  const handleTtsToggle = useCallback(async (enabled: boolean) => {
+    setTtsEnabled(enabled);
+    await saveTtsSetting(enabled, ttsVoice);
+  }, [saveTtsSetting, ttsVoice]);
+
+  const handleTtsVoiceChange = useCallback(async (voice: 'nova' | 'alloy') => {
+    setTtsVoice(voice);
+    await saveTtsSetting(ttsEnabled, voice);
+  }, [saveTtsSetting, ttsEnabled]);
+
+  const handleGenerateAllTts = useCallback(async () => {
+    const targets = stepsRef.current.filter(s => !s.follow.hidden && s.description.trim());
+    if (!targets.length) return;
+    setTtsGenerating(true);
+    try {
+      const results = await Promise.all(targets.map(async s => {
+        const scriptText = s.description.trim();
+        const res = await fetch('/api/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ stepId: s.id, scriptText, voice: ttsVoice }),
+        });
+        if (!res.ok) return null;
+        const data = await res.json();
+        return {
+          step_id: s.id,
+          audio_url: data.audio_url as string,
+          duration_ms: data.duration_ms as number | null,
+          script_text: scriptText,
+        };
+      }));
+      const next = new Map(audioAssets.map(asset => [asset.step_id, asset]));
+      for (const asset of results) {
+        if (asset) next.set(asset.step_id, asset);
+      }
+      setAudioAssets(Array.from(next.values()));
+    } finally {
+      setTtsGenerating(false);
+    }
+  }, [audioAssets, ttsVoice]);
+
+  const uploadManualCapture = useCallback(async (file: File) => {
+    const target = active;
+    if (!target) return;
+    const fd = new FormData();
+    fd.append('file', file);
+    setUploadingStepId(target.id);
+    try {
+      const res = await fetch(`/api/steps/${target.id}/image`, { method: 'POST', body: fd });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      const nextFollow: FollowConfig = { ...target.follow, kind: 'none' };
+      stepsRef.current = stepsRef.current.map(s => s.id === target.id
+        ? { ...s, screenshotUrl: data.screenshot_url, stepType: data.step_type ?? 'visual_overlay_step', clickXPct: null, clickYPct: null, domRect: null, follow: nextFollow }
+        : s);
+      setSteps(stepsRef.current);
+      setSavedTick(t => t + 1);
+    } catch (e) {
+      logError('studio.manualCapture.fail', { stepId: target.id, message: e instanceof Error ? e.message : String(e) });
+      alert('수동 캡처 이미지를 저장하지 못했습니다. 다시 시도해주세요.');
+    } finally {
+      setUploadingStepId(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }, [active]);
+
+  const saveAnnotations = useCallback(async (stepId: string, annotations: Annotation[]) => {
+    const current = stepsRef.current.find(s => s.id === stepId);
+    const nextFollow = { ...(current?.follow ?? {}), kind: 'none' as const };
+    stepsRef.current = stepsRef.current.map(s => s.id === stepId ? { ...s, annotations, follow: nextFollow, stepType: s.stepType ?? 'visual_overlay_step' } : s);
+    setSteps(stepsRef.current);
+    setSavingId(stepId);
+    try {
+      await updateStep(stepId, { user_annotations: annotations, follow_config: normalize(nextFollow) });
+      setSavedTick(t => t + 1);
+    } catch (e) {
+      logError('studio.annotations.fail', { stepId, message: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setSavingId(s => (s === stepId ? null : s));
+    }
+  }, []);
+
   const placeHotspot = useCallback((clientX: number, clientY: number, commit: boolean) => {
     const el = imgWrapRef.current;
     if (!el || !active) return;
@@ -210,16 +354,53 @@ export default function StudioPage() {
     return () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); };
   }, [placeHotspot]);
 
-  const previewSteps = useMemo(() => toFollowSteps(steps.map(s => ({
-    title: s.title,
-    body: s.description || null,
-    screenshotUrl: s.screenshotUrl || undefined,
-    clickXPct: s.clickXPct,
-    clickYPct: s.clickYPct,
-    audioUrl: null,
-    followConfig: s.follow,
-    domRect: s.domRect,
-  }))), [steps]);
+  const previewSteps = useMemo(() => toFollowSteps(steps.map(s => {
+    const audio = resolveStepAudio({
+      id: s.id,
+      user_script: s.description,
+      voice_audio_url: s.voiceAudioUrl,
+      voice_audio_start_ms: s.voiceAudioStartMs,
+      voice_audio_end_ms: s.voiceAudioEndMs,
+    }, audioAssets, ttsEnabled);
+    return {
+      title: s.title,
+      body: s.description || null,
+      screenshotUrl: s.screenshotUrl || undefined,
+      clickXPct: s.clickXPct,
+      clickYPct: s.clickYPct,
+      audioUrl: audio?.url ?? null,
+      audioStartMs: audio?.startMs ?? null,
+      audioEndMs: audio?.endMs ?? null,
+      followConfig: s.follow,
+      stepType: s.stepType,
+      annotations: s.annotations,
+      domRect: s.domRect,
+    };
+  })), [audioAssets, steps, ttsEnabled]);
+
+  const ensurePublished = useCallback(async () => {
+    const existing = (tutorial as Tutorial & { share_token?: string | null } | null)?.share_token;
+    if (existing) return existing;
+    setPublishing(true);
+    try {
+      const result = await publish();
+      return result.share_token;
+    } finally {
+      setPublishing(false);
+    }
+  }, [publish, tutorial]);
+
+  const handleOpenPracticeGuide = useCallback(async () => {
+    setPublishing(true);
+    try {
+      const token = await ensurePublished();
+      window.open(`/play/${token}?mode=practice`, '_blank', 'noopener,noreferrer');
+    } catch {
+      alert('연습 가이드를 열지 못했습니다. 다시 시도해주세요.');
+    } finally {
+      setPublishing(false);
+    }
+  }, [ensurePublished]);
 
   if (loading) {
     return <div style={pageBg}><div style={{ color: 'rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', gap: 10 }}><Loader2 size={18} className="spin" /> 불러오는 중…</div><Styles /></div>;
@@ -245,6 +426,16 @@ export default function StudioPage() {
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#0A0A0F', display: 'flex', flexDirection: 'column', fontFamily: "'Pretendard', -apple-system, sans-serif", color: 'white', overflow: 'hidden' }}>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        hidden
+        onChange={e => {
+          const file = e.target.files?.[0];
+          if (file) uploadManualCapture(file);
+        }}
+      />
       {/* Header */}
       <header style={{ flexShrink: 0, height: 56, padding: '0 18px', display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(10,10,15,0.9)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
         <button onClick={() => router.push(`/manual/${id}/editor`)} style={ghostBtn} title="편집기로 돌아가기"><ArrowLeft size={TOP_BAR_ICON_SIZE} /></button>
@@ -256,7 +447,10 @@ export default function StudioPage() {
         <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.4)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
           {savingId ? <><Loader2 size={TOP_BAR_ICON_SIZE} className="spin" /> 저장 중…</> : savedTick > 0 ? <><Check size={TOP_BAR_ICON_SIZE} color="#34d399" /> 저장됨</> : null}
         </span>
-        <button onClick={() => setShowPreview(true)} title="연습 가이드(웹) 화면으로 미리보기 — 핫스팟·말풍선·입력 텍스트 설정을 확인합니다. 실제 Live Guide 오버레이 외형과는 다를 수 있어요." style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5 }}><Play size={TOP_BAR_ICON_SIZE} /> 연습 가이드 미리보기</button>
+        <button onClick={() => setShowPreview(true)} title="연습 가이드(웹) 화면으로 미리보기 — 핫스팟·말풍선·입력 텍스트 설정을 확인합니다. 실제 Live Guide Beta 오버레이 외형과는 다를 수 있어요." style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5 }}><Play size={TOP_BAR_ICON_SIZE} /> 연습 가이드 미리보기</button>
+        <button onClick={handleOpenPracticeGuide} disabled={publishing} title="고객에게 전달되는 연습 가이드 실행 화면을 새 탭에서 엽니다" style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5, opacity: publishing ? 0.6 : 1 }}>
+          {publishing ? <Loader2 size={TOP_BAR_ICON_SIZE} className="spin" /> : <Play size={TOP_BAR_ICON_SIZE} />} 연습 가이드 실행
+        </button>
         {tutorial.status === 'published' ? (
           <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: 'rgba(16,185,129,0.12)', color: '#34d399', fontWeight: 600, border: '1px solid rgba(52,211,153,0.25)', flexShrink: 0 }}>게시됨</span>
         ) : (
@@ -309,7 +503,20 @@ export default function StudioPage() {
           {!active ? (
             <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>스텝을 선택하세요</span>
           ) : !active.screenshotUrl ? (
-            <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>이 스텝에는 스크린샷이 없습니다</span>
+            <div style={{ width: 'min(460px, 100%)', border: '1px dashed rgba(167,139,250,0.45)', background: 'rgba(124,58,237,0.08)', borderRadius: 14, padding: 28, textAlign: 'center' }}>
+              <ImagePlus size={34} color="#c4b5fd" style={{ marginBottom: 12 }} />
+              <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 7 }}>수동 캡처가 필요한 단계</div>
+              <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.62)', lineHeight: 1.6, marginBottom: 16 }}>
+                보안 화면이나 제한된 페이지는 이미지를 직접 추가한 뒤 Visual Overlay로 안내를 완성할 수 있습니다.
+              </div>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingStepId === active.id}
+                style={{ ...primaryBtn, height: 36, display: 'inline-flex', alignItems: 'center', gap: 7, opacity: uploadingStepId === active.id ? 0.65 : 1 }}
+              >
+                {uploadingStepId === active.id ? <Loader2 size={14} className="spin" /> : <ImagePlus size={14} />} 이미지 추가
+              </button>
+            </div>
           ) : (
             <>
               <div style={{ position: 'relative', lineHeight: 0, boxShadow: '0 12px 50px rgba(0,0,0,0.5)', filter: hidden ? 'grayscale(0.75) brightness(0.5)' : 'none' }}>
@@ -320,6 +527,11 @@ export default function StudioPage() {
                   allowCornerHotspot={rv?.userPlaced}
                   kind={rv?.kind ?? 'click'}
                   typeText={active.follow.typeText}
+                  typeInputMode={active.follow.typeInputMode}
+                  typeBoxWidth={active.follow.typeBoxWidth}
+                  typeBoxHeight={active.follow.typeBoxHeight}
+                  guideMode={rv?.none ? 'explanation' : 'interactive'}
+                  annotations={active.annotations}
                   bubbleAnchor={active.follow.bubbleAnchor}
                   stepNumber={steps.findIndex(s => s.id === active.id) + 1}
                   title={active.title}
@@ -369,6 +581,66 @@ export default function StudioPage() {
                 style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)', color: 'white', fontSize: 12.5, lineHeight: 1.5, fontFamily: 'inherit', resize: 'vertical', outline: 'none' }}
               />
               <p style={hint}>제목·설명은 문서 매뉴얼과 함께 수정됩니다 — 입력하면 위 미리보기에 바로 반영돼요.</p>
+
+              <Divider />
+
+              <SectionLabel>AI 음성</SectionLabel>
+              <div style={{ display: 'grid', gap: 8 }}>
+                <button
+                  onClick={() => handleTtsToggle(!ttsEnabled)}
+                  style={{ ...subtleBtn, justifyContent: 'space-between' }}
+                >
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                    {ttsEnabled ? <Volume2 size={12} /> : <VolumeX size={12} />}
+                    {ttsEnabled ? '연습 가이드 음성 켜짐' : '연습 가이드 음성 꺼짐'}
+                  </span>
+                  <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 999, background: ttsEnabled ? '#7c3aed' : 'rgba(255,255,255,0.1)' }}>
+                    {ttsEnabled ? 'ON' : 'OFF'}
+                  </span>
+                </button>
+                {ttsEnabled && (
+                  <>
+                    <select
+                      value={ttsVoice}
+                      onChange={e => handleTtsVoiceChange(e.target.value as 'nova' | 'alloy')}
+                      style={{ width: '100%', height: 32, borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: '#14121c', color: 'white', padding: '0 10px', fontSize: 12 }}
+                    >
+                      <option value="nova">Nova</option>
+                      <option value="alloy">Alloy</option>
+                    </select>
+                    <button
+                      onClick={handleGenerateAllTts}
+                      disabled={ttsGenerating}
+                      style={{ ...subtleBtn, opacity: ttsGenerating ? 0.65 : 1 }}
+                    >
+                      {ttsGenerating ? <Loader2 size={12} className="spin" /> : <Volume2 size={12} />}
+                      스텝 설명으로 음성 생성
+                    </button>
+                  </>
+                )}
+              </div>
+              <p style={hint}>각 스텝 설명에 작성한 문장을 읽어줍니다. 음성은 연습 가이드와 Live Guide Beta에서만 사용되고, 문서/슬라이드 매뉴얼에서는 재생되지 않습니다.</p>
+
+              <Divider />
+
+              <SectionLabel>Visual Overlay</SectionLabel>
+              <div style={{ display: 'grid', gap: 8 }}>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingStepId === active.id}
+                  style={{ ...subtleBtn, opacity: uploadingStepId === active.id ? 0.65 : 1 }}
+                >
+                  {uploadingStepId === active.id ? <Loader2 size={12} className="spin" /> : <ImagePlus size={12} />} {active.screenshotUrl ? '이미지 교체' : '이미지 추가'}
+                </button>
+                <button
+                  onClick={() => active.screenshotUrl && setAnnotatingId(active.id)}
+                  disabled={!active.screenshotUrl}
+                  style={{ ...subtleBtn, opacity: active.screenshotUrl ? 1 : 0.45, cursor: active.screenshotUrl ? 'pointer' : 'not-allowed' }}
+                >
+                  <PenTool size={12} /> Overlay 편집
+                </button>
+              </div>
+              <p style={hint}>DOM과 연결되지 않는 Rectangle, Circle, Spotlight, Arrow, Tooltip을 이미지 위에 배치합니다.</p>
 
               <Divider />
 
@@ -462,10 +734,81 @@ export default function StudioPage() {
                   <input
                     value={active.follow.typeText ?? ''}
                     onChange={e => setTypeText(active.id, e.target.value)}
-                    placeholder="자동 입력될 텍스트 (비우면 ‘텍스트 입력…’ 안내만)"
+                    placeholder="복사해 입력할 텍스트 (비우면 ‘텍스트 입력…’ 안내만)"
                     style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.1)', color: '#F0F0FF', WebkitTextFillColor: '#F0F0FF', caretColor: '#a78bfa', fontSize: 12.5, fontFamily: 'inherit', outline: 'none' }}
                   />
-                  <p style={hint}>입력하면 연습 가이드 미리보기에선 타이핑 애니메이션으로, Live Guide에선 실제 입력란에 자동 입력됩니다.</p>
+                  <p style={hint}>기본은 사용자가 복사해서 직접 붙여넣는 방식입니다.</p>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginTop: 10 }}>
+                    {([
+                      { key: 'copy', label: '복사 입력' },
+                      { key: 'auto', label: '자동 타이핑' },
+                    ] as { key: 'copy' | 'auto'; label: string }[]).map(opt => {
+                      const sel = (active.follow.typeInputMode ?? 'copy') === opt.key;
+                      return (
+                        <button key={opt.key} onClick={() => patch(active.id, { typeInputMode: opt.key })}
+                          style={{ height: 32, borderRadius: 8, border: '1px solid ' + (sel ? 'rgba(124,58,237,0.7)' : 'rgba(255,255,255,0.12)'), background: sel ? 'rgba(124,58,237,0.22)' : 'transparent', color: sel ? 'white' : 'rgba(255,255,255,0.62)', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
+                    {active.domRect && (
+                      <button
+                        onClick={() => {
+                          const width = imgWrapRef.current ? Math.round((active.domRect!.w / 100) * imgWrapRef.current.getBoundingClientRect().width) : null;
+                          const height = imgWrapRef.current ? Math.round((active.domRect!.h / 100) * imgWrapRef.current.getBoundingClientRect().height) : null;
+                          if (width != null) setTypeBoxSize(active.id, 'typeBoxWidth', Math.max(120, Math.min(520, width)));
+                          if (height != null) setTypeBoxSize(active.id, 'typeBoxHeight', Math.max(32, Math.min(96, height)));
+                        }}
+                        style={subtleBtn}
+                      >
+                        <RotateCcw size={12} /> 감지된 입력창 크기로 맞춤
+                      </button>
+                    )}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: 'rgba(255,255,255,0.65)', marginBottom: 5 }}>
+                        <span>입력창 너비</span>
+                        <span>{active.follow.typeBoxWidth ?? 220}px</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={120}
+                        max={520}
+                        step={10}
+                        value={active.follow.typeBoxWidth ?? 220}
+                        onChange={e => setTypeBoxSize(active.id, 'typeBoxWidth', Number(e.target.value))}
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: 'rgba(255,255,255,0.65)', marginBottom: 5 }}>
+                        <span>입력창 높이</span>
+                        <span>{active.follow.typeBoxHeight ?? 38}px</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={32}
+                        max={96}
+                        step={2}
+                        value={active.follow.typeBoxHeight ?? 38}
+                        onChange={e => setTypeBoxSize(active.id, 'typeBoxHeight', Number(e.target.value))}
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+                    <button
+                      disabled={active.follow.typeBoxWidth == null && active.follow.typeBoxHeight == null}
+                      onClick={() => {
+                        setTypeBoxSize(active.id, 'typeBoxWidth', null);
+                        setTypeBoxSize(active.id, 'typeBoxHeight', null);
+                      }}
+                      style={{ ...subtleBtn, opacity: active.follow.typeBoxWidth == null && active.follow.typeBoxHeight == null ? 0.45 : 1 }}
+                    >
+                      <RotateCcw size={12} /> 입력창 기본 크기
+                    </button>
+                  </div>
                 </>
               )}
             </>
@@ -479,6 +822,19 @@ export default function StudioPage() {
           <InteractiveFollowPlayer title={tutorial.title} steps={previewSteps} onClose={() => setShowPreview(false)} closeLabel="편집으로" />
         </div>
       )}
+
+      {annotatingId && (() => {
+        const step = steps.find(s => s.id === annotatingId);
+        if (!step?.screenshotUrl) return null;
+        return (
+          <ImageAnnotationEditor
+            imageUrl={step.screenshotUrl}
+            annotations={step.annotations}
+            onChange={annotations => saveAnnotations(step.id, annotations)}
+            onClose={() => setAnnotatingId(null)}
+          />
+        );
+      })()}
 
       <Styles />
     </div>

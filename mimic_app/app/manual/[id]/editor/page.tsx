@@ -1,8 +1,8 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { Undo2, Redo2, Volume2, VolumeX, Loader2, Eye, Wand2, MessageSquare, Clock, Share2, Palette, Download, Check, Link2, Zap } from 'lucide-react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { Undo2, Redo2, Loader2, Eye, Wand2, MessageSquare, Clock, Share2, Palette, Download, Check, Link2, Play } from 'lucide-react';
 import { GuideToc } from '@/components/editor/GuideToc';
 import { ManualEditor, ManualStep } from '@/components/editor/ManualEditor';
 import { MergeModal } from '@/components/editor/MergeModal';
@@ -18,7 +18,6 @@ import { useCollaboration } from '@/hooks/useCollaboration';
 import type { Collaborator } from '@/hooks/useCollaboration';
 import { updateStep, createStep, deleteStep, reorderSteps, duplicateStep } from '@/lib/api/steps';
 import { getTutorial } from '@/lib/api/tutorials';
-import { startLiveGuide } from '@/lib/api/liveGuide';
 import { logError } from '@/lib/logging/logger';
 import { hasGuideConfig } from '@/lib/follow';
 import type { Step, Tutorial } from '@/types';
@@ -81,8 +80,10 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
 export default function EditorPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { tutorial, loading, error, publish, unpublish } = useTutorial(id);
   const { user } = useAuth();
+  const isRecordingFinalizeView = searchParams.get('from') === 'recording';
 
   const [title, setTitle] = useState('');
   const [manualSteps, setManualSteps] = useState<ManualStep[]>([]);
@@ -99,9 +100,6 @@ export default function EditorPage() {
   const [publishing, setPublishing] = useState(false);
   const [downloadOpen, setDownloadOpen] = useState(false);
   const [downloadingFmt, setDownloadingFmt] = useState<'pdf' | 'pptx' | 'docx' | null>(null);
-  const [ttsEnabled, setTtsEnabled] = useState(false);
-  const [ttsVoice, setTtsVoice] = useState<'nova' | 'alloy'>('nova');
-  const [ttsGenerating, setTtsGenerating] = useState(false);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [mobileTocOpen, setMobileTocOpen] = useState(false);
   const [collabToast, setCollabToast] = useState<{ stepId: string; name: string; color: string } | null>(null);
@@ -112,6 +110,7 @@ export default function EditorPage() {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [autoGenProgress, setAutoGenProgress] = useState<{ done: number; total: number } | null>(null);
   const [showMerge, setShowMerge] = useState(false);
+  const [duplicatingStepId, setDuplicatingStepId] = useState<string | null>(null);
 
   // 실시간 협업 — 워크스페이스 튜토리얼에서만 활성
   const workspaceId = tutorial
@@ -261,15 +260,12 @@ export default function EditorPage() {
     if (tutorial.steps.length > 0 && !activeId) {
       setActiveId(tutorial.steps[0].id);
     }
-    // TTS 설정 초기화
-    const t = tutorial as Tutorial & { tts_enabled?: boolean; tts_voice?: string };
-    setTtsEnabled(t.tts_enabled ?? false);
-    setTtsVoice((t.tts_voice as 'nova' | 'alloy') ?? 'nova');
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tutorial?.id]);
 
   // 녹화 직후 진입: 스텝이 없으면 2초마다 폴링 (최대 30초)
   useEffect(() => {
+    if (!isRecordingFinalizeView) return;
     if (loading) return;
     if (!tutorial) return;
     if (tutorial.steps.length > 0) return; // 이미 스텝 있으면 불필요
@@ -301,7 +297,7 @@ export default function EditorPage() {
 
     return () => clearInterval(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tutorial?.id, loading]);
+  }, [tutorial?.id, loading, isRecordingFinalizeView]);
 
   // 에디터 최초 로드 시 description 없는 스텝 자동 AI 생성 (무료 플랜 제외)
   useEffect(() => {
@@ -348,20 +344,6 @@ export default function EditorPage() {
   // Autosave title
   useAutosave(id, titleDirty ? { title } : null);
 
-  const saveTtsSetting = useCallback(async (enabled: boolean, voice: 'nova' | 'alloy') => {
-    await fetch(`/api/tutorials/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tts_enabled: enabled, tts_voice: voice }),
-    });
-  }, [id]);
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleTtsToggle = useCallback(async (enabled: boolean) => {
-    setTtsEnabled(enabled);
-    await saveTtsSetting(enabled, ttsVoice);
-  }, [ttsVoice, saveTtsSetting]);
-
   // 전체 문장 다듬기 — 모든 스텝의 설명 문장을 매뉴얼 가이드라인에 맞게 일괄 정제
   const handleRefineAllText = useCallback(async () => {
     const allWithText = manualSteps
@@ -396,36 +378,6 @@ export default function EditorPage() {
       setRefiningText(false);
     }
   }, [manualSteps, setManualStepsWithHistory]);
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleTtsVoiceChange = useCallback(async (voice: 'nova' | 'alloy') => {
-    setTtsVoice(voice);
-    await saveTtsSetting(ttsEnabled, voice);
-  }, [ttsEnabled, saveTtsSetting]);
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleGenerateAllTts = useCallback(async () => {
-    const targets = manualSteps.filter(s =>
-      !s.id.startsWith('step-') && s.description.replace(/<[^>]+>/g, '').trim()
-    );
-    if (!targets.length) return;
-    setTtsGenerating(true);
-    try {
-      await Promise.all(targets.map(s =>
-        fetch('/api/tts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            stepId: s.id,
-            scriptText: s.description.replace(/<[^>]+>/g, '').trim(),
-            voice: ttsVoice,
-          }),
-        })
-      ));
-    } finally {
-      setTtsGenerating(false);
-    }
-  }, [manualSteps, ttsVoice]);
 
   const performDeleteStep = useCallback((stepId: string) => {
     const next = manualSteps.filter(s => s.id !== stepId).map((s, i) => ({ ...s, number: i + 1 }));
@@ -492,8 +444,10 @@ export default function EditorPage() {
     if (idx < 0) return;
     const src = manualSteps[idx];
     if (srcId.startsWith('step-')) return; // 임시 스텝은 아직 DB에 없어 복제 불가
+    if (duplicatingStepId) return;
     // 디바운스 대기 중인 소스 텍스트 편집을 먼저 flush — 서버는 DB 행을 복사하므로 최신화 필요
     clearTimeout(stepSaveTimers.current[srcId]);
+    setDuplicatingStepId(srcId);
     try {
       await updateStep(srcId, { user_title: src.actionTitle || null, user_script: src.description || null });
       const created = await duplicateStep(srcId);
@@ -506,8 +460,10 @@ export default function EditorPage() {
     } catch (e) {
       logError('step.duplicate.fail', { tutorialId: id, stepId: srcId, message: e instanceof Error ? e.message : String(e) });
       alert('단계를 복제하지 못했습니다. 네트워크 연결을 확인 후 다시 시도해 주세요.');
+    } finally {
+      setDuplicatingStepId(null);
     }
-  }, [manualSteps, id, setManualStepsWithHistory]);
+  }, [manualSteps, id, setManualStepsWithHistory, duplicatingStepId]);
 
   const handleImportSteps = useCallback(async (sourceTutorialId: string, stepIds: string[]) => {
     const res = await fetch(`/api/tutorials/${id}/import-steps`, {
@@ -521,22 +477,6 @@ export default function EditorPage() {
       setManualSteps(prev => [...prev, ...stepsToManualSteps(imported)]);
     }
   }, [id]);
-
-  const handleStartLiveGuide = useCallback(async () => {
-    const shareToken = (tutorial as Tutorial & { share_token?: string | null })?.share_token;
-    if (!shareToken) {
-      alert('라이브 가이드는 게시된 매뉴얼에서 실행할 수 있어요. 먼저 게시해 주세요.');
-      return;
-    }
-
-    const result = await startLiveGuide(shareToken);
-    if (result.ok) return;
-    if (result.reason === 'gated' && result.upgradeUrl && confirm(`${result.message}\n설정 화면으로 이동할까요?`)) {
-      window.location.href = result.upgradeUrl;
-      return;
-    }
-    alert(result.message);
-  }, [tutorial]);
 
   if (loading) {
     return (
@@ -695,15 +635,14 @@ export default function EditorPage() {
             })()}
 
             <button
-              onClick={handleStartLiveGuide}
-              disabled={tutorial.status !== 'published'}
-              title={tutorial.status === 'published' ? '현재 브라우저 탭에서 라이브 가이드를 실행합니다' : '게시 후 라이브 가이드를 실행할 수 있어요'}
-              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: tutorial.status === 'published' ? '#4F46E5' : '#D1D5DB', background: tutorial.status === 'published' ? 'rgba(79,70,229,0.08)' : 'white', border: `1px solid ${tutorial.status === 'published' ? 'rgba(79,70,229,0.35)' : '#E5E7EB'}`, cursor: tutorial.status === 'published' ? 'pointer' : 'not-allowed', transition: 'all 0.15s', fontWeight: 600 }}
-              onMouseEnter={e => { if (tutorial.status === 'published') e.currentTarget.style.background = 'rgba(79,70,229,0.13)'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = tutorial.status === 'published' ? 'rgba(79,70,229,0.08)' : 'white'; }}
+              onClick={() => router.push(`/manual/${id}/studio`)}
+              title="연습 가이드의 화면 안내, 핫스팟, 입력 텍스트를 편집합니다"
+              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#4F46E5', background: 'rgba(79,70,229,0.08)', border: '1px solid rgba(79,70,229,0.35)', cursor: 'pointer', transition: 'all 0.15s', fontWeight: 600 }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(79,70,229,0.13)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(79,70,229,0.08)'; }}
             >
-              <Zap size={TOP_BAR_ICON_SIZE} />
-              라이브 가이드
+              <Play size={TOP_BAR_ICON_SIZE} />
+              연습 가이드
             </button>
 
             {/* 댓글 패널 토글 — 팀 협업 의견 공유 */}
@@ -993,38 +932,6 @@ export default function EditorPage() {
               {refiningText ? <Loader2 size={TOP_BAR_ICON_SIZE} style={{ animation: 'spin 1s linear infinite' }} /> : <Wand2 size={TOP_BAR_ICON_SIZE} />}
               전체 문장 다듬기
             </button>
-            {/* TTS 설정 — 튜토리얼 단위 ON/OFF */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, borderLeft: '1px solid #F3F4F6', paddingLeft: '12px' }}>
-              <button
-                onClick={() => handleTtsToggle(!ttsEnabled)}
-                title={ttsEnabled ? 'AI 음성 끄기' : 'AI 음성 켜기'}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', height: '28px', padding: '0 10px', borderRadius: '6px', border: `1px solid ${ttsEnabled ? '#6d28d9' : '#E5E7EB'}`, background: ttsEnabled ? 'rgba(109,40,217,0.07)' : 'white', color: ttsEnabled ? '#6d28d9' : '#9CA3AF', fontSize: '12px', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s' }}
-              >
-                {ttsEnabled ? <Volume2 size={TOP_BAR_ICON_SIZE} /> : <VolumeX size={TOP_BAR_ICON_SIZE} />}
-                AI 음성
-              </button>
-              {ttsEnabled && (
-                <>
-                  <select
-                    value={ttsVoice}
-                    onChange={e => handleTtsVoiceChange(e.target.value as 'nova' | 'alloy')}
-                    style={{ fontSize: '11.5px', color: '#374151', background: 'white', border: '1px solid #E5E7EB', borderRadius: '5px', padding: '3px 6px', cursor: 'pointer', outline: 'none', height: '28px' }}
-                  >
-                    <option value="nova">Nova (여성)</option>
-                    <option value="alloy">Alloy (남성)</option>
-                  </select>
-                  <button
-                    onClick={handleGenerateAllTts}
-                    disabled={ttsGenerating}
-                    title="전체 스텝 음성 생성"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', height: '28px', padding: '0 10px', borderRadius: '6px', border: '1px solid #6d28d9', background: '#6d28d9', color: 'white', fontSize: '11.5px', fontWeight: 500, cursor: ttsGenerating ? 'not-allowed' : 'pointer', opacity: ttsGenerating ? 0.65 : 1, transition: 'all 0.15s' }}
-                  >
-                    {ttsGenerating ? <Loader2 size={TOP_BAR_ICON_SIZE} style={{ animation: 'spin 1s linear infinite' }} /> : <Volume2 size={TOP_BAR_ICON_SIZE} />}
-                    {ttsGenerating ? '생성 중…' : '전체 생성'}
-                  </button>
-                </>
-              )}
-            </div>
             {/* AI 자동 생성 진행 인디케이터 */}
             {autoGenProgress && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, fontSize: '11.5px', color: '#6d28d9' }}>
@@ -1071,7 +978,9 @@ export default function EditorPage() {
               });
             }}
             onDuplicateStep={handleDuplicateStep}
+            duplicatingStepId={duplicatingStepId}
             onInsertAfter={handleInsertAfter}
+            onAddStep={handleAddStep}
             onAddComment={(stepId) => {
               setActiveId(stepId);
               setShowComments(true);
@@ -1184,7 +1093,7 @@ export default function EditorPage() {
               )}
               {hasGuide && (
                 <div style={{ fontSize: '12.5px', color: '#B45309', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '8px', padding: '9px 11px', lineHeight: 1.55, marginBottom: '10px' }}>
-                  이 스텝의 <b>연습 가이드·Live Guide 설정</b>(핫스팟·말풍선·입력 텍스트 등)도 함께 삭제됩니다.
+                  이 스텝의 <b>연습 가이드·Live Guide Beta 설정</b>(핫스팟·말풍선·입력 텍스트 등)도 함께 삭제됩니다.
                 </div>
               )}
               <div style={{ fontSize: '12.5px', color: '#9CA3AF', lineHeight: 1.6, marginBottom: '20px' }}>

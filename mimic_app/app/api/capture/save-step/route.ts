@@ -60,8 +60,8 @@ export async function POST(request: NextRequest) {
   const row: Record<string, unknown> = {
     screenshot_url: d.screenshot_url,
     // click_x/y: recorder가 0~1로 전송, DB는 0~10000 정수로 저장 (editor에서 /100으로 읽어 0~100%)
-    click_x: Math.round(d.click_x * 10000),
-    click_y: Math.round(d.click_y * 10000),
+    click_x: d.click_x == null ? null : Math.round(d.click_x * 10000),
+    click_y: d.click_y == null ? null : Math.round(d.click_y * 10000),
     url: d.url,
     element_text: redactSensitive(d.title),
     ai_title: redactSensitive(d.title) || null,

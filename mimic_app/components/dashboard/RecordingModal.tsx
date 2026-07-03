@@ -13,6 +13,7 @@ interface ChromeTab {
   title: string;
   url: string;
   favIconUrl?: string;
+  urlAccess?: boolean;
 }
 
 interface ExtensionLinkResponse {
@@ -20,7 +21,24 @@ interface ExtensionLinkResponse {
   error?: string;
 }
 
-type ModalStep = 'checking' | 'guide' | 'tab_select' | 'launching' | 'not_installed' | 'install';
+interface TabsResponse {
+  ok?: boolean;
+  tabs?: ChromeTab[];
+  error?: string;
+  diagnostics?: {
+    total?: number;
+    returned?: number;
+    missingUrl?: number;
+  };
+}
+
+interface StartRecordingResponse {
+  ok?: boolean;
+  reason?: 'not_linked' | 'missing_tab' | 'tab_not_found' | 'unsupported_url' | 'content_script_failed' | 'content_script_unreachable' | 'error';
+  message?: string;
+}
+
+type ModalStep = 'checking' | 'guide' | 'tab_select' | 'launching' | 'not_installed' | 'start_failed' | 'install';
 
 // ── 확장 통신 ─────────────────────────────────────────────
 
@@ -76,13 +94,16 @@ async function wakeAndSend(action: string, payload?: Record<string, unknown>, re
   return null;
 }
 
-async function fetchOpenTabs(): Promise<ChromeTab[] | null> {
-  const resp = await wakeAndSend('GET_TABS') as { tabs?: ChromeTab[] } | null;
-  if (!resp || !Array.isArray((resp as { tabs?: ChromeTab[] }).tabs)) {
+async function fetchOpenTabs(): Promise<TabsResponse | null> {
+  const resp = await wakeAndSend('GET_TABS') as TabsResponse | null;
+  if (!resp || !Array.isArray(resp.tabs)) {
     console.warn('[MIMIC] GET_TABS 실패 또는 빈 응답:', resp);
     return null;
   }
-  return (resp as { tabs: ChromeTab[] }).tabs;
+  if (resp.tabs.length === 0 || resp.diagnostics?.missingUrl) {
+    console.warn('[MIMIC] GET_TABS 진단:', resp);
+  }
+  return resp;
 }
 
 async function linkExtensionToCurrentUser(): Promise<boolean> {
@@ -111,16 +132,16 @@ async function linkExtensionToCurrentUser(): Promise<boolean> {
   }
 }
 
-async function sendStartRecording(tabId: number, url: string): Promise<boolean> {
-  if (!isExtensionInstalled()) return true; // 바이패스
+async function sendStartRecording(tabId: number, url: string): Promise<StartRecordingResponse> {
+  if (!isExtensionInstalled()) return { ok: true }; // 바이패스
   // 1차: user gesture를 유지한 채 CONNECT 없이 즉시 전송한다.
   //      이래야 확장이 chrome.sidePanel.open()을 제스처 컨텍스트에서 호출해
   //      사이드 패널을 자동으로 열 수 있다 (#2). 탭 선택 직전 GET_TABS로 SW는 이미 깨어있음.
-  let resp = await sendMessage('START_RECORDING', { tabId, url }) as { ok?: boolean } | null;
-  if (resp && resp.ok) return true;
+  let resp = await sendMessage('START_RECORDING', { tabId, url }) as StartRecordingResponse | null;
+  if (resp && resp.ok) return resp;
   // 2차: SW가 잠들어 1차가 실패하면 wake 후 재시도 (제스처 소실 → 패널은 수동 클릭 필요할 수 있음)
-  resp = await wakeAndSend('START_RECORDING', { tabId, url }) as { ok?: boolean } | null;
-  return !!(resp && resp.ok);
+  resp = await wakeAndSend('START_RECORDING', { tabId, url }) as StartRecordingResponse | null;
+  return resp ?? { ok: false, reason: 'error', message: 'MIMIC Recorder가 응답하지 않았습니다.' };
 }
 
 // ── 안내 단계 데이터 ──────────────────────────────────────
@@ -134,6 +155,24 @@ const GUIDE_STEPS = [
   { text: '작업을 수행하면 단계별로 자동 캡처됩니다.', extra: null },
   { text: '녹화 종료 후 대시보드에서 매뉴얼을 확인하세요.', extra: null },
 ];
+
+function startFailureMessage(failure: StartRecordingResponse | null): string {
+  if (failure?.message) return failure.message;
+  switch (failure?.reason) {
+    case 'unsupported_url':
+      return 'Chrome 내부 페이지나 확장 프로그램 페이지는 녹화할 수 없습니다. 일반 웹사이트 탭을 선택해주세요.';
+    case 'content_script_failed':
+    case 'content_script_unreachable':
+      return '선택한 페이지에 녹화 스크립트를 연결하지 못했습니다. 페이지를 새로고침하거나 다른 웹사이트 탭을 선택해주세요.';
+    case 'not_linked':
+      return 'MIMIC Recorder가 계정과 연동되지 않았습니다. 확장 프로그램을 다시 열고 연동을 완료해주세요.';
+    case 'missing_tab':
+    case 'tab_not_found':
+      return '선택한 탭을 찾지 못했습니다. 탭 목록을 다시 불러와주세요.';
+    default:
+      return 'MIMIC Recorder가 녹화를 시작하지 못했습니다. 탭 권한과 사이트 권한을 확인해주세요.';
+  }
+}
 
 // ── 파비콘 fallback ───────────────────────────────────────
 
@@ -179,6 +218,8 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
   const [tabsLoading, setTabsLoading] = useState(false);
   const [selectedTab, setSelectedTab] = useState<ChromeTab | null>(null);
   const [search, setSearch] = useState('');
+  const [tabListIssue, setTabListIssue] = useState<string | null>(null);
+  const [startFailure, setStartFailure] = useState<StartRecordingResponse | null>(null);
 
   // ESC 닫기
   useEffect(() => {
@@ -210,6 +251,8 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
     setTabsLoading(true);
     setSelectedTab(null);
     setTabs([]);
+    setTabListIssue(null);
+    setStartFailure(null);
 
     const linked = await linkExtensionToCurrentUser();
     if (!linked) {
@@ -219,14 +262,22 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
     }
 
     const fetched = await fetchOpenTabs();
+    const fetchedTabs = fetched?.tabs ?? [];
 
-    if (fetched && fetched.length > 0) {
-      setTabs(fetched);
-      setSelectedTab(fetched[0]);
+    if (fetchedTabs.length > 0) {
+      setTabs(fetchedTabs);
+      setSelectedTab(fetchedTabs[0]);
+      if (fetched?.diagnostics?.missingUrl) {
+        setTabListIssue('일부 탭의 URL 권한이 제한되어 미리보기 없이 녹화를 시작합니다.');
+      }
     } else {
-      // 확장 미응답 — 빈 목록으로 표시 (URL 직접 입력 유도)
       setTabs([]);
       setSelectedTab(null);
+      setTabListIssue(
+        fetched?.error
+          ? `탭 목록을 가져오지 못했어요: ${fetched.error}`
+          : '열린 탭을 찾지 못했어요. MIMIC Recorder 확장의 탭 권한과 사이트 권한을 확인해주세요.'
+      );
     }
     setTabsLoading(false);
   }, []);
@@ -234,14 +285,19 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
   const handleStart = useCallback(async () => {
     if (!selectedTab) return;
     setStep('launching');
-    const ok = await sendStartRecording(selectedTab.id, selectedTab.url);
-    if (!ok) { setStep('not_installed'); return; }
+    setStartFailure(null);
+    const result = await sendStartRecording(selectedTab.id, selectedTab.url);
+    if (!result.ok) {
+      setStartFailure(result);
+      setStep('start_failed');
+      return;
+    }
     onClose();
   }, [selectedTab, onClose]);
 
   const filteredTabs = tabs.filter(t =>
     t.title.toLowerCase().includes(search.toLowerCase()) ||
-    t.url.toLowerCase().includes(search.toLowerCase())
+    (t.url || '').toLowerCase().includes(search.toLowerCase())
   );
 
   // 탭 선택 단계: 모달 넓게
@@ -293,14 +349,16 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
             {step === 'tab_select' && '녹화할 페이지 선택'}
             {step === 'launching' && 'Recorder 실행 중…'}
             {step === 'not_installed' && '확장 프로그램이 필요해요'}
+            {step === 'start_failed' && '녹화를 시작하지 못했어요'}
             {step === 'install' && 'MIMIC Recorder 설치 필요'}
           </h2>
           <p style={{ fontSize: '12.5px', color: 'rgba(255,255,255,0.72)', marginTop: '3px' }}>
             {step === 'checking' && '잠시만 기다려주세요'}
             {step === 'guide' && '화면 녹화로 매뉴얼을 자동으로 만들어드릴게요'}
-            {step === 'tab_select' && `열린 탭 ${tabs.length}개 · 페이지를 선택하면 오른쪽에 미리보기가 표시됩니다`}
+            {step === 'tab_select' && (tabListIssue || `열린 탭 ${tabs.length}개 · 페이지를 선택하면 오른쪽에 미리보기가 표시됩니다`)}
             {step === 'launching' && '잠시만 기다려주세요'}
             {step === 'not_installed' && 'MIMIC Recorder를 먼저 설치해야 녹화할 수 있어요'}
+            {step === 'start_failed' && '선택한 탭 또는 권한 상태를 확인해주세요'}
             {step === 'install' && '설치 후 연동하면 바로 녹화할 수 있어요'}
           </p>
         </div>
@@ -386,13 +444,13 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
                 ) : filteredTabs.length === 0 ? (
                   <div style={{ padding: '32px 16px', textAlign: 'center', color: '#9CA3AF', fontSize: '13px', lineHeight: 1.6 }}>
                     {tabs.length === 0
-                      ? <>확장과 연결할 수 없어요.<br/>MIMIC Recorder가 활성화되어 있는지 확인해주세요.</>
+                      ? <>{tabListIssue ?? '확장과 연결할 수 없어요.'}<br/>확장 관리에서 MIMIC Recorder 권한을 확인해주세요.</>
                       : '검색 결과가 없어요'}
                   </div>
                 ) : (
                   filteredTabs.map(tab => {
                     const isSelected = selectedTab?.id === tab.id;
-                    const domain = (() => { try { return new URL(tab.url).hostname.replace('www.', ''); } catch { return tab.url; } })();
+                    const domain = (() => { try { return new URL(tab.url).hostname.replace('www.', ''); } catch { return tab.url || 'URL 권한 필요'; } })();
                     return (
                       <button
                         key={tab.id}
@@ -454,23 +512,34 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px', background: '#F3F4F6', borderRadius: '8px' }}>
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                       <span style={{ fontSize: '12px', color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-                        {selectedTab.url}
+                        {selectedTab.url || '탭 URL 권한 제한됨'}
                       </span>
                     </div>
                   </div>
 
                   {/* iframe 미리보기 */}
                   <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-                    <iframe
-                      src={selectedTab.url}
-                      title="미리보기"
-                      sandbox="allow-scripts allow-same-origin"
-                      style={{ width: '160%', height: '160%', border: 'none', transform: 'scale(0.625)', transformOrigin: '0 0', pointerEvents: 'none' }}
-                      onError={() => {}}
-                    />
-                    {/* X-Frame-Options 차단 시 fallback 오버레이 */}
-                    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(248,249,250,0)', pointerEvents: 'none' }}>
-                    </div>
+                    {selectedTab.url ? (
+                      <>
+                        <iframe
+                          src={selectedTab.url}
+                          title="미리보기"
+                          sandbox="allow-scripts allow-same-origin"
+                          style={{ width: '160%', height: '160%', border: 'none', transform: 'scale(0.625)', transformOrigin: '0 0', pointerEvents: 'none' }}
+                          onError={() => {}}
+                        />
+                        {/* X-Frame-Options 차단 시 fallback 오버레이 */}
+                        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(248,249,250,0)', pointerEvents: 'none' }}>
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px', color: '#6B7280', padding: '24px', textAlign: 'center' }}>
+                        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/></svg>
+                        <p style={{ fontSize: '13px', lineHeight: 1.55, margin: 0 }}>
+                          탭 URL 권한이 제한되어 미리보기를 표시할 수 없습니다.<br/>녹화가 실패하면 확장 권한을 확인해주세요.
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* 선택된 탭 정보 */}
@@ -520,6 +589,26 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
               </button>
               <button onClick={onClose} style={{ width: '100%', padding: '10px', borderRadius: '10px', background: 'none', color: '#9CA3AF', fontSize: '13px', border: 'none', cursor: 'pointer' }}>
                 나중에
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── 녹화 시작 실패 ── */}
+        {step === 'start_failed' && (
+          <div style={{ padding: '24px 28px 28px' }}>
+            <div style={{ background: '#FEF3C7', border: '1px solid #FDE68A', borderRadius: '10px', padding: '14px 16px', marginBottom: '20px', display: 'flex', gap: '12px' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, marginTop: '1px' }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <p style={{ fontSize: '13px', color: '#78350F', lineHeight: 1.55, margin: 0 }}>
+                {startFailureMessage(startFailure)}
+              </p>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <button onClick={enterTabSelect} style={{ width: '100%', padding: '12px', borderRadius: '10px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', fontSize: '14px', fontWeight: 600, border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(55,48,163,0.30)' }}>
+                탭 다시 선택하기
+              </button>
+              <button onClick={onClose} style={{ width: '100%', padding: '10px', borderRadius: '10px', background: 'none', color: '#9CA3AF', fontSize: '13px', border: 'none', cursor: 'pointer' }}>
+                닫기
               </button>
             </div>
           </div>

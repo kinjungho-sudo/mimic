@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { FollowStage, Mascot, CORNER } from './FollowStage';
+import type { Annotation } from '@/components/editor/ImageAnnotationEditor';
 
 // 좌표는 전부 0~100(%) 정규화로 받는다 — 호출부(play/manual)가 각자 변환해 넘긴다.
 export interface FollowStep {
@@ -13,9 +14,17 @@ export interface FollowStep {
   hotspotUserPlaced?: boolean;         // 스튜디오에서 직접 찍은 좌표 — 좌상단도 유효(가짜 0,0 센티넬 제외)
   kind?: 'click' | 'type';             // 클릭 vs 타이핑 — 인디케이터 모양 결정
   typeText?: string | null;            // type 인디케이터에 자동 타이핑될 텍스트
+  typeInputMode?: 'copy' | 'auto' | null;
+  typeBoxWidth?: number | null;
+  typeBoxHeight?: number | null;
   audioUrl?: string | null;            // 스텝 TTS 오디오 (있으면 음성 재생)
+  audioStartMs?: number | null;
+  audioEndMs?: number | null;
   bubbleAnchor?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | null;
   domRect?: { x: number; y: number; w: number; h: number } | null; // DOM bounding box (0~100 pct)
+  stepType?: string | null;
+  guideMode?: 'interactive' | 'explanation';
+  annotations?: Annotation[] | null;
   zoomAnim?: boolean;                  // 스튜디오에서 켠 경우에만 클릭 영역 확대 애니메이션 (기본 off)
 }
 
@@ -75,22 +84,37 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
   }, []);
 
   // 음성 재생 (#5) — 직전 오디오 정지 후 재생
-  const playVoice = useCallback((url?: string | null) => {
-    if (!url) return;
+  const playVoice = useCallback((audio?: Pick<FollowStep, 'audioUrl' | 'audioStartMs' | 'audioEndMs'> | null) => {
+    if (!audio?.audioUrl) return;
     try { if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; } } catch { /* noop */ }
-    try { const a = new Audio(url); audioRef.current = a; a.play().catch(() => {}); } catch { /* noop */ }
+    try {
+      const a = new Audio(audio.audioUrl);
+      audioRef.current = a;
+      const startS = (audio.audioStartMs ?? 0) / 1000;
+      const endS = audio.audioEndMs != null ? audio.audioEndMs / 1000 : null;
+      a.currentTime = startS;
+      const onTime = () => {
+        if (endS != null && a.currentTime >= endS) {
+          a.pause();
+          a.removeEventListener('timeupdate', onTime);
+        }
+      };
+      a.addEventListener('timeupdate', onTime);
+      a.onended = () => a.removeEventListener('timeupdate', onTime);
+      a.play().catch(() => {});
+    } catch { /* noop */ }
   }, []);
 
   // 음성 ON이면 스텝 넘어갈 때 자동재생 (다음 클릭 = 사용자 제스처라 autoplay 허용)
   useEffect(() => {
-    if (voiceOn && !done) playVoice(step?.audioUrl);
+    if (voiceOn && !done) playVoice(step);
     return () => { try { audioRef.current?.pause(); } catch { /* noop */ } };
-  }, [idx, voiceOn, done, step?.audioUrl, playVoice]);
+  }, [idx, voiceOn, done, step, playVoice]);
 
   const onMascotClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (minimized) { setMinimized(false); return; }
-    if (step.audioUrl) playVoice(step.audioUrl);
+    if (step.audioUrl) playVoice(step);
   };
 
   // 스텝 전환: 페이드아웃 → 인덱스 변경 → 페이드인. 연속 클릭 시 마지막만 실행
@@ -111,17 +135,29 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
     goTo(idx + 1);
   }, [total, onComplete, lockAfterStep, idx, goTo]);
   const goPrev = useCallback(() => { if (idx > 0) goTo(idx - 1); }, [idx, goTo]);
+  const returnToLastStep = useCallback(() => {
+    setDone(false);
+    setMinimized(false);
+  }, []);
+  const restartPractice = useCallback(() => {
+    setDone(false);
+    goTo(0);
+  }, [goTo]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (done) return;
+      if (done) {
+        if (e.key === 'ArrowLeft' || e.key === 'Backspace') returnToLastStep();
+        else if (e.key === 'Escape') onClose?.();
+        return;
+      }
       if (e.key === 'ArrowRight' || e.key === 'Enter') advance();
       else if (e.key === 'ArrowLeft') goPrev();
       else if (e.key === 'Escape') onClose?.();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [advance, goPrev, onClose, done]);
+  }, [advance, goPrev, onClose, done, returnToLastStep]);
 
   const doNudge = () => { setNudge(true); setTimeout(() => setNudge(false), 420); };
 
@@ -151,8 +187,9 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}><Mascot size={56} /></div>
           <div style={{ fontSize: '20px', fontWeight: 800, color: '#111827', marginBottom: '6px' }}>연습을 완료하셨어요! 🎉</div>
           <div style={{ fontSize: '13.5px', color: '#6B7280', lineHeight: 1.6, marginBottom: '18px' }}>{total}단계를 모두 완료했습니다.</div>
-          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-            <button onClick={() => { setIdx(0); setDone(false); }} style={{ padding: '10px 18px', borderRadius: '9px', border: '1px solid #E5E7EB', background: 'white', color: '#374151', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>다시 연습하기</button>
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button onClick={returnToLastStep} style={{ padding: '10px 18px', borderRadius: '9px', border: '1px solid #C7D2FE', background: '#EEF2FF', color: '#3730a3', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>{'\uB9C8\uC9C0\uB9C9 \uB2E8\uACC4\uB85C'}</button>
+            <button onClick={restartPractice} style={{ padding: '10px 18px', borderRadius: '9px', border: '1px solid #E5E7EB', background: 'white', color: '#374151', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>{'\uCC98\uC74C\uBD80\uD130 \uB2E4\uC2DC'}</button>
             {onClose && <button onClick={onClose} style={{ padding: '10px 22px', borderRadius: '9px', border: 'none', background: 'linear-gradient(135deg,#3730a3,#6d28d9)', color: 'white', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>{closeLabel}</button>}
           </div>
         </div>
@@ -178,8 +215,13 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
                   allowCornerHotspot={step.hotspotUserPlaced}
                   kind={step.kind ?? 'click'}
                   typeText={step.typeText}
+                  typeInputMode={step.typeInputMode}
+                  typeBoxWidth={step.typeBoxWidth}
+                  typeBoxHeight={step.typeBoxHeight}
+                  guideMode={step.guideMode}
+                  annotations={step.annotations}
                   bubbleAnchor={step.bubbleAnchor}
-                  animateType
+                  animateType={step.typeInputMode === 'auto'}
                   isFirstStep={idx === 0}
                   stepNumber={idx + 1}
                   spotlight

@@ -392,11 +392,27 @@ async function captureTab(windowId) {
 // content.js 상단의 window.__mimicContentLoaded 가드가 중복 초기화를 막는다.
 function ensureContentScript(tabId) {
   return new Promise((resolve) => {
-    chrome.scripting.executeScript({ target: { tabId }, files: ['guide-engine.js', 'content.js'] }, () => {
-      void chrome.runtime.lastError;  // chrome:// 등 주입 불가 페이지는 무시
-      resolve();
+    chrome.scripting.executeScript({ target: { tabId, allFrames: true }, files: ['guide-engine.js', 'content.js'] }, () => {
+      const error = chrome.runtime.lastError?.message || null;
+      if (error) {
+        log('warn', 'bg', 'content script injection failed:', { tabId, error });
+        resolve({ ok: false, error });
+        return;
+      }
+      resolve({ ok: true });
     });
   });
+}
+
+function classifyRecordableUrl(url) {
+  if (!url) return { ok: true };
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return { ok: true };
+    return { ok: false, reason: 'unsupported_url', message: `${parsed.protocol} 페이지는 녹화할 수 없습니다.` };
+  } catch {
+    return { ok: false, reason: 'unsupported_url', message: '지원하지 않는 탭 주소입니다.' };
+  }
 }
 
 // page_url이 http(s):// 인지 확인 — file:// · javascript: 등을 chrome.tabs.update에 넘기지 않음
@@ -498,21 +514,57 @@ async function compressToJpeg(pngDataUrl, quality = JPEG_QUALITY_DEFAULT) {
 // ── 외부(웹페이지) 메시지 라우터 ────────────────────────────────
 chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
   if (message.action === 'GET_TABS') {
+    const toRecordableTab = (t) => {
+      if (!t || typeof t.id !== 'number') return null;
+
+      const url = typeof t.url === 'string' ? t.url : '';
+      if (
+        url.startsWith('chrome://') ||
+        url.startsWith('chrome-extension://') ||
+        url.startsWith('edge://') ||
+        url.startsWith('about:')
+      ) {
+        return null;
+      }
+
+      if (t.windowId) _tabWindowIdCache.set(t.id, t.windowId);
+      return {
+        id: t.id,
+        title: t.title || (url ? url : '브라우저 탭'),
+        url,
+        favIconUrl: typeof t.favIconUrl === 'string' ? t.favIconUrl : '',
+        urlAccess: Boolean(url),
+      };
+    };
+
     chrome.tabs.query({}).then((tabs) => {
-      const result = tabs
-        .filter(t => t.url && !t.url.startsWith('chrome://') && !t.url.startsWith('chrome-extension://'))
-        .map(t => {
-          if (t.id && t.windowId) _tabWindowIdCache.set(t.id, t.windowId);
-          return { id: t.id, title: t.title ?? '', url: t.url ?? '', favIconUrl: t.favIconUrl ?? '' };
-        });
-      sendResponse({ tabs: result });
-    }).catch(() => sendResponse({ tabs: [] }));
+      const result = tabs.map(toRecordableTab).filter(Boolean);
+      sendResponse({
+        ok: true,
+        tabs: result,
+        diagnostics: {
+          total: tabs.length,
+          returned: result.length,
+          missingUrl: result.filter(t => !t.urlAccess).length,
+        },
+      });
+    }).catch((error) => {
+      log('warn', 'bg', 'GET_TABS failed:', error?.message || error);
+      sendResponse({
+        ok: false,
+        tabs: [],
+        error: error?.message || 'tabs_query_failed',
+      });
+    });
     return true;
   }
 
   if (message.action === 'START_RECORDING') {
     const tabId = message.tabId;
-    if (!tabId) { sendResponse({ ok: true }); return false; }
+    if (!tabId) {
+      sendResponse({ ok: false, reason: 'missing_tab', message: '녹화할 탭을 찾지 못했습니다.' });
+      return false;
+    }
 
     // ★ 사이드패널은 user gesture가 살아있는 지금(= 어떤 await보다도 먼저, 동기) 호출해야 열린다.
     //   await가 한 번이라도 끼면 MV3 제스처가 끊겨 sidePanel.open()이 조용히 실패한다.
@@ -540,7 +592,15 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
       const tab = await new Promise((res) => chrome.tabs.get(tabId, (t) => {
         res(chrome.runtime.lastError ? null : t);
       }));
-      if (!tab) { sendResponse({ ok: false }); return; }
+      if (!tab) {
+        sendResponse({ ok: false, reason: 'tab_not_found', message: '선택한 탭을 찾지 못했습니다.' });
+        return;
+      }
+      const initialUrlCheck = classifyRecordableUrl(tab.url || message.url || '');
+      if (!initialUrlCheck.ok) {
+        sendResponse(initialUrlCheck);
+        return;
+      }
       if (tab.windowId) _tabWindowIdCache.set(tabId, tab.windowId);
 
       // 2) 보조 시도 (제스처 없으면 무시됨) — windowId 기준 한 번 더
@@ -556,7 +616,15 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
       const freshTab = await new Promise((res) => chrome.tabs.get(tabId, (t) => {
         res(chrome.runtime.lastError ? null : t);
       }));
-      if (!freshTab) { sendResponse({ ok: false }); return; }
+      if (!freshTab) {
+        sendResponse({ ok: false, reason: 'tab_not_found', message: '선택한 탭을 다시 확인하지 못했습니다.' });
+        return;
+      }
+      const freshUrlCheck = classifyRecordableUrl(freshTab.url || message.url || '');
+      if (!freshUrlCheck.ok) {
+        sendResponse(freshUrlCheck);
+        return;
+      }
 
       if (freshTab.status !== 'complete') {
         await new Promise((res) => {
@@ -571,18 +639,33 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 
       // 5) content.js 주입 보장 후 START_RECORDING 전송 (1회 재시도)
       //    주입이 없으면 카운트다운 메시지가 유실되어 녹화가 안 시작된다 (#1)
-      await ensureContentScript(tabId);
+      const injection = await ensureContentScript(tabId);
+      if (!injection?.ok) {
+        sendResponse({
+          ok: false,
+          reason: 'content_script_failed',
+          message: injection?.error || '선택한 페이지에 녹화 스크립트를 주입하지 못했습니다.',
+        });
+        return;
+      }
       const sent = await new Promise((res) => {
         const doSend = (retry) => {
           chrome.tabs.sendMessage(tabId, { type: 'START_RECORDING' }, () => {
             if (chrome.runtime.lastError && !retry) { setTimeout(() => doSend(true), 300); return; }
-            void chrome.runtime.lastError;
-            res(true);
+            const error = chrome.runtime.lastError?.message || null;
+            res(error ? { ok: false, error } : { ok: true });
           });
         };
         doSend(false);
       });
-      if (!sent) { sendResponse({ ok: false }); return; }
+      if (!sent?.ok) {
+        sendResponse({
+          ok: false,
+          reason: 'content_script_unreachable',
+          message: sent?.error || '선택한 페이지가 녹화 시작 메시지에 응답하지 않았습니다.',
+        });
+        return;
+      }
 
       // 6) isRecording 세팅 — _directStartTabId로 onChanged 중복 차단
       //    (캡처는 captureVisibleTab 사용 — Gemini/Docs 포함 일반 https 페이지 모두 동작 확인됨.
@@ -905,7 +988,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       await new Promise((r) => setTimeout(r, CAPTURE_RAF_DELAY_MS));
 
       const capturedRaw = await captureTab(tab.windowId);
-      sendTabMessage(tabId, { type: 'RESTORE_OVERLAY', flash: true });  // 캡처 플래시 피드백
+      if (capturedRaw) sendTabMessage(tabId, { type: 'MANUAL_CAPTURE_FLASH' });
+      sendTabMessage(tabId, { type: 'RESTORE_OVERLAY' });
       if (!capturedRaw) { sendResponse({ ok: false }); return; }
 
       // viewport는 content가 보고한 값 우선 — 기기 에뮬레이션에서는 tab.width(실제 창)와 다르다
@@ -974,7 +1058,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // service worker는 살아 있으므로 매뉴얼 생성 완료 후 정상 이동된다.
         if (data?.tutorial_id) {
           const origin = data.webapp_origin || await getWebappOrigin();
-          chrome.tabs.create({ url: `${origin}/manual/${data.tutorial_id}` });
+          chrome.tabs.create({ url: `${origin}/manual/${data.tutorial_id}/editor?from=recording` });
           await storageSet({ isRecording: false, isPaused: false, stepNumber: 0, steps: [], sessionId: null, _undoStack: [] });
         }
         sendResponse({ ok: true, ...data });
@@ -1813,8 +1897,27 @@ chrome.storage.onChanged.addListener((changes, area) => {
 // 클릭 요소(elementRect, 0~1) 기준으로 확대해서 보여줄 영역을 정한다(Tango식 프레이밍).
 // 반환: 원본 이미지 기준 0~1 {x,y,width,height}, 또는 null(요소 없음 → 확대 안 함).
 // 주의: 이미지를 자르는 게 아니라 "확대 영역"을 정의하는 메타데이터다.
-function computeCropBox(elementRect, clickX, clickY) {
+function computeCropBox(elementRect, clickX, clickY, actionInfo) {
   if (!elementRect) return null;
+  const actionType = actionInfo?.type;
+  const isTyping = actionType === 'type' || actionType === 'focus_input';
+  const isLarge = elementRect.width > 0.34 || elementRect.height > 0.16 || elementRect.width * elementRect.height > 0.055;
+  if (isLarge && clickX > 0 && clickY > 0) {
+    const width = isTyping
+      ? Math.max(0.46, Math.min(0.62, elementRect.width * 0.7))
+      : Math.max(0.38, Math.min(0.54, elementRect.width * 0.56));
+    const height = isTyping
+      ? Math.max(0.28, Math.min(0.44, elementRect.height * 0.7))
+      : Math.max(0.26, Math.min(0.40, elementRect.height * 0.56));
+    const x = Math.max(0, Math.min(1 - width, clickX - width / 2));
+    const y = Math.max(0, Math.min(1 - height, clickY - height / 2));
+    return {
+      x: Math.round(x * 1000) / 1000,
+      y: Math.round(y * 1000) / 1000,
+      width: Math.round(Math.min(1 - x, width) * 1000) / 1000,
+      height: Math.round(Math.min(1 - y, height) * 1000) / 1000,
+    };
+  }
   const size = Math.max(elementRect.width, elementRect.height);
   // 요소가 작을수록 더 넓은 패딩(컨텍스트 확보), 클수록 좁게
   const PAD = size < 0.05 ? 0.15 : size > 0.3 ? 0.05 : 0.10;
@@ -1971,7 +2074,7 @@ async function prepareCapture(pngDataUrl, stepData, tab) {
 
   // 행동 없음(이동/빈영역/요소 없음)에는 확대 영역을 만들지 않는다.
   const cropBox = stepData.elementRect
-    ? computeCropBox(stepData.elementRect, clickX, clickY)
+    ? computeCropBox(stepData.elementRect, clickX, clickY, stepData.actionInfo)
     : null;
 
   await idbPut(stepNum, jpegBlob);
@@ -2009,7 +2112,33 @@ async function processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base
     if (analysisResult.status === 'rejected') log('warn',  'bg', `analyze failed step ${stepNum}:`, analysisResult.reason.message);
 
     if (!uploadedUrl) {
-      if (!stepData.overwrite) await storageSet({ stepNumber: stepNum - 1 });
+      try {
+        await saveStep({
+          sessionId,
+          stepNumber: stepNum,
+          screenshotUrl: null,
+          clickX: null,
+          clickY: null,
+          title: actionLabel || '수동으로 진행할 단계',
+          description: '자동 캡처를 저장하지 못한 단계입니다. 실제 화면에서 필요한 작업을 완료한 뒤 다음을 눌러주세요.',
+          url: stepData.url,
+          domainInfo,
+          viewportW: stepData.viewportW ?? stepData.windowWidth ?? null,
+          viewportH: stepData.viewportH ?? stepData.windowHeight ?? null,
+          elementSelector: null,
+          elementXPath: null,
+          elementRect: null,
+          actionInfo: stepData.actionInfo ?? null,
+          typedText: null,
+          cropBox: null,
+          audioOffsetMs: null,
+          stepType: 'blocked_step',
+          captureSource: 'none',
+          captureFailureReason: 'upload_failed',
+        });
+      } catch (err) {
+        log('warn', 'bg', `blocked save-step API failed step ${stepNum}:`, err.message);
+      }
       chrome.runtime.sendMessage({ type: 'UPLOAD_FAILED', stepNumber: stepNum }, () => { void chrome.runtime.lastError; });
       return;
     }
@@ -2187,7 +2316,7 @@ async function analyzeWithClaude(base64Image, url, actionInfo, elementContext = 
 }
 
 // ── 스텝 저장 — 웹앱 API 경유 ───────────────────────────────────
-async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, title, description, url, domainInfo, viewportW, viewportH, elementSelector, elementXPath, elementRect, actionInfo, typedText, cropBox, audioOffsetMs }) {
+async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, title, description, url, domainInfo, viewportW, viewportH, elementSelector, elementXPath, elementRect, actionInfo, typedText, cropBox, audioOffsetMs, stepType, captureSource, captureFailureReason }) {
   const origin = await getWebappOrigin();
   const payload = {
     session_id:       sessionId,
@@ -2195,6 +2324,9 @@ async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, 
     screenshot_url:   screenshotUrl,
     click_x:          clickX,
     click_y:          clickY,
+    step_type:        stepType ?? 'normal_interactive_step',
+    capture_source:   captureSource ?? (screenshotUrl ? 'auto' : 'none'),
+    capture_failure_reason: captureFailureReason ?? null,
     title:            title ?? '',
     description:      description ?? '',
     url,
@@ -2261,7 +2393,7 @@ async function syncLocalStepsBeforeFinalize(sessionId, stepNumbers, localSteps) 
     const viewportH = step.windowHeight || step.viewportH || 800;
     const clickX = normalizeCoord(step.clickX, viewportW);
     const clickY = normalizeCoord(step.clickY, viewportH);
-    const cropBox = step.cropBox ?? computeCropBox(step.elementRect, clickX, clickY);
+    const cropBox = step.cropBox ?? computeCropBox(step.elementRect, clickX, clickY, step.actionInfo);
 
     await saveStep({
       sessionId,

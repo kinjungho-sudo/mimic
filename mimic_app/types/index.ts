@@ -104,25 +104,51 @@ export type FollowConfig = {
   hotspotY?: number | null;
   kind?: 'click' | 'type' | 'none' | null;  // 인디케이터 종류 오버라이드. 미설정=제목 휴리스틱, none=핫스팟 미표시
   typeText?: string | null;        // 텍스트(type) 인디케이터에 입력될 실제 텍스트. 뷰어에서 자동 타이핑 애니메이션, 라이브 가이드에서 자동 입력
+  typeInputMode?: 'copy' | 'auto' | null; // 연습 가이드 입력 방식. copy=복사 후 직접 입력, auto=자동 타이핑 연출
+  typeBoxWidth?: number | null;    // 텍스트 입력 인디케이터 너비(px)
+  typeBoxHeight?: number | null;   // 텍스트 입력 인디케이터 높이(px)
   hidden?: boolean;                // 따라하기에서 이 스텝 제외 (슬라이드엔 유지)
   bubbleAnchor?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | null; // 말풍선 고정 위치. 미설정=핫스팟 상대 위치(자동)
   zoomAnim?: boolean;              // 연습 가이드에서 클릭 영역 확대 애니메이션 사용 (기본 off — 스튜디오에서 켤 때만)
   // 제목·설명은 follow_config에 두지 않는다 — user_title/user_script(문서 매뉴얼과 공유)에 직접 저장
 };
 
+export type StepType =
+  | 'normal_interactive_step'
+  | 'visual_only_step'
+  | 'visual_overlay_step'
+  | 'manual_capture_step'
+  | 'blocked_step'
+  | 'skipped_step';
+
+export type CaptureSource = 'auto' | 'manual' | 'none';
+
 export type Step = {
   id: string;
   tutorial_id: string;
   step_number: number;
   order_index: number;
-  screenshot_url: string;
+  screenshot_url: string | null;
   page_url: string | null;
   ai_title: string | null;
   ai_description: string | null;
   user_title: string | null;
   user_script: string | null;
+  voice_transcript_raw?: string | null;
+  voice_audio_url?: string | null;
+  voice_audio_start_ms?: number | null;
+  voice_audio_end_ms?: number | null;
   user_annotations?: unknown[] | null;
   follow_config?: FollowConfig | null;
+  element_selector?: string | null;
+  element_xpath?: string | null;
+  element_rect?: { x: number; y: number; width: number; height: number } | null;
+  click_x?: number | null;
+  click_y?: number | null;
+  type_text?: string | null;
+  step_type?: StepType | null;
+  capture_source?: CaptureSource | null;
+  capture_failure_reason?: string | null;
   domain_hostname?: string | null;
   domain_name?:     string | null;
   domain_favicon?:  string | null;

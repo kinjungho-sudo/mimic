@@ -4,6 +4,8 @@ import { createServiceRoleClient } from '@/lib/supabase/server';
 import { tutorialPatchSchema } from '@/lib/validators';
 import { hashPassword } from '@/lib/auth/password';
 import { guardTutorialAccess } from '@/lib/auth/workspace-guard';
+import { isPaidPlan } from '@/lib/plan';
+import { isFreshVoiceAsset } from '@/lib/voice/playback';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -32,6 +34,13 @@ export async function GET(request: NextRequest, { params }: Params) {
   }
   const myRole = accessGuard.role;
 
+  const { data: owner } = await supabase
+    .from('mm_users')
+    .select('plan')
+    .eq('id', tutorial.user_id)
+    .single();
+  const voiceEnabled = isPaidPlan(owner?.plan) && tutorial.tts_enabled;
+
   const { data: steps } = await supabase
     .from('mm_steps')
     .select('*')
@@ -46,12 +55,28 @@ export async function GET(request: NextRequest, { params }: Params) {
     supabase.from('mm_annotations').select('*').in('step_id', stepIds),
   ]);
 
+  const safeSteps = voiceEnabled
+    ? (steps ?? [])
+    : (steps ?? []).map(s => ({
+        ...s,
+        voice_audio_url: null,
+        voice_audio_start_ms: null,
+        voice_audio_end_ms: null,
+      }));
+  const freshAudioAssets = voiceEnabled
+    ? (audioRes.data ?? []).filter(asset => {
+        const step = (steps ?? []).find(s => s.id === asset.step_id);
+        return isFreshVoiceAsset(step, asset);
+      })
+    : [];
+
   return NextResponse.json({
     ...tutorial,
+    tts_enabled: voiceEnabled,
     my_role: myRole,
-    steps: steps ?? [],
+    steps: safeSteps,
     markers: markersRes.data ?? [],
-    audio_assets: audioRes.data ?? [],
+    audio_assets: freshAudioAssets,
     annotations: annotationsRes.data ?? [],
   });
 }
@@ -81,6 +106,19 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   }
 
   const supabase = createServiceRoleClient();
+  if (parsed.data.tts_enabled === true) {
+    const { data: user } = await supabase
+      .from('mm_users')
+      .select('plan')
+      .eq('id', auth.userId)
+      .single();
+    if (!isPaidPlan(user?.plan)) {
+      return NextResponse.json(
+        { error: 'AI voice is available on Pro or Team plans.' },
+        { status: 403 }
+      );
+    }
+  }
   // share_password가 있으면 해싱 후 저장
   const updateData = { ...parsed.data };
   if (typeof updateData.share_password === 'string' && updateData.share_password.length > 0) {

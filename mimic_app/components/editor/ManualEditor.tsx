@@ -58,7 +58,9 @@ interface ManualEditorProps {
   onSave?: (id: string, patch: Partial<ManualStep>) => void;
   onDeleteStep?: (id: string) => void;
   onDuplicateStep?: (id: string) => void;
+  duplicatingStepId?: string | null;
   onInsertAfter?: (afterId: string) => void;
+  onAddStep?: () => void | Promise<void>;
   hideToc?: boolean;
   activeId?: string | null;
   onActiveChange?: (id: string) => void;
@@ -69,7 +71,7 @@ interface ManualEditorProps {
 
 // ── ManualEditor ──────────────────────────────────────────
 
-export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicateStep, onInsertAfter, hideToc, activeId: externalActiveId, onActiveChange, selectedIds: externalSelectedIds, onSelectChange, onAddComment }: ManualEditorProps) {
+export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicateStep, duplicatingStepId, onInsertAfter, onAddStep, hideToc, activeId: externalActiveId, onActiveChange, selectedIds: externalSelectedIds, onSelectChange, onAddComment }: ManualEditorProps) {
   const [internalActiveId, setInternalActiveId] = useState<string | null>(
     steps.length > 0 ? steps[0].id : null
   );
@@ -237,6 +239,10 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
   };
 
   const addStep = () => {
+    if (onAddStep) {
+      void onAddStep();
+      return;
+    }
     const newStep: ManualStep = {
       id: `step-tmp-${++tempIdCounter.current}`,
       number: steps.length + 1,
@@ -398,7 +404,7 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
                     onUpdate={patch => updateStep(step.id, patch)}
                     onSave={patch => { updateStep(step.id, patch); onSave?.(step.id, patch); }}
                     onDelete={() => deleteStep(step.id)}
-                    onDuplicate={() => onDuplicateStep?.(step.id)}
+                    onDuplicate={() => { if (!duplicatingStepId) onDuplicateStep?.(step.id); }}
                     onZoom={() => step.screenshotUrl && setZoomUrl(step.screenshotUrl)}
                     onAnnotate={() => { if (!step.screenshotUrl) return; setActiveId(step.id); setAnnotatingId(step.id); }}
                     onRemoveImage={() => { updateStep(step.id, { screenshotUrl: undefined, annotations: [] }); onSave?.(step.id, { screenshotUrl: undefined, annotations: [] }); }}

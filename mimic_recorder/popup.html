@@ -164,10 +164,58 @@
       cursor: zoom-in;
       background: #f3f3f8;
       flex-shrink: 0;
+      position: relative;
+      transition: height 0.28s ease, aspect-ratio 0.28s ease;
+    }
+    .step-thumb.preview-zoom {
+      min-height: 118px;
+      box-shadow: inset 0 0 0 1px rgba(79,70,229,0.10);
+    }
+    .step-thumb-zoom-layer {
+      display: block;
+      position: absolute;
+      inset: 0;
+      background-repeat: no-repeat;
+      background-color: #111827;
+      transform: scale(0.96);
+      opacity: 0;
+      transition: transform 0.48s cubic-bezier(0.22,0.61,0.36,1), opacity 0.18s ease;
+      will-change: transform, opacity;
+      pointer-events: none;
+    }
+    .step-thumb.preview-zoom .step-thumb-zoom-layer {
+      transform: scale(1);
+      opacity: 1;
+      z-index: 0;
+    }
+    .step-thumb.preview-zoom img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 1;
+    }
+    .step-thumb.preview-zoom::after {
+      content: 'Auto zoom';
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: rgba(17,24,39,0.74);
+      color: #fff;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      pointer-events: none;
     }
     .step-thumb img {
       width: 100%; display: block;
       border-radius: 5px;
+      transition: opacity 0.22s ease;
     }
     .step-thumb-placeholder {
       width: 100%; height: 60px;
@@ -524,15 +572,26 @@
 
       <!-- Live Guide -->
       <div class="settings-section">
-        <div class="settings-section-title">Live Guide</div>
+        <div class="settings-section-title">Live Guide Beta</div>
 
         <div class="setting-row">
           <div class="setting-info">
             <div class="setting-label">타이핑 텍스트 저장</div>
-            <div class="setting-desc">입력 내용을 스텝에 저장해 Live Guide에서 복사해 붙여넣을 수 있습니다. 비밀번호 등 민감 필드는 자동 제외됩니다</div>
+            <div class="setting-desc">입력 내용을 스텝에 저장해 Live Guide Beta에서 복사해 붙여넣을 수 있습니다. 비밀번호 등 민감 필드는 자동 제외됩니다</div>
           </div>
           <label class="toggle">
             <input type="checkbox" id="settingSaveText" />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">입력창 클릭만 해도 캡처</div>
+            <div class="setting-desc">켜면 텍스트를 입력하지 않고 입력창만 클릭해도 별도 스텝으로 저장합니다. 기본값은 꺼짐이며, 실제 입력이 있을 때만 한 단계로 저장합니다.</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="settingCaptureInputClicks" />
             <span class="toggle-track"></span>
           </label>
         </div>
@@ -567,9 +626,9 @@
         <div style="width:26px;height:26px;border-radius:50%;overflow:hidden;flex-shrink:0;">
           <img src="icons/icon48.png" alt="MIMIC" style="width:100%;height:100%;object-fit:cover;">
         </div>
-        <span style="font-size:14px;font-weight:700;color:#1e1e2e;">Live Guide</span>
+        <span style="font-size:14px;font-weight:700;color:#1e1e2e;">Live Guide Beta</span>
       </div>
-      <button id="guideExitBtn" title="Live Guide 종료" style="width:28px;height:28px;border:1px solid #e8e8f0;border-radius:8px;background:#fff;color:#888;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;transition:all 0.15s;" onmouseover="this.style.borderColor='#EF4444';this.style.color='#EF4444';this.style.background='#fff5f5'" onmouseout="this.style.borderColor='#e8e8f0';this.style.color='#888';this.style.background='#fff'">✕</button>
+      <button id="guideExitBtn" title="Live Guide Beta 종료" style="width:28px;height:28px;border:1px solid #e8e8f0;border-radius:8px;background:#fff;color:#888;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;transition:all 0.15s;" onmouseover="this.style.borderColor='#EF4444';this.style.color='#EF4444';this.style.background='#fff5f5'" onmouseout="this.style.borderColor='#e8e8f0';this.style.color='#888';this.style.background='#fff'">✕</button>
     </div>
 
     <!-- 진행률 -->
