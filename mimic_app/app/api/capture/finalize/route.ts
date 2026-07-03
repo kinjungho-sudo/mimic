@@ -434,6 +434,138 @@ export async function POST(request: NextRequest) {
     /* 정리 실패는 무시 — cron 청소가 보완 */
   }
 
+  try {
+    const { data: initialSteps } = await supabase
+      .from('mm_steps')
+      .select('id, step_number, ai_title, ai_description, page_url, screenshot_url, domain_name, element_rect, click_x, click_y, user_annotations')
+      .eq('tutorial_id', tutorial.id)
+      .order('step_number', { ascending: true });
+
+    if (initialSteps?.length) {
+      const actionInfoByStepNum = new Map<number, CaptureFallbackActionInfo>();
+      const elementTextByStepNum = new Map<number, string | null>();
+      const actionTypeByStepNum = new Map<number, string>();
+      deduped.forEach((ev, idx) => {
+        actionInfoByStepNum.set(idx + 1, cleanActionInfoForDraft((ev.action_info as CaptureFallbackActionInfo) ?? null));
+        const elementText = (ev.element_text as string | null) ?? null;
+        elementTextByStepNum.set(idx + 1, isLowQualityCaptureLabel(elementText) ? null : elementText);
+        actionTypeByStepNum.set(idx + 1, ((ev.action_info as { type?: string } | null)?.type ?? 'click'));
+      });
+
+      const drafts = initialSteps.map(step => buildCaptureFallbackDraft(step, {
+        noAction: noActionByStepNum.get(step.step_number) ?? false,
+        actionInfo: actionInfoByStepNum.get(step.step_number),
+        elementText: elementTextByStepNum.get(step.step_number),
+      }));
+      const draftsById = new Map(drafts.map(draft => [draft.id, draft]));
+      const firstStep = initialSteps[0];
+      const firstAiPatch: Record<string, string> = {};
+
+      if (firstStep) {
+        const fallback = draftsById.get(firstStep.id);
+        let firstTitle = fallback?.user_title || firstStep.ai_title || '';
+        let firstScript = fallback?.user_script || firstStep.ai_description || '';
+
+        if (firstStep.screenshot_url) {
+          try {
+            const image = await fetchScreenshotForAi(firstStep.screenshot_url);
+            if (image) {
+              const event = deduped[(firstStep.step_number ?? 1) - 1];
+              const noAction = noActionByStepNum.get(firstStep.step_number) ?? false;
+              const clickX = !noAction && event?.click_x != null ? event.click_x / 10000 : undefined;
+              const clickY = !noAction && event?.click_y != null ? event.click_y / 10000 : undefined;
+              const analysis = await analyzeScreenshot(
+                image.base64,
+                firstStep.page_url ?? '',
+                actionInfoByStepNum.get(firstStep.step_number) ?? undefined,
+                { clickX, clickY },
+                image.mediaType
+              ).catch(() => null);
+
+              if (analysis?.title?.trim() && !isLowQualityCaptureTitle(analysis.title)) {
+                firstTitle = analysis.title.trim();
+                firstAiPatch.ai_title = firstTitle;
+              }
+
+              const generated = firstTitle
+                ? await generateStepDescription(firstTitle, firstStep.page_url, image.base64, image.mediaType).catch(() => '')
+                : '';
+              if (generated.trim() && !isLowQualityCaptureScript(generated)) {
+                firstScript = generated.trim();
+                firstAiPatch.ai_description = firstScript;
+              }
+            }
+          } catch {
+            /* First card AI polish is best-effort; fallback text is already ready. */
+          }
+        }
+
+        draftsById.set(firstStep.id, {
+          id: firstStep.id,
+          user_title: firstTitle || fallback?.user_title || '',
+          user_script: firstScript || fallback?.user_script || '',
+        });
+      }
+
+      const fallbackTutorialTitle = buildCaptureFallbackTutorialTitle(Array.from(draftsById.values()));
+      if (fallbackTutorialTitle) {
+        await supabase.from('mm_tutorials').update({ title: fallbackTutorialTitle }).eq('id', tutorial.id);
+      }
+
+      await Promise.all(initialSteps.map(async step => {
+        const draft = draftsById.get(step.id);
+        const isFirst = firstStep?.id === step.id;
+        const patch: Record<string, unknown> = {};
+        const titleDraft = draft?.user_title?.trim() || step.ai_title || `Step ${step.step_number}`;
+        if (titleDraft) patch.user_title = titleDraft;
+        if (isFirst) {
+          patch.user_script = draft?.user_script?.trim() || step.ai_description || null;
+          Object.assign(patch, firstAiPatch);
+        }
+
+        const existingAnnotations = Array.isArray(step.user_annotations) ? step.user_annotations : [];
+        if (isFirst && existingAnnotations.length === 0) {
+          const rect = step.element_rect as { x: number; y: number; width: number; height: number } | null;
+          const actionType = actionTypeByStepNum.get(step.step_number) ?? 'click';
+          const label = buildCaptureAnnotationLabel(String(patch.user_title ?? step.ai_title ?? ''), actionType, step.page_url);
+          const num = step.step_number ?? 1;
+          if (rect) {
+            patch.user_annotations = buildClickHighlight({ elementRect: rect, stepNumber: num, label, clickX: step.click_x, clickY: step.click_y, actionType });
+          } else if (step.click_x != null && step.click_y != null && (step.click_x > 0 || step.click_y > 0)) {
+            const estimatedRect = {
+              x: Math.max(0, step.click_x - 0.05),
+              y: Math.max(0, step.click_y - 0.02),
+              width: Math.min(0.10, 1 - Math.max(0, step.click_x - 0.05)),
+              height: Math.min(0.04, 1 - Math.max(0, step.click_y - 0.02)),
+            };
+            patch.user_annotations = buildClickHighlight({ elementRect: estimatedRect, stepNumber: num, label, clickX: step.click_x, clickY: step.click_y, actionType });
+          }
+        }
+
+        if (Object.keys(patch).length > 0) {
+          await supabase
+            .from('mm_steps')
+            .update(patch)
+            .eq('id', step.id)
+            .eq('tutorial_id', tutorial.id);
+        }
+      }));
+
+      await logSystem('capture.finalize.initial_ready', {
+        userId,
+        tutorialId: tutorial.id,
+        sessionId: session_id,
+        stepCount: initialSteps.length,
+        firstCardPolished: !!firstAiPatch.ai_title || !!firstAiPatch.ai_description,
+      }, 'info');
+    }
+  } catch (err) {
+    console.error('capture finalize initial draft generation error:', err);
+  }
+
+  // The editor now fills remaining descriptions incrementally after the first card is visible.
+  const runFullDraftBeforeResponse = process.env.CAPTURE_FINALIZE_BLOCKING_AI === '1';
+  if (runFullDraftBeforeResponse) {
   // AI 초안 생성 — tutorial 제목 + 스텝별 user_title/user_script + 커버 색상
   try {
     const { data: createdSteps } = await supabase
@@ -747,11 +879,13 @@ export async function POST(request: NextRequest) {
     console.error('capture finalize draft generation error:', err);
     // 초안/어노테이션 생성 실패는 무시 — 튜토리얼은 정상 생성됨
   }
+  }
 
   // 음성 → 스텝별 설명. 주력은 '연속 내레이션'(audio_url): Whisper 전사 후 캡처 시각
   // (audio_offset_ms) 기준으로 스텝에 배분. per-step 보정(step_voice)이 있으면 그 스텝은
   // 해당 클립으로 덮어쓴다. 다듬은 문장은 user_script(에디터 자동 로드), 원문은 voice_transcript_raw.
-  if (audio_url || (step_voice && Object.keys(step_voice).length)) {
+  const runVoiceBeforeResponse = process.env.CAPTURE_FINALIZE_BLOCKING_VOICE === '1';
+  if (runVoiceBeforeResponse && (audio_url || (step_voice && Object.keys(step_voice).length))) {
     try {
       const rawByStep = new Map<number, string>();          // mm step_number → 전사 원문
       const urlByStep = new Map<number, string>();          // mm step_number → 재생용 오디오 URL
@@ -857,5 +991,10 @@ export async function POST(request: NextRequest) {
     } catch { /* PII 검사 전체 실패 무시 */ }
   })();
 
-  return NextResponse.json({ tutorial_id: tutorial.id, step_count: steps.length, share_token: null });
+  return NextResponse.json({
+    tutorial_id: tutorial.id,
+    step_count: steps.length,
+    share_token: null,
+    completion_pending: true,
+  });
 }
