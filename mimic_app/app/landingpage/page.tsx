@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { BrandMark } from '@/components/common/BrandMark';
 import { FollowStage } from '@/components/viewer/FollowStage';
@@ -26,62 +26,70 @@ type SimulatorStep = {
   hotspotY: number;
   kind: 'click' | 'type';
   typeText?: string;
+  domRect?: { x: number; y: number; w: number; h: number };
+  hideTypeIndicator?: boolean;
 };
 
 const svgDataUri = (svg: string) => `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 
 const simulatorDemos: SimulatorStep[] = [
   {
-    eyebrow: 'Demo 1 · Capture to share',
-    title: '캡처한 업무가 공유 가능한 매뉴얼로 정리됩니다',
-    body: '클릭 위치와 화면 맥락을 단계로 정리하고, 실제 주석을 입힌 뒤 링크와 문서로 바로 공유합니다.',
+    eyebrow: 'Demo 1 · Click guide',
+    title: '눌러야 할 버튼을 화면 위에서 바로 짚어줍니다',
+    body: '사용자가 멈춘 실제 화면 위에 하이라이트가 생기고, AI 아바타가 다음에 눌러야 할 버튼을 말풍선으로 안내합니다.',
     screen: svgDataUri(`
       <svg xmlns="http://www.w3.org/2000/svg" width="1120" height="680" viewBox="0 0 1120 680">
-        <rect width="1120" height="680" rx="28" fill="#f7f8fc"/>
-        <rect x="42" y="36" width="1036" height="608" rx="26" fill="white" stroke="#e5e7eb"/>
-        <rect x="42" y="36" width="1036" height="66" rx="26" fill="#111827"/>
+        <rect width="1120" height="680" rx="28" fill="#eef2f7"/>
+        <rect x="42" y="36" width="1036" height="608" rx="26" fill="white" stroke="#dbe3ef"/>
+        <rect x="42" y="36" width="1036" height="66" rx="26" fill="#101827"/>
         <circle cx="76" cy="69" r="8" fill="#ef4444"/><circle cx="104" cy="69" r="8" fill="#f59e0b"/><circle cx="132" cy="69" r="8" fill="#22c55e"/>
-        <rect x="176" y="52" width="376" height="34" rx="17" fill="#1f2937"/>
-        <text x="204" y="74" font-family="Inter, Arial" font-size="15" fill="#cbd5e1">app.mimic.so/manual/new</text>
-        <rect x="84" y="142" width="260" height="450" rx="22" fill="#0f172a"/>
-        <text x="116" y="188" font-family="Inter, Arial" font-size="19" font-weight="800" fill="white">MIMIC Recorder</text>
-        <rect x="116" y="218" width="154" height="34" rx="17" fill="#312e81"/>
-        <text x="138" y="240" font-family="Inter, Arial" font-size="13" font-weight="700" fill="#ddd6fe">4 steps captured</text>
-        <rect x="116" y="282" width="188" height="56" rx="16" fill="#4f46e5"/>
-        <text x="158" y="316" font-family="Inter, Arial" font-size="16" font-weight="800" fill="white">Finish capture</text>
-        <rect x="116" y="378" width="184" height="116" rx="16" fill="#1e293b"/>
-        <text x="140" y="414" font-family="Inter, Arial" font-size="14" font-weight="800" fill="#e2e8f0">Click positions</text>
-        <text x="140" y="442" font-family="Inter, Arial" font-size="14" fill="#cbd5e1">Screenshots</text>
-        <text x="140" y="470" font-family="Inter, Arial" font-size="14" fill="#cbd5e1">Form context</text>
-        <rect x="390" y="142" width="606" height="450" rx="24" fill="#fafafa" stroke="#e5e7eb"/>
-        <text x="430" y="198" font-family="Inter, Arial" font-size="29" font-weight="850" fill="#111827">신규 입사자 계정 발급 매뉴얼</text>
-        <text x="430" y="232" font-family="Inter, Arial" font-size="16" fill="#64748b">캡처한 업무 흐름이 단계 카드와 주석으로 정리되었습니다.</text>
-        <rect x="430" y="274" width="498" height="70" rx="18" fill="white" stroke="#e5e7eb"/>
-        <circle cx="466" cy="309" r="17" fill="#4f46e5"/><text x="461" y="315" font-family="Inter, Arial" font-size="15" font-weight="800" fill="white">1</text>
-        <text x="500" y="303" font-family="Inter, Arial" font-size="15" font-weight="800" fill="#111827">관리자 메뉴에서 사용자 관리를 엽니다</text>
-        <text x="500" y="326" font-family="Inter, Arial" font-size="13" fill="#64748b">캡처 화면 위에 클릭 영역이 자동 표시됩니다.</text>
-        <rect x="430" y="366" width="498" height="70" rx="18" fill="#eef2ff" stroke="#c7d2fe"/>
-        <circle cx="466" cy="401" r="17" fill="#4f46e5"/><text x="461" y="407" font-family="Inter, Arial" font-size="15" font-weight="800" fill="white">2</text>
-        <text x="500" y="395" font-family="Inter, Arial" font-size="15" font-weight="800" fill="#312e81">사용자 정보를 입력하고 초대를 보냅니다</text>
-        <text x="500" y="418" font-family="Inter, Arial" font-size="13" fill="#4338ca">주석, 제목, 설명을 편집한 뒤 공유합니다.</text>
-        <rect x="430" y="476" width="206" height="52" rx="16" fill="#111827"/>
-        <text x="482" y="508" font-family="Inter, Arial" font-size="15" font-weight="800" fill="white">PDF export</text>
-        <rect x="656" y="476" width="240" height="52" rx="16" fill="#4f46e5"/>
-        <text x="718" y="508" font-family="Inter, Arial" font-size="15" font-weight="800" fill="white">Copy share link</text>
-        <rect x="650" y="470" width="252" height="64" rx="20" fill="none" stroke="#ef4444" stroke-width="4"/>
-        <path d="M776 456 L776 440" stroke="#ef4444" stroke-width="4" stroke-linecap="round"/>
-        <rect x="676" y="388" width="248" height="42" rx="12" fill="#1f2937"/>
-        <text x="704" y="415" font-family="Inter, Arial" font-size="14" font-weight="800" fill="white">공유 링크를 눌러 전달</text>
+        <rect x="176" y="52" width="468" height="34" rx="17" fill="#1f2937"/>
+        <text x="204" y="74" font-family="Inter, Arial" font-size="15" fill="#cbd5e1">workspace.acme.com/settings/members</text>
+        <rect x="84" y="132" width="952" height="470" rx="24" fill="#f8fafc" stroke="#d8e0ec"/>
+        <rect x="84" y="132" width="230" height="470" rx="24" fill="#0f172a"/>
+        <text x="122" y="188" font-family="Inter, Arial" font-size="21" font-weight="850" fill="white">Acme Admin</text>
+        <rect x="116" y="230" width="166" height="42" rx="12" fill="#1e293b"/>
+        <text x="142" y="257" font-family="Inter, Arial" font-size="14" font-weight="750" fill="#cbd5e1">Dashboard</text>
+        <rect x="116" y="288" width="166" height="42" rx="12" fill="#312e81"/>
+        <text x="142" y="315" font-family="Inter, Arial" font-size="14" font-weight="850" fill="#ede9fe">Members</text>
+        <rect x="116" y="346" width="166" height="42" rx="12" fill="#1e293b"/>
+        <text x="142" y="373" font-family="Inter, Arial" font-size="14" font-weight="750" fill="#cbd5e1">Billing</text>
+        <text x="360" y="192" font-family="Inter, Arial" font-size="31" font-weight="850" fill="#111827">팀 멤버 관리</text>
+        <text x="360" y="226" font-family="Inter, Arial" font-size="16" fill="#64748b">새 팀원을 초대하고 권한을 지정하세요.</text>
+        <rect x="360" y="272" width="604" height="74" rx="18" fill="white" stroke="#e2e8f0"/>
+        <circle cx="402" cy="309" r="18" fill="#e0e7ff"/>
+        <text x="395" y="315" font-family="Inter, Arial" font-size="16" font-weight="850" fill="#4338ca">J</text>
+        <text x="438" y="303" font-family="Inter, Arial" font-size="15" font-weight="850" fill="#111827">Jin Park</text>
+        <text x="438" y="326" font-family="Inter, Arial" font-size="13" fill="#64748b">jin@company.com · Admin</text>
+        <rect x="360" y="366" width="604" height="74" rx="18" fill="white" stroke="#e2e8f0"/>
+        <circle cx="402" cy="403" r="18" fill="#dcfce7"/>
+        <text x="394" y="409" font-family="Inter, Arial" font-size="16" font-weight="850" fill="#15803d">S</text>
+        <text x="438" y="397" font-family="Inter, Arial" font-size="15" font-weight="850" fill="#111827">Sara Kim</text>
+        <text x="438" y="420" font-family="Inter, Arial" font-size="13" fill="#64748b">sara@company.com · Editor</text>
+        <rect x="742" y="178" width="222" height="58" rx="16" fill="#4f46e5"/>
+        <text x="801" y="213" font-family="Inter, Arial" font-size="16" font-weight="900" fill="white">멤버 초대</text>
+        <rect x="742" y="178" width="222" height="58" rx="16" fill="none" stroke="#8b5cf6" stroke-width="0">
+          <animate attributeName="stroke-width" values="0;5;5;0" dur="2.2s" begin=".25s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="0;1;1;0" dur="2.2s" begin=".25s" repeatCount="indefinite"/>
+        </rect>
+        <circle cx="853" cy="207" r="42" fill="none" stroke="#8b5cf6" stroke-width="0" opacity=".45">
+          <animate attributeName="r" values="28;62" dur="2.2s" begin=".4s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values=".45;0" dur="2.2s" begin=".4s" repeatCount="indefinite"/>
+        </circle>
+        <rect x="360" y="478" width="278" height="62" rx="18" fill="#eef2ff" stroke="#c7d2fe"/>
+        <text x="392" y="515" font-family="Inter, Arial" font-size="15" font-weight="850" fill="#3730a3">Live Guide step 2 / 5</text>
+        <text x="392" y="536" font-family="Inter, Arial" font-size="12" fill="#6366f1">다음 목표: 초대 화면 열기</text>
       </svg>
     `),
-    hotspotX: 79,
-    hotspotY: 74,
+    hotspotX: 76.2,
+    hotspotY: 30.4,
     kind: 'click',
+    domRect: { x: 66.2, y: 26.2, w: 19.8, h: 8.6 },
   },
   {
-    eyebrow: 'Demo 2 · Live Guide Beta',
-    title: 'Live Guide Beta가 클릭과 입력을 끝까지 옆에서 안내합니다',
-    body: '다음 클릭 위치를 실제 화면 위에 짚고, 필요한 텍스트는 입력창 안에서 자동으로 채워지는 흐름을 보여줍니다.',
+    eyebrow: 'Demo 2 · Live Guide Beta 자동 입력',
+    title: '빈 입력칸에 필요한 텍스트가 자동으로 입력됩니다',
+    body: '한 번 저장한 텍스트가 실제 입력창 안에 그대로 타이핑되고, AI 아바타가 어떤 값을 넣는지 옆에서 설명합니다.',
     screen: svgDataUri(`
       <svg xmlns="http://www.w3.org/2000/svg" width="1120" height="680" viewBox="0 0 1120 680">
         <rect width="1120" height="680" rx="28" fill="#f3f4f6"/>
@@ -95,7 +103,14 @@ const simulatorDemos: SimulatorStep[] = [
         <text x="130" y="226" font-family="Inter, Arial" font-size="15" fill="#64748b">계정 정보를 입력하고 권한을 선택하세요.</text>
         <text x="130" y="286" font-family="Inter, Arial" font-size="14" font-weight="800" fill="#374151">이메일</text>
         <rect x="130" y="304" width="416" height="58" rx="14" fill="#f8fafc" stroke="#cbd5e1"/>
-        <text x="156" y="340" font-family="Inter, Arial" font-size="17" font-weight="700" fill="#111827">kim@company.com</text>
+        <text x="156" y="340" font-family="Inter, Arial" font-size="17" font-weight="700" fill="#111827">
+          <tspan>k</tspan><tspan opacity="0">i<animate attributeName="opacity" values="0;0;1" keyTimes="0;0.12;1" dur="2.1s" repeatCount="indefinite"/></tspan><tspan opacity="0">m<animate attributeName="opacity" values="0;0;1" keyTimes="0;0.18;1" dur="2.1s" repeatCount="indefinite"/></tspan><tspan opacity="0">@<animate attributeName="opacity" values="0;0;1" keyTimes="0;0.24;1" dur="2.1s" repeatCount="indefinite"/></tspan><tspan opacity="0">c<animate attributeName="opacity" values="0;0;1" keyTimes="0;0.30;1" dur="2.1s" repeatCount="indefinite"/></tspan><tspan opacity="0">o<animate attributeName="opacity" values="0;0;1" keyTimes="0;0.36;1" dur="2.1s" repeatCount="indefinite"/></tspan><tspan opacity="0">m<animate attributeName="opacity" values="0;0;1" keyTimes="0;0.42;1" dur="2.1s" repeatCount="indefinite"/></tspan><tspan opacity="0">p<animate attributeName="opacity" values="0;0;1" keyTimes="0;0.48;1" dur="2.1s" repeatCount="indefinite"/></tspan><tspan opacity="0">a<animate attributeName="opacity" values="0;0;1" keyTimes="0;0.54;1" dur="2.1s" repeatCount="indefinite"/></tspan><tspan opacity="0">n<animate attributeName="opacity" values="0;0;1" keyTimes="0;0.60;1" dur="2.1s" repeatCount="indefinite"/></tspan><tspan opacity="0">y<animate attributeName="opacity" values="0;0;1" keyTimes="0;0.66;1" dur="2.1s" repeatCount="indefinite"/></tspan><tspan opacity="0">.<animate attributeName="opacity" values="0;0;1" keyTimes="0;0.72;1" dur="2.1s" repeatCount="indefinite"/></tspan><tspan opacity="0">c<animate attributeName="opacity" values="0;0;1" keyTimes="0;0.78;1" dur="2.1s" repeatCount="indefinite"/></tspan><tspan opacity="0">o<animate attributeName="opacity" values="0;0;1" keyTimes="0;0.84;1" dur="2.1s" repeatCount="indefinite"/></tspan><tspan opacity="0">m<animate attributeName="opacity" values="0;0;1" keyTimes="0;0.90;1" dur="2.1s" repeatCount="indefinite"/></tspan>
+        </text>
+        <line x1="156" y1="319" x2="156" y2="344" stroke="#111827" stroke-width="2" opacity="0">
+          <animate attributeName="x1" values="156;156;292;292" keyTimes="0;0.08;0.82;1" dur="2.1s" repeatCount="indefinite"/>
+          <animate attributeName="x2" values="156;156;292;292" keyTimes="0;0.08;0.82;1" dur="2.1s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.08;0.82;1" dur="2.1s" repeatCount="indefinite"/>
+        </line>
         <text x="130" y="414" font-family="Inter, Arial" font-size="14" font-weight="800" fill="#374151">역할</text>
         <rect x="130" y="432" width="160" height="52" rx="14" fill="#eef2ff" stroke="#6366f1"/>
         <text x="180" y="464" font-family="Inter, Arial" font-size="15" font-weight="800" fill="#3730a3">Editor</text>
@@ -125,6 +140,8 @@ const simulatorDemos: SimulatorStep[] = [
     hotspotY: 49,
     kind: 'type',
     typeText: 'kim@company.com',
+    domRect: { x: 11.6, y: 44.7, w: 37.1, h: 8.5 },
+    hideTypeIndicator: true,
   },
 ];
 
@@ -138,7 +155,7 @@ const features = [
       </svg>
     ),
     title: '학습 가이드 + Live Guide Beta',
-    body: '공유받은 사람은 설치 없이 캡처 화면 위에서 먼저 연습할 수 있습니다. 확장 프로그램이 연결된 환경에서는 실제 페이지 위 안내도 베타로 실행할 수 있어요.',
+    body: '공유받은 사람은 설치 없이 캡처 화면 위에서 먼저 연습할 수 있습니다. 확장 프로그램이 연결된 환경에서는 실제 페이지 위 Live Guide Beta로 업무를 이어갈 수 있어요.',
     comingSoon: false,
   },
   {
@@ -260,121 +277,112 @@ function RevealSection({ children, style }: { children: React.ReactNode; style?:
   );
 }
 
-
-
-// 각 씬 duration(ms)
-const SCENE_DURATIONS = [4500, 2800, 6500, 3500, 6500, 5200, 7000];
-
 function HeroDemo() {
-  const [scene, setScene] = useState(0);
-  const [tick, setTick]   = useState(0);
-  const [active, setActive] = useState(true);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [phase, setPhase] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
 
-  const scheduleNext = useCallback((idx: number) => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      const next = (idx + 1) % SCENE_DURATIONS.length;
-      setScene(next);
-      setTick(0);
-      scheduleNext(next);
-    }, SCENE_DURATIONS[idx]);
-  }, []);
-
-  // 화면 밖(스크롤)·모바일(display:none) 에서는 타이머를 멈춰 불필요한 연산을 막는다
   useEffect(() => {
     const el = rootRef.current;
     if (!el) return;
-    const io = new IntersectionObserver(([entry]) => setActive(entry.isIntersecting), { threshold: 0.01 });
-    io.observe(el);
-    return () => io.disconnect();
+    let timer: number | null = null;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting && timer == null) {
+        timer = window.setInterval(() => setPhase(current => (current + 1) % 3), 2600);
+      } else if (!entry.isIntersecting && timer != null) {
+        window.clearInterval(timer);
+        timer = null;
+      }
+    }, { threshold: 0.05 });
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      if (timer != null) window.clearInterval(timer);
+    };
   }, []);
 
-  useEffect(() => {
-    if (!active) return;
-    setTick(0);
-    scheduleNext(scene);
-    const iv = setInterval(() => setTick(t => t + 100), 100);
-    return () => { clearInterval(iv); if (timerRef.current) clearTimeout(timerRef.current); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scene, active]);
-
-  const SCENE_LABELS = ['새로 만들기', '카운트다운', '클릭 캡처', 'AI 생성 중', '매뉴얼 완성', '공유', '학습 가이드'];
-  const SCENE_URLS   = ['app.mimic.so/home', 'app.mimic.so/home', 'plus.gov.kr', 'plus.gov.kr', 'app.mimic.so/editor', 'app.mimic.so/manual', 'app.mimic.so/play'];
-  const SCENE_CAPTIONS = [
-    { title: '홈에서 "새로 만들기"를 열고 새 매뉴얼(녹화)을 선택합니다', desc: 'MIMIC 크롬 확장 프로그램이 녹화를 준비합니다.' },
-    { title: '3·2·1 — 카운트다운과 함께 녹화가 시작됩니다', desc: '이제부터 평소처럼 업무를 진행하기만 하면 됩니다.' },
-    { title: '클릭할 때마다 화면이 자동으로 캡처됩니다', desc: '정부24에서 주민등록증을 발급받는 과정이 단계별로 기록됩니다.' },
-    { title: '"완료"를 누르면 AI가 매뉴얼을 자동 생성합니다', desc: '캡처된 화면을 분석해 제목·설명·하이라이트를 만듭니다.' },
-    { title: '편집 가능한 스텝 카드로 매뉴얼이 완성됩니다', desc: '각 단계를 카드로 보고, 제목·설명·이미지를 바로 편집할 수 있습니다.' },
-    { title: '링크 하나로 누구에게나 공유합니다', desc: 'PDF·PPTX·Word로 내보내거나, 비밀번호·공개 범위까지 설정할 수 있습니다.' },
-    { title: '학습 가이드로 먼저 따라 해봅니다', desc: '공유받은 사람은 캡처 화면 위에서 클릭할 위치를 확인하며 안전하게 연습합니다.' },
+  const phases = [
+    { label: 'Capture', title: '클릭과 화면을 단계로 기록', body: '업무를 평소처럼 진행하면, MIMIC이 필요한 장면을 자동으로 모읍니다.' },
+    { label: 'Manual', title: '공유 가능한 매뉴얼로 정리', body: '제목, 설명, 하이라이트가 붙은 실행 매뉴얼이 바로 완성됩니다.' },
+    { label: 'Live Guide Beta', title: '최종 목적지까지 옆에서 안내', body: '사용자는 실제 흐름을 따라가며 클릭 위치와 입력할 텍스트까지 차근차근 확인합니다.' },
   ];
+  const current = phases[phase];
 
-  const renderScene = () => {
-    switch(scene) {
-      case 0: return <Scene0 tick={tick} />;
-      case 1: return <Scene1 tick={tick} />;
-      case 2: return <Scene2 tick={tick} />;
-      case 3: return <Scene3 tick={tick} />;
-      case 4: return <Scene4 tick={tick} />;
-      case 5: return <Scene5 tick={tick} />;
-      case 6: return <Scene6 tick={tick} />;
-      default: return null;
-    }
-  };
+  void [Scene0, Scene1, Scene2, Scene3, Scene4, Scene5, Scene6];
 
   return (
-    <div ref={rootRef} style={{ position: 'relative', maxWidth: '1000px', margin: '0 auto' }}>
-      <div style={{ borderRadius: '16px 16px 0 0', overflow: 'hidden', boxShadow: '0 20px 60px -10px rgba(55,48,163,0.28), 0 40px 80px -20px rgba(17,24,39,0.18)', border: '1px solid rgba(55,48,163,0.15)', borderBottom: 'none' }}>
-        {/* 브라우저 상단바 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 16px', background: '#18181B', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+    <div ref={rootRef} className="hero-flow-preview" style={{ position: 'relative', maxWidth: '1000px', margin: '0 auto' }}>
+      <div style={{ borderRadius: '18px 18px 0 0', overflow: 'hidden', boxShadow: '0 24px 70px -12px rgba(55,48,163,0.30), 0 40px 90px -30px rgba(0,0,0,0.45)', border: '1px solid rgba(167,139,250,0.18)', background: '#0F0F18' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 18px', background: '#171720', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
           <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#FF5F57' }} />
           <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#FEBC2E' }} />
           <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#28C840' }} />
-          <div style={{ flex: 1, margin: '0 12px', padding: '4px 12px', borderRadius: '6px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10"/></svg>
-            <span style={{ fontSize: '11.5px', color: 'rgba(255,255,255,0.45)' }}>{SCENE_URLS[scene]}</span>
-          </div>
-          {scene >= 1 && scene <= 2 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 10px', borderRadius: '5px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', fontSize: '11px', color: '#FCA5A5', fontWeight: 500, flexShrink: 0 }}>
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#EF4444', animation: 'rec-blink 1.2s ease-in-out infinite', display: 'inline-block' }} />
-              MIMIC 녹화 중
+          <div style={{ flex: 1, marginLeft: '10px', padding: '5px 12px', borderRadius: '7px', background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.46)', fontSize: '11.5px', textAlign: 'left' }}>app.mimic.so/workflow</div>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#c4b5fd', fontSize: '11px', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            <i style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#8b5cf6', boxShadow: '0 0 0 5px rgba(139,92,246,0.12)' }} />
+            Live Guide
+          </span>
+        </div>
+
+        <div style={{ minHeight: '470px', display: 'grid', gridTemplateColumns: '0.92fr 1.08fr', background: 'linear-gradient(135deg,#111827 0%,#0b0b13 58%,#181233 100%)', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ padding: '42px 42px 38px', textAlign: 'left', borderRight: '1px solid rgba(255,255,255,0.07)' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '7px 11px', borderRadius: '999px', background: 'rgba(124,58,237,0.18)', border: '1px solid rgba(167,139,250,0.24)', color: '#ddd6fe', fontSize: '11px', fontWeight: 850, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '24px' }}>{current.label}</div>
+            <h3 style={{ margin: 0, color: 'white', fontSize: 'clamp(30px, 4.2vw, 52px)', lineHeight: 1.08, letterSpacing: '-0.045em', fontWeight: 900, wordBreak: 'keep-all' }}>{current.title}</h3>
+            <p style={{ margin: '18px 0 0', color: 'rgba(255,255,255,0.56)', fontSize: '15px', lineHeight: 1.75, maxWidth: '370px', wordBreak: 'keep-all' }}>{current.body}</p>
+
+            <div style={{ display: 'grid', gap: '10px', marginTop: '36px' }}>
+              {phases.map((item, index) => {
+                const isActive = index === phase;
+                return (
+                  <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '13px 14px', borderRadius: '12px', border: '1px solid ' + (isActive ? 'rgba(167,139,250,0.44)' : 'rgba(255,255,255,0.08)'), background: isActive ? 'rgba(124,58,237,0.20)' : 'rgba(255,255,255,0.035)', transition: 'background .3s ease, border-color .3s ease' }}>
+                    <span style={{ width: '24px', height: '24px', borderRadius: '8px', display: 'grid', placeItems: 'center', background: isActive ? '#7c3aed' : 'rgba(255,255,255,0.08)', color: isActive ? 'white' : 'rgba(255,255,255,0.44)', fontSize: '11px', fontWeight: 850 }}>{index + 1}</span>
+                    <span style={{ color: isActive ? 'white' : 'rgba(255,255,255,0.52)', fontSize: '13px', fontWeight: 750 }}>{item.title}</span>
+                  </div>
+                );
+              })}
             </div>
-          )}
-        </div>
-        <div key={scene} style={{ height: '470px', position: 'relative', overflow: 'hidden', animation: 'sceneIn 0.35s ease both' }}>
-          {renderScene()}
-        </div>
-        {/* 자막 영역 */}
-        <div key={`cap-${scene}`} style={{ padding: '14px 20px', background: '#0F0F14', borderTop: '1px solid rgba(255,255,255,0.06)', animation: 'sceneIn 0.4s ease both' }}>
-          <div style={{ fontSize: '13px', fontWeight: 600, color: 'white', marginBottom: '4px', lineHeight: 1.4 }}>
-            {SCENE_CAPTIONS[scene].title}
           </div>
-          <div style={{ fontSize: '11.5px', color: 'rgba(255,255,255,0.45)', lineHeight: 1.6 }}>
-            {SCENE_CAPTIONS[scene].desc}
-          </div>
-        </div>
-      </div>
-      {/* 하단 스텝 인디케이터 */}
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px', marginTop: '16px' }}>
-        {SCENE_LABELS.map((label, i) => {
-          const isActive = i === scene;
-          const isDone = i < scene;
-          return (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: isActive ? '5px 12px 5px 7px' : '5px 8px', borderRadius: '999px', border: `1px solid ${isActive ? 'rgba(109,40,217,0.40)' : isDone ? 'rgba(16,185,129,0.30)' : 'rgba(109,40,217,0.12)'}`, background: isActive ? 'rgba(109,40,217,0.09)' : isDone ? 'rgba(16,185,129,0.06)' : 'transparent', transition: 'all 0.3s ease' }}>
-              <div style={{ width: '18px', height: '18px', borderRadius: '5px', flexShrink: 0, background: isActive ? '#6d28d9' : isDone ? '#10B981' : 'rgba(109,40,217,0.12)', fontSize: '9px', fontWeight: 700, display: 'grid', placeItems: 'center', transition: 'all 0.3s ease' }}>
-                {isDone ? <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg> : <span style={{ color: isActive ? 'white' : '#9CA3AF' }}>{i + 1}</span>}
+
+          <div style={{ padding: '38px', display: 'grid', alignContent: 'center', gap: '18px', position: 'relative' }}>
+            <div style={{ display: 'grid', gap: '12px' }}>
+              {[
+                { title: '01. 신청 메뉴 클릭', meta: 'click captured', state: phase >= 0 },
+                { title: '02. 담당자 이메일 입력', meta: 'kim@company.com', state: phase >= 1 },
+                { title: '03. 완료 화면 도착', meta: 'Live Guide target', state: phase >= 2 },
+              ].map((step, index) => (
+                <div key={step.title} style={{ display: 'grid', gridTemplateColumns: '42px 1fr auto', alignItems: 'center', gap: '14px', padding: '16px', borderRadius: '14px', background: step.state ? 'rgba(255,255,255,0.96)' : 'rgba(255,255,255,0.72)', border: '1px solid ' + (index === phase ? '#a78bfa' : 'rgba(255,255,255,0.54)'), boxShadow: index === phase ? '0 18px 42px rgba(124,58,237,0.24)' : '0 8px 24px rgba(0,0,0,0.12)', transition: 'all .35s ease' }}>
+                  <span style={{ width: '42px', height: '42px', borderRadius: '12px', display: 'grid', placeItems: 'center', background: step.state ? 'linear-gradient(135deg,#4f46e5,#7c3aed)' : '#eef2ff', color: step.state ? 'white' : '#6b7280', fontWeight: 900 }}>{String(index + 1).padStart(2, '0')}</span>
+                  <span style={{ minWidth: 0 }}>
+                    <strong style={{ display: 'block', color: '#111827', fontSize: '14px', lineHeight: 1.3 }}>{step.title}</strong>
+                    <small style={{ display: 'block', marginTop: '4px', color: '#6b7280', fontSize: '12px' }}>{step.meta}</small>
+                  </span>
+                  <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: step.state ? '#10b981' : '#d1d5db' }} />
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 180px', gap: '14px', alignItems: 'stretch' }}>
+              <div style={{ padding: '18px', borderRadius: '16px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.10)', color: 'white', textAlign: 'left' }}>
+                <div style={{ fontSize: '11px', color: '#c4b5fd', fontWeight: 850, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '10px' }}>Guide overlay</div>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 12px', borderRadius: '12px', background: 'white', color: '#111827', fontSize: '13px', fontWeight: 800, boxShadow: '0 18px 38px rgba(0,0,0,0.24)' }}>
+                  <span style={{ width: '22px', height: '22px', borderRadius: '50%', display: 'grid', placeItems: 'center', background: '#7c3aed', color: 'white', fontSize: '12px' }}>{phase + 1}</span>
+                  다음 위치를 누르고 필요한 텍스트를 입력하세요
+                </div>
               </div>
-              {isActive && <span style={{ fontSize: '11px', fontWeight: 600, color: '#6d28d9', whiteSpace: 'nowrap' }}>{label}</span>}
+              <div style={{ padding: '18px', borderRadius: '16px', background: '#111827', border: '1px solid rgba(255,255,255,0.10)', color: 'white', textAlign: 'left' }}>
+                <div style={{ fontSize: '11px', color: '#a78bfa', fontWeight: 850, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Result</div>
+                <div style={{ marginTop: '34px', height: '7px', borderRadius: '999px', background: 'rgba(255,255,255,0.12)', overflow: 'hidden' }}>
+                  <div style={{ width: String(((phase + 1) / 3) * 100) + '%', height: '100%', borderRadius: '999px', background: 'linear-gradient(90deg,#10b981,#a78bfa)', transition: 'width .35s ease' }} />
+                </div>
+                <div style={{ marginTop: '10px', color: 'rgba(255,255,255,0.62)', fontSize: '12px' }}>{phase + 1} / 3 completed</div>
+              </div>
             </div>
-          );
-        })}
+          </div>
+        </div>
       </div>
     </div>
   );
 }
+
 
 // 매뉴얼 6단계 (정부24 주민등록증 발급받기)
 const GUIDE_STEPS = [
@@ -1390,7 +1398,7 @@ const SHOWCASES = [
     ],
     video: '',
     mock: <MockGuideMe />,
-    badge: 'BETA',
+    badge: null,
   },
   {
     id: 'share',
@@ -1468,14 +1476,13 @@ function ServiceSimulatorSection() {
   return (
     <section id="simulator" className="service-simulator" style={{ padding: '104px 0', background: '#07070F', position: 'relative', overflow: 'hidden' }}>
       <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px', position: 'relative', zIndex: 1 }}>
-        <RevealSection>
-          <div className="simulator-grid">
+        <div className="simulator-grid">
             <div className="simulator-copy">
               <span className="simulator-eyebrow">Two live demos</span>
-              <h2>매뉴얼 생성과 Live Guide Beta 실행을 따로 보여줍니다</h2>
+              <h2>Live Guide Beta가 실제 화면 위에서 어떻게 움직이는지 보여줍니다</h2>
               <p>
-                첫 번째 데모는 캡처 후 매뉴얼이 자동 생성되고 공유되는 흐름입니다.
-                두 번째 데모는 Live Guide Beta가 클릭 위치와 자동 텍스트 입력까지 안내해 최종 목적지까지 도달하는 흐름입니다.
+                첫 번째 데모는 눌러야 할 버튼이 화면 위에서 하이라이트되는 흐름입니다.
+                두 번째 데모는 저장해둔 텍스트가 실제 입력칸 안에 자동으로 입력되는 흐름입니다.
               </p>
               <div className="simulator-steps" role="tablist" aria-label="MIMIC product simulator steps">
                 {simulatorDemos.map((item, index) => (
@@ -1516,6 +1523,7 @@ function ServiceSimulatorSection() {
                   typeText={step.typeText}
                   typeTextColor="#111827"
                   animateType={step.kind === 'type'}
+                  showTypeIndicator={!step.hideTypeIndicator}
                   title={step.title}
                   body={step.body}
                   spotlight
@@ -1523,11 +1531,11 @@ function ServiceSimulatorSection() {
                   isFirstStep={active === 0}
                   imgMaxHeight="470px"
                   bubbleAnchor="bottom-left"
+                  domRect={step.domRect}
                 />
               </div>
             </div>
-          </div>
-        </RevealSection>
+        </div>
       </div>
     </section>
   );
