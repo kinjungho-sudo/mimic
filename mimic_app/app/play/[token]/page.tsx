@@ -1,7 +1,7 @@
 ﻿'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { useParams } from 'next/navigation';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { BrandMark } from '@/components/common/BrandMark';
 import { AnnotationPreview } from '@/components/editor/AnnotationPreview';
@@ -78,6 +78,12 @@ type SurveyState = {
   reproduce: boolean | null;
   comment: string;
 };
+
+function modeToViewMode(mode: string | null): 'follow' | 'slides' | 'document' {
+  if (mode === 'practice' || mode === 'follow') return 'follow';
+  if (mode === 'slides') return 'slides';
+  return 'document';
+}
 
 
 function StarRating({ value, onChange }: { value: number; onChange: (v: number) => void }) {
@@ -514,12 +520,14 @@ function PasswordGate({ protectedTitle, token, onUnlock }: {
 
 export default function PlayerPage() {
   const { token } = useParams<{ token: string }>();
+  const searchParams = useSearchParams();
+  const modeParam = searchParams.get('mode');
   const [tutorial, setTutorial] = useState<Tutorial | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [passwordRequired, setPasswordRequired] = useState(false);
   const [protectedTitle, setProtectedTitle] = useState('');
-  const [viewMode, setViewMode] = useState<'follow' | 'slides' | 'document'>('document');
+  const [viewMode, setViewMode] = useState<'follow' | 'slides' | 'document'>(() => modeToViewMode(modeParam));
   const [currentStep, setCurrentStep] = useState(0);
   const [showDesc, setShowDesc] = useState(true);
   const [showSidebar, setShowSidebar] = useState(false);
@@ -534,6 +542,12 @@ export default function PlayerPage() {
   const [isAuthed, setIsAuthed] = useState(false);
   const [showViewerSurvey, setShowViewerSurvey] = useState(false);
   const viewerSessionIdRef = useRef(`viewer:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`);
+  const liveAutoStartedRef = useRef(false);
+
+  useEffect(() => {
+    setViewMode(modeToViewMode(modeParam));
+    if (modeParam !== 'live') liveAutoStartedRef.current = false;
+  }, [modeParam]);
 
   useEffect(() => {
     createClient().auth.getSession()
@@ -605,6 +619,22 @@ export default function PlayerPage() {
     return () => { if (playTimerRef.current) clearInterval(playTimerRef.current); };
   }, [isPlaying, tutorial, viewMode]);
 
+  const handleStartLiveGuide = useCallback(async () => {
+    const result = await startLiveGuide(token);
+    if (result.ok) return;
+    if (result.reason === 'gated' && result.upgradeUrl && confirm(`${result.message}\n설정 화면으로 이동할까요?`)) {
+      window.location.href = result.upgradeUrl;
+      return;
+    }
+    alert(result.message);
+  }, [token]);
+
+  useEffect(() => {
+    if (!tutorial || modeParam !== 'live' || liveAutoStartedRef.current) return;
+    liveAutoStartedRef.current = true;
+    void handleStartLiveGuide();
+  }, [tutorial, modeParam, handleStartLiveGuide]);
+
   if (loading) {
     return (
       <div style={{ position: 'fixed', inset: 0, background: '#0A0A0F', display: 'grid', placeItems: 'center', color: 'white' }}>
@@ -666,16 +696,6 @@ export default function PlayerPage() {
     setIsPlaying(false);
   };
 
-  const handleStartLiveGuide = async () => {
-    const result = await startLiveGuide(token);
-    if (result.ok) return;
-    if (result.reason === 'gated' && result.upgradeUrl && confirm(`${result.message}\n설정 화면으로 이동할까요?`)) {
-      window.location.href = result.upgradeUrl;
-      return;
-    }
-    alert(result.message);
-  };
-
   return (
     <div style={{ position: 'fixed', inset: 0, background: viewMode === 'document' ? '#F8F9FA' : '#0A0A0F', display: 'flex', flexDirection: 'column', fontFamily: "'Pretendard', -apple-system, sans-serif", color: viewMode === 'document' ? '#111827' : 'white', overflow: 'hidden' }}>
 
@@ -714,9 +734,10 @@ export default function PlayerPage() {
           {/* 모드 토글: 웹 문서 ↔ 슬라이드 */}
           <div style={{ display: 'flex', background: viewMode === 'document' ? '#F3F4F6' : 'rgba(255,255,255,0.08)', borderRadius: '8px', padding: '3px', gap: '2px' }}>
             {([
+              { key: 'follow', label: '학습', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M15 15l5 5"/><path d="M13 3l8 8-7 2-2 7-8-8 9-9z"/></svg> },
               { key: 'document', label: '웹 문서', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="12" y2="16"/></svg> },
               { key: 'slides', label: '슬라이드', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> },
-            ] as { key: 'document' | 'slides'; label: string; icon: React.ReactNode }[]).map(tab => {
+            ] as { key: 'follow' | 'document' | 'slides'; label: string; icon: React.ReactNode }[]).map(tab => {
               const active = viewMode === tab.key;
               const activeColor = viewMode === 'document' ? '#3730a3' : 'white';
               const inactiveColor = viewMode === 'document' ? '#6B7280' : 'rgba(255,255,255,0.5)';
