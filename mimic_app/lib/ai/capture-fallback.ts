@@ -522,10 +522,3 @@ export function buildCaptureFallbackTutorialTitle(
   }
   return `${firstActionTitle}하기`.slice(0, 30);
 }
-
-export function buildCaptureAnnotationLabel(title: string | null | undefined, actionType?: string | null, pageUrl?: string | null): string {
-  const safeTitle = cleanText(title);
-  if (safeTitle && !isLowQualityCaptureTitle(safeTitle)) return safeTitle.slice(0, 40);
-  const base = contextFromUrl(pageUrl, false) || labelFromUrl(pageUrl) || '화면';
-  return `${base} ${verbForAction(actionType ?? undefined, false)}`.slice(0, 40);
-}
