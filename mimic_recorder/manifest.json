@@ -36,6 +36,7 @@
     "windows",
     "storage",
     "downloads",
+    "nativeMessaging",
     "sidePanel",
     "scripting",
     "offscreen"
