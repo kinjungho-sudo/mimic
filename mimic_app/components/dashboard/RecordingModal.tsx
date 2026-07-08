@@ -208,12 +208,13 @@ function FavIcon({ url, favIconUrl }: { url: string; favIconUrl?: string }) {
 
 interface RecordingModalProps {
   onClose: () => void;
+  initialMode?: 'select' | 'web';
 }
 
 const STORE_URL = 'https://chromewebstore.google.com/detail/mimic-recorder/ehbhcdkapcbfehinjapabgoegcjmmbgd';
 const DESKTOP_SETUP_URL = '/desktop-setup?source=recording';
 
-export function RecordingModal({ onClose }: RecordingModalProps) {
+export function RecordingModal({ onClose, initialMode = 'select' }: RecordingModalProps) {
   const [step, setStep] = useState<ModalStep>('checking');
   const [tabs, setTabs] = useState<ChromeTab[]>([]);
   const [tabsLoading, setTabsLoading] = useState(false);
@@ -221,6 +222,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
   const [search, setSearch] = useState('');
   const [tabListIssue, setTabListIssue] = useState<string | null>(null);
   const [startFailure, setStartFailure] = useState<StartRecordingResponse | null>(null);
+  const readyStep: ModalStep = initialMode === 'web' ? 'guide' : 'mode_select';
 
   // ESC 닫기
   useEffect(() => {
@@ -234,17 +236,17 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
   // - 운영(REQUIRE_EXTENSION 켜짐): CONNECT ping으로 설치 여부 확인 → 미설치/미응답이면
   //   크롬 웹스토어 설치 페이지로 직접 보낸다.
   useEffect(() => {
-    if (!REQUIRE_EXTENSION) { setStep('mode_select'); return; }
+    if (!REQUIRE_EXTENSION) { setStep(readyStep); return; }
     let alive = true;
     setStep('checking');
     (async () => {
       const resp = await wakeAndSend('CONNECT'); // SW 깨우고 설치 여부 확인
       if (!alive) return;
-      if (resp) setStep('mode_select');
+      if (resp) setStep(readyStep);
       else window.location.href = STORE_URL; // 미설치 → 크롬 웹스토어 설치 페이지로 직접
     })();
     return () => { alive = false; };
-  }, []);
+  }, [readyStep]);
 
   const enterDesktopSetup = useCallback(() => {
     window.location.href = DESKTOP_SETUP_URL;
