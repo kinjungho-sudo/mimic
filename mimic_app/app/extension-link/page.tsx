@@ -41,6 +41,13 @@ export default function ExtensionLinkPage() {
             </div>
             <h1 style={{ fontSize: '22px', fontWeight: 500, margin: '0 0 8px', color: '#111827' }}>MIMIC Recorder 연결 완료</h1>
             <p style={{ fontSize: '13.5px', color: '#4B5563', lineHeight: 1.6, margin: '0 auto 20px', maxWidth: '360px' }}>브라우저 우상단의 MIMIC Recorder 아이콘으로 바로 매뉴얼을 만들 수 있어요.</p>
+            <div style={{ background: '#F9FAFB', border: '1px solid #F3F4F6', borderRadius: '12px', padding: '14px 16px', margin: '0 auto 20px', maxWidth: '340px', textAlign: 'left' }}>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '5px' }}>Windows 파일 작업도 기록해야 하나요?</div>
+              <div style={{ fontSize: '12.5px', color: '#6B7280', lineHeight: 1.55 }}>
+                다운로드, 로컬 파일 수정, 다시 업로드까지 이어지는 업무는 Desktop Companion을 첫 캡처 전에 함께 연결하면 중간 단계가 빠지지 않습니다.
+              </div>
+              <a href="/desktop-setup?source=extension-link" style={{ display: 'inline-block', marginTop: '8px', fontSize: '12.5px', fontWeight: 600, color: '#3730a3', textDecoration: 'none' }}>Desktop Companion 설치하기</a>
+            </div>
             <div style={{ fontSize: '11.5px', color: '#6B7280', marginBottom: '22px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
               <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#10B981', animation: 'dotPulse 1.2s ease-in-out infinite' }} />
               {countdown}초 후 워크스페이스로 이동합니다…
@@ -84,6 +91,14 @@ export default function ExtensionLinkPage() {
                   <span style={{ fontSize: '13px', color: '#374151', lineHeight: 1.5 }}>{step}</span>
                 </div>
               ))}
+            </div>
+
+            <div style={{ background: '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '14px 16px', marginBottom: '20px', textAlign: 'left' }}>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '5px' }}>Desktop Companion은 무엇인가요?</div>
+              <div style={{ fontSize: '12.5px', color: '#6B7280', lineHeight: 1.55 }}>
+                Windows에서 파일을 열고 저장한 뒤 웹에 다시 업로드하는 업무 흐름을 Recorder 세션과 연결하는 설치형 앱입니다. 현재 dev 단계에서 연결 방식을 검증 중입니다.
+              </div>
+              <a href="/desktop-setup?source=extension-link" style={{ display: 'inline-block', marginTop: '8px', fontSize: '12.5px', fontWeight: 600, color: '#3730a3', textDecoration: 'none' }}>설치 화면으로 이동</a>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '320px', margin: '0 auto' }}>

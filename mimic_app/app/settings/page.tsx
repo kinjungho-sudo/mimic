@@ -133,6 +133,18 @@ export default function SettingsPage() {
           </div>
         </Section>
 
+        <Section title="Desktop Companion">
+          <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+            <div>
+              <div style={{ fontSize: '13.5px', fontWeight: 500, color: '#111827' }}>Windows 파일 작업 연결</div>
+              <div style={{ fontSize: '12px', color: '#9CA3AF', marginTop: '2px', lineHeight: 1.5 }}>다운로드, 파일 수정, 저장, 업로드 복귀 단계를 Recorder 세션에 이어 붙입니다. 현재 dev 단계에서 연결 검증 중입니다.</div>
+            </div>
+            <Link href="/desktop-setup?source=settings" style={{ padding: '7px 14px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 500, background: 'white', color: '#3730a3', border: '1px solid #C7D2FE', textDecoration: 'none', flexShrink: 0 }}>
+              설치/확인
+            </Link>
+          </div>
+        </Section>
+
         <Section title="계정">
           <div style={{ padding: '14px 20px' }}>
             <a href="mailto:kinjungho@gmail.com" style={{ fontSize: '13.5px', fontWeight: 500, color: '#111827', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

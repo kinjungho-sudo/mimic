@@ -1423,7 +1423,7 @@ export default function DashboardPage() {
                         <span style={{ width: '30px', height: '30px', borderRadius: '8px', background: '#FEE2E2', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3" fill="#EF4444"/></svg>
                         </span>
-                        <div><div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '2px' }}>새 매뉴얼(녹화)</div><div style={{ fontSize: '11.5px', color: '#6B7280' }}>클릭 동작을 자동 캡처</div></div>
+                        <div><div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '2px' }}>새 매뉴얼(녹화)</div><div style={{ fontSize: '11.5px', color: '#6B7280' }}>웹/데스크톱 녹화 선택</div></div>
                       </button>
                       <div className="home-recording-divider" style={{ height: '1px', background: '#F3F4F6', margin: '0 12px' }} />
                       <button onClick={handleCreateGuidebook}

@@ -515,6 +515,35 @@ async function compressToJpeg(pngDataUrl, quality = JPEG_QUALITY_DEFAULT) {
 
 // ── 외부(웹페이지) 메시지 라우터 ────────────────────────────────
 chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
+  if (message.action === 'DESKTOP_COMPANION_STATUS') {
+    (async () => {
+      await pingDesktopCompanion().catch(() => {});
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      sendResponse({ ok: true, desktop: desktopBridgeStatus() });
+    })();
+    return true;
+  }
+
+  if (message.action === 'START_DESKTOP_RECORDING') {
+    (async () => {
+      const sessionId = crypto.randomUUID();
+      const result = await notifyDesktopCaptureStarted({
+        sessionId,
+        targetTabId: null,
+        source: 'desktop_setup',
+      });
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      const desktop = desktopBridgeStatus();
+      sendResponse({
+        ok: !!result?.ok && !!desktop.connected,
+        sessionId,
+        desktop,
+        error: result?.error || (desktop.connected ? undefined : desktop.lastError || 'desktop_host_unavailable'),
+      });
+    })();
+    return true;
+  }
+
   if (message.action === 'GET_TABS') {
     const toRecordableTab = (t) => {
       if (!t || typeof t.id !== 'number') return null;
