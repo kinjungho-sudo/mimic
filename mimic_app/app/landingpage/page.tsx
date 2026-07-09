@@ -19,13 +19,13 @@ const XIcon = ({ size = 14 }: { size?: number }) => (
 const features = [
   {
     icon: (
-      // 나침반 / Live Guide
+      // 나침반 / 라이브 가이드
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
         <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.9)" strokeWidth="1.8" fill="rgba(255,255,255,0.1)"/>
         <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="rgba(255,255,255,0.9)"/>
       </svg>
     ),
-    title: '연습 가이드 + Live Guide 베타',
+    title: '연습 가이드 + 라이브 가이드 베타',
     body: '공유받은 사람은 설치 없이 캡처 화면 위에서 먼저 연습할 수 있습니다. 확장 프로그램이 연결된 환경에서는 실제 페이지 위 안내도 베타로 실행할 수 있어요.',
     comingSoon: false,
   },
@@ -531,7 +531,7 @@ function MimicAppHeader({ mode }: { mode: 'doc' | 'guide' }) {
         <span style={{ fontSize: '11px', fontWeight: 700, color: '#374151' }}>정부24에서 주민등록증 발급받기</span>
       </div>
       <div style={{ display: 'flex', gap: '4px' }}>
-        {[['웹 문서','doc'],['Live Guide','guide'],['슬라이드','slide']].map(([label, key]) => (
+        {[['웹 문서','doc'],['라이브 가이드','guide'],['슬라이드','slide']].map(([label, key]) => (
           <div key={key} style={{ padding: '5px 11px', borderRadius: '7px', fontSize: '10px', fontWeight: 600, background: mode === key ? '#EDE9FE' : 'transparent', color: mode === key ? '#6d28d9' : '#9CA3AF', border: mode === key ? '1px solid rgba(109,40,217,0.3)' : '1px solid transparent' }}>{label}</div>
         ))}
       </div>
@@ -817,7 +817,7 @@ function Scene5({ tick }: { tick: number }) {
   );
 }
 
-// ── 씬 6: 따라하기(Live Guide) — 마우스 클릭 + 우측 패널 + AI 로봇 ──────────
+// ── 씬 6: 따라하기(라이브 가이드) — 마우스 클릭 + 우측 패널 + AI 로봇 ──────────
 function Scene6({ tick }: { tick: number }) {
   const step = tick < 3500 ? 0 : 1;
   const total = 6;
@@ -831,10 +831,10 @@ function Scene6({ tick }: { tick: number }) {
             <StepScreen step={step} mode="guide" />
           </div>
         </div>
-        {/* 우측 사이드 패널 — Live Guide 진행 */}
+        {/* 우측 사이드 패널 — 라이브 가이드 진행 */}
         <div style={{ width: '152px', borderLeft: '1px solid #EEE', background: '#FAFAFB', display: 'flex', flexDirection: 'column', flexShrink: 0, zIndex: 12 }}>
           <div style={{ padding: '11px 11px 8px', borderBottom: '1px solid #EEE' }}>
-            <div style={{ fontSize: '9px', fontWeight: 800, color: '#6d28d9', display: 'flex', alignItems: 'center', gap: '4px' }}>● LIVE GUIDE</div>
+            <div style={{ fontSize: '9px', fontWeight: 800, color: '#6d28d9', display: 'flex', alignItems: 'center', gap: '4px' }}>● 라이브 가이드</div>
             <div style={{ fontSize: '8.5px', color: '#9CA3AF', marginTop: '3px' }}>{step + 1} / {total} 단계 진행 중</div>
           </div>
           <div style={{ flex: 1, overflow: 'hidden', padding: '8px' }}>
@@ -1110,11 +1110,11 @@ function MockGuideMe() {
             </div>
           </div>
         </div>
-        {/* 우측 — LIVE GUIDE 사이드 패널 */}
+        {/* 우측 — 라이브 가이드 사이드 패널 */}
         <div style={{ width: '168px', background: '#0d0d14', display: 'flex', flexDirection: 'column', flexShrink: 0, borderLeft: '1px solid rgba(109,40,217,0.35)' }}>
           {/* 패널 헤더 */}
           <div style={{ background: 'linear-gradient(135deg,#3730a3,#6d28d9)', padding: '9px 12px' }}>
-            <div style={{ fontSize: '8.5px', fontWeight: 800, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.1em', marginBottom: '2px' }}>LIVE GUIDE</div>
+            <div style={{ fontSize: '8.5px', fontWeight: 800, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.1em', marginBottom: '2px' }}>라이브 가이드</div>
             <div style={{ fontSize: '10px', fontWeight: 700, color: 'white' }}>주민등록초본 발급</div>
           </div>
           {/* AI 로봇 아바타 + 말풍선 */}
@@ -1255,12 +1255,12 @@ const SHOWCASES = [
   },
   {
     id: 'guideme',
-    eyebrow: 'LIVE GUIDE',
+    eyebrow: '라이브 가이드',
     title: '문서를 읽게 하지 말고,\n화면 위에서 직접 따라오게 하세요',
     desc: '먼저 연습 가이드로 캡처 화면 위에서 안전하게 따라 해보고, 확장 프로그램이 연결된 환경에서는 실제 페이지 위 안내를 베타로 실행할 수 있습니다.',
     bullets: [
       '공유 링크에서는 설치 없는 연습 가이드 제공',
-      '확장 연결 시 실제 페이지 위 Live Guide 베타 실행',
+      '확장 연결 시 실제 페이지 위 라이브 가이드 베타 실행',
       '저장된 셀렉터와 좌표로 클릭 위치 안내',
       'AI 재탐색은 일부 환경에서 보조적으로 사용',
     ],
@@ -1291,7 +1291,7 @@ function ProductShowcase() {
         <RevealSection>
           <span style={{ display: 'block', textAlign: 'center', fontSize: '11px', color: '#5b21b6', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '16px' }}>Product Tour</span>
           <h2 style={{ textAlign: 'center', fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 800, letterSpacing: '-0.035em', margin: '0 auto 14px', maxWidth: '640px', lineHeight: 1.18, color: '#0D0D14' }}>실제 화면으로 보는 MIMIC</h2>
-          <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '560px', margin: '0 auto 80px', lineHeight: 1.7 }}>녹화 30초로 만들고, 받는 사람은 Live Guide로 따라만 하면 끝 — 아래 화면 그대로 작동합니다.</p>
+          <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '560px', margin: '0 auto 80px', lineHeight: 1.7 }}>녹화 30초로 만들고, 받는 사람은 라이브 가이드로 따라만 하면 끝 — 아래 화면 그대로 작동합니다.</p>
         </RevealSection>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '110px' }}>
@@ -1538,7 +1538,7 @@ export default function LandingPage() {
               {[
                 { label: '별도 작업 없음', desc: '하던 일 그대로' },
                 { label: '30초 완성', desc: 'AI가 즉시 정리' },
-                { label: 'Live Guide로 따라하기', desc: '읽을 필요 없이 실행' },
+                { label: '라이브 가이드로 따라하기', desc: '읽을 필요 없이 실행' },
               ].map((item, i) => (
                 <div key={item.label} style={{ padding: '24px 36px', borderRight: i < 2 ? '1px solid rgba(255,255,255,0.07)' : 'none', textAlign: 'center', background: i === 1 ? 'rgba(109,40,217,0.09)' : 'transparent', minWidth: '140px' }}>
                   <div style={{ fontSize: '14px', fontWeight: 700, color: 'white', marginBottom: '5px' }}>{item.label}</div>
@@ -1595,7 +1595,7 @@ export default function LandingPage() {
               {[
                 { num: '01', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.15)"/><path d="M8 12l2.5 2.5L16 9" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>, title: '크롬 확장 설치 후 녹화 시작', body: '웹 작업을 평소처럼 진행하면 클릭 위치와 화면이 자동 캡처됩니다.' },
                 { num: '02', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" fill="rgba(255,255,255,0.9)"/></svg>, title: 'AI가 설명과 어노테이션 자동 완성', body: '캡처된 화면을 분석해 단계별 설명·하이라이트·화살표를 자동 생성합니다.' },
-                { num: '03', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.12)"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="white"/></svg>, title: 'Live Guide로 — 따라만 하면 끝', body: '받는 사람은 매뉴얼을 읽지 않습니다. 자기 화면 위 안내를 따라 클릭만 하면 그대로 완료됩니다.' },
+                { num: '03', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.12)"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="white"/></svg>, title: '라이브 가이드로 — 따라만 하면 끝', body: '받는 사람은 매뉴얼을 읽지 않습니다. 자기 화면 위 안내를 따라 클릭만 하면 그대로 완료됩니다.' },
               ].map((s, i) => (
                 <div key={s.num} style={{ padding: '0 40px 0', position: 'relative', zIndex: 1, textAlign: 'center' }}>
                   <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '84px', height: '84px', borderRadius: '50%', background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)', marginBottom: '28px', boxShadow: '0 0 0 8px rgba(109,40,217,0.08), 0 12px 28px rgba(55,48,163,0.32)', position: 'relative' }}>
@@ -1649,7 +1649,7 @@ export default function LandingPage() {
           <RevealSection>
             <span style={{ display: 'block', textAlign: 'center', fontSize: '11px', color: '#7c3aed', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '16px' }}>Features</span>
             <h2 style={{ textAlign: 'center', fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 800, letterSpacing: '-0.035em', margin: '0 auto 14px', maxWidth: '640px', lineHeight: 1.18, color: 'white' }}>매뉴얼에 필요한 건 전부 들어 있습니다</h2>
-            <p style={{ textAlign: 'center', fontSize: '16px', color: 'rgba(255,255,255,0.38)', maxWidth: '540px', margin: '0 auto 64px', lineHeight: 1.7 }}>화면 위 Live Guide · 팀 워크스페이스 · 민감정보 보호까지, 녹화 한 번으로.</p>
+            <p style={{ textAlign: 'center', fontSize: '16px', color: 'rgba(255,255,255,0.38)', maxWidth: '540px', margin: '0 auto 64px', lineHeight: 1.7 }}>화면 위 라이브 가이드 · 팀 워크스페이스 · 민감정보 보호까지, 녹화 한 번으로.</p>
 
             <div className="grid-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
               {features.map(f => (
@@ -1750,7 +1750,7 @@ export default function LandingPage() {
               {
                 name: 'Pro', sub: '개인 크리에이터와 파워 유저', amount: prices.pro, per: '/ 월', featured: true,
                 planKey: 'pro' as const,
-                features: ['Basic 플랜 모든 기능', 'AI 다듬기 무제한', 'AI 상세 설명 생성', '연습 가이드 + Live Guide 베타', 'AI 음성 편집', '5GB 저장 공간'],
+                features: ['Basic 플랜 모든 기능', 'AI 다듬기 무제한', 'AI 상세 설명 생성', '연습 가이드 + 라이브 가이드 베타', 'AI 음성 편집', '5GB 저장 공간'],
                 cta: '출시 알림 받기',
               },
               {

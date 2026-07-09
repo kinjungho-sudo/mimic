@@ -34,7 +34,7 @@ const SETTINGS_DEFAULTS = {
   autoNav:     true,
   autoZoom:    false,  // 선택영역 확대 — 매뉴얼 이미지에 클릭 영역 확대 선적용
   voiceRecord: false,  // 음성 설명 녹음 — 녹화 중 마이크로 설명 → 스텝 전사
-  saveText:    false,  // 타이핑 텍스트 저장 — Live Guide Ctrl+V 자동입력용
+  saveText:    false,  // 타이핑 텍스트 저장 — 라이브 가이드 Ctrl+V 자동입력용
 };
 
 // ── chrome.storage.local 프로미스 헬퍼 ──────────────────────────
@@ -1360,7 +1360,7 @@ const guideStepDots   = document.getElementById('guideStepDots');
 let guideSteps = [];
 let guideCurrentStep = 0;
 
-// Live Guide는 녹화 UI와 완전히 분리해 단독으로 보이게 한다 —
+// 라이브 가이드는 녹화 UI와 완전히 분리해 단독으로 보이게 한다 —
 // 헤더(스텝 카운트·전체캡처·설정), '캡처된 스텝' 목록, 하단 액션 바를 모두 숨긴다.
 function setRecorderChromeHidden(hidden) {
   const disp = hidden ? 'none' : '';
@@ -1373,7 +1373,7 @@ function setRecorderChromeHidden(hidden) {
 function showGuideView() {
   viewIdle.style.display      = 'none';
   viewRecording.style.display = 'none';
-  setRecorderChromeHidden(true);   // 녹화 모드 UI 전부 숨김 → Live Guide 단독
+  setRecorderChromeHidden(true);   // 녹화 모드 UI 전부 숨김 → 라이브 가이드 단독
   viewGuide.style.display = 'flex';
 }
 
