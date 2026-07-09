@@ -23,7 +23,9 @@ export function AnnotationPreview({ annotations, imageUrl, sizeScale = 1, imgRef
 
     const update = () => {
       const r = img.getBoundingClientRect();
-      if (r.width > 0 && r.height > 0) setImgSize({ w: r.width, h: r.height });
+      const w = img.offsetWidth || img.clientWidth || r.width;
+      const h = img.offsetHeight || img.clientHeight || r.height;
+      if (w > 0 && h > 0) setImgSize({ w, h });
     };
 
     if (img.complete && img.naturalWidth > 0) {

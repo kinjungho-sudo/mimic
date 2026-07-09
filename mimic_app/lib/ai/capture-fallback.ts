@@ -119,6 +119,21 @@ function hasCountNoise(value: string | null | undefined): boolean {
   return /(\d[\d,.\s]*개|[\d,]{3,})/.test(text) && /메일|알림|읽지|받은편지함|badge|count/i.test(text);
 }
 
+function isUsefulTypedEntity(value: string | null | undefined): boolean {
+  const text = cleanText(value);
+  if (text.length < 2 || text.length > 60) return false;
+  if (/^\d+$/.test(text)) return false;
+  if (/\d{6}[-\s]?[1-4]\d{6}|0\d{1,2}[-\s]?\d{3,4}[-\s]?\d{4}/.test(text)) return false;
+  return true;
+}
+
+function courseNameFromTitle(title: string): string {
+  const text = cleanText(title);
+  if (!/(강의|과정|자격|수강|AI|전문가|\(.+\))/i.test(text)) return '';
+  const match = text.match(/^(.+?)(?:\s+(?:강의|과정|자격증))?\s+입력$/);
+  return cleanText(match?.[1]);
+}
+
 function hasMachineToken(value: string | null | undefined): boolean {
   const text = cleanText(value);
   if (!text) return false;
@@ -215,7 +230,7 @@ function scriptFor(base: string, verb: ReturnType<typeof verbForAction>): string
     return `${recipientTarget(base)} 칸에 이메일 주소를 입력합니다.`;
   }
   if (base === '메일 제목' && verb === '입력') return '메일 제목을 입력합니다.';
-  if (base === '메일 본문' && verb === '입력') return '메일 본문을 입력합니다.';
+  if (base === '메일 본문' && verb === '입력') return '메일 본문으로 내용을 입력합니다.';
   if (base === '메일 보내기' && verb === '클릭') return '보내기 버튼을 클릭합니다.';
   if (verb === '입력') return `${base}${locationParticle(base)} 내용을 입력합니다.`;
   if (verb === '선택') return `${base}${objectParticle(base)} 선택합니다.`;
@@ -317,6 +332,12 @@ export function buildCaptureFallbackDraft(
   const actionType = context.actionInfo?.type;
   const noActionFromEvent = context.noAction ?? false;
   const capturedValues = [context.actionInfo?.label, context.actionInfo?.text, context.elementText, step.ai_title];
+  const typedEntity = isUsefulTypedEntity(step.type_text) ? cleanText(step.type_text) : '';
+  const courseInputContext = typedEntity && /수강|강의|강좌|과정|자격|자격증|교육|커리큘럼|class|course|lecture/i.test(
+    `${context.actionInfo?.label ?? ''} ${context.actionInfo?.text ?? ''} ${context.elementText ?? ''} ${step.ai_title ?? ''} ${step.ai_description ?? ''}`
+  )
+    ? `${typedEntity} 과정`
+    : '';
   const capturedInputContext = (actionType === 'type' || actionType === 'focus_input')
     && capturedValues.some(value => isLongCapturedContent(value))
     ? '메일 본문'
@@ -329,11 +350,13 @@ export function buildCaptureFallbackDraft(
     noActionFromEvent
   );
   const capturedLabelContext = capturedInputContext
+    || courseInputContext
     || contextFromCapturedLabel(context.actionInfo?.label)
     || contextFromCapturedLabel(context.actionInfo?.text)
     || contextFromCapturedLabel(context.elementText)
     || contextFromCapturedLabel(step.ai_title);
   const specificBase = firstUseful([
+    courseInputContext,
     !isLowQualityCaptureTitle(step.ai_title) ? step.ai_title : null,
     capturedLabelContext,
     labelContext,
@@ -347,7 +370,9 @@ export function buildCaptureFallbackDraft(
   const base = specificBase || '화면';
   const noAction = noActionFromEvent || !specificBase;
   const verb = titleVerbFor(base, actionType, noAction);
-  const userTitle = !isLowQualityCaptureTitle(step.ai_title)
+  const userTitle = courseInputContext
+    ? `${courseInputContext} ${verb}`
+    : !isLowQualityCaptureTitle(step.ai_title)
     ? dedupeActionNoun(cleanText(step.ai_title))
     : `${base} ${verb}`;
   const userScript = !isLowQualityCaptureScript(step.ai_description)
@@ -393,6 +418,12 @@ export function buildCaptureFallbackTutorialTitle(
     if (hasCompose && hasSend) return '메일 작성 후 보내기';
     if (hasCompose) return '메일 작성하기';
     if (titles.some(title => /메일함|받은편지함/.test(title))) return '메일함 확인하기';
+  }
+
+  const courseName = titles.map(courseNameFromTitle).find(Boolean);
+  const hasCourseApply = titles.some(title => /수강\s*신청|신청/.test(title));
+  if (courseName && hasCourseApply) {
+    return `${courseName} 강의 수강 신청하기`.slice(0, 60);
   }
 
   const completionTitle = [...titles].reverse().find(title =>

@@ -1,12 +1,13 @@
 ﻿'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { BrandMark } from '@/components/common/BrandMark';
 import { AnnotationPreview } from '@/components/editor/AnnotationPreview';
 import { annotationsBox, fitFramingToBox } from '@/lib/framing';
 import { InteractiveFollowPlayer } from '@/components/viewer/InteractiveFollowPlayer';
+import { ProductSurveyModal, hasSeenProductSurvey } from '@/components/survey/ProductSurveyModal';
 import { createClient } from '@/lib/supabase/client';
 import { toFollowSteps, clickToPct } from '@/lib/follow';
 import { startLiveGuide } from '@/lib/api/liveGuide';
@@ -519,6 +520,7 @@ export default function PlayerPage() {
   const [speed, setSpeed] = useState('1.25x');
   const [isPlaying, setIsPlaying] = useState(false);
   const [ttsEnabled, setTtsEnabled] = useState(true); // 뷰어에서 음소거 여부 (기본 켜짐)
+  const [showProductSurvey, setShowProductSurvey] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
   const playTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -526,6 +528,11 @@ export default function PlayerPage() {
   // 따라하기 소프트 게이트: 비로그인은 맛보기(처음 2스텝)만 — 로그인 상태 확인
   const [authChecked, setAuthChecked] = useState(false);
   const [isAuthed, setIsAuthed] = useState(false);
+  const playerSurveyKey = tutorial ? `mimic:survey:player:${tutorial.id}` : '';
+  const openPlayerSurvey = useCallback(() => {
+    if (!playerSurveyKey || hasSeenProductSurvey(playerSurveyKey)) return;
+    setShowProductSurvey(true);
+  }, [playerSurveyKey]);
 
   useEffect(() => {
     const mode = new URLSearchParams(window.location.search).get('mode');
@@ -753,6 +760,7 @@ export default function PlayerPage() {
         <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
           <InteractiveFollowPlayer
             title={tutorial.title}
+            onComplete={openPlayerSurvey}
             lockAfterStep={/* 인증 확인 전엔 보수적으로 잠금 — 로딩 윈도우 게이트 우회 차단 */ !authChecked || !isAuthed ? 1 : null}
             steps={toFollowSteps(tutorial.steps.map(s => ({
               title: s.title,
@@ -1033,6 +1041,24 @@ export default function PlayerPage() {
       </div>
 
       </>}
+
+      {showProductSurvey && tutorial && (
+        <ProductSurveyModal
+          tutorialId={tutorial.id}
+          surface="player"
+          storageKey={playerSurveyKey}
+          title="Player feedback"
+          description="A short survey appears once after completing a practice guide."
+          questions={{
+            ease: 'Was the guide easy to follow?',
+            reuse: 'Would you use this player again?',
+            useful: 'Did the player help you complete the task?',
+            reproduce: 'Could you complete the task without extra support?',
+            commentPlaceholder: 'What should be improved in the player?',
+          }}
+          onClose={() => setShowProductSurvey(false)}
+        />
+      )}
 
     </div>
   );

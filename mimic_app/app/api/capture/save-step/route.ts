@@ -52,6 +52,8 @@ export async function POST(request: NextRequest) {
 
   // element_rect: recorder가 이미 0~1로 정규화해서 전송 — 서버에서 추가 변환 없이 그대로 저장
   const elementRectNormalized = d.element_rect ?? null;
+  const redactedTypeText = redactSensitive(d.type_text);
+  const safeTypeText = d.type_text && redactedTypeText === d.type_text ? d.type_text : null;
 
   const row = {
     screenshot_url: d.screenshot_url,
@@ -73,7 +75,7 @@ export async function POST(request: NextRequest) {
     // Recorder가 캡처 시 결정한 확대 영역(원본 0~1) — finalize에서 image_zoom 프레이밍으로 사용
     crop_box:          d.crop_box          ?? null,
     // type 액션에서 실제 입력된 텍스트 — finalize에서 mm_steps.type_text로 전파
-    type_text:         d.type_text         ?? null,
+    type_text:         safeTypeText,
   };
 
   // 같은 (session, step_number) 행이 있으면 갱신 — 타이핑 디바운스 overwrite 캡처가

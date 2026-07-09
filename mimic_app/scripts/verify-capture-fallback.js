@@ -147,6 +147,23 @@ async function main() {
     failures.push({ name: 'mail tutorial title fallback', expected: '메일 작성 후 보내기', actual: mailTutorialTitle });
   }
 
+  const courseDraft = buildCaptureFallbackDraft(
+    { id: 'course', step_number: 16, ai_title: '텍스트 입력', ai_description: null, page_url: 'https://example.com/enroll.php', domain_name: null, type_text: '인공지능(AI)전문가 1급' },
+    { actionInfo: { type: 'type', label: '찾으시는 자격증 과정을 입력하세요' } }
+  );
+  if (courseDraft.user_title !== '인공지능(AI)전문가 1급 과정 입력') {
+    failures.push({ name: 'course typed title fallback', expected: '인공지능(AI)전문가 1급 과정 입력', actual: courseDraft.user_title });
+  }
+
+  const courseTutorialTitle = buildCaptureFallbackTutorialTitle([
+    { user_title: '이름 입력' },
+    { user_title: courseDraft.user_title },
+    { user_title: '수강신청 클릭' },
+  ]);
+  if (courseTutorialTitle !== '인공지능(AI)전문가 1급 강의 수강 신청하기') {
+    failures.push({ name: 'course tutorial title fallback', expected: '인공지능(AI)전문가 1급 강의 수강 신청하기', actual: courseTutorialTitle });
+  }
+
   if (!isLowQualityCaptureTitle('edit 클릭')) {
     failures.push({ name: 'low quality title detector', expected: true, actual: false });
   }

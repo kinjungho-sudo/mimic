@@ -10,6 +10,7 @@ import { CommentsPanel } from '@/components/editor/CommentsPanel';
 import { ActivityPanel } from '@/components/editor/ActivityPanel';
 import { ExportModal } from '@/components/editor/ExportModal';
 import { ShareModal } from '@/components/editor/ShareModal';
+import { ProductSurveyModal, hasSeenProductSurvey } from '@/components/survey/ProductSurveyModal';
 import { AgentChat } from '@/components/chat/AgentChat';
 import { useTutorial } from '@/hooks/useTutorial';
 import { useAutosave } from '@/hooks/useAutosave';
@@ -97,6 +98,7 @@ export default function EditorPage() {
   const [showActivity, setShowActivity] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [showProductSurvey, setShowProductSurvey] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [downloadOpen, setDownloadOpen] = useState(false);
   const [downloadingFmt, setDownloadingFmt] = useState<'pdf' | 'pptx' | 'docx' | null>(null);
@@ -111,6 +113,10 @@ export default function EditorPage() {
   const [autoGenProgress, setAutoGenProgress] = useState<{ done: number; total: number } | null>(null);
   const [showMerge, setShowMerge] = useState(false);
   const [duplicatingStepId, setDuplicatingStepId] = useState<string | null>(null);
+  const editorSurveyKey = `mimic:survey:editor:${id}`;
+  const openEditorSurvey = useCallback(() => {
+    if (!hasSeenProductSurvey(editorSurveyKey)) setShowProductSurvey(true);
+  }, [editorSurveyKey]);
 
   // 실시간 협업 — 워크스페이스 튜토리얼에서만 활성
   const workspaceId = tutorial
@@ -224,10 +230,11 @@ export default function EditorPage() {
       a.click();
       URL.revokeObjectURL(url);
       setDownloadOpen(false);
+      openEditorSurvey();
     } finally {
       setDownloadingFmt(null);
     }
-  }, [id, title]);
+  }, [id, title, openEditorSurvey]);
 
 
   // Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y shortcuts
@@ -388,7 +395,7 @@ export default function EditorPage() {
     if (!stepId.startsWith('step-')) {
       deleteStep(stepId).catch((e) => logError('step.delete.fail', { tutorialId: id, stepId, message: e instanceof Error ? e.message : String(e) }));
     }
-  }, [manualSteps, activeId, setManualStepsWithHistory]);
+  }, [manualSteps, activeId, setManualStepsWithHistory, id]);
 
   const handleDeleteStep = useCallback((stepId: string) => setPendingDeleteId(stepId), []);
 
@@ -771,7 +778,7 @@ export default function EditorPage() {
               <button
                 onClick={async () => {
                   setPublishing(true);
-                  try { await publish(); }
+                  try { await publish(); openEditorSurvey(); }
                   catch { alert('게시에 실패했습니다. 다시 시도해주세요.'); }
                   finally { setPublishing(false); }
                 }}
@@ -1085,6 +1092,24 @@ export default function EditorPage() {
       )}
 
       {/* 스텝 삭제 확인 모달 (GuideToc 경로) */}
+      {showProductSurvey && (
+        <ProductSurveyModal
+          tutorialId={id}
+          surface="editor"
+          storageKey={editorSurveyKey}
+          title="Editor feedback"
+          description="A short survey appears once after publishing or exporting a manual."
+          questions={{
+            ease: 'Was editing this manual straightforward?',
+            reuse: 'Would you use this editor again for another manual?',
+            useful: 'Did the editor help you produce a usable manual?',
+            reproduce: 'Could you finish the manual without extra support?',
+            commentPlaceholder: 'What should be improved in the editor?',
+          }}
+          onClose={() => setShowProductSurvey(false)}
+        />
+      )}
+
       {pendingDeleteId && (() => {
         const step = manualSteps.find(s => s.id === pendingDeleteId);
         const hasGuide = hasGuideConfig(step?.followConfig);

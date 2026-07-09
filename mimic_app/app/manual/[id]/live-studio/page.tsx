@@ -5,7 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Check, ExternalLink, Loader2, MousePointerClick, RotateCcw, Save, Zap } from 'lucide-react';
 import { useTutorial } from '@/hooks/useTutorial';
 import { updateStep } from '@/lib/api/steps';
-import { startLiveGuide } from '@/lib/api/liveGuide';
+import { pickLiveGuideTarget, startLiveGuide } from '@/lib/api/liveGuide';
+import { ProductSurveyModal, hasSeenProductSurvey } from '@/components/survey/ProductSurveyModal';
 import { logError } from '@/lib/logging/logger';
 import type { Step, Tutorial } from '@/types';
 
@@ -103,9 +104,15 @@ export default function LiveStudioPage() {
   const [savedTick, setSavedTick] = useState(0);
   const [publishing, setPublishing] = useState(false);
   const [liveStarting, setLiveStarting] = useState(false);
+  const [pickingTarget, setPickingTarget] = useState(false);
+  const [showProductSurvey, setShowProductSurvey] = useState(false);
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   const isViewer = tutorial ? (tutorial as Tutorial & { my_role?: string }).my_role === 'viewer' : false;
+  const liveSurveyKey = `mimic:survey:live-studio:${id}`;
+  const openLiveSurvey = useCallback(() => {
+    if (!hasSeenProductSurvey(liveSurveyKey)) setShowProductSurvey(true);
+  }, [liveSurveyKey]);
 
   useEffect(() => {
     if (!tutorial) return;
@@ -164,7 +171,10 @@ export default function LiveStudioPage() {
     try {
       const token = await ensurePublished();
       const result = await startLiveGuide(token);
-      if (result.ok) return;
+      if (result.ok) {
+        openLiveSurvey();
+        return;
+      }
       if (result.reason === 'gated' && result.upgradeUrl && confirm(`${result.message}\n설정 화면으로 이동할까요?`)) {
         window.location.href = result.upgradeUrl;
         return;
@@ -175,7 +185,44 @@ export default function LiveStudioPage() {
     } finally {
       setLiveStarting(false);
     }
-  }, [ensurePublished, targetUrlCount]);
+  }, [ensurePublished, openLiveSurvey, targetUrlCount]);
+
+  const handlePickTarget = useCallback(async () => {
+    if (!active) return;
+    setPickingTarget(true);
+    try {
+      const result = await pickLiveGuideTarget();
+      if (!result.ok) {
+        alert(result.message);
+        return;
+      }
+
+      const updated: LiveStep = {
+        ...active,
+        pageUrl: result.page_url ?? active.pageUrl,
+        selector: result.element_selector ?? active.selector,
+        xpath: result.element_xpath ?? active.xpath,
+        rect: result.element_rect
+          ? {
+              x: pctToUnit(result.element_rect.x),
+              y: pctToUnit(result.element_rect.y),
+              width: pctToUnit(result.element_rect.width),
+              height: pctToUnit(result.element_rect.height),
+            }
+          : active.rect,
+        clickX: pctToUnit(result.click_x) || active.clickX,
+        clickY: pctToUnit(result.click_y) || active.clickY,
+      };
+
+      setSteps(prev => prev.map(step => (step.id === updated.id ? updated : step)));
+      await saveStep(updated);
+      openLiveSurvey();
+    } catch {
+      alert('Failed to pick the live-guide target. Check the Recorder extension and try again.');
+    } finally {
+      setPickingTarget(false);
+    }
+  }, [active, openLiveSurvey, saveStep]);
 
   if (loading) {
     return <Shell><Loader2 size={18} className="spin" /> 불러오는 중<Styles /></Shell>;
@@ -264,6 +311,9 @@ export default function LiveStudioPage() {
                 <label style={label}>XPath</label>
                 <textarea value={active.xpath} onChange={e => patchStep(active.id, { xpath: e.target.value })} placeholder='//button[normalize-space(.)="Send"]' rows={2} style={textarea} />
                 <p style={hint}>selector가 가장 먼저 사용되고, 실패하면 XPath와 시각적 fallback으로 내려갑니다.</p>
+                <button onClick={handlePickTarget} disabled={pickingTarget} style={{ ...primaryBtn, marginTop: 12 }}>
+                  {pickingTarget ? <Loader2 size={ICON} className="spin" /> : <MousePointerClick size={ICON} />} Pick from current tab
+                </button>
               </section>
 
               <section style={panel}>
@@ -299,6 +349,23 @@ export default function LiveStudioPage() {
           )}
         </main>
       </div>
+      {showProductSurvey && (
+        <ProductSurveyModal
+          tutorialId={id}
+          surface="live-studio"
+          storageKey={liveSurveyKey}
+          title="Live studio feedback"
+          description="A short survey appears once after running or rebinding a live guide."
+          questions={{
+            ease: 'Was it easy to prepare the live guide?',
+            reuse: 'Would you use this live studio again?',
+            useful: 'Did target picking help fix the guide?',
+            reproduce: 'Could you run the live guide without extra support?',
+            commentPlaceholder: 'What should be improved in the live studio?',
+          }}
+          onClose={() => setShowProductSurvey(false)}
+        />
+      )}
       <Styles />
     </div>
   );

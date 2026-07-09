@@ -61,7 +61,7 @@ export default function MyPage() {
         .then(list => setTotalManuals(Array.isArray(list) ? list.length : 0))
         .catch(() => setTotalManuals(0));
     }
-  }, [loading]);
+  }, [loading, user, updateUser]);
 
   const isPro = user?.plan === 'pro' || user?.plan === 'team';
 

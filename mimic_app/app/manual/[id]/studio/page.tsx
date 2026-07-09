@@ -8,6 +8,7 @@ import { updateStep, reorderSteps } from '@/lib/api/steps';
 import { clickToPct, inferKind, toFollowSteps } from '@/lib/follow';
 import { InteractiveFollowPlayer } from '@/components/viewer/InteractiveFollowPlayer';
 import { FollowStage } from '@/components/viewer/FollowStage';
+import { ProductSurveyModal, hasSeenProductSurvey } from '@/components/survey/ProductSurveyModal';
 import { logError } from '@/lib/logging/logger';
 import type { Step, Tutorial, FollowConfig } from '@/types';
 
@@ -90,6 +91,7 @@ export default function StudioPage() {
   const [savedTick, setSavedTick] = useState(0);
   const [showPreview, setShowPreview] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [showProductSurvey, setShowProductSurvey] = useState(false);
   const imgWrapRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
   const contentTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -100,6 +102,10 @@ export default function StudioPage() {
   stepsRef.current = steps;
 
   const isViewer = tutorial ? (tutorial as Tutorial & { my_role?: string }).my_role === 'viewer' : false;
+  const practiceSurveyKey = `mimic:survey:practice-studio:${id}`;
+  const openPracticeSurvey = useCallback(() => {
+    if (!hasSeenProductSurvey(practiceSurveyKey)) setShowProductSurvey(true);
+  }, [practiceSurveyKey]);
 
   useEffect(() => {
     if (!tutorial) return;
@@ -240,12 +246,13 @@ export default function StudioPage() {
     try {
       const token = await ensurePublished();
       window.open(`/play/${token}?mode=practice`, '_blank', 'noopener,noreferrer');
+      openPracticeSurvey();
     } catch {
       alert('연습 가이드를 열지 못했습니다. 다시 시도해주세요.');
     } finally {
       setPublishing(false);
     }
-  }, [ensurePublished]);
+  }, [ensurePublished, openPracticeSurvey]);
 
   if (loading) {
     return <div style={pageBg}><div style={{ color: 'rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', gap: 10 }}><Loader2 size={18} className="spin" /> 불러오는 중…</div><Styles /></div>;
@@ -507,6 +514,24 @@ export default function StudioPage() {
         <div style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(5,5,10,0.9)', backdropFilter: 'blur(4px)' }}>
           <InteractiveFollowPlayer title={tutorial.title} steps={previewSteps} onClose={() => setShowPreview(false)} closeLabel="편집으로" />
         </div>
+      )}
+
+      {showProductSurvey && (
+        <ProductSurveyModal
+          tutorialId={id}
+          surface="practice-studio"
+          storageKey={practiceSurveyKey}
+          title="Practice studio feedback"
+          description="A short survey appears once after running a practice guide."
+          questions={{
+            ease: 'Was it easy to tune the practice guide?',
+            reuse: 'Would you use this studio again?',
+            useful: 'Did this help make the guide easier to follow?',
+            reproduce: 'Could you prepare the practice guide without extra support?',
+            commentPlaceholder: 'What should be improved in the practice studio?',
+          }}
+          onClose={() => setShowProductSurvey(false)}
+        />
       )}
 
       <Styles />

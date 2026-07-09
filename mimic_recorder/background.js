@@ -559,6 +559,46 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
     return true;
   }
 
+  if (message.action === 'PICK_LIVE_TARGET') {
+    (async () => {
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (!tab?.id) {
+          sendResponse({ ok: false, reason: 'tab_not_found', error: 'No active tab found.' });
+          return;
+        }
+
+        const urlCheck = classifyRecordableUrl(tab.url || '');
+        if (!urlCheck.ok) {
+          sendResponse(urlCheck);
+          return;
+        }
+
+        const injection = await ensureContentScript(tab.id);
+        if (!injection?.ok) {
+          sendResponse({
+            ok: false,
+            reason: 'content_script_failed',
+            error: injection?.error || 'Failed to inject content script.',
+          });
+          return;
+        }
+
+        chrome.tabs.sendMessage(tab.id, { type: 'LIVE_TARGET_PICK' }, (response) => {
+          const error = chrome.runtime.lastError?.message;
+          if (error) {
+            sendResponse({ ok: false, reason: 'content_script_unreachable', error });
+            return;
+          }
+          sendResponse(response || { ok: false, reason: 'empty_response', error: 'No response from content script.' });
+        });
+      } catch (error) {
+        sendResponse({ ok: false, reason: 'error', error: error?.message || String(error) });
+      }
+    })();
+    return true;
+  }
+
   if (message.action === 'START_RECORDING') {
     const tabId = message.tabId;
     if (!tabId) {
@@ -746,7 +786,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         const data  = await res.json();
         // 라이브 가이드 유료 게이팅 — 소유자 무료 한도(5회) 소진 시
         if (data.gated) {
-          log('info', 'bg', `live guide gated (free limit ${data.limit})`);
+          log('info', 'bg', `라이브 가이드 gated (free limit ${data.limit})`);
           sendResponse({ ok: false, gated: true, limit: data.limit, upgradeUrl: data.upgradeUrl });
           return;
         }
@@ -2133,7 +2173,7 @@ async function saveStepLocally(stepData) {
     imageUrl:    stepData.imageUrl     ?? null,
     actionLabel: stepData.actionLabel  ?? null,
     actionInfo:  stepData.actionInfo   ?? null,
-    typedText:   stepData.typedText    || null,  // 입력 원문(매뉴얼 생성 참고·Live Guide 자동입력). 마스킹/빈값은 null
+    typedText:   stepData.typedText    || null,  // 입력 원문(매뉴얼 생성 참고·라이브 가이드 자동입력). 마스킹/빈값은 null
     domainInfo:  stepData.domainInfo   ?? null,
     elementRect: stepData.elementRect  ?? null,
     clickX:      stepData.clickX       ?? 0,

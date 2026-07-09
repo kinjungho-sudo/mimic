@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceRoleClient, createServerClient } from '@/lib/supabase/server';
+import { redactSensitive } from '@/lib/redact';
 
 type Params = { params: Promise<{ token: string }> };
 
@@ -105,6 +106,11 @@ async function fetchSteps(supabase: ReturnType<typeof createServiceRoleClient>, 
     .order('order_index')
     .order('step_number'); // tie-break: order_index 동률/NULL(복제·레거시 데이터)일 때 순서 결정성 보장
 
+  const safeTypeText = (value: unknown) => {
+    if (typeof value !== 'string' || !value.trim()) return null;
+    return redactSensitive(value) === value ? value : null;
+  };
+
   const steps = ((rawSteps ?? []) as unknown as Record<string, unknown>[]).map(s => {
     const fc = (s.follow_config ?? {}) as {
       kind?: string | null; typeText?: string | null; hidden?: boolean;
@@ -124,7 +130,7 @@ async function fetchSteps(supabase: ReturnType<typeof createServiceRoleClient>, 
       screenshot_url: s.screenshot_url ?? null,
       // 라이브 가이드 자동입력용 — 스튜디오 오버라이드(fc.typeText) 우선, 없으면 캡처 원문(s.type_text) 폴백
       kind: fc.kind ?? null,
-      type_text: fc.typeText ?? (s.type_text as string | null) ?? null,
+      type_text: safeTypeText(fc.typeText) ?? safeTypeText(s.type_text),
       hidden: !!fc.hidden,
       // 소유자가 스튜디오에서 직접 보정한 핫스팟(0~100%)·말풍선 위치 — 라이브 가이드가 우선 적용
       hotspot_x: fc.hotspotX ?? null,

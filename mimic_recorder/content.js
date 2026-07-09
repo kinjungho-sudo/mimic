@@ -64,8 +64,14 @@
   let _isComposing       = false;   // 한/일/중 IME 조합 중 여부 — 조합 중간값 캡처 방지
 
   // 비밀번호 등 민감 입력의 '타이핑 텍스트 저장'을 막는 마스킹용 (블러와 무관)
-  const SENSITIVE_INPUT_TYPES = new Set(['password']);
-  const SENSITIVE_LABEL_RE    = /비밀번호|패스워드|password/i;
+  const SENSITIVE_INPUT_TYPES = new Set(['password', 'tel']);
+  const SENSITIVE_LABEL_RE    = /비밀번호|패스워드|암호|password|전화|휴대폰|핸드폰|연락처|주민|주민등록|주민등록번호|rrn|ssn|card|카드|계좌|account|인증번호|인증코드|otp|pin/i;
+  const SENSITIVE_VALUE_RE    = /(?:\d{6}[-\s]?[1-4]\d{6})|(?:0\d{1,2}[-\s]?\d{3,4}[-\s]?\d{4})/;
+
+  function isSensitiveTyping(el, label, value = '') {
+    const type = (el?.type || '').toLowerCase();
+    return SENSITIVE_INPUT_TYPES.has(type) || SENSITIVE_LABEL_RE.test(label || '') || SENSITIVE_VALUE_RE.test(value || '');
+  }
 
   // ── 초기화 ───────────────────────────────────────────────────────
   chrome.storage.local.get(['settings', 'isPaused'], (r) => {
@@ -168,8 +174,9 @@
   // ── 타이핑 진행 알림 ─────────────────────────────────────────────
   function notifyTypingProgress(el) {
     const label    = getFieldLabel(el);
-    const isMasked = SENSITIVE_INPUT_TYPES.has((el.type || '').toLowerCase()) || SENSITIVE_LABEL_RE.test(label);
-    const value    = isMasked ? '' : (el.isContentEditable ? (el.textContent || '') : (el.value || ''));
+    const rawValue = el.isContentEditable ? (el.textContent || '') : (el.value || '');
+    const isMasked = isSensitiveTyping(el, label, rawValue);
+    const value    = isMasked ? '' : rawValue;
     chrome.runtime.sendMessage({ type: 'TYPING_PROGRESS', text: value, label, masked: isMasked }, () => { void chrome.runtime.lastError; });
   }
 
@@ -208,8 +215,9 @@
     const label = getFieldLabel(el);
     // 입력 원문 보관 — 비밀번호 등 민감 필드는 저장하지 않는다(라벨도 '비밀번호 입력').
     // 짧으면 스텝 라벨에 '입력, "내용"'으로, 길면 본문(typedText)에 전문 보관해 매뉴얼 생성 참고자료로 쓴다.
-    const isMasked  = SENSITIVE_INPUT_TYPES.has((el.type || '').toLowerCase()) || SENSITIVE_LABEL_RE.test(label);
-    const typedText = isMasked ? '' : (el.isContentEditable ? (el.textContent || '') : (el.value || ''));
+    const rawTypedText = el.isContentEditable ? (el.textContent || '') : (el.value || '');
+    const isMasked  = isSensitiveTyping(el, label, rawTypedText);
+    const typedText = isMasked ? '' : rawTypedText;
     const safetyTimer = startCapturingSafely();
     const done = () => { clearTimeout(safetyTimer); isCapturing = false; };
 
@@ -554,9 +562,14 @@
     }
 
     if (msg.type === 'SHOW_GUIDE_COUNTDOWN') {
-      showCountdown(() => {}, { label: 'Live Guide 시작됩니다', accentColor: '#a78bfa', startText: 'GO' });
+      showCountdown(() => {}, { label: '라이브 가이드 시작됩니다', accentColor: '#a78bfa', startText: 'GO' });
       sendResponse({ ok: true });
       return false;
+    }
+
+    if (msg.type === 'LIVE_TARGET_PICK') {
+      startLiveTargetPick(sendResponse);
+      return true;
     }
 
     if (msg.type === 'SHOW_OVERLAY' && msg.step) {
@@ -575,6 +588,78 @@
   });
 
   // ── 인터랙티브 타겟 탐색 ────────────────────────────────────────
+  function startLiveTargetPick(sendResponse) {
+    let finished = false;
+    let timeoutId = null;
+    const banner = document.createElement('div');
+    banner.textContent = 'MIMIC: click the live-guide target';
+    Object.assign(banner.style, {
+      position: 'fixed',
+      top: '16px',
+      left: '50%',
+      transform: 'translateX(-50%)',
+      zIndex: '2147483647',
+      padding: '10px 14px',
+      borderRadius: '10px',
+      background: 'rgba(17,24,39,0.94)',
+      color: '#fff',
+      fontSize: '13px',
+      fontWeight: '700',
+      boxShadow: '0 14px 36px rgba(0,0,0,0.28)',
+      pointerEvents: 'none',
+    });
+    document.documentElement.appendChild(banner);
+
+    const cleanup = () => {
+      document.removeEventListener('pointerdown', onPointerDown, true);
+      if (timeoutId) clearTimeout(timeoutId);
+      banner.remove();
+    };
+
+    const finish = (payload) => {
+      if (finished) return;
+      finished = true;
+      cleanup();
+      sendResponse(payload);
+    };
+
+    function onPointerDown(event) {
+      const raw = event.target && event.target.nodeType === Node.ELEMENT_NODE
+        ? event.target
+        : event.target?.parentElement;
+      if (!raw || raw === banner || banner.contains(raw)) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+
+      const target = refineActionTarget(raw, findInteractiveTarget(raw) || raw);
+      const rect = target.getBoundingClientRect();
+      const vw = Math.max(1, window.innerWidth);
+      const vh = Math.max(1, window.innerHeight);
+      const clamp = (value) => Math.max(0, Math.min(1, value));
+
+      finish({
+        ok: true,
+        page_url: window.location.href,
+        element_selector: getElementSelector(target) || null,
+        element_xpath: getElementXPath(target) || null,
+        element_rect: {
+          x: clamp(rect.left / vw),
+          y: clamp(rect.top / vh),
+          width: clamp(rect.width / vw),
+          height: clamp(rect.height / vh),
+        },
+        click_x: clamp(event.clientX / vw),
+        click_y: clamp(event.clientY / vh),
+        label: getElementLabel(target, raw) || null,
+      });
+    }
+
+    document.addEventListener('pointerdown', onPointerDown, true);
+    timeoutId = setTimeout(() => finish({ ok: false, reason: 'timeout', error: 'target_pick_timeout' }), 30000);
+  }
+
   function findInteractiveTarget(el) {
     if (!el || el === document.documentElement) return null;
     if (document.designMode === 'on') return document.body;

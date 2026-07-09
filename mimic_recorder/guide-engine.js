@@ -13,6 +13,7 @@
   const TIP_GAP = 24; // 타깃과 툴팁 사이 간격(px)
   const TIP_M = 8;    // 뷰포트 여백(px)
   const TIP_BG = 'rgba(22,20,48,.96)'; // 툴팁/화살표/대기카드 공통 배경 — 짙은 남색·보라(흰 배경 가독성)
+  const SENSITIVE_TYPE_TEXT_RE = /(?:\d{6}[-\s]?[1-4]\d{6})|(?:0\d{1,2}[-\s]?\d{3,4}[-\s]?\d{4})/;
 
   let state = null;
   const regroundCache = new Map();  // AI 시각 재탐색 결과 캐시(key→{x,y} 성공 / null 실패). 재방문 시 재사용
@@ -297,8 +298,11 @@
 
     // 플로팅 툴팁 카드
     const idx = opts.index ?? 0, total = opts.total ?? 1;
-    const typeTextSnippet = step.type_text
-      ? escapeHtml(String(step.type_text).length > 60 ? String(step.type_text).slice(0, 60) + '…' : String(step.type_text))
+    const safeTypeText = step.type_text && !SENSITIVE_TYPE_TEXT_RE.test(String(step.type_text))
+      ? String(step.type_text)
+      : '';
+    const typeTextSnippet = safeTypeText
+      ? escapeHtml(safeTypeText.length > 60 ? safeTypeText.slice(0, 60) + '…' : safeTypeText)
       : '';
     const tooltipText = step.instruction || step.title || '';
 
@@ -318,7 +322,7 @@
           ${tooltipText ? `<div style="font-size:12.5px;color:#D1D5DB;line-height:1.55;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${escapeHtml(tooltipText)}</div>` : ''}
         </div>
       </div>
-      ${step.type_text ? `
+      ${safeTypeText ? `
         <div style="margin-bottom:10px;background:rgba(99,102,241,.18);border:1px solid rgba(99,102,241,.3);border-radius:8px;padding:8px 10px">
           <div style="display:flex;align-items:center;gap:6px">
             <span style="font-size:11px;color:#A5B4FC;flex-shrink:0">⌨ 입력 텍스트</span>
@@ -376,7 +380,7 @@
     } catch { /* noop */ }
 
     // 자동입력
-    if (step.type_text && resolved.el) autoFill(resolved.el, String(step.type_text));
+    if (safeTypeText && resolved.el) autoFill(resolved.el, safeTypeText);
 
     // 툴팁 버튼 이벤트
     tooltip.addEventListener('click', (e) => {
@@ -391,7 +395,7 @@
         try { chrome.storage.local.set({ guideHideTooltip: true }); } catch { /* noop */ }
       }
       else if (act === 'copy') {
-        const text = state && state.step && state.step.type_text;
+        const text = state && state.step && !SENSITIVE_TYPE_TEXT_RE.test(String(state.step.type_text || '')) && state.step.type_text;
         if (text) {
           navigator.clipboard.writeText(String(text))
             .then(() => {
@@ -548,7 +552,7 @@
     state.tooltip.innerHTML = `
       <div style="text-align:center;padding:10px 4px">
         <div style="${AVATAR_STYLE}margin:0 auto 12px;">${MASCOT_SVG}</div>
-        <div style="font-size:15px;font-weight:700;margin-bottom:6px">Live Guide 완료! 🎉</div>
+        <div style="font-size:15px;font-weight:700;margin-bottom:6px">라이브 가이드 완료! 🎉</div>
         <div style="font-size:12.5px;color:#9CA3AF;margin-bottom:14px">모든 스텝을 완료했습니다.</div>
         <button class="mimic-btn" data-act="exit" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:9px 24px;width:100%">닫기</button>
       </div>`;
