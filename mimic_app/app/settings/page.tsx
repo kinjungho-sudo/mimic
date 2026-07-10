@@ -3,7 +3,12 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
-import { BRAND_COPY, BRAND_NAME } from '@/lib/brand';
+import { BrandMark } from '@/components/common/BrandMark';
+import { BRAND_COLORS, BRAND_COPY, BRAND_NAME } from '@/lib/brand';
+
+const BRAND_GRADIENT = `linear-gradient(135deg, ${BRAND_COLORS.primary}, ${BRAND_COLORS.guide})`;
+const BRAND_RING = 'rgba(0,155,142,0.25)';
+const BRAND_RING_SOFT = 'rgba(0,155,142,0.15)';
 
 const NAV_ITEMS = [
   { href: '/home', label: '홈', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> },
@@ -19,7 +24,7 @@ function ToggleRow({ label, description, value, onChange }: { label: string; des
       </div>
       <button
         onClick={() => onChange(!value)}
-        style={{ width: '40px', height: '22px', borderRadius: '11px', background: value ? '#3730a3' : '#E5E7EB', border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}
+        style={{ width: '40px', height: '22px', borderRadius: '11px', background: value ? BRAND_COLORS.primary : '#E5E7EB', border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}
       >
         <span style={{ position: 'absolute', top: '3px', left: value ? '21px' : '3px', width: '16px', height: '16px', borderRadius: '50%', background: 'white', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.15)' }} />
       </button>
@@ -63,7 +68,7 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: '#FAFAFA' }}>
-        <div style={{ width: '32px', height: '32px', borderRadius: '50%', border: '3px solid rgba(55,48,163,0.15)', borderTopColor: '#3730a3', animation: 'spin 0.8s linear infinite' }} />
+        <div style={{ width: '32px', height: '32px', borderRadius: '50%', border: `3px solid ${BRAND_RING_SOFT}`, borderTopColor: BRAND_COLORS.primary, animation: 'spin 0.8s linear infinite' }} />
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
@@ -76,14 +81,14 @@ export default function SettingsPage() {
       <aside className="settings-sidebar" style={{ width: '220px', flexShrink: 0, background: 'white', borderRight: '1px solid #F3F4F6', padding: '0 12px', display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: '100vh' }}>
         <div style={{ padding: '20px 8px 16px', borderBottom: '1px solid #F3F4F6', marginBottom: '8px' }}>
           <Link href="/home" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="32" height="32" style={{ flexShrink: 0 }}><circle cx="50" cy="50" r="50" fill="#3730a3"/><text x="50" y="68" textAnchor="middle" fontFamily="Georgia, serif" fontSize="62" fontWeight="700" fill="white">M</text></svg>
+            <BrandMark />
             <span style={{ fontSize: '16px', fontWeight: 800, color: '#111827', letterSpacing: '-0.03em' }}>{BRAND_NAME}</span>
           </Link>
         </div>
         <nav style={{ flex: 1 }}>
           {NAV_ITEMS.map(item => (
-            <Link key={item.href} href={item.href} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 10px', borderRadius: '8px', fontSize: '13.5px', fontWeight: item.active ? 500 : 400, color: item.active ? '#3730a3' : '#4B5563', background: item.active ? '#e0e7ff' : 'transparent', textDecoration: 'none', marginBottom: '2px' }}>
-              <span style={{ color: item.active ? '#3730a3' : '#9CA3AF' }}>{item.icon}</span>
+            <Link key={item.href} href={item.href} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 10px', borderRadius: '8px', fontSize: '13.5px', fontWeight: item.active ? 500 : 400, color: item.active ? BRAND_COLORS.primary : '#4B5563', background: item.active ? BRAND_COLORS.guideSoft : 'transparent', textDecoration: 'none', marginBottom: '2px' }}>
+              <span style={{ color: item.active ? BRAND_COLORS.primary : '#9CA3AF' }}>{item.icon}</span>
               {item.label}
             </Link>
           ))}
@@ -96,12 +101,12 @@ export default function SettingsPage() {
         {/* 모바일 전용 헤더 */}
         <div className="settings-mobile-header" style={{ display: 'none', alignItems: 'center', gap: '10px', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #F3F4F6' }}>
           <Link href="/home" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="28" height="28"><circle cx="50" cy="50" r="50" fill="#3730a3"/><text x="50" y="68" textAnchor="middle" fontFamily="Georgia, serif" fontSize="62" fontWeight="700" fill="white">M</text></svg>
+            <BrandMark size={28} />
             <span style={{ fontSize: '15px', fontWeight: 800, color: '#111827', letterSpacing: '-0.03em' }}>{BRAND_NAME}</span>
           </Link>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: '4px' }}>
             {NAV_ITEMS.map(item => (
-              <Link key={item.href} href={item.href} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 10px', borderRadius: '7px', fontSize: '12px', color: item.active ? '#3730a3' : '#6B7280', background: item.active ? '#e0e7ff' : 'transparent', fontWeight: item.active ? 600 : 400, textDecoration: 'none' }}>
+              <Link key={item.href} href={item.href} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 10px', borderRadius: '7px', fontSize: '12px', color: item.active ? BRAND_COLORS.primary : '#6B7280', background: item.active ? BRAND_COLORS.guideSoft : 'transparent', fontWeight: item.active ? 600 : 400, textDecoration: 'none' }}>
                 {item.label}
               </Link>
             ))}
@@ -128,7 +133,7 @@ export default function SettingsPage() {
               <div style={{ fontSize: '13.5px', fontWeight: 500, color: '#111827' }}>{BRAND_COPY.extensionDisplayName}</div>
               <div style={{ fontSize: '12px', color: '#9CA3AF', marginTop: '2px' }}>재설치하거나 연결이 끊겼을 때 다시 연결합니다 (30일 자동 유지)</div>
             </div>
-            <Link href="/extension-link" style={{ padding: '7px 14px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 500, background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', textDecoration: 'none', boxShadow: '0 2px 8px rgba(55,48,163,0.25)' }}>
+            <Link href="/extension-link" style={{ padding: '7px 14px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 500, background: BRAND_GRADIENT, color: 'white', textDecoration: 'none', boxShadow: `0 2px 8px ${BRAND_RING}` }}>
               연결하기
             </Link>
           </div>

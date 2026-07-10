@@ -4,7 +4,9 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { AnnotationPreview } from '@/components/editor/AnnotationPreview';
 import type { Annotation } from '@/components/editor/ImageAnnotationEditor';
-import { BRAND_NAME } from '@/lib/brand';
+import { BRAND_COLORS, BRAND_NAME } from '@/lib/brand';
+
+const BRAND_RING_SOFT = 'rgba(0,155,142,0.15)';
 
 interface EmbedStep {
   id: string;
@@ -56,7 +58,7 @@ export default function EmbedPage() {
   if (state === 'loading') {
     return (
       <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: '#F8F9FA' }}>
-        <div style={{ width: '26px', height: '26px', borderRadius: '50%', border: '3px solid rgba(55,48,163,0.15)', borderTopColor: '#3730a3', animation: 'embspin 0.8s linear infinite' }} />
+        <div style={{ width: '26px', height: '26px', borderRadius: '50%', border: `3px solid ${BRAND_RING_SOFT}`, borderTopColor: BRAND_COLORS.primary, animation: 'embspin 0.8s linear infinite' }} />
         <style>{`@keyframes embspin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
@@ -71,7 +73,7 @@ export default function EmbedPage() {
             : '매뉴얼을 찾을 수 없습니다.'}
           <br />
           <a href={`/play/${token}`} target="_blank" rel="noopener noreferrer"
-            style={{ display: 'inline-block', marginTop: '12px', color: '#3730a3', fontWeight: 600, textDecoration: 'none', fontSize: '13px' }}>
+            style={{ display: 'inline-block', marginTop: '12px', color: BRAND_COLORS.primary, fontWeight: 600, textDecoration: 'none', fontSize: '13px' }}>
             전체 화면에서 열기 →
           </a>
         </div>
@@ -93,7 +95,7 @@ export default function EmbedPage() {
           return (
             <div key={step.id} style={{ marginBottom: isMobile ? '16px' : '28px', background: 'white', borderRadius: isMobile ? '10px' : '14px', border: '1px solid #E5E7EB', overflow: 'hidden', boxShadow: '0 1px 6px rgba(17,24,39,0.06)' }}>
               <div style={{ padding: isMobile ? '13px 15px 11px' : '16px 22px 14px', display: 'flex', alignItems: 'flex-start', gap: '10px', borderBottom: step.screenshot_url ? '1px solid #F3F4F6' : 'none' }}>
-                <div style={{ width: '27px', height: '27px', borderRadius: '7px', background: '#3730a3', color: 'white', fontSize: '12px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                <div style={{ width: '27px', height: '27px', borderRadius: '7px', background: BRAND_COLORS.primary, color: 'white', fontSize: '12px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                   {String(idx + 1).padStart(2, '0')}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -117,7 +119,7 @@ export default function EmbedPage() {
                 <div style={{ padding: isMobile ? '12px 15px' : '14px 22px', borderTop: '1px solid #F3F4F6', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {annotations.map((ann, i) => (
                     <div key={ann.id} style={{ display: 'flex', gap: '10px' }}>
-                      <span style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#e0e7ff', color: '#3730a3', fontSize: '11px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0 }}>{i + 1}</span>
+                      <span style={{ width: '20px', height: '20px', borderRadius: '50%', background: BRAND_COLORS.guideSoft, color: BRAND_COLORS.primary, fontSize: '11px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0 }}>{i + 1}</span>
                       <div>
                         <div style={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}>{ann.title}</div>
                         {ann.body && <p style={{ fontSize: '12.5px', color: '#6B7280', margin: '2px 0 0', lineHeight: 1.5 }}>{ann.body}</p>}

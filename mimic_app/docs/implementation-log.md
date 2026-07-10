@@ -147,3 +147,9 @@
 - Updated the home dashboard shell, sidebar, folder panel, workspace selectors, search, notices, CTA buttons, and action modal samples from the old indigo/purple palette to Parro brand color tokens.
 - Replaced inline home dashboard `P` glyph SVG marks with the shared temporary Parro `BrandMark`.
 - Preserved stored folder colors, workspace/manual data, routes, drag/drop data type, capture flows, and account behavior.
+
+## 2026-07-10 - Parro settings trash embed color pass
+
+- Updated settings, trash, and embed viewer public UI accents from the old indigo/purple palette to Parro brand color tokens.
+- Replaced settings inline `M` glyph marks with the shared temporary Parro `BrandMark`.
+- Preserved settings agreement behavior, trash restore/delete routes, embed token route, and viewer data flow.
