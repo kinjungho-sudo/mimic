@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { Step } from '@/types';
 import { CLAUDE_MODEL } from '@/lib/ai/model';
+import { BRAND_COLORS } from '@/lib/brand';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -668,7 +669,7 @@ JSON만 응답 (마크다운 없이):
       return { color1: parsed.color1, color2: parsed.color2 };
     }
   } catch { /* fallback */ }
-  return { color1: '#3730a3', color2: '#6d28d9' };
+  return { color1: BRAND_COLORS.primary, color2: BRAND_COLORS.guide };
 }
 
 export async function rewriteSentence(

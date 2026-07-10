@@ -173,3 +173,8 @@
 
 - Updated workspace invite, legal header marks, survey modal controls, and guidebook embedded guide cards from the old indigo/purple palette to Parro brand color tokens.
 - Preserved workspace invite API flow, legal document content, survey submission payloads, and guidebook block schema behavior.
+
+## 2026-07-11 - Parro default color pass
+
+- Updated global CSS brand variables, marker pulse color, generated OG image accents, folder default color, user branding default color, PPTX export fallback color, and AI cover-color fallback from the old indigo/purple palette to Parro brand colors.
+- Preserved DB schemas, stored existing user colors, API route names, and branding payload shapes.
