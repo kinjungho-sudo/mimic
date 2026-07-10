@@ -141,3 +141,9 @@
 - Updated the user-facing mypage shell, profile avatar fallback, active navigation, and Pro upgrade card from the old indigo/purple palette to Parro brand color tokens.
 - Replaced inline `M` glyph marks on the mypage desktop/mobile headers with the shared temporary Parro `BrandMark`.
 - Preserved auth/account behavior, plan labels, routes, and profile upload/delete flows.
+
+## 2026-07-10 - Parro home dashboard color pass
+
+- Updated the home dashboard shell, sidebar, folder panel, workspace selectors, search, notices, CTA buttons, and action modal samples from the old indigo/purple palette to Parro brand color tokens.
+- Replaced inline home dashboard `P` glyph SVG marks with the shared temporary Parro `BrandMark`.
+- Preserved stored folder colors, workspace/manual data, routes, drag/drop data type, capture flows, and account behavior.
