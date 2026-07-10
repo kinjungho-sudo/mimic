@@ -343,14 +343,14 @@
   // 마스코트 SVG HTML
   const MASCOT_SVG = `<svg width="27" height="27" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <rect x="4" y="7" width="16" height="12" rx="4" fill="white"/>
-    <circle cx="9.5" cy="13" r="1.7" fill="#4f46e5"/>
-    <circle cx="14.5" cy="13" r="1.7" fill="#4f46e5"/>
-    <path d="M9.5 16.2c1.6 1 3.4 1 5 0" stroke="#4f46e5" stroke-width="1.2" stroke-linecap="round"/>
+    <circle cx="9.5" cy="13" r="1.7" fill="#009B8E"/>
+    <circle cx="14.5" cy="13" r="1.7" fill="#009B8E"/>
+    <path d="M9.5 16.2c1.6 1 3.4 1 5 0" stroke="#009B8E" stroke-width="1.2" stroke-linecap="round"/>
     <line x1="12" y1="3.5" x2="12" y2="7" stroke="white" stroke-width="1.6" stroke-linecap="round"/>
     <circle cx="12" cy="3" r="1.3" fill="white"/>
   </svg>`;
 
-  const AVATAR_STYLE = `width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#4f46e5,#7c3aed);box-shadow:0 4px 16px rgba(79,70,229,.5);display:flex;align-items:center;justify-content:center;flex-shrink:0;`;
+  const AVATAR_STYLE = `width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#009B8E,#12B886);box-shadow:0 4px 16px rgba(0,155,142,.42);display:flex;align-items:center;justify-content:center;flex-shrink:0;`;
 
   // ── 오버레이 렌더 ─────────────────────────────────────────────
   // 단계의 page_url과 현재 페이지(origin+pathname)가 같은지 — 다르면 핫스팟을 찍지 않는다.
@@ -419,7 +419,7 @@
 
     shadow.appendChild(style(`
       @keyframes mimic-ripple { 0%{transform:scale(1);opacity:.9} 100%{transform:scale(3.5);opacity:0} }
-      @keyframes mimic-glow   { 0%,100%{box-shadow:0 0 0 3px rgba(99,102,241,.22),0 0 14px 4px rgba(99,102,241,.40)} 50%{box-shadow:0 0 0 5px rgba(99,102,241,.32),0 0 26px 8px rgba(99,102,241,.62)} }
+      @keyframes mimic-glow   { 0%,100%{box-shadow:0 0 0 3px rgba(0,155,142,.22),0 0 14px 4px rgba(0,155,142,.36)} 50%{box-shadow:0 0 0 5px rgba(18,184,134,.32),0 0 26px 8px rgba(18,184,134,.52)} }
       @keyframes mimic-nudge  { 0%,100%{transform:none} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
       @keyframes mimic-avatar-in { 0%{transform:scale(0.5) translateY(8px);opacity:0} 65%{transform:scale(1.08)} 100%{transform:scale(1) translateY(0);opacity:1} }
       @keyframes mimic-tip-in { 0%{opacity:0;transform:translateY(6px) scale(0.97)} 100%{opacity:1;transform:translateY(0) scale(1)} }
@@ -429,16 +429,16 @@
 
     // 타깃 하이라이트 (네온 글로우 펄스 — 어둠막 없이 위치만 강조, Tango식)
     const hl = document.createElement('div');
-    hl.style.cssText = `position:fixed;pointer-events:none;box-sizing:border-box;border:2px solid rgba(99,102,241,0.95);background:rgba(99,102,241,.05);border-radius:8px;box-shadow:0 0 0 4px rgba(99,102,241,.22),0 0 18px 5px rgba(99,102,241,.45);z-index:2;transition:left .12s,top .12s,width .12s,height .12s;animation:mimic-glow 1.6s ease-in-out infinite;`;
+    hl.style.cssText = `position:fixed;pointer-events:none;box-sizing:border-box;border:2px solid rgba(0,155,142,0.95);background:rgba(0,155,142,.05);border-radius:8px;box-shadow:0 0 0 4px rgba(0,155,142,.22),0 0 18px 5px rgba(18,184,134,.38);z-index:2;transition:left .12s,top .12s,width .12s,height .12s;animation:mimic-glow 1.6s ease-in-out infinite;`;
     root.appendChild(hl);
 
     // 클릭 핀 — 중심 보라 점 제거, 물결 애니메이션만
     const pulse = document.createElement('div');
     pulse.style.cssText = `position:fixed;width:0;height:0;pointer-events:none;z-index:3;`;
     const ripple = document.createElement('div');
-    ripple.style.cssText = `position:absolute;width:44px;height:44px;margin-left:-22px;margin-top:-22px;border-radius:50%;border:2.5px solid rgba(99,102,241,.85);animation:mimic-ripple 1.5s ease-out infinite;`;
+    ripple.style.cssText = `position:absolute;width:44px;height:44px;margin-left:-22px;margin-top:-22px;border-radius:50%;border:2.5px solid rgba(0,155,142,.85);animation:mimic-ripple 1.5s ease-out infinite;`;
     const ripple2 = document.createElement('div');
-    ripple2.style.cssText = `position:absolute;width:44px;height:44px;margin-left:-22px;margin-top:-22px;border-radius:50%;border:2px solid rgba(99,102,241,.55);animation:mimic-ripple 1.5s ease-out 0.75s infinite;`;
+    ripple2.style.cssText = `position:absolute;width:44px;height:44px;margin-left:-22px;margin-top:-22px;border-radius:50%;border:2px solid rgba(18,184,134,.55);animation:mimic-ripple 1.5s ease-out 0.75s infinite;`;
     pulse.appendChild(ripple);
     pulse.appendChild(ripple2);
     root.appendChild(pulse);
@@ -457,14 +457,14 @@
     const tooltipText = step.instruction || step.title || '';
 
     const tooltip = document.createElement('div');
-    tooltip.style.cssText = `position:fixed;width:${TIP_W}px;box-sizing:border-box;background:${TIP_BG};color:#fff;border-radius:13px;padding:13px;box-shadow:0 12px 40px rgba(0,0,0,.45),0 0 0 1px rgba(165,180,252,.14);z-index:5;pointer-events:auto;animation:mimic-tip-in 0.28s ease forwards;`;
+    tooltip.style.cssText = `position:fixed;width:${TIP_W}px;box-sizing:border-box;background:${TIP_BG};color:#fff;border-radius:13px;padding:13px;box-shadow:0 12px 40px rgba(0,0,0,.45),0 0 0 1px rgba(23,201,182,.16);z-index:5;pointer-events:auto;animation:mimic-tip-in 0.28s ease forwards;`;
     tooltip.innerHTML = `
       <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px">
         <div style="${AVATAR_STYLE}">${MASCOT_SVG}</div>
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-            <span style="font-size:11px;font-weight:700;color:#A5B4FC;background:rgba(99,102,241,.25);padding:2px 8px;border-radius:20px">${idx + 1} / ${total}</span>
-            ${resolved.source === 'none' ? '<span style="font-size:10.5px;color:#FCA5A5">요소 미발견</span>' : ''}
+            <span style="font-size:11px;font-weight:700;color:#8DD63F;background:rgba(0,155,142,.24);padding:2px 8px;border-radius:20px">${idx + 1} / ${total}</span>
+            ${resolved.source === 'none' ? '<span style="font-size:10.5px;color:#FFB199">요소 미발견</span>' : ''}
             <div style="flex:1"></div>
             <button class="mimic-btn" data-act="hide-tooltip" title="툴팁 숨기기" style="background:transparent;color:rgba(255,255,255,.4);padding:3px 6px;font-size:11px">👁</button>
             <button class="mimic-btn" data-act="hide-tooltip" title="툴팁 닫기" style="background:transparent;color:rgba(255,255,255,.4);padding:3px 6px;font-size:12px">✕</button>
@@ -473,17 +473,17 @@
         </div>
       </div>
       ${step.type_text ? `
-        <div style="margin-bottom:10px;background:rgba(99,102,241,.18);border:1px solid rgba(99,102,241,.3);border-radius:8px;padding:8px 10px">
+        <div style="margin-bottom:10px;background:rgba(0,155,142,.18);border:1px solid rgba(23,201,182,.32);border-radius:8px;padding:8px 10px">
           <div style="display:flex;align-items:center;gap:6px">
-            <span style="font-size:11px;color:#A5B4FC;flex-shrink:0">⌨ 입력 텍스트</span>
-            <button class="mimic-btn" data-act="copy" style="margin-left:auto;background:rgba(255,255,255,.12);color:#e0e7ff;font-size:11px;padding:3px 9px">복사</button>
+            <span style="font-size:11px;color:#17C9B6;flex-shrink:0">⌨ 입력 텍스트</span>
+            <button class="mimic-btn" data-act="copy" style="margin-left:auto;background:rgba(255,255,255,.12);color:#DDF8F3;font-size:11px;padding:3px 9px">복사</button>
           </div>
-          <div style="font-size:11.5px;color:#c7d2fe;line-height:1.5;margin-top:5px;word-break:break-all">${typeTextSnippet}</div>
+          <div style="font-size:11.5px;color:#BFEDE7;line-height:1.5;margin-top:5px;word-break:break-all">${typeTextSnippet}</div>
         </div>` : ''}
       <div style="display:flex;gap:6px;align-items:center">
         <button class="mimic-btn" data-act="prev" style="background:rgba(255,255,255,.1);color:#D1D5DB;font-size:12px;padding:6px 11px">← 이전</button>
         <div style="flex:1"></div>
-        <button class="mimic-btn" data-act="next" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:7px 16px">${idx + 1 >= total ? '완료 ✓' : '다음 →'}</button>
+        <button class="mimic-btn" data-act="next" style="background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;padding:7px 16px">${idx + 1 >= total ? '완료 ✓' : '다음 →'}</button>
       </div>`;
 
     // 화살표 (툴팁 꼬리)
@@ -496,7 +496,7 @@
     // 툴팁 복원 버튼 (툴팁 숨김 상태일 때 우하단에 표시)
     const restoreBtn = document.createElement('button');
     restoreBtn.className = 'mimic-btn';
-    restoreBtn.style.cssText = `position:fixed;right:16px;bottom:16px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:8px 14px;border-radius:20px;box-shadow:0 4px 16px rgba(79,70,229,.5);pointer-events:auto;z-index:4;font-size:12px;font-weight:700;display:none;`;
+    restoreBtn.style.cssText = `position:fixed;right:16px;bottom:16px;background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;padding:8px 14px;border-radius:20px;box-shadow:0 4px 16px rgba(0,155,142,.42);pointer-events:auto;z-index:4;font-size:12px;font-weight:700;display:none;`;
     restoreBtn.textContent = '💬 가이드 보기';
     restoreBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -698,9 +698,9 @@
     state.tooltip.querySelectorAll(`[data-survey-group="${group}"]`).forEach((btn) => {
       const selected = btn.getAttribute('data-survey-value') === value;
       btn.setAttribute('aria-pressed', selected ? 'true' : 'false');
-      btn.style.background = selected ? '#eef2ff' : 'white';
-      btn.style.color = selected ? '#3730a3' : '#4b5563';
-      btn.style.borderColor = selected ? '#3730a3' : '#e5e7eb';
+      btn.style.background = selected ? '#E8FFF7' : 'white';
+      btn.style.color = selected ? '#00796F' : '#4b5563';
+      btn.style.borderColor = selected ? '#009B8E' : '#e5e7eb';
     });
   }
 
@@ -748,7 +748,7 @@
           <div style="${AVATAR_STYLE}margin:0 auto 12px;">${MASCOT_SVG}</div>
           <div style="font-size:15px;font-weight:800;margin-bottom:6px">고마워요. 반영해둘게요.</div>
           <div style="font-size:12.5px;color:#9CA3AF;margin-bottom:14px">Live Guide Beta를 더 정확하게 다듬는 데 사용할게요.</div>
-          <button class="mimic-btn" data-act="exit" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:9px 24px;width:100%">닫기</button>
+          <button class="mimic-btn" data-act="exit" style="background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;padding:9px 24px;width:100%">닫기</button>
         </div>`;
     });
   }
@@ -766,12 +766,12 @@
         <div style="${AVATAR_STYLE}margin:0 auto 12px;">${MASCOT_SVG}</div>
         <div style="font-size:15px;font-weight:700;margin-bottom:6px">Live Guide Beta 완료! 🎉</div>
         <div style="font-size:12.5px;color:#9CA3AF;margin-bottom:14px">모든 스텝을 완료했습니다.</div>
-        <button class="mimic-btn" data-act="exit" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:9px 24px;width:100%">닫기</button>
+        <button class="mimic-btn" data-act="exit" style="background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;padding:9px 24px;width:100%">닫기</button>
       </div>`;
     const survey = state.opts && state.opts.survey && state.opts.survey.enabled ? state.opts.survey : null;
     if (survey) {
       const rating = (group) => [1, 2, 3, 4, 5].map(n => `<button class="mimic-btn" data-act="survey-rate:${group}:${n}" data-survey-group="${group}" data-survey-value="${n}" aria-pressed="false" style="width:30px;height:28px;padding:0;background:white;color:#4b5563;border:1px solid #e5e7eb">${n}</button>`).join('');
-      const issueBtn = (label, selected) => `<button class="mimic-btn" data-act="survey-rate:issue:${escapeHtml(label)}" data-survey-group="issue" data-survey-value="${escapeHtml(label)}" aria-pressed="${selected ? 'true' : 'false'}" style="padding:6px 8px;background:${selected ? '#eef2ff' : 'white'};color:${selected ? '#3730a3' : '#4b5563'};border:1px solid ${selected ? '#3730a3' : '#e5e7eb'};font-size:11.5px">${escapeHtml(label)}</button>`;
+      const issueBtn = (label, selected) => `<button class="mimic-btn" data-act="survey-rate:issue:${escapeHtml(label)}" data-survey-group="issue" data-survey-value="${escapeHtml(label)}" aria-pressed="${selected ? 'true' : 'false'}" style="padding:6px 8px;background:${selected ? '#E8FFF7' : 'white'};color:${selected ? '#00796F' : '#4b5563'};border:1px solid ${selected ? '#009B8E' : '#e5e7eb'};font-size:11.5px">${escapeHtml(label)}</button>`;
       state.tooltip.innerHTML = `
         <div style="padding:6px 2px;color:#111827">
           <div style="display:flex;gap:9px;align-items:center;margin-bottom:10px">
@@ -787,7 +787,7 @@
             <label style="display:grid;gap:5px;font-weight:700">3. 다음에도 쓰고 싶나요?<div style="display:flex;gap:5px">${rating('q3')}</div></label>
             <div style="display:grid;gap:5px;font-weight:700">4. 이번 작업을 끝까지 완료했나요?
               <div style="display:flex;gap:6px">
-                <button class="mimic-btn" data-act="survey-bool:q4:true" data-survey-group="q4" data-survey-value="true" aria-pressed="true" style="flex:1;background:#eef2ff;color:#3730a3;border:1px solid #3730a3">예</button>
+                <button class="mimic-btn" data-act="survey-bool:q4:true" data-survey-group="q4" data-survey-value="true" aria-pressed="true" style="flex:1;background:#E8FFF7;color:#00796F;border:1px solid #009B8E">예</button>
                 <button class="mimic-btn" data-act="survey-bool:q4:false" data-survey-group="q4" data-survey-value="false" aria-pressed="false" style="flex:1;background:white;color:#4b5563;border:1px solid #e5e7eb">아니오</button>
               </div>
             </div>
@@ -798,7 +798,7 @@
           </div>
           <div style="display:flex;gap:7px;margin-top:12px">
             <button class="mimic-btn" data-act="exit" style="flex:1;background:white;color:#6b7280;border:1px solid #e5e7eb;padding:9px 10px">건너뛰기</button>
-            <button class="mimic-btn" data-act="survey-submit" style="flex:1;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:9px 10px">제출하기</button>
+            <button class="mimic-btn" data-act="survey-submit" style="flex:1;background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;padding:9px 10px">제출하기</button>
           </div>
         </div>`;
     }
@@ -837,7 +837,7 @@
   function renderGuideAnnotation(a) {
     const box = pctBox(a);
     if (!box) return '';
-    const color = safeCssColor(a.color || a.borderColor, '#7c3aed');
+    const color = safeCssColor(a.color || a.borderColor, '#009B8E');
     const borderColor = safeCssColor(a.borderColor || a.color, color);
     const stroke = Math.max(1, Math.min(8, Number(a.strokeWidth) || 3));
     const base = `position:absolute;left:${box.left}%;top:${box.top}%;width:${box.width}%;height:${box.height}%;box-sizing:border-box;pointer-events:none;`;
@@ -858,7 +858,7 @@
     }
     const radius = a.type === 'ellipse' ? '999px' : a.type === 'roundedRect' ? '10px' : '4px';
     const shadow = a.type === 'spotlight' ? 'box-shadow:0 0 0 9999px rgba(0,0,0,.42),0 0 0 2px rgba(255,255,255,.75);' : '';
-    const fill = a.type === 'spotlight' ? 'background:transparent;' : 'background:rgba(124,58,237,.08);';
+    const fill = a.type === 'spotlight' ? 'background:transparent;' : 'background:rgba(0,155,142,.08);';
     return `<div style="${base}${fill}border:${stroke}px solid ${borderColor};border-radius:${radius};${shadow}"></div>`;
   }
 
@@ -887,14 +887,14 @@
     const text = step.instruction || '이 단계는 직접 진행한 뒤 다음을 눌러주세요.';
 
     const card = document.createElement('div');
-    card.style.cssText = `position:fixed;right:16px;bottom:16px;width:360px;max-width:calc(100vw - 32px);max-height:calc(100vh - 32px);overflow:auto;background:${TIP_BG};color:#fff;border-radius:16px;padding:16px;box-shadow:0 18px 55px rgba(0,0,0,.48),0 0 0 1px rgba(165,180,252,.14);pointer-events:auto`;
+    card.style.cssText = `position:fixed;right:16px;bottom:16px;width:360px;max-width:calc(100vw - 32px);max-height:calc(100vh - 32px);overflow:auto;background:${TIP_BG};color:#fff;border-radius:16px;padding:16px;box-shadow:0 18px 55px rgba(0,0,0,.48),0 0 0 1px rgba(23,201,182,.16);pointer-events:auto`;
     card.innerHTML = `
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
         <div style="${AVATAR_STYLE}width:38px;height:38px;">${MASCOT_SVG}</div>
         <div style="min-width:0">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
-            <span style="font-size:11px;font-weight:700;color:#A5B4FC">${idx + 1} / ${total}</span>
-            <span style="font-size:10.5px;font-weight:800;color:#C4B5FD;background:rgba(99,102,241,.22);padding:2px 7px;border-radius:999px">참고 단계</span>
+            <span style="font-size:11px;font-weight:700;color:#8DD63F">${idx + 1} / ${total}</span>
+            <span style="font-size:10.5px;font-weight:800;color:#8DD63F;background:rgba(0,155,142,.22);padding:2px 7px;border-radius:999px">참고 단계</span>
           </div>
           <div style="font-size:15px;font-weight:800;line-height:1.35">${escapeHtml(title)}</div>
         </div>
@@ -904,7 +904,7 @@
       <div style="display:flex;gap:8px;align-items:center">
         <button class="ex-btn" data-act="prev" style="background:rgba(255,255,255,.1);color:#D1D5DB;font-size:12px;padding:7px 12px">이전</button>
         <div style="flex:1"></div>
-        <button class="ex-btn" data-act="next" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:8px 18px">${idx + 1 >= total ? '완료' : '건너뛰기 →'}</button>
+        <button class="ex-btn" data-act="next" style="background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;padding:8px 18px">${idx + 1 >= total ? '완료' : '건너뛰기 →'}</button>
       </div>`;
     shadow.appendChild(style('.ex-btn{pointer-events:auto;cursor:pointer;border:none;border-radius:8px;font-size:13px;font-weight:700;transition:opacity .15s}.ex-btn:active{opacity:.75}'));
     shadow.appendChild(card);
@@ -929,10 +929,10 @@
     const waitingText = step.instruction || '안내할 항목이 화면에 아직 없습니다. 화면을 진행하면 자동으로 표시됩니다.';
 
     const card = document.createElement('div');
-    card.style.cssText = `position:fixed;left:50%;bottom:24px;transform:translateX(-50%);width:340px;max-width:calc(100vw - 32px);background:${TIP_BG};color:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 12px 40px rgba(0,0,0,.45),0 0 0 1px rgba(165,180,252,.14);pointer-events:auto`;
+    card.style.cssText = `position:fixed;left:50%;bottom:24px;transform:translateX(-50%);width:340px;max-width:calc(100vw - 32px);background:${TIP_BG};color:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 12px 40px rgba(0,0,0,.45),0 0 0 1px rgba(23,201,182,.16);pointer-events:auto`;
     card.innerHTML = `
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <span style="font-size:11px;font-weight:700;color:#A5B4FC;background:rgba(99,102,241,.25);padding:2px 8px;border-radius:20px">${idx + 1} / ${total}</span>
+        <span style="font-size:11px;font-weight:700;color:#8DD63F;background:rgba(0,155,142,.24);padding:2px 8px;border-radius:20px">${idx + 1} / ${total}</span>
         <span style="font-size:11px;color:#9CA3AF">🔍 이 단계 화면을 찾는 중…</span>
         <div style="flex:1"></div>
         <button class="wt-btn" data-act="next" title="이 단계 건너뛰기" style="background:transparent;color:rgba(255,255,255,.65);padding:3px 8px">건너뛰기</button>
@@ -941,7 +941,7 @@
       <div style="display:flex;gap:6px;align-items:center">
         <button class="wt-btn" data-act="prev" style="background:rgba(255,255,255,.1);color:#D1D5DB;font-size:12px;padding:6px 11px">← 이전</button>
         <div style="flex:1"></div>
-        <button class="wt-btn" data-act="next" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:7px 16px">${idx + 1 >= total ? '완료 ✓' : '건너뛰기 →'}</button>
+        <button class="wt-btn" data-act="next" style="background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;padding:7px 16px">${idx + 1 >= total ? '완료 ✓' : '건너뛰기 →'}</button>
       </div>`;
     shadow.appendChild(style('.wt-btn{pointer-events:auto;cursor:pointer;border:none;border-radius:8px;font-size:13px;font-weight:600;padding:7px 12px;transition:opacity .15s}.wt-btn:active{opacity:.75}'));
     shadow.appendChild(card);

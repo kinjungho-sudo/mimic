@@ -43,6 +43,8 @@ git diff --check
 - Updated Chrome extension public display surfaces from MIMIC Recorder to Parro Recorder in the manifest, popup chrome, microphone permission page, privacy policy, store-listing copy, and store ZIP manifest rewriting scripts.
 - Updated Chrome extension console/debug log prefixes from `[MIMIC]`/`[MIMIC Recorder]` to `[Parro]`/`[Parro Recorder]` while preserving runtime storage and DOM compatibility keys.
 - Re-ran extension checks after the public extension naming pass: `node --check` for recorder JS files, `python -m py_compile mimic_recorder/build-store-zip.py`, focused old-brand searches, `git diff --check`, and app `npm run lint`; all passed with only existing app lint warnings.
+- Updated recorder popup, microphone permission page, privacy policy, countdown accent, and Live Guide overlay colors from the old indigo/purple palette to Parro teal/guide/accent colors.
+- Re-ran focused recorder old-purple search and recorder JS `node --check`; runtime recorder files no longer contain the old purple palette values.
 - `packages/mcp-server`: `npm ci` then `npm run build` passed.
 - `git diff --check`: passed.
 - `packages/mcp-server npm ci` reported 2 high severity dependency audit findings. No `npm audit fix` was run because that is outside the rebrand scope and can change dependency versions.
@@ -73,6 +75,7 @@ git diff --check
 - Development-only guest login still uses `devtest@mimic.dev`; this appears to be a seeded dev account and should not be renamed without owner approval.
 - SDK/recorder console log tags have been updated to `[Parro]` / `[Parro Recorder]`; compatibility names remain unchanged.
 - Chrome extension runtime URLs, extension IDs, local storage keys, IndexedDB names, output ZIP filename, and `mimic-*` DOM/CSS compatibility hooks are preserved.
+- Recorder test fixtures may still contain legacy color values; runtime extension UI files have been migrated to Parro colors.
 - Legacy matching keywords in the help chat so users asking about the old name can still get an answer.
 
 ## Historical docs intentionally preserved

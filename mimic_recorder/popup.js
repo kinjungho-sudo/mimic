@@ -187,8 +187,8 @@ function updateLoginState(hasToken, expired = false) {
   notice.id = 'loginNotice';
   Object.assign(notice.style, {
     margin: '10px 18px 4px',
-    background: expired ? '#FEF2F2' : '#F5F3FF',
-    border:     `1px solid ${expired ? '#FECACA' : '#DDD6FE'}`,
+    background: expired ? '#FEF2F2' : '#E8FFF7',
+    border:     `1px solid ${expired ? '#FECACA' : '#BFEDE7'}`,
     borderRadius: '10px', padding: '12px 14px',
     display: 'flex', flexDirection: 'column', gap: '8px',
   });
@@ -197,7 +197,7 @@ function updateLoginState(hasToken, expired = false) {
   msgEl.setAttribute('data-msg', '');
   Object.assign(msgEl.style, {
     fontSize: '12px', lineHeight: '1.5',
-    color: expired ? '#991B1B' : '#5B21B6',
+    color: expired ? '#991B1B' : '#00796F',
   });
   msgEl.textContent = expired
     ? '세션이 만료되었습니다. 다시 연동해 주세요.'
@@ -206,7 +206,7 @@ function updateLoginState(hasToken, expired = false) {
   const btn = document.createElement('button');
   Object.assign(btn.style, {
     alignSelf: 'flex-start',
-    background: '#4F46E5', color: '#fff',
+    background: '#009B8E', color: '#fff',
     border: 'none', borderRadius: '7px',
     fontSize: '12px', fontWeight: '600',
     padding: '6px 14px', cursor: 'pointer',
@@ -481,8 +481,8 @@ function buildStepVoiceButton(step) {
   btn.textContent = hasVoice ? '🎙 음성 메모 ✓ (다시 녹음)' : '🎙 음성 메모 녹음';
   btn.style.cssText = [
     'margin-top:6px', 'width:100%', 'padding:7px',
-    'border:1px solid #DDD6FE', 'border-radius:8px',
-    'background:#f5f3ff', 'color:#4F46E5',
+    'border:1px solid #BFEDE7', 'border-radius:8px',
+    'background:#E8FFF7', 'color:#009B8E',
     'font-size:12px', 'font-weight:600', 'cursor:pointer',
   ].join(';');
 
@@ -498,7 +498,7 @@ function buildStepVoiceButton(step) {
       chrome.runtime.sendMessage({ type: 'STOP_STEP_VOICE' }, (res) => {
         void chrome.runtime.lastError;
         btn.disabled = false;
-        btn.style.background = '#f5f3ff'; btn.style.color = '#4F46E5'; btn.style.borderColor = '#DDD6FE';
+        btn.style.background = '#E8FFF7'; btn.style.color = '#009B8E'; btn.style.borderColor = '#BFEDE7';
         btn.textContent = res?.ok ? '🎙 음성 메모 ✓ (다시 녹음)' : '🎙 음성 메모 녹음';
         showToast(res?.ok ? '음성 메모 저장됨 ✓' : (res?.error || '저장 실패'), 2500);
       });
@@ -516,7 +516,7 @@ function buildStepVoiceButton(step) {
       if (!res?.ok) {
         btn.dataset.recording = '0';
         btn.textContent = '🎙 음성 메모 녹음';
-        btn.style.background = '#f5f3ff'; btn.style.color = '#4F46E5'; btn.style.borderColor = '#DDD6FE';
+        btn.style.background = '#E8FFF7'; btn.style.color = '#009B8E'; btn.style.borderColor = '#BFEDE7';
         showToast(res?.error || '마이크 시작 실패', 3000);
       }
     });
@@ -898,8 +898,8 @@ function startBlurMode(step, zoomImg, originalBlob) {
 
   const sel = document.createElement('div');
   sel.style.cssText = [
-    'position:fixed', 'border:2px dashed #4F46E5',
-    'background:rgba(79,70,229,0.18)', 'pointer-events:none',
+    'position:fixed', 'border:2px dashed #009B8E',
+    'background:rgba(0,155,142,0.18)', 'pointer-events:none',
     'display:none', 'box-sizing:border-box', 'z-index:999999',
   ].join(';');
   document.body.appendChild(sel);
@@ -1273,8 +1273,8 @@ function showFinalizingOverlay() {
     const spinner = document.createElement('div');
     spinner.style.cssText = [
       'width:40px', 'height:40px', 'border-radius:50%',
-      'border:3px solid rgba(79,70,229,0.18)',
-      'border-top-color:#4F46E5',
+      'border:3px solid rgba(0,155,142,0.18)',
+      'border-top-color:#009B8E',
       'animation:popupSpin 0.9s linear infinite',
     ].join(';');
 
@@ -1325,7 +1325,7 @@ function showFinalizingError(detail) {
   const btn = document.createElement('button');
   btn.style.cssText = [
     'margin-top:4px', 'padding:8px 20px',
-    'background:#4F46E5', 'color:#fff',
+    'background:#009B8E', 'color:#fff',
     'border:none', 'border-radius:8px',
     'font-size:13px', 'font-weight:600', 'cursor:pointer',
   ].join(';');
@@ -1610,7 +1610,7 @@ function renderGuideStep(steps, idx) {
       fontWeight: '700',
       cursor: 'pointer',
       transition: 'all 0.15s',
-      background: done ? '#10B981' : curr ? '#4F46E5' : '#f0f0f8',
+      background: done ? '#12B886' : curr ? '#009B8E' : '#f0f0f8',
       color: (done || curr) ? '#fff' : '#bbb',
     });
     dot.textContent = done ? '✓' : i + 1;
