@@ -337,3 +337,8 @@
 
 - Updated full-page capture's temporary hidden fixed-element guard to use `window.__parroFixedHidden`.
 - Preserved cleanup fallback for legacy `window.__mimicFixedHidden`.
+
+## 2026-07-11 - Active PM docs Parro naming pass
+
+- Updated root `OVERVIEW.md` and `Plan.md` to use Parro as the current public product name.
+- Preserved `mimic_app`/`mimic_recorder` folder names, `mimicflow.com` as a Phase 2 domain decision, `mimic-tts`, and historical design document filenames.
