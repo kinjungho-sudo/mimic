@@ -199,3 +199,9 @@
 - Updated admin dashboard, users, tutorials, surveys, broadcasts, logs, and Pro signup management accents from the old indigo/purple palette to Parro brand colors.
 - Replaced the admin sidebar temporary `M` mark with the shared temporary Parro `BrandMark`.
 - Preserved admin routes, stats/log/survey data flows, broadcast behavior, and deferred production logo/icon asset replacement.
+
+## 2026-07-11 - Parro logo asset handoff
+
+- Created `docs/brand/parro-logo-asset-handoff.md` to capture the exact production logo/icon assets still blocked on a final Wing Pointer SVG source.
+- Confirmed `public/logo.svg` and `app/icon.svg` still contain the old circular `M` mark, while `public/favicon.svg` does not exist.
+- Preserved all production assets unchanged because the owner has not provided a production-ready final logo SVG yet.

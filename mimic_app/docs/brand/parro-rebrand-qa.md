@@ -50,7 +50,8 @@ git diff --check
 
 ## Public-facing old brand references remaining
 
-- Production logo/icon assets still reference current files such as `public/logo.svg`, `app/icon.svg`, and `public/mimic-logo.png`. App/library uses of the bitmap logo path now go through `BRAND_LOGO_IMAGE_PATH`, and visible in-app temporary marks use `BrandMark`, but production asset replacement is blocked until the owner provides production-ready Wing Pointer SVG assets.
+- Production logo/icon assets still reference current files such as `public/logo.svg`, `app/icon.svg`, `public/mimic-logo.png`, and `public/icons/*.png`. App/library uses of the bitmap logo path now go through `BRAND_LOGO_IMAGE_PATH`, and visible in-app temporary marks use `BrandMark`, but production asset replacement is blocked until the owner provides production-ready Wing Pointer SVG assets.
+- Current asset evidence: `public/logo.svg` and `app/icon.svg` are still the old circular `M` mark; `public/favicon.svg` does not exist. See `docs/brand/parro-logo-asset-handoff.md`.
 - Public support/contact email remains `support@mimic.so` in help/chat/auth copy through `BRAND_SUPPORT_EMAIL`. This is now centralized, but the address itself is still a domain and operations decision for Phase 2.
 - Deployment URLs remain `mimic-nine-ashen.vercel.app`. App/library fallbacks now go through `BRAND_APP_URL_FALLBACK`/`getBrandAppUrl()`, while static files such as `robots.txt`, `llms.txt`, and `public/sdk.js` still need a Phase 2 domain pass. These are deployment identifiers and should move only after domain/Vercel decisions.
 - Chrome Web Store URL slug remains `mimic-recorder`; the visible extension name is now `Parro Recorder`, and app references now go through `BRAND_EXTENSION_STORE_URL`, but the store slug/extension identity is preserved.
@@ -75,6 +76,7 @@ git diff --check
 ## Follow-up owner decisions
 
 - Provide final production-ready Wing Pointer SVG assets for `public/brand/parro-logo.svg`, `public/brand/parro-mark.svg`, `public/logo.svg`, `app/icon.svg`, and `public/favicon.svg`.
+- Decide whether `public/mimic-logo.png` remains as a compatibility filename or moves to a new `public/brand/parro-logo.png` path after the final SVG is approved.
 - Decide public domain and support email migration timing.
 - Decide whether the Chrome Web Store listing/slug should remain `mimic-recorder` or move through a separate extension listing/update process.
 - Decide whether SDK public globals and CSS classes remain `mimic-*` indefinitely for backward compatibility.
