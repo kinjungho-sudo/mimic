@@ -53,6 +53,7 @@ git diff --check
 - Updated Chrome Web Store package build scripts to produce `parro-recorder-v{version}.zip` and use `parro-recorder-build` as the temporary packaging directory; `python -m py_compile mimic_recorder/build-store-zip.py` and PowerShell script parsing passed.
 - Updated Recorder full-page capture downloads to use the `parro_fullpage_` filename prefix; `node --check mimic_recorder/background.js` passed and focused filename search found no remaining `mimic_fullpage` references.
 - Added `parro-btn` to Recorder Live Guide overlay controls while preserving `mimic-btn`; `node --check mimic_recorder/guide-engine.js` passed and focused class search confirmed no button remains with only `mimic-btn`.
+- Updated Recorder countdown runtime animations to use `parro-blink`, `parro-pop`, and `parro-start` while keeping legacy `mimic-*` keyframe definitions; `node --check mimic_recorder/content.js` passed.
 - `packages/mcp-server`: `npm ci` then `npm run build` passed.
 - `git diff --check`: passed.
 - `packages/mcp-server npm ci` reported 2 high severity dependency audit findings. No `npm audit fix` was run because that is outside the rebrand scope and can change dependency versions.

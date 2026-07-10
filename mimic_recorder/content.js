@@ -541,7 +541,7 @@
     ].join(';');
 
     const dot = document.createElement('span');
-    dot.style.cssText = 'width:8px;height:8px;border-radius:50%;background:#EF4444;flex-shrink:0;animation:mimic-blink 1s infinite';
+    dot.style.cssText = 'width:8px;height:8px;border-radius:50%;background:#EF4444;flex-shrink:0;animation:parro-blink 1s infinite';
     const badgeText = document.createElement('span');
     badgeText.textContent = opts && opts.label ? opts.label : '화면 녹화가 시작됩니다';
     badge.append(dot, badgeText);
@@ -556,20 +556,20 @@
 
     overlay.append(badge, numEl);
 
-    if (!document.getElementById('mimic-kf')) {
+    if (!document.getElementById('parro-kf')) {
       const kf = document.createElement('style');
-      kf.id = 'mimic-kf';
-      kf.textContent = '@keyframes mimic-blink{0%,100%{opacity:1}50%{opacity:0.2}}@keyframes mimic-pop{0%{transform:scale(1.4);opacity:0}60%{opacity:1}100%{transform:scale(1);opacity:1}}@keyframes mimic-start{0%{transform:scale(0.8);opacity:0}50%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}';
+      kf.id = 'parro-kf';
+      kf.textContent = '@keyframes parro-blink{0%,100%{opacity:1}50%{opacity:0.2}}@keyframes mimic-blink{0%,100%{opacity:1}50%{opacity:0.2}}@keyframes parro-pop{0%{transform:scale(1.4);opacity:0}60%{opacity:1}100%{transform:scale(1);opacity:1}}@keyframes mimic-pop{0%{transform:scale(1.4);opacity:0}60%{opacity:1}100%{transform:scale(1);opacity:1}}@keyframes parro-start{0%{transform:scale(0.8);opacity:0}50%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}@keyframes mimic-start{0%{transform:scale(0.8);opacity:0}50%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}';
       document.head.appendChild(kf);
     }
 
     document.documentElement.appendChild(overlay);
 
     const steps = [
-      { text: '3', color: '#fff',      anim: 'mimic-pop 0.35s ease forwards' },
-      { text: '2', color: '#fff',      anim: 'mimic-pop 0.35s ease forwards' },
-      { text: '1', color: '#fff',      anim: 'mimic-pop 0.35s ease forwards' },
-      { text: opts && opts.startText ? opts.startText : 'START', color: opts && opts.accentColor ? opts.accentColor : '#4ade80', anim: 'mimic-start 0.4s ease forwards', size: '56px' },
+      { text: '3', color: '#fff',      anim: 'parro-pop 0.35s ease forwards' },
+      { text: '2', color: '#fff',      anim: 'parro-pop 0.35s ease forwards' },
+      { text: '1', color: '#fff',      anim: 'parro-pop 0.35s ease forwards' },
+      { text: opts && opts.startText ? opts.startText : 'START', color: opts && opts.accentColor ? opts.accentColor : '#4ade80', anim: 'parro-start 0.4s ease forwards', size: '56px' },
     ];
 
     let i = 0;

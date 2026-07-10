@@ -275,3 +275,8 @@
 
 - Added `parro-btn` to Recorder Live Guide overlay controls and survey buttons.
 - Preserved `mimic-btn` on the same elements for compatibility with existing runtime styling and overrides.
+
+## 2026-07-11 - Parro Recorder countdown animation naming
+
+- Updated Recorder countdown runtime animations to use `parro-blink`, `parro-pop`, and `parro-start`.
+- Preserved legacy `mimic-*` keyframe definitions in the injected style block for compatibility.
