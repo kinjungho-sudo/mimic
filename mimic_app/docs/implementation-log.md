@@ -1,5 +1,10 @@
 # Implementation Log
 
+## 2026-07-11 - Parro MCP public description cleanup
+
+- Updated root MCP package README, package description, and `list_tutorials` tool description from MIMIC to Parro.
+- Preserved the `@mimic/mcp-server` package name and MCP server key `mimic` for compatibility.
+
 ## 2026-07-11 - Parro Recorder overlay click guard
 
 - Updated Recorder click capture to ignore both `parro` and legacy `mimic` overlay IDs/classes.
