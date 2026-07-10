@@ -17,3 +17,9 @@
 - Added `lib/brand.ts` as the public brand source of truth for future UI copy migration.
 - Kept legacy compatibility identifiers explicit and unchanged.
 - No UI surfaces were rewired yet.
+
+## 2026-07-10 - Parro public text surfaces batch 1
+
+- Replaced selected public-facing `MIMIC` text with centralized Parro brand constants in metadata, auth headers, public page attribution, embed watermark, help chat welcome text, extension-link labels, mypage headers, FAQ quick question, and OG image branding.
+- Preserved deployment URLs, `mimic-logo.png`, Chrome Web Store slug, dev test email, SDK globals, DB/schema identifiers, API route names, package names, and env/header identifiers.
+- Deferred logo/icon replacement until a production-ready Wing Pointer SVG is available.

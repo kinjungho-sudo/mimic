@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { AnnotationPreview } from '@/components/editor/AnnotationPreview';
 import type { Annotation } from '@/components/editor/ImageAnnotationEditor';
+import { BRAND_NAME } from '@/lib/brand';
 
 interface EmbedStep {
   id: string;
@@ -129,11 +130,11 @@ export default function EmbedPage() {
           );
         })}
 
-        {/* MIMIC 워터마크 — 전체 화면 링크 */}
+        {/* 브랜드 워터마크 — 전체 화면 링크 */}
         <div style={{ textAlign: 'center', marginTop: isMobile ? '14px' : '20px' }}>
           <a href={`/play/${token}`} target="_blank" rel="noopener noreferrer"
             style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11.5px', color: '#9CA3AF', textDecoration: 'none' }}>
-            <span style={{ fontWeight: 700, fontFamily: 'Georgia, serif', color: '#6B7280' }}>MIMIC</span>으로 제작 · 전체 화면에서 보기 →
+            <span style={{ fontWeight: 700, fontFamily: 'Georgia, serif', color: '#6B7280' }}>{BRAND_NAME}</span>으로 제작 · 전체 화면에서 보기 →
           </a>
         </div>
       </div>

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { resetPassword, getCurrentUser } from '@/lib/auth/auth-client';
+import { BRAND_NAME } from '@/lib/brand';
 
 const NAV_ITEMS = [
   {
@@ -148,7 +149,7 @@ export default function MyPage() {
       <aside className="mypage-sidebar" style={{ background: '#FAFAFA', borderRight: '1px solid #F3F4F6', padding: '16px 12px', display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto' }}>
         <Link href="/home" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px 14px', textDecoration: 'none' }}>
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="32" height="32" style={{ flexShrink: 0 }}><circle cx="50" cy="50" r="50" fill="#3730a3"/><text x="50" y="68" textAnchor="middle" fontFamily="Georgia, serif" fontSize="62" fontWeight="700" fill="white">M</text></svg>
-          <span style={{ fontSize: '16px', fontWeight: 800, color: '#111827', letterSpacing: '-0.03em' }}>MIMIC</span>
+          <span style={{ fontSize: '16px', fontWeight: 800, color: '#111827', letterSpacing: '-0.03em' }}>{BRAND_NAME}</span>
         </Link>
 
         <div style={{ padding: '12px 10px 6px', fontSize: '10.5px', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#9CA3AF', fontWeight: 500 }}>메뉴</div>
@@ -175,7 +176,7 @@ export default function MyPage() {
         <div className="mypage-mobile-header" style={{ display: 'none', alignItems: 'center', gap: '10px', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #F3F4F6' }}>
           <Link href="/home" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="28" height="28"><circle cx="50" cy="50" r="50" fill="#3730a3"/><text x="50" y="68" textAnchor="middle" fontFamily="Georgia, serif" fontSize="62" fontWeight="700" fill="white">M</text></svg>
-            <span style={{ fontSize: '15px', fontWeight: 800, color: '#111827', letterSpacing: '-0.03em' }}>MIMIC</span>
+            <span style={{ fontSize: '15px', fontWeight: 800, color: '#111827', letterSpacing: '-0.03em' }}>{BRAND_NAME}</span>
           </Link>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: '4px' }}>
             {NAV_ITEMS.map(item => (

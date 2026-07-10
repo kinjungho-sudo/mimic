@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import type { GuideData } from '@/components/guidebook/schema';
+import { BRAND_COPY } from '@/lib/brand';
 
 const GuidebookView = dynamic(() => import('@/components/guidebook/GuidebookView'), {
   ssr: false,
@@ -64,7 +65,7 @@ export default function PublicPage() {
         </div>
 
         <div style={{ textAlign: 'center', marginTop: '24px', fontSize: '11.5px', color: '#9CA3AF' }}>
-          Made with MIMIC
+          {BRAND_COPY.madeWith}
         </div>
       </div>
     </div>

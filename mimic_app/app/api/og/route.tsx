@@ -1,12 +1,13 @@
 import { ImageResponse } from 'next/og';
 import type { NextRequest } from 'next/server';
+import { BRAND_NAME, BRAND_TAGLINE } from '@/lib/brand';
 
 export const runtime = 'edge';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
-  const title = searchParams.get('title') ?? 'MIMIC';
-  const sub = searchParams.get('sub') ?? '30초 만에 인터랙티브 매뉴얼';
+  const title = searchParams.get('title') ?? BRAND_NAME;
+  const sub = searchParams.get('sub') ?? BRAND_TAGLINE;
 
   return new ImageResponse(
     (
@@ -73,7 +74,7 @@ export async function GET(request: NextRequest) {
             }}
           />
           <span style={{ color: '#c4b5fd', fontSize: '16px', fontWeight: 600 }}>
-            MIMIC
+            {BRAND_NAME}
           </span>
         </div>
 
