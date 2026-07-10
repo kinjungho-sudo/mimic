@@ -249,3 +249,8 @@
 
 - Removed unused `LEGACY_INTERNAL_IDENTIFIERS` entries for the old public product and extension names.
 - Updated an internal auth comment to refer to `Parro Recorder` while preserving extension token behavior.
+
+## 2026-07-11 - Parro Recorder guide runtime alias pass
+
+- Added `window.ParroGuide` as the primary Live Guide runtime API in the Chrome extension.
+- Preserved `window.MimicGuide` as a compatibility alias and updated content-script calls to prefer `ParroGuide` with legacy fallback.

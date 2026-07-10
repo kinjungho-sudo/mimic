@@ -1,9 +1,9 @@
-// guide-engine.js — Guide Me 라이브 오버레이 엔진 (재생 전용; 녹화 코드와 무관)
-// content_scripts에서 content.js보다 먼저 로드되어 window.MimicGuide 를 노출한다.
+// guide-engine.js — Live Guide 오버레이 엔진 (재생 전용; 녹화 코드와 무관)
+// content_scripts에서 content.js보다 먼저 로드되어 window.ParroGuide 를 노출한다.
 // 부작용 없음: 호출 전까지 리스너/DOM/타이머를 만들지 않는다.
 (function () {
   'use strict';
-  if (window.MimicGuide) return; // 중복 주입 방지
+  if (window.ParroGuide || window.MimicGuide) return; // 중복 주입 방지
 
   const Z = 2147483640;
   const COORD_BOX = 46;
@@ -1084,5 +1084,7 @@
   function style(css) { const s = document.createElement('style'); s.textContent = css; return s; }
   function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
-  window.MimicGuide = { show, hide, _resolveTarget: resolveTarget, _isHit: isHit, _pointInRect: pointInRect };
+  const guideApi = { show, hide, _resolveTarget: resolveTarget, _isHit: isHit, _pointInRect: pointInRect };
+  window.ParroGuide = guideApi;
+  window.MimicGuide = guideApi;
 })();

@@ -682,17 +682,22 @@
 
     if (msg.type === 'SHOW_OVERLAY' && msg.step) {
       if (!IS_TOP_FRAME) return false;
-      if (window.MimicGuide) window.MimicGuide.show(msg.step, {
+      const guideApi = window.ParroGuide || window.MimicGuide;
+      if (guideApi) guideApi.show(msg.step, {
         index: msg.index ?? 0,
         total: msg.total ?? 1,
         survey: msg.survey || null,
         onAdvance: (reason) => chrome.runtime.sendMessage({ type: 'GUIDE_NEXT', viaClick: reason === 'click' }),
         onPrev:    () => chrome.runtime.sendMessage({ type: 'GUIDE_PREV' }),
-        onExit:    () => { chrome.runtime.sendMessage({ type: 'EXIT_GUIDE' }); window.MimicGuide.hide(); },
+        onExit:    () => { chrome.runtime.sendMessage({ type: 'EXIT_GUIDE' }); guideApi.hide(); },
       });
       return false;
     }
-    if (msg.type === 'HIDE_OVERLAY') { if (IS_TOP_FRAME && window.MimicGuide) window.MimicGuide.hide(); return false; }
+    if (msg.type === 'HIDE_OVERLAY') {
+      const guideApi = window.ParroGuide || window.MimicGuide;
+      if (IS_TOP_FRAME && guideApi) guideApi.hide();
+      return false;
+    }
 
     return false;
   });
@@ -1525,7 +1530,7 @@
     }
   }, true);
 
-  // ── Guide Me 오버레이 ────────────────────────────────────────────
-  // 오버레이 렌더링/요소탐지/자동진행은 guide-engine.js(window.MimicGuide)가 담당.
+  // ── Live Guide 오버레이 ──────────────────────────────────────────
+  // 오버레이 렌더링/요소탐지/자동진행은 guide-engine.js(window.ParroGuide)가 담당.
   // (content_scripts에서 content.js보다 먼저 로드됨) SHOW_OVERLAY/HIDE_OVERLAY 핸들러 참조.
 })();
