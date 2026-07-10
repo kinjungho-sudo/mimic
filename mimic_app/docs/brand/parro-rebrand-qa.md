@@ -37,6 +37,7 @@ git diff --check
 - Re-ran focused manual editor/studio old-color search, `npm run lint`, `$env:NODE_OPTIONS='--use-system-ca'; npm run build`, and `git diff --check` after the editor/studio color pass; all passed with only existing warnings.
 - Re-ran focused workspace/pages/home public-surface old-color search, `npm run lint`, `$env:NODE_OPTIONS='--use-system-ca'; npm run build`, and `git diff --check` after the workspace/pages color pass; all passed with only existing warnings.
 - Re-ran focused admin old-color and temporary `M` mark search, `npm run lint`, `$env:NODE_OPTIONS='--use-system-ca'; npm run build`, and `git diff --check` after the admin color pass; all passed with only existing warnings.
+- Replaced the default Next.js `README.md` with a Parro public project introduction and re-ran root old-brand search plus `git diff --check`; results are limited to historical docs, compatibility identifiers, deployment/domain decisions, and blocked asset files.
 - `packages/mcp-server`: `npm ci` then `npm run build` passed.
 - `git diff --check`: passed.
 - `packages/mcp-server npm ci` reported 2 high severity dependency audit findings. No `npm audit fix` was run because that is outside the rebrand scope and can change dependency versions.
@@ -70,6 +71,7 @@ git diff --check
 
 ## Historical docs intentionally preserved
 
+- `README.md` now describes Parro and explicitly documents why selected `mimic-*` identifiers are preserved during the staged rebrand.
 - `CLAUDE.md`, `DEV_PROCESS.md`, `docs/DEV_PROCESS.md`, `docs/PLAN.md`, `docs/SESSION_HANDOVER.md`, `docs/VOICE_PIPELINE_TASK.md`, and older design-fetch artifacts under `_design_fetch/`.
 - `docs/brand/parro-brand-audit.md`, `docs/decisions.md`, and `docs/implementation-log.md` preserve old-brand references as migration history.
 

@@ -205,3 +205,9 @@
 - Created `docs/brand/parro-logo-asset-handoff.md` to capture the exact production logo/icon assets still blocked on a final Wing Pointer SVG source.
 - Confirmed `public/logo.svg` and `app/icon.svg` still contain the old circular `M` mark, while `public/favicon.svg` does not exist.
 - Preserved all production assets unchanged because the owner has not provided a production-ready final logo SVG yet.
+
+## 2026-07-11 - Parro README public intro
+
+- Replaced the default Next.js `README.md` with a Parro public project introduction.
+- Documented the staged rebrand guardrails and the intentionally preserved internal `mimic-*` compatibility identifiers.
+- Preserved package names, routes, DB identifiers, extension identifiers, deployment identifiers, and blocked logo/icon production assets.
