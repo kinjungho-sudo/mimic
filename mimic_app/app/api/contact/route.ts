@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { sendMimicEmail } from '@/lib/email/email-n8n';
+import { sendParroEmail } from '@/lib/email/email-n8n';
 import { BRAND_NAME } from '@/lib/brand';
 
 const schema = z.object({
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
 </body>
 </html>`;
 
-  const ok = await sendMimicEmail({
+  const ok = await sendParroEmail({
     to: adminEmail,
     subject: `[${BRAND_NAME} ${category}] ${userEmail ?? '비회원'} 문의가 접수되었습니다`,
     html,

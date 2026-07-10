@@ -1,4 +1,4 @@
-// MIMIC 트랜잭션 메일을 n8n 웹훅(Webhook → Gmail)으로 발송하는 공용 헬퍼.
+// Parro 트랜잭션 메일을 n8n 웹훅(Webhook → Gmail)으로 발송하는 공용 헬퍼.
 // 웹훅은 받은 { to, subject, html } 을 그대로 Gmail로 보내는 범용 릴레이라,
 // 공유메일·환영메일 등 모든 메일이 같은 웹훅을 재사용한다(워크플로우 1개로 충분).
 
@@ -9,7 +9,7 @@ const clean = (v?: string) => v?.replace(/^﻿/, '').trim() ?? '';
 const APP_URL = getBrandAppUrl();
 
 // 실패해도 throw 하지 않는다 — 호출부(가입 콜백 등)가 메일 때문에 막히지 않도록.
-export async function sendMimicEmail(opts: {
+export async function sendParroEmail(opts: {
   to: string;
   subject: string;
   html: string;
@@ -40,6 +40,9 @@ export async function sendMimicEmail(opts: {
     return false;
   }
 }
+
+// Backward-compatible alias. Keep until Phase 3 internal rename cleanup is approved.
+export const sendMimicEmail = sendParroEmail;
 
 // 관리자 뉴스레터 — 평문 본문을 브랜드 템플릿으로 감싼다(관리자가 HTML 몰라도 됨).
 export function newsletterHtml(subject: string, bodyText: string): string {

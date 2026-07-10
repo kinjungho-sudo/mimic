@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { signupSchema } from '@/lib/validators';
 import { createServiceRoleClient } from '@/lib/supabase/server';
-import { sendMimicEmail, welcomeEmailHtml } from '@/lib/email/email-n8n';
+import { sendParroEmail, welcomeEmailHtml } from '@/lib/email/email-n8n';
 import { logAudit } from '@/lib/logging/logger-server';
 import { BRAND_NAME } from '@/lib/brand';
 
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     logAudit('auth.signup', { userId: data.user.id, email, method: 'email' });
 
     // 환영 이메일 발송 (n8n → Gmail, 실패해도 가입 자체는 성공 처리)
-    sendMimicEmail({ to: email, subject: `${BRAND_NAME} 가입을 환영해요 🎉`, html: welcomeEmailHtml(name) })
+    sendParroEmail({ to: email, subject: `${BRAND_NAME} 가입을 환영해요 🎉`, html: welcomeEmailHtml(name) })
       .catch(() => {});
   }
 

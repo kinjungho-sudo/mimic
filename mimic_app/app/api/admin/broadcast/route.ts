@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
-import { sendMimicEmail, newsletterHtml } from '@/lib/email/email-n8n';
+import { sendParroEmail, newsletterHtml } from '@/lib/email/email-n8n';
 import { z } from 'zod';
 
 const schema = z.object({
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
   // 미리보기: 관리자 본인에게만 1통
   if (test) {
     const adminEmail = (process.env.ADMIN_EMAIL ?? '').trim();
-    const ok = await sendMimicEmail({ to: adminEmail, subject: `[미리보기] ${subject}`, html });
+    const ok = await sendParroEmail({ to: adminEmail, subject: `[미리보기] ${subject}`, html });
     return NextResponse.json({ test: true, sent: ok ? 1 : 0, to: adminEmail });
   }
 
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
   // n8n 웹훅이 즉시응답(onReceived)이라 순차 발송도 빠름. Gmail 일일 한도 주의.
   let sent = 0, failed = 0;
   for (const to of emails) {
-    const ok = await sendMimicEmail({ to, subject, html });
+    const ok = await sendParroEmail({ to, subject, html });
     if (ok) sent++; else failed++;
   }
 

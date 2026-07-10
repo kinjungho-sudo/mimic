@@ -90,3 +90,9 @@
 - Reused `LEGACY_INTERNAL_IDENTIFIERS` for preserved runtime identifiers such as `x-mimic-secret`, `MIMICBot/1.0`, `text/mimic-tutorial`, and `mimic_annot_defaults_v1`.
 - Removed duplicated legacy identifier literals from share email headers, n8n email headers, favicon crawler requests, home drag/drop, and annotation defaults.
 - Kept the identifier values unchanged because these remain compatibility surfaces until a separate Phase 3 migration is approved.
+
+## 2026-07-10 - Parro email sender helper alias
+
+- Added `sendParroEmail` as the primary n8n transactional email helper name.
+- Updated internal app call sites to use `sendParroEmail`.
+- Kept `sendMimicEmail` as a backward-compatible alias until a separate Phase 3 internal rename cleanup is approved.

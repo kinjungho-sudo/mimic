@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { createServiceRoleClient } from '@/lib/supabase/server';
-import { sendMimicEmail, welcomeEmailHtml } from '@/lib/email/email-n8n';
+import { sendParroEmail, welcomeEmailHtml } from '@/lib/email/email-n8n';
 import { logAudit } from '@/lib/logging/logger-server';
 import { BRAND_NAME } from '@/lib/brand';
 
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
         // 가입 환영 메일 (최초 1회) — n8n 웹훅으로. 실패해도 가입 흐름 막지 않음.
         // 웹훅이 onReceived 즉시응답이라 await해도 빠름.
         if (user.email) {
-          await sendMimicEmail({
+          await sendParroEmail({
             to: user.email,
             subject: `${BRAND_NAME} 가입을 환영해요 🎉`,
             html: welcomeEmailHtml(meta.full_name ?? meta.name ?? null),
