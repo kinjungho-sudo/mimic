@@ -158,3 +158,8 @@
 
 - Updated the recording start modal, tab selection state, install prompt, and extension-required states from the old indigo/purple palette to Parro brand color tokens.
 - Preserved extension runtime IDs, Chrome Web Store URL, tab selection, reconnect, and `START_RECORDING` message flow.
+
+## 2026-07-11 - Parro auth color pass
+
+- Updated login, signup, forgot-password, and reset-password public auth screens from the old indigo/purple palette to Parro brand color tokens.
+- Preserved auth routes, Supabase password recovery flow, Google/email auth behavior, and the development-only guest login account.
