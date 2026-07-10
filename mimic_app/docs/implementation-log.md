@@ -211,3 +211,9 @@
 - Replaced the default Next.js `README.md` with a Parro public project introduction.
 - Documented the staged rebrand guardrails and the intentionally preserved internal `mimic-*` compatibility identifiers.
 - Preserved package names, routes, DB identifiers, extension identifiers, deployment identifiers, and blocked logo/icon production assets.
+
+## 2026-07-11 - Obsolete landing rewrite helper cleanup
+
+- Removed `scripts/replace_demo.py`, an old one-off landing page rewrite helper with hardcoded local paths and legacy MIMIC snippets.
+- Updated Parro audit/QA docs to stop preserving that helper as historical material.
+- Preserved runtime app code, routes, DB identifiers, env names, package names, deployment identifiers, and production logo/icon assets.

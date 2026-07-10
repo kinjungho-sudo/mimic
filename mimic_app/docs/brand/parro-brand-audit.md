@@ -64,7 +64,7 @@ These references are historical context or implementation handover records. Do n
 - `docs/SESSION_HANDOVER.md`: prior deployment and naming handover context.
 - `docs/MANUAL_CONTENT_RULES.md`, `docs/VOICE_PIPELINE_TASK.md`, `docs/N8N_EMAIL_SETUP.md`: operational docs with technical references.
 - `_design_fetch/motion-v2/**`: archived design fetches, screenshots, and generated HTML prototypes.
-- `LOCAL_TESTING.md`, `_design_fetch/motion-v2/chats/chat1.md`, `scripts/replace_demo.py`: historical/dev support material.
+- `LOCAL_TESTING.md`, `_design_fetch/motion-v2/chats/chat1.md`: historical/dev support material.
 
 ## Logo/icon asset locations
 
