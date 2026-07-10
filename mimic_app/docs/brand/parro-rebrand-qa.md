@@ -98,7 +98,8 @@ git diff --check
 ## Historical docs intentionally preserved
 
 - `README.md` now describes Parro and explicitly documents why selected `mimic-*` identifiers are preserved during the staged rebrand.
-- `CLAUDE.md`, `DEV_PROCESS.md`, `docs/DEV_PROCESS.md`, `docs/PLAN.md`, `docs/SESSION_HANDOVER.md`, `docs/VOICE_PIPELINE_TASK.md`, and older design-fetch artifacts under `_design_fetch/`.
+- Active app/Recorder agent docs now use Parro as the current display name while preserving historical filenames and internal folder identifiers.
+- Historical planning docs such as `docs/DEV_PROCESS.md`, `docs/PLAN.md`, `docs/SESSION_HANDOVER.md`, `docs/VOICE_PIPELINE_TASK.md`, top-level legacy PRDs, and older design-fetch artifacts under `_design_fetch/` may still preserve old-brand context.
 - `docs/brand/parro-brand-audit.md`, `docs/decisions.md`, and `docs/implementation-log.md` preserve old-brand references as migration history.
 - Obsolete one-off rewrite helper `scripts/replace_demo.py` was removed instead of preserved because it could restore legacy MIMIC landing content if accidentally run.
 

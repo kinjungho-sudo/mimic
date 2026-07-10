@@ -15,6 +15,14 @@ Owner must provide final vector source:
 - Uses final Parro colors or clearly exposes editable fills
 - Not a screenshot, PNG trace, Telegram image, or AI raster export
 
+## Mascot vs production logo
+
+Parro mascot/raster exploration can be used as product-avatar or marketing reference, but it is not a production logo source.
+
+- Mascot direction: friendly AI parrot avatar for in-product help moments.
+- Main logo direction: Wing Pointer, an abstract parrot wing plus screen pointer.
+- Do not derive app icons, favicon, or `public/logo.svg` from mascot screenshots.
+
 ## Target files to create or replace
 
 - `public/brand/parro-logo.svg`

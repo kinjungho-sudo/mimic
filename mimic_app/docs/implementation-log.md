@@ -1,5 +1,10 @@
 # Implementation Log
 
+## 2026-07-11 - Parro brand QA documentation alignment
+
+- Clarified that mascot raster exploration is not a production logo source.
+- Updated the rebrand QA historical-doc classification after active app and Recorder docs moved to Parro naming.
+
 ## 2026-07-11 - Parro active docs naming
 
 - Updated active app and Recorder agent docs to use Parro as the current display name.
