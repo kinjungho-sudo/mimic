@@ -23,7 +23,7 @@
 ### DB
 - `mm_steps.follow_config jsonb` **nullable 컬럼 추가** (프로덕션=project1=gqynptpjomcqzxyykqic에 마이그레이션 적용 완료)
 - 형태: `{ hotspotX, hotspotY (0~100 pct), kind: 'click'|'type', instruction: text, hidden: bool }`. 필드 미설정/null = 자동추론. 빈 객체는 null로 정규화 저장
-- ⚠️ project2(도쿄)는 MIMIC DB 아님 — 마이그레이션은 항상 project1
+- ⚠️ project2(도쿄)는 Parro DB 아님 — 마이그레이션은 항상 project1
 
 ### 코드
 - **`lib/follow.ts`** (신규) — 공용 resolver. `toFollowSteps(FollowSource[])`: follow_config 오버라이드 + hidden 필터 + 자동추론 폴백. `inferKind`, `clickToPct` 포함. **manual·play 따라하기 호출부가 이걸 공유**(휴리스틱 중복 제거)

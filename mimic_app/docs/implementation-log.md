@@ -342,3 +342,8 @@
 
 - Updated root `OVERVIEW.md` and `Plan.md` to use Parro as the current public product name.
 - Preserved `mimic_app`/`mimic_recorder` folder names, `mimicflow.com` as a Phase 2 domain decision, `mimic-tts`, and historical design document filenames.
+
+## 2026-07-11 - Active operations docs Parro naming pass
+
+- Updated `docs/DEV_PROCESS.md` and `docs/SESSION_HANDOVER.md` current operational wording from MIMIC to Parro.
+- Preserved historical backend plan content and deployment/database identifiers.
