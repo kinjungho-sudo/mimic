@@ -366,3 +366,8 @@
 - Re-ran JavaScript syntax checks for the public SDK and Recorder runtime files; all passed.
 - Re-ran the MCP server TypeScript build; it passed.
 - Made no application, database, environment, or deployment changes in this verification batch.
+
+## 2026-07-11 - Phase 2 Vercel prerequisite correction
+
+- Corrected the Phase 2 decision document to reflect the verified Vercel CLI `54.5.1` installation.
+- Kept linked-project inspection, environment access, logs, and deployment blocked until explicit owner approval.

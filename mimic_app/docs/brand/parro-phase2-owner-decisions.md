@@ -59,7 +59,7 @@ Risk:
 
 Prerequisite:
 
-- Vercel CLI is currently not installed in this environment. Install with `npm i -g vercel` before using `vercel env pull`, `vercel deploy`, or `vercel logs`.
+- Vercel CLI `54.5.1` is available in this environment. Do not run `vercel env pull`, `vercel deploy`, `vercel logs`, or linked-project inspection until the owner explicitly approves Phase 2 operational work.
 
 ## Decision 3: Support Email
 
@@ -139,7 +139,7 @@ Risk:
 ## Recommended Phase 2 Order
 
 1. Approve final logo SVG and asset filename policy.
-2. Install Vercel CLI and inspect current linked project/env state.
+2. After explicit owner approval, inspect the current linked Vercel project/env state with the available CLI.
 3. Decide final Parro domain and support email.
 4. Update app constants and public static files.
 5. Update Recorder runtime URLs and manifest host permissions only after domain/auth behavior is confirmed.
