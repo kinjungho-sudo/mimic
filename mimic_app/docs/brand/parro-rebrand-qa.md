@@ -19,6 +19,7 @@ git diff --check
 - `npm run build`: passed.
 - Re-ran `npm run lint`, `$env:NODE_OPTIONS='--use-system-ca'; npm run build`, `git diff --check`, and focused `sendMimicEmail|sendParroEmail` search after the email helper alias pass; all passed with only existing warnings.
 - Re-ran `npm run lint`, `$env:NODE_OPTIONS='--use-system-ca'; npm run build`, `git diff --check`, and focused `MimicAppHeader|mimicFadeIn|mimic:survey` search after the internal UI name cleanup; all passed with only existing warnings.
+- Re-ran `npm run lint`, `$env:NODE_OPTIONS='--use-system-ca'; npm run build`, `git diff --check`, and focused `demo@mimicflow.com|demo@parro.example|devtest@mimic.dev` search after the mock email cleanup; all passed with only existing warnings.
 - `packages/mcp-server`: `npm ci` then `npm run build` passed.
 - `git diff --check`: passed.
 - `packages/mcp-server npm ci` reported 2 high severity dependency audit findings. No `npm audit fix` was run because that is outside the rebrand scope and can change dependency versions.
@@ -45,6 +46,7 @@ git diff --check
 - SDK compatibility globals/classes/query params in `public/sdk.js`, including `window.MimicSDK`, `window.MimicAutoRun`, `mimic_guide`, `data-mimic-float`, and `mimic-*` CSS classes.
 - Local storage and drag/drop keys such as `mimic:survey:*`, `mimic_annot_defaults_v1`, and `text/mimic-tutorial`. Survey prefixes, annotation defaults, and drag/drop keys now go through `LEGACY_INTERNAL_IDENTIFIERS`.
 - `sendMimicEmail` remains as a backward-compatible alias to `sendParroEmail`; app call sites now use the Parro helper name.
+- Development-only guest login still uses `devtest@mimic.dev`; this appears to be a seeded dev account and should not be renamed without owner approval.
 - SDK/recorder console log tags have been updated to `[Parro]`; compatibility names remain unchanged.
 - Legacy matching keywords in the help chat so users asking about the old name can still get an answer.
 

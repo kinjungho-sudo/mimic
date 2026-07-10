@@ -102,3 +102,8 @@
 - Renamed the landing page internal preview header component from `MimicAppHeader` to `ParroAppHeader`.
 - Renamed the editor toast animation from `mimicFadeIn` to `parroFadeIn`.
 - Centralized preserved survey localStorage key prefixes under `LEGACY_INTERNAL_IDENTIFIERS` without changing their stored values.
+
+## 2026-07-10 - Parro mock user email cleanup
+
+- Updated mock user data from `demo@mimicflow.com` to reserved-domain `demo@parro.example`.
+- Preserved the real development guest login account `devtest@mimic.dev`.
