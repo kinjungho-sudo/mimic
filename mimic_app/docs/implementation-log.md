@@ -47,3 +47,9 @@
 - Replaced remaining app-shell, legal metadata/body, admin broadcast/admin dashboard, Live Guide error, and PDF/DOCX export cover old-brand text with Parro-facing wording.
 - Preserved internal drag MIME type `text/mimic-tutorial`, auth comments, support email/domain, deployment URLs, SDK identifiers, package names, and database/schema identifiers.
 - Kept asset replacement deferred pending final Wing Pointer SVG.
+
+## 2026-07-10 - Parro rebrand QA report
+
+- Created `docs/brand/parro-rebrand-qa.md`.
+- Recorded final lint/build/search results for the current public rebrand batch.
+- Classified remaining old-brand references as asset/domain decisions, internal compatibility identifiers, or historical docs.
