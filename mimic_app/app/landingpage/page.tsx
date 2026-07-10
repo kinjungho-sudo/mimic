@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { BrandMark } from '@/components/common/BrandMark';
 import { FollowStage } from '@/components/viewer/FollowStage';
+import { BRAND_COPY, BRAND_NAME, BRAND_TAGLINE } from '@/lib/brand';
 
 const CheckIcon = ({ size = 14, color = 'currentColor' }: { size?: number; color?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3">
@@ -242,7 +243,7 @@ const useCases = [
     emoji: '📹',
     tag: '크리에이터 · 튜토리얼',
     title: '영상 없이도 영상처럼 설명하세요',
-    body: '유튜브 튜토리얼을 만들 시간이 없다면 MIMIC으로 대신하세요. 클릭 한 번에 인터랙티브 가이드가 완성됩니다.',
+    body: `유튜브 튜토리얼을 만들 시간이 없다면 ${BRAND_NAME}로 대신하세요. 클릭 한 번에 인터랙티브 가이드가 완성됩니다.`,
   },
   {
     emoji: '🏢',
@@ -301,7 +302,7 @@ function HeroDemo() {
   }, []);
 
   const phases = [
-    { label: 'Capture', title: '클릭과 화면을 단계로 기록', body: '업무를 평소처럼 진행하면, MIMIC이 필요한 장면을 자동으로 모읍니다.' },
+    { label: 'Capture', title: '클릭과 화면을 단계로 기록', body: `업무를 평소처럼 진행하면, ${BRAND_NAME}가 필요한 장면을 자동으로 모읍니다.` },
     { label: 'Manual', title: '공유 가능한 매뉴얼로 정리', body: '제목, 설명, 하이라이트가 붙은 실행 매뉴얼이 바로 완성됩니다.' },
     { label: 'Live Guide Beta', title: '최종 목적지까지 옆에서 안내', body: '사용자는 실제 흐름을 따라가며 클릭 위치와 입력할 텍스트까지 차근차근 확인합니다.' },
   ];
@@ -316,7 +317,7 @@ function HeroDemo() {
           <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#FF5F57' }} />
           <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#FEBC2E' }} />
           <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#28C840' }} />
-          <div style={{ flex: 1, marginLeft: '10px', padding: '5px 12px', borderRadius: '7px', background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.46)', fontSize: '11.5px', textAlign: 'left' }}>app.mimic.so/workflow</div>
+          <div style={{ flex: 1, marginLeft: '10px', padding: '5px 12px', borderRadius: '7px', background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.46)', fontSize: '11.5px', textAlign: 'left' }}>app.parro.so/workflow</div>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#c4b5fd', fontSize: '11px', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
             <i style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#8b5cf6', boxShadow: '0 0 0 5px rgba(139,92,246,0.12)' }} />
             Live Guide
@@ -450,7 +451,7 @@ function CursorIcon({ size = 22 }: { size?: number }) {
   );
 }
 
-// ── 씬 0: MIMIC 홈 → "새 매뉴얼" 클릭 ──────────
+// ── 씬 0: Parro 홈 → "새 매뉴얼" 클릭 ──────────
 function Scene0({ tick }: { tick: number }) {
   const hover = tick >= 1400;
   const click = tick >= 2600;
@@ -462,14 +463,14 @@ function Scene0({ tick }: { tick: number }) {
     { title: 'notebookLM 사용 가이드', sub: 'notebooklm · 24단계', color: '#fef9c3', icon: '📓' },
     { title: 'YouTube 동영상 업로드', sub: 'youtube.com · 4단계', color: '#fee2e2', icon: '▶️' },
   ];
-  const FOLDERS = ['MIMIC','OZ코딩스쿨','바이브코딩','네이버','쿠팡','기타'];
+  const FOLDERS = [BRAND_NAME,'OZ코딩스쿨','바이브코딩','네이버','쿠팡','기타'];
   return (
     <div style={{ width: '100%', height: '100%', background: '#fff', display: 'grid', gridTemplateColumns: '150px 1fr', position: 'relative' }}>
       {/* 왼쪽 사이드바 */}
       <div style={{ background: '#FAFAFB', borderRight: '1px solid #EEE', padding: '14px 10px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
-          <div style={{ width: '20px', height: '20px', borderRadius: '6px', background: 'linear-gradient(135deg,#6d28d9,#3730a3)', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 800, fontSize: '11px' }}>M</div>
-          <span style={{ fontSize: '12px', fontWeight: 800, color: '#1a1a2e' }}>MIMIC</span>
+          <div style={{ width: '20px', height: '20px', borderRadius: '6px', background: 'linear-gradient(135deg,#6d28d9,#3730a3)', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 800, fontSize: '11px' }}>P</div>
+          <span style={{ fontSize: '12px', fontWeight: 800, color: '#1a1a2e' }}>{BRAND_NAME}</span>
         </div>
         <div style={{ fontSize: '8.5px', color: '#9CA3AF', fontWeight: 700, padding: '0 4px', marginBottom: '2px' }}>내 워크스페이스</div>
         {['전체 19','미분류 18'].map(t=>(
@@ -550,7 +551,7 @@ function Scene1({ tick }: { tick: number }) {
   );
 }
 
-// ── 씬 2: 정부24 클릭 캡처 + MIMIC Recorder 패널 ──────────
+// ── 씬 2: 정부24 클릭 캡처 + Parro Recorder 패널 ──────────
 function Scene2({ tick }: { tick: number }) {
   // 좌측 화면이 클릭에 따라 전환: 0=홈(주민등록등본 메뉴 클릭) → 1=발급 페이지(발급하기 클릭)
   const substep = tick < 2600 ? 0 : 1;
@@ -568,13 +569,13 @@ function Scene2({ tick }: { tick: number }) {
           <StepScreen step={substep} mode="record" />
         </div>
       </div>
-      {/* 우측: 데스크톱 위에 떠있는 별도 MIMIC Recorder 창 */}
+      {/* 우측: 데스크톱 위에 떠있는 별도 Parro Recorder 창 */}
       <div style={{ position: 'absolute', top: '14px', right: '14px', bottom: '14px', width: '172px', background: '#fff', borderRadius: '12px', boxShadow: '0 18px 48px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', overflow: 'hidden', zIndex: 20 }}>
         {/* 창 헤더 — 그라데이션 + 창 컨트롤 (별도 창 느낌) */}
         <div style={{ background: 'linear-gradient(135deg,#6d28d9,#3730a3)', padding: '9px 11px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <div style={{ width: '18px', height: '18px', borderRadius: '5px', background: 'rgba(255,255,255,0.22)', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 800, fontSize: '10px' }}>M</div>
-            <span style={{ fontSize: '10.5px', fontWeight: 800, color: '#fff' }}>MIMIC Recorder</span>
+            <div style={{ width: '18px', height: '18px', borderRadius: '5px', background: 'rgba(255,255,255,0.22)', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 800, fontSize: '10px' }}>P</div>
+            <span style={{ fontSize: '10.5px', fontWeight: 800, color: '#fff' }}>{BRAND_COPY.extensionDisplayName}</span>
           </div>
           <div style={{ display: 'flex', gap: '6px', fontSize: '9px', color: 'rgba(255,255,255,0.75)' }}><span>📌</span><span>⚙</span></div>
         </div>
@@ -623,11 +624,11 @@ function Scene3({ tick }: { tick: number }) {
       <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, right: '196px', overflow: 'hidden', background: '#fff', borderRight: '1px solid rgba(0,0,0,0.06)' }}>
         <Gov24Page dim />
       </div>
-      {/* 우측: 떠있는 MIMIC Recorder 창 — 생성 중 */}
+      {/* 우측: 떠있는 Parro Recorder 창 — 생성 중 */}
       <div style={{ position: 'absolute', top: '14px', right: '14px', bottom: '14px', width: '172px', background: '#fff', borderRadius: '12px', boxShadow: '0 18px 48px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', overflow: 'hidden', zIndex: 20 }}>
         <div style={{ background: 'linear-gradient(135deg,#6d28d9,#3730a3)', padding: '9px 11px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <div style={{ width: '18px', height: '18px', borderRadius: '5px', background: 'rgba(255,255,255,0.22)', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 800, fontSize: '10px' }}>M</div>
-          <span style={{ fontSize: '10.5px', fontWeight: 800, color: '#fff' }}>MIMIC Recorder</span>
+          <div style={{ width: '18px', height: '18px', borderRadius: '5px', background: 'rgba(255,255,255,0.22)', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 800, fontSize: '10px' }}>P</div>
+          <span style={{ fontSize: '10.5px', fontWeight: 800, color: '#fff' }}>{BRAND_COPY.extensionDisplayName}</span>
         </div>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '0 14px' }}>
           <div style={{ width: '38px', height: '38px', borderRadius: '50%', border: '3px solid #EDE9FE', borderTopColor: '#6d28d9', animation: 'spin 0.8s linear infinite' }} />
@@ -651,12 +652,12 @@ function Scene3({ tick }: { tick: number }) {
   );
 }
 
-// MIMIC 앱 헤더 (Scene4·5 공용)
+// Parro 앱 헤더 (Scene4·5 공용)
 function MimicAppHeader({ mode }: { mode: 'doc' | 'guide' }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 14px', borderBottom: '1px solid #EEE', background: '#fff' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <div style={{ width: '20px', height: '20px', borderRadius: '6px', background: 'linear-gradient(135deg,#6d28d9,#3730a3)', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 800, fontSize: '11px' }}>M</div>
+        <div style={{ width: '20px', height: '20px', borderRadius: '6px', background: 'linear-gradient(135deg,#6d28d9,#3730a3)', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 800, fontSize: '11px' }}>P</div>
         <span style={{ fontSize: '11px', fontWeight: 700, color: '#374151' }}>정부24에서 주민등록증 발급받기</span>
       </div>
       <div style={{ display: 'flex', gap: '4px' }}>
@@ -722,7 +723,7 @@ function StepScreen({ step, mode }: { step: number; mode: 'card' | 'guide' | 're
         <div style={{ position: 'absolute', bottom: '100%', right: '4px', marginBottom: '10px', background: 'white', borderRadius: '10px 10px 10px 2px', padding: '9px 12px 8px', boxShadow: '0 10px 32px rgba(0,0,0,0.26), 0 0 0 1px rgba(0,0,0,0.05)', width: '190px', pointerEvents: 'none' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '5px' }}>
             <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: 'linear-gradient(135deg,#6d28d9,#3730a3)', display: 'grid', placeItems: 'center', fontSize: '12px', flexShrink: 0 }}>🤖</div>
-            <span style={{ fontSize: '9px', fontWeight: 800, color: '#6d28d9', letterSpacing: '0.04em' }}>MIMIC AI</span>
+            <span style={{ fontSize: '9px', fontWeight: 800, color: '#6d28d9', letterSpacing: '0.04em' }}>{BRAND_NAME} AI</span>
           </div>
           <div style={{ fontSize: '10px', fontWeight: 700, color: '#111827', marginBottom: '3px' }}>{GUIDE_STEPS[step]?.title}</div>
           <div style={{ fontSize: '8.5px', color: '#6B7280' }}>표시된 곳을 클릭하면 다음으로 넘어가요</div>
@@ -919,7 +920,7 @@ function Scene5({ tick }: { tick: number }) {
         <div style={{ padding: '14px 18px' }}>
           {/* 공유 링크 */}
           <div style={{ display: 'flex', borderRadius: '8px', overflow: 'hidden', border: '1.5px solid #E5E7EB', marginBottom: '11px' }}>
-            <div style={{ flex: 1, padding: '8px 10px', fontSize: '9.5px', color: '#6B7280', fontFamily: 'monospace', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', background: '#F9FAFB' }}>mimic.so/play/gov24-resident-cert</div>
+            <div style={{ flex: 1, padding: '8px 10px', fontSize: '9.5px', color: '#6B7280', fontFamily: 'monospace', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', background: '#F9FAFB' }}>parro.so/play/gov24-resident-cert</div>
             <div style={{ padding: '8px 13px', background: copied ? '#10B981' : 'linear-gradient(135deg,#6d28d9,#3730a3)', color: '#fff', fontSize: '10px', fontWeight: 700, transition: 'background 0.3s', whiteSpace: 'nowrap' }}>{copied ? '✓ 복사됨' : '🔗 링크 복사'}</div>
           </div>
           {/* 공개 범위 + 비밀번호 */}
@@ -1022,7 +1023,7 @@ function MockTopBar({ url, dark }: { url: string; dark?: boolean }) {
   );
 }
 
-// ① 녹화 — 클릭하면 자동 캡처 (우측 MIMIC Recorder 사이드 패널에 동일 화면이 미리보기로 캡처됨)
+// ① 녹화 — 클릭하면 자동 캡처 (우측 Parro Recorder 사이드 패널에 동일 화면이 미리보기로 캡처됨)
 function MockRecord() {
   const STEPS = [
     { label: '문서 열기' },
@@ -1055,16 +1056,16 @@ function MockRecord() {
           {/* 녹화 중 배지 */}
           <div style={{ position: 'absolute', top: '14px', right: '16px', display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 11px', background: 'rgba(10,10,15,0.85)', borderRadius: '999px', fontSize: '10.5px', color: 'white', fontWeight: 500 }}>
             <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#EF4444', animation: 'rec-blink 1.2s infinite' }} />
-            MIMIC 녹화 중
+            {BRAND_NAME} 녹화 중
           </div>
         </div>
       </div>
-      {/* 우측 — MIMIC Recorder 사이드 패널 */}
+      {/* 우측 — Parro Recorder 사이드 패널 */}
       <div style={{ width: '186px', background: 'white', borderLeft: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderBottom: '1px solid #F3F4F6' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <div style={{ width: '19px', height: '19px', borderRadius: '6px', background: 'linear-gradient(135deg,#6d28d9,#3730a3)', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 800, fontSize: '10px' }}>M</div>
-            <span style={{ fontSize: '11px', fontWeight: 800, color: '#1a1a2e' }}>MIMIC Recorder</span>
+            <div style={{ width: '19px', height: '19px', borderRadius: '6px', background: 'linear-gradient(135deg,#6d28d9,#3730a3)', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 800, fontSize: '10px' }}>P</div>
+            <span style={{ fontSize: '11px', fontWeight: 800, color: '#1a1a2e' }}>{BRAND_COPY.extensionDisplayName}</span>
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 12px', borderBottom: '1px solid #F3F4F6' }}>
@@ -1106,7 +1107,7 @@ function MockEditor() {
   const TOOLS = ['↖', '→', '▢', '◯', 'T', '#', '▩', '☀'];
   return (
     <div style={{ height: '340px', background: '#111827', display: 'flex', flexDirection: 'column' }}>
-      <MockTopBar url="app.mimic.so/editor" dark />
+      <MockTopBar url="app.parro.so/editor" dark />
       <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '150px 1fr', minHeight: 0 }}>
         <div style={{ borderRight: '1px solid rgba(255,255,255,0.07)', padding: '12px 9px' }}>
           <div style={{ fontSize: '8.5px', color: '#6B7280', fontWeight: 700, letterSpacing: '0.1em', marginBottom: '7px', padding: '0 3px' }}>스텝 목록</div>
@@ -1164,7 +1165,7 @@ function MockEditor() {
 function MockEduMode() {
   return (
     <div style={{ height: '340px', background: 'white', display: 'flex', flexDirection: 'column' }}>
-      <MockTopBar url="app.mimic.so/manual" />
+      <MockTopBar url="app.parro.so/manual" />
       <div style={{ flex: 1, padding: '16px 20px', overflow: 'hidden' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
           <span style={{ fontSize: '13.5px', fontWeight: 700, color: '#0F172A' }}>거래처 등록 교육 자료</span>
@@ -1292,7 +1293,7 @@ function MockGuideMe() {
 function MockShare() {
   return (
     <div style={{ height: '340px', background: '#F8F8FA', display: 'flex', flexDirection: 'column' }}>
-      <MockTopBar url="app.mimic.so/manual" />
+      <MockTopBar url="app.parro.so/manual" />
       <div style={{ flex: 1, padding: '16px 20px', position: 'relative' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
           <div>
@@ -1314,7 +1315,7 @@ function MockShare() {
         <div style={{ background: 'white', borderRadius: '13px', border: '1px solid #EDEDED', padding: '14px 16px', marginBottom: '10px' }}>
           <div style={{ fontSize: '10.5px', fontWeight: 700, color: '#374151', marginBottom: '7px' }}>공유 링크</div>
           <div style={{ display: 'flex', borderRadius: '8px', overflow: 'hidden', border: '1.5px solid #E5E7EB' }}>
-            <div style={{ flex: 1, padding: '8px 11px', background: '#F9FAFB', fontSize: '10px', color: '#6B7280', fontFamily: 'monospace', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>mimic.so/play/jumindeungbon</div>
+            <div style={{ flex: 1, padding: '8px 11px', background: '#F9FAFB', fontSize: '10px', color: '#6B7280', fontFamily: 'monospace', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>parro.so/play/jumindeungbon</div>
             <span style={{ padding: '8px 13px', background: 'linear-gradient(135deg,#3730a3,#6d28d9)', color: 'white', fontSize: '10px', fontWeight: 700, display: 'flex', alignItems: 'center' }}>링크 복사</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
@@ -1344,7 +1345,7 @@ const SHOWCASES = [
   {
     id: 'record',
     eyebrow: 'STEP 1 · 녹화',
-    title: '평소처럼 클릭하세요.\n캡처는 MIMIC이 합니다',
+    title: `평소처럼 클릭하세요.\n캡처는 ${BRAND_NAME}가 합니다`,
     desc: '크롬 확장을 켜고 하던 일을 그대로 하면 끝입니다. 클릭하는 순간마다 화면이 캡처되고 스텝이 만들어집니다. 대본도, 스크린샷 정리도 필요 없어요.',
     bullets: [
       '클릭하는 순간 자동 캡처 — 별도 조작 없음',
@@ -1484,7 +1485,7 @@ function ServiceSimulatorSection() {
                 첫 번째 데모는 눌러야 할 버튼이 화면 위에서 하이라이트되는 흐름입니다.
                 두 번째 데모는 저장해둔 텍스트가 실제 입력칸 안에 자동으로 입력되는 흐름입니다.
               </p>
-              <div className="simulator-steps" role="tablist" aria-label="MIMIC product simulator steps">
+              <div className="simulator-steps" role="tablist" aria-label="Parro product simulator steps">
                 {simulatorDemos.map((item, index) => (
                   <button
                     key={item.eyebrow}
@@ -1559,9 +1560,9 @@ function HeroSection() {
         </div>
 
         <h1 style={{ margin: '0 auto 24px', fontSize: 'clamp(44px, 7vw, 84px)', lineHeight: 1.04, fontWeight: 800, letterSpacing: '-0.045em', maxWidth: '880px', color: 'white', wordBreak: 'keep-all' }}>
-          Don&apos;t Explain,{' '}
+          {BRAND_NAME}{' '}
           <span style={{ background: 'linear-gradient(135deg, #e0d7ff 0%, #c4b5fd 40%, #a78bfa 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent', display: 'inline-block' }}>
-            Just Mimic.
+            AI Live Guide.
           </span>
         </h1>
 
@@ -1698,7 +1699,7 @@ export default function LandingPage() {
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px', display: 'flex', alignItems: 'center', gap: '32px', height: '64px' }}>
           <Link href="/landingpage" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '15px', color: 'white', textDecoration: 'none', letterSpacing: '-0.01em' }}>
             <BrandMark />
-            MIMIC
+            {BRAND_NAME}
           </Link>
           <nav style={{ display: 'flex', gap: '28px', marginLeft: '8px' }}>
             {['제품 투어', '기능', '사용 방법', '요금제', '기업 문의', 'FAQ'].map((item, i) => (
@@ -1736,7 +1737,7 @@ export default function LandingPage() {
           <RevealSection>
             <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', fontSize: '11px', fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#7c3aed', marginBottom: '36px' }}>
               <span style={{ flex: 1, maxWidth: '80px', height: '1px', background: 'linear-gradient(90deg, transparent, rgba(124,58,237,0.5))' }} />
-              The MIMIC Way
+              The Parro Way
               <span style={{ flex: 1, maxWidth: '80px', height: '1px', background: 'linear-gradient(90deg, rgba(124,58,237,0.5), transparent)' }} />
             </p>
             <h2 style={{ fontSize: 'clamp(38px, 6vw, 72px)', fontWeight: 800, lineHeight: 1.1, letterSpacing: '-0.04em', color: 'white', margin: '0 0 28px', wordBreak: 'keep-all' }}>
@@ -1834,7 +1835,7 @@ export default function LandingPage() {
           <RevealSection>
             <span style={{ display: 'block', textAlign: 'center', fontSize: '11px', color: '#5b21b6', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '16px' }}>Use Cases</span>
             <h2 style={{ textAlign: 'center', fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 800, letterSpacing: '-0.035em', margin: '0 auto 14px', maxWidth: '640px', lineHeight: 1.18, color: '#0D0D14' }}>어떤 팀에서 쓰고 있나요?</h2>
-            <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '520px', margin: '0 auto 60px', lineHeight: 1.7 }}>설명이 필요한 곳이라면 어디든 MIMIC으로 해결할 수 있습니다.</p>
+            <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '520px', margin: '0 auto 60px', lineHeight: 1.7 }}>설명이 필요한 곳이라면 어디든 {BRAND_NAME}로 해결할 수 있습니다.</p>
 
             <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
               {useCases.map(uc => (
@@ -1891,14 +1892,14 @@ export default function LandingPage() {
       <section style={{ padding: '100px 0', background: '#FAFAFA' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
           <RevealSection>
-          <span style={{ display: 'block', textAlign: 'center', fontSize: '11px', color: '#5b21b6', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '16px' }}>Why MIMIC</span>
+          <span style={{ display: 'block', textAlign: 'center', fontSize: '11px', color: '#5b21b6', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '16px' }}>Why Parro</span>
           <h2 style={{ textAlign: 'center', fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 800, letterSpacing: '-0.035em', margin: '0 auto 60px', maxWidth: '640px', lineHeight: 1.18, color: '#0D0D14' }}>다른 방법과 무엇이 다른가요?</h2>
 
           <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: '20px', overflow: 'hidden' }}>
             {/* Header row */}
             <div className="comparison-row" style={{ display: 'grid', gridTemplateColumns: '1fr repeat(3, 140px)', borderBottom: '1.5px solid #E5E7EB' }}>
               <div style={{ padding: '18px 28px', fontSize: '13px', color: '#9CA3AF' }}>기능</div>
-              {['PPT / 문서', '영상 녹화', 'MIMIC'].map((col, i) => (
+              {['PPT / 문서', '영상 녹화', BRAND_NAME].map((col, i) => (
                 <div key={col} style={{ padding: '18px 0', textAlign: 'center', fontSize: '13.5px', fontWeight: 600, color: i === 2 ? '#3730a3' : '#374151', background: i === 2 ? '#F5F3FF' : 'transparent', borderLeft: '1px solid #F3F4F6' }}>{col}</div>
               ))}
             </div>
@@ -1952,7 +1953,7 @@ export default function LandingPage() {
               {
                 name: 'Free', sub: '신용카드 없이 바로 시작', amount: '₩0', per: '/ 월', featured: false,
                 planKey: null as null | 'basic' | 'pro' | 'team',
-                features: ['매일 매뉴얼 3개', 'MIMIC Recorder 확장 설치', '텍스트·도형 편집', '링크 공유 + PDF', '500MB 저장 공간'],
+                features: ['매일 매뉴얼 3개', `${BRAND_COPY.extensionDisplayName} 확장 설치`, '텍스트·도형 편집', '링크 공유 + PDF', '500MB 저장 공간'],
                 cta: '무료로 시작',
               },
               {
@@ -2058,7 +2059,7 @@ export default function LandingPage() {
               Pro 출시 알림 받기 · 사전예약
             </span>
             <h2 style={{ fontSize: 'clamp(32px, 5vw, 54px)', fontWeight: 800, letterSpacing: '-0.04em', margin: '0 0 18px', position: 'relative', lineHeight: 1.1, wordBreak: 'keep-all' }}>첫 실행형 매뉴얼을<br/>만들어보세요</h2>
-            <p style={{ fontSize: '17px', color: 'rgba(255,255,255,0.70)', maxWidth: '520px', margin: '0 auto 40px', position: 'relative', lineHeight: 1.7 }}>MIMIC Recorder 확장 설치 후 평소처럼 작업하세요. SOP는 문서로 남고, 필요한 순간에는 화면 위 안내로 이어집니다.</p>
+            <p style={{ fontSize: '17px', color: 'rgba(255,255,255,0.70)', maxWidth: '520px', margin: '0 auto 40px', position: 'relative', lineHeight: 1.7 }}>{BRAND_COPY.extensionDisplayName} 확장 설치 후 평소처럼 작업하세요. SOP는 문서로 남고, 필요한 순간에는 화면 위 안내로 이어집니다.</p>
 
             {!submitted ? (
               <form onSubmit={handleProSignup} style={{ position: 'relative', display: 'flex', gap: '8px', maxWidth: '440px', margin: '0 auto 28px', padding: '6px', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.22)', borderRadius: '14px' }}>
@@ -2094,11 +2095,11 @@ export default function LandingPage() {
           <div className="footer-grid" style={{ display: 'grid', gridTemplateColumns: '1.6fr repeat(4, 1fr)', gap: '48px', paddingBottom: '48px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             <div>
               <Link href="/landingpage" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, fontSize: '15px', color: 'white', textDecoration: 'none' }}>
-                <BrandMark /> MIMIC
+                <BrandMark /> {BRAND_NAME}
               </Link>
               <p style={{ maxWidth: '280px', fontSize: '13px', color: '#4B5563', margin: '14px 0 20px', lineHeight: 1.7 }}>
                 길게 설명할 필요 없어요. 보고 따라 하게 만드세요.<br/>
-                <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: '11px', opacity: 0.6 }}>Don&apos;t Explain, Just Mimic.</span>
+                <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: '11px', opacity: 0.6 }}>{BRAND_TAGLINE}</span>
               </p>
             </div>
             {[
@@ -2123,7 +2124,7 @@ export default function LandingPage() {
             ))}
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '24px', fontSize: '12px', color: '#374151' }}>
-            <div>© 2026 코마인드웍스 · MIMIC</div>
+            <div>© 2026 코마인드웍스 · {BRAND_NAME}</div>
             <div style={{ display: 'flex', gap: '20px' }}>
               {['한국어', 'English', 'kinjungho@gmail.com'].map(l => (
                 <a key={l} href={l.includes('@') ? `mailto:${l}` : '#'} style={{ color: '#374151', textDecoration: 'none' }}

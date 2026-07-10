@@ -35,3 +35,9 @@
 - Replaced visible old-brand text in the recording modal, help center primary sections/FAQ, and `public/llms.txt`.
 - Preserved extension debug log tags, Chrome Web Store slug, support email/domain, and deployment URLs.
 - Kept legal wording and landing page as separate follow-up batches because they contain dense public copy and owner/asset decisions.
+
+## 2026-07-10 - Parro landing page public text batch
+
+- Replaced landing page public `MIMIC`/`MIMIC Recorder` text, mock display URLs, comparison labels, CTA copy, header/footer brand text, and hero headline with Parro-facing wording.
+- Preserved the internal `MimicAppHeader` component name because it is not user-visible and does not affect deployment or data compatibility.
+- Kept production logo/icon asset replacement deferred until a production-ready Wing Pointer SVG is available.
