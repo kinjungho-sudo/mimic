@@ -105,6 +105,7 @@ git diff --check
 
 ## Follow-up owner decisions
 
+- See `docs/brand/parro-phase2-owner-decisions.md` for the full Phase 2 decision matrix and recommended order.
 - Provide final production-ready Wing Pointer SVG assets for `public/brand/parro-logo.svg`, `public/brand/parro-mark.svg`, `public/logo.svg`, `app/icon.svg`, and `public/favicon.svg`.
 - Decide whether `public/mimic-logo.png` remains as a compatibility filename or moves to a new `public/brand/parro-logo.png` path after the final SVG is approved.
 - Decide public domain and support email migration timing.
@@ -114,8 +115,8 @@ git diff --check
 
 ## Phase 2 recommendations
 
-1. Add final Wing Pointer SVG assets and replace logo/icon/favicon files.
-2. Centralize final Parro colors from the SVG into brand/theme tokens.
+1. Add final Wing Pointer SVG assets and replace logo/icon/favicon files after owner approval.
+2. Install Vercel CLI and inspect linked project/env state before domain/deployment changes.
 3. Decide and migrate support email/domain/Vercel display names.
-4. Update operational docs only after domain/deployment decisions are confirmed.
+4. Update Recorder host permissions and store/policy URLs only after domain behavior is verified.
 5. Defer DB/API/env/package/SDK identifier rename to a separate Phase 3 migration plan.

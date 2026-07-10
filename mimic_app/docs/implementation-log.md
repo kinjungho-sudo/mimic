@@ -1,5 +1,11 @@
 # Implementation Log
 
+## 2026-07-11 - Parro Phase 2 owner decision matrix
+
+- Created `docs/brand/parro-phase2-owner-decisions.md`.
+- Documented the remaining logo, domain, support email, Chrome Web Store, bot/user-agent, and internal identifier decisions before Phase 2 operational changes.
+- Kept all runtime, DB, deployment, route, env, package, and extension identifiers unchanged.
+
 ## 2026-07-11 - Parro brand QA documentation alignment
 
 - Clarified that mascot raster exploration is not a production logo source.
