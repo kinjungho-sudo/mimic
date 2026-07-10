@@ -347,3 +347,8 @@
 
 - Updated `docs/DEV_PROCESS.md` and `docs/SESSION_HANDOVER.md` current operational wording from MIMIC to Parro.
 - Preserved historical backend plan content and deployment/database identifiers.
+
+## 2026-07-11 - Active agent guardrail docs Parro wording pass
+
+- Updated active agent/development guardrail wording in `CLAUDE.md` and `DEV_PROCESS.md` to refer to Parro instead of MIMIC where the text described the current service.
+- Preserved Supabase project IDs, schema filenames, `mm_*` table prefix references, and all DB safety rules.

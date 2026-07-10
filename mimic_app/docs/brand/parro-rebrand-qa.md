@@ -67,6 +67,8 @@ git diff --check
 - Re-ran `git diff --check`, focused public old-brand search (`MIMIC Recorder|# MIMIC|Don't Explain, Just Mimic|MIMIC은|미믹`), and focused `OVERVIEW.md`/`Plan.md` old-brand classification search after the active PM docs pass. Diff check passed with CRLF warnings only; public old-brand search returned no hits.
 - Updated active operational docs `docs/DEV_PROCESS.md` and `docs/SESSION_HANDOVER.md` current display wording from MIMIC to Parro while preserving deployment/database identifiers and historical backend plan content.
 - Re-ran `git diff --check`, focused active operations doc public old-brand search, and focused `docs/DEV_PROCESS.md`/`docs/SESSION_HANDOVER.md` classification search after the operations docs pass. Diff check passed with CRLF warnings only; remaining hits are preserved domain/path/runtime identifiers.
+- Updated active agent/development guardrail docs `CLAUDE.md` and `DEV_PROCESS.md` to use Parro in current-service wording while preserving Supabase project IDs, schema filenames, `mm_*` table-prefix references, and DB safety rules.
+- Re-ran focused current-service old-brand search and `git diff --check` after the active agent/development guardrail docs pass. Diff check passed with CRLF warnings only; remaining hits are preserved schema filenames and worktree/folder paths.
 - `packages/mcp-server`: `npm ci` then `npm run build` passed.
 - `git diff --check`: passed.
 - `packages/mcp-server npm ci` reported 2 high severity dependency audit findings. No `npm audit fix` was run because that is outside the rebrand scope and can change dependency versions.

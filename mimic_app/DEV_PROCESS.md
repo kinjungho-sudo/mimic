@@ -49,7 +49,7 @@ git pull --rebase origin <현재브랜치>     # 3) 뒤처졌으면 최신화 (f
 - **dev DB는 별도 Supabase 계정**(kinjungho0870@gmail.com)에 있음 → Claude의 Supabase MCP로는 **접근 불가**. 조작은 ① 대시보드 **SQL Editor**, 또는 ② service_role 키로 REST/Admin API.
 - 운영 DB(project1)는 기존 계정 MCP로 접근 가능.
 - dev 스키마 정의: [`supabase/dev-setup/01_mimic_dev_schema.sql`](supabase/dev-setup/01_mimic_dev_schema.sql) (운영 라이브 구조에서 추출). ⚠️ `supabase/migrations/*`는 운영과 어긋나 신뢰 불가 — **운영 라이브 구조가 진실**.
-- 옛 공유 dev(project2, xsfriegbpygydcqhsqqq)는 **폐기** — MIMIC mm_* 정리됨. 그 프로젝트의 타 앱 표는 건드리지 말 것.
+- 옛 공유 dev(project2, xsfriegbpygydcqhsqqq)는 **폐기** — Parro 관련 `mm_*` 정리됨. 그 프로젝트의 타 앱 표는 건드리지 말 것.
 
 ### dev 테스트 계정
 `test@naver.com` / `Devtest1234` (이메일 인증 완료). 새 dev 프로젝트 대시보드 Authentication에서 관리.
