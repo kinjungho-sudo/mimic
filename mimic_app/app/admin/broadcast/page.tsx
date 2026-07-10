@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { BRAND_NAME } from '@/lib/brand';
 
 export default function BroadcastPage() {
   const [consenting, setConsenting] = useState<number | null>(null);
@@ -52,13 +53,13 @@ export default function BroadcastPage() {
 
       <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '22px' }}>
         <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>제목</label>
-        <input value={subject} onChange={e => { setSubject(e.target.value); setResult(null); }} placeholder="예: MIMIC 6월 업데이트 — 라이브 가이드 Beta 자동입력 출시" style={{ ...inputStyle, marginBottom: '16px' }} maxLength={200} />
+        <input value={subject} onChange={e => { setSubject(e.target.value); setResult(null); }} placeholder={`예: ${BRAND_NAME} 6월 업데이트 — 라이브 가이드 Beta 자동입력 출시`} style={{ ...inputStyle, marginBottom: '16px' }} maxLength={200} />
 
         <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>본문</label>
         <textarea value={body} onChange={e => { setBody(e.target.value); setResult(null); }} rows={12}
           placeholder={'평문으로 작성하세요. 빈 줄로 문단을 나눕니다.\n링크/뉴스 기사 주소를 그대로 붙여넣어도 됩니다.\n\n(브랜드 템플릿으로 자동 감싸서 발송됩니다 — HTML 몰라도 됩니다.)'}
           style={{ ...inputStyle, lineHeight: 1.6, resize: 'vertical' }} maxLength={50000} />
-        <p style={{ fontSize: '11.5px', color: '#94A3B8', margin: '8px 0 0' }}>빈 줄 = 문단 구분. MIMIC 브랜드 템플릿으로 감싸 발송하며, 푸터에 수신거부 안내가 자동 포함됩니다.</p>
+        <p style={{ fontSize: '11.5px', color: '#94A3B8', margin: '8px 0 0' }}>빈 줄 = 문단 구분. {BRAND_NAME} 브랜드 템플릿으로 감싸 발송하며, 푸터에 수신거부 안내가 자동 포함됩니다.</p>
 
         <div style={{ display: 'flex', gap: '10px', marginTop: '20px', alignItems: 'center' }}>
           <button onClick={() => send(true)} disabled={!!sending}

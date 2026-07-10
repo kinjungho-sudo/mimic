@@ -1,10 +1,11 @@
 import Link from 'next/link';
 import { BackLink } from '../BackLink';
+import { BRAND_NAME } from '@/lib/brand';
 
 import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: '개인정보 처리방침',
-  description: 'MIMIC 서비스의 개인정보 수집·이용·보관 및 파기에 관한 방침을 안내합니다.',
+  description: `${BRAND_NAME} 서비스의 개인정보 수집·이용·보관 및 파기에 관한 방침을 안내합니다.`,
 };
 
 export default function PrivacyPage() {
@@ -13,7 +14,7 @@ export default function PrivacyPage() {
       <header style={{ background: 'white', borderBottom: '1px solid #E5E7EB', padding: '0 24px' }}>
         <div style={{ maxWidth: '800px', margin: '0 auto', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Link href="/landingpage" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="28" height="28"><circle cx="50" cy="50" r="50" fill="#3730a3"/><text x="50" y="68" textAnchor="middle" fontFamily="Georgia, serif" fontSize="62" fontWeight="700" fill="white">M</text></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="28" height="28"><circle cx="50" cy="50" r="50" fill="#3730a3"/><text x="50" y="68" textAnchor="middle" fontFamily="Georgia, serif" fontSize="62" fontWeight="700" fill="white">P</text></svg>
           </Link>
           <BackLink />
         </div>

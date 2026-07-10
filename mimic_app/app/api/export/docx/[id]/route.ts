@@ -8,6 +8,7 @@ import { readFile } from 'fs/promises';
 import path from 'path';
 import type { ExportAnnotation } from '@/lib/export/annotations-shared';
 import { renderStepImage } from '@/lib/export/render-step-image';
+import { BRAND_NAME } from '@/lib/brand';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -80,7 +81,7 @@ export async function GET(request: NextRequest, { params }: Params) {
   });
   const children: Paragraph[] = [
     new Paragraph({
-      children: [new TextRun({ text: branding?.company_name ?? 'MIMIC Manual', bold: true, color: '4F46E5', size: 24 })],
+      children: [new TextRun({ text: branding?.company_name ?? `${BRAND_NAME} Manual`, bold: true, color: '4F46E5', size: 24 })],
       alignment: AlignmentType.CENTER,
       spacing: { before: 520, after: 260 },
     }),

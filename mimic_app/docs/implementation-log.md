@@ -41,3 +41,9 @@
 - Replaced landing page public `MIMIC`/`MIMIC Recorder` text, mock display URLs, comparison labels, CTA copy, header/footer brand text, and hero headline with Parro-facing wording.
 - Preserved the internal `MimicAppHeader` component name because it is not user-visible and does not affect deployment or data compatibility.
 - Kept production logo/icon asset replacement deferred until a production-ready Wing Pointer SVG is available.
+
+## 2026-07-10 - Parro app shell and export text batch
+
+- Replaced remaining app-shell, legal metadata/body, admin broadcast/admin dashboard, Live Guide error, and PDF/DOCX export cover old-brand text with Parro-facing wording.
+- Preserved internal drag MIME type `text/mimic-tutorial`, auth comments, support email/domain, deployment URLs, SDK identifiers, package names, and database/schema identifiers.
+- Kept asset replacement deferred pending final Wing Pointer SVG.

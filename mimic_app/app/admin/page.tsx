@@ -1,6 +1,7 @@
 ﻿'use client';
 
 import { useEffect, useState } from 'react';
+import { BRAND_NAME } from '@/lib/brand';
 
 interface Stats {
   totalUsers: number;
@@ -57,7 +58,7 @@ export default function AdminDashboard() {
     <div style={{ padding: '36px 40px' }}>
       <div style={{ marginBottom: '28px' }}>
         <h1 style={{ fontSize: '22px', fontWeight: 600, margin: '0 0 4px', color: '#0F172A' }}>대시보드</h1>
-        <p style={{ color: '#64748B', fontSize: '13px', margin: 0 }}>MIMIC 서비스 현황 요약</p>
+        <p style={{ color: '#64748B', fontSize: '13px', margin: 0 }}>{BRAND_NAME} 서비스 현황 요약</p>
       </div>
 
       {/* 핵심 지표 */}
