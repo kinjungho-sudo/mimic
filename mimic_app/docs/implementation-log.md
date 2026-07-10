@@ -259,3 +259,9 @@
 
 - Added `parro-*` DOM/CSS classes and `parro-sdk-styles` for newly generated public SDK guide UI.
 - Preserved legacy `mimic-*` classes and duplicate-prevention checks so existing embeds and CSS overrides remain compatible.
+
+## 2026-07-11 - Parro Recorder package artifact naming
+
+- Updated Chrome Web Store package build scripts to produce `parro-recorder-v{version}.zip`.
+- Updated the temporary packaging directory to `parro-recorder-build`.
+- Preserved extension IDs, Chrome Web Store slug/URLs, runtime app URLs, local storage keys, IndexedDB names, and `mimic-*` runtime compatibility hooks.

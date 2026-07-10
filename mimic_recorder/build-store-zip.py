@@ -29,7 +29,7 @@ def main():
     with open(os.path.join(ROOT, "manifest.json"), encoding="utf-8") as f:
         version = json.load(f)["version"]
 
-    out = os.path.join(ROOT, f"mimic-recorder-v{version}.zip")
+    out = os.path.join(ROOT, f"parro-recorder-v{version}.zip")
 
     # Verify presence before zipping (fail loud, like the PS script).
     missing = [f for f in FILES if not os.path.isfile(os.path.join(ROOT, f))]
@@ -54,7 +54,7 @@ def main():
             z.write(os.path.join(ROOT, "icons", i), arcname=f"icons/{i}")
 
     size_kb = round(os.path.getsize(out) / 1024, 1)
-    print(f"OK  mimic-recorder-v{version}.zip  ({size_kb} KB)")
+    print(f"OK  parro-recorder-v{version}.zip  ({size_kb} KB)")
     print(f"Included: {len(FILES)} files + {len(ICONS)} icons (forward-slash paths)")
 
 
