@@ -57,6 +57,7 @@ git diff --check
 - Added `window.__parroContentLoaded` and `parro-overlay-root` as primary Recorder runtime identifiers while preserving legacy guard/root cleanup; `node --check` passed for `content.js`, `background.js`, and `guide-engine.js`.
 - Updated Recorder popup toast DOM ID to `parroToast` while preserving `mimicToast` lookup fallback; `node --check mimic_recorder/popup.js` passed.
 - Updated Recorder Live Guide overlay runtime animations to use `parro-*` names while preserving legacy `mimic-*` keyframe definitions; `node --check mimic_recorder/guide-engine.js` passed.
+- Updated full-page capture's temporary hidden fixed-element guard to `window.__parroFixedHidden` while preserving legacy cleanup fallback; `node --check mimic_recorder/background.js` passed.
 - `packages/mcp-server`: `npm ci` then `npm run build` passed.
 - `git diff --check`: passed.
 - `packages/mcp-server npm ci` reported 2 high severity dependency audit findings. No `npm audit fix` was run because that is outside the rebrand scope and can change dependency versions.

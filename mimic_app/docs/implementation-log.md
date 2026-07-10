@@ -296,3 +296,8 @@
 
 - Updated Recorder Live Guide overlay runtime animations to use `parro-ripple`, `parro-glow`, `parro-nudge`, `parro-avatar-in`, and `parro-tip-in`.
 - Preserved legacy `mimic-*` keyframe definitions in the injected shadow style for compatibility.
+
+## 2026-07-11 - Parro Recorder full-page fixed-element guard
+
+- Updated full-page capture's temporary hidden fixed-element guard to use `window.__parroFixedHidden`.
+- Preserved cleanup fallback for legacy `window.__mimicFixedHidden`.

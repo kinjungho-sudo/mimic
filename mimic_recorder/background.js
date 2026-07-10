@@ -1639,8 +1639,10 @@ async function captureFullPage(tab) {
     target: { tabId },
     args: [m.originalY],
     func: (origY) => {
-      if (window.__mimicFixedHidden) {
-        for (const { el, vis } of window.__mimicFixedHidden) el.style.visibility = vis;
+      const hiddenFixed = window.__parroFixedHidden || window.__mimicFixedHidden;
+      if (hiddenFixed) {
+        for (const { el, vis } of hiddenFixed) el.style.visibility = vis;
+        delete window.__parroFixedHidden;
         delete window.__mimicFixedHidden;
       }
       window.scrollTo(0, origY);
@@ -1657,12 +1659,12 @@ async function captureFullPage(tab) {
         func: (scrollY, hideFixed) => {
           // 두 번째 조각부터 fixed/sticky 요소 숨김 — 고정 헤더가 조각마다 반복되는 것 방지
           // (visibility는 레이아웃을 유지하므로 스크롤 좌표가 어긋나지 않는다)
-          if (hideFixed && !window.__mimicFixedHidden) {
-            window.__mimicFixedHidden = [];
+          if (hideFixed && !window.__parroFixedHidden && !window.__mimicFixedHidden) {
+            window.__parroFixedHidden = [];
             for (const el of document.querySelectorAll('body *')) {
               const pos = getComputedStyle(el).position;
               if (pos === 'fixed' || pos === 'sticky') {
-                window.__mimicFixedHidden.push({ el, vis: el.style.visibility });
+                window.__parroFixedHidden.push({ el, vis: el.style.visibility });
                 el.style.visibility = 'hidden';
               }
             }
