@@ -29,3 +29,9 @@
 - Replaced additional public-facing old-brand text in player metadata/header/share copy, settings, workspace invite, share/export modals, FAQ answers, contact/share/welcome email copy, and email subject defaults.
 - Preserved compatibility names such as `sendMimicEmail`, `x-mimic-secret`, `mimic-logo.png`, `mimic:survey:*`, Chrome Web Store slug, support email/domain, and deployment URLs.
 - Kept logo/icon asset replacement deferred pending production-ready SVG.
+
+## 2026-07-10 - Parro public text surfaces batch 3
+
+- Replaced visible old-brand text in the recording modal, help center primary sections/FAQ, and `public/llms.txt`.
+- Preserved extension debug log tags, Chrome Web Store slug, support email/domain, and deployment URLs.
+- Kept legal wording and landing page as separate follow-up batches because they contain dense public copy and owner/asset decisions.

@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { BRAND_COPY, BRAND_NAME } from '@/lib/brand';
 
 // ── 목차 구조 ──────────────────────────────────────────────
 
 const SECTIONS = [
   {
     id: 'intro',
-    title: 'MIMIC이란?',
+    title: `${BRAND_NAME}란?`,
     icon: '✦',
   },
   {
@@ -84,11 +85,11 @@ function SectionContent({ id }: { id: string }) {
     case 'intro':
       return (
         <div>
-          {h2('MIMIC이란?')}
-          {p('MIMIC은 Chrome 확장 프로그램으로 업무 화면을 녹화해 SOP와 인터랙티브 매뉴얼을 자동 생성하고, 필요한 순간에는 화면 위 가이드로 실행까지 연결하는 서비스입니다.')}
-          {img('/help/product-overview.png', 'MIMIC — SOP 제작부터 화면 위 실행 안내까지')}
+          {h2(`${BRAND_NAME}란?`)}
+          {p(`${BRAND_NAME}은 Chrome 확장 프로그램으로 업무 화면을 녹화해 SOP와 인터랙티브 매뉴얼을 자동 생성하고, 필요한 순간에는 화면 위 가이드로 실행까지 연결하는 서비스입니다.`)}
+          {img('/help/product-overview.png', `${BRAND_NAME} — SOP 제작부터 화면 위 실행 안내까지`)}
           {p('클릭 한 번 한 번이 자동으로 캡처되어 단계별 스크린샷과 설명이 만들어집니다. 완성된 매뉴얼은 링크와 문서로 공유하고, 필요하면 학습 가이드나 확장 프로그램 기반 라이브 가이드 Beta로 실행을 안내할 수 있습니다.')}
-          {h3('MIMIC으로 할 수 있는 것')}
+          {h3(`${BRAND_NAME}으로 할 수 있는 것`)}
           <ul style={{ paddingLeft: '20px', margin: '0 0 16px' }}>
             {[
               '신규 직원 온보딩 SOP와 매뉴얼 빠르게 제작',
@@ -105,17 +106,17 @@ function SectionContent({ id }: { id: string }) {
       return (
         <div>
           {h2('1. 확장 프로그램 설치')}
-          {p('MIMIC Recorder는 Chrome 브라우저에서 동작하는 확장 프로그램입니다. 설치 후 MIMIC 홈 화면에서 바로 녹화를 시작할 수 있습니다.')}
+          {p(`${BRAND_COPY.extensionDisplayName}는 Chrome 브라우저에서 동작하는 확장 프로그램입니다. 설치 후 ${BRAND_NAME} 홈 화면에서 바로 녹화를 시작할 수 있습니다.`)}
           {h3('설치 방법')}
           <ol style={{ paddingLeft: '20px', margin: '0 0 16px' }}>
             {[
-              'Chrome 웹 스토어에서 "MIMIC Recorder"를 검색해 설치합니다.',
-              'MIMIC 홈 화면에서 "새로 만들기" 버튼을 클릭합니다.',
+              `Chrome 웹 스토어에서 "${BRAND_COPY.extensionDisplayName}"를 검색해 설치합니다.`,
+              `${BRAND_NAME} 홈 화면에서 "새로 만들기" 버튼을 클릭합니다.`,
               '"새 매뉴얼(녹화)"를 선택하면 녹화 모달이 열립니다. 여기서 확장 연동이 자동으로 처리됩니다.',
             ].map(li)}
           </ol>
           {h3('확장을 찾을 수 없을 때')}
-          {p('녹화 모달에서 "MIMIC Recorder 설치하기" 버튼이 나타나면 스토어로 이동해 설치하세요. 설치 후 "설치 완료 — 다시 시도" 버튼을 누르면 바로 연결됩니다.')}
+          {p(`녹화 모달에서 "${BRAND_COPY.extensionDisplayName} 설치하기" 버튼이 나타나면 스토어로 이동해 설치하세요. 설치 후 "설치 완료 — 다시 시도" 버튼을 누르면 바로 연결됩니다.`)}
           {h3('지원 브라우저')}
           {p('현재 Google Chrome 및 Chromium 기반 브라우저(Edge, Brave 등)를 지원합니다. Firefox, Safari는 지원하지 않습니다.')}
         </div>
@@ -125,14 +126,14 @@ function SectionContent({ id }: { id: string }) {
       return (
         <div>
           {h2('2. 화면 녹화하기')}
-          {p('녹화는 MIMIC 홈 화면에서 시작합니다. 평소처럼 업무를 진행하면 클릭할 때마다 자동으로 캡처됩니다.')}
+          {p(`녹화는 ${BRAND_NAME} 홈 화면에서 시작합니다. 평소처럼 업무를 진행하면 클릭할 때마다 자동으로 캡처됩니다.`)}
           {h3('녹화 시작')}
           <ol style={{ paddingLeft: '20px', margin: '0 0 16px' }}>
             {[
               '홈 화면 우측 상단 "새로 만들기" 버튼을 클릭합니다.',
               '"새 매뉴얼(녹화)" 를 선택하면 녹화 안내 모달이 뜹니다.',
               '"페이지 선택하기 →" 버튼을 눌러 녹화할 탭을 선택합니다.',
-              '"녹화 시작" 버튼을 누르면 해당 탭이 활성화되고 우측에 MIMIC Recorder 사이드 패널이 열립니다.',
+              `"녹화 시작" 버튼을 누르면 해당 탭이 활성화되고 우측에 ${BRAND_COPY.extensionDisplayName} 사이드 패널이 열립니다.`,
               '사이드 패널의 녹화 버튼을 누르고 평소처럼 업무를 진행하세요. 클릭마다 자동으로 스크린샷이 캡처됩니다.',
               '완료 버튼을 눌러 녹화를 종료합니다.',
             ].map(li)}
@@ -322,10 +323,10 @@ function SectionContent({ id }: { id: string }) {
       return (
         <div>
           {h2('라이브 가이드 Beta')}
-          {p('라이브 가이드 Beta는 실제 웹페이지 위에 오버레이를 띄워 단계별로 안내하는 기능입니다. 현재는 원본 URL이 저장된 매뉴얼과 MIMIC Recorder 확장 프로그램이 필요하며, 페이지 구조가 바뀌면 일부 단계가 맞지 않을 수 있습니다.')}
+          {p(`라이브 가이드 Beta는 실제 웹페이지 위에 오버레이를 띄워 단계별로 안내하는 기능입니다. 현재는 원본 URL이 저장된 매뉴얼과 ${BRAND_COPY.extensionDisplayName} 확장 프로그램이 필요하며, 페이지 구조가 바뀌면 일부 단계가 맞지 않을 수 있습니다.`)}
           {img('/help/live-guide.jpg', '라이브 가이드 Beta — 실제 페이지 위 AI 말풍선·핫스팟')}
           {h3('사용 조건')}
-          {p('MIMIC Recorder 확장 프로그램이 설치되어 있고, 녹화 시 원본 페이지 URL이 저장되어 있어야 합니다. 무료 플랜에서는 사용량 제한이 적용될 수 있습니다.')}
+          {p(`${BRAND_COPY.extensionDisplayName} 확장 프로그램이 설치되어 있고, 녹화 시 원본 페이지 URL이 저장되어 있어야 합니다. 무료 플랜에서는 사용량 제한이 적용될 수 있습니다.`)}
           {h3('실행 방법 (받는 사람)')}
           <ol style={{ paddingLeft: '20px', margin: '0 0 16px' }}>
             {[
@@ -473,12 +474,12 @@ function SectionContent({ id }: { id: string }) {
           {h2('자주 묻는 질문')}
           {[
             {
-              q: 'MIMIC이 뭔가요?',
+              q: `${BRAND_NAME}가 뭔가요?`,
               a: 'Chrome 확장 프로그램으로 업무 화면을 녹화해 SOP와 인터랙티브 매뉴얼을 자동 생성하는 서비스입니다. 클릭 동작이 자동 캡처되어 단계별 스크린샷과 설명이 만들어지고, 링크·문서·학습 가이드로 공유할 수 있습니다. 조건이 맞으면 라이브 가이드 Beta로 실제 페이지 위 안내도 사용할 수 있습니다.',
             },
             {
               q: '확장 프로그램은 어디서 설치하나요?',
-              a: 'Chrome 웹 스토어에서 "MIMIC Recorder"를 검색해 설치하세요. Edge, Brave 등 Chromium 기반 브라우저도 지원합니다. Firefox, Safari는 현재 지원하지 않습니다.',
+              a: `Chrome 웹 스토어에서 "${BRAND_COPY.extensionDisplayName}"를 검색해 설치하세요. Edge, Brave 등 Chromium 기반 브라우저도 지원합니다. Firefox, Safari는 현재 지원하지 않습니다.`,
             },
             {
               q: '매뉴얼 생성이 안 돼요.',
@@ -581,7 +582,7 @@ export default function HelpPage() {
               <circle cx="50" cy="50" r="50" fill="#3730a3"/>
               <text x="50" y="68" textAnchor="middle" fontFamily="Georgia, serif" fontSize="62" fontWeight="700" fill="white">M</text>
             </svg>
-            <span style={{ fontSize: '16px', fontWeight: 800, color: '#111827', letterSpacing: '-0.03em' }}>MIMIC</span>
+            <span style={{ fontSize: '16px', fontWeight: 800, color: '#111827', letterSpacing: '-0.03em' }}>{BRAND_NAME}</span>
           </Link>
           <span style={{ color: '#D1D5DB' }}>|</span>
           <span style={{ fontSize: '14px', fontWeight: 600, color: '#374151' }}>도움말</span>
