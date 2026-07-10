@@ -1189,11 +1189,15 @@
     const clickedEl = e.target;
 
     // Parro 자체 오버레이 클릭 무시
-    if (clickedEl && typeof clickedEl.id === 'string' && clickedEl.id.toLowerCase().includes('mimic')) return;
+    if (clickedEl && typeof clickedEl.id === 'string') {
+      const id = clickedEl.id.toLowerCase();
+      if (id.includes('parro') || id.includes('mimic')) return;
+    }
     const _classStr = typeof clickedEl.className === 'string'
       ? clickedEl.className
       : (clickedEl.className?.baseVal ?? '');
-    if (_classStr.toLowerCase().includes('mimic')) return;
+    const lowerClassStr = _classStr.toLowerCase();
+    if (lowerClassStr.includes('parro') || lowerClassStr.includes('mimic')) return;
 
     const target = findInteractiveTarget(clickedEl);
 

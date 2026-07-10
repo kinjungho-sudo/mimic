@@ -1,5 +1,10 @@
 # Implementation Log
 
+## 2026-07-11 - Parro Recorder overlay click guard
+
+- Updated Recorder click capture to ignore both `parro` and legacy `mimic` overlay IDs/classes.
+- Preserved legacy overlay ignore behavior while protecting new Parro runtime DOM from being recorded.
+
 ## 2026-07-10 - Parro brand migration audit
 
 - Created `docs/brand/parro-brand-audit.md`.
