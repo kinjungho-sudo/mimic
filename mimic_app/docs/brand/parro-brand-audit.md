@@ -6,7 +6,7 @@ Base: `origin/dev`
 
 ## Summary
 
-This audit prepares the staged public rebrand from **MIMIC / 미믹** to **Parro / 패로**.
+This audit prepares the staged public rebrand from **MIMIC / &#48120;&#48121;** to **Parro / &#54056;&#47196;**.
 
 Scope is Task 1 only. No app UI, runtime behavior, database object, API route, package name, environment variable, deployment identifier, repository name, folder name, or migration file was changed.
 
