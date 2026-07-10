@@ -15,9 +15,15 @@
   const TIP_BG = 'rgba(22,20,48,.96)'; // 툴팁/화살표/대기카드 공통 배경 — 짙은 남색·보라(흰 배경 가독성)
   const TYPE_START_DELAY_MS = 560;
   const TYPE_CHAR_DELAY_MS = 70;
+  const OVERLAY_ROOT_ID = 'parro-overlay-root';
+  const LEGACY_OVERLAY_ROOT_ID = 'mimic-overlay-root';
 
   let state = null;
   const regroundCache = new Map();  // AI 시각 재탐색 결과 캐시(key→{x,y} 성공 / null 실패). 재방문 시 재사용
+
+  function isOverlayRootId(id) {
+    return id === OVERLAY_ROOT_ID || id === LEGACY_OVERLAY_ROOT_ID;
+  }
 
   // ── 순수 로직 ────────────────────────────────────────────────
   function resolveTarget(step) {
@@ -27,7 +33,7 @@
     if (step._regroundXY) {
       const px = step._regroundXY.x * window.innerWidth, py = step._regroundXY.y * window.innerHeight;
       const hit = document.elementFromPoint(px, py);
-      if (hit && hit.id !== 'mimic-overlay-root') { el = hit; rect = rectOf(hit); }
+      if (hit && !isOverlayRootId(hit.id)) { el = hit; rect = rectOf(hit); }
       else { rect = { left: px - COORD_BOX / 2, top: py - COORD_BOX / 2, width: COORD_BOX, height: COORD_BOX }; }
       return { el, rect, source: 'ai' };
     }
@@ -36,7 +42,7 @@
     if (step.hotspot_x != null && step.hotspot_y != null) {
       const px = (step.hotspot_x / 100) * window.innerWidth, py = (step.hotspot_y / 100) * window.innerHeight;
       const hit = document.elementFromPoint(px, py);
-      if (hit && hit.id !== 'mimic-overlay-root') { el = hit; rect = rectOf(hit); }
+      if (hit && !isOverlayRootId(hit.id)) { el = hit; rect = rectOf(hit); }
       else { rect = { left: px - COORD_BOX / 2, top: py - COORD_BOX / 2, width: COORD_BOX, height: COORD_BOX }; }
       return { el, rect, source: 'manual' };
     }
@@ -409,7 +415,7 @@
     }
 
     const host = document.createElement('div');
-    host.id = 'mimic-overlay-root';
+    host.id = OVERLAY_ROOT_ID;
     host.style.cssText = `all:initial;position:fixed;inset:0;pointer-events:none;z-index:${Z};`;
     document.documentElement.appendChild(host);
     const shadow = host.attachShadow({ mode: 'closed' });
@@ -877,7 +883,7 @@
 
   function showExplanation(step, opts) {
     const host = document.createElement('div');
-    host.id = 'mimic-overlay-root';
+    host.id = OVERLAY_ROOT_ID;
     host.style.cssText = `all:initial;position:fixed;inset:0;pointer-events:none;z-index:${Z};font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;`;
     document.documentElement.appendChild(host);
     const shadow = host.attachShadow({ mode: 'closed' });
@@ -920,7 +926,7 @@
 
   function showWaiting(step, opts) {
     const host = document.createElement('div');
-    host.id = 'mimic-overlay-root';
+    host.id = OVERLAY_ROOT_ID;
     host.style.cssText = `all:initial;position:fixed;inset:0;pointer-events:none;z-index:${Z};font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;`;
     document.documentElement.appendChild(host);
     const shadow = host.attachShadow({ mode: 'closed' });
@@ -1062,7 +1068,7 @@
 
   function hide() {
     if (!state) {
-      const stray = document.getElementById('mimic-overlay-root');
+      const stray = document.getElementById(OVERLAY_ROOT_ID) || document.getElementById(LEGACY_OVERLAY_ROOT_ID);
       if (stray) stray.remove();
       return;
     }

@@ -1,7 +1,8 @@
 (() => {
   // 중복 주입 방지 — 같은 프레임에 두 번 실행되면 즉시 종료
   // (최상위 return은 classic script에서 SyntaxError — 반드시 IIFE 안에서)
-  if (window.__mimicContentLoaded) return;
+  if (window.__parroContentLoaded || window.__mimicContentLoaded) return;
+  window.__parroContentLoaded = true;
   window.__mimicContentLoaded = true;
 
   // iframe editors need typing capture; visual guide UI stays in the top frame.

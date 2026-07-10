@@ -280,3 +280,9 @@
 
 - Updated Recorder countdown runtime animations to use `parro-blink`, `parro-pop`, and `parro-start`.
 - Preserved legacy `mimic-*` keyframe definitions in the injected style block for compatibility.
+
+## 2026-07-11 - Parro Recorder runtime guard and overlay ID pass
+
+- Added `window.__parroContentLoaded` as the primary content-script duplicate-injection guard.
+- Updated Recorder Live Guide overlay hosts to use `parro-overlay-root`.
+- Preserved legacy `__mimicContentLoaded` and `mimic-overlay-root` recognition for cleanup and compatibility.

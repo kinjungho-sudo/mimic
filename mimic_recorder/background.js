@@ -389,7 +389,7 @@ async function captureTab(windowId) {
 // ── content.js 주입 보장 ─────────────────────────────────────────
 // 확장 설치/리로드 전에 열려 있던 탭에는 content_script가 없을 수 있다.
 // START_RECORDING/STOP/수동캡처 전에 호출해 메시지가 유실되지 않게 한다.
-// content.js 상단의 window.__mimicContentLoaded 가드가 중복 초기화를 막는다.
+// content.js 상단의 window.__parroContentLoaded / legacy __mimicContentLoaded 가드가 중복 초기화를 막는다.
 function ensureContentScript(tabId) {
   return new Promise((resolve) => {
     chrome.scripting.executeScript({ target: { tabId, allFrames: true }, files: ['guide-engine.js', 'content.js'] }, () => {
