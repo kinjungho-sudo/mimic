@@ -154,7 +154,7 @@ Run from `mimic_app`:
 
 ```powershell
 git status --short --branch
-rg -n "MIMIC|Mimic|mimic|미믹" . --glob "!node_modules" --glob "!.next" --glob "!.git"
+rg -n "MIMIC|Mimic|mimic|\x{BBF8}\x{BBF9}" . --glob "!node_modules" --glob "!.next" --glob "!.git"
 rg -n "logo|favicon|icon|manifest|themeColor|metadata|title|description" app components lib public docs --glob "!node_modules" --glob "!.next"
 rg -n "#[0-9A-Fa-f]{3,8}|rgb\(|hsl\(" app components lib public --glob "!node_modules" --glob "!.next"
 npm run lint
