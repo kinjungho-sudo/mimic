@@ -201,7 +201,7 @@ function updateLoginState(hasToken, expired = false) {
   });
   msgEl.textContent = expired
     ? '세션이 만료되었습니다. 다시 연동해 주세요.'
-    : '녹화를 시작하려면 MIMIC 계정 연동이 필요합니다.';
+    : '녹화를 시작하려면 Parro 계정 연동이 필요합니다.';
 
   const btn = document.createElement('button');
   Object.assign(btn.style, {

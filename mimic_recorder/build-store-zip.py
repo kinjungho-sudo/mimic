@@ -46,7 +46,7 @@ def main():
             if f == "manifest.json":
                 # 운영 패키지는 dev 표식 제거 — 소스 manifest는 언팩 dev 구분용으로 "(dev)"를 달고 있다.
                 with open(os.path.join(ROOT, f), encoding="utf-8") as mf:
-                    text = mf.read().replace("MIMIC Recorder (dev)", "MIMIC Recorder")
+                    text = mf.read().replace("Parro Recorder (dev)", "Parro Recorder")
                 z.writestr(f, text)
             else:
                 z.write(os.path.join(ROOT, f), arcname=f)  # forward-slash arcname

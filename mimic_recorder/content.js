@@ -10,7 +10,7 @@
   // ── 로그 헬퍼 (background 링버퍼로 릴레이) ──────────────────────
   function log(level, ...args) {
     const msg = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
-    const tag = `[MIMIC][${level.toUpperCase()}][content]`;
+    const tag = `[Parro][${level.toUpperCase()}][content]`;
     if (level === 'error')      console.error(tag, msg);
     else if (level === 'warn')  console.warn(tag, msg);
     else if (level === 'debug') console.debug(tag, msg);
@@ -1182,7 +1182,7 @@
 
     const clickedEl = e.target;
 
-    // MIMIC 자체 오버레이 클릭 무시
+    // Parro 자체 오버레이 클릭 무시
     if (clickedEl && typeof clickedEl.id === 'string' && clickedEl.id.toLowerCase().includes('mimic')) return;
     const _classStr = typeof clickedEl.className === 'string'
       ? clickedEl.className

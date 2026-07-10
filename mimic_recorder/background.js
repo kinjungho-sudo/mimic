@@ -15,7 +15,7 @@ const SUPABASE_BUCKET   = 'naviaction';
 const WEBAPP_ORIGIN     = IS_DEV
   ? 'https://mimic-git-dev-kinjungho-7735s-projects.vercel.app'  // dev: Preview(주 테스트 대상). localhost는 sender.origin 우선으로 여전히 연동됨
   : 'https://mimic-nine-ashen.vercel.app';        // 운영
-if (IS_DEV) console.warn('[MIMIC Recorder] DEV 모드 — dev DB/Preview 연결 (id:', chrome.runtime.id, ')');
+if (IS_DEV) console.warn('[Parro Recorder] DEV 모드 — dev DB/Preview 연결 (id:', chrome.runtime.id, ')');
 const JPEG_QUALITY_DEFAULT = 0.92;
 const MAX_STEPS         = 30;
 
@@ -40,7 +40,7 @@ function log(level, source, ...args) {
   const entry = { t: Date.now(), level, source, msg };
 
   // 콘솔 출력
-  const tag = `[MIMIC][${level.toUpperCase()}][${source}]`;
+  const tag = `[Parro][${level.toUpperCase()}][${source}]`;
   if (level === 'error')      console.error(tag, msg);
   else if (level === 'warn')  console.warn(tag, msg);
   else if (level === 'debug') console.debug(tag, msg);

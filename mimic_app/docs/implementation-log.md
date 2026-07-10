@@ -223,3 +223,9 @@
 - Changed `public/llms.txt` public links from the legacy deployment URL to relative paths.
 - Updated the public SDK header usage example to a neutral Parro placeholder while documenting that legacy `MimicSDK` and `mimic_guide` API names remain supported.
 - Preserved SDK runtime globals, query params, CSS identifiers, fallback deployment URL, routes, DB identifiers, env names, package names, and production logo/icon assets.
+
+## 2026-07-11 - Parro Recorder public extension naming
+
+- Updated Chrome extension public display surfaces from `MIMIC Recorder` to `Parro Recorder` in `manifest.json`, popup chrome, microphone permission page, privacy policy, store-listing copy, and store ZIP manifest rewriting scripts.
+- Updated extension console/debug log prefixes to `Parro` / `Parro Recorder`.
+- Preserved extension IDs, Chrome Web Store slug/URLs, runtime app URLs, local storage keys, IndexedDB names, output ZIP filename, internal `mimic-*` hooks, routes, DB identifiers, env names, package names, and production logo/icon assets.
