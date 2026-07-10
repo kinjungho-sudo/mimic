@@ -25,8 +25,6 @@ export const BRAND_COPY = {
 
 // Phase 1 public rebrand keeps these compatibility identifiers unchanged.
 export const LEGACY_INTERNAL_IDENTIFIERS = {
-  productName: 'MIMIC',
-  extensionName: 'MIMIC Recorder',
   packageName: 'mimic-app',
   sdkGlobal: 'MimicSDK',
   sdkAutoRunGlobal: 'MimicAutoRun',

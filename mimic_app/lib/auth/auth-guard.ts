@@ -45,7 +45,7 @@ export async function requireAdmin(): Promise<AuthGuardResult> {
   return { ok: true, userId };
 }
 
-// Extension token 인증 — MIMIC Recorder가 Bearer 토큰으로 호출
+// Extension token 인증 — Parro Recorder가 Bearer 토큰으로 호출
 export async function requireExtensionToken(
   request: NextRequest
 ): Promise<{ ok: true; token: string; userId: string } | { ok: false; response: NextResponse }> {

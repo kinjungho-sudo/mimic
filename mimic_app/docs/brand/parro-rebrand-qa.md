@@ -47,6 +47,7 @@ git diff --check
 - Re-ran focused recorder old-purple search and recorder JS `node --check`; runtime recorder files no longer contain the old purple palette values.
 - Added `parro` and `패로` to the help chat introduction keyword match, then re-ran `npm run lint` and `git diff --check`; lint passed with only existing warnings, and diff check passed with CRLF warnings only.
 - Added public Parro SDK aliases (`window.ParroSDK`, `window.ParroAutoRun`, `?parro_guide=...`, `data-parro-float`) while preserving legacy SDK compatibility names, then re-ran `node --check public/sdk.js`, `npm run lint`, focused SDK alias search, and a Node VM smoke test confirming Parro/Mimic SDK aliases point to the same objects.
+- Removed unused old public product/extension name constants from `LEGACY_INTERNAL_IDENTIFIERS` and updated an internal auth comment to `Parro Recorder`; `npm run lint` passed with only existing warnings.
 - `packages/mcp-server`: `npm ci` then `npm run build` passed.
 - `git diff --check`: passed.
 - `packages/mcp-server npm ci` reported 2 high severity dependency audit findings. No `npm audit fix` was run because that is outside the rebrand scope and can change dependency versions.

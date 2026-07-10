@@ -244,3 +244,8 @@
 
 - Added public Parro SDK aliases for `window.ParroSDK`, `window.ParroAutoRun`, `?parro_guide=...`, and `data-parro-float`.
 - Preserved legacy `MimicSDK`, `MimicAutoRun`, `mimic_guide`, `data-mimic-float`, and `mimic-*` CSS/DOM identifiers as compatibility aliases.
+
+## 2026-07-11 - Unused legacy brand constants cleanup
+
+- Removed unused `LEGACY_INTERNAL_IDENTIFIERS` entries for the old public product and extension names.
+- Updated an internal auth comment to refer to `Parro Recorder` while preserving extension token behavior.
