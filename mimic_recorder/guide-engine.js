@@ -424,10 +424,15 @@
     root.style.cssText = 'position:fixed;inset:0;pointer-events:none;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;';
 
     shadow.appendChild(style(`
+      @keyframes parro-ripple { 0%{transform:scale(1);opacity:.9} 100%{transform:scale(3.5);opacity:0} }
       @keyframes mimic-ripple { 0%{transform:scale(1);opacity:.9} 100%{transform:scale(3.5);opacity:0} }
+      @keyframes parro-glow   { 0%,100%{box-shadow:0 0 0 3px rgba(0,155,142,.22),0 0 14px 4px rgba(0,155,142,.36)} 50%{box-shadow:0 0 0 5px rgba(18,184,134,.32),0 0 26px 8px rgba(18,184,134,.52)} }
       @keyframes mimic-glow   { 0%,100%{box-shadow:0 0 0 3px rgba(0,155,142,.22),0 0 14px 4px rgba(0,155,142,.36)} 50%{box-shadow:0 0 0 5px rgba(18,184,134,.32),0 0 26px 8px rgba(18,184,134,.52)} }
+      @keyframes parro-nudge  { 0%,100%{transform:none} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
       @keyframes mimic-nudge  { 0%,100%{transform:none} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+      @keyframes parro-avatar-in { 0%{transform:scale(0.5) translateY(8px);opacity:0} 65%{transform:scale(1.08)} 100%{transform:scale(1) translateY(0);opacity:1} }
       @keyframes mimic-avatar-in { 0%{transform:scale(0.5) translateY(8px);opacity:0} 65%{transform:scale(1.08)} 100%{transform:scale(1) translateY(0);opacity:1} }
+      @keyframes parro-tip-in { 0%{opacity:0;transform:translateY(6px) scale(0.97)} 100%{opacity:1;transform:translateY(0) scale(1)} }
       @keyframes mimic-tip-in { 0%{opacity:0;transform:translateY(6px) scale(0.97)} 100%{opacity:1;transform:translateY(0) scale(1)} }
       .parro-btn,.mimic-btn { pointer-events:auto; cursor:pointer; border:none; border-radius:8px; font-size:13px; font-weight:600; padding:7px 12px; transition:opacity .15s; }
       .parro-btn:active,.mimic-btn:active { opacity:.75; }
@@ -435,23 +440,23 @@
 
     // 타깃 하이라이트 (네온 글로우 펄스 — 어둠막 없이 위치만 강조, Tango식)
     const hl = document.createElement('div');
-    hl.style.cssText = `position:fixed;pointer-events:none;box-sizing:border-box;border:2px solid rgba(0,155,142,0.95);background:rgba(0,155,142,.05);border-radius:8px;box-shadow:0 0 0 4px rgba(0,155,142,.22),0 0 18px 5px rgba(18,184,134,.38);z-index:2;transition:left .12s,top .12s,width .12s,height .12s;animation:mimic-glow 1.6s ease-in-out infinite;`;
+    hl.style.cssText = `position:fixed;pointer-events:none;box-sizing:border-box;border:2px solid rgba(0,155,142,0.95);background:rgba(0,155,142,.05);border-radius:8px;box-shadow:0 0 0 4px rgba(0,155,142,.22),0 0 18px 5px rgba(18,184,134,.38);z-index:2;transition:left .12s,top .12s,width .12s,height .12s;animation:parro-glow 1.6s ease-in-out infinite;`;
     root.appendChild(hl);
 
     // 클릭 핀 — 중심 보라 점 제거, 물결 애니메이션만
     const pulse = document.createElement('div');
     pulse.style.cssText = `position:fixed;width:0;height:0;pointer-events:none;z-index:3;`;
     const ripple = document.createElement('div');
-    ripple.style.cssText = `position:absolute;width:44px;height:44px;margin-left:-22px;margin-top:-22px;border-radius:50%;border:2.5px solid rgba(0,155,142,.85);animation:mimic-ripple 1.5s ease-out infinite;`;
+    ripple.style.cssText = `position:absolute;width:44px;height:44px;margin-left:-22px;margin-top:-22px;border-radius:50%;border:2.5px solid rgba(0,155,142,.85);animation:parro-ripple 1.5s ease-out infinite;`;
     const ripple2 = document.createElement('div');
-    ripple2.style.cssText = `position:absolute;width:44px;height:44px;margin-left:-22px;margin-top:-22px;border-radius:50%;border:2px solid rgba(18,184,134,.55);animation:mimic-ripple 1.5s ease-out 0.75s infinite;`;
+    ripple2.style.cssText = `position:absolute;width:44px;height:44px;margin-left:-22px;margin-top:-22px;border-radius:50%;border:2px solid rgba(18,184,134,.55);animation:parro-ripple 1.5s ease-out 0.75s infinite;`;
     pulse.appendChild(ripple);
     pulse.appendChild(ripple2);
     root.appendChild(pulse);
 
     // 플로팅 아바타 — 타깃 우상단 고정 (툴팁 안에도 별도 표시)
     const avatar = document.createElement('div');
-    avatar.style.cssText = `position:fixed;${AVATAR_STYLE}pointer-events:none;z-index:6;animation:mimic-avatar-in 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards;`;
+    avatar.style.cssText = `position:fixed;${AVATAR_STYLE}pointer-events:none;z-index:6;animation:parro-avatar-in 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards;`;
     avatar.innerHTML = MASCOT_SVG;
     root.appendChild(avatar);
 
@@ -463,7 +468,7 @@
     const tooltipText = step.instruction || step.title || '';
 
     const tooltip = document.createElement('div');
-    tooltip.style.cssText = `position:fixed;width:${TIP_W}px;box-sizing:border-box;background:${TIP_BG};color:#fff;border-radius:13px;padding:13px;box-shadow:0 12px 40px rgba(0,0,0,.45),0 0 0 1px rgba(23,201,182,.16);z-index:5;pointer-events:auto;animation:mimic-tip-in 0.28s ease forwards;`;
+    tooltip.style.cssText = `position:fixed;width:${TIP_W}px;box-sizing:border-box;background:${TIP_BG};color:#fff;border-radius:13px;padding:13px;box-shadow:0 12px 40px rgba(0,0,0,.45),0 0 0 1px rgba(23,201,182,.16);z-index:5;pointer-events:auto;animation:parro-tip-in 0.28s ease forwards;`;
     tooltip.innerHTML = `
       <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px">
         <div style="${AVATAR_STYLE}">${MASCOT_SVG}</div>
@@ -695,7 +700,7 @@
 
   function nudge() {
     if (!state || !state.tooltip) return;
-    state.tooltip.style.animation = 'mimic-nudge .3s';
+    state.tooltip.style.animation = 'parro-nudge .3s';
     setTimeout(() => { if (state && state.tooltip) state.tooltip.style.animation = ''; }, 320);
   }
 
@@ -810,7 +815,7 @@
     }
     state.tooltip.style.left = `${Math.max(TIP_M, (window.innerWidth - TIP_W) / 2)}px`;
     state.tooltip.style.top  = `${Math.max(TIP_M, (window.innerHeight - 220) / 2)}px`;
-    state.tooltip.style.animation = 'mimic-tip-in 0.3s ease forwards';
+    state.tooltip.style.animation = 'parro-tip-in 0.3s ease forwards';
   }
 
   // 현재 페이지가 단계의 page_url과 다를 때 — 세션을 끝내지 않고 참고 카드로 다음 행동을 안내한다.

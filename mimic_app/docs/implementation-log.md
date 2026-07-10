@@ -291,3 +291,8 @@
 
 - Updated the Recorder popup toast DOM ID to `parroToast`.
 - Preserved lookup fallback for legacy `mimicToast` during an already-open popup session.
+
+## 2026-07-11 - Parro Recorder guide animation naming
+
+- Updated Recorder Live Guide overlay runtime animations to use `parro-ripple`, `parro-glow`, `parro-nudge`, `parro-avatar-in`, and `parro-tip-in`.
+- Preserved legacy `mimic-*` keyframe definitions in the injected shadow style for compatibility.
