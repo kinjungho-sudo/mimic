@@ -239,3 +239,8 @@
 
 - Added `parro` and `패로` to the help chat introduction keyword match so direct brand-name questions route to the Parro overview answer.
 - Preserved legacy `mimic` keyword aliases so users asking with the old name can still get help during the staged rebrand.
+
+## 2026-07-11 - Parro SDK public alias pass
+
+- Added public Parro SDK aliases for `window.ParroSDK`, `window.ParroAutoRun`, `?parro_guide=...`, and `data-parro-float`.
+- Preserved legacy `MimicSDK`, `MimicAutoRun`, `mimic_guide`, `data-mimic-float`, and `mimic-*` CSS/DOM identifiers as compatibility aliases.

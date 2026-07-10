@@ -1,6 +1,8 @@
 /**
  * Parro Live Guide SDK
  * Usage: <script src="https://your-parro-app.example/sdk.js" data-guide="SHARE_TOKEN"></script>
+ * API: window.ParroSDK.start('SHARE_TOKEN')
+ * Query param: ?parro_guide=SHARE_TOKEN
  * Legacy API names remain supported: window.MimicSDK.start('SHARE_TOKEN')
  * Legacy query param remains supported: ?mimic_guide=SHARE_TOKEN
  */
@@ -526,32 +528,34 @@
       }
     }
 
-    // 2. ?mimic_guide=TOKEN 쿼리파라미터
+    // 2. ?parro_guide=TOKEN 쿼리파라미터 (legacy ?mimic_guide=TOKEN도 지원)
     try {
       var params = new URLSearchParams(location.search);
-      var qToken = params.get('mimic_guide');
+      var qToken = params.get('parro_guide') || params.get('mimic_guide');
       if (qToken) startGuide(qToken, {});
     } catch (e) { /* old browser */ }
 
-    // 3. data-mimic-float 속성이 있는 요소에 플로팅 버튼 연결
-    var floatEls = document.querySelectorAll('[data-mimic-float]');
+    // 3. data-parro-float 속성이 있는 요소에 플로팅 버튼 연결 (legacy data-mimic-float도 지원)
+    var floatEls = document.querySelectorAll('[data-parro-float],[data-mimic-float]');
     for (var j = 0; j < floatEls.length; j++) {
-      var ft = floatEls[j].getAttribute('data-mimic-float');
+      var ft = floatEls[j].getAttribute('data-parro-float') || floatEls[j].getAttribute('data-mimic-float');
       if (ft) startGuide(ft, { float: true });
     }
   }
 
-  // window.MimicSDK 공개
-  window.MimicSDK = {
+  // window.ParroSDK 공개. window.MimicSDK는 기존 임베드 호환을 위해 같은 객체를 가리킨다.
+  var parroSdk = {
     start: function (token, options) { startGuide(token, options); },
     stop: function () { if (activeGuide) activeGuide.destroy(); },
     // URL 패턴이 현재 페이지와 일치할 때만 가이드 시작 (* 와일드카드 지원)
-    // 예: MimicSDK.startOnUrl('https://app.example.com/dashboard*', 'TOKEN')
+    // 예: ParroSDK.startOnUrl('https://app.example.com/dashboard*', 'TOKEN')
     startOnUrl: function (urlPattern, token, options) {
       if (matchesPattern(urlPattern)) startGuide(token, options);
     },
     version: '1.0.0',
   };
+  window.ParroSDK = parroSdk;
+  window.MimicSDK = parroSdk;
 
   // DOM 준비 후 자동 초기화
   if (document.readyState === 'loading') {
@@ -668,10 +672,12 @@
     document.getElementById('mimic-ar-pause').onclick = function () {
       autoRunPaused = !autoRunPaused;
       this.textContent = autoRunPaused ? '▶ 재개' : '⏸ 일시정지';
-      if (window.MimicAutoRun && window.MimicAutoRun._onPause) window.MimicAutoRun._onPause(autoRunPaused);
+      var autoRunApi = window.ParroAutoRun || window.MimicAutoRun;
+      if (autoRunApi && autoRunApi._onPause) autoRunApi._onPause(autoRunPaused);
     };
     document.getElementById('mimic-ar-stop').onclick = function () {
-      window.MimicAutoRun.stop();
+      var autoRunApi = window.ParroAutoRun || window.MimicAutoRun;
+      if (autoRunApi) autoRunApi.stop();
     };
     return el;
   }
@@ -694,8 +700,8 @@
     setTimeout(function () { ripple.parentNode && ripple.parentNode.removeChild(ripple); }, 520);
   }
 
-  // window.MimicAutoRun 공개 인터페이스
-  window.MimicAutoRun = {
+  // window.ParroAutoRun 공개 인터페이스. window.MimicAutoRun은 기존 임베드 호환 alias.
+  var parroAutoRun = {
     // AI 에이전트가 실행 시작 시 호출
     start: function (options) {
       options = options || {};
@@ -748,4 +754,6 @@
     _onPause: null,
     _onStop: null,
   };
+  window.ParroAutoRun = parroAutoRun;
+  window.MimicAutoRun = parroAutoRun;
 })();
