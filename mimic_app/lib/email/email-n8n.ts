@@ -3,9 +3,10 @@
 // 공유메일·환영메일 등 모든 메일이 같은 웹훅을 재사용한다(워크플로우 1개로 충분).
 
 import { logNetwork } from '@/lib/logging/logger-server';
-import { BRAND_NAME, BRAND_TAGLINE } from '@/lib/brand';
+import { BRAND_NAME, BRAND_TAGLINE, getBrandAppUrl } from '@/lib/brand';
 
 const clean = (v?: string) => v?.replace(/^﻿/, '').trim() ?? '';
+const APP_URL = getBrandAppUrl();
 
 // 실패해도 throw 하지 않는다 — 호출부(가입 콜백 등)가 메일 때문에 막히지 않도록.
 export async function sendMimicEmail(opts: {
@@ -106,7 +107,7 @@ export function welcomeEmailHtml(name?: string | null): string {
               만든 매뉴얼은 링크로 공유하거나, 실제 화면 위에서 <b>라이브 가이드 Beta</b>로 안내할 수 있어요.
             </p>
             <table cellpadding="0" cellspacing="0"><tr><td>
-              <a href="https://mimic-nine-ashen.vercel.app/home" style="display:inline-block;padding:14px 28px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:white;font-size:15px;font-weight:600;text-decoration:none;border-radius:10px;">
+              <a href="${APP_URL}/home" style="display:inline-block;padding:14px 28px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:white;font-size:15px;font-weight:600;text-decoration:none;border-radius:10px;">
                 지금 시작하기 →
               </a>
             </td></tr></table>

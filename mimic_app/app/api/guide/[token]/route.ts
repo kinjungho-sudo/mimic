@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServiceRoleClient, createServerClient } from '@/lib/supabase/server';
 import { isPaidPlan } from '@/lib/plan';
 import { resolveStepAudio } from '@/lib/voice/playback';
+import { getBrandAppUrl } from '@/lib/brand';
 
 type Params = { params: Promise<{ token: string }> };
 
@@ -13,7 +14,7 @@ function isMissingExceptionStepColumns(error: { code?: string; message?: string 
   return error?.code === '42703'
     || /step_type|capture_source|capture_failure_reason/i.test(error?.message ?? '');
 }
-const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://mimic-nine-ashen.vercel.app').replace(/^﻿/, '').trim();
+const APP_URL = getBrandAppUrl();
 
 // 소유자 플랜·사용량으로 게이트 판정. 반환: 막혔으면 gated 정보, 아니면 null.
 // charge=true(공개 실행)일 때만 카운트 차감 — RPC로 원자적 check-and-increment(race 방지).

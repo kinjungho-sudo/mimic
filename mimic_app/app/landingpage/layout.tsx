@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
-import { BRAND_DESCRIPTION, BRAND_NAME, BRAND_TAGLINE } from '@/lib/brand';
+import { BRAND_DESCRIPTION, BRAND_NAME, BRAND_TAGLINE, getBrandAppUrl } from '@/lib/brand';
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://mimic-nine-ashen.vercel.app';
+const APP_URL = getBrandAppUrl();
 
 export const metadata: Metadata = {
   title: `${BRAND_TAGLINE} - ${BRAND_NAME}`,

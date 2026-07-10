@@ -8,6 +8,8 @@ export const BRAND_DESCRIPTION =
 
 // Phase 2 operational value: update only after the Parro support domain is ready.
 export const BRAND_SUPPORT_EMAIL = 'support@mimic.so';
+export const BRAND_APP_URL_FALLBACK = 'https://mimic-nine-ashen.vercel.app';
+export const BRAND_LOGO_IMAGE_PATH = '/mimic-logo.png';
 
 export const BRAND_VISUAL_DIRECTION = 'Wing Pointer';
 
@@ -47,3 +49,7 @@ export const BRAND_COLORS = {
   border: '#DDE7E4',
   focus: '#17C9B6',
 } as const;
+
+export function getBrandAppUrl(): string {
+  return (process.env.NEXT_PUBLIC_APP_URL ?? BRAND_APP_URL_FALLBACK).replace(/^\uFEFF/, '').trim();
+}

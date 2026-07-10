@@ -72,3 +72,9 @@
 - Added `BRAND_SUPPORT_EMAIL` to `lib/brand.ts` for the current Phase 2 support email value.
 - Replaced hardcoded `support@mimic.so` strings in help, FAQ chat, and auth error copy with the centralized brand constant.
 - Kept the visible support email unchanged until the owner approves the Parro support domain/email migration.
+
+## 2026-07-10 - Parro URL and logo path centralization
+
+- Added `BRAND_APP_URL_FALLBACK`, `BRAND_LOGO_IMAGE_PATH`, and `getBrandAppUrl()` to `lib/brand.ts`.
+- Replaced scattered app/library hardcoded deployment URL and `mimic-logo.png` references with centralized constants/helpers.
+- Kept the current deployment URL and logo asset path unchanged until Phase 2 domain decisions and final Wing Pointer SVG assets are ready.

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
-import { BRAND_DESCRIPTION, BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
+import { BRAND_DESCRIPTION, BRAND_LOGO_IMAGE_PATH, BRAND_NAME, BRAND_TAGLINE, getBrandAppUrl } from "@/lib/brand";
 import "./globals.css";
 
 const geistSans = localFont({
@@ -14,7 +14,7 @@ const geistMono = localFont({
   weight: "100 900",
 });
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://mimic-nine-ashen.vercel.app';
+const APP_URL = getBrandAppUrl();
 
 export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),
@@ -59,7 +59,7 @@ const organizationJsonLd = {
   "@type": "Organization",
   name: BRAND_NAME,
   url: APP_URL,
-  logo: `${APP_URL}/mimic-logo.png`,
+  logo: `${APP_URL}${BRAND_LOGO_IMAGE_PATH}`,
   description: BRAND_DESCRIPTION,
   contactPoint: {
     "@type": "ContactPoint",

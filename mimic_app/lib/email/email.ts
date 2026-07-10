@@ -1,5 +1,5 @@
 import { Resend } from 'resend';
-import { BRAND_COPY, BRAND_NAME, BRAND_TAGLINE } from '@/lib/brand';
+import { BRAND_COPY, BRAND_LOGO_IMAGE_PATH, BRAND_NAME, BRAND_TAGLINE } from '@/lib/brand';
 
 const FROM = process.env.RESEND_FROM_EMAIL ?? `${BRAND_NAME} <onboarding@resend.dev>`;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
@@ -31,7 +31,7 @@ export async function sendWelcomeEmail({ to, name }: { to: string; name: string 
         <tr><td style="background:linear-gradient(135deg,#3730a3 0%,#6d28d9 100%);padding:48px 40px 40px;text-align:center;position:relative">
           <table cellpadding="0" cellspacing="0" style="margin:0 auto 20px">
             <tr><td style="width:64px;height:64px;background:rgba(255,255,255,0.18);border-radius:18px;text-align:center;vertical-align:middle;border:1.5px solid rgba(255,255,255,0.25)">
-              <img src="${APP_URL}/mimic-logo.png" width="44" height="44" alt="${BRAND_NAME}" style="display:block;margin:10px auto;border:0" />
+              <img src="${APP_URL}${BRAND_LOGO_IMAGE_PATH}" width="44" height="44" alt="${BRAND_NAME}" style="display:block;margin:10px auto;border:0" />
             </td></tr>
           </table>
           <p style="margin:0;font-size:28px;font-weight:800;color:white;letter-spacing:-0.03em;line-height:1">${BRAND_NAME}</p>
@@ -246,7 +246,7 @@ export async function sendWorkspaceInvitation({
           <!-- 로고 아이콘 박스 -->
           <table cellpadding="0" cellspacing="0" style="margin:0 auto 16px">
             <tr><td style="width:56px;height:56px;background:rgba(255,255,255,0.18);border-radius:14px;text-align:center;vertical-align:middle">
-              <img src="${APP_URL}/mimic-logo.png" width="40" height="40" alt="${BRAND_NAME}" style="display:block;margin:8px auto;border:0" />
+              <img src="${APP_URL}${BRAND_LOGO_IMAGE_PATH}" width="40" height="40" alt="${BRAND_NAME}" style="display:block;margin:8px auto;border:0" />
             </td></tr>
           </table>
           <!-- 브랜드명 -->

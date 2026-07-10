@@ -12,7 +12,7 @@ import { createClient } from '@/lib/supabase/client';
 import { toFollowSteps, clickToPct } from '@/lib/follow';
 import { startLiveGuide } from '@/lib/api/liveGuide';
 import { resolveStepAudio } from '@/lib/voice/playback';
-import { BRAND_NAME } from '@/lib/brand';
+import { BRAND_LOGO_IMAGE_PATH, BRAND_NAME } from '@/lib/brand';
 import type { FollowConfig } from '@/types';
 import type { Annotation as DrawAnnotation } from '@/components/editor/ImageAnnotationEditor';
 
@@ -326,7 +326,7 @@ function SharePopup({ title, url, onClose }: { title: string; url: string; onClo
       content: {
         title,
         description: `${BRAND_NAME}으로 만든 단계별 인터랙티브 매뉴얼입니다.`,
-        imageUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/mimic-logo.png`,
+        imageUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}${BRAND_LOGO_IMAGE_PATH}`,
         link: { mobileWebUrl: url, webUrl: url },
       },
       buttons: [{ title: '매뉴얼 보기', link: { mobileWebUrl: url, webUrl: url } }],
