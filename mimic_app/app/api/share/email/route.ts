@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireAuth } from '@/lib/auth/auth-guard';
-import { BRAND_NAME, BRAND_TAGLINE } from '@/lib/brand';
+import { BRAND_NAME, BRAND_TAGLINE, LEGACY_INTERNAL_IDENTIFIERS } from '@/lib/brand';
 
 const schema = z.object({
   to: z.string().email('올바른 이메일 주소를 입력해주세요.'),
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
   try {
     const res = await fetch(webhookUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(secret ? { 'x-mimic-secret': secret } : {}) },
+      headers: { 'Content-Type': 'application/json', ...(secret ? { [LEGACY_INTERNAL_IDENTIFIERS.shareEmailSecretHeader]: secret } : {}) },
       body: JSON.stringify({ to, subject, html, fromName, replyTo: 'kinjungho@gmail.com' }),
     });
     if (!res.ok) {

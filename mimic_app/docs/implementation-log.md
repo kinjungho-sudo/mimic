@@ -84,3 +84,9 @@
 - Added `BRAND_EXTENSION_STORE_URL` to `lib/brand.ts`.
 - Replaced duplicated Chrome Web Store URLs in the extension link page and recording modal with the centralized brand constant.
 - Kept the current `mimic-recorder` store slug unchanged until the owner approves an extension listing/identity migration.
+
+## 2026-07-10 - Parro legacy identifier centralization
+
+- Reused `LEGACY_INTERNAL_IDENTIFIERS` for preserved runtime identifiers such as `x-mimic-secret`, `MIMICBot/1.0`, `text/mimic-tutorial`, and `mimic_annot_defaults_v1`.
+- Removed duplicated legacy identifier literals from share email headers, n8n email headers, favicon crawler requests, home drag/drop, and annotation defaults.
+- Kept the identifier values unchanged because these remain compatibility surfaces until a separate Phase 3 migration is approved.

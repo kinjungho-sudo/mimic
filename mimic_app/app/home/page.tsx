@@ -8,7 +8,7 @@ import { RecordingModal } from '@/components/dashboard/RecordingModal';
 import { AgentChat } from '@/components/chat/AgentChat';
 import { createTutorial } from '@/lib/api/tutorials';
 import { logError } from '@/lib/logging/logger';
-import { BRAND_NAME } from '@/lib/brand';
+import { BRAND_NAME, LEGACY_INTERNAL_IDENTIFIERS } from '@/lib/brand';
 import type { Tutorial, Workspace, Folder } from '@/types';
 
 
@@ -433,7 +433,7 @@ function TutorialCard({ tutorial, onContextMenu, onMenuClick, viewMode = 'grid',
     // 폴더 패널로 드래그해서 정리 (Scribe 스타일 DnD)
     draggable: true,
     onDragStart: (e: React.DragEvent) => {
-      e.dataTransfer.setData('text/mimic-tutorial', tutorial.id);
+      e.dataTransfer.setData(LEGACY_INTERNAL_IDENTIFIERS.dragDataType, tutorial.id);
       e.dataTransfer.effectAllowed = 'move';
     },
     onMouseEnter: () => setHovered(true),
@@ -603,7 +603,7 @@ function FolderPanel({ folders, tutorials, activeFolder, active, title, onSelect
   // 드롭 타깃 공통 핸들러 (미분류 = null)
   const dropProps = (key: string, folderId: string | null) => ({
     onDragOver: (e: React.DragEvent) => {
-      if (e.dataTransfer.types.includes('text/mimic-tutorial')) {
+      if (e.dataTransfer.types.includes(LEGACY_INTERNAL_IDENTIFIERS.dragDataType)) {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
         if (dragOverKey !== key) setDragOverKey(key);
@@ -612,7 +612,7 @@ function FolderPanel({ folders, tutorials, activeFolder, active, title, onSelect
     onDragLeave: () => setDragOverKey(k => (k === key ? null : k)),
     onDrop: (e: React.DragEvent) => {
       e.preventDefault();
-      const tid = e.dataTransfer.getData('text/mimic-tutorial');
+      const tid = e.dataTransfer.getData(LEGACY_INTERNAL_IDENTIFIERS.dragDataType);
       if (tid) onDropTutorial(tid, folderId);
       setDragOverKey(null);
     },

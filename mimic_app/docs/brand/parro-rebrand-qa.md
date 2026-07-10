@@ -39,9 +39,9 @@ git diff --check
 
 - `package.json`, `package-lock.json`, and MCP package names such as `mimic-app` / `@mimic/mcp-server`.
 - Supabase schema, migrations, storage buckets, and SQL comments, including `mimic-tts`, `01_mimic_dev_schema.sql`, and `supabase/migrations/*`.
-- API route filenames and environment/header identifiers including `x-mimic-secret`, `MIMIC_EXTENSION_ID`, and `NEXT_PUBLIC_APP_URL`.
+- API route filenames and environment/header identifiers including `x-mimic-secret`, `MIMIC_EXTENSION_ID`, and `NEXT_PUBLIC_APP_URL`. Runtime uses of preserved legacy values such as `x-mimic-secret` and `MIMICBot/1.0` now go through `LEGACY_INTERNAL_IDENTIFIERS`.
 - SDK compatibility globals/classes/query params in `public/sdk.js`, including `window.MimicSDK`, `window.MimicAutoRun`, `mimic_guide`, `data-mimic-float`, and `mimic-*` CSS classes.
-- Local storage and drag/drop keys such as `mimic:survey:*`, `mimic_annot_defaults_v1`, and `text/mimic-tutorial`.
+- Local storage and drag/drop keys such as `mimic:survey:*`, `mimic_annot_defaults_v1`, and `text/mimic-tutorial`. Annotation defaults and drag/drop keys now go through `LEGACY_INTERNAL_IDENTIFIERS`.
 - SDK/recorder console log tags have been updated to `[Parro]`; compatibility names remain unchanged.
 - Legacy matching keywords in the help chat so users asking about the old name can still get an answer.
 

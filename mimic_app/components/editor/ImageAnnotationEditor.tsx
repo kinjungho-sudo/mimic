@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useId } from 'react';
 import { X, Trash2, RotateCcw, RotateCw, Bold, Palette } from 'lucide-react';
 import type { BlurRegion } from '@/lib/pixelate';
+import { LEGACY_INTERNAL_IDENTIFIERS } from '@/lib/brand';
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -65,7 +66,7 @@ export function estimateTextW(text: string, fSize: number): number {
 }
 
 // 도구 기본값 저장 — 다음 편집/세션에서도 같은 설정을 사용하도록 localStorage에 보존
-const DEFAULTS_KEY = 'mimic_annot_defaults_v1';
+const DEFAULTS_KEY = LEGACY_INTERNAL_IDENTIFIERS.annotationDefaultsKey;
 interface ToolDefaults {
   color: string; strokeIdx: number; fontSize: number;
   fontBold: boolean; borderColor: string;
