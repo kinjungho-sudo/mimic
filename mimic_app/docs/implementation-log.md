@@ -234,3 +234,8 @@
 
 - Updated recorder popup controls, microphone permission page, privacy policy, countdown accent, and Live Guide overlay colors from the old indigo/purple palette to Parro teal/guide/accent colors.
 - Preserved extension IDs, Chrome Web Store slug/URLs, runtime app URLs, local storage keys, IndexedDB names, output ZIP filename, internal `mimic-*` hooks, routes, DB identifiers, env names, package names, and production logo/icon assets.
+
+## 2026-07-11 - Parro help chat brand keyword pass
+
+- Added `parro` and `패로` to the help chat introduction keyword match so direct brand-name questions route to the Parro overview answer.
+- Preserved legacy `mimic` keyword aliases so users asking with the old name can still get help during the staged rebrand.
