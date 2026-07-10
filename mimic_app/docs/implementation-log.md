@@ -1,5 +1,10 @@
 # Implementation Log
 
+## 2026-07-11 - Parro SDK AutoRun DOM identifiers
+
+- Updated SDK AutoRun runtime DOM IDs, style ID, active class, and animation names to use `parro-*` as the primary identifiers.
+- Preserved legacy `mimic-*` selectors, keyframes, and lookup fallbacks for embedded compatibility.
+
 ## 2026-07-11 - Parro MCP public description cleanup
 
 - Updated root MCP package README, package description, and `list_tutorials` tool description from MIMIC to Parro.
