@@ -270,3 +270,8 @@
 
 - Updated the Recorder full-page capture download filename prefix from `mimic_fullpage_` to `parro_fullpage_`.
 - Preserved storage keys, IndexedDB names, runtime URLs, and internal compatibility globals.
+
+## 2026-07-11 - Parro Recorder guide DOM class alias pass
+
+- Added `parro-btn` to Recorder Live Guide overlay controls and survey buttons.
+- Preserved `mimic-btn` on the same elements for compatibility with existing runtime styling and overrides.
