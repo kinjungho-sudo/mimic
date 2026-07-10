@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { BRAND_COPY, BRAND_NAME } from '@/lib/brand';
+import { BRAND_COPY, BRAND_NAME, BRAND_SUPPORT_EMAIL } from '@/lib/brand';
 
 // ── 목차 구조 ──────────────────────────────────────────────
 
@@ -464,7 +464,7 @@ function SectionContent({ id }: { id: string }) {
               </div>
             ))}
           </div>
-          {p('요금제 관련 문의는 support@mimic.so로 연락해주세요.')}
+          {p(`요금제 관련 문의는 ${BRAND_SUPPORT_EMAIL}로 연락해주세요.`)}
         </div>
       );
 
@@ -527,11 +527,11 @@ function SectionContent({ id }: { id: string }) {
             },
             {
               q: '무료 플랜과 Pro 플랜의 차이는 무엇인가요?',
-              a: '무료는 일 3회 매뉴얼 생성, 기본 공유, PDF 내보내기를 지원합니다. Pro는 생성 한도 확대, PDF/PPTX/Word 내보내기, 비밀번호 보호, 학습 가이드와 라이브 가이드 Beta를 포함할 예정입니다. 가격 문의는 support@mimic.so로 연락해주세요.',
+              a: `무료는 일 3회 매뉴얼 생성, 기본 공유, PDF 내보내기를 지원합니다. Pro는 생성 한도 확대, PDF/PPTX/Word 내보내기, 비밀번호 보호, 학습 가이드와 라이브 가이드 Beta를 포함할 예정입니다. 가격 문의는 ${BRAND_SUPPORT_EMAIL}로 연락해주세요.`,
             },
             {
               q: '문의는 어떻게 하나요?',
-              a: 'support@mimic.so로 이메일 주시면 빠르게 답변드리겠습니다. 버그 신고, 기능 제안, 요금제 문의 모두 환영합니다.',
+              a: `${BRAND_SUPPORT_EMAIL}로 이메일 주시면 빠르게 답변드리겠습니다. 버그 신고, 기능 제안, 요금제 문의 모두 환영합니다.`,
             },
           ].map(({ q, a }, i) => (
             <div key={i} style={{ borderBottom: '1px solid #F3F4F6', paddingBottom: '20px', marginBottom: '20px' }}>
@@ -541,7 +541,7 @@ function SectionContent({ id }: { id: string }) {
           ))}
           <div style={{ padding: '16px 20px', background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: '10px', marginTop: '8px' }}>
             <div style={{ fontSize: '14px', fontWeight: 600, color: '#0369a1', marginBottom: '4px' }}>더 궁금한 점이 있으신가요?</div>
-            <div style={{ fontSize: '13.5px', color: '#0c4a6e' }}>우측 하단 채팅 버튼으로 바로 질문하거나, <strong>support@mimic.so</strong>로 문의해주세요.</div>
+            <div style={{ fontSize: '13.5px', color: '#0c4a6e' }}>우측 하단 채팅 버튼으로 바로 질문하거나, <strong>{BRAND_SUPPORT_EMAIL}</strong>로 문의해주세요.</div>
           </div>
         </div>
       );

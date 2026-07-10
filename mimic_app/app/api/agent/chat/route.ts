@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { QUICK_QUESTIONS } from '@/lib/faq-data';
-import { BRAND_COPY, BRAND_NAME } from '@/lib/brand';
+import { BRAND_COPY, BRAND_NAME, BRAND_SUPPORT_EMAIL } from '@/lib/brand';
 
 // ── 정적 FAQ 데이터 ────────────────────────────────────────
 // Haiku API 없이 키워드 매칭으로 응답 — API 비용 0
@@ -51,12 +51,12 @@ const FAQ_DB: Record<string, FAQ> = {
   },
   'price': {
     keywords: ['요금', '가격', '플랜', '유료', '무료', 'pro', 'team', '비용', '얼마'],
-    answer: `**요금제 안내**\n\n**무료**: 일 3회 매뉴얼 생성, 기본 공유, PDF 내보내기, 제한된 라이브 가이드 Beta 사용\n\n**Pro**: 무제한 생성, PDF/PPTX/Word 내보내기, 비밀번호 보호, 학습 가이드·Live Guide Beta 제작\n\n**Team**: Pro 포함 + 팀 워크스페이스, 멤버 관리, 팀 단위 지원\n\nPro/Team 가격 문의: support@mimic.so\n\n👉 [요금제 상세](${HELP_URL}#plans)`,
+    answer: `**요금제 안내**\n\n**무료**: 일 3회 매뉴얼 생성, 기본 공유, PDF 내보내기, 제한된 라이브 가이드 Beta 사용\n\n**Pro**: 무제한 생성, PDF/PPTX/Word 내보내기, 비밀번호 보호, 학습 가이드·Live Guide Beta 제작\n\n**Team**: Pro 포함 + 팀 워크스페이스, 멤버 관리, 팀 단위 지원\n\nPro/Team 가격 문의: ${BRAND_SUPPORT_EMAIL}\n\n👉 [요금제 상세](${HELP_URL}#plans)`,
     related: ['limit', 'workspace'],
   },
   'limit': {
     keywords: ['한도', '제한', '3회', '일일', '초과', '더 만들', '안돼', '못'],
-    answer: `무료 플랜은 **하루 3회**까지 매뉴얼을 생성할 수 있습니다.\n\n한도 초과 시:\n- 내일 자정에 횟수가 초기화됩니다\n- Pro 플랜 업그레이드 시 매뉴얼 생성 한도를 해제할 수 있습니다\n\n업그레이드 문의: support@mimic.so\n\n👉 [요금제 보기](${HELP_URL}#plans)`,
+    answer: `무료 플랜은 **하루 3회**까지 매뉴얼을 생성할 수 있습니다.\n\n한도 초과 시:\n- 내일 자정에 횟수가 초기화됩니다\n- Pro 플랜 업그레이드 시 매뉴얼 생성 한도를 해제할 수 있습니다\n\n업그레이드 문의: ${BRAND_SUPPORT_EMAIL}\n\n👉 [요금제 보기](${HELP_URL}#plans)`,
     related: ['price'],
   },
   'workspace': {
@@ -81,7 +81,7 @@ const FAQ_DB: Record<string, FAQ> = {
   },
   'contact': {
     keywords: ['문의', '연락', '이메일', '지원', '고객', '피드백', '버그', '오류'],
-    answer: `추가 문의사항이 있으시면 아래로 연락해주세요:\n\n📧 **support@mimic.so**\n\n도움말에서 해결되지 않는 문제, 버그 신고, 요금제 문의 모두 환영합니다.\n\n👉 [도움말에서 먼저 찾아보기](${HELP_URL})`,
+    answer: `추가 문의사항이 있으시면 아래로 연락해주세요:\n\n📧 **${BRAND_SUPPORT_EMAIL}**\n\n도움말에서 해결되지 않는 문제, 버그 신고, 요금제 문의 모두 환영합니다.\n\n👉 [도움말에서 먼저 찾아보기](${HELP_URL})`,
     related: ['price', 'what'],
   },
 };
@@ -114,7 +114,7 @@ function findAnswer(query: string): { answer: string; related: string[] } {
 
   // 매칭 실패
   return {
-    answer: `죄송합니다, 정확한 답변을 찾지 못했어요.\n\n👉 [도움말](${HELP_URL})에서 직접 검색하거나, **support@mimic.so**로 문의해주세요.`,
+    answer: `죄송합니다, 정확한 답변을 찾지 못했어요.\n\n👉 [도움말](${HELP_URL})에서 직접 검색하거나, **${BRAND_SUPPORT_EMAIL}**로 문의해주세요.`,
     related: ['contact'],
   };
 }

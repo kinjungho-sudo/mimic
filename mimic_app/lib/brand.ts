@@ -6,6 +6,9 @@ export const BRAND_TAGLINE = 'AI Live Guide for hands-on training';
 export const BRAND_DESCRIPTION =
   'Parro helps instructors and teams turn hands-on software workflows into step-by-step live guidance.';
 
+// Phase 2 operational value: update only after the Parro support domain is ready.
+export const BRAND_SUPPORT_EMAIL = 'support@mimic.so';
+
 export const BRAND_VISUAL_DIRECTION = 'Wing Pointer';
 
 export const BRAND_COPY = {

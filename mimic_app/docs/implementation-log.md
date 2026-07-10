@@ -66,3 +66,9 @@
 - Preserved the `@mimic/mcp-server` package name and `mimic` MCP server key for compatibility.
 - Updated SDK and recorder console log prefixes from `[MIMIC]` to `[Parro]` while preserving SDK globals, CSS classes, query params, and extension/store identifiers.
 - Updated the n8n setup guide display name to Parro while preserving `x-mimic-secret` and `mimic-share-email` webhook path.
+
+## 2026-07-10 - Parro support email centralization
+
+- Added `BRAND_SUPPORT_EMAIL` to `lib/brand.ts` for the current Phase 2 support email value.
+- Replaced hardcoded `support@mimic.so` strings in help, FAQ chat, and auth error copy with the centralized brand constant.
+- Kept the visible support email unchanged until the owner approves the Parro support domain/email migration.

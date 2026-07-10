@@ -31,7 +31,7 @@ git diff --check
 ## Public-facing old brand references remaining
 
 - Production logo/icon assets still reference current files such as `public/logo.svg`, `app/icon.svg`, and `public/mimic-logo.png`. Replacement is blocked until the owner provides production-ready Wing Pointer SVG assets.
-- Public support/contact email remains `support@mimic.so` in help/chat copy. This is a domain and operations decision for Phase 2.
+- Public support/contact email remains `support@mimic.so` in help/chat/auth copy through `BRAND_SUPPORT_EMAIL`. This is now centralized, but the address itself is still a domain and operations decision for Phase 2.
 - Deployment URLs remain `mimic-nine-ashen.vercel.app` in metadata, sitemap, robots, SDK docs, email buttons, and public references. These are deployment identifiers and should move only after domain/Vercel decisions.
 - Chrome Web Store URL slug remains `mimic-recorder`; the visible extension name is now `Parro Recorder`, but the store slug/extension identity is preserved.
 
