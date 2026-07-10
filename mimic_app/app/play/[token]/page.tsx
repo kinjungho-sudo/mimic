@@ -12,7 +12,7 @@ import { createClient } from '@/lib/supabase/client';
 import { toFollowSteps, clickToPct } from '@/lib/follow';
 import { startLiveGuide } from '@/lib/api/liveGuide';
 import { resolveStepAudio } from '@/lib/voice/playback';
-import { BRAND_LOGO_IMAGE_PATH, BRAND_NAME } from '@/lib/brand';
+import { BRAND_LOGO_IMAGE_PATH, BRAND_NAME, LEGACY_INTERNAL_IDENTIFIERS } from '@/lib/brand';
 import type { FollowConfig } from '@/types';
 import type { Annotation as DrawAnnotation } from '@/components/editor/ImageAnnotationEditor';
 
@@ -582,14 +582,14 @@ export default function PlayerPage() {
 
   useEffect(() => {
     if (!tutorial?.id || !tutorial.survey_enabled) return;
-    const key = `mimic:survey:manual_viewer:${tutorial.id}`;
+    const key = `${LEGACY_INTERNAL_IDENTIFIERS.surveyManualViewerPrefix}:${tutorial.id}`;
     if (window.localStorage.getItem(key)) return;
     const timer = setTimeout(() => setShowViewerSurvey(true), 12000);
     return () => clearTimeout(timer);
   }, [tutorial?.id, tutorial?.survey_enabled]);
 
   const closeViewerSurvey = () => {
-    if (tutorial?.id) window.localStorage.setItem(`mimic:survey:manual_viewer:${tutorial.id}`, '1');
+    if (tutorial?.id) window.localStorage.setItem(`${LEGACY_INTERNAL_IDENTIFIERS.surveyManualViewerPrefix}:${tutorial.id}`, '1');
     setShowViewerSurvey(false);
   };
 

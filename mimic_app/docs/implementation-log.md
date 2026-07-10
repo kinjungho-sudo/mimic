@@ -96,3 +96,9 @@
 - Added `sendParroEmail` as the primary n8n transactional email helper name.
 - Updated internal app call sites to use `sendParroEmail`.
 - Kept `sendMimicEmail` as a backward-compatible alias until a separate Phase 3 internal rename cleanup is approved.
+
+## 2026-07-10 - Parro internal UI name cleanup
+
+- Renamed the landing page internal preview header component from `MimicAppHeader` to `ParroAppHeader`.
+- Renamed the editor toast animation from `mimicFadeIn` to `parroFadeIn`.
+- Centralized preserved survey localStorage key prefixes under `LEGACY_INTERNAL_IDENTIFIERS` without changing their stored values.

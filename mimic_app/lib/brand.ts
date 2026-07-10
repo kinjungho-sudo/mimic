@@ -34,6 +34,8 @@ export const LEGACY_INTERNAL_IDENTIFIERS = {
   sdkFloatAttribute: 'data-mimic-float',
   shareEmailSecretHeader: 'x-mimic-secret',
   annotationDefaultsKey: 'mimic_annot_defaults_v1',
+  surveyManualCreatedPrefix: 'mimic:survey:manual_created',
+  surveyManualViewerPrefix: 'mimic:survey:manual_viewer',
   dragDataType: 'text/mimic-tutorial',
   botUserAgent: 'MIMICBot/1.0',
 } as const;

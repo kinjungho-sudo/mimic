@@ -653,7 +653,7 @@ function Scene3({ tick }: { tick: number }) {
 }
 
 // Parro 앱 헤더 (Scene4·5 공용)
-function MimicAppHeader({ mode }: { mode: 'doc' | 'guide' }) {
+function ParroAppHeader({ mode }: { mode: 'doc' | 'guide' }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 14px', borderBottom: '1px solid #EEE', background: '#fff' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -953,7 +953,7 @@ function Scene6({ tick }: { tick: number }) {
   const total = 6;
   return (
     <div style={{ width: '100%', height: '100%', background: '#fff', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
-      <MimicAppHeader mode="guide" />
+      <ParroAppHeader mode="guide" />
       <div style={{ flex: 1, display: 'flex', position: 'relative', overflow: 'hidden' }}>
         {/* 좌측: 정부24 화면 + 스포트라이트(마우스 커서 포함) */}
         <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>

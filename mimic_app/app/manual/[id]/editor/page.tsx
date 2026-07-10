@@ -21,6 +21,7 @@ import { updateStep, createStep, deleteStep, reorderSteps, duplicateStep } from 
 import { getTutorial } from '@/lib/api/tutorials';
 import { logError } from '@/lib/logging/logger';
 import { hasGuideConfig } from '@/lib/follow';
+import { LEGACY_INTERNAL_IDENTIFIERS } from '@/lib/brand';
 import type { Step, Tutorial } from '@/types';
 
 const TOP_BAR_ICON_SIZE = 14;
@@ -305,14 +306,14 @@ export default function EditorPage() {
     if (!isRecordingFinalizeView || !tutorial?.id || !user) return;
     if (user.plan !== 'free' && user.plan !== 'pro_waitlist') return;
     if (tutorial.steps.length === 0) return;
-    const key = `mimic:survey:manual_created:${tutorial.id}`;
+    const key = `${LEGACY_INTERNAL_IDENTIFIERS.surveyManualCreatedPrefix}:${tutorial.id}`;
     if (window.localStorage.getItem(key)) return;
     const timer = setTimeout(() => setShowCreationSurvey(true), 1200);
     return () => clearTimeout(timer);
   }, [isRecordingFinalizeView, tutorial?.id, tutorial?.steps.length, user]);
 
   const closeCreationSurvey = useCallback(() => {
-    if (tutorial?.id) window.localStorage.setItem(`mimic:survey:manual_created:${tutorial.id}`, '1');
+    if (tutorial?.id) window.localStorage.setItem(`${LEGACY_INTERNAL_IDENTIFIERS.surveyManualCreatedPrefix}:${tutorial.id}`, '1');
     setShowCreationSurvey(false);
   }, [tutorial?.id]);
 
@@ -1050,7 +1051,7 @@ export default function EditorPage() {
           display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 18px',
           borderRadius: '10px', background: '#1E1E2E', color: 'white',
           boxShadow: '0 8px 24px rgba(0,0,0,0.25)', fontSize: '13px', fontWeight: 500,
-          zIndex: 100, pointerEvents: 'none', animation: 'mimicFadeIn 0.2s ease',
+          zIndex: 100, pointerEvents: 'none', animation: 'parroFadeIn 0.2s ease',
         }}>
           <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: collabToast.color, display: 'grid', placeItems: 'center', fontSize: '10px', fontWeight: 700, flexShrink: 0 }}>
             {collabToast.name.charAt(0).toUpperCase()}
@@ -1060,7 +1061,7 @@ export default function EditorPage() {
           </span>
         </div>
       )}
-      <style>{`@keyframes mimicFadeIn { from { opacity:0; transform:translateX(-50%) translateY(8px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }`}</style>
+      <style>{`@keyframes parroFadeIn { from { opacity:0; transform:translateX(-50%) translateY(8px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }`}</style>
 
       {showMerge && (
         <MergeModal
