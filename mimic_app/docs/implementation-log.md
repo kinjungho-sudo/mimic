@@ -113,3 +113,9 @@
 - Updated the public SDK overlay colors from the old indigo palette to Parro teal/guide/pointer colors.
 - Updated the editor SDK preview panel to reuse `BRAND_COLORS.primary`.
 - Preserved SDK compatibility names such as `MimicSDK`, `MimicAutoRun`, `mimic_guide`, and `mimic-*` CSS classes.
+
+## 2026-07-10 - Parro public viewer color pass
+
+- Updated the shared Live Guide stage and interactive player from the old indigo/purple palette to Parro brand colors.
+- Updated the public `/play` viewer survey, document, share, slide, and hotspot controls to use Parro color tokens.
+- Preserved route names, share tokens, SDK compatibility identifiers, and stored data shapes.

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useId } from 'react';
 import { AnnotationPreview } from '@/components/editor/AnnotationPreview';
+import { BRAND_COLORS } from '@/lib/brand';
 import type { Annotation } from '@/components/editor/ImageAnnotationEditor';
 
 // 따라하기 시각 레이어(이미지 + 핫스팟 인디케이터 + AI 캐릭터 말풍선).
@@ -9,16 +10,21 @@ import type { Annotation } from '@/components/editor/ImageAnnotationEditor';
 
 export const CORNER = 1.5; // 좌상단 0,0 가짜 핫스팟(이동/캡처 단계) 판정 임계
 const MAX_AUTO_ZOOM = 1.6;
+const GUIDE_GRADIENT = `linear-gradient(135deg,${BRAND_COLORS.primary},${BRAND_COLORS.guide})`;
+const GUIDE_RING = 'rgba(0,155,142,0.20)';
+const GUIDE_RING_SOFT = 'rgba(0,155,142,0.14)';
+const GUIDE_RING_STRONG = 'rgba(0,155,142,0.28)';
+const GUIDE_SHADOW = 'rgba(0,155,142,0.34)';
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
 export function Mascot({ size = 40 }: { size?: number }) {
   return (
-    <div style={{ width: size, height: size, borderRadius: '50%', background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', display: 'grid', placeItems: 'center', flexShrink: 0, boxShadow: '0 4px 14px rgba(79,70,229,0.4)' }}>
+    <div style={{ width: size, height: size, borderRadius: '50%', background: GUIDE_GRADIENT, display: 'grid', placeItems: 'center', flexShrink: 0, boxShadow: `0 4px 14px ${GUIDE_SHADOW}` }}>
       <svg width={size * 0.62} height={size * 0.62} viewBox="0 0 24 24" fill="none">
         <rect x="4" y="7" width="16" height="12" rx="4" fill="white" />
-        <circle cx="9.5" cy="13" r="1.7" fill="#4f46e5" />
-        <circle cx="14.5" cy="13" r="1.7" fill="#4f46e5" />
-        <path d="M9.5 16.2c1.6 1 3.4 1 5 0" stroke="#4f46e5" strokeWidth="1.2" strokeLinecap="round" />
+        <circle cx="9.5" cy="13" r="1.7" fill={BRAND_COLORS.primary} />
+        <circle cx="14.5" cy="13" r="1.7" fill={BRAND_COLORS.primary} />
+        <path d="M9.5 16.2c1.6 1 3.4 1 5 0" stroke={BRAND_COLORS.primary} strokeWidth="1.2" strokeLinecap="round" />
         <line x1="12" y1="3.5" x2="12" y2="7" stroke="white" strokeWidth="1.6" strokeLinecap="round" />
         <circle cx="12" cy="3" r="1.3" fill="white" />
       </svg>
@@ -195,21 +201,21 @@ export function FollowStage({
     <div style={{ background: 'white', borderRadius: '14px', padding: '18px 20px', boxShadow: '0 16px 48px rgba(0,0,0,0.30), 0 2px 8px rgba(0,0,0,0.12)', maxWidth: `${BW}px`, animation: nudge ? 'mfp-nudge 0.4s' : undefined }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '9px' }}>
         {stepNumber != null && (
-          <span style={{ flexShrink: 0, width: '24px', height: '24px', borderRadius: '50%', background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', color: '#fff', fontSize: '13px', fontWeight: 800, display: 'grid', placeItems: 'center', marginTop: '1px', boxShadow: '0 2px 6px rgba(79,70,229,0.4)' }}>{stepNumber}</span>
+          <span style={{ flexShrink: 0, width: '24px', height: '24px', borderRadius: '50%', background: GUIDE_GRADIENT, color: '#fff', fontSize: '13px', fontWeight: 800, display: 'grid', placeItems: 'center', marginTop: '1px', boxShadow: `0 2px 6px ${GUIDE_SHADOW}` }}>{stepNumber}</span>
         )}
         {bubbleText && (
           <div style={{ fontSize: '13.5px', color: '#4B5563', lineHeight: 1.55, flex: 1, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{bubbleText}</div>
         )}
         <span style={{ fontSize: '11px', color: '#C4C9D4', flexShrink: 0, marginTop: '2px' }}>—</span>
       </div>
-      {showHint && <div style={{ fontSize: '12px', color: '#6366F1', marginTop: '14px', fontWeight: 500 }}>{hint}</div>}
+      {showHint && <div style={{ fontSize: '12px', color: BRAND_COLORS.primary, marginTop: '14px', fontWeight: 500 }}>{hint}</div>}
     </div>
   );
 
   const MascotBtn = (
     <button onClick={onMascotClick} title={showAudioBadge ? '음성 듣기' : '안내'} style={{ border: 'none', background: 'transparent', cursor: onMascotClick ? 'pointer' : 'default', padding: 0, position: 'relative' }}>
       <Mascot />
-      {showAudioBadge && <span style={{ position: 'absolute', bottom: -2, right: -2, width: 16, height: 16, borderRadius: '50%', background: '#fff', display: 'grid', placeItems: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.25)' }}><svg width="9" height="9" viewBox="0 0 24 24" fill="#4f46e5"><path d="M3 10v4h4l5 5V5L7 10H3z" /></svg></span>}
+      {showAudioBadge && <span style={{ position: 'absolute', bottom: -2, right: -2, width: 16, height: 16, borderRadius: '50%', background: '#fff', display: 'grid', placeItems: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.25)' }}><svg width="9" height="9" viewBox="0 0 24 24" fill={BRAND_COLORS.primary}><path d="M3 10v4h4l5 5V5L7 10H3z" /></svg></span>}
     </button>
   );
   const BubbleBox = (
@@ -269,8 +275,8 @@ export function FollowStage({
           <div style={{
             position: 'absolute', left: `${domRect.x}%`, top: `${domRect.y}%`,
             width: `${domRect.w}%`, height: `${domRect.h}%`,
-            border: '2.5px solid #6366f1', borderRadius: '6px',
-            boxShadow: '0 0 0 3px rgba(99,102,241,0.20)',
+            border: `2.5px solid ${BRAND_COLORS.guide}`, borderRadius: '6px',
+            boxShadow: `0 0 0 3px ${GUIDE_RING}`,
             pointerEvents: 'none', zIndex: 3,
             animation: isAnimated ? 'mfp-rect-in 0.35s ease-out' : undefined,
           }} />
@@ -279,34 +285,34 @@ export function FollowStage({
         {/* 클릭 인디케이터 — 물결 링만(중심 도트 없음). 버튼을 가리지 않게 작고 은은하게. focused 시만 */}
         {showOverlays && hasHotspot && !isType && (
           <div style={{ position: 'absolute', left: `${hx}%`, top: `${hy}%`, transform: 'translate(-50%,-50%)', width: '16px', height: '16px', pointerEvents: 'none', zIndex: 4 }}>
-            <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2px solid rgba(99,102,241,0.28)', animation: 'mfp-ripple 2s ease-out infinite' }} />
-            <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2px solid rgba(99,102,241,0.18)', animation: 'mfp-ripple 2s ease-out infinite', animationDelay: '0.66s' }} />
+            <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: `2px solid ${GUIDE_RING_STRONG}`, animation: 'mfp-ripple 2s ease-out infinite' }} />
+            <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: `2px solid ${GUIDE_RING_SOFT}`, animation: 'mfp-ripple 2s ease-out infinite', animationDelay: '0.66s' }} />
           </div>
         )}
 
         {/* 타이핑 인디케이터 — focused 시만 */}
         {showTypeIndicator && showOverlays && hasHotspot && isType && (
           <div style={{ position: 'absolute', left: `${hx}%`, top: `${hy}%`, transform: 'translate(-50%,-50%)', pointerEvents: showCopyControl ? 'auto' : 'none', zIndex: 4 }}>
-            <div style={{ position: 'relative', minWidth: typeIndicatorWidth == null ? '128px' : undefined, width: typeIndicatorWidth == null ? undefined : `${typeIndicatorWidth}px`, maxWidth: typeIndicatorWidth == null ? '320px' : undefined, height: `${typeIndicatorHeight}px`, borderRadius: '9px', border: '2px solid #6366f1', background: 'rgba(255,255,255,0.96)', boxShadow: '0 0 0 4px rgba(99,102,241,0.18), 0 6px 20px rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', padding: '0 12px', animation: 'mfp-field 1.8s ease-in-out infinite' }}>
+            <div style={{ position: 'relative', minWidth: typeIndicatorWidth == null ? '128px' : undefined, width: typeIndicatorWidth == null ? undefined : `${typeIndicatorWidth}px`, maxWidth: typeIndicatorWidth == null ? '320px' : undefined, height: `${typeIndicatorHeight}px`, borderRadius: '9px', border: `2px solid ${BRAND_COLORS.guide}`, background: 'rgba(255,255,255,0.96)', boxShadow: `0 0 0 4px ${GUIDE_RING_SOFT}, 0 6px 20px rgba(0,0,0,0.28)`, display: 'flex', alignItems: 'center', padding: '0 12px', animation: 'mfp-field 1.8s ease-in-out infinite' }}>
               {hasTypeText ? (
                 <>
                   <span style={{ flex: 1, minWidth: 0, fontSize: `${typeIndicatorFontSize}px`, color: typeTextColor ?? '#111827', WebkitTextFillColor: typeTextColor ?? '#111827', fontWeight: 600, letterSpacing: '0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{shownType}</span>
                   {isAutoType ? (
                     <span style={{ width: '2px', height: `${Math.max(18, Math.round(typeIndicatorHeight * 0.48))}px`, marginLeft: '2px', flexShrink: 0, background: typeTextColor ?? '#111827', borderRadius: '2px', animation: 'mfp-caret 1s step-end infinite' }} />
                   ) : (
-                    <button onClick={copyTypeText} style={{ flexShrink: 0, marginLeft: 8, height: Math.max(24, Math.min(30, typeIndicatorHeight - 8)), padding: '0 9px', borderRadius: 7, border: '1px solid #C7D2FE', background: copied ? '#EEF2FF' : '#F8FAFC', color: '#3730a3', fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>
+                    <button onClick={copyTypeText} style={{ flexShrink: 0, marginLeft: 8, height: Math.max(24, Math.min(30, typeIndicatorHeight - 8)), padding: '0 9px', borderRadius: 7, border: `1px solid ${BRAND_COLORS.border}`, background: copied ? BRAND_COLORS.guideSoft : '#F8FAFC', color: BRAND_COLORS.pointer, fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>
                       {copied ? '복사됨' : '복사'}
                     </button>
                   )}
                 </>
               ) : (
                 <>
-                  <span style={{ width: '2px', height: `${Math.max(18, Math.round(typeIndicatorHeight * 0.48))}px`, background: '#6366f1', borderRadius: '2px', animation: 'mfp-caret 1s step-end infinite' }} />
+                  <span style={{ width: '2px', height: `${Math.max(18, Math.round(typeIndicatorHeight * 0.48))}px`, background: BRAND_COLORS.guide, borderRadius: '2px', animation: 'mfp-caret 1s step-end infinite' }} />
                   <span style={{ marginLeft: '7px', fontSize: `${Math.max(12, typeIndicatorFontSize - 1)}px`, color: '#111827', WebkitTextFillColor: '#111827', fontStyle: 'italic', fontWeight: 600, letterSpacing: '0.04em' }}>텍스트 입력…</span>
                 </>
               )}
             </div>
-            <span style={{ position: 'absolute', top: '-13px', left: '0', fontSize: '10px', fontWeight: 800, color: '#fff', background: '#6366f1', padding: '2px 8px', borderRadius: '8px 8px 8px 2px', boxShadow: '0 2px 8px rgba(0,0,0,0.3)', whiteSpace: 'nowrap', letterSpacing: '0.03em' }}>{isAutoType ? '⌨ 자동 입력' : '⌨ 복사 후 입력'}</span>
+            <span style={{ position: 'absolute', top: '-13px', left: '0', fontSize: '10px', fontWeight: 800, color: '#fff', background: BRAND_COLORS.guide, padding: '2px 8px', borderRadius: '8px 8px 8px 2px', boxShadow: '0 2px 8px rgba(0,0,0,0.3)', whiteSpace: 'nowrap', letterSpacing: '0.03em' }}>{isAutoType ? '⌨ 자동 입력' : '⌨ 복사 후 입력'}</span>
           </div>
         )}
 
@@ -332,7 +338,7 @@ export function FollowStage({
         @keyframes mfp-ripple { 0%{opacity:.8;transform:scale(0.4)} 100%{opacity:0;transform:scale(3.2)} }
         @keyframes mfp-caret { 50%{opacity:0} }
         @keyframes mfp-nudge { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
-        @keyframes mfp-field { 0%,100%{box-shadow:0 0 0 4px rgba(99,102,241,0.18), 0 6px 20px rgba(0,0,0,0.28)} 50%{box-shadow:0 0 0 7px rgba(99,102,241,0.28), 0 6px 24px rgba(0,0,0,0.35)} }
+        @keyframes mfp-field { 0%,100%{box-shadow:0 0 0 4px ${GUIDE_RING_SOFT}, 0 6px 20px rgba(0,0,0,0.28)} 50%{box-shadow:0 0 0 7px ${GUIDE_RING_STRONG}, 0 6px 24px rgba(0,0,0,0.35)} }
         @keyframes mfp-spotlight-in { from{opacity:0} to{opacity:1} }
         @keyframes mfp-rect-in { from{opacity:0;transform:scale(0.96)} to{opacity:1;transform:scale(1)} }
         @keyframes mfp-bubble-in { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
