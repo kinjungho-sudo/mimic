@@ -168,3 +168,8 @@
 
 - Updated the help page header mark, help navigation, plan highlights, FAQ chips, and floating agent chat accents from the old indigo/purple palette to Parro brand color tokens.
 - Preserved help routes, FAQ content structure, agent chat API calls, contact submission flow, and support email routing.
+
+## 2026-07-11 - Parro invite legal survey color pass
+
+- Updated workspace invite, legal header marks, survey modal controls, and guidebook embedded guide cards from the old indigo/purple palette to Parro brand color tokens.
+- Preserved workspace invite API flow, legal document content, survey submission payloads, and guidebook block schema behavior.

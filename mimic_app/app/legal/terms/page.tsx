@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { BackLink } from '../BackLink';
-import { BRAND_COPY, BRAND_NAME } from '@/lib/brand';
+import { BrandMark } from '@/components/common/BrandMark';
+import { BRAND_COLORS, BRAND_COPY, BRAND_NAME } from '@/lib/brand';
 
 import type { Metadata } from 'next';
 export const metadata: Metadata = {
@@ -14,7 +15,7 @@ export default function TermsPage() {
       <header style={{ background: 'white', borderBottom: '1px solid #E5E7EB', padding: '0 24px' }}>
         <div style={{ maxWidth: '800px', margin: '0 auto', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Link href="/landingpage" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="28" height="28"><circle cx="50" cy="50" r="50" fill="#3730a3"/><text x="50" y="68" textAnchor="middle" fontFamily="Georgia, serif" fontSize="62" fontWeight="700" fill="white">P</text></svg>
+            <BrandMark size={28} />
           </Link>
           <BackLink />
         </div>
@@ -73,7 +74,7 @@ export default function TermsPage() {
         ))}
 
         <div style={{ marginTop: '48px', padding: '20px 24px', background: 'white', border: '1px solid #E5E7EB', borderRadius: '12px', fontSize: '13px', color: '#6B7280' }}>
-          문의: <a href="mailto:kinjungho@gmail.com" style={{ color: '#3730a3', fontWeight: 500 }}>kinjungho@gmail.com</a> · 회사명: 코마인드웍스
+          문의: <a href="mailto:kinjungho@gmail.com" style={{ color: BRAND_COLORS.primary, fontWeight: 500 }}>kinjungho@gmail.com</a> · 회사명: 코마인드웍스
         </div>
       </main>
     </div>
