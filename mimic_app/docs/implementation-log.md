@@ -188,3 +188,8 @@
 
 - Updated the manual editor, Live Studio, and shared editor panels/modals from the old indigo/purple palette to Parro teal/guide/accent colors.
 - Preserved editor routes, data flows, SDK/runtime compatibility identifiers, stored annotation colors, and sharing/export behavior.
+
+## 2026-07-11 - Parro workspace pages color pass
+
+- Updated workspace management, Pages editor/share controls, public Page cover fallback, and remaining home folder hover/drag accents from the old indigo/purple palette to Parro brand colors.
+- Preserved workspace/page routes, invitation/member APIs, page publishing flow, stored custom cover colors, and folder data behavior.

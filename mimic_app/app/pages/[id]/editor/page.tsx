@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
+import { BRAND_COLORS } from '@/lib/brand';
 import type { Tutorial, PageAuthor } from '@/types';
 
 // BlockNote 는 클라이언트 전용 → SSR 비활성화
@@ -140,11 +141,11 @@ export default function PageEditor() {
               <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981' }} />게시됨
             </span>
             {/* 공유는 게시된 뒤에만 가능 */}
-            <button onClick={() => setShareOpen(true)} style={{ ...BTN, border: 'none', background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', color: 'white', fontWeight: 600 }}>공유</button>
+            <button onClick={() => setShareOpen(true)} style={{ ...BTN, border: 'none', background: `linear-gradient(135deg, ${BRAND_COLORS.primary} 0%, ${BRAND_COLORS.guide} 100%)`, color: 'white', fontWeight: 600 }}>공유</button>
             <button onClick={unpublish} style={BTN}>게시 취소</button>
           </>
         ) : (
-          <button onClick={publish} style={{ ...BTN, border: 'none', background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', color: 'white', fontWeight: 600 }}>게시하기</button>
+          <button onClick={publish} style={{ ...BTN, border: 'none', background: `linear-gradient(135deg, ${BRAND_COLORS.primary} 0%, ${BRAND_COLORS.guide} 100%)`, color: 'white', fontWeight: 600 }}>게시하기</button>
         )}
       </div>
 
@@ -178,10 +179,10 @@ export default function PageEditor() {
             <div style={{ fontSize: '12.5px', color: '#6B7280', marginBottom: '16px' }}>이 링크로 누구나 플레이북을 볼 수 있어요.</div>
             <div style={{ display: 'flex', gap: '8px' }}>
               <input readOnly value={shareUrl} style={{ flex: 1, height: '38px', padding: '0 12px', borderRadius: '8px', border: '1px solid #E5E7EB', fontSize: '12.5px', color: '#374151' }} />
-              <button onClick={() => navigator.clipboard?.writeText(shareUrl)} style={{ ...BTN, border: 'none', background: '#3730a3', color: 'white', fontWeight: 600 }}>복사</button>
+              <button onClick={() => navigator.clipboard?.writeText(shareUrl)} style={{ ...BTN, border: 'none', background: BRAND_COLORS.primary, color: 'white', fontWeight: 600 }}>복사</button>
             </div>
             <div style={{ marginTop: '14px', textAlign: 'right' }}>
-              <a href={shareUrl} target="_blank" rel="noreferrer" style={{ fontSize: '12.5px', color: '#4338CA' }}>새 탭에서 열기 →</a>
+              <a href={shareUrl} target="_blank" rel="noreferrer" style={{ fontSize: '12.5px', color: BRAND_COLORS.primary }}>새 탭에서 열기 →</a>
             </div>
           </div>
         </div>

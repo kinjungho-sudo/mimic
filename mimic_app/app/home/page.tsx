@@ -631,7 +631,7 @@ function FolderPanel({ folders, tutorials, activeFolder, active, title, onSelect
     display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0,
     padding: '7px 9px', borderRadius: '7px', border: 'none', cursor: 'pointer',
     fontSize: '13px', textAlign: 'left',
-    background: dragOver ? '#EEF2FF' : active ? `${color}14` : 'transparent',
+    background: dragOver ? BRAND_PRIMARY_SOFT : active ? `${color}14` : 'transparent',
     boxShadow: dragOver ? `inset 0 0 0 1.5px ${BRAND_COLORS.focus}` : 'none',
     color: active ? color : '#374151',
     fontWeight: active ? 600 : 400,
@@ -782,7 +782,7 @@ function FolderPanel({ folders, tutorials, activeFolder, active, title, onSelect
         ) : (
           <button onClick={() => { setShowInput(true); setNewName(''); }}
             style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', padding: '7px 9px', borderRadius: '7px', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '12.5px', color: '#9CA3AF' }}
-            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; (e.currentTarget as HTMLButtonElement).style.color = '#4338CA'; }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; (e.currentTarget as HTMLButtonElement).style.color = BRAND_COLORS.primary; }}
             onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = '#9CA3AF'; }}>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             새 폴더 추가
