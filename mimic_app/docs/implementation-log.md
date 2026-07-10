@@ -78,3 +78,9 @@
 - Added `BRAND_APP_URL_FALLBACK`, `BRAND_LOGO_IMAGE_PATH`, and `getBrandAppUrl()` to `lib/brand.ts`.
 - Replaced scattered app/library hardcoded deployment URL and `mimic-logo.png` references with centralized constants/helpers.
 - Kept the current deployment URL and logo asset path unchanged until Phase 2 domain decisions and final Wing Pointer SVG assets are ready.
+
+## 2026-07-10 - Parro extension store URL centralization
+
+- Added `BRAND_EXTENSION_STORE_URL` to `lib/brand.ts`.
+- Replaced duplicated Chrome Web Store URLs in the extension link page and recording modal with the centralized brand constant.
+- Kept the current `mimic-recorder` store slug unchanged until the owner approves an extension listing/identity migration.

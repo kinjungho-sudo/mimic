@@ -3,10 +3,10 @@
 import { useRouter } from 'next/navigation';
 import { useExtensionLink } from '@/hooks/useExtensionLink';
 import { BrandMark } from '@/components/common/BrandMark';
-import { BRAND_COPY, BRAND_NAME } from '@/lib/brand';
+import { BRAND_COPY, BRAND_EXTENSION_STORE_URL, BRAND_NAME } from '@/lib/brand';
 
 // 웹스토어에 올라간 건 운영 확장 하나뿐 → 항상 운영 리스팅으로 보낸다(RecordingModal과 동일 URL).
-const STORE_URL = 'https://chromewebstore.google.com/detail/mimic-recorder/ehbhcdkapcbfehinjapabgoegcjmmbgd';
+const STORE_URL = BRAND_EXTENSION_STORE_URL;
 
 export default function ExtensionLinkPage() {
   const router = useRouter();

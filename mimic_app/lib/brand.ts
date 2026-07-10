@@ -10,6 +10,8 @@ export const BRAND_DESCRIPTION =
 export const BRAND_SUPPORT_EMAIL = 'support@mimic.so';
 export const BRAND_APP_URL_FALLBACK = 'https://mimic-nine-ashen.vercel.app';
 export const BRAND_LOGO_IMAGE_PATH = '/mimic-logo.png';
+export const BRAND_EXTENSION_STORE_URL =
+  'https://chromewebstore.google.com/detail/mimic-recorder/ehbhcdkapcbfehinjapabgoegcjmmbgd';
 
 export const BRAND_VISUAL_DIRECTION = 'Wing Pointer';
 

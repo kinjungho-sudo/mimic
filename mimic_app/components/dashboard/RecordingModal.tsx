@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { BRAND_COPY } from '@/lib/brand';
+import { BRAND_COPY, BRAND_EXTENSION_STORE_URL } from '@/lib/brand';
 
 // 운영(Production)에서만 켜는 플래그 — Vercel Production env에 NEXT_PUBLIC_REQUIRE_EXTENSION=1.
 // 로컬(npm run dev)·Preview(dev)는 값이 없어 게이트가 꺼진다(개발자 버전 미설치로도 작업 가능).
@@ -211,7 +211,7 @@ interface RecordingModalProps {
   onClose: () => void;
 }
 
-const STORE_URL = 'https://chromewebstore.google.com/detail/mimic-recorder/ehbhcdkapcbfehinjapabgoegcjmmbgd';
+const STORE_URL = BRAND_EXTENSION_STORE_URL;
 
 export function RecordingModal({ onClose }: RecordingModalProps) {
   const [step, setStep] = useState<ModalStep>('checking');
