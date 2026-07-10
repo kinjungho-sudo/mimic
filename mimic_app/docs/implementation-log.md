@@ -352,3 +352,10 @@
 
 - Updated active agent/development guardrail wording in `CLAUDE.md` and `DEV_PROCESS.md` to refer to Parro instead of MIMIC where the text described the current service.
 - Preserved Supabase project IDs, schema filenames, `mm_*` table prefix references, and all DB safety rules.
+
+## 2026-07-11 - Parro remaining-reference QA refresh
+
+- Re-ran focused public-surface and full active-code searches from `brand/parro-system`.
+- Confirmed the only direct public old-brand marks are the blocked `M` glyph assets in `public/logo.svg` and `app/icon.svg`.
+- Reclassified remaining lowercase `mimic` references as approved compatibility identifiers, internal/deployment identifiers, development fixtures, or Phase 2 owner decisions.
+- Confirmed Vercel CLI `54.5.1` is available, but did not inspect or change linked projects, environments, domains, or deployments.

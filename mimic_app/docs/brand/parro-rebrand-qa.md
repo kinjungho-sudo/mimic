@@ -2,7 +2,7 @@
 
 ## Verification commands
 
-Ran from `mimic_app` on `2026-07-10`.
+Initial full checks ran from `mimic_app` on `2026-07-10`. Remaining-reference classification was refreshed from the repository root on `2026-07-11`.
 
 ```bash
 npm run lint
@@ -17,6 +17,9 @@ git diff --check
 
 - `npm run lint`: passed.
 - `npm run build`: passed.
+- `2026-07-11` focused public-surface search found no visible `MIMIC` / `미믹` copy in app, component, library, Recorder, or MCP surfaces. The only direct public mark hits are the legacy `M` glyphs in `public/logo.svg` and `app/icon.svg`.
+- `2026-07-11` remaining-reference search confirmed that lowercase `mimic` hits in active code are deployment URLs, package/storage/runtime identifiers, development fixtures, or explicit backward-compatibility aliases.
+- `vercel --version`: passed with Vercel CLI `54.5.1`. No Vercel project, environment, domain, or deployment command was run because Phase 2 still requires owner approval.
 - Re-ran `npm run lint`, `$env:NODE_OPTIONS='--use-system-ca'; npm run build`, `git diff --check`, and focused `sendMimicEmail|sendParroEmail` search after the email helper alias pass; all passed with only existing warnings.
 - Re-ran `npm run lint`, `$env:NODE_OPTIONS='--use-system-ca'; npm run build`, `git diff --check`, and focused `MimicAppHeader|mimicFadeIn|mimic:survey` search after the internal UI name cleanup; all passed with only existing warnings.
 - Re-ran `npm run lint`, `$env:NODE_OPTIONS='--use-system-ca'; npm run build`, `git diff --check`, and focused `demo@mimicflow.com|demo@parro.example|devtest@mimic.dev` search after the mock email cleanup; all passed with only existing warnings.
@@ -84,6 +87,7 @@ git diff --check
 
 - Production logo/icon assets still reference current files such as `public/logo.svg`, `app/icon.svg`, `public/mimic-logo.png`, and `public/icons/*.png`. App/library uses of the bitmap logo path now go through `BRAND_LOGO_IMAGE_PATH`, and visible in-app temporary marks use `BrandMark`, but production asset replacement is blocked until the owner provides production-ready Wing Pointer SVG assets.
 - Current asset evidence: `public/logo.svg` and `app/icon.svg` are still the old circular `M` mark; `public/favicon.svg` does not exist. See `docs/brand/parro-logo-asset-handoff.md`.
+- No remaining user-visible `MIMIC`, `Mimic`, or `미믹` text was found outside those blocked logo/icon assets in the focused active-surface search.
 - Public support/contact email remains `support@mimic.so` in help/chat/auth copy through `BRAND_SUPPORT_EMAIL`. This is now centralized, but the address itself is still a domain and operations decision for Phase 2.
 - Deployment URLs remain `mimic-nine-ashen.vercel.app`. App/library fallbacks now go through `BRAND_APP_URL_FALLBACK`/`getBrandAppUrl()`, `public/llms.txt` uses relative links, and static/runtime files such as `robots.txt` plus the `public/sdk.js` fallback still need a Phase 2 domain pass. These are deployment identifiers and should move only after domain/Vercel decisions.
 - Chrome Web Store URL slug remains `mimic-recorder`; the visible extension name is now `Parro Recorder`, and app references now go through `BRAND_EXTENSION_STORE_URL`, but the store slug/extension identity is preserved.
@@ -123,7 +127,7 @@ git diff --check
 ## Phase 2 recommendations
 
 1. Add final Wing Pointer SVG assets and replace logo/icon/favicon files after owner approval.
-2. Install Vercel CLI and inspect linked project/env state before domain/deployment changes.
+2. Vercel CLI `54.5.1` is available; inspect linked project/env state only after the owner approves Phase 2 domain/deployment work.
 3. Decide and migrate support email/domain/Vercel display names.
 4. Update Recorder host permissions and store/policy URLs only after domain behavior is verified.
 5. Defer DB/API/env/package/SDK identifier rename to a separate Phase 3 migration plan.
