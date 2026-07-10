@@ -124,3 +124,8 @@
 
 - Updated the remaining SDK AutoRun pulse keyframe colors from the old indigo palette to Parro primary/guide colors.
 - Preserved the existing `mimic-autorun-*` CSS identifiers for SDK compatibility.
+
+## 2026-07-10 - Parro email template color pass
+
+- Updated Resend, n8n, and share-email HTML templates from the old indigo/purple palette to Parro brand color tokens.
+- Preserved n8n webhook configuration, legacy secret header values, email routes, sender/reply-to settings, and current logo path.

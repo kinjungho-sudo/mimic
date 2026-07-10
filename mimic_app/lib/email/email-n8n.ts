@@ -3,10 +3,11 @@
 // 공유메일·환영메일 등 모든 메일이 같은 웹훅을 재사용한다(워크플로우 1개로 충분).
 
 import { logNetwork } from '@/lib/logging/logger-server';
-import { BRAND_NAME, BRAND_TAGLINE, LEGACY_INTERNAL_IDENTIFIERS, getBrandAppUrl } from '@/lib/brand';
+import { BRAND_COLORS, BRAND_NAME, BRAND_TAGLINE, LEGACY_INTERNAL_IDENTIFIERS, getBrandAppUrl } from '@/lib/brand';
 
 const clean = (v?: string) => v?.replace(/^﻿/, '').trim() ?? '';
 const APP_URL = getBrandAppUrl();
+const EMAIL_GRADIENT = `linear-gradient(135deg,${BRAND_COLORS.primary},${BRAND_COLORS.guide})`;
 
 // 실패해도 throw 하지 않는다 — 호출부(가입 콜백 등)가 메일 때문에 막히지 않도록.
 export async function sendParroEmail(opts: {
@@ -59,7 +60,7 @@ export function newsletterHtml(subject: string, bodyText: string): string {
     <tr><td align="center">
       <table width="560" cellpadding="0" cellspacing="0" style="background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
         <tr>
-          <td style="background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:28px 40px;">
+          <td style="background:${EMAIL_GRADIENT};padding:28px 40px;">
             <p style="margin:0;font-size:20px;font-weight:800;color:white;letter-spacing:-0.5px;">${BRAND_NAME}</p>
             <p style="margin:6px 0 0;font-size:12px;color:rgba(255,255,255,0.7);">소식 · 업데이트</p>
           </td>
@@ -97,7 +98,7 @@ export function welcomeEmailHtml(name?: string | null): string {
     <tr><td align="center">
       <table width="560" cellpadding="0" cellspacing="0" style="background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
         <tr>
-          <td style="background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:34px 40px;text-align:center;">
+          <td style="background:${EMAIL_GRADIENT};padding:34px 40px;text-align:center;">
             <p style="margin:0;font-size:24px;font-weight:800;color:white;letter-spacing:-0.5px;">${BRAND_NAME}</p>
             <p style="margin:8px 0 0;font-size:13px;color:rgba(255,255,255,0.75);">${BRAND_TAGLINE}</p>
           </td>
@@ -110,7 +111,7 @@ export function welcomeEmailHtml(name?: string | null): string {
               만든 매뉴얼은 링크로 공유하거나, 실제 화면 위에서 <b>라이브 가이드 Beta</b>로 안내할 수 있어요.
             </p>
             <table cellpadding="0" cellspacing="0"><tr><td>
-              <a href="${APP_URL}/home" style="display:inline-block;padding:14px 28px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:white;font-size:15px;font-weight:600;text-decoration:none;border-radius:10px;">
+              <a href="${APP_URL}/home" style="display:inline-block;padding:14px 28px;background:${EMAIL_GRADIENT};color:white;font-size:15px;font-weight:600;text-decoration:none;border-radius:10px;">
                 지금 시작하기 →
               </a>
             </td></tr></table>
