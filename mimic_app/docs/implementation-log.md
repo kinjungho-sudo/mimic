@@ -135,3 +135,9 @@
 - Updated the extension link setup page and admin contact email header from the old indigo/purple palette to Parro brand color tokens.
 - Updated the shared temporary inline `BrandMark` from an `M` glyph to a Parro `P` glyph while keeping final Wing Pointer SVG asset replacement deferred.
 - Preserved the Chrome Web Store URL slug, contact email routing, n8n webhook configuration, and support/reply-to addresses.
+
+## 2026-07-10 - Parro mypage color pass
+
+- Updated the user-facing mypage shell, profile avatar fallback, active navigation, and Pro upgrade card from the old indigo/purple palette to Parro brand color tokens.
+- Replaced inline `M` glyph marks on the mypage desktop/mobile headers with the shared temporary Parro `BrandMark`.
+- Preserved auth/account behavior, plan labels, routes, and profile upload/delete flows.

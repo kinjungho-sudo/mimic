@@ -5,7 +5,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { resetPassword, getCurrentUser } from '@/lib/auth/auth-client';
-import { BRAND_NAME } from '@/lib/brand';
+import { BrandMark } from '@/components/common/BrandMark';
+import { BRAND_COLORS, BRAND_NAME } from '@/lib/brand';
+
+const BRAND_GRADIENT = `linear-gradient(135deg, ${BRAND_COLORS.primary} 0%, ${BRAND_COLORS.guide} 100%)`;
+const BRAND_RING = 'rgba(0,155,142,0.28)';
+const BRAND_RING_SOFT = 'rgba(0,155,142,0.15)';
 
 const NAV_ITEMS = [
   {
@@ -133,7 +138,7 @@ export default function MyPage() {
   if (loading) {
     return (
       <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: '#FAFAFA' }}>
-        <div style={{ width: '32px', height: '32px', borderRadius: '50%', border: '3px solid rgba(55,48,163,0.15)', borderTopColor: '#3730a3', animation: 'spin 0.8s linear infinite' }} />
+        <div style={{ width: '32px', height: '32px', borderRadius: '50%', border: `3px solid ${BRAND_RING_SOFT}`, borderTopColor: BRAND_COLORS.primary, animation: 'spin 0.8s linear infinite' }} />
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
@@ -148,15 +153,15 @@ export default function MyPage() {
       {/* Sidebar */}
       <aside className="mypage-sidebar" style={{ background: '#FAFAFA', borderRight: '1px solid #F3F4F6', padding: '16px 12px', display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto' }}>
         <Link href="/home" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px 14px', textDecoration: 'none' }}>
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="32" height="32" style={{ flexShrink: 0 }}><circle cx="50" cy="50" r="50" fill="#3730a3"/><text x="50" y="68" textAnchor="middle" fontFamily="Georgia, serif" fontSize="62" fontWeight="700" fill="white">M</text></svg>
+          <BrandMark />
           <span style={{ fontSize: '16px', fontWeight: 800, color: '#111827', letterSpacing: '-0.03em' }}>{BRAND_NAME}</span>
         </Link>
 
         <div style={{ padding: '12px 10px 6px', fontSize: '10.5px', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#9CA3AF', fontWeight: 500 }}>메뉴</div>
 
         {NAV_ITEMS.map(item => (
-          <Link key={item.href} href={item.href} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', borderRadius: '7px', fontSize: '13px', color: item.active ? '#3730a3' : '#4B5563', background: item.active ? '#e0e7ff' : 'transparent', fontWeight: item.active ? 500 : 400, textDecoration: 'none', marginBottom: '2px' }}>
-            <span style={{ color: item.active ? '#3730a3' : '#9CA3AF' }}>{item.icon}</span>
+          <Link key={item.href} href={item.href} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', borderRadius: '7px', fontSize: '13px', color: item.active ? BRAND_COLORS.primary : '#4B5563', background: item.active ? BRAND_COLORS.guideSoft : 'transparent', fontWeight: item.active ? 500 : 400, textDecoration: 'none', marginBottom: '2px' }}>
+            <span style={{ color: item.active ? BRAND_COLORS.primary : '#9CA3AF' }}>{item.icon}</span>
             {item.label}
           </Link>
         ))}
@@ -175,12 +180,12 @@ export default function MyPage() {
         {/* 모바일 전용 헤더 */}
         <div className="mypage-mobile-header" style={{ display: 'none', alignItems: 'center', gap: '10px', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #F3F4F6' }}>
           <Link href="/home" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="28" height="28"><circle cx="50" cy="50" r="50" fill="#3730a3"/><text x="50" y="68" textAnchor="middle" fontFamily="Georgia, serif" fontSize="62" fontWeight="700" fill="white">M</text></svg>
+            <BrandMark size={28} />
             <span style={{ fontSize: '15px', fontWeight: 800, color: '#111827', letterSpacing: '-0.03em' }}>{BRAND_NAME}</span>
           </Link>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: '4px' }}>
             {NAV_ITEMS.map(item => (
-              <Link key={item.href} href={item.href} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 10px', borderRadius: '7px', fontSize: '12px', color: item.active ? '#3730a3' : '#6B7280', background: item.active ? '#e0e7ff' : 'transparent', fontWeight: item.active ? 600 : 400, textDecoration: 'none' }}>
+              <Link key={item.href} href={item.href} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 10px', borderRadius: '7px', fontSize: '12px', color: item.active ? BRAND_COLORS.primary : '#6B7280', background: item.active ? BRAND_COLORS.guideSoft : 'transparent', fontWeight: item.active ? 600 : 400, textDecoration: 'none' }}>
                 {item.label}
               </Link>
             ))}
@@ -199,7 +204,7 @@ export default function MyPage() {
             // eslint-disable-next-line @next/next/no-img-element
             <img src={displayAvatar} alt={user?.name ?? ''} width={36} height={36} style={{ borderRadius: '50%', display: 'block', flexShrink: 0 }} referrerPolicy="no-referrer" />
           ) : (
-            <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', color: 'white', display: 'grid', placeItems: 'center', fontSize: '14px', fontWeight: 600, flexShrink: 0 }}>
+            <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: BRAND_GRADIENT, color: 'white', display: 'grid', placeItems: 'center', fontSize: '14px', fontWeight: 600, flexShrink: 0 }}>
               {user?.name?.charAt(0)?.toUpperCase() ?? ''}
             </div>
           )}
@@ -219,13 +224,13 @@ export default function MyPage() {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={displayAvatar} alt={user?.name ?? ''} width={52} height={52} style={{ borderRadius: '50%', display: 'block' }} referrerPolicy="no-referrer" />
               ) : (
-                <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', color: 'white', display: 'grid', placeItems: 'center', fontSize: '20px', fontWeight: 600 }}>
+                <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: BRAND_GRADIENT, color: 'white', display: 'grid', placeItems: 'center', fontSize: '20px', fontWeight: 600 }}>
                   {user?.name?.charAt(0)?.toUpperCase() ?? ''}
                 </div>
               )}
               {/* 이메일 계정만 업로드 버튼 표시 */}
               {!isGoogle && (
-                <label style={{ position: 'absolute', bottom: 0, right: 0, width: '20px', height: '20px', borderRadius: '50%', background: avatarLoading ? '#9CA3AF' : '#3730a3', border: '2px solid white', display: 'grid', placeItems: 'center', cursor: avatarLoading ? 'default' : 'pointer' }}>
+                <label style={{ position: 'absolute', bottom: 0, right: 0, width: '20px', height: '20px', borderRadius: '50%', background: avatarLoading ? '#9CA3AF' : BRAND_COLORS.primary, border: '2px solid white', display: 'grid', placeItems: 'center', cursor: avatarLoading ? 'default' : 'pointer' }}>
                   <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={handleAvatarChange} disabled={avatarLoading} />
                   {avatarLoading ? (
                     <div style={{ width: '8px', height: '8px', borderRadius: '50%', border: '1.5px solid rgba(255,255,255,0.4)', borderTopColor: 'white', animation: 'spin 0.7s linear infinite' }} />
@@ -244,10 +249,10 @@ export default function MyPage() {
                       value={nameInput}
                       onChange={e => setNameInput(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') handleSaveName(); if (e.key === 'Escape') { setEditingName(false); setNameError(''); } }}
-                      style={{ fontSize: '15px', fontWeight: 600, border: '1.5px solid #3730a3', borderRadius: '7px', padding: '5px 10px', outline: 'none', fontFamily: 'inherit', width: '180px' }}
+                      style={{ fontSize: '15px', fontWeight: 600, border: `1.5px solid ${BRAND_COLORS.primary}`, borderRadius: '7px', padding: '5px 10px', outline: 'none', fontFamily: 'inherit', width: '180px' }}
                       autoFocus
                     />
-                    <button onClick={handleSaveName} disabled={nameLoading} style={{ padding: '6px 14px', borderRadius: '7px', fontSize: '12.5px', fontWeight: 500, background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', border: 'none', cursor: 'pointer' }}>
+                    <button onClick={handleSaveName} disabled={nameLoading} style={{ padding: '6px 14px', borderRadius: '7px', fontSize: '12.5px', fontWeight: 500, background: BRAND_GRADIENT, color: 'white', border: 'none', cursor: 'pointer' }}>
                       {nameLoading ? '저장 중...' : '저장'}
                     </button>
                     <button onClick={() => { setEditingName(false); setNameError(''); }} style={{ padding: '6px 12px', borderRadius: '7px', fontSize: '12.5px', background: 'white', color: '#6B7280', border: '1px solid #E5E7EB', cursor: 'pointer' }}>
@@ -307,7 +312,7 @@ export default function MyPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
                 <span style={{ fontSize: '15px', fontWeight: 600, color: '#111827' }}>{PLAN_LABELS[user?.plan ?? 'free']} 플랜</span>
                 {isPro
-                  ? <span style={{ padding: '2px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 600, background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white' }}>Pro</span>
+                  ? <span style={{ padding: '2px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 600, background: BRAND_GRADIENT, color: 'white' }}>Pro</span>
                   : <span style={{ padding: '2px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 500, background: '#F3F4F6', color: '#6B7280' }}>무료</span>
                 }
               </div>
@@ -317,8 +322,8 @@ export default function MyPage() {
 
           {/* Free 유저에게만 Pro 업그레이드 카드 표시 */}
           {!isPro && (
-            <div style={{ margin: '20px 24px', borderRadius: '14px', border: '2px solid #3730a3', overflow: 'hidden', boxShadow: '0 8px 24px rgba(55,48,163,0.10)' }}>
-              <div style={{ background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ margin: '20px 24px', borderRadius: '14px', border: `2px solid ${BRAND_COLORS.primary}`, overflow: 'hidden', boxShadow: `0 8px 24px ${BRAND_RING_SOFT}` }}>
+              <div style={{ background: BRAND_GRADIENT, padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Pro 플랜으로 업그레이드</span>
                 <span style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', background: 'rgba(255,255,255,0.15)', padding: '2px 8px', borderRadius: '999px' }}>가장 인기</span>
               </div>
@@ -330,14 +335,14 @@ export default function MyPage() {
                 <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {['매뉴얼 무제한 생성', 'AI 다듬기 무제한', 'HTML·MD 내보내기', '비공개 + 비밀번호 보호', '5GB 저장 공간'].map(f => (
                     <li key={f} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#374151' }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3730a3" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={BRAND_COLORS.primary} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                       {f}
                     </li>
                   ))}
                 </ul>
                 <button
                   onClick={() => router.push('/landingpage#pricing')}
-                  style={{ display: 'block', width: '100%', padding: '13px 0', borderRadius: '10px', fontSize: '14px', fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', color: 'white', border: 'none', boxShadow: '0 4px 12px rgba(55,48,163,0.28)', fontFamily: 'inherit' }}
+                  style={{ display: 'block', width: '100%', padding: '13px 0', borderRadius: '10px', fontSize: '14px', fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: BRAND_GRADIENT, color: 'white', border: 'none', boxShadow: `0 4px 12px ${BRAND_RING}`, fontFamily: 'inherit' }}
                 >
                   Pro 구독하기
                 </button>
@@ -348,7 +353,7 @@ export default function MyPage() {
           <div style={{ padding: '20px 24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '14px', fontWeight: 500, color: '#111827' }}>전체 매뉴얼 등록 수</span>
-              <span style={{ fontSize: '14px', fontWeight: 600, color: '#3730a3' }}>{totalManuals == null ? '…' : `${totalManuals}개`}</span>
+              <span style={{ fontSize: '14px', fontWeight: 600, color: BRAND_COLORS.primary }}>{totalManuals == null ? '…' : `${totalManuals}개`}</span>
             </div>
           </div>
         </div>
@@ -376,7 +381,7 @@ export default function MyPage() {
                     alert('이메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요.');
                   }
                 }}
-                style={{ padding: '7px 14px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 500, color: '#3730a3', border: '1.5px solid #3730a3', cursor: 'pointer', flexShrink: 0, background: 'white' }}
+                style={{ padding: '7px 14px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 500, color: BRAND_COLORS.primary, border: `1.5px solid ${BRAND_COLORS.primary}`, cursor: 'pointer', flexShrink: 0, background: 'white' }}
               >
                 재설정 이메일 받기
               </button>
