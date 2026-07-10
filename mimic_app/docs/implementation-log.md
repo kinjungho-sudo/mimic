@@ -1,5 +1,10 @@
 # Implementation Log
 
+## 2026-07-11 - Parro active docs naming
+
+- Updated active app and Recorder agent docs to use Parro as the current display name.
+- Preserved `mimic_app`/`mimic_recorder` folder references, schema filenames, and historical design document filenames.
+
 ## 2026-07-11 - Parro SDK AutoRun DOM identifiers
 
 - Updated SDK AutoRun runtime DOM IDs, style ID, active class, and animation names to use `parro-*` as the primary identifiers.
