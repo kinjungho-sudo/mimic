@@ -14,14 +14,14 @@ interface User {
 
 const PLAN_COLORS: Record<string, string> = {
   free: '#64748B',
-  pro: '#3730a3',
-  team: '#6d28d9',
+  pro: '#009B8E',
+  team: '#12B886',
 };
 
 const PLAN_BG: Record<string, string> = {
   free: '#F1F5F9',
-  pro: '#e0e7ff',
-  team: '#F5F3FF',
+  pro: '#E8FFF7',
+  team: '#F7FFF8',
 };
 
 export default function AdminUsersPage() {
@@ -110,7 +110,7 @@ export default function AdminUsersPage() {
               <tr key={user.id} style={{ borderBottom: i < filtered.length - 1 ? '1px solid #F1F5F9' : 'none' }}>
                 <td style={{ padding: '14px 16px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', display: 'grid', placeItems: 'center', fontSize: '11px', fontWeight: 600, flexShrink: 0 }}>
+                    <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'linear-gradient(135deg, #009B8E, #12B886)', color: 'white', display: 'grid', placeItems: 'center', fontSize: '11px', fontWeight: 600, flexShrink: 0 }}>
                       {user.name?.charAt(0)?.toUpperCase() || '?'}
                     </div>
                     <span style={{ fontSize: '13px', fontWeight: 500, color: '#0F172A' }}>{user.name || '-'}</span>

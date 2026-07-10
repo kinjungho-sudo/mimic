@@ -48,7 +48,7 @@ export default function BroadcastPage() {
       <h1 style={{ fontSize: '20px', fontWeight: 700, margin: '0 0 4px' }}>소식 발송</h1>
       <p style={{ fontSize: '13px', color: '#64748B', margin: '0 0 22px' }}>
         이메일 수신에 동의한 회원에게 업데이트·소식을 보냅니다.
-        {consenting !== null && <> 현재 수신 동의자 <b style={{ color: '#3730a3' }}>{consenting}명</b>.</>}
+        {consenting !== null && <> 현재 수신 동의자 <b style={{ color: '#009B8E' }}>{consenting}명</b>.</>}
       </p>
 
       <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '22px' }}>
@@ -63,11 +63,11 @@ export default function BroadcastPage() {
 
         <div style={{ display: 'flex', gap: '10px', marginTop: '20px', alignItems: 'center' }}>
           <button onClick={() => send(true)} disabled={!!sending}
-            style={{ padding: '10px 16px', borderRadius: '9px', border: '1px solid #C7D2FE', background: 'white', color: '#3730a3', fontSize: '13px', fontWeight: 600, cursor: sending ? 'not-allowed' : 'pointer' }}>
+            style={{ padding: '10px 16px', borderRadius: '9px', border: '1px solid #DDE7E4', background: 'white', color: '#009B8E', fontSize: '13px', fontWeight: 600, cursor: sending ? 'not-allowed' : 'pointer' }}>
             {sending === 'test' ? '발송 중…' : '나에게 미리보기'}
           </button>
           <button onClick={() => send(false)} disabled={!!sending}
-            style={{ padding: '10px 18px', borderRadius: '9px', border: 'none', background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', color: 'white', fontSize: '13px', fontWeight: 700, cursor: sending ? 'not-allowed' : 'pointer', opacity: sending ? 0.7 : 1 }}>
+            style={{ padding: '10px 18px', borderRadius: '9px', border: 'none', background: 'linear-gradient(135deg,#009B8E,#12B886)', color: 'white', fontSize: '13px', fontWeight: 700, cursor: sending ? 'not-allowed' : 'pointer', opacity: sending ? 0.7 : 1 }}>
             {sending === 'all' ? '발송 중…' : `동의자 전체 발송${consenting !== null ? ` (${consenting})` : ''}`}
           </button>
           {result && (

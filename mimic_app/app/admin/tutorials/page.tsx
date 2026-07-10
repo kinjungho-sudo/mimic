@@ -96,7 +96,7 @@ export default function AdminTutorialsPage() {
                   </span>
                 </td>
                 <td style={{ padding: '14px 16px' }}>
-                  <span style={{ padding: '3px 8px', borderRadius: '5px', fontSize: '11.5px', fontWeight: 500, background: t.visibility === 'public' ? '#e0e7ff' : '#F1F5F9', color: t.visibility === 'public' ? '#3730a3' : '#64748B' }}>
+                  <span style={{ padding: '3px 8px', borderRadius: '5px', fontSize: '11.5px', fontWeight: 500, background: t.visibility === 'public' ? '#E8FFF7' : '#F1F5F9', color: t.visibility === 'public' ? '#009B8E' : '#64748B' }}>
                     {t.visibility === 'public' ? '공개' : '비공개'}
                   </span>
                 </td>

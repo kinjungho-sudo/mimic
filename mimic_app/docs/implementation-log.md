@@ -193,3 +193,9 @@
 
 - Updated workspace management, Pages editor/share controls, public Page cover fallback, and remaining home folder hover/drag accents from the old indigo/purple palette to Parro brand colors.
 - Preserved workspace/page routes, invitation/member APIs, page publishing flow, stored custom cover colors, and folder data behavior.
+
+## 2026-07-11 - Parro admin color pass
+
+- Updated admin dashboard, users, tutorials, surveys, broadcasts, logs, and Pro signup management accents from the old indigo/purple palette to Parro brand colors.
+- Replaced the admin sidebar temporary `M` mark with the shared temporary Parro `BrandMark`.
+- Preserved admin routes, stats/log/survey data flows, broadcast behavior, and deferred production logo/icon asset replacement.
