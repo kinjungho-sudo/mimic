@@ -183,3 +183,8 @@
 
 - Updated landing page demo SVGs, hero preview, product tour, pricing, FAQ, and CTA accents from the old indigo/purple palette to Parro teal/guide/accent colors.
 - Preserved landing page copy, routes, forms, feature data, and deferred final logo asset replacement.
+
+## 2026-07-11 - Parro editor studio color pass
+
+- Updated the manual editor, Live Studio, and shared editor panels/modals from the old indigo/purple palette to Parro teal/guide/accent colors.
+- Preserved editor routes, data flows, SDK/runtime compatibility identifiers, stored annotation colors, and sharing/export behavior.

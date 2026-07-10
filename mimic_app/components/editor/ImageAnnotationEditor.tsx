@@ -42,7 +42,7 @@ interface ImageAnnotationEditorProps {
 
 // ── Constants ──────────────────────────────────────────────
 
-const COLORS = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#111827'];
+const COLORS = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8DD63F', '#EC4899', '#111827'];
 
 const STROKE_OPTIONS = [
   { value: 0.25, label: 'S' },
@@ -857,8 +857,8 @@ export function ImageAnnotationEditor({
             ><X size={13} /> 닫기</button>
 
             <button onClick={handleSave}
-              style={{ height: '32px', padding: '0 16px', borderRadius: '6px', border: 'none', background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', color: 'white', fontSize: '12px', fontWeight: 600, cursor: 'pointer', marginLeft: '4px' }}
-              onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 12px rgba(55,48,163,0.5)'; }}
+              style={{ height: '32px', padding: '0 16px', borderRadius: '6px', border: 'none', background: 'linear-gradient(135deg, #009B8E 0%, #12B886 100%)', color: 'white', fontSize: '12px', fontWeight: 600, cursor: 'pointer', marginLeft: '4px' }}
+              onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,155,142,0.5)'; }}
               onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; }}
             >저장</button>
           </div>
@@ -1037,7 +1037,7 @@ export function ImageAnnotationEditor({
               const mh = Math.abs(drawing.y2! - drawing.y1!) / 100 * imgSize.h;
               return (
                 <rect x={mx} y={my} width={mw} height={mh}
-                  fill="rgba(79,70,229,0.18)" stroke="#4F46E5" strokeWidth={1.5}
+                  fill="rgba(0,155,142,0.18)" stroke="#009B8E" strokeWidth={1.5}
                   strokeDasharray="5 3" pointerEvents="none" />
               );
             })()}
@@ -1050,8 +1050,8 @@ export function ImageAnnotationEditor({
               const mh = Math.abs(textDrawing.y2 - textDrawing.y1) / 100 * imgSize.h;
               return (
                 <rect x={mx} y={my} width={mw} height={mh}
-                  fill="rgba(55,48,163,0.08)"
-                  stroke="#3730a3" strokeWidth={1.5} strokeDasharray="5 3" rx={3}
+                  fill="rgba(0,155,142,0.08)"
+                  stroke="#009B8E" strokeWidth={1.5} strokeDasharray="5 3" rx={3}
                   pointerEvents="none"
                 />
               );

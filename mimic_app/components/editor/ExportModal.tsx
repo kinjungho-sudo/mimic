@@ -83,8 +83,8 @@ export function ExportModal({ tutorialId, title, onClose }: ExportModalProps) {
       <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: '100%', maxWidth: '480px', background: 'white', borderRadius: '18px', boxShadow: '0 30px 80px rgba(0,0,0,0.22)', zIndex: 51, overflow: 'hidden' }}>
         {/* 헤더 */}
         <div style={{ padding: '20px 22px 16px', borderBottom: '1px solid #F3F4F6', display: 'flex', alignItems: 'flex-start', gap: '11px' }}>
-          <div style={{ width: '40px', height: '40px', borderRadius: '11px', background: 'linear-gradient(135deg,#e0e7ff,#F5F3FF)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-            <UserPlus size={18} color="#3730a3" />
+          <div style={{ width: '40px', height: '40px', borderRadius: '11px', background: 'linear-gradient(135deg,#E8FFF7,#F7FFF8)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+            <UserPlus size={18} color="#009B8E" />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <h2 style={{ margin: 0, fontSize: '15.5px', fontWeight: 700, color: '#111827' }}>내보내기 — 사람 초대</h2>
@@ -117,7 +117,7 @@ export function ExportModal({ tutorialId, title, onClose }: ExportModalProps) {
               <option value="editor">편집</option>
             </select>
             <button onClick={invite} disabled={!email.trim() || inviting}
-              style={{ padding: '0 14px', borderRadius: '10px', border: 'none', background: email.trim() && !inviting ? 'linear-gradient(135deg,#3730a3,#6d28d9)' : '#E5E7EB', color: 'white', fontSize: '12.5px', fontWeight: 600, cursor: email.trim() && !inviting ? 'pointer' : 'default', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+              style={{ padding: '0 14px', borderRadius: '10px', border: 'none', background: email.trim() && !inviting ? 'linear-gradient(135deg,#009B8E,#12B886)' : '#E5E7EB', color: 'white', fontSize: '12.5px', fontWeight: 600, cursor: email.trim() && !inviting ? 'pointer' : 'default', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
               <Send size={13} /> 초대
             </button>
           </div>
@@ -135,7 +135,7 @@ export function ExportModal({ tutorialId, title, onClose }: ExportModalProps) {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '240px', overflowY: 'auto' }}>
                 {shares.map(s => (
                   <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 6px', borderRadius: '8px' }}>
-                    <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: '#EEF2FF', color: '#4338ca', display: 'grid', placeItems: 'center', fontSize: '13px', fontWeight: 700, flexShrink: 0 }}>
+                    <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: '#E8FFF7', color: '#007C72', display: 'grid', placeItems: 'center', fontSize: '13px', fontWeight: 700, flexShrink: 0 }}>
                       {(s.user?.name || s.email).charAt(0).toUpperCase()}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>

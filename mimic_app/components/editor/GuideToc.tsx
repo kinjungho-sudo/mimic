@@ -151,7 +151,7 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
             {/* 선택 중일 때 개수 + 삭제/해제 버튼 */}
             {editable && selectedCount > 0 && (
               <>
-                <span style={{ fontSize: '11px', fontWeight: 600, color: '#3730a3' }}>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: '#009B8E' }}>
                   {selectedCount}개
                 </span>
                 {onDelete && (
@@ -177,7 +177,7 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
                   checked={selectedCount === steps.length && steps.length > 0}
                   ref={el => { if (el) el.indeterminate = selectedCount > 0 && selectedCount < steps.length; }}
                   onChange={e => e.target.checked ? setSelectedIds(new Set(steps.map(s => s.id))) : setSelectedIds(new Set())}
-                  style={{ width: '12px', height: '12px', accentColor: '#3730a3', cursor: 'pointer' }}
+                  style={{ width: '12px', height: '12px', accentColor: '#009B8E', cursor: 'pointer' }}
                 />
                 <span style={{ fontSize: '10px', color: '#9CA3AF' }}>전체</span>
               </label>
@@ -228,7 +228,7 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
                           if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); }
                           if (e.key === 'Escape') setEditingDomain(null);
                         }}
-                        style={{ fontSize: '13px', fontWeight: 700, color: '#3730a3', border: 'none', borderBottom: '1.5px solid #3730a3', outline: 'none', background: 'transparent', width: '100%', padding: '0', fontFamily: 'inherit' }}
+                        style={{ fontSize: '13px', fontWeight: 700, color: '#009B8E', border: 'none', borderBottom: '1.5px solid #009B8E', outline: 'none', background: 'transparent', width: '100%', padding: '0', fontFamily: 'inherit' }}
                         autoFocus
                       />
                     ) : (
@@ -286,7 +286,7 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
 
               {/* 드롭 before 인디케이터 */}
               {isDragTarget && dragOverPos === 'before' && (
-                <div style={{ height: '2px', background: '#3730a3', margin: '0 14px', borderRadius: '2px' }} />
+                <div style={{ height: '2px', background: '#009B8E', margin: '0 14px', borderRadius: '2px' }} />
               )}
 
               {/* 스텝 아이템 */}
@@ -309,12 +309,12 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
                   cursor: editable ? 'grab' : 'pointer',
                   opacity: isBeingDragged ? 0.4 : 1,
                   background: isSelected
-                    ? 'rgba(55,48,163,0.08)'
-                    : isDragTarget ? 'rgba(55,48,163,0.06)'
-                    : isActive ? '#e0e7ff'
+                    ? 'rgba(0,155,142,0.08)'
+                    : isDragTarget ? 'rgba(0,155,142,0.06)'
+                    : isActive ? '#E8FFF7'
                     : isHover ? '#F9FAFB'
                     : 'transparent',
-                  borderLeft: `3px solid ${isSelected || isActive || isDragTarget ? '#3730a3' : 'transparent'}`,
+                  borderLeft: `3px solid ${isSelected || isActive || isDragTarget ? '#009B8E' : 'transparent'}`,
                   transition: 'background 0.12s',
                   position: 'relative',
                   userSelect: 'none',
@@ -326,8 +326,8 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
                     onClick={e => toggleSelect(step.id, e)}
                     style={{
                       width: '15px', height: '15px', borderRadius: '4px', flexShrink: 0,
-                      border: `1.5px solid ${isSelected ? '#3730a3' : '#D1D5DB'}`,
-                      background: isSelected ? '#3730a3' : 'white',
+                      border: `1.5px solid ${isSelected ? '#009B8E' : '#D1D5DB'}`,
+                      background: isSelected ? '#009B8E' : 'white',
                       display: 'grid', placeItems: 'center', cursor: 'pointer',
                       transition: 'all 0.12s',
                     }}
@@ -343,7 +343,7 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
                 {/* 스텝 번호 배지 */}
                 <div style={{
                   width: '22px', height: '22px', borderRadius: '6px', flexShrink: 0,
-                  background: isSelected ? '#3730a3' : isActive ? '#3730a3' : '#E5E7EB',
+                  background: isSelected ? '#009B8E' : isActive ? '#009B8E' : '#E5E7EB',
                   color: isSelected || isActive ? 'white' : '#6B7280',
                   fontSize: '12px', fontWeight: 700, display: 'grid', placeItems: 'center',
                 }}>
@@ -384,7 +384,7 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
 
               {/* 드롭 after 인디케이터 */}
               {isDragTarget && dragOverPos === 'after' && (
-                <div style={{ height: '2px', background: '#3730a3', margin: '0 14px', borderRadius: '2px' }} />
+                <div style={{ height: '2px', background: '#009B8E', margin: '0 14px', borderRadius: '2px' }} />
               )}
             </div>
           );

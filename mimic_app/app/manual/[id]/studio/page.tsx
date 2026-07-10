@@ -447,9 +447,9 @@ export default function StudioPage() {
                 onDrop={e => { e.preventDefault(); if (dragIdRef.current) reorder(dragIdRef.current, s.id); dragIdRef.current = null; setDragOverId(null); }}
                 onDragEnd={() => { dragIdRef.current = null; setDragOverId(null); }}
                 onClick={() => setActiveId(s.id)}
-                style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 7px', marginBottom: 4, borderRadius: 9, border: '1px solid ' + (isDragOver ? '#7c3aed' : sel ? 'rgba(124,58,237,0.6)' : 'transparent'), background: sel ? 'rgba(124,58,237,0.16)' : isDragOver ? 'rgba(124,58,237,0.08)' : 'transparent', color: 'white', cursor: 'pointer', opacity: s.follow.hidden ? 0.5 : 1 }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 7px', marginBottom: 4, borderRadius: 9, border: '1px solid ' + (isDragOver ? '#12B886' : sel ? 'rgba(18,184,134,0.6)' : 'transparent'), background: sel ? 'rgba(18,184,134,0.16)' : isDragOver ? 'rgba(18,184,134,0.08)' : 'transparent', color: 'white', cursor: 'pointer', opacity: s.follow.hidden ? 0.5 : 1 }}>
                 <GripVertical size={13} color="rgba(255,255,255,0.3)" style={{ flexShrink: 0, cursor: 'grab' }} />
-                <span style={{ width: 22, height: 22, flexShrink: 0, borderRadius: 6, background: sel ? '#7c3aed' : 'rgba(255,255,255,0.1)', fontSize: 11, fontWeight: 700, display: 'grid', placeItems: 'center' }}>{i + 1}</span>
+                <span style={{ width: 22, height: 22, flexShrink: 0, borderRadius: 6, background: sel ? '#12B886' : 'rgba(255,255,255,0.1)', fontSize: 11, fontWeight: 700, display: 'grid', placeItems: 'center' }}>{i + 1}</span>
                 <span style={{ flex: 1, minWidth: 0, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'rgba(255,255,255,0.85)' }}>
                   {s.title || '(제목 없음)'}
                 </span>
@@ -466,8 +466,8 @@ export default function StudioPage() {
           {!active ? (
             <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>스텝을 선택하세요</span>
           ) : !active.screenshotUrl ? (
-            <div style={{ width: 'min(460px, 100%)', border: '1px dashed rgba(167,139,250,0.45)', background: 'rgba(124,58,237,0.08)', borderRadius: 14, padding: 28, textAlign: 'center' }}>
-              <ImagePlus size={34} color="#c4b5fd" style={{ marginBottom: 12 }} />
+            <div style={{ width: 'min(460px, 100%)', border: '1px dashed rgba(141,214,63,0.45)', background: 'rgba(18,184,134,0.08)', borderRadius: 14, padding: 28, textAlign: 'center' }}>
+              <ImagePlus size={34} color="#E8FFF7" style={{ marginBottom: 12 }} />
               <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 7 }}>수동 캡처가 필요한 단계</div>
               <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.62)', lineHeight: 1.6, marginBottom: 16 }}>
                 보안 화면이나 제한된 페이지는 이미지를 직접 추가한 뒤 Visual Overlay로 안내를 완성할 수 있습니다.
@@ -557,7 +557,7 @@ export default function StudioPage() {
                     {ttsEnabled ? <Volume2 size={12} /> : <VolumeX size={12} />}
                     {ttsEnabled ? '학습 가이드 음성 켜짐' : '학습 가이드 음성 꺼짐'}
                   </span>
-                  <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 999, background: ttsEnabled ? '#7c3aed' : 'rgba(255,255,255,0.1)' }}>
+                  <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 999, background: ttsEnabled ? '#12B886' : 'rgba(255,255,255,0.1)' }}>
                     {ttsEnabled ? 'ON' : 'OFF'}
                   </span>
                 </button>
@@ -613,7 +613,7 @@ export default function StudioPage() {
                   {hidden ? <EyeOff size={14} /> : <Eye size={14} />} 학습 가이드에 표시
                 </span>
                 <button onClick={() => patch(active.id, { hidden: !hidden })} title="표시/숨김"
-                  style={{ width: 40, height: 22, borderRadius: 11, border: 'none', cursor: 'pointer', background: hidden ? 'rgba(255,255,255,0.15)' : '#7c3aed', position: 'relative', transition: 'background 0.15s' }}>
+                  style={{ width: 40, height: 22, borderRadius: 11, border: 'none', cursor: 'pointer', background: hidden ? 'rgba(255,255,255,0.15)' : '#12B886', position: 'relative', transition: 'background 0.15s' }}>
                   <span style={{ position: 'absolute', top: 2, left: hidden ? 2 : 20, width: 18, height: 18, borderRadius: '50%', background: 'white', transition: 'left 0.15s' }} />
                 </button>
               </div>
@@ -624,7 +624,7 @@ export default function StudioPage() {
                   <ZoomIn size={14} /> 확대 애니메이션
                 </span>
                 <button disabled={hidden} onClick={() => patch(active.id, { zoomAnim: !zoomAnim })} title="학습 가이드에서 클릭 영역 확대"
-                  style={{ width: 40, height: 22, borderRadius: 11, border: 'none', cursor: hidden ? 'not-allowed' : 'pointer', background: zoomAnim ? '#7c3aed' : 'rgba(255,255,255,0.15)', position: 'relative', transition: 'background 0.15s' }}>
+                  style={{ width: 40, height: 22, borderRadius: 11, border: 'none', cursor: hidden ? 'not-allowed' : 'pointer', background: zoomAnim ? '#12B886' : 'rgba(255,255,255,0.15)', position: 'relative', transition: 'background 0.15s' }}>
                   <span style={{ position: 'absolute', top: 2, left: zoomAnim ? 20 : 2, width: 18, height: 18, borderRadius: '50%', background: 'white', transition: 'left 0.15s' }} />
                 </button>
               </div>
@@ -643,7 +643,7 @@ export default function StudioPage() {
                   const sel = curKind === opt.key;
                   return (
                     <button key={String(opt.key)} disabled={hidden} onClick={() => patch(active.id, { kind: opt.key })}
-                      style={{ height: 34, borderRadius: 8, border: '1px solid ' + (sel ? 'rgba(124,58,237,0.7)' : 'rgba(255,255,255,0.12)'), background: sel ? 'rgba(124,58,237,0.2)' : 'transparent', color: sel ? 'white' : 'rgba(255,255,255,0.6)', fontSize: 11.5, fontWeight: 600, cursor: hidden ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4, opacity: hidden ? 0.5 : 1 }}>
+                      style={{ height: 34, borderRadius: 8, border: '1px solid ' + (sel ? 'rgba(18,184,134,0.7)' : 'rgba(255,255,255,0.12)'), background: sel ? 'rgba(18,184,134,0.2)' : 'transparent', color: sel ? 'white' : 'rgba(255,255,255,0.6)', fontSize: 11.5, fontWeight: 600, cursor: hidden ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4, opacity: hidden ? 0.5 : 1 }}>
                       {opt.icon}{opt.label}
                     </button>
                   );
@@ -663,7 +663,7 @@ export default function StudioPage() {
                 {rv?.none
                   ? <span style={{ color: 'rgba(255,255,255,0.4)' }}>인디케이터 ‘없음’ — 핫스팟 미표시</span>
                   : rv && rv.hotspotX != null
-                  ? <>X {rv.hotspotX.toFixed(1)}% · Y {rv.hotspotY!.toFixed(1)}% {active.follow.hotspotX != null ? <span style={{ color: '#a78bfa' }}>(수정됨)</span> : <span style={{ color: 'rgba(255,255,255,0.4)' }}>(녹화값)</span>}</>
+                  ? <>X {rv.hotspotX.toFixed(1)}% · Y {rv.hotspotY!.toFixed(1)}% {active.follow.hotspotX != null ? <span style={{ color: '#8DD63F' }}>(수정됨)</span> : <span style={{ color: 'rgba(255,255,255,0.4)' }}>(녹화값)</span>}</>
                   : <span style={{ color: 'rgba(255,255,255,0.4)' }}>지정 안 됨 — 이미지를 클릭하세요</span>}
               </div>
               <button disabled={hidden || active.follow.hotspotX == null} onClick={() => patch(active.id, { hotspotX: null, hotspotY: null })}
@@ -680,7 +680,7 @@ export default function StudioPage() {
                   const sel = (active.follow.bubbleAnchor ?? null) === opt.key;
                   return (
                     <button key={String(opt.key)} disabled={hidden} onClick={() => patch(active.id, { bubbleAnchor: opt.key })}
-                      style={{ height: 34, borderRadius: 7, border: '1px solid ' + (sel ? 'rgba(124,58,237,0.7)' : 'rgba(255,255,255,0.1)'), background: sel ? 'rgba(124,58,237,0.22)' : 'transparent', color: sel ? 'white' : 'rgba(255,255,255,0.55)', fontSize: 11, fontWeight: 600, cursor: hidden ? 'not-allowed' : 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, opacity: hidden ? 0.4 : 1, lineHeight: 1.2 }}>
+                      style={{ height: 34, borderRadius: 7, border: '1px solid ' + (sel ? 'rgba(18,184,134,0.7)' : 'rgba(255,255,255,0.1)'), background: sel ? 'rgba(18,184,134,0.22)' : 'transparent', color: sel ? 'white' : 'rgba(255,255,255,0.55)', fontSize: 11, fontWeight: 600, cursor: hidden ? 'not-allowed' : 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, opacity: hidden ? 0.4 : 1, lineHeight: 1.2 }}>
                       <span style={{ fontSize: 14 }}>{opt.icon}</span>
                       <span>{opt.label}</span>
                     </button>
@@ -698,7 +698,7 @@ export default function StudioPage() {
                     value={active.follow.typeText ?? ''}
                     onChange={e => setTypeText(active.id, e.target.value)}
                     placeholder="복사해 입력할 텍스트 (비우면 ‘텍스트 입력…’ 안내만)"
-                    style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.1)', color: '#F0F0FF', WebkitTextFillColor: '#F0F0FF', caretColor: '#a78bfa', fontSize: 12.5, fontFamily: 'inherit', outline: 'none' }}
+                    style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.1)', color: '#F0F0FF', WebkitTextFillColor: '#F0F0FF', caretColor: '#8DD63F', fontSize: 12.5, fontFamily: 'inherit', outline: 'none' }}
                   />
                   <p style={hint}>기본은 사용자가 복사해서 직접 붙여넣는 방식입니다.</p>
 
@@ -710,7 +710,7 @@ export default function StudioPage() {
                       const sel = (active.follow.typeInputMode ?? 'copy') === opt.key;
                       return (
                         <button key={opt.key} onClick={() => patch(active.id, { typeInputMode: opt.key })}
-                          style={{ height: 32, borderRadius: 8, border: '1px solid ' + (sel ? 'rgba(124,58,237,0.7)' : 'rgba(255,255,255,0.12)'), background: sel ? 'rgba(124,58,237,0.22)' : 'transparent', color: sel ? 'white' : 'rgba(255,255,255,0.62)', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>
+                          style={{ height: 32, borderRadius: 8, border: '1px solid ' + (sel ? 'rgba(18,184,134,0.7)' : 'rgba(255,255,255,0.12)'), background: sel ? 'rgba(18,184,134,0.22)' : 'transparent', color: sel ? 'white' : 'rgba(255,255,255,0.62)', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>
                           {opt.label}
                         </button>
                       );
@@ -826,7 +826,7 @@ function Divider() { return <div style={{ height: 1, background: 'rgba(255,255,2
 function Styles() { return <style>{`.spin{animation:spin 0.8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}`}</style>; }
 
 const pageBg: React.CSSProperties = { position: 'fixed', inset: 0, background: '#0A0A0F', display: 'grid', placeItems: 'center', fontFamily: "'Pretendard', -apple-system, sans-serif" };
-const primaryBtn: React.CSSProperties = { height: 34, padding: '0 14px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', color: 'white', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 };
+const primaryBtn: React.CSSProperties = { height: 34, padding: '0 14px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg,#009B8E,#12B886)', color: 'white', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 };
 const ghostBtn: React.CSSProperties = { width: 34, height: 34, borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: 'rgba(255,255,255,0.8)', cursor: 'pointer', display: 'grid', placeItems: 'center', flexShrink: 0 };
 const subtleBtn: React.CSSProperties = { width: '100%', height: 32, borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: 'rgba(255,255,255,0.7)', fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 };
 const hint: React.CSSProperties = { fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '8px 0 0', lineHeight: 1.5 };

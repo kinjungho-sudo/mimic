@@ -253,7 +253,7 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
               style={{
                 flexShrink: 0, height: '40px', padding: '0 16px', borderRadius: '10px',
                 border: 'none',
-                background: copied ? '#10B981' : 'linear-gradient(135deg, #3730a3, #6d28d9)',
+                background: copied ? '#10B981' : 'linear-gradient(135deg, #009B8E, #12B886)',
                 color: 'white', fontSize: '13px', fontWeight: 600,
                 cursor: publishing || !url ? 'not-allowed' : 'pointer',
                 display: 'inline-flex', alignItems: 'center', gap: '6px',
@@ -298,10 +298,10 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0 0', cursor: 'pointer' }}
               onClick={() => { if (!pwEnabled) setPwExpanded(e => !e); }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Lock size={14} style={{ color: pwEnabled ? '#3730a3' : '#9CA3AF' }} />
+                <Lock size={14} style={{ color: pwEnabled ? '#009B8E' : '#9CA3AF' }} />
                 <span style={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}>비밀번호 보호</span>
                 {pwEnabled && (
-                  <span style={{ fontSize: '10.5px', padding: '1px 7px', borderRadius: '20px', background: '#EEF2FF', color: '#3730a3', fontWeight: 600 }}>
+                  <span style={{ fontSize: '10.5px', padding: '1px 7px', borderRadius: '20px', background: '#E8FFF7', color: '#009B8E', fontWeight: 600 }}>
                     {pwSaved ? '변경됨!' : '설정됨'}
                   </span>
                 )}
@@ -329,7 +329,7 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
                     placeholder="비밀번호 입력"
                     autoFocus
                     style={{ width: '100%', height: '36px', padding: '0 34px 0 10px', borderRadius: '7px', border: '1.5px solid #E5E7EB', fontSize: '12.5px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
-                    onFocus={e => { e.currentTarget.style.borderColor = '#3730a3'; }}
+                    onFocus={e => { e.currentTarget.style.borderColor = '#009B8E'; }}
                     onBlur={e => { e.currentTarget.style.borderColor = '#E5E7EB'; }}
                   />
                   <button onClick={() => setPwVisible(v => !v)}
@@ -340,7 +340,7 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
                 <button
                   onClick={handleSavePassword}
                   disabled={!pwInput.trim() || pwSaving}
-                  style={{ height: '36px', padding: '0 14px', borderRadius: '7px', fontSize: '12px', fontWeight: 600, background: '#3730a3', color: 'white', border: 'none', cursor: !pwInput.trim() || pwSaving ? 'not-allowed' : 'pointer', opacity: !pwInput.trim() || pwSaving ? 0.5 : 1, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  style={{ height: '36px', padding: '0 14px', borderRadius: '7px', fontSize: '12px', fontWeight: 600, background: '#009B8E', color: 'white', border: 'none', cursor: !pwInput.trim() || pwSaving ? 'not-allowed' : 'pointer', opacity: !pwInput.trim() || pwSaving ? 0.5 : 1, whiteSpace: 'nowrap', flexShrink: 0 }}>
                   {pwSaving ? '저장 중...' : '설정'}
                 </button>
               </div>
@@ -352,7 +352,7 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0 0', cursor: 'pointer' }}
               onClick={() => setEmbedExpanded(e => !e)}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Code2 size={14} style={{ color: embedExpanded ? '#3730a3' : '#9CA3AF' }} />
+                <Code2 size={14} style={{ color: embedExpanded ? '#009B8E' : '#9CA3AF' }} />
                 <span style={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}>임베드 코드</span>
                 <span style={{ fontSize: '11px', color: '#9CA3AF' }}>Notion · 웹사이트</span>
               </div>
@@ -365,12 +365,12 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
                 </code>
                 <div style={{ display: 'flex', gap: '6px' }}>
                   <button onClick={handleCopyEmbedUrl} disabled={publishing || !embedUrl}
-                    style={{ flex: 1, height: '32px', borderRadius: '7px', fontSize: '11.5px', fontWeight: 600, background: embedUrlCopied ? '#10B981' : '#3730a3', color: 'white', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '5px', opacity: publishing || !embedUrl ? 0.5 : 1 }}>
+                    style={{ flex: 1, height: '32px', borderRadius: '7px', fontSize: '11.5px', fontWeight: 600, background: embedUrlCopied ? '#10B981' : '#009B8E', color: 'white', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '5px', opacity: publishing || !embedUrl ? 0.5 : 1 }}>
                     {embedUrlCopied ? <Check size={11} /> : <Link2 size={11} />}
                     {embedUrlCopied ? '복사됨!' : 'Notion용 링크'}
                   </button>
                   <button onClick={handleCopyEmbed} disabled={publishing || !embedCode}
-                    style={{ flex: 1, height: '32px', borderRadius: '7px', fontSize: '11.5px', fontWeight: 600, background: 'white', color: '#3730a3', border: `1px solid ${embedCopied ? '#10B981' : '#C7D2FE'}`, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '5px', opacity: publishing || !embedCode ? 0.5 : 1 }}>
+                    style={{ flex: 1, height: '32px', borderRadius: '7px', fontSize: '11.5px', fontWeight: 600, background: 'white', color: '#009B8E', border: `1px solid ${embedCopied ? '#10B981' : '#DDE7E4'}`, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '5px', opacity: publishing || !embedCode ? 0.5 : 1 }}>
                     {embedCopied ? <Check size={11} /> : <Code2 size={11} />}
                     {embedCopied ? '복사됨!' : 'iframe 코드'}
                   </button>
@@ -393,14 +393,14 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
                 onKeyDown={e => { if (e.key === 'Enter') handleSendEmail(); }}
                 placeholder="example@email.com"
                 style={{ flex: 1, minWidth: 0, height: '38px', padding: '0 12px', borderRadius: '9px', border: `1.5px solid ${emailResult?.ok === false ? '#EF4444' : '#E5E7EB'}`, fontSize: '13px', color: '#111827', outline: 'none', fontFamily: 'inherit' }}
-                onFocus={e => { e.currentTarget.style.borderColor = '#3730a3'; }}
+                onFocus={e => { e.currentTarget.style.borderColor = '#009B8E'; }}
                 onBlur={e => { e.currentTarget.style.borderColor = emailResult?.ok === false ? '#EF4444' : '#E5E7EB'; }}
               />
               <button
                 type="button"
                 onClick={handleSendEmail}
                 disabled={emailSending || !emailTo.trim()}
-                style={{ flexShrink: 0, padding: '0 16px', height: '38px', borderRadius: '9px', border: 'none', background: emailTo.trim() ? 'linear-gradient(135deg,#3730a3,#6d28d9)' : '#E5E7EB', color: emailTo.trim() ? 'white' : '#9CA3AF', fontSize: '13px', fontWeight: 600, cursor: emailTo.trim() && !emailSending ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap' }}>
+                style={{ flexShrink: 0, padding: '0 16px', height: '38px', borderRadius: '9px', border: 'none', background: emailTo.trim() ? 'linear-gradient(135deg,#009B8E,#12B886)' : '#E5E7EB', color: emailTo.trim() ? 'white' : '#9CA3AF', fontSize: '13px', fontWeight: 600, cursor: emailTo.trim() && !emailSending ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap' }}>
                 {emailSending ? '발송 중…' : '보내기'}
               </button>
             </div>

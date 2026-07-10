@@ -139,7 +139,7 @@ export function MergeModal({ currentTutorialId, onImport, onClose }: MergeModalP
                     style={{
                       display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
                       padding: '9px 10px', borderRadius: '8px', border: 'none', textAlign: 'left', cursor: 'pointer',
-                      background: isSelected ? '#EEF2FF' : 'transparent', transition: 'background 0.12s',
+                      background: isSelected ? '#E8FFF7' : 'transparent', transition: 'background 0.12s',
                     }}
                     onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = '#F9FAFB'; }}
                     onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
@@ -151,13 +151,13 @@ export function MergeModal({ currentTutorialId, onImport, onClose }: MergeModalP
                       <div style={{ width: '36px', height: '24px', borderRadius: '4px', background: '#F3F4F6', flexShrink: 0 }} />
                     )}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '12.5px', fontWeight: isSelected ? 600 : 400, color: isSelected ? '#3730a3' : '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={{ fontSize: '12.5px', fontWeight: isSelected ? 600 : 400, color: isSelected ? '#009B8E' : '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {t.title || '제목 없음'}
                       </div>
                       <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '1px' }}>{t.mm_steps?.length ?? 0}개 스텝</div>
                     </div>
                     {isSelected && (
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#3730a3" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}><polyline points="9 18 15 12 9 6"/></svg>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#009B8E" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}><polyline points="9 18 15 12 9 6"/></svg>
                     )}
                   </button>
                 );
@@ -173,7 +173,7 @@ export function MergeModal({ currentTutorialId, onImport, onClose }: MergeModalP
               </div>
             ) : loadingSteps ? (
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div style={{ width: '24px', height: '24px', borderRadius: '50%', border: '2.5px solid rgba(55,48,163,0.15)', borderTopColor: '#3730a3', animation: 'spin 0.8s linear infinite' }} />
+                <div style={{ width: '24px', height: '24px', borderRadius: '50%', border: '2.5px solid rgba(0,155,142,0.15)', borderTopColor: '#009B8E', animation: 'spin 0.8s linear infinite' }} />
               </div>
             ) : sourceSteps.length === 0 ? (
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9CA3AF', fontSize: '13px' }}>
@@ -187,7 +187,7 @@ export function MergeModal({ currentTutorialId, onImport, onClose }: MergeModalP
                     type="checkbox"
                     checked={selectedStepIds.size === sourceSteps.length && sourceSteps.length > 0}
                     onChange={toggleAll}
-                    style={{ cursor: 'pointer', width: '14px', height: '14px', accentColor: '#3730a3' }}
+                    style={{ cursor: 'pointer', width: '14px', height: '14px', accentColor: '#009B8E' }}
                   />
                   <span style={{ fontSize: '12px', color: '#6B7280' }}>
                     {selectedStepIds.size > 0 ? `${selectedStepIds.size}개 선택됨` : '전체 선택'}
@@ -203,8 +203,8 @@ export function MergeModal({ currentTutorialId, onImport, onClose }: MergeModalP
                         onClick={() => toggleStep(step.id)}
                         style={{
                           display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
-                          padding: '8px 8px', borderRadius: '7px', border: `1.5px solid ${isChecked ? '#a5b4fc' : 'transparent'}`,
-                          background: isChecked ? '#EEF2FF' : 'transparent', cursor: 'pointer', textAlign: 'left',
+                          padding: '8px 8px', borderRadius: '7px', border: `1.5px solid ${isChecked ? '#8DD63F' : 'transparent'}`,
+                          background: isChecked ? '#E8FFF7' : 'transparent', cursor: 'pointer', textAlign: 'left',
                           marginBottom: '2px', transition: 'all 0.12s',
                         }}
                         onMouseEnter={e => { if (!isChecked) e.currentTarget.style.background = '#F9FAFB'; }}
@@ -215,7 +215,7 @@ export function MergeModal({ currentTutorialId, onImport, onClose }: MergeModalP
                           checked={isChecked}
                           onChange={() => {}}
                           onClick={e => e.stopPropagation()}
-                          style={{ cursor: 'pointer', width: '14px', height: '14px', accentColor: '#3730a3', flexShrink: 0 }}
+                          style={{ cursor: 'pointer', width: '14px', height: '14px', accentColor: '#009B8E', flexShrink: 0 }}
                         />
                         {step.screenshot_url ? (
                           // eslint-disable-next-line @next/next/no-img-element
@@ -251,7 +251,7 @@ export function MergeModal({ currentTutorialId, onImport, onClose }: MergeModalP
             disabled={selectedStepIds.size === 0 || importing}
             style={{
               padding: '8px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, border: 'none', cursor: selectedStepIds.size === 0 ? 'not-allowed' : 'pointer',
-              background: selectedStepIds.size === 0 ? '#E5E7EB' : 'linear-gradient(135deg, #3730a3, #6d28d9)',
+              background: selectedStepIds.size === 0 ? '#E5E7EB' : 'linear-gradient(135deg, #009B8E, #12B886)',
               color: selectedStepIds.size === 0 ? '#9CA3AF' : 'white',
               display: 'inline-flex', alignItems: 'center', gap: '6px',
             }}

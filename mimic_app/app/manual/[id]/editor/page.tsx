@@ -500,7 +500,7 @@ export default function EditorPage() {
     return (
       <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: '#F8F9FA' }}>
         <div style={{ textAlign: 'center', color: '#6B7280' }}>
-          <div style={{ width: '40px', height: '40px', borderRadius: '50%', border: '3px solid rgba(55,48,163,0.18)', borderTopColor: '#3730a3', animation: 'spin 0.9s linear infinite', margin: '0 auto 16px' }} />
+          <div style={{ width: '40px', height: '40px', borderRadius: '50%', border: '3px solid rgba(0,155,142,0.18)', borderTopColor: '#009B8E', animation: 'spin 0.9s linear infinite', margin: '0 auto 16px' }} />
           <p style={{ fontSize: '14px' }}>매뉴얼 불러오는 중…</p>
         </div>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -513,7 +513,7 @@ export default function EditorPage() {
       <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: '#F8F9FA' }}>
         <div style={{ textAlign: 'center', color: '#6B7280' }}>
           <p style={{ fontSize: '15px', marginBottom: '16px' }}>{error ?? '매뉴얼을 찾을 수 없어요.'}</p>
-          <button onClick={() => router.push('/home')} style={{ padding: '10px 20px', borderRadius: '8px', background: '#3730a3', color: 'white', border: 'none', cursor: 'pointer', fontSize: '14px' }}>
+          <button onClick={() => router.push('/home')} style={{ padding: '10px 20px', borderRadius: '8px', background: '#009B8E', color: 'white', border: 'none', cursor: 'pointer', fontSize: '14px' }}>
             대시보드로 돌아가기
           </button>
         </div>
@@ -531,7 +531,7 @@ export default function EditorPage() {
         <div style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(255,255,255,0.96)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px' }}>
           {pollingState === 'polling' ? (
             <>
-              <div style={{ width: '44px', height: '44px', borderRadius: '50%', border: '3px solid rgba(55,48,163,0.18)', borderTopColor: '#3730a3', animation: 'spin 0.9s linear infinite' }} />
+              <div style={{ width: '44px', height: '44px', borderRadius: '50%', border: '3px solid rgba(0,155,142,0.18)', borderTopColor: '#009B8E', animation: 'spin 0.9s linear infinite' }} />
               <p style={{ fontSize: '16px', fontWeight: 600, color: '#111827', margin: 0 }}>매뉴얼을 자동으로 제작하고 있습니다</p>
               <p style={{ fontSize: '13px', color: '#6B7280', margin: 0 }}>AI가 각 단계를 분석 중입니다 — 잠시만 기다려 주세요</p>
             </>
@@ -540,7 +540,7 @@ export default function EditorPage() {
               <p style={{ fontSize: '16px', fontWeight: 600, color: '#111827', margin: 0 }}>제작 중 오류가 발생했습니다</p>
               <p style={{ fontSize: '13px', color: '#6B7280', margin: 0 }}>스텝이 생성되지 않았습니다. 페이지를 새로고침하거나 다시 녹화해 주세요.</p>
               <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                <button onClick={() => window.location.reload()} style={{ padding: '9px 18px', borderRadius: '8px', background: '#3730a3', color: 'white', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }}>
+                <button onClick={() => window.location.reload()} style={{ padding: '9px 18px', borderRadius: '8px', background: '#009B8E', color: 'white', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }}>
                   새로고침
                 </button>
                 <button onClick={() => router.push('/home')} style={{ padding: '9px 18px', borderRadius: '8px', background: 'white', color: '#374151', border: '1px solid #D1D5DB', cursor: 'pointer', fontSize: '13px' }}>
@@ -585,7 +585,7 @@ export default function EditorPage() {
           <button
             className="editor-mobile-toc-btn"
             onClick={() => setMobileTocOpen(v => !v)}
-            style={{ display: 'none', width: '32px', height: '32px', borderRadius: '8px', border: '1px solid #E5E7EB', background: mobileTocOpen ? '#e0e7ff' : 'white', alignItems: 'center', justifyContent: 'center', color: mobileTocOpen ? '#3730a3' : '#6B7280', cursor: 'pointer', flexShrink: 0 }}
+            style={{ display: 'none', width: '32px', height: '32px', borderRadius: '8px', border: '1px solid #E5E7EB', background: mobileTocOpen ? '#E8FFF7' : 'white', alignItems: 'center', justifyContent: 'center', color: mobileTocOpen ? '#009B8E' : '#6B7280', cursor: 'pointer', flexShrink: 0 }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
           </button>
@@ -655,9 +655,9 @@ export default function EditorPage() {
             <button
               onClick={() => router.push(`/manual/${id}/studio`)}
               title="학습 가이드의 화면 안내, 핫스팟, 입력 텍스트를 편집합니다"
-              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#4F46E5', background: 'rgba(79,70,229,0.08)', border: '1px solid rgba(79,70,229,0.35)', cursor: 'pointer', transition: 'all 0.15s', fontWeight: 600 }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(79,70,229,0.13)'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(79,70,229,0.08)'; }}
+              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#009B8E', background: 'rgba(0,155,142,0.08)', border: '1px solid rgba(0,155,142,0.35)', cursor: 'pointer', transition: 'all 0.15s', fontWeight: 600 }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,155,142,0.13)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,155,142,0.08)'; }}
             >
               <Play size={TOP_BAR_ICON_SIZE} />
               학습 가이드
@@ -667,7 +667,7 @@ export default function EditorPage() {
             <button
               onClick={() => { setShowComments(v => !v); setShowActivity(false); }}
               title="댓글 — 팀원과 의견 공유"
-              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: showComments ? '#4F46E5' : '#374151', background: showComments ? 'rgba(79,70,229,0.08)' : 'white', border: `1px solid ${showComments ? '#4F46E5' : '#E5E7EB'}`, cursor: 'pointer', transition: 'all 0.15s', fontWeight: showComments ? 600 : 400 }}
+              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: showComments ? '#009B8E' : '#374151', background: showComments ? 'rgba(0,155,142,0.08)' : 'white', border: `1px solid ${showComments ? '#009B8E' : '#E5E7EB'}`, cursor: 'pointer', transition: 'all 0.15s', fontWeight: showComments ? 600 : 400 }}
               onMouseEnter={e => { if (!showComments) e.currentTarget.style.background = '#F9FAFB'; }}
               onMouseLeave={e => { if (!showComments) e.currentTarget.style.background = 'white'; }}
             >
@@ -679,7 +679,7 @@ export default function EditorPage() {
             <button
               onClick={() => { setShowActivity(v => !v); setShowComments(false); }}
               title="활동 로그 — 누가 무엇을 했는지"
-              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: showActivity ? '#4F46E5' : '#374151', background: showActivity ? 'rgba(79,70,229,0.08)' : 'white', border: `1px solid ${showActivity ? '#4F46E5' : '#E5E7EB'}`, cursor: 'pointer', transition: 'all 0.15s', fontWeight: showActivity ? 600 : 400 }}
+              style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: showActivity ? '#009B8E' : '#374151', background: showActivity ? 'rgba(0,155,142,0.08)' : 'white', border: `1px solid ${showActivity ? '#009B8E' : '#E5E7EB'}`, cursor: 'pointer', transition: 'all 0.15s', fontWeight: showActivity ? 600 : 400 }}
               onMouseEnter={e => { if (!showActivity) e.currentTarget.style.background = '#F9FAFB'; }}
               onMouseLeave={e => { if (!showActivity) e.currentTarget.style.background = 'white'; }}
             >
@@ -784,9 +784,9 @@ export default function EditorPage() {
                 }}
                 disabled={publishing}
                 title="외부에 공유 가능한 상태로 게시합니다"
-                style={{ height: '32px', padding: '0 16px', borderRadius: '7px', fontSize: '12.5px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'white', background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', border: 'none', cursor: publishing ? 'not-allowed' : 'pointer', boxShadow: '0 1px 6px rgba(55,48,163,0.3)', opacity: publishing ? 0.7 : 1, transition: 'box-shadow 0.15s' }}
-                onMouseEnter={e => { if (!publishing) e.currentTarget.style.boxShadow = '0 4px 14px rgba(55,48,163,0.45)'; }}
-                onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 6px rgba(55,48,163,0.3)'; }}
+                style={{ height: '32px', padding: '0 16px', borderRadius: '7px', fontSize: '12.5px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'white', background: 'linear-gradient(135deg, #009B8E 0%, #12B886 100%)', border: 'none', cursor: publishing ? 'not-allowed' : 'pointer', boxShadow: '0 1px 6px rgba(0,155,142,0.3)', opacity: publishing ? 0.7 : 1, transition: 'box-shadow 0.15s' }}
+                onMouseEnter={e => { if (!publishing) e.currentTarget.style.boxShadow = '0 4px 14px rgba(0,155,142,0.45)'; }}
+                onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 6px rgba(0,155,142,0.3)'; }}
               >
                 {publishing ? <Loader2 size={TOP_BAR_ICON_SIZE} style={{ animation: 'spin 1s linear infinite' }} /> : <Share2 size={TOP_BAR_ICON_SIZE} />}
                 {publishing ? '게시 중…' : '게시'}
@@ -889,7 +889,7 @@ export default function EditorPage() {
             <button
               onClick={() => setShowMerge(true)}
               style={{ width: '100%', padding: '7px 10px', borderRadius: '7px', fontSize: '11.5px', fontWeight: 500, color: '#6B7280', background: 'transparent', border: '1px dashed #D1D5DB', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', transition: 'all 0.15s' }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = '#a5b4fc'; e.currentTarget.style.color = '#3730a3'; e.currentTarget.style.background = '#EEF2FF'; }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#8DD63F'; e.currentTarget.style.color = '#009B8E'; e.currentTarget.style.background = '#E8FFF7'; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = '#D1D5DB'; e.currentTarget.style.color = '#6B7280'; e.currentTarget.style.background = 'transparent'; }}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
@@ -917,7 +917,7 @@ export default function EditorPage() {
               <button
                 onClick={() => setBulkColorOpen(v => !v)}
                 title="모든 스텝의 강조 테두리·글자색을 한 번에 변경"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', height: '28px', padding: '0 10px', borderRadius: '6px', border: `1px solid ${bulkColorOpen ? '#6d28d9' : '#E5E7EB'}`, background: bulkColorOpen ? 'rgba(109,40,217,0.07)' : 'white', color: '#6d28d9', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', height: '28px', padding: '0 10px', borderRadius: '6px', border: `1px solid ${bulkColorOpen ? '#12B886' : '#E5E7EB'}`, background: bulkColorOpen ? 'rgba(18,184,134,0.07)' : 'white', color: '#12B886', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}
               >
                 <Palette size={TOP_BAR_ICON_SIZE} /> 전체 색상
               </button>
@@ -927,13 +927,13 @@ export default function EditorPage() {
                   <div style={{ position: 'absolute', top: '34px', right: 0, zIndex: 41, background: 'white', border: '1px solid #E5E7EB', borderRadius: '10px', boxShadow: '0 8px 28px rgba(0,0,0,0.14)', padding: '12px', width: '224px' }}>
                     <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '7px' }}>강조 테두리 색 · 모든 스텝</div>
                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '12px' }}>
-                      {['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#111827'].map(c => (
+                      {['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8DD63F', '#EC4899', '#111827'].map(c => (
                         <button key={c} onClick={() => recolorAllSteps('border', c)} style={{ width: '22px', height: '22px', borderRadius: '50%', background: c, border: '2px solid rgba(0,0,0,0.08)', cursor: 'pointer' }} />
                       ))}
                     </div>
                     <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '7px' }}>글자 색 · 모든 스텝</div>
                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                      {['#FFFFFF', '#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#111827'].map(c => (
+                      {['#FFFFFF', '#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8DD63F', '#111827'].map(c => (
                         <button key={c} onClick={() => recolorAllSteps('text', c)} style={{ width: '22px', height: '22px', borderRadius: '50%', background: c, border: c === '#FFFFFF' ? '1.5px solid #D1D5DB' : '2px solid rgba(0,0,0,0.08)', cursor: 'pointer' }} />
                       ))}
                     </div>
@@ -945,14 +945,14 @@ export default function EditorPage() {
               onClick={handleRefineAllText}
               disabled={refiningText}
               title="AI로 모든 스텝의 설명 문장을 매뉴얼 톤으로 다듬기"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', flexShrink: 0, height: '28px', padding: '0 10px', borderRadius: '6px', border: '1px solid #E5E7EB', background: 'white', color: '#6d28d9', fontSize: '12px', fontWeight: 500, cursor: refiningText ? 'not-allowed' : 'pointer', opacity: refiningText ? 0.65 : 1, transition: 'all 0.15s' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', flexShrink: 0, height: '28px', padding: '0 10px', borderRadius: '6px', border: '1px solid #E5E7EB', background: 'white', color: '#12B886', fontSize: '12px', fontWeight: 500, cursor: refiningText ? 'not-allowed' : 'pointer', opacity: refiningText ? 0.65 : 1, transition: 'all 0.15s' }}
             >
               {refiningText ? <Loader2 size={TOP_BAR_ICON_SIZE} style={{ animation: 'spin 1s linear infinite' }} /> : <Wand2 size={TOP_BAR_ICON_SIZE} />}
               전체 문장 다듬기
             </button>
             {/* AI 자동 생성 진행 인디케이터 */}
             {autoGenProgress && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, fontSize: '11.5px', color: '#6d28d9' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, fontSize: '11.5px', color: '#12B886' }}>
                 <Loader2 size={TOP_BAR_ICON_SIZE} style={{ animation: 'spin 1s linear infinite' }} />
                 <span>AI 작성 중 {autoGenProgress.done}/{autoGenProgress.total}</span>
               </div>
