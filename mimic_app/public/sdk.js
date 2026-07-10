@@ -1,8 +1,9 @@
 /**
  * Parro Live Guide SDK
- * Usage: <script src="https://your-parro-app.example/sdk.js" data-guide="SHARE_TOKEN"></script>
+ * Usage: <script src="https://your-parro-app.example/sdk.js" data-parro-guide="SHARE_TOKEN"></script>
  * API: window.ParroSDK.start('SHARE_TOKEN')
  * Query param: ?parro_guide=SHARE_TOKEN
+ * Legacy script attribute remains supported: data-guide="SHARE_TOKEN"
  * Legacy API names remain supported: window.MimicSDK.start('SHARE_TOKEN')
  * Legacy query param remains supported: ?mimic_guide=SHARE_TOKEN
  */
@@ -511,11 +512,11 @@
 
   // ── 자동 초기화 ────────────────────────────────────────────
   function autoInit() {
-    // 1. <script data-guide="TOKEN"> 방식
+    // 1. <script data-parro-guide="TOKEN"> 방식 (legacy data-guide도 지원)
     // data-float: 플로팅 버튼 모드 / data-manual: 자동 시작 안 함 / 기본: 즉시 자동 시작
-    var scripts = document.querySelectorAll('script[data-guide]');
+    var scripts = document.querySelectorAll('script[data-parro-guide],script[data-guide]');
     for (var i = 0; i < scripts.length; i++) {
-      var token = scripts[i].getAttribute('data-guide');
+      var token = scripts[i].getAttribute('data-parro-guide') || scripts[i].getAttribute('data-guide');
       var floatAttr = scripts[i].getAttribute('data-float');
       var manualAttr = scripts[i].getAttribute('data-manual');
       var urlPattern = scripts[i].getAttribute('data-url-pattern');

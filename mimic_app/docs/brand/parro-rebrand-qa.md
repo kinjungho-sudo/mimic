@@ -62,6 +62,7 @@ git diff --check
 - Updated root MCP package README, package description, and `list_tutorials` tool description to Parro while preserving `@mimic/mcp-server` and MCP server key `mimic`; `packages/mcp-server npm run build` passed.
 - Updated SDK AutoRun runtime DOM IDs, style ID, active class, and animation names to `parro-*` primary values while preserving legacy `mimic-*` selectors/fallbacks; `node --check public/sdk.js` and a Node DOM-stub smoke test passed.
 - Updated active app and Recorder agent docs to use Parro as the current display name while preserving `mimic_app`/`mimic_recorder` folder references, schema filenames, and historical design document filenames; focused doc search and `git diff --check` passed.
+- Added `data-parro-guide` as the primary SDK script auto-start attribute while preserving legacy `data-guide`; `node --check public/sdk.js`, focused SDK attribute search, a Node VM smoke test, `npm run lint`, and `git diff --check` passed.
 - `packages/mcp-server`: `npm ci` then `npm run build` passed.
 - `git diff --check`: passed.
 - `packages/mcp-server npm ci` reported 2 high severity dependency audit findings. No `npm audit fix` was run because that is outside the rebrand scope and can change dependency versions.
@@ -86,7 +87,7 @@ git diff --check
 - `package.json`, `package-lock.json`, and MCP package names such as `mimic-app` / `@mimic/mcp-server`.
 - Supabase schema, migrations, storage buckets, and SQL comments, including `mimic-tts`, `01_mimic_dev_schema.sql`, and `supabase/migrations/*`.
 - API route filenames and environment/header identifiers including `x-mimic-secret`, `MIMIC_EXTENSION_ID`, and `NEXT_PUBLIC_APP_URL`. Runtime uses of preserved legacy values such as `x-mimic-secret` and `MIMICBot/1.0` now go through `LEGACY_INTERNAL_IDENTIFIERS`.
-- SDK compatibility globals/classes/query params in `public/sdk.js`. New public aliases include `window.ParroSDK`, `window.ParroAutoRun`, `parro_guide`, and `data-parro-float`; legacy aliases such as `window.MimicSDK`, `window.MimicAutoRun`, `mimic_guide`, `data-mimic-float`, and `mimic-*` CSS classes remain intentionally supported.
+- SDK compatibility globals/classes/query params in `public/sdk.js`. New public aliases include `window.ParroSDK`, `window.ParroAutoRun`, `data-parro-guide`, `parro_guide`, and `data-parro-float`; legacy aliases such as `window.MimicSDK`, `window.MimicAutoRun`, `data-guide`, `mimic_guide`, `data-mimic-float`, and `mimic-*` CSS classes remain intentionally supported.
 - Local storage and drag/drop keys such as `mimic:survey:*`, `mimic_annot_defaults_v1`, and `text/mimic-tutorial`. Survey prefixes, annotation defaults, and drag/drop keys now go through `LEGACY_INTERNAL_IDENTIFIERS`.
 - `sendMimicEmail` remains as a backward-compatible alias to `sendParroEmail`; app call sites now use the Parro helper name.
 - Development-only guest login still uses `devtest@mimic.dev`; this appears to be a seeded dev account and should not be renamed without owner approval.

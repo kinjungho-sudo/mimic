@@ -1,5 +1,10 @@
 # Implementation Log
 
+## 2026-07-11 - Parro SDK script attribute alias
+
+- Added `data-parro-guide` as the primary SDK script auto-start attribute.
+- Preserved legacy `data-guide` script embeds for compatibility.
+
 ## 2026-07-11 - Parro Phase 2 owner decision matrix
 
 - Created `docs/brand/parro-phase2-owner-decisions.md`.
