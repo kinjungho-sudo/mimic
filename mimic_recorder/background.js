@@ -1142,7 +1142,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const d  = new Date();
       const p2 = (n) => String(n).padStart(2, '0');
       const stamp = `${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}_${p2(d.getHours())}${p2(d.getMinutes())}${p2(d.getSeconds())}`;
-      await chrome.downloads.download({ url: dataUrl, filename: `mimic_fullpage_${hostname}_${stamp}.png` });
+      await chrome.downloads.download({ url: dataUrl, filename: `parro_fullpage_${hostname}_${stamp}.png` });
       sendResponse({ ok: true });
     })().catch((err) => {
       log('error', 'bg', 'full page capture error:', err.message);

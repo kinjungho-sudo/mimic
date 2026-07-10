@@ -265,3 +265,8 @@
 - Updated Chrome Web Store package build scripts to produce `parro-recorder-v{version}.zip`.
 - Updated the temporary packaging directory to `parro-recorder-build`.
 - Preserved extension IDs, Chrome Web Store slug/URLs, runtime app URLs, local storage keys, IndexedDB names, and `mimic-*` runtime compatibility hooks.
+
+## 2026-07-11 - Parro Recorder full-page download naming
+
+- Updated the Recorder full-page capture download filename prefix from `mimic_fullpage_` to `parro_fullpage_`.
+- Preserved storage keys, IndexedDB names, runtime URLs, and internal compatibility globals.
