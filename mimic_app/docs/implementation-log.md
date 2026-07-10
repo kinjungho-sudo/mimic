@@ -286,3 +286,8 @@
 - Added `window.__parroContentLoaded` as the primary content-script duplicate-injection guard.
 - Updated Recorder Live Guide overlay hosts to use `parro-overlay-root`.
 - Preserved legacy `__mimicContentLoaded` and `mimic-overlay-root` recognition for cleanup and compatibility.
+
+## 2026-07-11 - Parro Recorder popup toast ID
+
+- Updated the Recorder popup toast DOM ID to `parroToast`.
+- Preserved lookup fallback for legacy `mimicToast` during an already-open popup session.

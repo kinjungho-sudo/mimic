@@ -55,6 +55,7 @@ git diff --check
 - Added `parro-btn` to Recorder Live Guide overlay controls while preserving `mimic-btn`; `node --check mimic_recorder/guide-engine.js` passed and focused class search confirmed no button remains with only `mimic-btn`.
 - Updated Recorder countdown runtime animations to use `parro-blink`, `parro-pop`, and `parro-start` while keeping legacy `mimic-*` keyframe definitions; `node --check mimic_recorder/content.js` passed.
 - Added `window.__parroContentLoaded` and `parro-overlay-root` as primary Recorder runtime identifiers while preserving legacy guard/root cleanup; `node --check` passed for `content.js`, `background.js`, and `guide-engine.js`.
+- Updated Recorder popup toast DOM ID to `parroToast` while preserving `mimicToast` lookup fallback; `node --check mimic_recorder/popup.js` passed.
 - `packages/mcp-server`: `npm ci` then `npm run build` passed.
 - `git diff --check`: passed.
 - `packages/mcp-server npm ci` reported 2 high severity dependency audit findings. No `npm audit fix` was run because that is outside the rebrand scope and can change dependency versions.

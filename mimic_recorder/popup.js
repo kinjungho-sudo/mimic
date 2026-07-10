@@ -1018,10 +1018,10 @@ function startBlurMode(step, zoomImg, originalBlob) {
 // 간단 토스트 (경량 버전)
 let _toastTimer = null;
 function showToast(msg, ms = 2000) {
-  let toast = document.getElementById('mimicToast');
+  let toast = document.getElementById('parroToast') || document.getElementById('mimicToast');
   if (!toast) {
     toast = document.createElement('div');
-    toast.id = 'mimicToast';
+    toast.id = 'parroToast';
     toast.style.cssText = [
       'position:fixed', 'bottom:72px', 'left:50%', 'transform:translateX(-50%)',
       'background:rgba(30,30,46,0.92)', 'color:#fff',
