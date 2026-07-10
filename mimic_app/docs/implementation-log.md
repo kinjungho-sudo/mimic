@@ -178,3 +178,8 @@
 
 - Updated global CSS brand variables, marker pulse color, generated OG image accents, folder default color, user branding default color, PPTX export fallback color, and AI cover-color fallback from the old indigo/purple palette to Parro brand colors.
 - Preserved DB schemas, stored existing user colors, API route names, and branding payload shapes.
+
+## 2026-07-11 - Parro landing page color pass
+
+- Updated landing page demo SVGs, hero preview, product tour, pricing, FAQ, and CTA accents from the old indigo/purple palette to Parro teal/guide/accent colors.
+- Preserved landing page copy, routes, forms, feature data, and deferred final logo asset replacement.
