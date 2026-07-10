@@ -26,6 +26,10 @@
   var BRAND_PRIMARY_HOVER = '#00796F';
   var BRAND_PRIMARY_SOFT = 'rgba(0,155,142,.12)';
   var BRAND_PRIMARY_RING = 'rgba(0,155,142,.36)';
+  var BRAND_PRIMARY_PULSE = 'rgba(0,155,142,.9)';
+  var BRAND_PRIMARY_PULSE_SOFT = 'rgba(0,155,142,.3)';
+  var BRAND_GUIDE_PULSE = 'rgba(18,184,134,1)';
+  var BRAND_GUIDE_PULSE_SOFT = 'rgba(18,184,134,.22)';
   var BRAND_GUIDE = '#12B886';
   var BRAND_POINTER = '#102033';
 
@@ -571,8 +575,8 @@
     s.textContent = [
       // 파란 테두리 pulse — body에 직접 적용
       '@keyframes mimicBorderPulse {',
-      '  0%,100% { box-shadow: inset 0 0 0 4px rgba(55,48,163,0.9), inset 0 0 0 6px rgba(55,48,163,0.3); }',
-      '  50%     { box-shadow: inset 0 0 0 4px rgba(99,102,241,1),   inset 0 0 0 10px rgba(99,102,241,0.2); }',
+      '  0%,100% { box-shadow: inset 0 0 0 4px ' + BRAND_PRIMARY_PULSE + ', inset 0 0 0 6px ' + BRAND_PRIMARY_PULSE_SOFT + '; }',
+      '  50%     { box-shadow: inset 0 0 0 4px ' + BRAND_GUIDE_PULSE + ',   inset 0 0 0 10px ' + BRAND_GUIDE_PULSE_SOFT + '; }',
       '}',
       // 클릭 ripple
       '@keyframes mimicRipple {',

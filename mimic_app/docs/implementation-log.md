@@ -119,3 +119,8 @@
 - Updated the shared Live Guide stage and interactive player from the old indigo/purple palette to Parro brand colors.
 - Updated the public `/play` viewer survey, document, share, slide, and hotspot controls to use Parro color tokens.
 - Preserved route names, share tokens, SDK compatibility identifiers, and stored data shapes.
+
+## 2026-07-10 - Parro SDK autorun pulse cleanup
+
+- Updated the remaining SDK AutoRun pulse keyframe colors from the old indigo palette to Parro primary/guide colors.
+- Preserved the existing `mimic-autorun-*` CSS identifiers for SDK compatibility.
