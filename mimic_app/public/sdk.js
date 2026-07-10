@@ -1,8 +1,8 @@
 /**
  * Parro Live Guide SDK
- * Usage: <script src="https://mimic-nine-ashen.vercel.app/sdk.js" data-guide="SHARE_TOKEN"></script>
- * Or:    window.MimicSDK.start('SHARE_TOKEN')
- * Or:    ?mimic_guide=SHARE_TOKEN in URL
+ * Usage: <script src="https://your-parro-app.example/sdk.js" data-guide="SHARE_TOKEN"></script>
+ * Legacy API names remain supported: window.MimicSDK.start('SHARE_TOKEN')
+ * Legacy query param remains supported: ?mimic_guide=SHARE_TOKEN
  */
 (function () {
   'use strict';

@@ -6,14 +6,14 @@ Parro is a B2B AI Live Guide for hands-on software training and classes. Instruc
 
 ## Key pages
 
-- [Service overview](https://mimic-nine-ashen.vercel.app/landingpage): product features, pricing, and FAQ
-- [Login](https://mimic-nine-ashen.vercel.app/auth/login): service login
-- [Sign up](https://mimic-nine-ashen.vercel.app/auth/signup): start for free
+- [Service overview](/landingpage): product features, pricing, and FAQ
+- [Login](/auth/login): service login
+- [Sign up](/auth/signup): start for free
 
 ## Legal
 
-- [Privacy policy](https://mimic-nine-ashen.vercel.app/legal/privacy)
-- [Terms of service](https://mimic-nine-ashen.vercel.app/legal/terms)
+- [Privacy policy](/legal/privacy)
+- [Terms of service](/legal/terms)
 
 ## Service information
 

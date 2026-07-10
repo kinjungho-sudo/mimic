@@ -217,3 +217,9 @@
 - Removed `scripts/replace_demo.py`, an old one-off landing page rewrite helper with hardcoded local paths and legacy MIMIC snippets.
 - Updated Parro audit/QA docs to stop preserving that helper as historical material.
 - Preserved runtime app code, routes, DB identifiers, env names, package names, deployment identifiers, and production logo/icon assets.
+
+## 2026-07-11 - Public crawler and SDK example cleanup
+
+- Changed `public/llms.txt` public links from the legacy deployment URL to relative paths.
+- Updated the public SDK header usage example to a neutral Parro placeholder while documenting that legacy `MimicSDK` and `mimic_guide` API names remain supported.
+- Preserved SDK runtime globals, query params, CSS identifiers, fallback deployment URL, routes, DB identifiers, env names, package names, and production logo/icon assets.

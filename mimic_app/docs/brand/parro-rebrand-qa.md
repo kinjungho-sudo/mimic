@@ -39,6 +39,7 @@ git diff --check
 - Re-ran focused admin old-color and temporary `M` mark search, `npm run lint`, `$env:NODE_OPTIONS='--use-system-ca'; npm run build`, and `git diff --check` after the admin color pass; all passed with only existing warnings.
 - Replaced the default Next.js `README.md` with a Parro public project introduction and re-ran root old-brand search plus `git diff --check`; results are limited to historical docs, compatibility identifiers, deployment/domain decisions, and blocked asset files.
 - Removed obsolete one-off `scripts/replace_demo.py`, which hardcoded an old local landing-page path and legacy MIMIC landing snippets; re-ran focused script reference search, `npm run lint`, and `git diff --check`.
+- Updated `public/llms.txt` to use relative public links and changed the public SDK header usage example to a neutral Parro placeholder while preserving SDK runtime compatibility identifiers.
 - `packages/mcp-server`: `npm ci` then `npm run build` passed.
 - `git diff --check`: passed.
 - `packages/mcp-server npm ci` reported 2 high severity dependency audit findings. No `npm audit fix` was run because that is outside the rebrand scope and can change dependency versions.
@@ -55,7 +56,7 @@ git diff --check
 - Production logo/icon assets still reference current files such as `public/logo.svg`, `app/icon.svg`, `public/mimic-logo.png`, and `public/icons/*.png`. App/library uses of the bitmap logo path now go through `BRAND_LOGO_IMAGE_PATH`, and visible in-app temporary marks use `BrandMark`, but production asset replacement is blocked until the owner provides production-ready Wing Pointer SVG assets.
 - Current asset evidence: `public/logo.svg` and `app/icon.svg` are still the old circular `M` mark; `public/favicon.svg` does not exist. See `docs/brand/parro-logo-asset-handoff.md`.
 - Public support/contact email remains `support@mimic.so` in help/chat/auth copy through `BRAND_SUPPORT_EMAIL`. This is now centralized, but the address itself is still a domain and operations decision for Phase 2.
-- Deployment URLs remain `mimic-nine-ashen.vercel.app`. App/library fallbacks now go through `BRAND_APP_URL_FALLBACK`/`getBrandAppUrl()`, while static files such as `robots.txt`, `llms.txt`, and `public/sdk.js` still need a Phase 2 domain pass. These are deployment identifiers and should move only after domain/Vercel decisions.
+- Deployment URLs remain `mimic-nine-ashen.vercel.app`. App/library fallbacks now go through `BRAND_APP_URL_FALLBACK`/`getBrandAppUrl()`, `public/llms.txt` uses relative links, and static/runtime files such as `robots.txt` plus the `public/sdk.js` fallback still need a Phase 2 domain pass. These are deployment identifiers and should move only after domain/Vercel decisions.
 - Chrome Web Store URL slug remains `mimic-recorder`; the visible extension name is now `Parro Recorder`, and app references now go through `BRAND_EXTENSION_STORE_URL`, but the store slug/extension identity is preserved.
 
 ## Internal identifiers intentionally preserved
