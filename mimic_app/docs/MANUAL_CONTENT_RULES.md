@@ -1,6 +1,6 @@
 # 매뉴얼 제목/본문 생성 규칙
 
-이 문서는 MIMIC이 녹화 데이터를 매뉴얼로 바꿀 때 `tutorial_title`, `user_title`, `user_script`, annotation label을 어떻게 작성해야 하는지 정의한다.
+이 문서는 Parro가 녹화 데이터를 매뉴얼로 바꿀 때 `tutorial_title`, `user_title`, `user_script`, annotation label을 어떻게 작성해야 하는지 정의한다.
 
 기존 문서나 프롬프트에 `~를 클릭합니다` 중심 규칙이 남아 있더라도, 매뉴얼 콘텐츠 품질 판단은 이 문서를 우선한다.
 

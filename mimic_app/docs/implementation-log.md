@@ -53,3 +53,9 @@
 - Created `docs/brand/parro-rebrand-qa.md`.
 - Recorded final lint/build/search results for the current public rebrand batch.
 - Classified remaining old-brand references as asset/domain decisions, internal compatibility identifiers, or historical docs.
+
+## 2026-07-10 - Parro public docs and SDK label cleanup
+
+- Updated a public SDK file header from MIMIC to Parro while preserving `MimicSDK`, `MimicAutoRun`, `mimic_guide`, `data-mimic-float`, deployment URL, and CSS compatibility identifiers.
+- Updated the manual content rules intro to use Parro as the public product name.
+- Left operational n8n workflow names, package names, and MCP identifiers unchanged.
