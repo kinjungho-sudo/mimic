@@ -51,23 +51,23 @@ function sendMessage(action: string, payload?: Record<string, unknown>): Promise
   return new Promise(resolve => {
     const extensionId = process.env.NEXT_PUBLIC_EXTENSION_ID?.replace(/^﻿/, '').trim();
     if (!extensionId || !isExtensionInstalled()) {
-      console.warn('[MIMIC] 확장 없음 또는 extensionId 미설정, 바이패스');
+      console.warn('[Parro] 확장 없음 또는 extensionId 미설정, 바이패스');
       resolve(null);
       return;
     }
     // 5초 타임아웃 — 확장이 응답 안 하면 null 반환
     const timer = setTimeout(() => {
-      console.warn('[MIMIC] sendMessage 타임아웃:', action);
+      console.warn('[Parro] sendMessage 타임아웃:', action);
       resolve(null);
     }, 5000);
     window.chrome!.runtime!.sendMessage(extensionId, { action, ...payload }, resp => {
       clearTimeout(timer);
       if (window.chrome?.runtime?.lastError) {
-        console.warn('[MIMIC] lastError:', window.chrome.runtime.lastError.message);
+        console.warn('[Parro] lastError:', window.chrome.runtime.lastError.message);
         resolve(null);
         return;
       }
-      console.log('[MIMIC] 응답:', action, resp);
+      console.log('[Parro] 응답:', action, resp);
       resolve(resp);
     });
   });
@@ -91,18 +91,18 @@ async function wakeAndSend(action: string, payload?: Record<string, unknown>, re
     await new Promise(r => setTimeout(r, 600));
   }
   // 모든 재시도 실패
-  console.warn('[MIMIC] Service Worker 웨이크업 실패:', action);
+  console.warn('[Parro] Service Worker 웨이크업 실패:', action);
   return null;
 }
 
 async function fetchOpenTabs(): Promise<TabsResponse | null> {
   const resp = await wakeAndSend('GET_TABS') as TabsResponse | null;
   if (!resp || !Array.isArray(resp.tabs)) {
-    console.warn('[MIMIC] GET_TABS 실패 또는 빈 응답:', resp);
+    console.warn('[Parro] GET_TABS 실패 또는 빈 응답:', resp);
     return null;
   }
   if (resp.tabs.length === 0 || resp.diagnostics?.missingUrl) {
-    console.warn('[MIMIC] GET_TABS 진단:', resp);
+    console.warn('[Parro] GET_TABS 진단:', resp);
   }
   return resp;
 }
@@ -114,7 +114,7 @@ async function linkExtensionToCurrentUser(): Promise<boolean> {
   try {
     const res = await fetch('/api/extension/link', { method: 'POST' });
     if (!res.ok) {
-      console.warn('[MIMIC] extension link token 발급 실패:', res.status);
+      console.warn('[Parro] extension link token 발급 실패:', res.status);
       return false;
     }
 
@@ -123,12 +123,12 @@ async function linkExtensionToCurrentUser(): Promise<boolean> {
 
     const resp = await wakeAndSend('LINK_USER', { token: data.token }) as ExtensionLinkResponse | null;
     if (!resp?.ok) {
-      console.warn('[MIMIC] extension LINK_USER 실패:', resp?.error);
+      console.warn('[Parro] extension LINK_USER 실패:', resp?.error);
       return false;
     }
     return true;
   } catch (err) {
-    console.warn('[MIMIC] extension 재연동 실패:', err);
+    console.warn('[Parro] extension 재연동 실패:', err);
     return false;
   }
 }

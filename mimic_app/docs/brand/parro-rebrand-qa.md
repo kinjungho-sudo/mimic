@@ -7,6 +7,8 @@ Ran from `mimic_app` on `2026-07-10`.
 ```bash
 npm run lint
 $env:NODE_OPTIONS='--use-system-ca'; npm run build
+npm ci
+npm run build
 rg -n "MIMIC|Mimic|mimic|미믹" . --glob "!node_modules" --glob "!.next" --glob "!.git"
 git diff --check
 ```
@@ -15,7 +17,9 @@ git diff --check
 
 - `npm run lint`: passed.
 - `npm run build`: passed.
+- `packages/mcp-server`: `npm ci` then `npm run build` passed.
 - `git diff --check`: passed.
+- `packages/mcp-server npm ci` reported 2 high severity dependency audit findings. No `npm audit fix` was run because that is outside the rebrand scope and can change dependency versions.
 - Existing lint/build warnings remain unrelated to the rebrand:
   - `app/manual/[id]/editor/page.tsx`: missing hook dependency `id`.
   - `app/mypage/page.tsx`: missing hook dependencies `updateUser`, `user`.
@@ -38,7 +42,7 @@ git diff --check
 - API route filenames and environment/header identifiers including `x-mimic-secret`, `MIMIC_EXTENSION_ID`, and `NEXT_PUBLIC_APP_URL`.
 - SDK compatibility globals/classes/query params in `public/sdk.js`, including `window.MimicSDK`, `window.MimicAutoRun`, `mimic_guide`, `data-mimic-float`, and `mimic-*` CSS classes.
 - Local storage and drag/drop keys such as `mimic:survey:*`, `mimic_annot_defaults_v1`, and `text/mimic-tutorial`.
-- Debug log tags such as `[MIMIC]` in extension communication diagnostics.
+- SDK/recorder console log tags have been updated to `[Parro]`; compatibility names remain unchanged.
 - Legacy matching keywords in the help chat so users asking about the old name can still get an answer.
 
 ## Historical docs intentionally preserved

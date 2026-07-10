@@ -470,7 +470,7 @@
         }
         launchGuide(data, opts);
       })
-      .catch(function (e) { console.error('[MIMIC]', e); });
+      .catch(function (e) { console.error('[Parro]', e); });
   }
 
   function launchGuide(data, opts) {

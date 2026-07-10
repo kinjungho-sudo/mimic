@@ -1,6 +1,6 @@
 # 공유 메일 — n8n 워크플로우 설정 가이드
 
-MIMIC 공유 메일을 **n8n(Webhook → Gmail)** 으로 발송한다.
+Parro 공유 메일을 **n8n(Webhook → Gmail)** 으로 발송한다.
 Resend는 인증 도메인이 없어 보류. n8n의 Gmail 노드는 **본인 Gmail 계정으로 OAuth 인증**하므로 도메인이 필요 없다.
 
 ## 흐름
@@ -32,7 +32,7 @@ payload: { to, subject, html, fromName, replyTo }
 
 ```json
 {
-  "name": "MIMIC Share Email",
+  "name": "Parro Share Email",
   "nodes": [
     {
       "parameters": {

@@ -59,3 +59,10 @@
 - Updated a public SDK file header from MIMIC to Parro while preserving `MimicSDK`, `MimicAutoRun`, `mimic_guide`, `data-mimic-float`, deployment URL, and CSS compatibility identifiers.
 - Updated the manual content rules intro to use Parro as the public product name.
 - Left operational n8n workflow names, package names, and MCP identifiers unchanged.
+
+## 2026-07-10 - Parro MCP and console label cleanup
+
+- Updated MCP server human-facing README, package description, and tool description text to Parro.
+- Preserved the `@mimic/mcp-server` package name and `mimic` MCP server key for compatibility.
+- Updated SDK and recorder console log prefixes from `[MIMIC]` to `[Parro]` while preserving SDK globals, CSS classes, query params, and extension/store identifiers.
+- Updated the n8n setup guide display name to Parro while preserving `x-mimic-secret` and `mimic-share-email` webhook path.
