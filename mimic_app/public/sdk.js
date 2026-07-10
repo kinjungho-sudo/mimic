@@ -22,6 +22,12 @@
   })();
 
   var Z = 2147483647;
+  var BRAND_PRIMARY = '#009B8E';
+  var BRAND_PRIMARY_HOVER = '#00796F';
+  var BRAND_PRIMARY_SOFT = 'rgba(0,155,142,.12)';
+  var BRAND_PRIMARY_RING = 'rgba(0,155,142,.36)';
+  var BRAND_GUIDE = '#12B886';
+  var BRAND_POINTER = '#102033';
 
   // ── 스타일 주입 ────────────────────────────────────────────
   function injectStyles() {
@@ -31,25 +37,25 @@
     style.textContent = [
       '.mimic-overlay{position:fixed;inset:0;z-index:' + (Z - 2) + ';pointer-events:none}',
       '.mimic-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:' + (Z - 3) + ';transition:opacity .25s}',
-      '.mimic-highlight{position:absolute;border-radius:6px;box-shadow:0 0 0 4px #4F46E5,0 0 0 9999px rgba(0,0,0,0.45);pointer-events:none;transition:all .25s;z-index:' + (Z - 1) + '}',
+      '.mimic-highlight{position:absolute;border-radius:6px;box-shadow:0 0 0 4px ' + BRAND_PRIMARY + ',0 0 0 9999px rgba(0,0,0,0.45);pointer-events:none;transition:all .25s;z-index:' + (Z - 1) + '}',
       '.mimic-tooltip{position:absolute;background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(17,24,39,.18),0 0 0 1px rgba(0,0,0,.06);padding:18px 20px 16px;min-width:260px;max-width:340px;pointer-events:all;z-index:' + Z + ';font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}',
       '.mimic-tooltip-center{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%)}',
-      '.mimic-step-badge{display:inline-block;font-size:11px;font-weight:700;color:#4F46E5;background:rgba(79,70,229,.1);padding:2px 8px;border-radius:20px;margin-bottom:8px}',
+      '.mimic-step-badge{display:inline-block;font-size:11px;font-weight:700;color:' + BRAND_PRIMARY + ';background:' + BRAND_PRIMARY_SOFT + ';padding:2px 8px;border-radius:20px;margin-bottom:8px}',
       '.mimic-tooltip-title{font-size:14px;font-weight:700;color:#111827;margin:0 0 6px;line-height:1.4}',
       '.mimic-tooltip-caption{font-size:13px;color:#4B5563;line-height:1.6;margin:0 0 14px}',
       '.mimic-tooltip-actions{display:flex;align-items:center;justify-content:space-between;gap:8px}',
       '.mimic-btn{height:32px;padding:0 14px;border-radius:7px;font-size:12.5px;font-weight:600;border:none;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px}',
-      '.mimic-btn-primary{background:#4F46E5;color:#fff}',
-      '.mimic-btn-primary:hover{background:#4338CA}',
+      '.mimic-btn-primary{background:' + BRAND_PRIMARY + ';color:#fff}',
+      '.mimic-btn-primary:hover{background:' + BRAND_PRIMARY_HOVER + '}',
       '.mimic-btn-secondary{background:#F3F4F6;color:#374151}',
       '.mimic-btn-secondary:hover{background:#E5E7EB}',
       '.mimic-btn-ghost{background:none;color:#9CA3AF;font-size:12px;padding:0 8px}',
       '.mimic-btn-ghost:hover{color:#6B7280}',
       '.mimic-progress{display:flex;align-items:center;gap:4px}',
       '.mimic-progress-dot{width:6px;height:6px;border-radius:50%;background:#E5E7EB;transition:background .2s}',
-      '.mimic-progress-dot.active{background:#4F46E5}',
-      '.mimic-float-btn{position:fixed;bottom:24px;right:24px;width:48px;height:48px;border-radius:50%;background:#4F46E5;color:#fff;border:none;cursor:pointer;box-shadow:0 4px 14px rgba(79,70,229,.45);display:flex;align-items:center;justify-content:center;z-index:' + (Z - 4) + ';transition:all .2s}',
-      '.mimic-float-btn:hover{background:#4338CA;transform:scale(1.08)}',
+      '.mimic-progress-dot.active{background:' + BRAND_PRIMARY + '}',
+      '.mimic-float-btn{position:fixed;bottom:24px;right:24px;width:48px;height:48px;border-radius:50%;background:' + BRAND_PRIMARY + ';color:#fff;border:none;cursor:pointer;box-shadow:0 4px 14px ' + BRAND_PRIMARY_RING + ';display:flex;align-items:center;justify-content:center;z-index:' + (Z - 4) + ';transition:all .2s}',
+      '.mimic-float-btn:hover{background:' + BRAND_PRIMARY_HOVER + ';transform:scale(1.08)}',
       '.mimic-close{position:absolute;top:10px;right:10px;background:none;border:none;cursor:pointer;color:#9CA3AF;padding:4px;line-height:1}',
       '.mimic-close:hover{color:#6B7280}',
     ].join('');
@@ -408,7 +414,7 @@
     input.type = 'password';
     input.placeholder = '비밀번호 입력';
     input.style.cssText = 'width:100%;box-sizing:border-box;height:38px;padding:0 12px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:14px;outline:none;margin-bottom:12px';
-    input.addEventListener('focus', function () { input.style.borderColor = '#4F46E5'; });
+    input.addEventListener('focus', function () { input.style.borderColor = BRAND_PRIMARY; });
     input.addEventListener('blur', function () { input.style.borderColor = '#E5E7EB'; });
 
     var errMsg = document.createElement('p');
@@ -608,7 +614,7 @@
       '#mimic-autorun-bar .mar-title { max-width: 200px; overflow: hidden; text-overflow: ellipsis; }',
       '#mimic-autorun-bar .mar-progress { display: flex; align-items: center; gap: 6px; color: rgba(255,255,255,0.5); font-size: 12px; }',
       '#mimic-autorun-bar .mar-bar { width: 80px; height: 3px; background: rgba(255,255,255,0.15); border-radius: 999px; overflow: hidden; }',
-      '#mimic-autorun-bar .mar-bar-fill { height: 100%; background: #6366f1; border-radius: 999px; transition: width 0.4s ease; }',
+      '#mimic-autorun-bar .mar-bar-fill { height: 100%; background: ' + BRAND_GUIDE + '; border-radius: 999px; transition: width 0.4s ease; }',
       '#mimic-autorun-bar .mar-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); color: white; border-radius: 6px; padding: 4px 10px; font-size: 11px; cursor: pointer; transition: background 0.15s; }',
       '#mimic-autorun-bar .mar-btn:hover { background: rgba(255,255,255,0.2); }',
       '#mimic-autorun-bar .mar-divider { width: 1px; height: 18px; background: rgba(255,255,255,0.12); }',
@@ -621,8 +627,8 @@
     var el = document.createElement('div');
     el.id = 'mimic-autorun-cursor';
     el.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none">'
-      + '<path d="M4 2 L18 12 L11 13 L8 20 Z" fill="white" stroke="#3730a3" stroke-width="1.5" stroke-linejoin="round"/>'
-      + '<circle cx="18" cy="18" r="4" fill="#6366f1"/>'
+      + '<path d="M4 2 L18 12 L11 13 L8 20 Z" fill="white" stroke="' + BRAND_POINTER + '" stroke-width="1.5" stroke-linejoin="round"/>'
+      + '<circle cx="18" cy="18" r="4" fill="' + BRAND_GUIDE + '"/>'
       + '</svg>';
     el.style.left = '-100px';
     el.style.top = '-100px';

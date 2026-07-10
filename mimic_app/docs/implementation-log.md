@@ -107,3 +107,9 @@
 
 - Updated mock user data from `demo@mimicflow.com` to reserved-domain `demo@parro.example`.
 - Preserved the real development guest login account `devtest@mimic.dev`.
+
+## 2026-07-10 - Parro SDK guide color pass
+
+- Updated the public SDK overlay colors from the old indigo palette to Parro teal/guide/pointer colors.
+- Updated the editor SDK preview panel to reuse `BRAND_COLORS.primary`.
+- Preserved SDK compatibility names such as `MimicSDK`, `MimicAutoRun`, `mimic_guide`, and `mimic-*` CSS classes.
