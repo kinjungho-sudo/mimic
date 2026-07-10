@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { sendParroEmail } from '@/lib/email/email-n8n';
-import { BRAND_NAME } from '@/lib/brand';
+import { BRAND_COLORS, BRAND_NAME } from '@/lib/brand';
+
+const EMAIL_GRADIENT = `linear-gradient(135deg,${BRAND_COLORS.primary},${BRAND_COLORS.guide})`;
 
 const schema = z.object({
   message: z.string().min(5).max(10000),
@@ -43,7 +45,7 @@ export async function POST(request: NextRequest) {
     <tr><td align="center">
       <table width="560" cellpadding="0" cellspacing="0" style="background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
         <tr>
-          <td style="background:linear-gradient(135deg,#3730a3,#6d28d9);padding:24px 40px;">
+          <td style="background:${EMAIL_GRADIENT};padding:24px 40px;">
             <p style="margin:0;font-size:18px;font-weight:800;color:white;">${emoji} ${BRAND_NAME} 사용자 문의 — ${category}</p>
             <p style="margin:6px 0 0;font-size:12px;color:rgba(255,255,255,0.7);">${now}</p>
           </td>

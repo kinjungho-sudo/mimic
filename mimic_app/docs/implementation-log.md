@@ -129,3 +129,9 @@
 
 - Updated Resend, n8n, and share-email HTML templates from the old indigo/purple palette to Parro brand color tokens.
 - Preserved n8n webhook configuration, legacy secret header values, email routes, sender/reply-to settings, and current logo path.
+
+## 2026-07-10 - Parro extension link and contact color pass
+
+- Updated the extension link setup page and admin contact email header from the old indigo/purple palette to Parro brand color tokens.
+- Updated the shared temporary inline `BrandMark` from an `M` glyph to a Parro `P` glyph while keeping final Wing Pointer SVG asset replacement deferred.
+- Preserved the Chrome Web Store URL slug, contact email routing, n8n webhook configuration, and support/reply-to addresses.
