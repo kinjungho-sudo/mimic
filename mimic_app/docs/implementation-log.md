@@ -254,3 +254,8 @@
 
 - Added `window.ParroGuide` as the primary Live Guide runtime API in the Chrome extension.
 - Preserved `window.MimicGuide` as a compatibility alias and updated content-script calls to prefer `ParroGuide` with legacy fallback.
+
+## 2026-07-11 - Parro SDK DOM class alias pass
+
+- Added `parro-*` DOM/CSS classes and `parro-sdk-styles` for newly generated public SDK guide UI.
+- Preserved legacy `mimic-*` classes and duplicate-prevention checks so existing embeds and CSS overrides remain compatible.

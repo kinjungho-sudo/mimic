@@ -49,6 +49,7 @@ git diff --check
 - Added public Parro SDK aliases (`window.ParroSDK`, `window.ParroAutoRun`, `?parro_guide=...`, `data-parro-float`) while preserving legacy SDK compatibility names, then re-ran `node --check public/sdk.js`, `npm run lint`, focused SDK alias search, and a Node VM smoke test confirming Parro/Mimic SDK aliases point to the same objects.
 - Removed unused old public product/extension name constants from `LEGACY_INTERNAL_IDENTIFIERS` and updated an internal auth comment to `Parro Recorder`; `npm run lint` passed with only existing warnings.
 - Added `window.ParroGuide` as the primary recorder Live Guide runtime API while keeping `window.MimicGuide` as a compatibility alias; re-ran `node --check` for `content.js` and `guide-engine.js`, plus a Node VM smoke test confirming both names point to the same object.
+- Added `parro-*` public SDK DOM/CSS classes and `parro-sdk-styles` while preserving legacy `mimic-*` class compatibility; re-ran `node --check public/sdk.js`, `npm run lint`, SDK alias smoke test, and `git diff --check`.
 - `packages/mcp-server`: `npm ci` then `npm run build` passed.
 - `git diff --check`: passed.
 - `packages/mcp-server npm ci` reported 2 high severity dependency audit findings. No `npm audit fix` was run because that is outside the rebrand scope and can change dependency versions.

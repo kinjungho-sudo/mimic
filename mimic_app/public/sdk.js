@@ -37,33 +37,33 @@
 
   // ── 스타일 주입 ────────────────────────────────────────────
   function injectStyles() {
-    if (document.getElementById('mimic-sdk-styles')) return;
+    if (document.getElementById('parro-sdk-styles') || document.getElementById('mimic-sdk-styles')) return;
     var style = document.createElement('style');
-    style.id = 'mimic-sdk-styles';
+    style.id = 'parro-sdk-styles';
     style.textContent = [
-      '.mimic-overlay{position:fixed;inset:0;z-index:' + (Z - 2) + ';pointer-events:none}',
-      '.mimic-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:' + (Z - 3) + ';transition:opacity .25s}',
-      '.mimic-highlight{position:absolute;border-radius:6px;box-shadow:0 0 0 4px ' + BRAND_PRIMARY + ',0 0 0 9999px rgba(0,0,0,0.45);pointer-events:none;transition:all .25s;z-index:' + (Z - 1) + '}',
-      '.mimic-tooltip{position:absolute;background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(17,24,39,.18),0 0 0 1px rgba(0,0,0,.06);padding:18px 20px 16px;min-width:260px;max-width:340px;pointer-events:all;z-index:' + Z + ';font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}',
-      '.mimic-tooltip-center{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%)}',
-      '.mimic-step-badge{display:inline-block;font-size:11px;font-weight:700;color:' + BRAND_PRIMARY + ';background:' + BRAND_PRIMARY_SOFT + ';padding:2px 8px;border-radius:20px;margin-bottom:8px}',
-      '.mimic-tooltip-title{font-size:14px;font-weight:700;color:#111827;margin:0 0 6px;line-height:1.4}',
-      '.mimic-tooltip-caption{font-size:13px;color:#4B5563;line-height:1.6;margin:0 0 14px}',
-      '.mimic-tooltip-actions{display:flex;align-items:center;justify-content:space-between;gap:8px}',
-      '.mimic-btn{height:32px;padding:0 14px;border-radius:7px;font-size:12.5px;font-weight:600;border:none;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px}',
-      '.mimic-btn-primary{background:' + BRAND_PRIMARY + ';color:#fff}',
-      '.mimic-btn-primary:hover{background:' + BRAND_PRIMARY_HOVER + '}',
-      '.mimic-btn-secondary{background:#F3F4F6;color:#374151}',
-      '.mimic-btn-secondary:hover{background:#E5E7EB}',
-      '.mimic-btn-ghost{background:none;color:#9CA3AF;font-size:12px;padding:0 8px}',
-      '.mimic-btn-ghost:hover{color:#6B7280}',
-      '.mimic-progress{display:flex;align-items:center;gap:4px}',
-      '.mimic-progress-dot{width:6px;height:6px;border-radius:50%;background:#E5E7EB;transition:background .2s}',
-      '.mimic-progress-dot.active{background:' + BRAND_PRIMARY + '}',
-      '.mimic-float-btn{position:fixed;bottom:24px;right:24px;width:48px;height:48px;border-radius:50%;background:' + BRAND_PRIMARY + ';color:#fff;border:none;cursor:pointer;box-shadow:0 4px 14px ' + BRAND_PRIMARY_RING + ';display:flex;align-items:center;justify-content:center;z-index:' + (Z - 4) + ';transition:all .2s}',
-      '.mimic-float-btn:hover{background:' + BRAND_PRIMARY_HOVER + ';transform:scale(1.08)}',
-      '.mimic-close{position:absolute;top:10px;right:10px;background:none;border:none;cursor:pointer;color:#9CA3AF;padding:4px;line-height:1}',
-      '.mimic-close:hover{color:#6B7280}',
+      '.parro-overlay,.mimic-overlay{position:fixed;inset:0;z-index:' + (Z - 2) + ';pointer-events:none}',
+      '.parro-backdrop,.mimic-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:' + (Z - 3) + ';transition:opacity .25s}',
+      '.parro-highlight,.mimic-highlight{position:absolute;border-radius:6px;box-shadow:0 0 0 4px ' + BRAND_PRIMARY + ',0 0 0 9999px rgba(0,0,0,0.45);pointer-events:none;transition:all .25s;z-index:' + (Z - 1) + '}',
+      '.parro-tooltip,.mimic-tooltip{position:absolute;background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(17,24,39,.18),0 0 0 1px rgba(0,0,0,.06);padding:18px 20px 16px;min-width:260px;max-width:340px;pointer-events:all;z-index:' + Z + ';font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}',
+      '.parro-tooltip-center,.mimic-tooltip-center{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%)}',
+      '.parro-step-badge,.mimic-step-badge{display:inline-block;font-size:11px;font-weight:700;color:' + BRAND_PRIMARY + ';background:' + BRAND_PRIMARY_SOFT + ';padding:2px 8px;border-radius:20px;margin-bottom:8px}',
+      '.parro-tooltip-title,.mimic-tooltip-title{font-size:14px;font-weight:700;color:#111827;margin:0 0 6px;line-height:1.4}',
+      '.parro-tooltip-caption,.mimic-tooltip-caption{font-size:13px;color:#4B5563;line-height:1.6;margin:0 0 14px}',
+      '.parro-tooltip-actions,.mimic-tooltip-actions{display:flex;align-items:center;justify-content:space-between;gap:8px}',
+      '.parro-btn,.mimic-btn{height:32px;padding:0 14px;border-radius:7px;font-size:12.5px;font-weight:600;border:none;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px}',
+      '.parro-btn-primary,.mimic-btn-primary{background:' + BRAND_PRIMARY + ';color:#fff}',
+      '.parro-btn-primary:hover,.mimic-btn-primary:hover{background:' + BRAND_PRIMARY_HOVER + '}',
+      '.parro-btn-secondary,.mimic-btn-secondary{background:#F3F4F6;color:#374151}',
+      '.parro-btn-secondary:hover,.mimic-btn-secondary:hover{background:#E5E7EB}',
+      '.parro-btn-ghost,.mimic-btn-ghost{background:none;color:#9CA3AF;font-size:12px;padding:0 8px}',
+      '.parro-btn-ghost:hover,.mimic-btn-ghost:hover{color:#6B7280}',
+      '.parro-progress,.mimic-progress{display:flex;align-items:center;gap:4px}',
+      '.parro-progress-dot,.mimic-progress-dot{width:6px;height:6px;border-radius:50%;background:#E5E7EB;transition:background .2s}',
+      '.parro-progress-dot.active,.mimic-progress-dot.active{background:' + BRAND_PRIMARY + '}',
+      '.parro-float-btn,.mimic-float-btn{position:fixed;bottom:24px;right:24px;width:48px;height:48px;border-radius:50%;background:' + BRAND_PRIMARY + ';color:#fff;border:none;cursor:pointer;box-shadow:0 4px 14px ' + BRAND_PRIMARY_RING + ';display:flex;align-items:center;justify-content:center;z-index:' + (Z - 4) + ';transition:all .2s}',
+      '.parro-float-btn:hover,.mimic-float-btn:hover{background:' + BRAND_PRIMARY_HOVER + ';transform:scale(1.08)}',
+      '.parro-close,.mimic-close{position:absolute;top:10px;right:10px;background:none;border:none;cursor:pointer;color:#9CA3AF;padding:4px;line-height:1}',
+      '.parro-close:hover,.mimic-close:hover{color:#6B7280}',
     ].join('');
     document.head.appendChild(style);
   }
@@ -214,7 +214,7 @@
     // 하이라이트
     if (targetEl) {
       var highlight = document.createElement('div');
-      highlight.className = 'mimic-highlight';
+      highlight.className = 'parro-highlight mimic-highlight';
       var r = getRect(targetEl);
       var PAD = 4;
       highlight.style.cssText = [
@@ -231,7 +231,7 @@
     } else {
       // 배경 딤
       var backdrop = document.createElement('div');
-      backdrop.className = 'mimic-backdrop';
+      backdrop.className = 'parro-backdrop mimic-backdrop';
       backdrop.addEventListener('click', function () { self.destroy(); });
       document.body.appendChild(backdrop);
       this._els.backdrop = backdrop;
@@ -239,11 +239,11 @@
 
     // 툴팁 생성
     var tooltip = document.createElement('div');
-    tooltip.className = 'mimic-tooltip';
+    tooltip.className = 'parro-tooltip mimic-tooltip';
 
     // 닫기 버튼
     var closeBtn = document.createElement('button');
-    closeBtn.className = 'mimic-close';
+    closeBtn.className = 'parro-close mimic-close';
     closeBtn.setAttribute('aria-label', '닫기');
     closeBtn.appendChild(makeCloseIcon());
     closeBtn.addEventListener('click', function () { self.destroy(); });
@@ -251,38 +251,38 @@
 
     // 뱃지
     var badge = document.createElement('div');
-    badge.className = 'mimic-step-badge';
+    badge.className = 'parro-step-badge mimic-step-badge';
     badge.textContent = (this.current + 1) + ' / ' + this.steps.length;
     tooltip.appendChild(badge);
 
     // 제목
     var titleEl = document.createElement('p');
-    titleEl.className = 'mimic-tooltip-title';
+    titleEl.className = 'parro-tooltip-title mimic-tooltip-title';
     titleEl.textContent = step.title || '';
     tooltip.appendChild(titleEl);
 
     // 설명
     if (step.caption) {
       var caption = document.createElement('p');
-      caption.className = 'mimic-tooltip-caption';
+      caption.className = 'parro-tooltip-caption mimic-tooltip-caption';
       caption.textContent = step.caption;
       tooltip.appendChild(caption);
     }
 
     // 진행 dots + 버튼
     var actions = document.createElement('div');
-    actions.className = 'mimic-tooltip-actions';
+    actions.className = 'parro-tooltip-actions mimic-tooltip-actions';
 
     // 진행 dots
     var progress = document.createElement('div');
-    progress.className = 'mimic-progress';
+    progress.className = 'parro-progress mimic-progress';
     var MAX_DOTS = 7;
     var total = this.steps.length;
     var shown = Math.min(total, MAX_DOTS);
     var offset = total > MAX_DOTS ? Math.max(0, Math.min(this.current - Math.floor(MAX_DOTS / 2), total - MAX_DOTS)) : 0;
     for (var i = 0; i < shown; i++) {
       var dot = document.createElement('div');
-      dot.className = 'mimic-progress-dot' + (i + offset === this.current ? ' active' : '');
+      dot.className = 'parro-progress-dot mimic-progress-dot' + (i + offset === this.current ? ' active' : '');
       progress.appendChild(dot);
     }
     actions.appendChild(progress);
@@ -293,7 +293,7 @@
 
     if (step.audio_url) {
       var audioBtn = document.createElement('button');
-      audioBtn.className = 'mimic-btn mimic-btn-secondary';
+      audioBtn.className = 'parro-btn parro-btn-secondary mimic-btn mimic-btn-secondary';
       audioBtn.textContent = '음성';
       audioBtn.addEventListener('click', function () { self._playAudio(step.audio_url); });
       btnGroup.appendChild(audioBtn);
@@ -301,7 +301,7 @@
 
     if (this.current > 0) {
       var prevBtn = document.createElement('button');
-      prevBtn.className = 'mimic-btn mimic-btn-secondary';
+      prevBtn.className = 'parro-btn parro-btn-secondary mimic-btn mimic-btn-secondary';
       prevBtn.textContent = '이전';
       prevBtn.addEventListener('click', function () { self.prev(); });
       btnGroup.appendChild(prevBtn);
@@ -309,7 +309,7 @@
 
     var isLast = this.current === this.steps.length - 1;
     var nextBtn = document.createElement('button');
-    nextBtn.className = 'mimic-btn mimic-btn-primary';
+    nextBtn.className = 'parro-btn parro-btn-primary mimic-btn mimic-btn-primary';
     nextBtn.textContent = isLast ? '완료 ✓' : '다음 →';
     nextBtn.addEventListener('click', function () {
       if (isLast) self.destroy();
@@ -329,7 +329,7 @@
       tooltip.style.top = pos.top + 'px';
       tooltip.style.left = pos.left + 'px';
     } else {
-      tooltip.classList.add('mimic-tooltip-center');
+      tooltip.classList.add('parro-tooltip-center', 'mimic-tooltip-center');
     }
 
     this._els.tooltip = tooltip;
@@ -383,7 +383,7 @@
     var self = this;
     injectStyles();
     var btn = document.createElement('button');
-    btn.className = 'mimic-float-btn';
+    btn.className = 'parro-float-btn mimic-float-btn';
     btn.title = '가이드 시작';
     btn.setAttribute('aria-label', '가이드 시작');
     btn.appendChild(makeHelpIcon());
@@ -431,13 +431,13 @@
     btnRow.style.cssText = 'display:flex;gap:8px';
 
     var cancelBtn = document.createElement('button');
-    cancelBtn.className = 'mimic-btn mimic-btn-secondary';
+    cancelBtn.className = 'parro-btn parro-btn-secondary mimic-btn mimic-btn-secondary';
     cancelBtn.style.flex = '1';
     cancelBtn.textContent = '취소';
     cancelBtn.addEventListener('click', function () { overlay.remove(); });
 
     var okBtn = document.createElement('button');
-    okBtn.className = 'mimic-btn mimic-btn-primary';
+    okBtn.className = 'parro-btn parro-btn-primary mimic-btn mimic-btn-primary';
     okBtn.style.flex = '1';
     okBtn.textContent = '확인';
 
