@@ -23,3 +23,9 @@
 - Replaced selected public-facing `MIMIC` text with centralized Parro brand constants in metadata, auth headers, public page attribution, embed watermark, help chat welcome text, extension-link labels, mypage headers, FAQ quick question, and OG image branding.
 - Preserved deployment URLs, `mimic-logo.png`, Chrome Web Store slug, dev test email, SDK globals, DB/schema identifiers, API route names, package names, and env/header identifiers.
 - Deferred logo/icon replacement until a production-ready Wing Pointer SVG is available.
+
+## 2026-07-10 - Parro public text surfaces batch 2
+
+- Replaced additional public-facing old-brand text in player metadata/header/share copy, settings, workspace invite, share/export modals, FAQ answers, contact/share/welcome email copy, and email subject defaults.
+- Preserved compatibility names such as `sendMimicEmail`, `x-mimic-secret`, `mimic-logo.png`, `mimic:survey:*`, Chrome Web Store slug, support email/domain, and deployment URLs.
+- Kept logo/icon asset replacement deferred pending production-ready SVG.

@@ -12,6 +12,7 @@ import { createClient } from '@/lib/supabase/client';
 import { toFollowSteps, clickToPct } from '@/lib/follow';
 import { startLiveGuide } from '@/lib/api/liveGuide';
 import { resolveStepAudio } from '@/lib/voice/playback';
+import { BRAND_NAME } from '@/lib/brand';
 import type { FollowConfig } from '@/types';
 import type { Annotation as DrawAnnotation } from '@/components/editor/ImageAnnotationEditor';
 
@@ -324,7 +325,7 @@ function SharePopup({ title, url, onClose }: { title: string; url: string; onClo
       objectType: 'feed',
       content: {
         title,
-        description: 'MIMIC으로 만든 단계별 인터랙티브 매뉴얼입니다.',
+        description: `${BRAND_NAME}으로 만든 단계별 인터랙티브 매뉴얼입니다.`,
         imageUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/mimic-logo.png`,
         link: { mobileWebUrl: url, webUrl: url },
       },
@@ -711,7 +712,7 @@ export default function PlayerPage() {
         {/* 브랜드 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 700, flexShrink: 0, color: viewMode === 'document' ? '#111827' : 'white' }}>
           <BrandMark />
-          {!isMobile && <span>MIMIC</span>}
+          {!isMobile && <span>{BRAND_NAME}</span>}
         </div>
         {!isMobile && <span style={{ color: viewMode === 'document' ? '#D1D5DB' : 'rgba(255,255,255,0.2)' }}>·</span>}
         <span style={{ fontSize: isMobile ? '13px' : '13.5px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0, color: viewMode === 'document' ? '#374151' : 'rgba(255,255,255,0.9)' }}>

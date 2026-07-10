@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import { BRAND_NAME } from '@/lib/brand';
 
 type InviteInfo = {
   id: string;
@@ -74,7 +75,7 @@ export default function WorkspaceInvitePage() {
                 <path d="M17.6 16.1 L20.1 17.6 L17.6 19.1 Z" fill="#3730a3"/>
               </svg>
             </span>
-            <span style={{ fontSize: '18px', fontWeight: 700, letterSpacing: '-0.02em' }}>MIMIC</span>
+            <span style={{ fontSize: '18px', fontWeight: 700, letterSpacing: '-0.02em' }}>{BRAND_NAME}</span>
           </Link>
         </div>
 
