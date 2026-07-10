@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { BRAND_COPY, BRAND_NAME, BRAND_SUPPORT_EMAIL } from '@/lib/brand';
+import { BrandMark } from '@/components/common/BrandMark';
+import { BRAND_COLORS, BRAND_COPY, BRAND_NAME, BRAND_SUPPORT_EMAIL } from '@/lib/brand';
+
+const BRAND_NAV_ACTIVE = BRAND_COLORS.guideSoft;
 
 // ── 목차 구조 ──────────────────────────────────────────────
 
@@ -67,7 +70,7 @@ function SectionContent({ id }: { id: string }) {
   const li = (text: string, i: number) => (
     <li key={i} style={{ fontSize: '14.5px', color: '#4B5563', lineHeight: 1.75, marginBottom: '6px' }}>{text}</li>
   );
-  const chip = (text: string, color = '#e0e7ff', textColor = '#3730a3') => (
+  const chip = (text: string, color: string = BRAND_COLORS.guideSoft, textColor: string = BRAND_COLORS.primary) => (
     <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: '6px', background: color, color: textColor, fontSize: '12px', fontWeight: 600, marginRight: '6px' }}>{text}</span>
   );
   const kbd = (text: string) => (
@@ -440,22 +443,22 @@ function SectionContent({ id }: { id: string }) {
               {
                 name: 'Pro',
                 price: '문의',
-                color: '#EEF2FF',
-                border: '#a5b4fc',
+                color: BRAND_COLORS.guideSoft,
+                border: BRAND_COLORS.border,
                 features: ['매뉴얼 생성 한도 확대', 'PDF/PPTX/Word 내보내기', '비밀번호 보호', '학습 가이드 + 라이브 가이드 Beta'],
                 highlight: true,
               },
               {
                 name: 'Team',
                 price: '문의',
-                color: '#F5F3FF',
-                border: '#c4b5fd',
+                color: '#F7FFF8',
+                border: BRAND_COLORS.border,
                 features: ['Pro 포함 전체 기능', '팀 워크스페이스', '멤버 관리', '팀 단위 지원'],
               },
             ].map(({ name, price, color, border, features, highlight }) => (
               <div key={name} style={{ padding: '20px', background: color, border: `1px solid ${border}`, borderRadius: '12px' }}>
                 <div style={{ fontSize: '15px', fontWeight: 700, color: '#111827', marginBottom: '4px' }}>{name}</div>
-                <div style={{ fontSize: '20px', fontWeight: 800, color: highlight ? '#3730a3' : '#111827', marginBottom: '16px' }}>{price}</div>
+                <div style={{ fontSize: '20px', fontWeight: 800, color: highlight ? BRAND_COLORS.primary : '#111827', marginBottom: '16px' }}>{price}</div>
                 <ul style={{ paddingLeft: '16px', margin: 0 }}>
                   {features.map((f, i) => (
                     <li key={i} style={{ fontSize: '13px', color: '#4B5563', marginBottom: '6px', lineHeight: 1.5 }}>{f}</li>
@@ -578,10 +581,7 @@ export default function HelpPage() {
       <header style={{ background: 'white', borderBottom: '1px solid #E5E7EB', padding: '0 24px', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <Link href="/home" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="28" height="28">
-              <circle cx="50" cy="50" r="50" fill="#3730a3"/>
-              <text x="50" y="68" textAnchor="middle" fontFamily="Georgia, serif" fontSize="62" fontWeight="700" fill="white">M</text>
-            </svg>
+            <BrandMark size={28} />
             <span style={{ fontSize: '16px', fontWeight: 800, color: '#111827', letterSpacing: '-0.03em' }}>{BRAND_NAME}</span>
           </Link>
           <span style={{ color: '#D1D5DB' }}>|</span>
@@ -602,8 +602,8 @@ export default function HelpPage() {
                 style={{
                   width: '100%', display: 'flex', alignItems: 'center', gap: '8px',
                   padding: '8px 10px', borderRadius: '8px', border: 'none',
-                  background: activeId === section.id ? '#EEF2FF' : 'transparent',
-                  color: activeId === section.id ? '#3730a3' : '#374151',
+                  background: activeId === section.id ? BRAND_NAV_ACTIVE : 'transparent',
+                  color: activeId === section.id ? BRAND_COLORS.primary : '#374151',
                   fontWeight: activeId === section.id ? 700 : 500,
                   fontSize: '13.5px', cursor: 'pointer', textAlign: 'left',
                   transition: 'all 0.12s',
@@ -620,8 +620,8 @@ export default function HelpPage() {
                       onClick={() => selectSection(child.id)}
                       style={{
                         width: '100%', padding: '6px 10px', borderRadius: '6px',
-                        border: 'none', background: activeId === child.id ? '#EEF2FF' : 'transparent',
-                        color: activeId === child.id ? '#3730a3' : '#6B7280',
+                        border: 'none', background: activeId === child.id ? BRAND_NAV_ACTIVE : 'transparent',
+                        color: activeId === child.id ? BRAND_COLORS.primary : '#6B7280',
                         fontWeight: activeId === child.id ? 600 : 400,
                         fontSize: '13px', cursor: 'pointer', textAlign: 'left',
                         transition: 'all 0.12s',

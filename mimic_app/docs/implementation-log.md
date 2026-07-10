@@ -163,3 +163,8 @@
 
 - Updated login, signup, forgot-password, and reset-password public auth screens from the old indigo/purple palette to Parro brand color tokens.
 - Preserved auth routes, Supabase password recovery flow, Google/email auth behavior, and the development-only guest login account.
+
+## 2026-07-11 - Parro help and chat color pass
+
+- Updated the help page header mark, help navigation, plan highlights, FAQ chips, and floating agent chat accents from the old indigo/purple palette to Parro brand color tokens.
+- Preserved help routes, FAQ content structure, agent chat API calls, contact submission flow, and support email routing.

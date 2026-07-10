@@ -3,7 +3,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Bot, X, Minus, Send, Mail } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { BRAND_NAME } from '@/lib/brand';
+import { BRAND_COLORS, BRAND_NAME } from '@/lib/brand';
+
+const BRAND_GRADIENT = `linear-gradient(135deg, ${BRAND_COLORS.primary}, ${BRAND_COLORS.guide})`;
+const BRAND_RING_STRONG = 'rgba(0,155,142,0.40)';
 
 interface Message {
   id: string;
@@ -33,7 +36,7 @@ function renderText(text: string) {
             segments.push(
               <a key={m.index} href={href} target={href.startsWith('http') ? '_blank' : '_self'}
                 rel="noopener noreferrer"
-                style={{ color: '#3730a3', textDecoration: 'underline' }}>
+                style={{ color: BRAND_COLORS.primary, textDecoration: 'underline' }}>
                 {m[1]}
               </a>
             );
@@ -178,10 +181,10 @@ export function AgentChat() {
         style={{
           position: 'fixed', bottom: '24px', right: '24px', zIndex: 9000,
           width: '52px', height: '52px', borderRadius: '50%',
-          background: 'linear-gradient(135deg, #3730a3, #6d28d9)',
+          background: BRAND_GRADIENT,
           border: 'none', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 4px 20px rgba(55,48,163,0.4)',
+          boxShadow: `0 4px 20px ${BRAND_RING_STRONG}`,
           transition: 'transform 0.2s',
         }}
         onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.08)'; }}
@@ -202,7 +205,7 @@ export function AgentChat() {
         boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
         padding: '8px 16px 8px 10px', border: '1px solid #E5E7EB',
       }}>
-        <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', display: 'grid', placeItems: 'center' }}>
+        <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: BRAND_GRADIENT, display: 'grid', placeItems: 'center' }}>
           <Bot size={15} color="white" />
         </div>
         <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>도움말 봇</span>
@@ -233,7 +236,7 @@ export function AgentChat() {
       <div style={{
         display: 'flex', alignItems: 'center', gap: '10px',
         padding: '12px 14px', flexShrink: 0,
-        background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white',
+        background: BRAND_GRADIENT, color: 'white',
       }}>
         <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(255,255,255,0.2)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
           <Bot size={15} color="white" />
@@ -271,7 +274,7 @@ export function AgentChat() {
                 답변은 <b>1~3 영업일</b> 내에 이메일로 드립니다.<br />
                 업무 시간: <b>평일 09:00 ~ 18:00</b>
               </p>
-              <button onClick={() => { setContactResult(null); setContactMode(false); }} style={{ marginTop: '8px', padding: '8px 20px', borderRadius: '8px', border: 'none', background: '#3730a3', color: 'white', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+              <button onClick={() => { setContactResult(null); setContactMode(false); }} style={{ marginTop: '8px', padding: '8px 20px', borderRadius: '8px', border: 'none', background: BRAND_COLORS.primary, color: 'white', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
                 확인
               </button>
             </div>
@@ -286,7 +289,7 @@ export function AgentChat() {
               <div style={{ display: 'flex', gap: '6px' }}>
                 {CATEGORIES.map(cat => (
                   <button key={cat} onClick={() => setContactCategory(cat)}
-                    style={{ flex: 1, padding: '6px 4px', borderRadius: '8px', border: `1.5px solid ${contactCategory === cat ? '#3730a3' : '#E5E7EB'}`, background: contactCategory === cat ? '#EEF2FF' : 'white', color: contactCategory === cat ? '#3730a3' : '#6B7280', fontSize: '11.5px', fontWeight: contactCategory === cat ? 700 : 400, cursor: 'pointer', transition: 'all 0.12s' }}>
+                    style={{ flex: 1, padding: '6px 4px', borderRadius: '8px', border: `1.5px solid ${contactCategory === cat ? BRAND_COLORS.primary : '#E5E7EB'}`, background: contactCategory === cat ? BRAND_COLORS.guideSoft : 'white', color: contactCategory === cat ? BRAND_COLORS.primary : '#6B7280', fontSize: '11.5px', fontWeight: contactCategory === cat ? 700 : 400, cursor: 'pointer', transition: 'all 0.12s' }}>
                     {cat}
                   </button>
                 ))}
@@ -306,14 +309,14 @@ export function AgentChat() {
                 placeholder={categoryPlaceholder[contactCategory]}
                 rows={6}
                 style={{ resize: 'none', border: '1.5px solid #E5E7EB', borderRadius: '10px', padding: '10px 12px', fontSize: '13px', fontFamily: 'inherit', outline: 'none', lineHeight: 1.6, color: '#111827' }}
-                onFocus={e => { e.currentTarget.style.borderColor = '#3730a3'; }}
+                onFocus={e => { e.currentTarget.style.borderColor = BRAND_COLORS.primary; }}
                 onBlur={e => { e.currentTarget.style.borderColor = '#E5E7EB'; }}
               />
               {contactResult && <p style={{ margin: 0, fontSize: '12px', color: '#EF4444' }}>✕ {contactResult.msg}</p>}
               <button
                 onClick={handleContactSend}
                 disabled={!contactMsg.trim() || contactSending}
-                style={{ width: '100%', height: '40px', borderRadius: '10px', border: 'none', background: contactMsg.trim() && !contactSending ? 'linear-gradient(135deg,#3730a3,#6d28d9)' : '#E5E7EB', color: contactMsg.trim() && !contactSending ? 'white' : '#9CA3AF', fontSize: '13.5px', fontWeight: 700, cursor: contactMsg.trim() && !contactSending ? 'pointer' : 'not-allowed' }}>
+                style={{ width: '100%', height: '40px', borderRadius: '10px', border: 'none', background: contactMsg.trim() && !contactSending ? BRAND_GRADIENT : '#E5E7EB', color: contactMsg.trim() && !contactSending ? 'white' : '#9CA3AF', fontSize: '13.5px', fontWeight: 700, cursor: contactMsg.trim() && !contactSending ? 'pointer' : 'not-allowed' }}>
                 {contactSending ? '전송 중...' : '문의 보내기'}
               </button>
             </>
@@ -328,7 +331,7 @@ export function AgentChat() {
             <div style={{
               maxWidth: '90%', padding: '9px 12px',
               borderRadius: msg.role === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
-              background: msg.role === 'user' ? 'linear-gradient(135deg, #3730a3, #6d28d9)' : '#F3F4F6',
+              background: msg.role === 'user' ? BRAND_GRADIENT : '#F3F4F6',
               color: msg.role === 'user' ? 'white' : '#111827',
               fontSize: '13px', lineHeight: 1.6,
               whiteSpace: 'pre-wrap', wordBreak: 'break-word',
@@ -346,12 +349,12 @@ export function AgentChat() {
                   <button key={q.id} onClick={() => ask(q.label, q.id)}
                     style={{
                       padding: '4px 10px', borderRadius: '999px',
-                      border: '1px solid #a5b4fc', background: '#EEF2FF',
-                      color: '#3730a3', fontSize: '11.5px', fontWeight: 500,
+                      border: `1px solid ${BRAND_COLORS.border}`, background: BRAND_COLORS.guideSoft,
+                      color: BRAND_COLORS.primary, fontSize: '11.5px', fontWeight: 500,
                       cursor: 'pointer', transition: 'all 0.12s',
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.background = '#e0e7ff'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = '#EEF2FF'; }}
+                    onMouseEnter={e => { e.currentTarget.style.background = '#D8FFF2'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = BRAND_COLORS.guideSoft; }}
                   >
                     {q.label}
                   </button>
@@ -387,13 +390,13 @@ export function AgentChat() {
               padding: '8px 12px', fontSize: '13px', fontFamily: 'inherit',
               outline: 'none', lineHeight: 1.5, maxHeight: '72px', overflowY: 'auto',
             }}
-            onFocus={e => { e.currentTarget.style.borderColor = '#3730a3'; }}
+            onFocus={e => { e.currentTarget.style.borderColor = BRAND_COLORS.primary; }}
             onBlur={e => { e.currentTarget.style.borderColor = '#E5E7EB'; }}
           />
           <button onClick={handleSend} disabled={!input.trim() || isLoading}
             style={{
               width: '36px', height: '36px', borderRadius: '10px', border: 'none',
-              background: input.trim() && !isLoading ? 'linear-gradient(135deg, #3730a3, #6d28d9)' : '#E5E7EB',
+              background: input.trim() && !isLoading ? BRAND_GRADIENT : '#E5E7EB',
               color: input.trim() && !isLoading ? 'white' : '#9CA3AF',
               cursor: input.trim() && !isLoading ? 'pointer' : 'not-allowed',
               display: 'grid', placeItems: 'center', flexShrink: 0,
