@@ -153,3 +153,8 @@
 - Updated settings, trash, and embed viewer public UI accents from the old indigo/purple palette to Parro brand color tokens.
 - Replaced settings inline `M` glyph marks with the shared temporary Parro `BrandMark`.
 - Preserved settings agreement behavior, trash restore/delete routes, embed token route, and viewer data flow.
+
+## 2026-07-10 - Parro recording modal color pass
+
+- Updated the recording start modal, tab selection state, install prompt, and extension-required states from the old indigo/purple palette to Parro brand color tokens.
+- Preserved extension runtime IDs, Chrome Web Store URL, tab selection, reconnect, and `START_RECORDING` message flow.

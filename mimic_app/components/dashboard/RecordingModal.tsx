@@ -1,11 +1,16 @@
 ﻿'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { BRAND_COPY, BRAND_EXTENSION_STORE_URL } from '@/lib/brand';
+import { BRAND_COLORS, BRAND_COPY, BRAND_EXTENSION_STORE_URL } from '@/lib/brand';
 
 // 운영(Production)에서만 켜는 플래그 — Vercel Production env에 NEXT_PUBLIC_REQUIRE_EXTENSION=1.
 // 로컬(npm run dev)·Preview(dev)는 값이 없어 게이트가 꺼진다(개발자 버전 미설치로도 작업 가능).
 const REQUIRE_EXTENSION = process.env.NEXT_PUBLIC_REQUIRE_EXTENSION?.replace(/^﻿/, '').trim() === '1';
+
+const BRAND_GRADIENT = `linear-gradient(135deg, ${BRAND_COLORS.primary}, ${BRAND_COLORS.guide})`;
+const BRAND_RING = 'rgba(0,155,142,0.30)';
+const BRAND_RING_SOFT = 'rgba(0,155,142,0.15)';
+const BRAND_SOFT_GRADIENT = `linear-gradient(135deg, ${BRAND_COLORS.guideSoft}, #F7FFF8)`;
 
 // ── 타입 ──────────────────────────────────────────────────
 
@@ -196,7 +201,7 @@ function FavIcon({ url, favIconUrl }: { url: string; favIconUrl?: string }) {
 
   // 글자 fallback
   const letter = domain.replace('www.', '').charAt(0).toUpperCase() || '?';
-  const colors = ['#3730a3','#6d28d9','#DB2777','#D97706','#059669','#0284C7'];
+  const colors = [BRAND_COLORS.primary, BRAND_COLORS.guide, '#DB2777','#D97706','#059669','#0284C7'];
   const bg = colors[letter.charCodeAt(0) % colors.length];
   return (
     <span style={{ width: '16px', height: '16px', borderRadius: '3px', background: bg, color: 'white', display: 'grid', placeItems: 'center', fontSize: '9px', fontWeight: 700, flexShrink: 0 }}>
@@ -332,7 +337,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
         }}
       >
         {/* 헤더 */}
-        <div style={{ background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', padding: '22px 28px 18px', position: 'relative' }}>
+        <div style={{ background: BRAND_GRADIENT, padding: '22px 28px 18px', position: 'relative' }}>
           <button
             onClick={onClose}
             aria-label="닫기"
@@ -367,7 +372,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
         {/* ── 확인 중 ── */}
         {step === 'checking' && (
           <div style={{ padding: '48px 28px', textAlign: 'center' }}>
-            <div style={{ width: '52px', height: '52px', borderRadius: '50%', border: '3px solid rgba(55,48,163,0.15)', borderTopColor: '#3730a3', animation: 'spin 0.9s linear infinite', margin: '0 auto' }} />
+            <div style={{ width: '52px', height: '52px', borderRadius: '50%', border: `3px solid ${BRAND_RING_SOFT}`, borderTopColor: BRAND_COLORS.primary, animation: 'spin 0.9s linear infinite', margin: '0 auto' }} />
           </div>
         )}
 
@@ -378,7 +383,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '22px' }}>
               {GUIDE_STEPS.map((s, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                  <span style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#e0e7ff', color: '#3730a3', fontSize: '11px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0, marginTop: '1px' }}>
+                  <span style={{ width: '24px', height: '24px', borderRadius: '50%', background: BRAND_COLORS.guideSoft, color: BRAND_COLORS.primary, fontSize: '11px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0, marginTop: '1px' }}>
                     {i + 1}
                   </span>
                   <div style={{ flex: 1 }}>
@@ -401,7 +406,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
             </div>
             <button
               onClick={enterTabSelect}
-              style={{ width: '100%', padding: '13px', borderRadius: '11px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', fontSize: '14.5px', fontWeight: 600, border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(55,48,163,0.30)' }}
+              style={{ width: '100%', padding: '13px', borderRadius: '11px', background: BRAND_GRADIENT, color: 'white', fontSize: '14.5px', fontWeight: 600, border: 'none', cursor: 'pointer', boxShadow: `0 4px 14px ${BRAND_RING}` }}
             >
               페이지 선택하기 →
             </button>
@@ -460,7 +465,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
                           display: 'flex', alignItems: 'center', gap: '10px',
                           width: '100%', padding: '10px 10px', borderRadius: '9px',
                           border: 'none', textAlign: 'left', cursor: 'pointer',
-                          background: isSelected ? '#e0e7ff' : 'transparent',
+                          background: isSelected ? BRAND_COLORS.guideSoft : 'transparent',
                           transition: 'background 0.12s',
                           marginBottom: '2px',
                         }}
@@ -469,7 +474,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
                       >
                         <FavIcon url={tab.url} favIconUrl={tab.favIconUrl} />
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: '13px', fontWeight: isSelected ? 600 : 400, color: isSelected ? '#3730a3' : '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontSize: '13px', fontWeight: isSelected ? 600 : 400, color: isSelected ? BRAND_COLORS.primary : '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {tab.title || domain}
                           </div>
                           <div style={{ fontSize: '11px', color: '#9CA3AF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '1px' }}>
@@ -477,7 +482,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
                           </div>
                         </div>
                         {isSelected && (
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3730a3" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}><polyline points="20 6 9 17 4 12"/></svg>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={BRAND_COLORS.primary} strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}><polyline points="20 6 9 17 4 12"/></svg>
                         )}
                       </button>
                     );
@@ -496,7 +501,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
                 <button
                   onClick={handleStart}
                   disabled={!selectedTab}
-                  style={{ flex: 2, padding: '10px', borderRadius: '9px', background: selectedTab ? 'linear-gradient(135deg, #3730a3, #6d28d9)' : '#E5E7EB', color: selectedTab ? 'white' : '#9CA3AF', fontSize: '13.5px', fontWeight: 600, border: 'none', cursor: selectedTab ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px', boxShadow: selectedTab ? '0 3px 10px rgba(55,48,163,0.25)' : 'none', transition: 'all 0.15s' }}
+                  style={{ flex: 2, padding: '10px', borderRadius: '9px', background: selectedTab ? BRAND_GRADIENT : '#E5E7EB', color: selectedTab ? 'white' : '#9CA3AF', fontSize: '13.5px', fontWeight: 600, border: 'none', cursor: selectedTab ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px', boxShadow: selectedTab ? `0 3px 10px ${BRAND_RING}` : 'none', transition: 'all 0.15s' }}
                 >
                   <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: selectedTab ? 'rgba(255,255,255,0.8)' : '#9CA3AF', animation: selectedTab ? 'recPulse 1.4s infinite' : 'none' }} />
                   녹화 시작
@@ -549,7 +554,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: '12.5px', fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedTab.title}</div>
                     </div>
-                    <span style={{ fontSize: '11px', padding: '3px 8px', background: '#e0e7ff', color: '#3730a3', borderRadius: '5px', fontWeight: 500, whiteSpace: 'nowrap' }}>선택됨</span>
+                    <span style={{ fontSize: '11px', padding: '3px 8px', background: BRAND_COLORS.guideSoft, color: BRAND_COLORS.primary, borderRadius: '5px', fontWeight: 500, whiteSpace: 'nowrap' }}>선택됨</span>
                   </div>
                 </>
               ) : (
@@ -565,7 +570,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
         {/* ── 실행 중 ── */}
         {step === 'launching' && (
           <div style={{ padding: '48px 28px', textAlign: 'center' }}>
-            <div style={{ width: '52px', height: '52px', borderRadius: '50%', border: '3px solid rgba(55,48,163,0.15)', borderTopColor: '#3730a3', animation: 'spin 0.9s linear infinite', margin: '0 auto 20px' }} />
+            <div style={{ width: '52px', height: '52px', borderRadius: '50%', border: `3px solid ${BRAND_RING_SOFT}`, borderTopColor: BRAND_COLORS.primary, animation: 'spin 0.9s linear infinite', margin: '0 auto 20px' }} />
             <p style={{ fontSize: '15px', fontWeight: 600, color: '#111827', marginBottom: '6px' }}>{BRAND_COPY.extensionDisplayName} 실행 중…</p>
             <p style={{ fontSize: '13px', color: '#6B7280' }}>선택한 페이지에서 녹화가 곧 시작됩니다</p>
           </div>
@@ -582,7 +587,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <a href={STORE_URL} target="_blank" rel="noopener noreferrer"
-                style={{ width: '100%', padding: '12px', borderRadius: '10px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', fontSize: '14px', fontWeight: 600, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', textDecoration: 'none', boxShadow: '0 4px 14px rgba(55,48,163,0.30)', boxSizing: 'border-box' }}>
+                style={{ width: '100%', padding: '12px', borderRadius: '10px', background: BRAND_GRADIENT, color: 'white', fontSize: '14px', fontWeight: 600, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', textDecoration: 'none', boxShadow: `0 4px 14px ${BRAND_RING}`, boxSizing: 'border-box' }}>
                 {BRAND_COPY.extensionDisplayName} 설치하기
               </a>
               <button onClick={enterTabSelect} style={{ width: '100%', padding: '12px', borderRadius: '10px', background: 'white', color: '#4B5563', fontSize: '14px', fontWeight: 500, border: '1.5px solid #E5E7EB', cursor: 'pointer' }}>
@@ -605,7 +610,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
               </p>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <button onClick={enterTabSelect} style={{ width: '100%', padding: '12px', borderRadius: '10px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', fontSize: '14px', fontWeight: 600, border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(55,48,163,0.30)' }}>
+              <button onClick={enterTabSelect} style={{ width: '100%', padding: '12px', borderRadius: '10px', background: BRAND_GRADIENT, color: 'white', fontSize: '14px', fontWeight: 600, border: 'none', cursor: 'pointer', boxShadow: `0 4px 14px ${BRAND_RING}` }}>
                 탭 다시 선택하기
               </button>
               <button onClick={onClose} style={{ width: '100%', padding: '10px', borderRadius: '10px', background: 'none', color: '#9CA3AF', fontSize: '13px', border: 'none', cursor: 'pointer' }}>
@@ -619,8 +624,8 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
         {step === 'install' && (
           <div style={{ padding: '24px 28px 28px' }}>
             <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-              <div style={{ width: '72px', height: '72px', margin: '0 auto 16px', borderRadius: '20px', background: 'linear-gradient(135deg, #e0e7ff, #F5F3FF)', display: 'grid', placeItems: 'center' }}>
-                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#3730a3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="21.17" y1="8" x2="12" y2="8"/><line x1="3.95" y1="6.06" x2="8.54" y2="14"/><line x1="10.88" y1="21.94" x2="15.46" y2="14"/></svg>
+              <div style={{ width: '72px', height: '72px', margin: '0 auto 16px', borderRadius: '20px', background: BRAND_SOFT_GRADIENT, display: 'grid', placeItems: 'center' }}>
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke={BRAND_COLORS.primary} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="21.17" y1="8" x2="12" y2="8"/><line x1="3.95" y1="6.06" x2="8.54" y2="14"/><line x1="10.88" y1="21.94" x2="15.46" y2="14"/></svg>
               </div>
               <p style={{ fontSize: '13.5px', color: '#4B5563', lineHeight: 1.6, margin: '0 auto', maxWidth: '340px' }}>
                 화면 녹화로 매뉴얼을 만들려면<br/><strong style={{ color: '#111827' }}>{BRAND_COPY.extensionDisplayName}</strong> 확장 프로그램이 필요해요.
@@ -633,14 +638,14 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
                 '\'연동 완료\' 버튼 클릭 후 바로 녹화',
               ].map((text, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: i < 2 ? '10px' : 0 }}>
-                  <span style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#e0e7ff', color: '#3730a3', fontSize: '11px', fontWeight: 600, display: 'grid', placeItems: 'center', flexShrink: 0 }}>{i + 1}</span>
+                  <span style={{ width: '20px', height: '20px', borderRadius: '50%', background: BRAND_COLORS.guideSoft, color: BRAND_COLORS.primary, fontSize: '11px', fontWeight: 600, display: 'grid', placeItems: 'center', flexShrink: 0 }}>{i + 1}</span>
                   <span style={{ fontSize: '13px', color: '#374151' }}>{text}</span>
                 </div>
               ))}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <a href={STORE_URL} target="_blank" rel="noopener noreferrer"
-                style={{ width: '100%', padding: '13px', borderRadius: '11px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', fontSize: '14.5px', fontWeight: 600, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', textDecoration: 'none', boxShadow: '0 4px 14px rgba(55,48,163,0.30)', boxSizing: 'border-box' }}>
+                style={{ width: '100%', padding: '13px', borderRadius: '11px', background: BRAND_GRADIENT, color: 'white', fontSize: '14.5px', fontWeight: 600, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', textDecoration: 'none', boxShadow: `0 4px 14px ${BRAND_RING}`, boxSizing: 'border-box' }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 {BRAND_COPY.extensionDisplayName} 설치하기
               </a>
