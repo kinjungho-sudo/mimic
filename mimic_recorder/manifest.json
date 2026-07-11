@@ -43,6 +43,7 @@
   "host_permissions": [
     "<all_urls>",
     "https://*.supabase.co/*",
+    "https://parro-guide.vercel.app/*",
     "https://mimic-nine-ashen.vercel.app/*",
     "https://mimic-git-dev-kinjungho-7735s-projects.vercel.app/*"
   ],
