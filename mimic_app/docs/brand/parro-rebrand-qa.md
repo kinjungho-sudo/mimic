@@ -1,5 +1,9 @@
 # Parro Rebrand QA
 
+Source-of-truth implementation order and completion gates are maintained in `docs/brand/parro-rebrand-implementation-plan.md`.
+
+Verified failure patterns and recovery rules are maintained in `docs/mistakes.md` and must be read before further integration or deployment work.
+
 ## Verification commands
 
 Initial full checks ran from `mimic_app` on `2026-07-10`. Remaining-reference classification was refreshed from the repository root on `2026-07-11`.

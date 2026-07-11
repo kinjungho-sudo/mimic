@@ -468,3 +468,17 @@
 - Ran `python build-store-zip.py` and produced local `parro-recorder-v1.6.2.zip` from the runtime whitelist.
 - Verified 13 ZIP entries, forward-slash paths only, production name `Parro Recorder`, version `1.6.2`, all three icons, Parro alias host/external permissions, and preserved production origin.
 - Removed the temporary ZIP after verification. Did not publish or mutate the Chrome Web Store listing, bump the extension version, or change `main`, Production, environments, Supabase, or data.
+
+## 2026-07-11 - Restore Parro implementation source of truth
+
+- Found that the required `docs/brand/parro-rebrand-implementation-plan.md` did not exist in the repository even though the handoff referenced it.
+- Restored the plan at the required path with the original safety boundaries, brand decision, phased tasks, current evidence, explicit pending approvals, rollback model, and full completion definition.
+- Did not change application runtime, Recorder runtime, `dev`, `main`, Production, environments, Supabase, or data.
+
+## 2026-07-11 - Restore required mistakes log
+
+- Found that required pre-read file `docs/mistakes.md` was also absent from the repository.
+- Added verified rebrand, Vercel alias, metadata, Git rollback, Recorder packaging, secret-handling, and dev/prod DB separation lessons from the work completed on `brand/parro-system`.
+- Updated the local `mimic-parro-rebrand` skill so future sessions must read the restored plan and mistakes log before rebrand work.
+- Validated the updated skill with `quick_validate.py` under `PYTHONUTF8=1`; validation passed. The first run failed only because the Windows default `cp949` decoder could not read the UTF-8 skill file.
+- Did not change runtime code, branches, deployments, environments, Supabase, or data.
