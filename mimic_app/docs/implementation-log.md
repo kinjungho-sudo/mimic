@@ -449,3 +449,4 @@
 - Replaced the static `public/robots.txt` old Production sitemap URL with `app/robots.ts` using `getBrandAppUrl()`.
 - Preserved the existing search/AI crawler allow rules, CCBot block, and private app/API disallow rules.
 - Preview and Production now emit their own environment-specific sitemap URL without renaming routes or changing shared Vercel environment variables.
+- Deployed Ready Preview `dpl_J85ABCHTTM6EaxGXzvDMhZTCrh2i`, verified Parro robots/sitemap responses and no error logs, then moved `parro-guide.vercel.app` to that deployment.
