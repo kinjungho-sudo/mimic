@@ -3,7 +3,7 @@
 // 공유메일·환영메일 등 모든 메일이 같은 웹훅을 재사용한다(워크플로우 1개로 충분).
 
 import { logNetwork } from '@/lib/logging/logger-server';
-import { BRAND_COLORS, BRAND_NAME, BRAND_TAGLINE, LEGACY_INTERNAL_IDENTIFIERS, getBrandAppUrl } from '@/lib/brand';
+import { BRAND_COLORS, BRAND_NAME, BRAND_SUPPORT_EMAIL, BRAND_TAGLINE, LEGACY_INTERNAL_IDENTIFIERS, getBrandAppUrl } from '@/lib/brand';
 
 const clean = (v?: string) => v?.replace(/^﻿/, '').trim() ?? '';
 const APP_URL = getBrandAppUrl();
@@ -28,7 +28,7 @@ export async function sendParroEmail(opts: {
         subject: opts.subject,
         html: opts.html,
         fromName: opts.fromName ?? BRAND_NAME,
-        replyTo: 'kinjungho@gmail.com',
+        replyTo: BRAND_SUPPORT_EMAIL,
       }),
     });
     // 외부서비스(n8n) 연동 결과 — PII 회피 위해 수신주소는 도메인만 기록.

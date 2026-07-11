@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { BrandMark } from '@/components/common/BrandMark';
-import { BRAND_COLORS, BRAND_COPY, BRAND_NAME } from '@/lib/brand';
+import { BRAND_COLORS, BRAND_COPY, BRAND_NAME, BRAND_SUPPORT_EMAIL } from '@/lib/brand';
 
 const BRAND_GRADIENT = `linear-gradient(135deg, ${BRAND_COLORS.primary}, ${BRAND_COLORS.guide})`;
 const BRAND_RING = 'rgba(0,155,142,0.25)';
@@ -141,7 +141,7 @@ export default function SettingsPage() {
 
         <Section title="계정">
           <div style={{ padding: '14px 20px' }}>
-            <a href="mailto:kinjungho@gmail.com" style={{ fontSize: '13.5px', fontWeight: 500, color: '#111827', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <a href={`mailto:${BRAND_SUPPORT_EMAIL}`} style={{ fontSize: '13.5px', fontWeight: 500, color: '#111827', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span>고객 지원 문의</span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
             </a>
@@ -153,7 +153,7 @@ export default function SettingsPage() {
           {' · '}
           <Link href="/legal/privacy" style={{ color: '#6B7280', textDecoration: 'underline', textUnderlineOffset: '2px' }}>개인정보 처리방침</Link>
           {' · '}
-          kinjungho@gmail.com
+          {BRAND_SUPPORT_EMAIL}
         </div>
       </main>
     </div>

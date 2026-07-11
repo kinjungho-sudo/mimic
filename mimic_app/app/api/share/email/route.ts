@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireAuth } from '@/lib/auth/auth-guard';
-import { BRAND_COLORS, BRAND_NAME, BRAND_TAGLINE, LEGACY_INTERNAL_IDENTIFIERS } from '@/lib/brand';
+import { BRAND_COLORS, BRAND_NAME, BRAND_SUPPORT_EMAIL, BRAND_TAGLINE, LEGACY_INTERNAL_IDENTIFIERS } from '@/lib/brand';
 
 const schema = z.object({
   to: z.string().email('올바른 이메일 주소를 입력해주세요.'),
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
     const res = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(secret ? { [LEGACY_INTERNAL_IDENTIFIERS.shareEmailSecretHeader]: secret } : {}) },
-      body: JSON.stringify({ to, subject, html, fromName, replyTo: 'kinjungho@gmail.com' }),
+      body: JSON.stringify({ to, subject, html, fromName, replyTo: BRAND_SUPPORT_EMAIL }),
     });
     if (!res.ok) {
       console.error('[share/email] n8n webhook error:', res.status, await res.text().catch(() => ''));

@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useExtensionLink } from '@/hooks/useExtensionLink';
 import { BrandMark } from '@/components/common/BrandMark';
-import { BRAND_COLORS, BRAND_COPY, BRAND_EXTENSION_STORE_URL, BRAND_NAME } from '@/lib/brand';
+import { BRAND_COLORS, BRAND_COPY, BRAND_EXTENSION_STORE_URL, BRAND_NAME, BRAND_SUPPORT_EMAIL } from '@/lib/brand';
 
 // 웹스토어에 올라간 건 운영 확장 하나뿐 → 항상 운영 리스팅으로 보낸다(RecordingModal과 동일 URL).
 const STORE_URL = BRAND_EXTENSION_STORE_URL;
@@ -116,7 +116,7 @@ export default function ExtensionLinkPage() {
 
             <div style={{ marginTop: '22px', paddingTop: '22px', borderTop: '1px solid #F3F4F6', fontSize: '11.5px', color: '#6B7280', position: 'relative' }}>
               설치에 어려움이 있으신가요?{' '}
-              <a href="mailto:kinjungho@gmail.com" style={{ color: BRAND_COLORS.primary, fontWeight: 500 }}>문의하기</a>
+              <a href={`mailto:${BRAND_SUPPORT_EMAIL}`} style={{ color: BRAND_COLORS.primary, fontWeight: 500 }}>문의하기</a>
             </div>
           </div>
         )}
@@ -143,7 +143,7 @@ export default function ExtensionLinkPage() {
             </div>
             <div style={{ marginTop: '22px', paddingTop: '22px', borderTop: '1px solid #F3F4F6', fontSize: '11.5px', color: '#6B7280', position: 'relative' }}>
               문제가 계속되나요?{' '}
-              <a href="mailto:kinjungho@gmail.com" style={{ color: BRAND_COLORS.primary, fontWeight: 500 }}>문의하기</a>
+              <a href={`mailto:${BRAND_SUPPORT_EMAIL}`} style={{ color: BRAND_COLORS.primary, fontWeight: 500 }}>문의하기</a>
             </div>
           </div>
         )}

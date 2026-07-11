@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { BrandMark } from '@/components/common/BrandMark';
 import { FollowStage } from '@/components/viewer/FollowStage';
-import { BRAND_COPY, BRAND_NAME, BRAND_TAGLINE } from '@/lib/brand';
+import { BRAND_COPY, BRAND_NAME, BRAND_SUPPORT_EMAIL, BRAND_TAGLINE } from '@/lib/brand';
 
 const CheckIcon = ({ size = 14, color = 'currentColor' }: { size?: number; color?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3">
@@ -2010,8 +2010,8 @@ export default function LandingPage() {
           <p style={{ textAlign: 'center', fontSize: '16px', color: '#9CA3AF', maxWidth: '560px', margin: '0 auto 56px', lineHeight: 1.65 }}>반복 문의를 줄이고, 온보딩 시간을 단축하고, 지식을 조직 전체에 공유하세요. 기업 맞춤 도입 상담을 진행합니다.</p>
 
           <div className="b2b-btns" style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-            <a href="mailto:kinjungho@gmail.com?subject=기업 데모 신청" style={{ display: 'inline-flex', alignItems: 'center', padding: '15px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 600, background: 'white', color: '#111827', textDecoration: 'none', boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }}>기업 데모 신청하기</a>
-            <a href="mailto:kinjungho@gmail.com?subject=자료 요청" style={{ display: 'inline-flex', alignItems: 'center', padding: '15px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 500, color: 'rgba(255,255,255,0.85)', border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.06)', textDecoration: 'none' }}>자료 다운로드</a>
+            <a href={`mailto:${BRAND_SUPPORT_EMAIL}?subject=기업 데모 신청`} style={{ display: 'inline-flex', alignItems: 'center', padding: '15px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 600, background: 'white', color: '#111827', textDecoration: 'none', boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }}>기업 데모 신청하기</a>
+            <a href={`mailto:${BRAND_SUPPORT_EMAIL}?subject=자료 요청`} style={{ display: 'inline-flex', alignItems: 'center', padding: '15px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 500, color: 'rgba(255,255,255,0.85)', border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.06)', textDecoration: 'none' }}>자료 다운로드</a>
           </div>
         </div>
       </section>
@@ -2083,7 +2083,7 @@ export default function LandingPage() {
                 무료로 시작하기
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
               </Link>
-              <a href="mailto:kinjungho@gmail.com?subject=기업 데모 신청" style={{ display: 'inline-flex', alignItems: 'center', padding: '15px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 500, color: 'rgba(255,255,255,0.9)', border: '1.5px solid rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.08)', textDecoration: 'none' }}>기업 데모 신청</a>
+              <a href={`mailto:${BRAND_SUPPORT_EMAIL}?subject=기업 데모 신청`} style={{ display: 'inline-flex', alignItems: 'center', padding: '15px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 500, color: 'rgba(255,255,255,0.9)', border: '1.5px solid rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.08)', textDecoration: 'none' }}>기업 데모 신청</a>
             </div>
           </div>
         </div>
@@ -2105,7 +2105,7 @@ export default function LandingPage() {
             {[
               { title: '제품', links: [{ label: '기능', href: '#features' }, { label: '사용 방법', href: '#how' }, { label: '요금제', href: '#pricing' }, { label: '변경 사항', href: '#' }] },
               { title: '회사', links: [{ label: '소개', href: '#' }, { label: '블로그', href: '#' }, { label: '채용', href: '#' }, { label: '기업 문의', href: '#b2b' }] },
-              { title: '지원', links: [{ label: '이용 가이드', href: '/help' }, { label: 'FAQ', href: '#faq' }, { label: '고객센터', href: 'mailto:kinjungho@gmail.com' }, { label: '상태 페이지', href: '#' }] },
+              { title: '지원', links: [{ label: '이용 가이드', href: '/help' }, { label: 'FAQ', href: '#faq' }, { label: '고객센터', href: `mailto:${BRAND_SUPPORT_EMAIL}` }, { label: '상태 페이지', href: '#' }] },
               { title: '법적 고지', links: [{ label: '이용약관', href: '/legal/terms' }, { label: '개인정보처리방침', href: '/legal/privacy' }, { label: '보안', href: '#' }, { label: '환불 정책', href: '#' }] },
             ].map(col => (
               <div key={col.title}>
@@ -2126,7 +2126,7 @@ export default function LandingPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '24px', fontSize: '12px', color: '#374151' }}>
             <div>© 2026 코마인드웍스 · {BRAND_NAME}</div>
             <div style={{ display: 'flex', gap: '20px' }}>
-              {['한국어', 'English', 'kinjungho@gmail.com'].map(l => (
+              {['한국어', 'English', BRAND_SUPPORT_EMAIL].map(l => (
                 <a key={l} href={l.includes('@') ? `mailto:${l}` : '#'} style={{ color: '#374151', textDecoration: 'none' }}
                   onMouseEnter={e => e.currentTarget.style.color = '#6B7280'}
                   onMouseLeave={e => e.currentTarget.style.color = '#374151'}

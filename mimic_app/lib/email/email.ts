@@ -1,5 +1,5 @@
 import { Resend } from 'resend';
-import { BRAND_COLORS, BRAND_COPY, BRAND_LOGO_IMAGE_PATH, BRAND_NAME, BRAND_TAGLINE } from '@/lib/brand';
+import { BRAND_COLORS, BRAND_COPY, BRAND_LOGO_IMAGE_PATH, BRAND_NAME, BRAND_SUPPORT_EMAIL, BRAND_TAGLINE } from '@/lib/brand';
 
 const FROM = process.env.RESEND_FROM_EMAIL ?? `${BRAND_NAME} <onboarding@resend.dev>`;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
@@ -140,7 +140,7 @@ export async function sendWelcomeEmail({ to, name }: { to: string; name: string 
           <p style="margin:0 0 6px;font-size:14px;font-weight:800;color:${EMAIL_PRIMARY};letter-spacing:-0.02em">${BRAND_NAME}</p>
           <p style="margin:0 0 12px;font-size:12px;color:#9CA3AF;line-height:1.7">
             매뉴얼을 더 쉽고 빠르게 · © 2026 코마인드웍스<br>
-            궁금한 점은 <a href="mailto:kinjungho@gmail.com" style="color:${EMAIL_PRIMARY};text-decoration:none">kinjungho@gmail.com</a>으로 문의해주세요.
+            궁금한 점은 <a href="mailto:${BRAND_SUPPORT_EMAIL}" style="color:${EMAIL_PRIMARY};text-decoration:none">${BRAND_SUPPORT_EMAIL}</a>으로 문의해주세요.
           </p>
           <p style="margin:0;font-size:11px;color:#D1D5DB">
             이 이메일은 ${to} 계정의 ${BRAND_NAME} 가입을 기념하여 발송됐습니다.
