@@ -70,8 +70,19 @@ Prerequisite:
 - Current production alias: `https://mimic-nine-ashen.vercel.app`, pointing to a Ready production deployment.
 - Additional stable aliases include the project and `main` branch Vercel URLs, all using the old project name.
 - `vercel domains ls` returned zero custom domains for the current scope.
-- This worktree has no root or `mimic_app` `.vercel/project.json`; no project link was created.
+- At the initial preflight, this worktree had no root or `mimic_app` `.vercel/project.json`; no project link had been created yet.
 - No project, domain, alias, environment, or deployment was changed during the preflight.
+
+### Approved Preview deployment — 2026-07-11
+
+- Linked this worktree locally to the existing `kinjungho-7735s-projects/mimic` project. `.vercel` remains ignored by git.
+- Created Preview deployment `dpl_HDq1Ec1ksAYMQBogXj7foyrHaG6z`:
+  `https://mimic-24chg4zda-kinjungho-7735s-projects.vercel.app`
+- Deployment target is Preview and status is Ready. No `--prod`, `promote`, production alias, custom domain, environment, or Supabase change was used.
+- `/landingpage` returned Parro metadata and UI: `Parro` 36 matches and zero visible `MIMIC` / `미믹` matches in the rendered HTML.
+- `/brand/parro-mark.svg`, `/brand/parro-mark.png`, and `/icon.svg` returned HTTP 200 with the expected content types.
+- Browser smoke confirmed the Wing Pointer mark and Parro first viewport render correctly.
+- Recent Preview error-log query returned no errors.
 
 ### Recommended domain cutover
 
@@ -160,7 +171,7 @@ Risk:
 ## Recommended Phase 2 Order
 
 1. Final logo SVG and asset filename policy completed on `brand/parro-system`.
-2. Read-only Vercel project/domain/deployment preflight completed without creating a local link.
+2. Read-only Vercel preflight and approved Parro Preview deployment completed; Production remains unchanged.
 3. Decide the final Parro custom domain and support email.
 4. Update app constants and public static files.
 5. Update Recorder runtime URLs and manifest host permissions only after domain/auth behavior is confirmed.

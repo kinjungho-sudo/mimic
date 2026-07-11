@@ -387,3 +387,11 @@
 - Confirmed the project root is `mimic_app`, Node.js is `24.x`, the current production deployment is Ready, and the account has no custom domains.
 - Confirmed this worktree has no `.vercel/project.json`; no link, project, domain, alias, environment, or deployment was created or changed.
 - Documented a custom-domain-first cutover that preserves the Vercel project name as an internal identifier until public URL migration is verified.
+
+## 2026-07-11 - Parro Vercel Preview deployment
+
+- Linked the isolated `brand/parro-system` worktree to the existing Vercel `mimic` project; the generated `.vercel` directory remains gitignored.
+- Created Ready Preview deployment `dpl_HDq1Ec1ksAYMQBogXj7foyrHaG6z` without using `--prod`, promotion, alias changes, custom domains, or environment writes.
+- Verified the Preview landing HTML contains Parro branding and no visible old-brand copy.
+- Verified the Parro SVG, PNG, and app icon responses, browser-rendered first viewport, and absence of recent Preview error logs.
+- Kept `main`, Production aliases, Supabase, and all production data unchanged.
