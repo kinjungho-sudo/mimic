@@ -429,3 +429,9 @@
 - Added the exact temporary origin `https://parro-guide.vercel.app/*` to Recorder `externally_connectable` so the Parro web alias can link to the extension.
 - Preserved existing Vercel, `mimicflow.com`, localhost, extension ID, runtime URLs, storage keys, and DB identifiers for compatibility and rollback.
 - Did not bump the extension version, build a store package, publish an extension, or change `main`, Production, environments, Supabase, or data.
+
+## 2026-07-11 - Parro Web Store source URL
+
+- Updated the Chrome Web Store source listing's public web-service URL from the legacy Vercel address to `https://parro-guide.vercel.app`.
+- Preserved Recorder runtime URLs, existing origins, extension ID, Web Store slug, and all internal identifiers.
+- Did not publish or mutate the live Chrome Web Store listing.
