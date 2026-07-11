@@ -8,7 +8,7 @@
 | 카테고리 | Productivity |
 | 언어 | 한국어 |
 | 개인정보처리방침 URL | https://kinjungho-sudo.github.io/mimic-recorder-policy/privacy_policy.html |
-| 웹 서비스 URL | https://mimic-nine-ashen.vercel.app |
+| 웹 서비스 URL | https://parro-guide.vercel.app |
 | 개발자 이메일 | kinjungho@gmail.com |
 
 ---
@@ -73,7 +73,7 @@ Parro Recorder 활용 사례
 
 이미 많은 팀이 Parro로 매뉴얼 작업을 자동화하고 있습니다. 지금 바로 시작해보세요.
 
-🔗 Parro 웹 서비스: https://mimic-nine-ashen.vercel.app
+🔗 Parro 웹 서비스: https://parro-guide.vercel.app
 
 ---
 
