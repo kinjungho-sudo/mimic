@@ -9,7 +9,7 @@ export const BRAND_DESCRIPTION =
 // Phase 2 operational value: update only after the Parro support domain is ready.
 export const BRAND_SUPPORT_EMAIL = 'support@mimic.so';
 export const BRAND_APP_URL_FALLBACK = 'https://mimic-nine-ashen.vercel.app';
-export const BRAND_LOGO_IMAGE_PATH = '/mimic-logo.png';
+export const BRAND_LOGO_IMAGE_PATH = '/brand/parro-mark.png';
 export const BRAND_EXTENSION_STORE_URL =
   'https://chromewebstore.google.com/detail/mimic-recorder/ehbhcdkapcbfehinjapabgoegcjmmbgd';
 
