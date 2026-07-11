@@ -142,7 +142,8 @@ git diff --check
 ## Phase 2 recommendations
 
 1. Wing Pointer SVG, PNG, logo, icon, favicon, and compatibility asset replacement completed on `brand/parro-system`.
-2. Read-only Vercel preflight and Parro Preview verification completed. Choose the final Parro custom domain before any project/domain/env write.
-3. Attach and verify the custom domain on the existing project before changing app, SDK, Recorder, or support email URLs.
-4. Update Recorder host permissions and store/policy URLs only after domain behavior is verified.
-5. Keep `mm_*` as the internal database namespace and defer all DB/API/env/package/SDK identifier renames to a separately approved Phase 3 migration plan.
+2. Use `docs/brand/parro-dev-integration-runbook.md` for the owner-approved `dev` merge, Preview verification, and merge-revert procedure; do not merge `main` as part of that runbook.
+3. Read-only Vercel preflight and Parro Preview verification completed. Choose the final Parro custom domain before any shared project/domain/env write.
+4. Attach and verify the custom domain on the existing project before changing production app, SDK, Recorder, or support email URLs.
+5. Update Recorder production URLs and store/policy URLs only after final-domain behavior is verified.
+6. Keep `mm_*` as the internal database namespace and defer all DB/API/env/package/SDK identifier renames to a separately approved Phase 3 migration plan.

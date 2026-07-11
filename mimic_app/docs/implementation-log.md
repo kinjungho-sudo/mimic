@@ -456,3 +456,9 @@
 - Changed only unpacked/dev Recorder defaults from the old Vercel Preview URL to `https://parro-guide.vercel.app` in background API fallback and popup login/link navigation.
 - Added the Parro alias explicitly to host permissions while preserving `<all_urls>`, the old dev Preview origin, existing Production origin, extension ID, stored `webappOrigin`, dev/prod Supabase split, and all DB identifiers.
 - Kept the published production extension on `https://mimic-nine-ashen.vercel.app`; no store package, publication, `main`, Production deployment, environment, Supabase, or data change was made.
+
+## 2026-07-11 - Parro dev integration runbook
+
+- Fetched current `origin/dev` and confirmed `brand/parro-system` is behind `0`, ahead `87`, with `origin/dev` as its ancestor and no current merge conflict.
+- Added `docs/brand/parro-dev-integration-runbook.md` with explicit approval gates, pre-merge checks, a single `--no-ff` dev merge, full verification commands, merge-revert rollback, and temporary alias rollback.
+- Did not merge or push `dev` or `main`, change Production, publish the extension, or touch environments, Supabase, or data.
