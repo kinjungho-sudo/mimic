@@ -380,3 +380,10 @@
 - Switched `BRAND_LOGO_IMAGE_PATH` to `/brand/parro-mark.png`; retained `/mimic-logo.png` as an identical compatibility fallback.
 - Verified SVG/PNG rendering, 48 px icon legibility, focused old-mark search, app lint, and production build.
 - Attempted local browser smoke at port `3017`; the page was blocked by missing local Supabase environment values, so no env, database, or deployment wiring was changed.
+
+## 2026-07-11 - Phase 2 Vercel read-only preflight
+
+- Verified the current Vercel account, `mimic` project configuration, production alias, deployment history, and domain inventory using read-only CLI commands.
+- Confirmed the project root is `mimic_app`, Node.js is `24.x`, the current production deployment is Ready, and the account has no custom domains.
+- Confirmed this worktree has no `.vercel/project.json`; no link, project, domain, alias, environment, or deployment was created or changed.
+- Documented a custom-domain-first cutover that preserves the Vercel project name as an internal identifier until public URL migration is verified.

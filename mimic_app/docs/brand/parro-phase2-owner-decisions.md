@@ -63,6 +63,25 @@ Prerequisite:
 
 - Vercel CLI `54.5.1` is available in this environment. Do not run `vercel env pull`, `vercel deploy`, `vercel logs`, or linked-project inspection until the owner explicitly approves Phase 2 operational work.
 
+### Read-only Vercel preflight — 2026-07-11
+
+- Account: `kinjungho-7735` under `kinjungho-7735s-projects`.
+- Existing project: `mimic`; root directory `mimic_app`; Node.js `24.x`; framework preset Next.js.
+- Current production alias: `https://mimic-nine-ashen.vercel.app`, pointing to a Ready production deployment.
+- Additional stable aliases include the project and `main` branch Vercel URLs, all using the old project name.
+- `vercel domains ls` returned zero custom domains for the current scope.
+- This worktree has no root or `mimic_app` `.vercel/project.json`; no project link was created.
+- No project, domain, alias, environment, or deployment was changed during the preflight.
+
+### Recommended domain cutover
+
+1. Choose and prepare the final Parro custom domain.
+2. Add the custom domain to the existing `mimic` Vercel project first; keep the Vercel project name as an internal deployment identifier during cutover.
+3. Verify the custom domain against a Preview deployment and confirm auth redirects, public assets, SDK origin behavior, and Recorder host access.
+4. Update `NEXT_PUBLIC_APP_URL` and public fallback/static URLs by environment only after the domain verification passes.
+5. Update Recorder runtime URLs and manifest host permissions in a separate rollback-friendly commit.
+6. Keep the old Vercel aliases active during the transition; consider renaming the Vercel project only in a later dedicated migration.
+
 ## Decision 3: Support Email
 
 Current value:
@@ -141,8 +160,8 @@ Risk:
 ## Recommended Phase 2 Order
 
 1. Final logo SVG and asset filename policy completed on `brand/parro-system`.
-2. After explicit owner approval for domain operations, inspect the current linked Vercel project/env state with the available CLI.
-3. Decide final Parro domain and support email.
+2. Read-only Vercel project/domain/deployment preflight completed without creating a local link.
+3. Decide the final Parro custom domain and support email.
 4. Update app constants and public static files.
 5. Update Recorder runtime URLs and manifest host permissions only after domain/auth behavior is confirmed.
 6. Decide Chrome Web Store/policy URL migration separately.

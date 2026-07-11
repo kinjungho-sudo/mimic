@@ -19,9 +19,10 @@ git diff --check
 - `npm run build`: passed.
 - `2026-07-11` focused public-surface search found no visible `MIMIC` / `미믹` copy in app, component, library, Recorder, or MCP surfaces. The only direct public mark hits are the legacy `M` glyphs in `public/logo.svg` and `app/icon.svg`.
 - `2026-07-11` remaining-reference search confirmed that lowercase `mimic` hits in active code are deployment URLs, package/storage/runtime identifiers, development fixtures, or explicit backward-compatibility aliases.
-- `vercel --version`: passed with Vercel CLI `54.5.1`. No Vercel project, environment, domain, or deployment command was run because Phase 2 still requires owner approval.
+- Before Phase 2 approval, `vercel --version` passed with Vercel CLI `54.5.1`; no project, environment, domain, or deployment command was run at that stage.
 - `2026-07-11` full verification refresh: app `npm run lint` and `$env:NODE_OPTIONS='--use-system-ca'; npm run build` passed; `node --check` passed for `public/sdk.js` and Recorder `content.js`, `background.js`, `guide-engine.js`, and `popup.js`; `packages/mcp-server npm run build` passed.
 - `2026-07-11` approved Wing Pointer asset pass: SVG/PNG rendering, 48 px icon preview, focused old-mark search, `npm run lint`, and `$env:NODE_OPTIONS='--use-system-ca'; npm run build` passed. Browser smoke reached the app but could not render the landing page because this worktree lacks the required local Supabase URL/key; no environment wiring was changed.
+- `2026-07-11` Phase 2 read-only Vercel preflight: verified account, existing `mimic` project (`mimic_app` root, Node.js 24.x), Ready production alias, deployment history, and zero custom domains. The first CLI request hit the local certificate chain issue; retry with `$env:NODE_OPTIONS='--use-system-ca'` passed. No local link or Vercel resource was created or changed.
 - Re-ran `npm run lint`, `$env:NODE_OPTIONS='--use-system-ca'; npm run build`, `git diff --check`, and focused `sendMimicEmail|sendParroEmail` search after the email helper alias pass; all passed with only existing warnings.
 - Re-ran `npm run lint`, `$env:NODE_OPTIONS='--use-system-ca'; npm run build`, `git diff --check`, and focused `MimicAppHeader|mimicFadeIn|mimic:survey` search after the internal UI name cleanup; all passed with only existing warnings.
 - Re-ran `npm run lint`, `$env:NODE_OPTIONS='--use-system-ca'; npm run build`, `git diff --check`, and focused `demo@mimicflow.com|demo@parro.example|devtest@mimic.dev` search after the mock email cleanup; all passed with only existing warnings.
@@ -127,7 +128,7 @@ git diff --check
 ## Phase 2 recommendations
 
 1. Wing Pointer SVG, PNG, logo, icon, favicon, and compatibility asset replacement completed on `brand/parro-system`.
-2. Vercel CLI `54.5.1` is available; inspect linked project/env state only after the owner approves Phase 2 domain/deployment work and provides the intended domain values.
-3. Decide and migrate support email/domain/Vercel display names.
+2. Read-only Vercel preflight completed. Choose the final Parro custom domain before any project/domain/env write.
+3. Attach and verify the custom domain on the existing project before changing app, SDK, Recorder, or support email URLs.
 4. Update Recorder host permissions and store/policy URLs only after domain behavior is verified.
 5. Defer DB/API/env/package/SDK identifier rename to a separate Phase 3 migration plan.
