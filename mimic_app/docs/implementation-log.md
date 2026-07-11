@@ -462,3 +462,9 @@
 - Fetched current `origin/dev` and confirmed `brand/parro-system` is behind `0`, ahead `87`, with `origin/dev` as its ancestor and no current merge conflict.
 - Added `docs/brand/parro-dev-integration-runbook.md` with explicit approval gates, pre-merge checks, a single `--no-ff` dev merge, full verification commands, merge-revert rollback, and temporary alias rollback.
 - Did not merge or push `dev` or `main`, change Production, publish the extension, or touch environments, Supabase, or data.
+
+## 2026-07-11 - Parro Recorder store artifact verification
+
+- Ran `python build-store-zip.py` and produced local `parro-recorder-v1.6.2.zip` from the runtime whitelist.
+- Verified 13 ZIP entries, forward-slash paths only, production name `Parro Recorder`, version `1.6.2`, all three icons, Parro alias host/external permissions, and preserved production origin.
+- Removed the temporary ZIP after verification. Did not publish or mutate the Chrome Web Store listing, bump the extension version, or change `main`, Production, environments, Supabase, or data.
