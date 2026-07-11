@@ -24,3 +24,22 @@ Internal identifiers such as DB tables, migrations, package names, env vars, API
 - No repo/folder/package rename.
 - No weakening of Live Guide, DOM selector, coordinate, or capture-event assets.
 - No childish cartoon parrot tone.
+
+## 2026-07-11 - Preserve the `mm_*` database namespace
+
+### Decision
+
+Keep existing Supabase table names and the `mm_*` prefix unchanged as Parro's internal legacy database namespace.
+
+Until a separately approved Phase 3 database migration exists, new tables should also follow the established `mm_*` convention. Do not introduce a mixed `parro_*` table prefix during the public rebrand.
+
+### Rationale
+
+- Database identifiers are not user-visible brand surfaces.
+- Renaming can affect application queries, RLS policies, functions, triggers, Realtime, automation, and external integrations.
+- A consistent legacy namespace is safer than operating mixed old/new table prefixes.
+
+### Non-goals
+
+- No table, schema, migration, policy, function, trigger, bucket, or data change.
+- No Phase 3 database rename is approved by this decision.

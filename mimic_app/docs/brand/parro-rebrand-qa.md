@@ -105,6 +105,7 @@ git diff --check
 
 - `package.json`, `package-lock.json`, and MCP package names such as `mimic-app` / `@mimic/mcp-server`.
 - Supabase schema, migrations, storage buckets, and SQL comments, including `mimic-tts`, `01_mimic_dev_schema.sql`, and `supabase/migrations/*`.
+- The owner approved `mm_*` as Parro's preserved internal database namespace. Existing and new tables keep this prefix until a separately approved Phase 3 migration; no mixed `parro_*` prefix is introduced.
 - API route filenames and environment/header identifiers including `x-mimic-secret`, `MIMIC_EXTENSION_ID`, and `NEXT_PUBLIC_APP_URL`. Preserved legacy values remain in `LEGACY_INTERNAL_IDENTIFIERS`; active favicon requests now use `ParroBot/1.0` through `BRAND_BOT_USER_AGENT` while `MIMICBot/1.0` stays available for rollback.
 - SDK compatibility globals/classes/query params in `public/sdk.js`. New public aliases include `window.ParroSDK`, `window.ParroAutoRun`, `data-parro-guide`, `parro_guide`, and `data-parro-float`; legacy aliases such as `window.MimicSDK`, `window.MimicAutoRun`, `data-guide`, `mimic_guide`, `data-mimic-float`, and `mimic-*` CSS classes remain intentionally supported.
 - Local storage and drag/drop keys such as `mimic:survey:*`, `mimic_annot_defaults_v1`, and `text/mimic-tutorial`. Survey prefixes, annotation defaults, and drag/drop keys now go through `LEGACY_INTERNAL_IDENTIFIERS`.
@@ -137,4 +138,4 @@ git diff --check
 2. Read-only Vercel preflight and Parro Preview verification completed. Choose the final Parro custom domain before any project/domain/env write.
 3. Attach and verify the custom domain on the existing project before changing app, SDK, Recorder, or support email URLs.
 4. Update Recorder host permissions and store/policy URLs only after domain behavior is verified.
-5. Defer DB/API/env/package/SDK identifier rename to a separate Phase 3 migration plan.
+5. Keep `mm_*` as the internal database namespace and defer all DB/API/env/package/SDK identifier renames to a separately approved Phase 3 migration plan.

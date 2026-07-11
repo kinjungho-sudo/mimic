@@ -417,3 +417,9 @@
 - Initial verification identified that the old Production deployment still showed MIMIC, so the new alias was immediately repointed to verified Parro Preview `dpl_8oErV37fcoayvYYzAE9qF5cCU6qz`.
 - Verified `/landingpage` returned HTTP 200 with 36 `Parro` matches and zero visible old-brand matches.
 - Made no `main`, Production deployment, environment, Supabase, or data change; rollback is removing the temporary alias.
+
+## 2026-07-11 - Preserve `mm_*` database namespace
+
+- Recorded the owner-approved decision to keep `mm_*` as Parro's internal legacy database namespace.
+- New tables continue using the established `mm_*` convention until a separately approved Phase 3 database migration; mixed `parro_*` table names are not introduced.
+- Made no table, schema, migration, policy, function, trigger, bucket, environment, or data change.

@@ -165,6 +165,12 @@ Risk:
 
 ## Decision 6: Internal Identifier Migration
 
+Approved database-prefix decision on `2026-07-11`:
+
+- Preserve existing `mm_*` table names as Parro's internal legacy database namespace.
+- Continue using `mm_*` for new tables until a separately approved Phase 3 database migration exists; do not introduce mixed `parro_*` table names during the public rebrand.
+- This approval does not authorize any table, schema, migration, policy, function, trigger, bucket, or data change.
+
 Current intentionally preserved identifiers include:
 
 - `@mimic/mcp-server`
