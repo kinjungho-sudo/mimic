@@ -47,8 +47,8 @@ Parro may use a friendly avatar inside the product, but the primary logo must no
 
 | Phase | Scope | Risk | Current status |
 |---|---|---|---|
-| Phase 1 | Public-facing brand migration | Low to medium | Completed on `brand/parro-system`; not merged to `dev` |
-| Phase 2 | Preview/domain/contact/deployment-adjacent cleanup | Medium | Partially completed in reversible Preview scope |
+| Phase 1 | Public-facing brand migration | Low to medium | Merged to `dev` in `216c35f`; Git Preview verified |
+| Phase 2 | Preview/domain/contact/deployment-adjacent cleanup | Medium | Dev Preview URL/env completed; final domain pending |
 | Phase 3 | Internal identifier and DB rename migration | High | Deferred; `mm_*` preservation approved |
 
 ## Task 1: Brand migration audit
@@ -103,7 +103,7 @@ Colors are centralized through Parro semantic brand tokens rather than scattered
 
 ## Task 4: Apply Parro public surfaces
 
-Status: **Completed on the feature branch and verified Preview**.
+Status: **Completed on the feature branch, merged to `dev`, and verified in the Git Preview**.
 
 Covered surfaces:
 
@@ -149,7 +149,7 @@ Do not remove compatibility aliases in this phase.
 
 ## Task 6: Final QA and remaining-reference classification
 
-Status: **Completed for the feature branch and temporary Preview**.
+Status: **Completed for the feature branch, merged `dev`, and temporary/Git Previews**.
 
 Authoritative report:
 
@@ -182,6 +182,9 @@ Completed reversible Preview work:
 
 - Temporary URL: `https://parro-guide.vercel.app`
 - Current verified Preview: `dpl_J85ABCHTTM6EaxGXzvDMhZTCrh2i`
+- `dev` merge commit: `216c35fb6b0783524bc21f1600907524b5c06979`
+- Current Git `dev` Preview: `dpl_DgLFYLdL1JsKoJ1zFeayujtJ9YMc`
+- Branch-scoped Vercel value: `NEXT_PUBLIC_APP_URL=https://parro-guide.vercel.app` for `Preview (dev)` only.
 - Preview uses dev Supabase `dskphgxurxebblnpwhax`.
 - Metadata, robots, and sitemap emit the Parro alias.
 - Interim support contact is `kinjungho@gmail.com`.
@@ -191,13 +194,11 @@ Completed reversible Preview work:
 
 Still requires separate owner approval:
 
-1. Merge and push to `dev` using `docs/brand/parro-dev-integration-runbook.md`.
-2. Verify the Git-generated Vercel `dev` Preview.
-3. Purchase and attach the final Parro custom domain.
-4. Provision the final domain mailbox if required.
-5. Update production URL/env and Recorder production origin only after final-domain verification.
-6. Publish a new Chrome Web Store version only after package and policy review.
-7. Merge to `main` and promote Production only through a separate explicit approval gate.
+1. Purchase and attach the final Parro custom domain.
+2. Provision the final domain mailbox if required.
+3. Update production URL/env and Recorder production origin only after final-domain verification.
+4. Publish a new Chrome Web Store version only after package and policy review.
+5. Merge to `main` and promote Production only through a separate explicit approval gate.
 
 ## Phase 3: Internal migration
 

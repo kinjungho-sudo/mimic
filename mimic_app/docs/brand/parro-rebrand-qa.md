@@ -35,6 +35,8 @@ git diff --check
 - Refreshed the alias to Ready Preview `dpl_8KycS2iBFbDi8K826UeEjmpm5TBw` with deployment-scoped `NEXT_PUBLIC_APP_URL`. Six public routes returned HTTP 200 with Parro metadata, zero visible old-brand matches, and zero `mimic-nine-ashen.vercel.app` metadata matches; the login bundle referenced only dev Supabase `dskphgxurxebblnpwhax`, and recent error logs were empty.
 - Final robots-aware Preview `dpl_J85ABCHTTM6EaxGXzvDMhZTCrh2i` is Ready and now serves `parro-guide.vercel.app`. `/robots.txt` points once to the Parro sitemap and preserves the CCBot block; `/sitemap.xml` contains six Parro URLs. Both return HTTP 200 with zero old Production URL matches, and recent error logs are empty.
 - A branch-scoped Vercel env add was rejected because `brand/parro-system` is not pushed to the connected repository; no shared project env changed. The successful deployment used `--build-env` and `--env` values scoped to that deployment only.
+- After owner-approved `dev` merge/push, added `NEXT_PUBLIC_APP_URL=https://parro-guide.vercel.app` to `Preview (dev)` only and redeployed the Git Preview as Ready deployment `dpl_DgLFYLdL1JsKoJ1zFeayujtJ9YMc`.
+- Git dev Preview verification: six public routes returned HTTP 200 with Parro metadata, zero visible old-brand and old Production URL matches; robots/sitemap emitted only the Parro URL; assets returned HTTP 200; the login bundle referenced dev Supabase `dskphgxurxebblnpwhax`; recent error logs were empty.
 - Re-ran `npm run lint`, `$env:NODE_OPTIONS='--use-system-ca'; npm run build`, focused bot User-Agent search, and `git diff --check` after the favicon crawler User-Agent pass; all passed with only existing warnings.
 - Re-ran `npm run lint`, `$env:NODE_OPTIONS='--use-system-ca'; npm run build`, `git diff --check`, and focused `sendMimicEmail|sendParroEmail` search after the email helper alias pass; all passed with only existing warnings.
 - Re-ran `npm run lint`, `$env:NODE_OPTIONS='--use-system-ca'; npm run build`, `git diff --check`, and focused `MimicAppHeader|mimicFadeIn|mimic:survey` search after the internal UI name cleanup; all passed with only existing warnings.
@@ -147,8 +149,8 @@ git diff --check
 ## Phase 2 recommendations
 
 1. Wing Pointer SVG, PNG, logo, icon, favicon, and compatibility asset replacement completed on `brand/parro-system`.
-2. Use `docs/brand/parro-dev-integration-runbook.md` for the owner-approved `dev` merge, Preview verification, and merge-revert procedure; do not merge `main` as part of that runbook.
-3. Read-only Vercel preflight and Parro Preview verification completed. Choose the final Parro custom domain before any shared project/domain/env write.
+2. Owner-approved `dev` merge/push and Git Preview verification completed; rollback merge SHA is `216c35f`.
+3. Choose the final Parro custom domain before any Production project/domain/env write.
 4. Attach and verify the custom domain on the existing project before changing production app, SDK, Recorder, or support email URLs.
 5. Update Recorder production URLs and store/policy URLs only after final-domain behavior is verified.
 6. Keep `mm_*` as the internal database namespace and defer all DB/API/env/package/SDK identifier renames to a separately approved Phase 3 migration plan.

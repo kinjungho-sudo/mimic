@@ -16,6 +16,24 @@ Verified on `2026-07-11` after `git fetch origin dev`:
 
 Re-run these checks immediately before integration because `dev` may move.
 
+## Integration result - 2026-07-11
+
+- Owner approved merge and push to `dev`.
+- Existing dirty `dev` worktree was preserved; integration used clean branch `integration/parro-dev` from `origin/dev`.
+- Merged with `--no-ff` and pushed merge commit `216c35fb6b0783524bc21f1600907524b5c06979` to `dev`.
+- Local lint/build, SDK/Recorder checks, manifest assertion, MCP build, and full diff check passed.
+- Git Preview `dpl_DgLFYLdL1JsKoJ1zFeayujtJ9YMc` is Ready on the dev branch alias.
+- `Preview (dev)` now has branch-scoped `NEXT_PUBLIC_APP_URL=https://parro-guide.vercel.app`; Production env remains unchanged.
+- Six public routes, Parro assets, robots/sitemap, dev Supabase reference, browser rendering, and error logs passed.
+
+Rollback source merge with:
+
+```powershell
+git revert -m 1 216c35fb6b0783524bc21f1600907524b5c06979
+```
+
+Remove the branch-scoped Preview URL only if the dev metadata rollback is also required; then redeploy the previous dev Preview.
+
 ## Required approval gate
 
 Do not run the integration commands until the owner explicitly approves **merge to dev and push dev**.

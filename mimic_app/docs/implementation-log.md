@@ -482,3 +482,12 @@
 - Updated the local `mimic-parro-rebrand` skill so future sessions must read the restored plan and mistakes log before rebrand work.
 - Validated the updated skill with `quick_validate.py` under `PYTHONUTF8=1`; validation passed. The first run failed only because the Windows default `cp949` decoder could not read the UTF-8 skill file.
 - Did not change runtime code, branches, deployments, environments, Supabase, or data.
+
+## 2026-07-11 - Owner-approved Parro dev integration
+
+- Preserved the existing dirty `dev` worktree and created clean integration branch/worktree from current `origin/dev`.
+- Merged `brand/parro-system` with `--no-ff` as `216c35fb6b0783524bc21f1600907524b5c06979`, ran full app/SDK/Recorder/MCP verification, and fast-forward pushed `HEAD:dev`.
+- Verified Ready Git Preview `dpl_8t9d8GULEqG7uJXHgAryCRiG3MjT`, browser-rendered Parro landing, dev Supabase, Parro assets, and no recent error logs.
+- Added branch-scoped `NEXT_PUBLIC_APP_URL=https://parro-guide.vercel.app` to `Preview (dev)` only and redeployed as Ready `dpl_DgLFYLdL1JsKoJ1zFeayujtJ9YMc`.
+- Reverified six public routes, metadata, robots, sitemap, assets, dev DB reference, and logs; old visible brand and old Production URL matches were zero.
+- Kept `main`, Production deployment/env, production Supabase, published extension, and data unchanged. Source rollback is `git revert -m 1 216c35f`.
