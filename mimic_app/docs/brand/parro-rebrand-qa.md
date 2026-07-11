@@ -113,6 +113,7 @@ git diff --check
 - Development-only guest login still uses `devtest@mimic.dev`; this appears to be a seeded dev account and should not be renamed without owner approval.
 - SDK/recorder console log tags have been updated to `[Parro]` / `[Parro Recorder]`; compatibility names remain unchanged.
 - Chrome extension runtime URLs, extension IDs, local storage keys, IndexedDB names, and `mimic-*` DOM/CSS compatibility hooks are preserved. Local package artifacts now use `parro-recorder-v{version}.zip`.
+- Recorder `externally_connectable` includes the exact temporary origin `https://parro-guide.vercel.app/*` so web-to-extension linking works on the Parro alias; existing Vercel, legacy custom-domain, and localhost origins remain for rollback compatibility.
 - Recorder test fixtures may still contain legacy color values; runtime extension UI files have been migrated to Parro colors.
 - Legacy matching keywords in the help chat so users asking about the old name can still get an answer.
 

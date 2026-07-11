@@ -423,3 +423,9 @@
 - Recorded the owner-approved decision to keep `mm_*` as Parro's internal legacy database namespace.
 - New tables continue using the established `mm_*` convention until a separately approved Phase 3 database migration; mixed `parro_*` table names are not introduced.
 - Made no table, schema, migration, policy, function, trigger, bucket, environment, or data change.
+
+## 2026-07-11 - Parro alias Recorder connectivity
+
+- Added the exact temporary origin `https://parro-guide.vercel.app/*` to Recorder `externally_connectable` so the Parro web alias can link to the extension.
+- Preserved existing Vercel, `mimicflow.com`, localhost, extension ID, runtime URLs, storage keys, and DB identifiers for compatibility and rollback.
+- Did not bump the extension version, build a store package, publish an extension, or change `main`, Production, environments, Supabase, or data.
