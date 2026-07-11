@@ -154,3 +154,16 @@ git diff --check
 4. Attach and verify the custom domain on the existing project before changing production app, SDK, Recorder, or support email URLs.
 5. Update Recorder production URLs and store/policy URLs only after final-domain behavior is verified.
 6. Keep `mm_*` as the internal database namespace and defer all DB/API/env/package/SDK identifier renames to a separately approved Phase 3 migration plan.
+
+## 2026-07-11 - Parro Recorder 아이콘과 확장 상세 화면 검증
+
+- Chrome 확장 상세 화면에 `MIMIC Recorder (dev)`와 보라색 `M` 아이콘이 보이는 것은 Chrome이 rebrand 이전 매니페스트/아이콘을 로드했거나 소스 변경 후 확장을 재로드하지 않은 상태로 분류했다. Chrome 보안 정책상 설치 경로 자체는 자동 확인하지 않았다.
+- 원격 `dev` 기준 `mimic_recorder/manifest.json`의 이름은 이미 `Parro Recorder (dev)`이며, Recorder popup/권한/정책/Live Guide 실행 UI는 Parro teal, lime, navy 팔레트를 사용한다.
+- `mimic_recorder/icons/icon16.png`, `icon48.png`, `icon128.png`을 앱과 동일한 Wing Pointer 아이콘으로 교체했다. 세 파일은 `mimic_app/public/icons/`의 대응 자산과 바이트 단위로 일치한다.
+- 확장 상세 화면의 설명이 브랜드를 명시하도록 매니페스트 설명을 `Parro Recorder는...`으로 보정했다.
+- Recorder JavaScript 6개 파일의 `node --check`, 매니페스트 JSON/아이콘 경로 assertion, 아이콘 해시 비교, `git diff --check`가 통과했다.
+- Web Store ZIP을 임시 생성해 13개 whitelist 항목, `Parro Recorder` 이름, 버전 `1.6.2`, 정방향 경로, Wing Pointer 아이콘 해시 일치를 확인한 뒤 ZIP을 제거했다. 게시 작업은 하지 않았다.
+- 실행 UI의 구 보라색 팔레트 검색은 0건이며 Parro 팔레트 참조는 46건이다.
+- 420x800 사이드 패널 렌더링에서 Wing Pointer 로고, `Parro` 워드마크, teal 녹화 버튼, 가로 폭을 확인했다. 보이는 구브랜드와 가로 넘침은 없었다. 일반 HTTP 렌더링의 `chrome.storage` 오류는 Chrome extension API가 없는 검증 환경에서만 발생한다.
+- Chrome 확장 상세 화면의 어두운 배경과 파란 `사용` 토글은 Chrome 자체 UI이므로 Recorder에서 변경할 수 없다.
+- 작업 브랜치는 `fix/parro-recorder-brand`이며 `main`, Production, DB, 배포, Web Store에는 변경하지 않았다.

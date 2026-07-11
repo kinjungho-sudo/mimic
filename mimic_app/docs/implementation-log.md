@@ -491,3 +491,12 @@
 - Added branch-scoped `NEXT_PUBLIC_APP_URL=https://parro-guide.vercel.app` to `Preview (dev)` only and redeployed as Ready `dpl_DgLFYLdL1JsKoJ1zFeayujtJ9YMc`.
 - Reverified six public routes, metadata, robots, sitemap, assets, dev DB reference, and logs; old visible brand and old Production URL matches were zero.
 - Kept `main`, Production deployment/env, production Supabase, published extension, and data unchanged. Source rollback is `git revert -m 1 216c35f`.
+
+## 2026-07-11 - Parro Recorder 브랜드 아이콘 적용
+
+- `fix/parro-recorder-brand`를 원격 `dev`의 `c6cde0f`에서 분리해 작업했다.
+- Recorder의 16/48/128px 보라색 `M` 아이콘을 앱과 동일한 Wing Pointer 자산으로 교체했다.
+- 매니페스트 이름 `Parro Recorder (dev)`를 유지하고 설명에 `Parro Recorder`를 명시했다.
+- Recorder popup은 이미 Parro teal/lime 팔레트가 적용된 상태임을 확인했으며 420x800 렌더링에서 로고, 버튼, 레이아웃을 검증했다.
+- 임시 Web Store ZIP을 생성해 `Parro Recorder`, 버전 `1.6.2`, Wing Pointer 아이콘 3종을 검증한 뒤 제거했으며 게시하지 않았다.
+- `main`, Production, DB, 배포, Chrome Web Store에는 변경하지 않았다.
