@@ -6,14 +6,15 @@ Phase 2 should not start until the owner explicitly approves each operational de
 
 ## Decision 1: Final Logo Source
 
-Status: blocked on final production SVG.
+Status: approved and applied on `2026-07-11` in `brand/parro-system`.
 
-Owner must provide a production-ready Wing Pointer SVG, not a screenshot or mascot raster.
+The selected Wing Pointer direction was rebuilt as original vector geometry and applied to the app logo, icon, favicon, PNG icon set, and shared `BrandMark` component.
 
-Target files after approval:
+Applied files:
 
 - `public/brand/parro-logo.svg`
 - `public/brand/parro-mark.svg`
+- `public/brand/parro-mark.png`
 - `public/logo.svg`
 - `app/icon.svg`
 - `public/favicon.svg`
@@ -21,9 +22,10 @@ Target files after approval:
 - `public/icons/icon48.png`
 - `public/icons/icon128.png`
 
-Open decision:
+Resolved asset path decision:
 
-- Keep `/mimic-logo.png` as a compatibility filename and replace its contents, or introduce `/brand/parro-logo.svg`/`/parro-logo.png` as the primary public path and keep `/mimic-logo.png` as a fallback.
+- Use `/brand/parro-mark.png` as the primary public bitmap path.
+- Keep `/mimic-logo.png` as a compatibility filename with identical Parro mark contents.
 
 Risk:
 
@@ -138,8 +140,8 @@ Risk:
 
 ## Recommended Phase 2 Order
 
-1. Approve final logo SVG and asset filename policy.
-2. After explicit owner approval, inspect the current linked Vercel project/env state with the available CLI.
+1. Final logo SVG and asset filename policy completed on `brand/parro-system`.
+2. After explicit owner approval for domain operations, inspect the current linked Vercel project/env state with the available CLI.
 3. Decide final Parro domain and support email.
 4. Update app constants and public static files.
 5. Update Recorder runtime URLs and manifest host permissions only after domain/auth behavior is confirmed.

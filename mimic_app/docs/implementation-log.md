@@ -371,3 +371,12 @@
 
 - Corrected the Phase 2 decision document to reflect the verified Vercel CLI `54.5.1` installation.
 - Kept linked-project inspection, environment access, logs, and deployment blocked until explicit owner approval.
+
+## 2026-07-11 - Approved Parro Wing Pointer assets
+
+- Rebuilt the selected Wing Pointer direction as original SVG geometry using Parro teal, lime, and deep navy.
+- Added `public/brand/parro-logo.svg`, `public/brand/parro-mark.svg`, `public/brand/parro-mark.png`, and `public/favicon.svg`.
+- Replaced `public/logo.svg`, `app/icon.svg`, the PNG icon set, and the shared `BrandMark` with the approved mark.
+- Switched `BRAND_LOGO_IMAGE_PATH` to `/brand/parro-mark.png`; retained `/mimic-logo.png` as an identical compatibility fallback.
+- Verified SVG/PNG rendering, 48 px icon legibility, focused old-mark search, app lint, and production build.
+- Attempted local browser smoke at port `3017`; the page was blocked by missing local Supabase environment values, so no env, database, or deployment wiring was changed.
