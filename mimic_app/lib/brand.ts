@@ -12,6 +12,7 @@ export const BRAND_APP_URL_FALLBACK = 'https://mimic-nine-ashen.vercel.app';
 export const BRAND_LOGO_IMAGE_PATH = '/brand/parro-mark.png';
 export const BRAND_EXTENSION_STORE_URL =
   'https://chromewebstore.google.com/detail/mimic-recorder/ehbhcdkapcbfehinjapabgoegcjmmbgd';
+export const BRAND_BOT_USER_AGENT = 'ParroBot/1.0';
 
 export const BRAND_VISUAL_DIRECTION = 'Wing Pointer';
 

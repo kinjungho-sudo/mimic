@@ -1,4 +1,4 @@
-import { LEGACY_INTERNAL_IDENTIFIERS } from '@/lib/brand';
+import { BRAND_BOT_USER_AGENT } from '@/lib/brand';
 
 /**
  * 도메인 favicon URL 해석 유틸
@@ -36,7 +36,7 @@ export function faviconFallbackUrl(hostname: string | null | undefined): string 
 export async function fetchFaviconFromHtml(pageUrl: string): Promise<string | null> {
   try {
     const res = await fetch(pageUrl, {
-      headers: { 'User-Agent': `Mozilla/5.0 (compatible; ${LEGACY_INTERNAL_IDENTIFIERS.botUserAgent})` },
+      headers: { 'User-Agent': `Mozilla/5.0 (compatible; ${BRAND_BOT_USER_AGENT})` },
       signal: AbortSignal.timeout(5000),
     });
     if (!res.ok) return null;
