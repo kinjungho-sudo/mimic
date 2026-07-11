@@ -24,15 +24,16 @@
       border-bottom: 1px solid #e8e8f0;
       position: sticky; top: 0; background: #fff; z-index: 10;
     }
-    .logo { display: flex; align-items: center; gap: 8px; }
+    .logo { display: flex; align-items: center; gap: 10px; }
     .logo-icon {
-      width: 28px; height: 28px;
-      border-radius: 50%;
+      width: 34px; height: 34px;
+      border-radius: 8px;
       overflow: hidden;
       display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
     }
-    .logo-icon img { width: 100%; height: 100%; object-fit: cover; }
-    .logo-text { font-size: 16px; font-weight: 700; color: #1e1e2e; }
+    .logo-icon img { width: 100%; height: 100%; object-fit: contain; }
+    .logo-text { font-size: 17px; font-weight: 750; color: #102033; }
 
     .header-right { display: flex; align-items: center; gap: 8px; }
     .step-count {

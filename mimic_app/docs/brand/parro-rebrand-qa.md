@@ -170,3 +170,12 @@ git diff --check
 - `dev` 반영 후 Git Preview의 landing/login/help, Parro 자산, robots/sitemap을 재검증했다. 구브랜드와 이전 Production URL 노출은 0건이고 Supabase 참조는 dev `dskphgxurxebblnpwhax`뿐이다.
 - Chrome 확장 상세 화면의 어두운 배경과 파란 `사용` 토글은 Chrome 자체 UI이므로 Recorder에서 변경할 수 없다.
 - Recorder 변경 커밋 `d53dc52`를 원격 `dev`에 fast-forward 반영했다. `main`, Production, DB, Chrome Web Store에는 변경하지 않았다.
+
+## 2026-07-11 - Parro Recorder BI 소형 가독성 개선
+
+- 투명 Wing Pointer만 표시하던 Recorder 아이콘은 16~24px에서 존재감이 약해, 딥 네이비 `#102033` 라운드 타일 위에 심볼의 실제 불투명 영역을 확대 배치했다.
+- 16/48/128px 아이콘의 알파 커버리지는 각각 97.3%, 96.3%, 96.2%이고, 브랜드 전경 픽셀은 각각 72, 534, 3616개로 확인했다.
+- popup 헤더 아이콘을 28px 원형 마스크에서 34px 라운드 타일로 확대하고, `Parro` 워드마크를 17px/750 weight/딥 네이비로 조정했다.
+- 360x720 렌더링에서 실제 아이콘 박스 34x34px, 자연 이미지 48x48px, teal 녹화 버튼, 가로 넘침 없음, 구브랜드 0건을 확인했다.
+- 임시 Web Store ZIP의 13개 항목, `Parro Recorder` 이름, 버전 `1.6.2`, 새 아이콘 해시 일치를 검증한 뒤 ZIP을 제거했다. 게시하지 않았다.
+- 이 변경은 `dev` 전용이며 `main`, Production, DB, Chrome Web Store에는 적용하지 않는다.

@@ -501,3 +501,10 @@
 - 임시 Web Store ZIP을 생성해 `Parro Recorder`, 버전 `1.6.2`, Wing Pointer 아이콘 3종을 검증한 뒤 제거했으며 게시하지 않았다.
 - 아이콘 픽셀/가시 영역, 360px popup·마이크 권한·개인정보 화면, 앱 lint/build, SDK/Recorder 구문, MCP 빌드, Git Preview와 dev Supabase 연결을 추가 검증했다.
 - Recorder 변경 커밋 `d53dc52`를 원격 `dev`에 반영했다. `main`, Production, DB, Chrome Web Store에는 변경하지 않았다.
+
+## 2026-07-11 - Parro Recorder BI 가독성 개선
+
+- Recorder의 소형 Wing Pointer 아이콘에 딥 네이비 라운드 배경을 추가하고 심볼을 확대해 16px에서도 식별되도록 개선했다.
+- popup 헤더 BI를 28px에서 34px로 키우고 Parro 워드마크의 크기·굵기·색상을 보강했다.
+- 16/48/128px 픽셀 검사, 임시 Web Store 패키지, 360x720 시각 검증을 통과했다.
+- `dev`에만 반영하며 `main`, Production, DB, Chrome Web Store에는 변경하지 않는다.
