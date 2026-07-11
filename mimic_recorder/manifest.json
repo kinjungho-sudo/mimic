@@ -48,6 +48,7 @@
   ],
   "externally_connectable": {
     "matches": [
+      "https://parro-guide.vercel.app/*",
       "https://mimic-nine-ashen.vercel.app/*",
       "https://mimicflow.com/*",
       "http://localhost:3000/*",
