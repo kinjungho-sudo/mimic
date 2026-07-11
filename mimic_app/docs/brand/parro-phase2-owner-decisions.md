@@ -141,13 +141,16 @@ Risk:
 
 ## Decision 5: Bot/User-Agent Name
 
-Current value:
+Status: Parro runtime name applied on `2026-07-11` in `brand/parro-system`.
 
-- `MIMICBot/1.0` in `LEGACY_INTERNAL_IDENTIFIERS.botUserAgent`
+Current values:
 
-Open decision:
+- `ParroBot/1.0` in `BRAND_BOT_USER_AGENT`, used by active server-side favicon HTML requests.
+- `MIMICBot/1.0` remains in `LEGACY_INTERNAL_IDENTIFIERS.botUserAgent` as an explicit compatibility/rollback value.
 
-- Keep `MIMICBot/1.0` as a stable crawler compatibility identifier, or change to `ParroBot/1.0` in a dedicated migration.
+Rollback decision:
+
+- If a remote site rejects the new User-Agent, the favicon request can be reverted to the preserved legacy constant without changing routes, data, or deployment wiring.
 
 Risk:
 

@@ -27,6 +27,7 @@ git diff --check
 - Preview verification: `/landingpage` contained 36 `Parro` matches and zero visible `MIMIC` / `미믹` matches; the Parro SVG, PNG, and app icon returned HTTP 200; browser smoke confirmed the Wing Pointer header and first viewport; recent error-log query returned no errors.
 - `2026-07-11` support-contact pass: changed `BRAND_SUPPORT_EMAIL` from `support@mimic.so` to the already-public operational address `kinjungho@gmail.com`, and centralized app UI, legal, email template, n8n, and share-email uses.
 - Ready Preview `dpl_8oErV37fcoayvYYzAE9qF5cCU6qz` verification: combined landing/help HTML contained six Gmail matches, zero old support-address matches, and zero visible old-brand matches; recent error-log query returned no errors.
+- Re-ran `npm run lint`, `$env:NODE_OPTIONS='--use-system-ca'; npm run build`, focused bot User-Agent search, and `git diff --check` after the favicon crawler User-Agent pass; all passed with only existing warnings.
 - Re-ran `npm run lint`, `$env:NODE_OPTIONS='--use-system-ca'; npm run build`, `git diff --check`, and focused `sendMimicEmail|sendParroEmail` search after the email helper alias pass; all passed with only existing warnings.
 - Re-ran `npm run lint`, `$env:NODE_OPTIONS='--use-system-ca'; npm run build`, `git diff --check`, and focused `MimicAppHeader|mimicFadeIn|mimic:survey` search after the internal UI name cleanup; all passed with only existing warnings.
 - Re-ran `npm run lint`, `$env:NODE_OPTIONS='--use-system-ca'; npm run build`, `git diff --check`, and focused `demo@mimicflow.com|demo@parro.example|devtest@mimic.dev` search after the mock email cleanup; all passed with only existing warnings.
@@ -103,7 +104,7 @@ git diff --check
 
 - `package.json`, `package-lock.json`, and MCP package names such as `mimic-app` / `@mimic/mcp-server`.
 - Supabase schema, migrations, storage buckets, and SQL comments, including `mimic-tts`, `01_mimic_dev_schema.sql`, and `supabase/migrations/*`.
-- API route filenames and environment/header identifiers including `x-mimic-secret`, `MIMIC_EXTENSION_ID`, and `NEXT_PUBLIC_APP_URL`. Runtime uses of preserved legacy values such as `x-mimic-secret` and `MIMICBot/1.0` now go through `LEGACY_INTERNAL_IDENTIFIERS`.
+- API route filenames and environment/header identifiers including `x-mimic-secret`, `MIMIC_EXTENSION_ID`, and `NEXT_PUBLIC_APP_URL`. Preserved legacy values remain in `LEGACY_INTERNAL_IDENTIFIERS`; active favicon requests now use `ParroBot/1.0` through `BRAND_BOT_USER_AGENT` while `MIMICBot/1.0` stays available for rollback.
 - SDK compatibility globals/classes/query params in `public/sdk.js`. New public aliases include `window.ParroSDK`, `window.ParroAutoRun`, `data-parro-guide`, `parro_guide`, and `data-parro-float`; legacy aliases such as `window.MimicSDK`, `window.MimicAutoRun`, `data-guide`, `mimic_guide`, `data-mimic-float`, and `mimic-*` CSS classes remain intentionally supported.
 - Local storage and drag/drop keys such as `mimic:survey:*`, `mimic_annot_defaults_v1`, and `text/mimic-tutorial`. Survey prefixes, annotation defaults, and drag/drop keys now go through `LEGACY_INTERNAL_IDENTIFIERS`.
 - `sendMimicEmail` remains as a backward-compatible alias to `sendParroEmail`; app call sites now use the Parro helper name.
@@ -127,7 +128,7 @@ git diff --check
 - Decide the public domain and whether to provision a matching support mailbox; the interim Gmail contact is active in Preview.
 - Decide whether the Chrome Web Store listing/slug should remain `mimic-recorder` or move through a separate extension listing/update process.
 - Decide how long legacy SDK globals and CSS classes such as `MimicSDK`, `MimicAutoRun`, and `mimic-*` remain supported now that Parro aliases exist.
-- Decide whether bot/user-agent names such as `MIMICBot/1.0` should change in Phase 2 or remain stable.
+- Monitor remote favicon HTML requests after the `ParroBot/1.0` transition; the old value remains available for rollback.
 
 ## Phase 2 recommendations
 

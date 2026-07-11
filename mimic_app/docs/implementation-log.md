@@ -403,3 +403,10 @@
 - Local lint/build passed with only the existing unrelated warnings.
 - Deployed and verified Ready Preview `dpl_8oErV37fcoayvYYzAE9qF5cCU6qz`; landing/help responses contained the Gmail contact and no old support address or visible old-brand copy.
 - Kept the custom-domain mailbox decision open and made no Production, domain, environment, Supabase, or data changes.
+
+## 2026-07-11 - Parro favicon crawler User-Agent
+
+- Added `BRAND_BOT_USER_AGENT` with `ParroBot/1.0` and switched active server-side favicon HTML requests to it.
+- Preserved `MIMICBot/1.0` in `LEGACY_INTERNAL_IDENTIFIERS` as an explicit compatibility and rollback value.
+- `npm run lint` and `$env:NODE_OPTIONS='--use-system-ca'; npm run build` passed with only the existing unrelated warnings.
+- Made no route, API contract, database, environment, extension, or deployment identifier change.
