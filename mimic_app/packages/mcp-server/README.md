@@ -1,6 +1,6 @@
-# MIMIC MCP Server
+# Parro MCP Server
 
-MIMIC 매뉴얼을 Claude 에이전트가 읽고 실행할 수 있도록 노출하는 MCP 서버.
+Parro 매뉴얼을 Claude 에이전트가 읽고 실행할 수 있도록 노출하는 MCP 서버.
 
 ## 설치 및 실행
 
@@ -53,7 +53,7 @@ SUPABASE_SERVICE_ROLE_KEY=<service_role_key>
 ## 실행 흐름
 
 ```
-Claude: "MIMIC에서 '쿠팡 장바구니' 매뉴얼 실행해줘"
+Claude: "Parro에서 '쿠팡 장바구니' 매뉴얼 실행해줘"
   → list_tutorials(query="쿠팡 장바구니")
   → get_steps(tutorial_id)
   → 각 step마다:

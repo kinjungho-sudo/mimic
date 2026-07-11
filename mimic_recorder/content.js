@@ -1,7 +1,8 @@
 (() => {
   // 중복 주입 방지 — 같은 프레임에 두 번 실행되면 즉시 종료
   // (최상위 return은 classic script에서 SyntaxError — 반드시 IIFE 안에서)
-  if (window.__mimicContentLoaded) return;
+  if (window.__parroContentLoaded || window.__mimicContentLoaded) return;
+  window.__parroContentLoaded = true;
   window.__mimicContentLoaded = true;
 
   // iframe editors need typing capture; visual guide UI stays in the top frame.
@@ -10,7 +11,7 @@
   // ── 로그 헬퍼 (background 링버퍼로 릴레이) ──────────────────────
   function log(level, ...args) {
     const msg = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
-    const tag = `[MIMIC][${level.toUpperCase()}][content]`;
+    const tag = `[Parro][${level.toUpperCase()}][content]`;
     if (level === 'error')      console.error(tag, msg);
     else if (level === 'warn')  console.warn(tag, msg);
     else if (level === 'debug') console.debug(tag, msg);
@@ -541,7 +542,7 @@
     ].join(';');
 
     const dot = document.createElement('span');
-    dot.style.cssText = 'width:8px;height:8px;border-radius:50%;background:#EF4444;flex-shrink:0;animation:mimic-blink 1s infinite';
+    dot.style.cssText = 'width:8px;height:8px;border-radius:50%;background:#EF4444;flex-shrink:0;animation:parro-blink 1s infinite';
     const badgeText = document.createElement('span');
     badgeText.textContent = opts && opts.label ? opts.label : '화면 녹화가 시작됩니다';
     badge.append(dot, badgeText);
@@ -556,20 +557,20 @@
 
     overlay.append(badge, numEl);
 
-    if (!document.getElementById('mimic-kf')) {
+    if (!document.getElementById('parro-kf')) {
       const kf = document.createElement('style');
-      kf.id = 'mimic-kf';
-      kf.textContent = '@keyframes mimic-blink{0%,100%{opacity:1}50%{opacity:0.2}}@keyframes mimic-pop{0%{transform:scale(1.4);opacity:0}60%{opacity:1}100%{transform:scale(1);opacity:1}}@keyframes mimic-start{0%{transform:scale(0.8);opacity:0}50%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}';
+      kf.id = 'parro-kf';
+      kf.textContent = '@keyframes parro-blink{0%,100%{opacity:1}50%{opacity:0.2}}@keyframes mimic-blink{0%,100%{opacity:1}50%{opacity:0.2}}@keyframes parro-pop{0%{transform:scale(1.4);opacity:0}60%{opacity:1}100%{transform:scale(1);opacity:1}}@keyframes mimic-pop{0%{transform:scale(1.4);opacity:0}60%{opacity:1}100%{transform:scale(1);opacity:1}}@keyframes parro-start{0%{transform:scale(0.8);opacity:0}50%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}@keyframes mimic-start{0%{transform:scale(0.8);opacity:0}50%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}';
       document.head.appendChild(kf);
     }
 
     document.documentElement.appendChild(overlay);
 
     const steps = [
-      { text: '3', color: '#fff',      anim: 'mimic-pop 0.35s ease forwards' },
-      { text: '2', color: '#fff',      anim: 'mimic-pop 0.35s ease forwards' },
-      { text: '1', color: '#fff',      anim: 'mimic-pop 0.35s ease forwards' },
-      { text: opts && opts.startText ? opts.startText : 'START', color: opts && opts.accentColor ? opts.accentColor : '#4ade80', anim: 'mimic-start 0.4s ease forwards', size: '56px' },
+      { text: '3', color: '#fff',      anim: 'parro-pop 0.35s ease forwards' },
+      { text: '2', color: '#fff',      anim: 'parro-pop 0.35s ease forwards' },
+      { text: '1', color: '#fff',      anim: 'parro-pop 0.35s ease forwards' },
+      { text: opts && opts.startText ? opts.startText : 'START', color: opts && opts.accentColor ? opts.accentColor : '#4ade80', anim: 'parro-start 0.4s ease forwards', size: '56px' },
     ];
 
     let i = 0;
@@ -675,24 +676,29 @@
 
     if (msg.type === 'SHOW_GUIDE_COUNTDOWN') {
       if (!IS_TOP_FRAME) { sendResponse({ ok: true }); return false; }
-      showCountdown(() => {}, { label: 'Live Guide Beta 시작됩니다', accentColor: '#a78bfa', startText: 'GO' });
+      showCountdown(() => {}, { label: 'Live Guide Beta 시작됩니다', accentColor: '#17C9B6', startText: 'GO' });
       sendResponse({ ok: true });
       return false;
     }
 
     if (msg.type === 'SHOW_OVERLAY' && msg.step) {
       if (!IS_TOP_FRAME) return false;
-      if (window.MimicGuide) window.MimicGuide.show(msg.step, {
+      const guideApi = window.ParroGuide || window.MimicGuide;
+      if (guideApi) guideApi.show(msg.step, {
         index: msg.index ?? 0,
         total: msg.total ?? 1,
         survey: msg.survey || null,
         onAdvance: (reason) => chrome.runtime.sendMessage({ type: 'GUIDE_NEXT', viaClick: reason === 'click' }),
         onPrev:    () => chrome.runtime.sendMessage({ type: 'GUIDE_PREV' }),
-        onExit:    () => { chrome.runtime.sendMessage({ type: 'EXIT_GUIDE' }); window.MimicGuide.hide(); },
+        onExit:    () => { chrome.runtime.sendMessage({ type: 'EXIT_GUIDE' }); guideApi.hide(); },
       });
       return false;
     }
-    if (msg.type === 'HIDE_OVERLAY') { if (IS_TOP_FRAME && window.MimicGuide) window.MimicGuide.hide(); return false; }
+    if (msg.type === 'HIDE_OVERLAY') {
+      const guideApi = window.ParroGuide || window.MimicGuide;
+      if (IS_TOP_FRAME && guideApi) guideApi.hide();
+      return false;
+    }
 
     return false;
   });
@@ -1182,12 +1188,16 @@
 
     const clickedEl = e.target;
 
-    // MIMIC 자체 오버레이 클릭 무시
-    if (clickedEl && typeof clickedEl.id === 'string' && clickedEl.id.toLowerCase().includes('mimic')) return;
+    // Parro 자체 오버레이 클릭 무시
+    if (clickedEl && typeof clickedEl.id === 'string') {
+      const id = clickedEl.id.toLowerCase();
+      if (id.includes('parro') || id.includes('mimic')) return;
+    }
     const _classStr = typeof clickedEl.className === 'string'
       ? clickedEl.className
       : (clickedEl.className?.baseVal ?? '');
-    if (_classStr.toLowerCase().includes('mimic')) return;
+    const lowerClassStr = _classStr.toLowerCase();
+    if (lowerClassStr.includes('parro') || lowerClassStr.includes('mimic')) return;
 
     const target = findInteractiveTarget(clickedEl);
 
@@ -1525,7 +1535,7 @@
     }
   }, true);
 
-  // ── Guide Me 오버레이 ────────────────────────────────────────────
-  // 오버레이 렌더링/요소탐지/자동진행은 guide-engine.js(window.MimicGuide)가 담당.
+  // ── Live Guide 오버레이 ──────────────────────────────────────────
+  // 오버레이 렌더링/요소탐지/자동진행은 guide-engine.js(window.ParroGuide)가 담당.
   // (content_scripts에서 content.js보다 먼저 로드됨) SHOW_OVERLAY/HIDE_OVERLAY 핸들러 참조.
 })();

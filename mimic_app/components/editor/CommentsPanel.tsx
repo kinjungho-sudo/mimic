@@ -150,9 +150,9 @@ export function CommentsPanel({ tutorialId, activeStepId, steps, currentUserId, 
       style={{
         flex: 1, height: '34px', borderRadius: '8px', fontSize: '12.5px', cursor: 'pointer',
         fontWeight: tab === key ? 600 : 500,
-        border: tab === key ? '1px solid #C7D2FE' : '1px solid transparent',
+        border: tab === key ? '1px solid #DDE7E4' : '1px solid transparent',
         background: tab === key ? 'white' : 'transparent',
-        color: tab === key ? '#4338ca' : '#6B7280',
+        color: tab === key ? '#007C72' : '#6B7280',
         boxShadow: tab === key ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
       }}>
       {label}{count > 0 ? ` ${count}` : ''}
@@ -172,7 +172,7 @@ export function CommentsPanel({ tutorialId, activeStepId, steps, currentUserId, 
         style={{ flex: 1, fontSize: '12px', padding: '7px 10px', borderRadius: '8px', border: '1px solid #E5E7EB', outline: 'none' }}
       />
       <button onClick={() => handleReply(parent)} disabled={!replyDraft.trim()}
-        style={{ padding: '0 10px', borderRadius: '8px', border: 'none', background: replyDraft.trim() ? '#4F46E5' : '#E5E7EB', color: 'white', cursor: replyDraft.trim() ? 'pointer' : 'default', display: 'grid', placeItems: 'center' }}>
+        style={{ padding: '0 10px', borderRadius: '8px', border: 'none', background: replyDraft.trim() ? '#009B8E' : '#E5E7EB', color: 'white', cursor: replyDraft.trim() ? 'pointer' : 'default', display: 'grid', placeItems: 'center' }}>
         <Send size={13} />
       </button>
     </div>
@@ -192,7 +192,7 @@ export function CommentsPanel({ tutorialId, activeStepId, steps, currentUserId, 
           onClick={() => { setComposing(v => !v); setDraft(''); }}
           disabled={!activeStepId}
           title={activeStepId ? '현재 단계에 댓글 추가' : '먼저 단계를 선택하세요'}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', height: '30px', padding: '0 12px', borderRadius: '8px', border: 'none', fontSize: '12.5px', fontWeight: 600, cursor: activeStepId ? 'pointer' : 'not-allowed', background: activeStepId ? '#4F46E5' : '#E5E7EB', color: 'white' }}>
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', height: '30px', padding: '0 12px', borderRadius: '8px', border: 'none', fontSize: '12.5px', fontWeight: 600, cursor: activeStepId ? 'pointer' : 'not-allowed', background: activeStepId ? '#009B8E' : '#E5E7EB', color: 'white' }}>
           <MessageSquarePlus size={14} /> 추가
         </button>
       </div>
@@ -205,7 +205,7 @@ export function CommentsPanel({ tutorialId, activeStepId, steps, currentUserId, 
 
       {/* 작성 박스 (추가 토글) */}
       {composing && (
-        <div style={{ margin: '10px 12px 0', padding: '10px', background: 'white', border: '1px solid #C7D2FE', borderRadius: '12px', flexShrink: 0 }}>
+        <div style={{ margin: '10px 12px 0', padding: '10px', background: 'white', border: '1px solid #DDE7E4', borderRadius: '12px', flexShrink: 0 }}>
           <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '6px' }}>
             {activeStepNumber ? `${activeStepNumber}단계에 댓글` : '이 단계에 댓글'}
           </div>
@@ -224,7 +224,7 @@ export function CommentsPanel({ tutorialId, activeStepId, steps, currentUserId, 
             <button onClick={() => { setComposing(false); setDraft(''); }}
               style={{ padding: '6px 12px', borderRadius: '7px', border: '1px solid #E5E7EB', background: 'white', color: '#6B7280', fontSize: '12px', cursor: 'pointer' }}>취소</button>
             <button onClick={handleAdd} disabled={!draft.trim() || posting}
-              style={{ padding: '6px 14px', borderRadius: '7px', border: 'none', background: draft.trim() && !posting ? 'linear-gradient(135deg, #3730a3, #6d28d9)' : '#E5E7EB', color: 'white', fontSize: '12px', fontWeight: 600, cursor: draft.trim() && !posting ? 'pointer' : 'default' }}>
+              style={{ padding: '6px 14px', borderRadius: '7px', border: 'none', background: draft.trim() && !posting ? 'linear-gradient(135deg, #009B8E, #12B886)' : '#E5E7EB', color: 'white', fontSize: '12px', fontWeight: 600, cursor: draft.trim() && !posting ? 'pointer' : 'default' }}>
               댓글 남기기
             </button>
           </div>
@@ -285,7 +285,7 @@ export function CommentsPanel({ tutorialId, activeStepId, steps, currentUserId, 
                 {/* 스텝 배지 */}
                 {stepNo != null && (
                   <button onClick={() => onJumpToStep?.(c.step_id!)}
-                    style={{ marginTop: '8px', display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '20px', border: '1px solid #E0E7FF', background: '#EEF2FF', color: '#4338ca', fontSize: '10.5px', fontWeight: 600, cursor: onJumpToStep ? 'pointer' : 'default' }}>
+                    style={{ marginTop: '8px', display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '20px', border: '1px solid #E8FFF7', background: '#E8FFF7', color: '#007C72', fontSize: '10.5px', fontWeight: 600, cursor: onJumpToStep ? 'pointer' : 'default' }}>
                     {stepNo}단계
                   </button>
                 )}
@@ -313,7 +313,7 @@ export function CommentsPanel({ tutorialId, activeStepId, steps, currentUserId, 
                 {/* 답글 달기 */}
                 {replyTo === c.id ? replyInput(c) : (
                   <button onClick={() => { setReplyTo(c.id); setReplyDraft(''); }}
-                    style={{ width: '100%', marginTop: '10px', padding: '7px', borderRadius: '8px', border: '1px solid #E5E7EB', background: 'white', color: '#4F46E5', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
+                    style={{ width: '100%', marginTop: '10px', padding: '7px', borderRadius: '8px', border: '1px solid #E5E7EB', background: 'white', color: '#009B8E', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
                     답글 달기
                   </button>
                 )}

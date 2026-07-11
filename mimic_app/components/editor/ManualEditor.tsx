@@ -320,7 +320,7 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
             <button
               onClick={onAddStep ?? addStep}
               style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', height: '36px', border: '1.5px dashed #D1D5DB', borderRadius: '8px', background: 'transparent', fontSize: '12px', color: '#6B7280', cursor: 'pointer', transition: 'all 0.15s ease' }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = '#3730a3'; e.currentTarget.style.color = '#3730a3'; e.currentTarget.style.background = 'rgba(55,48,163,0.03)'; }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#009B8E'; e.currentTarget.style.color = '#009B8E'; e.currentTarget.style.background = 'rgba(0,155,142,0.03)'; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = '#D1D5DB'; e.currentTarget.style.color = '#6B7280'; e.currentTarget.style.background = 'transparent'; }}
             >
               <Plus size={13} /> 단계 추가
@@ -337,14 +337,14 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
           <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 20px', borderBottom: '1px solid #E5E7EB', background: '#FFFBEB' }}>
             <span style={{ fontSize: '12px', color: '#F59E0B', fontWeight: 600 }}>{selectedIds.size}개 선택됨</span>
             <div style={{ width: '1px', height: '16px', background: '#E5E7EB', margin: '0 2px' }} />
-            <Sparkles size={12} style={{ color: '#6d28d9', flexShrink: 0 }} />
+            <Sparkles size={12} style={{ color: '#12B886', flexShrink: 0 }} />
             {([
               { label: '문장 다듬기', instruction: '매뉴얼 가이드라인에 맞게 다듬어줘: 행동 하나만, 1문장, 존댓말, 특정 상품명/수량 제거, 결과 설명 문장 금지' },
               { label: '맞춤법 교정', instruction: '맞춤법과 띄어쓰기를 교정해줘' },
               { label: '개조식으로', instruction: '개조식으로 변환해줘: 마침표 없이 핵심 동작만 명사형으로 짧게' },
             ] as const).map(({ label, instruction }) => (
               <button key={label} disabled={!!bulkAiLoading} onClick={() => bulkAiRewrite(instruction, label)}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', height: '26px', padding: '0 10px', borderRadius: '5px', border: '1px solid #EDE9FE', background: bulkAiLoading === label ? '#EDE9FE' : 'white', color: '#6d28d9', fontSize: '11.5px', fontWeight: 500, cursor: bulkAiLoading ? 'not-allowed' : 'pointer', opacity: bulkAiLoading && bulkAiLoading !== label ? 0.45 : 1, flexShrink: 0 }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', height: '26px', padding: '0 10px', borderRadius: '5px', border: '1px solid #E8FFF7', background: bulkAiLoading === label ? '#E8FFF7' : 'white', color: '#12B886', fontSize: '11.5px', fontWeight: 500, cursor: bulkAiLoading ? 'not-allowed' : 'pointer', opacity: bulkAiLoading && bulkAiLoading !== label ? 0.45 : 1, flexShrink: 0 }}
               >
                 {bulkAiLoading === label ? <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> : null}
                 {label}
@@ -416,11 +416,11 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
                       onMouseLeave={() => setInsertHoverId(prev => (prev === step.id ? null : prev))}
                       style={{ height: '34px', marginTop: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}
                     >
-                      <div style={{ position: 'absolute', left: 0, right: 0, height: '1px', background: insertHoverId === step.id ? '#c7d2fe' : 'transparent', transition: 'background 0.15s' }} />
+                      <div style={{ position: 'absolute', left: 0, right: 0, height: '1px', background: insertHoverId === step.id ? '#DDE7E4' : 'transparent', transition: 'background 0.15s' }} />
                       <button
                         onClick={() => onInsertAfter(step.id)}
                         title="여기에 빈 단계 추가"
-                        style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: '5px', height: '28px', padding: '0 12px', borderRadius: '999px', border: '1px solid #c7d2fe', background: 'white', color: '#3730a3', fontSize: '12px', fontWeight: 600, cursor: 'pointer', opacity: insertHoverId === step.id ? 1 : 0, transition: 'opacity 0.15s', boxShadow: '0 1px 4px rgba(55,48,163,0.12)' }}
+                        style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: '5px', height: '28px', padding: '0 12px', borderRadius: '999px', border: '1px solid #DDE7E4', background: 'white', color: '#009B8E', fontSize: '12px', fontWeight: 600, cursor: 'pointer', opacity: insertHoverId === step.id ? 1 : 0, transition: 'opacity 0.15s', boxShadow: '0 1px 4px rgba(0,155,142,0.12)' }}
                       >
                         <Plus size={14} /> 빈 단계 추가
                       </button>
@@ -472,7 +472,7 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
             <button
               onClick={onAddStep ?? addStep}
               style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', height: '44px', padding: '0 24px', borderRadius: '10px', border: '2px dashed #D1D5DB', background: 'transparent', fontSize: '13px', color: '#6B7280', cursor: 'pointer', transition: 'all 0.18s ease' }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = '#3730a3'; e.currentTarget.style.color = '#3730a3'; e.currentTarget.style.background = 'rgba(55,48,163,0.03)'; }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#009B8E'; e.currentTarget.style.color = '#009B8E'; e.currentTarget.style.background = 'rgba(0,155,142,0.03)'; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = '#D1D5DB'; e.currentTarget.style.color = '#6B7280'; e.currentTarget.style.background = 'transparent'; }}
             >
               <Plus size={15} /> 단계 추가
@@ -630,16 +630,16 @@ function TocItem({ step, isActive, isDragOver, onSelect, onRename, onDragStart, 
       onClick={() => { if (!editing) onSelect(); }}
       style={{
         display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '8px 16px',
-        background: isDragOver ? 'rgba(55,48,163,0.06)' : isActive ? '#e0e7ff' : 'transparent',
-        borderLeft: `3px solid ${isDragOver || isActive ? '#3730a3' : 'transparent'}`,
-        borderTop: isDragOver ? '2px solid #3730a3' : '2px solid transparent',
+        background: isDragOver ? 'rgba(0,155,142,0.06)' : isActive ? '#E8FFF7' : 'transparent',
+        borderLeft: `3px solid ${isDragOver || isActive ? '#009B8E' : 'transparent'}`,
+        borderTop: isDragOver ? '2px solid #009B8E' : '2px solid transparent',
         cursor: editing ? 'text' : 'grab', transition: 'background 0.15s ease', userSelect: 'none',
       }}
       onMouseEnter={e => { if (!isActive && !isDragOver) e.currentTarget.style.background = '#F9FAFB'; }}
       onMouseLeave={e => { if (!isActive && !isDragOver) e.currentTarget.style.background = 'transparent'; }}
     >
       <span style={{ color: '#CBD5E1', fontSize: '10px', lineHeight: 1.6, flexShrink: 0, cursor: 'grab', letterSpacing: '-1px' }}>⠿</span>
-      <span style={{ fontSize: '11px', fontWeight: 600, color: isActive ? '#3730a3' : '#9CA3AF', minWidth: '20px', flexShrink: 0, lineHeight: 1.6 }}>
+      <span style={{ fontSize: '11px', fontWeight: 600, color: isActive ? '#009B8E' : '#9CA3AF', minWidth: '20px', flexShrink: 0, lineHeight: 1.6 }}>
         {String(step.number).padStart(2, '0')}
       </span>
       {editing ? (
@@ -650,7 +650,7 @@ function TocItem({ step, isActive, isDragOver, onSelect, onRename, onDragStart, 
           onBlur={commitEdit}
           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commitEdit(); } if (e.key === 'Escape') { setEditing(false); setDraft(step.actionTitle); } }}
           onClick={e => e.stopPropagation()}
-          style={{ flex: 1, fontSize: '12.5px', fontWeight: 500, color: '#111827', border: '1px solid #3730a3', borderRadius: '4px', padding: '1px 6px', outline: 'none', background: 'white', lineHeight: 1.5 }}
+          style={{ flex: 1, fontSize: '12.5px', fontWeight: 500, color: '#111827', border: '1px solid #009B8E', borderRadius: '4px', padding: '1px 6px', outline: 'none', background: 'white', lineHeight: 1.5 }}
         />
       ) : (
         <span
@@ -822,9 +822,9 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
       onMouseLeave={() => setHovering(false)}
       style={{
         background: 'white', borderRadius: '12px',
-        border: `1.5px solid ${isSelected ? '#3730a3' : isActive ? '#F59E0B' : '#E5E7EB'}`,
+        border: `1.5px solid ${isSelected ? '#009B8E' : isActive ? '#F59E0B' : '#E5E7EB'}`,
         boxShadow: isSelected
-          ? '0 0 0 3px rgba(55,48,163,0.12), 0 4px 16px rgba(17,24,39,0.06)'
+          ? '0 0 0 3px rgba(0,155,142,0.12), 0 4px 16px rgba(17,24,39,0.06)'
           : isActive ? '0 0 0 3px rgba(245,158,11,0.10), 0 4px 16px rgba(17,24,39,0.06)' : '0 1px 4px rgba(17,24,39,0.04)',
         transition: 'border-color 0.18s ease, box-shadow 0.18s ease',
         overflow: 'hidden',
@@ -839,8 +839,8 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
         style={{
           position: 'absolute', top: '8px', right: '8px',
           width: '20px', height: '20px', borderRadius: '5px',
-          border: `2px solid ${isSelected ? '#3730a3' : '#D1D5DB'}`,
-          background: isSelected ? '#3730a3' : 'white',
+          border: `2px solid ${isSelected ? '#009B8E' : '#D1D5DB'}`,
+          background: isSelected ? '#009B8E' : 'white',
           display: 'grid', placeItems: 'center',
           cursor: 'pointer', transition: 'all 0.15s',
           opacity: showControls || isSelected ? 1 : 0,
@@ -892,7 +892,7 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
                 title={step.pageUrl}
                 onClick={() => window.open(step.pageUrl!, '_blank', 'noopener,noreferrer')}
                 style={iconBtnSm}
-                onMouseEnter={e => { e.currentTarget.style.color = '#3730a3'; }}
+                onMouseEnter={e => { e.currentTarget.style.color = '#009B8E'; }}
                 onMouseLeave={e => { e.currentTarget.style.color = '#9CA3AF'; }}
               >
                 <ExternalLink size={16} />
@@ -908,7 +908,7 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
             )}
             {onAddComment && !step.id.startsWith('step-') && (
               <button title="이 단계에 댓글 추가" onClick={onAddComment} style={iconBtnSm}
-                onMouseEnter={e => { e.currentTarget.style.color = '#4F46E5'; }}
+                onMouseEnter={e => { e.currentTarget.style.color = '#009B8E'; }}
                 onMouseLeave={e => { e.currentTarget.style.color = '#9CA3AF'; }}
               >
                 <MessageSquare size={16} />
@@ -964,13 +964,13 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
                 position: 'absolute', bottom: '-2px', right: '-6px',
                 display: 'inline-flex', alignItems: 'center', gap: '3px',
                 height: '22px', padding: '0 8px',
-                borderRadius: '5px', border: '1px solid #EDE9FE',
-                background: descGenerating ? '#EDE9FE' : 'white',
-                color: '#6d28d9', fontSize: '11px', fontWeight: 500,
+                borderRadius: '5px', border: '1px solid #E8FFF7',
+                background: descGenerating ? '#E8FFF7' : 'white',
+                color: '#12B886', fontSize: '11px', fontWeight: 500,
                 cursor: descGenerating ? 'not-allowed' : 'pointer',
                 opacity: descGenerating ? 0.8 : 1,
                 transition: 'all 0.15s',
-                boxShadow: '0 1px 4px rgba(109,40,217,0.12)',
+                boxShadow: '0 1px 4px rgba(18,184,134,0.12)',
               }}
             >
               {descGenerating
@@ -983,7 +983,7 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
           {/* 🎙 음성 전사 컨트롤 — 원본 토글 + 구간 재생 (전사가 있을 때만) */}
           {(step.voiceTranscriptRaw || step.voiceAudioUrl) && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '10px', color: '#6d28d9', fontWeight: 600 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '10px', color: '#12B886', fontWeight: 600 }}>
                 <Mic size={12} /> 음성 설명
               </span>
               {step.voiceAudioUrl && (
@@ -1180,9 +1180,9 @@ function ToolBtn({
       onMouseDown={onMouseDown}
       style={{
         width: '28px', height: '28px', display: 'grid', placeItems: 'center',
-        borderRadius: '6px', border: `1px solid ${isActive ? '#3730a3' : 'transparent'}`,
-        background: isActive ? '#e0e7ff' : 'transparent',
-        color: isActive ? '#3730a3' : '#4B5563',
+        borderRadius: '6px', border: `1px solid ${isActive ? '#009B8E' : 'transparent'}`,
+        background: isActive ? '#E8FFF7' : 'transparent',
+        color: isActive ? '#009B8E' : '#4B5563',
         cursor: 'pointer', transition: 'all 0.12s ease',
         flexShrink: 0,
       }}
@@ -1332,17 +1332,17 @@ function ScreenshotArea({ step, onUploadClick, onDrop, onAnnotate, onRemove, onF
         onDragLeave={() => setDragOver(false)}
         style={{
           margin: '0 12px 12px', height: '180px',
-          background: dragOver ? 'rgba(55,48,163,0.04)' : '#F9FAFB',
-          border: `1.5px dashed ${dragOver ? '#3730a3' : '#D1D5DB'}`,
+          background: dragOver ? 'rgba(0,155,142,0.04)' : '#F9FAFB',
+          border: `1.5px dashed ${dragOver ? '#009B8E' : '#D1D5DB'}`,
           borderRadius: '8px',
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          gap: '10px', color: dragOver ? '#3730a3' : '#9CA3AF',
+          gap: '10px', color: dragOver ? '#009B8E' : '#9CA3AF',
           fontSize: '12.5px', cursor: 'pointer', transition: 'all 0.15s ease',
         }}
-        onMouseEnter={e => { if (!dragOver) { e.currentTarget.style.borderColor = '#3730a3'; e.currentTarget.style.color = '#3730a3'; e.currentTarget.style.background = 'rgba(55,48,163,0.03)'; } }}
+        onMouseEnter={e => { if (!dragOver) { e.currentTarget.style.borderColor = '#009B8E'; e.currentTarget.style.color = '#009B8E'; e.currentTarget.style.background = 'rgba(0,155,142,0.03)'; } }}
         onMouseLeave={e => { if (!dragOver) { e.currentTarget.style.borderColor = '#D1D5DB'; e.currentTarget.style.color = '#9CA3AF'; e.currentTarget.style.background = '#F9FAFB'; } }}
       >
-        <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: dragOver ? 'rgba(55,48,163,0.10)' : '#F3F4F6', display: 'grid', placeItems: 'center', transition: 'background 0.15s' }}>
+        <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: dragOver ? 'rgba(0,155,142,0.10)' : '#F3F4F6', display: 'grid', placeItems: 'center', transition: 'background 0.15s' }}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
           </svg>
@@ -1431,7 +1431,7 @@ function ScreenshotArea({ step, onUploadClick, onDrop, onAnnotate, onRemove, onF
         <div style={{
           position: 'absolute', top: '8px', left: '8px',
           fontSize: '10px', fontWeight: 600, padding: '2px 7px',
-          borderRadius: '20px', background: 'rgba(55,48,163,0.85)', color: 'white',
+          borderRadius: '20px', background: 'rgba(0,155,142,0.85)', color: 'white',
           backdropFilter: 'blur(4px)', pointerEvents: 'none',
         }}>
           AI 크롭

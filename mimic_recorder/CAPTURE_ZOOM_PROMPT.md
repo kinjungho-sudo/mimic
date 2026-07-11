@@ -1,6 +1,6 @@
 # Recorder 작업 프롬프트 — 캡처 단계에서 "하이라이트 확대 영역" 결정 (Tango식)
 
-> 이 문서를 코딩 에이전트에게 그대로 전달하세요. MIMIC Recorder(Chrome 확장, `mimic_recorder/`)에서 작업합니다.
+> 이 문서를 코딩 에이전트에게 그대로 전달하세요. Parro Recorder(Chrome 확장, `mimic_recorder/`)에서 작업합니다.
 > **웹앱 쪽 수신부는 이미 구현·배포되어 있습니다.** 이 프롬프트는 Recorder가 보낼 데이터만 추가하면 됩니다.
 
 ## 배경 / 현재 동작

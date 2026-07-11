@@ -13,9 +13,9 @@ const SUPABASE_ANON_KEY = IS_DEV
   : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxeW5wdHBqb21jcXp4eXlrcWljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NTcyNzMsImV4cCI6MjA4NzEzMzI3M30.7OgewnWhbE2GK1k0tTuuegrKUVkHuJrW_cpvbVRcH1E';
 const SUPABASE_BUCKET   = 'naviaction';
 const WEBAPP_ORIGIN     = IS_DEV
-  ? 'https://mimic-git-dev-kinjungho-7735s-projects.vercel.app'  // dev: Preview(주 테스트 대상). localhost는 sender.origin 우선으로 여전히 연동됨
+  ? 'https://parro-guide.vercel.app'             // dev: verified Parro Preview alias
   : 'https://mimic-nine-ashen.vercel.app';        // 운영
-if (IS_DEV) console.warn('[MIMIC Recorder] DEV 모드 — dev DB/Preview 연결 (id:', chrome.runtime.id, ')');
+if (IS_DEV) console.warn('[Parro Recorder] DEV 모드 — dev DB/Preview 연결 (id:', chrome.runtime.id, ')');
 const JPEG_QUALITY_DEFAULT = 0.92;
 const MAX_STEPS         = 30;
 
@@ -40,7 +40,7 @@ function log(level, source, ...args) {
   const entry = { t: Date.now(), level, source, msg };
 
   // 콘솔 출력
-  const tag = `[MIMIC][${level.toUpperCase()}][${source}]`;
+  const tag = `[Parro][${level.toUpperCase()}][${source}]`;
   if (level === 'error')      console.error(tag, msg);
   else if (level === 'warn')  console.warn(tag, msg);
   else if (level === 'debug') console.debug(tag, msg);
@@ -389,7 +389,7 @@ async function captureTab(windowId) {
 // ── content.js 주입 보장 ─────────────────────────────────────────
 // 확장 설치/리로드 전에 열려 있던 탭에는 content_script가 없을 수 있다.
 // START_RECORDING/STOP/수동캡처 전에 호출해 메시지가 유실되지 않게 한다.
-// content.js 상단의 window.__mimicContentLoaded 가드가 중복 초기화를 막는다.
+// content.js 상단의 window.__parroContentLoaded / legacy __mimicContentLoaded 가드가 중복 초기화를 막는다.
 function ensureContentScript(tabId) {
   return new Promise((resolve) => {
     chrome.scripting.executeScript({ target: { tabId, allFrames: true }, files: ['guide-engine.js', 'content.js'] }, () => {
@@ -1142,7 +1142,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const d  = new Date();
       const p2 = (n) => String(n).padStart(2, '0');
       const stamp = `${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}_${p2(d.getHours())}${p2(d.getMinutes())}${p2(d.getSeconds())}`;
-      await chrome.downloads.download({ url: dataUrl, filename: `mimic_fullpage_${hostname}_${stamp}.png` });
+      await chrome.downloads.download({ url: dataUrl, filename: `parro_fullpage_${hostname}_${stamp}.png` });
       sendResponse({ ok: true });
     })().catch((err) => {
       log('error', 'bg', 'full page capture error:', err.message);
@@ -1639,8 +1639,10 @@ async function captureFullPage(tab) {
     target: { tabId },
     args: [m.originalY],
     func: (origY) => {
-      if (window.__mimicFixedHidden) {
-        for (const { el, vis } of window.__mimicFixedHidden) el.style.visibility = vis;
+      const hiddenFixed = window.__parroFixedHidden || window.__mimicFixedHidden;
+      if (hiddenFixed) {
+        for (const { el, vis } of hiddenFixed) el.style.visibility = vis;
+        delete window.__parroFixedHidden;
         delete window.__mimicFixedHidden;
       }
       window.scrollTo(0, origY);
@@ -1657,12 +1659,12 @@ async function captureFullPage(tab) {
         func: (scrollY, hideFixed) => {
           // 두 번째 조각부터 fixed/sticky 요소 숨김 — 고정 헤더가 조각마다 반복되는 것 방지
           // (visibility는 레이아웃을 유지하므로 스크롤 좌표가 어긋나지 않는다)
-          if (hideFixed && !window.__mimicFixedHidden) {
-            window.__mimicFixedHidden = [];
+          if (hideFixed && !window.__parroFixedHidden && !window.__mimicFixedHidden) {
+            window.__parroFixedHidden = [];
             for (const el of document.querySelectorAll('body *')) {
               const pos = getComputedStyle(el).position;
               if (pos === 'fixed' || pos === 'sticky') {
-                window.__mimicFixedHidden.push({ el, vis: el.style.visibility });
+                window.__parroFixedHidden.push({ el, vis: el.style.visibility });
                 el.style.visibility = 'hidden';
               }
             }

@@ -1,36 +1,57 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Parro
 
-## Getting Started
+Parro is a B2B AI Live Guide for hands-on software training.
 
-First, run the development server:
+It helps instructors and teams turn real workflows into step-by-step guides that learners can follow directly on screen.
+
+## Brand Status
+
+The public product brand is **Parro / 패로**.
+
+This repository is in a staged public rebrand from the former MIMIC brand. Internal identifiers are intentionally preserved where changing them could break data, auth, deployments, extensions, SDK compatibility, or integrations.
+
+Preserved internal identifiers include:
+
+- package names such as `mimic-app`
+- database table names and migrations
+- environment variable names
+- API route names
+- SDK globals and compatibility classes
+- extension IDs and store slugs
+- deployment identifiers
+
+See `docs/brand/parro-rebrand-qa.md` for the current migration status.
+
+## Local Development
+
+Install dependencies and run the app:
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Verification
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Common checks:
 
-## Learn More
+```bash
+npm run lint
+$env:NODE_OPTIONS='--use-system-ca'; npm run build
+git diff --check
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Rebrand Guardrails
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Do not perform broad search-and-replace for `mimic` or `MIMIC`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Before changing old-brand references, classify each one as:
 
-## Deploy on Vercel
+- public-facing brand surface
+- internal compatibility identifier
+- historical documentation
+- owner decision needed
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Production logo/icon assets are blocked until a final production-ready Wing Pointer SVG is provided. See `docs/brand/parro-logo-asset-handoff.md`.

@@ -1,3 +1,5 @@
+import { BRAND_COPY } from '@/lib/brand';
+
 type RuntimeResponse = {
   ok?: boolean;
   error?: string;
@@ -31,7 +33,7 @@ export function startLiveGuide(shareToken: string): Promise<LiveGuideResult> {
     return Promise.resolve({
       ok: false,
       reason: 'not_installed',
-      message: 'MIMIC Recorder 확장 프로그램을 설치하거나 활성화한 뒤 다시 시도해주세요.',
+      message: `${BRAND_COPY.extensionDisplayName} 확장 프로그램을 설치하거나 활성화한 뒤 다시 시도해주세요.`,
     });
   }
 

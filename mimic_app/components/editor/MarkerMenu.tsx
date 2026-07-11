@@ -76,7 +76,7 @@ export function MarkerMenu({ style, onClose }: MarkerMenuProps) {
                   width: '28px',
                   height: '16px',
                   borderRadius: '999px',
-                  background: item.toggle.value ? '#3730a3' : '#E5E7EB',
+                  background: item.toggle.value ? '#009B8E' : '#E5E7EB',
                   position: 'relative',
                   flexShrink: 0,
                   transition: 'background 0.18s ease',

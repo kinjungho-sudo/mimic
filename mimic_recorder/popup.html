@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>MIMIC Recorder</title>
+  <title>Parro Recorder</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -46,21 +46,21 @@
       display: flex; align-items: center; justify-content: center;
       transition: all 0.15s;
     }
-    .btn-settings:hover { border-color: #4F46E5; color: #4F46E5; background: #f5f3ff; }
+    .btn-settings:hover { border-color: #009B8E; color: #009B8E; background: #E8FFF7; }
 
     /* ── 녹화 전: 시작 버튼 ── */
     #viewIdle { padding: 18px 18px 10px; }
 
     .btn-start {
       width: 100%; padding: 14px;
-      background: #4F46E5; color: #fff;
+      background: #009B8E; color: #fff;
       border: none; border-radius: 10px;
       font-size: 15px; font-weight: 600;
       cursor: pointer; transition: background 0.2s;
       display: flex; align-items: center; justify-content: center; gap: 8px;
     }
-    .btn-start:hover { background: #4338CA; }
-    .btn-start:disabled { background: #C7C4F0; cursor: not-allowed; }
+    .btn-start:hover { background: #00796F; }
+    .btn-start:disabled { background: #9AD8D0; cursor: not-allowed; }
 
     /* 전체 페이지 캡처는 헤더의 작은 아이콘(btn-settings 스타일 재사용)으로 이동 */
     /* 캡처 차단 토스트 등에서 공유하는 등장 애니메이션 */
@@ -95,13 +95,13 @@
     .btn-finish {
       width: calc(100% - 36px); margin: 0 18px 14px;
       padding: 12px;
-      background: #4F46E5; color: #fff;
+      background: #009B8E; color: #fff;
       border: none; border-radius: 10px;
       font-size: 14px; font-weight: 700;
       cursor: pointer; transition: background 0.2s;
       display: flex; align-items: center; justify-content: center; gap: 8px;
     }
-    .btn-finish:hover { background: #4338CA; }
+    .btn-finish:hover { background: #00796F; }
     .btn-finish:disabled { opacity: 0.5; cursor: not-allowed; }
 
     /* ── 스텝 목록 ── */
@@ -125,11 +125,11 @@
       from { opacity: 0; transform: translateY(6px); }
       to   { opacity: 1; transform: translateY(0); }
     }
-    .step-card:hover { border-color: #4F46E5; box-shadow: 0 2px 8px rgba(79,70,229,0.1); }
-    .step-card.live-typing { border-color: #a78bfa; background: #faf9ff; }
-    .step-card.expanded { border-color: #4F46E5; box-shadow: 0 2px 12px rgba(79,70,229,0.15); }
+    .step-card:hover { border-color: #009B8E; box-shadow: 0 2px 8px rgba(0,155,142,0.1); }
+    .step-card.live-typing { border-color: #17C9B6; background: #E8FFF7; }
+    .step-card.expanded { border-color: #009B8E; box-shadow: 0 2px 12px rgba(0,155,142,0.15); }
     .step-number {
-      width: 22px; height: 22px; background: #4F46E5; border-radius: 50%;
+      width: 22px; height: 22px; background: #009B8E; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
       font-size: 10px; font-weight: 700; color: #fff; flex-shrink: 0; margin-top: 2px;
     }
@@ -138,7 +138,7 @@
     /* 액션 아이콘 + 레이블 행 */
     .step-action-row { display: flex; align-items: center; gap: 5px; margin-bottom: 3px; }
     .step-action-icon {
-      font-size: 11px; color: #4F46E5;
+      font-size: 11px; color: #009B8E;
       width: 16px; text-align: center; flex-shrink: 0;
     }
     .step-action-label {
@@ -148,7 +148,7 @@
 
     /* 실시간 타이핑 미리보기 */
     .step-typing-preview {
-      font-size: 11px; color: #7c3aed;
+      font-size: 11px; color: #00796F;
       margin: 2px 0 3px 21px;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       font-style: italic;
@@ -169,7 +169,7 @@
     }
     .step-thumb.preview-zoom {
       min-height: 118px;
-      box-shadow: inset 0 0 0 1px rgba(79,70,229,0.10);
+      box-shadow: inset 0 0 0 1px rgba(0,155,142,0.10);
     }
     .step-thumb-zoom-layer {
       display: block;
@@ -257,7 +257,7 @@
       cursor: pointer; transition: background 0.15s;
     }
     .thumb-zoom-btn:hover { background: rgba(255,255,255,0.22); }
-    .thumb-zoom-btn.active { background: rgba(79,70,229,0.6); border-color: #a78bfa; }
+    .thumb-zoom-btn.active { background: rgba(0,155,142,0.68); border-color: #17C9B6; }
     .thumb-zoom-close {
       position: absolute; top: 10px; right: 10px;
       width: 28px; height: 28px;
@@ -375,7 +375,7 @@
       box-shadow: 0 1px 3px rgba(0,0,0,0.2);
       transition: transform 0.2s;
     }
-    .toggle input:checked + .toggle-track { background: #4F46E5; }
+    .toggle input:checked + .toggle-track { background: #009B8E; }
     .toggle input:checked + .toggle-track::after { transform: translateX(18px); }
 
     .settings-section-divider { height: 1px; background: #f0f0f8; margin: 6px 18px; }
@@ -398,10 +398,10 @@
       background: #fff; color: #444;
       cursor: pointer; transition: all 0.15s;
     }
-    .btn-tool:hover { border-color: #4F46E5; color: #4F46E5; background: #f5f3ff; }
+    .btn-tool:hover { border-color: #009B8E; color: #009B8E; background: #E8FFF7; }
     .btn-tool:active { transform: scale(0.95); }
     .btn-tool:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-    .btn-tool.accent { color: #4F46E5; }
+    .btn-tool.accent { color: #009B8E; }
     .btn-discard-bottom {
       display: flex; align-items: center; gap: 5px;
       margin-left: auto;
@@ -423,8 +423,8 @@
 
   <div class="header">
     <div class="logo" id="logoArea" title="">
-      <div class="logo-icon"><img src="icons/icon48.png" alt="MIMIC"></div>
-      <span class="logo-text">MIMIC</span>
+      <div class="logo-icon"><img src="icons/icon48.png" alt="Parro"></div>
+      <span class="logo-text">Parro</span>
     </div>
     <div class="header-right">
       <span class="step-count" id="stepCount">0 steps</span>
@@ -624,7 +624,7 @@
     <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #e8e8f0;flex-shrink:0;">
       <div style="display:flex;align-items:center;gap:8px;">
         <div style="width:26px;height:26px;border-radius:50%;overflow:hidden;flex-shrink:0;">
-          <img src="icons/icon48.png" alt="MIMIC" style="width:100%;height:100%;object-fit:cover;">
+          <img src="icons/icon48.png" alt="Parro" style="width:100%;height:100%;object-fit:cover;">
         </div>
         <span style="font-size:14px;font-weight:700;color:#1e1e2e;">Live Guide Beta</span>
       </div>
@@ -638,7 +638,7 @@
         <span id="guidePctLabel" style="font-size:11px;color:#bbb;">0%</span>
       </div>
       <div style="height:4px;background:#f0f0f8;border-radius:4px;overflow:hidden;">
-        <div id="guideProgressBar" style="height:100%;width:0%;background:linear-gradient(90deg,#4F46E5,#a78bfa);border-radius:4px;transition:width 0.3s ease;"></div>
+        <div id="guideProgressBar" style="height:100%;width:0%;background:linear-gradient(90deg,#009B8E,#8DD63F);border-radius:4px;transition:width 0.3s ease;"></div>
       </div>
     </div>
 
@@ -648,16 +648,16 @@
       <div style="font-size:16px;font-weight:700;color:#1e1e2e;margin-bottom:10px;line-height:1.4;" id="guideStepTitle"></div>
       <div style="font-size:13px;color:#555;line-height:1.7;" id="guideStepInstruction"></div>
       <!-- type_text 복사 영역 — 제목·설명 다음, 컴팩트 인라인 -->
-      <div id="guideStepCopyArea" style="display:none;align-items:center;gap:8px;background:#f5f3ff;border:1px solid #e0d9ff;border-radius:8px;padding:6px 8px;margin-top:12px;">
+      <div id="guideStepCopyArea" style="display:none;align-items:center;gap:8px;background:#E8FFF7;border:1px solid #BFEDE7;border-radius:8px;padding:6px 8px;margin-top:12px;">
         <div id="guideStepCopyContent" style="flex:1;min-width:0;font-size:11.5px;color:#444;word-break:break-all;line-height:1.5;max-height:46px;overflow-y:auto;"></div>
-        <button id="guideStepCopyBtn" style="flex-shrink:0;padding:5px 11px;border:1px solid #7c3aed;border-radius:6px;background:#fff;color:#7c3aed;font-size:11px;font-weight:700;cursor:pointer;transition:background 0.15s;white-space:nowrap;" onmouseover="this.style.background='#f5f3ff'" onmouseout="this.style.background='#fff'">복사</button>
+        <button id="guideStepCopyBtn" style="flex-shrink:0;padding:5px 11px;border:1px solid #009B8E;border-radius:6px;background:#fff;color:#009B8E;font-size:11px;font-weight:700;cursor:pointer;transition:background 0.15s;white-space:nowrap;" onmouseover="this.style.background='#E8FFF7'" onmouseout="this.style.background='#fff'">복사</button>
       </div>
     </div>
 
     <!-- 이전 / 다음 버튼 -->
     <div style="display:flex;gap:8px;padding:12px 16px;border-top:1px solid #e8e8f0;flex-shrink:0;">
-      <button id="guidePrevBtn" style="flex:1;padding:10px;border:1px solid #e8e8f0;border-radius:9px;background:#fff;color:#555;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;" onmouseover="this.style.borderColor='#4F46E5';this.style.color='#4F46E5';this.style.background='#f5f3ff'" onmouseout="this.style.borderColor='#e8e8f0';this.style.color='#555';this.style.background='#fff'">← 이전</button>
-      <button id="guideNextBtn" style="flex:2;padding:10px;border:none;border-radius:9px;background:#4F46E5;color:#fff;font-size:13px;font-weight:700;cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='#4338CA'" onmouseout="this.style.background='#4F46E5'">다음 →</button>
+      <button id="guidePrevBtn" style="flex:1;padding:10px;border:1px solid #e8e8f0;border-radius:9px;background:#fff;color:#555;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;" onmouseover="this.style.borderColor='#009B8E';this.style.color='#009B8E';this.style.background='#E8FFF7'" onmouseout="this.style.borderColor='#e8e8f0';this.style.color='#555';this.style.background='#fff'">← 이전</button>
+      <button id="guideNextBtn" style="flex:2;padding:10px;border:none;border-radius:9px;background:#009B8E;color:#fff;font-size:13px;font-weight:700;cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='#00796F'" onmouseout="this.style.background='#009B8E'">다음 →</button>
     </div>
 
     <!-- 스텝 번호 목록 -->
@@ -674,7 +674,7 @@
         <div style="font-size:12px;font-weight:700;margin-bottom:3px;">이 페이지는 자동 캡처가 제한됩니다</div>
         <div style="font-size:11px;color:#aaa;margin-bottom:8px;">DRM 또는 보안 정책으로 인해 스크린샷을 찍을 수 없습니다.</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
-          <label style="display:flex;align-items:center;gap:6px;padding:5px 10px;background:rgba(255,255,255,0.08);border-radius:7px;cursor:pointer;font-size:11px;font-weight:600;color:#a78bfa;border:1px solid rgba(167,139,250,0.3);">
+          <label style="display:flex;align-items:center;gap:6px;padding:5px 10px;background:rgba(255,255,255,0.08);border-radius:7px;cursor:pointer;font-size:11px;font-weight:600;color:#17C9B6;border:1px solid rgba(23,201,182,0.3);">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             이미지 업로드
             <input type="file" id="blockedFileInput" accept="image/*" style="display:none;">

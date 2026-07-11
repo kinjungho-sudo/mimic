@@ -9,6 +9,7 @@ import { codeBlockOptions } from '@blocknote/code-block';
 import { createReactBlockSpec } from '@blocknote/react';
 import { AnnotationPreview } from '@/components/editor/AnnotationPreview';
 import type { Annotation } from '@/components/editor/ImageAnnotationEditor';
+import { BRAND_COLORS } from '@/lib/brand';
 
 export type GuideStep = {
   step_number: number;
@@ -85,8 +86,8 @@ function GuideEditCard({ tutorialId, defaultOpen, tutorials, onChange }: {
   return (
     <div contentEditable={false} style={{ border: '1px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px', background: '#FAFAFA', margin: '4px 0' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <span style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#EEF2FF', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4338CA" strokeWidth="2" strokeLinecap="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        <span style={{ width: '32px', height: '32px', borderRadius: '8px', background: BRAND_COLORS.guideSoft, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={BRAND_COLORS.primary} strokeWidth="2" strokeLinecap="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: '13.5px', fontWeight: 600, color: tutorialId ? '#111827' : '#9CA3AF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -95,7 +96,7 @@ function GuideEditCard({ tutorialId, defaultOpen, tutorials, onChange }: {
           <div style={{ fontSize: '11.5px', color: '#9CA3AF' }}>가이드 임베드 (보기 페이지에서 펼쳐짐)</div>
         </div>
         <button onClick={() => setPickerOpen(true)}
-          style={{ height: '30px', padding: '0 12px', borderRadius: '7px', border: '1px solid #C7D2FE', background: 'white', color: '#4338CA', fontSize: '12px', fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
+          style={{ height: '30px', padding: '0 12px', borderRadius: '7px', border: `1px solid ${BRAND_COLORS.border}`, background: 'white', color: BRAND_COLORS.primary, fontSize: '12px', fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
           {tutorialId ? '변경' : '선택'}
         </button>
       </div>
@@ -166,14 +167,14 @@ function GuideViewCard({ defaultOpen, guide }: { defaultOpen: boolean; guide: Gu
     <div contentEditable={false} style={{ border: '1px solid #E5E7EB', borderRadius: '12px', margin: '8px 0', overflow: 'hidden', background: 'white' }}>
       <button onClick={() => setOpen(o => !o)}
         style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%', padding: '14px 16px', border: 'none', background: open ? '#FAFAFA' : 'white', cursor: 'pointer', textAlign: 'left' }}>
-        <span style={{ width: '34px', height: '34px', borderRadius: '8px', background: '#EEF2FF', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#4338CA" strokeWidth="2" strokeLinecap="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        <span style={{ width: '34px', height: '34px', borderRadius: '8px', background: BRAND_COLORS.guideSoft, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={BRAND_COLORS.primary} strokeWidth="2" strokeLinecap="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
         </span>
         <span style={{ flex: 1, minWidth: 0 }}>
           <span style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📘 {guide.title}</span>
           <span style={{ display: 'block', fontSize: '11.5px', color: '#9CA3AF' }}>{guide.steps.length}단계 가이드</span>
         </span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#4338CA', fontWeight: 600, flexShrink: 0 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: BRAND_COLORS.primary, fontWeight: 600, flexShrink: 0 }}>
           {open ? '접기' : '펼치기'}
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}><polyline points="6 9 12 15 18 9"/></svg>
         </span>
@@ -184,7 +185,7 @@ function GuideViewCard({ defaultOpen, guide }: { defaultOpen: boolean; guide: Gu
           {guide.steps.map((s, i) => (
             <div key={i} style={{ padding: '14px 18px', borderBottom: i < guide.steps.length - 1 ? '1px solid #F3F4F6' : 'none' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginBottom: s.screenshot_url ? '10px' : 0 }}>
-                <span style={{ width: '22px', height: '22px', borderRadius: '50%', background: '#3730a3', color: 'white', fontSize: '12px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0 }}>{i + 1}</span>
+                <span style={{ width: '22px', height: '22px', borderRadius: '50%', background: BRAND_COLORS.primary, color: 'white', fontSize: '12px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0 }}>{i + 1}</span>
                 <div style={{ flex: 1 }}>
                   {s.title && <div style={{ fontSize: '14px', fontWeight: 600, color: '#111827' }}>{s.title}</div>}
                   {s.caption && <div style={{ fontSize: '13px', color: '#6B7280', lineHeight: 1.6, marginTop: '2px' }}>{s.caption}</div>}

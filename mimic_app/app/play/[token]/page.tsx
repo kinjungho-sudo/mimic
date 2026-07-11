@@ -12,8 +12,13 @@ import { createClient } from '@/lib/supabase/client';
 import { toFollowSteps, clickToPct } from '@/lib/follow';
 import { startLiveGuide } from '@/lib/api/liveGuide';
 import { resolveStepAudio } from '@/lib/voice/playback';
+import { BRAND_COLORS, BRAND_LOGO_IMAGE_PATH, BRAND_NAME, LEGACY_INTERNAL_IDENTIFIERS } from '@/lib/brand';
 import type { FollowConfig } from '@/types';
 import type { Annotation as DrawAnnotation } from '@/components/editor/ImageAnnotationEditor';
+
+const PLAY_GRADIENT = `linear-gradient(135deg, ${BRAND_COLORS.primary}, ${BRAND_COLORS.guide})`;
+const PLAY_GUIDE_SOFT = 'rgba(0,155,142,0.10)';
+const PLAY_GUIDE_RING = 'rgba(18,184,134,0.40)';
 
 type Marker = {
   id: string;
@@ -139,7 +144,7 @@ function SurveyModal({ tutorialId, viewerSessionId, onClose }: { tutorialId: str
       <div style={{ width: '100%', maxWidth: '520px', background: 'white', color: '#111827', borderRadius: '18px', padding: '32px', boxShadow: '0 30px 80px rgba(0,0,0,0.5)', maxHeight: '90vh', overflowY: 'auto' }}>
         {/* Head */}
         <div style={{ marginBottom: '26px', textAlign: 'center' }}>
-          <div style={{ width: '64px', height: '64px', margin: '0 auto 16px', borderRadius: '16px', background: 'linear-gradient(135deg, #e0e7ff, #F5F3FF)', display: 'grid', placeItems: 'center', color: '#3730a3' }}>
+          <div style={{ width: '64px', height: '64px', margin: '0 auto 16px', borderRadius: '16px', background: BRAND_COLORS.guideSoft, display: 'grid', placeItems: 'center', color: BRAND_COLORS.primary }}>
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M11 5.882V19.24a1.76 1.76 0 0 1-3.417.592l-2.147-6.15M18 13a3 3 0 1 0 0-6M5.436 13.683A4.001 4.001 0 0 1 7 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 0 1-1.564-.317z"/></svg>
           </div>
           <h2 style={{ fontSize: '20px', fontWeight: 500, margin: '0 0 6px' }}>매뉴얼 어떠셨나요?</h2>
@@ -170,7 +175,7 @@ function SurveyModal({ tutorialId, viewerSessionId, onClose }: { tutorialId: str
           <div style={{ display: 'flex', gap: '8px' }}>
             {[{ label: '네, 가능해요', value: true }, { label: '아니요', value: false }].map(opt => (
               <button key={String(opt.value)} onClick={() => setSurvey(s => ({ ...s, reproduce: opt.value }))}
-                style={{ flex: 1, padding: '9px 12px', borderRadius: '8px', border: `1px solid ${survey.reproduce === opt.value ? '#3730a3' : '#E5E7EB'}`, background: survey.reproduce === opt.value ? '#e0e7ff' : 'white', fontSize: '13px', color: survey.reproduce === opt.value ? '#3730a3' : '#4B5563', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s ease' }}
+                style={{ flex: 1, padding: '9px 12px', borderRadius: '8px', border: `1px solid ${survey.reproduce === opt.value ? BRAND_COLORS.primary : '#E5E7EB'}`, background: survey.reproduce === opt.value ? BRAND_COLORS.guideSoft : 'white', fontSize: '13px', color: survey.reproduce === opt.value ? BRAND_COLORS.primary : '#4B5563', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s ease' }}
               >{opt.label}</button>
             ))}
           </div>
@@ -189,7 +194,7 @@ function SurveyModal({ tutorialId, viewerSessionId, onClose }: { tutorialId: str
         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', paddingTop: '16px', borderTop: '1px solid #F3F4F6' }}>
           <button onClick={onClose} style={{ padding: '10px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: 500, color: '#6B7280', cursor: 'pointer', background: 'none', border: 'none' }}>건너뛰기</button>
           <button onClick={handleSubmit} disabled={submitting}
-            style={{ padding: '10px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: 500, background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', border: 'none', cursor: submitting ? 'not-allowed' : 'pointer', boxShadow: '0 4px 12px rgba(55,48,163,0.25)', opacity: submitting ? 0.7 : 1 }}
+            style={{ padding: '10px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: 500, background: PLAY_GRADIENT, color: 'white', border: 'none', cursor: submitting ? 'not-allowed' : 'pointer', boxShadow: `0 4px 12px ${PLAY_GUIDE_RING}`, opacity: submitting ? 0.7 : 1 }}
           >{submitting ? '제출 중...' : '제출하기'}</button>
         </div>
       </div>
@@ -220,7 +225,7 @@ function DocumentView({ tutorial }: { tutorial: Tutorial }) {
             <div key={step.id} style={{ marginBottom: isMobileDoc ? '20px' : '40px', background: 'white', borderRadius: isMobileDoc ? '10px' : '14px', border: '1px solid #E5E7EB', overflow: 'hidden', boxShadow: '0 1px 6px rgba(17,24,39,0.06)' }}>
               {/* 스텝 헤더 */}
               <div style={{ padding: isMobileDoc ? '14px 16px 12px' : '18px 24px 16px', display: 'flex', alignItems: 'flex-start', gap: '10px', borderBottom: step.screenshot_url ? '1px solid #F3F4F6' : 'none' }}>
-                <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: '#3730a3', color: 'white', fontSize: '12px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: BRAND_COLORS.primary, color: 'white', fontSize: '12px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                   {String(idx + 1).padStart(2, '0')}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -251,7 +256,7 @@ function DocumentView({ tutorial }: { tutorial: Tutorial }) {
                 <div style={{ padding: isMobileDoc ? '12px 16px' : '16px 24px', borderTop: '1px solid #F3F4F6', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {annotations.map((ann, i) => (
                     <div key={ann.id} style={{ display: 'flex', gap: '10px' }}>
-                      <span style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#e0e7ff', color: '#3730a3', fontSize: '11px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0 }}>{i + 1}</span>
+                      <span style={{ width: '20px', height: '20px', borderRadius: '50%', background: BRAND_COLORS.guideSoft, color: BRAND_COLORS.primary, fontSize: '11px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0 }}>{i + 1}</span>
                       <div>
                         <div style={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}>{ann.title}</div>
                         {ann.body && <p style={{ fontSize: '12.5px', color: '#6B7280', margin: '2px 0 0', lineHeight: 1.5 }}>{ann.body}</p>}
@@ -324,8 +329,8 @@ function SharePopup({ title, url, onClose }: { title: string; url: string; onClo
       objectType: 'feed',
       content: {
         title,
-        description: 'MIMIC으로 만든 단계별 인터랙티브 매뉴얼입니다.',
-        imageUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/mimic-logo.png`,
+        description: `${BRAND_NAME}으로 만든 단계별 인터랙티브 매뉴얼입니다.`,
+        imageUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}${BRAND_LOGO_IMAGE_PATH}`,
         link: { mobileWebUrl: url, webUrl: url },
       },
       buttons: [{ title: '매뉴얼 보기', link: { mobileWebUrl: url, webUrl: url } }],
@@ -422,13 +427,13 @@ function SharePopup({ title, url, onClose }: { title: string; url: string; onClo
                 onKeyDown={e => { if (e.key === 'Enter') handleEmailSend(); }}
                 placeholder="example@email.com"
                 style={{ flex: 1, padding: '10px 14px', border: `1.5px solid ${emailResult?.ok === false ? '#EF4444' : '#E5E7EB'}`, borderRadius: '9px', fontSize: '13.5px', color: '#111827', outline: 'none', fontFamily: 'inherit', transition: 'border-color 0.15s' }}
-                onFocus={e => { e.currentTarget.style.borderColor = '#3730a3'; }}
+                onFocus={e => { e.currentTarget.style.borderColor = BRAND_COLORS.primary; }}
                 onBlur={e => { e.currentTarget.style.borderColor = emailResult?.ok === false ? '#EF4444' : '#E5E7EB'; }}
               />
               <button
                 onClick={handleEmailSend}
                 disabled={emailSending || !emailTo.trim()}
-                style={{ flexShrink: 0, padding: '0 16px', height: '42px', borderRadius: '9px', border: 'none', background: emailTo.trim() ? 'linear-gradient(135deg,#3730a3,#6d28d9)' : '#E5E7EB', color: emailTo.trim() ? 'white' : '#9CA3AF', fontSize: '13.5px', fontWeight: 600, cursor: emailTo.trim() && !emailSending ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap', transition: 'background 0.15s', opacity: emailSending ? 0.7 : 1 }}
+                style={{ flexShrink: 0, padding: '0 16px', height: '42px', borderRadius: '9px', border: 'none', background: emailTo.trim() ? PLAY_GRADIENT : '#E5E7EB', color: emailTo.trim() ? 'white' : '#9CA3AF', fontSize: '13.5px', fontWeight: 600, cursor: emailTo.trim() && !emailSending ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap', transition: 'background 0.15s', opacity: emailSending ? 0.7 : 1 }}
               >
                 {emailSending ? '발송 중…' : '보내기'}
               </button>
@@ -474,7 +479,7 @@ function PasswordGate({ protectedTitle, token, onUnlock }: {
     <div style={{ position: 'fixed', inset: 0, background: '#0A0A0F', display: 'grid', placeItems: 'center', fontFamily: "'Pretendard', -apple-system, sans-serif" }}>
       <div style={{ width: '100%', maxWidth: '380px', padding: '0 24px' }}>
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <div style={{ width: '56px', height: '56px', borderRadius: '14px', background: 'rgba(55,48,163,0.15)', border: '1px solid rgba(55,48,163,0.3)', display: 'grid', placeItems: 'center', margin: '0 auto 20px', color: '#818CF8' }}>
+          <div style={{ width: '56px', height: '56px', borderRadius: '14px', background: 'rgba(0,155,142,0.16)', border: '1px solid rgba(0,155,142,0.32)', display: 'grid', placeItems: 'center', margin: '0 auto 20px', color: BRAND_COLORS.guide }}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
             </svg>
@@ -504,7 +509,7 @@ function PasswordGate({ protectedTitle, token, onUnlock }: {
           disabled={loading || !pw.trim()}
           style={{
             width: '100%', height: '48px', borderRadius: '10px', border: 'none',
-            background: 'linear-gradient(135deg, #3730a3, #6d28d9)',
+            background: PLAY_GRADIENT,
             color: 'white', fontSize: '15px', fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer',
             opacity: loading || !pw.trim() ? 0.6 : 1,
           }}
@@ -581,14 +586,14 @@ export default function PlayerPage() {
 
   useEffect(() => {
     if (!tutorial?.id || !tutorial.survey_enabled) return;
-    const key = `mimic:survey:manual_viewer:${tutorial.id}`;
+    const key = `${LEGACY_INTERNAL_IDENTIFIERS.surveyManualViewerPrefix}:${tutorial.id}`;
     if (window.localStorage.getItem(key)) return;
     const timer = setTimeout(() => setShowViewerSurvey(true), 12000);
     return () => clearTimeout(timer);
   }, [tutorial?.id, tutorial?.survey_enabled]);
 
   const closeViewerSurvey = () => {
-    if (tutorial?.id) window.localStorage.setItem(`mimic:survey:manual_viewer:${tutorial.id}`, '1');
+    if (tutorial?.id) window.localStorage.setItem(`${LEGACY_INTERNAL_IDENTIFIERS.surveyManualViewerPrefix}:${tutorial.id}`, '1');
     setShowViewerSurvey(false);
   };
 
@@ -639,7 +644,7 @@ export default function PlayerPage() {
     return (
       <div style={{ position: 'fixed', inset: 0, background: '#0A0A0F', display: 'grid', placeItems: 'center', color: 'white' }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ width: '40px', height: '40px', borderRadius: '50%', border: '3px solid rgba(255,255,255,0.15)', borderTopColor: '#3730a3', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
+          <div style={{ width: '40px', height: '40px', borderRadius: '50%', border: '3px solid rgba(255,255,255,0.15)', borderTopColor: BRAND_COLORS.primary, animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
           <p style={{ fontSize: '13.5px', color: 'rgba(255,255,255,0.6)', margin: 0 }}>불러오는 중...</p>
         </div>
         <style>{`
@@ -676,7 +681,7 @@ export default function PlayerPage() {
           <div style={{ fontSize: '48px', marginBottom: '16px' }}>404</div>
           <h1 style={{ fontSize: '20px', fontWeight: 500, marginBottom: '8px' }}>매뉴얼을 찾을 수 없어요</h1>
           <p style={{ fontSize: '13.5px', color: 'rgba(255,255,255,0.5)', marginBottom: '24px' }}>링크가 만료되었거나 잘못된 주소입니다.</p>
-          <Link href="/landingpage" style={{ display: 'inline-block', padding: '10px 20px', borderRadius: '8px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', fontSize: '14px', fontWeight: 500, textDecoration: 'none' }}>홈으로</Link>
+          <Link href="/landingpage" style={{ display: 'inline-block', padding: '10px 20px', borderRadius: '8px', background: PLAY_GRADIENT, color: 'white', fontSize: '14px', fontWeight: 500, textDecoration: 'none' }}>홈으로</Link>
         </div>
       </div>
     );
@@ -711,7 +716,7 @@ export default function PlayerPage() {
         {/* 브랜드 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 700, flexShrink: 0, color: viewMode === 'document' ? '#111827' : 'white' }}>
           <BrandMark />
-          {!isMobile && <span>MIMIC</span>}
+          {!isMobile && <span>{BRAND_NAME}</span>}
         </div>
         {!isMobile && <span style={{ color: viewMode === 'document' ? '#D1D5DB' : 'rgba(255,255,255,0.2)' }}>·</span>}
         <span style={{ fontSize: isMobile ? '13px' : '13.5px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0, color: viewMode === 'document' ? '#374151' : 'rgba(255,255,255,0.9)' }}>
@@ -723,9 +728,9 @@ export default function PlayerPage() {
           <button
             onClick={handleStartLiveGuide}
             title="현재 브라우저 탭에서 라이브 가이드 Beta를 실행합니다"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', height: '32px', padding: isMobile ? '0 9px' : '0 12px', borderRadius: '8px', border: viewMode === 'document' ? '1px solid rgba(79,70,229,0.35)' : '1px solid rgba(255,255,255,0.14)', background: viewMode === 'document' ? 'rgba(79,70,229,0.08)' : 'rgba(255,255,255,0.10)', color: viewMode === 'document' ? '#4F46E5' : 'white', cursor: 'pointer', fontSize: '12px', fontWeight: 700, transition: 'all 0.15s' }}
-            onMouseEnter={e => { e.currentTarget.style.background = viewMode === 'document' ? 'rgba(79,70,229,0.13)' : 'rgba(255,255,255,0.16)'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = viewMode === 'document' ? 'rgba(79,70,229,0.08)' : 'rgba(255,255,255,0.10)'; }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', height: '32px', padding: isMobile ? '0 9px' : '0 12px', borderRadius: '8px', border: viewMode === 'document' ? '1px solid rgba(0,155,142,0.35)' : '1px solid rgba(255,255,255,0.14)', background: viewMode === 'document' ? 'rgba(0,155,142,0.08)' : 'rgba(255,255,255,0.10)', color: viewMode === 'document' ? BRAND_COLORS.primary : 'white', cursor: 'pointer', fontSize: '12px', fontWeight: 700, transition: 'all 0.15s' }}
+            onMouseEnter={e => { e.currentTarget.style.background = viewMode === 'document' ? 'rgba(0,155,142,0.13)' : 'rgba(255,255,255,0.16)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = viewMode === 'document' ? 'rgba(0,155,142,0.08)' : 'rgba(255,255,255,0.10)'; }}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
             {!isMobile && '라이브 가이드 Beta'}
@@ -739,10 +744,10 @@ export default function PlayerPage() {
               { key: 'slides', label: '슬라이드', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> },
             ] as { key: 'follow' | 'document' | 'slides'; label: string; icon: React.ReactNode }[]).map(tab => {
               const active = viewMode === tab.key;
-              const activeColor = viewMode === 'document' ? '#3730a3' : 'white';
+              const activeColor = viewMode === 'document' ? BRAND_COLORS.primary : 'white';
               const inactiveColor = viewMode === 'document' ? '#6B7280' : 'rgba(255,255,255,0.5)';
               return (
-                <button key={tab.key} onClick={() => setViewMode(tab.key)} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: isMobile ? '5px 8px' : '5px 10px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: active ? 600 : 400, background: active ? (viewMode === 'document' ? 'rgba(55,48,163,0.1)' : 'rgba(255,255,255,0.15)') : 'transparent', color: active ? activeColor : inactiveColor, transition: 'all 0.12s', boxShadow: 'none' }}>
+                <button key={tab.key} onClick={() => setViewMode(tab.key)} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: isMobile ? '5px 8px' : '5px 10px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: active ? 600 : 400, background: active ? (viewMode === 'document' ? PLAY_GUIDE_SOFT : 'rgba(255,255,255,0.15)') : 'transparent', color: active ? activeColor : inactiveColor, transition: 'all 0.12s', boxShadow: 'none' }}>
                   {tab.icon}{!isMobile && tab.label}
                 </button>
               );
@@ -820,11 +825,11 @@ export default function PlayerPage() {
           const isCurrent = idx === currentStep;
           return (
             <div key={s.id} onClick={() => { goTo(idx); setShowSidebar(false); }}
-              style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', borderRadius: '7px', fontSize: '12px', color: isCurrent ? 'white' : 'rgba(255,255,255,0.7)', cursor: 'pointer', marginBottom: '2px', background: isCurrent ? 'rgba(55,48,163,0.18)' : 'transparent', transition: 'background 0.18s ease' }}
+              style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', borderRadius: '7px', fontSize: '12px', color: isCurrent ? 'white' : 'rgba(255,255,255,0.7)', cursor: 'pointer', marginBottom: '2px', background: isCurrent ? 'rgba(0,155,142,0.20)' : 'transparent', transition: 'background 0.18s ease' }}
               onMouseEnter={e => { if (!isCurrent) e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; }}
               onMouseLeave={e => { if (!isCurrent) e.currentTarget.style.background = 'transparent'; }}
             >
-              <span style={{ width: '18px', height: '18px', borderRadius: '50%', background: isDone ? '#10B981' : isCurrent ? '#3730a3' : 'rgba(255,255,255,0.10)', display: 'grid', placeItems: 'center', fontSize: '10px', fontWeight: 500, flexShrink: 0, color: 'white' }}>
+              <span style={{ width: '18px', height: '18px', borderRadius: '50%', background: isDone ? BRAND_COLORS.guide : isCurrent ? BRAND_COLORS.primary : 'rgba(255,255,255,0.10)', display: 'grid', placeItems: 'center', fontSize: '10px', fontWeight: 500, flexShrink: 0, color: 'white' }}>
                 {isDone ? '✓' : idx + 1}
               </span>
               <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.title}</span>
@@ -848,7 +853,7 @@ export default function PlayerPage() {
         {/* Chapter card */}
         {step && (
           <div style={{ position: 'absolute', top: '78px', left: '36px', background: 'rgba(255,255,255,0.92)', color: '#111827', padding: '8px 14px', borderRadius: '8px', display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '12.5px', boxShadow: '0 8px 24px rgba(0,0,0,0.4)', backdropFilter: 'blur(8px)', zIndex: 14 }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', borderRadius: '999px', fontSize: '10.5px', fontWeight: 500, whiteSpace: 'nowrap' }}>Step {currentStep + 1}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', background: PLAY_GRADIENT, color: 'white', borderRadius: '999px', fontSize: '10.5px', fontWeight: 500, whiteSpace: 'nowrap' }}>Step {currentStep + 1}</span>
             <span style={{ color: '#111827', fontWeight: 500, whiteSpace: 'nowrap' }}>{step.title}</span>
           </div>
         )}
@@ -887,18 +892,18 @@ export default function PlayerPage() {
                   }}
                 >
                   {/* 중심 점 */}
-                  <span style={{ position: 'absolute', top: '50%', left: '50%', width: '10px', height: '10px', marginTop: '-5px', marginLeft: '-5px', borderRadius: '50%', background: 'rgba(255,255,255,0.95)', boxShadow: '0 0 8px rgba(255,255,255,0.7), 0 0 16px rgba(99,102,241,0.5)', animation: 'hotspotDotPulse 1.8s ease-in-out infinite' }} />
+                  <span style={{ position: 'absolute', top: '50%', left: '50%', width: '10px', height: '10px', marginTop: '-5px', marginLeft: '-5px', borderRadius: '50%', background: 'rgba(255,255,255,0.95)', boxShadow: '0 0 8px rgba(255,255,255,0.7), 0 0 16px rgba(18,184,134,0.5)', animation: 'hotspotDotPulse 1.8s ease-in-out infinite' }} />
                   {/* 파문 링 1 */}
-                  <span style={{ position: 'absolute', top: '50%', left: '50%', width: '10px', height: '10px', marginTop: '-5px', marginLeft: '-5px', borderRadius: '50%', border: '1.5px solid rgba(255,255,255,0.75)', boxShadow: '0 0 4px rgba(99,102,241,0.4)', animation: 'hotspotRipple 2s ease-out infinite', animationDelay: '0s' }} />
+                  <span style={{ position: 'absolute', top: '50%', left: '50%', width: '10px', height: '10px', marginTop: '-5px', marginLeft: '-5px', borderRadius: '50%', border: '1.5px solid rgba(255,255,255,0.75)', boxShadow: '0 0 4px rgba(18,184,134,0.4)', animation: 'hotspotRipple 2s ease-out infinite', animationDelay: '0s' }} />
                   {/* 파문 링 2 */}
-                  <span style={{ position: 'absolute', top: '50%', left: '50%', width: '10px', height: '10px', marginTop: '-5px', marginLeft: '-5px', borderRadius: '50%', border: '1.5px solid rgba(255,255,255,0.55)', boxShadow: '0 0 4px rgba(99,102,241,0.3)', animation: 'hotspotRipple 2s ease-out infinite', animationDelay: '0.65s' }} />
+                  <span style={{ position: 'absolute', top: '50%', left: '50%', width: '10px', height: '10px', marginTop: '-5px', marginLeft: '-5px', borderRadius: '50%', border: '1.5px solid rgba(255,255,255,0.55)', boxShadow: '0 0 4px rgba(18,184,134,0.3)', animation: 'hotspotRipple 2s ease-out infinite', animationDelay: '0.65s' }} />
                   {/* 파문 링 3 */}
-                  <span style={{ position: 'absolute', top: '50%', left: '50%', width: '10px', height: '10px', marginTop: '-5px', marginLeft: '-5px', borderRadius: '50%', border: '1.5px solid rgba(255,255,255,0.35)', boxShadow: '0 0 4px rgba(99,102,241,0.2)', animation: 'hotspotRipple 2s ease-out infinite', animationDelay: '1.3s' }} />
+                  <span style={{ position: 'absolute', top: '50%', left: '50%', width: '10px', height: '10px', marginTop: '-5px', marginLeft: '-5px', borderRadius: '50%', border: '1.5px solid rgba(255,255,255,0.35)', boxShadow: '0 0 4px rgba(18,184,134,0.2)', animation: 'hotspotRipple 2s ease-out infinite', animationDelay: '1.3s' }} />
                 </span>
               )}
               {/* 마커 */}
               {stepMarkers.map((m, i) => (
-                <span key={m.id} style={{ position: 'absolute', top: `${m.y_pct}%`, left: `${m.x_pct}%`, width: '32px', height: '32px', borderRadius: '50%', background: i === stepMarkers.length - 1 ? '#3730a3' : '#DC2626', color: 'white', display: 'grid', placeItems: 'center', fontSize: '13px', fontWeight: 500, zIndex: 5, boxShadow: i === stepMarkers.length - 1 ? '0 0 0 8px rgba(55,48,163,0.25), 0 4px 12px rgba(55,48,163,0.5)' : '0 4px 12px rgba(220,38,38,0.4)', transform: 'translate(-50%, -50%)' }}>
+                <span key={m.id} style={{ position: 'absolute', top: `${m.y_pct}%`, left: `${m.x_pct}%`, width: '32px', height: '32px', borderRadius: '50%', background: i === stepMarkers.length - 1 ? BRAND_COLORS.primary : '#DC2626', color: 'white', display: 'grid', placeItems: 'center', fontSize: '13px', fontWeight: 500, zIndex: 5, boxShadow: i === stepMarkers.length - 1 ? '0 0 0 8px rgba(0,155,142,0.24), 0 4px 12px rgba(0,155,142,0.46)' : '0 4px 12px rgba(220,38,38,0.4)', transform: 'translate(-50%, -50%)' }}>
                   {m.label || (i + 1)}
                 </span>
               ))}
@@ -950,8 +955,8 @@ export default function PlayerPage() {
           {stepAnnotations.map((ann, i) => {
             const isLast = i === stepAnnotations.length - 1;
             return (
-              <div key={ann.id} style={{ display: 'flex', gap: '12px', padding: '12px 10px', borderRadius: '8px', marginBottom: '4px', background: isLast ? 'rgba(55,48,163,0.18)' : 'transparent', cursor: 'pointer' }}>
-                <span style={{ width: '22px', height: '22px', borderRadius: '50%', background: isLast ? '#3730a3' : 'rgba(255,255,255,0.10)', color: 'white', display: 'grid', placeItems: 'center', fontSize: '11px', fontWeight: 500, flexShrink: 0, marginTop: '1px' }}>{i + 1}</span>
+              <div key={ann.id} style={{ display: 'flex', gap: '12px', padding: '12px 10px', borderRadius: '8px', marginBottom: '4px', background: isLast ? 'rgba(0,155,142,0.20)' : 'transparent', cursor: 'pointer' }}>
+                <span style={{ width: '22px', height: '22px', borderRadius: '50%', background: isLast ? BRAND_COLORS.primary : 'rgba(255,255,255,0.10)', color: 'white', display: 'grid', placeItems: 'center', fontSize: '11px', fontWeight: 500, flexShrink: 0, marginTop: '1px' }}>{i + 1}</span>
                 <div>
                   <div style={{ fontSize: '12.5px', color: 'white', fontWeight: 500, marginBottom: '4px' }}>{ann.title}</div>
                   <p style={{ fontSize: '11.5px', color: 'rgba(255,255,255,0.65)', lineHeight: 1.5, margin: 0 }}>{ann.body}</p>
@@ -991,7 +996,7 @@ export default function PlayerPage() {
               const isDone = idx < currentStep;
               const isCurrent = idx === currentStep;
               return (
-                <span key={idx} onClick={() => goTo(idx)} style={{ width: isCurrent ? (isMobile ? '12px' : '16px') : (isMobile ? '8px' : '10px'), height: isCurrent ? (isMobile ? '12px' : '16px') : (isMobile ? '8px' : '10px'), borderRadius: '50%', background: isDone ? '#3730a3' : isCurrent ? 'white' : 'rgba(255,255,255,0.25)', cursor: 'pointer', flexShrink: 0, boxShadow: isCurrent ? '0 0 0 3px rgba(55,48,163,0.6)' : 'none', transition: 'all 0.18s ease' }} />
+                <span key={idx} onClick={() => goTo(idx)} style={{ width: isCurrent ? (isMobile ? '12px' : '16px') : (isMobile ? '8px' : '10px'), height: isCurrent ? (isMobile ? '12px' : '16px') : (isMobile ? '8px' : '10px'), borderRadius: '50%', background: isDone ? BRAND_COLORS.primary : isCurrent ? 'white' : 'rgba(255,255,255,0.25)', cursor: 'pointer', flexShrink: 0, boxShadow: isCurrent ? '0 0 0 3px rgba(0,155,142,0.55)' : 'none', transition: 'all 0.18s ease' }} />
               );
             })}
           </div>
@@ -1010,7 +1015,7 @@ export default function PlayerPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {stepAnnotations.length > 0 && !isMobile && (
             <button onClick={() => setShowDesc(d => !d)} title="설명 패널"
-              style={{ width: '36px', height: '36px', borderRadius: '50%', display: 'grid', placeItems: 'center', background: showDesc ? 'rgba(55,48,163,0.3)' : 'rgba(255,255,255,0.08)', color: 'white', border: 'none', cursor: 'pointer', transition: 'background 0.18s ease' }}>
+              style={{ width: '36px', height: '36px', borderRadius: '50%', display: 'grid', placeItems: 'center', background: showDesc ? 'rgba(0,155,142,0.30)' : 'rgba(255,255,255,0.08)', color: 'white', border: 'none', cursor: 'pointer', transition: 'background 0.18s ease' }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
             </button>
           )}
@@ -1027,7 +1032,7 @@ export default function PlayerPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px' }}>
                   {['1.0x', '1.25x', '1.5x', '2.0x'].map(s => (
                     <button key={s} onClick={() => setSpeed(s)}
-                      style={{ padding: '6px', borderRadius: '6px', fontSize: '11px', color: speed === s ? 'white' : 'rgba(255,255,255,0.7)', background: speed === s ? '#3730a3' : 'rgba(255,255,255,0.06)', border: 'none', cursor: 'pointer', fontWeight: 500 }}
+                      style={{ padding: '6px', borderRadius: '6px', fontSize: '11px', color: speed === s ? 'white' : 'rgba(255,255,255,0.7)', background: speed === s ? BRAND_COLORS.primary : 'rgba(255,255,255,0.06)', border: 'none', cursor: 'pointer', fontWeight: 500 }}
                     >{s}</button>
                   ))}
                 </div>

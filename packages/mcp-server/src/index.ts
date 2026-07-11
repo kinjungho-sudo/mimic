@@ -26,7 +26,7 @@ const server = new McpServer({
 
 server.tool(
   'list_tutorials',
-  'MIMIC에 저장된 매뉴얼 목록을 반환합니다. 실행할 워크플로우를 찾을 때 사용하세요.',
+  'Parro에 저장된 매뉴얼 목록을 반환합니다. 실행할 워크플로우를 찾을 때 사용하세요.',
   {
     query: z.string().optional().describe('검색어 (선택). 매뉴얼 제목에서 필터링합니다.'),
     limit: z.number().int().min(1).max(50).optional().default(20).describe('최대 반환 개수'),

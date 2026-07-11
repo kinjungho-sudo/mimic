@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { guardWorkspaceAccess } from '@/lib/auth/workspace-guard';
+import { BRAND_COLORS } from '@/lib/brand';
 import { z } from 'zod';
 
 const createSchema = z.object({
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
   const supabase = createServiceRoleClient();
   const { data, error } = await supabase
     .from('mm_folders')
-    .insert({ user_id: auth.userId, name: parsed.data.name, color: parsed.data.color ?? '#3730a3', workspace_id: workspaceId })
+    .insert({ user_id: auth.userId, name: parsed.data.name, color: parsed.data.color ?? BRAND_COLORS.primary, workspace_id: workspaceId })
     .select()
     .single();
 

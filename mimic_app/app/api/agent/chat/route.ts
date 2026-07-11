@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { QUICK_QUESTIONS } from '@/lib/faq-data';
+import { BRAND_COPY, BRAND_NAME, BRAND_SUPPORT_EMAIL } from '@/lib/brand';
 
 // ── 정적 FAQ 데이터 ────────────────────────────────────────
 // Haiku API 없이 키워드 매칭으로 응답 — API 비용 0
@@ -14,18 +15,18 @@ interface FAQ {
 
 const FAQ_DB: Record<string, FAQ> = {
   'what': {
-    keywords: ['mimic', 'mimic이', '뭐야', '뭔가요', '무엇', '소개', '서비스'],
-    answer: `MIMIC은 Chrome 확장 프로그램으로 업무 화면을 녹화해 인터랙티브 매뉴얼을 자동 생성하는 서비스입니다.\n\n클릭 한 번 한 번이 자동으로 캡처되어 단계별 스크린샷과 설명이 만들어지고, 링크로 공유하거나 학습 가이드로 따라할 수 있습니다. 원본 URL과 확장 프로그램 조건이 맞으면 라이브 가이드 Beta로 실제 페이지 위 안내도 사용할 수 있습니다.\n\n👉 자세한 소개는 [도움말](${HELP_URL}#intro)에서 확인하세요.`,
+    keywords: ['parro', '패로', 'mimic', 'mimic이', '뭐야', '뭔가요', '무엇', '소개', '서비스'],
+    answer: `${BRAND_NAME}은 Chrome 확장 프로그램으로 업무 화면을 녹화해 인터랙티브 매뉴얼을 자동 생성하는 서비스입니다.\n\n클릭 한 번 한 번이 자동으로 캡처되어 단계별 스크린샷과 설명이 만들어지고, 링크로 공유하거나 학습 가이드로 따라할 수 있습니다. 원본 URL과 확장 프로그램 조건이 맞으면 라이브 가이드 Beta로 실제 페이지 위 안내도 사용할 수 있습니다.\n\n👉 자세한 소개는 [도움말](${HELP_URL}#intro)에서 확인하세요.`,
     related: ['install', 'price', 'guide-me'],
   },
   'install': {
     keywords: ['설치', '확장', '크롬', 'chrome', '프로그램', '다운', '어디서'],
-    answer: `MIMIC Recorder는 Chrome 확장 프로그램입니다.\n\n**설치 방법**\n1. Chrome 웹 스토어에서 "MIMIC Recorder" 검색\n2. 확장 프로그램 설치\n3. MIMIC 웹앱에서 계정 생성 후 확장과 연결\n\nChromium 기반 브라우저(Edge, Brave)도 지원합니다. Firefox, Safari는 현재 미지원입니다.\n\n👉 [설치 가이드 보기](${HELP_URL})`,
+    answer: `${BRAND_COPY.extensionDisplayName}는 Chrome 확장 프로그램입니다.\n\n**설치 방법**\n1. Chrome 웹 스토어에서 "${BRAND_COPY.extensionDisplayName}" 검색\n2. 확장 프로그램 설치\n3. ${BRAND_NAME} 웹앱에서 계정 생성 후 확장과 연결\n\nChromium 기반 브라우저(Edge, Brave)도 지원합니다. Firefox, Safari는 현재 미지원입니다.\n\n👉 [설치 가이드 보기](${HELP_URL})`,
     related: ['record', 'what'],
   },
   'record': {
     keywords: ['녹화', '캡처', '촬영', '어떻게', '만들기', '생성', '시작'],
-    answer: `**화면 녹화 방법**\n1. Chrome 툴바에서 MIMIC Recorder 아이콘 클릭\n2. 녹화 시작 버튼 클릭\n3. 평소처럼 업무 진행 (클릭마다 자동 캡처)\n4. 완료 버튼으로 녹화 종료\n\n녹화 후 AI가 자동으로 각 단계의 제목과 설명을 생성합니다.\n\n직접 만들기: 대시보드 → "새 매뉴얼" → "직접 편집하기"\n\n👉 [자세한 안내](${HELP_URL})`,
+    answer: `**화면 녹화 방법**\n1. Chrome 툴바에서 ${BRAND_COPY.extensionDisplayName} 아이콘 클릭\n2. 녹화 시작 버튼 클릭\n3. 평소처럼 업무 진행 (클릭마다 자동 캡처)\n4. 완료 버튼으로 녹화 종료\n\n녹화 후 AI가 자동으로 각 단계의 제목과 설명을 생성합니다.\n\n직접 만들기: 대시보드 → "새 매뉴얼" → "직접 편집하기"\n\n👉 [자세한 안내](${HELP_URL})`,
     related: ['edit', 'limit'],
   },
   'edit': {
@@ -40,7 +41,7 @@ const FAQ_DB: Record<string, FAQ> = {
   },
   'guide-me': {
     keywords: ['guide me', '가이드', '오버레이', '안내', '실제 페이지', '위에서'],
-    answer: `**라이브 가이드 Beta**는 실제 웹페이지 위에 오버레이를 띄워 단계별로 안내하는 기능입니다.\n\n**사용 조건**\n- 원본 URL이 저장된 매뉴얼\n- MIMIC Recorder 확장 프로그램 연결\n- 페이지 구조가 녹화 당시와 크게 달라지지 않은 상태\n\n받는 사람이 별도 설치 없이 따라해야 한다면 먼저 **학습 가이드** 링크를 공유하는 편이 안정적입니다.\n\n**키보드**: → 다음 / ← 이전 / Esc 닫기\n\n👉 [라이브 가이드 Beta 상세 안내](${HELP_URL}#guide-me)`,
+    answer: `**라이브 가이드 Beta**는 실제 웹페이지 위에 오버레이를 띄워 단계별로 안내하는 기능입니다.\n\n**사용 조건**\n- 원본 URL이 저장된 매뉴얼\n- ${BRAND_COPY.extensionDisplayName} 확장 프로그램 연결\n- 페이지 구조가 녹화 당시와 크게 달라지지 않은 상태\n\n받는 사람이 별도 설치 없이 따라해야 한다면 먼저 **학습 가이드** 링크를 공유하는 편이 안정적입니다.\n\n**키보드**: → 다음 / ← 이전 / Esc 닫기\n\n👉 [라이브 가이드 Beta 상세 안내](${HELP_URL}#guide-me)`,
     related: ['share', 'freshness'],
   },
   'export': {
@@ -50,12 +51,12 @@ const FAQ_DB: Record<string, FAQ> = {
   },
   'price': {
     keywords: ['요금', '가격', '플랜', '유료', '무료', 'pro', 'team', '비용', '얼마'],
-    answer: `**요금제 안내**\n\n**무료**: 일 3회 매뉴얼 생성, 기본 공유, PDF 내보내기, 제한된 라이브 가이드 Beta 사용\n\n**Pro**: 무제한 생성, PDF/PPTX/Word 내보내기, 비밀번호 보호, 학습 가이드·Live Guide Beta 제작\n\n**Team**: Pro 포함 + 팀 워크스페이스, 멤버 관리, 팀 단위 지원\n\nPro/Team 가격 문의: support@mimic.so\n\n👉 [요금제 상세](${HELP_URL}#plans)`,
+    answer: `**요금제 안내**\n\n**무료**: 일 3회 매뉴얼 생성, 기본 공유, PDF 내보내기, 제한된 라이브 가이드 Beta 사용\n\n**Pro**: 무제한 생성, PDF/PPTX/Word 내보내기, 비밀번호 보호, 학습 가이드·Live Guide Beta 제작\n\n**Team**: Pro 포함 + 팀 워크스페이스, 멤버 관리, 팀 단위 지원\n\nPro/Team 가격 문의: ${BRAND_SUPPORT_EMAIL}\n\n👉 [요금제 상세](${HELP_URL}#plans)`,
     related: ['limit', 'workspace'],
   },
   'limit': {
     keywords: ['한도', '제한', '3회', '일일', '초과', '더 만들', '안돼', '못'],
-    answer: `무료 플랜은 **하루 3회**까지 매뉴얼을 생성할 수 있습니다.\n\n한도 초과 시:\n- 내일 자정에 횟수가 초기화됩니다\n- Pro 플랜 업그레이드 시 매뉴얼 생성 한도를 해제할 수 있습니다\n\n업그레이드 문의: support@mimic.so\n\n👉 [요금제 보기](${HELP_URL}#plans)`,
+    answer: `무료 플랜은 **하루 3회**까지 매뉴얼을 생성할 수 있습니다.\n\n한도 초과 시:\n- 내일 자정에 횟수가 초기화됩니다\n- Pro 플랜 업그레이드 시 매뉴얼 생성 한도를 해제할 수 있습니다\n\n업그레이드 문의: ${BRAND_SUPPORT_EMAIL}\n\n👉 [요금제 보기](${HELP_URL}#plans)`,
     related: ['price'],
   },
   'workspace': {
@@ -80,7 +81,7 @@ const FAQ_DB: Record<string, FAQ> = {
   },
   'contact': {
     keywords: ['문의', '연락', '이메일', '지원', '고객', '피드백', '버그', '오류'],
-    answer: `추가 문의사항이 있으시면 아래로 연락해주세요:\n\n📧 **support@mimic.so**\n\n도움말에서 해결되지 않는 문제, 버그 신고, 요금제 문의 모두 환영합니다.\n\n👉 [도움말에서 먼저 찾아보기](${HELP_URL})`,
+    answer: `추가 문의사항이 있으시면 아래로 연락해주세요:\n\n📧 **${BRAND_SUPPORT_EMAIL}**\n\n도움말에서 해결되지 않는 문제, 버그 신고, 요금제 문의 모두 환영합니다.\n\n👉 [도움말에서 먼저 찾아보기](${HELP_URL})`,
     related: ['price', 'what'],
   },
 };
@@ -113,7 +114,7 @@ function findAnswer(query: string): { answer: string; related: string[] } {
 
   // 매칭 실패
   return {
-    answer: `죄송합니다, 정확한 답변을 찾지 못했어요.\n\n👉 [도움말](${HELP_URL})에서 직접 검색하거나, **support@mimic.so**로 문의해주세요.`,
+    answer: `죄송합니다, 정확한 답변을 찾지 못했어요.\n\n👉 [도움말](${HELP_URL})에서 직접 검색하거나, **${BRAND_SUPPORT_EMAIL}**로 문의해주세요.`,
     related: ['contact'],
   };
 }

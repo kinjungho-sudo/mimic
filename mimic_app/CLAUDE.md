@@ -2,7 +2,7 @@
 
 Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
 
-## MIMIC Manual Content Rule
+## Parro Manual Content Rule
 
 When changing capture/finalize, Claude prompts, fallback title/script generation, annotation labels, or manual editor rendering, follow [docs/MANUAL_CONTENT_RULES.md](./docs/MANUAL_CONTENT_RULES.md) first.
 
@@ -115,8 +115,8 @@ dev   ←  개발 통합. 모든 작업은 여기서 시작.
 | 구분 | Supabase 프로젝트 | 비고 |
 |------|-------------------|------|
 | **운영(prod)** | `gqynptpjomcqzxyykqic` (싱가포르) | 실제 고객 데이터. Claude MCP로 **접근 가능** → 극도로 주의 |
-| **개발(dev)** | `dskphgxurxebblnpwhax` (도쿄, 별도 계정) | MIMIC 전용. **MCP 미연결** → 대시보드 SQL Editor / service_role REST로만 조작 |
-| (폐기) 옛 공유 dev | `xsfriegbpygydcqhsqqq` | MIMIC 안 씀. 타 앱 실데이터 있음 → **건드리지 말 것** |
+| **개발(dev)** | `dskphgxurxebblnpwhax` (도쿄, 별도 계정) | Parro 전용. **MCP 미연결** → 대시보드 SQL Editor / service_role REST로만 조작 |
+| (폐기) 옛 공유 dev | `xsfriegbpygydcqhsqqq` | Parro 안 씀. 타 앱 실데이터 있음 → **건드리지 말 것** |
 
 ### 연결 배선 (고정 — 절대 변경 금지)
 - localhost(`npm run dev`) → **dev DB** (`.env.development.local`)

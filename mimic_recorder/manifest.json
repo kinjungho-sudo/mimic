@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "MIMIC Recorder (dev)",
+  "name": "Parro Recorder (dev)",
   "version": "1.6.2",
   "description": "웹페이지의 클릭 동작을 단계별로 자동 캡처하여 매뉴얼·가이드 문서를 손쉽게 만들어주는 스크린샷 레코더입니다.",
   "icons": {
@@ -43,11 +43,13 @@
   "host_permissions": [
     "<all_urls>",
     "https://*.supabase.co/*",
+    "https://parro-guide.vercel.app/*",
     "https://mimic-nine-ashen.vercel.app/*",
     "https://mimic-git-dev-kinjungho-7735s-projects.vercel.app/*"
   ],
   "externally_connectable": {
     "matches": [
+      "https://parro-guide.vercel.app/*",
       "https://mimic-nine-ashen.vercel.app/*",
       "https://mimicflow.com/*",
       "http://localhost:3000/*",

@@ -1,23 +1,23 @@
-# MIMIC
+# Parro
 
-> 웹·앱 화면을 30초 만에 단계별 인터랙티브 매뉴얼로 만드는 AI 서비스. 클릭만 하면 캡처·설명·자막이 자동 완성됩니다.
+> AI Live Guide for hands-on training. Parro turns recorded software workflows into step-by-step interactive manuals and live guidance.
 
-MIMIC은 크롬 익스텐션으로 화면을 녹화하면 AI가 각 클릭 단계를 자동으로 나눠 설명을 생성합니다. 완성된 매뉴얼은 링크 하나로 공유할 수 있고, 수신자는 별도 앱 설치 없이 인터랙티브 플레이어에서 단계를 따라갈 수 있습니다. 고객 지원·온보딩·사내 교육 자료 제작 시간을 90% 단축할 수 있습니다.
+Parro is a B2B AI Live Guide for hands-on software training and classes. Instructors and teams can record a workflow with a Chrome extension, let AI generate step-by-step explanations, and share the finished guide as a link. Learners can follow the guide in an interactive player without installing a separate app.
 
-## 주요 페이지
+## Key pages
 
-- [서비스 소개](https://mimic-nine-ashen.vercel.app/landingpage): 핵심 기능, 요금제, 자주 묻는 질문
-- [로그인](https://mimic-nine-ashen.vercel.app/auth/login): 서비스 로그인
-- [회원가입](https://mimic-nine-ashen.vercel.app/auth/signup): 무료로 시작하기
+- [Service overview](/landingpage): product features, pricing, and FAQ
+- [Login](/auth/login): service login
+- [Sign up](/auth/signup): start for free
 
-## 법무
+## Legal
 
-- [개인정보 처리방침](https://mimic-nine-ashen.vercel.app/legal/privacy)
-- [이용약관](https://mimic-nine-ashen.vercel.app/legal/terms)
+- [Privacy policy](/legal/privacy)
+- [Terms of service](/legal/terms)
 
-## 서비스 정보
+## Service information
 
-- 대상: 고객 지원팀, SaaS 온보딩 담당자, 사내 교육 담당자
-- 언어: 한국어 (ko-KR)
-- 요금: 무료 플랜(하루 3개) / Pro 플랜(월 9,900원) / Team 플랜
-- 기술: Next.js, Supabase, Anthropic Claude API
+- Target users: B2B customer support, SaaS onboarding, corporate training, and hands-on class operators
+- Language: Korean (ko-KR)
+- Category: AI Live Guide, interactive manuals, hands-on training
+- Tech: Next.js, Supabase, AI generation

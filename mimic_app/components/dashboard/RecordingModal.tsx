@@ -1,10 +1,16 @@
 ﻿'use client';
 
 import { useState, useCallback, useEffect } from 'react';
+import { BRAND_COLORS, BRAND_COPY, BRAND_EXTENSION_STORE_URL } from '@/lib/brand';
 
 // 운영(Production)에서만 켜는 플래그 — Vercel Production env에 NEXT_PUBLIC_REQUIRE_EXTENSION=1.
 // 로컬(npm run dev)·Preview(dev)는 값이 없어 게이트가 꺼진다(개발자 버전 미설치로도 작업 가능).
 const REQUIRE_EXTENSION = process.env.NEXT_PUBLIC_REQUIRE_EXTENSION?.replace(/^﻿/, '').trim() === '1';
+
+const BRAND_GRADIENT = `linear-gradient(135deg, ${BRAND_COLORS.primary}, ${BRAND_COLORS.guide})`;
+const BRAND_RING = 'rgba(0,155,142,0.30)';
+const BRAND_RING_SOFT = 'rgba(0,155,142,0.15)';
+const BRAND_SOFT_GRADIENT = `linear-gradient(135deg, ${BRAND_COLORS.guideSoft}, #F7FFF8)`;
 
 // ── 타입 ──────────────────────────────────────────────────
 
@@ -50,23 +56,23 @@ function sendMessage(action: string, payload?: Record<string, unknown>): Promise
   return new Promise(resolve => {
     const extensionId = process.env.NEXT_PUBLIC_EXTENSION_ID?.replace(/^﻿/, '').trim();
     if (!extensionId || !isExtensionInstalled()) {
-      console.warn('[MIMIC] 확장 없음 또는 extensionId 미설정, 바이패스');
+      console.warn('[Parro] 확장 없음 또는 extensionId 미설정, 바이패스');
       resolve(null);
       return;
     }
     // 5초 타임아웃 — 확장이 응답 안 하면 null 반환
     const timer = setTimeout(() => {
-      console.warn('[MIMIC] sendMessage 타임아웃:', action);
+      console.warn('[Parro] sendMessage 타임아웃:', action);
       resolve(null);
     }, 5000);
     window.chrome!.runtime!.sendMessage(extensionId, { action, ...payload }, resp => {
       clearTimeout(timer);
       if (window.chrome?.runtime?.lastError) {
-        console.warn('[MIMIC] lastError:', window.chrome.runtime.lastError.message);
+        console.warn('[Parro] lastError:', window.chrome.runtime.lastError.message);
         resolve(null);
         return;
       }
-      console.log('[MIMIC] 응답:', action, resp);
+      console.log('[Parro] 응답:', action, resp);
       resolve(resp);
     });
   });
@@ -90,18 +96,18 @@ async function wakeAndSend(action: string, payload?: Record<string, unknown>, re
     await new Promise(r => setTimeout(r, 600));
   }
   // 모든 재시도 실패
-  console.warn('[MIMIC] Service Worker 웨이크업 실패:', action);
+  console.warn('[Parro] Service Worker 웨이크업 실패:', action);
   return null;
 }
 
 async function fetchOpenTabs(): Promise<TabsResponse | null> {
   const resp = await wakeAndSend('GET_TABS') as TabsResponse | null;
   if (!resp || !Array.isArray(resp.tabs)) {
-    console.warn('[MIMIC] GET_TABS 실패 또는 빈 응답:', resp);
+    console.warn('[Parro] GET_TABS 실패 또는 빈 응답:', resp);
     return null;
   }
   if (resp.tabs.length === 0 || resp.diagnostics?.missingUrl) {
-    console.warn('[MIMIC] GET_TABS 진단:', resp);
+    console.warn('[Parro] GET_TABS 진단:', resp);
   }
   return resp;
 }
@@ -113,7 +119,7 @@ async function linkExtensionToCurrentUser(): Promise<boolean> {
   try {
     const res = await fetch('/api/extension/link', { method: 'POST' });
     if (!res.ok) {
-      console.warn('[MIMIC] extension link token 발급 실패:', res.status);
+      console.warn('[Parro] extension link token 발급 실패:', res.status);
       return false;
     }
 
@@ -122,12 +128,12 @@ async function linkExtensionToCurrentUser(): Promise<boolean> {
 
     const resp = await wakeAndSend('LINK_USER', { token: data.token }) as ExtensionLinkResponse | null;
     if (!resp?.ok) {
-      console.warn('[MIMIC] extension LINK_USER 실패:', resp?.error);
+      console.warn('[Parro] extension LINK_USER 실패:', resp?.error);
       return false;
     }
     return true;
   } catch (err) {
-    console.warn('[MIMIC] extension 재연동 실패:', err);
+    console.warn('[Parro] extension 재연동 실패:', err);
     return false;
   }
 }
@@ -141,7 +147,7 @@ async function sendStartRecording(tabId: number, url: string): Promise<StartReco
   if (resp && resp.ok) return resp;
   // 2차: SW가 잠들어 1차가 실패하면 wake 후 재시도 (제스처 소실 → 패널은 수동 클릭 필요할 수 있음)
   resp = await wakeAndSend('START_RECORDING', { tabId, url }) as StartRecordingResponse | null;
-  return resp ?? { ok: false, reason: 'error', message: 'MIMIC Recorder가 응답하지 않았습니다.' };
+  return resp ?? { ok: false, reason: 'error', message: `${BRAND_COPY.extensionDisplayName}가 응답하지 않았습니다.` };
 }
 
 // ── 안내 단계 데이터 ──────────────────────────────────────
@@ -149,7 +155,7 @@ async function sendStartRecording(tabId: number, url: string): Promise<StartReco
 const GUIDE_STEPS = [
   { text: '녹화할 웹 페이지를 선택하세요.', extra: null },
   {
-    text: '우측 상단의 MIMIC Recorder에서 녹화 버튼을 눌러주세요.',
+    text: `우측 상단의 ${BRAND_COPY.extensionDisplayName}에서 녹화 버튼을 눌러주세요.`,
     extra: 'recorder_button',
   },
   { text: '작업을 수행하면 단계별로 자동 캡처됩니다.', extra: null },
@@ -165,12 +171,12 @@ function startFailureMessage(failure: StartRecordingResponse | null): string {
     case 'content_script_unreachable':
       return '선택한 페이지에 녹화 스크립트를 연결하지 못했습니다. 페이지를 새로고침하거나 다른 웹사이트 탭을 선택해주세요.';
     case 'not_linked':
-      return 'MIMIC Recorder가 계정과 연동되지 않았습니다. 확장 프로그램을 다시 열고 연동을 완료해주세요.';
+      return `${BRAND_COPY.extensionDisplayName}가 계정과 연동되지 않았습니다. 확장 프로그램을 다시 열고 연동을 완료해주세요.`;
     case 'missing_tab':
     case 'tab_not_found':
       return '선택한 탭을 찾지 못했습니다. 탭 목록을 다시 불러와주세요.';
     default:
-      return 'MIMIC Recorder가 녹화를 시작하지 못했습니다. 탭 권한과 사이트 권한을 확인해주세요.';
+      return `${BRAND_COPY.extensionDisplayName}가 녹화를 시작하지 못했습니다. 탭 권한과 사이트 권한을 확인해주세요.`;
   }
 }
 
@@ -195,7 +201,7 @@ function FavIcon({ url, favIconUrl }: { url: string; favIconUrl?: string }) {
 
   // 글자 fallback
   const letter = domain.replace('www.', '').charAt(0).toUpperCase() || '?';
-  const colors = ['#3730a3','#6d28d9','#DB2777','#D97706','#059669','#0284C7'];
+  const colors = [BRAND_COLORS.primary, BRAND_COLORS.guide, '#DB2777','#D97706','#059669','#0284C7'];
   const bg = colors[letter.charCodeAt(0) % colors.length];
   return (
     <span style={{ width: '16px', height: '16px', borderRadius: '3px', background: bg, color: 'white', display: 'grid', placeItems: 'center', fontSize: '9px', fontWeight: 700, flexShrink: 0 }}>
@@ -210,7 +216,7 @@ interface RecordingModalProps {
   onClose: () => void;
 }
 
-const STORE_URL = 'https://chromewebstore.google.com/detail/mimic-recorder/ehbhcdkapcbfehinjapabgoegcjmmbgd';
+const STORE_URL = BRAND_EXTENSION_STORE_URL;
 
 export function RecordingModal({ onClose }: RecordingModalProps) {
   const [step, setStep] = useState<ModalStep>('checking');
@@ -276,7 +282,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
       setTabListIssue(
         fetched?.error
           ? `탭 목록을 가져오지 못했어요: ${fetched.error}`
-          : '열린 탭을 찾지 못했어요. MIMIC Recorder 확장의 탭 권한과 사이트 권한을 확인해주세요.'
+          : `열린 탭을 찾지 못했어요. ${BRAND_COPY.extensionDisplayName} 확장의 탭 권한과 사이트 권한을 확인해주세요.`
       );
     }
     setTabsLoading(false);
@@ -331,7 +337,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
         }}
       >
         {/* 헤더 */}
-        <div style={{ background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', padding: '22px 28px 18px', position: 'relative' }}>
+        <div style={{ background: BRAND_GRADIENT, padding: '22px 28px 18px', position: 'relative' }}>
           <button
             onClick={onClose}
             aria-label="닫기"
@@ -341,7 +347,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
           </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
             <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#FCA5A5', animation: 'recPulse 1.4s ease-in-out infinite' }} />
-            <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em' }}>MIMIC Recorder</span>
+            <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{BRAND_COPY.extensionDisplayName}</span>
           </div>
           <h2 style={{ fontSize: '19px', fontWeight: 700, color: 'white', margin: 0, letterSpacing: '-0.02em' }}>
             {step === 'checking' && '확장 프로그램 확인 중…'}
@@ -350,14 +356,14 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
             {step === 'launching' && 'Recorder 실행 중…'}
             {step === 'not_installed' && '확장 프로그램이 필요해요'}
             {step === 'start_failed' && '녹화를 시작하지 못했어요'}
-            {step === 'install' && 'MIMIC Recorder 설치 필요'}
+            {step === 'install' && `${BRAND_COPY.extensionDisplayName} 설치 필요`}
           </h2>
           <p style={{ fontSize: '12.5px', color: 'rgba(255,255,255,0.72)', marginTop: '3px' }}>
             {step === 'checking' && '잠시만 기다려주세요'}
             {step === 'guide' && '화면 녹화로 매뉴얼을 자동으로 만들어드릴게요'}
             {step === 'tab_select' && (tabListIssue || `열린 탭 ${tabs.length}개 · 페이지를 선택하면 오른쪽에 미리보기가 표시됩니다`)}
             {step === 'launching' && '잠시만 기다려주세요'}
-            {step === 'not_installed' && 'MIMIC Recorder를 먼저 설치해야 녹화할 수 있어요'}
+            {step === 'not_installed' && `${BRAND_COPY.extensionDisplayName}를 먼저 설치해야 녹화할 수 있어요`}
             {step === 'start_failed' && '선택한 탭 또는 권한 상태를 확인해주세요'}
             {step === 'install' && '설치 후 연동하면 바로 녹화할 수 있어요'}
           </p>
@@ -366,7 +372,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
         {/* ── 확인 중 ── */}
         {step === 'checking' && (
           <div style={{ padding: '48px 28px', textAlign: 'center' }}>
-            <div style={{ width: '52px', height: '52px', borderRadius: '50%', border: '3px solid rgba(55,48,163,0.15)', borderTopColor: '#3730a3', animation: 'spin 0.9s linear infinite', margin: '0 auto' }} />
+            <div style={{ width: '52px', height: '52px', borderRadius: '50%', border: `3px solid ${BRAND_RING_SOFT}`, borderTopColor: BRAND_COLORS.primary, animation: 'spin 0.9s linear infinite', margin: '0 auto' }} />
           </div>
         )}
 
@@ -377,7 +383,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '22px' }}>
               {GUIDE_STEPS.map((s, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                  <span style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#e0e7ff', color: '#3730a3', fontSize: '11px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0, marginTop: '1px' }}>
+                  <span style={{ width: '24px', height: '24px', borderRadius: '50%', background: BRAND_COLORS.guideSoft, color: BRAND_COLORS.primary, fontSize: '11px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0, marginTop: '1px' }}>
                     {i + 1}
                   </span>
                   <div style={{ flex: 1 }}>
@@ -400,7 +406,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
             </div>
             <button
               onClick={enterTabSelect}
-              style={{ width: '100%', padding: '13px', borderRadius: '11px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', fontSize: '14.5px', fontWeight: 600, border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(55,48,163,0.30)' }}
+              style={{ width: '100%', padding: '13px', borderRadius: '11px', background: BRAND_GRADIENT, color: 'white', fontSize: '14.5px', fontWeight: 600, border: 'none', cursor: 'pointer', boxShadow: `0 4px 14px ${BRAND_RING}` }}
             >
               페이지 선택하기 →
             </button>
@@ -444,7 +450,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
                 ) : filteredTabs.length === 0 ? (
                   <div style={{ padding: '32px 16px', textAlign: 'center', color: '#9CA3AF', fontSize: '13px', lineHeight: 1.6 }}>
                     {tabs.length === 0
-                      ? <>{tabListIssue ?? '확장과 연결할 수 없어요.'}<br/>확장 관리에서 MIMIC Recorder 권한을 확인해주세요.</>
+                      ? <>{tabListIssue ?? '확장과 연결할 수 없어요.'}<br/>확장 관리에서 {BRAND_COPY.extensionDisplayName} 권한을 확인해주세요.</>
                       : '검색 결과가 없어요'}
                   </div>
                 ) : (
@@ -459,7 +465,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
                           display: 'flex', alignItems: 'center', gap: '10px',
                           width: '100%', padding: '10px 10px', borderRadius: '9px',
                           border: 'none', textAlign: 'left', cursor: 'pointer',
-                          background: isSelected ? '#e0e7ff' : 'transparent',
+                          background: isSelected ? BRAND_COLORS.guideSoft : 'transparent',
                           transition: 'background 0.12s',
                           marginBottom: '2px',
                         }}
@@ -468,7 +474,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
                       >
                         <FavIcon url={tab.url} favIconUrl={tab.favIconUrl} />
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: '13px', fontWeight: isSelected ? 600 : 400, color: isSelected ? '#3730a3' : '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontSize: '13px', fontWeight: isSelected ? 600 : 400, color: isSelected ? BRAND_COLORS.primary : '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {tab.title || domain}
                           </div>
                           <div style={{ fontSize: '11px', color: '#9CA3AF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '1px' }}>
@@ -476,7 +482,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
                           </div>
                         </div>
                         {isSelected && (
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3730a3" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}><polyline points="20 6 9 17 4 12"/></svg>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={BRAND_COLORS.primary} strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}><polyline points="20 6 9 17 4 12"/></svg>
                         )}
                       </button>
                     );
@@ -495,7 +501,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
                 <button
                   onClick={handleStart}
                   disabled={!selectedTab}
-                  style={{ flex: 2, padding: '10px', borderRadius: '9px', background: selectedTab ? 'linear-gradient(135deg, #3730a3, #6d28d9)' : '#E5E7EB', color: selectedTab ? 'white' : '#9CA3AF', fontSize: '13.5px', fontWeight: 600, border: 'none', cursor: selectedTab ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px', boxShadow: selectedTab ? '0 3px 10px rgba(55,48,163,0.25)' : 'none', transition: 'all 0.15s' }}
+                  style={{ flex: 2, padding: '10px', borderRadius: '9px', background: selectedTab ? BRAND_GRADIENT : '#E5E7EB', color: selectedTab ? 'white' : '#9CA3AF', fontSize: '13.5px', fontWeight: 600, border: 'none', cursor: selectedTab ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px', boxShadow: selectedTab ? `0 3px 10px ${BRAND_RING}` : 'none', transition: 'all 0.15s' }}
                 >
                   <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: selectedTab ? 'rgba(255,255,255,0.8)' : '#9CA3AF', animation: selectedTab ? 'recPulse 1.4s infinite' : 'none' }} />
                   녹화 시작
@@ -548,7 +554,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: '12.5px', fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedTab.title}</div>
                     </div>
-                    <span style={{ fontSize: '11px', padding: '3px 8px', background: '#e0e7ff', color: '#3730a3', borderRadius: '5px', fontWeight: 500, whiteSpace: 'nowrap' }}>선택됨</span>
+                    <span style={{ fontSize: '11px', padding: '3px 8px', background: BRAND_COLORS.guideSoft, color: BRAND_COLORS.primary, borderRadius: '5px', fontWeight: 500, whiteSpace: 'nowrap' }}>선택됨</span>
                   </div>
                 </>
               ) : (
@@ -564,8 +570,8 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
         {/* ── 실행 중 ── */}
         {step === 'launching' && (
           <div style={{ padding: '48px 28px', textAlign: 'center' }}>
-            <div style={{ width: '52px', height: '52px', borderRadius: '50%', border: '3px solid rgba(55,48,163,0.15)', borderTopColor: '#3730a3', animation: 'spin 0.9s linear infinite', margin: '0 auto 20px' }} />
-            <p style={{ fontSize: '15px', fontWeight: 600, color: '#111827', marginBottom: '6px' }}>MIMIC Recorder 실행 중…</p>
+            <div style={{ width: '52px', height: '52px', borderRadius: '50%', border: `3px solid ${BRAND_RING_SOFT}`, borderTopColor: BRAND_COLORS.primary, animation: 'spin 0.9s linear infinite', margin: '0 auto 20px' }} />
+            <p style={{ fontSize: '15px', fontWeight: 600, color: '#111827', marginBottom: '6px' }}>{BRAND_COPY.extensionDisplayName} 실행 중…</p>
             <p style={{ fontSize: '13px', color: '#6B7280' }}>선택한 페이지에서 녹화가 곧 시작됩니다</p>
           </div>
         )}
@@ -576,13 +582,13 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
             <div style={{ background: '#FEF3C7', border: '1px solid #FDE68A', borderRadius: '10px', padding: '14px 16px', marginBottom: '20px', display: 'flex', gap: '12px' }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, marginTop: '1px' }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
               <p style={{ fontSize: '13px', color: '#78350F', lineHeight: 1.55, margin: 0 }}>
-                MIMIC Recorder 확장 프로그램이 설치되지 않았거나 비활성화되어 있어요.
+                {BRAND_COPY.extensionDisplayName} 확장 프로그램이 설치되지 않았거나 비활성화되어 있어요.
               </p>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <a href={STORE_URL} target="_blank" rel="noopener noreferrer"
-                style={{ width: '100%', padding: '12px', borderRadius: '10px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', fontSize: '14px', fontWeight: 600, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', textDecoration: 'none', boxShadow: '0 4px 14px rgba(55,48,163,0.30)', boxSizing: 'border-box' }}>
-                MIMIC Recorder 설치하기
+                style={{ width: '100%', padding: '12px', borderRadius: '10px', background: BRAND_GRADIENT, color: 'white', fontSize: '14px', fontWeight: 600, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', textDecoration: 'none', boxShadow: `0 4px 14px ${BRAND_RING}`, boxSizing: 'border-box' }}>
+                {BRAND_COPY.extensionDisplayName} 설치하기
               </a>
               <button onClick={enterTabSelect} style={{ width: '100%', padding: '12px', borderRadius: '10px', background: 'white', color: '#4B5563', fontSize: '14px', fontWeight: 500, border: '1.5px solid #E5E7EB', cursor: 'pointer' }}>
                 설치 완료 — 다시 시도
@@ -604,7 +610,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
               </p>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <button onClick={enterTabSelect} style={{ width: '100%', padding: '12px', borderRadius: '10px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', fontSize: '14px', fontWeight: 600, border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(55,48,163,0.30)' }}>
+              <button onClick={enterTabSelect} style={{ width: '100%', padding: '12px', borderRadius: '10px', background: BRAND_GRADIENT, color: 'white', fontSize: '14px', fontWeight: 600, border: 'none', cursor: 'pointer', boxShadow: `0 4px 14px ${BRAND_RING}` }}>
                 탭 다시 선택하기
               </button>
               <button onClick={onClose} style={{ width: '100%', padding: '10px', borderRadius: '10px', background: 'none', color: '#9CA3AF', fontSize: '13px', border: 'none', cursor: 'pointer' }}>
@@ -618,11 +624,11 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
         {step === 'install' && (
           <div style={{ padding: '24px 28px 28px' }}>
             <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-              <div style={{ width: '72px', height: '72px', margin: '0 auto 16px', borderRadius: '20px', background: 'linear-gradient(135deg, #e0e7ff, #F5F3FF)', display: 'grid', placeItems: 'center' }}>
-                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#3730a3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="21.17" y1="8" x2="12" y2="8"/><line x1="3.95" y1="6.06" x2="8.54" y2="14"/><line x1="10.88" y1="21.94" x2="15.46" y2="14"/></svg>
+              <div style={{ width: '72px', height: '72px', margin: '0 auto 16px', borderRadius: '20px', background: BRAND_SOFT_GRADIENT, display: 'grid', placeItems: 'center' }}>
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke={BRAND_COLORS.primary} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="21.17" y1="8" x2="12" y2="8"/><line x1="3.95" y1="6.06" x2="8.54" y2="14"/><line x1="10.88" y1="21.94" x2="15.46" y2="14"/></svg>
               </div>
               <p style={{ fontSize: '13.5px', color: '#4B5563', lineHeight: 1.6, margin: '0 auto', maxWidth: '340px' }}>
-                화면 녹화로 매뉴얼을 만들려면<br/><strong style={{ color: '#111827' }}>MIMIC Recorder</strong> 확장 프로그램이 필요해요.
+                화면 녹화로 매뉴얼을 만들려면<br/><strong style={{ color: '#111827' }}>{BRAND_COPY.extensionDisplayName}</strong> 확장 프로그램이 필요해요.
               </p>
             </div>
             <div style={{ background: '#F9FAFB', border: '1px solid #F3F4F6', borderRadius: '12px', padding: '14px 18px', marginBottom: '20px' }}>
@@ -632,16 +638,16 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
                 '\'연동 완료\' 버튼 클릭 후 바로 녹화',
               ].map((text, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: i < 2 ? '10px' : 0 }}>
-                  <span style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#e0e7ff', color: '#3730a3', fontSize: '11px', fontWeight: 600, display: 'grid', placeItems: 'center', flexShrink: 0 }}>{i + 1}</span>
+                  <span style={{ width: '20px', height: '20px', borderRadius: '50%', background: BRAND_COLORS.guideSoft, color: BRAND_COLORS.primary, fontSize: '11px', fontWeight: 600, display: 'grid', placeItems: 'center', flexShrink: 0 }}>{i + 1}</span>
                   <span style={{ fontSize: '13px', color: '#374151' }}>{text}</span>
                 </div>
               ))}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <a href={STORE_URL} target="_blank" rel="noopener noreferrer"
-                style={{ width: '100%', padding: '13px', borderRadius: '11px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', fontSize: '14.5px', fontWeight: 600, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', textDecoration: 'none', boxShadow: '0 4px 14px rgba(55,48,163,0.30)', boxSizing: 'border-box' }}>
+                style={{ width: '100%', padding: '13px', borderRadius: '11px', background: BRAND_GRADIENT, color: 'white', fontSize: '14.5px', fontWeight: 600, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', textDecoration: 'none', boxShadow: `0 4px 14px ${BRAND_RING}`, boxSizing: 'border-box' }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                MIMIC Recorder 설치하기
+                {BRAND_COPY.extensionDisplayName} 설치하기
               </a>
               <button
                 onClick={() => {

@@ -5,6 +5,7 @@ import { createServiceRoleClient } from '@/lib/supabase/server';
 import { assertStorageUrl } from '@/lib/validate-storage-url';
 import type { ExportAnnotation } from '@/lib/export/annotations-shared';
 import { renderStepImage } from '@/lib/export/render-step-image';
+import { BRAND_COLORS } from '@/lib/brand';
 import { readFile } from 'fs/promises';
 import path from 'path';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -54,7 +55,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     .eq('user_id', auth.userId)
     .maybeSingle();
 
-  const brandColor = (branding?.primary_color ?? '#4F46E5').replace('#', '').toUpperCase();
+  const brandColor = (branding?.primary_color ?? BRAND_COLORS.primary).replace('#', '').toUpperCase();
   const coverTextColor = isLightColor(brandColor) ? '111827' : 'FFFFFF';
 
   // 로고 이미지 미리 받아두기 (표지에 사용)

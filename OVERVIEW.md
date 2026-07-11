@@ -1,7 +1,7 @@
-# MIMIC — 프로젝트 총괄 개요
+# Parro — 프로젝트 총괄 개요
 
-> **Don't Explain, Just Mimic.**
-> 말로 설명하지 마세요. 화면을 캡처하면 AI가 인터랙티브 매뉴얼로 만들어드립니다.
+> **AI Live Guide for hands-on training.**
+> 말로 설명하지 마세요. 화면 위에서 따라할 수 있는 AI 라이브 가이드로 만들어드립니다.
 
 ---
 
@@ -11,7 +11,7 @@
 
 캡처 → AI 처리 → 편집 → 공유의 전 과정을 하나의 파이프라인으로 제공.
 
-경쟁사(Tango): Enterprise 전용 고가 기능을 MIMIC은 Pro 수준에서 제공.
+경쟁사(Tango): Enterprise 전용 고가 기능을 Parro는 Pro 수준에서 제공.
 
 ---
 
@@ -89,8 +89,8 @@ Dev/mimic/                  ← 이 세션 (총괄 PM)
 | Supabase 인스턴스 | `gqynptpjomcqzxyykqic` (mimic_app·recorder 공유) |
 | Storage 버킷 (스크린샷) | `naviaction` |
 | Storage 버킷 (TTS) | `mimic-tts` |
-| 웹 도메인 | `mimicflow.com` |
-| 확장 이름 | MIMIC Recorder |
+| 웹 도메인 | `mimicflow.com` (Phase 2 도메인 결정 전까지 보존) |
+| 확장 이름 | Parro Recorder |
 
 ---
 

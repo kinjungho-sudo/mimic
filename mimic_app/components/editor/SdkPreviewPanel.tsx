@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import DOMPurify from 'dompurify';
+import { BRAND_COLORS } from '@/lib/brand';
 import type { ManualStep } from './ManualEditor';
 
 interface SdkPreviewPanelProps {
@@ -9,6 +10,9 @@ interface SdkPreviewPanelProps {
   activeId: string | null;
   onClose: () => void;
 }
+
+const SDK_PRIMARY_SOFT = 'rgba(0,155,142,0.12)';
+const SDK_PRIMARY_MARK = 'rgba(0,155,142,0.24)';
 
 export function SdkPreviewPanel({ steps, activeId, onClose }: SdkPreviewPanelProps) {
   const activeIdx = steps.findIndex(s => s.id === activeId);
@@ -62,7 +66,7 @@ export function SdkPreviewPanel({ steps, activeId, onClose }: SdkPreviewPanelPro
                 left: `${step.element_rect.x * 100}%`,
                 width: `${step.element_rect.width * 100}%`,
                 height: `${step.element_rect.height * 100}%`,
-                boxShadow: '0 0 0 3px #4F46E5, 0 0 0 9999px rgba(0,0,0,0.35)',
+                boxShadow: `0 0 0 3px ${BRAND_COLORS.primary}, 0 0 0 9999px rgba(0,0,0,0.35)`,
                 borderRadius: '4px',
                 pointerEvents: 'none',
               }} />
@@ -76,8 +80,8 @@ export function SdkPreviewPanel({ steps, activeId, onClose }: SdkPreviewPanelPro
                 transform: 'translate(-50%, -50%)',
                 width: '20px', height: '20px',
                 borderRadius: '50%',
-                background: 'rgba(79,70,229,0.25)',
-                border: '2.5px solid #4F46E5',
+                background: SDK_PRIMARY_MARK,
+                border: `2.5px solid ${BRAND_COLORS.primary}`,
                 pointerEvents: 'none',
               }} />
             )}
@@ -102,7 +106,7 @@ export function SdkPreviewPanel({ steps, activeId, onClose }: SdkPreviewPanelPro
           </button>
 
           {/* 스텝 뱃지 */}
-          <div style={{ display: 'inline-block', fontSize: '11px', fontWeight: 700, color: '#4F46E5', background: 'rgba(79,70,229,.1)', padding: '2px 8px', borderRadius: '20px', marginBottom: '8px' }}>
+          <div style={{ display: 'inline-block', fontSize: '11px', fontWeight: 700, color: BRAND_COLORS.primary, background: SDK_PRIMARY_SOFT, padding: '2px 8px', borderRadius: '20px', marginBottom: '8px' }}>
             {current + 1} / {total}
           </div>
 
@@ -126,7 +130,7 @@ export function SdkPreviewPanel({ steps, activeId, onClose }: SdkPreviewPanelPro
                 <div
                   key={i}
                   onClick={() => setCurrent(i + offset)}
-                  style={{ width: '6px', height: '6px', borderRadius: '50%', background: i + offset === current ? '#4F46E5' : '#E5E7EB', cursor: 'pointer', transition: 'background 0.2s' }}
+                  style={{ width: '6px', height: '6px', borderRadius: '50%', background: i + offset === current ? BRAND_COLORS.primary : '#E5E7EB', cursor: 'pointer', transition: 'background 0.2s' }}
                 />
               ))}
             </div>
@@ -170,7 +174,7 @@ function PanelHeader({ onClose }: { onClose: () => void }) {
   return (
     <div style={{ height: '44px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 14px', borderBottom: '1px solid #E5E7EB', background: 'white' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={BRAND_COLORS.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
         </svg>
         <span style={{ fontSize: '12px', fontWeight: 600, color: '#374151' }}>학습 가이드</span>
@@ -202,7 +206,7 @@ const panelStyle: React.CSSProperties = {
 const primaryBtnStyle: React.CSSProperties = {
   height: '32px', padding: '0 14px', borderRadius: '7px',
   fontSize: '12.5px', fontWeight: 600, border: 'none', cursor: 'pointer',
-  background: '#4F46E5', color: 'white',
+  background: BRAND_COLORS.primary, color: 'white',
   display: 'inline-flex', alignItems: 'center', gap: '5px',
 };
 

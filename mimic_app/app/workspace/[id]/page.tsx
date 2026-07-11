@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { BRAND_COLORS } from '@/lib/brand';
 import type { WorkspaceMember, WorkspaceInvitation, WorkspaceRole } from '@/types';
 
 type WorkspaceDetail = {
@@ -16,8 +17,8 @@ type WorkspaceDetail = {
 };
 
 const ROLE_LABEL: Record<WorkspaceRole, string> = { admin: '관리자', editor: '편집자', viewer: '뷰어' };
-const ROLE_COLOR: Record<WorkspaceRole, string> = { admin: '#3730a3', editor: '#10B981', viewer: '#6B7280' };
-const ROLE_BG: Record<WorkspaceRole, string> = { admin: '#e0e7ff', editor: '#D1FAE5', viewer: '#F3F4F6' };
+const ROLE_COLOR: Record<WorkspaceRole, string> = { admin: BRAND_COLORS.primary, editor: '#10B981', viewer: '#6B7280' };
+const ROLE_BG: Record<WorkspaceRole, string> = { admin: BRAND_COLORS.guideSoft, editor: '#D1FAE5', viewer: '#F3F4F6' };
 
 export default function WorkspacePage() {
   const { id } = useParams<{ id: string }>();
@@ -148,7 +149,7 @@ export default function WorkspacePage() {
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F8F9FA', fontFamily: "'Pretendard Variable', sans-serif" }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: '16px', fontWeight: 600, color: '#111827', marginBottom: '8px' }}>{error ?? '접근 권한이 없습니다.'}</div>
-          <Link href="/home" style={{ fontSize: '14px', color: '#3730a3', textDecoration: 'none' }}>홈으로</Link>
+          <Link href="/home" style={{ fontSize: '14px', color: BRAND_COLORS.primary, textDecoration: 'none' }}>홈으로</Link>
         </div>
       </div>
     );
@@ -223,7 +224,7 @@ export default function WorkspacePage() {
                 type="submit"
                 disabled={inviting}
                 style={{
-                  padding: '9px 18px', borderRadius: '9px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)',
+                  padding: '9px 18px', borderRadius: '9px', background: `linear-gradient(135deg, ${BRAND_COLORS.primary}, ${BRAND_COLORS.guide})`,
                   color: 'white', border: 'none', cursor: inviting ? 'not-allowed' : 'pointer',
                   fontSize: '13.5px', fontWeight: 600, opacity: inviting ? 0.7 : 1, flexShrink: 0,
                 }}
@@ -240,7 +241,7 @@ export default function WorkspacePage() {
                     <button
                       type="button"
                       onClick={() => { navigator.clipboard.writeText(inviteMsg.link!); }}
-                      style={{ flexShrink: 0, fontSize: '12px', color: '#3730a3', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
+                      style={{ flexShrink: 0, fontSize: '12px', color: BRAND_COLORS.primary, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
                     >
                       복사
                     </button>
@@ -268,7 +269,7 @@ export default function WorkspacePage() {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={m.user.avatar_url} alt={m.user.name} style={{ width: '34px', height: '34px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
                   ) : (
-                    <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', display: 'grid', placeItems: 'center', fontSize: '13px', fontWeight: 700, flexShrink: 0 }}>{initial}</div>
+                    <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: `linear-gradient(135deg, ${BRAND_COLORS.primary}, ${BRAND_COLORS.guide})`, color: 'white', display: 'grid', placeItems: 'center', fontSize: '13px', fontWeight: 700, flexShrink: 0 }}>{initial}</div>
                   )}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '13.5px', fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -341,7 +342,7 @@ export default function WorkspacePage() {
                   <button
                     onClick={() => handleResendInvite(inv.email, inv.role, inv.token)}
                     style={{ height: '28px', padding: '0 10px', borderRadius: '7px', border: '1px solid #E5E7EB', background: 'white', color: '#374151', cursor: 'pointer', fontSize: '11.5px', fontWeight: 500, flexShrink: 0 }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#3730a3'; (e.currentTarget as HTMLButtonElement).style.color = '#3730a3'; }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = BRAND_COLORS.primary; (e.currentTarget as HTMLButtonElement).style.color = BRAND_COLORS.primary; }}
                     onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#E5E7EB'; (e.currentTarget as HTMLButtonElement).style.color = '#374151'; }}
                     title="재발송"
                   >

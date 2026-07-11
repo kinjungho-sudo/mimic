@@ -9,6 +9,7 @@ import { assertStorageUrl } from '@/lib/validate-storage-url';
 import { drawAnnotationsOnPdf } from '@/lib/export/annotate-pdf';
 import type { ExportAnnotation } from '@/lib/export/annotations-shared';
 import { renderStepImage } from '@/lib/export/render-step-image';
+import { BRAND_NAME } from '@/lib/brand';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const fontkit = require('@pdf-lib/fontkit');
 
@@ -112,8 +113,8 @@ export async function GET(request: NextRequest, { params }: Params) {
   // 배경: 상단 1/3 인디고 블록
   cover.drawRectangle({ x: 0, y: PH * 0.6, width: PW, height: PH * 0.4, color: rgb(0.31, 0.27, 0.90) });
 
-  // MIMIC 브랜드
-  cover.drawText('MIMIC', {
+  // Public brand
+  cover.drawText(BRAND_NAME, {
     x: ML,
     y: PH - MT - 28,
     size: 18,
