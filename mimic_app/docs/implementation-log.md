@@ -443,3 +443,9 @@
 - Verified six public routes with HTTP 200, Parro metadata, zero visible old-brand and old Production URL matches, dev Supabase `dskphgxurxebblnpwhax`, and no recent error logs before moving the alias.
 - Repointed `https://parro-guide.vercel.app` to the verified Preview. Kept `main`, Production aliases/deployment, project name, shared environments, Supabase configuration, and data unchanged.
 - Rollback target remains the earlier verified Preview `dpl_8oErV37fcoayvYYzAE9qF5cCU6qz`, or the alias can be removed.
+
+## 2026-07-11 - Environment-aware robots sitemap
+
+- Replaced the static `public/robots.txt` old Production sitemap URL with `app/robots.ts` using `getBrandAppUrl()`.
+- Preserved the existing search/AI crawler allow rules, CCBot block, and private app/API disallow rules.
+- Preview and Production now emit their own environment-specific sitemap URL without renaming routes or changing shared Vercel environment variables.

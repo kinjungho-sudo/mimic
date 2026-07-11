@@ -100,7 +100,7 @@ git diff --check
 - `BRAND_LOGO_IMAGE_PATH` now uses `/brand/parro-mark.png`. `public/mimic-logo.png` remains only as a compatibility filename and contains the same Parro mark.
 - No remaining user-visible `MIMIC`, `Mimic`, or `미믹` copy or old `M` glyph logo was found in the focused active-surface search.
 - App support/contact surfaces now use `kinjungho@gmail.com` through `BRAND_SUPPORT_EMAIL`. This is an interim operational contact until a Parro custom-domain mailbox is provisioned.
-- The temporary public alias is `parro-guide.vercel.app`, currently pointing to the verified Parro Preview. Internal app/library fallbacks still use `mimic-nine-ashen.vercel.app` through `BRAND_APP_URL_FALLBACK`/`getBrandAppUrl()`; static/runtime files such as `robots.txt` and the `public/sdk.js` fallback still need a final custom-domain pass.
+- The temporary public alias is `parro-guide.vercel.app`, currently pointing to the verified Parro Preview. Metadata, sitemap, and the dynamic robots route use `getBrandAppUrl()`; internal fallback and `public/sdk.js` still preserve `mimic-nine-ashen.vercel.app` until the final custom-domain pass.
 - Chrome Web Store URL slug remains `mimic-recorder`; the visible extension name is now `Parro Recorder`, and app references now go through `BRAND_EXTENSION_STORE_URL`, but the store slug/extension identity is preserved.
 
 ## Internal identifiers intentionally preserved
