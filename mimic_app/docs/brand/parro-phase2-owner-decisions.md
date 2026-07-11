@@ -95,18 +95,28 @@ Prerequisite:
 
 ## Decision 3: Support Email
 
+Status: interim public contact applied on `2026-07-11` in `brand/parro-system`.
+
 Current value:
 
-- `support@mimic.so` via `BRAND_SUPPORT_EMAIL` in `mimic_app/lib/brand.ts`
+- `kinjungho@gmail.com` via `BRAND_SUPPORT_EMAIL` in `mimic_app/lib/brand.ts`.
+- App help, settings, landing, legal pages, auth errors, transactional email templates, n8n reply-to, and share-email reply-to now consume the centralized constant.
+- Recorder policy/store files keep the same actual Gmail address in their separate static package.
 
 Open decision:
 
-- Choose final public support email, for example `support@<parro-domain>`.
-- Decide whether old `support@mimic.so` forwards to the new address.
+- After a Parro custom domain is provisioned, decide whether to create `support@<parro-domain>` and update the single constant.
+- Decide whether old `support@mimic.so` forwards to the future domain mailbox.
 
 Risk:
 
 - Medium. Email sender/reply-to changes affect support workflows and automated email trust.
+
+Verification:
+
+- Ready Preview `dpl_8oErV37fcoayvYYzAE9qF5cCU6qz`: `https://mimic-abirpirnc-kinjungho-7735s-projects.vercel.app`.
+- Combined `/landingpage` and `/help` HTML contained six `kinjungho@gmail.com` matches, zero `support@mimic.so` matches, and zero visible `MIMIC` / `미믹` matches.
+- Recent Preview error-log query returned no errors. Production remained unchanged.
 
 ## Decision 4: Chrome Web Store Slug and Policy URLs
 
@@ -172,7 +182,7 @@ Risk:
 
 1. Final logo SVG and asset filename policy completed on `brand/parro-system`.
 2. Read-only Vercel preflight and approved Parro Preview deployment completed; Production remains unchanged.
-3. Decide the final Parro custom domain and support email.
+3. Interim Gmail support contact completed; decide the final Parro custom domain and future domain mailbox.
 4. Update app constants and public static files.
 5. Update Recorder runtime URLs and manifest host permissions only after domain/auth behavior is confirmed.
 6. Decide Chrome Web Store/policy URL migration separately.

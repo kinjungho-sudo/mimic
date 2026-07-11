@@ -25,6 +25,8 @@ git diff --check
 - `2026-07-11` Phase 2 read-only Vercel preflight: verified account, existing `mimic` project (`mimic_app` root, Node.js 24.x), Ready production alias, deployment history, and zero custom domains. The first CLI request hit the local certificate chain issue; retry with `$env:NODE_OPTIONS='--use-system-ca'` passed. No local link or Vercel resource was created or changed.
 - `2026-07-11` approved Preview deployment: linked the isolated worktree to the existing project and deployed `dpl_HDq1Ec1ksAYMQBogXj7foyrHaG6z` to `https://mimic-24chg4zda-kinjungho-7735s-projects.vercel.app`. Target is Preview and status is Ready; Production aliases were not changed.
 - Preview verification: `/landingpage` contained 36 `Parro` matches and zero visible `MIMIC` / `미믹` matches; the Parro SVG, PNG, and app icon returned HTTP 200; browser smoke confirmed the Wing Pointer header and first viewport; recent error-log query returned no errors.
+- `2026-07-11` support-contact pass: changed `BRAND_SUPPORT_EMAIL` from `support@mimic.so` to the already-public operational address `kinjungho@gmail.com`, and centralized app UI, legal, email template, n8n, and share-email uses.
+- Ready Preview `dpl_8oErV37fcoayvYYzAE9qF5cCU6qz` verification: combined landing/help HTML contained six Gmail matches, zero old support-address matches, and zero visible old-brand matches; recent error-log query returned no errors.
 - Re-ran `npm run lint`, `$env:NODE_OPTIONS='--use-system-ca'; npm run build`, `git diff --check`, and focused `sendMimicEmail|sendParroEmail` search after the email helper alias pass; all passed with only existing warnings.
 - Re-ran `npm run lint`, `$env:NODE_OPTIONS='--use-system-ca'; npm run build`, `git diff --check`, and focused `MimicAppHeader|mimicFadeIn|mimic:survey` search after the internal UI name cleanup; all passed with only existing warnings.
 - Re-ran `npm run lint`, `$env:NODE_OPTIONS='--use-system-ca'; npm run build`, `git diff --check`, and focused `demo@mimicflow.com|demo@parro.example|devtest@mimic.dev` search after the mock email cleanup; all passed with only existing warnings.
@@ -93,7 +95,7 @@ git diff --check
 - Production Wing Pointer assets are now present at `public/brand/parro-logo.svg`, `public/brand/parro-mark.svg`, and `public/brand/parro-mark.png`; `public/logo.svg`, `app/icon.svg`, `public/favicon.svg`, `public/icons/*.png`, and the shared `BrandMark` use the same mark.
 - `BRAND_LOGO_IMAGE_PATH` now uses `/brand/parro-mark.png`. `public/mimic-logo.png` remains only as a compatibility filename and contains the same Parro mark.
 - No remaining user-visible `MIMIC`, `Mimic`, or `미믹` copy or old `M` glyph logo was found in the focused active-surface search.
-- Public support/contact email remains `support@mimic.so` in help/chat/auth copy through `BRAND_SUPPORT_EMAIL`. This is now centralized, but the address itself is still a domain and operations decision for Phase 2.
+- App support/contact surfaces now use `kinjungho@gmail.com` through `BRAND_SUPPORT_EMAIL`. This is an interim operational contact until a Parro custom-domain mailbox is provisioned.
 - Deployment URLs remain `mimic-nine-ashen.vercel.app`. App/library fallbacks now go through `BRAND_APP_URL_FALLBACK`/`getBrandAppUrl()`, `public/llms.txt` uses relative links, and static/runtime files such as `robots.txt` plus the `public/sdk.js` fallback still need a Phase 2 domain pass. These are deployment identifiers and should move only after domain/Vercel decisions.
 - Chrome Web Store URL slug remains `mimic-recorder`; the visible extension name is now `Parro Recorder`, and app references now go through `BRAND_EXTENSION_STORE_URL`, but the store slug/extension identity is preserved.
 
@@ -122,7 +124,7 @@ git diff --check
 ## Follow-up owner decisions
 
 - See `docs/brand/parro-phase2-owner-decisions.md` for the full Phase 2 decision matrix and recommended order.
-- Decide public domain and support email migration timing.
+- Decide the public domain and whether to provision a matching support mailbox; the interim Gmail contact is active in Preview.
 - Decide whether the Chrome Web Store listing/slug should remain `mimic-recorder` or move through a separate extension listing/update process.
 - Decide how long legacy SDK globals and CSS classes such as `MimicSDK`, `MimicAutoRun`, and `mimic-*` remain supported now that Parro aliases exist.
 - Decide whether bot/user-agent names such as `MIMICBot/1.0` should change in Phase 2 or remain stable.

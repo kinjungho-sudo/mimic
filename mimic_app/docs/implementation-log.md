@@ -395,3 +395,11 @@
 - Verified the Preview landing HTML contains Parro branding and no visible old-brand copy.
 - Verified the Parro SVG, PNG, and app icon responses, browser-rendered first viewport, and absence of recent Preview error logs.
 - Kept `main`, Production aliases, Supabase, and all production data unchanged.
+
+## 2026-07-11 - Parro interim support contact
+
+- Replaced the old `support@mimic.so` public contact with the already-operational `kinjungho@gmail.com` address through `BRAND_SUPPORT_EMAIL`.
+- Centralized app landing, settings, legal, extension-link, auth/help, transactional email, n8n reply-to, and share-email reply-to uses on the brand constant.
+- Local lint/build passed with only the existing unrelated warnings.
+- Deployed and verified Ready Preview `dpl_8oErV37fcoayvYYzAE9qF5cCU6qz`; landing/help responses contained the Gmail contact and no old support address or visible old-brand copy.
+- Kept the custom-domain mailbox decision open and made no Production, domain, environment, Supabase, or data changes.
