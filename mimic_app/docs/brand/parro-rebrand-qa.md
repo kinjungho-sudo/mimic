@@ -163,7 +163,10 @@ git diff --check
 - 확장 상세 화면의 설명이 브랜드를 명시하도록 매니페스트 설명을 `Parro Recorder는...`으로 보정했다.
 - Recorder JavaScript 6개 파일의 `node --check`, 매니페스트 JSON/아이콘 경로 assertion, 아이콘 해시 비교, `git diff --check`가 통과했다.
 - Web Store ZIP을 임시 생성해 13개 whitelist 항목, `Parro Recorder` 이름, 버전 `1.6.2`, 정방향 경로, Wing Pointer 아이콘 해시 일치를 확인한 뒤 ZIP을 제거했다. 게시 작업은 하지 않았다.
+- 16/48/128px 아이콘의 실제 크기, 알파 픽셀, 가시 영역을 검사해 세 파일 모두 비어 있지 않음을 확인했다. 16px 아이콘도 66개 가시 픽셀과 `1,2-13,13` 경계를 가진다.
 - 실행 UI의 구 보라색 팔레트 검색은 0건이며 Parro 팔레트 참조는 46건이다.
-- 420x800 사이드 패널 렌더링에서 Wing Pointer 로고, `Parro` 워드마크, teal 녹화 버튼, 가로 폭을 확인했다. 보이는 구브랜드와 가로 넘침은 없었다. 일반 HTTP 렌더링의 `chrome.storage` 오류는 Chrome extension API가 없는 검증 환경에서만 발생한다.
+- 360x720 사이드 패널, 마이크 권한 요청, 개인정보처리방침을 렌더링해 Wing Pointer 로고, `Parro` 워드마크, teal CTA/제목, 가로 폭을 확인했다. 보이는 구브랜드와 가로 넘침은 없었다. 일반 HTTP 렌더링의 `chrome.storage` 오류는 Chrome extension API가 없는 검증 환경에서만 발생한다.
+- 앱 `npm ci`, `npm run lint`, `$env:NODE_OPTIONS='--use-system-ca'; npm run build`, SDK `node --check`, Recorder 6개 JS `node --check`, MCP `npm run build`, `git diff --check`가 통과했다. 기존 lint 경고와 npm audit 10건(6 moderate, 4 high)은 이번 변경과 무관하며 자동 수정하지 않았다.
+- `dev` 반영 후 Git Preview의 landing/login/help, Parro 자산, robots/sitemap을 재검증했다. 구브랜드와 이전 Production URL 노출은 0건이고 Supabase 참조는 dev `dskphgxurxebblnpwhax`뿐이다.
 - Chrome 확장 상세 화면의 어두운 배경과 파란 `사용` 토글은 Chrome 자체 UI이므로 Recorder에서 변경할 수 없다.
-- 작업 브랜치는 `fix/parro-recorder-brand`이며 `main`, Production, DB, 배포, Web Store에는 변경하지 않았다.
+- Recorder 변경 커밋 `d53dc52`를 원격 `dev`에 fast-forward 반영했다. `main`, Production, DB, Chrome Web Store에는 변경하지 않았다.

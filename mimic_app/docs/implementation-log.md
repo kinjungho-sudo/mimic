@@ -499,4 +499,5 @@
 - 매니페스트 이름 `Parro Recorder (dev)`를 유지하고 설명에 `Parro Recorder`를 명시했다.
 - Recorder popup은 이미 Parro teal/lime 팔레트가 적용된 상태임을 확인했으며 420x800 렌더링에서 로고, 버튼, 레이아웃을 검증했다.
 - 임시 Web Store ZIP을 생성해 `Parro Recorder`, 버전 `1.6.2`, Wing Pointer 아이콘 3종을 검증한 뒤 제거했으며 게시하지 않았다.
-- `main`, Production, DB, 배포, Chrome Web Store에는 변경하지 않았다.
+- 아이콘 픽셀/가시 영역, 360px popup·마이크 권한·개인정보 화면, 앱 lint/build, SDK/Recorder 구문, MCP 빌드, Git Preview와 dev Supabase 연결을 추가 검증했다.
+- Recorder 변경 커밋 `d53dc52`를 원격 `dev`에 반영했다. `main`, Production, DB, Chrome Web Store에는 변경하지 않았다.
