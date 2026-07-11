@@ -79,6 +79,13 @@ Prerequisite:
 - Created Preview deployment `dpl_HDq1Ec1ksAYMQBogXj7foyrHaG6z`:
   `https://mimic-24chg4zda-kinjungho-7735s-projects.vercel.app`
 - Deployment target is Preview and status is Ready. No `--prod`, `promote`, production alias, custom domain, environment, or Supabase change was used.
+
+### Temporary Parro Vercel alias — 2026-07-11
+
+- Added `https://parro-guide.vercel.app` as a temporary public alias for the verified Parro Preview deployment `dpl_8oErV37fcoayvYYzAE9qF5cCU6qz`.
+- Initial verification caught that the existing Production deployment still rendered MIMIC; the alias was immediately repointed to the Parro Preview before completion.
+- Verified `/landingpage` with HTTP 200, 36 `Parro` matches, and zero visible `MIMIC` / `미믹` matches.
+- Existing Production aliases, project name, `main`, environments, and Supabase remain unchanged. Rollback is removal of this alias.
 - `/landingpage` returned Parro metadata and UI: `Parro` 36 matches and zero visible `MIMIC` / `미믹` matches in the rendered HTML.
 - `/brand/parro-mark.svg`, `/brand/parro-mark.png`, and `/icon.svg` returned HTTP 200 with the expected content types.
 - Browser smoke confirmed the Wing Pointer mark and Parro first viewport render correctly.

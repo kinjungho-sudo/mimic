@@ -410,3 +410,10 @@
 - Preserved `MIMICBot/1.0` in `LEGACY_INTERNAL_IDENTIFIERS` as an explicit compatibility and rollback value.
 - `npm run lint` and `$env:NODE_OPTIONS='--use-system-ca'; npm run build` passed with only the existing unrelated warnings.
 - Made no route, API contract, database, environment, extension, or deployment identifier change.
+
+## 2026-07-11 - Temporary Parro Vercel alias
+
+- Added `https://parro-guide.vercel.app` without renaming the existing Vercel project or removing existing Production aliases.
+- Initial verification identified that the old Production deployment still showed MIMIC, so the new alias was immediately repointed to verified Parro Preview `dpl_8oErV37fcoayvYYzAE9qF5cCU6qz`.
+- Verified `/landingpage` returned HTTP 200 with 36 `Parro` matches and zero visible old-brand matches.
+- Made no `main`, Production deployment, environment, Supabase, or data change; rollback is removing the temporary alias.

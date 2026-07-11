@@ -27,6 +27,7 @@ git diff --check
 - Preview verification: `/landingpage` contained 36 `Parro` matches and zero visible `MIMIC` / `미믹` matches; the Parro SVG, PNG, and app icon returned HTTP 200; browser smoke confirmed the Wing Pointer header and first viewport; recent error-log query returned no errors.
 - `2026-07-11` support-contact pass: changed `BRAND_SUPPORT_EMAIL` from `support@mimic.so` to the already-public operational address `kinjungho@gmail.com`, and centralized app UI, legal, email template, n8n, and share-email uses.
 - Ready Preview `dpl_8oErV37fcoayvYYzAE9qF5cCU6qz` verification: combined landing/help HTML contained six Gmail matches, zero old support-address matches, and zero visible old-brand matches; recent error-log query returned no errors.
+- Added temporary alias `https://parro-guide.vercel.app` to that verified Parro Preview. `/landingpage` returned HTTP 200 with 36 `Parro` matches and zero visible old-brand matches; existing Production aliases remain unchanged.
 - Re-ran `npm run lint`, `$env:NODE_OPTIONS='--use-system-ca'; npm run build`, focused bot User-Agent search, and `git diff --check` after the favicon crawler User-Agent pass; all passed with only existing warnings.
 - Re-ran `npm run lint`, `$env:NODE_OPTIONS='--use-system-ca'; npm run build`, `git diff --check`, and focused `sendMimicEmail|sendParroEmail` search after the email helper alias pass; all passed with only existing warnings.
 - Re-ran `npm run lint`, `$env:NODE_OPTIONS='--use-system-ca'; npm run build`, `git diff --check`, and focused `MimicAppHeader|mimicFadeIn|mimic:survey` search after the internal UI name cleanup; all passed with only existing warnings.
@@ -97,7 +98,7 @@ git diff --check
 - `BRAND_LOGO_IMAGE_PATH` now uses `/brand/parro-mark.png`. `public/mimic-logo.png` remains only as a compatibility filename and contains the same Parro mark.
 - No remaining user-visible `MIMIC`, `Mimic`, or `미믹` copy or old `M` glyph logo was found in the focused active-surface search.
 - App support/contact surfaces now use `kinjungho@gmail.com` through `BRAND_SUPPORT_EMAIL`. This is an interim operational contact until a Parro custom-domain mailbox is provisioned.
-- Deployment URLs remain `mimic-nine-ashen.vercel.app`. App/library fallbacks now go through `BRAND_APP_URL_FALLBACK`/`getBrandAppUrl()`, `public/llms.txt` uses relative links, and static/runtime files such as `robots.txt` plus the `public/sdk.js` fallback still need a Phase 2 domain pass. These are deployment identifiers and should move only after domain/Vercel decisions.
+- The temporary public alias is `parro-guide.vercel.app`, currently pointing to the verified Parro Preview. Internal app/library fallbacks still use `mimic-nine-ashen.vercel.app` through `BRAND_APP_URL_FALLBACK`/`getBrandAppUrl()`; static/runtime files such as `robots.txt` and the `public/sdk.js` fallback still need a final custom-domain pass.
 - Chrome Web Store URL slug remains `mimic-recorder`; the visible extension name is now `Parro Recorder`, and app references now go through `BRAND_EXTENSION_STORE_URL`, but the store slug/extension identity is preserved.
 
 ## Internal identifiers intentionally preserved
