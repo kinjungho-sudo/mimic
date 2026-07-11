@@ -183,7 +183,8 @@ Completed reversible Preview work:
 - Temporary URL: `https://parro-guide.vercel.app`
 - Current verified Preview: `dpl_J85ABCHTTM6EaxGXzvDMhZTCrh2i`
 - `dev` merge commit: `216c35fb6b0783524bc21f1600907524b5c06979`
-- Current Git `dev` Preview: `dpl_DgLFYLdL1JsKoJ1zFeayujtJ9YMc`
+- Current Git `dev` Preview entrypoint: `https://mimic-git-dev-kinjungho-7735s-projects.vercel.app`
+- Branch-scoped env verification deployment: `dpl_DgLFYLdL1JsKoJ1zFeayujtJ9YMc`
 - Branch-scoped Vercel value: `NEXT_PUBLIC_APP_URL=https://parro-guide.vercel.app` for `Preview (dev)` only.
 - Preview uses dev Supabase `dskphgxurxebblnpwhax`.
 - Metadata, robots, and sitemap emit the Parro alias.
