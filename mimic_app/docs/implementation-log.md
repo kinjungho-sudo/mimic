@@ -435,3 +435,11 @@
 - Updated the Chrome Web Store source listing's public web-service URL from the legacy Vercel address to `https://parro-guide.vercel.app`.
 - Preserved Recorder runtime URLs, existing origins, extension ID, Web Store slug, and all internal identifiers.
 - Did not publish or mutate the live Chrome Web Store listing.
+
+## 2026-07-11 - Parro alias metadata Preview refresh
+
+- Found that the temporary Parro alias rendered no old visible brand copy but still emitted the old Production URL in metadata.
+- Created Ready Preview `dpl_8KycS2iBFbDi8K826UeEjmpm5TBw` with deployment-only `NEXT_PUBLIC_APP_URL=https://parro-guide.vercel.app`; shared Preview and Production env values were not changed.
+- Verified six public routes with HTTP 200, Parro metadata, zero visible old-brand and old Production URL matches, dev Supabase `dskphgxurxebblnpwhax`, and no recent error logs before moving the alias.
+- Repointed `https://parro-guide.vercel.app` to the verified Preview. Kept `main`, Production aliases/deployment, project name, shared environments, Supabase configuration, and data unchanged.
+- Rollback target remains the earlier verified Preview `dpl_8oErV37fcoayvYYzAE9qF5cCU6qz`, or the alias can be removed.
