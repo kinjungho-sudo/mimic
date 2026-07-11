@@ -450,3 +450,9 @@
 - Preserved the existing search/AI crawler allow rules, CCBot block, and private app/API disallow rules.
 - Preview and Production now emit their own environment-specific sitemap URL without renaming routes or changing shared Vercel environment variables.
 - Deployed Ready Preview `dpl_J85ABCHTTM6EaxGXzvDMhZTCrh2i`, verified Parro robots/sitemap responses and no error logs, then moved `parro-guide.vercel.app` to that deployment.
+
+## 2026-07-11 - Recorder dev origin migration
+
+- Changed only unpacked/dev Recorder defaults from the old Vercel Preview URL to `https://parro-guide.vercel.app` in background API fallback and popup login/link navigation.
+- Added the Parro alias explicitly to host permissions while preserving `<all_urls>`, the old dev Preview origin, existing Production origin, extension ID, stored `webappOrigin`, dev/prod Supabase split, and all DB identifiers.
+- Kept the published production extension on `https://mimic-nine-ashen.vercel.app`; no store package, publication, `main`, Production deployment, environment, Supabase, or data change was made.

@@ -118,6 +118,7 @@ git diff --check
 - SDK/recorder console log tags have been updated to `[Parro]` / `[Parro Recorder]`; compatibility names remain unchanged.
 - Chrome extension runtime URLs, extension IDs, local storage keys, IndexedDB names, and `mimic-*` DOM/CSS compatibility hooks are preserved. Local package artifacts now use `parro-recorder-v{version}.zip`.
 - Recorder `externally_connectable` includes the exact temporary origin `https://parro-guide.vercel.app/*` so web-to-extension linking works on the Parro alias; existing Vercel, legacy custom-domain, and localhost origins remain for rollback compatibility.
+- Unpacked Recorder builds now use `https://parro-guide.vercel.app` as the default dev web-app origin and login/link destination while keeping the production extension on `mimic-nine-ashen.vercel.app`; stored origins and the old dev Preview remain compatible fallbacks.
 - Chrome Web Store source listing now presents `https://parro-guide.vercel.app` as the Parro web service URL; no store publication or listing mutation was performed.
 - Recorder test fixtures may still contain legacy color values; runtime extension UI files have been migrated to Parro colors.
 - Legacy matching keywords in the help chat so users asking about the old name can still get an answer.
