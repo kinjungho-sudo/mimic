@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { BrandMark } from '@/components/common/BrandMark';
 import { FollowStage } from '@/components/viewer/FollowStage';
 import { BRAND_COPY, BRAND_NAME, BRAND_SUPPORT_EMAIL, BRAND_TAGLINE } from '@/lib/brand';
+import { HeroRecordingDemo, ProductDemo } from '@/components/landing/ProductDemo';
 
 const CheckIcon = ({ size = 14, color = 'currentColor' }: { size?: number; color?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3">
@@ -278,6 +279,8 @@ function RevealSection({ children, style }: { children: React.ReactNode; style?:
   );
 }
 
+// Legacy prototypes are kept as design references until their shared mock data is extracted.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function HeroDemo() {
   const [phase, setPhase] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -1417,6 +1420,7 @@ const SHOWCASES = [
   },
 ];
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function ProductShowcase() {
   return (
     <section id="tour" style={{ padding: '96px 0 32px', background: 'white' }}>
@@ -1463,6 +1467,7 @@ function ProductShowcase() {
   );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function ServiceSimulatorSection() {
   const [active, setActive] = useState(0);
   const step = simulatorDemos[active];
@@ -1544,7 +1549,7 @@ function ServiceSimulatorSection() {
 
 function HeroSection() {
   return (
-    <section style={{ padding: '96px 0 0', background: '#07070F', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+    <section className="landing-hero" style={{ padding: '78px 0 72px', background: '#07070F', position: 'relative', overflow: 'hidden' }}>
       {/* Animated ambient orbs */}
       <div className="hero-orb hero-orb-1" />
       <div className="hero-orb hero-orb-2" />
@@ -1552,56 +1557,30 @@ function HeroSection() {
       {/* Subtle grid overlay */}
       <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)', backgroundSize: '72px 72px', pointerEvents: 'none' }} />
 
-      <div style={{ maxWidth: '1080px', margin: '0 auto', padding: '0 32px', position: 'relative' }}>
-        {/* Announcement badge */}
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '5px 16px 5px 6px', background: 'rgba(18,184,134,0.10)', border: '1px solid rgba(18,184,134,0.22)', borderRadius: '999px', fontSize: '12.5px', color: '#E8FFF7', fontWeight: 500, marginBottom: '36px', backdropFilter: 'blur(8px)' }}>
-          <span style={{ padding: '3px 10px', borderRadius: '999px', background: 'linear-gradient(135deg, #009B8E, #12B886)', fontSize: '10px', fontWeight: 700, color: 'white', letterSpacing: '0.06em', flexShrink: 0 }}>NEW</span>
-          매뉴얼을 만들고, Live Guide Beta로 끝까지 실행까지 안내합니다
+      <div className="hero-layout" style={{ maxWidth: '1240px', margin: '0 auto', padding: '0 32px', position: 'relative' }}>
+        <div className="hero-copy" style={{ textAlign: 'left' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '5px 16px 5px 6px', background: 'rgba(18,184,134,0.10)', border: '1px solid rgba(18,184,134,0.22)', borderRadius: '999px', fontSize: '12px', color: '#E8FFF7', fontWeight: 500, marginBottom: '28px', backdropFilter: 'blur(8px)' }}>
+            <span style={{ padding: '3px 10px', borderRadius: '999px', background: 'linear-gradient(135deg, #009B8E, #12B886)', fontSize: '10px', fontWeight: 700, color: 'white', letterSpacing: '0.06em' }}>NEW</span>
+            기록에서 실행까지 이어지는 AI Live Guide
+          </div>
+          <h1 style={{ margin: '0 0 24px', fontSize: 'clamp(44px, 5.4vw, 70px)', lineHeight: 1.03, fontWeight: 800, letterSpacing: '-0.05em', color: 'white', wordBreak: 'keep-all' }}>
+            클릭하면,<br/><span style={{ background: 'linear-gradient(135deg, #E8FFF7 0%, #8DD63F 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>SOP가 됩니다.</span>
+          </h1>
+          <p style={{ fontSize: '17px', color: 'rgba(255,255,255,0.52)', maxWidth: '500px', margin: '0 0 34px', lineHeight: 1.75 }}>
+            평소처럼 업무를 진행하세요. {BRAND_NAME}가 클릭과 화면을 기록해 매뉴얼로 만들고, 실제 실행 순간까지 안내합니다.
+          </p>
+          <div className="hero-cta-row" style={{ display: 'flex', gap: '12px', marginBottom: '34px' }}>
+            <Link href="/auth/login" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '14px 25px', borderRadius: '12px', fontSize: '14px', fontWeight: 700, color: 'white', background: 'linear-gradient(135deg, #009B8E 0%, #12B886 100%)', boxShadow: '0 8px 28px rgba(18,184,134,0.38)', textDecoration: 'none' }}>
+              무료로 시작하기 <span aria-hidden="true">→</span>
+            </Link>
+            <a href="#tour" style={{ display: 'inline-flex', alignItems: 'center', padding: '14px 20px', borderRadius: '12px', fontSize: '14px', color: 'rgba(255,255,255,0.68)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)', textDecoration: 'none' }}>3단계 데모 보기</a>
+          </div>
+          <div className="hero-proof" style={{ display: 'flex', gap: '10px', color: 'rgba(255,255,255,0.36)', fontSize: '11px' }}><span>● 클릭 자동 기록</span><span>● 편집·내보내기</span><span>● 화면 위 안내</span></div>
         </div>
-
-        <h1 style={{ margin: '0 auto 24px', fontSize: 'clamp(44px, 7vw, 84px)', lineHeight: 1.04, fontWeight: 800, letterSpacing: '-0.045em', maxWidth: '880px', color: 'white', wordBreak: 'keep-all' }}>
-          {BRAND_NAME}{' '}
-          <span style={{ background: 'linear-gradient(135deg, #e0d7ff 0%, #E8FFF7 40%, #8DD63F 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent', display: 'inline-block' }}>
-            AI Live Guide.
-          </span>
-        </h1>
-
-        <p style={{ fontSize: 'clamp(15px, 2vw, 18px)', color: 'rgba(255,255,255,0.48)', maxWidth: '560px', margin: '0 auto 48px', lineHeight: 1.8, fontWeight: 400 }}>
-          클릭 위치만 알려주는 데서 멈추지 않습니다. 필요한 텍스트는 화면 위에서 자동으로 입력하고,<br/>
-          사용자가 하려는 일을 처음부터 최종 목적지까지 차근차근 따라가게 합니다.
-        </p>
-
-        <div className="hero-cta-row" style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginBottom: '60px' }}>
-          <Link href="/auth/login"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '14px 28px', borderRadius: '12px', fontSize: '15px', fontWeight: 700, color: 'white', background: 'linear-gradient(135deg, #009B8E 0%, #12B886 100%)', boxShadow: '0 0 0 1px rgba(141,214,63,0.18), 0 8px 28px rgba(18,184,134,0.48)', textDecoration: 'none' }}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-            무료로 시작하기
-          </Link>
-          <a href="#tour" style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '14px 22px', borderRadius: '12px', fontSize: '15px', fontWeight: 500, color: 'rgba(255,255,255,0.60)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', textDecoration: 'none' }}>
-            제품 둘러보기
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
-          </a>
-        </div>
-
-        {/* Key metrics */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '64px' }}>
-          {[
-            { value: '30초', label: 'SOP·매뉴얼 초안' },
-            { value: 'Live', label: '클릭 + 자동 입력 안내' },
-            { value: '끝까지', label: '목표 완료까지 동행' },
-          ].map((stat, i) => (
-            <div key={stat.label} style={{ textAlign: 'center', padding: '16px 40px', borderRight: i < 2 ? '1px solid rgba(255,255,255,0.07)' : 'none' }}>
-              <div style={{ fontSize: '30px', fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1, marginBottom: '6px', background: 'linear-gradient(180deg, #ffffff 0%, rgba(255,255,255,0.65) 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{stat.value}</div>
-              <div style={{ fontSize: '11.5px', color: 'rgba(255,255,255,0.28)', fontWeight: 400 }}>{stat.label}</div>
-            </div>
-          ))}
-        </div>
-
-        <div className="hero-preview" style={{ position: 'relative' }}>
-          <div style={{ position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '75%', height: '120px', background: 'radial-gradient(ellipse, rgba(18,184,134,0.32) 0%, transparent 70%)', filter: 'blur(32px)', pointerEvents: 'none', zIndex: 0 }} />
+        <div className="hero-preview" style={{ position: 'relative', minWidth: 0 }}>
+          <div style={{ position: 'absolute', inset: '12% -4% -8%', background: 'radial-gradient(ellipse, rgba(18,184,134,0.24) 0%, transparent 68%)', filter: 'blur(30px)', pointerEvents: 'none' }} />
           <div style={{ position: 'relative', zIndex: 1 }}>
-            <HeroDemo />
+            <HeroRecordingDemo />
           </div>
         </div>
       </div>
@@ -1703,7 +1682,7 @@ export default function LandingPage() {
           </Link>
           <nav style={{ display: 'flex', gap: '28px', marginLeft: '8px' }}>
             {['제품 투어', '기능', '사용 방법', '요금제', '기업 문의', 'FAQ'].map((item, i) => (
-              <a key={item} href={['#tour', '#features', '#how', '#pricing', '#b2b', '#faq'][i]}
+              <a key={item} href={['#tour', '#features', '#tour', '#pricing', '#b2b', '#faq'][i]}
                 style={{ fontSize: '13.5px', color: 'rgba(255,255,255,0.50)', textDecoration: 'none', whiteSpace: 'nowrap', transition: 'color 0.15s', fontWeight: 500 }}
                 onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.90)'}
                 onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.50)'}
@@ -1726,8 +1705,8 @@ export default function LandingPage() {
       {/* Hero */}
       <HeroSection />
 
-      {/* Product Simulator */}
-      <ServiceSimulatorSection />
+      {/* Product Demo: 기록 → 편집·공유 → 라이브 가이드 */}
+      <ProductDemo />
 
       {/* Manifesto */}
       <section style={{ padding: '128px 0', background: 'linear-gradient(180deg, #07070F 0%, #0d0d1c 100%)', overflow: 'hidden', position: 'relative' }}>
@@ -1796,8 +1775,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* How it works */}
-      <section id="how" style={{ padding: '100px 0', background: 'white' }}>
+      {/* Legacy how-it-works content is superseded by ProductDemo. */}
+      {false ? <section id="how" style={{ padding: '100px 0', background: 'white' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
           <RevealSection>
             <span style={{ display: 'block', textAlign: 'center', fontSize: '11px', color: '#007C72', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '16px' }}>How it works</span>
@@ -1824,10 +1803,7 @@ export default function LandingPage() {
             </div>
           </RevealSection>
         </div>
-      </section>
-
-      {/* Product Showcase */}
-      <ProductShowcase />
+      </section> : null}
 
       {/* Use Cases */}
       <section style={{ padding: '100px 0', background: '#FAFAFA' }}>
@@ -2103,7 +2079,7 @@ export default function LandingPage() {
               </p>
             </div>
             {[
-              { title: '제품', links: [{ label: '기능', href: '#features' }, { label: '사용 방법', href: '#how' }, { label: '요금제', href: '#pricing' }, { label: '변경 사항', href: '#' }] },
+              { title: '제품', links: [{ label: '기능', href: '#features' }, { label: '사용 방법', href: '#tour' }, { label: '요금제', href: '#pricing' }, { label: '변경 사항', href: '#' }] },
               { title: '회사', links: [{ label: '소개', href: '#' }, { label: '블로그', href: '#' }, { label: '채용', href: '#' }, { label: '기업 문의', href: '#b2b' }] },
               { title: '지원', links: [{ label: '이용 가이드', href: '/help' }, { label: 'FAQ', href: '#faq' }, { label: '고객센터', href: `mailto:${BRAND_SUPPORT_EMAIL}` }, { label: '상태 페이지', href: '#' }] },
               { title: '법적 고지', links: [{ label: '이용약관', href: '/legal/terms' }, { label: '개인정보처리방침', href: '/legal/privacy' }, { label: '보안', href: '#' }, { label: '환불 정책', href: '#' }] },
@@ -2284,6 +2260,13 @@ export default function LandingPage() {
           background: radial-gradient(circle, rgba(141,214,63,0.08) 0%, transparent 70%);
           animation: orbFloat3 22s ease-in-out infinite;
         }
+        .hero-layout {
+          display: grid;
+          grid-template-columns: minmax(360px, 0.82fr) minmax(0, 1.18fr);
+          gap: 54px;
+          align-items: center;
+          min-height: calc(100vh - 214px);
+        }
         @keyframes orbFloat1 {
           0%, 100% { transform: translate(0, 0) scale(1); }
           33% { transform: translate(60px, 50px) scale(1.08); }
@@ -2449,6 +2432,10 @@ export default function LandingPage() {
 
         /* ── 태블릿 반응형 ── */
         @media (max-width: 1024px) {
+          .hero-layout { grid-template-columns: 1fr; min-height: auto; gap: 48px; }
+          .hero-copy { max-width: 720px; text-align: center !important; margin: 0 auto; }
+          .hero-copy p { margin-left: auto !important; margin-right: auto !important; }
+          .hero-cta-row, .hero-proof { justify-content: center !important; }
           .pricing-grid { grid-template-columns: repeat(2, 1fr) !important; }
           .pricing-grid > div { transform: none !important; }
           .simulator-grid { grid-template-columns: 1fr !important; }
@@ -2478,8 +2465,11 @@ export default function LandingPage() {
           section { padding: 64px 0 !important; }
           section > div { padding: 0 16px !important; }
 
-          .hero-preview { transform: scale(0.78); transform-origin: top center; margin: -24px -38px -120px !important; }
+          .landing-hero { padding-top: 54px !important; }
+          .hero-layout { gap: 34px !important; }
+          .hero-preview { transform: none; margin: 0 !important; }
           .hero-cta-row { flex-direction: column !important; align-items: stretch !important; }
+          .hero-proof { display: grid !important; grid-template-columns: 1fr; gap: 6px !important; }
 
           .grid-3col { grid-template-columns: 1fr !important; }
           .grid-2col { grid-template-columns: 1fr !important; }
