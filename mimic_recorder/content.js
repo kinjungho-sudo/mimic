@@ -681,6 +681,12 @@
       return false;
     }
 
+    if (msg.type === 'LIVE_TARGET_PICK') {
+      if (!IS_TOP_FRAME) return false;
+      startLiveTargetPick(sendResponse);
+      return true;
+    }
+
     if (msg.type === 'SHOW_OVERLAY' && msg.step) {
       if (!IS_TOP_FRAME) return false;
       const guideApi = window.ParroGuide || window.MimicGuide;
@@ -704,6 +710,78 @@
   });
 
   // ── 인터랙티브 타겟 탐색 ────────────────────────────────────────
+  function startLiveTargetPick(sendResponse) {
+    let finished = false;
+    let timeoutId = null;
+    const banner = document.createElement('div');
+    banner.textContent = 'Parro: 라이브 가이드 대상을 클릭하세요';
+    Object.assign(banner.style, {
+      position: 'fixed',
+      top: '16px',
+      left: '50%',
+      transform: 'translateX(-50%)',
+      zIndex: '2147483647',
+      padding: '10px 14px',
+      borderRadius: '10px',
+      background: 'rgba(16,32,51,0.96)',
+      color: '#fff',
+      fontSize: '13px',
+      fontWeight: '700',
+      boxShadow: '0 14px 36px rgba(0,0,0,0.28)',
+      pointerEvents: 'none',
+    });
+    document.documentElement.appendChild(banner);
+
+    const cleanup = () => {
+      document.removeEventListener('pointerdown', onPointerDown, true);
+      if (timeoutId) clearTimeout(timeoutId);
+      banner.remove();
+    };
+
+    const finish = (payload) => {
+      if (finished) return;
+      finished = true;
+      cleanup();
+      sendResponse(payload);
+    };
+
+    function onPointerDown(event) {
+      const raw = event.target && event.target.nodeType === Node.ELEMENT_NODE
+        ? event.target
+        : event.target?.parentElement;
+      if (!raw || raw === banner || banner.contains(raw)) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+
+      const target = refineActionTarget(raw, findInteractiveTarget(raw) || raw);
+      const rect = target.getBoundingClientRect();
+      const vw = Math.max(1, window.innerWidth);
+      const vh = Math.max(1, window.innerHeight);
+      const clamp = value => Math.max(0, Math.min(1, value));
+
+      finish({
+        ok: true,
+        page_url: window.location.href,
+        element_selector: getElementSelector(target) || null,
+        element_xpath: getElementXPath(target) || null,
+        element_rect: {
+          x: clamp(rect.left / vw),
+          y: clamp(rect.top / vh),
+          width: clamp(rect.width / vw),
+          height: clamp(rect.height / vh),
+        },
+        click_x: clamp(event.clientX / vw),
+        click_y: clamp(event.clientY / vh),
+        label: getElementLabel(target, raw) || null,
+      });
+    }
+
+    document.addEventListener('pointerdown', onPointerDown, true);
+    timeoutId = setTimeout(() => finish({ ok: false, reason: 'timeout', error: '대상 선택 시간이 초과되었습니다.' }), 30000);
+  }
+
   function findInteractiveTarget(el) {
     if (!el || el === document.documentElement) return null;
     if (document.designMode === 'on') return document.body;

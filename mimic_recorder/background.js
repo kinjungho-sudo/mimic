@@ -559,6 +559,42 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
     return true;
   }
 
+  if (message.action === 'PICK_LIVE_TARGET') {
+    (async () => {
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (!tab?.id) {
+          sendResponse({ ok: false, reason: 'tab_not_found', error: '활성 탭을 찾지 못했습니다.' });
+          return;
+        }
+
+        const urlCheck = classifyRecordableUrl(tab.url || '');
+        if (!urlCheck.ok) {
+          sendResponse(urlCheck);
+          return;
+        }
+
+        const injection = await ensureContentScript(tab.id);
+        if (!injection?.ok) {
+          sendResponse({ ok: false, reason: 'content_script_failed', error: injection?.error || 'Recorder를 대상 탭에 연결하지 못했습니다.' });
+          return;
+        }
+
+        chrome.tabs.sendMessage(tab.id, { type: 'LIVE_TARGET_PICK' }, (response) => {
+          const error = chrome.runtime.lastError?.message;
+          if (error) {
+            sendResponse({ ok: false, reason: 'content_script_unreachable', error });
+            return;
+          }
+          sendResponse(response || { ok: false, reason: 'empty_response', error: '대상 선택 응답이 없습니다.' });
+        });
+      } catch (error) {
+        sendResponse({ ok: false, reason: 'error', error: error?.message || String(error) });
+      }
+    })();
+    return true;
+  }
+
   if (message.action === 'START_RECORDING') {
     const tabId = message.tabId;
     if (!tabId) {
