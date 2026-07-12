@@ -13,7 +13,7 @@ const SUPABASE_ANON_KEY = IS_DEV
   : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxeW5wdHBqb21jcXp4eXlrcWljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NTcyNzMsImV4cCI6MjA4NzEzMzI3M30.7OgewnWhbE2GK1k0tTuuegrKUVkHuJrW_cpvbVRcH1E';
 const SUPABASE_BUCKET   = 'naviaction';
 const WEBAPP_ORIGIN     = IS_DEV
-  ? 'https://parro-guide.vercel.app'             // dev: verified Parro Preview alias
+  ? 'https://parro-guide-dev.vercel.app'         // dev: Parro Preview alias
   : 'https://mimic-nine-ashen.vercel.app';        // 운영
 if (IS_DEV) console.warn('[Parro Recorder] DEV 모드 — dev DB/Preview 연결 (id:', chrome.runtime.id, ')');
 const JPEG_QUALITY_DEFAULT = 0.92;
@@ -556,6 +556,42 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         error: error?.message || 'tabs_query_failed',
       });
     });
+    return true;
+  }
+
+  if (message.action === 'PICK_LIVE_TARGET') {
+    (async () => {
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (!tab?.id) {
+          sendResponse({ ok: false, reason: 'tab_not_found', error: '활성 탭을 찾지 못했습니다.' });
+          return;
+        }
+
+        const urlCheck = classifyRecordableUrl(tab.url || '');
+        if (!urlCheck.ok) {
+          sendResponse(urlCheck);
+          return;
+        }
+
+        const injection = await ensureContentScript(tab.id);
+        if (!injection?.ok) {
+          sendResponse({ ok: false, reason: 'content_script_failed', error: injection?.error || 'Recorder를 대상 탭에 연결하지 못했습니다.' });
+          return;
+        }
+
+        chrome.tabs.sendMessage(tab.id, { type: 'LIVE_TARGET_PICK' }, (response) => {
+          const error = chrome.runtime.lastError?.message;
+          if (error) {
+            sendResponse({ ok: false, reason: 'content_script_unreachable', error });
+            return;
+          }
+          sendResponse(response || { ok: false, reason: 'empty_response', error: '대상 선택 응답이 없습니다.' });
+        });
+      } catch (error) {
+        sendResponse({ ok: false, reason: 'error', error: error?.message || String(error) });
+      }
+    })();
     return true;
   }
 

@@ -19,6 +19,7 @@ git diff --check
 
 ## Build/lint results
 
+- `2026-07-13` dev Recorder 연결 게이트 분리: `git diff --check`, `npm run lint`, `npm run build` 통과. 기존 lint 경고만 유지됨.
 - `npm run lint`: passed.
 - `npm run build`: passed.
 - `2026-07-11` focused public-surface search found no visible `MIMIC` / `미믹` copy in app, component, library, Recorder, or MCP surfaces. The only direct public mark hits are the legacy `M` glyphs in `public/logo.svg` and `app/icon.svg`.

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
-import { rewriteSentence } from '@/lib/ai/claude';
+import { requireAuth } from '@/lib/auth/auth-guard';
+import { hasAnthropicApiKey, rewriteSentence } from '@/lib/ai/claude';
+import { validateGeneratedManualScript } from '@/lib/ai/text-quality';
+import { rateLimitAi } from '@/lib/rate-limit';
 import { z } from 'zod';
 
 const rewriteSchema = z.object({
@@ -9,9 +11,15 @@ const rewriteSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const supabase = await createServerClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const auth = await requireAuth(req);
+  if (!auth.ok) return auth.response;
+
+  const limited = rateLimitAi(auth.userId);
+  if (limited) return limited;
+
+  if (!hasAnthropicApiKey()) {
+    return NextResponse.json({ error: 'AI provider is not configured' }, { status: 503 });
+  }
 
   let body: unknown;
   try {
@@ -26,5 +34,13 @@ export async function POST(req: NextRequest) {
   }
 
   const result = await rewriteSentence(parsed.data.text, parsed.data.instruction);
-  return NextResponse.json({ result });
+  const quality = validateGeneratedManualScript(result);
+  if (!quality.ok) {
+    return NextResponse.json(
+      { error: 'AI rewrite was empty or low quality', reason: quality.reason },
+      { status: 422 }
+    );
+  }
+
+  return NextResponse.json({ result: quality.text });
 }

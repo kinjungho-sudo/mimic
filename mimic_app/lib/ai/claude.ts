@@ -5,8 +5,12 @@ import { BRAND_COLORS } from '@/lib/brand';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+export function hasAnthropicApiKey(): boolean {
+  return !!process.env.ANTHROPIC_API_KEY?.trim();
+}
+
 function hasClaudeApiKey(operation: string): boolean {
-  if (process.env.ANTHROPIC_API_KEY?.trim()) return true;
+  if (hasAnthropicApiKey()) return true;
   console.error(`${operation} skipped: ANTHROPIC_API_KEY is not configured`);
   return false;
 }
@@ -676,6 +680,8 @@ export async function rewriteSentence(
   original: string,
   instruction: string
 ): Promise<string> {
+  if (!hasClaudeApiKey('rewriteSentence')) return original;
+
   const response = await client.messages.create({
     model: CLAUDE_MODEL,
     max_tokens: 512,
@@ -770,6 +776,8 @@ export async function rewriteAllSteps(
   steps: { id: string; text: string }[],
   instruction: string
 ): Promise<{ id: string; result: string }[]> {
+  if (!hasClaudeApiKey('rewriteAllSteps')) return steps.map(s => ({ id: s.id, result: s.text }));
+
   const numbered = steps.map((s, i) => `[${i + 1}] ${s.text}`).join('\n');
   const response = await client.messages.create({
     model: CLAUDE_MODEL,

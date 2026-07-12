@@ -1,5 +1,10 @@
 # Implementation Log
 
+## 2026-07-13 - dev Recorder 연결 게이트 분리
+
+- dev/Preview에서 Recorder 연결이 실패해도 Production용 Chrome Web Store 설치 화면을 표시하지 않도록 분리했다.
+- dev에는 개발용 Recorder 재연결 안내만 표시하고, Production의 기존 설치 게이트는 유지했다.
+
 ## 2026-07-11 - Parro SDK script attribute alias
 
 - Added `data-parro-guide` as the primary SDK script auto-start attribute.
@@ -517,3 +522,12 @@
 - 도움말, 도움말 API, 카카오 공유, 공개 매뉴얼 메타데이터의 `Parro은`/`Parro으로` 6곳을 `Parro는`/`Parro로`로 수정했다.
 - `fix/parro-korean-particles` 브랜치에서 `npm run lint`, `$env:NODE_OPTIONS='--use-system-ca'; npm run build`, focused search, `git diff --check`가 통과했고 최신 `origin/dev` 위의 별도 취합 커밋에 포함했다.
 - `main`, Production 배포/환경/DB, Chrome Web Store, 내부 식별자는 변경하지 않았다.
+
+## 2026-07-12 - Parro feat worktree 복구와 배포 링크 격리
+
+- 최신 `origin/dev` `800c3dbc`에서 `feat/parro-landing`, `feat/parro-api`, `feat/parro-editor`, `feat/parro-recorder` worktree를 생성하고 Parro 기준 커밋 ancestry를 확인했다.
+- Landing 애니메이션 데모, API 수동 텍스트 자동완성, Recorder Parro dev extension 연결을 기능별로 이전했다.
+- Editor 혼합 커밋에서는 Live Target Picker만 현재 통합 Studio와 Parro Recorder 구조에 맞춰 수동 이전했다. 구 스타일 설문은 보류하고 이미 최신 dev에서 발전된 민감 입력 개선은 중복 이전하지 않았다.
+- 모든 feat 및 기존 worktree의 로컬 `.vercel` 링크를 제거하고 `mimic-parro-deploy`만 `parro-guide`에 연결했다.
+- 신규 작업 및 배포 전 ancestry/Vercel project guard와 운영 규칙을 문서화했다.
+- `main`, Production 배포/DB, Supabase 설정, 기존 backup 브랜치는 변경하지 않았다.
