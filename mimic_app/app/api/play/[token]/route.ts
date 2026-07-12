@@ -30,7 +30,8 @@ async function fetchTutorialData(token: string) {
     .from('mm_steps')
     .select('*')
     .eq('tutorial_id', tutorial.id)
-    .order('order_index');
+    .order('order_index')
+    .order('step_number');
 
   const steps = rawSteps ?? [];
   const stepIds = steps.map(s => s.id);
@@ -60,9 +61,14 @@ async function fetchTutorialData(token: string) {
     page_url: s.page_url ?? null,
     element_selector: (s as Record<string, unknown>).element_selector ?? null,
     element_xpath: (s as Record<string, unknown>).element_xpath ?? null,
+    step_type: (s as Record<string, unknown>).step_type ?? null,
+    capture_source: (s as Record<string, unknown>).capture_source ?? null,
+    capture_failure_reason: (s as Record<string, unknown>).capture_failure_reason ?? null,
     crop_rect: (s as Record<string, unknown>).crop_rect ?? null,
     click_x: (s as Record<string, unknown>).click_x as number | null ?? null,
     click_y: (s as Record<string, unknown>).click_y as number | null ?? null,
+    follow_config: (s as Record<string, unknown>).follow_config ?? null,
+    type_text: (s as Record<string, unknown>).type_text as string | null ?? null,
     image_zoom: (s as Record<string, unknown>).image_zoom as number | null ?? null,
     image_offset_x: (s as Record<string, unknown>).image_offset_x as number | null ?? null,
     image_offset_y: (s as Record<string, unknown>).image_offset_y as number | null ?? null,

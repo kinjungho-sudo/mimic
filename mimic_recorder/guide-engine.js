@@ -17,7 +17,65 @@
   const TYPE_CHAR_DELAY_MS = 70;
 
   let state = null;
+  let audioEl = null;
   const regroundCache = new Map();  // AI 시각 재탐색 결과 캐시(key→{x,y} 성공 / null 실패). 재방문 시 재사용
+  const eventSeen = new Set();
+
+  function stopAudio() {
+    if (!audioEl) return;
+    try { audioEl.pause(); audioEl.currentTime = 0; } catch { /* noop */ }
+    audioEl = null;
+  }
+
+  function playStepAudio(step, button) {
+    const url = step && step.audio_url ? String(step.audio_url) : '';
+    if (!url) return;
+    stopAudio();
+    const audio = new Audio(url);
+    audioEl = audio;
+    const startMs = Number(step.audio_start_ms || 0);
+    const endMs = Number(step.audio_end_ms || 0);
+    if (Number.isFinite(startMs) && startMs > 0) {
+      audio.addEventListener('loadedmetadata', () => {
+        try { audio.currentTime = startMs / 1000; } catch { /* noop */ }
+      }, { once: true });
+    }
+    if (Number.isFinite(endMs) && endMs > startMs) {
+      audio.addEventListener('timeupdate', () => {
+        if (audio.currentTime >= endMs / 1000) {
+          audio.pause();
+          if (button && button.isConnected) button.textContent = '음성';
+        }
+      });
+    }
+    audio.addEventListener('ended', () => {
+      if (button && button.isConnected) button.textContent = '음성';
+    });
+    if (button) button.textContent = '재생 중';
+    audio.play().catch(() => {
+      if (button && button.isConnected) button.textContent = '음성';
+    });
+  }
+
+  function trackGuideEvent(eventType, step, opts) {
+    const survey = opts && opts.survey;
+    if (!survey || !survey.tutorialId || !survey.viewerSessionId) return;
+    const stepNumber = eventType === 'enter' || eventType === 'exit' ? null : ((opts.index ?? 0) + 1);
+    const key = `${survey.viewerSessionId}:${eventType}:${stepNumber || 0}`;
+    if (eventSeen.has(key)) return;
+    eventSeen.add(key);
+    try {
+      chrome.runtime.sendMessage({
+        type: 'SUBMIT_GUIDE_EVENT',
+        payload: {
+          tutorial_id: survey.tutorialId,
+          viewer_session_id: survey.viewerSessionId,
+          event_type: eventType,
+          ...(stepNumber ? { step_number: stepNumber } : {}),
+        },
+      }, () => { void chrome.runtime.lastError; });
+    } catch { /* noop */ }
+  }
 
   // ── 순수 로직 ────────────────────────────────────────────────
   function resolveTarget(step) {
@@ -374,6 +432,8 @@
   function show(step, opts) {
     hide();
     opts = opts || {};
+    trackGuideEvent('enter', step, opts);
+    trackGuideEvent('step', step, opts);
 
     if (isExplanationStep(step)) {
       showExplanation(step, opts);
@@ -466,6 +526,7 @@
             <span style="font-size:11px;font-weight:700;color:#A5B4FC;background:rgba(99,102,241,.25);padding:2px 8px;border-radius:20px">${idx + 1} / ${total}</span>
             ${resolved.source === 'none' ? '<span style="font-size:10.5px;color:#FCA5A5">요소 미발견</span>' : ''}
             <div style="flex:1"></div>
+            ${step.audio_url ? '<button class="mimic-btn" data-act="audio" title="음성 듣기" style="background:rgba(255,255,255,.10);color:#e0e7ff;padding:3px 8px;font-size:11px">음성</button>' : ''}
             <button class="mimic-btn" data-act="hide-tooltip" title="툴팁 숨기기" style="background:transparent;color:rgba(255,255,255,.4);padding:3px 6px;font-size:11px">👁</button>
             <button class="mimic-btn" data-act="hide-tooltip" title="툴팁 닫기" style="background:transparent;color:rgba(255,255,255,.4);padding:3px 6px;font-size:12px">✕</button>
           </div>
@@ -530,7 +591,8 @@
       const act = e.target.getAttribute && e.target.getAttribute('data-act');
       if (act === 'next') advance('manual');
       else if (act === 'prev') opts.onPrev && opts.onPrev();
-      else if (act === 'exit') opts.onExit && opts.onExit();
+      else if (act === 'exit') { trackGuideEvent('exit', state.step, state.opts); opts.onExit && opts.onExit(); }
+      else if (act === 'audio') playStepAudio(state.step, e.target);
       else if (act && act.startsWith('survey-rate:')) {
         const [, group, value] = act.split(':');
         setSurveyChoice(group, value);
@@ -671,7 +733,12 @@
     document.addEventListener('click', onDocClick, true);
     state.onDocClick = onDocClick;
 
-    const onKey = (e) => { if (e.key === 'Escape') opts.onExit && opts.onExit(); };
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        trackGuideEvent('exit', state && state.step, state && state.opts);
+        opts.onExit && opts.onExit();
+      }
+    };
     document.addEventListener('keydown', onKey, true);
     state.onKey = onKey;
   }
@@ -681,6 +748,7 @@
     state.advanced = true;
     if (state.idx + 1 >= state.total) {
       showComplete();
+      trackGuideEvent('complete', state.step, state.opts);
       state.opts.onComplete && state.opts.onComplete(reason);
       return;
     }
@@ -904,6 +972,7 @@
       <div style="display:flex;gap:8px;align-items:center">
         <button class="ex-btn" data-act="prev" style="background:rgba(255,255,255,.1);color:#D1D5DB;font-size:12px;padding:7px 12px">이전</button>
         <div style="flex:1"></div>
+        ${step.audio_url ? '<button class="ex-btn" data-act="audio" style="background:rgba(255,255,255,.10);color:#e0e7ff;font-size:12px;padding:7px 12px">음성</button>' : ''}
         <button class="ex-btn" data-act="next" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:8px 18px">${idx + 1 >= total ? '완료' : '건너뛰기 →'}</button>
       </div>`;
     shadow.appendChild(style('.ex-btn{pointer-events:auto;cursor:pointer;border:none;border-radius:8px;font-size:13px;font-weight:700;transition:opacity .15s}.ex-btn:active{opacity:.75}'));
@@ -912,7 +981,16 @@
     card.addEventListener('click', (e) => {
       const act = e.target && e.target.getAttribute && e.target.getAttribute('data-act');
       if (act === 'prev') opts.onPrev && opts.onPrev();
-      else if (act === 'next') opts.onAdvance && opts.onAdvance('manual');
+      else if (act === 'audio') playStepAudio(step, e.target);
+      else if (act === 'next') {
+        if (idx + 1 >= total) {
+          trackGuideEvent('complete', step, opts);
+          trackGuideEvent('exit', step, opts);
+          opts.onExit && opts.onExit();
+        } else {
+          opts.onAdvance && opts.onAdvance('manual');
+        }
+      }
     });
 
     state = { host, shadow, explanation: true };
@@ -949,7 +1027,15 @@
     card.addEventListener('click', (e) => {
       const act = e.target && e.target.getAttribute && e.target.getAttribute('data-act');
       if (act === 'prev') opts.onPrev && opts.onPrev();
-      else if (act === 'next') opts.onAdvance && opts.onAdvance('manual');
+      else if (act === 'next') {
+        if (idx + 1 >= total) {
+          trackGuideEvent('complete', step, opts);
+          trackGuideEvent('exit', step, opts);
+          opts.onExit && opts.onExit();
+        } else {
+          opts.onAdvance && opts.onAdvance('manual');
+        }
+      }
     });
 
     state = { host, shadow, waiting: true, waitKey: `${opts.index ?? 0}:${step.id || step.title || ''}`, findObserver: null, findTimer: null };
@@ -1061,6 +1147,7 @@
   }
 
   function hide() {
+    stopAudio();
     if (!state) {
       const stray = document.getElementById('mimic-overlay-root');
       if (stray) stray.remove();

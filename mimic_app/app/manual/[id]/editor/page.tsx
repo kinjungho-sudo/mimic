@@ -113,6 +113,7 @@ export default function EditorPage() {
   const [showMerge, setShowMerge] = useState(false);
   const [duplicatingStepId, setDuplicatingStepId] = useState<string | null>(null);
   const [showCreationSurvey, setShowCreationSurvey] = useState(false);
+  const creationSurveyExitRef = useRef<(() => void) | null>(null);
 
   // 실시간 협업 — 워크스페이스 튜토리얼에서만 활성
   const workspaceId = tutorial
@@ -301,19 +302,28 @@ export default function EditorPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tutorial?.id, loading, isRecordingFinalizeView]);
 
-  useEffect(() => {
-    if (!isRecordingFinalizeView || !tutorial?.id || !user) return;
-    if (user.plan !== 'free' && user.plan !== 'pro_waitlist') return;
-    if (tutorial.steps.length === 0) return;
-    const key = `mimic:survey:manual_created:${tutorial.id}`;
-    if (window.localStorage.getItem(key)) return;
-    const timer = setTimeout(() => setShowCreationSurvey(true), 1200);
-    return () => clearTimeout(timer);
+  const shouldOfferCreationSurvey = useCallback(() => {
+    if (!isRecordingFinalizeView || !tutorial?.id || !user) return false;
+    if (user.plan !== 'free' && user.plan !== 'pro_waitlist') return false;
+    if (tutorial.steps.length === 0) return false;
+    return !window.localStorage.getItem(`mimic:survey:manual_created:${tutorial.id}`);
   }, [isRecordingFinalizeView, tutorial?.id, tutorial?.steps.length, user]);
+
+  const requestExitWithCreationSurvey = useCallback((exit: () => void) => {
+    if (!shouldOfferCreationSurvey()) {
+      exit();
+      return;
+    }
+    creationSurveyExitRef.current = exit;
+    setShowCreationSurvey(true);
+  }, [shouldOfferCreationSurvey]);
 
   const closeCreationSurvey = useCallback(() => {
     if (tutorial?.id) window.localStorage.setItem(`mimic:survey:manual_created:${tutorial.id}`, '1');
     setShowCreationSurvey(false);
+    const pendingExit = creationSurveyExitRef.current;
+    creationSurveyExitRef.current = null;
+    pendingExit?.();
   }, [tutorial?.id]);
 
   // 에디터 최초 로드 시 description 없는 스텝 자동 AI 생성 (무료 플랜 제외)
@@ -405,7 +415,7 @@ export default function EditorPage() {
     if (!stepId.startsWith('step-')) {
       deleteStep(stepId).catch((e) => logError('step.delete.fail', { tutorialId: id, stepId, message: e instanceof Error ? e.message : String(e) }));
     }
-  }, [manualSteps, activeId, setManualStepsWithHistory]);
+  }, [manualSteps, activeId, setManualStepsWithHistory, id]);
 
   const handleDeleteStep = useCallback((stepId: string) => setPendingDeleteId(stepId), []);
 
@@ -512,7 +522,7 @@ export default function EditorPage() {
       <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: '#F8F9FA' }}>
         <div style={{ textAlign: 'center', color: '#6B7280' }}>
           <p style={{ fontSize: '15px', marginBottom: '16px' }}>{error ?? '매뉴얼을 찾을 수 없어요.'}</p>
-          <button onClick={() => router.push('/home')} style={{ padding: '10px 20px', borderRadius: '8px', background: '#3730a3', color: 'white', border: 'none', cursor: 'pointer', fontSize: '14px' }}>
+          <button onClick={() => requestExitWithCreationSurvey(() => router.push('/home'))} style={{ padding: '10px 20px', borderRadius: '8px', background: '#3730a3', color: 'white', border: 'none', cursor: 'pointer', fontSize: '14px' }}>
             대시보드로 돌아가기
           </button>
         </div>
@@ -542,7 +552,7 @@ export default function EditorPage() {
                 <button onClick={() => window.location.reload()} style={{ padding: '9px 18px', borderRadius: '8px', background: '#3730a3', color: 'white', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }}>
                   새로고침
                 </button>
-                <button onClick={() => router.push('/home')} style={{ padding: '9px 18px', borderRadius: '8px', background: 'white', color: '#374151', border: '1px solid #D1D5DB', cursor: 'pointer', fontSize: '13px' }}>
+                <button onClick={() => requestExitWithCreationSurvey(() => router.push('/home'))} style={{ padding: '9px 18px', borderRadius: '8px', background: 'white', color: '#374151', border: '1px solid #D1D5DB', cursor: 'pointer', fontSize: '13px' }}>
                   대시보드로
                 </button>
               </div>
@@ -564,7 +574,7 @@ export default function EditorPage() {
         {/* Left: back button + page label */}
         <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '10px', paddingRight: '16px', borderRight: '1px solid #F3F4F6' }}>
           <button
-            onClick={() => router.push('/home')}
+            onClick={() => requestExitWithCreationSurvey(() => router.push('/home'))}
             title="홈으로 돌아가기"
             style={{
               width: '32px', height: '32px', borderRadius: '8px',

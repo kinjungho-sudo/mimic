@@ -752,8 +752,8 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         }
         const steps = data.steps || [];
         if (steps.length === 0) throw new Error('no steps');
-        const guideSurvey = data.survey?.enabled ? {
-          enabled: true,
+        const guideSurvey = data.tutorial_id ? {
+          enabled: !!data.survey?.enabled,
           tutorialId: data.tutorial_id,
           viewerSessionId: `live_guide:${data.tutorial_id}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`,
         } : null;
@@ -1334,6 +1334,37 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
+        });
+        sendResponse({ ok: res.ok });
+      } catch (err) {
+        sendResponse({ ok: false, error: err?.message || String(err) });
+      }
+    })();
+    return true;
+  }
+
+  if (message.type === 'SUBMIT_GUIDE_EVENT') {
+    (async () => {
+      try {
+        const payload = message.payload || {};
+        const tutorialId = payload.tutorial_id;
+        const viewerSessionId = payload.viewer_session_id;
+        const eventType = payload.event_type;
+        if (!tutorialId || !viewerSessionId || !eventType) {
+          sendResponse({ ok: false, error: 'missing event identifiers' });
+          return;
+        }
+        const origin = await getWebappOrigin();
+        const body = {
+          tutorial_id: tutorialId,
+          viewer_session_id: viewerSessionId,
+          event_type: eventType,
+          ...(payload.step_number ? { step_number: payload.step_number } : {}),
+        };
+        const res = await fetch(`${origin}/api/events`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
         });
         sendResponse({ ok: res.ok });
       } catch (err) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServiceRoleClient, createServerClient } from '@/lib/supabase/server';
+import { createServiceRoleClient } from '@/lib/supabase/server';
+import { requireAuth } from '@/lib/auth/auth-guard';
 import { isPaidPlan } from '@/lib/plan';
 import { resolveStepAudio } from '@/lib/voice/playback';
 
@@ -57,18 +58,14 @@ export async function GET(request: NextRequest, { params }: Params) {
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token);
 
   if (isUuid) {
-    // 로그인 세션 확인
-    const serverClient = await createServerClient();
-    const { data: { session } } = await serverClient.auth.getSession();
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAuth(request);
+    if (!auth.ok) return auth.response;
 
     const { data: tutorial } = await supabase
       .from('mm_tutorials')
       .select('id, title, user_id, tts_enabled')
       .eq('id', token)
-      .eq('user_id', session.user.id)
+      .eq('user_id', auth.userId)
       .single();
 
     if (!tutorial) {

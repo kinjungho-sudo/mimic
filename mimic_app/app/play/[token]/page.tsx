@@ -46,6 +46,9 @@ type Step = {
   user_annotations?: DrawAnnotation[];
   follow_config?: FollowConfig | null;
   step_type?: string | null;
+  type_text?: string | null;
+  capture_source?: string | null;
+  capture_failure_reason?: string | null;
   element_rect?: { x: number; y: number; w: number; h: number } | null;
   voice_audio_url?: string | null;
   voice_audio_start_ms?: number | null;
@@ -71,130 +74,15 @@ type Tutorial = {
   audio_assets: AudioAsset[];
 };
 
-type SurveyState = {
-  ease: number;
-  reuse: number;
-  useful: number;
-  reproduce: boolean | null;
-  comment: string;
-};
-
 function modeToViewMode(mode: string | null): 'follow' | 'slides' | 'document' {
   if (mode === 'practice' || mode === 'follow') return 'follow';
   if (mode === 'slides') return 'slides';
   return 'document';
 }
 
-
-function StarRating({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  const [hovered, setHovered] = useState(0);
-  return (
-    <div style={{ display: 'inline-flex', gap: '4px' }}>
-      {[1,2,3,4,5].map(v => (
-        <button
-          key={v}
-          onClick={() => onChange(v)}
-          onMouseEnter={() => setHovered(v)}
-          onMouseLeave={() => setHovered(0)}
-          style={{
-            width: '32px', height: '32px', borderRadius: '6px',
-            display: 'grid', placeItems: 'center', fontSize: '18px', cursor: 'pointer',
-            background: (hovered || value) >= v ? 'rgba(245,158,11,0.16)' : '#F9FAFB',
-            color: (hovered || value) >= v ? '#F59E0B' : '#9CA3AF',
-            border: 'none', transition: 'all 0.15s ease',
-          }}
-        >★</button>
-      ))}
-    </div>
-  );
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function SurveyModal({ tutorialId, viewerSessionId, onClose }: { tutorialId: string; viewerSessionId: string; onClose: () => void }) {
-  const [survey, setSurvey] = useState<SurveyState>({ ease: 0, reuse: 0, useful: 0, reproduce: null, comment: '' });
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleSubmit = async () => {
-    setSubmitting(true);
-    try {
-      await fetch('/api/survey', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tutorial_id: tutorialId,
-          viewer_session_id: viewerSessionId,
-          q1_easier_than_pdf: survey.ease || 3,
-          q2_would_use_again: survey.reuse || 3,
-          q3_useful_for_work: survey.useful || 3,
-          q4_can_reproduce: survey.reproduce ?? true,
-          q5_additional_feedback: survey.comment || undefined,
-        }),
-      });
-    } catch {}
-    onClose();
-  };
-
-  return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,15,0.78)', zIndex: 100, display: 'grid', placeItems: 'center', padding: '32px', backdropFilter: 'blur(8px)' }}>
-      <div style={{ width: '100%', maxWidth: '520px', background: 'white', color: '#111827', borderRadius: '18px', padding: '32px', boxShadow: '0 30px 80px rgba(0,0,0,0.5)', maxHeight: '90vh', overflowY: 'auto' }}>
-        {/* Head */}
-        <div style={{ marginBottom: '26px', textAlign: 'center' }}>
-          <div style={{ width: '64px', height: '64px', margin: '0 auto 16px', borderRadius: '16px', background: 'linear-gradient(135deg, #e0e7ff, #F5F3FF)', display: 'grid', placeItems: 'center', color: '#3730a3' }}>
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M11 5.882V19.24a1.76 1.76 0 0 1-3.417.592l-2.147-6.15M18 13a3 3 0 1 0 0-6M5.436 13.683A4.001 4.001 0 0 1 7 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 0 1-1.564-.317z"/></svg>
-          </div>
-          <h2 style={{ fontSize: '20px', fontWeight: 500, margin: '0 0 6px' }}>매뉴얼 어떠셨나요?</h2>
-          <p style={{ fontSize: '13px', color: '#6B7280', margin: 0 }}>5문항 · 30초면 끝나요. 다음 매뉴얼이 더 좋아질 거예요.</p>
-        </div>
-
-        {/* Q1 */}
-        <div style={{ marginBottom: '20px' }}>
-          <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '10px' }}>1. PDF보다 따라하기 쉬웠나요? <span style={{ fontSize: '11.5px', color: '#6B7280', fontWeight: 400 }}>(별점)</span></label>
-          <StarRating value={survey.ease} onChange={v => setSurvey(s => ({ ...s, ease: v }))} />
-        </div>
-
-        {/* Q2 */}
-        <div style={{ marginBottom: '20px' }}>
-          <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '10px' }}>2. 다시 사용할 의향이 있나요?</label>
-          <StarRating value={survey.reuse} onChange={v => setSurvey(s => ({ ...s, reuse: v }))} />
-        </div>
-
-        {/* Q3 */}
-        <div style={{ marginBottom: '20px' }}>
-          <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '10px' }}>3. 업무에 도움이 됐나요?</label>
-          <StarRating value={survey.useful} onChange={v => setSurvey(s => ({ ...s, useful: v }))} />
-        </div>
-
-        {/* Q4 */}
-        <div style={{ marginBottom: '20px' }}>
-          <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '10px' }}>4. 혼자 재현이 가능할 것 같나요?</label>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {[{ label: '네, 가능해요', value: true }, { label: '아니요', value: false }].map(opt => (
-              <button key={String(opt.value)} onClick={() => setSurvey(s => ({ ...s, reproduce: opt.value }))}
-                style={{ flex: 1, padding: '9px 12px', borderRadius: '8px', border: `1px solid ${survey.reproduce === opt.value ? '#3730a3' : '#E5E7EB'}`, background: survey.reproduce === opt.value ? '#e0e7ff' : 'white', fontSize: '13px', color: survey.reproduce === opt.value ? '#3730a3' : '#4B5563', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s ease' }}
-              >{opt.label}</button>
-            ))}
-          </div>
-        </div>
-
-        {/* Q5 */}
-        <div style={{ marginBottom: '24px' }}>
-          <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '10px' }}>5. 추가로 남기고 싶은 말씀이 있나요? <span style={{ fontSize: '11.5px', color: '#6B7280', fontWeight: 400 }}>(선택)</span></label>
-          <textarea value={survey.comment} onChange={e => setSurvey(s => ({ ...s, comment: e.target.value }))}
-            placeholder="자유롭게 의견을 남겨주세요. (예: 자막 속도, 음성 톤, 추가하면 좋을 기능 등)"
-            style={{ width: '100%', minHeight: '80px', padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontFamily: 'inherit', fontSize: '12.5px', lineHeight: 1.6, outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
-          />
-        </div>
-
-        {/* Footer */}
-        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', paddingTop: '16px', borderTop: '1px solid #F3F4F6' }}>
-          <button onClick={onClose} style={{ padding: '10px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: 500, color: '#6B7280', cursor: 'pointer', background: 'none', border: 'none' }}>건너뛰기</button>
-          <button onClick={handleSubmit} disabled={submitting}
-            style={{ padding: '10px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: 500, background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', border: 'none', cursor: submitting ? 'not-allowed' : 'pointer', boxShadow: '0 4px 12px rgba(55,48,163,0.25)', opacity: submitting ? 0.7 : 1 }}
-          >{submitting ? '제출 중...' : '제출하기'}</button>
-        </div>
-      </div>
-    </div>
-  );
+function speedToDelay(speed: string): number {
+  const multiplier = Number.parseFloat(speed);
+  return Math.round(3000 / (Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1));
 }
 
 // ── 문서형 뷰 ─────────────────────────────────────────────
@@ -541,6 +429,7 @@ export default function PlayerPage() {
   const [authChecked, setAuthChecked] = useState(false);
   const [isAuthed, setIsAuthed] = useState(false);
   const [showViewerSurvey, setShowViewerSurvey] = useState(false);
+  const [viewerSurveyKind, setViewerSurveyKind] = useState<'manual_viewer' | 'live_guide'>('manual_viewer');
   const viewerSessionIdRef = useRef(`viewer:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`);
   const liveAutoStartedRef = useRef(false);
 
@@ -579,16 +468,16 @@ export default function PlayerPage() {
       .catch(() => { setNotFound(true); setLoading(false); });
   }, [token]);
 
-  useEffect(() => {
+  const requestViewerSurvey = useCallback((kind: 'manual_viewer' | 'live_guide' = 'manual_viewer') => {
     if (!tutorial?.id || !tutorial.survey_enabled) return;
-    const key = `mimic:survey:manual_viewer:${tutorial.id}`;
+    const key = `mimic:survey:${kind}:${tutorial.id}`;
     if (window.localStorage.getItem(key)) return;
-    const timer = setTimeout(() => setShowViewerSurvey(true), 12000);
-    return () => clearTimeout(timer);
+    setViewerSurveyKind(kind);
+    setShowViewerSurvey(true);
   }, [tutorial?.id, tutorial?.survey_enabled]);
 
   const closeViewerSurvey = () => {
-    if (tutorial?.id) window.localStorage.setItem(`mimic:survey:manual_viewer:${tutorial.id}`, '1');
+    if (tutorial?.id) window.localStorage.setItem(`mimic:survey:${viewerSurveyKind}:${tutorial.id}`, '1');
     setShowViewerSurvey(false);
   };
 
@@ -612,12 +501,12 @@ export default function PlayerPage() {
           clearInterval(playTimerRef.current!);
           return s;
         });
-      }, 3000);
+      }, speedToDelay(speed));
     } else if (playTimerRef.current) {
       clearInterval(playTimerRef.current);
     }
     return () => { if (playTimerRef.current) clearInterval(playTimerRef.current); };
-  }, [isPlaying, tutorial, viewMode]);
+  }, [isPlaying, speed, tutorial, viewMode]);
 
   const handleStartLiveGuide = useCallback(async () => {
     const result = await startLiveGuide(token);
@@ -769,6 +658,7 @@ export default function PlayerPage() {
         <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
           <InteractiveFollowPlayer
             title={tutorial.title}
+            onComplete={() => requestViewerSurvey(modeParam === 'live' ? 'live_guide' : 'manual_viewer')}
             lockAfterStep={/* 인증 확인 전엔 보수적으로 잠금 — 로딩 윈도우 게이트 우회 차단 */ !authChecked || !isAuthed ? 1 : null}
             steps={toFollowSteps(tutorial.steps.map(s => ({
               title: s.title,
@@ -779,6 +669,7 @@ export default function PlayerPage() {
               audioUrl: resolveStepAudio(s, tutorial.audio_assets, tutorial.tts_enabled)?.url ?? null,
               audioStartMs: resolveStepAudio(s, tutorial.audio_assets, tutorial.tts_enabled)?.startMs ?? null,
               audioEndMs: resolveStepAudio(s, tutorial.audio_assets, tutorial.tts_enabled)?.endMs ?? null,
+              typeText: s.type_text ?? null,
               followConfig: s.follow_config ?? null,
               stepType: s.step_type ?? null,
               annotations: s.user_annotations ?? null,
@@ -1041,7 +932,7 @@ export default function PlayerPage() {
 
       {showViewerSurvey && tutorial && (
         <FeedbackSurveyModal
-          kind="manual_viewer"
+          kind={viewerSurveyKind}
           tutorialId={tutorial.id}
           viewerSessionId={viewerSessionIdRef.current}
           onClose={closeViewerSurvey}
