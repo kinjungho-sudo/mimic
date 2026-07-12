@@ -12,6 +12,11 @@ import { ExportModal } from '@/components/editor/ExportModal';
 import { ShareModal } from '@/components/editor/ShareModal';
 import { AgentChat } from '@/components/chat/AgentChat';
 import { FeedbackSurveyModal } from '@/components/survey/FeedbackSurveyModal';
+import {
+  FirstManualComplete,
+  getFirstManualTutorialStatus,
+  setFirstManualTutorialStatus,
+} from '@/components/onboarding/FirstManualTutorial';
 import { useTutorial } from '@/hooks/useTutorial';
 import { useAutosave } from '@/hooks/useAutosave';
 import { useAuth } from '@/hooks/useAuth';
@@ -114,6 +119,14 @@ export default function EditorPage() {
   const [showMerge, setShowMerge] = useState(false);
   const [duplicatingStepId, setDuplicatingStepId] = useState<string | null>(null);
   const [showCreationSurvey, setShowCreationSurvey] = useState(false);
+  const [showFirstManualComplete, setShowFirstManualComplete] = useState(false);
+
+  useEffect(() => {
+    if (!user || !tutorial || !isRecordingFinalizeView) return;
+    if (getFirstManualTutorialStatus(user.id) !== 'started') return;
+    setFirstManualTutorialStatus(user.id, 'completed');
+    setShowFirstManualComplete(true);
+  }, [isRecordingFinalizeView, tutorial, user]);
 
   // 실시간 협업 — 워크스페이스 튜토리얼에서만 활성
   const workspaceId = tutorial
@@ -550,6 +563,13 @@ export default function EditorPage() {
             </>
           )}
         </div>
+      )}
+
+      {showFirstManualComplete && (
+        <FirstManualComplete
+          onClose={() => setShowFirstManualComplete(false)}
+          onOpenGuide={() => router.push(`/manual/${id}/studio`)}
+        />
       )}
 
       {/* ── Top header ── */}

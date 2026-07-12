@@ -7,6 +7,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { RecordingModal } from '@/components/dashboard/RecordingModal';
 import { AgentChat } from '@/components/chat/AgentChat';
 import { BrandMark } from '@/components/common/BrandMark';
+import {
+  FirstManualWelcome,
+  getFirstManualTutorialStatus,
+  isFirstManualTutorialEligible,
+  setFirstManualTutorialStatus,
+  type FirstManualTutorialStatus,
+} from '@/components/onboarding/FirstManualTutorial';
 import { createTutorial } from '@/lib/api/tutorials';
 import { logError } from '@/lib/logging/logger';
 import { BRAND_COLORS, BRAND_NAME, LEGACY_INTERNAL_IDENTIFIERS } from '@/lib/brand';
@@ -522,7 +529,7 @@ function TutorialCard({ tutorial, onContextMenu, onMenuClick, viewMode = 'grid',
 
 // ── 빈 상태 ───────────────────────────────────────────────
 
-function EmptyState({ onRecord, onBlank, onGuidebook, label }: { onRecord: () => void; onBlank: () => void; onGuidebook?: () => void; label?: string }) {
+function EmptyState({ onRecord, onBlank, onGuidebook, onTutorial, label }: { onRecord: () => void; onBlank: () => void; onGuidebook?: () => void; onTutorial?: () => void; label?: string }) {
   return (
     <div style={{ padding: '60px 24px', textAlign: 'center' }}>
       <div style={{ margin: '0 auto 16px', width: '56px', height: '56px', borderRadius: '14px', background: BRAND_PRIMARY_SOFT, display: 'grid', placeItems: 'center', color: BRAND_COLORS.primary }}>
@@ -546,6 +553,11 @@ function EmptyState({ onRecord, onBlank, onGuidebook, label }: { onRecord: () =>
           </button>
         )}
       </div>
+      {onTutorial && (
+        <button type="button" onClick={onTutorial} style={{ display: 'block', margin: '14px auto 0', padding: '6px 8px', border: 0, background: 'transparent', color: BRAND_COLORS.primary, fontSize: '12.5px', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: '3px' }}>
+          시작 튜토리얼 다시 보기
+        </button>
+      )}
     </div>
   );
 }
@@ -852,10 +864,18 @@ export default function DashboardPage() {
   const [manualActionModal, setManualActionModal] = useState<string | null>(null);
   const [pages, setPages] = useState<{ id: string; title: string; updated_at: string; block_count?: number; workspace_id?: string | null }[]>([]);
   const [pagesLoading, setPagesLoading] = useState(false);
+  const [firstTutorialStatus, setFirstTutorialStatusState] = useState<FirstManualTutorialStatus | null>(null);
+  const [firstTutorialReady, setFirstTutorialReady] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) router.replace('/landingpage');
   }, [authLoading, user, router]);
+
+  useEffect(() => {
+    if (!user) return;
+    setFirstTutorialStatusState(getFirstManualTutorialStatus(user.id));
+    setFirstTutorialReady(true);
+  }, [user]);
 
   const loadTutorials = useCallback(async (workspaceId?: string, silent = false) => {
     if (!silent) setTutLoading(true);
@@ -949,8 +969,22 @@ export default function DashboardPage() {
   const dailyLimit = user?.daily_limit ?? 3;
   const isPro = user?.plan === 'pro' || user?.plan === 'team';
   const firstName = user?.name?.split(' ')[0] ?? '';
+  const shouldAutoShowFirstTutorial = firstTutorialStatus === 'started' || (
+    firstTutorialStatus === null && isFirstManualTutorialEligible(user?.created_at)
+  );
 
   const handleSignOut = async () => { await signOut(); router.push('/auth/login'); };
+
+  const updateFirstTutorialStatus = (status: FirstManualTutorialStatus) => {
+    if (!user) return;
+    setFirstManualTutorialStatus(user.id, status);
+    setFirstTutorialStatusState(status);
+  };
+
+  const handleStartFirstTutorial = () => {
+    updateFirstTutorialStatus('started');
+    setShowRecordingModal(true);
+  };
 
   const handleCreateBlank = async () => {
     setShowNewMenu(false); setCreating(true);
@@ -1573,8 +1607,15 @@ export default function DashboardPage() {
                         검색 초기화
                       </button>
                     </div>
+                  ) : firstTutorialReady && activeTab === 'my' && activeFolder === 'all' && shouldAutoShowFirstTutorial ? (
+                    <FirstManualWelcome
+                      firstName={firstName}
+                      onStart={handleStartFirstTutorial}
+                      onDismiss={() => updateFirstTutorialStatus('dismissed')}
+                    />
                   ) : (
                     <EmptyState onRecord={() => setShowRecordingModal(true)} onBlank={handleCreateBlank} onGuidebook={handleCreateGuidebook}
+                      onTutorial={activeTab === 'my' && activeFolder === 'all' ? handleStartFirstTutorial : undefined}
                       label={activeTab === 'team' ? '팀 매뉴얼이 없어요' : activeFolder !== 'all' ? '이 폴더에 매뉴얼이 없어요' : undefined} />
                   )
                 ) : (
