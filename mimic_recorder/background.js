@@ -2,7 +2,9 @@
 // 웹스토어 배포본(고정 ID)=운영 / 개발자 언패킹(다른 ID)=dev.
 // chrome.runtime.id로 자동 구분 → 배포본이 실수로 dev를 가리킬 위험 없음.
 const PROD_EXTENSION_ID = 'ehbhcdkapcbfehinjapabgoegcjmmbgd';
-const IS_DEV = chrome.runtime.id !== PROD_EXTENSION_ID;
+const EXTENSION_NAME = chrome.runtime.getManifest?.().name || '';
+const IS_MIMIC_BUILD = /^MIMIC Recorder\b/i.test(EXTENSION_NAME);
+const IS_DEV = /\(dev\)/i.test(EXTENSION_NAME) || (IS_MIMIC_BUILD && chrome.runtime.id !== PROD_EXTENSION_ID);
 
 // ── 상수 (환경별) ─────────────────────────────────────────────────
 const SUPABASE_URL      = IS_DEV

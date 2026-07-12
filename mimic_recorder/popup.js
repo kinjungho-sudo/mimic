@@ -24,6 +24,11 @@ const settingVoiceRecord = document.getElementById('settingVoiceRecord');
 const settingSaveText    = document.getElementById('settingSaveText');
 const settingCaptureInputClicks = document.getElementById('settingCaptureInputClicks');
 
+const PROD_EXTENSION_ID = 'ehbhcdkapcbfehinjapabgoegcjmmbgd';
+const EXTENSION_NAME = chrome.runtime.getManifest?.().name || '';
+const IS_MIMIC_BUILD = /^MIMIC Recorder\b/i.test(EXTENSION_NAME);
+const IS_DEV_BUILD = /\(dev\)/i.test(EXTENSION_NAME) || (IS_MIMIC_BUILD && chrome.runtime.id !== PROD_EXTENSION_ID);
+
 let isRecording  = false;
 let isPaused     = false;
 let _userIsPro   = false;   // 캡처별 음성 메모 게이팅 (GET_PLAN으로 갱신)
@@ -214,9 +219,9 @@ function updateLoginState(hasToken, expired = false) {
   btn.textContent = expired ? '다시 연동하기' : '로그인 / 연동하기';
   btn.addEventListener('click', () => {
     // 웹스토어 배포본=운영 / 개발자 언패킹=dev(Preview) — chrome.runtime.id로 자동 분기
-    const origin = chrome.runtime.id === 'ehbhcdkapcbfehinjapabgoegcjmmbgd'
-      ? 'https://mimic-nine-ashen.vercel.app'
-      : 'https://mimic-git-dev-kinjungho-7735s-projects.vercel.app';
+    const origin = IS_DEV_BUILD
+      ? 'https://mimic-git-dev-kinjungho-7735s-projects.vercel.app'
+      : 'https://mimic-nine-ashen.vercel.app';
     chrome.tabs.create({ url: `${origin}/extension-link` });
   });
 
