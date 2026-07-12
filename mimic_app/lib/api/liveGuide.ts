@@ -1,4 +1,5 @@
 import { BRAND_COPY } from '@/lib/brand';
+import { getPreferredExtensionId } from '@/lib/extension-id';
 
 type RuntimeResponse = {
   ok?: boolean;
@@ -28,7 +29,7 @@ declare global {
 }
 
 export function startLiveGuide(shareToken: string): Promise<LiveGuideResult> {
-  const extensionId = process.env.NEXT_PUBLIC_EXTENSION_ID?.replace(/^\uFEFF/, '').trim();
+  const extensionId = getPreferredExtensionId();
   if (!extensionId || !window.chrome?.runtime?.sendMessage) {
     return Promise.resolve({
       ok: false,

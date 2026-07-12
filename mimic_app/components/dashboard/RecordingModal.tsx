@@ -1,6 +1,7 @@
 ﻿'use client';
 
 import { useState, useCallback, useEffect } from 'react';
+import { getPreferredExtensionId } from '@/lib/extension-id';
 import { BRAND_COLORS, BRAND_COPY, BRAND_EXTENSION_STORE_URL } from '@/lib/brand';
 
 // 운영(Production)에서만 켜는 플래그 — Vercel Production env에 NEXT_PUBLIC_REQUIRE_EXTENSION=1.
@@ -54,7 +55,7 @@ function isExtensionInstalled(): boolean {
 
 function sendMessage(action: string, payload?: Record<string, unknown>): Promise<unknown> {
   return new Promise(resolve => {
-    const extensionId = process.env.NEXT_PUBLIC_EXTENSION_ID?.replace(/^﻿/, '').trim();
+    const extensionId = getPreferredExtensionId();
     if (!extensionId || !isExtensionInstalled()) {
       console.warn('[Parro] 확장 없음 또는 extensionId 미설정, 바이패스');
       resolve(null);
@@ -82,7 +83,7 @@ function sendMessage(action: string, payload?: Record<string, unknown>): Promise
 // CONNECT ping으로 먼저 깨운 뒤 실제 메시지를 전송한다.
 // 최대 3회 재시도, 회당 600ms 대기.
 async function wakeAndSend(action: string, payload?: Record<string, unknown>, retries = 3): Promise<unknown> {
-  const extensionId = process.env.NEXT_PUBLIC_EXTENSION_ID?.replace(/^﻿/, '').trim();
+  const extensionId = getPreferredExtensionId();
   if (!extensionId || !isExtensionInstalled()) return null;
 
   for (let i = 0; i < retries; i++) {
@@ -113,7 +114,7 @@ async function fetchOpenTabs(): Promise<TabsResponse | null> {
 }
 
 async function linkExtensionToCurrentUser(): Promise<boolean> {
-  const extensionId = process.env.NEXT_PUBLIC_EXTENSION_ID?.replace(/^﻿/, '').trim();
+  const extensionId = getPreferredExtensionId();
   if (!extensionId || !isExtensionInstalled()) return !REQUIRE_EXTENSION;
 
   try {
