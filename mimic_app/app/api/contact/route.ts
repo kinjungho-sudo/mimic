@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { sendMimicEmail } from '@/lib/email/email-n8n';
+import { BRAND_NAME } from '@/lib/brand';
 
 const schema = z.object({
   message: z.string().min(5).max(10000),
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
       <table width="560" cellpadding="0" cellspacing="0" style="background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
         <tr>
           <td style="background:linear-gradient(135deg,#3730a3,#6d28d9);padding:24px 40px;">
-            <p style="margin:0;font-size:18px;font-weight:800;color:white;">${emoji} MIMIC 사용자 문의 — ${category}</p>
+            <p style="margin:0;font-size:18px;font-weight:800;color:white;">${emoji} ${BRAND_NAME} 사용자 문의 — ${category}</p>
             <p style="margin:6px 0 0;font-size:12px;color:rgba(255,255,255,0.7);">${now}</p>
           </td>
         </tr>
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
         </tr>
         <tr>
           <td style="padding:16px 40px;border-top:1px solid #F3F4F6;">
-            <p style="margin:0;font-size:11.5px;color:#9CA3AF;">MIMIC Admin — ${userEmail ? `답변: ${userEmail}로 보내주세요.` : '이 메일에 직접 회신하지 마세요.'}</p>
+            <p style="margin:0;font-size:11.5px;color:#9CA3AF;">${BRAND_NAME} Admin — ${userEmail ? `답변: ${userEmail}로 보내주세요.` : '이 메일에 직접 회신하지 마세요.'}</p>
           </td>
         </tr>
       </table>
@@ -69,9 +70,9 @@ export async function POST(request: NextRequest) {
 
   const ok = await sendMimicEmail({
     to: adminEmail,
-    subject: `[MIMIC ${category}] ${userEmail ?? '비회원'} 문의가 접수되었습니다`,
+    subject: `[${BRAND_NAME} ${category}] ${userEmail ?? '비회원'} 문의가 접수되었습니다`,
     html,
-    fromName: 'MIMIC 챗봇',
+    fromName: `${BRAND_NAME} 챗봇`,
   });
 
   if (!ok) return NextResponse.json({ error: '이메일 전송에 실패했습니다.' }, { status: 500 });

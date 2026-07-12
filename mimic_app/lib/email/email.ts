@@ -1,6 +1,6 @@
 import { Resend } from 'resend';
 
-const FROM = process.env.RESEND_FROM_EMAIL ?? 'MIMIC <onboarding@resend.dev>';
+const FROM = process.env.RESEND_FROM_EMAIL ?? '포리 <onboarding@resend.dev>';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
 export async function sendWelcomeEmail({ to, name }: { to: string; name: string }) {
@@ -11,14 +11,14 @@ export async function sendWelcomeEmail({ to, name }: { to: string; name: string 
   await resend.emails.send({
     from: FROM,
     to,
-    subject: `${firstName}님, MIMIC에 오신 걸 환영합니다 🎉`,
+    subject: `${firstName}님, 포리에 오신 걸 환영합니다 🎉`,
     html: `
 <!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>MIMIC 가입을 환영합니다</title>
+  <title>포리 가입을 환영합니다</title>
 </head>
 <body style="margin:0;padding:0;background:#F4F4F8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Neo','Pretendard',sans-serif">
 
@@ -30,11 +30,11 @@ export async function sendWelcomeEmail({ to, name }: { to: string; name: string 
         <tr><td style="background:linear-gradient(135deg,#3730a3 0%,#6d28d9 100%);padding:48px 40px 40px;text-align:center;position:relative">
           <table cellpadding="0" cellspacing="0" style="margin:0 auto 20px">
             <tr><td style="width:64px;height:64px;background:rgba(255,255,255,0.18);border-radius:18px;text-align:center;vertical-align:middle;border:1.5px solid rgba(255,255,255,0.25)">
-              <img src="${APP_URL}/mimic-logo.png" width="44" height="44" alt="MIMIC" style="display:block;margin:10px auto;border:0" />
+              <img src="${APP_URL}/mimic-logo.png" width="44" height="44" alt="포리" style="display:block;margin:10px auto;border:0" />
             </td></tr>
           </table>
-          <p style="margin:0;font-size:28px;font-weight:800;color:white;letter-spacing:-0.03em;line-height:1">MIMIC</p>
-          <p style="margin:6px 0 0;font-size:12px;color:rgba(255,255,255,0.65);letter-spacing:0.10em;text-transform:uppercase">Don&rsquo;t Explain, Just Mimic.</p>
+          <p style="margin:0;font-size:28px;font-weight:800;color:white;letter-spacing:-0.03em;line-height:1">포리</p>
+          <p style="margin:6px 0 0;font-size:12px;color:rgba(255,255,255,0.65);letter-spacing:0.10em;text-transform:uppercase">기억은 포켓에, 실행은 화면 위에.</p>
         </td></tr>
 
         <!-- 환영 섹션 -->
@@ -44,7 +44,7 @@ export async function sendWelcomeEmail({ to, name }: { to: string; name: string 
             환영합니다, ${firstName}님!
           </h1>
           <p style="margin:0 0 32px;font-size:15px;color:#6B7280;line-height:1.75;max-width:400px;margin-left:auto;margin-right:auto">
-            MIMIC 가입을 축하드립니다.<br>
+            포리 가입을 축하드립니다.<br>
             이제 30초 만에 인터랙티브 매뉴얼을 만들 수 있습니다.
           </p>
         </td></tr>
@@ -103,7 +103,7 @@ export async function sendWelcomeEmail({ to, name }: { to: string; name: string 
                   <span style="color:#10B981;font-weight:600;margin-right:8px">·</span>매일 매뉴얼 3개 무료 생성
                 </td></tr>
                 <tr><td style="padding:3px 0;font-size:13px;color:#374151">
-                  <span style="color:#10B981;font-weight:600;margin-right:8px">·</span>MIMIC Recorder Chrome 확장 무료 설치
+                  <span style="color:#10B981;font-weight:600;margin-right:8px">·</span>포리 Recorder Chrome 확장 무료 설치
                 </td></tr>
                 <tr><td style="padding:3px 0;font-size:13px;color:#374151">
                   <span style="color:#10B981;font-weight:600;margin-right:8px">·</span>링크 공유 · PDF 내보내기 무제한
@@ -132,13 +132,13 @@ export async function sendWelcomeEmail({ to, name }: { to: string; name: string 
 
         <!-- 푸터 -->
         <tr><td style="padding:28px 48px 32px;text-align:center">
-          <p style="margin:0 0 6px;font-size:14px;font-weight:800;color:#3730a3;letter-spacing:-0.02em">MIMIC</p>
+          <p style="margin:0 0 6px;font-size:14px;font-weight:800;color:#3730a3;letter-spacing:-0.02em">포리</p>
           <p style="margin:0 0 12px;font-size:12px;color:#9CA3AF;line-height:1.7">
             매뉴얼을 더 쉽고 빠르게 · © 2026 코마인드웍스<br>
             궁금한 점은 <a href="mailto:kinjungho@gmail.com" style="color:#3730a3;text-decoration:none">kinjungho@gmail.com</a>으로 문의해주세요.
           </p>
           <p style="margin:0;font-size:11px;color:#D1D5DB">
-            이 이메일은 ${to} 계정의 MIMIC 가입을 기념하여 발송됐습니다.
+            이 이메일은 ${to} 계정의 포리 가입을 기념하여 발송됐습니다.
           </p>
         </td></tr>
 
@@ -180,7 +180,7 @@ export async function sendManualShareInvitation({
     <tr><td align="center">
       <table width="520" cellpadding="0" cellspacing="0" style="background:white;border-radius:20px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.10)">
         <tr><td style="background:linear-gradient(135deg,#3730a3 0%,#6d28d9 100%);padding:36px 40px;text-align:center">
-          <p style="margin:0;font-size:24px;font-weight:800;color:white;letter-spacing:-0.03em;line-height:1">MIMIC</p>
+          <p style="margin:0;font-size:24px;font-weight:800;color:white;letter-spacing:-0.03em;line-height:1">포리</p>
         </td></tr>
         <tr><td style="padding:40px 48px 36px;text-align:center">
           <p style="margin:0 0 10px;font-size:22px;font-weight:800;color:#0F172A;letter-spacing:-0.02em">매뉴얼 공유</p>
@@ -195,12 +195,12 @@ export async function sendManualShareInvitation({
             </td></tr>
           </table>
           <p style="margin:0;font-size:12.5px;color:#9CA3AF;line-height:1.8">
-            MIMIC 계정(${to})으로 로그인하면 접근할 수 있습니다.
+            포리 계정(${to})으로 로그인하면 접근할 수 있습니다.
           </p>
         </td></tr>
         <tr><td style="padding:0 48px"><div style="height:1px;background:#F3F4F6"></div></td></tr>
         <tr><td style="padding:24px 48px 28px;text-align:center">
-          <p style="margin:0;font-size:11.5px;color:#9CA3AF">매뉴얼을 더 쉽고 빠르게 · © 2026 MIMIC</p>
+          <p style="margin:0;font-size:11.5px;color:#9CA3AF">매뉴얼을 더 쉽고 빠르게 · © 2026 포리</p>
         </td></tr>
       </table>
     </td></tr>
@@ -245,11 +245,11 @@ export async function sendWorkspaceInvitation({
           <!-- 로고 아이콘 박스 -->
           <table cellpadding="0" cellspacing="0" style="margin:0 auto 16px">
             <tr><td style="width:56px;height:56px;background:rgba(255,255,255,0.18);border-radius:14px;text-align:center;vertical-align:middle">
-              <img src="${APP_URL}/mimic-logo.png" width="40" height="40" alt="MIMIC" style="display:block;margin:8px auto;border:0" />
+              <img src="${APP_URL}/mimic-logo.png" width="40" height="40" alt="포리" style="display:block;margin:8px auto;border:0" />
             </td></tr>
           </table>
           <!-- 브랜드명 -->
-          <p style="margin:0;font-size:26px;font-weight:800;color:white;letter-spacing:-0.03em;line-height:1">MIMIC</p>
+          <p style="margin:0;font-size:26px;font-weight:800;color:white;letter-spacing:-0.03em;line-height:1">포리</p>
           <p style="margin:6px 0 0;font-size:12px;color:rgba(255,255,255,0.65);letter-spacing:0.08em;text-transform:uppercase">Manual · Made Simple</p>
         </td></tr>
 
@@ -290,8 +290,8 @@ export async function sendWorkspaceInvitation({
 
         <!-- 푸터 -->
         <tr><td style="padding:24px 48px 28px;text-align:center">
-          <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#3730a3;letter-spacing:-0.01em">MIMIC</p>
-          <p style="margin:0;font-size:11.5px;color:#9CA3AF">매뉴얼을 더 쉽고 빠르게 · © 2025 MIMIC</p>
+          <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#3730a3;letter-spacing:-0.01em">포리</p>
+          <p style="margin:0;font-size:11.5px;color:#9CA3AF">매뉴얼을 더 쉽고 빠르게 · © 2025 포리</p>
         </td></tr>
 
       </table>

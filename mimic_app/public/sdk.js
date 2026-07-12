@@ -1,5 +1,5 @@
 /**
- * MIMIC 라이브 가이드 SDK
+ * 포리 라이브 가이드 SDK
  * Usage: <script src="https://mimic-nine-ashen.vercel.app/sdk.js" data-guide="SHARE_TOKEN"></script>
  * Or:    window.MimicSDK.start('SHARE_TOKEN')
  * Or:    ?mimic_guide=SHARE_TOKEN in URL
@@ -470,7 +470,7 @@
         }
         launchGuide(data, opts);
       })
-      .catch(function (e) { console.error('[MIMIC]', e); });
+      .catch(function (e) { console.error('[포리]', e); });
   }
 
   function launchGuide(data, opts) {

@@ -112,8 +112,8 @@ export async function GET(request: NextRequest, { params }: Params) {
   // 배경: 상단 1/3 인디고 블록
   cover.drawRectangle({ x: 0, y: PH * 0.6, width: PW, height: PH * 0.4, color: rgb(0.31, 0.27, 0.90) });
 
-  // MIMIC 브랜드
-  cover.drawText('MIMIC', {
+  // 포리 브랜드
+  cover.drawText('포리', {
     x: ML,
     y: PH - MT - 28,
     size: 18,

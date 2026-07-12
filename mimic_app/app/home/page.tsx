@@ -1124,7 +1124,7 @@ export default function DashboardPage() {
             {/* 로고 */}
             <Link href="/home" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px 16px', textDecoration: 'none' }}>
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="32" height="32" style={{ flexShrink: 0 }}><circle cx="50" cy="50" r="50" fill="#3730a3"/><text x="50" y="68" textAnchor="middle" fontFamily="Georgia, serif" fontSize="62" fontWeight="700" fill="white">M</text></svg>
-              <span style={{ fontSize: '16px', fontWeight: 800, color: '#3730a3', letterSpacing: '-0.03em' }}>MIMIC</span>
+              <span style={{ fontSize: '16px', fontWeight: 800, color: '#3730a3', letterSpacing: '-0.03em' }}>포리</span>
             </Link>
 
             {/* ── 워크스페이스 트리 ── */}
@@ -1372,7 +1372,7 @@ export default function DashboardPage() {
               <div className="home-mobile-logo" style={{ display: 'none', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                 <Link href="/home" style={{ display: 'flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}>
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="26" height="26"><circle cx="50" cy="50" r="50" fill="#3730a3"/><text x="50" y="68" textAnchor="middle" fontFamily="Georgia, serif" fontSize="62" fontWeight="700" fill="white">M</text></svg>
-                  <span style={{ fontSize: '15px', fontWeight: 800, color: '#3730a3', letterSpacing: '-0.03em' }}>MIMIC</span>
+                  <span style={{ fontSize: '15px', fontWeight: 800, color: '#3730a3', letterSpacing: '-0.03em' }}>포리</span>
                 </Link>
               </div>
               {/* 모바일 전용: 햄버거 버튼 */}
@@ -1601,7 +1601,7 @@ export default function DashboardPage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 16px 12px', borderBottom: '1px solid var(--mm-border-light)', flexShrink: 0 }}>
               <Link href="/home" onClick={() => setShowDrawer(false)} style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="28" height="28"><circle cx="50" cy="50" r="50" fill="#3730a3"/><text x="50" y="68" textAnchor="middle" fontFamily="Georgia, serif" fontSize="62" fontWeight="700" fill="white">M</text></svg>
-                <span style={{ fontSize: '16px', fontWeight: 800, color: '#3730a3', letterSpacing: '-0.03em' }}>MIMIC</span>
+                <span style={{ fontSize: '16px', fontWeight: 800, color: '#3730a3', letterSpacing: '-0.03em' }}>포리</span>
               </Link>
               <button onClick={() => setShowDrawer(false)} style={{ width: '32px', height: '32px', borderRadius: '8px', border: 'none', background: '#F3F4F6', cursor: 'pointer', display: 'grid', placeItems: 'center', color: '#6B7280' }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>

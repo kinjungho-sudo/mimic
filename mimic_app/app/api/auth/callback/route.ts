@@ -3,6 +3,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { sendMimicEmail, welcomeEmailHtml } from '@/lib/email/email-n8n';
 import { logAudit } from '@/lib/logging/logger-server';
+import { BRAND_NAME } from '@/lib/brand';
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
@@ -58,7 +59,7 @@ export async function GET(request: NextRequest) {
         if (user.email) {
           await sendMimicEmail({
             to: user.email,
-            subject: 'MIMIC 가입을 환영해요 🎉',
+            subject: `${BRAND_NAME} 가입을 환영해요 🎉`,
             html: welcomeEmailHtml(meta.full_name ?? meta.name ?? null),
           }).catch(() => {});
         }

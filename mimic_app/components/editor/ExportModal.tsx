@@ -159,7 +159,7 @@ export function ExportModal({ tutorialId, title, onClose }: ExportModalProps) {
           </div>
 
           <p style={{ margin: '16px 0 0', fontSize: '11px', color: '#9CA3AF', lineHeight: 1.5 }}>
-            초대받은 사람은 MIMIC 계정(초대한 이메일)으로 로그인하면 접근할 수 있습니다. &lsquo;편집&rsquo;은 매뉴얼을 수정할 수 있고, &lsquo;보기&rsquo;는 열람만 가능합니다.
+            초대받은 사람은 포리 계정(초대한 이메일)으로 로그인하면 접근할 수 있습니다. &lsquo;편집&rsquo;은 매뉴얼을 수정할 수 있고, &lsquo;보기&rsquo;는 열람만 가능합니다.
           </p>
         </div>
       </div>

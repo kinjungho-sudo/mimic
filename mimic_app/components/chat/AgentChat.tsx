@@ -111,12 +111,12 @@ export function AgentChat() {
         setMessages([{
           id: 'welcome',
           role: 'assistant',
-          text: '안녕하세요! MIMIC 도움말 봇입니다. 자주 묻는 질문을 고르거나 궁금한 점을 입력해주세요.',
+          text: '안녕하세요! 포리 도움말 봇입니다. 자주 묻는 질문을 고르거나 궁금한 점을 입력해주세요.',
           related: (data.quickQuestions ?? []).slice(0, 5),
         }]);
       })
       .catch(() => {
-        setMessages([{ id: 'welcome', role: 'assistant', text: '안녕하세요! MIMIC 도움말 봇입니다. 궁금한 점을 입력해주세요.' }]);
+        setMessages([{ id: 'welcome', role: 'assistant', text: '안녕하세요! 포리 도움말 봇입니다. 궁금한 점을 입력해주세요.' }]);
       });
   }, []);
 

@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, Suspense } from 'react';
 import Link from 'next/link';
@@ -36,7 +36,7 @@ function ForgotPasswordForm() {
         <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(600px 320px at 100% 0%, rgba(255,255,255,0.18), transparent 60%), radial-gradient(500px 280px at 0% 100%, rgba(0,0,0,0.18), transparent 60%)', pointerEvents: 'none' }} />
         <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '100%' }}>
           <Link href="/landingpage" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', fontSize: '16px', fontWeight: 500, color: 'white', textDecoration: 'none' }}>
-            <BrandMark /> MIMIC
+            <BrandMark /> 포리
           </Link>
           <div style={{ marginTop: 'auto', paddingBottom: '8px' }}>
             <h1 style={{ fontSize: '36px', fontWeight: 500, letterSpacing: '-0.02em', lineHeight: 1.25, margin: '0 0 14px' }}>비밀번호를 잊으셨나요?</h1>

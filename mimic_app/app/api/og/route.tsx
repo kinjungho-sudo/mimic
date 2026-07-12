@@ -5,7 +5,7 @@ export const runtime = 'edge';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
-  const title = searchParams.get('title') ?? 'MIMIC';
+  const title = searchParams.get('title') ?? '포리';
   const sub = searchParams.get('sub') ?? '30초 만에 인터랙티브 매뉴얼';
 
   return new ImageResponse(
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
             }}
           />
           <span style={{ color: '#c4b5fd', fontSize: '16px', fontWeight: 600 }}>
-            MIMIC
+            포리
           </span>
         </div>
 

@@ -15,17 +15,17 @@ interface FAQ {
 const FAQ_DB: Record<string, FAQ> = {
   'what': {
     keywords: ['mimic', 'mimic이', '뭐야', '뭔가요', '무엇', '소개', '서비스'],
-    answer: `MIMIC은 Chrome 확장 프로그램으로 업무 화면을 녹화해 인터랙티브 매뉴얼을 자동 생성하는 서비스입니다.\n\n클릭 한 번 한 번이 자동으로 캡처되어 단계별 스크린샷과 설명이 만들어지고, 링크로 공유하거나 학습 가이드로 따라할 수 있습니다. 원본 URL과 확장 프로그램 조건이 맞으면 라이브 가이드 Beta로 실제 페이지 위 안내도 사용할 수 있습니다.\n\n👉 자세한 소개는 [도움말](${HELP_URL}#intro)에서 확인하세요.`,
+    answer: `포리는 Chrome 확장 프로그램으로 업무 화면을 녹화해 인터랙티브 매뉴얼을 자동 생성하는 서비스입니다.\n\n클릭 한 번 한 번이 자동으로 캡처되어 단계별 스크린샷과 설명이 만들어지고, 링크로 공유하거나 학습 가이드로 따라할 수 있습니다. 원본 URL과 확장 프로그램 조건이 맞으면 라이브 가이드 Beta로 실제 페이지 위 안내도 사용할 수 있습니다.\n\n👉 자세한 소개는 [도움말](${HELP_URL}#intro)에서 확인하세요.`,
     related: ['install', 'price', 'guide-me'],
   },
   'install': {
     keywords: ['설치', '확장', '크롬', 'chrome', '프로그램', '다운', '어디서'],
-    answer: `MIMIC Recorder는 Chrome 확장 프로그램입니다.\n\n**설치 방법**\n1. Chrome 웹 스토어에서 "MIMIC Recorder" 검색\n2. 확장 프로그램 설치\n3. MIMIC 웹앱에서 계정 생성 후 확장과 연결\n\nChromium 기반 브라우저(Edge, Brave)도 지원합니다. Firefox, Safari는 현재 미지원입니다.\n\n👉 [설치 가이드 보기](${HELP_URL})`,
+    answer: `포리 Recorder는 Chrome 확장 프로그램입니다.\n\n**설치 방법**\n1. Chrome 웹 스토어에서 "포리 Recorder" 검색\n2. 확장 프로그램 설치\n3. 포리 웹앱에서 계정 생성 후 확장과 연결\n\nChromium 기반 브라우저(Edge, Brave)도 지원합니다. Firefox, Safari는 현재 미지원입니다.\n\n👉 [설치 가이드 보기](${HELP_URL})`,
     related: ['record', 'what'],
   },
   'record': {
     keywords: ['녹화', '캡처', '촬영', '어떻게', '만들기', '생성', '시작'],
-    answer: `**화면 녹화 방법**\n1. Chrome 툴바에서 MIMIC Recorder 아이콘 클릭\n2. 녹화 시작 버튼 클릭\n3. 평소처럼 업무 진행 (클릭마다 자동 캡처)\n4. 완료 버튼으로 녹화 종료\n\n녹화 후 AI가 자동으로 각 단계의 제목과 설명을 생성합니다.\n\n직접 만들기: 대시보드 → "새 매뉴얼" → "직접 편집하기"\n\n👉 [자세한 안내](${HELP_URL})`,
+    answer: `**화면 녹화 방법**\n1. Chrome 툴바에서 포리 Recorder 아이콘 클릭\n2. 녹화 시작 버튼 클릭\n3. 평소처럼 업무 진행 (클릭마다 자동 캡처)\n4. 완료 버튼으로 녹화 종료\n\n녹화 후 AI가 자동으로 각 단계의 제목과 설명을 생성합니다.\n\n직접 만들기: 대시보드 → "새 매뉴얼" → "직접 편집하기"\n\n👉 [자세한 안내](${HELP_URL})`,
     related: ['edit', 'limit'],
   },
   'edit': {
@@ -40,7 +40,7 @@ const FAQ_DB: Record<string, FAQ> = {
   },
   'guide-me': {
     keywords: ['guide me', '가이드', '오버레이', '안내', '실제 페이지', '위에서'],
-    answer: `**라이브 가이드 Beta**는 실제 웹페이지 위에 오버레이를 띄워 단계별로 안내하는 기능입니다.\n\n**사용 조건**\n- 원본 URL이 저장된 매뉴얼\n- MIMIC Recorder 확장 프로그램 연결\n- 페이지 구조가 녹화 당시와 크게 달라지지 않은 상태\n\n받는 사람이 별도 설치 없이 따라해야 한다면 먼저 **학습 가이드** 링크를 공유하는 편이 안정적입니다.\n\n**키보드**: → 다음 / ← 이전 / Esc 닫기\n\n👉 [라이브 가이드 Beta 상세 안내](${HELP_URL}#guide-me)`,
+    answer: `**라이브 가이드 Beta**는 실제 웹페이지 위에 오버레이를 띄워 단계별로 안내하는 기능입니다.\n\n**사용 조건**\n- 원본 URL이 저장된 매뉴얼\n- 포리 Recorder 확장 프로그램 연결\n- 페이지 구조가 녹화 당시와 크게 달라지지 않은 상태\n\n받는 사람이 별도 설치 없이 따라해야 한다면 먼저 **학습 가이드** 링크를 공유하는 편이 안정적입니다.\n\n**키보드**: → 다음 / ← 이전 / Esc 닫기\n\n👉 [라이브 가이드 Beta 상세 안내](${HELP_URL}#guide-me)`,
     related: ['share', 'freshness'],
   },
   'export': {

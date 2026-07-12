@@ -1,7 +1,7 @@
-# MIMIC 백엔드 설계서
+# 포리 백엔드 설계서
 
-> **MIMIC · Backend Build Specification v3.0**
-> *Don't Explain, Just Mimic.*
+> **포리 · Backend Build Specification v3.0**
+> *기억은 포켓에, 실행은 화면 위에.*
 > 의뢰자: 김정호 (PM) · 담당: 클로드 코드 (Backend)
 > 환경: 빈 폴더에서 처음부터 시작
 > 디자인: 디자인 핸드오프로 받음 (page.tsx + components/* + 토큰)
@@ -13,15 +13,15 @@
 
 | 항목 | 값 |
 |------|-----|
-| **제품명** | MIMIC |
-| **메인 카피** | Don't Explain, Just Mimic. |
+| **제품명** | 포리 |
+| **메인 카피** | 기억은 포켓에, 실행은 화면 위에. |
 | **서브 카피** | 말 길게 설명하지 마세요. 그냥 보고 따라 하게 만드세요. |
 | **태그라인** | AI 인터랙티브 매뉴얼 플랫폼 |
 | **공식 도메인** | mimicflow.com |
 | **배포 URL (Vercel 자동)** | mimic.vercel.app → 추후 mimicflow.com 연결 |
 | **GitHub 레포** | github.com/kinjungho-sudo/mimic (새 레포) |
 | **회사명** | 코마인드웍스 |
-| **Chrome 확장명** | MIMIC Recorder (Naviaction 기능 유지 + 이름만 변경) |
+| **Chrome 확장명** | 포리 Recorder (Naviaction 기능 유지 + 이름만 변경) |
 | **Supabase 인스턴스** | gqynptpjomcqzxyykqic (Naviaction과 공유) |
 
 ---
@@ -39,7 +39,7 @@
 ✓ Supabase Auth + Google OAuth 통합
 ✓ 모든 API Routes (15개+)
 ✓ Claude API + OpenAI TTS 백엔드 래퍼
-✓ MIMIC Recorder Chrome 확장 연동 API
+✓ 포리 Recorder Chrome 확장 연동 API
 ✓ 인증·권한·보안·Rate Limiting·Validation
 ✓ 타입 정의 + 클라이언트용 라이브러리
 ✓ 환경변수 + 배포 검증
@@ -97,7 +97,7 @@
 | 애니메이션 | Framer Motion | (디자인 핸드오프) |
 | 아이콘 | lucide-react | (디자인 핸드오프) |
 | 배포 | Vercel | GitHub 자동 연결 |
-| 외부 확장 | MIMIC Recorder | 정호씨가 코드 수정 (이름만) |
+| 외부 확장 | 포리 Recorder | 정호씨가 코드 수정 (이름만) |
 
 ---
 
@@ -280,7 +280,7 @@ GOOGLE_OAUTH_CLIENT_SECRET=
 NEXT_PUBLIC_APP_URL=https://mimic.vercel.app
 # Phase 2 후: https://mimicflow.com
 
-# ─── Chrome Extension ID (MIMIC Recorder) ───
+# ─── Chrome Extension ID (포리 Recorder) ───
 NEXT_PUBLIC_EXTENSION_ID=
 
 # ─── 정호씨 user_id (NA_steps 마이그레이션) ───
@@ -309,7 +309,7 @@ required.forEach(key => {
 
 ## 7. DB 스키마
 
-> **명명 규칙**: 모든 신규 테이블은 `MM_` prefix (MIMIC Manual 약어).
+> **명명 규칙**: 모든 신규 테이블은 기존 호환을 위해 `MM_` prefix를 유지한다.
 > Naviaction의 `NA_steps`는 그대로 두고 보안 패치만 추가.
 
 ### 7-1. 마이그레이션 순서
@@ -341,7 +341,7 @@ supabase/migrations/
 
 ---
 
-#### MM_extension_tokens — MIMIC Recorder 연결용 1회용 토큰
+#### MM_extension_tokens — 포리 Recorder 연결용 1회용 토큰
 
 | 컬럼 | 타입 | 설명 |
 |------|------|------|
@@ -361,7 +361,7 @@ supabase/migrations/
 | `id` (PK) | uuid | |
 | `user_id` (FK) | uuid | → MM_users.id |
 | `title` | text | |
-| `session_id` | text NULL | MIMIC Recorder session_id 매핑 |
+| `session_id` | text NULL | 포리 Recorder session_id 매핑 |
 | `mode` | text | 'interactive' (P1) \| 'guide' (P2) |
 | `status` | text | 'draft' \| 'published' |
 | `visibility` | text | 'private' \| 'public' |
@@ -498,7 +498,7 @@ ALTER TABLE NA_steps
   ADD CONSTRAINT NA_steps_user_fk
   FOREIGN KEY (user_id) REFERENCES auth.users(id);
 
--- Step 4: MIMIC 매뉴얼과 연결
+-- Step 4: 포리 매뉴얼과 연결
 ALTER TABLE NA_steps ADD COLUMN tutorial_id uuid NULL
   REFERENCES MM_tutorials(id) ON DELETE SET NULL;
 
@@ -625,7 +625,7 @@ CREATE TRIGGER tutorials_updated_at
 [기존 — 그대로 사용]
 naviaction
   - public: ON
-  - MIMIC Recorder가 직접 업로드
+  - 포리 Recorder가 직접 업로드
   - 파일 경로: {session_id}/{step_number}.jpg
 
 [신규 — 생성 필요]
@@ -670,14 +670,14 @@ mimic-tts
 
 ---
 
-### 8-2. MIMIC Recorder 연동 (4개) ★ 최우선
+### 8-2. 포리 Recorder 연동 (4개) ★ 최우선
 
 #### POST `/api/extension/link`
 - **인증**: O
 - **용도**: 1회용 토큰 발급 (5분 유효)
 - **응답**: `{ token: string, expiresAt: ISO8601 }`
 
-#### POST `/api/extension/verify` (MIMIC Recorder가 호출)
+#### POST `/api/extension/verify` (포리 Recorder가 호출)
 - **인증**: Bearer extension token
 - **용도**: 토큰을 user_id로 교환
 - **로직**:
@@ -685,13 +685,13 @@ mimic-tts
   2. `used_at = now()` (1회용)
 - **응답**: `{ user_id, email }`
 
-#### POST `/api/capture/analyze` (MIMIC Recorder가 호출)
+#### POST `/api/capture/analyze` (포리 Recorder가 호출)
 - **인증**: Bearer extension token
 - **입력**: `{ image: base64, url: string }`
 - **로직**: Claude Vision → `{ title (15자), description (40자) }` JSON
 - **응답**: `{ title, description }`
 
-#### POST `/api/capture/save-step` (MIMIC Recorder가 호출)
+#### POST `/api/capture/save-step` (포리 Recorder가 호출)
 - **인증**: Bearer extension token
 - **입력**: `{ session_id, step_number, screenshot_url, click_x, click_y, title, description, url }`
 - **로직**: NA_steps INSERT (user_id 포함, RLS 통과)
@@ -1226,7 +1226,7 @@ export const config = {
 - [ ] Vercel 환경변수 8개 등록
 - [ ] Redeploy 정상
 - [ ] 프로덕션 E2E 시나리오 통과
-  - 가입 → MIMIC Recorder 연결 → 캡처 → 에디터 → 플레이어 → 설문
+  - 가입 → 포리 Recorder 연결 → 캡처 → 에디터 → 플레이어 → 설문
 
 ---
 
@@ -1250,7 +1250,7 @@ export const config = {
 2. 디자인이 직접 fetch 한 부분 있으면 `lib/api/*` 함수로 교체
 3. 이벤트 핸들러 (로그인 버튼 → `signInWithGoogle()`) 연결
 4. 로딩/에러 상태 UI 보강
-5. **MIMIC Recorder 연동 흐름 검증**:
+5. **포리 Recorder 연동 흐름 검증**:
    - 웹에서 `/extension-link` 진입
    - `requestExtensionLink()` 호출 → 토큰 받기
    - `chrome.runtime.sendMessage(EXTENSION_ID, { action: 'LINK_USER', token })`
@@ -1262,20 +1262,20 @@ export const config = {
 
 ---
 
-**MIMIC · Backend Build Specification v3.0 · 2026.05.26**
-**Don't Explain, Just Mimic.**
+**포리 · Backend Build Specification v3.0 · 2026.05.26**
+**기억은 포켓에, 실행은 화면 위에.**
 **작성: 클로드 (코마인드웍스 김정호 의뢰)**
 
 ---
 
 ---
 
-# MIMIC 제품 로드맵 (중기)
+# 포리 제품 로드맵 (중기)
 
 > Tango AI 벤치마킹 기반 차별화 전략 (2026-05-29 추가)
 >
 > **전략 방향:** Tango가 엔터프라이즈 RPA로 피벗하며 생긴 SMB/개인 세그먼트 공백을 공략.
-> Tango 최고 기능(Guide Me, $12,500+/년 Enterprise 전용)을 MIMIC Pro 수준에서 제공.
+> Tango 최고 기능(Guide Me, $12,500+/년 Enterprise 전용)을 포리 Pro 수준에서 제공.
 > "캡처만 해도 배포 가능한 품질"을 목표로 AI 자동화 수준을 단계적으로 높임.
 
 ---
@@ -1308,7 +1308,7 @@ export const config = {
 - **관련 파일:** `components/editor/ManualEditor.tsx`, `components/editor/EditorHeader.tsx`
 
 ### 1-2. 스텝 드래그 앤 드롭 재정렬
-- **Why:** Tango는 지원, MIMIC 미지원. 순서 변경이 불편하면 편집 포기.
+- **Why:** Tango는 지원, 포리 미지원. 순서 변경이 불편하면 편집 포기.
 - **구현:**
   - `@dnd-kit/core` 도입
   - 재정렬 시 `order_index` 일괄 PATCH
@@ -1381,7 +1381,7 @@ export const config = {
 
 ## Phase 3 — 인앱 가이드 오버레이 (Guide Me)
 
-> **목표:** Tango의 최고 기능($12,500+/년 Enterprise 전용)을 MIMIC Pro에서 제공.
+> **목표:** Tango의 최고 기능($12,500+/년 Enterprise 전용)을 포리 Pro에서 제공.
 > 실제 웹앱 위에 단계별 툴팁 오버레이를 띄워 사용자를 안내.
 > **시작 방법:** "Phase 3 시작해" 또는 "Phase 3-N 항목명 구현해"
 

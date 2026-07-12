@@ -3,6 +3,7 @@ import { signupSchema } from '@/lib/validators';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { sendMimicEmail, welcomeEmailHtml } from '@/lib/email/email-n8n';
 import { logAudit } from '@/lib/logging/logger-server';
+import { BRAND_NAME } from '@/lib/brand';
 
 const INVISIBLE = new Set([0x00AD, 0x200B, 0x200C, 0x200D, 0x200E, 0x200F, 0xFEFF]);
 
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
     logAudit('auth.signup', { userId: data.user.id, email, method: 'email' });
 
     // 환영 이메일 발송 (n8n → Gmail, 실패해도 가입 자체는 성공 처리)
-    sendMimicEmail({ to: email, subject: 'MIMIC 가입을 환영해요 🎉', html: welcomeEmailHtml(name) })
+    sendMimicEmail({ to: email, subject: `${BRAND_NAME} 가입을 환영해요 🎉`, html: welcomeEmailHtml(name) })
       .catch(() => {});
   }
 

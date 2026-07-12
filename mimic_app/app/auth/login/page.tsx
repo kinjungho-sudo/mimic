@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signInWithGoogle, signInWithEmail } from '@/lib/auth/auth-client';
 import { BrandMark } from '@/components/common/BrandMark';
+import { BRAND_NAME } from '@/lib/brand';
 
 function LoginForm() {
   const router = useRouter();
@@ -66,7 +67,7 @@ function LoginForm() {
         <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(600px 320px at 100% 0%, rgba(255,255,255,0.18), transparent 60%), radial-gradient(500px 280px at 0% 100%, rgba(0,0,0,0.18), transparent 60%)', pointerEvents: 'none' }} />
         <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '100%' }}>
           <Link href="/landingpage" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', fontSize: '16px', fontWeight: 500, color: 'white', textDecoration: 'none' }}>
-            <BrandMark /> MIMIC
+            <BrandMark /> {BRAND_NAME}
           </Link>
 
           <div style={{ marginTop: 'auto', paddingBottom: '8px' }}>

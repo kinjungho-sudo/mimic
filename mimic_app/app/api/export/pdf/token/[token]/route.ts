@@ -63,7 +63,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   // 표지
   const cover = pdfDoc.addPage([PW, PH]);
   cover.drawRectangle({ x: 0, y: PH * 0.6, width: PW, height: PH * 0.4, color: rgb(0.31, 0.27, 0.90) });
-  cover.drawText('MIMIC', { x: ML, y: PH - 48 - 28, size: 18, font: fontBold, color: rgb(1, 1, 1) });
+  cover.drawText('포리', { x: ML, y: PH - 48 - 28, size: 18, font: fontBold, color: rgb(1, 1, 1) });
   const titleLines = wrapText(tutorial.title, fontBold, 30, CONTENT_W);
   titleLines.slice(0, 3).forEach((l, i) => cover.drawText(l, { x: ML, y: PH * 0.7 - i * 38, size: 30, font: fontBold, color: rgb(1, 1, 1) }));
   cover.drawText(`${steps.length}단계 가이드`, { x: ML, y: PH * 0.7 - titleLines.slice(0, 3).length * 38 - 16, size: 14, font, color: rgb(0.8, 0.8, 1) });

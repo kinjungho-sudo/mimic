@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState } from 'react';
 import Link from 'next/link';
@@ -76,7 +76,7 @@ export default function SettingsPage() {
         <div style={{ padding: '20px 8px 16px', borderBottom: '1px solid #F3F4F6', marginBottom: '8px' }}>
           <Link href="/home" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="32" height="32" style={{ flexShrink: 0 }}><circle cx="50" cy="50" r="50" fill="#3730a3"/><text x="50" y="68" textAnchor="middle" fontFamily="Georgia, serif" fontSize="62" fontWeight="700" fill="white">M</text></svg>
-            <span style={{ fontSize: '16px', fontWeight: 800, color: '#111827', letterSpacing: '-0.03em' }}>MIMIC</span>
+            <span style={{ fontSize: '16px', fontWeight: 800, color: '#111827', letterSpacing: '-0.03em' }}>포리</span>
           </Link>
         </div>
         <nav style={{ flex: 1 }}>
@@ -96,7 +96,7 @@ export default function SettingsPage() {
         <div className="settings-mobile-header" style={{ display: 'none', alignItems: 'center', gap: '10px', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #F3F4F6' }}>
           <Link href="/home" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="28" height="28"><circle cx="50" cy="50" r="50" fill="#3730a3"/><text x="50" y="68" textAnchor="middle" fontFamily="Georgia, serif" fontSize="62" fontWeight="700" fill="white">M</text></svg>
-            <span style={{ fontSize: '15px', fontWeight: 800, color: '#111827', letterSpacing: '-0.03em' }}>MIMIC</span>
+            <span style={{ fontSize: '15px', fontWeight: 800, color: '#111827', letterSpacing: '-0.03em' }}>포리</span>
           </Link>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: '4px' }}>
             {NAV_ITEMS.map(item => (
@@ -124,7 +124,7 @@ export default function SettingsPage() {
         <Section title="Chrome 확장 프로그램">
           <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
-              <div style={{ fontSize: '13.5px', fontWeight: 500, color: '#111827' }}>MIMIC Recorder</div>
+              <div style={{ fontSize: '13.5px', fontWeight: 500, color: '#111827' }}>포리 Recorder</div>
               <div style={{ fontSize: '12px', color: '#9CA3AF', marginTop: '2px' }}>재설치하거나 연결이 끊겼을 때 다시 연결합니다 (30일 자동 유지)</div>
             </div>
             <Link href="/extension-link" style={{ padding: '7px 14px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 500, background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', textDecoration: 'none', boxShadow: '0 2px 8px rgba(55,48,163,0.25)' }}>

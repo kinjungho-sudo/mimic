@@ -3,10 +3,10 @@ import type { Metadata } from 'next';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://mimic-nine-ashen.vercel.app';
 
 export const metadata: Metadata = {
-  title: '30초 만에 인터랙티브 매뉴얼 — MIMIC',
+  title: '30초 만에 인터랙티브 매뉴얼 — 포리',
   description: '화면을 녹화하기만 하면 AI가 단계별 설명·자막을 자동 완성. 고객 지원·온보딩·사내 교육 자료를 90% 더 빠르게 만드세요.',
   openGraph: {
-    title: '30초 만에 인터랙티브 매뉴얼 — MIMIC',
+    title: '30초 만에 인터랙티브 매뉴얼 — 포리',
     description: '화면을 녹화하기만 하면 AI가 단계별 설명·자막을 자동 완성. 고객 지원·온보딩·사내 교육 자료를 90% 더 빠르게 만드세요.',
     url: `${APP_URL}/landingpage`,
     images: [
@@ -14,7 +14,7 @@ export const metadata: Metadata = {
         url: `${APP_URL}/api/og?title=${encodeURIComponent('30초 만에 인터랙티브 매뉴얼')}&sub=${encodeURIComponent('AI가 단계별 설명과 자막까지 자동 완성합니다')}`,
         width: 1200,
         height: 630,
-        alt: 'MIMIC — 30초 만에 인터랙티브 매뉴얼',
+        alt: '포리 — 30초 만에 인터랙티브 매뉴얼',
       },
     ],
   },

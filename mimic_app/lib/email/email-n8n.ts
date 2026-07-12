@@ -1,8 +1,9 @@
-// MIMIC 트랜잭션 메일을 n8n 웹훅(Webhook → Gmail)으로 발송하는 공용 헬퍼.
+// 포리 트랜잭션 메일을 n8n 웹훅(Webhook → Gmail)으로 발송하는 공용 헬퍼.
 // 웹훅은 받은 { to, subject, html } 을 그대로 Gmail로 보내는 범용 릴레이라,
 // 공유메일·환영메일 등 모든 메일이 같은 웹훅을 재사용한다(워크플로우 1개로 충분).
 
 import { logNetwork } from '@/lib/logging/logger-server';
+import { BRAND_NAME, BRAND_TAGLINE, BRAND_WELCOME_SUBTITLE } from '@/lib/brand';
 
 const clean = (v?: string) => v?.replace(/^﻿/, '').trim() ?? '';
 
@@ -24,7 +25,7 @@ export async function sendMimicEmail(opts: {
         to: opts.to,
         subject: opts.subject,
         html: opts.html,
-        fromName: opts.fromName ?? 'MIMIC',
+        fromName: opts.fromName ?? BRAND_NAME,
         replyTo: 'kinjungho@gmail.com',
       }),
     });
@@ -55,7 +56,7 @@ export function newsletterHtml(subject: string, bodyText: string): string {
       <table width="560" cellpadding="0" cellspacing="0" style="background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
         <tr>
           <td style="background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:28px 40px;">
-            <p style="margin:0;font-size:20px;font-weight:800;color:white;letter-spacing:-0.5px;">MIMIC</p>
+            <p style="margin:0;font-size:20px;font-weight:800;color:white;letter-spacing:-0.5px;">${BRAND_NAME}</p>
             <p style="margin:6px 0 0;font-size:12px;color:rgba(255,255,255,0.7);">소식 · 업데이트</p>
           </td>
         </tr>
@@ -68,7 +69,7 @@ export function newsletterHtml(subject: string, bodyText: string): string {
         <tr>
           <td style="padding:18px 40px;border-top:1px solid #F3F4F6;text-align:center;">
             <p style="margin:0;font-size:11.5px;color:#9CA3AF;line-height:1.6;">
-              MIMIC · AI 인터랙티브 매뉴얼 플랫폼<br>
+              ${BRAND_NAME} · ${BRAND_TAGLINE}<br>
               이 메일은 수신 동의하신 분께만 발송됩니다. 수신 거부는 설정 &gt; 이메일 수신 동의에서 변경할 수 있어요.
             </p>
           </td>
@@ -93,13 +94,13 @@ export function welcomeEmailHtml(name?: string | null): string {
       <table width="560" cellpadding="0" cellspacing="0" style="background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
         <tr>
           <td style="background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:34px 40px;text-align:center;">
-            <p style="margin:0;font-size:24px;font-weight:800;color:white;letter-spacing:-0.5px;">MIMIC</p>
-            <p style="margin:8px 0 0;font-size:13px;color:rgba(255,255,255,0.75);">Don't Explain, Just Mimic.</p>
+            <p style="margin:0;font-size:24px;font-weight:800;color:white;letter-spacing:-0.5px;">${BRAND_NAME}</p>
+            <p style="margin:8px 0 0;font-size:13px;color:rgba(255,255,255,0.75);">${BRAND_WELCOME_SUBTITLE}</p>
           </td>
         </tr>
         <tr>
           <td style="padding:36px 40px;">
-            <h1 style="margin:0 0 14px;font-size:21px;font-weight:700;color:#111827;line-height:1.4;">${greet}MIMIC 가입을 환영해요 🎉</h1>
+            <h1 style="margin:0 0 14px;font-size:21px;font-weight:700;color:#111827;line-height:1.4;">${greet}${BRAND_NAME} 가입을 환영해요 🎉</h1>
             <p style="margin:0 0 22px;font-size:15px;color:#4B5563;line-height:1.7;">
               이제 클릭 몇 번이면 업무 화면이 <b>단계별 인터랙티브 매뉴얼</b>로 완성됩니다.
               만든 매뉴얼은 링크로 공유하거나, 실제 화면 위에서 <b>라이브 가이드 Beta</b>로 안내할 수 있어요.
@@ -116,7 +117,7 @@ export function welcomeEmailHtml(name?: string | null): string {
         </tr>
         <tr>
           <td style="padding:20px 40px;border-top:1px solid #F3F4F6;text-align:center;">
-            <p style="margin:0;font-size:12px;color:#9CA3AF;">MIMIC · AI 인터랙티브 매뉴얼 플랫폼</p>
+            <p style="margin:0;font-size:12px;color:#9CA3AF;">${BRAND_NAME} · ${BRAND_TAGLINE}</p>
           </td>
         </tr>
       </table>

@@ -16,11 +16,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .single();
 
   if (!data) {
-    return { title: 'MIMIC 매뉴얼' };
+    return { title: '포리 매뉴얼' };
   }
 
-  const title = `${data.title} — MIMIC 매뉴얼`;
-  const description = 'MIMIC으로 만든 단계별 인터랙티브 매뉴얼입니다.';
+  const title = `${data.title} — 포리 매뉴얼`;
+  const description = '포리로 만든 단계별 인터랙티브 매뉴얼입니다.';
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://mimic-nine-ashen.vercel.app';
   const pageUrl = `${appUrl}/play/${token}`;
 

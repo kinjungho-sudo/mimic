@@ -64,7 +64,7 @@ export default function PublicPage() {
         </div>
 
         <div style={{ textAlign: 'center', marginTop: '24px', fontSize: '11.5px', color: '#9CA3AF' }}>
-          Made with MIMIC
+          Made with 포리
         </div>
       </div>
     </div>

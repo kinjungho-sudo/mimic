@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireAuth } from '@/lib/auth/auth-guard';
+import { BRAND_NAME, BRAND_TAGLINE, BRAND_WELCOME_SUBTITLE } from '@/lib/brand';
 
 const schema = z.object({
   to: z.string().email('올바른 이메일 주소를 입력해주세요.'),
@@ -35,8 +36,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Email service not configured' }, { status: 503 });
   }
 
-  const subject = `[MIMIC] ${tutorialTitle}`;
-  const fromName = senderName ? `${senderName} via MIMIC` : 'MIMIC';
+  const subject = `[${BRAND_NAME}] ${tutorialTitle}`;
+  const fromName = senderName ? `${senderName} via ${BRAND_NAME}` : BRAND_NAME;
   const safeTitle = tutorialTitle.replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const html = `
 <!DOCTYPE html>
@@ -49,8 +50,8 @@ export async function POST(request: NextRequest) {
         <!-- 헤더 -->
         <tr>
           <td style="background:linear-gradient(135deg,#3730a3,#6d28d9);padding:32px 40px;text-align:center;">
-            <p style="margin:0;font-size:22px;font-weight:800;color:white;letter-spacing:-0.5px;">MIMIC</p>
-            <p style="margin:6px 0 0;font-size:13px;color:rgba(255,255,255,0.7);">Don't Explain, Just Mimic.</p>
+            <p style="margin:0;font-size:22px;font-weight:800;color:white;letter-spacing:-0.5px;">${BRAND_NAME}</p>
+            <p style="margin:6px 0 0;font-size:13px;color:rgba(255,255,255,0.7);">${BRAND_WELCOME_SUBTITLE}</p>
           </td>
         </tr>
         <!-- 본문 -->
@@ -76,7 +77,7 @@ export async function POST(request: NextRequest) {
         <tr>
           <td style="padding:20px 40px;border-top:1px solid #F3F4F6;text-align:center;">
             <p style="margin:0;font-size:12px;color:#9CA3AF;">
-              MIMIC · AI 인터랙티브 매뉴얼 플랫폼
+              ${BRAND_NAME} · ${BRAND_TAGLINE}
             </p>
           </td>
         </tr>

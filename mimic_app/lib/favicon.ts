@@ -34,7 +34,7 @@ export function faviconFallbackUrl(hostname: string | null | undefined): string 
 export async function fetchFaviconFromHtml(pageUrl: string): Promise<string | null> {
   try {
     const res = await fetch(pageUrl, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; MIMICBot/1.0)' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; PoriBot/1.0)' },
       signal: AbortSignal.timeout(5000),
     });
     if (!res.ok) return null;

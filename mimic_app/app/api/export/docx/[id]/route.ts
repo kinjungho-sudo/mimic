@@ -80,7 +80,7 @@ export async function GET(request: NextRequest, { params }: Params) {
   });
   const children: Paragraph[] = [
     new Paragraph({
-      children: [new TextRun({ text: branding?.company_name ?? 'MIMIC Manual', bold: true, color: '4F46E5', size: 24 })],
+      children: [new TextRun({ text: branding?.company_name ?? '포리 매뉴얼', bold: true, color: '4F46E5', size: 24 })],
       alignment: AlignmentType.CENTER,
       spacing: { before: 520, after: 260 },
     }),
