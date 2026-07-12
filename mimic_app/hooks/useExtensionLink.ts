@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { getPreferredExtensionId, rememberExtensionId } from '@/lib/extension-id';
 
 // 'not_installed' : chrome.runtime 자체가 없거나 확장이 응답 안 함
 // 'error'         : 확장은 있는데 토큰 발급 등 서버 오류
@@ -38,7 +39,7 @@ export function useExtensionLink(onSuccess: () => void): ExtensionLinkState {
   const attempt = useCallback(async () => {
     setState('loading');
 
-    const extensionId = process.env.NEXT_PUBLIC_EXTENSION_ID;
+    const extensionId = getPreferredExtensionId();
 
     // 확장 자체가 없는 경우 — 웹스토어 미등록 기간 중 바이패스
     if (!extensionId || !isExtensionInstalled()) {
@@ -69,6 +70,7 @@ export function useExtensionLink(onSuccess: () => void): ExtensionLinkState {
           return;
         }
         const ok = resp && typeof resp === 'object' && (resp as Record<string, unknown>).ok;
+        if (ok) rememberExtensionId(extensionId);
         setState(ok ? 'success' : 'error');
       }
     );
