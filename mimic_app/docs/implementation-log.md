@@ -1,5 +1,16 @@
 # Implementation Log
 
+## 2026-07-13 - 첫 실행 Live Guide 및 공개 브랜드 재감사
+
+- 작업 브랜치에 최신 `origin/dev`를 병합하고 Parro 리브랜딩 기준 커밋 `216c35f`의 ancestry를 유지했다.
+- 첫 실행 Live Guide의 대상 위치 추적을 주기 polling에서 `MutationObserver`와 `ResizeObserver` 기반으로 변경해 불필요한 상태 갱신을 줄였다.
+- 웰컴 시작 버튼과 각 실제 대상에 키보드 포커스를 이동하고 `Escape`로 가이드를 종료할 수 있게 했다.
+- 좁은 화면에서 2단계가 `화면 녹화` 버튼을 가리키는 경우에도 맞도록 안내 문구를 보정했다.
+- 설정 화면의 기본 브랜드 색상과 저장 버튼에 남아 있던 이전 보라색 값을 `BRAND_COLORS.primary`로 통일했다.
+- 로컬 브라우저에서 웰컴부터 3단계 페이지 선택까지 실제 요소 클릭으로 검증했고, 공개 경로 6종에서 이전 브랜드 노출 0건을 확인했다.
+- `npm run lint`, `tsc --noEmit`, `npm run build`, Recorder JavaScript 6종 구문 검사, Recorder manifest JSON 검사, MCP build가 통과했다. 기존 Hook 및 `<img>` lint 경고는 이번 범위 밖으로 유지했다.
+- Production 배포, 환경 변수, Supabase, Chrome Web Store와 사용자 데이터는 변경하지 않았다.
+
 ## 2026-07-13 - dev Recorder 연결 게이트 분리
 
 - dev/Preview에서 Recorder 연결이 실패해도 Production용 Chrome Web Store 설치 화면을 표시하지 않도록 분리했다.

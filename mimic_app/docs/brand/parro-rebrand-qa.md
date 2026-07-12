@@ -4,6 +4,17 @@ Source-of-truth implementation order and completion gates are maintained in `doc
 
 Verified failure patterns and recovery rules are maintained in `docs/mistakes.md` and must be read before further integration or deployment work.
 
+## 2026-07-13 - 첫 실행 Live Guide 및 공개 브랜드 재감사
+
+- 최신 `origin/dev`를 병합한 작업 브랜치에서 리브랜딩 기준 커밋 `216c35f`와 `origin/dev` ancestry를 모두 확인했다.
+- 활성 앱, Recorder, MCP 공개 표면을 재검색했다. 남은 `MIMIC` / `Mimic`은 역사 문서, 설계 원본, SQL 주석 및 기본값, SDK/Recorder 호환 alias 등 의도적으로 보존한 항목으로 분류했다.
+- `/home`, `/landingpage`, `/auth/login`, `/help`, `/robots.txt`, `/sitemap.xml`이 모두 HTTP 200을 반환했고 렌더링 HTML의 이전 브랜드명은 0건이었다.
+- 설정 화면의 이전 보라색 기본값과 저장 버튼 색상을 Parro 브랜드 토큰으로 교체했다. Recorder의 PII blur 테스트 fixture와 DB migration 기본값은 런타임 공개 UI가 아니므로 유지했다.
+- Live Guide를 웰컴부터 `새로 만들기` → `화면 녹화` → `페이지 선택하기`까지 실제 클릭으로 검증했다. 각 단계의 대상 포커스, 좁은 화면 문구, 마지막 확장 미연결 안내를 확인했다.
+- Live Guide의 180ms polling을 DOM/크기 observer로 교체하고 동일 좌표 상태 갱신을 생략했으며, 웰컴/대상 포커스와 `Escape` 종료를 추가했다.
+- `npm run lint`, `tsc --noEmit`, `npm run build`, Recorder JavaScript 6종 `node --check`, manifest JSON parse, SDK 구문 검사와 MCP build가 통과했다. 기존 Hook 및 `<img>` lint 경고만 남았다.
+- Production, 환경 변수, Supabase, Chrome Web Store, 데이터에는 변경을 가하지 않았다.
+
 ## Verification commands
 
 Initial full checks ran from `mimic_app` on `2026-07-10`. Remaining-reference classification was refreshed from the repository root on `2026-07-11`.

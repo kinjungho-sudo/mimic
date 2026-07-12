@@ -51,7 +51,7 @@ export default function SettingsPage() {
   const [affiliation, setAffiliation] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [brandColor, setBrandColor] = useState('#4F46E5');
+  const [brandColor, setBrandColor] = useState(BRAND_COLORS.primary);
   const [footerText, setFooterText] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
@@ -69,7 +69,7 @@ export default function SettingsPage() {
         if (!data) return;
         setAffiliation(data.company_name ?? '');
         setLogoUrl(data.logo_url ?? null);
-        setBrandColor(data.primary_color ?? '#4F46E5');
+        setBrandColor(data.primary_color ?? BRAND_COLORS.primary);
         setFooterText(data.footer_text ?? null);
       })
       .catch(() => {});
@@ -284,7 +284,7 @@ export default function SettingsPage() {
               <button
                 onClick={handleProfileSave}
                 disabled={profileSaving || !displayName.trim()}
-                style={{ height: '34px', padding: '0 14px', borderRadius: '8px', border: 'none', background: '#3730a3', color: 'white', fontSize: '12.5px', fontWeight: 600, cursor: profileSaving || !displayName.trim() ? 'not-allowed' : 'pointer', opacity: profileSaving || !displayName.trim() ? 0.55 : 1 }}
+                style={{ height: '34px', padding: '0 14px', borderRadius: '8px', border: 'none', background: BRAND_COLORS.primary, color: 'white', fontSize: '12.5px', fontWeight: 600, cursor: profileSaving || !displayName.trim() ? 'not-allowed' : 'pointer', opacity: profileSaving || !displayName.trim() ? 0.55 : 1 }}
               >
                 {profileSaving ? '저장 중…' : '저장'}
               </button>

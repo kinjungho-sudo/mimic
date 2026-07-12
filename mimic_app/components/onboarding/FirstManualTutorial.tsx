@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { BRAND_COLORS } from '@/lib/brand';
 
 export type FirstManualTutorialStatus = 'started' | 'dismissed' | 'completed';
@@ -51,7 +51,7 @@ const guideSteps: Record<Exclude<FirstRunLiveGuidePhase, 'welcome' | 'finished'>
     selector: '[data-first-guide="record"]',
     eyebrow: '좋아요, 바로 찾았어요',
     title: '이번에는 화면을 녹화해요',
-    description: '‘새 매뉴얼(녹화)’을 누르면 평소 하던 일이 매뉴얼로 바뀌기 시작해요.',
+    description: '빛나는 녹화 버튼을 누르면 평소 하던 일이 매뉴얼로 바뀌기 시작해요.',
     progress: '2 / 3',
   },
   'page-select': {
@@ -75,6 +75,21 @@ export function FirstRunLiveGuide({
   onDismiss: () => void;
 }) {
   const [targetRect, setTargetRect] = useState<TargetRect | null>(null);
+  const welcomeStartRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (phase !== 'welcome') return;
+    const timeout = window.setTimeout(() => welcomeStartRef.current?.focus(), 0);
+    return () => window.clearTimeout(timeout);
+  }, [phase]);
+
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onDismiss();
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [onDismiss]);
 
   useEffect(() => {
     if (phase === 'welcome' || phase === 'finished') {
@@ -84,26 +99,44 @@ export function FirstRunLiveGuide({
 
     const step = guideSteps[phase];
     let target: HTMLElement | null = null;
-    let observer: ResizeObserver | null = null;
+    let resizeObserver: ResizeObserver | null = null;
+    let mutationObserver: MutationObserver | null = null;
     let frame = 0;
 
     const measure = () => {
-      target = Array.from(document.querySelectorAll<HTMLElement>(step.selector)).find(element => {
+      const nextTarget = Array.from(document.querySelectorAll<HTMLElement>(step.selector)).find(element => {
         const rect = element.getBoundingClientRect();
         return rect.width > 0 && rect.height > 0;
       }) ?? null;
-      if (!target) {
-        setTargetRect(null);
+      if (!nextTarget) {
+        target = null;
+        resizeObserver?.disconnect();
+        setTargetRect(previous => previous === null ? previous : null);
         return;
       }
-      const rect = target.getBoundingClientRect();
+      if (target !== nextTarget) {
+        target = nextTarget;
+        target.focus({ preventScroll: true });
+        resizeObserver?.disconnect();
+        resizeObserver = new ResizeObserver(scheduleMeasure);
+        resizeObserver.observe(target);
+      }
+      const rect = nextTarget.getBoundingClientRect();
       const padding = phase === 'record' ? 8 : 7;
-      setTargetRect({
+      const nextRect = {
         top: Math.max(8, rect.top - padding),
         left: Math.max(8, rect.left - padding),
         width: rect.width + padding * 2,
         height: rect.height + padding * 2,
-      });
+      };
+      setTargetRect(previous => previous
+        && previous.top === nextRect.top
+        && previous.left === nextRect.left
+        && previous.width === nextRect.width
+        && previous.height === nextRect.height
+        ? previous
+        : nextRect
+      );
     };
 
     const scheduleMeasure = () => {
@@ -112,20 +145,15 @@ export function FirstRunLiveGuide({
     };
 
     measure();
-    const retry = window.setInterval(() => {
-      measure();
-      if (target && !observer) {
-        observer = new ResizeObserver(scheduleMeasure);
-        observer.observe(target);
-      }
-    }, 180);
+    mutationObserver = new MutationObserver(scheduleMeasure);
+    mutationObserver.observe(document.body, { childList: true, subtree: true });
     window.addEventListener('resize', scheduleMeasure);
-    window.addEventListener('scroll', scheduleMeasure, true);
+    window.addEventListener('scroll', scheduleMeasure, { capture: true, passive: true });
 
     return () => {
-      window.clearInterval(retry);
       cancelAnimationFrame(frame);
-      observer?.disconnect();
+      resizeObserver?.disconnect();
+      mutationObserver?.disconnect();
       window.removeEventListener('resize', scheduleMeasure);
       window.removeEventListener('scroll', scheduleMeasure, true);
     };
@@ -150,7 +178,7 @@ export function FirstRunLiveGuide({
           <p style={{ margin: '0 auto 24px', maxWidth: 390, color: '#64748B', fontSize: 14, lineHeight: 1.7 }}>
             지금부터 제가 화면 위에서 다음 행동을 직접 알려드릴게요. 설명을 읽기보다 빛나는 곳을 따라 눌러보세요.
           </p>
-          <button type="button" onClick={onStart} style={{ width: '100%', minHeight: 50, border: 0, borderRadius: 14, background: `linear-gradient(135deg, ${BRAND_COLORS.primary}, #17C9B6)`, color: 'white', fontSize: 15, fontWeight: 800, cursor: 'pointer', boxShadow: '0 12px 30px rgba(0,155,142,0.28)' }}>
+          <button ref={welcomeStartRef} type="button" onClick={onStart} style={{ width: '100%', minHeight: 50, border: 0, borderRadius: 14, background: `linear-gradient(135deg, ${BRAND_COLORS.primary}, #17C9B6)`, color: 'white', fontSize: 15, fontWeight: 800, cursor: 'pointer', boxShadow: '0 12px 30px rgba(0,155,142,0.28)' }}>
             Live Guide 시작하기
           </button>
           <button type="button" onClick={onDismiss} style={{ marginTop: 10, minHeight: 36, padding: '0 12px', border: 0, background: 'transparent', color: '#94A3B8', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>
