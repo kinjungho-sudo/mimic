@@ -216,8 +216,8 @@ function updateLoginState(hasToken, expired = false) {
     // 웹스토어 배포본=운영 / 개발자 언패킹=dev(Preview) — chrome.runtime.id로 자동 분기
     const origin = chrome.runtime.id === 'ehbhcdkapcbfehinjapabgoegcjmmbgd'
       ? 'https://mimic-nine-ashen.vercel.app'
-      : 'https://parro-guide.vercel.app';
-    chrome.tabs.create({ url: `${origin}/extension-link` });
+      : 'https://parro-guide-dev.vercel.app';
+    chrome.tabs.create({ url: `${origin}/extension-link?extension_id=${encodeURIComponent(chrome.runtime.id)}` });
   });
 
   notice.append(msgEl, btn);

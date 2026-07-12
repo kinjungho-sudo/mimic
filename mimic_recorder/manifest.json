@@ -43,16 +43,19 @@
   "host_permissions": [
     "<all_urls>",
     "https://*.supabase.co/*",
+    "https://parro-guide-dev.vercel.app/*",
     "https://parro-guide.vercel.app/*",
     "https://mimic-nine-ashen.vercel.app/*",
     "https://mimic-git-dev-kinjungho-7735s-projects.vercel.app/*"
   ],
   "externally_connectable": {
     "matches": [
+      "https://parro-guide-dev.vercel.app/*",
       "https://parro-guide.vercel.app/*",
       "https://mimic-nine-ashen.vercel.app/*",
       "https://mimicflow.com/*",
       "http://localhost:3000/*",
+      "http://localhost:3001/*",
       "https://mimic-git-dev-kinjungho-7735s-projects.vercel.app/*"
     ]
   }
