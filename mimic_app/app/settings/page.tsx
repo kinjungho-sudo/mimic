@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -42,7 +42,67 @@ export default function SettingsPage() {
   const { user, loading, updateUser } = useAuth();
 
   const [marketing, setMarketing] = useState<boolean | null>(null);
+  const [affiliation, setAffiliation] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [brandColor, setBrandColor] = useState('#4F46E5');
+  const [footerText, setFooterText] = useState<string | null>(null);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSaved, setProfileSaved] = useState(false);
   const currentMarketing = marketing !== null ? marketing : (user?.agreements?.marketing ?? false);
+
+  useEffect(() => {
+    if (user?.name) setDisplayName(user.name);
+  }, [user?.name]);
+
+  useEffect(() => {
+    fetch('/api/user/branding')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (!data) return;
+        setAffiliation(data.company_name ?? '');
+        setLogoUrl(data.logo_url ?? null);
+        setBrandColor(data.primary_color ?? '#4F46E5');
+        setFooterText(data.footer_text ?? null);
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleLogoUpload = async (file: File | null) => {
+    if (!file) return;
+    setLogoUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('logo', file);
+      const res = await fetch('/api/user/branding', {
+        method: 'PUT',
+        body: formData,
+      });
+      if (!res.ok) throw new Error('upload failed');
+      const data = await res.json();
+      setLogoUrl(data.logo_url ?? null);
+      setProfileSaved(false);
+    } catch {
+      alert('회사 로고를 업로드하지 못했습니다.');
+    } finally {
+      setLogoUploading(false);
+    }
+  };
+
+  const handleLogoDelete = async () => {
+    setLogoUploading(true);
+    try {
+      const res = await fetch('/api/user/branding', { method: 'DELETE' });
+      if (!res.ok) throw new Error('delete failed');
+      setLogoUrl(null);
+      setProfileSaved(false);
+    } catch {
+      alert('회사 로고를 삭제하지 못했습니다.');
+    } finally {
+      setLogoUploading(false);
+    }
+  };
 
   const handleToggle = async (value: boolean) => {
     setMarketing(value);
@@ -56,6 +116,36 @@ export default function SettingsPage() {
       updateUser({ agreements: data.agreements });
     } else {
       setMarketing(!value);
+    }
+  };
+
+  const handleProfileSave = async () => {
+    setProfileSaving(true);
+    setProfileSaved(false);
+    try {
+      const [brandingRes, profileRes] = await Promise.all([
+        fetch('/api/user/branding', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            primary_color: brandColor,
+            company_name: affiliation.trim() || null,
+            footer_text: footerText,
+          }),
+        }),
+        fetch('/api/user/profile', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: displayName.trim() }),
+        }),
+      ]);
+      if (!brandingRes.ok || !profileRes.ok) throw new Error('save failed');
+      updateUser({ name: displayName.trim() });
+      setProfileSaved(true);
+    } catch {
+      alert('소속과 성함을 저장하지 못했습니다.');
+    } finally {
+      setProfileSaving(false);
     }
   };
 
@@ -119,6 +209,84 @@ export default function SettingsPage() {
             value={currentMarketing}
             onChange={handleToggle}
           />
+        </Section>
+
+        <Section title="내보내기 표기">
+          <div style={{ padding: '16px 20px' }}>
+            <div style={{ display: 'grid', gap: '12px' }}>
+              <div style={{ display: 'grid', gap: '8px' }}>
+                <span style={{ fontSize: '12.5px', fontWeight: 500, color: '#374151' }}>회사 로고</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: '120px', height: '48px', border: '1px solid #E5E7EB', borderRadius: '8px', background: '#F9FAFB', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                    {logoUrl ? (
+                      <img src={logoUrl} alt="회사 로고" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                    ) : (
+                      <span style={{ fontSize: '12px', color: '#9CA3AF' }}>로고 없음</span>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <label style={{ height: '34px', padding: '0 12px', borderRadius: '8px', border: '1px solid #D1D5DB', background: 'white', color: '#374151', fontSize: '12.5px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', cursor: logoUploading ? 'not-allowed' : 'pointer', opacity: logoUploading ? 0.55 : 1 }}>
+                      {logoUploading ? '처리 중…' : '로고 업로드'}
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg"
+                        disabled={logoUploading}
+                        onChange={e => {
+                          const file = e.target.files?.[0] ?? null;
+                          void handleLogoUpload(file);
+                          e.currentTarget.value = '';
+                        }}
+                        style={{ display: 'none' }}
+                      />
+                    </label>
+                    {logoUrl && (
+                      <button
+                        type="button"
+                        onClick={handleLogoDelete}
+                        disabled={logoUploading}
+                        style={{ height: '34px', padding: '0 12px', borderRadius: '8px', border: '1px solid #FCA5A5', background: 'white', color: '#B91C1C', fontSize: '12.5px', fontWeight: 600, cursor: logoUploading ? 'not-allowed' : 'pointer', opacity: logoUploading ? 0.55 : 1 }}
+                      >
+                        삭제
+                      </button>
+                    )}
+                    <span style={{ fontSize: '12px', color: '#9CA3AF' }}>PNG/JPG · PDF/Word/슬라이드 표지에 사용됩니다</span>
+                  </div>
+                </div>
+              </div>
+              <label style={{ display: 'grid', gap: '6px' }}>
+                <span style={{ fontSize: '12.5px', fontWeight: 500, color: '#374151' }}>소속</span>
+                <input
+                  value={affiliation}
+                  onChange={e => { setAffiliation(e.target.value); setProfileSaved(false); }}
+                  placeholder="예: Parro"
+                  maxLength={50}
+                  style={{ height: '38px', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '0 11px', fontSize: '13px', outline: 'none' }}
+                />
+              </label>
+              <label style={{ display: 'grid', gap: '6px' }}>
+                <span style={{ fontSize: '12.5px', fontWeight: 500, color: '#374151' }}>성함</span>
+                <input
+                  value={displayName}
+                  onChange={e => { setDisplayName(e.target.value); setProfileSaved(false); }}
+                  placeholder="표지 담당자명"
+                  maxLength={50}
+                  style={{ height: '38px', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '0 11px', fontSize: '13px', outline: 'none' }}
+                />
+              </label>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '14px' }}>
+              <button
+                onClick={handleProfileSave}
+                disabled={profileSaving || !displayName.trim()}
+                style={{ height: '34px', padding: '0 14px', borderRadius: '8px', border: 'none', background: '#3730a3', color: 'white', fontSize: '12.5px', fontWeight: 600, cursor: profileSaving || !displayName.trim() ? 'not-allowed' : 'pointer', opacity: profileSaving || !displayName.trim() ? 0.55 : 1 }}
+              >
+                {profileSaving ? '저장 중…' : '저장'}
+              </button>
+              <span style={{ fontSize: '12px', color: profileSaved ? '#059669' : '#9CA3AF' }}>
+                {profileSaved ? '저장되었습니다' : '문서/슬라이드 표지의 회사명·담당자에 사용됩니다'}
+              </span>
+            </div>
+          </div>
         </Section>
 
         <Section title="Chrome 확장 프로그램">
