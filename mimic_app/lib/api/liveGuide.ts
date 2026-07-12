@@ -86,8 +86,8 @@ export async function startLiveGuide(shareToken: string): Promise<LiveGuideResul
   });
 }
 
-export function pickLiveGuideTarget(): Promise<LiveGuideTargetPickResult> {
-  const extensionId = process.env.NEXT_PUBLIC_EXTENSION_ID?.replace(/^\uFEFF/, '').trim();
+export async function pickLiveGuideTarget(): Promise<LiveGuideTargetPickResult> {
+  const extensionId = await resolvePreferredExtensionId();
   if (!extensionId || !window.chrome?.runtime?.sendMessage) {
     return Promise.resolve({
       ok: false,

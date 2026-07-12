@@ -9,6 +9,8 @@ import { BRAND_COLORS, BRAND_COPY, BRAND_NAME, BRAND_SUPPORT_EMAIL } from '@/lib
 const BRAND_GRADIENT = `linear-gradient(135deg, ${BRAND_COLORS.primary}, ${BRAND_COLORS.guide})`;
 const BRAND_RING = 'rgba(0,155,142,0.25)';
 const BRAND_RING_SOFT = 'rgba(0,155,142,0.15)';
+const DEFAULT_PROFILE_BRAND_COLOR = BRAND_COLORS.primary;
+const HELPER_TEXT_COLOR = '#6B7280';
 
 const NAV_ITEMS = [
   { href: '/home', label: '홈', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> },
@@ -20,7 +22,7 @@ function ToggleRow({ label, description, value, onChange }: { label: string; des
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid #F9FAFB' }}>
       <div>
         <div style={{ fontSize: '13.5px', fontWeight: 500, color: '#111827' }}>{label}</div>
-        {description && <div style={{ fontSize: '12px', color: '#9CA3AF', marginTop: '2px' }}>{description}</div>}
+        {description && <div style={{ fontSize: '12.5px', color: HELPER_TEXT_COLOR, marginTop: '3px', lineHeight: 1.45 }}>{description}</div>}
       </div>
       <button
         onClick={() => onChange(!value)}
@@ -51,7 +53,7 @@ export default function SettingsPage() {
   const [affiliation, setAffiliation] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [brandColor, setBrandColor] = useState('#4F46E5');
+  const [brandColor, setBrandColor] = useState(DEFAULT_PROFILE_BRAND_COLOR);
   const [footerText, setFooterText] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
@@ -69,7 +71,7 @@ export default function SettingsPage() {
         if (!data) return;
         setAffiliation(data.company_name ?? '');
         setLogoUrl(data.logo_url ?? null);
-        setBrandColor(data.primary_color ?? '#4F46E5');
+        setBrandColor(data.primary_color ?? DEFAULT_PROFILE_BRAND_COLOR);
         setFooterText(data.footer_text ?? null);
       })
       .catch(() => {});
@@ -227,7 +229,7 @@ export default function SettingsPage() {
                     {logoUrl ? (
                       <img src={logoUrl} alt="회사 로고" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
                     ) : (
-                      <span style={{ fontSize: '12px', color: '#9CA3AF' }}>로고 없음</span>
+                      <span style={{ fontSize: '12.5px', color: HELPER_TEXT_COLOR }}>로고 없음</span>
                     )}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -255,7 +257,7 @@ export default function SettingsPage() {
                         삭제
                       </button>
                     )}
-                    <span style={{ fontSize: '12px', color: '#9CA3AF' }}>PNG/JPG · PDF/Word/슬라이드 표지에 사용됩니다</span>
+                    <span style={{ fontSize: '12.5px', color: HELPER_TEXT_COLOR, lineHeight: 1.45 }}>PNG/JPG · PDF/Word/슬라이드 표지에 사용됩니다</span>
                   </div>
                 </div>
               </div>
@@ -284,11 +286,11 @@ export default function SettingsPage() {
               <button
                 onClick={handleProfileSave}
                 disabled={profileSaving || !displayName.trim()}
-                style={{ height: '34px', padding: '0 14px', borderRadius: '8px', border: 'none', background: '#3730a3', color: 'white', fontSize: '12.5px', fontWeight: 600, cursor: profileSaving || !displayName.trim() ? 'not-allowed' : 'pointer', opacity: profileSaving || !displayName.trim() ? 0.55 : 1 }}
+                style={{ height: '34px', padding: '0 14px', borderRadius: '8px', border: 'none', background: BRAND_GRADIENT, color: 'white', fontSize: '12.5px', fontWeight: 600, cursor: profileSaving || !displayName.trim() ? 'not-allowed' : 'pointer', opacity: profileSaving || !displayName.trim() ? 0.55 : 1, boxShadow: `0 2px 8px ${BRAND_RING}` }}
               >
                 {profileSaving ? '저장 중…' : '저장'}
               </button>
-              <span style={{ fontSize: '12px', color: profileSaved ? '#059669' : '#9CA3AF' }}>
+              <span style={{ fontSize: '12.5px', color: profileSaved ? BRAND_COLORS.primary : HELPER_TEXT_COLOR, lineHeight: 1.45 }}>
                 {profileSaved ? '저장되었습니다' : '문서/슬라이드 표지의 회사명·담당자에 사용됩니다'}
               </span>
             </div>
@@ -299,7 +301,7 @@ export default function SettingsPage() {
           <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
               <div style={{ fontSize: '13.5px', fontWeight: 500, color: '#111827' }}>{BRAND_COPY.extensionDisplayName}</div>
-              <div style={{ fontSize: '12px', color: '#9CA3AF', marginTop: '2px' }}>재설치하거나 연결이 끊겼을 때 다시 연결합니다 (30일 자동 유지)</div>
+              <div style={{ fontSize: '12.5px', color: HELPER_TEXT_COLOR, marginTop: '3px', lineHeight: 1.45 }}>재설치하거나 연결이 끊겼을 때 다시 연결합니다 (30일 자동 유지)</div>
             </div>
             <Link href="/extension-link" style={{ padding: '7px 14px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 500, background: BRAND_GRADIENT, color: 'white', textDecoration: 'none', boxShadow: `0 2px 8px ${BRAND_RING}` }}>
               연결하기
@@ -316,7 +318,7 @@ export default function SettingsPage() {
           </div>
         </Section>
 
-        <div style={{ fontSize: '12.5px', color: '#9CA3AF', textAlign: 'center', marginTop: '12px' }}>
+        <div style={{ fontSize: '12.5px', color: HELPER_TEXT_COLOR, textAlign: 'center', marginTop: '12px' }}>
           <Link href="/legal/terms" style={{ color: '#6B7280', textDecoration: 'underline', textUnderlineOffset: '2px' }}>이용약관</Link>
           {' · '}
           <Link href="/legal/privacy" style={{ color: '#6B7280', textDecoration: 'underline', textUnderlineOffset: '2px' }}>개인정보 처리방침</Link>

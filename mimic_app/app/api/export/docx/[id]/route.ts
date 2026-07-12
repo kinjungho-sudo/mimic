@@ -8,6 +8,7 @@ import { readFile } from 'fs/promises';
 import path from 'path';
 import type { ExportAnnotation } from '@/lib/export/annotations-shared';
 import { renderStepImage } from '@/lib/export/render-step-image';
+import { BRAND_COLORS } from '@/lib/brand';
 
 type Params = { params: Promise<{ id: string }> };
 type DocxImage = { data: Buffer; type: 'png' | 'jpg'; width: number; height: number };
@@ -42,7 +43,7 @@ function cleanText(value: string | null | undefined): string {
 }
 
 function hexColor(hex: string | null | undefined): string {
-  return /^#[0-9a-f]{6}$/i.test(hex ?? '') ? (hex as string).slice(1).toUpperCase() : '4F46E5';
+  return /^#[0-9a-f]{6}$/i.test(hex ?? '') ? (hex as string).slice(1).toUpperCase() : BRAND_COLORS.primary.slice(1).toUpperCase();
 }
 
 async function fetchLogo(logoUrl: string | null | undefined): Promise<DocxImage | null> {
@@ -127,8 +128,8 @@ export async function GET(request: NextRequest, { params }: Params) {
   })();
 
   const brandColor = hexColor(branding?.primary_color);
-  const companyName = cleanText(branding?.company_name) || 'Parro';
-  const ownerName = cleanText(owner?.name) || '-';
+  const companyName = cleanText(branding?.company_name) || '회사명';
+  const ownerName = cleanText(owner?.name) || '담당자명';
   const generatedAt = new Date().toLocaleDateString('ko-KR', {
     year: 'numeric',
     month: 'long',
@@ -160,10 +161,10 @@ export async function GET(request: NextRequest, { params }: Params) {
       alignment: AlignmentType.LEFT,
       spacing: { after: 180 },
     }),
-    textParagraph(`회사명  ${companyName}`, { size: 21, color: '4B5563', after: 80 }),
-    textParagraph(`작성일  ${generatedAt}`, { size: 21, color: '4B5563', after: 80 }),
-    textParagraph(`담당자  ${ownerName}`, { size: 21, color: '4B5563', after: 260 }),
-    textParagraph('실제 화면 흐름과 하이라이트를 따라 실행할 수 있는 업무 매뉴얼입니다.', { size: 22, color: '374151', after: 420 }),
+    textParagraph(`회사명 ${companyName}`, { size: 21, color: '4B5563', after: 80 }),
+    textParagraph(`작성일 ${generatedAt}`, { size: 21, color: '4B5563', after: 80 }),
+    textParagraph(`담당자 ${ownerName}`, { size: 21, color: '4B5563', after: 260 }),
+    textParagraph('실제 화면 흐름과 하이라이트 주석을 따라 실행할 수 있는 업무 매뉴얼입니다.', { size: 22, color: '374151', after: 420 }),
   );
 
   for (const step of steps) {

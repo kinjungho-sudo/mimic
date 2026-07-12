@@ -5,6 +5,7 @@ import { assertStorageUrl } from '@/lib/validate-storage-url';
 import { drawAnnotationsOnPdf } from '@/lib/export/annotate-pdf';
 import type { ExportAnnotation } from '@/lib/export/annotations-shared';
 import { renderStepImage, type StepImageFrame } from '@/lib/export/render-step-image';
+import { BRAND_COLORS } from '@/lib/brand';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const fontkit = require('@pdf-lib/fontkit');
 
@@ -50,7 +51,7 @@ function plainText(value?: string | null): string {
 }
 
 function hexToRgb(hex: string | null | undefined): { r: number; g: number; b: number } {
-  const normalized = /^#[0-9a-f]{6}$/i.test(hex ?? '') ? (hex as string).slice(1) : '4F46E5';
+  const normalized = /^#[0-9a-f]{6}$/i.test(hex ?? '') ? (hex as string).slice(1) : BRAND_COLORS.primary.slice(1);
   return {
     r: parseInt(normalized.slice(0, 2), 16) / 255,
     g: parseInt(normalized.slice(2, 4), 16) / 255,
@@ -124,8 +125,8 @@ export async function buildManualPdf(tutorial: ManualPdfTutorial, steps: ManualP
     ]
     : null;
 
-  const companyName = plainText(tutorial.companyName) || 'Parro';
-  const ownerName = plainText(tutorial.ownerName) || '-';
+  const companyName = plainText(tutorial.companyName) || '회사명';
+  const ownerName = plainText(tutorial.ownerName) || '담당자명';
   const brand = hexToRgb(tutorial.primaryColor);
   const brandColor = rgb(brand.r, brand.g, brand.b);
   const logoImage = await embedLogo(pdfDoc, tutorial.logoUrl);
@@ -165,9 +166,9 @@ export async function buildManualPdf(tutorial: ManualPdfTutorial, steps: ManualP
 
   const metaY = PH * 0.74 - titleLines.length * 38 - 24;
   [
-    `회사명  ${companyName}`,
-    `작성일  ${generatedAt}`,
-    `담당자  ${ownerName}`,
+    `회사명 ${companyName}`,
+    `작성일 ${generatedAt}`,
+    `담당자 ${ownerName}`,
   ].forEach((line, index) => {
     cover.drawText(line, {
       x: ML,
@@ -178,7 +179,7 @@ export async function buildManualPdf(tutorial: ManualPdfTutorial, steps: ManualP
     });
   });
 
-  cover.drawText('실제 화면 흐름과 하이라이트를 따라 실행할 수 있는 업무 매뉴얼입니다.', {
+  cover.drawText('실제 화면 흐름과 하이라이트 주석을 따라 실행할 수 있는 업무 매뉴얼입니다.', {
     x: ML,
     y: PH * 0.49,
     size: 13,

@@ -13,7 +13,7 @@ export async function requestExtensionLink(): Promise<{ token: string; expiresAt
 export async function sendTokenToExtension(token: string): Promise<boolean> {
   const extensionId = await resolvePreferredExtensionId();
   if (!extensionId) {
-    console.warn('NEXT_PUBLIC_EXTENSION_ID not set');
+    console.warn('Parro Recorder extension ID not available');
     return false;
   }
 

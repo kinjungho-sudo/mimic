@@ -531,3 +531,12 @@
 - 모든 feat 및 기존 worktree의 로컬 `.vercel` 링크를 제거하고 `mimic-parro-deploy`만 `parro-guide`에 연결했다.
 - 신규 작업 및 배포 전 ancestry/Vercel project guard와 운영 규칙을 문서화했다.
 - `main`, Production 배포/DB, Supabase 설정, 기존 backup 브랜치는 변경하지 않았다.
+
+## 2026-07-13 - Parro dev Recorder and brand QA cleanup
+
+- Reviewed the current `dev` worktree after the Parro Recorder dynamic discovery changes and public rebrand migration.
+- Fixed `pickLiveGuideTarget()` so Live Guide target selection uses the same dynamic Parro Recorder ID resolution as recording start and guide launch, instead of falling back to `NEXT_PUBLIC_EXTENSION_ID`.
+- Updated the extension-link helper warning to describe the actual Parro Recorder ID discovery failure rather than an env-only failure.
+- Removed remaining visible old-brand indigo defaults from the settings profile/export surface and increased helper text contrast/size for readability.
+- Aligned DOCX and shared-token PDF export defaults with Parro brand color tokens, shared PDF rendering, neutral cover placeholders, and highlight-annotation wording.
+- Re-ran `git diff --check`, `npm run lint`, `npx tsc --noEmit --pretty false`, and `$env:NODE_OPTIONS='--use-system-ca'; npm run build`; all passed with only the existing unrelated lint warnings.

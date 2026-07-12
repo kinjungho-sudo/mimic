@@ -19,6 +19,8 @@ git diff --check
 
 ## Build/lint results
 
+- `2026-07-13` Parro dev Recorder/브랜드 통합 검토: Live Guide target picker가 `NEXT_PUBLIC_EXTENSION_ID`를 직접 읽던 경로를 `resolvePreferredExtensionId()`로 통일했고, 설정 페이지의 구 MIMIC 인디고 기본 색상과 흐린 설명 텍스트를 Parro 토큰/가독성 기준으로 정리했다. DOCX/PDF export fallback도 Parro 색상과 공통 PDF 렌더링 경로로 맞췄다. `git diff --check`, `npm run lint`, `npx tsc --noEmit --pretty false`, `$env:NODE_OPTIONS='--use-system-ca'; npm run build` passed with only existing warnings.
+
 - `2026-07-13` dev Recorder 연결 게이트 분리: `git diff --check`, `npm run lint`, `npm run build` 통과. 기존 lint 경고만 유지됨.
 - `npm run lint`: passed.
 - `npm run build`: passed.
