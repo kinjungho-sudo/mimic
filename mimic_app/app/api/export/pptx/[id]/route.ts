@@ -3,43 +3,23 @@ import { requireAuth } from '@/lib/auth/auth-guard';
 import { guardTutorialAccess } from '@/lib/auth/workspace-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { assertStorageUrl } from '@/lib/validate-storage-url';
-import { drawAnnotationsOnPptx } from '@/lib/export/annotate-pptx';
-import { getImageDims, type ExportAnnotation } from '@/lib/export/annotations-shared';
-import { isPaidPlan } from '@/lib/plan';
+import type { ExportAnnotation } from '@/lib/export/annotations-shared';
+import { renderStepImage } from '@/lib/export/render-step-image';
+import { readFile } from 'fs/promises';
+import path from 'path';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const PptxGenJS = require('pptxgenjs');
 
 type Params = { params: Promise<{ id: string }> };
-type PptxImage = { dataUri: string; width: number; height: number };
-type SlideLike = {
-  background?: { color: string };
-  addText: (text: string, options: Record<string, unknown>) => void;
-  addShape: (shapeType: string, options: Record<string, unknown>) => void;
-  addImage: (options: Record<string, unknown>) => void;
-};
-type PptxLike = {
-  ShapeType: Record<string, string>;
-  layout: string;
-  author: string;
-  subject: string;
-  title: string;
-  addSlide: () => SlideLike;
-  write: (options: { outputType: 'nodebuffer' }) => Promise<Buffer>;
-};
 
-const W = 13.33;
-const NAVY = '151B2B';
-const BRAND_TEAL = '19B7B0';
-const WHITE = 'FFFFFF';
-
-function clickToPct(v: number | null | undefined): number | null {
-  if (v == null) return null;
-  if (v <= 1) return v * 100;
-  if (v > 100) return v / 100;
-  return v;
+function isLightColor(hex: string): boolean {
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  return 0.299 * r + 0.587 * g + 0.114 * b > 160;
 }
 
-function cleanText(value: string | null | undefined): string {
+function plainText(value?: string | null): string {
   return (value ?? '')
     .replace(/<br\s*\/?>/gi, ' ')
     .replace(/<[^>]+>/g, ' ')
@@ -47,142 +27,16 @@ function cleanText(value: string | null | undefined): string {
     .trim();
 }
 
-async function fetchPptxImage(url: string | null | undefined): Promise<PptxImage | null> {
-  if (!url) return null;
-  try {
-    const res = await fetch(assertStorageUrl(url), { redirect: 'manual' });
-    if (!res.ok) return null;
-    const contentType = res.headers.get('content-type') ?? '';
-    const ext = contentType.includes('png') || url.toLowerCase().includes('.png') ? 'png' : 'jpeg';
-    const buf = Buffer.from(await res.arrayBuffer());
-    const dim = getImageDims(buf);
-    return {
-      dataUri: `data:image/${ext};base64,${buf.toString('base64')}`,
-      width: dim?.w ?? 16,
-      height: dim?.h ?? 9,
-    };
-  } catch {
-    return null;
-  }
-}
-
-function containRect(source: { width: number; height: number }, target: { x: number; y: number; w: number; h: number }) {
-  const scale = Math.min(target.w / source.width, target.h / source.height);
-  const w = source.width * scale;
-  const h = source.height * scale;
-  return {
-    x: target.x + (target.w - w) / 2,
-    y: target.y + (target.h - h) / 2,
-    w,
-    h,
-  };
-}
-
-function addParroWatermark(slide: SlideLike) {
-  slide.addText('Parro', {
-    x: W - 1.25,
-    y: 0.22,
-    w: 0.9,
-    h: 0.22,
-    fontSize: 13,
-    bold: true,
-    color: BRAND_TEAL,
-    align: 'right',
-    margin: 0,
-  });
-}
-
-function addCoverSlide(pptx: PptxLike, options: {
-  title: string;
-  companyName: string;
-  ownerName: string;
-  generatedAt: string;
-  customerLogo: PptxImage | null;
-  showParro: boolean;
-}) {
-  const slide = pptx.addSlide();
-  slide.background = { color: WHITE };
-  slide.addShape(pptx.ShapeType.rect, {
-    x: 0,
-    y: 0,
-    w: W,
-    h: 4,
-    fill: { color: NAVY },
-    line: { color: NAVY, transparency: 100 },
-  });
-
-  if (options.showParro) addParroWatermark(slide);
-
-  slide.addText(options.title, {
-    x: 2.25,
-    y: 1.75,
-    w: 8.85,
-    h: 0.68,
-    fontSize: 36,
-    bold: true,
-    color: WHITE,
-    align: 'center',
-    margin: 0,
-    fit: 'shrink',
-  });
-  slide.addText('(화면 캡처 · 하이라이트 주석 · 실행 설명)', {
-    x: 2.2,
-    y: 2.7,
-    w: 8.95,
-    h: 0.36,
-    fontSize: 21,
-    bold: true,
-    color: WHITE,
-    align: 'center',
-    margin: 0,
-  });
-  slide.addText(`[${options.companyName}]`, {
-    x: 5.45,
-    y: 4.3,
-    w: 2.5,
-    h: 0.28,
-    fontSize: 16,
-    color: '374151',
-    align: 'center',
-    margin: 0,
-  });
-  slide.addText(options.generatedAt, {
-    x: 5.45,
-    y: 4.85,
-    w: 2.5,
-    h: 0.28,
-    fontSize: 15,
-    color: '374151',
-    align: 'center',
-    margin: 0,
-  });
-  slide.addText(options.ownerName, {
-    x: 10.1,
-    y: 6.15,
-    w: 2.75,
-    h: 0.36,
-    fontSize: 18,
-    color: '374151',
-    align: 'right',
-    margin: 0,
-  });
-
-  if (options.customerLogo) {
-    const r = containRect(options.customerLogo, { x: 0.3, y: 6.78, w: 1.35, h: 0.42 });
-    slide.addImage({ data: options.customerLogo.dataUri, ...r });
-  } else {
-    slide.addText(options.companyName, {
-      x: 0.3,
-      y: 6.82,
-      w: 1.7,
-      h: 0.28,
-      fontSize: 14,
-      bold: true,
-      color: '374151',
-      margin: 0,
-      fit: 'shrink',
-    });
-  }
+function fitContain(
+  naturalWidth: number,
+  naturalHeight: number,
+  boxWidth: number,
+  boxHeight: number,
+): { w: number; h: number } {
+  const safeW = Math.max(1, naturalWidth);
+  const safeH = Math.max(1, naturalHeight);
+  const scale = Math.min(boxWidth / safeW, boxHeight / safeH);
+  return { w: safeW * scale, h: safeH * scale };
 }
 
 export async function GET(request: NextRequest, { params }: Params) {
@@ -205,211 +59,228 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   const { data: steps } = await supabase
     .from('mm_steps')
-    .select('id, step_number, screenshot_url, user_title, ai_title, user_script, ai_description, user_annotations, click_x, click_y')
+    .select('step_number, screenshot_url, user_title, ai_title, user_script, ai_description, user_annotations, image_zoom, image_offset_x, image_offset_y')
     .eq('tutorial_id', id)
-    .order('order_index')
     .order('step_number');
 
   if (!steps?.length) return NextResponse.json({ error: 'No steps' }, { status: 422 });
 
-  const [{ data: markers }, { data: branding }, { data: owner }] = await Promise.all([
-    supabase
-      .from('mm_markers')
-      .select('step_id, position_x, position_y, marker_number')
-      .in('step_id', steps.map(step => step.id)),
-    supabase
-      .from('mm_branding')
-      .select('logo_url, company_name')
-      .eq('user_id', tutorial.user_id)
-      .maybeSingle(),
-    supabase
-      .from('mm_users')
-      .select('name, plan')
-      .eq('id', tutorial.user_id)
-      .maybeSingle(),
-  ]);
+  const { data: branding } = await supabase
+    .from('mm_branding')
+    .select('logo_url, primary_color, company_name, footer_text')
+    .eq('user_id', auth.userId)
+    .maybeSingle();
 
-  const companyName = cleanText(branding?.company_name) || '회사명';
-  const ownerName = cleanText(owner?.name) || '담당자명';
-  const showParroWatermark = !isPaidPlan(owner?.plan);
-  const customerLogo = await fetchPptxImage(branding?.logo_url);
-  const generatedAt = new Date().toLocaleDateString('ko-KR', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    timeZone: 'Asia/Seoul',
-  }).replace(/\. /g, '. ').replace(/\.$/, '');
+  const brandColor = (branding?.primary_color ?? '#4F46E5').replace('#', '').toUpperCase();
+  const coverTextColor = isLightColor(brandColor) ? '111827' : 'FFFFFF';
 
-  const markersByStepId = new Map<string, NonNullable<typeof markers>>();
-  for (const marker of markers ?? []) {
-    const existing = markersByStepId.get(marker.step_id) ?? [];
-    existing.push(marker);
-    markersByStepId.set(marker.step_id, existing);
+  let logoData: string | null = null;
+  if (branding?.logo_url) {
+    try {
+      const res = await fetch(assertStorageUrl(branding.logo_url), { redirect: 'manual' });
+      if (res.ok) {
+        const buf = Buffer.from(await res.arrayBuffer());
+        const ct = res.headers.get('content-type') ?? '';
+        logoData = `data:image/${ct.includes('png') ? 'png' : 'jpeg'};base64,${buf.toString('base64')}`;
+      }
+    } catch {
+      logoData = null;
+    }
   }
 
-  const pptx = new PptxGenJS() as PptxLike;
+  const fontFiles = await (async (): Promise<string[] | null> => {
+    try {
+      const dir = path.join(process.cwd(), 'public', 'fonts');
+      const files = [path.join(dir, 'NotoSansKR-Regular.ttf'), path.join(dir, 'NotoSansKR-Bold.ttf')];
+      await Promise.all(files.map((file) => readFile(file)));
+      return files;
+    } catch {
+      return null;
+    }
+  })();
+
+  const pptx = new PptxGenJS();
   pptx.layout = 'LAYOUT_WIDE';
-  pptx.author = 'Parro';
+  pptx.author = 'MIMIC';
   pptx.subject = tutorial.title;
   pptx.title = tutorial.title;
+  pptx.company = branding?.company_name ?? 'MIMIC';
+  pptx.theme = {
+    headFontFace: 'Malgun Gothic',
+    bodyFontFace: 'Malgun Gothic',
+    lang: 'ko-KR',
+  };
 
-  addCoverSlide(pptx, {
-    title: tutorial.title,
-    companyName,
-    ownerName,
-    generatedAt,
-    customerLogo,
-    showParro: showParroWatermark,
+  const cover = pptx.addSlide();
+  cover.background = { color: brandColor };
+  if (logoData) {
+    cover.addImage({
+      data: logoData,
+      x: 0.5,
+      y: 0.45,
+      w: 2.2,
+      h: 0.75,
+      sizing: { type: 'contain', w: 2.2, h: 0.75 },
+    });
+  }
+  cover.addText(tutorial.title, {
+    x: 0.5,
+    y: 2.25,
+    w: '90%',
+    h: 1.1,
+    fontSize: 36,
+    fontFace: 'Malgun Gothic',
+    bold: true,
+    color: coverTextColor,
+    align: 'center',
+    valign: 'middle',
+    wrap: true,
+    fit: 'shrink',
   });
+  cover.addText(`총 ${steps.length}단계`, {
+    x: 0.5,
+    y: 3.55,
+    w: '90%',
+    h: 0.45,
+    fontSize: 18,
+    fontFace: 'Malgun Gothic',
+    color: coverTextColor,
+    transparency: 20,
+    align: 'center',
+  });
+  if (branding?.company_name) {
+    cover.addText(branding.company_name, {
+      x: 0.5,
+      y: 6.85,
+      w: '90%',
+      h: 0.4,
+      fontSize: 13,
+      fontFace: 'Malgun Gothic',
+      color: coverTextColor,
+      transparency: 25,
+      align: 'center',
+    });
+  }
 
-  const FRAME_W = 10.6;
-  const FRAME_H = 6.05;
-  const FRAME_X = (W - FRAME_W) / 2;
-  const FRAME_Y = 0.66;
+  const W = 13.33;
+  const H = 7.5;
+  const PAD = 0.28;
+  const CAPTION_H = 0.82;
 
-  for (let idx = 0; idx < steps.length; idx += 1) {
-    const step = steps[idx];
+  for (const step of steps) {
     const slide = pptx.addSlide();
-    slide.background = { color: NAVY };
-    if (showParroWatermark) addParroWatermark(slide);
+    slide.background = { color: '111827' };
 
-    const stepTitle = cleanText(step.user_title ?? step.ai_title) || `단계 ${step.step_number}`;
-    slide.addText(`${idx + 1}. ${stepTitle}`, {
-      x: 0.25,
-      y: 0.17,
-      w: 7.6,
-      h: 0.36,
-      fontSize: 18,
-      bold: true,
-      color: WHITE,
-      margin: 0,
-      fit: 'shrink',
-    });
+    const stepTitle = plainText(step.user_title ?? step.ai_title) || `Step ${step.step_number}`;
+    const desc = plainText(step.user_script ?? step.ai_description);
+    const imgBoxX = 0;
+    const imgBoxY = 0;
+    const imgBoxW = W;
+    const imgBoxH = H;
 
-    slide.addShape(pptx.ShapeType.roundRect, {
-      x: FRAME_X,
-      y: FRAME_Y,
-      w: FRAME_W,
-      h: FRAME_H,
-      rectRadius: 0.18,
-      fill: { color: '0E1118' },
-      line: { color: NAVY, transparency: 100 },
-    });
-
-    let drawRect = { x: FRAME_X, y: FRAME_Y, w: FRAME_W, h: FRAME_H };
-    try {
-      const screenshot = await fetchPptxImage(step.screenshot_url);
-      if (screenshot) {
-        drawRect = containRect(screenshot, { x: FRAME_X, y: FRAME_Y, w: FRAME_W, h: FRAME_H });
-        slide.addImage({ data: screenshot.dataUri, ...drawRect });
-        drawAnnotationsOnPptx(
-          pptx,
-          slide,
-          (step as { user_annotations?: unknown }).user_annotations as ExportAnnotation[] | null | undefined,
-          drawRect,
-        );
-      } else {
-        slide.addText('스크린샷 없음', {
-          x: FRAME_X,
-          y: FRAME_Y,
-          w: FRAME_W,
-          h: FRAME_H,
+    if (step.screenshot_url) {
+      try {
+        const res = await fetch(assertStorageUrl(step.screenshot_url), { redirect: 'manual' });
+        if (res.ok) {
+          const imgBuf = Buffer.from(await res.arrayBuffer());
+          const contentType = res.headers.get('content-type') ?? '';
+          const annotations = (step as { user_annotations?: unknown }).user_annotations as ExportAnnotation[] | null | undefined;
+          const rendered = renderStepImage({
+            imageBytes: imgBuf,
+            contentType,
+            annotations,
+            frame: step,
+            fontFiles,
+          });
+          const fitted = fitContain(rendered.width, rendered.height, imgBoxW, imgBoxH);
+          slide.addImage({
+            data: `data:image/${rendered.type};base64,${rendered.data.toString('base64')}`,
+            x: imgBoxX + (imgBoxW - fitted.w) / 2,
+            y: imgBoxY + (imgBoxH - fitted.h) / 2,
+            w: fitted.w,
+            h: fitted.h,
+          });
+        }
+      } catch {
+        slide.addText('이미지를 불러올 수 없습니다.', {
+          x: imgBoxX,
+          y: imgBoxY,
+          w: imgBoxW,
+          h: imgBoxH,
           fontSize: 14,
+          fontFace: 'Malgun Gothic',
           color: '9CA3AF',
           align: 'center',
           valign: 'middle',
         });
       }
-    } catch {
-      slide.addText('스크린샷 없음', {
-        x: FRAME_X,
-        y: FRAME_Y,
-        w: FRAME_W,
-        h: FRAME_H,
-        fontSize: 14,
-        color: '9CA3AF',
-        align: 'center',
-        valign: 'middle',
-      });
     }
 
-    const clickXPct = clickToPct(step.click_x);
-    const clickYPct = clickToPct(step.click_y);
-    if (clickXPct != null && clickYPct != null && idx < steps.length - 1) {
-      const cx = drawRect.x + (clickXPct / 100) * drawRect.w;
-      const cy = drawRect.y + (clickYPct / 100) * drawRect.h;
-      slide.addShape(pptx.ShapeType.ellipse, {
-        x: cx - 0.32,
-        y: cy - 0.32,
-        w: 0.64,
-        h: 0.64,
-        line: { color: WHITE, transparency: 25, width: 1.2 },
-        fill: { color: WHITE, transparency: 100 },
-      });
-      slide.addShape(pptx.ShapeType.ellipse, {
-        x: cx - 0.18,
-        y: cy - 0.18,
-        w: 0.36,
-        h: 0.36,
-        line: { color: 'A5B4FC', transparency: 20, width: 1 },
-        fill: { color: WHITE, transparency: 100 },
-      });
-      slide.addShape(pptx.ShapeType.ellipse, {
-        x: cx - 0.05,
-        y: cy - 0.05,
-        w: 0.1,
-        h: 0.1,
-        fill: { color: WHITE },
-        line: { color: WHITE, transparency: 100 },
-      });
-    }
-
-    const stepMarkers = (markersByStepId.get(step.id) ?? [])
-      .sort((a, b) => (a.marker_number ?? 0) - (b.marker_number ?? 0));
-    stepMarkers.forEach((marker, markerIdx) => {
-      const cx = drawRect.x + ((marker.position_x ?? 0) * drawRect.w);
-      const cy = drawRect.y + ((marker.position_y ?? 0) * drawRect.h);
-      const color = markerIdx === stepMarkers.length - 1 ? BRAND_TEAL : 'DC2626';
-      slide.addShape(pptx.ShapeType.ellipse, {
-        x: cx - 0.15,
-        y: cy - 0.15,
-        w: 0.3,
-        h: 0.3,
-        fill: { color },
-        line: { color, transparency: 100 },
-      });
-      slide.addText(String(marker.marker_number ?? markerIdx + 1), {
-        x: cx - 0.15,
-        y: cy - 0.15,
-        w: 0.3,
-        h: 0.3,
-        fontSize: 8,
-        bold: true,
-        color: WHITE,
-        align: 'center',
-        valign: 'middle',
-        margin: 0,
-      });
+    slide.addShape(pptx.ShapeType.roundRect, {
+      x: PAD,
+      y: 0.16,
+      w: 2.35,
+      h: 0.34,
+      fill: { color: '111827', transparency: 8 },
+      line: { color: '111827', transparency: 100 },
+    });
+    slide.addText(`${String(step.step_number).padStart(2, '0')} / ${steps.length}`, {
+      x: PAD + 0.14,
+      y: 0.22,
+      w: 0.58,
+      h: 0.16,
+      fontSize: 8,
+      fontFace: 'Malgun Gothic',
+      bold: true,
+      color: brandColor,
+      valign: 'middle',
+      fit: 'shrink',
+      margin: 0,
+    });
+    slide.addText(stepTitle, {
+      x: PAD + 0.74,
+      y: 0.19,
+      w: 1.7,
+      h: 0.22,
+      fontSize: 8.5,
+      fontFace: 'Malgun Gothic',
+      bold: true,
+      color: 'FFFFFF',
+      valign: 'middle',
+      fit: 'shrink',
+      margin: 0,
     });
 
-    const desc = cleanText(step.user_script ?? step.ai_description);
     if (desc) {
+      const captionY = H - PAD - CAPTION_H;
+      slide.addShape(pptx.ShapeType.roundRect, {
+        x: PAD,
+        y: captionY,
+        w: W - PAD * 2,
+        h: CAPTION_H,
+        fill: { color: '111827', transparency: 0 },
+        line: { color: brandColor, transparency: 35, width: 1 },
+      });
       slide.addText(desc, {
-        x: 2.6,
-        y: 7.05,
-        w: 8.1,
-        h: 0.28,
-        fontSize: 14,
-        color: WHITE,
+        x: PAD + 0.34,
+        y: captionY + 0.12,
+        w: W - PAD * 2 - 0.68,
+        h: CAPTION_H - 0.18,
+        fontSize: 13,
+        fontFace: 'Malgun Gothic',
+        color: 'FFFFFF',
         align: 'center',
-        margin: 0,
+        valign: 'middle',
+        wrap: true,
+        lineSpacingMultiple: 1.2,
         fit: 'shrink',
+        margin: 0,
       });
     }
   }
 
   const pptxBuffer: Buffer = await pptx.write({ outputType: 'nodebuffer' });
-  const safeTitle = tutorial.title.replace(/[/\\?%*:|"<>]/g, '-').trim() || 'manual';
+  const safeTitle = tutorial.title.replace(/[/\\?%*:|"<>]/g, '-').trim() || '매뉴얼';
   const dateStr = new Date().toLocaleDateString('ko-KR', {
     year: '2-digit',
     month: '2-digit',

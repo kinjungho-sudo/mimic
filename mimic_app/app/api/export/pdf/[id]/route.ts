@@ -32,33 +32,14 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   if (!steps?.length) return NextResponse.json({ error: 'No steps' }, { status: 422 });
 
-  const [{ data: branding }, { data: owner }] = await Promise.all([
-    supabase
-      .from('mm_branding')
-      .select('logo_url, primary_color, company_name')
-      .eq('user_id', tutorial.user_id)
-      .maybeSingle(),
-    supabase
-      .from('mm_users')
-      .select('name')
-      .eq('id', tutorial.user_id)
-      .maybeSingle(),
-  ]);
-
-  const pdfBytes = await buildManualPdf({
-    title: tutorial.title,
-    companyName: branding?.company_name ?? null,
-    ownerName: owner?.name ?? null,
-    logoUrl: branding?.logo_url ?? null,
-    primaryColor: branding?.primary_color ?? null,
-  }, steps as ManualPdfStep[]);
+  const pdfBytes = await buildManualPdf(tutorial, steps as ManualPdfStep[]);
   const dateStr = new Date().toLocaleDateString('ko-KR', {
     year: '2-digit',
     month: '2-digit',
     day: '2-digit',
     timeZone: 'Asia/Seoul',
   }).replace(/\. /g, '_').replace(/\.$/, '');
-  const safeTitle = tutorial.title.replace(/[/\\?%*:|"<>]/g, '-').trim() || 'manual';
+  const safeTitle = tutorial.title.replace(/[/\\?%*:|"<>]/g, '-').trim() || '매뉴얼';
   const filenameRaw = `${dateStr}_${safeTitle}.pdf`;
   const filenameAscii = filenameRaw.replace(/[^\x00-\x7F]/g, '_').replace(/_+/g, '_');
   const filenameEncoded = encodeURIComponent(filenameRaw);

@@ -3,37 +3,15 @@ import { requireAuth } from '@/lib/auth/auth-guard';
 import { guardTutorialAccess } from '@/lib/auth/workspace-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { assertStorageUrl } from '@/lib/validate-storage-url';
-import { AlignmentType, Document, HeadingLevel, ImageRun, Packer, Paragraph, TextRun } from 'docx';
+import { AlignmentType, Document, ImageRun, Packer, Paragraph, TextRun } from 'docx';
 import { readFile } from 'fs/promises';
 import path from 'path';
 import type { ExportAnnotation } from '@/lib/export/annotations-shared';
 import { renderStepImage } from '@/lib/export/render-step-image';
 
 type Params = { params: Promise<{ id: string }> };
-type DocxImage = { data: Buffer; type: 'png' | 'jpg'; width: number; height: number };
 
-function imageSize(buf: Buffer): { w: number; h: number } | null {
-  if (buf.length > 24 && buf[0] === 0x89 && buf[1] === 0x50) {
-    return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
-  }
-  if (buf.length > 4 && buf[0] === 0xff && buf[1] === 0xd8) {
-    let off = 2;
-    while (off + 9 < buf.length) {
-      if (buf[off] !== 0xff) {
-        off++;
-        continue;
-      }
-      const marker = buf[off + 1];
-      if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
-        return { h: buf.readUInt16BE(off + 5), w: buf.readUInt16BE(off + 7) };
-      }
-      off += 2 + buf.readUInt16BE(off + 2);
-    }
-  }
-  return null;
-}
-
-function cleanText(value: string | null | undefined): string {
+function plainText(value?: string | null): string {
   return (value ?? '')
     .replace(/<br\s*\/?>/gi, ' ')
     .replace(/<[^>]+>/g, ' ')
@@ -41,39 +19,19 @@ function cleanText(value: string | null | undefined): string {
     .trim();
 }
 
-function hexColor(hex: string | null | undefined): string {
-  return /^#[0-9a-f]{6}$/i.test(hex ?? '') ? (hex as string).slice(1).toUpperCase() : '4F46E5';
-}
-
-async function fetchLogo(logoUrl: string | null | undefined): Promise<DocxImage | null> {
-  if (!logoUrl) return null;
-  try {
-    const res = await fetch(assertStorageUrl(logoUrl), { redirect: 'manual' });
-    if (!res.ok) return null;
-    const contentType = res.headers.get('content-type') ?? '';
-    const data = Buffer.from(await res.arrayBuffer());
-    const type: 'png' | 'jpg' = contentType.includes('png') || logoUrl.toLowerCase().includes('.png') ? 'png' : 'jpg';
-    const dim = imageSize(data);
-    const width = 120;
-    const height = dim && dim.w > 0 ? Math.min(46, Math.round(width * (dim.h / dim.w))) : 36;
-    return { data, type, width, height };
-  } catch {
-    return null;
-  }
-}
-
-function textParagraph(text: string, options: { size?: number; color?: string; bold?: boolean; after?: number; before?: number } = {}) {
-  return new Paragraph({
-    children: [new TextRun({
-      text,
-      size: options.size ?? 22,
-      color: options.color ?? '374151',
-      bold: options.bold,
-      font: 'Malgun Gothic',
-    })],
-    alignment: AlignmentType.LEFT,
-    spacing: { before: options.before ?? 0, after: options.after ?? 120 },
-  });
+function fitContain(
+  naturalWidth: number,
+  naturalHeight: number,
+  maxWidth: number,
+  maxHeight: number,
+): { w: number; h: number } {
+  const safeW = Math.max(1, naturalWidth);
+  const safeH = Math.max(1, naturalHeight);
+  const scale = Math.min(maxWidth / safeW, maxHeight / safeH);
+  return {
+    w: Math.round(safeW * scale),
+    h: Math.round(safeH * scale),
+  };
 }
 
 export async function GET(request: NextRequest, { params }: Params) {
@@ -102,133 +60,126 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   if (!steps?.length) return NextResponse.json({ error: 'No steps' }, { status: 422 });
 
-  const [{ data: branding }, { data: owner }] = await Promise.all([
-    supabase
-      .from('mm_branding')
-      .select('logo_url, primary_color, company_name, footer_text')
-      .eq('user_id', tutorial.user_id)
-      .maybeSingle(),
-    supabase
-      .from('mm_users')
-      .select('name')
-      .eq('id', tutorial.user_id)
-      .maybeSingle(),
-  ]);
-
   const fontFiles = await (async (): Promise<string[] | null> => {
     try {
       const dir = path.join(process.cwd(), 'public', 'fonts');
       const files = [path.join(dir, 'NotoSansKR-Regular.ttf'), path.join(dir, 'NotoSansKR-Bold.ttf')];
-      await Promise.all(files.map(file => readFile(file)));
+      await Promise.all(files.map((file) => readFile(file)));
       return files;
     } catch {
       return null;
     }
   })();
 
-  const brandColor = hexColor(branding?.primary_color);
-  const companyName = cleanText(branding?.company_name) || 'Parro';
-  const ownerName = cleanText(owner?.name) || '-';
+  const { data: branding } = await supabase
+    .from('mm_branding')
+    .select('company_name, footer_text')
+    .eq('user_id', auth.userId)
+    .maybeSingle();
+
+  const MAX_IMAGE_W = 640;
+  const MAX_IMAGE_H = 440;
   const generatedAt = new Date().toLocaleDateString('ko-KR', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
     timeZone: 'Asia/Seoul',
   });
-  const logo = await fetchLogo(branding?.logo_url);
-  const MAX_W = 560;
 
-  const children: Paragraph[] = [];
-
-  if (logo) {
-    children.push(new Paragraph({
-      children: [new ImageRun({
-        data: logo.data,
-        type: logo.type,
-        transformation: { width: logo.width, height: logo.height },
-      })],
-      alignment: AlignmentType.LEFT,
-      spacing: { before: 320, after: 160 },
-    }));
-  }
-
-  children.push(
-    textParagraph(companyName, { size: 24, color: brandColor, bold: true, before: logo ? 0 : 320, after: 260 }),
+  const children: Paragraph[] = [
     new Paragraph({
-      text: tutorial.title,
-      heading: HeadingLevel.TITLE,
-      alignment: AlignmentType.LEFT,
-      spacing: { after: 180 },
+      children: [new TextRun({ text: branding?.company_name ?? 'MIMIC Manual', bold: true, color: '4F46E5', size: 24, font: 'Malgun Gothic' })],
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 320, after: 220 },
     }),
-    textParagraph(`회사명  ${companyName}`, { size: 21, color: '4B5563', after: 80 }),
-    textParagraph(`작성일  ${generatedAt}`, { size: 21, color: '4B5563', after: 80 }),
-    textParagraph(`담당자  ${ownerName}`, { size: 21, color: '4B5563', after: 260 }),
-    textParagraph('실제 화면 흐름과 하이라이트를 따라 실행할 수 있는 업무 매뉴얼입니다.', { size: 22, color: '374151', after: 420 }),
-  );
+    new Paragraph({
+      children: [new TextRun({ text: tutorial.title, bold: true, color: '111827', size: 34, font: 'Malgun Gothic' })],
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 140 },
+    }),
+    new Paragraph({
+      children: [new TextRun({ text: `총 ${steps.length}단계 · ${generatedAt}`, color: '6B7280', size: 20, font: 'Malgun Gothic' })],
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 420 },
+    }),
+  ];
 
   for (const step of steps) {
-    const stepTitle = cleanText(step.user_title ?? step.ai_title) || `단계 ${step.step_number}`;
+    const stepTitle = plainText(step.user_title ?? step.ai_title) || `Step ${step.step_number}`;
+    const desc = plainText(step.user_script ?? step.ai_description);
+
     children.push(new Paragraph({
       children: [
-        new TextRun({ text: String(step.step_number).padStart(2, '0'), bold: true, color: brandColor, size: 22, font: 'Malgun Gothic' }),
-        new TextRun({ text: `  ${stepTitle}`, bold: true, color: '111827', size: 26, font: 'Malgun Gothic' }),
+        new TextRun({ text: String(step.step_number).padStart(2, '0'), bold: true, color: 'F59E0B', size: 20, font: 'Malgun Gothic' }),
+        new TextRun({ text: `  ${stepTitle}`, bold: true, color: '111827', size: 28, font: 'Malgun Gothic' }),
       ],
-      alignment: AlignmentType.LEFT,
-      spacing: { before: 260, after: 100 },
+      spacing: { before: 260, after: desc ? 80 : 140 },
     }));
+
+    if (desc) {
+      children.push(new Paragraph({
+        children: [new TextRun({ text: desc, size: 22, color: '4B5563', font: 'Malgun Gothic' })],
+        spacing: { after: 140, line: 360 },
+      }));
+    }
 
     try {
       if (step.screenshot_url) {
         const res = await fetch(assertStorageUrl(step.screenshot_url), { redirect: 'manual' });
         if (res.ok) {
           const buf = Buffer.from(await res.arrayBuffer());
-          const contentType = res.headers.get('content-type') ?? '';
-          const annos = (step.user_annotations as ExportAnnotation[] | null) ?? null;
+          const ct = res.headers.get('content-type') ?? '';
+          const annotations = (step as { user_annotations?: unknown }).user_annotations as ExportAnnotation[] | null | undefined;
           const rendered = renderStepImage({
             imageBytes: buf,
-            contentType,
-            annotations: annos,
+            contentType: ct,
+            annotations,
             frame: step,
             fontFiles,
           });
-          const ratio = rendered.width > 0 ? rendered.height / rendered.width : 9 / 16;
-          const h = Math.round(MAX_W * ratio);
+          const fitted = fitContain(rendered.width, rendered.height, MAX_IMAGE_W, MAX_IMAGE_H);
 
           children.push(new Paragraph({
             children: [new ImageRun({
               data: rendered.data,
               type: rendered.type,
-              transformation: { width: MAX_W, height: h },
+              transformation: { width: fitted.w, height: fitted.h },
             })],
-            alignment: AlignmentType.LEFT,
-            spacing: { after: 120 },
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 260 },
           }));
         }
       }
     } catch {
-      // If image loading fails, keep the step text exportable.
-    }
-
-    const desc = cleanText(step.user_script ?? step.ai_description);
-    if (desc) {
-      children.push(textParagraph(desc, { size: 21, color: '374151', after: 180 }));
+      children.push(new Paragraph({
+        children: [new TextRun({ text: '이미지를 불러올 수 없습니다.', size: 20, color: '9CA3AF', font: 'Malgun Gothic' })],
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 260 },
+      }));
     }
   }
 
-  const footerText = cleanText(branding?.footer_text) || companyName;
-  if (footerText) {
-    children.push(textParagraph(footerText, { size: 16, color: '9CA3AF', before: 260, after: 0 }));
+  if (branding?.footer_text || branding?.company_name) {
+    children.push(new Paragraph({
+      children: [new TextRun({ text: branding.footer_text ?? branding.company_name ?? '', color: '9CA3AF', size: 16, font: 'Malgun Gothic' })],
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 240 },
+    }));
   }
 
   const doc = new Document({
     sections: [{
-      properties: { page: { margin: { top: 720, right: 540, bottom: 720, left: 540 } } },
+      properties: {
+        page: {
+          margin: { top: 720, right: 540, bottom: 720, left: 540 },
+        },
+      },
       children,
     }],
   });
   const buffer = await Packer.toBuffer(doc);
 
-  const safeTitle = tutorial.title.replace(/[/\\?%*:|"<>]/g, '-').trim() || 'manual';
+  const safeTitle = tutorial.title.replace(/[/\\?%*:|"<>]/g, '-').trim() || '매뉴얼';
   const dateStr = new Date().toLocaleDateString('ko-KR', {
     year: '2-digit',
     month: '2-digit',
