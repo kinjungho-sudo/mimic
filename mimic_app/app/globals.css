@@ -182,6 +182,10 @@ body {
   .home-recording-divider {
     display: none !important;
   }
+  /* 폴더 슬라이드 패널 — 모바일은 드로어 사용 */
+  .home-folder-panel {
+    display: none !important;
+  }
 }
 
 /* 홈 카드 그리드 */

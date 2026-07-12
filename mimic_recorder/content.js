@@ -24,7 +24,6 @@ if (window !== window.top) return;
   let isPaused         = false;
   let isCapturing      = false;
   let isCapturingStart = 0;
-  let _pendingManualFlash = false;
   let stepNumber       = 0;
 
   let settings = {
@@ -59,6 +58,18 @@ if (window !== window.top) return;
   chrome.storage.local.get(['settings', 'isPaused'], (r) => {
     isPaused = !!r.isPaused;
     if (r.settings) settings = { ...settings, ...r.settings };
+  });
+
+  // 페이지 이동(전체 새로고침) 후 녹화 상태 복원 — 이 탭이 녹화 대상일 때만.
+  // 새 content script는 isRecording이 false로 시작하므로, 복원하지 않으면
+  // 이동한 페이지에서의 클릭/타이핑/호버가 캡처되지 않는다. 카운트다운은 없이 즉시 재개.
+  chrome.runtime.sendMessage({ type: 'GET_TAB_RECORDING_STATE' }, (res) => {
+    void chrome.runtime.lastError;
+    if (res && res.isRecording && !isRecording && !_countingDown) {
+      isRecording = true;
+      isPaused    = !!res.isPaused;
+      stepNumber  = res.stepNumber || 0;
+    }
   });
 
   // ── 유틸 ─────────────────────────────────────────────────────────
@@ -203,47 +214,48 @@ if (window !== window.top) return;
   }
 
   // ── 타이핑 flush ─────────────────────────────────────────────────
-  function flushTyping(el) {
+  // 한 입력 필드 = 한 스텝. 첫 입력 때 예약한 pendingInputStep을 계속 overwrite 한다.
+  //   finalize=false : 입력 멈춤(디바운스) — 같은 스텝 갱신, 세션 유지
+  //   finalize=true  : 포커스 이동/Enter/녹화 종료 — 세션 종료(다음 입력은 새 스텝)
+  function flushTyping(el, finalize = true) {
     clearTimeout(typingTimer);
-    typingTimer  = null;
-    typingTarget = null;
-    if (!isRecording || isPaused || isCapturing) { pendingInputStep = null; return; }
+    typingTimer = null;
+    const endSession = () => { if (finalize) { pendingInputStep = null; typingTarget = null; } };
+
+    if (!isRecording || isPaused || isCapturing) { endSession(); return; }
 
     const hasValue = el ? (el.isContentEditable ? !!(el.textContent || '').trim() : !!(el.value || '').trim()) : false;
-    if (!hasValue) { pendingInputStep = null; return; }
+    if (!hasValue) { endSession(); return; }
 
-    const label        = getFieldLabel(el);
-    const overwriteStep = pendingInputStep;
-    pendingInputStep   = null;
+    if (pendingInputStep === null) {
+      stepNumber += 1;
+      pendingInputStep = stepNumber;
+      chrome.storage.local.set({ stepNumber });  // 슬롯 예약 → nav 캡처와 번호 충돌 방지
+    }
+    const stepForThis = pendingInputStep;
 
+    const label = getFieldLabel(el);
     const safetyTimer = startCapturingSafely();
     const done = () => { clearTimeout(safetyTimer); isCapturing = false; };
 
     const { cx, cy } = rectCenter(el);
     const { vw, vh } = getViewportSize();
+    // 타이핑 위치도 클릭처럼 element_rect/selector를 보내 편집기가 입력 필드를 강조한다.
+    const rect = el.getBoundingClientRect();
 
-    if (overwriteStep !== null) {
-      lastCapturedTarget = el;
-      lastCapturedTime   = Date.now();
-      sendCapture({
-        url: location.href, timestamp: Date.now(),
-        clickX: cx, clickY: cy,
-        windowWidth: vw, windowHeight: vh,
-        stepNumber: overwriteStep, overwrite: true,
-        actionInfo: { type: 'type', text: label },
-      }, done);
-    } else {
-      stepNumber += 1;
-      lastCapturedTarget = el;
-      lastCapturedTime   = Date.now();
-      sendCapture({
-        url: location.href, timestamp: Date.now(),
-        clickX: cx, clickY: cy,
-        windowWidth: vw, windowHeight: vh,
-        stepNumber,
-        actionInfo: { type: 'type', text: label },
-      }, done);
-    }
+    lastCapturedTarget = el;
+    lastCapturedTime   = Date.now();
+    sendCapture({
+      url: location.href, timestamp: Date.now(),
+      clickX: cx, clickY: cy,
+      windowWidth: vw, windowHeight: vh,
+      viewportW: vw, viewportH: vh,
+      stepNumber: stepForThis, overwrite: true,
+      elementRect: normalizeRect(rect, vw, vh), elementSelector: getElementSelector(el),
+      actionInfo: { type: 'type', text: label },
+    }, done);
+
+    endSession();
   }
 
   // ── 오버레이 헬퍼 ────────────────────────────────────────────────
@@ -265,32 +277,6 @@ if (window !== window.top) return;
       'background:transparent',
       'pointer-events:none', 'z-index:2147483646', 'box-sizing:border-box',
     ].join(';');
-  }
-
-  let typingHighlightOverlay = null;
-
-  function showTypingHighlight(el) {
-    removeTypingHighlight();
-    const rect = el.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) return;
-    const P = 4;
-    const ov = document.createElement('div');
-    ov.style.cssText = [
-      'position:fixed',
-      `left:${rect.left - P}px`, `top:${rect.top - P}px`,
-      `width:${rect.width + P * 2}px`, `height:${rect.height + P * 2}px`,
-      `border-radius:${Math.min(8, (rect.width + P * 2) / 4)}px`,
-      'border:2.5px solid #3B82F6',
-      'box-shadow:0 0 0 4px rgba(59,130,246,0.25)',
-      'background:transparent',
-      'pointer-events:none', 'z-index:2147483646', 'box-sizing:border-box',
-    ].join(';');
-    document.documentElement.appendChild(ov);
-    typingHighlightOverlay = ov;
-  }
-
-  function removeTypingHighlight() {
-    if (typingHighlightOverlay) { typingHighlightOverlay.remove(); typingHighlightOverlay = null; }
   }
 
   let fileHighlightOverlay = null;
@@ -451,6 +437,7 @@ if (window !== window.top) return;
     }
 
     if (msg.type === 'STOP_RECORDING') {
+      if (typingTarget) flushTyping(typingTarget, true);  // 디바운스 전 마지막 입력 텍스트 저장
       isRecording        = false;
       isPaused           = false;
       hideHoverPointer();
@@ -475,7 +462,9 @@ if (window !== window.top) return;
     }
 
     if (msg.type === 'HIDE_OVERLAY_FOR_CAPTURE') {
-      if (typingTarget && document.contains(typingTarget)) showTypingHighlight(typingTarget);
+      // 캡처 직전: 라이브 호버 테두리를 숨겨 스크린샷에 굽지 않게 한다.
+      // 클릭/타이핑 위치 강조는 편집기가 element_rect 기준으로 비파괴 적용한다.
+      hideHoverPointer();
       const piiRegions = applyPIIBlur();
       requestAnimationFrame(() => {
         requestAnimationFrame(() => { sendResponse({ ok: true, piiRegions }); });
@@ -485,30 +474,11 @@ if (window !== window.top) return;
 
     if (msg.type === 'RESTORE_OVERLAY') {
       restorePIIBlur();
-      removeTypingHighlight();
       removeFileHighlight();
       isCapturing = false;
       hoverTarget = null;
-      if (_pendingManualFlash) { flashCapture(); _pendingManualFlash = false; }
-      sendResponse({ ok: true });
-      return false;
-    }
-
-    if (msg.type === 'MANUAL_CAPTURE') {
-      if (!isRecording) { sendResponse({ ok: false }); return false; }
-      if (isCapturing && (Date.now() - isCapturingStart) < CAPTURE_SAFETY_MS) { sendResponse({ ok: false }); return false; }
-      if (isCapturing) isCapturing = false;
-      isCapturing      = true;
-      isCapturingStart = Date.now();
-      _pendingManualFlash = true;
-      stepNumber += 1;
-      const { vw, vh } = getViewportSize();
-      sendCapture({
-        url: location.href, timestamp: Date.now(),
-        clickX: 0, clickY: 0,
-        windowWidth: vw, windowHeight: vh,
-        stepNumber, manual: true,
-      });
+      // 수동 캡처(background 직접 처리)는 msg.flash로 캡처 플래시 신호를 받는다
+      if (msg.flash) flashCapture();
       sendResponse({ ok: true });
       return false;
     }
@@ -698,20 +668,42 @@ if (window !== window.top) return;
     const href  = target.getAttribute('href') || target.closest('a')?.getAttribute('href') || '';
     const { vw, vh } = getViewportSize();
 
-    // navigate 클릭: background가 stepNumber 관리 + 캡처 단독 처리
+    // navigate 클릭:
+    //   ① 이동 전 현재 페이지를 '여기 클릭' 스텝으로 즉시 캡처 (클릭 위치 표시)
+    //   ② 이동 후 도착 페이지는 background(onUpdated)가 pendingCapture로 캡처
+    //   동일 이미지 중복은 background의 aHash 디덥에서 제거됨
     if (actionType === 'navigate') {
+      const navSafetyTimer = startCapturingSafely();
+      stepNumber        += 1;
       lastCapturedTarget = target;
       lastCapturedTime   = now;
-      const navStepData = {
+
+      const srcStep = {
         url: location.href, timestamp: Date.now(),
         clickX: e.clientX, clickY: e.clientY,
         windowWidth: vw, windowHeight: vh,
         viewportW: vw, viewportH: vh,
+        stepNumber,
         elementRect:     normalizeRect(rect, vw, vh),
         elementSelector: getElementSelector(target),
-        actionInfo:      { type: actionType, label, tag: target.tagName.toLowerCase(), href: href.slice(0, 200) },
+        actionInfo:      { type: 'click', label, tag: target.tagName.toLowerCase(), href: href.slice(0, 200) },
       };
-      chrome.storage.local.set({ pendingCapture: navStepData, lastCaptureTime: now });
+
+      // 도착 페이지 캡처 예약 — 실제 페이지 이동(#/javascript: 제외)일 때만
+      const isHashOrJs = !href || href.startsWith('#') || /^javascript:/i.test(href);
+      if (!isHashOrJs) {
+        const navStepData = {
+          url: location.href, timestamp: Date.now(),
+          clickX: 0, clickY: 0,
+          windowWidth: vw, windowHeight: vh,
+          viewportW: vw, viewportH: vh,
+          elementRect: null, elementSelector: null,
+          actionInfo:  { type: 'navigate', label, tag: target.tagName.toLowerCase(), href: href.slice(0, 200) },
+        };
+        chrome.storage.local.set({ pendingCapture: navStepData, lastCaptureTime: now });
+      }
+
+      sendCapture(srcStep, () => { clearTimeout(navSafetyTimer); isCapturing = false; });
       return;
     }
 
@@ -762,26 +754,14 @@ if (window !== window.top) return;
     if (pendingInputStep === null) {
       stepNumber += 1;
       pendingInputStep = stepNumber;
+      chrome.storage.local.set({ stepNumber });  // 슬롯 예약 (nav 캡처 번호 충돌 방지)
     }
 
+    // 입력 멈춤 → 같은 스텝을 갱신(soft). 포커스 이동/Enter/종료 시에만 세션 종료.
     clearTimeout(typingTimer);
     typingTimer = setTimeout(() => {
-      if (!isRecording || isPaused || isCapturing || typingTarget !== el) return;
-      const overwriteStep = pendingInputStep;
-      pendingInputStep = null;
-      const label = getFieldLabel(el);
-      const { cx: timerCX, cy: timerCY } = rectCenter(el);
-      const { vw, vh } = getViewportSize();
-      isCapturing = true;
-      lastCapturedTarget = el;
-      lastCapturedTime   = Date.now();
-      sendCapture({
-        url: location.href, timestamp: Date.now(),
-        clickX: timerCX, clickY: timerCY,
-        windowWidth: vw, windowHeight: vh,
-        stepNumber: overwriteStep, overwrite: true,
-        actionInfo: { type: 'type', text: label },
-      }, () => { isCapturing = false; });
+      if (typingTarget !== el) return;
+      flushTyping(el, false);
     }, TYPING_DEBOUNCE);
   }, true);
 
@@ -830,6 +810,12 @@ if (window !== window.top) return;
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local') return;
     if ('isPaused' in changes) isPaused = !!changes.isPaused.newValue;
+    // background(페이지 이동 캡처 등)가 stepNumber를 올리면 로컬 카운터도 따라 올려
+    // content/background 양쪽 카운터 desync로 인한 stepNumber 충돌을 방지한다.
+    if ('stepNumber' in changes) {
+      const v = changes.stepNumber.newValue || 0;
+      if (v > stepNumber) stepNumber = v;
+    }
   });
 
   // ── SPA 이동 감지 (MutationObserver) ────────────────────────────
@@ -840,6 +826,9 @@ if (window !== window.top) return;
       if (!settings.autoNav) return;
       if (location.href === lastUrl) return;
       lastUrl = location.href;
+      // SPA 이동은 여기서 도착 화면을 캡처하므로, 클릭 시 예약한 pendingCapture는 정리한다
+      // (full-load가 아니어서 onUpdated가 안 뜨고, 남으면 다음 이동에서 오라벨 캡처 유발).
+      chrome.storage.local.remove('pendingCapture');
       chrome.storage.local.set({ spaNavCapturing: true });
       setTimeout(() => {
         if (!isRecording || isPaused || isCapturing) return;

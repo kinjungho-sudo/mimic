@@ -4,6 +4,7 @@ const viewRecording = document.getElementById('viewRecording');
 const btnStart      = document.getElementById('btnStart');
 const btnPause      = document.getElementById('btnPause');
 const btnSnap       = document.getElementById('btnSnap');
+const btnSnapBottom = document.getElementById('btnSnapBottom');
 const btnUndo       = document.getElementById('btnUndo');
 const btnBlurTool   = document.getElementById('btnBlurTool');
 const btnDiscard    = document.getElementById('btnDiscard');
@@ -848,18 +849,21 @@ btnPause.addEventListener('click', () => {
 });
 
 // ── 수동 캡처 ────────────────────────────────────────────────────
-btnSnap.addEventListener('click', async () => {
+// background가 직접 캡처(activate→hide→PII→capture→restore)하므로
+// content의 isRecording 상태와 무관하게 동작한다 (#6).
+function triggerManualCapture() {
   btnSnap.disabled = true;
-  const { targetTabId } = await storageGet('targetTabId');
-  if (!targetTabId) { btnSnap.disabled = false; return; }
-  chrome.tabs.update(targetTabId, { active: true }, () => {
+  if (btnSnapBottom) btnSnapBottom.disabled = true;
+  chrome.runtime.sendMessage({ type: 'MANUAL_CAPTURE' }, (res) => {
     void chrome.runtime.lastError;
-    chrome.tabs.sendMessage(targetTabId, { type: 'MANUAL_CAPTURE' }, () => {
-      void chrome.runtime.lastError;
-      btnSnap.disabled = false;
-    });
+    btnSnap.disabled = false;
+    if (btnSnapBottom) btnSnapBottom.disabled = false;
+    if (!res?.ok) showToast('캡처 실패 — 페이지를 확인해주세요');
   });
-});
+}
+
+btnSnap.addEventListener('click', triggerManualCapture);
+btnSnapBottom?.addEventListener('click', triggerManualCapture);
 
 // ── 실행취소 ─────────────────────────────────────────────────────
 btnUndo.addEventListener('click', () => {
@@ -930,7 +934,8 @@ btnDiscard.addEventListener('click', () => {
 btnFinish.addEventListener('click', async () => {
   btnFinish.disabled = true;
 
-  const { sessionId } = await storageGet('sessionId');
+  const { sessionId, webappOrigin } = await storageGet(['sessionId', 'webappOrigin']);
+  const origin = webappOrigin || 'https://mimic-nine-ashen.vercel.app';
 
   isRecording = false;
   isPaused    = false;
@@ -940,18 +945,19 @@ btnFinish.addEventListener('click', async () => {
 
   // isRecording: false 먼저 세팅 → background가 targetTabId로 STOP_RECORDING 전송
   storageSet({ isRecording: false }).then(() => {
-    chrome.storage.local.remove(['targetTabId', 'steps', 'stepNumber']);
+    chrome.storage.local.remove(['targetTabId', 'steps', 'stepNumber', 'lastStepHash']);
     chrome.storage.local.set({ sessionId: null });
   });
 
-  // 로딩 UI로 전환
+  // 매뉴얼 생성 중 — 사용자 대기 UI
   showFinalizingOverlay();
 
   chrome.runtime.sendMessage({ type: 'FINALIZE_SESSION', sessionId }, (res) => {
     void chrome.runtime.lastError;
     hideFinalizingOverlay();
     if (res?.ok && res?.tutorial_id) {
-      chrome.tabs.create({ url: `https://mimic-nine-ashen.vercel.app/manual/${res.tutorial_id}/editor` }, () => {
+      // 편집기 페이지로 이동 + 사이드 패널 자동 닫기 (window.close)
+      chrome.tabs.create({ url: `${origin}/manual/${res.tutorial_id}/editor` }, () => {
         chrome.storage.local.set({ isRecording: false, isPaused: false, stepNumber: 0, steps: [], sessionId: null });
         window.close();
       });

@@ -9,6 +9,7 @@ import {
 import DOMPurify from 'dompurify';
 import { ImageAnnotationEditor, type Annotation } from './ImageAnnotationEditor';
 import { AnnotationPreview } from './AnnotationPreview';
+import { buildClickHighlight } from '@/lib/annotations';
 import { faviconUrl, faviconFallbackUrl, hostnameToServiceName } from '@/lib/favicon';
 
 export interface ManualStep {
@@ -410,11 +411,12 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
             annotations={initialAnnotations}
             initialFocusX={step.click_x ?? 50}
             initialFocusY={step.click_y ?? 50}
-            onChange={annotations => {
+            initialZoom={step.imageZoom ?? 1}
+            onChange={(annotations, imageZoom) => {
               // 함수형 업데이트로 stale closure 방지
               const id = annotatingId;
-              onChange(steps.map(s => s.id === id ? { ...s, annotations } : s));
-              onSave?.(id, { annotations });
+              onChange(steps.map(s => s.id === id ? { ...s, annotations, imageZoom } : s));
+              onSave?.(id, { annotations, imageZoom });
             }}
             onClose={() => setAnnotatingId(null)}
           />
@@ -425,65 +427,32 @@ export function ManualEditor({ steps, onChange, onSave, hideToc, activeId: exter
 }
 
 // ── 클릭 지점 기반 annotation 자동 생성 ───────────────────
-// click_x/y(0-100) 또는 element_rect(0-1) 기반으로 화살표 + 텍스트 배치
+// element_rect(0-1) 또는 click_x/y(0-100 pct) 기반으로
+// 스포트라이트(클릭 영역만 밝게) + 빨간 테두리 + 화살표 + 요약 라벨 생성
 function buildInputAnnotation(step: ManualStep): Annotation[] {
   const labelText = step.actionTitle
     ? step.actionTitle.replace(/^입력,?\s*/i, '').trim() || '클릭'
     : '클릭';
 
-  const arrowId = Math.random().toString(36).slice(2, 9);
-  const textId  = Math.random().toString(36).slice(2, 9);
-
-  let centerX: number;
-  let centerY: number;
-
   const r = step.element_rect;
+  let rect: { x: number; y: number; width: number; height: number };
+
   if (r && r.width > 0 && r.height > 0) {
-    // element_rect: 0-1 → 0-100
-    centerX = (r.x + r.width  / 2) * 100;
-    centerY = (r.y + r.height / 2) * 100;
-  } else if (step.click_x != null && step.click_y != null) {
-    // click_x/y: 이미 0-100 pct
-    centerX = step.click_x;
-    centerY = step.click_y;
+    rect = r;
+  } else if (
+    step.click_x != null && step.click_y != null &&
+    // 0%·100% 정확히 일치하는 값은 손상된 레거시 좌표 — 모서리 어노테이션 방지
+    step.click_x > 0 && step.click_x < 100 && step.click_y > 0 && step.click_y < 100
+  ) {
+    // 클릭 지점(0-100 pct) → 0-1 변환 후 주변 추정 영역
+    const cx = step.click_x / 100, cy = step.click_y / 100;
+    const x = Math.max(0, cx - 0.05), y = Math.max(0, cy - 0.02);
+    rect = { x, y, width: Math.min(0.10, 1 - x), height: Math.min(0.04, 1 - y) };
   } else {
     return [];
   }
 
-  // 화살표: 클릭 지점에서 20px 위 → 클릭 지점
-  const arrowStartY = Math.max(centerY - 14, 2);
-  const arrowEndY   = Math.max(centerY - 2,  1);
-
-  const arrow: Annotation = {
-    id: arrowId,
-    type: 'arrow',
-    x1: centerX, y1: arrowStartY,
-    x2: centerX, y2: arrowEndY,
-    color: '#3B82F6',
-    strokeWidth: 0.5,
-  };
-
-  // 텍스트 박스: 화살표 위
-  const textTop   = Math.max(arrowStartY - 9, 1);
-  const textLeft  = Math.max(2,  centerX - 14);
-  const textRight = Math.min(98, centerX + 14);
-
-  const text: Annotation = {
-    id: textId,
-    type: 'text',
-    x1: textLeft, y1: textTop,
-    x2: textRight, y2: textTop + 8,
-    text: labelText,
-    color: '#FFFFFF',
-    borderColor: 'transparent',
-    strokeWidth: 0.25,
-    fontSize: 14,
-    fontBold: true,
-    textAlign: 'center',
-    hasBg: true,
-  };
-
-  return [arrow, text];
+  return buildClickHighlight({ elementRect: rect, stepNumber: step.number, label: labelText });
 }
 
 // ── TocItem ───────────────────────────────────────────────
@@ -977,6 +946,7 @@ function ScreenshotArea({ step, onUploadClick, onDrop, onAnnotate, onRemove }: S
   }
 
   const hasAnnotations = (step.annotations?.length ?? 0) > 0;
+  const zoom = step.imageZoom ?? 1;
 
   return (
     <div
@@ -985,8 +955,23 @@ function ScreenshotArea({ step, onUploadClick, onDrop, onAnnotate, onRemove }: S
       onMouseLeave={() => setImgHover(false)}
       onClick={onAnnotate}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={step.screenshotUrl} alt={step.actionTitle} style={{ width: '100%', display: 'block' }} />
+      {/* 저장된 확대 배율 적용 — 이미지+어노테이션이 함께 스케일 */}
+      <div style={{ position: 'relative', transform: zoom > 1 ? `scale(${zoom})` : undefined, transformOrigin: 'center top' }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={step.screenshotUrl} alt={step.actionTitle} style={{ width: '100%', display: 'block' }} />
+
+        {/* Annotation SVG overlay (read-only preview) */}
+        {hasAnnotations && (
+          <AnnotationPreview annotations={step.annotations!} imageUrl={step.screenshotUrl!} />
+        )}
+      </div>
+
+      {/* 확대 배율 표시 */}
+      {zoom > 1 && (
+        <div style={{ position: 'absolute', bottom: '8px', right: '8px', fontSize: '10px', fontWeight: 600, color: 'white', background: 'rgba(20,20,30,0.6)', backdropFilter: 'blur(6px)', padding: '2px 7px', borderRadius: '5px', pointerEvents: 'none' }}>
+          {Math.round(zoom * 100)}%
+        </div>
+      )}
 
       {/* 스마트 크롭 적용 뱃지 */}
       {step.crop_rect && (
@@ -1015,11 +1000,6 @@ function ScreenshotArea({ step, onUploadClick, onDrop, onAnnotate, onRemove }: S
         >
           PII
         </div>
-      )}
-
-      {/* Annotation SVG overlay (read-only preview) */}
-      {hasAnnotations && (
-        <AnnotationPreview annotations={step.annotations!} imageUrl={step.screenshotUrl!} />
       )}
 
       {/* hover 시 편집 힌트 + 우측 상단 삭제 버튼 */}

@@ -32,6 +32,7 @@ type Step = {
   order_index: number;
   click_x: number | null;
   click_y: number | null;
+  image_zoom?: number | null;
   user_annotations?: DrawAnnotation[];
 };
 
@@ -856,7 +857,7 @@ export default function PlayerPage() {
         <div style={{ width: '100%', maxWidth: '1100px', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 30px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)', background: '#111' }}>
           {step?.screenshot_url ? (
             /* 이미지 + 어노테이션 + 마커 + 자막을 동일한 position:relative 컨테이너 안에 */
-            <div key={currentStep} style={{ position: 'relative', lineHeight: 0, animation: 'stepSlideIn 0.35s cubic-bezier(0.22,0.61,0.36,1) both' }}>
+            <div key={currentStep} style={{ position: 'relative', lineHeight: 0, animation: 'stepSlideIn 0.35s cubic-bezier(0.22,0.61,0.36,1) both', transform: (step.image_zoom ?? 1) > 1 ? `scale(${step.image_zoom})` : undefined, transformOrigin: 'center top' }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={step.screenshot_url}

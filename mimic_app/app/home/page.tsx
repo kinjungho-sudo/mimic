@@ -326,6 +326,12 @@ function TutorialCard({ tutorial, onContextMenu, onTitleChange, onMenuClick, vie
   );
 
   const commonArticleProps = {
+    // 폴더 패널로 드래그해서 정리 (Scribe 스타일 DnD)
+    draggable: !editingTitle,
+    onDragStart: (e: React.DragEvent) => {
+      e.dataTransfer.setData('text/mimic-tutorial', tutorial.id);
+      e.dataTransfer.effectAllowed = 'move';
+    },
     onMouseEnter: () => setHovered(true),
     onMouseLeave: () => setHovered(false),
     onContextMenu: (e: React.MouseEvent) => { e.preventDefault(); onContextMenu(e, tutorial.id); },
@@ -422,6 +428,252 @@ function EmptyState({ onRecord, onBlank, label }: { onRecord: () => void; onBlan
   );
 }
 
+// ── 폴더 슬라이드 패널 (Scribe 스타일) ─────────────────────
+
+const FOLDER_COLORS = ['#3730a3', '#6d28d9', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#6B7280'];
+
+function FolderPanel({ folders, tutorials, activeFolder, isMyTab, onSelectFolder, onClose, onCreate, onRename, onChangeColor, onDelete, onDropTutorial }: {
+  folders: Folder[];
+  tutorials: Tutorial[];
+  activeFolder: string | null | 'all';
+  isMyTab: boolean;
+  onSelectFolder: (id: string | null | 'all') => void;
+  onClose: () => void;
+  onCreate: (name: string) => Promise<void>;
+  onRename: (id: string, name: string) => void;
+  onChangeColor: (id: string, color: string) => void;
+  onDelete: (id: string) => void;
+  onDropTutorial: (tutorialId: string, folderId: string | null) => void;
+}) {
+  const [showInput, setShowInput] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [menuId, setMenuId] = useState<string | null>(null);
+  const [dragOverKey, setDragOverKey] = useState<string | null>(null); // 'unfiled' | folderId
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // ESC로 닫기
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  // 케밥 메뉴 외부 클릭 닫기
+  useEffect(() => {
+    if (!menuId) return;
+    const handler = (e: MouseEvent) => { if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuId(null); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [menuId]);
+
+  const submitCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = newName.trim();
+    if (!name) return;
+    setCreating(true);
+    try { await onCreate(name); setNewName(''); setShowInput(false); } finally { setCreating(false); }
+  };
+
+  const commitRename = (id: string) => {
+    const name = editName.trim();
+    if (name) onRename(id, name);
+    setEditingId(null);
+  };
+
+  // 드롭 타깃 공통 핸들러 (미분류 = null)
+  const dropProps = (key: string, folderId: string | null) => ({
+    onDragOver: (e: React.DragEvent) => {
+      if (e.dataTransfer.types.includes('text/mimic-tutorial')) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (dragOverKey !== key) setDragOverKey(key);
+      }
+    },
+    onDragLeave: () => setDragOverKey(k => (k === key ? null : k)),
+    onDrop: (e: React.DragEvent) => {
+      e.preventDefault();
+      const tid = e.dataTransfer.getData('text/mimic-tutorial');
+      if (tid) onDropTutorial(tid, folderId);
+      setDragOverKey(null);
+    },
+  });
+
+  const unfiledCount = tutorials.filter(t => !t.folder_id).length;
+  const isActive = (id: string | null | 'all') => isMyTab && activeFolder === id;
+
+  const rowStyle = (active: boolean, dragOver: boolean, color = '#3730a3'): React.CSSProperties => ({
+    display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0,
+    padding: '7px 9px', borderRadius: '7px', border: 'none', cursor: 'pointer',
+    fontSize: '13px', textAlign: 'left',
+    background: dragOver ? '#EEF2FF' : active ? `${color}14` : 'transparent',
+    boxShadow: dragOver ? 'inset 0 0 0 1.5px #6366F1' : 'none',
+    color: active ? color : '#374151',
+    fontWeight: active ? 600 : 400,
+  });
+
+  return (
+    <div className="home-folder-panel" style={{
+      position: 'fixed', left: '220px', top: 0, bottom: 0, width: '264px', zIndex: 45,
+      background: 'white', borderRight: '1px solid #E5E7EB',
+      boxShadow: '16px 0 40px rgba(17,24,39,0.10)',
+      display: 'flex', flexDirection: 'column',
+      animation: 'folderPanelIn 0.22s cubic-bezier(0.22,0.61,0.36,1)',
+    }}>
+      {/* 헤더 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '16px 14px 12px', borderBottom: '1px solid #F3F4F6', flexShrink: 0 }}>
+        <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: '#3730a3', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <span style={{ fontSize: '13.5px', fontWeight: 700, color: '#111827', flex: 1 }}>내 워크스페이스</span>
+        <button onClick={onClose} title="패널 닫기 (Esc)"
+          style={{ width: '26px', height: '26px', borderRadius: '6px', border: 'none', background: 'transparent', color: '#9CA3AF', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
+          onMouseEnter={e => { e.currentTarget.style.background = '#F3F4F6'; e.currentTarget.style.color = '#4B5563'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#9CA3AF'; }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+      </div>
+
+      {/* 새 폴더 */}
+      <div style={{ padding: '12px 12px 6px', flexShrink: 0 }}>
+        {showInput ? (
+          <form onSubmit={submitCreate} style={{ display: 'flex', gap: '5px' }}>
+            <input autoFocus value={newName} onChange={e => setNewName(e.target.value)} placeholder="폴더 이름"
+              onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); setShowInput(false); } }}
+              style={{ flex: 1, minWidth: 0, padding: '7px 9px', borderRadius: '7px', border: '1.5px solid #a5b4fc', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
+            <button type="submit" disabled={creating || !newName.trim()}
+              style={{ padding: '0 11px', borderRadius: '7px', background: '#3730a3', color: 'white', border: 'none', fontSize: '12px', fontWeight: 600, cursor: 'pointer', flexShrink: 0, opacity: creating || !newName.trim() ? 0.6 : 1 }}>
+              {creating ? '...' : '추가'}
+            </button>
+          </form>
+        ) : (
+          <button onClick={() => { setShowInput(true); setNewName(''); }}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', width: '100%', padding: '8px', borderRadius: '8px', border: '1.5px dashed #C7D2FE', background: '#F5F3FF', cursor: 'pointer', fontSize: '12.5px', fontWeight: 600, color: '#4338CA' }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#EDE9FE'; e.currentTarget.style.borderColor = '#a5b4fc'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#F5F3FF'; e.currentTarget.style.borderColor = '#C7D2FE'; }}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            새 폴더
+          </button>
+        )}
+      </div>
+
+      {/* 목록 */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '4px 12px 12px' }}>
+        {/* 전체 */}
+        <button onClick={() => onSelectFolder('all')}
+          style={rowStyle(isActive('all'), false)}
+          onMouseEnter={e => { if (!isActive('all')) e.currentTarget.style.background = '#F3F4F6'; }}
+          onMouseLeave={e => { if (!isActive('all')) e.currentTarget.style.background = 'transparent'; }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          <span style={{ flex: 1 }}>전체</span>
+          <span style={{ fontSize: '11px', color: '#9CA3AF' }}>{tutorials.length}</span>
+        </button>
+
+        {/* 미분류 — 드롭 타깃 */}
+        <div {...dropProps('unfiled', null)}>
+          <button onClick={() => onSelectFolder(null)}
+            style={rowStyle(isActive(null), dragOverKey === 'unfiled', '#6B7280')}
+            onMouseEnter={e => { if (!isActive(null) && dragOverKey !== 'unfiled') e.currentTarget.style.background = '#F3F4F6'; }}
+            onMouseLeave={e => { if (!isActive(null) && dragOverKey !== 'unfiled') e.currentTarget.style.background = 'transparent'; }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+            <span style={{ flex: 1 }}>미분류</span>
+            <span style={{ fontSize: '11px', color: '#9CA3AF' }}>{unfiledCount}</span>
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '12px 9px 6px' }}>
+          <span style={{ fontSize: '10.5px', fontWeight: 600, color: '#9CA3AF', letterSpacing: '0.05em', textTransform: 'uppercase' }}>폴더</span>
+          <span style={{ fontSize: '10.5px', color: '#D1D5DB' }}>{folders.length}</span>
+          <div style={{ flex: 1, height: '1px', background: '#F3F4F6' }} />
+        </div>
+
+        {folders.length === 0 && (
+          <div style={{ padding: '14px 9px', fontSize: '12px', color: '#9CA3AF', lineHeight: 1.6 }}>
+            아직 폴더가 없어요.<br />위의 <b style={{ color: '#4338CA' }}>새 폴더</b>로 매뉴얼을 정리해보세요.
+          </div>
+        )}
+
+        {folders.map(f => (
+          <div key={f.id} {...dropProps(f.id, f.id)} style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '2px', marginBottom: '1px' }}>
+            {editingId === f.id ? (
+              <input autoFocus value={editName}
+                onChange={e => setEditName(e.target.value)}
+                onBlur={() => commitRename(f.id)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') commitRename(f.id);
+                  if (e.key === 'Escape') { e.stopPropagation(); setEditingId(null); }
+                }}
+                style={{ flex: 1, minWidth: 0, padding: '6px 9px', borderRadius: '7px', border: '1.5px solid #3730a3', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
+            ) : (
+              <>
+                <button onClick={() => onSelectFolder(f.id)}
+                  onDoubleClick={() => { setEditingId(f.id); setEditName(f.name); }}
+                  title={`${f.name} — 더블클릭으로 이름 변경`}
+                  style={rowStyle(isActive(f.id), dragOverKey === f.id, f.color)}
+                  onMouseEnter={e => { if (!isActive(f.id) && dragOverKey !== f.id) e.currentTarget.style.background = '#F3F4F6'; }}
+                  onMouseLeave={e => { if (!isActive(f.id) && dragOverKey !== f.id) e.currentTarget.style.background = 'transparent'; }}>
+                  <span style={{ width: '13px', height: '13px', borderRadius: '4px', background: f.color, flexShrink: 0, display: 'grid', placeItems: 'center' }}>
+                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                  </span>
+                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+                  <span style={{ fontSize: '11px', color: '#9CA3AF', flexShrink: 0 }}>{tutorials.filter(t => t.folder_id === f.id).length}</span>
+                </button>
+                <button onClick={e => { e.stopPropagation(); setMenuId(menuId === f.id ? null : f.id); }}
+                  title="폴더 옵션"
+                  style={{ width: '22px', height: '22px', borderRadius: '5px', border: 'none', background: menuId === f.id ? '#F3F4F6' : 'transparent', color: '#9CA3AF', cursor: 'pointer', display: 'grid', placeItems: 'center', flexShrink: 0 }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#F3F4F6'; e.currentTarget.style.color = '#4B5563'; }}
+                  onMouseLeave={e => { if (menuId !== f.id) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#9CA3AF'; } }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+                </button>
+
+                {/* 폴더 옵션 메뉴: 이름 변경 / 색상 / 삭제 */}
+                {menuId === f.id && (
+                  <div ref={menuRef} style={{
+                    position: 'absolute', right: 0, top: 'calc(100% + 4px)', zIndex: 60,
+                    background: 'white', borderRadius: '10px', padding: '5px',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.14), 0 0 0 1px rgba(0,0,0,0.06)',
+                    minWidth: '168px',
+                  }}>
+                    <button onClick={() => { setMenuId(null); setEditingId(f.id); setEditName(f.name); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '7px 9px', border: 'none', background: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12.5px', color: '#374151', textAlign: 'left' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>
+                      이름 변경
+                    </button>
+                    <div style={{ padding: '7px 9px 4px', fontSize: '10.5px', fontWeight: 600, color: '#9CA3AF', letterSpacing: '0.04em' }}>색상</div>
+                    <div style={{ display: 'flex', gap: '5px', padding: '0 9px 7px', flexWrap: 'wrap' }}>
+                      {FOLDER_COLORS.map(c => (
+                        <button key={c} onClick={() => { onChangeColor(f.id, c); setMenuId(null); }}
+                          style={{ width: '17px', height: '17px', borderRadius: '50%', background: c, border: f.color === c ? '2px solid #111827' : '2px solid transparent', cursor: 'pointer', padding: 0, flexShrink: 0 }} />
+                      ))}
+                    </div>
+                    <div style={{ height: '1px', background: '#F3F4F6', margin: '2px 5px' }} />
+                    <button onClick={() => { setMenuId(null); onDelete(f.id); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '7px 9px', border: 'none', background: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12.5px', color: '#EF4444', textAlign: 'left' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = '#FEF2F2')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+                      삭제
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* 하단 힌트 */}
+      <div style={{ padding: '10px 14px', borderTop: '1px solid #F3F4F6', fontSize: '11px', color: '#9CA3AF', lineHeight: 1.5, flexShrink: 0 }}>
+        매뉴얼 카드를 폴더로 드래그해서 정리할 수 있어요.
+      </div>
+    </div>
+  );
+}
+
 // ── 페이지 ────────────────────────────────────────────────
 
 export default function DashboardPage() {
@@ -447,18 +699,12 @@ export default function DashboardPage() {
   const [newWsName, setNewWsName] = useState('');
   const [creatingWs, setCreatingWs] = useState(false);
 
-  // 폴더 생성/편집
-  const [showNewFolderInput, setShowNewFolderInput] = useState(false);
-  const [newFolderName, setNewFolderName] = useState('');
-  const [creatingFolder, setCreatingFolder] = useState(false);
-  const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
-  const [editingFolderName, setEditingFolderName] = useState('');
+  // 폴더 슬라이드 패널 (내 워크스페이스 클릭 시 열림)
+  const [showFolderPanel, setShowFolderPanel] = useState(false);
 
-  // 사이드바 섹션 접기/펼치기
+  // 사이드바 섹션 접기/펼치기 (모바일 드로어용)
   const [myOpen, setMyOpen] = useState(true);
   const [teamOpen, setTeamOpen] = useState(true);
-  const [showAllFolders, setShowAllFolders] = useState(false);
-  const FOLDER_LIMIT = 5;
 
   // 컨텍스트 메뉴
   const [ctxMenu, setCtxMenu] = useState<CtxMenu>(null);
@@ -554,14 +800,9 @@ export default function DashboardPage() {
     setTutorials(prev => prev.map(t => t.id === tutorialId ? { ...t, folder_id: folderId } : t));
   };
 
-  const handleCreateFolder = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newFolderName.trim()) return;
-    setCreatingFolder(true);
-    try {
-      const res = await fetch('/api/folders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newFolderName.trim() }) });
-      if (res.ok) { const folder = await res.json(); setFolders(prev => [...prev, folder]); setNewFolderName(''); setShowNewFolderInput(false); }
-    } finally { setCreatingFolder(false); }
+  const handleCreateFolder = async (name: string) => {
+    const res = await fetch('/api/folders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+    if (res.ok) { const folder = await res.json(); setFolders(prev => [...prev, folder]); }
   };
 
   const handleDeleteFolder = async (id: string) => {
@@ -572,12 +813,14 @@ export default function DashboardPage() {
     if (activeFolder === id) setActiveFolder('all');
   };
 
-  const handleRenameFolder = async (id: string) => {
-    const trimmed = editingFolderName.trim();
-    if (!trimmed) { setEditingFolderId(null); return; }
-    await fetch(`/api/folders/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: trimmed }) });
-    setFolders(prev => prev.map(f => f.id === id ? { ...f, name: trimmed } : f));
-    setEditingFolderId(null);
+  const handleRenameFolder = async (id: string, name: string) => {
+    await fetch(`/api/folders/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+    setFolders(prev => prev.map(f => f.id === id ? { ...f, name } : f));
+  };
+
+  const handleChangeFolderColor = async (id: string, color: string) => {
+    await fetch(`/api/folders/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ color }) });
+    setFolders(prev => prev.map(f => f.id === id ? { ...f, color } : f));
   };
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -678,105 +921,24 @@ export default function DashboardPage() {
             {/* ── 워크스페이스 트리 ── */}
             <div style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
 
-              {/* ① 내 워크스페이스 헤더 (클릭 = 접기/펼치기) */}
-              <button onClick={() => setMyOpen(v => !v)}
-                style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '7px 8px', borderRadius: '8px', border: 'none', cursor: 'pointer', textAlign: 'left', background: 'transparent' }}
+              {/* ① 내 워크스페이스 (클릭 = 폴더 패널 슬라이드 오픈) */}
+              <button onClick={() => { setActiveTab('my'); setShowFolderPanel(v => !v); }}
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '7px 8px', borderRadius: '8px', border: 'none', cursor: 'pointer', textAlign: 'left', background: showFolderPanel ? '#F3F4F6' : 'transparent' }}
                 onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                onMouseLeave={e => (e.currentTarget.style.background = showFolderPanel ? '#F3F4F6' : 'transparent')}>
                 <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: activeTab === 'my' ? '#3730a3' : '#E5E7EB', display: 'grid', placeItems: 'center', flexShrink: 0, transition: 'background 0.15s' }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                 </div>
                 <span style={{ fontSize: '13px', fontWeight: 700, color: '#111827', flex: 1 }}>내 워크스페이스</span>
+                {/* 활성 폴더 색 표시 */}
+                {activeTab === 'my' && activeFolder !== 'all' && (
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: activeFolder === null ? '#9CA3AF' : (folders.find(f => f.id === activeFolder)?.color ?? '#3730a3'), flexShrink: 0 }} />
+                )}
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"
-                  style={{ transform: myOpen ? 'rotate(0)' : 'rotate(-90deg)', transition: 'transform 0.15s', flexShrink: 0 }}>
-                  <polyline points="6 9 12 15 18 9"/>
+                  style={{ transform: showFolderPanel ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s', flexShrink: 0 }}>
+                  <polyline points="9 18 15 12 9 6"/>
                 </svg>
               </button>
-
-              {/* ① 내 워크스페이스 하위 */}
-              {myOpen && (
-                <div style={{ paddingLeft: '12px', marginLeft: '19px', borderLeft: '2px solid #F3F4F6', display: 'flex', flexDirection: 'column', gap: '1px', marginBottom: '2px' }}>
-                  {[
-                    { id: 'all' as const, label: '전체', count: tutorials.length },
-                    { id: null, label: '미분류', count: tutorials.filter(t => !t.folder_id).length },
-                  ].map(item => (
-                    <button key={String(item.id)} onClick={() => { setActiveTab('my'); setActiveFolder(item.id); }}
-                      style={{ display: 'flex', alignItems: 'center', gap: '7px', width: '100%', padding: '5px 8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', textAlign: 'left', background: folderItemActive(item.id) ? '#e0e7ff' : 'transparent', color: folderItemActive(item.id) ? '#3730a3' : '#4B5563', fontWeight: folderItemActive(item.id) ? 600 : 400 }}
-                      onMouseEnter={e => { if (!folderItemActive(item.id)) (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; }}
-                      onMouseLeave={e => { if (!folderItemActive(item.id)) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
-                      <span style={{ flex: 1 }}>{item.label}</span>
-                      {!tutLoading && <span style={{ fontSize: '11px', color: '#9CA3AF' }}>{item.count}</span>}
-                    </button>
-                  ))}
-
-                  {/* 폴더 목록 */}
-                  {(showAllFolders ? folders : folders.slice(0, FOLDER_LIMIT)).map(f => (
-                    <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
-                      {editingFolderId === f.id ? (
-                        <input autoFocus value={editingFolderName}
-                          onChange={e => setEditingFolderName(e.target.value)}
-                          onBlur={() => handleRenameFolder(f.id)}
-                          onKeyDown={e => { if (e.key === 'Enter') handleRenameFolder(f.id); if (e.key === 'Escape') setEditingFolderId(null); }}
-                          style={{ flex: 1, padding: '4px 7px', borderRadius: '6px', border: '1.5px solid #3730a3', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
-                      ) : (
-                        <button
-                          onClick={() => { setActiveTab('my'); setActiveFolder(f.id); }}
-                          onDoubleClick={() => { setEditingFolderId(f.id); setEditingFolderName(f.name); }}
-                          style={{ display: 'flex', alignItems: 'center', gap: '7px', flex: 1, padding: '5px 8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', textAlign: 'left', background: folderItemActive(f.id) ? `${f.color}15` : 'transparent', color: folderItemActive(f.id) ? f.color : '#4B5563', fontWeight: folderItemActive(f.id) ? 600 : 400 }}
-                          onMouseEnter={e => { if (!folderItemActive(f.id)) (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; }}
-                          onMouseLeave={e => { if (!folderItemActive(f.id)) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
-                          <span style={{ width: '11px', height: '11px', borderRadius: '3px', background: f.color, flexShrink: 0, display: 'grid', placeItems: 'center' }}>
-                            <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-                          </span>
-                          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
-                          <span style={{ fontSize: '11px', color: '#9CA3AF', flexShrink: 0 }}>{tutorials.filter(t => t.folder_id === f.id).length}</span>
-                        </button>
-                      )}
-                      <button onClick={e => { e.stopPropagation(); handleDeleteFolder(f.id); }}
-                        style={{ width: '16px', height: '16px', borderRadius: '3px', border: 'none', background: 'transparent', color: '#D1D5DB', cursor: 'pointer', display: 'grid', placeItems: 'center', flexShrink: 0, opacity: 0 }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '1'; (e.currentTarget as HTMLButtonElement).style.color = '#EF4444'; (e.currentTarget as HTMLButtonElement).style.background = '#FEE2E2'; }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '0'; (e.currentTarget as HTMLButtonElement).style.color = '#D1D5DB'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
-                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                      </button>
-                    </div>
-                  ))}
-
-                  {/* 더 보기 / 접기 */}
-                  {folders.length > FOLDER_LIMIT && (
-                    <button onClick={() => setShowAllFolders(v => !v)}
-                      style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 8px', borderRadius: '6px', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '13px', color: '#9CA3AF', width: '100%' }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#6B7280'; (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '#9CA3AF'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
-                        style={{ transform: showAllFolders ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
-                        <polyline points="6 9 12 15 18 9"/>
-                      </svg>
-                      {showAllFolders ? '접기' : `${folders.length - FOLDER_LIMIT}개 더 보기`}
-                    </button>
-                  )}
-
-                  {/* 새 폴더 */}
-                  {showNewFolderInput ? (
-                    <form onSubmit={handleCreateFolder} style={{ display: 'flex', gap: '4px', paddingTop: '2px' }}>
-                      <input autoFocus value={newFolderName} onChange={e => setNewFolderName(e.target.value)} placeholder="폴더 이름"
-                        onKeyDown={e => { if (e.key === 'Escape') setShowNewFolderInput(false); }}
-                        style={{ flex: 1, padding: '4px 7px', borderRadius: '6px', border: '1px solid #a5b4fc', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
-                      <button type="submit" disabled={creatingFolder || !newFolderName.trim()}
-                        style={{ padding: '4px 8px', borderRadius: '6px', background: '#3730a3', color: 'white', border: 'none', fontSize: '12px', fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
-                        {creatingFolder ? '...' : '추가'}
-                      </button>
-                    </form>
-                  ) : (
-                    <button onClick={() => { setShowNewFolderInput(true); setNewFolderName(''); }}
-                      style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', padding: '4px 8px', borderRadius: '6px', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '13px', color: '#9CA3AF' }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#6B7280'; (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '#9CA3AF'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                      새 폴더
-                    </button>
-                  )}
-                </div>
-              )}
 
               {/* ② 팀 워크스페이스 헤더 */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '1px', marginTop: '4px' }}>
@@ -900,6 +1062,23 @@ export default function DashboardPage() {
               </button>
             </div>
           </aside>
+
+          {/* ── 폴더 슬라이드 패널 ── */}
+          {showFolderPanel && (
+            <FolderPanel
+              folders={folders}
+              tutorials={tutorials}
+              activeFolder={activeFolder}
+              isMyTab={activeTab === 'my'}
+              onSelectFolder={id => { setActiveTab('my'); setActiveFolder(id); }}
+              onClose={() => setShowFolderPanel(false)}
+              onCreate={handleCreateFolder}
+              onRename={handleRenameFolder}
+              onChangeColor={handleChangeFolderColor}
+              onDelete={handleDeleteFolder}
+              onDropTutorial={handleMoveToFolder}
+            />
+          )}
 
           {/* ── 메인 ── */}
           <main style={{ display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, overflowY: 'auto' }}>
@@ -1259,6 +1438,7 @@ export default function DashboardPage() {
         @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes drawerIn { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+        @keyframes folderPanelIn { from { transform: translateX(-28px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
       `}</style>
 
       {/* AI 어시스턴트 챗봇 */}

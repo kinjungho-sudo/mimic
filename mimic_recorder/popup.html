@@ -471,6 +471,18 @@
       transition: all 0.15s; flex-shrink: 0;
     }
     .btn-discard-bottom:hover { border-color: #EF4444; color: #EF4444; background: #fff5f5; }
+    /* 하단 바 화면 캡처 버튼 */
+    .btn-snap-bottom {
+      display: flex; align-items: center; gap: 5px;
+      padding: 10px 14px;
+      border: 1px solid #e8e8f0; border-radius: 9px;
+      background: #fff; color: #4F46E5;
+      font-size: 12px; font-weight: 700; cursor: pointer;
+      transition: all 0.15s; flex-shrink: 0;
+    }
+    .btn-snap-bottom:hover { border-color: #4F46E5; background: #f5f3ff; }
+    .btn-snap-bottom:active { transform: scale(0.95); }
+    .btn-snap-bottom:disabled { opacity: 0.5; cursor: not-allowed; }
     .bottom-action-bar .btn-finish {
       flex: 1; margin: 0; width: auto;
       padding: 10px 16px; font-size: 13px;
@@ -593,6 +605,10 @@
 
   <!-- 녹화 중 하단 액션 바 -->
   <div class="bottom-action-bar" id="bottomActionBar" style="display:none">
+    <button class="btn-snap-bottom" id="btnSnapBottom" title="화면 캡처">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      캡처
+    </button>
     <button class="btn-discard-bottom" id="btnDiscard" title="저장 없이 종료">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       중지
