@@ -329,7 +329,7 @@ function SharePopup({ title, url, onClose }: { title: string; url: string; onClo
       objectType: 'feed',
       content: {
         title,
-        description: `${BRAND_NAME}으로 만든 단계별 인터랙티브 매뉴얼입니다.`,
+        description: `${BRAND_NAME}로 만든 단계별 인터랙티브 매뉴얼입니다.`,
         imageUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}${BRAND_LOGO_IMAGE_PATH}`,
         link: { mobileWebUrl: url, webUrl: url },
       },

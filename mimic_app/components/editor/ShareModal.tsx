@@ -173,7 +173,7 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
     if (Kakao.isInitialized()) {
       Kakao.Share.sendDefault({
         objectType: 'feed',
-        content: { title, description: `${BRAND_NAME}으로 만든 단계별 인터랙티브 매뉴얼`, imageUrl: '', link: { webUrl: url, mobileWebUrl: url } },
+        content: { title, description: `${BRAND_NAME}로 만든 단계별 인터랙티브 매뉴얼`, imageUrl: '', link: { webUrl: url, mobileWebUrl: url } },
         buttons: [{ title: '매뉴얼 보기', link: { webUrl: url, mobileWebUrl: url } }],
       });
     } else {

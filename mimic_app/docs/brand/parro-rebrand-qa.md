@@ -179,3 +179,17 @@ git diff --check
 - 360x720 렌더링에서 실제 아이콘 박스 34x34px, 자연 이미지 48x48px, teal 녹화 버튼, 가로 넘침 없음, 구브랜드 0건을 확인했다.
 - 임시 Web Store ZIP의 13개 항목, `Parro Recorder` 이름, 버전 `1.6.2`, 새 아이콘 해시 일치를 검증한 뒤 ZIP을 제거했다. 게시하지 않았다.
 - 이 변경은 `dev` 전용이며 `main`, Production, DB, Chrome Web Store에는 적용하지 않는다.
+
+## 2026-07-11 - dev Preview 심화 검증
+
+- 검증 기준: 원격 `dev`와 동일한 `c6cde0f56b9cb5e538b168f52a9025ce8ec4f775` 및 Git Preview `https://mimic-git-dev-kinjungho-7735s-projects.vercel.app`.
+- `npm run lint`, `$env:NODE_OPTIONS='--use-system-ca'; npm run build`, SDK/Recorder `node --check`, Recorder manifest assertion, MCP `npm run build`, `git diff --check`가 통과했다. 기존 React Hook 및 `<img>` 경고만 남았다.
+- 공개 경로 8개, Parro 로고/아이콘 자산 6개, `robots.txt`, `sitemap.xml`을 확인했다. 공개 HTML의 구브랜드 노출은 0건이며 robots/sitemap은 `parro-guide.vercel.app`을 사용한다.
+- 데스크톱과 모바일 랜딩에서 로고, 이미지, 제목, 반응형 가로 폭, 콘솔 오류를 확인했다. 깨진 이미지, 가로 넘침, 콘솔 오류, 보이는 구브랜드가 없었다.
+- dev 테스트 계정으로 로그인해 `/home`, `/settings`, `/mypage`, `/help`, `/extension-link`, `/trash` 및 실제 22단계 매뉴얼 편집기를 확인했다. 화면 제목과 브랜드는 Parro로 표시되며 편집기 데이터/이미지가 정상 로드됐다.
+- Preview JavaScript 번들에서 Supabase 프로젝트 참조 `dskphgxurxebblnpwhax`를 직접 확인했다. Production 프로젝트 `gqynptpjomcqzxyykqic`에는 접근하거나 쓰지 않았다.
+- dev 테스트 계정의 기존 표시 이름 `MIMIC Test User`가 홈에서 구브랜드처럼 보이는 것을 발견해 프로필 UI로 `Parro Test User`로 변경했다. dev 테스트 데이터만 변경했으며 원복은 같은 프로필 UI에서 이전 이름을 저장하면 된다.
+- 도움말, 도움말 API, 카카오 공유, 공개 매뉴얼 설명에서 `Parro은`/`Parro으로` 조사 오류 6곳을 발견해 `fix/parro-korean-particles` 브랜치에서 `Parro는`/`Parro로`로 수정했다.
+- 수정 후 lint/build와 빌드 결과물 검색이 통과했다. 조사 수정은 최신 `origin/dev` 위의 별도 취합 커밋에 포함했다.
+- 로컬 `next start` 브라우저 확인은 이 격리 worktree에 `.env.development.local`이 없어 Supabase 미들웨어 500으로 중단했다. 임시 서버를 종료했으며 이 실패를 코드 오류로 분류하지 않았다.
+- `main`, Production 배포/환경/DB, Chrome Web Store, 내부 식별자는 변경하지 않았다.

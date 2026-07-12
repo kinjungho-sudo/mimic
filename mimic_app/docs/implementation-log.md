@@ -508,3 +508,12 @@
 - popup 헤더 BI를 28px에서 34px로 키우고 Parro 워드마크의 크기·굵기·색상을 보강했다.
 - 16/48/128px 픽셀 검사, 임시 Web Store 패키지, 360x720 시각 검증을 통과했다.
 - `dev`에만 반영하며 `main`, Production, DB, Chrome Web Store에는 변경하지 않는다.
+
+## 2026-07-11 - Parro dev Preview 심화 검증과 문구 보정
+
+- 원격 `dev`와 동일한 `c6cde0f`에서 정적 검사, 공개 경로/자산/메타데이터, 데스크톱·모바일 랜딩, 이메일 로그인, 인증 화면, 실제 매뉴얼 편집기 진입을 검증했다.
+- Preview 번들에서 dev Supabase `dskphgxurxebblnpwhax` 연결을 확인했으며 Production DB에는 접근하거나 쓰지 않았다.
+- dev 테스트 계정 표시 이름을 `MIMIC Test User`에서 `Parro Test User`로 변경해 인증 홈의 구브랜드 노출을 제거했다. 코드나 스키마 변경이 아닌 dev 테스트 프로필 데이터 보정이다.
+- 도움말, 도움말 API, 카카오 공유, 공개 매뉴얼 메타데이터의 `Parro은`/`Parro으로` 6곳을 `Parro는`/`Parro로`로 수정했다.
+- `fix/parro-korean-particles` 브랜치에서 `npm run lint`, `$env:NODE_OPTIONS='--use-system-ca'; npm run build`, focused search, `git diff --check`가 통과했고 최신 `origin/dev` 위의 별도 취합 커밋에 포함했다.
+- `main`, Production 배포/환경/DB, Chrome Web Store, 내부 식별자는 변경하지 않았다.

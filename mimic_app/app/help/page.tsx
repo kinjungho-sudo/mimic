@@ -89,10 +89,10 @@ function SectionContent({ id }: { id: string }) {
       return (
         <div>
           {h2(`${BRAND_NAME}란?`)}
-          {p(`${BRAND_NAME}은 Chrome 확장 프로그램으로 업무 화면을 녹화해 SOP와 인터랙티브 매뉴얼을 자동 생성하고, 필요한 순간에는 화면 위 가이드로 실행까지 연결하는 서비스입니다.`)}
+          {p(`${BRAND_NAME}는 Chrome 확장 프로그램으로 업무 화면을 녹화해 SOP와 인터랙티브 매뉴얼을 자동 생성하고, 필요한 순간에는 화면 위 가이드로 실행까지 연결하는 서비스입니다.`)}
           {img('/help/product-overview.png', `${BRAND_NAME} — SOP 제작부터 화면 위 실행 안내까지`)}
           {p('클릭 한 번 한 번이 자동으로 캡처되어 단계별 스크린샷과 설명이 만들어집니다. 완성된 매뉴얼은 링크와 문서로 공유하고, 필요하면 학습 가이드나 확장 프로그램 기반 라이브 가이드 Beta로 실행을 안내할 수 있습니다.')}
-          {h3(`${BRAND_NAME}으로 할 수 있는 것`)}
+          {h3(`${BRAND_NAME}로 할 수 있는 것`)}
           <ul style={{ paddingLeft: '20px', margin: '0 0 16px' }}>
             {[
               '신규 직원 온보딩 SOP와 매뉴얼 빠르게 제작',
