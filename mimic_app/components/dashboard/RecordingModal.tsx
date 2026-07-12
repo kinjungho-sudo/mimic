@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { getPreferredExtensionId } from '@/lib/extension-id';
+import { installExtensionIdListener, resolvePreferredExtensionId } from '@/lib/extension-id';
 import { BRAND_COLORS, BRAND_COPY, BRAND_EXTENSION_STORE_URL } from '@/lib/brand';
 
 // 운영(Production)에서만 켜는 플래그 — Vercel Production env에 NEXT_PUBLIC_REQUIRE_EXTENSION=1.
@@ -53,9 +53,9 @@ function isExtensionInstalled(): boolean {
   return !!(typeof window !== 'undefined' && window.chrome?.runtime?.sendMessage);
 }
 
-function sendMessage(action: string, payload?: Record<string, unknown>): Promise<unknown> {
+async function sendMessage(action: string, payload?: Record<string, unknown>): Promise<unknown> {
+  const extensionId = await resolvePreferredExtensionId();
   return new Promise(resolve => {
-    const extensionId = getPreferredExtensionId();
     if (!extensionId || !isExtensionInstalled()) {
       console.warn('[Parro] 확장 없음 또는 extensionId 미설정, 바이패스');
       resolve(null);
@@ -83,7 +83,7 @@ function sendMessage(action: string, payload?: Record<string, unknown>): Promise
 // CONNECT ping으로 먼저 깨운 뒤 실제 메시지를 전송한다.
 // 최대 3회 재시도, 회당 600ms 대기.
 async function wakeAndSend(action: string, payload?: Record<string, unknown>, retries = 3): Promise<unknown> {
-  const extensionId = getPreferredExtensionId();
+  const extensionId = await resolvePreferredExtensionId();
   if (!extensionId || !isExtensionInstalled()) return null;
 
   for (let i = 0; i < retries; i++) {
@@ -114,7 +114,7 @@ async function fetchOpenTabs(): Promise<TabsResponse | null> {
 }
 
 async function linkExtensionToCurrentUser(): Promise<boolean> {
-  const extensionId = getPreferredExtensionId();
+  const extensionId = await resolvePreferredExtensionId();
   if (!extensionId || !isExtensionInstalled()) return !REQUIRE_EXTENSION;
 
   try {
@@ -240,7 +240,11 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
   // - 운영(REQUIRE_EXTENSION 켜짐): CONNECT ping으로 설치 여부 확인 → 미설치/미응답이면
   //   크롬 웹스토어 설치 페이지로 직접 보낸다.
   useEffect(() => {
-    if (!REQUIRE_EXTENSION) { setStep('guide'); return; }
+    const cleanupExtensionIdListener = installExtensionIdListener();
+    if (!REQUIRE_EXTENSION) {
+      setStep('guide');
+      return cleanupExtensionIdListener;
+    }
     let alive = true;
     setStep('checking');
     (async () => {
@@ -249,7 +253,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
       if (resp) setStep('guide');
       else window.location.href = STORE_URL; // 미설치 → 크롬 웹스토어 설치 페이지로 직접
     })();
-    return () => { alive = false; };
+    return () => { alive = false; cleanupExtensionIdListener(); };
   }, []);
 
   // 탭 선택 단계 진입 시 목록 로드

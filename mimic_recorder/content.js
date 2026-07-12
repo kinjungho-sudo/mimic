@@ -8,6 +8,40 @@
   // iframe editors need typing capture; visual guide UI stays in the top frame.
   const IS_TOP_FRAME = window === window.top;
 
+  const PARRO_WEBAPP_HOSTS = new Set([
+    'localhost',
+    '127.0.0.1',
+    'parro-guide-dev.vercel.app',
+    'parro-guide.vercel.app',
+  ]);
+
+  function isParroWebappPage() {
+    const host = window.location.hostname;
+    return PARRO_WEBAPP_HOSTS.has(host)
+      || (host.endsWith('.vercel.app') && host !== 'mimic-nine-ashen.vercel.app');
+  }
+
+  function announceExtensionId() {
+    if (!IS_TOP_FRAME || !isParroWebappPage()) return;
+    window.postMessage({
+      source: 'PARRO_RECORDER_EXTENSION',
+      type: 'EXTENSION_ID',
+      extensionId: chrome.runtime.id,
+    }, window.location.origin);
+  }
+
+  if (IS_TOP_FRAME && isParroWebappPage()) {
+    announceExtensionId();
+    window.addEventListener('message', (event) => {
+      if (event.source !== window || event.origin !== window.location.origin) return;
+      const data = event.data || {};
+      if (data.source === 'PARRO_WEBAPP' && data.type === 'REQUEST_EXTENSION_ID') {
+        announceExtensionId();
+      }
+    });
+    setTimeout(announceExtensionId, 500);
+  }
+
   // ── 로그 헬퍼 (background 링버퍼로 릴레이) ──────────────────────
   function log(level, ...args) {
     const msg = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');

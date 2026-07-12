@@ -1,4 +1,4 @@
-import { getPreferredExtensionId } from '@/lib/extension-id';
+import { resolvePreferredExtensionId } from '@/lib/extension-id';
 
 export async function requestExtensionLink(): Promise<{ token: string; expiresAt: string }> {
   const res = await fetch('/api/extension/link', { method: 'POST' });
@@ -11,7 +11,7 @@ export async function requestExtensionLink(): Promise<{ token: string; expiresAt
 
 // chrome.runtime.sendMessage로 확장에 토큰 전달
 export async function sendTokenToExtension(token: string): Promise<boolean> {
-  const extensionId = getPreferredExtensionId();
+  const extensionId = await resolvePreferredExtensionId();
   if (!extensionId) {
     console.warn('NEXT_PUBLIC_EXTENSION_ID not set');
     return false;
