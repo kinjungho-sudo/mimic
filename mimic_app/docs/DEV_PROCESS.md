@@ -12,8 +12,8 @@
 
 | 단계 | 동작 | 결과 |
 |---|---|---|
-| 1 | `dev`에서 작업 → `npm run build` 통과 확인 → **커밋** | dev에 커밋 쌓임 |
-| 2 | `git push origin dev` | **Preview** 자동 배포 |
+| 1 | `git fetch origin dev` 후 최신 `origin/dev`에서 `feat/parro-*` worktree 생성 | 기능별 격리 작업 |
+| 2 | guard와 범위별 lint/build를 통과한 feat를 검증 후 `dev`에 통합·push | **Preview** 자동 배포 |
 | 3 | 사용자가 **Preview URL(또는 로컬 `npm run dev`)에서 테스트·검증** | OK 판단 |
 | 4 | `git checkout main && git merge dev && git push origin main` | **Production** 자동 배포 |
 
@@ -26,8 +26,12 @@
 
 ## 금지
 - `main` 직접 커밋 금지.
+- `dev` 또는 배포 전용 worktree에서 직접 기능 개발 금지.
+- 기능 worktree에 `.vercel` 프로젝트 링크 생성 금지.
 - 빌드 실패 상태로 push/배포 금지.
 - `--no-verify` 금지.
+
+상세 worktree 및 배포 guard는 [Parro Worktree Migration](./brand/parro-worktree-migration.md)을 따른다.
 
 ## 커밋 메시지
 `feat:` 새 기능 · `fix:` 버그 · `chore:` 설정/정리 · `style:` UI · `refactor:` 리팩토링
