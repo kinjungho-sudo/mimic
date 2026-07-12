@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
-import { rewriteAllSteps } from '@/lib/ai/claude';
+import { requireAuth } from '@/lib/auth/auth-guard';
+import { hasAnthropicApiKey, rewriteAllSteps } from '@/lib/ai/claude';
+import { keepUsableRewriteResults } from '@/lib/ai/text-quality';
+import { rateLimitAi } from '@/lib/rate-limit';
 import { z } from 'zod';
 
 const schema = z.object({
@@ -9,9 +11,15 @@ const schema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const supabase = await createServerClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const auth = await requireAuth(req);
+  if (!auth.ok) return auth.response;
+
+  const limited = rateLimitAi(auth.userId);
+  if (limited) return limited;
+
+  if (!hasAnthropicApiKey()) {
+    return NextResponse.json({ error: 'AI provider is not configured' }, { status: 503 });
+  }
 
   let body: unknown;
   try {
@@ -27,7 +35,8 @@ export async function POST(req: NextRequest) {
 
   let results: unknown;
   try {
-    results = await rewriteAllSteps(parsed.data.steps, parsed.data.instruction);
+    const generated = await rewriteAllSteps(parsed.data.steps, parsed.data.instruction);
+    results = keepUsableRewriteResults(parsed.data.steps, generated);
   } catch (err) {
     console.error('[rewrite-all] Claude error:', err);
     return NextResponse.json({ error: 'AI 처리 중 오류가 발생했습니다.' }, { status: 502 });
