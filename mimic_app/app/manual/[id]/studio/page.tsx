@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Play, Check, Loader2, MousePointerClick, Type, Ban, RotateCcw, EyeOff, Eye, GripVertical, ZoomIn, ImagePlus, PenTool, Volume2, VolumeX, Link2 } from 'lucide-react';
 import { useTutorial } from '@/hooks/useTutorial';
 import { updateStep, reorderSteps } from '@/lib/api/steps';
+import { pickLiveGuideTarget } from '@/lib/api/liveGuide';
 import { clickToPct, inferKind, toFollowSteps } from '@/lib/follow';
 import { resolveStepAudio } from '@/lib/voice/playback';
 import { InteractiveFollowPlayer } from '@/components/viewer/InteractiveFollowPlayer';
@@ -120,6 +121,7 @@ export default function StudioPage() {
   const [audioAssets, setAudioAssets] = useState<StudioAudioAsset[]>([]);
   const [uploadingStepId, setUploadingStepId] = useState<string | null>(null);
   const [annotatingId, setAnnotatingId] = useState<string | null>(null);
+  const [pickingTarget, setPickingTarget] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imgWrapRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
@@ -144,6 +146,48 @@ export default function StudioPage() {
 
 
   const active = steps.find(s => s.id === activeId) ?? null;
+
+  const handlePickTarget = useCallback(async () => {
+    if (!active) return;
+    setPickingTarget(true);
+    try {
+      const result = await pickLiveGuideTarget();
+      if (!result.ok) {
+        alert(result.message);
+        return;
+      }
+
+      const rect = result.element_rect;
+      const nextStep: StudioStep = {
+        ...active,
+        pageUrl: result.page_url ?? active.pageUrl,
+        clickXPct: result.click_x == null ? active.clickXPct : result.click_x * 100,
+        clickYPct: result.click_y == null ? active.clickYPct : result.click_y * 100,
+        domRect: rect
+          ? { x: rect.x * 100, y: rect.y * 100, w: rect.width * 100, h: rect.height * 100 }
+          : active.domRect,
+      };
+
+      stepsRef.current = stepsRef.current.map(step => step.id === nextStep.id ? nextStep : step);
+      setSteps(stepsRef.current);
+      setSavingId(active.id);
+      await updateStep(active.id, {
+        page_url: result.page_url ?? active.pageUrl,
+        element_selector: result.element_selector ?? null,
+        element_xpath: result.element_xpath ?? null,
+        element_rect: result.element_rect ?? null,
+        click_x: result.click_x ?? null,
+        click_y: result.click_y ?? null,
+      });
+      setSavedTick(t => t + 1);
+    } catch (error) {
+      logError('studio.liveTargetPick.fail', { stepId: active.id, message: error instanceof Error ? error.message : String(error) });
+      alert('라이브 가이드 대상을 선택하지 못했습니다. Recorder 연결을 확인해주세요.');
+    } finally {
+      setSavingId(current => current === active.id ? null : current);
+      setPickingTarget(false);
+    }
+  }, [active]);
 
   // follow_config 패치 → 로컬 갱신 + 서버 저장
   const patch = useCallback(async (stepId: string, change: Partial<FollowConfig>) => {
@@ -424,6 +468,9 @@ export default function StudioPage() {
         <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.4)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
           {savingId ? <><Loader2 size={TOP_BAR_ICON_SIZE} className="spin" /> 저장 중…</> : savedTick > 0 ? <><Check size={TOP_BAR_ICON_SIZE} color="#34d399" /> 저장됨</> : null}
         </span>
+        <button onClick={handlePickTarget} disabled={!active || pickingTarget} title="현재 브라우저 탭에서 라이브 가이드 대상을 직접 선택합니다" style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5, opacity: !active || pickingTarget ? 0.55 : 1 }}>
+          {pickingTarget ? <Loader2 size={TOP_BAR_ICON_SIZE} className="spin" /> : <MousePointerClick size={TOP_BAR_ICON_SIZE} />} 현재 탭에서 대상 선택
+        </button>
         <button onClick={() => setShowPreview(true)} title="학습 가이드(웹) 화면으로 미리보기 — 핫스팟·말풍선·입력 텍스트 설정을 확인합니다. 실제 Live Guide Beta 오버레이 외형과는 다를 수 있어요." style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5 }}><Play size={TOP_BAR_ICON_SIZE} /> 학습 가이드 미리보기</button>
         <button onClick={() => setShowShare(true)} title="학습 가이드와 Live Guide Beta에서 함께 쓰는 공유 링크를 엽니다" style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5 }}>
           <Link2 size={TOP_BAR_ICON_SIZE} /> 공유
