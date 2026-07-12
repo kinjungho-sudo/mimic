@@ -58,6 +58,44 @@ The dev host writes session messages to:
 %LOCALAPPDATA%\MIMIC\DesktopCompanion\native-host.log
 ```
 
+## Build quick Windows installer
+
+This builds an unsigned internal-test installer at:
+
+```text
+mimic_desktop\native-host\dist\installer\MIMICDesktopSetup-dev.exe
+```
+
+Run:
+
+```powershell
+.\scripts\build-dev-installer.ps1
+```
+
+The quick installer bundles the current local `node.exe` with `src\host.js`, installs them under:
+
+```text
+%LOCALAPPDATA%\Programs\MIMIC\DesktopCompanion
+```
+
+It registers the current-user Native Messaging host:
+
+```text
+HKCU\Software\Google\Chrome\NativeMessagingHosts\com.mimic.desktop_companion.dev
+```
+
+Default allowed Chrome extension IDs:
+
+- dev unpacked extension: `dhfcmomnambegkibjnandckacihnaelb`
+- Chrome Web Store extension: `ehbhcdkapcbfehinjapabgoegcjmmbgd`
+
+To allow extra extension IDs, set `MIMIC_EXTENSION_ID` before running the installer. Multiple IDs can be comma-separated.
+
+```powershell
+$env:MIMIC_EXTENSION_ID="extraextensionid"
+.\dist\installer\MIMICDesktopSetup-dev.exe
+```
+
 ## Uninstall
 
 ```powershell
