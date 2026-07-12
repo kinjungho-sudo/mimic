@@ -1,5 +1,10 @@
 # Implementation Log
 
+## 2026-07-13 - dev Recorder 연결 게이트 분리
+
+- dev/Preview에서 Recorder 연결이 실패해도 Production용 Chrome Web Store 설치 화면을 표시하지 않도록 분리했다.
+- dev에는 개발용 Recorder 재연결 안내만 표시하고, Production의 기존 설치 게이트는 유지했다.
+
 ## 2026-07-11 - Parro SDK script attribute alias
 
 - Added `data-parro-guide` as the primary SDK script auto-start attribute.

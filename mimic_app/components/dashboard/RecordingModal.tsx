@@ -45,7 +45,7 @@ interface StartRecordingResponse {
   message?: string;
 }
 
-type ModalStep = 'checking' | 'guide' | 'tab_select' | 'launching' | 'not_installed' | 'start_failed' | 'install';
+type ModalStep = 'checking' | 'guide' | 'tab_select' | 'launching' | 'not_installed' | 'dev_unavailable' | 'start_failed' | 'install';
 
 // ── 확장 통신 ─────────────────────────────────────────────
 
@@ -268,7 +268,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
     const linked = await linkExtensionToCurrentUser();
     if (!linked) {
       setTabsLoading(false);
-      setStep('not_installed');
+      setStep(REQUIRE_EXTENSION ? 'not_installed' : 'dev_unavailable');
       return;
     }
 
@@ -360,6 +360,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
             {step === 'tab_select' && '녹화할 페이지 선택'}
             {step === 'launching' && 'Recorder 실행 중…'}
             {step === 'not_installed' && '확장 프로그램이 필요해요'}
+            {step === 'dev_unavailable' && '개발용 Recorder 연결 필요'}
             {step === 'start_failed' && '녹화를 시작하지 못했어요'}
             {step === 'install' && `${BRAND_COPY.extensionDisplayName} 설치 필요`}
           </h2>
@@ -369,6 +370,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
             {step === 'tab_select' && (tabListIssue || `열린 탭 ${tabs.length}개 · 페이지를 선택하면 오른쪽에 미리보기가 표시됩니다`)}
             {step === 'launching' && '잠시만 기다려주세요'}
             {step === 'not_installed' && `${BRAND_COPY.extensionDisplayName}를 먼저 설치해야 녹화할 수 있어요`}
+            {step === 'dev_unavailable' && `${BRAND_COPY.extensionDisplayName} (dev)가 응답하지 않아요`}
             {step === 'start_failed' && '선택한 탭 또는 권한 상태를 확인해주세요'}
             {step === 'install' && '설치 후 연동하면 바로 녹화할 수 있어요'}
           </p>
@@ -600,6 +602,26 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
               </button>
               <button onClick={onClose} style={{ width: '100%', padding: '10px', borderRadius: '10px', background: 'none', color: '#9CA3AF', fontSize: '13px', border: 'none', cursor: 'pointer' }}>
                 나중에
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── dev Recorder 연결 실패 ── */}
+        {step === 'dev_unavailable' && (
+          <div style={{ padding: '24px 28px 28px' }}>
+            <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '10px', padding: '14px 16px', marginBottom: '20px', display: 'flex', gap: '12px' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, marginTop: '1px' }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <p style={{ fontSize: '13px', color: '#1E3A8A', lineHeight: 1.55, margin: 0 }}>
+                개발용 {BRAND_COPY.extensionDisplayName}가 응답하지 않습니다. <code>chrome://extensions</code>에서 개발용 확장을 활성화하고 새로고침한 뒤 다시 연결해주세요.
+              </p>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <button onClick={enterTabSelect} style={{ width: '100%', padding: '12px', borderRadius: '10px', background: BRAND_GRADIENT, color: 'white', fontSize: '14px', fontWeight: 600, border: 'none', cursor: 'pointer', boxShadow: `0 4px 14px ${BRAND_RING}` }}>
+                개발용 Recorder 다시 연결
+              </button>
+              <button onClick={onClose} style={{ width: '100%', padding: '10px', borderRadius: '10px', background: 'none', color: '#9CA3AF', fontSize: '13px', border: 'none', cursor: 'pointer' }}>
+                닫기
               </button>
             </div>
           </div>
