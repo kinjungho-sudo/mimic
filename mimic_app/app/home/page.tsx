@@ -8,10 +8,11 @@ import { RecordingModal } from '@/components/dashboard/RecordingModal';
 import { AgentChat } from '@/components/chat/AgentChat';
 import { BrandMark } from '@/components/common/BrandMark';
 import {
-  FirstManualWelcome,
+  FirstRunLiveGuide,
   getFirstManualTutorialStatus,
   isFirstManualTutorialEligible,
   setFirstManualTutorialStatus,
+  type FirstRunLiveGuidePhase,
   type FirstManualTutorialStatus,
 } from '@/components/onboarding/FirstManualTutorial';
 import { createTutorial } from '@/lib/api/tutorials';
@@ -538,7 +539,7 @@ function EmptyState({ onRecord, onBlank, onGuidebook, onTutorial, label }: { onR
       <div style={{ fontSize: '14px', fontWeight: 600, color: '#111827', marginBottom: '6px' }}>{label ?? '매뉴얼이 없어요'}</div>
       <div style={{ fontSize: '12.5px', color: '#9CA3AF', marginBottom: '20px' }}>화면을 녹화하거나 직접 만들어보세요.</div>
       <div style={{ display: 'inline-flex', gap: '8px' }}>
-        <button onClick={onRecord} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: BRAND_GRADIENT, color: 'white', border: 'none', cursor: 'pointer' }}>
+        <button data-first-guide="record" onClick={onRecord} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: BRAND_GRADIENT, color: 'white', border: 'none', cursor: 'pointer' }}>
           <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'rgba(255,255,255,0.8)', animation: 'recPulse 1.4s ease-in-out infinite' }} />
           화면 녹화
         </button>
@@ -866,6 +867,7 @@ export default function DashboardPage() {
   const [pagesLoading, setPagesLoading] = useState(false);
   const [firstTutorialStatus, setFirstTutorialStatusState] = useState<FirstManualTutorialStatus | null>(null);
   const [firstTutorialReady, setFirstTutorialReady] = useState(false);
+  const [firstLiveGuidePhase, setFirstLiveGuidePhase] = useState<FirstRunLiveGuidePhase>('welcome');
 
   useEffect(() => {
     if (!authLoading && !user) router.replace('/landingpage');
@@ -983,7 +985,34 @@ export default function DashboardPage() {
 
   const handleStartFirstTutorial = () => {
     updateFirstTutorialStatus('started');
+    setFirstLiveGuidePhase('create');
+  };
+
+  const handleRestartFirstTutorial = () => {
+    updateFirstTutorialStatus('started');
+    setShowNewMenu(false);
+    setShowRecordingModal(false);
+    setFirstLiveGuidePhase('welcome');
+  };
+
+  const handleDismissFirstTutorial = () => {
+    updateFirstTutorialStatus('dismissed');
+    setShowNewMenu(false);
+    setShowRecordingModal(false);
+    setFirstLiveGuidePhase('finished');
+  };
+
+  const handleNewMenuClick = () => {
+    const next = !showNewMenu;
+    const compactScreen = typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches;
+    setShowNewMenu(compactScreen && firstLiveGuidePhase === 'create' ? false : next);
+    if (next && firstLiveGuidePhase === 'create') setFirstLiveGuidePhase('record');
+  };
+
+  const handleRecordClick = () => {
+    setShowNewMenu(false);
     setShowRecordingModal(true);
+    if (firstLiveGuidePhase === 'record') setFirstLiveGuidePhase('page-select');
   };
 
   const handleCreateBlank = async () => {
@@ -1141,7 +1170,25 @@ export default function DashboardPage() {
 
   return (
     <>
-      {showRecordingModal && <RecordingModal onClose={() => setShowRecordingModal(false)} />}
+      {showRecordingModal && (
+        <RecordingModal
+          onClose={() => {
+            setShowRecordingModal(false);
+            if (firstLiveGuidePhase === 'page-select') setFirstLiveGuidePhase('create');
+          }}
+          onPageSelect={() => {
+            if (firstLiveGuidePhase === 'page-select') setFirstLiveGuidePhase('finished');
+          }}
+        />
+      )}
+      {firstTutorialReady && activeTab === 'my' && activeFolder === 'all' && displayedTutorials.length === 0 && !searchQuery.trim() && shouldAutoShowFirstTutorial && firstLiveGuidePhase !== 'finished' && (
+        <FirstRunLiveGuide
+          firstName={firstName}
+          phase={firstLiveGuidePhase}
+          onStart={handleStartFirstTutorial}
+          onDismiss={handleDismissFirstTutorial}
+        />
+      )}
       {ctxMenu && (
         <ContextMenu
           menu={ctxMenu}
@@ -1446,7 +1493,7 @@ export default function DashboardPage() {
                   )}
                 </div>
                 <div ref={newMenuRef} style={{ position: 'relative', flexShrink: 0 }}>
-                  <button onClick={() => setShowNewMenu(v => !v)} disabled={creating}
+                  <button data-first-guide="create" onClick={handleNewMenuClick} disabled={creating}
                     className="home-new-btn"
                     style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '8px 14px', borderRadius: '9px', background: BRAND_GRADIENT, color: 'white', border: 'none', cursor: creating ? 'not-allowed' : 'pointer', fontSize: '13.5px', fontWeight: 600, boxShadow: `0 2px 8px ${BRAND_RING}`, opacity: creating ? 0.7 : 1, whiteSpace: 'nowrap' }}>
                     {creating
@@ -1458,7 +1505,7 @@ export default function DashboardPage() {
                   </button>
                   {showNewMenu && (
                     <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, width: '210px', background: 'white', borderRadius: '12px', boxShadow: '0 8px 28px rgba(17,24,39,0.14), 0 0 0 1px rgba(0,0,0,0.06)', overflow: 'hidden', zIndex: 100 }}>
-                      <button className="home-recording-btn" onClick={() => { setShowNewMenu(false); setShowRecordingModal(true); }}
+                      <button data-first-guide="record" className="home-recording-btn" onClick={handleRecordClick}
                         style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', width: '100%', padding: '13px 15px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left' }}
                         onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
                         <span style={{ width: '30px', height: '30px', borderRadius: '8px', background: '#FEE2E2', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
@@ -1607,15 +1654,9 @@ export default function DashboardPage() {
                         검색 초기화
                       </button>
                     </div>
-                  ) : firstTutorialReady && activeTab === 'my' && activeFolder === 'all' && shouldAutoShowFirstTutorial ? (
-                    <FirstManualWelcome
-                      firstName={firstName}
-                      onStart={handleStartFirstTutorial}
-                      onDismiss={() => updateFirstTutorialStatus('dismissed')}
-                    />
                   ) : (
-                    <EmptyState onRecord={() => setShowRecordingModal(true)} onBlank={handleCreateBlank} onGuidebook={handleCreateGuidebook}
-                      onTutorial={activeTab === 'my' && activeFolder === 'all' ? handleStartFirstTutorial : undefined}
+                    <EmptyState onRecord={handleRecordClick} onBlank={handleCreateBlank} onGuidebook={handleCreateGuidebook}
+                      onTutorial={activeTab === 'my' && activeFolder === 'all' ? handleRestartFirstTutorial : undefined}
                       label={activeTab === 'team' ? '팀 매뉴얼이 없어요' : activeFolder !== 'all' ? '이 폴더에 매뉴얼이 없어요' : undefined} />
                   )
                 ) : (

@@ -214,11 +214,12 @@ function FavIcon({ url, favIconUrl }: { url: string; favIconUrl?: string }) {
 
 interface RecordingModalProps {
   onClose: () => void;
+  onPageSelect?: () => void;
 }
 
 const STORE_URL = BRAND_EXTENSION_STORE_URL;
 
-export function RecordingModal({ onClose }: RecordingModalProps) {
+export function RecordingModal({ onClose, onPageSelect }: RecordingModalProps) {
   const [step, setStep] = useState<ModalStep>('checking');
   const [tabs, setTabs] = useState<ChromeTab[]>([]);
   const [tabsLoading, setTabsLoading] = useState(false);
@@ -405,7 +406,11 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
               </p>
             </div>
             <button
-              onClick={enterTabSelect}
+              data-first-guide="page-select"
+              onClick={() => {
+                onPageSelect?.();
+                void enterTabSelect();
+              }}
               style={{ width: '100%', padding: '13px', borderRadius: '11px', background: BRAND_GRADIENT, color: 'white', fontSize: '14.5px', fontWeight: 600, border: 'none', cursor: 'pointer', boxShadow: `0 4px 14px ${BRAND_RING}` }}
             >
               페이지 선택하기 →
