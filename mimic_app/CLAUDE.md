@@ -1,5 +1,15 @@
 # CLAUDE.md
 
+## ⚠️ 작업 시작 전 필독 문서
+
+이 프로젝트의 제품 방향, 기술 설계, 작업 원칙은 루트 문서에 정의되어 있다.
+**모든 작업 전 아래 두 문서를 먼저 읽어라.**
+
+- 제품 설계서: `../MIMIC_PRODUCT_DESIGN_v2.md` — 5레이어 아키텍처, PRD, DB 스키마, 작업 원칙
+- 제품 철학: `../MIMIC_WHY.md` — 타겟 고객, 문제 정의, 비전
+
+---
+
 Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
 
 **Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
