@@ -1,6 +1,6 @@
 # MIMIC 개발 환경 최종 이관 안내
 
-작성일: 2026-07-13 KST  
+작성일: 2026-07-13 KST
 원격 저장소: `https://github.com/kinjungho-sudo/mimic.git`
 
 이 문서는 기존 Windows 개발 PC를 포맷한 뒤 Mac mini와 집의 Windows 데스크톱에서 MIMIC 개발을 재개하기 위한 최종 안내서다. 환경변수와 개인정보 파일은 별도 보관본에서 복원하고 GitHub에는 올리지 않는다.
