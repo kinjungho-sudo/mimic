@@ -4,8 +4,10 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { BrandMark } from '@/components/common/BrandMark';
 import { FollowStage } from '@/components/viewer/FollowStage';
-import { BRAND_COPY, BRAND_NAME, BRAND_SUPPORT_EMAIL, BRAND_TAGLINE } from '@/lib/brand';
+import { BRAND_COPY, BRAND_NAME, BRAND_TAGLINE } from '@/lib/brand';
 import { HeroRecordingDemo, ProductDemo } from '@/components/landing/ProductDemo';
+
+const LANDING_CONTACT_EMAIL = 'support@parro.io';
 
 const CheckIcon = ({ size = 14, color = 'currentColor' }: { size?: number; color?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3">
@@ -1566,16 +1568,17 @@ function HeroSection() {
           <h1 style={{ margin: '0 0 24px', fontSize: 'clamp(44px, 5.4vw, 70px)', lineHeight: 1.03, fontWeight: 800, letterSpacing: '-0.05em', color: 'white', wordBreak: 'keep-all' }}>
             클릭하면,<br/><span style={{ background: 'linear-gradient(135deg, #E8FFF7 0%, #8DD63F 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>SOP가 됩니다.</span>
           </h1>
-          <p style={{ fontSize: '17px', color: 'rgba(255,255,255,0.52)', maxWidth: '500px', margin: '0 0 34px', lineHeight: 1.75 }}>
+          <p style={{ fontSize: '17px', color: 'rgba(255,255,255,0.72)', maxWidth: '500px', margin: '0 0 34px', lineHeight: 1.75 }}>
             평소처럼 업무를 진행하세요. {BRAND_NAME}가 클릭과 화면을 기록해 매뉴얼로 만들고, 실제 실행 순간까지 안내합니다.
           </p>
           <div className="hero-cta-row" style={{ display: 'flex', gap: '12px', marginBottom: '34px' }}>
             <Link href="/auth/login" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '14px 25px', borderRadius: '12px', fontSize: '14px', fontWeight: 700, color: 'white', background: 'linear-gradient(135deg, #009B8E 0%, #12B886 100%)', boxShadow: '0 8px 28px rgba(18,184,134,0.38)', textDecoration: 'none' }}>
               무료로 시작하기 <span aria-hidden="true">→</span>
             </Link>
-            <a href="#tour" style={{ display: 'inline-flex', alignItems: 'center', padding: '14px 20px', borderRadius: '12px', fontSize: '14px', color: 'rgba(255,255,255,0.68)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)', textDecoration: 'none' }}>3단계 데모 보기</a>
+            <a href="#tour" style={{ display: 'inline-flex', alignItems: 'center', padding: '14px 20px', borderRadius: '12px', fontSize: '14px', color: 'rgba(255,255,255,0.78)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.14)', textDecoration: 'none' }}>제품 데모 보기</a>
           </div>
-          <div className="hero-proof" style={{ display: 'flex', gap: '10px', color: 'rgba(255,255,255,0.36)', fontSize: '11px' }}><span>● 클릭 자동 기록</span><span>● 편집·내보내기</span><span>● 화면 위 안내</span></div>
+          <div className="hero-requirement" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginBottom: '18px', padding: '8px 11px', borderRadius: '9px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.76)', fontSize: '12px' }}><span aria-hidden="true">◉</span> Chrome 확장 프로그램 설치 후 사용 · 가입 후 설치 안내</div>
+          <div className="hero-proof" style={{ display: 'flex', gap: '10px', color: 'rgba(255,255,255,0.62)', fontSize: '11px' }}><span>● 클릭 자동 기록</span><span>● 편집·내보내기</span><span>● 화면 위 안내</span></div>
         </div>
         <div className="hero-preview" style={{ position: 'relative', minWidth: 0 }}>
           <div style={{ position: 'absolute', inset: '12% -4% -8%', background: 'radial-gradient(ellipse, rgba(18,184,134,0.24) 0%, transparent 68%)', filter: 'blur(30px)', pointerEvents: 'none' }} />
@@ -1591,28 +1594,10 @@ function HeroSection() {
 export default function LandingPage() {
   const [billing, setBilling] = useState<'month' | 'year'>('month');
   const [faqOpen, setFaqOpen] = useState<number | null>(0);
-  const [email, setEmail] = useState('');
-  const [submitted, setSubmitted] = useState(false);
-  const [error, setError] = useState('');
   const [proModal, setProModal] = useState<'basic' | 'pro' | 'team' | null>(null);
   const [proEmail, setProEmail] = useState('');
   const [proSubmitted, setProSubmitted] = useState(false);
   const [proError, setProError] = useState('');
-
-  const handleProSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setError('올바른 이메일 주소를 입력해 주세요.'); return; }
-    setError('');
-    try {
-      const res = await fetch('/api/pro-signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, plan_interested: 'pro', source: 'landing' }),
-      });
-      if (!res.ok) throw new Error(res.statusText);
-      setSubmitted(true);
-    } catch { setError('일시적인 오류로 등록에 실패했어요. 잠시 후 다시 시도해 주세요.'); }
-  };
 
   const handleProPlanSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1636,7 +1621,7 @@ export default function LandingPage() {
 
   const faqs = [
     { q: '언제든 취소할 수 있나요?', a: '네, 마이페이지에서 언제든 구독을 해지할 수 있어요. 해지 후에도 결제한 기간까지는 모든 기능을 그대로 사용하실 수 있습니다.' },
-    { q: '무료 플랜의 매뉴얼은 어떻게 보관되나요?', a: '무료 플랜에서 만든 매뉴얼은 영구 보관됩니다. 매일 만들 수 있는 개수만 3개로 제한되며, 기존에 만든 매뉴얼 열람·편집·공유는 평생 자유롭게 가능합니다.' },
+    { q: '무료 플랜의 매뉴얼은 어떻게 보관되나요?', a: '무료 플랜에서 만든 매뉴얼은 계정을 유지하는 동안 보관됩니다. 현재 베타에서는 계정별 500MB 저장 제한을 적용하지 않으며, 매일 새로 만들 수 있는 매뉴얼만 3개로 제한됩니다.' },
     { q: '어떤 결제 방법을 지원하나요?', a: '국내·해외 주요 신용카드와 카카오페이, 토스페이를 지원합니다. 기업 결제는 세금계산서 발행이 가능합니다.' },
     { q: '플랜은 자유롭게 변경할 수 있나요?', a: '언제든 업그레이드·다운그레이드할 수 있어요. 업그레이드는 즉시 반영되고, 다운그레이드는 다음 결제 주기부터 적용됩니다.' },
     { q: '환불 정책은 어떻게 되나요?', a: '결제 후 7일 이내, 유료 기능을 한 번도 사용하지 않은 경우 전액 환불이 가능합니다. 자세한 내용은 환불 정책 페이지를 참고해주세요.' },
@@ -1646,21 +1631,21 @@ export default function LandingPage() {
   return (
     <div style={{ fontFamily: "'Pretendard', 'Pretendard Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif", color: '#111827', background: '#fff', WebkitFontSmoothing: 'antialiased' }}>
 
-      {/* Pro 플랜 사전예약 모달 */}
+      {/* 출시 알림 · 기업 도입 문의 모달 */}
       {proModal && (
         <div onClick={() => { setProModal(null); setProSubmitted(false); setProEmail(''); setProError(''); }} style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.60)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'white', borderRadius: '20px', padding: '40px', width: '100%', maxWidth: '440px', boxShadow: '0 40px 80px rgba(0,0,0,0.15)' }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="plan-modal-title" onClick={e => e.stopPropagation()} style={{ background: 'white', borderRadius: '20px', padding: '40px', width: '100%', maxWidth: '440px', boxShadow: '0 40px 80px rgba(0,0,0,0.15)' }}>
             <div style={{ textAlign: 'center', marginBottom: '28px' }}>
               <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '52px', height: '52px', borderRadius: '14px', background: 'linear-gradient(135deg, #009B8E, #12B886)', marginBottom: '16px' }}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
               </div>
-              <div style={{ fontSize: '20px', fontWeight: 700, color: '#0D0D14', marginBottom: '6px' }}>{proModal === 'team' ? 'Team' : proModal === 'basic' ? 'Basic' : 'Pro'} 플랜 사전예약</div>
+              <div id="plan-modal-title" style={{ fontSize: '20px', fontWeight: 700, color: '#0D0D14', marginBottom: '6px' }}>{proModal === 'team' ? 'Team 플랜 도입 문의' : `${proModal === 'basic' ? 'Basic' : 'Pro'} 플랜 출시 알림`}</div>
               <p style={{ fontSize: '14px', color: '#6B7280', lineHeight: 1.6, margin: 0 }}>{proModal !== 'team' ? '출시 즉시 알림 + 얼리버드 할인 혜택을 드립니다.' : '담당자가 직접 연락드려 요금과 도입 조건을 안내해 드립니다.'}</p>
             </div>
             {!proSubmitted ? (
               <form onSubmit={handleProPlanSignup}>
                 <input type="email" value={proEmail} onChange={e => setProEmail(e.target.value)} placeholder="이메일 주소" required style={{ width: '100%', height: '46px', padding: '0 14px', border: '1.5px solid #E5E7EB', borderRadius: '10px', fontSize: '14px', color: '#111827', outline: 'none', boxSizing: 'border-box', marginBottom: '12px', fontFamily: 'inherit' }} />
-                <button type="submit" style={{ width: '100%', height: '46px', borderRadius: '10px', background: 'linear-gradient(135deg, #009B8E, #12B886)', color: 'white', fontWeight: 700, fontSize: '14px', border: 'none', cursor: 'pointer' }}>{proModal !== 'team' ? '사전예약 신청하기' : '도입 문의 신청하기'}</button>
+                <button type="submit" style={{ width: '100%', height: '46px', borderRadius: '10px', background: 'linear-gradient(135deg, #009B8E, #12B886)', color: 'white', fontWeight: 700, fontSize: '14px', border: 'none', cursor: 'pointer' }}>{proModal !== 'team' ? '출시 알림 받기' : '기업 도입 문의하기'}</button>
                 {proError && <div style={{ marginTop: '10px', fontSize: '12.5px', color: '#DC2626', textAlign: 'center' }}>{proError}</div>}
               </form>
             ) : (
@@ -1668,7 +1653,7 @@ export default function LandingPage() {
                 ✓ {proModal !== 'team' ? '등록되었습니다. 출시일에 가장 먼저 알려드릴게요!' : '접수되었습니다. 담당자가 곧 연락드릴게요!'}
               </div>
             )}
-            <button onClick={() => { setProModal(null); setProSubmitted(false); setProEmail(''); setProError(''); }} style={{ width: '100%', marginTop: '12px', padding: '10px', background: 'none', border: 'none', color: '#9CA3AF', fontSize: '13px', cursor: 'pointer' }}>닫기</button>
+            <button aria-label="플랜 안내 닫기" onClick={() => { setProModal(null); setProSubmitted(false); setProEmail(''); setProError(''); }} style={{ width: '100%', marginTop: '12px', padding: '10px', background: 'none', border: 'none', color: '#6B7280', fontSize: '13px', cursor: 'pointer' }}>닫기</button>
           </div>
         </div>
       )}
@@ -1697,7 +1682,7 @@ export default function LandingPage() {
             >로그인</Link>
             <Link href="/auth/login"
               style={{ padding: '9px 18px', borderRadius: '9px', fontSize: '13.5px', fontWeight: 700, color: 'white', background: 'linear-gradient(135deg, #009B8E 0%, #12B886 100%)', boxShadow: '0 0 0 1px rgba(141,214,63,0.2), 0 4px 12px rgba(18,184,134,0.35)', textDecoration: 'none' }}
-            >무료로 시작</Link>
+            >무료로 시작하기</Link>
           </div>
         </div>
       </header>
@@ -1709,7 +1694,7 @@ export default function LandingPage() {
       <ProductDemo />
 
       {/* Manifesto */}
-      <section style={{ padding: '128px 0', background: 'linear-gradient(180deg, #07070F 0%, #0d0d1c 100%)', overflow: 'hidden', position: 'relative' }}>
+      <section className="parro-way-section" style={{ padding: '86px 0 104px', background: 'linear-gradient(180deg, #07070F 0%, #0d0d1c 100%)', overflow: 'hidden', position: 'relative' }}>
         <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 70% 50% at 50% 50%, rgba(18,184,134,0.20) 0%, transparent 70%)', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent 0%, rgba(18,184,134,0.35) 30%, rgba(18,184,134,0.35) 70%, transparent 100%)', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
         <div style={{ maxWidth: '900px', margin: '0 auto', padding: '0 32px', textAlign: 'center', position: 'relative' }}>
@@ -1725,7 +1710,7 @@ export default function LandingPage() {
                 실행까지 이어진다.
               </span>
             </h2>
-            <p style={{ fontSize: '18px', color: 'rgba(255,255,255,0.42)', maxWidth: '500px', margin: '0 auto 56px', lineHeight: 1.8, fontWeight: 400 }}>
+            <p style={{ fontSize: '18px', color: 'rgba(255,255,255,0.72)', maxWidth: '500px', margin: '0 auto 48px', lineHeight: 1.8, fontWeight: 400 }}>
               녹화 버튼 하나만 켜면 됩니다. 클릭, 입력, 스크롤 — 당신의 모든 동작이 SOP가 되고, 필요한 순간에는 화면 위 안내가 됩니다.
             </p>
             <div style={{ display: 'inline-flex', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '18px', overflow: 'hidden', background: 'rgba(255,255,255,0.02)', flexWrap: 'wrap' }}>
@@ -1736,7 +1721,7 @@ export default function LandingPage() {
               ].map((item, i) => (
                 <div key={item.label} style={{ padding: '24px 36px', borderRight: i < 2 ? '1px solid rgba(255,255,255,0.07)' : 'none', textAlign: 'center', background: i === 1 ? 'rgba(18,184,134,0.09)' : 'transparent', minWidth: '140px' }}>
                   <div style={{ fontSize: '14px', fontWeight: 700, color: 'white', marginBottom: '5px' }}>{item.label}</div>
-                  <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.32)' }}>{item.desc}</div>
+                  <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.68)' }}>{item.desc}</div>
                 </div>
               ))}
             </div>
@@ -1745,12 +1730,12 @@ export default function LandingPage() {
       </section>
 
       {/* Problem */}
-      <section style={{ padding: '100px 0', background: '#0A0A15' }}>
+      <section style={{ padding: '100px 0 64px', background: '#0A0A15' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
           <RevealSection>
             <span style={{ display: 'block', textAlign: 'center', fontSize: '11px', color: '#12B886', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '16px' }}>Problem</span>
             <h2 style={{ textAlign: 'center', fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 800, letterSpacing: '-0.035em', margin: '0 auto 14px', maxWidth: '680px', lineHeight: 1.18, color: 'white' }}>좋은 매뉴얼도 실행 순간에는 멀어집니다</h2>
-            <p style={{ textAlign: 'center', fontSize: '16px', color: 'rgba(255,255,255,0.38)', maxWidth: '600px', margin: '0 auto 60px', lineHeight: 1.7 }}>SOP와 매뉴얼은 꼭 필요합니다. 문제는 그 지식이 실제 화면 앞에서 바로 행동으로 이어지기 어렵다는 점입니다.</p>
+            <p style={{ textAlign: 'center', fontSize: '16px', color: 'rgba(255,255,255,0.72)', maxWidth: '600px', margin: '0 auto 60px', lineHeight: 1.7 }}>SOP와 매뉴얼은 꼭 필요합니다. 문제는 그 지식이 실제 화면 앞에서 바로 행동으로 이어지기 어렵다는 점입니다.</p>
 
             <div className="grid-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
               {[
@@ -1766,14 +1751,16 @@ export default function LandingPage() {
                   <div style={{ position: 'absolute', top: 0, left: '32px', right: '32px', height: '1.5px', background: `linear-gradient(90deg, transparent, ${p.accent}80, transparent)` }} />
                   <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: `${p.accent}18`, border: `1px solid ${p.accent}30`, display: 'grid', placeItems: 'center', marginBottom: '20px', fontSize: '22px' }}>{p.emoji}</div>
                   <div style={{ fontSize: '18px', fontWeight: 700, marginBottom: '10px', color: 'white', letterSpacing: '-0.02em' }}>{p.title}</div>
-                  <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.42)', lineHeight: 1.75, margin: 0 }}>{p.body}</p>
-                  <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.07)', fontSize: '12.5px', color: 'rgba(255,255,255,0.22)', fontStyle: 'italic' }}>{p.quote}</div>
+                  <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.72)', lineHeight: 1.75, margin: 0 }}>{p.body}</p>
+                  <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.12)', fontSize: '12.5px', color: 'rgba(255,255,255,0.60)', fontStyle: 'italic' }}>{p.quote}</div>
                 </div>
               ))}
             </div>
           </RevealSection>
         </div>
       </section>
+
+      <div className="section-transition transition-dark-light" aria-hidden="true" />
 
       {/* Legacy how-it-works content is superseded by ProductDemo. */}
       {false ? <section id="how" style={{ padding: '100px 0', background: 'white' }}>
@@ -1806,7 +1793,7 @@ export default function LandingPage() {
       </section> : null}
 
       {/* Use Cases */}
-      <section style={{ padding: '100px 0', background: '#FAFAFA' }}>
+      <section style={{ padding: '64px 0 100px', background: '#FAFAFA' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
           <RevealSection>
             <span style={{ display: 'block', textAlign: 'center', fontSize: '11px', color: '#007C72', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '16px' }}>Use Cases</span>
@@ -1835,12 +1822,12 @@ export default function LandingPage() {
       </section>
 
       {/* Features */}
-      <section id="features" style={{ padding: '100px 0', background: '#0A0A15' }}>
+      <section id="features" style={{ padding: '100px 0 64px', background: '#0A0A15' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
           <RevealSection>
             <span style={{ display: 'block', textAlign: 'center', fontSize: '11px', color: '#12B886', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '16px' }}>Features</span>
             <h2 style={{ textAlign: 'center', fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 800, letterSpacing: '-0.035em', margin: '0 auto 14px', maxWidth: '680px', lineHeight: 1.18, color: 'white' }}>SOP를 만들고, 실행까지 돕는 기능</h2>
-            <p style={{ textAlign: 'center', fontSize: '16px', color: 'rgba(255,255,255,0.38)', maxWidth: '560px', margin: '0 auto 64px', lineHeight: 1.7 }}>화면 위 Live Guide Beta · 팀 워크스페이스 · 민감정보 보호까지, 업무 지식이 실제 행동으로 이어지도록.</p>
+            <p style={{ textAlign: 'center', fontSize: '16px', color: 'rgba(255,255,255,0.72)', maxWidth: '560px', margin: '0 auto 64px', lineHeight: 1.7 }}>화면 위 Live Guide Beta · 팀 워크스페이스 · 민감정보 보호까지, 업무 지식이 실제 행동으로 이어지도록.</p>
 
             <div className="grid-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
               {features.map(f => (
@@ -1856,7 +1843,7 @@ export default function LandingPage() {
                     {f.icon}
                   </div>
                   <div style={{ fontSize: '15px', fontWeight: 700, marginBottom: '8px', color: 'white', letterSpacing: '-0.01em' }}>{f.title}</div>
-                  <p style={{ fontSize: '13.5px', color: 'rgba(255,255,255,0.42)', lineHeight: 1.75, margin: 0 }}>{f.body}</p>
+                  <p style={{ fontSize: '13.5px', color: 'rgba(255,255,255,0.72)', lineHeight: 1.75, margin: 0 }}>{f.body}</p>
                 </div>
               ))}
             </div>
@@ -1864,8 +1851,10 @@ export default function LandingPage() {
         </div>
       </section>
 
+      <div className="section-transition transition-dark-light" aria-hidden="true" />
+
       {/* Comparison */}
-      <section style={{ padding: '100px 0', background: '#FAFAFA' }}>
+      <section style={{ padding: '64px 0 100px', background: '#FAFAFA' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
           <RevealSection>
           <span style={{ display: 'block', textAlign: 'center', fontSize: '11px', color: '#007C72', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '16px' }}>Why Parro</span>
@@ -1908,57 +1897,59 @@ export default function LandingPage() {
       </section>
 
       {/* Pricing */}
-      <section id="pricing" style={{ padding: '100px 0', background: 'white' }}>
+      <section id="pricing" style={{ padding: '100px 0 64px', background: 'white' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
           <span style={{ display: 'block', textAlign: 'center', fontSize: '11px', color: '#007C72', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '16px' }}>Pricing</span>
           <h2 style={{ textAlign: 'center', fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 800, letterSpacing: '-0.035em', margin: '0 auto 14px', maxWidth: '640px', lineHeight: 1.18, color: '#0D0D14' }}>무료로 시작하고, 필요한 기능은 출시 알림으로</h2>
           <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '560px', margin: '0 auto 40px', lineHeight: 1.7 }}>현재는 무료로 매뉴얼 제작을 시작할 수 있습니다. Basic·Pro는 정식 출시 전 알림 신청을 받고 있어요.</p>
 
           <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px', background: '#F3F4F6', border: '1px solid #E5E7EB', borderRadius: '12px' }}>
+            <div role="group" aria-label="예상 요금 표시 기준" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px', background: '#F3F4F6', border: '1px solid #E5E7EB', borderRadius: '12px' }}>
               {(['month', 'year'] as const).map(b => (
-                <button key={b} onClick={() => setBilling(b)} style={{ padding: '9px 20px', borderRadius: '9px', fontSize: '13.5px', color: billing === b ? '#111827' : '#6B7280', fontWeight: 500, background: billing === b ? 'white' : 'transparent', boxShadow: billing === b ? '0 1px 4px rgba(0,0,0,0.08)' : 'none', cursor: 'pointer', whiteSpace: 'nowrap', border: 'none', transition: 'all 0.15s' }}>
+                <button className="pricing-toggle" key={b} aria-pressed={billing === b} onClick={() => setBilling(b)} style={{ padding: '9px 20px', borderRadius: '9px', fontSize: '13.5px', color: billing === b ? '#111827' : '#6B7280', fontWeight: 500, background: billing === b ? 'white' : 'transparent', boxShadow: billing === b ? '0 1px 4px rgba(0,0,0,0.08)' : 'none', cursor: 'pointer', whiteSpace: 'nowrap', border: 'none', transition: 'all 0.15s' }}>
                   {b === 'month' ? '월간 결제' : <>연간 결제 <span style={{ display: 'inline-block', marginLeft: '6px', padding: '2px 8px', borderRadius: '999px', background: 'rgba(16,185,129,0.12)', color: '#059669', fontSize: '11px', fontWeight: 600 }}>2개월 무료</span></>}
                 </button>
               ))}
             </div>
+            <p style={{ margin: '12px 0 0', color: '#6B7280', fontSize: '12.5px' }}>Basic·Pro 금액은 출시 전 예상가이며, 정식 출시 시 기능 구성과 함께 변경될 수 있습니다.</p>
           </div>
 
           <div className="pricing-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', maxWidth: '1180px', margin: '0 auto' }}>
             {([
               {
-                name: 'Free', sub: '신용카드 없이 바로 시작', amount: '₩0', per: '/ 월', featured: false,
+                name: 'Free', sub: '신용카드 없이 바로 시작', amount: '₩0', per: '/ 월', featured: true, badge: '현재 이용 가능', priceNote: null,
                 planKey: null as null | 'basic' | 'pro' | 'team',
-                features: ['매일 매뉴얼 3개', `${BRAND_COPY.extensionDisplayName} 확장 설치`, '텍스트·도형 편집', '링크 공유 + PDF', '500MB 저장 공간'],
-                cta: '무료로 시작',
+                features: ['매일 매뉴얼 3개', `${BRAND_COPY.extensionDisplayName} 확장 설치`, '텍스트·도형 편집', '링크 공유 + PDF', '계정 유지 중 매뉴얼 보관'],
+                cta: '무료로 시작하기',
               },
               {
-                name: 'Basic', sub: '입문자와 가벼운 사용자', amount: prices.basic, per: '/ 월', featured: false,
+                name: 'Basic', sub: '입문자와 가벼운 사용자', amount: prices.basic, per: '/ 월', featured: false, badge: null, priceNote: '출시 전 예상가',
                 planKey: 'basic' as const,
                 features: ['매뉴얼 생성 한도 확대', 'AI 다듬기 월 100회', 'PPTX·Word 내보내기', '비공개 + 비밀번호 보호', '2GB 저장 공간'],
                 cta: '출시 알림 받기',
               },
               {
-                name: 'Pro', sub: '개인 크리에이터와 파워 유저', amount: prices.pro, per: '/ 월', featured: true,
+                name: 'Pro', sub: '개인 크리에이터와 파워 유저', amount: prices.pro, per: '/ 월', featured: false, badge: null, priceNote: '출시 전 예상가',
                 planKey: 'pro' as const,
                 features: ['Basic 플랜 모든 기능', 'AI 다듬기 무제한', 'AI 상세 설명 생성', '학습 가이드 + Live Guide Beta', 'AI 음성 편집', '5GB 저장 공간'],
                 cta: '출시 알림 받기',
               },
               {
-                name: 'Team', sub: '팀·기업을 위한 맞춤 플랜', amount: '협의', per: '', featured: false,
+                name: 'Team', sub: '팀·기업을 위한 맞춤 플랜', amount: '협의', per: '', featured: false, badge: null, priceNote: null,
                 planKey: 'team' as const,
                 features: ['Pro 플랜 모든 기능', '팀 워크스페이스', '멤버 권한 관리', '확장 저장 공간', '전용 온보딩 지원', '세금계산서 발행', '우선 지원 (SLA)'],
-                cta: '도입 문의하기',
+                cta: '기업 도입 문의',
               },
             ] as const).map(plan => (
               <div key={plan.name} style={{ background: 'white', border: plan.featured ? '2px solid #009B8E' : '1.5px solid #E5E7EB', borderRadius: '20px', padding: '36px 28px', position: 'relative', transform: plan.featured ? 'translateY(-10px)' : 'none', boxShadow: plan.featured ? '0 16px 48px rgba(0,155,142,0.12), 0 4px 12px rgba(17,24,39,0.06)' : 'none' }}>
-                {plan.featured && <span style={{ position: 'absolute', top: '-13px', left: '50%', transform: 'translateX(-50%)', background: 'linear-gradient(135deg, #009B8E 0%, #12B886 100%)', color: 'white', padding: '5px 14px', borderRadius: '999px', fontSize: '11.5px', fontWeight: 600, whiteSpace: 'nowrap' }}>가장 인기</span>}
+                {plan.badge && <span style={{ position: 'absolute', top: '-13px', left: '50%', transform: 'translateX(-50%)', background: 'linear-gradient(135deg, #009B8E 0%, #12B886 100%)', color: 'white', padding: '5px 14px', borderRadius: '999px', fontSize: '11.5px', fontWeight: 600, whiteSpace: 'nowrap' }}>{plan.badge}</span>}
                 <div style={{ fontSize: '14px', fontWeight: 700, color: plan.featured ? '#009B8E' : '#6B7280', marginBottom: '4px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>{plan.name}</div>
                 <div style={{ fontSize: '13px', color: '#9CA3AF', marginBottom: '24px' }}>{plan.sub}</div>
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', marginBottom: '24px' }}>
                   <span style={{ fontSize: plan.amount === '협의' ? '30px' : '36px', fontWeight: 700, letterSpacing: '-0.03em', color: '#0D0D14', lineHeight: 1 }}>{plan.amount}</span>
                   {plan.per && <span style={{ fontSize: '13.5px', color: '#9CA3AF', fontWeight: 400, paddingBottom: '4px' }}>{plan.per}</span>}
                 </div>
+                {plan.priceNote && <div style={{ marginTop: '-16px', marginBottom: '18px', color: '#7C3F00', fontSize: '11.5px', fontWeight: 600 }}>{plan.priceNote}</div>}
                 {plan.planKey ? (
                   <button onClick={() => { setProModal(plan.planKey as 'basic' | 'pro' | 'team'); setProSubmitted(false); setProEmail(''); }} style={{ display: 'block', width: '100%', margin: '0 0 28px', padding: '13px 0', borderRadius: '10px', fontSize: '14px', fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: plan.featured ? 'linear-gradient(135deg, #009B8E 0%, #12B886 100%)' : 'white', color: plan.featured ? 'white' : '#374151', border: plan.featured ? 'none' : '1.5px solid #E5E7EB', boxShadow: plan.featured ? '0 4px 12px rgba(0,155,142,0.28)' : 'none', fontFamily: 'inherit' }}>{plan.cta}</button>
                 ) : (
@@ -1978,17 +1969,20 @@ export default function LandingPage() {
         </div>
       </section>
 
+      <div className="section-transition transition-light-dark" aria-hidden="true" />
+
       {/* B2B */}
-      <section id="b2b" style={{ padding: '96px 0', background: 'radial-gradient(800px 320px at 80% 0%, rgba(18,184,134,0.20), transparent 60%), radial-gradient(700px 320px at 20% 100%, rgba(0,155,142,0.20), transparent 60%), #0A0A0F', color: 'white' }}>
+      <section id="b2b" style={{ padding: '64px 0 96px', background: 'radial-gradient(800px 320px at 80% 0%, rgba(18,184,134,0.20), transparent 60%), radial-gradient(700px 320px at 20% 100%, rgba(0,155,142,0.20), transparent 60%), #0A0A0F', color: 'white' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
           <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#8DD63F', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>For Enterprise</span>
           <h2 style={{ textAlign: 'center', fontSize: '36px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 auto 16px', maxWidth: '720px', lineHeight: 1.2, color: 'white' }}>팀 전체가 같은 방식으로<br/>일할 수 있게</h2>
           <p style={{ textAlign: 'center', fontSize: '16px', color: '#9CA3AF', maxWidth: '560px', margin: '0 auto 56px', lineHeight: 1.65 }}>반복 문의를 줄이고, 온보딩 시간을 단축하고, 지식을 조직 전체에 공유하세요. 기업 맞춤 도입 상담을 진행합니다.</p>
 
           <div className="b2b-btns" style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-            <a href={`mailto:${BRAND_SUPPORT_EMAIL}?subject=기업 데모 신청`} style={{ display: 'inline-flex', alignItems: 'center', padding: '15px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 600, background: 'white', color: '#111827', textDecoration: 'none', boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }}>기업 데모 신청하기</a>
-            <a href={`mailto:${BRAND_SUPPORT_EMAIL}?subject=자료 요청`} style={{ display: 'inline-flex', alignItems: 'center', padding: '15px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 500, color: 'rgba(255,255,255,0.85)', border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.06)', textDecoration: 'none' }}>자료 다운로드</a>
+            <a href={`mailto:${LANDING_CONTACT_EMAIL}?subject=기업 도입 문의`} style={{ display: 'inline-flex', alignItems: 'center', padding: '15px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 700, background: 'linear-gradient(135deg, #009B8E, #12B886)', color: 'white', textDecoration: 'none', boxShadow: '0 8px 24px rgba(18,184,134,0.30)' }}>기업 도입 문의</a>
+            <a href={`mailto:${LANDING_CONTACT_EMAIL}?subject=Parro 기업 소개서 요청`} aria-describedby="enterprise-deck-info" style={{ display: 'inline-flex', alignItems: 'center', padding: '15px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 500, color: 'rgba(255,255,255,0.90)', border: '1px solid rgba(255,255,255,0.24)', background: 'rgba(255,255,255,0.06)', textDecoration: 'none' }}>기업 소개서 요청</a>
           </div>
+          <p id="enterprise-deck-info" style={{ margin: '14px auto 0', textAlign: 'center', color: 'rgba(255,255,255,0.70)', fontSize: '12px' }}>Parro_Enterprise_Overview.pdf · PDF 소개서 · 이메일로 제공</p>
         </div>
       </section>
 
@@ -2003,6 +1997,11 @@ export default function LandingPage() {
             {faqs.map((faq, i) => (
               <div key={i} style={{ borderBottom: '1px solid #F3F4F6', overflow: 'hidden' }}>
                 <button
+                  id={`faq-trigger-${i}`}
+                  className="faq-trigger"
+                  type="button"
+                  aria-expanded={faqOpen === i}
+                  aria-controls={`faq-panel-${i}`}
                   onClick={() => setFaqOpen(faqOpen === i ? null : i)}
                   style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textAlign: 'left', padding: '22px 0', fontSize: '15.5px', fontWeight: 500, color: faqOpen === i ? '#009B8E' : '#111827', cursor: 'pointer', background: 'none', border: 'none', transition: 'color 0.15s' }}
                 >
@@ -2012,7 +2011,7 @@ export default function LandingPage() {
                   </span>
                 </button>
                 {faqOpen === i && (
-                  <div style={{ paddingBottom: '22px', fontSize: '14.5px', color: '#6B7280', lineHeight: 1.7, maxWidth: '94%' }}>{faq.a}</div>
+                  <div id={`faq-panel-${i}`} role="region" aria-labelledby={`faq-trigger-${i}`} style={{ paddingBottom: '22px', fontSize: '14.5px', color: '#4B5563', lineHeight: 1.7, maxWidth: '94%' }}>{faq.a}</div>
                 )}
               </div>
             ))}
@@ -2032,48 +2031,31 @@ export default function LandingPage() {
 
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '6px 16px', borderRadius: '999px', background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.18)', fontSize: '12px', fontWeight: 600, marginBottom: '24px', position: 'relative', letterSpacing: '0.03em', backdropFilter: 'blur(8px)' }}>
               <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#E8FFF7', animation: 'pulse-dot 1.8s ease-in-out infinite' }} />
-              Pro 출시 알림 받기 · 사전예약
+              Chrome 확장 설치 후 바로 시작
             </span>
             <h2 style={{ fontSize: 'clamp(32px, 5vw, 54px)', fontWeight: 800, letterSpacing: '-0.04em', margin: '0 0 18px', position: 'relative', lineHeight: 1.1, wordBreak: 'keep-all' }}>첫 실행형 매뉴얼을<br/>만들어보세요</h2>
             <p style={{ fontSize: '17px', color: 'rgba(255,255,255,0.70)', maxWidth: '520px', margin: '0 auto 40px', position: 'relative', lineHeight: 1.7 }}>{BRAND_COPY.extensionDisplayName} 확장 설치 후 평소처럼 작업하세요. SOP는 문서로 남고, 필요한 순간에는 화면 위 안내로 이어집니다.</p>
 
-            {!submitted ? (
-              <form onSubmit={handleProSignup} style={{ position: 'relative', display: 'flex', gap: '8px', maxWidth: '440px', margin: '0 auto 28px', padding: '6px', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.22)', borderRadius: '14px' }}>
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="jungho@company.com" required style={{ flex: 1, height: '46px', padding: '0 16px', border: 'none', background: 'rgba(255,255,255,0.95)', borderRadius: '9px', fontSize: '14px', color: '#111827', outline: 'none' }} />
-                <button type="submit" style={{ height: '46px', padding: '0 20px', borderRadius: '9px', background: 'white', color: '#009B8E', fontWeight: 700, fontSize: '14px', whiteSpace: 'nowrap', cursor: 'pointer', border: 'none' }}>사전예약 →</button>
-              </form>
-            ) : (
-              <></>
-            )}
-            {!submitted && error && (
-              <div style={{ position: 'relative', margin: '0 auto 28px', maxWidth: '440px', fontSize: '13px', color: '#FCA5A5', textAlign: 'center' }}>{error}</div>
-            )}
-            {submitted && (
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', margin: '0 auto 28px', padding: '12px 20px', borderRadius: '999px', background: 'rgba(16,185,129,0.18)', border: '1px solid rgba(16,185,129,0.40)', color: '#D1FAE5', fontSize: '14px', fontWeight: 500 }}>
-                <CheckIcon size={14} color="#6EE7B7" /> 등록되었습니다. Pro 출시일에 가장 먼저 알려드릴게요.
-              </div>
-            )}
-
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', position: 'relative' }}>
+            <div className="final-cta-actions" style={{ display: 'flex', gap: '12px', justifyContent: 'center', position: 'relative' }}>
               <Link href="/auth/login" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '15px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 700, background: 'white', color: '#009B8E', textDecoration: 'none', boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }}>
                 무료로 시작하기
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
               </Link>
-              <a href={`mailto:${BRAND_SUPPORT_EMAIL}?subject=기업 데모 신청`} style={{ display: 'inline-flex', alignItems: 'center', padding: '15px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 500, color: 'rgba(255,255,255,0.9)', border: '1.5px solid rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.08)', textDecoration: 'none' }}>기업 데모 신청</a>
+              <button type="button" onClick={() => { setProModal('pro'); setProSubmitted(false); setProEmail(''); }} style={{ display: 'inline-flex', alignItems: 'center', padding: '15px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 500, color: 'rgba(255,255,255,0.9)', border: '1.5px solid rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.08)', fontFamily: 'inherit', cursor: 'pointer' }}>Pro 출시 알림 받기</button>
             </div>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer style={{ background: '#0D0D14', borderTop: '1px solid rgba(255,255,255,0.06)', padding: '64px 0 32px', fontSize: '13px', color: '#6B7280' }}>
+      <footer style={{ background: '#0D0D14', borderTop: '1px solid rgba(255,255,255,0.06)', padding: '64px 0 32px', fontSize: '13px', color: '#9CA3AF' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
           <div className="footer-grid" style={{ display: 'grid', gridTemplateColumns: '1.6fr repeat(4, 1fr)', gap: '48px', paddingBottom: '48px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             <div>
               <Link href="/landingpage" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, fontSize: '15px', color: 'white', textDecoration: 'none' }}>
                 <BrandMark /> {BRAND_NAME}
               </Link>
-              <p style={{ maxWidth: '280px', fontSize: '13px', color: '#4B5563', margin: '14px 0 20px', lineHeight: 1.7 }}>
+              <p style={{ maxWidth: '280px', fontSize: '13px', color: '#9CA3AF', margin: '14px 0 20px', lineHeight: 1.7 }}>
                 길게 설명할 필요 없어요. 보고 따라 하게 만드세요.<br/>
                 <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: '11px', opacity: 0.6 }}>{BRAND_TAGLINE}</span>
               </p>
@@ -2081,7 +2063,7 @@ export default function LandingPage() {
             {[
               { title: '제품', links: [{ label: '기능', href: '#features' }, { label: '사용 방법', href: '#tour' }, { label: '요금제', href: '#pricing' }, { label: '변경 사항', href: '#' }] },
               { title: '회사', links: [{ label: '소개', href: '#' }, { label: '블로그', href: '#' }, { label: '채용', href: '#' }, { label: '기업 문의', href: '#b2b' }] },
-              { title: '지원', links: [{ label: '이용 가이드', href: '/help' }, { label: 'FAQ', href: '#faq' }, { label: '고객센터', href: `mailto:${BRAND_SUPPORT_EMAIL}` }, { label: '상태 페이지', href: '#' }] },
+              { title: '지원', links: [{ label: '이용 가이드', href: '/help' }, { label: 'FAQ', href: '#faq' }, { label: '고객센터', href: `mailto:${LANDING_CONTACT_EMAIL}` }, { label: '상태 페이지', href: '#' }] },
               { title: '법적 고지', links: [{ label: '이용약관', href: '/legal/terms' }, { label: '개인정보처리방침', href: '/legal/privacy' }, { label: '보안', href: '#' }, { label: '환불 정책', href: '#' }] },
             ].map(col => (
               <div key={col.title}>
@@ -2089,9 +2071,9 @@ export default function LandingPage() {
                 <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                   {col.links.map(l => (
                     <li key={l.label} style={{ padding: '5px 0' }}>
-                      <a href={l.href} style={{ color: '#4B5563', textDecoration: 'none', transition: 'color 0.15s' }}
-                        onMouseEnter={e => e.currentTarget.style.color = '#9CA3AF'}
-                        onMouseLeave={e => e.currentTarget.style.color = '#4B5563'}
+                      <a href={l.href} style={{ color: '#9CA3AF', textDecoration: 'none', transition: 'color 0.15s' }}
+                        onMouseEnter={e => e.currentTarget.style.color = '#E5E7EB'}
+                        onMouseLeave={e => e.currentTarget.style.color = '#9CA3AF'}
                       >{l.label}</a>
                     </li>
                   ))}
@@ -2099,13 +2081,13 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '24px', fontSize: '12px', color: '#374151' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '24px', fontSize: '12px', color: '#9CA3AF' }}>
             <div>© 2026 코마인드웍스 · {BRAND_NAME}</div>
             <div style={{ display: 'flex', gap: '20px' }}>
-              {['한국어', 'English', BRAND_SUPPORT_EMAIL].map(l => (
-                <a key={l} href={l.includes('@') ? `mailto:${l}` : '#'} style={{ color: '#374151', textDecoration: 'none' }}
-                  onMouseEnter={e => e.currentTarget.style.color = '#6B7280'}
-                  onMouseLeave={e => e.currentTarget.style.color = '#374151'}
+              {['한국어', 'English', LANDING_CONTACT_EMAIL].map(l => (
+                <a key={l} href={l.includes('@') ? `mailto:${l}` : '#'} style={{ color: '#9CA3AF', textDecoration: 'none' }}
+                  onMouseEnter={e => e.currentTarget.style.color = '#E5E7EB'}
+                  onMouseLeave={e => e.currentTarget.style.color = '#9CA3AF'}
                 >{l}</a>
               ))}
             </div>
@@ -2116,6 +2098,15 @@ export default function LandingPage() {
       <style suppressHydrationWarning>{`
         /* ── 앵커 이동 시 sticky 헤더(64px)에 가려지지 않도록 보정 ── */
         section[id] { scroll-margin-top: 80px; }
+
+        /* ── 섹션 톤 전환과 키보드 포커스 ── */
+        .section-transition { height: 64px; pointer-events: none; }
+        .transition-dark-light { background: linear-gradient(180deg, #0A0A15 0%, #12211e 34%, #dcebe6 76%, #FAFAFA 100%); }
+        .transition-light-dark { background: linear-gradient(180deg, #FFFFFF 0%, #e5efeb 28%, #18302a 72%, #0A0A0F 100%); }
+        .faq-trigger:focus-visible,
+        .pricing-toggle:focus-visible,
+        a:focus-visible,
+        button:focus-visible { outline: 3px solid #8DD63F; outline-offset: 3px; }
 
         /* ── 기존 애니메이션 ── */
         @keyframes avatarPopIn {
@@ -2446,6 +2437,7 @@ export default function LandingPage() {
 
         /* ── 모바일 반응형 ── */
         @media (max-width: 768px) {
+          .section-transition { height: 40px; }
           .hero-orb { filter: blur(50px) !important; }
           .hero-orb-1 { width: 300px !important; height: 300px !important; }
           .hero-orb-2 { width: 250px !important; height: 250px !important; }
@@ -2484,6 +2476,7 @@ export default function LandingPage() {
           .b2b-btns { flex-direction: column !important; align-items: center !important; }
           .final-cta-inner { padding: 48px 20px !important; }
           .final-cta-inner h2 { font-size: 28px !important; }
+          .final-cta-actions { flex-direction: column !important; align-items: stretch !important; }
 
           .how-steps { padding: 0 !important; }
           .how-steps > div:not(:first-child) { border-top: 1px solid rgba(0,0,0,0.07); padding-top: 32px !important; }

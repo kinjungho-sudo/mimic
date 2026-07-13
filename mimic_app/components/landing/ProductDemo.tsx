@@ -27,7 +27,7 @@ const SCENES = [
   },
 ] as const;
 
-function usePlayback(rootMargin = '80px') {
+function usePlayback(rootMargin = '0px 0px -12% 0px') {
   const ref = useRef<HTMLDivElement>(null);
   const [inView, setInView] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
@@ -54,7 +54,7 @@ function usePlayback(rootMargin = '80px') {
     if (!node) return;
     const observer = new IntersectionObserver(([entry]) => setInView(entry.isIntersecting), {
       rootMargin,
-      threshold: 0.08,
+      threshold: 0.18,
     });
     observer.observe(node);
     return () => observer.disconnect();
@@ -105,7 +105,7 @@ export function RecordingScene({ reducedMotion = false }: SceneProps) {
           <div className={styles.docsCanvas}>
             <div className={styles.ruler}><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span></div>
             <article className={styles.documentPage}>
-              <small>PEOPLE OPERATIONS　/　PLAYBOOK 04</small>
+              <small>TEAM PLAYBOOK　·　2026</small>
               <h4>신규 입사자 첫날 체크리스트</h4>
               <p className={styles.docLead}>첫 출근 전 계정과 필수 문서를 준비하고 담당자에게 공유합니다.</p>
               <div className={styles.docSection}><b>1. 업무 계정 준비</b><span>회사 이메일과 협업 도구 계정을 생성합니다.</span><span>ERP 권한은 소속 팀 기준으로 요청합니다.</span></div>
@@ -227,6 +227,19 @@ export function ProductDemo() {
     setCycle(value => value + 1);
   }, []);
 
+  const handleTabKeyDown = useCallback((event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+    let nextIndex = index;
+    if (event.key === 'ArrowRight') nextIndex = (index + 1) % SCENES.length;
+    else if (event.key === 'ArrowLeft') nextIndex = (index - 1 + SCENES.length) % SCENES.length;
+    else if (event.key === 'Home') nextIndex = 0;
+    else if (event.key === 'End') nextIndex = SCENES.length - 1;
+    else return;
+
+    event.preventDefault();
+    selectScene(nextIndex);
+    document.getElementById(`product-demo-tab-${nextIndex}`)?.focus();
+  }, [selectScene]);
+
   useEffect(() => {
     if (!playing) return;
     const timer = window.setTimeout(() => {
@@ -248,7 +261,7 @@ export function ProductDemo() {
         </div>
         <div className={styles.tabs} role="tablist" aria-label="Parro 제품 데모 장면">
           {SCENES.map((scene, index) => (
-            <button id={`product-demo-tab-${index}`} key={scene.tab} type="button" role="tab" aria-selected={active === index} aria-controls="product-demo-panel" className={active === index ? styles.activeTab : ''} onClick={() => selectScene(index)}>
+            <button id={`product-demo-tab-${index}`} key={scene.tab} type="button" role="tab" aria-selected={active === index} aria-controls="product-demo-panel" tabIndex={active === index ? 0 : -1} className={active === index ? styles.activeTab : ''} onClick={() => selectScene(index)} onKeyDown={(event) => handleTabKeyDown(event, index)}>
               <span>0{index + 1}</span><strong>{scene.tab}</strong><i><em /></i>
             </button>
           ))}
