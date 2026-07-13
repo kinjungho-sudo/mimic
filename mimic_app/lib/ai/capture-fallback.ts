@@ -423,9 +423,12 @@ function contextFromLabel(
       ['security', 'GitHub 보안 설정'],
       ['insights', 'GitHub 저장소 분석'],
       ['settings', 'GitHub 저장소 설정'],
+      ['branches', 'GitHub 브랜치 설정'],
+      ['show more', 'GitHub 활동 목록'],
     ]);
     const githubContext = githubContexts.get(key);
     if (githubContext) return githubContext;
+    if (/^[a-z0-9_.-]+\s+[a-z0-9_.-]+$/i.test(text)) return 'GitHub 저장소';
     if (isGitHubChromeLabel(text, pageUrl)) return noAction ? 'GitHub 저장소 화면' : 'GitHub 저장소';
   }
   if (!hasSlackContext(pageUrl, domainName)) return '';
@@ -586,10 +589,11 @@ export function buildCaptureFallbackTutorialTitle(
   }
 
   const completionTitle = [...titles].reverse().find(title =>
-    /(보내기|발송|완료|저장|게시|등록|신청|구매|생성|만들기|공유|초대|로그인|제출)/.test(title)
+    /(보내기|발송|완료|저장|게시|등록|신청|구매|생성|만들기|공유|초대|로그인|제출)(?:\s*(?:클릭|확인|선택|입력|이동))?$/.test(title)
   );
-  const firstActionTitle = completionTitle || titles.find(title => !/(^.+\s클릭$|^.+\s선택$)/.test(title)) || titles[0];
+  const finalMeaningfulTitle = [...titles].reverse().find(title => !/(^.+\s클릭$|^.+\s선택$)/.test(title));
+  const goalTitle = completionTitle || finalMeaningfulTitle || titles.at(-1);
 
-  if (!firstActionTitle) return '';
-  return tutorialTitleFromStepTitle(firstActionTitle);
+  if (!goalTitle) return '';
+  return tutorialTitleFromStepTitle(goalTitle);
 }

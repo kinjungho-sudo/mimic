@@ -172,6 +172,27 @@ async function main() {
       title: 'GitHub 저장소 확인',
       script: 'GitHub 저장소를 확인합니다.',
     },
+    {
+      name: 'github homepage show more gets activity context',
+      step: { id: 'gh-4', step_number: 4, ai_title: null, ai_description: null, page_url: 'https://github.com/', domain_name: 'GitHub' },
+      context: { actionInfo: { type: 'click', label: 'Show more' } },
+      title: 'GitHub 활동 목록 확인',
+      script: 'GitHub 활동 목록을 확인합니다.',
+    },
+    {
+      name: 'github repository slug gets repository context',
+      step: { id: 'gh-5', step_number: 5, ai_title: null, ai_description: null, page_url: 'https://github.com/', domain_name: 'GitHub' },
+      context: { actionInfo: { type: 'click', label: 'kinjungho-sudo lineage_claude' } },
+      title: 'GitHub 저장소 확인',
+      script: 'GitHub 저장소를 확인합니다.',
+    },
+    {
+      name: 'github branches gets settings context',
+      step: { id: 'gh-6', step_number: 6, ai_title: null, ai_description: null, page_url: 'https://github.com/kinjungho-sudo/lineage_claude/settings', domain_name: 'GitHub' },
+      context: { actionInfo: { type: 'click', label: 'Branches' } },
+      title: 'GitHub 브랜치 설정 확인',
+      script: 'GitHub 브랜치 설정을 확인합니다.',
+    },
   ];
   for (const testCase of githubCases) {
     const actual = buildCaptureFallbackDraft(testCase.step, testCase.context);
@@ -185,6 +206,17 @@ async function main() {
   ]);
   if (githubTutorialTitle !== 'GitHub 저장소 코드 확인하기') {
     failures.push({ name: 'github tutorial title', expected: 'GitHub 저장소 코드 확인하기', actual: githubTutorialTitle });
+  }
+
+  const githubSettingsTutorialTitle = buildCaptureFallbackTutorialTitle([
+    { user_title: 'GitHub 저장소 코드 확인' },
+    { user_title: 'GitHub 활동 목록 확인' },
+    { user_title: 'GitHub 저장소 확인' },
+    { user_title: 'GitHub 저장소 설정 확인' },
+    { user_title: 'GitHub 브랜치 설정 확인' },
+  ]);
+  if (githubSettingsTutorialTitle !== 'GitHub 브랜치 설정 확인하기') {
+    failures.push({ name: 'github final goal title', expected: 'GitHub 브랜치 설정 확인하기', actual: githubSettingsTutorialTitle });
   }
 
   if (!isLowQualityCaptureTitle('edit 클릭')) {
