@@ -804,6 +804,7 @@ export default function DashboardPage() {
 
   const [tutorials, setTutorials] = useState<Tutorial[]>([]);
   const [tutLoading, setTutLoading] = useState(true);
+  const [tutError, setTutError] = useState<string | null>(null);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [teamFolders, setTeamFolders] = useState<Folder[]>([]); // 활성 워크스페이스의 공유 폴더
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -844,6 +845,7 @@ export default function DashboardPage() {
   const NOTICE = { type: 'info' as 'info' | 'warn' | 'error', text: '✨ AI 자동 어노테이션 기능이 업데이트되었습니다. 지금 바로 사용해보세요!', link: { label: '자세히 보기', href: '/home' } };
 
   const newMenuRef = useRef<HTMLDivElement>(null);
+  const tutorialRequestRef = useRef(0);
   const [liveGuide, setLiveGuide] = useState<{ used: number; limit: number; paid: boolean } | null>(null);
   const [playbook, setPlaybook] = useState<{ used: number; limit: number; paid: boolean } | null>(null);
 
@@ -858,12 +860,28 @@ export default function DashboardPage() {
   }, [authLoading, user, router]);
 
   const loadTutorials = useCallback(async (workspaceId?: string, silent = false) => {
+    const requestId = ++tutorialRequestRef.current;
     if (!silent) setTutLoading(true);
+    if (!silent) setTutError(null);
     try {
       const url = workspaceId ? `/api/tutorials?workspace_id=${workspaceId}` : '/api/tutorials';
       const res = await fetch(url);
-      if (res.ok) setTutorials(await res.json());
-    } finally { if (!silent) setTutLoading(false); }
+      if (!res.ok) throw new Error(`API ${res.status}`);
+      const data = await res.json();
+      if (requestId === tutorialRequestRef.current) setTutorials(data);
+    } catch (error) {
+      logError('tutorial.list.fail', {
+        workspaceId: workspaceId ?? null,
+        message: error instanceof Error ? error.message : String(error),
+      });
+      if (!silent && requestId === tutorialRequestRef.current) {
+        setTutError('매뉴얼을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
+      }
+    } finally {
+      // A silent focus refresh can supersede the first visible request. The newest
+      // request must always release the loading state or the dashboard can spin forever.
+      if (requestId === tutorialRequestRef.current) setTutLoading(false);
+    }
   }, []);
 
   const loadFolders = useCallback(async () => {
@@ -893,7 +911,6 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!user) return;
-    loadTutorials();
     loadFolders();
     loadWorkspaces();
     // 라이브 가이드·플레이북 사용량 — 홈 '이번 달 사용량'에 함께 표시
@@ -1560,6 +1577,16 @@ export default function DashboardPage() {
                         </div>
                       </div>
                     ))}
+                  </div>
+                ) : tutError ? (
+                  <div style={{ textAlign: 'center', padding: '56px 24px', color: '#6B7280' }}>
+                    <div style={{ fontSize: '14px', fontWeight: 600, color: '#374151', marginBottom: '10px' }}>{tutError}</div>
+                    <button
+                      onClick={() => loadTutorials(activeTab === 'team' && activeWorkspace ? activeWorkspace : undefined)}
+                      style={{ padding: '8px 14px', borderRadius: '8px', border: `1px solid ${BRAND_COLORS.border}`, background: 'white', color: BRAND_COLORS.primary, fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+                    >
+                      다시 시도
+                    </button>
                   </div>
                 ) : displayedTutorials.length === 0 ? (
                   searchQuery.trim() ? (

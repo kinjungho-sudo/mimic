@@ -1,7 +1,7 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
 import { requireExtensionToken } from '@/lib/auth/auth-guard';
 import { captureAnalyzeSchema } from '@/lib/validators';
-import { analyzeScreenshot } from '@/lib/ai/claude';
+import { analyzeScreenshot, hasAnthropicApiKey } from '@/lib/ai/claude';
 import { rateLimitAi } from '@/lib/rate-limit';
 
 export async function POST(request: NextRequest) {
@@ -10,6 +10,10 @@ export async function POST(request: NextRequest) {
 
   const limited = rateLimitAi(auth.userId);
   if (limited) return limited;
+
+  if (!hasAnthropicApiKey()) {
+    return NextResponse.json({ error: 'AI provider is not configured' }, { status: 503 });
+  }
 
   let body: unknown;
   try {

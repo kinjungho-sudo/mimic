@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { randomBytes } from 'crypto';
 import { requireExtensionToken } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { captureFinalizeSchema } from '@/lib/validators';
 import { analyzeScreenshot, generateStepDescription, generateDraft, extractCoverColors, detectPII, cleanTranscripts } from '@/lib/ai/claude';
-import { buildCaptureAnnotationLabel, buildCaptureFallbackDraft, buildCaptureFallbackTutorialTitle, cleanCaptureTypeText, isLowQualityCaptureLabel, isLowQualityCaptureScript, isLowQualityCaptureTitle, isUsableCaptureDraft, type CaptureFallbackActionInfo } from '@/lib/ai/capture-fallback';
+import { buildCaptureAnnotationLabel, buildCaptureFallbackDraft, buildCaptureFallbackTutorialTitle, cleanCaptureTypeText, isLowQualityCaptureLabel, isLowQualityCaptureScript, isLowQualityCaptureTitle, isLowQualityCaptureTutorialTitle, isUsableCaptureDraft, type CaptureFallbackActionInfo } from '@/lib/ai/capture-fallback';
 import { resolveFavicon } from '@/lib/favicon';
 import { buildClickHighlight } from '@/lib/annotations';
 import { transcribeAudio, assignSegmentsToSteps, computeStepWindows } from '@/lib/voice/voice';
@@ -396,17 +395,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to create steps' }, { status: 500 });
   }
 
-  // 녹화 완료 즉시 자동 게시 — 편집 없이 매뉴얼 상세 페이지로 바로 이동
-  const shareToken = randomBytes(16).toString('hex');
-  await supabase
-    .from('mm_tutorials')
-    .update({
-      status: 'published',
-      visibility: 'public',
-      share_token: shareToken,
-      published_at: new Date().toISOString(),
-    })
-    .eq('id', tutorial.id);
+  // 녹화 결과는 사용자가 검토하기 전까지 비공개 초안으로 유지한다.
+  // 공개 링크는 편집기에서 사용자가 명시적으로 '게시'를 눌렀을 때만 생성한다.
 
   // 세션 완료 처리는 필수. daily_manual_count 증가는 운영 DB에 RPC가 늦게
   // 적용된 경우에도 매뉴얼 생성을 막지 않도록 best-effort로 처리한다.
@@ -531,8 +521,10 @@ export async function POST(request: NextRequest) {
         const patch: Record<string, unknown> = {};
         const titleDraft = draft?.user_title?.trim() || step.ai_title || `Step ${step.step_number}`;
         if (titleDraft) patch.user_title = titleDraft;
+        if (draft?.user_script?.trim() || step.ai_description?.trim()) {
+          patch.user_script = draft?.user_script?.trim() || step.ai_description?.trim() || null;
+        }
         if (isFirst) {
-          patch.user_script = draft?.user_script?.trim() || step.ai_description || null;
           Object.assign(patch, firstAiPatch);
         }
 
@@ -576,7 +568,8 @@ export async function POST(request: NextRequest) {
     console.error('capture finalize initial draft generation error:', err);
   }
 
-  // The editor now fills remaining descriptions incrementally after the first card is visible.
+  // 모든 스텝은 위의 결정적 fallback으로 즉시 읽을 수 있게 만든다.
+  // 아래 전체 AI 패스는 명시적으로 켠 환경에서만 fallback을 더 자연스럽게 다듬는다.
   const runFullDraftBeforeResponse = process.env.CAPTURE_FINALIZE_BLOCKING_AI === '1';
   if (runFullDraftBeforeResponse) {
   // AI 초안 생성 — tutorial 제목 + 스텝별 user_title/user_script + 커버 색상
@@ -814,7 +807,7 @@ export async function POST(request: NextRequest) {
 
       // tutorial 제목 + cover_color 업데이트
       const tutorialUpdate: Record<string, string> = {};
-      const safeTutorialTitle = !isLowQualityCaptureTitle(tutorial_title) ? tutorial_title : '';
+      const safeTutorialTitle = !isLowQualityCaptureTutorialTitle(tutorial_title) ? tutorial_title : '';
       if (safeTutorialTitle || fallbackTutorialTitle) tutorialUpdate.title = safeTutorialTitle || fallbackTutorialTitle;
       if (coverColors) tutorialUpdate.cover_color = `${coverColors.color1},${coverColors.color2}`;
       if (Object.keys(tutorialUpdate).length > 0) {
@@ -1007,7 +1000,7 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({
     tutorial_id: tutorial.id,
     step_count: steps.length,
-    share_token: shareToken,
+    share_token: null,
     completion_pending: true,
   });
 }

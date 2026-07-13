@@ -146,8 +146,45 @@ async function main() {
     { user_title: '화면 확인' },
     { user_title: '대회소개 클릭' },
   ]);
-  if (fallbackTitle !== '대회소개하기') {
-    failures.push({ name: 'tutorial title fallback', expected: '대회소개하기', actual: fallbackTitle });
+  if (fallbackTitle !== '대회소개 확인하기') {
+    failures.push({ name: 'tutorial title fallback', expected: '대회소개 확인하기', actual: fallbackTitle });
+  }
+
+  const githubCases = [
+    {
+      name: 'github code tab gets task context',
+      step: { id: 'gh-1', step_number: 1, ai_title: null, ai_description: null, page_url: 'https://github.com/kinjungho-sudo/mimic/commit/abc', domain_name: 'GitHub' },
+      context: { actionInfo: { type: 'click', label: 'Code' }, elementText: 'Code' },
+      title: 'GitHub 저장소 코드 확인',
+      script: 'GitHub 저장소 코드를 확인합니다.',
+    },
+    {
+      name: 'github shortcut accessibility noise is discarded',
+      step: { id: 'gh-2', step_number: 2, ai_title: null, ai_description: null, page_url: 'https://github.com/kinjungho-sudo/mimic', domain_name: 'GitHub' },
+      context: { actionInfo: { type: 'click', label: 'Open menuHomepage (g then d) gGthen dD' } },
+      title: 'GitHub 저장소 확인',
+      script: 'GitHub 저장소를 확인합니다.',
+    },
+    {
+      name: 'github breadcrumb owner is discarded',
+      step: { id: 'gh-3', step_number: 3, ai_title: null, ai_description: null, page_url: 'https://github.com/kinjungho-sudo/mimic', domain_name: 'GitHub' },
+      context: { actionInfo: { type: 'click', label: 'kinjungho-sudo' } },
+      title: 'GitHub 저장소 확인',
+      script: 'GitHub 저장소를 확인합니다.',
+    },
+  ];
+  for (const testCase of githubCases) {
+    const actual = buildCaptureFallbackDraft(testCase.step, testCase.context);
+    if (actual.user_title !== testCase.title || actual.user_script !== testCase.script) {
+      failures.push({ name: testCase.name, expected: { title: testCase.title, script: testCase.script }, actual });
+    }
+  }
+
+  const githubTutorialTitle = buildCaptureFallbackTutorialTitle([
+    { user_title: 'GitHub 저장소 코드 확인' },
+  ]);
+  if (githubTutorialTitle !== 'GitHub 저장소 코드 확인하기') {
+    failures.push({ name: 'github tutorial title', expected: 'GitHub 저장소 코드 확인하기', actual: githubTutorialTitle });
   }
 
   if (!isLowQualityCaptureTitle('edit 클릭')) {
@@ -186,6 +223,12 @@ async function main() {
   }
   if (!isLowQualityCaptureTutorialTitle('메일 보내기 클릭하기')) {
     failures.push({ name: 'click tutorial title rejected', expected: true, actual: false });
+  }
+  if (!isLowQualityCaptureTutorialTitle('Code 클릭')) {
+    failures.push({ name: 'raw code tutorial title rejected', expected: true, actual: false });
+  }
+  if (!isLowQualityCaptureTutorialTitle('Open menuHomepage (g then d) gGthen dD 클릭하기')) {
+    failures.push({ name: 'accessibility shortcut tutorial title rejected', expected: true, actual: false });
   }
   const cleanedTypeText = cleanCaptureTypeText('아이콘 추가 커버 추가 댓글 추가 뉴스 클리핑 시작하기 AI 기능은 스페이스 키, 명령에는 /를 입력하세요.');
   if (cleanedTypeText !== '뉴스 클리핑') {

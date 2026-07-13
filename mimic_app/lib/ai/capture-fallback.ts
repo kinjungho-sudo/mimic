@@ -155,6 +155,11 @@ function hasCapturedEditorChrome(value: string | null | undefined): boolean {
   return /아이콘 추가|커버 추가|댓글 추가|AI 기능은|명령에는/.test(text);
 }
 
+function hasAccessibilityShortcutNoise(value: string | null | undefined): boolean {
+  const text = cleanText(value);
+  return /open\s*menu.*homepage|homepage.*g\s*then\s*d|g\s*then\s*d|[a-z][A-Z]then\s+[a-z][A-Z]/i.test(text);
+}
+
 export function cleanCaptureTypeText(value: string | null | undefined): string | null {
   const raw = cleanText(value);
   if (!raw) return null;
@@ -176,7 +181,8 @@ export function isLowQualityCaptureLabel(value: string | null | undefined): bool
     || isRawCaptureLabel(text)
     || hasMachineToken(text)
     || isLongCapturedContent(text)
-    || hasCapturedEditorChrome(text);
+    || hasCapturedEditorChrome(text)
+    || hasAccessibilityShortcutNoise(text);
 }
 
 function isWeakTitle(value: string | null | undefined): boolean {
@@ -194,6 +200,8 @@ function isLikelyRawDomActionBase(value: string): boolean {
   const text = cleanText(value);
   if (!text) return true;
   if (/^[a-z]$/i.test(text)) return true;
+  if (/^(code|homepage|open menu)$/i.test(text)) return true;
+  if (hasAccessibilityShortcutNoise(text)) return true;
   if (/^(search|검색)$/i.test(text)) return true;
   if (/\.{3}|…|—/.test(text)) return true;
   if (/아이콘 추가|커버 추가|댓글 추가/.test(text)) return true;
@@ -266,6 +274,7 @@ function verbForAction(type: string | undefined, noAction: boolean): '클릭' | 
 
 function titleVerbFor(base: string, actionType: string | undefined, noAction: boolean): ReturnType<typeof verbForAction> {
   const verb = verbForAction(actionType, noAction);
+  if (/^GitHub\s|GitHub|저장소 코드|저장소 화면/.test(base)) return '확인';
   if (/메일함|받은편지함/.test(base)) return '확인';
   if (/주문 정보|주문 화면|결제 정보|결제 화면/.test(base)) return '확인';
   if (/메일 보내기/.test(base)) return '클릭';
@@ -338,6 +347,11 @@ function contextFromUrl(pageUrl: string | null | undefined, noAction: boolean): 
   try {
     const url = new URL(pageUrl);
     const hostname = url.hostname.replace(/^www\./, '');
+    if (hostname === 'github.com') {
+      const segments = url.pathname.split('/').filter(Boolean);
+      if (segments.length >= 2) return noAction ? 'GitHub 저장소 화면' : 'GitHub 저장소';
+      return 'GitHub 화면';
+    }
     if (hostname) return noAction ? `${hostname} 화면` : `${hostname} 주요 영역`;
   } catch {
     return '';
@@ -366,6 +380,29 @@ function hasSlackContext(pageUrl: string | null | undefined, domainName: string 
   }
 }
 
+function hasGitHubContext(pageUrl: string | null | undefined, domainName: string | null | undefined): boolean {
+  if (/github/i.test(domainName ?? '')) return true;
+  if (!pageUrl) return false;
+  try {
+    return new URL(pageUrl).hostname.replace(/^www\./, '') === 'github.com';
+  } catch {
+    return /github\.com/i.test(pageUrl);
+  }
+}
+
+function isGitHubChromeLabel(value: string | null | undefined, pageUrl: string | null | undefined): boolean {
+  const text = cleanText(value);
+  if (!text || !hasGitHubContext(pageUrl, null)) return false;
+  if (hasAccessibilityShortcutNoise(text)) return true;
+  try {
+    const url = new URL(pageUrl ?? '');
+    const [owner, repo] = url.pathname.split('/').filter(Boolean);
+    return [owner, repo].filter(Boolean).some(segment => segment?.toLowerCase() === text.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
 function contextFromLabel(
   label: string | null | undefined,
   pageUrl: string | null | undefined,
@@ -374,7 +411,24 @@ function contextFromLabel(
 ): string {
   const text = cleanText(label);
   const key = text.toLowerCase();
-  if (!text || !hasSlackContext(pageUrl, domainName)) return '';
+  if (!text) return '';
+  if (hasGitHubContext(pageUrl, domainName)) {
+    const githubContexts = new Map<string, string>([
+      ['code', 'GitHub 저장소 코드'],
+      ['issues', 'GitHub 이슈'],
+      ['pull requests', 'GitHub 풀 리퀘스트'],
+      ['actions', 'GitHub Actions'],
+      ['projects', 'GitHub 프로젝트'],
+      ['wiki', 'GitHub 위키'],
+      ['security', 'GitHub 보안 설정'],
+      ['insights', 'GitHub 저장소 분석'],
+      ['settings', 'GitHub 저장소 설정'],
+    ]);
+    const githubContext = githubContexts.get(key);
+    if (githubContext) return githubContext;
+    if (isGitHubChromeLabel(text, pageUrl)) return noAction ? 'GitHub 저장소 화면' : 'GitHub 저장소';
+  }
+  if (!hasSlackContext(pageUrl, domainName)) return '';
   if (/^A[A-Z0-9]{8,}$/i.test(text)) return noAction ? '워크스페이스 화면' : '워크스페이스 항목';
   const slackContext = SLACK_LABEL_CONTEXTS.get(key);
   if (!slackContext) return '';
@@ -405,7 +459,8 @@ export function buildCaptureFallbackDraft(
 ): { id: string; user_title: string; user_script: string } {
   const actionType = context.actionInfo?.type;
   const noActionFromEvent = context.noAction ?? false;
-  const isStale = (value: string | null | undefined) => isContextuallyStaleLabel(value, step.page_url);
+  const isStale = (value: string | null | undefined) =>
+    isContextuallyStaleLabel(value, step.page_url) || isGitHubChromeLabel(value, step.page_url);
   const safeActionLabel = isStale(context.actionInfo?.label) ? null : context.actionInfo?.label;
   const safeActionText = isStale(context.actionInfo?.text) ? null : context.actionInfo?.text;
   const safeElementText = isStale(context.elementText) ? null : context.elementText;
@@ -429,13 +484,13 @@ export function buildCaptureFallbackDraft(
     || contextFromCapturedLabel(safeAiTitle);
   const specificBase = firstUseful([
     safeAiTitle && !isLowQualityCaptureTitle(safeAiTitle) ? safeAiTitle : null,
-    capturedLabelContext,
     labelContext,
+    capturedLabelContext,
     safeActionLabel,
     safeActionText,
     safeElementText,
-    labelFromUrl(step.page_url),
     pageContext,
+    labelFromUrl(step.page_url),
     step.domain_name,
   ]);
   const base = specificBase || '화면';
@@ -488,8 +543,30 @@ export function isLowQualityCaptureTutorialTitle(value: string | null | undefine
   const text = cleanText(value);
   if (!text) return true;
   if (isLowQualityCaptureTitle(text.replace(/하기$/, ''))) return true;
+  if (isLikelyRawDomActionBase(text.replace(/하기$/, ''))) return true;
   if (/(클릭|선택|입력)하기$/.test(text)) return true;
   return /^(메일|메뉴|버튼|링크|아이콘)\s*(클릭|선택)하기$/.test(text);
+}
+
+function tutorialTitleFromStepTitle(value: string): string {
+  const title = cleanText(value);
+  if (!title) return '';
+  if (title.endsWith('하기')) return title.slice(0, 30);
+
+  const action = /^(.*?)\s+(클릭|선택|입력|이동|확인)$/.exec(title);
+  if (!action) return `${title} 확인하기`.slice(0, 30);
+
+  const base = action[1].trim();
+  const verb = action[2];
+  if (!base) return '';
+  if (verb === '입력') return `${base} 입력하기`.slice(0, 30);
+  if (verb === '선택') return `${base} 선택하기`.slice(0, 30);
+  if (verb === '이동') return `${base} 이동하기`.slice(0, 30);
+  if (verb === '확인') return `${base} 확인하기`.slice(0, 30);
+  if (/(보내기|발송|전송|작성|생성|등록|저장|다운로드|구매|공유|초대|로그인|제출)$/.test(base)) {
+    return (base.endsWith('기') ? base : `${base}하기`).slice(0, 30);
+  }
+  return `${base} 확인하기`.slice(0, 30);
 }
 
 export function buildCaptureFallbackTutorialTitle(
@@ -514,11 +591,5 @@ export function buildCaptureFallbackTutorialTitle(
   const firstActionTitle = completionTitle || titles.find(title => !/(^.+\s클릭$|^.+\s선택$)/.test(title)) || titles[0];
 
   if (!firstActionTitle) return '';
-  if (firstActionTitle.endsWith('하기')) return firstActionTitle.slice(0, 30);
-  const actionBase = actionBaseFromTitle(firstActionTitle);
-  if (actionBase && actionBase !== firstActionTitle) {
-    if (/(하기|보내기|발송|전송|작성|생성|등록|저장|다운로드)$/.test(actionBase)) return actionBase.slice(0, 30);
-    return `${actionBase}하기`.slice(0, 30);
-  }
-  return `${firstActionTitle}하기`.slice(0, 30);
+  return tutorialTitleFromStepTitle(firstActionTitle);
 }

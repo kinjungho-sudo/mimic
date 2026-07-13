@@ -1262,6 +1262,7 @@
   // 이 시점에 미리 한 장 찍어두면, 클릭으로 레이아웃이 바뀌기 전 화면을 스텝
   // 스크린샷으로 쓸 수 있어 클릭 좌표·하이라이트가 실제 화면과 어긋나지 않는다.
   document.addEventListener('pointerdown', (e) => {
+    if (!e.isTrusted) return;  // 사이트 스크립트가 만든 가짜 이벤트는 사용자 행동이 아님
     if (!isRecording || isPaused || isCapturing) return;
     if (e.button !== undefined && e.button !== 0) return;  // 좌클릭만
     const target = findInteractiveTarget(e.target);
@@ -1280,6 +1281,7 @@
   }, true);
 
   document.addEventListener('pointerup', (e) => {
+    if (!e.isTrusted) return;
     if (!isRecording || isPaused || isCapturing) return;
     if (e.button !== undefined && e.button !== 0) return;
     schedulePointerClickFallback(e);
@@ -1289,6 +1291,10 @@
   document.addEventListener('click', handleClick, true);
 
   function handleClick(e) {
+    if (!e.isTrusted) {
+      log('debug', 'synthetic click ignored');
+      return;
+    }
     clearPointerClickFallback();
     if (!isRecording || isPaused || isCapturing) {
       if (isCapturing) log('debug', `click skipped — isCapturing step ${stepNumber}`);
@@ -1457,6 +1463,7 @@
 
   // ── input 이벤트 (타이핑 추적) ──────────────────────────────────
   document.addEventListener('input', (e) => {
+    if (!e.isTrusted) return;
     if (!isRecording || isPaused) return;
     if (document.visibilityState !== 'visible') return;  // 보이는 탭에서만 (크로스 사이트 녹화)
     const el = getEditableTarget(e.target);
@@ -1500,8 +1507,12 @@
   // ── IME 조합 추적 (한/일/중) ──────────────────────────────────────
   // compositionstart~end 사이의 input 값은 미완성 조합("중ㄱ")이다.
   // 조합 중에는 디바운스 flush를 막고, 조합 완료(compositionend) 후 최종값("중계")으로 재예약한다.
-  document.addEventListener('compositionstart', () => { _isComposing = true; }, true);
+  document.addEventListener('compositionstart', (e) => {
+    if (!e.isTrusted) return;
+    _isComposing = true;
+  }, true);
   document.addEventListener('compositionend', (e) => {
+    if (!e.isTrusted) return;
     _isComposing = false;
     if (!isRecording || isPaused) return;
     const el = getEditableTarget(e.target);
@@ -1523,6 +1534,7 @@
 
   // ── keydown: Enter = flush ────────────────────────────────────────
   document.addEventListener('keydown', (e) => {
+    if (!e.isTrusted) return;
     if (!isRecording || isPaused) return;
     if (e.isComposing) return;  // IME 조합 확정용 Enter — 미완성값 flush 방지
     if (e.key !== 'Enter' || !typingTarget) return;
@@ -1556,6 +1568,7 @@
 
   // ── 파일 업로드 캡처 ─────────────────────────────────────────────
   document.addEventListener('change', (e) => {
+    if (!e.isTrusted) return;
     if (!isRecording || isPaused || isCapturing) return;
     const el = e.target;
     if (!(el instanceof HTMLInputElement) || el.type !== 'file') return;
@@ -1612,6 +1625,7 @@
 
   // ── 클립보드 붙여넣기로 수동 스크린샷 수신 ──────────────────────
   document.addEventListener('paste', (e) => {
+    if (!e.isTrusted) return;
     if (!isRecording || isPaused || isCapturing) return;
     const active = document.activeElement;
     if (getEditableTarget(active)) return;
