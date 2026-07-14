@@ -4,6 +4,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
+import { ParroMascot } from '@/components/brand/ParroMascot';
 import styles from './ProductDemo.module.css';
 
 type DemoStep = {
@@ -77,24 +78,25 @@ function Pointer() {
   );
 }
 
-function BrowserChrome({ live = false }: { live?: boolean }) {
+function BrowserChrome({ live = false, generating = false }: { live?: boolean; generating?: boolean }) {
   return (
     <div className={styles.browserChrome}>
       <span className={styles.windowDot} />
       <span className={styles.windowDot} />
       <span className={styles.windowDot} />
       <div className={styles.addressBar}><span>⌁</span> plus.gov.kr</div>
-      <div className={live ? styles.liveBadge : styles.captureBadge}>
-        <i /> {live ? 'Live Guide 실행 중' : 'REC'}
+      <div className={live ? styles.liveBadge : generating ? styles.generatingBadge : styles.captureBadge}>
+        {live || generating ? <i /> : null} {live ? 'Live Guide 실행 중' : generating ? 'AI 매뉴얼 생성 중' : 'REC'}
       </div>
     </div>
   );
 }
 
-function TargetViewport({ step, live, reducedMotion }: {
+function TargetViewport({ step, live, reducedMotion, settled = false }: {
   step: DemoStep;
   live: boolean;
   reducedMotion: boolean;
+  settled?: boolean;
 }) {
   const vars = {
     '--target-x': `${step.rect.x}%`,
@@ -106,7 +108,7 @@ function TargetViewport({ step, live, reducedMotion }: {
   } as CSSProperties;
 
   return (
-    <div className={`${styles.targetViewport} ${live ? styles.liveViewport : styles.recordViewport} ${reducedMotion ? styles.reducedMotion : ''}`} style={vars}>
+    <div className={`${styles.targetViewport} ${live ? styles.liveViewport : styles.recordViewport} ${settled ? styles.settledViewport : ''} ${reducedMotion ? styles.reducedMotion : ''}`} style={vars}>
       <img src={step.screenshotUrl} alt={`${step.title} 실제 녹화 화면`} draggable={false} decoding="async" />
       <div className={styles.targetBox} aria-hidden="true" />
       <span className={styles.clickPulse} aria-hidden="true" />
@@ -114,7 +116,7 @@ function TargetViewport({ step, live, reducedMotion }: {
       {live && (
         <div className={`${styles.coachmark} ${step.coachSide === 'right' ? styles.coachRight : styles.coachLeft}`}>
           <div className={styles.coachmarkHeading}>
-            <div className={styles.aiAvatar} aria-hidden="true">🤖</div>
+            <div className={styles.aiAvatar}><ParroMascot size={40} /></div>
             <div><span>Parro AI Guide</span><strong>{step.title}</strong></div>
           </div>
           <p>{step.description}</p>
@@ -126,13 +128,32 @@ function TargetViewport({ step, live, reducedMotion }: {
 
 function RecorderPanel({ phase }: { phase: number }) {
   const savedCount = Math.min(phase, DEMO_STEPS.length);
-  const complete = phase >= DEMO_STEPS.length;
+  const readyToFinish = phase === DEMO_STEPS.length;
+  const generating = phase > DEMO_STEPS.length;
+
+  if (generating) {
+    return (
+      <aside className={`${styles.recorderPanel} ${styles.generatingPanel}`}>
+        <div className={styles.recorderHeader}>
+          <div><span className={styles.parroMark}>P</span><strong>Parro Recorder</strong></div>
+          <span className={styles.buildingState}><i /> 생성 중</span>
+        </div>
+        <div className={styles.panelGeneratingContent}>
+          <ParroMascot size={64} />
+          <strong>매뉴얼을 만들고 있어요</strong>
+          <p>제목과 3개의 카드 단계를 자동으로 구성합니다.</p>
+          <i><em /></i>
+          <small>화면 배치 · 설명 작성 · 강조 위치 연결</small>
+        </div>
+      </aside>
+    );
+  }
 
   return (
-    <aside className={styles.recorderPanel}>
+    <aside className={`${styles.recorderPanel} ${readyToFinish ? styles.readyPanel : ''}`}>
       <div className={styles.recorderHeader}>
         <div><span className={styles.parroMark}>P</span><strong>Parro Recorder</strong></div>
-        <span className={styles.recordingState}><i /> 녹화 중</span>
+        <span className={readyToFinish ? styles.readyState : styles.recordingState}><i /> {readyToFinish ? '캡처 완료' : '녹화 중'}</span>
       </div>
       <div className={styles.recordingTitle}>
         <small>새 매뉴얼</small>
@@ -143,7 +164,7 @@ function RecorderPanel({ phase }: { phase: number }) {
       <div className={styles.savedSteps}>
         {DEMO_STEPS.map((step, index) => {
           const saved = index < savedCount;
-          const active = index === phase && !complete;
+          const active = index === phase && !readyToFinish;
           return (
             <div key={step.title} className={`${styles.savedStep} ${saved ? styles.saved : ''} ${active ? styles.saving : ''}`}>
               <span>{saved ? '✓' : index + 1}</span>
@@ -153,11 +174,14 @@ function RecorderPanel({ phase }: { phase: number }) {
         })}
       </div>
 
-      {complete ? (
-        <div className={styles.manualReady}>
-          <span>✓</span>
-          <div><strong>매뉴얼 생성 완료</strong><small>3단계 가이드가 준비됐어요</small></div>
-          <button type="button">매뉴얼 열기</button>
+      {readyToFinish ? (
+        <div className={styles.finishArea}>
+          <span>✓ 3개 단계 캡처 완료</span>
+          <button type="button" className={styles.finishButton}>
+            완료
+            <i className={styles.finishClickPulse} />
+            <b className={styles.finishPointer}><Pointer /></b>
+          </button>
         </div>
       ) : (
         <div className={styles.autoSave}><i /> 클릭할 때마다 화면과 DOM을 자동 저장합니다</div>
@@ -172,11 +196,19 @@ function RecorderScene({ phase, compact = false, reducedMotion = false }: {
   reducedMotion?: boolean;
 }) {
   const step = DEMO_STEPS[Math.min(phase, DEMO_STEPS.length - 1)];
+  const generating = phase > DEMO_STEPS.length;
   return (
     <div className={`${styles.sceneFrame} ${compact ? styles.compactScene : ''}`}>
-      <BrowserChrome />
+      <BrowserChrome generating={generating} />
       <div className={styles.recorderWorkspace}>
-        <TargetViewport key={`rec-${phase}`} step={step} live={false} reducedMotion={reducedMotion} />
+        <div className={styles.recorderTargetWrap}>
+          <TargetViewport key={`rec-${phase}`} step={step} live={false} reducedMotion={reducedMotion} settled={phase >= DEMO_STEPS.length} />
+          {generating && (
+            <div className={styles.manualBuildOverlay}>
+              <div><ParroMascot size={72} /><strong>AI가 매뉴얼을 자동 완성하고 있어요</strong><span>잠시 후 Live Guide로 이어집니다</span></div>
+            </div>
+          )}
+        </div>
         <RecorderPanel phase={phase} />
       </div>
     </div>
@@ -212,10 +244,16 @@ export function HeroRecordingDemo() {
 
   useEffect(() => {
     if (!playing) return;
-    const delay = scene === 0 ? (recordPhase < 3 ? 1750 : 2200) : 2600;
+    const delay = scene === 0
+      ? recordPhase < DEMO_STEPS.length
+        ? 1750
+        : recordPhase === DEMO_STEPS.length
+          ? 2200
+          : 1800
+      : 2600;
     const timer = window.setTimeout(() => {
       if (scene === 0) {
-        if (recordPhase < 3) setRecordPhase(value => value + 1);
+        if (recordPhase <= DEMO_STEPS.length) setRecordPhase(value => value + 1);
         else { setScene(1); setLiveStep(0); }
       } else if (liveStep < DEMO_STEPS.length - 1) {
         setLiveStep(value => value + 1);
@@ -228,7 +266,7 @@ export function HeroRecordingDemo() {
   }, [liveStep, playing, recordPhase, scene]);
 
   return (
-    <div ref={ref} className={styles.heroDemo} data-playing={playing}>
+    <div ref={ref} className={styles.heroDemo} data-playing={playing} data-record-phase={scene === 0 ? recordPhase : undefined} data-demo-scene={scene === 0 ? 'capture' : 'live-guide'}>
       <div className={styles.heroEyebrow}>
         <span><i /> 기록부터 실제 실행까지</span>
         <b>{scene === 0 ? 'CAPTURE' : 'LIVE GUIDE'}</b>
