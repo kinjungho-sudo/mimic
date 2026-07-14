@@ -1,7 +1,7 @@
 {
   "name": "@mimic/mcp-server",
   "version": "0.1.0",
-  "description": "MIMIC MCP server — exposes tutorials and steps to Claude agents",
+  "description": "Parro MCP server — exposes tutorials and steps to Claude agents",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {

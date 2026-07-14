@@ -2,13 +2,17 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { BrandMark } from '@/components/common/BrandMark';
+import { BRAND_COLORS, BRAND_COPY, BRAND_NAME, BRAND_SUPPORT_EMAIL } from '@/lib/brand';
+
+const BRAND_NAV_ACTIVE = BRAND_COLORS.guideSoft;
 
 // ── 목차 구조 ──────────────────────────────────────────────
 
 const SECTIONS = [
   {
     id: 'intro',
-    title: 'MIMIC이란?',
+    title: `${BRAND_NAME}란?`,
     icon: '✦',
   },
   {
@@ -66,7 +70,7 @@ function SectionContent({ id }: { id: string }) {
   const li = (text: string, i: number) => (
     <li key={i} style={{ fontSize: '14.5px', color: '#4B5563', lineHeight: 1.75, marginBottom: '6px' }}>{text}</li>
   );
-  const chip = (text: string, color = '#e0e7ff', textColor = '#3730a3') => (
+  const chip = (text: string, color: string = BRAND_COLORS.guideSoft, textColor: string = BRAND_COLORS.primary) => (
     <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: '6px', background: color, color: textColor, fontSize: '12px', fontWeight: 600, marginRight: '6px' }}>{text}</span>
   );
   const kbd = (text: string) => (
@@ -84,11 +88,11 @@ function SectionContent({ id }: { id: string }) {
     case 'intro':
       return (
         <div>
-          {h2('MIMIC이란?')}
-          {p('MIMIC은 Chrome 확장 프로그램으로 업무 화면을 녹화해 SOP와 인터랙티브 매뉴얼을 자동 생성하고, 필요한 순간에는 화면 위 가이드로 실행까지 연결하는 서비스입니다.')}
-          {img('/help/product-overview.png', 'MIMIC — SOP 제작부터 화면 위 실행 안내까지')}
+          {h2(`${BRAND_NAME}란?`)}
+          {p(`${BRAND_NAME}는 Chrome 확장 프로그램으로 업무 화면을 녹화해 SOP와 인터랙티브 매뉴얼을 자동 생성하고, 필요한 순간에는 화면 위 가이드로 실행까지 연결하는 서비스입니다.`)}
+          {img('/help/product-overview.png', `${BRAND_NAME} — SOP 제작부터 화면 위 실행 안내까지`)}
           {p('클릭 한 번 한 번이 자동으로 캡처되어 단계별 스크린샷과 설명이 만들어집니다. 완성된 매뉴얼은 링크와 문서로 공유하고, 필요하면 학습 가이드나 확장 프로그램 기반 라이브 가이드 Beta로 실행을 안내할 수 있습니다.')}
-          {h3('MIMIC으로 할 수 있는 것')}
+          {h3(`${BRAND_NAME}로 할 수 있는 것`)}
           <ul style={{ paddingLeft: '20px', margin: '0 0 16px' }}>
             {[
               '신규 직원 온보딩 SOP와 매뉴얼 빠르게 제작',
@@ -105,17 +109,17 @@ function SectionContent({ id }: { id: string }) {
       return (
         <div>
           {h2('1. 확장 프로그램 설치')}
-          {p('MIMIC Recorder는 Chrome 브라우저에서 동작하는 확장 프로그램입니다. 설치 후 MIMIC 홈 화면에서 바로 녹화를 시작할 수 있습니다.')}
+          {p(`${BRAND_COPY.extensionDisplayName}는 Chrome 브라우저에서 동작하는 확장 프로그램입니다. 설치 후 ${BRAND_NAME} 홈 화면에서 바로 녹화를 시작할 수 있습니다.`)}
           {h3('설치 방법')}
           <ol style={{ paddingLeft: '20px', margin: '0 0 16px' }}>
             {[
-              'Chrome 웹 스토어에서 "MIMIC Recorder"를 검색해 설치합니다.',
-              'MIMIC 홈 화면에서 "새로 만들기" 버튼을 클릭합니다.',
+              `Chrome 웹 스토어에서 "${BRAND_COPY.extensionDisplayName}"를 검색해 설치합니다.`,
+              `${BRAND_NAME} 홈 화면에서 "새로 만들기" 버튼을 클릭합니다.`,
               '"새 매뉴얼(녹화)"를 선택하면 녹화 모달이 열립니다. 여기서 확장 연동이 자동으로 처리됩니다.',
             ].map(li)}
           </ol>
           {h3('확장을 찾을 수 없을 때')}
-          {p('녹화 모달에서 "MIMIC Recorder 설치하기" 버튼이 나타나면 스토어로 이동해 설치하세요. 설치 후 "설치 완료 — 다시 시도" 버튼을 누르면 바로 연결됩니다.')}
+          {p(`녹화 모달에서 "${BRAND_COPY.extensionDisplayName} 설치하기" 버튼이 나타나면 스토어로 이동해 설치하세요. 설치 후 "설치 완료 — 다시 시도" 버튼을 누르면 바로 연결됩니다.`)}
           {h3('지원 브라우저')}
           {p('현재 Google Chrome 및 Chromium 기반 브라우저(Edge, Brave 등)를 지원합니다. Firefox, Safari는 지원하지 않습니다.')}
         </div>
@@ -125,14 +129,14 @@ function SectionContent({ id }: { id: string }) {
       return (
         <div>
           {h2('2. 화면 녹화하기')}
-          {p('녹화는 MIMIC 홈 화면에서 시작합니다. 평소처럼 업무를 진행하면 클릭할 때마다 자동으로 캡처됩니다.')}
+          {p(`녹화는 ${BRAND_NAME} 홈 화면에서 시작합니다. 평소처럼 업무를 진행하면 클릭할 때마다 자동으로 캡처됩니다.`)}
           {h3('녹화 시작')}
           <ol style={{ paddingLeft: '20px', margin: '0 0 16px' }}>
             {[
               '홈 화면 우측 상단 "새로 만들기" 버튼을 클릭합니다.',
               '"새 매뉴얼(녹화)" 를 선택하면 녹화 안내 모달이 뜹니다.',
               '"페이지 선택하기 →" 버튼을 눌러 녹화할 탭을 선택합니다.',
-              '"녹화 시작" 버튼을 누르면 해당 탭이 활성화되고 우측에 MIMIC Recorder 사이드 패널이 열립니다.',
+              `"녹화 시작" 버튼을 누르면 해당 탭이 활성화되고 우측에 ${BRAND_COPY.extensionDisplayName} 사이드 패널이 열립니다.`,
               '사이드 패널의 녹화 버튼을 누르고 평소처럼 업무를 진행하세요. 클릭마다 자동으로 스크린샷이 캡처됩니다.',
               '완료 버튼을 눌러 녹화를 종료합니다.',
             ].map(li)}
@@ -322,10 +326,10 @@ function SectionContent({ id }: { id: string }) {
       return (
         <div>
           {h2('라이브 가이드 Beta')}
-          {p('라이브 가이드 Beta는 실제 웹페이지 위에 오버레이를 띄워 단계별로 안내하는 기능입니다. 현재는 원본 URL이 저장된 매뉴얼과 MIMIC Recorder 확장 프로그램이 필요하며, 페이지 구조가 바뀌면 일부 단계가 맞지 않을 수 있습니다.')}
+          {p(`라이브 가이드 Beta는 실제 웹페이지 위에 오버레이를 띄워 단계별로 안내하는 기능입니다. 현재는 원본 URL이 저장된 매뉴얼과 ${BRAND_COPY.extensionDisplayName} 확장 프로그램이 필요하며, 페이지 구조가 바뀌면 일부 단계가 맞지 않을 수 있습니다.`)}
           {img('/help/live-guide.jpg', '라이브 가이드 Beta — 실제 페이지 위 AI 말풍선·핫스팟')}
           {h3('사용 조건')}
-          {p('MIMIC Recorder 확장 프로그램이 설치되어 있고, 녹화 시 원본 페이지 URL이 저장되어 있어야 합니다. 무료 플랜에서는 사용량 제한이 적용될 수 있습니다.')}
+          {p(`${BRAND_COPY.extensionDisplayName} 확장 프로그램이 설치되어 있고, 녹화 시 원본 페이지 URL이 저장되어 있어야 합니다. 무료 플랜에서는 사용량 제한이 적용될 수 있습니다.`)}
           {h3('실행 방법 (받는 사람)')}
           <ol style={{ paddingLeft: '20px', margin: '0 0 16px' }}>
             {[
@@ -439,22 +443,22 @@ function SectionContent({ id }: { id: string }) {
               {
                 name: 'Pro',
                 price: '문의',
-                color: '#EEF2FF',
-                border: '#a5b4fc',
+                color: BRAND_COLORS.guideSoft,
+                border: BRAND_COLORS.border,
                 features: ['매뉴얼 생성 한도 확대', 'PDF/PPTX/Word 내보내기', '비밀번호 보호', '학습 가이드 + 라이브 가이드 Beta'],
                 highlight: true,
               },
               {
                 name: 'Team',
                 price: '문의',
-                color: '#F5F3FF',
-                border: '#c4b5fd',
+                color: '#F7FFF8',
+                border: BRAND_COLORS.border,
                 features: ['Pro 포함 전체 기능', '팀 워크스페이스', '멤버 관리', '팀 단위 지원'],
               },
             ].map(({ name, price, color, border, features, highlight }) => (
               <div key={name} style={{ padding: '20px', background: color, border: `1px solid ${border}`, borderRadius: '12px' }}>
                 <div style={{ fontSize: '15px', fontWeight: 700, color: '#111827', marginBottom: '4px' }}>{name}</div>
-                <div style={{ fontSize: '20px', fontWeight: 800, color: highlight ? '#3730a3' : '#111827', marginBottom: '16px' }}>{price}</div>
+                <div style={{ fontSize: '20px', fontWeight: 800, color: highlight ? BRAND_COLORS.primary : '#111827', marginBottom: '16px' }}>{price}</div>
                 <ul style={{ paddingLeft: '16px', margin: 0 }}>
                   {features.map((f, i) => (
                     <li key={i} style={{ fontSize: '13px', color: '#4B5563', marginBottom: '6px', lineHeight: 1.5 }}>{f}</li>
@@ -463,7 +467,7 @@ function SectionContent({ id }: { id: string }) {
               </div>
             ))}
           </div>
-          {p('요금제 관련 문의는 support@mimic.so로 연락해주세요.')}
+          {p(`요금제 관련 문의는 ${BRAND_SUPPORT_EMAIL}로 연락해주세요.`)}
         </div>
       );
 
@@ -473,12 +477,12 @@ function SectionContent({ id }: { id: string }) {
           {h2('자주 묻는 질문')}
           {[
             {
-              q: 'MIMIC이 뭔가요?',
+              q: `${BRAND_NAME}가 뭔가요?`,
               a: 'Chrome 확장 프로그램으로 업무 화면을 녹화해 SOP와 인터랙티브 매뉴얼을 자동 생성하는 서비스입니다. 클릭 동작이 자동 캡처되어 단계별 스크린샷과 설명이 만들어지고, 링크·문서·학습 가이드로 공유할 수 있습니다. 조건이 맞으면 라이브 가이드 Beta로 실제 페이지 위 안내도 사용할 수 있습니다.',
             },
             {
               q: '확장 프로그램은 어디서 설치하나요?',
-              a: 'Chrome 웹 스토어에서 "MIMIC Recorder"를 검색해 설치하세요. Edge, Brave 등 Chromium 기반 브라우저도 지원합니다. Firefox, Safari는 현재 지원하지 않습니다.',
+              a: `Chrome 웹 스토어에서 "${BRAND_COPY.extensionDisplayName}"를 검색해 설치하세요. Edge, Brave 등 Chromium 기반 브라우저도 지원합니다. Firefox, Safari는 현재 지원하지 않습니다.`,
             },
             {
               q: '매뉴얼 생성이 안 돼요.',
@@ -526,11 +530,11 @@ function SectionContent({ id }: { id: string }) {
             },
             {
               q: '무료 플랜과 Pro 플랜의 차이는 무엇인가요?',
-              a: '무료는 일 3회 매뉴얼 생성, 기본 공유, PDF 내보내기를 지원합니다. Pro는 생성 한도 확대, PDF/PPTX/Word 내보내기, 비밀번호 보호, 학습 가이드와 라이브 가이드 Beta를 포함할 예정입니다. 가격 문의는 support@mimic.so로 연락해주세요.',
+              a: `무료는 일 3회 매뉴얼 생성, 기본 공유, PDF 내보내기를 지원합니다. Pro는 생성 한도 확대, PDF/PPTX/Word 내보내기, 비밀번호 보호, 학습 가이드와 라이브 가이드 Beta를 포함할 예정입니다. 가격 문의는 ${BRAND_SUPPORT_EMAIL}로 연락해주세요.`,
             },
             {
               q: '문의는 어떻게 하나요?',
-              a: 'support@mimic.so로 이메일 주시면 빠르게 답변드리겠습니다. 버그 신고, 기능 제안, 요금제 문의 모두 환영합니다.',
+              a: `${BRAND_SUPPORT_EMAIL}로 이메일 주시면 빠르게 답변드리겠습니다. 버그 신고, 기능 제안, 요금제 문의 모두 환영합니다.`,
             },
           ].map(({ q, a }, i) => (
             <div key={i} style={{ borderBottom: '1px solid #F3F4F6', paddingBottom: '20px', marginBottom: '20px' }}>
@@ -540,7 +544,7 @@ function SectionContent({ id }: { id: string }) {
           ))}
           <div style={{ padding: '16px 20px', background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: '10px', marginTop: '8px' }}>
             <div style={{ fontSize: '14px', fontWeight: 600, color: '#0369a1', marginBottom: '4px' }}>더 궁금한 점이 있으신가요?</div>
-            <div style={{ fontSize: '13.5px', color: '#0c4a6e' }}>우측 하단 채팅 버튼으로 바로 질문하거나, <strong>support@mimic.so</strong>로 문의해주세요.</div>
+            <div style={{ fontSize: '13.5px', color: '#0c4a6e' }}>우측 하단 채팅 버튼으로 바로 질문하거나, <strong>{BRAND_SUPPORT_EMAIL}</strong>로 문의해주세요.</div>
           </div>
         </div>
       );
@@ -577,11 +581,8 @@ export default function HelpPage() {
       <header style={{ background: 'white', borderBottom: '1px solid #E5E7EB', padding: '0 24px', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <Link href="/home" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="28" height="28">
-              <circle cx="50" cy="50" r="50" fill="#3730a3"/>
-              <text x="50" y="68" textAnchor="middle" fontFamily="Georgia, serif" fontSize="62" fontWeight="700" fill="white">M</text>
-            </svg>
-            <span style={{ fontSize: '16px', fontWeight: 800, color: '#111827', letterSpacing: '-0.03em' }}>MIMIC</span>
+            <BrandMark size={28} />
+            <span style={{ fontSize: '16px', fontWeight: 800, color: '#111827', letterSpacing: '-0.03em' }}>{BRAND_NAME}</span>
           </Link>
           <span style={{ color: '#D1D5DB' }}>|</span>
           <span style={{ fontSize: '14px', fontWeight: 600, color: '#374151' }}>도움말</span>
@@ -601,8 +602,8 @@ export default function HelpPage() {
                 style={{
                   width: '100%', display: 'flex', alignItems: 'center', gap: '8px',
                   padding: '8px 10px', borderRadius: '8px', border: 'none',
-                  background: activeId === section.id ? '#EEF2FF' : 'transparent',
-                  color: activeId === section.id ? '#3730a3' : '#374151',
+                  background: activeId === section.id ? BRAND_NAV_ACTIVE : 'transparent',
+                  color: activeId === section.id ? BRAND_COLORS.primary : '#374151',
                   fontWeight: activeId === section.id ? 700 : 500,
                   fontSize: '13.5px', cursor: 'pointer', textAlign: 'left',
                   transition: 'all 0.12s',
@@ -619,8 +620,8 @@ export default function HelpPage() {
                       onClick={() => selectSection(child.id)}
                       style={{
                         width: '100%', padding: '6px 10px', borderRadius: '6px',
-                        border: 'none', background: activeId === child.id ? '#EEF2FF' : 'transparent',
-                        color: activeId === child.id ? '#3730a3' : '#6B7280',
+                        border: 'none', background: activeId === child.id ? BRAND_NAV_ACTIVE : 'transparent',
+                        color: activeId === child.id ? BRAND_COLORS.primary : '#6B7280',
                         fontWeight: activeId === child.id ? 600 : 400,
                         fontSize: '13px', cursor: 'pointer', textAlign: 'left',
                         transition: 'all 0.12s',

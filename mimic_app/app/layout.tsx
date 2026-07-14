@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import { BRAND_DESCRIPTION, BRAND_LOGO_IMAGE_PATH, BRAND_NAME, BRAND_TAGLINE, getBrandAppUrl } from "@/lib/brand";
 import "./globals.css";
 
 const geistSans = localFont({
@@ -13,35 +14,35 @@ const geistMono = localFont({
   weight: "100 900",
 });
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://mimic-nine-ashen.vercel.app';
+const APP_URL = getBrandAppUrl();
 
 export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),
   title: {
-    default: "MIMIC — 30초 만에 인터랙티브 매뉴얼",
-    template: "%s | MIMIC",
+    default: `${BRAND_NAME} - ${BRAND_TAGLINE}`,
+    template: `%s | ${BRAND_NAME}`,
   },
-  description: "웹과 앱 화면을 30초 만에 인터랙티브 매뉴얼로. AI가 단계별 설명과 자막까지 자동 생성합니다. Don't Explain, Just Mimic.",
+  description: BRAND_DESCRIPTION,
   openGraph: {
-    title: "MIMIC — 30초 만에 인터랙티브 매뉴얼",
-    description: "웹과 앱 화면을 30초 만에 인터랙티브 매뉴얼로. AI가 단계별 설명과 자막까지 자동 생성합니다.",
+    title: `${BRAND_NAME} - ${BRAND_TAGLINE}`,
+    description: BRAND_DESCRIPTION,
     type: "website",
     url: APP_URL,
-    siteName: "MIMIC",
+    siteName: BRAND_NAME,
     locale: "ko_KR",
     images: [
       {
         url: `${APP_URL}/api/og`,
         width: 1200,
         height: 630,
-        alt: "MIMIC — 30초 만에 인터랙티브 매뉴얼",
+        alt: `${BRAND_NAME} - ${BRAND_TAGLINE}`,
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "MIMIC — 30초 만에 인터랙티브 매뉴얼",
-    description: "웹과 앱 화면을 30초 만에 인터랙티브 매뉴얼로. AI가 단계별 설명과 자막까지 자동 생성합니다.",
+    title: `${BRAND_NAME} - ${BRAND_TAGLINE}`,
+    description: BRAND_DESCRIPTION,
     images: [`${APP_URL}/api/og`],
   },
   robots: {
@@ -56,10 +57,10 @@ export const metadata: Metadata = {
 const organizationJsonLd = {
   "@context": "https://schema.org",
   "@type": "Organization",
-  name: "MIMIC",
+  name: BRAND_NAME,
   url: APP_URL,
-  logo: `${APP_URL}/mimic-logo.png`,
-  description: "웹과 앱 화면을 30초 만에 인터랙티브 매뉴얼로 만드는 AI 서비스",
+  logo: `${APP_URL}${BRAND_LOGO_IMAGE_PATH}`,
+  description: BRAND_DESCRIPTION,
   contactPoint: {
     "@type": "ContactPoint",
     contactType: "customer support",

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireAuth } from '@/lib/auth/auth-guard';
+import { BRAND_COLORS, BRAND_NAME, BRAND_SUPPORT_EMAIL, BRAND_TAGLINE, LEGACY_INTERNAL_IDENTIFIERS } from '@/lib/brand';
 
 const schema = z.object({
   to: z.string().email('올바른 이메일 주소를 입력해주세요.'),
@@ -10,6 +11,8 @@ const schema = z.object({
 });
 
 const clean = (v: string | undefined) => v?.replace(/^﻿/, '').trim() ?? '';
+const EMAIL_GRADIENT = `linear-gradient(135deg,${BRAND_COLORS.primary},${BRAND_COLORS.guide})`;
+const EMAIL_PRIMARY = BRAND_COLORS.primary;
 
 // 공유 메일은 n8n 워크플로우(Webhook → Gmail 노드)로 발송한다.
 // Resend는 인증 도메인이 없어 보류 — n8n Gmail 노드는 사용자 Gmail 계정으로 인증하므로 도메인 불필요.
@@ -35,8 +38,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Email service not configured' }, { status: 503 });
   }
 
-  const subject = `[MIMIC] ${tutorialTitle}`;
-  const fromName = senderName ? `${senderName} via MIMIC` : 'MIMIC';
+  const subject = `[${BRAND_NAME}] ${tutorialTitle}`;
+  const fromName = senderName ? `${senderName} via ${BRAND_NAME}` : BRAND_NAME;
   const safeTitle = tutorialTitle.replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const html = `
 <!DOCTYPE html>
@@ -48,9 +51,9 @@ export async function POST(request: NextRequest) {
       <table width="560" cellpadding="0" cellspacing="0" style="background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
         <!-- 헤더 -->
         <tr>
-          <td style="background:linear-gradient(135deg,#3730a3,#6d28d9);padding:32px 40px;text-align:center;">
-            <p style="margin:0;font-size:22px;font-weight:800;color:white;letter-spacing:-0.5px;">MIMIC</p>
-            <p style="margin:6px 0 0;font-size:13px;color:rgba(255,255,255,0.7);">Don't Explain, Just Mimic.</p>
+          <td style="background:${EMAIL_GRADIENT};padding:32px 40px;text-align:center;">
+            <p style="margin:0;font-size:22px;font-weight:800;color:white;letter-spacing:-0.5px;">${BRAND_NAME}</p>
+            <p style="margin:6px 0 0;font-size:13px;color:rgba(255,255,255,0.7);">${BRAND_TAGLINE}</p>
           </td>
         </tr>
         <!-- 본문 -->
@@ -62,13 +65,13 @@ export async function POST(request: NextRequest) {
               아래 버튼을 클릭하면 단계별 인터랙티브 매뉴얼을 바로 확인할 수 있어요.
             </p>
             <table cellpadding="0" cellspacing="0"><tr><td>
-              <a href="${shareUrl}" style="display:inline-block;padding:14px 28px;background:linear-gradient(135deg,#3730a3,#6d28d9);color:white;font-size:15px;font-weight:600;text-decoration:none;border-radius:10px;letter-spacing:-0.2px;">
+              <a href="${shareUrl}" style="display:inline-block;padding:14px 28px;background:${EMAIL_GRADIENT};color:white;font-size:15px;font-weight:600;text-decoration:none;border-radius:10px;letter-spacing:-0.2px;">
                 매뉴얼 보러 가기 →
               </a>
             </td></tr></table>
             <p style="margin:24px 0 0;font-size:12px;color:#9CA3AF;">
               또는 이 링크를 브라우저에 복사하세요:<br>
-              <a href="${shareUrl}" style="color:#3730a3;word-break:break-all;">${shareUrl}</a>
+              <a href="${shareUrl}" style="color:${EMAIL_PRIMARY};word-break:break-all;">${shareUrl}</a>
             </p>
           </td>
         </tr>
@@ -76,7 +79,7 @@ export async function POST(request: NextRequest) {
         <tr>
           <td style="padding:20px 40px;border-top:1px solid #F3F4F6;text-align:center;">
             <p style="margin:0;font-size:12px;color:#9CA3AF;">
-              MIMIC · AI 인터랙티브 매뉴얼 플랫폼
+              ${BRAND_NAME} · AI 인터랙티브 매뉴얼 플랫폼
             </p>
           </td>
         </tr>
@@ -91,8 +94,8 @@ export async function POST(request: NextRequest) {
   try {
     const res = await fetch(webhookUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(secret ? { 'x-mimic-secret': secret } : {}) },
-      body: JSON.stringify({ to, subject, html, fromName, replyTo: 'kinjungho@gmail.com' }),
+      headers: { 'Content-Type': 'application/json', ...(secret ? { [LEGACY_INTERNAL_IDENTIFIERS.shareEmailSecretHeader]: secret } : {}) },
+      body: JSON.stringify({ to, subject, html, fromName, replyTo: BRAND_SUPPORT_EMAIL }),
     });
     if (!res.ok) {
       console.error('[share/email] n8n webhook error:', res.status, await res.text().catch(() => ''));

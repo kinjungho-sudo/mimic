@@ -1,6 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { BRAND_COLORS } from '@/lib/brand';
+
+const BRAND_GRADIENT = `linear-gradient(135deg, ${BRAND_COLORS.primary}, ${BRAND_COLORS.guide})`;
 
 type SurveyKind = 'manual_created' | 'manual_viewer' | 'live_guide';
 
@@ -60,9 +63,9 @@ function Rating({ value, onChange }: { value: number; onChange: (value: number) 
             width: 34,
             height: 32,
             borderRadius: 8,
-            border: `1px solid ${value === n ? '#3730a3' : '#E5E7EB'}`,
-            background: value === n ? '#EEF2FF' : 'white',
-            color: value === n ? '#3730a3' : '#6B7280',
+            border: `1px solid ${value === n ? BRAND_COLORS.primary : '#E5E7EB'}`,
+            background: value === n ? BRAND_COLORS.guideSoft : 'white',
+            color: value === n ? BRAND_COLORS.primary : '#6B7280',
             fontSize: 13,
             fontWeight: 700,
             cursor: 'pointer',
@@ -156,9 +159,9 @@ export function FeedbackSurveyModal({
                     flex: 1,
                     height: 36,
                     borderRadius: 8,
-                    border: `1px solid ${q4 === opt.value ? '#3730a3' : '#E5E7EB'}`,
-                    background: q4 === opt.value ? '#EEF2FF' : 'white',
-                    color: q4 === opt.value ? '#3730a3' : '#4B5563',
+                    border: `1px solid ${q4 === opt.value ? BRAND_COLORS.primary : '#E5E7EB'}`,
+                    background: q4 === opt.value ? BRAND_COLORS.guideSoft : 'white',
+                    color: q4 === opt.value ? BRAND_COLORS.primary : '#4B5563',
                     fontSize: 13,
                     fontWeight: 700,
                     cursor: 'pointer',
@@ -194,7 +197,7 @@ export function FeedbackSurveyModal({
           <button type="button" onClick={close} style={{ height: 38, padding: '0 16px', border: 'none', background: 'transparent', color: '#6B7280', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
             건너뛰기
           </button>
-          <button type="button" onClick={submit} disabled={submitting} style={{ height: 38, padding: '0 18px', border: 'none', borderRadius: 8, background: 'linear-gradient(135deg,#3730a3,#6d28d9)', color: 'white', fontSize: 13, fontWeight: 800, cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.7 : 1 }}>
+          <button type="button" onClick={submit} disabled={submitting} style={{ height: 38, padding: '0 18px', border: 'none', borderRadius: 8, background: BRAND_GRADIENT, color: 'white', fontSize: 13, fontWeight: 800, cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.7 : 1 }}>
             {submitting ? '제출 중...' : '제출하기'}
           </button>
         </div>

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import type { GuideData } from '@/components/guidebook/schema';
+import { BRAND_COLORS, BRAND_COPY } from '@/lib/brand';
 
 const GuidebookView = dynamic(() => import('@/components/guidebook/GuidebookView'), {
   ssr: false,
@@ -48,7 +49,7 @@ export default function PublicPage() {
   return (
     <div style={{ minHeight: '100vh', background: '#F9FAFB' }}>
       {/* 커버 */}
-      <div style={{ height: '140px', background: page.cover_color || 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)' }} />
+      <div style={{ height: '140px', background: page.cover_color || `linear-gradient(135deg, ${BRAND_COLORS.primary} 0%, ${BRAND_COLORS.guide} 100%)` }} />
 
       <div style={{ maxWidth: '820px', margin: '0 auto', padding: '0 24px 120px' }}>
         <div style={{ marginTop: '-36px', background: 'white', borderRadius: '14px', padding: '32px 28px 40px', boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}>
@@ -64,7 +65,7 @@ export default function PublicPage() {
         </div>
 
         <div style={{ textAlign: 'center', marginTop: '24px', fontSize: '11.5px', color: '#9CA3AF' }}>
-          Made with MIMIC
+          {BRAND_COPY.madeWith}
         </div>
       </div>
     </div>

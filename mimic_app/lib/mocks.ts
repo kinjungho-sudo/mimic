@@ -2,7 +2,7 @@ import type { User, Tutorial, TutorialDetail, Step, Marker, AudioAsset } from '@
 
 export const MOCK_USER: User = {
   id: 'mock-user-1',
-  email: 'demo@mimicflow.com',
+  email: 'demo@parro.example',
   name: '김정호',
   avatar_url: null,
   auth_provider: 'google',

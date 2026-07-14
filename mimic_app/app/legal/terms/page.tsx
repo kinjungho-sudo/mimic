@@ -1,10 +1,12 @@
 import Link from 'next/link';
 import { BackLink } from '../BackLink';
+import { BrandMark } from '@/components/common/BrandMark';
+import { BRAND_COLORS, BRAND_COPY, BRAND_NAME, BRAND_SUPPORT_EMAIL } from '@/lib/brand';
 
 import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: '이용약관',
-  description: 'MIMIC 서비스 이용 시 적용되는 약관과 규정을 안내합니다.',
+  description: `${BRAND_NAME} 서비스 이용 시 적용되는 약관과 규정을 안내합니다.`,
 };
 
 export default function TermsPage() {
@@ -13,7 +15,7 @@ export default function TermsPage() {
       <header style={{ background: 'white', borderBottom: '1px solid #E5E7EB', padding: '0 24px' }}>
         <div style={{ maxWidth: '800px', margin: '0 auto', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Link href="/landingpage" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="28" height="28"><circle cx="50" cy="50" r="50" fill="#3730a3"/><text x="50" y="68" textAnchor="middle" fontFamily="Georgia, serif" fontSize="62" fontWeight="700" fill="white">M</text></svg>
+            <BrandMark size={28} />
           </Link>
           <BackLink />
         </div>
@@ -26,11 +28,11 @@ export default function TermsPage() {
         {[
           {
             title: '제1조 (목적)',
-            body: '이 약관은 코마인드웍스(이하 "회사")가 제공하는 MIMIC 서비스(이하 "서비스")의 이용과 관련하여 회사와 이용자 간의 권리, 의무 및 책임사항, 기타 필요한 사항을 규정함을 목적으로 합니다.',
+            body: `이 약관은 코마인드웍스(이하 "회사")가 제공하는 ${BRAND_NAME} 서비스(이하 "서비스")의 이용과 관련하여 회사와 이용자 간의 권리, 의무 및 책임사항, 기타 필요한 사항을 규정함을 목적으로 합니다.`,
           },
           {
             title: '제2조 (정의)',
-            body: '"서비스"란 회사가 제공하는 AI 인터랙티브 매뉴얼 제작 플랫폼 MIMIC 및 관련 제반 서비스를 의미합니다. "이용자"란 이 약관에 따라 회사가 제공하는 서비스를 받는 회원 및 비회원을 말합니다. "회원"이란 회사에 개인정보를 제공하여 회원 등록을 한 자로서, 회사의 정보를 지속적으로 제공받으며 서비스를 계속적으로 이용할 수 있는 자를 말합니다.',
+            body: `"서비스"란 회사가 제공하는 ${BRAND_COPY.handsOnTraining} 플랫폼 ${BRAND_NAME} 및 관련 제반 서비스를 의미합니다. "이용자"란 이 약관에 따라 회사가 제공하는 서비스를 받는 회원 및 비회원을 말합니다. "회원"이란 회사에 개인정보를 제공하여 회원 등록을 한 자로서, 회사의 정보를 지속적으로 제공받으며 서비스를 계속적으로 이용할 수 있는 자를 말합니다.`,
           },
           {
             title: '제3조 (약관의 효력 및 변경)',
@@ -38,7 +40,7 @@ export default function TermsPage() {
           },
           {
             title: '제4조 (서비스의 제공)',
-            body: '회사는 다음과 같은 서비스를 제공합니다. (1) AI 기반 인터랙티브 매뉴얼 자동 생성 서비스, (2) Chrome 확장 프로그램(MIMIC Recorder)을 통한 화면 캡처 및 매뉴얼 제작 서비스, (3) 제작된 매뉴얼의 공유 및 플레이어 서비스, (4) 기타 회사가 추가 개발하거나 다른 회사와의 제휴 계약 등을 통해 이용자에게 제공하는 일체의 서비스.',
+            body: `회사는 다음과 같은 서비스를 제공합니다. (1) AI 기반 인터랙티브 매뉴얼 자동 생성 서비스, (2) Chrome 확장 프로그램(${BRAND_COPY.extensionDisplayName})을 통한 화면 캡처 및 매뉴얼 제작 서비스, (3) 제작된 매뉴얼의 공유 및 플레이어 서비스, (4) 기타 회사가 추가 개발하거나 다른 회사와의 제휴 계약 등을 통해 이용자에게 제공하는 일체의 서비스.`,
           },
           {
             title: '제5조 (이용요금)',
@@ -72,7 +74,7 @@ export default function TermsPage() {
         ))}
 
         <div style={{ marginTop: '48px', padding: '20px 24px', background: 'white', border: '1px solid #E5E7EB', borderRadius: '12px', fontSize: '13px', color: '#6B7280' }}>
-          문의: <a href="mailto:kinjungho@gmail.com" style={{ color: '#3730a3', fontWeight: 500 }}>kinjungho@gmail.com</a> · 회사명: 코마인드웍스
+          문의: <a href={`mailto:${BRAND_SUPPORT_EMAIL}`} style={{ color: BRAND_COLORS.primary, fontWeight: 500 }}>{BRAND_SUPPORT_EMAIL}</a> · 회사명: 코마인드웍스
         </div>
       </main>
     </div>

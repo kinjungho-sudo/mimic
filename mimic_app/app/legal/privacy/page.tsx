@@ -1,10 +1,12 @@
 import Link from 'next/link';
 import { BackLink } from '../BackLink';
+import { BrandMark } from '@/components/common/BrandMark';
+import { BRAND_COLORS, BRAND_NAME, BRAND_SUPPORT_EMAIL } from '@/lib/brand';
 
 import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: '개인정보 처리방침',
-  description: 'MIMIC 서비스의 개인정보 수집·이용·보관 및 파기에 관한 방침을 안내합니다.',
+  description: `${BRAND_NAME} 서비스의 개인정보 수집·이용·보관 및 파기에 관한 방침을 안내합니다.`,
 };
 
 export default function PrivacyPage() {
@@ -13,7 +15,7 @@ export default function PrivacyPage() {
       <header style={{ background: 'white', borderBottom: '1px solid #E5E7EB', padding: '0 24px' }}>
         <div style={{ maxWidth: '800px', margin: '0 auto', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Link href="/landingpage" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="28" height="28"><circle cx="50" cy="50" r="50" fill="#3730a3"/><text x="50" y="68" textAnchor="middle" fontFamily="Georgia, serif" fontSize="62" fontWeight="700" fill="white">M</text></svg>
+            <BrandMark size={28} />
           </Link>
           <BackLink />
         </div>
@@ -54,7 +56,7 @@ export default function PrivacyPage() {
           },
           {
             title: '제8조 (개인정보 보호책임자)',
-            body: '회사는 개인정보 처리에 관한 업무를 총괄해서 책임지고, 개인정보 처리와 관련한 정보주체의 불만처리 및 피해구제 등을 위하여 개인정보 보호책임자를 지정하고 있습니다. 개인정보 보호책임자: 김정호 (kinjungho@gmail.com).',
+            body: `회사는 개인정보 처리에 관한 업무를 총괄해서 책임지고, 개인정보 처리와 관련한 정보주체의 불만처리 및 피해구제 등을 위하여 개인정보 보호책임자를 지정하고 있습니다. 개인정보 보호책임자: 김정호 (${BRAND_SUPPORT_EMAIL}).`,
           },
           {
             title: '제9조 (개인정보 처리방침 변경)',
@@ -68,7 +70,7 @@ export default function PrivacyPage() {
         ))}
 
         <div style={{ marginTop: '48px', padding: '20px 24px', background: 'white', border: '1px solid #E5E7EB', borderRadius: '12px', fontSize: '13px', color: '#6B7280' }}>
-          개인정보 관련 문의: <a href="mailto:kinjungho@gmail.com" style={{ color: '#3730a3', fontWeight: 500 }}>kinjungho@gmail.com</a> · 회사명: 코마인드웍스
+          개인정보 관련 문의: <a href={`mailto:${BRAND_SUPPORT_EMAIL}`} style={{ color: BRAND_COLORS.primary, fontWeight: 500 }}>{BRAND_SUPPORT_EMAIL}</a> · 회사명: 코마인드웍스
         </div>
       </main>
     </div>

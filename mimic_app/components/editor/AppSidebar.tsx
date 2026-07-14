@@ -35,7 +35,7 @@ export function AppSidebar() {
       {/* Logo */}
       <div style={{
         width: '36px', height: '36px', borderRadius: '10px',
-        background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)',
+        background: 'linear-gradient(135deg, #009B8E 0%, #12B886 100%)',
         display: 'grid', placeItems: 'center',
         marginBottom: '16px', flexShrink: 0,
       }}>
@@ -84,7 +84,7 @@ export function AppSidebar() {
             width: '36px', height: '36px', borderRadius: '50%',
             background: user?.avatar_url
               ? 'transparent'
-              : 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)',
+              : 'linear-gradient(135deg, #009B8E 0%, #12B886 100%)',
             border: '2px solid rgba(255,255,255,0.15)',
             display: 'grid', placeItems: 'center',
             overflow: 'hidden', flexShrink: 0,

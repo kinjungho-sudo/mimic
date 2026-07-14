@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { FollowStage, Mascot, CORNER } from './FollowStage';
+import { BRAND_COLORS } from '@/lib/brand';
 import type { Annotation } from '@/components/editor/ImageAnnotationEditor';
 
 // 좌표는 전부 0~100(%) 정규화로 받는다 — 호출부(play/manual)가 각자 변환해 넘긴다.
@@ -40,6 +41,8 @@ interface Props {
 }
 
 const HIT_PCT = 7; // 핫스팟 정답 클릭 허용 반경(%)
+const GUIDE_GRADIENT = `linear-gradient(135deg,${BRAND_COLORS.primary},${BRAND_COLORS.guide})`;
+const GUIDE_SOFT = 'rgba(0,155,142,0.10)';
 
 export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, closeLabel = '닫기', lockAfterStep = null }: Props) {
   const [idx, setIdx] = useState(0);
@@ -188,9 +191,9 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
           <div style={{ fontSize: '20px', fontWeight: 800, color: '#111827', marginBottom: '6px' }}>연습을 완료하셨어요! 🎉</div>
           <div style={{ fontSize: '13.5px', color: '#6B7280', lineHeight: 1.6, marginBottom: '18px' }}>{total}단계를 모두 완료했습니다.</div>
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button onClick={returnToLastStep} style={{ padding: '10px 18px', borderRadius: '9px', border: '1px solid #C7D2FE', background: '#EEF2FF', color: '#3730a3', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>{'\uB9C8\uC9C0\uB9C9 \uB2E8\uACC4\uB85C'}</button>
+            <button onClick={returnToLastStep} style={{ padding: '10px 18px', borderRadius: '9px', border: `1px solid ${BRAND_COLORS.border}`, background: BRAND_COLORS.guideSoft, color: BRAND_COLORS.pointer, fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>{'\uB9C8\uC9C0\uB9C9 \uB2E8\uACC4\uB85C'}</button>
             <button onClick={restartPractice} style={{ padding: '10px 18px', borderRadius: '9px', border: '1px solid #E5E7EB', background: 'white', color: '#374151', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>{'\uCC98\uC74C\uBD80\uD130 \uB2E4\uC2DC'}</button>
-            {onClose && <button onClick={onClose} style={{ padding: '10px 22px', borderRadius: '9px', border: 'none', background: 'linear-gradient(135deg,#3730a3,#6d28d9)', color: 'white', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>{closeLabel}</button>}
+            {onClose && <button onClick={onClose} style={{ padding: '10px 22px', borderRadius: '9px', border: 'none', background: GUIDE_GRADIENT, color: 'white', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>{closeLabel}</button>}
           </div>
         </div>
       ) : (
@@ -243,10 +246,10 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
 
           {/* 컨트롤 바 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(255,255,255,0.95)', borderRadius: '12px', padding: '8px 14px', boxShadow: '0 6px 24px rgba(0,0,0,0.25)', flexShrink: 0 }}>
-            <span style={{ fontSize: '12px', fontWeight: 700, color: '#4338ca', background: '#EEF2FF', padding: '3px 10px', borderRadius: '20px' }}>{idx + 1} / {total}</span>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: BRAND_COLORS.primary, background: BRAND_COLORS.guideSoft, padding: '3px 10px', borderRadius: '20px' }}>{idx + 1} / {total}</span>
             {hasAnyAudio && (
               <button onClick={() => setVoiceOn(v => !v)} title={voiceOn ? '음성 자동재생 끄기 (아바타 클릭으로 듣기)' : '음성 자동재생 켜기'}
-                style={{ height: '32px', padding: '0 10px', borderRadius: '8px', border: `1px solid ${voiceOn ? '#7c3aed' : '#E5E7EB'}`, background: voiceOn ? 'rgba(124,58,237,0.08)' : 'white', color: voiceOn ? '#6d28d9' : '#9CA3AF', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                style={{ height: '32px', padding: '0 10px', borderRadius: '8px', border: `1px solid ${voiceOn ? BRAND_COLORS.primary : '#E5E7EB'}`, background: voiceOn ? GUIDE_SOFT : 'white', color: voiceOn ? BRAND_COLORS.primary : '#9CA3AF', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
                   {voiceOn ? <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" /> : <><line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" /></>}
@@ -255,7 +258,7 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
               </button>
             )}
             <button onClick={goPrev} disabled={idx === 0} style={{ height: '32px', padding: '0 12px', borderRadius: '8px', border: '1px solid #E5E7EB', background: 'white', color: idx === 0 ? '#D1D5DB' : '#374151', fontSize: '12.5px', fontWeight: 600, cursor: idx === 0 ? 'default' : 'pointer' }}>이전</button>
-            <button onClick={advance} style={{ height: '32px', padding: '0 14px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', color: 'white', fontSize: '12.5px', fontWeight: 700, cursor: 'pointer' }}>{idx + 1 >= total ? '완료' : '다음 →'}</button>
+            <button onClick={advance} style={{ height: '32px', padding: '0 14px', borderRadius: '8px', border: 'none', background: GUIDE_GRADIENT, color: 'white', fontSize: '12.5px', fontWeight: 700, cursor: 'pointer' }}>{idx + 1 >= total ? '완료' : '다음 →'}</button>
             {onClose && <button onClick={onClose} style={{ height: '32px', padding: '0 12px', borderRadius: '8px', border: 'none', background: 'transparent', color: '#6B7280', fontSize: '12.5px', cursor: 'pointer' }}>{closeLabel}</button>}
           </div>
         </>
@@ -268,7 +271,7 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '14px' }}><Mascot size={52} /></div>
             <div style={{ fontSize: '18px', fontWeight: 800, color: '#111827', marginBottom: '8px' }}>여기까지 미리보기예요</div>
             <div style={{ fontSize: '13px', color: '#6B7280', lineHeight: 1.6, marginBottom: '20px' }}>무료로 로그인하면 끝까지 따라할 수 있어요.<br />가입은 몇 초면 끝나요.</div>
-            <button onClick={() => { const next = encodeURIComponent(window.location.pathname + window.location.search); window.location.href = `/auth/login?next=${next}`; }} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', color: 'white', fontSize: '14px', fontWeight: 700, cursor: 'pointer', marginBottom: '10px' }}>무료로 로그인하고 계속하기</button>
+            <button onClick={() => { const next = encodeURIComponent(window.location.pathname + window.location.search); window.location.href = `/auth/login?next=${next}`; }} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: 'none', background: GUIDE_GRADIENT, color: 'white', fontSize: '14px', fontWeight: 700, cursor: 'pointer', marginBottom: '10px' }}>무료로 로그인하고 계속하기</button>
             <button onClick={() => setShowGate(false)} style={{ width: '100%', padding: '10px', borderRadius: '10px', border: 'none', background: 'transparent', color: '#9CA3AF', fontSize: '12.5px', fontWeight: 600, cursor: 'pointer' }}>미리보기로 돌아가기</button>
           </div>
         </div>

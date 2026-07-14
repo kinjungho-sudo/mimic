@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { createServiceRoleClient } from '@/lib/supabase/server';
+import { BRAND_NAME, getBrandAppUrl } from '@/lib/brand';
 
 type Props = { params: Promise<{ token: string }> };
 
@@ -16,12 +17,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .single();
 
   if (!data) {
-    return { title: 'MIMIC 매뉴얼' };
+    return { title: `${BRAND_NAME} 매뉴얼` };
   }
 
-  const title = `${data.title} — MIMIC 매뉴얼`;
-  const description = 'MIMIC으로 만든 단계별 인터랙티브 매뉴얼입니다.';
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://mimic-nine-ashen.vercel.app';
+  const title = `${data.title} — ${BRAND_NAME} 매뉴얼`;
+  const description = `${BRAND_NAME}로 만든 단계별 인터랙티브 매뉴얼입니다.`;
+  const appUrl = getBrandAppUrl();
   const pageUrl = `${appUrl}/play/${token}`;
 
   return {

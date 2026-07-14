@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
+import { BRAND_COLORS } from '@/lib/brand';
 import { z } from 'zod';
 
 const DEFAULTS = {
   logo_url: null as string | null,
-  primary_color: '#4F46E5',
+  primary_color: BRAND_COLORS.primary,
   company_name: null as string | null,
   footer_text: null as string | null,
 };

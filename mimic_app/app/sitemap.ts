@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next';
+import { getBrandAppUrl } from '@/lib/brand';
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://mimic-nine-ashen.vercel.app';
+const BASE_URL = getBrandAppUrl();
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [

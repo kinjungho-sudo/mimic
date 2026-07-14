@@ -5,6 +5,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { BrandMark } from '@/components/common/BrandMark';
+import { BRAND_COLORS, BRAND_NAME } from '@/lib/brand';
+
+const BRAND_GRADIENT = `linear-gradient(135deg, ${BRAND_COLORS.primary} 0%, ${BRAND_COLORS.guide} 100%)`;
+const BRAND_FOCUS_RING = '0 0 0 3px rgba(0,155,142,0.12)';
+const BRAND_SHADOW = '0 4px 12px rgba(0,155,142,0.25)';
+const BRAND_SHADOW_HOVER = '0 8px 18px rgba(0,155,142,0.32)';
 
 function getPasswordStrength(pw: string): { level: number; label: string } {
   if (!pw) return { level: 0, label: '' };
@@ -73,11 +79,11 @@ export default function ResetPasswordPage() {
     <div style={{ display: 'grid', gridTemplateColumns: '44% 56%', minHeight: '100vh', fontFamily: "'Pretendard', 'Pretendard Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif" }}>
 
       {/* Left brand panel */}
-      <aside style={{ background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', color: 'white', padding: '56px', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
+      <aside style={{ background: BRAND_GRADIENT, color: 'white', padding: '56px', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(600px 320px at 100% 0%, rgba(255,255,255,0.18), transparent 60%), radial-gradient(500px 280px at 0% 100%, rgba(0,0,0,0.18), transparent 60%)', pointerEvents: 'none' }} />
         <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '100%' }}>
           <Link href="/landingpage" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', fontSize: '16px', fontWeight: 500, color: 'white', textDecoration: 'none' }}>
-            <BrandMark /> MIMIC
+            <BrandMark /> {BRAND_NAME}
           </Link>
           <div style={{ marginTop: 'auto', paddingBottom: '8px' }}>
             <h1 style={{ fontSize: '36px', fontWeight: 500, letterSpacing: '-0.02em', lineHeight: 1.25, margin: '0 0 14px' }}>새 비밀번호 설정</h1>
@@ -90,7 +96,7 @@ export default function ResetPasswordPage() {
       {/* Right form panel */}
       <section style={{ display: 'flex', flexDirection: 'column', padding: '36px 64px', background: 'white' }}>
         <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '13px', color: '#6B7280' }}>
-          <Link href="/auth/login" style={{ color: '#3730a3', fontWeight: 500, textDecoration: 'none' }}>로그인으로 돌아가기</Link>
+          <Link href="/auth/login" style={{ color: BRAND_COLORS.primary, fontWeight: 500, textDecoration: 'none' }}>로그인으로 돌아가기</Link>
         </div>
 
         <div style={{ width: '100%', maxWidth: '380px', margin: 'auto', padding: '24px 0' }}>
@@ -110,7 +116,7 @@ export default function ResetPasswordPage() {
               <p style={{ color: '#6B7280', fontSize: '14px', lineHeight: 1.65, margin: '0 0 20px' }}>
                 재설정 링크가 만료됐거나 이미 사용된 경우 아래에서 다시 요청하세요.
               </p>
-              <Link href="/auth/forgot-password" style={{ display: 'inline-block', padding: '10px 18px', borderRadius: '8px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', fontSize: '13.5px', fontWeight: 500, textDecoration: 'none' }}>
+              <Link href="/auth/forgot-password" style={{ display: 'inline-block', padding: '10px 18px', borderRadius: '8px', background: BRAND_GRADIENT, color: 'white', fontSize: '13.5px', fontWeight: 500, textDecoration: 'none' }}>
                 재설정 링크 다시 받기
               </Link>
             </div>
@@ -129,7 +135,7 @@ export default function ResetPasswordPage() {
                     placeholder="8자 이상"
                     required
                     style={{ width: '100%', height: '40px', padding: '0 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '13.5px', outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.18s ease, box-shadow 0.18s ease' }}
-                    onFocus={e => { e.currentTarget.style.borderColor = '#3730a3'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(55,48,163,0.12)'; }}
+                    onFocus={e => { e.currentTarget.style.borderColor = BRAND_COLORS.primary; e.currentTarget.style.boxShadow = BRAND_FOCUS_RING; }}
                     onBlur={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.boxShadow = 'none'; }}
                   />
                   {password && (
@@ -153,7 +159,7 @@ export default function ResetPasswordPage() {
                     placeholder="비밀번호 재입력"
                     required
                     style={{ width: '100%', height: '40px', padding: '0 12px', border: `1px solid ${confirm && confirm !== password ? '#DC2626' : '#E5E7EB'}`, borderRadius: '8px', fontSize: '13.5px', outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.18s ease, box-shadow 0.18s ease' }}
-                    onFocus={e => { e.currentTarget.style.borderColor = '#3730a3'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(55,48,163,0.12)'; }}
+                    onFocus={e => { e.currentTarget.style.borderColor = BRAND_COLORS.primary; e.currentTarget.style.boxShadow = BRAND_FOCUS_RING; }}
                     onBlur={e => { e.currentTarget.style.borderColor = confirm && confirm !== password ? '#DC2626' : '#E5E7EB'; e.currentTarget.style.boxShadow = 'none'; }}
                   />
                   {confirm && confirm !== password && (
@@ -166,9 +172,9 @@ export default function ResetPasswordPage() {
                 <button
                   type="submit"
                   disabled={loading || (!!confirm && confirm !== password)}
-                  style={{ width: '100%', height: '44px', borderRadius: '10px', background: 'linear-gradient(135deg, #3730a3 0%, #6d28d9 100%)', color: 'white', fontSize: '14px', fontWeight: 500, boxShadow: '0 4px 12px rgba(55,48,163,0.25)', cursor: loading ? 'not-allowed' : 'pointer', border: 'none', opacity: loading ? 0.7 : 1, transition: 'transform 0.18s ease, box-shadow 0.18s ease' }}
-                  onMouseEnter={e => { if (!loading) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 8px 18px rgba(55,48,163,0.32)'; } }}
-                  onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(55,48,163,0.25)'; }}
+                  style={{ width: '100%', height: '44px', borderRadius: '10px', background: BRAND_GRADIENT, color: 'white', fontSize: '14px', fontWeight: 500, boxShadow: BRAND_SHADOW, cursor: loading ? 'not-allowed' : 'pointer', border: 'none', opacity: loading ? 0.7 : 1, transition: 'transform 0.18s ease, box-shadow 0.18s ease' }}
+                  onMouseEnter={e => { if (!loading) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = BRAND_SHADOW_HOVER; } }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = BRAND_SHADOW; }}
                 >
                   {loading ? '변경 중...' : '비밀번호 변경하기'}
                 </button>

@@ -1,16 +1,51 @@
 (() => {
   // 중복 주입 방지 — 같은 프레임에 두 번 실행되면 즉시 종료
   // (최상위 return은 classic script에서 SyntaxError — 반드시 IIFE 안에서)
-  if (window.__mimicContentLoaded) return;
+  if (window.__parroContentLoaded || window.__mimicContentLoaded) return;
+  window.__parroContentLoaded = true;
   window.__mimicContentLoaded = true;
 
-  // iframe에서는 실행하지 않음 — 캡처는 top frame에서만
-  if (window !== window.top) return;
+  // iframe editors need typing capture; visual guide UI stays in the top frame.
+  const IS_TOP_FRAME = window === window.top;
+
+  const PARRO_WEBAPP_HOSTS = new Set([
+    'localhost',
+    '127.0.0.1',
+    'parro-guide-dev.vercel.app',
+    'parro-guide.vercel.app',
+  ]);
+
+  function isParroWebappPage() {
+    const host = window.location.hostname;
+    return PARRO_WEBAPP_HOSTS.has(host)
+      || (host.endsWith('.vercel.app') && host !== 'mimic-nine-ashen.vercel.app');
+  }
+
+  function announceExtensionId() {
+    if (!IS_TOP_FRAME || !isParroWebappPage()) return;
+    window.postMessage({
+      source: 'PARRO_RECORDER_EXTENSION',
+      type: 'EXTENSION_ID',
+      extensionId: chrome.runtime.id,
+    }, window.location.origin);
+  }
+
+  if (IS_TOP_FRAME && isParroWebappPage()) {
+    announceExtensionId();
+    window.addEventListener('message', (event) => {
+      if (event.source !== window || event.origin !== window.location.origin) return;
+      const data = event.data || {};
+      if (data.source === 'PARRO_WEBAPP' && data.type === 'REQUEST_EXTENSION_ID') {
+        announceExtensionId();
+      }
+    });
+    setTimeout(announceExtensionId, 500);
+  }
 
   // ── 로그 헬퍼 (background 링버퍼로 릴레이) ──────────────────────
   function log(level, ...args) {
     const msg = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
-    const tag = `[MIMIC][${level.toUpperCase()}][content]`;
+    const tag = `[Parro][${level.toUpperCase()}][content]`;
     if (level === 'error')      console.error(tag, msg);
     else if (level === 'warn')  console.warn(tag, msg);
     else if (level === 'debug') console.debug(tag, msg);
@@ -34,6 +69,7 @@
     'a[href]', 'button', 'input', 'select', 'textarea', 'label',
     '[role="button"]', '[role="link"]', '[role="menuitem"]', '[role="tab"]',
     '[role="checkbox"]', '[role="radio"]', '[role="switch"]', '[role="option"]',
+    '[role="textbox"]', '[contenteditable="true"]', '[contenteditable="plaintext-only"]',
     '[onclick]', '[tabindex]:not([tabindex="-1"])',
   ].join(',');
 
@@ -48,6 +84,7 @@
     highlight: true,
     autoNav:   true,
     saveText:  false,
+    captureInputClicks: false,
   };
 
   let lastCapturedTarget = null;
@@ -58,6 +95,9 @@
   let pendingInputStep   = null;
   let typingUrl          = null;   // 입력 세션 시작 시 URL — 재마운트 필드 판정용
   let typingTimer        = null;
+  let _pointerDownSnapshot = null;
+  let _pointerClickFallbackTimer = null;
+  let typingFocusSnapshot = null;
   let _countingDown      = false;
   let _lastTypingFrameTime = 0;     // 롤링 타이핑 프레임 throttle 기준
   let _typingFrameTimer  = null;    // 입력 멈춤(완료) 시점 프레임 1장 예약 타이머
@@ -100,14 +140,55 @@
   }
 
   function getViewportSize() {
-    return { vw: window.innerWidth, vh: window.innerHeight };
+    try {
+      return { vw: window.top.innerWidth, vh: window.top.innerHeight };
+    } catch {
+      return { vw: window.innerWidth, vh: window.innerHeight };
+    }
+  }
+
+  function getFrameOffsetToTop() {
+    let x = 0;
+    let y = 0;
+    let win = window;
+    try {
+      while (win !== win.top) {
+        const frame = win.frameElement;
+        if (!frame) break;
+        const rect = frame.getBoundingClientRect();
+        x += rect.left;
+        y += rect.top;
+        win = win.parent;
+      }
+    } catch {
+      return { x: 0, y: 0 };
+    }
+    return { x, y };
+  }
+
+  function toTopRect(rect) {
+    const offset = getFrameOffsetToTop();
+    return {
+      x: rect.x + offset.x,
+      y: rect.y + offset.y,
+      left: rect.left + offset.x,
+      top: rect.top + offset.y,
+      width: rect.width,
+      height: rect.height,
+    };
+  }
+
+  function toTopPoint(x, y) {
+    const offset = getFrameOffsetToTop();
+    return { x: x + offset.x, y: y + offset.y };
   }
 
   function rectCenter(el) {
     const rect = el ? el.getBoundingClientRect() : null;
+    const point = rect ? toTopPoint(rect.left + rect.width / 2, rect.top + rect.height / 2) : { x: 0, y: 0 };
     return {
-      cx: rect ? rect.left + rect.width  / 2 : 0,
-      cy: rect ? rect.top  + rect.height / 2 : 0,
+      cx: point.x,
+      cy: point.y,
     };
   }
 
@@ -157,6 +238,51 @@
   // (3) 거짓 안심을 유발한다. 가림은 사용자 통제 하의 '수동 드래그 블러'(popup)로만.
   // 서버 finalize의 Claude Vision detectPII가 비파괴 '검토 필요' 플래그로 보완한다.
   // 두 함수는 캡처 파이프라인 시그니처 유지를 위해 no-op으로 남긴다.
+
+  function getEditableTarget(el) {
+    if (!el) return null;
+    if (document.designMode === 'on') return document.body;
+    const node = el.nodeType === Node.ELEMENT_NODE ? el : el.parentElement;
+    if (!node) return null;
+    if (node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement) return node;
+    const editor = node.closest?.(
+      '[contenteditable="true"],[contenteditable="plaintext-only"],[role="textbox"],.ProseMirror,.ql-editor,.se2_inputarea,.se_editArea,.note-editable,[data-contents="true"]'
+    );
+    if (editor && editor.isContentEditable) {
+      return editor;
+    }
+    if (node.isContentEditable) {
+      return node;
+    }
+    return null;
+  }
+
+  function cleanCapturedEditableText(value) {
+    const raw = String(value || '')
+      .replace(/\u00a0/g, ' ')
+      .replace(/[\u200b\u200c\u200d\ufeff]/g, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+    const hasNotionChrome = /아이콘 추가|커버 추가|댓글 추가/.test(raw);
+    let text = raw.replace(/^(?:아이콘 추가\s+)?(?:커버 추가\s+)?(?:댓글 추가\s+)*/g, '').trim();
+    if (hasNotionChrome) {
+      text = text
+        .replace(/\s+AI 기능은.*$/i, '')
+        .replace(/\s+시작하기(?:\s+.*)?$/i, '')
+        .trim();
+    }
+    return text;
+  }
+
+  function getEditableText(el) {
+    if (!el) return '';
+    if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return el.value || '';
+    const text = typeof el.innerText === 'string' && el.innerText.trim()
+      ? el.innerText
+      : (el.textContent || '');
+    return cleanCapturedEditableText(text);
+  }
+
   function applyPIIBlur() {
     return [];
   }
@@ -169,7 +295,7 @@
   function notifyTypingProgress(el) {
     const label    = getFieldLabel(el);
     const isMasked = SENSITIVE_INPUT_TYPES.has((el.type || '').toLowerCase()) || SENSITIVE_LABEL_RE.test(label);
-    const value    = isMasked ? '' : (el.isContentEditable ? (el.textContent || '') : (el.value || ''));
+    const value    = isMasked ? '' : getEditableText(el);
     chrome.runtime.sendMessage({ type: 'TYPING_PROGRESS', text: value, label, masked: isMasked }, () => { void chrome.runtime.lastError; });
   }
 
@@ -190,11 +316,20 @@
   function flushTyping(el, finalize = true, opts = {}) {
     clearTimeout(typingTimer);
     typingTimer = null;
-    const endSession = () => { if (finalize) { clearTimeout(_typingFrameTimer); pendingInputStep = null; typingTarget = null; typingUrl = null; } };
+    const endSession = () => {
+      if (finalize) {
+        clearTimeout(_typingFrameTimer);
+        pendingInputStep = null;
+        typingTarget = null;
+        typingUrl = null;
+        typingFocusSnapshot = null;
+      }
+    };
 
     if (!isRecording || isPaused || isCapturing) { endSession(); return; }
 
-    const hasValue = el ? (el.isContentEditable ? !!(el.textContent || '').trim() : !!(el.value || '').trim()) : false;
+    const textValue = getEditableText(el);
+    const hasValue = !!textValue.trim();
     if (!hasValue) { endSession(); return; }
 
     if (pendingInputStep === null) {
@@ -209,27 +344,35 @@
     // 입력 원문 보관 — 비밀번호 등 민감 필드는 저장하지 않는다(라벨도 '비밀번호 입력').
     // 짧으면 스텝 라벨에 '입력, "내용"'으로, 길면 본문(typedText)에 전문 보관해 매뉴얼 생성 참고자료로 쓴다.
     const isMasked  = SENSITIVE_INPUT_TYPES.has((el.type || '').toLowerCase()) || SENSITIVE_LABEL_RE.test(label);
-    const typedText = isMasked ? '' : (el.isContentEditable ? (el.textContent || '') : (el.value || ''));
+    const typedText = isMasked ? '' : textValue;
     const safetyTimer = startCapturingSafely();
     const done = () => { clearTimeout(safetyTimer); isCapturing = false; };
 
     const { cx, cy } = rectCenter(el);
     const { vw, vh } = getViewportSize();
-    // 타이핑 위치도 클릭처럼 element_rect/selector를 보내 편집기가 입력 필드를 강조한다.
+    // Preserve the original input-click target for Live Guide replay.
     const rect = el.getBoundingClientRect();
+    const focusSnapshot = typingFocusSnapshot;
+    const elementRect = focusSnapshot?.elementRect ?? normalizeRect(toTopRect(rect), vw, vh);
+    const elementSelector = focusSnapshot?.elementSelector ?? getElementSelector(el);
+    const elementXPath = focusSnapshot?.elementXPath ?? getElementXPath(el);
+    const clickX = focusSnapshot?.clickX ?? cx;
+    const clickY = focusSnapshot?.clickY ?? cy;
+    const role = focusSnapshot?.role || el.getAttribute('role') || undefined;
+    const labelDebug = focusSnapshot?.labelDebug ?? buildLabelDebug(el, label);
 
     lastCapturedTarget = el;
     lastCapturedTime   = Date.now();
     sendCapture({
       url: location.href, timestamp: Date.now(),
-      clickX: cx, clickY: cy,
+      clickX, clickY,
       windowWidth: vw, windowHeight: vh,
       viewportW: vw, viewportH: vh,
       stepNumber: stepForThis, overwrite: true, useTypingFrame: true,
       usePrecapture: !!opts.usePrecapture, peekPrecapture: !!opts.peekPrecapture,
       typedText,
-      elementRect: normalizeRect(rect, vw, vh), elementSelector: getElementSelector(el), elementXPath: getElementXPath(el),
-      actionInfo: { type: 'type', label, text: label, typedText, masked: isMasked, tag: el.tagName.toLowerCase(), role: el.getAttribute('role') || undefined, labelDebug: buildLabelDebug(el, label) },
+      elementRect, elementSelector, elementXPath,
+      actionInfo: { type: 'type', label, text: label, typedText, masked: isMasked, tag: el.tagName.toLowerCase(), role, labelDebug },
     }, done);
 
     endSession();
@@ -249,6 +392,7 @@
     _typingFrameTimer  = null;
     typingTarget       = null;
     pendingInputStep   = null;
+    typingFocusSnapshot = null;
     typingUrl          = null;
     lastCapturedTarget = null;
   }
@@ -336,17 +480,18 @@
 
   // ── 캡처 완료 플래시 ─────────────────────────────────────────────
   function flashCapture() {
+    if (!IS_TOP_FRAME) return;
     const flash = document.createElement('div');
     flash.style.cssText = [
       'position:fixed', 'inset:0',
-      'background:#fff', 'opacity:0.5',
+      'background:#fff', 'opacity:0.72',
       'pointer-events:none', 'z-index:2147483647',
-      'transition:opacity 0.22s ease-out',
+      'transition:opacity 0.28s ease-out',
     ].join(';');
     document.documentElement.appendChild(flash);
     requestAnimationFrame(() => {
       flash.style.opacity = '0';
-      setTimeout(() => flash.remove(), 250);
+      setTimeout(() => flash.remove(), 320);
     });
   }
 
@@ -431,7 +576,7 @@
     ].join(';');
 
     const dot = document.createElement('span');
-    dot.style.cssText = 'width:8px;height:8px;border-radius:50%;background:#EF4444;flex-shrink:0;animation:mimic-blink 1s infinite';
+    dot.style.cssText = 'width:8px;height:8px;border-radius:50%;background:#EF4444;flex-shrink:0;animation:parro-blink 1s infinite';
     const badgeText = document.createElement('span');
     badgeText.textContent = opts && opts.label ? opts.label : '화면 녹화가 시작됩니다';
     badge.append(dot, badgeText);
@@ -446,20 +591,20 @@
 
     overlay.append(badge, numEl);
 
-    if (!document.getElementById('mimic-kf')) {
+    if (!document.getElementById('parro-kf')) {
       const kf = document.createElement('style');
-      kf.id = 'mimic-kf';
-      kf.textContent = '@keyframes mimic-blink{0%,100%{opacity:1}50%{opacity:0.2}}@keyframes mimic-pop{0%{transform:scale(1.4);opacity:0}60%{opacity:1}100%{transform:scale(1);opacity:1}}@keyframes mimic-start{0%{transform:scale(0.8);opacity:0}50%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}';
+      kf.id = 'parro-kf';
+      kf.textContent = '@keyframes parro-blink{0%,100%{opacity:1}50%{opacity:0.2}}@keyframes mimic-blink{0%,100%{opacity:1}50%{opacity:0.2}}@keyframes parro-pop{0%{transform:scale(1.4);opacity:0}60%{opacity:1}100%{transform:scale(1);opacity:1}}@keyframes mimic-pop{0%{transform:scale(1.4);opacity:0}60%{opacity:1}100%{transform:scale(1);opacity:1}}@keyframes parro-start{0%{transform:scale(0.8);opacity:0}50%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}@keyframes mimic-start{0%{transform:scale(0.8);opacity:0}50%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}';
       document.head.appendChild(kf);
     }
 
     document.documentElement.appendChild(overlay);
 
     const steps = [
-      { text: '3', color: '#fff',      anim: 'mimic-pop 0.35s ease forwards' },
-      { text: '2', color: '#fff',      anim: 'mimic-pop 0.35s ease forwards' },
-      { text: '1', color: '#fff',      anim: 'mimic-pop 0.35s ease forwards' },
-      { text: opts && opts.startText ? opts.startText : 'START', color: opts && opts.accentColor ? opts.accentColor : '#4ade80', anim: 'mimic-start 0.4s ease forwards', size: '56px' },
+      { text: '3', color: '#fff',      anim: 'parro-pop 0.35s ease forwards' },
+      { text: '2', color: '#fff',      anim: 'parro-pop 0.35s ease forwards' },
+      { text: '1', color: '#fff',      anim: 'parro-pop 0.35s ease forwards' },
+      { text: opts && opts.startText ? opts.startText : 'START', color: opts && opts.accentColor ? opts.accentColor : '#4ade80', anim: 'parro-start 0.4s ease forwards', size: '56px' },
     ];
 
     let i = 0;
@@ -481,6 +626,12 @@
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if (msg.type === 'START_RECORDING') {
       if (isRecording || _countingDown) { sendResponse({ ok: true }); return false; }
+      if (!IS_TOP_FRAME) {
+        isRecording = true;
+        isPaused = false;
+        sendResponse({ ok: true });
+        return false;
+      }
       _countingDown      = true;
       lastCapturedTarget = null;
       lastCapturedTime   = 0;
@@ -547,35 +698,124 @@
       removeFileHighlight();
       isCapturing = false;
       hoverTarget = null;
-      // 수동 캡처(background 직접 처리)는 msg.flash로 캡처 플래시 신호를 받는다
-      if (msg.flash) flashCapture();
+      sendResponse({ ok: true });
+      return false;
+    }
+
+    if (msg.type === 'MANUAL_CAPTURE_FLASH') {
+      flashCapture();
       sendResponse({ ok: true });
       return false;
     }
 
     if (msg.type === 'SHOW_GUIDE_COUNTDOWN') {
-      showCountdown(() => {}, { label: 'Live Guide 시작됩니다', accentColor: '#a78bfa', startText: 'GO' });
+      if (!IS_TOP_FRAME) { sendResponse({ ok: true }); return false; }
+      showCountdown(() => {}, { label: 'Live Guide Beta 시작됩니다', accentColor: '#17C9B6', startText: 'GO' });
       sendResponse({ ok: true });
       return false;
     }
 
+    if (msg.type === 'LIVE_TARGET_PICK') {
+      if (!IS_TOP_FRAME) return false;
+      startLiveTargetPick(sendResponse);
+      return true;
+    }
+
     if (msg.type === 'SHOW_OVERLAY' && msg.step) {
-      if (window.MimicGuide) window.MimicGuide.show(msg.step, {
+      if (!IS_TOP_FRAME) return false;
+      const guideApi = window.ParroGuide || window.MimicGuide;
+      if (guideApi) guideApi.show(msg.step, {
         index: msg.index ?? 0,
         total: msg.total ?? 1,
         survey: msg.survey || null,
         onAdvance: (reason) => chrome.runtime.sendMessage({ type: 'GUIDE_NEXT', viaClick: reason === 'click' }),
         onPrev:    () => chrome.runtime.sendMessage({ type: 'GUIDE_PREV' }),
-        onExit:    () => { chrome.runtime.sendMessage({ type: 'EXIT_GUIDE' }); window.MimicGuide.hide(); },
+        onExit:    () => { chrome.runtime.sendMessage({ type: 'EXIT_GUIDE' }); guideApi.hide(); },
       });
       return false;
     }
-    if (msg.type === 'HIDE_OVERLAY') { if (window.MimicGuide) window.MimicGuide.hide(); return false; }
+    if (msg.type === 'HIDE_OVERLAY') {
+      const guideApi = window.ParroGuide || window.MimicGuide;
+      if (IS_TOP_FRAME && guideApi) guideApi.hide();
+      return false;
+    }
 
     return false;
   });
 
   // ── 인터랙티브 타겟 탐색 ────────────────────────────────────────
+  function startLiveTargetPick(sendResponse) {
+    let finished = false;
+    let timeoutId = null;
+    const banner = document.createElement('div');
+    banner.textContent = 'Parro: 라이브 가이드 대상을 클릭하세요';
+    Object.assign(banner.style, {
+      position: 'fixed',
+      top: '16px',
+      left: '50%',
+      transform: 'translateX(-50%)',
+      zIndex: '2147483647',
+      padding: '10px 14px',
+      borderRadius: '10px',
+      background: 'rgba(16,32,51,0.96)',
+      color: '#fff',
+      fontSize: '13px',
+      fontWeight: '700',
+      boxShadow: '0 14px 36px rgba(0,0,0,0.28)',
+      pointerEvents: 'none',
+    });
+    document.documentElement.appendChild(banner);
+
+    const cleanup = () => {
+      document.removeEventListener('pointerdown', onPointerDown, true);
+      if (timeoutId) clearTimeout(timeoutId);
+      banner.remove();
+    };
+
+    const finish = (payload) => {
+      if (finished) return;
+      finished = true;
+      cleanup();
+      sendResponse(payload);
+    };
+
+    function onPointerDown(event) {
+      const raw = event.target && event.target.nodeType === Node.ELEMENT_NODE
+        ? event.target
+        : event.target?.parentElement;
+      if (!raw || raw === banner || banner.contains(raw)) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+
+      const target = refineActionTarget(raw, findInteractiveTarget(raw) || raw);
+      const rect = target.getBoundingClientRect();
+      const vw = Math.max(1, window.innerWidth);
+      const vh = Math.max(1, window.innerHeight);
+      const clamp = value => Math.max(0, Math.min(1, value));
+
+      finish({
+        ok: true,
+        page_url: window.location.href,
+        element_selector: getElementSelector(target) || null,
+        element_xpath: getElementXPath(target) || null,
+        element_rect: {
+          x: clamp(rect.left / vw),
+          y: clamp(rect.top / vh),
+          width: clamp(rect.width / vw),
+          height: clamp(rect.height / vh),
+        },
+        click_x: clamp(event.clientX / vw),
+        click_y: clamp(event.clientY / vh),
+        label: getElementLabel(target, raw) || null,
+      });
+    }
+
+    document.addEventListener('pointerdown', onPointerDown, true);
+    timeoutId = setTimeout(() => finish({ ok: false, reason: 'timeout', error: '대상 선택 시간이 초과되었습니다.' }), 30000);
+  }
+
   function findInteractiveTarget(el) {
     if (!el || el === document.documentElement) return null;
     if (document.designMode === 'on') return document.body;
@@ -788,6 +1028,93 @@
     return getGoogleFileTitle() || ownLabel || clickedLabel || '';
   }
 
+  // Freeze click metadata before the target DOM can react or move.
+
+  function buildPointerDownSnapshot(captureEl, target, clickedEl, event) {
+    if (!captureEl || typeof captureEl.getBoundingClientRect !== 'function') return null;
+    const rect = captureEl.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+    const { vw, vh } = getViewportSize();
+    const topClick = toTopPoint(event.clientX, event.clientY);
+    const label = getElementLabel(captureEl, clickedEl);
+    const href = captureEl.getAttribute('href') || captureEl.closest('a')?.getAttribute('href') || target.getAttribute('href') || target.closest('a')?.getAttribute('href') || '';
+    return {
+      target: captureEl,
+      time: Date.now(),
+      x: event.clientX,
+      y: event.clientY,
+      clickX: topClick.x,
+      clickY: topClick.y,
+      elementRect: normalizeRect(toTopRect(rect), vw, vh),
+      elementSelector: getElementSelector(captureEl),
+      elementXPath: getElementXPath(captureEl),
+      label,
+      role: captureEl.getAttribute('role') || target.getAttribute('role') || undefined,
+      actionType: getActionType(target),
+      href,
+      labelDebug: buildLabelDebug(captureEl, label),
+    };
+  }
+
+  function getRecentPointerSnapshot(event) {
+    if (!_pointerDownSnapshot) return null;
+    if ((Date.now() - _pointerDownSnapshot.time) > 1200) return null;
+    if (Math.abs(_pointerDownSnapshot.x - event.clientX) > 12) return null;
+    if (Math.abs(_pointerDownSnapshot.y - event.clientY) > 12) return null;
+    return _pointerDownSnapshot;
+  }
+
+  function clearPointerClickFallback() {
+    if (_pointerClickFallbackTimer) clearTimeout(_pointerClickFallbackTimer);
+    _pointerClickFallbackTimer = null;
+  }
+
+  function schedulePointerClickFallback(event) {
+    clearPointerClickFallback();
+    const snapshot = getRecentPointerSnapshot(event);
+    if (!snapshot || snapshot.actionType === 'focus_input') return;
+
+    _pointerClickFallbackTimer = setTimeout(() => {
+      _pointerClickFallbackTimer = null;
+      if (!isRecording || isPaused || isCapturing || document.visibilityState !== 'visible') return;
+      if ((Date.now() - snapshot.time) > 1200) return;
+
+      const now = Date.now();
+      if (snapshot.target === lastCapturedTarget && (now - lastCapturedTime) < DEDUP_SAME_ELEMENT) return;
+
+      const safetyTimer = startCapturingSafely();
+      stepNumber += 1;
+      lastCapturedTarget = snapshot.target;
+      lastCapturedTime = now;
+
+      log('debug', `pointer fallback capture step ${stepNumber} el=${snapshot.target.tagName}`);
+      sendCapture({
+        url: location.href,
+        timestamp: Date.now(),
+        clickX: snapshot.clickX,
+        clickY: snapshot.clickY,
+        windowWidth: getViewportSize().vw,
+        windowHeight: getViewportSize().vh,
+        viewportW: getViewportSize().vw,
+        viewportH: getViewportSize().vh,
+        stepNumber,
+        usePrecapture: true,
+        elementRect: snapshot.elementRect,
+        elementSelector: snapshot.elementSelector,
+        elementXPath: snapshot.elementXPath,
+        actionInfo: {
+          type: snapshot.actionType === 'navigate' ? 'click' : snapshot.actionType,
+          label: snapshot.label,
+          tag: snapshot.target.tagName.toLowerCase(),
+          role: snapshot.role,
+          href: (snapshot.href || '').slice(0, 200),
+          labelDebug: snapshot.labelDebug,
+          fallbackReason: 'pointerup-no-click',
+        },
+      }, () => { clearTimeout(safetyTimer); isCapturing = false; });
+    }, 120);
+  }
+
   // 클래스가 안정적인지 판정 — 상태 클래스·CSS-in-JS 해시·동적 토큰을 거부(셀렉터 견고성의 핵심)
   function isStableClass(c) {
     if (!c || c.length > 30) return false;
@@ -904,7 +1231,7 @@
     if (tag === 'select') return 'select';
     if (el.getAttribute('list')) return 'select';
     if (el.getAttribute('role') === 'combobox') return 'select';
-    if (tag === 'input' || tag === 'textarea' || el.isContentEditable) return 'focus_input';
+    if (tag === 'input' || tag === 'textarea' || el.isContentEditable || el.getAttribute('role') === 'textbox') return 'focus_input';
     if (document.designMode === 'on' && tag === 'body') return 'focus_input';
     return 'click';
   }
@@ -935,10 +1262,15 @@
   // 이 시점에 미리 한 장 찍어두면, 클릭으로 레이아웃이 바뀌기 전 화면을 스텝
   // 스크린샷으로 쓸 수 있어 클릭 좌표·하이라이트가 실제 화면과 어긋나지 않는다.
   document.addEventListener('pointerdown', (e) => {
+    if (!e.isTrusted) return;  // 사이트 스크립트가 만든 가짜 이벤트는 사용자 행동이 아님
     if (!isRecording || isPaused || isCapturing) return;
     if (e.button !== undefined && e.button !== 0) return;  // 좌클릭만
     const target = findInteractiveTarget(e.target);
     if (!target) return;
+    const actionTarget = refineActionTarget(e.target, target);
+    const actionType = getActionType(target);
+    const captureEl = actionType === 'focus_input' ? target : actionTarget;
+    _pointerDownSnapshot = buildPointerDownSnapshot(captureEl, target, e.target, e);
     hideHoverPointer();                          // 호버 테두리 제거
     suppressHoverUntil = Date.now() + 500;       // 캡처 끝날 때까지 재등장 억제
     // 테두리 제거가 화면에 리페인트된 다음 프레임에 선캡처 요청 — 라이브 캡처 경로의
@@ -948,10 +1280,22 @@
     }));
   }, true);
 
+  document.addEventListener('pointerup', (e) => {
+    if (!e.isTrusted) return;
+    if (!isRecording || isPaused || isCapturing) return;
+    if (e.button !== undefined && e.button !== 0) return;
+    schedulePointerClickFallback(e);
+  }, true);
+
   // ── 클릭 캡처 ────────────────────────────────────────────────────
   document.addEventListener('click', handleClick, true);
 
   function handleClick(e) {
+    if (!e.isTrusted) {
+      log('debug', 'synthetic click ignored');
+      return;
+    }
+    clearPointerClickFallback();
     if (!isRecording || isPaused || isCapturing) {
       if (isCapturing) log('debug', `click skipped — isCapturing step ${stepNumber}`);
       return;
@@ -962,12 +1306,16 @@
 
     const clickedEl = e.target;
 
-    // MIMIC 자체 오버레이 클릭 무시
-    if (clickedEl && typeof clickedEl.id === 'string' && clickedEl.id.toLowerCase().includes('mimic')) return;
+    // Parro 자체 오버레이 클릭 무시
+    if (clickedEl && typeof clickedEl.id === 'string') {
+      const id = clickedEl.id.toLowerCase();
+      if (id.includes('parro') || id.includes('mimic')) return;
+    }
     const _classStr = typeof clickedEl.className === 'string'
       ? clickedEl.className
       : (clickedEl.className?.baseVal ?? '');
-    if (_classStr.toLowerCase().includes('mimic')) return;
+    const lowerClassStr = _classStr.toLowerCase();
+    if (lowerClassStr.includes('parro') || lowerClassStr.includes('mimic')) return;
 
     const target = findInteractiveTarget(clickedEl);
 
@@ -982,10 +1330,11 @@
       lastCapturedTarget = document.body;
       lastCapturedTime   = now;
       const { vw, vh } = getViewportSize();
+      const topClick = toTopPoint(e.clientX, e.clientY);
       log('debug', `blank click step ${stepNumber} at (${e.clientX}, ${e.clientY})`);
       sendCapture({
         url: location.href, timestamp: Date.now(),
-        clickX: e.clientX, clickY: e.clientY,
+        clickX: topClick.x, clickY: topClick.y,
         windowWidth: vw, windowHeight: vh,
         viewportW: vw, viewportH: vh,
         stepNumber,
@@ -997,9 +1346,8 @@
 
     const actionTarget = refineActionTarget(clickedEl, target);
     const now = Date.now();
-    if (actionTarget === lastCapturedTarget && (now - lastCapturedTime) < DEDUP_SAME_ELEMENT) return;
-
     const actionType = getActionType(target);
+    if (actionType !== 'focus_input' && actionTarget === lastCapturedTarget && (now - lastCapturedTime) < DEDUP_SAME_ELEMENT) return;
 
     // 입력 필드 포커스: typingTarget 세팅 + 클릭 자체도 캡처 (항상 캡처 정책)
     if (actionType === 'focus_input') {
@@ -1007,6 +1355,7 @@
       // (DEDUP_REFOCUS_MS 경과 후 재클릭은 의도가 있다고 보고 다시 캡처.) 타이핑 세션은 유지.
       if (target === lastFocusInputTarget && (now - lastFocusInputTime) < DEDUP_REFOCUS_MS) {
         typingTarget = target;
+        typingFocusSnapshot = getRecentPointerSnapshot(e) || typingFocusSnapshot;
         return;  // 클릭 스텝 캡처 생략
       }
       // 다른 필드로 옮겼을 때만 이전 입력을 마감(flush가 세션을 끝냄 → 새 스텝).
@@ -1015,8 +1364,10 @@
         flushTyping(typingTarget, true, { usePrecapture: true, peekPrecapture: true });
       }
       typingTarget = target;
+      typingFocusSnapshot = getRecentPointerSnapshot(e);
       lastFocusInputTarget = target;
       lastFocusInputTime   = now;
+      if (!settings.captureInputClicks) return;
       // 아래로 진행해서 캡처
     } else {
       // 진행 중이던 타이핑 flush — 클릭(액션) 직전 선캡처 프레임을 타이핑 스텝 이미지로 쓰고,
@@ -1027,11 +1378,17 @@
     showClickHighlight(e.clientX, e.clientY);
 
     const captureEl = actionType === 'focus_input' ? target : actionTarget;
+    const pointerSnapshot = getRecentPointerSnapshot(e);
     const rect  = captureEl.getBoundingClientRect();
-    const label = getElementLabel(captureEl, clickedEl);
+    const label = pointerSnapshot?.label || getElementLabel(captureEl, clickedEl);
     const href  = captureEl.getAttribute('href') || captureEl.closest('a')?.getAttribute('href') || target.getAttribute('href') || target.closest('a')?.getAttribute('href') || '';
-    const role  = captureEl.getAttribute('role') || target.getAttribute('role') || undefined;
+    const role  = pointerSnapshot?.role || captureEl.getAttribute('role') || target.getAttribute('role') || undefined;
     const { vw, vh } = getViewportSize();
+    const topClick = toTopPoint(e.clientX, e.clientY);
+    const elementRect = pointerSnapshot?.elementRect ?? normalizeRect(toTopRect(rect), vw, vh);
+    const elementSelector = pointerSnapshot?.elementSelector ?? getElementSelector(captureEl);
+    const elementXPath = pointerSnapshot?.elementXPath ?? getElementXPath(captureEl);
+    const labelDebug = pointerSnapshot?.labelDebug ?? buildLabelDebug(captureEl, label);
 
     // navigate 클릭(링크 등)도 '사용자 클릭'이므로 클릭 스텝으로만 캡처한다.
     // 이동 후 도착 페이지는 더 이상 자동 캡처하지 않는다 (페이지 이동 캡처 제거).
@@ -1044,14 +1401,14 @@
 
       const srcStep = {
         url: location.href, timestamp: Date.now(),
-        clickX: e.clientX, clickY: e.clientY,
+        clickX: topClick.x, clickY: topClick.y,
         windowWidth: vw, windowHeight: vh,
         viewportW: vw, viewportH: vh,
         stepNumber, usePrecapture: true,
-        elementRect:     normalizeRect(rect, vw, vh),
-        elementSelector: getElementSelector(captureEl),
-        elementXPath:    getElementXPath(captureEl),
-        actionInfo:      { type: 'click', label, tag: captureEl.tagName.toLowerCase(), role, href: href.slice(0, 200), labelDebug: buildLabelDebug(captureEl, label) },
+        elementRect,
+        elementSelector,
+        elementXPath,
+        actionInfo:      { type: 'click', label, tag: captureEl.tagName.toLowerCase(), role, href: href.slice(0, 200), labelDebug },
       };
 
       sendCapture(srcStep, () => { clearTimeout(navSafetyTimer); isCapturing = false; });
@@ -1065,14 +1422,14 @@
 
     const stepData = {
       url: location.href, timestamp: Date.now(),
-      clickX: e.clientX, clickY: e.clientY,
+      clickX: topClick.x, clickY: topClick.y,
       windowWidth: vw, windowHeight: vh,
       viewportW: vw, viewportH: vh,
       stepNumber, usePrecapture: true,
-      elementRect:     normalizeRect(rect, vw, vh),
-      elementSelector: getElementSelector(captureEl),
-      elementXPath:    getElementXPath(captureEl),
-      actionInfo:      { type: actionType, label, tag: captureEl.tagName.toLowerCase(), role, href: href.slice(0, 200), labelDebug: buildLabelDebug(captureEl, label) },
+      elementRect,
+      elementSelector,
+      elementXPath,
+      actionInfo:      { type: actionType, label, tag: captureEl.tagName.toLowerCase(), role, href: href.slice(0, 200), labelDebug },
     };
 
     const downloadAttr    = target.getAttribute('download');
@@ -1106,11 +1463,11 @@
 
   // ── input 이벤트 (타이핑 추적) ──────────────────────────────────
   document.addEventListener('input', (e) => {
+    if (!e.isTrusted) return;
     if (!isRecording || isPaused) return;
     if (document.visibilityState !== 'visible') return;  // 보이는 탭에서만 (크로스 사이트 녹화)
-    const el = e.target;
-    const isDesignModeBody = document.designMode === 'on' && el === document.body;
-    if (!isDesignModeBody && !(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el.isContentEditable)) return;
+    const el = getEditableTarget(e.target);
+    if (!el) return;
 
     if (typingTarget && typingTarget !== el) {
       if (isRemountedTyping(typingTarget)) {
@@ -1150,11 +1507,15 @@
   // ── IME 조합 추적 (한/일/중) ──────────────────────────────────────
   // compositionstart~end 사이의 input 값은 미완성 조합("중ㄱ")이다.
   // 조합 중에는 디바운스 flush를 막고, 조합 완료(compositionend) 후 최종값("중계")으로 재예약한다.
-  document.addEventListener('compositionstart', () => { _isComposing = true; }, true);
+  document.addEventListener('compositionstart', (e) => {
+    if (!e.isTrusted) return;
+    _isComposing = true;
+  }, true);
   document.addEventListener('compositionend', (e) => {
+    if (!e.isTrusted) return;
     _isComposing = false;
     if (!isRecording || isPaused) return;
-    const el = e.target;
+    const el = getEditableTarget(e.target);
     if (typingTarget !== el) return;
     // 조합 완료 후 완성 화면 프레임만 갱신한다. 캡처는 명시적인 완료 신호에서만 한다.
     scheduleTypingFrame();
@@ -1173,10 +1534,12 @@
 
   // ── keydown: Enter = flush ────────────────────────────────────────
   document.addEventListener('keydown', (e) => {
+    if (!e.isTrusted) return;
     if (!isRecording || isPaused) return;
     if (e.isComposing) return;  // IME 조합 확정용 Enter — 미완성값 flush 방지
     if (e.key !== 'Enter' || !typingTarget) return;
-    const el            = e.target;
+    const el            = getEditableTarget(e.target);
+    if (!el) return;
     const isSingleLine  = el instanceof HTMLInputElement;
     const isMultiLine   = el instanceof HTMLTextAreaElement || el.isContentEditable;
     const isModified    = e.ctrlKey || e.metaKey;
@@ -1195,8 +1558,9 @@
   // 창 전환(사이드패널 클릭 등 window blur)으로 인한 조기 확정은 피한다.
   document.addEventListener('focusout', (e) => {
     if (!isRecording || isPaused) return;
-    if (!typingTarget || e.target !== typingTarget) return;
-    if (!e.relatedTarget) return;  // 페이지 밖으로 포커스 이탈(창 전환)은 무시
+    const el = getEditableTarget(e.target);
+    if (!typingTarget || el !== typingTarget) return;
+    if (!e.relatedTarget && IS_TOP_FRAME) return;  // 페이지 밖으로 포커스 이탈(창 전환)은 무시
     // relatedTarget(다음 포커스 대상)이 있다 = 그 요소의 pointerdown 선캡처가 떠 있다.
     // 그 '액션 직전' 프레임(완성 텍스트)을 타이핑 스텝 이미지로 쓰고, peek로 클릭 스텝과 공유한다.
     flushTyping(typingTarget, true, { usePrecapture: true, peekPrecapture: true });
@@ -1204,6 +1568,7 @@
 
   // ── 파일 업로드 캡처 ─────────────────────────────────────────────
   document.addEventListener('change', (e) => {
+    if (!e.isTrusted) return;
     if (!isRecording || isPaused || isCapturing) return;
     const el = e.target;
     if (!(el instanceof HTMLInputElement) || el.type !== 'file') return;
@@ -1260,13 +1625,10 @@
 
   // ── 클립보드 붙여넣기로 수동 스크린샷 수신 ──────────────────────
   document.addEventListener('paste', (e) => {
+    if (!e.isTrusted) return;
     if (!isRecording || isPaused || isCapturing) return;
     const active = document.activeElement;
-    if (active && (
-      active instanceof HTMLInputElement ||
-      active instanceof HTMLTextAreaElement ||
-      active.isContentEditable
-    )) return;
+    if (getEditableTarget(active)) return;
 
     const items = e.clipboardData?.items;
     if (!items) return;
@@ -1299,7 +1661,7 @@
     }
   }, true);
 
-  // ── Guide Me 오버레이 ────────────────────────────────────────────
-  // 오버레이 렌더링/요소탐지/자동진행은 guide-engine.js(window.MimicGuide)가 담당.
+  // ── Live Guide 오버레이 ──────────────────────────────────────────
+  // 오버레이 렌더링/요소탐지/자동진행은 guide-engine.js(window.ParroGuide)가 담당.
   // (content_scripts에서 content.js보다 먼저 로드됨) SHOW_OVERLAY/HIDE_OVERLAY 핸들러 참조.
 })();

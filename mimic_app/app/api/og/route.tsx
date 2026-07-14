@@ -1,12 +1,13 @@
 import { ImageResponse } from 'next/og';
 import type { NextRequest } from 'next/server';
+import { BRAND_COLORS, BRAND_NAME, BRAND_TAGLINE } from '@/lib/brand';
 
 export const runtime = 'edge';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
-  const title = searchParams.get('title') ?? 'MIMIC';
-  const sub = searchParams.get('sub') ?? '30초 만에 인터랙티브 매뉴얼';
+  const title = searchParams.get('title') ?? BRAND_NAME;
+  const sub = searchParams.get('sub') ?? BRAND_TAGLINE;
 
   return new ImageResponse(
     (
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
           flexDirection: 'column',
           alignItems: 'flex-start',
           justifyContent: 'flex-end',
-          background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%)',
+          background: `linear-gradient(135deg, ${BRAND_COLORS.pointer} 0%, ${BRAND_COLORS.primary} 55%, ${BRAND_COLORS.guide} 100%)`,
           padding: '60px',
           fontFamily: 'sans-serif',
           position: 'relative',
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
             width: '400px',
             height: '400px',
             borderRadius: '50%',
-            background: 'rgba(99,102,241,0.2)',
+            background: 'rgba(18,184,134,0.22)',
             display: 'flex',
           }}
         />
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
             width: '250px',
             height: '250px',
             borderRadius: '50%',
-            background: 'rgba(167,139,250,0.1)',
+            background: 'rgba(141,214,63,0.16)',
             display: 'flex',
           }}
         />
@@ -68,12 +69,12 @@ export async function GET(request: NextRequest) {
               width: '8px',
               height: '8px',
               borderRadius: '50%',
-              background: '#a78bfa',
+              background: BRAND_COLORS.accent,
               display: 'flex',
             }}
           />
-          <span style={{ color: '#c4b5fd', fontSize: '16px', fontWeight: 600 }}>
-            MIMIC
+          <span style={{ color: BRAND_COLORS.guideSoft, fontSize: '16px', fontWeight: 600 }}>
+            {BRAND_NAME}
           </span>
         </div>
 
@@ -94,7 +95,7 @@ export async function GET(request: NextRequest) {
         {/* 부제 */}
         <div
           style={{
-            color: '#c4b5fd',
+            color: BRAND_COLORS.guideSoft,
             fontSize: '28px',
             fontWeight: 400,
             lineHeight: 1.4,

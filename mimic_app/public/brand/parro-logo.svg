@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 380 112" role="img" aria-labelledby="title desc">
+  <title id="title">Parro</title>
+  <desc id="desc">Abstract parrot wing and screen pointer mark with the Parro wordmark</desc>
+  <g transform="translate(2 -8) scale(.875)">
+    <path d="M69 55C50 40 28 34 11 14c5 25 22 43 53 51l5-10Z" fill="#00A99D"/>
+    <path d="M67 63C43 53 23 51 7 38c8 23 27 34 57 33l3-8Z" fill="#008E86"/>
+    <path d="M69 69C46 65 29 68 15 62c12 18 31 20 54 14v-7Z" fill="#8DD63F"/>
+    <circle cx="72" cy="70" r="14" fill="#fff" stroke="#8DD63F" stroke-width="6"/>
+    <circle cx="72" cy="70" r="7" fill="none" stroke="#00A99D" stroke-width="3"/>
+    <path d="m69 64 37 15-16 6-8 22-13-43Z" fill="#102033" stroke="#fff" stroke-width="4" stroke-linejoin="round"/>
+  </g>
+  <text x="116" y="75" fill="#102033" font-family="Inter, Geist, Arial, sans-serif" font-size="58" font-weight="700" letter-spacing="0">Parro</text>
+</svg>

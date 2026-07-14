@@ -1,4 +1,4 @@
-# CLAUDE.md — MIMIC Recorder (Chrome Extension)
+# CLAUDE.md — Parro Recorder (Chrome Extension)
 
 ## ⚠️ 작업 시작 전 필독 문서
 
@@ -13,7 +13,7 @@
 
 ```
 녹화할 사이트 창 선택
-  → 카운트 다운 → MIMIC Recorder 사이드 패널 자동 오픈
+  → 카운트 다운 → Parro Recorder 사이드 패널 자동 오픈
   → 녹화 시작
       ├─ 커서 움직임 감지 + 실시간 하이라이트   (content.js)
       ├─ 클릭 시 캡처 1회                       (background.js)

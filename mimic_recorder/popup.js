@@ -187,8 +187,8 @@ function updateLoginState(hasToken, expired = false) {
   notice.id = 'loginNotice';
   Object.assign(notice.style, {
     margin: '10px 18px 4px',
-    background: expired ? '#FEF2F2' : '#F5F3FF',
-    border:     `1px solid ${expired ? '#FECACA' : '#DDD6FE'}`,
+    background: expired ? '#FEF2F2' : '#E8FFF7',
+    border:     `1px solid ${expired ? '#FECACA' : '#BFEDE7'}`,
     borderRadius: '10px', padding: '12px 14px',
     display: 'flex', flexDirection: 'column', gap: '8px',
   });
@@ -197,16 +197,16 @@ function updateLoginState(hasToken, expired = false) {
   msgEl.setAttribute('data-msg', '');
   Object.assign(msgEl.style, {
     fontSize: '12px', lineHeight: '1.5',
-    color: expired ? '#991B1B' : '#5B21B6',
+    color: expired ? '#991B1B' : '#00796F',
   });
   msgEl.textContent = expired
     ? '세션이 만료되었습니다. 다시 연동해 주세요.'
-    : '녹화를 시작하려면 MIMIC 계정 연동이 필요합니다.';
+    : '녹화를 시작하려면 Parro 계정 연동이 필요합니다.';
 
   const btn = document.createElement('button');
   Object.assign(btn.style, {
     alignSelf: 'flex-start',
-    background: '#4F46E5', color: '#fff',
+    background: '#009B8E', color: '#fff',
     border: 'none', borderRadius: '7px',
     fontSize: '12px', fontWeight: '600',
     padding: '6px 14px', cursor: 'pointer',
@@ -216,8 +216,8 @@ function updateLoginState(hasToken, expired = false) {
     // 웹스토어 배포본=운영 / 개발자 언패킹=dev(Preview) — chrome.runtime.id로 자동 분기
     const origin = chrome.runtime.id === 'ehbhcdkapcbfehinjapabgoegcjmmbgd'
       ? 'https://mimic-nine-ashen.vercel.app'
-      : 'https://mimic-git-dev-kinjungho-7735s-projects.vercel.app';
-    chrome.tabs.create({ url: `${origin}/extension-link` });
+      : 'https://parro-guide-dev.vercel.app';
+    chrome.tabs.create({ url: `${origin}/extension-link?extension_id=${encodeURIComponent(chrome.runtime.id)}` });
   });
 
   notice.append(msgEl, btn);
@@ -481,8 +481,8 @@ function buildStepVoiceButton(step) {
   btn.textContent = hasVoice ? '🎙 음성 메모 ✓ (다시 녹음)' : '🎙 음성 메모 녹음';
   btn.style.cssText = [
     'margin-top:6px', 'width:100%', 'padding:7px',
-    'border:1px solid #DDD6FE', 'border-radius:8px',
-    'background:#f5f3ff', 'color:#4F46E5',
+    'border:1px solid #BFEDE7', 'border-radius:8px',
+    'background:#E8FFF7', 'color:#009B8E',
     'font-size:12px', 'font-weight:600', 'cursor:pointer',
   ].join(';');
 
@@ -498,7 +498,7 @@ function buildStepVoiceButton(step) {
       chrome.runtime.sendMessage({ type: 'STOP_STEP_VOICE' }, (res) => {
         void chrome.runtime.lastError;
         btn.disabled = false;
-        btn.style.background = '#f5f3ff'; btn.style.color = '#4F46E5'; btn.style.borderColor = '#DDD6FE';
+        btn.style.background = '#E8FFF7'; btn.style.color = '#009B8E'; btn.style.borderColor = '#BFEDE7';
         btn.textContent = res?.ok ? '🎙 음성 메모 ✓ (다시 녹음)' : '🎙 음성 메모 녹음';
         showToast(res?.ok ? '음성 메모 저장됨 ✓' : (res?.error || '저장 실패'), 2500);
       });
@@ -516,7 +516,7 @@ function buildStepVoiceButton(step) {
       if (!res?.ok) {
         btn.dataset.recording = '0';
         btn.textContent = '🎙 음성 메모 녹음';
-        btn.style.background = '#f5f3ff'; btn.style.color = '#4F46E5'; btn.style.borderColor = '#DDD6FE';
+        btn.style.background = '#E8FFF7'; btn.style.color = '#009B8E'; btn.style.borderColor = '#BFEDE7';
         showToast(res?.error || '마이크 시작 실패', 3000);
       }
     });
@@ -575,9 +575,15 @@ async function loadThumb(step, imgEl, placeholder, overlayEl) {
         if (e.target === imgEl.parentElement || e.target === imgEl || e.target === overlayEl) imgEl.onclick();
       };
       placeholder.style.display = 'none';
-      applyThumbPreviewZoom(step, imgEl, overlayEl, src);
-      // 전체 스크린샷 위에 클릭포인트/하이라이트 오버레이 렌더
-      if (overlayEl) renderThumbOverlay(overlayEl, imgEl, step, null);
+      if (overlayEl) {
+        syncThumbPreview(step, imgEl, overlayEl, src);
+        installThumbPreviewResizeSync(step, imgEl, overlayEl, src);
+        if (imgEl.complete && imgEl.naturalWidth > 0) {
+          requestAnimationFrame(() => syncThumbPreview(step, imgEl, overlayEl, src));
+        } else {
+          imgEl.addEventListener('load', () => syncThumbPreview(step, imgEl, overlayEl, src), { once: true });
+        }
+      }
     } else {
       placeholder.textContent = '이미지 없음';
     }
@@ -693,16 +699,27 @@ function fitFrameToAspect(frame, imageAspect, targetAspect) {
   return { x, y, width, height };
 }
 
+function getPreviewImageAspect(step, imgEl) {
+  if (imgEl?.naturalWidth > 0 && imgEl?.naturalHeight > 0) {
+    return imgEl.naturalWidth / imgEl.naturalHeight;
+  }
+  const vw = Number(step.windowWidth || step.viewportW || 1280);
+  const vh = Number(step.windowHeight || step.viewportH || 800);
+  return vw / Math.max(1, vh);
+}
+
+function clearThumbHighlights(thumbWrap) {
+  thumbWrap?.querySelectorAll('.step-thumb-highlight').forEach((node) => node.remove());
+}
+
 function applyThumbPreviewZoom(step, imgEl, overlayEl, src) {
   const wrap = imgEl.closest('.step-thumb');
   const zoomLayer = wrap?.querySelector('.step-thumb-zoom-layer');
   let frame = computePreviewFrame(step);
   if (!wrap || !zoomLayer || !overlayEl || !isValidFrame(frame)) return;
 
-  const vw = Number(step.windowWidth || step.viewportW || 1280);
-  const vh = Number(step.windowHeight || step.viewportH || 800);
-  const imageAspect = vw / Math.max(1, vh);
-  const targetAspect = clamp((frame.width * vw) / Math.max(1, frame.height * vh), 1.12, 1.72);
+  const imageAspect = getPreviewImageAspect(step, imgEl);
+  const targetAspect = clamp((frame.width * imageAspect) / Math.max(0.001, frame.height), 1.12, 1.72);
   frame = fitFrameToAspect(frame, imageAspect, targetAspect);
 
   wrap.style.aspectRatio = String(targetAspect);
@@ -712,8 +729,12 @@ function applyThumbPreviewZoom(step, imgEl, overlayEl, src) {
 
   overlayEl._previewFrame = frame;
   overlayEl.dataset.previewZoom = '1';
-  overlayEl.style.opacity = '0';
   overlayEl.style.transition = 'opacity 0.22s ease';
+  if (wrap.classList.contains('preview-zoom')) {
+    overlayEl.style.opacity = '1';
+    return;
+  }
+  overlayEl.style.opacity = '0';
   requestAnimationFrame(() => {
     setTimeout(() => {
       wrap.classList.add('preview-zoom');
@@ -725,9 +746,12 @@ function applyThumbPreviewZoom(step, imgEl, overlayEl, src) {
 function renderThumbOverlay(overlayEl, imgEl, step, _unused) {
   overlayEl.replaceChildren();
   const thumbWrap = overlayEl.closest('.step-thumb');
+  clearThumbHighlights(thumbWrap);
   thumbWrap?.querySelector('.step-type-badge')?.remove();
+  const zoomLayer = thumbWrap?.querySelector('.step-thumb-zoom-layer');
   const er = refinedPreviewRect(step) || step.elementRect;
   const frame = overlayEl._previewFrame;
+  const renderInZoomLayer = frame && isValidFrame(frame) && zoomLayer;
   const rect = frame && isValidFrame(frame)
     ? {
         x: (er?.x - frame.x) / frame.width,
@@ -747,6 +771,7 @@ function renderThumbOverlay(overlayEl, imgEl, step, _unused) {
       return;
     }
     const hl = document.createElement('div');
+    hl.className = 'step-thumb-highlight';
     hl.style.cssText = [
       'position:absolute', 'box-sizing:border-box', 'pointer-events:none',
       `left:${left * 100}%`, `top:${top * 100}%`,
@@ -756,9 +781,38 @@ function renderThumbOverlay(overlayEl, imgEl, step, _unused) {
       'border-radius:4px',
       'box-shadow:0 0 0 2px rgba(239,68,68,0.18)',
     ].join(';');
-    overlayEl.appendChild(hl);
+    (renderInZoomLayer ? zoomLayer : overlayEl).appendChild(hl);
   }
   renderTypingBadge(thumbWrap, step);
+}
+
+function syncThumbPreview(step, imgEl, overlayEl, src) {
+  if (!overlayEl || !imgEl?.closest('.step-thumb')) return;
+  applyThumbPreviewZoom(step, imgEl, overlayEl, src);
+  renderThumbOverlay(overlayEl, imgEl, step, null);
+}
+
+function installThumbPreviewResizeSync(step, imgEl, overlayEl, src) {
+  const wrap = imgEl.closest('.step-thumb');
+  if (!wrap || !overlayEl || typeof ResizeObserver === 'undefined') return;
+  if (overlayEl._previewResizeObserver) overlayEl._previewResizeObserver.disconnect();
+
+  let rafId = 0;
+  const schedule = () => {
+    if (!document.body.contains(wrap)) {
+      ro.disconnect();
+      return;
+    }
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(() => {
+      rafId = 0;
+      syncThumbPreview(step, imgEl, overlayEl, src);
+    });
+  };
+
+  const ro = new ResizeObserver(schedule);
+  ro.observe(wrap);
+  overlayEl._previewResizeObserver = ro;
 }
 
 function renderTypingBadge(thumbWrap, step) {
@@ -844,8 +898,8 @@ function startBlurMode(step, zoomImg, originalBlob) {
 
   const sel = document.createElement('div');
   sel.style.cssText = [
-    'position:fixed', 'border:2px dashed #4F46E5',
-    'background:rgba(79,70,229,0.18)', 'pointer-events:none',
+    'position:fixed', 'border:2px dashed #009B8E',
+    'background:rgba(0,155,142,0.18)', 'pointer-events:none',
     'display:none', 'box-sizing:border-box', 'z-index:999999',
   ].join(';');
   document.body.appendChild(sel);
@@ -964,10 +1018,10 @@ function startBlurMode(step, zoomImg, originalBlob) {
 // 간단 토스트 (경량 버전)
 let _toastTimer = null;
 function showToast(msg, ms = 2000) {
-  let toast = document.getElementById('mimicToast');
+  let toast = document.getElementById('parroToast') || document.getElementById('mimicToast');
   if (!toast) {
     toast = document.createElement('div');
-    toast.id = 'mimicToast';
+    toast.id = 'parroToast';
     toast.style.cssText = [
       'position:fixed', 'bottom:72px', 'left:50%', 'transform:translateX(-50%)',
       'background:rgba(30,30,46,0.92)', 'color:#fff',
@@ -1219,8 +1273,8 @@ function showFinalizingOverlay() {
     const spinner = document.createElement('div');
     spinner.style.cssText = [
       'width:40px', 'height:40px', 'border-radius:50%',
-      'border:3px solid rgba(79,70,229,0.18)',
-      'border-top-color:#4F46E5',
+      'border:3px solid rgba(0,155,142,0.18)',
+      'border-top-color:#009B8E',
       'animation:popupSpin 0.9s linear infinite',
     ].join(';');
 
@@ -1271,7 +1325,7 @@ function showFinalizingError(detail) {
   const btn = document.createElement('button');
   btn.style.cssText = [
     'margin-top:4px', 'padding:8px 20px',
-    'background:#4F46E5', 'color:#fff',
+    'background:#009B8E', 'color:#fff',
     'border:none', 'border-radius:8px',
     'font-size:13px', 'font-weight:600', 'cursor:pointer',
   ].join(';');
@@ -1556,7 +1610,7 @@ function renderGuideStep(steps, idx) {
       fontWeight: '700',
       cursor: 'pointer',
       transition: 'all 0.15s',
-      background: done ? '#10B981' : curr ? '#4F46E5' : '#f0f0f8',
+      background: done ? '#12B886' : curr ? '#009B8E' : '#f0f0f8',
       color: (done || curr) ? '#fff' : '#bbb',
     });
     dot.textContent = done ? '✓' : i + 1;

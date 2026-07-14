@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { BRAND_NAME } from '@/lib/brand';
 
 export default function BroadcastPage() {
   const [consenting, setConsenting] = useState<number | null>(null);
@@ -47,26 +48,26 @@ export default function BroadcastPage() {
       <h1 style={{ fontSize: '20px', fontWeight: 700, margin: '0 0 4px' }}>소식 발송</h1>
       <p style={{ fontSize: '13px', color: '#64748B', margin: '0 0 22px' }}>
         이메일 수신에 동의한 회원에게 업데이트·소식을 보냅니다.
-        {consenting !== null && <> 현재 수신 동의자 <b style={{ color: '#3730a3' }}>{consenting}명</b>.</>}
+        {consenting !== null && <> 현재 수신 동의자 <b style={{ color: '#009B8E' }}>{consenting}명</b>.</>}
       </p>
 
       <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '22px' }}>
         <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>제목</label>
-        <input value={subject} onChange={e => { setSubject(e.target.value); setResult(null); }} placeholder="예: MIMIC 6월 업데이트 — 라이브 가이드 Beta 자동입력 출시" style={{ ...inputStyle, marginBottom: '16px' }} maxLength={200} />
+        <input value={subject} onChange={e => { setSubject(e.target.value); setResult(null); }} placeholder={`예: ${BRAND_NAME} 6월 업데이트 — 라이브 가이드 Beta 자동입력 출시`} style={{ ...inputStyle, marginBottom: '16px' }} maxLength={200} />
 
         <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>본문</label>
         <textarea value={body} onChange={e => { setBody(e.target.value); setResult(null); }} rows={12}
           placeholder={'평문으로 작성하세요. 빈 줄로 문단을 나눕니다.\n링크/뉴스 기사 주소를 그대로 붙여넣어도 됩니다.\n\n(브랜드 템플릿으로 자동 감싸서 발송됩니다 — HTML 몰라도 됩니다.)'}
           style={{ ...inputStyle, lineHeight: 1.6, resize: 'vertical' }} maxLength={50000} />
-        <p style={{ fontSize: '11.5px', color: '#94A3B8', margin: '8px 0 0' }}>빈 줄 = 문단 구분. MIMIC 브랜드 템플릿으로 감싸 발송하며, 푸터에 수신거부 안내가 자동 포함됩니다.</p>
+        <p style={{ fontSize: '11.5px', color: '#94A3B8', margin: '8px 0 0' }}>빈 줄 = 문단 구분. {BRAND_NAME} 브랜드 템플릿으로 감싸 발송하며, 푸터에 수신거부 안내가 자동 포함됩니다.</p>
 
         <div style={{ display: 'flex', gap: '10px', marginTop: '20px', alignItems: 'center' }}>
           <button onClick={() => send(true)} disabled={!!sending}
-            style={{ padding: '10px 16px', borderRadius: '9px', border: '1px solid #C7D2FE', background: 'white', color: '#3730a3', fontSize: '13px', fontWeight: 600, cursor: sending ? 'not-allowed' : 'pointer' }}>
+            style={{ padding: '10px 16px', borderRadius: '9px', border: '1px solid #DDE7E4', background: 'white', color: '#009B8E', fontSize: '13px', fontWeight: 600, cursor: sending ? 'not-allowed' : 'pointer' }}>
             {sending === 'test' ? '발송 중…' : '나에게 미리보기'}
           </button>
           <button onClick={() => send(false)} disabled={!!sending}
-            style={{ padding: '10px 18px', borderRadius: '9px', border: 'none', background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', color: 'white', fontSize: '13px', fontWeight: 700, cursor: sending ? 'not-allowed' : 'pointer', opacity: sending ? 0.7 : 1 }}>
+            style={{ padding: '10px 18px', borderRadius: '9px', border: 'none', background: 'linear-gradient(135deg,#009B8E,#12B886)', color: 'white', fontSize: '13px', fontWeight: 700, cursor: sending ? 'not-allowed' : 'pointer', opacity: sending ? 0.7 : 1 }}>
             {sending === 'all' ? '발송 중…' : `동의자 전체 발송${consenting !== null ? ` (${consenting})` : ''}`}
           </button>
           {result && (

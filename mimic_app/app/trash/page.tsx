@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { BRAND_COLORS } from '@/lib/brand';
 
 type TrashItem = {
   id: string;
@@ -178,7 +179,7 @@ export default function TrashPage() {
             </div>
             <div style={{ fontSize: '15px', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>휴지통이 비어 있어요</div>
             <div style={{ fontSize: '13px', color: '#9CA3AF', marginBottom: '20px' }}>삭제한 매뉴얼이 여기에 표시됩니다.</div>
-            <Link href="/home" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', background: '#3730a3', color: 'white', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}>
+            <Link href="/home" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', background: BRAND_COLORS.primary, color: 'white', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}>
               홈으로 돌아가기
             </Link>
           </div>
@@ -204,7 +205,7 @@ export default function TrashPage() {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px' }}>
                       {item.workspace_id && (
-                        <span style={{ fontSize: '10.5px', fontWeight: 600, color: '#3730a3', background: '#e0e7ff', padding: '1px 6px', borderRadius: '999px', flexShrink: 0 }}>팀</span>
+                        <span style={{ fontSize: '10.5px', fontWeight: 600, color: BRAND_COLORS.primary, background: BRAND_COLORS.guideSoft, padding: '1px 6px', borderRadius: '999px', flexShrink: 0 }}>팀</span>
                       )}
                       <span style={{ fontSize: '11.5px', color: '#9CA3AF' }}>{daysAgo(item.deleted_at)} 삭제됨</span>
                       <span style={{ width: '2px', height: '2px', borderRadius: '50%', background: '#D1D5DB', flexShrink: 0 }} />
@@ -221,7 +222,7 @@ export default function TrashPage() {
                       disabled={isLoading}
                       title="복원"
                       style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', height: '32px', padding: '0 12px', borderRadius: '7px', border: '1px solid #E5E7EB', background: 'white', color: '#374151', fontSize: '12.5px', fontWeight: 500, cursor: isLoading ? 'not-allowed' : 'pointer', opacity: isLoading ? 0.6 : 1 }}
-                      onMouseEnter={e => { if (!isLoading) { e.currentTarget.style.background = '#F9FAFB'; e.currentTarget.style.borderColor = '#3730a3'; e.currentTarget.style.color = '#3730a3'; } }}
+                      onMouseEnter={e => { if (!isLoading) { e.currentTarget.style.background = '#F9FAFB'; e.currentTarget.style.borderColor = BRAND_COLORS.primary; e.currentTarget.style.color = BRAND_COLORS.primary; } }}
                       onMouseLeave={e => { e.currentTarget.style.background = 'white'; e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.color = '#374151'; }}
                     >
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 .49-4.95"/></svg>

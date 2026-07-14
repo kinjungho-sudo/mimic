@@ -29,7 +29,7 @@ const CATEGORIES = [
 const LEVEL_COLOR: Record<string, { bg: string; fg: string }> = {
   error: { bg: '#FEE2E2', fg: '#B91C1C' },
   warn: { bg: '#FEF3C7', fg: '#B45309' },
-  info: { bg: '#E0E7FF', fg: '#3730A3' },
+  info: { bg: '#E8FFF7', fg: '#009B8E' },
   debug: { bg: '#F1F5F9', fg: '#64748B' },
 };
 const CAT_COLOR: Record<string, { bg: string; fg: string }> = {
@@ -134,7 +134,7 @@ export default function AdminLogsPage() {
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: '4px', background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '3px' }}>
           {CATEGORIES.map(c => (
-            <button key={c.key} onClick={() => setCategory(c.key)} style={{ padding: '6px 12px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: category === c.key ? 600 : 400, background: category === c.key ? '#3730a3' : 'transparent', color: category === c.key ? '#fff' : '#475569' }}>{c.label}</button>
+            <button key={c.key} onClick={() => setCategory(c.key)} style={{ padding: '6px 12px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: category === c.key ? 600 : 400, background: category === c.key ? '#009B8E' : 'transparent', color: category === c.key ? '#fff' : '#475569' }}>{c.label}</button>
           ))}
         </div>
         <select value={level} onChange={e => setLevel(e.target.value)} style={{ padding: '8px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '13px', color: '#475569', background: '#fff' }}>

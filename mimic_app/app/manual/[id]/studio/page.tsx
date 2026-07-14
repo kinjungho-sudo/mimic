@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Play, Check, Loader2, MousePointerClick, Type, Ban, RotateCcw, EyeOff, Eye, GripVertical, ZoomIn, ImagePlus, PenTool, Volume2, VolumeX, Link2 } from 'lucide-react';
 import { useTutorial } from '@/hooks/useTutorial';
 import { updateStep, reorderSteps } from '@/lib/api/steps';
+import { pickLiveGuideTarget } from '@/lib/api/liveGuide';
 import { clickToPct, inferKind, toFollowSteps } from '@/lib/follow';
 import { resolveStepAudio } from '@/lib/voice/playback';
 import { InteractiveFollowPlayer } from '@/components/viewer/InteractiveFollowPlayer';
@@ -120,6 +121,7 @@ export default function StudioPage() {
   const [audioAssets, setAudioAssets] = useState<StudioAudioAsset[]>([]);
   const [uploadingStepId, setUploadingStepId] = useState<string | null>(null);
   const [annotatingId, setAnnotatingId] = useState<string | null>(null);
+  const [pickingTarget, setPickingTarget] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imgWrapRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
@@ -144,6 +146,48 @@ export default function StudioPage() {
 
 
   const active = steps.find(s => s.id === activeId) ?? null;
+
+  const handlePickTarget = useCallback(async () => {
+    if (!active) return;
+    setPickingTarget(true);
+    try {
+      const result = await pickLiveGuideTarget();
+      if (!result.ok) {
+        alert(result.message);
+        return;
+      }
+
+      const rect = result.element_rect;
+      const nextStep: StudioStep = {
+        ...active,
+        pageUrl: result.page_url ?? active.pageUrl,
+        clickXPct: result.click_x == null ? active.clickXPct : result.click_x * 100,
+        clickYPct: result.click_y == null ? active.clickYPct : result.click_y * 100,
+        domRect: rect
+          ? { x: rect.x * 100, y: rect.y * 100, w: rect.width * 100, h: rect.height * 100 }
+          : active.domRect,
+      };
+
+      stepsRef.current = stepsRef.current.map(step => step.id === nextStep.id ? nextStep : step);
+      setSteps(stepsRef.current);
+      setSavingId(active.id);
+      await updateStep(active.id, {
+        page_url: result.page_url ?? active.pageUrl,
+        element_selector: result.element_selector ?? null,
+        element_xpath: result.element_xpath ?? null,
+        element_rect: result.element_rect ?? null,
+        click_x: result.click_x ?? null,
+        click_y: result.click_y ?? null,
+      });
+      setSavedTick(t => t + 1);
+    } catch (error) {
+      logError('studio.liveTargetPick.fail', { stepId: active.id, message: error instanceof Error ? error.message : String(error) });
+      alert('라이브 가이드 대상을 선택하지 못했습니다. Recorder 연결을 확인해주세요.');
+    } finally {
+      setSavingId(current => current === active.id ? null : current);
+      setPickingTarget(false);
+    }
+  }, [active]);
 
   // follow_config 패치 → 로컬 갱신 + 서버 저장
   const patch = useCallback(async (stepId: string, change: Partial<FollowConfig>) => {
@@ -424,6 +468,9 @@ export default function StudioPage() {
         <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.4)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
           {savingId ? <><Loader2 size={TOP_BAR_ICON_SIZE} className="spin" /> 저장 중…</> : savedTick > 0 ? <><Check size={TOP_BAR_ICON_SIZE} color="#34d399" /> 저장됨</> : null}
         </span>
+        <button onClick={handlePickTarget} disabled={!active || pickingTarget} title="현재 브라우저 탭에서 라이브 가이드 대상을 직접 선택합니다" style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5, opacity: !active || pickingTarget ? 0.55 : 1 }}>
+          {pickingTarget ? <Loader2 size={TOP_BAR_ICON_SIZE} className="spin" /> : <MousePointerClick size={TOP_BAR_ICON_SIZE} />} 현재 탭에서 대상 선택
+        </button>
         <button onClick={() => setShowPreview(true)} title="학습 가이드(웹) 화면으로 미리보기 — 핫스팟·말풍선·입력 텍스트 설정을 확인합니다. 실제 Live Guide Beta 오버레이 외형과는 다를 수 있어요." style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5 }}><Play size={TOP_BAR_ICON_SIZE} /> 학습 가이드 미리보기</button>
         <button onClick={() => setShowShare(true)} title="학습 가이드와 Live Guide Beta에서 함께 쓰는 공유 링크를 엽니다" style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5 }}>
           <Link2 size={TOP_BAR_ICON_SIZE} /> 공유
@@ -447,9 +494,9 @@ export default function StudioPage() {
                 onDrop={e => { e.preventDefault(); if (dragIdRef.current) reorder(dragIdRef.current, s.id); dragIdRef.current = null; setDragOverId(null); }}
                 onDragEnd={() => { dragIdRef.current = null; setDragOverId(null); }}
                 onClick={() => setActiveId(s.id)}
-                style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 7px', marginBottom: 4, borderRadius: 9, border: '1px solid ' + (isDragOver ? '#7c3aed' : sel ? 'rgba(124,58,237,0.6)' : 'transparent'), background: sel ? 'rgba(124,58,237,0.16)' : isDragOver ? 'rgba(124,58,237,0.08)' : 'transparent', color: 'white', cursor: 'pointer', opacity: s.follow.hidden ? 0.5 : 1 }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 7px', marginBottom: 4, borderRadius: 9, border: '1px solid ' + (isDragOver ? '#12B886' : sel ? 'rgba(18,184,134,0.6)' : 'transparent'), background: sel ? 'rgba(18,184,134,0.16)' : isDragOver ? 'rgba(18,184,134,0.08)' : 'transparent', color: 'white', cursor: 'pointer', opacity: s.follow.hidden ? 0.5 : 1 }}>
                 <GripVertical size={13} color="rgba(255,255,255,0.3)" style={{ flexShrink: 0, cursor: 'grab' }} />
-                <span style={{ width: 22, height: 22, flexShrink: 0, borderRadius: 6, background: sel ? '#7c3aed' : 'rgba(255,255,255,0.1)', fontSize: 11, fontWeight: 700, display: 'grid', placeItems: 'center' }}>{i + 1}</span>
+                <span style={{ width: 22, height: 22, flexShrink: 0, borderRadius: 6, background: sel ? '#12B886' : 'rgba(255,255,255,0.1)', fontSize: 11, fontWeight: 700, display: 'grid', placeItems: 'center' }}>{i + 1}</span>
                 <span style={{ flex: 1, minWidth: 0, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'rgba(255,255,255,0.85)' }}>
                   {s.title || '(제목 없음)'}
                 </span>
@@ -466,8 +513,8 @@ export default function StudioPage() {
           {!active ? (
             <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>스텝을 선택하세요</span>
           ) : !active.screenshotUrl ? (
-            <div style={{ width: 'min(460px, 100%)', border: '1px dashed rgba(167,139,250,0.45)', background: 'rgba(124,58,237,0.08)', borderRadius: 14, padding: 28, textAlign: 'center' }}>
-              <ImagePlus size={34} color="#c4b5fd" style={{ marginBottom: 12 }} />
+            <div style={{ width: 'min(460px, 100%)', border: '1px dashed rgba(141,214,63,0.45)', background: 'rgba(18,184,134,0.08)', borderRadius: 14, padding: 28, textAlign: 'center' }}>
+              <ImagePlus size={34} color="#E8FFF7" style={{ marginBottom: 12 }} />
               <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 7 }}>수동 캡처가 필요한 단계</div>
               <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.62)', lineHeight: 1.6, marginBottom: 16 }}>
                 보안 화면이나 제한된 페이지는 이미지를 직접 추가한 뒤 Visual Overlay로 안내를 완성할 수 있습니다.
@@ -557,7 +604,7 @@ export default function StudioPage() {
                     {ttsEnabled ? <Volume2 size={12} /> : <VolumeX size={12} />}
                     {ttsEnabled ? '학습 가이드 음성 켜짐' : '학습 가이드 음성 꺼짐'}
                   </span>
-                  <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 999, background: ttsEnabled ? '#7c3aed' : 'rgba(255,255,255,0.1)' }}>
+                  <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 999, background: ttsEnabled ? '#12B886' : 'rgba(255,255,255,0.1)' }}>
                     {ttsEnabled ? 'ON' : 'OFF'}
                   </span>
                 </button>
@@ -613,7 +660,7 @@ export default function StudioPage() {
                   {hidden ? <EyeOff size={14} /> : <Eye size={14} />} 학습 가이드에 표시
                 </span>
                 <button onClick={() => patch(active.id, { hidden: !hidden })} title="표시/숨김"
-                  style={{ width: 40, height: 22, borderRadius: 11, border: 'none', cursor: 'pointer', background: hidden ? 'rgba(255,255,255,0.15)' : '#7c3aed', position: 'relative', transition: 'background 0.15s' }}>
+                  style={{ width: 40, height: 22, borderRadius: 11, border: 'none', cursor: 'pointer', background: hidden ? 'rgba(255,255,255,0.15)' : '#12B886', position: 'relative', transition: 'background 0.15s' }}>
                   <span style={{ position: 'absolute', top: 2, left: hidden ? 2 : 20, width: 18, height: 18, borderRadius: '50%', background: 'white', transition: 'left 0.15s' }} />
                 </button>
               </div>
@@ -624,7 +671,7 @@ export default function StudioPage() {
                   <ZoomIn size={14} /> 확대 애니메이션
                 </span>
                 <button disabled={hidden} onClick={() => patch(active.id, { zoomAnim: !zoomAnim })} title="학습 가이드에서 클릭 영역 확대"
-                  style={{ width: 40, height: 22, borderRadius: 11, border: 'none', cursor: hidden ? 'not-allowed' : 'pointer', background: zoomAnim ? '#7c3aed' : 'rgba(255,255,255,0.15)', position: 'relative', transition: 'background 0.15s' }}>
+                  style={{ width: 40, height: 22, borderRadius: 11, border: 'none', cursor: hidden ? 'not-allowed' : 'pointer', background: zoomAnim ? '#12B886' : 'rgba(255,255,255,0.15)', position: 'relative', transition: 'background 0.15s' }}>
                   <span style={{ position: 'absolute', top: 2, left: zoomAnim ? 20 : 2, width: 18, height: 18, borderRadius: '50%', background: 'white', transition: 'left 0.15s' }} />
                 </button>
               </div>
@@ -643,7 +690,7 @@ export default function StudioPage() {
                   const sel = curKind === opt.key;
                   return (
                     <button key={String(opt.key)} disabled={hidden} onClick={() => patch(active.id, { kind: opt.key })}
-                      style={{ height: 34, borderRadius: 8, border: '1px solid ' + (sel ? 'rgba(124,58,237,0.7)' : 'rgba(255,255,255,0.12)'), background: sel ? 'rgba(124,58,237,0.2)' : 'transparent', color: sel ? 'white' : 'rgba(255,255,255,0.6)', fontSize: 11.5, fontWeight: 600, cursor: hidden ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4, opacity: hidden ? 0.5 : 1 }}>
+                      style={{ height: 34, borderRadius: 8, border: '1px solid ' + (sel ? 'rgba(18,184,134,0.7)' : 'rgba(255,255,255,0.12)'), background: sel ? 'rgba(18,184,134,0.2)' : 'transparent', color: sel ? 'white' : 'rgba(255,255,255,0.6)', fontSize: 11.5, fontWeight: 600, cursor: hidden ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4, opacity: hidden ? 0.5 : 1 }}>
                       {opt.icon}{opt.label}
                     </button>
                   );
@@ -663,7 +710,7 @@ export default function StudioPage() {
                 {rv?.none
                   ? <span style={{ color: 'rgba(255,255,255,0.4)' }}>인디케이터 ‘없음’ — 핫스팟 미표시</span>
                   : rv && rv.hotspotX != null
-                  ? <>X {rv.hotspotX.toFixed(1)}% · Y {rv.hotspotY!.toFixed(1)}% {active.follow.hotspotX != null ? <span style={{ color: '#a78bfa' }}>(수정됨)</span> : <span style={{ color: 'rgba(255,255,255,0.4)' }}>(녹화값)</span>}</>
+                  ? <>X {rv.hotspotX.toFixed(1)}% · Y {rv.hotspotY!.toFixed(1)}% {active.follow.hotspotX != null ? <span style={{ color: '#8DD63F' }}>(수정됨)</span> : <span style={{ color: 'rgba(255,255,255,0.4)' }}>(녹화값)</span>}</>
                   : <span style={{ color: 'rgba(255,255,255,0.4)' }}>지정 안 됨 — 이미지를 클릭하세요</span>}
               </div>
               <button disabled={hidden || active.follow.hotspotX == null} onClick={() => patch(active.id, { hotspotX: null, hotspotY: null })}
@@ -680,7 +727,7 @@ export default function StudioPage() {
                   const sel = (active.follow.bubbleAnchor ?? null) === opt.key;
                   return (
                     <button key={String(opt.key)} disabled={hidden} onClick={() => patch(active.id, { bubbleAnchor: opt.key })}
-                      style={{ height: 34, borderRadius: 7, border: '1px solid ' + (sel ? 'rgba(124,58,237,0.7)' : 'rgba(255,255,255,0.1)'), background: sel ? 'rgba(124,58,237,0.22)' : 'transparent', color: sel ? 'white' : 'rgba(255,255,255,0.55)', fontSize: 11, fontWeight: 600, cursor: hidden ? 'not-allowed' : 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, opacity: hidden ? 0.4 : 1, lineHeight: 1.2 }}>
+                      style={{ height: 34, borderRadius: 7, border: '1px solid ' + (sel ? 'rgba(18,184,134,0.7)' : 'rgba(255,255,255,0.1)'), background: sel ? 'rgba(18,184,134,0.22)' : 'transparent', color: sel ? 'white' : 'rgba(255,255,255,0.55)', fontSize: 11, fontWeight: 600, cursor: hidden ? 'not-allowed' : 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, opacity: hidden ? 0.4 : 1, lineHeight: 1.2 }}>
                       <span style={{ fontSize: 14 }}>{opt.icon}</span>
                       <span>{opt.label}</span>
                     </button>
@@ -698,7 +745,7 @@ export default function StudioPage() {
                     value={active.follow.typeText ?? ''}
                     onChange={e => setTypeText(active.id, e.target.value)}
                     placeholder="복사해 입력할 텍스트 (비우면 ‘텍스트 입력…’ 안내만)"
-                    style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.1)', color: '#F0F0FF', WebkitTextFillColor: '#F0F0FF', caretColor: '#a78bfa', fontSize: 12.5, fontFamily: 'inherit', outline: 'none' }}
+                    style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.1)', color: '#F0F0FF', WebkitTextFillColor: '#F0F0FF', caretColor: '#8DD63F', fontSize: 12.5, fontFamily: 'inherit', outline: 'none' }}
                   />
                   <p style={hint}>기본은 사용자가 복사해서 직접 붙여넣는 방식입니다.</p>
 
@@ -710,7 +757,7 @@ export default function StudioPage() {
                       const sel = (active.follow.typeInputMode ?? 'copy') === opt.key;
                       return (
                         <button key={opt.key} onClick={() => patch(active.id, { typeInputMode: opt.key })}
-                          style={{ height: 32, borderRadius: 8, border: '1px solid ' + (sel ? 'rgba(124,58,237,0.7)' : 'rgba(255,255,255,0.12)'), background: sel ? 'rgba(124,58,237,0.22)' : 'transparent', color: sel ? 'white' : 'rgba(255,255,255,0.62)', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>
+                          style={{ height: 32, borderRadius: 8, border: '1px solid ' + (sel ? 'rgba(18,184,134,0.7)' : 'rgba(255,255,255,0.12)'), background: sel ? 'rgba(18,184,134,0.22)' : 'transparent', color: sel ? 'white' : 'rgba(255,255,255,0.62)', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>
                           {opt.label}
                         </button>
                       );
@@ -826,7 +873,7 @@ function Divider() { return <div style={{ height: 1, background: 'rgba(255,255,2
 function Styles() { return <style>{`.spin{animation:spin 0.8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}`}</style>; }
 
 const pageBg: React.CSSProperties = { position: 'fixed', inset: 0, background: '#0A0A0F', display: 'grid', placeItems: 'center', fontFamily: "'Pretendard', -apple-system, sans-serif" };
-const primaryBtn: React.CSSProperties = { height: 34, padding: '0 14px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', color: 'white', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 };
+const primaryBtn: React.CSSProperties = { height: 34, padding: '0 14px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg,#009B8E,#12B886)', color: 'white', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 };
 const ghostBtn: React.CSSProperties = { width: 34, height: 34, borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: 'rgba(255,255,255,0.8)', cursor: 'pointer', display: 'grid', placeItems: 'center', flexShrink: 0 };
 const subtleBtn: React.CSSProperties = { width: '100%', height: 32, borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: 'rgba(255,255,255,0.7)', fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 };
 const hint: React.CSSProperties = { fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '8px 0 0', lineHeight: 1.5 };

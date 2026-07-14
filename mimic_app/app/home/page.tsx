@@ -6,12 +6,19 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { RecordingModal } from '@/components/dashboard/RecordingModal';
 import { AgentChat } from '@/components/chat/AgentChat';
+import { BrandMark } from '@/components/common/BrandMark';
 import { createTutorial } from '@/lib/api/tutorials';
 import { logError } from '@/lib/logging/logger';
+import { BRAND_COLORS, BRAND_NAME, LEGACY_INTERNAL_IDENTIFIERS } from '@/lib/brand';
 import type { Tutorial, Workspace, Folder } from '@/types';
 
+const BRAND_GRADIENT = `linear-gradient(135deg, ${BRAND_COLORS.primary}, ${BRAND_COLORS.guide})`;
+const BRAND_PRIMARY_SOFT = BRAND_COLORS.guideSoft;
+const BRAND_RING = 'rgba(0,155,142,0.28)';
+const BRAND_RING_SOFT = 'rgba(0,155,142,0.12)';
+const BRAND_FOCUS_RING = 'rgba(0,155,142,0.10)';
 
-const CARD_COLORS = ['#3730a3', '#6d28d9', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444'];
+const CARD_COLORS = [BRAND_COLORS.primary, BRAND_COLORS.guide, '#0EA5E9', '#10B981', '#F59E0B', '#EF4444'];
 function cardColor(id: string) { return CARD_COLORS[id.charCodeAt(0) % CARD_COLORS.length]; }
 
 function getDomain(url: string | null | undefined): string | null {
@@ -43,7 +50,7 @@ function FolderWsButton({ folderId, workspaces, onMove }: {
         onClick={e => { e.stopPropagation(); setOpen(v => !v); }}
         title="팀 워크스페이스로 이동"
         style={{ width: '20px', height: '20px', borderRadius: '5px', border: 'none', background: 'transparent', color: '#D1D5DB', cursor: 'pointer', display: 'grid', placeItems: 'center', opacity: 0, transition: 'opacity 0.12s' }}
-        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '1'; (e.currentTarget as HTMLButtonElement).style.color = '#3730a3'; (e.currentTarget as HTMLButtonElement).style.background = '#e0e7ff'; }}
+        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '1'; (e.currentTarget as HTMLButtonElement).style.color = BRAND_COLORS.primary; (e.currentTarget as HTMLButtonElement).style.background = BRAND_PRIMARY_SOFT; }}
         onMouseLeave={e => { if (!open) { (e.currentTarget as HTMLButtonElement).style.opacity = '0'; (e.currentTarget as HTMLButtonElement).style.color = '#D1D5DB'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; } }}
       >
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -64,7 +71,7 @@ function FolderWsButton({ folderId, workspaces, onMove }: {
               style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '6px 10px', border: 'none', background: 'none', borderRadius: '7px', cursor: 'pointer', fontSize: '12.5px', color: '#374151', textAlign: 'left' }}
               onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
               onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
-              <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', flexShrink: 0 }} />
+              <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: BRAND_GRADIENT, flexShrink: 0 }} />
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ws.name}</span>
             </button>
           ))}
@@ -105,7 +112,7 @@ function RenameModal({ currentTitle, onConfirm, onClose }: {
           onChange={e => setValue(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') handleSubmit(); if (e.key === 'Escape') onClose(); }}
           disabled={saving}
-          style={{ width: '100%', boxSizing: 'border-box', padding: '9px 12px', border: '1.5px solid #3730a3', borderRadius: '8px', fontSize: '14px', fontFamily: 'inherit', outline: 'none', color: '#111827' }}
+          style={{ width: '100%', boxSizing: 'border-box', padding: '9px 12px', border: `1.5px solid ${BRAND_COLORS.primary}`, borderRadius: '8px', fontSize: '14px', fontFamily: 'inherit', outline: 'none', color: '#111827' }}
         />
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
           <button onClick={onClose} disabled={saving}
@@ -113,7 +120,7 @@ function RenameModal({ currentTitle, onConfirm, onClose }: {
             취소
           </button>
           <button onClick={handleSubmit} disabled={saving || !value.trim()}
-            style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', background: '#3730a3', fontSize: '13px', cursor: 'pointer', color: 'white', fontWeight: 600, opacity: !value.trim() ? 0.5 : 1 }}>
+            style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', background: BRAND_COLORS.primary, fontSize: '13px', cursor: 'pointer', color: 'white', fontWeight: 600, opacity: !value.trim() ? 0.5 : 1 }}>
             {saving ? '저장 중...' : '저장'}
           </button>
         </div>
@@ -187,7 +194,7 @@ function ContextMenu({ menu, folders, tutorials, workspaces, onMove, onMoveToWor
             minWidth: '160px',
           }}>
             <button
-              style={{ ...itemStyle, color: !tutorial?.folder_id ? '#3730a3' : '#374151', fontWeight: !tutorial?.folder_id ? 600 : 400 }}
+              style={{ ...itemStyle, color: !tutorial?.folder_id ? BRAND_COLORS.primary : '#374151', fontWeight: !tutorial?.folder_id ? 600 : 400 }}
               onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
               onMouseLeave={e => (e.currentTarget.style.background = 'none')}
               onClick={() => { onMove(menu.tutorialId, null); onClose(); }}>
@@ -247,11 +254,11 @@ function ContextMenu({ menu, folders, tutorials, workspaces, onMove, onMoveToWor
               )}
               {workspaces.map(ws => (
                 <button key={ws.id}
-                  style={{ ...itemStyle, color: tutorial?.workspace_id === ws.id ? '#3730a3' : '#374151', fontWeight: tutorial?.workspace_id === ws.id ? 600 : 400 }}
+                  style={{ ...itemStyle, color: tutorial?.workspace_id === ws.id ? BRAND_COLORS.primary : '#374151', fontWeight: tutorial?.workspace_id === ws.id ? 600 : 400 }}
                   onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'none')}
                   onClick={() => { onMoveToWorkspace(menu.tutorialId, ws.id); onClose(); }}>
-                  <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', flexShrink: 0 }} />
+                  <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: BRAND_GRADIENT, flexShrink: 0 }} />
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{ws.name}</span>
                   {tutorial?.workspace_id === ws.id && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}><polyline points="20 6 9 17 4 12"/></svg>}
                 </button>
@@ -312,7 +319,7 @@ function PageCard({ page, viewMode = 'grid' }: {
       {(page.block_count ?? 0) > 0 && (
         <><span style={{ width: '2px', height: '2px', borderRadius: '50%', background: '#D1D5DB', flexShrink: 0 }} /><span style={{ fontSize: '12px', color: '#9CA3AF', flexShrink: 0 }}>{page.block_count}블록</span></>
       )}
-      {page.workspace_id && <span style={{ fontSize: '10px', fontWeight: 600, color: '#3730a3', background: '#e0e7ff', padding: '1px 5px', borderRadius: '999px', flexShrink: 0 }}>팀</span>}
+      {page.workspace_id && <span style={{ fontSize: '10px', fontWeight: 600, color: BRAND_COLORS.primary, background: BRAND_PRIMARY_SOFT, padding: '1px 5px', borderRadius: '999px', flexShrink: 0 }}>팀</span>}
     </div>
   );
 
@@ -423,7 +430,7 @@ function TutorialCard({ tutorial, onContextMenu, onMenuClick, viewMode = 'grid',
       {stepCount > 0 && <><span style={{ width: '2px', height: '2px', borderRadius: '50%', background: '#D1D5DB', flexShrink: 0 }} /><span style={{ fontSize: '12px', color: '#9CA3AF', flexShrink: 0 }}>{stepCount}단계</span></>}
       {tutorial.status === 'published' && <span style={{ fontSize: '10px', fontWeight: 600, color: '#16A34A', background: '#DCFCE7', padding: '1px 5px', borderRadius: '999px', flexShrink: 0 }}>공유</span>}
       {(tutorial as Tutorial & { workspace_id?: string | null }).workspace_id && (
-        <span style={{ fontSize: '10px', fontWeight: 600, color: '#3730a3', background: '#e0e7ff', padding: '1px 5px', borderRadius: '999px', flexShrink: 0 }}>팀</span>
+        <span style={{ fontSize: '10px', fontWeight: 600, color: BRAND_COLORS.primary, background: BRAND_PRIMARY_SOFT, padding: '1px 5px', borderRadius: '999px', flexShrink: 0 }}>팀</span>
       )}
     </div>
   );
@@ -432,7 +439,7 @@ function TutorialCard({ tutorial, onContextMenu, onMenuClick, viewMode = 'grid',
     // 폴더 패널로 드래그해서 정리 (Scribe 스타일 DnD)
     draggable: true,
     onDragStart: (e: React.DragEvent) => {
-      e.dataTransfer.setData('text/mimic-tutorial', tutorial.id);
+      e.dataTransfer.setData(LEGACY_INTERNAL_IDENTIFIERS.dragDataType, tutorial.id);
       e.dataTransfer.effectAllowed = 'move';
     },
     onMouseEnter: () => setHovered(true),
@@ -447,7 +454,7 @@ function TutorialCard({ tutorial, onContextMenu, onMenuClick, viewMode = 'grid',
       <article {...commonArticleProps} style={{
         background: 'white', borderRadius: '12px', cursor: 'pointer',
         border: `1px solid ${hovered ? '#a5b4fc' : '#E5E7EB'}`,
-        boxShadow: hovered ? '0 4px 16px rgba(55,48,163,0.10)' : '0 1px 2px rgba(17,24,39,0.04)',
+        boxShadow: hovered ? `0 4px 16px ${BRAND_RING_SOFT}` : '0 1px 2px rgba(17,24,39,0.04)',
         transition: 'border-color 0.12s, box-shadow 0.12s',
         display: 'flex', flexDirection: 'column', overflow: 'hidden',
       }}>
@@ -481,7 +488,7 @@ function TutorialCard({ tutorial, onContextMenu, onMenuClick, viewMode = 'grid',
       <article {...commonArticleProps} style={{
         background: 'white', borderRadius: '10px', cursor: 'pointer',
         border: `1px solid ${hovered ? '#a5b4fc' : '#E5E7EB'}`,
-        boxShadow: hovered ? '0 2px 10px rgba(55,48,163,0.07)' : '0 1px 2px rgba(17,24,39,0.03)',
+        boxShadow: hovered ? `0 2px 10px ${BRAND_RING_SOFT}` : '0 1px 2px rgba(17,24,39,0.03)',
         transition: 'border-color 0.12s, box-shadow 0.12s',
         display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px',
       }}>
@@ -499,7 +506,7 @@ function TutorialCard({ tutorial, onContextMenu, onMenuClick, viewMode = 'grid',
     <article {...commonArticleProps} style={{
       background: 'white', borderRadius: '10px', cursor: 'pointer',
       border: `1px solid ${hovered ? '#a5b4fc' : '#E5E7EB'}`,
-      boxShadow: hovered ? '0 3px 12px rgba(55,48,163,0.07)' : '0 1px 2px rgba(17,24,39,0.04)',
+      boxShadow: hovered ? `0 3px 12px ${BRAND_RING_SOFT}` : '0 1px 2px rgba(17,24,39,0.04)',
       transition: 'border-color 0.12s, box-shadow 0.12s',
       display: 'flex', alignItems: 'center', gap: '11px', padding: '11px 13px',
     }}>
@@ -518,17 +525,17 @@ function TutorialCard({ tutorial, onContextMenu, onMenuClick, viewMode = 'grid',
 function EmptyState({ onRecord, onBlank, onGuidebook, label }: { onRecord: () => void; onBlank: () => void; onGuidebook?: () => void; label?: string }) {
   return (
     <div style={{ padding: '60px 24px', textAlign: 'center' }}>
-      <div style={{ margin: '0 auto 16px', width: '56px', height: '56px', borderRadius: '14px', background: '#e0e7ff', display: 'grid', placeItems: 'center', color: '#3730a3' }}>
+      <div style={{ margin: '0 auto 16px', width: '56px', height: '56px', borderRadius: '14px', background: BRAND_PRIMARY_SOFT, display: 'grid', placeItems: 'center', color: BRAND_COLORS.primary }}>
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
       </div>
       <div style={{ fontSize: '14px', fontWeight: 600, color: '#111827', marginBottom: '6px' }}>{label ?? '매뉴얼이 없어요'}</div>
       <div style={{ fontSize: '12.5px', color: '#9CA3AF', marginBottom: '20px' }}>화면을 녹화하거나 직접 만들어보세요.</div>
       <div style={{ display: 'inline-flex', gap: '8px' }}>
-        <button onClick={onRecord} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', border: 'none', cursor: 'pointer' }}>
+        <button onClick={onRecord} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: BRAND_GRADIENT, color: 'white', border: 'none', cursor: 'pointer' }}>
           <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'rgba(255,255,255,0.8)', animation: 'recPulse 1.4s ease-in-out infinite' }} />
           화면 녹화
         </button>
-        <button onClick={onBlank} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: 'white', color: '#3730a3', border: '1.5px solid #a5b4fc', cursor: 'pointer' }}>
+        <button onClick={onBlank} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: 'white', color: BRAND_COLORS.primary, border: `1.5px solid ${BRAND_COLORS.focus}`, cursor: 'pointer' }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           직접 편집
         </button>
@@ -545,7 +552,7 @@ function EmptyState({ onRecord, onBlank, onGuidebook, label }: { onRecord: () =>
 
 // ── 폴더 슬라이드 패널 (Scribe 스타일) ─────────────────────
 
-const FOLDER_COLORS = ['#3730a3', '#6d28d9', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#6B7280'];
+const FOLDER_COLORS = [BRAND_COLORS.primary, BRAND_COLORS.guide, '#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#6B7280'];
 
 function FolderPanel({ folders, tutorials, activeFolder, active, title, onSelectFolder, onClose, onCreate, onRename, onChangeColor, onDelete, onDropTutorial }: {
   folders: Folder[];
@@ -602,7 +609,7 @@ function FolderPanel({ folders, tutorials, activeFolder, active, title, onSelect
   // 드롭 타깃 공통 핸들러 (미분류 = null)
   const dropProps = (key: string, folderId: string | null) => ({
     onDragOver: (e: React.DragEvent) => {
-      if (e.dataTransfer.types.includes('text/mimic-tutorial')) {
+      if (e.dataTransfer.types.includes(LEGACY_INTERNAL_IDENTIFIERS.dragDataType)) {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
         if (dragOverKey !== key) setDragOverKey(key);
@@ -611,7 +618,7 @@ function FolderPanel({ folders, tutorials, activeFolder, active, title, onSelect
     onDragLeave: () => setDragOverKey(k => (k === key ? null : k)),
     onDrop: (e: React.DragEvent) => {
       e.preventDefault();
-      const tid = e.dataTransfer.getData('text/mimic-tutorial');
+      const tid = e.dataTransfer.getData(LEGACY_INTERNAL_IDENTIFIERS.dragDataType);
       if (tid) onDropTutorial(tid, folderId);
       setDragOverKey(null);
     },
@@ -620,12 +627,12 @@ function FolderPanel({ folders, tutorials, activeFolder, active, title, onSelect
   const unfiledCount = tutorials.filter(t => !t.folder_id).length;
   const isActive = (id: string | null | 'all') => active && activeFolder === id;
 
-  const rowStyle = (active: boolean, dragOver: boolean, color = '#3730a3'): React.CSSProperties => ({
+  const rowStyle = (active: boolean, dragOver: boolean, color: string = BRAND_COLORS.primary): React.CSSProperties => ({
     display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0,
     padding: '7px 9px', borderRadius: '7px', border: 'none', cursor: 'pointer',
     fontSize: '13px', textAlign: 'left',
-    background: dragOver ? '#EEF2FF' : active ? `${color}14` : 'transparent',
-    boxShadow: dragOver ? 'inset 0 0 0 1.5px #6366F1' : 'none',
+    background: dragOver ? BRAND_PRIMARY_SOFT : active ? `${color}14` : 'transparent',
+    boxShadow: dragOver ? `inset 0 0 0 1.5px ${BRAND_COLORS.focus}` : 'none',
     color: active ? color : '#374151',
     fontWeight: active ? 600 : 400,
   });
@@ -641,7 +648,7 @@ function FolderPanel({ folders, tutorials, activeFolder, active, title, onSelect
     }}>
       {/* 헤더 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '16px 14px 12px', borderBottom: '1px solid #F3F4F6', flexShrink: 0 }}>
-        <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: '#3730a3', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+        <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: BRAND_COLORS.primary, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
         </div>
         <span style={{ fontSize: '13.5px', fontWeight: 700, color: '#111827', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</span>
@@ -658,7 +665,7 @@ function FolderPanel({ folders, tutorials, activeFolder, active, title, onSelect
         {/* 전체 / 미분류 — 좌우 나란히 */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', marginBottom: '8px' }}>
           <button onClick={() => onSelectFolder('all')}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px', padding: '7px 9px', borderRadius: '7px', border: 'none', cursor: 'pointer', fontSize: '12.5px', textAlign: 'left', background: isActive('all') ? '#3730a314' : '#F9FAFB', color: isActive('all') ? '#3730a3' : '#374151', fontWeight: isActive('all') ? 600 : 400 }}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px', padding: '7px 9px', borderRadius: '7px', border: 'none', cursor: 'pointer', fontSize: '12.5px', textAlign: 'left', background: isActive('all') ? BRAND_PRIMARY_SOFT : '#F9FAFB', color: isActive('all') ? BRAND_COLORS.primary : '#374151', fontWeight: isActive('all') ? 600 : 400 }}
             onMouseEnter={e => { if (!isActive('all')) (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; }}
             onMouseLeave={e => { if (!isActive('all')) (e.currentTarget as HTMLButtonElement).style.background = '#F9FAFB'; }}>
             <span>전체</span>
@@ -666,7 +673,7 @@ function FolderPanel({ folders, tutorials, activeFolder, active, title, onSelect
           </button>
           <div {...dropProps('unfiled', null)} style={{ display: 'contents' }}>
             <button onClick={() => onSelectFolder(null)}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px', padding: '7px 9px', borderRadius: '7px', border: dragOverKey === 'unfiled' ? '1.5px solid #6366F1' : 'none', cursor: 'pointer', fontSize: '12.5px', textAlign: 'left', background: dragOverKey === 'unfiled' ? '#EEF2FF' : isActive(null) ? '#6B728014' : '#F9FAFB', color: isActive(null) ? '#6B7280' : '#374151', fontWeight: isActive(null) ? 600 : 400 }}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px', padding: '7px 9px', borderRadius: '7px', border: dragOverKey === 'unfiled' ? `1.5px solid ${BRAND_COLORS.focus}` : 'none', cursor: 'pointer', fontSize: '12.5px', textAlign: 'left', background: dragOverKey === 'unfiled' ? BRAND_PRIMARY_SOFT : isActive(null) ? '#6B728014' : '#F9FAFB', color: isActive(null) ? '#6B7280' : '#374151', fontWeight: isActive(null) ? 600 : 400 }}
               onMouseEnter={e => { if (!isActive(null) && dragOverKey !== 'unfiled') (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; }}
               onMouseLeave={e => { if (!isActive(null) && dragOverKey !== 'unfiled') (e.currentTarget as HTMLButtonElement).style.background = '#F9FAFB'; }}>
               <span>미분류</span>
@@ -697,7 +704,7 @@ function FolderPanel({ folders, tutorials, activeFolder, active, title, onSelect
                   if (e.key === 'Enter') commitRename(f.id);
                   if (e.key === 'Escape') { e.stopPropagation(); setEditingId(null); }
                 }}
-                style={{ flex: 1, minWidth: 0, padding: '6px 9px', borderRadius: '7px', border: '1.5px solid #3730a3', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
+                style={{ flex: 1, minWidth: 0, padding: '6px 9px', borderRadius: '7px', border: `1.5px solid ${BRAND_COLORS.primary}`, fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
             ) : (
               <>
                 <button onClick={() => onSelectFolder(f.id)}
@@ -768,14 +775,14 @@ function FolderPanel({ folders, tutorials, activeFolder, active, title, onSelect
               style={{ flex: 1, minWidth: 0, padding: '7px 9px', borderRadius: '7px', border: '1.5px solid #a5b4fc', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
             <button type="submit" disabled={creating || !newName.trim()}
               onMouseDown={e => e.preventDefault()}
-              style={{ padding: '0 11px', borderRadius: '7px', background: '#3730a3', color: 'white', border: 'none', fontSize: '12px', fontWeight: 600, cursor: 'pointer', flexShrink: 0, opacity: creating || !newName.trim() ? 0.6 : 1 }}>
+              style={{ padding: '0 11px', borderRadius: '7px', background: BRAND_COLORS.primary, color: 'white', border: 'none', fontSize: '12px', fontWeight: 600, cursor: 'pointer', flexShrink: 0, opacity: creating || !newName.trim() ? 0.6 : 1 }}>
               {creating ? '...' : '추가'}
             </button>
           </form>
         ) : (
           <button onClick={() => { setShowInput(true); setNewName(''); }}
             style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', padding: '7px 9px', borderRadius: '7px', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '12.5px', color: '#9CA3AF' }}
-            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; (e.currentTarget as HTMLButtonElement).style.color = '#4338CA'; }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; (e.currentTarget as HTMLButtonElement).style.color = BRAND_COLORS.primary; }}
             onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = '#9CA3AF'; }}>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             새 폴더 추가
@@ -797,6 +804,7 @@ export default function DashboardPage() {
 
   const [tutorials, setTutorials] = useState<Tutorial[]>([]);
   const [tutLoading, setTutLoading] = useState(true);
+  const [tutError, setTutError] = useState<string | null>(null);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [teamFolders, setTeamFolders] = useState<Folder[]>([]); // 활성 워크스페이스의 공유 폴더
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -837,6 +845,7 @@ export default function DashboardPage() {
   const NOTICE = { type: 'info' as 'info' | 'warn' | 'error', text: '✨ AI 자동 어노테이션 기능이 업데이트되었습니다. 지금 바로 사용해보세요!', link: { label: '자세히 보기', href: '/home' } };
 
   const newMenuRef = useRef<HTMLDivElement>(null);
+  const tutorialRequestRef = useRef(0);
   const [liveGuide, setLiveGuide] = useState<{ used: number; limit: number; paid: boolean } | null>(null);
   const [playbook, setPlaybook] = useState<{ used: number; limit: number; paid: boolean } | null>(null);
 
@@ -851,12 +860,28 @@ export default function DashboardPage() {
   }, [authLoading, user, router]);
 
   const loadTutorials = useCallback(async (workspaceId?: string, silent = false) => {
+    const requestId = ++tutorialRequestRef.current;
     if (!silent) setTutLoading(true);
+    if (!silent) setTutError(null);
     try {
       const url = workspaceId ? `/api/tutorials?workspace_id=${workspaceId}` : '/api/tutorials';
       const res = await fetch(url);
-      if (res.ok) setTutorials(await res.json());
-    } finally { if (!silent) setTutLoading(false); }
+      if (!res.ok) throw new Error(`API ${res.status}`);
+      const data = await res.json();
+      if (requestId === tutorialRequestRef.current) setTutorials(data);
+    } catch (error) {
+      logError('tutorial.list.fail', {
+        workspaceId: workspaceId ?? null,
+        message: error instanceof Error ? error.message : String(error),
+      });
+      if (!silent && requestId === tutorialRequestRef.current) {
+        setTutError('매뉴얼을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
+      }
+    } finally {
+      // A silent focus refresh can supersede the first visible request. The newest
+      // request must always release the loading state or the dashboard can spin forever.
+      if (requestId === tutorialRequestRef.current) setTutLoading(false);
+    }
   }, []);
 
   const loadFolders = useCallback(async () => {
@@ -886,7 +911,6 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!user) return;
-    loadTutorials();
     loadFolders();
     loadWorkspaces();
     // 라이브 가이드·플레이북 사용량 — 홈 '이번 달 사용량'에 함께 표시
@@ -1123,8 +1147,8 @@ export default function DashboardPage() {
 
             {/* 로고 */}
             <Link href="/home" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px 16px', textDecoration: 'none' }}>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="32" height="32" style={{ flexShrink: 0 }}><circle cx="50" cy="50" r="50" fill="#3730a3"/><text x="50" y="68" textAnchor="middle" fontFamily="Georgia, serif" fontSize="62" fontWeight="700" fill="white">M</text></svg>
-              <span style={{ fontSize: '16px', fontWeight: 800, color: '#3730a3', letterSpacing: '-0.03em' }}>MIMIC</span>
+              <BrandMark />
+              <span style={{ fontSize: '16px', fontWeight: 800, color: BRAND_COLORS.primary, letterSpacing: '-0.03em' }}>{BRAND_NAME}</span>
             </Link>
 
             {/* ── 워크스페이스 트리 ── */}
@@ -1135,13 +1159,13 @@ export default function DashboardPage() {
                 style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '7px 8px', borderRadius: '8px', border: 'none', cursor: 'pointer', textAlign: 'left', background: showFolderPanel && activeTab === 'my' ? '#F3F4F6' : 'transparent' }}
                 onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
                 onMouseLeave={e => (e.currentTarget.style.background = showFolderPanel ? '#F3F4F6' : 'transparent')}>
-                <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: activeTab === 'my' ? '#3730a3' : '#E5E7EB', display: 'grid', placeItems: 'center', flexShrink: 0, transition: 'background 0.15s' }}>
+                <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: activeTab === 'my' ? BRAND_COLORS.primary : '#E5E7EB', display: 'grid', placeItems: 'center', flexShrink: 0, transition: 'background 0.15s' }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                 </div>
                 <span style={{ fontSize: '13px', fontWeight: 700, color: '#111827', flex: 1 }}>내 워크스페이스</span>
                 {/* 활성 폴더 색 표시 */}
                 {activeTab === 'my' && activeFolder !== 'all' && (
-                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: activeFolder === null ? '#9CA3AF' : (folders.find(f => f.id === activeFolder)?.color ?? '#3730a3'), flexShrink: 0 }} />
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: activeFolder === null ? '#9CA3AF' : (folders.find(f => f.id === activeFolder)?.color ?? BRAND_COLORS.primary), flexShrink: 0 }} />
                 )}
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"
                   style={{ transform: showFolderPanel ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s', flexShrink: 0 }}>
@@ -1154,7 +1178,7 @@ export default function DashboardPage() {
                 style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '7px 8px', borderRadius: '8px', border: 'none', cursor: 'pointer', textAlign: 'left', background: 'transparent', marginTop: '4px' }}
                 onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: activeTab === 'team' ? '#3730a3' : '#E5E7EB', display: 'grid', placeItems: 'center', flexShrink: 0, transition: 'background 0.15s' }}>
+                <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: activeTab === 'team' ? BRAND_COLORS.primary : '#E5E7EB', display: 'grid', placeItems: 'center', flexShrink: 0, transition: 'background 0.15s' }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                 </div>
                 <span style={{ fontSize: '13px', fontWeight: 700, color: '#111827', flex: 1 }}>팀 워크스페이스</span>
@@ -1170,10 +1194,10 @@ export default function DashboardPage() {
                   {workspaces.map(ws => (
                       <div key={ws.id} style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
                         <button onClick={() => { const switching = !(activeTab === 'team' && activeWorkspace === ws.id); setActiveTab('team'); setActiveWorkspace(ws.id); if (switching) setActiveFolder('all'); setShowFolderPanel(true); }}
-                          style={{ display: 'flex', alignItems: 'center', gap: '7px', flex: 1, padding: '5px 8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', textAlign: 'left', background: activeTab === 'team' && activeWorkspace === ws.id ? '#e0e7ff' : 'transparent', color: activeTab === 'team' && activeWorkspace === ws.id ? '#3730a3' : '#4B5563', fontWeight: activeTab === 'team' && activeWorkspace === ws.id ? 600 : 400 }}
+                          style={{ display: 'flex', alignItems: 'center', gap: '7px', flex: 1, padding: '5px 8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', textAlign: 'left', background: activeTab === 'team' && activeWorkspace === ws.id ? BRAND_PRIMARY_SOFT : 'transparent', color: activeTab === 'team' && activeWorkspace === ws.id ? BRAND_COLORS.primary : '#4B5563', fontWeight: activeTab === 'team' && activeWorkspace === ws.id ? 600 : 400 }}
                           onMouseEnter={e => { if (!(activeTab === 'team' && activeWorkspace === ws.id)) (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; }}
                           onMouseLeave={e => { if (!(activeTab === 'team' && activeWorkspace === ws.id)) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>
-                          <div style={{ width: '10px', height: '10px', borderRadius: '3px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', flexShrink: 0 }} />
+                          <div style={{ width: '10px', height: '10px', borderRadius: '3px', background: BRAND_GRADIENT, flexShrink: 0 }} />
                           <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ws.name}</span>
                           <span style={{ fontSize: '11px', color: '#9CA3AF', flexShrink: 0 }}>{ws.member_count ?? 0}명</span>
                         </button>
@@ -1193,11 +1217,11 @@ export default function DashboardPage() {
                       <input autoFocus value={newWsName} onChange={e => setNewWsName(e.target.value)} placeholder="워크스페이스 이름"
                         onBlur={() => { if (!creatingWs) { setShowNewWsInput(false); setNewWsName(''); } }}
                         onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); setShowNewWsInput(false); setNewWsName(''); } }}
-                        style={{ minWidth: 0, width: '100%', boxSizing: 'border-box', padding: '4px 7px', borderRadius: '6px', border: '1px solid #a5b4fc', fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
+                        style={{ minWidth: 0, width: '100%', boxSizing: 'border-box', padding: '4px 7px', borderRadius: '6px', border: `1px solid ${BRAND_COLORS.focus}`, fontSize: '13px', outline: 'none', fontFamily: 'inherit' }} />
                       <button type="submit" disabled={creatingWs || !newWsName.trim()}
                         title="워크스페이스 만들기"
                         onMouseDown={e => e.preventDefault()}
-                        style={{ width: '30px', height: '30px', borderRadius: '6px', background: '#3730a3', color: 'white', border: 'none', fontSize: '14px', fontWeight: 700, cursor: creatingWs || !newWsName.trim() ? 'not-allowed' : 'pointer', display: 'grid', placeItems: 'center', opacity: creatingWs || !newWsName.trim() ? 0.55 : 1 }}>
+                        style={{ width: '30px', height: '30px', borderRadius: '6px', background: BRAND_COLORS.primary, color: 'white', border: 'none', fontSize: '14px', fontWeight: 700, cursor: creatingWs || !newWsName.trim() ? 'not-allowed' : 'pointer', display: 'grid', placeItems: 'center', opacity: creatingWs || !newWsName.trim() ? 0.55 : 1 }}>
                         {creatingWs ? '…' : '✓'}
                       </button>
                     </form>
@@ -1227,7 +1251,7 @@ export default function DashboardPage() {
                 </div>
                 {!isPro && (
                   <div style={{ height: '4px', borderRadius: '999px', background: '#E5E7EB', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', borderRadius: '999px', background: usedToday >= dailyLimit ? '#EF4444' : '#3730a3', width: `${Math.min(100, (usedToday / dailyLimit) * 100)}%`, transition: 'width 0.3s' }} />
+                    <div style={{ height: '100%', borderRadius: '999px', background: usedToday >= dailyLimit ? '#EF4444' : BRAND_COLORS.primary, width: `${Math.min(100, (usedToday / dailyLimit) * 100)}%`, transition: 'width 0.3s' }} />
                   </div>
                 )}
                 {/* 라이브 가이드 사용량 */}
@@ -1243,7 +1267,7 @@ export default function DashboardPage() {
                 )}
                 {!isPro && liveGuide && !liveGuide.paid && (
                   <div style={{ height: '4px', borderRadius: '999px', background: '#E5E7EB', overflow: 'hidden', marginTop: '6px' }}>
-                    <div style={{ height: '100%', borderRadius: '999px', background: liveGuide.used >= liveGuide.limit ? '#EF4444' : '#7c3aed', width: `${Math.min(100, (liveGuide.used / liveGuide.limit) * 100)}%`, transition: 'width 0.3s' }} />
+                    <div style={{ height: '100%', borderRadius: '999px', background: liveGuide.used >= liveGuide.limit ? '#EF4444' : BRAND_COLORS.guide, width: `${Math.min(100, (liveGuide.used / liveGuide.limit) * 100)}%`, transition: 'width 0.3s' }} />
                   </div>
                 )}
                 {/* 플레이북 사용량 (Free: N/한도, Pro: 무제한) */}
@@ -1262,7 +1286,7 @@ export default function DashboardPage() {
                     <div style={{ height: '100%', borderRadius: '999px', background: playbook.used >= playbook.limit ? '#EF4444' : '#0EA5E9', width: `${Math.min(100, (playbook.used / playbook.limit) * 100)}%`, transition: 'width 0.3s' }} />
                   </div>
                 )}
-                {!isPro && <Link href="/landingpage#pricing" style={{ display: 'block', marginTop: '10px', padding: '6px', borderRadius: '7px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', fontSize: '11.5px', fontWeight: 600, textDecoration: 'none', textAlign: 'center' }}>Pro로 업그레이드</Link>}
+                {!isPro && <Link href="/landingpage#pricing" style={{ display: 'block', marginTop: '10px', padding: '6px', borderRadius: '7px', background: BRAND_GRADIENT, color: 'white', fontSize: '11.5px', fontWeight: 600, textDecoration: 'none', textAlign: 'center' }}>Pro로 업그레이드</Link>}
               </div>
             )}
 
@@ -1308,7 +1332,7 @@ export default function DashboardPage() {
                 {user?.avatar_url
                   // eslint-disable-next-line @next/next/no-img-element
                   ? <img src={user.avatar_url} alt={user.name} style={{ width: '26px', height: '26px', borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }} />
-                  : <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', display: 'grid', placeItems: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>{authLoading ? '·' : firstName.charAt(0) || '?'}</div>
+                  : <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: BRAND_GRADIENT, color: 'white', display: 'grid', placeItems: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>{authLoading ? '·' : firstName.charAt(0) || '?'}</div>
                 }
                 <div style={{ overflow: 'hidden', flex: 1 }}>
                   <div style={{ fontSize: '13px', fontWeight: 500, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{authLoading ? '...' : (user?.name ?? '내 계정')}</div>
@@ -1347,20 +1371,20 @@ export default function DashboardPage() {
               <div style={{
                 display: 'flex', alignItems: 'center', gap: '10px',
                 padding: '9px 16px',
-                background: NOTICE.type === 'error' ? 'linear-gradient(90deg, #fef2f2, #fee2e2)' : NOTICE.type === 'warn' ? 'linear-gradient(90deg, #fffbeb, #fef3c7)' : 'linear-gradient(90deg, #eef2ff, #ede9fe)',
-                borderBottom: `1px solid ${NOTICE.type === 'error' ? '#fca5a5' : NOTICE.type === 'warn' ? '#fcd34d' : '#c7d2fe'}`,
+                background: NOTICE.type === 'error' ? 'linear-gradient(90deg, #fef2f2, #fee2e2)' : NOTICE.type === 'warn' ? 'linear-gradient(90deg, #fffbeb, #fef3c7)' : `linear-gradient(90deg, ${BRAND_PRIMARY_SOFT}, #F7FFF8)`,
+                borderBottom: `1px solid ${NOTICE.type === 'error' ? '#fca5a5' : NOTICE.type === 'warn' ? '#fcd34d' : BRAND_COLORS.border}`,
                 flexShrink: 0, zIndex: 20,
               }}>
-                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: NOTICE.type === 'error' ? '#ef4444' : NOTICE.type === 'warn' ? '#f59e0b' : '#3730a3', flexShrink: 0 }} />
-                <span style={{ flex: 1, fontSize: '13px', color: NOTICE.type === 'error' ? '#991b1b' : NOTICE.type === 'warn' ? '#92400e' : '#3730a3', fontWeight: 500 }}>
+                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: NOTICE.type === 'error' ? '#ef4444' : NOTICE.type === 'warn' ? '#f59e0b' : BRAND_COLORS.primary, flexShrink: 0 }} />
+                <span style={{ flex: 1, fontSize: '13px', color: NOTICE.type === 'error' ? '#991b1b' : NOTICE.type === 'warn' ? '#92400e' : BRAND_COLORS.primary, fontWeight: 500 }}>
                   {NOTICE.text}
                 </span>
                 {NOTICE.link && (
-                  <a href={NOTICE.link.href} style={{ fontSize: '12px', fontWeight: 700, color: NOTICE.type === 'error' ? '#b91c1c' : NOTICE.type === 'warn' ? '#b45309' : '#4338ca', textDecoration: 'underline', textUnderlineOffset: '2px', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                  <a href={NOTICE.link.href} style={{ fontSize: '12px', fontWeight: 700, color: NOTICE.type === 'error' ? '#b91c1c' : NOTICE.type === 'warn' ? '#b45309' : BRAND_COLORS.primary, textDecoration: 'underline', textUnderlineOffset: '2px', flexShrink: 0, whiteSpace: 'nowrap' }}>
                     {NOTICE.link.label}
                   </a>
                 )}
-                <button onClick={() => setNoticeDismissed(true)} style={{ width: '20px', height: '20px', borderRadius: '50%', border: 'none', background: 'transparent', cursor: 'pointer', display: 'grid', placeItems: 'center', color: NOTICE.type === 'error' ? '#b91c1c' : NOTICE.type === 'warn' ? '#b45309' : '#6366f1', flexShrink: 0, opacity: 0.7 }}
+                <button onClick={() => setNoticeDismissed(true)} style={{ width: '20px', height: '20px', borderRadius: '50%', border: 'none', background: 'transparent', cursor: 'pointer', display: 'grid', placeItems: 'center', color: NOTICE.type === 'error' ? '#b91c1c' : NOTICE.type === 'warn' ? '#b45309' : BRAND_COLORS.primary, flexShrink: 0, opacity: 0.7 }}
                   onMouseEnter={e => (e.currentTarget.style.opacity = '1')} onMouseLeave={e => (e.currentTarget.style.opacity = '0.7')}>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
@@ -1371,8 +1395,8 @@ export default function DashboardPage() {
               {/* 모바일 전용: 로고 (햄버거는 우측으로 이동) */}
               <div className="home-mobile-logo" style={{ display: 'none', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                 <Link href="/home" style={{ display: 'flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}>
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="26" height="26"><circle cx="50" cy="50" r="50" fill="#3730a3"/><text x="50" y="68" textAnchor="middle" fontFamily="Georgia, serif" fontSize="62" fontWeight="700" fill="white">M</text></svg>
-                  <span style={{ fontSize: '15px', fontWeight: 800, color: '#3730a3', letterSpacing: '-0.03em' }}>MIMIC</span>
+                  <BrandMark size={26} />
+                  <span style={{ fontSize: '15px', fontWeight: 800, color: BRAND_COLORS.primary, letterSpacing: '-0.03em' }}>{BRAND_NAME}</span>
                 </Link>
               </div>
               {/* 모바일 전용: 햄버거 버튼 */}
@@ -1395,7 +1419,7 @@ export default function DashboardPage() {
                   </h1>
                   {isTeamCtx && (
                     <>
-                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#3730a3', background: '#e0e7ff', padding: '2px 8px', borderRadius: '999px', flexShrink: 0 }}>팀</span>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: BRAND_COLORS.primary, background: BRAND_PRIMARY_SOFT, padding: '2px 8px', borderRadius: '999px', flexShrink: 0 }}>팀</span>
                       <Link href={`/workspace/${activeWorkspace}`} title="멤버 관리"
                         style={{ fontSize: '12.5px', color: '#6B7280', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -1407,7 +1431,7 @@ export default function DashboardPage() {
                 <div ref={newMenuRef} style={{ position: 'relative', flexShrink: 0 }}>
                   <button onClick={() => setShowNewMenu(v => !v)} disabled={creating}
                     className="home-new-btn"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '8px 14px', borderRadius: '9px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', border: 'none', cursor: creating ? 'not-allowed' : 'pointer', fontSize: '13.5px', fontWeight: 600, boxShadow: '0 2px 8px rgba(55,48,163,0.28)', opacity: creating ? 0.7 : 1, whiteSpace: 'nowrap' }}>
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '8px 14px', borderRadius: '9px', background: BRAND_GRADIENT, color: 'white', border: 'none', cursor: creating ? 'not-allowed' : 'pointer', fontSize: '13.5px', fontWeight: 600, boxShadow: `0 2px 8px ${BRAND_RING}`, opacity: creating ? 0.7 : 1, whiteSpace: 'nowrap' }}>
                     {creating
                       ? <span style={{ width: '12px', height: '12px', borderRadius: '50%', border: '2px solid rgba(255,255,255,0.4)', borderTopColor: 'white', animation: 'spin 0.8s linear infinite', flexShrink: 0 }} />
                       : <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'rgba(255,255,255,0.85)', animation: 'recPulse 1.4s ease-in-out infinite', flexShrink: 0 }} />
@@ -1442,7 +1466,7 @@ export default function DashboardPage() {
               {/* 콘텐츠 유형 탭 */}
               <div style={{ display: 'flex', gap: '6px', marginBottom: '16px' }}>
                 {([
-                  { key: 'manual' as const, label: '매뉴얼', color: '#3730a3', bg: '#e0e7ff', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> },
+                  { key: 'manual' as const, label: '매뉴얼', color: BRAND_COLORS.primary, bg: BRAND_PRIMARY_SOFT, icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> },
                   { key: 'playbook' as const, label: '플레이북', color: '#059669', bg: '#dcfce7', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg> },
                 ] as const).map(({ key, label, color, bg, icon }) => (
                   <button key={key} onClick={() => setContentType(key)}
@@ -1457,15 +1481,15 @@ export default function DashboardPage() {
               {/* 검색 */}
               <div
                 className="home-search-bar"
-                style={{ display: 'flex', alignItems: 'center', gap: '8px', height: '36px', padding: '0 12px', border: `1.5px solid ${searchQuery ? '#4F46E5' : '#E5E7EB'}`, borderRadius: '9px', background: searchQuery ? '#F5F3FF' : 'white', color: '#9CA3AF', transition: 'border-color 0.15s, background 0.15s', boxShadow: searchQuery ? '0 0 0 3px rgba(79,70,229,0.10)' : 'none', marginBottom: '16px', maxWidth: '360px' }}
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', height: '36px', padding: '0 12px', border: `1.5px solid ${searchQuery ? BRAND_COLORS.focus : '#E5E7EB'}`, borderRadius: '9px', background: searchQuery ? BRAND_PRIMARY_SOFT : 'white', color: '#9CA3AF', transition: 'border-color 0.15s, background 0.15s', boxShadow: searchQuery ? `0 0 0 3px ${BRAND_FOCUS_RING}` : 'none', marginBottom: '16px', maxWidth: '360px' }}
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={searchQuery ? '#4F46E5' : '#9CA3AF'} strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, transition: 'stroke 0.15s' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={searchQuery ? BRAND_COLORS.primary : '#9CA3AF'} strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, transition: 'stroke 0.15s' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 <input
                   placeholder={contentType === 'playbook' ? '플레이북 이름으로 검색...' : '매뉴얼 이름으로 검색...'}
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: '14.5px', fontFamily: 'inherit', color: '#111827' }}
-                  onFocus={e => { const p = e.currentTarget.parentElement!; p.style.borderColor = '#4F46E5'; p.style.boxShadow = '0 0 0 3px rgba(79,70,229,0.10)'; }}
+                  onFocus={e => { const p = e.currentTarget.parentElement!; p.style.borderColor = BRAND_COLORS.focus; p.style.boxShadow = `0 0 0 3px ${BRAND_FOCUS_RING}`; }}
                   onBlur={e => { const p = e.currentTarget.parentElement!; if (!searchQuery) { p.style.borderColor = '#E5E7EB'; p.style.boxShadow = 'none'; } }}
                 />
                 {searchQuery && (
@@ -1493,7 +1517,7 @@ export default function DashboardPage() {
                     { mode: 'compact' as ViewMode, title: '카드', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg> },
                   ]).map(({ mode, title, icon }) => (
                     <button key={mode} onClick={() => setViewMode(mode)} title={title}
-                      style={{ width: '28px', height: '26px', borderRadius: '6px', border: 'none', cursor: 'pointer', display: 'grid', placeItems: 'center', background: viewMode === mode ? 'white' : 'transparent', color: viewMode === mode ? '#3730a3' : '#9CA3AF', boxShadow: viewMode === mode ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition: 'background 0.12s, color 0.12s' }}>
+                      style={{ width: '28px', height: '26px', borderRadius: '6px', border: 'none', cursor: 'pointer', display: 'grid', placeItems: 'center', background: viewMode === mode ? 'white' : 'transparent', color: viewMode === mode ? BRAND_COLORS.primary : '#9CA3AF', boxShadow: viewMode === mode ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition: 'background 0.12s, color 0.12s' }}>
                       {icon}
                     </button>
                   ))}
@@ -1554,6 +1578,16 @@ export default function DashboardPage() {
                       </div>
                     ))}
                   </div>
+                ) : tutError ? (
+                  <div style={{ textAlign: 'center', padding: '56px 24px', color: '#6B7280' }}>
+                    <div style={{ fontSize: '14px', fontWeight: 600, color: '#374151', marginBottom: '10px' }}>{tutError}</div>
+                    <button
+                      onClick={() => loadTutorials(activeTab === 'team' && activeWorkspace ? activeWorkspace : undefined)}
+                      style={{ padding: '8px 14px', borderRadius: '8px', border: `1px solid ${BRAND_COLORS.border}`, background: 'white', color: BRAND_COLORS.primary, fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+                    >
+                      다시 시도
+                    </button>
+                  </div>
                 ) : displayedTutorials.length === 0 ? (
                   searchQuery.trim() ? (
                     <div style={{ textAlign: 'center', padding: '64px 24px', color: '#6B7280' }}>
@@ -1600,8 +1634,8 @@ export default function DashboardPage() {
             {/* 드로어 헤더 */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 16px 12px', borderBottom: '1px solid var(--mm-border-light)', flexShrink: 0 }}>
               <Link href="/home" onClick={() => setShowDrawer(false)} style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="28" height="28"><circle cx="50" cy="50" r="50" fill="#3730a3"/><text x="50" y="68" textAnchor="middle" fontFamily="Georgia, serif" fontSize="62" fontWeight="700" fill="white">M</text></svg>
-                <span style={{ fontSize: '16px', fontWeight: 800, color: '#3730a3', letterSpacing: '-0.03em' }}>MIMIC</span>
+                <BrandMark size={28} />
+                <span style={{ fontSize: '16px', fontWeight: 800, color: BRAND_COLORS.primary, letterSpacing: '-0.03em' }}>{BRAND_NAME}</span>
               </Link>
               <button onClick={() => setShowDrawer(false)} style={{ width: '32px', height: '32px', borderRadius: '8px', border: 'none', background: '#F3F4F6', cursor: 'pointer', display: 'grid', placeItems: 'center', color: '#6B7280' }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -1632,7 +1666,7 @@ export default function DashboardPage() {
               {/* 내 워크스페이스 */}
               <button onClick={() => setMyOpen(v => !v)}
                 style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '7px 10px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'transparent', marginBottom: '2px' }}>
-                <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: activeTab === 'my' ? '#3730a3' : '#E5E7EB', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: activeTab === 'my' ? BRAND_COLORS.primary : '#E5E7EB', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                 </div>
                 <span style={{ fontSize: '13px', fontWeight: 700, color: '#111827', flex: 1, textAlign: 'left' }}>내 워크스페이스</span>
@@ -1649,7 +1683,7 @@ export default function DashboardPage() {
                   ].map(item => (
                     <button key={String(item.id)}
                       onClick={() => { setActiveTab('my'); setActiveFolder(item.id); setShowDrawer(false); }}
-                      style={{ display: 'flex', alignItems: 'center', gap: '7px', width: '100%', padding: '7px 8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', textAlign: 'left', background: folderItemActive(item.id) ? '#e0e7ff' : 'transparent', color: folderItemActive(item.id) ? '#3730a3' : '#4B5563', fontWeight: folderItemActive(item.id) ? 600 : 400 }}>
+                      style={{ display: 'flex', alignItems: 'center', gap: '7px', width: '100%', padding: '7px 8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', textAlign: 'left', background: folderItemActive(item.id) ? BRAND_PRIMARY_SOFT : 'transparent', color: folderItemActive(item.id) ? BRAND_COLORS.primary : '#4B5563', fontWeight: folderItemActive(item.id) ? 600 : 400 }}>
                       <span style={{ flex: 1 }}>{item.label}</span>
                       <span style={{ fontSize: '11px', color: '#9CA3AF' }}>{item.count}</span>
                     </button>
@@ -1669,7 +1703,7 @@ export default function DashboardPage() {
               {/* 팀 워크스페이스 */}
               <button onClick={() => setTeamOpen(v => !v)}
                 style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '7px 10px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'transparent', marginBottom: '2px' }}>
-                <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: activeTab === 'team' ? '#3730a3' : '#E5E7EB', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: activeTab === 'team' ? BRAND_COLORS.primary : '#E5E7EB', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                 </div>
                 <span style={{ fontSize: '13px', fontWeight: 700, color: '#111827', flex: 1, textAlign: 'left' }}>팀 워크스페이스</span>
@@ -1683,8 +1717,8 @@ export default function DashboardPage() {
                   {workspaces.map(ws => (
                       <button key={ws.id}
                         onClick={() => { setActiveTab('team'); setActiveWorkspace(ws.id); setShowDrawer(false); }}
-                        style={{ display: 'flex', alignItems: 'center', gap: '7px', width: '100%', padding: '7px 8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', textAlign: 'left', background: activeTab === 'team' && activeWorkspace === ws.id ? '#e0e7ff' : 'transparent', color: activeTab === 'team' && activeWorkspace === ws.id ? '#3730a3' : '#4B5563', fontWeight: activeTab === 'team' && activeWorkspace === ws.id ? 600 : 400 }}>
-                        <div style={{ width: '10px', height: '10px', borderRadius: '3px', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', flexShrink: 0 }} />
+                        style={{ display: 'flex', alignItems: 'center', gap: '7px', width: '100%', padding: '7px 8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', textAlign: 'left', background: activeTab === 'team' && activeWorkspace === ws.id ? BRAND_PRIMARY_SOFT : 'transparent', color: activeTab === 'team' && activeWorkspace === ws.id ? BRAND_COLORS.primary : '#4B5563', fontWeight: activeTab === 'team' && activeWorkspace === ws.id ? 600 : 400 }}>
+                        <div style={{ width: '10px', height: '10px', borderRadius: '3px', background: BRAND_GRADIENT, flexShrink: 0 }} />
                         <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ws.name}</span>
                         <span style={{ fontSize: '11px', color: '#9CA3AF' }}>{ws.member_count ?? 0}명</span>
                       </button>
@@ -1704,7 +1738,7 @@ export default function DashboardPage() {
                     <span style={{ fontSize: '12px', fontWeight: 600, color: '#111827' }}>{usedToday} / {dailyLimit}</span>
                   </div>
                   <div style={{ height: '4px', borderRadius: '999px', background: '#E5E7EB', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', borderRadius: '999px', background: usedToday >= dailyLimit ? '#EF4444' : '#3730a3', width: `${Math.min(100, (usedToday / dailyLimit) * 100)}%` }} />
+                    <div style={{ height: '100%', borderRadius: '999px', background: usedToday >= dailyLimit ? '#EF4444' : BRAND_COLORS.primary, width: `${Math.min(100, (usedToday / dailyLimit) * 100)}%` }} />
                   </div>
                 </div>
               )}
@@ -1715,7 +1749,7 @@ export default function DashboardPage() {
                   {user?.avatar_url
                     // eslint-disable-next-line @next/next/no-img-element
                     ? <img src={user.avatar_url} alt={user.name} style={{ width: '28px', height: '28px', borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }} />
-                    : <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', display: 'grid', placeItems: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>{firstName.charAt(0) || '?'}</div>
+                    : <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: BRAND_GRADIENT, color: 'white', display: 'grid', placeItems: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>{firstName.charAt(0) || '?'}</div>
                   }
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '13px', fontWeight: 500, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.name ?? '내 계정'}</div>
@@ -1773,17 +1807,17 @@ export default function DashboardPage() {
               {/* 매뉴얼 편집 */}
               <button onClick={() => { router.push(`/manual/${manualActionModal}/editor`); setManualActionModal(null); }}
                 style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', padding: 0, borderRadius: '14px', border: '1.5px solid #E5E7EB', background: 'white', cursor: 'pointer', textAlign: 'left', transition: 'border-color 0.12s, box-shadow 0.12s', overflow: 'hidden' }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = '#3730a3'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(55,48,163,0.08)'; }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = BRAND_COLORS.primary; e.currentTarget.style.boxShadow = `0 0 0 3px ${BRAND_FOCUS_RING}`; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.boxShadow = 'none'; }}>
                 {/* 매뉴얼 모양 샘플 */}
-                <div style={{ width: '100%', aspectRatio: '16 / 10', background: 'linear-gradient(135deg, #eef2ff, #e0e7ff)', display: 'grid', placeItems: 'center', padding: '18px' }}>
-                  <svg viewBox="0 0 220 130" width="100%" style={{ display: 'block', filter: 'drop-shadow(0 6px 14px rgba(55,48,163,0.18))' }}>
+                <div style={{ width: '100%', aspectRatio: '16 / 10', background: `linear-gradient(135deg, ${BRAND_PRIMARY_SOFT}, #F7FFF8)`, display: 'grid', placeItems: 'center', padding: '18px' }}>
+                  <svg viewBox="0 0 220 130" width="100%" style={{ display: 'block', filter: `drop-shadow(0 6px 14px ${BRAND_RING_SOFT})` }}>
                     <rect x="14" y="8" width="192" height="114" rx="9" fill="white"/>
                     {[0, 1, 2].map(i => (
                       <g key={i} transform={`translate(28, ${20 + i * 34})`}>
-                        <circle cx="8" cy="11" r="8" fill="#3730a3"/>
+                        <circle cx="8" cy="11" r="8" fill={BRAND_COLORS.primary}/>
                         <text x="8" y="15" textAnchor="middle" fontSize="9" fontWeight="700" fill="white">{i + 1}</text>
-                        <rect x="24" y="0" width="36" height="22" rx="4" fill="#c7d2fe"/>
+                        <rect x="24" y="0" width="36" height="22" rx="4" fill={BRAND_COLORS.guideSoft}/>
                         <rect x="70" y="3" width="104" height="6" rx="3" fill="#e5e7eb"/>
                         <rect x="70" y="14" width="72" height="6" rx="3" fill="#eef2f7"/>
                       </g>
@@ -1799,19 +1833,19 @@ export default function DashboardPage() {
               <button
                 onClick={() => { router.push(`/manual/${manualActionModal}/studio`); setManualActionModal(null); }}
                 style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', padding: 0, borderRadius: '14px', border: '1.5px solid #E5E7EB', background: 'white', cursor: 'pointer', textAlign: 'left', transition: 'border-color 0.12s, box-shadow 0.12s', overflow: 'hidden' }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = '#7c3aed'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(124,58,237,0.08)'; }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = BRAND_COLORS.guide; e.currentTarget.style.boxShadow = `0 0 0 3px ${BRAND_FOCUS_RING}`; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.boxShadow = 'none'; }}>
                 {/* 학습 가이드 샘플 — 화면 위 코치마크 */}
-                <div style={{ width: '100%', aspectRatio: '16 / 10', background: 'linear-gradient(135deg, #f5f3ff, #ede9fe)', display: 'grid', placeItems: 'center', padding: '18px' }}>
-                  <svg viewBox="0 0 220 130" width="100%" style={{ display: 'block', filter: 'drop-shadow(0 6px 14px rgba(124,58,237,0.18))' }}>
+                <div style={{ width: '100%', aspectRatio: '16 / 10', background: `linear-gradient(135deg, ${BRAND_PRIMARY_SOFT}, #F7FFF8)`, display: 'grid', placeItems: 'center', padding: '18px' }}>
+                  <svg viewBox="0 0 220 130" width="100%" style={{ display: 'block', filter: `drop-shadow(0 6px 14px ${BRAND_RING_SOFT})` }}>
                     <rect x="14" y="10" width="192" height="110" rx="9" fill="white"/>
                     <rect x="14" y="10" width="192" height="20" rx="9" fill="#f3f0ff"/>
                     <circle cx="26" cy="20" r="2.5" fill="#d8b4fe"/><circle cx="35" cy="20" r="2.5" fill="#d8b4fe"/><circle cx="44" cy="20" r="2.5" fill="#d8b4fe"/>
                     <rect x="28" y="44" width="80" height="7" rx="3.5" fill="#ece9f5"/>
                     <rect x="28" y="58" width="120" height="7" rx="3.5" fill="#f1eef8"/>
                     {/* 강조된 버튼 + 글로우 */}
-                    <rect x="118" y="82" width="64" height="24" rx="6" fill="#7c3aed"/>
-                    <rect x="113" y="77" width="74" height="34" rx="9" fill="none" stroke="#7c3aed" strokeWidth="2" opacity="0.45"/>
+                    <rect x="118" y="82" width="64" height="24" rx="6" fill={BRAND_COLORS.guide}/>
+                    <rect x="113" y="77" width="74" height="34" rx="9" fill="none" stroke={BRAND_COLORS.guide} strokeWidth="2" opacity="0.45"/>
                     {/* 툴팁 */}
                     <g transform="translate(40, 80)">
                       <rect x="0" y="0" width="70" height="30" rx="7" fill="#111827"/>
