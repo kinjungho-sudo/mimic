@@ -1710,6 +1710,9 @@ export default function LandingPage() {
             ))}
           </nav>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Link href="/download/desktop"
+              style={{ padding: '8px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: 700, color: '#7de5dc', border: '1px solid rgba(0,169,157,.28)', background: 'rgba(0,169,157,.08)', textDecoration: 'none' }}
+            >Desktop 앱</Link>
             <Link href="/auth/login"
               style={{ padding: '8px 16px', borderRadius: '8px', fontSize: '13.5px', fontWeight: 500, color: 'rgba(255,255,255,0.55)', textDecoration: 'none', transition: 'color 0.15s' }}
               onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.90)'}
