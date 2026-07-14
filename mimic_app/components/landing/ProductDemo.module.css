@@ -92,9 +92,106 @@
 .liveProgress em { display: block; height: 100%; border-radius: inherit; background: #009b8e; transition: width .35s ease; }
 .liveProgress strong { margin-left: auto; color: #00897d; font-size: 9px; }
 
+.editorTimeline { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; margin: 0 0 22px; }
+.editorTimeline button { display: grid; grid-template-columns: 34px minmax(0,1fr); align-items: center; gap: 9px; min-width: 0; padding: 11px 12px; border: 1px solid #dce6e3; border-radius: 14px; text-align: left; color: #77847f; background: rgba(255,255,255,.82); cursor: pointer; transition: border-color .2s ease, background .2s ease, transform .2s ease; }
+.editorTimeline button:hover { transform: translateY(-2px); }
+.editorTimeline button > span { display: grid; width: 31px; height: 31px; place-items: center; border-radius: 10px; color: #6f7e79; background: #edf3f1; font-size: 11px; font-weight: 900; }
+.editorTimeline button strong, .editorTimeline button small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.editorTimeline button strong { margin-bottom: 3px; color: #2b3633; font-size: 11px; }
+.editorTimeline button small { font-size: 8.5px; }
+.editorTimeline .activeEditorPhase { border-color: rgba(0,155,142,.4); color: #45736c; background: #eafff8; box-shadow: 0 10px 25px rgba(0,155,142,.1); }
+.editorTimeline .activeEditorPhase > span { color: #fff; background: #009b8e; }
+.editorTimeline .activeEditorPhase strong { color: #006d64; }
+
+.editorDemoShell { padding: 20px; border: 1px solid #23302d; border-radius: 28px; background: #0b0e0e; box-shadow: 0 32px 80px rgba(19,49,44,.2); }
+.editorScene { position: relative; overflow: hidden; border: 1px solid rgba(255,255,255,.15); border-radius: 19px; background: #f4f7f6; box-shadow: 0 18px 48px rgba(0,0,0,.24); }
+.editorChrome { display: flex; align-items: center; gap: 7px; height: 40px; padding: 0 13px; border-bottom: 1px solid #dce5e3; background: #f8faf9; }
+.editorAddress { display: flex; align-items: center; gap: 7px; width: min(440px,55%); height: 25px; margin-left: 7px; padding: 0 11px; border: 1px solid #e1e8e6; border-radius: 8px; color: #60716d; background: #fff; font-size: 9px; }
+.editorAddress span { color: #009b8e; font-size: 13px; }
+.editorSaveState { display: flex; align-items: center; gap: 6px; margin-left: auto; color: #49756e; font-size: 8.5px; font-weight: 800; }
+.editorSaveState i { width: 6px; height: 6px; border-radius: 50%; background: #8dd63f; box-shadow: 0 0 0 4px rgba(141,214,63,.12); }
+.editorAppBar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; height: 50px; padding: 0 15px; border-bottom: 1px solid #dfe7e5; background: #fff; }
+.editorAppBar > div { display: flex; align-items: center; gap: 7px; }
+.editorAppBar > div:first-child i { width: 1px; height: 18px; margin-left: 5px; background: #dfe7e5; }
+.editorAppBar > div:last-child { justify-content: flex-end; }
+.editorAppBar > span { color: #67746f; font-size: 10px; font-weight: 750; }
+.editorAppBar strong { color: #16211e; font-size: 12px; }
+.editorAppBar button { padding: 7px 10px; border: 1px solid #dce6e3; border-radius: 8px; color: #52615d; background: #fff; font-size: 8.5px; font-weight: 750; }
+.editorAppBar button:last-child { border-color: #009b8e; color: #fff; background: #009b8e; }
+.editorWorkspace { display: grid; grid-template-columns: 220px minmax(0,1fr) 260px; min-height: 520px; }
+
+.editorSidebar { display: flex; min-width: 0; flex-direction: column; padding: 14px 11px; border-right: 1px solid #dfe7e5; background: #fbfdfc; }
+.sidebarTitle { display: grid; grid-template-columns: 20px minmax(0,1fr); gap: 7px; align-items: start; padding: 3px 3px 13px; border-bottom: 1px solid #e5ecea; }
+.sidebarTitle > span { color: #81908b; font-size: 13px; }
+.sidebarTitle small, .sidebarTitle strong { display: block; }
+.sidebarTitle small { margin-bottom: 3px; color: #009b8e; font-size: 7.5px; font-weight: 850; text-transform: uppercase; }
+.sidebarTitle strong { overflow: hidden; color: #27332f; font-size: 9px; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+.editorStepList { display: grid; gap: 6px; padding-top: 10px; }
+.editorStepList button { display: grid; grid-template-columns: 18px 58px minmax(0,1fr); align-items: center; gap: 6px; padding: 7px; border: 1px solid transparent; border-radius: 10px; text-align: left; background: transparent; opacity: .72; }
+.editorStepList button > span { display: grid; width: 17px; height: 17px; place-items: center; border-radius: 5px; color: #71807b; background: #eaf0ee; font-size: 7px; font-weight: 850; }
+.editorStepList img { display: block; width: 58px; height: 36px; border-radius: 5px; object-fit: cover; }
+.editorStepList strong, .editorStepList small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.editorStepList strong { margin-bottom: 2px; color: #37433f; font-size: 7.5px; }
+.editorStepList small { color: #8c9995; font-size: 6.5px; }
+.editorStepList .selectedEditorStep { border-color: rgba(0,155,142,.23); background: #eafff8; opacity: 1; box-shadow: 0 6px 16px rgba(0,155,142,.08); }
+.editorStepList .selectedEditorStep > span { color: #fff; background: #009b8e; }
+.editorStepList .selectedEditorStep small { color: #27877b; }
+.addStepButton { margin-top: 9px; padding: 8px; border: 1px dashed #cbd8d4; border-radius: 9px; color: #72807c; background: transparent; font-size: 8px; font-weight: 750; }
+
+.editorCanvas { min-width: 0; background: #e9eeec; }
+.canvasToolbar { display: flex; align-items: center; justify-content: flex-end; gap: 9px; height: 34px; padding: 0 12px; border-bottom: 1px solid #dce4e2; color: #788681; background: #f8faf9; font-size: 7.5px; }
+.canvasToolbar i { width: 1px; height: 14px; background: #dce4e2; }
+.canvasStage { display: grid; min-height: 486px; padding: 22px; place-items: center; overflow: hidden; }
+.manualPage { width: min(630px,100%); padding: 20px; border-radius: 7px; background: #fff; box-shadow: 0 10px 28px rgba(33,52,47,.14); }
+.manualPageHeading { margin-bottom: 13px; }
+.manualPageHeading span { display: inline-flex; margin-bottom: 7px; padding: 4px 6px; border-radius: 5px; color: #007d72; background: #eafff8; font-size: 7px; font-weight: 900; }
+.manualPageHeading strong { display: block; margin-bottom: 5px; color: #18231f; font-size: 15px; letter-spacing: -.02em; }
+.manualPageHeading p { margin: 0; color: #65736f; font-size: 8.5px; line-height: 1.5; }
+.manualCapture { position: relative; overflow: hidden; border: 1px solid #dfe6e4; border-radius: 7px; }
+.manualCapture img { display: block; width: 100%; aspect-ratio: 1344/858; object-fit: fill; }
+.editorAnnotation { position: absolute; left: 68.8%; top: 72.7%; width: 28.1%; height: 10.6%; box-sizing: border-box; border: 3px solid #ff6259; border-radius: 8px; background: rgba(255,98,89,.07); box-shadow: 0 7px 20px rgba(255,98,89,.2); animation: annotationIn .35s ease both; }
+.editorAnnotation span { position: absolute; left: -11px; top: -11px; display: grid; width: 21px; height: 21px; place-items: center; border-radius: 50%; color: #fff; background: #ff6259; font-size: 8px; font-weight: 900; box-shadow: 0 5px 12px rgba(255,98,89,.3); }
+
+.editorInspector { min-width: 0; padding: 14px; border-left: 1px solid #dfe7e5; background: #fff; }
+.inspectorTabs { display: grid; grid-template-columns: 1fr 1fr; margin: -3px 0 15px; border-bottom: 1px solid #e5ecea; text-align: center; }
+.inspectorTabs strong, .inspectorTabs span { padding: 9px 0; font-size: 8.5px; }
+.inspectorTabs strong { border-bottom: 2px solid #009b8e; color: #007d72; }
+.inspectorTabs span { color: #8a9793; }
+.editorInspector label { display: block; margin: 12px 0 6px; color: #596762; font-size: 7.5px; font-weight: 800; }
+.titleField, .inspectorField, .descriptionField { position: relative; box-sizing: border-box; width: 100%; border: 1px solid #dce5e2; border-radius: 8px; color: #2d3935; background: #fbfdfc; font-size: 8.5px; line-height: 1.5; }
+.titleField, .inspectorField { min-height: 34px; padding: 9px; }
+.descriptionField { min-height: 74px; padding: 9px; }
+.fieldEditing { border-color: #009b8e; background: #f4fffb; box-shadow: 0 0 0 3px rgba(0,155,142,.1); }
+.fieldEditing i { display: inline-block; width: 1px; height: 11px; margin-left: 2px; vertical-align: middle; background: #009b8e; animation: caretBlink .7s step-end infinite; }
+.annotationTools { margin-top: 16px; padding-top: 13px; border-top: 1px solid #e5ecea; }
+.annotationTools > span { color: #596762; font-size: 7.5px; font-weight: 800; }
+.annotationTools > div { display: grid; grid-template-columns: repeat(3,1fr); gap: 5px; margin-top: 7px; }
+.annotationTools button { padding: 7px 3px; border: 1px solid #dce5e2; border-radius: 7px; color: #65736f; background: #fbfdfc; font-size: 6.5px; }
+.generatingOverlay { position: absolute; z-index: 10; inset: 40px 0 0; display: grid; place-items: center; background: rgba(238,244,242,.76); backdrop-filter: blur(5px); }
+.generatingCard { width: min(330px,calc(100% - 32px)); padding: 24px; border: 1px solid rgba(0,155,142,.17); border-radius: 18px; text-align: center; background: rgba(255,255,255,.97); box-shadow: 0 24px 60px rgba(22,57,50,.18); animation: generatingIn .35s ease both; }
+.generatingCard > span { margin: 0 auto 13px; }
+.generatingCard strong, .generatingCard p, .generatingCard small { display: block; }
+.generatingCard strong { color: #16231f; font-size: 15px; }
+.generatingCard p { margin: 7px 0 16px; color: #71807b; font-size: 9px; line-height: 1.55; }
+.generatingCard > i { display: block; height: 5px; overflow: hidden; border-radius: 999px; background: #e2ebe8; }
+.generatingCard em { display: block; width: 78%; height: 100%; border-radius: inherit; background: linear-gradient(90deg,#009b8e,#8dd63f); animation: generateProgress 2.5s ease both; }
+.generatingCard small { margin-top: 8px; color: #4e7f77; font-size: 8px; }
+.savedToast { position: absolute; z-index: 11; right: 18px; bottom: 18px; display: grid; grid-template-columns: 34px 1fr; align-items: center; gap: 9px; min-width: 250px; padding: 12px 14px; border: 1px solid rgba(0,155,142,.24); border-radius: 13px; background: rgba(236,255,248,.97); box-shadow: 0 14px 34px rgba(0,94,84,.2); animation: toastIn .4s ease both; }
+.savedToast > span { display: grid; width: 32px; height: 32px; place-items: center; border-radius: 50%; color: #fff; background: #009b8e; font-weight: 900; }
+.savedToast strong, .savedToast small { display: block; }
+.savedToast strong { color: #006d64; font-size: 10px; }
+.savedToast small { margin-top: 3px; color: #56847d; font-size: 7.5px; }
+
 .heroDemo { position: relative; padding: 12px; border: 1px solid rgba(255,255,255,.12); border-radius: 24px; background: rgba(255,255,255,.055); box-shadow: 0 30px 80px rgba(0,0,0,.38); backdrop-filter: blur(12px); }
 .heroEyebrow { display: flex; align-items: center; justify-content: space-between; padding: 2px 4px 11px; color: rgba(255,255,255,.82); font-size: 10px; }
 .heroEyebrow span { display: flex; align-items: center; gap: 8px; font-weight: 750; } .heroEyebrow b { color: #8dd63f; font-size: 10px; }
+.heroFlowTabs { display: grid; grid-template-columns: 1fr 18px 1fr; align-items: center; gap: 4px; margin: 0 0 9px; }
+.heroFlowTabs > i { color: rgba(255,255,255,.3); font-size: 10px; font-style: normal; text-align: center; }
+.heroFlowTabs button { display: flex; align-items: center; gap: 7px; padding: 7px 9px; border: 1px solid rgba(255,255,255,.09); border-radius: 9px; color: rgba(255,255,255,.55); background: rgba(255,255,255,.04); cursor: pointer; }
+.heroFlowTabs button > span { display: grid; width: 20px; height: 20px; place-items: center; border-radius: 6px; color: rgba(255,255,255,.6); background: rgba(255,255,255,.08); font-size: 7px; font-weight: 900; }
+.heroFlowTabs button strong { overflow: hidden; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+.heroFlowTabs button[aria-selected='true'] { border-color: rgba(141,214,63,.3); color: #dfffc9; background: rgba(141,214,63,.09); }
+.heroFlowTabs button[aria-selected='true'] > span { color: #07120e; background: #8dd63f; }
 .compactScene { border-radius: 14px; }
 .compactScene .browserChrome { height: 34px; }
 .compactScene .recorderWorkspace { grid-template-columns: minmax(0,1fr) 180px; }
@@ -112,6 +209,13 @@
 .compactScene .manualReady { grid-template-columns: 22px 1fr; gap: 5px; padding: 7px; }
 .compactScene .manualReady > span { width: 21px; height: 21px; font-size: 8px; }
 .compactScene .manualReady strong { font-size: 7px; } .compactScene .manualReady small { font-size: 6px; } .compactScene .manualReady button { padding: 5px; font-size: 7px; }
+.compactScene .coachmark { left: 9px; bottom: 9px; width: min(250px,calc(100% - 18px)); padding: 8px 9px; border-radius: 9px; }
+.compactScene .coachmark span { margin-bottom: 4px; padding: 2px 5px; font-size: 6px; }
+.compactScene .coachmark strong { margin-bottom: 2px; font-size: 8px; }
+.compactScene .coachmark p { overflow: hidden; font-size: 6px; text-overflow: ellipsis; white-space: nowrap; }
+.compactScene .liveProgress { padding: 7px 9px; font-size: 6px; }
+.compactScene .liveProgress > i { width: 50px; }
+.compactScene .liveProgress strong { font-size: 6px; }
 .motionNote { margin: 18px 0 0; color: #7c8b87; font-size: 12px; text-align: center; }
 .reducedMotion .targetBox { opacity: 1; animation: none !important; } .reducedMotion .pointer, .reducedMotion .clickPulse { display: none; } .reducedMotion .coachmark { opacity: 1; animation: none !important; }
 
@@ -122,9 +226,16 @@
 @keyframes savingGlow { to { box-shadow: 0 0 0 3px rgba(255,95,86,.08); } }
 @keyframes readyIn { from { opacity: 0; transform: translateY(8px); } }
 @keyframes coachmarkIn { 0%,24% { opacity: 0; transform: translateY(10px); } 35%,92% { opacity: 1; transform: translateY(0); } 100% { opacity: .9; } }
+@keyframes caretBlink { 50% { opacity: 0; } }
+@keyframes annotationIn { from { opacity: 0; transform: scale(.88); } }
+@keyframes generatingIn { from { opacity: 0; transform: translateY(10px) scale(.98); } }
+@keyframes generateProgress { from { width: 8%; } to { width: 92%; } }
+@keyframes toastIn { from { opacity: 0; transform: translateY(10px); } }
 
 @media (max-width: 900px) {
   .recorderWorkspace { grid-template-columns: minmax(0,1fr) 240px; }
+  .editorWorkspace { grid-template-columns: 180px minmax(0,1fr); }
+  .editorInspector { display: none; }
 }
 
 @media (max-width: 700px) {
@@ -133,6 +244,10 @@
   .flowTabs { grid-template-columns: 1fr; gap: 8px; } .flowTabs > i { display: none; }
   .flowTabs button { padding: 10px 12px; }
   .demoShell { padding: 10px; border-radius: 20px; }
+  .editorTimeline { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; }
+  .editorTimeline button { padding: 8px; }
+  .editorTimeline button small { display: none; }
+  .editorDemoShell { padding: 10px; border-radius: 20px; }
   .stageTopline { padding: 0 2px 10px; } .stageTopline strong { font-size: 11px; } .stageTopline > span, .stagePill { display: none; }
   .browserChrome { height: 34px; padding: 0 8px; } .addressBar { width: 65%; height: 22px; } .captureBadge, .liveBadge { display: none; }
   .recorderWorkspace { grid-template-columns: 1fr; }
@@ -147,8 +262,20 @@
   .liveProgress strong { display: none; }
   .compactScene .recorderWorkspace { grid-template-columns: minmax(0,1fr) 145px; }
   .compactScene .savedSteps { grid-template-columns: 1fr; }
+  .editorChrome { height: 34px; padding: 0 8px; }
+  .editorAddress { width: 70%; height: 21px; }
+  .editorSaveState { display: none; }
+  .editorAppBar { grid-template-columns: 1fr 1fr; height: 42px; padding: 0 9px; }
+  .editorAppBar > span { display: none; }
+  .editorAppBar button:first-child { display: none; }
+  .editorWorkspace { grid-template-columns: 1fr; min-height: 0; }
+  .editorSidebar { display: none; }
+  .canvasStage { min-height: 330px; padding: 12px; }
+  .manualPage { padding: 13px; }
+  .manualPageHeading strong { font-size: 12px; }
+  .savedToast { right: 10px; bottom: 10px; min-width: 220px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .targetBox, .pointer, .clickPulse, .coachmark, .captureBadge::before, .savedStep { animation: none !important; }
+  .targetBox, .pointer, .clickPulse, .coachmark, .captureBadge::before, .savedStep, .editorAnnotation, .generatingCard, .generatingCard em, .savedToast, .fieldEditing i { animation: none !important; }
 }
