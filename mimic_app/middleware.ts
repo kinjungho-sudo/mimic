@@ -3,7 +3,15 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 const clean = (v: string | undefined) => v?.replace(/^﻿/, '').trim() ?? '';
 
-const PROTECTED = ['/editor', '/manual', '/mypage', '/extension-link', '/settings'];
+const PROTECTED = [
+  '/editor',
+  '/manual',
+  '/mypage',
+  '/extension-link',
+  '/settings',
+  '/download',
+  '/downloads',
+];
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -39,12 +47,17 @@ export async function middleware(request: NextRequest) {
   const userEmail = typeof claims?.email === 'string' ? claims.email : null;
 
   const { pathname } = request.nextUrl;
-  const isProtected = PROTECTED.some(p => pathname.startsWith(p));
+  const isProtected = PROTECTED.some(
+    p => pathname === p || pathname.startsWith(`${p}/`)
+  );
 
   if (isProtected && !userId) {
     const url = request.nextUrl.clone();
     url.pathname = '/auth/login';
-    url.searchParams.set('next', pathname);
+    const next = pathname.startsWith('/downloads/')
+      ? '/download/desktop'
+      : `${pathname}${request.nextUrl.search}`;
+    url.searchParams.set('next', next);
     return NextResponse.redirect(url);
   }
 
@@ -52,7 +65,7 @@ export async function middleware(request: NextRequest) {
     if (!userId || userEmail !== clean(process.env.ADMIN_EMAIL)) {
       const url = request.nextUrl.clone();
       url.pathname = '/auth/login';
-      url.searchParams.set('next', pathname);
+      url.searchParams.set('next', `${pathname}${request.nextUrl.search}`);
       return NextResponse.redirect(url);
     }
   }
@@ -61,5 +74,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/|auth/callback|download/|downloads/).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/|auth/callback).*)'],
 };

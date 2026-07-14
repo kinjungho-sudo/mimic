@@ -1549,7 +1549,7 @@ function ServiceSimulatorSection() {
 
 function HeroSection() {
   return (
-    <section className="landing-hero" style={{ padding: '78px 0 72px', background: '#07070F', position: 'relative', overflow: 'hidden' }}>
+    <section className="landing-hero landing-dark-section" style={{ padding: '78px 0 72px', background: '#07070F', position: 'relative', overflow: 'hidden' }}>
       {/* Animated ambient orbs */}
       <div className="hero-orb hero-orb-1" />
       <div className="hero-orb hero-orb-2" />
@@ -1674,7 +1674,7 @@ export default function LandingPage() {
       )}
 
       {/* Header */}
-      <header style={{ position: 'sticky', top: 0, zIndex: 50, background: 'rgba(7,7,15,0.82)', backdropFilter: 'saturate(180%) blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      <header className="landing-header" style={{ position: 'sticky', top: 0, zIndex: 50, background: 'rgba(7,7,15,0.82)', backdropFilter: 'saturate(180%) blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px', display: 'flex', alignItems: 'center', gap: '32px', height: '64px' }}>
           <Link href="/landingpage" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '15px', color: 'white', textDecoration: 'none', letterSpacing: '-0.01em' }}>
             <BrandMark />
@@ -1712,7 +1712,7 @@ export default function LandingPage() {
       <ProductDemo />
 
       {/* Manifesto */}
-      <section style={{ padding: '128px 0', background: 'linear-gradient(180deg, #07070F 0%, #0d0d1c 100%)', overflow: 'hidden', position: 'relative' }}>
+      <section className="landing-dark-section" style={{ padding: '128px 0', background: 'linear-gradient(180deg, #07070F 0%, #0d0d1c 100%)', overflow: 'hidden', position: 'relative' }}>
         <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 70% 50% at 50% 50%, rgba(18,184,134,0.20) 0%, transparent 70%)', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent 0%, rgba(18,184,134,0.35) 30%, rgba(18,184,134,0.35) 70%, transparent 100%)', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
         <div style={{ maxWidth: '900px', margin: '0 auto', padding: '0 32px', textAlign: 'center', position: 'relative' }}>
@@ -1748,7 +1748,7 @@ export default function LandingPage() {
       </section>
 
       {/* Problem */}
-      <section style={{ padding: '100px 0', background: '#0A0A15' }}>
+      <section className="landing-dark-section" style={{ padding: '100px 0', background: '#0A0A15' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
           <RevealSection>
             <span style={{ display: 'block', textAlign: 'center', fontSize: '11px', color: '#12B886', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '16px' }}>Problem</span>
@@ -1838,7 +1838,7 @@ export default function LandingPage() {
       </section>
 
       {/* Features */}
-      <section id="features" style={{ padding: '100px 0', background: '#0A0A15' }}>
+      <section id="features" className="landing-dark-section" style={{ padding: '100px 0', background: '#0A0A15' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
           <RevealSection>
             <span style={{ display: 'block', textAlign: 'center', fontSize: '11px', color: '#12B886', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '16px' }}>Features</span>
@@ -1982,7 +1982,7 @@ export default function LandingPage() {
       </section>
 
       {/* B2B */}
-      <section id="b2b" style={{ padding: '96px 0', background: 'radial-gradient(800px 320px at 80% 0%, rgba(18,184,134,0.20), transparent 60%), radial-gradient(700px 320px at 20% 100%, rgba(0,155,142,0.20), transparent 60%), #0A0A0F', color: 'white' }}>
+      <section id="b2b" className="landing-dark-section" style={{ padding: '96px 0', background: 'radial-gradient(800px 320px at 80% 0%, rgba(18,184,134,0.20), transparent 60%), radial-gradient(700px 320px at 20% 100%, rgba(0,155,142,0.20), transparent 60%), #0A0A0F', color: 'white' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
           <span style={{ display: 'block', textAlign: 'center', fontSize: '12px', color: '#8DD63F', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '14px' }}>For Enterprise</span>
           <h2 style={{ textAlign: 'center', fontSize: '36px', fontWeight: 700, letterSpacing: '-0.025em', margin: '0 auto 16px', maxWidth: '720px', lineHeight: 1.2, color: 'white' }}>팀 전체가 같은 방식으로<br/>일할 수 있게</h2>
@@ -2449,6 +2449,20 @@ export default function LandingPage() {
 
         /* ── 모바일 반응형 ── */
         @media (max-width: 768px) {
+          .landing-header {
+            background: rgba(13, 54, 49, 0.94) !important;
+            border-bottom-color: rgba(141, 214, 63, 0.18) !important;
+          }
+          .landing-dark-section {
+            background: linear-gradient(180deg, #17463f 0%, #10342f 100%) !important;
+          }
+          .landing-dark-section p {
+            color: rgba(244, 255, 252, 0.74) !important;
+          }
+          .landing-dark-section .grid-3col > div {
+            background: rgba(255,255,255,0.08) !important;
+            border-color: rgba(255,255,255,0.14) !important;
+          }
           .hero-orb { filter: blur(50px) !important; }
           .hero-orb-1 { width: 300px !important; height: 300px !important; }
           .hero-orb-2 { width: 250px !important; height: 250px !important; }
@@ -2468,7 +2482,11 @@ export default function LandingPage() {
           section { padding: 64px 0 !important; }
           section > div { padding: 0 16px !important; }
 
-          .landing-hero { padding-top: 54px !important; }
+          .landing-hero {
+            padding-top: 54px !important;
+            background: linear-gradient(155deg, #1d5149 0%, #123a35 54%, #0d2d29 100%) !important;
+          }
+          .landing-hero .hero-proof { color: rgba(244,255,252,0.68) !important; }
           .hero-layout { gap: 34px !important; }
           .hero-preview { transform: none; margin: 0 !important; }
           .hero-cta-row { flex-direction: column !important; align-items: stretch !important; }
