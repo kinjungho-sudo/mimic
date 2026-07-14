@@ -48,7 +48,7 @@
 .recordViewport .targetBox { border-color: #ff6259; background: rgba(255,98,89,.08); box-shadow: 0 8px 24px rgba(255,98,89,.24), inset 0 0 0 2px rgba(255,255,255,.72); }
 .clickPulse { position: absolute; z-index: 5; left: calc(var(--target-x) + var(--target-w) / 2); top: calc(var(--target-y) + var(--target-h) / 2); pointer-events: none; opacity: 0; }
 .clickPulse { width: 24px; height: 24px; border: 3px solid #8dd63f; border-radius: 50%; transform: translate(-50%,-50%) scale(.2); }
-.pointer { position: absolute; z-index: 6; left: 0; top: 0; pointer-events: none; opacity: 0; transform: translate(calc(var(--cursor-from-x) - 8px),calc(var(--cursor-from-y) - 6px)); filter: drop-shadow(0 4px 6px rgba(0,0,0,.35)); will-change: transform; }
+.pointer { position: absolute; z-index: 6; left: var(--cursor-from-x); top: var(--cursor-from-y); pointer-events: none; opacity: 0; transform: translate(-4px,-2px); transform-origin: 4px 2px; filter: drop-shadow(0 4px 6px rgba(0,0,0,.35)); will-change: left,top,transform; }
 [data-playing='true'] .targetBox { animation: targetReveal 2.3s ease both; }
 [data-playing='true'] .pointer { animation: pointerJourney 1.75s linear both; }
 [data-playing='true'] .clickPulse { animation: targetClick 2.3s ease both; }
@@ -375,12 +375,12 @@
 @keyframes recordBlink { 50% { opacity: .3; } }
 @keyframes targetReveal { 0%,12% { opacity: 0; transform: scale(.96); } 26%,88% { opacity: 1; transform: scale(1); } 100% { opacity: .7; } }
 @keyframes pointerJourney {
-  0% { opacity: .25; transform: translate(calc(var(--cursor-from-x) - 8px),calc(var(--cursor-from-y) - 6px)) scale(.96); }
+  0% { left: var(--cursor-from-x); top: var(--cursor-from-y); opacity: .25; transform: translate(-4px,-2px) scale(.96); }
   9% { opacity: 1; }
-  31% { opacity: 1; transform: translate(calc(var(--cursor-control-1-x) - 8px),calc(var(--cursor-control-1-y) - 6px)) rotate(-2deg) scale(1); }
-  63% { opacity: 1; transform: translate(calc(var(--cursor-control-2-x) - 8px),calc(var(--cursor-control-2-y) - 6px)) rotate(2deg) scale(1); }
-  78% { opacity: 1; transform: translate(calc(var(--cursor-to-x) - 8px),calc(var(--cursor-to-y) - 6px)) scale(.9); }
-  88%,100% { opacity: 1; transform: translate(calc(var(--cursor-to-x) - 8px),calc(var(--cursor-to-y) - 6px)) scale(1); }
+  31% { left: var(--cursor-control-1-x); top: var(--cursor-control-1-y); opacity: 1; transform: translate(-4px,-2px) rotate(-2deg) scale(1); }
+  63% { left: var(--cursor-control-2-x); top: var(--cursor-control-2-y); opacity: 1; transform: translate(-4px,-2px) rotate(2deg) scale(1); }
+  78% { left: var(--cursor-to-x); top: var(--cursor-to-y); opacity: 1; transform: translate(-4px,-2px) scale(.9); }
+  88%,100% { left: var(--cursor-to-x); top: var(--cursor-to-y); opacity: 1; transform: translate(-4px,-2px) scale(1); }
 }
 @keyframes targetClick { 0%,58% { opacity: 0; transform: translate(-50%,-50%) scale(.2); } 68% { opacity: .95; transform: translate(-50%,-50%) scale(.8); } 84%,100% { opacity: 0; transform: translate(-50%,-50%) scale(2.5); } }
 @keyframes savingGlow { to { box-shadow: 0 0 0 3px rgba(255,95,86,.08); } }
