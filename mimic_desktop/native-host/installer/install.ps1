@@ -46,6 +46,7 @@ if ($Uninstall) {
 
 $nodeSource = Join-Path $sourceRoot "node.exe"
 $hostSource = Join-Path $sourceRoot "host.js"
+$captureAgentSource = Join-Path $sourceRoot "capture-agent.ps1"
 
 if (-not (Test-Path $nodeSource)) {
   throw "node.exe is missing from installer payload."
@@ -53,10 +54,14 @@ if (-not (Test-Path $nodeSource)) {
 if (-not (Test-Path $hostSource)) {
   throw "host.js is missing from installer payload."
 }
+if (-not (Test-Path $captureAgentSource)) {
+  throw "capture-agent.ps1 is missing from installer payload."
+}
 
 New-Item -ItemType Directory -Force -Path $installDir | Out-Null
 Copy-Item -LiteralPath $nodeSource -Destination (Join-Path $installDir "node.exe") -Force
 Copy-Item -LiteralPath $hostSource -Destination (Join-Path $installDir "host.js") -Force
+Copy-Item -LiteralPath $captureAgentSource -Destination (Join-Path $installDir "capture-agent.ps1") -Force
 
 $wrapperContent = @"
 @echo off

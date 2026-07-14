@@ -14,6 +14,7 @@ $sedPath = Join-Path $stagingDir "mimic-desktop-installer.sed"
 
 $nodePath = (Get-Command node.exe -ErrorAction Stop).Source
 $hostPath = Join-Path $root "src\host.js"
+$captureAgentPath = Join-Path $root "src\capture-agent.ps1"
 $installScriptPath = Join-Path $root "installer\install.ps1"
 
 if (-not (Test-Path $hostPath)) {
@@ -21,6 +22,9 @@ if (-not (Test-Path $hostPath)) {
 }
 if (-not (Test-Path $installScriptPath)) {
   throw "Missing installer script: $installScriptPath"
+}
+if (-not (Test-Path $captureAgentPath)) {
+  throw "Missing capture agent: $captureAgentPath"
 }
 if (-not (Get-Command iexpress.exe -ErrorAction SilentlyContinue)) {
   throw "iexpress.exe is required to build the quick Windows installer."
@@ -32,6 +36,7 @@ Remove-Item -LiteralPath (Join-Path $stagingDir "*") -Recurse -Force -ErrorActio
 
 Copy-Item -LiteralPath $installScriptPath -Destination (Join-Path $stagingDir "install.ps1") -Force
 Copy-Item -LiteralPath $hostPath -Destination (Join-Path $stagingDir "host.js") -Force
+Copy-Item -LiteralPath $captureAgentPath -Destination (Join-Path $stagingDir "capture-agent.ps1") -Force
 Copy-Item -LiteralPath $nodePath -Destination (Join-Path $stagingDir "node.exe") -Force
 
 $sed = @"
@@ -61,12 +66,14 @@ SourceFiles=SourceFiles
 FILE0=install.ps1
 FILE1=host.js
 FILE2=node.exe
+FILE3=capture-agent.ps1
 [SourceFiles]
 SourceFiles0=$stagingDir
 [SourceFiles0]
 %FILE0%=
 %FILE1%=
 %FILE2%=
+%FILE3%=
 "@
 
 [System.IO.File]::WriteAllText($sedPath, $sed, [System.Text.UTF8Encoding]::new($false))
@@ -77,15 +84,25 @@ if (Test-Path $outputPath) {
 
 & iexpress.exe /N /Q $sedPath
 
-if (-not (Test-Path $outputPath)) {
-  $deadline = (Get-Date).AddMinutes(3)
-  while ((Get-Date) -lt $deadline -and -not (Test-Path $outputPath)) {
-    Start-Sleep -Seconds 1
+$deadline = (Get-Date).AddMinutes(3)
+$lastLength = -1
+$stableChecks = 0
+while ((Get-Date) -lt $deadline) {
+  if (Test-Path $outputPath) {
+    $currentLength = (Get-Item $outputPath).Length
+    if ($currentLength -gt 1MB -and $currentLength -eq $lastLength) {
+      $stableChecks += 1
+      if ($stableChecks -ge 3) { break }
+    } else {
+      $stableChecks = 0
+    }
+    $lastLength = $currentLength
   }
+  Start-Sleep -Seconds 1
 }
 
-if (-not (Test-Path $outputPath)) {
-  throw "Installer was not created: $outputPath"
+if (-not (Test-Path $outputPath) -or (Get-Item $outputPath).Length -le 1MB -or $stableChecks -lt 3) {
+  throw "Installer was not created completely: $outputPath"
 }
 
 if ($PublishToWebApp) {

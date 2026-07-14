@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 const STORE_URL = 'https://chromewebstore.google.com/detail/mimic-recorder/ehbhcdkapcbfehinjapabgoegcjmmbgd';
-const INSTALLER_URL = process.env.NEXT_PUBLIC_DESKTOP_INSTALLER_URL?.replace(/^\uFEFF/, '').trim() || '';
+const INSTALLER_URL = process.env.NEXT_PUBLIC_DESKTOP_INSTALLER_URL?.replace(/^\uFEFF/, '').trim()
+  || '/downloads/MIMICDesktopSetup-dev.exe';
 
-type DesktopStatus = 'idle' | 'checking' | 'ready' | 'missing' | 'extension_missing' | 'starting' | 'started';
+type DesktopStatus = 'idle' | 'checking' | 'ready' | 'missing' | 'extension_missing' | 'starting' | 'started' | 'stopping' | 'stopped';
 
 interface DesktopCompanionResponse {
   ok?: boolean;
@@ -26,7 +27,7 @@ function canTalkToExtension(): boolean {
   return typeof window !== 'undefined' && !!window.chrome?.runtime?.sendMessage && !!getExtensionId();
 }
 
-function sendExtensionMessage(action: string): Promise<DesktopCompanionResponse | null> {
+function sendExtensionMessage(action: string, payload: Record<string, unknown> = {}): Promise<DesktopCompanionResponse | null> {
   return new Promise(resolve => {
     const extensionId = getExtensionId();
     if (!extensionId || !window.chrome?.runtime?.sendMessage) {
@@ -35,7 +36,7 @@ function sendExtensionMessage(action: string): Promise<DesktopCompanionResponse 
     }
 
     const timer = window.setTimeout(() => resolve(null), 5000);
-    window.chrome.runtime.sendMessage(extensionId, { action }, response => {
+    window.chrome.runtime.sendMessage(extensionId, { action, ...payload }, response => {
       window.clearTimeout(timer);
       if (window.chrome?.runtime?.lastError) {
         resolve(null);
@@ -78,6 +79,10 @@ export default function DesktopSetupPage() {
         return '데스크톱 녹화 세션을 시작하고 있습니다.';
       case 'started':
         return '데스크톱 녹화 세션이 켜졌습니다.';
+      case 'stopping':
+        return '데스크톱 녹화를 종료하고 있습니다.';
+      case 'stopped':
+        return '데스크톱 녹화가 종료되었습니다.';
       default:
         return '설치 파일을 내려받고 설치를 완료해주세요.';
     }
@@ -135,6 +140,22 @@ export default function DesktopSetupPage() {
     setStatus('missing');
     setMessage(response?.error || 'Desktop Companion 녹화 세션을 시작하지 못했습니다.');
   }, [status]);
+
+  const stopDesktopRecording = useCallback(async () => {
+    if (status !== 'started') return;
+    setStatus('stopping');
+    setMessage(null);
+    const response = await sendExtensionMessage('STOP_DESKTOP_RECORDING', { sessionId });
+
+    if (response?.ok) {
+      setStatus('stopped');
+      setMessage(`캡처가 저장되었습니다. 파일 탐색기에서 %LOCALAPPDATA%\\MIMIC\\DesktopCompanion\\captures\\${sessionId} 폴더를 확인해주세요.`);
+      return;
+    }
+
+    setStatus('started');
+    setMessage(response?.error || 'Desktop Companion 녹화를 종료하지 못했습니다.');
+  }, [sessionId, status]);
 
   return (
     <main className="desktop-setup-page">
@@ -202,6 +223,9 @@ export default function DesktopSetupPage() {
               </button>
               <button type="button" onClick={startDesktopRecording} disabled={status !== 'ready'}>
                 데스크톱 녹화 시작
+              </button>
+              <button type="button" onClick={stopDesktopRecording} disabled={status !== 'started'}>
+                녹화 종료
               </button>
             </div>
             {installerReady && (

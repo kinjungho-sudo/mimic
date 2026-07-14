@@ -1,10 +1,14 @@
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
+const { spawn } = require("child_process");
 
 const state = {
   activeSessionId: null,
   startedAt: null,
+  captureProcess: null,
+  captureDir: null,
+  stopFile: null,
 };
 
 const localAppData = process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local");
@@ -24,6 +28,59 @@ function send(message) {
   process.stdout.write(body);
 }
 
+function safeSessionId(value) {
+  return String(value || "").replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 120);
+}
+
+function stopCaptureAgent() {
+  if (state.stopFile) {
+    try {
+      fs.writeFileSync(state.stopFile, new Date().toISOString(), "utf8");
+    } catch (error) {
+      log({ event: "capture_stop_signal_failed", error: error.message });
+    }
+  }
+  state.captureProcess = null;
+}
+
+function startCaptureAgent(sessionId) {
+  stopCaptureAgent();
+
+  const safeId = safeSessionId(sessionId);
+  if (!safeId) throw new Error("missing_session_id");
+
+  const captureDir = path.join(logDir, "captures", safeId);
+  const stopFile = path.join(captureDir, ".stop");
+  const agentPath = path.join(__dirname, "capture-agent.ps1");
+  fs.mkdirSync(captureDir, { recursive: true });
+  fs.rmSync(stopFile, { force: true });
+
+  const child = spawn("powershell.exe", [
+    "-NoProfile",
+    "-ExecutionPolicy", "Bypass",
+    "-File", agentPath,
+    "-SessionId", sessionId,
+    "-OutputDir", captureDir,
+    "-StopFile", stopFile,
+  ], {
+    windowsHide: true,
+    stdio: "ignore",
+  });
+
+  child.on("error", (error) => {
+    log({ event: "capture_agent_error", session_id: sessionId, error: error.message });
+  });
+  child.on("exit", (code) => {
+    log({ event: "capture_agent_exit", session_id: sessionId, code });
+    if (state.captureProcess === child) state.captureProcess = null;
+  });
+
+  state.captureProcess = child;
+  state.captureDir = captureDir;
+  state.stopFile = stopFile;
+  return captureDir;
+}
+
 function handleMessage(message) {
   if (!message || typeof message !== "object") {
     return { ok: false, error: "invalid_message" };
@@ -41,17 +98,21 @@ function handleMessage(message) {
   if (message.type === "START_CAPTURE_SESSION") {
     state.activeSessionId = message.capture_session_id || null;
     state.startedAt = new Date().toISOString();
+    const captureDir = startCaptureAgent(state.activeSessionId);
     log({ event: "start_capture_session", message });
     return {
       ok: true,
       type: "CAPTURE_SESSION_STARTED",
       capture_session_id: state.activeSessionId,
       started_at: state.startedAt,
+      capture_dir: captureDir,
     };
   }
 
   if (message.type === "STOP_CAPTURE_SESSION") {
     const stoppedSessionId = state.activeSessionId;
+    const captureDir = state.captureDir;
+    stopCaptureAgent();
     log({ event: "stop_capture_session", message, active_session_id: stoppedSessionId });
     state.activeSessionId = null;
     state.startedAt = null;
@@ -59,6 +120,7 @@ function handleMessage(message) {
       ok: true,
       type: "CAPTURE_SESSION_STOPPED",
       capture_session_id: message.capture_session_id || stoppedSessionId,
+      capture_dir: captureDir,
     };
   }
 
@@ -90,5 +152,6 @@ process.stdin.on("data", (chunk) => {
 });
 
 process.stdin.on("end", () => {
+  stopCaptureAgent();
   log({ event: "stdin_end", active_session_id: state.activeSessionId });
 });

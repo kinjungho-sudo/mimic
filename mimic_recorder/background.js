@@ -544,6 +544,22 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
     return true;
   }
 
+  if (message.action === 'STOP_DESKTOP_RECORDING') {
+    (async () => {
+      const result = await notifyDesktopCaptureStopped({
+        sessionId: message.sessionId || null,
+        reason: 'desktop_setup_stop',
+      });
+      sendResponse({
+        ok: !!result?.ok,
+        sessionId: message.sessionId || null,
+        desktop: desktopBridgeStatus(),
+        error: result?.error,
+      });
+    })();
+    return true;
+  }
+
   if (message.action === 'GET_TABS') {
     const toRecordableTab = (t) => {
       if (!t || typeof t.id !== 'number') return null;
