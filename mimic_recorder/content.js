@@ -147,40 +147,44 @@
     }
   }
 
-  function getFrameOffsetToTop() {
-    let x = 0;
-    let y = 0;
+  function mapPointToTop(x, y) {
+    let mappedX = x;
+    let mappedY = y;
     let win = window;
     try {
       while (win !== win.top) {
         const frame = win.frameElement;
         if (!frame) break;
         const rect = frame.getBoundingClientRect();
-        x += rect.left;
-        y += rect.top;
+        // getBoundingClientRect() is expressed in the parent viewport. Include
+        // iframe CSS scaling/zoom instead of assuming a simple offset.
+        const scaleX = rect.width / Math.max(1, win.innerWidth);
+        const scaleY = rect.height / Math.max(1, win.innerHeight);
+        mappedX = rect.left + mappedX * scaleX;
+        mappedY = rect.top + mappedY * scaleY;
         win = win.parent;
       }
     } catch {
-      return { x: 0, y: 0 };
+      return { x, y };
     }
-    return { x, y };
+    return { x: mappedX, y: mappedY };
   }
 
   function toTopRect(rect) {
-    const offset = getFrameOffsetToTop();
+    const topLeft = mapPointToTop(rect.left, rect.top);
+    const bottomRight = mapPointToTop(rect.left + rect.width, rect.top + rect.height);
     return {
-      x: rect.x + offset.x,
-      y: rect.y + offset.y,
-      left: rect.left + offset.x,
-      top: rect.top + offset.y,
-      width: rect.width,
-      height: rect.height,
+      x: topLeft.x,
+      y: topLeft.y,
+      left: topLeft.x,
+      top: topLeft.y,
+      width: Math.max(0, bottomRight.x - topLeft.x),
+      height: Math.max(0, bottomRight.y - topLeft.y),
     };
   }
 
   function toTopPoint(x, y) {
-    const offset = getFrameOffsetToTop();
-    return { x: x + offset.x, y: y + offset.y };
+    return mapPointToTop(x, y);
   }
 
   function rectCenter(el) {
@@ -1003,13 +1007,9 @@
     const node = clickedEl.nodeType === Node.ELEMENT_NODE ? clickedEl : clickedEl.parentElement;
     if (!node || !target.contains(node)) return target;
 
-    let cur = node;
-    while (cur && cur !== target && cur !== document.body && cur !== document.documentElement) {
-      const label = bestLabelFrom(cur);
-      if (label && !isIconOnly(cur)) return cur;
-      cur = cur.parentElement;
-    }
-
+    // Geometry and selectors must describe the control that owns the click, not a
+    // nested text/icon node.  Saving a child span made the highlight tiny and the
+    // generated selector depended on presentation-only DOM that changes often.
     const semantic = node.closest('[role="menuitem"],[role="option"],[role="tab"],[role="button"],[role="link"],button,a[href],label,select,input,textarea,[onclick],[tabindex]:not([tabindex="-1"])');
     if (semantic && target.contains(semantic)) return semantic;
     return target;
@@ -1020,6 +1020,13 @@
       ? bestLabelFrom(clickedEl)
       : '';
     const ownLabel = bestLabelFrom(el);
+    // A broad interactive container can include several labels. Prefer the exact
+    // clicked label when it is meaningfully more specific, while still storing the
+    // stable semantic parent as the action target.
+    if (clickedLabel && !isGenericLabel(clickedLabel) &&
+        (!ownLabel || ownLabel.length > Math.max(32, clickedLabel.length * 2))) {
+      return clickedLabel;
+    }
     if (ownLabel && !isGenericLabel(ownLabel)) return ownLabel;
     if (clickedLabel && !isGenericLabel(clickedLabel)) return clickedLabel;
     if (isGoogleFileAreaGeneric(ownLabel) || isGoogleFileAreaGeneric(clickedLabel)) {

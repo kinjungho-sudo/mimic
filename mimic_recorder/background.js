@@ -1788,6 +1788,11 @@ async function normalizeCaptureGeometry(dataUrl, viewportW, viewportH) {
     const cw = right - left + 1, ch = bottom - top + 1;
     if (cw < 100 || ch < 100) return dataUrl;                     // 과도 트림 방어
     if ((iw * ih - cw * ch) / (iw * ih) < 0.04) return dataUrl;   // 의미 있는 여백 없음
+    // A real device viewport keeps the requested aspect ratio after the emulator
+    // bars are removed. If it does not, the uniform area was probably legitimate
+    // page whitespace; trimming it would shift every saved annotation.
+    const croppedAspect = cw / ch;
+    if (Math.abs(croppedAspect - vpAspect) / vpAspect >= 0.08) return dataUrl;
 
     const out = new OffscreenCanvas(cw, ch);
     out.getContext('2d').drawImage(bmp, left, top, cw, ch, 0, 0, cw, ch);
