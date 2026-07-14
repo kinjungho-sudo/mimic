@@ -1564,10 +1564,10 @@ function HeroSection() {
             기록에서 실행까지 이어지는 AI Live Guide
           </div>
           <h1 style={{ margin: '0 0 24px', fontSize: 'clamp(44px, 5.4vw, 70px)', lineHeight: 1.03, fontWeight: 800, letterSpacing: '-0.05em', color: 'white', wordBreak: 'keep-all' }}>
-            클릭하면,<br/><span style={{ background: 'linear-gradient(135deg, #E8FFF7 0%, #8DD63F 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>SOP가 됩니다.</span>
+            평소처럼 한번만 클릭하면<br/><span style={{ background: 'linear-gradient(135deg, #E8FFF7 0%, #8DD63F 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>매뉴얼이 완성되고,</span>
           </h1>
           <p style={{ fontSize: '17px', color: 'rgba(255,255,255,0.52)', maxWidth: '500px', margin: '0 0 34px', lineHeight: 1.75 }}>
-            평소처럼 업무를 진행하세요. {BRAND_NAME}가 클릭과 화면을 기록해 매뉴얼로 만들고, 실제 실행 순간까지 안내합니다.
+            내 화면 안에서 실시간으로 튜토리얼이 실행됩니다.
           </p>
           <div className="hero-cta-row" style={{ display: 'flex', gap: '12px', marginBottom: '34px' }}>
             <Link href="/auth/login" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '14px 25px', borderRadius: '12px', fontSize: '14px', fontWeight: 700, color: 'white', background: 'linear-gradient(135deg, #009B8E 0%, #12B886 100%)', boxShadow: '0 8px 28px rgba(18,184,134,0.38)', textDecoration: 'none' }}>

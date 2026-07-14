@@ -113,8 +113,10 @@ function TargetViewport({ step, live, reducedMotion }: {
       <span className={styles.pointer} aria-hidden="true"><Pointer /></span>
       {live && (
         <div className={`${styles.coachmark} ${step.coachSide === 'right' ? styles.coachRight : styles.coachLeft}`}>
-          <span>Live Guide</span>
-          <strong>{step.title}</strong>
+          <div className={styles.coachmarkHeading}>
+            <div className={styles.aiAvatar} aria-hidden="true">🤖</div>
+            <div><span>Parro AI Guide</span><strong>{step.title}</strong></div>
+          </div>
           <p>{step.description}</p>
         </div>
       )}
@@ -248,10 +250,10 @@ export function HeroRecordingDemo() {
 }
 
 const EDITOR_PHASES = [
-  { label: '웹 매뉴얼 생성', caption: '녹화 내용을 편집기로 변환' },
-  { label: '제목 편집', caption: 'AI 초안을 업무에 맞게 수정' },
-  { label: '단계 편집', caption: '설명과 강조 위치를 다듬기' },
-  { label: '저장 완료', caption: '공유 가능한 매뉴얼 완성' },
+  { label: '자동 완성', caption: '녹화가 끝나면 카드 매뉴얼 자동 생성' },
+  { label: '카드 편집', caption: '제목·설명·강조 표시를 카드에서 수정' },
+  { label: 'URL 공유', caption: '공유하기를 눌러 링크 하나 복사' },
+  { label: '웹·슬라이드', caption: '받는 사람은 원하는 방식으로 열람' },
 ] as const;
 
 function EditorChrome({ saved }: { saved: boolean }) {
@@ -266,81 +268,143 @@ function EditorChrome({ saved }: { saved: boolean }) {
   );
 }
 
+function SharedViewerScene({ reducedMotion }: { reducedMotion: boolean }) {
+  return (
+    <div className={`${styles.editorScene} ${styles.viewerScene} ${reducedMotion ? styles.reducedMotion : ''}`}>
+      <EditorChrome saved />
+      <div className={styles.viewerAppBar}>
+        <div className={styles.viewerBrand}><span className={styles.parroMark}>P</span><strong>Parro</strong><i />정부24에서 주민등록표 등본 발급하기</div>
+        <div className={styles.viewerActions}>
+          <button type="button">⚡ 라이브 가이드 Beta</button>
+          <div className={styles.viewerToggle}>
+            <span>학습</span><strong>웹 문서</strong><b>슬라이드</b>
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.sharedUrlRibbon}>
+        <span>✓</span>
+        <div><strong>공유 링크 하나로</strong><small>parro-guide.vercel.app/play/guide-7f3a</small></div>
+        <em>설치 없이 바로 열람</em>
+      </div>
+
+      <div className={styles.viewerComparison}>
+        <section className={styles.documentPreview}>
+          <div className={styles.previewLabel}><span>▤</span><div><strong>웹 문서</strong><small>스크롤하며 전체 단계 확인</small></div></div>
+          <div className={styles.documentPage}>
+            <h3>정부24에서 주민등록표 등본 발급하기</h3>
+            {[0, 1].map(index => (
+              <div key={DEMO_STEPS[index].title} className={styles.documentStepCard}>
+                <div><span>{String(index + 1).padStart(2, '0')}.</span><strong>{DEMO_STEPS[index].title}</strong></div>
+                <p>{DEMO_STEPS[index].description}</p>
+                <img src={DEMO_STEPS[index].screenshotUrl} alt="" draggable={false} />
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <div className={styles.viewerSwitchArrow}><span>⇄</span><small>같은 URL</small></div>
+
+        <section className={styles.slidesPreview}>
+          <div className={styles.previewLabel}><span>▰</span><div><strong>슬라이드</strong><small>한 단계씩 집중해서 보기</small></div></div>
+          <div className={styles.slideCanvas}>
+            <div className={styles.slideChapter}><span>Step 2</span><strong>{DEMO_STEPS[1].title}</strong></div>
+            <img src={DEMO_STEPS[1].screenshotUrl} alt="" draggable={false} />
+            <div className={styles.slideAnnotation} />
+            <div className={styles.slideControls}><span>‹</span><strong>2 / 3</strong><span>›</span></div>
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
 function ManualEditorScene({ phase, reducedMotion }: { phase: number; reducedMotion: boolean }) {
-  const selectedStep = phase >= 2 ? 1 : 0;
-  const title = phase >= 1 ? '정부24에서 주민등록표 등본 발급하기' : '정부24 주민등록표 등본 발급';
+  const selectedStep = phase >= 1 ? 1 : 0;
+  const title = '정부24에서 주민등록표 등본 발급하기';
+
+  if (phase === 3) return <SharedViewerScene reducedMotion={reducedMotion} />;
 
   return (
     <div className={`${styles.editorScene} ${reducedMotion ? styles.reducedMotion : ''}`}>
-      <EditorChrome saved={phase >= 3} />
-      <div className={styles.editorAppBar}>
-        <div><span className={styles.parroMark}>P</span><strong>Parro</strong><i /></div>
-        <span>웹 매뉴얼 편집기</span>
-        <div><button type="button">미리보기</button><button type="button">공유하기</button></div>
+      <EditorChrome saved={phase >= 1} />
+      <div className={styles.actualEditorBar}>
+        <div className={styles.editorBarIdentity}><button type="button">‹</button><strong>편집기</strong></div>
+        <div className={styles.editorBarMeta}><span>3개 단계</span><strong><i /> 자동 저장됨</strong></div>
+        <div className={styles.editorBarActions}>
+          <button type="button">미리보기</button>
+          <button type="button" className={phase === 2 ? styles.shareButtonActive : ''}>⌁ 공유</button>
+          <span>✓ 게시됨</span>
+        </div>
       </div>
 
-      <div className={styles.editorWorkspace}>
-        <aside className={styles.editorSidebar}>
-          <div className={styles.sidebarTitle}><span>←</span><div><small>매뉴얼</small><strong>{title}</strong></div></div>
-          <div className={styles.editorStepList}>
+      <div className={styles.actualEditorWorkspace}>
+        <aside className={styles.actualToc}>
+          <strong>목차</strong>
+          <div className={styles.tocDomain}><span>G</span><b>정부24</b></div>
+          <div className={styles.actualStepList}>
             {DEMO_STEPS.map((step, index) => (
               <button type="button" key={step.title} className={selectedStep === index ? styles.selectedEditorStep : ''}>
-                <span>{index + 1}</span>
-                <img src={step.screenshotUrl} alt="" draggable={false} />
-                <div><strong>{step.title}</strong><small>{index === selectedStep ? '편집 중' : '자동 저장됨'}</small></div>
+                <span>{String(index + 1).padStart(2, '0')}</span>
+                <strong>{step.title}</strong>
               </button>
             ))}
           </div>
-          <button type="button" className={styles.addStepButton}>＋ 단계 추가</button>
+          <button type="button" className={styles.actualAddStep}>＋ 단계 추가</button>
         </aside>
 
-        <main className={styles.editorCanvas}>
-          <div className={styles.canvasToolbar}><span>실행 취소</span><i /><span>100%</span><span>화면 맞춤</span></div>
-          <div className={styles.canvasStage}>
-            <div className={styles.manualPage}>
-              <div className={styles.manualPageHeading}>
-                <span>STEP {selectedStep + 1}</span>
+        <main className={styles.actualEditorMain}>
+          <div className={styles.manualTitleBar}>
+            <strong>{title}</strong>
+            <div><button type="button">◉ 전체 색상</button><button type="button">✦ 전체 문장 다듬기</button></div>
+          </div>
+          <div className={styles.cardCanvas}>
+            <article className={`${styles.stepEditorCard} ${phase === 1 ? styles.cardEditing : ''}`}>
+              <div className={styles.cardFormatBar}><span>본문</span><span>B</span><span>↕</span><span>🔗</span></div>
+              <div className={styles.stepCardHeading}>
+                <span>{String(selectedStep + 1).padStart(2, '0')}.</span>
                 <strong>{DEMO_STEPS[selectedStep].title}</strong>
-                <p>{phase >= 2 ? '서비스 개요 우측의 파란색 발급하기 버튼을 클릭하세요.' : DEMO_STEPS[selectedStep].description}</p>
               </div>
-              <div className={styles.manualCapture}>
-                <img src={DEMO_STEPS[selectedStep].screenshotUrl} alt="웹 매뉴얼 편집 화면" draggable={false} />
-                {phase >= 2 && <div className={styles.editorAnnotation}><span>2</span></div>}
+              <p className={phase === 1 ? styles.editingText : ''}>
+                {selectedStep === 1 ? '서비스 개요 우측의 파란색 발급하기 버튼을 클릭하세요.' : DEMO_STEPS[selectedStep].description}
+                {phase === 1 && <i />}
+              </p>
+              <div className={styles.stepCardCapture}>
+                <img src={DEMO_STEPS[selectedStep].screenshotUrl} alt="카드형 매뉴얼 편집 화면" draggable={false} />
+                {phase >= 1 && <div className={styles.editorAnnotation}><span>{selectedStep + 1}</span></div>}
               </div>
-            </div>
+              <div className={styles.cardFooter}><span>이미지 편집</span><span>댓글</span><span>복제</span></div>
+            </article>
           </div>
         </main>
-
-        <aside className={styles.editorInspector}>
-          <div className={styles.inspectorTabs}><strong>콘텐츠</strong><span>디자인</span></div>
-          <label>매뉴얼 제목</label>
-          <div className={`${styles.titleField} ${phase === 1 ? styles.fieldEditing : ''}`}>{title}{phase === 1 && <i />}</div>
-          <label>단계 제목</label>
-          <div className={styles.inspectorField}>{DEMO_STEPS[selectedStep].title}</div>
-          <label>단계 설명</label>
-          <div className={`${styles.descriptionField} ${phase === 2 ? styles.fieldEditing : ''}`}>
-            {phase >= 2 ? '서비스 개요 우측의 파란색 발급하기 버튼을 클릭하세요.' : DEMO_STEPS[selectedStep].description}
-            {phase === 2 && <i />}
-          </div>
-          <div className={styles.annotationTools}>
-            <span>강조 도구</span>
-            <div><button type="button">□ 박스</button><button type="button">➜ 화살표</button><button type="button">● 마커</button></div>
-          </div>
-        </aside>
       </div>
 
       {phase === 0 && (
         <div className={styles.generatingOverlay}>
           <div className={styles.generatingCard}>
             <span className={styles.parroMark}>P</span>
-            <strong>웹 매뉴얼을 만들고 있어요</strong>
-            <p>저장된 화면과 클릭 정보를 편집 가능한 단계로 변환합니다.</p>
+            <strong>카드형 매뉴얼을 자동으로 완성하고 있어요</strong>
+            <p>녹화한 화면과 클릭 정보를 바탕으로 제목·단계 설명·강조 위치를 구성합니다.</p>
             <i><em /></i>
-            <small>3개 단계를 구성하는 중…</small>
+            <small>제목 작성 · 3개 단계 구성 · 화면 배치 중…</small>
           </div>
         </div>
       )}
-      {phase >= 3 && <div className={styles.savedToast}><span>✓</span><div><strong>편집 완료</strong><small>공유 가능한 웹 매뉴얼로 저장됐어요</small></div></div>}
+      {phase === 2 && (
+        <div className={styles.shareDemoLayer}>
+          <div className={styles.shareDemoModal}>
+            <div className={styles.shareModalHeading}><strong>공유하기</strong><span>×</span></div>
+            <p>{title}</p>
+            <div className={styles.shareUrlRow}>
+              <code>parro-guide.vercel.app/play/guide-7f3a</code>
+              <button type="button">⌁ 링크 복사</button>
+            </div>
+            <div className={styles.shareSettingRow}><div><strong>공개 범위</strong><small>링크를 가진 사람만 볼 수 있어요</small></div><span>🔗 링크 공유⌄</span></div>
+            <div className={styles.shareSettingRow}><div><strong>비밀번호 보호</strong><small>필요한 경우 접근을 제한할 수 있어요</small></div><span>설정</span></div>
+            <div className={styles.copySuccess}><span>✓</span><div><strong>링크가 복사됐어요</strong><small>URL만 전달하면 바로 볼 수 있습니다</small></div></div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -361,9 +425,9 @@ export function ProductDemo() {
     <section id="tour" className={styles.productSection}>
       <div ref={ref} className={styles.productInner} data-playing={playing}>
         <div className={styles.sectionHeading}>
-          <span>WEB MANUAL EDITOR</span>
-          <h2>녹화가 끝나면, 편집 가능한 웹 매뉴얼이 됩니다</h2>
-          <p>자동 생성된 제목과 단계 설명을 바로 다듬고, 클릭 위치와 강조 표시까지 편집한 뒤 링크 하나로 공유하세요.</p>
+          <span>SMART MANUAL WORKFLOW</span>
+          <h2>자동으로 완성하고, 카드로 다듬고, URL 하나로 공유합니다</h2>
+          <p>녹화가 끝나면 카드형 매뉴얼이 자동 생성됩니다. 필요한 부분만 편집한 뒤 공유 링크를 보내면 웹 문서와 슬라이드로 바로 볼 수 있어요.</p>
         </div>
 
         <div className={styles.editorTimeline} role="tablist" aria-label="웹 매뉴얼 편집 과정">
@@ -386,7 +450,7 @@ export function ProductDemo() {
         </div>
 
         <p className={styles.motionNote}>
-          {reducedMotion ? '모션 감소 설정에 따라 편집 완료 상태를 표시합니다.' : '웹 매뉴얼 생성과 편집 과정이 자동 재생되며, 위 단계를 눌러 원하는 장면을 직접 볼 수 있습니다.'}
+          {reducedMotion ? '모션 감소 설정에 따라 공유 완료 상태를 표시합니다.' : '실제 Parro의 매뉴얼 생성과 공유 흐름이 자동 재생되며, 위 단계를 눌러 원하는 장면을 직접 볼 수 있습니다.'}
         </p>
       </div>
     </section>
