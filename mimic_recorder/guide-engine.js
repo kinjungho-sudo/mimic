@@ -32,7 +32,7 @@
     // 0순위: AI 시각 재탐색 좌표 (셀렉터·XPath·퍼지 모두 실패 후 복구된 위치)
     if (step._regroundXY) {
       const px = step._regroundXY.x * window.innerWidth, py = step._regroundXY.y * window.innerHeight;
-      const hit = document.elementFromPoint(px, py);
+      const hit = promoteHitTarget(document.elementFromPoint(px, py));
       if (hit && !isOverlayRootId(hit.id)) { el = hit; rect = rectOf(hit); }
       else { rect = { left: px - COORD_BOX / 2, top: py - COORD_BOX / 2, width: COORD_BOX, height: COORD_BOX }; }
       return { el, rect, source: 'ai' };
@@ -41,7 +41,7 @@
     // 0.5순위: 소유자가 스튜디오에서 직접 보정한 핫스팟(0~100%) — 자동 탐지보다 우선(명시 수정한 위치)
     if (step.hotspot_x != null && step.hotspot_y != null) {
       const px = (step.hotspot_x / 100) * window.innerWidth, py = (step.hotspot_y / 100) * window.innerHeight;
-      const hit = document.elementFromPoint(px, py);
+      const hit = promoteHitTarget(document.elementFromPoint(px, py));
       if (hit && !isOverlayRootId(hit.id)) { el = hit; rect = rectOf(hit); }
       else { rect = { left: px - COORD_BOX / 2, top: py - COORD_BOX / 2, width: COORD_BOX, height: COORD_BOX }; }
       return { el, rect, source: 'manual' };
@@ -105,6 +105,18 @@
   function rectOf(el) {
     const r = el.getBoundingClientRect();
     return { left: r.left, top: r.top, width: r.width, height: r.height };
+  }
+
+  function promoteHitTarget(hit) {
+    if (!hit || isOverlayRootId(hit.id)) return null;
+    const semantic = hit.closest && hit.closest(
+      'button,a[href],input,select,textarea,label,[role="button"],[role="link"],[role="menuitem"],[role="option"],[role="tab"],[onclick],[tabindex]:not([tabindex="-1"])'
+    );
+    if (!semantic || isOverlayRootId(semantic.id)) return hit;
+    const rect = rectOf(semantic);
+    const area = Math.max(1, rect.width * rect.height);
+    const viewportArea = Math.max(1, window.innerWidth * window.innerHeight);
+    return rect.width >= 1 && rect.height >= 1 && area / viewportArea <= 0.45 ? semantic : hit;
   }
 
   // ── 퍼지 자가복구 (P2) ────────────────────────────────────────
@@ -399,7 +411,9 @@
     // 요소가 화면에 나타나면 자동으로 정상 오버레이로 전환한다.
     const expectsEl = !!(step.element_selector || step.element_xpath);
     const foundEl   = resolved.source === 'selector' || resolved.source === 'xpath' || resolved.source === 'fuzzy' || resolved.source === 'ai' || resolved.source === 'manual';
-    if (expectsEl && !foundEl) {
+    const usesCoordinateFallback = expectsEl && !foundEl &&
+      (resolved.source === 'rect' || resolved.source === 'coord') && !!resolved.rect;
+    if (expectsEl && !foundEl && !usesCoordinateFallback) {
       showWaiting(step, opts);
       maybeReground(step, opts);  // AI 시각 재탐색 1회성 시도 (성공 시 좌표 오버레이로 전환)
       return;
@@ -530,7 +544,9 @@
 
     shadow.appendChild(root);
 
-    state = { host, shadow, hl, pulse, avatar, tooltip, arrow, restoreBtn, scrollHint, resolved, step, opts, idx, total, advanced: false, completed: false, fillTimer: null, tooltipHidden: false };
+    const resolveKey = `${opts.index ?? 0}:${step.id || step.title || ''}`;
+    state = { host, shadow, hl, pulse, avatar, tooltip, arrow, restoreBtn, scrollHint, resolved, step, opts, idx, total, advanced: false, completed: false, fillTimer: null, tooltipHidden: false, fallbackKey: usesCoordinateFallback ? resolveKey : null };
+    if (usesCoordinateFallback) maybeReground(step, opts);
 
     // 자동입력
     if (step.type_text && resolved.el) autoFill(resolved.el, String(step.type_text));
@@ -1025,7 +1041,7 @@
         const xy = { x: res.x, y: res.y };
         regroundCache.set(key, xy);  // 성공 캐시 — 재방문 시 재사용
         // 응답 시점에도 같은 스텝을 대기 중일 때만 적용 (사용자가 넘어갔으면 캐시만 남김)
-        if (!state || !state.waiting || state.waitKey !== key) return;
+        if (!state || (state.waitKey !== key && state.fallbackKey !== key)) return;
         step._regroundXY = xy;
         show(step, opts);  // resolveTarget 0순위가 좌표를 집어 정상 오버레이로 전환
       });
