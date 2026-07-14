@@ -11,6 +11,7 @@ type DemoStep = {
   description: string;
   screenshotUrl: string;
   rect: { x: number; y: number; width: number; height: number };
+  coachSide: 'left' | 'right';
 };
 
 const CAPTURE_BASE = 'https://gqynptpjomcqzxyykqic.supabase.co/storage/v1/object/public/naviaction/81d0d80d-e3b6-420e-aaad-3b70a73f02c6';
@@ -23,18 +24,21 @@ const DEMO_STEPS: DemoStep[] = [
     description: '자주 찾는 서비스에서 주민등록등본(초본)을 클릭합니다.',
     screenshotUrl: `${CAPTURE_BASE}/step_01.jpg`,
     rect: { x: 27.2, y: 52.1, width: 21.7, height: 7 },
+    coachSide: 'right',
   },
   {
     title: '발급하기 클릭',
     description: '서비스 개요 우측의 발급하기 버튼을 클릭합니다.',
     screenshotUrl: `${CAPTURE_BASE}/step_02.jpg`,
     rect: { x: 69.1, y: 73.3, width: 27.5, height: 9.4 },
+    coachSide: 'left',
   },
   {
     title: '회원 신청하기 선택',
     description: '신청 방식 팝업에서 회원 신청하기를 선택합니다.',
     screenshotUrl: `${CAPTURE_BASE}/step_03.jpg`,
     rect: { x: 33.8, y: 46.8, width: 15.3, height: 7.7 },
+    coachSide: 'right',
   },
 ];
 
@@ -97,6 +101,8 @@ function TargetViewport({ step, live, reducedMotion }: {
     '--target-y': `${step.rect.y}%`,
     '--target-w': `${step.rect.width}%`,
     '--target-h': `${step.rect.height}%`,
+    '--coach-x': `${step.coachSide === 'right' ? step.rect.x + step.rect.width : step.rect.x}%`,
+    '--coach-y': `${step.rect.y + step.rect.height / 2}%`,
   } as CSSProperties;
 
   return (
@@ -106,7 +112,7 @@ function TargetViewport({ step, live, reducedMotion }: {
       <span className={styles.clickPulse} aria-hidden="true" />
       <span className={styles.pointer} aria-hidden="true"><Pointer /></span>
       {live && (
-        <div className={styles.coachmark}>
+        <div className={`${styles.coachmark} ${step.coachSide === 'right' ? styles.coachRight : styles.coachLeft}`}>
           <span>Live Guide</span>
           <strong>{step.title}</strong>
           <p>{step.description}</p>

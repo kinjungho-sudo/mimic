@@ -81,10 +81,15 @@
 
 .liveViewport .targetBox { opacity: 1; animation-duration: 3.6s; }
 .liveViewport .pointer, .liveViewport .clickPulse { animation-duration: 3.6s; }
-.coachmark { position: absolute; z-index: 7; left: clamp(16px,5%,48px); bottom: clamp(16px,5%,42px); width: min(360px,calc(100% - 32px)); padding: 14px 16px; border: 1px solid rgba(255,255,255,.14); border-radius: 15px; color: white; background: rgba(10,18,17,.95); box-shadow: 0 18px 40px rgba(0,0,0,.28); opacity: 0; }
-.coachmark span { display: inline-flex; margin-bottom: 8px; padding: 4px 7px; border-radius: 6px; color: #aef57f; background: rgba(141,214,63,.12); font-size: 8px; font-weight: 850; }
-.coachmark strong { display: block; margin-bottom: 4px; font-size: 13px; }
-.coachmark p { margin: 0; color: #c5d0cd; font-size: 10px; line-height: 1.5; }
+.coachmark { position: absolute; z-index: 7; left: var(--coach-x); top: var(--coach-y); width: min(330px,calc(100% - 32px)); padding: 16px 18px; border: 1px solid rgba(255,255,255,.16); border-radius: 16px; color: white; background: rgba(10,18,17,.97); box-shadow: 0 20px 48px rgba(0,0,0,.34),0 0 0 1px rgba(0,155,142,.18); opacity: 0; pointer-events: none; }
+.coachRight { --coach-shift-x: 18px; }
+.coachLeft { --coach-shift-x: calc(-100% - 18px); }
+.coachmark::before { content: ''; position: absolute; top: 50%; width: 12px; height: 12px; background: rgba(10,18,17,.97); transform: translateY(-50%) rotate(45deg); }
+.coachRight::before { left: -6px; border-bottom: 1px solid rgba(255,255,255,.14); border-left: 1px solid rgba(255,255,255,.14); }
+.coachLeft::before { right: -6px; border-top: 1px solid rgba(255,255,255,.14); border-right: 1px solid rgba(255,255,255,.14); }
+.coachmark span { display: inline-flex; margin-bottom: 9px; padding: 5px 8px; border-radius: 7px; color: #aef57f; background: rgba(141,214,63,.13); font-size: 9px; font-weight: 850; }
+.coachmark strong { display: block; margin-bottom: 5px; font-size: 15px; }
+.coachmark p { margin: 0; color: #c5d0cd; font-size: 11px; line-height: 1.55; }
 [data-playing='true'] .coachmark { animation: coachmarkIn 3.6s ease both; }
 .liveProgress { display: flex; align-items: center; gap: 10px; padding: 11px 15px; border-top: 1px solid #dce6e3; color: #677570; background: #fbfdfc; font-size: 9px; }
 .liveProgress > span { font-weight: 850; }
@@ -209,15 +214,17 @@
 .compactScene .manualReady { grid-template-columns: 22px 1fr; gap: 5px; padding: 7px; }
 .compactScene .manualReady > span { width: 21px; height: 21px; font-size: 8px; }
 .compactScene .manualReady strong { font-size: 7px; } .compactScene .manualReady small { font-size: 6px; } .compactScene .manualReady button { padding: 5px; font-size: 7px; }
-.compactScene .coachmark { left: 9px; bottom: 9px; width: min(250px,calc(100% - 18px)); padding: 8px 9px; border-radius: 9px; }
-.compactScene .coachmark span { margin-bottom: 4px; padding: 2px 5px; font-size: 6px; }
-.compactScene .coachmark strong { margin-bottom: 2px; font-size: 8px; }
-.compactScene .coachmark p { overflow: hidden; font-size: 6px; text-overflow: ellipsis; white-space: nowrap; }
+.compactScene .coachmark { width: min(270px,calc(52% - 16px)); padding: 12px 13px; border-radius: 12px; }
+.compactScene .coachRight { --coach-shift-x: 13px; }
+.compactScene .coachLeft { --coach-shift-x: calc(-100% - 13px); }
+.compactScene .coachmark span { margin-bottom: 6px; padding: 3px 6px; font-size: 7px; }
+.compactScene .coachmark strong { margin-bottom: 3px; font-size: 11px; }
+.compactScene .coachmark p { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-size: 8.5px; line-height: 1.45; }
 .compactScene .liveProgress { padding: 7px 9px; font-size: 6px; }
 .compactScene .liveProgress > i { width: 50px; }
 .compactScene .liveProgress strong { font-size: 6px; }
 .motionNote { margin: 18px 0 0; color: #7c8b87; font-size: 12px; text-align: center; }
-.reducedMotion .targetBox { opacity: 1; animation: none !important; } .reducedMotion .pointer, .reducedMotion .clickPulse { display: none; } .reducedMotion .coachmark { opacity: 1; animation: none !important; }
+.reducedMotion .targetBox { opacity: 1; animation: none !important; } .reducedMotion .pointer, .reducedMotion .clickPulse { display: none; } .reducedMotion .coachmark { opacity: 1; transform: translate(var(--coach-shift-x),-50%); animation: none !important; }
 
 @keyframes recordBlink { 50% { opacity: .3; } }
 @keyframes targetReveal { 0%,12% { opacity: 0; transform: scale(.96); } 26%,88% { opacity: 1; transform: scale(1); } 100% { opacity: .7; } }
@@ -225,7 +232,7 @@
 @keyframes targetClick { 0%,58% { opacity: 0; transform: translate(-50%,-50%) scale(.2); } 68% { opacity: .95; transform: translate(-50%,-50%) scale(.8); } 84%,100% { opacity: 0; transform: translate(-50%,-50%) scale(2.5); } }
 @keyframes savingGlow { to { box-shadow: 0 0 0 3px rgba(255,95,86,.08); } }
 @keyframes readyIn { from { opacity: 0; transform: translateY(8px); } }
-@keyframes coachmarkIn { 0%,24% { opacity: 0; transform: translateY(10px); } 35%,92% { opacity: 1; transform: translateY(0); } 100% { opacity: .9; } }
+@keyframes coachmarkIn { 0%,24% { opacity: 0; transform: translate(var(--coach-shift-x),calc(-50% + 10px)); } 35%,92% { opacity: 1; transform: translate(var(--coach-shift-x),-50%); } 100% { opacity: .94; transform: translate(var(--coach-shift-x),-50%); } }
 @keyframes caretBlink { 50% { opacity: 0; } }
 @keyframes annotationIn { from { opacity: 0; transform: scale(.88); } }
 @keyframes generatingIn { from { opacity: 0; transform: translateY(10px) scale(.98); } }
@@ -257,8 +264,9 @@
   .savedStep > span { width: 21px; height: 21px; }
   .autoSave { margin-top: 8px; }
   .manualReady { margin-top: 8px; }
-  .coachmark { left: 10px; bottom: 10px; width: calc(100% - 20px); padding: 10px; }
-  .coachmark p { display: none; }
+  .coachmark { width: min(230px,calc(55% - 12px)); padding: 10px 11px; }
+  .coachmark strong { font-size: 10px; }
+  .coachmark p { font-size: 8px; }
   .liveProgress strong { display: none; }
   .compactScene .recorderWorkspace { grid-template-columns: minmax(0,1fr) 145px; }
   .compactScene .savedSteps { grid-template-columns: 1fr; }
