@@ -351,6 +351,23 @@ function EditorChrome({ saved }: { saved: boolean }) {
 }
 
 function SharedViewerScene({ reducedMotion }: { reducedMotion: boolean }) {
+  const [viewMode, setViewMode] = useState<'document' | 'slides'>('document');
+  const [slideIndex, setSlideIndex] = useState(0);
+
+  useEffect(() => {
+    if (reducedMotion) return;
+    const timer = window.setTimeout(() => setViewMode('slides'), 2600);
+    return () => window.clearTimeout(timer);
+  }, [reducedMotion]);
+
+  useEffect(() => {
+    if (reducedMotion || viewMode !== 'slides') return;
+    const timer = window.setInterval(() => {
+      setSlideIndex(current => Math.min(current + 1, DEMO_STEPS.length - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [reducedMotion, viewMode]);
+
   return (
     <div className={`${styles.editorScene} ${styles.viewerScene} ${reducedMotion ? styles.reducedMotion : ''}`}>
       <EditorChrome saved />
@@ -359,7 +376,9 @@ function SharedViewerScene({ reducedMotion }: { reducedMotion: boolean }) {
         <div className={styles.viewerActions}>
           <button type="button">⚡ 라이브 가이드 Beta</button>
           <div className={styles.viewerToggle}>
-            <span>학습</span><strong>웹 문서</strong><b>슬라이드</b>
+            <span>학습</span>
+            <strong className={viewMode === 'document' ? styles.viewerModeActive : ''}>웹 문서</strong>
+            <b className={viewMode === 'slides' ? styles.viewerModeActiveDark : ''}>슬라이드</b>
           </div>
         </div>
       </div>
@@ -370,32 +389,34 @@ function SharedViewerScene({ reducedMotion }: { reducedMotion: boolean }) {
         <em>설치 없이 바로 열람</em>
       </div>
 
-      <div className={styles.viewerComparison}>
-        <section className={styles.documentPreview}>
-          <div className={styles.previewLabel}><span>▤</span><div><strong>웹 문서</strong><small>스크롤하며 전체 단계 확인</small></div></div>
-          <div className={styles.documentPage}>
-            <h3>정부24에서 주민등록표 등본 발급하기</h3>
-            {[0, 1].map(index => (
-              <div key={DEMO_STEPS[index].title} className={styles.documentStepCard}>
-                <div><span>{String(index + 1).padStart(2, '0')}.</span><strong>{DEMO_STEPS[index].title}</strong></div>
-                <p>{DEMO_STEPS[index].description}</p>
-                <img src={DEMO_STEPS[index].screenshotUrl} alt="" draggable={false} />
+      <div className={styles.viewerStage} data-view={viewMode}>
+        {viewMode === 'document' ? (
+          <section key="document" className={`${styles.viewerSinglePreview} ${styles.documentPreview}`}>
+            <div className={styles.previewLabel}><span>▤</span><div><strong>웹 문서</strong><small>아래로 스크롤하며 전체 단계 확인</small></div></div>
+            <div className={styles.documentPage}>
+              <div className={styles.documentScrollContent}>
+                <h3>정부24에서 주민등록표 등본 발급하기</h3>
+                {DEMO_STEPS.map((step, index) => (
+                  <div key={step.title} className={styles.documentStepCard}>
+                    <div><span>{String(index + 1).padStart(2, '0')}.</span><strong>{step.title}</strong></div>
+                    <p>{step.description}</p>
+                    <img src={step.screenshotUrl} alt="" draggable={false} />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </section>
-
-        <div className={styles.viewerSwitchArrow}><span>⇄</span><small>같은 URL</small></div>
-
-        <section className={styles.slidesPreview}>
-          <div className={styles.previewLabel}><span>▰</span><div><strong>슬라이드</strong><small>한 단계씩 집중해서 보기</small></div></div>
-          <div className={styles.slideCanvas}>
-            <div className={styles.slideChapter}><span>Step 2</span><strong>{DEMO_STEPS[1].title}</strong></div>
-            <img src={DEMO_STEPS[1].screenshotUrl} alt="" draggable={false} />
-            <div className={styles.slideAnnotation} />
-            <div className={styles.slideControls}><span>‹</span><strong>2 / 3</strong><span>›</span></div>
-          </div>
-        </section>
+            </div>
+          </section>
+        ) : (
+          <section key={`slide-${slideIndex}`} className={`${styles.viewerSinglePreview} ${styles.slidesPreview}`}>
+            <div className={styles.previewLabel}><span>▰</span><div><strong>슬라이드</strong><small>한 장씩 넘기며 단계에 집중</small></div></div>
+            <div className={styles.slideCanvas}>
+              <div className={styles.slideChapter}><span>Step {slideIndex + 1}</span><strong>{DEMO_STEPS[slideIndex].title}</strong></div>
+              <img src={DEMO_STEPS[slideIndex].screenshotUrl} alt="" draggable={false} />
+              <div className={styles.slideAnnotation} />
+              <div className={styles.slideControls}><span>‹</span><strong>{slideIndex + 1} / {DEMO_STEPS.length}</strong><span>›</span></div>
+            </div>
+          </section>
+        )}
       </div>
     </div>
   );
@@ -499,7 +520,7 @@ export function ProductDemo() {
 
   useEffect(() => {
     if (!playing) return;
-    const timer = window.setTimeout(() => setPhase(current => (current + 1) % EDITOR_PHASES.length), phase === 3 ? 3200 : 2500);
+    const timer = window.setTimeout(() => setPhase(current => (current + 1) % EDITOR_PHASES.length), phase === 3 ? 6100 : 2500);
     return () => window.clearTimeout(timer);
   }, [phase, playing]);
 

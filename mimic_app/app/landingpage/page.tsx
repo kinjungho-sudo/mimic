@@ -1558,7 +1558,7 @@ function HeroSection() {
       <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)', backgroundSize: '72px 72px', pointerEvents: 'none' }} />
 
       <div className="hero-layout" style={{ maxWidth: '1240px', margin: '0 auto', padding: '0 32px', position: 'relative' }}>
-        <div className="hero-copy" style={{ textAlign: 'left' }}>
+        <div className="hero-copy" style={{ textAlign: 'center' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '5px 16px 5px 6px', background: 'rgba(18,184,134,0.10)', border: '1px solid rgba(18,184,134,0.22)', borderRadius: '999px', fontSize: '12px', color: '#E8FFF7', fontWeight: 500, marginBottom: '28px', backdropFilter: 'blur(8px)' }}>
             <span style={{ padding: '3px 10px', borderRadius: '999px', background: 'linear-gradient(135deg, #009B8E, #12B886)', fontSize: '10px', fontWeight: 700, color: 'white', letterSpacing: '0.06em' }}>NEW</span>
             기록에서 실행까지 이어지는 AI Live Guide
@@ -1573,7 +1573,7 @@ function HeroSection() {
             <Link href="/auth/login" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '14px 25px', borderRadius: '12px', fontSize: '14px', fontWeight: 700, color: 'white', background: 'linear-gradient(135deg, #009B8E 0%, #12B886 100%)', boxShadow: '0 8px 28px rgba(18,184,134,0.38)', textDecoration: 'none' }}>
               무료로 시작하기 <span aria-hidden="true">→</span>
             </Link>
-            <a href="#tour" style={{ display: 'inline-flex', alignItems: 'center', padding: '14px 20px', borderRadius: '12px', fontSize: '14px', color: 'rgba(255,255,255,0.68)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)', textDecoration: 'none' }}>3단계 데모 보기</a>
+            <a href="#tour" style={{ display: 'inline-flex', alignItems: 'center', padding: '14px 20px', borderRadius: '12px', fontSize: '14px', color: 'rgba(255,255,255,0.68)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)', textDecoration: 'none' }}>데모 보기</a>
           </div>
           <div className="hero-proof" style={{ display: 'flex', gap: '10px', color: 'rgba(255,255,255,0.36)', fontSize: '11px' }}><span>● 클릭 자동 기록</span><span>● 편집·내보내기</span><span>● 화면 위 안내</span></div>
         </div>
@@ -1644,7 +1644,7 @@ export default function LandingPage() {
   ];
 
   return (
-    <div style={{ fontFamily: "'Pretendard', 'Pretendard Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif", color: '#111827', background: '#fff', WebkitFontSmoothing: 'antialiased' }}>
+    <div className="landing-page" style={{ fontFamily: "'Pretendard', 'Pretendard Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif", color: '#111827', background: '#fff', WebkitFontSmoothing: 'antialiased' }}>
 
       {/* Pro 플랜 사전예약 모달 */}
       {proModal && (
@@ -1690,15 +1690,15 @@ export default function LandingPage() {
             ))}
           </nav>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Link href="/download/desktop"
+            <Link href="/download/desktop" className="landing-header-desktop"
               style={{ padding: '8px 12px', borderRadius: '8px', fontSize: '13.5px', fontWeight: 600, color: 'rgba(115,231,220,0.9)', textDecoration: 'none' }}
             >Desktop 앱</Link>
-            <Link href="/auth/login"
+            <Link href="/auth/login" className="landing-header-login"
               style={{ padding: '8px 16px', borderRadius: '8px', fontSize: '13.5px', fontWeight: 500, color: 'rgba(255,255,255,0.55)', textDecoration: 'none', transition: 'color 0.15s' }}
               onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.90)'}
               onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.55)'}
             >로그인</Link>
-            <Link href="/auth/login"
+            <Link href="/auth/login" className="landing-header-primary"
               style={{ padding: '9px 18px', borderRadius: '9px', fontSize: '13.5px', fontWeight: 700, color: 'white', background: 'linear-gradient(135deg, #009B8E 0%, #12B886 100%)', boxShadow: '0 0 0 1px rgba(141,214,63,0.2), 0 4px 12px rgba(18,184,134,0.35)', textDecoration: 'none' }}
             >무료로 시작</Link>
           </div>
@@ -1874,7 +1874,7 @@ export default function LandingPage() {
           <span style={{ display: 'block', textAlign: 'center', fontSize: '11px', color: '#007C72', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '16px' }}>Why Parro</span>
           <h2 style={{ textAlign: 'center', fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 800, letterSpacing: '-0.035em', margin: '0 auto 60px', maxWidth: '640px', lineHeight: 1.18, color: '#0D0D14' }}>다른 방법과 무엇이 다른가요?</h2>
 
-          <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: '20px', overflow: 'hidden' }}>
+          <div className="comparison-table" style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: '20px', overflow: 'hidden' }}>
             {/* Header row */}
             <div className="comparison-row" style={{ display: 'grid', gridTemplateColumns: '1fr repeat(3, 140px)', borderBottom: '1.5px solid #E5E7EB' }}>
               <div style={{ padding: '18px 28px', fontSize: '13px', color: '#9CA3AF' }}>기능</div>
@@ -2102,7 +2102,7 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '24px', fontSize: '12px', color: '#374151' }}>
+          <div className="landing-footer-bottom" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '24px', fontSize: '12px', color: '#374151' }}>
             <div>© 2026 코마인드웍스 · {BRAND_NAME}</div>
             <div style={{ display: 'flex', gap: '20px' }}>
               {['한국어', 'English', BRAND_SUPPORT_EMAIL].map(l => (
@@ -2265,10 +2265,24 @@ export default function LandingPage() {
         }
         .hero-layout {
           display: grid;
-          grid-template-columns: minmax(360px, 0.82fr) minmax(0, 1.18fr);
-          gap: 54px;
+          grid-template-columns: minmax(0, 1fr);
+          gap: 48px;
           align-items: center;
-          min-height: calc(100vh - 214px);
+        }
+        .hero-copy {
+          width: min(900px, 100%);
+          margin: 0 auto;
+        }
+        .hero-copy p {
+          margin-left: auto !important;
+          margin-right: auto !important;
+        }
+        .hero-cta-row, .hero-proof {
+          justify-content: center !important;
+        }
+        .hero-preview {
+          width: min(1180px, 100%);
+          margin: 0 auto;
         }
         @keyframes orbFloat1 {
           0%, 100% { transform: translate(0, 0) scale(1); }
@@ -2450,18 +2464,18 @@ export default function LandingPage() {
         /* ── 모바일 반응형 ── */
         @media (max-width: 768px) {
           .landing-header {
-            background: rgba(13, 54, 49, 0.94) !important;
-            border-bottom-color: rgba(141, 214, 63, 0.18) !important;
+            background: rgba(7, 7, 15, 0.94) !important;
+            border-bottom-color: rgba(174, 245, 127, 0.18) !important;
           }
           .landing-dark-section {
-            background: linear-gradient(180deg, #17463f 0%, #10342f 100%) !important;
+            background: linear-gradient(180deg, #07070f 0%, #0b1116 100%) !important;
           }
           .landing-dark-section p {
-            color: rgba(244, 255, 252, 0.74) !important;
+            color: rgba(244, 255, 252, 0.72) !important;
           }
           .landing-dark-section .grid-3col > div {
-            background: rgba(255,255,255,0.08) !important;
-            border-color: rgba(255,255,255,0.14) !important;
+            background: rgba(255,255,255,0.055) !important;
+            border-color: rgba(174,245,127,0.16) !important;
           }
           .hero-orb { filter: blur(50px) !important; }
           .hero-orb-1 { width: 300px !important; height: 300px !important; }
@@ -2475,19 +2489,36 @@ export default function LandingPage() {
           .simulator-steps { grid-template-columns: 1fr !important; }
           .simulator-stage-header { align-items: flex-start !important; flex-direction: column !important; }
           .simulator-follow-wrap { padding: 10px !important; }
-          header nav { display: none !important; }
-          header > div { padding: 0 16px !important; }
+          .landing-header nav,
+          .landing-header-desktop,
+          .landing-header-login { display: none !important; }
+          .landing-header > div { padding: 0 16px !important; height: 58px !important; }
+          .landing-header-primary {
+            padding: 10px 15px !important;
+            color: #07110f !important;
+            background: linear-gradient(135deg, #b9ff69 0%, #73e7dc 100%) !important;
+            box-shadow: 0 6px 18px rgba(141,214,63,0.24) !important;
+          }
 
-          h1 { font-size: 36px !important; }
-          section { padding: 64px 0 !important; }
-          section > div { padding: 0 16px !important; }
+          .landing-page h1 { font-size: 36px !important; }
+          .landing-page > section { padding: 64px 0 !important; }
+          .landing-page > section > div { padding-left: 16px !important; padding-right: 16px !important; }
 
           .landing-hero {
-            padding-top: 54px !important;
-            background: linear-gradient(155deg, #1d5149 0%, #123a35 54%, #0d2d29 100%) !important;
+            padding-top: 46px !important;
+            background: radial-gradient(circle at 18% 18%, rgba(0,155,142,0.22), transparent 35%), radial-gradient(circle at 88% 58%, rgba(141,214,63,0.13), transparent 34%), #07070f !important;
           }
-          .landing-hero .hero-proof { color: rgba(244,255,252,0.68) !important; }
-          .hero-layout { gap: 34px !important; }
+          .landing-hero .hero-copy > div:first-child {
+            border-color: rgba(174,245,127,0.34) !important;
+            background: rgba(141,214,63,0.10) !important;
+          }
+          .landing-hero .hero-cta-row > a:first-child {
+            color: #07110f !important;
+            background: linear-gradient(135deg, #b9ff69 0%, #73e7dc 100%) !important;
+            box-shadow: 0 10px 28px rgba(141,214,63,0.22) !important;
+          }
+          .landing-hero .hero-proof { color: rgba(244,255,252,0.66) !important; }
+          .hero-layout { gap: 30px !important; }
           .hero-preview { transform: none; margin: 0 !important; }
           .hero-cta-row { flex-direction: column !important; align-items: stretch !important; }
           .hero-proof { display: grid !important; grid-template-columns: 1fr; gap: 6px !important; }
@@ -2498,22 +2529,31 @@ export default function LandingPage() {
           .pricing-grid { grid-template-columns: 1fr !important; }
           .pricing-grid > div { transform: none !important; }
 
-          .comparison-row { grid-template-columns: 1fr repeat(3, 80px) !important; font-size: 11px !important; }
+          .comparison-table { overflow-x: auto !important; overscroll-behavior-x: contain; }
+          .comparison-row { min-width: 560px; grid-template-columns: 1fr repeat(3, 96px) !important; font-size: 11px !important; }
+          .comparison-row > div:first-child { padding-left: 16px !important; padding-right: 12px !important; }
 
           .footer-grid { grid-template-columns: 1fr 1fr !important; gap: 28px !important; }
+          .footer-grid > div:first-child { grid-column: 1 / -1; }
+          .landing-footer-bottom { align-items: flex-start !important; flex-direction: column !important; gap: 12px !important; }
+          .landing-footer-bottom > div:last-child { flex-wrap: wrap; gap: 12px !important; }
 
-          .b2b-btns { flex-direction: column !important; align-items: center !important; }
+          .b2b-btns { flex-direction: column !important; align-items: stretch !important; }
+          .b2b-btns > a { justify-content: center; width: 100%; box-sizing: border-box; }
           .final-cta-inner { padding: 48px 20px !important; }
           .final-cta-inner h2 { font-size: 28px !important; }
+          .final-cta-inner form { flex-direction: column !important; background: transparent !important; border: 0 !important; padding: 0 !important; }
+          .final-cta-inner form button { width: 100%; }
 
           .how-steps { padding: 0 !important; }
           .how-steps > div:not(:first-child) { border-top: 1px solid rgba(0,0,0,0.07); padding-top: 32px !important; }
         }
 
         @media (max-width: 480px) {
-          h1 { font-size: 28px !important; }
-          h2 { font-size: 24px !important; }
-          .comparison-row { font-size: 10px !important; grid-template-columns: 1fr repeat(3, 64px) !important; }
+          .landing-page h1 { font-size: 30px !important; }
+          .landing-page h2 { font-size: 25px !important; }
+          .landing-page > section { padding: 56px 0 !important; }
+          .comparison-row { font-size: 10px !important; }
         }
 
         @media (prefers-reduced-motion: reduce) {

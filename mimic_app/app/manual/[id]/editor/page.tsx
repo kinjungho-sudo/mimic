@@ -592,7 +592,7 @@ export default function EditorPage() {
         </div>
 
         {/* Center: meta info */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', paddingLeft: '12px' }}>
+        <div className="editor-header-meta" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', paddingLeft: '12px' }}>
           <span style={{ fontSize: '12px', color: '#9CA3AF' }}>{manualSteps.length}개 단계</span>
           {tutorial.status === 'published' && (
             <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '20px', background: 'rgba(16,185,129,0.1)', color: '#059669', fontWeight: 500 }}>
@@ -606,8 +606,8 @@ export default function EditorPage() {
         </div>
 
         {/* Right: actions */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
+        <div className="editor-header-actions" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
+          <div className="editor-header-action-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
 
           {/* 협업자 아바타 */}
           {collaborators.length > 0 && (
@@ -901,7 +901,7 @@ export default function EditorPage() {
         {/* Main content */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
           {/* Title banner — 컴팩트 */}
-          <div style={{ flexShrink: 0, padding: '8px 20px 7px', borderBottom: '1px solid #E5E7EB', background: 'white', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div className="editor-title-bar" style={{ flexShrink: 0, padding: '8px 20px 7px', borderBottom: '1px solid #E5E7EB', background: 'white', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <input
               value={title}
               onChange={e => { setTitle(e.target.value); setTitleDirty(true); }}
