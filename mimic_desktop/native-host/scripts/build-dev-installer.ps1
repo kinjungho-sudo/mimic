@@ -15,6 +15,7 @@ $sedPath = Join-Path $stagingDir "mimic-desktop-installer.sed"
 $nodePath = (Get-Command node.exe -ErrorAction Stop).Source
 $hostPath = Join-Path $root "src\host.js"
 $captureAgentPath = Join-Path $root "src\capture-agent.ps1"
+$controllerPath = Join-Path $root "src\controller.ps1"
 $installScriptPath = Join-Path $root "installer\install.ps1"
 
 if (-not (Test-Path $hostPath)) {
@@ -25,6 +26,9 @@ if (-not (Test-Path $installScriptPath)) {
 }
 if (-not (Test-Path $captureAgentPath)) {
   throw "Missing capture agent: $captureAgentPath"
+}
+if (-not (Test-Path $controllerPath)) {
+  throw "Missing desktop controller: $controllerPath"
 }
 if (-not (Get-Command iexpress.exe -ErrorAction SilentlyContinue)) {
   throw "iexpress.exe is required to build the quick Windows installer."
@@ -37,6 +41,7 @@ Remove-Item -LiteralPath (Join-Path $stagingDir "*") -Recurse -Force -ErrorActio
 Copy-Item -LiteralPath $installScriptPath -Destination (Join-Path $stagingDir "install.ps1") -Force
 Copy-Item -LiteralPath $hostPath -Destination (Join-Path $stagingDir "host.js") -Force
 Copy-Item -LiteralPath $captureAgentPath -Destination (Join-Path $stagingDir "capture-agent.ps1") -Force
+Copy-Item -LiteralPath $controllerPath -Destination (Join-Path $stagingDir "controller.ps1") -Force
 Copy-Item -LiteralPath $nodePath -Destination (Join-Path $stagingDir "node.exe") -Force
 
 $sed = @"
@@ -67,6 +72,7 @@ FILE0=install.ps1
 FILE1=host.js
 FILE2=node.exe
 FILE3=capture-agent.ps1
+FILE4=controller.ps1
 [SourceFiles]
 SourceFiles0=$stagingDir
 [SourceFiles0]
@@ -74,6 +80,7 @@ SourceFiles0=$stagingDir
 %FILE1%=
 %FILE2%=
 %FILE3%=
+%FILE4%=
 "@
 
 [System.IO.File]::WriteAllText($sedPath, $sed, [System.Text.UTF8Encoding]::new($false))
