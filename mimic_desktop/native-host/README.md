@@ -1,6 +1,6 @@
-# MIMIC Desktop Native Host (dev)
+# Parro Desktop Native Host (preview)
 
-This is the first development bridge for the MIMIC Desktop Companion.
+This is the Windows preview bridge for Parro Desktop Companion.
 
 The production Desktop App can later replace this host with a signed Tauri binary, but the Chrome Extension contract should stay the same:
 
@@ -63,7 +63,7 @@ The dev host writes session messages to:
 This builds an unsigned internal-test installer at:
 
 ```text
-mimic_desktop\native-host\dist\installer\MIMICDesktopSetup-dev.exe
+mimic_desktop\native-host\dist\installer\ParroDesktopSetup.exe
 ```
 
 Run:
@@ -86,14 +86,24 @@ HKCU\Software\Google\Chrome\NativeMessagingHosts\com.mimic.desktop_companion.dev
 
 Default allowed Chrome extension IDs:
 
+- current Parro dev extension: `pnkkalnfddapkmiobbhnkbhplakamaok`
 - dev unpacked extension: `dhfcmomnambegkibjnandckacihnaelb`
 - Chrome Web Store extension: `ehbhcdkapcbfehinjapabgoegcjmmbgd`
 
-To allow extra extension IDs, set `MIMIC_EXTENSION_ID` before running the installer. Multiple IDs can be comma-separated.
+To allow extra extension IDs, set `PARRO_EXTENSION_ID` before running the installer. Multiple IDs can be comma-separated. `MIMIC_EXTENSION_ID` remains supported for compatibility.
 
 ```powershell
-$env:MIMIC_EXTENSION_ID="extraextensionid"
-.\dist\installer\MIMICDesktopSetup-dev.exe
+$env:PARRO_EXTENSION_ID="extraextensionid"
+.\dist\installer\ParroDesktopSetup.exe
+```
+
+## End-to-end installer verification
+
+Build, install silently, validate the registry/manifest/payload, and run the installed Native Messaging host:
+
+```powershell
+.\scripts\build-dev-installer.ps1 -PublishToWebApp
+.\scripts\test-installer.ps1
 ```
 
 ## Uninstall

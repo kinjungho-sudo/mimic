@@ -1,7 +1,12 @@
 const { spawn } = require("child_process");
 const path = require("path");
 
-const hostPath = path.resolve(__dirname, "..", "src", "host.js");
+const hostPath = process.argv[2]
+  ? path.resolve(process.argv[2])
+  : path.resolve(__dirname, "..", "src", "host.js");
+const nodePath = process.argv[3]
+  ? path.resolve(process.argv[3])
+  : process.execPath;
 
 function encode(message) {
   const body = Buffer.from(JSON.stringify(message), "utf8");
@@ -26,7 +31,7 @@ function decodeAvailable(buffer) {
 }
 
 async function main() {
-  const child = spawn(process.execPath, [hostPath], {
+  const child = spawn(nodePath, [hostPath], {
     stdio: ["pipe", "pipe", "inherit"],
   });
 
@@ -65,11 +70,10 @@ async function main() {
   if (!types.includes("CAPTURE_SESSION_STARTED")) throw new Error("missing CAPTURE_SESSION_STARTED");
   if (!types.includes("CAPTURE_SESSION_STOPPED")) throw new Error("missing CAPTURE_SESSION_STOPPED");
 
-  console.log(JSON.stringify({ ok: true, received }, null, 2));
+  console.log(JSON.stringify({ ok: true, nodePath, hostPath, received }, null, 2));
 }
 
 main().catch((error) => {
   console.error(error);
   process.exit(1);
 });
-
