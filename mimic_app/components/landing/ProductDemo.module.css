@@ -46,11 +46,11 @@
 .targetViewport > img { display: block; width: 100%; height: 100%; object-fit: fill; user-select: none; }
 .targetBox { position: absolute; z-index: 3; left: var(--target-x); top: var(--target-y); width: var(--target-w); height: var(--target-h); box-sizing: border-box; border: 3px solid #00a99a; border-radius: 10px; background: rgba(0,169,154,.08); box-shadow: 0 0 0 999px rgba(9,20,18,.35), 0 8px 24px rgba(0,120,110,.28), inset 0 0 0 2px rgba(255,255,255,.75); opacity: 0; pointer-events: none; }
 .recordViewport .targetBox { border-color: #ff6259; background: rgba(255,98,89,.08); box-shadow: 0 8px 24px rgba(255,98,89,.24), inset 0 0 0 2px rgba(255,255,255,.72); }
-.clickPulse, .pointer { position: absolute; z-index: 5; left: calc(var(--target-x) + var(--target-w) / 2); top: calc(var(--target-y) + var(--target-h) / 2); pointer-events: none; opacity: 0; }
+.clickPulse { position: absolute; z-index: 5; left: calc(var(--target-x) + var(--target-w) / 2); top: calc(var(--target-y) + var(--target-h) / 2); pointer-events: none; opacity: 0; }
 .clickPulse { width: 24px; height: 24px; border: 3px solid #8dd63f; border-radius: 50%; transform: translate(-50%,-50%) scale(.2); }
-.pointer { transform: translate(42px,36px); filter: drop-shadow(0 4px 6px rgba(0,0,0,.35)); }
+.pointer { position: absolute; z-index: 6; left: 0; top: 0; pointer-events: none; opacity: 0; transform: translate(calc(var(--cursor-from-x) - 8px),calc(var(--cursor-from-y) - 6px)); filter: drop-shadow(0 4px 6px rgba(0,0,0,.35)); will-change: transform; }
 [data-playing='true'] .targetBox { animation: targetReveal 2.3s ease both; }
-[data-playing='true'] .pointer { animation: pointerMove 2.3s cubic-bezier(.2,.8,.2,1) both; }
+[data-playing='true'] .pointer { animation: pointerJourney 1.75s linear both; }
 [data-playing='true'] .clickPulse { animation: targetClick 2.3s ease both; }
 .settledViewport .targetBox, .settledViewport .pointer, .settledViewport .clickPulse { display: none; }
 
@@ -105,20 +105,22 @@
 .manualReady button { grid-column: 1 / -1; padding: 8px; border: 0; border-radius: 8px; color: white; background: #009b8e; font-size: 9px; font-weight: 800; }
 
 .liveViewport .targetBox { opacity: 1; animation-duration: 3.6s; }
-.liveViewport .pointer, .liveViewport .clickPulse { animation-duration: 3.6s; }
-.coachmark { position: absolute; z-index: 7; left: var(--coach-x); top: var(--coach-y); width: min(330px,calc(100% - 32px)); padding: 16px 18px; border: 1px solid rgba(255,255,255,.16); border-radius: 16px; color: white; background: rgba(10,18,17,.97); box-shadow: 0 20px 48px rgba(0,0,0,.34),0 0 0 1px rgba(0,155,142,.18); opacity: 0; pointer-events: none; }
+.liveViewport .pointer { animation-duration: 2.6s; }
+.liveViewport .clickPulse { animation-duration: 3.6s; }
+.guideCoach { position: absolute; z-index: 7; left: var(--coach-x); top: var(--coach-y); display: flex; width: min(410px,calc(50% - 22px)); align-items: center; gap: 12px; opacity: 0; pointer-events: none; }
 .coachRight { --coach-shift-x: 18px; }
-.coachLeft { --coach-shift-x: calc(-100% - 18px); }
+.coachLeft { --coach-shift-x: calc(-100% - 18px); flex-direction: row-reverse; }
+.guideAvatar { display: grid; flex: none; width: 68px; height: 68px; place-items: center; filter: drop-shadow(0 12px 20px rgba(0,40,36,.28)); animation: avatarPopIn .45s cubic-bezier(.34,1.5,.64,1) both; }
+.guideAvatar svg { width: 100%; height: 100%; }
+.coachmark { position: relative; flex: 1; min-width: 0; padding: 16px 18px; border: 1px solid rgba(255,255,255,.16); border-radius: 16px; color: white; background: rgba(10,18,17,.97); box-shadow: 0 20px 48px rgba(0,0,0,.34),0 0 0 1px rgba(0,155,142,.18); }
 .coachmark::before { content: ''; position: absolute; top: 50%; width: 12px; height: 12px; background: rgba(10,18,17,.97); transform: translateY(-50%) rotate(45deg); }
-.coachRight::before { left: -6px; border-bottom: 1px solid rgba(255,255,255,.14); border-left: 1px solid rgba(255,255,255,.14); }
-.coachLeft::before { right: -6px; border-top: 1px solid rgba(255,255,255,.14); border-right: 1px solid rgba(255,255,255,.14); }
-.coachmarkHeading { display: grid; grid-template-columns: 42px minmax(0,1fr); align-items: center; gap: 10px; margin-bottom: 9px; }
-.aiAvatar { display: grid; width: 42px; height: 42px; place-items: center; overflow: hidden; border: 1px solid rgba(141,214,63,.35); border-radius: 13px; background: linear-gradient(135deg,#f1fbf9,#e4f3f6); box-shadow: 0 8px 22px rgba(0,155,142,.28); animation: avatarPopIn .45s cubic-bezier(.34,1.5,.64,1) both; }
-.aiAvatar svg { width: 94%; height: 94%; }
+.coachRight .coachmark::before { left: -6px; border-bottom: 1px solid rgba(255,255,255,.14); border-left: 1px solid rgba(255,255,255,.14); }
+.coachLeft .coachmark::before { right: -6px; border-top: 1px solid rgba(255,255,255,.14); border-right: 1px solid rgba(255,255,255,.14); }
+.coachmarkHeading { margin-bottom: 9px; }
 .coachmarkHeading span { display: inline-flex; margin-bottom: 5px; padding: 4px 7px; border-radius: 7px; color: #aef57f; background: rgba(141,214,63,.13); font-size: 8px; font-weight: 850; }
 .coachmarkHeading strong { display: block; overflow: hidden; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
 .coachmark p { margin: 0; color: #c5d0cd; font-size: 11px; line-height: 1.55; }
-[data-playing='true'] .coachmark { animation: coachmarkIn 3.6s ease both; }
+[data-playing='true'] .guideCoach { animation: coachmarkIn 3.6s ease both; }
 .liveProgress { display: flex; align-items: center; gap: 10px; padding: 11px 15px; border-top: 1px solid #dce6e3; color: #677570; background: #fbfdfc; font-size: 9px; }
 .liveProgress > span { font-weight: 850; }
 .liveProgress > i { display: block; width: 90px; height: 4px; overflow: hidden; border-radius: 99px; background: #dfe8e5; }
@@ -355,23 +357,31 @@
 .compactScene .finishArea { gap: 5px; padding-top: 7px; }.compactScene .finishArea > span { font-size: 6.5px; }.compactScene .finishButton { height: 30px; font-size: 8px; }
 .compactScene .panelGeneratingContent { padding: 10px 3px 2px; }.compactScene .panelGeneratingContent > svg { width: 46px; height: 46px; margin-bottom: 5px; }.compactScene .panelGeneratingContent > strong { font-size: 8px; }.compactScene .panelGeneratingContent > p { margin: 4px 0 8px; font-size: 6.5px; }.compactScene .panelGeneratingContent > small { font-size: 5.8px; }
 .compactScene .manualBuildOverlay > div { width: min(240px,calc(100% - 24px)); padding: 12px 10px; border-radius: 13px; }.compactScene .manualBuildOverlay svg { width: 52px; height: 52px; }.compactScene .manualBuildOverlay strong { margin-top: 3px; font-size: 10px; }.compactScene .manualBuildOverlay span { font-size: 7px; }
-.compactScene .coachmark { width: min(270px,calc(52% - 16px)); padding: 12px 13px; border-radius: 12px; }
+.compactScene .guideCoach { width: calc(51% - 16px); gap: 7px; }
 .compactScene .coachRight { --coach-shift-x: 13px; }
 .compactScene .coachLeft { --coach-shift-x: calc(-100% - 13px); }
-.compactScene .coachmarkHeading { grid-template-columns: 34px minmax(0,1fr); gap: 8px; margin-bottom: 7px; }
-.compactScene .aiAvatar { width: 34px; height: 34px; border-radius: 10px; font-size: 18px; }
+.compactScene .guideAvatar { width: 43px; height: 43px; }
+.compactScene .coachmark { padding: 10px 11px; border-radius: 12px; }
+.compactScene .coachmarkHeading { margin-bottom: 7px; }
 .compactScene .coachmarkHeading span { margin-bottom: 3px; padding: 3px 6px; font-size: 6.5px; }
-.compactScene .coachmarkHeading strong { font-size: 10.5px; }
-.compactScene .coachmark p { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-size: 8.5px; line-height: 1.45; }
+.compactScene .coachmarkHeading strong { font-size: 9.5px; }
+.compactScene .coachmark p { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-size: 7.8px; line-height: 1.45; }
 .compactScene .liveProgress { padding: 7px 9px; font-size: 6px; }
 .compactScene .liveProgress > i { width: 50px; }
 .compactScene .liveProgress strong { font-size: 6px; }
 .motionNote { margin: 18px 0 0; color: #7c8b87; font-size: 12px; text-align: center; }
-.reducedMotion .targetBox { opacity: 1; animation: none !important; } .reducedMotion .pointer, .reducedMotion .clickPulse { display: none; } .reducedMotion .coachmark { opacity: 1; transform: translate(var(--coach-shift-x),-50%); animation: none !important; }
+.reducedMotion .targetBox { opacity: 1; animation: none !important; } .reducedMotion .pointer, .reducedMotion .clickPulse { display: none; } .reducedMotion .guideCoach { opacity: 1; transform: translate(var(--coach-shift-x),-50%); animation: none !important; }
 
 @keyframes recordBlink { 50% { opacity: .3; } }
 @keyframes targetReveal { 0%,12% { opacity: 0; transform: scale(.96); } 26%,88% { opacity: 1; transform: scale(1); } 100% { opacity: .7; } }
-@keyframes pointerMove { 0%,16% { opacity: 0; transform: translate(70px,58px); } 28% { opacity: 1; } 62%,88% { opacity: 1; transform: translate(8px,7px); } 100% { opacity: 0; transform: translate(8px,7px); } }
+@keyframes pointerJourney {
+  0% { opacity: .25; transform: translate(calc(var(--cursor-from-x) - 8px),calc(var(--cursor-from-y) - 6px)) scale(.96); }
+  9% { opacity: 1; }
+  31% { opacity: 1; transform: translate(calc(var(--cursor-control-1-x) - 8px),calc(var(--cursor-control-1-y) - 6px)) rotate(-2deg) scale(1); }
+  63% { opacity: 1; transform: translate(calc(var(--cursor-control-2-x) - 8px),calc(var(--cursor-control-2-y) - 6px)) rotate(2deg) scale(1); }
+  78% { opacity: 1; transform: translate(calc(var(--cursor-to-x) - 8px),calc(var(--cursor-to-y) - 6px)) scale(.9); }
+  88%,100% { opacity: 1; transform: translate(calc(var(--cursor-to-x) - 8px),calc(var(--cursor-to-y) - 6px)) scale(1); }
+}
 @keyframes targetClick { 0%,58% { opacity: 0; transform: translate(-50%,-50%) scale(.2); } 68% { opacity: .95; transform: translate(-50%,-50%) scale(.8); } 84%,100% { opacity: 0; transform: translate(-50%,-50%) scale(2.5); } }
 @keyframes savingGlow { to { box-shadow: 0 0 0 3px rgba(255,95,86,.08); } }
 @keyframes readyIn { from { opacity: 0; transform: translateY(8px); } }
@@ -445,5 +455,5 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .targetBox, .pointer, .clickPulse, .coachmark, .captureBadge::before, .savedStep, .editorAnnotation, .generatingCard, .generatingCard em, .savedToast, .fieldEditing i, .editingText i, .shareDemoLayer, .shareDemoModal, .aiAvatar, .finishPointer, .finishClickPulse, .manualBuildOverlay, .panelGeneratingContent em { animation: none !important; }
+  .targetBox, .pointer, .clickPulse, .guideCoach, .guideAvatar, .captureBadge::before, .savedStep, .editorAnnotation, .generatingCard, .generatingCard em, .savedToast, .fieldEditing i, .editingText i, .shareDemoLayer, .shareDemoModal, .finishPointer, .finishClickPulse, .manualBuildOverlay, .panelGeneratingContent em { animation: none !important; }
 }

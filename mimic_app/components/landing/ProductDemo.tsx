@@ -92,12 +92,33 @@ function BrowserChrome({ live = false, generating = false }: { live?: boolean; g
   );
 }
 
-function TargetViewport({ step, live, reducedMotion, settled = false }: {
+function TargetViewport({ step, previousStep, live, reducedMotion, settled = false }: {
   step: DemoStep;
+  previousStep?: DemoStep;
   live: boolean;
   reducedMotion: boolean;
   settled?: boolean;
 }) {
+  const centerOf = (target: DemoStep) => ({
+    x: target.rect.x + target.rect.width / 2,
+    y: target.rect.y + target.rect.height / 2,
+  });
+  const to = centerOf(step);
+  const from = previousStep ? centerOf(previousStep) : { x: 7, y: 78 };
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const distance = Math.max(Math.hypot(dx, dy), 1);
+  const bend = -Math.sign(dx || 1) * Math.min(9, distance * 0.2);
+  const perpendicular = { x: -dy / distance, y: dx / distance };
+  const clampPercent = (value: number) => Math.max(3, Math.min(97, value));
+  const control1 = {
+    x: clampPercent(from.x + dx * 0.32 + perpendicular.x * bend),
+    y: clampPercent(from.y + dy * 0.32 + perpendicular.y * bend),
+  };
+  const control2 = {
+    x: clampPercent(from.x + dx * 0.72 + perpendicular.x * bend),
+    y: clampPercent(from.y + dy * 0.72 + perpendicular.y * bend),
+  };
   const vars = {
     '--target-x': `${step.rect.x}%`,
     '--target-y': `${step.rect.y}%`,
@@ -105,6 +126,14 @@ function TargetViewport({ step, live, reducedMotion, settled = false }: {
     '--target-h': `${step.rect.height}%`,
     '--coach-x': `${step.coachSide === 'right' ? step.rect.x + step.rect.width : step.rect.x}%`,
     '--coach-y': `${step.rect.y + step.rect.height / 2}%`,
+    '--cursor-from-x': `${from.x}%`,
+    '--cursor-from-y': `${from.y}%`,
+    '--cursor-control-1-x': `${control1.x}%`,
+    '--cursor-control-1-y': `${control1.y}%`,
+    '--cursor-control-2-x': `${control2.x}%`,
+    '--cursor-control-2-y': `${control2.y}%`,
+    '--cursor-to-x': `${to.x}%`,
+    '--cursor-to-y': `${to.y}%`,
   } as CSSProperties;
 
   return (
@@ -114,12 +143,14 @@ function TargetViewport({ step, live, reducedMotion, settled = false }: {
       <span className={styles.clickPulse} aria-hidden="true" />
       <span className={styles.pointer} aria-hidden="true"><Pointer /></span>
       {live && (
-        <div className={`${styles.coachmark} ${step.coachSide === 'right' ? styles.coachRight : styles.coachLeft}`}>
-          <div className={styles.coachmarkHeading}>
-            <div className={styles.aiAvatar}><ParroMascot size={40} /></div>
-            <div><span>Parro AI Guide</span><strong>{step.title}</strong></div>
+        <div className={`${styles.guideCoach} ${step.coachSide === 'right' ? styles.coachRight : styles.coachLeft}`}>
+          <div className={styles.guideAvatar}><ParroMascot size={68} /></div>
+          <div className={styles.coachmark}>
+            <div className={styles.coachmarkHeading}>
+              <span>Parro AI Guide</span><strong>{step.title}</strong>
+            </div>
+            <p>{step.description}</p>
           </div>
-          <p>{step.description}</p>
         </div>
       )}
     </div>
@@ -202,7 +233,14 @@ function RecorderScene({ phase, compact = false, reducedMotion = false }: {
       <BrowserChrome generating={generating} />
       <div className={styles.recorderWorkspace}>
         <div className={styles.recorderTargetWrap}>
-          <TargetViewport key={`rec-${phase}`} step={step} live={false} reducedMotion={reducedMotion} settled={phase >= DEMO_STEPS.length} />
+          <TargetViewport
+            key={`rec-${phase}`}
+            step={step}
+            previousStep={phase > 0 && phase < DEMO_STEPS.length ? DEMO_STEPS[phase - 1] : undefined}
+            live={false}
+            reducedMotion={reducedMotion}
+            settled={phase >= DEMO_STEPS.length}
+          />
           {generating && (
             <div className={styles.manualBuildOverlay}>
               <div><ParroMascot size={72} /><strong>AI가 매뉴얼을 자동 완성하고 있어요</strong><span>잠시 후 Live Guide로 이어집니다</span></div>
@@ -220,7 +258,13 @@ function LiveGuideScene({ stepIndex, compact = false, reducedMotion = false }: {
   return (
     <div className={`${styles.sceneFrame} ${compact ? styles.compactScene : ''}`}>
       <BrowserChrome live />
-      <TargetViewport key={`live-${stepIndex}`} step={step} live reducedMotion={reducedMotion} />
+      <TargetViewport
+        key={`live-${stepIndex}`}
+        step={step}
+        previousStep={stepIndex > 0 ? DEMO_STEPS[stepIndex - 1] : undefined}
+        live
+        reducedMotion={reducedMotion}
+      />
       <div className={styles.liveProgress}>
         <span>{stepIndex + 1} / {DEMO_STEPS.length}</span>
         <i><em style={{ width: `${((stepIndex + 1) / DEMO_STEPS.length) * 100}%` }} /></i>
