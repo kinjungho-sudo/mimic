@@ -10,11 +10,12 @@ $registryPath = "HKCU:\Software\Google\Chrome\NativeMessagingHosts\$hostName"
 $installDir = Join-Path $env:LOCALAPPDATA "Programs\MIMIC\DesktopCompanion"
 $manifestPath = Join-Path $installDir "$hostName.json"
 $wrapperPath = Join-Path $installDir "mimic-desktop-host.cmd"
-$startMenuShortcut = Join-Path ([Environment]::GetFolderPath("Programs")) "MIMIC Desktop Capture.lnk"
-$desktopShortcut = Join-Path ([Environment]::GetFolderPath("Desktop")) "MIMIC Desktop Capture.lnk"
+$startMenuShortcut = Join-Path ([Environment]::GetFolderPath("Programs")) "Parro Desktop Capture.lnk"
+$desktopShortcut = Join-Path ([Environment]::GetFolderPath("Desktop")) "Parro Desktop Capture.lnk"
 $sourceRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 $defaultExtensionIds = @(
+  "pnkkalnfddapkmiobbhnkbhplakamaok",
   "dhfcmomnambegkibjnandckacihnaelb",
   "ehbhcdkapcbfehinjapabgoegcjmmbgd"
 )
@@ -44,7 +45,7 @@ if ($Uninstall) {
   }
   Remove-Item -LiteralPath $startMenuShortcut -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath $desktopShortcut -Force -ErrorAction SilentlyContinue
-  Show-Result "MIMIC Desktop Companion" "Uninstalled."
+  Show-Result "Parro Desktop" "Uninstalled."
   exit 0
 }
 
@@ -82,8 +83,9 @@ $extensionIds = New-Object System.Collections.Generic.List[string]
 foreach ($extensionId in $defaultExtensionIds) {
   $extensionIds.Add($extensionId)
 }
-if ($env:MIMIC_EXTENSION_ID) {
-  foreach ($extensionId in ($env:MIMIC_EXTENSION_ID -split ",")) {
+$extraExtensionIds = if ($env:PARRO_EXTENSION_ID) { $env:PARRO_EXTENSION_ID } else { $env:MIMIC_EXTENSION_ID }
+if ($extraExtensionIds) {
+  foreach ($extensionId in ($extraExtensionIds -split ",")) {
     $trimmed = $extensionId.Trim()
     if ($trimmed -and -not $extensionIds.Contains($trimmed)) {
       $extensionIds.Add($trimmed)
@@ -93,7 +95,7 @@ if ($env:MIMIC_EXTENSION_ID) {
 
 $manifest = [ordered]@{
   name = $hostName
-  description = "MIMIC Desktop Companion dev native messaging host"
+  description = "Parro Desktop preview native messaging host"
   path = $wrapperPath
   type = "stdio"
   allowed_origins = @($extensionIds | ForEach-Object { "chrome-extension://$_/" })
@@ -126,4 +128,4 @@ $log = [ordered]@{
 ($log | ConvertTo-Json -Depth 4) | Set-Content -LiteralPath $logPath -Encoding UTF8
 
 Start-Process powershell.exe -ArgumentList "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", "`"$controllerPath`""
-Show-Result "MIMIC Desktop Companion" "설치가 완료되었습니다. Desktop Capture 창에서 녹화를 시작할 수 있습니다."
+Show-Result "Parro Desktop" "설치가 완료되었습니다. Parro Desktop Capture 창에서 캡처를 시작할 수 있습니다."

@@ -1,5 +1,5 @@
 param(
-  [string]$OutputName = "MIMICDesktopSetup-dev.exe",
+  [string]$OutputName = "ParroDesktopSetup.exe",
   [switch]$PublishToWebApp
 )
 
@@ -36,7 +36,8 @@ if (-not (Get-Command iexpress.exe -ErrorAction SilentlyContinue)) {
 
 New-Item -ItemType Directory -Force -Path $stagingDir | Out-Null
 New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
-Remove-Item -LiteralPath (Join-Path $stagingDir "*") -Recurse -Force -ErrorAction SilentlyContinue
+Get-ChildItem -LiteralPath $stagingDir -Force -ErrorAction SilentlyContinue |
+  Remove-Item -Recurse -Force
 
 Copy-Item -LiteralPath $installScriptPath -Destination (Join-Path $stagingDir "install.ps1") -Force
 Copy-Item -LiteralPath $hostPath -Destination (Join-Path $stagingDir "host.js") -Force
@@ -59,9 +60,9 @@ CAB_ResvCodeSigning=0
 RebootMode=N
 InstallPrompt=
 DisplayLicense=
-FinishMessage=MIMIC Desktop Companion installation is complete.
+FinishMessage=Parro Desktop installation is complete.
 TargetName=$outputPath
-FriendlyName=MIMIC Desktop Companion
+FriendlyName=Parro Desktop
 AppLaunched=powershell.exe -NoProfile -ExecutionPolicy Bypass -File install.ps1
 PostInstallCmd=<None>
 AdminQuietInstCmd=powershell.exe -NoProfile -ExecutionPolicy Bypass -File install.ps1 -Quiet

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 const STORE_URL = 'https://chromewebstore.google.com/detail/mimic-recorder/ehbhcdkapcbfehinjapabgoegcjmmbgd';
 const INSTALLER_URL = process.env.NEXT_PUBLIC_DESKTOP_INSTALLER_URL?.replace(/^\uFEFF/, '').trim()
-  || '/downloads/MIMICDesktopSetup-dev.exe';
+  || '/downloads/ParroDesktopSetup.exe';
 
 type DesktopStatus = 'idle' | 'checking' | 'ready' | 'missing' | 'extension_missing' | 'starting' | 'started' | 'stopping' | 'stopped';
 
@@ -51,7 +51,7 @@ function triggerInstallerDownload() {
   if (!INSTALLER_URL) return;
   const link = document.createElement('a');
   link.href = INSTALLER_URL;
-  link.download = 'MIMICDesktopSetup.exe';
+  link.download = 'ParroDesktopSetup.exe';
   link.rel = 'noopener noreferrer';
   document.body.appendChild(link);
   link.click();
@@ -162,7 +162,7 @@ export default function DesktopSetupPage() {
       <section className="desktop-setup-shell">
         <div className="desktop-setup-header">
           <div>
-            <p className="desktop-setup-kicker">MIMIC Desktop Companion</p>
+            <p className="desktop-setup-kicker">Parro Desktop Companion</p>
             <h1>데스크톱 녹화 설치</h1>
             <p className="desktop-setup-lead">
               Windows 다운로드, 업로드, 설치, 로그인 작업까지 끊기지 않게 기록하려면 Desktop Companion 설치가 먼저 필요합니다.
@@ -192,7 +192,7 @@ export default function DesktopSetupPage() {
                 <span>1</span>
                 <div>
                   <strong>설치 파일 다운로드</strong>
-                  <p>이 화면으로 들어오면 <code>MIMICDesktopSetup.exe</code> 다운로드가 자동으로 시작됩니다.</p>
+                  <p>이 화면으로 들어오면 <code>ParroDesktopSetup.exe</code> 다운로드가 자동으로 시작됩니다.</p>
                 </div>
               </li>
               <li>

@@ -14,7 +14,7 @@ $script:captureProcess = $null
 
 $xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        Title="MIMIC Desktop Capture" Height="330" Width="520"
+        Title="Parro Desktop Capture" Height="330" Width="520"
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
         Background="#F8FAFC">
   <Grid Margin="28">
@@ -67,7 +67,7 @@ function Stop-Capture {
 
 $startButton.Add_Click({
   if (-not (Test-Path -LiteralPath $agentPath)) {
-    [System.Windows.MessageBox]::Show("Capture engine not found. Please reinstall the app.", "MIMIC Desktop Capture") | Out-Null
+    [System.Windows.MessageBox]::Show("Capture engine not found. Please reinstall the app.", "Parro Desktop Capture") | Out-Null
     return
   }
 

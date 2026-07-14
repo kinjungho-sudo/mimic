@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description: 'Windows 앱의 클릭 과정을 자동으로 캡처하는 Parro Desktop 프리뷰를 다운로드하세요.',
 };
 
-const INSTALLER_URL = '/downloads/MIMICDesktopSetup-dev.exe';
+const INSTALLER_URL = '/downloads/ParroDesktopSetup.exe';
 
 function ParroMark({ size = 34 }: { size?: number }) {
   return (
