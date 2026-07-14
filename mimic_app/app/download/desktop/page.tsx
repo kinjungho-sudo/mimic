@@ -40,7 +40,7 @@ export default function DesktopDownloadPage() {
               <span>↓</span> Windows용 다운로드
             </a>
           </div>
-          <div className="facts"><span>로그인 없이 다운로드</span><span>설치 후 바로 실행</span><span>캡처 파일은 내 PC에 저장</span></div>
+          <div className="facts"><span>로그인 후 다운로드</span><span>설치 후 바로 실행</span><span>캡처 파일은 내 PC에 저장</span></div>
         </div>
       </section>
 
