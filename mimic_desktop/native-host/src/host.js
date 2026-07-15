@@ -12,7 +12,7 @@ const state = {
 };
 
 const localAppData = process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local");
-const logDir = path.join(localAppData, "MIMIC", "DesktopCompanion");
+const logDir = path.join(localAppData, "Parro", "DesktopCompanion");
 const logPath = path.join(logDir, "native-host.log");
 
 function log(entry) {
@@ -90,7 +90,7 @@ function handleMessage(message) {
     return {
       ok: true,
       type: "PONG",
-      host: "mimic-desktop-companion-dev",
+      host: "parro-desktop-companion-dev",
       active_session_id: state.activeSessionId,
     };
   }

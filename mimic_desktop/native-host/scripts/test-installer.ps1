@@ -1,5 +1,6 @@
 param(
   [string]$InstallerPath,
+  [string]$InstallDir,
   [switch]$UninstallAfter
 )
 
@@ -10,17 +11,25 @@ if (-not $InstallerPath) {
   $InstallerPath = Join-Path $root "dist\installer\ParroDesktopSetup.exe"
 }
 $InstallerPath = (Resolve-Path -LiteralPath $InstallerPath).Path
+if (-not $InstallDir) {
+  $InstallDir = Join-Path $env:LOCALAPPDATA "Programs\Parro\Desktop"
+}
+$InstallDir = [System.IO.Path]::GetFullPath($InstallDir)
 
 $hostName = "com.mimic.desktop_companion.dev"
 $registryPath = "HKCU:\Software\Google\Chrome\NativeMessagingHosts\$hostName"
-$installDir = Join-Path $env:LOCALAPPDATA "Programs\MIMIC\DesktopCompanion"
-$manifestPath = Join-Path $installDir "$hostName.json"
+$uninstallRegistryPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\ParroDesktop"
+$manifestPath = Join-Path $InstallDir "$hostName.json"
 $requiredFiles = @(
   "node.exe",
   "host.js",
   "capture-agent.ps1",
   "controller.ps1",
-  "mimic-desktop-host.cmd",
+  "ParroDesktop.exe",
+  "parro.ico",
+  "parro-desktop-host.cmd",
+  "Uninstall.exe",
+  "install.json",
   "$hostName.json"
 )
 $requiredExtensionIds = @(
@@ -28,33 +37,46 @@ $requiredExtensionIds = @(
   "ehbhcdkapcbfehinjapabgoegcjmmbgd"
 )
 
-$process = Start-Process -FilePath $InstallerPath -ArgumentList "/Q" -Wait -PassThru
+$arguments = @("/quiet", "/nolaunch", "/dir=$InstallDir")
+$process = Start-Process -FilePath $InstallerPath -ArgumentList $arguments -Wait -PassThru
 if ($process.ExitCode -ne 0) {
-  throw "Installer exited with code $($process.ExitCode)."
-}
-
-$deadline = (Get-Date).AddSeconds(30)
-while ((Get-Date) -lt $deadline -and -not (Test-Path -LiteralPath $manifestPath)) {
-  Start-Sleep -Milliseconds 500
+  $logPath = Join-Path $env:LOCALAPPDATA "Parro\DesktopCompanion\installer.log"
+  $logTail = if (Test-Path -LiteralPath $logPath) { Get-Content -LiteralPath $logPath -Tail 40 | Out-String } else { "No installer log found." }
+  throw "Installer exited with code $($process.ExitCode).`n$logTail"
 }
 
 if (-not (Test-Path $registryPath)) {
   throw "Native Messaging registry key was not created: $registryPath"
+}
+if (-not (Test-Path $uninstallRegistryPath)) {
+  throw "Windows uninstall registry key was not created: $uninstallRegistryPath"
 }
 
 $registeredManifest = (Get-ItemProperty -Path $registryPath)."(default)"
 if ($registeredManifest -ne $manifestPath) {
   throw "Registry manifest mismatch. Expected '$manifestPath', got '$registeredManifest'."
 }
+$registeredLocation = (Get-ItemProperty -Path $uninstallRegistryPath).InstallLocation
+if ($registeredLocation -ne $InstallDir) {
+  throw "Uninstall install-location mismatch. Expected '$InstallDir', got '$registeredLocation'."
+}
 
 foreach ($file in $requiredFiles) {
-  $path = Join-Path $installDir $file
+  $path = Join-Path $InstallDir $file
   if (-not (Test-Path -LiteralPath $path)) {
     throw "Installed file is missing: $path"
   }
 }
 
-$manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+foreach ($scriptName in @("controller.ps1", "capture-agent.ps1")) {
+  $scriptBytes = [System.IO.File]::ReadAllBytes((Join-Path $InstallDir $scriptName))
+  if ($scriptBytes.Length -lt 3 -or $scriptBytes[0] -ne 0xEF -or $scriptBytes[1] -ne 0xBB -or $scriptBytes[2] -ne 0xBF) {
+    throw "PowerShell payload must be UTF-8 BOM encoded for Windows PowerShell 5.1: $scriptName"
+  }
+}
+
+$manifestText = [System.IO.File]::ReadAllText($manifestPath, [System.Text.UTF8Encoding]::new($false, $true))
+$manifest = $manifestText | ConvertFrom-Json
 if ($manifest.name -ne $hostName) {
   throw "Unexpected Native Messaging host name: $($manifest.name)"
 }
@@ -68,9 +90,40 @@ foreach ($extensionId in $requiredExtensionIds) {
   }
 }
 
+$startMenuShortcut = Join-Path ([Environment]::GetFolderPath("Programs")) "Parro Desktop Capture.lnk"
+if (-not (Test-Path -LiteralPath $startMenuShortcut)) {
+  throw "Start-menu shortcut was not created: $startMenuShortcut"
+}
+
+$shortcutShell = New-Object -ComObject WScript.Shell
+$shortcut = $shortcutShell.CreateShortcut($startMenuShortcut)
+$expectedShortcutTarget = Join-Path $InstallDir "ParroDesktop.exe"
+if ([System.IO.Path]::GetFullPath($shortcut.TargetPath) -ne [System.IO.Path]::GetFullPath($expectedShortcutTarget)) {
+  throw "Start-menu shortcut target mismatch. Expected '$expectedShortcutTarget', got '$($shortcut.TargetPath)'."
+}
+
+Add-Type -AssemblyName System.Drawing
+$setupIcon = [System.Drawing.Icon]::ExtractAssociatedIcon($InstallerPath)
+try {
+  if (-not $setupIcon -or $setupIcon.Width -lt 16) {
+    throw "Installer executable icon could not be loaded."
+  }
+} finally {
+  if ($setupIcon) { $setupIcon.Dispose() }
+}
+
+$launcherIcon = [System.Drawing.Icon]::ExtractAssociatedIcon((Join-Path $InstallDir "ParroDesktop.exe"))
+try {
+  if (-not $launcherIcon -or $launcherIcon.Width -lt 16) {
+    throw "Desktop launcher icon could not be loaded."
+  }
+} finally {
+  if ($launcherIcon) { $launcherIcon.Dispose() }
+}
+
 $smokeScript = Join-Path $root "scripts\smoke-native-host.js"
-$installedHost = Join-Path $installDir "host.js"
-$installedNode = Join-Path $installDir "node.exe"
+$installedHost = Join-Path $InstallDir "host.js"
+$installedNode = Join-Path $InstallDir "node.exe"
 & node $smokeScript $installedHost $installedNode
 if ($LASTEXITCODE -ne 0) {
   throw "Installed Native Messaging host smoke test failed."
@@ -80,16 +133,26 @@ $result = [ordered]@{
   ok = $true
   installer = $InstallerPath
   installer_sha256 = (Get-FileHash -LiteralPath $InstallerPath -Algorithm SHA256).Hash
-  install_dir = $installDir
+  installer_size = (Get-Item -LiteralPath $InstallerPath).Length
+  install_dir = $InstallDir
   manifest = $manifestPath
+  icon = (Join-Path $InstallDir "parro.ico")
+  powershell_payload_encoding = "UTF-8 BOM"
   allowed_origins = $manifest.allowed_origins
 }
 $result | ConvertTo-Json -Depth 4
 
 if ($UninstallAfter) {
-  $installScript = Join-Path $root "installer\install.ps1"
-  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installScript -Uninstall -Quiet
-  if ($LASTEXITCODE -ne 0) {
-    throw "Uninstall verification failed."
+  $uninstaller = Join-Path $InstallDir "Uninstall.exe"
+  $uninstallProcess = Start-Process -FilePath $uninstaller -ArgumentList "/uninstall", "/quiet" -Wait -PassThru
+  if ($uninstallProcess.ExitCode -ne 0) {
+    throw "Uninstaller exited with code $($uninstallProcess.ExitCode)."
+  }
+  $deadline = (Get-Date).AddSeconds(15)
+  while ((Get-Date) -lt $deadline -and ((Test-Path $registryPath) -or (Test-Path $uninstallRegistryPath))) {
+    Start-Sleep -Milliseconds 300
+  }
+  if ((Test-Path $registryPath) -or (Test-Path $uninstallRegistryPath)) {
+    throw "Uninstall verification failed: registry keys remain."
   }
 }

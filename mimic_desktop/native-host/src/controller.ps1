@@ -2,11 +2,28 @@ param()
 
 $ErrorActionPreference = "Stop"
 
+$logRoot = Join-Path $env:LOCALAPPDATA "Parro\DesktopCompanion"
+$controllerLogPath = Join-Path $logRoot "controller.log"
+New-Item -ItemType Directory -Force -Path $logRoot | Out-Null
+
+trap {
+  $detail = "[{0}] {1}`r`n{2}`r`n" -f (Get-Date).ToString("o"), $_.Exception.Message, ($_ | Out-String)
+  try { [System.IO.File]::AppendAllText($controllerLogPath, $detail, [System.Text.UTF8Encoding]::new($false)) } catch {}
+  try {
+    Add-Type -AssemblyName PresentationFramework
+    [System.Windows.MessageBox]::Show(
+      "Parro Desktop을 실행하지 못했습니다.`r`n`r`n$($_.Exception.Message)`r`n`r`n로그: $controllerLogPath",
+      "Parro Desktop 실행 오류"
+    ) | Out-Null
+  } catch {}
+  exit 1
+}
+
 Add-Type -AssemblyName PresentationFramework
 
 $installDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $agentPath = Join-Path $installDir "capture-agent.ps1"
-$captureRoot = Join-Path $env:LOCALAPPDATA "MIMIC\DesktopCompanion\captures"
+$captureRoot = Join-Path $env:LOCALAPPDATA "Parro\DesktopCompanion\captures"
 $script:sessionId = $null
 $script:outputDir = $null
 $script:stopFile = $null
@@ -14,6 +31,7 @@ $script:captureProcess = $null
 
 $xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Parro Desktop Capture" Height="330" Width="520"
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
         Background="#F8FAFC">
@@ -45,6 +63,18 @@ $xaml = @"
 
 $reader = New-Object System.Xml.XmlNodeReader ([xml]$xaml)
 $window = [Windows.Markup.XamlReader]::Load($reader)
+$iconPath = Join-Path $installDir "parro.ico"
+if (Test-Path -LiteralPath $iconPath) {
+  try {
+    $iconImage = New-Object Windows.Media.Imaging.BitmapImage
+    $iconImage.BeginInit()
+    $iconImage.CacheOption = [Windows.Media.Imaging.BitmapCacheOption]::OnLoad
+    $iconImage.UriSource = [uri]$iconPath
+    $iconImage.EndInit()
+    $iconImage.Freeze()
+    $window.Icon = $iconImage
+  } catch {}
+}
 $statusText = $window.FindName("StatusText")
 $pathText = $window.FindName("PathText")
 $startButton = $window.FindName("StartButton")

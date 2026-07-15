@@ -12,7 +12,7 @@ The production Desktop App can later replace this host with a signed Tauri binar
 
 This dev host verifies the first Desktop Companion contract:
 
-1. The Chrome extension starts a MIMIC capture session.
+1. The Chrome extension starts a Parro capture session.
 2. The extension sends the same `capture_session_id` to the desktop host.
 3. The desktop host keeps the active session while recording is running.
 4. The extension sends a stop message when recording ends.
@@ -23,11 +23,11 @@ This stage does not watch files yet. File creation, modification, active app det
 
 정식 Desktop Companion의 사용자 흐름은 다음을 목표로 합니다.
 
-1. 첫 캡처 전에 MIMIC 웹에서 Desktop Companion 설치를 안내합니다.
+1. 첫 캡처 전에 Parro 웹에서 Desktop Companion 설치를 안내합니다.
 2. 사용자는 Windows 설치 파일을 실행합니다.
 3. 설치가 끝나면 Chrome Recorder와 Desktop Companion 연결 상태를 확인합니다.
 4. 이후 녹화를 시작하면 Desktop Companion이 같은 `capture_session_id`로 세션에 붙습니다.
-5. 웹에서 파일을 다운로드하고, PC에서 수정/저장하고, 다시 업로드하는 흐름을 하나의 MIMIC 매뉴얼 단계로 복원합니다.
+5. 웹에서 파일을 다운로드하고, PC에서 수정/저장하고, 다시 업로드하는 흐름을 하나의 Parro 매뉴얼 단계로 복원합니다.
 
 MVP 원칙:
 
@@ -55,12 +55,12 @@ com.mimic.desktop_companion.dev
 The dev host writes session messages to:
 
 ```text
-%LOCALAPPDATA%\MIMIC\DesktopCompanion\native-host.log
+%LOCALAPPDATA%\Parro\DesktopCompanion\native-host.log
 ```
 
-## Build quick Windows installer
+## Build Windows installer
 
-This builds an unsigned internal-test installer at:
+This builds the current unsigned preview installer at:
 
 ```text
 mimic_desktop\native-host\dist\installer\ParroDesktopSetup.exe
@@ -72,10 +72,30 @@ Run:
 .\scripts\build-dev-installer.ps1
 ```
 
-The quick installer bundles the current local `node.exe` with `src\host.js`, installs them under:
+The installer is a Windows wizard with a user-selectable install directory and an optional desktop shortcut. It bundles the current local `node.exe`, Native Messaging host, and Desktop Capture controller. The default install directory is:
 
 ```text
-%LOCALAPPDATA%\Programs\MIMIC\DesktopCompanion
+%LOCALAPPDATA%\Programs\Parro\Desktop
+```
+
+The setup executable and installed shortcuts use the same icon as the Parro web favicon. After installation it appears in Windows Apps & features and can be removed with the installed uninstaller.
+
+To also publish the current build to the web app download directory:
+
+```powershell
+.\scripts\build-dev-installer.ps1 -PublishToWebApp
+```
+
+The published file is:
+
+```text
+mimic_app\public\downloads\ParroDesktopSetup.exe
+```
+
+Silent installation is available for CI and smoke tests:
+
+```powershell
+.\dist\installer\ParroDesktopSetup.exe /quiet /nolaunch /dir="C:\Path\To\Parro\Desktop"
 ```
 
 It registers the current-user Native Messaging host:
@@ -107,6 +127,14 @@ Build, install silently, validate the registry/manifest/payload, and run the ins
 ```
 
 ## Uninstall
+
+Use Windows Settings > Apps > Installed apps, the Start menu shortcut, or run:
+
+```powershell
+"%LOCALAPPDATA%\Programs\Parro\Desktop\Uninstall.exe" /uninstall
+```
+
+The legacy local-development registration script can still be removed with:
 
 ```powershell
 .\install-dev-native-host.ps1 -Uninstall

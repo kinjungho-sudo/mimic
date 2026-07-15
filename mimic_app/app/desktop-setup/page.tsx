@@ -74,7 +74,7 @@ export default function DesktopSetupPage() {
       case 'missing':
         return 'Desktop Companion을 찾지 못했습니다. 설치를 완료한 뒤 다시 확인해주세요.';
       case 'extension_missing':
-        return 'MIMIC Recorder 확장이 먼저 필요합니다.';
+        return 'Parro Recorder 확장이 먼저 필요합니다.';
       case 'starting':
         return '데스크톱 녹화 세션을 시작하고 있습니다.';
       case 'started':
@@ -107,7 +107,7 @@ export default function DesktopSetupPage() {
   const checkInstall = useCallback(async () => {
     if (!canTalkToExtension()) {
       setStatus('extension_missing');
-      setMessage('Desktop Companion 상태 확인은 MIMIC Recorder 확장을 통해 진행됩니다. 확장을 먼저 설치하거나 연결해주세요.');
+      setMessage('Desktop Companion 상태 확인은 Parro Recorder 확장을 통해 진행됩니다. 확장을 먼저 설치하거나 연결해주세요.');
       return;
     }
 
@@ -149,7 +149,7 @@ export default function DesktopSetupPage() {
 
     if (response?.ok) {
       setStatus('stopped');
-      setMessage(`캡처가 저장되었습니다. 파일 탐색기에서 %LOCALAPPDATA%\\MIMIC\\DesktopCompanion\\captures\\${sessionId} 폴더를 확인해주세요.`);
+      setMessage(`캡처가 저장되었습니다. 파일 탐색기에서 %LOCALAPPDATA%\\Parro\\DesktopCompanion\\captures\\${sessionId} 폴더를 확인해주세요.`);
       return;
     }
 
@@ -247,7 +247,7 @@ export default function DesktopSetupPage() {
           <div className="desktop-setup-principle-grid">
             <div>
               <strong>1. 웹은 직접 Windows를 감지하지 않습니다.</strong>
-              <p>MIMIC 웹 앱은 Recorder 확장에 설치 상태 확인을 요청합니다. 브라우저 보안상 웹페이지가 임의로 로컬 프로그램을 검사하지 않기 때문입니다.</p>
+              <p>Parro 웹 앱은 Recorder 확장에 설치 상태 확인을 요청합니다. 브라우저 보안상 웹페이지가 임의로 로컬 프로그램을 검사하지 않기 때문입니다.</p>
             </div>
             <div>
               <strong>2. Recorder 확장이 Desktop Companion을 확인합니다.</strong>

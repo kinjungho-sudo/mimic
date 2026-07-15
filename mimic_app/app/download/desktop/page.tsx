@@ -58,8 +58,8 @@ export default function DesktopDownloadPage() {
               <span className="windows-icon"><WindowsIcon /></span>
               <div>
                 <strong>Windows</strong>
-                <span>Preview 0.1.0 · 2026년 7월 14일</span>
-                <span>Windows 10/11 · 64-bit · 25MB</span>
+                <span>Preview 0.3.0 · 2026년 7월 15일</span>
+                <span>Windows 10/11 · 64-bit · 약 34MB</span>
               </div>
             </div>
             <a
@@ -76,7 +76,7 @@ export default function DesktopDownloadPage() {
             </a>
           </div>
           <div className="trust-row">
-            <span>✓ 로그인 없이 다운로드</span>
+            <span>✓ 로그인 후 다운로드</span>
             <span>✓ 설치 후 바로 실행</span>
             <span>✓ 캡처 파일은 PC에 저장</span>
           </div>
@@ -92,8 +92,8 @@ export default function DesktopDownloadPage() {
         <div className="steps-grid">
           {[
             ['01', '다운로드하고 설치', '설치 파일을 실행하면 바탕화면과 시작 메뉴에 Parro Desktop Capture가 추가됩니다.'],
-            ['02', 'Start capture', '독립 실행 창에서 Start capture를 누르고 평소처럼 Windows 앱을 클릭하세요.'],
-            ['03', 'Stop 후 결과 확인', 'Stop을 누른 뒤 Open folder에서 스크린샷과 클릭 좌표 기록을 확인하세요.'],
+            ['02', '캡처 툴바로 기록', '캡처 시작을 누르면 화면 상단 중앙에 작은 Parro 툴바가 열립니다. 이 툴바는 결과 스크린샷에서 제외됩니다.'],
+            ['03', '완료 후 결과 확인', '수동 캡처·블러·실행 취소·일시정지를 사용하고 완료를 누르면 로컬 결과 폴더가 열립니다.'],
           ].map(([number, title, body]) => (
             <article className="step-card" key={number}>
               <span className="step-number">{number}</span>
@@ -108,9 +108,9 @@ export default function DesktopDownloadPage() {
         <div>
           <span className="preview-badge">PREVIEW</span>
           <h2>현재 버전에서 저장되는 것</h2>
-          <p>왼쪽 클릭 시점의 전체 화면 PNG, 클릭 좌표, 화면 크기, 캡처 시간이 로컬 세션 폴더에 저장됩니다.</p>
+          <p>왼쪽 클릭 시점의 전체 화면 PNG, 클릭 좌표, 화면 크기, 캡처 시간이 저장됩니다. Parro 툴바 자체는 Windows 캡처 제외 처리가 적용됩니다.</p>
         </div>
-        <code>%LOCALAPPDATA%\MIMIC\DesktopCompanion\captures</code>
+        <code>%LOCALAPPDATA%\Parro\DesktopCompanion\captures</code>
       </section>
 
       <footer>

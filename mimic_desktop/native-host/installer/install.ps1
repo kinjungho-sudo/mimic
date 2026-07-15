@@ -7,7 +7,7 @@ $ErrorActionPreference = "Stop"
 
 $hostName = "com.mimic.desktop_companion.dev"
 $registryPath = "HKCU:\Software\Google\Chrome\NativeMessagingHosts\$hostName"
-$installDir = Join-Path $env:LOCALAPPDATA "Programs\MIMIC\DesktopCompanion"
+$installDir = Join-Path $env:LOCALAPPDATA "Programs\Parro\Desktop"
 $manifestPath = Join-Path $installDir "$hostName.json"
 $wrapperPath = Join-Path $installDir "mimic-desktop-host.cmd"
 $startMenuShortcut = Join-Path ([Environment]::GetFolderPath("Programs")) "Parro Desktop Capture.lnk"

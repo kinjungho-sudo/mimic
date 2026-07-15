@@ -39,7 +39,7 @@ node "$hostScript"
 
 $manifest = [ordered]@{
   name = $hostName
-  description = "MIMIC Desktop Companion dev native messaging host"
+  description = "Parro Desktop Companion dev native messaging host"
   path = $wrapperPath
   type = "stdio"
   allowed_origins = @("chrome-extension://$ExtensionId/")
@@ -53,4 +53,3 @@ Set-ItemProperty -Path $registryPath -Name "(default)" -Value $manifestPath
 Write-Host "Registered $hostName"
 Write-Host "Manifest: $manifestPath"
 Write-Host "Allowed extension: chrome-extension://$ExtensionId/"
-
