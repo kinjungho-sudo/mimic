@@ -203,6 +203,9 @@ function isLikelyRawDomActionBase(value: string): boolean {
   if (/^(code|homepage|open menu)$/i.test(text)) return true;
   if (hasAccessibilityShortcutNoise(text)) return true;
   if (/^(search|검색)$/i.test(text)) return true;
+  if (/^(최소|최대|적용)$/i.test(text)) return true;
+  if (/검색하세요|선택하세요|입력하세요|확인하세요/.test(text)) return true;
+  if (/무료\s*배송|매장\s*구경하기|매장\s*위치\s*보기|^쇼핑하기$/i.test(text)) return true;
   if (/\.{3}|…|—/.test(text)) return true;
   if (/아이콘 추가|커버 추가|댓글 추가/.test(text)) return true;
   if (/^(\+|파일 등 추가|페이지|새 페이지|텍스트|데이터베이스|ChatGPT와 채팅)$/i.test(text)) return true;
@@ -240,6 +243,7 @@ export function isLowQualityCaptureScript(value: string | null | undefined): boo
   if (hasCountNoise(text)) return true;
   if (isLongCapturedContent(text)) return true;
   if (hasCapturedEditorChrome(text)) return true;
+  if (/^(최소|최대)(로|에)?\s*내용을\s*입력합니다\.?$/i.test(text)) return true;
   if (/^\d+(을|를)?\s*(클릭|확인|선택|입력|이동)합니다\.?$/i.test(text)) return true;
   const actionScriptMatch = /^(.+?)(을|를)?\s*(클릭|확인|선택|입력|이동)합니다\.?$/i.exec(text);
   if (actionScriptMatch && isLikelyRawDomActionBase(actionScriptMatch[1])) return true;
@@ -283,6 +287,18 @@ function titleVerbFor(base: string, actionType: string | undefined, noAction: bo
   return verb;
 }
 
+function purposeTitleFor(base: string, verb: ReturnType<typeof verbForAction>): string | null {
+  if (base === '검색창' && verb === '입력') return '상품 검색어 입력';
+  if (base === '무료배송 조건') return '무료배송 조건 선택';
+  if (base === '최소 가격') return '최소 가격 설정';
+  if (base === '최대 가격') return '최대 가격 설정';
+  if (base === '입력 내용') return '입력 내용 적용';
+  if (base === '오프라인 매장') return '오프라인 매장 둘러보기';
+  if (base === '매장 정보') return '매장 정보 확인';
+  if (base === '온라인 쇼핑') return '온라인 쇼핑으로 이동';
+  return null;
+}
+
 function recipientTarget(base: string): string {
   if (/숨은참조/.test(base)) return '숨은참조 수신자';
   if (/참조/.test(base)) return '참조 수신자';
@@ -307,10 +323,29 @@ function scriptFor(base: string, verb: ReturnType<typeof verbForAction>): string
   return `${base}${objectParticle(base)} 클릭합니다.`;
 }
 
+function purposeScriptFor(base: string, verb: ReturnType<typeof verbForAction>): string | null {
+  if (base === '검색창' && verb === '입력') return '원하는 항목을 찾을 수 있도록 검색창에 검색어를 입력합니다.';
+  if (base === '무료배송 조건') return '배송비가 없는 항목만 확인할 수 있도록 무료배송 조건을 선택합니다.';
+  if (base === '최소 가격') return '원하는 가격대로 결과를 좁히기 위해 최소 가격을 입력합니다.';
+  if (base === '최대 가격') return '원하는 가격대로 결과를 좁히기 위해 최대 가격을 입력합니다.';
+  if (base === '입력 내용') return '입력한 내용이 반영되도록 적용 항목을 선택합니다.';
+  if (base === '오프라인 매장') return '온라인에 없는 항목도 살펴보려면 오프라인 매장 화면으로 이동합니다.';
+  if (base === '매장 정보') return '방문에 필요한 주소와 운영시간을 확인할 수 있도록 매장 정보 화면으로 이동합니다.';
+  if (base === '온라인 쇼핑') return '상품 검색을 계속할 수 있도록 온라인 쇼핑 화면으로 이동합니다.';
+  return null;
+}
+
 function contextFromCapturedLabel(label: string | null | undefined): string {
   const text = cleanText(label);
   if (!text) return '';
-  if (/^(search|검색)$/i.test(text) || /검색\s*(창|어|필드|입력)/i.test(text)) return '검색창';
+  if (/^(search|검색)$/i.test(text) || /검색\s*(창|어|필드|입력)/i.test(text) || /검색하세요/.test(text)) return '검색창';
+  if (/무료\s*배송/i.test(text)) return '무료배송 조건';
+  if (/^(최소|min(?:imum)?)$/i.test(text)) return '최소 가격';
+  if (/^(최대|max(?:imum)?)$/i.test(text)) return '최대 가격';
+  if (/^(적용|apply)$/i.test(text)) return '입력 내용';
+  if (/매장\s*구경/i.test(text)) return '오프라인 매장';
+  if (/매장\s*위치/i.test(text)) return '매장 정보';
+  if (/^(쇼핑하기|shop\s*now)$/i.test(text)) return '온라인 쇼핑';
   if (/장바구니\s*담기|add\s*to\s*cart/i.test(text)) return '장바구니 담기 버튼';
   if (hasEmailAddress(text)) {
     if (/숨은\s*참조|bcc/i.test(text)) return '숨은참조 수신자 자동 완성';
@@ -501,10 +536,10 @@ export function buildCaptureFallbackDraft(
   const verb = titleVerbFor(base, actionType, noAction);
   const userTitle = safeAiTitle && !isLowQualityCaptureTitle(safeAiTitle)
     ? dedupeActionNoun(cleanText(safeAiTitle))
-    : `${base} ${verb}`;
+    : purposeTitleFor(base, verb) ?? `${base} ${verb}`;
   const userScript = !isContextuallyStaleLabel(step.ai_description, step.page_url) && !isLowQualityCaptureScript(step.ai_description)
     ? cleanText(step.ai_description)
-    : scriptFor(base, verb);
+    : purposeScriptFor(base, verb) ?? scriptFor(base, verb);
 
   return {
     id: step.id,
@@ -649,6 +684,12 @@ export function buildCaptureFallbackTutorialTitle(
     if (hasCompose) return '메일 작성하기';
     if (titles.some(title => /메일함|받은편지함/.test(title))) return '메일함 확인하기';
   }
+
+  const hasProductSearch = titles.some(title => /상품 검색|검색어|검색 조건|최소 가격|최대 가격|무료배송/.test(title));
+  const hasStoreInfo = titles.some(title => /오프라인 매장|매장 정보/.test(title));
+  if (hasProductSearch && hasStoreInfo) return '상품 검색 후 매장 정보 확인하기';
+  if (hasProductSearch) return '상품 조건 검색하기';
+  if (hasStoreInfo) return '매장 정보 확인하기';
 
   const completionTitle = [...titles].reverse().find(title =>
     /(보내기|발송|완료|저장|게시|등록|신청|구매|생성|만들기|공유|초대|로그인|제출)(?:\s*(?:클릭|확인|선택|입력|이동))?$/.test(title)

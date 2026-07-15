@@ -6,7 +6,7 @@ import { ArrowLeft, Play, Check, Loader2, MousePointerClick, Type, Ban, RotateCc
 import { useTutorial } from '@/hooks/useTutorial';
 import { updateStep, reorderSteps } from '@/lib/api/steps';
 import { pickLiveGuideTarget } from '@/lib/api/liveGuide';
-import { clickToPct, inferKind, toFollowSteps } from '@/lib/follow';
+import { clickToPct, inferKind, mergeCapturedTypeText, toFollowSteps } from '@/lib/follow';
 import { resolveStepAudio } from '@/lib/voice/playback';
 import { InteractiveFollowPlayer } from '@/components/viewer/InteractiveFollowPlayer';
 import { FollowStage } from '@/components/viewer/FollowStage';
@@ -64,7 +64,7 @@ function toStudioStep(s: Step): StudioStep {
       if (!raw || raw.x == null) return null;
       return { x: (raw.x ?? 0) * 100, y: (raw.y ?? 0) * 100, w: (raw.width ?? 0) * 100, h: (raw.height ?? 0) * 100 };
     })(),
-    follow: (s.follow_config as FollowConfig) ?? {},
+    follow: mergeCapturedTypeText(s.follow_config, s.type_text),
   };
 }
 

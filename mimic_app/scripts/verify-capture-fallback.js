@@ -123,6 +123,55 @@ async function main() {
       title: '주문 정보 확인',
       script: '주문 정보를 확인합니다.',
     },
+    {
+      name: 'garden search input becomes task guidance',
+      step: { id: '11', step_number: 1, ai_title: '식물 이름, 카테고리로 검색하세요 입력', ai_description: '식물 이름, 카테고리로 검색하세요로 내용을 입력합니다.', page_url: 'https://hellowgardenmarket.vercel.app/shop', domain_name: '헬로우가든마켓' },
+      context: { actionInfo: { type: 'type', label: '식물 이름, 카테고리로 검색하세요' } },
+      title: '상품 검색어 입력',
+      script: '원하는 항목을 찾을 수 있도록 검색창에 검색어를 입력합니다.',
+    },
+    {
+      name: 'garden free shipping becomes condition selection',
+      step: { id: '12', step_number: 2, ai_title: '🎁 무료배송 클릭', ai_description: '🎁 무료배송을 클릭합니다.', page_url: 'https://hellowgardenmarket.vercel.app/shop', domain_name: '헬로우가든마켓' },
+      context: { actionInfo: { type: 'click', label: '🎁 무료배송' } },
+      title: '무료배송 조건 선택',
+      script: '배송비가 없는 항목만 확인할 수 있도록 무료배송 조건을 선택합니다.',
+    },
+    {
+      name: 'garden minimum price becomes price setup',
+      step: { id: '13', step_number: 3, ai_title: '최소 입력', ai_description: '최소로 내용을 입력합니다.', page_url: 'https://hellowgardenmarket.vercel.app/shop', domain_name: '헬로우가든마켓' },
+      context: { actionInfo: { type: 'type', label: '최소' } },
+      title: '최소 가격 설정',
+      script: '원하는 가격대로 결과를 좁히기 위해 최소 가격을 입력합니다.',
+    },
+    {
+      name: 'garden apply becomes input application',
+      step: { id: '14', step_number: 4, ai_title: '적용 클릭', ai_description: '적용을 클릭합니다.', page_url: 'https://hellowgardenmarket.vercel.app/shop', domain_name: '헬로우가든마켓' },
+      context: { actionInfo: { type: 'click', label: '적용' } },
+      title: '입력 내용 적용',
+      script: '입력한 내용이 반영되도록 적용 항목을 선택합니다.',
+    },
+    {
+      name: 'garden store tour becomes offline browsing',
+      step: { id: '15', step_number: 5, ai_title: '매장 구경하기 클릭', ai_description: '매장 구경하기를 클릭합니다.', page_url: 'https://hellowgardenmarket.vercel.app/shop', domain_name: '헬로우가든마켓' },
+      context: { actionInfo: { type: 'click', label: '매장 구경하기' } },
+      title: '오프라인 매장 둘러보기',
+      script: '온라인에 없는 항목도 살펴보려면 오프라인 매장 화면으로 이동합니다.',
+    },
+    {
+      name: 'garden location becomes store information',
+      step: { id: '16', step_number: 6, ai_title: '매장 위치 보기 클릭', ai_description: '매장 위치 보기를 클릭합니다.', page_url: 'https://hellowgardenmarket.vercel.app/gallery', domain_name: '헬로우가든마켓' },
+      context: { actionInfo: { type: 'click', label: '매장 위치 보기' } },
+      title: '매장 정보 확인',
+      script: '방문에 필요한 주소와 운영시간을 확인할 수 있도록 매장 정보 화면으로 이동합니다.',
+    },
+    {
+      name: 'garden shop return becomes online shopping',
+      step: { id: '17', step_number: 7, ai_title: '쇼핑하기 클릭', ai_description: '쇼핑하기를 클릭합니다.', page_url: 'https://hellowgardenmarket.vercel.app/about', domain_name: '헬로우가든마켓' },
+      context: { actionInfo: { type: 'click', label: '쇼핑하기' } },
+      title: '온라인 쇼핑으로 이동',
+      script: '상품 검색을 계속할 수 있도록 온라인 쇼핑 화면으로 이동합니다.',
+    },
   ];
 
   const failures = [];
@@ -148,6 +197,19 @@ async function main() {
   ]);
   if (fallbackTitle !== '대회소개 확인하기') {
     failures.push({ name: 'tutorial title fallback', expected: '대회소개 확인하기', actual: fallbackTitle });
+  }
+
+  const gardenTitle = buildCaptureFallbackTutorialTitle([
+    { user_title: '상품 검색어 입력' },
+    { user_title: '무료배송 조건 선택' },
+    { user_title: '최소 가격 설정' },
+    { user_title: '입력 내용 적용' },
+    { user_title: '오프라인 매장 둘러보기' },
+    { user_title: '매장 정보 확인' },
+    { user_title: '온라인 쇼핑으로 이동' },
+  ]);
+  if (gardenTitle !== '상품 검색 후 매장 정보 확인하기') {
+    failures.push({ name: 'garden tutorial title fallback', expected: '상품 검색 후 매장 정보 확인하기', actual: gardenTitle });
   }
 
   const notionScheduleTitle = buildCaptureFallbackTutorialTitle([
@@ -264,6 +326,9 @@ async function main() {
   }
   if (!isLowQualityCaptureTutorialTitle('메일 보내기 클릭하기')) {
     failures.push({ name: 'click tutorial title rejected', expected: true, actual: false });
+  }
+  if (!isLowQualityCaptureTutorialTitle('최소 입력하기')) {
+    failures.push({ name: 'raw input tutorial title rejected', expected: true, actual: false });
   }
   if (!isLowQualityCaptureTutorialTitle('Code 클릭')) {
     failures.push({ name: 'raw code tutorial title rejected', expected: true, actual: false });

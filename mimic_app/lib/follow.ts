@@ -21,6 +21,18 @@ export function clickToPct(v: number | null | undefined): number | null {
   return v;
 }
 
+// 녹화 당시 입력값(type_text)을 스튜디오/공개 플레이어에도 동일하게 전달한다.
+// 사용자가 스튜디오에서 직접 작성한 follow_config.typeText가 있으면 그 값을 우선한다.
+export function mergeCapturedTypeText(
+  followConfig?: FollowConfig | null,
+  capturedTypeText?: string | null
+): FollowConfig {
+  const merged = { ...(followConfig ?? {}) };
+  const captured = capturedTypeText?.trim();
+  if (!merged.typeText?.trim() && captured) merged.typeText = captured;
+  return merged;
+}
+
 // follow_config에 '학습 가이드/Live Guide'에서 의미있는 저작값이 있는지 — 스텝 삭제 경고용.
 // 녹화 좌표(clickX/Y)는 follow_config가 아니므로 여기 포함하지 않는다(스튜디오에서 직접 저작한 값만 감지).
 export function hasGuideConfig(fc?: FollowConfig | null): boolean {
