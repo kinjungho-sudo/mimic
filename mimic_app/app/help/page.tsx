@@ -21,6 +21,7 @@ const SECTIONS = [
     icon: '⚡',
     children: [
       { id: 'install', title: '1. 확장 프로그램 설치' },
+      { id: 'desktop-companion', title: 'Desktop Companion 연결' },
       { id: 'record', title: '2. 화면 녹화하기' },
       { id: 'edit', title: '3. 매뉴얼 편집하기' },
       { id: 'share', title: '4. 공유하기' },
@@ -122,6 +123,41 @@ function SectionContent({ id }: { id: string }) {
           {p(`녹화 모달에서 "${BRAND_COPY.extensionDisplayName} 설치하기" 버튼이 나타나면 스토어로 이동해 설치하세요. 설치 후 "설치 완료 — 다시 시도" 버튼을 누르면 바로 연결됩니다.`)}
           {h3('지원 브라우저')}
           {p('현재 Google Chrome 및 Chromium 기반 브라우저(Edge, Brave 등)를 지원합니다. Firefox, Safari는 지원하지 않습니다.')}
+        </div>
+      );
+
+    case 'desktop-companion':
+      return (
+        <div>
+          {h2('Desktop Companion 연결')}
+          {p('Desktop Companion은 웹 밖에서 일어나는 Windows 파일 작업을 MIMIC 녹화 세션에 이어 붙이는 설치형 앱입니다. 웹에서 파일을 다운로드하고, PC에서 열어 수정한 뒤, 다시 웹에 업로드하는 업무가 있다면 첫 캡처 전에 함께 설치하는 것을 권장합니다.')}
+          <Link href="/desktop-setup?source=help" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: '38px', padding: '0 14px', borderRadius: '8px', background: '#3730a3', color: 'white', fontSize: '13px', fontWeight: 700, textDecoration: 'none', margin: '0 0 8px' }}>
+            Desktop Companion 설치하기
+          </Link>
+          {h3('왜 먼저 설치하나요?')}
+          {p('캡처 중간에 사용자가 "이제 Desktop 앱이 필요하다"고 판단하기는 어렵습니다. 그래서 Desktop Companion은 캡처 도중 설치를 유도하지 않고, 초기 설정에서 한 번에 설치와 연결을 끝내는 방향으로 준비하고 있습니다.')}
+          {h3('동작 원리')}
+          {p('MIMIC 웹 앱은 Windows를 직접 검사하지 않습니다. 웹에서 데스크톱 녹화를 선택하면 설치 화면으로 이동하고, 설치 완료 후에는 MIMIC Recorder 확장이 Chrome Native Messaging으로 Desktop Companion에 연결 확인 신호를 보냅니다. 정상 응답이 오기 전까지 데스크톱 녹화 시작 버튼은 잠긴 상태로 유지됩니다.')}
+          {h3('기록되는 정보')}
+          <ul style={{ paddingLeft: '20px', margin: '0 0 16px' }}>
+            {[
+              '다운로드된 파일명, 확장자, 저장 위치',
+              '파일 열림, 수정, 저장, 새 파일 생성 시점',
+              'Excel, PDF 뷰어, 탐색기 같은 활성 앱 흐름',
+              '웹 업로드 단계로 돌아온 시점',
+            ].map(li)}
+          </ul>
+          {h3('기본 보안 원칙')}
+          <ul style={{ paddingLeft: '20px', margin: '0 0 16px' }}>
+            {[
+              '기록 중인 MIMIC 세션에서만 파일 작업 흐름을 감지합니다.',
+              '파일 내용은 기본으로 업로드하지 않습니다.',
+              '로컬 경로는 매뉴얼에서 기본 마스킹합니다.',
+              '비밀번호, OTP, 결제, 개인 인증 화면은 자동 기록 대상에서 제외합니다.',
+            ].map(li)}
+          </ul>
+          {h3('현재 상태')}
+          {p('Desktop Companion은 dev 단계에서 Native Messaging 연결을 먼저 검증하고 있습니다. 정식 배포 전에는 Windows 설치 파일, 자동 연결 확인, 업데이트, 코드 서명까지 순서대로 안정화할 예정입니다.')}
         </div>
       );
 

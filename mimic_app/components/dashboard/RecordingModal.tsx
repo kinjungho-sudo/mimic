@@ -45,7 +45,7 @@ interface StartRecordingResponse {
   message?: string;
 }
 
-type ModalStep = 'checking' | 'guide' | 'tab_select' | 'launching' | 'not_installed' | 'dev_unavailable' | 'start_failed' | 'install';
+type ModalStep = 'checking' | 'mode_select' | 'guide' | 'tab_select' | 'launching' | 'not_installed' | 'dev_unavailable' | 'start_failed' | 'install';
 
 // ── 확장 통신 ─────────────────────────────────────────────
 
@@ -215,11 +215,13 @@ function FavIcon({ url, favIconUrl }: { url: string; favIconUrl?: string }) {
 
 interface RecordingModalProps {
   onClose: () => void;
+  initialMode?: 'select' | 'web';
 }
 
 const STORE_URL = BRAND_EXTENSION_STORE_URL;
+const DESKTOP_SETUP_URL = '/desktop-setup?source=recording';
 
-export function RecordingModal({ onClose }: RecordingModalProps) {
+export function RecordingModal({ onClose, initialMode = 'select' }: RecordingModalProps) {
   const [step, setStep] = useState<ModalStep>('checking');
   const [tabs, setTabs] = useState<ChromeTab[]>([]);
   const [tabsLoading, setTabsLoading] = useState(false);
@@ -227,6 +229,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
   const [search, setSearch] = useState('');
   const [tabListIssue, setTabListIssue] = useState<string | null>(null);
   const [startFailure, setStartFailure] = useState<StartRecordingResponse | null>(null);
+  const readyStep: ModalStep = initialMode === 'web' ? 'guide' : 'mode_select';
 
   // ESC 닫기
   useEffect(() => {
@@ -242,7 +245,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
   useEffect(() => {
     const cleanupExtensionIdListener = installExtensionIdListener();
     if (!REQUIRE_EXTENSION) {
-      setStep('guide');
+      setStep(readyStep);
       return cleanupExtensionIdListener;
     }
     let alive = true;
@@ -250,10 +253,14 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
     (async () => {
       const resp = await wakeAndSend('CONNECT'); // SW 깨우고 설치 여부 확인
       if (!alive) return;
-      if (resp) setStep('guide');
+      if (resp) setStep(readyStep);
       else window.location.href = STORE_URL; // 미설치 → 크롬 웹스토어 설치 페이지로 직접
     })();
     return () => { alive = false; cleanupExtensionIdListener(); };
+  }, [readyStep]);
+
+  const enterDesktopSetup = useCallback(() => {
+    window.location.href = DESKTOP_SETUP_URL;
   }, []);
 
   // 탭 선택 단계 진입 시 목록 로드
@@ -356,7 +363,8 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
           </div>
           <h2 style={{ fontSize: '19px', fontWeight: 700, color: 'white', margin: 0, letterSpacing: '-0.02em' }}>
             {step === 'checking' && '확장 프로그램 확인 중…'}
-            {step === 'guide' && '새 매뉴얼 녹화 시작'}
+            {step === 'mode_select' && '녹화 방식 선택'}
+            {step === 'guide' && '웹 페이지 녹화 시작'}
             {step === 'tab_select' && '녹화할 페이지 선택'}
             {step === 'launching' && 'Recorder 실행 중…'}
             {step === 'not_installed' && '확장 프로그램이 필요해요'}
@@ -366,7 +374,8 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
           </h2>
           <p style={{ fontSize: '12.5px', color: 'rgba(255,255,255,0.72)', marginTop: '3px' }}>
             {step === 'checking' && '잠시만 기다려주세요'}
-            {step === 'guide' && '화면 녹화로 매뉴얼을 자동으로 만들어드릴게요'}
+            {step === 'mode_select' && '웹 페이지 또는 데스크톱 작업 중 선택하세요'}
+            {step === 'guide' && '웹 페이지 클릭 흐름을 매뉴얼로 만들어드릴게요'}
             {step === 'tab_select' && (tabListIssue || `열린 탭 ${tabs.length}개 · 페이지를 선택하면 오른쪽에 미리보기가 표시됩니다`)}
             {step === 'launching' && '잠시만 기다려주세요'}
             {step === 'not_installed' && `${BRAND_COPY.extensionDisplayName}를 먼저 설치해야 녹화할 수 있어요`}
@@ -380,6 +389,51 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
         {step === 'checking' && (
           <div style={{ padding: '48px 28px', textAlign: 'center' }}>
             <div style={{ width: '52px', height: '52px', borderRadius: '50%', border: `3px solid ${BRAND_RING_SOFT}`, borderTopColor: BRAND_COLORS.primary, animation: 'spin 0.9s linear infinite', margin: '0 auto' }} />
+          </div>
+        )}
+
+        {/* ── 녹화 방식 선택 ── */}
+        {step === 'mode_select' && (
+          <div style={{ padding: '24px 28px 28px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '18px' }}>
+              <button
+                onClick={() => setStep('guide')}
+                style={{ width: '100%', minHeight: '96px', padding: '16px', borderRadius: '12px', border: '1.5px solid #E5E7EB', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '14px', textAlign: 'left' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#C7D2FE'; e.currentTarget.style.background = '#F8FAFF'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.background = 'white'; }}
+              >
+                <span style={{ width: '44px', height: '44px', borderRadius: '10px', background: '#EEF2FF', color: '#3730a3', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 0 20"/><path d="M12 2a15.3 15.3 0 0 0 0 20"/></svg>
+                </span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: 'block', fontSize: '15px', fontWeight: 700, color: '#111827', marginBottom: '4px' }}>웹 페이지 녹화</span>
+                  <span style={{ display: 'block', fontSize: '12.5px', lineHeight: 1.55, color: '#6B7280' }}>Chrome 탭을 선택해 클릭, 입력, 화면 변화를 자동 캡처합니다.</span>
+                </span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="m9 18 6-6-6-6"/></svg>
+              </button>
+
+              <button
+                onClick={enterDesktopSetup}
+                style={{ width: '100%', minHeight: '106px', padding: '16px', borderRadius: '12px', border: '1.5px solid #E5E7EB', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '14px', textAlign: 'left' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#BAE6FD'; e.currentTarget.style.background = '#F7FCFF'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.background = 'white'; }}
+              >
+                <span style={{ width: '44px', height: '44px', borderRadius: '10px', background: '#E0F2FE', color: '#0369A1', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                  <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+                </span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: 'block', fontSize: '15px', fontWeight: 700, color: '#111827', marginBottom: '4px' }}>데스크톱 녹화</span>
+                  <span style={{ display: 'block', fontSize: '12.5px', lineHeight: 1.55, color: '#6B7280' }}>다운로드, 업로드, 설치, 로그인처럼 Windows 작업이 포함된 흐름을 이어서 기록합니다.</span>
+                </span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="m9 18 6-6-6-6"/></svg>
+              </button>
+            </div>
+            <div style={{ background: '#F9FAFB', border: '1px solid #F3F4F6', borderRadius: '10px', padding: '11px 14px', display: 'flex', gap: '10px' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: '1px' }}><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+              <p style={{ fontSize: '12.5px', color: '#4B5563', lineHeight: 1.55, margin: 0 }}>
+                데스크톱 녹화는 Desktop Companion 설치가 확인된 뒤에만 시작할 수 있습니다.
+              </p>
+            </div>
           </div>
         )}
 
@@ -500,7 +554,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
               {/* 하단 버튼 */}
               <div style={{ padding: '12px 16px', borderTop: '1px solid #F3F4F6', display: 'flex', gap: '8px' }}>
                 <button
-                  onClick={() => setStep('guide')}
+                  onClick={() => setStep('mode_select')}
                   style={{ flex: 1, padding: '10px', borderRadius: '9px', background: 'white', color: '#4B5563', fontSize: '13px', fontWeight: 500, border: '1.5px solid #E5E7EB', cursor: 'pointer' }}
                 >
                   ← 이전
@@ -680,7 +734,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
                 onClick={() => {
                   if (isExtensionInstalled()) {
                     sendMessage('CONNECT').then(resp => {
-                      if (resp) setStep('guide');
+                      if (resp) setStep('mode_select');
                       else setStep('install');
                     });
                   } else {

@@ -1,6 +1,8 @@
 // ── 환경 자동 판별 ────────────────────────────────────────────────
 // 웹스토어 배포본(고정 ID)=운영 / 개발자 언패킹(다른 ID)=dev.
 // chrome.runtime.id로 자동 구분 → 배포본이 실수로 dev를 가리킬 위험 없음.
+importScripts('desktop-bridge.js');
+
 const PROD_EXTENSION_ID = 'ehbhcdkapcbfehinjapabgoegcjmmbgd';
 const IS_DEV = chrome.runtime.id !== PROD_EXTENSION_ID;
 
@@ -513,6 +515,51 @@ async function compressToJpeg(pngDataUrl, quality = JPEG_QUALITY_DEFAULT) {
 
 // ── 외부(웹페이지) 메시지 라우터 ────────────────────────────────
 chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
+  if (message.action === 'DESKTOP_COMPANION_STATUS') {
+    (async () => {
+      await pingDesktopCompanion().catch(() => {});
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      sendResponse({ ok: true, desktop: desktopBridgeStatus() });
+    })();
+    return true;
+  }
+
+  if (message.action === 'START_DESKTOP_RECORDING') {
+    (async () => {
+      const sessionId = crypto.randomUUID();
+      const result = await notifyDesktopCaptureStarted({
+        sessionId,
+        targetTabId: null,
+        source: 'desktop_setup',
+      });
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      const desktop = desktopBridgeStatus();
+      sendResponse({
+        ok: !!result?.ok && !!desktop.connected,
+        sessionId,
+        desktop,
+        error: result?.error || (desktop.connected ? undefined : desktop.lastError || 'desktop_host_unavailable'),
+      });
+    })();
+    return true;
+  }
+
+  if (message.action === 'STOP_DESKTOP_RECORDING') {
+    (async () => {
+      const result = await notifyDesktopCaptureStopped({
+        sessionId: message.sessionId || null,
+        reason: 'desktop_setup_stop',
+      });
+      sendResponse({
+        ok: !!result?.ok,
+        sessionId: message.sessionId || null,
+        desktop: desktopBridgeStatus(),
+        error: result?.error,
+      });
+    })();
+    return true;
+  }
+
   if (message.action === 'GET_TABS') {
     const toRecordableTab = (t) => {
       if (!t || typeof t.id !== 'number') return null;
@@ -708,6 +755,9 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
       //     desktopCapture 스트림은 DRM 등 진짜 차단 페이지 대비용으로 코드만 유지)
       _directStartTabId = tabId;
       await storageSet({ isRecording: true });
+      notifyDesktopCaptureStarted({ sessionId, targetTabId: tabId, source: 'external_start' }).catch((err) => {
+        log('warn', 'desktop', 'desktop start notify failed:', err?.message || err);
+      });
       _directStartTabId = null;
       sendResponse({ ok: true });
     })();
@@ -853,6 +903,12 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 
 // ── 내부 메시지 라우터 ────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'DESKTOP_COMPANION_STATUS') {
+    pingDesktopCompanion().catch(() => {});
+    sendResponse({ ok: true, desktop: desktopBridgeStatus() });
+    return false;
+  }
+
   // pointerdown 선캡처 — 클릭으로 화면이 바뀌기 전 프레임을 미리 잡아 버퍼에 보관
   if (message.type === 'PRECAPTURE_FRAME') {
     const tabId = sender.tab?.id;
@@ -1928,7 +1984,17 @@ chrome.storage.onChanged.addListener((changes, area) => {
 
     if (nowRecording) {
       resetLastSavedHash();  // 새 녹화 → 디덥 기준 해시 초기화
+      storageGet(['sessionId', 'targetTabId']).then(({ sessionId, targetTabId }) => {
+        notifyDesktopCaptureStarted({ sessionId, targetTabId, source: 'storage_start' }).catch((err) => {
+          log('warn', 'desktop', 'desktop start notify failed:', err?.message || err);
+        });
+      });
     } else {
+      storageGet('sessionId').then(({ sessionId }) => {
+        notifyDesktopCaptureStopped({ sessionId, reason: 'storage_stop' }).catch((err) => {
+          log('warn', 'desktop', 'desktop stop notify failed:', err?.message || err);
+        });
+      });
       chrome.storage.local.remove(['pendingCapture', 'spaNavCapturing']);
       stopDisplayStream().catch(() => {});
     }
