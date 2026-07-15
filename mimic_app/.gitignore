@@ -32,6 +32,7 @@ _artifacts/
 .env.prod.tmp
 .env.local
 .env
+.mcp.json
 
 # vercel
 .vercel
