@@ -61,10 +61,11 @@ supabase/migrations/039_add_type_text_to_capture_events.sql
 supabase/migrations/20260623093719_add_action_info_to_capture_events.sql
 ```
 
-기존 v0.6 브리프도 참고한다.
+기존 v0.6 브리프와 Codex worklog 운영 규칙도 참고한다.
 
 ```text
 docs/codex/CODEX_BRIEF_v0.6_desktop-capture-scribe-parity.md
+docs/codex/CODEX_WORKLOG_PROTOCOL.md
 ```
 
 존재하지 않는 파일은 보고하고 계속 진행한다.
@@ -469,6 +470,19 @@ Current limitations:
 2. lint/build 실행
 3. manual desktop test 수행
 4. 듀얼 모니터 테스트 결과 보고
+
+### Phase 7 — Codex worklog 작성
+
+1. `docs/codex/CODEX_WORKLOG_PROTOCOL.md`를 따른다.
+2. 아래 경로에 작업 로그를 남긴다.
+
+```text
+docs/worklogs/codex/YYYY-MM-DD_desktop-capture-scribe-parity.md
+```
+
+3. worklog에는 읽은 파일, 변경 파일, 구현 내용, 검증 명령과 실제 출력, 수동 QA 결과, 미검증 항목, blocker, MAX가 검토해야 할 다음 액션을 포함한다.
+4. 가능하면 branch에 commit/push하고 commit hash 또는 PR URL을 보고한다.
+5. 채팅 보고만 하고 repo worklog를 남기지 않으면 작업 완료로 보지 않는다.
 
 ---
 
