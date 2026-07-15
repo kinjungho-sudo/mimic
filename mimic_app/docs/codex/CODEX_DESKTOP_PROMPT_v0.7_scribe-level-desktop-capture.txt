@@ -1,0 +1,59 @@
+CLAUDE.md와 DEV_PROCESS.md를 먼저 읽고, 현재 브랜치와 git status를 확인하세요. main에 직접 작업하지 마세요.
+
+이번 작업은 단순 버그 수정이 아니라 Parro Desktop Capture를 Scribe에 가까운 클릭 기반 workflow recorder로 재설계/개선하는 작업입니다. 아래 브리프를 구현 기준으로 사용하세요.
+
+- docs/codex/CODEX_BRIEF_v0.7_scribe-level-desktop-capture.md
+
+핵심 목표:
+
+사용자가 Desktop Recording을 시작한 뒤 데스크톱 앱/웹/OS 화면에서 클릭하면, 클릭한 화면만 자동 캡처되고, 클릭 위치가 하이라이트로 표시되며, 캡처된 step이 Parro 사이드 패널에 즉시 쌓이고, 완료 버튼을 누르면 자동으로 매뉴얼 생성/편집 화면으로 이동해야 합니다.
+
+반드시 지켜야 할 기준:
+
+1. Desktop Capture는 전체화면 스크린샷 기능이 아니라 Scribe-like click-driven workflow recording이어야 합니다.
+2. 녹화 중 사용자가 클릭할 때마다 step이 자동 생성되어야 합니다.
+3. 듀얼 모니터 환경에서 양쪽 화면 전체를 한 장으로 캡처하면 안 됩니다.
+4. 클릭한 화면만 캡처한다 — 클릭이 발생한 display 또는 가능하면 window/app 영역만 캡처해야 합니다.
+5. 클릭 좌표는 virtual desktop 기준이 아니라 캡처된 이미지 기준 clickXPct/clickYPct 또는 동등 필드로 변환되어야 합니다.
+6. 캡처된 이미지에는 클릭 위치 하이라이트가 보여야 합니다. 기존 annotation 시스템이 있으면 marker/spotlight/recorderBox를 재사용하세요.
+7. 캡처 중 Parro 내부 side panel/step panel에 thumbnail preview가 즉시 추가되어야 합니다.
+8. 완료 버튼을 누르면 finalize API를 호출하고, 생성된 manual/tutorial id를 받아 manual editor 또는 현재 제품의 매뉴얼 제작 화면으로 자동 이동해야 합니다.
+9. 사용자가 완료 후 별도로 매뉴얼 생성 버튼을 찾아 누르게 만들면 안 됩니다.
+10. OS 권한이 없거나 desktop runtime이 없으면 그 사실을 숨기지 말고, 가능한 fallback과 정확한 blocker를 보고하세요.
+
+먼저 해야 할 조사:
+
+- 현재 repository에 Electron/Tauri/desktop runtime 코드가 있는지 확인하세요.
+- desktopCapturer, screen.getAllDisplays, globalShortcut, getDisplayMedia, screenshot, recording, recorder, finalize 관련 코드를 검색하세요.
+- RecordingModal, capture finalize route, capture_events schema, ManualEditor/editor route를 확인하세요.
+
+금지 범위:
+
+- production Supabase 쓰기 금지
+- dev/prod env wiring 변경 금지
+- 사용자 승인 없는 DB migration 금지
+- 전체 리브랜딩/무관한 UI 리팩토링 금지
+- API route/DB table/package/repo 이름 변경 금지
+- blind search-replace 금지
+
+완료 보고는 반드시 아래 형식으로 해주세요:
+
+1. 읽은 파일
+2. Desktop runtime 존재 여부
+3. 변경 파일
+4. 구현한 UX
+5. 클릭한 display만 캡처하는 방식
+6. click coordinate 변환 방식
+7. click highlight 구현 방식
+8. side panel preview 구현 방식
+9. finalize → manual editor 자동 이동 방식
+10. 실행한 테스트/검증 명령과 실제 출력
+11. 수동 QA 결과
+12. 미검증 항목과 이유
+13. 남은 blocker / 다음 작업
+
+완료 기준:
+
+클릭 → 해당 화면 캡처 → 하이라이트 → 패널에 step 추가 → 완료 → 자동 매뉴얼 생성/편집 이동
+
+이 흐름이 실제로 동작하지 않으면 완료로 보고하지 마세요.
