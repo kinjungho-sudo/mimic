@@ -29,7 +29,7 @@ export async function POST(request: NextRequest, { params }: Params) {
 
   if (!steps?.length) return NextResponse.json({ error: 'No steps' }, { status: 422 });
 
-  // generateDraft는 단일 Haiku 호출로 제목+스텝 제목을 생성 — 여기선 tutorial_title만 사용
+  // generateDraft는 단일 GPT-5.6 Luna 호출로 제목+스텝 본문을 생성 — 여기선 tutorial_title만 사용
   const { tutorial_title } = await generateDraft(steps);
   if (!tutorial_title) {
     return NextResponse.json({ error: '제목 생성에 실패했습니다. 다시 시도해주세요.' }, { status: 502 });

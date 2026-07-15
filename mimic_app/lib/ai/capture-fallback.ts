@@ -488,7 +488,7 @@ export function isLowQualityCaptureTutorialTitle(value: string | null | undefine
   const text = cleanText(value);
   if (!text) return true;
   if (isLowQualityCaptureTitle(text.replace(/하기$/, ''))) return true;
-  if (/(클릭|선택|입력)하기$/.test(text)) return true;
+  if (/(클릭|누르기|선택|입력)(하기)?$/.test(text)) return true;
   return /^(메일|메뉴|버튼|링크|아이콘)\s*(클릭|선택)하기$/.test(text);
 }
 

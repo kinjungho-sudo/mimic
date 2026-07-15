@@ -187,6 +187,12 @@ async function main() {
   if (!isLowQualityCaptureTutorialTitle('메일 보내기 클릭하기')) {
     failures.push({ name: 'click tutorial title rejected', expected: true, actual: false });
   }
+  if (!isLowQualityCaptureTutorialTitle('받은편지함 클릭')) {
+    failures.push({ name: 'raw click target tutorial title rejected', expected: true, actual: false });
+  }
+  if (isLowQualityCaptureTutorialTitle('Gmail로 이메일 보내기')) {
+    failures.push({ name: 'purpose tutorial title accepted', expected: false, actual: true });
+  }
   const cleanedTypeText = cleanCaptureTypeText('아이콘 추가 커버 추가 댓글 추가 뉴스 클리핑 시작하기 AI 기능은 스페이스 키, 명령에는 /를 입력하세요.');
   if (cleanedTypeText !== '뉴스 클리핑') {
     failures.push({ name: 'notion chrome stripped from type text', expected: '뉴스 클리핑', actual: cleanedTypeText });

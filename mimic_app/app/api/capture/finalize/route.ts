@@ -4,7 +4,7 @@ import { requireExtensionToken } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { captureFinalizeSchema } from '@/lib/validators';
 import { analyzeScreenshot, generateStepDescription, generateDraft, extractCoverColors, detectPII, cleanTranscripts } from '@/lib/ai/claude';
-import { buildCaptureAnnotationLabel, buildCaptureFallbackDraft, buildCaptureFallbackTutorialTitle, cleanCaptureTypeText, isLowQualityCaptureLabel, isLowQualityCaptureScript, isLowQualityCaptureTitle, isUsableCaptureDraft, type CaptureFallbackActionInfo } from '@/lib/ai/capture-fallback';
+import { buildCaptureAnnotationLabel, buildCaptureFallbackDraft, buildCaptureFallbackTutorialTitle, cleanCaptureTypeText, isLowQualityCaptureLabel, isLowQualityCaptureScript, isLowQualityCaptureTitle, isLowQualityCaptureTutorialTitle, isUsableCaptureDraft, type CaptureFallbackActionInfo } from '@/lib/ai/capture-fallback';
 import { resolveFavicon } from '@/lib/favicon';
 import { buildClickHighlight } from '@/lib/annotations';
 import { transcribeAudio, assignSegmentsToSteps, computeStepWindows } from '@/lib/voice/voice';
@@ -465,65 +465,64 @@ export async function POST(request: NextRequest) {
         actionTypeByStepNum.set(idx + 1, ((ev.action_info as { type?: string } | null)?.type ?? 'click'));
       });
 
-      const drafts = initialSteps.map(step => buildCaptureFallbackDraft(step, {
+      let drafts = initialSteps.map(step => buildCaptureFallbackDraft(step, {
         noAction: noActionByStepNum.get(step.step_number) ?? false,
         actionInfo: actionInfoByStepNum.get(step.step_number),
         elementText: elementTextByStepNum.get(step.step_number),
       }));
-      const draftsById = new Map(drafts.map(draft => [draft.id, draft]));
-      const firstStep = initialSteps[0];
-      const firstAiPatch: Record<string, string> = {};
+      let tutorialTitleDraft = '';
+      let aiDraftStatus = 'not_called';
+      let discardedAiDrafts = 0;
 
-      if (firstStep) {
-        const fallback = draftsById.get(firstStep.id);
-        let firstTitle = fallback?.user_title || firstStep.ai_title || '';
-        let firstScript = fallback?.user_script || firstStep.ai_description || '';
+      const draftResult = await generateDraft(initialSteps.map(step => {
+        const actionInfo = actionInfoByStepNum.get(step.step_number);
+        return {
+          id: step.id,
+          step_number: step.step_number,
+          ai_title: isLowQualityCaptureTitle(step.ai_title) ? null : step.ai_title,
+          ai_description: isLowQualityCaptureScript(step.ai_description) ? null : step.ai_description,
+          page_url: step.page_url,
+          domain_name: step.domain_name,
+          noAction: noActionByStepNum.get(step.step_number) ?? false,
+          action_type: actionInfo?.type ?? null,
+          action_label: actionInfo?.label ?? actionInfo?.text ?? null,
+          element_text: elementTextByStepNum.get(step.step_number) ?? null,
+        };
+      }));
+      aiDraftStatus = draftResult.status;
 
-        if (firstStep.screenshot_url) {
-          try {
-            const image = await fetchScreenshotForAi(firstStep.screenshot_url);
-            if (image) {
-              const event = deduped[(firstStep.step_number ?? 1) - 1];
-              const noAction = noActionByStepNum.get(firstStep.step_number) ?? false;
-              const clickX = !noAction && event?.click_x != null ? event.click_x / 10000 : undefined;
-              const clickY = !noAction && event?.click_y != null ? event.click_y / 10000 : undefined;
-              const analysis = await analyzeScreenshot(
-                image.base64,
-                firstStep.page_url ?? '',
-                actionInfoByStepNum.get(firstStep.step_number) ?? undefined,
-                { clickX, clickY },
-                image.mediaType
-              ).catch(() => null);
-
-              if (analysis?.title?.trim() && !isLowQualityCaptureTitle(analysis.title)) {
-                firstTitle = analysis.title.trim();
-                firstAiPatch.ai_title = firstTitle;
-              }
-
-              const generated = firstTitle
-                ? await generateStepDescription(firstTitle, firstStep.page_url, image.base64, image.mediaType).catch(() => '')
-                : '';
-              if (generated.trim() && !isLowQualityCaptureScript(generated)) {
-                firstScript = generated.trim();
-                firstAiPatch.ai_description = firstScript;
-              }
-            }
-          } catch {
-            /* First card AI polish is best-effort; fallback text is already ready. */
+      if (draftResult.status === 'ok') {
+        const aiDraftsById = new Map(draftResult.steps.map(draft => [draft.id, draft]));
+        drafts = initialSteps.map(step => {
+          const fallback = buildCaptureFallbackDraft(step, {
+            noAction: noActionByStepNum.get(step.step_number) ?? false,
+            actionInfo: actionInfoByStepNum.get(step.step_number),
+            elementText: elementTextByStepNum.get(step.step_number),
+          });
+          const aiDraft = aiDraftsById.get(step.id);
+          if (!isUsableCaptureDraft(aiDraft, { pageUrl: step.page_url })) {
+            if (aiDraft) discardedAiDrafts += 1;
+            return fallback;
           }
-        }
-
-        draftsById.set(firstStep.id, {
-          id: firstStep.id,
-          user_title: firstTitle || fallback?.user_title || '',
-          user_script: firstScript || fallback?.user_script || '',
+          return {
+            id: step.id,
+            user_title: aiDraft!.user_title.trim(),
+            user_script: aiDraft!.user_script.trim(),
+          };
         });
+        if (!isLowQualityCaptureTutorialTitle(draftResult.tutorial_title)) {
+          tutorialTitleDraft = draftResult.tutorial_title.trim();
+        }
       }
 
-      const fallbackTutorialTitle = buildCaptureFallbackTutorialTitle(Array.from(draftsById.values()));
-      if (fallbackTutorialTitle) {
-        await supabase.from('mm_tutorials').update({ title: fallbackTutorialTitle }).eq('id', tutorial.id);
+      const draftsById = new Map(drafts.map(draft => [draft.id, draft]));
+      const fallbackTutorialTitle = buildCaptureFallbackTutorialTitle(drafts);
+      const resolvedTutorialTitle = tutorialTitleDraft || fallbackTutorialTitle;
+      if (resolvedTutorialTitle) {
+        await supabase.from('mm_tutorials').update({ title: resolvedTutorialTitle }).eq('id', tutorial.id);
       }
+
+      const firstStep = initialSteps[0];
 
       await Promise.all(initialSteps.map(async step => {
         const draft = draftsById.get(step.id);
@@ -531,10 +530,7 @@ export async function POST(request: NextRequest) {
         const patch: Record<string, unknown> = {};
         const titleDraft = draft?.user_title?.trim() || step.ai_title || `Step ${step.step_number}`;
         if (titleDraft) patch.user_title = titleDraft;
-        if (isFirst) {
-          patch.user_script = draft?.user_script?.trim() || step.ai_description || null;
-          Object.assign(patch, firstAiPatch);
-        }
+        patch.user_script = draft?.user_script?.trim() || step.ai_description || null;
 
         const existingAnnotations = Array.isArray(step.user_annotations) ? step.user_annotations : [];
         if (isFirst && existingAnnotations.length === 0) {
@@ -569,14 +565,17 @@ export async function POST(request: NextRequest) {
         tutorialId: tutorial.id,
         sessionId: session_id,
         stepCount: initialSteps.length,
-        firstCardPolished: !!firstAiPatch.ai_title || !!firstAiPatch.ai_description,
-      }, 'info');
+        aiDraftStatus,
+        discardedAiDrafts,
+        purposeTitleGenerated: !!tutorialTitleDraft,
+      }, aiDraftStatus === 'ok' ? 'info' : 'warn');
     }
   } catch (err) {
     console.error('capture finalize initial draft generation error:', err);
   }
 
-  // The editor now fills remaining descriptions incrementally after the first card is visible.
+  // Optional legacy enrichment pass. The required whole-flow Claude draft above already
+  // writes every title and description; this flag only adds per-screenshot polishing.
   const runFullDraftBeforeResponse = process.env.CAPTURE_FINALIZE_BLOCKING_AI === '1';
   if (runFullDraftBeforeResponse) {
   // AI 초안 생성 — tutorial 제목 + 스텝별 user_title/user_script + 커버 색상
@@ -814,7 +813,7 @@ export async function POST(request: NextRequest) {
 
       // tutorial 제목 + cover_color 업데이트
       const tutorialUpdate: Record<string, string> = {};
-      const safeTutorialTitle = !isLowQualityCaptureTitle(tutorial_title) ? tutorial_title : '';
+      const safeTutorialTitle = !isLowQualityCaptureTutorialTitle(tutorial_title) ? tutorial_title : '';
       if (safeTutorialTitle || fallbackTutorialTitle) tutorialUpdate.title = safeTutorialTitle || fallbackTutorialTitle;
       if (coverColors) tutorialUpdate.cover_color = `${coverColors.color1},${coverColors.color2}`;
       if (Object.keys(tutorialUpdate).length > 0) {

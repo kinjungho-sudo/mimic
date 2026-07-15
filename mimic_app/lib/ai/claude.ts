@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 import type { Step } from '@/types';
-import { CLAUDE_MODEL } from '@/lib/ai/model';
+import { CLAUDE_MODEL, MANUAL_DRAFT_MODEL } from '@/lib/ai/model';
 import { BRAND_COLORS } from '@/lib/brand';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -407,8 +408,10 @@ export async function generateDraft(
     element_text?: string | null;
   }>
 ): Promise<GenerateDraftResult> {
-  if (!hasClaudeApiKey('generateDraft')) {
-    return { tutorial_title: '', steps: [], status: 'missing_key', reason: 'ANTHROPIC_API_KEY is not configured' };
+  const openaiApiKey = process.env.OPENAI_API_KEY?.trim();
+  if (!openaiApiKey) {
+    console.error('generateDraft skipped: OPENAI_API_KEY is not configured');
+    return { tutorial_title: '', steps: [], status: 'missing_key', reason: 'OPENAI_API_KEY is not configured' };
   }
 
   // 가장 많이 등장하는 domain_name을 서비스 이름으로 사용
@@ -434,58 +437,94 @@ export async function generateDraft(
 
   const serviceHint = mainService ? `\n주요 서비스: ${mainService}` : '';
 
-  let text = '{}';
-  try {
-    const response = await client.messages.create({
-      model: CLAUDE_MODEL,
-      max_tokens: 1024,
-      messages: [
-        {
-          role: 'user',
-          content: `다음은 사용자가 녹화한 매뉴얼 단계들입니다. 튜토리얼 제목과 각 스텝의 제목/설명을 생성해줘.${serviceHint}
+  const prompt = `당신은 사용자가 실제 업무를 완료하도록 돕는 매뉴얼 작성자입니다.
+다음 녹화 데이터 전체를 시간 순서대로 읽고, 먼저 사용자가 최종적으로 달성하려는 목적을 추론한 뒤 튜토리얼 제목과 각 스텝의 제목/설명을 생성해줘.${serviceHint}
 
 ${stepsText}
 
+[가장 중요한 원칙]
+- URL, DOM 텍스트, Action label, 기존 AI 제목은 정답이 아니라 사용자 의도를 추론하기 위한 단서일 뿐이다
+- 첫 클릭이나 눈에 보이는 요소 이름을 매뉴얼의 목적으로 착각하지 말고, 시작부터 마지막 단계까지의 흐름과 최종 상태를 함께 본다
+- 매뉴얼 제목은 사용자가 이 매뉴얼을 찾는 이유이자 완료 후 얻게 되는 결과다
+- 각 스텝 제목은 클릭 대상 이름이 아니라 전체 목적을 이루기 위한 해당 단계의 하위 목적이다
+- 각 스텝 설명은 사용자가 무엇을 해야 하는지와 그 행동이 다음 흐름에서 왜 필요한지를 알려준다
+
 [제목 규칙 — tutorial_title]
-- 30자 이내, "서비스명 + 핵심 동작" 형식
-- 반드시 범용적인 행동 목적으로 작성 — 특정 상품명·수량·고유명사 절대 포함 금지
-- 좋은 예: "쿠팡에서 상품 구매하기", "Slack 채널 만들기"
+- 30자 이내, "서비스명으로/에서 + 최종 결과" 또는 "최종 결과" 형식
+- 첫 스텝의 메뉴명·버튼명·클릭 동작이 아니라 전체 절차의 최종 목적을 쓸 것
+- 서비스명은 사용자의 맥락을 이해하는 데 도움이 될 때만 포함할 수 있다. 특정 상품명·수량·계정명·이메일 주소는 포함 금지
+- 좋은 예: "Gmail로 이메일 보내기", "Slack 채널 만들기", "상품 주문 완료하기"
+- 나쁜 예: "받은편지함 클릭", "편지쓰기 버튼 클릭하기", "메일 메뉴 선택하기"
 - "매뉴얼 2026. 6. 4" 같은 날짜 형식 절대 금지
 
 [스텝 제목 규칙 — user_title]
-- 20자 이내, 핵심 행동 하나만
-- 화면에 보인 원문을 그대로 읽지 말고, 매뉴얼 사용자가 이해할 업무 맥락으로 요약
+- 20자 안팎, 전체 목적을 이루기 위한 해당 단계의 하위 목적 하나만 표현
+- 화면에 보인 원문이나 DOM label을 그대로 읽지 말고, 앞뒤 단계의 업무 맥락으로 바꿀 것
+- 가능하면 "클릭", "버튼", "메뉴"보다 "작성 시작", "수신자 지정", "내용 작성", "발송 완료"처럼 의미와 결과를 드러낼 것
 - 메일/알림 개수, 긴 버튼 aria-label, 입력된 메일 본문, 프롬프트 원문, 이메일 주소는 제목에 쓰지 말 것
 - Gmail 수신자/참조/숨은참조 자동완성 후보를 클릭한 단계는 이메일 주소를 복사하지 말고 주변 단계 맥락으로 "수신자 자동 완성 클릭", "참조 수신자 자동 완성 클릭", "숨은참조 수신자 자동 완성 클릭"처럼 작성
 - 받는사람/참조/숨은참조 입력 직후 이메일 후보를 클릭하는 단계는 직전 입력 단계의 역할을 이어받아 제목을 작성
 - 특정 상품명·브랜드명·수량 포함 금지
 - uuid/hash/id처럼 보이는 긴 영문·숫자 문자열 절대 포함 금지
-- 좋은 예: "메일함 확인", "참조 수신자 자동 완성 클릭", "메일 본문 입력", "입력 내용 적용", "바로구매 버튼 클릭"
+- 좋은 예: "새 메일 작성 시작", "수신자 지정", "메일 제목 작성", "메일 본문 작성", "메일 보내기"
 - 나쁜 예: "goodjob08070@naver.com 클릭", "메일, 읽지 않은 메일 2458개 클릭", "프롬프트 입력 입력", 입력된 문장 전체를 복사한 제목
 - ※ 표시된 단계(클릭 대상 없음)는 "○○ 클릭/누르기" 절대 금지 — "○○ 화면 확인", "○○ 페이지로 이동" 같은 중립 제목으로
 
 [스텝 설명 규칙 — user_script]
-- 1문장 중심, 사용자가 그대로 따라할 수 있게 구체적으로
+- 1문장 중심, 사용자가 그대로 따라 할 수 있게 "목적/이유 + 무엇을 할지 + 필요한 경우 다음 상태"를 구체적으로 작성
 - 존댓말
 - uuid/hash/id처럼 보이는 긴 영문·숫자 문자열과 이메일 주소 절대 포함 금지
 - 입력된 메일 본문이나 프롬프트 원문을 그대로 복사하지 말고 "작성한 내용을 입력합니다", "입력 내용을 적용합니다"처럼 요약
-- UI 라벨을 그대로 반복하지 말고 "어떤 칸/목록/버튼에서 무엇을 하는지"로 작성
-- Gmail 예: "참조 수신자 칸에 이메일 주소를 입력합니다.", "참조 수신자를 자동완성 목록에서 선택합니다.", "메일 제목을 입력합니다.", "메일 본문을 입력합니다.", "보내기 버튼을 클릭합니다."
+- UI 라벨을 그대로 반복하지 말고 어떤 화면의 어떤 영역에서 무엇을 해야 하며 왜 필요한지 설명
+- Gmail 예: "새 이메일을 작성할 수 있도록 왼쪽 상단의 편지쓰기를 선택해 작성 창을 엽니다.", "메일을 받을 사람을 지정하기 위해 받는 사람 칸에 이메일 주소를 입력합니다.", "작성한 이메일을 전달하기 위해 보내기를 선택합니다."
 - 클릭 대상이 없는 단계는 화면 확인/이동 맥락으로 설명
 - 빈 문자열 금지
 
-응답 형식 (JSON만, 마크다운 없이):
-{
-  "tutorial_title": "...",
-  "steps": [
-    { "id": "uuid", "user_title": "...", "user_script": "..." }
-  ]
-}`,
-        },
-      ],
-    });
+[전체 흐름 예시]
+- 녹화 흐름: 받은편지함 → 편지쓰기 → 받는 사람 입력 → 제목 입력 → 본문 입력 → 보내기
+- tutorial_title: "Gmail로 이메일 보내기"
+- 첫 스텝 user_title: "새 메일 작성 준비" ("받은편지함 클릭" 금지)`;
 
-    text = response.content[0].type === 'text' ? response.content[0].text : '{}';
+  let text = '{}';
+  try {
+    const openai = new OpenAI({ apiKey: openaiApiKey });
+    const response = await openai.responses.create({
+      model: MANUAL_DRAFT_MODEL,
+      input: prompt,
+      reasoning: { effort: 'low' },
+      max_output_tokens: 8192,
+      store: false,
+      text: {
+        verbosity: 'low',
+        format: {
+          type: 'json_schema',
+          name: 'parro_manual_draft',
+          strict: true,
+          schema: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              tutorial_title: { type: 'string' },
+              steps: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  additionalProperties: false,
+                  properties: {
+                    id: { type: 'string' },
+                    user_title: { type: 'string' },
+                    user_script: { type: 'string' },
+                  },
+                  required: ['id', 'user_title', 'user_script'],
+                },
+              },
+            },
+            required: ['tutorial_title', 'steps'],
+          },
+        },
+      },
+    });
+    text = response.output_text || '{}';
   } catch (err) {
     console.error('generateDraft api error:', err);
     return {
@@ -511,7 +550,7 @@ ${stepsText}
         tutorial_title: String(parsed.tutorial_title || ''),
         steps,
         status: 'empty_steps',
-        reason: 'Claude response contained no usable steps',
+        reason: `${MANUAL_DRAFT_MODEL} response contained no usable steps`,
         responsePreview: text.slice(0, 500),
       };
     }
