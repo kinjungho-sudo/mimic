@@ -58,7 +58,7 @@ export default function DesktopDownloadPage() {
               <span className="windows-icon"><WindowsIcon /></span>
               <div>
                 <strong>Windows</strong>
-                <span>Preview 0.3.0 · 2026년 7월 15일</span>
+                <span>Preview 0.3.1 · 2026년 7월 16일</span>
                 <span>Windows 10/11 · 64-bit · 약 34MB</span>
               </div>
             </div>
@@ -104,15 +104,6 @@ export default function DesktopDownloadPage() {
         </div>
       </section>
 
-      <section className="preview-note">
-        <div>
-          <span className="preview-badge">PREVIEW</span>
-          <h2>현재 버전에서 저장되는 것</h2>
-          <p>왼쪽 클릭 시점의 전체 화면 PNG, 클릭 좌표, 화면 크기, 캡처 시간이 저장됩니다. Parro 툴바 자체는 Windows 캡처 제외 처리가 적용됩니다.</p>
-        </div>
-        <code>%LOCALAPPDATA%\Parro\DesktopCompanion\captures</code>
-      </section>
-
       <footer>
         <div className="brand"><ParroMark size={28} /><span>Parro Desktop</span></div>
         <span>Windows Preview · 코드 서명 전 내부 테스트 버전</span>
@@ -145,17 +136,13 @@ export default function DesktopDownloadPage() {
         .steps-section { padding: 96px 28px 110px; background: #f5faf8; color: #10231f; }
         .section-heading { max-width: 700px; margin: 0 auto 48px; text-align: center; }
         .section-heading > span { color: #008e86; font-size: 11px; font-weight: 900; letter-spacing: .16em; }
-        .section-heading h2, .preview-note h2 { margin: 14px 0 12px; font-size: 36px; letter-spacing: -.035em; }
-        .section-heading p, .preview-note p { margin: 0; color: #62716d; line-height: 1.7; }
+        .section-heading h2 { margin: 14px 0 12px; font-size: 36px; letter-spacing: -.035em; }
+        .section-heading p { margin: 0; color: #62716d; line-height: 1.7; }
         .steps-grid { max-width: 1050px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
         .step-card { min-height: 238px; padding: 28px; border: 1px solid #dfeae6; border-radius: 18px; background: white; box-shadow: 0 10px 30px rgba(12,61,52,.045); }
         .step-number { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: #e6f7f3; color: #007c72; font-size: 12px; font-weight: 900; }
         .step-card h3 { margin: 24px 0 10px; font-size: 20px; letter-spacing: -.02em; }
         .step-card p { margin: 0; color: #64746f; font-size: 14px; line-height: 1.75; word-break: keep-all; }
-        .preview-note { max-width: 1050px; margin: 0 auto; padding: 72px 28px; display: flex; align-items: center; justify-content: space-between; gap: 42px; }
-        .preview-note > div { max-width: 650px; }
-        .preview-badge { display: inline-flex; padding: 6px 9px; border-radius: 7px; background: rgba(141,214,63,.13); color: #aeea65; font-size: 10px; font-weight: 900; letter-spacing: .12em; }
-        .preview-note code { max-width: 380px; padding: 18px; border: 1px solid rgba(255,255,255,.1); border-radius: 12px; background: rgba(255,255,255,.06); color: #8ce5dc; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
         footer { min-height: 86px; max-width: 1104px; margin: 0 auto; padding: 0 28px; border-top: 1px solid rgba(255,255,255,.08); display: flex; align-items: center; justify-content: space-between; color: rgba(255,255,255,.42); font-size: 12px; }
         footer .brand { color: rgba(255,255,255,.72); font-size: 14px; }
         @media (max-width: 760px) {
@@ -168,9 +155,8 @@ export default function DesktopDownloadPage() {
           .download-button { justify-content: center; width: 100%; }
           .trust-row { justify-content: flex-start; gap: 8px 16px; }
           .steps-section { padding: 72px 20px; }
-          .section-heading h2, .preview-note h2 { font-size: 30px; }
+          .section-heading h2 { font-size: 30px; }
           .steps-grid { grid-template-columns: 1fr; }
-          .preview-note { padding: 62px 20px; flex-direction: column; align-items: stretch; }
           footer { padding: 24px 20px; align-items: flex-start; flex-direction: column; justify-content: center; gap: 10px; }
         }
       `}</style>

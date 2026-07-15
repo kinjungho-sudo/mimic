@@ -9,8 +9,8 @@ using System.Windows.Forms;
 [assembly: System.Reflection.AssemblyTitle("Parro Desktop Capture")]
 [assembly: System.Reflection.AssemblyProduct("Parro Desktop Capture")]
 [assembly: System.Reflection.AssemblyCompany("Parro")]
-[assembly: System.Reflection.AssemblyVersion("0.3.0.0")]
-[assembly: System.Reflection.AssemblyFileVersion("0.3.0.0")]
+[assembly: System.Reflection.AssemblyVersion("0.3.1.0")]
+[assembly: System.Reflection.AssemblyFileVersion("0.3.1.0")]
 
 internal static class ParroDesktopProgram
 {

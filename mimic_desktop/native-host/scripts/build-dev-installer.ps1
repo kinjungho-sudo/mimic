@@ -86,6 +86,40 @@ function Write-IcoFromPngFiles {
   }
 }
 
+function Assert-ParroExecutableIcon {
+  param([string]$ExecutablePath)
+
+  $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($ExecutablePath)
+  if (-not $icon) {
+    throw "Executable icon could not be loaded: $ExecutablePath"
+  }
+
+  $bitmap = $icon.ToBitmap()
+  try {
+    $parroColorPixels = 0
+    $legacyPurplePixels = 0
+    for ($x = 0; $x -lt $bitmap.Width; $x++) {
+      for ($y = 0; $y -lt $bitmap.Height; $y++) {
+        $pixel = $bitmap.GetPixel($x, $y)
+        if ($pixel.A -lt 32) { continue }
+        $isTeal = $pixel.R -le 45 -and $pixel.G -ge 115 -and $pixel.B -ge 75
+        $isLime = $pixel.R -ge 80 -and $pixel.R -le 180 -and $pixel.G -ge 165 -and $pixel.B -le 115
+        if ($isTeal -or $isLime) { $parroColorPixels++ }
+        if ($pixel.B -ge ($pixel.R + 30) -and $pixel.B -ge ($pixel.G + 30)) { $legacyPurplePixels++ }
+      }
+    }
+    if ($parroColorPixels -lt 3) {
+      throw "Executable icon does not contain the Parro teal/lime brand colors: $ExecutablePath"
+    }
+    if ($legacyPurplePixels -gt $parroColorPixels) {
+      throw "Executable icon still appears to use the legacy purple MIMIC icon: $ExecutablePath"
+    }
+  } finally {
+    $bitmap.Dispose()
+    $icon.Dispose()
+  }
+}
+
 New-Item -ItemType Directory -Force -Path $stagingDir, $payloadDir, $outputDir | Out-Null
 $resolvedStaging = (Resolve-Path -LiteralPath $stagingDir).Path
 $resolvedRoot = (Resolve-Path -LiteralPath $root).Path
@@ -157,6 +191,14 @@ if ($LASTEXITCODE -ne 0) {
 
 if (-not (Test-Path -LiteralPath $outputPath) -or (Get-Item -LiteralPath $outputPath).Length -le 1MB) {
   throw "Installer was not created completely: $outputPath"
+}
+
+foreach ($artifactPath in @($outputPath, $launcherPath)) {
+  Assert-ParroExecutableIcon -ExecutablePath $artifactPath
+  $version = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($artifactPath).FileVersion
+  if ($version -ne "0.3.1.0") {
+    throw "Unexpected desktop artifact version '$version': $artifactPath"
+  }
 }
 
 if ($PublishToWebApp) {
