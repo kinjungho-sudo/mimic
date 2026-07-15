@@ -542,13 +542,58 @@ export function isUsableCaptureDraft(
     && !isLowQualityCaptureScript(script);
 }
 
-export function isLowQualityCaptureTutorialTitle(value: string | null | undefined): boolean {
+export type CaptureTutorialTitleContext = {
+  stepTitles?: Array<string | null | undefined>;
+};
+
+const TERMINAL_GOAL_RULES: Array<{ evidence: RegExp; coverage: RegExp }> = [
+  {
+    evidence: /에이전트|채팅|대화|질문|응답|역할은|메시지\s*보내/i,
+    coverage: /에이전트|채팅|대화|질문|응답|테스트|메시지/i,
+  },
+  {
+    evidence: /보내기|발송|전송/i,
+    coverage: /보내기|발송|전송/i,
+  },
+  {
+    evidence: /게시|배포|공개|발행/i,
+    coverage: /게시|배포|공개|발행/i,
+  },
+  {
+    evidence: /구매|결제|주문\s*완료/i,
+    coverage: /구매|결제|주문/i,
+  },
+  {
+    evidence: /워크스페이스.*설치|앱\s*설치|설치\s*완료|OAuth\s*허용/i,
+    coverage: /설치|연결|권한|인증|워크스페이스/i,
+  },
+];
+
+function missesTerminalGoalCoverage(title: string, stepTitles: Array<string | null | undefined>): boolean {
+  const orderedTitles = stepTitles.map(cleanText).filter(Boolean);
+  if (orderedTitles.length < 3) return false;
+
+  for (let index = orderedTitles.length - 1; index >= 0; index -= 1) {
+    const stepTitle = orderedTitles[index];
+    const terminalRule = TERMINAL_GOAL_RULES.find(rule => rule.evidence.test(stepTitle));
+    if (terminalRule) return !terminalRule.coverage.test(title);
+  }
+
+  return false;
+}
+
+export function isLowQualityCaptureTutorialTitle(
+  value: string | null | undefined,
+  context: CaptureTutorialTitleContext = {}
+): boolean {
   const text = cleanText(value);
   if (!text) return true;
   if (isLowQualityCaptureTitle(text.replace(/하기$/, ''))) return true;
   if (isLikelyRawDomActionBase(text.replace(/하기$/, ''))) return true;
   if (/(클릭|선택|입력)하기$/.test(text)) return true;
-  return /^(메일|메뉴|버튼|링크|아이콘)\s*(클릭|선택)하기$/.test(text);
+  if (/^(메일|메뉴|버튼|링크|아이콘)\s*(클릭|선택)하기$/.test(text)) return true;
+  if (/^(?:.+(?:에서|에)\s*)?(?:앱|메뉴|화면|항목|버튼|링크)\s*(?:추가|열기|확인)하기$/i.test(text)) return true;
+  return missesTerminalGoalCoverage(text, context.stepTitles ?? []);
 }
 
 function tutorialTitleFromStepTitle(value: string): string {
@@ -573,8 +618,25 @@ function tutorialTitleFromStepTitle(value: string): string {
 }
 
 export function buildCaptureFallbackTutorialTitle(
-  drafts: Array<{ user_title: string }>
+  drafts: Array<{ user_title: string; user_script?: string }>,
+  context: { serviceNames?: Array<string | null | undefined> } = {}
 ): string {
+  const serviceNames = (context.serviceNames ?? []).map(cleanText).filter(Boolean).join(' ');
+  const draftText = drafts
+    .flatMap(draft => [cleanText(draft.user_title), cleanText(draft.user_script)])
+    .filter(Boolean)
+    .join(' ');
+  const hasNotionContext = /notion/i.test(`${serviceNames} ${draftText}`);
+  const hasScheduleContext = /스케줄|일정|캘린더|schedule|calendar/i.test(draftText);
+  const hasWritingContext = /텍스트\s*입력|내용\s*입력|작성|기록|입력합니다/i.test(draftText);
+
+  if (hasNotionContext && hasScheduleContext && hasWritingContext) {
+    return 'Notion에 일정 기록하기';
+  }
+  if (hasNotionContext && hasWritingContext) {
+    return 'Notion 페이지 작성하기';
+  }
+
   const titles = drafts
     .map(draft => cleanText(draft.user_title))
     .filter(title => title && !isLowQualityCaptureTitle(title) && title !== '화면 확인');

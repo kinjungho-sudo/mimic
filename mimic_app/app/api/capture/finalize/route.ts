@@ -510,7 +510,9 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      const fallbackTutorialTitle = buildCaptureFallbackTutorialTitle(Array.from(draftsById.values()));
+      const fallbackTutorialTitle = buildCaptureFallbackTutorialTitle(Array.from(draftsById.values()), {
+        serviceNames: initialSteps.map(step => step.domain_name),
+      });
       if (fallbackTutorialTitle) {
         await supabase.from('mm_tutorials').update({ title: fallbackTutorialTitle }).eq('id', tutorial.id);
       }
@@ -712,7 +714,8 @@ export async function POST(request: NextRequest) {
         });
         return fallback;
       });
-      let fallbackTutorialTitle = buildCaptureFallbackTutorialTitle(drafts);
+      const fallbackTitleContext = { serviceNames: enrichedSteps.map(step => step.domain_name) };
+      let fallbackTutorialTitle = buildCaptureFallbackTutorialTitle(drafts, fallbackTitleContext);
       let aiDraftStatus = 'not_called';
       let discardedAiDrafts = 0;
 
@@ -751,7 +754,7 @@ export async function POST(request: NextRequest) {
             user_script: useAiDraft ? aiScript : fallback.user_script,
           };
         });
-        fallbackTutorialTitle = buildCaptureFallbackTutorialTitle(drafts);
+        fallbackTutorialTitle = buildCaptureFallbackTutorialTitle(drafts, fallbackTitleContext);
         if (draftResult.status !== 'ok') {
           await logSystem('capture.finalize.ai_draft_failed', {
             userId,
@@ -807,7 +810,9 @@ export async function POST(request: NextRequest) {
 
       // tutorial 제목 + cover_color 업데이트
       const tutorialUpdate: Record<string, string> = {};
-      const safeTutorialTitle = !isLowQualityCaptureTutorialTitle(tutorial_title) ? tutorial_title : '';
+      const safeTutorialTitle = !isLowQualityCaptureTutorialTitle(tutorial_title, {
+        stepTitles: drafts.map(draft => draft.user_title),
+      }) ? tutorial_title : '';
       if (safeTutorialTitle || fallbackTutorialTitle) tutorialUpdate.title = safeTutorialTitle || fallbackTutorialTitle;
       if (coverColors) tutorialUpdate.cover_color = `${coverColors.color1},${coverColors.color2}`;
       if (Object.keys(tutorialUpdate).length > 0) {

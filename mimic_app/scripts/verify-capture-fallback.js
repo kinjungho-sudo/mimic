@@ -150,6 +150,15 @@ async function main() {
     failures.push({ name: 'tutorial title fallback', expected: '대회소개 확인하기', actual: fallbackTitle });
   }
 
+  const notionScheduleTitle = buildCaptureFallbackTutorialTitle([
+    { user_title: '일상의 모든 기록 클릭', user_script: '일상의 모든 기록을 클릭합니다.' },
+    { user_title: '스케줄 클릭', user_script: '스케줄을 클릭합니다.' },
+    { user_title: '텍스트 입력', user_script: '일정 내용을 입력합니다.' },
+  ], { serviceNames: ['Notion'] });
+  if (notionScheduleTitle !== 'Notion에 일정 기록하기') {
+    failures.push({ name: 'Notion schedule goal fallback', expected: 'Notion에 일정 기록하기', actual: notionScheduleTitle });
+  }
+
   const githubCases = [
     {
       name: 'github code tab gets task context',
@@ -261,6 +270,33 @@ async function main() {
   }
   if (!isLowQualityCaptureTutorialTitle('Open menuHomepage (g then d) gGthen dD 클릭하기')) {
     failures.push({ name: 'accessibility shortcut tutorial title rejected', expected: true, actual: false });
+  }
+  const slackAgentFlow = {
+    stepTitles: [
+      '새 Slack 앱 생성 시작',
+      '매니페스트로 앱 설정',
+      '연결 토큰 생성',
+      '워크스페이스 앱 설치',
+      '에이전트 응답 테스트',
+    ],
+  };
+  if (!isLowQualityCaptureTutorialTitle('SLACK에 앱 추가하기', slackAgentFlow)) {
+    failures.push({ name: 'vague Slack app title rejected', expected: true, actual: false });
+  }
+  if (!isLowQualityCaptureTutorialTitle('Slack 앱을 만들고 워크스페이스에 설치하기', slackAgentFlow)) {
+    failures.push({ name: 'title missing final agent test rejected', expected: true, actual: false });
+  }
+  if (isLowQualityCaptureTutorialTitle('Slack AI 에이전트 앱 만들고 테스트하기', slackAgentFlow)) {
+    failures.push({ name: 'goal-oriented Slack title accepted', expected: false, actual: true });
+  }
+  const gmailSendFlow = {
+    stepTitles: ['새 메일 작성 시작', '수신자 지정', '메일 제목 작성', '메일 본문 작성', '메일 보내기'],
+  };
+  if (!isLowQualityCaptureTutorialTitle('Gmail 메일 작성하기', gmailSendFlow)) {
+    failures.push({ name: 'title missing final send rejected', expected: true, actual: false });
+  }
+  if (isLowQualityCaptureTutorialTitle('Gmail로 메일 보내기', gmailSendFlow)) {
+    failures.push({ name: 'goal-oriented Gmail title accepted', expected: false, actual: true });
   }
   const cleanedTypeText = cleanCaptureTypeText('아이콘 추가 커버 추가 댓글 추가 뉴스 클리핑 시작하기 AI 기능은 스페이스 키, 명령에는 /를 입력하세요.');
   if (cleanedTypeText !== '뉴스 클리핑') {
