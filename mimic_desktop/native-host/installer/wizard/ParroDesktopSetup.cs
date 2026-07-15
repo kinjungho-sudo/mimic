@@ -15,8 +15,8 @@ using System.Windows.Forms;
 [assembly: AssemblyCompany("Parro")]
 [assembly: AssemblyProduct("Parro Desktop")]
 [assembly: AssemblyCopyright("Copyright © Parro 2026")]
-[assembly: AssemblyVersion("0.3.0.0")]
-[assembly: AssemblyFileVersion("0.3.0.0")]
+[assembly: AssemblyVersion("0.3.1.0")]
+[assembly: AssemblyFileVersion("0.3.1.0")]
 
 namespace Parro.Desktop.Setup
 {
@@ -150,7 +150,7 @@ namespace Parro.Desktop.Setup
             Label brandCopy = MakeLabel("평소처럼 클릭하면\r\n매뉴얼이 완성됩니다.", 39, 178, 160, 60, 10F, FontStyle.Regular, Color.FromArgb(176, 210, 201));
             brandCopy.AutoSize = false;
             brandPanel.Controls.Add(brandCopy);
-            Label version = MakeLabel("DESKTOP  0.3.0", 39, 388, 150, 24, 8F, FontStyle.Bold, Color.FromArgb(78, 205, 183));
+            Label version = MakeLabel("DESKTOP  0.3.1", 39, 388, 150, 24, 8F, FontStyle.Bold, Color.FromArgb(78, 205, 183));
             brandPanel.Controls.Add(version);
 
             Panel footer = new Panel();
@@ -160,9 +160,9 @@ namespace Parro.Desktop.Setup
             footer.Padding = new Padding(0, 14, 18, 14);
             Controls.Add(footer);
 
-            cancelButton = MakeButton("취소", 200, 14, 82, 38);
-            backButton = MakeButton("이전", 288, 14, 82, 38);
-            nextButton = MakeButton("다음", 376, 14, 106, 38);
+            cancelButton = MakeButton("취소", 0, 14, 82, 38);
+            backButton = MakeButton("이전", 0, 14, 82, 38);
+            nextButton = MakeButton("다음", 0, 14, 106, 38);
             cancelButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             backButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             nextButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
@@ -172,6 +172,8 @@ namespace Parro.Desktop.Setup
             footer.Controls.Add(cancelButton);
             footer.Controls.Add(backButton);
             footer.Controls.Add(nextButton);
+            footer.Layout += delegate { AlignFooterButtons(footer); };
+            AlignFooterButtons(footer);
 
             contentPanel = new Panel();
             contentPanel.Dock = DockStyle.Fill;
@@ -426,12 +428,21 @@ namespace Parro.Desktop.Setup
             button.Cursor = Cursors.Hand;
             return button;
         }
+
+        private void AlignFooterButtons(Panel footer)
+        {
+            const int gap = 8;
+            int right = footer.ClientSize.Width - footer.Padding.Right;
+            nextButton.Left = right - nextButton.Width;
+            backButton.Left = nextButton.Left - gap - backButton.Width;
+            cancelButton.Left = backButton.Left - gap - cancelButton.Width;
+        }
     }
 
     internal static class InstallerEngine
     {
         internal const string HostName = "com.mimic.desktop_companion.dev";
-        internal const string ProductVersion = "0.3.0";
+        internal const string ProductVersion = "0.3.1";
         private const string NativeHostRegistry = @"Software\Google\Chrome\NativeMessagingHosts\com.mimic.desktop_companion.dev";
         private const string UninstallRegistry = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\ParroDesktop";
         private static readonly string[] PayloadFiles = { "node.exe", "host.js", "capture-agent.ps1", "controller.ps1", "parro.ico", "ParroDesktop.exe" };

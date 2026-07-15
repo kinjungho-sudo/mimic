@@ -1,0 +1,57 @@
+.downloadPage {
+  min-height: 100vh;
+  box-sizing: border-box;
+  background: #071411;
+  color: #f5fffd;
+  font-family: Arial, 'Noto Sans KR', sans-serif;
+}
+
+.downloadPage *, .downloadPage *::before, .downloadPage *::after { box-sizing: border-box; }
+.siteHeader { height: 72px; max-width: 1160px; margin: 0 auto; padding: 0 28px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,.08); }
+.brand { display: inline-flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; font-size: 17px; font-weight: 800; letter-spacing: -.02em; }
+.headerLink { color: rgba(255,255,255,.62); text-decoration: none; font-size: 14px; }
+.hero { position: relative; overflow: hidden; max-width: 1160px; margin: 0 auto; padding: 100px 28px 92px; }
+.glow { position: absolute; border-radius: 999px; filter: blur(1px); pointer-events: none; }
+.glowA { width: 580px; height: 580px; top: -340px; right: -120px; background: radial-gradient(circle, rgba(0,169,157,.28), transparent 68%); }
+.glowB { width: 420px; height: 420px; left: -260px; bottom: -180px; background: radial-gradient(circle, rgba(141,214,63,.13), transparent 68%); }
+.heroCopy { position: relative; max-width: 780px; margin: 0 auto; text-align: center; }
+.eyebrow { display: inline-flex; padding: 8px 12px; border: 1px solid rgba(0,169,157,.35); border-radius: 999px; background: rgba(0,169,157,.08); color: #73e7dc; font-size: 11px; font-weight: 800; letter-spacing: .14em; }
+.heroCopy h1 { margin: 28px 0 20px; font-size: clamp(44px, 7vw, 76px); line-height: 1.04; letter-spacing: -.055em; }
+.heroCopy p { max-width: 650px; margin: 0 auto; color: rgba(229,255,250,.64); font-size: 18px; line-height: 1.75; word-break: keep-all; }
+.downloadCard { position: relative; max-width: 850px; margin: 54px auto 0; padding: 10px; border: 1px solid rgba(255,255,255,.12); border-radius: 22px; background: rgba(255,255,255,.055); box-shadow: 0 28px 80px rgba(0,0,0,.32); backdrop-filter: blur(18px); }
+.platformRow { min-height: 132px; padding: 24px 26px; border-radius: 15px; background: #f8fffd; color: #10231f; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.platformMain { display: flex; align-items: center; gap: 16px; }
+.windowsIcon { width: 48px; height: 48px; border-radius: 13px; display: grid; place-items: center; background: #e8f8f4; color: #007c72; }
+.platformMain div { display: flex; flex-direction: column; gap: 5px; }
+.platformMain strong { font-size: 19px; }
+.platformMain span { color: #64746f; font-size: 12.5px; }
+.downloadButton { min-height: 52px; padding: 0 22px; border-radius: 12px; display: inline-flex; align-items: center; gap: 9px; background: #007c72; color: white; text-decoration: none; font-size: 14px; font-weight: 800; box-shadow: 0 8px 22px rgba(0,124,114,.22); transition: transform .15s, background .15s; }
+.downloadButton:hover { transform: translateY(-2px); background: #00675f; }
+.trustRow { display: flex; flex-wrap: wrap; justify-content: center; gap: 22px; padding: 15px 16px 6px; color: rgba(228,255,249,.62); font-size: 12px; }
+.stepsSection { padding: 96px 28px 110px; background: #f5faf8; color: #10231f; }
+.sectionHeading { max-width: 700px; margin: 0 auto 48px; text-align: center; }
+.sectionHeading > span { color: #008e86; font-size: 11px; font-weight: 900; letter-spacing: .16em; }
+.sectionHeading h2 { margin: 14px 0 12px; font-size: 36px; letter-spacing: -.035em; }
+.sectionHeading p { margin: 0; color: #62716d; line-height: 1.7; }
+.stepsGrid { max-width: 1050px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.stepCard { min-height: 238px; padding: 28px; border: 1px solid #dfeae6; border-radius: 18px; background: white; box-shadow: 0 10px 30px rgba(12,61,52,.045); }
+.stepNumber { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: #e6f7f3; color: #007c72; font-size: 12px; font-weight: 900; }
+.stepCard h3 { margin: 24px 0 10px; font-size: 20px; letter-spacing: -.02em; }
+.stepCard p { margin: 0; color: #64746f; font-size: 14px; line-height: 1.75; word-break: keep-all; }
+.footer { min-height: 86px; max-width: 1104px; margin: 0 auto; padding: 0 28px; border-top: 1px solid rgba(255,255,255,.08); display: flex; align-items: center; justify-content: space-between; color: rgba(255,255,255,.42); font-size: 12px; }
+.footer .brand { color: rgba(255,255,255,.72); font-size: 14px; }
+
+@media (max-width: 760px) {
+  .siteHeader { height: 64px; padding: 0 20px; }
+  .hero { padding: 72px 20px 70px; }
+  .heroCopy h1 { font-size: 44px; }
+  .heroCopy p { font-size: 16px; }
+  .downloadCard { margin-top: 38px; }
+  .platformRow { align-items: stretch; flex-direction: column; }
+  .downloadButton { justify-content: center; width: 100%; }
+  .trustRow { justify-content: flex-start; gap: 8px 16px; }
+  .stepsSection { padding: 72px 20px; }
+  .sectionHeading h2 { font-size: 30px; }
+  .stepsGrid { grid-template-columns: 1fr; }
+  .footer { padding: 24px 20px; align-items: flex-start; flex-direction: column; justify-content: center; gap: 10px; }
+}

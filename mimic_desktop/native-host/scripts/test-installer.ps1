@@ -60,6 +60,15 @@ $registeredLocation = (Get-ItemProperty -Path $uninstallRegistryPath).InstallLoc
 if ($registeredLocation -ne $InstallDir) {
   throw "Uninstall install-location mismatch. Expected '$InstallDir', got '$registeredLocation'."
 }
+$expectedIconPath = Join-Path $InstallDir "parro.ico"
+$registeredIcon = (Get-ItemProperty -Path $uninstallRegistryPath).DisplayIcon
+if ([System.IO.Path]::GetFullPath($registeredIcon) -ne [System.IO.Path]::GetFullPath($expectedIconPath)) {
+  throw "Uninstall icon mismatch. Expected '$expectedIconPath', got '$registeredIcon'."
+}
+$registeredVersion = (Get-ItemProperty -Path $uninstallRegistryPath).DisplayVersion
+if ($registeredVersion -ne "0.3.1") {
+  throw "Installed version mismatch. Expected '0.3.1', got '$registeredVersion'."
+}
 
 foreach ($file in $requiredFiles) {
   $path = Join-Path $InstallDir $file
@@ -101,13 +110,48 @@ $expectedShortcutTarget = Join-Path $InstallDir "ParroDesktop.exe"
 if ([System.IO.Path]::GetFullPath($shortcut.TargetPath) -ne [System.IO.Path]::GetFullPath($expectedShortcutTarget)) {
   throw "Start-menu shortcut target mismatch. Expected '$expectedShortcutTarget', got '$($shortcut.TargetPath)'."
 }
+if (-not $shortcut.IconLocation.StartsWith($expectedIconPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+  throw "Start-menu shortcut icon mismatch. Expected '$expectedIconPath', got '$($shortcut.IconLocation)'."
+}
 
 Add-Type -AssemblyName System.Drawing
+function Assert-ParroIcon {
+  param(
+    [System.Drawing.Icon]$Icon,
+    [string]$Label
+  )
+
+  $bitmap = $Icon.ToBitmap()
+  try {
+    $parroColorPixels = 0
+    $legacyPurplePixels = 0
+    for ($x = 0; $x -lt $bitmap.Width; $x++) {
+      for ($y = 0; $y -lt $bitmap.Height; $y++) {
+        $pixel = $bitmap.GetPixel($x, $y)
+        if ($pixel.A -lt 32) { continue }
+        $isTeal = $pixel.R -le 45 -and $pixel.G -ge 115 -and $pixel.B -ge 75
+        $isLime = $pixel.R -ge 80 -and $pixel.R -le 180 -and $pixel.G -ge 165 -and $pixel.B -le 115
+        if ($isTeal -or $isLime) { $parroColorPixels++ }
+        if ($pixel.B -ge ($pixel.R + 30) -and $pixel.B -ge ($pixel.G + 30)) { $legacyPurplePixels++ }
+      }
+    }
+    if ($parroColorPixels -lt 3) {
+      throw "$Label does not contain the Parro teal/lime brand colors."
+    }
+    if ($legacyPurplePixels -gt $parroColorPixels) {
+      throw "$Label still appears to use the legacy purple MIMIC icon."
+    }
+  } finally {
+    $bitmap.Dispose()
+  }
+}
+
 $setupIcon = [System.Drawing.Icon]::ExtractAssociatedIcon($InstallerPath)
 try {
   if (-not $setupIcon -or $setupIcon.Width -lt 16) {
     throw "Installer executable icon could not be loaded."
   }
+  Assert-ParroIcon -Icon $setupIcon -Label "Installer executable icon"
 } finally {
   if ($setupIcon) { $setupIcon.Dispose() }
 }
@@ -117,8 +161,16 @@ try {
   if (-not $launcherIcon -or $launcherIcon.Width -lt 16) {
     throw "Desktop launcher icon could not be loaded."
   }
+  Assert-ParroIcon -Icon $launcherIcon -Label "Desktop launcher icon"
 } finally {
   if ($launcherIcon) { $launcherIcon.Dispose() }
+}
+
+$installedIcon = New-Object System.Drawing.Icon($expectedIconPath)
+try {
+  Assert-ParroIcon -Icon $installedIcon -Label "Installed shortcut icon"
+} finally {
+  $installedIcon.Dispose()
 }
 
 $smokeScript = Join-Path $root "scripts\smoke-native-host.js"
