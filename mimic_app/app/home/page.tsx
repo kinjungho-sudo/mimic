@@ -530,8 +530,8 @@ function EmptyState({ onRecord, onBlank, onGuidebook, label }: { onRecord: () =>
       </div>
       <div style={{ fontSize: '14px', fontWeight: 600, color: '#111827', marginBottom: '6px' }}>{label ?? '매뉴얼이 없어요'}</div>
       <div style={{ fontSize: '12.5px', color: '#9CA3AF', marginBottom: '20px' }}>화면을 녹화하거나 직접 만들어보세요.</div>
-      <div style={{ display: 'inline-flex', gap: '8px' }}>
-        <button onClick={onRecord} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: BRAND_GRADIENT, color: 'white', border: 'none', cursor: 'pointer' }}>
+      <div className="home-empty-actions" style={{ display: 'inline-flex', gap: '8px' }}>
+        <button className="home-empty-recording-btn" onClick={onRecord} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: BRAND_GRADIENT, color: 'white', border: 'none', cursor: 'pointer' }}>
           <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'rgba(255,255,255,0.8)', animation: 'recPulse 1.4s ease-in-out infinite' }} />
           화면 녹화
         </button>
@@ -545,6 +545,9 @@ function EmptyState({ onRecord, onBlank, onGuidebook, label }: { onRecord: () =>
             새 플레이북
           </button>
         )}
+        <div className="home-mobile-capture-note" style={{ display: 'none' }}>
+          화면 캡처는 PC에서 사용할 수 있어요.
+        </div>
       </div>
     </div>
   );
@@ -815,6 +818,7 @@ export default function DashboardPage() {
   const [activeWorkspace, setActiveWorkspace] = useState<string | null>(null);
 
   const [showRecordingModal, setShowRecordingModal] = useState(false);
+  const [recordingModalMode, setRecordingModalMode] = useState<'select' | 'web'>('select');
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [creating, setCreating] = useState(false);
 
@@ -1124,7 +1128,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      {showRecordingModal && <RecordingModal onClose={() => setShowRecordingModal(false)} />}
+      {showRecordingModal && <RecordingModal initialMode={recordingModalMode} onClose={() => setShowRecordingModal(false)} />}
       {ctxMenu && (
         <ContextMenu
           menu={ctxMenu}
@@ -1308,6 +1312,13 @@ export default function DashboardPage() {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
                 설정
               </Link>
+              <Link href="/download/desktop?source=sidebar"
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', borderRadius: '8px', fontSize: '13px', textDecoration: 'none', color: '#0369A1', fontWeight: 700, background: '#E0F2FE' }}
+                onMouseEnter={e => (e.currentTarget.style.background = '#BAE6FD')}
+                onMouseLeave={e => (e.currentTarget.style.background = '#E0F2FE')}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+                Desktop 설치
+              </Link>
               {/* 휴지통 */}
               <Link href="/trash"
                 style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', borderRadius: '8px', fontSize: '13px', textDecoration: 'none', color: '#4B5563' }}
@@ -1428,8 +1439,14 @@ export default function DashboardPage() {
                     </>
                   )}
                 </div>
-                <div ref={newMenuRef} style={{ position: 'relative', flexShrink: 0 }}>
-                  <button onClick={() => setShowNewMenu(v => !v)} disabled={creating}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                  <Link href="/download/desktop?source=home-header"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '8px 12px', borderRadius: '9px', background: '#E0F2FE', color: '#0369A1', border: '1px solid #BAE6FD', textDecoration: 'none', fontSize: '13px', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+                    Desktop 설치
+                  </Link>
+                  <div ref={newMenuRef} style={{ position: 'relative', flexShrink: 0 }}>
+                    <button onClick={() => setShowNewMenu(v => !v)} disabled={creating}
                     className="home-new-btn"
                     style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '8px 14px', borderRadius: '9px', background: BRAND_GRADIENT, color: 'white', border: 'none', cursor: creating ? 'not-allowed' : 'pointer', fontSize: '13.5px', fontWeight: 600, boxShadow: `0 2px 8px ${BRAND_RING}`, opacity: creating ? 0.7 : 1, whiteSpace: 'nowrap' }}>
                     {creating
@@ -1440,16 +1457,38 @@ export default function DashboardPage() {
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ transform: showNewMenu ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}><polyline points="6 9 12 15 18 9"/></svg>
                   </button>
                   {showNewMenu && (
-                    <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, width: '210px', background: 'white', borderRadius: '12px', boxShadow: '0 8px 28px rgba(17,24,39,0.14), 0 0 0 1px rgba(0,0,0,0.06)', overflow: 'hidden', zIndex: 100 }}>
-                      <button className="home-recording-btn" onClick={() => { setShowNewMenu(false); setShowRecordingModal(true); }}
+                    <div className="home-new-menu" style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, width: '244px', background: 'white', borderRadius: '12px', boxShadow: '0 8px 28px rgba(17,24,39,0.14), 0 0 0 1px rgba(0,0,0,0.06)', overflow: 'hidden', zIndex: 100 }}>
+                      <button className="home-recording-btn" onClick={() => { setShowNewMenu(false); setRecordingModalMode('web'); setShowRecordingModal(true); }}
                         style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', width: '100%', padding: '13px 15px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left' }}
                         onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
                         <span style={{ width: '30px', height: '30px', borderRadius: '8px', background: '#FEE2E2', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3" fill="#EF4444"/></svg>
                         </span>
-                        <div><div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '2px' }}>새 매뉴얼(녹화)</div><div style={{ fontSize: '11.5px', color: '#6B7280' }}>클릭 동작을 자동 캡처</div></div>
+                        <div><div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '2px' }}>웹 페이지 녹화</div><div style={{ fontSize: '11.5px', color: '#6B7280' }}>Chrome 탭을 선택해 매뉴얼 생성</div></div>
                       </button>
+                      <button onClick={() => { setShowNewMenu(false); router.push('/download/desktop?source=new-menu'); }}
+                        style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', width: '100%', padding: '13px 15px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                        <span style={{ width: '30px', height: '30px', borderRadius: '8px', background: '#E0F2FE', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0369A1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+                        </span>
+                        <div><div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '2px' }}>데스크톱 녹화</div><div style={{ fontSize: '11.5px', color: '#6B7280' }}>설치 화면으로 이동 후 녹화 시작</div></div>
+                      </button>
+                      <div className="home-mobile-capture-note" style={{ display: 'none' }}>
+                        <span style={{ width: '30px', height: '30px', borderRadius: '8px', background: '#F3F4F6', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/></svg>
+                        </span>
+                        <div><div style={{ fontSize: '13px', fontWeight: 600, color: '#6B7280', marginBottom: '2px' }}>화면 캡처</div><div style={{ fontSize: '11.5px', color: '#9CA3AF' }}>PC 브라우저에서 사용할 수 있어요</div></div>
+                      </div>
                       <div className="home-recording-divider" style={{ height: '1px', background: '#F3F4F6', margin: '0 12px' }} />
+                      <button onClick={handleCreateBlank}
+                        style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', width: '100%', padding: '13px 15px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                        <span style={{ width: '30px', height: '30px', borderRadius: '8px', background: BRAND_PRIMARY_SOFT, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={BRAND_COLORS.primary} strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="12" x2="12" y2="18"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                        </span>
+                        <div><div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '2px' }}>새 매뉴얼(직접 작성)</div><div style={{ fontSize: '11.5px', color: '#6B7280' }}>모바일에서도 단계별로 작성</div></div>
+                      </button>
                       <button onClick={handleCreateGuidebook}
                         style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', width: '100%', padding: '13px 15px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left' }}
                         onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
@@ -1460,6 +1499,7 @@ export default function DashboardPage() {
                       </button>
                     </div>
                   )}
+                  </div>
                 </div>
               </div>
 
@@ -1601,7 +1641,7 @@ export default function DashboardPage() {
                       </button>
                     </div>
                   ) : (
-                    <EmptyState onRecord={() => setShowRecordingModal(true)} onBlank={handleCreateBlank} onGuidebook={handleCreateGuidebook}
+                    <EmptyState onRecord={() => { setRecordingModalMode('select'); setShowRecordingModal(true); }} onBlank={handleCreateBlank} onGuidebook={handleCreateGuidebook}
                       label={activeTab === 'team' ? '팀 매뉴얼이 없어요' : activeFolder !== 'all' ? '이 폴더에 매뉴얼이 없어요' : undefined} />
                   )
                 ) : (
@@ -1649,6 +1689,7 @@ export default function DashboardPage() {
                   { label: '홈', href: '/home', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> },
                   { label: '마이페이지', href: '/mypage', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> },
                   { label: '설정', href: '/settings', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> },
+                  { label: 'Desktop 설치', href: '/download/desktop?source=mobile-drawer', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg> },
                   { label: '휴지통', href: '/trash', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg> },
                   { label: '도움말', href: '/help', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> },
                 ].map(item => (

@@ -7,3 +7,6 @@ mimic_recorder/.env
 
 # 스토어 빌드 산출물
 mimic_recorder/*.zip
+
+# Desktop Companion generated installer artifacts
+mimic_desktop/native-host/dist/

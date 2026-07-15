@@ -1,11 +1,17 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { Step } from '@/types';
 import { CLAUDE_MODEL } from '@/lib/ai/model';
+import { BRAND_COLORS } from '@/lib/brand';
+import { isLowQualityCaptureTutorialTitle } from '@/lib/ai/capture-fallback';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+export function hasAnthropicApiKey(): boolean {
+  return !!process.env.ANTHROPIC_API_KEY?.trim();
+}
+
 function hasClaudeApiKey(operation: string): boolean {
-  if (process.env.ANTHROPIC_API_KEY?.trim()) return true;
+  if (hasAnthropicApiKey()) return true;
   console.error(`${operation} skipped: ANTHROPIC_API_KEY is not configured`);
   return false;
 }
@@ -154,11 +160,11 @@ export async function analyzeScreenshot(
 
   const titleGuide = (() => {
     const type = actionInfo?.type;
-    if (type === 'type') return '"[필드명] 입력" 형식 (예: "검색창에 키워드 입력", "이메일 주소 입력")';
-    if (type === 'navigate') return '"[기능/메뉴명] 이동" 형식 — URL path 절대 사용 금지';
-    if (type === 'toggle') return '"[항목] 선택/해제" 형식';
-    if (type === 'select') return '"[항목] 선택" 형식';
-    return '"[UI 요소] 클릭" 형식 (예: "로그인 버튼 클릭", "바로구매 버튼 클릭")';
+    if (type === 'type') return '"[업무 내용] 입력" 형식 (예: "검색 조건 입력", "수신자 입력")';
+    if (type === 'navigate') return '"[업무 화면] 이동/확인" 형식 — URL path 절대 사용 금지';
+    if (type === 'toggle') return '"[설정 목적] 선택/해제" 형식';
+    if (type === 'select') return '"[업무 항목] 선택" 형식';
+    return '원시 UI 라벨 대신 사용자의 업무 목적을 나타내는 "[목적] 확인/실행" 형식';
   })();
 
   const response = await client.messages.create({
@@ -177,6 +183,8 @@ export async function analyzeScreenshot(
 
 [title 규칙]
 - ${titleGuide}으로 20자 이내
+- 화면에 보인 접근성 문자열이나 단축키 설명을 그대로 복사하지 말 것
+- "Code 클릭", "Open menuHomepage 클릭"처럼 대상 텍스트만 옮긴 제목 금지
 - 특정 상품명·브랜드명·수량·고유명사 절대 포함 금지
 
 {"title": "..."}`,
@@ -223,9 +231,10 @@ export async function generateStepDescription(
 
 [규칙]
 - 1~2문장, 존댓말
-- 행동 하나만 설명 (결과 설명 금지)
+- 왜 필요한 단계인지와 무엇을 하면 되는지를 한 문장 중심으로 설명
+- 결과 상태가 명확하면 짧게 덧붙이되 다음 단계까지 설명하지 말 것
 - 특정 상품명·수량·고유명사 포함 금지, 범용 표현 사용
-- 좋은 예: "검색창에 원하는 상품명을 입력합니다."
+- 좋은 예: "원하는 항목을 찾을 수 있도록 검색 조건을 입력합니다."
 - 문장만 반환 (JSON, 따옴표, 부연 없이)`,
   });
 
@@ -389,7 +398,20 @@ ${JSON.stringify(stepsData, null, 2)}
 }
 
 export async function generateDraft(
-  steps: Array<{ id: string; ai_title: string | null; ai_description: string | null; page_url: string | null; step_number: number; domain_name?: string | null; noAction?: boolean }>
+  steps: Array<{
+    id: string;
+    ai_title: string | null;
+    ai_description: string | null;
+    user_title?: string | null;
+    user_script?: string | null;
+    page_url: string | null;
+    step_number: number;
+    domain_name?: string | null;
+    noAction?: boolean;
+    action_type?: string | null;
+    action_label?: string | null;
+    element_text?: string | null;
+  }>
 ): Promise<GenerateDraftResult> {
   if (!hasClaudeApiKey('generateDraft')) {
     return { tutorial_title: '', steps: [], status: 'missing_key', reason: 'ANTHROPIC_API_KEY is not configured' };
@@ -407,20 +429,24 @@ export async function generateDraft(
   const stepsText = steps
     .map(s =>
       `[Step ${s.step_number}] id=${s.id}\n` +
-      `제목: ${s.ai_title || '없음'}\n` +
-      `설명: ${s.ai_description || '없음'}\n` +
-      `URL: ${s.page_url || '없음'}` +
+      `제목: ${s.user_title || s.ai_title || '없음'}\n` +
+      `설명: ${s.user_script || s.ai_description || '없음'}\n` +
+      `URL: ${s.page_url || '없음'}\n` +
+      `Action: type=${s.action_type || 'unknown'}, label=${s.action_label || '없음'}\n` +
+      `Element text: ${s.element_text || '없음'}` +
       (s.noAction ? `\n※ 이 단계는 특정 클릭 대상이 없음(전체화면/페이지 이동/캡처) — "○○ 클릭/누르기" 동작 제목 금지` : '')
     )
     .join('\n\n');
 
   const serviceHint = mainService ? `\n주요 서비스: ${mainService}` : '';
+  const sourceStepTitles = steps.map(s => s.user_title || s.ai_title || s.action_label || s.element_text || '');
+  const draftMaxTokens = Math.min(4096, Math.max(1024, steps.length * 110));
 
   let text = '{}';
   try {
     const response = await client.messages.create({
       model: CLAUDE_MODEL,
-      max_tokens: 1024,
+      max_tokens: draftMaxTokens,
       messages: [
         {
           role: 'user',
@@ -428,21 +454,48 @@ export async function generateDraft(
 
 ${stepsText}
 
+[먼저 내부적으로 판단할 것 — 응답에는 쓰지 말 것]
+1. 전체 단계를 처음부터 끝까지 읽고 시작·설정·완료/검증 단계로 묶는다.
+2. 사용자가 마지막에 얻게 되는 결과나 확인하는 상태가 무엇인지 추론한다.
+3. 첫 클릭이나 중간 설정이 아니라 그 최종 결과를 tutorial_title로 정한다.
+4. 생성→설치→테스트처럼 목적이 여러 구간에 걸치면 마지막 구간까지 제목에 포함한다.
+5. DOM 라벨과 원문은 맥락 증거로만 사용하고 제목/설명에 그대로 복사하지 않는다.
+
 [제목 규칙 — tutorial_title]
-- 30자 이내, "서비스명 + 핵심 동작" 형식
+- 30자 안팎, "서비스명 + 사용자가 완성하는 결과" 형식
+- 첫 클릭이나 첫 화면이 아니라 전체 절차가 끝났을 때 달성하는 최종 목적을 작성
+- 여러 작업 구간이 있으면 "만들고 테스트하기", "작성 후 보내기", "설정하고 게시하기"처럼 최종 구간까지 표현
+- "앱 추가하기", "메뉴 열기", "화면 확인하기"처럼 무엇이 완료되는지 모호한 제목 금지
+- 목적을 확신할 수 없으면 원시 버튼명을 쓰지 말고 전체 흐름에서 반복되는 업무 대상을 기준으로 중립적인 결과를 작성
 - 반드시 범용적인 행동 목적으로 작성 — 특정 상품명·수량·고유명사 절대 포함 금지
-- 좋은 예: "쿠팡에서 상품 구매하기", "Slack 채널 만들기"
+- 좋은 예: "쿠팡에서 상품 구매하기", "Slack 채널 만들기", "Gmail로 메일 보내기"
+- 흐름이 새 Slack 앱 생성→권한/토큰 설정→워크스페이스 설치→에이전트 대화 테스트라면 "Slack AI 에이전트 앱 만들고 테스트하기"
+- 위 Slack 흐름의 나쁜 제목: "Slack에 앱 추가하기", "Create New App 클릭하기", "OAuth 설정하기"
+- 나쁜 예: "Code하기", "버튼 클릭하기", "Open menuHomepage 클릭하기"
 - "매뉴얼 2026. 6. 4" 같은 날짜 형식 절대 금지
 
 [스텝 제목 규칙 — user_title]
 - 20자 이내, 핵심 행동 하나만
+- 클릭 대상을 읽는 대신 해당 단계가 전체 목적에서 맡는 역할을 작성
+- 예: "Create New App 클릭"→"새 앱 생성 시작", "허용 클릭"→"워크스페이스 설치 승인", "너의 역할은 뭐지? 클릭"→"에이전트 응답 테스트"
+- 화면에 보인 원문을 그대로 읽지 말고, 매뉴얼 사용자가 이해할 업무 맥락으로 요약
+- 접근성 이름, 단축키 힌트, 브레드크럼 문자열을 이어 붙이지 말 것
+- 메일/알림 개수, 긴 버튼 aria-label, 입력된 메일 본문, 프롬프트 원문, 이메일 주소는 제목에 쓰지 말 것
+- Gmail 수신자/참조/숨은참조 자동완성 후보를 클릭한 단계는 이메일 주소를 복사하지 말고 주변 단계 맥락으로 "수신자 자동 완성 클릭", "참조 수신자 자동 완성 클릭", "숨은참조 수신자 자동 완성 클릭"처럼 작성
+- 받는사람/참조/숨은참조 입력 직후 이메일 후보를 클릭하는 단계는 직전 입력 단계의 역할을 이어받아 제목을 작성
 - 특정 상품명·브랜드명·수량 포함 금지
-- 좋은 예: "검색창에 키워드 입력", "바로구매 버튼 클릭"
+- uuid/hash/id처럼 보이는 긴 영문·숫자 문자열 절대 포함 금지
+- 좋은 예: "메일함 확인", "참조 수신자 자동 완성 클릭", "메일 본문 입력", "입력 내용 적용", "바로구매 버튼 클릭"
+- 나쁜 예: "goodjob08070@naver.com 클릭", "메일, 읽지 않은 메일 2458개 클릭", "프롬프트 입력 입력", 입력된 문장 전체를 복사한 제목
 - ※ 표시된 단계(클릭 대상 없음)는 "○○ 클릭/누르기" 절대 금지 — "○○ 화면 확인", "○○ 페이지로 이동" 같은 중립 제목으로
 
 [스텝 설명 규칙 — user_script]
-- 1~2문장, 사용자가 그대로 따라할 수 있게 구체적으로
+- 1문장 중심, "이유 + 수행할 행동 + 완료 후 상태"가 드러나도록 작성
 - 존댓말
+- uuid/hash/id처럼 보이는 긴 영문·숫자 문자열과 이메일 주소 절대 포함 금지
+- 입력된 메일 본문이나 프롬프트 원문을 그대로 복사하지 말고 "작성한 내용을 입력합니다", "입력 내용을 적용합니다"처럼 요약
+- UI 라벨을 그대로 반복하지 말고 "어떤 칸/목록/버튼에서 무엇을 하는지"로 작성
+- Gmail 예: "참조 수신자 칸에 이메일 주소를 입력합니다.", "참조 수신자를 자동완성 목록에서 선택합니다.", "메일 제목을 입력합니다.", "메일 본문을 입력합니다.", "보내기 버튼을 클릭합니다."
 - 클릭 대상이 없는 단계는 화면 확인/이동 맥락으로 설명
 - 빈 문자열 금지
 
@@ -470,26 +523,60 @@ ${stepsText}
 
   try {
     const parsed = parseJsonObject(text) as { tutorial_title?: string; steps?: Array<{ id: string; user_title: string; user_script?: string }> };
-    const steps = Array.isArray(parsed.steps)
+    const draftSteps = Array.isArray(parsed.steps)
       ? parsed.steps.map((s) => ({
           id: s.id,
           user_title: s.user_title,
           user_script: String(s.user_script || ''),
         }))
       : [];
-    if (steps.length === 0) {
+    if (draftSteps.length === 0) {
       console.warn('generateDraft returned empty steps:', { responsePreview: text.slice(0, 500) });
       return {
         tutorial_title: String(parsed.tutorial_title || ''),
-        steps,
+        steps: draftSteps,
         status: 'empty_steps',
         reason: 'Claude response contained no usable steps',
         responsePreview: text.slice(0, 500),
       };
     }
+
+    const titleContext = { stepTitles: [...sourceStepTitles, ...draftSteps.map(step => step.user_title)] };
+    let tutorialTitle = String(parsed.tutorial_title || '').trim();
+    if (isLowQualityCaptureTutorialTitle(tutorialTitle, titleContext)) {
+      try {
+        const repairResponse = await client.messages.create({
+          model: CLAUDE_MODEL,
+          max_tokens: 256,
+          messages: [{
+            role: 'user',
+            content: `아래 제목은 전체 매뉴얼의 최종 목적을 충분히 설명하지 못합니다. 전체 단계의 마지막 결과까지 포함한 목적형 제목으로 다시 작성해줘.${serviceHint}
+
+현재 제목: ${tutorialTitle || '없음'}
+
+${stepsText}
+
+규칙:
+- 첫 클릭, 버튼명, 메뉴명, 중간 설정이 아니라 전체 절차가 끝났을 때의 결과를 작성
+- 여러 구간이면 마지막 완료/검증 구간까지 포함
+- "앱 추가하기", "메뉴 열기", "화면 확인하기" 같은 모호한 표현 금지
+- 30자 안팎, 특정 ID·이메일·개인 이름 제외
+- JSON만 응답: {"tutorial_title":"..."}`,
+          }],
+        });
+        const repairText = repairResponse.content[0].type === 'text' ? repairResponse.content[0].text : '{}';
+        const repaired = parseJsonObject(repairText) as { tutorial_title?: string };
+        const repairedTitle = String(repaired.tutorial_title || '').trim();
+        tutorialTitle = isLowQualityCaptureTutorialTitle(repairedTitle, titleContext) ? '' : repairedTitle;
+      } catch (err) {
+        console.error('generateDraft tutorial title repair error:', err);
+        tutorialTitle = '';
+      }
+    }
+
     return {
-      tutorial_title: String(parsed.tutorial_title || ''),
-      steps,
+      tutorial_title: tutorialTitle,
+      steps: draftSteps,
       status: 'ok',
     };
   } catch (err) {
@@ -645,13 +732,15 @@ JSON만 응답 (마크다운 없이):
       return { color1: parsed.color1, color2: parsed.color2 };
     }
   } catch { /* fallback */ }
-  return { color1: '#3730a3', color2: '#6d28d9' };
+  return { color1: BRAND_COLORS.primary, color2: BRAND_COLORS.guide };
 }
 
 export async function rewriteSentence(
   original: string,
   instruction: string
 ): Promise<string> {
+  if (!hasClaudeApiKey('rewriteSentence')) return original;
+
   const response = await client.messages.create({
     model: CLAUDE_MODEL,
     max_tokens: 512,
@@ -746,6 +835,8 @@ export async function rewriteAllSteps(
   steps: { id: string; text: string }[],
   instruction: string
 ): Promise<{ id: string; result: string }[]> {
+  if (!hasClaudeApiKey('rewriteAllSteps')) return steps.map(s => ({ id: s.id, result: s.text }));
+
   const numbered = steps.map((s, i) => `[${i + 1}] ${s.text}`).join('\n');
   const response = await client.messages.create({
     model: CLAUDE_MODEL,

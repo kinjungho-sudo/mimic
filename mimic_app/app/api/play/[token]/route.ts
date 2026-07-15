@@ -3,6 +3,7 @@ import { createServiceRoleClient } from '@/lib/supabase/server';
 import { verifyPassword } from '@/lib/auth/password';
 import { isPaidPlan } from '@/lib/plan';
 import { isFreshVoiceAsset } from '@/lib/voice/playback';
+import { mergeCapturedTypeText } from '@/lib/follow';
 
 type Params = { params: Promise<{ token: string }> };
 
@@ -68,6 +69,11 @@ async function fetchTutorialData(token: string) {
     image_offset_y: (s as Record<string, unknown>).image_offset_y as number | null ?? null,
     // 편집기에서 그린 도형/텍스트 어노테이션
     user_annotations: (s.user_annotations as unknown[] | null) ?? [],
+    follow_config: mergeCapturedTypeText(
+      (s as Record<string, unknown>).follow_config as import('@/types').FollowConfig | null,
+      (s as Record<string, unknown>).type_text as string | null
+    ),
+    step_type: (s as Record<string, unknown>).step_type ?? null,
     // DOM 요소 bounding rect (0~100 pct) — 실습하기 직사각형 하이라이트·줌인에 사용
     element_rect: (() => {
       const raw = (s as Record<string, unknown>).element_rect as { x?: number; y?: number; width?: number; height?: number } | null;

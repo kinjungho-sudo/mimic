@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { generateDraft } from '@/lib/ai/claude';
+import { isLowQualityCaptureTutorialTitle } from '@/lib/ai/capture-fallback';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest, { params }: Params) {
 
   const { data: steps } = await supabase
     .from('mm_steps')
-    .select('id, ai_title, ai_description, page_url, step_number, domain_name')
+    .select('id, ai_title, ai_description, user_title, user_script, page_url, step_number, domain_name')
     .eq('tutorial_id', id)
     .order('step_number', { ascending: true });
 
@@ -31,7 +32,9 @@ export async function POST(request: NextRequest, { params }: Params) {
 
   // generateDraft는 단일 Haiku 호출로 제목+스텝 제목을 생성 — 여기선 tutorial_title만 사용
   const { tutorial_title } = await generateDraft(steps);
-  if (!tutorial_title) {
+  if (!tutorial_title || isLowQualityCaptureTutorialTitle(tutorial_title, {
+    stepTitles: steps.map(step => step.user_title || step.ai_title),
+  })) {
     return NextResponse.json({ error: '제목 생성에 실패했습니다. 다시 시도해주세요.' }, { status: 502 });
   }
 

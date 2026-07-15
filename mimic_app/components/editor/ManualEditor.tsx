@@ -330,7 +330,7 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
       )}
 
       {/* ── Right content — scroll-snap 스크롤 편집 ── */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, background: '#F1F3F5' }}>
+      <div className="manual-editor-content" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, background: '#F1F3F5' }}>
 
         {/* ── 상단 툴바: AI 액션 (선택 시에만 표시) ── */}
         {selectedIds.size > 0 && (
@@ -377,22 +377,30 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
 
         {/* ── scroll-snap 스크롤 영역 — 각 스텝이 뷰포트 1장씩 ── */}
         <div
+          className="manual-editor-scroll"
           ref={scrollRef}
           style={{ flex: 1, overflowY: 'scroll', scrollSnapType: 'y mandatory', position: 'relative' }}
         >
           {steps.length === 0 ? (
-            <div style={{ minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9CA3AF', fontSize: '14px' }}>
-              단계가 없습니다.
+            <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '14px', padding: '24px', color: '#9CA3AF', fontSize: '14px', textAlign: 'center' }}>
+              <span>아직 단계가 없습니다.</span>
+              <button
+                onClick={onAddStep ?? addStep}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', minHeight: '44px', padding: '0 20px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, #009B8E, #12B886)', color: 'white', fontSize: '13px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 8px 20px rgba(0,155,142,0.22)' }}
+              >
+                <Plus size={15} /> 첫 단계 추가
+              </button>
             </div>
           ) : (
             steps.map(step => (
               <div
+                className="manual-step-shell"
                 key={step.id}
                 ref={el => { contentRefs.current[step.id] = el; }}
                 data-step-id={step.id}
                 style={{ scrollSnapAlign: 'start', minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px 0', boxSizing: 'border-box' }}
               >
-                <div style={{ width: '100%', maxWidth: '1120px', padding: '0 24px', boxSizing: 'border-box' }}>
+                <div className="manual-step-width" style={{ width: '100%', maxWidth: '1120px', padding: '0 24px', boxSizing: 'border-box' }}>
                   <StepCard
                     step={step}
                     isActive={activeId === step.id}
@@ -468,7 +476,7 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
           </div>
 
           {/* 단계 추가 버튼 — 마지막 스텝 아래 */}
-          <div style={{ scrollSnapAlign: 'none', display: 'flex', justifyContent: 'center', padding: '20px 0 40px' }}>
+          {steps.length > 0 && <div style={{ scrollSnapAlign: 'none', display: 'flex', justifyContent: 'center', padding: '20px 0 40px' }}>
             <button
               onClick={onAddStep ?? addStep}
               style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', height: '44px', padding: '0 24px', borderRadius: '10px', border: '2px dashed #D1D5DB', background: 'transparent', fontSize: '13px', color: '#6B7280', cursor: 'pointer', transition: 'all 0.18s ease' }}
@@ -477,7 +485,7 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
             >
               <Plus size={15} /> 단계 추가
             </button>
-          </div>
+          </div>}
         </div>
       </div>
 
@@ -818,6 +826,7 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
 
   return (
     <div
+      className="manual-step-card"
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
       style={{

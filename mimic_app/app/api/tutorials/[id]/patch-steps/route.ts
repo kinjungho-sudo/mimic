@@ -4,6 +4,16 @@ import { createServiceRoleClient } from '@/lib/supabase/server';
 import { guardTutorialAccess } from '@/lib/auth/workspace-guard';
 import { buildClickHighlight, buildClickPoint } from '@/lib/annotations';
 import { analyzeScreenshot } from '@/lib/ai/claude';
+import { isLowQualityManualTitle } from '@/lib/ai/text-quality';
+
+type StepActionInfo = {
+  type?: string;
+  label?: string;
+  tag?: string;
+  role?: string;
+  href?: string;
+  text?: string;
+};
 
 export async function POST(
   request: NextRequest,
@@ -24,7 +34,7 @@ export async function POST(
   // 보완 대상 스텝 조회
   const { data: steps } = await supabase
     .from('mm_steps')
-    .select('id, step_number, ai_title, user_title, user_annotations, element_rect, click_x, click_y, screenshot_url, page_url')
+    .select('id, step_number, ai_title, user_title, user_annotations, element_rect, click_x, click_y, screenshot_url, page_url, element_selector, action_info')
     .eq('tutorial_id', id)
     .order('step_number', { ascending: true });
 
@@ -44,7 +54,7 @@ export async function POST(
         const num = step.step_number ?? 1;
 
         if (rect) {
-          patch.user_annotations = buildClickHighlight({ elementRect: rect, stepNumber: num, label });
+          patch.user_annotations = buildClickHighlight({ elementRect: rect, stepNumber: num, label, clickX: step.click_x, clickY: step.click_y });
         } else if (step.click_x != null && step.click_y != null) {
           // DB click_x/y: 0~1 정규화값 (Extension이 / viewportWidth로 저장)
           patch.user_annotations = buildClickPoint({
@@ -67,8 +77,23 @@ export async function POST(
               .find(t => ct.includes(t)) ?? 'image/jpeg';
             const buf = await imgRes.arrayBuffer();
             const b64 = Buffer.from(buf).toString('base64');
-            const { title } = await analyzeScreenshot(b64, mediaType, step.page_url);
-            if (title) patch.ai_title = title;
+            const actionInfo = step.action_info && typeof step.action_info === 'object' && !Array.isArray(step.action_info)
+              ? step.action_info as StepActionInfo
+              : undefined;
+            const rect = step.element_rect as { x: number; y: number; width: number; height: number } | null;
+            const { title } = await analyzeScreenshot(
+              b64,
+              step.page_url ?? '',
+              actionInfo,
+              {
+                clickX: step.click_x ?? undefined,
+                clickY: step.click_y ?? undefined,
+                elementRect: rect ?? undefined,
+                elementSelector: step.element_selector ?? undefined,
+              },
+              mediaType
+            );
+            if (title && !isLowQualityManualTitle(title)) patch.ai_title = title;
           }
         } catch { /* 제목 생성 실패 무시 */ }
       }

@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { randomBytes } from 'crypto';
 import { requireExtensionToken } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { captureFinalizeSchema } from '@/lib/validators';
 import { analyzeScreenshot, generateStepDescription, generateDraft, extractCoverColors, detectPII, cleanTranscripts } from '@/lib/ai/claude';
-import { buildCaptureAnnotationLabel, buildCaptureFallbackDraft, buildCaptureFallbackTutorialTitle, isLowQualityCaptureLabel, isLowQualityCaptureScript, isLowQualityCaptureTitle, type CaptureFallbackActionInfo } from '@/lib/ai/capture-fallback';
+import { buildCaptureAnnotationLabel, buildCaptureFallbackDraft, buildCaptureFallbackTutorialTitle, cleanCaptureTypeText, isLowQualityCaptureLabel, isLowQualityCaptureScript, isLowQualityCaptureTitle, isLowQualityCaptureTutorialTitle, isUsableCaptureDraft, type CaptureFallbackActionInfo } from '@/lib/ai/capture-fallback';
 import { resolveFavicon } from '@/lib/favicon';
 import { buildClickHighlight } from '@/lib/annotations';
 import { transcribeAudio, assignSegmentsToSteps, computeStepWindows } from '@/lib/voice/voice';
@@ -46,6 +45,65 @@ function cleanActionInfoForDraft(actionInfo: CaptureFallbackActionInfo): Capture
     label: isLowQualityCaptureLabel(actionInfo.label) ? undefined : actionInfo.label,
     text: isLowQualityCaptureLabel(actionInfo.text) ? undefined : actionInfo.text,
   };
+}
+
+type GuideStepType =
+  | 'normal_interactive_step'
+  | 'visual_only_step'
+  | 'visual_overlay_step'
+  | 'manual_capture_step'
+  | 'blocked_step'
+  | 'skipped_step';
+
+const GUIDE_STEP_TYPES = new Set<string>([
+  'normal_interactive_step',
+  'visual_only_step',
+  'visual_overlay_step',
+  'manual_capture_step',
+  'blocked_step',
+  'skipped_step',
+]);
+
+function normalizeStepType(value: unknown): GuideStepType | null {
+  return typeof value === 'string' && GUIDE_STEP_TYPES.has(value)
+    ? value as GuideStepType
+    : null;
+}
+
+function classifyStepType(
+  ev: Record<string, unknown>,
+  noAction: boolean,
+  hasTarget: boolean,
+  hasScreenshot: boolean,
+): GuideStepType {
+  const explicit = normalizeStepType(ev.step_type);
+  if (explicit && explicit !== 'normal_interactive_step') return explicit;
+  if ((ev.capture_source as string | null) === 'manual' && hasScreenshot) return 'manual_capture_step';
+  if (!hasScreenshot) return 'blocked_step';
+  if (noAction || !hasTarget) return 'visual_only_step';
+  return 'normal_interactive_step';
+}
+
+function blockedStepMessage(reason: unknown): string {
+  if (reason === 'upload_failed') {
+    return '자동 캡처를 저장하지 못한 단계입니다. 실제 화면에서 필요한 작업을 완료한 뒤 다음을 눌러주세요.';
+  }
+  return '이 단계는 보안 정책이나 브라우저 제한으로 자동 캡처되지 않았습니다. 화면 안내에 따라 직접 진행한 뒤 다음을 눌러주세요.';
+}
+
+function isMissingExceptionStepColumns(error: { code?: string; message?: string } | null | undefined) {
+  return error?.code === '42703'
+    || /step_type|capture_source|capture_failure_reason/i.test(error?.message ?? '');
+}
+
+function stripExceptionStepColumns<T extends Record<string, unknown>>(steps: T[]): T[] {
+  return steps.map(step => {
+    const next = { ...step };
+    delete next.step_type;
+    delete next.capture_source;
+    delete next.capture_failure_reason;
+    return next;
+  });
 }
 
 export async function POST(request: NextRequest) {
@@ -117,11 +175,10 @@ export async function POST(request: NextRequest) {
   //   2) 동일 page_url + created_at 차이 500ms 미만 연속 → 마지막만 유지 (타이핑 덮어쓰기)
   //   3) screenshot_url 없는 이벤트 제거
   const deduped = liveEvents.filter((ev, i, arr) => {
-    if (!ev.screenshot_url) return false;
     const prev = arr[i - 1];
     if (!prev) return true;
     // 동일 screenshot_url 연속 제거 (첫 번째 유지)
-    if (ev.screenshot_url === prev.screenshot_url) return false;
+    if (ev.screenshot_url && ev.screenshot_url === prev.screenshot_url) return false;
     // 동일 page_url이고 500ms 이내 연속 — 마지막만 유지 (i+1이 같은 조건이면 현재는 제거)
     const next = arr[i + 1];
     const tCur  = new Date(ev.created_at).getTime();
@@ -145,6 +202,10 @@ export async function POST(request: NextRequest) {
       title: tutorialTitle,
       session_id,
       content_mode,
+      status: 'draft',
+      visibility: 'private',
+      share_token: null,
+      published_at: null,
     })
     .select('id')
     .single();
@@ -275,10 +336,14 @@ export async function POST(request: NextRequest) {
     // 행동 없음: 클릭 좌표가 없거나(이동/캡처), 또는 좋은 셀렉터 없이 화면 전체에 가까운/없는 영역(빈영역/전체선택)
     const noAction = !hasClick || (!hasGoodSelector && (hugeRect || !rawRect));
     noActionByStepNum.set(idx + 1, noAction);
+    const hasScreenshot = !!ev.screenshot_url;
+    const hasTarget = hasGoodSelector || !!rawRect || hasClick;
+    const stepType = classifyStepType(ev as Record<string, unknown>, noAction, hasTarget, hasScreenshot);
+    const explanationOnly = stepType !== 'normal_interactive_step';
 
     // 행동 없음 → 핫스팟/어노테이션/줌 근거(좌표·영역) 제거. 셀렉터는 향후 Guide Me 위해 유지.
-    if (noAction) { clickX = null; clickY = null; }
-    const elementRect = noAction ? null : rawRect;
+    if (noAction || explanationOnly) { clickX = null; clickY = null; }
+    const elementRect = noAction || explanationOnly ? null : rawRect;
     // 캡처 단계 확대: Recorder가 보낸 crop_box 우선(있으면 서버 휴리스틱 대체). 행동 없음 스텝은 확대 안 함.
     const cropBox = noAction ? null : ((ev.crop_box as { x: number; y: number; width: number; height: number } | null) ?? null);
     const recorderFraming = framingFromCropBox(cropBox);
@@ -287,10 +352,13 @@ export async function POST(request: NextRequest) {
       tutorial_id: tutorial.id,
       step_number: idx + 1,
       order_index: idx,
-      screenshot_url: ev.screenshot_url,
+      screenshot_url: ev.screenshot_url ?? null,
       page_url:        ev.url,
-      ai_title:        ev.ai_title        ?? null,
-      ai_description:  ev.ai_description  ?? null,
+      ai_title:        ev.ai_title        ?? (stepType === 'blocked_step' ? '수동으로 진행할 단계' : null),
+      ai_description:  ev.ai_description  ?? (stepType === 'blocked_step' ? blockedStepMessage(ev.capture_failure_reason) : null),
+      step_type:       stepType,
+      capture_source:  ev.capture_source ?? (hasScreenshot ? 'auto' : 'none'),
+      capture_failure_reason: ev.capture_failure_reason ?? null,
       domain_hostname: ev.domain_hostname ?? null,
       domain_name:     ev.domain_name     ?? null,
       domain_favicon:  ev.domain_hostname
@@ -299,19 +367,27 @@ export async function POST(request: NextRequest) {
       click_x:           clickX,
       click_y:           clickY,
       element_rect:      elementRect,
-      element_selector:  ev.element_selector  ?? null,
-      element_xpath:     ev.element_xpath     ?? null,
+      element_selector:  explanationOnly ? null : (ev.element_selector  ?? null),
+      element_xpath:     explanationOnly ? null : (ev.element_xpath     ?? null),
+      follow_config:     explanationOnly ? { kind: 'none' } : null,
       // crop_box(캡처 확대)가 있으면 image_zoom로 프레이밍하므로 crop_rect는 비움(렌더 경로 일관성).
       crop_rect:         cropBox ? null : calcCropRect(elementRect, clickX, clickY),
       // 캡처 시 실제 입력된 텍스트 — 라이브 가이드 자동입력 폴백용
-      type_text:         (ev.type_text as string | null) ?? null,
+      type_text:         cleanCaptureTypeText(ev.type_text as string | null),
       ...(zoomFraming ?? {}),
     };
   });
 
-  const { error: stepsError } = await supabase
+  let { error: stepsError } = await supabase
     .from('mm_steps')
     .insert(steps);
+
+  if (isMissingExceptionStepColumns(stepsError)) {
+    const retry = await supabase
+      .from('mm_steps')
+      .insert(stripExceptionStepColumns(steps));
+    stepsError = retry.error;
+  }
 
   if (stepsError) {
     // 롤백: 생성한 튜토리얼 삭제
@@ -319,17 +395,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to create steps' }, { status: 500 });
   }
 
-  // 녹화 완료 즉시 자동 게시 — 편집 없이 매뉴얼 상세 페이지로 바로 이동
-  const shareToken = randomBytes(16).toString('hex');
-  await supabase
-    .from('mm_tutorials')
-    .update({
-      status: 'published',
-      visibility: 'public',
-      share_token: shareToken,
-      published_at: new Date().toISOString(),
-    })
-    .eq('id', tutorial.id);
+  // 녹화 결과는 사용자가 검토하기 전까지 비공개 초안으로 유지한다.
+  // 공개 링크는 편집기에서 사용자가 명시적으로 '게시'를 눌렀을 때만 생성한다.
 
   // 세션 완료 처리는 필수. daily_manual_count 증가는 운영 DB에 RPC가 늦게
   // 적용된 경우에도 매뉴얼 생성을 막지 않도록 best-effort로 처리한다.
@@ -443,7 +510,9 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      const fallbackTutorialTitle = buildCaptureFallbackTutorialTitle(Array.from(draftsById.values()));
+      const fallbackTutorialTitle = buildCaptureFallbackTutorialTitle(Array.from(draftsById.values()), {
+        serviceNames: initialSteps.map(step => step.domain_name),
+      });
       if (fallbackTutorialTitle) {
         await supabase.from('mm_tutorials').update({ title: fallbackTutorialTitle }).eq('id', tutorial.id);
       }
@@ -454,8 +523,10 @@ export async function POST(request: NextRequest) {
         const patch: Record<string, unknown> = {};
         const titleDraft = draft?.user_title?.trim() || step.ai_title || `Step ${step.step_number}`;
         if (titleDraft) patch.user_title = titleDraft;
+        if (draft?.user_script?.trim() || step.ai_description?.trim()) {
+          patch.user_script = draft?.user_script?.trim() || step.ai_description?.trim() || null;
+        }
         if (isFirst) {
-          patch.user_script = draft?.user_script?.trim() || step.ai_description || null;
           Object.assign(patch, firstAiPatch);
         }
 
@@ -466,7 +537,7 @@ export async function POST(request: NextRequest) {
           const label = buildCaptureAnnotationLabel(String(patch.user_title ?? step.ai_title ?? ''), actionType, step.page_url);
           const num = step.step_number ?? 1;
           if (rect) {
-            patch.user_annotations = buildClickHighlight({ elementRect: rect, stepNumber: num, label });
+            patch.user_annotations = buildClickHighlight({ elementRect: rect, stepNumber: num, label, clickX: step.click_x, clickY: step.click_y, actionType });
           } else if (step.click_x != null && step.click_y != null && (step.click_x > 0 || step.click_y > 0)) {
             const estimatedRect = {
               x: Math.max(0, step.click_x - 0.05),
@@ -474,7 +545,7 @@ export async function POST(request: NextRequest) {
               width: Math.min(0.10, 1 - Math.max(0, step.click_x - 0.05)),
               height: Math.min(0.04, 1 - Math.max(0, step.click_y - 0.02)),
             };
-            patch.user_annotations = buildClickHighlight({ elementRect: estimatedRect, stepNumber: num, label });
+            patch.user_annotations = buildClickHighlight({ elementRect: estimatedRect, stepNumber: num, label, clickX: step.click_x, clickY: step.click_y, actionType });
           }
         }
 
@@ -499,7 +570,8 @@ export async function POST(request: NextRequest) {
     console.error('capture finalize initial draft generation error:', err);
   }
 
-  // The editor now fills remaining descriptions incrementally after the first card is visible.
+  // 모든 스텝은 위의 결정적 fallback으로 즉시 읽을 수 있게 만든다.
+  // 아래 전체 AI 패스는 명시적으로 켠 환경에서만 fallback을 더 자연스럽게 다듬는다.
   const runFullDraftBeforeResponse = process.env.CAPTURE_FINALIZE_BLOCKING_AI === '1';
   if (runFullDraftBeforeResponse) {
   // AI 초안 생성 — tutorial 제목 + 스텝별 user_title/user_script + 커버 색상
@@ -514,13 +586,18 @@ export async function POST(request: NextRequest) {
       const actionInfoByStepNum = new Map<number, CaptureFallbackActionInfo>();
       const elementTextByStepNum = new Map<number, string | null>();
       deduped.forEach((ev, idx) => {
-        actionInfoByStepNum.set(idx + 1, (ev.action_info as CaptureFallbackActionInfo) ?? null);
-        elementTextByStepNum.set(idx + 1, (ev.element_text as string | null) ?? null);
+        actionInfoByStepNum.set(idx + 1, cleanActionInfoForDraft((ev.action_info as CaptureFallbackActionInfo) ?? null));
+        const elementText = (ev.element_text as string | null) ?? null;
+        elementTextByStepNum.set(idx + 1, isLowQualityCaptureLabel(elementText) ? null : elementText);
       });
 
       const enrichedSteps = [];
       for (const step of createdSteps) {
-        if ((step.ai_title?.trim() && step.ai_description?.trim()) || !step.screenshot_url) {
+        const existingAiTitle = step.ai_title?.trim() || null;
+        const existingAiDescription = step.ai_description?.trim() || null;
+        const existingTitleUsable = !!existingAiTitle && !isLowQualityCaptureTitle(existingAiTitle);
+        const existingDescriptionUsable = !!existingAiDescription && !isLowQualityCaptureScript(existingAiDescription);
+        if ((existingTitleUsable && existingDescriptionUsable) || !step.screenshot_url) {
           enrichedSteps.push(step);
           continue;
         }
@@ -544,7 +621,7 @@ export async function POST(request: NextRequest) {
           const clickX = !noAction && event?.click_x != null ? event.click_x / 10000 : undefined;
           const clickY = !noAction && event?.click_y != null ? event.click_y / 10000 : undefined;
           const actionInfo = actionInfoByStepNum.get(step.step_number) ?? undefined;
-          const analysis = step.ai_title?.trim()
+          const analysis = existingTitleUsable
             ? null
             : await analyzeScreenshot(
                 image.base64,
@@ -564,21 +641,22 @@ export async function POST(request: NextRequest) {
                 return null;
               });
 
-          const aiTitle = step.ai_title?.trim() || analysis?.title?.trim() || null;
-          const aiDescription = step.ai_description?.trim()
-            || (aiTitle
-              ? await generateStepDescription(aiTitle, step.page_url, image.base64, image.mediaType).catch(async (err) => {
-                  console.error('capture finalize step description retry error:', err);
-                  await logSystem('capture.finalize.step_description_ai_failed', {
-                    userId,
-                    tutorialId: tutorial.id,
-                    sessionId: session_id,
-                    stepNumber: step.step_number,
-                    reason: err instanceof Error ? err.message : String(err),
-                  }, 'warn');
-                  return null;
-                })
-              : null);
+          const aiTitle = existingTitleUsable ? existingAiTitle : analysis?.title?.trim() || null;
+          const aiDescription = existingDescriptionUsable
+            ? existingAiDescription
+            : (aiTitle
+                ? await generateStepDescription(aiTitle, step.page_url, image.base64, image.mediaType).catch(async (err) => {
+                    console.error('capture finalize step description retry error:', err);
+                    await logSystem('capture.finalize.step_description_ai_failed', {
+                      userId,
+                      tutorialId: tutorial.id,
+                      sessionId: session_id,
+                      stepNumber: step.step_number,
+                      reason: err instanceof Error ? err.message : String(err),
+                    }, 'warn');
+                    return null;
+                  })
+                : null);
 
           if (aiTitle || aiDescription) {
             await supabase
@@ -636,13 +714,25 @@ export async function POST(request: NextRequest) {
         });
         return fallback;
       });
-      let fallbackTutorialTitle = buildCaptureFallbackTutorialTitle(drafts);
+      const fallbackTitleContext = { serviceNames: enrichedSteps.map(step => step.domain_name) };
+      let fallbackTutorialTitle = buildCaptureFallbackTutorialTitle(drafts, fallbackTitleContext);
       let aiDraftStatus = 'not_called';
       let discardedAiDrafts = 0;
 
       try {
         const draftResult = await generateDraft(
-          enrichedSteps.map(s => ({ ...s, noAction: noActionByStepNum.get(s.step_number) ?? false }))
+          enrichedSteps.map(s => {
+            const actionInfo = actionInfoByStepNum.get(s.step_number);
+            return {
+              ...s,
+              ai_title: isLowQualityCaptureTitle(s.ai_title) ? null : s.ai_title,
+              ai_description: isLowQualityCaptureScript(s.ai_description) ? null : s.ai_description,
+              noAction: noActionByStepNum.get(s.step_number) ?? false,
+              action_type: actionInfo?.type ?? null,
+              action_label: actionInfo?.label ?? actionInfo?.text ?? null,
+              element_text: elementTextByStepNum.get(s.step_number) ?? null,
+            };
+          })
         );
         aiDraftStatus = draftResult.status;
         tutorial_title = draftResult.tutorial_title;
@@ -656,7 +746,7 @@ export async function POST(request: NextRequest) {
           const aiDraft = aiDraftsById.get(step.id);
           const aiTitle = aiDraft?.user_title?.trim() || '';
           const aiScript = aiDraft?.user_script?.trim() || '';
-          const useAiDraft = !!aiTitle && !!aiScript && !isLowQualityCaptureTitle(aiTitle);
+          const useAiDraft = isUsableCaptureDraft(aiDraft, { pageUrl: step.page_url });
           if (aiDraft && !useAiDraft) discardedAiDrafts += 1;
           return {
             id: step.id,
@@ -664,7 +754,7 @@ export async function POST(request: NextRequest) {
             user_script: useAiDraft ? aiScript : fallback.user_script,
           };
         });
-        fallbackTutorialTitle = buildCaptureFallbackTutorialTitle(drafts);
+        fallbackTutorialTitle = buildCaptureFallbackTutorialTitle(drafts, fallbackTitleContext);
         if (draftResult.status !== 'ok') {
           await logSystem('capture.finalize.ai_draft_failed', {
             userId,
@@ -720,7 +810,10 @@ export async function POST(request: NextRequest) {
 
       // tutorial 제목 + cover_color 업데이트
       const tutorialUpdate: Record<string, string> = {};
-      if (tutorial_title || fallbackTutorialTitle) tutorialUpdate.title = tutorial_title || fallbackTutorialTitle;
+      const safeTutorialTitle = !isLowQualityCaptureTutorialTitle(tutorial_title, {
+        stepTitles: drafts.map(draft => draft.user_title),
+      }) ? tutorial_title : '';
+      if (safeTutorialTitle || fallbackTutorialTitle) tutorialUpdate.title = safeTutorialTitle || fallbackTutorialTitle;
       if (coverColors) tutorialUpdate.cover_color = `${coverColors.color1},${coverColors.color2}`;
       if (Object.keys(tutorialUpdate).length > 0) {
         await supabase.from('mm_tutorials').update(tutorialUpdate).eq('id', tutorial.id);
@@ -756,7 +849,7 @@ export async function POST(request: NextRequest) {
 
         const { data: stepsForAnnotation } = await supabase
           .from('mm_steps')
-          .select('id, step_number, user_title, ai_title, element_rect, click_x, click_y, user_annotations')
+          .select('id, step_number, user_title, ai_title, page_url, element_rect, click_x, click_y, user_annotations')
           .eq('tutorial_id', tutorial.id);
 
         if (stepsForAnnotation?.length) {
@@ -766,12 +859,12 @@ export async function POST(request: NextRequest) {
 
               const rect = step.element_rect as { x: number; y: number; width: number; height: number } | null;
               const actionType = actionTypeByStepNum.get(step.step_number) ?? 'click';
-              const label = step.user_title ?? step.ai_title ?? (actionType === 'type' ? '입력' : '클릭');
+              const label = buildCaptureAnnotationLabel(step.user_title ?? step.ai_title, actionType, step.page_url);
               const num = step.step_number ?? 1;
               let annotations;
 
               if (rect) {
-                annotations = buildClickHighlight({ elementRect: rect, stepNumber: num, label });
+                annotations = buildClickHighlight({ elementRect: rect, stepNumber: num, label, clickX: step.click_x, clickY: step.click_y, actionType });
               } else if (step.click_x != null && step.click_y != null && (step.click_x > 0 || step.click_y > 0)) {
                 const estimatedRect = {
                   x: Math.max(0, step.click_x - 0.05),
@@ -779,7 +872,7 @@ export async function POST(request: NextRequest) {
                   width:  Math.min(0.10, 1 - Math.max(0, step.click_x - 0.05)),
                   height: Math.min(0.04, 1 - Math.max(0, step.click_y - 0.02)),
                 };
-                annotations = buildClickHighlight({ elementRect: estimatedRect, stepNumber: num, label });
+                annotations = buildClickHighlight({ elementRect: estimatedRect, stepNumber: num, label, clickX: step.click_x, clickY: step.click_y, actionType });
               } else {
                 return;
               }
@@ -912,7 +1005,7 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({
     tutorial_id: tutorial.id,
     step_count: steps.length,
-    share_token: shareToken,
+    share_token: null,
     completion_pending: true,
   });
 }

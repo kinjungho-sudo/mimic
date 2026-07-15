@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useId } from 'react';
 import { AnnotationPreview } from '@/components/editor/AnnotationPreview';
+import { ParroMascot } from '@/components/brand/ParroMascot';
 import { BRAND_COLORS } from '@/lib/brand';
 import type { Annotation } from '@/components/editor/ImageAnnotationEditor';
 
@@ -19,15 +20,8 @@ const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v
 
 export function Mascot({ size = 40 }: { size?: number }) {
   return (
-    <div style={{ width: size, height: size, borderRadius: '50%', background: GUIDE_GRADIENT, display: 'grid', placeItems: 'center', flexShrink: 0, boxShadow: `0 4px 14px ${GUIDE_SHADOW}` }}>
-      <svg width={size * 0.62} height={size * 0.62} viewBox="0 0 24 24" fill="none">
-        <rect x="4" y="7" width="16" height="12" rx="4" fill="white" />
-        <circle cx="9.5" cy="13" r="1.7" fill={BRAND_COLORS.primary} />
-        <circle cx="14.5" cy="13" r="1.7" fill={BRAND_COLORS.primary} />
-        <path d="M9.5 16.2c1.6 1 3.4 1 5 0" stroke={BRAND_COLORS.primary} strokeWidth="1.2" strokeLinecap="round" />
-        <line x1="12" y1="3.5" x2="12" y2="7" stroke="white" strokeWidth="1.6" strokeLinecap="round" />
-        <circle cx="12" cy="3" r="1.3" fill="white" />
-      </svg>
+    <div style={{ width: size, height: size, borderRadius: '14px', background: 'linear-gradient(135deg,#F1FBF9,#E4F3F6)', display: 'grid', placeItems: 'center', flexShrink: 0, boxShadow: `0 4px 14px ${GUIDE_SHADOW}`, overflow: 'hidden' }}>
+      <ParroMascot size={size * 0.96} />
     </div>
   );
 }

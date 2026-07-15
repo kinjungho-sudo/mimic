@@ -175,6 +175,15 @@ body {
     padding: 8px 12px !important;
     font-size: 13px !important;
   }
+  .home-new-menu {
+    position: fixed !important;
+    top: 116px !important;
+    left: 16px !important;
+    right: 16px !important;
+    width: auto !important;
+    max-height: calc(100dvh - 132px);
+    overflow-y: auto !important;
+  }
   /* 햄버거 버튼 표시 */
   .home-hamburger-btn {
     display: grid !important;
@@ -184,6 +193,33 @@ body {
     display: none !important;
   }
   .home-recording-divider {
+    display: none !important;
+  }
+  .home-mobile-capture-note {
+    display: flex !important;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 15px;
+    color: #6B7280;
+    background: #F9FAFB;
+    font-size: 12px;
+    line-height: 1.45;
+    text-align: left;
+    box-sizing: border-box;
+  }
+  .home-empty-actions {
+    display: flex !important;
+    width: 100%;
+    max-width: 320px;
+    margin: 0 auto;
+    flex-direction: column;
+  }
+  .home-empty-actions > button {
+    width: 100%;
+    justify-content: center;
+  }
+  .home-empty-recording-btn {
     display: none !important;
   }
   /* 사이드바 — 모바일은 드로어 사용 */
@@ -292,6 +328,64 @@ body {
   }
   .editor-header-padding {
     padding: 0 12px !important;
+    gap: 8px !important;
+    overflow: hidden;
+  }
+  .editor-header-padding > div:first-child {
+    padding-right: 0 !important;
+    border-right: 0 !important;
+  }
+  .editor-header-padding > div:first-child > span {
+    display: none !important;
+  }
+  .editor-header-meta {
+    display: none !important;
+  }
+  .editor-header-actions {
+    flex: 1;
+    min-width: 0;
+    align-items: stretch !important;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .editor-header-actions::-webkit-scrollbar {
+    display: none;
+  }
+  .editor-header-action-row {
+    width: max-content;
+    min-width: max-content;
+    gap: 5px !important;
+  }
+  .editor-header-action-row button,
+  .editor-header-action-row [role="button"] {
+    min-height: 36px !important;
+  }
+  .editor-title-bar {
+    padding: 9px 12px !important;
+  }
+  .editor-title-bar > input {
+    font-size: 17px !important;
+  }
+  .editor-title-bar > div,
+  .editor-title-bar > button,
+  .editor-title-bar > span {
+    display: none !important;
+  }
+  .manual-step-shell {
+    min-height: auto !important;
+    padding: 12px 0 28px !important;
+    align-items: flex-start !important;
+  }
+  .manual-step-width {
+    padding: 0 10px !important;
+  }
+  .manual-step-card {
+    border-radius: 10px !important;
+  }
+  .editor-step-nav {
+    bottom: 12px !important;
+    right: 76px !important;
+    padding-left: 0 !important;
   }
 }
 
