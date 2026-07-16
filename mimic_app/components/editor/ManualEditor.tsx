@@ -521,7 +521,7 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
                 if (!res.ok) throw new Error('upload failed');
                 const data = await res.json();
                 onChange(steps.map(s => s.id === id
-                  ? { ...s, screenshotUrl: data.screenshot_url, originalScreenshotUrl: data.original_screenshot_url }
+                  ? { ...s, screenshotUrl: data.screenshot_url, originalScreenshotUrl: data.original_screenshot_url, pii_detected: false }
                   : s));
               } catch {
                 alert('블러 처리에 실패했습니다. 다시 시도해 주세요.');
@@ -534,7 +534,7 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
                 if (!res.ok) throw new Error('revert failed');
                 const data = await res.json();
                 onChange(steps.map(s => s.id === id
-                  ? { ...s, screenshotUrl: data.screenshot_url }
+                  ? { ...s, screenshotUrl: data.screenshot_url, pii_detected: true }
                   : s));
               } catch {
                 alert('되돌리기에 실패했습니다.');

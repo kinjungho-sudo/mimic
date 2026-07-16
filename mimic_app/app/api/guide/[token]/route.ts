@@ -3,6 +3,7 @@ import { createServiceRoleClient, createServerClient } from '@/lib/supabase/serv
 import { isPaidPlan } from '@/lib/plan';
 import { resolveStepAudio } from '@/lib/voice/playback';
 import { getBrandAppUrl } from '@/lib/brand';
+import { maskManualCopy } from '@/lib/manual-quality';
 
 type Params = { params: Promise<{ token: string }> };
 
@@ -172,8 +173,8 @@ async function fetchSteps(supabase: ReturnType<typeof createServiceRoleClient>, 
     return {
       id: s.id,
       step_number: s.step_number,
-      title: (s.user_title || s.ai_title || `Step ${s.step_number}`) as string,
-      instruction: (s.user_script || s.ai_description || '') as string,
+      title: maskManualCopy((s.user_title || s.ai_title) as string) || `Step ${s.step_number}`,
+      instruction: maskManualCopy((s.user_script || s.ai_description || '') as string),
       page_url: s.page_url ?? null,
       element_selector: explanationOnly ? null : (s.element_selector ?? null),
       element_xpath: explanationOnly ? null : (s.element_xpath ?? null),
@@ -188,7 +189,7 @@ async function fetchSteps(supabase: ReturnType<typeof createServiceRoleClient>, 
       guide_mode: explanationOnly ? 'explanation' : 'interactive',
       // 라이브 가이드 자동입력용 — 스튜디오 오버라이드(fc.typeText) 우선, 없으면 캡처 원문(s.type_text) 폴백
       kind: explanationOnly ? 'none' : (fc.kind ?? null),
-      type_text: fc.typeText ?? (s.type_text as string | null) ?? null,
+      type_text: maskManualCopy(fc.typeText ?? (s.type_text as string | null)) || null,
       hidden: !!fc.hidden,
       // 소유자가 스튜디오에서 직접 보정한 핫스팟(0~100%)·말풍선 위치 — 라이브 가이드가 우선 적용
       hotspot_x: fc.hotspotX ?? null,
@@ -203,7 +204,7 @@ async function fetchSteps(supabase: ReturnType<typeof createServiceRoleClient>, 
   // 숨김 스텝은 따라하기/라이브 가이드에서 제외 (일관성)
   return {
     tutorial_id: tutorialId,
-    title,
+    title: maskManualCopy(title),
     tts_enabled: voiceEnabled,
     survey: {
       enabled: !isPaidPlan(ownerPlan),

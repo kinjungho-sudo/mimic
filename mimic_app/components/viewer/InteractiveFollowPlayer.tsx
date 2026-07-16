@@ -27,6 +27,8 @@ export interface FollowStep {
   guideMode?: 'interactive' | 'explanation';
   annotations?: Annotation[] | null;
   zoomAnim?: boolean;                  // 스튜디오에서 켠 경우에만 클릭 영역 확대 애니메이션 (기본 off)
+  section?: string;
+  riskNotice?: string | null;
 }
 
 type AnimPhase = 'raw' | 'zooming' | 'focused';
@@ -53,6 +55,9 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
   const [voiceOn, setVoiceOn] = useState(false);  // 음성 자동재생 토글 (기본 OFF — 아바타 클릭 재생)
   const [visible, setVisible] = useState(true);    // 스텝 전환 페이드 제어
   const [animPhase, setAnimPhase] = useState<AnimPhase>('raw'); // 줌인 시퀀스: raw→zooming→focused
+  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
+  const [skippedSteps, setSkippedSteps] = useState<Set<number>>(new Set());
+  const [showSkipConfirm, setShowSkipConfirm] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const transTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const phaseTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -62,7 +67,7 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
   const hasAnyAudio = steps.some(s => !!s.audioUrl);
 
   // 스텝 바뀌면 툴팁 다시 펼침 (#3)
-  useEffect(() => { setMinimized(false); }, [idx]);
+  useEffect(() => { setMinimized(false); setShowSkipConfirm(false); }, [idx]);
 
   // 줌인 시퀀스: 스튜디오에서 확대 애니메이션을 켠(zoomAnim) 스텝 + domRect 있을 때만.
   // 원본(raw)에서 확대(zooming→focused)로 한 번만 진행하고 그대로 유지 — 다시 좁아지는 효과 없음.
@@ -131,12 +136,21 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
     }, 210);
   }, []);
 
-  const advance = useCallback(() => {
+  const advance = useCallback((source: 'action' | 'navigation' = 'navigation') => {
+    const current = steps[idx];
+    const hasActionTarget = current?.guideMode === 'interactive'
+      && current.hotspotX != null
+      && current.hotspotY != null
+      && (current.hotspotUserPlaced || current.hotspotX >= CORNER || current.hotspotY >= CORNER);
+    if (source === 'navigation' && hasActionTarget && !completedSteps.has(idx)) {
+      setShowSkipConfirm(true);
+      return;
+    }
     // 맛보기 한도를 넘어가는 진행이면 로그인 월 (잠긴 콘텐츠가 남아있을 때만)
     if (lockAfterStep != null && idx >= lockAfterStep && idx + 1 < total) { setShowGate(true); return; }
     if (idx + 1 >= total) { setDone(true); onComplete?.(); return; }
     goTo(idx + 1);
-  }, [total, onComplete, lockAfterStep, idx, goTo]);
+  }, [steps, completedSteps, total, onComplete, lockAfterStep, idx, goTo]);
   const goPrev = useCallback(() => { if (idx > 0) goTo(idx - 1); }, [idx, goTo]);
   const returnToLastStep = useCallback(() => {
     setDone(false);
@@ -144,8 +158,17 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
   }, []);
   const restartPractice = useCallback(() => {
     setDone(false);
+    setCompletedSteps(new Set());
+    setSkippedSteps(new Set());
+    setShowSkipConfirm(false);
     goTo(0);
   }, [goTo]);
+
+  const confirmSkip = useCallback(() => {
+    setSkippedSteps(previous => new Set(previous).add(idx));
+    setShowSkipConfirm(false);
+    advance('action');
+  }, [advance, idx]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -154,7 +177,7 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
         else if (e.key === 'Escape') onClose?.();
         return;
       }
-      if (e.key === 'ArrowRight' || e.key === 'Enter') advance();
+      if (e.key === 'ArrowRight' || e.key === 'Enter') advance('navigation');
       else if (e.key === 'ArrowLeft') goPrev();
       else if (e.key === 'Escape') onClose?.();
     };
@@ -176,7 +199,10 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
     const dr = step.domRect;
     const inRect = dr ? xPct >= dr.x && xPct <= dr.x + dr.w && yPct >= dr.y && yPct <= dr.y + dr.h : false;
     const dist = Math.hypot(xPct - hx, yPct - hy);
-    if (dist <= HIT_PCT || inRect) advance(); else doNudge();
+    if (dist <= HIT_PCT || inRect) {
+      setCompletedSteps(previous => new Set(previous).add(idx));
+      advance('action');
+    } else doNudge();
   };
 
   if (!step) return null;
@@ -189,7 +215,8 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
         <div style={{ background: 'white', borderRadius: '18px', padding: '36px 40px', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', maxWidth: '380px' }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}><Mascot size={56} /></div>
           <div style={{ fontSize: '20px', fontWeight: 800, color: '#111827', marginBottom: '6px' }}>연습을 완료하셨어요! 🎉</div>
-          <div style={{ fontSize: '13.5px', color: '#6B7280', lineHeight: 1.6, marginBottom: '18px' }}>{total}단계를 모두 완료했습니다.</div>
+          <div style={{ fontSize: '13.5px', color: '#6B7280', lineHeight: 1.6, marginBottom: skippedSteps.size > 0 ? '8px' : '18px' }}>{total}단계를 모두 확인했습니다.</div>
+          {skippedSteps.size > 0 && <div style={{ margin: '0 auto 18px', padding: '8px 10px', borderRadius: 8, background: '#FFFBEB', color: '#92400E', fontSize: 12, lineHeight: 1.45 }}>{skippedSteps.size}개 단계의 행동을 건너뛰었습니다. 실제 업무 전 다시 확인해보세요.</div>}
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
             <button onClick={returnToLastStep} style={{ padding: '10px 18px', borderRadius: '9px', border: `1px solid ${BRAND_COLORS.border}`, background: BRAND_COLORS.guideSoft, color: BRAND_COLORS.pointer, fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>{'\uB9C8\uC9C0\uB9C9 \uB2E8\uACC4\uB85C'}</button>
             <button onClick={restartPractice} style={{ padding: '10px 18px', borderRadius: '9px', border: '1px solid #E5E7EB', background: 'white', color: '#374151', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>{'\uCC98\uC74C\uBD80\uD130 \uB2E4\uC2DC'}</button>
@@ -244,8 +271,15 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
             </div>
           </div>
 
+          {step.riskNotice && (
+            <div role="note" style={{ maxWidth: 'min(920px, 94%)', margin: '-2px auto 0', padding: '7px 12px', borderRadius: 9, border: '1px solid rgba(245,158,11,0.5)', background: 'rgba(255,251,235,0.97)', color: '#92400E', fontSize: 11.5, lineHeight: 1.45, boxShadow: '0 4px 16px rgba(0,0,0,0.18)' }}>
+              안전 확인 · {step.riskNotice}
+            </div>
+          )}
+
           {/* 컨트롤 바 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(255,255,255,0.95)', borderRadius: '12px', padding: '8px 14px', boxShadow: '0 6px 24px rgba(0,0,0,0.25)', flexShrink: 0 }}>
+            {step.section && <span style={{ fontSize: 11.5, fontWeight: 700, color: '#475569', paddingRight: 10, borderRight: '1px solid #E5E7EB' }}>{step.section}</span>}
             <span style={{ fontSize: '12px', fontWeight: 700, color: BRAND_COLORS.primary, background: BRAND_COLORS.guideSoft, padding: '3px 10px', borderRadius: '20px' }}>{idx + 1} / {total}</span>
             {hasAnyAudio && (
               <button onClick={() => setVoiceOn(v => !v)} title={voiceOn ? '음성 자동재생 끄기 (아바타 클릭으로 듣기)' : '음성 자동재생 켜기'}
@@ -258,7 +292,7 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
               </button>
             )}
             <button onClick={goPrev} disabled={idx === 0} style={{ height: '32px', padding: '0 12px', borderRadius: '8px', border: '1px solid #E5E7EB', background: 'white', color: idx === 0 ? '#D1D5DB' : '#374151', fontSize: '12.5px', fontWeight: 600, cursor: idx === 0 ? 'default' : 'pointer' }}>이전</button>
-            <button onClick={advance} style={{ height: '32px', padding: '0 14px', borderRadius: '8px', border: 'none', background: GUIDE_GRADIENT, color: 'white', fontSize: '12.5px', fontWeight: 700, cursor: 'pointer' }}>{idx + 1 >= total ? '완료' : '다음 →'}</button>
+            <button onClick={() => advance('navigation')} style={{ height: '32px', padding: '0 14px', borderRadius: '8px', border: 'none', background: GUIDE_GRADIENT, color: 'white', fontSize: '12.5px', fontWeight: 700, cursor: 'pointer' }}>{idx + 1 >= total ? '완료' : '다음 →'}</button>
             {onClose && <button onClick={onClose} style={{ height: '32px', padding: '0 12px', borderRadius: '8px', border: 'none', background: 'transparent', color: '#6B7280', fontSize: '12.5px', cursor: 'pointer' }}>{closeLabel}</button>}
           </div>
         </>
@@ -273,6 +307,19 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
             <div style={{ fontSize: '13px', color: '#6B7280', lineHeight: 1.6, marginBottom: '20px' }}>무료로 로그인하면 끝까지 따라할 수 있어요.<br />가입은 몇 초면 끝나요.</div>
             <button onClick={() => { const next = encodeURIComponent(window.location.pathname + window.location.search); window.location.href = `/auth/login?next=${next}`; }} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: 'none', background: GUIDE_GRADIENT, color: 'white', fontSize: '14px', fontWeight: 700, cursor: 'pointer', marginBottom: '10px' }}>무료로 로그인하고 계속하기</button>
             <button onClick={() => setShowGate(false)} style={{ width: '100%', padding: '10px', borderRadius: '10px', border: 'none', background: 'transparent', color: '#9CA3AF', fontSize: '12.5px', fontWeight: 600, cursor: 'pointer' }}>미리보기로 돌아가기</button>
+          </div>
+        </div>
+      )}
+
+      {showSkipConfirm && !done && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 19, background: 'rgba(10,10,18,0.56)', display: 'grid', placeItems: 'center', padding: 20 }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="skip-step-title" style={{ width: 'min(360px, 100%)', borderRadius: 15, background: 'white', color: '#111827', padding: 22, textAlign: 'center', boxShadow: '0 22px 60px rgba(0,0,0,0.4)' }}>
+            <div id="skip-step-title" style={{ fontSize: 17, fontWeight: 800, marginBottom: 7 }}>이 단계의 행동을 건너뛸까요?</div>
+            <p style={{ margin: '0 0 17px', color: '#6B7280', fontSize: 12.5, lineHeight: 1.55 }}>표시된 위치를 직접 클릭하면 학습 완료로 기록됩니다. 건너뛰어도 계속할 수 있지만 완료 화면에 표시됩니다.</p>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 8 }}>
+              <button onClick={() => { setShowSkipConfirm(false); doNudge(); }} style={{ height: 36, padding: '0 13px', borderRadius: 8, border: '1px solid #D1D5DB', background: 'white', color: '#374151', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>표시된 위치로 돌아가기</button>
+              <button onClick={confirmSkip} style={{ height: 36, padding: '0 13px', borderRadius: 8, border: 'none', background: '#6B7280', color: 'white', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>건너뛰기</button>
+            </div>
           </div>
         </div>
       )}

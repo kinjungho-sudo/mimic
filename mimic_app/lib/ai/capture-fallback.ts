@@ -77,6 +77,20 @@ const SLACK_LABEL_CONTEXTS = new Map([
   ['apps', '앱 메뉴'],
   ['app', '앱 메뉴'],
   ['oauth', 'OAuth 설정'],
+  ['create new app', 'Slack 앱 생성'],
+  ['use a manifest file to add your app’s basic info, scopes, settings & features to', '매니페스트 방식'],
+  ['select a team', '워크스페이스'],
+  ['next', '다음 설정'],
+  ['create', 'Slack 앱 생성'],
+  ['connections:write', '연결 권한'],
+  ['generate', '앱 연결 토큰'],
+  ['copy', '생성된 연결 정보'],
+  ['done', '연결 설정'],
+  ['oauth & permissions', 'OAuth 권한 설정'],
+  ['allow', '앱 설치 승인'],
+  ['허용', '앱 설치 승인'],
+  ['chat', '에이전트 채팅'],
+  ['채팅', '에이전트 채팅'],
   ['general', 'general 채널'],
   ['functions', 'Functions 메뉴'],
   ['function', 'Functions 메뉴'],
@@ -137,6 +151,8 @@ function hasCountNoise(value: string | null | undefined): boolean {
 function hasMachineToken(value: string | null | undefined): boolean {
   const text = cleanText(value);
   if (!text) return false;
+  if (/\b[ACDGWUTB][A-Z0-9]{8,}\b/.test(text)) return true;
+  if (/\b(?:xox[baprs]-|xapp-|sk-|pk_)[a-z0-9_-]{8,}\b/i.test(text)) return true;
   const tokens = text.match(/[a-z0-9][a-z0-9_-]{7,}/gi) ?? [];
   return tokens.some(token => {
     const compact = token.replace(/[-_]/g, '');
@@ -199,6 +215,14 @@ function actionBaseFromTitle(value: string): string {
 function isLikelyRawDomActionBase(value: string): boolean {
   const text = cleanText(value);
   if (!text) return true;
+  if (/^[\[\]{}(),.;:'"`~!@#$%^&*+=|\\/?<>_-]+$/.test(text)) return true;
+  if (/^(next|back|previous|continue|create|generate|copy|done|finish|save|cancel|allow|deny|select a team)$/i.test(text)) return true;
+  if (/^(허용|거부|완료|다음|이전|복사|저장|생성|채팅|메일 보내기)$/i.test(text)) return true;
+  if (/^use a manifest file\b/i.test(text)) return true;
+  if (/^[a-z][a-z0-9\s&:.'’/_-]{2,}$/i.test(text)) return true;
+  if (/^[A-Z][A-Za-z0-9._-]*[가-힣][A-Za-z가-힣0-9._-]*$/.test(text)) return true;
+  if (/\?$/.test(text)) return true;
+  if (/\[[^\]]*(식별자|보안 토큰|이메일|연락처|비밀번호)[^\]]*\]/.test(text)) return true;
   if (/^[a-z]$/i.test(text)) return true;
   if (/^(code|homepage|open menu)$/i.test(text)) return true;
   if (hasAccessibilityShortcutNoise(text)) return true;
@@ -226,6 +250,8 @@ function isLikelyRawDomActionTitle(value: string | null | undefined): boolean {
 export function isLowQualityCaptureTitle(value: string | null | undefined): boolean {
   const text = cleanText(value);
   if (isWeakTitle(text)) return true;
+  if (/^use a manifest file\b/i.test(text)) return true;
+  if (/^[\[\]{}(),.;:'"`~!@#$%^&*+=|\\/?<>_-]+(?:\s+(?:클릭|확인|선택|입력|이동))?$/.test(text)) return true;
   if (isLowQualityCaptureLabel(text)) return true;
   if (hasEmailAddress(text)) return true;
   if (hasCountNoise(text)) return true;

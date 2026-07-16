@@ -10,6 +10,7 @@ import { CommentsPanel } from '@/components/editor/CommentsPanel';
 import { ActivityPanel } from '@/components/editor/ActivityPanel';
 import { ExportModal } from '@/components/editor/ExportModal';
 import { ShareModal } from '@/components/editor/ShareModal';
+import { ManualQualityDialog } from '@/components/editor/ManualQualityDialog';
 import { AgentChat } from '@/components/chat/AgentChat';
 import { FeedbackSurveyModal } from '@/components/survey/FeedbackSurveyModal';
 import { useTutorial } from '@/hooks/useTutorial';
@@ -18,11 +19,12 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCollaboration } from '@/hooks/useCollaboration';
 import type { Collaborator } from '@/hooks/useCollaboration';
 import { updateStep, createStep, deleteStep, reorderSteps, duplicateStep } from '@/lib/api/steps';
-import { getTutorial } from '@/lib/api/tutorials';
+import { getTutorial, TutorialApiError } from '@/lib/api/tutorials';
 import { logError } from '@/lib/logging/logger';
 import { hasGuideConfig } from '@/lib/follow';
 import { LEGACY_INTERNAL_IDENTIFIERS } from '@/lib/brand';
 import type { Step, Tutorial } from '@/types';
+import type { ManualQualityIssue } from '@/lib/manual-quality';
 
 const TOP_BAR_ICON_SIZE = 14;
 
@@ -92,6 +94,8 @@ export default function EditorPage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [titleDirty, setTitleDirty] = useState(false);
   const [refiningText, setRefiningText] = useState(false);
+  const [qualityIssues, setQualityIssues] = useState<ManualQualityIssue[]>([]);
+  const [regenerateNotice, setRegenerateNotice] = useState<string | null>(null);
   const [bulkColorOpen, setBulkColorOpen] = useState(false);
   // 녹화 직후 진입 — 스텝 생성 대기 폴링
   const [pollingState, setPollingState] = useState<'idle' | 'polling' | 'timeout'>('idle');
@@ -106,6 +110,7 @@ export default function EditorPage() {
   const [mobileTocOpen, setMobileTocOpen] = useState(false);
   const [collabToast, setCollabToast] = useState<{ stepId: string; name: string; color: string } | null>(null);
   const collabToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const qualityCheckedTutorialRef = useRef<string | null>(null);
   const stepSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const tempIdCounter = useRef(0);
   const [tocSelectedIds, setTocSelectedIds] = useState<Set<string>>(new Set());
@@ -266,6 +271,24 @@ export default function EditorPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tutorial?.id]);
 
+  // 기존 저장 데이터도 새 규칙에서 빠지지 않도록 편집기 진입 시 한 번 점검한다.
+  useEffect(() => {
+    if (!tutorial?.id || tutorial.steps.length === 0 || qualityCheckedTutorialRef.current === tutorial.id) return;
+    qualityCheckedTutorialRef.current = tutorial.id;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      fetch(`/api/tutorials/${tutorial.id}/quality`)
+        .then(async response => {
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok || cancelled) return;
+          const issues = Array.isArray(data.issues) ? data.issues as ManualQualityIssue[] : [];
+          if (issues.some(issue => issue.severity === 'error')) setQualityIssues(issues);
+        })
+        .catch(() => {});
+    }, 700);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [tutorial?.id, tutorial?.steps.length]);
+
   // 녹화 직후 진입: 스텝이 없으면 2초마다 폴링 (최대 30초)
   useEffect(() => {
     if (!isRecordingFinalizeView) return;
@@ -362,40 +385,39 @@ export default function EditorPage() {
   // Autosave title
   useAutosave(id, titleDirty ? { title } : null);
 
-  // 전체 문장 다듬기 — 모든 스텝의 설명 문장을 매뉴얼 가이드라인에 맞게 일괄 정제
+  // 기존 매뉴얼까지 목적 중심 제목·본문으로 다시 생성한다.
   const handleRefineAllText = useCallback(async () => {
-    const allWithText = manualSteps
-      .filter(s => !s.id.startsWith('step-'))
-      .map(s => ({ id: s.id, text: s.description.replace(/<[^>]+>/g, '').trim() }));
-    if (!allWithText.some(s => s.text)) return;
+    if (!manualSteps.some(step => !step.id.startsWith('step-'))) return;
+    if (!window.confirm('전체 제목과 본문을 사용자 목적 중심으로 다시 작성합니다. 계속할까요?')) return;
     setRefiningText(true);
+    setRegenerateNotice(null);
     try {
-      const res = await fetch('/api/ai/rewrite-all', {
+      const res = await fetch(`/api/tutorials/${id}/regenerate-content`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          steps: allWithText,
-          instruction: '매뉴얼 가이드라인에 맞게 다듬어줘: 행동 하나만, 1문장, 존댓말, 특정 상품명/수량 제거, 결과 설명 문장 금지',
-        }),
       });
-      if (!res.ok) return;
-      const { results } = await res.json();
-      if (!Array.isArray(results)) return;
-      const updated = new Map<string, string>(
-        results
-          .filter((r: { id: string; result: string }) => r.result)
-          .map((r: { id: string; result: string }) => [r.id, r.result])
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? '전체 재작성에 실패했습니다.');
+      const regenerated = new Map<string, { user_title: string; user_script: string }>(
+        (Array.isArray(data.steps) ? data.steps : []).map((step: { id: string; user_title: string; user_script: string }) => [step.id, step])
       );
-      if (updated.size === 0) return;
-      const next = manualSteps.map(s => updated.has(s.id) ? { ...s, description: updated.get(s.id)! } : s);
+      const next = manualSteps.map(step => {
+        const copy = regenerated.get(step.id);
+        return copy ? { ...step, actionTitle: copy.user_title, description: copy.user_script } : step;
+      });
       setManualStepsWithHistory(next);
-      next.filter(s => updated.has(s.id)).forEach(s =>
-        updateStep(s.id, { user_script: s.description || null }).catch(() => {})
-      );
+      if (data.title) {
+        setTitle(data.title);
+        setTitleDirty(false);
+      }
+      setQualityIssues([]);
+      setRegenerateNotice(`전체 ${regenerated.size}단계의 제목과 본문을 다시 작성했습니다.`);
+    } catch (err) {
+      setRegenerateNotice(err instanceof Error ? err.message : '전체 재작성에 실패했습니다.');
     } finally {
       setRefiningText(false);
     }
-  }, [manualSteps, setManualStepsWithHistory]);
+  }, [id, manualSteps, setManualStepsWithHistory]);
 
   const performDeleteStep = useCallback((stepId: string) => {
     const next = manualSteps.filter(s => s.id !== stepId).map((s, i) => ({ ...s, number: i + 1 }));
@@ -406,7 +428,7 @@ export default function EditorPage() {
     if (!stepId.startsWith('step-')) {
       deleteStep(stepId).catch((e) => logError('step.delete.fail', { tutorialId: id, stepId, message: e instanceof Error ? e.message : String(e) }));
     }
-  }, [manualSteps, activeId, setManualStepsWithHistory]);
+  }, [id, manualSteps, activeId, setManualStepsWithHistory]);
 
   const handleDeleteStep = useCallback((stepId: string) => setPendingDeleteId(stepId), []);
 
@@ -778,8 +800,13 @@ export default function EditorPage() {
               <button
                 onClick={async () => {
                   setPublishing(true);
-                  try { await publish(); }
-                  catch { alert('게시에 실패했습니다. 다시 시도해주세요.'); }
+                  try {
+                    await publish();
+                    setQualityIssues([]);
+                  } catch (err) {
+                    if (err instanceof TutorialApiError && err.issues.length > 0) setQualityIssues(err.issues);
+                    else setRegenerateNotice(err instanceof Error ? err.message : '게시에 실패했습니다. 다시 시도해주세요.');
+                  }
                   finally { setPublishing(false); }
                 }}
                 disabled={publishing}
@@ -944,12 +971,17 @@ export default function EditorPage() {
             <button
               onClick={handleRefineAllText}
               disabled={refiningText}
-              title="AI로 모든 스텝의 설명 문장을 매뉴얼 톤으로 다듬기"
+              title="기존 매뉴얼을 포함해 전체 제목·본문을 사용자 목적 중심으로 다시 작성"
               style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', flexShrink: 0, height: '28px', padding: '0 10px', borderRadius: '6px', border: '1px solid #E5E7EB', background: 'white', color: '#12B886', fontSize: '12px', fontWeight: 500, cursor: refiningText ? 'not-allowed' : 'pointer', opacity: refiningText ? 0.65 : 1, transition: 'all 0.15s' }}
             >
               {refiningText ? <Loader2 size={TOP_BAR_ICON_SIZE} style={{ animation: 'spin 1s linear infinite' }} /> : <Wand2 size={TOP_BAR_ICON_SIZE} />}
-              전체 문장 다듬기
+              전체 제목·본문 AI 재작성
             </button>
+            {regenerateNotice && (
+              <span title={regenerateNotice} style={{ maxWidth: 210, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '11px', color: regenerateNotice.includes('실패') ? '#DC2626' : '#059669' }}>
+                {regenerateNotice}
+              </span>
+            )}
             {/* AI 자동 생성 진행 인디케이터 */}
             {autoGenProgress && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, fontSize: '11.5px', color: '#12B886' }}>
@@ -1083,11 +1115,27 @@ export default function EditorPage() {
           shareToken={(tutorial as Tutorial & { share_token?: string | null }).share_token ?? null}
           shareUrl={(tutorial as Tutorial & { share_token?: string | null }).share_token ? `${typeof window !== 'undefined' ? window.location.origin : ''}/play/${(tutorial as Tutorial & { share_token?: string | null }).share_token}` : null}
           tutorialId={id}
+          defaultMode="document"
+          onRequestRegenerate={handleRefineAllText}
           hasPassword={!!(tutorial as Tutorial & { share_password?: string | null }).share_password}
           visibility={(tutorial as Tutorial & { visibility?: 'private' | 'public' }).visibility}
           onPublishAndShare={publish}
           onUnpublish={unpublish}
           onClose={() => setShowShare(false)}
+        />
+      )}
+
+      {qualityIssues.length > 0 && (
+        <ManualQualityDialog
+          issues={qualityIssues}
+          regenerating={refiningText}
+          onClose={() => setQualityIssues([])}
+          onRegenerate={handleRefineAllText}
+          onSelectStep={stepNumber => {
+            const target = manualSteps.find(step => step.number === stepNumber);
+            if (target) setActiveId(target.id);
+            setQualityIssues([]);
+          }}
         />
       )}
 

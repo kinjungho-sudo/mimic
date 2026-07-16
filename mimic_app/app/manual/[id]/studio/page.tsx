@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { Fragment, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Play, Check, Loader2, MousePointerClick, Type, Ban, RotateCcw, EyeOff, Eye, GripVertical, ZoomIn, ImagePlus, PenTool, Volume2, VolumeX, Link2 } from 'lucide-react';
+import { ArrowLeft, Play, Check, Loader2, MousePointerClick, Type, Ban, RotateCcw, EyeOff, Eye, GripVertical, ZoomIn, ImagePlus, PenTool, Volume2, VolumeX, Link2, AlertTriangle, X } from 'lucide-react';
 import { useTutorial } from '@/hooks/useTutorial';
 import { updateStep, reorderSteps } from '@/lib/api/steps';
 import { pickLiveGuideTarget } from '@/lib/api/liveGuide';
 import { clickToPct, inferKind, mergeCapturedTypeText, toFollowSteps } from '@/lib/follow';
+import { inferGuideSection } from '@/lib/manual-quality';
 import { resolveStepAudio } from '@/lib/voice/playback';
 import { InteractiveFollowPlayer } from '@/components/viewer/InteractiveFollowPlayer';
 import { FollowStage } from '@/components/viewer/FollowStage';
@@ -14,6 +15,7 @@ import { ImageAnnotationEditor, type Annotation } from '@/components/editor/Imag
 import { ShareModal } from '@/components/editor/ShareModal';
 import { logError } from '@/lib/logging/logger';
 import type { Step, Tutorial, FollowConfig } from '@/types';
+import { BRAND_COPY, BRAND_EXTENSION_STORE_URL } from '@/lib/brand';
 
 const TOP_BAR_ICON_SIZE = 14;
 
@@ -122,6 +124,7 @@ export default function StudioPage() {
   const [uploadingStepId, setUploadingStepId] = useState<string | null>(null);
   const [annotatingId, setAnnotatingId] = useState<string | null>(null);
   const [pickingTarget, setPickingTarget] = useState(false);
+  const [targetError, setTargetError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imgWrapRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
@@ -153,9 +156,10 @@ export default function StudioPage() {
     try {
       const result = await pickLiveGuideTarget();
       if (!result.ok) {
-        alert(result.message);
+        setTargetError(result.message);
         return;
       }
+      setTargetError(null);
 
       const rect = result.element_rect;
       const nextStep: StudioStep = {
@@ -468,8 +472,8 @@ export default function StudioPage() {
         <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.4)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
           {savingId ? <><Loader2 size={TOP_BAR_ICON_SIZE} className="spin" /> 저장 중…</> : savedTick > 0 ? <><Check size={TOP_BAR_ICON_SIZE} color="#34d399" /> 저장됨</> : null}
         </span>
-        <button onClick={handlePickTarget} disabled={!active || pickingTarget} title="현재 브라우저 탭에서 라이브 가이드 대상을 직접 선택합니다" style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5, opacity: !active || pickingTarget ? 0.55 : 1 }}>
-          {pickingTarget ? <Loader2 size={TOP_BAR_ICON_SIZE} className="spin" /> : <MousePointerClick size={TOP_BAR_ICON_SIZE} />} 현재 탭에서 대상 선택
+        <button onClick={handlePickTarget} disabled={!active || pickingTarget} title="확장 프로그램이 연결된 대상 웹페이지에서 요소를 선택합니다" style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5, opacity: !active || pickingTarget ? 0.55 : 1 }}>
+          {pickingTarget ? <Loader2 size={TOP_BAR_ICON_SIZE} className="spin" /> : <MousePointerClick size={TOP_BAR_ICON_SIZE} />} 브라우저 탭에서 대상 선택
         </button>
         <button onClick={() => setShowPreview(true)} title="학습 가이드(웹) 화면으로 미리보기 — 핫스팟·말풍선·입력 텍스트 설정을 확인합니다. 실제 Live Guide Beta 오버레이 외형과는 다를 수 있어요." style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5 }}><Play size={TOP_BAR_ICON_SIZE} /> 학습 가이드 미리보기</button>
         <button onClick={() => setShowShare(true)} title="학습 가이드와 Live Guide Beta에서 함께 쓰는 공유 링크를 엽니다" style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5 }}>
@@ -485,8 +489,14 @@ export default function StudioPage() {
             const r = resolved(s);
             const hasHot = r.hotspotX != null && r.hotspotY != null;
             const isDragOver = dragOverId === s.id;
+            const section = inferGuideSection(s.title, s.description, i, steps.length);
+            const previousSection = i > 0 ? inferGuideSection(steps[i - 1].title, steps[i - 1].description, i - 1, steps.length) : null;
             return (
-              <div key={s.id}
+              <Fragment key={s.id}>
+              {section !== previousSection && (
+                <div style={{ padding: '10px 8px 5px', color: 'rgba(255,255,255,0.45)', fontSize: 10.5, fontWeight: 800, letterSpacing: '0.06em' }}>{section}</div>
+              )}
+              <div
                 draggable
                 onDragStart={e => { dragIdRef.current = s.id; e.dataTransfer.effectAllowed = 'move'; }}
                 onDragOver={e => { e.preventDefault(); if (dragOverId !== s.id) setDragOverId(s.id); }}
@@ -504,6 +514,7 @@ export default function StudioPage() {
                   ? <EyeOff size={12} color="rgba(255,255,255,0.4)" />
                   : <span style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, background: hasHot ? (r.kind === 'type' ? '#60a5fa' : '#34d399') : 'rgba(255,255,255,0.25)' }} />}
               </div>
+              </Fragment>
             );
           })}
         </aside>
@@ -852,12 +863,33 @@ export default function StudioPage() {
           shareToken={(tutorial as Tutorial & { share_token?: string | null }).share_token ?? null}
           shareUrl={(tutorial as Tutorial & { share_token?: string | null }).share_token ? `${typeof window !== 'undefined' ? window.location.origin : ''}/play/${(tutorial as Tutorial & { share_token?: string | null }).share_token}` : null}
           tutorialId={id}
+          defaultMode="follow"
           hasPassword={!!(tutorial as Tutorial & { share_password?: string | null }).share_password}
           visibility={(tutorial as Tutorial & { visibility?: 'private' | 'public' }).visibility}
           onPublishAndShare={publish}
           onUnpublish={unpublish}
           onClose={() => setShowShare(false)}
         />
+      )}
+
+      {targetError && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 160, background: 'rgba(5,5,10,0.72)', backdropFilter: 'blur(4px)', display: 'grid', placeItems: 'center', padding: 20 }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="target-error-title" style={{ width: 'min(440px, 100%)', borderRadius: 16, background: 'white', color: '#111827', padding: 22, boxShadow: '0 24px 70px rgba(0,0,0,0.4)', position: 'relative' }}>
+            <button onClick={() => setTargetError(null)} aria-label="닫기" style={{ position: 'absolute', top: 12, right: 12, width: 30, height: 30, borderRadius: 8, border: 'none', background: '#F3F4F6', color: '#6B7280', cursor: 'pointer', display: 'grid', placeItems: 'center' }}><X size={15} /></button>
+            <div style={{ width: 42, height: 42, borderRadius: 12, display: 'grid', placeItems: 'center', color: '#B45309', background: '#FEF3C7', marginBottom: 13 }}><AlertTriangle size={21} /></div>
+            <h2 id="target-error-title" style={{ margin: '0 38px 7px 0', fontSize: 18 }}>대상 선택 준비가 필요해요</h2>
+            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: '#6B7280' }}>{targetError}</p>
+            <ol style={{ margin: '14px 0 18px', paddingLeft: 20, fontSize: 12.5, lineHeight: 1.8, color: '#374151' }}>
+              <li>{BRAND_COPY.extensionDisplayName}를 설치하고 활성화합니다.</li>
+              <li>대상을 지정할 실제 웹페이지 탭을 엽니다.</li>
+              <li>아래 ‘다시 시도’를 누른 뒤 해당 요소를 선택합니다.</li>
+            </ol>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <a href={BRAND_EXTENSION_STORE_URL} target="_blank" rel="noreferrer" style={{ height: 36, padding: '0 13px', borderRadius: 8, border: '1px solid #D1D5DB', color: '#374151', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', fontSize: 12.5, fontWeight: 600 }}>확장 프로그램 설치</a>
+              <button onClick={() => { setTargetError(null); void handlePickTarget(); }} style={{ height: 36, padding: '0 15px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg,#009B8E,#12B886)', color: 'white', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>다시 시도</button>
+            </div>
+          </div>
+        </div>
       )}
 
       <Styles />

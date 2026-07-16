@@ -3,6 +3,7 @@
 import type { FollowConfig, StepType } from '@/types';
 import type { FollowStep } from '@/components/viewer/InteractiveFollowPlayer';
 import type { Annotation } from '@/components/editor/ImageAnnotationEditor';
+import { inferGuideSection, riskNoticeForStep } from '@/lib/manual-quality';
 
 const TYPE_RE = /입력|타이핑|작성|기입|텍스트/;
 const CLICK_RE = /클릭|누르|선택|눌러|버튼|탭|체크|이동|열기/;
@@ -77,7 +78,7 @@ function isExplanationStepType(stepType?: StepType | string | null): boolean {
 export function toFollowSteps(sources: FollowSource[]): FollowStep[] {
   return sources
     .filter(s => !s.followConfig?.hidden)
-    .map(s => {
+    .map((s, index, visible) => {
       const fc = s.followConfig ?? {};
       const resolvedKind = fc.kind ?? inferKind(s.title, s.body);
       // 'none' = 인디케이터 미표시 → 핫스팟 좌표를 null로 강제(플레이어가 하단 안내로 전환)
@@ -105,6 +106,8 @@ export function toFollowSteps(sources: FollowSource[]): FollowStep[] {
         stepType: s.stepType ?? null,
         annotations: s.annotations ?? null,
         guideMode: isNone ? 'explanation' : 'interactive',
+        section: inferGuideSection(s.title, s.body, index, visible.length),
+        riskNotice: riskNoticeForStep(s.title, s.body),
       };
     });
 }

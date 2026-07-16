@@ -50,6 +50,7 @@ type Step = {
   image_offset_y?: number | null;
   user_annotations?: DrawAnnotation[];
   follow_config?: FollowConfig | null;
+  type_text?: string | null;
   step_type?: string | null;
   element_rect?: { x: number; y: number; w: number; h: number } | null;
   voice_audio_url?: string | null;
@@ -784,7 +785,10 @@ export default function PlayerPage() {
               audioUrl: resolveStepAudio(s, tutorial.audio_assets, tutorial.tts_enabled)?.url ?? null,
               audioStartMs: resolveStepAudio(s, tutorial.audio_assets, tutorial.tts_enabled)?.startMs ?? null,
               audioEndMs: resolveStepAudio(s, tutorial.audio_assets, tutorial.tts_enabled)?.endMs ?? null,
-              followConfig: s.follow_config ?? null,
+              followConfig: {
+                ...(s.follow_config ?? {}),
+                typeText: s.follow_config?.typeText ?? s.type_text ?? null,
+              },
               stepType: s.step_type ?? null,
               annotations: null,
               domRect: s.element_rect ?? null,
