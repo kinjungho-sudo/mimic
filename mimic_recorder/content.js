@@ -113,40 +113,50 @@
     }
   }
 
-  function getFrameOffsetToTop() {
-    let x = 0;
-    let y = 0;
+  function toTopPoint(x, y) {
+    let point = { x, y };
     let win = window;
     try {
       while (win !== win.top) {
         const frame = win.frameElement;
-        if (!frame) break;
+        if (!frame) return { ...point, reliable: false };
         const rect = frame.getBoundingClientRect();
-        x += rect.left;
-        y += rect.top;
+        const offsetW = Math.max(1, frame.offsetWidth || rect.width);
+        const offsetH = Math.max(1, frame.offsetHeight || rect.height);
+        const borderScaleX = rect.width / offsetW;
+        const borderScaleY = rect.height / offsetH;
+        const contentW = Math.max(1, frame.clientWidth * borderScaleX);
+        const contentH = Math.max(1, frame.clientHeight * borderScaleY);
+        const scaleX = contentW / Math.max(1, win.innerWidth);
+        const scaleY = contentH / Math.max(1, win.innerHeight);
+        point = {
+          x: rect.left + frame.clientLeft * borderScaleX + point.x * scaleX,
+          y: rect.top + frame.clientTop * borderScaleY + point.y * scaleY,
+        };
         win = win.parent;
       }
+      return { ...point, reliable: true };
     } catch {
-      return { x: 0, y: 0 };
+      return { ...point, reliable: false };
     }
-    return { x, y };
+  }
+
+  function getCapturePageUrl() {
+    try { return window.top.location.href; } catch { return document.referrer || location.href; }
   }
 
   function toTopRect(rect) {
-    const offset = getFrameOffsetToTop();
+    const topLeft = toTopPoint(rect.left, rect.top);
+    const bottomRight = toTopPoint(rect.right ?? (rect.left + rect.width), rect.bottom ?? (rect.top + rect.height));
     return {
-      x: rect.x + offset.x,
-      y: rect.y + offset.y,
-      left: rect.left + offset.x,
-      top: rect.top + offset.y,
-      width: rect.width,
-      height: rect.height,
+      x: topLeft.x,
+      y: topLeft.y,
+      left: topLeft.x,
+      top: topLeft.y,
+      width: Math.max(0, bottomRight.x - topLeft.x),
+      height: Math.max(0, bottomRight.y - topLeft.y),
+      reliable: topLeft.reliable && bottomRight.reliable,
     };
-  }
-
-  function toTopPoint(x, y) {
-    const offset = getFrameOffsetToTop();
-    return { x: x + offset.x, y: y + offset.y };
   }
 
   function rectCenter(el) {
@@ -319,25 +329,27 @@
     // Preserve the original input-click target for Live Guide replay.
     const rect = el.getBoundingClientRect();
     const focusSnapshot = typingFocusSnapshot;
-    const elementRect = focusSnapshot?.elementRect ?? normalizeRect(toTopRect(rect), vw, vh);
+    const topRect = toTopRect(rect);
+    const elementRect = focusSnapshot?.elementRect ?? (topRect.reliable ? normalizeRect(topRect, vw, vh) : null);
     const elementSelector = focusSnapshot?.elementSelector ?? getElementSelector(el);
     const elementXPath = focusSnapshot?.elementXPath ?? getElementXPath(el);
-    const clickX = focusSnapshot?.clickX ?? cx;
-    const clickY = focusSnapshot?.clickY ?? cy;
+    const elementContext = focusSnapshot?.elementContext ?? getElementContext(el, label);
+    const clickX = focusSnapshot?.clickX ?? (topRect.reliable ? cx : null);
+    const clickY = focusSnapshot?.clickY ?? (topRect.reliable ? cy : null);
     const role = focusSnapshot?.role || el.getAttribute('role') || undefined;
     const labelDebug = focusSnapshot?.labelDebug ?? buildLabelDebug(el, label);
 
     lastCapturedTarget = el;
     lastCapturedTime   = Date.now();
     sendCapture({
-      url: location.href, timestamp: Date.now(),
+      url: getCapturePageUrl(), timestamp: Date.now(),
       clickX, clickY,
       windowWidth: vw, windowHeight: vh,
       viewportW: vw, viewportH: vh,
       stepNumber: stepForThis, overwrite: true, useTypingFrame: true,
       usePrecapture: !!opts.usePrecapture, peekPrecapture: !!opts.peekPrecapture,
       typedText,
-      elementRect, elementSelector, elementXPath,
+      elementRect, elementSelector, elementXPath, elementContext,
       actionInfo: { type: 'type', label, text: label, typedText, masked: isMasked, tag: el.tagName.toLowerCase(), role, labelDebug },
     }, done);
 
@@ -682,7 +694,7 @@
     }
 
     if (msg.type === 'SHOW_OVERLAY' && msg.step) {
-      if (!IS_TOP_FRAME) return false;
+      if (!IS_TOP_FRAME && !msg.step._frame_scoped) return false;
       const guideApi = window.ParroGuide || window.MimicGuide;
       if (guideApi) guideApi.show(msg.step, {
         index: msg.index ?? 0,
@@ -696,7 +708,7 @@
     }
     if (msg.type === 'HIDE_OVERLAY') {
       const guideApi = window.ParroGuide || window.MimicGuide;
-      if (IS_TOP_FRAME && guideApi) guideApi.hide();
+      if (guideApi) guideApi.hide();
       return false;
     }
 
@@ -704,12 +716,36 @@
   });
 
   // ── 인터랙티브 타겟 탐색 ────────────────────────────────────────
-  function findInteractiveTarget(el) {
+  function eventElement(event) {
+    const path = typeof event?.composedPath === 'function' ? event.composedPath() : [];
+    return path.find(node => node && node.nodeType === Node.ELEMENT_NODE) || event?.target || null;
+  }
+
+  function eventElementPath(event) {
+    const path = typeof event?.composedPath === 'function' ? event.composedPath() : [];
+    const elements = path.filter(node => node && node.nodeType === Node.ELEMENT_NODE);
+    if (elements.length) return elements;
+    return event?.target ? [event.target] : [];
+  }
+
+  function isDisabledTarget(el) {
+    return !!el && (el.disabled === true || el.getAttribute?.('aria-disabled') === 'true');
+  }
+
+  function findInteractiveTarget(el, event = null) {
     if (!el || el === document.documentElement) return null;
     if (document.designMode === 'on') return document.body;
 
-    const found = el.closest(INTERACTIVE);
-    if (found) return found;
+    // Shadow DOM 이벤트는 document에서 target이 host로 retarget될 수 있다. composedPath의
+    // 가장 안쪽 노드부터 검사해야 실제로 사용자가 누른 컨트롤을 보존할 수 있다.
+    const path = event ? eventElementPath(event) : [el];
+    for (const node of path) {
+      if (!node.matches || node === document.documentElement) continue;
+      if (node.matches(INTERACTIVE) && !isDisabledTarget(node)) return node;
+    }
+
+    const found = el.closest?.(INTERACTIVE);
+    if (found && !isDisabledTarget(found)) return found;
 
     let cur = el;
     for (let i = 0; i < 8; i++) {
@@ -725,8 +761,7 @@
         cur.hasAttribute('onclick') ||
         cur.getAttribute('role') === 'button' ||
         cur.getAttribute('role') === 'link' ||
-        cur.getAttribute('tabindex') !== null ||
-        (cur.dataset && Object.keys(cur.dataset).length > 0 && cur.tagName !== 'INPUT')
+        cur.getAttribute('tabindex') !== null
       ) return cur;
       cur = cur.parentElement;
     }
@@ -891,15 +926,10 @@
     const node = clickedEl.nodeType === Node.ELEMENT_NODE ? clickedEl : clickedEl.parentElement;
     if (!node || !target.contains(node)) return target;
 
-    let cur = node;
-    while (cur && cur !== target && cur !== document.body && cur !== document.documentElement) {
-      const label = bestLabelFrom(cur);
-      if (label && !isIconOnly(cur)) return cur;
-      cur = cur.parentElement;
-    }
-
-    const semantic = node.closest('[role="menuitem"],[role="option"],[role="tab"],[role="button"],[role="link"],button,a[href],label,select,input,textarea,[onclick],[tabindex]:not([tabindex="-1"])');
-    if (semantic && target.contains(semantic)) return semantic;
+    // 텍스트 span/숫자 badge/svg path는 클릭 가능한 부모의 라벨 근거일 뿐, 클릭 영역이 아니다.
+    // 단, 부모 안에 독립적인 중첩 컨트롤이 실제로 존재하는 경우에만 그 컨트롤을 유지한다.
+    const semantic = node.closest?.(INTERACTIVE);
+    if (semantic && semantic !== target && target.contains(semantic) && !isDisabledTarget(semantic)) return semantic;
     return target;
   }
 
@@ -924,6 +954,7 @@
     if (!rect.width || !rect.height) return null;
     const { vw, vh } = getViewportSize();
     const topClick = toTopPoint(event.clientX, event.clientY);
+    const topRect = toTopRect(rect);
     const label = getElementLabel(captureEl, clickedEl);
     const href = captureEl.getAttribute('href') || captureEl.closest('a')?.getAttribute('href') || target.getAttribute('href') || target.closest('a')?.getAttribute('href') || '';
     return {
@@ -931,11 +962,12 @@
       time: Date.now(),
       x: event.clientX,
       y: event.clientY,
-      clickX: topClick.x,
-      clickY: topClick.y,
-      elementRect: normalizeRect(toTopRect(rect), vw, vh),
+      clickX: topClick.reliable ? topClick.x : null,
+      clickY: topClick.reliable ? topClick.y : null,
+      elementRect: topRect.reliable ? normalizeRect(topRect, vw, vh) : null,
       elementSelector: getElementSelector(captureEl),
       elementXPath: getElementXPath(captureEl),
+      elementContext: getElementContext(captureEl, label),
       label,
       role: captureEl.getAttribute('role') || target.getAttribute('role') || undefined,
       actionType: getActionType(target),
@@ -977,7 +1009,7 @@
 
       log('debug', `pointer fallback capture step ${stepNumber} el=${snapshot.target.tagName}`);
       sendCapture({
-        url: location.href,
+        url: getCapturePageUrl(),
         timestamp: Date.now(),
         clickX: snapshot.clickX,
         clickY: snapshot.clickY,
@@ -990,6 +1022,7 @@
         elementRect: snapshot.elementRect,
         elementSelector: snapshot.elementSelector,
         elementXPath: snapshot.elementXPath,
+        elementContext: snapshot.elementContext,
         actionInfo: {
           type: snapshot.actionType === 'navigate' ? 'click' : snapshot.actionType,
           label: snapshot.label,
@@ -1025,15 +1058,19 @@
     return true;
   }
 
-  function getElementSelector(el) {
+  function getElementSelector(el, queryRoot = null) {
     try {
-      if (el.id && isStableId(el.id)) return `#${CSS.escape(el.id)}`;
+      const root = queryRoot || el.getRootNode?.() || document;
+      if (el.id && isStableId(el.id)) {
+        const idSelector = `#${CSS.escape(el.id)}`;
+        if (root.querySelectorAll(idSelector).length === 1) return idSelector;
+      }
       const tag = el.tagName.toLowerCase();
       for (const attr of ['data-testid', 'data-cy', 'data-test', 'aria-label', 'name']) {
         const val = el.getAttribute(attr);
         if (val) {
           const sel = `${tag}[${attr}="${CSS.escape(val)}"]`;
-          if (document.querySelectorAll(sel).length === 1) return sel;
+          if (root.querySelectorAll(sel).length === 1) return sel;
         }
       }
 
@@ -1041,7 +1078,10 @@
         if (depth <= 0 || !node || node === document.documentElement) return '';
         const t = node.tagName.toLowerCase();
         let sel = t;
-        if (node.id && isStableId(node.id)) return `#${CSS.escape(node.id)}`;
+        if (node.id && isStableId(node.id)) {
+          const idSelector = `#${CSS.escape(node.id)}`;
+          if (root.querySelectorAll(idSelector).length === 1) return idSelector;
+        }
 
         const stableClasses = [...node.classList].filter(isStableClass).slice(0, 2);
         if (stableClasses.length) sel += stableClasses.map(c => `.${CSS.escape(c)}`).join('');
@@ -1058,7 +1098,7 @@
       for (const depth of [3, 2, 1]) {
         const path = buildPath(el, depth);
         if (!path) continue;
-        try { if (document.querySelectorAll(path).length === 1) return path; } catch { /**/ }
+        try { if (root.querySelectorAll(path).length === 1) return path; } catch { /**/ }
       }
 
       const cls = [...el.classList].filter(isStableClass).slice(0, 2).map(c => `.${CSS.escape(c)}`).join('');
@@ -1100,6 +1140,7 @@
   // 견고한 XPath — 짧고 고유한 보이는 텍스트 앵커 우선(Typeform 질문/버튼에 강함), 없으면 구조 경로
   function getElementXPath(el) {
     try {
+      if (el.getRootNode?.() instanceof ShadowRoot) return '';
       const tag = el.tagName.toLowerCase();
       const text = (el.textContent || '').trim().replace(/\s+/g, ' ');
       if (text && text.length <= 40) {
@@ -1109,6 +1150,58 @@
       const path = buildXPath(el);
       return path.length <= 480 ? path : '';
     } catch { return ''; }
+  }
+
+  function getElementContext(el, label = '') {
+    if (!el || !el.getRootNode) return null;
+    try {
+      let root = el.getRootNode();
+      const targetSelector = getElementSelector(el, root);
+      const shadowHosts = [];
+
+      while (root instanceof ShadowRoot) {
+        const host = root.host;
+        const hostRoot = host.getRootNode();
+        shadowHosts.unshift(getElementSelector(host, hostRoot));
+        root = hostRoot;
+      }
+
+      const frameSelectors = [];
+      let sameOrigin = true;
+      let win = el.ownerDocument?.defaultView || window;
+      try {
+        while (win && win !== win.top) {
+          const frame = win.frameElement;
+          if (!frame) { sameOrigin = false; break; }
+          const parentRoot = frame.getRootNode();
+          frameSelectors.unshift(getElementSelector(frame, parentRoot));
+          win = win.parent;
+        }
+      } catch {
+        sameOrigin = false;
+      }
+
+      const safeLabel = label && !SENSITIVE_LABEL_RE.test(label) ? cleanLabelText(label, 120) : '';
+      return {
+        version: 1,
+        target_selector: targetSelector || null,
+        shadow_hosts: shadowHosts.filter(Boolean),
+        frame: {
+          is_top: window === window.top,
+          same_origin: sameOrigin,
+          selectors: frameSelectors.filter(Boolean),
+          url: location.href,
+        },
+        fingerprint: {
+          tag: el.tagName?.toLowerCase() || null,
+          role: el.getAttribute?.('role') || null,
+          label: safeLabel || null,
+          input_type: el.getAttribute?.('type') || null,
+        },
+      };
+    } catch {
+      return null;
+    }
   }
 
   function getActionType(el) {
@@ -1133,7 +1226,8 @@
     if (isCapturing && (Date.now() - isCapturingStart) >= CAPTURE_SAFETY_MS) isCapturing = false;
     if (isCapturing) return;
     if (Date.now() < suppressHoverUntil) return;  // 선캡처 윈도우 — 테두리 재등장 금지
-    const target = findInteractiveTarget(e.target);
+    const hoveredEl = eventElement(e);
+    const target = findInteractiveTarget(hoveredEl, e);
     if (!target) { hideHoverPointer(); return; }
     const overlayAlive = hoverOverlay && document.documentElement.contains(hoverOverlay);
     if (target === hoverTarget && overlayAlive) return;
@@ -1152,12 +1246,13 @@
   document.addEventListener('pointerdown', (e) => {
     if (!isRecording || isPaused || isCapturing) return;
     if (e.button !== undefined && e.button !== 0) return;  // 좌클릭만
-    const target = findInteractiveTarget(e.target);
+    const clickedEl = eventElement(e);
+    const target = findInteractiveTarget(clickedEl, e);
     if (!target) return;
-    const actionTarget = refineActionTarget(e.target, target);
+    const actionTarget = refineActionTarget(clickedEl, target);
     const actionType = getActionType(target);
     const captureEl = actionType === 'focus_input' ? target : actionTarget;
-    _pointerDownSnapshot = buildPointerDownSnapshot(captureEl, target, e.target, e);
+    _pointerDownSnapshot = buildPointerDownSnapshot(captureEl, target, clickedEl, e);
     hideHoverPointer();                          // 호버 테두리 제거
     suppressHoverUntil = Date.now() + 500;       // 캡처 끝날 때까지 재등장 억제
     // 테두리 제거가 화면에 리페인트된 다음 프레임에 선캡처 요청 — 라이브 캡처 경로의
@@ -1186,7 +1281,7 @@
     // (백그라운드 탭의 프로그래매틱 클릭은 captureVisibleTab이 활성 탭을 잡아 오발됨)
     if (document.visibilityState !== 'visible') return;
 
-    const clickedEl = e.target;
+    const clickedEl = eventElement(e);
 
     // Parro 자체 오버레이 클릭 무시
     if (clickedEl && typeof clickedEl.id === 'string') {
@@ -1199,7 +1294,7 @@
     const lowerClassStr = _classStr.toLowerCase();
     if (lowerClassStr.includes('parro') || lowerClassStr.includes('mimic')) return;
 
-    const target = findInteractiveTarget(clickedEl);
+    const target = findInteractiveTarget(clickedEl, e);
 
     // 빈 화면 클릭 (body/html)
     if (!target) {
@@ -1215,8 +1310,8 @@
       const topClick = toTopPoint(e.clientX, e.clientY);
       log('debug', `blank click step ${stepNumber} at (${e.clientX}, ${e.clientY})`);
       sendCapture({
-        url: location.href, timestamp: Date.now(),
-        clickX: topClick.x, clickY: topClick.y,
+        url: getCapturePageUrl(), timestamp: Date.now(),
+        clickX: topClick.reliable ? topClick.x : null, clickY: topClick.reliable ? topClick.y : null,
         windowWidth: vw, windowHeight: vh,
         viewportW: vw, viewportH: vh,
         stepNumber,
@@ -1267,9 +1362,11 @@
     const role  = pointerSnapshot?.role || captureEl.getAttribute('role') || target.getAttribute('role') || undefined;
     const { vw, vh } = getViewportSize();
     const topClick = toTopPoint(e.clientX, e.clientY);
-    const elementRect = pointerSnapshot?.elementRect ?? normalizeRect(toTopRect(rect), vw, vh);
+    const topRect = toTopRect(rect);
+    const elementRect = pointerSnapshot?.elementRect ?? (topRect.reliable ? normalizeRect(topRect, vw, vh) : null);
     const elementSelector = pointerSnapshot?.elementSelector ?? getElementSelector(captureEl);
     const elementXPath = pointerSnapshot?.elementXPath ?? getElementXPath(captureEl);
+    const elementContext = pointerSnapshot?.elementContext ?? getElementContext(captureEl, label);
     const labelDebug = pointerSnapshot?.labelDebug ?? buildLabelDebug(captureEl, label);
 
     // navigate 클릭(링크 등)도 '사용자 클릭'이므로 클릭 스텝으로만 캡처한다.
@@ -1282,14 +1379,15 @@
       lastCapturedTime   = now;
 
       const srcStep = {
-        url: location.href, timestamp: Date.now(),
-        clickX: topClick.x, clickY: topClick.y,
+        url: getCapturePageUrl(), timestamp: Date.now(),
+        clickX: topClick.reliable ? topClick.x : null, clickY: topClick.reliable ? topClick.y : null,
         windowWidth: vw, windowHeight: vh,
         viewportW: vw, viewportH: vh,
         stepNumber, usePrecapture: true,
         elementRect,
         elementSelector,
         elementXPath,
+        elementContext,
         actionInfo:      { type: 'click', label, tag: captureEl.tagName.toLowerCase(), role, href: href.slice(0, 200), labelDebug },
       };
 
@@ -1303,14 +1401,15 @@
     lastCapturedTime   = now;
 
     const stepData = {
-      url: location.href, timestamp: Date.now(),
-      clickX: topClick.x, clickY: topClick.y,
+      url: getCapturePageUrl(), timestamp: Date.now(),
+      clickX: topClick.reliable ? topClick.x : null, clickY: topClick.reliable ? topClick.y : null,
       windowWidth: vw, windowHeight: vh,
       viewportW: vw, viewportH: vh,
       stepNumber, usePrecapture: true,
       elementRect,
       elementSelector,
       elementXPath,
+      elementContext,
       actionInfo:      { type: actionType, label, tag: captureEl.tagName.toLowerCase(), role, href: href.slice(0, 200), labelDebug },
     };
 
@@ -1462,7 +1561,7 @@
       showFileHighlight(fileNames);
       requestAnimationFrame(() => requestAnimationFrame(() => {
         sendCapture({
-          url: location.href, timestamp: Date.now(),
+          url: getCapturePageUrl(), timestamp: Date.now(),
           clickX: fileCX, clickY: fileCY,
           windowWidth: vw, windowHeight: vh,
           stepNumber,
@@ -1522,7 +1621,7 @@
           type: 'MANUAL_IMAGE_STEP',
           dataUrl:  reader.result,
           stepData: {
-            url: location.href, timestamp: Date.now(),
+            url: getCapturePageUrl(), timestamp: Date.now(),
             clickX: 0, clickY: 0,
             windowWidth: vw, windowHeight: vh,
             manual: true,
@@ -1538,4 +1637,13 @@
   // ── Live Guide 오버레이 ──────────────────────────────────────────
   // 오버레이 렌더링/요소탐지/자동진행은 guide-engine.js(window.ParroGuide)가 담당.
   // (content_scripts에서 content.js보다 먼저 로드됨) SHOW_OVERLAY/HIDE_OVERLAY 핸들러 참조.
+  // Isolated world 안에서만 보이는 순수 DOM 진단 API — 회귀 테스트가 실제 캡처 규칙을 재사용한다.
+  window.ParroRecorderInternals = Object.freeze({
+    eventElement,
+    findInteractiveTarget,
+    refineActionTarget,
+    getElementSelector,
+    getElementContext,
+  });
+
 })();

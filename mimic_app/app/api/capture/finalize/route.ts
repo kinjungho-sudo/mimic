@@ -103,6 +103,7 @@ function stripExceptionStepColumns<T extends Record<string, unknown>>(steps: T[]
     delete next.step_type;
     delete next.capture_source;
     delete next.capture_failure_reason;
+    delete next.element_context;
     return next;
   });
 }
@@ -332,13 +333,15 @@ export async function POST(request: NextRequest) {
 
     const sel = (ev.element_selector as string | null) ?? null;
     const hasGoodSelector = !!sel && !/^\s*(html|body)\s*$/i.test(sel.trim());
+    const elementContext = (ev.element_context as { target_selector?: string | null } | null) ?? null;
+    const hasScopedTarget = !!elementContext?.target_selector;
     const hasClick = (clickX != null && clickX > 0.001) || (clickY != null && clickY > 0.001);
     const hugeRect = !!rawRect && rawRect.width >= 0.7 && rawRect.height >= 0.7;
     // 행동 없음: 클릭 좌표가 없거나(이동/캡처), 또는 좋은 셀렉터 없이 화면 전체에 가까운/없는 영역(빈영역/전체선택)
-    const noAction = !hasClick || (!hasGoodSelector && (hugeRect || !rawRect));
+    const noAction = (!hasClick && !hasScopedTarget) || (!hasGoodSelector && !hasScopedTarget && (hugeRect || !rawRect));
     noActionByStepNum.set(idx + 1, noAction);
     const hasScreenshot = !!ev.screenshot_url;
-    const hasTarget = hasGoodSelector || !!rawRect || hasClick;
+    const hasTarget = hasGoodSelector || hasScopedTarget || !!rawRect || hasClick;
     const stepType = classifyStepType(ev as Record<string, unknown>, noAction, hasTarget, hasScreenshot);
     const explanationOnly = stepType !== 'normal_interactive_step';
 
@@ -370,6 +373,7 @@ export async function POST(request: NextRequest) {
       element_rect:      elementRect,
       element_selector:  explanationOnly ? null : (ev.element_selector  ?? null),
       element_xpath:     explanationOnly ? null : (ev.element_xpath     ?? null),
+      element_context:   explanationOnly ? null : (ev.element_context   ?? null),
       follow_config:     explanationOnly ? { kind: 'none' } : null,
       // crop_box(캡처 확대)가 있으면 image_zoom로 프레이밍하므로 crop_rect는 비움(렌더 경로 일관성).
       crop_rect:         cropBox ? null : calcCropRect(elementRect, clickX, clickY),

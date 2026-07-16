@@ -184,10 +184,54 @@ storageGet(['targetTabId', 'lastCaptureTime', 'lastStepHash', 'lastNavKey', 'las
 });
 
 // ── 유틸 ─────────────────────────────────────────────────────────
-function sendTabMessage(tabId, msg) {
+function sendTabMessage(tabId, msg, options = undefined) {
   return new Promise((resolve) => {
-    chrome.tabs.sendMessage(tabId, msg, () => { void chrome.runtime.lastError; resolve(); });
+    chrome.tabs.sendMessage(tabId, msg, options, () => { void chrome.runtime.lastError; resolve(); });
   });
+}
+
+function comparableFrameUrl(value) {
+  try {
+    const u = new URL(value);
+    return `${u.origin}${u.pathname}`;
+  } catch { return String(value || ''); }
+}
+
+async function resolveGuideFrameId(tabId, step) {
+  const frame = step?.element_context?.frame;
+  if (!frame || frame.is_top || frame.same_origin) return 0;
+  try {
+    const frames = await chrome.webNavigation.getAllFrames({ tabId });
+    const wanted = comparableFrameUrl(frame.url);
+    const matches = (frames || []).filter(item => item.frameId !== 0 && comparableFrameUrl(item.url) === wanted);
+    if (matches.length === 1) return matches[0].frameId;
+    log('warn', 'bg', 'guide frame match ambiguous', { wanted, count: matches.length });
+  } catch (err) {
+    log('warn', 'bg', 'guide frame lookup failed:', err?.message || String(err));
+  }
+  return null;
+}
+
+async function sendGuideOverlay(tabId, step, index, total, survey) {
+  await hideGuideOverlays(tabId);
+  const frameId = await resolveGuideFrameId(tabId, step);
+  if (frameId == null) {
+    const unavailableStep = { ...step, _frame_unavailable: true };
+    return sendTabMessage(tabId, { type: 'SHOW_OVERLAY', step: unavailableStep, index, total, survey }, { frameId: 0 });
+  }
+  const scopedStep = frameId === 0 ? step : { ...step, _frame_scoped: true };
+  return sendTabMessage(tabId, { type: 'SHOW_OVERLAY', step: scopedStep, index, total, survey }, { frameId });
+}
+
+async function hideGuideOverlays(tabId) {
+  try {
+    const frames = await chrome.webNavigation.getAllFrames({ tabId });
+    await Promise.all((frames || [{ frameId: 0 }]).map(frame =>
+      sendTabMessage(tabId, { type: 'HIDE_OVERLAY' }, { frameId: frame.frameId })
+    ));
+  } catch {
+    await sendTabMessage(tabId, { type: 'HIDE_OVERLAY' });
+  }
 }
 
 // ── Offscreen Document 관리 ──────────────────────────────────────
@@ -783,7 +827,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 
             const firstStep = steps[0];
             await ensureContentScript(tab.id);
-            const injectOverlay = (tabId) => sendTabMessage(tabId, { type: 'SHOW_OVERLAY', step: firstStep, index: 0, total: steps.length, survey: guideSurvey });
+            const injectOverlay = (tabId) => sendGuideOverlay(tabId, firstStep, 0, steps.length, guideSurvey);
 
             if (!firstStep.page_url || !isSafeNavUrl(firstStep.page_url)) {
               // page_url 없음 또는 비안전 프로토콜 → 현재 탭에 바로 오버레이 주입
@@ -1284,7 +1328,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           }
         } catch { /* same-tab fallback */ }
       }
-      sendTabMessage(tab.id, { type: 'SHOW_OVERLAY', step, index: idx, total: steps.length, survey: guideSurvey || null });
+      sendGuideOverlay(tab.id, step, idx, steps.length, guideSurvey || null);
     })();
     return true;
   }
@@ -1314,7 +1358,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           }
         } catch { /* same-tab fallback */ }
       }
-      sendTabMessage(tab.id, { type: 'SHOW_OVERLAY', step, index: idx, total: steps.length, survey: guideSurvey || null });
+      sendGuideOverlay(tab.id, step, idx, steps.length, guideSurvey || null);
     })();
     return true;
   }
@@ -1347,7 +1391,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     (async () => {
       const tab = await getGuideTab();  // 고정 탭의 오버레이를 정리
       await storageRemove(['guideSteps', 'guideCurrentStep', 'guideModeActive', 'guidePendingOverlay', 'guideTabId', 'guideSurvey']);
-      if (tab?.id) sendTabMessage(tab.id, { type: 'HIDE_OVERLAY' });
+      if (tab?.id) hideGuideOverlays(tab.id);
       // 혹시 다른 탭(메시지 발신 탭)에 남은 오버레이도 정리
       if (sender.tab?.id && sender.tab.id !== tab?.id) sendTabMessage(sender.tab.id, { type: 'HIDE_OVERLAY' });
       sendResponse({ ok: true });
@@ -1536,7 +1580,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
         // 새 도메인엔 manifest content_scripts 주입이 늦거나 누락될 수 있어 보장(멱등).
         await ensureContentScript(tabId);
         // 페이지 정착(특히 SPA) 후 오버레이 주입 — 요소 매칭 확률 ↑
-        setTimeout(() => sendTabMessage(tabId, { type: 'SHOW_OVERLAY', step, index: gIdx, total: gSteps.length, survey: r.guideSurvey || null }), intended ? 500 : 400);
+        setTimeout(() => sendGuideOverlay(tabId, step, gIdx, gSteps.length, r.guideSurvey || null), intended ? 500 : 400);
       }
     }
 
@@ -2060,6 +2104,12 @@ async function handleCapture(pngDataUrl, stepData, tab) {
 }
 
 async function prepareCapture(pngDataUrl, stepData, tab) {
+  // iframe content script에서는 top URL을 직접 읽을 수 없다. background가 보유한 탭 URL로
+  // 캡처 페이지를 보정해 iframe URL이 최상위 이동 대상으로 저장되는 것을 막는다.
+  if (stepData?.elementContext?.frame?.is_top === false && /^https?:\/\//i.test(tab?.url || '')) {
+    stepData = { ...stepData, url: tab.url };
+  }
+
   // ── '이동' 캡처 중복 디덥 (#4) ────────────────────────────────
   //   클릭/타이핑은 같은 화면에서 미세 변화만 있어도 서로 다른 스텝이므로 디덥하면 안 됨.
   //   1) URL 가드: 같은 페이지(origin+pathname)를 NAV_URL_DEDUP_MS 내 재캡처 금지
@@ -2184,7 +2234,7 @@ async function processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base
       const audioOffsetMs = audioStartTime
         ? Math.max(0, (stepData.timestamp || Date.now()) - audioStartTime)
         : null;
-      await saveStep({ sessionId, stepNumber: stepNum, screenshotUrl: uploadedUrl, clickX, clickY, title: title ?? '', description: description ?? '', url: stepData.url, domainInfo, viewportW: stepData.viewportW ?? stepData.windowWidth ?? null, viewportH: stepData.viewportH ?? stepData.windowHeight ?? null, elementSelector: stepData.elementSelector ?? null, elementXPath: stepData.elementXPath ?? null, elementRect: stepData.elementRect ?? null, actionInfo: stepData.actionInfo ?? null, typedText: stepData.typedText || null, cropBox, audioOffsetMs });
+      await saveStep({ sessionId, stepNumber: stepNum, screenshotUrl: uploadedUrl, clickX, clickY, title: title ?? '', description: description ?? '', url: stepData.url, domainInfo, viewportW: stepData.viewportW ?? stepData.windowWidth ?? null, viewportH: stepData.viewportH ?? stepData.windowHeight ?? null, elementSelector: stepData.elementSelector ?? null, elementXPath: stepData.elementXPath ?? null, elementContext: stepData.elementContext ?? null, elementRect: stepData.elementRect ?? null, actionInfo: stepData.actionInfo ?? null, typedText: stepData.typedText || null, cropBox, audioOffsetMs });
       log('info', 'bg', `saved step ${stepNum}: "${title}"`);
     } catch (err) {
       log('warn', 'bg', `save-step API failed step ${stepNum}:`, err.message);
@@ -2219,6 +2269,7 @@ async function saveStepLocally(stepData) {
     windowHeight:stepData.windowHeight ?? 800,
     elementSelector: stepData.elementSelector ?? null,
     elementXPath:    stepData.elementXPath    ?? null,
+    elementContext:  stepData.elementContext  ?? null,
     cropBox:         stepData.cropBox         ?? null,
     manual:      !!stepData.manual,
   };
@@ -2347,7 +2398,7 @@ async function analyzeWithClaude(base64Image, url, actionInfo, elementContext = 
 }
 
 // ── 스텝 저장 — 웹앱 API 경유 ───────────────────────────────────
-async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, title, description, url, domainInfo, viewportW, viewportH, elementSelector, elementXPath, elementRect, actionInfo, typedText, cropBox, audioOffsetMs, stepType, captureSource, captureFailureReason }) {
+async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, title, description, url, domainInfo, viewportW, viewportH, elementSelector, elementXPath, elementContext, elementRect, actionInfo, typedText, cropBox, audioOffsetMs, stepType, captureSource, captureFailureReason }) {
   const origin = await getWebappOrigin();
   const payload = {
     session_id:       sessionId,
@@ -2368,6 +2419,7 @@ async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, 
     viewport_h:       viewportH             ?? null,
     element_selector: elementSelector       ?? null,
     element_xpath:    elementXPath          ?? null,
+    element_context:  elementContext        ?? null,
     element_rect:     elementRect           ?? null,
     action_info:      actionInfo            ?? null,
     type_text:        typedText             || null,
@@ -2391,6 +2443,7 @@ async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, 
     element_rect: payload.element_rect,
     element_selector: payload.element_selector,
     element_xpath: payload.element_xpath,
+    element_context: payload.element_context,
     domain_favicon: payload.domain_favicon,
   });
 
@@ -2440,6 +2493,7 @@ async function syncLocalStepsBeforeFinalize(sessionId, stepNumbers, localSteps) 
       viewportH,
       elementSelector: step.elementSelector ?? null,
       elementXPath: step.elementXPath ?? null,
+      elementContext: step.elementContext ?? null,
       elementRect: step.elementRect ?? null,
       actionInfo: step.actionInfo ?? null,
       typedText: step.typedText || null,

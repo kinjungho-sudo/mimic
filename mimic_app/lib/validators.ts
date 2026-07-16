@@ -81,6 +81,24 @@ const elementRectSchema = z.object({
   height: z.number(),
 }).nullable().optional();
 
+const elementContextSchema = z.object({
+  version: z.literal(1),
+  target_selector: z.string().max(500).nullable().optional(),
+  shadow_hosts: z.array(z.string().max(500)).max(8).optional().default([]),
+  frame: z.object({
+    is_top: z.boolean(),
+    same_origin: z.boolean(),
+    selectors: z.array(z.string().max(500)).max(8).optional().default([]),
+    url: z.string().url().max(2000),
+  }),
+  fingerprint: z.object({
+    tag: optionalActionString(30),
+    role: optionalActionString(50),
+    label: optionalActionString(120),
+    input_type: optionalActionString(30),
+  }).optional().nullable(),
+}).nullable().optional();
+
 export const stepTypeSchema = z.enum([
   'normal_interactive_step',
   'visual_only_step',
@@ -148,6 +166,7 @@ export const captureSaveStepSchema = z.object({
   viewport_h: z.number().int().positive().optional().nullable(),
   element_selector: z.string().max(500).optional().nullable(),
   element_xpath:    z.string().max(500).optional().nullable(),
+  element_context:  elementContextSchema,
   action_info: actionInfoSchema,
   // 음성 녹음 시작 기준 이 캡처의 상대 시각(ms) — Whisper 전사 구간 배분용
   audio_offset_ms: z.number().int().min(0).optional().nullable(),

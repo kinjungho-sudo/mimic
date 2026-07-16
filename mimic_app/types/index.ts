@@ -142,6 +142,13 @@ export type Step = {
   follow_config?: FollowConfig | null;
   element_selector?: string | null;
   element_xpath?: string | null;
+  element_context?: {
+    version: 1;
+    target_selector?: string | null;
+    shadow_hosts?: string[];
+    frame: { is_top: boolean; same_origin: boolean; selectors?: string[]; url: string };
+    fingerprint?: { tag?: string | null; role?: string | null; label?: string | null; input_type?: string | null } | null;
+  } | null;
   element_rect?: { x: number; y: number; width: number; height: number } | null;
   click_x?: number | null;
   click_y?: number | null;

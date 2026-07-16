@@ -25,45 +25,135 @@
     return id === OVERLAY_ROOT_ID || id === LEGACY_OVERLAY_ROOT_ID;
   }
 
+  const ACTIONABLE_SELECTOR = 'a[href],button,input,select,textarea,label,[role="button"],[role="link"],[role="menuitem"],[role="tab"],[role="checkbox"],[role="radio"],[role="switch"],[role="option"],[role="textbox"],[onclick],[tabindex]:not([tabindex="-1"])';
+
+  function queryAll(root, selector) {
+    if (!root || !selector || typeof root.querySelectorAll !== 'function') return [];
+    try { return [...root.querySelectorAll(selector)]; } catch { return []; }
+  }
+
+  function resolveContextRoot(step) {
+    const ctx = step && step.element_context;
+    let root = document;
+    if (!ctx) return { root, context: null };
+
+    try {
+      const frameSelectors = ctx.frame?.selectors || [];
+      for (const selector of frameSelectors) {
+        const frames = queryAll(root, selector).filter(el => /^(iframe|frame)$/i.test(el.tagName || ''));
+        if (frames.length !== 1 || !frames[0].contentDocument) return { root: null, context: ctx };
+        root = frames[0].contentDocument;
+      }
+      for (const selector of ctx.shadow_hosts || []) {
+        const hosts = queryAll(root, selector);
+        if (hosts.length !== 1 || !hosts[0].shadowRoot) return { root: null, context: ctx };
+        root = hosts[0].shadowRoot;
+      }
+      return { root, context: ctx };
+    } catch {
+      return { root: null, context: ctx };
+    }
+  }
+
+  function elementLabel(el) {
+    return normText(el?.getAttribute?.('aria-label') || el?.getAttribute?.('title') || el?.textContent || '').slice(0, 120);
+  }
+
+  function fingerprintMatches(el, fingerprint) {
+    if (!el || !fingerprint) return true;
+    const tag = (el.tagName || '').toLowerCase();
+    const role = (el.getAttribute?.('role') || '').toLowerCase();
+    if (fingerprint.tag && tag !== String(fingerprint.tag).toLowerCase()) {
+      const roleCompatible = (fingerprint.role && role === String(fingerprint.role).toLowerCase())
+        || (fingerprint.tag === 'button' && role === 'button')
+        || (fingerprint.tag === 'a' && role === 'link');
+      if (!roleCompatible) return false;
+    }
+    if (fingerprint.role && role && role !== String(fingerprint.role).toLowerCase()) return false;
+    if (fingerprint.input_type && tag === 'input' && (el.getAttribute('type') || 'text') !== fingerprint.input_type) return false;
+    if (fingerprint.label) {
+      const expected = normText(fingerprint.label).toLowerCase();
+      const actual = elementLabel(el).toLowerCase();
+      if (!actual || (actual !== expected && !actual.includes(expected) && !expected.includes(actual) && tokenOverlap(actual, expected) < 0.5)) return false;
+    }
+    return true;
+  }
+
+  function nearestActionable(el) {
+    if (!el || isOverlayRootId(el.id)) return null;
+    const actionable = el.closest?.(ACTIONABLE_SELECTOR);
+    return actionable || null;
+  }
+
+  function resolvePointTarget(step, nx, ny, source) {
+    const px = nx * window.innerWidth;
+    const py = ny * window.innerHeight;
+    const hit = document.elementFromPoint(px, py);
+    const el = nearestActionable(hit);
+    if (!el || !isVisibleEl(el) || !fingerprintMatches(el, step.element_context?.fingerprint)) return null;
+    const rect = rectOf(el);
+    if (isElementOccluded(el)) return null;
+    return { el, rect, source };
+  }
+
+  function chooseSelectorTarget(root, selector, step, source) {
+    const candidates = queryAll(root, selector).filter(isVisibleEl);
+    if (!candidates.length) return null;
+    const fingerprint = step.element_context?.fingerprint;
+    const matching = candidates.filter(el => fingerprintMatches(el, fingerprint));
+    const pool = matching.length ? matching : candidates;
+    const accepted = [];
+    for (const el of pool) {
+      const result = acceptElementTarget(el, rectOf(el), source, step, { strong: pool.length === 1 && fingerprintMatches(el, fingerprint) });
+      if (result) accepted.push(result);
+    }
+    if (!accepted.length) return null;
+    if (accepted.length === 1) return accepted[0];
+    const expected = expectedGeometry(step).point;
+    if (!expected) return null;
+    accepted.sort((a, b) => {
+      const ac = { x: a.rect.left + a.rect.width / 2, y: a.rect.top + a.rect.height / 2 };
+      const bc = { x: b.rect.left + b.rect.width / 2, y: b.rect.top + b.rect.height / 2 };
+      return Math.hypot(ac.x - expected.x, ac.y - expected.y) - Math.hypot(bc.x - expected.x, bc.y - expected.y);
+    });
+    return accepted[0];
+  }
+
   // ── 순수 로직 ────────────────────────────────────────────────
   function resolveTarget(step) {
     let el = null, rect = null, source = 'none';
 
-    // 0순위: AI 시각 재탐색 좌표 (셀렉터·XPath·퍼지 모두 실패 후 복구된 위치)
-    if (step._regroundXY) {
-      const px = step._regroundXY.x * window.innerWidth, py = step._regroundXY.y * window.innerHeight;
-      const hit = document.elementFromPoint(px, py);
-      if (hit && !isOverlayRootId(hit.id)) { el = hit; rect = rectOf(hit); }
-      else { rect = { left: px - COORD_BOX / 2, top: py - COORD_BOX / 2, width: COORD_BOX, height: COORD_BOX }; }
-      return { el, rect, source: 'ai' };
+    // Cross-origin iframe를 특정하지 못한 경우 top document의 비슷한 selector/좌표를
+    // 대신 선택하면 잘못된 클릭 안내가 된다. 해당 프레임에서 실행 중일 때만 해석한다.
+    if (step?._frame_unavailable
+      || (step?.element_context?.frame?.is_top === false
+        && step.element_context.frame.same_origin === false
+        && !step._frame_scoped)) {
+      return { el: null, rect: null, source: 'none' };
     }
 
-    // 0.5순위: 소유자가 스튜디오에서 직접 보정한 핫스팟(0~100%) — 자동 탐지보다 우선(명시 수정한 위치)
-    if (step.hotspot_x != null && step.hotspot_y != null) {
-      const px = (step.hotspot_x / 100) * window.innerWidth, py = (step.hotspot_y / 100) * window.innerHeight;
-      const hit = document.elementFromPoint(px, py);
-      if (hit && !isOverlayRootId(hit.id)) { el = hit; rect = rectOf(hit); }
-      else { rect = { left: px - COORD_BOX / 2, top: py - COORD_BOX / 2, width: COORD_BOX, height: COORD_BOX }; }
-      return { el, rect, source: 'manual' };
+    const scoped = resolveContextRoot(step);
+    const root = scoped.root || document;
+
+    // 1순위: 캡처 당시 frame/shadow 경로를 포함한 scoped selector.
+    if (scoped.root && scoped.context?.target_selector) {
+      const found = chooseSelectorTarget(scoped.root, scoped.context.target_selector, step, 'context');
+      if (found) return found;
     }
 
-    // 1순위: CSS Selector
+    // 2순위: 레거시 CSS Selector
     if (step.element_selector) {
-      try { el = document.querySelector(step.element_selector); } catch { el = null; }
-      if (el) {
-        const accepted = acceptElementTarget(el, rectOf(el), 'selector', step);
-        if (accepted) return accepted;
-        el = null; rect = null; source = 'none';
-      }
+      const found = chooseSelectorTarget(root, step.element_selector, step, 'selector');
+      if (found) return found;
     }
 
-    // 2순위: XPath
-    if (!rect && step.element_xpath) {
+    // 3순위: XPath (ShadowRoot는 XPath를 지원하지 않음)
+    if (!rect && step.element_xpath && root && typeof root.evaluate === 'function') {
       try {
-        const xr = document.evaluate(step.element_xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+        const xr = root.evaluate(step.element_xpath, root, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
         const xe = xr.singleNodeValue;
         if (xe) {
-          const accepted = acceptElementTarget(xe, rectOf(xe), 'xpath', step);
+          const accepted = acceptElementTarget(xe, rectOf(xe), 'xpath', step, { strong: fingerprintMatches(xe, step.element_context?.fingerprint) });
           if (accepted) return accepted;
           el = null; rect = null; source = 'none';
         }
@@ -72,12 +162,25 @@
 
     // 2.5순위: 퍼지 자가복구 — 셀렉터·XPath가 모두 깨졌을 때 저장 힌트(텍스트·속성·위치)로 후보 점수화
     if (!rect) {
-      const fz = fuzzyFind(step);
+      const fz = fuzzyFind(step, root);
       if (fz) {
         const accepted = acceptElementTarget(fz, rectOf(fz), 'fuzzy', step);
         if (accepted) return accepted;
         el = null; rect = null; source = 'none';
       }
+    }
+
+    // 5순위: 수동 핫스팟. 좌표 박스를 그대로 쓰지 않고 현재 DOM의 실제 actionable 요소와
+    // 지문이 일치할 때만 채택한다. 반응형 화면에서 엉뚱한 요소를 집는 문제를 차단한다.
+    if (step.hotspot_x != null && step.hotspot_y != null) {
+      const manual = resolvePointTarget(step, step.hotspot_x / 100, step.hotspot_y / 100, 'manual');
+      if (manual) return manual;
+    }
+
+    // 6순위: AI 재탐색 좌표도 현재 DOM 검증을 통과해야 한다.
+    if (step._regroundXY) {
+      const ai = resolvePointTarget(step, step._regroundXY.x, step._regroundXY.y, 'ai');
+      if (ai) return ai;
     }
 
     // 3순위: 정규화 rect (0~1)
@@ -104,7 +207,27 @@
 
   function rectOf(el) {
     const r = el.getBoundingClientRect();
-    return { left: r.left, top: r.top, width: r.width, height: r.height };
+    let out = { left: r.left, top: r.top, width: r.width, height: r.height };
+    let win = el.ownerDocument?.defaultView;
+    try {
+      while (win && win !== window) {
+        const frame = win.frameElement;
+        if (!frame) break;
+        const fr = frame.getBoundingClientRect();
+        const borderScaleX = fr.width / Math.max(1, frame.offsetWidth || fr.width);
+        const borderScaleY = fr.height / Math.max(1, frame.offsetHeight || fr.height);
+        const scaleX = (frame.clientWidth * borderScaleX) / Math.max(1, win.innerWidth);
+        const scaleY = (frame.clientHeight * borderScaleY) / Math.max(1, win.innerHeight);
+        out = {
+          left: fr.left + frame.clientLeft * borderScaleX + out.left * scaleX,
+          top: fr.top + frame.clientTop * borderScaleY + out.top * scaleY,
+          width: out.width * scaleX,
+          height: out.height * scaleY,
+        };
+        win = win.parent;
+      }
+    } catch { /* cross-origin frames are resolved in their own content-script frame */ }
+    return out;
   }
 
   // ── 퍼지 자가복구 (P2) ────────────────────────────────────────
@@ -132,13 +255,27 @@
     }
   }
 
-  function acceptElementTarget(el, rect, source, step) {
+  function isElementOccluded(el) {
+    if (!el || !el.ownerDocument?.elementsFromPoint) return false;
+    const r = el.getBoundingClientRect();
+    if (r.width < 1 || r.height < 1) return true;
+    const x = Math.max(0, Math.min((el.ownerDocument.defaultView?.innerWidth || window.innerWidth) - 1, r.left + r.width / 2));
+    const y = Math.max(0, Math.min((el.ownerDocument.defaultView?.innerHeight || window.innerHeight) - 1, r.top + r.height / 2));
+    const stack = el.ownerDocument.elementsFromPoint(x, y).filter(node => !isOverlayRootId(node.id));
+    const top = stack[0];
+    return !!top && top !== el && !el.contains(top) && !top.contains(el);
+  }
+
+  function acceptElementTarget(el, rect, source, step, options = {}) {
     if (!el || !rect || rect.width < 1 || rect.height < 1) return null;
+    if (!isVisibleEl(el)) return null;
+    if (!rectOutsideViewport(rect) && isElementOccluded(el)) return null;
+    if (options.strong) return { el, rect, source };
     if (isGeometryMatch(el, rect, step)) return { el, rect, source };
     if (!rectOutsideViewport(rect)) return null;
 
     const revealed = revealElementInViewport(el);
-    if (revealed && revealed.width >= 1 && revealed.height >= 1 && rectIntersectsViewport(revealed, 0)) {
+    if (revealed && revealed.width >= 1 && revealed.height >= 1 && rectIntersectsViewport(revealed, 0) && !isElementOccluded(el)) {
       return { el, rect: revealed, source };
     }
     return null;
@@ -290,14 +427,14 @@
     return w ? score / w : 0;
   }
 
-  function fuzzyFind(step) {
+  function fuzzyFind(step, queryRoot = document) {
     const hint = extractHint(step);
     if (!hint.text && !hint.attrVal) return null;  // 점수 근거 없음 → 시도 안 함(좌표 폴백 유지)
     // 태그는 필터가 아닌 점수 신호 — 태그가 바뀐 경우(button→div[role=button])도 잡도록 합집합
     let sel = 'a,button,input,select,textarea,label,[role],[onclick],[tabindex]';
     if (hint.tag && /^[a-z][a-z0-9]*$/.test(hint.tag)) sel = hint.tag + ',' + sel;
     let nodes;
-    try { nodes = document.querySelectorAll(sel); } catch { return null; }
+    try { nodes = queryRoot.querySelectorAll(sel); } catch { return null; }
     const vw = window.innerWidth, vh = window.innerHeight;
     let best = null, bestScore = 0;
     for (const el of nodes) {
@@ -312,12 +449,40 @@
            y >= rect.top - pad && y <= rect.top + rect.height + pad;
   }
 
-  function isHit(clientX, clientY, target, eventTarget) {
+  function isHit(clientX, clientY, target, eventTarget, eventPath = []) {
     if (!target || !target.rect) return false;
-    if (target.el && eventTarget && (target.el === eventTarget || target.el.contains(eventTarget))) return true;
-    const pad = target.el ? HIT_PAD_EL : HIT_PAD_COORD;
-    const live = target.el ? rectOf(target.el) : target.rect;
-    return pointInRect(clientX, clientY, live, pad);
+    if (target.el) {
+      return !!eventTarget && (
+        target.el === eventTarget
+        || target.el.contains(eventTarget)
+        || eventPath.includes(target.el)
+      );
+    }
+    return pointInRect(clientX, clientY, target.rect, HIT_PAD_COORD);
+  }
+
+  function targetStateSignature(el) {
+    if (!el) return '';
+    return JSON.stringify({
+      checked: typeof el.checked === 'boolean' ? el.checked : null,
+      value: /^(input|textarea|select)$/i.test(el.tagName || '') ? el.value : null,
+      expanded: el.getAttribute?.('aria-expanded'),
+      selected: el.getAttribute?.('aria-selected'),
+      pressed: el.getAttribute?.('aria-pressed'),
+      disabled: el.disabled === true || el.getAttribute?.('aria-disabled') === 'true',
+    });
+  }
+
+  function requiresObservableStateChange(el) {
+    if (!el) return false;
+    const tag = (el.tagName || '').toLowerCase();
+    const type = (el.getAttribute?.('type') || '').toLowerCase();
+    const role = (el.getAttribute?.('role') || '').toLowerCase();
+    return (tag === 'input' && ['checkbox', 'radio'].includes(type))
+      || tag === 'select'
+      || ['checkbox', 'radio', 'switch'].includes(role)
+      || el.hasAttribute?.('aria-expanded')
+      || el.hasAttribute?.('aria-pressed');
   }
 
   // 툴팁 위치 계산 — 타깃 rect 기준, 공간 여유에 따라 아래/위 자동 선택
@@ -381,13 +546,21 @@
     hide();
     opts = opts || {};
 
+    if (step?._frame_unavailable) {
+      showWaiting({
+        ...step,
+        instruction: step.instruction || '대상 iframe을 안전하게 식별하지 못했습니다. 잘못된 위치를 안내하지 않도록 이 단계를 멈췄습니다. 화면을 확인한 뒤 건너뛰거나 다시 시도해 주세요.',
+      }, opts);
+      return;
+    }
+
     if (isExplanationStep(step)) {
       showExplanation(step, opts);
       return;
     }
 
     // URL 검증 — 엉뚱한 페이지면 좌표 핫스팟을 찍지 말고 '다른 페이지' 안내만 표시
-    if (step && step.page_url && !pageMatches(step.page_url)) {
+    if (step && step.page_url && !step._frame_scoped && !pageMatches(step.page_url)) {
       showWrongPage(step, opts);
       return;
     }
@@ -397,8 +570,8 @@
     // 요소 검증 — 셀렉터/XPath가 있는데 현재 DOM에서 못 찾으면(같은 URL의 다른 화면,
     // 또는 녹화 때 차단돼 건너뛴 단계) 좌표로 엉뚱한 핫스팟을 찍지 않는다. 대기 모드로 두고
     // 요소가 화면에 나타나면 자동으로 정상 오버레이로 전환한다.
-    const expectsEl = !!(step.element_selector || step.element_xpath);
-    const foundEl   = resolved.source === 'selector' || resolved.source === 'xpath' || resolved.source === 'fuzzy' || resolved.source === 'ai' || resolved.source === 'manual';
+    const expectsEl = !!(step.element_context?.target_selector || step.element_selector || step.element_xpath);
+    const foundEl   = resolved.source === 'context' || resolved.source === 'selector' || resolved.source === 'xpath' || resolved.source === 'fuzzy' || resolved.source === 'ai' || resolved.source === 'manual';
     if (expectsEl && !foundEl) {
       showWaiting(step, opts);
       maybeReground(step, opts);  // AI 시각 재탐색 1회성 시도 (성공 시 좌표 오버레이로 전환)
@@ -513,6 +686,7 @@
       e.stopPropagation();
       if (!state) return;
       state.tooltipHidden = false;
+      state.scheduleReposition?.();
     });
     root.appendChild(restoreBtn);
 
@@ -530,7 +704,17 @@
 
     shadow.appendChild(root);
 
-    state = { host, shadow, hl, pulse, avatar, tooltip, arrow, restoreBtn, scrollHint, resolved, step, opts, idx, total, advanced: false, completed: false, fillTimer: null, tooltipHidden: false };
+    state = { host, shadow, hl, pulse, avatar, tooltip, arrow, restoreBtn, scrollHint, resolved, step, opts, idx, total, advanced: false, completed: false, fillTimer: null, tooltipHidden: false, mutationCount: 0, inputChanged: false, initialTargetState: targetStateSignature(resolved.el), initialUrl: location.href };
+
+    if (document.body) {
+      state.actionObserver = new MutationObserver(records => {
+        if (state) {
+          state.mutationCount += records.length;
+          state.scheduleReposition?.();
+        }
+      });
+      try { state.actionObserver.observe(document.body, { childList: true, subtree: true, attributes: true }); } catch { /* noop */ }
+    }
 
     // 자동입력
     if (step.type_text && resolved.el) autoFill(resolved.el, String(step.type_text));
@@ -556,6 +740,7 @@
       else if (act === 'hide-tooltip') {
         if (!state) return;
         state.tooltipHidden = true;
+        state.scheduleReposition?.();
       }
       else if (act === 'copy') {
         const text = state && state.step && state.step.type_text;
@@ -594,7 +779,6 @@
           avatar.style.display = 'none';
           tooltip.style.display = 'none';
           if (state.scrollHint) state.scrollHint.style.display = 'none';
-          state.rafId = requestAnimationFrame(reposition);
           return;
         }
         const P = 5;
@@ -665,25 +849,89 @@
         if (state.tooltipHidden) tooltip.style.display = 'none';
         if (state.restoreBtn) state.restoreBtn.style.display = state.tooltipHidden ? 'flex' : 'none';
       }
-      state.rafId = requestAnimationFrame(reposition);
     };
-    state.rafId = requestAnimationFrame(reposition);
+    const scheduleReposition = () => {
+      if (!state || state.repositionPending) return;
+      state.repositionPending = true;
+      state.rafId = requestAnimationFrame(() => {
+        if (!state) return;
+        state.repositionPending = false;
+        reposition();
+      });
+    };
+    state.scheduleReposition = scheduleReposition;
+    scheduleReposition();
+    window.addEventListener('scroll', scheduleReposition, true);
+    window.addEventListener('resize', scheduleReposition, true);
+    state.onViewportChange = scheduleReposition;
+    state.repositionTimer = setInterval(scheduleReposition, 250);
+    if (resolved.el && typeof ResizeObserver !== 'undefined') {
+      state.resizeObserver = new ResizeObserver(scheduleReposition);
+      try { state.resizeObserver.observe(resolved.el); } catch { /* noop */ }
+    }
 
     // 클릭 감지 (캡처, 페이지 동작 막지 않음)
     const onDocClick = (e) => {
       if (state.advanced || state.completed) return;
+      if (!e.isTrusted) return;
       if (e.target === host) return;
-      if (isHit(e.clientX, e.clientY, state.resolved, e.target)) {
-        advance('click');
-      } else {
+      const path = typeof e.composedPath === 'function' ? e.composedPath() : [];
+      if (!isHit(e.clientX, e.clientY, state.resolved, e.target, path)) {
         nudge();
+        return;
       }
-    };
-    document.addEventListener('click', onDocClick, true);
-    state.onDocClick = onDocClick;
 
-    const onKey = (e) => { if (e.key === 'Escape') opts.onExit && opts.onExit(); };
-    document.addEventListener('keydown', onKey, true);
+      const target = state.resolved.el;
+      if (e.defaultPrevented || target?.disabled === true || target?.getAttribute?.('aria-disabled') === 'true') {
+        nudge();
+        return;
+      }
+
+      const beforeMutations = state.mutationCount;
+      const beforeState = state.initialTargetState;
+      setTimeout(() => {
+        if (!state || state.advanced || state.completed) return;
+        const current = state.resolved.el;
+        const changed = !current?.isConnected
+          || targetStateSignature(current) !== beforeState
+          || state.mutationCount > beforeMutations
+          || location.href !== state.initialUrl;
+        if (requiresObservableStateChange(current) && !changed) {
+          nudge();
+          return;
+        }
+        advance('click');
+      }, 120);
+    };
+    const eventDoc = resolved.el?.ownerDocument || document;
+    eventDoc.addEventListener('click', onDocClick, false);
+    state.onDocClick = onDocClick;
+    state.eventDoc = eventDoc;
+
+    const onInput = (e) => {
+      if (!state || !state.resolved.el) return;
+      if (!e.isTrusted) return;
+      const path = typeof e.composedPath === 'function' ? e.composedPath() : [];
+      if (path.includes(state.resolved.el) || e.target === state.resolved.el || state.resolved.el.contains?.(e.target)) state.inputChanged = true;
+    };
+    const onChange = (e) => {
+      if (!e.isTrusted) return;
+      onInput(e);
+      if (state?.inputChanged) setTimeout(() => advance('change'), 0);
+    };
+    eventDoc.addEventListener('input', onInput, false);
+    eventDoc.addEventListener('change', onChange, false);
+    state.onInput = onInput;
+    state.onChange = onChange;
+
+    const onKey = (e) => {
+      if (e.key === 'Escape') { opts.onExit && opts.onExit(); return; }
+      const editing = /^(input|textarea|select)$/i.test(e.target?.tagName || '') || e.target?.isContentEditable;
+      if (e.key === 'Enter' && editing && state?.inputChanged) { advance('enter'); return; }
+      if (!editing && e.key === 'ArrowRight') { advance('keyboard'); return; }
+      if (!editing && e.key === 'ArrowLeft') { opts.onPrev && opts.onPrev(); }
+    };
+    eventDoc.addEventListener('keydown', onKey, false);
     state.onKey = onKey;
   }
 
@@ -767,6 +1015,8 @@
   function showComplete() {
     if (!state) return;
     if (state.rafId) cancelAnimationFrame(state.rafId);
+    if (state.repositionTimer) clearInterval(state.repositionTimer);
+    if (state.resizeObserver) state.resizeObserver.disconnect();
     state.completed = true;
     state.hl.style.display = 'none';
     state.pulse.style.display = 'none';
@@ -969,7 +1219,7 @@
     const tryResolve = () => {
       if (!state || !state.waiting) return false;
       const r = resolveTarget(step);
-      if ((r.source === 'selector' || r.source === 'xpath' || r.source === 'fuzzy') && r.el) {
+      if ((r.source === 'context' || r.source === 'selector' || r.source === 'xpath' || r.source === 'fuzzy') && r.el) {
         show(step, opts);  // hide() 후 정상 오버레이 렌더
         return true;
       }
@@ -1078,15 +1328,25 @@
       return;
     }
     if (state.rafId) cancelAnimationFrame(state.rafId);
+    if (state.repositionTimer) clearInterval(state.repositionTimer);
+    if (state.resizeObserver) state.resizeObserver.disconnect();
     if (state.fillTimer) clearTimeout(state.fillTimer);
     if (state.findTimer) clearTimeout(state.findTimer);
     if (state.findObserver) state.findObserver.disconnect();
+    if (state.actionObserver) state.actionObserver.disconnect();
     if (state.onWaitViewportChange) {
       window.removeEventListener('scroll', state.onWaitViewportChange, true);
       window.removeEventListener('resize', state.onWaitViewportChange, true);
     }
-    if (state.onDocClick) document.removeEventListener('click', state.onDocClick, true);
-    if (state.onKey) document.removeEventListener('keydown', state.onKey, true);
+    if (state.onViewportChange) {
+      window.removeEventListener('scroll', state.onViewportChange, true);
+      window.removeEventListener('resize', state.onViewportChange, true);
+    }
+    const eventDoc = state.eventDoc || document;
+    if (state.onDocClick) eventDoc.removeEventListener('click', state.onDocClick, false);
+    if (state.onInput) eventDoc.removeEventListener('input', state.onInput, false);
+    if (state.onChange) eventDoc.removeEventListener('change', state.onChange, false);
+    if (state.onKey) eventDoc.removeEventListener('keydown', state.onKey, false);
     if (state.host) state.host.remove();
     state = null;
   }
