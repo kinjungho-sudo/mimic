@@ -25,7 +25,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   const [{ data: tutorialForQuality }, { data: stepsForQuality, error: qualityError }] = await Promise.all([
     supabase.from('mm_tutorials').select('title').eq('id', id).single(),
     supabase.from('mm_steps')
-      .select('id, step_number, user_title, ai_title, user_script, ai_description, screenshot_url, click_x, click_y, element_rect, element_selector, element_xpath, follow_config, step_type, pii_detected')
+      .select('*')
       .eq('tutorial_id', id)
       .order('order_index')
       .order('step_number'),

@@ -131,7 +131,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   const [{ data: tutorial }, { data: rawSteps, error: stepsError }] = await Promise.all([
     supabase.from('mm_tutorials').select('id, title').eq('id', id).single(),
     supabase.from('mm_steps')
-      .select('id, step_number, user_title, ai_title, user_script, ai_description, page_url, domain_name, type_text')
+      .select('*')
       .eq('tutorial_id', id)
       .order('order_index')
       .order('step_number'),
