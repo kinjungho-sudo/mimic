@@ -131,7 +131,8 @@ Verification:
 Current old-brand values:
 
 - Chrome Web Store slug: `mimic-recorder`
-- Privacy policy URL: `https://kinjungho-sudo.github.io/mimic-recorder-policy/privacy_policy.html`
+- Active Web Store review privacy policy URL: `https://parro-guide-dev.vercel.app/legal/privacy`
+- Planned production privacy policy URL after an approved Production deployment: `https://parro-guide.vercel.app/legal/privacy`
 
 Files currently holding values include:
 

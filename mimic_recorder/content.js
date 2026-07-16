@@ -437,7 +437,9 @@
     // 입력 원문 보관 — 비밀번호 등 민감 필드는 저장하지 않는다(라벨도 '비밀번호 입력').
     // 짧으면 스텝 라벨에 '입력, "내용"'으로, 길면 본문(typedText)에 전문 보관해 매뉴얼 생성 참고자료로 쓴다.
     const isMasked  = SENSITIVE_INPUT_TYPES.has((el.type || '').toLowerCase()) || SENSITIVE_LABEL_RE.test(label);
-    const typedText = isMasked ? '' : textValue;
+    // 구조화된 입력 원문은 사용자가 설정에서 명시적으로 켠 경우에만 저장한다.
+    // 스크린샷에는 입력 화면이 보일 수 있으므로 별도의 개인정보 안내를 유지한다.
+    const typedText = isMasked || !settings.saveText ? '' : textValue;
     const safetyTimer = startCapturingSafely();
     const done = () => { clearTimeout(safetyTimer); isCapturing = false; };
 

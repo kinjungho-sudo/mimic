@@ -1296,6 +1296,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           const origin = data.webapp_origin || await getWebappOrigin();
           chrome.tabs.create({ url: `${origin}/manual/${data.tutorial_id}/editor?from=recording` });
           await storageSet({ isRecording: false, isPaused: false, stepNumber: 0, steps: [], sessionId: null, _undoStack: [] });
+          // 서버 전송이 끝난 캡처 Blob은 기기에 남겨둘 이유가 없다.
+          // 개인정보처리방침의 "완료 후 로컬 임시 데이터 삭제"와 실제 동작을 일치시킨다.
+          await idbClear().catch((error) => log('warn', 'bg', 'finalize local cache clear failed:', error?.message || error));
         }
         sendResponse({ ok: true, ...data });
       } catch (err) {

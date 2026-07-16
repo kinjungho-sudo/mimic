@@ -540,3 +540,12 @@
 - Removed remaining visible old-brand indigo defaults from the settings profile/export surface and increased helper text contrast/size for readability.
 - Aligned DOCX and shared-token PDF export defaults with Parro brand color tokens, shared PDF rendering, neutral cover placeholders, and highlight-annotation wording.
 - Re-ran `git diff --check`, `npm run lint`, `npx tsc --noEmit --pretty false`, and `$env:NODE_OPTIONS='--use-system-ca'; npm run build`; all passed with only the existing unrelated lint warnings.
+
+## 2026-07-16 - Chrome Web Store privacy rejection remediation
+
+- Confirmed the Web Store rejection notice `Purple Nickel`: the submitted privacy-policy URL did not link directly to a valid privacy policy.
+- Replaced the stale GitHub Pages policy URL with the public, direct review route `https://parro-guide-dev.vercel.app/legal/privacy`; the Production URL remains a later cutover after an approved Production deployment.
+- Expanded the public policy to disclose Recorder screenshots, page URL/title, clicks, input screens and optional input text, optional microphone audio, account-link tokens, desktop capture, local storage, subprocessors, retention, deletion, and Chrome Web Store Limited Use commitments.
+- Fixed Recorder privacy behavior so structured input text is stored only when the user enables the setting, and successful finalization clears temporary IndexedDB capture blobs.
+- Added an in-product recording disclosure with a direct privacy-policy link, bumped the Recorder to `1.7.1`, and generated the review package `mimic_recorder/parro-recorder-v1.7.1.zip`.
+- Verified Recorder JavaScript syntax, ZIP whitelist and paths, manifest name/version, policy disclosure contents, local `/legal/privacy` HTTP 200 rendering, and a full Next.js production build.

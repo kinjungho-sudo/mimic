@@ -62,6 +62,14 @@
     }
     .btn-start:hover { background: #00796F; }
     .btn-start:disabled { background: #9AD8D0; cursor: not-allowed; }
+    .privacy-notice {
+      margin-top: 10px;
+      color: #667085;
+      font-size: 11px;
+      line-height: 1.55;
+      text-align: center;
+    }
+    .privacy-notice a { color: #00796F; font-weight: 650; text-decoration: underline; text-underline-offset: 2px; }
 
     /* 전체 페이지 캡처는 헤더의 작은 아이콘(btn-settings 스타일 재사용)으로 이동 */
     /* 캡처 차단 토스트 등에서 공유하는 등장 애니메이션 */
@@ -448,6 +456,10 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg>
         녹화 시작
       </button>
+      <p class="privacy-notice">
+        녹화 중 선택한 화면, 페이지 URL·제목, 클릭 및 입력 화면이 매뉴얼 생성을 위해 Parro로 전송됩니다.
+        비밀번호 값은 저장하지 않습니다. <a href="https://parro-guide-dev.vercel.app/legal/privacy" target="_blank" rel="noopener noreferrer">개인정보 처리방침</a>
+      </p>
     </div>
   </div>
 
