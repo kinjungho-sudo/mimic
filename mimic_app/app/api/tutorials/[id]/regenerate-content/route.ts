@@ -33,8 +33,10 @@ function serviceName(step: StoredStep): string {
 }
 
 function purposeFallback(step: StoredStep, index: number, steps: StoredStep[]) {
-  const rawTitle = maskManualCopy(step.user_title || step.ai_title);
-  const rawScript = maskManualCopy(step.user_script || step.ai_description);
+  // Keep regeneration idempotent: the AI fields preserve the original capture,
+  // while user fields may already contain a previously generated fallback.
+  const rawTitle = maskManualCopy(step.ai_title || step.user_title);
+  const rawScript = maskManualCopy(step.ai_description || step.user_script);
   const text = `${rawTitle} ${rawScript}`;
   const lower = text.toLowerCase();
   const service = serviceName(step);
