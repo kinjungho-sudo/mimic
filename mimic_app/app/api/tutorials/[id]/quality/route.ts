@@ -25,8 +25,16 @@ export async function GET(request: NextRequest, { params }: Params) {
       .order('step_number'),
   ]);
 
-  if (!tutorial || error) return NextResponse.json({ error: '품질을 검사할 수 없습니다.' }, { status: 404 });
-  const issues = assessManualQuality(tutorial.title, (steps ?? []) as ManualQualityStep[]);
+  if (!tutorial) return NextResponse.json({ error: '매뉴얼을 찾을 수 없습니다.' }, { status: 404 });
+  if (error) return NextResponse.json({ error: `단계 품질 검사 준비에 실패했습니다: ${error.message}` }, { status: 500 });
+  let issues;
+  try {
+    issues = assessManualQuality(tutorial.title, (steps ?? []) as ManualQualityStep[]);
+  } catch (qualityError) {
+    return NextResponse.json({
+      error: `단계 품질 검사 중 오류가 발생했습니다: ${qualityError instanceof Error ? qualityError.message : String(qualityError)}`,
+    }, { status: 500 });
+  }
   return NextResponse.json({
     ready: !issues.some(issue => issue.severity === 'error'),
     issues,
