@@ -70,16 +70,35 @@
   }
 
   // ── DOM 유틸 ───────────────────────────────────────────────
-  function findElement(selector, xpath) {
+  function findElement(selector, xpath, targetContext) {
+    var root = document;
+    var framePath = targetContext && Array.isArray(targetContext.framePath) ? targetContext.framePath : [];
+    var shadowPath = targetContext && Array.isArray(targetContext.shadowPath) ? targetContext.shadowPath : [];
+    try {
+      for (var f = 0; f < framePath.length; f += 1) {
+        var frame = root.querySelector(framePath[f]);
+        if (!frame || !frame.contentDocument) return null;
+        root = frame.contentDocument;
+      }
+      for (var s = 0; s < shadowPath.length; s += 1) {
+        var host = root.querySelector(shadowPath[s]);
+        if (!host || !host.shadowRoot) return null;
+        root = host.shadowRoot;
+      }
+    } catch (e) {
+      // Cross-origin frames cannot be traversed by the embed SDK. Returning null
+      // is intentional: a centered explanation is safer than a wrong highlight.
+      return null;
+    }
     if (selector) {
       try {
-        var el = document.querySelector(selector);
+        var el = root.querySelector(selector);
         if (el) return el;
       } catch (e) { /* invalid selector */ }
     }
-    if (xpath) {
+    if (xpath && root.nodeType === Node.DOCUMENT_NODE) {
       try {
-        var result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+        var result = root.evaluate(xpath, root, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
         if (result.singleNodeValue) return result.singleNodeValue;
       } catch (e) { /* invalid xpath */ }
     }
@@ -88,7 +107,26 @@
 
   function getRect(el) {
     var r = el.getBoundingClientRect();
-    return { top: r.top, left: r.left, width: r.width, height: r.height };
+    var top = r.top;
+    var left = r.left;
+    var width = r.width;
+    var height = r.height;
+    var ownerWindow = el.ownerDocument && el.ownerDocument.defaultView;
+    try {
+      while (ownerWindow && ownerWindow !== window) {
+        var frame = ownerWindow.frameElement;
+        if (!frame) break;
+        var fr = frame.getBoundingClientRect();
+        var scaleX = fr.width / Math.max(1, ownerWindow.innerWidth);
+        var scaleY = fr.height / Math.max(1, ownerWindow.innerHeight);
+        left = fr.left + left * scaleX;
+        top = fr.top + top * scaleY;
+        width *= scaleX;
+        height *= scaleY;
+        ownerWindow = ownerWindow.parent;
+      }
+    } catch (e) { /* cross-origin paths are rejected by findElement */ }
+    return { top: top, left: left, width: width, height: height };
   }
 
   // ── 툴팁 위치 계산 ─────────────────────────────────────────
@@ -210,7 +248,7 @@
     if (!step) { this.destroy(); return; }
 
     var self = this;
-    var targetEl = findElement(step.element_selector, step.element_xpath);
+    var targetEl = findElement(step.element_selector, step.element_xpath, step.target_context);
 
     // 하이라이트
     if (targetEl) {

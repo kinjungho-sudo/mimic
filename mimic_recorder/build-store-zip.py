@@ -18,6 +18,7 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 FILES = [
     "manifest.json",
     "background.js", "content.js", "guide-engine.js",
+    "desktop-bridge.js", "desktop-import.js", "targeting.js",
     "popup.js", "popup.html",
     "offscreen.html", "offscreen.js",
     "request-mic.html", "request-mic.js",

@@ -143,14 +143,91 @@
     try {
       return { vw: window.top.innerWidth, vh: window.top.innerHeight };
     } catch {
+      if (cachedFrameGeometry?.viewportW && cachedFrameGeometry?.viewportH) {
+        return { vw: cachedFrameGeometry.viewportW, vh: cachedFrameGeometry.viewportH };
+      }
       return { vw: window.innerWidth, vh: window.innerHeight };
     }
+  }
+
+  const FRAME_GEOMETRY_REQUEST = 'PARRO_FRAME_GEOMETRY_REQUEST_V1';
+  const FRAME_GEOMETRY_RESPONSE = 'PARRO_FRAME_GEOMETRY_RESPONSE_V1';
+  let cachedFrameGeometry = IS_TOP_FRAME ? {
+    left: 0, top: 0, scaleX: 1, scaleY: 1, framePath: [], access: 'top', quality: 'high',
+    viewportW: window.innerWidth, viewportH: window.innerHeight,
+  } : null;
+  let frameGeometryRequestTimer = null;
+
+  function requestFrameGeometry() {
+    if (IS_TOP_FRAME || window.parent === window) return;
+    window.parent.postMessage({
+      type: FRAME_GEOMETRY_REQUEST,
+      width: window.innerWidth,
+      height: window.innerHeight,
+    }, '*');
+  }
+
+  function scheduleFrameGeometryRequest() {
+    if (IS_TOP_FRAME) return;
+    if (frameGeometryRequestTimer) clearTimeout(frameGeometryRequestTimer);
+    frameGeometryRequestTimer = setTimeout(requestFrameGeometry, 40);
+  }
+
+  window.addEventListener('message', (event) => {
+    const data = event.data;
+    if (!data || typeof data !== 'object') return;
+
+    if (data.type === FRAME_GEOMETRY_REQUEST) {
+      const frames = [...document.querySelectorAll('iframe,frame')];
+      const frame = frames.find(candidate => candidate.contentWindow === event.source);
+      if (!frame || !event.source) return;
+      const localRect = frame.getBoundingClientRect();
+      const topRect = toTopRect(localRect);
+      const parentPath = cachedFrameGeometry?.framePath ?? [];
+      const frameSelector = getElementSelector(frame);
+      const topViewport = getViewportSize();
+      event.source.postMessage({
+        type: FRAME_GEOMETRY_RESPONSE,
+        left: topRect.left,
+        top: topRect.top,
+        scaleX: topRect.width / Math.max(1, Number(data.width) || localRect.width || 1),
+        scaleY: topRect.height / Math.max(1, Number(data.height) || localRect.height || 1),
+        framePath: frameSelector ? [...parentPath, frameSelector] : parentPath,
+        access: event.origin === location.origin ? 'same-origin' : 'cross-origin',
+        quality: topRect.quality === 'low' || !frameSelector ? 'low' : 'high',
+        viewportW: topViewport.vw,
+        viewportH: topViewport.vh,
+      }, '*');
+      return;
+    }
+
+    if (data.type === FRAME_GEOMETRY_RESPONSE && event.source === window.parent) {
+      cachedFrameGeometry = {
+        left: Number(data.left) || 0,
+        top: Number(data.top) || 0,
+        scaleX: Number(data.scaleX) || 1,
+        scaleY: Number(data.scaleY) || 1,
+        framePath: Array.isArray(data.framePath) ? data.framePath.filter(Boolean).slice(0, 8) : [],
+        access: data.access === 'cross-origin' ? 'cross-origin' : 'same-origin',
+        quality: data.quality === 'low' ? 'low' : 'high',
+        viewportW: Number(data.viewportW) || window.innerWidth,
+        viewportH: Number(data.viewportH) || window.innerHeight,
+      };
+    }
+  });
+
+  if (!IS_TOP_FRAME) {
+    requestFrameGeometry();
+    window.addEventListener('resize', scheduleFrameGeometryRequest, { passive: true });
+    window.addEventListener('scroll', scheduleFrameGeometryRequest, { passive: true });
+    setTimeout(requestFrameGeometry, 250);
   }
 
   function mapPointToTop(x, y) {
     let mappedX = x;
     let mappedY = y;
     let win = window;
+    let reachedTop = win === win.top;
     try {
       while (win !== win.top) {
         const frame = win.frameElement;
@@ -164,10 +241,21 @@
         mappedY = rect.top + mappedY * scaleY;
         win = win.parent;
       }
+      reachedTop = win === win.top;
     } catch {
-      return { x, y };
+      reachedTop = false;
     }
-    return { x: mappedX, y: mappedY };
+    if (reachedTop) return { x: mappedX, y: mappedY, quality: 'high' };
+    if (cachedFrameGeometry) {
+      return {
+        x: cachedFrameGeometry.left + x * cachedFrameGeometry.scaleX,
+        y: cachedFrameGeometry.top + y * cachedFrameGeometry.scaleY,
+        quality: cachedFrameGeometry.quality,
+      };
+    }
+    // A local iframe coordinate must never be presented as a trustworthy
+    // top-viewport coordinate.  Keep it only as an explicit low-confidence fallback.
+    return { x, y, quality: 'low' };
   }
 
   function toTopRect(rect) {
@@ -180,6 +268,7 @@
       top: topLeft.y,
       width: Math.max(0, bottomRight.x - topLeft.x),
       height: Math.max(0, bottomRight.y - topLeft.y),
+      quality: topLeft.quality === 'low' || bottomRight.quality === 'low' ? 'low' : 'high',
     };
   }
 
@@ -355,15 +444,18 @@
     const { cx, cy } = rectCenter(el);
     const { vw, vh } = getViewportSize();
     // Preserve the original input-click target for Live Guide replay.
-    const rect = el.getBoundingClientRect();
+    const rawRect = el.getBoundingClientRect();
+    const rect = targetClientRect(el, rawRect.left + rawRect.width / 2, rawRect.top + rawRect.height / 2) || rawRect;
+    const topRect = toTopRect(rect);
     const focusSnapshot = typingFocusSnapshot;
-    const elementRect = focusSnapshot?.elementRect ?? normalizeRect(toTopRect(rect), vw, vh);
-    const elementSelector = focusSnapshot?.elementSelector ?? getElementSelector(el);
-    const elementXPath = focusSnapshot?.elementXPath ?? getElementXPath(el);
+    const elementRect = focusSnapshot?.elementRect ?? (topRect.quality === 'low' ? null : normalizeRect(topRect, vw, vh));
+    const elementSelector = focusSnapshot?.elementSelector ?? replaySelector(el);
+    const elementXPath = focusSnapshot?.elementXPath ?? replayXPath(el);
     const clickX = focusSnapshot?.clickX ?? cx;
     const clickY = focusSnapshot?.clickY ?? cy;
     const role = focusSnapshot?.role || el.getAttribute('role') || undefined;
     const labelDebug = focusSnapshot?.labelDebug ?? buildLabelDebug(el, label);
+    const targetContext = focusSnapshot?.targetContext ?? buildTargetContext(el, rect, topRect, label);
 
     lastCapturedTarget = el;
     lastCapturedTime   = Date.now();
@@ -376,7 +468,7 @@
       usePrecapture: !!opts.usePrecapture, peekPrecapture: !!opts.peekPrecapture,
       typedText,
       elementRect, elementSelector, elementXPath,
-      actionInfo: { type: 'type', label, text: label, typedText, masked: isMasked, tag: el.tagName.toLowerCase(), role, labelDebug },
+      actionInfo: { type: 'type', label, text: label, typedText, masked: isMasked, tag: el.tagName.toLowerCase(), role, labelDebug, targetContext },
     }, done);
 
     endSession();
@@ -793,26 +885,29 @@
       event.stopPropagation();
       event.stopImmediatePropagation();
 
-      const target = refineActionTarget(raw, findInteractiveTarget(raw) || raw);
-      const rect = target.getBoundingClientRect();
-      const vw = Math.max(1, window.innerWidth);
-      const vh = Math.max(1, window.innerHeight);
+      const target = refineActionTarget(raw, findInteractiveTarget(raw, event) || raw);
+      const rect = targetClientRect(target, event.clientX, event.clientY) || target.getBoundingClientRect();
+      const topRect = toTopRect(rect);
+      const topClick = toTopPoint(event.clientX, event.clientY);
+      const { vw, vh } = getViewportSize();
       const clamp = value => Math.max(0, Math.min(1, value));
+      const label = getElementLabel(target, raw) || null;
 
       finish({
         ok: true,
         page_url: window.location.href,
-        element_selector: getElementSelector(target) || null,
-        element_xpath: getElementXPath(target) || null,
-        element_rect: {
-          x: clamp(rect.left / vw),
-          y: clamp(rect.top / vh),
-          width: clamp(rect.width / vw),
-          height: clamp(rect.height / vh),
+        element_selector: replaySelector(target) || null,
+        element_xpath: replayXPath(target) || null,
+        element_rect: topRect.quality === 'low' ? null : {
+          x: clamp(topRect.left / vw),
+          y: clamp(topRect.top / vh),
+          width: clamp(topRect.width / vw),
+          height: clamp(topRect.height / vh),
         },
-        click_x: clamp(event.clientX / vw),
-        click_y: clamp(event.clientY / vh),
-        label: getElementLabel(target, raw) || null,
+        click_x: topClick.quality === 'low' ? null : clamp(topClick.x / vw),
+        click_y: topClick.quality === 'low' ? null : clamp(topClick.y / vh),
+        label,
+        target_context: buildTargetContext(target, rect, topRect, label),
       });
     }
 
@@ -820,62 +915,82 @@
     timeoutId = setTimeout(() => finish({ ok: false, reason: 'timeout', error: '대상 선택 시간이 초과되었습니다.' }), 30000);
   }
 
-  function findInteractiveTarget(el) {
+  const targetDecisionByElement = new WeakMap();
+  const SEMANTIC_ROLES = new Set(['button', 'link', 'menuitem', 'option', 'tab', 'checkbox', 'radio', 'switch', 'combobox', 'textbox']);
+
+  function targetClientRect(el, clientX, clientY) {
+    if (!el) return null;
+    const rects = typeof el.getClientRects === 'function' ? el.getClientRects() : [];
+    return ParroTargeting.pickBestClientRect(rects, clientX, clientY)
+      || ParroTargeting.pickBestClientRect([el.getBoundingClientRect()], clientX, clientY);
+  }
+
+  function eventElementPath(el, event) {
+    const result = [];
+    const add = (candidate) => {
+      if (!candidate || candidate.nodeType !== Node.ELEMENT_NODE || result.includes(candidate)) return;
+      result.push(candidate);
+    };
+    if (event && typeof event.composedPath === 'function') event.composedPath().forEach(add);
+    if (event && typeof document.elementsFromPoint === 'function') {
+      document.elementsFromPoint(event.clientX, event.clientY).forEach(add);
+    }
+    let cur = el;
+    for (let depth = 0; cur && depth < 10; depth += 1) {
+      add(cur);
+      cur = cur.parentElement || cur.getRootNode?.().host || null;
+    }
+    return result;
+  }
+
+  function targetFacts(el, event, depthFromTarget) {
+    const style = window.getComputedStyle(el);
+    const rect = targetClientRect(el, event?.clientX ?? 0, event?.clientY ?? 0);
+    const tag = el.tagName?.toLowerCase() || '';
+    const role = (el.getAttribute('role') || '').toLowerCase();
+    const type = (el.getAttribute('type') || '').toLowerCase();
+    const nativeInteractive = /^(button|a|select|textarea|summary|label)$/.test(tag)
+      || (tag === 'input' && type !== 'hidden');
+    const semanticRole = SEMANTIC_ROLES.has(role);
+    const accessibleName = getElementLabel(el);
+    const area = (rect?.width || 0) * (rect?.height || 0);
+    const viewportArea = Math.max(1, window.innerWidth * window.innerHeight);
+    return {
+      rect,
+      facts: {
+        visible: !!rect && style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity || 1) > 0,
+        disabled: el.matches?.(':disabled') || el.getAttribute('aria-disabled') === 'true',
+        nativeInteractive,
+        semanticRole,
+        hasClickHandler: el.hasAttribute('onclick') || el.getAttribute('tabindex') !== null || el.getAttribute('aria-haspopup') != null,
+        pointerCursor: style.cursor === 'pointer',
+        containsClick: !!rect && ParroTargeting.rectContainsPoint(rect, event?.clientX ?? 0, event?.clientY ?? 0, 2),
+        accessibleName,
+        stableAttribute: !!(el.id && isStableId(el.id)) || ['data-testid', 'data-cy', 'data-test', 'aria-label', 'name'].some(attr => !!el.getAttribute(attr)),
+        exactEventTarget: el === event?.target,
+        iconOnly: isIconOnly(el),
+        areaRatio: area / viewportArea,
+        depthFromTarget,
+      },
+    };
+  }
+
+  function findInteractiveTarget(el, event = null) {
     if (!el || el === document.documentElement) return null;
     if (document.designMode === 'on') return document.body;
 
-    const found = el.closest(INTERACTIVE);
-    if (found) return found;
-
-    let cur = el;
-    for (let i = 0; i < 8; i++) {
-      if (!cur || cur === document.documentElement) break;
-      if (window.getComputedStyle(cur).cursor === 'pointer') return cur;
-      cur = cur.parentElement;
-    }
-
-    cur = el;
-    for (let i = 0; i < 8; i++) {
-      if (!cur || cur === document.documentElement || cur === document.body) break;
-      if (
-        cur.hasAttribute('onclick') ||
-        cur.getAttribute('role') === 'button' ||
-        cur.getAttribute('role') === 'link' ||
-        cur.getAttribute('tabindex') !== null ||
-        (cur.dataset && Object.keys(cur.dataset).length > 0 && cur.tagName !== 'INPUT')
-      ) return cur;
-      cur = cur.parentElement;
-    }
-
-    // 아이콘 버튼 보강 — svg/path/img/i 같은 아이콘을 클릭했는데 위 신호로 못 잡은 경우
-    // (cursor:pointer가 명시 안 된 커스텀 위젯·캔버스형 에디터의 작은 아이콘 버튼),
-    // 가장 가까운 '클릭 가능해 보이는' 작은 조상을 타겟으로 삼는다. 아이콘 클릭에만 한정해 오탐 방지.
-    const tag0 = el.tagName ? el.tagName.toLowerCase() : '';
-    const cls0 = typeof el.className === 'string' ? el.className : (el.className?.baseVal ?? '');
-    const ICON_TAG  = /^(svg|path|use|symbol|polygon|circle|rect|g|img|i)$/;
-    const ICONISH   = /(^|[-_ ])(icon|btn|button|action|clickable|toggle|chip|fab|plus|add|menu|caret|arrow|close|more|kebab|dots|trigger)([-_ ]|$)/i;
-    if (ICON_TAG.test(tag0) || ICONISH.test(cls0)) {
-      cur = el;
-      for (let i = 0; i < 6; i++) {
-        if (!cur || cur === document.documentElement || cur === document.body) break;
-        const cs   = window.getComputedStyle(cur);
-        const ccls = typeof cur.className === 'string' ? cur.className : (cur.className?.baseVal ?? '');
-        const looksClickable =
-          cs.cursor === 'pointer' ||
-          cur.getAttribute('role') ||
-          cur.getAttribute('aria-label') || cur.getAttribute('title') ||
-          cur.getAttribute('aria-haspopup') != null || cur.getAttribute('aria-expanded') != null ||
-          cur.hasAttribute('onclick') || cur.getAttribute('tabindex') != null ||
-          ICONISH.test(ccls);
-        const r = cur.getBoundingClientRect();
-        const sized = r.width > 0 && r.height > 0 &&
-                      r.width <= window.innerWidth * 0.5 && r.height <= window.innerHeight * 0.5;
-        if (looksClickable && sized) return cur;
-        cur = cur.parentElement;
-      }
-    }
-
-    return null;
+    const candidates = eventElementPath(el, event)
+      .map((candidate, index) => ({ element: candidate, ...targetFacts(candidate, event, index) }))
+      .filter(candidate => candidate.facts.nativeInteractive || candidate.facts.semanticRole || candidate.facts.hasClickHandler || candidate.facts.pointerCursor);
+    const decision = ParroTargeting.chooseTarget(candidates);
+    if (!decision.best) return null;
+    targetDecisionByElement.set(decision.best.element, {
+      confidence: decision.confidence,
+      score: decision.best.score,
+      margin: decision.margin,
+      rect: decision.best.rect,
+    });
+    return decision.best.element;
   }
 
   // ── 엘리먼트 메타 추출 ───────────────────────────────────────────
@@ -943,6 +1058,8 @@
     if (!el || !el.getAttribute) return '';
     const raw = collectLabelCandidates(el);
     const specific = [
+      raw.labelledBy,
+      raw.associatedLabel,
       raw.ariaLabel,
       raw.title,
       raw.describedBy,
@@ -967,7 +1084,17 @@
   }
 
   function collectLabelCandidates(el) {
+    const associatedLabel = (() => {
+      if (!el) return '';
+      if (el.id) {
+        const explicit = document.querySelector(`label[for="${CSS.escape(el.id)}"]`);
+        if (explicit) return cleanLabelText(explicit.textContent);
+      }
+      return cleanLabelText(el.closest?.('label')?.textContent);
+    })();
     return {
+      labelledBy: cleanLabelText(textFromIds(el?.getAttribute?.('aria-labelledby'))),
+      associatedLabel,
       ariaLabel: cleanLabelText(el?.getAttribute?.('aria-label')),
       title: cleanLabelText(el?.getAttribute?.('title')),
       describedBy: cleanLabelText(textFromIds(el?.getAttribute?.('aria-describedby'))),
@@ -1039,22 +1166,24 @@
 
   function buildPointerDownSnapshot(captureEl, target, clickedEl, event) {
     if (!captureEl || typeof captureEl.getBoundingClientRect !== 'function') return null;
-    const rect = captureEl.getBoundingClientRect();
-    if (!rect.width || !rect.height) return null;
+    const rect = targetClientRect(captureEl, event.clientX, event.clientY);
+    if (!rect || !rect.width || !rect.height) return null;
     const { vw, vh } = getViewportSize();
     const topClick = toTopPoint(event.clientX, event.clientY);
     const label = getElementLabel(captureEl, clickedEl);
     const href = captureEl.getAttribute('href') || captureEl.closest('a')?.getAttribute('href') || target.getAttribute('href') || target.closest('a')?.getAttribute('href') || '';
+    const topRect = toTopRect(rect);
     return {
       target: captureEl,
       time: Date.now(),
       x: event.clientX,
       y: event.clientY,
-      clickX: topClick.x,
-      clickY: topClick.y,
-      elementRect: normalizeRect(toTopRect(rect), vw, vh),
-      elementSelector: getElementSelector(captureEl),
-      elementXPath: getElementXPath(captureEl),
+      clickX: topClick.quality === 'low' ? 0 : topClick.x,
+      clickY: topClick.quality === 'low' ? 0 : topClick.y,
+      elementRect: topRect.quality === 'low' ? null : normalizeRect(topRect, vw, vh),
+      elementSelector: replaySelector(captureEl),
+      elementXPath: replayXPath(captureEl),
+      targetContext: buildTargetContext(captureEl, rect, topRect, label),
       label,
       role: captureEl.getAttribute('role') || target.getAttribute('role') || undefined,
       actionType: getActionType(target),
@@ -1116,6 +1245,7 @@
           role: snapshot.role,
           href: (snapshot.href || '').slice(0, 200),
           labelDebug: snapshot.labelDebug,
+          targetContext: snapshot.targetContext,
           fallbackReason: 'pointerup-no-click',
         },
       }, () => { clearTimeout(safetyTimer); isCapturing = false; });
@@ -1146,18 +1276,20 @@
 
   function getElementSelector(el) {
     try {
+      const queryRoot = el.getRootNode?.() || document;
+      const queryAll = (selector) => queryRoot.querySelectorAll(selector);
       if (el.id && isStableId(el.id)) return `#${CSS.escape(el.id)}`;
       const tag = el.tagName.toLowerCase();
       for (const attr of ['data-testid', 'data-cy', 'data-test', 'aria-label', 'name']) {
         const val = el.getAttribute(attr);
         if (val) {
           const sel = `${tag}[${attr}="${CSS.escape(val)}"]`;
-          if (document.querySelectorAll(sel).length === 1) return sel;
+          if (queryAll(sel).length === 1) return sel;
         }
       }
 
       const buildPath = (node, depth) => {
-        if (depth <= 0 || !node || node === document.documentElement) return '';
+        if (depth <= 0 || !node || node.nodeType !== Node.ELEMENT_NODE || node === document.documentElement) return '';
         const t = node.tagName.toLowerCase();
         let sel = t;
         if (node.id && isStableId(node.id)) return `#${CSS.escape(node.id)}`;
@@ -1177,7 +1309,7 @@
       for (const depth of [3, 2, 1]) {
         const path = buildPath(el, depth);
         if (!path) continue;
-        try { if (document.querySelectorAll(path).length === 1) return path; } catch { /**/ }
+        try { if (queryAll(path).length === 1) return path; } catch { /**/ }
       }
 
       const cls = [...el.classList].filter(isStableClass).slice(0, 2).map(c => `.${CSS.escape(c)}`).join('');
@@ -1219,6 +1351,7 @@
   // 견고한 XPath — 짧고 고유한 보이는 텍스트 앵커 우선(Typeform 질문/버튼에 강함), 없으면 구조 경로
   function getElementXPath(el) {
     try {
+      if (typeof ShadowRoot !== 'undefined' && el.getRootNode?.() instanceof ShadowRoot) return '';
       const tag = el.tagName.toLowerCase();
       const text = (el.textContent || '').trim().replace(/\s+/g, ' ');
       if (text && text.length <= 40) {
@@ -1228,6 +1361,91 @@
       const path = buildXPath(el);
       return path.length <= 480 ? path : '';
     } catch { return ''; }
+  }
+
+  function getShadowPath(el) {
+    const path = [];
+    let node = el;
+    while (node && typeof node.getRootNode === 'function') {
+      const root = node.getRootNode();
+      if (typeof ShadowRoot === 'undefined' || !(root instanceof ShadowRoot)) break;
+      const host = root.host;
+      const selector = getElementSelector(host);
+      if (!selector) break;
+      path.unshift(selector);
+      node = host;
+    }
+    return path.slice(0, 8);
+  }
+
+  function selectorConfidence(el, selector) {
+    if (!selector) return 'low';
+    if ((el.id && isStableId(el.id)) || /\[(data-testid|data-cy|data-test|aria-label|name)=/.test(selector)) return 'high';
+    return selector.includes(':nth-of-type') ? 'low' : 'medium';
+  }
+
+  function replaySelector(el) {
+    if (!IS_TOP_FRAME && !(cachedFrameGeometry?.framePath?.length)) return '';
+    return getElementSelector(el);
+  }
+
+  function replayXPath(el) {
+    if (!IS_TOP_FRAME && !(cachedFrameGeometry?.framePath?.length)) return '';
+    return getElementXPath(el);
+  }
+
+  function nearbyContextLabel(el) {
+    const container = el.closest?.('form,fieldset,section,article,[role="dialog"],[role="region"]');
+    const heading = container?.querySelector?.('legend,h1,h2,h3,[role="heading"]');
+    return cleanLabelText(heading?.textContent, 120);
+  }
+
+  function baseTargetContext() {
+    return {
+      schemaVersion: 1,
+      coordinateSpace: 'top-viewport-css-px',
+      framePath: cachedFrameGeometry?.framePath ?? [],
+      frameAccess: cachedFrameGeometry?.access ?? (IS_TOP_FRAME ? 'top' : 'unknown'),
+      devicePixelRatio: window.devicePixelRatio || 1,
+      visualViewport: window.visualViewport ? {
+        offsetLeft: window.visualViewport.offsetLeft,
+        offsetTop: window.visualViewport.offsetTop,
+        scale: window.visualViewport.scale,
+      } : null,
+    };
+  }
+
+  function buildPointContext(quality) {
+    return {
+      ...baseTargetContext(),
+      geometryConfidence: quality === 'low' ? 'low' : 'high',
+      selectorConfidence: 'low',
+      accessibleName: null,
+      contextLabel: null,
+      pageTitle: cleanLabelText(document.title, 200) || null,
+      shadowPath: [],
+      localRect: null,
+    };
+  }
+
+  function buildTargetContext(el, localRect, topRect, label) {
+    const selector = getElementSelector(el);
+    const decision = targetDecisionByElement.get(el);
+    const geometryConfidence = topRect?.quality === 'low'
+      ? 'low'
+      : (decision?.confidence || 'medium');
+    return {
+      ...baseTargetContext(),
+      geometryConfidence,
+      selectorConfidence: selectorConfidence(el, selector),
+      targetScore: decision?.score ?? null,
+      targetMargin: decision?.margin ?? null,
+      accessibleName: cleanLabelText(label || getElementLabel(el), 200) || null,
+      contextLabel: nearbyContextLabel(el) || null,
+      pageTitle: cleanLabelText(document.title, 200) || null,
+      shadowPath: getShadowPath(el),
+      localRect: localRect ? { x: localRect.left, y: localRect.top, width: localRect.width, height: localRect.height } : null,
+    };
   }
 
   function getActionType(el) {
@@ -1252,7 +1470,7 @@
     if (isCapturing && (Date.now() - isCapturingStart) >= CAPTURE_SAFETY_MS) isCapturing = false;
     if (isCapturing) return;
     if (Date.now() < suppressHoverUntil) return;  // 선캡처 윈도우 — 테두리 재등장 금지
-    const target = findInteractiveTarget(e.target);
+    const target = findInteractiveTarget(e.target, e);
     if (!target) { hideHoverPointer(); return; }
     const overlayAlive = hoverOverlay && document.documentElement.contains(hoverOverlay);
     if (target === hoverTarget && overlayAlive) return;
@@ -1272,7 +1490,7 @@
     if (!e.isTrusted) return;  // 사이트 스크립트가 만든 가짜 이벤트는 사용자 행동이 아님
     if (!isRecording || isPaused || isCapturing) return;
     if (e.button !== undefined && e.button !== 0) return;  // 좌클릭만
-    const target = findInteractiveTarget(e.target);
+    const target = findInteractiveTarget(e.target, e);
     if (!target) return;
     const actionTarget = refineActionTarget(e.target, target);
     const actionType = getActionType(target);
@@ -1324,7 +1542,7 @@
     const lowerClassStr = _classStr.toLowerCase();
     if (lowerClassStr.includes('parro') || lowerClassStr.includes('mimic')) return;
 
-    const target = findInteractiveTarget(clickedEl);
+    const target = findInteractiveTarget(clickedEl, e);
 
     // 빈 화면 클릭 (body/html)
     if (!target) {
@@ -1341,12 +1559,19 @@
       log('debug', `blank click step ${stepNumber} at (${e.clientX}, ${e.clientY})`);
       sendCapture({
         url: location.href, timestamp: Date.now(),
-        clickX: topClick.x, clickY: topClick.y,
+        clickX: topClick.quality === 'low' ? 0 : topClick.x,
+        clickY: topClick.quality === 'low' ? 0 : topClick.y,
         windowWidth: vw, windowHeight: vh,
         viewportW: vw, viewportH: vh,
         stepNumber,
         elementRect: null, elementSelector: null,
-        actionInfo: { type: 'click', label: '화면 클릭', tag: clickedEl.tagName.toLowerCase(), labelDebug: { chosenLabel: '화면 클릭', rawText: null, ariaLabel: null, title: null, role: null, selector: null, fallbackReason: 'blank-click' } },
+        actionInfo: {
+          type: 'click',
+          label: '화면 클릭',
+          tag: clickedEl.tagName.toLowerCase(),
+          labelDebug: { chosenLabel: '화면 클릭', rawText: null, ariaLabel: null, title: null, role: null, selector: null, fallbackReason: 'blank-click' },
+          targetContext: buildPointContext(topClick.quality),
+        },
       }, () => { clearTimeout(safetyTimer); isCapturing = false; });
       return;
     }
@@ -1386,16 +1611,18 @@
 
     const captureEl = actionType === 'focus_input' ? target : actionTarget;
     const pointerSnapshot = getRecentPointerSnapshot(e);
-    const rect  = captureEl.getBoundingClientRect();
+    const rect  = targetClientRect(captureEl, e.clientX, e.clientY) || captureEl.getBoundingClientRect();
     const label = pointerSnapshot?.label || getElementLabel(captureEl, clickedEl);
     const href  = captureEl.getAttribute('href') || captureEl.closest('a')?.getAttribute('href') || target.getAttribute('href') || target.closest('a')?.getAttribute('href') || '';
     const role  = pointerSnapshot?.role || captureEl.getAttribute('role') || target.getAttribute('role') || undefined;
     const { vw, vh } = getViewportSize();
     const topClick = toTopPoint(e.clientX, e.clientY);
-    const elementRect = pointerSnapshot?.elementRect ?? normalizeRect(toTopRect(rect), vw, vh);
-    const elementSelector = pointerSnapshot?.elementSelector ?? getElementSelector(captureEl);
-    const elementXPath = pointerSnapshot?.elementXPath ?? getElementXPath(captureEl);
+    const topRect = toTopRect(rect);
+    const elementRect = pointerSnapshot?.elementRect ?? (topRect.quality === 'low' ? null : normalizeRect(topRect, vw, vh));
+    const elementSelector = pointerSnapshot?.elementSelector ?? replaySelector(captureEl);
+    const elementXPath = pointerSnapshot?.elementXPath ?? replayXPath(captureEl);
     const labelDebug = pointerSnapshot?.labelDebug ?? buildLabelDebug(captureEl, label);
+    const targetContext = pointerSnapshot?.targetContext ?? buildTargetContext(captureEl, rect, topRect, label);
 
     // navigate 클릭(링크 등)도 '사용자 클릭'이므로 클릭 스텝으로만 캡처한다.
     // 이동 후 도착 페이지는 더 이상 자동 캡처하지 않는다 (페이지 이동 캡처 제거).
@@ -1408,14 +1635,15 @@
 
       const srcStep = {
         url: location.href, timestamp: Date.now(),
-        clickX: topClick.x, clickY: topClick.y,
+        clickX: topClick.quality === 'low' ? 0 : topClick.x,
+        clickY: topClick.quality === 'low' ? 0 : topClick.y,
         windowWidth: vw, windowHeight: vh,
         viewportW: vw, viewportH: vh,
         stepNumber, usePrecapture: true,
         elementRect,
         elementSelector,
         elementXPath,
-        actionInfo:      { type: 'click', label, tag: captureEl.tagName.toLowerCase(), role, href: href.slice(0, 200), labelDebug },
+        actionInfo:      { type: 'click', label, tag: captureEl.tagName.toLowerCase(), role, href: href.slice(0, 200), labelDebug, targetContext },
       };
 
       sendCapture(srcStep, () => { clearTimeout(navSafetyTimer); isCapturing = false; });
@@ -1429,14 +1657,15 @@
 
     const stepData = {
       url: location.href, timestamp: Date.now(),
-      clickX: topClick.x, clickY: topClick.y,
+      clickX: topClick.quality === 'low' ? 0 : topClick.x,
+      clickY: topClick.quality === 'low' ? 0 : topClick.y,
       windowWidth: vw, windowHeight: vh,
       viewportW: vw, viewportH: vh,
       stepNumber, usePrecapture: true,
       elementRect,
       elementSelector,
       elementXPath,
-      actionInfo:      { type: actionType, label, tag: captureEl.tagName.toLowerCase(), role, href: href.slice(0, 200), labelDebug },
+      actionInfo:      { type: actionType, label, tag: captureEl.tagName.toLowerCase(), role, href: href.slice(0, 200), labelDebug, targetContext },
     };
 
     const downloadAttr    = target.getAttribute('download');

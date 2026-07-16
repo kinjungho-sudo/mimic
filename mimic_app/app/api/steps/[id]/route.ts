@@ -26,6 +26,7 @@ const stepPatchSchema = z.object({
     width: z.number().min(0).max(1),
     height: z.number().min(0).max(1),
   }).nullable().optional(),
+  target_context: z.record(z.string(), z.unknown()).nullable().optional(),
   click_x: z.number().min(0).max(1).nullable().optional(),
   click_y: z.number().min(0).max(1).nullable().optional(),
   follow_config: z.object({
@@ -74,7 +75,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     .from('mm_steps')
     .update(parsed.data)
     .eq('id', id)
-    .select('id, tutorial_id, user_title, user_script, user_annotations, follow_config, page_url, element_selector, element_xpath, element_rect, click_x, click_y')
+    .select('id, tutorial_id, user_title, user_script, user_annotations, follow_config, page_url, element_selector, element_xpath, element_rect, target_context, click_x, click_y')
     .single();
 
   if (error || !data) {

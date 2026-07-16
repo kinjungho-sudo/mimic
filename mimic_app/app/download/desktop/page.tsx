@@ -59,7 +59,7 @@ export default function DesktopDownloadPage() {
               <span className={styles.windowsIcon}><WindowsIcon /></span>
               <div>
                 <strong>Windows</strong>
-                <span>Preview 0.3.1 · 2026년 7월 16일</span>
+                <span>Preview 0.4.1 · 2026년 7월 16일</span>
                 <span>Windows 10/11 · 64-bit · 약 34MB</span>
               </div>
             </div>

@@ -9,8 +9,8 @@ using System.Windows.Forms;
 [assembly: System.Reflection.AssemblyTitle("Parro Desktop Capture")]
 [assembly: System.Reflection.AssemblyProduct("Parro Desktop Capture")]
 [assembly: System.Reflection.AssemblyCompany("Parro")]
-[assembly: System.Reflection.AssemblyVersion("0.3.1.0")]
-[assembly: System.Reflection.AssemblyFileVersion("0.3.1.0")]
+[assembly: System.Reflection.AssemblyVersion("0.4.1.0")]
+[assembly: System.Reflection.AssemblyFileVersion("0.4.1.0")]
 
 internal static class ParroDesktopProgram
 {
@@ -149,7 +149,7 @@ internal sealed class CaptureForm : Form
         panel.Controls.Add(title);
 
         Label description = new Label();
-        description.Text = "클릭할 때마다 Windows 전체 화면을 기록합니다.";
+        description.Text = "Windows 작업을 기록하고 완료하면 Parro 매뉴얼로 만듭니다.";
         description.Location = new Point(30, 69);
         description.Size = new Size(450, 24);
         description.ForeColor = Color.FromArgb(75, 85, 99);
@@ -278,15 +278,15 @@ internal sealed class CaptureForm : Form
         toolTip.SetToolTip(pause, "자동 캡처를 잠시 멈추거나 다시 시작합니다.");
         panel.Controls.Add(pause);
 
-        Button complete = MakeToolbarButton("✓ 완료", 544, 10, 70);
+        Button complete = MakeToolbarButton("✓ 매뉴얼 만들기", 544, 10, 122);
         complete.Name = "CompleteButton";
         complete.BackColor = Color.FromArgb(0, 142, 134);
         complete.ForeColor = Color.White;
         complete.FlatAppearance.BorderSize = 0;
-        toolTip.SetToolTip(complete, "세션을 완료하고 캡처 폴더를 엽니다.");
+        toolTip.SetToolTip(complete, "세션을 완료하고 Parro에서 매뉴얼을 생성합니다.");
         panel.Controls.Add(complete);
 
-        Button stop = MakeToolbarButton("■ 중지", 620, 10, 68);
+        Button stop = MakeToolbarButton("■ 중지", 672, 10, 68);
         stop.Name = "ToolbarStopButton";
         stop.ForeColor = Color.FromArgb(255, 174, 183);
         toolTip.SetToolTip(stop, "세션을 중지하고 Parro 기본 창으로 돌아갑니다.");
@@ -294,7 +294,7 @@ internal sealed class CaptureForm : Form
 
         Label drag = new Label();
         drag.Text = "⋮⋮";
-        drag.Location = new Point(694, 15);
+        drag.Location = new Point(744, 15);
         drag.Size = new Size(28, 25);
         drag.TextAlign = ContentAlignment.MiddleCenter;
         drag.Font = new Font("Segoe UI", 13F, FontStyle.Bold);
@@ -449,8 +449,33 @@ internal sealed class CaptureForm : Form
 
     private void CompleteCapture()
     {
+        string completedSessionId = sessionId;
         StopCapture(true);
-        OpenCaptureFolder();
+        if (!String.IsNullOrWhiteSpace(completedSessionId))
+        {
+            OpenManualImport(completedSessionId);
+        }
+        else
+        {
+            OpenCaptureFolder();
+        }
+    }
+
+    private void OpenManualImport(string completedSessionId)
+    {
+        try
+        {
+            string url = "https://parro-guide.vercel.app/desktop-setup?source=desktop-app&autoImport=1&session=" +
+                Uri.EscapeDataString(completedSessionId);
+            Process.Start(url);
+            statusLabel.Text = "캡처 완료 · 브라우저에서 매뉴얼을 만들고 있습니다.";
+        }
+        catch (Exception exception)
+        {
+            Log(exception);
+            statusLabel.Text = "캡처 완료 · 폴더에서 결과를 확인하세요.";
+            OpenCaptureFolder();
+        }
     }
 
     private void StopCapture(bool completed)
@@ -478,7 +503,7 @@ internal sealed class CaptureForm : Form
         mainPanel.Visible = false;
         toolbarPanel.Visible = true;
         FormBorderStyle = FormBorderStyle.None;
-        ClientSize = new Size(730, 58);
+        ClientSize = new Size(780, 58);
         MinimumSize = Size.Empty;
         MaximumSize = Size.Empty;
         MaximizeBox = false;

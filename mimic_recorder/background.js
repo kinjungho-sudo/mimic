@@ -1,7 +1,7 @@
 // ── 환경 자동 판별 ────────────────────────────────────────────────
 // 웹스토어 배포본(고정 ID)=운영 / 개발자 언패킹(다른 ID)=dev.
 // chrome.runtime.id로 자동 구분 → 배포본이 실수로 dev를 가리킬 위험 없음.
-importScripts('desktop-bridge.js');
+importScripts('desktop-import.js', 'desktop-bridge.js');
 
 const PROD_EXTENSION_ID = 'ehbhcdkapcbfehinjapabgoegcjmmbgd';
 const IS_DEV = chrome.runtime.id !== PROD_EXTENSION_ID;
@@ -394,7 +394,7 @@ async function captureTab(windowId) {
 // content.js 상단의 window.__parroContentLoaded / legacy __mimicContentLoaded 가드가 중복 초기화를 막는다.
 function ensureContentScript(tabId) {
   return new Promise((resolve) => {
-    chrome.scripting.executeScript({ target: { tabId, allFrames: true }, files: ['guide-engine.js', 'content.js'] }, () => {
+    chrome.scripting.executeScript({ target: { tabId, allFrames: true }, files: ['guide-engine.js', 'targeting.js', 'content.js'] }, () => {
       const error = chrome.runtime.lastError?.message || null;
       if (error) {
         log('warn', 'bg', 'content script injection failed:', { tabId, error });
@@ -513,13 +513,84 @@ async function compressToJpeg(pngDataUrl, quality = JPEG_QUALITY_DEFAULT) {
   return canvas.convertToBlob({ type: 'image/jpeg', quality });
 }
 
+const _desktopImports = new Map();
+
+async function importDesktopCaptureSession(nativeSessionId) {
+  if (_desktopImports.has(nativeSessionId)) return _desktopImports.get(nativeSessionId);
+  const work = (async () => {
+    const { extensionToken, desktopImportedSessions } = await storageGet(['extensionToken', 'desktopImportedSessions']);
+    if (!extensionToken) throw new Error('not_linked');
+    const prior = desktopImportedSessions?.[nativeSessionId];
+    if (prior?.tutorial_id) return { ...prior, reused: true };
+
+    const capture = await getDesktopCaptureSession(nativeSessionId);
+    const events = Array.isArray(capture.events)
+      ? capture.events.filter(event => event?.step_number && event?.screenshot_size > 0).slice(0, 200)
+      : [];
+    if (!events.length) throw new Error('desktop_capture_empty');
+
+    const sessionId = crypto.randomUUID();
+    resetLastSavedHash();
+    await storageSet({
+      sessionId,
+      stepNumber: 0,
+      steps: [],
+      _undoStack: [],
+      contentMode: 'action',
+      desktopImportProgress: { nativeSessionId, status: 'processing', completed: 0, total: events.length },
+    });
+
+    const completedSteps = [];
+    for (let index = 0; index < events.length; index += 1) {
+      const event = events[index];
+      const pngBlob = await readDesktopCaptureImage(nativeSessionId, event.step_number, event.screenshot_size);
+      const pngDataUrl = await blobToDataUrl(pngBlob);
+      const stepData = ParroDesktopImport.buildStepData(event, index);
+      const prepared = await prepareCapture(pngDataUrl, stepData, null);
+      if (!prepared) continue;
+      await processStepUpload(prepared);
+      completedSteps.push(stepData.stepNumber);
+      await storageSet({
+        desktopImportProgress: {
+          nativeSessionId,
+          status: 'processing',
+          completed: index + 1,
+          total: events.length,
+        },
+      });
+    }
+
+    if (!completedSteps.length) throw new Error('desktop_import_no_steps');
+    const finalized = await finalizeSession(sessionId, completedSteps);
+    if (!finalized?.tutorial_id) throw new Error('desktop_finalize_failed');
+    const result = {
+      tutorial_id: finalized.tutorial_id,
+      step_count: finalized.step_count || completedSteps.length,
+      webapp_origin: finalized.webapp_origin || await getWebappOrigin(),
+    };
+    const imported = { ...(desktopImportedSessions || {}) };
+    imported[nativeSessionId] = result;
+    const recentEntries = Object.entries(imported).slice(-20);
+    await storageSet({
+      desktopImportedSessions: Object.fromEntries(recentEntries),
+      desktopImportProgress: { nativeSessionId, status: 'complete', completed: events.length, total: events.length, ...result },
+    });
+    return result;
+  })();
+  _desktopImports.set(nativeSessionId, work);
+  try {
+    return await work;
+  } finally {
+    _desktopImports.delete(nativeSessionId);
+  }
+}
+
 // ── 외부(웹페이지) 메시지 라우터 ────────────────────────────────
 chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
   if (message.action === 'DESKTOP_COMPANION_STATUS') {
     (async () => {
-      await pingDesktopCompanion().catch(() => {});
-      await new Promise((resolve) => setTimeout(resolve, 250));
-      sendResponse({ ok: true, desktop: desktopBridgeStatus() });
+      const pong = await pingDesktopCompanion().catch((error) => ({ ok: false, error: error?.message }));
+      sendResponse({ ok: !!pong?.ok, desktop: desktopBridgeStatus(), error: pong?.error });
     })();
     return true;
   }
@@ -532,7 +603,6 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         targetTabId: null,
         source: 'desktop_setup',
       });
-      await new Promise((resolve) => setTimeout(resolve, 250));
       const desktop = desktopBridgeStatus();
       sendResponse({
         ok: !!result?.ok && !!desktop.connected,
@@ -546,16 +616,85 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 
   if (message.action === 'STOP_DESKTOP_RECORDING') {
     (async () => {
-      const result = await notifyDesktopCaptureStopped({
-        sessionId: message.sessionId || null,
-        reason: 'desktop_setup_stop',
-      });
-      sendResponse({
-        ok: !!result?.ok,
-        sessionId: message.sessionId || null,
-        desktop: desktopBridgeStatus(),
-        error: result?.error,
-      });
+      const sessionId = message.sessionId || null;
+      try {
+        const stopped = await notifyDesktopCaptureStopped({
+          sessionId,
+          reason: 'desktop_setup_stop',
+        });
+        if (!stopped?.ok) throw new Error(stopped?.error || 'desktop_stop_failed');
+        const imported = await importDesktopCaptureSession(sessionId);
+        sendResponse({
+          ok: true,
+          sessionId,
+          desktop: desktopBridgeStatus(),
+          tutorialId: imported.tutorial_id,
+          stepCount: imported.step_count,
+          editorUrl: `${imported.webapp_origin}/manual/${imported.tutorial_id}/editor`,
+        });
+      } catch (error) {
+        sendResponse({
+          ok: false,
+          sessionId,
+          desktop: desktopBridgeStatus(),
+          error: error?.message || 'desktop_import_failed',
+        });
+      }
+    })();
+    return true;
+  }
+
+  if (message.action === 'PAUSE_DESKTOP_RECORDING' || message.action === 'RESUME_DESKTOP_RECORDING') {
+    (async () => {
+      try {
+        const paused = message.action === 'PAUSE_DESKTOP_RECORDING';
+        const result = await setDesktopCapturePaused({ sessionId: message.sessionId || null, paused });
+        sendResponse({ ok: !!result?.ok, sessionId: message.sessionId || null, paused, error: result?.error });
+      } catch (error) {
+        sendResponse({ ok: false, sessionId: message.sessionId || null, error: error?.message || 'desktop_pause_failed' });
+      }
+    })();
+    return true;
+  }
+
+  if (message.action === 'UNDO_DESKTOP_CAPTURE') {
+    (async () => {
+      try {
+        const result = await undoDesktopCaptureStep(message.sessionId || null);
+        sendResponse({
+          ok: !!result?.ok,
+          sessionId: message.sessionId || null,
+          capturedSteps: Number(result?.captured_steps) || 0,
+          error: result?.error,
+        });
+      } catch (error) {
+        sendResponse({ ok: false, sessionId: message.sessionId || null, error: error?.message || 'desktop_undo_failed' });
+      }
+    })();
+    return true;
+  }
+
+  if (message.action === 'IMPORT_DESKTOP_CAPTURE') {
+    (async () => {
+      const sessionId = message.sessionId || null;
+      try {
+        const imported = await importDesktopCaptureSession(sessionId);
+        sendResponse({
+          ok: true,
+          sessionId,
+          desktop: desktopBridgeStatus(),
+          tutorialId: imported.tutorial_id,
+          stepCount: imported.step_count,
+          editorUrl: `${imported.webapp_origin}/manual/${imported.tutorial_id}/editor`,
+        });
+      } catch (error) {
+        sendResponse({
+          ok: false,
+          sessionId,
+          desktop: desktopBridgeStatus(),
+          error: error?.message || 'desktop_import_failed',
+        });
+      }
     })();
     return true;
   }
@@ -2204,8 +2343,9 @@ async function prepareCapture(pngDataUrl, stepData, tab) {
 
   const winW   = stepData.windowWidth  || 1280;
   const winH   = stepData.windowHeight || 800;
-  const clickX = (stepData.clickX && winW) ? Math.min(stepData.clickX / winW, 1) : 0;
-  const clickY = (stepData.clickY && winH) ? Math.min(stepData.clickY / winH, 1) : 0;
+  const coordinateSpace = stepData.actionInfo?.targetContext?.coordinateSpace;
+  const clickX = normalizeCoord(stepData.clickX, winW, coordinateSpace);
+  const clickY = normalizeCoord(stepData.clickY, winH, coordinateSpace);
 
   const domainInfo  = extractDomainInfo(stepData.url, tab);
   const actionLabel = makeActionLabel(stepData.actionInfo, stepNum, domainInfo);
@@ -2232,8 +2372,8 @@ async function processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base
     const [imageResult, analysisResult] = await Promise.allSettled([
       uploadImage(imagePath, jpegBlob),
       analyzeWithClaude(base64Image, stepData.url, stepData.actionInfo, {
-        clickX:          stepData.clickX && stepData.windowWidth  ? stepData.clickX  / stepData.windowWidth  : null,
-        clickY:          stepData.clickY && stepData.windowHeight ? stepData.clickY  / stepData.windowHeight : null,
+        clickX:          clickX || null,
+        clickY:          clickY || null,
         elementRect:     denormalizeRectForAnalyze(stepData.elementRect, stepData.windowWidth, stepData.windowHeight),
         viewportW:       stepData.windowWidth     ?? null,
         viewportH:       stepData.windowHeight    ?? null,
@@ -2509,9 +2649,13 @@ async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, 
   return res.json();
 }
 
-function normalizeCoord(value, size) {
+function normalizeCoord(value, size, coordinateSpace) {
   const n = Number(value);
-  if (!Number.isFinite(n) || n <= 0) return 0;
+  if (!Number.isFinite(n) || n < 0) return 0;
+  if (coordinateSpace === 'top-viewport-css-px') {
+    return size ? Math.max(0, Math.min(n / size, 1)) : 0;
+  }
+  if (n === 0) return 0;
   const normalized = n <= 1 ? n : (size ? n / size : 0);
   return Math.max(0, Math.min(normalized, 1));
 }
@@ -2529,8 +2673,9 @@ async function syncLocalStepsBeforeFinalize(sessionId, stepNumbers, localSteps) 
 
     const viewportW = step.windowWidth || step.viewportW || 1280;
     const viewportH = step.windowHeight || step.viewportH || 800;
-    const clickX = normalizeCoord(step.clickX, viewportW);
-    const clickY = normalizeCoord(step.clickY, viewportH);
+    const coordinateSpace = step.actionInfo?.targetContext?.coordinateSpace;
+    const clickX = normalizeCoord(step.clickX, viewportW, coordinateSpace);
+    const clickY = normalizeCoord(step.clickY, viewportH, coordinateSpace);
     const cropBox = step.cropBox ?? computeCropBox(step.elementRect, clickX, clickY, step.actionInfo);
 
     await saveStep({

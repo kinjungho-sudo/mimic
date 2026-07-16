@@ -26,8 +26,32 @@
   }
 
   // ── 순수 로직 ────────────────────────────────────────────────
+  function targetRoot(step) {
+    let root = document;
+    const context = step.target_context || {};
+    const framePath = Array.isArray(context.framePath) ? context.framePath : [];
+    const shadowPath = Array.isArray(context.shadowPath) ? context.shadowPath : [];
+    try {
+      for (const selector of framePath) {
+        const frame = root.querySelector(selector);
+        if (!frame?.contentDocument) return null;
+        root = frame.contentDocument;
+      }
+      for (const selector of shadowPath) {
+        const host = root.querySelector(selector);
+        if (!host?.shadowRoot) return null;
+        root = host.shadowRoot;
+      }
+      return root;
+    } catch {
+      return null;
+    }
+  }
+
   function resolveTarget(step) {
     let el = null, rect = null, source = 'none';
+    const root = targetRoot(step);
+    const hasNestedTarget = !!(step.target_context?.framePath?.length || step.target_context?.shadowPath?.length);
 
     // 0순위: AI 시각 재탐색 좌표 (셀렉터·XPath·퍼지 모두 실패 후 복구된 위치)
     if (step._regroundXY) {
@@ -48,8 +72,8 @@
     }
 
     // 1순위: CSS Selector
-    if (step.element_selector) {
-      try { el = document.querySelector(step.element_selector); } catch { el = null; }
+    if (root && step.element_selector) {
+      try { el = root.querySelector(step.element_selector); } catch { el = null; }
       if (el) {
         const accepted = acceptElementTarget(el, rectOf(el), 'selector', step);
         if (accepted) return accepted;
@@ -58,9 +82,9 @@
     }
 
     // 2순위: XPath
-    if (!rect && step.element_xpath) {
+    if (!rect && root?.nodeType === Node.DOCUMENT_NODE && step.element_xpath) {
       try {
-        const xr = document.evaluate(step.element_xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+        const xr = root.evaluate(step.element_xpath, root, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
         const xe = xr.singleNodeValue;
         if (xe) {
           const accepted = acceptElementTarget(xe, rectOf(xe), 'xpath', step);
@@ -71,7 +95,7 @@
     }
 
     // 2.5순위: 퍼지 자가복구 — 셀렉터·XPath가 모두 깨졌을 때 저장 힌트(텍스트·속성·위치)로 후보 점수화
-    if (!rect) {
+    if (!rect && !hasNestedTarget) {
       const fz = fuzzyFind(step);
       if (fz) {
         const accepted = acceptElementTarget(fz, rectOf(fz), 'fuzzy', step);
@@ -104,7 +128,23 @@
 
   function rectOf(el) {
     const r = el.getBoundingClientRect();
-    return { left: r.left, top: r.top, width: r.width, height: r.height };
+    let left = r.left, top = r.top, width = r.width, height = r.height;
+    let ownerWindow = el.ownerDocument?.defaultView;
+    try {
+      while (ownerWindow && ownerWindow !== window) {
+        const frame = ownerWindow.frameElement;
+        if (!frame) break;
+        const fr = frame.getBoundingClientRect();
+        const scaleX = fr.width / Math.max(1, ownerWindow.innerWidth);
+        const scaleY = fr.height / Math.max(1, ownerWindow.innerHeight);
+        left = fr.left + left * scaleX;
+        top = fr.top + top * scaleY;
+        width *= scaleX;
+        height *= scaleY;
+        ownerWindow = ownerWindow.parent;
+      }
+    } catch { /* nested cross-origin targets fall back to stored top rect */ }
+    return { left, top, width, height };
   }
 
   function promoteHitTarget(hit) {

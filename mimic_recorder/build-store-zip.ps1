@@ -15,6 +15,7 @@ New-Item -ItemType Directory -Path (Join-Path $stage 'icons') -Force | Out-Null
 $files = @(
   'manifest.json',
   'background.js', 'content.js', 'guide-engine.js',
+  'desktop-bridge.js', 'desktop-import.js', 'targeting.js',
   'popup.js', 'popup.html',
   'offscreen.html', 'offscreen.js',
   'request-mic.html', 'request-mic.js'
@@ -35,7 +36,29 @@ $mtext = $mtext.Replace('Parro Recorder (dev)', 'Parro Recorder')
 
 $out = Join-Path $PSScriptRoot "parro-recorder-v$version.zip"
 if (Test-Path $out) { Remove-Item $out -Force }
-Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $out -Force
+Add-Type -AssemblyName System.IO.Compression
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$archive = [System.IO.Compression.ZipFile]::Open($out, [System.IO.Compression.ZipArchiveMode]::Create)
+try {
+  foreach ($f in $files) {
+    [void][System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+      $archive,
+      (Join-Path $stage $f),
+      $f,
+      [System.IO.Compression.CompressionLevel]::Optimal
+    )
+  }
+  foreach ($i in @('icon16.png','icon48.png','icon128.png')) {
+    [void][System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+      $archive,
+      (Join-Path (Join-Path $stage 'icons') $i),
+      "icons/$i",
+      [System.IO.Compression.CompressionLevel]::Optimal
+    )
+  }
+} finally {
+  $archive.Dispose()
+}
 Remove-Item $stage -Recurse -Force
 
 $size = [math]::Round((Get-Item $out).Length / 1KB, 1)

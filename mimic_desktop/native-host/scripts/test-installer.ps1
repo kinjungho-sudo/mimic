@@ -66,8 +66,8 @@ if ([System.IO.Path]::GetFullPath($registeredIcon) -ne [System.IO.Path]::GetFull
   throw "Uninstall icon mismatch. Expected '$expectedIconPath', got '$registeredIcon'."
 }
 $registeredVersion = (Get-ItemProperty -Path $uninstallRegistryPath).DisplayVersion
-if ($registeredVersion -ne "0.3.1") {
-  throw "Installed version mismatch. Expected '0.3.1', got '$registeredVersion'."
+if ($registeredVersion -ne "0.4.1") {
+  throw "Installed version mismatch. Expected '0.4.1', got '$registeredVersion'."
 }
 
 foreach ($file in $requiredFiles) {
@@ -132,7 +132,9 @@ function Assert-ParroIcon {
         $isTeal = $pixel.R -le 45 -and $pixel.G -ge 115 -and $pixel.B -ge 75
         $isLime = $pixel.R -ge 80 -and $pixel.R -le 180 -and $pixel.G -ge 165 -and $pixel.B -le 115
         if ($isTeal -or $isLime) { $parroColorPixels++ }
-        if ($pixel.B -ge ($pixel.R + 30) -and $pixel.B -ge ($pixel.G + 30)) { $legacyPurplePixels++ }
+        # Legacy MIMIC purple has meaningful red plus a strongly dominant blue.
+        # Requiring red avoids counting Parro's cyan/teal antialiasing as purple.
+        if ($pixel.R -ge 30 -and $pixel.G -lt 130 -and $pixel.B -ge ($pixel.R + 30) -and $pixel.B -ge ($pixel.G + 30)) { $legacyPurplePixels++ }
       }
     }
     if ($parroColorPixels -lt 3) {

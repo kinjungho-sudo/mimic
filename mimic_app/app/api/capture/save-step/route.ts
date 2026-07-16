@@ -6,17 +6,21 @@ import { redactSensitive } from '@/lib/redact';
 import { logServer } from '@/lib/logging/logger-server';
 
 function isMissingActionInfoColumn(error: { code?: string; message?: string } | null | undefined) {
-  return error?.code === '42703' || /action_info/i.test(error?.message ?? '');
+  return /action_info/i.test(error?.message ?? '');
+}
+
+function isMissingTargetContextColumn(error: { code?: string; message?: string } | null | undefined) {
+  return /target_context/i.test(error?.message ?? '');
 }
 
 function isMissingExceptionStepColumns(error: { code?: string; message?: string } | null | undefined) {
-  return error?.code === '42703'
-    || /step_type|capture_source|capture_failure_reason/i.test(error?.message ?? '');
+  return /step_type|capture_source|capture_failure_reason/i.test(error?.message ?? '');
 }
 
 function removeUnsupportedColumns(row: Record<string, unknown>, error: { code?: string; message?: string } | null | undefined) {
   const legacyRow = { ...row };
   if (isMissingActionInfoColumn(error)) delete legacyRow.action_info;
+  if (isMissingTargetContextColumn(error)) delete legacyRow.target_context;
   if (isMissingExceptionStepColumns(error)) {
     delete legacyRow.step_type;
     delete legacyRow.capture_source;
@@ -76,6 +80,22 @@ export async function POST(request: NextRequest) {
   const clickY = d.click_y ?? null;
   const hasClick = clickX != null && clickY != null;
   const captureSource = d.screenshot_url ? d.capture_source : 'none';
+  const rawTargetContext = d.action_info?.targetContext ?? null;
+  const targetContext = rawTargetContext ? {
+    ...rawTargetContext,
+    accessibleName: redactSensitive(rawTargetContext.accessibleName ?? '') || null,
+    contextLabel: redactSensitive(rawTargetContext.contextLabel ?? '') || null,
+    pageTitle: redactSensitive(rawTargetContext.pageTitle ?? '') || null,
+  } : null;
+  const actionInfo = d.action_info ? {
+    ...d.action_info,
+    label: redactSensitive(d.action_info.label ?? '') || undefined,
+    targetContext: targetContext ?? undefined,
+  } : null;
+  const actualElementText = targetContext?.accessibleName
+    ?? targetContext?.contextLabel
+    ?? actionInfo?.label
+    ?? '';
 
   const row: Record<string, unknown> = {
     screenshot_url: d.screenshot_url ?? null,
@@ -83,7 +103,9 @@ export async function POST(request: NextRequest) {
     click_x: hasClick ? Math.round(clickX * 10000) : null,
     click_y: hasClick ? Math.round(clickY * 10000) : null,
     url: d.url,
-    element_text: redactSensitive(d.title),
+    // Keep actual DOM evidence separate from the AI-generated title. Feeding the
+    // title back as element_text created a self-reinforcing hallucination loop.
+    element_text: redactSensitive(actualElementText) || null,
     ai_title: redactSensitive(d.title) || null,
     ai_description: redactSensitive(d.description) || null,
     step_type:        d.step_type,
@@ -95,7 +117,8 @@ export async function POST(request: NextRequest) {
     element_rect:      elementRectNormalized,
     element_selector:  d.element_selector  ?? null,
     element_xpath:     d.element_xpath     ?? null,
-    action_info:       d.action_info       ?? null,
+    action_info:       actionInfo,
+    target_context:    targetContext,
     audio_offset_ms:   d.audio_offset_ms   ?? null,
     // Recorder가 캡처 시 결정한 확대 영역(원본 0~1) — finalize에서 image_zoom 프레이밍으로 사용
     crop_box:          d.crop_box          ?? null,
@@ -119,7 +142,7 @@ export async function POST(request: NextRequest) {
       .update(row)
       .eq('id', existing.id);
 
-    if (isMissingActionInfoColumn(updateError) || isMissingExceptionStepColumns(updateError)) {
+    if (isMissingActionInfoColumn(updateError) || isMissingTargetContextColumn(updateError) || isMissingExceptionStepColumns(updateError)) {
       const legacyRow = removeUnsupportedColumns(row, updateError);
       const retry = await supabase
         .from('mm_capture_events')
@@ -141,7 +164,7 @@ export async function POST(request: NextRequest) {
     .select('id')
     .single();
 
-  if (isMissingActionInfoColumn(error) || isMissingExceptionStepColumns(error)) {
+  if (isMissingActionInfoColumn(error) || isMissingTargetContextColumn(error) || isMissingExceptionStepColumns(error)) {
     const legacyRow = removeUnsupportedColumns(row, error);
     const retry = await supabase
       .from('mm_capture_events')

@@ -14,6 +14,7 @@ export type LiveGuideResult =
   | { ok: false; reason: 'not_installed' | 'gated' | 'error'; message: string; upgradeUrl?: string };
 
 type LiveGuideTargetRect = { x: number; y: number; width: number; height: number };
+type LiveGuideTargetContext = Record<string, unknown>;
 
 export type LiveGuideTargetPickResult =
   | {
@@ -22,6 +23,7 @@ export type LiveGuideTargetPickResult =
       element_selector?: string | null;
       element_xpath?: string | null;
       element_rect?: LiveGuideTargetRect | null;
+      target_context?: LiveGuideTargetContext | null;
       click_x?: number | null;
       click_y?: number | null;
       label?: string | null;
@@ -115,6 +117,9 @@ export async function pickLiveGuideTarget(): Promise<LiveGuideTargetPickResult> 
             element_selector: typeof data.element_selector === 'string' ? data.element_selector : null,
             element_xpath: typeof data.element_xpath === 'string' ? data.element_xpath : null,
             element_rect: data.element_rect as LiveGuideTargetRect | null,
+            target_context: data.target_context && typeof data.target_context === 'object'
+              ? data.target_context as LiveGuideTargetContext
+              : null,
             click_x: typeof data.click_x === 'number' ? data.click_x : null,
             click_y: typeof data.click_y === 'number' ? data.click_y : null,
             label: typeof data.label === 'string' ? data.label : null,

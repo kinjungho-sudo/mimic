@@ -18,6 +18,7 @@ type StepTargetPatch = {
   element_selector?: string | null;
   element_xpath?: string | null;
   element_rect?: { x: number; y: number; width: number; height: number } | null;
+  target_context?: Record<string, unknown> | null;
   click_x?: number | null;
   click_y?: number | null;
 };

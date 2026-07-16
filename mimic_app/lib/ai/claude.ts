@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import type { Step } from '@/types';
 import { CLAUDE_MODEL } from '@/lib/ai/model';
 import { BRAND_COLORS } from '@/lib/brand';
-import { isLowQualityCaptureTutorialTitle } from '@/lib/ai/capture-fallback';
+import { isCaptureTutorialTitleGrounded } from '@/lib/ai/capture-fallback';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -57,6 +57,13 @@ type ActionInfo = {
   role?: string;
   href?: string;
   text?: string;
+  targetContext?: {
+    captureSurface?: 'web' | 'desktop';
+    captureApp?: string | null;
+    accessibleName?: string | null;
+    contextLabel?: string | null;
+    pageTitle?: string | null;
+  };
 } | undefined;
 
 // input type 또는 필드 라벨이 민감정보에 해당하는지 판별
@@ -119,6 +126,11 @@ export async function analyzeScreenshot(
 
   let domain = '';
   try { domain = new URL(pageUrl).hostname; } catch { domain = pageUrl; }
+  const isDesktopCapture = actionInfo?.targetContext?.captureSurface === 'desktop';
+  const desktopWindow = actionInfo?.targetContext?.pageTitle
+    || actionInfo?.targetContext?.contextLabel
+    || actionInfo?.targetContext?.captureApp
+    || '';
 
   let actionHint = '';
   if (actionInfo) {
@@ -126,7 +138,9 @@ export async function analyzeScreenshot(
     const safeLabel = isSensitiveLabel(label) ? undefined : label;
     const safeHref = sanitizeHref(href);
 
-    if (type === 'type' && safeLabel)
+    if (isDesktopCapture)
+      actionHint = `\n데스크톱 앱 창은 "${desktopWindow || safeLabel || 'Windows 앱'}"입니다. "${safeLabel || ''}"은 클릭 대상의 접근성 이름일 수 있으며, 창 이름은 클릭 대상 이름으로 간주하지 마세요.`;
+    else if (type === 'type' && safeLabel)
       actionHint = `\n사용자가 "${safeLabel}" 필드에 텍스트를 입력했습니다.`;
     else if (type === 'type')
       actionHint = `\n사용자가 입력 필드에 텍스트를 입력했습니다.`;
@@ -160,6 +174,7 @@ export async function analyzeScreenshot(
 
   const titleGuide = (() => {
     const type = actionInfo?.type;
+    if (isDesktopCapture) return '마우스 포인터 끝 또는 클릭 좌표 아래 실제 컨트롤의 기능을 나타내는 "[대상 기능] 선택/실행/입력" 형식';
     if (type === 'type') return '"[업무 내용] 입력" 형식 (예: "검색 조건 입력", "수신자 입력")';
     if (type === 'navigate') return '"[업무 화면] 이동/확인" 형식 — URL path 절대 사용 금지';
     if (type === 'toggle') return '"[설정 목적] 선택/해제" 형식';
@@ -177,14 +192,15 @@ export async function analyzeScreenshot(
           { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64Image } },
           {
             type: 'text',
-            text: `이 스크린샷은 사용자가 "${domain}" 페이지에서 수행한 액션입니다.${actionHint}${locationHint}
+            text: `이 스크린샷은 사용자가 ${isDesktopCapture ? `"${desktopWindow || 'Windows 앱'}" 데스크톱 앱에서` : `"${domain}" 페이지에서`} 수행한 액션입니다.${actionHint}${locationHint}
 
 제목만 생성하세요. JSON만 반환, 다른 텍스트 없이.
 
 [title 규칙]
 - ${titleGuide}으로 20자 이내
-- 화면에 보인 접근성 문자열이나 단축키 설명을 그대로 복사하지 말 것
-- "Code 클릭", "Open menuHomepage 클릭"처럼 대상 텍스트만 옮긴 제목 금지
+- ${isDesktopCapture ? '마우스 포인터의 뾰족한 끝과 클릭 좌표가 가리키는 컨트롤을 최우선으로 판독할 것' : '화면에 보인 접근성 문자열이나 단축키 설명을 그대로 복사하지 말 것'}
+- ${isDesktopCapture ? '기호 버튼은 의미로 바꿀 것 (예: + → "더하기 선택", = → "계산 실행", 디스크 아이콘 → "저장 실행")' : '"Code 클릭", "Open menuHomepage 클릭"처럼 대상 텍스트만 옮긴 제목 금지'}
+- ${isDesktopCapture ? `"${desktopWindow || '앱'} 클릭", "화면 확인", "버튼 클릭"처럼 앱/창 이름이나 일반명만 쓴 제목 금지` : '대상과 업무 목적이 구체적으로 드러나야 함'}
 - 특정 상품명·브랜드명·수량·고유명사 절대 포함 금지
 
 {"title": "..."}`,
@@ -411,6 +427,8 @@ export async function generateDraft(
     action_type?: string | null;
     action_label?: string | null;
     element_text?: string | null;
+    context_label?: string | null;
+    page_title?: string | null;
   }>
 ): Promise<GenerateDraftResult> {
   if (!hasClaudeApiKey('generateDraft')) {
@@ -433,7 +451,9 @@ export async function generateDraft(
       `설명: ${s.user_script || s.ai_description || '없음'}\n` +
       `URL: ${s.page_url || '없음'}\n` +
       `Action: type=${s.action_type || 'unknown'}, label=${s.action_label || '없음'}\n` +
-      `Element text: ${s.element_text || '없음'}` +
+      `Element text: ${s.element_text || '없음'}\n` +
+      `Context heading: ${s.context_label || '없음'}\n` +
+      `Page title: ${s.page_title || '없음'}` +
       (s.noAction ? `\n※ 이 단계는 특정 클릭 대상이 없음(전체화면/페이지 이동/캡처) — "○○ 클릭/누르기" 동작 제목 금지` : '')
     )
     .join('\n\n');
@@ -541,9 +561,12 @@ ${stepsText}
       };
     }
 
-    const titleContext = { stepTitles: [...sourceStepTitles, ...draftSteps.map(step => step.user_title)] };
+    const titleContext = {
+      stepTitles: [...sourceStepTitles, ...draftSteps.map(step => step.user_title)],
+      serviceNames: [mainService],
+    };
     let tutorialTitle = String(parsed.tutorial_title || '').trim();
-    if (isLowQualityCaptureTutorialTitle(tutorialTitle, titleContext)) {
+    if (!isCaptureTutorialTitleGrounded(tutorialTitle, titleContext)) {
       try {
         const repairResponse = await client.messages.create({
           model: CLAUDE_MODEL,
@@ -567,7 +590,7 @@ ${stepsText}
         const repairText = repairResponse.content[0].type === 'text' ? repairResponse.content[0].text : '{}';
         const repaired = parseJsonObject(repairText) as { tutorial_title?: string };
         const repairedTitle = String(repaired.tutorial_title || '').trim();
-        tutorialTitle = isLowQualityCaptureTutorialTitle(repairedTitle, titleContext) ? '' : repairedTitle;
+        tutorialTitle = isCaptureTutorialTitleGrounded(repairedTitle, titleContext) ? repairedTitle : '';
       } catch (err) {
         console.error('generateDraft tutorial title repair error:', err);
         tutorialTitle = '';

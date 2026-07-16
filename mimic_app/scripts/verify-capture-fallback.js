@@ -4,6 +4,8 @@ async function main() {
     buildCaptureFallbackTutorialTitle,
     buildCaptureAnnotationLabel,
     cleanCaptureTypeText,
+    isCaptureTitleGrounded,
+    isCaptureTutorialTitleGrounded,
     isLowQualityCaptureScript,
     isLowQualityCaptureTitle,
     isLowQualityCaptureTutorialTitle,
@@ -387,6 +389,70 @@ async function main() {
     user_script: '0\ub97c \ud074\ub9ad\ud569\ub2c8\ub2e4.',
   })) {
     failures.push({ name: 'usable draft rejects numeric script', expected: false, actual: true });
+  }
+
+  if (isCaptureTitleGrounded('결제 완료 클릭', {
+    pageUrl: 'https://example.com/settings',
+    actionInfo: { type: 'click', label: '저장', targetContext: { accessibleName: '저장' } },
+    elementText: '저장',
+  })) {
+    failures.push({ name: 'ungrounded hallucinated step title rejected', expected: false, actual: true });
+  }
+  if (!isCaptureTitleGrounded('설정 저장 클릭', {
+    pageUrl: 'https://example.com/settings',
+    actionInfo: { type: 'click', label: '설정 저장', targetContext: { accessibleName: '설정 저장' } },
+    elementText: '설정 저장',
+  })) {
+    failures.push({ name: 'evidence-backed step title accepted', expected: true, actual: false });
+  }
+  if (isCaptureTitleGrounded('검색 버튼 클릭', {
+    pageUrl: 'https://example.com/search',
+    actionInfo: { type: 'type', label: '검색어' },
+    elementText: '검색어',
+  })) {
+    failures.push({ name: 'action verb mismatch rejected', expected: false, actual: true });
+  }
+  if (!isCaptureTitleGrounded('새 문서 만들기 클릭', {
+    pageUrl: 'https://desktop.parro.local/notepad',
+    actionInfo: {
+      type: 'click',
+      label: '메모장',
+      targetContext: { captureSurface: 'desktop', captureApp: 'notepad', pageTitle: '제목 없음 - 메모장' },
+    },
+  })) {
+    failures.push({ name: 'desktop vision title accepted without DOM evidence', expected: true, actual: false });
+  }
+  if (isCaptureTitleGrounded('계산기 클릭', {
+    pageUrl: 'https://desktop.parro.local/ApplicationFrameHost',
+    actionInfo: {
+      type: 'click',
+      label: '계산기',
+      targetContext: { captureSurface: 'desktop', captureApp: 'ApplicationFrameHost', pageTitle: '계산기', contextLabel: '계산기' },
+    },
+  })) {
+    failures.push({ name: 'desktop app-only title rejected', expected: false, actual: true });
+  }
+  if (!isCaptureTitleGrounded('더하기 선택', {
+    pageUrl: 'https://desktop.parro.local/ApplicationFrameHost',
+    actionInfo: {
+      type: 'click',
+      label: '더하기',
+      targetContext: { captureSurface: 'desktop', captureApp: 'ApplicationFrameHost', accessibleName: '더하기', pageTitle: '계산기' },
+    },
+  })) {
+    failures.push({ name: 'desktop control-specific title accepted', expected: true, actual: false });
+  }
+  if (isCaptureTutorialTitleGrounded('Slack 결제 완료하기', {
+    stepTitles: ['Slack 앱 생성', '워크스페이스 설치', '에이전트 응답 테스트'],
+    serviceNames: ['Slack'],
+  })) {
+    failures.push({ name: 'ungrounded tutorial goal rejected', expected: false, actual: true });
+  }
+  if (!isCaptureTutorialTitleGrounded('Slack AI 에이전트 앱 만들고 테스트하기', {
+    stepTitles: ['Slack 앱 생성', '워크스페이스 설치', '에이전트 응답 테스트'],
+    serviceNames: ['Slack'],
+  })) {
+    failures.push({ name: 'grounded tutorial goal accepted', expected: true, actual: false });
   }
   if (isUsableCaptureDraft({
     user_title: '0 \ud074\ub9ad',

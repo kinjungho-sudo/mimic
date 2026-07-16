@@ -15,6 +15,16 @@ export type CaptureFallbackActionInfo = {
   tag?: string;
   role?: string;
   href?: string;
+  targetContext?: {
+    accessibleName?: string;
+    contextLabel?: string;
+    pageTitle?: string;
+    captureSurface?: 'web' | 'desktop';
+    captureApp?: string;
+    geometryConfidence?: 'low' | 'medium' | 'high';
+    selectorConfidence?: 'low' | 'medium' | 'high';
+    frameAccess?: string;
+  };
 } | null | undefined;
 
 export type CaptureFallbackContext = {
@@ -260,6 +270,65 @@ export function isLowQualityCaptureTitle(value: string | null | undefined): bool
   if (/^\d+\s+(클릭|확인|선택|입력|이동)$/i.test(text)) return true;
   const rawLabelPattern = Array.from(RAW_CAPTURE_LABELS).join('|');
   return new RegExp(`^(${rawLabelPattern}|edit|button|link|menu|untitled|click)\\s+(클릭|확인|선택|입력|이동)$`, 'i').test(text);
+}
+
+const TITLE_EVIDENCE_STOPWORDS = new Set([
+  '클릭', '선택', '입력', '확인', '이동', '열기', '누르기', '버튼', '메뉴', '화면', '항목',
+  'click', 'select', 'type', 'open', 'view', 'button', 'menu', 'item', 'page',
+]);
+
+function evidenceTokens(value: string | null | undefined): string[] {
+  const text = normalized(value)
+    .replace(/^https?:\/\//, '')
+    .replace(/[^0-9a-z가-힣]+/gi, ' ');
+  return text.split(/\s+/)
+    .map(token => token.replace(/(에서|으로|에게|에는|하기|합니다|하세요|버튼|메뉴)$/g, ''))
+    .filter(token => token.length >= 2 && !TITLE_EVIDENCE_STOPWORDS.has(token));
+}
+
+function actionVerbMatches(title: string, actionType?: string): boolean {
+  if (!actionType) return true;
+  if (actionType === 'type') return /입력|작성|기록|검색/.test(title) && !/클릭|누르/.test(title);
+  if (actionType === 'upload') return /업로드|첨부|파일/.test(title);
+  if (actionType === 'toggle' || actionType === 'select') return !/입력|작성/.test(title);
+  return true;
+}
+
+export function isCaptureTitleGrounded(
+  value: string | null | undefined,
+  context: CaptureFallbackContext & { pageUrl?: string | null } = {},
+): boolean {
+  const title = cleanText(value);
+  if (!title || isLowQualityCaptureTitle(title) || !actionVerbMatches(title, context.actionInfo?.type)) return false;
+  const target = context.actionInfo?.targetContext;
+  // Desktop captures use screenshot analysis and optional Windows UI Automation
+  // evidence. Reject titles that merely repeat the app/window name with a
+  // generic action because they hide which control was actually clicked.
+  if (target?.captureSurface === 'desktop') {
+    const titleBase = normalized(title).replace(/\s*(클릭|확인|선택|실행|열기|이동|입력|누르기)$/g, '').trim();
+    const desktopContexts = [
+      target.contextLabel,
+      target.pageTitle,
+      target.captureApp,
+    ].map(normalized).filter(Boolean);
+    if (/^(화면|앱|프로그램|대상|버튼|항목)$/.test(titleBase)) return false;
+    if (desktopContexts.some(source => source === titleBase)) return false;
+    return true;
+  }
+  const evidence = [
+    context.actionInfo?.label,
+    context.actionInfo?.text,
+    context.elementText,
+    target?.accessibleName,
+    target?.contextLabel,
+    target?.pageTitle,
+    target?.captureApp,
+    context.pageUrl,
+  ].flatMap(evidenceTokens);
+  if (!evidence.length) return false;
+  const titleParts = evidenceTokens(title);
+  if (!titleParts.length) return false;
+  return titleParts.some(part => evidence.some(source => source.includes(part) || part.includes(source)));
 }
 
 export function isLowQualityCaptureScript(value: string | null | undefined): boolean {
@@ -529,8 +598,15 @@ export function buildCaptureFallbackDraft(
   const safeActionLabel = isStale(context.actionInfo?.label) ? null : context.actionInfo?.label;
   const safeActionText = isStale(context.actionInfo?.text) ? null : context.actionInfo?.text;
   const safeElementText = isStale(context.elementText) ? null : context.elementText;
+  const safeAccessibleName = isStale(context.actionInfo?.targetContext?.accessibleName)
+    ? null
+    : context.actionInfo?.targetContext?.accessibleName;
+  const safeContextLabel = isStale(context.actionInfo?.targetContext?.contextLabel)
+    ? null
+    : context.actionInfo?.targetContext?.contextLabel;
   const safeAiTitle = isStale(step.ai_title) ? null : step.ai_title;
-  const capturedValues = [safeActionLabel, safeActionText, safeElementText, safeAiTitle];
+  const aiTitleGrounded = isCaptureTitleGrounded(safeAiTitle, { ...context, pageUrl: step.page_url });
+  const capturedValues = [safeActionLabel, safeActionText, safeElementText, safeAccessibleName, safeContextLabel, safeAiTitle];
   const capturedInputContext = (actionType === 'type' || actionType === 'focus_input')
     && capturedValues.some(value => isLongCapturedContent(value))
     ? '메일 본문'
@@ -546,14 +622,18 @@ export function buildCaptureFallbackDraft(
     || contextFromCapturedLabel(safeActionLabel)
     || contextFromCapturedLabel(safeActionText)
     || contextFromCapturedLabel(safeElementText)
+    || contextFromCapturedLabel(safeAccessibleName)
+    || contextFromCapturedLabel(safeContextLabel)
     || contextFromCapturedLabel(safeAiTitle);
   const specificBase = firstUseful([
-    safeAiTitle && !isLowQualityCaptureTitle(safeAiTitle) ? safeAiTitle : null,
+    safeAiTitle && aiTitleGrounded ? safeAiTitle : null,
     labelContext,
     capturedLabelContext,
     safeActionLabel,
     safeActionText,
     safeElementText,
+    safeAccessibleName,
+    safeContextLabel,
     pageContext,
     labelFromUrl(step.page_url),
     step.domain_name,
@@ -561,7 +641,7 @@ export function buildCaptureFallbackDraft(
   const base = specificBase || '화면';
   const noAction = noActionFromEvent || !specificBase;
   const verb = titleVerbFor(base, actionType, noAction);
-  const userTitle = safeAiTitle && !isLowQualityCaptureTitle(safeAiTitle)
+  const userTitle = safeAiTitle && aiTitleGrounded
     ? dedupeActionNoun(cleanText(safeAiTitle))
     : purposeTitleFor(base, verb) ?? `${base} ${verb}`;
   const userScript = !isContextuallyStaleLabel(step.ai_description, step.page_url) && !isLowQualityCaptureScript(step.ai_description)
@@ -592,15 +672,24 @@ export function buildCaptureAnnotationLabel(title: string | null | undefined, ac
 
 export function isUsableCaptureDraft(
   draft: { user_title?: string | null; user_script?: string | null } | null | undefined,
-  context: { pageUrl?: string | null } = {}
+  context: CaptureFallbackContext & { pageUrl?: string | null } = {}
 ): boolean {
   const title = draft?.user_title?.trim() || '';
   const script = draft?.user_script?.trim() || '';
+  const hasGroundingEvidence = !!(
+    context.pageUrl
+    || context.elementText
+    || context.actionInfo?.label
+    || context.actionInfo?.text
+    || context.actionInfo?.targetContext?.accessibleName
+    || context.actionInfo?.targetContext?.contextLabel
+  );
   return !!title
     && !!script
     && !isContextuallyStaleLabel(title, context.pageUrl)
     && !isContextuallyStaleLabel(script, context.pageUrl)
     && !isLowQualityCaptureTitle(title)
+    && (!hasGroundingEvidence || isCaptureTitleGrounded(title, context))
     && !isLowQualityCaptureScript(script);
 }
 
@@ -656,6 +745,17 @@ export function isLowQualityCaptureTutorialTitle(
   if (/^(메일|메뉴|버튼|링크|아이콘)\s*(클릭|선택)하기$/.test(text)) return true;
   if (/^(?:.+(?:에서|에)\s*)?(?:앱|메뉴|화면|항목|버튼|링크)\s*(?:추가|열기|확인)하기$/i.test(text)) return true;
   return missesTerminalGoalCoverage(text, context.stepTitles ?? []);
+}
+
+export function isCaptureTutorialTitleGrounded(
+  value: string | null | undefined,
+  context: CaptureTutorialTitleContext & { serviceNames?: Array<string | null | undefined> } = {},
+): boolean {
+  const title = cleanText(value);
+  if (!title || isLowQualityCaptureTutorialTitle(title, context)) return false;
+  const sources = [...(context.stepTitles ?? []), ...(context.serviceNames ?? [])].flatMap(evidenceTokens);
+  const titleParts = evidenceTokens(title);
+  return titleParts.some(part => sources.some(source => source.includes(part) || part.includes(source)));
 }
 
 function tutorialTitleFromStepTitle(value: string): string {

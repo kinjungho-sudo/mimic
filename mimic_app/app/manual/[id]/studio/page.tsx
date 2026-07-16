@@ -180,6 +180,7 @@ export default function StudioPage() {
         element_selector: result.element_selector ?? null,
         element_xpath: result.element_xpath ?? null,
         element_rect: result.element_rect ?? null,
+        target_context: result.target_context ?? null,
         click_x: result.click_x ?? null,
         click_y: result.click_y ?? null,
       });

@@ -62,6 +62,7 @@ async function fetchTutorialData(token: string) {
     page_url: s.page_url ?? null,
     element_selector: (s as Record<string, unknown>).element_selector ?? null,
     element_xpath: (s as Record<string, unknown>).element_xpath ?? null,
+    target_context: (s as Record<string, unknown>).target_context ?? null,
     crop_rect: (s as Record<string, unknown>).crop_rect ?? null,
     click_x: (s as Record<string, unknown>).click_x as number | null ?? null,
     click_y: (s as Record<string, unknown>).click_y as number | null ?? null,

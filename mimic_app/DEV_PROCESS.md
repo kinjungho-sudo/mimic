@@ -163,7 +163,7 @@ git checkout dev                                 # 복귀
 Chrome 확장(`mimic_recorder`)은 **녹화 캡처 파이프라인에서만** 필요. **확장은 자기 ID로 dev/운영을 자동 판별**한다(웹스토어 배포본=운영, 개발자 언패킹=dev). 수동 전환 불필요.
 
 **dev 테스트 셋업 (1회):**
-1. `chrome://extensions` → 개발자 모드 ON → **압축해제된 확장 프로그램 로드** → `mimic_recorder` 폴더 선택. (dev 확장 ID = `dhfcmomnambegkibjnandckacihnaelb`)
+1. `chrome://extensions` → 개발자 모드 ON → **압축해제된 확장 프로그램 로드** → `mimic_recorder` 폴더 선택. (현재 dev 확장 ID = `pnkkalnfddapkmiobbhnkbhplakamaok`)
    - 확장이 자동으로 **dev DB(dskphg…) + localhost:3000** 을 타깃 (서비스워커 콘솔에 `DEV 모드` 로그 확인).
 2. **dev 서버를 반드시 포트 3000으로** 실행: `NODE_OPTIONS="--use-system-ca" npm run dev` (3000이 점유면 다른 인스턴스 종료 후 재실행 — 확장 연동이 localhost:3000에 고정).
 3. localhost:3000 로그인(`test@naver.com`/`Devtest1234`) → 확장 팝업 **'연동하기'** → `localhost:3000/extension-link`에서 토큰 발급(웹앱이 `.env.development.local`의 `NEXT_PUBLIC_EXTENSION_ID`=dev 확장 ID로 전달).

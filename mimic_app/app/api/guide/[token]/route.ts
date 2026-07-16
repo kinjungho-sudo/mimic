@@ -110,7 +110,7 @@ async function fetchSteps(supabase: ReturnType<typeof createServiceRoleClient>, 
     'voice_audio_url, voice_audio_start_ms, voice_audio_end_ms';
   let { data: rawSteps, error: stepsError } = await supabase
     .from('mm_steps')
-    .select(`${baseSelect}, step_type, capture_source, capture_failure_reason`)
+    .select(`${baseSelect}, target_context, step_type, capture_source, capture_failure_reason`)
     .eq('tutorial_id', tutorialId)
     .order('order_index')
     .order('step_number'); // tie-break: order_index 동률/NULL(복제·레거시 데이터)일 때 순서 결정성 보장
@@ -179,6 +179,7 @@ async function fetchSteps(supabase: ReturnType<typeof createServiceRoleClient>, 
       element_selector: explanationOnly ? null : (s.element_selector ?? null),
       element_xpath: explanationOnly ? null : (s.element_xpath ?? null),
       element_rect: explanationOnly ? null : (s.element_rect ?? null),
+      target_context: explanationOnly ? null : (s.target_context ?? null),
       click_x: explanationOnly ? null : (s.click_x ?? null),
       click_y: explanationOnly ? null : (s.click_y ?? null),
       screenshot_url: s.screenshot_url ?? null,
