@@ -19,26 +19,37 @@ export default function AdminTutorialsPage() {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     fetch('/api/admin/tutorials')
-      .then(r => r.json())
-      .then(d => { setTutorials(d.tutorials ?? []); setLoading(false); })
-      .catch(() => setLoading(false));
+      .then(async r => {
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error ?? '튜토리얼 목록을 불러오지 못했습니다.');
+        return d;
+      })
+      .then(d => setTutorials(d.tutorials ?? []))
+      .catch(e => setError(e instanceof Error ? e.message : '튜토리얼 목록을 불러오지 못했습니다.'))
+      .finally(() => setLoading(false));
   }, []);
 
   async function deleteTutorial(tutorialId: string, title: string) {
     if (!confirm(`"${title}" 튜토리얼을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
     setDeleting(tutorialId);
-    const res = await fetch('/api/admin/tutorials', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tutorialId }),
-    });
-    if (res.ok) {
+    try {
+      const res = await fetch('/api/admin/tutorials', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tutorialId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? '튜토리얼 삭제에 실패했습니다.');
       setTutorials(prev => prev.filter(t => t.id !== tutorialId));
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '튜토리얼 삭제에 실패했습니다.');
+    } finally {
+      setDeleting(null);
     }
-    setDeleting(null);
   }
 
   const filtered = tutorials.filter(t =>
@@ -48,7 +59,7 @@ export default function AdminTutorialsPage() {
   );
 
   return (
-    <div style={{ padding: '36px 40px' }}>
+    <div className="admin-page" style={{ padding: '36px 40px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px' }}>
         <div>
           <h1 style={{ fontSize: '22px', fontWeight: 600, margin: '0 0 4px', color: '#0F172A' }}>튜토리얼 관리</h1>
@@ -65,7 +76,8 @@ export default function AdminTutorialsPage() {
         </div>
       </div>
 
-      <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden' }}>
+      {error && <div role="alert" style={{ marginBottom: '14px', padding: '12px 14px', borderRadius: '8px', background: '#FEF2F2', color: '#B91C1C' }}>{error}</div>}
+      <div className="admin-table-scroll" style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid #F1F5F9', background: '#F8FAFC' }}>

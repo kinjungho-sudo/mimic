@@ -1,13 +1,31 @@
 import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 import type { Step } from '@/types';
-import { CLAUDE_MODEL } from '@/lib/ai/model';
+import { CLAUDE_MODEL, MANUAL_DRAFT_MODEL } from '@/lib/ai/model';
 import { BRAND_COLORS } from '@/lib/brand';
-import { isCaptureTutorialTitleGrounded } from '@/lib/ai/capture-fallback';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export function hasAnthropicApiKey(): boolean {
   return !!process.env.ANTHROPIC_API_KEY?.trim();
+}
+
+export function hasOpenAIApiKey(): boolean {
+  return !!process.env.OPENAI_API_KEY?.trim();
+}
+
+function manualDraftTimeoutMs(): number {
+  const configured = Number(process.env.OPENAI_DRAFT_TIMEOUT_MS);
+  if (!Number.isFinite(configured)) return 25_000;
+  return Math.min(60_000, Math.max(5_000, Math.round(configured)));
+}
+
+function createManualOpenAIClient(apiKey: string): OpenAI {
+  return new OpenAI({
+    apiKey,
+    timeout: manualDraftTimeoutMs(),
+    maxRetries: 0,
+  });
 }
 
 function hasClaudeApiKey(operation: string): boolean {
@@ -429,16 +447,23 @@ export async function generateDraft(
     element_text?: string | null;
     context_label?: string | null;
     page_title?: string | null;
+    screenshot_url?: string | null;
+    capture_surface?: 'web' | 'desktop' | null;
+    capture_app?: string | null;
   }>
 ): Promise<GenerateDraftResult> {
-  if (!hasClaudeApiKey('generateDraft')) {
-    return { tutorial_title: '', steps: [], status: 'missing_key', reason: 'ANTHROPIC_API_KEY is not configured' };
+  const openaiApiKey = process.env.OPENAI_API_KEY?.trim();
+  if (!openaiApiKey) {
+    console.error('generateDraft skipped: OPENAI_API_KEY is not configured');
+    return { tutorial_title: '', steps: [], status: 'missing_key', reason: 'OPENAI_API_KEY is not configured' };
   }
 
   // 가장 많이 등장하는 domain_name을 서비스 이름으로 사용
   const domainCounts = new Map<string, number>();
   steps.forEach(s => {
-    if (s.domain_name) domainCounts.set(s.domain_name, (domainCounts.get(s.domain_name) ?? 0) + 1);
+    if (s.domain_name && !/(?:desktop|windows)\.parro\.(?:local|app)/i.test(s.domain_name)) {
+      domainCounts.set(s.domain_name, (domainCounts.get(s.domain_name) ?? 0) + 1);
+    }
   });
   const mainService = domainCounts.size > 0
     ? Array.from(domainCounts.entries()).sort((a, b) => b[1] - a[1])[0][0]
@@ -453,84 +478,106 @@ export async function generateDraft(
       `Action: type=${s.action_type || 'unknown'}, label=${s.action_label || '없음'}\n` +
       `Element text: ${s.element_text || '없음'}\n` +
       `Context heading: ${s.context_label || '없음'}\n` +
-      `Page title: ${s.page_title || '없음'}` +
+      `Page title: ${s.page_title || '없음'}\n` +
+      `Capture: surface=${s.capture_surface || 'web'}, app=${s.capture_app || '없음'}` +
       (s.noAction ? `\n※ 이 단계는 특정 클릭 대상이 없음(전체화면/페이지 이동/캡처) — "○○ 클릭/누르기" 동작 제목 금지` : '')
     )
     .join('\n\n');
 
   const serviceHint = mainService ? `\n주요 서비스: ${mainService}` : '';
-  const sourceStepTitles = steps.map(s => s.user_title || s.ai_title || s.action_label || s.element_text || '');
-  const draftMaxTokens = Math.min(4096, Math.max(1024, steps.length * 110));
-
-  let text = '{}';
-  try {
-    const response = await client.messages.create({
-      model: CLAUDE_MODEL,
-      max_tokens: draftMaxTokens,
-      messages: [
-        {
-          role: 'user',
-          content: `다음은 사용자가 녹화한 매뉴얼 단계들입니다. 튜토리얼 제목과 각 스텝의 제목/설명을 생성해줘.${serviceHint}
+  const prompt = `당신은 사용자가 실제 업무를 완료하도록 돕는 매뉴얼 작성자입니다.
+다음 녹화 데이터 전체를 시간 순서대로 읽고, 먼저 사용자가 최종적으로 달성하려는 목적을 추론한 뒤 튜토리얼 제목과 각 스텝의 제목/설명을 생성해줘.${serviceHint}
 
 ${stepsText}
 
-[먼저 내부적으로 판단할 것 — 응답에는 쓰지 말 것]
-1. 전체 단계를 처음부터 끝까지 읽고 시작·설정·완료/검증 단계로 묶는다.
-2. 사용자가 마지막에 얻게 되는 결과나 확인하는 상태가 무엇인지 추론한다.
-3. 첫 클릭이나 중간 설정이 아니라 그 최종 결과를 tutorial_title로 정한다.
-4. 생성→설치→테스트처럼 목적이 여러 구간에 걸치면 마지막 구간까지 제목에 포함한다.
-5. DOM 라벨과 원문은 맥락 증거로만 사용하고 제목/설명에 그대로 복사하지 않는다.
+[가장 중요한 원칙]
+- URL, DOM 텍스트, Action label, 기존 제목은 정답이 아니라 사용자 의도를 추론하기 위한 단서일 뿐입니다.
+- 데스크톱 캡처에서는 첨부한 각 단계 스크린샷을 가장 중요한 근거로 사용합니다. 기존 문구와 스크린샷이 다르면 스크린샷과 단계 순서를 우선합니다.
+- desktop.parro.local, windows.parro.local 같은 내부 캡처 주소는 서비스명이나 사용자 행동이 아니므로 어떤 제목과 본문에도 쓰지 않습니다.
+- 첫 클릭이나 눈에 보이는 요소 이름을 매뉴얼의 목적으로 착각하지 말고, 시작부터 마지막 단계까지의 흐름과 최종 상태를 함께 봅니다.
+- 매뉴얼 제목은 사용자가 이 매뉴얼을 찾는 이유이자 완료 후 얻게 되는 결과입니다.
+- 각 스텝 제목은 클릭 대상 이름이 아니라 전체 목적을 이루기 위한 해당 단계의 하위 목적입니다.
+- 각 스텝 설명은 사용자가 무엇을 해야 하는지와 그 행동이 다음 흐름에서 왜 필요한지를 알려줍니다.
+- 화면 근거만으로 목적을 확신할 수 없으면 구체적인 기능을 지어내지 말고, 기존 문구를 반복하지도 않습니다.
 
 [제목 규칙 — tutorial_title]
-- 30자 안팎, "서비스명 + 사용자가 완성하는 결과" 형식
-- 첫 클릭이나 첫 화면이 아니라 전체 절차가 끝났을 때 달성하는 최종 목적을 작성
-- 여러 작업 구간이 있으면 "만들고 테스트하기", "작성 후 보내기", "설정하고 게시하기"처럼 최종 구간까지 표현
-- "앱 추가하기", "메뉴 열기", "화면 확인하기"처럼 무엇이 완료되는지 모호한 제목 금지
-- 목적을 확신할 수 없으면 원시 버튼명을 쓰지 말고 전체 흐름에서 반복되는 업무 대상을 기준으로 중립적인 결과를 작성
-- 반드시 범용적인 행동 목적으로 작성 — 특정 상품명·수량·고유명사 절대 포함 금지
-- 좋은 예: "쿠팡에서 상품 구매하기", "Slack 채널 만들기", "Gmail로 메일 보내기"
-- 흐름이 새 Slack 앱 생성→권한/토큰 설정→워크스페이스 설치→에이전트 대화 테스트라면 "Slack AI 에이전트 앱 만들고 테스트하기"
-- 위 Slack 흐름의 나쁜 제목: "Slack에 앱 추가하기", "Create New App 클릭하기", "OAuth 설정하기"
-- 나쁜 예: "Code하기", "버튼 클릭하기", "Open menuHomepage 클릭하기"
-- "매뉴얼 2026. 6. 4" 같은 날짜 형식 절대 금지
+- 30자 이내, "서비스명으로/에서 + 최종 결과" 또는 "최종 결과" 형식
+- 첫 스텝의 메뉴명·버튼명·클릭 동작이 아니라 전체 절차의 최종 목적을 작성
+- 특정 상품명·수량·계정명·이메일 주소 포함 금지
+- 좋은 예: "Gmail로 이메일 보내기", "Slack 채널 만들기", "상품 주문 완료하기"
+- 나쁜 예: "받은편지함 클릭", "desktop.parro.local에서 작업 설정하기", "화면 설정 진행"
 
 [스텝 제목 규칙 — user_title]
-- 20자 이내, 핵심 행동 하나만
-- 클릭 대상을 읽는 대신 해당 단계가 전체 목적에서 맡는 역할을 작성
-- 예: "Create New App 클릭"→"새 앱 생성 시작", "허용 클릭"→"워크스페이스 설치 승인", "너의 역할은 뭐지? 클릭"→"에이전트 응답 테스트"
-- 화면에 보인 원문을 그대로 읽지 말고, 매뉴얼 사용자가 이해할 업무 맥락으로 요약
-- 접근성 이름, 단축키 힌트, 브레드크럼 문자열을 이어 붙이지 말 것
-- 메일/알림 개수, 긴 버튼 aria-label, 입력된 메일 본문, 프롬프트 원문, 이메일 주소는 제목에 쓰지 말 것
-- Gmail 수신자/참조/숨은참조 자동완성 후보를 클릭한 단계는 이메일 주소를 복사하지 말고 주변 단계 맥락으로 "수신자 자동 완성 클릭", "참조 수신자 자동 완성 클릭", "숨은참조 수신자 자동 완성 클릭"처럼 작성
-- 받는사람/참조/숨은참조 입력 직후 이메일 후보를 클릭하는 단계는 직전 입력 단계의 역할을 이어받아 제목을 작성
-- 특정 상품명·브랜드명·수량 포함 금지
-- uuid/hash/id처럼 보이는 긴 영문·숫자 문자열 절대 포함 금지
-- 좋은 예: "메일함 확인", "참조 수신자 자동 완성 클릭", "메일 본문 입력", "입력 내용 적용", "바로구매 버튼 클릭"
-- 나쁜 예: "goodjob08070@naver.com 클릭", "메일, 읽지 않은 메일 2458개 클릭", "프롬프트 입력 입력", 입력된 문장 전체를 복사한 제목
-- ※ 표시된 단계(클릭 대상 없음)는 "○○ 클릭/누르기" 절대 금지 — "○○ 화면 확인", "○○ 페이지로 이동" 같은 중립 제목으로
+- 20자 안팎, 전체 목적을 이루기 위한 해당 단계의 하위 목적 하나만 표현
+- 화면에 보인 원문이나 접근성 label을 그대로 읽지 말고 앞뒤 단계의 업무 맥락으로 변환
+- 가능하면 "클릭", "버튼", "메뉴"보다 "작성 시작", "내용 확인", "메시지 작성", "전송 완료"처럼 의미와 결과를 표현
+- 같은 제목을 여러 단계에 반복하지 않음
+- uuid/hash/id, 이메일 주소, 내부 도메인 포함 금지
 
 [스텝 설명 규칙 — user_script]
-- 1문장 중심, "이유 + 수행할 행동 + 완료 후 상태"가 드러나도록 작성
-- 존댓말
-- uuid/hash/id처럼 보이는 긴 영문·숫자 문자열과 이메일 주소 절대 포함 금지
-- 입력된 메일 본문이나 프롬프트 원문을 그대로 복사하지 말고 "작성한 내용을 입력합니다", "입력 내용을 적용합니다"처럼 요약
-- UI 라벨을 그대로 반복하지 말고 "어떤 칸/목록/버튼에서 무엇을 하는지"로 작성
-- Gmail 예: "참조 수신자 칸에 이메일 주소를 입력합니다.", "참조 수신자를 자동완성 목록에서 선택합니다.", "메일 제목을 입력합니다.", "메일 본문을 입력합니다.", "보내기 버튼을 클릭합니다."
-- 클릭 대상이 없는 단계는 화면 확인/이동 맥락으로 설명
+- 1문장 중심의 존댓말
+- 사용자가 그대로 따라 할 수 있게 "목적/이유 + 무엇을 할지 + 필요한 경우 다음 상태"를 구체적으로 작성
+- 입력된 개인 메시지나 프롬프트 원문은 그대로 복사하지 않고 역할 중심으로 요약
+- UI 라벨과 내부 도메인을 반복하지 않음
+- 각 단계의 실제 화면과 행동이 다르면 본문도 서로 구분
 - 빈 문자열 금지
 
-응답 형식 (JSON만, 마크다운 없이):
-{
-  "tutorial_title": "...",
-  "steps": [
-    { "id": "uuid", "user_title": "...", "user_script": "..." }
-  ]
-}`,
-        },
-      ],
-    });
+응답에는 입력된 모든 단계 ID를 정확히 한 번씩 포함해야 합니다.`;
 
-    text = response.content[0].type === 'text' ? response.content[0].text : '{}';
+  const inputContent: Array<
+    | { type: 'input_text'; text: string }
+    | { type: 'input_image'; detail: 'low'; image_url: string }
+  > = [{ type: 'input_text', text: prompt }];
+  const desktopScreenshots = steps
+    .filter(step => step.capture_surface === 'desktop' && /^https?:\/\//i.test(step.screenshot_url ?? ''))
+    .slice(0, 20);
+  for (const step of desktopScreenshots) {
+    inputContent.push({
+      type: 'input_text',
+      text: `Step ${step.step_number} 스크린샷입니다. 이 이미지에서 실제 앱, 화면 상태, 입력/선택/전송 흐름을 확인하세요.`,
+    });
+    inputContent.push({ type: 'input_image', detail: 'low', image_url: step.screenshot_url! });
+  }
+
+  let text = '{}';
+  try {
+    const response = await createManualOpenAIClient(openaiApiKey).responses.create({
+      model: MANUAL_DRAFT_MODEL,
+      input: [{ role: 'user', content: inputContent }],
+      reasoning: { effort: 'low' },
+      max_output_tokens: 8192,
+      store: false,
+      text: {
+        verbosity: 'low',
+        format: {
+          type: 'json_schema',
+          name: 'parro_manual_draft',
+          strict: true,
+          schema: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              tutorial_title: { type: 'string' },
+              steps: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  additionalProperties: false,
+                  properties: {
+                    id: { type: 'string' },
+                    user_title: { type: 'string' },
+                    user_script: { type: 'string' },
+                  },
+                  required: ['id', 'user_title', 'user_script'],
+                },
+              },
+            },
+            required: ['tutorial_title', 'steps'],
+          },
+        },
+      },
+    });
+    text = response.output_text || '{}';
   } catch (err) {
     console.error('generateDraft api error:', err);
     return {
@@ -556,49 +603,13 @@ ${stepsText}
         tutorial_title: String(parsed.tutorial_title || ''),
         steps: draftSteps,
         status: 'empty_steps',
-        reason: 'Claude response contained no usable steps',
+        reason: `${MANUAL_DRAFT_MODEL} response contained no usable steps`,
         responsePreview: text.slice(0, 500),
       };
     }
 
-    const titleContext = {
-      stepTitles: [...sourceStepTitles, ...draftSteps.map(step => step.user_title)],
-      serviceNames: [mainService],
-    };
-    let tutorialTitle = String(parsed.tutorial_title || '').trim();
-    if (!isCaptureTutorialTitleGrounded(tutorialTitle, titleContext)) {
-      try {
-        const repairResponse = await client.messages.create({
-          model: CLAUDE_MODEL,
-          max_tokens: 256,
-          messages: [{
-            role: 'user',
-            content: `아래 제목은 전체 매뉴얼의 최종 목적을 충분히 설명하지 못합니다. 전체 단계의 마지막 결과까지 포함한 목적형 제목으로 다시 작성해줘.${serviceHint}
-
-현재 제목: ${tutorialTitle || '없음'}
-
-${stepsText}
-
-규칙:
-- 첫 클릭, 버튼명, 메뉴명, 중간 설정이 아니라 전체 절차가 끝났을 때의 결과를 작성
-- 여러 구간이면 마지막 완료/검증 구간까지 포함
-- "앱 추가하기", "메뉴 열기", "화면 확인하기" 같은 모호한 표현 금지
-- 30자 안팎, 특정 ID·이메일·개인 이름 제외
-- JSON만 응답: {"tutorial_title":"..."}`,
-          }],
-        });
-        const repairText = repairResponse.content[0].type === 'text' ? repairResponse.content[0].text : '{}';
-        const repaired = parseJsonObject(repairText) as { tutorial_title?: string };
-        const repairedTitle = String(repaired.tutorial_title || '').trim();
-        tutorialTitle = isCaptureTutorialTitleGrounded(repairedTitle, titleContext) ? repairedTitle : '';
-      } catch (err) {
-        console.error('generateDraft tutorial title repair error:', err);
-        tutorialTitle = '';
-      }
-    }
-
     return {
-      tutorial_title: tutorialTitle,
+      tutorial_title: String(parsed.tutorial_title || '').trim(),
       steps: draftSteps,
       status: 'ok',
     };

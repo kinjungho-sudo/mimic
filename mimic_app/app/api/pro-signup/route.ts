@@ -29,12 +29,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, message: '이미 사전예약이 완료되었습니다.' });
   }
 
-  await supabase.from('mm_pro_signups').insert({
+  const { error } = await supabase.from('mm_pro_signups').insert({
     email: parsed.data.email,
     plan_interested: parsed.data.plan_interested,
     source: parsed.data.source,
     user_id: parsed.data.user_id ?? null,
   });
+  if (error) return NextResponse.json({ error: '사전예약 저장에 실패했습니다.' }, { status: 500 });
 
   return NextResponse.json({ success: true, message: '사전예약 완료' });
 }

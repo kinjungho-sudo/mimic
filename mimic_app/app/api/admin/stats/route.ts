@@ -12,17 +12,20 @@ export async function GET() {
   const last7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const last30Days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
-  const [usersRes, tutorialsRes, viewsRes, proSignupsRes] = await Promise.all([
+  const [usersRes, tutorialsRes, enterCountRes, completeCountRes, mauViewsRes, proSignupsRes] = await Promise.all([
     service.from('mm_users').select('id, plan, created_at'),
     service.from('mm_tutorials').select('id, status, created_at'),
-    service.from('mm_view_events').select('id, event_type, timestamp, viewer_session_id').limit(100000), // 메모리 안전 상한(데이터 증가 시 SQL 집계로 전환)
+    service.from('mm_view_events').select('id', { count: 'exact', head: true }).eq('event_type', 'enter'),
+    service.from('mm_view_events').select('id', { count: 'exact', head: true }).eq('event_type', 'complete'),
+    service.from('mm_view_events').select('viewer_session_id').eq('event_type', 'enter').gte('timestamp', last30Days).limit(100000),
     service.from('mm_pro_signups').select('id'),
   ]);
 
+  const failed = [usersRes, tutorialsRes, enterCountRes, completeCountRes, mauViewsRes, proSignupsRes].find(result => result.error);
+  if (failed?.error) return NextResponse.json({ error: failed.error.message }, { status: 500 });
+
   const users = usersRes.data ?? [];
   const tutorials = tutorialsRes.data ?? [];
-  const views = viewsRes.data ?? [];
-  if (views.length >= 100000) console.warn('[admin/stats] view_events 100k 상한 도달 — 집계 부정확, RPC 집계 전환 필요');
   const proSignups = proSignupsRes.data ?? [];
 
   const dailySignups: Record<string, number> = {};
@@ -35,19 +38,11 @@ export async function GET() {
     if (day in dailySignups) dailySignups[day]++;
   });
 
-  const enterEvents = views.filter(v => v.event_type === 'enter');
-  const completeEvents = views.filter(v => v.event_type === 'complete');
-
-  // MAU: unique viewer sessions with enter event in last 30 days
-  const mauSessions = new Set(
-    enterEvents.filter(v => v.timestamp >= last30Days).map(v => v.viewer_session_id)
-  );
-
-  // Completion rate: sessions that completed / sessions that entered (all time)
-  const enterSessions = new Set(enterEvents.map(v => v.viewer_session_id));
-  const completeSessions = new Set(completeEvents.map(v => v.viewer_session_id));
-  const completionRate = enterSessions.size > 0
-    ? Math.round((completeSessions.size / enterSessions.size) * 100)
+  const totalViews = enterCountRes.count ?? 0;
+  const totalCompletes = completeCountRes.count ?? 0;
+  const mauSessions = new Set((mauViewsRes.data ?? []).map(v => v.viewer_session_id).filter(Boolean));
+  const completionRate = totalViews > 0
+    ? Math.min(100, Math.round((totalCompletes / totalViews) * 100))
     : 0;
 
   return NextResponse.json({
@@ -62,8 +57,8 @@ export async function GET() {
     totalTutorials: tutorials.length,
     publishedTutorials: tutorials.filter(t => t.status === 'published').length,
     newTutorialsLast7Days: tutorials.filter(t => t.created_at >= last7Days).length,
-    totalViews: enterEvents.length,
-    totalCompletes: completeEvents.length,
+    totalViews,
+    totalCompletes,
     proSignupsCount: proSignups.length,
     dailySignups,
     mau: mauSessions.size,

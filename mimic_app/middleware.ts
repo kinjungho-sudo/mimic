@@ -62,10 +62,16 @@ export async function middleware(request: NextRequest) {
   }
 
   if (pathname.startsWith('/admin')) {
-    if (!userId || userEmail !== clean(process.env.ADMIN_EMAIL)) {
+    if (!userId) {
       const url = request.nextUrl.clone();
       url.pathname = '/auth/login';
       url.searchParams.set('next', `${pathname}${request.nextUrl.search}`);
+      return NextResponse.redirect(url);
+    }
+    if (userEmail !== clean(process.env.ADMIN_EMAIL)) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/forbidden/admin';
+      url.search = '';
       return NextResponse.redirect(url);
     }
   }

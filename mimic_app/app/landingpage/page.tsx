@@ -6,6 +6,7 @@ import { BrandMark } from '@/components/common/BrandMark';
 import { FollowStage } from '@/components/viewer/FollowStage';
 import { BRAND_COPY, BRAND_NAME, BRAND_SUPPORT_EMAIL, BRAND_TAGLINE } from '@/lib/brand';
 import { HeroRecordingDemo, ProductDemo } from '@/components/landing/ProductDemo';
+import { PRODUCT_PLANS } from '@/lib/product-plans';
 
 const CheckIcon = ({ size = 14, color = 'currentColor' }: { size?: number; color?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3">
@@ -1630,8 +1631,8 @@ export default function LandingPage() {
   };
 
   const prices = {
-    basic: billing === 'month' ? '₩9,900' : '₩8,250',
-    pro: billing === 'month' ? '₩19,900' : '₩16,580',
+    basic: billing === 'month' ? PRODUCT_PLANS.basic.monthlyPrice : PRODUCT_PLANS.basic.yearlyMonthlyPrice,
+    pro: billing === 'month' ? PRODUCT_PLANS.pro.monthlyPrice : PRODUCT_PLANS.pro.yearlyMonthlyPrice,
   };
 
   const faqs = [
@@ -1932,25 +1933,25 @@ export default function LandingPage() {
               {
                 name: 'Free', sub: '신용카드 없이 바로 시작', amount: '₩0', per: '/ 월', featured: false,
                 planKey: null as null | 'basic' | 'pro' | 'team',
-                features: ['매일 매뉴얼 3개', `${BRAND_COPY.extensionDisplayName} 확장 설치`, '텍스트·도형 편집', '링크 공유 + PDF', '500MB 저장 공간'],
+                features: PRODUCT_PLANS.free.features,
                 cta: '무료로 시작',
               },
               {
                 name: 'Basic', sub: '입문자와 가벼운 사용자', amount: prices.basic, per: '/ 월', featured: false,
                 planKey: 'basic' as const,
-                features: ['매뉴얼 생성 한도 확대', 'AI 다듬기 월 100회', 'PPTX·Word 내보내기', '비공개 + 비밀번호 보호', '2GB 저장 공간'],
+                features: PRODUCT_PLANS.basic.features,
                 cta: '출시 알림 받기',
               },
               {
                 name: 'Pro', sub: '개인 크리에이터와 파워 유저', amount: prices.pro, per: '/ 월', featured: true,
                 planKey: 'pro' as const,
-                features: ['Basic 플랜 모든 기능', 'AI 다듬기 무제한', 'AI 상세 설명 생성', '학습 가이드 + Live Guide Beta', 'AI 음성 편집', '5GB 저장 공간'],
+                features: PRODUCT_PLANS.pro.features,
                 cta: '출시 알림 받기',
               },
               {
                 name: 'Team', sub: '팀·기업을 위한 맞춤 플랜', amount: '협의', per: '', featured: false,
                 planKey: 'team' as const,
-                features: ['Pro 플랜 모든 기능', '팀 워크스페이스', '멤버 권한 관리', '확장 저장 공간', '전용 온보딩 지원', '세금계산서 발행', '우선 지원 (SLA)'],
+                features: PRODUCT_PLANS.team.features,
                 cta: '도입 문의하기',
               },
             ] as const).map(plan => (

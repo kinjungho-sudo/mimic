@@ -287,7 +287,7 @@ export const surveySchema = z.object({
 
 export const proSignupSchema = z.object({
   email: z.string().email(),
-  plan_interested: z.enum(['pro', 'team']),
+  plan_interested: z.enum(['basic', 'pro', 'team']),
   source: z.enum(['landing', 'editor', 'limit_modal', 'mypage']),
   user_id: z.string().uuid().optional(),
 });

@@ -32,8 +32,9 @@ export default function BroadcastPage() {
       });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) { setResult({ ok: false, msg: d.error ?? '발송 실패' }); return; }
-      if (d.test) setResult({ ok: true, msg: `미리보기 1통을 ${d.to}로 보냈어요.` });
-      else setResult({ ok: true, msg: `발송 완료 — 대상 ${d.total}명 / 성공 ${d.sent} / 실패 ${d.failed}` });
+      if (d.test && d.sent === 1) setResult({ ok: true, msg: `미리보기 1통을 ${d.to}로 보냈어요.` });
+      else if (d.test) setResult({ ok: false, msg: '미리보기 이메일을 보내지 못했습니다.' });
+      else setResult({ ok: d.failed === 0, msg: `발송 완료 — 대상 ${d.total}명 / 성공 ${d.sent} / 실패 ${d.failed}` });
     } catch {
       setResult({ ok: false, msg: '네트워크 오류가 발생했어요.' });
     } finally {
@@ -44,7 +45,7 @@ export default function BroadcastPage() {
   const inputStyle: React.CSSProperties = { width: '100%', boxSizing: 'border-box', padding: '11px 13px', borderRadius: '9px', border: '1px solid #E2E8F0', fontSize: '14px', color: '#111827', outline: 'none', fontFamily: 'inherit', background: 'white' };
 
   return (
-    <div style={{ padding: '28px 32px', maxWidth: '720px' }}>
+    <div className="admin-page" style={{ padding: '28px 32px', maxWidth: '720px' }}>
       <h1 style={{ fontSize: '20px', fontWeight: 700, margin: '0 0 4px' }}>소식 발송</h1>
       <p style={{ fontSize: '13px', color: '#64748B', margin: '0 0 22px' }}>
         이메일 수신에 동의한 회원에게 업데이트·소식을 보냅니다.

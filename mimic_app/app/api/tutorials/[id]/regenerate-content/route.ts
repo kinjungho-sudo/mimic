@@ -9,6 +9,7 @@ import {
   isLowQualityCaptureTutorialTitle,
   isUsableCaptureDraft,
 } from '@/lib/ai/capture-fallback';
+import { validateRegeneratedStepSet } from '@/lib/ai/regeneration-quality';
 import { maskManualCopy } from '@/lib/manual-quality';
 
 type Params = { params: Promise<{ id: string }> };
@@ -23,6 +24,20 @@ type StoredStep = {
   page_url: string | null;
   domain_name: string | null;
   type_text: string | null;
+  screenshot_url: string | null;
+  element_text?: string | null;
+  action_info?: {
+    type?: string;
+    label?: string;
+    text?: string;
+    targetContext?: {
+      captureSurface?: 'web' | 'desktop';
+      captureApp?: string | null;
+      accessibleName?: string | null;
+      contextLabel?: string | null;
+      pageTitle?: string | null;
+    };
+  } | null;
 };
 
 const SLACK_AGENT_WORKFLOW_COPY = [
@@ -55,6 +70,11 @@ const SLACK_AGENT_WORKFLOW_COPY = [
   ['에이전트 응답 확인', '테스트 질문에 대한 에이전트 응답이 정상적으로 표시되는지 확인합니다.'],
 ] as const;
 
+function isDesktopStep(step: StoredStep): boolean {
+  return step.action_info?.targetContext?.captureSurface === 'desktop'
+    || /(?:desktop|windows)\.parro\.(?:local|app)/i.test(`${step.page_url ?? ''} ${step.domain_name ?? ''}`);
+}
+
 function slackAgentWorkflowCopy(steps: StoredStep[], index: number) {
   if (steps.length !== SLACK_AGENT_WORKFLOW_COPY.length) return null;
   const evidence = steps.map(step => `${step.domain_name ?? ''} ${step.page_url ?? ''} ${step.ai_title ?? ''} ${step.user_title ?? ''}`).join(' ');
@@ -67,7 +87,11 @@ function serviceName(step: StoredStep): string {
   if (/slack/i.test(`${step.domain_name ?? ''} ${step.page_url ?? ''}`)) return 'Slack';
   if (/notion/i.test(`${step.domain_name ?? ''} ${step.page_url ?? ''}`)) return 'Notion';
   if (/gmail|mail\.google/i.test(`${step.domain_name ?? ''} ${step.page_url ?? ''}`)) return 'Gmail';
-  return step.domain_name?.trim() || '서비스';
+  const domainName = step.domain_name?.trim() || '';
+  if (/^(?:desktop|windows)\.parro\.(?:local|app)$/i.test(domainName)) {
+    return step.action_info?.targetContext?.captureApp?.trim() || 'Windows';
+  }
+  return domainName || '서비스';
 }
 
 function purposeFallback(step: StoredStep, index: number, steps: StoredStep[]) {
@@ -176,16 +200,6 @@ function purposeFallback(step: StoredStep, index: number, steps: StoredStep[]) {
   return { id: step.id, user_title: title.slice(0, 80), user_script: script };
 }
 
-function fallbackTutorialTitle(currentTitle: string, steps: StoredStep[], drafts: Array<{ user_title: string; user_script: string }>) {
-  const evidence = `${currentTitle} ${steps.map(step => `${step.domain_name ?? ''} ${step.user_title ?? step.ai_title ?? ''}`).join(' ')} ${drafts.map(draft => `${draft.user_title} ${draft.user_script}`).join(' ')}`;
-  if (/slack/i.test(evidence) && /에이전트|채팅|응답|역할은|메시지/i.test(evidence)) return 'Slack AI 에이전트 앱 만들고 응답 테스트하기';
-  if (/slack/i.test(evidence) && /OAuth|권한|설치|토큰|연결/i.test(evidence)) return 'Slack 앱 만들고 워크스페이스에 설치하기';
-  if (/notion/i.test(evidence) && /일정|스케줄|calendar/i.test(evidence)) return 'Notion에 일정 기록하기';
-  if (/gmail|mail\.google/i.test(evidence) && /메일|보내기|전송/i.test(evidence)) return 'Gmail로 메일 작성하고 보내기';
-  const service = serviceName(steps[0]);
-  return `${service}에서 작업 설정하고 결과 확인하기`.slice(0, 30);
-}
-
 export async function POST(request: NextRequest, { params }: Params) {
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
@@ -208,51 +222,94 @@ export async function POST(request: NextRequest, { params }: Params) {
   if (stepsError || !rawSteps?.length) return NextResponse.json({ error: '재작성할 단계가 없습니다.' }, { status: 422 });
 
   const steps = rawSteps as StoredStep[];
-  const aiInput = steps.map(step => ({
-    ...step,
-    user_title: maskManualCopy(step.user_title),
-    ai_title: maskManualCopy(step.ai_title),
-    user_script: maskManualCopy(step.user_script),
-    ai_description: maskManualCopy(step.ai_description),
-  }));
+  const aiInput = steps.map(step => {
+    const target = step.action_info?.targetContext;
+    const captureSurface = target?.captureSurface ?? (isDesktopStep(step) ? 'desktop' : null);
+    return {
+      ...step,
+      user_title: maskManualCopy(step.user_title),
+      ai_title: maskManualCopy(step.ai_title),
+      user_script: maskManualCopy(step.user_script),
+      ai_description: maskManualCopy(step.ai_description),
+      action_type: step.action_info?.type ?? null,
+      action_label: maskManualCopy(step.action_info?.label),
+      element_text: maskManualCopy(step.element_text || target?.accessibleName),
+      context_label: maskManualCopy(target?.contextLabel),
+      page_title: maskManualCopy(target?.pageTitle),
+      capture_surface: captureSurface,
+      capture_app: maskManualCopy(target?.captureApp),
+    };
+  });
   const draftResult = await generateDraft(aiInput);
+  if (draftResult.status !== 'ok') {
+    console.error('[regenerate-content] draft generation failed:', {
+      tutorialId: id,
+      status: draftResult.status,
+      reason: draftResult.reason,
+    });
+    return NextResponse.json(
+      { error: 'AI가 신뢰할 수 있는 제목과 본문을 만들지 못했습니다. 기존 내용은 변경하지 않았습니다.' },
+      { status: 502 },
+    );
+  }
   const aiById = new Map(draftResult.steps.map(step => [step.id, step]));
 
-  const aiDrafts = steps.map((step, index) => {
+  const aiDrafts = steps.map((step) => {
     const aiDraft = aiById.get(step.id);
+    const target = step.action_info?.targetContext;
+    const captureSurface = target?.captureSurface ?? (isDesktopStep(step) ? 'desktop' : undefined);
+    const actionInfo = step.action_info ? {
+      type: step.action_info.type,
+      label: step.action_info.label,
+      text: step.action_info.text,
+      targetContext: target || captureSurface ? {
+        captureSurface,
+        captureApp: target?.captureApp ?? undefined,
+        accessibleName: target?.accessibleName ?? undefined,
+        contextLabel: target?.contextLabel ?? undefined,
+        pageTitle: target?.pageTitle ?? undefined,
+      } : undefined,
+    } : captureSurface ? { targetContext: { captureSurface } } : undefined;
     const maskedAiDraft = aiDraft ? {
       user_title: maskManualCopy(aiDraft.user_title),
       user_script: maskManualCopy(aiDraft.user_script),
     } : null;
-    if (isUsableCaptureDraft(maskedAiDraft, { pageUrl: step.page_url })) {
+    if (isUsableCaptureDraft(maskedAiDraft, {
+      pageUrl: step.page_url,
+      elementText: step.element_text || step.action_info?.targetContext?.accessibleName,
+      actionInfo,
+    })) {
       return { id: step.id, user_title: maskedAiDraft!.user_title, user_script: maskedAiDraft!.user_script };
     }
-    return purposeFallback(step, index, steps);
+    return null;
   });
-
-  const titleCounts = new Map<string, number>();
-  for (const draft of aiDrafts) {
-    const key = draft.user_title.trim().toLowerCase();
-    titleCounts.set(key, (titleCounts.get(key) ?? 0) + 1);
+  if (aiDrafts.some(draft => draft === null)) {
+    return NextResponse.json(
+      { error: '일부 단계의 AI 결과가 화면 내용과 맞지 않아 기존 내용은 변경하지 않았습니다.' },
+      { status: 422 },
+    );
   }
-
-  const drafts = steps.map((step, index) => {
-    const draft = aiDrafts[index];
-    const sourceTitle = maskManualCopy(step.ai_title || step.user_title);
-    const duplicateTitle = (titleCounts.get(draft.user_title.trim().toLowerCase()) ?? 0) > 1;
-
-    // Claude can turn a raw DOM label into a fluent but still contextually wrong
-    // sentence. For raw capture labels and duplicated outcomes, use the
-    // sequence-aware purpose rule as the final quality gate.
-    if (isLowQualityCaptureTitle(sourceTitle) || duplicateTitle) {
-      return purposeFallback(step, index, steps);
-    }
-    return draft;
-  });
+  const drafts = aiDrafts.filter((draft): draft is NonNullable<typeof draft> => draft !== null);
+  const setQuality = validateRegeneratedStepSet(steps.map(step => step.id), drafts);
+  if (!setQuality.ok) {
+    console.warn('[regenerate-content] rejected draft set:', { tutorialId: id, reason: setQuality.reason });
+    return NextResponse.json(
+      { error: 'AI 결과가 지나치게 반복되거나 구체성이 부족해 기존 내용은 변경하지 않았습니다.' },
+      { status: 422 },
+    );
+  }
 
   let tutorialTitle = maskManualCopy(draftResult.tutorial_title);
   if (isLowQualityCaptureTutorialTitle(tutorialTitle, { stepTitles: drafts.map(draft => draft.user_title) })) {
-    tutorialTitle = fallbackTutorialTitle(tutorial.title, steps, drafts);
+    const currentTitle = maskManualCopy(tutorial.title);
+    if (!isLowQualityCaptureTutorialTitle(currentTitle, { stepTitles: drafts.map(draft => draft.user_title) })) {
+      tutorialTitle = currentTitle;
+    } else {
+      return NextResponse.json(
+        { error: '전체 목적을 설명하는 제목을 만들지 못해 기존 내용은 변경하지 않았습니다.' },
+        { status: 422 },
+      );
+    }
   }
 
   const updates = await Promise.all([

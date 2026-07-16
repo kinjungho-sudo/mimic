@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 interface ProSignup {
   id: string;
   email: string;
-  plan_interested: 'pro' | 'team';
+  plan_interested: 'basic' | 'pro' | 'team';
   source: 'landing' | 'editor' | 'limit_modal' | 'mypage';
   created_at: string;
   user_id: string | null;
@@ -21,17 +21,24 @@ const SOURCE_LABELS: Record<string, string> = {
 export default function AdminProSignupsPage() {
   const [signups, setSignups] = useState<ProSignup[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'pro' | 'team'>('all');
+  const [filter, setFilter] = useState<'all' | 'basic' | 'pro' | 'team'>('all');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     fetch('/api/admin/pro-signups')
-      .then(r => r.json())
-      .then(d => { setSignups(d.signups ?? []); setLoading(false); })
-      .catch(() => setLoading(false));
+      .then(async r => {
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error ?? '대기자 목록을 불러오지 못했습니다.');
+        return d;
+      })
+      .then(d => setSignups(d.signups ?? []))
+      .catch(e => setError(e instanceof Error ? e.message : '대기자 목록을 불러오지 못했습니다.'))
+      .finally(() => setLoading(false));
   }, []);
 
   const filtered = filter === 'all' ? signups : signups.filter(s => s.plan_interested === filter);
 
+  const basicCount = signups.filter(s => s.plan_interested === 'basic').length;
   const proCount = signups.filter(s => s.plan_interested === 'pro').length;
   const teamCount = signups.filter(s => s.plan_interested === 'team').length;
 
@@ -41,16 +48,17 @@ export default function AdminProSignupsPage() {
   }, {} as Record<string, number>);
 
   return (
-    <div style={{ padding: '36px 40px' }}>
+    <div className="admin-page" style={{ padding: '36px 40px' }}>
       <div style={{ marginBottom: '28px' }}>
-        <h1 style={{ fontSize: '22px', fontWeight: 600, margin: '0 0 4px', color: '#0F172A' }}>Pro 대기자 명단</h1>
+        <h1 style={{ fontSize: '22px', fontWeight: 600, margin: '0 0 4px', color: '#0F172A' }}>플랜 출시 알림 명단</h1>
         <p style={{ color: '#64748B', fontSize: '13px', margin: 0 }}>총 {signups.length}명 대기 중</p>
       </div>
 
       {/* 요약 카드 */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '24px' }}>
+      <div className="admin-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '14px', marginBottom: '24px' }}>
         {[
           { label: '전체', value: signups.length, color: '#0F172A', bg: 'white' },
+          { label: 'Basic 플랜', value: basicCount, color: '#0369A1', bg: '#F0F9FF' },
           { label: 'Pro 플랜', value: proCount, color: '#009B8E', bg: '#E8FFF7' },
           { label: 'Team 플랜', value: teamCount, color: '#12B886', bg: '#F7FFF8' },
           { label: '가장 많은 유입', value: Object.entries(sourceBreakdown).sort((a, b) => b[1] - a[1])[0]?.[0] ? SOURCE_LABELS[Object.entries(sourceBreakdown).sort((a, b) => b[1] - a[1])[0][0]] : '-', color: '#0369A1', bg: '#F0F9FF' },
@@ -76,15 +84,16 @@ export default function AdminProSignupsPage() {
       </div>
 
       {/* 필터 + 테이블 */}
-      <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden' }}>
+      {error && <div role="alert" style={{ marginBottom: '14px', padding: '12px 14px', borderRadius: '8px', background: '#FEF2F2', color: '#B91C1C' }}>{error}</div>}
+      <div className="admin-table-scroll" style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden' }}>
         <div style={{ display: 'flex', gap: '4px', padding: '14px 16px', borderBottom: '1px solid #F1F5F9' }}>
-          {(['all', 'pro', 'team'] as const).map(f => (
+          {(['all', 'basic', 'pro', 'team'] as const).map(f => (
             <button
               key={f}
               onClick={() => setFilter(f)}
               style={{ padding: '5px 12px', borderRadius: '6px', fontSize: '12.5px', fontWeight: 500, border: 'none', cursor: 'pointer', background: filter === f ? '#0F172A' : 'transparent', color: filter === f ? 'white' : '#64748B', transition: 'background 0.15s' }}
             >
-              {f === 'all' ? '전체' : f === 'pro' ? 'Pro' : 'Team'}
+              {f === 'all' ? '전체' : f === 'basic' ? 'Basic' : f === 'pro' ? 'Pro' : 'Team'}
             </button>
           ))}
         </div>

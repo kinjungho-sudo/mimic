@@ -13,7 +13,7 @@ export async function GET() {
     .order('created_at', { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ users: data });
+  return NextResponse.json({ users: data, currentUserId: auth.userId });
 }
 
 export async function DELETE(request: Request) {
@@ -22,6 +22,9 @@ export async function DELETE(request: Request) {
 
   const { userId } = await request.json();
   if (!userId) return NextResponse.json({ error: 'userId required' }, { status: 400 });
+  if (userId === auth.userId) {
+    return NextResponse.json({ error: '현재 로그인한 관리자 계정은 삭제할 수 없습니다.' }, { status: 400 });
+  }
 
   const service = createServiceRoleClient();
   const { error } = await service.auth.admin.deleteUser(userId);
