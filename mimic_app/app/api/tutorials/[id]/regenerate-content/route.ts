@@ -177,7 +177,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   const draftResult = await generateDraft(aiInput);
   const aiById = new Map(draftResult.steps.map(step => [step.id, step]));
 
-  const drafts = steps.map((step, index) => {
+  const aiDrafts = steps.map((step, index) => {
     const aiDraft = aiById.get(step.id);
     const maskedAiDraft = aiDraft ? {
       user_title: maskManualCopy(aiDraft.user_title),
@@ -187,6 +187,26 @@ export async function POST(request: NextRequest, { params }: Params) {
       return { id: step.id, user_title: maskedAiDraft!.user_title, user_script: maskedAiDraft!.user_script };
     }
     return purposeFallback(step, index, steps);
+  });
+
+  const titleCounts = new Map<string, number>();
+  for (const draft of aiDrafts) {
+    const key = draft.user_title.trim().toLowerCase();
+    titleCounts.set(key, (titleCounts.get(key) ?? 0) + 1);
+  }
+
+  const drafts = steps.map((step, index) => {
+    const draft = aiDrafts[index];
+    const sourceTitle = maskManualCopy(step.ai_title || step.user_title);
+    const duplicateTitle = (titleCounts.get(draft.user_title.trim().toLowerCase()) ?? 0) > 1;
+
+    // Claude can turn a raw DOM label into a fluent but still contextually wrong
+    // sentence. For raw capture labels and duplicated outcomes, use the
+    // sequence-aware purpose rule as the final quality gate.
+    if (isLowQualityCaptureTitle(sourceTitle) || duplicateTitle) {
+      return purposeFallback(step, index, steps);
+    }
+    return draft;
   });
 
   let tutorialTitle = maskManualCopy(draftResult.tutorial_title);
