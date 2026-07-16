@@ -1,5 +1,6 @@
 ﻿'use client';
 
+/* eslint-disable @next/next/no-img-element -- user-uploaded storage URLs are rendered at their original dimensions */
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';

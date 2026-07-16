@@ -102,7 +102,7 @@ export default function ExtensionLinkPage() {
             <div style={{ background: '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '14px 16px', marginBottom: '20px', textAlign: 'left' }}>
               <div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '5px' }}>Desktop Companion은 무엇인가요?</div>
               <div style={{ fontSize: '12.5px', color: '#6B7280', lineHeight: 1.55 }}>
-                Windows에서 파일을 열고 저장한 뒤 웹에 다시 업로드하는 업무 흐름을 Recorder 세션과 연결하는 설치형 앱입니다. 현재 dev 단계에서 연결 방식을 검증 중입니다.
+                Chrome 밖의 Windows 앱에서 진행하는 클릭과 화면을 Recorder 세션에 이어서 기록하는 설치형 앱입니다. 설치 후 연결 상태가 준비됨으로 표시되면 데스크톱 녹화를 시작할 수 있습니다.
               </div>
               <a href="/desktop-setup?source=extension-link" style={{ display: 'inline-block', marginTop: '8px', fontSize: '12.5px', fontWeight: 600, color: '#3730a3', textDecoration: 'none' }}>설치 화면으로 이동</a>
             </div>

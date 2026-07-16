@@ -110,7 +110,7 @@ export default function AdminDashboard() {
           <div style={{ fontSize: '14px', fontWeight: 600, color: '#0F172A', marginBottom: '18px' }}>플랜 분포</div>
           {[
             { label: 'Free', value: stats.planBreakdown.free, color: '#94A3B8' },
-            { label: 'Pro Waitlist', value: stats.planBreakdown.pro_waitlist, color: '#F59E0B' },
+            { label: 'Pro 알림', value: stats.planBreakdown.pro_waitlist, color: '#F59E0B' },
             { label: 'Pro', value: stats.planBreakdown.pro, color: '#009B8E' },
             { label: 'Team', value: stats.planBreakdown.team, color: '#12B886' },
           ].map(item => (

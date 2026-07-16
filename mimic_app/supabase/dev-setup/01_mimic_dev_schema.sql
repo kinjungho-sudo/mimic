@@ -223,7 +223,7 @@ create table mm_pro_signups (
   id uuid primary key default gen_random_uuid(),
   user_id uuid,
   email text not null,
-  plan_interested text not null default 'pro' check (plan_interested in ('pro','team')),
+  plan_interested text not null default 'pro' check (plan_interested in ('basic','pro','team')),
   source text not null default 'landing' check (source in ('landing','editor','limit_modal','mypage')),
   created_at timestamptz not null default now()
 );

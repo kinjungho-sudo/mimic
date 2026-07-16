@@ -65,6 +65,7 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
   const total = steps.length;
   const step = steps[idx];
   const hasAnyAudio = steps.some(s => !!s.audioUrl);
+  const zoomOn = !!step?.domRect && !!step?.zoomAnim;
 
   // 스텝 바뀌면 툴팁 다시 펼침 (#3)
   useEffect(() => { setMinimized(false); setShowSkipConfirm(false); }, [idx]);
@@ -75,14 +76,13 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
   useEffect(() => {
     phaseTimers.current.forEach(clearTimeout);
     phaseTimers.current = [];
-    const zoomOn = !!(steps[idx]?.domRect) && !!(steps[idx]?.zoomAnim);
     if (!zoomOn) { setAnimPhase('focused'); return; }
     setAnimPhase('raw');
     const t1 = setTimeout(() => setAnimPhase('zooming'), 1000);
     const t2 = setTimeout(() => setAnimPhase('focused'), 2400);
     phaseTimers.current = [t1, t2];
     return () => { phaseTimers.current.forEach(clearTimeout); phaseTimers.current = []; };
-  }, [idx, done]); // done 추가: '다시 연습하기'(idx 변화 없이 done→false)에서도 줌 시퀀스 재생 // eslint-disable-line react-hooks/exhaustive-deps
+  }, [idx, done, zoomOn]); // done 추가: '다시 연습하기'(idx 변화 없이 done→false)에서도 줌 시퀀스 재생
 
   // 언마운트 정리: 전환 중 닫히면 setState 경고/오디오 누수가 나므로 타이머·오디오 해제
   useEffect(() => () => {

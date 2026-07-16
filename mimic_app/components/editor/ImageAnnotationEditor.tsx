@@ -194,7 +194,7 @@ export function ImageAnnotationEditor({
   imageUrl, annotations, onChange, onClose,
   onPixelate, onRevertBlur, canRevertBlur,
 }: ImageAnnotationEditorProps) {
-  // finishDrawing은 deps=[]로 고정돼 첫 렌더 클로저를 캡처 → 최신 onPixelate를 ref로 읽어 stale 방지
+  // finishDrawing에서 최신 onPixelate를 읽어 stale closure를 방지한다.
   const onPixelateRef = useRef(onPixelate);
   onPixelateRef.current = onPixelate;
   const [blurProcessing, setBlurProcessing] = useState(false);
@@ -409,7 +409,7 @@ export function ImageAnnotationEditor({
       type: annType, x1: x, y1: y, x2: x, y2: y,
       color: lastColor.current, strokeWidth: STROKE_OPTIONS[lastStrokeIdx.current].value, id: genId(),
     });
-  }, [tool, strokeWidth, editingText, toVB, nextMarkerNum, imgSize]);
+  }, [tool, strokeWidth, editingText, toVB, nextMarkerNum, imgSize, pushHistory]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!imgSize) return;
@@ -456,7 +456,7 @@ export function ImageAnnotationEditor({
       // 생성 직후 바로 텍스트 편집 모드로 진입
       setTimeout(() => { setTool('select'); setSelectedId(newItem.id); setEditingText({ id: newItem.id }); }, 0);
     }
-  }, [textDrawing, toVB, strokeWidth]);
+  }, [textDrawing, toVB, strokeWidth, pushHistory]);
 
   const finishDrawing = useCallback((e?: MouseEvent) => {
     setDrawing(prev => {
@@ -511,7 +511,7 @@ export function ImageAnnotationEditor({
       });
       return null;
     });
-  }, []);
+  }, [pushHistory]);
 
   useEffect(() => {
     if (!drawing) return;
@@ -565,7 +565,7 @@ export function ImageAnnotationEditor({
     window.addEventListener('mousemove', move);
     window.addEventListener('mouseup', up);
     return () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
-  }, [dragState]);
+  }, [dragState, pushHistory]);
 
   const deleteSelected = useCallback(() => {
     if (!selectedId) return;

@@ -1,5 +1,6 @@
 'use client';
 
+/* eslint-disable @next/next/no-img-element -- favicons need native onError fallback handling */
 import { useEffect, useRef, useState } from 'react';
 import DOMPurify from 'dompurify';
 import type { ManualStep } from './ManualEditor';

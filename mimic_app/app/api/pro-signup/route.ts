@@ -18,12 +18,16 @@ export async function POST(request: NextRequest) {
   const supabase = createServiceRoleClient();
 
   // 중복 체크 — 같은 이메일 + 같은 plan
-  const { data: existing } = await supabase
+  const { data: existing, error: lookupError } = await supabase
     .from('mm_pro_signups')
     .select('id')
     .eq('email', parsed.data.email)
     .eq('plan_interested', parsed.data.plan_interested)
-    .single();
+    .maybeSingle();
+
+  if (lookupError) {
+    return NextResponse.json({ error: '출시 알림 신청 정보를 확인하지 못했습니다.' }, { status: 500 });
+  }
 
   if (existing) {
     return NextResponse.json({ success: true, message: '이미 사전예약이 완료되었습니다.' });
