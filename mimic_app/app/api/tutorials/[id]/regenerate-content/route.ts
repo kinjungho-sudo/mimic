@@ -42,7 +42,21 @@ function purposeFallback(step: StoredStep, index: number, steps: StoredStep[]) {
   let title = '';
   let script = '';
 
-  if (/create new app/.test(lower)) {
+  if (/\b(?:api\.|app\.)?slack\.com\s+(?:주요 영역|화면)/i.test(text)) {
+    if (index < 6) {
+      title = '선택한 워크스페이스 확인';
+      script = '앱을 만들 워크스페이스가 올바르게 선택되었는지 확인합니다.';
+    } else if (index < 20) {
+      title = '설치 대상 워크스페이스 확인';
+      script = '앱을 설치할 워크스페이스가 맞는지 다시 확인합니다.';
+    } else if (index < 24) {
+      title = '테스트할 에이전트 선택';
+      script = '응답을 확인할 에이전트를 선택해 대화 준비를 마칩니다.';
+    } else {
+      title = '에이전트 대화 선택';
+      script = '테스트 질문을 보낼 에이전트 대화를 선택합니다.';
+    }
+  } else if (/create new app/.test(lower)) {
     title = `${service === '서비스' ? '앱' : service + ' 앱'} 생성 시작`;
     script = '새 앱 만들기를 시작해 이후 연결 설정을 준비합니다.';
   } else if (/manifest|매니페스트/.test(lower)) {
@@ -70,18 +84,28 @@ function purposeFallback(step: StoredStep, index: number, steps: StoredStep[]) {
     title = '에이전트 채팅 열기';
     script = '설치한 에이전트의 응답을 시험할 수 있도록 채팅 화면을 엽니다.';
   } else if (/역할은|질문|메시지|메일 보내기/.test(lower)) {
-    title = index >= total - 2 ? '에이전트에 테스트 질문 보내기' : '테스트 메시지 작성';
-    script = '에이전트의 동작을 확인할 테스트 메시지를 작성해 전송합니다.';
+    title = index >= total - 2
+      ? '에이전트에 테스트 질문 보내기'
+      : index <= 22 ? '테스트 메시지 작성 시작' : '테스트 메시지 입력';
+    script = index >= total - 2
+      ? '에이전트의 동작을 확인할 테스트 질문을 전송합니다.'
+      : index <= 22 ? '에이전트에게 보낼 테스트 메시지 작성을 시작합니다.' : '에이전트의 동작을 확인할 테스트 메시지를 입력합니다.';
   } else if (/\[서비스 식별자\]|\[식별자\]/.test(text)) {
-    title = index >= total - 1 ? '에이전트 응답 확인' : /입력/.test(text) ? '앱 식별 정보 입력' : '생성된 앱 확인';
+    title = index >= total - 1
+      ? '에이전트 응답 확인'
+      : /입력/.test(text)
+        ? (index > 10 ? '앱 식별 정보 적용' : '앱 식별 정보 입력')
+        : '생성된 앱 확인';
     script = index >= total - 1
       ? '테스트 질문에 대한 에이전트 응답이 정상적으로 표시되는지 확인합니다.'
       : '화면에 표시된 앱 정보를 확인해 다음 연결 설정에 사용합니다.';
   } else if (/^\s*[}\]\[{),.;]+/.test(text)) {
-    title = '앱 설정 정보 입력';
-    script = '앱 생성에 필요한 설정 정보를 입력하고 형식이 올바른지 확인합니다.';
+    title = index <= 5 ? '매니페스트 기본 정보 입력' : '매니페스트 권한 정보 입력';
+    script = index <= 5
+      ? '매니페스트에 앱의 기본 정보를 입력하고 형식을 확인합니다.'
+      : '매니페스트에 필요한 권한 정보를 입력하고 형식을 확인합니다.';
   } else if (/\bnext\b|다음/.test(lower)) {
-    title = '다음 설정 단계로 이동';
+    title = index < 6 ? '매니페스트 편집 단계로 이동' : '앱 생성 단계로 이동';
     script = '현재 설정 내용을 확인하고 다음 단계로 이동합니다.';
   } else if (/\bcreate\b|생성/.test(lower)) {
     title = `${service === '서비스' ? '앱' : service + ' 앱'} 생성 완료`;

@@ -24,6 +24,7 @@ const rawSlackTitles = [
   'Lina에이전트 클릭',
   '너의 역할은 뭐지? 클릭',
   'D0BGC0AS68P 클릭',
+  'api.slack.com 주요 영역 클릭',
 ];
 
 const purposeTitles = [
@@ -35,6 +36,8 @@ const purposeTitles = [
   '요청 권한 검토 후 설치 승인',
   '에이전트에 테스트 질문 보내기',
   '에이전트 응답 확인',
+  '설치 대상 워크스페이스 확인',
+  '테스트할 에이전트 선택',
 ];
 
 const failures = [];

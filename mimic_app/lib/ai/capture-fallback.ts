@@ -251,6 +251,7 @@ export function isLowQualityCaptureTitle(value: string | null | undefined): bool
   const text = cleanText(value);
   if (isWeakTitle(text)) return true;
   if (/^use a manifest file\b/i.test(text)) return true;
+  if (/\b[a-z0-9.-]+\.[a-z]{2,}\s+(?:주요 영역|화면)\s*(?:클릭|확인|선택|입력|이동)?$/i.test(text)) return true;
   if (/^[\[\]{}(),.;:'"`~!@#$%^&*+=|\\/?<>_-]+(?:\s+(?:클릭|확인|선택|입력|이동))?$/.test(text)) return true;
   if (isLowQualityCaptureLabel(text)) return true;
   if (hasEmailAddress(text)) return true;
