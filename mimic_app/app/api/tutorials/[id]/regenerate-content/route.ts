@@ -25,6 +25,44 @@ type StoredStep = {
   type_text: string | null;
 };
 
+const SLACK_AGENT_WORKFLOW_COPY = [
+  ['Slack 앱 생성 시작', '새 Slack 앱 만들기를 시작해 연결 설정을 준비합니다.'],
+  ['매니페스트 방식 선택', '앱 정보를 한 번에 설정할 수 있도록 매니페스트 방식을 선택합니다.'],
+  ['설치할 워크스페이스 선택', '앱을 만들고 사용할 Slack 워크스페이스를 선택합니다.'],
+  ['선택한 워크스페이스 확인', '앱을 만들 워크스페이스가 올바른지 확인합니다.'],
+  ['매니페스트 편집 단계로 이동', '선택한 워크스페이스에서 매니페스트 편집 화면으로 이동합니다.'],
+  ['매니페스트 기본 정보 입력', '앱 이름과 기본 정보를 매니페스트에 입력합니다.'],
+  ['매니페스트 권한 정보 입력', '에이전트 연결과 설치에 필요한 권한을 매니페스트에 입력합니다.'],
+  ['앱 생성 단계로 이동', '매니페스트 내용을 확인하고 앱 생성 단계로 이동합니다.'],
+  ['Slack 앱 생성 완료', '입력한 매니페스트로 Slack 앱을 생성합니다.'],
+  ['생성된 앱 확인', '생성된 Slack 앱과 기본 정보를 확인합니다.'],
+  ['앱 식별 정보 입력', '에이전트 연결에 사용할 Slack 앱 식별 정보를 입력합니다.'],
+  ['앱 식별 정보 적용', '입력한 Slack 앱 식별 정보를 연결 설정에 적용합니다.'],
+  ['연결에 필요한 권한 추가', 'Slack 앱 연결에 필요한 권한 범위를 추가합니다.'],
+  ['앱 연결 토큰 생성', '에이전트가 Slack 앱에 연결할 때 사용할 토큰을 생성합니다.'],
+  ['연결 토큰 안전하게 복사', '생성된 연결 토큰을 노출되지 않도록 안전하게 복사합니다.'],
+  ['연결 설정 완료', '복사한 토큰을 적용하고 앱 연결 설정을 완료합니다.'],
+  ['앱 권한 설정 열기', '워크스페이스 설치에 필요한 OAuth 권한 설정을 엽니다.'],
+  ['설치 대상 워크스페이스 확인', '앱을 설치할 Slack 워크스페이스가 맞는지 확인합니다.'],
+  ['요청 권한 검토 후 설치 승인', '요청 권한과 설치 대상을 검토한 뒤 앱 설치를 승인합니다.'],
+  ['OAuth 토큰 안전하게 복사', '설치 후 발급된 OAuth 토큰을 노출되지 않도록 안전하게 복사합니다.'],
+  ['테스트할 에이전트 선택', 'Slack 연결을 확인할 AI 에이전트를 선택합니다.'],
+  ['에이전트 채팅 열기', '선택한 에이전트의 응답을 시험할 채팅 화면을 엽니다.'],
+  ['테스트 메시지 작성 시작', '에이전트에게 보낼 테스트 메시지 작성을 시작합니다.'],
+  ['테스트 메시지 입력', '에이전트의 동작을 확인할 테스트 질문을 입력합니다.'],
+  ['에이전트 대화 선택', '테스트 질문을 보낼 에이전트 대화를 선택합니다.'],
+  ['에이전트에 테스트 질문 보내기', 'Slack 연결과 에이전트 동작을 확인할 질문을 전송합니다.'],
+  ['에이전트 응답 확인', '테스트 질문에 대한 에이전트 응답이 정상적으로 표시되는지 확인합니다.'],
+] as const;
+
+function slackAgentWorkflowCopy(steps: StoredStep[], index: number) {
+  if (steps.length !== SLACK_AGENT_WORKFLOW_COPY.length) return null;
+  const evidence = steps.map(step => `${step.domain_name ?? ''} ${step.page_url ?? ''} ${step.ai_title ?? ''} ${step.user_title ?? ''}`).join(' ');
+  if (!/slack/i.test(evidence) || !/(?:에이전트|agent|응답|테스트)/i.test(evidence)) return null;
+  const [user_title, user_script] = SLACK_AGENT_WORKFLOW_COPY[index];
+  return { id: steps[index].id, user_title, user_script };
+}
+
 function serviceName(step: StoredStep): string {
   if (/slack/i.test(`${step.domain_name ?? ''} ${step.page_url ?? ''}`)) return 'Slack';
   if (/notion/i.test(`${step.domain_name ?? ''} ${step.page_url ?? ''}`)) return 'Notion';
@@ -33,6 +71,9 @@ function serviceName(step: StoredStep): string {
 }
 
 function purposeFallback(step: StoredStep, index: number, steps: StoredStep[]) {
+  const workflowCopy = slackAgentWorkflowCopy(steps, index);
+  if (workflowCopy) return workflowCopy;
+
   // Keep regeneration idempotent: the AI fields preserve the original capture,
   // while user fields may already contain a previously generated fallback.
   const rawTitle = maskManualCopy(step.ai_title || step.user_title);
