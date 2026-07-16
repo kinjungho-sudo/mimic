@@ -111,6 +111,11 @@ export default function EditorPage() {
   const [tocSelectedIds, setTocSelectedIds] = useState<Set<string>>(new Set());
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [autoGenProgress, setAutoGenProgress] = useState<{ done: number; total: number } | null>(null);
+  const [aiNotice, setAiNotice] = useState<{ tone: 'warning' | 'error' | 'success'; message: string } | null>(() =>
+    searchParams.get('ai') === 'fallback'
+      ? { tone: 'warning', message: 'AI 초안 생성에 실패해 기본 문구로 매뉴얼을 만들었습니다. 내용을 확인하거나 전체 문장 다듬기를 실행해 주세요.' }
+      : null
+  );
   const [showMerge, setShowMerge] = useState(false);
   const [duplicatingStepId, setDuplicatingStepId] = useState<string | null>(null);
   const [showCreationSurvey, setShowCreationSurvey] = useState(false);
@@ -328,6 +333,7 @@ export default function EditorPage() {
     if (empty.length === 0) return;
 
     let cancelled = false;
+    let failed = 0;
     setAutoGenProgress({ done: 0, total: empty.length });
 
     (async () => {
@@ -337,18 +343,28 @@ export default function EditorPage() {
         try {
           const res = await fetch(`/api/steps/${step.id}/generate-description`, { method: 'POST' });
           if (res.ok) {
-            const { description } = await res.json();
+            const { description, title: generatedTitle } = await res.json();
             if (description && !cancelled) {
               setManualSteps(prev => prev.map(s =>
-                s.id === step.id ? { ...s, description } : s
+                s.id === step.id
+                  ? { ...s, description, actionTitle: generatedTitle || s.actionTitle }
+                  : s
               ));
             }
+          } else {
+            failed += 1;
           }
-        } catch { /* 개별 실패는 무시하고 다음 스텝 계속 */ }
+        } catch { failed += 1; }
         if (!cancelled) setAutoGenProgress({ done: i + 1, total: empty.length });
       }
       if (!cancelled) {
         setAutoGenProgress(null);
+        if (failed > 0) {
+          setAiNotice({
+            tone: 'error',
+            message: `${failed}개 단계의 AI 본문을 만들지 못했습니다. 잠시 후 다시 시도해 주세요.`,
+          });
+        }
       }
     })();
 
@@ -375,10 +391,14 @@ export default function EditorPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           steps: allWithText,
-          instruction: '매뉴얼 가이드라인에 맞게 다듬어줘: 행동 하나만, 1문장, 존댓말, 특정 상품명/수량 제거, 결과 설명 문장 금지',
+          instruction: '행동 하나와 그 목적 또는 다음 상태가 드러나게, 1문장 존댓말로 다듬고 특정 상품명과 수량은 제거해 주세요.',
         }),
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        setAiNotice({ tone: 'error', message: body?.error || '전체 문장을 다듬지 못했습니다. 잠시 후 다시 시도해 주세요.' });
+        return;
+      }
       const { results } = await res.json();
       if (!Array.isArray(results)) return;
       const updated = new Map<string, string>(
@@ -392,6 +412,9 @@ export default function EditorPage() {
       next.filter(s => updated.has(s.id)).forEach(s =>
         updateStep(s.id, { user_script: s.description || null }).catch(() => {})
       );
+      setAiNotice({ tone: 'success', message: '전체 본문을 사용자 목적과 다음 흐름이 드러나도록 다듬었습니다.' });
+    } catch {
+      setAiNotice({ tone: 'error', message: 'AI 서비스에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.' });
     } finally {
       setRefiningText(false);
     }
@@ -406,7 +429,7 @@ export default function EditorPage() {
     if (!stepId.startsWith('step-')) {
       deleteStep(stepId).catch((e) => logError('step.delete.fail', { tutorialId: id, stepId, message: e instanceof Error ? e.message : String(e) }));
     }
-  }, [manualSteps, activeId, setManualStepsWithHistory]);
+  }, [manualSteps, activeId, setManualStepsWithHistory, id]);
 
   const handleDeleteStep = useCallback((stepId: string) => setPendingDeleteId(stepId), []);
 
@@ -900,6 +923,27 @@ export default function EditorPage() {
 
         {/* Main content */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
+          {aiNotice && (
+            <div style={{
+              flexShrink: 0,
+              padding: '8px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              fontSize: '12px',
+              color: aiNotice.tone === 'error' ? '#991B1B' : aiNotice.tone === 'warning' ? '#92400E' : '#065F46',
+              background: aiNotice.tone === 'error' ? '#FEF2F2' : aiNotice.tone === 'warning' ? '#FFFBEB' : '#ECFDF5',
+              borderBottom: `1px solid ${aiNotice.tone === 'error' ? '#FECACA' : aiNotice.tone === 'warning' ? '#FDE68A' : '#A7F3D0'}`,
+            }}>
+              <span>{aiNotice.message}</span>
+              <button
+                onClick={() => setAiNotice(null)}
+                aria-label="알림 닫기"
+                style={{ border: 'none', background: 'transparent', color: 'inherit', cursor: 'pointer', fontSize: '16px', lineHeight: 1, padding: '2px 4px' }}
+              >×</button>
+            </div>
+          )}
           {/* Title banner — 컴팩트 */}
           <div style={{ flexShrink: 0, padding: '8px 20px 7px', borderBottom: '1px solid #E5E7EB', background: 'white', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <input

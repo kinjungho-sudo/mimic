@@ -208,6 +208,9 @@ function isLikelyRawDomActionBase(value: string): boolean {
 function isLikelyRawDomActionTitle(value: string | null | undefined): boolean {
   const text = cleanText(value);
   if (!text) return true;
+  // 단계 제목도 UI 조작 자체가 아니라 해당 단계의 하위 목적이어야 한다.
+  // DOM 라벨이 아무리 읽기 쉬워도 "받은편지함 클릭" 같은 형식은 허용하지 않는다.
+  if (/(클릭|누르기|선택|입력|이동)$/.test(text)) return true;
   if (!/(클릭|확인|선택|입력|이동)$/.test(text)) return false;
   return isLikelyRawDomActionBase(actionBaseFromTitle(text));
 }
@@ -234,6 +237,7 @@ export function isLowQualityCaptureScript(value: string | null | undefined): boo
   if (hasCapturedEditorChrome(text)) return true;
   if (/^\d+(을|를)?\s*(클릭|확인|선택|입력|이동)합니다\.?$/i.test(text)) return true;
   const actionScriptMatch = /^(.+?)(을|를)?\s*(클릭|확인|선택|입력|이동)합니다\.?$/i.exec(text);
+  if (actionScriptMatch && !/(위해|하도록|전에|후에|수 있도록|계속|이어서)/.test(text)) return true;
   if (actionScriptMatch && isLikelyRawDomActionBase(actionScriptMatch[1])) return true;
   if (/어노테이션|텍스트\s*박스|포함/.test(text)) return true;
   const rawLabelPattern = Array.from(RAW_CAPTURE_LABELS).join('|');
@@ -250,10 +254,6 @@ function hasFinalConsonant(text: string): boolean {
 
 function objectParticle(text: string): string {
   return hasFinalConsonant(text) ? '을' : '를';
-}
-
-function locationParticle(text: string): string {
-  return hasFinalConsonant(text) ? '으로' : '로';
 }
 
 function verbForAction(type: string | undefined, noAction: boolean): '클릭' | '입력' | '선택' | '이동' | '확인' {
@@ -274,6 +274,31 @@ function titleVerbFor(base: string, actionType: string | undefined, noAction: bo
   return verb;
 }
 
+function purposeTitleFor(base: string, verb: ReturnType<typeof verbForAction>): string {
+  const cleanBase = cleanText(base).replace(/\s+(버튼|메뉴|링크|아이콘)$/i, '').trim() || '화면';
+
+  if (/메일함|받은편지함/.test(cleanBase)) return '메일함 확인';
+  if (/편지쓰기|메일 쓰기/.test(cleanBase)) return '새 메일 작성 시작';
+  if (/자동 완성/.test(cleanBase)) return `${recipientTarget(cleanBase)} 지정`;
+  if (cleanBase === '메일 제목') return '메일 제목 작성';
+  if (cleanBase === '메일 본문') return '메일 본문 작성';
+  if (/메일 보내기|메일 발송/.test(cleanBase)) return '메일 발송 완료';
+  if (/검색창|검색 필드/.test(cleanBase)) return '검색 준비';
+  if (/파일명 영역/.test(cleanBase)) return '파일명 편집 준비';
+  if (/자료 다운로드|다운로드/.test(cleanBase)) return '자료 다운로드';
+  if (/앱$/.test(cleanBase)) return '앱 관리 시작';
+  if (/OAuth 설정/.test(cleanBase)) return 'OAuth 설정 준비';
+  if (/Functions/.test(cleanBase)) return 'Functions 설정 시작';
+  if (/채널/.test(cleanBase)) return `${cleanBase} 열기`;
+
+  if (verb === '입력') return `${cleanBase.replace(/\s*입력$/, '')} 작성`;
+  if (verb === '선택') return `${cleanBase} 지정`;
+  if (verb === '이동') return `${cleanBase} 열기`;
+  if (verb === '확인') return `${cleanBase} 확인`;
+  if (/설정|관리|소개|정보/.test(cleanBase)) return `${cleanBase} 확인`;
+  return `${cleanBase} 열기`;
+}
+
 function recipientTarget(base: string): string {
   if (/숨은참조/.test(base)) return '숨은참조 수신자';
   if (/참조/.test(base)) return '참조 수신자';
@@ -283,19 +308,21 @@ function recipientTarget(base: string): string {
 
 function scriptFor(base: string, verb: ReturnType<typeof verbForAction>): string {
   if (/자동 완성/.test(base)) {
-    return `${recipientTarget(base)}를 자동완성 목록에서 선택합니다.`;
+    return `메일을 받을 사람을 확정하기 위해 ${recipientTarget(base)}를 자동완성 목록에서 선택합니다.`;
   }
   if (/^(받는 사람|수신자|참조 수신자|숨은참조 수신자)$/.test(base) && verb === '입력') {
-    return `${recipientTarget(base)} 칸에 이메일 주소를 입력합니다.`;
+    return `메일을 받을 사람을 지정하기 위해 ${recipientTarget(base)} 칸에 이메일 주소를 입력합니다.`;
   }
-  if (base === '메일 제목' && verb === '입력') return '메일 제목을 입력합니다.';
-  if (base === '메일 본문' && verb === '입력') return '메일 본문을 입력합니다.';
-  if (base === '메일 보내기' && verb === '클릭') return '보내기 버튼을 클릭합니다.';
-  if (verb === '입력') return `${base}${locationParticle(base)} 내용을 입력합니다.`;
-  if (verb === '선택') return `${base}${objectParticle(base)} 선택합니다.`;
-  if (verb === '이동') return `${base}${locationParticle(base)} 이동합니다.`;
-  if (verb === '확인') return `${base}${objectParticle(base)} 확인합니다.`;
-  return `${base}${objectParticle(base)} 클릭합니다.`;
+  if (base === '메일 제목' && verb === '입력') return '메일의 핵심 내용을 알 수 있도록 제목을 작성합니다.';
+  if (base === '메일 본문' && verb === '입력') return '전달할 내용을 구성하기 위해 메일 본문을 작성합니다.';
+  if (base === '메일 보내기' && verb === '클릭') return '작성한 이메일을 전달하기 위해 보내기를 선택합니다.';
+  if (/검색창|검색 필드/.test(base)) return '원하는 정보를 찾기 위해 검색창을 선택합니다.';
+  if (/자료 다운로드|다운로드/.test(base)) return '필요한 자료를 저장하기 위해 다운로드 항목을 선택합니다.';
+  if (verb === '입력') return `${base}${objectParticle(base)} 작성하기 위해 해당 입력란에 내용을 입력합니다.`;
+  if (verb === '선택') return `${base}${objectParticle(base)} 지정하기 위해 목록에서 필요한 항목을 선택합니다.`;
+  if (verb === '이동') return `${base} 작업을 계속하기 위해 해당 화면으로 이동합니다.`;
+  if (verb === '확인') return `다음 단계를 진행하기 전에 ${base}${objectParticle(base)} 확인합니다.`;
+  return `${base} 관련 작업을 진행할 수 있도록 해당 항목을 선택합니다.`;
 }
 
 function contextFromCapturedLabel(label: string | null | undefined): string {
@@ -443,7 +470,7 @@ export function buildCaptureFallbackDraft(
   const verb = titleVerbFor(base, actionType, noAction);
   const userTitle = safeAiTitle && !isLowQualityCaptureTitle(safeAiTitle)
     ? dedupeActionNoun(cleanText(safeAiTitle))
-    : `${base} ${verb}`;
+    : purposeTitleFor(base, verb);
   const userScript = !isContextuallyStaleLabel(step.ai_description, step.page_url) && !isLowQualityCaptureScript(step.ai_description)
     ? cleanText(step.ai_description)
     : scriptFor(base, verb);
@@ -517,6 +544,7 @@ export function buildCaptureFallbackTutorialTitle(
   if (firstActionTitle.endsWith('하기')) return firstActionTitle.slice(0, 30);
   const actionBase = actionBaseFromTitle(firstActionTitle);
   if (actionBase && actionBase !== firstActionTitle) {
+    if (firstActionTitle.endsWith('확인')) return `${actionBase} 확인하기`.slice(0, 30);
     if (/(하기|보내기|발송|전송|작성|생성|등록|저장|다운로드)$/.test(actionBase)) return actionBase.slice(0, 30);
     return `${actionBase}하기`.slice(0, 30);
   }

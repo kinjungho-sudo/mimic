@@ -1063,7 +1063,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // service worker는 살아 있으므로 매뉴얼 생성 완료 후 정상 이동된다.
         if (data?.tutorial_id) {
           const origin = data.webapp_origin || await getWebappOrigin();
-          chrome.tabs.create({ url: `${origin}/manual/${data.tutorial_id}/editor?from=recording` });
+          const editorUrl = new URL(`/manual/${data.tutorial_id}/editor`, origin);
+          editorUrl.searchParams.set('from', 'recording');
+          const aiGeneration = data.ai_generation;
+          const usedFallback = !aiGeneration
+            || aiGeneration.status !== 'ok'
+            || aiGeneration.fallback_used === true;
+          editorUrl.searchParams.set('ai', usedFallback ? 'fallback' : 'ok');
+          chrome.tabs.create({ url: editorUrl.toString() });
           await storageSet({ isRecording: false, isPaused: false, stepNumber: 0, steps: [], sessionId: null, _undoStack: [] });
         }
         sendResponse({ ok: true, ...data });

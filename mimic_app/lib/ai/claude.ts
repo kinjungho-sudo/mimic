@@ -10,6 +10,26 @@ export function hasAnthropicApiKey(): boolean {
   return !!process.env.ANTHROPIC_API_KEY?.trim();
 }
 
+export function hasOpenAIApiKey(): boolean {
+  return !!process.env.OPENAI_API_KEY?.trim();
+}
+
+function manualDraftTimeoutMs(): number {
+  const configured = Number(process.env.OPENAI_DRAFT_TIMEOUT_MS);
+  if (!Number.isFinite(configured)) return 25_000;
+  return Math.min(60_000, Math.max(5_000, Math.round(configured)));
+}
+
+function createManualOpenAIClient(apiKey: string): OpenAI {
+  return new OpenAI({
+    apiKey,
+    timeout: manualDraftTimeoutMs(),
+    // SDK 기본 재시도는 타임아웃 체감 시간을 배로 늘릴 수 있다. 매뉴얼 생성은
+    // 안전한 로컬 폴백이 있으므로 한 번만 시도하고 상태를 사용자에게 알린다.
+    maxRetries: 0,
+  });
+}
+
 function hasClaudeApiKey(operation: string): boolean {
   if (hasAnthropicApiKey()) return true;
   console.error(`${operation} skipped: ANTHROPIC_API_KEY is not configured`);
@@ -46,7 +66,7 @@ function parseJsonObject(text: string): unknown {
     if (start >= 0 && end > start) {
       return JSON.parse(clean.slice(start, end + 1));
     }
-    throw new Error('No JSON object found in Claude response');
+    throw new Error('No JSON object found in AI response');
   }
 }
 
@@ -462,7 +482,7 @@ ${stepsText}
 - 화면에 보인 원문이나 DOM label을 그대로 읽지 말고, 앞뒤 단계의 업무 맥락으로 바꿀 것
 - 가능하면 "클릭", "버튼", "메뉴"보다 "작성 시작", "수신자 지정", "내용 작성", "발송 완료"처럼 의미와 결과를 드러낼 것
 - 메일/알림 개수, 긴 버튼 aria-label, 입력된 메일 본문, 프롬프트 원문, 이메일 주소는 제목에 쓰지 말 것
-- Gmail 수신자/참조/숨은참조 자동완성 후보를 클릭한 단계는 이메일 주소를 복사하지 말고 주변 단계 맥락으로 "수신자 자동 완성 클릭", "참조 수신자 자동 완성 클릭", "숨은참조 수신자 자동 완성 클릭"처럼 작성
+- Gmail 수신자/참조/숨은참조 자동완성 후보를 클릭한 단계는 이메일 주소를 복사하지 말고 주변 단계 맥락으로 "수신자 지정", "참조 수신자 지정", "숨은참조 수신자 지정"처럼 작성
 - 받는사람/참조/숨은참조 입력 직후 이메일 후보를 클릭하는 단계는 직전 입력 단계의 역할을 이어받아 제목을 작성
 - 특정 상품명·브랜드명·수량 포함 금지
 - uuid/hash/id처럼 보이는 긴 영문·숫자 문자열 절대 포함 금지
@@ -487,7 +507,7 @@ ${stepsText}
 
   let text = '{}';
   try {
-    const openai = new OpenAI({ apiKey: openaiApiKey });
+    const openai = createManualOpenAIClient(openaiApiKey);
     const response = await openai.responses.create({
       model: MANUAL_DRAFT_MODEL,
       input: prompt,
@@ -815,36 +835,75 @@ export async function rewriteAllSteps(
   steps: { id: string; text: string }[],
   instruction: string
 ): Promise<{ id: string; result: string }[]> {
-  if (!hasClaudeApiKey('rewriteAllSteps')) return steps.map(s => ({ id: s.id, result: s.text }));
+  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  if (!apiKey) throw new Error('OPENAI_API_KEY is not configured');
 
-  const numbered = steps.map((s, i) => `[${i + 1}] ${s.text}`).join('\n');
-  const response = await client.messages.create({
-    model: CLAUDE_MODEL,
-    max_tokens: 4096,
-    messages: [{
-      role: 'user',
-      content: `다음은 매뉴얼 튜토리얼의 전체 스텝 목록이야. "${instruction}" 방식으로 전체를 다듬어줘.
+  const source = steps.map((step, index) => ({
+    id: step.id,
+    order: index + 1,
+    text: step.text,
+  }));
+  const prompt = `다음은 하나의 매뉴얼을 이루는 전체 단계의 본문입니다. 앞뒤 흐름을 함께 읽고 사용자가 목적을 이해하며 그대로 따라 할 수 있게 모두 다듬어주세요.
 
-[공통 규칙]
-- 각 스텝의 순서와 번호를 유지할 것
-- 앞뒤 문맥을 고려해서 흐름이 자연스럽게 이어지도록 다듬을 것
-- 특정 상품명·브랜드명·수량은 범용 표현으로 교체
-- 문장 시작은 행동 동사나 명사로
-- 반드시 아래 형식으로만 반환: [번호] 수정된 문장 (설명, 따옴표, 부연 없이)
+사용자 요청: ${instruction}
 
-스텝 목록:
-${numbered}`,
-    }],
+[반드시 지킬 원칙]
+- 단계 ID와 순서를 유지합니다.
+- 각 본문은 1문장 중심의 존댓말로 작성합니다.
+- 단순히 UI 라벨과 "클릭합니다"만 반복하지 않습니다.
+- 무엇을 하는지뿐 아니라 그 행동의 목적이나 다음 상태를 함께 설명합니다.
+- 특정 상품명, 브랜드명, 수량, 이메일 주소, UUID, 입력 원문은 범용 표현으로 바꿉니다.
+- 원문에 없는 기능이나 결과를 지어내지 않습니다.
+- 빈 문장을 반환하지 않습니다.
+
+단계 목록:
+${JSON.stringify(source)}`;
+
+  const response = await createManualOpenAIClient(apiKey).responses.create({
+    model: MANUAL_DRAFT_MODEL,
+    input: prompt,
+    reasoning: { effort: 'low' },
+    max_output_tokens: 8192,
+    store: false,
+    text: {
+      verbosity: 'low',
+      format: {
+        type: 'json_schema',
+        name: 'parro_manual_rewrite',
+        strict: true,
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            results: {
+              type: 'array',
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  id: { type: 'string' },
+                  result: { type: 'string' },
+                },
+                required: ['id', 'result'],
+              },
+            },
+          },
+          required: ['results'],
+        },
+      },
+    },
   });
 
-  if (response.content[0].type !== 'text') return steps.map(s => ({ id: s.id, result: s.text }));
-
-  const lines = response.content[0].text.trim().split('\n').filter(l => l.trim());
-  return steps.map((s, i) => {
-    const line = lines.find(l => l.startsWith(`[${i + 1}]`));
-    const result = line ? line.replace(/^\[\d+\]\s*/, '').trim() : s.text;
-    return { id: s.id, result };
-  });
+  const parsed = parseJsonObject(response.output_text || '{}') as {
+    results?: Array<{ id: string; result: string }>;
+  };
+  const resultById = new Map(
+    (parsed.results ?? []).map(result => [result.id, String(result.result || '').trim()])
+  );
+  return steps.map(step => ({
+    id: step.id,
+    result: resultById.get(step.id) || step.text,
+  }));
 }
 
 type StepLocationData = {

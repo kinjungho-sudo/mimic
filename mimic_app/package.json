@@ -6,7 +6,8 @@
     "dev": "node --use-system-ca ./node_modules/next/dist/bin/next dev",
     "build": "next build",
     "start": "node --use-system-ca ./node_modules/next/dist/bin/next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:manual-generation": "node --experimental-strip-types scripts/verify-capture-fallback.js && node --experimental-strip-types scripts/verify-auto-annotations.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.99.0",

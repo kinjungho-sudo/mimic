@@ -14,6 +14,42 @@ import type { Annotation } from '@/components/editor/ImageAnnotationEditor';
 
 type Rect = { x: number; y: number; width: number; height: number }; // 0-1 normalized
 
+export function buildStepClickAnnotations(params: {
+  existingAnnotations?: Annotation[] | null;
+  elementRect?: Rect | null;
+  stepNumber: number;
+  clickX?: number | null;
+  clickY?: number | null;
+  actionType?: string | null;
+  label: string;
+}): Annotation[] {
+  if (params.existingAnnotations?.length) return params.existingAnnotations;
+
+  let rect = params.elementRect ?? null;
+  if (!rect) {
+    const clickX = normalizeUnit(params.clickX);
+    const clickY = normalizeUnit(params.clickY);
+    if (clickX == null || clickY == null) return [];
+    const width = params.actionType === 'type' || params.actionType === 'focus_input' ? 0.24 : 0.10;
+    const height = params.actionType === 'type' || params.actionType === 'focus_input' ? 0.07 : 0.04;
+    rect = {
+      x: clamp(clickX - width / 2, 0, 1 - width),
+      y: clamp(clickY - height / 2, 0, 1 - height),
+      width,
+      height,
+    };
+  }
+
+  return buildClickHighlight({
+    elementRect: rect,
+    stepNumber: params.stepNumber,
+    label: params.label,
+    clickX: params.clickX,
+    clickY: params.clickY,
+    actionType: params.actionType,
+  });
+}
+
 export function buildClickHighlight(params: {
   elementRect: Rect;
   stepNumber: number;

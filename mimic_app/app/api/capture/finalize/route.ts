@@ -6,7 +6,7 @@ import { captureFinalizeSchema } from '@/lib/validators';
 import { analyzeScreenshot, generateStepDescription, generateDraft, extractCoverColors, detectPII, cleanTranscripts } from '@/lib/ai/claude';
 import { buildCaptureAnnotationLabel, buildCaptureFallbackDraft, buildCaptureFallbackTutorialTitle, cleanCaptureTypeText, isLowQualityCaptureLabel, isLowQualityCaptureScript, isLowQualityCaptureTitle, isLowQualityCaptureTutorialTitle, isUsableCaptureDraft, type CaptureFallbackActionInfo } from '@/lib/ai/capture-fallback';
 import { resolveFavicon } from '@/lib/favicon';
-import { buildClickHighlight } from '@/lib/annotations';
+import { buildStepClickAnnotations } from '@/lib/annotations';
 import { transcribeAudio, assignSegmentsToSteps, computeStepWindows } from '@/lib/voice/voice';
 import { logSystem } from '@/lib/logging/logger-server';
 
@@ -447,6 +447,10 @@ export async function POST(request: NextRequest) {
     /* 정리 실패는 무시 — cron 청소가 보완 */
   }
 
+  let aiDraftStatusForResponse = 'not_called';
+  let aiDraftFallbackUsed = true;
+  let discardedAiDraftsForResponse = 0;
+
   try {
     const { data: initialSteps } = await supabase
       .from('mm_steps')
@@ -490,6 +494,7 @@ export async function POST(request: NextRequest) {
         };
       }));
       aiDraftStatus = draftResult.status;
+      aiDraftStatusForResponse = draftResult.status;
 
       if (draftResult.status === 'ok') {
         const aiDraftsById = new Map(draftResult.steps.map(draft => [draft.id, draft]));
@@ -518,45 +523,44 @@ export async function POST(request: NextRequest) {
       const draftsById = new Map(drafts.map(draft => [draft.id, draft]));
       const fallbackTutorialTitle = buildCaptureFallbackTutorialTitle(drafts);
       const resolvedTutorialTitle = tutorialTitleDraft || fallbackTutorialTitle;
+      aiDraftFallbackUsed = draftResult.status !== 'ok' || discardedAiDrafts > 0 || !tutorialTitleDraft;
+      discardedAiDraftsForResponse = discardedAiDrafts;
       if (resolvedTutorialTitle) {
         await supabase.from('mm_tutorials').update({ title: resolvedTutorialTitle }).eq('id', tutorial.id);
       }
 
-      const firstStep = initialSteps[0];
-
       await Promise.all(initialSteps.map(async step => {
         const draft = draftsById.get(step.id);
-        const isFirst = firstStep?.id === step.id;
         const patch: Record<string, unknown> = {};
         const titleDraft = draft?.user_title?.trim() || step.ai_title || `Step ${step.step_number}`;
         if (titleDraft) patch.user_title = titleDraft;
         patch.user_script = draft?.user_script?.trim() || step.ai_description || null;
 
         const existingAnnotations = Array.isArray(step.user_annotations) ? step.user_annotations : [];
-        if (isFirst && existingAnnotations.length === 0) {
+        if (existingAnnotations.length === 0) {
           const rect = step.element_rect as { x: number; y: number; width: number; height: number } | null;
           const actionType = actionTypeByStepNum.get(step.step_number) ?? 'click';
           const label = buildCaptureAnnotationLabel(String(patch.user_title ?? step.ai_title ?? ''), actionType, step.page_url);
           const num = step.step_number ?? 1;
-          if (rect) {
-            patch.user_annotations = buildClickHighlight({ elementRect: rect, stepNumber: num, label, clickX: step.click_x, clickY: step.click_y, actionType });
-          } else if (step.click_x != null && step.click_y != null && (step.click_x > 0 || step.click_y > 0)) {
-            const estimatedRect = {
-              x: Math.max(0, step.click_x - 0.05),
-              y: Math.max(0, step.click_y - 0.02),
-              width: Math.min(0.10, 1 - Math.max(0, step.click_x - 0.05)),
-              height: Math.min(0.04, 1 - Math.max(0, step.click_y - 0.02)),
-            };
-            patch.user_annotations = buildClickHighlight({ elementRect: estimatedRect, stepNumber: num, label, clickX: step.click_x, clickY: step.click_y, actionType });
-          }
+          const annotations = buildStepClickAnnotations({
+            existingAnnotations,
+            elementRect: rect,
+            stepNumber: num,
+            label,
+            clickX: step.click_x,
+            clickY: step.click_y,
+            actionType,
+          });
+          if (annotations.length > 0) patch.user_annotations = annotations;
         }
 
         if (Object.keys(patch).length > 0) {
-          await supabase
+          const { error } = await supabase
             .from('mm_steps')
             .update(patch)
             .eq('id', step.id)
             .eq('tutorial_id', tutorial.id);
+          if (error) throw error;
         }
       }));
 
@@ -572,9 +576,11 @@ export async function POST(request: NextRequest) {
     }
   } catch (err) {
     console.error('capture finalize initial draft generation error:', err);
+    aiDraftStatusForResponse = 'exception';
+    aiDraftFallbackUsed = true;
   }
 
-  // Optional legacy enrichment pass. The required whole-flow Claude draft above already
+  // Optional legacy enrichment pass. The required whole-flow Luna draft above already
   // writes every title and description; this flag only adds per-screenshot polishing.
   const runFullDraftBeforeResponse = process.env.CAPTURE_FINALIZE_BLOCKING_AI === '1';
   if (runFullDraftBeforeResponse) {
@@ -862,21 +868,15 @@ export async function POST(request: NextRequest) {
               const actionType = actionTypeByStepNum.get(step.step_number) ?? 'click';
               const label = buildCaptureAnnotationLabel(step.user_title ?? step.ai_title, actionType, step.page_url);
               const num = step.step_number ?? 1;
-              let annotations;
-
-              if (rect) {
-                annotations = buildClickHighlight({ elementRect: rect, stepNumber: num, label, clickX: step.click_x, clickY: step.click_y, actionType });
-              } else if (step.click_x != null && step.click_y != null && (step.click_x > 0 || step.click_y > 0)) {
-                const estimatedRect = {
-                  x: Math.max(0, step.click_x - 0.05),
-                  y: Math.max(0, step.click_y - 0.02),
-                  width:  Math.min(0.10, 1 - Math.max(0, step.click_x - 0.05)),
-                  height: Math.min(0.04, 1 - Math.max(0, step.click_y - 0.02)),
-                };
-                annotations = buildClickHighlight({ elementRect: estimatedRect, stepNumber: num, label, clickX: step.click_x, clickY: step.click_y, actionType });
-              } else {
-                return;
-              }
+              const annotations = buildStepClickAnnotations({
+                elementRect: rect,
+                stepNumber: num,
+                label,
+                clickX: step.click_x,
+                clickY: step.click_y,
+                actionType,
+              });
+              if (annotations.length === 0) return;
 
               await supabase
                 .from('mm_steps')
@@ -1008,5 +1008,10 @@ export async function POST(request: NextRequest) {
     step_count: steps.length,
     share_token: shareToken,
     completion_pending: true,
+    ai_generation: {
+      status: aiDraftStatusForResponse,
+      fallback_used: aiDraftFallbackUsed,
+      discarded_steps: discardedAiDraftsForResponse,
+    },
   });
 }

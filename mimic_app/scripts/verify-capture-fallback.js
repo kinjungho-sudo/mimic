@@ -15,113 +15,113 @@ async function main() {
       name: 'action label click',
       step: { id: '1', step_number: 1, ai_title: null, ai_description: null, page_url: 'https://ksqa.or.kr', domain_name: 'KSQA' },
       context: { actionInfo: { type: 'click', label: '대회소개' } },
-      title: '대회소개 클릭',
-      script: '대회소개를 클릭합니다.',
+      title: '대회소개 확인',
+      script: '대회소개 관련 작업을 진행할 수 있도록 해당 항목을 선택합니다.',
     },
     {
       name: 'generic edit label uses google slides context',
       step: { id: '2', step_number: 2, ai_title: null, ai_description: null, page_url: 'https://docs.google.com/presentation/d/abc/edit', domain_name: 'Google Slides' },
       context: { actionInfo: { type: 'click', label: 'edit' } },
-      title: '파일명 영역 클릭',
-      script: '파일명 영역을 클릭합니다.',
+      title: '파일명 편집 준비',
+      script: '파일명 영역 관련 작업을 진행할 수 있도록 해당 항목을 선택합니다.',
     },
     {
       name: 'generic edit no action uses google slides screen context',
       step: { id: '3', step_number: 3, ai_title: null, ai_description: null, page_url: 'https://docs.google.com/presentation/d/abc/edit', domain_name: 'Google Slides' },
       context: { actionInfo: { type: 'click', label: 'edit' }, noAction: true },
       title: '슬라이드 편집 화면 확인',
-      script: '슬라이드 편집 화면을 확인합니다.',
+      script: '다음 단계를 진행하기 전에 슬라이드 편집 화면을 확인합니다.',
     },
     {
       name: 'element text fallback',
       step: { id: '4', step_number: 4, ai_title: null, ai_description: null, page_url: 'https://example.com', domain_name: null },
       context: { actionInfo: { type: 'click' }, elementText: '자료 다운로드' },
-      title: '자료 다운로드 클릭',
-      script: '자료 다운로드를 클릭합니다.',
+      title: '자료 다운로드',
+      script: '필요한 자료를 저장하기 위해 다운로드 항목을 선택합니다.',
     },
     {
       name: 'slack apps label uses menu context',
       step: { id: '4b', step_number: 4, ai_title: null, ai_description: null, page_url: 'https://app.slack.com/client/T123/apps', domain_name: 'Slack' },
       context: { actionInfo: { type: 'click', label: 'apps' } },
-      title: '앱 메뉴 클릭',
-      script: '앱 메뉴를 클릭합니다.',
+      title: '앱 관리 시작',
+      script: '앱 메뉴 관련 작업을 진행할 수 있도록 해당 항목을 선택합니다.',
     },
     {
       name: 'slack oauth label uses settings context',
       step: { id: '4c', step_number: 4, ai_title: null, ai_description: null, page_url: 'https://api.slack.com/apps/A0BCYXSD1RD/oauth', domain_name: 'Slack' },
       context: { actionInfo: { type: 'click', label: 'oauth' } },
-      title: 'OAuth 설정 클릭',
-      script: 'OAuth 설정을 클릭합니다.',
+      title: 'OAuth 설정 준비',
+      script: 'OAuth 설정 관련 작업을 진행할 수 있도록 해당 항목을 선택합니다.',
     },
     {
       name: 'weak slack oauth ai draft is replaced',
       step: { id: '4c2', step_number: 4, ai_title: 'oauth 클릭', ai_description: 'oauth를 클릭합니다.', page_url: 'https://api.slack.com/apps/A0BCYXSD1RD/oauth', domain_name: 'Slack' },
       context: { actionInfo: { type: 'click', label: 'oauth' } },
-      title: 'OAuth 설정 클릭',
-      script: 'OAuth 설정을 클릭합니다.',
+      title: 'OAuth 설정 준비',
+      script: 'OAuth 설정 관련 작업을 진행할 수 있도록 해당 항목을 선택합니다.',
     },
     {
       name: 'slack functions label uses menu context',
       step: { id: '4c3', step_number: 4, ai_title: 'functions 클릭', ai_description: 'functions를 클릭합니다.', page_url: 'https://api.slack.com/apps/A0BCYXSD1RD/functions', domain_name: 'Slack' },
       context: { actionInfo: { type: 'click', label: 'functions' } },
-      title: 'Functions 메뉴 클릭',
-      script: 'Functions 메뉴를 클릭합니다.',
+      title: 'Functions 설정 시작',
+      script: 'Functions 메뉴 관련 작업을 진행할 수 있도록 해당 항목을 선택합니다.',
     },
     {
       name: 'slack general label uses channel context',
       step: { id: '4d', step_number: 4, ai_title: null, ai_description: null, page_url: 'https://app.slack.com/client/T123/C123', domain_name: 'jungho Slack' },
       context: { actionInfo: { type: 'click', label: 'general' } },
-      title: 'general 채널 클릭',
-      script: 'general 채널을 클릭합니다.',
+      title: 'general 채널 열기',
+      script: 'general 채널 관련 작업을 진행할 수 있도록 해당 항목을 선택합니다.',
     },
     {
       name: 'weak slack general ai draft is replaced',
       step: { id: '4d2', step_number: 4, ai_title: 'general 클릭', ai_description: 'general을 클릭합니다.', page_url: 'https://app.slack.com/client/T123/C123', domain_name: 'jungho Slack' },
       context: { actionInfo: { type: 'click', label: 'general' } },
-      title: 'general 채널 클릭',
-      script: 'general 채널을 클릭합니다.',
+      title: 'general 채널 열기',
+      script: 'general 채널 관련 작업을 진행할 수 있도록 해당 항목을 선택합니다.',
     },
     {
       name: 'weak ai title ignored',
       step: { id: '5', step_number: 5, ai_title: '단계 5 진행', ai_description: '', page_url: 'https://example.com', domain_name: null },
       context: { actionInfo: { type: 'select', label: '계정' } },
-      title: '계정 선택',
-      script: '계정을 선택합니다.',
+      title: '계정 지정',
+      script: '계정을 지정하기 위해 목록에서 필요한 항목을 선택합니다.',
     },
     {
       name: 'last resort only',
       step: { id: '6', step_number: 6, ai_title: null, ai_description: null, page_url: null, domain_name: null },
       context: {},
       title: '화면 확인',
-      script: '화면을 확인합니다.',
+      script: '다음 단계를 진행하기 전에 화면을 확인합니다.',
     },
     {
       name: 'gmail unread count becomes manual context',
       step: { id: '7', step_number: 7, ai_title: '메일, 읽지 않은 메일 2458개 클릭', ai_description: '메일, 읽지 않은 메일 2458개를 클릭합니다.', page_url: 'https://mail.google.com/mail/u/0/#inbox', domain_name: 'Gmail' },
       context: { actionInfo: { type: 'click', label: '메일, 읽지 않은 메일 2458개' } },
       title: '메일함 확인',
-      script: '메일함을 확인합니다.',
+      script: '다음 단계를 진행하기 전에 메일함을 확인합니다.',
     },
     {
       name: 'long email draft content becomes input context',
       step: { id: '8', step_number: 8, ai_title: '감사하다는 내용과 함께, 꼭 다음번에 같이하자는 내용 써줘.업데이트[받는 사람 성함]님,보내주신 메일 잘 확인했습니다. 감사드립니다.이번에는 아를 클릭합니다.', ai_description: '감사하다는 내용과 함께, 꼭 다음번에 같이하자는 내용 써줘.업데이트[받는 사람 성함]님,보내주신 메일 잘 확인했습니다. 감사드립니다.이번에는 아를 클릭합니다.', page_url: 'https://mail.google.com/mail/u/0/#inbox', domain_name: 'Gmail' },
       context: { actionInfo: { type: 'type', label: '감사하다는 내용과 함께, 꼭 다음번에 같이하자는 내용 써줘.업데이트[받는 사람 성함]님,보내주신 메일 잘 확인했습니다. 감사드립니다.이번에는 아를 클릭합니다.' } },
-      title: '메일 본문 입력',
-      script: '메일 본문을 입력합니다.',
+      title: '메일 본문 작성',
+      script: '전달할 내용을 구성하기 위해 메일 본문을 작성합니다.',
     },
     {
       name: 'raw search label becomes search box context',
       step: { id: '9', step_number: 9, ai_title: 'search 클릭', ai_description: 'search를 클릭합니다.', page_url: 'https://www.coupang.com/np/search?q=%EB%8D%B0%EB%A6%AC%EC%95%BC%EB%81%BC', domain_name: 'Coupang' },
       context: { actionInfo: { type: 'click', label: 'search' } },
-      title: '검색창 클릭',
-      script: '검색창을 클릭합니다.',
+      title: '검색 준비',
+      script: '원하는 정보를 찾기 위해 검색창을 선택합니다.',
     },
     {
       name: 'stale add-to-cart label rejected on checkout page',
       step: { id: '10', step_number: 10, ai_title: '장바구니 담기 클릭', ai_description: '장바구니 담기를 클릭합니다.', page_url: 'https://www.coupang.com/order/checkout', domain_name: 'Coupang' },
       context: { actionInfo: { type: 'click', label: '장바구니 담기' } },
       title: '주문 정보 확인',
-      script: '주문 정보를 확인합니다.',
+      script: '다음 단계를 진행하기 전에 주문 정보를 확인합니다.',
     },
   ];
 
@@ -144,10 +144,10 @@ async function main() {
 
   const fallbackTitle = buildCaptureFallbackTutorialTitle([
     { user_title: '화면 확인' },
-    { user_title: '대회소개 클릭' },
+    { user_title: '대회소개 확인' },
   ]);
-  if (fallbackTitle !== '대회소개하기') {
-    failures.push({ name: 'tutorial title fallback', expected: '대회소개하기', actual: fallbackTitle });
+  if (fallbackTitle !== '대회소개 확인하기') {
+    failures.push({ name: 'tutorial title fallback', expected: '대회소개 확인하기', actual: fallbackTitle });
   }
 
   if (!isLowQualityCaptureTitle('edit 클릭')) {
@@ -224,11 +224,11 @@ async function main() {
   })) {
     failures.push({ name: 'usable draft rejects numeric title', expected: false, actual: true });
   }
-  if (!isUsableCaptureDraft({
+  if (isUsableCaptureDraft({
     user_title: '\ud3b8\uc9c0\uc4f0\uae30 \ud074\ub9ad',
     user_script: '\ud3b8\uc9c0\uc4f0\uae30\ub97c \ud074\ub9ad\ud569\ub2c8\ub2e4.',
   })) {
-    failures.push({ name: 'usable draft accepts meaningful title and script', expected: true, actual: false });
+    failures.push({ name: 'usable draft rejects action-only title and script', expected: false, actual: true });
   }
   if (isUsableCaptureDraft({
     user_title: '장바구니 담기 클릭',
@@ -249,11 +249,18 @@ async function main() {
   })) {
     failures.push({ name: 'usable draft rejects numeric title', expected: false, actual: true });
   }
-  if (!isUsableCaptureDraft({
+  if (isUsableCaptureDraft({
     user_title: '\ud3b8\uc9c0\uc4f0\uae30 \ud074\ub9ad',
     user_script: '\ud3b8\uc9c0\uc4f0\uae30\ub97c \ud074\ub9ad\ud569\ub2c8\ub2e4.',
   })) {
-    failures.push({ name: 'usable draft accepts meaningful title and script', expected: true, actual: false });
+    failures.push({ name: 'usable draft rejects action-only title and script duplicate', expected: false, actual: true });
+  }
+
+  if (!isUsableCaptureDraft({
+    user_title: '새 메일 작성 시작',
+    user_script: '새 이메일을 작성할 수 있도록 편지쓰기를 선택해 작성 창을 엽니다.',
+  })) {
+    failures.push({ name: 'usable draft accepts purpose-oriented copy', expected: true, actual: false });
   }
 
   if (failures.length) {

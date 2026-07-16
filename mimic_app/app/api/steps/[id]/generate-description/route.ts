@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { guardStepAccess } from '@/lib/auth/workspace-guard';
-import { generateStepDescription, hasAnthropicApiKey } from '@/lib/ai/claude';
-import { validateGeneratedManualScript } from '@/lib/ai/text-quality';
+import { generateDraft, hasOpenAIApiKey } from '@/lib/ai/claude';
+import { isLowQualityManualTitle, validateGeneratedManualScript } from '@/lib/ai/text-quality';
 import { rateLimitAi } from '@/lib/rate-limit';
 
 export async function POST(
@@ -17,7 +17,7 @@ export async function POST(
   const limited = rateLimitAi(auth.userId);
   if (limited) return limited;
 
-  if (!hasAnthropicApiKey()) {
+  if (!hasOpenAIApiKey()) {
     return NextResponse.json({ error: 'AI provider is not configured' }, { status: 503 });
   }
 
@@ -31,32 +31,41 @@ export async function POST(
 
   const { data: step } = await supabase
     .from('mm_steps')
-    .select('id, ai_title, user_title, page_url, screenshot_url, tutorial_id')
+    .select('id, tutorial_id')
     .eq('id', id)
     .single();
 
   if (!step) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const title = step.user_title || step.ai_title || '';
+  // 한 단계만 따로 해석하면 DOM 라벨을 제목/본문으로 복사하기 쉽다. 같은 매뉴얼의
+  // 전체 흐름을 Luna에 전달한 뒤 요청된 단계의 결과만 저장한다.
+  const { data: tutorialSteps } = await supabase
+    .from('mm_steps')
+    .select('id, step_number, user_title, ai_title, user_script, ai_description, page_url, domain_name')
+    .eq('tutorial_id', step.tutorial_id)
+    .order('step_number', { ascending: true });
 
-  // 스크린샷 fetch → base64 변환
-  let screenshotBase64: string | undefined;
-  let mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif' = 'image/jpeg';
-  if (step.screenshot_url) {
-    try {
-      const imgRes = await fetch(step.screenshot_url);
-      if (imgRes.ok) {
-        const ct = imgRes.headers.get('content-type') ?? 'image/jpeg';
-        mediaType = (['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as const)
-          .find(t => ct.includes(t)) ?? 'image/jpeg';
-        const buf = await imgRes.arrayBuffer();
-        screenshotBase64 = Buffer.from(buf).toString('base64');
-      }
-    } catch { /* 이미지 없어도 텍스트만으로 생성 */ }
+  if (!tutorialSteps?.length) {
+    return NextResponse.json({ error: 'No steps' }, { status: 422 });
   }
 
-  const description = await generateStepDescription(title, step.page_url, screenshotBase64, mediaType);
-  const quality = validateGeneratedManualScript(description);
+  const draftResult = await generateDraft(tutorialSteps.map(item => ({
+    id: item.id,
+    step_number: item.step_number,
+    ai_title: item.user_title || item.ai_title,
+    ai_description: item.user_script || item.ai_description,
+    page_url: item.page_url,
+    domain_name: item.domain_name,
+  })));
+  if (draftResult.status !== 'ok') {
+    return NextResponse.json(
+      { error: 'AI description generation failed', reason: draftResult.status },
+      { status: draftResult.status === 'missing_key' ? 503 : 502 }
+    );
+  }
+
+  const generated = draftResult.steps.find(item => item.id === id);
+  const quality = validateGeneratedManualScript(generated?.user_script);
   if (!quality.ok) {
     return NextResponse.json(
       { error: 'AI description was empty or low quality', reason: quality.reason },
@@ -64,9 +73,15 @@ export async function POST(
     );
   }
 
-  // 생성 결과를 ai_description에 저장 — 재로드 시 빈 값으로 판정돼 매번 재생성되던 AI 비용·지연 낭비 차단
-  const { error } = await supabase.from('mm_steps').update({ ai_description: quality.text }).eq('id', id);
+  const generatedTitle = generated?.user_title?.trim() || '';
+  const patch: { ai_description: string; user_script: string; user_title?: string } = {
+    ai_description: quality.text,
+    user_script: quality.text,
+  };
+  if (!isLowQualityManualTitle(generatedTitle)) patch.user_title = generatedTitle;
+
+  const { error } = await supabase.from('mm_steps').update(patch).eq('id', id);
   if (error) return NextResponse.json({ error: 'Failed to save generated description' }, { status: 500 });
 
-  return NextResponse.json({ description: quality.text });
+  return NextResponse.json({ description: quality.text, title: patch.user_title ?? null });
 }

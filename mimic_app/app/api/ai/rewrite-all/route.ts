@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/auth-guard';
-import { hasAnthropicApiKey, rewriteAllSteps } from '@/lib/ai/claude';
+import { hasOpenAIApiKey, rewriteAllSteps } from '@/lib/ai/claude';
 import { keepUsableRewriteResults } from '@/lib/ai/text-quality';
 import { rateLimitAi } from '@/lib/rate-limit';
 import { z } from 'zod';
@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
   const limited = rateLimitAi(auth.userId);
   if (limited) return limited;
 
-  if (!hasAnthropicApiKey()) {
+  if (!hasOpenAIApiKey()) {
     return NextResponse.json({ error: 'AI provider is not configured' }, { status: 503 });
   }
 
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     const generated = await rewriteAllSteps(parsed.data.steps, parsed.data.instruction);
     results = keepUsableRewriteResults(parsed.data.steps, generated);
   } catch (err) {
-    console.error('[rewrite-all] Claude error:', err);
+    console.error('[rewrite-all] OpenAI error:', err);
     return NextResponse.json({ error: 'AI 처리 중 오류가 발생했습니다.' }, { status: 502 });
   }
   return NextResponse.json({ results });
