@@ -1,0 +1,12 @@
+Read docs/codex/PARRO_SEMI_AUTO_BENCHMARK_LOOP.md and run the next Parro semi-auto benchmark loop cycle.
+
+Stay on the DEV branch only. Do not touch main.
+
+Use the latest worklog and approval queue to decide the next cycle number and focus.
+
+Only auto-fix low-risk issues.
+Put high-risk product/security/data/architecture decisions into docs/approval-queue.md.
+
+Write a repo worklog and commit your changes.
+
+No repo worklog = not done.
