@@ -1,5 +1,21 @@
 # Implementation Log
 
+## 2026-07-18 - Parro benchmark loop cycle 2 safe capture audit
+
+- Mapped the intended browser and Windows desktop start, capture, live step,
+  finish, import, and editor-handoff paths against Scribe's documented flow.
+- Added an isolated temporary Playwright Chromium profile smoke that loads the
+  unpacked Recorder and verifies its pre-capture boundary without a user
+  profile, account token, screenshot, API call, native host, or OS mutation.
+- Added a read-only cross-runtime source contract verifier plus a safe DEV
+  capture audit/runbook.
+- Corrected the desktop setup's Recorder connection version copy to `1.7.1`.
+- Reclassified the existing native host smoke as unsafe for a live user session
+  because it starts the real capture agent; did not run native capture or
+  installer tests.
+- Added AQ-004 for the DEV capture identity/data lifecycle and expanded AQ-003
+  with native capture and Windows mutation evidence.
+
 ## 2026-07-17 - Parro benchmark loop cycle 1 runtime foundation
 
 - Restored the canonical Parro benchmark runbook and Codex worklog protocol to

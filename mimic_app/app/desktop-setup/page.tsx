@@ -170,7 +170,7 @@ export default function DesktopSetupPage() {
 
     if (isExtensionConnectionError(response?.error)) {
       setStatus('extension_missing');
-      setMessage(`Parro Recorder 1.7.0에 연결하지 못했습니다. 확장 ID가 ${getExtensionId()}인지 확인하고 확장 카드의 새로고침을 눌러주세요. (${response?.error})`);
+      setMessage(`Parro Recorder 1.7.1에 연결하지 못했습니다. 확장 ID가 ${getExtensionId()}인지 확인하고 확장 카드의 새로고침을 눌러주세요. (${response?.error})`);
       return;
     }
 
