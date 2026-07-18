@@ -1,5 +1,20 @@
 # Implementation Log
 
+## 2026-07-17 - Parro benchmark loop cycle 1 runtime foundation
+
+- Restored the canonical Parro benchmark runbook and Codex worklog protocol to
+  `dev`, then created the first approval queue, review notes, and cycle worklog.
+- Added `npm test` as the standard entry point for the existing capture and
+  follow-quality verification suite.
+- Updated local development docs to use reproducible `npm ci` installs and to
+  document `npm.cmd` for Windows execution-policy environments.
+- Verified app install resolution, lint, TypeScript, quality tests, production
+  build, and localhost DEV startup; verified Recorder, MCP, native host, native
+  import, and local unsigned installer build paths.
+- Kept `main`, deployments, databases, registry installation, Chrome Web Store,
+  and capture architecture unchanged. Production-env fallback, tracked MCP
+  dependencies, and desktop signing/privilege policy were queued for approval.
+
 ## 2026-07-13 - dev Recorder 연결 게이트 분리
 
 - dev/Preview에서 Recorder 연결이 실패해도 Production용 Chrome Web Store 설치 화면을 표시하지 않도록 분리했다.
