@@ -68,6 +68,8 @@ check(() => {
 
 check(() => {
   assert.match(popup, /type: 'FINALIZE_SESSION'/);
+  assert.match(popup, /btn\.textContent = '다시 시도'/);
+  assert.match(popup, /btnFinish\.click\(\)/);
   assert.match(background, /\/manual\/\$\{data\.tutorial_id\}\/editor\?from=recording/);
 });
 

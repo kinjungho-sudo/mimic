@@ -1,5 +1,57 @@
 # Parro Review Notes
 
+## 2026-07-18 - Benchmark Loop Cycle 4
+
+### Review outcome
+
+- Synthetic finish-to-editor flow: pass in an owned temporary Playwright
+  Chromium profile with a separately owned, permission-reduced extension copy.
+- Branch safety: work stayed on `dev`; Cycle 1 `cd9bbe9`, Cycle 2 `f2b2be6`,
+  and Cycle 3 `c6e5729` remain unchanged below Cycle 4. `main` was not checked
+  out or changed and nothing was pushed.
+- Product code risk: the only user behavior change makes the existing
+  finalization error action retry and rebuilds the existing loading overlay;
+  auth, API, capture, native-host, storage, installer, and data behavior did
+  not change.
+
+### Finish, completion, and navigation findings
+
+- The bottom Finish CTA is available while recording even with zero steps, but
+  its click guard reads storage, shows a no-steps toast, re-enables the button,
+  and sends no finalize message. With a synthetic step it enters the disabled
+  loading state and submits the artificial session/step identifiers.
+- Production finalization remains owned by `background.js`: it calls the API,
+  constructs `/manual/{tutorial_id}/editor?from=recording`, and opens a tab.
+  The Cycle 4 fixture replaces that service worker in a temporary extension
+  copy, intercepts the popup command, and never loads the real handler.
+- The first synthetic attempt returns a deterministic error. The prior error
+  UI offered only Close and had removed the loading overlay children, so a
+  second Finish attempt could show a blank overlay. Retry now rebuilds the
+  loading state and re-attempts the same synthetic path.
+- The second response returns `tutorial_dev_fixture_001`, constructs the exact
+  loopback editor URL, opens it automatically, and serves only a local fake
+  editor document.
+
+### Safety evidence
+
+- The fixture manifest grants only `storage` and `tabs`, limits host access to
+  the dynamically allocated `127.0.0.1` origin, and excludes content scripts,
+  `nativeMessaging`, and `desktopCapture`.
+- HTTP(S) interception allowed only the fake editor origin; external attempts,
+  POST requests, API mutations, uploads, real finalizer calls, capture starts,
+  and native-host invocations were all zero.
+- Both exact owned `Parro-BrowserProfile-*` and
+  `Parro-ExtensionFixture-*` directories were absent after the passing test.
+- AQ-004 remains Pending. Cycle 4 discovered no new approval gate; AQ-001 plus
+  AQ-004 remain sufficient before any account-backed DEV finalize/upload test.
+
+### MAX / owner review requested
+
+1. Review the Retry behavior and permission-reduced synthetic worker boundary.
+2. Keep AQ-001 and AQ-004 pending until a dedicated DEV identity/project,
+   positive production guard, retention period, and cleanup owner are approved.
+3. Keep AQ-003 pending for all real desktop capture/host/install work.
+
 ## 2026-07-18 - Benchmark Loop Cycle 3
 
 ### Review outcome

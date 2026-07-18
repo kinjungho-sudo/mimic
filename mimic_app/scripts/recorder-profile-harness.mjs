@@ -13,10 +13,20 @@ export function createOwnedRecorderProfile() {
   return fs.mkdtempSync(path.join(tempRoot, 'Parro-BrowserProfile-'));
 }
 
+export function createOwnedRecorderExtensionFixture() {
+  return fs.mkdtempSync(path.join(tempRoot, 'Parro-ExtensionFixture-'));
+}
+
 export function isOwnedRecorderProfile(profileDir) {
   const resolvedProfile = path.resolve(profileDir);
   return resolvedProfile.startsWith(`${tempRoot}${path.sep}`)
     && path.basename(resolvedProfile).startsWith('Parro-BrowserProfile-');
+}
+
+export function isOwnedRecorderExtensionFixture(extensionDir) {
+  const resolvedExtension = path.resolve(extensionDir);
+  return resolvedExtension.startsWith(`${tempRoot}${path.sep}`)
+    && path.basename(resolvedExtension).startsWith('Parro-ExtensionFixture-');
 }
 
 export function removeOwnedRecorderProfile(profileDir) {
@@ -25,6 +35,14 @@ export function removeOwnedRecorderProfile(profileDir) {
     throw new Error(`Refusing to remove unexpected browser profile path: ${resolvedProfile}`);
   }
   fs.rmSync(resolvedProfile, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+}
+
+export function removeOwnedRecorderExtensionFixture(extensionDir) {
+  const resolvedExtension = path.resolve(extensionDir);
+  if (!isOwnedRecorderExtensionFixture(resolvedExtension)) {
+    throw new Error(`Refusing to remove unexpected extension fixture path: ${resolvedExtension}`);
+  }
+  fs.rmSync(resolvedExtension, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
 }
 
 function resolvePlaywrightChromium() {
@@ -58,15 +76,24 @@ function resolvePlaywrightChromium() {
   return candidates[0].executable;
 }
 
-export async function launchIsolatedRecorder(profileDir) {
+export async function launchIsolatedRecorder(profileDir, options = {}) {
   if (!isOwnedRecorderProfile(profileDir)) throw new Error('Recorder profile is not an owned temporary profile.');
+  const selectedExtensionPath = options.extensionPath
+    ? path.resolve(options.extensionPath)
+    : extensionPath;
+  if (options.extensionPath && !isOwnedRecorderExtensionFixture(selectedExtensionPath)) {
+    throw new Error('Fixture extension must be an owned temporary extension directory.');
+  }
+  if (!fs.existsSync(path.join(selectedExtensionPath, 'manifest.json'))) {
+    throw new Error(`Recorder manifest not found: ${selectedExtensionPath}`);
+  }
   const context = await chromium.launchPersistentContext(profileDir, {
     channel: 'chromium',
     executablePath: resolvePlaywrightChromium(),
     headless: true,
     args: [
-      `--disable-extensions-except=${extensionPath}`,
-      `--load-extension=${extensionPath}`,
+      `--disable-extensions-except=${selectedExtensionPath}`,
+      `--load-extension=${selectedExtensionPath}`,
     ],
   });
   let [worker] = context.serviceWorkers();

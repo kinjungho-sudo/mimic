@@ -1,6 +1,6 @@
 # Parro Approval Queue
 
-Last updated: 2026-07-18 (Benchmark Loop Cycle 3)
+Last updated: 2026-07-18 (Benchmark Loop Cycle 4)
 
 Only owner-approved decisions may move an item out of `Pending`. Benchmark
 cycles may add evidence, but must not implement these items automatically.
@@ -83,3 +83,10 @@ cycles may add evidence, but must not implement these items automatically.
   was blocked; no capture command, token, API mutation, or profile residue was
   observed. AQ-004 remains pending and is sufficient for the first live DEV
   capture/finalize; no additional approval item was discovered.
+- Cycle 4 evidence: finish/loading/error/retry and editor handoff are testable
+  without an identity or backend. A permission-reduced temporary extension
+  replaces the production service worker with a synthetic interceptor, returns
+  artificial completion responses, and opens only a loopback fake editor URL.
+  The real finalizer, external APIs, capture permissions, and native host are
+  unreachable; no profile or fixture residue remains. AQ-004 stays Pending,
+  and no additional approval item was discovered.

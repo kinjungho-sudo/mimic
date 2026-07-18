@@ -102,3 +102,30 @@ not by itself prevent backend mutation.
 A pointer cursor or an `expanded` class is not proof that a step card can be
 collapsed and reopened. Exercise the real mouse and keyboard interactions and
 assert the thumbnail visibility plus `aria-expanded` state in the isolated UI.
+
+## Synthetic finish-to-editor verification
+
+### Do not call the production finalizer merely because network is blocked
+
+Blocking HTTP(S) prevents an external mutation, but it does not make the real
+`FINALIZE_SESSION` handler safe: that handler can stop/upload audio, synchronize
+steps, clear local state, and invoke other production behavior before or around
+the network call. Load the real popup with a separately owned temporary
+extension whose service worker is a permission-reduced synthetic interceptor.
+Assert that the production worker is not loaded, only loopback navigation is
+allowed, and real finalizer calls remain zero.
+
+### Rebuild loading UI after an error view replaces its children
+
+When an error state uses `replaceChildren()`, hiding it does not restore the
+spinner and status text. Every retry must reconstruct the loading content,
+disable the action during the request, and exercise the complete error-to-
+loading-to-success transition in a browser test.
+
+### Audit residue even when cleanup exists in `finally`
+
+Cycle 4 found that Node 24's recursive `fs.cpSync` terminated natively on this
+Windows fixture path before JavaScript `finally` could run. Use a bounded
+per-file copy for this fixture, validate every owned temp prefix before removal,
+and audit both browser-profile and extension-fixture directories after failure
+as well as success.

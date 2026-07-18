@@ -1,5 +1,29 @@
 # Implementation Log
 
+## 2026-07-18 - Parro benchmark loop cycle 4 synthetic finish navigation
+
+- Added an isolated Playwright finish-to-editor test that loads the real
+  Recorder popup with a temporary, permission-reduced synthetic background;
+  the production background and real finalizer are never loaded.
+- Verified the empty-step Finish guard, synthetic-step Finish availability,
+  disabled/loading state, artificial session/tutorial IDs, first-attempt error,
+  Retry, rebuilt loading state, completion response, and automatic navigation
+  to an exact `127.0.0.1` editor URL.
+- Extended the owned temporary harness to validate and clean a separate
+  `Parro-ExtensionFixture-*` directory as well as the existing browser profile.
+- Changed the completion error action from Close to Retry and rebuilt loading
+  overlay children on every attempt so retry cannot display a blank overlay.
+- The focused test failed first on the missing Retry action, then passed 15
+  behavior/safety checks after the minimum UI fix.
+- Passed dependency dry-run resolution, ESLint, TypeScript, app quality tests,
+  Cycle 2 and Cycle 3 browser tests, Cycle 4 navigation, Recorder/native
+  fixtures, production build, and bounded localhost HTTP smoke.
+- Safety result: zero real finalizer calls, zero external requests/API
+  mutations, zero browser/desktop capture starts, zero native-host calls, and
+  no temporary profile/fixture residue.
+- Commit: this entry's containing Cycle 4 commit; resolve with
+  `git log -1 --format=%H -- docs/implementation-log.md`.
+
 ## 2026-07-18 - Parro benchmark loop cycle 3 synthetic capture-result UI
 
 - Added an isolated Playwright test that injects artificial capture-result

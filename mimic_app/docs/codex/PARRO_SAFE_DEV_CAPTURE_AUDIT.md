@@ -146,12 +146,41 @@ editor navigation. Assert that no real `FINALIZE_SESSION`, API request,
 tutorial creation, screenshot upload, or external navigation occurs. Do not
 weaken AQ-004 to perform an authenticated capture.
 
+## 7. Cycle 4 synthetic finish evidence
+
+Cycle 4 implemented the step above with
+`npm.cmd run verify:synthetic-finish-navigation`. The test copies only the real
+popup, manifest, and icons to an owned OS-temp extension fixture and adds a
+synthetic background interceptor; production background/capture/native scripts
+are not copied. The fixture manifest has only `storage`
+and `tabs`, allows one dynamically allocated `127.0.0.1` origin, and has no
+content script, native-host, desktop-capture, or external web permission.
+
+The real popup verifies the empty-step guard and the one-step Finish/loading
+state. The interceptor returns one artificial failure and one artificial
+success for `session_dev_fixture_001` and `tutorial_dev_fixture_001`; the Retry
+action reconstructs the loading UI, and the fixture opens only
+`/manual/tutorial_dev_fixture_001/editor?from=recording` on the loopback server.
+External network requests, API mutations, real finalizer calls, capture starts,
+and native-host calls remain zero. Both owned temp directories are removed.
+
+## 8. Cycle 5 readiness boundary
+
+The next account-backed DEV completion is still blocked by AQ-001 and AQ-004.
+Before it can run, the owner must approve a disposable DEV identity, the exact
+DEV project/bucket, a positive guard against production project references,
+fixture retention/deletion ownership, and cleanup verification. Cycle 4 found
+no additional approval item. Until those decisions exist, Cycle 5 should remain
+a read-only/mocked readiness exercise and must not link an account or call a
+real finalize/upload path.
+
 ## Safe command set
 
 ```powershell
 cd mimic_app
 npm.cmd run verify:recorder-profile
 npm.cmd run verify:synthetic-capture-ui
+npm.cmd run verify:synthetic-finish-navigation
 
 cd ..\mimic_recorder
 node scripts/verify-capture-flow-contract.js

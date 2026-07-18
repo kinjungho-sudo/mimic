@@ -1287,33 +1287,33 @@ function showFinalizingOverlay() {
       'display:flex', 'flex-direction:column',
       'align-items:center', 'justify-content:center', 'gap:16px',
     ].join(';');
-
-    const spinner = document.createElement('div');
-    spinner.style.cssText = [
-      'width:40px', 'height:40px', 'border-radius:50%',
-      'border:3px solid rgba(0,155,142,0.18)',
-      'border-top-color:#009B8E',
-      'animation:popupSpin 0.9s linear infinite',
-    ].join(';');
-
-    const msg = document.createElement('p');
-    msg.id = 'finalizingMsg';
-    msg.style.cssText = 'font-size:14px;font-weight:600;color:#1F2937;margin:0;';
-    msg.textContent = '매뉴얼을 생성하고 있습니다...';
-
-    const sub = document.createElement('p');
-    sub.style.cssText = 'font-size:12px;color:#6B7280;margin:0;';
-    sub.textContent = 'AI 분석 중 — 잠시만 기다려 주세요';
-
-    const style = document.createElement('style');
-    style.textContent = '@keyframes popupSpin { to { transform: rotate(360deg); } }';
-
-    ov.append(style, spinner, msg, sub);
     document.body.appendChild(ov);
   }
-  // 에러 상태 초기화
-  const msgEl = document.getElementById('finalizingMsg');
-  if (msgEl) msgEl.textContent = '매뉴얼을 생성하고 있습니다...';
+
+  // 오류 화면이 자식 노드를 교체하므로 재시도할 때 로딩 UI를 다시 구성한다.
+  ov.replaceChildren();
+
+  const spinner = document.createElement('div');
+  spinner.style.cssText = [
+    'width:40px', 'height:40px', 'border-radius:50%',
+    'border:3px solid rgba(0,155,142,0.18)',
+    'border-top-color:#009B8E',
+    'animation:popupSpin 0.9s linear infinite',
+  ].join(';');
+
+  const msg = document.createElement('p');
+  msg.id = 'finalizingMsg';
+  msg.style.cssText = 'font-size:14px;font-weight:600;color:#1F2937;margin:0;';
+  msg.textContent = '매뉴얼을 생성하고 있습니다...';
+
+  const sub = document.createElement('p');
+  sub.style.cssText = 'font-size:12px;color:#6B7280;margin:0;';
+  sub.textContent = 'AI 분석 중 — 잠시만 기다려 주세요';
+
+  const style = document.createElement('style');
+  style.textContent = '@keyframes popupSpin { to { transform: rotate(360deg); } }';
+
+  ov.append(style, spinner, msg, sub);
   ov.style.display = 'flex';
 }
 
@@ -1347,8 +1347,11 @@ function showFinalizingError(detail) {
     'border:none', 'border-radius:8px',
     'font-size:13px', 'font-weight:600', 'cursor:pointer',
   ].join(';');
-  btn.textContent = '닫기';
-  btn.addEventListener('click', hideFinalizingOverlay);
+  btn.textContent = '다시 시도';
+  btn.addEventListener('click', () => {
+    hideFinalizingOverlay();
+    btnFinish.click();
+  });
 
   ov.append(icon, msg, sub, btn);
 }
