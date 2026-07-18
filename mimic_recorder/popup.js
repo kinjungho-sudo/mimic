@@ -317,10 +317,8 @@ function renderSteps(steps) {
       lastDomain = domainKey;
     }
     const card = buildStepCard(step, i + 1);
-    // 모든 스텝 썸네일 즉시 펼침
-    const tw = card.querySelector('.step-thumb');
-    if (tw) tw.style.display = 'block';
-    card.classList.add('expanded');
+    // 새로 렌더된 스텝은 즉시 확인할 수 있도록 펼친 상태로 시작한다.
+    setStepCardExpanded(card, true);
     stepsList.appendChild(card);
   });
 
@@ -386,6 +384,14 @@ function getStepDisplayLabel(step, num) {
 
 let expandedStepId = null;
 
+function setStepCardExpanded(card, expanded) {
+  card.classList.toggle('expanded', expanded);
+  const thumb = card.querySelector('.step-thumb');
+  if (thumb) thumb.style.display = expanded ? 'block' : 'none';
+  const toggle = card.querySelector('.step-card-toggle');
+  if (toggle) toggle.setAttribute('aria-expanded', String(expanded));
+}
+
 function buildStepCard(step, num) {
   const card = document.createElement('div');
   card.className = 'step-card';
@@ -450,10 +456,24 @@ function buildStepCard(step, num) {
 
   // ── 카드 클릭 → 펼침 토글 ────────────────────────────────────
   const topRow = document.createElement('div');
+  topRow.className = 'step-card-toggle';
+  topRow.setAttribute('role', 'button');
+  topRow.setAttribute('aria-expanded', 'false');
+  topRow.tabIndex = 0;
   topRow.style.cssText = 'display:flex;align-items:flex-start;gap:10px;cursor:pointer;';
   topRow.append(numBadge, info);
 
-  // 썸네일은 항상 펼쳐진 상태 — 클릭 토글 없음
+  const toggleExpanded = () => {
+    const expanded = !card.classList.contains('expanded');
+    setStepCardExpanded(card, expanded);
+    expandedStepId = expanded ? step.id : null;
+  };
+  topRow.addEventListener('click', toggleExpanded);
+  topRow.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    toggleExpanded();
+  });
 
   const delBtn = document.createElement('button');
   delBtn.className = 'step-delete';
@@ -527,9 +547,7 @@ function buildStepVoiceButton(step) {
 
 function collapseAllThumb() {
   stepsList.querySelectorAll('.step-card').forEach((c) => {
-    c.classList.remove('expanded');
-    const tw = c.querySelector('.step-thumb');
-    if (tw) tw.style.display = 'none';
+    setStepCardExpanded(c, false);
   });
 }
 

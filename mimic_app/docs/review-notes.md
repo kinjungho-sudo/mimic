@@ -1,5 +1,53 @@
 # Parro Review Notes
 
+## 2026-07-18 - Benchmark Loop Cycle 3
+
+### Review outcome
+
+- Synthetic capture-result UI flow: pass in an owned temporary Playwright
+  Chromium profile. No real browser or desktop capture was performed.
+- Branch safety: work stayed on `dev`, with Cycle 1
+  `cd9bbe912d37f4b168932bee005e51bd35d1578c` and Cycle 2
+  `f2b2be6ccc6b0606140dcf042c8215331d7439fc` preserved. `main` was not touched
+  and nothing was pushed.
+- Product code risk: the only runtime change makes the already-rendered step
+  card header operable by mouse, Enter, or Space and exposes `aria-expanded`;
+  capture, auth, upload, API, native-host, installer, and data behavior did not
+  change.
+
+### Synthetic ingestion and rendering findings
+
+- The safe existing ingestion seam is `chrome.storage.local.steps` followed by
+  the popup's storage change listener and `renderSteps()`; thumbnails are read
+  from the extension-local `mimic_screenshots` IndexedDB store.
+- The test uses only `example.invalid` URLs, fake selectors/coordinates/IDs and
+  generated SVG thumbnails. It adds no production runtime injection switch.
+- Empty, one-step, and seven-step states preserve count and order. New cards
+  start expanded, can collapse/expand accessibly, render the synthetic
+  thumbnail and click-target highlight, and scroll the latest card into view.
+- The previous card code visually suggested clickability but had no toggle
+  listener. The low-risk fix aligns behavior with the existing cursor styling
+  and dormant collapse helper.
+
+### Safety evidence
+
+- HTTP(S) requests were blocked and recorded; zero attempts occurred.
+- Popup runtime messages were recorded; no browser/desktop capture start,
+  screenshot, finalize, or import command occurred.
+- No extension token, session, target tab, or active recording state was set.
+- The exact owned `Parro-BrowserProfile-*` directory was removed after each
+  isolated test; no profile residue remained.
+- AQ-004 remains sufficient and pending for the first authenticated live DEV
+  capture/finalize. Cycle 3 discovered no new approval gate.
+
+### MAX / owner review requested
+
+1. Review the accessible card-toggle behavior and the isolated fixture design.
+2. Keep AQ-001 and AQ-004 pending before any linked capture, upload, finalize,
+   or editor data E2E.
+3. Cycle 4 should verify finish-to-editor navigation with synthetic responses
+   and a local fake editor route; it must not create a tutorial or call APIs.
+
 ## 2026-07-18 - Benchmark Loop Cycle 2
 
 ### Review outcome

@@ -9,6 +9,7 @@
     "lint": "next lint",
     "test": "npm run verify:quality",
     "verify:recorder-profile": "node scripts/verify-recorder-profile.mjs",
+    "verify:synthetic-capture-ui": "node scripts/verify-synthetic-capture-ui.mjs",
     "verify:quality": "node scripts/verify-capture-fallback.js && node scripts/verify-regenerate-content.js && node --loader ./scripts/ts-path-loader.mjs scripts/verify-follow-config.js"
   },
   "dependencies": {

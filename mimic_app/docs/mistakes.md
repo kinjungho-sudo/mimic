@@ -87,3 +87,18 @@ When auditing Supabase/Vercel environments, output only variable names, project 
 - Production: `gqynptpjomcqzxyykqic`
 
 Do not point Preview at Production or Production at dev. Do not copy, delete, or migrate production data as part of the rebrand.
+
+## Synthetic capture-result verification
+
+### Do not treat a temporary profile alone as a complete safety boundary
+
+A synthetic Recorder UI test must also block and record HTTP(S), record capture
+commands, avoid tokens/session state, use artificial storage/IndexedDB data,
+and prove exact temporary-profile cleanup. A disposable browser directory does
+not by itself prevent backend mutation.
+
+### Do not infer card interaction from styling or source text
+
+A pointer cursor or an `expanded` class is not proof that a step card can be
+collapsed and reopened. Exercise the real mouse and keyboard interactions and
+assert the thumbnail visibility plus `aria-expanded` state in the isolated UI.

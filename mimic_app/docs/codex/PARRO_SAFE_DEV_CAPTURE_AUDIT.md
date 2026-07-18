@@ -124,23 +124,34 @@ Do not use these existing commands as routine safe tests:
 - `test-installer.ps1` or the installer because they change HKCU, shortcuts,
   installed files, and processes.
 
-## 5. Smallest safe Cycle 3 step
+## 5. Cycle 3 synthetic result-flow evidence
 
-Add a test-only side-panel fixture to the same isolated Playwright profile. The
-fixture should write one synthetic step and an in-profile synthetic thumbnail,
-then verify the expanded card, thumbnail, click-target metadata, step count,
-and auto-scroll. It must not set an account token, dispatch a real click,
-capture pixels, call a Parro endpoint, or connect to Native Messaging.
+Cycle 3 implemented the proposed side-panel fixture with no production-only
+runtime switch. `npm.cmd run verify:synthetic-capture-ui` writes artificial
+steps to the existing extension-local storage seam and generated SVG thumbnail
+blobs to the existing IndexedDB seam inside an owned temporary profile.
 
-That step directly supports Cycle 3's click-highlight and step-panel focus. A
-true linked browser capture/finalize test should wait for AQ-001 and AQ-004. A
-true Windows capture should remain a disposable-VM/manual test behind AQ-003.
+The test verifies empty, one-step, and seven-step states; count/order, expanded
+and collapsed cards, thumbnail and click-target highlight rendering, and
+latest-step visibility. It blocks HTTP(S), records popup commands, confirms no
+token/session/recording state, and removes the profile. A true linked browser
+capture/finalize still waits for AQ-001 and AQ-004. A true Windows capture
+remains a disposable-VM/manual test behind AQ-003.
+
+## 6. Smallest safe Cycle 4 step
+
+Use synthetic runtime/API responses and a localhost-only fake editor route to
+verify the finish CTA, completion state, tutorial-ID handling, and automatic
+editor navigation. Assert that no real `FINALIZE_SESSION`, API request,
+tutorial creation, screenshot upload, or external navigation occurs. Do not
+weaken AQ-004 to perform an authenticated capture.
 
 ## Safe command set
 
 ```powershell
 cd mimic_app
 npm.cmd run verify:recorder-profile
+npm.cmd run verify:synthetic-capture-ui
 
 cd ..\mimic_recorder
 node scripts/verify-capture-flow-contract.js

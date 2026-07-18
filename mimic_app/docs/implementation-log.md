@@ -1,5 +1,24 @@
 # Implementation Log
 
+## 2026-07-18 - Parro benchmark loop cycle 3 synthetic capture-result UI
+
+- Added an isolated Playwright test that injects artificial capture-result
+  steps and SVG thumbnails into the Recorder's existing extension storage and
+  IndexedDB ingestion path; no production-only test seam was added.
+- Verified empty, one-step, and seven-step states; card count/order, synthetic
+  thumbnail rendering, click-target highlight metadata, mouse/keyboard
+  collapse and expansion, and latest-step visibility.
+- Added accessible step-card toggle state while preserving the existing
+  default-expanded behavior.
+- Blocked HTTP(S), recorded capture commands, withheld account/session state,
+  and proved that the owned temporary browser profile was removed.
+- Reused the same validated profile lifecycle for the Cycle 2 profile smoke.
+- Passed dependency dry-run resolution, ESLint, TypeScript, app quality tests,
+  Recorder/native fixtures, Cycle 2 contracts, the new 12-check UI test,
+  production build, and a bounded localhost HTTP smoke.
+- Commit: this entry's containing Cycle 3 commit; resolve with
+  `git log -1 --format=%H -- docs/implementation-log.md`.
+
 ## 2026-07-18 - Parro benchmark loop cycle 2 safe capture audit
 
 - Mapped the intended browser and Windows desktop start, capture, live step,

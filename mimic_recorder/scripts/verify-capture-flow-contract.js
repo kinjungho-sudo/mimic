@@ -60,7 +60,9 @@ check(() => {
 
 check(() => {
   assert.match(popup, /function renderSteps\(steps\)/);
-  assert.match(popup, /card\.classList\.add\('expanded'\)/);
+  assert.match(popup, /setStepCardExpanded\(card, true\)/);
+  assert.match(popup, /topRow\.addEventListener\('click', toggleExpanded\)/);
+  assert.match(popup, /setAttribute\('aria-expanded', String\(expanded\)\)/);
   assert.match(popup, /requestAnimationFrame\(scrollStepsToBottom\)/);
 });
 
