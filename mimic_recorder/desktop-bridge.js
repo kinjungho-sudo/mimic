@@ -131,6 +131,31 @@ async function undoDesktopCaptureStep(sessionId) {
   });
 }
 
+async function requestDesktopManualCapture(sessionId) {
+  if (!sessionId) throw new Error('missing_session_id');
+  return requestDesktopMessage({
+    type: 'REQUEST_MANUAL_CAPTURE',
+    capture_session_id: sessionId,
+  });
+}
+
+async function markNextDesktopCapturePrivate(sessionId) {
+  if (!sessionId) throw new Error('missing_session_id');
+  return requestDesktopMessage({
+    type: 'MARK_NEXT_CAPTURE_PRIVATE',
+    capture_session_id: sessionId,
+  });
+}
+
+async function updateDesktopToolbarBounds(sessionId, bounds) {
+  if (!sessionId) throw new Error('missing_session_id');
+  return requestDesktopMessage({
+    type: 'UPDATE_TOOLBAR_BOUNDS',
+    capture_session_id: sessionId,
+    bounds,
+  });
+}
+
 async function getDesktopCaptureSession(sessionId) {
   if (!sessionId) throw new Error('missing_session_id');
   const response = await requestDesktopMessage({

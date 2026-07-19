@@ -623,3 +623,13 @@
 - Fixed Recorder privacy behavior so structured input text is stored only when the user enables the setting, and successful finalization clears temporary IndexedDB capture blobs.
 - Added an in-product recording disclosure with a direct privacy-policy link, bumped the Recorder to `1.7.1`, and generated the review package `mimic_recorder/parro-recorder-v1.7.1.zip`.
 - Verified Recorder JavaScript syntax, ZIP whitelist and paths, manifest name/version, policy disclosure contents, local `/legal/privacy` HTTP 200 rendering, and a full Next.js production build.
+
+## 2026-07-19 - Scribe-benchmark desktop companion controls
+
+- Focused the development cycle on Parro Desktop Companion parity with Scribe-style recording controls, not visual UI work.
+- Added native-host support for manual desktop capture requests, mark-next-capture-private control, and toolbar-bounds updates so the Recorder can drive Scribe-like capture controls through the desktop bridge instead of relying on implicit click capture only.
+- Passed those controls through to `capture-agent.ps1` as explicit local control files (`.manual-capture`, `.blur-next`, `.toolbar-bounds.json`) inside the active session directory.
+- Added `scripts/test-scribe-controls.js` as a cross-platform contract test that verifies the control messages write the expected local files without starting real Windows capture.
+- Hardened `STOP_CAPTURE_SESSION` to write a safe stopped-session fallback when the Windows capture agent did not produce `session.json`, keeping smoke verification deterministic on non-Windows/dev hosts.
+- Added `npm run verify:desktop` to run desktop host smoke, native image chunk import, and Scribe control contract checks from the app package.
+- Did not touch `main`, Production deploy, DB/auth/storage, actual desktop capture, native-host installation, registry, signing, or external upload.
