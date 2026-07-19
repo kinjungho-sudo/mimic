@@ -11,6 +11,9 @@ const state = {
   stopFile: null,
   pauseFile: null,
   undoFile: null,
+  manualCaptureFile: null,
+  blurNextFile: null,
+  toolbarBoundsFile: null,
 };
 
 const localAppData = process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local");
@@ -63,6 +66,26 @@ function readCaptureEvents(captureDir) {
     .split(/\r?\n/)
     .filter(Boolean)
     .map((line) => JSON.parse(line));
+}
+
+function writeFallbackStoppedSession(captureDir, sessionId, startedAt = null) {
+  fs.mkdirSync(captureDir, { recursive: true });
+  const sessionPath = path.join(captureDir, "session.json");
+  if (fs.existsSync(sessionPath)) return readJsonFile(sessionPath);
+  const now = new Date().toISOString();
+  const events = readCaptureEvents(captureDir);
+  const session = {
+    session_id: sessionId,
+    status: "stopped",
+    started_at: startedAt || now,
+    updated_at: now,
+    captured_steps: events.length,
+    events_file: path.join(captureDir, "events.jsonl"),
+    capture_directory: captureDir,
+    warning: "capture_agent_session_file_missing",
+  };
+  fs.writeFileSync(sessionPath, JSON.stringify(session, null, 2), "utf8");
+  return session;
 }
 
 function publicCaptureEvent(event, captureDir) {
@@ -135,11 +158,17 @@ function startCaptureAgent(sessionId) {
   const stopFile = path.join(captureDir, ".stop");
   const pauseFile = path.join(captureDir, ".pause");
   const undoFile = path.join(captureDir, ".undo");
+  const manualCaptureFile = path.join(captureDir, ".manual-capture");
+  const blurNextFile = path.join(captureDir, ".blur-next");
+  const toolbarBoundsFile = path.join(captureDir, ".toolbar-bounds.json");
   const agentPath = path.join(__dirname, "capture-agent.ps1");
   fs.mkdirSync(captureDir, { recursive: true });
   fs.rmSync(stopFile, { force: true });
   fs.rmSync(pauseFile, { force: true });
   fs.rmSync(undoFile, { force: true });
+  fs.rmSync(manualCaptureFile, { force: true });
+  fs.rmSync(blurNextFile, { force: true });
+  fs.rmSync(toolbarBoundsFile, { force: true });
 
   const child = spawn("powershell.exe", [
     "-NoProfile",
@@ -150,6 +179,9 @@ function startCaptureAgent(sessionId) {
     "-StopFile", stopFile,
     "-PauseFile", pauseFile,
     "-UndoFile", undoFile,
+    "-ManualCaptureFile", manualCaptureFile,
+    "-BlurNextFile", blurNextFile,
+    "-ToolbarBoundsFile", toolbarBoundsFile,
   ], {
     windowsHide: true,
     stdio: "ignore",
@@ -168,11 +200,45 @@ function startCaptureAgent(sessionId) {
   state.stopFile = stopFile;
   state.pauseFile = pauseFile;
   state.undoFile = undoFile;
+  state.manualCaptureFile = manualCaptureFile;
+  state.blurNextFile = blurNextFile;
+  state.toolbarBoundsFile = toolbarBoundsFile;
   return captureDir;
 }
 
 function activeCaptureMatches(sessionId) {
   return !!state.activeSessionId && (!sessionId || sessionId === state.activeSessionId);
+}
+
+function requireActiveCaptureControl(message) {
+  if (!activeCaptureMatches(message.capture_session_id)) {
+    return { ok: false, error: "capture_session_not_active" };
+  }
+  if (!state.captureDir) {
+    return { ok: false, error: "capture_session_not_ready" };
+  }
+  return null;
+}
+
+function writeCaptureControlFile(filePath, payload = "") {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, payload || new Date().toISOString(), "utf8");
+}
+
+function normalizedToolbarBounds(bounds) {
+  if (!bounds || typeof bounds !== "object") throw new Error("missing_toolbar_bounds");
+  const left = Number(bounds.left);
+  const top = Number(bounds.top);
+  const right = Number(bounds.right);
+  const bottom = Number(bounds.bottom);
+  if (![left, top, right, bottom].every(Number.isFinite)) throw new Error("invalid_toolbar_bounds");
+  if (right <= left || bottom <= top) throw new Error("invalid_toolbar_bounds");
+  return {
+    left: Math.round(left),
+    top: Math.round(top),
+    right: Math.round(right),
+    bottom: Math.round(bottom),
+  };
 }
 
 async function waitForCapturedStepCount(captureDir, predicate, timeoutMs = 3000) {
@@ -217,7 +283,7 @@ async function handleMessage(message) {
     const stoppedSessionId = state.activeSessionId;
     const captureDir = state.captureDir || captureDirectoryFor(message.capture_session_id || stoppedSessionId);
     stopCaptureAgent();
-    const session = await waitForSessionStopped(captureDir);
+    const session = await waitForSessionStopped(captureDir) || writeFallbackStoppedSession(captureDir, message.capture_session_id || stoppedSessionId, state.startedAt);
     log({ event: "stop_capture_session", message, active_session_id: stoppedSessionId });
     state.activeSessionId = null;
     state.startedAt = null;
@@ -241,6 +307,44 @@ async function handleMessage(message) {
       type: paused ? "CAPTURE_SESSION_PAUSED" : "CAPTURE_SESSION_RESUMED",
       capture_session_id: state.activeSessionId,
       status: paused ? "paused" : "recording",
+    };
+  }
+
+  if (message.type === "REQUEST_MANUAL_CAPTURE") {
+    const controlError = requireActiveCaptureControl(message);
+    if (controlError) return controlError;
+    writeCaptureControlFile(state.manualCaptureFile);
+    log({ event: "manual_capture_requested", session_id: state.activeSessionId });
+    return {
+      ok: true,
+      type: "MANUAL_CAPTURE_REQUESTED",
+      capture_session_id: state.activeSessionId,
+    };
+  }
+
+  if (message.type === "MARK_NEXT_CAPTURE_PRIVATE") {
+    const controlError = requireActiveCaptureControl(message);
+    if (controlError) return controlError;
+    writeCaptureControlFile(state.blurNextFile);
+    log({ event: "next_capture_marked_private", session_id: state.activeSessionId });
+    return {
+      ok: true,
+      type: "NEXT_CAPTURE_MARKED_PRIVATE",
+      capture_session_id: state.activeSessionId,
+    };
+  }
+
+  if (message.type === "UPDATE_TOOLBAR_BOUNDS") {
+    const controlError = requireActiveCaptureControl(message);
+    if (controlError) return controlError;
+    const bounds = normalizedToolbarBounds(message.bounds);
+    writeCaptureControlFile(state.toolbarBoundsFile, JSON.stringify(bounds));
+    log({ event: "toolbar_bounds_updated", session_id: state.activeSessionId, bounds });
+    return {
+      ok: true,
+      type: "TOOLBAR_BOUNDS_UPDATED",
+      capture_session_id: state.activeSessionId,
+      bounds,
     };
   }
 

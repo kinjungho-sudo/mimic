@@ -6,6 +6,14 @@ The production Desktop App can later replace this host with a signed Tauri binar
 
 - `START_CAPTURE_SESSION`
 - `STOP_CAPTURE_SESSION`
+- `PAUSE_CAPTURE_SESSION`
+- `RESUME_CAPTURE_SESSION`
+- `REQUEST_MANUAL_CAPTURE`
+- `UNDO_CAPTURE_STEP`
+- `MARK_NEXT_CAPTURE_PRIVATE`
+- `UPDATE_TOOLBAR_BOUNDS`
+- `GET_CAPTURE_SESSION`
+- `READ_CAPTURE_IMAGE_CHUNK`
 - `PING`
 
 ## What this verifies
@@ -16,6 +24,10 @@ This dev host verifies the first Desktop Companion contract:
 2. The extension sends the same `capture_session_id` to the desktop host.
 3. The desktop host keeps the active session while recording is running.
 4. The extension sends a stop message when recording ends.
+5. Scribe-like recording controls stay native-host backed: pause/resume,
+   manual capture, undo last step, mark the next capture private, and toolbar
+   bounds exclusion all use local control files inside the active session
+   directory.
 
 The current preview captures Windows clicks, the foreground application/window,
 and either the active window or current monitor. When the session is completed,
