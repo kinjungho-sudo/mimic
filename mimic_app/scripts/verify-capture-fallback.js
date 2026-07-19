@@ -332,6 +332,18 @@ async function main() {
   if (!isLowQualityCaptureTutorialTitle('최소 입력하기')) {
     failures.push({ name: 'raw input tutorial title rejected', expected: true, actual: false });
   }
+  if (!isLowQualityCaptureTitle('항목명 (선택) 입력')) {
+    failures.push({ name: 'optional field label title rejected', expected: true, actual: false });
+  }
+  if (!isLowQualityCaptureTitle('설정 클릭')) {
+    failures.push({ name: 'settings click title rejected', expected: true, actual: false });
+  }
+  if (!isLowQualityCaptureScript('항목명 (선택)로 내용을 입력합니다.')) {
+    failures.push({ name: 'optional field label script rejected', expected: true, actual: false });
+  }
+  if (!isLowQualityCaptureScript('설정을 클릭합니다.')) {
+    failures.push({ name: 'settings click script rejected', expected: true, actual: false });
+  }
   if (!isLowQualityCaptureTutorialTitle('Code 클릭')) {
     failures.push({ name: 'raw code tutorial title rejected', expected: true, actual: false });
   }

@@ -633,3 +633,12 @@
 - Hardened `STOP_CAPTURE_SESSION` to write a safe stopped-session fallback when the Windows capture agent did not produce `session.json`, keeping smoke verification deterministic on non-Windows/dev hosts.
 - Added `npm run verify:desktop` to run desktop host smoke, native image chunk import, and Scribe control contract checks from the app package.
 - Did not touch `main`, Production deploy, DB/auth/storage, actual desktop capture, native-host installation, registry, signing, or external upload.
+
+## 2026-07-20 - Tango-benchmark manual copy dogfood hardening
+
+- Ran a 1-6 loop dogfood pass against Parro new-manual creation on dev Preview after local `localhost:3000` was blocked by missing Supabase env values.
+- Verified login with the dev test account and opened `새로 만들기`; the direct manual creation option entered an editor with weak copy such as `설정 클릭`, repeated `항목명 (선택) 입력`, and `항목명 (선택)로 내용을 입력합니다.`.
+- Confirmed the existing publish quality gate caught the weak overall title and duplicate step title, then hardened fallback/text quality detectors so raw optional-field labels and generic settings-click copy are rejected before publish/regeneration.
+- Clarified the home new-menu direct manual copy from `새 매뉴얼(직접 작성)` / `모바일에서도 단계별로 작성` to `새 매뉴얼 직접 작성` / `빈 매뉴얼에서 제목과 단계를 직접 작성`.
+- Verified `npm run verify:quality`, `npm run lint`, `npx tsc --noEmit --pretty false`, and `npm run build` passed.
+- Did not touch `main`, Production deploy, DB/auth/storage, Chrome extension capture, native desktop capture, publish/share state, or real uploads.
