@@ -9,8 +9,8 @@ using System.Windows.Forms;
 [assembly: System.Reflection.AssemblyTitle("Parro Desktop Capture")]
 [assembly: System.Reflection.AssemblyProduct("Parro Desktop Capture")]
 [assembly: System.Reflection.AssemblyCompany("Parro")]
-[assembly: System.Reflection.AssemblyVersion("0.4.1.0")]
-[assembly: System.Reflection.AssemblyFileVersion("0.4.1.0")]
+[assembly: System.Reflection.AssemblyVersion("0.5.0.0")]
+[assembly: System.Reflection.AssemblyFileVersion("0.5.0.0")]
 
 internal static class ParroDesktopProgram
 {
@@ -59,10 +59,12 @@ internal sealed class CaptureForm : Form
     private readonly Button blurButton;
     private readonly Button undoButton;
     private readonly Button pauseButton;
+    private readonly Button previewButton;
     private readonly Button completeButton;
     private readonly Button toolbarStopButton;
     private readonly Timer elapsedTimer;
     private readonly ToolTip toolTip;
+    private readonly CapturePreviewForm previewForm;
 
     private string sessionId;
     private string outputDirectory;
@@ -77,6 +79,7 @@ internal sealed class CaptureForm : Form
     private bool paused;
     private bool blurNext;
     private bool toolbarMode;
+    private int capturedStepCount;
 
     internal CaptureForm()
     {
@@ -88,6 +91,7 @@ internal sealed class CaptureForm : Form
         MinimizeBox = true;
         BackColor = Color.FromArgb(248, 250, 252);
         Font = new Font("Segoe UI", 9F);
+        AutoScaleMode = AutoScaleMode.Dpi;
         try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
 
         toolTip = new ToolTip();
@@ -108,10 +112,17 @@ internal sealed class CaptureForm : Form
         blurButton = (Button)toolbarPanel.Controls["BlurButton"];
         undoButton = (Button)toolbarPanel.Controls["UndoButton"];
         pauseButton = (Button)toolbarPanel.Controls["PauseButton"];
+        previewButton = (Button)toolbarPanel.Controls["PreviewButton"];
         completeButton = (Button)toolbarPanel.Controls["CompleteButton"];
         toolbarStopButton = (Button)toolbarPanel.Controls["ToolbarStopButton"];
         elapsedLabel = (Label)toolbarPanel.Controls["ElapsedLabel"];
         toolbarStatusLabel = (Label)toolbarPanel.Controls["ToolbarStatusLabel"];
+        previewForm = new CapturePreviewForm();
+        previewForm.VisibleChanged += delegate
+        {
+            if (!previewForm.Visible) previewButton.Text = "▤ 미리보기";
+            WriteToolbarBounds();
+        };
 
         startButton.Click += delegate { StartCapture(); };
         stopButton.Click += delegate { StopCapture(false); };
@@ -120,6 +131,7 @@ internal sealed class CaptureForm : Form
         blurButton.Click += delegate { ToggleBlurNext(); };
         undoButton.Click += delegate { RequestUndo(); };
         pauseButton.Click += delegate { TogglePause(); };
+        previewButton.Click += delegate { TogglePreview(); };
         completeButton.Click += delegate { CompleteCapture(); };
         toolbarStopButton.Click += delegate { StopCapture(false); };
 
@@ -127,7 +139,7 @@ internal sealed class CaptureForm : Form
         elapsedTimer.Interval = 250;
         elapsedTimer.Tick += delegate { UpdateToolbarState(); };
 
-        LocationChanged += delegate { WriteToolbarBounds(); };
+        LocationChanged += delegate { WriteToolbarBounds(); PositionPreviewPanel(); };
         SizeChanged += delegate { WriteToolbarBounds(); };
         HandleCreated += delegate { if (toolbarMode) ApplyCaptureExclusion(); };
         FormClosing += OnFormClosing;
@@ -278,7 +290,12 @@ internal sealed class CaptureForm : Form
         toolTip.SetToolTip(pause, "자동 캡처를 잠시 멈추거나 다시 시작합니다.");
         panel.Controls.Add(pause);
 
-        Button complete = MakeToolbarButton("✓ 매뉴얼 만들기", 544, 10, 122);
+        Button preview = MakeToolbarButton("▤ 미리보기", 544, 10, 88);
+        preview.Name = "PreviewButton";
+        toolTip.SetToolTip(preview, "지금까지 캡처된 화면과 단계 목록을 확인합니다.");
+        panel.Controls.Add(preview);
+
+        Button complete = MakeToolbarButton("✓ 매뉴얼 만들기", 638, 10, 122);
         complete.Name = "CompleteButton";
         complete.BackColor = Color.FromArgb(0, 142, 134);
         complete.ForeColor = Color.White;
@@ -286,7 +303,7 @@ internal sealed class CaptureForm : Form
         toolTip.SetToolTip(complete, "세션을 완료하고 Parro에서 매뉴얼을 생성합니다.");
         panel.Controls.Add(complete);
 
-        Button stop = MakeToolbarButton("■ 중지", 672, 10, 68);
+        Button stop = MakeToolbarButton("■ 중지", 766, 10, 68);
         stop.Name = "ToolbarStopButton";
         stop.ForeColor = Color.FromArgb(255, 174, 183);
         toolTip.SetToolTip(stop, "세션을 중지하고 Parro 기본 창으로 돌아갑니다.");
@@ -294,7 +311,7 @@ internal sealed class CaptureForm : Form
 
         Label drag = new Label();
         drag.Text = "⋮⋮";
-        drag.Location = new Point(744, 15);
+        drag.Location = new Point(840, 15);
         drag.Size = new Size(28, 25);
         drag.TextAlign = ContentAlignment.MiddleCenter;
         drag.Font = new Font("Segoe UI", 13F, FontStyle.Bold);
@@ -356,6 +373,11 @@ internal sealed class CaptureForm : Form
             Directory.CreateDirectory(outputDirectory);
             DeleteCommandFiles();
 
+            using (CountdownForm countdown = new CountdownForm(Screen.FromPoint(Cursor.Position)))
+            {
+                countdown.ShowDialog(this);
+            }
+
             ProcessStartInfo start = new ProcessStartInfo();
             start.FileName = "powershell.exe";
             start.Arguments = "-NoProfile -ExecutionPolicy Bypass -File \"" + agentPath + "\"" +
@@ -376,6 +398,8 @@ internal sealed class CaptureForm : Form
             captureStartedAt = DateTime.UtcNow;
             paused = false;
             blurNext = false;
+            capturedStepCount = 0;
+            completeButton.Enabled = false;
             statusLabel.Text = "기록 중 · Windows 앱을 평소처럼 클릭하세요.";
             pathLabel.Text = outputDirectory;
             startButton.Enabled = false;
@@ -423,6 +447,32 @@ internal sealed class CaptureForm : Form
         toolbarStatusLabel.Text = "최근 캡처 취소";
     }
 
+    private void TogglePreview()
+    {
+        if (!toolbarMode) return;
+        if (previewForm.Visible)
+        {
+            previewForm.Hide();
+            previewButton.Text = "▤ 미리보기";
+            return;
+        }
+
+        previewForm.SetSession(outputDirectory);
+        previewForm.Show(this);
+        PositionPreviewPanel();
+        previewButton.Text = "▤ 닫기";
+    }
+
+    private void PositionPreviewPanel()
+    {
+        if (!toolbarMode || !previewForm.Visible) return;
+        Screen screen = Screen.FromRectangle(Bounds);
+        Rectangle working = screen.WorkingArea;
+        int preferredTop = Bottom + 10;
+        previewForm.Left = working.Right - previewForm.Width - 14;
+        previewForm.Top = Math.Max(working.Top + 14, Math.Min(preferredTop, working.Bottom - previewForm.Height - 14));
+    }
+
     private void TogglePause()
     {
         if (String.IsNullOrWhiteSpace(pauseFile)) return;
@@ -465,7 +515,7 @@ internal sealed class CaptureForm : Form
     {
         try
         {
-            string url = "https://parro-guide.vercel.app/desktop-setup?source=desktop-app&autoImport=1&session=" +
+            string url = "https://parro-guide.vercel.app/desktop-import?source=desktop-app&session=" +
                 Uri.EscapeDataString(completedSessionId);
             Process.Start(url);
             statusLabel.Text = "캡처 완료 · 브라우저에서 매뉴얼을 만들고 있습니다.";
@@ -484,7 +534,19 @@ internal sealed class CaptureForm : Form
         try { WriteCommand(stopFile, DateTimeOffset.UtcNow.ToString("o")); }
         catch (Exception exception) { Log(exception); }
 
+        if (captureProcess != null)
+        {
+            try
+            {
+                if (!captureProcess.HasExited) captureProcess.WaitForExit(5000);
+            }
+            catch (Exception exception) { Log(exception); }
+            finally { captureProcess.Dispose(); }
+        }
+
         elapsedTimer.Stop();
+        previewForm.Hide();
+        previewButton.Text = "▤ 미리보기";
         ExitToolbarMode();
         statusLabel.Text = completed ? "캡처 완료" : "캡처 중지됨";
         pathLabel.Text = outputDirectory;
@@ -495,6 +557,7 @@ internal sealed class CaptureForm : Form
         captureProcess = null;
         paused = false;
         blurNext = false;
+        capturedStepCount = 0;
     }
 
     private void EnterToolbarMode()
@@ -503,7 +566,7 @@ internal sealed class CaptureForm : Form
         mainPanel.Visible = false;
         toolbarPanel.Visible = true;
         FormBorderStyle = FormBorderStyle.None;
-        ClientSize = new Size(780, 58);
+        ClientSize = new Size(880, 58);
         MinimumSize = Size.Empty;
         MaximumSize = Size.Empty;
         MaximizeBox = false;
@@ -538,6 +601,8 @@ internal sealed class CaptureForm : Form
         pauseButton.BackColor = Color.FromArgb(18, 43, 37);
         recordButton.Text = "● 녹화";
         manualButton.Enabled = true;
+        previewButton.Text = "▤ 미리보기";
+        completeButton.Enabled = true;
     }
 
     private void ApplyCaptureExclusion()
@@ -566,7 +631,38 @@ internal sealed class CaptureForm : Form
             ResetBlurButton();
             toolbarStatusLabel.Text = paused ? "일시정지" : "기록 중";
         }
+        RefreshCaptureProgress();
         WriteToolbarBounds();
+    }
+
+    private void RefreshCaptureProgress()
+    {
+        if (String.IsNullOrWhiteSpace(outputDirectory) || !Directory.Exists(outputDirectory)) return;
+        string[] files;
+        try
+        {
+            files = Directory.GetFiles(outputDirectory, "step-*.png", SearchOption.TopDirectoryOnly);
+            Array.Sort(files, StringComparer.OrdinalIgnoreCase);
+        }
+        catch (Exception exception)
+        {
+            Log(exception);
+            return;
+        }
+
+        if (files.Length != capturedStepCount)
+        {
+            capturedStepCount = files.Length;
+            completeButton.Enabled = capturedStepCount > 0;
+            if (!paused && !blurNext)
+            {
+                toolbarStatusLabel.Text = capturedStepCount == 0 ? "기록 중" : capturedStepCount + "개 기록";
+            }
+            recordButton.Text = paused
+                ? "Ⅱ 정지"
+                : capturedStepCount == 0 ? "● 녹화" : "● " + capturedStepCount + "단계";
+        }
+        if (previewForm.Visible) previewForm.RefreshSession(files);
     }
 
     private void ResetBlurButton()
@@ -581,9 +677,21 @@ internal sealed class CaptureForm : Form
         if (!toolbarMode || String.IsNullOrWhiteSpace(toolbarBoundsFile)) return;
         try
         {
-            string json = "{\"left\":" + Left + ",\"top\":" + Top +
-                ",\"right\":" + Right + ",\"bottom\":" + Bottom + "}";
-            File.WriteAllText(toolbarBoundsFile, json, new UTF8Encoding(false));
+            StringBuilder json = new StringBuilder();
+            json.Append("{\"regions\":[");
+            json.Append("{\"left\":").Append(Left)
+                .Append(",\"top\":").Append(Top)
+                .Append(",\"right\":").Append(Right)
+                .Append(",\"bottom\":").Append(Bottom).Append("}");
+            if (previewForm != null && previewForm.Visible)
+            {
+                json.Append(",{\"left\":").Append(previewForm.Left)
+                    .Append(",\"top\":").Append(previewForm.Top)
+                    .Append(",\"right\":").Append(previewForm.Right)
+                    .Append(",\"bottom\":").Append(previewForm.Bottom).Append("}");
+            }
+            json.Append("]}");
+            File.WriteAllText(toolbarBoundsFile, json.ToString(), new UTF8Encoding(false));
         }
         catch (Exception exception) { Log(exception); }
     }
@@ -628,6 +736,7 @@ internal sealed class CaptureForm : Form
     private void OnFormClosing(object sender, FormClosingEventArgs eventArgs)
     {
         if (!String.IsNullOrWhiteSpace(sessionId)) StopCapture(false);
+        previewForm.Dispose();
     }
 
     private static void Log(Exception exception)
@@ -642,5 +751,363 @@ internal sealed class CaptureForm : Form
                 new UTF8Encoding(false));
         }
         catch { }
+    }
+}
+
+internal sealed class CountdownForm : Form
+{
+    private readonly Timer animationTimer;
+    private readonly Stopwatch stopwatch;
+
+    internal CountdownForm(Screen screen)
+    {
+        Text = "Parro 녹화 시작";
+        FormBorderStyle = FormBorderStyle.None;
+        StartPosition = FormStartPosition.Manual;
+        Bounds = screen.Bounds;
+        BackColor = Color.Black;
+        Opacity = 0.82D;
+        TopMost = true;
+        ShowInTaskbar = false;
+        KeyPreview = true;
+        DoubleBuffered = true;
+        AutoScaleMode = AutoScaleMode.Dpi;
+
+        stopwatch = new Stopwatch();
+        animationTimer = new Timer();
+        animationTimer.Interval = 16;
+        animationTimer.Tick += delegate
+        {
+            if (stopwatch.ElapsedMilliseconds >= 3300)
+            {
+                animationTimer.Stop();
+                Close();
+                return;
+            }
+            Invalidate();
+        };
+        Shown += delegate { stopwatch.Start(); animationTimer.Start(); };
+        FormClosed += delegate { animationTimer.Dispose(); stopwatch.Stop(); };
+    }
+
+    protected override void OnPaint(PaintEventArgs eventArgs)
+    {
+        base.OnPaint(eventArgs);
+        Graphics graphics = eventArgs.Graphics;
+        graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
+
+        long elapsed = stopwatch.ElapsedMilliseconds;
+        int stage = elapsed < 2550 ? (int)(elapsed / 850) : 3;
+        long localElapsed = stage < 3 ? elapsed % 850 : elapsed - 2550;
+        string text = stage == 0 ? "3" : stage == 1 ? "2" : stage == 2 ? "1" : "START";
+        float progress = Math.Min(1F, localElapsed / 300F);
+        float scale = 1.28F - (0.28F * progress);
+        float baseSize = stage == 3 ? 56F : 96F;
+        Color accent = stage == 3 ? Color.FromArgb(141, 214, 63) : Color.White;
+
+        string caption = "화면 녹화가 시작됩니다";
+        using (Font captionFont = new Font("Segoe UI", 13F, FontStyle.Bold))
+        using (SolidBrush captionBrush = new SolidBrush(Color.FromArgb(235, 255, 255, 255)))
+        using (SolidBrush badgeBrush = new SolidBrush(Color.FromArgb(55, 255, 255, 255)))
+        using (SolidBrush dotBrush = new SolidBrush(Color.FromArgb(239, 68, 68)))
+        {
+            SizeF captionSize = graphics.MeasureString(caption, captionFont);
+            RectangleF badge = new RectangleF(
+                (ClientSize.Width - captionSize.Width) / 2F - 28F,
+                (ClientSize.Height / 2F) - 112F,
+                captionSize.Width + 56F,
+                38F);
+            graphics.FillRectangle(badgeBrush, badge);
+            graphics.FillEllipse(dotBrush, badge.Left + 14F, badge.Top + 15F, 8F, 8F);
+            graphics.DrawString(caption, captionFont, captionBrush, badge.Left + 30F, badge.Top + 9F);
+        }
+
+        using (Font numberFont = new Font("Segoe UI", baseSize * scale, FontStyle.Bold, GraphicsUnit.Pixel))
+        using (SolidBrush numberBrush = new SolidBrush(accent))
+        {
+            SizeF numberSize = graphics.MeasureString(text, numberFont);
+            graphics.DrawString(
+                text,
+                numberFont,
+                numberBrush,
+                (ClientSize.Width - numberSize.Width) / 2F,
+                (ClientSize.Height - numberSize.Height) / 2F - 10F);
+        }
+    }
+}
+
+internal sealed class CapturePreviewForm : Form
+{
+    private const uint WdaMonitor = 0x00000001;
+    private const uint WdaExcludeFromCapture = 0x00000011;
+
+    [DllImport("user32.dll")]
+    private static extern bool SetWindowDisplayAffinity(IntPtr window, uint affinity);
+
+    private readonly Label countLabel;
+    private readonly PictureBox latestImage;
+    private readonly Label latestLabel;
+    private readonly FlowLayoutPanel stepList;
+    private string sessionDirectory;
+    private string lastSignature;
+
+    internal CapturePreviewForm()
+    {
+        Text = "Parro 캡처 기록";
+        ClientSize = new Size(360, 510);
+        FormBorderStyle = FormBorderStyle.None;
+        StartPosition = FormStartPosition.Manual;
+        ShowInTaskbar = false;
+        TopMost = true;
+        BackColor = Color.FromArgb(248, 252, 251);
+        Font = new Font("Segoe UI", 9F);
+        AutoScaleMode = AutoScaleMode.Dpi;
+
+        Panel header = new Panel();
+        header.Dock = DockStyle.Top;
+        header.Height = 58;
+        header.Padding = new Padding(18, 0, 12, 0);
+        header.BackColor = Color.FromArgb(7, 20, 17);
+        Controls.Add(header);
+
+        Label title = new Label();
+        title.Text = "캡처 기록";
+        title.Location = new Point(18, 11);
+        title.Size = new Size(150, 21);
+        title.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
+        title.ForeColor = Color.White;
+        header.Controls.Add(title);
+
+        countLabel = new Label();
+        countLabel.Text = "아직 캡처 없음";
+        countLabel.Location = new Point(18, 33);
+        countLabel.Size = new Size(210, 18);
+        countLabel.Font = new Font("Segoe UI", 8F);
+        countLabel.ForeColor = Color.FromArgb(137, 219, 204);
+        header.Controls.Add(countLabel);
+
+        Button close = new Button();
+        close.Text = "×";
+        close.Location = new Point(316, 13);
+        close.Size = new Size(30, 30);
+        close.FlatStyle = FlatStyle.Flat;
+        close.FlatAppearance.BorderSize = 0;
+        close.BackColor = Color.FromArgb(18, 43, 37);
+        close.ForeColor = Color.White;
+        close.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
+        close.Cursor = Cursors.Hand;
+        close.Click += delegate { Hide(); };
+        header.Controls.Add(close);
+
+        Panel content = new Panel();
+        content.Dock = DockStyle.Fill;
+        content.Padding = new Padding(16);
+        content.BackColor = BackColor;
+        Controls.Add(content);
+
+        latestImage = new PictureBox();
+        latestImage.Location = new Point(16, 16);
+        latestImage.Size = new Size(328, 198);
+        latestImage.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+        latestImage.SizeMode = PictureBoxSizeMode.CenterImage;
+        latestImage.BackColor = Color.FromArgb(231, 241, 238);
+        latestImage.BorderStyle = BorderStyle.FixedSingle;
+        content.Controls.Add(latestImage);
+
+        latestLabel = new Label();
+        latestLabel.Location = new Point(16, 214);
+        latestLabel.Size = new Size(328, 42);
+        latestLabel.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+        latestLabel.Padding = new Padding(0, 10, 0, 0);
+        latestLabel.Text = "클릭하면 캡처된 화면이 여기에 표시됩니다.";
+        latestLabel.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+        latestLabel.ForeColor = Color.FromArgb(71, 93, 87);
+        content.Controls.Add(latestLabel);
+
+        stepList = new FlowLayoutPanel();
+        stepList.Location = new Point(16, 256);
+        stepList.Size = new Size(328, 180);
+        stepList.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+        stepList.AutoScroll = true;
+        stepList.WrapContents = false;
+        stepList.FlowDirection = FlowDirection.TopDown;
+        stepList.Padding = new Padding(0, 4, 0, 0);
+        stepList.BackColor = BackColor;
+        content.Controls.Add(stepList);
+
+        HandleCreated += delegate { ApplyCaptureExclusion(); };
+        Shown += delegate { ApplyCaptureExclusion(); };
+    }
+
+    protected override bool ShowWithoutActivation
+    {
+        get { return true; }
+    }
+
+    protected override CreateParams CreateParams
+    {
+        get
+        {
+            const int WsExToolWindow = 0x00000080;
+            CreateParams parameters = base.CreateParams;
+            parameters.ExStyle |= WsExToolWindow;
+            return parameters;
+        }
+    }
+
+    internal void SetSession(string directory)
+    {
+        if (String.Equals(sessionDirectory, directory, StringComparison.OrdinalIgnoreCase)) return;
+        sessionDirectory = directory;
+        lastSignature = null;
+        ClearPreview();
+    }
+
+    internal void RefreshSession(string[] files)
+    {
+        if (files == null) files = new string[0];
+        string latest = files.Length == 0 ? String.Empty : files[files.Length - 1];
+        long latestWrite = 0;
+        try { if (latest.Length > 0) latestWrite = File.GetLastWriteTimeUtc(latest).Ticks; } catch { }
+        string signature = files.Length + "|" + latest + "|" + latestWrite;
+        if (String.Equals(lastSignature, signature, StringComparison.Ordinal)) return;
+
+        try
+        {
+            RebuildPreview(files);
+            lastSignature = signature;
+        }
+        catch
+        {
+            // The capture agent can still be flushing the newest PNG. The next
+            // toolbar timer tick retries without interrupting the recording.
+        }
+    }
+
+    private void RebuildPreview(string[] files)
+    {
+        ClearControlImages(stepList);
+        stepList.Controls.Clear();
+        ReplaceImage(latestImage, null);
+
+        if (files.Length == 0)
+        {
+            countLabel.Text = "아직 캡처 없음";
+            latestLabel.Text = "대상 앱을 클릭하면 캡처 기록이 쌓입니다.";
+            return;
+        }
+
+        countLabel.Text = files.Length + "개 단계가 기록되었습니다";
+        latestLabel.Text = "최신 캡처 · " + files.Length + "단계";
+        ReplaceImage(latestImage, LoadThumbnail(files[files.Length - 1], 324, 196));
+
+        int first = Math.Max(0, files.Length - 30);
+        for (int index = files.Length - 1; index >= first; index--)
+        {
+            Panel row = new Panel();
+            row.Width = 308;
+            row.Height = 72;
+            row.Margin = new Padding(0, 0, 0, 8);
+            row.BackColor = Color.White;
+
+            PictureBox thumbnail = new PictureBox();
+            thumbnail.Location = new Point(4, 4);
+            thumbnail.Size = new Size(108, 64);
+            thumbnail.SizeMode = PictureBoxSizeMode.CenterImage;
+            thumbnail.Image = LoadThumbnail(files[index], 108, 64);
+            row.Controls.Add(thumbnail);
+
+            Label step = new Label();
+            step.Text = (index + 1) + "단계";
+            step.Location = new Point(124, 16);
+            step.Size = new Size(150, 22);
+            step.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            step.ForeColor = Color.FromArgb(20, 61, 53);
+            row.Controls.Add(step);
+
+            Label saved = new Label();
+            saved.Text = "캡처 완료";
+            saved.Location = new Point(124, 39);
+            saved.Size = new Size(150, 18);
+            saved.Font = new Font("Segoe UI", 8F);
+            saved.ForeColor = Color.FromArgb(94, 116, 111);
+            row.Controls.Add(saved);
+            stepList.Controls.Add(row);
+        }
+    }
+
+    private void ClearPreview()
+    {
+        ReplaceImage(latestImage, null);
+        ClearControlImages(stepList);
+        stepList.Controls.Clear();
+        countLabel.Text = "아직 캡처 없음";
+        latestLabel.Text = "대상 앱을 클릭하면 캡처 기록이 쌓입니다.";
+    }
+
+    private static Bitmap LoadThumbnail(string path, int width, int height)
+    {
+        using (FileStream stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+        using (Image source = Image.FromStream(stream))
+        {
+            Bitmap result = new Bitmap(width, height);
+            using (Graphics graphics = Graphics.FromImage(result))
+            {
+                graphics.Clear(Color.FromArgb(231, 241, 238));
+                graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                float ratio = Math.Min((float)width / source.Width, (float)height / source.Height);
+                int drawWidth = Math.Max(1, (int)(source.Width * ratio));
+                int drawHeight = Math.Max(1, (int)(source.Height * ratio));
+                int x = (width - drawWidth) / 2;
+                int y = (height - drawHeight) / 2;
+                graphics.DrawImage(source, new Rectangle(x, y, drawWidth, drawHeight));
+            }
+            return result;
+        }
+    }
+
+    private static void ReplaceImage(PictureBox picture, Image image)
+    {
+        Image previous = picture.Image;
+        picture.Image = image;
+        if (previous != null) previous.Dispose();
+    }
+
+    private static void ClearControlImages(Control root)
+    {
+        foreach (Control child in root.Controls)
+        {
+            PictureBox picture = child as PictureBox;
+            if (picture != null && picture.Image != null)
+            {
+                picture.Image.Dispose();
+                picture.Image = null;
+            }
+            if (child.HasChildren) ClearControlImages(child);
+        }
+    }
+
+    private void ApplyCaptureExclusion()
+    {
+        if (!IsHandleCreated) return;
+        try
+        {
+            if (!SetWindowDisplayAffinity(Handle, WdaExcludeFromCapture))
+            {
+                SetWindowDisplayAffinity(Handle, WdaMonitor);
+            }
+        }
+        catch { }
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            ReplaceImage(latestImage, null);
+            ClearControlImages(stepList);
+        }
+        base.Dispose(disposing);
     }
 }

@@ -21,10 +21,13 @@ try {
 } catch {
   $uiAutomationReady = $false
 }
-Add-Type @"
+Add-Type -ReferencedAssemblies @("System.Drawing", "System.Windows.Forms") -TypeDefinition @"
 using System;
+using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
+using System.Windows.Forms;
 
 public static class ParroDesktopInput {
   [StructLayout(LayoutKind.Sequential)]
@@ -53,6 +56,83 @@ public static class ParroDesktopInput {
 
   [DllImport("user32.dll")]
   public static extern bool GetWindowRect(IntPtr window, out RECT rect);
+}
+
+public static class ParroDesktopClickHighlight {
+  public static void ShowAt(int screenX, int screenY) {
+    Thread thread = new Thread(() => Application.Run(new ClickHighlightForm(screenX, screenY)));
+    thread.IsBackground = true;
+    thread.SetApartmentState(ApartmentState.STA);
+    thread.Start();
+  }
+
+  private sealed class ClickHighlightForm : Form {
+    private const uint WdaMonitor = 0x00000001;
+    private const uint WdaExcludeFromCapture = 0x00000011;
+    private readonly System.Windows.Forms.Timer timer;
+    private int elapsed;
+
+    [DllImport("user32.dll")]
+    private static extern bool SetWindowDisplayAffinity(IntPtr window, uint affinity);
+
+    internal ClickHighlightForm(int x, int y) {
+      FormBorderStyle = FormBorderStyle.None;
+      StartPosition = FormStartPosition.Manual;
+      Bounds = new Rectangle(x - 36, y - 36, 72, 72);
+      BackColor = Color.Magenta;
+      TransparencyKey = Color.Magenta;
+      TopMost = true;
+      ShowInTaskbar = false;
+      DoubleBuffered = true;
+      timer = new System.Windows.Forms.Timer();
+      timer.Interval = 30;
+      timer.Tick += delegate {
+        elapsed += timer.Interval;
+        if (elapsed >= 660) {
+          timer.Stop();
+          Close();
+          return;
+        }
+        Opacity = elapsed < 300 ? 1D : Math.Max(0.08D, 1D - ((elapsed - 300D) / 360D));
+        Invalidate();
+      };
+      Shown += delegate {
+        try {
+          if (!SetWindowDisplayAffinity(Handle, WdaExcludeFromCapture)) SetWindowDisplayAffinity(Handle, WdaMonitor);
+        } catch { }
+        timer.Start();
+      };
+      FormClosed += delegate { timer.Dispose(); };
+    }
+
+    protected override bool ShowWithoutActivation { get { return true; } }
+
+    protected override CreateParams CreateParams {
+      get {
+        const int WsExTransparent = 0x00000020;
+        const int WsExToolWindow = 0x00000080;
+        const int WsExNoActivate = 0x08000000;
+        CreateParams parameters = base.CreateParams;
+        parameters.ExStyle |= WsExTransparent | WsExToolWindow | WsExNoActivate;
+        return parameters;
+      }
+    }
+
+    protected override void OnPaint(PaintEventArgs eventArgs) {
+      base.OnPaint(eventArgs);
+      eventArgs.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+      float progress = Math.Min(1F, elapsed / 360F);
+      float diameter = 24F + (36F * progress);
+      float offset = (72F - diameter) / 2F;
+      using (SolidBrush fill = new SolidBrush(Color.FromArgb(72, 239, 68, 68)))
+      using (Pen ring = new Pen(Color.FromArgb(239, 68, 68), 3F))
+      using (SolidBrush dot = new SolidBrush(Color.FromArgb(239, 68, 68))) {
+        eventArgs.Graphics.FillEllipse(fill, offset, offset, diameter, diameter);
+        eventArgs.Graphics.DrawEllipse(ring, offset, offset, diameter, diameter);
+        eventArgs.Graphics.FillEllipse(dot, 30F, 30F, 12F, 12F);
+      }
+    }
+  }
 }
 "@
 
@@ -187,12 +267,18 @@ function Test-ToolbarPoint($point) {
   if (-not (Test-Path -LiteralPath $ToolbarBoundsFile)) { return $false }
   try {
     $bounds = Get-Content -LiteralPath $ToolbarBoundsFile -Raw -Encoding UTF8 | ConvertFrom-Json
-    return (
-      $point.X -ge [int]$bounds.left -and
-      $point.X -lt [int]$bounds.right -and
-      $point.Y -ge [int]$bounds.top -and
-      $point.Y -lt [int]$bounds.bottom
-    )
+    $regions = if ($bounds.regions) { @($bounds.regions) } else { @($bounds) }
+    foreach ($region in $regions) {
+      if (
+        $point.X -ge [int]$region.left -and
+        $point.X -lt [int]$region.right -and
+        $point.Y -ge [int]$region.top -and
+        $point.Y -lt [int]$region.bottom
+      ) {
+        return $true
+      }
+    }
+    return $false
   } catch {
     return $false
   }
@@ -338,6 +424,7 @@ try {
         # cursor while the UI settles for the screenshot.
         Start-Sleep -Milliseconds 120
         Capture-Frame "click" $point
+        [ParroDesktopClickHighlight]::ShowAt($point.X, $point.Y)
       }
     }
     $leftWasDown = $leftDown

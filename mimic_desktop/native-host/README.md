@@ -112,7 +112,8 @@ Default allowed Chrome extension IDs:
 
 - current Parro dev extension: `pnkkalnfddapkmiobbhnkbhplakamaok`
 - legacy dev unpacked extension: `dhfcmomnambegkibjnandckacihnaelb`
-- Chrome Web Store extension: `ehbhcdkapcbfehinjapabgoegcjmmbgd`
+- replacement Chrome Web Store extension under review: `lefkpmfgdbhckcemfghpegleknaepekm`
+- currently published Chrome Web Store extension: `ehbhcdkapcbfehinjapabgoegcjmmbgd`
 
 To allow extra extension IDs, set `PARRO_EXTENSION_ID` before running the installer. Multiple IDs can be comma-separated. `MIMIC_EXTENSION_ID` remains supported for compatibility.
 

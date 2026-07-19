@@ -7,6 +7,8 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: '개인정보 처리방침',
   description: `${BRAND_NAME} 서비스의 개인정보 수집·이용·보관 및 파기에 관한 방침을 안내합니다.`,
+  alternates: { canonical: '/legal/privacy' },
+  robots: { index: true, follow: true },
 };
 
 export default function PrivacyPage() {
