@@ -15,6 +15,7 @@ import {
 import { logError } from '@/lib/logging/logger';
 import { BRAND_COLORS, BRAND_NAME, LEGACY_INTERNAL_IDENTIFIERS } from '@/lib/brand';
 import type { Tutorial, Workspace, Folder } from '@/types';
+import { hasEntitlement } from '@/lib/entitlements';
 
 const BRAND_GRADIENT = `linear-gradient(135deg, ${BRAND_COLORS.primary}, ${BRAND_COLORS.guide})`;
 const BRAND_PRIMARY_SOFT = BRAND_COLORS.guideSoft;
@@ -335,6 +336,15 @@ function PageCard({ page, viewMode = 'grid' }: {
 
   const commonProps = {
     onClick: () => router.push(`/pages/${page.id}/editor`),
+    role: 'button',
+    tabIndex: 0,
+    'aria-label': `${page.title || '제목 없음'} 플레이북 열기`,
+    onKeyDown: (event: React.KeyboardEvent) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        router.push(`/pages/${page.id}/editor`);
+      }
+    },
     onMouseEnter: () => setHovered(true),
     onMouseLeave: () => setHovered(false),
   };
@@ -414,6 +424,7 @@ function TutorialCard({ tutorial, onContextMenu, onMenuClick, viewMode = 'grid',
   const menuBtn = (
     <button
       onClick={e => { e.stopPropagation(); onMenuClick(e, tutorial.id); }}
+      aria-label={`${tutorial.title} 메뉴 열기`}
       style={{ flexShrink: 0, width: '28px', height: '28px', borderRadius: '6px', border: 'none', background: hovered ? '#F3F4F6' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6B7280', opacity: hovered ? 1 : 0, transition: 'opacity 0.1s' }}
     >
       <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
@@ -450,6 +461,15 @@ function TutorialCard({ tutorial, onContextMenu, onMenuClick, viewMode = 'grid',
     onMouseLeave: () => setHovered(false),
     onContextMenu: (e: React.MouseEvent) => { e.preventDefault(); onContextMenu(e, tutorial.id); },
     onClick: () => { if (onCardClick) onCardClick(tutorial.id); else router.push(`/manual/${tutorial.id}/editor`); },
+    role: 'button',
+    tabIndex: 0,
+    'aria-label': `${tutorial.title} 매뉴얼 열기`,
+    onKeyDown: (event: React.KeyboardEvent) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        if (onCardClick) onCardClick(tutorial.id); else router.push(`/manual/${tutorial.id}/editor`);
+      }
+    },
   };
 
   if (viewMode === 'compact') {
@@ -847,14 +867,19 @@ export default function DashboardPage() {
 
   // 뷰 모드
   const [viewMode, setViewMode] = useState<ViewMode>('compact');
+  const [visibleTutorialCount, setVisibleTutorialCount] = useState(24);
 
   // 공지 배너
   const [noticeDismissed, setNoticeDismissed] = useState(false);
-  const NOTICE = { type: 'info' as 'info' | 'warn' | 'error', text: '✨ AI 자동 어노테이션 기능이 업데이트되었습니다. 지금 바로 사용해보세요!', link: { label: '자세히 보기', href: '/home' } };
+  const NOTICE = { type: 'info' as 'info' | 'warn' | 'error', text: '✨ AI 자동 어노테이션 기능이 업데이트되었습니다.', link: { label: '사용법 보기', href: '/help' } };
+
+  useEffect(() => {
+    setVisibleTutorialCount(24);
+  }, [activeFolder, activeTab, activeWorkspace, searchQuery]);
 
   const newMenuRef = useRef<HTMLDivElement>(null);
   const tutorialRequestRef = useRef(0);
-  const [liveGuide, setLiveGuide] = useState<{ used: number; limit: number; paid: boolean } | null>(null);
+  const [liveGuide, setLiveGuide] = useState<{ used: number; limit: number | null; enabled: boolean } | null>(null);
   const [playbook, setPlaybook] = useState<{ used: number; limit: number; paid: boolean } | null>(null);
 
   // 콘텐츠 유형 탭
@@ -925,7 +950,7 @@ export default function DashboardPage() {
     fetch('/api/user/plan')
       .then(r => r.ok ? r.json() : null)
       .then(d => {
-        if (d?.liveGuide) setLiveGuide({ used: d.liveGuide.used ?? 0, limit: d.liveGuide.limit ?? 5, paid: !!d.paid });
+        if (d?.liveGuide) setLiveGuide({ used: d.liveGuide.used ?? 0, limit: d.liveGuide.limit ?? null, enabled: !!d.liveGuide.enabled });
         if (d?.playbook) setPlaybook({ used: d.playbook.used ?? 0, limit: d.playbook.limit ?? 3, paid: !!d.paid });
       })
       .catch(() => {});
@@ -973,6 +998,7 @@ export default function DashboardPage() {
   const usedToday = user?.daily_manual_count ?? 0;
   const dailyLimit = user?.daily_limit ?? 3;
   const isPro = user?.plan === 'pro' || user?.plan === 'team';
+  const canCreateTeamWorkspace = hasEntitlement(user?.plan, 'team_workspace');
   const firstName = user?.name?.trim().split(/\s+/)[0] ?? '';
   const personalWorkspaceTitle = contentType === 'playbook'
     ? (firstName ? `${firstName}님의 플레이북` : '내 플레이북')
@@ -1105,6 +1131,10 @@ export default function DashboardPage() {
   const handleCreateWorkspace = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newWsName.trim()) return;
+    if (!canCreateTeamWorkspace) {
+      window.location.assign('/landingpage#pricing');
+      return;
+    }
     setCreatingWs(true);
     try {
       const res = await fetch('/api/workspaces', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newWsName.trim() }) });
@@ -1230,7 +1260,7 @@ export default function DashboardPage() {
                     ))
                   }
                   {/* 맨 아래: 새 워크스페이스 추가 (헤더의 + 버튼 대체) */}
-                  {showNewWsInput ? (
+                  {canCreateTeamWorkspace && showNewWsInput ? (
                     <form onSubmit={handleCreateWorkspace} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 30px', gap: '4px', paddingTop: '4px', width: '100%' }}>
                       <input autoFocus value={newWsName} onChange={e => setNewWsName(e.target.value)} placeholder="워크스페이스 이름"
                         onBlur={() => { if (!creatingWs) { setShowNewWsInput(false); setNewWsName(''); } }}
@@ -1243,7 +1273,7 @@ export default function DashboardPage() {
                         {creatingWs ? '…' : '✓'}
                       </button>
                     </form>
-                  ) : (
+                  ) : canCreateTeamWorkspace ? (
                     <button onClick={() => { setShowNewWsInput(true); setNewWsName(''); }}
                       style={{ display: 'flex', alignItems: 'center', gap: '7px', width: '100%', padding: '5px 8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', textAlign: 'left', background: 'transparent', color: '#9CA3AF' }}
                       onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; (e.currentTarget as HTMLButtonElement).style.color = '#4B5563'; }}
@@ -1251,6 +1281,12 @@ export default function DashboardPage() {
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                       <span>새 워크스페이스</span>
                     </button>
+                  ) : (
+                    <Link href="/landingpage#pricing"
+                      style={{ display: 'flex', alignItems: 'center', gap: '7px', width: '100%', padding: '5px 8px', borderRadius: '6px', fontSize: '12px', color: '#9CA3AF', textDecoration: 'none' }}>
+                      <span aria-hidden="true">🔒</span>
+                      <span>Team 플랜에서 만들기</span>
+                    </Link>
                   )}
                 </div>
               )}
@@ -1276,13 +1312,8 @@ export default function DashboardPage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
                     <span style={{ fontSize: '12px', color: '#6B7280' }}>라이브 가이드 Beta</span>
                     <span style={{ fontSize: '12px', fontWeight: 600, color: '#111827' }}>
-                      {liveGuide.paid ? `${liveGuide.used} / 무제한` : `${liveGuide.used} / ${liveGuide.limit}`}
+                      {liveGuide.enabled ? `${liveGuide.used} / 무제한` : 'Pro 전용'}
                     </span>
-                  </div>
-                )}
-                {!isPro && liveGuide && !liveGuide.paid && (
-                  <div style={{ height: '4px', borderRadius: '999px', background: '#E5E7EB', overflow: 'hidden', marginTop: '6px' }}>
-                    <div style={{ height: '100%', borderRadius: '999px', background: liveGuide.used >= liveGuide.limit ? '#EF4444' : BRAND_COLORS.guide, width: `${Math.min(100, (liveGuide.used / liveGuide.limit) * 100)}%`, transition: 'width 0.3s' }} />
                   </div>
                 )}
                 {/* 플레이북 사용량 (Free: N/한도, Pro: 무제한) */}
@@ -1404,7 +1435,7 @@ export default function DashboardPage() {
                     {NOTICE.link.label}
                   </a>
                 )}
-                <button onClick={() => setNoticeDismissed(true)} style={{ width: '20px', height: '20px', borderRadius: '50%', border: 'none', background: 'transparent', cursor: 'pointer', display: 'grid', placeItems: 'center', color: NOTICE.type === 'error' ? '#b91c1c' : NOTICE.type === 'warn' ? '#b45309' : BRAND_COLORS.primary, flexShrink: 0, opacity: 0.7 }}
+                <button onClick={() => setNoticeDismissed(true)} aria-label="공지 닫기" style={{ width: '20px', height: '20px', borderRadius: '50%', border: 'none', background: 'transparent', cursor: 'pointer', display: 'grid', placeItems: 'center', color: NOTICE.type === 'error' ? '#b91c1c' : NOTICE.type === 'warn' ? '#b45309' : BRAND_COLORS.primary, flexShrink: 0, opacity: 0.7 }}
                   onMouseEnter={e => (e.currentTarget.style.opacity = '1')} onMouseLeave={e => (e.currentTarget.style.opacity = '0.7')}>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
@@ -1661,9 +1692,14 @@ export default function DashboardPage() {
                   )
                 ) : (
                   <div className={viewMode === 'list' ? 'home-card-list' : viewMode === 'compact' ? 'home-card-thumb-grid' : 'home-card-grid'}>
-                    {displayedTutorials.map(t => (
+                    {displayedTutorials.slice(0, visibleTutorialCount).map(t => (
                       <TutorialCard key={t.id} tutorial={t} onContextMenu={handleContextMenu} onMenuClick={handleContextMenu} viewMode={viewMode} onCardClick={id => setManualActionModal(id)} />
                     ))}
+                    {visibleTutorialCount < displayedTutorials.length && (
+                      <button onClick={() => setVisibleTutorialCount(count => count + 24)} style={{ gridColumn: '1 / -1', margin: '8px auto 0', padding: '8px 18px', borderRadius: 8, border: '1px solid #D1D5DB', background: 'white', color: '#4B5563', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                        더 보기 ({displayedTutorials.length - visibleTutorialCount}개)
+                      </button>
+                    )}
                   </div>
                 )
               )}

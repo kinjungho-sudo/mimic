@@ -7,7 +7,6 @@ import {
   DESKTOP_COMPANION_LATEST_VERSION,
   desktopCompanionCompatibility,
   desktopCompanionErrorMessage,
-  getDesktopExtensionIds,
   isExtensionConnectionError,
   sendDesktopExtensionMessage,
 } from '@/lib/desktop-companion-client';
@@ -143,7 +142,7 @@ export default function DesktopSetupPage() {
         return;
       }
       setStatus('extension_missing');
-      setMessage(`Parro Recorder 1.7.4에 연결하지 못했습니다. 확장 ID가 ${getDesktopExtensionIds().join(' 또는 ')}인지 확인하고 확장 카드의 새로고침을 눌러주세요. (${response?.error})`);
+      setMessage('Parro Recorder 확장에 연결하지 못했습니다. Chrome 확장 프로그램 관리 화면에서 Parro Recorder를 새로고침한 뒤 다시 시도해주세요.');
       return;
     }
 

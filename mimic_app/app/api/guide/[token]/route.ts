@@ -4,6 +4,7 @@ import { isPaidPlan } from '@/lib/plan';
 import { resolveStepAudio } from '@/lib/voice/playback';
 import { getBrandAppUrl } from '@/lib/brand';
 import { maskManualCopy } from '@/lib/manual-quality';
+import { ENTITLEMENT_UPGRADE_COPY, hasEntitlement } from '@/lib/entitlements';
 
 type Params = { params: Promise<{ token: string }> };
 
@@ -18,24 +19,17 @@ function guideJson(payload: unknown, status = 200) {
   return NextResponse.json(payload, { status, headers: GUIDE_RESPONSE_HEADERS });
 }
 
-// 라이브 가이드 유료 게이팅 — 제작자(소유자) 과금. Free 소유자는 누적 5회 무료 후 페이월.
-const FREE_LIVE_GUIDE_LIMIT = 5;
-const PAID_PLANS = ['pro', 'team', 'enterprise'];
-
 function isMissingExceptionStepColumns(error: { code?: string; message?: string } | null | undefined) {
   return error?.code === '42703'
     || /step_type|capture_source|capture_failure_reason/i.test(error?.message ?? '');
 }
 const APP_URL = getBrandAppUrl();
 
-// 소유자 플랜·사용량으로 게이트 판정. 반환: 막혔으면 gated 정보, 아니면 null.
-// charge=true(공개 실행)일 때만 카운트 차감 — RPC로 원자적 check-and-increment(race 방지).
-// charge=false(소유자 미리보기)는 읽기 전용 판정만 — 미리보기로 무료 한도가 소진되지 않게.
+// 소유자 플랜으로 게이트 판정. Live Guide는 Pro 이상에서 제공한다.
 async function gateLiveGuide(
   supabase: ReturnType<typeof createServiceRoleClient>,
   ownerId: string,
-  charge: boolean,
-): Promise<{ gated: true; limit: number; used: number; upgradeUrl: string } | null> {
+): Promise<{ gated: true; limit: number; used: number; upgradeUrl: string; error: string } | null> {
   const { data: owner } = await supabase
     .from('mm_users')
     .select('plan, live_guide_runs')
@@ -43,21 +37,14 @@ async function gateLiveGuide(
     .single();
 
   const plan = owner?.plan ?? 'free';
-  if (PAID_PLANS.includes(plan)) return null; // 유료=무제한(미카운트)
-
-  const gated = { gated: true as const, limit: FREE_LIVE_GUIDE_LIMIT, used: owner?.live_guide_runs ?? 0, upgradeUrl: `${APP_URL}/landingpage#pricing` };
-
-  if (!charge) {
-    // 미리보기 — 차감 없이 한도만 확인
-    return gated.used >= FREE_LIVE_GUIDE_LIMIT ? gated : null;
-  }
-
-  // 공개 실행 — 한도 미만일 때만 원자적으로 1회 차감. 한도 도달 시 RPC가 NULL 반환.
-  const { data: newCount } = await supabase.rpc('consume_free_live_guide_run', {
-    uid: ownerId,
-    free_limit: FREE_LIVE_GUIDE_LIMIT,
-  });
-  return newCount == null ? gated : null;
+  if (hasEntitlement(plan, 'live_guide')) return null;
+  return {
+    gated: true as const,
+    limit: 0,
+    used: owner?.live_guide_runs ?? 0,
+    upgradeUrl: `${APP_URL}/landingpage#pricing`,
+    error: ENTITLEMENT_UPGRADE_COPY.live_guide,
+  };
 }
 
 // GET /api/guide/{share_token}  — published, 인증 불필요 (Extension용)
@@ -89,7 +76,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     }
 
     // 소유자 미리보기 — 차감 없이 한도만 확인
-    const gated = await gateLiveGuide(supabase, tutorial.user_id, false);
+    const gated = await gateLiveGuide(supabase, tutorial.user_id);
     if (gated) return guideJson(gated);
 
     return guideJson(await fetchSteps(supabase, tutorial.id, tutorial.title, tutorial.user_id, !!tutorial.tts_enabled));
@@ -107,8 +94,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     return guideJson({ error: 'Not found' }, 404);
   }
 
-  // 공개 실행 — 원자적 차감
-  const gated = await gateLiveGuide(supabase, tutorial.user_id, true);
+  const gated = await gateLiveGuide(supabase, tutorial.user_id);
   if (gated) return guideJson(gated);
 
   return guideJson(await fetchSteps(supabase, tutorial.id, tutorial.title, tutorial.user_id, !!tutorial.tts_enabled));
@@ -151,7 +137,7 @@ async function fetchSteps(supabase: ReturnType<typeof createServiceRoleClient>, 
   let voiceEnabled = false;
   let audioAssets: { step_id: string; audio_url: string; duration_ms?: number | null; script_text?: string | null }[] = [];
   if (ttsEnabled && rawSteps?.length) {
-    voiceEnabled = isPaidPlan(ownerPlan);
+    voiceEnabled = hasEntitlement(ownerPlan, 'ai_voice');
     if (voiceEnabled) {
       const stepIds = rawSteps.map(s => s.id).filter((stepId): stepId is string => typeof stepId === 'string');
       const { data: assets } = await supabase

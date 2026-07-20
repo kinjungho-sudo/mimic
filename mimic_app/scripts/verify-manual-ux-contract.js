@@ -13,6 +13,10 @@ const studio = read('app', 'manual', '[id]', 'studio', 'page.tsx');
 const liveGuideApi = read('lib', 'api', 'liveGuide.ts');
 const liveGuideRoute = read('app', 'api', 'guide', '[token]', 'route.ts');
 const home = read('app', 'home', 'page.tsx');
+const landing = read('app', 'landingpage', 'page.tsx');
+const landingLayout = read('app', 'landingpage', 'layout.tsx');
+const landingFaq = read('lib', 'landing-faq.ts');
+const desktopSetup = read('app', 'desktop-setup', 'page.tsx');
 
 assert.match(editor, /new AbortController\(\)/, 'AI rewrite must be cancellable');
 assert.match(editor, /signal: controller\.signal/, 'AI rewrite fetch must use the abort signal');
@@ -45,4 +49,12 @@ assert.match(home, /firstName \? `\$\{firstName\}님의 워크스페이스` : '�
 assert.match(home, /`\$\{liveGuide\.used\} \/ 무제한`/, 'Live Guide paid usage needs a readable separator');
 assert.match(home, /`\$\{playbook\.used\} \/ 무제한`/, 'Playbook paid usage needs a readable separator');
 
-console.log(JSON.stringify({ ok: true, checks: 25, scope: 'manual-ux-contract' }));
+assert.match(landing, /LANDING_FAQS\.map/, 'visible landing FAQ must use the shared FAQ source');
+assert.match(landingLayout, /LANDING_FAQS\.map/, 'FAQ structured data must use the shared FAQ source');
+assert.match(landingLayout, /title:\s*BRAND_TAGLINE/, 'landing metadata must not duplicate the Parro brand suffix');
+assert.match(landingFaq, /아직 일반 결제를 받고 있지 않습니다/, 'prelaunch FAQ must describe billing availability truthfully');
+assert.match(landingFaq, /현재는 사용자가 직접 결제 플랜을 변경하는 기능이 제공되지 않습니다/, 'prelaunch FAQ must not promise unavailable self-service plan changes');
+assert.doesNotMatch(landingFaq, /카카오페이|토스페이|전액 환불|언제든 구독을 해지/, 'prelaunch FAQ must not promise unavailable billing operations');
+assert.doesNotMatch(desktopSetup, /Parro Recorder 1\.7\.4/, 'desktop setup must not hard-code an obsolete Recorder version');
+
+console.log(JSON.stringify({ ok: true, checks: 32, scope: 'manual-ux-contract' }));

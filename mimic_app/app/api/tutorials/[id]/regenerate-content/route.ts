@@ -13,6 +13,7 @@ import {
 } from '@/lib/ai/capture-fallback';
 import { validateRegeneratedStepSet } from '@/lib/ai/regeneration-quality';
 import { assessManualQuality, maskManualCopy } from '@/lib/manual-quality';
+import { requireTutorialEntitlement } from '@/lib/auth/entitlement-guard';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -229,6 +230,8 @@ export async function POST(request: NextRequest, { params }: Params) {
   if (!guard.ok) return NextResponse.json({ error: guard.error }, { status: guard.status });
 
   const supabase = createServiceRoleClient();
+  const entitlement = await requireTutorialEntitlement(id, 'ai_rewrite', supabase);
+  if (!entitlement.ok) return entitlement.response;
   const [{ data: tutorial }, { data: rawSteps, error: stepsError }] = await Promise.all([
     supabase.from('mm_tutorials').select('id, title').eq('id', id).single(),
     supabase.from('mm_steps')

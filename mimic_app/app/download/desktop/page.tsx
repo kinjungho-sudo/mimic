@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import styles from './page.module.css';
 import { DownloadButton } from './DownloadButton';
-import { isPaidPlan } from '@/lib/plan';
+import { hasEntitlement } from '@/lib/entitlements';
 import { createServerClient, createServiceRoleClient } from '@/lib/supabase/server';
 
 export const metadata: Metadata = {
@@ -58,7 +58,7 @@ export default async function DesktopDownloadPage({
     .eq('id', userId)
     .single();
 
-  if (!isPaidPlan(profile?.plan)) {
+  if (!hasEntitlement(profile?.plan, 'desktop_companion')) {
     redirect(`/landingpage?feature=desktop&source=${encodeURIComponent(source)}#pricing`);
   }
 

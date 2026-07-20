@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { sendWorkspaceInvitation } from '@/lib/email/email';
 import { z } from 'zod';
+import { requireWorkspaceEntitlement } from '@/lib/auth/entitlement-guard';
 
 const inviteSchema = z.object({
   email: z.string().email(),
@@ -25,6 +26,8 @@ export async function POST(
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
   const supabase = createServiceRoleClient();
+  const entitlement = await requireWorkspaceEntitlement(workspaceId, 'team_workspace', supabase);
+  if (!entitlement.ok) return entitlement.response;
 
   // admin 권한 확인
   const { data: ws } = await supabase.from('mm_workspaces').select('name, owner_id').eq('id', workspaceId).single();

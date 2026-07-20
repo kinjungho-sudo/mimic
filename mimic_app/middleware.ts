@@ -1,6 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-import { isPaidPlan } from './lib/plan';
+import { hasEntitlement } from './lib/entitlements';
 
 const clean = (v: string | undefined) => v?.replace(/^﻿/, '').trim() ?? '';
 
@@ -81,7 +81,7 @@ export async function middleware(request: NextRequest) {
       .select('plan')
       .eq('id', userId)
       .single();
-    const paid = isPaidPlan(profile?.plan);
+    const paid = hasEntitlement(profile?.plan, 'desktop_companion');
     if (!paid) {
       const url = request.nextUrl.clone();
       url.pathname = '/landingpage';

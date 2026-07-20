@@ -5,6 +5,7 @@ import { guardStepAccess } from '@/lib/auth/workspace-guard';
 import { generateStepDescription, hasAnthropicApiKey } from '@/lib/ai/claude';
 import { validateGeneratedManualScript } from '@/lib/ai/text-quality';
 import { rateLimitAi } from '@/lib/rate-limit';
+import { requireTutorialEntitlement } from '@/lib/auth/entitlement-guard';
 
 export async function POST(
   request: NextRequest,
@@ -36,6 +37,8 @@ export async function POST(
     .single();
 
   if (!step) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  const entitlement = await requireTutorialEntitlement(step.tutorial_id, 'ai_rewrite', supabase);
+  if (!entitlement.ok) return entitlement.response;
 
   const title = step.user_title || step.ai_title || '';
 

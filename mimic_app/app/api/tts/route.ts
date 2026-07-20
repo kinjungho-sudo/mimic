@@ -5,7 +5,7 @@ import { generateTTS } from '@/lib/voice/openai-tts';
 import { rateLimitAi } from '@/lib/rate-limit';
 import { guardStepAccess } from '@/lib/auth/workspace-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
-import { isPaidPlan } from '@/lib/plan';
+import { hasEntitlement } from '@/lib/entitlements';
 
 export async function POST(request: NextRequest) {
   const auth = await requireAuth(request);
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     .eq('id', auth.userId)
     .single();
 
-  if (!isPaidPlan(user?.plan)) {
+  if (!hasEntitlement(user?.plan, 'ai_voice')) {
     return NextResponse.json(
       { error: 'AI voice is available on Pro or Team plans.' },
       { status: 403 }

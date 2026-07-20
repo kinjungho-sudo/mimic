@@ -97,7 +97,7 @@ check(() => {
   assert.match(desktopDownload, /최신 버전으로 업데이트/);
   assert.match(desktopDownload, /바로 데스크톱 녹화 시작/);
   assert.match(middleware, /PAID_DESKTOP_PATHS/);
-  assert.match(middleware, /isPaidPlan\(profile\?\.plan\)/);
+  assert.match(middleware, /hasEntitlement\(profile\?\.plan, 'desktop_companion'\)/);
   assert.match(nextConfig, /source: '\/downloads\/ParroDesktopSetup\.exe'/);
   assert.match(nextConfig, /Content-Disposition'[\s\S]*attachment; filename="ParroDesktopSetup\.exe"/);
 });

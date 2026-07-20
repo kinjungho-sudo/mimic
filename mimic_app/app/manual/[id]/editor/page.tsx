@@ -25,6 +25,7 @@ import { hasGuideConfig } from '@/lib/follow';
 import { LEGACY_INTERNAL_IDENTIFIERS } from '@/lib/brand';
 import type { Step, Tutorial } from '@/types';
 import type { ManualQualityIssue } from '@/lib/manual-quality';
+import { hasEntitlement } from '@/lib/entitlements';
 
 const TOP_BAR_ICON_SIZE = 14;
 
@@ -87,6 +88,9 @@ export default function EditorPage() {
   const searchParams = useSearchParams();
   const { tutorial, loading, error, publish, unpublish } = useTutorial(id);
   const { user } = useAuth();
+  const tutorialEntitlements = (tutorial as Tutorial & { entitlements?: { ai_rewrite?: boolean; office_export?: boolean; protected_sharing?: boolean } } | null)?.entitlements;
+  const canUseAiRewrite = tutorialEntitlements?.ai_rewrite ?? hasEntitlement(user?.plan, 'ai_rewrite');
+  const canUseOfficeExport = tutorialEntitlements?.office_export ?? hasEntitlement(user?.plan, 'office_export');
   const isRecordingFinalizeView = searchParams.get('from') === 'recording';
 
   const [title, setTitle] = useState('');
@@ -220,6 +224,10 @@ export default function EditorPage() {
   }, [manualSteps]);
 
   const handleDownload = useCallback(async (fmt: 'pdf' | 'pptx' | 'docx') => {
+    if (fmt !== 'pdf' && !canUseOfficeExport) {
+      window.location.assign('/landingpage#pricing');
+      return;
+    }
     setDownloadingFmt(fmt);
     try {
       const res = await fetch(`/api/export/${fmt}/${id}`);
@@ -238,7 +246,7 @@ export default function EditorPage() {
     } finally {
       setDownloadingFmt(null);
     }
-  }, [id, title]);
+  }, [canUseOfficeExport, id, title]);
 
 
   // Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y shortcuts
@@ -748,13 +756,13 @@ export default function EditorPage() {
                       { fmt: 'pptx' as const, label: 'PowerPoint', desc: '.pptx' },
                       { fmt: 'docx' as const, label: 'Word 문서', desc: '.docx' },
                     ]).map(opt => (
-                      <button key={opt.fmt} onClick={() => handleDownload(opt.fmt)} disabled={!!downloadingFmt}
-                        style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 10px', border: 'none', borderRadius: '6px', background: 'transparent', cursor: downloadingFmt ? 'not-allowed' : 'pointer', textAlign: 'left', fontSize: '12.5px', color: '#374151' }}
+                      <button key={opt.fmt} onClick={() => handleDownload(opt.fmt)} disabled={!!downloadingFmt || (opt.fmt !== 'pdf' && !canUseOfficeExport)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 10px', border: 'none', borderRadius: '6px', background: 'transparent', cursor: downloadingFmt || (opt.fmt !== 'pdf' && !canUseOfficeExport) ? 'not-allowed' : 'pointer', textAlign: 'left', fontSize: '12.5px', color: '#374151', opacity: opt.fmt !== 'pdf' && !canUseOfficeExport ? 0.5 : 1 }}
                         onMouseEnter={e => { if (!downloadingFmt) e.currentTarget.style.background = '#F3F4F6'; }}
                         onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
                         <Download size={15} style={{ color: '#9CA3AF', flexShrink: 0 }} />
                         <span style={{ flex: 1, fontWeight: 500 }}>{opt.label}</span>
-                        <span style={{ fontSize: '11px', color: '#9CA3AF' }}>{downloadingFmt === opt.fmt ? '생성 중…' : opt.desc}</span>
+                        <span style={{ fontSize: '11px', color: '#9CA3AF' }}>{downloadingFmt === opt.fmt ? '생성 중…' : opt.fmt !== 'pdf' && !canUseOfficeExport ? 'Basic 이상' : opt.desc}</span>
                       </button>
                     ))}
                   </div>
@@ -990,9 +998,9 @@ export default function EditorPage() {
             </div>
             <button
               onClick={handleRefineAllText}
-              disabled={refiningText}
-              title="기존 매뉴얼을 포함해 전체 제목·본문을 사용자 목적 중심으로 다시 작성"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', flexShrink: 0, height: '28px', padding: '0 10px', borderRadius: '6px', border: '1px solid #E5E7EB', background: 'white', color: '#12B886', fontSize: '12px', fontWeight: 500, cursor: refiningText ? 'not-allowed' : 'pointer', opacity: refiningText ? 0.65 : 1, transition: 'all 0.15s' }}
+              disabled={refiningText || !canUseAiRewrite}
+              title={canUseAiRewrite ? '기존 매뉴얼을 포함해 전체 제목·본문을 사용자 목적 중심으로 다시 작성' : 'Basic 이상 플랜에서 사용할 수 있습니다.'}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', flexShrink: 0, height: '28px', padding: '0 10px', borderRadius: '6px', border: '1px solid #E5E7EB', background: 'white', color: '#12B886', fontSize: '12px', fontWeight: 500, cursor: refiningText || !canUseAiRewrite ? 'not-allowed' : 'pointer', opacity: refiningText || !canUseAiRewrite ? 0.55 : 1, transition: 'all 0.15s' }}
             >
               {refiningText ? <Loader2 size={TOP_BAR_ICON_SIZE} style={{ animation: 'spin 1s linear infinite' }} /> : <Wand2 size={TOP_BAR_ICON_SIZE} />}
               전체 제목·본문 AI 재작성
@@ -1026,6 +1034,7 @@ export default function EditorPage() {
           <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
           <ManualEditor
             steps={manualSteps}
+            aiRewriteEnabled={canUseAiRewrite}
             hideToc
             activeId={activeId}
             onActiveChange={setActiveId}
@@ -1161,6 +1170,7 @@ export default function EditorPage() {
           defaultMode="document"
           onRequestRegenerate={() => setShowRefineConfirm(true)}
           hasPassword={!!(tutorial as Tutorial & { share_password?: string | null }).share_password}
+          passwordProtectionEnabled={tutorialEntitlements?.protected_sharing ?? hasEntitlement(user?.plan, 'protected_sharing')}
           visibility={(tutorial as Tutorial & { visibility?: 'private' | 'public' }).visibility}
           onPublishAndShare={publish}
           onUnpublish={unpublish}

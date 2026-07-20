@@ -970,6 +970,7 @@ export default function StudioPage() {
           tutorialId={id}
           defaultMode="follow"
           hasPassword={!!(tutorial as Tutorial & { share_password?: string | null }).share_password}
+          passwordProtectionEnabled={!!(tutorial as Tutorial & { entitlements?: { protected_sharing?: boolean } }).entitlements?.protected_sharing}
           visibility={(tutorial as Tutorial & { visibility?: 'private' | 'public' }).visibility}
           onPublishAndShare={publish}
           onUnpublish={unpublish}

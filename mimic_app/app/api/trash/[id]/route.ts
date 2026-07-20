@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
+import { trashCutoff } from '@/lib/trash-retention';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -17,6 +18,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     .select('id, user_id, workspace_id')
     .eq('id', id)
     .not('deleted_at', 'is', null)
+    .gte('deleted_at', trashCutoff())
     .single();
 
   if (!tutorial) {

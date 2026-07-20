@@ -18,6 +18,7 @@ interface ShareModalProps {
   onPublishAndShare: () => Promise<{ share_token: string; share_url?: string }>;
   onUnpublish: () => Promise<void>;
   onClose: () => void;
+  passwordProtectionEnabled?: boolean;
 }
 
 function shareUrlForMode(value: string | null | undefined, mode: 'document' | 'follow' | 'slides') {
@@ -32,7 +33,8 @@ function shareUrlForMode(value: string | null | undefined, mode: 'document' | 'f
   }
 }
 
-export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPassword, visibility: initialVisibility = 'private', defaultMode = 'document', onRequestRegenerate, onPublishAndShare, onUnpublish, onClose }: ShareModalProps) {
+export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPassword, visibility: initialVisibility = 'private', defaultMode = 'document', onRequestRegenerate, onPublishAndShare, onUnpublish, onClose, passwordProtectionEnabled = false }: ShareModalProps) {
+  const canProtectSharing = passwordProtectionEnabled;
   const [url, setUrl] = useState(() => shareUrlForMode(shareUrl, defaultMode));
   const [copied, setCopied] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -82,13 +84,18 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
 
   const handleSavePassword = async () => {
     if (!pwInput.trim()) return;
+    if (!canProtectSharing) {
+      window.location.assign('/landingpage#pricing');
+      return;
+    }
     setPwSaving(true);
     try {
-      await fetch(`/api/tutorials/${tutorialId}`, {
+      const response = await fetch(`/api/tutorials/${tutorialId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ share_password: pwInput }),
       });
+      if (!response.ok) throw new Error('password save failed');
       setPwEnabled(true);
       setPwInput('');
       setPwSaved(true);
@@ -379,11 +386,12 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
 
           {/* 비밀번호 보호 */}
           <div style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch', gap: '0' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0 0', cursor: 'pointer' }}
-              onClick={() => { if (!pwEnabled) setPwExpanded(e => !e); }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0 0', cursor: canProtectSharing || pwEnabled ? 'pointer' : 'default' }}
+              onClick={() => { if (!pwEnabled && canProtectSharing) setPwExpanded(e => !e); }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Lock size={14} style={{ color: pwEnabled ? '#009B8E' : '#9CA3AF' }} />
                 <span style={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}>비밀번호 보호</span>
+                {!canProtectSharing && !pwEnabled && <span style={{ fontSize: '10.5px', color: '#9CA3AF' }}>Basic 이상</span>}
                 {pwEnabled && (
                   <span style={{ fontSize: '10.5px', padding: '1px 7px', borderRadius: '20px', background: '#E8FFF7', color: '#009B8E', fontWeight: 600 }}>
                     {pwSaved ? '변경됨!' : '설정됨'}
@@ -397,11 +405,14 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
                     해제
                   </button>
                 )}
-                {!pwEnabled && (
+                {!pwEnabled && canProtectSharing && (
                   <ChevronDown size={14} style={{ color: '#9CA3AF', transform: pwExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
                 )}
               </div>
             </div>
+            {!canProtectSharing && !pwEnabled && (
+              <a href="/landingpage#pricing" style={{ marginTop: 7, color: '#009B8E', fontSize: 11.5, fontWeight: 700, textDecoration: 'none' }}>플랜 보기</a>
+            )}
             {!pwEnabled && pwExpanded && (
               <div style={{ padding: '10px 0 4px', display: 'flex', gap: '6px' }}>
                 <div style={{ flex: 1, position: 'relative' }}>

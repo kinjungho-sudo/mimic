@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { verifyPassword } from '@/lib/auth/password';
 import { isPaidPlan } from '@/lib/plan';
+import { hasEntitlement } from '@/lib/entitlements';
 import { isFreshVoiceAsset } from '@/lib/voice/playback';
 import { mergeCapturedTypeText } from '@/lib/follow';
 import { maskManualCopy } from '@/lib/manual-quality';
@@ -26,7 +27,7 @@ async function fetchTutorialData(token: string) {
     .eq('id', tutorial.user_id)
     .single();
   const ownerPlan = owner?.plan ?? 'free';
-  const voiceEnabled = isPaidPlan(ownerPlan) && tutorial.tts_enabled;
+  const voiceEnabled = hasEntitlement(ownerPlan, 'ai_voice') && tutorial.tts_enabled;
 
   const { data: rawSteps } = await supabase
     .from('mm_steps')
