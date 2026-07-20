@@ -259,7 +259,6 @@ export function InteractiveFollowPlayer({ steps, title, initialStepIndex = 0, on
                   typeBoxWidth={step.typeBoxWidth}
                   typeBoxHeight={step.typeBoxHeight}
                   guideMode={step.guideMode}
-                  annotations={step.annotations}
                   bubbleAnchor={step.bubbleAnchor}
                   animateType={step.typeInputMode === 'auto'}
                   isFirstStep={idx === 0}

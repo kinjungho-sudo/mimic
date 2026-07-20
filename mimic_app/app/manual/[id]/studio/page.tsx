@@ -2,7 +2,7 @@
 
 import { Fragment, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Play, Check, Loader2, MousePointerClick, Type, Ban, RotateCcw, EyeOff, Eye, GripVertical, ZoomIn, ImagePlus, PenTool, Volume2, VolumeX, Link2, AlertTriangle, X } from 'lucide-react';
+import { ArrowLeft, Play, Check, Loader2, MousePointerClick, Type, Ban, RotateCcw, EyeOff, Eye, GripVertical, ZoomIn, ImagePlus, Volume2, VolumeX, Link2, AlertTriangle, X } from 'lucide-react';
 import { useTutorial } from '@/hooks/useTutorial';
 import { updateStep, reorderSteps } from '@/lib/api/steps';
 import { listLiveGuideTargetTabs, pickLiveGuideTarget, type LiveGuideTargetPickResult, type LiveGuideTargetTab } from '@/lib/api/liveGuide';
@@ -11,7 +11,7 @@ import { inferGuideSection } from '@/lib/manual-quality';
 import { resolveStepAudio } from '@/lib/voice/playback';
 import { InteractiveFollowPlayer } from '@/components/viewer/InteractiveFollowPlayer';
 import { FollowStage } from '@/components/viewer/FollowStage';
-import { ImageAnnotationEditor, type Annotation } from '@/components/editor/ImageAnnotationEditor';
+import type { Annotation } from '@/components/editor/ImageAnnotationEditor';
 import { ShareModal } from '@/components/editor/ShareModal';
 import { logError } from '@/lib/logging/logger';
 import type { Step, Tutorial, FollowConfig } from '@/types';
@@ -165,7 +165,6 @@ export default function StudioPage() {
   const [ttsGenerating, setTtsGenerating] = useState(false);
   const [audioAssets, setAudioAssets] = useState<StudioAudioAsset[]>([]);
   const [uploadingStepId, setUploadingStepId] = useState<string | null>(null);
-  const [annotatingId, setAnnotatingId] = useState<string | null>(null);
   const [pickingTarget, setPickingTarget] = useState(false);
   const [loadingTargetTabs, setLoadingTargetTabs] = useState(false);
   const [targetTabs, setTargetTabs] = useState<LiveGuideTargetTab[]>([]);
@@ -468,22 +467,6 @@ export default function StudioPage() {
     }
   }, [active]);
 
-  const saveAnnotations = useCallback(async (stepId: string, annotations: Annotation[]) => {
-    const current = stepsRef.current.find(s => s.id === stepId);
-    const nextFollow = { ...(current?.follow ?? {}), kind: 'none' as const };
-    stepsRef.current = stepsRef.current.map(s => s.id === stepId ? { ...s, annotations, follow: nextFollow, stepType: s.stepType ?? 'visual_overlay_step' } : s);
-    setSteps(stepsRef.current);
-    setSavingId(stepId);
-    try {
-      await updateStep(stepId, { user_annotations: annotations, follow_config: normalize(nextFollow) });
-      setSavedTick(t => t + 1);
-    } catch (e) {
-      logError('studio.annotations.fail', { stepId, message: e instanceof Error ? e.message : String(e) });
-    } finally {
-      setSavingId(s => (s === stepId ? null : s));
-    }
-  }, []);
-
   const placeHotspot = useCallback((clientX: number, clientY: number, commit: boolean) => {
     const el = imgWrapRef.current;
     if (!el || !active) return;
@@ -636,7 +619,7 @@ export default function StudioPage() {
               <ImagePlus size={34} color="#E8FFF7" style={{ marginBottom: 12 }} />
               <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 7 }}>수동 캡처가 필요한 단계</div>
               <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.62)', lineHeight: 1.6, marginBottom: 16 }}>
-                보안 화면이나 제한된 페이지는 이미지를 직접 추가한 뒤 Visual Overlay로 안내를 완성할 수 있습니다.
+                보안 화면이나 제한된 페이지는 원본 이미지를 직접 추가한 뒤 클릭 위치를 지정할 수 있습니다.
               </div>
               <button
                 onClick={() => fileInputRef.current?.click()}
@@ -661,7 +644,6 @@ export default function StudioPage() {
                   typeBoxWidth={active.follow.typeBoxWidth}
                   typeBoxHeight={active.follow.typeBoxHeight}
                   guideMode={rv?.none ? 'explanation' : 'interactive'}
-                  annotations={active.annotations}
                   bubbleAnchor={active.follow.bubbleAnchor}
                   stepNumber={steps.findIndex(s => s.id === active.id) + 1}
                   title={active.title}
@@ -753,7 +735,7 @@ export default function StudioPage() {
 
               <Divider />
 
-              <SectionLabel>Visual Overlay</SectionLabel>
+              <SectionLabel>학습 화면</SectionLabel>
               <div style={{ display: 'grid', gap: 8 }}>
                 <button
                   onClick={() => fileInputRef.current?.click()}
@@ -762,15 +744,8 @@ export default function StudioPage() {
                 >
                   {uploadingStepId === active.id ? <Loader2 size={12} className="spin" /> : <ImagePlus size={12} />} {active.screenshotUrl ? '이미지 교체' : '이미지 추가'}
                 </button>
-                <button
-                  onClick={() => active.screenshotUrl && setAnnotatingId(active.id)}
-                  disabled={!active.screenshotUrl}
-                  style={{ ...subtleBtn, opacity: active.screenshotUrl ? 1 : 0.45, cursor: active.screenshotUrl ? 'pointer' : 'not-allowed' }}
-                >
-                  <PenTool size={12} /> Overlay 편집
-                </button>
               </div>
-              <p style={hint}>DOM과 연결되지 않는 Rectangle, Circle, Spotlight, Arrow, Tooltip을 이미지 위에 배치합니다.</p>
+              <p style={hint}>학습 가이드에는 어노테이션을 겹치지 않고 원본 이미지만 표시합니다. 문서 매뉴얼의 어노테이션 데이터는 그대로 보존됩니다.</p>
 
               <Divider />
 
@@ -952,19 +927,6 @@ export default function StudioPage() {
           <InteractiveFollowPlayer title={tutorial.title} steps={previewSteps} onClose={() => setShowPreview(false)} closeLabel="편집으로" />
         </div>
       )}
-
-      {annotatingId && (() => {
-        const step = steps.find(s => s.id === annotatingId);
-        if (!step?.screenshotUrl) return null;
-        return (
-          <ImageAnnotationEditor
-            imageUrl={step.screenshotUrl}
-            annotations={step.annotations}
-            onChange={annotations => saveAnnotations(step.id, annotations)}
-            onClose={() => setAnnotatingId(null)}
-          />
-        );
-      })()}
 
       {showShare && tutorial && (
         <ShareModal
