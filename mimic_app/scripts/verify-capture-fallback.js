@@ -201,6 +201,21 @@ async function main() {
     failures.push({ name: 'tutorial title fallback', expected: '대회소개 확인하기', actual: fallbackTitle });
   }
 
+  const actionEndingTitle = buildCaptureFallbackTutorialTitle([
+    { user_title: '알림 신청하기 클릭' },
+  ]);
+  if (actionEndingTitle !== '알림 신청하기') {
+    failures.push({ name: 'tutorial title keeps action ending', expected: '알림 신청하기', actual: actionEndingTitle });
+  }
+
+  const directionalDraft = buildCaptureFallbackDraft(
+    { id: 'arrow-1', step_number: 3, ai_title: '→ 클릭', ai_description: null, page_url: 'https://faolai-landingpage.pages.dev/', domain_name: 'Faolai' },
+    { actionInfo: { type: 'click', label: '→', targetContext: { contextLabel: '고객 후기' } }, elementText: '→' },
+  );
+  if (directionalDraft.user_title !== '다음 후기 보기' || directionalDraft.user_script !== '후기 목록에서 다음 내용을 확인합니다.') {
+    failures.push({ name: 'directional control gets contextual copy', expected: { user_title: '다음 후기 보기', user_script: '후기 목록에서 다음 내용을 확인합니다.' }, actual: directionalDraft });
+  }
+
   const gardenTitle = buildCaptureFallbackTutorialTitle([
     { user_title: '상품 검색어 입력' },
     { user_title: '무료배송 조건 선택' },
@@ -328,6 +343,9 @@ async function main() {
   }
   if (!isLowQualityCaptureTutorialTitle('메일 보내기 클릭하기')) {
     failures.push({ name: 'click tutorial title rejected', expected: true, actual: false });
+  }
+  if (!isLowQualityCaptureTutorialTitle('알림 신청하기 확인하기')) {
+    failures.push({ name: 'duplicated action tutorial title rejected', expected: true, actual: false });
   }
   if (!isLowQualityCaptureTutorialTitle('최소 입력하기')) {
     failures.push({ name: 'raw input tutorial title rejected', expected: true, actual: false });

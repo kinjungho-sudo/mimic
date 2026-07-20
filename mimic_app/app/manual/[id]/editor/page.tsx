@@ -96,6 +96,8 @@ export default function EditorPage() {
   const [refiningText, setRefiningText] = useState(false);
   const [qualityIssues, setQualityIssues] = useState<ManualQualityIssue[]>([]);
   const [regenerateNotice, setRegenerateNotice] = useState<string | null>(null);
+  const [regenerateFailed, setRegenerateFailed] = useState(false);
+  const [showRefineConfirm, setShowRefineConfirm] = useState(false);
   const [bulkColorOpen, setBulkColorOpen] = useState(false);
   // 녹화 직후 진입 — 스텝 생성 대기 폴링
   const [pollingState, setPollingState] = useState<'idle' | 'polling' | 'timeout'>('idle');
@@ -112,6 +114,8 @@ export default function EditorPage() {
   const collabToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stepSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const tempIdCounter = useRef(0);
+  const refineAbortRef = useRef<AbortController | null>(null);
+  const refineCancelReasonRef = useRef<'user' | 'timeout' | null>(null);
   const [tocSelectedIds, setTocSelectedIds] = useState<Set<string>>(new Set());
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [autoGenProgress, setAutoGenProgress] = useState<{ done: number; total: number } | null>(null);
@@ -368,16 +372,27 @@ export default function EditorPage() {
 
   // 기존 매뉴얼까지 목적 중심 제목·본문으로 다시 생성한다.
   const refineAllText = useCallback(async () => {
+    if (refineAbortRef.current) return;
     if (!manualSteps.some(step => !step.id.startsWith('step-'))) {
       setRegenerateNotice('AI로 다시 작성할 저장된 단계가 없습니다. 잠시 후 다시 시도해주세요.');
+      setRegenerateFailed(true);
       return;
     }
+    const controller = new AbortController();
+    refineAbortRef.current = controller;
+    refineCancelReasonRef.current = null;
+    const timeoutId = setTimeout(() => {
+      refineCancelReasonRef.current = 'timeout';
+      controller.abort();
+    }, 45_000);
     setRefiningText(true);
     setRegenerateNotice(null);
+    setRegenerateFailed(false);
     try {
       const res = await fetch(`/api/tutorials/${id}/regenerate-content`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? '전체 재작성에 실패했습니다.');
@@ -396,16 +411,32 @@ export default function EditorPage() {
       setQualityIssues(current => current.filter(issue => !['tutorial_title', 'step_title', 'step_script', 'duplicate_title'].includes(issue.code)));
       setRegenerateNotice(`전체 ${regenerated.size}단계의 제목과 본문을 다시 작성했습니다.`);
     } catch (err) {
-      setRegenerateNotice(err instanceof Error ? err.message : '전체 재작성에 실패했습니다.');
+      const aborted = typeof err === 'object' && err !== null && 'name' in err && (err as { name?: unknown }).name === 'AbortError';
+      if (aborted) {
+        const timedOut = refineCancelReasonRef.current === 'timeout';
+        setRegenerateNotice(timedOut ? 'AI 재작성이 45초를 초과했습니다. 다시 시도해주세요.' : 'AI 재작성을 취소했습니다.');
+        setRegenerateFailed(timedOut);
+      } else {
+        setRegenerateNotice(err instanceof Error ? err.message : '전체 재작성에 실패했습니다.');
+        setRegenerateFailed(true);
+      }
     } finally {
+      clearTimeout(timeoutId);
+      if (refineAbortRef.current === controller) refineAbortRef.current = null;
+      refineCancelReasonRef.current = null;
       setRefiningText(false);
     }
   }, [id, manualSteps, setManualStepsWithHistory]);
 
-  const handleRefineAllText = useCallback(async () => {
-    if (!window.confirm('전체 제목과 본문을 사용자 목적 중심으로 다시 작성합니다. 계속할까요?')) return;
-    await refineAllText();
-  }, [refineAllText]);
+  const handleRefineAllText = useCallback(() => {
+    setShowRefineConfirm(true);
+  }, []);
+
+  const cancelRefineAllText = useCallback(() => {
+    if (!refineAbortRef.current) return;
+    refineCancelReasonRef.current = 'user';
+    refineAbortRef.current.abort();
+  }, []);
 
   const performDeleteStep = useCallback((stepId: string) => {
     const next = manualSteps.filter(s => s.id !== stepId).map((s, i) => ({ ...s, number: i + 1 }));
@@ -966,8 +997,18 @@ export default function EditorPage() {
               {refiningText ? <Loader2 size={TOP_BAR_ICON_SIZE} style={{ animation: 'spin 1s linear infinite' }} /> : <Wand2 size={TOP_BAR_ICON_SIZE} />}
               전체 제목·본문 AI 재작성
             </button>
+            {refiningText && (
+              <button onClick={cancelRefineAllText} style={{ height: '28px', padding: '0 9px', borderRadius: '6px', border: '1px solid #FCA5A5', background: '#FFF7F7', color: '#B91C1C', fontSize: '11.5px', fontWeight: 600, cursor: 'pointer' }}>
+                취소
+              </button>
+            )}
+            {!refiningText && regenerateFailed && (
+              <button onClick={() => void refineAllText()} style={{ height: '28px', padding: '0 9px', borderRadius: '6px', border: '1px solid #FCA5A5', background: '#FFF7F7', color: '#B91C1C', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer' }}>
+                다시 시도
+              </button>
+            )}
             {regenerateNotice && (
-              <span title={regenerateNotice} style={{ maxWidth: 210, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '11px', color: regenerateNotice.includes('실패') ? '#DC2626' : '#059669' }}>
+              <span title={regenerateNotice} style={{ maxWidth: 210, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '11px', color: /실패|초과|취소/.test(regenerateNotice) ? '#DC2626' : '#059669' }}>
                 {regenerateNotice}
               </span>
             )}
@@ -1098,6 +1139,19 @@ export default function EditorPage() {
           onClose={() => setShowExport(false)}
         />
       )}
+      {showRefineConfirm && (
+        <div onClick={() => setShowRefineConfirm(false)} style={{ position: 'fixed', inset: 0, zIndex: 2100, background: 'rgba(10,10,18,0.50)', backdropFilter: 'blur(3px)', display: 'grid', placeItems: 'center', padding: 20 }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="refine-confirm-title" onClick={event => event.stopPropagation()} style={{ width: '100%', maxWidth: 400, borderRadius: 16, background: 'white', padding: 24, boxShadow: '0 20px 60px rgba(0,0,0,0.28)' }}>
+            <div style={{ width: 42, height: 42, borderRadius: 12, display: 'grid', placeItems: 'center', background: '#E8FFF7', color: '#009B8E', marginBottom: 14 }}><Wand2 size={20} /></div>
+            <h2 id="refine-confirm-title" style={{ margin: '0 0 8px', fontSize: 17, color: '#111827' }}>전체 문구를 AI로 다시 작성할까요?</h2>
+            <p style={{ margin: '0 0 20px', color: '#6B7280', fontSize: 13, lineHeight: 1.65 }}>현재 단계의 제목과 본문을 사용자 목적 중심으로 다듬습니다. 작업 중에는 취소할 수 있고, 실패하면 다시 시도할 수 있습니다.</p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button onClick={() => setShowRefineConfirm(false)} style={{ height: 38, padding: '0 15px', borderRadius: 9, border: '1px solid #D1D5DB', background: 'white', color: '#374151', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>취소</button>
+              <button onClick={() => { setShowRefineConfirm(false); void refineAllText(); }} style={{ height: 38, padding: '0 16px', borderRadius: 9, border: 'none', background: 'linear-gradient(135deg,#009B8E,#12B886)', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>AI 재작성 시작</button>
+            </div>
+          </div>
+        </div>
+      )}
       {showShare && tutorial && (
         <ShareModal
           title={title}
@@ -1105,7 +1159,7 @@ export default function EditorPage() {
           shareUrl={(tutorial as Tutorial & { share_token?: string | null }).share_token ? `${typeof window !== 'undefined' ? window.location.origin : ''}/play/${(tutorial as Tutorial & { share_token?: string | null }).share_token}` : null}
           tutorialId={id}
           defaultMode="document"
-          onRequestRegenerate={refineAllText}
+          onRequestRegenerate={() => setShowRefineConfirm(true)}
           hasPassword={!!(tutorial as Tutorial & { share_password?: string | null }).share_password}
           visibility={(tutorial as Tutorial & { visibility?: 'private' | 'public' }).visibility}
           onPublishAndShare={publish}

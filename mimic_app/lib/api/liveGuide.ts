@@ -16,6 +16,14 @@ export type LiveGuideResult =
 type LiveGuideTargetRect = { x: number; y: number; width: number; height: number };
 type LiveGuideTargetContext = Record<string, unknown>;
 
+export type LiveGuideTargetTab = {
+  id: number;
+  title: string;
+  url: string;
+  favIconUrl?: string;
+  urlAccess: boolean;
+};
+
 export type LiveGuideTargetPickResult =
   | {
       ok: true;
@@ -29,6 +37,10 @@ export type LiveGuideTargetPickResult =
       label?: string | null;
     }
   | { ok: false; reason: 'not_installed' | 'timeout' | 'error'; message: string };
+
+type LiveGuideTargetTabsResult =
+  | { ok: true; tabs: LiveGuideTargetTab[] }
+  | { ok: false; reason: 'not_installed' | 'error'; message: string };
 
 declare global {
   interface Window {
@@ -88,7 +100,60 @@ export async function startLiveGuide(shareToken: string): Promise<LiveGuideResul
   });
 }
 
-export async function pickLiveGuideTarget(): Promise<LiveGuideTargetPickResult> {
+export async function listLiveGuideTargetTabs(): Promise<LiveGuideTargetTabsResult> {
+  const extensionId = await resolvePreferredExtensionId();
+  if (!extensionId || !window.chrome?.runtime?.sendMessage) {
+    return {
+      ok: false,
+      reason: 'not_installed',
+      message: `${BRAND_COPY.extensionDisplayName} 확장 프로그램을 설치하거나 활성화한 뒤 다시 시도해주세요.`,
+    };
+  }
+
+  return new Promise(resolve => {
+    window.chrome!.runtime!.sendMessage(
+      extensionId,
+      { action: 'GET_TABS' },
+      response => {
+        const lastError = window.chrome?.runtime?.lastError;
+        if (lastError) {
+          resolve({ ok: false, reason: 'not_installed', message: lastError.message ?? '확장 프로그램이 응답하지 않았습니다.' });
+          return;
+        }
+
+        const data = (response ?? {}) as RuntimeResponse & { tabs?: unknown[] };
+        if (!data.ok || !Array.isArray(data.tabs)) {
+          resolve({ ok: false, reason: 'error', message: data.error ?? '대상 탭 목록을 불러오지 못했습니다.' });
+          return;
+        }
+
+        const tabs = data.tabs.flatMap(item => {
+          if (!item || typeof item !== 'object') return [];
+          const candidate = item as Record<string, unknown>;
+          if (typeof candidate.id !== 'number' || typeof candidate.url !== 'string' || !/^https?:\/\//i.test(candidate.url)) return [];
+          try {
+            const parsed = new URL(candidate.url);
+            const hostname = parsed.hostname.toLowerCase();
+            if (parsed.origin === window.location.origin || hostname === 'parro-guide.vercel.app' || hostname === 'parro-guide-dev.vercel.app') return [];
+          } catch {
+            return [];
+          }
+          return [{
+            id: candidate.id,
+            title: typeof candidate.title === 'string' && candidate.title.trim() ? candidate.title.trim() : candidate.url,
+            url: candidate.url,
+            favIconUrl: typeof candidate.favIconUrl === 'string' ? candidate.favIconUrl : undefined,
+            urlAccess: candidate.urlAccess !== false,
+          } satisfies LiveGuideTargetTab];
+        });
+
+        resolve({ ok: true, tabs });
+      }
+    );
+  });
+}
+
+export async function pickLiveGuideTarget(tabId: number): Promise<LiveGuideTargetPickResult> {
   const extensionId = await resolvePreferredExtensionId();
   if (!extensionId || !window.chrome?.runtime?.sendMessage) {
     return Promise.resolve({
@@ -101,7 +166,7 @@ export async function pickLiveGuideTarget(): Promise<LiveGuideTargetPickResult> 
   return new Promise(resolve => {
     window.chrome!.runtime!.sendMessage(
       extensionId,
-      { action: 'PICK_LIVE_TARGET' },
+      { action: 'PICK_LIVE_TARGET', tab_id: tabId },
       response => {
         const lastError = window.chrome?.runtime?.lastError;
         if (lastError) {

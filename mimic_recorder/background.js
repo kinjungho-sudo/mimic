@@ -467,6 +467,28 @@ function guidePageMatches(currentUrl, targetUrl) {
   }
 }
 
+function guideOriginMatches(currentUrl, targetUrl) {
+  try {
+    return new URL(currentUrl).origin === new URL(targetUrl).origin;
+  } catch {
+    return false;
+  }
+}
+
+function navigateGuideTab(tabId, url) {
+  return new Promise((resolve) => {
+    chrome.tabs.update(tabId, { url }, (updated) => {
+      const error = chrome.runtime.lastError?.message;
+      if (error) {
+        log('warn', 'bg', 'guide tab navigation failed:', error);
+        resolve(false);
+        return;
+      }
+      resolve(!!updated);
+    });
+  });
+}
+
 function createGuideTab(url, windowId) {
   return new Promise((resolve) => {
     const options = { url, active: true };
@@ -854,9 +876,15 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
   if (message.action === 'PICK_LIVE_TARGET') {
     (async () => {
       try {
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        const requestedTabId = Number.isInteger(message.tab_id) ? message.tab_id : null;
+        const [activeBeforePick] = await chrome.tabs.query({ active: true, currentWindow: true });
+        const senderTabId = sender.tab?.id ?? activeBeforePick?.id ?? null;
+        const senderWindowId = sender.tab?.windowId ?? activeBeforePick?.windowId ?? null;
+        const tab = requestedTabId != null
+          ? await chrome.tabs.get(requestedTabId).catch(() => null)
+          : (await chrome.tabs.query({ active: true, currentWindow: true }))[0];
         if (!tab?.id) {
-          sendResponse({ ok: false, reason: 'tab_not_found', error: '활성 탭을 찾지 못했습니다.' });
+          sendResponse({ ok: false, reason: 'tab_not_found', error: '선택한 대상 탭을 찾지 못했습니다.' });
           return;
         }
 
@@ -872,8 +900,20 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
           return;
         }
 
-        chrome.tabs.sendMessage(tab.id, { type: 'LIVE_TARGET_PICK' }, (response) => {
+        if (tab.windowId != null) {
+          await chrome.windows.update(tab.windowId, { focused: true }).catch(() => {});
+        }
+        await chrome.tabs.update(tab.id, { active: true }).catch(() => {});
+
+        const restoreStudioTab = async () => {
+          if (senderTabId == null || senderTabId === tab.id) return;
+          if (senderWindowId != null) await chrome.windows.update(senderWindowId, { focused: true }).catch(() => {});
+          await chrome.tabs.update(senderTabId, { active: true }).catch(() => {});
+        };
+
+        chrome.tabs.sendMessage(tab.id, { type: 'LIVE_TARGET_PICK' }, async (response) => {
           const error = chrome.runtime.lastError?.message;
+          await restoreStudioTab();
           if (error) {
             sendResponse({ ok: false, reason: 'content_script_unreachable', error });
             return;
@@ -1611,15 +1651,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
       if (!guidePageMatches(tab.url, step.page_url)) {
         await storageSet({ guidePendingOverlay: true });
-        if (!message.viaClick) {
-          chrome.tabs.update(tab.id, { url: step.page_url });
+        if (!message.viaClick || !guideOriginMatches(tab.url, step.page_url)) {
+          // 서로 다른 사이트로 넘어가는 단계는 실제 클릭이 현재 페이지를 이동시킬 수 있다고
+          // 가정하지 않는다. 기록 URL로 즉시 이동해 가이드가 조용히 멈추는 상태를 막는다.
+          const navigated = await navigateGuideTab(tab.id, step.page_url);
+          if (!navigated) await storageSet({ guideTargetStatus: 'page_mismatch' });
         } else {
           // 실제 클릭 이동을 우선하되, SPA/차단으로 이동이 일어나지 않으면 기록 URL로 복구한다.
           setTimeout(async () => {
             const current = await getGuideTab();
             const state = await storageGet(['guideModeActive', 'guideCurrentStep']);
             if (!state.guideModeActive || state.guideCurrentStep !== idx || !current?.id) return;
-            if (!guidePageMatches(current.url, step.page_url)) chrome.tabs.update(current.id, { url: step.page_url });
+            if (!guidePageMatches(current.url, step.page_url)) {
+              const navigated = await navigateGuideTab(current.id, step.page_url);
+              if (!navigated) await storageSet({ guideTargetStatus: 'page_mismatch' });
+            }
           }, 1400);
         }
         return;

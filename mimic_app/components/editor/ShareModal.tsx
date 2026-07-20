@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Link2, Check, Lock, Eye, EyeOff, Code2, ChevronDown } from 'lucide-react';
 import { BRAND_NAME } from '@/lib/brand';
 import { TutorialApiError } from '@/lib/api/tutorials';
@@ -40,7 +40,9 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
   const [qualityChecking, setQualityChecking] = useState(true);
   const [qualityIssues, setQualityIssues] = useState<ManualQualityIssue[]>([]);
   const [publishError, setPublishError] = useState<string | null>(null);
+  const [warningApproved, setWarningApproved] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const publishStartedRef = useRef(false);
 
   // 공개 범위
   const [vis, setVis] = useState<'private' | 'public'>(initialVisibility);
@@ -140,6 +142,8 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
   useEffect(() => {
     let cancelled = false;
     setQualityChecking(true);
+    setWarningApproved(false);
+    publishStartedRef.current = false;
     fetch(`/api/tutorials/${tutorialId}/quality`)
       .then(async response => {
         const data = await response.json().catch(() => ({}));
@@ -154,25 +158,36 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
     return () => { cancelled = true; };
   }, [tutorialId]);
 
-  useEffect(() => {
-    if (shareToken) return;
+  const publishNow = useCallback(async () => {
+    if (shareToken || publishStartedRef.current) return;
+    publishStartedRef.current = true;
     setPublishing(true);
-    onPublishAndShare()
-      .then(result => {
-        const resolved = result.share_url ?? `${window.location.origin}/play/${result.share_token}`;
-        setUrl(shareUrlForMode(resolved, defaultMode));
-      })
-      .catch(err => {
-        setPublishError(err instanceof Error ? err.message : '공유 링크를 만들 수 없습니다.');
-        if (err instanceof TutorialApiError && err.issues.length > 0) setQualityIssues(err.issues);
-      })
-      .finally(() => setPublishing(false));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    setPublishError(null);
+    try {
+      const result = await onPublishAndShare();
+      const resolved = result.share_url ?? `${window.location.origin}/play/${result.share_token}`;
+      setUrl(shareUrlForMode(resolved, defaultMode));
+    } catch (err) {
+      publishStartedRef.current = false;
+      setPublishError(err instanceof Error ? err.message : '공유 링크를 만들 수 없습니다.');
+      if (err instanceof TutorialApiError && err.issues.length > 0) setQualityIssues(err.issues);
+    } finally {
+      setPublishing(false);
+    }
+  }, [defaultMode, onPublishAndShare, shareToken]);
+
+  useEffect(() => {
+    if (shareToken || qualityChecking || publishError || publishStartedRef.current) return;
+    const hasError = qualityIssues.some(issue => issue.severity === 'error');
+    const hasWarning = qualityIssues.some(issue => issue.severity === 'warning');
+    if (hasError || hasWarning) return;
+    void publishNow();
+  }, [publishError, publishNow, qualityChecking, qualityIssues, shareToken]);
 
   const hasBlockingIssues = qualityIssues.some(issue => issue.severity === 'error');
   const hasQualitySuggestions = qualityIssues.some(issue => issue.severity === 'warning');
-  const sharingBlocked = publishing || qualityChecking || hasBlockingIssues || !!publishError;
+  const awaitingWarningApproval = !shareToken && !url && hasQualitySuggestions && !warningApproved;
+  const sharingBlocked = publishing || qualityChecking || hasBlockingIssues || awaitingWarningApproval || !!publishError;
 
   const handleCopy = async () => {
     if (!url || sharingBlocked) return;
@@ -292,6 +307,11 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
                       AI로 문구 다듬기
                     </button>
                   )}
+                  {awaitingWarningApproval && (
+                    <button onClick={() => { setWarningApproved(true); void publishNow(); }} disabled={publishing} style={{ marginTop: 8, marginLeft: onRequestRegenerate ? 7 : 0, height: 30, padding: '0 10px', borderRadius: 7, border: '1px solid #D97706', background: 'white', color: '#92400E', fontSize: 11.5, fontWeight: 700, cursor: publishing ? 'not-allowed' : 'pointer' }}>
+                      제안 확인 후 게시
+                    </button>
+                  )}
                 </>
               )}
             </div>
@@ -302,7 +322,7 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
             <input
               ref={inputRef}
               readOnly
-              value={publishing ? '링크 생성 중...' : sharingBlocked ? '품질 점검을 통과하면 링크가 표시됩니다.' : url}
+              value={publishing ? '링크 생성 중...' : awaitingWarningApproval ? '제안을 확인한 뒤 게시할 수 있습니다.' : sharingBlocked ? '품질 점검을 통과하면 링크가 표시됩니다.' : url}
               style={{
                 flex: 1, minWidth: 0, height: '40px', padding: '0 12px',
                 border: '1.5px solid #E5E7EB', borderRadius: '10px',

@@ -594,6 +594,34 @@ function dedupeActionNoun(title: string): string {
     .replace(/(확인)\s+\1/g, '$1');
 }
 
+function directionalAction(value: string | null | undefined): 'next' | 'previous' | null {
+  const text = String(value ?? '').replace(/\s+/g, ' ').trim();
+  if (/^(?:→|➡|➜|➔|›|»|right\s*arrow)$/i.test(text)) return 'next';
+  if (/^(?:←|⬅|‹|«|left\s*arrow)$/i.test(text)) return 'previous';
+  return null;
+}
+
+function directionalFallbackDraft(
+  values: Array<string | null | undefined>,
+  contextValues: Array<string | null | undefined>,
+): { user_title: string; user_script: string } | null {
+  const direction = values.map(directionalAction).find(Boolean);
+  if (!direction) return null;
+
+  const context = contextValues.map(cleanText).filter(Boolean).join(' ');
+  const subject = /후기|리뷰|이야기|사례|testimonial/i.test(context) ? '후기' : '항목';
+  if (direction === 'previous') {
+    return {
+      user_title: `이전 ${subject} 보기`,
+      user_script: `${subject} 목록에서 이전 내용을 확인합니다.`,
+    };
+  }
+  return {
+    user_title: `다음 ${subject} 보기`,
+    user_script: `${subject} 목록에서 다음 내용을 확인합니다.`,
+  };
+}
+
 export function buildCaptureFallbackDraft(
   step: CaptureFallbackStepInput,
   context: CaptureFallbackContext = {}
@@ -612,6 +640,13 @@ export function buildCaptureFallbackDraft(
     ? null
     : context.actionInfo?.targetContext?.contextLabel;
   const safeAiTitle = isStale(step.ai_title) ? null : step.ai_title;
+  const directionalDraft = directionalFallbackDraft(
+    [safeActionLabel, safeActionText, safeElementText, safeAccessibleName],
+    [safeContextLabel, context.actionInfo?.targetContext?.pageTitle, step.ai_title, step.domain_name],
+  );
+  if (directionalDraft) {
+    return { id: step.id, ...directionalDraft };
+  }
   const aiTitleGrounded = isCaptureTitleGrounded(safeAiTitle, { ...context, pageUrl: step.page_url });
   const capturedValues = [safeActionLabel, safeActionText, safeElementText, safeAccessibleName, safeContextLabel, safeAiTitle];
   const capturedInputContext = (actionType === 'type' || actionType === 'focus_input')
@@ -748,6 +783,7 @@ export function isLowQualityCaptureTutorialTitle(
   if (!text) return true;
   if (isLowQualityCaptureTitle(text.replace(/하기$/, ''))) return true;
   if (isLikelyRawDomActionBase(text.replace(/하기$/, ''))) return true;
+  if (/하기\s+확인하기$/.test(text)) return true;
   if (/(클릭|선택|입력)하기$/.test(text)) return true;
   if (/^(메일|메뉴|버튼|링크|아이콘)\s*(클릭|선택)하기$/.test(text)) return true;
   if (/^(?:.+(?:에서|에)\s*)?(?:앱|메뉴|화면|항목|버튼|링크)\s*(?:추가|열기|확인)하기$/i.test(text)) return true;
@@ -776,6 +812,7 @@ function tutorialTitleFromStepTitle(value: string): string {
   const base = action[1].trim();
   const verb = action[2];
   if (!base) return '';
+  if (base.endsWith('하기')) return base.slice(0, 30);
   if (verb === '입력') return `${base} 입력하기`.slice(0, 30);
   if (verb === '선택') return `${base} 선택하기`.slice(0, 30);
   if (verb === '이동') return `${base} 이동하기`.slice(0, 30);

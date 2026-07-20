@@ -542,6 +542,81 @@
       || step.step_type === 'blocked_step';
   }
 
+  function isVisibleValidationNode(el) {
+    if (!el || !el.isConnected) return false;
+    try {
+      const style = getComputedStyle(el);
+      const rect = el.getBoundingClientRect();
+      return style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity || 1) > 0 && rect.width > 0 && rect.height > 0;
+    } catch {
+      return false;
+    }
+  }
+
+  function validationMessages() {
+    const selectors = '[role="alert"],[aria-live="assertive"],[aria-invalid="true"],.error,.invalid-feedback,[data-error]';
+    const messages = [];
+    document.querySelectorAll(selectors).forEach((el) => {
+      if (!isVisibleValidationNode(el)) return;
+      const text = String(el.textContent || el.getAttribute('aria-label') || '').replace(/\s+/g, ' ').trim();
+      if (text && text.length <= 240 && !messages.includes(text)) messages.push(text);
+    });
+    return messages;
+  }
+
+  function submissionForm(target) {
+    if (!target || target.nodeType !== Node.ELEMENT_NODE) return null;
+    const control = target.closest?.('button,input,[role="button"]') || target;
+    const form = control.form || control.closest?.('form');
+    if (!form) return null;
+    const tag = String(control.tagName || '').toLowerCase();
+    const type = String(control.getAttribute?.('type') || (tag === 'button' ? 'submit' : '')).toLowerCase();
+    return type === 'submit' ? form : null;
+  }
+
+  function showValidationProblem(message) {
+    if (!state) return;
+    state.validating = false;
+    state.advanced = false;
+    if (state.host) state.host.setAttribute('data-validation-error', message || '입력 내용을 확인해주세요.');
+    if (state.tooltip) {
+      let notice = state.tooltip.querySelector('[data-parro-validation]');
+      if (!notice) {
+        notice = document.createElement('div');
+        notice.setAttribute('data-parro-validation', 'true');
+        notice.style.cssText = 'margin:10px 0 2px;padding:9px 10px;border-radius:8px;background:#FFF1F2;color:#BE123C;font-size:12px;font-weight:700;line-height:1.45;';
+        state.tooltip.appendChild(notice);
+      }
+      notice.textContent = `${message || '입력 내용을 확인해주세요.'} 오류를 해결한 뒤 다시 눌러주세요.`;
+    }
+    nudge();
+  }
+
+  function validateSubmissionThenAdvance(form) {
+    if (!state || state.validating) return;
+    state.validating = true;
+    if (state.host) state.host.removeAttribute('data-validation-error');
+    const before = new Set(validationMessages());
+    const onPageHide = () => advance('click');
+    state.validationPageHide = onPageHide;
+    window.addEventListener('pagehide', onPageHide, { once: true, capture: true });
+    state.validationTimer = setTimeout(() => {
+      if (!state || !state.validating) return;
+      window.removeEventListener('pagehide', onPageHide, true);
+      state.validationPageHide = null;
+      const after = validationMessages();
+      const newMessage = after.find(message => !before.has(message));
+      let invalid = false;
+      try { invalid = typeof form.checkValidity === 'function' && !form.checkValidity(); } catch { /* noop */ }
+      if (invalid || newMessage) {
+        showValidationProblem(newMessage || '필수 입력값이 올바르지 않습니다.');
+        return;
+      }
+      state.validating = false;
+      advance('click');
+    }, 650);
+  }
+
   function show(step, opts) {
     hide();
     opts = opts || {};
@@ -841,10 +916,12 @@
 
     // 클릭 감지 (캡처, 페이지 동작 막지 않음)
     const onDocClick = (e) => {
-      if (state.advanced || state.completed) return;
+      if (state.advanced || state.completed || state.validating) return;
       if (e.target === host) return;
       if (isHit(e.clientX, e.clientY, state.resolved, e.target)) {
-        advance('click');
+        const form = submissionForm(state.resolved?.el || e.target);
+        if (form) validateSubmissionThenAdvance(form);
+        else advance('click');
       } else {
         nudge();
       }
@@ -1252,12 +1329,14 @@
     if (state.fillTimer) clearTimeout(state.fillTimer);
     if (state.findTimer) clearTimeout(state.findTimer);
     if (state.retryTimer) clearTimeout(state.retryTimer);
+    if (state.validationTimer) clearTimeout(state.validationTimer);
     if (state.findObserver) state.findObserver.disconnect();
     if (state.onWaitViewportChange) {
       window.removeEventListener('resize', state.onWaitViewportChange, true);
     }
     if (state.onDocClick) document.removeEventListener('click', state.onDocClick, true);
     if (state.onKey) document.removeEventListener('keydown', state.onKey, true);
+    if (state.validationPageHide) window.removeEventListener('pagehide', state.validationPageHide, true);
     if (state.host) state.host.remove();
     state = null;
   }
