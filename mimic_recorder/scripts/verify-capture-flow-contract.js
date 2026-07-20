@@ -17,6 +17,7 @@ const desktopImport = read('mimic_app/app/desktop-import/page.tsx');
 const desktopDownload = read('mimic_app/app/download/desktop/DownloadButton.tsx');
 const desktopClient = read('mimic_app/lib/desktop-companion-client.ts');
 const middleware = read('mimic_app/middleware.ts');
+const nextConfig = read('mimic_app/next.config.mjs');
 const manifest = JSON.parse(read('mimic_recorder/manifest.json'));
 const background = read('mimic_recorder/background.js');
 const content = read('mimic_recorder/content.js');
@@ -97,6 +98,8 @@ check(() => {
   assert.match(desktopDownload, /바로 데스크톱 녹화 시작/);
   assert.match(middleware, /PAID_DESKTOP_PATHS/);
   assert.match(middleware, /isPaidPlan\(profile\?\.plan\)/);
+  assert.match(nextConfig, /source: '\/downloads\/ParroDesktopSetup\.exe'/);
+  assert.match(nextConfig, /Content-Disposition'[\s\S]*attachment; filename="ParroDesktopSetup\.exe"/);
 });
 
 check(() => {
