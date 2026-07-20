@@ -35,8 +35,10 @@ async function main() {
   if (!/buildCaptureFallbackTutorialTitle\(drafts/.test(route)) throw new Error('regeneration must recover a low-quality existing tutorial title');
   if (!/fallback_count: fallbackStepIds\.size/.test(route)) throw new Error('regeneration must report actual fallback usage');
   if (!/draftResult\.status === 'ok' \? draftResult\.steps : \[\]/.test(route)) throw new Error('AI provider failure must continue through grounded fallbacks');
+  if (!/FOAL_AI_WORKFLOW_COPY/.test(route)) throw new Error('the approved Foal AI verification manual needs deterministic legacy repair copy');
+  if (!/assessManualQuality\(tutorialTitle, repairedSteps\)/.test(route)) throw new Error('fallback copy must pass the publishing quality gate before updates');
 
-  console.log(JSON.stringify({ ok: true, checks: 10, rejected_reason: rejected.reason }));
+  console.log(JSON.stringify({ ok: true, checks: 12, rejected_reason: rejected.reason }));
 }
 
 main().catch(error => {

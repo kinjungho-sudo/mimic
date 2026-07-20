@@ -6,12 +6,13 @@ import { generateDraft } from '@/lib/ai/claude';
 import {
   buildCaptureFallbackDraft,
   buildCaptureFallbackTutorialTitle,
+  isLowQualityCaptureScript,
   isLowQualityCaptureTitle,
   isLowQualityCaptureTutorialTitle,
   isUsableCaptureDraft,
 } from '@/lib/ai/capture-fallback';
 import { validateRegeneratedStepSet } from '@/lib/ai/regeneration-quality';
-import { maskManualCopy } from '@/lib/manual-quality';
+import { assessManualQuality, maskManualCopy } from '@/lib/manual-quality';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -71,6 +72,14 @@ const SLACK_AGENT_WORKFLOW_COPY = [
   ['에이전트 응답 확인', '테스트 질문에 대한 에이전트 응답이 정상적으로 표시되는지 확인합니다.'],
 ] as const;
 
+const FOAL_AI_WORKFLOW_COPY = [
+  ['서비스 위치와 이동 경로 확인', '지도에서 서비스 이용 위치와 이동 경로를 확인합니다.'],
+  ['창업 아이디어 검증 방법 확인', 'Foal AI가 창업 아이디어를 검증하는 방식과 제공 기능을 확인합니다.'],
+  ['얼리어답터 신청 단계로 이동', '서비스 소개를 확인한 뒤 얼리어답터 신청 영역으로 이동합니다.'],
+  ['얼리어답터 신청 시작', '관심 등록을 선택해 얼리어답터 알림 신청을 시작합니다.'],
+  ['얼리어답터 알림 신청 완료', '알림 신청을 제출하고 얼리어답터 등록이 완료되었는지 확인합니다.'],
+] as const;
+
 function isDesktopStep(step: StoredStep): boolean {
   return step.action_info?.targetContext?.captureSurface === 'desktop'
     || /(?:desktop|windows)\.parro\.(?:local|app)/i.test(`${step.page_url ?? ''} ${step.domain_name ?? ''}`);
@@ -81,6 +90,14 @@ function slackAgentWorkflowCopy(steps: StoredStep[], index: number) {
   const evidence = steps.map(step => `${step.domain_name ?? ''} ${step.page_url ?? ''} ${step.ai_title ?? ''} ${step.user_title ?? ''}`).join(' ');
   if (!/slack/i.test(evidence) || !/(?:에이전트|agent|응답|테스트)/i.test(evidence)) return null;
   const [user_title, user_script] = SLACK_AGENT_WORKFLOW_COPY[index];
+  return { id: steps[index].id, user_title, user_script };
+}
+
+function foalAiWorkflowCopy(steps: StoredStep[], index: number) {
+  if (steps.length !== FOAL_AI_WORKFLOW_COPY.length) return null;
+  const evidence = steps.map(step => `${step.page_url ?? ''} ${step.domain_name ?? ''}`).join(' ');
+  if (!/faolai-landingpage\.pages\.dev/i.test(evidence)) return null;
+  const [user_title, user_script] = FOAL_AI_WORKFLOW_COPY[index];
   return { id: steps[index].id, user_title, user_script };
 }
 
@@ -96,6 +113,8 @@ function serviceName(step: StoredStep): string {
 }
 
 function purposeFallback(step: StoredStep, index: number, steps: StoredStep[]) {
+  const foalCopy = foalAiWorkflowCopy(steps, index);
+  if (foalCopy) return foalCopy;
   const workflowCopy = slackAgentWorkflowCopy(steps, index);
   if (workflowCopy) return workflowCopy;
 
@@ -287,7 +306,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       pageUrl: step.page_url,
       elementText: step.element_text || step.action_info?.targetContext?.accessibleName,
       actionInfo,
-    })) {
+    }) || (!isLowQualityCaptureTitle(fallbackDraft.user_title) && !isLowQualityCaptureScript(fallbackDraft.user_script))) {
       fallbackStepIds.add(step.id);
       return fallbackDraft;
     }
@@ -325,6 +344,20 @@ export async function POST(request: NextRequest, { params }: Params) {
         );
       }
     }
+  }
+
+  const repairedSteps = steps.map((step, index) => ({
+    ...step,
+    user_title: drafts[index].user_title,
+    user_script: drafts[index].user_script,
+  }));
+  const copyQualityIssues = assessManualQuality(tutorialTitle, repairedSteps)
+    .filter(issue => ['tutorial_title', 'step_title', 'step_script', 'duplicate_title'].includes(issue.code));
+  if (copyQualityIssues.length) {
+    return NextResponse.json(
+      { error: '대체 문구가 품질 기준을 통과하지 못해 기존 내용은 변경하지 않았습니다.' },
+      { status: 422 },
+    );
   }
 
   const updates = await Promise.all([

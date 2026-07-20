@@ -18,6 +18,8 @@ const appRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 nextEnv.loadEnvConfig(appRoot);
 
 const apply = process.argv.includes('--apply');
+const tutorialIdArg = process.argv.find(argument => argument.startsWith('--tutorial-id='));
+const tutorialId = tutorialIdArg ? tutorialIdArg.slice('--tutorial-id='.length).trim() : '';
 const copyIssueCodes = new Set(['tutorial_title', 'step_title', 'step_script', 'duplicate_title']);
 const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').trim();
 const serviceRoleKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
@@ -38,12 +40,14 @@ const { data: owner, error: ownerError } = await supabase
   .single();
 if (ownerError || !owner?.id) throw new Error(ownerError?.message || 'owner_not_found');
 
-const { data: tutorials, error: tutorialsError } = await supabase
+let tutorialsQuery = supabase
   .from('mm_tutorials')
   .select('id, title')
-  .eq('user_id', owner.id)
   .is('deleted_at', null)
   .order('updated_at', { ascending: false });
+if (tutorialId) tutorialsQuery = tutorialsQuery.eq('id', tutorialId);
+else tutorialsQuery = tutorialsQuery.eq('user_id', owner.id);
+const { data: tutorials, error: tutorialsError } = await tutorialsQuery;
 if (tutorialsError) throw new Error(tutorialsError.message);
 
 const tutorialIds = (tutorials || []).map(tutorial => tutorial.id);
