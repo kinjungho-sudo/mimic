@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { BrandMark } from '@/components/common/BrandMark';
+import { ParroMascot } from '@/components/brand/ParroMascot';
 import { FollowStage } from '@/components/viewer/FollowStage';
 import { BRAND_COPY, BRAND_NAME, BRAND_SUPPORT_EMAIL, BRAND_TAGLINE } from '@/lib/brand';
 import { HeroRecordingDemo, ProductDemo } from '@/components/landing/ProductDemo';
@@ -726,7 +727,7 @@ function StepScreen({ step, mode }: { step: number; mode: 'card' | 'guide' | 're
         {/* AI 말풍선 — 커서 왼쪽 위에 고정 부착 */}
         <div style={{ position: 'absolute', bottom: '100%', right: '4px', marginBottom: '10px', background: 'white', borderRadius: '10px 10px 10px 2px', padding: '9px 12px 8px', boxShadow: '0 10px 32px rgba(0,0,0,0.26), 0 0 0 1px rgba(0,0,0,0.05)', width: '190px', pointerEvents: 'none' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '5px' }}>
-            <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: 'linear-gradient(135deg,#12B886,#009B8E)', display: 'grid', placeItems: 'center', fontSize: '12px', flexShrink: 0 }}>🤖</div>
+            <ParroMascot size={22} state="point" />
             <span style={{ fontSize: '9px', fontWeight: 800, color: '#12B886', letterSpacing: '0.04em' }}>{BRAND_NAME} AI</span>
           </div>
           <div style={{ fontSize: '10px', fontWeight: 700, color: '#111827', marginBottom: '3px' }}>{GUIDE_STEPS[step]?.title}</div>
@@ -1257,7 +1258,7 @@ function MockGuideMe() {
           {/* AI 로봇 아바타 + 말풍선 */}
           <div style={{ padding: '10px 11px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '7px' }}>
-              <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'linear-gradient(135deg,#007C72,#12B886)', display: 'grid', placeItems: 'center', fontSize: '15px', flexShrink: 0 }}>🤖</div>
+              <ParroMascot size={28} state="talk" />
               <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: '8px', padding: '6px 9px' }}>
                 <div style={{ fontSize: '9px', color: '#e2d9f3', lineHeight: 1.5 }}>파란 <span style={{ color: '#8DD63F', fontWeight: 700 }}>발급하기</span> 버튼을 클릭하세요 👆</div>
               </div>

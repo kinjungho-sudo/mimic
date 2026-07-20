@@ -1,74 +1,28 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { BRAND_EXTENSION_STORE_URL } from '@/lib/brand';
+import {
+  canTalkToDesktopExtension,
+  desktopCompanionErrorMessage,
+  getDesktopExtensionIds,
+  isExtensionConnectionError,
+  sendDesktopExtensionMessage,
+} from '@/lib/desktop-companion-client';
 
-const STORE_URL = 'https://chromewebstore.google.com/detail/mimic-recorder/ehbhcdkapcbfehinjapabgoegcjmmbgd';
+const STORE_URL = BRAND_EXTENSION_STORE_URL;
 const INSTALLER_URL = process.env.NEXT_PUBLIC_DESKTOP_INSTALLER_URL?.replace(/^\uFEFF/, '').trim()
   || '/downloads/ParroDesktopSetup.exe';
 
 type DesktopStatus = 'idle' | 'checking' | 'ready' | 'missing' | 'extension_missing' | 'starting' | 'started' | 'pausing' | 'paused' | 'stopping' | 'importing' | 'complete' | 'stopped';
 
-interface DesktopCompanionResponse {
-  ok?: boolean;
-  sessionId?: string;
-  desktop?: {
-    host?: string;
-    connected?: boolean;
-    lastError?: string | null;
-  };
-  error?: string;
-  tutorialId?: string;
-  stepCount?: number;
-  capturedSteps?: number;
-  editorUrl?: string;
-}
+let lastInstallerDownloadAt = 0;
 
-function getExtensionId(): string {
-  return process.env.NEXT_PUBLIC_EXTENSION_ID?.replace(/^\uFEFF/, '').trim() || '';
-}
-
-function canTalkToExtension(): boolean {
-  return typeof window !== 'undefined' && !!window.chrome?.runtime?.sendMessage && !!getExtensionId();
-}
-
-function sendExtensionMessage(action: string, payload: Record<string, unknown> = {}, timeoutMs = 5000): Promise<DesktopCompanionResponse | null> {
-  return new Promise(resolve => {
-    const extensionId = getExtensionId();
-    if (!extensionId || !window.chrome?.runtime?.sendMessage) {
-      resolve({ error: 'extension_api_unavailable' });
-      return;
-    }
-
-    const timer = window.setTimeout(() => resolve({ error: 'extension_response_timeout' }), timeoutMs);
-    try {
-      window.chrome.runtime.sendMessage(extensionId, { action, ...payload }, response => {
-        window.clearTimeout(timer);
-        const runtimeError = window.chrome?.runtime?.lastError?.message;
-        if (runtimeError) {
-          resolve({ error: `extension_unreachable: ${runtimeError}` });
-          return;
-        }
-        resolve((response as DesktopCompanionResponse | undefined) || { error: 'extension_empty_response' });
-      });
-    } catch (error) {
-      window.clearTimeout(timer);
-      resolve({ error: `extension_send_failed: ${error instanceof Error ? error.message : String(error)}` });
-    }
-  });
-}
-
-function isExtensionConnectionError(error: string | undefined): boolean {
-  return !!error && (
-    error === 'extension_api_unavailable'
-    || error === 'extension_response_timeout'
-    || error === 'extension_empty_response'
-    || error.startsWith('extension_unreachable:')
-    || error.startsWith('extension_send_failed:')
-  );
-}
-
-function triggerInstallerDownload() {
-  if (!INSTALLER_URL) return;
+function triggerInstallerDownload(): boolean {
+  if (!INSTALLER_URL) return false;
+  const now = Date.now();
+  if (now - lastInstallerDownloadAt < 4000) return false;
+  lastInstallerDownloadAt = now;
   const link = document.createElement('a');
   link.href = INSTALLER_URL;
   link.download = 'ParroDesktopSetup.exe';
@@ -76,33 +30,14 @@ function triggerInstallerDownload() {
   document.body.appendChild(link);
   link.click();
   link.remove();
-}
-
-function desktopErrorMessage(error: string | undefined, fallback: string): string {
-  switch (error) {
-    case 'not_linked':
-      return 'Parro에 로그인하고 Recorder를 계정에 연결한 뒤 다시 시도해주세요. 캡처 파일은 PC에 그대로 보관됩니다.';
-    case 'desktop_capture_empty':
-      return '저장된 캡처 단계가 없습니다. 캡처를 시작한 뒤 대상 앱을 한 번 이상 클릭해주세요.';
-    case 'desktop_host_unavailable':
-    case 'desktop_host_disconnected':
-      return 'Desktop Companion에 연결하지 못했습니다. 앱 설치 상태를 확인한 뒤 다시 시도해주세요.';
-    case 'desktop_host_timeout':
-      return 'Desktop Companion 응답이 지연되고 있습니다. 캡처 파일은 보존되므로 잠시 후 다시 시도해주세요.';
-    case 'nothing_to_undo':
-      return '취소할 캡처 단계가 없습니다.';
-    default:
-      return error ? `${fallback} (${error})` : fallback;
-  }
+  return true;
 }
 
 export default function DesktopSetupPage() {
-  const importAttempted = useRef(false);
   const [status, setStatus] = useState<DesktopStatus>('idle');
   const [message, setMessage] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [pendingSessionId, setPendingSessionId] = useState<string | null>(null);
-  const [autoImport, setAutoImport] = useState(false);
 
   const installerReady = INSTALLER_URL.length > 0;
   const statusText = useMemo(() => {
@@ -141,18 +76,24 @@ export default function DesktopSetupPage() {
       setMessage('아직 정식 .exe 설치 파일 URL이 연결되지 않았습니다. NEXT_PUBLIC_DESKTOP_INSTALLER_URL 설정이 필요합니다.');
       return;
     }
-    triggerInstallerDownload();
-    setMessage('다운로드가 시작되었습니다. 설치 파일을 실행한 뒤 연결 확인을 눌러주세요.');
+    const started = triggerInstallerDownload();
+    setMessage(started
+      ? '다운로드가 시작되었습니다. 설치 파일을 실행한 뒤 연결 확인을 눌러주세요.'
+      : '다운로드가 이미 시작되었습니다. 브라우저의 다운로드 목록을 확인해주세요.');
   }, [installerReady]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    setPendingSessionId(params.get('session'));
-    setAutoImport(params.get('autoImport') === '1');
+    const captureSessionId = params.get('session');
+    if (captureSessionId && params.get('autoImport') === '1') {
+      window.location.replace(`/desktop-import?source=desktop-app&session=${encodeURIComponent(captureSessionId)}`);
+      return;
+    }
+    setPendingSessionId(captureSessionId);
   }, []);
 
   const checkInstall = useCallback(async () => {
-    if (!canTalkToExtension()) {
+    if (!canTalkToDesktopExtension()) {
       setStatus('extension_missing');
       setMessage('Desktop Companion 상태 확인은 Parro Recorder 확장을 통해 진행됩니다. 확장을 먼저 설치하거나 연결해주세요.');
       return;
@@ -160,7 +101,7 @@ export default function DesktopSetupPage() {
 
     setStatus('checking');
     setMessage(null);
-    const response = await sendExtensionMessage('DESKTOP_COMPANION_STATUS');
+    const response = await sendDesktopExtensionMessage('DESKTOP_COMPANION_STATUS');
 
     if (response?.desktop?.connected) {
       setStatus('ready');
@@ -170,7 +111,7 @@ export default function DesktopSetupPage() {
 
     if (isExtensionConnectionError(response?.error)) {
       setStatus('extension_missing');
-      setMessage(`Parro Recorder 1.7.1에 연결하지 못했습니다. 확장 ID가 ${getExtensionId()}인지 확인하고 확장 카드의 새로고침을 눌러주세요. (${response?.error})`);
+      setMessage(`Parro Recorder 1.7.3에 연결하지 못했습니다. 확장 ID가 ${getDesktopExtensionIds().join(' 또는 ')}인지 확인하고 확장 카드의 새로고침을 눌러주세요. (${response?.error})`);
       return;
     }
 
@@ -182,7 +123,7 @@ export default function DesktopSetupPage() {
     if (status !== 'ready') return;
     setStatus('starting');
     setMessage(null);
-    const response = await sendExtensionMessage('START_DESKTOP_RECORDING');
+    const response = await sendDesktopExtensionMessage('START_DESKTOP_RECORDING');
 
     if (response?.ok) {
       setSessionId(response.sessionId || null);
@@ -198,7 +139,7 @@ export default function DesktopSetupPage() {
     if (status !== 'started' && status !== 'paused') return;
     setStatus('stopping');
     setMessage('캡처 업로드와 AI 분석이 끝나면 편집기로 자동 이동합니다.');
-    const response = await sendExtensionMessage('STOP_DESKTOP_RECORDING', { sessionId }, 180000);
+    const response = await sendDesktopExtensionMessage('STOP_DESKTOP_RECORDING', { sessionId }, 180000);
 
     if (response?.ok && response.editorUrl) {
       setStatus('complete');
@@ -208,7 +149,7 @@ export default function DesktopSetupPage() {
     }
 
     setStatus('started');
-    setMessage(desktopErrorMessage(response?.error, 'Desktop Companion 녹화를 종료하거나 매뉴얼로 만들지 못했습니다.'));
+    setMessage(desktopCompanionErrorMessage(response?.error, 'Desktop Companion 녹화를 종료하거나 매뉴얼로 만들지 못했습니다.'));
   }, [sessionId, status]);
 
   const toggleDesktopPause = useCallback(async () => {
@@ -216,27 +157,27 @@ export default function DesktopSetupPage() {
     const resume = status === 'paused';
     setStatus('pausing');
     setMessage(null);
-    const response = await sendExtensionMessage(resume ? 'RESUME_DESKTOP_RECORDING' : 'PAUSE_DESKTOP_RECORDING', { sessionId });
+    const response = await sendDesktopExtensionMessage(resume ? 'RESUME_DESKTOP_RECORDING' : 'PAUSE_DESKTOP_RECORDING', { sessionId });
     if (response?.ok) {
       setStatus(resume ? 'started' : 'paused');
       return;
     }
     setStatus(resume ? 'paused' : 'started');
-    setMessage(desktopErrorMessage(response?.error, resume ? '녹화를 다시 시작하지 못했습니다.' : '녹화를 일시정지하지 못했습니다.'));
+    setMessage(desktopCompanionErrorMessage(response?.error, resume ? '녹화를 다시 시작하지 못했습니다.' : '녹화를 일시정지하지 못했습니다.'));
   }, [sessionId, status]);
 
   const undoDesktopCapture = useCallback(async () => {
     if (!sessionId || (status !== 'started' && status !== 'paused')) return;
     setMessage('최근 캡처를 취소하고 있습니다.');
-    const response = await sendExtensionMessage('UNDO_DESKTOP_CAPTURE', { sessionId });
+    const response = await sendDesktopExtensionMessage('UNDO_DESKTOP_CAPTURE', { sessionId });
     setMessage(response?.ok
       ? `최근 캡처를 취소했습니다. 현재 ${response.capturedSteps || 0}개 단계가 남았습니다.`
-      : desktopErrorMessage(response?.error, '취소할 최근 캡처가 없습니다.'));
+      : desktopCompanionErrorMessage(response?.error, '취소할 최근 캡처가 없습니다.'));
   }, [sessionId, status]);
 
   const importDesktopCapture = useCallback(async (captureSessionId: string) => {
     if (!captureSessionId) return;
-    if (!canTalkToExtension()) {
+    if (!canTalkToDesktopExtension()) {
       setStatus('extension_missing');
       setMessage('Parro Recorder 확장을 설치하고 계정에 연결한 뒤 다시 시도해주세요. 캡처 파일은 PC에 그대로 보관됩니다.');
       return;
@@ -244,7 +185,7 @@ export default function DesktopSetupPage() {
     setSessionId(captureSessionId);
     setStatus('importing');
     setMessage('저장된 데스크톱 캡처를 업로드하고 AI로 제목과 설명을 만드는 중입니다.');
-    const response = await sendExtensionMessage('IMPORT_DESKTOP_CAPTURE', { sessionId: captureSessionId }, 180000);
+    const response = await sendDesktopExtensionMessage('IMPORT_DESKTOP_CAPTURE', { sessionId: captureSessionId }, 180000);
     if (response?.ok && response.editorUrl) {
       setStatus('complete');
       setMessage(`${response.stepCount || 0}개 단계의 매뉴얼이 만들어졌습니다.`);
@@ -252,14 +193,8 @@ export default function DesktopSetupPage() {
       return;
     }
     setStatus('stopped');
-    setMessage(desktopErrorMessage(response?.error, '저장된 캡처를 매뉴얼로 만들지 못했습니다.'));
+    setMessage(desktopCompanionErrorMessage(response?.error, '저장된 캡처를 매뉴얼로 만들지 못했습니다.'));
   }, []);
-
-  useEffect(() => {
-    if (!autoImport || !pendingSessionId || importAttempted.current) return;
-    importAttempted.current = true;
-    void importDesktopCapture(pendingSessionId);
-  }, [autoImport, importDesktopCapture, pendingSessionId]);
 
   return (
     <main className="desktop-setup-page">

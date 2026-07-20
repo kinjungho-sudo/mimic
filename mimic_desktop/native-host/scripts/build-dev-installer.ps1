@@ -244,7 +244,7 @@ if (-not (Test-Path -LiteralPath $outputPath) -or (Get-Item -LiteralPath $output
 foreach ($artifactPath in @($outputPath, $launcherPath)) {
   Assert-ParroExecutableIcon -ExecutablePath $artifactPath
   $version = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($artifactPath).FileVersion
-  if ($version -ne "0.4.1.0") {
+  if ($version -ne "0.5.0.0") {
     throw "Unexpected desktop artifact version '$version': $artifactPath"
   }
 }

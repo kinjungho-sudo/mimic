@@ -3,8 +3,11 @@
 // chrome.runtime.id로 자동 구분 → 배포본이 실수로 dev를 가리킬 위험 없음.
 importScripts('desktop-import.js', 'desktop-bridge.js');
 
-const PROD_EXTENSION_ID = 'ehbhcdkapcbfehinjapabgoegcjmmbgd';
-const IS_DEV = chrome.runtime.id !== PROD_EXTENSION_ID;
+const PROD_EXTENSION_IDS = new Set([
+  'lefkpmfgdbhckcemfghpegleknaepekm', // replacement listing under review
+  'ehbhcdkapcbfehinjapabgoegcjmmbgd', // currently published listing
+]);
+const IS_DEV = !PROD_EXTENSION_IDS.has(chrome.runtime.id);
 
 // ── 상수 (환경별) ─────────────────────────────────────────────────
 const SUPABASE_URL      = IS_DEV

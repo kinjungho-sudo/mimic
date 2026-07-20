@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useId } from 'react';
 import { AnnotationPreview } from '@/components/editor/AnnotationPreview';
-import { ParroMascot } from '@/components/brand/ParroMascot';
+import { ParroMascot, type ParroMascotState } from '@/components/brand/ParroMascot';
 import { BRAND_COLORS } from '@/lib/brand';
 import type { Annotation } from '@/components/editor/ImageAnnotationEditor';
 
@@ -18,10 +18,10 @@ const GUIDE_RING_STRONG = 'rgba(0,155,142,0.28)';
 const GUIDE_SHADOW = 'rgba(0,155,142,0.34)';
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
-export function Mascot({ size = 40 }: { size?: number }) {
+export function Mascot({ size = 40, state = 'talk' }: { size?: number; state?: ParroMascotState }) {
   return (
     <div style={{ width: size, height: size, borderRadius: '14px', background: 'linear-gradient(135deg,#F1FBF9,#E4F3F6)', display: 'grid', placeItems: 'center', flexShrink: 0, boxShadow: `0 4px 14px ${GUIDE_SHADOW}`, overflow: 'hidden' }}>
-      <ParroMascot size={size * 0.96} />
+      <ParroMascot size={size * 0.96} state={state} />
     </div>
   );
 }
@@ -218,7 +218,7 @@ export function FollowStage({
   const renderUnit = (side: 'left' | 'right' | 'bottom') => (
     minimized ? (
       // side !== 'bottom': flex-end 정렬로 인한 mascot 하단 위치(UNIT_H - 40 = 92px)를 marginTop으로 보존 → 클릭 시 점프 없음
-      <button onClick={onMascotClick} title="안내 펼치기" style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, pointerEvents: 'auto', marginTop: side !== 'bottom' ? `${UNIT_H - 40}px` : undefined }}><Mascot /></button>
+      <button onClick={onMascotClick} title="안내 펼치기" style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, pointerEvents: 'auto', marginTop: side !== 'bottom' ? `${UNIT_H - 40}px` : undefined }}><Mascot state="idle" /></button>
     ) : (
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', pointerEvents: 'auto' }}>
         {side === 'left' ? <>{BubbleBox}{MascotBtn}</> : <>{MascotBtn}{BubbleBox}</>}

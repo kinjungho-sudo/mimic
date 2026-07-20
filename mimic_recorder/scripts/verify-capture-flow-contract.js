@@ -13,12 +13,16 @@ function read(relativePath) {
 
 const recordingModal = read('mimic_app/components/dashboard/RecordingModal.tsx');
 const desktopSetup = read('mimic_app/app/desktop-setup/page.tsx');
+const desktopImport = read('mimic_app/app/desktop-import/page.tsx');
+const desktopClient = read('mimic_app/lib/desktop-companion-client.ts');
 const manifest = JSON.parse(read('mimic_recorder/manifest.json'));
 const background = read('mimic_recorder/background.js');
 const content = read('mimic_recorder/content.js');
 const popup = read('mimic_recorder/popup.js');
 const desktopBridge = read('mimic_recorder/desktop-bridge.js');
 const nativeHost = read('mimic_desktop/native-host/src/host.js');
+const desktopLauncher = read('mimic_desktop/native-host/installer/launcher/ParroDesktop.cs');
+const captureAgent = read('mimic_desktop/native-host/src/capture-agent.ps1');
 
 let checks = 0;
 function check(assertion) {
@@ -68,16 +72,23 @@ check(() => {
 
 check(() => {
   assert.match(popup, /type: 'FINALIZE_SESSION'/);
+  assert.match(popup, /function showFinalizingError\(detail\)/);
   assert.match(popup, /btn\.textContent = '다시 시도'/);
   assert.match(popup, /btnFinish\.click\(\)/);
   assert.match(background, /\/manual\/\$\{data\.tutorial_id\}\/editor\?from=recording/);
 });
 
 check(() => {
-  assert.match(desktopSetup, /sendExtensionMessage\('START_DESKTOP_RECORDING'\)/);
-  assert.match(desktopSetup, /sendExtensionMessage\('STOP_DESKTOP_RECORDING'/);
-  assert.match(desktopSetup, /sendExtensionMessage\('IMPORT_DESKTOP_CAPTURE'/);
-  assert.match(desktopSetup, /window\.location\.assign\(response\.editorUrl\)/);
+  assert.match(desktopSetup, /sendDesktopExtensionMessage\('START_DESKTOP_RECORDING'\)/);
+  assert.match(desktopSetup, /sendDesktopExtensionMessage\('STOP_DESKTOP_RECORDING'/);
+  assert.match(desktopSetup, /window\.location\.replace\(`\/desktop-import\?source=desktop-app&session=/);
+  assert.match(desktopImport, /sendDesktopExtensionMessage\(\s*'IMPORT_DESKTOP_CAPTURE'/);
+  assert.match(desktopImport, /window\.location\.replace\(response\.editorUrl\)/);
+});
+
+check(() => {
+  assert.match(desktopClient, /for \(const extensionId of extensionIds\)/);
+  assert.match(desktopClient, /if \(!isExtensionConnectionError\(response\?\.error\)\) return response/);
 });
 
 check(() => {
@@ -97,6 +108,22 @@ check(() => {
   assert.match(nativeHost, /message\.type === "START_CAPTURE_SESSION"/);
   assert.match(nativeHost, /message\.type === "STOP_CAPTURE_SESSION"/);
   assert.match(nativeHost, /message\.type === "READ_CAPTURE_IMAGE_CHUNK"/);
+});
+
+check(() => {
+  assert.match(desktopLauncher, /new CountdownForm\(Screen\.FromPoint\(Cursor\.Position\)\)/);
+  assert.match(desktopLauncher, /internal sealed class CapturePreviewForm/);
+  assert.match(desktopLauncher, /previewForm\.RefreshSession\(files\)/);
+  assert.match(desktopLauncher, /json\.Append\("\{\\"regions\\":\["\)/);
+  assert.match(desktopLauncher, /captureProcess\.WaitForExit\(5000\)/);
+  assert.match(desktopLauncher, /\/desktop-import\?source=desktop-app&session=/);
+});
+
+check(() => {
+  assert.match(captureAgent, /public static class ParroDesktopClickHighlight/);
+  assert.match(captureAgent, /\[ParroDesktopClickHighlight\]::ShowAt\(\$point\.X, \$point\.Y\)/);
+  assert.match(captureAgent, /WdaExcludeFromCapture/);
+  assert.match(captureAgent, /foreach \(\$region in \$regions\)/);
 });
 
 console.log(JSON.stringify({

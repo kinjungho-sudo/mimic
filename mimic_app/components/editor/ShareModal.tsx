@@ -171,6 +171,7 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
   }, []);
 
   const hasBlockingIssues = qualityIssues.some(issue => issue.severity === 'error');
+  const hasQualitySuggestions = qualityIssues.some(issue => issue.severity === 'warning');
   const sharingBlocked = publishing || qualityChecking || hasBlockingIssues || !!publishError;
 
   const handleCopy = async () => {
@@ -275,20 +276,20 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
             {title}
           </p>
 
-          {(qualityChecking || hasBlockingIssues || publishError) && (
-            <div style={{ marginBottom: 12, padding: '11px 12px', borderRadius: 10, border: `1px solid ${hasBlockingIssues || publishError ? '#FECACA' : '#D1FAE5'}`, background: hasBlockingIssues || publishError ? '#FFF7F7' : '#F0FDF4' }}>
-              <div style={{ fontSize: 12.5, fontWeight: 700, color: hasBlockingIssues || publishError ? '#B91C1C' : '#047857', marginBottom: 4 }}>
-                {qualityChecking ? '공유 전 품질을 확인하고 있어요…' : '공유 전에 수정이 필요해요'}
+          {(qualityChecking || hasBlockingIssues || hasQualitySuggestions || publishError) && (
+            <div style={{ marginBottom: 12, padding: '11px 12px', borderRadius: 10, border: `1px solid ${hasBlockingIssues || publishError ? '#FECACA' : hasQualitySuggestions ? '#FDE68A' : '#D1FAE5'}`, background: hasBlockingIssues || publishError ? '#FFF7F7' : hasQualitySuggestions ? '#FFFBEB' : '#F0FDF4' }}>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: hasBlockingIssues || publishError ? '#B91C1C' : hasQualitySuggestions ? '#92400E' : '#047857', marginBottom: 4 }}>
+                {qualityChecking ? '공유 전 품질을 확인하고 있어요…' : hasBlockingIssues || publishError ? '공유 전에 확인이 필요해요' : '더 좋은 안내를 위한 제안이 있어요'}
               </div>
               {!qualityChecking && (
                 <>
                   <p style={{ margin: 0, fontSize: 11.5, lineHeight: 1.5, color: '#6B7280' }}>
-                    {publishError ?? qualityIssues.find(issue => issue.severity === 'error')?.message}
-                    {qualityIssues.filter(issue => issue.severity === 'error').length > 1 && ` 외 ${qualityIssues.filter(issue => issue.severity === 'error').length - 1}개`}
+                    {publishError ?? qualityIssues.find(issue => issue.severity === 'error')?.message ?? qualityIssues.find(issue => issue.severity === 'warning')?.message}
+                    {qualityIssues.length > 1 && ` 외 ${qualityIssues.length - 1}개`}
                   </p>
-                  {onRequestRegenerate && hasBlockingIssues && (
-                    <button onClick={() => { onClose(); onRequestRegenerate(); }} style={{ marginTop: 8, height: 30, padding: '0 10px', borderRadius: 7, border: 'none', background: '#B91C1C', color: 'white', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>
-                      전체 제목·본문 AI 재작성
+                  {onRequestRegenerate && qualityIssues.some(issue => ['tutorial_title', 'step_title', 'step_script', 'duplicate_title'].includes(issue.code)) && (
+                    <button onClick={() => { onClose(); onRequestRegenerate(); }} style={{ marginTop: 8, height: 30, padding: '0 10px', borderRadius: 7, border: 'none', background: 'linear-gradient(135deg,#009B8E,#12B886)', color: 'white', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>
+                      AI로 문구 다듬기
                     </button>
                   )}
                 </>

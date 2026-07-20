@@ -110,7 +110,6 @@ export default function EditorPage() {
   const [mobileTocOpen, setMobileTocOpen] = useState(false);
   const [collabToast, setCollabToast] = useState<{ stepId: string; name: string; color: string } | null>(null);
   const collabToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const qualityCheckedTutorialRef = useRef<string | null>(null);
   const stepSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const tempIdCounter = useRef(0);
   const [tocSelectedIds, setTocSelectedIds] = useState<Set<string>>(new Set());
@@ -271,24 +270,6 @@ export default function EditorPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tutorial?.id]);
 
-  // 기존 저장 데이터도 새 규칙에서 빠지지 않도록 편집기 진입 시 한 번 점검한다.
-  useEffect(() => {
-    if (!tutorial?.id || tutorial.steps.length === 0 || qualityCheckedTutorialRef.current === tutorial.id) return;
-    qualityCheckedTutorialRef.current = tutorial.id;
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      fetch(`/api/tutorials/${tutorial.id}/quality`)
-        .then(async response => {
-          const data = await response.json().catch(() => ({}));
-          if (!response.ok || cancelled) return;
-          const issues = Array.isArray(data.issues) ? data.issues as ManualQualityIssue[] : [];
-          if (issues.some(issue => issue.severity === 'error')) setQualityIssues(issues);
-        })
-        .catch(() => {});
-    }, 700);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [tutorial?.id, tutorial?.steps.length]);
-
   // 녹화 직후 진입: 스텝이 없으면 2초마다 폴링 (최대 30초)
   useEffect(() => {
     if (!isRecordingFinalizeView) return;
@@ -386,9 +367,11 @@ export default function EditorPage() {
   useAutosave(id, titleDirty ? { title } : null);
 
   // 기존 매뉴얼까지 목적 중심 제목·본문으로 다시 생성한다.
-  const handleRefineAllText = useCallback(async () => {
-    if (!manualSteps.some(step => !step.id.startsWith('step-'))) return;
-    if (!window.confirm('전체 제목과 본문을 사용자 목적 중심으로 다시 작성합니다. 계속할까요?')) return;
+  const refineAllText = useCallback(async () => {
+    if (!manualSteps.some(step => !step.id.startsWith('step-'))) {
+      setRegenerateNotice('AI로 다시 작성할 저장된 단계가 없습니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
     setRefiningText(true);
     setRegenerateNotice(null);
     try {
@@ -410,7 +393,7 @@ export default function EditorPage() {
         setTitle(data.title);
         setTitleDirty(false);
       }
-      setQualityIssues([]);
+      setQualityIssues(current => current.filter(issue => !['tutorial_title', 'step_title', 'step_script', 'duplicate_title'].includes(issue.code)));
       setRegenerateNotice(`전체 ${regenerated.size}단계의 제목과 본문을 다시 작성했습니다.`);
     } catch (err) {
       setRegenerateNotice(err instanceof Error ? err.message : '전체 재작성에 실패했습니다.');
@@ -418,6 +401,11 @@ export default function EditorPage() {
       setRefiningText(false);
     }
   }, [id, manualSteps, setManualStepsWithHistory]);
+
+  const handleRefineAllText = useCallback(async () => {
+    if (!window.confirm('전체 제목과 본문을 사용자 목적 중심으로 다시 작성합니다. 계속할까요?')) return;
+    await refineAllText();
+  }, [refineAllText]);
 
   const performDeleteStep = useCallback((stepId: string) => {
     const next = manualSteps.filter(s => s.id !== stepId).map((s, i) => ({ ...s, number: i + 1 }));
@@ -800,6 +788,7 @@ export default function EditorPage() {
               <button
                 onClick={async () => {
                   setPublishing(true);
+                  setRegenerateNotice(null);
                   try {
                     await publish();
                     setQualityIssues([]);
@@ -1116,7 +1105,7 @@ export default function EditorPage() {
           shareUrl={(tutorial as Tutorial & { share_token?: string | null }).share_token ? `${typeof window !== 'undefined' ? window.location.origin : ''}/play/${(tutorial as Tutorial & { share_token?: string | null }).share_token}` : null}
           tutorialId={id}
           defaultMode="document"
-          onRequestRegenerate={handleRefineAllText}
+          onRequestRegenerate={refineAllText}
           hasPassword={!!(tutorial as Tutorial & { share_password?: string | null }).share_password}
           visibility={(tutorial as Tutorial & { visibility?: 'private' | 'public' }).visibility}
           onPublishAndShare={publish}
@@ -1129,8 +1118,9 @@ export default function EditorPage() {
         <ManualQualityDialog
           issues={qualityIssues}
           regenerating={refiningText}
+          regenerateMessage={regenerateNotice}
           onClose={() => setQualityIssues([])}
-          onRegenerate={handleRefineAllText}
+          onRegenerate={refineAllText}
           onSelectStep={stepNumber => {
             const target = manualSteps.find(step => step.number === stepNumber);
             if (target) setActiveId(target.id);

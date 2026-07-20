@@ -22,6 +22,18 @@ FILES = [
     "popup.js", "popup.html",
     "offscreen.html", "offscreen.js",
     "request-mic.html", "request-mic.js",
+    "assets/parro-ai-avatar.png",
+    "assets/parro-ai-avatar-neutral.png",
+    "assets/parro-ai-avatar-listen.png",
+    "assets/parro-ai-avatar-talk.png",
+    "assets/parro-ai-avatar-point.png",
+    "assets/parro-ai-avatar-think.png",
+    "assets/parro-ai-avatar-search.png",
+    "assets/parro-ai-avatar-warning.png",
+    "assets/parro-ai-avatar-error.png",
+    "assets/parro-ai-avatar-blocked.png",
+    "assets/parro-ai-avatar-clarify.png",
+    "assets/parro-ai-avatar-success.png",
 ]
 ICONS = ["icon16.png", "icon48.png", "icon128.png"]
 

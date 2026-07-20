@@ -398,23 +398,83 @@
     return { left, top, arrowDir, arrowLeft };
   }
 
-  // 마스코트 SVG HTML
-  const MASCOT_SVG = `<svg width="50" height="50" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <ellipse cx="36" cy="65" rx="17" ry="3.5" fill="rgba(0,63,57,.14)"/>
-    <path d="M24 42c1.4-8.9 7.2-13.2 12-13.2S46.6 33.1 48 42l1.2 10.7C50.4 62.3 44 68 36 68s-14.4-5.7-13.2-15.3L24 42Z" fill="#F9FCFD" stroke="#C5D7DA" stroke-width="1.5"/>
-    <path d="M22.7 44.5c-5.7 1.2-8.5 6.1-7.7 11 .5 3 2.5 4.3 5 3.4 4.7-1.7 7.4-6.2 6.8-10.3-.4-2.7-1.7-4.6-4.1-4.1Z" fill="#EFF5F6" stroke="#C5D7DA" stroke-width="1.35"/>
-    <path d="M49.3 44.5c5.7 1.2 8.5 6.1 7.7 11-.5 3-2.5 4.3-5 3.4-4.7-1.7-7.4-6.2-6.8-10.3.4-2.7 1.7-4.6 4.1-4.1Z" fill="#EFF5F6" stroke="#C5D7DA" stroke-width="1.35"/>
-    <rect x="32.5" y="31" width="7" height="5" rx="2.5" fill="#17272A"/>
-    <ellipse cx="36" cy="22.5" rx="24" ry="19.5" fill="#FAFDFE" stroke="#C5D7DA" stroke-width="1.6"/>
-    <ellipse cx="11.8" cy="23" rx="4.5" ry="7.8" fill="#DDECEF" stroke="#B8D0D5" stroke-width="1.2"/>
-    <ellipse cx="60.2" cy="23" rx="4.5" ry="7.8" fill="#DDECEF" stroke="#B8D0D5" stroke-width="1.2"/>
-    <rect x="18" y="10.5" width="36" height="25" rx="12.5" fill="#14272A"/>
-    <path d="M24.5 23c.2-3.3 2-5.2 4.5-5.2s4.3 1.9 4.5 5.2" stroke="#69ECF2" stroke-width="2.4" stroke-linecap="round"/>
-    <path d="M38.5 23c.2-3.3 2-5.2 4.5-5.2s4.3 1.9 4.5 5.2" stroke="#69ECF2" stroke-width="2.4" stroke-linecap="round"/>
-    <path d="M29.5 27.8c3.8 3.6 9.2 3.6 13 0" stroke="#7EF1D1" stroke-width="2.2" stroke-linecap="round"/>
-    <path d="M31 46c2.7 1.5 7.3 1.5 10 0" stroke="#00A99A" stroke-width="2" stroke-linecap="round" opacity=".72"/>
-    <circle cx="53" cy="12" r="3" fill="#8DD63F" stroke="#FAFDFE" stroke-width="1.5"/>
-  </svg>`;
+  // 웹 제품과 동일한 상태형 AI 가이드 아바타.
+  const MASCOT_IMAGE_URLS = {
+    idle: chrome.runtime.getURL('assets/parro-ai-avatar-neutral.png'),
+    neutral: chrome.runtime.getURL('assets/parro-ai-avatar-neutral.png'),
+    listen: chrome.runtime.getURL('assets/parro-ai-avatar-listen.png'),
+    talk: chrome.runtime.getURL('assets/parro-ai-avatar-talk.png'),
+    point: chrome.runtime.getURL('assets/parro-ai-avatar-point.png'),
+    think: chrome.runtime.getURL('assets/parro-ai-avatar-think.png'),
+    search: chrome.runtime.getURL('assets/parro-ai-avatar-search.png'),
+    warning: chrome.runtime.getURL('assets/parro-ai-avatar-warning.png'),
+    error: chrome.runtime.getURL('assets/parro-ai-avatar-error.png'),
+    blocked: chrome.runtime.getURL('assets/parro-ai-avatar-blocked.png'),
+    clarify: chrome.runtime.getURL('assets/parro-ai-avatar-clarify.png'),
+    success: chrome.runtime.getURL('assets/parro-ai-avatar-success.png'),
+  };
+  const MASCOT_SEQUENCE_STATES = {
+    idle: 'listen',
+    neutral: 'listen',
+    listen: 'neutral',
+    talk: 'point',
+    point: 'talk',
+    think: 'search',
+    search: 'think',
+    warning: 'blocked',
+    error: 'clarify',
+    blocked: 'warning',
+    clarify: 'neutral',
+    success: 'talk',
+  };
+  const mascotHtml = (stateName = 'neutral') => {
+    const safeState = Object.prototype.hasOwnProperty.call(MASCOT_IMAGE_URLS, stateName) ? stateName : 'neutral';
+    const secondaryState = MASCOT_SEQUENCE_STATES[safeState] || 'neutral';
+    return `<span class="parro-avatar-stack parro-avatar-stack--${safeState} parro-avatar-sequence--${safeState}">
+      <img class="parro-avatar-layer parro-avatar-layer--primary" src="${MASCOT_IMAGE_URLS[safeState]}" alt="" draggable="false">
+      <img class="parro-avatar-layer parro-avatar-layer--secondary" src="${MASCOT_IMAGE_URLS[secondaryState]}" alt="" draggable="false">
+    </span>`;
+  };
+  const AVATAR_MOTION_CSS = `
+    @keyframes parro-avatar-idle-motion { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-3%) scale(1.015)} }
+    @keyframes parro-avatar-listen-motion { 0%,100%{transform:translateY(0) rotate(0)} 46%{transform:translateY(-1.5%) rotate(-1.2deg)} 72%{transform:translateY(-.5%) rotate(-.4deg)} }
+    @keyframes parro-avatar-talk-motion { 0%,100%{transform:translateY(0) rotate(0)} 35%{transform:translateY(-2.5%) rotate(-1.4deg)} 70%{transform:translateY(-1%) rotate(1deg)} }
+    @keyframes parro-avatar-point-motion { 0%,100%{transform:translateY(0) rotate(0)} 48%{transform:translateY(-2%) rotate(-1deg)} 64%{transform:translateY(-2%) rotate(.7deg)} }
+    @keyframes parro-avatar-think-motion { 0%,100%{transform:translateY(0) rotate(0)} 42%{transform:translateY(-2%) rotate(-1.8deg)} 72%{transform:translateY(-1%) rotate(-.6deg)} }
+    @keyframes parro-avatar-search-motion { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-2%) scale(1.012)} }
+    @keyframes parro-avatar-warning-motion { 0%,100%{transform:translateY(0) scale(1)} 45%{transform:translateY(-1%) scale(1.018)} 62%{transform:translateY(-1%) scale(1.006)} }
+    @keyframes parro-avatar-error-motion { 0%,100%{transform:translateY(0) rotate(0)} 50%{transform:translateY(1.2%) rotate(-.5deg)} }
+    @keyframes parro-avatar-blocked-motion { 0%,100%{transform:translateY(0)} 50%{transform:translateY(.7%)} }
+    @keyframes parro-avatar-clarify-motion { 0%,100%{transform:translateY(0) rotate(0)} 48%{transform:translateY(-1.5%) rotate(1.2deg)} 74%{transform:translateY(-.5%) rotate(.35deg)} }
+    @keyframes parro-avatar-success-motion { 0%,100%{transform:translateY(0) scale(1)} 28%{transform:translateY(-4%) scale(1.04)} 54%{transform:translateY(-1%) scale(.99)} }
+    @keyframes parro-avatar-frame-primary { 0%,54%,100%{opacity:1;transform:translateY(0) scale(1)} 64%,82%{opacity:0;transform:translateY(1.2%) scale(.985)} 91%{opacity:1;transform:translateY(0) scale(1)} }
+    @keyframes parro-avatar-frame-secondary { 0%,54%,100%{opacity:0;transform:translateY(2%) scale(.98)} 64%,82%{opacity:1;transform:translateY(0) scale(1)} 91%{opacity:0;transform:translateY(-1%) scale(.99)} }
+    .parro-avatar-stack{position:relative;display:block;width:100%;height:100%;overflow:hidden;transform-origin:50% 82%;will-change:transform}
+    .parro-avatar-layer{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:contain;user-select:none;pointer-events:none;transform-origin:50% 82%;will-change:opacity,transform}
+    .parro-avatar-layer--primary{opacity:1;animation:parro-avatar-frame-primary 8s ease-in-out infinite}
+    .parro-avatar-layer--secondary{opacity:0;animation:parro-avatar-frame-secondary 8s ease-in-out infinite}
+    .parro-avatar-stack--idle,.parro-avatar-stack--neutral{animation:parro-avatar-idle-motion 3.4s ease-in-out infinite}
+    .parro-avatar-stack--listen{animation:parro-avatar-listen-motion 2.8s ease-in-out infinite}
+    .parro-avatar-stack--talk{animation:parro-avatar-talk-motion 1.6s ease-in-out infinite}
+    .parro-avatar-stack--point{animation:parro-avatar-point-motion 2s ease-in-out infinite}
+    .parro-avatar-stack--think{animation:parro-avatar-think-motion 2.6s ease-in-out infinite}
+    .parro-avatar-stack--search{animation:parro-avatar-search-motion 2.2s ease-in-out infinite}
+    .parro-avatar-stack--warning{animation:parro-avatar-warning-motion 2.4s ease-in-out infinite}
+    .parro-avatar-stack--error{animation:parro-avatar-error-motion 3.2s ease-in-out infinite}
+    .parro-avatar-stack--blocked{animation:parro-avatar-blocked-motion 3.6s ease-in-out infinite}
+    .parro-avatar-stack--clarify{animation:parro-avatar-clarify-motion 2.8s ease-in-out infinite}
+    .parro-avatar-stack--success{animation:parro-avatar-success-motion 1.9s cubic-bezier(.34,1.2,.64,1) infinite}
+    .parro-avatar-sequence--listen .parro-avatar-layer{animation-duration:6.4s}
+    .parro-avatar-sequence--talk .parro-avatar-layer{animation-duration:4s}
+    .parro-avatar-sequence--point .parro-avatar-layer{animation-duration:4.4s}
+    .parro-avatar-sequence--think .parro-avatar-layer,.parro-avatar-sequence--search .parro-avatar-layer{animation-duration:3.6s}
+    .parro-avatar-sequence--warning .parro-avatar-layer{animation-duration:4.6s}
+    .parro-avatar-sequence--error .parro-avatar-layer{animation-duration:5.4s}
+    .parro-avatar-sequence--blocked .parro-avatar-layer{animation-duration:5.8s}
+    .parro-avatar-sequence--clarify .parro-avatar-layer{animation-duration:5.2s}
+    .parro-avatar-sequence--success .parro-avatar-layer{animation-duration:4.2s}
+    @media (prefers-reduced-motion:reduce){.parro-avatar-stack,.parro-avatar-layer{animation:none!important}.parro-avatar-layer--secondary{display:none}}
+  `;
 
   const AVATAR_STYLE = `width:54px;height:54px;border-radius:16px;background:linear-gradient(135deg,#F1FBF9,#E4F3F6);box-shadow:0 6px 20px rgba(0,155,142,.32);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;`;
 
@@ -496,6 +556,7 @@
       @keyframes mimic-avatar-in { 0%{transform:scale(0.5) translateY(8px);opacity:0} 65%{transform:scale(1.08)} 100%{transform:scale(1) translateY(0);opacity:1} }
       @keyframes parro-tip-in { 0%{opacity:0;transform:translateY(6px) scale(0.97)} 100%{opacity:1;transform:translateY(0) scale(1)} }
       @keyframes mimic-tip-in { 0%{opacity:0;transform:translateY(6px) scale(0.97)} 100%{opacity:1;transform:translateY(0) scale(1)} }
+      ${AVATAR_MOTION_CSS}
       .parro-btn,.mimic-btn { pointer-events:auto; cursor:pointer; border:none; border-radius:8px; font-size:13px; font-weight:600; padding:7px 12px; transition:opacity .15s; }
       .parro-btn:active,.mimic-btn:active { opacity:.75; }
     `));
@@ -519,7 +580,7 @@
     // 플로팅 아바타 — 타깃 우상단 고정 (툴팁 안에도 별도 표시)
     const avatar = document.createElement('div');
     avatar.style.cssText = `position:fixed;${AVATAR_STYLE}pointer-events:none;z-index:6;animation:parro-avatar-in 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards;`;
-    avatar.innerHTML = MASCOT_SVG;
+    avatar.innerHTML = mascotHtml('point');
     root.appendChild(avatar);
 
     // 플로팅 툴팁 카드
@@ -528,12 +589,13 @@
       ? escapeHtml(String(step.type_text).length > 60 ? String(step.type_text).slice(0, 60) + '…' : String(step.type_text))
       : '';
     const tooltipText = step.instruction || step.title || '';
+    const tooltipMascotState = resolved.source === 'none' ? 'warning' : 'talk';
 
     const tooltip = document.createElement('div');
     tooltip.style.cssText = `position:fixed;width:${TIP_W}px;box-sizing:border-box;background:${TIP_BG};color:#fff;border-radius:13px;padding:13px;box-shadow:0 12px 40px rgba(0,0,0,.45),0 0 0 1px rgba(23,201,182,.16);z-index:5;pointer-events:auto;animation:parro-tip-in 0.28s ease forwards;`;
     tooltip.innerHTML = `
       <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px">
-        <div style="${AVATAR_STYLE}">${MASCOT_SVG}</div>
+        <div style="${AVATAR_STYLE}">${mascotHtml(tooltipMascotState)}</div>
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
             <span style="font-size:11px;font-weight:700;color:#8DD63F;background:rgba(0,155,142,.24);padding:2px 8px;border-radius:20px">${idx + 1} / ${total}</span>
@@ -820,7 +882,7 @@
       if (!state || !state.tooltip) return;
       state.tooltip.innerHTML = `
         <div style="text-align:center;padding:12px 4px">
-          <div style="${AVATAR_STYLE}margin:0 auto 12px;">${MASCOT_SVG}</div>
+          <div style="${AVATAR_STYLE}margin:0 auto 12px;">${mascotHtml('success')}</div>
           <div style="font-size:15px;font-weight:800;margin-bottom:6px">고마워요. 반영해둘게요.</div>
           <div style="font-size:12.5px;color:#9CA3AF;margin-bottom:14px">Live Guide Beta를 더 정확하게 다듬는 데 사용할게요.</div>
           <button class="parro-btn mimic-btn" data-act="exit" style="background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;padding:9px 24px;width:100%">닫기</button>
@@ -838,7 +900,7 @@
     if (state.scrollHint) state.scrollHint.style.display = 'none';
     state.tooltip.innerHTML = `
       <div style="text-align:center;padding:10px 4px">
-        <div style="${AVATAR_STYLE}margin:0 auto 12px;">${MASCOT_SVG}</div>
+        <div style="${AVATAR_STYLE}margin:0 auto 12px;">${mascotHtml('success')}</div>
         <div style="font-size:15px;font-weight:700;margin-bottom:6px">Live Guide Beta 완료! 🎉</div>
         <div style="font-size:12.5px;color:#9CA3AF;margin-bottom:14px">모든 스텝을 완료했습니다.</div>
         <button class="parro-btn mimic-btn" data-act="exit" style="background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;padding:9px 24px;width:100%">닫기</button>
@@ -850,7 +912,7 @@
       state.tooltip.innerHTML = `
         <div style="padding:6px 2px;color:#111827">
           <div style="display:flex;gap:9px;align-items:center;margin-bottom:10px">
-            <div style="${AVATAR_STYLE}width:38px;height:38px;flex-shrink:0">${MASCOT_SVG}</div>
+            <div style="${AVATAR_STYLE}width:38px;height:38px;flex-shrink:0">${mascotHtml('listen')}</div>
             <div>
               <div style="font-size:15px;font-weight:800">Live Guide Beta는 어땠나요?</div>
               <div style="font-size:12px;color:#6B7280;margin-top:2px">선택만 해도 충분해요.</div>
@@ -965,7 +1027,7 @@
     card.style.cssText = `position:fixed;right:16px;bottom:16px;width:360px;max-width:calc(100vw - 32px);max-height:calc(100vh - 32px);overflow:auto;background:${TIP_BG};color:#fff;border-radius:16px;padding:16px;box-shadow:0 18px 55px rgba(0,0,0,.48),0 0 0 1px rgba(23,201,182,.16);pointer-events:auto`;
     card.innerHTML = `
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-        <div style="${AVATAR_STYLE}width:38px;height:38px;">${MASCOT_SVG}</div>
+        <div style="${AVATAR_STYLE}width:38px;height:38px;">${mascotHtml('clarify')}</div>
         <div style="min-width:0">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
             <span style="font-size:11px;font-weight:700;color:#8DD63F">${idx + 1} / ${total}</span>
@@ -981,7 +1043,7 @@
         <div style="flex:1"></div>
         <button class="ex-btn" data-act="next" style="background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;padding:8px 18px">${idx + 1 >= total ? '완료' : '건너뛰기 →'}</button>
       </div>`;
-    shadow.appendChild(style('.ex-btn{pointer-events:auto;cursor:pointer;border:none;border-radius:8px;font-size:13px;font-weight:700;transition:opacity .15s}.ex-btn:active{opacity:.75}'));
+    shadow.appendChild(style(`${AVATAR_MOTION_CSS}.ex-btn{pointer-events:auto;cursor:pointer;border:none;border-radius:8px;font-size:13px;font-weight:700;transition:opacity .15s}.ex-btn:active{opacity:.75}`));
     shadow.appendChild(card);
 
     card.addEventListener('click', (e) => {
@@ -1007,6 +1069,7 @@
     card.style.cssText = `position:fixed;left:50%;bottom:24px;transform:translateX(-50%);width:340px;max-width:calc(100vw - 32px);background:${TIP_BG};color:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 12px 40px rgba(0,0,0,.45),0 0 0 1px rgba(23,201,182,.16);pointer-events:auto`;
     card.innerHTML = `
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <div style="${AVATAR_STYLE}width:38px;height:38px;flex-shrink:0">${mascotHtml('search')}</div>
         <span style="font-size:11px;font-weight:700;color:#8DD63F;background:rgba(0,155,142,.24);padding:2px 8px;border-radius:20px">${idx + 1} / ${total}</span>
         <span style="font-size:11px;color:#9CA3AF">🔍 이 단계 화면을 찾는 중…</span>
         <div style="flex:1"></div>
@@ -1018,7 +1081,7 @@
         <div style="flex:1"></div>
         <button class="wt-btn" data-act="next" style="background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;padding:7px 16px">${idx + 1 >= total ? '완료 ✓' : '건너뛰기 →'}</button>
       </div>`;
-    shadow.appendChild(style('.wt-btn{pointer-events:auto;cursor:pointer;border:none;border-radius:8px;font-size:13px;font-weight:600;padding:7px 12px;transition:opacity .15s}.wt-btn:active{opacity:.75}'));
+    shadow.appendChild(style(`${AVATAR_MOTION_CSS}.wt-btn{pointer-events:auto;cursor:pointer;border:none;border-radius:8px;font-size:13px;font-weight:600;padding:7px 12px;transition:opacity .15s}.wt-btn:active{opacity:.75}`));
     shadow.appendChild(card);
 
     card.addEventListener('click', (e) => {
