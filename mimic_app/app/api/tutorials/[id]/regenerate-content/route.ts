@@ -243,17 +243,15 @@ export async function POST(request: NextRequest, { params }: Params) {
   });
   const draftResult = await generateDraft(aiInput);
   if (draftResult.status !== 'ok') {
-    console.error('[regenerate-content] draft generation failed:', {
+    console.warn('[regenerate-content] AI unavailable; trying grounded fallbacks:', {
       tutorialId: id,
       status: draftResult.status,
       reason: draftResult.reason,
     });
-    return NextResponse.json(
-      { error: 'AI가 신뢰할 수 있는 제목과 본문을 만들지 못했습니다. 기존 내용은 변경하지 않았습니다.' },
-      { status: 502 },
-    );
   }
-  const aiById = new Map(draftResult.steps.map(step => [step.id, step]));
+  const aiById = new Map(
+    (draftResult.status === 'ok' ? draftResult.steps : []).map(step => [step.id, step]),
+  );
   const fallbackStepIds = new Set<string>();
 
   const aiDrafts = steps.map((step, index) => {
@@ -311,7 +309,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     );
   }
 
-  let tutorialTitle = maskManualCopy(draftResult.tutorial_title);
+  let tutorialTitle = draftResult.status === 'ok' ? maskManualCopy(draftResult.tutorial_title) : '';
   if (isLowQualityCaptureTutorialTitle(tutorialTitle, { stepTitles: drafts.map(draft => draft.user_title) })) {
     const currentTitle = maskManualCopy(tutorial.title);
     if (!isLowQualityCaptureTutorialTitle(currentTitle, { stepTitles: drafts.map(draft => draft.user_title) })) {

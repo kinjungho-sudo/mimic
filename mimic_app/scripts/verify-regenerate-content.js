@@ -34,8 +34,9 @@ async function main() {
   if (!/const fallbackDraft = purposeFallback/.test(route)) throw new Error('regeneration must recover unusable AI steps with a grounded fallback');
   if (!/buildCaptureFallbackTutorialTitle\(drafts/.test(route)) throw new Error('regeneration must recover a low-quality existing tutorial title');
   if (!/fallback_count: fallbackStepIds\.size/.test(route)) throw new Error('regeneration must report actual fallback usage');
+  if (!/draftResult\.status === 'ok' \? draftResult\.steps : \[\]/.test(route)) throw new Error('AI provider failure must continue through grounded fallbacks');
 
-  console.log(JSON.stringify({ ok: true, checks: 9, rejected_reason: rejected.reason }));
+  console.log(JSON.stringify({ ok: true, checks: 10, rejected_reason: rejected.reason }));
 }
 
 main().catch(error => {
