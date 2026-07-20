@@ -107,7 +107,11 @@ export async function startLiveGuide(shareToken: string, timeoutMs = RUNTIME_MES
     });
   }
 
-  const delivery = await sendRuntimeMessage(extensionId, { action: 'START_GUIDE', share_token: shareToken }, timeoutMs);
+  const delivery = await sendRuntimeMessage(extensionId, {
+    action: 'START_GUIDE',
+    share_token: shareToken,
+    webapp_origin: window.location.origin,
+  }, timeoutMs);
   if (delivery.timedOut) {
     return { ok: false, reason: 'timeout', message: 'Recorder 응답이 지연되고 있습니다. 확장 프로그램을 다시 로드한 뒤 재시도해주세요.' };
   }

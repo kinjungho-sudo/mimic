@@ -11,6 +11,7 @@ const editor = read('app', 'manual', '[id]', 'editor', 'page.tsx');
 const share = read('components', 'editor', 'ShareModal.tsx');
 const studio = read('app', 'manual', '[id]', 'studio', 'page.tsx');
 const liveGuideApi = read('lib', 'api', 'liveGuide.ts');
+const liveGuideRoute = read('app', 'api', 'guide', '[token]', 'route.ts');
 const home = read('app', 'home', 'page.tsx');
 
 assert.match(editor, /new AbortController\(\)/, 'AI rewrite must be cancellable');
@@ -28,12 +29,20 @@ assert.match(share, /awaitingWarningApproval/, 'warning approval must block link
 assert.match(studio, /listLiveGuideTargetTabs/, 'Studio must list target tabs before picking');
 assert.match(studio, /이 대상으로 저장할까요\?/, 'Studio must confirm a picked target before saving');
 assert.match(studio, /실행 취소/, 'Studio must allow reverting the last target change');
+assert.match(studio, /data-testid="studio-preview-overlay"/, 'Studio preview overlay needs a stable interaction target');
+assert.match(studio, /data-testid="studio-target-notice"/, 'Studio target notice needs a stable interaction target');
+const previewLayer = Number(studio.match(/STUDIO_PREVIEW_LAYER_Z_INDEX\s*=\s*(\d+)/)?.[1]);
+const targetNoticeLayer = Number(studio.match(/STUDIO_TARGET_NOTICE_LAYER_Z_INDEX\s*=\s*(\d+)/)?.[1]);
+assert.ok(previewLayer > targetNoticeLayer, 'Studio target notices must not cover preview controls');
 assert.match(liveGuideApi, /PICK_LIVE_TARGET', tab_id: tabId/, 'Studio must send the explicit target tab id');
 assert.match(liveGuideApi, /RUNTIME_MESSAGE_TIMEOUT_MS\s*=\s*8_000/, 'Recorder messages must have a bounded timeout');
 assert.match(liveGuideApi, /TARGET_PICK_TIMEOUT_MS\s*=\s*35_000/, 'interactive target selection must have a bounded timeout');
+assert.match(liveGuideApi, /webapp_origin:\s*window\.location\.origin/, 'Live Guide must send the exact calling webapp origin');
+assert.match(liveGuideRoute, /dynamic\s*=\s*'force-dynamic'/, 'Live Guide responses must not be statically cached');
+assert.match(liveGuideRoute, /Cache-Control':\s*'private, no-store, max-age=0'/, 'Live Guide responses must disable browser and intermediary caches');
 
 assert.match(home, /firstName \? `\$\{firstName\}님의 워크스페이스` : '내 워크스페이스'/, 'anonymous workspace title must not start with 님의');
 assert.match(home, /`\$\{liveGuide\.used\} \/ 무제한`/, 'Live Guide paid usage needs a readable separator');
 assert.match(home, /`\$\{playbook\.used\} \/ 무제한`/, 'Playbook paid usage needs a readable separator');
 
-console.log(JSON.stringify({ ok: true, checks: 19, scope: 'manual-ux-contract' }));
+console.log(JSON.stringify({ ok: true, checks: 25, scope: 'manual-ux-contract' }));

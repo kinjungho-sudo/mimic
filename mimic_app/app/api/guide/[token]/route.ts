@@ -7,6 +7,17 @@ import { maskManualCopy } from '@/lib/manual-quality';
 
 type Params = { params: Promise<{ token: string }> };
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+const GUIDE_RESPONSE_HEADERS = {
+  'Cache-Control': 'private, no-store, max-age=0',
+};
+
+function guideJson(payload: unknown, status = 200) {
+  return NextResponse.json(payload, { status, headers: GUIDE_RESPONSE_HEADERS });
+}
+
 // 라이브 가이드 유료 게이팅 — 제작자(소유자) 과금. Free 소유자는 누적 5회 무료 후 페이월.
 const FREE_LIVE_GUIDE_LIMIT = 5;
 const PAID_PLANS = ['pro', 'team', 'enterprise'];
@@ -63,7 +74,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     const serverClient = await createServerClient();
     const { data: { session } } = await serverClient.auth.getSession();
     if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return guideJson({ error: 'Unauthorized' }, 401);
     }
 
     const { data: tutorial } = await supabase
@@ -74,14 +85,14 @@ export async function GET(request: NextRequest, { params }: Params) {
       .single();
 
     if (!tutorial) {
-      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      return guideJson({ error: 'Not found' }, 404);
     }
 
     // 소유자 미리보기 — 차감 없이 한도만 확인
     const gated = await gateLiveGuide(supabase, tutorial.user_id, false);
-    if (gated) return NextResponse.json(gated);
+    if (gated) return guideJson(gated);
 
-    return NextResponse.json(await fetchSteps(supabase, tutorial.id, tutorial.title, tutorial.user_id, !!tutorial.tts_enabled));
+    return guideJson(await fetchSteps(supabase, tutorial.id, tutorial.title, tutorial.user_id, !!tutorial.tts_enabled));
   }
 
   // share_token으로 published 튜토리얼 조회 (공개)
@@ -93,14 +104,14 @@ export async function GET(request: NextRequest, { params }: Params) {
     .single();
 
   if (!tutorial) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return guideJson({ error: 'Not found' }, 404);
   }
 
   // 공개 실행 — 원자적 차감
   const gated = await gateLiveGuide(supabase, tutorial.user_id, true);
-  if (gated) return NextResponse.json(gated);
+  if (gated) return guideJson(gated);
 
-  return NextResponse.json(await fetchSteps(supabase, tutorial.id, tutorial.title, tutorial.user_id, !!tutorial.tts_enabled));
+  return guideJson(await fetchSteps(supabase, tutorial.id, tutorial.title, tutorial.user_id, !!tutorial.tts_enabled));
 }
 
 async function fetchSteps(supabase: ReturnType<typeof createServiceRoleClient>, tutorialId: string, title: string, ownerId: string, ttsEnabled: boolean) {

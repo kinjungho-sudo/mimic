@@ -20,6 +20,15 @@ const SUPABASE_BUCKET   = 'naviaction';
 const WEBAPP_ORIGIN     = IS_DEV
   ? 'https://parro-guide-dev.vercel.app'         // dev: Parro Preview alias
   : 'https://mimic-nine-ashen.vercel.app';        // 운영
+const DEV_WEBAPP_ORIGINS = new Set([
+  'https://parro-guide-dev.vercel.app',
+  'https://mimic-git-dev-kinjungho-7735s-projects.vercel.app',
+]);
+const PROD_WEBAPP_ORIGINS = new Set([
+  'https://parro-guide.vercel.app',
+  'https://mimic-nine-ashen.vercel.app',
+  'https://mimicflow.com',
+]);
 if (IS_DEV) console.warn('[Parro Recorder] DEV 모드 — dev DB/Preview 연결 (id:', chrome.runtime.id, ')');
 const JPEG_QUALITY_DEFAULT = 0.92;
 const MAX_STEPS         = 30;
@@ -38,6 +47,25 @@ const TYPED_LABEL_MAX         = 80;    // 이보다 짧은 입력은 라벨에 �
 const LOG_KEY      = '_mimicLogs';
 const LOG_MAX      = 300;
 const LOG_LEVELS   = { debug: 0, info: 1, warn: 2, error: 3 };
+
+function normalizeAllowedWebappOrigin(candidate) {
+  try {
+    const origin = new URL(candidate).origin;
+    if (IS_DEV && /^http:\/\/localhost(?::(?:3000|3001))?$/.test(origin)) return origin;
+    const allowed = IS_DEV ? DEV_WEBAPP_ORIGINS : PROD_WEBAPP_ORIGINS;
+    return allowed.has(origin) ? origin : null;
+  } catch {
+    return null;
+  }
+}
+
+function resolveGuideRequestOrigin(senderOrigin, requestedOrigin) {
+  const senderWebappOrigin = normalizeAllowedWebappOrigin(senderOrigin);
+  if (!senderWebappOrigin) return null;
+  if (requestedOrigin == null) return senderWebappOrigin;
+  const requestedWebappOrigin = normalizeAllowedWebappOrigin(requestedOrigin);
+  return requestedWebappOrigin === senderWebappOrigin ? requestedWebappOrigin : null;
+}
 const _tabWindowIdCache = new Map();
 
 function log(level, source, ...args) {
@@ -1165,6 +1193,12 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
     const rawToken = message.tutorial_id || message.share_token;
     if (!rawToken) { sendResponse({ ok: false, error: 'no token' }); return false; }
 
+    const guideRequestOrigin = resolveGuideRequestOrigin(sender.origin, message.webapp_origin);
+    if (!guideRequestOrigin) {
+      sendResponse({ ok: false, error: 'invalid guide origin' });
+      return false;
+    }
+
     // 경로 삽입 방지: UUID 또는 URL-안전 alphanumeric(1~80자)만 허용
     const UUID_RE    = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     const SHARE_RE   = /^[A-Za-z0-9_-]{1,80}$/;
@@ -1188,9 +1222,9 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 
     (async () => {
       try {
-        const origin = await getWebappOrigin();
+        const origin = guideRequestOrigin;
         // UUID(소유자 미리보기)는 쿠키 필요; share_token(공개)은 불필요
-        const fetchOpts = isUuid ? { credentials: 'include' } : {};
+        const fetchOpts = isUuid ? { credentials: 'include', cache: 'no-store' } : { cache: 'no-store' };
         const res    = await fetch(`${origin}/api/guide/${encodeURIComponent(guideToken)}`, fetchOpts);
         if (!res.ok) throw new Error(`guide fetch failed: ${res.status}`);
         const data  = await res.json();

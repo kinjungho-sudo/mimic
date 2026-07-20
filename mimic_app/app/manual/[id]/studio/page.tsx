@@ -18,6 +18,8 @@ import type { Step, Tutorial, FollowConfig } from '@/types';
 import { BRAND_COPY, BRAND_EXTENSION_STORE_URL } from '@/lib/brand';
 
 const TOP_BAR_ICON_SIZE = 14;
+const STUDIO_PREVIEW_LAYER_Z_INDEX = 80;
+const STUDIO_TARGET_NOTICE_LAYER_Z_INDEX = 70;
 
 // DB Step → 스튜디오 편집 단위
 type StudioStep = {
@@ -942,7 +944,7 @@ export default function StudioPage() {
 
       {/* 미리보기 오버레이 */}
       {showPreview && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(5,5,10,0.9)', backdropFilter: 'blur(4px)' }}>
+        <div data-testid="studio-preview-overlay" style={{ position: 'fixed', inset: 0, zIndex: STUDIO_PREVIEW_LAYER_Z_INDEX, background: 'rgba(5,5,10,0.9)', backdropFilter: 'blur(4px)' }}>
           <InteractiveFollowPlayer title={tutorial.title} steps={previewSteps} onClose={() => setShowPreview(false)} closeLabel="편집으로" />
         </div>
       )}
@@ -1018,7 +1020,7 @@ export default function StudioPage() {
       )}
 
       {targetNotice && (
-        <div role="status" style={{ position: 'fixed', left: '50%', bottom: 20, transform: 'translateX(-50%)', zIndex: 170, borderRadius: 12, background: '#111827', color: 'white', padding: '11px 12px 11px 14px', boxShadow: '0 16px 44px rgba(0,0,0,0.32)', display: 'flex', alignItems: 'center', gap: 12, maxWidth: 'min(620px, calc(100vw - 32px))', fontSize: 12.5 }}>
+        <div data-testid="studio-target-notice" role="status" style={{ position: 'fixed', left: '50%', bottom: 20, transform: 'translateX(-50%)', zIndex: STUDIO_TARGET_NOTICE_LAYER_Z_INDEX, borderRadius: 12, background: '#111827', color: 'white', padding: '11px 12px 11px 14px', boxShadow: '0 16px 44px rgba(0,0,0,0.32)', display: 'flex', alignItems: 'center', gap: 12, maxWidth: 'min(620px, calc(100vw - 32px))', fontSize: 12.5 }}>
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{targetNotice}</span>
           {lastTargetChange && <button onClick={() => void undoTargetSelection()} style={{ flexShrink: 0, height: 28, padding: '0 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,0.22)', background: 'rgba(255,255,255,0.08)', color: 'white', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>실행 취소</button>}
           <button onClick={() => setTargetNotice(null)} aria-label="알림 닫기" style={{ flexShrink: 0, width: 26, height: 26, borderRadius: 7, border: 'none', background: 'transparent', color: 'rgba(255,255,255,0.65)', cursor: 'pointer', display: 'grid', placeItems: 'center' }}><X size={14} /></button>

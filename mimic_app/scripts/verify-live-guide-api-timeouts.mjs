@@ -47,6 +47,15 @@ check(() => assert.deepEqual({ ok: tabsTimeout.ok, reason: tabsTimeout.reason },
 check(() => assert.deepEqual({ ok: pickTimeout.ok, reason: pickTimeout.reason }, { ok: false, reason: 'timeout' }));
 check(() => assert.deepEqual({ ok: startTimeout.ok, reason: startTimeout.reason }, { ok: false, reason: 'timeout' }));
 
+let startGuideMessage = null;
+window.chrome.runtime.sendMessage = (_extensionId, message, callback) => {
+  startGuideMessage = message;
+  callback({ ok: true });
+};
+const startSuccess = await startLiveGuide('fresh-share-token', 100);
+check(() => assert.equal(startSuccess.ok, true));
+check(() => assert.equal(startGuideMessage?.webapp_origin, 'http://localhost:3000'));
+
 window.chrome.runtime.sendMessage = (_extensionId, message, callback) => {
   if (message.action !== 'GET_TABS') return;
   callback({

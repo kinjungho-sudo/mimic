@@ -28,6 +28,11 @@ assert.deepEqual(
 );
 
 const startGuide = section(background, "if (message.action === 'START_GUIDE')", '// ── 내부 메시지 라우터');
+assert.match(background, /function normalizeAllowedWebappOrigin\(candidate\)/);
+assert.match(background, /function resolveGuideRequestOrigin\(senderOrigin, requestedOrigin\)/);
+assert.match(startGuide, /resolveGuideRequestOrigin\(sender\.origin, message\.webapp_origin\)/);
+assert.match(startGuide, /const origin = guideRequestOrigin/);
+assert.match(startGuide, /cache: 'no-store'/);
 assert.match(startGuide, /!firstStep\?\.page_url\s*\|\|\s*!isSafeNavUrl/);
 assert.match(startGuide, /createGuideTab\(firstStep\.page_url/);
 assert.doesNotMatch(startGuide, /chrome\.tabs\.update\(sender/);
@@ -74,4 +79,4 @@ assert.match(overlayMessage, /onComplete:[\s\S]*guideApi\.hide\(\)[\s\S]*GUIDE_C
 assert.match(popup, /assets\/parro-ai-avatar-neutral\.png\?v=20260720/);
 assert.match(popup, /id="guideTargetStatus"/);
 
-console.log(JSON.stringify({ ok: true, checks: 26, scope: 'live-guide-fail-closed-contract' }));
+console.log(JSON.stringify({ ok: true, checks: 31, scope: 'live-guide-fail-closed-contract' }));
