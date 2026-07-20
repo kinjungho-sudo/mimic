@@ -1,9 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BRAND_EXTENSION_STORE_URL } from '@/lib/brand';
 import {
   canTalkToDesktopExtension,
+  DESKTOP_COMPANION_LATEST_VERSION,
+  desktopCompanionCompatibility,
   desktopCompanionErrorMessage,
   getDesktopExtensionIds,
   isExtensionConnectionError,
@@ -38,6 +40,7 @@ export default function DesktopSetupPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [pendingSessionId, setPendingSessionId] = useState<string | null>(null);
+  const initialFlowStarted = useRef(false);
 
   const installerReady = INSTALLER_URL.length > 0;
   const statusText = useMemo(() => {
@@ -82,45 +85,7 @@ export default function DesktopSetupPage() {
       : '다운로드가 이미 시작되었습니다. 브라우저의 다운로드 목록을 확인해주세요.');
   }, [installerReady]);
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const captureSessionId = params.get('session');
-    if (captureSessionId && params.get('autoImport') === '1') {
-      window.location.replace(`/desktop-import?source=desktop-app&session=${encodeURIComponent(captureSessionId)}`);
-      return;
-    }
-    setPendingSessionId(captureSessionId);
-  }, []);
-
-  const checkInstall = useCallback(async () => {
-    if (!canTalkToDesktopExtension()) {
-      setStatus('extension_missing');
-      setMessage('Desktop Companion 상태 확인은 Parro Recorder 확장을 통해 진행됩니다. 확장을 먼저 설치하거나 연결해주세요.');
-      return;
-    }
-
-    setStatus('checking');
-    setMessage(null);
-    const response = await sendDesktopExtensionMessage('DESKTOP_COMPANION_STATUS');
-
-    if (response?.desktop?.connected) {
-      setStatus('ready');
-      setMessage(null);
-      return;
-    }
-
-    if (isExtensionConnectionError(response?.error)) {
-      setStatus('extension_missing');
-      setMessage(`Parro Recorder 1.7.3에 연결하지 못했습니다. 확장 ID가 ${getDesktopExtensionIds().join(' 또는 ')}인지 확인하고 확장 카드의 새로고침을 눌러주세요. (${response?.error})`);
-      return;
-    }
-
-    setStatus('missing');
-    setMessage(response?.desktop?.lastError || '설치된 Desktop Companion에 연결하지 못했습니다.');
-  }, []);
-
-  const startDesktopRecording = useCallback(async () => {
-    if (status !== 'ready') return;
+  const beginDesktopRecording = useCallback(async () => {
     setStatus('starting');
     setMessage(null);
     const response = await sendDesktopExtensionMessage('START_DESKTOP_RECORDING');
@@ -132,8 +97,81 @@ export default function DesktopSetupPage() {
     }
 
     setStatus('missing');
-    setMessage(response?.error || 'Desktop Companion 녹화 세션을 시작하지 못했습니다.');
-  }, [status]);
+    setMessage(desktopCompanionErrorMessage(response?.error, 'Desktop Companion 녹화 세션을 시작하지 못했습니다.'));
+  }, []);
+
+  const checkInstall = useCallback(async (autoStart = false) => {
+    const params = new URLSearchParams(window.location.search);
+    const source = params.get('source') || 'desktop-setup';
+    const moveToDownload = (reason: 'install' | 'update', installedVersion?: string | null) => {
+      const version = installedVersion ? `&installedVersion=${encodeURIComponent(installedVersion)}` : '';
+      window.location.replace(`/download/desktop?source=${encodeURIComponent(source)}&reason=${reason}${version}`);
+    };
+
+    if (!canTalkToDesktopExtension()) {
+      if (autoStart) {
+        moveToDownload('install');
+        return;
+      }
+      setStatus('extension_missing');
+      setMessage('Desktop Companion 상태 확인은 Parro Recorder 확장을 통해 진행됩니다. 확장을 먼저 설치하거나 연결해주세요.');
+      return;
+    }
+
+    setStatus('checking');
+    setMessage(null);
+    const response = await sendDesktopExtensionMessage('DESKTOP_COMPANION_STATUS');
+
+    if (response?.desktop?.connected) {
+      const installedVersion = response.desktop.version?.trim() || null;
+      if (desktopCompanionCompatibility(installedVersion) !== 'current') {
+        moveToDownload('update', installedVersion);
+        return;
+      }
+      if (autoStart) {
+        await beginDesktopRecording();
+        return;
+      }
+      setStatus('ready');
+      setMessage(`최신 버전 ${installedVersion}이 설치되어 있습니다.`);
+      return;
+    }
+
+    if (isExtensionConnectionError(response?.error)) {
+      if (autoStart) {
+        moveToDownload('install');
+        return;
+      }
+      setStatus('extension_missing');
+      setMessage(`Parro Recorder 1.7.4에 연결하지 못했습니다. 확장 ID가 ${getDesktopExtensionIds().join(' 또는 ')}인지 확인하고 확장 카드의 새로고침을 눌러주세요. (${response?.error})`);
+      return;
+    }
+
+    if (autoStart) {
+      moveToDownload('install');
+      return;
+    }
+    setStatus('missing');
+    setMessage(response?.desktop?.lastError || '설치된 Desktop Companion에 연결하지 못했습니다.');
+  }, [beginDesktopRecording]);
+
+  useEffect(() => {
+    if (initialFlowStarted.current) return;
+    initialFlowStarted.current = true;
+    const params = new URLSearchParams(window.location.search);
+    const captureSessionId = params.get('session');
+    if (captureSessionId && params.get('autoImport') === '1') {
+      window.location.replace(`/desktop-import?source=desktop-app&session=${encodeURIComponent(captureSessionId)}`);
+      return;
+    }
+    setPendingSessionId(captureSessionId);
+    void checkInstall(params.get('autostart') === '1');
+  }, [checkInstall]);
+
+  const startDesktopRecording = useCallback(async () => {
+    if (status !== 'ready') return;
+    await beginDesktopRecording();
+  }, [beginDesktopRecording, status]);
 
   const stopDesktopRecording = useCallback(async () => {
     if (status !== 'started' && status !== 'paused') return;
@@ -202,9 +240,9 @@ export default function DesktopSetupPage() {
         <div className="desktop-setup-header">
           <div>
             <p className="desktop-setup-kicker">Parro Desktop Companion</p>
-            <h1>데스크톱 녹화 설치</h1>
+            <h1>데스크톱 녹화</h1>
             <p className="desktop-setup-lead">
-              Windows 다운로드, 업로드, 설치, 로그인 작업까지 끊기지 않게 기록하려면 Desktop Companion 설치가 먼저 필요합니다.
+              유료 플랜에서 Windows 앱 작업을 기록할 수 있습니다. 최신 버전 {DESKTOP_COMPANION_LATEST_VERSION}이 확인되면 바로 녹화를 시작합니다.
             </p>
           </div>
           <div className="desktop-setup-status" data-state={status}>
@@ -257,7 +295,7 @@ export default function DesktopSetupPage() {
               <button type="button" onClick={handleDownload} disabled={!installerReady}>
                 설치 파일 다운로드
               </button>
-              <button type="button" onClick={checkInstall}>
+              <button type="button" onClick={() => { void checkInstall(false); }}>
                 설치 완료, 연결 확인
               </button>
               <button type="button" onClick={startDesktopRecording} disabled={status !== 'ready'}>

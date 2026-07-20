@@ -593,13 +593,23 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
   if (message.action === 'DESKTOP_COMPANION_STATUS') {
     (async () => {
       const pong = await pingDesktopCompanion().catch((error) => ({ ok: false, error: error?.message }));
-      sendResponse({ ok: !!pong?.ok, desktop: desktopBridgeStatus(), error: pong?.error });
+      sendResponse({
+        ok: !!pong?.ok,
+        recorderVersion: chrome.runtime.getManifest().version,
+        desktop: desktopBridgeStatus(),
+        error: pong?.error,
+      });
     })();
     return true;
   }
 
   if (message.action === 'START_DESKTOP_RECORDING') {
     (async () => {
+      const plan = await getUserPlan(true);
+      if (!plan?.isPro) {
+        sendResponse({ ok: false, error: 'desktop_paid_plan_required', desktop: desktopBridgeStatus() });
+        return;
+      }
       const sessionId = crypto.randomUUID();
       const result = await notifyDesktopCaptureStarted({
         sessionId,
@@ -681,6 +691,8 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
     (async () => {
       const sessionId = message.sessionId || null;
       try {
+        const plan = await getUserPlan(true);
+        if (!plan?.isPro) throw new Error('desktop_paid_plan_required');
         const imported = await importDesktopCaptureSession(sessionId);
         sendResponse({
           ok: true,
@@ -897,7 +909,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
       //     desktopCapture 스트림은 DRM 등 진짜 차단 페이지 대비용으로 코드만 유지)
       _directStartTabId = tabId;
       await storageSet({ isRecording: true });
-      notifyDesktopCaptureStarted({ sessionId, targetTabId: tabId, source: 'external_start' }).catch((err) => {
+      notifyDesktopCaptureStartedForPaidUser({ sessionId, targetTabId: tabId, source: 'external_start' }).catch((err) => {
         log('warn', 'desktop', 'desktop start notify failed:', err?.message || err);
       });
       _directStartTabId = null;
@@ -933,7 +945,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
   if (message.action === 'CONNECT') {
     (async () => {
       const { extensionToken } = await storageGet('extensionToken');
-      sendResponse({ ok: true, linked: !!extensionToken });
+      sendResponse({ ok: true, linked: !!extensionToken, recorderVersion: chrome.runtime.getManifest().version });
     })();
     return true;
   }
@@ -1046,9 +1058,16 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 // ── 내부 메시지 라우터 ────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'DESKTOP_COMPANION_STATUS') {
-    pingDesktopCompanion().catch(() => {});
-    sendResponse({ ok: true, desktop: desktopBridgeStatus() });
-    return false;
+    (async () => {
+      const pong = await pingDesktopCompanion().catch((error) => ({ ok: false, error: error?.message }));
+      sendResponse({
+        ok: !!pong?.ok,
+        recorderVersion: chrome.runtime.getManifest().version,
+        desktop: desktopBridgeStatus(),
+        error: pong?.error,
+      });
+    })();
+    return true;
   }
 
   // pointerdown 선캡처 — 클릭으로 화면이 바뀌기 전 프레임을 미리 잡아 버퍼에 보관
@@ -2130,7 +2149,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
     if (nowRecording) {
       resetLastSavedHash();  // 새 녹화 → 디덥 기준 해시 초기화
       storageGet(['sessionId', 'targetTabId']).then(({ sessionId, targetTabId }) => {
-        notifyDesktopCaptureStarted({ sessionId, targetTabId, source: 'storage_start' }).catch((err) => {
+        notifyDesktopCaptureStartedForPaidUser({ sessionId, targetTabId, source: 'storage_start' }).catch((err) => {
           log('warn', 'desktop', 'desktop start notify failed:', err?.message || err);
         });
       });
@@ -2586,6 +2605,12 @@ async function getUserPlan(forceRefresh = false) {
     const { _planCache } = await storageGet('_planCache');
     return _planCache || { plan: 'free', isPro: false, time: 0 };
   }
+}
+
+async function notifyDesktopCaptureStartedForPaidUser(options) {
+  const plan = await getUserPlan();
+  if (!plan?.isPro) return { ok: false, error: 'desktop_paid_plan_required' };
+  return notifyDesktopCaptureStarted(options);
 }
 
 // ── AI 분석 — 웹앱 API 경유 ──────────────────────────────────────

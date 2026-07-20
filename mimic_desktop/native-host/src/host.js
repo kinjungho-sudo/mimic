@@ -3,6 +3,8 @@ const os = require("os");
 const path = require("path");
 const { spawn } = require("child_process");
 
+const DESKTOP_COMPANION_VERSION = "0.5.0";
+
 const state = {
   activeSessionId: null,
   startedAt: null,
@@ -261,6 +263,7 @@ async function handleMessage(message) {
       ok: true,
       type: "PONG",
       host: "parro-desktop-companion-dev",
+      version: DESKTOP_COMPANION_VERSION,
       active_session_id: state.activeSessionId,
     };
   }

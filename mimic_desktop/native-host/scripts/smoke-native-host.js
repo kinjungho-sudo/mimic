@@ -85,6 +85,8 @@ async function main() {
 
   const types = received.map((message) => message.type);
   if (!types.includes("PONG")) throw new Error("missing PONG");
+  const pong = received.find((message) => message.type === "PONG");
+  if (pong?.version !== "0.5.0") throw new Error(`unexpected desktop version: ${pong?.version || "missing"}`);
   if (!types.includes("CAPTURE_SESSION_STARTED")) throw new Error("missing CAPTURE_SESSION_STARTED");
   if (!types.includes("CAPTURE_SESSION_PAUSED")) throw new Error("missing CAPTURE_SESSION_PAUSED");
   if (!types.includes("CAPTURE_SESSION_RESUMED")) throw new Error("missing CAPTURE_SESSION_RESUMED");

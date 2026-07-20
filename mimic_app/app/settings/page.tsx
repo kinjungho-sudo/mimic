@@ -313,12 +313,15 @@ export default function SettingsPage() {
         <Section title="Desktop Companion">
           <div style={{ padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '18px' }}>
             <div>
-              <div style={{ fontSize: '14px', fontWeight: 600, color: '#111827' }}>Desktop Companion 다운로드/설치</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '14px', fontWeight: 600, color: '#111827' }}>
+                Desktop Companion 다운로드/설치
+                <span style={{ padding: '2px 7px', borderRadius: '999px', background: '#E6F7F3', color: '#007C72', fontSize: '10px', fontWeight: 800 }}>유료 플랜</span>
+              </div>
               <div style={{ fontSize: '12.5px', color: '#6B7280', marginTop: '4px', lineHeight: 1.55 }}>Windows 다운로드, 설치, 로그인, 파일 수정, 업로드 복귀 단계를 Recorder 세션에 이어 붙입니다.</div>
-              <div style={{ fontSize: '11.5px', color: '#9CA3AF', marginTop: '5px', lineHeight: 1.5 }}>설치 화면에서 .exe 다운로드, 설치 완료 확인, 데스크톱 녹화 시작을 순서대로 진행합니다.</div>
+              <div style={{ fontSize: '11.5px', color: '#9CA3AF', marginTop: '5px', lineHeight: 1.5 }}>설치 상태와 버전을 확인하고, 필요한 경우에만 최신 설치 파일을 받을 수 있습니다.</div>
             </div>
-            <Link href="/desktop-setup?source=settings" style={{ padding: '9px 16px', borderRadius: '9px', fontSize: '13px', fontWeight: 700, background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', textDecoration: 'none', flexShrink: 0, boxShadow: '0 2px 8px rgba(55,48,163,0.25)' }}>
-              다운로드/설치
+            <Link href="/download/desktop?source=settings" style={{ padding: '9px 16px', borderRadius: '9px', fontSize: '13px', fontWeight: 700, background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', textDecoration: 'none', flexShrink: 0, boxShadow: '0 2px 8px rgba(55,48,163,0.25)' }}>
+              상태 확인
             </Link>
           </div>
         </Section>

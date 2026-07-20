@@ -14,7 +14,9 @@ function read(relativePath) {
 const recordingModal = read('mimic_app/components/dashboard/RecordingModal.tsx');
 const desktopSetup = read('mimic_app/app/desktop-setup/page.tsx');
 const desktopImport = read('mimic_app/app/desktop-import/page.tsx');
+const desktopDownload = read('mimic_app/app/download/desktop/DownloadButton.tsx');
 const desktopClient = read('mimic_app/lib/desktop-companion-client.ts');
+const middleware = read('mimic_app/middleware.ts');
 const manifest = JSON.parse(read('mimic_recorder/manifest.json'));
 const background = read('mimic_recorder/background.js');
 const content = read('mimic_recorder/content.js');
@@ -89,11 +91,19 @@ check(() => {
 check(() => {
   assert.match(desktopClient, /for \(const extensionId of extensionIds\)/);
   assert.match(desktopClient, /if \(!isExtensionConnectionError\(response\?\.error\)\) return response/);
+  assert.match(desktopClient, /resolveDesktopCaptureEntry/);
+  assert.match(desktopClient, /desktopCompanionCompatibility/);
+  assert.match(desktopDownload, /최신 버전으로 업데이트/);
+  assert.match(desktopDownload, /바로 데스크톱 녹화 시작/);
+  assert.match(middleware, /PAID_DESKTOP_PATHS/);
+  assert.match(middleware, /isPaidPlan\(profile\?\.plan\)/);
 });
 
 check(() => {
   assert.match(background, /if \(message\.action === 'START_DESKTOP_RECORDING'\)/);
   assert.match(background, /if \(message\.action === 'STOP_DESKTOP_RECORDING'\)/);
+  assert.match(background, /desktop_paid_plan_required/);
+  assert.match(background, /recorderVersion: chrome\.runtime\.getManifest\(\)\.version/);
   assert.match(background, /async function importDesktopCaptureSession\(nativeSessionId\)/);
   assert.match(background, /editorUrl: `\$\{imported\.webapp_origin\}\/manual\/\$\{imported\.tutorial_id\}\/editor`/);
 });
@@ -102,12 +112,14 @@ check(() => {
   assert.match(desktopBridge, /type: 'START_CAPTURE_SESSION'/);
   assert.match(desktopBridge, /type: 'STOP_CAPTURE_SESSION'/);
   assert.match(desktopBridge, /type: 'READ_CAPTURE_IMAGE_CHUNK'/);
+  assert.match(desktopBridge, /version: _desktopVersion/);
 });
 
 check(() => {
   assert.match(nativeHost, /message\.type === "START_CAPTURE_SESSION"/);
   assert.match(nativeHost, /message\.type === "STOP_CAPTURE_SESSION"/);
   assert.match(nativeHost, /message\.type === "READ_CAPTURE_IMAGE_CHUNK"/);
+  assert.match(nativeHost, /version: DESKTOP_COMPANION_VERSION/);
 });
 
 check(() => {

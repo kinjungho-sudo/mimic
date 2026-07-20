@@ -1,7 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import styles from './page.module.css';
 import { DownloadButton } from './DownloadButton';
+import { isPaidPlan } from '@/lib/plan';
+import { createServerClient, createServiceRoleClient } from '@/lib/supabase/server';
 
 export const metadata: Metadata = {
   title: 'Parro Desktop 다운로드',
@@ -9,6 +12,8 @@ export const metadata: Metadata = {
 };
 
 const INSTALLER_URL = '/downloads/ParroDesktopSetup.exe';
+
+export const dynamic = 'force-dynamic';
 
 function ParroMark({ size = 34 }: { size?: number }) {
   return (
@@ -31,7 +36,32 @@ function WindowsIcon() {
   );
 }
 
-export default function DesktopDownloadPage() {
+export default async function DesktopDownloadPage({
+  searchParams,
+}: {
+  searchParams?: { source?: string; reason?: string; installedVersion?: string };
+}) {
+  const supabase = await createServerClient();
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const userId = typeof claimsData?.claims?.sub === 'string' ? claimsData.claims.sub : null;
+  const source = searchParams?.source || 'download-page';
+
+  if (!userId) {
+    const next = `/download/desktop?source=${encodeURIComponent(source)}`;
+    redirect(`/auth/login?next=${encodeURIComponent(next)}`);
+  }
+
+  const service = createServiceRoleClient();
+  const { data: profile } = await service
+    .from('mm_users')
+    .select('plan')
+    .eq('id', userId)
+    .single();
+
+  if (!isPaidPlan(profile?.plan)) {
+    redirect(`/landingpage?feature=desktop&source=${encodeURIComponent(source)}#pricing`);
+  }
+
   return (
     <main className={styles.downloadPage}>
       <header className={styles.siteHeader}>
@@ -64,10 +94,15 @@ export default function DesktopDownloadPage() {
                 <span>Windows 10/11 · 64-bit · 약 34MB</span>
               </div>
             </div>
-            <DownloadButton href={INSTALLER_URL} />
+            <DownloadButton
+              href={INSTALLER_URL}
+              reason={searchParams?.reason}
+              requestedInstalledVersion={searchParams?.installedVersion}
+              source={source}
+            />
           </div>
           <div className={styles.trustRow}>
-            <span>✓ 로그인 후 다운로드</span>
+            <span>✓ 유료 플랜 전용</span>
             <span>✓ 설치 후 바로 실행</span>
             <span>✓ 캡처 파일은 PC에 저장</span>
           </div>
@@ -78,7 +113,7 @@ export default function DesktopDownloadPage() {
         <div className={styles.sectionHeading}>
           <span>HOW IT WORKS</span>
           <h2>설치부터 첫 캡처까지 1분</h2>
-          <p>브라우저 확장 없이 Parro Desktop만으로 먼저 테스트할 수 있습니다.</p>
+          <p>Parro Recorder가 설치 상태와 버전을 확인해 필요한 단계만 안내합니다.</p>
         </div>
         <div className={styles.stepsGrid}>
           {[

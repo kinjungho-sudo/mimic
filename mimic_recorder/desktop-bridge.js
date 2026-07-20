@@ -3,6 +3,7 @@ const MIMIC_DESKTOP_HOST = 'com.mimic.desktop_companion.dev';
 let _desktopPort = null;
 let _desktopConnected = false;
 let _desktopLastError = null;
+let _desktopVersion = null;
 let _desktopRequestSeq = 0;
 const _desktopPendingRequests = new Map();
 
@@ -11,6 +12,7 @@ function desktopBridgeStatus() {
     host: MIMIC_DESKTOP_HOST,
     connected: _desktopConnected,
     lastError: _desktopLastError,
+    version: _desktopVersion,
   };
 }
 
@@ -18,6 +20,7 @@ function disconnectDesktopPort() {
   const port = _desktopPort;
   _desktopPort = null;
   _desktopConnected = false;
+  _desktopVersion = null;
   try {
     if (port) port.disconnect();
   } catch {
@@ -40,6 +43,7 @@ function getDesktopPort() {
 
     _desktopPort.onDisconnect.addListener(() => {
       _desktopConnected = false;
+      _desktopVersion = null;
       _desktopLastError = chrome.runtime.lastError?.message || null;
       const disconnectedPort = _desktopPort;
       _desktopPort = null;
@@ -193,9 +197,13 @@ async function readDesktopCaptureImage(sessionId, stepNumber, expectedSize = 0) 
 }
 
 async function pingDesktopCompanion() {
-  return requestDesktopMessage({
+  const response = await requestDesktopMessage({
     type: 'PING',
     extension_id: chrome.runtime.id,
     sent_at: new Date().toISOString(),
   });
+  if (response?.ok) {
+    _desktopVersion = typeof response.version === 'string' ? response.version : null;
+  }
+  return response;
 }

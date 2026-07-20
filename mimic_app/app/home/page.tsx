@@ -8,6 +8,10 @@ import { RecordingModal } from '@/components/dashboard/RecordingModal';
 import { AgentChat } from '@/components/chat/AgentChat';
 import { BrandMark } from '@/components/common/BrandMark';
 import { createTutorial } from '@/lib/api/tutorials';
+import {
+  desktopCaptureEntryDestination,
+  resolveDesktopCaptureEntry,
+} from '@/lib/desktop-companion-client';
 import { logError } from '@/lib/logging/logger';
 import { BRAND_COLORS, BRAND_NAME, LEGACY_INTERNAL_IDENTIFIERS } from '@/lib/brand';
 import type { Tutorial, Workspace, Folder } from '@/types';
@@ -973,6 +977,13 @@ export default function DashboardPage() {
 
   const handleSignOut = async () => { await signOut(); router.push('/auth/login'); };
 
+  const handleDesktopCapture = async (source: string) => {
+    setShowNewMenu(false);
+    setCreating(true);
+    const entry = await resolveDesktopCaptureEntry();
+    window.location.assign(desktopCaptureEntryDestination(entry, source));
+  };
+
   const handleCreateBlank = async () => {
     setShowNewMenu(false); setCreating(true);
     try {
@@ -1466,13 +1477,19 @@ export default function DashboardPage() {
                         </span>
                         <div><div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '2px' }}>웹 페이지 녹화</div><div style={{ fontSize: '11.5px', color: '#6B7280' }}>Chrome 탭을 선택해 매뉴얼 생성</div></div>
                       </button>
-                      <button onClick={() => { setShowNewMenu(false); router.push('/download/desktop?source=new-menu'); }}
+                      <button onClick={() => { void handleDesktopCapture('new-menu'); }}
                         style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', width: '100%', padding: '13px 15px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left' }}
                         onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
                         <span style={{ width: '30px', height: '30px', borderRadius: '8px', background: '#E0F2FE', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0369A1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
                         </span>
-                        <div><div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '2px' }}>데스크톱 녹화</div><div style={{ fontSize: '11.5px', color: '#6B7280' }}>설치 화면으로 이동 후 녹화 시작</div></div>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '2px' }}>
+                            데스크톱 녹화
+                            <span style={{ padding: '1px 6px', borderRadius: '999px', background: '#E6F7F3', color: '#007C72', fontSize: '9.5px', fontWeight: 800 }}>유료</span>
+                          </div>
+                          <div style={{ fontSize: '11.5px', color: '#6B7280' }}>{isPro ? '설치 상태 확인 후 바로 시작' : '유료 플랜에서 사용할 수 있어요'}</div>
+                        </div>
                       </button>
                       <div className="home-mobile-capture-note" style={{ display: 'none' }}>
                         <span style={{ width: '30px', height: '30px', borderRadius: '8px', background: '#F3F4F6', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
