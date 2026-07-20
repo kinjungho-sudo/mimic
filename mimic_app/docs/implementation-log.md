@@ -649,3 +649,11 @@
 - Added RED regression cases for public-facing weak copy that still passed the quality detector: `버튼 클릭`, `메뉴 클릭`, `주요 영역 클릭`, `제목 입력`, `이름 입력`, `버튼을 클릭합니다.`, `메뉴를 클릭합니다.`, domain `주요 영역을 클릭합니다.`, and content-only input scripts.
 - Hardened `capture-fallback` low-quality title/script detection so generic UI targets and bare field labels are rejected by the publish/regeneration quality gate instead of appearing user-ready.
 - Kept the change to detector/test/doc scope only; did not touch `main`, Production deploy, DB/auth/storage, Chrome extension capture, native desktop capture, publish/share state, or real uploads.
+
+
+## 2026-07-20 - AI rewrite purpose-quality regression
+
+- Added a focused regression verifier for AI rewrite output quality so purpose-light rewrites such as `검색어를 입력합니다.`, `내용을 작성합니다.`, and `입력 영역을 선택합니다.` are rejected instead of being accepted as public-ready manual copy.
+- Wired the new verifier into `npm run verify:quality` so rewrite quality is checked with the existing capture fallback, regeneration set, and follow-config quality gates.
+- Hardened `text-quality` validation and reinforced `rewriteSentence` / `rewriteAllSteps` prompts to require why/next-state guidance rather than action-only sentences.
+- Kept the change to text quality, prompt, test, and documentation scope only; did not touch `main`, Production deploy, DB/auth/storage, Chrome extension capture, native desktop capture, publish/share state, or real uploads.
