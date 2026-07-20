@@ -22,9 +22,16 @@ Re-run these checks immediately before integration because `dev` may move.
 - Existing dirty `dev` worktree was preserved; integration used clean branch `integration/parro-dev` from `origin/dev`.
 - Merged with `--no-ff` and pushed merge commit `216c35fb6b0783524bc21f1600907524b5c06979` to `dev`.
 - Local lint/build, SDK/Recorder checks, manifest assertion, MCP build, and full diff check passed.
-- Git Preview is served through stable dev branch alias `https://mimic-git-dev-kinjungho-7735s-projects.vercel.app`; branch-scoped env verification passed on `dpl_DgLFYLdL1JsKoJ1zFeayujtJ9YMc`.
+- The legacy Git Preview was served through the internal alias `https://mimic-git-dev-kinjungho-7735s-projects.vercel.app`; branch-scoped env verification passed on `dpl_DgLFYLdL1JsKoJ1zFeayujtJ9YMc`.
 - `Preview (dev)` now has branch-scoped `NEXT_PUBLIC_APP_URL=https://parro-guide.vercel.app`; Production env remains unchanged.
 - Six public routes, Parro assets, robots/sitemap, dev Supabase reference, browser rendering, and error logs passed.
+
+## Canonical dev routing - 2026-07-20
+
+- The user-facing remote development URL is `https://parro-guide.vercel.app`.
+- The domain is assigned directly to Git branch `dev` in the Vercel `parro-guide` project. A `main` deployment must not take over this domain.
+- Deployment `dpl_2Mof5e9h7r5geG2xBxPvnCny3khB` verified the `dev` branch, dev Supabase reference, login page, help page, and Parro avatar assets.
+- Auto-generated `mimic-*` URLs remain legacy deployment identifiers only and must not be presented as the Parro development address.
 
 Rollback source merge with:
 
