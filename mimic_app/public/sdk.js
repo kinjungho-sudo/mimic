@@ -70,6 +70,71 @@
   }
 
   // ── DOM 유틸 ───────────────────────────────────────────────
+  function normalizeTargetText(value) {
+    return String(value || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  }
+
+  function targetTextSimilarity(left, right) {
+    var a = normalizeTargetText(left);
+    var b = normalizeTargetText(right);
+    if (!a || !b) return 0;
+    if (a === b) return 1;
+    if (a.indexOf(b) >= 0 || b.indexOf(a) >= 0) return Math.max(0.68, Math.min(a.length, b.length) / Math.max(a.length, b.length));
+    return 0;
+  }
+
+  function targetName(el) {
+    return el && (
+      el.getAttribute('aria-label')
+      || el.getAttribute('title')
+      || el.getAttribute('placeholder')
+      || el.getAttribute('name')
+      || el.value
+      || el.textContent
+      || ''
+    );
+  }
+
+  function visibleTarget(el) {
+    if (!el || !el.isConnected || /^(HTML|BODY)$/.test(el.tagName || '')) return false;
+    var rect = el.getBoundingClientRect();
+    if (rect.width < 1 || rect.height < 1) return false;
+    var style = (el.ownerDocument && el.ownerDocument.defaultView || window).getComputedStyle(el);
+    return style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity || 1) > 0.01;
+  }
+
+  function targetEvidenceMatches(el, targetContext) {
+    if (!visibleTarget(el)) return false;
+    var expectedName = targetContext && targetContext.accessibleName;
+    return !expectedName || targetTextSimilarity(targetName(el), expectedName) >= 0.55;
+  }
+
+  function guidePageMatches(pageUrl) {
+    try {
+      var expected = new URL(pageUrl);
+      var current = new URL(location.href);
+      var normalizePath = function (path) { return path.length > 1 ? path.replace(/\/$/, '') : path; };
+      var routeHash = function (url) {
+        var hash = decodeURIComponent(url.hash || '');
+        if (!/^#!?\//.test(hash)) return '';
+        return hash.replace(/^#!?/, '').split('?')[0].replace(/\/$/, '') || '/';
+      };
+      if (!/^https?:$/.test(expected.protocol)
+        || expected.origin !== current.origin
+        || normalizePath(expected.pathname) !== normalizePath(current.pathname)) return false;
+      var expectedRoute = routeHash(expected);
+      if (expectedRoute && expectedRoute !== routeHash(current)) return false;
+      var volatileKey = /^(utm_.+|fbclid|gclid|_ga|code|state|session|session_id|timestamp|ts|_t)$/i;
+      var matches = true;
+      expected.searchParams.forEach(function (value, key) {
+        if (!volatileKey.test(key) && current.searchParams.get(key) !== value) matches = false;
+      });
+      return matches;
+    } catch (e) {
+      return false;
+    }
+  }
+
   function findElement(selector, xpath, targetContext) {
     var root = document;
     var framePath = targetContext && Array.isArray(targetContext.framePath) ? targetContext.framePath : [];
@@ -87,19 +152,21 @@
       }
     } catch (e) {
       // Cross-origin frames cannot be traversed by the embed SDK. Returning null
-      // is intentional: a centered explanation is safer than a wrong highlight.
+      // keeps the guide hidden instead of highlighting an unrelated element.
       return null;
     }
     if (selector) {
       try {
-        var el = root.querySelector(selector);
-        if (el) return el;
+        var matches = Array.prototype.slice.call(root.querySelectorAll(selector)).filter(function (el) {
+          return targetEvidenceMatches(el, targetContext);
+        });
+        if (matches.length === 1) return matches[0];
       } catch (e) { /* invalid selector */ }
     }
     if (xpath && root.nodeType === Node.DOCUMENT_NODE) {
       try {
         var result = root.evaluate(xpath, root, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
-        if (result.singleNodeValue) return result.singleNodeValue;
+        if (targetEvidenceMatches(result.singleNodeValue, targetContext)) return result.singleNodeValue;
       } catch (e) { /* invalid xpath */ }
     }
     return null;
@@ -248,7 +315,17 @@
     if (!step) { this.destroy(); return; }
 
     var self = this;
+    if (!step.page_url || !guidePageMatches(step.page_url)) {
+      this._retryTimer = setTimeout(function () { if (self._running) self._render(); }, 900);
+      return;
+    }
     var targetEl = findElement(step.element_selector, step.element_xpath, step.target_context);
+
+    // 대상이 확인되지 않으면 아무 화면에도 fallback 카드/딤을 띄우지 않는다.
+    if (!targetEl) {
+      this._retryTimer = setTimeout(function () { if (self._running) self._render(); }, 900);
+      return;
+    }
 
     // 하이라이트
     if (targetEl) {
@@ -267,13 +344,6 @@
 
       // 요소가 뷰포트 밖이면 스크롤
       targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    } else {
-      // 배경 딤
-      var backdrop = document.createElement('div');
-      backdrop.className = 'parro-backdrop mimic-backdrop';
-      backdrop.addEventListener('click', function () { self.destroy(); });
-      document.body.appendChild(backdrop);
-      this._els.backdrop = backdrop;
     }
 
     // 툴팁 생성
@@ -385,6 +455,7 @@
 
   Guide.prototype._clean = function () {
     this._stopAudio();
+    if (this._retryTimer) { clearTimeout(this._retryTimer); this._retryTimer = null; }
     ['highlight', 'backdrop', 'tooltip'].forEach(function (k) {
       if (this._els[k]) { this._els[k].remove(); delete this._els[k]; }
     }, this);

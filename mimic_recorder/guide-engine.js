@@ -6,7 +6,6 @@
   if (window.ParroGuide || window.MimicGuide) return; // 중복 주입 방지
 
   const Z = 2147483640;
-  const COORD_BOX = 46;
   const HIT_PAD_EL = 6;
   const HIT_PAD_COORD = 28;
   const TIP_W = 268;  // 툴팁 고정 너비(px) — Tango식 컴팩트
@@ -49,81 +48,83 @@
   }
 
   function resolveTarget(step) {
-    let el = null, rect = null, source = 'none';
     const root = targetRoot(step);
     const hasNestedTarget = !!(step.target_context?.framePath?.length || step.target_context?.shadowPath?.length);
 
-    // 0순위: AI 시각 재탐색 좌표 (셀렉터·XPath·퍼지 모두 실패 후 복구된 위치)
-    if (step._regroundXY) {
-      const px = step._regroundXY.x * window.innerWidth, py = step._regroundXY.y * window.innerHeight;
-      const hit = promoteHitTarget(document.elementFromPoint(px, py));
-      if (hit && !isOverlayRootId(hit.id)) { el = hit; rect = rectOf(hit); }
-      else { rect = { left: px - COORD_BOX / 2, top: py - COORD_BOX / 2, width: COORD_BOX, height: COORD_BOX }; }
-      return { el, rect, source: 'ai' };
-    }
-
-    // 0.5순위: 소유자가 스튜디오에서 직접 보정한 핫스팟(0~100%) — 자동 탐지보다 우선(명시 수정한 위치)
-    if (step.hotspot_x != null && step.hotspot_y != null) {
-      const px = (step.hotspot_x / 100) * window.innerWidth, py = (step.hotspot_y / 100) * window.innerHeight;
-      const hit = promoteHitTarget(document.elementFromPoint(px, py));
-      if (hit && !isOverlayRootId(hit.id)) { el = hit; rect = rectOf(hit); }
-      else { rect = { left: px - COORD_BOX / 2, top: py - COORD_BOX / 2, width: COORD_BOX, height: COORD_BOX }; }
-      return { el, rect, source: 'manual' };
-    }
-
-    // 1순위: CSS Selector
+    // 1순위: CSS Selector. querySelector()의 첫 결과를 무조건 쓰지 않고, 중복 후보를
+    // 접근성 이름·주변 문맥·기록 위치로 다시 평가해 애매하면 표시하지 않는다.
     if (root && step.element_selector) {
-      try { el = root.querySelector(step.element_selector); } catch { el = null; }
-      if (el) {
-        const accepted = acceptElementTarget(el, rectOf(el), 'selector', step);
-        if (accepted) return accepted;
-        el = null; rect = null; source = 'none';
-      }
+      let matches = [];
+      try { matches = Array.from(root.querySelectorAll(step.element_selector)); } catch { matches = []; }
+      const selected = chooseElementCandidates(matches, step, 'selector', {
+        exactSelector: true,
+        uniqueSelector: matches.length === 1,
+        stableSelector: step.target_context?.selectorConfidence === 'high' || isStableReplaySelector(step.element_selector),
+      });
+      if (selected) return selected;
     }
 
     // 2순위: XPath
-    if (!rect && root?.nodeType === Node.DOCUMENT_NODE && step.element_xpath) {
+    if (root?.nodeType === Node.DOCUMENT_NODE && step.element_xpath) {
       try {
-        const xr = root.evaluate(step.element_xpath, root, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
-        const xe = xr.singleNodeValue;
-        if (xe) {
-          const accepted = acceptElementTarget(xe, rectOf(xe), 'xpath', step);
-          if (accepted) return accepted;
-          el = null; rect = null; source = 'none';
+        const xr = root.evaluate(step.element_xpath, root, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+        const matches = [];
+        for (let i = 0; i < Math.min(xr.snapshotLength, 30); i += 1) {
+          const match = xr.snapshotItem(i);
+          if (match?.nodeType === Node.ELEMENT_NODE) matches.push(match);
         }
+        const selected = chooseElementCandidates(matches, step, 'xpath', { xpathMatch: true });
+        if (selected) return selected;
       } catch { /* noop */ }
     }
 
-    // 2.5순위: 퍼지 자가복구 — 셀렉터·XPath가 모두 깨졌을 때 저장 힌트(텍스트·속성·위치)로 후보 점수화
-    if (!rect && !hasNestedTarget) {
-      const fz = fuzzyFind(step);
-      if (fz) {
-        const accepted = acceptElementTarget(fz, rectOf(fz), 'fuzzy', step);
-        if (accepted) return accepted;
-        el = null; rect = null; source = 'none';
-      }
+    // 3순위: 퍼지 자가복구 — 이름·속성·문맥·위치가 함께 맞는 유일한 후보만 허용한다.
+    if (!hasNestedTarget) {
+      const fuzzy = fuzzyFind(step);
+      if (fuzzy) return fuzzy;
     }
 
-    // 3순위: 정규화 rect (0~1)
-    if (!rect && step.element_rect) {
-      const r = normalizedElementRect(step);
-      if (r) {
-        rect = { left: r.x * window.innerWidth, top: r.y * window.innerHeight, width: r.width * window.innerWidth, height: r.height * window.innerHeight };
-        source = 'rect';
-      }
+    // 4순위: 소유자가 직접 보정한 핫스팟. 빈 좌표 박스를 그리지 않고 실제 DOM 요소가
+    // 충분히 같은 대상으로 확인될 때만 사용한다.
+    if (step.hotspot_x != null && step.hotspot_y != null) {
+      const manual = resolvePointElement(
+        (Number(step.hotspot_x) / 100) * window.innerWidth,
+        (Number(step.hotspot_y) / 100) * window.innerHeight,
+        step,
+        'manual',
+        { manualTarget: true },
+      );
+      if (manual) return manual;
     }
 
-    // 4순위: click_x/y (0~1 정규화) — 핫스팟은 0.5순위에서 이미 처리
-    if (!rect && step.click_x != null && step.click_y != null) {
+    // 5순위: AI 재탐색. 높은 신뢰도 좌표라도 실제 DOM 후보와 기록 힌트가 일치해야 한다.
+    if (step._regroundXY && Number(step._regroundXY.confidence) >= 0.85) {
+      const ai = resolvePointElement(
+        Number(step._regroundXY.x) * window.innerWidth,
+        Number(step._regroundXY.y) * window.innerHeight,
+        step,
+        'ai',
+        { aiConfidence: Number(step._regroundXY.confidence) },
+      );
+      if (ai) return ai;
+    }
+
+    // 6순위: 레거시 좌표는 실제 상호작용 요소와 강한 접근성/문맥 증거가 일치할 때만 복구한다.
+    if (step.click_x != null && step.click_y != null) {
       const p = normalizedClickPoint(step);
       if (p) {
-        const cx = p.x * window.innerWidth, cy = p.y * window.innerHeight;
-        rect = { left: cx - COORD_BOX / 2, top: cy - COORD_BOX / 2, width: COORD_BOX, height: COORD_BOX };
-        source = 'coord';
+        const coordinate = resolvePointElement(
+          p.x * window.innerWidth,
+          p.y * window.innerHeight,
+          step,
+          'coordinate-element',
+          {},
+        );
+        if (coordinate) return coordinate;
       }
     }
 
-    return { el, rect, source };
+    return { el: null, rect: null, source: 'none', confidence: 'low', score: 0, margin: 0 };
   }
 
   function rectOf(el) {
@@ -162,38 +163,114 @@
   // ── 퍼지 자가복구 (P2) ────────────────────────────────────────
   // 셀렉터/XPath가 모두 깨졌을 때, 저장된 힌트(보이는 텍스트·속성·위치)로 현재 DOM 후보를
   // 점수화해 같은 요소를 재발견한다. 좌표 폴백보다 정확하고, 화면이 바뀌면(텍스트 없음) null.
-  function rectIntersectsViewport(rect, margin) {
-    const m = margin == null ? 8 : margin;
-    return rect.left + rect.width > m &&
-      rect.top + rect.height > m &&
-      rect.left < window.innerWidth - m &&
-      rect.top < window.innerHeight - m;
+  function isStableReplaySelector(selector) {
+    const value = String(selector || '');
+    return /^#[A-Za-z_]/.test(value)
+      || /\[(data-testid|data-cy|data-test|aria-label|name)=["']/.test(value);
   }
 
-  function rectOutsideViewport(rect, margin) {
-    return !rectIntersectsViewport(rect, margin);
+  function cleanText(value, max = 240) {
+    return String(value || '').replace(/\s+/g, ' ').trim().slice(0, max);
   }
 
-  function revealElementInViewport(el) {
-    if (!el || !el.isConnected) return null;
-    try {
-      el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'auto' });
-      return rectOf(el);
-    } catch {
-      return null;
+  function textFromIds(doc, ids) {
+    return String(ids || '').split(/\s+/).filter(Boolean).map((id) => {
+      try { return doc.getElementById(id)?.textContent || ''; } catch { return ''; }
+    }).join(' ');
+  }
+
+  function accessibleNameOf(el) {
+    if (!el) return '';
+    const doc = el.ownerDocument || document;
+    const labelled = textFromIds(doc, el.getAttribute?.('aria-labelledby'));
+    const associated = el.labels ? Array.from(el.labels).map(label => label.textContent || '').join(' ') : '';
+    return cleanText(
+      labelled
+      || associated
+      || el.getAttribute?.('aria-label')
+      || el.getAttribute?.('title')
+      || el.getAttribute?.('placeholder')
+      || el.getAttribute?.('name')
+      || el.value
+      || el.textContent,
+    );
+  }
+
+  function contextLabelOf(el) {
+    const container = el?.closest?.('form,fieldset,section,article,[role="dialog"],[role="region"]');
+    return cleanText(container?.querySelector?.('legend,h1,h2,h3,[role="heading"]')?.textContent, 120);
+  }
+
+  function isInteractiveElement(el) {
+    if (!el?.matches) return false;
+    if (el.matches(':disabled,[aria-disabled="true"]')) return false;
+    const style = (el.ownerDocument?.defaultView || window).getComputedStyle(el);
+    return el.matches('button,a[href],input:not([type="hidden"]),select,textarea,summary,label,[role="button"],[role="link"],[role="menuitem"],[role="option"],[role="tab"],[role="checkbox"],[role="radio"],[role="switch"],[role="combobox"],[role="textbox"],[onclick],[tabindex]:not([tabindex="-1"])')
+      || style.cursor === 'pointer';
+  }
+
+  function geometrySimilarity(rect, step) {
+    const expected = expectedGeometry(step);
+    if (!expected.point && !expected.rect) return 0;
+    let score = 0;
+    if (expected.point) {
+      if (pointInRect(expected.point.x, expected.point.y, rect, 20)) score = 1;
+      else {
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const diagonal = Math.max(1, Math.hypot(window.innerWidth, window.innerHeight));
+        score = Math.max(score, 1 - Math.hypot(cx - expected.point.x, cy - expected.point.y) / (diagonal * 0.38));
+      }
     }
+    if (expected.rect) score = Math.max(score, rectOverlapRatio(rect, expected.rect));
+    return Math.max(0, Math.min(1, score));
   }
 
-  function acceptElementTarget(el, rect, source, step) {
-    if (!el || !rect || rect.width < 1 || rect.height < 1) return null;
-    if (isGeometryMatch(el, rect, step)) return { el, rect, source };
-    if (!rectOutsideViewport(rect)) return null;
+  function replayCandidate(el, step, source, evidence) {
+    if (!el || !el.isConnected || isOverlayRootId(el.id) || /^(HTML|BODY)$/.test(el.tagName || '')) return null;
+    const rect = rectOf(el);
+    if (!rect || rect.width < 1 || rect.height < 1 || !isVisibleEl(el)) return null;
+    const areaRatio = Math.max(0, rect.width * rect.height) / Math.max(1, window.innerWidth * window.innerHeight);
+    const context = step.target_context || {};
+    const targeting = window.ParroTargeting;
+    const similarity = targeting?.textSimilarity || ((a, b) => cleanText(a).toLowerCase() === cleanText(b).toLowerCase() ? 1 : 0);
+    const facts = {
+      visible: true,
+      disabled: !!el.matches?.(':disabled,[aria-disabled="true"]'),
+      interactive: isInteractiveElement(el),
+      stableAttribute: ['id', 'data-testid', 'data-cy', 'data-test', 'aria-label', 'name'].some(attr => !!el.getAttribute?.(attr)),
+      accessibleSimilarity: context.accessibleName ? similarity(accessibleNameOf(el), context.accessibleName) : 0,
+      contextSimilarity: context.contextLabel ? similarity(contextLabelOf(el), context.contextLabel) : 0,
+      pageTitleSimilarity: context.pageTitle ? similarity(document.title, context.pageTitle) : 0,
+      geometrySimilarity: geometrySimilarity(rect, step),
+      areaRatio,
+      ...(evidence || {}),
+    };
+    return { el, rect, source, facts };
+  }
 
-    const revealed = revealElementInViewport(el);
-    if (revealed && revealed.width >= 1 && revealed.height >= 1 && rectIntersectsViewport(revealed, 0)) {
-      return { el, rect: revealed, source };
-    }
-    return null;
+  function chooseElementCandidates(elements, step, source, evidence) {
+    const candidates = Array.from(new Set(elements || []))
+      .map(el => replayCandidate(el, step, source, evidence))
+      .filter(Boolean);
+    if (!candidates.length) return null;
+    const decision = window.ParroTargeting?.chooseReplayTarget?.(candidates);
+    if (!decision?.approved || !decision.best) return null;
+    return {
+      el: decision.best.el,
+      rect: decision.best.rect,
+      source,
+      confidence: decision.confidence,
+      score: decision.best.score,
+      margin: decision.margin,
+    };
+  }
+
+  function resolvePointElement(x, y, step, source, evidence) {
+    if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight) return null;
+    const hit = promoteHitTarget(document.elementFromPoint(x, y));
+    if (!hit || !isInteractiveElement(hit)) return null;
+    return chooseElementCandidates([hit], step, source, evidence);
   }
 
   function normalizeUnit(value) {
@@ -248,64 +325,31 @@
     return area / minArea;
   }
 
-  function isTextInputLike(el) {
-    if (!el) return false;
-    const tag = (el.tagName || '').toLowerCase();
-    const role = (el.getAttribute && (el.getAttribute('role') || '') || '').toLowerCase();
-    return tag === 'input' || tag === 'textarea' || el.isContentEditable || role === 'textbox';
-  }
-
-  function isGeometryMatch(el, rect, step) {
-    const expected = expectedGeometry(step);
-    if (!expected.point && !expected.rect) return true;
-
-    const viewportArea = Math.max(1, window.innerWidth * window.innerHeight);
-    const targetArea = Math.max(1, rect.width * rect.height);
-    if (!isTextInputLike(el) && targetArea / viewportArea > 0.45) return false;
-
-    if (expected.point && pointInRect(expected.point.x, expected.point.y, rect, 48)) return true;
-    if (expected.rect) {
-      const center = {
-        x: expected.rect.left + expected.rect.width / 2,
-        y: expected.rect.top + expected.rect.height / 2,
-      };
-      if (pointInRect(center.x, center.y, rect, 48)) return true;
-      if (rectOverlapRatio(rect, expected.rect) >= 0.25) return true;
-    }
-    if (expected.point) {
-      const cx = rect.left + rect.width / 2;
-      const cy = rect.top + rect.height / 2;
-      return Math.hypot(cx - expected.point.x, cy - expected.point.y) <= 96;
-    }
-    return false;
-  }
-
-  function normText(s) { return (s || '').trim().replace(/\s+/g, ' '); }
-
   function isVisibleEl(el) {
     if (!el || !el.isConnected) return false;
     const r = el.getBoundingClientRect();
     if (r.width < 1 || r.height < 1) return false;
-    const cs = getComputedStyle(el);
+    const cs = (el.ownerDocument?.defaultView || window).getComputedStyle(el);
     return cs.visibility !== 'hidden' && cs.display !== 'none' && parseFloat(cs.opacity || '1') > 0.01;
-  }
-
-  function tokenOverlap(a, b) {
-    const ta = new Set(a.split(' ').filter(Boolean));
-    const tb = new Set(b.split(' ').filter(Boolean));
-    if (!ta.size || !tb.size) return 0;
-    let inter = 0; ta.forEach(t => { if (tb.has(t)) inter += 1; });
-    return inter / (ta.size + tb.size - inter); // Jaccard
   }
 
   // 저장된 selector/xpath/좌표에서 매칭 힌트 추출 (P1 텍스트앵커 XPath가 보이는 텍스트를 인코딩)
   function extractHint(step) {
-    const hint = { tag: null, text: null, attrName: null, attrVal: null, nx: null, ny: null };
+    const context = step.target_context || {};
+    const hint = {
+      tag: null,
+      text: cleanText(context.accessibleName),
+      contextText: cleanText(context.contextLabel),
+      attrName: null,
+      attrVal: null,
+      nx: null,
+      ny: null,
+    };
     const xp = step.element_xpath || '';
     const m = xp.match(/^\/\/([a-z0-9]+)\[normalize-space\(\.\)=(['"])([\s\S]*?)\2\]$/i);
-    if (m) { hint.tag = m[1].toLowerCase(); hint.text = m[3]; }
+    if (m) { hint.tag = m[1].toLowerCase(); if (!hint.text) hint.text = m[3]; }
     const sel = step.element_selector || '';
-    const a = sel.match(/([a-z0-9]+)?\[(name|aria-label|data-testid)="([^"]*)"\]\s*$/i);
+    const a = sel.match(/([a-z0-9]+)?\[(name|aria-label|data-testid|data-test|data-cy)=["']([^"']*)["']\]\s*$/i);
     if (a) { if (!hint.tag && a[1]) hint.tag = a[1].toLowerCase(); hint.attrName = a[2]; hint.attrVal = a[3]; }
     if (!hint.tag) { const t = sel.match(/([a-z0-9]+)\s*$/i); if (t) hint.tag = t[1].toLowerCase(); }
     const p = normalizedClickPoint(step);
@@ -315,48 +359,23 @@
     return hint;
   }
 
-  function scoreCandidate(el, hint, vw, vh) {
-    if (!isVisibleEl(el)) return 0;
-    let score = 0, w = 0;
-    if (hint.text) {
-      w += 0.5;
-      const t = normText(el.textContent);
-      if (t && t === hint.text) score += 0.5;
-      else if (t && (t.includes(hint.text) || hint.text.includes(t))) score += 0.32;
-      else score += 0.5 * tokenOverlap(t, hint.text);
-    }
-    if (hint.attrVal) {
-      w += 0.3;
-      const v = el.getAttribute(hint.attrName);
-      if (v === hint.attrVal) score += 0.3;
-      else if (v && (v.includes(hint.attrVal) || hint.attrVal.includes(v))) score += 0.18;
-    }
-    if (hint.tag) { w += 0.1; if (el.tagName.toLowerCase() === hint.tag) score += 0.1; }
-    if (hint.nx != null) {
-      w += 0.1;
-      const r = el.getBoundingClientRect();
-      const cx = (r.left + r.width / 2) / vw, cy = (r.top + r.height / 2) / vh;
-      const d = Math.hypot(cx - hint.nx, cy - hint.ny);
-      score += 0.1 * Math.max(0, 1 - d / 0.5);
-    }
-    return w ? score / w : 0;
-  }
-
   function fuzzyFind(step) {
     const hint = extractHint(step);
-    if (!hint.text && !hint.attrVal) return null;  // 점수 근거 없음 → 시도 안 함(좌표 폴백 유지)
-    // 태그는 필터가 아닌 점수 신호 — 태그가 바뀐 경우(button→div[role=button])도 잡도록 합집합
+    if (!hint.text && !hint.attrVal && !hint.contextText) return null;
     let sel = 'a,button,input,select,textarea,label,[role],[onclick],[tabindex]';
     if (hint.tag && /^[a-z][a-z0-9]*$/.test(hint.tag)) sel = hint.tag + ',' + sel;
     let nodes;
     try { nodes = document.querySelectorAll(sel); } catch { return null; }
-    const vw = window.innerWidth, vh = window.innerHeight;
-    let best = null, bestScore = 0;
-    for (const el of nodes) {
-      const s = scoreCandidate(el, hint, vw, vh);
-      if (s > bestScore) { bestScore = s; best = el; }
-    }
-    return bestScore >= 0.6 ? best : null;
+    const similarity = window.ParroTargeting?.textSimilarity
+      || ((a, b) => cleanText(a).toLowerCase() === cleanText(b).toLowerCase() ? 1 : 0);
+    const candidates = Array.from(nodes).filter((el) => {
+      if (!isVisibleEl(el)) return false;
+      const nameMatch = hint.text ? similarity(accessibleNameOf(el), hint.text) : 0;
+      const contextMatch = hint.contextText ? similarity(contextLabelOf(el), hint.contextText) : 0;
+      const attrMatch = hint.attrVal && el.getAttribute(hint.attrName) === hint.attrVal;
+      return attrMatch || nameMatch >= 0.55 || contextMatch >= 0.72;
+    });
+    return chooseElementCandidates(candidates, step, 'fuzzy', { fuzzyMatch: true });
   }
 
   function pointInRect(x, y, rect, pad) {
@@ -399,19 +418,20 @@
   }
 
   // 웹 제품과 동일한 상태형 AI 가이드 아바타.
+  const avatarAsset = (name) => `${chrome.runtime.getURL(`assets/${name}`)}?v=20260720`;
   const MASCOT_IMAGE_URLS = {
-    idle: chrome.runtime.getURL('assets/parro-ai-avatar-neutral.png'),
-    neutral: chrome.runtime.getURL('assets/parro-ai-avatar-neutral.png'),
-    listen: chrome.runtime.getURL('assets/parro-ai-avatar-listen.png'),
-    talk: chrome.runtime.getURL('assets/parro-ai-avatar-talk.png'),
-    point: chrome.runtime.getURL('assets/parro-ai-avatar-point.png'),
-    think: chrome.runtime.getURL('assets/parro-ai-avatar-think.png'),
-    search: chrome.runtime.getURL('assets/parro-ai-avatar-search.png'),
-    warning: chrome.runtime.getURL('assets/parro-ai-avatar-warning.png'),
-    error: chrome.runtime.getURL('assets/parro-ai-avatar-error.png'),
-    blocked: chrome.runtime.getURL('assets/parro-ai-avatar-blocked.png'),
-    clarify: chrome.runtime.getURL('assets/parro-ai-avatar-clarify.png'),
-    success: chrome.runtime.getURL('assets/parro-ai-avatar-success.png'),
+    idle: avatarAsset('parro-ai-avatar-neutral.png'),
+    neutral: avatarAsset('parro-ai-avatar-neutral.png'),
+    listen: avatarAsset('parro-ai-avatar-listen.png'),
+    talk: avatarAsset('parro-ai-avatar-talk.png'),
+    point: avatarAsset('parro-ai-avatar-point.png'),
+    think: avatarAsset('parro-ai-avatar-think.png'),
+    search: avatarAsset('parro-ai-avatar-search.png'),
+    warning: avatarAsset('parro-ai-avatar-warning.png'),
+    error: avatarAsset('parro-ai-avatar-error.png'),
+    blocked: avatarAsset('parro-ai-avatar-blocked.png'),
+    clarify: avatarAsset('parro-ai-avatar-clarify.png'),
+    success: avatarAsset('parro-ai-avatar-success.png'),
   };
   const MASCOT_SEQUENCE_STATES = {
     idle: 'listen',
@@ -479,12 +499,37 @@
   const AVATAR_STYLE = `width:54px;height:54px;border-radius:16px;background:linear-gradient(135deg,#F1FBF9,#E4F3F6);box-shadow:0 6px 20px rgba(0,155,142,.32);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;`;
 
   // ── 오버레이 렌더 ─────────────────────────────────────────────
-  // 단계의 page_url과 현재 페이지(origin+pathname)가 같은지 — 다르면 핫스팟을 찍지 않는다.
+  const VOLATILE_QUERY_KEY = /^(utm_.+|fbclid|gclid|_ga|code|state|session|session_id|timestamp|ts|_t)$/i;
+
+  function normalizedPath(pathname) {
+    const value = String(pathname || '/').replace(/\/{2,}/g, '/');
+    return value.length > 1 ? value.replace(/\/$/, '') : value;
+  }
+
+  function stableQueryMatches(recorded, current) {
+    for (const [key, value] of recorded.searchParams.entries()) {
+      if (VOLATILE_QUERY_KEY.test(key)) continue;
+      if (current.searchParams.get(key) !== value) return false;
+    }
+    return true;
+  }
+
+  function routeHash(url) {
+    const hash = decodeURIComponent(url.hash || '');
+    if (!/^#!?\//.test(hash)) return '';
+    return hash.replace(/^#!?/, '').split('?')[0].replace(/\/$/, '') || '/';
+  }
+
+  // origin/path와 기록 당시의 안정적인 query/hash route를 함께 검증한다.
   function pageMatches(pageUrl) {
     try {
       const a = new URL(pageUrl), b = new URL(location.href);
-      return a.origin + a.pathname === b.origin + b.pathname;
-    } catch { return true; }  // 파싱 불가 시 막지 않음
+      if (!/^https?:$/.test(a.protocol) || !/^https?:$/.test(b.protocol)) return false;
+      if (a.origin !== b.origin || normalizedPath(a.pathname) !== normalizedPath(b.pathname)) return false;
+      const expectedHashRoute = routeHash(a);
+      if (expectedHashRoute && expectedHashRoute !== routeHash(b)) return false;
+      return stableQueryMatches(a, b);
+    } catch { return false; }
   }
 
   function isExplanationStep(step) {
@@ -501,31 +546,33 @@
     hide();
     opts = opts || {};
 
-    if (isExplanationStep(step)) {
-      showExplanation(step, opts);
+    // Live Guide는 기록된 실제 페이지에서만 표시한다. URL이 없거나 다르면 현재 페이지에는
+    // 어떤 카드·아바타·좌표 힌트도 만들지 않고, 페이지가 맞아지는지만 조용히 감시한다.
+    if (!step?.page_url || !pageMatches(step.page_url)) {
+      showWaiting(step, opts, 'page_mismatch');
       return;
     }
 
-    // URL 검증 — 엉뚱한 페이지면 좌표 핫스팟을 찍지 말고 '다른 페이지' 안내만 표시
-    if (step && step.page_url && !pageMatches(step.page_url)) {
-      showWrongPage(step, opts);
+    if (isExplanationStep(step)) {
+      showExplanation(step, opts);
+      opts.onTargetStatus && opts.onTargetStatus('ready');
       return;
     }
 
     const resolved = resolveTarget(step);
 
-    // 요소 검증 — 셀렉터/XPath가 있는데 현재 DOM에서 못 찾으면(같은 URL의 다른 화면,
-    // 또는 녹화 때 차단돼 건너뛴 단계) 좌표로 엉뚱한 핫스팟을 찍지 않는다. 대기 모드로 두고
-    // 요소가 화면에 나타나면 자동으로 정상 오버레이로 전환한다.
-    const expectsEl = !!(step.element_selector || step.element_xpath);
-    const foundEl   = resolved.source === 'selector' || resolved.source === 'xpath' || resolved.source === 'fuzzy' || resolved.source === 'ai' || resolved.source === 'manual';
-    const usesCoordinateFallback = expectsEl && !foundEl &&
-      (resolved.source === 'rect' || resolved.source === 'coord') && !!resolved.rect;
-    if (expectsEl && !foundEl && !usesCoordinateFallback) {
-      showWaiting(step, opts);
-      maybeReground(step, opts);  // AI 시각 재탐색 1회성 시도 (성공 시 좌표 오버레이로 전환)
+    if (!resolved.el || !resolved.rect) {
+      showWaiting(step, opts, 'searching');
+      maybeReground(step, opts);
       return;
     }
+
+    opts.onTargetStatus && opts.onTargetStatus('ready', {
+      source: resolved.source,
+      confidence: resolved.confidence,
+      score: resolved.score,
+      margin: resolved.margin,
+    });
 
     if (resolved.el) {
       try {
@@ -589,7 +636,7 @@
       ? escapeHtml(String(step.type_text).length > 60 ? String(step.type_text).slice(0, 60) + '…' : String(step.type_text))
       : '';
     const tooltipText = step.instruction || step.title || '';
-    const tooltipMascotState = resolved.source === 'none' ? 'warning' : 'talk';
+    const tooltipMascotState = 'talk';
 
     const tooltip = document.createElement('div');
     tooltip.style.cssText = `position:fixed;width:${TIP_W}px;box-sizing:border-box;background:${TIP_BG};color:#fff;border-radius:13px;padding:13px;box-shadow:0 12px 40px rgba(0,0,0,.45),0 0 0 1px rgba(23,201,182,.16);z-index:5;pointer-events:auto;animation:parro-tip-in 0.28s ease forwards;`;
@@ -599,7 +646,6 @@
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
             <span style="font-size:11px;font-weight:700;color:#8DD63F;background:rgba(0,155,142,.24);padding:2px 8px;border-radius:20px">${idx + 1} / ${total}</span>
-            ${resolved.source === 'none' ? '<span style="font-size:10.5px;color:#FFB199">요소 미발견</span>' : ''}
             <div style="flex:1"></div>
             <button class="parro-btn mimic-btn" data-act="hide-tooltip" title="툴팁 숨기기" style="background:transparent;color:rgba(255,255,255,.4);padding:3px 6px;font-size:11px">👁</button>
             <button class="parro-btn mimic-btn" data-act="hide-tooltip" title="툴팁 닫기" style="background:transparent;color:rgba(255,255,255,.4);padding:3px 6px;font-size:12px">✕</button>
@@ -654,9 +700,7 @@
 
     shadow.appendChild(root);
 
-    const resolveKey = `${opts.index ?? 0}:${step.id || step.title || ''}`;
-    state = { host, shadow, hl, pulse, avatar, tooltip, arrow, restoreBtn, scrollHint, resolved, step, opts, idx, total, advanced: false, completed: false, fillTimer: null, tooltipHidden: false, fallbackKey: usesCoordinateFallback ? resolveKey : null };
-    if (usesCoordinateFallback) maybeReground(step, opts);
+    state = { host, shadow, hl, pulse, avatar, tooltip, arrow, restoreBtn, scrollHint, resolved, step, opts, idx, total, advanced: false, completed: false, fillTimer: null, tooltipHidden: false };
 
     // 자동입력
     if (step.type_text && resolved.el) autoFill(resolved.el, String(step.type_text));
@@ -817,8 +861,10 @@
     if (!state || state.advanced || state.completed) return;
     state.advanced = true;
     if (state.idx + 1 >= state.total) {
-      showComplete();
-      state.opts.onComplete && state.opts.onComplete(reason);
+      const onComplete = state.opts && state.opts.onComplete;
+      state.completed = true;
+      hide();
+      onComplete && onComplete(reason);
       return;
     }
     state.opts.onAdvance && state.opts.onAdvance(reason);
@@ -1055,66 +1101,55 @@
     state = { host, shadow, explanation: true };
   }
 
-  function showWaiting(step, opts) {
-    const host = document.createElement('div');
-    host.id = OVERLAY_ROOT_ID;
-    host.style.cssText = `all:initial;position:fixed;inset:0;pointer-events:none;z-index:${Z};font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;`;
-    document.documentElement.appendChild(host);
-    const shadow = host.attachShadow({ mode: 'closed' });
+  function showWaiting(step, opts, initialStatus) {
+    const waitKey = `${opts.index ?? 0}:${step?.page_url || ''}:${step?.id || step?.title || ''}:${step?.element_selector || step?.element_xpath || step?.target_context?.accessibleName || ''}`;
+    state = { waiting: true, waitKey, waitStatus: initialStatus || 'searching', findObserver: null, findTimer: null, retryTimer: null };
+    opts.onTargetStatus && opts.onTargetStatus(state.waitStatus);
 
-    const idx = opts.index ?? 0, total = opts.total ?? 1;
-    const waitingText = step.instruction || '안내할 항목이 화면에 아직 없습니다. 화면을 진행하면 자동으로 표시됩니다.';
-
-    const card = document.createElement('div');
-    card.style.cssText = `position:fixed;left:50%;bottom:24px;transform:translateX(-50%);width:340px;max-width:calc(100vw - 32px);background:${TIP_BG};color:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 12px 40px rgba(0,0,0,.45),0 0 0 1px rgba(23,201,182,.16);pointer-events:auto`;
-    card.innerHTML = `
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <div style="${AVATAR_STYLE}width:38px;height:38px;flex-shrink:0">${mascotHtml('search')}</div>
-        <span style="font-size:11px;font-weight:700;color:#8DD63F;background:rgba(0,155,142,.24);padding:2px 8px;border-radius:20px">${idx + 1} / ${total}</span>
-        <span style="font-size:11px;color:#9CA3AF">🔍 이 단계 화면을 찾는 중…</span>
-        <div style="flex:1"></div>
-        <button class="wt-btn" data-act="next" title="이 단계 건너뛰기" style="background:transparent;color:rgba(255,255,255,.65);padding:3px 8px">건너뛰기</button>
-      </div>
-      <div style="font-size:12px;color:#9CA3AF;line-height:1.5;margin-bottom:10px">${escapeHtml(waitingText)}</div>
-      <div style="display:flex;gap:6px;align-items:center">
-        <button class="wt-btn" data-act="prev" style="background:rgba(255,255,255,.1);color:#D1D5DB;font-size:12px;padding:6px 11px">← 이전</button>
-        <div style="flex:1"></div>
-        <button class="wt-btn" data-act="next" style="background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;padding:7px 16px">${idx + 1 >= total ? '완료 ✓' : '건너뛰기 →'}</button>
-      </div>`;
-    shadow.appendChild(style(`${AVATAR_MOTION_CSS}.wt-btn{pointer-events:auto;cursor:pointer;border:none;border-radius:8px;font-size:13px;font-weight:600;padding:7px 12px;transition:opacity .15s}.wt-btn:active{opacity:.75}`));
-    shadow.appendChild(card);
-
-    card.addEventListener('click', (e) => {
-      const act = e.target && e.target.getAttribute && e.target.getAttribute('data-act');
-      if (act === 'prev') opts.onPrev && opts.onPrev();
-      else if (act === 'next') opts.onAdvance && opts.onAdvance('manual');
-    });
-
-    state = { host, shadow, waiting: true, waitKey: `${opts.index ?? 0}:${step.id || step.title || ''}`, findObserver: null, findTimer: null };
-
-    // 셀렉터/XPath로 요소가 잡히면 정상 오버레이로 전환
+    // 페이지와 대상 요소가 모두 검증되면 그때 처음으로 DOM 오버레이를 만든다.
     const tryResolve = () => {
       if (!state || !state.waiting) return false;
-      const r = resolveTarget(step);
-      if ((r.source === 'selector' || r.source === 'xpath' || r.source === 'fuzzy') && r.el) {
-        show(step, opts);  // hide() 후 정상 오버레이 렌더
+      if (!step?.page_url || !pageMatches(step.page_url)) {
+        if (state.waitStatus !== 'page_mismatch') {
+          state.waitStatus = 'page_mismatch';
+          opts.onTargetStatus && opts.onTargetStatus('page_mismatch');
+        }
+        return false;
+      }
+      if (isExplanationStep(step)) {
+        show(step, opts);
         return true;
+      }
+      const r = resolveTarget(step);
+      if (r.el && r.rect) {
+        show(step, opts);
+        return true;
+      }
+      if (state.waitStatus !== 'searching') {
+        state.waitStatus = 'searching';
+        opts.onTargetStatus && opts.onTargetStatus('searching');
       }
       return false;
     };
 
-    // 1순위: MutationObserver — DOM이 바뀌는 즉시 재시도(rAF 디바운스). 폴링보다 빠르고 CPU 절약.
+    // DOM 변화는 짧게 디바운스하고, History API만 바뀌는 SPA를 위해 저빈도 폴링을 보조로 둔다.
     let pending = false;
     const scheduleTryResolve = () => {
       if (pending) return;
       pending = true;
-      requestAnimationFrame(() => { pending = false; tryResolve(); });
+      state.retryTimer = setTimeout(() => { pending = false; tryResolve(); }, 120);
     };
     const obs = new MutationObserver(scheduleTryResolve);
-    try { obs.observe(document.body, { childList: true, subtree: true }); } catch { /* noop */ }
+    try {
+      obs.observe(document.documentElement, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['id', 'class', 'style', 'role', 'aria-label', 'aria-hidden', 'disabled'],
+      });
+    } catch { /* noop */ }
     state.findObserver = obs;
     try {
-      window.addEventListener('scroll', scheduleTryResolve, true);
       window.addEventListener('resize', scheduleTryResolve, true);
       state.onWaitViewportChange = scheduleTryResolve;
     } catch { /* noop */ }
@@ -1123,18 +1158,26 @@
     const safety = () => {
       if (!state || !state.waiting) return;
       if (tryResolve()) return;
-      state.findTimer = setTimeout(safety, 1000);
+      state.findTimer = setTimeout(safety, 1200);
     };
-    state.findTimer = setTimeout(safety, 1000);
+    state.findTimer = setTimeout(safety, 800);
   }
 
   // AI 시각 재탐색 (P3) — 1회성. 성공 시 step._regroundXY를 세팅하고 정상 오버레이로 재렌더.
   // 셀렉터·XPath·퍼지가 모두 실패한 스텝에서만, 현재 화면 스크린샷을 Vision에 보내 위치 복구.
   function maybeReground(step, opts) {
-    const key = `${opts.index ?? 0}:${step.id || step.title || ''}`;
+    const key = `${opts.index ?? 0}:${step.page_url || ''}:${step.id || step.title || ''}:${step.element_selector || step.element_xpath || step.target_context?.accessibleName || ''}`;
     // 재방문: 이미 찾은 좌표가 있으면 AI 재호출 없이 즉시 적용(영구 대기 방지)
     const cached = regroundCache.get(key);
-    if (cached) { step._regroundXY = cached; show(step, opts); return; }
+    if (cached) {
+      // 이미 같은 AI 좌표로 다시 해석했다가 DOM 증거 검증에서 탈락했다면 조용히 대기한다.
+      // 무조건 show()를 재호출하면 실패한 AI 결과로 동기 재귀가 발생할 수 있다.
+      if (!step._regroundXY) {
+        step._regroundXY = cached;
+        show(step, opts);
+      }
+      return;
+    }
     if (regroundCache.has(key)) return;  // 이전에 실패(null) 마킹됨 → 재시도 안 함
     regroundCache.set(key, null);        // 시도 마킹
     let elementText = '';
@@ -1148,13 +1191,14 @@
         actionType: step.kind || null,
       }, (res) => {
         void chrome.runtime.lastError;
-        if (!res || !res.found) return;
-        const xy = { x: res.x, y: res.y };
+        const confidence = Number(res?.confidence) || 0;
+        if (!res?.found || confidence < 0.85 || !Number.isFinite(Number(res.x)) || !Number.isFinite(Number(res.y))) return;
+        const xy = { x: Number(res.x), y: Number(res.y), confidence };
         regroundCache.set(key, xy);  // 성공 캐시 — 재방문 시 재사용
         // 응답 시점에도 같은 스텝을 대기 중일 때만 적용 (사용자가 넘어갔으면 캐시만 남김)
-        if (!state || (state.waitKey !== key && state.fallbackKey !== key)) return;
+        if (!state || state.waitKey !== key) return;
         step._regroundXY = xy;
-        show(step, opts);  // resolveTarget 0순위가 좌표를 집어 정상 오버레이로 전환
+        show(step, opts);
       });
     } catch { /* noop */ }
   }
@@ -1207,9 +1251,9 @@
     if (state.rafId) cancelAnimationFrame(state.rafId);
     if (state.fillTimer) clearTimeout(state.fillTimer);
     if (state.findTimer) clearTimeout(state.findTimer);
+    if (state.retryTimer) clearTimeout(state.retryTimer);
     if (state.findObserver) state.findObserver.disconnect();
     if (state.onWaitViewportChange) {
-      window.removeEventListener('scroll', state.onWaitViewportChange, true);
       window.removeEventListener('resize', state.onWaitViewportChange, true);
     }
     if (state.onDocClick) document.removeEventListener('click', state.onDocClick, true);

@@ -829,6 +829,16 @@
         onAdvance: (reason) => chrome.runtime.sendMessage({ type: 'GUIDE_NEXT', viaClick: reason === 'click' }),
         onPrev:    () => chrome.runtime.sendMessage({ type: 'GUIDE_PREV' }),
         onExit:    () => { chrome.runtime.sendMessage({ type: 'EXIT_GUIDE' }); guideApi.hide(); },
+        onComplete: (reason) => {
+          guideApi.hide();
+          chrome.runtime.sendMessage({ type: 'GUIDE_COMPLETE', reason: reason || 'complete' });
+        },
+        onTargetStatus: (status, evidence) => chrome.runtime.sendMessage({
+          type: 'GUIDE_TARGET_STATUS',
+          stepIndex: msg.index ?? 0,
+          status,
+          evidence: evidence || null,
+        }),
       });
       return false;
     }

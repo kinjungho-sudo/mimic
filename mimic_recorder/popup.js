@@ -1544,12 +1544,26 @@ const guideNextBtn    = document.getElementById('guideNextBtn');
 const guideStepLabel  = document.getElementById('guideStepLabel');
 const guidePctLabel   = document.getElementById('guidePctLabel');
 const guideProgressBar = document.getElementById('guideProgressBar');
+const guideTargetStatus = document.getElementById('guideTargetStatus');
 const guideStepTitle  = document.getElementById('guideStepTitle');
 const guideStepInstr  = document.getElementById('guideStepInstruction');
 const guideStepDots   = document.getElementById('guideStepDots');
 
 let guideSteps = [];
 let guideCurrentStep = 0;
+
+function renderGuideTargetStatus(status) {
+  if (!guideTargetStatus) return;
+  const states = {
+    navigating: { label: '대상 페이지로 이동 중', color: '#F59E0B' },
+    searching: { label: '정확한 대상을 찾는 중', color: '#F59E0B' },
+    ready: { label: '대상 확인됨', color: '#12B886' },
+    page_mismatch: { label: '기록된 페이지에서 대기 중', color: '#EF4444' },
+  };
+  const current = states[status] || states.navigating;
+  if (guideTargetStatus.firstElementChild) guideTargetStatus.firstElementChild.style.background = current.color;
+  if (guideTargetStatus.lastElementChild) guideTargetStatus.lastElementChild.textContent = current.label;
+}
 
 // Live Guide는 녹화 UI와 완전히 분리해 단독으로 보이게 한다 —
 // 헤더(스텝 카운트·전체캡처·설정), '캡처된 스텝' 목록, 하단 액션 바를 모두 숨긴다.
@@ -1684,7 +1698,7 @@ guideNextBtn.addEventListener('click', () => {
   const isLast = guideCurrentStep >= guideSteps.length - 1;
   if (isLast) {
     // 가이드 완료
-    chrome.runtime.sendMessage({ type: 'EXIT_GUIDE' }, () => {
+    chrome.runtime.sendMessage({ type: 'GUIDE_COMPLETE', reason: 'side_panel' }, () => {
       void chrome.runtime.lastError;
       guideSteps = [];
       guideCurrentStep = 0;
@@ -1709,23 +1723,30 @@ chrome.runtime.sendMessage({ type: 'GUIDE_VALIDATE' }, (r) => {
     guideCurrentStep = r.currentStep || 0;
     showGuideView();
     renderGuideStep(guideSteps, guideCurrentStep);
+    renderGuideTargetStatus(r.targetStatus);
   }
 });
 
 // storage 변화 감지: START_GUIDE 이후 guideModeActive가 세팅되면 Guide Me 뷰로 전환
 chrome.storage.onChanged.addListener((changes) => {
   if (changes.guideModeActive?.newValue === true) {
-    storageGet(['guideSteps', 'guideCurrentStep']).then((r) => {
+    storageGet(['guideSteps', 'guideCurrentStep', 'guideTargetStatus']).then((r) => {
       guideSteps = r.guideSteps || [];
       guideCurrentStep = r.guideCurrentStep || 0;
       if (guideSteps.length > 0) {
         showGuideView();
         renderGuideStep(guideSteps, guideCurrentStep);
+        renderGuideTargetStatus(r.guideTargetStatus);
       }
     });
   }
   if (changes.guideModeActive?.newValue === undefined && changes.guideModeActive?.oldValue) {
+    guideSteps = [];
+    guideCurrentStep = 0;
     hideGuideView();
+  }
+  if (changes.guideTargetStatus?.newValue) {
+    renderGuideTargetStatus(changes.guideTargetStatus.newValue);
   }
   // 오버레이에서 스텝 이동 시 사이드패널 동기화
   if (changes.guideCurrentStep !== undefined && guideSteps.length > 0) {

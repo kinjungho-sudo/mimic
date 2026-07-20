@@ -397,7 +397,7 @@ async function captureTab(windowId) {
 // content.js 상단의 window.__parroContentLoaded / legacy __mimicContentLoaded 가드가 중복 초기화를 막는다.
 function ensureContentScript(tabId) {
   return new Promise((resolve) => {
-    chrome.scripting.executeScript({ target: { tabId, allFrames: true }, files: ['guide-engine.js', 'targeting.js', 'content.js'] }, () => {
+    chrome.scripting.executeScript({ target: { tabId, allFrames: true }, files: ['targeting.js', 'guide-engine.js', 'content.js'] }, () => {
       const error = chrome.runtime.lastError?.message || null;
       if (error) {
         log('warn', 'bg', 'content script injection failed:', { tabId, error });
@@ -424,6 +424,97 @@ function classifyRecordableUrl(url) {
 function isSafeNavUrl(url) {
   try { const u = new URL(url); return u.protocol === 'http:' || u.protocol === 'https:'; }
   catch { return false; }
+}
+
+const GUIDE_STORAGE_KEYS = [
+  'guideSteps',
+  'guideCurrentStep',
+  'guideModeActive',
+  'guidePendingOverlay',
+  'guideTabId',
+  'guideSurvey',
+  'guideTargetStatus',
+  'guideTargetEvidence',
+];
+const VOLATILE_GUIDE_QUERY_KEY = /^(utm_.+|fbclid|gclid|_ga|code|state|session|session_id|timestamp|ts|_t)$/i;
+
+function normalizedGuidePath(pathname) {
+  const value = String(pathname || '/').replace(/\/{2,}/g, '/');
+  return value.length > 1 ? value.replace(/\/$/, '') : value;
+}
+
+function guideRouteHash(url) {
+  const hash = decodeURIComponent(url.hash || '');
+  if (!/^#!?\//.test(hash)) return '';
+  return hash.replace(/^#!?/, '').split('?')[0].replace(/\/$/, '') || '/';
+}
+
+function guidePageMatches(currentUrl, targetUrl) {
+  try {
+    const current = new URL(currentUrl);
+    const target = new URL(targetUrl);
+    if (!/^https?:$/.test(current.protocol) || !/^https?:$/.test(target.protocol)) return false;
+    if (current.origin !== target.origin || normalizedGuidePath(current.pathname) !== normalizedGuidePath(target.pathname)) return false;
+    const targetHashRoute = guideRouteHash(target);
+    if (targetHashRoute && targetHashRoute !== guideRouteHash(current)) return false;
+    for (const [key, value] of target.searchParams.entries()) {
+      if (VOLATILE_GUIDE_QUERY_KEY.test(key)) continue;
+      if (current.searchParams.get(key) !== value) return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function createGuideTab(url, windowId) {
+  return new Promise((resolve) => {
+    const options = { url, active: true };
+    if (windowId != null) options.windowId = windowId;
+    chrome.tabs.create(options, (tab) => resolve(chrome.runtime.lastError ? null : tab));
+  });
+}
+
+async function hideGuideOverlayEverywhere() {
+  const tabs = await new Promise((resolve) => chrome.tabs.query({}, (items) => {
+    resolve(chrome.runtime.lastError ? [] : (items || []));
+  }));
+  tabs.forEach((tab) => {
+    if (tab?.id != null && /^https?:/.test(tab.url || '')) sendTabMessage(tab.id, { type: 'HIDE_OVERLAY' });
+  });
+}
+
+async function clearGuideSession() {
+  await storageRemove(GUIDE_STORAGE_KEYS);
+  await hideGuideOverlayEverywhere();
+}
+
+function scheduleGuideOverlay(tabId, delayMs = 450) {
+  setTimeout(async () => {
+    const state = await storageGet([
+      'guideModeActive', 'guideTabId', 'guideSteps', 'guideCurrentStep', 'guideSurvey',
+    ]);
+    if (!state.guideModeActive || state.guideTabId !== tabId || !state.guideSteps?.length) return;
+    const index = state.guideCurrentStep || 0;
+    const step = state.guideSteps[index];
+    if (!step?.page_url) return;
+    const tab = await new Promise((resolve) => chrome.tabs.get(tabId, (value) => {
+      resolve(chrome.runtime.lastError ? null : value);
+    }));
+    if (!tab?.id || !guidePageMatches(tab.url, step.page_url)) {
+      await storageSet({ guideTargetStatus: 'page_mismatch' });
+      return;
+    }
+    const injection = await ensureContentScript(tab.id);
+    if (!injection?.ok) return;
+    sendTabMessage(tab.id, {
+      type: 'SHOW_OVERLAY',
+      step,
+      index,
+      total: state.guideSteps.length,
+      survey: state.guideSurvey || null,
+    });
+  }, Math.max(0, delayMs));
 }
 
 // ── 이미지 평균 해시(aHash) — 동일 이미지 중복 캡처 디덥 ─────────
@@ -965,7 +1056,6 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
     const isUuid = UUID_RE.test(guideToken);
 
     // ★ await 이전에 동기 캡처 — async IIFE 안에서는 sender가 변질될 수 있음
-    const senderTabId    = sender.tab?.id    ?? null;
     const senderWindowId = sender.tab?.windowId ?? null;
 
     // ★ user gesture 살아있는 지금(= await 이전) 동기 호출 — await 후에는 제스처 소멸
@@ -992,60 +1082,37 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         }
         const steps = data.steps || [];
         if (steps.length === 0) throw new Error('no steps');
+        const firstStep = steps[0];
+        if (!firstStep?.page_url || !isSafeNavUrl(firstStep.page_url)) {
+          sendResponse({ ok: false, error: 'guide_start_url_missing' });
+          return;
+        }
         const guideSurvey = data.survey?.enabled ? {
           enabled: true,
           tutorialId: data.tutorial_id,
           viewerSessionId: `live_guide:${data.tutorial_id}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`,
         } : null;
 
-        // sender 탭에 직접 카운트다운 전송 — active tab query는 다중창/탭전환 시 엉뚱한 탭을 잡음
-        if (senderTabId) {
-          await ensureContentScript(senderTabId);
-          sendTabMessage(senderTabId, { type: 'SHOW_GUIDE_COUNTDOWN' });
+        // Tango Guide Me처럼 시작 페이지를 별도 탭으로 연다. 편집기/워크스페이스 탭을
+        // 재사용하면 그 화면의 카드 이미지나 우연히 일치한 DOM에 가이드가 붙을 수 있다.
+        await clearGuideSession();
+        const guideTab = await createGuideTab(firstStep.page_url, senderWindowId);
+        if (!guideTab?.id) throw new Error('guide tab create failed');
+        await storageSet({
+          guideSteps: steps,
+          guideCurrentStep: 0,
+          guideModeActive: true,
+          guideSurvey,
+          guideTabId: guideTab.id,
+          guidePendingOverlay: true,
+          guideTargetStatus: 'navigating',
+          guideTargetEvidence: null,
+        });
+        sendResponse({ ok: true, tabId: guideTab.id });
+        if (guideTab.status === 'complete') {
+          await storageRemove('guidePendingOverlay');
+          scheduleGuideOverlay(guideTab.id, 350);
         }
-
-        await storageSet({ guideSteps: steps, guideCurrentStep: 0, guideModeActive: true, guideSurvey });
-
-        sendResponse({ ok: true });
-
-        // 카운트다운 완료 후 오버레이 주입 (+200ms 여유)
-        setTimeout(async () => {
-          try {
-            // sender 탭을 직접 사용 — active tab query 대신 (타이밍 경쟁 방지)
-            if (!senderTabId) return;
-            const tab = await new Promise((resolve) => chrome.tabs.get(senderTabId, (t) => {
-              resolve(chrome.runtime.lastError ? null : t);
-            }));
-            if (!tab?.id) return;
-
-            // 가이드를 이 탭에 고정 — 이후 단계 전환이 활성 탭이 아니라 이 탭에서만 동작한다.
-            await storageSet({ guideTabId: tab.id });
-
-            const firstStep = steps[0];
-            await ensureContentScript(tab.id);
-            const injectOverlay = (tabId) => sendTabMessage(tabId, { type: 'SHOW_OVERLAY', step: firstStep, index: 0, total: steps.length, survey: guideSurvey });
-
-            if (!firstStep.page_url || !isSafeNavUrl(firstStep.page_url)) {
-              // page_url 없음 또는 비안전 프로토콜 → 현재 탭에 바로 오버레이 주입
-              injectOverlay(tab.id);
-            } else {
-              try {
-                const currentUrl = new URL(tab.url);
-                const targetUrl  = new URL(firstStep.page_url);
-                if (currentUrl.origin + currentUrl.pathname === targetUrl.origin + targetUrl.pathname) {
-                  injectOverlay(tab.id);
-                } else {
-                  chrome.tabs.update(tab.id, { url: firstStep.page_url });
-                  await storageSet({ guidePendingOverlay: true });
-                }
-              } catch {
-                injectOverlay(tab.id);
-              }
-            }
-          } catch (err) {
-            log('error', 'bg', 'guide overlay inject error:', err.message);
-          }
-        }, 3600);
       } catch (err) {
         log('error', 'bg', 'START_GUIDE error:', err.message);
         sendResponse({ ok: false, error: err.message });
@@ -1501,25 +1568,35 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (guideTabId != null) {
         const tab = await getGuideTab();
         if (!tab?.id) {
-          await storageRemove(['guideSteps', 'guideCurrentStep', 'guideModeActive', 'guidePendingOverlay', 'guideTabId', 'guideSurvey']);
+          await clearGuideSession();
           sendResponse({ active: false });
           return;
         }
       }
-      sendResponse({ active: true, steps: guideSteps, currentStep: guideCurrentStep || 0 });
+      const { guideTargetStatus } = await storageGet('guideTargetStatus');
+      sendResponse({ active: true, steps: guideSteps, currentStep: guideCurrentStep || 0, targetStatus: guideTargetStatus || 'navigating' });
     })();
     return true;
   }
 
   if (message.type === 'GUIDE_NEXT' || message.type === 'GUIDE_PREV') {
     (async () => {
-      const { guideSteps, guideCurrentStep, guideSurvey } = await storageGet(['guideSteps', 'guideCurrentStep', 'guideSurvey']);
+      const { guideModeActive, guideSteps, guideCurrentStep, guideSurvey } = await storageGet(['guideModeActive', 'guideSteps', 'guideCurrentStep', 'guideSurvey']);
       const steps = guideSteps || [];
+      if (!guideModeActive || !steps.length) {
+        sendResponse({ ok: false, error: 'guide_not_active' });
+        return;
+      }
       let idx = guideCurrentStep || 0;
-      if (message.type === 'GUIDE_NEXT') idx = Math.min(idx + 1, steps.length - 1);
+      if (message.type === 'GUIDE_NEXT' && idx >= steps.length - 1) {
+        await clearGuideSession();
+        sendResponse({ ok: true, completed: true, currentStep: steps.length });
+        return;
+      }
+      if (message.type === 'GUIDE_NEXT') idx += 1;
       else idx = Math.max(idx - 1, 0);
 
-      await storageSet({ guideCurrentStep: idx });
+      await storageSet({ guideCurrentStep: idx, guideTargetStatus: 'navigating', guideTargetEvidence: null });
       const step = steps[idx];
       sendResponse({ ok: true, currentStep: idx, step });
 
@@ -1527,20 +1604,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const tab = await getGuideTab();
       if (!tab?.id) return;
 
-      if (step && step.page_url) {
-        try {
-          const currentUrl = new URL(tab.url);
-          const targetUrl  = new URL(step.page_url);
-          if (currentUrl.origin + currentUrl.pathname !== targetUrl.origin + targetUrl.pathname) {
-            await storageSet({ guidePendingOverlay: true });
-            // 자동진행(타깃 클릭)이면 클릭 자체가 이동을 유발하므로 중복 내비 방지.
-            // 수동 '다음'이면 직접 이동시킨다. (둘 다 onUpdated에서 오버레이 재주입)
-            if (!message.viaClick && isSafeNavUrl(step.page_url)) chrome.tabs.update(tab.id, { url: step.page_url });
-            return;
-          }
-        } catch { /* same-tab fallback */ }
+      sendTabMessage(tab.id, { type: 'HIDE_OVERLAY' });
+      if (!step?.page_url || !isSafeNavUrl(step.page_url)) {
+        await storageSet({ guideTargetStatus: 'page_mismatch' });
+        return;
       }
-      sendTabMessage(tab.id, { type: 'SHOW_OVERLAY', step, index: idx, total: steps.length, survey: guideSurvey || null });
+      if (!guidePageMatches(tab.url, step.page_url)) {
+        await storageSet({ guidePendingOverlay: true });
+        if (!message.viaClick) {
+          chrome.tabs.update(tab.id, { url: step.page_url });
+        } else {
+          // 실제 클릭 이동을 우선하되, SPA/차단으로 이동이 일어나지 않으면 기록 URL로 복구한다.
+          setTimeout(async () => {
+            const current = await getGuideTab();
+            const state = await storageGet(['guideModeActive', 'guideCurrentStep']);
+            if (!state.guideModeActive || state.guideCurrentStep !== idx || !current?.id) return;
+            if (!guidePageMatches(current.url, step.page_url)) chrome.tabs.update(current.id, { url: step.page_url });
+          }, 1400);
+        }
+        return;
+      }
+      scheduleGuideOverlay(tab.id, 80);
     })();
     return true;
   }
@@ -1551,7 +1635,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const { guideSteps, guideSurvey } = await storageGet(['guideSteps', 'guideSurvey']);
       const steps = guideSteps || [];
       const idx = Math.max(0, Math.min(message.stepIndex || 0, steps.length - 1));
-      await storageSet({ guideCurrentStep: idx });
+      await storageSet({ guideCurrentStep: idx, guideTargetStatus: 'navigating', guideTargetEvidence: null });
       const step = steps[idx];
       sendResponse({ ok: true, currentStep: idx, step });
       if (!step) return;
@@ -1559,18 +1643,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const tab = await getGuideTab();  // 가이드 고정 탭
       if (!tab?.id) return;
 
-      if (step.page_url) {
-        try {
-          const currentUrl = new URL(tab.url);
-          const targetUrl  = new URL(step.page_url);
-          if (currentUrl.origin + currentUrl.pathname !== targetUrl.origin + targetUrl.pathname) {
-            await storageSet({ guidePendingOverlay: true });
-            if (isSafeNavUrl(step.page_url)) chrome.tabs.update(tab.id, { url: step.page_url });  // 수동 점프 → 직접 이동
-            return;
-          }
-        } catch { /* same-tab fallback */ }
+      sendTabMessage(tab.id, { type: 'HIDE_OVERLAY' });
+      if (!step.page_url || !isSafeNavUrl(step.page_url)) {
+        await storageSet({ guideTargetStatus: 'page_mismatch' });
+        return;
       }
-      sendTabMessage(tab.id, { type: 'SHOW_OVERLAY', step, index: idx, total: steps.length, survey: guideSurvey || null });
+      if (!guidePageMatches(tab.url, step.page_url)) {
+        await storageSet({ guidePendingOverlay: true });
+        chrome.tabs.update(tab.id, { url: step.page_url });
+        return;
+      }
+      scheduleGuideOverlay(tab.id, 80);
     })();
     return true;
   }
@@ -1599,14 +1682,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message.type === 'EXIT_GUIDE') {
+  if (message.type === 'GUIDE_TARGET_STATUS') {
     (async () => {
-      const tab = await getGuideTab();  // 고정 탭의 오버레이를 정리
-      await storageRemove(['guideSteps', 'guideCurrentStep', 'guideModeActive', 'guidePendingOverlay', 'guideTabId', 'guideSurvey']);
-      if (tab?.id) sendTabMessage(tab.id, { type: 'HIDE_OVERLAY' });
-      // 혹시 다른 탭(메시지 발신 탭)에 남은 오버레이도 정리
-      if (sender.tab?.id && sender.tab.id !== tab?.id) sendTabMessage(sender.tab.id, { type: 'HIDE_OVERLAY' });
+      const { guideModeActive, guideTabId, guideCurrentStep } = await storageGet([
+        'guideModeActive', 'guideTabId', 'guideCurrentStep',
+      ]);
+      const allowed = new Set(['navigating', 'searching', 'ready', 'page_mismatch']);
+      if (!guideModeActive || sender.tab?.id !== guideTabId || Number(message.stepIndex) !== Number(guideCurrentStep) || !allowed.has(message.status)) {
+        sendResponse({ ok: false });
+        return;
+      }
+      const evidence = message.evidence && typeof message.evidence === 'object'
+        ? {
+            source: String(message.evidence.source || '').slice(0, 24),
+            confidence: String(message.evidence.confidence || '').slice(0, 12),
+            score: Number.isFinite(Number(message.evidence.score)) ? Number(message.evidence.score) : null,
+            margin: Number.isFinite(Number(message.evidence.margin)) ? Number(message.evidence.margin) : null,
+          }
+        : null;
+      await storageSet({ guideTargetStatus: message.status, guideTargetEvidence: evidence });
       sendResponse({ ok: true });
+    })();
+    return true;
+  }
+
+  if (message.type === 'EXIT_GUIDE' || message.type === 'GUIDE_COMPLETE') {
+    (async () => {
+      await clearGuideSession();
+      sendResponse({ ok: true, completed: message.type === 'GUIDE_COMPLETE' });
     })();
     return true;
   }
@@ -1726,7 +1829,7 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
   // guideModeActive가 남아 죽은 스텝(유령)이 뜬다. storage 변경이 popup의 onChanged를 깨워 뷰를 닫는다.
   const { guideModeActive, guideTabId } = await storageGet(['guideModeActive', 'guideTabId']);
   if (guideModeActive && guideTabId === tabId) {
-    await storageRemove(['guideSteps', 'guideCurrentStep', 'guideModeActive', 'guidePendingOverlay', 'guideTabId', 'guideSurvey']);
+    await clearGuideSession();
   }
 
   const { isRecording, targetTabId, _prevTargetTabId } = await storageGet(['isRecording', 'targetTabId', '_prevTargetTabId']);
@@ -1764,7 +1867,9 @@ chrome.windows.onFocusChanged.addListener((windowId) => {
 
 // ── URL 변경 탐지 (cross-origin 이동 캡처) ───────────────────────
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-  if (changeInfo.status !== 'complete') return;
+  const completedLoad = changeInfo.status === 'complete';
+  const changedUrl = typeof changeInfo.url === 'string';
+  if (!completedLoad && !changedUrl) return;
   if (!tab.url?.startsWith('http')) return;
 
   // 한 번의 이동에 complete가 여러 번 와도(리다이렉트/iframe 로드) 첫 이벤트만 처리
@@ -1777,22 +1882,20 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   try {
     const r = await storageGet(['isRecording', 'isPaused', 'targetTabId', 'stepNumber', 'settings', 'pendingCapture', 'guideModeActive', 'guidePendingOverlay', 'guideSteps', 'guideCurrentStep', 'guideTabId', 'guideSurvey', 'spaNavCapturing', 'lastCaptureTime']);
 
-    // 가이드 재주입은 '고정 탭'에서 로드가 끝났을 때만 — 다른 탭 로드에는 반응하지 않는다.
-    // (a) 가이드가 의도한 이동(guidePendingOverlay): 페이지 정착 후 주입.
-    // (b) 그 외 임의 이동(외부 링크·OAuth 리다이렉트 등)도 가이드 활성 탭이면 현재 스텝 복원 —
-    //     일회성 플래그에 의존하지 않는다. 도착지가 스텝 page_url이 아니면 guide-engine의
-    //     pageMatches()가 막아 조용히 대기(오버레이 없음), 스텝 페이지로 복귀하면 자동 표시.
+    // 고정 탭의 full load와 SPA URL 변경을 모두 추적한다. 도착 URL을 백그라운드에서도
+    // 검증해 잘못된 페이지에는 content overlay 메시지 자체를 보내지 않는다.
     if (r.guideModeActive && r.guideTabId === tabId && r.guideSteps?.length) {
       const intended = !!r.guidePendingOverlay;
-      if (intended) await storageRemove('guidePendingOverlay');
       const gSteps = r.guideSteps;
       const gIdx = r.guideCurrentStep || 0;
       const step = gSteps[gIdx];
-      if (step) {
-        // 새 도메인엔 manifest content_scripts 주입이 늦거나 누락될 수 있어 보장(멱등).
-        await ensureContentScript(tabId);
-        // 페이지 정착(특히 SPA) 후 오버레이 주입 — 요소 매칭 확률 ↑
-        setTimeout(() => sendTabMessage(tabId, { type: 'SHOW_OVERLAY', step, index: gIdx, total: gSteps.length, survey: r.guideSurvey || null }), intended ? 500 : 400);
+      if (step?.page_url && guidePageMatches(tab.url, step.page_url)) {
+        if (intended) await storageRemove('guidePendingOverlay');
+        await storageSet({ guideTargetStatus: 'searching', guideTargetEvidence: null });
+        scheduleGuideOverlay(tabId, completedLoad ? 450 : 280);
+      } else {
+        sendTabMessage(tabId, { type: 'HIDE_OVERLAY' });
+        await storageSet({ guideTargetStatus: 'page_mismatch', guideTargetEvidence: null });
       }
     }
 
