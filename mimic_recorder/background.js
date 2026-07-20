@@ -1265,8 +1265,11 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         sendResponse({ ok: true, tabId: guideTab.id });
         if (guideTab.status === 'complete') {
           await storageRemove('guidePendingOverlay');
-          scheduleGuideOverlay(guideTab.id, 350);
         }
+        // A very fast target page can finish before guide state is persisted, so
+        // tabs.onUpdated may miss the only complete event. Always schedule a
+        // post-persist overlay attempt; onUpdated remains the slower-page retry.
+        scheduleGuideOverlay(guideTab.id, guideTab.status === 'complete' ? 80 : 650);
       } catch (err) {
         log('error', 'bg', 'START_GUIDE error:', err.message);
         sendResponse({ ok: false, error: err.message });

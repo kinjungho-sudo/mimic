@@ -36,6 +36,17 @@ assert.match(startGuide, /cache: 'no-store'/);
 assert.match(startGuide, /!firstStep\?\.page_url\s*\|\|\s*!isSafeNavUrl/);
 assert.match(startGuide, /createGuideTab\(firstStep\.page_url/);
 assert.doesNotMatch(startGuide, /chrome\.tabs\.update\(sender/);
+const guideStatePersist = startGuide.indexOf('await storageSet({');
+const guideOverlayFallback = startGuide.indexOf(
+  "scheduleGuideOverlay(guideTab.id, guideTab.status === 'complete' ? 80 : 650);",
+);
+assert.ok(guideStatePersist >= 0 && guideOverlayFallback > guideStatePersist,
+  'START_GUIDE must schedule an overlay attempt after guide state is persisted');
+assert.equal(
+  startGuide.slice(guideStatePersist, guideOverlayFallback).includes("if (guideTab.status === 'complete') {\n          scheduleGuideOverlay"),
+  false,
+  'post-persist overlay scheduling must not depend on the initial tab status',
+);
 
 const targetPicker = section(background, "if (message.action === 'PICK_LIVE_TARGET')", "if (message.action === 'CONNECT')");
 assert.match(targetPicker, /Number\.isInteger\(message\.tab_id\)/);
@@ -79,4 +90,4 @@ assert.match(overlayMessage, /onComplete:[\s\S]*guideApi\.hide\(\)[\s\S]*GUIDE_C
 assert.match(popup, /assets\/parro-ai-avatar-neutral\.png\?v=20260720/);
 assert.match(popup, /id="guideTargetStatus"/);
 
-console.log(JSON.stringify({ ok: true, checks: 31, scope: 'live-guide-fail-closed-contract' }));
+console.log(JSON.stringify({ ok: true, checks: 33, scope: 'live-guide-fail-closed-contract' }));

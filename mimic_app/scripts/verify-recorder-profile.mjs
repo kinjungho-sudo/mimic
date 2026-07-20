@@ -27,6 +27,7 @@ function fixtureHtml() {
   <head><meta charset="utf-8"><title>Parro isolated capture fixture</title></head>
   <body>
     <button id="fixture-action" type="button">Fixture action</button>
+    <button id="fixture-guide" type="button">Start fixture guide</button>
     <script>
       const extensionId = ${JSON.stringify(extensionId)};
       window.sendToParro = (action, payload = {}) => new Promise((resolve) => {
@@ -43,6 +44,12 @@ function fixtureHtml() {
           url: window.location.href,
         });
       });
+      document.getElementById('fixture-guide').addEventListener('click', async () => {
+        window.parroGuideResult = await window.sendToParro('START_GUIDE', {
+          share_token: 'synthetic-guide',
+          webapp_origin: window.location.origin,
+        });
+      });
     </script>
   </body>
 </html>`;
@@ -50,7 +57,28 @@ function fixtureHtml() {
 
 async function listenOnAllowedPort() {
   for (const port of allowedPorts) {
-    const server = http.createServer((_request, response) => {
+    const server = http.createServer((request, response) => {
+      if (request.url === '/api/guide/synthetic-guide') {
+        response.writeHead(200, {
+          'content-type': 'application/json; charset=utf-8',
+          'cache-control': 'no-store',
+        });
+        response.end(JSON.stringify({
+          tutorial_id: 'synthetic-guide',
+          steps: [{
+            id: 'synthetic-guide-step-1',
+            title: 'Fixture action',
+            instruction: 'Select the fixture action button.',
+            page_url: `http://localhost:${port}/`,
+            element_selector: '#fixture-action',
+            target_context: {
+              accessibleName: 'Fixture action',
+              selectorConfidence: 'high',
+            },
+          }],
+        }));
+        return;
+      }
       response.writeHead(200, {
         'content-type': 'text/html; charset=utf-8',
         'cache-control': 'no-store',
@@ -144,6 +172,55 @@ try {
     assert.equal(startResult.response?.reason, 'not_linked');
   });
 
+  const panel = await context.newPage();
+  await panel.goto(`chrome-extension://${extensionId}/popup.html`, { waitUntil: 'domcontentloaded' });
+  await panel.waitForFunction(() => document.body.innerText.includes('Parro'));
+  const panelTitle = await panel.title();
+  check(() => {
+    assert.match(panel.url(), new RegExp(`^chrome-extension://${extensionId}/popup\\.html`));
+    assert.equal(panelTitle, 'Parro Recorder');
+  });
+
+  const guidePagePromise = context.waitForEvent('page');
+  await page.click('#fixture-guide');
+  const guidePage = await guidePagePromise;
+  await page.waitForFunction(() => window.parroGuideResult !== undefined);
+  const guideResult = await page.evaluate(() => window.parroGuideResult);
+  check(() => {
+    assert.equal(guideResult.error, null);
+    assert.equal(guideResult.response?.ok, true);
+    assert.ok(Number.isInteger(guideResult.response?.tabId));
+  });
+
+  await guidePage.waitForLoadState('domcontentloaded');
+  await guidePage.waitForSelector('#parro-overlay-root', { state: 'attached', timeout: 5_000 });
+  const guideOverlay = await guidePage.evaluate(() => {
+    return {
+      count: document.querySelectorAll('#parro-overlay-root').length,
+      targetText: document.getElementById('fixture-action')?.textContent?.trim() || null,
+    };
+  });
+  check(() => {
+    assert.equal(guidePage.url(), fixtureUrl);
+    assert.deepEqual(guideOverlay, {
+      count: 1,
+      targetText: 'Fixture action',
+    });
+  });
+
+  const guideState = await worker.evaluate(async () => chrome.storage.local.get([
+    'guideModeActive',
+    'guideTabId',
+    'guidePendingOverlay',
+    'guideSteps',
+  ]));
+  check(() => {
+    assert.equal(guideState.guideModeActive, true);
+    assert.equal(guideState.guideTabId, guideResult.response.tabId);
+    assert.equal(guideState.guidePendingOverlay, undefined);
+    assert.equal(guideState.guideSteps?.length, 1);
+  });
+
   const captureState = await worker.evaluate(async () => chrome.storage.local.get([
     'extensionToken',
     'sessionId',
@@ -159,13 +236,6 @@ try {
     assert.ok(!Array.isArray(captureState.steps) || captureState.steps.length === 0);
   });
 
-  const panel = await context.newPage();
-  await panel.goto(`chrome-extension://${extensionId}/popup.html`, { waitUntil: 'domcontentloaded' });
-  await panel.waitForFunction(() => document.body.innerText.includes('Parro'));
-  check(() => {
-    assert.match(panel.url(), new RegExp(`^chrome-extension://${extensionId}/popup\\.html`));
-  });
-
   console.log(JSON.stringify({
     ok: true,
     checks: checkCount,
@@ -173,6 +243,7 @@ try {
     profile: 'isolated-temporary',
     network: 'localhost-only',
     captureStarted: false,
+    liveGuideOverlay: true,
   }));
 } finally {
   if (context) await context.close();
