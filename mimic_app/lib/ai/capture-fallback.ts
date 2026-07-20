@@ -237,7 +237,7 @@ function isLikelyRawDomActionBase(value: string): boolean {
   if (/^(code|homepage|open menu)$/i.test(text)) return true;
   if (hasAccessibilityShortcutNoise(text)) return true;
   if (/^(search|검색)$/i.test(text)) return true;
-  if (/^(최소|최대|적용|설정|항목명(?:\s*\(선택\))?)$/i.test(text)) return true;
+  if (/^(최소|최대|적용|설정|항목명(?:\s*\(선택\))?|버튼|메뉴|주요\s*영역|제목|이름|내용)$/i.test(text)) return true;
   if (/검색하세요|선택하세요|입력하세요|확인하세요/.test(text)) return true;
   if (/무료\s*배송|매장\s*구경하기|매장\s*위치\s*보기|^쇼핑하기$/i.test(text)) return true;
   if (/\.{3}|…|—/.test(text)) return true;
@@ -343,7 +343,10 @@ export function isLowQualityCaptureScript(value: string | null | undefined): boo
   if (hasCapturedEditorChrome(text)) return true;
   if (/^(최소|최대)(로|에)?\s*내용을\s*입력합니다\.?$/i.test(text)) return true;
   if (/^항목명\s*(?:\(선택\))?\s*(?:로|에)?\s*내용을\s*입력합니다\.?$/i.test(text)) return true;
+  if (/^(?:제목|이름|내용)\s*(?:로|에)?\s*내용을\s*입력합니다\.?$/i.test(text)) return true;
   if (/^설정을\s*클릭합니다\.?$/i.test(text)) return true;
+  if (/^(?:버튼|메뉴|주요\s*영역)(?:을|를)?\s*클릭합니다\.?$/i.test(text)) return true;
+  if (/\b[a-z0-9.-]+\.[a-z]{2,}\s+주요\s*영역(?:을|를)?\s*클릭합니다\.?$/i.test(text)) return true;
   if (/^\d+(을|를)?\s*(클릭|확인|선택|입력|이동)합니다\.?$/i.test(text)) return true;
   const actionScriptMatch = /^(.+?)(을|를)?\s*(클릭|확인|선택|입력|이동)합니다\.?$/i.exec(text);
   if (actionScriptMatch && isLikelyRawDomActionBase(actionScriptMatch[1])) return true;

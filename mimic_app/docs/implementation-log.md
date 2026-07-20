@@ -642,3 +642,10 @@
 - Clarified the home new-menu direct manual copy from `새 매뉴얼(직접 작성)` / `모바일에서도 단계별로 작성` to `새 매뉴얼 직접 작성` / `빈 매뉴얼에서 제목과 단계를 직접 작성`.
 - Verified `npm run verify:quality`, `npm run lint`, `npx tsc --noEmit --pretty false`, and `npm run build` passed.
 - Did not touch `main`, Production deploy, DB/auth/storage, Chrome extension capture, native desktop capture, publish/share state, or real uploads.
+
+## 2026-07-20 - Public-ready manual copy gate expansion
+
+- Started the Parro public-ready manual sentence quality track on current `origin/dev` and re-read `AGENTS.md`, `CLAUDE.md`, `docs/mistakes.md`, and `docs/MANUAL_CONTENT_RULES.md` before changes.
+- Added RED regression cases for public-facing weak copy that still passed the quality detector: `버튼 클릭`, `메뉴 클릭`, `주요 영역 클릭`, `제목 입력`, `이름 입력`, `버튼을 클릭합니다.`, `메뉴를 클릭합니다.`, domain `주요 영역을 클릭합니다.`, and content-only input scripts.
+- Hardened `capture-fallback` low-quality title/script detection so generic UI targets and bare field labels are rejected by the publish/regeneration quality gate instead of appearing user-ready.
+- Kept the change to detector/test/doc scope only; did not touch `main`, Production deploy, DB/auth/storage, Chrome extension capture, native desktop capture, publish/share state, or real uploads.

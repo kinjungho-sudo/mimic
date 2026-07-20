@@ -344,6 +344,25 @@ async function main() {
   if (!isLowQualityCaptureScript('설정을 클릭합니다.')) {
     failures.push({ name: 'settings click script rejected', expected: true, actual: false });
   }
+  const publicQualityRejects = [
+    { type: 'title', value: '버튼 클릭', name: 'generic button click title rejected' },
+    { type: 'title', value: '메뉴 클릭', name: 'generic menu click title rejected' },
+    { type: 'title', value: '주요 영역 클릭', name: 'generic main area click title rejected' },
+    { type: 'title', value: '제목 입력', name: 'generic field title input rejected' },
+    { type: 'title', value: '이름 입력', name: 'generic field name input rejected' },
+    { type: 'script', value: '버튼을 클릭합니다.', name: 'generic button click script rejected' },
+    { type: 'script', value: '메뉴를 클릭합니다.', name: 'generic menu click script rejected' },
+    { type: 'script', value: '주요 영역을 클릭합니다.', name: 'generic main area click script rejected' },
+    { type: 'script', value: 'example.com 주요 영역을 클릭합니다.', name: 'domain main area click script rejected' },
+    { type: 'script', value: '내용을 입력합니다.', name: 'content-only input script rejected' },
+    { type: 'script', value: '제목에 내용을 입력합니다.', name: 'generic title field script rejected' },
+  ];
+  for (const check of publicQualityRejects) {
+    const rejected = check.type === 'title'
+      ? isLowQualityCaptureTitle(check.value)
+      : isLowQualityCaptureScript(check.value);
+    if (!rejected) failures.push({ name: check.name, expected: true, actual: false });
+  }
   if (!isLowQualityCaptureTutorialTitle('Code 클릭')) {
     failures.push({ name: 'raw code tutorial title rejected', expected: true, actual: false });
   }
