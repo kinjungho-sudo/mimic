@@ -657,3 +657,11 @@
 - Wired the new verifier into `npm run verify:quality` so rewrite quality is checked with the existing capture fallback, regeneration set, and follow-config quality gates.
 - Hardened `text-quality` validation and reinforced `rewriteSentence` / `rewriteAllSteps` prompts to require why/next-state guidance rather than action-only sentences.
 - Kept the change to text quality, prompt, test, and documentation scope only; did not touch `main`, Production deploy, DB/auth/storage, Chrome extension capture, native desktop capture, publish/share state, or real uploads.
+
+
+## 2026-07-20 - B2C/B2B pricing boundary principles
+
+- Documented the strategic boundary for Parro B2C viral discovery and B2B monetization so Codex/MAX can apply the same product rules in future development.
+- Added `docs/B2C_B2B_PRICING_BOUNDARY_PRINCIPLES.md` with Free/Pro/Team/Business feature classification rules, public-vs-controlled access boundaries, anti-abuse posture, and B2C experiment constraints.
+- Reaffirmed that public sharing can be free while private/team/governed operations should be paid.
+- No code, billing enforcement, DB/auth/storage, main merge, or Production deployment changes were made.
