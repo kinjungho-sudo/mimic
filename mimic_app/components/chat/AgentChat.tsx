@@ -179,6 +179,18 @@ export function AgentChat() {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
+  const lastAssistantText = [...messages].reverse().find(message => message.role === 'assistant')?.text ?? '';
+  const hasAssistantError = /오류|실패|문제|불러오지 못|찾지 못/.test(lastAssistantText);
+  const headerMascotState = contactSending || isLoading
+    ? 'search'
+    : contactResult?.ok
+      ? 'success'
+      : contactResult || hasAssistantError
+        ? 'error'
+        : input.trim()
+          ? 'listen'
+          : 'neutral';
+
   // ── 토글 버튼 ──
   if (!isOpen) {
     return (
@@ -195,7 +207,7 @@ export function AgentChat() {
         onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.08)'; }}
         onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
       >
-        <ParroMascot size={42} />
+        <ParroMascot size={42} state="neutral" />
       </button>
     );
   }
@@ -211,7 +223,7 @@ export function AgentChat() {
         padding: '8px 16px 8px 10px', border: '1px solid #E5E7EB',
       }}>
         <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: BRAND_GRADIENT, display: 'grid', placeItems: 'center' }}>
-          <ParroMascot size={28} />
+          <ParroMascot size={28} state="neutral" />
         </div>
         <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>도움말 봇</span>
         <button onClick={() => setIsMinimized(false)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#9CA3AF', marginLeft: '4px', fontSize: '13px' }}>열기</button>
@@ -244,7 +256,7 @@ export function AgentChat() {
         background: BRAND_GRADIENT, color: 'white',
       }}>
         <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(255,255,255,0.2)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-          <ParroMascot size={26} />
+          <ParroMascot size={26} state={headerMascotState} />
         </div>
         <div style={{ flex: 1 }}>
           <div id="parro-help-title" style={{ fontSize: '13px', fontWeight: 700 }}>도움말 봇</div>
@@ -273,7 +285,7 @@ export function AgentChat() {
 
           {contactResult?.ok ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-              <div style={{ fontSize: '36px' }}>✅</div>
+              <ParroMascot size={64} state="success" />
               <p style={{ margin: '0 0 4px', fontSize: '14px', fontWeight: 700, color: '#15803D', textAlign: 'center' }}>문의가 접수되었어요!</p>
               <p style={{ margin: 0, fontSize: '12px', color: '#4B5563', lineHeight: 1.7, textAlign: 'center' }}>
                 답변은 <b>1~3 영업일</b> 내에 이메일로 드립니다.<br />

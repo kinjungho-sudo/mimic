@@ -49,7 +49,7 @@ export function assessManualQuality(title: string | null | undefined, steps: Man
   if (isLowQualityCaptureTutorialTitle(title, { stepTitles })) {
     issues.push({
       code: 'tutorial_title',
-      severity: 'error',
+      severity: 'warning',
       message: '전체 제목을 사용자가 최종적으로 달성하는 결과로 바꿔주세요.',
     });
   }
@@ -68,13 +68,13 @@ export function assessManualQuality(title: string | null | undefined, steps: Man
 
     if (isLowQualityCaptureTitle(stepTitle)) {
       issues.push({
-        code: 'step_title', severity: 'error', ...meta,
+        code: 'step_title', severity: 'warning', ...meta,
         message: `${stepNumber}단계 제목이 버튼명·식별자 중심입니다. 업무 목적이 드러나게 다시 작성해주세요.`,
       });
     }
     if (isLowQualityCaptureScript(stepScript)) {
       issues.push({
-        code: 'step_script', severity: 'error', ...meta,
+        code: 'step_script', severity: 'warning', ...meta,
         message: `${stepNumber}단계 설명에 수행 이유와 완료 상태를 한 문장으로 작성해주세요.`,
       });
     }

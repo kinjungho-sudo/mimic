@@ -656,6 +656,21 @@
       '  from { opacity: 0; transform: translateX(-50%) translateY(20px); }',
       '  to   { opacity: 1; transform: translateX(-50%) translateY(0); }',
       '}',
+      '@keyframes parroAvatarTalk {',
+      '  0%,100% { transform: translateY(0) rotate(0deg); }',
+      '  35% { transform: translateY(-2px) rotate(-1.5deg); }',
+      '  70% { transform: translateY(-1px) rotate(1deg); }',
+      '}',
+      '@keyframes parroAvatarFramePrimary {',
+      '  0%,54%,100% { opacity:1; transform:translateY(0) scale(1); }',
+      '  64%,82% { opacity:0; transform:translateY(1px) scale(.985); }',
+      '  91% { opacity:1; transform:translateY(0) scale(1); }',
+      '}',
+      '@keyframes parroAvatarFrameSecondary {',
+      '  0%,54%,100% { opacity:0; transform:translateY(1px) scale(.98); }',
+      '  64%,82% { opacity:1; transform:translateY(0) scale(1); }',
+      '  91% { opacity:0; transform:translateY(-1px) scale(.99); }',
+      '}',
       '#parro-autorun-cursor,#mimic-autorun-cursor {',
       '  position: fixed; z-index: 2147483640; pointer-events: none;',
       '  width: 24px; height: 24px;',
@@ -676,7 +691,11 @@
       '  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);',
       '  white-space: nowrap;',
       '}',
-      '#parro-autorun-bar .mar-icon,#mimic-autorun-bar .mar-icon { font-size: 16px; }',
+      '#parro-autorun-bar .mar-icon,#mimic-autorun-bar .mar-icon { position:relative;display:inline-flex;width:24px;height:24px;flex:none;align-items:center;justify-content:center;overflow:hidden;animation:parroAvatarTalk 1.6s ease-in-out infinite; }',
+      '#parro-autorun-bar .mar-icon img,#mimic-autorun-bar .mar-icon img { position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:contain;user-select:none;pointer-events:none; }',
+      '#parro-autorun-bar .mar-icon-primary,#mimic-autorun-bar .mar-icon-primary { animation:parroAvatarFramePrimary 4s ease-in-out infinite; }',
+      '#parro-autorun-bar .mar-icon-secondary,#mimic-autorun-bar .mar-icon-secondary { opacity:0;animation:parroAvatarFrameSecondary 4s ease-in-out infinite; }',
+      '@media (prefers-reduced-motion:reduce){#parro-autorun-bar .mar-icon,#mimic-autorun-bar .mar-icon,#parro-autorun-bar .mar-icon img,#mimic-autorun-bar .mar-icon img{animation:none!important}#parro-autorun-bar .mar-icon-secondary,#mimic-autorun-bar .mar-icon-secondary{display:none}}',
       '#parro-autorun-bar .mar-label,#mimic-autorun-bar .mar-label { color: rgba(255,255,255,0.55); font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }',
       '#parro-autorun-bar .mar-title,#mimic-autorun-bar .mar-title { max-width: 200px; overflow: hidden; text-overflow: ellipsis; }',
       '#parro-autorun-bar .mar-progress,#mimic-autorun-bar .mar-progress { display: flex; align-items: center; gap: 6px; color: rgba(255,255,255,0.5); font-size: 12px; }',
@@ -709,7 +728,7 @@
     var pct = totalSteps > 0 ? Math.round((stepNum / totalSteps) * 100) : 0;
 
     // 정적 구조만 innerHTML로 (외부 데이터 없음)
-    el.innerHTML = '<span class="mar-icon">🤖</span>'
+    el.innerHTML = '<span class="mar-icon"><img class="mar-icon-primary" src="' + BASE_URL + '/brand/parro-ai-avatar-talk.png" alt="" draggable="false"><img class="mar-icon-secondary" src="' + BASE_URL + '/brand/parro-ai-avatar-point.png" alt="" draggable="false"></span>'
       + '<span class="mar-label">AI 실행 중 · BETA</span>'
       + '<span class="mar-divider"></span>'
       + '<span class="mar-title" id="parro-ar-title"></span>'

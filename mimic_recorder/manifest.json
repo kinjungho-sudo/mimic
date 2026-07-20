@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Parro Recorder (dev)",
-  "version": "1.7.2",
+  "version": "1.7.3",
   "description": "Parro Recorder는 웹페이지의 클릭 동작을 단계별로 자동 캡처하여 매뉴얼·가이드 문서를 손쉽게 만들어주는 스크린샷 레코더입니다.",
   "icons": {
     "16":  "icons/icon16.png",
@@ -27,6 +27,25 @@
       "js": ["guide-engine.js", "targeting.js", "content.js"],
       "run_at": "document_idle",
       "all_frames": true
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "assets/parro-ai-avatar.png",
+        "assets/parro-ai-avatar-neutral.png",
+        "assets/parro-ai-avatar-listen.png",
+        "assets/parro-ai-avatar-talk.png",
+        "assets/parro-ai-avatar-point.png",
+        "assets/parro-ai-avatar-think.png",
+        "assets/parro-ai-avatar-search.png",
+        "assets/parro-ai-avatar-warning.png",
+        "assets/parro-ai-avatar-error.png",
+        "assets/parro-ai-avatar-blocked.png",
+        "assets/parro-ai-avatar-clarify.png",
+        "assets/parro-ai-avatar-success.png"
+      ],
+      "matches": ["<all_urls>"]
     }
   ],
   "permissions": [
