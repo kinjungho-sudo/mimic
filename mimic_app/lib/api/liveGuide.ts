@@ -47,7 +47,7 @@ type RuntimeMessageDelivery =
   | { timedOut: false; response: unknown; lastError: string | null };
 
 const RUNTIME_MESSAGE_TIMEOUT_MS = 8_000;
-const TARGET_PICK_TIMEOUT_MS = 60_000;
+const TARGET_PICK_TIMEOUT_MS = 35_000;
 
 declare global {
   interface Window {
@@ -185,7 +185,7 @@ export async function pickLiveGuideTarget(tabId: number, timeoutMs = TARGET_PICK
 
   const delivery = await sendRuntimeMessage(extensionId, { action: 'PICK_LIVE_TARGET', tab_id: tabId }, timeoutMs);
   if (delivery.timedOut) {
-    return { ok: false, reason: 'timeout', message: '대상 요소 선택 시간이 초과되었습니다. 다시 선택해주세요.' };
+    return { ok: false, reason: 'timeout', message: '대상 탭의 Parro 응답이 지연되었습니다. 대상 탭을 새로고침한 뒤 다시 시도해주세요.' };
   }
   if (delivery.lastError) {
     return { ok: false, reason: 'not_installed', message: delivery.lastError };

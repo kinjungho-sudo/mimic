@@ -45,7 +45,7 @@ export function removeOwnedRecorderExtensionFixture(extensionDir) {
   fs.rmSync(resolvedExtension, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
 }
 
-function resolvePlaywrightChromium() {
+export function resolvePlaywrightChromium() {
   const requested = chromium.executablePath();
   if (fs.existsSync(requested)) return requested;
 

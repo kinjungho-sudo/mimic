@@ -102,6 +102,7 @@
   let _lastTypingFrameTime = 0;     // 롤링 타이핑 프레임 throttle 기준
   let _typingFrameTimer  = null;    // 입력 멈춤(완료) 시점 프레임 1장 예약 타이머
   let _isComposing       = false;   // 한/일/중 IME 조합 중 여부 — 조합 중간값 캡처 방지
+  let cancelActiveLiveTargetPick = null;
 
   // 비밀번호 등 민감 입력의 '타이핑 텍스트 저장'을 막는 마스킹용 (블러와 무관)
   const SENSITIVE_INPUT_TYPES = new Set(['password']);
@@ -722,6 +723,11 @@
 
   // ── 메시지 수신 ──────────────────────────────────────────────────
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+    if (msg.type === 'PARRO_CONTENT_READY') {
+      sendResponse({ ok: true, ready: true, topFrame: IS_TOP_FRAME });
+      return false;
+    }
+
     if (msg.type === 'START_RECORDING') {
       if (isRecording || _countingDown) { sendResponse({ ok: true }); return false; }
       if (!IS_TOP_FRAME) {
@@ -819,6 +825,12 @@
       return true;
     }
 
+    if (msg.type === 'CANCEL_LIVE_TARGET_PICK') {
+      if (IS_TOP_FRAME && cancelActiveLiveTargetPick) cancelActiveLiveTargetPick();
+      sendResponse({ ok: true });
+      return false;
+    }
+
     if (msg.type === 'SHOW_OVERLAY' && msg.step) {
       if (!IS_TOP_FRAME) return false;
       const guideApi = window.ParroGuide || window.MimicGuide;
@@ -853,9 +865,12 @@
 
   // ── 인터랙티브 타겟 탐색 ────────────────────────────────────────
   function startLiveTargetPick(sendResponse) {
+    if (cancelActiveLiveTargetPick) cancelActiveLiveTargetPick();
     let finished = false;
     let timeoutId = null;
     const banner = document.createElement('div');
+    banner.id = 'parro-live-target-picker';
+    banner.dataset.parroLiveTargetPicker = 'true';
     banner.textContent = 'Parro: 라이브 가이드 대상을 클릭하세요';
     Object.assign(banner.style, {
       position: 'fixed',
@@ -878,6 +893,7 @@
       document.removeEventListener('pointerdown', onPointerDown, true);
       if (timeoutId) clearTimeout(timeoutId);
       banner.remove();
+      if (cancelActiveLiveTargetPick === cancelPick) cancelActiveLiveTargetPick = null;
     };
 
     const finish = (payload) => {
@@ -886,6 +902,13 @@
       cleanup();
       sendResponse(payload);
     };
+
+    const cancelPick = () => finish({
+      ok: false,
+      reason: 'cancelled',
+      error: '대상 선택이 취소되었습니다.',
+    });
+    cancelActiveLiveTargetPick = cancelPick;
 
     function onPointerDown(event) {
       const raw = event.target && event.target.nodeType === Node.ELEMENT_NODE

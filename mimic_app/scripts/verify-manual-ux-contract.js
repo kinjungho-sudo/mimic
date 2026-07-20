@@ -30,7 +30,7 @@ assert.match(studio, /이 대상으로 저장할까요\?/, 'Studio must confirm 
 assert.match(studio, /실행 취소/, 'Studio must allow reverting the last target change');
 assert.match(liveGuideApi, /PICK_LIVE_TARGET', tab_id: tabId/, 'Studio must send the explicit target tab id');
 assert.match(liveGuideApi, /RUNTIME_MESSAGE_TIMEOUT_MS\s*=\s*8_000/, 'Recorder messages must have a bounded timeout');
-assert.match(liveGuideApi, /TARGET_PICK_TIMEOUT_MS\s*=\s*60_000/, 'interactive target selection must have a bounded timeout');
+assert.match(liveGuideApi, /TARGET_PICK_TIMEOUT_MS\s*=\s*35_000/, 'interactive target selection must have a bounded timeout');
 
 assert.match(home, /firstName \? `\$\{firstName\}님의 워크스페이스` : '내 워크스페이스'/, 'anonymous workspace title must not start with 님의');
 assert.match(home, /`\$\{liveGuide\.used\} \/ 무제한`/, 'Live Guide paid usage needs a readable separator');

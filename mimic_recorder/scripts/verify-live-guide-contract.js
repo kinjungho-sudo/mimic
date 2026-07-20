@@ -20,7 +20,7 @@ const engine = read('guide-engine.js');
 const popup = read('popup.html');
 const manifest = JSON.parse(read('manifest.json'));
 
-assert.equal(manifest.version, '1.7.6');
+assert.equal(manifest.version, '1.7.7');
 assert.deepEqual(
   manifest.content_scripts[0].js.slice(0, 3),
   ['targeting.js', 'guide-engine.js', 'content.js'],
@@ -37,6 +37,12 @@ assert.match(targetPicker, /Number\.isInteger\(message\.tab_id\)/);
 assert.match(targetPicker, /chrome\.tabs\.get\(requestedTabId\)/);
 assert.match(targetPicker, /activeBeforePick/);
 assert.match(targetPicker, /restoreStudioTab/);
+assert.match(targetPicker, /ensureContentScript\(tab\.id\)/);
+assert.match(targetPicker, /requestLiveTargetPick\(tab\.id\)/);
+assert.match(background, /PARRO_CONTENT_READY/);
+assert.match(background, /CONTENT_READY_RETRY_COUNT/);
+assert.match(content, /msg\.type === 'PARRO_CONTENT_READY'/);
+assert.match(content, /id = 'parro-live-target-picker'/);
 
 const guideNavigation = section(background, "if (message.type === 'GUIDE_NEXT'", '// 사이드패널에서 특정 스텝');
 assert.match(guideNavigation, /idx\s*>=\s*steps\.length\s*-\s*1[\s\S]*clearGuideSession\(\)/);

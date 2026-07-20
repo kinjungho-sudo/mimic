@@ -1,4 +1,6 @@
 async function main() {
+  const fs = await import('node:fs');
+  const path = await import('node:path');
   const { validateRegeneratedStepSet } = await import('../lib/ai/regeneration-quality.ts');
   const { isLowQualityCaptureScript, isLowQualityCaptureTitle } = await import('../lib/ai/capture-fallback.ts');
 
@@ -28,7 +30,12 @@ async function main() {
   const missing = validateRegeneratedStepSet(ids, useful.slice(0, 4));
   if (missing.ok || missing.reason !== 'missing_steps') throw new Error('missing AI steps must reject the whole rewrite');
 
-  console.log(JSON.stringify({ ok: true, checks: 6, rejected_reason: rejected.reason }));
+  const route = fs.readFileSync(path.join(process.cwd(), 'app', 'api', 'tutorials', '[id]', 'regenerate-content', 'route.ts'), 'utf8');
+  if (!/const fallbackDraft = purposeFallback/.test(route)) throw new Error('regeneration must recover unusable AI steps with a grounded fallback');
+  if (!/buildCaptureFallbackTutorialTitle\(drafts/.test(route)) throw new Error('regeneration must recover a low-quality existing tutorial title');
+  if (!/fallback_count: fallbackStepIds\.size/.test(route)) throw new Error('regeneration must report actual fallback usage');
+
+  console.log(JSON.stringify({ ok: true, checks: 9, rejected_reason: rejected.reason }));
 }
 
 main().catch(error => {

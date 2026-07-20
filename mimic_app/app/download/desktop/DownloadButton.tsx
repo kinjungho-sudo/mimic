@@ -8,6 +8,7 @@ import {
   isExtensionConnectionError,
   sendDesktopExtensionMessage,
 } from '@/lib/desktop-companion-client';
+import { releaseDesktopDownloadLock, startDesktopDownloadOnce } from '@/lib/desktop-download-once';
 import styles from './page.module.css';
 
 type InstallState = 'checking' | 'current' | 'outdated' | 'missing' | 'recorder_missing';
@@ -32,7 +33,7 @@ export function DownloadButton({
   requestedInstalledVersion?: string;
   source: string;
 }) {
-  const locked = useRef(false);
+  const activeDownloadButton = useRef<HTMLButtonElement | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [installState, setInstallState] = useState<InstallState>('checking');
   const [installedVersion, setInstalledVersion] = useState<string | null>(requestedInstalledVersion || null);
@@ -59,17 +60,23 @@ export function DownloadButton({
     void checkInstall();
   }, [checkInstall]);
 
-  const handleDownload = (event: React.MouseEvent<HTMLAnchorElement>) => {
-    if (locked.current) {
-      event.preventDefault();
-      return;
-    }
-    locked.current = true;
-    setDownloading(true);
-    window.setTimeout(() => {
-      locked.current = false;
-      setDownloading(false);
-    }, 4000);
+  useEffect(() => () => {
+    releaseDesktopDownloadLock(activeDownloadButton.current);
+  }, []);
+
+  const handleDownload = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    const button = event.currentTarget;
+    const started = startDesktopDownloadOnce(button, {
+      href,
+      filename: 'ParroDesktopSetup.exe',
+      lockMs: 4_000,
+      onLockChange: locked => {
+        setDownloading(locked);
+        if (!locked && activeDownloadButton.current === button) activeDownloadButton.current = null;
+      },
+    });
+    if (started) activeDownloadButton.current = button;
   };
 
   const downloadLabel = downloading
@@ -78,18 +85,17 @@ export function DownloadButton({
       ? '최신 버전으로 업데이트'
       : 'Windows용 다운로드';
   const downloadLink = (
-    <a
+    <button
+      type="button"
       className={styles.downloadButton}
       data-testid="desktop-download"
       data-downloading={downloading ? 'true' : 'false'}
-      href={href}
-      download="ParroDesktopSetup.exe"
-      aria-disabled={downloading}
       onClick={handleDownload}
+      onDoubleClick={event => event.preventDefault()}
     >
       <DownloadIcon />
       {downloadLabel}
-    </a>
+    </button>
   );
 
   if (installState === 'checking') {
@@ -120,9 +126,15 @@ export function DownloadButton({
         >
           바로 데스크톱 녹화 시작
         </a>
-        <a className={styles.secondaryAction} href={href} download="ParroDesktopSetup.exe" onClick={handleDownload}>
+        <button
+          className={styles.secondaryActionButton}
+          data-testid="desktop-download"
+          type="button"
+          onClick={handleDownload}
+          onDoubleClick={event => event.preventDefault()}
+        >
           설치 파일 다시 받기
-        </a>
+        </button>
       </div>
     );
   }

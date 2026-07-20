@@ -195,6 +195,71 @@ function sendTabMessage(tabId, msg) {
   });
 }
 
+const CONTENT_READY_PING_TIMEOUT_MS = 700;
+const CONTENT_READY_RETRY_COUNT = 6;
+const CONTENT_READY_RETRY_DELAY_MS = 150;
+const LIVE_TARGET_PICK_RESPONSE_TIMEOUT_MS = 32_000;
+
+function waitMs(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function pingContentScript(tabId, timeoutMs = CONTENT_READY_PING_TIMEOUT_MS) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      resolve(result);
+    };
+    const timeoutId = setTimeout(() => finish({ ok: false, error: 'content_ready_timeout' }), timeoutMs);
+
+    chrome.tabs.sendMessage(tabId, { type: 'PARRO_CONTENT_READY' }, { frameId: 0 }, (response) => {
+      const error = chrome.runtime.lastError?.message || null;
+      finish({
+        ok: !error && response?.ok === true && response?.ready === true,
+        error: error || (response?.ready === true ? null : 'content_not_ready'),
+      });
+    });
+  });
+}
+
+function requestLiveTargetPick(tabId, timeoutMs = LIVE_TARGET_PICK_RESPONSE_TIMEOUT_MS) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      resolve(result);
+    };
+    const timeoutId = setTimeout(() => {
+      chrome.tabs.sendMessage(tabId, { type: 'CANCEL_LIVE_TARGET_PICK' }, { frameId: 0 }, () => {
+        void chrome.runtime.lastError;
+      });
+      finish({
+        ok: false,
+        reason: 'timeout',
+        error: '대상 선택 응답이 지연되었습니다. 대상 탭을 새로고침한 뒤 다시 시도해주세요.',
+      });
+    }, timeoutMs);
+
+    chrome.tabs.sendMessage(tabId, { type: 'LIVE_TARGET_PICK' }, { frameId: 0 }, (response) => {
+      const error = chrome.runtime.lastError?.message;
+      if (error) {
+        finish({
+          ok: false,
+          reason: 'content_script_unreachable',
+          error: `대상 탭의 Parro 연결이 끊어졌습니다. 탭을 새로고침한 뒤 다시 시도해주세요. (${error})`,
+        });
+        return;
+      }
+      finish(response || { ok: false, reason: 'empty_response', error: '대상 선택 응답이 없습니다.' });
+    });
+  });
+}
+
 // ── Offscreen Document 관리 ──────────────────────────────────────
 const OFFSCREEN_URL = chrome.runtime.getURL('offscreen.html');
 let _streamActive   = false;  // offscreen 스트림 보유 여부
@@ -395,18 +460,39 @@ async function captureTab(windowId) {
 // 확장 설치/리로드 전에 열려 있던 탭에는 content_script가 없을 수 있다.
 // START_RECORDING/STOP/수동캡처 전에 호출해 메시지가 유실되지 않게 한다.
 // content.js 상단의 window.__parroContentLoaded / legacy __mimicContentLoaded 가드가 중복 초기화를 막는다.
-function ensureContentScript(tabId) {
-  return new Promise((resolve) => {
+async function ensureContentScript(tabId) {
+  const existing = await pingContentScript(tabId);
+  if (existing.ok) return { ok: true, source: 'existing' };
+
+  const injection = await new Promise((resolve) => {
     chrome.scripting.executeScript({ target: { tabId, allFrames: true }, files: ['targeting.js', 'guide-engine.js', 'content.js'] }, () => {
       const error = chrome.runtime.lastError?.message || null;
-      if (error) {
-        log('warn', 'bg', 'content script injection failed:', { tabId, error });
-        resolve({ ok: false, error });
-        return;
-      }
-      resolve({ ok: true });
+      resolve(error ? { ok: false, error } : { ok: true });
     });
   });
+  if (!injection.ok) {
+    log('warn', 'bg', 'content script injection failed:', { tabId, error: injection.error });
+    return {
+      ok: false,
+      reason: 'content_script_failed',
+      error: `Parro가 대상 탭에 연결할 수 없습니다. 페이지를 새로고침하거나 일반 웹페이지에서 다시 시도해주세요. (${injection.error})`,
+    };
+  }
+
+  let lastError = existing.error;
+  for (let attempt = 0; attempt < CONTENT_READY_RETRY_COUNT; attempt += 1) {
+    const readiness = await pingContentScript(tabId);
+    if (readiness.ok) return { ok: true, source: 'injected', attempts: attempt + 1 };
+    lastError = readiness.error;
+    if (attempt < CONTENT_READY_RETRY_COUNT - 1) await waitMs(CONTENT_READY_RETRY_DELAY_MS);
+  }
+
+  log('warn', 'bg', 'content script readiness failed:', { tabId, error: lastError });
+  return {
+    ok: false,
+    reason: 'content_script_not_ready',
+    error: 'Parro 연결 준비가 완료되지 않았습니다. 대상 탭을 새로고침한 뒤 다시 시도해주세요.',
+  };
 }
 
 function classifyRecordableUrl(url) {
@@ -911,15 +997,9 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
           await chrome.tabs.update(senderTabId, { active: true }).catch(() => {});
         };
 
-        chrome.tabs.sendMessage(tab.id, { type: 'LIVE_TARGET_PICK' }, async (response) => {
-          const error = chrome.runtime.lastError?.message;
-          await restoreStudioTab();
-          if (error) {
-            sendResponse({ ok: false, reason: 'content_script_unreachable', error });
-            return;
-          }
-          sendResponse(response || { ok: false, reason: 'empty_response', error: '대상 선택 응답이 없습니다.' });
-        });
+        const pickResult = await requestLiveTargetPick(tab.id);
+        await restoreStudioTab();
+        sendResponse(pickResult);
       } catch (error) {
         sendResponse({ ok: false, reason: 'error', error: error?.message || String(error) });
       }

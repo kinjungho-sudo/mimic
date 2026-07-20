@@ -5,6 +5,7 @@ import { createServiceRoleClient } from '@/lib/supabase/server';
 import { generateDraft } from '@/lib/ai/claude';
 import {
   buildCaptureFallbackDraft,
+  buildCaptureFallbackTutorialTitle,
   isLowQualityCaptureTitle,
   isLowQualityCaptureTutorialTitle,
   isUsableCaptureDraft,
@@ -253,8 +254,9 @@ export async function POST(request: NextRequest, { params }: Params) {
     );
   }
   const aiById = new Map(draftResult.steps.map(step => [step.id, step]));
+  const fallbackStepIds = new Set<string>();
 
-  const aiDrafts = steps.map((step) => {
+  const aiDrafts = steps.map((step, index) => {
     const aiDraft = aiById.get(step.id);
     const target = step.action_info?.targetContext;
     const captureSurface = target?.captureSurface ?? (isDesktopStep(step) ? 'desktop' : undefined);
@@ -281,6 +283,16 @@ export async function POST(request: NextRequest, { params }: Params) {
     })) {
       return { id: step.id, user_title: maskedAiDraft!.user_title, user_script: maskedAiDraft!.user_script };
     }
+
+    const fallbackDraft = purposeFallback(step, index, steps);
+    if (isUsableCaptureDraft(fallbackDraft, {
+      pageUrl: step.page_url,
+      elementText: step.element_text || step.action_info?.targetContext?.accessibleName,
+      actionInfo,
+    })) {
+      fallbackStepIds.add(step.id);
+      return fallbackDraft;
+    }
     return null;
   });
   if (aiDrafts.some(draft => draft === null)) {
@@ -305,10 +317,15 @@ export async function POST(request: NextRequest, { params }: Params) {
     if (!isLowQualityCaptureTutorialTitle(currentTitle, { stepTitles: drafts.map(draft => draft.user_title) })) {
       tutorialTitle = currentTitle;
     } else {
-      return NextResponse.json(
-        { error: '전체 목적을 설명하는 제목을 만들지 못해 기존 내용은 변경하지 않았습니다.' },
-        { status: 422 },
-      );
+      tutorialTitle = buildCaptureFallbackTutorialTitle(drafts, {
+        serviceNames: steps.map(serviceName),
+      });
+      if (isLowQualityCaptureTutorialTitle(tutorialTitle, { stepTitles: drafts.map(draft => draft.user_title) })) {
+        return NextResponse.json(
+          { error: '전체 목적을 설명하는 제목을 만들지 못해 기존 내용은 변경하지 않았습니다.' },
+          { status: 422 },
+        );
+      }
     }
   }
 
@@ -326,6 +343,6 @@ export async function POST(request: NextRequest, { params }: Params) {
     title: tutorialTitle,
     steps: drafts,
     ai_status: draftResult.status,
-    fallback_count: drafts.filter((draft, index) => draft.user_title === purposeFallback(steps[index], index, steps).user_title).length,
+    fallback_count: fallbackStepIds.size,
   });
 }
