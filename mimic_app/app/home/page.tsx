@@ -973,7 +973,10 @@ export default function DashboardPage() {
   const usedToday = user?.daily_manual_count ?? 0;
   const dailyLimit = user?.daily_limit ?? 3;
   const isPro = user?.plan === 'pro' || user?.plan === 'team';
-  const firstName = user?.name?.split(' ')[0] ?? '';
+  const firstName = user?.name?.trim().split(/\s+/)[0] ?? '';
+  const personalWorkspaceTitle = contentType === 'playbook'
+    ? (firstName ? `${firstName}님의 플레이북` : '내 플레이북')
+    : (firstName ? `${firstName}님의 워크스페이스` : '내 워크스페이스');
 
   const handleSignOut = async () => { await signOut(); router.push('/auth/login'); };
 
@@ -1260,8 +1263,7 @@ export default function DashboardPage() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isPro ? 0 : '6px' }}>
                   <span style={{ fontSize: '12px', color: '#6B7280' }}>매뉴얼</span>
                   <span style={{ fontSize: '12px', fontWeight: 600, color: '#111827' }}>
-                    {usedToday}{isPro ? '' : ` / ${dailyLimit}`}
-                    {isPro && <span style={{ fontSize: '10px', color: '#10B981', marginLeft: '4px', fontWeight: 500 }}>무제한</span>}
+                    {isPro ? `${usedToday} / 무제한` : `${usedToday} / ${dailyLimit}`}
                   </span>
                 </div>
                 {!isPro && (
@@ -1274,9 +1276,7 @@ export default function DashboardPage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
                     <span style={{ fontSize: '12px', color: '#6B7280' }}>라이브 가이드 Beta</span>
                     <span style={{ fontSize: '12px', fontWeight: 600, color: '#111827' }}>
-                      {liveGuide.paid
-                        ? <>{liveGuide.used}<span style={{ fontSize: '10px', color: '#10B981', marginLeft: '4px', fontWeight: 500 }}>무제한</span></>
-                        : `${liveGuide.used} / ${liveGuide.limit}`}
+                      {liveGuide.paid ? `${liveGuide.used} / 무제한` : `${liveGuide.used} / ${liveGuide.limit}`}
                     </span>
                   </div>
                 )}
@@ -1290,9 +1290,7 @@ export default function DashboardPage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
                     <span style={{ fontSize: '12px', color: '#6B7280' }}>플레이북</span>
                     <span style={{ fontSize: '12px', fontWeight: 600, color: '#111827' }}>
-                      {playbook.paid
-                        ? <>{playbook.used}<span style={{ fontSize: '10px', color: '#10B981', marginLeft: '4px', fontWeight: 500 }}>무제한</span></>
-                        : `${playbook.used} / ${playbook.limit}`}
+                      {playbook.paid ? `${playbook.used} / 무제한` : `${playbook.used} / ${playbook.limit}`}
                     </span>
                   </div>
                 )}
@@ -1437,7 +1435,7 @@ export default function DashboardPage() {
                   <h1 className="home-greeting" style={{ fontSize: '24px', fontWeight: 700, letterSpacing: '-0.025em', margin: 0, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {authLoading ? '' : isTeamCtx
                       ? `${workspaces.find(w => w.id === activeWorkspace)?.name ?? '팀 워크스페이스'} 매뉴얼`
-                      : contentType === 'playbook' ? `${firstName}님의 플레이북` : `${firstName}님의 워크스페이스`}
+                      : personalWorkspaceTitle}
                   </h1>
                   {isTeamCtx && (
                     <>
