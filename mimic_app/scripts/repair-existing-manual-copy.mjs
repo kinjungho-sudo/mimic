@@ -10,7 +10,9 @@ import {
   isLowQualityCaptureScript,
   isLowQualityCaptureTitle,
   isLowQualityCaptureTutorialTitle,
+  isUsableCaptureDraft,
 } from '../lib/ai/capture-fallback.ts';
+import { generateDraft } from '../lib/ai/claude.ts';
 import { validateRegeneratedStepSet } from '../lib/ai/regeneration-quality.ts';
 import { assessManualQuality, maskManualCopy } from '../lib/manual-quality.ts';
 
@@ -18,6 +20,7 @@ const appRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 nextEnv.loadEnvConfig(appRoot);
 
 const apply = process.argv.includes('--apply');
+const useAi = process.argv.includes('--ai');
 const tutorialIdArg = process.argv.find(argument => argument.startsWith('--tutorial-id='));
 const tutorialId = tutorialIdArg ? tutorialIdArg.slice('--tutorial-id='.length).trim() : '';
 const copyIssueCodes = new Set(['tutorial_title', 'step_title', 'step_script', 'duplicate_title']);
@@ -68,6 +71,69 @@ for (const step of rawSteps || []) {
   stepsByTutorial.set(step.tutorial_id, steps);
 }
 
+function validateRepair(tutorial, steps, drafts, preferredTitle = '') {
+  const setQuality = validateRegeneratedStepSet(steps.map(step => step.id), drafts);
+  if (!setQuality.ok) return { ok: false, reason: setQuality.reason };
+
+  let title = maskManualCopy(preferredTitle || tutorial.title);
+  if (isLowQualityCaptureTutorialTitle(title, { stepTitles: drafts.map(draft => draft.user_title) })) {
+    title = buildCaptureFallbackTutorialTitle(drafts, {
+      serviceNames: steps.map(step => step.domain_name),
+    });
+  }
+  if (isLowQualityCaptureTutorialTitle(title, { stepTitles: drafts.map(draft => draft.user_title) })) {
+    return { ok: false, reason: 'tutorial_title' };
+  }
+
+  const repairedSteps = steps.map(step => {
+    const draft = drafts.find(candidate => candidate.id === step.id);
+    return { ...step, user_title: draft.user_title, user_script: draft.user_script };
+  });
+  const afterIssues = assessManualQuality(title, repairedSteps).filter(issue => copyIssueCodes.has(issue.code));
+  if (afterIssues.length) return { ok: false, reason: 'quality_remaining', afterIssues: afterIssues.length };
+  return { ok: true, drafts, title, source: 'capture' };
+}
+
+async function buildAiRepair(tutorial, steps) {
+  const generated = await generateDraft(steps.map(step => {
+    const target = step.action_info?.targetContext;
+    return {
+      ...step,
+      user_title: maskManualCopy(step.user_title),
+      ai_title: maskManualCopy(step.ai_title),
+      user_script: maskManualCopy(step.user_script),
+      ai_description: maskManualCopy(step.ai_description),
+      action_type: step.action_info?.type || null,
+      action_label: maskManualCopy(step.action_info?.label),
+      element_text: maskManualCopy(step.element_text || target?.accessibleName),
+      context_label: maskManualCopy(target?.contextLabel),
+      page_title: maskManualCopy(target?.pageTitle),
+      capture_surface: target?.captureSurface || null,
+      capture_app: maskManualCopy(target?.captureApp),
+    };
+  }));
+  if (generated.status !== 'ok') return { ok: false, reason: `ai_${generated.status}` };
+
+  const byId = new Map(generated.steps.map(step => [step.id, step]));
+  const drafts = steps.map(step => {
+    const candidate = byId.get(step.id);
+    const actionInfo = step.action_info && typeof step.action_info === 'object' ? step.action_info : null;
+    const draft = candidate ? {
+      id: step.id,
+      user_title: maskManualCopy(candidate.user_title),
+      user_script: maskManualCopy(candidate.user_script),
+    } : null;
+    return isUsableCaptureDraft(draft, {
+      pageUrl: step.page_url,
+      elementText: step.element_text || actionInfo?.targetContext?.accessibleName,
+      actionInfo,
+    }) ? draft : null;
+  });
+  if (drafts.some(draft => !draft)) return { ok: false, reason: 'ai_ungrounded' };
+  const checked = validateRepair(tutorial, steps, drafts, generated.tutorial_title);
+  return checked.ok ? { ...checked, source: 'ai' } : checked;
+}
+
 const results = [];
 for (const tutorial of tutorials || []) {
   const steps = stepsByTutorial.get(tutorial.id) || [];
@@ -110,34 +176,23 @@ for (const tutorial of tutorials || []) {
     };
   });
 
-  const setQuality = validateRegeneratedStepSet(steps.map(step => step.id), drafts);
-  if (!setQuality.ok) {
-    results.push({ tutorialId: tutorial.id, status: 'skipped', reason: setQuality.reason, beforeIssues: copyIssues.length });
-    continue;
-  }
-
-  let nextTitle = maskManualCopy(tutorial.title);
-  if (isLowQualityCaptureTutorialTitle(nextTitle, { stepTitles: drafts.map(draft => draft.user_title) })) {
-    nextTitle = buildCaptureFallbackTutorialTitle(drafts, {
-      serviceNames: steps.map(step => step.domain_name),
+  let repair = validateRepair(tutorial, steps, drafts);
+  if (!repair.ok && useAi) repair = await buildAiRepair(tutorial, steps);
+  if (!repair.ok) {
+    results.push({
+      tutorialId: tutorial.id,
+      status: 'skipped',
+      reason: repair.reason,
+      beforeIssues: copyIssues.length,
+      ...(repair.afterIssues ? { afterIssues: repair.afterIssues } : {}),
     });
-  }
-  if (isLowQualityCaptureTutorialTitle(nextTitle, { stepTitles: drafts.map(draft => draft.user_title) })) {
-    results.push({ tutorialId: tutorial.id, status: 'skipped', reason: 'tutorial_title', beforeIssues: copyIssues.length });
     continue;
   }
 
-  const repairedSteps = steps.map(step => {
-    const draft = drafts.find(candidate => candidate.id === step.id);
-    return { ...step, user_title: draft.user_title, user_script: draft.user_script };
-  });
-  const afterCopyIssues = assessManualQuality(nextTitle, repairedSteps).filter(issue => copyIssueCodes.has(issue.code));
-  if (afterCopyIssues.length) {
-    results.push({ tutorialId: tutorial.id, status: 'skipped', reason: 'quality_remaining', beforeIssues: copyIssues.length, afterIssues: afterCopyIssues.length });
-    continue;
-  }
+  const finalDrafts = repair.drafts;
+  const nextTitle = repair.title;
 
-  const changedDrafts = drafts.filter((draft, index) =>
+  const changedDrafts = finalDrafts.filter((draft, index) =>
     draft.user_title !== maskManualCopy(steps[index].user_title || steps[index].ai_title)
     || draft.user_script !== maskManualCopy(steps[index].user_script || steps[index].ai_description)
   );
@@ -162,12 +217,14 @@ for (const tutorial of tutorials || []) {
     afterIssues: 0,
     changedSteps: changedDrafts.length,
     changedTitle: nextTitle !== maskManualCopy(tutorial.title),
+    source: repair.source,
   });
 }
 
 console.log(JSON.stringify({
   ok: true,
   mode: apply ? 'apply' : 'dry-run',
+  ai: useAi,
   scanned: tutorials?.length || 0,
   candidates: results.length,
   ready: results.filter(result => result.status === 'ready' || result.status === 'updated').length,
