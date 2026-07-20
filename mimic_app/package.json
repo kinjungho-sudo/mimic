@@ -11,7 +11,7 @@
     "verify:recorder-profile": "node scripts/verify-recorder-profile.mjs",
     "verify:synthetic-capture-ui": "node scripts/verify-synthetic-capture-ui.mjs",
     "verify:synthetic-finish-navigation": "node scripts/verify-synthetic-finish-navigation.mjs",
-    "verify:live-guide": "node scripts/verify-live-guide-fail-closed.mjs",
+    "verify:live-guide": "node scripts/verify-live-guide-fail-closed.mjs && node --loader ./scripts/ts-path-loader.mjs scripts/verify-live-guide-api-timeouts.mjs",
     "verify:quality": "node scripts/verify-capture-fallback.js && node scripts/verify-regenerate-content.js && node --loader ./scripts/ts-path-loader.mjs scripts/verify-rewrite-purpose-quality.js && node --loader ./scripts/ts-path-loader.mjs scripts/verify-follow-config.js && node scripts/verify-manual-ux-contract.js",
     "verify:desktop": "node ../mimic_desktop/native-host/scripts/smoke-native-host.js && node ../mimic_desktop/native-host/scripts/test-native-import.js && node ../mimic_desktop/native-host/scripts/test-scribe-controls.js"
   },
