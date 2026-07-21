@@ -77,6 +77,34 @@ check(() => {
 });
 
 check(() => {
+  const captureStart = background.indexOf("if (message.type === 'CAPTURE_SCREENSHOT')");
+  const captureEnd = background.indexOf("if (message.type === 'MANUAL_IMAGE_STEP')", captureStart);
+  const captureBlock = background.slice(captureStart, captureEnd);
+  assert.match(captureBlock, /captureState\.targetTabId !== tabId/);
+  assert.match(captureBlock, /inactive_recording_target/);
+
+  const stateStart = background.indexOf("if (message.type === 'GET_TAB_RECORDING_STATE')");
+  const stateEnd = background.indexOf("if (message.type === 'OPEN_TAB')", stateStart);
+  const stateBlock = background.slice(stateStart, stateEnd);
+  assert.match(stateBlock, /tabId === r\.targetTabId/);
+
+  const followStart = background.indexOf('async function followActiveTab');
+  const followEnd = background.indexOf('chrome.tabs.onActivated.addListener', followStart);
+  const followBlock = background.slice(followStart, followEnd);
+  assert.match(followBlock, /if \(tabId !== targetTabId\)/);
+  assert.match(followBlock, /type: 'STOP_RECORDING'/);
+  assert.doesNotMatch(followBlock, /storageSet\(\{ targetTabId: tabId \}\)/);
+
+  const focusoutStart = content.indexOf("document.addEventListener('focusout'");
+  const focusoutEnd = content.indexOf("document.addEventListener('change'", focusoutStart);
+  const focusoutBlock = content.slice(focusoutStart, focusoutEnd);
+  assert.match(focusoutBlock, /const blurredTypingTarget = typingTarget/);
+  assert.match(focusoutBlock, /setTimeout\(\(\) => \{/);
+  assert.match(focusoutBlock, /typingTarget !== blurredTypingTarget/);
+  assert.match(focusoutBlock, /flushTyping\(blurredTypingTarget/);
+});
+
+check(() => {
   assert.match(popup, /function renderSteps\(steps\)/);
   assert.match(popup, /setStepCardExpanded\(card, true\)/);
   assert.match(popup, /topRow\.addEventListener\('click', toggleExpanded\)/);

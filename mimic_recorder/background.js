@@ -1329,10 +1329,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const tabId = sender.tab?.id;
     if (!tabId) { sendResponse({ ok: false }); return true; }
 
-    _lastCaptureTime = Date.now();
-    chrome.storage.local.set({ lastCaptureTime: _lastCaptureTime });
-
     (async () => {
+      const captureState = await storageGet(['isRecording', 'isPaused', 'targetTabId']);
+      if (!captureState.isRecording || captureState.isPaused || captureState.targetTabId !== tabId) {
+        sendResponse({ ok: false, reason: 'inactive_recording_target' });
+        return;
+      }
+
+      _lastCaptureTime = Date.now();
+      chrome.storage.local.set({ lastCaptureTime: _lastCaptureTime });
+
       const tab = await new Promise((res) => chrome.tabs.get(tabId, (t) => {
         res(chrome.runtime.lastError ? null : t);
       }));
@@ -1514,8 +1520,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'GET_TAB_RECORDING_STATE') {
     const tabId = sender.tab?.id;
     (async () => {
-      const r = await storageGet(['isRecording', 'isPaused', 'stepNumber']);
-      const isTarget = !!r.isRecording && tabId != null;
+      const r = await storageGet(['isRecording', 'isPaused', 'stepNumber', 'targetTabId']);
+      const isTarget = !!r.isRecording && tabId != null && tabId === r.targetTabId;
       sendResponse({ isRecording: isTarget, isPaused: !!r.isPaused, stepNumber: r.stepNumber || 0 });
     })();
     return true;
@@ -2006,11 +2012,14 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
 // 또 활성 탭을 targetTabId로 동기화해 수동 캡처·가이드·사이드패널이 올바른 탭을 가리키게 한다.
 async function followActiveTab(tabId) {
   if (tabId == null) return;
-  const { isRecording, isPaused, stepNumber } = await storageGet(['isRecording', 'isPaused', 'stepNumber']);
+  const { isRecording, isPaused, stepNumber, targetTabId } = await storageGet(['isRecording', 'isPaused', 'stepNumber', 'targetTabId']);
   if (!isRecording) return;
+  if (tabId !== targetTabId) {
+    await sendTabMessage(tabId, { type: 'STOP_RECORDING' });
+    return;
+  }
   const tab = await new Promise((res) => chrome.tabs.get(tabId, (t) => res(chrome.runtime.lastError ? null : t)));
   if (!tab || !tab.url?.startsWith('http')) return;  // chrome://·확장 페이지 등은 녹화 대상 아님
-  await storageSet({ targetTabId: tabId });
   await ensureContentScript(tabId);  // 멱등 — 이미 주입돼 있으면 early-return
   sendTabMessage(tabId, { type: 'RESYNC_RECORDING', isPaused: !!isPaused, stepNumber: stepNumber || 0 });
 }

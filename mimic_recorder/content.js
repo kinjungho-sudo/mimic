@@ -1834,7 +1834,13 @@
     if (!e.relatedTarget && IS_TOP_FRAME) return;  // 페이지 밖으로 포커스 이탈(창 전환)은 무시
     // relatedTarget(다음 포커스 대상)이 있다 = 그 요소의 pointerdown 선캡처가 떠 있다.
     // 그 '액션 직전' 프레임(완성 텍스트)을 타이핑 스텝 이미지로 쓰고, peek로 클릭 스텝과 공유한다.
-    flushTyping(typingTarget, true, { usePrecapture: true, peekPrecapture: true });
+    // The following click must run before the typing capture sets isCapturing;
+    // otherwise handleClick drops the user's next action as a concurrent capture.
+    const blurredTypingTarget = typingTarget;
+    setTimeout(() => {
+      if (!isRecording || isPaused || typingTarget !== blurredTypingTarget) return;
+      flushTyping(blurredTypingTarget, true, { usePrecapture: true, peekPrecapture: true });
+    }, 0);
   }, true);
 
   // ── 파일 업로드 캡처 ─────────────────────────────────────────────
