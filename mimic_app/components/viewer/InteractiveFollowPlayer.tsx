@@ -36,6 +36,7 @@ type AnimPhase = 'raw' | 'zooming' | 'focused';
 interface Props {
   steps: FollowStep[];
   title?: string;
+  initialStepIndex?: number;
   onClose?: () => void;
   onComplete?: () => void;
   closeLabel?: string;
@@ -46,8 +47,8 @@ const HIT_PCT = 7; // 핫스팟 정답 클릭 허용 반경(%)
 const GUIDE_GRADIENT = `linear-gradient(135deg,${BRAND_COLORS.primary},${BRAND_COLORS.guide})`;
 const GUIDE_SOFT = 'rgba(0,155,142,0.10)';
 
-export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, closeLabel = '닫기', lockAfterStep = null }: Props) {
-  const [idx, setIdx] = useState(0);
+export function InteractiveFollowPlayer({ steps, title, initialStepIndex = 0, onClose, onComplete, closeLabel = '닫기', lockAfterStep = null }: Props) {
+  const [idx, setIdx] = useState(() => Math.max(0, Math.min(initialStepIndex, steps.length - 1)));
   const [done, setDone] = useState(false);
   const [nudge, setNudge] = useState(false);
   const [minimized, setMinimized] = useState(false);
@@ -66,6 +67,13 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
   const step = steps[idx];
   const hasAnyAudio = steps.some(s => !!s.audioUrl);
   const zoomOn = !!step?.domRect && !!step?.zoomAnim;
+
+  useEffect(() => {
+    const nextIndex = Math.max(0, Math.min(initialStepIndex, steps.length - 1));
+    setIdx(nextIndex);
+    setDone(false);
+    setShowSkipConfirm(false);
+  }, [initialStepIndex, steps.length]);
 
   // 스텝 바뀌면 툴팁 다시 펼침 (#3)
   useEffect(() => { setMinimized(false); setShowSkipConfirm(false); }, [idx]);
