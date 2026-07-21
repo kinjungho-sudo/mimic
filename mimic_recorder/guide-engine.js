@@ -778,9 +778,7 @@
 
     shadow.appendChild(root);
 
-    const resolveKey = `${opts.index ?? 0}:${step.id || step.title || ''}`;
-    state = { host, shadow, hl, pulse, tooltip, restoreBtn, scrollHint, resolved, step, opts, idx, total, advanced: false, completed: false, tooltipHidden: false, fallbackKey: usesCoordinateFallback ? resolveKey : null };
-    if (usesCoordinateFallback) maybeReground(step, opts);
+    state = { host, shadow, hl, pulse, tooltip, restoreBtn, scrollHint, resolved, step, opts, idx, total, advanced: false, completed: false, tooltipHidden: false, fallbackKey: null };
 
     // 브라우저의 새로고침/뒤로가기 스크롤 복원이 첫 scrollIntoView를 덮어쓸 수 있어
     // 페이지가 안정된 뒤 한 번 더 확인한다. 사용자가 바로 타깃을 볼 수 있게 즉시 중앙 정렬한다.
