@@ -1644,7 +1644,7 @@ export default function LandingPage() {
   ];
 
   return (
-    <div style={{ fontFamily: "'Pretendard', 'Pretendard Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif", color: '#111827', background: '#fff', WebkitFontSmoothing: 'antialiased' }}>
+    <div className="landing-root" style={{ fontFamily: "'Pretendard', 'Pretendard Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif", color: '#111827', background: '#fff', WebkitFontSmoothing: 'antialiased' }}>
 
       {/* Pro 플랜 사전예약 모달 */}
       {proModal && (
@@ -1787,7 +1787,7 @@ export default function LandingPage() {
               {/* Connecting line */}
               <div style={{ position: 'absolute', top: '42px', left: '20%', right: '20%', height: '2px', background: 'linear-gradient(90deg, rgba(18,184,134,0.15), rgba(18,184,134,0.5), rgba(18,184,134,0.15))', pointerEvents: 'none', zIndex: 0 }} />
               {[
-                { num: '01', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.15)"/><path d="M8 12l2.5 2.5L16 9" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>, title: '크롬 확장 설치 후 녹화 시작', body: '웹 작업을 평소처럼 진행하면 클릭 위치와 화면이 자동 캡처됩니다.' },
+                { num: '01', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.15)"/><path d="M8 12l2.5 2.5L16 9" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>, title: '업무 화면에서 녹화 시작', body: '웹 작업을 평소처럼 진행하면 클릭 위치와 화면이 자동 캡처됩니다.' },
                 { num: '02', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" fill="rgba(255,255,255,0.9)"/></svg>, title: 'AI가 설명과 어노테이션 자동 완성', body: '캡처된 화면을 분석해 단계별 설명·하이라이트·화살표를 자동 생성합니다.' },
                 { num: '03', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.12)"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="white"/></svg>, title: 'Live Guide Beta로 실행까지 연결', body: '정리된 SOP를 실제 화면 위 안내로 이어서, 사용자가 어느 단계에서 막혔는지 덜 고민하고 업무를 끝낼 수 있게 돕습니다.' },
               ].map((s, i) => (
@@ -1871,7 +1871,7 @@ export default function LandingPage() {
           <span style={{ display: 'block', textAlign: 'center', fontSize: '11px', color: '#007C72', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '16px' }}>Why Parro</span>
           <h2 style={{ textAlign: 'center', fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 800, letterSpacing: '-0.035em', margin: '0 auto 60px', maxWidth: '640px', lineHeight: 1.18, color: '#0D0D14' }}>다른 방법과 무엇이 다른가요?</h2>
 
-          <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: '20px', overflow: 'hidden' }}>
+          <div className="comparison-table" style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: '20px', overflow: 'hidden' }}>
             {/* Header row */}
             <div className="comparison-row" style={{ display: 'grid', gridTemplateColumns: '1fr repeat(3, 140px)', borderBottom: '1.5px solid #E5E7EB' }}>
               <div style={{ padding: '18px 28px', fontSize: '13px', color: '#9CA3AF' }}>기능</div>
@@ -1929,7 +1929,7 @@ export default function LandingPage() {
               {
                 name: 'Free', sub: '신용카드 없이 바로 시작', amount: '₩0', per: '/ 월', featured: false,
                 planKey: null as null | 'basic' | 'pro' | 'team',
-                features: ['매일 매뉴얼 3개', `${BRAND_COPY.extensionDisplayName} 확장 설치`, '텍스트·도형 편집', '링크 공유 + PDF', '500MB 저장 공간'],
+                features: ['매일 매뉴얼 3개', '클릭 동작 자동 캡처', '텍스트·도형 편집', '링크 공유 + PDF', '500MB 저장 공간'],
                 cta: '무료로 시작',
               },
               {
@@ -2021,8 +2021,8 @@ export default function LandingPage() {
       </section>
 
       {/* Final CTA */}
-      <section style={{ padding: '0 0 100px', background: '#FAFAFA' }}>
-        <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
+      <section className="final-cta-section" style={{ padding: '0 0 100px', background: '#FAFAFA' }}>
+        <div className="final-cta-wrap" style={{ maxWidth: '1180px', margin: '0 auto', padding: '0 32px' }}>
           <div className="final-cta-inner" style={{ background: 'linear-gradient(135deg, #102033 0%, #007C72 35%, #007C72 70%, #007C72 100%)', borderRadius: '28px', padding: '84px 56px', textAlign: 'center', color: 'white', position: 'relative', overflow: 'hidden' }}>
             {/* Noise grain texture */}
             <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(rgba(255,255,255,0.07) 1px, transparent 1px)', backgroundSize: '28px 28px', pointerEvents: 'none', opacity: 0.6 }} />
@@ -2035,11 +2035,11 @@ export default function LandingPage() {
               Pro 출시 알림 받기 · 사전예약
             </span>
             <h2 style={{ fontSize: 'clamp(32px, 5vw, 54px)', fontWeight: 800, letterSpacing: '-0.04em', margin: '0 0 18px', position: 'relative', lineHeight: 1.1, wordBreak: 'keep-all' }}>첫 실행형 매뉴얼을<br/>만들어보세요</h2>
-            <p style={{ fontSize: '17px', color: 'rgba(255,255,255,0.70)', maxWidth: '520px', margin: '0 auto 40px', position: 'relative', lineHeight: 1.7 }}>{BRAND_COPY.extensionDisplayName} 확장 설치 후 평소처럼 작업하세요. SOP는 문서로 남고, 필요한 순간에는 화면 위 안내로 이어집니다.</p>
+            <p style={{ fontSize: '17px', color: 'rgba(255,255,255,0.70)', maxWidth: '520px', margin: '0 auto 40px', position: 'relative', lineHeight: 1.7 }}>평소처럼 업무를 진행하면 SOP가 문서로 남고, 필요한 순간에는 화면 위 안내로 이어집니다.</p>
 
             {!submitted ? (
-              <form onSubmit={handleProSignup} style={{ position: 'relative', display: 'flex', gap: '8px', maxWidth: '440px', margin: '0 auto 28px', padding: '6px', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.22)', borderRadius: '14px' }}>
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="jungho@company.com" required style={{ flex: 1, height: '46px', padding: '0 16px', border: 'none', background: 'rgba(255,255,255,0.95)', borderRadius: '9px', fontSize: '14px', color: '#111827', outline: 'none' }} />
+              <form className="final-cta-form" onSubmit={handleProSignup} style={{ position: 'relative', display: 'flex', gap: '8px', maxWidth: '440px', margin: '0 auto 28px', padding: '6px', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.22)', borderRadius: '14px' }}>
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="name@company.com" required style={{ flex: 1, height: '46px', padding: '0 16px', border: 'none', background: 'rgba(255,255,255,0.95)', borderRadius: '9px', fontSize: '14px', color: '#111827', outline: 'none' }} />
                 <button type="submit" style={{ height: '46px', padding: '0 20px', borderRadius: '9px', background: 'white', color: '#009B8E', fontWeight: 700, fontSize: '14px', whiteSpace: 'nowrap', cursor: 'pointer', border: 'none' }}>사전예약 →</button>
               </form>
             ) : (
@@ -2054,7 +2054,7 @@ export default function LandingPage() {
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', position: 'relative' }}>
+            <div className="final-cta-actions" style={{ display: 'flex', gap: '12px', justifyContent: 'center', position: 'relative' }}>
               <Link href="/auth/login" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '15px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 700, background: 'white', color: '#009B8E', textDecoration: 'none', boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }}>
                 무료로 시작하기
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
@@ -2430,6 +2430,8 @@ export default function LandingPage() {
         .showcase-row { display: flex; gap: 64px; align-items: center; }
         .showcase-row.flip { flex-direction: row-reverse; }
 
+        .landing-root { overflow-x: clip; }
+
         /* ── 태블릿 반응형 ── */
         @media (max-width: 1024px) {
           .hero-layout { grid-template-columns: 1fr; min-height: auto; gap: 48px; }
@@ -2465,9 +2467,9 @@ export default function LandingPage() {
           section { padding: 64px 0 !important; }
           section > div { padding: 0 16px !important; }
 
-          .landing-hero { padding-top: 54px !important; }
-          .hero-layout { gap: 34px !important; }
-          .hero-preview { transform: none; margin: 0 !important; }
+          .landing-hero { padding: 44px 0 52px !important; }
+          .hero-layout { gap: 26px !important; }
+          .hero-preview { width: 100%; transform: none; margin: 0 !important; overflow: hidden; border-radius: 18px; }
           .hero-cta-row { flex-direction: column !important; align-items: stretch !important; }
           .hero-proof { display: grid !important; grid-template-columns: 1fr; gap: 6px !important; }
 
@@ -2477,13 +2479,24 @@ export default function LandingPage() {
           .pricing-grid { grid-template-columns: 1fr !important; }
           .pricing-grid > div { transform: none !important; }
 
-          .comparison-row { grid-template-columns: 1fr repeat(3, 80px) !important; font-size: 11px !important; }
+          .comparison-table { width: 100%; border-radius: 14px !important; }
+          .comparison-row { grid-template-columns: minmax(112px, 1fr) repeat(3, minmax(52px, 72px)) !important; font-size: 11px !important; }
+          .comparison-row > div { min-width: 0; padding: 13px 4px !important; line-height: 1.35; overflow-wrap: anywhere; }
+          .comparison-row > div:first-child { padding: 13px 10px !important; font-size: 12px !important; word-break: keep-all; }
+          .comparison-row svg { width: 14px; height: 14px; }
 
           .footer-grid { grid-template-columns: 1fr 1fr !important; gap: 28px !important; }
 
           .b2b-btns { flex-direction: column !important; align-items: center !important; }
-          .final-cta-inner { padding: 48px 20px !important; }
-          .final-cta-inner h2 { font-size: 28px !important; }
+          .final-cta-section { padding: 0 0 64px !important; }
+          .final-cta-wrap { padding: 0 16px !important; }
+          .final-cta-inner { padding: 38px 20px !important; border-radius: 22px !important; }
+          .final-cta-inner h2 { font-size: 28px !important; margin-bottom: 14px !important; }
+          .final-cta-inner > p { margin-bottom: 26px !important; font-size: 15px !important; line-height: 1.6 !important; }
+          .final-cta-form { flex-direction: column !important; width: 100%; max-width: 360px !important; margin-bottom: 20px !important; padding: 0 !important; background: transparent !important; border: 0 !important; }
+          .final-cta-form input, .final-cta-form button { box-sizing: border-box; width: 100% !important; min-width: 0; height: 48px !important; font-size: 16px !important; }
+          .final-cta-actions { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px !important; width: 100%; max-width: 360px; margin: 0 auto; }
+          .final-cta-actions > * { min-width: 0; min-height: 50px; justify-content: center; padding: 12px 10px !important; font-size: 14px !important; text-align: center; }
 
           .how-steps { padding: 0 !important; }
           .how-steps > div:not(:first-child) { border-top: 1px solid rgba(0,0,0,0.07); padding-top: 32px !important; }
@@ -2492,7 +2505,10 @@ export default function LandingPage() {
         @media (max-width: 480px) {
           h1 { font-size: 28px !important; }
           h2 { font-size: 24px !important; }
-          .comparison-row { font-size: 10px !important; grid-template-columns: 1fr repeat(3, 64px) !important; }
+          .comparison-row { font-size: 10px !important; grid-template-columns: minmax(92px, 1fr) repeat(3, 52px) !important; }
+          .comparison-row > div:first-child { font-size: 11px !important; }
+          .final-cta-inner { padding: 34px 16px !important; }
+          .final-cta-inner h2 { font-size: 26px !important; }
         }
 
         @media (prefers-reduced-motion: reduce) {

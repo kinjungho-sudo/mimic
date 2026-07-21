@@ -4,5 +4,56 @@
 @media(max-width:640px){.productSection{padding:72px 0}.productInner{padding:0 16px}.sectionHeading{margin-bottom:30px}.sectionHeading p{font-size:14px}.tabs{margin-bottom:14px}.tabs button{padding:12px 5px;gap:5px}.tabs button>span{display:none}.tabs button strong{font-size:11px}.stageShell{padding:9px;border-radius:20px}.sceneCopy{padding:5px 4px 13px}.sceneCopy p{font-size:10.5px}.stage,.scene{min-height:390px;height:390px;--timeline:5.6s}.browserChrome{height:35px;padding:0 8px}.addressBar{font-size:8px}.recBadge{font-size:7px}.recordingBody{height:calc(100% - 35px);grid-template-columns:minmax(0,1fr) 132px}.workSurface{padding:7px}.docToolbar{height:30px;gap:8px;padding:0 7px;font-size:7px}.docToolbar button{padding:5px 8px}.documentPage{height:calc(100% - 30px);padding:27px 18px}.documentPage h4{font-size:15px}.documentPage p{font-size:8px}.shareTarget{right:18px;bottom:30px;font-size:7px;padding:7px}.clickRipple{right:34px;bottom:38px}.recordPointer{display:none}.panelBrand{padding:0 7px;font-size:8px}.parroMark{width:18px;height:18px}.panelStatus{padding:7px;font-size:7px}.panelStatus b{display:none}.recorderPanel>p{margin:8px 7px 5px;font-size:6px}.stepList{padding:0 5px;gap:4px}.recordStep{grid-template-columns:18px 1fr;padding:6px;gap:5px}.recordStep>span{width:18px;height:18px}.recordStep strong{font-size:7px}.recordStep small,.recordStep em{display:none}.panelFooter{padding:7px;font-size:7px}.panelFooter button{padding:5px 8px}.editorBody{height:calc(100% - 35px);grid-template-columns:86px 1fr}.editorSteps{padding:6px}.editorSteps .panelBrand strong{font-size:7px}.editorSteps>div:not(.panelBrand){padding:7px 4px;font-size:6px;gap:4px}.editorSteps>div>span{width:14px;height:14px}.editorCanvas{padding:7px}.editorTop>span{width:20px;height:20px}.editorTop>b{display:none}.editorTop button{padding:6px 9px}.canvasCard{width:70%;padding:10px}.canvasCard h4{font-size:10px}.canvasMock{height:190px;padding:12px}.sharePopover{right:6px;top:50px;width:165px;padding:9px}.exportIcons{gap:3px}.exportIcons i{width:27px;height:27px}.shareLink span{font-size:6px}.govBody{height:calc(100% - 35px)}.govBody>header{height:45px;padding:0 12px}.govBody header strong{font-size:12px}.govBody nav{display:none}.govContent{height:calc(100% - 45px);padding:18px}.govContent>h4{font-size:17px}.govInfo{width:100%;grid-template-columns:1fr}.govContent label{width:180px}.applyButton{right:18px;top:115px;width:105px;height:40px;font-size:9px}.guideSpotlight{right:12px;top:109px;width:117px;height:52px}.avatar{right:20px;top:55px;width:38px;height:38px}.avatar img{width:25px}.guideBubble{left:18px;right:auto;top:58px;width:185px;font-size:8px;padding:11px}.guidePointer{display:none}.guideProgress{left:18px;right:18px}.successToast{right:18px;bottom:48px}.heroDemo .scene{height:340px}.heroDemo .recordingBody{grid-template-columns:minmax(0,1fr) 120px}.heroDemo .documentPage{padding:20px 13px}}
 @media(prefers-reduced-motion:reduce){.productInner[data-playing=true] .tabs .activeTab>i em{animation:none;transform:scaleX(1)}}
 .heroDemo[data-playing=false] .scene,.productInner[data-playing=false] .stage .scene{animation-play-state:running!important}
+
+@media(max-width:640px){
+  .productSection{padding:56px 0}
+  .sectionHeading{margin-bottom:24px}
+  .sectionHeading h2{font-size:28px}
+  .sectionHeading p{font-size:13px;line-height:1.55}
+  .tabs{border-radius:14px}
+  .tabs button{min-width:0}
+  .tabs button strong{font-size:12px;white-space:nowrap}
+  .stageShell{padding:8px;border-radius:17px}
+  .sceneCopy{gap:10px;padding:4px 3px 12px}
+  .sceneCopy>span{width:34px;height:34px;border-radius:10px}
+  .sceneCopy h3{font-size:15px}
+  .sceneCopy p{font-size:12px;line-height:1.45}
+  .stage,.scene{min-height:340px;height:340px}
+  .addressBar{font-size:9px}
+  .documentPage h4{font-size:16px}
+  .documentPage p{font-size:9.5px;line-height:1.45}
+  .recordStep strong{font-size:8px}
+  .heroDemo .scene{min-height:280px;height:280px}
+  .heroDemo .recordingBody{grid-template-columns:minmax(0,1fr) 104px}
+  .heroDemo .documentPage{padding:17px 10px}
+  .heroDemo .documentPage h4{font-size:14px;margin:9px 0 6px}
+  .heroDemo .documentPage p{font-size:8.5px}
+  .heroDemo .panelBrand{font-size:7.5px}
+  .heroDemo .panelFooter{padding:6px}
+  .motionNote{margin-top:12px}
+}
+
+@media(max-width:380px){
+  .productInner{padding:0 12px}
+  .tabs button strong{font-size:10.5px}
+  .stage,.scene{min-height:320px;height:320px}
+  .sceneCopy p{font-size:11px}
+  .heroDemo .scene{min-height:260px;height:260px}
+  .heroDemo .recordingBody{grid-template-columns:minmax(0,1fr) 94px}
+}
+
+/* 데모 캔버스는 조금 더 컴팩트하게 유지하되, 실제로 읽어야 하는 UI 문자는
+   축소 비율과 무관하게 충분한 크기로 표시한다. */
+@media(min-width:901px){.productSection .stage,.productSection .scene{min-height:480px;height:480px}.addressBar{font-size:12px}.recBadge{font-size:11px}.docToolbar,.docToolbar button{font-size:12px}.documentPage small{font-size:10px}.documentPage p{font-size:13px}.shareTarget{font-size:12px}.panelBrand{font-size:13px}.panelStatus{font-size:11px}.panelStatus b{font-size:10px}.recorderPanel>p{font-size:10px}.recordStep strong{font-size:11px}.recordStep small{font-size:9px}.panelFooter,.panelFooter button{font-size:11px}.editorSteps>div:not(.panelBrand){font-size:11px}.editorTop>b,.editorTop button{font-size:11px}.canvasCard small{font-size:10px}.canvasCard h4{font-size:17px}.canvasMock button{font-size:11px}.sharePopover>strong{font-size:13px}.exportIcons span{font-size:9px}.shareLink span,.shareLink button{font-size:10px}.govBody nav{font-size:12px}.govContent>small{font-size:11px}.govInfo div,.govContent label{font-size:11px}.guideBubble{font-size:13px}.guideProgress{font-size:12px}.successToast span{font-size:11px}}
+@media(max-width:640px){.addressBar{font-size:9px}.recBadge{font-size:8px}.docToolbar,.docToolbar button{font-size:8px}.documentPage p{font-size:9px}.shareTarget{font-size:8px}.panelBrand{font-size:9px}.panelStatus{font-size:8px}.recorderPanel>p{font-size:7px}.recordStep strong{font-size:8px}.panelFooter,.panelFooter button{font-size:8px}.editorSteps>div:not(.panelBrand){font-size:7px}.canvasCard h4{font-size:11px}.sharePopover>strong{font-size:10px}.exportIcons span{font-size:8px}.shareLink span,.shareLink button{font-size:7px}.govContent>small,.govInfo div,.govContent label{font-size:10px}.guideBubble{font-size:10px}.guideProgress{font-size:11px}.successToast span{font-size:10px}}
 .typedInput{position:relative}.typedInput input{width:100%;box-sizing:border-box}.typedInput span{position:absolute;left:11px;top:11px;width:0;overflow:hidden;white-space:nowrap;color:#263b36;font-size:11px;animation:typeField var(--timeline) steps(3,end) infinite}.typedInput i{position:absolute;left:11px;top:9px;width:1px;height:16px;background:#009b8e;opacity:0;animation:fieldCaret var(--timeline) steps(3,end) infinite}@keyframes typeField{0%,32%{width:0}48%,100%{width:42px}}@keyframes fieldCaret{0%,31%{opacity:0;transform:translateX(0)}33%,48%{opacity:1;transform:translateX(42px)}49%,100%{opacity:0;transform:translateX(42px)}}
 .staticScene .typedInput span{width:auto}.staticScene .typedInput i{display:none}
+
+/* 아바타와 말풍선을 하나의 안전 영역에 묶어 본문 제목이나 화면 밖으로
+   밀려나지 않게 한다. 어노테이션 SVG와 강조 효과도 캔버스 경계에서 자른다. */
+.guideCoach{position:absolute;left:54px;right:54px;bottom:58px;z-index:9;display:flex;align-items:flex-end;gap:10px;max-width:560px;pointer-events:none}.guideCoach .guideBubble{position:relative;inset:auto;flex:0 1 300px;width:auto;max-width:calc(100% - 60px);box-sizing:border-box;border-radius:14px 14px 4px 14px;overflow:hidden}.guideCoach .avatar{position:relative;inset:auto;flex:0 0 48px;box-sizing:border-box}.guideBubble span{width:auto;max-width:100%;white-space:normal;overflow:hidden;line-height:1.45;clip-path:inset(0 100% 0 0);animation:typeBubbleClip var(--timeline) steps(20,end) infinite}.staticScene .guideBubble span{clip-path:none}.drawArrow{max-width:calc(100% - 24px);overflow:hidden}.guideSpotlight{box-sizing:border-box}.govContent,.canvasMock,.stage,.scene{isolation:isolate}
+@keyframes typeBubbleClip{0%,25%{clip-path:inset(0 100% 0 0)}52%,100%{clip-path:inset(0 0 0 0)}}
+@keyframes avatarIn{0%,8%{opacity:0;transform:scale(.5)}18%,76%{opacity:1;transform:scale(1)}82%,100%{opacity:0;transform:scale(.92)}}
+@keyframes bubbleIn{0%,17%{opacity:0;transform:translateY(6px)}27%,76%{opacity:1;transform:none}82%,100%{opacity:0;transform:translateY(5px)}}
+@media(max-width:900px){.guideCoach{left:30px;right:30px;bottom:56px;max-width:470px}.guideCoach .guideBubble{flex-basis:260px}.guidePointer{display:none}}
+@media(max-width:640px){.guideCoach{left:18px;right:18px;bottom:54px;gap:7px;max-width:none}.guideCoach .guideBubble{left:auto;right:auto;top:auto;flex:1 1 auto;width:auto;max-width:none;padding:9px 10px;font-size:10px}.guideCoach .avatar{left:auto;right:auto;top:auto;flex-basis:38px;width:38px;height:38px}.guideCoach .avatar img{width:25px;height:25px}.successToast{max-width:calc(100% - 36px);box-sizing:border-box}.drawArrow{right:10px;max-width:calc(100% - 14px)}}

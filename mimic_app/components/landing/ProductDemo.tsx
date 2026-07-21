@@ -158,8 +158,10 @@ export function LiveGuideScene({ reducedMotion = false }: SceneProps) {
           <button className={styles.applyButton} type="button">발급하기</button>
           <span className={styles.guideSpotlight} />
           <div className={styles.guidePointer}><Pointer /></div>
-          <div className={styles.avatar}><Image src="/brand/parro-mark.svg" alt="" width={32} height={32} /></div>
-          <div className={styles.guideBubble}><span>파란 발급하기 버튼을 클릭하세요</span></div>
+          <div className={styles.guideCoach} aria-hidden="true">
+            <div className={styles.guideBubble}><span>파란 발급하기 버튼을 클릭하세요</span></div>
+            <div className={styles.avatar}><Image src="/brand/parro-mark.svg" alt="" width={32} height={32} /></div>
+          </div>
           <div className={styles.guideProgress}><span><b>3</b> / 4</span><i><em /></i></div>
           <div className={styles.successToast}><b>✓</b><span>다음 단계로 이동했어요<small>신청 정보를 확인해 주세요</small></span></div>
         </div>

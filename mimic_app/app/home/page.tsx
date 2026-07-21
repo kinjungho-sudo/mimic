@@ -380,6 +380,7 @@ function TutorialCard({ tutorial, onContextMenu, onMenuClick, viewMode = 'grid',
   const [hovered, setHovered] = useState(false);
   const [faviconError, setFaviconError] = useState(false);
   const [faviconSrc, setFaviconSrc] = useState<string | null>(null);
+  const [thumbnailLoaded, setThumbnailLoaded] = useState(false);
 
   const color = cardColor(tutorial.id);
   const stepCount = tutorial.step_count ?? 0;
@@ -394,7 +395,7 @@ function TutorialCard({ tutorial, onContextMenu, onMenuClick, viewMode = 'grid',
     <div style={{ width: `${size}px`, height: `${size}px`, borderRadius: '7px', flexShrink: 0, background: `${color}12`, display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
       {activeFavicon && !faviconError
         // eslint-disable-next-line @next/next/no-img-element
-        ? <img src={activeFavicon} alt="" width={size * 0.47} height={size * 0.47} onError={() => {
+        ? <img src={activeFavicon} alt="" width={size * 0.47} height={size * 0.47} loading="lazy" decoding="async" onError={() => {
             if (activeFavicon === googleFavicon && ddgFavicon) setFaviconSrc(ddgFavicon);
             else setFaviconError(true);
           }} style={{ width: `${size * 0.47}px`, height: `${size * 0.47}px`, objectFit: 'contain' }} />
@@ -461,7 +462,16 @@ function TutorialCard({ tutorial, onContextMenu, onMenuClick, viewMode = 'grid',
         <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 10', background: `${color}10`, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
           {tutorial.thumbnail_url
             // eslint-disable-next-line @next/next/no-img-element
-            ? <img src={tutorial.thumbnail_url} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', filter: 'saturate(0.82) brightness(0.98)' }} />
+            ? <img
+                src={tutorial.thumbnail_url}
+                alt=""
+                draggable={false}
+                loading="lazy"
+                decoding="async"
+                fetchPriority="low"
+                onLoad={() => setThumbnailLoaded(true)}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', filter: 'saturate(0.82) brightness(0.98)', opacity: thumbnailLoaded ? 1 : 0, transition: 'opacity 0.18s ease' }}
+              />
             : <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}>
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
               </svg>}
@@ -852,18 +862,38 @@ export default function DashboardPage() {
   const [manualActionModal, setManualActionModal] = useState<string | null>(null);
   const [pages, setPages] = useState<{ id: string; title: string; updated_at: string; block_count?: number; workspace_id?: string | null }[]>([]);
   const [pagesLoading, setPagesLoading] = useState(false);
+  const tutorialCacheRef = useRef(new Map<string, Tutorial[]>());
+  const tutorialRequestRef = useRef(0);
+  const pagesCacheRef = useRef(new Map<string, typeof pages>());
+  const pagesRequestRef = useRef(0);
 
   useEffect(() => {
     if (!authLoading && !user) router.replace('/landingpage');
   }, [authLoading, user, router]);
 
   const loadTutorials = useCallback(async (workspaceId?: string, silent = false) => {
-    if (!silent) setTutLoading(true);
+    const cacheKey = workspaceId ?? 'personal';
+    const cached = tutorialCacheRef.current.get(cacheKey);
+    const requestId = ++tutorialRequestRef.current;
+
+    if (cached) {
+      setTutorials(cached);
+      setTutLoading(false);
+    } else if (!silent) {
+      setTutLoading(true);
+    }
+
     try {
       const url = workspaceId ? `/api/tutorials?workspace_id=${workspaceId}` : '/api/tutorials';
       const res = await fetch(url);
-      if (res.ok) setTutorials(await res.json());
-    } finally { if (!silent) setTutLoading(false); }
+      if (res.ok) {
+        const data = await res.json() as Tutorial[];
+        tutorialCacheRef.current.set(cacheKey, data);
+        if (requestId === tutorialRequestRef.current) setTutorials(data);
+      }
+    } finally {
+      if (requestId === tutorialRequestRef.current && !silent) setTutLoading(false);
+    }
   }, []);
 
   const loadFolders = useCallback(async () => {
@@ -883,17 +913,32 @@ export default function DashboardPage() {
   }, []);
 
   const loadPages = useCallback(async (workspaceId?: string) => {
-    setPagesLoading(true);
+    const cacheKey = workspaceId ?? 'personal';
+    const cached = pagesCacheRef.current.get(cacheKey);
+    const requestId = ++pagesRequestRef.current;
+
+    if (cached) {
+      setPages(cached);
+      setPagesLoading(false);
+    } else {
+      setPagesLoading(true);
+    }
+
     try {
       const url = workspaceId ? `/api/pages?workspace_id=${workspaceId}` : '/api/pages';
       const res = await fetch(url);
-      if (res.ok) setPages(await res.json());
-    } finally { setPagesLoading(false); }
+      if (res.ok) {
+        const data = await res.json() as typeof pages;
+        pagesCacheRef.current.set(cacheKey, data);
+        if (requestId === pagesRequestRef.current) setPages(data);
+      }
+    } finally {
+      if (requestId === pagesRequestRef.current) setPagesLoading(false);
+    }
   }, []);
 
   useEffect(() => {
     if (!user) return;
-    loadTutorials();
     loadFolders();
     loadWorkspaces();
     // 라이브 가이드·플레이북 사용량 — 홈 '이번 달 사용량'에 함께 표시
@@ -1314,7 +1359,7 @@ export default function DashboardPage() {
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                 {user?.avatar_url
                   // eslint-disable-next-line @next/next/no-img-element
-                  ? <img src={user.avatar_url} alt={user.name} style={{ width: '26px', height: '26px', borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }} />
+                  ? <img src={user.avatar_url} alt={user.name} width={26} height={26} loading="lazy" decoding="async" style={{ width: '26px', height: '26px', borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }} />
                   : <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: BRAND_GRADIENT, color: 'white', display: 'grid', placeItems: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>{authLoading ? '·' : firstName.charAt(0) || '?'}</div>
                 }
                 <div style={{ overflow: 'hidden', flex: 1 }}>
@@ -1721,7 +1766,7 @@ export default function DashboardPage() {
                   style={{ display: 'flex', alignItems: 'center', gap: '9px', flex: 1, minWidth: 0, color: 'inherit', textDecoration: 'none' }}>
                   {user?.avatar_url
                     // eslint-disable-next-line @next/next/no-img-element
-                    ? <img src={user.avatar_url} alt={user.name} style={{ width: '28px', height: '28px', borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }} />
+                    ? <img src={user.avatar_url} alt={user.name} width={28} height={28} loading="lazy" decoding="async" style={{ width: '28px', height: '28px', borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }} />
                     : <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: BRAND_GRADIENT, color: 'white', display: 'grid', placeItems: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>{firstName.charAt(0) || '?'}</div>
                   }
                   <div style={{ flex: 1, minWidth: 0 }}>
