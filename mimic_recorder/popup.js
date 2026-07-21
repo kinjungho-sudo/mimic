@@ -1545,6 +1545,7 @@ const guideStepLabel  = document.getElementById('guideStepLabel');
 const guidePctLabel   = document.getElementById('guidePctLabel');
 const guideProgressBar = document.getElementById('guideProgressBar');
 const guideTargetStatus = document.getElementById('guideTargetStatus');
+const guideTargetRetry = document.getElementById('guideTargetRetry');
 const guideStepTitle  = document.getElementById('guideStepTitle');
 const guideStepInstr  = document.getElementById('guideStepInstruction');
 const guideStepDots   = document.getElementById('guideStepDots');
@@ -1559,11 +1560,21 @@ function renderGuideTargetStatus(status) {
     searching: { label: '정확한 대상을 찾는 중', color: '#F59E0B' },
     ready: { label: '대상 확인됨', color: '#12B886' },
     page_mismatch: { label: '기록된 페이지에서 대기 중', color: '#EF4444' },
+    not_found: { label: '대상을 찾지 못했습니다', color: '#EF4444' },
   };
   const current = states[status] || states.navigating;
   if (guideTargetStatus.firstElementChild) guideTargetStatus.firstElementChild.style.background = current.color;
   if (guideTargetStatus.lastElementChild) guideTargetStatus.lastElementChild.textContent = current.label;
+  if (guideTargetRetry) guideTargetRetry.style.display = status === 'not_found' || status === 'page_mismatch' ? 'block' : 'none';
 }
+
+guideTargetRetry?.addEventListener('click', () => {
+  renderGuideTargetStatus('searching');
+  chrome.runtime.sendMessage({ type: 'SHOW_OVERLAY_FOR_STEP', stepIndex: guideCurrentStep }, (res) => {
+    void chrome.runtime.lastError;
+    if (!res?.ok) renderGuideTargetStatus('not_found');
+  });
+});
 
 // Live Guide는 녹화 UI와 완전히 분리해 단독으로 보이게 한다 —
 // 헤더(스텝 카운트·전체캡처·설정), '캡처된 스텝' 목록, 하단 액션 바를 모두 숨긴다.

@@ -1180,13 +1180,23 @@
 
   function showWaiting(step, opts, initialStatus) {
     const waitKey = `${opts.index ?? 0}:${step?.page_url || ''}:${step?.id || step?.title || ''}:${step?.element_selector || step?.element_xpath || step?.target_context?.accessibleName || ''}`;
-    state = { waiting: true, waitKey, waitStatus: initialStatus || 'searching', findObserver: null, findTimer: null, retryTimer: null };
+    const initialWaitStatus = initialStatus || 'searching';
+    state = {
+      waiting: true,
+      waitKey,
+      waitStatus: initialWaitStatus,
+      matchingSince: initialWaitStatus === 'searching' ? Date.now() : null,
+      findObserver: null,
+      findTimer: null,
+      retryTimer: null,
+    };
     opts.onTargetStatus && opts.onTargetStatus(state.waitStatus);
 
     // 페이지와 대상 요소가 모두 검증되면 그때 처음으로 DOM 오버레이를 만든다.
     const tryResolve = () => {
       if (!state || !state.waiting) return false;
       if (!step?.page_url || !pageMatches(step.page_url)) {
+        state.matchingSince = null;
         if (state.waitStatus !== 'page_mismatch') {
           state.waitStatus = 'page_mismatch';
           opts.onTargetStatus && opts.onTargetStatus('page_mismatch');
@@ -1202,9 +1212,11 @@
         show(step, opts);
         return true;
       }
-      if (state.waitStatus !== 'searching') {
-        state.waitStatus = 'searching';
-        opts.onTargetStatus && opts.onTargetStatus('searching');
+      if (state.matchingSince == null) state.matchingSince = Date.now();
+      const nextStatus = Date.now() - state.matchingSince >= 8000 ? 'not_found' : 'searching';
+      if (state.waitStatus !== nextStatus) {
+        state.waitStatus = nextStatus;
+        opts.onTargetStatus && opts.onTargetStatus(nextStatus);
       }
       return false;
     };

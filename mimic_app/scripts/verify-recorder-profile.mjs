@@ -28,6 +28,7 @@ function fixtureHtml() {
   <body>
     <button id="fixture-action" type="button">Fixture action</button>
     <button id="fixture-guide" type="button">Start fixture guide</button>
+    <button id="fixture-missing-guide" type="button">Start missing-target guide</button>
     <script>
       const extensionId = ${JSON.stringify(extensionId)};
       window.sendToParro = (action, payload = {}) => new Promise((resolve) => {
@@ -47,6 +48,12 @@ function fixtureHtml() {
       document.getElementById('fixture-guide').addEventListener('click', async () => {
         window.parroGuideResult = await window.sendToParro('START_GUIDE', {
           share_token: 'synthetic-guide',
+          webapp_origin: window.location.origin,
+        });
+      });
+      document.getElementById('fixture-missing-guide').addEventListener('click', async () => {
+        window.parroMissingGuideResult = await window.sendToParro('START_GUIDE', {
+          share_token: 'synthetic-guide-missing',
           webapp_origin: window.location.origin,
         });
       });
@@ -73,6 +80,27 @@ async function listenOnAllowedPort() {
             element_selector: '#fixture-action',
             target_context: {
               accessibleName: 'Fixture action',
+              selectorConfidence: 'high',
+            },
+          }],
+        }));
+        return;
+      }
+      if (request.url === '/api/guide/synthetic-guide-missing') {
+        response.writeHead(200, {
+          'content-type': 'application/json; charset=utf-8',
+          'cache-control': 'no-store',
+        });
+        response.end(JSON.stringify({
+          tutorial_id: 'synthetic-guide-missing',
+          steps: [{
+            id: 'synthetic-guide-step-missing',
+            title: 'Missing fixture action',
+            instruction: 'Find an action that is intentionally absent.',
+            page_url: `http://localhost:${port}/`,
+            element_selector: '#fixture-action-missing',
+            target_context: {
+              accessibleName: 'Missing fixture action',
               selectorConfidence: 'high',
             },
           }],
@@ -221,6 +249,39 @@ try {
     assert.equal(guideState.guideSteps?.length, 1);
   });
 
+  await panel.evaluate(() => new Promise((resolve) => {
+    chrome.runtime.sendMessage({ type: 'EXIT_GUIDE' }, () => resolve());
+  }));
+  await guidePage.close();
+
+  const missingGuidePagePromise = context.waitForEvent('page');
+  await page.click('#fixture-missing-guide');
+  const missingGuidePage = await missingGuidePagePromise;
+  await page.waitForFunction(() => window.parroMissingGuideResult !== undefined);
+  const missingGuideResult = await page.evaluate(() => window.parroMissingGuideResult);
+  check(() => {
+    assert.equal(missingGuideResult.error, null);
+    assert.equal(missingGuideResult.response?.ok, true);
+  });
+
+  await missingGuidePage.waitForLoadState('domcontentloaded');
+  await panel.locator('#guideTargetRetry').waitFor({ state: 'visible', timeout: 12_000 });
+  const missingTargetState = await Promise.all([
+    panel.locator('#guideTargetStatus').innerText(),
+    missingGuidePage.locator('#parro-overlay-root').count(),
+  ]);
+  check(() => {
+    assert.match(missingTargetState[0], /대상을 찾지 못했습니다/);
+    assert.equal(missingTargetState[1], 0);
+  });
+
+  await panel.locator('#guideTargetRetry').click();
+  await panel.waitForFunction(() => document.querySelector('#guideTargetStatus')?.textContent?.includes('정확한 대상을 찾는 중'));
+  const retryHidden = await panel.locator('#guideTargetRetry').isHidden();
+  check(() => {
+    assert.equal(retryHidden, true);
+  });
+
   const captureState = await worker.evaluate(async () => chrome.storage.local.get([
     'extensionToken',
     'sessionId',
@@ -244,6 +305,7 @@ try {
     network: 'localhost-only',
     captureStarted: false,
     liveGuideOverlay: true,
+    missingTargetRecovery: true,
   }));
 } finally {
   if (context) await context.close();

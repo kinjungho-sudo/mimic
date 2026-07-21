@@ -66,6 +66,7 @@ assert.match(guideNavigation, /guideOriginMatches\(tab\.url, step\.page_url\)/);
 assert.match(guideNavigation, /navigateGuideTab\(tab\.id, step\.page_url\)/);
 assert.match(background, /message\.type === 'EXIT_GUIDE' \|\| message\.type === 'GUIDE_COMPLETE'[\s\S]*clearGuideSession\(\)/);
 assert.match(background, /if \(!state\.guideModeActive \|\| state\.guideTabId !== tabId/);
+assert.match(background, /new Set\(\['navigating', 'searching', 'ready', 'page_mismatch', 'not_found'\]\)/);
 
 const show = section(engine, 'function show(step, opts)', 'function advance(reason)');
 assert.ok(
@@ -75,6 +76,7 @@ assert.ok(
 const waiting = section(engine, 'function showWaiting(step, opts, initialStatus)', '// AI 시각 재탐색');
 assert.doesNotMatch(waiting, /document\.createElement/);
 assert.match(waiting, /MutationObserver/);
+assert.match(waiting, /Date\.now\(\) - state\.matchingSince >= 8000 \? 'not_found' : 'searching'/);
 assert.match(engine, /confidence\s*<\s*0\.85/);
 assert.match(engine, /return \{ el: null, rect: null, source: 'none'/);
 assert.match(engine, /function validationMessages\(\)/);
@@ -89,5 +91,9 @@ assert.match(overlayMessage, /onComplete:[\s\S]*guideApi\.hide\(\)[\s\S]*GUIDE_C
 
 assert.match(popup, /assets\/parro-ai-avatar-neutral\.png\?v=20260720/);
 assert.match(popup, /id="guideTargetStatus"/);
+assert.match(popup, /id="guideTargetRetry"/);
+const popupScript = read('popup.js');
+assert.match(popupScript, /not_found: \{ label: '대상을 찾지 못했습니다'/);
+assert.match(popupScript, /type: 'SHOW_OVERLAY_FOR_STEP', stepIndex: guideCurrentStep/);
 
-console.log(JSON.stringify({ ok: true, checks: 33, scope: 'live-guide-fail-closed-contract' }));
+console.log(JSON.stringify({ ok: true, checks: 38, scope: 'live-guide-fail-closed-contract' }));

@@ -1850,7 +1850,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const { guideModeActive, guideTabId, guideCurrentStep } = await storageGet([
         'guideModeActive', 'guideTabId', 'guideCurrentStep',
       ]);
-      const allowed = new Set(['navigating', 'searching', 'ready', 'page_mismatch']);
+      const allowed = new Set(['navigating', 'searching', 'ready', 'page_mismatch', 'not_found']);
       if (!guideModeActive || sender.tab?.id !== guideTabId || Number(message.stepIndex) !== Number(guideCurrentStep) || !allowed.has(message.status)) {
         sendResponse({ ok: false });
         return;
