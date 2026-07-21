@@ -1,7 +1,7 @@
 // ── 환경 자동 판별 ────────────────────────────────────────────────
 // 웹스토어 배포본(고정 ID)=운영 / 개발자 언패킹(다른 ID)=dev.
 // chrome.runtime.id로 자동 구분 → 배포본이 실수로 dev를 가리킬 위험 없음.
-importScripts('desktop-import.js', 'desktop-bridge.js');
+importScripts('desktop-import.js', 'desktop-bridge.js', 'pre-capture-buffer.js');
 
 const PROD_EXTENSION_IDS = new Set([
   'lefkpmfgdbhckcemfghpegleknaepekm', // replacement listing under review
@@ -201,9 +201,9 @@ let _lastNavKey        = null;  // 직전 '이동' 캡처 페이지 키 (origin+
 let _lastNavKeyTime    = 0;
 const _navBusyTabs     = new Set();          // onUpdated complete 동시(중복) 이벤트 차단
 let _captureChain      = Promise.resolve();  // 캡처 디덥~로컬 저장 직렬화 큐
-let _preCaptureFrame   = null;               // { dataUrl, time, tabId } — pointerdown 선캡처 프레임
 const PRECAPTURE_MAX_AGE_MS = 1500;          // 이보다 오래된 선캡처는 폐기 (클릭과 무관)
 const PRECAPTURE_WAIT_MS    = 500;           // 선캡처가 in-flight(쿼터 재시도)면 이만큼 기다려 받는다
+const _preCaptureFrames = globalThis.ParroPreCapture.createBuffer({ maxAgeMs: PRECAPTURE_MAX_AGE_MS, maxEntries: 12 });
 let _typingFrame       = null;               // { dataUrl, time, tabId } — 타이핑 중 롤링 프레임 (전송 직전 화면)
 const TYPING_FRAME_MAX_AGE_MS = 3000;        // 이보다 오래된 타이핑 프레임은 사용 안 함
 
@@ -1327,7 +1327,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // pointerdown 선캡처 — 클릭으로 화면이 바뀌기 전 프레임을 미리 잡아 버퍼에 보관
   if (message.type === 'PRECAPTURE_FRAME') {
     const tabId = sender.tab?.id;
-    if (tabId) {
+    const captureId = typeof message.captureId === 'string' ? message.captureId : null;
+    if (tabId && captureId) {
       (async () => {
         const tab = await new Promise((res) => chrome.tabs.get(tabId, (t) => res(chrome.runtime.lastError ? null : t)));
         if (!tab) return;
@@ -1335,7 +1336,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // 라이브 폴백이 전환 중간 화면을 잡으므로(이슈 #3·#6), 선캡처를 최대한 확보한다.
         for (let i = 0; i < 3; i++) {
           const url = await captureTab(tab.windowId).catch(() => null);
-          if (url) { _preCaptureFrame = { dataUrl: url, time: Date.now(), tabId }; return; }
+          if (url) {
+            _preCaptureFrames.put(captureId, { dataUrl: url, time: Date.now(), tabId });
+            return;
+          }
           await new Promise((r) => setTimeout(r, 240));
         }
       })();
@@ -1358,7 +1362,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === 'CAPTURE_SCREENSHOT') {
-    const { stepData } = message;
+    let { stepData } = message;
     const tabId = sender.tab?.id;
     if (!tabId) { sendResponse({ ok: false }); return true; }
 
@@ -1400,24 +1404,35 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       // 선캡처가 아직 도착 안 했으면(쿼터로 재시도 중) 잠깐 기다린다 — 곧바로 라이브 폴백하면
       // 클릭 후 전환 중간/이미 사라진 화면을 잡으므로(이슈 #3·#6), in-flight 선캡처를 받아낸다.
-      if (stepData.usePrecapture) {
+      const captureId = typeof stepData.captureId === 'string' ? stepData.captureId : null;
+      if (stepData.usePrecapture && captureId) {
         const deadline = Date.now() + PRECAPTURE_WAIT_MS;
-        const ready = () => _preCaptureFrame && _preCaptureFrame.tabId === tabId
-          && (Date.now() - _preCaptureFrame.time) < PRECAPTURE_MAX_AGE_MS;
+        const ready = () => !!_preCaptureFrames.get(captureId, tabId, { consume: false });
         while (!ready() && Date.now() < deadline) await new Promise((r) => setTimeout(r, 30));
       }
 
       // 선캡처(pointerdown) 프레임이 있으면 그걸 사용 — 클릭 전 화면이라 좌표/하이라이트가 일치한다.
       // 없거나 오래됐으면 지금 캡처 (기존 동작 폴백).
       let capturedRaw = null;
-      if (stepData.usePrecapture && _preCaptureFrame
-          && _preCaptureFrame.tabId === tabId
-          && (Date.now() - _preCaptureFrame.time) < PRECAPTURE_MAX_AGE_MS) {
-        capturedRaw = _preCaptureFrame.dataUrl;
+      if (stepData.usePrecapture && captureId) {
+        const matchedFrame = _preCaptureFrames.get(captureId, tabId, { consume: !stepData.peekPrecapture });
+        capturedRaw = matchedFrame?.dataUrl ?? null;
       }
-      // 기본은 1회용(소비 후 폐기). peek은 폐기하지 않고 둬, 같은 액션의 후속 클릭 스텝이
-      // 동일 프레임을 재사용하게 한다(타이핑 확정 → 그 클릭 캡처가 같은 '액션 직전' 화면 공유).
-      if (!stepData.peekPrecapture) _preCaptureFrame = null;
+
+      if (stepData.usePrecapture && !capturedRaw) {
+        const samePage = navUrlKey(stepData.url) === navUrlKey(tab.url);
+        stepData = {
+          ...stepData,
+          elementRect: null,
+          ...(samePage ? {} : { clickX: null, clickY: null }),
+          actionInfo: { ...(stepData.actionInfo || {}), captureAlignment: samePage ? 'point-fallback' : 'unavailable' },
+        };
+      } else if (capturedRaw) {
+        stepData = {
+          ...stepData,
+          actionInfo: { ...(stepData.actionInfo || {}), captureAlignment: 'exact-precapture' },
+        };
+      }
       // 타이핑 확정: 전송 직전 롤링 프레임 사용 (비동기 캡처가 전송 후 빈 입력창을 잡는 문제 방지).
       // 소비하지 않는다 — 같은 입력 세션의 여러 flush(soft/final)가 최신 프레임을 공유.
       if (!capturedRaw && stepData.useTypingFrame && _typingFrame

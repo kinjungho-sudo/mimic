@@ -97,6 +97,7 @@
   let typingTimer        = null;
   let _pointerDownSnapshot = null;
   let _pointerClickFallbackTimer = null;
+  let _captureSequence   = 0;
   let typingFocusSnapshot = null;
   let _countingDown      = false;
   let _lastTypingFrameTime = 0;     // 롤링 타이핑 프레임 throttle 기준
@@ -459,6 +460,7 @@
     const role = focusSnapshot?.role || el.getAttribute('role') || undefined;
     const labelDebug = focusSnapshot?.labelDebug ?? buildLabelDebug(el, label);
     const targetContext = focusSnapshot?.targetContext ?? buildTargetContext(el, rect, topRect, label);
+    const captureId = opts.captureId || (opts.usePrecapture ? focusSnapshot?.captureId : null);
 
     lastCapturedTarget = el;
     lastCapturedTime   = Date.now();
@@ -468,7 +470,8 @@
       windowWidth: vw, windowHeight: vh,
       viewportW: vw, viewportH: vh,
       stepNumber: stepForThis, overwrite: true, useTypingFrame: true,
-      usePrecapture: !!opts.usePrecapture, peekPrecapture: !!opts.peekPrecapture,
+      captureId: captureId ?? null,
+      usePrecapture: !!opts.usePrecapture && !!captureId, peekPrecapture: !!opts.peekPrecapture,
       typedText,
       elementRect, elementSelector, elementXPath,
       actionInfo: { type: 'type', label, text: label, typedText, masked: isMasked, tag: el.tagName.toLowerCase(), role, labelDebug, targetContext },
@@ -1011,6 +1014,32 @@
     };
   }
 
+  function inheritedPointerBoundary(el) {
+    let current = el;
+    let candidate = null;
+    let inPointerChain = false;
+    const viewportArea = Math.max(1, window.innerWidth * window.innerHeight);
+    for (let depth = 0; current && depth < 12; depth += 1) {
+      if (current === document.body || current === document.documentElement) break;
+      let style;
+      try { style = window.getComputedStyle(current); } catch { break; }
+      if (style.cursor !== 'pointer') {
+        if (inPointerChain) break;
+        current = current.parentElement || current.getRootNode?.().host || null;
+        continue;
+      }
+      inPointerChain = true;
+      const rect = targetClientRect(current);
+      const reasonable = rect && rect.width >= 1 && rect.height >= 1
+        && rect.width <= window.innerWidth * 0.92
+        && rect.height <= window.innerHeight * 0.92
+        && (rect.width * rect.height) / viewportArea <= 0.65;
+      if (reasonable) candidate = current;
+      current = current.parentElement || current.getRootNode?.().host || null;
+    }
+    return candidate;
+  }
+
   function findInteractiveTarget(el, event = null) {
     if (!el || el === document.documentElement) return null;
     if (document.designMode === 'on') return document.body;
@@ -1020,6 +1049,11 @@
       .filter(candidate => candidate.facts.nativeInteractive || candidate.facts.semanticRole || candidate.facts.hasClickHandler || candidate.facts.pointerCursor);
     const decision = ParroTargeting.chooseTarget(candidates);
     if (!decision.best) return null;
+    const bestFacts = decision.best.facts;
+    if (!bestFacts.nativeInteractive && !bestFacts.semanticRole && !bestFacts.hasClickHandler) {
+      const pointerBoundary = inheritedPointerBoundary(el);
+      if (pointerBoundary) return pointerBoundary;
+    }
     targetDecisionByElement.set(decision.best.element, {
       confidence: decision.confidence,
       score: decision.best.score,
@@ -1200,6 +1234,11 @@
 
   // Freeze click metadata before the target DOM can react or move.
 
+  function createCaptureId() {
+    _captureSequence = (_captureSequence + 1) % 1000000;
+    return `${Date.now().toString(36)}-${_captureSequence.toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  }
+
   function buildPointerDownSnapshot(captureEl, target, clickedEl, event) {
     if (!captureEl || typeof captureEl.getBoundingClientRect !== 'function') return null;
     const rect = targetClientRect(captureEl, event.clientX, event.clientY);
@@ -1211,6 +1250,7 @@
     const topRect = toTopRect(rect);
     return {
       target: captureEl,
+      captureId: createCaptureId(),
       time: Date.now(),
       x: event.clientX,
       y: event.clientY,
@@ -1233,6 +1273,11 @@
     if ((Date.now() - _pointerDownSnapshot.time) > 1200) return null;
     if (Math.abs(_pointerDownSnapshot.x - event.clientX) > 12) return null;
     if (Math.abs(_pointerDownSnapshot.y - event.clientY) > 12) return null;
+    return _pointerDownSnapshot;
+  }
+
+  function getFreshPointerSnapshot() {
+    if (!_pointerDownSnapshot || (Date.now() - _pointerDownSnapshot.time) > 1200) return null;
     return _pointerDownSnapshot;
   }
 
@@ -1270,7 +1315,8 @@
         viewportW: getViewportSize().vw,
         viewportH: getViewportSize().vh,
         stepNumber,
-        usePrecapture: true,
+        captureId: snapshot.captureId,
+        usePrecapture: !!snapshot.captureId,
         elementRect: snapshot.elementRect,
         elementSelector: snapshot.elementSelector,
         elementXPath: snapshot.elementXPath,
@@ -1526,6 +1572,7 @@
     if (!e.isTrusted) return;  // 사이트 스크립트가 만든 가짜 이벤트는 사용자 행동이 아님
     if (!isRecording || isPaused || isCapturing) return;
     if (e.button !== undefined && e.button !== 0) return;  // 좌클릭만
+    _pointerDownSnapshot = null;
     const target = findInteractiveTarget(e.target, e);
     if (!target) return;
     const actionTarget = refineActionTarget(e.target, target);
@@ -1534,11 +1581,11 @@
     _pointerDownSnapshot = buildPointerDownSnapshot(captureEl, target, e.target, e);
     hideHoverPointer();                          // 호버 테두리 제거
     suppressHoverUntil = Date.now() + 500;       // 캡처 끝날 때까지 재등장 억제
-    // 테두리 제거가 화면에 리페인트된 다음 프레임에 선캡처 요청 — 라이브 캡처 경로의
-    // double-rAF와 동일한 보장. (동기 전송 시 background가 리페인트 전 프레임을 잡아 테두리가 굽힘)
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      chrome.runtime.sendMessage({ type: 'PRECAPTURE_FRAME' }, () => { void chrome.runtime.lastError; });
-    }));
+    // 캡처 요청을 click보다 먼저 큐에 넣어 빠른 화면 전환에서도 DOM 좌표와 프레임을 맞춘다.
+    const captureId = _pointerDownSnapshot?.captureId;
+    if (captureId) {
+      chrome.runtime.sendMessage({ type: 'PRECAPTURE_FRAME', captureId }, () => { void chrome.runtime.lastError; });
+    }
   }, true);
 
   document.addEventListener('pointerup', (e) => {
@@ -1566,6 +1613,7 @@
     if (document.visibilityState !== 'visible') return;
 
     const clickedEl = e.target;
+    const pointerSnapshot = getRecentPointerSnapshot(e);
 
     // Parro 자체 오버레이 클릭 무시
     if (clickedEl && typeof clickedEl.id === 'string') {
@@ -1629,7 +1677,7 @@
       // 다른 필드로 옮겼을 때만 이전 입력을 마감(flush가 세션을 끝냄 → 새 스텝).
       // 같은 필드 재클릭·리치 에디터 재마운트는 세션을 유지해 입력 스텝이 쪼개지지 않게 한다.
       if (typingTarget && typingTarget !== target && !isRemountedTyping(typingTarget)) {
-        flushTyping(typingTarget, true, { usePrecapture: true, peekPrecapture: true });
+        flushTyping(typingTarget, true, { usePrecapture: !!pointerSnapshot?.captureId, peekPrecapture: true, captureId: pointerSnapshot?.captureId });
       }
       typingTarget = target;
       typingFocusSnapshot = getRecentPointerSnapshot(e);
@@ -1640,13 +1688,12 @@
     } else {
       // 진행 중이던 타이핑 flush — 클릭(액션) 직전 선캡처 프레임을 타이핑 스텝 이미지로 쓰고,
       // 소비하지 않아(peek) 아래 클릭 스텝이 같은 프레임을 재사용한다.
-      if (typingTarget) flushTyping(typingTarget, true, { usePrecapture: true, peekPrecapture: true });
+      if (typingTarget) flushTyping(typingTarget, true, { usePrecapture: !!pointerSnapshot?.captureId, peekPrecapture: true, captureId: pointerSnapshot?.captureId });
     }
 
     showClickHighlight(e.clientX, e.clientY);
 
     const captureEl = actionType === 'focus_input' ? target : actionTarget;
-    const pointerSnapshot = getRecentPointerSnapshot(e);
     const rect  = targetClientRect(captureEl, e.clientX, e.clientY) || captureEl.getBoundingClientRect();
     const label = pointerSnapshot?.label || getElementLabel(captureEl, clickedEl);
     const href  = captureEl.getAttribute('href') || captureEl.closest('a')?.getAttribute('href') || target.getAttribute('href') || target.closest('a')?.getAttribute('href') || '';
@@ -1675,7 +1722,7 @@
         clickY: topClick.quality === 'low' ? 0 : topClick.y,
         windowWidth: vw, windowHeight: vh,
         viewportW: vw, viewportH: vh,
-        stepNumber, usePrecapture: true,
+        stepNumber, captureId: pointerSnapshot?.captureId ?? null, usePrecapture: !!pointerSnapshot?.captureId,
         elementRect,
         elementSelector,
         elementXPath,
@@ -1697,7 +1744,7 @@
       clickY: topClick.quality === 'low' ? 0 : topClick.y,
       windowWidth: vw, windowHeight: vh,
       viewportW: vw, viewportH: vh,
-      stepNumber, usePrecapture: true,
+      stepNumber, captureId: pointerSnapshot?.captureId ?? null, usePrecapture: !!pointerSnapshot?.captureId,
       elementRect,
       elementSelector,
       elementXPath,
@@ -1819,8 +1866,9 @@
       // Enter 제출 직전(폼 제출·페이지 이동·입력창 초기화 전) 화면을 그 순간 선캡처해
       // 타이핑 스텝 이미지로 쓴다 — 클릭의 pointerdown 선캡처와 동일한 '액션 정렬' 기법.
       hideHoverPointer();
-      chrome.runtime.sendMessage({ type: 'PRECAPTURE_FRAME' }, () => { void chrome.runtime.lastError; });
-      flushTyping(el, true, { usePrecapture: true });
+      const captureId = createCaptureId();
+      chrome.runtime.sendMessage({ type: 'PRECAPTURE_FRAME', captureId }, () => { void chrome.runtime.lastError; });
+      flushTyping(el, true, { usePrecapture: true, captureId });
     }
   }, true);
 
@@ -1838,9 +1886,14 @@
     // The following click must run before the typing capture sets isCapturing;
     // otherwise handleClick drops the user's next action as a concurrent capture.
     const blurredTypingTarget = typingTarget;
+    const pointerSnapshot = getFreshPointerSnapshot();
     setTimeout(() => {
       if (!isRecording || isPaused || typingTarget !== blurredTypingTarget) return;
-      flushTyping(blurredTypingTarget, true, { usePrecapture: true, peekPrecapture: true });
+      flushTyping(blurredTypingTarget, true, {
+        usePrecapture: !!pointerSnapshot?.captureId,
+        peekPrecapture: true,
+        captureId: pointerSnapshot?.captureId,
+      });
     }, 0);
   }, true);
 
@@ -1902,6 +1955,13 @@
   // (이동의 결과 화면은 다음 사용자 액션에서 자연스럽게 캡처됨)
 
   // ── 클립보드 붙여넣기로 수동 스크린샷 수신 ──────────────────────
+  window.ParroRecorderInternals = Object.freeze({
+    eventElement: (event) => eventElementPath(event?.target, event)[0] || event?.target || null,
+    findInteractiveTarget,
+    refineActionTarget,
+    replaySelector,
+  });
+
   document.addEventListener('paste', (e) => {
     if (!e.isTrusted) return;
     if (!isRecording || isPaused || isCapturing) return;

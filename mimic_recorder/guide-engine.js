@@ -229,6 +229,7 @@
     if (!el || !el.isConnected || isOverlayRootId(el.id) || /^(HTML|BODY)$/.test(el.tagName || '')) return null;
     const rect = rectOf(el);
     if (!rect || rect.width < 1 || rect.height < 1 || !isVisibleEl(el)) return null;
+    if (isElementOccluded(el)) return null;
     const areaRatio = Math.max(0, rect.width * rect.height) / Math.max(1, window.innerWidth * window.innerHeight);
     const context = step.target_context || {};
     const targeting = window.ParroTargeting;
@@ -332,6 +333,18 @@
     return cs.visibility !== 'hidden' && cs.display !== 'none' && parseFloat(cs.opacity || '1') > 0.01;
   }
 
+  function isElementOccluded(el) {
+    const ownerDocument = el?.ownerDocument;
+    const ownerWindow = ownerDocument?.defaultView;
+    if (!ownerDocument?.elementsFromPoint || !ownerWindow) return false;
+    const rect = el.getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = rect.top + rect.height / 2;
+    if (x < 0 || y < 0 || x >= ownerWindow.innerWidth || y >= ownerWindow.innerHeight) return false;
+    const top = ownerDocument.elementsFromPoint(x, y).find(node => !isOverlayRootId(node.id));
+    return !!top && top !== el && !el.contains(top) && !top.contains(el);
+  }
+
   // 저장된 selector/xpath/좌표에서 매칭 힌트 추출 (P1 텍스트앵커 XPath가 보이는 텍스트를 인코딩)
   function extractHint(step) {
     const context = step.target_context || {};
@@ -382,12 +395,16 @@
            y >= rect.top - pad && y <= rect.top + rect.height + pad;
   }
 
-  function isHit(clientX, clientY, target, eventTarget) {
+  function isHit(clientX, clientY, target, eventTarget, eventPath = []) {
     if (!target || !target.rect) return false;
-    if (target.el && eventTarget && (target.el === eventTarget || target.el.contains(eventTarget))) return true;
-    const pad = target.el ? HIT_PAD_EL : HIT_PAD_COORD;
-    const live = target.el ? rectOf(target.el) : target.rect;
-    return pointInRect(clientX, clientY, live, pad);
+    if (target.el) {
+      return !!eventTarget && (
+        target.el === eventTarget
+        || target.el.contains(eventTarget)
+        || eventPath.includes(target.el)
+      );
+    }
+    return pointInRect(clientX, clientY, target.rect, HIT_PAD_COORD);
   }
 
   // 툴팁 위치 계산 — 타깃 rect 기준, 공간 여유에 따라 아래/위 자동 선택
@@ -906,7 +923,8 @@
         if (!state.resolved?.el || !(state.resolved.el === e.target || state.resolved.el.contains(e.target))) nudge();
         return;
       }
-      if (isHit(e.clientX, e.clientY, state.resolved, e.target)) {
+      const eventPath = typeof e.composedPath === 'function' ? e.composedPath() : [];
+      if (isHit(e.clientX, e.clientY, state.resolved, e.target, eventPath)) {
         const form = submissionForm(state.resolved?.el || e.target);
         if (form) validateSubmissionThenAdvance(form);
         else advance('click');

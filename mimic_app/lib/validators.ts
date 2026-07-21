@@ -103,6 +103,7 @@ export const actionInfoSchema = z.object({
   tag: optionalActionString(30),
   role: optionalActionString(50),
   href: optionalActionString(500),
+  captureAlignment: z.enum(['exact-precapture', 'point-fallback', 'unavailable']).optional(),
   labelDebug: labelDebugSchema,
   targetContext: targetContextSchema,
   // text(실제 입력값)와 inputType은 수신하되 즉시 폐기 — password 등 민감정보가 서버/AI에 도달하지 않도록
