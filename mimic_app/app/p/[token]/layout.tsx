@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { createServiceRoleClient } from '@/lib/supabase/server';
-import { buildManualShareMetadata, buildMissingShareMetadata } from '@/lib/share-metadata';
+import { buildMissingShareMetadata, buildPlaybookShareMetadata } from '@/lib/share-metadata';
 
 type Props = { params: Promise<{ token: string }> };
 
@@ -9,26 +9,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const supabase = createServiceRoleClient();
 
   const { data } = await supabase
-    .from('mm_tutorials')
-    .select('title, thumbnail_url, visibility, share_password')
+    .from('mm_pages')
+    .select('title, description')
     .eq('share_token', token)
     .eq('status', 'published')
     .is('deleted_at', null)
     .single();
 
-  if (!data) {
-    return buildMissingShareMetadata('매뉴얼');
-  }
+  if (!data) return buildMissingShareMetadata('플레이북');
 
-  return buildManualShareMetadata({
+  return buildPlaybookShareMetadata({
     token,
     title: data.title,
-    thumbnailUrl: data.thumbnail_url,
-    visibility: data.visibility,
-    passwordProtected: Boolean(data.share_password),
+    description: data.description,
   });
 }
 
-export default function PlayLayout({ children }: { children: React.ReactNode }) {
+export default function PublicPlaybookLayout({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
