@@ -13,6 +13,7 @@ import { toFollowSteps, clickToPct } from '@/lib/follow';
 import { startLiveGuide } from '@/lib/api/liveGuide';
 import { resolveStepAudio } from '@/lib/voice/playback';
 import { BRAND_COLORS, BRAND_LOGO_IMAGE_PATH, BRAND_NAME, LEGACY_INTERNAL_IDENTIFIERS } from '@/lib/brand';
+import { resolveSharedStepIndex } from '@/lib/share-links';
 import type { FollowConfig } from '@/types';
 import type { Annotation as DrawAnnotation } from '@/components/editor/ImageAnnotationEditor';
 
@@ -528,6 +529,7 @@ export default function PlayerPage() {
   const { token } = useParams<{ token: string }>();
   const searchParams = useSearchParams();
   const modeParam = searchParams.get('mode');
+  const sharedStepParam = searchParams.get('step');
   const [tutorial, setTutorial] = useState<Tutorial | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -584,6 +586,14 @@ export default function PlayerPage() {
       })
       .catch(() => { setNotFound(true); setLoading(false); });
   }, [token]);
+
+  useEffect(() => {
+    if (!tutorial) return;
+    const sharedStepIndex = resolveSharedStepIndex(sharedStepParam, tutorial.steps);
+    if (sharedStepIndex == null) return;
+    setCurrentStep(sharedStepIndex);
+    setIsPlaying(false);
+  }, [sharedStepParam, tutorial]);
 
   useEffect(() => {
     if (!tutorial?.id || !tutorial.survey_enabled) return;

@@ -17,6 +17,7 @@ const landing = read('app', 'landingpage', 'page.tsx');
 const landingLayout = read('app', 'landingpage', 'layout.tsx');
 const landingFaq = read('lib', 'landing-faq.ts');
 const desktopSetup = read('app', 'desktop-setup', 'page.tsx');
+const player = read('app', 'play', '[token]', 'page.tsx');
 
 assert.match(editor, /new AbortController\(\)/, 'AI rewrite must be cancellable');
 assert.match(editor, /signal: controller\.signal/, 'AI rewrite fetch must use the abort signal');
@@ -29,6 +30,9 @@ assert.doesNotMatch(editor, /window\.confirm\('전체 제목과 본문/, 'AI rew
 assert.match(share, /if \(hasError \|\| hasWarning\) return;/, 'publishing must wait for quality results');
 assert.match(share, /제안 확인 후 게시/, 'quality warnings must require explicit approval');
 assert.match(share, /awaitingWarningApproval/, 'warning approval must block link actions');
+assert.match(share, /data-testid="copy-current-step-link"/, 'share modal must expose current-step sharing');
+assert.match(share, /buildStepShareUrl\(url, shareStep\.id\)/, 'step sharing must use a stable step id');
+assert.match(player, /resolveSharedStepIndex\(sharedStepParam, tutorial\.steps\)/, 'shared players must open at the requested step');
 
 assert.match(studio, /listLiveGuideTargetTabs/, 'Studio must list target tabs before picking');
 assert.match(studio, /이 대상으로 저장할까요\?/, 'Studio must confirm a picked target before saving');
@@ -57,4 +61,4 @@ assert.match(landingFaq, /현재는 사용자가 직접 결제 플랜을 변경�
 assert.doesNotMatch(landingFaq, /카카오페이|토스페이|전액 환불|언제든 구독을 해지/, 'prelaunch FAQ must not promise unavailable billing operations');
 assert.doesNotMatch(desktopSetup, /Parro Recorder 1\.7\.4/, 'desktop setup must not hard-code an obsolete Recorder version');
 
-console.log(JSON.stringify({ ok: true, checks: 32, scope: 'manual-ux-contract' }));
+console.log(JSON.stringify({ ok: true, checks: 35, scope: 'manual-ux-contract' }));

@@ -572,6 +572,8 @@ export default function EditorPage() {
 
   const createdAt = new Date(tutorial.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
 
+  const activeShareStep = manualSteps.find(step => step.id === activeId);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
 
@@ -1171,6 +1173,7 @@ export default function EditorPage() {
           onRequestRegenerate={() => setShowRefineConfirm(true)}
           hasPassword={!!(tutorial as Tutorial & { share_password?: string | null }).share_password}
           passwordProtectionEnabled={tutorialEntitlements?.protected_sharing ?? hasEntitlement(user?.plan, 'protected_sharing')}
+          shareStep={activeShareStep ? { id: activeShareStep.id, number: activeShareStep.number, title: activeShareStep.actionTitle } : undefined}
           visibility={(tutorial as Tutorial & { visibility?: 'private' | 'public' }).visibility}
           onPublishAndShare={publish}
           onUnpublish={unpublish}

@@ -5,6 +5,7 @@ import { X, Link2, Check, Lock, Eye, EyeOff, Code2, ChevronDown } from 'lucide-r
 import { BRAND_NAME } from '@/lib/brand';
 import { TutorialApiError } from '@/lib/api/tutorials';
 import type { ManualQualityIssue } from '@/lib/manual-quality';
+import { buildStepShareUrl } from '@/lib/share-links';
 
 interface ShareModalProps {
   title: string;
@@ -19,6 +20,7 @@ interface ShareModalProps {
   onUnpublish: () => Promise<void>;
   onClose: () => void;
   passwordProtectionEnabled?: boolean;
+  shareStep?: { id: string; number: number; title?: string };
 }
 
 function shareUrlForMode(value: string | null | undefined, mode: 'document' | 'follow' | 'slides') {
@@ -33,10 +35,11 @@ function shareUrlForMode(value: string | null | undefined, mode: 'document' | 'f
   }
 }
 
-export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPassword, visibility: initialVisibility = 'private', defaultMode = 'document', onRequestRegenerate, onPublishAndShare, onUnpublish, onClose, passwordProtectionEnabled = false }: ShareModalProps) {
+export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPassword, visibility: initialVisibility = 'private', defaultMode = 'document', onRequestRegenerate, onPublishAndShare, onUnpublish, onClose, passwordProtectionEnabled = false, shareStep }: ShareModalProps) {
   const canProtectSharing = passwordProtectionEnabled;
   const [url, setUrl] = useState(() => shareUrlForMode(shareUrl, defaultMode));
   const [copied, setCopied] = useState(false);
+  const [stepCopied, setStepCopied] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [unpublishing, setUnpublishing] = useState(false);
   const [qualityChecking, setQualityChecking] = useState(true);
@@ -204,6 +207,14 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
     setTimeout(() => setCopied(false), 2200);
   };
 
+  const stepUrl = !sharingBlocked && url && shareStep?.id ? buildStepShareUrl(url, shareStep.id) : '';
+  const handleCopyStep = async () => {
+    if (!stepUrl) return;
+    await navigator.clipboard.writeText(stepUrl).catch(() => {});
+    setStepCopied(true);
+    setTimeout(() => setStepCopied(false), 2200);
+  };
+
   const embedUrl = !sharingBlocked && url ? url.replace('/play/', '/embed/') : '';
   const embedCode = embedUrl
     ? `<iframe src="${embedUrl}" width="100%" height="640" style="border:1px solid #e5e7eb;border-radius:12px" loading="lazy" allowfullscreen></iframe>`
@@ -355,6 +366,25 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
               {copied ? '복사됨!' : '링크 복사'}
             </button>
           </div>
+
+          {shareStep && (
+            <button
+              type="button"
+              data-testid="copy-current-step-link"
+              onClick={handleCopyStep}
+              disabled={!stepUrl}
+              aria-label={`${shareStep.number}단계부터 시작하는 링크 복사`}
+              style={{ width: '100%', minHeight: 48, margin: '0 0 14px', padding: '9px 11px', borderRadius: 10, border: `1px solid ${stepCopied ? '#10B981' : '#DDE7E4'}`, background: stepCopied ? '#F0FDF4' : '#F8FFFC', color: '#111827', cursor: stepUrl ? 'pointer' : 'not-allowed', opacity: stepUrl ? 1 : 0.55, display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left' }}
+            >
+              <span style={{ width: 28, height: 28, borderRadius: 8, background: stepCopied ? '#10B981' : '#DFF7EF', color: stepCopied ? 'white' : '#007D72', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                {stepCopied ? <Check size={13} /> : <Link2 size={13} />}
+              </span>
+              <span style={{ minWidth: 0, flex: 1 }}>
+                <strong style={{ display: 'block', fontSize: 12.5 }}>{stepCopied ? '단계 링크를 복사했어요' : `${shareStep.number}단계부터 공유`}</strong>
+                <span style={{ display: 'block', marginTop: 2, fontSize: 11.5, color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{shareStep.title || '받는 사람이 이 단계에서 바로 시작합니다.'}</span>
+              </span>
+            </button>
+          )}
 
           {/* 공개 범위 */}
           <div style={rowStyle}>
