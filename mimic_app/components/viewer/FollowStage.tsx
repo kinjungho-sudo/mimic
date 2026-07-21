@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useRef, useId } from 'react';
-import { AnnotationPreview } from '@/components/editor/AnnotationPreview';
 import { ParroMascot, type ParroMascotState } from '@/components/brand/ParroMascot';
 import { BRAND_COLORS } from '@/lib/brand';
 import { resolveImageAlt } from '@/lib/image-alt';
@@ -74,7 +73,7 @@ interface Props {
 }
 
 export function FollowStage({
-  screenshotUrl, imageAltText, hotspotX: hx, hotspotY: hy, allowCornerHotspot = false, kind, typeText, typeInputMode, typeBoxWidth, typeBoxHeight, typeTextColor, guideMode = 'interactive', annotations = null, animateType = false,
+  screenshotUrl, imageAltText, hotspotX: hx, hotspotY: hy, allowCornerHotspot = false, kind, typeText, typeInputMode, typeBoxWidth, typeBoxHeight, typeTextColor, guideMode = 'interactive', animateType = false,
   showTypeIndicator = true,
   isFirstStep = false, stepNumber = null, title, body,
   minimized = false, showAudioBadge = false, nudge = false, spotlight = false,
@@ -266,10 +265,6 @@ export function FollowStage({
         <div onClick={onImageClick} style={{ position: 'relative', lineHeight: 0, ...zoomStyle }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={screenshotUrl} alt={resolveImageAlt(imageAltText, title, body)} draggable={false} style={{ display: 'block', maxWidth: '100%', maxHeight: imgMaxHeight, width: 'auto', height: 'auto', userSelect: 'none' }} />
-        {!!annotations?.length && (
-          <AnnotationPreview annotations={annotations} imageUrl={screenshotUrl} />
-        )}
-
         {/* 스포트라이트 오버레이 — zooming부터 표시. domRect 있으면 직사각형 구멍, 없으면 원형 */}
         {showMask && spotlight && hasHotspot && (
           <svg aria-hidden style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 2, animation: 'mfp-spotlight-in 0.55s ease-out forwards' }}>
