@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { FollowStage, Mascot, CORNER } from './FollowStage';
 import { BRAND_COLORS } from '@/lib/brand';
+import { isOversizedGuideTarget } from '@/lib/follow-target';
 import type { Annotation } from '@/components/editor/ImageAnnotationEditor';
 
 // 좌표는 전부 0~100(%) 정규화로 받는다 — 호출부(play/manual)가 각자 변환해 넘긴다.
@@ -60,9 +61,11 @@ export function InteractiveFollowPlayer({ steps, title, initialStepIndex = 0, on
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [skippedSteps, setSkippedSteps] = useState<Set<number>>(new Set());
   const [showSkipConfirm, setShowSkipConfirm] = useState(false);
+  const [typeDraft, setTypeDraft] = useState('');
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const transTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const phaseTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const typeAdvanceRef = useRef(false);
 
   const total = steps.length;
   const step = steps[idx];
@@ -77,7 +80,12 @@ export function InteractiveFollowPlayer({ steps, title, initialStepIndex = 0, on
   }, [initialStepIndex, steps.length]);
 
   // 스텝 바뀌면 툴팁 다시 펼침 (#3)
-  useEffect(() => { setMinimized(false); setShowSkipConfirm(false); }, [idx]);
+  useEffect(() => {
+    setMinimized(false);
+    setShowSkipConfirm(false);
+    setTypeDraft('');
+    typeAdvanceRef.current = false;
+  }, [idx]);
 
   // 줌인 시퀀스: 스튜디오에서 확대 애니메이션을 켠(zoomAnim) 스텝 + domRect 있을 때만.
   // 원본(raw)에서 확대(zooming→focused)로 한 번만 진행하고 그대로 유지 — 다시 좁아지는 효과 없음.
@@ -181,6 +189,9 @@ export function InteractiveFollowPlayer({ steps, title, initialStepIndex = 0, on
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isTyping = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || !!target?.isContentEditable;
+      if (isTyping && e.key !== 'Escape') return;
       if (done) {
         if (e.key === 'ArrowLeft' || e.key === 'Backspace') returnToLastStep();
         else if (e.key === 'Escape') onClose?.();
@@ -194,10 +205,23 @@ export function InteractiveFollowPlayer({ steps, title, initialStepIndex = 0, on
     return () => window.removeEventListener('keydown', onKey);
   }, [advance, goPrev, onClose, done, returnToLastStep]);
 
-  const doNudge = () => { setNudge(true); setTimeout(() => setNudge(false), 420); };
+  const doNudge = useCallback(() => { setNudge(true); setTimeout(() => setNudge(false), 420); }, []);
+
+  const completeTypeStep = useCallback((value: string) => {
+    if (typeAdvanceRef.current || step?.kind !== 'type') return;
+    const expected = step.typeText ?? '';
+    if (expected ? value !== expected : value.trim().length === 0) {
+      doNudge();
+      return;
+    }
+    typeAdvanceRef.current = true;
+    setCompletedSteps(previous => new Set(previous).add(idx));
+    advance('action');
+  }, [advance, doNudge, idx, step]);
 
   const onImageClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (done) return;
+    if (step.kind === 'type') return;
     const hx = step.hotspotX, hy = step.hotspotY;
     // 클릭 타깃 없음(이동/캡처 단계 — 좌상단 0,0 포함) → 화면 클릭으로 진행하지 않음. '다음'으로만 이동 (#2)
     // 단, 사용자가 직접 찍은 좌상단 핫스팟은 유효 타깃으로 인정
@@ -206,7 +230,10 @@ export function InteractiveFollowPlayer({ steps, title, initialStepIndex = 0, on
     const xPct = ((e.clientX - rect.left) / rect.width) * 100;
     const yPct = ((e.clientY - rect.top) / rect.height) * 100;
     const dr = step.domRect;
-    const inRect = dr ? xPct >= dr.x && xPct <= dr.x + dr.w && yPct >= dr.y && yPct <= dr.y + dr.h : false;
+    // 큰 부모 DOM은 전체를 정답으로 보지 않는다. 사용자가 지정한 실제 클릭 지점 근처만 인정한다.
+    const inRect = dr && !isOversizedGuideTarget(dr)
+      ? xPct >= dr.x && xPct <= dr.x + dr.w && yPct >= dr.y && yPct <= dr.y + dr.h
+      : false;
     const dist = Math.hypot(xPct - hx, yPct - hy);
     if (dist <= HIT_PCT || inRect) {
       setCompletedSteps(previous => new Set(previous).add(idx));
@@ -260,7 +287,7 @@ export function InteractiveFollowPlayer({ steps, title, initialStepIndex = 0, on
                   typeBoxHeight={step.typeBoxHeight}
                   guideMode={step.guideMode}
                   bubbleAnchor={step.bubbleAnchor}
-                  animateType={step.typeInputMode === 'auto'}
+                  animateType={false}
                   isFirstStep={idx === 0}
                   stepNumber={idx + 1}
                   spotlight
@@ -272,6 +299,9 @@ export function InteractiveFollowPlayer({ steps, title, initialStepIndex = 0, on
                   showAudioBadge={!!step.audioUrl}
                   nudge={nudge}
                   imageCursor="pointer"
+                  typeValue={typeDraft}
+                  onTypeValueChange={setTypeDraft}
+                  onTypeComplete={completeTypeStep}
                   onImageClick={onImageClick}
                   onMascotClick={onMascotClick}
                   onBubbleClick={(e) => { e.stopPropagation(); setMinimized(true); }}
@@ -326,7 +356,7 @@ export function InteractiveFollowPlayer({ steps, title, initialStepIndex = 0, on
           <div role="dialog" aria-modal="true" aria-labelledby="skip-step-title" style={{ width: 'min(360px, 100%)', borderRadius: 15, background: 'white', color: '#111827', padding: 22, textAlign: 'center', boxShadow: '0 22px 60px rgba(0,0,0,0.4)' }}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}><Mascot size={52} state="blocked" /></div>
             <div id="skip-step-title" style={{ fontSize: 17, fontWeight: 800, marginBottom: 7 }}>이 단계의 행동을 건너뛸까요?</div>
-            <p style={{ margin: '0 0 17px', color: '#6B7280', fontSize: 12.5, lineHeight: 1.55 }}>표시된 위치를 직접 클릭하면 학습 완료로 기록됩니다. 건너뛰어도 계속할 수 있지만 완료 화면에 표시됩니다.</p>
+            <p style={{ margin: '0 0 17px', color: '#6B7280', fontSize: 12.5, lineHeight: 1.55 }}>{step.kind === 'type' ? '표시된 입력란에 안내된 텍스트를 직접 입력하면 완료로 기록됩니다.' : '반짝이는 녹색 영역을 직접 클릭하면 완료로 기록됩니다.'} 건너뛰어도 계속할 수 있지만 완료 화면에 표시됩니다.</p>
             <div style={{ display: 'flex', justifyContent: 'center', gap: 8 }}>
               <button onClick={() => { setShowSkipConfirm(false); doNudge(); }} style={{ height: 36, padding: '0 13px', borderRadius: 8, border: '1px solid #D1D5DB', background: 'white', color: '#374151', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>표시된 위치로 돌아가기</button>
               <button onClick={confirmSkip} style={{ height: 36, padding: '0 13px', borderRadius: 8, border: 'none', background: '#6B7280', color: 'white', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>건너뛰기</button>

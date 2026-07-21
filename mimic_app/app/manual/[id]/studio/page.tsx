@@ -2,9 +2,9 @@
 
 import { Fragment, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Play, Check, Loader2, MousePointerClick, Type, Ban, RotateCcw, EyeOff, Eye, GripVertical, ZoomIn, ImagePlus, Volume2, VolumeX, Link2, AlertTriangle, X } from 'lucide-react';
+import { ArrowLeft, Play, Check, Loader2, MousePointerClick, Type, Ban, RotateCcw, EyeOff, Eye, GripVertical, ZoomIn, ImagePlus, Volume2, VolumeX, Link2, AlertTriangle, Trash2, X } from 'lucide-react';
 import { useTutorial } from '@/hooks/useTutorial';
-import { updateStep, reorderSteps } from '@/lib/api/steps';
+import { deleteStep, updateStep, reorderSteps } from '@/lib/api/steps';
 import { listLiveGuideTargetTabs, pickLiveGuideTarget, type LiveGuideTargetPickResult, type LiveGuideTargetTab } from '@/lib/api/liveGuide';
 import { clickToPct, inferKind, mergeCapturedTypeText, toFollowSteps } from '@/lib/follow';
 import { inferGuideSection } from '@/lib/manual-quality';
@@ -179,6 +179,8 @@ export default function StudioPage() {
   const contentTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const dragIdRef = useRef<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   // 최신 steps 미러 — patch에서 동기적으로 현재 follow를 읽기 위함(setState 캡처는 비동기라 stale)
   const stepsRef = useRef<StudioStep[]>([]);
   stepsRef.current = steps;
@@ -352,6 +354,43 @@ export default function StudioPage() {
     reorderSteps(id, arr.map((s, i) => ({ id: s.id, order_index: i })))
       .catch(e => logError('studio.reorder.fail', { tutorialId: id, message: e instanceof Error ? e.message : String(e) }));
   }, [id]);
+
+  const confirmDeleteStep = useCallback(async () => {
+    const stepId = pendingDeleteId;
+    if (!stepId || deletingId) return;
+    const current = stepsRef.current;
+    const deletedIndex = current.findIndex(step => step.id === stepId);
+    if (deletedIndex < 0) {
+      setPendingDeleteId(null);
+      return;
+    }
+
+    setDeletingId(stepId);
+    try {
+      await deleteStep(stepId);
+      Object.keys(contentTimers.current).forEach(key => {
+        if (key.startsWith(stepId)) {
+          clearTimeout(contentTimers.current[key]);
+          delete contentTimers.current[key];
+        }
+      });
+      const next = current
+        .filter(step => step.id !== stepId)
+        .map((step, index) => ({ ...step, number: index + 1 }));
+      stepsRef.current = next;
+      setSteps(next);
+      if (activeId === stepId) {
+        setActiveId(next[Math.min(deletedIndex, next.length - 1)]?.id ?? null);
+      }
+      setPendingDeleteId(null);
+      setSavedTick(tick => tick + 1);
+    } catch (error) {
+      logError('studio.step.delete.fail', { tutorialId: id, stepId, message: error instanceof Error ? error.message : String(error) });
+      alert('스텝을 삭제하지 못했습니다. 네트워크 연결을 확인한 뒤 다시 시도해주세요.');
+    } finally {
+      setDeletingId(null);
+    }
+  }, [activeId, deletingId, id, pendingDeleteId]);
 
   // 입력 텍스트(typeText) 편집 → 로컬 즉시 반영 + 디바운스 저장 (키 입력마다 저장 방지)
   const setTypeText = useCallback((stepId: string, value: string) => {
@@ -604,6 +643,17 @@ export default function StudioPage() {
                 {s.follow.hidden
                   ? <EyeOff size={12} color="rgba(255,255,255,0.4)" />
                   : <span style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, background: hasHot ? (r.kind === 'type' ? '#60a5fa' : '#34d399') : 'rgba(255,255,255,0.25)' }} />}
+                <button
+                  type="button"
+                  draggable={false}
+                  aria-label={`${i + 1}번 스텝 삭제`}
+                  title="스텝 삭제"
+                  onPointerDown={event => event.stopPropagation()}
+                  onClick={event => { event.stopPropagation(); setPendingDeleteId(s.id); }}
+                  style={{ width: 24, height: 24, flexShrink: 0, border: 'none', borderRadius: 6, background: sel ? 'rgba(239,68,68,0.13)' : 'transparent', color: sel ? '#FCA5A5' : 'rgba(255,255,255,0.32)', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
+                >
+                  <Trash2 size={12} />
+                </button>
               </div>
               </Fragment>
             );
@@ -644,6 +694,7 @@ export default function StudioPage() {
                   typeBoxWidth={active.follow.typeBoxWidth}
                   typeBoxHeight={active.follow.typeBoxHeight}
                   guideMode={rv?.none ? 'explanation' : 'interactive'}
+                  domRect={active.domRect}
                   bubbleAnchor={active.follow.bubbleAnchor}
                   stepNumber={steps.findIndex(s => s.id === active.id) + 1}
                   title={active.title}
@@ -812,6 +863,7 @@ export default function StudioPage() {
                 style={{ ...subtleBtn, opacity: (hidden || active.follow.hotspotX == null) ? 0.4 : 1, cursor: (hidden || active.follow.hotspotX == null) ? 'not-allowed' : 'pointer' }}>
                 <RotateCcw size={12} /> 녹화 위치로 초기화
               </button>
+              <p style={hint}>큰 카드나 컨테이너 DOM은 학습 가이드에서 클릭 좌표 주변의 작은 영역으로 자동 축소됩니다.</p>
 
               <Divider />
 
@@ -944,6 +996,30 @@ export default function StudioPage() {
           onClose={() => setShowShare(false)}
         />
       )}
+
+      {pendingDeleteId && (() => {
+        const step = steps.find(item => item.id === pendingDeleteId);
+        return (
+          <div onClick={() => { if (!deletingId) setPendingDeleteId(null); }} style={{ position: 'fixed', inset: 0, zIndex: 170, background: 'rgba(5,5,10,0.72)', backdropFilter: 'blur(4px)', display: 'grid', placeItems: 'center', padding: 20 }}>
+            <div role="dialog" aria-modal="true" aria-labelledby="studio-delete-title" onClick={event => event.stopPropagation()} style={{ width: 'min(400px, 100%)', borderRadius: 16, background: 'white', color: '#111827', padding: 22, boxShadow: '0 24px 70px rgba(0,0,0,0.4)' }}>
+              <div style={{ width: 42, height: 42, borderRadius: 12, display: 'grid', placeItems: 'center', color: '#B91C1C', background: '#FEE2E2', marginBottom: 13 }}><Trash2 size={20} /></div>
+              <h2 id="studio-delete-title" style={{ margin: '0 0 7px', fontSize: 18 }}>이 스텝을 삭제할까요?</h2>
+              <p style={{ margin: '0 0 10px', fontSize: 13, lineHeight: 1.6, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {step ? `${steps.findIndex(item => item.id === step.id) + 1}. ${step.title || '(제목 없음)'}` : '선택한 스텝'}
+              </p>
+              <p style={{ margin: '0 0 18px', padding: '10px 11px', borderRadius: 9, background: '#FFF7ED', border: '1px solid #FED7AA', color: '#9A3412', fontSize: 12.5, lineHeight: 1.55 }}>
+                문서 매뉴얼과 Live Guide에서도 같은 스텝이 함께 삭제되며 되돌릴 수 없습니다.
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                <button disabled={!!deletingId} onClick={() => setPendingDeleteId(null)} style={{ height: 38, padding: '0 15px', borderRadius: 9, border: '1px solid #D1D5DB', background: 'white', color: '#374151', fontSize: 12.5, fontWeight: 600, cursor: deletingId ? 'not-allowed' : 'pointer' }}>취소</button>
+                <button disabled={!!deletingId} onClick={() => void confirmDeleteStep()} style={{ height: 38, minWidth: 82, padding: '0 16px', borderRadius: 9, border: 'none', background: '#DC2626', color: 'white', fontSize: 12.5, fontWeight: 700, cursor: deletingId ? 'not-allowed' : 'pointer', opacity: deletingId ? 0.65 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                  {deletingId ? <><Loader2 size={13} className="spin" /> 삭제 중</> : '삭제'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {showTargetTabs && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 160, background: 'rgba(5,5,10,0.72)', backdropFilter: 'blur(4px)', display: 'grid', placeItems: 'center', padding: 20 }}>
