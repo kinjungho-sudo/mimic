@@ -825,8 +825,12 @@ function tutorialTitleFromStepTitle(value: string): string {
 
 export function buildCaptureFallbackTutorialTitle(
   drafts: Array<{ user_title: string; user_script?: string }>,
-  context: { serviceNames?: Array<string | null | undefined> } = {}
+  context: {
+    serviceNames?: Array<string | null | undefined>;
+    pageTitles?: Array<string | null | undefined>;
+  } = {}
 ): string {
+  const identityTitle = buildCaptureIdentityTutorialTitle(context);
   const serviceNames = (context.serviceNames ?? []).map(cleanText).filter(Boolean).join(' ');
   const draftText = drafts
     .flatMap(draft => [cleanText(draft.user_title), cleanText(draft.user_script)])
@@ -856,18 +860,68 @@ export function buildCaptureFallbackTutorialTitle(
     if (titles.some(title => /메일함|받은편지함/.test(title))) return '메일함 확인하기';
   }
 
-  const hasProductSearch = titles.some(title => /상품 검색|검색어|검색 조건|최소 가격|최대 가격|무료배송/.test(title));
-  const hasStoreInfo = titles.some(title => /오프라인 매장|매장 정보/.test(title));
-  if (hasProductSearch && hasStoreInfo) return '상품 검색 후 매장 정보 확인하기';
-  if (hasProductSearch) return '상품 조건 검색하기';
-  if (hasStoreInfo) return '매장 정보 확인하기';
-
   const completionTitle = [...titles].reverse().find(title =>
     /(보내기|발송|완료|저장|게시|등록|신청|구매|생성|만들기|공유|초대|로그인|제출)(?:\s*(?:클릭|확인|선택|입력|이동))?$/.test(title)
   );
+  if (!completionTitle && identityTitle) return identityTitle;
   const finalMeaningfulTitle = [...titles].reverse().find(title => !/(^.+\s클릭$|^.+\s선택$)/.test(title));
   const goalTitle = completionTitle || finalMeaningfulTitle || titles.at(-1);
 
   if (!goalTitle) return '';
   return tutorialTitleFromStepTitle(goalTitle);
+}
+
+function mostFrequentIdentity(values: Array<string | null | undefined>): string {
+  const counts = new Map<string, { value: string; count: number }>();
+  for (const rawValue of values) {
+    const value = cleanText(rawValue);
+    if (!value || /^(?:서비스|웹\s*페이지|화면|Windows)$/i.test(value)) continue;
+    if (/(?:desktop|windows)\.parro\.(?:local|app)/i.test(value)) continue;
+    const key = value.toLowerCase();
+    const entry = counts.get(key);
+    counts.set(key, { value, count: (entry?.count ?? 0) + 1 });
+  }
+  return Array.from(counts.values()).sort((a, b) => b.count - a.count)[0]?.value ?? '';
+}
+
+function serviceDisplayName(value: string): string {
+  const clean = cleanText(value).replace(/^www\./i, '');
+  if (!/^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/i.test(clean)) return clean;
+  const parts = clean.split('.');
+  const root = parts.length > 2 ? parts.at(-2)! : parts[0];
+  const capitalized = root.charAt(0).toUpperCase() + root.slice(1);
+  return parts.at(-1)?.toLowerCase() === 'ai' && !root.toLowerCase().endsWith('ai')
+    ? `${capitalized}AI`
+    : capitalized;
+}
+
+export function buildCaptureIdentityTutorialTitle(
+  context: {
+    serviceNames?: Array<string | null | undefined>;
+    pageTitles?: Array<string | null | undefined>;
+  } = {}
+): string {
+  const serviceName = serviceDisplayName(mostFrequentIdentity(context.serviceNames ?? []));
+  const pageTitle = mostFrequentIdentity(context.pageTitles ?? []);
+  if (!pageTitle) return serviceName.slice(0, 30);
+
+  const parts = pageTitle
+    .split(/\s*(?:\||·|•|–|—|\s+-\s+)\s*/)
+    .map(cleanText)
+    .filter(part => part && !/^(?:Chrome|Microsoft Edge|Safari|Firefox)$/i.test(part));
+  const normalizedService = serviceName.replace(/[^a-z0-9가-힣]/gi, '').toLowerCase();
+  const pageName = parts
+    .map(part => {
+      if (!serviceName) return part;
+      if (part.toLowerCase().startsWith(serviceName.toLowerCase())) return cleanText(part.slice(serviceName.length));
+      if (part.toLowerCase().endsWith(serviceName.toLowerCase())) return cleanText(part.slice(0, -serviceName.length));
+      return part;
+    })
+    .find(part => {
+      const normalizedPart = part.replace(/[^a-z0-9가-힣]/gi, '').toLowerCase();
+      return normalizedPart && normalizedPart !== normalizedService && !/^(?:home|홈|메인|dashboard|대시보드)$/i.test(part);
+    });
+
+  if (serviceName && pageName) return `${serviceName} ${pageName}`.slice(0, 30);
+  return (serviceName || pageName || pageTitle).slice(0, 30);
 }

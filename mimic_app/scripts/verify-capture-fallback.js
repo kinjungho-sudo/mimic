@@ -2,6 +2,7 @@ async function main() {
   const {
     buildCaptureFallbackDraft,
     buildCaptureFallbackTutorialTitle,
+    buildCaptureIdentityTutorialTitle,
     buildCaptureAnnotationLabel,
     cleanCaptureTypeText,
     isCaptureTitleGrounded,
@@ -216,17 +217,19 @@ async function main() {
     failures.push({ name: 'directional control gets contextual copy', expected: { user_title: '다음 후기 보기', user_script: '후기 목록에서 다음 내용을 확인합니다.' }, actual: directionalDraft });
   }
 
-  const gardenTitle = buildCaptureFallbackTutorialTitle([
+  const uncertainSearchTitle = buildCaptureFallbackTutorialTitle([
     { user_title: '상품 검색어 입력' },
     { user_title: '무료배송 조건 선택' },
     { user_title: '최소 가격 설정' },
     { user_title: '입력 내용 적용' },
-    { user_title: '오프라인 매장 둘러보기' },
-    { user_title: '매장 정보 확인' },
-    { user_title: '온라인 쇼핑으로 이동' },
-  ]);
-  if (gardenTitle !== '상품 검색 후 매장 정보 확인하기') {
-    failures.push({ name: 'garden tutorial title fallback', expected: '상품 검색 후 매장 정보 확인하기', actual: gardenTitle });
+  ], { serviceNames: ['FoalAI'], pageTitles: ['공고마당 | FoalAI'] });
+  if (uncertainSearchTitle !== 'FoalAI 공고마당') {
+    failures.push({ name: 'uncertain search uses page identity', expected: 'FoalAI 공고마당', actual: uncertainSearchTitle });
+  }
+
+  const serviceOnlyTitle = buildCaptureIdentityTutorialTitle({ serviceNames: ['foal.ai'] });
+  if (serviceOnlyTitle !== 'FoalAI') {
+    failures.push({ name: 'service-only identity fallback', expected: 'FoalAI', actual: serviceOnlyTitle });
   }
 
   const notionScheduleTitle = buildCaptureFallbackTutorialTitle([

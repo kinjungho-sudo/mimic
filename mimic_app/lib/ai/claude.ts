@@ -44,6 +44,7 @@ export type GenerateDraftStatus =
 export type GenerateDraftResult = {
   steps: Array<{ id: string; user_title: string; user_script: string }>;
   tutorial_title: string;
+  tutorial_title_basis: 'goal' | 'page' | 'service' | 'unknown';
   status: GenerateDraftStatus;
   reason?: string;
   responsePreview?: string;
@@ -455,7 +456,7 @@ export async function generateDraft(
   const openaiApiKey = process.env.OPENAI_API_KEY?.trim();
   if (!openaiApiKey) {
     console.error('generateDraft skipped: OPENAI_API_KEY is not configured');
-    return { tutorial_title: '', steps: [], status: 'missing_key', reason: 'OPENAI_API_KEY is not configured' };
+    return { tutorial_title: '', tutorial_title_basis: 'unknown', steps: [], status: 'missing_key', reason: 'OPENAI_API_KEY is not configured' };
   }
 
   // 가장 많이 등장하는 domain_name을 서비스 이름으로 사용
@@ -501,11 +502,17 @@ ${stepsText}
 - 화면 근거만으로 목적을 확신할 수 없으면 구체적인 기능을 지어내지 말고, 기존 문구를 반복하지도 않습니다.
 
 [제목 규칙 — tutorial_title]
-- 30자 이내, "서비스명으로/에서 + 최종 결과" 또는 "최종 결과" 형식
-- 첫 스텝의 메뉴명·버튼명·클릭 동작이 아니라 전체 절차의 최종 목적을 작성
+- 먼저 제목 근거를 goal, page, service 중 하나로 결정하고 tutorial_title_basis에 기록
+- goal은 마지막 결과가 화면이나 행동 순서에서 명확하게 확인될 때만 선택
+- 필터·검색 조건·메뉴를 조작했지만 최종 결과가 명확하지 않으면 행동 목적을 추측하지 말고 page를 선택
+- page는 화면의 로고·주요 헤더·Page title에서 확인한 "서비스명 + 페이지/공간 이름"을 사용. 예: "FoalAI 공고마당"
+- 페이지 이름을 확실히 읽을 수 없고 서비스명만 확인되면 service를 선택하고 서비스명만 사용. 예: "FoalAI"
+- goal일 때만 30자 이내의 "서비스명으로/에서 + 최종 결과" 또는 "최종 결과" 형식을 사용
+- 첫 스텝의 메뉴명·버튼명·클릭 동작만으로 전체 절차의 목적을 단정하지 않음
 - 특정 상품명·수량·계정명·이메일 주소 포함 금지
 - 좋은 예: "Gmail로 이메일 보내기", "Slack 채널 만들기", "상품 주문 완료하기"
-- 나쁜 예: "받은편지함 클릭", "desktop.parro.local에서 작업 설정하기", "화면 설정 진행"
+- 목적이 불확실한 경우의 좋은 예: "FoalAI 공고마당", "FoalAI"
+- 나쁜 예: "받은편지함 클릭", "desktop.parro.local에서 작업 설정하기", "화면 설정 진행", 근거 없이 만든 "상품 조건 검색하기"
 
 [스텝 제목 규칙 — user_title]
 - 20자 안팎, 전체 목적을 이루기 위한 해당 단계의 하위 목적 하나만 표현
@@ -558,6 +565,7 @@ ${stepsText}
             additionalProperties: false,
             properties: {
               tutorial_title: { type: 'string' },
+              tutorial_title_basis: { type: 'string', enum: ['goal', 'page', 'service'] },
               steps: {
                 type: 'array',
                 items: {
@@ -572,7 +580,7 @@ ${stepsText}
                 },
               },
             },
-            required: ['tutorial_title', 'steps'],
+            required: ['tutorial_title', 'tutorial_title_basis', 'steps'],
           },
         },
       },
@@ -582,6 +590,7 @@ ${stepsText}
     console.error('generateDraft api error:', err);
     return {
       tutorial_title: '',
+      tutorial_title_basis: 'unknown',
       steps: [],
       status: 'api_error',
       reason: err instanceof Error ? err.message : String(err),
@@ -589,7 +598,14 @@ ${stepsText}
   }
 
   try {
-    const parsed = parseJsonObject(text) as { tutorial_title?: string; steps?: Array<{ id: string; user_title: string; user_script?: string }> };
+    const parsed = parseJsonObject(text) as {
+      tutorial_title?: string;
+      tutorial_title_basis?: 'goal' | 'page' | 'service';
+      steps?: Array<{ id: string; user_title: string; user_script?: string }>;
+    };
+    const tutorialTitleBasis = ['goal', 'page', 'service'].includes(parsed.tutorial_title_basis ?? '')
+      ? parsed.tutorial_title_basis!
+      : 'unknown';
     const draftSteps = Array.isArray(parsed.steps)
       ? parsed.steps.map((s) => ({
           id: s.id,
@@ -601,6 +617,7 @@ ${stepsText}
       console.warn('generateDraft returned empty steps:', { responsePreview: text.slice(0, 500) });
       return {
         tutorial_title: String(parsed.tutorial_title || ''),
+        tutorial_title_basis: tutorialTitleBasis,
         steps: draftSteps,
         status: 'empty_steps',
         reason: `${MANUAL_DRAFT_MODEL} response contained no usable steps`,
@@ -610,6 +627,7 @@ ${stepsText}
 
     return {
       tutorial_title: String(parsed.tutorial_title || '').trim(),
+      tutorial_title_basis: tutorialTitleBasis,
       steps: draftSteps,
       status: 'ok',
     };
@@ -620,6 +638,7 @@ ${stepsText}
     });
     return {
       tutorial_title: '',
+      tutorial_title_basis: 'unknown',
       steps: [],
       status: 'parse_error',
       reason: err instanceof Error ? err.message : String(err),

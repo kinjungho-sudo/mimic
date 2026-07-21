@@ -746,9 +746,13 @@ export async function POST(request: NextRequest) {
         });
         return fallback;
       });
-      const fallbackTitleContext = { serviceNames: enrichedSteps.map(step => step.domain_name) };
+      const fallbackTitleContext = {
+        serviceNames: enrichedSteps.map(step => step.domain_name),
+        pageTitles: enrichedSteps.map(step => actionInfoByStepNum.get(step.step_number)?.targetContext?.pageTitle),
+      };
       let fallbackTutorialTitle = buildCaptureFallbackTutorialTitle(drafts, fallbackTitleContext);
       let aiDraftStatus = 'not_called';
+      let tutorialTitleBasis = 'unknown';
       let discardedAiDrafts = 0;
 
       try {
@@ -770,10 +774,13 @@ export async function POST(request: NextRequest) {
               element_text: elementText ?? null,
               context_label: actionInfo?.targetContext?.contextLabel ?? null,
               page_title: actionInfo?.targetContext?.pageTitle ?? null,
+              capture_surface: actionInfo?.targetContext?.captureSurface ?? null,
+              capture_app: actionInfo?.targetContext?.captureApp ?? null,
             };
           })
         );
         aiDraftStatus = draftResult.status;
+        tutorialTitleBasis = draftResult.tutorial_title_basis;
         tutorial_title = draftResult.tutorial_title;
         const aiDraftsById = new Map(draftResult.steps.map(d => [d.id, d]));
         drafts = enrichedSteps.map(step => {
@@ -845,6 +852,7 @@ export async function POST(request: NextRequest) {
         tutorialId: tutorial.id,
         sessionId: session_id,
         aiDraftStatus,
+        tutorialTitleBasis,
         fallbackOnly,
         discardedAiDrafts,
         emptyTitles,

@@ -439,6 +439,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     title: tutorialTitle,
     steps: drafts,
     ai_status: draftResult.status,
+    title_basis: draftResult.tutorial_title_basis,
     fallback_count: fallbackStepIds.size,
   });
 }
