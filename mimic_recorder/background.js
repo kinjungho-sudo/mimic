@@ -543,6 +543,8 @@ function isSafeNavUrl(url) {
 const GUIDE_STORAGE_KEYS = [
   'guideSteps',
   'guideCurrentStep',
+  'guideSkippedSteps',
+  'guideCompletedSteps',
   'guideModeActive',
   'guidePendingOverlay',
   'guideTabId',
@@ -743,6 +745,8 @@ async function compressToJpeg(pngDataUrl, quality = JPEG_QUALITY_DEFAULT) {
   return canvas.convertToBlob({ type: 'image/jpeg', quality });
 }
 
+// Desktop 앱이 PC에 저장한 캡처 세션을 한 번만 가져와 기존 웹 캡처 파이프라인으로 변환한다.
+// 세션별 결과를 저장해 새로고침·재시도에도 동일 매뉴얼을 반환하고 중복 생성을 막는다.
 const _desktopImports = new Map();
 
 async function importDesktopCaptureSession(nativeSessionId) {
@@ -909,6 +913,33 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         });
       } catch (error) {
         sendResponse({ ok: false, sessionId: message.sessionId || null, error: error?.message || 'desktop_undo_failed' });
+      }
+    })();
+    return true;
+  }
+
+  if (message.action === 'IMPORT_DESKTOP_CAPTURE') {
+    (async () => {
+      const sessionId = message.sessionId || null;
+      try {
+        const plan = await getUserPlan(true);
+        if (!plan?.isPro) throw new Error('desktop_paid_plan_required');
+        const imported = await importDesktopCaptureSession(sessionId);
+        sendResponse({
+          ok: true,
+          sessionId,
+          desktop: desktopBridgeStatus(),
+          tutorialId: imported.tutorial_id,
+          stepCount: imported.step_count,
+          editorUrl: `${imported.webapp_origin}/manual/${imported.tutorial_id}/editor`,
+        });
+      } catch (error) {
+        sendResponse({
+          ok: false,
+          sessionId,
+          desktop: desktopBridgeStatus(),
+          error: error?.message || 'desktop_import_failed',
+        });
       }
     })();
     return true;
@@ -1252,6 +1283,8 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         await storageSet({
           guideSteps: steps,
           guideCurrentStep: 0,
+          guideSkippedSteps: [],
+          guideCompletedSteps: [],
           guideModeActive: true,
           guideSurvey,
           guideTabId: guideTab.id,
@@ -1705,8 +1738,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === 'GET_GUIDE_STATE') {
-    storageGet(['guideSteps', 'guideCurrentStep', 'guideModeActive']).then((r) => {
-      sendResponse({ steps: r.guideSteps || [], currentStep: r.guideCurrentStep || 0, active: !!r.guideModeActive });
+    storageGet(['guideSteps', 'guideCurrentStep', 'guideSkippedSteps', 'guideCompletedSteps', 'guideModeActive']).then((r) => {
+      sendResponse({ steps: r.guideSteps || [], currentStep: r.guideCurrentStep || 0, skippedSteps: r.guideSkippedSteps || [], completedSteps: r.guideCompletedSteps || [], active: !!r.guideModeActive });
     });
     return true;
   }
@@ -1715,8 +1748,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // onRemoved가 못 돈 경우) 유령 상태를 정리하고 active:false 반환 → 죽은 스텝이 안 뜬다.
   if (message.type === 'GUIDE_VALIDATE') {
     (async () => {
-      const { guideModeActive, guideSteps, guideCurrentStep, guideTabId } =
-        await storageGet(['guideModeActive', 'guideSteps', 'guideCurrentStep', 'guideTabId']);
+      const { guideModeActive, guideSteps, guideCurrentStep, guideSkippedSteps, guideCompletedSteps, guideTabId } =
+        await storageGet(['guideModeActive', 'guideSteps', 'guideCurrentStep', 'guideSkippedSteps', 'guideCompletedSteps', 'guideTabId']);
       if (!guideModeActive || !(guideSteps?.length)) { sendResponse({ active: false }); return; }
       // guideTabId가 아직 미지정이면 가이드 시작 직후(고정 전) — 정리하지 말고 그대로 둔다.
       if (guideTabId != null) {
@@ -1728,31 +1761,46 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
       }
       const { guideTargetStatus } = await storageGet('guideTargetStatus');
-      sendResponse({ active: true, steps: guideSteps, currentStep: guideCurrentStep || 0, targetStatus: guideTargetStatus || 'navigating' });
+      sendResponse({ active: true, steps: guideSteps, currentStep: guideCurrentStep || 0, skippedSteps: guideSkippedSteps || [], completedSteps: guideCompletedSteps || [], targetStatus: guideTargetStatus || 'navigating' });
     })();
     return true;
   }
 
   if (message.type === 'GUIDE_NEXT' || message.type === 'GUIDE_PREV') {
     (async () => {
-      const { guideModeActive, guideSteps, guideCurrentStep, guideSurvey } = await storageGet(['guideModeActive', 'guideSteps', 'guideCurrentStep', 'guideSurvey']);
+      const { guideModeActive, guideSteps, guideCurrentStep, guideSkippedSteps, guideCompletedSteps, guideSurvey } = await storageGet(['guideModeActive', 'guideSteps', 'guideCurrentStep', 'guideSkippedSteps', 'guideCompletedSteps', 'guideSurvey']);
       const steps = guideSteps || [];
       if (!guideModeActive || !steps.length) {
         sendResponse({ ok: false, error: 'guide_not_active' });
         return;
       }
       let idx = guideCurrentStep || 0;
-      if (message.type === 'GUIDE_NEXT' && idx >= steps.length - 1) {
-        await clearGuideSession();
-        sendResponse({ ok: true, completed: true, currentStep: steps.length });
-        return;
+      const skipped = new Set(Array.isArray(guideSkippedSteps) ? guideSkippedSteps : []);
+      const completedSet = new Set(Array.isArray(guideCompletedSteps) ? guideCompletedSteps : []);
+      const previousIdx = idx;
+      if (message.type === 'GUIDE_NEXT') {
+        // 타깃 클릭은 정상 완료, 사이드 패널의 명시적 버튼만 건너뛰기로 기록한다.
+        if (message.skipped) {
+          skipped.add(previousIdx);
+          completedSet.delete(previousIdx);
+        } else {
+          skipped.delete(previousIdx);
+          completedSet.add(previousIdx);
+        }
+        idx = Math.min(idx + 1, steps.length - 1);
+      } else {
+        idx = Math.max(idx - 1, 0);
       }
-      if (message.type === 'GUIDE_NEXT') idx += 1;
-      else idx = Math.max(idx - 1, 0);
+      const completed = message.type === 'GUIDE_NEXT' && previousIdx >= steps.length - 1;
 
-      await storageSet({ guideCurrentStep: idx, guideTargetStatus: 'navigating', guideTargetEvidence: null });
+      const skippedSteps = [...skipped].sort((a, b) => a - b);
+      const completedSteps = [...completedSet].sort((a, b) => a - b);
+      await storageSet({ guideCurrentStep: idx, guideSkippedSteps: skippedSteps, guideCompletedSteps: completedSteps, guideTargetStatus: completed ? 'ready' : 'navigating', guideTargetEvidence: null });
       const step = steps[idx];
-      sendResponse({ ok: true, currentStep: idx, step });
+      sendResponse({ ok: true, currentStep: idx, step, skippedSteps, completedSteps, completed });
+
+      // 마지막 단계는 현재 페이지의 완료 UI를 유지하고, 사이드 패널이 종료 여부를 결정한다.
+      if (completed) return;
 
       // 가이드 시작 탭으로 고정 — 활성 탭(예: 다른 사이트)을 건드리지 않는다.
       const tab = await getGuideTab();

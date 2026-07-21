@@ -20,7 +20,7 @@ const engine = read('guide-engine.js');
 const popup = read('popup.html');
 const manifest = JSON.parse(read('manifest.json'));
 
-assert.equal(manifest.version, '1.7.7');
+assert.equal(manifest.version, '1.7.8');
 assert.deepEqual(
   manifest.content_scripts[0].js.slice(0, 3),
   ['targeting.js', 'guide-engine.js', 'content.js'],
@@ -61,7 +61,9 @@ assert.match(content, /msg\.type === 'PARRO_CONTENT_READY'/);
 assert.match(content, /id = 'parro-live-target-picker'/);
 
 const guideNavigation = section(background, "if (message.type === 'GUIDE_NEXT'", '// 사이드패널에서 특정 스텝');
-assert.match(guideNavigation, /idx\s*>=\s*steps\.length\s*-\s*1[\s\S]*clearGuideSession\(\)/);
+assert.match(guideNavigation, /guideSkippedSteps/);
+assert.match(guideNavigation, /guideCompletedSteps/);
+assert.match(guideNavigation, /message\.skipped/);
 assert.match(guideNavigation, /guideOriginMatches\(tab\.url, step\.page_url\)/);
 assert.match(guideNavigation, /navigateGuideTab\(tab\.id, step\.page_url\)/);
 assert.match(background, /message\.type === 'EXIT_GUIDE' \|\| message\.type === 'GUIDE_COMPLETE'[\s\S]*clearGuideSession\(\)/);
@@ -83,6 +85,10 @@ assert.match(engine, /function validationMessages\(\)/);
 assert.match(engine, /function submissionForm\(target\)/);
 assert.match(engine, /function validateSubmissionThenAdvance\(form\)/);
 assert.match(engine, /if \(form\) validateSubmissionThenAdvance\(form\)/);
+assert.match(engine, /function setupRequiredTextInput\(el, expectedText\)/);
+assert.match(engine, /current === expectedText/);
+assert.match(engine, /setAttribute\('placeholder', expectedText\)/);
+assert.doesNotMatch(engine, /function autoFill\(/);
 
 const advance = section(engine, 'function advance(reason)', 'function nudge');
 assert.match(advance, /state\.completed = true;[\s\S]*hide\(\);[\s\S]*onComplete/);
@@ -96,4 +102,4 @@ const popupScript = read('popup.js');
 assert.match(popupScript, /not_found: \{ label: '대상을 찾지 못했습니다'/);
 assert.match(popupScript, /type: 'SHOW_OVERLAY_FOR_STEP', stepIndex: guideCurrentStep/);
 
-console.log(JSON.stringify({ ok: true, checks: 38, scope: 'live-guide-fail-closed-contract' }));
+console.log(JSON.stringify({ ok: true, checks: 44, scope: 'live-guide-fail-closed-contract' }));

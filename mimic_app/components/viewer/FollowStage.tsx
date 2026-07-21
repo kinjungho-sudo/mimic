@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useId } from 'react';
 import { ParroMascot, type ParroMascotState } from '@/components/brand/ParroMascot';
 import { BRAND_COLORS } from '@/lib/brand';
 import { resolveImageAlt } from '@/lib/image-alt';
+import { resolveGuideTargetRect } from '@/lib/follow-target';
 import type { Annotation } from '@/components/editor/ImageAnnotationEditor';
 
 // 따라하기 시각 레이어(이미지 + 핫스팟 인디케이터 + AI 캐릭터 말풍선).
@@ -12,14 +13,15 @@ import type { Annotation } from '@/components/editor/ImageAnnotationEditor';
 export const CORNER = 1.5; // 좌상단 0,0 가짜 핫스팟(이동/캡처 단계) 판정 임계
 const MAX_AUTO_ZOOM = 1.6;
 const GUIDE_GRADIENT = `linear-gradient(135deg,${BRAND_COLORS.primary},${BRAND_COLORS.guide})`;
-const CLICK_ORANGE = '#D94F00';
-const CLICK_RING = 'rgba(217,79,0,0.34)';
-const CLICK_RING_SOFT = 'rgba(255,122,61,0.22)';
-const CLICK_RING_STRONG = 'rgba(217,79,0,0.92)';
+const TARGET_GREEN = '#12B886';
+const TARGET_RING = 'rgba(18,184,134,0.34)';
+const TARGET_RING_SOFT = 'rgba(23,201,182,0.24)';
+const TARGET_RING_STRONG = 'rgba(18,184,134,0.96)';
 const GUIDE_RING_SOFT = 'rgba(0,155,142,0.14)';
 const GUIDE_RING_STRONG = 'rgba(0,155,142,0.28)';
 const GUIDE_SHADOW = 'rgba(0,155,142,0.34)';
-const COACH_SIZE = 32;
+const COACH_SIZE = 48;
+const TARGET_CLEARANCE = 72;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
 export function Mascot({ size = 40, state = 'talk' }: { size?: number; state?: ParroMascotState }) {
@@ -38,6 +40,7 @@ interface Props {
   allowCornerHotspot?: boolean;     // true=사용자가 직접 찍은 좌상단 핫스팟 허용(0,0 가짜 센티넬 억제 해제)
   kind: 'click' | 'type';
   guideMode?: 'interactive' | 'explanation';
+  annotations?: Annotation[] | null; // 편집/문서용 데이터. 학습 가이드 화면에는 합성하지 않는다.
   typeText?: string | null;         // type 인디케이터에 표시/입력될 텍스트
   typeInputMode?: 'copy' | 'auto' | null; // copy=복사 후 직접 입력, auto=자동 타이핑 연출
   typeBoxWidth?: number | null;     // type 인디케이터 너비(px)
@@ -58,6 +61,9 @@ interface Props {
   onImageClick?: (e: React.MouseEvent<HTMLDivElement>) => void;
   onMascotClick?: (e: React.MouseEvent) => void;
   onBubbleClick?: (e: React.MouseEvent) => void;   // 플레이어: 접기
+  typeValue?: string;
+  onTypeValueChange?: (value: string) => void;
+  onTypeComplete?: (value: string) => void;
   bubbleAnchor?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | null;  // 말풍선 고정 위치. 미설정=핫스팟 상대 자동
   wrapRef?: React.RefObject<HTMLDivElement>; // 스튜디오 드래그 측정용
   children?: React.ReactNode;       // 이미지 위 추가 오버레이(스튜디오 드래그 핸들 등)
@@ -73,7 +79,7 @@ export function FollowStage({
   minimized = false, showAudioBadge = false, nudge = false, spotlight = false,
   imageCursor = 'default', imgMaxHeight = 'calc(100vh - 150px)',
   bubbleAnchor, animPhase, domRect = null,
-  onImageClick, onMascotClick, onBubbleClick, wrapRef, children,
+  onImageClick, onMascotClick, onBubbleClick, typeValue = '', onTypeValueChange, onTypeComplete, wrapRef, children,
 }: Props) {
   const innerRef = useRef<HTMLDivElement>(null);
   const ref = wrapRef ?? innerRef;
@@ -112,6 +118,8 @@ export function FollowStage({
   // 좌상단 0,0 가짜 핫스팟(자동추론 아티팩트)은 억제하되, 사용자가 직접 찍은 좌표는 그대로 인정
   const hasHotspot = hx != null && hy != null && (allowCornerHotspot || !(hx < CORNER && hy < CORNER));
   const isType = kind === 'type';
+  // 큰 카드/컨테이너 DOM은 실제 클릭 지점 주변만 학습 타깃으로 표시한다.
+  const targetRect = resolveGuideTargetRect(domRect, hx, hy, box.w, box.h);
   // 스포트라이트 구멍 반경: 이미지 너비의 9%, 최대 80px (domRect 없을 때 폴백)
   const spotR = box.w ? Math.min(Math.round(box.w * 0.09), 80) : 72;
 
@@ -122,12 +130,12 @@ export function FollowStage({
   const showOverlays = !isAnimated || phase === 'focused'; // 핫스팟·말풍선: focused 시만 표시
 
   // 줌 계산 — domRect 요소 중심으로 확대 (스케일: 기하평균 기반, 1.5~4배 클램프)
-  const zoomCX = domRect ? domRect.x + domRect.w / 2 : (hx ?? 50);
-  const zoomCY = domRect ? domRect.y + domRect.h / 2 : (hy ?? 50);
-  const zoomScale = (domRect && isAnimated && phase !== 'raw')
-    ? clamp(40 / Math.sqrt(Math.max(domRect.w * domRect.h, 0.25)), 1.5, MAX_AUTO_ZOOM)
+  const zoomCX = targetRect ? targetRect.x + targetRect.w / 2 : (hx ?? 50);
+  const zoomCY = targetRect ? targetRect.y + targetRect.h / 2 : (hy ?? 50);
+  const zoomScale = (targetRect && isAnimated && phase !== 'raw')
+    ? clamp(40 / Math.sqrt(Math.max(targetRect.w * targetRect.h, 0.25)), 1.5, MAX_AUTO_ZOOM)
     : 1;
-  const zoomStyle = (domRect && isAnimated)
+  const zoomStyle = (targetRect && isAnimated)
     ? { transform: `scale(${zoomScale})`, transformOrigin: `${zoomCX}% ${zoomCY}%`, transition: phase === 'raw' ? 'none' : 'transform 1.4s ease-in-out' }
     : {};
   const typeStr = typeText ?? '';
@@ -136,7 +144,8 @@ export function FollowStage({
   const typeIndicatorWidth = typeBoxWidth != null ? clamp(typeBoxWidth, 120, 520) : null;
   const typeIndicatorHeight = clamp(typeBoxHeight ?? 38, 32, 96);
   const typeIndicatorFontSize = clamp(Math.round(typeIndicatorHeight * 0.34), 12, 18);
-  const showCopyControl = isType && !isAutoType && hasTypeText;
+  const hasInteractiveTypeInput = isType && !!onTypeValueChange;
+  const showCopyControl = isType && !hasInteractiveTypeInput && !isAutoType && hasTypeText;
   const copyTypeText = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!typeStr.trim()) return;
@@ -151,8 +160,7 @@ export function FollowStage({
 
   // 말풍선 위치 — anchor 고정 위치 우선, 없으면 핫스팟 상대 위치
   const BW = box.w ? clamp(box.w - 24, 160, 260) : 240;
-  const UNIT_W = BW + COACH_SIZE + 7, UNIT_H = 92;
-  const HOTSPOT_CLEARANCE = 58;
+  const UNIT_W = BW + COACH_SIZE + 9, UNIT_H = 108;
   let bubbleLeft = 0, bubbleTop = 0, bubbleSide: 'left' | 'right' = 'right';
   if (bubbleAnchor && box.w && box.h) {
     const isRight = bubbleAnchor.includes('right');
@@ -162,10 +170,10 @@ export function FollowStage({
     bubbleTop = isBottom ? box.h - UNIT_H - 12 : 12;
   } else if (hasHotspot && box.w) {
     const hxPx = (hx! / 100) * box.w, hyPx = (hy! / 100) * box.h;
-    const targetLeftPx = domRect ? (domRect.x / 100) * box.w : hxPx;
-    const targetRightPx = domRect ? ((domRect.x + domRect.w) / 100) * box.w : hxPx;
+    const targetLeftPx = targetRect ? (targetRect.x / 100) * box.w : hxPx;
+    const targetRightPx = targetRect ? ((targetRect.x + targetRect.w) / 100) * box.w : hxPx;
     const targetCenterPx = (targetLeftPx + targetRightPx) / 2;
-    const edgeGap = domRect ? 24 : HOTSPOT_CLEARANCE;
+    const edgeGap = TARGET_CLEARANCE;
     bubbleSide = targetCenterPx < box.w / 2 ? 'right' : 'left';
     bubbleLeft = bubbleSide === 'right' ? targetRightPx + edgeGap : targetLeftPx - edgeGap - UNIT_W;
     bubbleTop = hyPx - UNIT_H / 2;
@@ -181,11 +189,11 @@ export function FollowStage({
     const zoomCXpx = (zoomCX / 100) * box.w;
     const zoomCYpx = (zoomCY / 100) * box.h;
     const visHyPx = zoomCYpx + ((hy! / 100) * box.h - zoomCYpx) * zoomScale;
-    const targetLeftPx = domRect ? (domRect.x / 100) * box.w : (hx! / 100) * box.w;
-    const targetRightPx = domRect ? ((domRect.x + domRect.w) / 100) * box.w : (hx! / 100) * box.w;
+    const targetLeftPx = targetRect ? (targetRect.x / 100) * box.w : (hx! / 100) * box.w;
+    const targetRightPx = targetRect ? ((targetRect.x + targetRect.w) / 100) * box.w : (hx! / 100) * box.w;
     const visTargetLeftPx = zoomCXpx + (targetLeftPx - zoomCXpx) * zoomScale;
     const visTargetRightPx = zoomCXpx + (targetRightPx - zoomCXpx) * zoomScale;
-    const edgeGap = domRect ? 24 : HOTSPOT_CLEARANCE;
+    const edgeGap = TARGET_CLEARANCE;
     outBubbleLeft = bubbleSide === 'right' ? visTargetRightPx + edgeGap : visTargetLeftPx - edgeGap - UNIT_W;
     outBubbleTop = visHyPx - UNIT_H / 2;
     outBubbleLeft = clamp(outBubbleLeft, 8, Math.max(8, box.w - UNIT_W - 8));
@@ -194,7 +202,7 @@ export function FollowStage({
 
   const hint = guideMode === 'explanation'
     ? "안내를 확인한 뒤 아래 '다음 →'을 눌러 계속하세요"
-    : !hasHotspot ? "아래 '다음 →'을 눌러 계속하세요" : isType ? '여기에 입력하면 돼요' : '표시된 곳을 클릭하면 다음으로 넘어가요';
+    : !hasHotspot ? "아래 '다음 →'을 눌러 계속하세요" : isType ? '힌트를 보고 직접 입력하면 다음으로 넘어가요' : '반짝이는 녹색 영역을 클릭하면 다음으로 넘어가요';
   // 말풍선은 평문 렌더 — 설명에 섞인 HTML 태그(<font>, <b> 등)/엔티티가 그대로 노출되지 않도록 제거
   const plainBody = body
     ? body.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '')
@@ -260,13 +268,13 @@ export function FollowStage({
         {/* 학습 가이드는 저장된 어노테이션을 합성하지 않고 원본 캡처 위에 전용 스포트라이트만 그린다. */}
 
         {/* 스포트라이트 오버레이 — zooming부터 표시. domRect 있으면 직사각형 구멍, 없으면 원형 */}
-        {showMask && spotlight && hasHotspot && !isType && (
+        {showMask && spotlight && hasHotspot && (
           <svg aria-hidden style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 2, animation: 'mfp-spotlight-in 0.55s ease-out forwards' }}>
             <defs>
               <mask id={maskId}>
                 <rect width="100%" height="100%" fill="white" />
-                {domRect
-                  ? <rect x={`${domRect.x}%`} y={`${domRect.y}%`} width={`${domRect.w}%`} height={`${domRect.h}%`} rx="6" fill="black" />
+                {targetRect
+                  ? <rect x={`${targetRect.x}%`} y={`${targetRect.y}%`} width={`${targetRect.w}%`} height={`${targetRect.h}%`} rx="6" fill="black" />
                   : <circle cx={`${hx}%`} cy={`${hy}%`} r={spotR} fill="black" />
                 }
               </mask>
@@ -276,32 +284,51 @@ export function FollowStage({
         )}
 
         {/* DOM 직사각형 하이라이트 — focused 시 등장. domRect 있을 때만 */}
-        {showOverlays && domRect && hasHotspot && !isType && (
+        {showOverlays && targetRect && hasHotspot && !isType && (
           <div style={{
-            position: 'absolute', left: `${domRect.x}%`, top: `${domRect.y}%`,
-            width: `${domRect.w}%`, height: `${domRect.h}%`,
-            border: `3px solid ${CLICK_ORANGE}`, borderRadius: '7px',
-            boxShadow: `0 0 0 4px ${CLICK_RING}, 0 0 22px rgba(217,79,0,0.58)`,
+            position: 'absolute', left: `${targetRect.x}%`, top: `${targetRect.y}%`,
+            width: `${targetRect.w}%`, height: `${targetRect.h}%`,
+            border: `3px solid ${TARGET_GREEN}`, borderRadius: '7px',
+            boxShadow: `0 0 0 4px ${TARGET_RING}, 0 0 24px rgba(18,184,134,0.62)`,
             pointerEvents: 'none', zIndex: 3,
-            animation: isAnimated ? 'mfp-rect-in 0.35s ease-out' : undefined,
+            animation: isAnimated ? 'mfp-rect-in 0.35s ease-out, mfp-target-glint 1.25s ease-in-out 0.35s infinite' : 'mfp-target-glint 1.25s ease-in-out infinite',
           }} />
         )}
 
-        {/* 클릭 인디케이터 — 진한 주황색 중심점과 넓게 퍼지는 3중 파문. focused 시만 */}
+        {/* 클릭 인디케이터 — 녹색 중심점과 넓게 퍼지는 3중 파문. focused 시만 */}
         {showOverlays && hasHotspot && !isType && (
           <div style={{ position: 'absolute', left: `${hx}%`, top: `${hy}%`, transform: 'translate(-50%,-50%)', width: '24px', height: '24px', pointerEvents: 'none', zIndex: 4 }}>
-            <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: `3px solid ${CLICK_RING_STRONG}`, animation: 'mfp-click-ripple 1.8s ease-out infinite' }} />
-            <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: `3px solid ${CLICK_RING_STRONG}`, animation: 'mfp-click-ripple 1.8s ease-out infinite', animationDelay: '0.6s' }} />
-            <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: `3px solid ${CLICK_RING_SOFT}`, animation: 'mfp-click-ripple 1.8s ease-out infinite', animationDelay: '1.2s' }} />
-            <span style={{ position: 'absolute', left: '50%', top: '50%', width: '10px', height: '10px', transform: 'translate(-50%,-50%)', borderRadius: '50%', background: CLICK_ORANGE, border: '2px solid #FFF7ED', boxShadow: '0 0 0 3px rgba(217,79,0,0.32), 0 2px 8px rgba(0,0,0,0.35)' }} />
+            <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: `3px solid ${TARGET_RING_STRONG}`, animation: 'mfp-click-ripple 1.45s ease-out infinite' }} />
+            <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: `3px solid ${TARGET_RING_STRONG}`, animation: 'mfp-click-ripple 1.45s ease-out infinite', animationDelay: '0.48s' }} />
+            <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: `3px solid ${TARGET_RING_SOFT}`, animation: 'mfp-click-ripple 1.45s ease-out infinite', animationDelay: '0.96s' }} />
+            <span style={{ position: 'absolute', left: '50%', top: '50%', width: '11px', height: '11px', transform: 'translate(-50%,-50%)', borderRadius: '50%', background: TARGET_GREEN, border: '2px solid #E8FFF7', boxShadow: '0 0 0 3px rgba(18,184,134,0.34), 0 2px 9px rgba(0,0,0,0.35)', animation: 'mfp-target-dot 0.9s ease-in-out infinite' }} />
           </div>
         )}
 
         {/* 타이핑 인디케이터 — focused 시만 */}
         {showTypeIndicator && showOverlays && hasHotspot && isType && (
-          <div style={{ position: 'absolute', left: `${hx}%`, top: `${hy}%`, transform: 'translate(-50%,-50%)', pointerEvents: showCopyControl ? 'auto' : 'none', zIndex: 4 }}>
+          <div style={{ position: 'absolute', left: `${hx}%`, top: `${hy}%`, transform: 'translate(-50%,-50%)', pointerEvents: hasInteractiveTypeInput || showCopyControl ? 'auto' : 'none', zIndex: 4 }}>
             <div style={{ position: 'relative', minWidth: typeIndicatorWidth == null ? '128px' : undefined, width: typeIndicatorWidth == null ? undefined : `${typeIndicatorWidth}px`, maxWidth: typeIndicatorWidth == null ? '320px' : undefined, height: `${typeIndicatorHeight}px`, borderRadius: '9px', border: `2px solid ${BRAND_COLORS.guide}`, background: 'rgba(255,255,255,0.96)', boxShadow: `0 0 0 4px ${GUIDE_RING_SOFT}, 0 6px 20px rgba(0,0,0,0.28)`, display: 'flex', alignItems: 'center', padding: '0 12px', animation: 'mfp-field 1.8s ease-in-out infinite' }}>
-              {hasTypeText ? (
+              {hasInteractiveTypeInput ? (
+                <input
+                  autoFocus
+                  aria-label={hasTypeText ? `${typeStr} 입력` : '텍스트 입력'}
+                  className="mfp-practice-input"
+                  value={typeValue}
+                  placeholder={hasTypeText ? typeStr : '직접 입력하세요'}
+                  onClick={event => event.stopPropagation()}
+                  onChange={event => {
+                    const nextValue = event.target.value;
+                    onTypeValueChange?.(nextValue);
+                    if (hasTypeText && nextValue === typeStr) onTypeComplete?.(nextValue);
+                  }}
+                  onKeyDown={event => {
+                    event.stopPropagation();
+                    if (event.key === 'Enter' && (hasTypeText ? typeValue === typeStr : typeValue.trim().length > 0)) onTypeComplete?.(typeValue);
+                  }}
+                  style={{ width: '100%', minWidth: 0, border: 'none', outline: 'none', background: 'transparent', color: typeTextColor ?? '#111827', fontSize: `${typeIndicatorFontSize}px`, fontWeight: 650, letterSpacing: '0.01em' }}
+                />
+              ) : hasTypeText ? (
                 <>
                   <span style={{ flex: 1, minWidth: 0, fontSize: `${typeIndicatorFontSize}px`, color: typeTextColor ?? '#111827', WebkitTextFillColor: typeTextColor ?? '#111827', fontWeight: 600, letterSpacing: '0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{shownType}</span>
                   {isAutoType ? (
@@ -319,7 +346,7 @@ export function FollowStage({
                 </>
               )}
             </div>
-            <span style={{ position: 'absolute', top: '-13px', left: '0', fontSize: '10px', fontWeight: 800, color: '#fff', background: BRAND_COLORS.guide, padding: '2px 8px', borderRadius: '8px 8px 8px 2px', boxShadow: '0 2px 8px rgba(0,0,0,0.3)', whiteSpace: 'nowrap', letterSpacing: '0.03em' }}>{isAutoType ? '⌨ 자동 입력' : '⌨ 복사 후 입력'}</span>
+            <span style={{ position: 'absolute', top: '-13px', left: '0', fontSize: '10px', fontWeight: 800, color: '#fff', background: BRAND_COLORS.guide, padding: '2px 8px', borderRadius: '8px 8px 8px 2px', boxShadow: '0 2px 8px rgba(0,0,0,0.3)', whiteSpace: 'nowrap', letterSpacing: '0.03em' }}>{hasInteractiveTypeInput ? '⌨ 직접 입력' : isAutoType ? '⌨ 자동 입력' : '⌨ 복사 후 입력'}</span>
           </div>
         )}
 
@@ -343,12 +370,15 @@ export function FollowStage({
 
       <style>{`
         @keyframes mfp-click-ripple { 0%{opacity:1;transform:scale(0.45)} 100%{opacity:0;transform:scale(5)} }
+        @keyframes mfp-target-dot { 0%,100%{filter:brightness(1);transform:translate(-50%,-50%) scale(1)} 50%{filter:brightness(1.35);transform:translate(-50%,-50%) scale(1.18)} }
+        @keyframes mfp-target-glint { 0%,100%{box-shadow:0 0 0 4px ${TARGET_RING},0 0 20px rgba(18,184,134,.5)} 50%{box-shadow:0 0 0 8px ${TARGET_RING_SOFT},0 0 38px rgba(23,201,182,.82)} }
         @keyframes mfp-caret { 50%{opacity:0} }
         @keyframes mfp-nudge { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
         @keyframes mfp-field { 0%,100%{box-shadow:0 0 0 4px ${GUIDE_RING_SOFT}, 0 6px 20px rgba(0,0,0,0.28)} 50%{box-shadow:0 0 0 7px ${GUIDE_RING_STRONG}, 0 6px 24px rgba(0,0,0,0.35)} }
         @keyframes mfp-spotlight-in { from{opacity:0} to{opacity:1} }
         @keyframes mfp-rect-in { from{opacity:0;transform:scale(0.96)} to{opacity:1;transform:scale(1)} }
         @keyframes mfp-bubble-in { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+        .mfp-practice-input::placeholder { color:#667085; opacity:.42; font-weight:600; }
       `}</style>
     </div>
   );

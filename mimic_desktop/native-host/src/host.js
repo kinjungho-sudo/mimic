@@ -3,7 +3,7 @@ const os = require("os");
 const path = require("path");
 const { spawn } = require("child_process");
 
-const DESKTOP_COMPANION_VERSION = "0.5.0";
+const DESKTOP_COMPANION_VERSION = "0.5.1";
 
 const state = {
   activeSessionId: null,
@@ -377,6 +377,62 @@ async function handleMessage(message) {
     if (session.status !== "stopped") {
       session = await waitForSessionStopped(captureDir, 8000) || session;
     }
+    const events = readCaptureEvents(captureDir).map((event) => publicCaptureEvent(event, captureDir));
+    return {
+      ok: true,
+      type: "CAPTURE_SESSION",
+      capture_session_id: sessionId,
+      session: {
+        status: session.status || "unknown",
+        started_at: session.started_at || null,
+        updated_at: session.updated_at || null,
+        captured_steps: events.length,
+      },
+      events,
+    };
+  }
+
+  if (message.type === "READ_CAPTURE_IMAGE_CHUNK") {
+    const sessionId = message.capture_session_id;
+    const stepNumber = Number(message.step_number);
+    const offset = Math.max(0, Number(message.offset) || 0);
+    const captureDir = captureDirectoryFor(sessionId);
+    const event = readCaptureEvents(captureDir).find((item) => Number(item.step_number) === stepNumber);
+    if (!event) return { ok: false, error: "capture_step_not_found" };
+    const screenshotName = path.basename(String(event.screenshot_path || ""));
+    const screenshotPath = path.join(captureDir, screenshotName);
+    if (!screenshotName || !fs.existsSync(screenshotPath)) return { ok: false, error: "capture_image_not_found" };
+    const size = fs.statSync(screenshotPath).size;
+    if (offset > size) return { ok: false, error: "invalid_chunk_offset" };
+    const chunkSize = Math.min(384 * 1024, size - offset);
+    const handle = fs.openSync(screenshotPath, "r");
+    let bytes;
+    try {
+      bytes = Buffer.alloc(chunkSize);
+      fs.readSync(handle, bytes, 0, chunkSize, offset);
+    } finally {
+      fs.closeSync(handle);
+    }
+    const nextOffset = offset + chunkSize;
+    return {
+      ok: true,
+      type: "CAPTURE_IMAGE_CHUNK",
+      capture_session_id: sessionId,
+      step_number: stepNumber,
+      offset,
+      next_offset: nextOffset,
+      total_size: size,
+      done: nextOffset >= size,
+      data: bytes.toString("base64"),
+    };
+  }
+
+  if (message.type === "GET_CAPTURE_SESSION") {
+    const sessionId = message.capture_session_id;
+    const captureDir = captureDirectoryFor(sessionId);
+    const sessionPath = path.join(captureDir, "session.json");
+    if (!fs.existsSync(sessionPath)) return { ok: false, error: "capture_session_not_found" };
+    const session = readJsonFile(sessionPath);
     const events = readCaptureEvents(captureDir).map((event) => publicCaptureEvent(event, captureDir));
     return {
       ok: true,
