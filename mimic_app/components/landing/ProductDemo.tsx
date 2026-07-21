@@ -411,8 +411,10 @@ function SharedViewerScene({ reducedMotion }: { reducedMotion: boolean }) {
             <div className={styles.previewLabel}><span>▰</span><div><strong>슬라이드</strong><small>한 장씩 넘기며 단계에 집중</small></div></div>
             <div className={styles.slideCanvas}>
               <div className={styles.slideChapter}><span>Step {slideIndex + 1}</span><strong>{DEMO_STEPS[slideIndex].title}</strong></div>
-              <img src={DEMO_STEPS[slideIndex].screenshotUrl} alt="" draggable={false} />
-              <div className={styles.slideAnnotation} />
+              <div className={styles.slideImageFrame}>
+                <img src={DEMO_STEPS[slideIndex].screenshotUrl} alt="" draggable={false} />
+                <div className={styles.slideAnnotation} />
+              </div>
               <div className={styles.slideControls}><span>‹</span><strong>{slideIndex + 1} / {DEMO_STEPS.length}</strong><span>›</span></div>
             </div>
           </section>
