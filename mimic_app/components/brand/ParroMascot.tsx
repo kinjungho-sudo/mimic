@@ -1,39 +1,141 @@
 'use client';
 
+import Image from 'next/image';
+import styles from './ParroMascot.module.css';
+
+export type ParroMascotState =
+  | 'idle'
+  | 'neutral'
+  | 'listen'
+  | 'talk'
+  | 'point'
+  | 'think'
+  | 'search'
+  | 'warning'
+  | 'error'
+  | 'blocked'
+  | 'clarify'
+  | 'success';
+
 type ParroMascotProps = {
   size?: number;
   className?: string;
+  state?: ParroMascotState;
+  motion?: boolean;
+  mirror?: boolean;
 };
 
-/**
- * Parro의 공용 AI 가이드 마스코트.
- * 외부 이미지에 의존하지 않는 오리지널 SVG라 랜딩·학습 가이드에서 동일하게 사용한다.
- */
-export function ParroMascot({ size = 48, className }: ParroMascotProps) {
+const STATE_ASSETS: Record<ParroMascotState, string> = {
+  idle: '/brand/parro-ai-avatar-neutral.png',
+  neutral: '/brand/parro-ai-avatar-neutral.png',
+  listen: '/brand/parro-ai-avatar-listen.png',
+  talk: '/brand/parro-ai-avatar-talk.png',
+  point: '/brand/parro-ai-avatar-point.png',
+  think: '/brand/parro-ai-avatar-think.png',
+  search: '/brand/parro-ai-avatar-search.png',
+  warning: '/brand/parro-ai-avatar-warning.png',
+  error: '/brand/parro-ai-avatar-error.png',
+  blocked: '/brand/parro-ai-avatar-blocked.png',
+  clarify: '/brand/parro-ai-avatar-clarify.png',
+  success: '/brand/parro-ai-avatar-success.png',
+};
+
+const STATE_SEQUENCES: Record<ParroMascotState, ParroMascotState> = {
+  idle: 'listen',
+  neutral: 'listen',
+  listen: 'neutral',
+  talk: 'point',
+  point: 'talk',
+  think: 'search',
+  search: 'think',
+  warning: 'blocked',
+  error: 'clarify',
+  blocked: 'warning',
+  clarify: 'neutral',
+  success: 'talk',
+};
+
+const SEQUENCE_CLASSES: Record<ParroMascotState, string> = {
+  idle: styles.sequence,
+  neutral: styles.sequence,
+  listen: styles.sequenceListen,
+  talk: styles.sequenceTalk,
+  point: styles.sequencePoint,
+  think: styles.sequenceThink,
+  search: styles.sequenceSearch,
+  warning: styles.sequenceWarning,
+  error: styles.sequenceError,
+  blocked: styles.sequenceBlocked,
+  clarify: styles.sequenceClarify,
+  success: styles.sequenceSuccess,
+};
+
+const STATE_LABELS: Record<ParroMascotState, string> = {
+  idle: '대기 중',
+  neutral: '대기 중',
+  listen: '듣는 중',
+  talk: '안내 중',
+  point: '위치 안내 중',
+  think: '생각 중',
+  search: '검색 중',
+  warning: '주의 안내',
+  error: '오류 안내',
+  blocked: '중단 안내',
+  clarify: '확인 요청',
+  success: '완료',
+};
+
+/** Parro의 표정·동작 상태를 공유하는 AI 가이드 아바타. */
+export function ParroMascot({
+  size = 48,
+  className,
+  state = 'neutral',
+  motion = true,
+  mirror = false,
+}: ParroMascotProps) {
+  const secondaryState = STATE_SEQUENCES[state];
+  const frameClassName = [styles.frame, mirror ? styles.mirror : '', className ?? '']
+    .filter(Boolean)
+    .join(' ');
+  const visualClassName = [
+    styles.visual,
+    motion ? styles[state] : '',
+    motion ? styles.sequence : '',
+    motion ? SEQUENCE_CLASSES[state] : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <svg
-      className={className}
-      width={size}
-      height={size}
-      viewBox="0 0 72 72"
-      fill="none"
+    <span
+      className={frameClassName}
+      style={{ width: size, height: size }}
+      data-parro-state={state}
       role="img"
-      aria-label="Parro AI 가이드 마스코트"
+      aria-label={`Parro AI 가이드 — ${STATE_LABELS[state]}`}
     >
-      <ellipse cx="36" cy="65" rx="17" ry="3.5" fill="rgba(0,63,57,.14)" />
-      <path d="M24 42c1.4-8.9 7.2-13.2 12-13.2S46.6 33.1 48 42l1.2 10.7C50.4 62.3 44 68 36 68s-14.4-5.7-13.2-15.3L24 42Z" fill="#F9FCFD" stroke="#C5D7DA" strokeWidth="1.5" />
-      <path d="M22.7 44.5c-5.7 1.2-8.5 6.1-7.7 11 .5 3 2.5 4.3 5 3.4 4.7-1.7 7.4-6.2 6.8-10.3-.4-2.7-1.7-4.6-4.1-4.1Z" fill="#EFF5F6" stroke="#C5D7DA" strokeWidth="1.35" />
-      <path d="M49.3 44.5c5.7 1.2 8.5 6.1 7.7 11-.5 3-2.5 4.3-5 3.4-4.7-1.7-7.4-6.2-6.8-10.3.4-2.7 1.7-4.6 4.1-4.1Z" fill="#EFF5F6" stroke="#C5D7DA" strokeWidth="1.35" />
-      <rect x="32.5" y="31" width="7" height="5" rx="2.5" fill="#17272A" />
-      <ellipse cx="36" cy="22.5" rx="24" ry="19.5" fill="#FAFDFE" stroke="#C5D7DA" strokeWidth="1.6" />
-      <ellipse cx="11.8" cy="23" rx="4.5" ry="7.8" fill="#DDECEF" stroke="#B8D0D5" strokeWidth="1.2" />
-      <ellipse cx="60.2" cy="23" rx="4.5" ry="7.8" fill="#DDECEF" stroke="#B8D0D5" strokeWidth="1.2" />
-      <rect x="18" y="10.5" width="36" height="25" rx="12.5" fill="#14272A" />
-      <path d="M24.5 23c.2-3.3 2-5.2 4.5-5.2s4.3 1.9 4.5 5.2" stroke="#69ECF2" strokeWidth="2.4" strokeLinecap="round" />
-      <path d="M38.5 23c.2-3.3 2-5.2 4.5-5.2s4.3 1.9 4.5 5.2" stroke="#69ECF2" strokeWidth="2.4" strokeLinecap="round" />
-      <path d="M29.5 27.8c3.8 3.6 9.2 3.6 13 0" stroke="#7EF1D1" strokeWidth="2.2" strokeLinecap="round" />
-      <path d="M31 46c2.7 1.5 7.3 1.5 10 0" stroke="#00A99A" strokeWidth="2" strokeLinecap="round" opacity=".72" />
-      <circle cx="53" cy="12" r="3" fill="#8DD63F" stroke="#FAFDFE" strokeWidth="1.5" />
-    </svg>
+      <span className={visualClassName}>
+        <span className={styles.stack}>
+          <Image
+            className={`${styles.layer} ${styles.primaryLayer}`}
+            src={STATE_ASSETS[state]}
+            alt=""
+            width={size}
+            height={size}
+            draggable={false}
+          />
+          {motion && (
+            <Image
+              className={`${styles.layer} ${styles.secondaryLayer}`}
+              src={STATE_ASSETS[secondaryState]}
+              alt=""
+              width={size}
+              height={size}
+              draggable={false}
+            />
+          )}
+        </span>
+      </span>
+    </span>
   );
 }

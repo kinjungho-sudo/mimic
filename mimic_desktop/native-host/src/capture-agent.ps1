@@ -12,13 +12,29 @@ param(
 $ErrorActionPreference = "Stop"
 
 Add-Type -AssemblyName System.Drawing
-Add-Type @"
+Add-Type -AssemblyName System.Windows.Forms
+$uiAutomationReady = $true
+try {
+  Add-Type -AssemblyName WindowsBase
+  Add-Type -AssemblyName UIAutomationClient
+  Add-Type -AssemblyName UIAutomationTypes
+} catch {
+  $uiAutomationReady = $false
+}
+Add-Type -ReferencedAssemblies @("System.Drawing", "System.Windows.Forms") -TypeDefinition @"
 using System;
+using System.Drawing;
 using System.Runtime.InteropServices;
+using System.Text;
+using System.Threading;
+using System.Windows.Forms;
 
 public static class ParroDesktopInput {
   [StructLayout(LayoutKind.Sequential)]
   public struct POINT { public int X; public int Y; }
+
+  [StructLayout(LayoutKind.Sequential)]
+  public struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
 
   [DllImport("user32.dll")]
   public static extern short GetAsyncKeyState(int virtualKey);
@@ -28,6 +44,95 @@ public static class ParroDesktopInput {
 
   [DllImport("user32.dll")]
   public static extern int GetSystemMetrics(int index);
+
+  [DllImport("user32.dll")]
+  public static extern IntPtr GetForegroundWindow();
+
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+  public static extern int GetWindowText(IntPtr window, StringBuilder text, int maxCount);
+
+  [DllImport("user32.dll")]
+  public static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
+
+  [DllImport("user32.dll")]
+  public static extern bool GetWindowRect(IntPtr window, out RECT rect);
+}
+
+public static class ParroDesktopClickHighlight {
+  public static void ShowAt(int screenX, int screenY) {
+    Thread thread = new Thread(() => Application.Run(new ClickHighlightForm(screenX, screenY)));
+    thread.IsBackground = true;
+    thread.SetApartmentState(ApartmentState.STA);
+    thread.Start();
+  }
+
+  private sealed class ClickHighlightForm : Form {
+    private const uint WdaMonitor = 0x00000001;
+    private const uint WdaExcludeFromCapture = 0x00000011;
+    private readonly System.Windows.Forms.Timer timer;
+    private int elapsed;
+
+    [DllImport("user32.dll")]
+    private static extern bool SetWindowDisplayAffinity(IntPtr window, uint affinity);
+
+    internal ClickHighlightForm(int x, int y) {
+      FormBorderStyle = FormBorderStyle.None;
+      StartPosition = FormStartPosition.Manual;
+      Bounds = new Rectangle(x - 36, y - 36, 72, 72);
+      BackColor = Color.Magenta;
+      TransparencyKey = Color.Magenta;
+      TopMost = true;
+      ShowInTaskbar = false;
+      DoubleBuffered = true;
+      timer = new System.Windows.Forms.Timer();
+      timer.Interval = 30;
+      timer.Tick += delegate {
+        elapsed += timer.Interval;
+        if (elapsed >= 660) {
+          timer.Stop();
+          Close();
+          return;
+        }
+        Opacity = elapsed < 300 ? 1D : Math.Max(0.08D, 1D - ((elapsed - 300D) / 360D));
+        Invalidate();
+      };
+      Shown += delegate {
+        try {
+          if (!SetWindowDisplayAffinity(Handle, WdaExcludeFromCapture)) SetWindowDisplayAffinity(Handle, WdaMonitor);
+        } catch { }
+        timer.Start();
+      };
+      FormClosed += delegate { timer.Dispose(); };
+    }
+
+    protected override bool ShowWithoutActivation { get { return true; } }
+
+    protected override CreateParams CreateParams {
+      get {
+        const int WsExTransparent = 0x00000020;
+        const int WsExToolWindow = 0x00000080;
+        const int WsExNoActivate = 0x08000000;
+        CreateParams parameters = base.CreateParams;
+        parameters.ExStyle |= WsExTransparent | WsExToolWindow | WsExNoActivate;
+        return parameters;
+      }
+    }
+
+    protected override void OnPaint(PaintEventArgs eventArgs) {
+      base.OnPaint(eventArgs);
+      eventArgs.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+      float progress = Math.Min(1F, elapsed / 360F);
+      float diameter = 24F + (36F * progress);
+      float offset = (72F - diameter) / 2F;
+      using (SolidBrush fill = new SolidBrush(Color.FromArgb(72, 239, 68, 68)))
+      using (Pen ring = new Pen(Color.FromArgb(239, 68, 68), 3F))
+      using (SolidBrush dot = new SolidBrush(Color.FromArgb(239, 68, 68))) {
+        eventArgs.Graphics.FillEllipse(fill, offset, offset, diameter, diameter);
+        eventArgs.Graphics.DrawEllipse(ring, offset, offset, diameter, diameter);
+        eventArgs.Graphics.FillEllipse(dot, 30F, 30F, 12F, 12F);
+      }
+    }
+  }
 }
 "@
 
@@ -79,16 +184,101 @@ function Get-CursorPoint {
   return $point
 }
 
+function Get-ForegroundContext {
+  $window = [ParroDesktopInput]::GetForegroundWindow()
+  if ($window -eq [IntPtr]::Zero) { return $null }
+  $titleBuilder = New-Object System.Text.StringBuilder 512
+  [void][ParroDesktopInput]::GetWindowText($window, $titleBuilder, $titleBuilder.Capacity)
+  [uint32]$processId = 0
+  [void][ParroDesktopInput]::GetWindowThreadProcessId($window, [ref]$processId)
+  $processName = $null
+  if ($processId -gt 0) {
+    try { $processName = (Get-Process -Id $processId -ErrorAction Stop).ProcessName } catch {}
+  }
+  $rect = New-Object ParroDesktopInput+RECT
+  $hasRect = [ParroDesktopInput]::GetWindowRect($window, [ref]$rect)
+  return [ordered]@{
+    window_title = $titleBuilder.ToString().Trim()
+    process_name = $processName
+    left = $(if ($hasRect) { $rect.Left } else { $null })
+    top = $(if ($hasRect) { $rect.Top } else { $null })
+    width = $(if ($hasRect) { $rect.Right - $rect.Left } else { $null })
+    height = $(if ($hasRect) { $rect.Bottom - $rect.Top } else { $null })
+  }
+}
+
+function Get-UiElementContext($point) {
+  if (-not $uiAutomationReady -or -not $point) { return $null }
+  try {
+    $automationPoint = [System.Windows.Point]::new([double]$point.X, [double]$point.Y)
+    $element = [System.Windows.Automation.AutomationElement]::FromPoint($automationPoint)
+    if (-not $element) { return $null }
+    $current = $element.Current
+    $rect = $current.BoundingRectangle
+    $name = ([string]$current.Name).Trim()
+    $automationId = ([string]$current.AutomationId).Trim()
+    $controlType = ([string]$current.ControlType.ProgrammaticName).Replace("ControlType.", "").Trim()
+    $className = ([string]$current.ClassName).Trim()
+    return [ordered]@{
+      name = $(if ($name) { $name } else { $null })
+      automation_id = $(if ($automationId) { $automationId } else { $null })
+      control_type = $(if ($controlType) { $controlType } else { $null })
+      class_name = $(if ($className) { $className } else { $null })
+      left = [Math]::Round($rect.Left, 2)
+      top = [Math]::Round($rect.Top, 2)
+      width = [Math]::Round($rect.Width, 2)
+      height = [Math]::Round($rect.Height, 2)
+    }
+  } catch {
+    return $null
+  }
+}
+
+function Get-CaptureBounds([string]$eventType, $point, $foreground) {
+  $virtualLeft = [ParroDesktopInput]::GetSystemMetrics(76)
+  $virtualTop = [ParroDesktopInput]::GetSystemMetrics(77)
+  $virtualWidth = [ParroDesktopInput]::GetSystemMetrics(78)
+  $virtualHeight = [ParroDesktopInput]::GetSystemMetrics(79)
+
+  # Automatic clicks produce the clearest manual when only the active app
+  # window is captured. This also avoids leaking unrelated monitors.
+  if ($eventType -eq "click" -and $foreground -and $foreground.process_name -ne "ParroDesktop") {
+    $left = [int]$foreground.left
+    $top = [int]$foreground.top
+    $width = [int]$foreground.width
+    $height = [int]$foreground.height
+    $containsPoint = $point.X -ge $left -and $point.X -lt ($left + $width) -and $point.Y -ge $top -and $point.Y -lt ($top + $height)
+    if ($width -ge 160 -and $height -ge 100 -and $containsPoint) {
+      $right = [Math]::Min($virtualLeft + $virtualWidth, $left + $width)
+      $bottom = [Math]::Min($virtualTop + $virtualHeight, $top + $height)
+      $left = [Math]::Max($virtualLeft, $left)
+      $top = [Math]::Max($virtualTop, $top)
+      return [ordered]@{ left = $left; top = $top; width = $right - $left; height = $bottom - $top; mode = "window" }
+    }
+  }
+
+  # The manual button temporarily makes Parro the foreground window. Capture
+  # only the monitor containing the toolbar instead of the whole virtual desktop.
+  $monitor = [System.Windows.Forms.Screen]::FromPoint((New-Object System.Drawing.Point($point.X, $point.Y))).Bounds
+  return [ordered]@{ left = $monitor.Left; top = $monitor.Top; width = $monitor.Width; height = $monitor.Height; mode = "monitor" }
+}
+
 function Test-ToolbarPoint($point) {
   if (-not (Test-Path -LiteralPath $ToolbarBoundsFile)) { return $false }
   try {
     $bounds = Get-Content -LiteralPath $ToolbarBoundsFile -Raw -Encoding UTF8 | ConvertFrom-Json
-    return (
-      $point.X -ge [int]$bounds.left -and
-      $point.X -lt [int]$bounds.right -and
-      $point.Y -ge [int]$bounds.top -and
-      $point.Y -lt [int]$bounds.bottom
-    )
+    $regions = if ($bounds.regions) { @($bounds.regions) } else { @($bounds) }
+    foreach ($region in $regions) {
+      if (
+        $point.X -ge [int]$region.left -and
+        $point.X -lt [int]$region.right -and
+        $point.Y -ge [int]$region.top -and
+        $point.Y -lt [int]$region.bottom
+      ) {
+        return $true
+      }
+    }
+    return $false
   } catch {
     return $false
   }
@@ -134,14 +324,16 @@ function Add-PrivacyBlur($bitmap, $graphics, $point, [int]$screenLeft, [int]$scr
   }
 }
 
-function Capture-Frame([string]$eventType) {
-  $point = Get-CursorPoint
+function Capture-Frame([string]$eventType, $capturePoint = $null) {
+  $point = if ($capturePoint) { $capturePoint } else { Get-CursorPoint }
   if (-not $point) { return }
-
-  $left = [ParroDesktopInput]::GetSystemMetrics(76)
-  $top = [ParroDesktopInput]::GetSystemMetrics(77)
-  $width = [ParroDesktopInput]::GetSystemMetrics(78)
-  $height = [ParroDesktopInput]::GetSystemMetrics(79)
+  $foreground = Get-ForegroundContext
+  $uiElement = if ($eventType -eq "click") { Get-UiElementContext $point } else { $null }
+  $bounds = Get-CaptureBounds $eventType $point $foreground
+  $left = [int]$bounds.left
+  $top = [int]$bounds.top
+  $width = [int]$bounds.width
+  $height = [int]$bounds.height
   if ($width -le 0 -or $height -le 0) { return }
 
   $script:step += 1
@@ -174,10 +366,13 @@ function Capture-Frame([string]$eventType) {
     click_y = $point.Y
     normalized_x = [Math]::Round(($point.X - $left) / $width, 6)
     normalized_y = [Math]::Round(($point.Y - $top) / $height, 6)
-    screen = [ordered]@{ left = $left; top = $top; width = $width; height = $height }
+    screen = [ordered]@{ left = $left; top = $top; width = $width; height = $height; mode = $bounds.mode }
     screenshot_path = $screenshotPath
     blur_applied = [bool]$applyBlur
     blur_region = $blurRegion
+    window_title = $(if ($foreground.process_name -eq "ParroDesktop" -and $eventType -eq "manual") { $null } else { $foreground.window_title })
+    process_name = $(if ($foreground.process_name -eq "ParroDesktop" -and $eventType -eq "manual") { $null } else { $foreground.process_name })
+    ui_element = $uiElement
   }
   [void]$history.Add($event)
   [System.IO.File]::AppendAllText(
@@ -223,10 +418,13 @@ try {
 
     $leftDown = (([ParroDesktopInput]::GetAsyncKeyState(0x01) -band 0x8000) -ne 0)
     if (-not $paused -and $leftDown -and -not $leftWasDown) {
-      Start-Sleep -Milliseconds 120
       $point = Get-CursorPoint
       if ($point -and -not (Test-ToolbarPoint $point)) {
-        Capture-Frame "click"
+        # Keep the actual pointer-down coordinate even if the user moves the
+        # cursor while the UI settles for the screenshot.
+        Start-Sleep -Milliseconds 120
+        Capture-Frame "click" $point
+        [ParroDesktopClickHighlight]::ShowAt($point.X, $point.Y)
       }
     }
     $leftWasDown = $leftDown

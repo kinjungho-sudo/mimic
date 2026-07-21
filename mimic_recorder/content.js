@@ -97,11 +97,13 @@
   let typingTimer        = null;
   let _pointerDownSnapshot = null;
   let _pointerClickFallbackTimer = null;
+  let _captureSequence   = 0;
   let typingFocusSnapshot = null;
   let _countingDown      = false;
   let _lastTypingFrameTime = 0;     // 롤링 타이핑 프레임 throttle 기준
   let _typingFrameTimer  = null;    // 입력 멈춤(완료) 시점 프레임 1장 예약 타이머
   let _isComposing       = false;   // 한/일/중 IME 조합 중 여부 — 조합 중간값 캡처 방지
+  let cancelActiveLiveTargetPick = null;
 
   // 비밀번호 등 민감 입력의 '타이핑 텍스트 저장'을 막는 마스킹용 (블러와 무관)
   const SENSITIVE_INPUT_TYPES = new Set(['password']);
@@ -143,14 +145,91 @@
     try {
       return { vw: window.top.innerWidth, vh: window.top.innerHeight };
     } catch {
+      if (cachedFrameGeometry?.viewportW && cachedFrameGeometry?.viewportH) {
+        return { vw: cachedFrameGeometry.viewportW, vh: cachedFrameGeometry.viewportH };
+      }
       return { vw: window.innerWidth, vh: window.innerHeight };
     }
+  }
+
+  const FRAME_GEOMETRY_REQUEST = 'PARRO_FRAME_GEOMETRY_REQUEST_V1';
+  const FRAME_GEOMETRY_RESPONSE = 'PARRO_FRAME_GEOMETRY_RESPONSE_V1';
+  let cachedFrameGeometry = IS_TOP_FRAME ? {
+    left: 0, top: 0, scaleX: 1, scaleY: 1, framePath: [], access: 'top', quality: 'high',
+    viewportW: window.innerWidth, viewportH: window.innerHeight,
+  } : null;
+  let frameGeometryRequestTimer = null;
+
+  function requestFrameGeometry() {
+    if (IS_TOP_FRAME || window.parent === window) return;
+    window.parent.postMessage({
+      type: FRAME_GEOMETRY_REQUEST,
+      width: window.innerWidth,
+      height: window.innerHeight,
+    }, '*');
+  }
+
+  function scheduleFrameGeometryRequest() {
+    if (IS_TOP_FRAME) return;
+    if (frameGeometryRequestTimer) clearTimeout(frameGeometryRequestTimer);
+    frameGeometryRequestTimer = setTimeout(requestFrameGeometry, 40);
+  }
+
+  window.addEventListener('message', (event) => {
+    const data = event.data;
+    if (!data || typeof data !== 'object') return;
+
+    if (data.type === FRAME_GEOMETRY_REQUEST) {
+      const frames = [...document.querySelectorAll('iframe,frame')];
+      const frame = frames.find(candidate => candidate.contentWindow === event.source);
+      if (!frame || !event.source) return;
+      const localRect = frame.getBoundingClientRect();
+      const topRect = toTopRect(localRect);
+      const parentPath = cachedFrameGeometry?.framePath ?? [];
+      const frameSelector = getElementSelector(frame);
+      const topViewport = getViewportSize();
+      event.source.postMessage({
+        type: FRAME_GEOMETRY_RESPONSE,
+        left: topRect.left,
+        top: topRect.top,
+        scaleX: topRect.width / Math.max(1, Number(data.width) || localRect.width || 1),
+        scaleY: topRect.height / Math.max(1, Number(data.height) || localRect.height || 1),
+        framePath: frameSelector ? [...parentPath, frameSelector] : parentPath,
+        access: event.origin === location.origin ? 'same-origin' : 'cross-origin',
+        quality: topRect.quality === 'low' || !frameSelector ? 'low' : 'high',
+        viewportW: topViewport.vw,
+        viewportH: topViewport.vh,
+      }, '*');
+      return;
+    }
+
+    if (data.type === FRAME_GEOMETRY_RESPONSE && event.source === window.parent) {
+      cachedFrameGeometry = {
+        left: Number(data.left) || 0,
+        top: Number(data.top) || 0,
+        scaleX: Number(data.scaleX) || 1,
+        scaleY: Number(data.scaleY) || 1,
+        framePath: Array.isArray(data.framePath) ? data.framePath.filter(Boolean).slice(0, 8) : [],
+        access: data.access === 'cross-origin' ? 'cross-origin' : 'same-origin',
+        quality: data.quality === 'low' ? 'low' : 'high',
+        viewportW: Number(data.viewportW) || window.innerWidth,
+        viewportH: Number(data.viewportH) || window.innerHeight,
+      };
+    }
+  });
+
+  if (!IS_TOP_FRAME) {
+    requestFrameGeometry();
+    window.addEventListener('resize', scheduleFrameGeometryRequest, { passive: true });
+    window.addEventListener('scroll', scheduleFrameGeometryRequest, { passive: true });
+    setTimeout(requestFrameGeometry, 250);
   }
 
   function mapPointToTop(x, y) {
     let mappedX = x;
     let mappedY = y;
     let win = window;
+    let reachedTop = win === win.top;
     try {
       while (win !== win.top) {
         const frame = win.frameElement;
@@ -164,10 +243,21 @@
         mappedY = rect.top + mappedY * scaleY;
         win = win.parent;
       }
+      reachedTop = win === win.top;
     } catch {
-      return { x, y };
+      reachedTop = false;
     }
-    return { x: mappedX, y: mappedY };
+    if (reachedTop) return { x: mappedX, y: mappedY, quality: 'high' };
+    if (cachedFrameGeometry) {
+      return {
+        x: cachedFrameGeometry.left + x * cachedFrameGeometry.scaleX,
+        y: cachedFrameGeometry.top + y * cachedFrameGeometry.scaleY,
+        quality: cachedFrameGeometry.quality,
+      };
+    }
+    // A local iframe coordinate must never be presented as a trustworthy
+    // top-viewport coordinate.  Keep it only as an explicit low-confidence fallback.
+    return { x, y, quality: 'low' };
   }
 
   function toTopRect(rect) {
@@ -180,6 +270,7 @@
       top: topLeft.y,
       width: Math.max(0, bottomRight.x - topLeft.x),
       height: Math.max(0, bottomRight.y - topLeft.y),
+      quality: topLeft.quality === 'low' || bottomRight.quality === 'low' ? 'low' : 'high',
     };
   }
 
@@ -348,22 +439,28 @@
     // 입력 원문 보관 — 비밀번호 등 민감 필드는 저장하지 않는다(라벨도 '비밀번호 입력').
     // 짧으면 스텝 라벨에 '입력, "내용"'으로, 길면 본문(typedText)에 전문 보관해 매뉴얼 생성 참고자료로 쓴다.
     const isMasked  = SENSITIVE_INPUT_TYPES.has((el.type || '').toLowerCase()) || SENSITIVE_LABEL_RE.test(label);
-    const typedText = isMasked ? '' : textValue;
+    // 구조화된 입력 원문은 사용자가 설정에서 명시적으로 켠 경우에만 저장한다.
+    // 스크린샷에는 입력 화면이 보일 수 있으므로 별도의 개인정보 안내를 유지한다.
+    const typedText = isMasked || !settings.saveText ? '' : textValue;
     const safetyTimer = startCapturingSafely();
     const done = () => { clearTimeout(safetyTimer); isCapturing = false; };
 
     const { cx, cy } = rectCenter(el);
     const { vw, vh } = getViewportSize();
     // Preserve the original input-click target for Live Guide replay.
-    const rect = el.getBoundingClientRect();
+    const rawRect = el.getBoundingClientRect();
+    const rect = targetClientRect(el, rawRect.left + rawRect.width / 2, rawRect.top + rawRect.height / 2) || rawRect;
+    const topRect = toTopRect(rect);
     const focusSnapshot = typingFocusSnapshot;
-    const elementRect = focusSnapshot?.elementRect ?? normalizeRect(toTopRect(rect), vw, vh);
-    const elementSelector = focusSnapshot?.elementSelector ?? getElementSelector(el);
-    const elementXPath = focusSnapshot?.elementXPath ?? getElementXPath(el);
+    const elementRect = focusSnapshot?.elementRect ?? (topRect.quality === 'low' ? null : normalizeRect(topRect, vw, vh));
+    const elementSelector = focusSnapshot?.elementSelector ?? replaySelector(el);
+    const elementXPath = focusSnapshot?.elementXPath ?? replayXPath(el);
     const clickX = focusSnapshot?.clickX ?? cx;
     const clickY = focusSnapshot?.clickY ?? cy;
     const role = focusSnapshot?.role || el.getAttribute('role') || undefined;
     const labelDebug = focusSnapshot?.labelDebug ?? buildLabelDebug(el, label);
+    const targetContext = focusSnapshot?.targetContext ?? buildTargetContext(el, rect, topRect, label);
+    const captureId = opts.captureId || (opts.usePrecapture ? focusSnapshot?.captureId : null);
 
     lastCapturedTarget = el;
     lastCapturedTime   = Date.now();
@@ -373,10 +470,11 @@
       windowWidth: vw, windowHeight: vh,
       viewportW: vw, viewportH: vh,
       stepNumber: stepForThis, overwrite: true, useTypingFrame: true,
-      usePrecapture: !!opts.usePrecapture, peekPrecapture: !!opts.peekPrecapture,
+      captureId: captureId ?? null,
+      usePrecapture: !!opts.usePrecapture && !!captureId, peekPrecapture: !!opts.peekPrecapture,
       typedText,
       elementRect, elementSelector, elementXPath,
-      actionInfo: { type: 'type', label, text: label, typedText, masked: isMasked, tag: el.tagName.toLowerCase(), role, labelDebug },
+      actionInfo: { type: 'type', label, text: label, typedText, masked: isMasked, tag: el.tagName.toLowerCase(), role, labelDebug, targetContext },
     }, done);
 
     endSession();
@@ -628,6 +726,11 @@
 
   // ── 메시지 수신 ──────────────────────────────────────────────────
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+    if (msg.type === 'PARRO_CONTENT_READY') {
+      sendResponse({ ok: true, ready: true, topFrame: IS_TOP_FRAME });
+      return false;
+    }
+
     if (msg.type === 'START_RECORDING') {
       if (isRecording || _countingDown) { sendResponse({ ok: true }); return false; }
       if (!IS_TOP_FRAME) {
@@ -725,6 +828,12 @@
       return true;
     }
 
+    if (msg.type === 'CANCEL_LIVE_TARGET_PICK') {
+      if (IS_TOP_FRAME && cancelActiveLiveTargetPick) cancelActiveLiveTargetPick();
+      sendResponse({ ok: true });
+      return false;
+    }
+
     if (msg.type === 'SHOW_OVERLAY' && msg.step) {
       if (!IS_TOP_FRAME) return false;
       const guideApi = window.ParroGuide || window.MimicGuide;
@@ -733,8 +842,19 @@
         total: msg.total ?? 1,
         survey: msg.survey || null,
         onAdvance: (reason) => chrome.runtime.sendMessage({ type: 'GUIDE_NEXT', viaClick: reason === 'click' }),
+        onComplete: (reason) => chrome.runtime.sendMessage({ type: 'GUIDE_NEXT', viaClick: reason === 'click' }),
         onPrev:    () => chrome.runtime.sendMessage({ type: 'GUIDE_PREV' }),
         onExit:    () => { chrome.runtime.sendMessage({ type: 'EXIT_GUIDE' }); guideApi.hide(); },
+        onComplete: (reason) => {
+          guideApi.hide();
+          chrome.runtime.sendMessage({ type: 'GUIDE_COMPLETE', reason: reason || 'complete' });
+        },
+        onTargetStatus: (status, evidence) => chrome.runtime.sendMessage({
+          type: 'GUIDE_TARGET_STATUS',
+          stepIndex: msg.index ?? 0,
+          status,
+          evidence: evidence || null,
+        }),
       });
       return false;
     }
@@ -749,9 +869,12 @@
 
   // ── 인터랙티브 타겟 탐색 ────────────────────────────────────────
   function startLiveTargetPick(sendResponse) {
+    if (cancelActiveLiveTargetPick) cancelActiveLiveTargetPick();
     let finished = false;
     let timeoutId = null;
     const banner = document.createElement('div');
+    banner.id = 'parro-live-target-picker';
+    banner.dataset.parroLiveTargetPicker = 'true';
     banner.textContent = 'Parro: 라이브 가이드 대상을 클릭하세요';
     Object.assign(banner.style, {
       position: 'fixed',
@@ -774,6 +897,7 @@
       document.removeEventListener('pointerdown', onPointerDown, true);
       if (timeoutId) clearTimeout(timeoutId);
       banner.remove();
+      if (cancelActiveLiveTargetPick === cancelPick) cancelActiveLiveTargetPick = null;
     };
 
     const finish = (payload) => {
@@ -782,6 +906,13 @@
       cleanup();
       sendResponse(payload);
     };
+
+    const cancelPick = () => finish({
+      ok: false,
+      reason: 'cancelled',
+      error: '대상 선택이 취소되었습니다.',
+    });
+    cancelActiveLiveTargetPick = cancelPick;
 
     function onPointerDown(event) {
       const raw = event.target && event.target.nodeType === Node.ELEMENT_NODE
@@ -793,26 +924,29 @@
       event.stopPropagation();
       event.stopImmediatePropagation();
 
-      const target = refineActionTarget(raw, findInteractiveTarget(raw) || raw);
-      const rect = target.getBoundingClientRect();
-      const vw = Math.max(1, window.innerWidth);
-      const vh = Math.max(1, window.innerHeight);
+      const target = refineActionTarget(raw, findInteractiveTarget(raw, event) || raw);
+      const rect = targetClientRect(target, event.clientX, event.clientY) || target.getBoundingClientRect();
+      const topRect = toTopRect(rect);
+      const topClick = toTopPoint(event.clientX, event.clientY);
+      const { vw, vh } = getViewportSize();
       const clamp = value => Math.max(0, Math.min(1, value));
+      const label = getElementLabel(target, raw) || null;
 
       finish({
         ok: true,
         page_url: window.location.href,
-        element_selector: getElementSelector(target) || null,
-        element_xpath: getElementXPath(target) || null,
-        element_rect: {
-          x: clamp(rect.left / vw),
-          y: clamp(rect.top / vh),
-          width: clamp(rect.width / vw),
-          height: clamp(rect.height / vh),
+        element_selector: replaySelector(target) || null,
+        element_xpath: replayXPath(target) || null,
+        element_rect: topRect.quality === 'low' ? null : {
+          x: clamp(topRect.left / vw),
+          y: clamp(topRect.top / vh),
+          width: clamp(topRect.width / vw),
+          height: clamp(topRect.height / vh),
         },
-        click_x: clamp(event.clientX / vw),
-        click_y: clamp(event.clientY / vh),
-        label: getElementLabel(target, raw) || null,
+        click_x: topClick.quality === 'low' ? null : clamp(topClick.x / vw),
+        click_y: topClick.quality === 'low' ? null : clamp(topClick.y / vh),
+        label,
+        target_context: buildTargetContext(target, rect, topRect, label),
       });
     }
 
@@ -820,62 +954,113 @@
     timeoutId = setTimeout(() => finish({ ok: false, reason: 'timeout', error: '대상 선택 시간이 초과되었습니다.' }), 30000);
   }
 
-  function findInteractiveTarget(el) {
+  const targetDecisionByElement = new WeakMap();
+  const SEMANTIC_ROLES = new Set(['button', 'link', 'menuitem', 'option', 'tab', 'checkbox', 'radio', 'switch', 'combobox', 'textbox']);
+
+  function targetClientRect(el, clientX, clientY) {
+    if (!el) return null;
+    const rects = typeof el.getClientRects === 'function' ? el.getClientRects() : [];
+    return ParroTargeting.pickBestClientRect(rects, clientX, clientY)
+      || ParroTargeting.pickBestClientRect([el.getBoundingClientRect()], clientX, clientY);
+  }
+
+  function eventElementPath(el, event) {
+    const result = [];
+    const add = (candidate) => {
+      if (!candidate || candidate.nodeType !== Node.ELEMENT_NODE || result.includes(candidate)) return;
+      result.push(candidate);
+    };
+    if (event && typeof event.composedPath === 'function') event.composedPath().forEach(add);
+    if (event && typeof document.elementsFromPoint === 'function') {
+      document.elementsFromPoint(event.clientX, event.clientY).forEach(add);
+    }
+    let cur = el;
+    for (let depth = 0; cur && depth < 10; depth += 1) {
+      add(cur);
+      cur = cur.parentElement || cur.getRootNode?.().host || null;
+    }
+    return result;
+  }
+
+  function targetFacts(el, event, depthFromTarget) {
+    const style = window.getComputedStyle(el);
+    const rect = targetClientRect(el, event?.clientX ?? 0, event?.clientY ?? 0);
+    const tag = el.tagName?.toLowerCase() || '';
+    const role = (el.getAttribute('role') || '').toLowerCase();
+    const type = (el.getAttribute('type') || '').toLowerCase();
+    const nativeInteractive = /^(button|a|select|textarea|summary|label)$/.test(tag)
+      || (tag === 'input' && type !== 'hidden');
+    const semanticRole = SEMANTIC_ROLES.has(role);
+    const accessibleName = getElementLabel(el);
+    const area = (rect?.width || 0) * (rect?.height || 0);
+    const viewportArea = Math.max(1, window.innerWidth * window.innerHeight);
+    return {
+      rect,
+      facts: {
+        visible: !!rect && style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity || 1) > 0,
+        disabled: el.matches?.(':disabled') || el.getAttribute('aria-disabled') === 'true',
+        nativeInteractive,
+        semanticRole,
+        hasClickHandler: el.hasAttribute('onclick') || el.getAttribute('tabindex') !== null || el.getAttribute('aria-haspopup') != null,
+        pointerCursor: style.cursor === 'pointer',
+        containsClick: !!rect && ParroTargeting.rectContainsPoint(rect, event?.clientX ?? 0, event?.clientY ?? 0, 2),
+        accessibleName,
+        stableAttribute: !!(el.id && isStableId(el.id)) || ['data-testid', 'data-cy', 'data-test', 'aria-label', 'name'].some(attr => !!el.getAttribute(attr)),
+        exactEventTarget: el === event?.target,
+        iconOnly: isIconOnly(el),
+        areaRatio: area / viewportArea,
+        depthFromTarget,
+      },
+    };
+  }
+
+  function inheritedPointerBoundary(el) {
+    let current = el;
+    let candidate = null;
+    let inPointerChain = false;
+    const viewportArea = Math.max(1, window.innerWidth * window.innerHeight);
+    for (let depth = 0; current && depth < 12; depth += 1) {
+      if (current === document.body || current === document.documentElement) break;
+      let style;
+      try { style = window.getComputedStyle(current); } catch { break; }
+      if (style.cursor !== 'pointer') {
+        if (inPointerChain) break;
+        current = current.parentElement || current.getRootNode?.().host || null;
+        continue;
+      }
+      inPointerChain = true;
+      const rect = targetClientRect(current);
+      const reasonable = rect && rect.width >= 1 && rect.height >= 1
+        && rect.width <= window.innerWidth * 0.92
+        && rect.height <= window.innerHeight * 0.92
+        && (rect.width * rect.height) / viewportArea <= 0.65;
+      if (reasonable) candidate = current;
+      current = current.parentElement || current.getRootNode?.().host || null;
+    }
+    return candidate;
+  }
+
+  function findInteractiveTarget(el, event = null) {
     if (!el || el === document.documentElement) return null;
     if (document.designMode === 'on') return document.body;
 
-    const found = el.closest(INTERACTIVE);
-    if (found) return found;
-
-    let cur = el;
-    for (let i = 0; i < 8; i++) {
-      if (!cur || cur === document.documentElement) break;
-      if (window.getComputedStyle(cur).cursor === 'pointer') return cur;
-      cur = cur.parentElement;
+    const candidates = eventElementPath(el, event)
+      .map((candidate, index) => ({ element: candidate, ...targetFacts(candidate, event, index) }))
+      .filter(candidate => candidate.facts.nativeInteractive || candidate.facts.semanticRole || candidate.facts.hasClickHandler || candidate.facts.pointerCursor);
+    const decision = ParroTargeting.chooseTarget(candidates);
+    if (!decision.best) return null;
+    const bestFacts = decision.best.facts;
+    if (!bestFacts.nativeInteractive && !bestFacts.semanticRole && !bestFacts.hasClickHandler) {
+      const pointerBoundary = inheritedPointerBoundary(el);
+      if (pointerBoundary) return pointerBoundary;
     }
-
-    cur = el;
-    for (let i = 0; i < 8; i++) {
-      if (!cur || cur === document.documentElement || cur === document.body) break;
-      if (
-        cur.hasAttribute('onclick') ||
-        cur.getAttribute('role') === 'button' ||
-        cur.getAttribute('role') === 'link' ||
-        cur.getAttribute('tabindex') !== null ||
-        (cur.dataset && Object.keys(cur.dataset).length > 0 && cur.tagName !== 'INPUT')
-      ) return cur;
-      cur = cur.parentElement;
-    }
-
-    // 아이콘 버튼 보강 — svg/path/img/i 같은 아이콘을 클릭했는데 위 신호로 못 잡은 경우
-    // (cursor:pointer가 명시 안 된 커스텀 위젯·캔버스형 에디터의 작은 아이콘 버튼),
-    // 가장 가까운 '클릭 가능해 보이는' 작은 조상을 타겟으로 삼는다. 아이콘 클릭에만 한정해 오탐 방지.
-    const tag0 = el.tagName ? el.tagName.toLowerCase() : '';
-    const cls0 = typeof el.className === 'string' ? el.className : (el.className?.baseVal ?? '');
-    const ICON_TAG  = /^(svg|path|use|symbol|polygon|circle|rect|g|img|i)$/;
-    const ICONISH   = /(^|[-_ ])(icon|btn|button|action|clickable|toggle|chip|fab|plus|add|menu|caret|arrow|close|more|kebab|dots|trigger)([-_ ]|$)/i;
-    if (ICON_TAG.test(tag0) || ICONISH.test(cls0)) {
-      cur = el;
-      for (let i = 0; i < 6; i++) {
-        if (!cur || cur === document.documentElement || cur === document.body) break;
-        const cs   = window.getComputedStyle(cur);
-        const ccls = typeof cur.className === 'string' ? cur.className : (cur.className?.baseVal ?? '');
-        const looksClickable =
-          cs.cursor === 'pointer' ||
-          cur.getAttribute('role') ||
-          cur.getAttribute('aria-label') || cur.getAttribute('title') ||
-          cur.getAttribute('aria-haspopup') != null || cur.getAttribute('aria-expanded') != null ||
-          cur.hasAttribute('onclick') || cur.getAttribute('tabindex') != null ||
-          ICONISH.test(ccls);
-        const r = cur.getBoundingClientRect();
-        const sized = r.width > 0 && r.height > 0 &&
-                      r.width <= window.innerWidth * 0.5 && r.height <= window.innerHeight * 0.5;
-        if (looksClickable && sized) return cur;
-        cur = cur.parentElement;
-      }
-    }
-
-    return null;
+    targetDecisionByElement.set(decision.best.element, {
+      confidence: decision.confidence,
+      score: decision.best.score,
+      margin: decision.margin,
+      rect: decision.best.rect,
+    });
+    return decision.best.element;
   }
 
   // ── 엘리먼트 메타 추출 ───────────────────────────────────────────
@@ -943,6 +1128,8 @@
     if (!el || !el.getAttribute) return '';
     const raw = collectLabelCandidates(el);
     const specific = [
+      raw.labelledBy,
+      raw.associatedLabel,
       raw.ariaLabel,
       raw.title,
       raw.describedBy,
@@ -967,7 +1154,17 @@
   }
 
   function collectLabelCandidates(el) {
+    const associatedLabel = (() => {
+      if (!el) return '';
+      if (el.id) {
+        const explicit = document.querySelector(`label[for="${CSS.escape(el.id)}"]`);
+        if (explicit) return cleanLabelText(explicit.textContent);
+      }
+      return cleanLabelText(el.closest?.('label')?.textContent);
+    })();
     return {
+      labelledBy: cleanLabelText(textFromIds(el?.getAttribute?.('aria-labelledby'))),
+      associatedLabel,
       ariaLabel: cleanLabelText(el?.getAttribute?.('aria-label')),
       title: cleanLabelText(el?.getAttribute?.('title')),
       describedBy: cleanLabelText(textFromIds(el?.getAttribute?.('aria-describedby'))),
@@ -1037,24 +1234,32 @@
 
   // Freeze click metadata before the target DOM can react or move.
 
+  function createCaptureId() {
+    _captureSequence = (_captureSequence + 1) % 1000000;
+    return `${Date.now().toString(36)}-${_captureSequence.toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  }
+
   function buildPointerDownSnapshot(captureEl, target, clickedEl, event) {
     if (!captureEl || typeof captureEl.getBoundingClientRect !== 'function') return null;
-    const rect = captureEl.getBoundingClientRect();
-    if (!rect.width || !rect.height) return null;
+    const rect = targetClientRect(captureEl, event.clientX, event.clientY);
+    if (!rect || !rect.width || !rect.height) return null;
     const { vw, vh } = getViewportSize();
     const topClick = toTopPoint(event.clientX, event.clientY);
     const label = getElementLabel(captureEl, clickedEl);
     const href = captureEl.getAttribute('href') || captureEl.closest('a')?.getAttribute('href') || target.getAttribute('href') || target.closest('a')?.getAttribute('href') || '';
+    const topRect = toTopRect(rect);
     return {
       target: captureEl,
+      captureId: createCaptureId(),
       time: Date.now(),
       x: event.clientX,
       y: event.clientY,
-      clickX: topClick.x,
-      clickY: topClick.y,
-      elementRect: normalizeRect(toTopRect(rect), vw, vh),
-      elementSelector: getElementSelector(captureEl),
-      elementXPath: getElementXPath(captureEl),
+      clickX: topClick.quality === 'low' ? 0 : topClick.x,
+      clickY: topClick.quality === 'low' ? 0 : topClick.y,
+      elementRect: topRect.quality === 'low' ? null : normalizeRect(topRect, vw, vh),
+      elementSelector: replaySelector(captureEl),
+      elementXPath: replayXPath(captureEl),
+      targetContext: buildTargetContext(captureEl, rect, topRect, label),
       label,
       role: captureEl.getAttribute('role') || target.getAttribute('role') || undefined,
       actionType: getActionType(target),
@@ -1068,6 +1273,11 @@
     if ((Date.now() - _pointerDownSnapshot.time) > 1200) return null;
     if (Math.abs(_pointerDownSnapshot.x - event.clientX) > 12) return null;
     if (Math.abs(_pointerDownSnapshot.y - event.clientY) > 12) return null;
+    return _pointerDownSnapshot;
+  }
+
+  function getFreshPointerSnapshot() {
+    if (!_pointerDownSnapshot || (Date.now() - _pointerDownSnapshot.time) > 1200) return null;
     return _pointerDownSnapshot;
   }
 
@@ -1105,7 +1315,8 @@
         viewportW: getViewportSize().vw,
         viewportH: getViewportSize().vh,
         stepNumber,
-        usePrecapture: true,
+        captureId: snapshot.captureId,
+        usePrecapture: !!snapshot.captureId,
         elementRect: snapshot.elementRect,
         elementSelector: snapshot.elementSelector,
         elementXPath: snapshot.elementXPath,
@@ -1116,6 +1327,7 @@
           role: snapshot.role,
           href: (snapshot.href || '').slice(0, 200),
           labelDebug: snapshot.labelDebug,
+          targetContext: snapshot.targetContext,
           fallbackReason: 'pointerup-no-click',
         },
       }, () => { clearTimeout(safetyTimer); isCapturing = false; });
@@ -1146,18 +1358,20 @@
 
   function getElementSelector(el) {
     try {
+      const queryRoot = el.getRootNode?.() || document;
+      const queryAll = (selector) => queryRoot.querySelectorAll(selector);
       if (el.id && isStableId(el.id)) return `#${CSS.escape(el.id)}`;
       const tag = el.tagName.toLowerCase();
       for (const attr of ['data-testid', 'data-cy', 'data-test', 'aria-label', 'name']) {
         const val = el.getAttribute(attr);
         if (val) {
           const sel = `${tag}[${attr}="${CSS.escape(val)}"]`;
-          if (document.querySelectorAll(sel).length === 1) return sel;
+          if (queryAll(sel).length === 1) return sel;
         }
       }
 
       const buildPath = (node, depth) => {
-        if (depth <= 0 || !node || node === document.documentElement) return '';
+        if (depth <= 0 || !node || node.nodeType !== Node.ELEMENT_NODE || node === document.documentElement) return '';
         const t = node.tagName.toLowerCase();
         let sel = t;
         if (node.id && isStableId(node.id)) return `#${CSS.escape(node.id)}`;
@@ -1177,7 +1391,7 @@
       for (const depth of [3, 2, 1]) {
         const path = buildPath(el, depth);
         if (!path) continue;
-        try { if (document.querySelectorAll(path).length === 1) return path; } catch { /**/ }
+        try { if (queryAll(path).length === 1) return path; } catch { /**/ }
       }
 
       const cls = [...el.classList].filter(isStableClass).slice(0, 2).map(c => `.${CSS.escape(c)}`).join('');
@@ -1219,6 +1433,7 @@
   // 견고한 XPath — 짧고 고유한 보이는 텍스트 앵커 우선(Typeform 질문/버튼에 강함), 없으면 구조 경로
   function getElementXPath(el) {
     try {
+      if (typeof ShadowRoot !== 'undefined' && el.getRootNode?.() instanceof ShadowRoot) return '';
       const tag = el.tagName.toLowerCase();
       const text = (el.textContent || '').trim().replace(/\s+/g, ' ');
       if (text && text.length <= 40) {
@@ -1228,6 +1443,91 @@
       const path = buildXPath(el);
       return path.length <= 480 ? path : '';
     } catch { return ''; }
+  }
+
+  function getShadowPath(el) {
+    const path = [];
+    let node = el;
+    while (node && typeof node.getRootNode === 'function') {
+      const root = node.getRootNode();
+      if (typeof ShadowRoot === 'undefined' || !(root instanceof ShadowRoot)) break;
+      const host = root.host;
+      const selector = getElementSelector(host);
+      if (!selector) break;
+      path.unshift(selector);
+      node = host;
+    }
+    return path.slice(0, 8);
+  }
+
+  function selectorConfidence(el, selector) {
+    if (!selector) return 'low';
+    if ((el.id && isStableId(el.id)) || /\[(data-testid|data-cy|data-test|aria-label|name)=/.test(selector)) return 'high';
+    return selector.includes(':nth-of-type') ? 'low' : 'medium';
+  }
+
+  function replaySelector(el) {
+    if (!IS_TOP_FRAME && !(cachedFrameGeometry?.framePath?.length)) return '';
+    return getElementSelector(el);
+  }
+
+  function replayXPath(el) {
+    if (!IS_TOP_FRAME && !(cachedFrameGeometry?.framePath?.length)) return '';
+    return getElementXPath(el);
+  }
+
+  function nearbyContextLabel(el) {
+    const container = el.closest?.('form,fieldset,section,article,[role="dialog"],[role="region"]');
+    const heading = container?.querySelector?.('legend,h1,h2,h3,[role="heading"]');
+    return cleanLabelText(heading?.textContent, 120);
+  }
+
+  function baseTargetContext() {
+    return {
+      schemaVersion: 1,
+      coordinateSpace: 'top-viewport-css-px',
+      framePath: cachedFrameGeometry?.framePath ?? [],
+      frameAccess: cachedFrameGeometry?.access ?? (IS_TOP_FRAME ? 'top' : 'unknown'),
+      devicePixelRatio: window.devicePixelRatio || 1,
+      visualViewport: window.visualViewport ? {
+        offsetLeft: window.visualViewport.offsetLeft,
+        offsetTop: window.visualViewport.offsetTop,
+        scale: window.visualViewport.scale,
+      } : null,
+    };
+  }
+
+  function buildPointContext(quality) {
+    return {
+      ...baseTargetContext(),
+      geometryConfidence: quality === 'low' ? 'low' : 'high',
+      selectorConfidence: 'low',
+      accessibleName: null,
+      contextLabel: null,
+      pageTitle: cleanLabelText(document.title, 200) || null,
+      shadowPath: [],
+      localRect: null,
+    };
+  }
+
+  function buildTargetContext(el, localRect, topRect, label) {
+    const selector = getElementSelector(el);
+    const decision = targetDecisionByElement.get(el);
+    const geometryConfidence = topRect?.quality === 'low'
+      ? 'low'
+      : (decision?.confidence || 'medium');
+    return {
+      ...baseTargetContext(),
+      geometryConfidence,
+      selectorConfidence: selectorConfidence(el, selector),
+      targetScore: decision?.score ?? null,
+      targetMargin: decision?.margin ?? null,
+      accessibleName: cleanLabelText(label || getElementLabel(el), 200) || null,
+      contextLabel: nearbyContextLabel(el) || null,
+      pageTitle: cleanLabelText(document.title, 200) || null,
+      shadowPath: getShadowPath(el),
+      localRect: localRect ? { x: localRect.left, y: localRect.top, width: localRect.width, height: localRect.height } : null,
+    };
   }
 
   function getActionType(el) {
@@ -1252,7 +1552,7 @@
     if (isCapturing && (Date.now() - isCapturingStart) >= CAPTURE_SAFETY_MS) isCapturing = false;
     if (isCapturing) return;
     if (Date.now() < suppressHoverUntil) return;  // 선캡처 윈도우 — 테두리 재등장 금지
-    const target = findInteractiveTarget(e.target);
+    const target = findInteractiveTarget(e.target, e);
     if (!target) { hideHoverPointer(); return; }
     const overlayAlive = hoverOverlay && document.documentElement.contains(hoverOverlay);
     if (target === hoverTarget && overlayAlive) return;
@@ -1272,7 +1572,8 @@
     if (!e.isTrusted) return;  // 사이트 스크립트가 만든 가짜 이벤트는 사용자 행동이 아님
     if (!isRecording || isPaused || isCapturing) return;
     if (e.button !== undefined && e.button !== 0) return;  // 좌클릭만
-    const target = findInteractiveTarget(e.target);
+    _pointerDownSnapshot = null;
+    const target = findInteractiveTarget(e.target, e);
     if (!target) return;
     const actionTarget = refineActionTarget(e.target, target);
     const actionType = getActionType(target);
@@ -1280,11 +1581,11 @@
     _pointerDownSnapshot = buildPointerDownSnapshot(captureEl, target, e.target, e);
     hideHoverPointer();                          // 호버 테두리 제거
     suppressHoverUntil = Date.now() + 500;       // 캡처 끝날 때까지 재등장 억제
-    // 테두리 제거가 화면에 리페인트된 다음 프레임에 선캡처 요청 — 라이브 캡처 경로의
-    // double-rAF와 동일한 보장. (동기 전송 시 background가 리페인트 전 프레임을 잡아 테두리가 굽힘)
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      chrome.runtime.sendMessage({ type: 'PRECAPTURE_FRAME' }, () => { void chrome.runtime.lastError; });
-    }));
+    // 캡처 요청을 click보다 먼저 큐에 넣어 빠른 화면 전환에서도 DOM 좌표와 프레임을 맞춘다.
+    const captureId = _pointerDownSnapshot?.captureId;
+    if (captureId) {
+      chrome.runtime.sendMessage({ type: 'PRECAPTURE_FRAME', captureId }, () => { void chrome.runtime.lastError; });
+    }
   }, true);
 
   document.addEventListener('pointerup', (e) => {
@@ -1312,6 +1613,7 @@
     if (document.visibilityState !== 'visible') return;
 
     const clickedEl = e.target;
+    const pointerSnapshot = getRecentPointerSnapshot(e);
 
     // Parro 자체 오버레이 클릭 무시
     if (clickedEl && typeof clickedEl.id === 'string') {
@@ -1324,7 +1626,7 @@
     const lowerClassStr = _classStr.toLowerCase();
     if (lowerClassStr.includes('parro') || lowerClassStr.includes('mimic')) return;
 
-    const target = findInteractiveTarget(clickedEl);
+    const target = findInteractiveTarget(clickedEl, e);
 
     // 빈 화면 클릭 (body/html)
     if (!target) {
@@ -1341,12 +1643,19 @@
       log('debug', `blank click step ${stepNumber} at (${e.clientX}, ${e.clientY})`);
       sendCapture({
         url: location.href, timestamp: Date.now(),
-        clickX: topClick.x, clickY: topClick.y,
+        clickX: topClick.quality === 'low' ? 0 : topClick.x,
+        clickY: topClick.quality === 'low' ? 0 : topClick.y,
         windowWidth: vw, windowHeight: vh,
         viewportW: vw, viewportH: vh,
         stepNumber,
         elementRect: null, elementSelector: null,
-        actionInfo: { type: 'click', label: '화면 클릭', tag: clickedEl.tagName.toLowerCase(), labelDebug: { chosenLabel: '화면 클릭', rawText: null, ariaLabel: null, title: null, role: null, selector: null, fallbackReason: 'blank-click' } },
+        actionInfo: {
+          type: 'click',
+          label: '화면 클릭',
+          tag: clickedEl.tagName.toLowerCase(),
+          labelDebug: { chosenLabel: '화면 클릭', rawText: null, ariaLabel: null, title: null, role: null, selector: null, fallbackReason: 'blank-click' },
+          targetContext: buildPointContext(topClick.quality),
+        },
       }, () => { clearTimeout(safetyTimer); isCapturing = false; });
       return;
     }
@@ -1368,7 +1677,7 @@
       // 다른 필드로 옮겼을 때만 이전 입력을 마감(flush가 세션을 끝냄 → 새 스텝).
       // 같은 필드 재클릭·리치 에디터 재마운트는 세션을 유지해 입력 스텝이 쪼개지지 않게 한다.
       if (typingTarget && typingTarget !== target && !isRemountedTyping(typingTarget)) {
-        flushTyping(typingTarget, true, { usePrecapture: true, peekPrecapture: true });
+        flushTyping(typingTarget, true, { usePrecapture: !!pointerSnapshot?.captureId, peekPrecapture: true, captureId: pointerSnapshot?.captureId });
       }
       typingTarget = target;
       typingFocusSnapshot = getRecentPointerSnapshot(e);
@@ -1379,23 +1688,24 @@
     } else {
       // 진행 중이던 타이핑 flush — 클릭(액션) 직전 선캡처 프레임을 타이핑 스텝 이미지로 쓰고,
       // 소비하지 않아(peek) 아래 클릭 스텝이 같은 프레임을 재사용한다.
-      if (typingTarget) flushTyping(typingTarget, true, { usePrecapture: true, peekPrecapture: true });
+      if (typingTarget) flushTyping(typingTarget, true, { usePrecapture: !!pointerSnapshot?.captureId, peekPrecapture: true, captureId: pointerSnapshot?.captureId });
     }
 
     showClickHighlight(e.clientX, e.clientY);
 
     const captureEl = actionType === 'focus_input' ? target : actionTarget;
-    const pointerSnapshot = getRecentPointerSnapshot(e);
-    const rect  = captureEl.getBoundingClientRect();
+    const rect  = targetClientRect(captureEl, e.clientX, e.clientY) || captureEl.getBoundingClientRect();
     const label = pointerSnapshot?.label || getElementLabel(captureEl, clickedEl);
     const href  = captureEl.getAttribute('href') || captureEl.closest('a')?.getAttribute('href') || target.getAttribute('href') || target.closest('a')?.getAttribute('href') || '';
     const role  = pointerSnapshot?.role || captureEl.getAttribute('role') || target.getAttribute('role') || undefined;
     const { vw, vh } = getViewportSize();
     const topClick = toTopPoint(e.clientX, e.clientY);
-    const elementRect = pointerSnapshot?.elementRect ?? normalizeRect(toTopRect(rect), vw, vh);
-    const elementSelector = pointerSnapshot?.elementSelector ?? getElementSelector(captureEl);
-    const elementXPath = pointerSnapshot?.elementXPath ?? getElementXPath(captureEl);
+    const topRect = toTopRect(rect);
+    const elementRect = pointerSnapshot?.elementRect ?? (topRect.quality === 'low' ? null : normalizeRect(topRect, vw, vh));
+    const elementSelector = pointerSnapshot?.elementSelector ?? replaySelector(captureEl);
+    const elementXPath = pointerSnapshot?.elementXPath ?? replayXPath(captureEl);
     const labelDebug = pointerSnapshot?.labelDebug ?? buildLabelDebug(captureEl, label);
+    const targetContext = pointerSnapshot?.targetContext ?? buildTargetContext(captureEl, rect, topRect, label);
 
     // navigate 클릭(링크 등)도 '사용자 클릭'이므로 클릭 스텝으로만 캡처한다.
     // 이동 후 도착 페이지는 더 이상 자동 캡처하지 않는다 (페이지 이동 캡처 제거).
@@ -1408,14 +1718,15 @@
 
       const srcStep = {
         url: location.href, timestamp: Date.now(),
-        clickX: topClick.x, clickY: topClick.y,
+        clickX: topClick.quality === 'low' ? 0 : topClick.x,
+        clickY: topClick.quality === 'low' ? 0 : topClick.y,
         windowWidth: vw, windowHeight: vh,
         viewportW: vw, viewportH: vh,
-        stepNumber, usePrecapture: true,
+        stepNumber, captureId: pointerSnapshot?.captureId ?? null, usePrecapture: !!pointerSnapshot?.captureId,
         elementRect,
         elementSelector,
         elementXPath,
-        actionInfo:      { type: 'click', label, tag: captureEl.tagName.toLowerCase(), role, href: href.slice(0, 200), labelDebug },
+        actionInfo:      { type: 'click', label, tag: captureEl.tagName.toLowerCase(), role, href: href.slice(0, 200), labelDebug, targetContext },
       };
 
       sendCapture(srcStep, () => { clearTimeout(navSafetyTimer); isCapturing = false; });
@@ -1429,14 +1740,15 @@
 
     const stepData = {
       url: location.href, timestamp: Date.now(),
-      clickX: topClick.x, clickY: topClick.y,
+      clickX: topClick.quality === 'low' ? 0 : topClick.x,
+      clickY: topClick.quality === 'low' ? 0 : topClick.y,
       windowWidth: vw, windowHeight: vh,
       viewportW: vw, viewportH: vh,
-      stepNumber, usePrecapture: true,
+      stepNumber, captureId: pointerSnapshot?.captureId ?? null, usePrecapture: !!pointerSnapshot?.captureId,
       elementRect,
       elementSelector,
       elementXPath,
-      actionInfo:      { type: actionType, label, tag: captureEl.tagName.toLowerCase(), role, href: href.slice(0, 200), labelDebug },
+      actionInfo:      { type: actionType, label, tag: captureEl.tagName.toLowerCase(), role, href: href.slice(0, 200), labelDebug, targetContext },
     };
 
     const downloadAttr    = target.getAttribute('download');
@@ -1554,8 +1866,9 @@
       // Enter 제출 직전(폼 제출·페이지 이동·입력창 초기화 전) 화면을 그 순간 선캡처해
       // 타이핑 스텝 이미지로 쓴다 — 클릭의 pointerdown 선캡처와 동일한 '액션 정렬' 기법.
       hideHoverPointer();
-      chrome.runtime.sendMessage({ type: 'PRECAPTURE_FRAME' }, () => { void chrome.runtime.lastError; });
-      flushTyping(el, true, { usePrecapture: true });
+      const captureId = createCaptureId();
+      chrome.runtime.sendMessage({ type: 'PRECAPTURE_FRAME', captureId }, () => { void chrome.runtime.lastError; });
+      flushTyping(el, true, { usePrecapture: true, captureId });
     }
   }, true);
 
@@ -1570,7 +1883,18 @@
     if (!e.relatedTarget && IS_TOP_FRAME) return;  // 페이지 밖으로 포커스 이탈(창 전환)은 무시
     // relatedTarget(다음 포커스 대상)이 있다 = 그 요소의 pointerdown 선캡처가 떠 있다.
     // 그 '액션 직전' 프레임(완성 텍스트)을 타이핑 스텝 이미지로 쓰고, peek로 클릭 스텝과 공유한다.
-    flushTyping(typingTarget, true, { usePrecapture: true, peekPrecapture: true });
+    // The following click must run before the typing capture sets isCapturing;
+    // otherwise handleClick drops the user's next action as a concurrent capture.
+    const blurredTypingTarget = typingTarget;
+    const pointerSnapshot = getFreshPointerSnapshot();
+    setTimeout(() => {
+      if (!isRecording || isPaused || typingTarget !== blurredTypingTarget) return;
+      flushTyping(blurredTypingTarget, true, {
+        usePrecapture: !!pointerSnapshot?.captureId,
+        peekPrecapture: true,
+        captureId: pointerSnapshot?.captureId,
+      });
+    }, 0);
   }, true);
 
   // ── 파일 업로드 캡처 ─────────────────────────────────────────────
@@ -1631,6 +1955,13 @@
   // (이동의 결과 화면은 다음 사용자 액션에서 자연스럽게 캡처됨)
 
   // ── 클립보드 붙여넣기로 수동 스크린샷 수신 ──────────────────────
+  window.ParroRecorderInternals = Object.freeze({
+    eventElement: (event) => eventElementPath(event?.target, event)[0] || event?.target || null,
+    findInteractiveTarget,
+    refineActionTarget,
+    replaySelector,
+  });
+
   document.addEventListener('paste', (e) => {
     if (!e.isTrusted) return;
     if (!isRecording || isPaused || isCapturing) return;

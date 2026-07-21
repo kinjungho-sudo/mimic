@@ -27,17 +27,21 @@ See `docs/brand/parro-rebrand-qa.md` for the current migration status.
 Install dependencies and run the app:
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
 Open `http://localhost:3000`.
+
+On Windows systems that block the PowerShell `npm.ps1` shim, use `npm.cmd`
+for the same commands (for example, `npm.cmd run dev`).
 
 ## Verification
 
 Common checks:
 
 ```bash
+npm test
 npm run lint
 $env:NODE_OPTIONS='--use-system-ca'; npm run build
 git diff --check

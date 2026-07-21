@@ -10,6 +10,7 @@ import { CommentsPanel } from '@/components/editor/CommentsPanel';
 import { ActivityPanel } from '@/components/editor/ActivityPanel';
 import { ExportModal } from '@/components/editor/ExportModal';
 import { ShareModal } from '@/components/editor/ShareModal';
+import { ManualQualityDialog } from '@/components/editor/ManualQualityDialog';
 import { AgentChat } from '@/components/chat/AgentChat';
 import { FeedbackSurveyModal } from '@/components/survey/FeedbackSurveyModal';
 import { useTutorial } from '@/hooks/useTutorial';
@@ -18,11 +19,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCollaboration } from '@/hooks/useCollaboration';
 import type { Collaborator } from '@/hooks/useCollaboration';
 import { updateStep, createStep, deleteStep, reorderSteps, duplicateStep } from '@/lib/api/steps';
-import { getTutorial } from '@/lib/api/tutorials';
+import { getTutorial, TutorialApiError } from '@/lib/api/tutorials';
 import { logError } from '@/lib/logging/logger';
 import { hasGuideConfig } from '@/lib/follow';
 import { LEGACY_INTERNAL_IDENTIFIERS } from '@/lib/brand';
 import type { Step, Tutorial } from '@/types';
+import type { ManualQualityIssue } from '@/lib/manual-quality';
+import { hasEntitlement } from '@/lib/entitlements';
 
 const TOP_BAR_ICON_SIZE = 14;
 
@@ -45,6 +48,7 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
     followConfig: (s as Step & { follow_config?: import('@/types').FollowConfig | null }).follow_config ?? null,
     description: s.user_script || s.ai_description || '',
     screenshotUrl: s.screenshot_url || undefined,
+    imageAltText: s.image_alt_text ?? null,
     originalScreenshotUrl: (s as Step & { original_screenshot_url?: string | null }).original_screenshot_url ?? null,
     annotations: (s.user_annotations as import('@/components/editor/ImageAnnotationEditor').Annotation[] | null) ?? [],
     pageUrl:         s.page_url        ?? null,
@@ -85,6 +89,9 @@ export default function EditorPage() {
   const searchParams = useSearchParams();
   const { tutorial, loading, error, publish, unpublish } = useTutorial(id);
   const { user } = useAuth();
+  const tutorialEntitlements = (tutorial as Tutorial & { entitlements?: { ai_rewrite?: boolean; office_export?: boolean; protected_sharing?: boolean } } | null)?.entitlements;
+  const canUseAiRewrite = tutorialEntitlements?.ai_rewrite ?? hasEntitlement(user?.plan, 'ai_rewrite');
+  const canUseOfficeExport = tutorialEntitlements?.office_export ?? hasEntitlement(user?.plan, 'office_export');
   const isRecordingFinalizeView = searchParams.get('from') === 'recording';
 
   const [title, setTitle] = useState('');
@@ -92,6 +99,10 @@ export default function EditorPage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [titleDirty, setTitleDirty] = useState(false);
   const [refiningText, setRefiningText] = useState(false);
+  const [qualityIssues, setQualityIssues] = useState<ManualQualityIssue[]>([]);
+  const [regenerateNotice, setRegenerateNotice] = useState<string | null>(null);
+  const [regenerateFailed, setRegenerateFailed] = useState(false);
+  const [showRefineConfirm, setShowRefineConfirm] = useState(false);
   const [bulkColorOpen, setBulkColorOpen] = useState(false);
   // 녹화 직후 진입 — 스텝 생성 대기 폴링
   const [pollingState, setPollingState] = useState<'idle' | 'polling' | 'timeout'>('idle');
@@ -108,6 +119,8 @@ export default function EditorPage() {
   const collabToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stepSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const tempIdCounter = useRef(0);
+  const refineAbortRef = useRef<AbortController | null>(null);
+  const refineCancelReasonRef = useRef<'user' | 'timeout' | null>(null);
   const [tocSelectedIds, setTocSelectedIds] = useState<Set<string>>(new Set());
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [autoGenProgress, setAutoGenProgress] = useState<{ done: number; total: number } | null>(null);
@@ -212,6 +225,10 @@ export default function EditorPage() {
   }, [manualSteps]);
 
   const handleDownload = useCallback(async (fmt: 'pdf' | 'pptx' | 'docx') => {
+    if (fmt !== 'pdf' && !canUseOfficeExport) {
+      window.location.assign('/landingpage#pricing');
+      return;
+    }
     setDownloadingFmt(fmt);
     try {
       const res = await fetch(`/api/export/${fmt}/${id}`);
@@ -230,7 +247,7 @@ export default function EditorPage() {
     } finally {
       setDownloadingFmt(null);
     }
-  }, [id, title]);
+  }, [canUseOfficeExport, id, title]);
 
 
   // Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y shortcuts
@@ -362,40 +379,73 @@ export default function EditorPage() {
   // Autosave title
   useAutosave(id, titleDirty ? { title } : null);
 
-  // 전체 문장 다듬기 — 모든 스텝의 설명 문장을 매뉴얼 가이드라인에 맞게 일괄 정제
-  const handleRefineAllText = useCallback(async () => {
-    const allWithText = manualSteps
-      .filter(s => !s.id.startsWith('step-'))
-      .map(s => ({ id: s.id, text: s.description.replace(/<[^>]+>/g, '').trim() }));
-    if (!allWithText.some(s => s.text)) return;
+  // 기존 매뉴얼까지 목적 중심 제목·본문으로 다시 생성한다.
+  const refineAllText = useCallback(async () => {
+    if (refineAbortRef.current) return;
+    if (!manualSteps.some(step => !step.id.startsWith('step-'))) {
+      setRegenerateNotice('AI로 다시 작성할 저장된 단계가 없습니다. 잠시 후 다시 시도해주세요.');
+      setRegenerateFailed(true);
+      return;
+    }
+    const controller = new AbortController();
+    refineAbortRef.current = controller;
+    refineCancelReasonRef.current = null;
+    const timeoutId = setTimeout(() => {
+      refineCancelReasonRef.current = 'timeout';
+      controller.abort();
+    }, 45_000);
     setRefiningText(true);
+    setRegenerateNotice(null);
+    setRegenerateFailed(false);
     try {
-      const res = await fetch('/api/ai/rewrite-all', {
+      const res = await fetch(`/api/tutorials/${id}/regenerate-content`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          steps: allWithText,
-          instruction: '매뉴얼 가이드라인에 맞게 다듬어줘: 행동 하나만, 1문장, 존댓말, 특정 상품명/수량 제거, 결과 설명 문장 금지',
-        }),
+        signal: controller.signal,
       });
-      if (!res.ok) return;
-      const { results } = await res.json();
-      if (!Array.isArray(results)) return;
-      const updated = new Map<string, string>(
-        results
-          .filter((r: { id: string; result: string }) => r.result)
-          .map((r: { id: string; result: string }) => [r.id, r.result])
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? '전체 재작성에 실패했습니다.');
+      const regenerated = new Map<string, { user_title: string; user_script: string }>(
+        (Array.isArray(data.steps) ? data.steps : []).map((step: { id: string; user_title: string; user_script: string }) => [step.id, step])
       );
-      if (updated.size === 0) return;
-      const next = manualSteps.map(s => updated.has(s.id) ? { ...s, description: updated.get(s.id)! } : s);
+      const next = manualSteps.map(step => {
+        const copy = regenerated.get(step.id);
+        return copy ? { ...step, actionTitle: copy.user_title, description: copy.user_script } : step;
+      });
       setManualStepsWithHistory(next);
-      next.filter(s => updated.has(s.id)).forEach(s =>
-        updateStep(s.id, { user_script: s.description || null }).catch(() => {})
-      );
+      if (data.title) {
+        setTitle(data.title);
+        setTitleDirty(false);
+      }
+      setQualityIssues(current => current.filter(issue => !['tutorial_title', 'step_title', 'step_script', 'duplicate_title'].includes(issue.code)));
+      setRegenerateNotice(`전체 ${regenerated.size}단계의 제목과 본문을 다시 작성했습니다.`);
+    } catch (err) {
+      const aborted = typeof err === 'object' && err !== null && 'name' in err && (err as { name?: unknown }).name === 'AbortError';
+      if (aborted) {
+        const timedOut = refineCancelReasonRef.current === 'timeout';
+        setRegenerateNotice(timedOut ? 'AI 재작성이 45초를 초과했습니다. 다시 시도해주세요.' : 'AI 재작성을 취소했습니다.');
+        setRegenerateFailed(timedOut);
+      } else {
+        setRegenerateNotice(err instanceof Error ? err.message : '전체 재작성에 실패했습니다.');
+        setRegenerateFailed(true);
+      }
     } finally {
+      clearTimeout(timeoutId);
+      if (refineAbortRef.current === controller) refineAbortRef.current = null;
+      refineCancelReasonRef.current = null;
       setRefiningText(false);
     }
-  }, [manualSteps, setManualStepsWithHistory]);
+  }, [id, manualSteps, setManualStepsWithHistory]);
+
+  const handleRefineAllText = useCallback(() => {
+    setShowRefineConfirm(true);
+  }, []);
+
+  const cancelRefineAllText = useCallback(() => {
+    if (!refineAbortRef.current) return;
+    refineCancelReasonRef.current = 'user';
+    refineAbortRef.current.abort();
+  }, []);
 
   const performDeleteStep = useCallback((stepId: string) => {
     const next = manualSteps.filter(s => s.id !== stepId).map((s, i) => ({ ...s, number: i + 1 }));
@@ -406,7 +456,7 @@ export default function EditorPage() {
     if (!stepId.startsWith('step-')) {
       deleteStep(stepId).catch((e) => logError('step.delete.fail', { tutorialId: id, stepId, message: e instanceof Error ? e.message : String(e) }));
     }
-  }, [manualSteps, activeId, setManualStepsWithHistory]);
+  }, [id, manualSteps, activeId, setManualStepsWithHistory]);
 
   const handleDeleteStep = useCallback((stepId: string) => setPendingDeleteId(stepId), []);
 
@@ -522,6 +572,8 @@ export default function EditorPage() {
   }
 
   const createdAt = new Date(tutorial.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+
+  const activeShareStep = manualSteps.find(step => step.id === activeId);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
@@ -707,13 +759,13 @@ export default function EditorPage() {
                       { fmt: 'pptx' as const, label: 'PowerPoint', desc: '.pptx' },
                       { fmt: 'docx' as const, label: 'Word 문서', desc: '.docx' },
                     ]).map(opt => (
-                      <button key={opt.fmt} onClick={() => handleDownload(opt.fmt)} disabled={!!downloadingFmt}
-                        style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 10px', border: 'none', borderRadius: '6px', background: 'transparent', cursor: downloadingFmt ? 'not-allowed' : 'pointer', textAlign: 'left', fontSize: '12.5px', color: '#374151' }}
+                      <button key={opt.fmt} onClick={() => handleDownload(opt.fmt)} disabled={!!downloadingFmt || (opt.fmt !== 'pdf' && !canUseOfficeExport)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 10px', border: 'none', borderRadius: '6px', background: 'transparent', cursor: downloadingFmt || (opt.fmt !== 'pdf' && !canUseOfficeExport) ? 'not-allowed' : 'pointer', textAlign: 'left', fontSize: '12.5px', color: '#374151', opacity: opt.fmt !== 'pdf' && !canUseOfficeExport ? 0.5 : 1 }}
                         onMouseEnter={e => { if (!downloadingFmt) e.currentTarget.style.background = '#F3F4F6'; }}
                         onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
                         <Download size={15} style={{ color: '#9CA3AF', flexShrink: 0 }} />
                         <span style={{ flex: 1, fontWeight: 500 }}>{opt.label}</span>
-                        <span style={{ fontSize: '11px', color: '#9CA3AF' }}>{downloadingFmt === opt.fmt ? '생성 중…' : opt.desc}</span>
+                        <span style={{ fontSize: '11px', color: '#9CA3AF' }}>{downloadingFmt === opt.fmt ? '생성 중…' : opt.fmt !== 'pdf' && !canUseOfficeExport ? 'Basic 이상' : opt.desc}</span>
                       </button>
                     ))}
                   </div>
@@ -778,8 +830,14 @@ export default function EditorPage() {
               <button
                 onClick={async () => {
                   setPublishing(true);
-                  try { await publish(); }
-                  catch { alert('게시에 실패했습니다. 다시 시도해주세요.'); }
+                  setRegenerateNotice(null);
+                  try {
+                    await publish();
+                    setQualityIssues([]);
+                  } catch (err) {
+                    if (err instanceof TutorialApiError && err.issues.length > 0) setQualityIssues(err.issues);
+                    else setRegenerateNotice(err instanceof Error ? err.message : '게시에 실패했습니다. 다시 시도해주세요.');
+                  }
                   finally { setPublishing(false); }
                 }}
                 disabled={publishing}
@@ -943,13 +1001,28 @@ export default function EditorPage() {
             </div>
             <button
               onClick={handleRefineAllText}
-              disabled={refiningText}
-              title="AI로 모든 스텝의 설명 문장을 매뉴얼 톤으로 다듬기"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', flexShrink: 0, height: '28px', padding: '0 10px', borderRadius: '6px', border: '1px solid #E5E7EB', background: 'white', color: '#12B886', fontSize: '12px', fontWeight: 500, cursor: refiningText ? 'not-allowed' : 'pointer', opacity: refiningText ? 0.65 : 1, transition: 'all 0.15s' }}
+              disabled={refiningText || !canUseAiRewrite}
+              title={canUseAiRewrite ? '기존 매뉴얼을 포함해 전체 제목·본문을 사용자 목적 중심으로 다시 작성' : 'Basic 이상 플랜에서 사용할 수 있습니다.'}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', flexShrink: 0, height: '28px', padding: '0 10px', borderRadius: '6px', border: '1px solid #E5E7EB', background: 'white', color: '#12B886', fontSize: '12px', fontWeight: 500, cursor: refiningText || !canUseAiRewrite ? 'not-allowed' : 'pointer', opacity: refiningText || !canUseAiRewrite ? 0.55 : 1, transition: 'all 0.15s' }}
             >
               {refiningText ? <Loader2 size={TOP_BAR_ICON_SIZE} style={{ animation: 'spin 1s linear infinite' }} /> : <Wand2 size={TOP_BAR_ICON_SIZE} />}
-              전체 문장 다듬기
+              전체 제목·본문 AI 재작성
             </button>
+            {refiningText && (
+              <button onClick={cancelRefineAllText} style={{ height: '28px', padding: '0 9px', borderRadius: '6px', border: '1px solid #FCA5A5', background: '#FFF7F7', color: '#B91C1C', fontSize: '11.5px', fontWeight: 600, cursor: 'pointer' }}>
+                취소
+              </button>
+            )}
+            {!refiningText && regenerateFailed && (
+              <button onClick={() => void refineAllText()} style={{ height: '28px', padding: '0 9px', borderRadius: '6px', border: '1px solid #FCA5A5', background: '#FFF7F7', color: '#B91C1C', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer' }}>
+                다시 시도
+              </button>
+            )}
+            {regenerateNotice && (
+              <span title={regenerateNotice} style={{ maxWidth: 210, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '11px', color: /실패|초과|취소/.test(regenerateNotice) ? '#DC2626' : '#059669' }}>
+                {regenerateNotice}
+              </span>
+            )}
             {/* AI 자동 생성 진행 인디케이터 */}
             {autoGenProgress && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, fontSize: '11.5px', color: '#12B886' }}>
@@ -964,6 +1037,7 @@ export default function EditorPage() {
           <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
           <ManualEditor
             steps={manualSteps}
+            aiRewriteEnabled={canUseAiRewrite}
             hideToc
             activeId={activeId}
             onActiveChange={setActiveId}
@@ -1016,6 +1090,7 @@ export default function EditorPage() {
                 ...(patch.titleFontSize !== undefined ? { title_font_size: patch.titleFontSize } : {}),
                 ...(patch.followConfig !== undefined ? { follow_config: patch.followConfig } : {}),
                 ...(patch.description !== undefined ? { user_script: patch.description || null } : {}),
+                ...(patch.imageAltText !== undefined ? { image_alt_text: patch.imageAltText || null } : {}),
                 ...(patch.annotations !== undefined ? { user_annotations: patch.annotations } : {}),
                 ...(patch.imageZoom !== undefined ? { image_zoom: patch.imageZoom } : {}),
                 ...(patch.imageOffsetX !== undefined ? { image_offset_x: patch.imageOffsetX } : {}),
@@ -1077,17 +1152,49 @@ export default function EditorPage() {
           onClose={() => setShowExport(false)}
         />
       )}
+      {showRefineConfirm && (
+        <div onClick={() => setShowRefineConfirm(false)} style={{ position: 'fixed', inset: 0, zIndex: 2100, background: 'rgba(10,10,18,0.50)', backdropFilter: 'blur(3px)', display: 'grid', placeItems: 'center', padding: 20 }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="refine-confirm-title" onClick={event => event.stopPropagation()} style={{ width: '100%', maxWidth: 400, borderRadius: 16, background: 'white', padding: 24, boxShadow: '0 20px 60px rgba(0,0,0,0.28)' }}>
+            <div style={{ width: 42, height: 42, borderRadius: 12, display: 'grid', placeItems: 'center', background: '#E8FFF7', color: '#009B8E', marginBottom: 14 }}><Wand2 size={20} /></div>
+            <h2 id="refine-confirm-title" style={{ margin: '0 0 8px', fontSize: 17, color: '#111827' }}>전체 문구를 AI로 다시 작성할까요?</h2>
+            <p style={{ margin: '0 0 20px', color: '#6B7280', fontSize: 13, lineHeight: 1.65 }}>현재 단계의 제목과 본문을 사용자 목적 중심으로 다듬습니다. 작업 중에는 취소할 수 있고, 실패하면 다시 시도할 수 있습니다.</p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button onClick={() => setShowRefineConfirm(false)} style={{ height: 38, padding: '0 15px', borderRadius: 9, border: '1px solid #D1D5DB', background: 'white', color: '#374151', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>취소</button>
+              <button onClick={() => { setShowRefineConfirm(false); void refineAllText(); }} style={{ height: 38, padding: '0 16px', borderRadius: 9, border: 'none', background: 'linear-gradient(135deg,#009B8E,#12B886)', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>AI 재작성 시작</button>
+            </div>
+          </div>
+        </div>
+      )}
       {showShare && tutorial && (
         <ShareModal
           title={title}
           shareToken={(tutorial as Tutorial & { share_token?: string | null }).share_token ?? null}
           shareUrl={(tutorial as Tutorial & { share_token?: string | null }).share_token ? `${typeof window !== 'undefined' ? window.location.origin : ''}/play/${(tutorial as Tutorial & { share_token?: string | null }).share_token}` : null}
           tutorialId={id}
+          defaultMode="document"
+          onRequestRegenerate={() => setShowRefineConfirm(true)}
           hasPassword={!!(tutorial as Tutorial & { share_password?: string | null }).share_password}
+          passwordProtectionEnabled={tutorialEntitlements?.protected_sharing ?? hasEntitlement(user?.plan, 'protected_sharing')}
+          shareStep={activeShareStep ? { id: activeShareStep.id, number: activeShareStep.number, title: activeShareStep.actionTitle } : undefined}
           visibility={(tutorial as Tutorial & { visibility?: 'private' | 'public' }).visibility}
           onPublishAndShare={publish}
           onUnpublish={unpublish}
           onClose={() => setShowShare(false)}
+        />
+      )}
+
+      {qualityIssues.length > 0 && (
+        <ManualQualityDialog
+          issues={qualityIssues}
+          regenerating={refiningText}
+          regenerateMessage={regenerateNotice}
+          onClose={() => setQualityIssues([])}
+          onRegenerate={refineAllText}
+          onSelectStep={stepNumber => {
+            const target = manualSteps.find(step => step.number === stepNumber);
+            if (target) setActiveId(target.id);
+            setQualityIssues([]);
+          }}
         />
       )}
 

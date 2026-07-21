@@ -36,6 +36,8 @@ export function isLowQualityManualScript(value: string | null | undefined): bool
   if (text.length > MAX_SCRIPT_LENGTH) return true;
   if (text.length < 6) return true;
   if (/^(확인합니다|클릭합니다|선택합니다|입력합니다)\.?$/.test(text)) return true;
+  if (/^(?:검색어|내용)(?:을|를)?\s*(?:입력|작성)합니다\.?$/.test(text)) return true;
+  if (/^입력\s*영역(?:을|를)?\s*선택합니다\.?$/.test(text)) return true;
   return isLowQualityCaptureScript(text);
 }
 

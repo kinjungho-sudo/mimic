@@ -15,8 +15,8 @@ using System.Windows.Forms;
 [assembly: AssemblyCompany("Parro")]
 [assembly: AssemblyProduct("Parro Desktop")]
 [assembly: AssemblyCopyright("Copyright © Parro 2026")]
-[assembly: AssemblyVersion("0.3.1.0")]
-[assembly: AssemblyFileVersion("0.3.1.0")]
+[assembly: AssemblyVersion("0.5.0.0")]
+[assembly: AssemblyFileVersion("0.5.0.0")]
 
 namespace Parro.Desktop.Setup
 {
@@ -130,6 +130,7 @@ namespace Parro.Desktop.Setup
             StartPosition = FormStartPosition.CenterScreen;
             BackColor = Color.White;
             Font = new Font("Segoe UI", 9F);
+            AutoScaleMode = AutoScaleMode.Dpi;
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
 
             Panel brandPanel = new Panel();
@@ -150,7 +151,7 @@ namespace Parro.Desktop.Setup
             Label brandCopy = MakeLabel("평소처럼 클릭하면\r\n매뉴얼이 완성됩니다.", 39, 178, 160, 60, 10F, FontStyle.Regular, Color.FromArgb(176, 210, 201));
             brandCopy.AutoSize = false;
             brandPanel.Controls.Add(brandCopy);
-            Label version = MakeLabel("DESKTOP  0.3.1", 39, 388, 150, 24, 8F, FontStyle.Bold, Color.FromArgb(78, 205, 183));
+            Label version = MakeLabel("DESKTOP  0.5.0", 39, 388, 150, 24, 8F, FontStyle.Bold, Color.FromArgb(78, 205, 183));
             brandPanel.Controls.Add(version);
 
             Panel footer = new Panel();
@@ -413,6 +414,9 @@ namespace Parro.Desktop.Setup
             label.ForeColor = color;
             label.BackColor = Color.Transparent;
             label.AutoSize = false;
+            label.UseCompatibleTextRendering = true;
+            label.UseMnemonic = false;
+            label.Padding = new Padding(0, 1, 6, 0);
             return label;
         }
 
@@ -426,6 +430,8 @@ namespace Parro.Desktop.Setup
             button.FlatAppearance.BorderColor = Color.FromArgb(202, 213, 210);
             button.BackColor = Color.White;
             button.Cursor = Cursors.Hand;
+            button.UseCompatibleTextRendering = true;
+            button.UseMnemonic = false;
             return button;
         }
 
@@ -442,11 +448,12 @@ namespace Parro.Desktop.Setup
     internal static class InstallerEngine
     {
         internal const string HostName = "com.mimic.desktop_companion.dev";
-        internal const string ProductVersion = "0.3.1";
+        internal const string ProductVersion = "0.5.0";
         private const string NativeHostRegistry = @"Software\Google\Chrome\NativeMessagingHosts\com.mimic.desktop_companion.dev";
         private const string UninstallRegistry = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\ParroDesktop";
         private static readonly string[] PayloadFiles = { "node.exe", "host.js", "capture-agent.ps1", "controller.ps1", "parro.ico", "ParroDesktop.exe" };
         private static readonly string[] DefaultExtensionIds = {
+            "lefkpmfgdbhckcemfghpegleknaepekm",
             "pnkkalnfddapkmiobbhnkbhplakamaok",
             "dhfcmomnambegkibjnandckacihnaelb",
             "ehbhcdkapcbfehinjapabgoegcjmmbgd"

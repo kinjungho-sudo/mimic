@@ -21,7 +21,7 @@ const navItems = [
     icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>,
   },
   {
-    label: 'Pro 대기자',
+    label: '출시 알림',
     href: '/admin/pro-signups',
     icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
   },
@@ -46,8 +46,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', minHeight: '100vh', fontFamily: "'Pretendard', 'Pretendard Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif", fontSize: '13.5px', color: '#111827' }}>
-      <aside style={{ background: '#0F172A', borderRight: '1px solid #1E293B', padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: '4px', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto' }}>
+    <div className="admin-shell" style={{ display: 'grid', gridTemplateColumns: '220px 1fr', minHeight: '100vh', fontFamily: "'Pretendard', 'Pretendard Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif", fontSize: '13.5px', color: '#111827' }}>
+      <aside className="admin-sidebar" style={{ background: '#0F172A', borderRight: '1px solid #1E293B', padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: '4px', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px 16px' }}>
           <BrandMark size={28} />
           <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 400 }}>Admin</span>
@@ -73,7 +73,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </aside>
 
-      <main style={{ background: '#F8FAFC', minHeight: '100vh' }}>
+      <main className="admin-main" style={{ background: '#F8FAFC', minHeight: '100vh' }}>
         {children}
       </main>
     </div>

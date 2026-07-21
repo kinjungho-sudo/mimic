@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef, useId } from 'react';
-import { AnnotationPreview } from '@/components/editor/AnnotationPreview';
-import { ParroMascot } from '@/components/brand/ParroMascot';
+import { ParroMascot, type ParroMascotState } from '@/components/brand/ParroMascot';
 import { BRAND_COLORS } from '@/lib/brand';
+import { resolveImageAlt } from '@/lib/image-alt';
+import { resolveGuideTargetRect } from '@/lib/follow-target';
 import type { Annotation } from '@/components/editor/ImageAnnotationEditor';
 
 // 따라하기 시각 레이어(이미지 + 핫스팟 인디케이터 + AI 캐릭터 말풍선).
@@ -12,28 +13,34 @@ import type { Annotation } from '@/components/editor/ImageAnnotationEditor';
 export const CORNER = 1.5; // 좌상단 0,0 가짜 핫스팟(이동/캡처 단계) 판정 임계
 const MAX_AUTO_ZOOM = 1.6;
 const GUIDE_GRADIENT = `linear-gradient(135deg,${BRAND_COLORS.primary},${BRAND_COLORS.guide})`;
-const GUIDE_RING = 'rgba(0,155,142,0.20)';
+const TARGET_GREEN = '#12B886';
+const TARGET_RING = 'rgba(18,184,134,0.34)';
+const TARGET_RING_SOFT = 'rgba(23,201,182,0.24)';
+const TARGET_RING_STRONG = 'rgba(18,184,134,0.96)';
 const GUIDE_RING_SOFT = 'rgba(0,155,142,0.14)';
 const GUIDE_RING_STRONG = 'rgba(0,155,142,0.28)';
 const GUIDE_SHADOW = 'rgba(0,155,142,0.34)';
+const COACH_SIZE = 48;
+const TARGET_CLEARANCE = 72;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
-export function Mascot({ size = 40 }: { size?: number }) {
+export function Mascot({ size = 40, state = 'talk' }: { size?: number; state?: ParroMascotState }) {
   return (
     <div style={{ width: size, height: size, borderRadius: '14px', background: 'linear-gradient(135deg,#F1FBF9,#E4F3F6)', display: 'grid', placeItems: 'center', flexShrink: 0, boxShadow: `0 4px 14px ${GUIDE_SHADOW}`, overflow: 'hidden' }}>
-      <ParroMascot size={size * 0.96} />
+      <ParroMascot size={size * 0.96} state={state} />
     </div>
   );
 }
 
 interface Props {
   screenshotUrl?: string | null;
+  imageAltText?: string | null;
   hotspotX: number | null;          // 0~100 (%) — none/이동단계는 null
   hotspotY: number | null;
   allowCornerHotspot?: boolean;     // true=사용자가 직접 찍은 좌상단 핫스팟 허용(0,0 가짜 센티넬 억제 해제)
   kind: 'click' | 'type';
   guideMode?: 'interactive' | 'explanation';
-  annotations?: Annotation[] | null;
+  annotations?: Annotation[] | null; // 편집/문서용 데이터. 학습 가이드 화면에는 합성하지 않는다.
   typeText?: string | null;         // type 인디케이터에 표시/입력될 텍스트
   typeInputMode?: 'copy' | 'auto' | null; // copy=복사 후 직접 입력, auto=자동 타이핑 연출
   typeBoxWidth?: number | null;     // type 인디케이터 너비(px)
@@ -54,6 +61,9 @@ interface Props {
   onImageClick?: (e: React.MouseEvent<HTMLDivElement>) => void;
   onMascotClick?: (e: React.MouseEvent) => void;
   onBubbleClick?: (e: React.MouseEvent) => void;   // 플레이어: 접기
+  typeValue?: string;
+  onTypeValueChange?: (value: string) => void;
+  onTypeComplete?: (value: string) => void;
   bubbleAnchor?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | null;  // 말풍선 고정 위치. 미설정=핫스팟 상대 자동
   wrapRef?: React.RefObject<HTMLDivElement>; // 스튜디오 드래그 측정용
   children?: React.ReactNode;       // 이미지 위 추가 오버레이(스튜디오 드래그 핸들 등)
@@ -63,13 +73,13 @@ interface Props {
 }
 
 export function FollowStage({
-  screenshotUrl, hotspotX: hx, hotspotY: hy, allowCornerHotspot = false, kind, typeText, typeInputMode, typeBoxWidth, typeBoxHeight, typeTextColor, guideMode = 'interactive', annotations = null, animateType = false,
+  screenshotUrl, imageAltText, hotspotX: hx, hotspotY: hy, allowCornerHotspot = false, kind, typeText, typeInputMode, typeBoxWidth, typeBoxHeight, typeTextColor, guideMode = 'interactive', animateType = false,
   showTypeIndicator = true,
   isFirstStep = false, stepNumber = null, title, body,
   minimized = false, showAudioBadge = false, nudge = false, spotlight = false,
   imageCursor = 'default', imgMaxHeight = 'calc(100vh - 150px)',
   bubbleAnchor, animPhase, domRect = null,
-  onImageClick, onMascotClick, onBubbleClick, wrapRef, children,
+  onImageClick, onMascotClick, onBubbleClick, typeValue = '', onTypeValueChange, onTypeComplete, wrapRef, children,
 }: Props) {
   const innerRef = useRef<HTMLDivElement>(null);
   const ref = wrapRef ?? innerRef;
@@ -108,6 +118,8 @@ export function FollowStage({
   // 좌상단 0,0 가짜 핫스팟(자동추론 아티팩트)은 억제하되, 사용자가 직접 찍은 좌표는 그대로 인정
   const hasHotspot = hx != null && hy != null && (allowCornerHotspot || !(hx < CORNER && hy < CORNER));
   const isType = kind === 'type';
+  // 큰 카드/컨테이너 DOM은 실제 클릭 지점 주변만 학습 타깃으로 표시한다.
+  const targetRect = resolveGuideTargetRect(domRect, hx, hy, box.w, box.h);
   // 스포트라이트 구멍 반경: 이미지 너비의 9%, 최대 80px (domRect 없을 때 폴백)
   const spotR = box.w ? Math.min(Math.round(box.w * 0.09), 80) : 72;
 
@@ -118,12 +130,12 @@ export function FollowStage({
   const showOverlays = !isAnimated || phase === 'focused'; // 핫스팟·말풍선: focused 시만 표시
 
   // 줌 계산 — domRect 요소 중심으로 확대 (스케일: 기하평균 기반, 1.5~4배 클램프)
-  const zoomCX = domRect ? domRect.x + domRect.w / 2 : (hx ?? 50);
-  const zoomCY = domRect ? domRect.y + domRect.h / 2 : (hy ?? 50);
-  const zoomScale = (domRect && isAnimated && phase !== 'raw')
-    ? clamp(40 / Math.sqrt(Math.max(domRect.w * domRect.h, 0.25)), 1.5, MAX_AUTO_ZOOM)
+  const zoomCX = targetRect ? targetRect.x + targetRect.w / 2 : (hx ?? 50);
+  const zoomCY = targetRect ? targetRect.y + targetRect.h / 2 : (hy ?? 50);
+  const zoomScale = (targetRect && isAnimated && phase !== 'raw')
+    ? clamp(40 / Math.sqrt(Math.max(targetRect.w * targetRect.h, 0.25)), 1.5, MAX_AUTO_ZOOM)
     : 1;
-  const zoomStyle = (domRect && isAnimated)
+  const zoomStyle = (targetRect && isAnimated)
     ? { transform: `scale(${zoomScale})`, transformOrigin: `${zoomCX}% ${zoomCY}%`, transition: phase === 'raw' ? 'none' : 'transform 1.4s ease-in-out' }
     : {};
   const typeStr = typeText ?? '';
@@ -132,7 +144,8 @@ export function FollowStage({
   const typeIndicatorWidth = typeBoxWidth != null ? clamp(typeBoxWidth, 120, 520) : null;
   const typeIndicatorHeight = clamp(typeBoxHeight ?? 38, 32, 96);
   const typeIndicatorFontSize = clamp(Math.round(typeIndicatorHeight * 0.34), 12, 18);
-  const showCopyControl = isType && !isAutoType && hasTypeText;
+  const hasInteractiveTypeInput = isType && !!onTypeValueChange;
+  const showCopyControl = isType && !hasInteractiveTypeInput && !isAutoType && hasTypeText;
   const copyTypeText = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!typeStr.trim()) return;
@@ -146,8 +159,8 @@ export function FollowStage({
   };
 
   // 말풍선 위치 — anchor 고정 위치 우선, 없으면 핫스팟 상대 위치
-  const BW = box.w ? clamp(box.w - 28, 170, 340) : 300;
-  const UNIT_W = BW + 50, UNIT_H = 132;
+  const BW = box.w ? clamp(box.w - 24, 160, 260) : 240;
+  const UNIT_W = BW + COACH_SIZE + 9, UNIT_H = 108;
   let bubbleLeft = 0, bubbleTop = 0, bubbleSide: 'left' | 'right' = 'right';
   if (bubbleAnchor && box.w && box.h) {
     const isRight = bubbleAnchor.includes('right');
@@ -157,8 +170,12 @@ export function FollowStage({
     bubbleTop = isBottom ? box.h - UNIT_H - 12 : 12;
   } else if (hasHotspot && box.w) {
     const hxPx = (hx! / 100) * box.w, hyPx = (hy! / 100) * box.h;
-    bubbleSide = hxPx < box.w / 2 ? 'right' : 'left';
-    bubbleLeft = bubbleSide === 'right' ? hxPx + 26 : hxPx - 26 - UNIT_W;
+    const targetLeftPx = targetRect ? (targetRect.x / 100) * box.w : hxPx;
+    const targetRightPx = targetRect ? ((targetRect.x + targetRect.w) / 100) * box.w : hxPx;
+    const targetCenterPx = (targetLeftPx + targetRightPx) / 2;
+    const edgeGap = TARGET_CLEARANCE;
+    bubbleSide = targetCenterPx < box.w / 2 ? 'right' : 'left';
+    bubbleLeft = bubbleSide === 'right' ? targetRightPx + edgeGap : targetLeftPx - edgeGap - UNIT_W;
     bubbleTop = hyPx - UNIT_H / 2;
     bubbleLeft = clamp(bubbleLeft, 8, Math.max(8, box.w - UNIT_W - 8));
     bubbleTop = clamp(bubbleTop, 8, Math.max(8, box.h - UNIT_H - 8));
@@ -171,9 +188,13 @@ export function FollowStage({
   if (!bubbleAnchor && hasHotspot && box.w && box.h && isAnimated) {
     const zoomCXpx = (zoomCX / 100) * box.w;
     const zoomCYpx = (zoomCY / 100) * box.h;
-    const visHxPx = zoomCXpx + ((hx! / 100) * box.w - zoomCXpx) * zoomScale;
     const visHyPx = zoomCYpx + ((hy! / 100) * box.h - zoomCYpx) * zoomScale;
-    outBubbleLeft = bubbleSide === 'right' ? visHxPx + 26 : visHxPx - 26 - UNIT_W;
+    const targetLeftPx = targetRect ? (targetRect.x / 100) * box.w : (hx! / 100) * box.w;
+    const targetRightPx = targetRect ? ((targetRect.x + targetRect.w) / 100) * box.w : (hx! / 100) * box.w;
+    const visTargetLeftPx = zoomCXpx + (targetLeftPx - zoomCXpx) * zoomScale;
+    const visTargetRightPx = zoomCXpx + (targetRightPx - zoomCXpx) * zoomScale;
+    const edgeGap = TARGET_CLEARANCE;
+    outBubbleLeft = bubbleSide === 'right' ? visTargetRightPx + edgeGap : visTargetLeftPx - edgeGap - UNIT_W;
     outBubbleTop = visHyPx - UNIT_H / 2;
     outBubbleLeft = clamp(outBubbleLeft, 8, Math.max(8, box.w - UNIT_W - 8));
     outBubbleTop = clamp(outBubbleTop, 8, Math.max(8, box.h - UNIT_H - 8));
@@ -181,7 +202,7 @@ export function FollowStage({
 
   const hint = guideMode === 'explanation'
     ? "안내를 확인한 뒤 아래 '다음 →'을 눌러 계속하세요"
-    : !hasHotspot ? "아래 '다음 →'을 눌러 계속하세요" : isType ? '여기에 입력하면 돼요' : '표시된 곳을 클릭하면 다음으로 넘어가요';
+    : !hasHotspot ? "아래 '다음 →'을 눌러 계속하세요" : isType ? '힌트를 보고 직접 입력하면 다음으로 넘어가요' : '반짝이는 녹색 영역을 클릭하면 다음으로 넘어가요';
   // 말풍선은 평문 렌더 — 설명에 섞인 HTML 태그(<font>, <b> 등)/엔티티가 그대로 노출되지 않도록 제거
   const plainBody = body
     ? body.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '')
@@ -192,23 +213,23 @@ export function FollowStage({
   const showHint = !hasHotspot || isType || isFirstStep;
 
   const Bubble = (
-    <div style={{ background: 'white', borderRadius: '14px', padding: '18px 20px', boxShadow: '0 16px 48px rgba(0,0,0,0.30), 0 2px 8px rgba(0,0,0,0.12)', maxWidth: `${BW}px`, animation: nudge ? 'mfp-nudge 0.4s' : undefined }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '9px' }}>
+    <div style={{ background: 'rgba(255,255,255,0.97)', borderRadius: '11px', padding: '10px 12px', boxShadow: '0 10px 28px rgba(0,0,0,0.28), 0 1px 5px rgba(0,0,0,0.12)', maxWidth: `${BW}px`, animation: nudge ? 'mfp-nudge 0.4s' : undefined }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '7px' }}>
         {stepNumber != null && (
-          <span style={{ flexShrink: 0, width: '24px', height: '24px', borderRadius: '50%', background: GUIDE_GRADIENT, color: '#fff', fontSize: '13px', fontWeight: 800, display: 'grid', placeItems: 'center', marginTop: '1px', boxShadow: `0 2px 6px ${GUIDE_SHADOW}` }}>{stepNumber}</span>
+          <span style={{ flexShrink: 0, width: '20px', height: '20px', borderRadius: '50%', background: GUIDE_GRADIENT, color: '#fff', fontSize: '11px', fontWeight: 800, display: 'grid', placeItems: 'center', boxShadow: `0 2px 6px ${GUIDE_SHADOW}` }}>{stepNumber}</span>
         )}
         {bubbleText && (
-          <div style={{ fontSize: '13.5px', color: '#4B5563', lineHeight: 1.55, flex: 1, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{bubbleText}</div>
+          <div style={{ fontSize: '12.5px', color: '#374151', lineHeight: 1.42, flex: 1, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{bubbleText}</div>
         )}
-        <span style={{ fontSize: '11px', color: '#C4C9D4', flexShrink: 0, marginTop: '2px' }}>—</span>
+        <span style={{ fontSize: '10px', color: '#C4C9D4', flexShrink: 0, marginTop: '1px' }}>—</span>
       </div>
-      {showHint && <div style={{ fontSize: '12px', color: BRAND_COLORS.primary, marginTop: '14px', fontWeight: 500 }}>{hint}</div>}
+      {showHint && <div style={{ fontSize: '10.5px', color: BRAND_COLORS.primary, marginTop: '6px', fontWeight: 600, lineHeight: 1.35 }}>{hint}</div>}
     </div>
   );
 
   const MascotBtn = (
     <button onClick={onMascotClick} title={showAudioBadge ? '음성 듣기' : '안내'} style={{ border: 'none', background: 'transparent', cursor: onMascotClick ? 'pointer' : 'default', padding: 0, position: 'relative' }}>
-      <Mascot />
+      <Mascot size={COACH_SIZE} />
       {showAudioBadge && <span style={{ position: 'absolute', bottom: -2, right: -2, width: 16, height: 16, borderRadius: '50%', background: '#fff', display: 'grid', placeItems: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.25)' }}><svg width="9" height="9" viewBox="0 0 24 24" fill={BRAND_COLORS.primary}><path d="M3 10v4h4l5 5V5L7 10H3z" /></svg></span>}
     </button>
   );
@@ -217,8 +238,8 @@ export function FollowStage({
   );
   const renderUnit = (side: 'left' | 'right' | 'bottom') => (
     minimized ? (
-      // side !== 'bottom': flex-end 정렬로 인한 mascot 하단 위치(UNIT_H - 40 = 92px)를 marginTop으로 보존 → 클릭 시 점프 없음
-      <button onClick={onMascotClick} title="안내 펼치기" style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, pointerEvents: 'auto', marginTop: side !== 'bottom' ? `${UNIT_H - 40}px` : undefined }}><Mascot /></button>
+      // 접고 펼칠 때 아바타의 세로 위치가 튀지 않도록 펼친 안내 높이를 보존한다.
+      <button onClick={onMascotClick} title="안내 펼치기" style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, pointerEvents: 'auto', marginTop: side !== 'bottom' ? `${UNIT_H - COACH_SIZE}px` : undefined }}><Mascot size={COACH_SIZE} state="idle" /></button>
     ) : (
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', pointerEvents: 'auto' }}>
         {side === 'left' ? <>{BubbleBox}{MascotBtn}</> : <>{MascotBtn}{BubbleBox}</>}
@@ -241,21 +262,17 @@ export function FollowStage({
     <div ref={ref} style={{ position: 'relative', display: 'inline-block', lineHeight: 0, cursor: imageCursor, maxWidth: '100%', maxHeight: '100%' }}>
       {/* 줌 래퍼 — domRect+animPhase 있을 때만 scale 적용. children(스튜디오 핸들)은 밖에 둠 */}
       {/* onClick은 스케일 적용된 이 div에 부착 — getBoundingClientRect가 줌 후 박스를 반환해 클릭 좌표가 원본 이미지 좌표로 정확히 매핑됨 */}
-      <div onClick={onImageClick} style={{ position: 'relative', lineHeight: 0, ...zoomStyle }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={screenshotUrl} alt={title} draggable={false} style={{ display: 'block', maxWidth: '100%', maxHeight: imgMaxHeight, width: 'auto', height: 'auto', userSelect: 'none' }} />
-        {!!annotations?.length && (
-          <AnnotationPreview annotations={annotations} imageUrl={screenshotUrl} />
-        )}
-
+        <div onClick={onImageClick} style={{ position: 'relative', lineHeight: 0, ...zoomStyle }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={screenshotUrl} alt={resolveImageAlt(imageAltText, title, body)} draggable={false} style={{ display: 'block', maxWidth: '100%', maxHeight: imgMaxHeight, width: 'auto', height: 'auto', userSelect: 'none' }} />
         {/* 스포트라이트 오버레이 — zooming부터 표시. domRect 있으면 직사각형 구멍, 없으면 원형 */}
-        {showMask && spotlight && hasHotspot && !isType && (
+        {showMask && spotlight && hasHotspot && (
           <svg aria-hidden style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 2, animation: 'mfp-spotlight-in 0.55s ease-out forwards' }}>
             <defs>
               <mask id={maskId}>
                 <rect width="100%" height="100%" fill="white" />
-                {domRect
-                  ? <rect x={`${domRect.x}%`} y={`${domRect.y}%`} width={`${domRect.w}%`} height={`${domRect.h}%`} rx="6" fill="black" />
+                {targetRect
+                  ? <rect x={`${targetRect.x}%`} y={`${targetRect.y}%`} width={`${targetRect.w}%`} height={`${targetRect.h}%`} rx="6" fill="black" />
                   : <circle cx={`${hx}%`} cy={`${hy}%`} r={spotR} fill="black" />
                 }
               </mask>
@@ -265,30 +282,51 @@ export function FollowStage({
         )}
 
         {/* DOM 직사각형 하이라이트 — focused 시 등장. domRect 있을 때만 */}
-        {showOverlays && domRect && hasHotspot && !isType && (
+        {showOverlays && targetRect && hasHotspot && !isType && (
           <div style={{
-            position: 'absolute', left: `${domRect.x}%`, top: `${domRect.y}%`,
-            width: `${domRect.w}%`, height: `${domRect.h}%`,
-            border: `2.5px solid ${BRAND_COLORS.guide}`, borderRadius: '6px',
-            boxShadow: `0 0 0 3px ${GUIDE_RING}`,
+            position: 'absolute', left: `${targetRect.x}%`, top: `${targetRect.y}%`,
+            width: `${targetRect.w}%`, height: `${targetRect.h}%`,
+            border: `3px solid ${TARGET_GREEN}`, borderRadius: '7px',
+            boxShadow: `0 0 0 4px ${TARGET_RING}, 0 0 24px rgba(18,184,134,0.62)`,
             pointerEvents: 'none', zIndex: 3,
-            animation: isAnimated ? 'mfp-rect-in 0.35s ease-out' : undefined,
+            animation: isAnimated ? 'mfp-rect-in 0.35s ease-out, mfp-target-glint 1.25s ease-in-out 0.35s infinite' : 'mfp-target-glint 1.25s ease-in-out infinite',
           }} />
         )}
 
-        {/* 클릭 인디케이터 — 물결 링만(중심 도트 없음). 버튼을 가리지 않게 작고 은은하게. focused 시만 */}
+        {/* 클릭 인디케이터 — 녹색 중심점과 넓게 퍼지는 3중 파문. focused 시만 */}
         {showOverlays && hasHotspot && !isType && (
-          <div style={{ position: 'absolute', left: `${hx}%`, top: `${hy}%`, transform: 'translate(-50%,-50%)', width: '16px', height: '16px', pointerEvents: 'none', zIndex: 4 }}>
-            <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: `2px solid ${GUIDE_RING_STRONG}`, animation: 'mfp-ripple 2s ease-out infinite' }} />
-            <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: `2px solid ${GUIDE_RING_SOFT}`, animation: 'mfp-ripple 2s ease-out infinite', animationDelay: '0.66s' }} />
+          <div style={{ position: 'absolute', left: `${hx}%`, top: `${hy}%`, transform: 'translate(-50%,-50%)', width: '24px', height: '24px', pointerEvents: 'none', zIndex: 4 }}>
+            <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: `3px solid ${TARGET_RING_STRONG}`, animation: 'mfp-click-ripple 1.45s ease-out infinite' }} />
+            <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: `3px solid ${TARGET_RING_STRONG}`, animation: 'mfp-click-ripple 1.45s ease-out infinite', animationDelay: '0.48s' }} />
+            <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: `3px solid ${TARGET_RING_SOFT}`, animation: 'mfp-click-ripple 1.45s ease-out infinite', animationDelay: '0.96s' }} />
+            <span style={{ position: 'absolute', left: '50%', top: '50%', width: '11px', height: '11px', transform: 'translate(-50%,-50%)', borderRadius: '50%', background: TARGET_GREEN, border: '2px solid #E8FFF7', boxShadow: '0 0 0 3px rgba(18,184,134,0.34), 0 2px 9px rgba(0,0,0,0.35)', animation: 'mfp-target-dot 0.9s ease-in-out infinite' }} />
           </div>
         )}
 
         {/* 타이핑 인디케이터 — focused 시만 */}
         {showTypeIndicator && showOverlays && hasHotspot && isType && (
-          <div style={{ position: 'absolute', left: `${hx}%`, top: `${hy}%`, transform: 'translate(-50%,-50%)', pointerEvents: showCopyControl ? 'auto' : 'none', zIndex: 4 }}>
+          <div style={{ position: 'absolute', left: `${hx}%`, top: `${hy}%`, transform: 'translate(-50%,-50%)', pointerEvents: hasInteractiveTypeInput || showCopyControl ? 'auto' : 'none', zIndex: 4 }}>
             <div style={{ position: 'relative', minWidth: typeIndicatorWidth == null ? '128px' : undefined, width: typeIndicatorWidth == null ? undefined : `${typeIndicatorWidth}px`, maxWidth: typeIndicatorWidth == null ? '320px' : undefined, height: `${typeIndicatorHeight}px`, borderRadius: '9px', border: `2px solid ${BRAND_COLORS.guide}`, background: 'rgba(255,255,255,0.96)', boxShadow: `0 0 0 4px ${GUIDE_RING_SOFT}, 0 6px 20px rgba(0,0,0,0.28)`, display: 'flex', alignItems: 'center', padding: '0 12px', animation: 'mfp-field 1.8s ease-in-out infinite' }}>
-              {hasTypeText ? (
+              {hasInteractiveTypeInput ? (
+                <input
+                  autoFocus
+                  aria-label={hasTypeText ? `${typeStr} 입력` : '텍스트 입력'}
+                  className="mfp-practice-input"
+                  value={typeValue}
+                  placeholder={hasTypeText ? typeStr : '직접 입력하세요'}
+                  onClick={event => event.stopPropagation()}
+                  onChange={event => {
+                    const nextValue = event.target.value;
+                    onTypeValueChange?.(nextValue);
+                    if (hasTypeText && nextValue === typeStr) onTypeComplete?.(nextValue);
+                  }}
+                  onKeyDown={event => {
+                    event.stopPropagation();
+                    if (event.key === 'Enter' && (hasTypeText ? typeValue === typeStr : typeValue.trim().length > 0)) onTypeComplete?.(typeValue);
+                  }}
+                  style={{ width: '100%', minWidth: 0, border: 'none', outline: 'none', background: 'transparent', color: typeTextColor ?? '#111827', fontSize: `${typeIndicatorFontSize}px`, fontWeight: 650, letterSpacing: '0.01em' }}
+                />
+              ) : hasTypeText ? (
                 <>
                   <span style={{ flex: 1, minWidth: 0, fontSize: `${typeIndicatorFontSize}px`, color: typeTextColor ?? '#111827', WebkitTextFillColor: typeTextColor ?? '#111827', fontWeight: 600, letterSpacing: '0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{shownType}</span>
                   {isAutoType ? (
@@ -306,7 +344,7 @@ export function FollowStage({
                 </>
               )}
             </div>
-            <span style={{ position: 'absolute', top: '-13px', left: '0', fontSize: '10px', fontWeight: 800, color: '#fff', background: BRAND_COLORS.guide, padding: '2px 8px', borderRadius: '8px 8px 8px 2px', boxShadow: '0 2px 8px rgba(0,0,0,0.3)', whiteSpace: 'nowrap', letterSpacing: '0.03em' }}>{isAutoType ? '⌨ 자동 입력' : '⌨ 복사 후 입력'}</span>
+            <span style={{ position: 'absolute', top: '-13px', left: '0', fontSize: '10px', fontWeight: 800, color: '#fff', background: BRAND_COLORS.guide, padding: '2px 8px', borderRadius: '8px 8px 8px 2px', boxShadow: '0 2px 8px rgba(0,0,0,0.3)', whiteSpace: 'nowrap', letterSpacing: '0.03em' }}>{hasInteractiveTypeInput ? '⌨ 직접 입력' : isAutoType ? '⌨ 자동 입력' : '⌨ 복사 후 입력'}</span>
           </div>
         )}
 
@@ -329,13 +367,16 @@ export function FollowStage({
       {children}
 
       <style>{`
-        @keyframes mfp-ripple { 0%{opacity:.8;transform:scale(0.4)} 100%{opacity:0;transform:scale(3.2)} }
+        @keyframes mfp-click-ripple { 0%{opacity:1;transform:scale(0.45)} 100%{opacity:0;transform:scale(5)} }
+        @keyframes mfp-target-dot { 0%,100%{filter:brightness(1);transform:translate(-50%,-50%) scale(1)} 50%{filter:brightness(1.35);transform:translate(-50%,-50%) scale(1.18)} }
+        @keyframes mfp-target-glint { 0%,100%{box-shadow:0 0 0 4px ${TARGET_RING},0 0 20px rgba(18,184,134,.5)} 50%{box-shadow:0 0 0 8px ${TARGET_RING_SOFT},0 0 38px rgba(23,201,182,.82)} }
         @keyframes mfp-caret { 50%{opacity:0} }
         @keyframes mfp-nudge { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
         @keyframes mfp-field { 0%,100%{box-shadow:0 0 0 4px ${GUIDE_RING_SOFT}, 0 6px 20px rgba(0,0,0,0.28)} 50%{box-shadow:0 0 0 7px ${GUIDE_RING_STRONG}, 0 6px 24px rgba(0,0,0,0.35)} }
         @keyframes mfp-spotlight-in { from{opacity:0} to{opacity:1} }
         @keyframes mfp-rect-in { from{opacity:0;transform:scale(0.96)} to{opacity:1;transform:scale(1)} }
         @keyframes mfp-bubble-in { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+        .mfp-practice-input::placeholder { color:#667085; opacity:.42; font-weight:600; }
       `}</style>
     </div>
   );

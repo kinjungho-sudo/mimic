@@ -62,7 +62,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   const { data: { publicUrl } } = supabase.storage.from('naviaction').getPublicUrl(path);
 
   // 최초 블러일 때만 원본 백업 (이미 블러된 이미지를 백업으로 덮어쓰지 않도록)
-  const update: Record<string, string> = { screenshot_url: publicUrl };
+  const update: Record<string, string | boolean> = { screenshot_url: publicUrl, pii_detected: false };
   if (!step.original_screenshot_url) {
     update.original_screenshot_url = step.screenshot_url;
   }
@@ -80,6 +80,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   return NextResponse.json({
     screenshot_url: publicUrl,
     original_screenshot_url: step.original_screenshot_url ?? step.screenshot_url,
+    pii_detected: false,
   });
 }
 
@@ -113,12 +114,12 @@ export async function DELETE(request: NextRequest, { params }: Params) {
 
   const { error: updErr } = await supabase
     .from('mm_steps')
-    .update({ screenshot_url: step.original_screenshot_url })
+    .update({ screenshot_url: step.original_screenshot_url, pii_detected: true })
     .eq('id', id);
 
   if (updErr) {
     return NextResponse.json({ error: 'Revert failed' }, { status: 500 });
   }
 
-  return NextResponse.json({ screenshot_url: step.original_screenshot_url });
+  return NextResponse.json({ screenshot_url: step.original_screenshot_url, pii_detected: true });
 }

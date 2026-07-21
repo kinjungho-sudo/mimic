@@ -50,10 +50,56 @@ function Write-IcoFromPngFiles {
   param([string[]]$PngPaths, [string]$Destination)
 
   $images = @($PngPaths | ForEach-Object {
-    $bytes = [System.IO.File]::ReadAllBytes($_)
     $bitmap = [System.Drawing.Bitmap]::FromFile($_)
     try {
-      [pscustomobject]@{ Bytes = $bytes; Width = $bitmap.Width; Height = $bitmap.Height }
+      # .NET Framework's Icon reader (also used by WinForms and shortcut tests)
+      # renders PNG-compressed ICO entries incorrectly on some Windows builds.
+      # Store standard 32-bit BGRA DIB entries with an AND transparency mask.
+      $dibStream = New-Object System.IO.MemoryStream
+      $dibWriter = New-Object System.IO.BinaryWriter($dibStream)
+      try {
+        $width = $bitmap.Width
+        $height = $bitmap.Height
+        $pixelBytes = $width * $height * 4
+        $maskStride = [int]([Math]::Ceiling($width / 32.0) * 4)
+        $maskBytes = $maskStride * $height
+        $dibWriter.Write([uint32]40)
+        $dibWriter.Write([int32]$width)
+        $dibWriter.Write([int32]($height * 2))
+        $dibWriter.Write([uint16]1)
+        $dibWriter.Write([uint16]32)
+        $dibWriter.Write([uint32]0)
+        $dibWriter.Write([uint32]$pixelBytes)
+        $dibWriter.Write([int32]0)
+        $dibWriter.Write([int32]0)
+        $dibWriter.Write([uint32]0)
+        $dibWriter.Write([uint32]0)
+        for ($y = $height - 1; $y -ge 0; $y--) {
+          for ($x = 0; $x -lt $width; $x++) {
+            $pixel = $bitmap.GetPixel($x, $y)
+            $dibWriter.Write([byte]$pixel.B)
+            $dibWriter.Write([byte]$pixel.G)
+            $dibWriter.Write([byte]$pixel.R)
+            $dibWriter.Write([byte]$pixel.A)
+          }
+        }
+        $mask = New-Object byte[] $maskBytes
+        for ($row = 0; $row -lt $height; $row++) {
+          $sourceY = $height - 1 - $row
+          for ($x = 0; $x -lt $width; $x++) {
+            if ($bitmap.GetPixel($x, $sourceY).A -lt 128) {
+              $byteIndex = ($row * $maskStride) + [int][Math]::Floor($x / 8.0)
+              $mask[$byteIndex] = $mask[$byteIndex] -bor (1 -shl (7 - ($x % 8)))
+            }
+          }
+        }
+        $dibWriter.Write($mask)
+        $dibWriter.Flush()
+        [pscustomobject]@{ Bytes = $dibStream.ToArray(); Width = $width; Height = $height }
+      } finally {
+        $dibWriter.Dispose()
+        $dibStream.Dispose()
+      }
     } finally {
       $bitmap.Dispose()
     }
@@ -105,7 +151,9 @@ function Assert-ParroExecutableIcon {
         $isTeal = $pixel.R -le 45 -and $pixel.G -ge 115 -and $pixel.B -ge 75
         $isLime = $pixel.R -ge 80 -and $pixel.R -le 180 -and $pixel.G -ge 165 -and $pixel.B -le 115
         if ($isTeal -or $isLime) { $parroColorPixels++ }
-        if ($pixel.B -ge ($pixel.R + 30) -and $pixel.B -ge ($pixel.G + 30)) { $legacyPurplePixels++ }
+        # Legacy MIMIC purple has meaningful red plus a strongly dominant blue.
+        # Requiring red avoids counting Parro's cyan/teal antialiasing as purple.
+        if ($pixel.R -ge 30 -and $pixel.G -lt 130 -and $pixel.B -ge ($pixel.R + 30) -and $pixel.B -ge ($pixel.G + 30)) { $legacyPurplePixels++ }
       }
     }
     if ($parroColorPixels -lt 3) {
@@ -196,7 +244,7 @@ if (-not (Test-Path -LiteralPath $outputPath) -or (Get-Item -LiteralPath $output
 foreach ($artifactPath in @($outputPath, $launcherPath)) {
   Assert-ParroExecutableIcon -ExecutablePath $artifactPath
   $version = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($artifactPath).FileVersion
-  if ($version -ne "0.3.1.0") {
+  if ($version -ne "0.5.0.0") {
     throw "Unexpected desktop artifact version '$version': $artifactPath"
   }
 }

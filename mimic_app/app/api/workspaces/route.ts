@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { z } from 'zod';
+import { requireUserEntitlement } from '@/lib/auth/entitlement-guard';
 
 const createSchema = z.object({ name: z.string().min(1).max(50) });
 
@@ -67,6 +68,8 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
   const supabase = createServiceRoleClient();
+  const entitlement = await requireUserEntitlement(auth.userId, 'team_workspace', supabase);
+  if (!entitlement.ok) return entitlement.response;
 
   const { data: ws, error } = await supabase
     .from('mm_workspaces')

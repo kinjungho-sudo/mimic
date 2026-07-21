@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { verifyPassword } from '@/lib/auth/password';
 import { isPaidPlan } from '@/lib/plan';
+import { hasEntitlement } from '@/lib/entitlements';
 import { isFreshVoiceAsset } from '@/lib/voice/playback';
 import { mergeCapturedTypeText } from '@/lib/follow';
+import { maskManualCopy } from '@/lib/manual-quality';
 
 type Params = { params: Promise<{ token: string }> };
 
@@ -25,7 +27,7 @@ async function fetchTutorialData(token: string) {
     .eq('id', tutorial.user_id)
     .single();
   const ownerPlan = owner?.plan ?? 'free';
-  const voiceEnabled = isPaidPlan(ownerPlan) && tutorial.tts_enabled;
+  const voiceEnabled = hasEntitlement(ownerPlan, 'ai_voice') && tutorial.tts_enabled;
 
   const { data: rawSteps } = await supabase
     .from('mm_steps')
@@ -51,19 +53,22 @@ async function fetchTutorialData(token: string) {
 
   const normalizedSteps = steps.map((s, idx) => ({
     id: s.id,
-    title: s.user_title || s.ai_title || `단계 ${idx + 1}`,
-    caption: s.user_script || s.ai_description || '',
+    title: maskManualCopy(s.user_title || s.ai_title) || `단계 ${idx + 1}`,
+    caption: maskManualCopy(s.user_script || s.ai_description),
     voice_audio_url: voiceEnabled ? ((s as Record<string, unknown>).voice_audio_url as string | null ?? null) : null,
     voice_audio_start_ms: voiceEnabled ? ((s as Record<string, unknown>).voice_audio_start_ms as number | null ?? null) : null,
     voice_audio_end_ms: voiceEnabled ? ((s as Record<string, unknown>).voice_audio_end_ms as number | null ?? null) : null,
     screenshot_url: s.screenshot_url ?? null,
+    image_alt_text: (s as Record<string, unknown>).image_alt_text as string | null ?? null,
     order_index: s.order_index,
     page_url: s.page_url ?? null,
     element_selector: (s as Record<string, unknown>).element_selector ?? null,
     element_xpath: (s as Record<string, unknown>).element_xpath ?? null,
+    target_context: (s as Record<string, unknown>).target_context ?? null,
     crop_rect: (s as Record<string, unknown>).crop_rect ?? null,
     click_x: (s as Record<string, unknown>).click_x as number | null ?? null,
     click_y: (s as Record<string, unknown>).click_y as number | null ?? null,
+    type_text: maskManualCopy((s as Record<string, unknown>).type_text as string | null) || null,
     image_zoom: (s as Record<string, unknown>).image_zoom as number | null ?? null,
     image_offset_x: (s as Record<string, unknown>).image_offset_x as number | null ?? null,
     image_offset_y: (s as Record<string, unknown>).image_offset_y as number | null ?? null,
@@ -71,7 +76,7 @@ async function fetchTutorialData(token: string) {
     user_annotations: (s.user_annotations as unknown[] | null) ?? [],
     follow_config: mergeCapturedTypeText(
       (s as Record<string, unknown>).follow_config as import('@/types').FollowConfig | null,
-      (s as Record<string, unknown>).type_text as string | null
+      maskManualCopy((s as Record<string, unknown>).type_text as string | null) || null
     ),
     step_type: (s as Record<string, unknown>).step_type ?? null,
     // DOM 요소 bounding rect (0~100 pct) — 실습하기 직사각형 하이라이트·줌인에 사용
@@ -94,8 +99,8 @@ async function fetchTutorialData(token: string) {
   const normalizedAnnotations = (annotationsRes.data ?? []).map((a, idx) => ({
     id: a.id,
     step_id: a.step_id,
-    title: (a.style as Record<string, string>)?.label ?? `항목 ${idx + 1}`,
-    body: (a.style as Record<string, string>)?.text ?? '',
+    title: maskManualCopy((a.style as Record<string, string>)?.label) || `항목 ${idx + 1}`,
+    body: maskManualCopy((a.style as Record<string, string>)?.text),
     marker_index: idx,
   }));
 
@@ -103,7 +108,7 @@ async function fetchTutorialData(token: string) {
     tutorial,
     payload: {
       id: tutorial.id,
-      title: tutorial.title,
+      title: maskManualCopy(tutorial.title),
       tts_enabled: voiceEnabled,
       survey_enabled: !isPaidPlan(ownerPlan),
       steps: normalizedSteps,
@@ -124,7 +129,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
   }
 
   if (result.tutorial.share_password) {
-    return NextResponse.json({ protected: true, title: result.tutorial.title });
+    return NextResponse.json({ protected: true, title: maskManualCopy(result.tutorial.title) });
   }
 
   return NextResponse.json(result.payload);

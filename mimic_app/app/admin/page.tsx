@@ -31,12 +31,18 @@ function StatCard({ label, value, sub, color }: { label: string; value: number |
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     fetch('/api/admin/stats')
-      .then(r => r.json())
-      .then(d => { setStats(d); setLoading(false); })
-      .catch(() => setLoading(false));
+      .then(async r => {
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error ?? '통계를 불러오지 못했습니다.');
+        return d;
+      })
+      .then(setStats)
+      .catch(e => setError(e instanceof Error ? e.message : '통계를 불러오지 못했습니다.'))
+      .finally(() => setLoading(false));
   }, []);
 
   if (loading) {
@@ -47,7 +53,7 @@ export default function AdminDashboard() {
 
   if (!stats) {
     return (
-      <div style={{ padding: '48px', color: '#EF4444', fontSize: '14px' }}>데이터를 불러오지 못했습니다.</div>
+      <div role="alert" style={{ padding: '48px', color: '#EF4444', fontSize: '14px' }}>{error || '데이터를 불러오지 못했습니다.'}</div>
     );
   }
 
@@ -55,22 +61,22 @@ export default function AdminDashboard() {
   const maxVal = Math.max(...chartDays.map(([, v]) => v), 1);
 
   return (
-    <div style={{ padding: '36px 40px' }}>
+    <div className="admin-page" style={{ padding: '36px 40px' }}>
       <div style={{ marginBottom: '28px' }}>
         <h1 style={{ fontSize: '22px', fontWeight: 600, margin: '0 0 4px', color: '#0F172A' }}>대시보드</h1>
         <p style={{ color: '#64748B', fontSize: '13px', margin: 0 }}>{BRAND_NAME} 서비스 현황 요약</p>
       </div>
 
       {/* 핵심 지표 */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '16px' }}>
+      <div className="admin-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '16px' }}>
         <StatCard label="전체 유저" value={stats.totalUsers.toLocaleString()} sub={`최근 7일 +${stats.newUsersLast7Days}`} />
         <StatCard label="전체 튜토리얼" value={stats.totalTutorials.toLocaleString()} sub={`공개 ${stats.publishedTutorials}개`} />
         <StatCard label="전체 조회수" value={stats.totalViews.toLocaleString()} sub={`완료 ${stats.totalCompletes}회`} />
-        <StatCard label="Pro 대기자" value={stats.proSignupsCount.toLocaleString()} color="#12B886" />
+        <StatCard label="플랜 출시 알림" value={stats.proSignupsCount.toLocaleString()} color="#12B886" />
       </div>
 
       {/* MAU + 완료율 */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', marginBottom: '24px' }}>
+      <div className="admin-grid-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', marginBottom: '24px' }}>
         <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '20px 24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
           <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#E8FFF7', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#009B8E" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -78,7 +84,7 @@ export default function AdminDashboard() {
           <div>
             <div style={{ fontSize: '12px', color: '#64748B', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>MAU (30일)</div>
             <div style={{ fontSize: '32px', fontWeight: 600, color: '#009B8E', lineHeight: 1 }}>{stats.mau.toLocaleString()}</div>
-            <div style={{ fontSize: '12px', color: '#94A3B8', marginTop: '4px' }}>고유 시청 세션 기준</div>
+            <div style={{ fontSize: '12px', color: '#94A3B8', marginTop: '4px' }}>최근 30일 고유 진입 세션 기준</div>
           </div>
         </div>
 
@@ -98,13 +104,13 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+      <div className="admin-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
         {/* 플랜 분포 */}
         <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '24px' }}>
           <div style={{ fontSize: '14px', fontWeight: 600, color: '#0F172A', marginBottom: '18px' }}>플랜 분포</div>
           {[
             { label: 'Free', value: stats.planBreakdown.free, color: '#94A3B8' },
-            { label: 'Pro Waitlist', value: stats.planBreakdown.pro_waitlist, color: '#F59E0B' },
+            { label: 'Pro 알림', value: stats.planBreakdown.pro_waitlist, color: '#F59E0B' },
             { label: 'Pro', value: stats.planBreakdown.pro, color: '#009B8E' },
             { label: 'Team', value: stats.planBreakdown.team, color: '#12B886' },
           ].map(item => (

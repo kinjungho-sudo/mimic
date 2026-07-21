@@ -14,6 +14,7 @@ import { pixelateRegion, type BlurRegion } from '@/lib/pixelate';
 import { faviconUrl, faviconFallbackUrl, hostnameToServiceName } from '@/lib/favicon';
 import { hasGuideConfig } from '@/lib/follow';
 import { annotationsBox, fitFramingToBox } from '@/lib/framing';
+import { resolveImageAlt } from '@/lib/image-alt';
 import type { FollowConfig } from '@/types';
 
 export interface ManualStep {
@@ -24,6 +25,7 @@ export interface ManualStep {
   followConfig?: FollowConfig | null;  // 라이브 가이드 설정(kind/typeText 등) — 편집기·스튜디오 공유
   description: string;       // stored as HTML string
   screenshotUrl?: string;
+  imageAltText?: string | null;
   // 영구 블러 적용 전 원본 URL (있으면 '되돌리기' 가능)
   originalScreenshotUrl?: string | null;
   annotations?: Annotation[];
@@ -67,11 +69,13 @@ interface ManualEditorProps {
   selectedIds?: Set<string>;
   onSelectChange?: (ids: Set<string>) => void;
   onAddComment?: (stepId: string) => void;
+  aiRewriteEnabled?: boolean;
 }
 
 // ── ManualEditor ──────────────────────────────────────────
 
-export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicateStep, duplicatingStepId, onInsertAfter, onAddStep, hideToc, activeId: externalActiveId, onActiveChange, selectedIds: externalSelectedIds, onSelectChange, onAddComment }: ManualEditorProps) {
+export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicateStep, duplicatingStepId, onInsertAfter, onAddStep, hideToc, activeId: externalActiveId, onActiveChange, selectedIds: externalSelectedIds, onSelectChange, onAddComment, aiRewriteEnabled = false }: ManualEditorProps) {
+  const canUseAiRewrite = aiRewriteEnabled;
   const [internalActiveId, setInternalActiveId] = useState<string | null>(
     steps.length > 0 ? steps[0].id : null
   );
@@ -203,6 +207,10 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
   stepsRef.current = steps;
 
   const bulkAiRewrite = async (instruction: string, label: string) => {
+    if (!canUseAiRewrite) {
+      window.location.assign('/landingpage#pricing');
+      return;
+    }
     // 전체 스텝을 순서대로 보내되, 선택된 것만 실제로 교체
     const allWithText = steps
       .filter(s => !s.id.startsWith('step-'))
@@ -343,8 +351,8 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
               { label: '맞춤법 교정', instruction: '맞춤법과 띄어쓰기를 교정해줘' },
               { label: '개조식으로', instruction: '개조식으로 변환해줘: 마침표 없이 핵심 동작만 명사형으로 짧게' },
             ] as const).map(({ label, instruction }) => (
-              <button key={label} disabled={!!bulkAiLoading} onClick={() => bulkAiRewrite(instruction, label)}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', height: '26px', padding: '0 10px', borderRadius: '5px', border: '1px solid #E8FFF7', background: bulkAiLoading === label ? '#E8FFF7' : 'white', color: '#12B886', fontSize: '11.5px', fontWeight: 500, cursor: bulkAiLoading ? 'not-allowed' : 'pointer', opacity: bulkAiLoading && bulkAiLoading !== label ? 0.45 : 1, flexShrink: 0 }}
+              <button key={label} disabled={!!bulkAiLoading || !canUseAiRewrite} onClick={() => bulkAiRewrite(instruction, label)} title={canUseAiRewrite ? label : 'Basic 이상 플랜에서 사용할 수 있습니다.'}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', height: '26px', padding: '0 10px', borderRadius: '5px', border: '1px solid #E8FFF7', background: bulkAiLoading === label ? '#E8FFF7' : 'white', color: '#12B886', fontSize: '11.5px', fontWeight: 500, cursor: bulkAiLoading || !canUseAiRewrite ? 'not-allowed' : 'pointer', opacity: !canUseAiRewrite || (bulkAiLoading && bulkAiLoading !== label) ? 0.45 : 1, flexShrink: 0 }}
               >
                 {bulkAiLoading === label ? <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> : null}
                 {label}
@@ -416,6 +424,7 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
                     onAnnotate={() => { if (!step.screenshotUrl) return; setActiveId(step.id); setAnnotatingId(step.id); }}
                     onRemoveImage={() => { updateStep(step.id, { screenshotUrl: undefined, annotations: [] }); onSave?.(step.id, { screenshotUrl: undefined, annotations: [] }); }}
                     onAddComment={onAddComment ? () => onAddComment(step.id) : undefined}
+                    aiRewriteEnabled={canUseAiRewrite}
                   />
                   {/* 스텝 아래 hover 시 + — 빈 단계를 바로 아래에 추가 */}
                   {onInsertAfter && !step.id.startsWith('step-') && (
@@ -521,7 +530,7 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
                 if (!res.ok) throw new Error('upload failed');
                 const data = await res.json();
                 onChange(steps.map(s => s.id === id
-                  ? { ...s, screenshotUrl: data.screenshot_url, originalScreenshotUrl: data.original_screenshot_url }
+                  ? { ...s, screenshotUrl: data.screenshot_url, originalScreenshotUrl: data.original_screenshot_url, pii_detected: false }
                   : s));
               } catch {
                 alert('블러 처리에 실패했습니다. 다시 시도해 주세요.');
@@ -534,7 +543,7 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
                 if (!res.ok) throw new Error('revert failed');
                 const data = await res.json();
                 onChange(steps.map(s => s.id === id
-                  ? { ...s, screenshotUrl: data.screenshot_url }
+                  ? { ...s, screenshotUrl: data.screenshot_url, pii_detected: true }
                   : s));
               } catch {
                 alert('되돌리기에 실패했습니다.');
@@ -691,9 +700,10 @@ interface StepCardProps {
   onAnnotate: () => void;
   onRemoveImage: () => void;
   onAddComment?: () => void;
+  aiRewriteEnabled: boolean;
 }
 
-function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdate, onSave, onDelete, onDuplicate, isDuplicating, onZoom, onAnnotate, onRemoveImage, onAddComment }: StepCardProps) {
+function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdate, onSave, onDelete, onDuplicate, isDuplicating, onZoom, onAnnotate, onRemoveImage, onAddComment, aiRewriteEnabled }: StepCardProps) {
   const [hovering, setHovering] = useState(false);
   const [descGenerating, setDescGenerating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -701,7 +711,7 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
   const titleRef = useRef<HTMLInputElement>(null);
 
   const handleGenerateDescription = async () => {
-    if (descGenerating || step.id.startsWith('step-')) return;
+    if (descGenerating || step.id.startsWith('step-') || !aiRewriteEnabled) return;
     setDescGenerating(true);
     try {
       const res = await fetch(`/api/steps/${step.id}/generate-description`, { method: 'POST' });
@@ -967,8 +977,8 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
           {(showControls || descGenerating) && !step.id.startsWith('step-') && (
             <button
               onClick={handleGenerateDescription}
-              disabled={descGenerating}
-              title="AI로 설명 자동 생성"
+              disabled={descGenerating || !aiRewriteEnabled}
+              title={aiRewriteEnabled ? 'AI로 설명 자동 생성' : 'Basic 이상 플랜에서 사용할 수 있습니다.'}
               style={{
                 position: 'absolute', bottom: '-2px', right: '-6px',
                 display: 'inline-flex', alignItems: 'center', gap: '3px',
@@ -976,8 +986,8 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
                 borderRadius: '5px', border: '1px solid #E8FFF7',
                 background: descGenerating ? '#E8FFF7' : 'white',
                 color: '#12B886', fontSize: '11px', fontWeight: 500,
-                cursor: descGenerating ? 'not-allowed' : 'pointer',
-                opacity: descGenerating ? 0.8 : 1,
+                cursor: descGenerating || !aiRewriteEnabled ? 'not-allowed' : 'pointer',
+                opacity: descGenerating || !aiRewriteEnabled ? 0.55 : 1,
                 transition: 'all 0.15s',
                 boxShadow: '0 1px 4px rgba(18,184,134,0.12)',
               }}
@@ -1052,6 +1062,28 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
         onRemove={onRemoveImage}
         onFraming={patch => onSave(patch)}
       />
+
+      {step.screenshotUrl && (
+        <div data-testid="step-image-alt-editor" style={{ padding: '0 24px 18px' }}>
+          <label htmlFor={`image-alt-${step.id}`} style={{ display: 'flex', alignItems: 'baseline', gap: '7px', marginBottom: '6px', fontSize: '12px', fontWeight: 600, color: '#374151' }}>
+            이미지 대체 텍스트
+            <span style={{ fontSize: '10.5px', fontWeight: 400, color: '#9CA3AF' }}>스크린 리더용</span>
+          </label>
+          <input
+            id={`image-alt-${step.id}`}
+            value={step.imageAltText ?? ''}
+            maxLength={500}
+            onFocus={onFocus}
+            onChange={event => onUpdate({ imageAltText: event.target.value })}
+            onBlur={event => onSave({ imageAltText: event.target.value.trim() || null })}
+            placeholder={resolveImageAlt(null, step.actionTitle, step.description)}
+            style={{ width: '100%', height: '36px', padding: '0 10px', borderRadius: '7px', border: '1px solid #DDE3E8', background: 'white', color: '#374151', fontSize: '12.5px', outline: 'none', boxSizing: 'border-box' }}
+          />
+          <p style={{ margin: '5px 0 0', color: '#9CA3AF', fontSize: '10.5px', lineHeight: 1.45 }}>
+            비워두면 단계 제목과 설명을 조합해 자동으로 읽습니다.
+          </p>
+        </div>
+      )}
 
     </div>
   );
@@ -1395,7 +1427,7 @@ function ScreenshotArea({ step, onUploadClick, onDrop, onAnnotate, onRemove, onF
         transformOrigin: 'center center',
       }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={step.screenshotUrl} alt={step.actionTitle} draggable={false} style={{ width: 'auto', maxWidth: '100%', maxHeight: 'calc(100vh - 320px)', height: 'auto', display: 'block', userSelect: 'none' }} />
+        <img src={step.screenshotUrl} alt={resolveImageAlt(step.imageAltText, step.actionTitle, step.description)} draggable={false} style={{ width: 'auto', maxWidth: '100%', maxHeight: 'calc(100vh - 320px)', height: 'auto', display: 'block', userSelect: 'none' }} />
 
         {/* Annotation SVG overlay (read-only preview) — 확대 시 어노테이션은 일정 크기 유지(역보정) */}
         {hasAnnotations && (

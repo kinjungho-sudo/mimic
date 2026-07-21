@@ -1,27 +1,32 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { Fragment, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Play, Check, Loader2, MousePointerClick, Type, Ban, RotateCcw, EyeOff, Eye, GripVertical, ZoomIn, ImagePlus, PenTool, Volume2, VolumeX, Link2 } from 'lucide-react';
+import { ArrowLeft, Play, Check, Loader2, MousePointerClick, Type, Ban, RotateCcw, EyeOff, Eye, GripVertical, ZoomIn, ImagePlus, Volume2, VolumeX, Link2, AlertTriangle, Trash2, X } from 'lucide-react';
 import { useTutorial } from '@/hooks/useTutorial';
-import { updateStep, reorderSteps } from '@/lib/api/steps';
-import { pickLiveGuideTarget } from '@/lib/api/liveGuide';
+import { deleteStep, updateStep, reorderSteps } from '@/lib/api/steps';
+import { listLiveGuideTargetTabs, pickLiveGuideTarget, type LiveGuideTargetPickResult, type LiveGuideTargetTab } from '@/lib/api/liveGuide';
 import { clickToPct, inferKind, mergeCapturedTypeText, toFollowSteps } from '@/lib/follow';
+import { inferGuideSection } from '@/lib/manual-quality';
 import { resolveStepAudio } from '@/lib/voice/playback';
 import { InteractiveFollowPlayer } from '@/components/viewer/InteractiveFollowPlayer';
 import { FollowStage } from '@/components/viewer/FollowStage';
-import { ImageAnnotationEditor, type Annotation } from '@/components/editor/ImageAnnotationEditor';
+import type { Annotation } from '@/components/editor/ImageAnnotationEditor';
 import { ShareModal } from '@/components/editor/ShareModal';
 import { logError } from '@/lib/logging/logger';
 import type { Step, Tutorial, FollowConfig } from '@/types';
+import { BRAND_COPY, BRAND_EXTENSION_STORE_URL } from '@/lib/brand';
 
 const TOP_BAR_ICON_SIZE = 14;
+const STUDIO_PREVIEW_LAYER_Z_INDEX = 80;
+const STUDIO_TARGET_NOTICE_LAYER_Z_INDEX = 70;
 
 // DB Step → 스튜디오 편집 단위
 type StudioStep = {
   id: string;
   number: number;
   screenshotUrl: string | null;
+  imageAltText: string | null;
   pageUrl: string | null;
   title: string;             // user_title (편집) — 문서 매뉴얼과 공유. ai_title 폴백으로 초기화
   description: string;       // user_script (편집, HTML 제거) — 문서 매뉴얼과 공유
@@ -33,6 +38,9 @@ type StudioStep = {
   voiceAudioStartMs: number | null;
   voiceAudioEndMs: number | null;
   domRect: { x: number; y: number; w: number; h: number } | null; // DOM 요소 영역(0~100 pct) — 확대 애니메이션 중심
+  elementSelector: string | null;
+  elementXpath: string | null;
+  targetContext: Record<string, unknown> | null;
   follow: FollowConfig;      // 따라하기 전용 시각 설정 (핫스팟·종류·숨김·typeText)
 };
 
@@ -49,6 +57,7 @@ function toStudioStep(s: Step): StudioStep {
     id: s.id,
     number: s.step_number,
     screenshotUrl: s.screenshot_url || null,
+    imageAltText: s.image_alt_text ?? null,
     pageUrl: s.page_url ?? null,
     title: s.user_title || s.ai_title || '',
     description: (s.user_script || s.ai_description || '').replace(/<[^>]+>/g, ''),
@@ -64,7 +73,43 @@ function toStudioStep(s: Step): StudioStep {
       if (!raw || raw.x == null) return null;
       return { x: (raw.x ?? 0) * 100, y: (raw.y ?? 0) * 100, w: (raw.width ?? 0) * 100, h: (raw.height ?? 0) * 100 };
     })(),
+    elementSelector: s.element_selector ?? null,
+    elementXpath: s.element_xpath ?? null,
+    targetContext: s.target_context ?? null,
     follow: mergeCapturedTypeText(s.follow_config, s.type_text),
+  };
+}
+
+type TargetSnapshot = Pick<StudioStep, 'pageUrl' | 'clickXPct' | 'clickYPct' | 'domRect' | 'elementSelector' | 'elementXpath' | 'targetContext'>;
+type TargetCandidate = {
+  stepId: string;
+  tab: LiveGuideTargetTab;
+  result: Extract<LiveGuideTargetPickResult, { ok: true }>;
+};
+
+function targetSnapshot(step: StudioStep): TargetSnapshot {
+  return {
+    pageUrl: step.pageUrl,
+    clickXPct: step.clickXPct,
+    clickYPct: step.clickYPct,
+    domRect: step.domRect,
+    elementSelector: step.elementSelector,
+    elementXpath: step.elementXpath,
+    targetContext: step.targetContext,
+  };
+}
+
+function targetPatch(snapshot: TargetSnapshot) {
+  return {
+    page_url: snapshot.pageUrl,
+    element_selector: snapshot.elementSelector,
+    element_xpath: snapshot.elementXpath,
+    element_rect: snapshot.domRect
+      ? { x: snapshot.domRect.x / 100, y: snapshot.domRect.y / 100, width: snapshot.domRect.w / 100, height: snapshot.domRect.h / 100 }
+      : null,
+    target_context: snapshot.targetContext,
+    click_x: snapshot.clickXPct == null ? null : snapshot.clickXPct / 100,
+    click_y: snapshot.clickYPct == null ? null : snapshot.clickYPct / 100,
   };
 }
 
@@ -120,14 +165,22 @@ export default function StudioPage() {
   const [ttsGenerating, setTtsGenerating] = useState(false);
   const [audioAssets, setAudioAssets] = useState<StudioAudioAsset[]>([]);
   const [uploadingStepId, setUploadingStepId] = useState<string | null>(null);
-  const [annotatingId, setAnnotatingId] = useState<string | null>(null);
   const [pickingTarget, setPickingTarget] = useState(false);
+  const [loadingTargetTabs, setLoadingTargetTabs] = useState(false);
+  const [targetTabs, setTargetTabs] = useState<LiveGuideTargetTab[]>([]);
+  const [showTargetTabs, setShowTargetTabs] = useState(false);
+  const [targetCandidate, setTargetCandidate] = useState<TargetCandidate | null>(null);
+  const [lastTargetChange, setLastTargetChange] = useState<{ stepId: string; before: TargetSnapshot } | null>(null);
+  const [targetNotice, setTargetNotice] = useState<string | null>(null);
+  const [targetError, setTargetError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imgWrapRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
   const contentTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const dragIdRef = useRef<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   // 최신 steps 미러 — patch에서 동기적으로 현재 follow를 읽기 위함(setState 캡처는 비동기라 stale)
   const stepsRef = useRef<StudioStep[]>([]);
   stepsRef.current = steps;
@@ -147,47 +200,106 @@ export default function StudioPage() {
 
   const active = steps.find(s => s.id === activeId) ?? null;
 
-  const handlePickTarget = useCallback(async () => {
+  const openTargetPicker = useCallback(async () => {
     if (!active) return;
-    setPickingTarget(true);
+    setLoadingTargetTabs(true);
+    setTargetError(null);
     try {
-      const result = await pickLiveGuideTarget();
+      const result = await listLiveGuideTargetTabs();
       if (!result.ok) {
-        alert(result.message);
+        setTargetError(result.message);
         return;
       }
-
-      const rect = result.element_rect;
-      const nextStep: StudioStep = {
-        ...active,
-        pageUrl: result.page_url ?? active.pageUrl,
-        clickXPct: result.click_x == null ? active.clickXPct : result.click_x * 100,
-        clickYPct: result.click_y == null ? active.clickYPct : result.click_y * 100,
-        domRect: rect
-          ? { x: rect.x * 100, y: rect.y * 100, w: rect.width * 100, h: rect.height * 100 }
-          : active.domRect,
-      };
-
-      stepsRef.current = stepsRef.current.map(step => step.id === nextStep.id ? nextStep : step);
-      setSteps(stepsRef.current);
-      setSavingId(active.id);
-      await updateStep(active.id, {
-        page_url: result.page_url ?? active.pageUrl,
-        element_selector: result.element_selector ?? null,
-        element_xpath: result.element_xpath ?? null,
-        element_rect: result.element_rect ?? null,
-        click_x: result.click_x ?? null,
-        click_y: result.click_y ?? null,
-      });
-      setSavedTick(t => t + 1);
+      if (result.tabs.length === 0) {
+        setTargetError('대상으로 선택할 수 있는 웹페이지 탭이 없습니다. 먼저 안내할 페이지를 열어주세요.');
+        return;
+      }
+      setTargetTabs(result.tabs);
+      setShowTargetTabs(true);
     } catch (error) {
-      logError('studio.liveTargetPick.fail', { stepId: active.id, message: error instanceof Error ? error.message : String(error) });
-      alert('라이브 가이드 대상을 선택하지 못했습니다. Recorder 연결을 확인해주세요.');
+      logError('studio.liveTargetTabs.fail', { stepId: active.id, message: error instanceof Error ? error.message : String(error) });
+      setTargetError('대상 탭 목록을 불러오지 못했습니다. Recorder 연결을 확인해주세요.');
     } finally {
-      setSavingId(current => current === active.id ? null : current);
+      setLoadingTargetTabs(false);
+    }
+  }, [active]);
+
+  const handlePickTarget = useCallback(async (tab: LiveGuideTargetTab) => {
+    if (!active) return;
+    setShowTargetTabs(false);
+    setPickingTarget(true);
+    setTargetError(null);
+    try {
+      const result = await pickLiveGuideTarget(tab.id);
+      if (!result.ok) {
+        setTargetError(result.message);
+        return;
+      }
+      setTargetCandidate({ stepId: active.id, tab, result });
+    } catch (error) {
+      logError('studio.liveTargetPick.fail', { stepId: active.id, tabId: tab.id, message: error instanceof Error ? error.message : String(error) });
+      setTargetError('라이브 가이드 대상을 선택하지 못했습니다. Recorder 연결을 확인해주세요.');
+    } finally {
       setPickingTarget(false);
     }
   }, [active]);
+
+  const confirmTargetSelection = useCallback(async () => {
+    if (!targetCandidate) return;
+    const step = stepsRef.current.find(item => item.id === targetCandidate.stepId);
+    if (!step) {
+      setTargetCandidate(null);
+      return;
+    }
+
+    const { result, tab } = targetCandidate;
+    const rect = result.element_rect;
+    const before = targetSnapshot(step);
+    const after: TargetSnapshot = {
+      pageUrl: result.page_url ?? step.pageUrl,
+      clickXPct: result.click_x == null ? step.clickXPct : result.click_x * 100,
+      clickYPct: result.click_y == null ? step.clickYPct : result.click_y * 100,
+      domRect: rect ? { x: rect.x * 100, y: rect.y * 100, w: rect.width * 100, h: rect.height * 100 } : null,
+      elementSelector: result.element_selector ?? null,
+      elementXpath: result.element_xpath ?? null,
+      targetContext: result.target_context ?? null,
+    };
+
+    setSavingId(step.id);
+    try {
+      await updateStep(step.id, targetPatch(after));
+      stepsRef.current = stepsRef.current.map(item => item.id === step.id ? { ...item, ...after } : item);
+      setSteps(stepsRef.current);
+      setLastTargetChange({ stepId: step.id, before });
+      setTargetNotice(`${tab.title} · ${result.label || '선택한 요소'}에 연결했습니다.`);
+      setTargetCandidate(null);
+      setSavedTick(t => t + 1);
+    } catch (error) {
+      logError('studio.liveTargetSave.fail', { stepId: step.id, message: error instanceof Error ? error.message : String(error) });
+      setTargetError('선택한 대상을 저장하지 못했습니다. 다시 시도해주세요.');
+    } finally {
+      setSavingId(current => current === step.id ? null : current);
+    }
+  }, [targetCandidate]);
+
+  const undoTargetSelection = useCallback(async () => {
+    if (!lastTargetChange) return;
+    const { stepId, before } = lastTargetChange;
+    setSavingId(stepId);
+    try {
+      await updateStep(stepId, targetPatch(before));
+      stepsRef.current = stepsRef.current.map(item => item.id === stepId ? { ...item, ...before } : item);
+      setSteps(stepsRef.current);
+      setLastTargetChange(null);
+      setTargetNotice('이전 라이브 가이드 대상으로 되돌렸습니다.');
+      setSavedTick(t => t + 1);
+    } catch (error) {
+      logError('studio.liveTargetUndo.fail', { stepId, message: error instanceof Error ? error.message : String(error) });
+      setTargetError('이전 대상으로 되돌리지 못했습니다. 다시 시도해주세요.');
+    } finally {
+      setSavingId(current => current === stepId ? null : current);
+    }
+  }, [lastTargetChange]);
 
   // follow_config 패치 → 로컬 갱신 + 서버 저장
   const patch = useCallback(async (stepId: string, change: Partial<FollowConfig>) => {
@@ -242,6 +354,43 @@ export default function StudioPage() {
     reorderSteps(id, arr.map((s, i) => ({ id: s.id, order_index: i })))
       .catch(e => logError('studio.reorder.fail', { tutorialId: id, message: e instanceof Error ? e.message : String(e) }));
   }, [id]);
+
+  const confirmDeleteStep = useCallback(async () => {
+    const stepId = pendingDeleteId;
+    if (!stepId || deletingId) return;
+    const current = stepsRef.current;
+    const deletedIndex = current.findIndex(step => step.id === stepId);
+    if (deletedIndex < 0) {
+      setPendingDeleteId(null);
+      return;
+    }
+
+    setDeletingId(stepId);
+    try {
+      await deleteStep(stepId);
+      Object.keys(contentTimers.current).forEach(key => {
+        if (key.startsWith(stepId)) {
+          clearTimeout(contentTimers.current[key]);
+          delete contentTimers.current[key];
+        }
+      });
+      const next = current
+        .filter(step => step.id !== stepId)
+        .map((step, index) => ({ ...step, number: index + 1 }));
+      stepsRef.current = next;
+      setSteps(next);
+      if (activeId === stepId) {
+        setActiveId(next[Math.min(deletedIndex, next.length - 1)]?.id ?? null);
+      }
+      setPendingDeleteId(null);
+      setSavedTick(tick => tick + 1);
+    } catch (error) {
+      logError('studio.step.delete.fail', { tutorialId: id, stepId, message: error instanceof Error ? error.message : String(error) });
+      alert('스텝을 삭제하지 못했습니다. 네트워크 연결을 확인한 뒤 다시 시도해주세요.');
+    } finally {
+      setDeletingId(null);
+    }
+  }, [activeId, deletingId, id, pendingDeleteId]);
 
   // 입력 텍스트(typeText) 편집 → 로컬 즉시 반영 + 디바운스 저장 (키 입력마다 저장 방지)
   const setTypeText = useCallback((stepId: string, value: string) => {
@@ -357,22 +506,6 @@ export default function StudioPage() {
     }
   }, [active]);
 
-  const saveAnnotations = useCallback(async (stepId: string, annotations: Annotation[]) => {
-    const current = stepsRef.current.find(s => s.id === stepId);
-    const nextFollow = { ...(current?.follow ?? {}), kind: 'none' as const };
-    stepsRef.current = stepsRef.current.map(s => s.id === stepId ? { ...s, annotations, follow: nextFollow, stepType: s.stepType ?? 'visual_overlay_step' } : s);
-    setSteps(stepsRef.current);
-    setSavingId(stepId);
-    try {
-      await updateStep(stepId, { user_annotations: annotations, follow_config: normalize(nextFollow) });
-      setSavedTick(t => t + 1);
-    } catch (e) {
-      logError('studio.annotations.fail', { stepId, message: e instanceof Error ? e.message : String(e) });
-    } finally {
-      setSavingId(s => (s === stepId ? null : s));
-    }
-  }, []);
-
   const placeHotspot = useCallback((clientX: number, clientY: number, commit: boolean) => {
     const el = imgWrapRef.current;
     if (!el || !active) return;
@@ -411,6 +544,7 @@ export default function StudioPage() {
       title: s.title,
       body: s.description || null,
       screenshotUrl: s.screenshotUrl || undefined,
+      imageAltText: s.imageAltText,
       clickXPct: s.clickXPct,
       clickYPct: s.clickYPct,
       audioUrl: audio?.url ?? null,
@@ -468,8 +602,8 @@ export default function StudioPage() {
         <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.4)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
           {savingId ? <><Loader2 size={TOP_BAR_ICON_SIZE} className="spin" /> 저장 중…</> : savedTick > 0 ? <><Check size={TOP_BAR_ICON_SIZE} color="#34d399" /> 저장됨</> : null}
         </span>
-        <button onClick={handlePickTarget} disabled={!active || pickingTarget} title="현재 브라우저 탭에서 라이브 가이드 대상을 직접 선택합니다" style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5, opacity: !active || pickingTarget ? 0.55 : 1 }}>
-          {pickingTarget ? <Loader2 size={TOP_BAR_ICON_SIZE} className="spin" /> : <MousePointerClick size={TOP_BAR_ICON_SIZE} />} 현재 탭에서 대상 선택
+        <button onClick={openTargetPicker} disabled={!active || pickingTarget || loadingTargetTabs} title="대상 웹페이지 탭을 고른 뒤 안내할 요소를 선택합니다" style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5, opacity: !active || pickingTarget || loadingTargetTabs ? 0.55 : 1 }}>
+          {pickingTarget || loadingTargetTabs ? <Loader2 size={TOP_BAR_ICON_SIZE} className="spin" /> : <MousePointerClick size={TOP_BAR_ICON_SIZE} />} {pickingTarget ? '대상 페이지에서 요소 선택 중' : '대상 탭·요소 선택'}
         </button>
         <button onClick={() => setShowPreview(true)} title="학습 가이드(웹) 화면으로 미리보기 — 핫스팟·말풍선·입력 텍스트 설정을 확인합니다. 실제 Live Guide Beta 오버레이 외형과는 다를 수 있어요." style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5 }}><Play size={TOP_BAR_ICON_SIZE} /> 학습 가이드 미리보기</button>
         <button onClick={() => setShowShare(true)} title="학습 가이드와 Live Guide Beta에서 함께 쓰는 공유 링크를 엽니다" style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5 }}>
@@ -485,8 +619,14 @@ export default function StudioPage() {
             const r = resolved(s);
             const hasHot = r.hotspotX != null && r.hotspotY != null;
             const isDragOver = dragOverId === s.id;
+            const section = inferGuideSection(s.title, s.description, i, steps.length);
+            const previousSection = i > 0 ? inferGuideSection(steps[i - 1].title, steps[i - 1].description, i - 1, steps.length) : null;
             return (
-              <div key={s.id}
+              <Fragment key={s.id}>
+              {section !== previousSection && (
+                <div style={{ padding: '10px 8px 5px', color: 'rgba(255,255,255,0.45)', fontSize: 10.5, fontWeight: 800, letterSpacing: '0.06em' }}>{section}</div>
+              )}
+              <div
                 draggable
                 onDragStart={e => { dragIdRef.current = s.id; e.dataTransfer.effectAllowed = 'move'; }}
                 onDragOver={e => { e.preventDefault(); if (dragOverId !== s.id) setDragOverId(s.id); }}
@@ -503,7 +643,19 @@ export default function StudioPage() {
                 {s.follow.hidden
                   ? <EyeOff size={12} color="rgba(255,255,255,0.4)" />
                   : <span style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, background: hasHot ? (r.kind === 'type' ? '#60a5fa' : '#34d399') : 'rgba(255,255,255,0.25)' }} />}
+                <button
+                  type="button"
+                  draggable={false}
+                  aria-label={`${i + 1}번 스텝 삭제`}
+                  title="스텝 삭제"
+                  onPointerDown={event => event.stopPropagation()}
+                  onClick={event => { event.stopPropagation(); setPendingDeleteId(s.id); }}
+                  style={{ width: 24, height: 24, flexShrink: 0, border: 'none', borderRadius: 6, background: sel ? 'rgba(239,68,68,0.13)' : 'transparent', color: sel ? '#FCA5A5' : 'rgba(255,255,255,0.32)', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
+                >
+                  <Trash2 size={12} />
+                </button>
               </div>
+              </Fragment>
             );
           })}
         </aside>
@@ -517,7 +669,7 @@ export default function StudioPage() {
               <ImagePlus size={34} color="#E8FFF7" style={{ marginBottom: 12 }} />
               <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 7 }}>수동 캡처가 필요한 단계</div>
               <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.62)', lineHeight: 1.6, marginBottom: 16 }}>
-                보안 화면이나 제한된 페이지는 이미지를 직접 추가한 뒤 Visual Overlay로 안내를 완성할 수 있습니다.
+                보안 화면이나 제한된 페이지는 원본 이미지를 직접 추가한 뒤 클릭 위치를 지정할 수 있습니다.
               </div>
               <button
                 onClick={() => fileInputRef.current?.click()}
@@ -532,6 +684,7 @@ export default function StudioPage() {
               <div style={{ position: 'relative', lineHeight: 0, boxShadow: '0 12px 50px rgba(0,0,0,0.5)', filter: hidden ? 'grayscale(0.75) brightness(0.5)' : 'none' }}>
                 <FollowStage
                   screenshotUrl={active.screenshotUrl}
+                  imageAltText={active.imageAltText}
                   hotspotX={rv?.hotspotX ?? null}
                   hotspotY={rv?.hotspotY ?? null}
                   allowCornerHotspot={rv?.userPlaced}
@@ -541,7 +694,7 @@ export default function StudioPage() {
                   typeBoxWidth={active.follow.typeBoxWidth}
                   typeBoxHeight={active.follow.typeBoxHeight}
                   guideMode={rv?.none ? 'explanation' : 'interactive'}
-                  annotations={active.annotations}
+                  domRect={active.domRect}
                   bubbleAnchor={active.follow.bubbleAnchor}
                   stepNumber={steps.findIndex(s => s.id === active.id) + 1}
                   title={active.title}
@@ -633,7 +786,7 @@ export default function StudioPage() {
 
               <Divider />
 
-              <SectionLabel>Visual Overlay</SectionLabel>
+              <SectionLabel>학습 화면</SectionLabel>
               <div style={{ display: 'grid', gap: 8 }}>
                 <button
                   onClick={() => fileInputRef.current?.click()}
@@ -642,15 +795,8 @@ export default function StudioPage() {
                 >
                   {uploadingStepId === active.id ? <Loader2 size={12} className="spin" /> : <ImagePlus size={12} />} {active.screenshotUrl ? '이미지 교체' : '이미지 추가'}
                 </button>
-                <button
-                  onClick={() => active.screenshotUrl && setAnnotatingId(active.id)}
-                  disabled={!active.screenshotUrl}
-                  style={{ ...subtleBtn, opacity: active.screenshotUrl ? 1 : 0.45, cursor: active.screenshotUrl ? 'pointer' : 'not-allowed' }}
-                >
-                  <PenTool size={12} /> Overlay 편집
-                </button>
               </div>
-              <p style={hint}>DOM과 연결되지 않는 Rectangle, Circle, Spotlight, Arrow, Tooltip을 이미지 위에 배치합니다.</p>
+              <p style={hint}>학습 가이드에는 어노테이션을 겹치지 않고 원본 이미지만 표시합니다. 문서 매뉴얼의 어노테이션 데이터는 그대로 보존됩니다.</p>
 
               <Divider />
 
@@ -717,6 +863,7 @@ export default function StudioPage() {
                 style={{ ...subtleBtn, opacity: (hidden || active.follow.hotspotX == null) ? 0.4 : 1, cursor: (hidden || active.follow.hotspotX == null) ? 'not-allowed' : 'pointer' }}>
                 <RotateCcw size={12} /> 녹화 위치로 초기화
               </button>
+              <p style={hint}>큰 카드나 컨테이너 DOM은 학습 가이드에서 클릭 좌표 주변의 작은 영역으로 자동 축소됩니다.</p>
 
               <Divider />
 
@@ -828,23 +975,10 @@ export default function StudioPage() {
 
       {/* 미리보기 오버레이 */}
       {showPreview && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(5,5,10,0.9)', backdropFilter: 'blur(4px)' }}>
+        <div data-testid="studio-preview-overlay" style={{ position: 'fixed', inset: 0, zIndex: STUDIO_PREVIEW_LAYER_Z_INDEX, background: 'rgba(5,5,10,0.9)', backdropFilter: 'blur(4px)' }}>
           <InteractiveFollowPlayer title={tutorial.title} steps={previewSteps} onClose={() => setShowPreview(false)} closeLabel="편집으로" />
         </div>
       )}
-
-      {annotatingId && (() => {
-        const step = steps.find(s => s.id === annotatingId);
-        if (!step?.screenshotUrl) return null;
-        return (
-          <ImageAnnotationEditor
-            imageUrl={step.screenshotUrl}
-            annotations={step.annotations}
-            onChange={annotations => saveAnnotations(step.id, annotations)}
-            onClose={() => setAnnotatingId(null)}
-          />
-        );
-      })()}
 
       {showShare && tutorial && (
         <ShareModal
@@ -852,12 +986,109 @@ export default function StudioPage() {
           shareToken={(tutorial as Tutorial & { share_token?: string | null }).share_token ?? null}
           shareUrl={(tutorial as Tutorial & { share_token?: string | null }).share_token ? `${typeof window !== 'undefined' ? window.location.origin : ''}/play/${(tutorial as Tutorial & { share_token?: string | null }).share_token}` : null}
           tutorialId={id}
+          defaultMode="follow"
           hasPassword={!!(tutorial as Tutorial & { share_password?: string | null }).share_password}
+          passwordProtectionEnabled={!!(tutorial as Tutorial & { entitlements?: { protected_sharing?: boolean } }).entitlements?.protected_sharing}
+          shareStep={active ? { id: active.id, number: steps.findIndex(step => step.id === active.id) + 1, title: active.title } : undefined}
           visibility={(tutorial as Tutorial & { visibility?: 'private' | 'public' }).visibility}
           onPublishAndShare={publish}
           onUnpublish={unpublish}
           onClose={() => setShowShare(false)}
         />
+      )}
+
+      {pendingDeleteId && (() => {
+        const step = steps.find(item => item.id === pendingDeleteId);
+        return (
+          <div onClick={() => { if (!deletingId) setPendingDeleteId(null); }} style={{ position: 'fixed', inset: 0, zIndex: 170, background: 'rgba(5,5,10,0.72)', backdropFilter: 'blur(4px)', display: 'grid', placeItems: 'center', padding: 20 }}>
+            <div role="dialog" aria-modal="true" aria-labelledby="studio-delete-title" onClick={event => event.stopPropagation()} style={{ width: 'min(400px, 100%)', borderRadius: 16, background: 'white', color: '#111827', padding: 22, boxShadow: '0 24px 70px rgba(0,0,0,0.4)' }}>
+              <div style={{ width: 42, height: 42, borderRadius: 12, display: 'grid', placeItems: 'center', color: '#B91C1C', background: '#FEE2E2', marginBottom: 13 }}><Trash2 size={20} /></div>
+              <h2 id="studio-delete-title" style={{ margin: '0 0 7px', fontSize: 18 }}>이 스텝을 삭제할까요?</h2>
+              <p style={{ margin: '0 0 10px', fontSize: 13, lineHeight: 1.6, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {step ? `${steps.findIndex(item => item.id === step.id) + 1}. ${step.title || '(제목 없음)'}` : '선택한 스텝'}
+              </p>
+              <p style={{ margin: '0 0 18px', padding: '10px 11px', borderRadius: 9, background: '#FFF7ED', border: '1px solid #FED7AA', color: '#9A3412', fontSize: 12.5, lineHeight: 1.55 }}>
+                문서 매뉴얼과 Live Guide에서도 같은 스텝이 함께 삭제되며 되돌릴 수 없습니다.
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                <button disabled={!!deletingId} onClick={() => setPendingDeleteId(null)} style={{ height: 38, padding: '0 15px', borderRadius: 9, border: '1px solid #D1D5DB', background: 'white', color: '#374151', fontSize: 12.5, fontWeight: 600, cursor: deletingId ? 'not-allowed' : 'pointer' }}>취소</button>
+                <button disabled={!!deletingId} onClick={() => void confirmDeleteStep()} style={{ height: 38, minWidth: 82, padding: '0 16px', borderRadius: 9, border: 'none', background: '#DC2626', color: 'white', fontSize: 12.5, fontWeight: 700, cursor: deletingId ? 'not-allowed' : 'pointer', opacity: deletingId ? 0.65 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                  {deletingId ? <><Loader2 size={13} className="spin" /> 삭제 중</> : '삭제'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {showTargetTabs && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 160, background: 'rgba(5,5,10,0.72)', backdropFilter: 'blur(4px)', display: 'grid', placeItems: 'center', padding: 20 }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="target-tab-title" style={{ width: 'min(560px, 100%)', maxHeight: 'min(680px, 88vh)', overflow: 'hidden', borderRadius: 16, background: 'white', color: '#111827', boxShadow: '0 24px 70px rgba(0,0,0,0.4)', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: '20px 22px 14px', borderBottom: '1px solid #E5E7EB', position: 'relative' }}>
+              <button onClick={() => setShowTargetTabs(false)} aria-label="닫기" style={{ position: 'absolute', top: 14, right: 14, width: 30, height: 30, borderRadius: 8, border: 'none', background: '#F3F4F6', color: '#6B7280', cursor: 'pointer', display: 'grid', placeItems: 'center' }}><X size={15} /></button>
+              <h2 id="target-tab-title" style={{ margin: '0 38px 6px 0', fontSize: 18 }}>어느 탭에서 안내할까요?</h2>
+              <p style={{ margin: 0, color: '#6B7280', fontSize: 12.5, lineHeight: 1.55 }}>탭을 선택하면 해당 페이지가 앞으로 열립니다. 페이지 위에서 안내할 요소를 한 번 클릭해주세요.</p>
+            </div>
+            <div style={{ padding: 12, overflowY: 'auto' }}>
+              {targetTabs.map(tab => (
+                <button key={tab.id} onClick={() => void handlePickTarget(tab)} style={{ width: '100%', padding: '12px 13px', marginBottom: 7, textAlign: 'left', borderRadius: 10, border: '1px solid #E5E7EB', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 11 }}>
+                  <span style={{ width: 34, height: 34, flexShrink: 0, borderRadius: 9, background: '#E8FFF7', color: '#009B8E', display: 'grid', placeItems: 'center' }}><MousePointerClick size={16} /></span>
+                  <span style={{ minWidth: 0 }}>
+                    <span style={{ display: 'block', fontSize: 13.5, fontWeight: 700, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tab.title}</span>
+                    <span style={{ display: 'block', marginTop: 3, fontSize: 11.5, color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tab.url}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {targetCandidate && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 161, background: 'rgba(5,5,10,0.72)', backdropFilter: 'blur(4px)', display: 'grid', placeItems: 'center', padding: 20 }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="target-confirm-title" style={{ width: 'min(460px, 100%)', borderRadius: 16, background: 'white', color: '#111827', padding: 22, boxShadow: '0 24px 70px rgba(0,0,0,0.4)' }}>
+            <div style={{ width: 42, height: 42, borderRadius: 12, display: 'grid', placeItems: 'center', color: '#047857', background: '#D1FAE5', marginBottom: 13 }}><Check size={21} /></div>
+            <h2 id="target-confirm-title" style={{ margin: '0 0 7px', fontSize: 18 }}>이 대상으로 저장할까요?</h2>
+            <p style={{ margin: '0 0 14px', fontSize: 13, lineHeight: 1.6, color: '#6B7280' }}>저장하기 전 선택한 페이지와 요소가 맞는지 확인해주세요.</p>
+            <div style={{ borderRadius: 10, background: '#F9FAFB', border: '1px solid #E5E7EB', padding: 12, marginBottom: 18 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#111827', marginBottom: 5 }}>{targetCandidate.result.label || '선택한 요소'}</div>
+              <div style={{ fontSize: 12, color: '#374151', marginBottom: 4 }}>{targetCandidate.tab.title}</div>
+              <div style={{ fontSize: 11, color: '#6B7280', wordBreak: 'break-all' }}>{targetCandidate.result.page_url || targetCandidate.tab.url}</div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button onClick={() => { setTargetCandidate(null); void openTargetPicker(); }} style={{ height: 36, padding: '0 14px', borderRadius: 8, border: '1px solid #D1D5DB', background: 'white', color: '#374151', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>다시 선택</button>
+              <button onClick={() => void confirmTargetSelection()} disabled={savingId === targetCandidate.stepId} style={{ height: 36, padding: '0 16px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg,#009B8E,#12B886)', color: 'white', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', opacity: savingId === targetCandidate.stepId ? 0.6 : 1 }}>대상 저장</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {targetNotice && (
+        <div data-testid="studio-target-notice" role="status" style={{ position: 'fixed', left: '50%', bottom: 20, transform: 'translateX(-50%)', zIndex: STUDIO_TARGET_NOTICE_LAYER_Z_INDEX, borderRadius: 12, background: '#111827', color: 'white', padding: '11px 12px 11px 14px', boxShadow: '0 16px 44px rgba(0,0,0,0.32)', display: 'flex', alignItems: 'center', gap: 12, maxWidth: 'min(620px, calc(100vw - 32px))', fontSize: 12.5 }}>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{targetNotice}</span>
+          {lastTargetChange && <button onClick={() => void undoTargetSelection()} style={{ flexShrink: 0, height: 28, padding: '0 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,0.22)', background: 'rgba(255,255,255,0.08)', color: 'white', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>실행 취소</button>}
+          <button onClick={() => setTargetNotice(null)} aria-label="알림 닫기" style={{ flexShrink: 0, width: 26, height: 26, borderRadius: 7, border: 'none', background: 'transparent', color: 'rgba(255,255,255,0.65)', cursor: 'pointer', display: 'grid', placeItems: 'center' }}><X size={14} /></button>
+        </div>
+      )}
+
+      {targetError && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 160, background: 'rgba(5,5,10,0.72)', backdropFilter: 'blur(4px)', display: 'grid', placeItems: 'center', padding: 20 }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="target-error-title" style={{ width: 'min(440px, 100%)', borderRadius: 16, background: 'white', color: '#111827', padding: 22, boxShadow: '0 24px 70px rgba(0,0,0,0.4)', position: 'relative' }}>
+            <button onClick={() => setTargetError(null)} aria-label="닫기" style={{ position: 'absolute', top: 12, right: 12, width: 30, height: 30, borderRadius: 8, border: 'none', background: '#F3F4F6', color: '#6B7280', cursor: 'pointer', display: 'grid', placeItems: 'center' }}><X size={15} /></button>
+            <div style={{ width: 42, height: 42, borderRadius: 12, display: 'grid', placeItems: 'center', color: '#B45309', background: '#FEF3C7', marginBottom: 13 }}><AlertTriangle size={21} /></div>
+            <h2 id="target-error-title" style={{ margin: '0 38px 7px 0', fontSize: 18 }}>대상 선택 준비가 필요해요</h2>
+            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: '#6B7280' }}>{targetError}</p>
+            <ol style={{ margin: '14px 0 18px', paddingLeft: 20, fontSize: 12.5, lineHeight: 1.8, color: '#374151' }}>
+              <li>{BRAND_COPY.extensionDisplayName}를 설치하고 활성화합니다.</li>
+              <li>대상을 지정할 실제 웹페이지 탭을 엽니다.</li>
+              <li>아래 ‘다시 선택’을 눌러 탭과 요소를 차례로 고릅니다.</li>
+            </ol>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <a href={BRAND_EXTENSION_STORE_URL} target="_blank" rel="noreferrer" style={{ height: 36, padding: '0 13px', borderRadius: 8, border: '1px solid #D1D5DB', color: '#374151', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', fontSize: 12.5, fontWeight: 600 }}>확장 프로그램 설치</a>
+              <button onClick={() => { setTargetError(null); void openTargetPicker(); }} style={{ height: 36, padding: '0 15px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg,#009B8E,#12B886)', color: 'white', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>다시 선택</button>
+            </div>
+          </div>
+        </div>
       )}
 
       <Styles />

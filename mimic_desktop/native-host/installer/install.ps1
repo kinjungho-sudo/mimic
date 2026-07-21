@@ -15,6 +15,7 @@ $desktopShortcut = Join-Path ([Environment]::GetFolderPath("Desktop")) "Parro De
 $sourceRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 $defaultExtensionIds = @(
+  "lefkpmfgdbhckcemfghpegleknaepekm",
   "pnkkalnfddapkmiobbhnkbhplakamaok",
   "dhfcmomnambegkibjnandckacihnaelb",
   "ehbhcdkapcbfehinjapabgoegcjmmbgd"

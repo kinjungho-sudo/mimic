@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import DOMPurify from 'dompurify';
 import { BRAND_COLORS } from '@/lib/brand';
+import { resolveImageAlt } from '@/lib/image-alt';
 import type { ManualStep } from './ManualEditor';
 
 interface SdkPreviewPanelProps {
@@ -55,7 +56,7 @@ export function SdkPreviewPanel({ steps, activeId, onClose }: SdkPreviewPanelPro
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={step.screenshotUrl}
-              alt={step.actionTitle}
+              alt={resolveImageAlt(step.imageAltText, step.actionTitle, step.description)}
               style={{ width: '100%', height: 'auto', display: 'block' }}
             />
             {/* element_rect 기반 하이라이트 */}

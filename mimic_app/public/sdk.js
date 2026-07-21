@@ -70,17 +70,103 @@
   }
 
   // ── DOM 유틸 ───────────────────────────────────────────────
-  function findElement(selector, xpath) {
+  function normalizeTargetText(value) {
+    return String(value || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  }
+
+  function targetTextSimilarity(left, right) {
+    var a = normalizeTargetText(left);
+    var b = normalizeTargetText(right);
+    if (!a || !b) return 0;
+    if (a === b) return 1;
+    if (a.indexOf(b) >= 0 || b.indexOf(a) >= 0) return Math.max(0.68, Math.min(a.length, b.length) / Math.max(a.length, b.length));
+    return 0;
+  }
+
+  function targetName(el) {
+    return el && (
+      el.getAttribute('aria-label')
+      || el.getAttribute('title')
+      || el.getAttribute('placeholder')
+      || el.getAttribute('name')
+      || el.value
+      || el.textContent
+      || ''
+    );
+  }
+
+  function visibleTarget(el) {
+    if (!el || !el.isConnected || /^(HTML|BODY)$/.test(el.tagName || '')) return false;
+    var rect = el.getBoundingClientRect();
+    if (rect.width < 1 || rect.height < 1) return false;
+    var style = (el.ownerDocument && el.ownerDocument.defaultView || window).getComputedStyle(el);
+    return style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity || 1) > 0.01;
+  }
+
+  function targetEvidenceMatches(el, targetContext) {
+    if (!visibleTarget(el)) return false;
+    var expectedName = targetContext && targetContext.accessibleName;
+    return !expectedName || targetTextSimilarity(targetName(el), expectedName) >= 0.55;
+  }
+
+  function guidePageMatches(pageUrl) {
+    try {
+      var expected = new URL(pageUrl);
+      var current = new URL(location.href);
+      var normalizePath = function (path) { return path.length > 1 ? path.replace(/\/$/, '') : path; };
+      var routeHash = function (url) {
+        var hash = decodeURIComponent(url.hash || '');
+        if (!/^#!?\//.test(hash)) return '';
+        return hash.replace(/^#!?/, '').split('?')[0].replace(/\/$/, '') || '/';
+      };
+      if (!/^https?:$/.test(expected.protocol)
+        || expected.origin !== current.origin
+        || normalizePath(expected.pathname) !== normalizePath(current.pathname)) return false;
+      var expectedRoute = routeHash(expected);
+      if (expectedRoute && expectedRoute !== routeHash(current)) return false;
+      var volatileKey = /^(utm_.+|fbclid|gclid|_ga|code|state|session|session_id|timestamp|ts|_t)$/i;
+      var matches = true;
+      expected.searchParams.forEach(function (value, key) {
+        if (!volatileKey.test(key) && current.searchParams.get(key) !== value) matches = false;
+      });
+      return matches;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function findElement(selector, xpath, targetContext) {
+    var root = document;
+    var framePath = targetContext && Array.isArray(targetContext.framePath) ? targetContext.framePath : [];
+    var shadowPath = targetContext && Array.isArray(targetContext.shadowPath) ? targetContext.shadowPath : [];
+    try {
+      for (var f = 0; f < framePath.length; f += 1) {
+        var frame = root.querySelector(framePath[f]);
+        if (!frame || !frame.contentDocument) return null;
+        root = frame.contentDocument;
+      }
+      for (var s = 0; s < shadowPath.length; s += 1) {
+        var host = root.querySelector(shadowPath[s]);
+        if (!host || !host.shadowRoot) return null;
+        root = host.shadowRoot;
+      }
+    } catch (e) {
+      // Cross-origin frames cannot be traversed by the embed SDK. Returning null
+      // keeps the guide hidden instead of highlighting an unrelated element.
+      return null;
+    }
     if (selector) {
       try {
-        var el = document.querySelector(selector);
-        if (el) return el;
+        var matches = Array.prototype.slice.call(root.querySelectorAll(selector)).filter(function (el) {
+          return targetEvidenceMatches(el, targetContext);
+        });
+        if (matches.length === 1) return matches[0];
       } catch (e) { /* invalid selector */ }
     }
-    if (xpath) {
+    if (xpath && root.nodeType === Node.DOCUMENT_NODE) {
       try {
-        var result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
-        if (result.singleNodeValue) return result.singleNodeValue;
+        var result = root.evaluate(xpath, root, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+        if (targetEvidenceMatches(result.singleNodeValue, targetContext)) return result.singleNodeValue;
       } catch (e) { /* invalid xpath */ }
     }
     return null;
@@ -88,7 +174,26 @@
 
   function getRect(el) {
     var r = el.getBoundingClientRect();
-    return { top: r.top, left: r.left, width: r.width, height: r.height };
+    var top = r.top;
+    var left = r.left;
+    var width = r.width;
+    var height = r.height;
+    var ownerWindow = el.ownerDocument && el.ownerDocument.defaultView;
+    try {
+      while (ownerWindow && ownerWindow !== window) {
+        var frame = ownerWindow.frameElement;
+        if (!frame) break;
+        var fr = frame.getBoundingClientRect();
+        var scaleX = fr.width / Math.max(1, ownerWindow.innerWidth);
+        var scaleY = fr.height / Math.max(1, ownerWindow.innerHeight);
+        left = fr.left + left * scaleX;
+        top = fr.top + top * scaleY;
+        width *= scaleX;
+        height *= scaleY;
+        ownerWindow = ownerWindow.parent;
+      }
+    } catch (e) { /* cross-origin paths are rejected by findElement */ }
+    return { top: top, left: left, width: width, height: height };
   }
 
   // ── 툴팁 위치 계산 ─────────────────────────────────────────
@@ -210,7 +315,17 @@
     if (!step) { this.destroy(); return; }
 
     var self = this;
-    var targetEl = findElement(step.element_selector, step.element_xpath);
+    if (!step.page_url || !guidePageMatches(step.page_url)) {
+      this._retryTimer = setTimeout(function () { if (self._running) self._render(); }, 900);
+      return;
+    }
+    var targetEl = findElement(step.element_selector, step.element_xpath, step.target_context);
+
+    // 대상이 확인되지 않으면 아무 화면에도 fallback 카드/딤을 띄우지 않는다.
+    if (!targetEl) {
+      this._retryTimer = setTimeout(function () { if (self._running) self._render(); }, 900);
+      return;
+    }
 
     // 하이라이트
     if (targetEl) {
@@ -229,13 +344,6 @@
 
       // 요소가 뷰포트 밖이면 스크롤
       targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    } else {
-      // 배경 딤
-      var backdrop = document.createElement('div');
-      backdrop.className = 'parro-backdrop mimic-backdrop';
-      backdrop.addEventListener('click', function () { self.destroy(); });
-      document.body.appendChild(backdrop);
-      this._els.backdrop = backdrop;
     }
 
     // 툴팁 생성
@@ -347,6 +455,7 @@
 
   Guide.prototype._clean = function () {
     this._stopAudio();
+    if (this._retryTimer) { clearTimeout(this._retryTimer); this._retryTimer = null; }
     ['highlight', 'backdrop', 'tooltip'].forEach(function (k) {
       if (this._els[k]) { this._els[k].remove(); delete this._els[k]; }
     }, this);
@@ -618,6 +727,21 @@
       '  from { opacity: 0; transform: translateX(-50%) translateY(20px); }',
       '  to   { opacity: 1; transform: translateX(-50%) translateY(0); }',
       '}',
+      '@keyframes parroAvatarTalk {',
+      '  0%,100% { transform: translateY(0) rotate(0deg); }',
+      '  35% { transform: translateY(-2px) rotate(-1.5deg); }',
+      '  70% { transform: translateY(-1px) rotate(1deg); }',
+      '}',
+      '@keyframes parroAvatarFramePrimary {',
+      '  0%,54%,100% { opacity:1; transform:translateY(0) scale(1); }',
+      '  64%,82% { opacity:0; transform:translateY(1px) scale(.985); }',
+      '  91% { opacity:1; transform:translateY(0) scale(1); }',
+      '}',
+      '@keyframes parroAvatarFrameSecondary {',
+      '  0%,54%,100% { opacity:0; transform:translateY(1px) scale(.98); }',
+      '  64%,82% { opacity:1; transform:translateY(0) scale(1); }',
+      '  91% { opacity:0; transform:translateY(-1px) scale(.99); }',
+      '}',
       '#parro-autorun-cursor,#mimic-autorun-cursor {',
       '  position: fixed; z-index: 2147483640; pointer-events: none;',
       '  width: 24px; height: 24px;',
@@ -638,7 +762,11 @@
       '  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);',
       '  white-space: nowrap;',
       '}',
-      '#parro-autorun-bar .mar-icon,#mimic-autorun-bar .mar-icon { font-size: 16px; }',
+      '#parro-autorun-bar .mar-icon,#mimic-autorun-bar .mar-icon { position:relative;display:inline-flex;width:24px;height:24px;flex:none;align-items:center;justify-content:center;overflow:hidden;animation:parroAvatarTalk 1.6s ease-in-out infinite; }',
+      '#parro-autorun-bar .mar-icon img,#mimic-autorun-bar .mar-icon img { position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:contain;user-select:none;pointer-events:none; }',
+      '#parro-autorun-bar .mar-icon-primary,#mimic-autorun-bar .mar-icon-primary { animation:parroAvatarFramePrimary 4s ease-in-out infinite; }',
+      '#parro-autorun-bar .mar-icon-secondary,#mimic-autorun-bar .mar-icon-secondary { opacity:0;animation:parroAvatarFrameSecondary 4s ease-in-out infinite; }',
+      '@media (prefers-reduced-motion:reduce){#parro-autorun-bar .mar-icon,#mimic-autorun-bar .mar-icon,#parro-autorun-bar .mar-icon img,#mimic-autorun-bar .mar-icon img{animation:none!important}#parro-autorun-bar .mar-icon-secondary,#mimic-autorun-bar .mar-icon-secondary{display:none}}',
       '#parro-autorun-bar .mar-label,#mimic-autorun-bar .mar-label { color: rgba(255,255,255,0.55); font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }',
       '#parro-autorun-bar .mar-title,#mimic-autorun-bar .mar-title { max-width: 200px; overflow: hidden; text-overflow: ellipsis; }',
       '#parro-autorun-bar .mar-progress,#mimic-autorun-bar .mar-progress { display: flex; align-items: center; gap: 6px; color: rgba(255,255,255,0.5); font-size: 12px; }',
@@ -671,7 +799,7 @@
     var pct = totalSteps > 0 ? Math.round((stepNum / totalSteps) * 100) : 0;
 
     // 정적 구조만 innerHTML로 (외부 데이터 없음)
-    el.innerHTML = '<span class="mar-icon">🤖</span>'
+    el.innerHTML = '<span class="mar-icon"><img class="mar-icon-primary" src="' + BASE_URL + '/brand/parro-ai-avatar-talk.png" alt="" draggable="false"><img class="mar-icon-secondary" src="' + BASE_URL + '/brand/parro-ai-avatar-point.png" alt="" draggable="false"></span>'
       + '<span class="mar-label">AI 실행 중 · BETA</span>'
       + '<span class="mar-divider"></span>'
       + '<span class="mar-title" id="parro-ar-title"></span>'

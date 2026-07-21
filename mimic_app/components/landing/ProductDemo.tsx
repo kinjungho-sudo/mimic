@@ -144,7 +144,7 @@ function TargetViewport({ step, previousStep, live, reducedMotion, settled = fal
       <span className={styles.pointer} aria-hidden="true"><Pointer /></span>
       {live && (
         <div className={`${styles.guideCoach} ${step.coachSide === 'right' ? styles.coachRight : styles.coachLeft}`}>
-          <div className={styles.guideAvatar}><ParroMascot size={68} /></div>
+          <div className={styles.guideAvatar}><ParroMascot size={68} state="point" mirror={step.coachSide === 'right'} /></div>
           <div className={styles.coachmark}>
             <div className={styles.coachmarkHeading}>
               <span>Parro AI Guide</span><strong>{step.title}</strong>
@@ -170,7 +170,7 @@ function RecorderPanel({ phase }: { phase: number }) {
           <span className={styles.buildingState}><i /> 생성 중</span>
         </div>
         <div className={styles.panelGeneratingContent}>
-          <ParroMascot size={64} />
+          <ParroMascot size={64} state="search" />
           <strong>매뉴얼을 만들고 있어요</strong>
           <p>제목과 3개의 카드 단계를 자동으로 구성합니다.</p>
           <i><em /></i>
@@ -243,7 +243,7 @@ function RecorderScene({ phase, compact = false, reducedMotion = false }: {
           />
           {generating && (
             <div className={styles.manualBuildOverlay}>
-              <div><ParroMascot size={72} /><strong>AI가 매뉴얼을 자동 완성하고 있어요</strong><span>잠시 후 Live Guide로 이어집니다</span></div>
+              <div><ParroMascot size={72} state="search" /><strong>AI가 매뉴얼을 자동 완성하고 있어요</strong><span>잠시 후 Live Guide로 이어집니다</span></div>
             </div>
           )}
         </div>
@@ -411,8 +411,10 @@ function SharedViewerScene({ reducedMotion }: { reducedMotion: boolean }) {
             <div className={styles.previewLabel}><span>▰</span><div><strong>슬라이드</strong><small>한 장씩 넘기며 단계에 집중</small></div></div>
             <div className={styles.slideCanvas}>
               <div className={styles.slideChapter}><span>Step {slideIndex + 1}</span><strong>{DEMO_STEPS[slideIndex].title}</strong></div>
-              <img src={DEMO_STEPS[slideIndex].screenshotUrl} alt="" draggable={false} />
-              <div className={styles.slideAnnotation} />
+              <div className={styles.slideImageFrame}>
+                <img src={DEMO_STEPS[slideIndex].screenshotUrl} alt="" draggable={false} />
+                <div className={styles.slideAnnotation} />
+              </div>
               <div className={styles.slideControls}><span>‹</span><strong>{slideIndex + 1} / {DEMO_STEPS.length}</strong><span>›</span></div>
             </div>
           </section>

@@ -1,10 +1,12 @@
 ﻿'use client';
 
+/* eslint-disable @next/next/no-img-element -- user-uploaded storage URLs are rendered at their original dimensions */
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { BrandMark } from '@/components/common/BrandMark';
 import { BRAND_COLORS, BRAND_COPY, BRAND_NAME, BRAND_SUPPORT_EMAIL } from '@/lib/brand';
+import { hasEntitlement } from '@/lib/entitlements';
 
 const BRAND_GRADIENT = `linear-gradient(135deg, ${BRAND_COLORS.primary}, ${BRAND_COLORS.guide})`;
 const BRAND_RING = 'rgba(0,155,142,0.25)';
@@ -26,6 +28,10 @@ function ToggleRow({ label, description, value, onChange }: { label: string; des
       </div>
       <button
         onClick={() => onChange(!value)}
+        type="button"
+        role="switch"
+        aria-checked={value}
+        aria-label={label}
         style={{ width: '40px', height: '22px', borderRadius: '11px', background: value ? BRAND_COLORS.primary : '#E5E7EB', border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}
       >
         <span style={{ position: 'absolute', top: '3px', left: value ? '21px' : '3px', width: '16px', height: '16px', borderRadius: '50%', background: 'white', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.15)' }} />
@@ -59,6 +65,7 @@ export default function SettingsPage() {
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
   const currentMarketing = marketing !== null ? marketing : (user?.agreements?.marketing ?? false);
+  const canUseBranding = hasEntitlement(user?.plan, 'branding');
 
   useEffect(() => {
     if (user?.name) setDisplayName(user.name);
@@ -79,6 +86,10 @@ export default function SettingsPage() {
 
   const handleLogoUpload = async (file: File | null) => {
     if (!file) return;
+    if (!canUseBranding) {
+      window.location.assign('/landingpage#pricing');
+      return;
+    }
     setLogoUploading(true);
     try {
       const formData = new FormData();
@@ -131,23 +142,22 @@ export default function SettingsPage() {
     setProfileSaving(true);
     setProfileSaved(false);
     try {
-      const [brandingRes, profileRes] = await Promise.all([
-        fetch('/api/user/branding', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            primary_color: brandColor,
-            company_name: affiliation.trim() || null,
-            footer_text: footerText,
-          }),
-        }),
+      const requests = [
         fetch('/api/user/profile', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: displayName.trim() }),
         }),
-      ]);
-      if (!brandingRes.ok || !profileRes.ok) throw new Error('save failed');
+      ];
+      if (canUseBranding) {
+        requests.push(fetch('/api/user/branding', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ primary_color: brandColor, company_name: affiliation.trim() || null, footer_text: footerText }),
+        }));
+      }
+      const responses = await Promise.all(requests);
+      if (responses.some(response => !response.ok)) throw new Error('save failed');
       updateUser({ name: displayName.trim() });
       setProfileSaved(true);
     } catch {
@@ -221,6 +231,11 @@ export default function SettingsPage() {
 
         <Section title="내보내기 표기">
           <div style={{ padding: '16px 20px' }}>
+            {!canUseBranding && (
+              <div style={{ marginBottom: 14, padding: '10px 12px', borderRadius: 9, background: '#F9FAFB', color: '#6B7280', fontSize: 12.5 }}>
+                회사 로고와 브랜드 표기는 Pro 이상 플랜에서 사용할 수 있습니다. <Link href="/landingpage#pricing" style={{ color: BRAND_COLORS.primary, fontWeight: 700 }}>플랜 보기</Link>
+              </div>
+            )}
             <div style={{ display: 'grid', gap: '12px' }}>
               <div style={{ display: 'grid', gap: '8px' }}>
                 <span style={{ fontSize: '12.5px', fontWeight: 500, color: '#374151' }}>회사 로고</span>
@@ -233,12 +248,12 @@ export default function SettingsPage() {
                     )}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <label style={{ height: '34px', padding: '0 12px', borderRadius: '8px', border: '1px solid #D1D5DB', background: 'white', color: '#374151', fontSize: '12.5px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', cursor: logoUploading ? 'not-allowed' : 'pointer', opacity: logoUploading ? 0.55 : 1 }}>
+                    <label style={{ height: '34px', padding: '0 12px', borderRadius: '8px', border: '1px solid #D1D5DB', background: 'white', color: '#374151', fontSize: '12.5px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', cursor: logoUploading || !canUseBranding ? 'not-allowed' : 'pointer', opacity: logoUploading || !canUseBranding ? 0.55 : 1 }}>
                       {logoUploading ? '처리 중…' : '로고 업로드'}
                       <input
                         type="file"
                         accept="image/png,image/jpeg"
-                        disabled={logoUploading}
+                        disabled={logoUploading || !canUseBranding}
                         onChange={e => {
                           const file = e.target.files?.[0] ?? null;
                           void handleLogoUpload(file);
@@ -265,6 +280,7 @@ export default function SettingsPage() {
                 <span style={{ fontSize: '12.5px', fontWeight: 500, color: '#374151' }}>소속</span>
                 <input
                   value={affiliation}
+                  disabled={!canUseBranding}
                   onChange={e => { setAffiliation(e.target.value); setProfileSaved(false); }}
                   placeholder="예: Parro"
                   maxLength={50}
@@ -312,12 +328,15 @@ export default function SettingsPage() {
         <Section title="Desktop Companion">
           <div style={{ padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '18px' }}>
             <div>
-              <div style={{ fontSize: '14px', fontWeight: 600, color: '#111827' }}>Desktop Companion 다운로드/설치</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '14px', fontWeight: 600, color: '#111827' }}>
+                Desktop Companion 다운로드/설치
+                <span style={{ padding: '2px 7px', borderRadius: '999px', background: '#E6F7F3', color: '#007C72', fontSize: '10px', fontWeight: 800 }}>유료 플랜</span>
+              </div>
               <div style={{ fontSize: '12.5px', color: '#6B7280', marginTop: '4px', lineHeight: 1.55 }}>Windows 다운로드, 설치, 로그인, 파일 수정, 업로드 복귀 단계를 Recorder 세션에 이어 붙입니다.</div>
-              <div style={{ fontSize: '11.5px', color: '#9CA3AF', marginTop: '5px', lineHeight: 1.5 }}>설치 화면에서 .exe 다운로드, 설치 완료 확인, 데스크톱 녹화 시작을 순서대로 진행합니다.</div>
+              <div style={{ fontSize: '11.5px', color: '#9CA3AF', marginTop: '5px', lineHeight: 1.5 }}>설치 상태와 버전을 확인하고, 필요한 경우에만 최신 설치 파일을 받을 수 있습니다.</div>
             </div>
-            <Link href="/desktop-setup?source=settings" style={{ padding: '9px 16px', borderRadius: '9px', fontSize: '13px', fontWeight: 700, background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', textDecoration: 'none', flexShrink: 0, boxShadow: '0 2px 8px rgba(55,48,163,0.25)' }}>
-              다운로드/설치
+            <Link href="/download/desktop?source=settings" style={{ padding: '9px 16px', borderRadius: '9px', fontSize: '13px', fontWeight: 700, background: 'linear-gradient(135deg, #3730a3, #6d28d9)', color: 'white', textDecoration: 'none', flexShrink: 0, boxShadow: '0 2px 8px rgba(55,48,163,0.25)' }}>
+              상태 확인
             </Link>
           </div>
         </Section>

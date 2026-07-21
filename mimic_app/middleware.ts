@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { hasEntitlement } from './lib/entitlements';
 
 const clean = (v: string | undefined) => v?.replace(/^﻿/, '').trim() ?? '';
 
@@ -11,7 +12,20 @@ const PROTECTED = [
   '/settings',
   '/download',
   '/downloads',
+  '/desktop-setup',
+  '/desktop-import',
 ];
+
+const PAID_DESKTOP_PATHS = [
+  '/download/desktop',
+  '/downloads/ParroDesktopSetup.exe',
+  '/desktop-setup',
+  '/desktop-import',
+];
+
+function isPaidDesktopPath(pathname: string): boolean {
+  return PAID_DESKTOP_PATHS.some(path => pathname === path || pathname.startsWith(`${path}/`));
+}
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -61,11 +75,35 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  if (userId && isPaidDesktopPath(pathname)) {
+    const { data: profile } = await supabase
+      .from('mm_users')
+      .select('plan')
+      .eq('id', userId)
+      .single();
+    const paid = hasEntitlement(profile?.plan, 'desktop_companion');
+    if (!paid) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/landingpage';
+      url.search = '';
+      url.searchParams.set('feature', 'desktop');
+      url.searchParams.set('source', 'paid-gate');
+      url.hash = 'pricing';
+      return NextResponse.redirect(url);
+    }
+  }
+
   if (pathname.startsWith('/admin')) {
-    if (!userId || userEmail !== clean(process.env.ADMIN_EMAIL)) {
+    if (!userId) {
       const url = request.nextUrl.clone();
       url.pathname = '/auth/login';
       url.searchParams.set('next', `${pathname}${request.nextUrl.search}`);
+      return NextResponse.redirect(url);
+    }
+    if (userEmail !== clean(process.env.ADMIN_EMAIL)) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/forbidden/admin';
+      url.search = '';
       return NextResponse.redirect(url);
     }
   }

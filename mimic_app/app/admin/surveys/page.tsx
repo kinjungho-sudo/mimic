@@ -48,12 +48,18 @@ function contextLabel(context: string) {
 export default function AdminSurveysPage() {
   const [surveys, setSurveys] = useState<SurveyResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     fetch('/api/admin/surveys')
-      .then(r => r.json())
-      .then(d => { setSurveys(d.surveys ?? []); setLoading(false); })
-      .catch(() => setLoading(false));
+      .then(async r => {
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error ?? '설문 응답을 불러오지 못했습니다.');
+        return d;
+      })
+      .then(d => setSurveys(d.surveys ?? []))
+      .catch(e => setError(e instanceof Error ? e.message : '설문 응답을 불러오지 못했습니다.'))
+      .finally(() => setLoading(false));
   }, []);
 
   const avg = (key: keyof Pick<SurveyResponse, 'q1_easier_than_pdf' | 'q2_would_use_again' | 'q3_useful_for_work'>) => {
@@ -66,13 +72,13 @@ export default function AdminSurveysPage() {
   const feedbackCount = surveys.filter(s => s.q5_additional_feedback).length;
 
   return (
-    <div style={{ padding: '36px 40px' }}>
+    <div className="admin-page" style={{ padding: '36px 40px' }}>
       <div style={{ marginBottom: '28px' }}>
         <h1 style={{ fontSize: '22px', fontWeight: 600, margin: '0 0 4px', color: '#0F172A' }}>설문 응답</h1>
         <p style={{ color: '#64748B', fontSize: '13px', margin: 0 }}>총 {surveys.length}개 응답</p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '24px' }}>
+      <div className="admin-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '24px' }}>
         {[
           { label: 'PDF보다 쉬움', value: avg('q1_easier_than_pdf'), unit: '/ 5', color: '#009B8E', bg: '#E8FFF7' },
           { label: '다시 사용 의향', value: avg('q2_would_use_again'), unit: '/ 5', color: '#0369A1', bg: '#F0F9FF' },
@@ -108,7 +114,8 @@ export default function AdminSurveysPage() {
         </div>
       )}
 
-      <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden' }}>
+      {error && <div role="alert" style={{ marginBottom: '14px', padding: '12px 14px', borderRadius: '8px', background: '#FEF2F2', color: '#B91C1C' }}>{error}</div>}
+      <div className="admin-table-scroll" style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: '#F8FAFC' }}>

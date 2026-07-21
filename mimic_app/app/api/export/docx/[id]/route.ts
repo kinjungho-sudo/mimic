@@ -8,6 +8,7 @@ import { readFile } from 'fs/promises';
 import path from 'path';
 import type { ExportAnnotation } from '@/lib/export/annotations-shared';
 import { renderStepImage } from '@/lib/export/render-step-image';
+import { requireTutorialEntitlement } from '@/lib/auth/entitlement-guard';
 import { BRAND_COLORS } from '@/lib/brand';
 
 type Params = { params: Promise<{ id: string }> };
@@ -86,6 +87,8 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   const access = await guardTutorialAccess(id, auth.userId, 'viewer');
   if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
+  const entitlement = await requireTutorialEntitlement(id, 'office_export', supabase);
+  if (!entitlement.ok) return entitlement.response;
 
   const { data: tutorial } = await supabase
     .from('mm_tutorials')

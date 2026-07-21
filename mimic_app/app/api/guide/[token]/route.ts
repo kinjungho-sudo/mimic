@@ -3,12 +3,21 @@ import { createServiceRoleClient, createServerClient } from '@/lib/supabase/serv
 import { isPaidPlan } from '@/lib/plan';
 import { resolveStepAudio } from '@/lib/voice/playback';
 import { getBrandAppUrl } from '@/lib/brand';
+import { maskManualCopy } from '@/lib/manual-quality';
+import { ENTITLEMENT_UPGRADE_COPY, hasEntitlement } from '@/lib/entitlements';
 
 type Params = { params: Promise<{ token: string }> };
 
-// 라이브 가이드 유료 게이팅 — 제작자(소유자) 과금. Free 소유자는 누적 5회 무료 후 페이월.
-const FREE_LIVE_GUIDE_LIMIT = 5;
-const PAID_PLANS = ['pro', 'team', 'enterprise'];
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+const GUIDE_RESPONSE_HEADERS = {
+  'Cache-Control': 'private, no-store, max-age=0',
+};
+
+function guideJson(payload: unknown, status = 200) {
+  return NextResponse.json(payload, { status, headers: GUIDE_RESPONSE_HEADERS });
+}
 
 function isMissingExceptionStepColumns(error: { code?: string; message?: string } | null | undefined) {
   return error?.code === '42703'
@@ -16,14 +25,11 @@ function isMissingExceptionStepColumns(error: { code?: string; message?: string 
 }
 const APP_URL = getBrandAppUrl();
 
-// 소유자 플랜·사용량으로 게이트 판정. 반환: 막혔으면 gated 정보, 아니면 null.
-// charge=true(공개 실행)일 때만 카운트 차감 — RPC로 원자적 check-and-increment(race 방지).
-// charge=false(소유자 미리보기)는 읽기 전용 판정만 — 미리보기로 무료 한도가 소진되지 않게.
+// 소유자 플랜으로 게이트 판정. Live Guide는 Pro 이상에서 제공한다.
 async function gateLiveGuide(
   supabase: ReturnType<typeof createServiceRoleClient>,
   ownerId: string,
-  charge: boolean,
-): Promise<{ gated: true; limit: number; used: number; upgradeUrl: string } | null> {
+): Promise<{ gated: true; limit: number; used: number; upgradeUrl: string; error: string } | null> {
   const { data: owner } = await supabase
     .from('mm_users')
     .select('plan, live_guide_runs')
@@ -31,21 +37,14 @@ async function gateLiveGuide(
     .single();
 
   const plan = owner?.plan ?? 'free';
-  if (PAID_PLANS.includes(plan)) return null; // 유료=무제한(미카운트)
-
-  const gated = { gated: true as const, limit: FREE_LIVE_GUIDE_LIMIT, used: owner?.live_guide_runs ?? 0, upgradeUrl: `${APP_URL}/landingpage#pricing` };
-
-  if (!charge) {
-    // 미리보기 — 차감 없이 한도만 확인
-    return gated.used >= FREE_LIVE_GUIDE_LIMIT ? gated : null;
-  }
-
-  // 공개 실행 — 한도 미만일 때만 원자적으로 1회 차감. 한도 도달 시 RPC가 NULL 반환.
-  const { data: newCount } = await supabase.rpc('consume_free_live_guide_run', {
-    uid: ownerId,
-    free_limit: FREE_LIVE_GUIDE_LIMIT,
-  });
-  return newCount == null ? gated : null;
+  if (hasEntitlement(plan, 'live_guide')) return null;
+  return {
+    gated: true as const,
+    limit: 0,
+    used: owner?.live_guide_runs ?? 0,
+    upgradeUrl: `${APP_URL}/landingpage#pricing`,
+    error: ENTITLEMENT_UPGRADE_COPY.live_guide,
+  };
 }
 
 // GET /api/guide/{share_token}  — published, 인증 불필요 (Extension용)
@@ -62,7 +61,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     const serverClient = await createServerClient();
     const { data: { session } } = await serverClient.auth.getSession();
     if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return guideJson({ error: 'Unauthorized' }, 401);
     }
 
     const { data: tutorial } = await supabase
@@ -73,14 +72,14 @@ export async function GET(request: NextRequest, { params }: Params) {
       .single();
 
     if (!tutorial) {
-      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      return guideJson({ error: 'Not found' }, 404);
     }
 
     // 소유자 미리보기 — 차감 없이 한도만 확인
-    const gated = await gateLiveGuide(supabase, tutorial.user_id, false);
-    if (gated) return NextResponse.json(gated);
+    const gated = await gateLiveGuide(supabase, tutorial.user_id);
+    if (gated) return guideJson(gated);
 
-    return NextResponse.json(await fetchSteps(supabase, tutorial.id, tutorial.title, tutorial.user_id, !!tutorial.tts_enabled));
+    return guideJson(await fetchSteps(supabase, tutorial.id, tutorial.title, tutorial.user_id, !!tutorial.tts_enabled));
   }
 
   // share_token으로 published 튜토리얼 조회 (공개)
@@ -92,24 +91,23 @@ export async function GET(request: NextRequest, { params }: Params) {
     .single();
 
   if (!tutorial) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return guideJson({ error: 'Not found' }, 404);
   }
 
-  // 공개 실행 — 원자적 차감
-  const gated = await gateLiveGuide(supabase, tutorial.user_id, true);
-  if (gated) return NextResponse.json(gated);
+  const gated = await gateLiveGuide(supabase, tutorial.user_id);
+  if (gated) return guideJson(gated);
 
-  return NextResponse.json(await fetchSteps(supabase, tutorial.id, tutorial.title, tutorial.user_id, !!tutorial.tts_enabled));
+  return guideJson(await fetchSteps(supabase, tutorial.id, tutorial.title, tutorial.user_id, !!tutorial.tts_enabled));
 }
 
 async function fetchSteps(supabase: ReturnType<typeof createServiceRoleClient>, tutorialId: string, title: string, ownerId: string, ttsEnabled: boolean) {
   const baseSelect =
     'id, step_number, user_title, ai_title, user_script, ai_description, ' +
-    'page_url, element_selector, element_xpath, element_rect, click_x, click_y, screenshot_url, user_annotations, follow_config, type_text, ' +
+    'page_url, element_selector, element_xpath, element_rect, click_x, click_y, screenshot_url, image_alt_text, user_annotations, follow_config, type_text, ' +
     'voice_audio_url, voice_audio_start_ms, voice_audio_end_ms';
   let { data: rawSteps, error: stepsError } = await supabase
     .from('mm_steps')
-    .select(`${baseSelect}, step_type, capture_source, capture_failure_reason`)
+    .select(`${baseSelect}, target_context, step_type, capture_source, capture_failure_reason`)
     .eq('tutorial_id', tutorialId)
     .order('order_index')
     .order('step_number'); // tie-break: order_index 동률/NULL(복제·레거시 데이터)일 때 순서 결정성 보장
@@ -139,7 +137,7 @@ async function fetchSteps(supabase: ReturnType<typeof createServiceRoleClient>, 
   let voiceEnabled = false;
   let audioAssets: { step_id: string; audio_url: string; duration_ms?: number | null; script_text?: string | null }[] = [];
   if (ttsEnabled && rawSteps?.length) {
-    voiceEnabled = isPaidPlan(ownerPlan);
+    voiceEnabled = hasEntitlement(ownerPlan, 'ai_voice');
     if (voiceEnabled) {
       const stepIds = rawSteps.map(s => s.id).filter((stepId): stepId is string => typeof stepId === 'string');
       const { data: assets } = await supabase
@@ -172,15 +170,17 @@ async function fetchSteps(supabase: ReturnType<typeof createServiceRoleClient>, 
     return {
       id: s.id,
       step_number: s.step_number,
-      title: (s.user_title || s.ai_title || `Step ${s.step_number}`) as string,
-      instruction: (s.user_script || s.ai_description || '') as string,
+      title: maskManualCopy((s.user_title || s.ai_title) as string) || `Step ${s.step_number}`,
+      instruction: maskManualCopy((s.user_script || s.ai_description || '') as string),
       page_url: s.page_url ?? null,
       element_selector: explanationOnly ? null : (s.element_selector ?? null),
       element_xpath: explanationOnly ? null : (s.element_xpath ?? null),
       element_rect: explanationOnly ? null : (s.element_rect ?? null),
+      target_context: explanationOnly ? null : (s.target_context ?? null),
       click_x: explanationOnly ? null : (s.click_x ?? null),
       click_y: explanationOnly ? null : (s.click_y ?? null),
       screenshot_url: s.screenshot_url ?? null,
+      image_alt_text: s.image_alt_text ?? null,
       user_annotations: (s.user_annotations as unknown[] | null) ?? [],
       step_type: stepType,
       capture_source: s.capture_source ?? null,
@@ -188,7 +188,7 @@ async function fetchSteps(supabase: ReturnType<typeof createServiceRoleClient>, 
       guide_mode: explanationOnly ? 'explanation' : 'interactive',
       // 라이브 가이드 자동입력용 — 스튜디오 오버라이드(fc.typeText) 우선, 없으면 캡처 원문(s.type_text) 폴백
       kind: explanationOnly ? 'none' : (fc.kind ?? null),
-      type_text: fc.typeText ?? (s.type_text as string | null) ?? null,
+      type_text: maskManualCopy(fc.typeText ?? (s.type_text as string | null)) || null,
       hidden: !!fc.hidden,
       // 소유자가 스튜디오에서 직접 보정한 핫스팟(0~100%)·말풍선 위치 — 라이브 가이드가 우선 적용
       hotspot_x: fc.hotspotX ?? null,
@@ -203,7 +203,7 @@ async function fetchSteps(supabase: ReturnType<typeof createServiceRoleClient>, 
   // 숨김 스텝은 따라하기/라이브 가이드에서 제외 (일관성)
   return {
     tutorial_id: tutorialId,
-    title,
+    title: maskManualCopy(title),
     tts_enabled: voiceEnabled,
     survey: {
       enabled: !isPaidPlan(ownerPlan),

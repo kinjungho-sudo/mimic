@@ -13,6 +13,8 @@ import { toFollowSteps, clickToPct } from '@/lib/follow';
 import { startLiveGuide } from '@/lib/api/liveGuide';
 import { resolveStepAudio } from '@/lib/voice/playback';
 import { BRAND_COLORS, BRAND_LOGO_IMAGE_PATH, BRAND_NAME, LEGACY_INTERNAL_IDENTIFIERS } from '@/lib/brand';
+import { resolveSharedStepIndex } from '@/lib/share-links';
+import { resolveImageAlt } from '@/lib/image-alt';
 import type { FollowConfig } from '@/types';
 import type { Annotation as DrawAnnotation } from '@/components/editor/ImageAnnotationEditor';
 
@@ -42,6 +44,7 @@ type Step = {
   title: string;
   caption: string;
   screenshot_url: string | null;
+  image_alt_text?: string | null;
   order_index: number;
   click_x: number | null;
   click_y: number | null;
@@ -50,6 +53,7 @@ type Step = {
   image_offset_y?: number | null;
   user_annotations?: DrawAnnotation[];
   follow_config?: FollowConfig | null;
+  type_text?: string | null;
   step_type?: string | null;
   element_rect?: { x: number; y: number; w: number; h: number } | null;
   voice_audio_url?: string | null;
@@ -243,7 +247,7 @@ function DocumentView({ tutorial }: { tutorial: Tutorial }) {
                   <div style={{ position: 'relative', overflow: 'hidden' }}>
                     <div style={{ position: 'relative', lineHeight: 0, transform: f.zoom > 1 ? `translate(${f.offsetX * 100}%, ${f.offsetY * 100}%) scale(${f.zoom})` : undefined, transformOrigin: 'center center' }}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={step.screenshot_url} alt={step.title} style={{ width: '100%', display: 'block' }} />
+                      <img src={step.screenshot_url} alt={resolveImageAlt(step.image_alt_text, step.title, step.caption)} style={{ width: '100%', display: 'block' }} />
                       {(step.user_annotations?.length ?? 0) > 0 && (
                         <AnnotationPreview annotations={step.user_annotations!} imageUrl={step.screenshot_url} sizeScale={f.zoom > 1 ? 1 / f.zoom : 1} />
                       )}
@@ -527,6 +531,7 @@ export default function PlayerPage() {
   const { token } = useParams<{ token: string }>();
   const searchParams = useSearchParams();
   const modeParam = searchParams.get('mode');
+  const sharedStepParam = searchParams.get('step');
   const [tutorial, setTutorial] = useState<Tutorial | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -583,6 +588,14 @@ export default function PlayerPage() {
       })
       .catch(() => { setNotFound(true); setLoading(false); });
   }, [token]);
+
+  useEffect(() => {
+    if (!tutorial) return;
+    const sharedStepIndex = resolveSharedStepIndex(sharedStepParam, tutorial.steps);
+    if (sharedStepIndex == null) return;
+    setCurrentStep(sharedStepIndex);
+    setIsPlaying(false);
+  }, [sharedStepParam, tutorial]);
 
   useEffect(() => {
     if (!tutorial?.id || !tutorial.survey_enabled) return;
@@ -774,17 +787,22 @@ export default function PlayerPage() {
         <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
           <InteractiveFollowPlayer
             title={tutorial.title}
+            initialStepIndex={currentStep}
             lockAfterStep={/* 인증 확인 전엔 보수적으로 잠금 — 로딩 윈도우 게이트 우회 차단 */ !authChecked || !isAuthed ? 1 : null}
             steps={toFollowSteps(tutorial.steps.map(s => ({
               title: s.title,
               body: s.caption,
               screenshotUrl: s.screenshot_url,
+              imageAltText: s.image_alt_text,
               clickXPct: clickToPct(s.click_x),
               clickYPct: clickToPct(s.click_y),
               audioUrl: resolveStepAudio(s, tutorial.audio_assets, tutorial.tts_enabled)?.url ?? null,
               audioStartMs: resolveStepAudio(s, tutorial.audio_assets, tutorial.tts_enabled)?.startMs ?? null,
               audioEndMs: resolveStepAudio(s, tutorial.audio_assets, tutorial.tts_enabled)?.endMs ?? null,
-              followConfig: s.follow_config ?? null,
+              followConfig: {
+                ...(s.follow_config ?? {}),
+                typeText: s.follow_config?.typeText ?? s.type_text ?? null,
+              },
               stepType: s.step_type ?? null,
               annotations: null,
               domRect: s.element_rect ?? null,
@@ -867,7 +885,7 @@ export default function PlayerPage() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={step.screenshot_url}
-                alt={step.title}
+                alt={resolveImageAlt(step.image_alt_text, step.title, step.caption)}
                 style={{ width: '100%', height: 'auto', display: 'block' }}
               />
               {/* 어노테이션 — 이미지와 동일한 크기 SVG로 정확히 겹침. 확대 시 어노테이션은 일정 크기 유지(역보정) */}

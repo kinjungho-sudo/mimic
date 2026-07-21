@@ -3,6 +3,10 @@
 import { useState, useCallback, useEffect } from 'react';
 import { installExtensionIdListener, resolvePreferredExtensionId } from '@/lib/extension-id';
 import { BRAND_COLORS, BRAND_COPY, BRAND_EXTENSION_STORE_URL } from '@/lib/brand';
+import {
+  desktopCaptureEntryDestination,
+  resolveDesktopCaptureEntry,
+} from '@/lib/desktop-companion-client';
 
 // 운영(Production)에서만 켜는 플래그 — Vercel Production env에 NEXT_PUBLIC_REQUIRE_EXTENSION=1.
 // 로컬(npm run dev)·Preview(dev)는 값이 없어 게이트가 꺼진다(개발자 버전 미설치로도 작업 가능).
@@ -45,7 +49,7 @@ interface StartRecordingResponse {
   message?: string;
 }
 
-type ModalStep = 'checking' | 'mode_select' | 'guide' | 'tab_select' | 'launching' | 'not_installed' | 'dev_unavailable' | 'start_failed' | 'install';
+type ModalStep = 'checking' | 'desktop_checking' | 'mode_select' | 'guide' | 'tab_select' | 'launching' | 'not_installed' | 'dev_unavailable' | 'start_failed' | 'install';
 
 // ── 확장 통신 ─────────────────────────────────────────────
 
@@ -219,8 +223,6 @@ interface RecordingModalProps {
 }
 
 const STORE_URL = BRAND_EXTENSION_STORE_URL;
-const DESKTOP_SETUP_URL = '/desktop-setup?source=recording';
-
 export function RecordingModal({ onClose, initialMode = 'select' }: RecordingModalProps) {
   const [step, setStep] = useState<ModalStep>('checking');
   const [tabs, setTabs] = useState<ChromeTab[]>([]);
@@ -259,8 +261,10 @@ export function RecordingModal({ onClose, initialMode = 'select' }: RecordingMod
     return () => { alive = false; cleanupExtensionIdListener(); };
   }, [readyStep]);
 
-  const enterDesktopSetup = useCallback(() => {
-    window.location.href = DESKTOP_SETUP_URL;
+  const enterDesktopSetup = useCallback(async () => {
+    setStep('desktop_checking');
+    const entry = await resolveDesktopCaptureEntry();
+    window.location.assign(desktopCaptureEntryDestination(entry, 'recording'));
   }, []);
 
   // 탭 선택 단계 진입 시 목록 로드
@@ -363,6 +367,7 @@ export function RecordingModal({ onClose, initialMode = 'select' }: RecordingMod
           </div>
           <h2 style={{ fontSize: '19px', fontWeight: 700, color: 'white', margin: 0, letterSpacing: '-0.02em' }}>
             {step === 'checking' && '확장 프로그램 확인 중…'}
+            {step === 'desktop_checking' && 'Desktop Companion 확인 중…'}
             {step === 'mode_select' && '녹화 방식 선택'}
             {step === 'guide' && '웹 페이지 녹화 시작'}
             {step === 'tab_select' && '녹화할 페이지 선택'}
@@ -374,6 +379,7 @@ export function RecordingModal({ onClose, initialMode = 'select' }: RecordingMod
           </h2>
           <p style={{ fontSize: '12.5px', color: 'rgba(255,255,255,0.72)', marginTop: '3px' }}>
             {step === 'checking' && '잠시만 기다려주세요'}
+            {step === 'desktop_checking' && '플랜, 설치 상태와 앱 버전을 확인하고 있어요'}
             {step === 'mode_select' && '웹 페이지 또는 데스크톱 작업 중 선택하세요'}
             {step === 'guide' && '웹 페이지 클릭 흐름을 매뉴얼로 만들어드릴게요'}
             {step === 'tab_select' && (tabListIssue || `열린 탭 ${tabs.length}개 · 페이지를 선택하면 오른쪽에 미리보기가 표시됩니다`)}
@@ -386,9 +392,14 @@ export function RecordingModal({ onClose, initialMode = 'select' }: RecordingMod
         </div>
 
         {/* ── 확인 중 ── */}
-        {step === 'checking' && (
+        {(step === 'checking' || step === 'desktop_checking') && (
           <div style={{ padding: '48px 28px', textAlign: 'center' }}>
             <div style={{ width: '52px', height: '52px', borderRadius: '50%', border: `3px solid ${BRAND_RING_SOFT}`, borderTopColor: BRAND_COLORS.primary, animation: 'spin 0.9s linear infinite', margin: '0 auto' }} />
+            {step === 'desktop_checking' && (
+              <p style={{ margin: '16px 0 0', color: '#6B7280', fontSize: '12.5px', lineHeight: 1.6 }}>
+                설치되어 있고 최신 버전이면 바로 녹화를 시작합니다.
+              </p>
+            )}
           </div>
         )}
 
@@ -424,6 +435,7 @@ export function RecordingModal({ onClose, initialMode = 'select' }: RecordingMod
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ display: 'block', fontSize: '15px', fontWeight: 700, color: '#111827', marginBottom: '4px' }}>데스크톱 녹화</span>
                   <span style={{ display: 'block', fontSize: '12.5px', lineHeight: 1.55, color: '#6B7280' }}>다운로드, 업로드, 설치, 로그인처럼 Windows 작업이 포함된 흐름을 이어서 기록합니다.</span>
+                  <span style={{ display: 'inline-flex', marginTop: '7px', padding: '2px 7px', borderRadius: '999px', background: '#E6F7F3', color: '#007C72', fontSize: '10.5px', fontWeight: 800 }}>유료 플랜</span>
                 </span>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="m9 18 6-6-6-6"/></svg>
               </button>
@@ -431,7 +443,7 @@ export function RecordingModal({ onClose, initialMode = 'select' }: RecordingMod
             <div style={{ background: '#F9FAFB', border: '1px solid #F3F4F6', borderRadius: '10px', padding: '11px 14px', display: 'flex', gap: '10px' }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: '1px' }}><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
               <p style={{ fontSize: '12.5px', color: '#4B5563', lineHeight: 1.55, margin: 0 }}>
-                데스크톱 녹화는 Desktop Companion 설치가 확인된 뒤에만 시작할 수 있습니다.
+                유료 플랜 전용 기능입니다. 설치 여부와 버전을 자동 확인하며, 필요한 경우 설치 또는 업데이트 화면으로 안내합니다.
               </p>
             </div>
           </div>

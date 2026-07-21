@@ -90,6 +90,7 @@ export interface Database {
           step_number: number;
           order_index: number;
           screenshot_url: string;
+          image_alt_text: string | null;
           page_url: string | null;
           ai_title: string | null;
           ai_description: string | null;
@@ -103,6 +104,7 @@ export interface Database {
           step_number: number;
           order_index?: number;
           screenshot_url: string;
+          image_alt_text?: string | null;
           page_url?: string | null;
           ai_title?: string | null;
           ai_description?: string | null;

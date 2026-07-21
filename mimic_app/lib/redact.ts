@@ -1,7 +1,7 @@
 /**
  * Redacts sensitive information from user-generated text before storing it.
  * Targets: Korean resident registration numbers, phone numbers, passwords in context,
- * credit/debit card numbers, and email addresses.
+ * credit/debit card numbers, email addresses, and machine-issued identifiers/tokens.
  */
 
 const PATTERNS: Array<{ re: RegExp; mask: string }> = [
@@ -15,7 +15,25 @@ const PATTERNS: Array<{ re: RegExp; mask: string }> = [
   { re: /(비밀번호|패스워드|password|pw)\s*[:=\s]\s*\S+/gi, mask: '[비밀번호]' },
   // Email addresses
   { re: /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g, mask: '[이메일]' },
+  // Slack-style object IDs (app/channel/workspace/user IDs such as A0BGV8HKK5X)
+  { re: /\b[ACDGWUTB][A-Z0-9]{8,}\b/g, mask: '[서비스 식별자]' },
+  // UUIDs
+  { re: /\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/gi, mask: '[식별자]' },
+  // Common OAuth/API token prefixes
+  { re: /\b(?:xox[baprs]-|xapp-|sk-|pk_)[a-zA-Z0-9_\-]{8,}\b/g, mask: '[보안 토큰]' },
+  // Long mixed machine identifiers. Avoid masking ordinary words by requiring letters and digits.
+  { re: /\b(?=[a-zA-Z0-9_-]{16,}\b)(?=[a-zA-Z0-9_-]*[a-zA-Z])(?=[a-zA-Z0-9_-]*\d)[a-zA-Z0-9_-]+\b/g, mask: '[식별자]' },
 ];
+
+export function containsSensitiveText(text: string | null | undefined): boolean {
+  if (!text) return false;
+  return PATTERNS.some(({ re }) => {
+    re.lastIndex = 0;
+    const matched = re.test(text);
+    re.lastIndex = 0;
+    return matched;
+  });
+}
 
 export function redactSensitive(text: string | null | undefined): string | null {
   if (!text) return text ?? null;

@@ -1,5 +1,79 @@
 # Implementation Log
 
+## 2026-07-18 - Parro benchmark loop cycle 4 synthetic finish navigation
+
+- Added an isolated Playwright finish-to-editor test that loads the real
+  Recorder popup with a temporary, permission-reduced synthetic background;
+  the production background and real finalizer are never loaded.
+- Verified the empty-step Finish guard, synthetic-step Finish availability,
+  disabled/loading state, artificial session/tutorial IDs, first-attempt error,
+  Retry, rebuilt loading state, completion response, and automatic navigation
+  to an exact `127.0.0.1` editor URL.
+- Extended the owned temporary harness to validate and clean a separate
+  `Parro-ExtensionFixture-*` directory as well as the existing browser profile.
+- Changed the completion error action from Close to Retry and rebuilt loading
+  overlay children on every attempt so retry cannot display a blank overlay.
+- The focused test failed first on the missing Retry action, then passed 15
+  behavior/safety checks after the minimum UI fix.
+- Passed dependency dry-run resolution, ESLint, TypeScript, app quality tests,
+  Cycle 2 and Cycle 3 browser tests, Cycle 4 navigation, Recorder/native
+  fixtures, production build, and bounded localhost HTTP smoke.
+- Safety result: zero real finalizer calls, zero external requests/API
+  mutations, zero browser/desktop capture starts, zero native-host calls, and
+  no temporary profile/fixture residue.
+- Commit: this entry's containing Cycle 4 commit; resolve with
+  `git log -1 --format=%H -- docs/implementation-log.md`.
+
+## 2026-07-18 - Parro benchmark loop cycle 3 synthetic capture-result UI
+
+- Added an isolated Playwright test that injects artificial capture-result
+  steps and SVG thumbnails into the Recorder's existing extension storage and
+  IndexedDB ingestion path; no production-only test seam was added.
+- Verified empty, one-step, and seven-step states; card count/order, synthetic
+  thumbnail rendering, click-target highlight metadata, mouse/keyboard
+  collapse and expansion, and latest-step visibility.
+- Added accessible step-card toggle state while preserving the existing
+  default-expanded behavior.
+- Blocked HTTP(S), recorded capture commands, withheld account/session state,
+  and proved that the owned temporary browser profile was removed.
+- Reused the same validated profile lifecycle for the Cycle 2 profile smoke.
+- Passed dependency dry-run resolution, ESLint, TypeScript, app quality tests,
+  Recorder/native fixtures, Cycle 2 contracts, the new 12-check UI test,
+  production build, and a bounded localhost HTTP smoke.
+- Commit: this entry's containing Cycle 3 commit; resolve with
+  `git log -1 --format=%H -- docs/implementation-log.md`.
+
+## 2026-07-18 - Parro benchmark loop cycle 2 safe capture audit
+
+- Mapped the intended browser and Windows desktop start, capture, live step,
+  finish, import, and editor-handoff paths against Scribe's documented flow.
+- Added an isolated temporary Playwright Chromium profile smoke that loads the
+  unpacked Recorder and verifies its pre-capture boundary without a user
+  profile, account token, screenshot, API call, native host, or OS mutation.
+- Added a read-only cross-runtime source contract verifier plus a safe DEV
+  capture audit/runbook.
+- Corrected the desktop setup's Recorder connection version copy to `1.7.1`.
+- Reclassified the existing native host smoke as unsafe for a live user session
+  because it starts the real capture agent; did not run native capture or
+  installer tests.
+- Added AQ-004 for the DEV capture identity/data lifecycle and expanded AQ-003
+  with native capture and Windows mutation evidence.
+
+## 2026-07-17 - Parro benchmark loop cycle 1 runtime foundation
+
+- Restored the canonical Parro benchmark runbook and Codex worklog protocol to
+  `dev`, then created the first approval queue, review notes, and cycle worklog.
+- Added `npm test` as the standard entry point for the existing capture and
+  follow-quality verification suite.
+- Updated local development docs to use reproducible `npm ci` installs and to
+  document `npm.cmd` for Windows execution-policy environments.
+- Verified app install resolution, lint, TypeScript, quality tests, production
+  build, and localhost DEV startup; verified Recorder, MCP, native host, native
+  import, and local unsigned installer build paths.
+- Kept `main`, deployments, databases, registry installation, Chrome Web Store,
+  and capture architecture unchanged. Production-env fallback, tracked MCP
+  dependencies, and desktop signing/privilege policy were queued for approval.
+
 ## 2026-07-13 - dev Recorder 연결 게이트 분리
 
 - dev/Preview에서 Recorder 연결이 실패해도 Production용 Chrome Web Store 설치 화면을 표시하지 않도록 분리했다.
@@ -540,3 +614,54 @@
 - Removed remaining visible old-brand indigo defaults from the settings profile/export surface and increased helper text contrast/size for readability.
 - Aligned DOCX and shared-token PDF export defaults with Parro brand color tokens, shared PDF rendering, neutral cover placeholders, and highlight-annotation wording.
 - Re-ran `git diff --check`, `npm run lint`, `npx tsc --noEmit --pretty false`, and `$env:NODE_OPTIONS='--use-system-ca'; npm run build`; all passed with only the existing unrelated lint warnings.
+
+## 2026-07-16 - Chrome Web Store privacy rejection remediation
+
+- Confirmed the Web Store rejection notice `Purple Nickel`: the submitted privacy-policy URL did not link directly to a valid privacy policy.
+- Replaced the stale GitHub Pages policy URL with the public, direct review route `https://parro-guide-dev.vercel.app/legal/privacy`; the Production URL remains a later cutover after an approved Production deployment.
+- Expanded the public policy to disclose Recorder screenshots, page URL/title, clicks, input screens and optional input text, optional microphone audio, account-link tokens, desktop capture, local storage, subprocessors, retention, deletion, and Chrome Web Store Limited Use commitments.
+- Fixed Recorder privacy behavior so structured input text is stored only when the user enables the setting, and successful finalization clears temporary IndexedDB capture blobs.
+- Added an in-product recording disclosure with a direct privacy-policy link, bumped the Recorder to `1.7.1`, and generated the review package `mimic_recorder/parro-recorder-v1.7.1.zip`.
+- Verified Recorder JavaScript syntax, ZIP whitelist and paths, manifest name/version, policy disclosure contents, local `/legal/privacy` HTTP 200 rendering, and a full Next.js production build.
+
+## 2026-07-19 - Scribe-benchmark desktop companion controls
+
+- Focused the development cycle on Parro Desktop Companion parity with Scribe-style recording controls, not visual UI work.
+- Added native-host support for manual desktop capture requests, mark-next-capture-private control, and toolbar-bounds updates so the Recorder can drive Scribe-like capture controls through the desktop bridge instead of relying on implicit click capture only.
+- Passed those controls through to `capture-agent.ps1` as explicit local control files (`.manual-capture`, `.blur-next`, `.toolbar-bounds.json`) inside the active session directory.
+- Added `scripts/test-scribe-controls.js` as a cross-platform contract test that verifies the control messages write the expected local files without starting real Windows capture.
+- Hardened `STOP_CAPTURE_SESSION` to write a safe stopped-session fallback when the Windows capture agent did not produce `session.json`, keeping smoke verification deterministic on non-Windows/dev hosts.
+- Added `npm run verify:desktop` to run desktop host smoke, native image chunk import, and Scribe control contract checks from the app package.
+- Did not touch `main`, Production deploy, DB/auth/storage, actual desktop capture, native-host installation, registry, signing, or external upload.
+
+## 2026-07-20 - Tango-benchmark manual copy dogfood hardening
+
+- Ran a 1-6 loop dogfood pass against Parro new-manual creation on dev Preview after local `localhost:3000` was blocked by missing Supabase env values.
+- Verified login with the dev test account and opened `새로 만들기`; the direct manual creation option entered an editor with weak copy such as `설정 클릭`, repeated `항목명 (선택) 입력`, and `항목명 (선택)로 내용을 입력합니다.`.
+- Confirmed the existing publish quality gate caught the weak overall title and duplicate step title, then hardened fallback/text quality detectors so raw optional-field labels and generic settings-click copy are rejected before publish/regeneration.
+- Clarified the home new-menu direct manual copy from `새 매뉴얼(직접 작성)` / `모바일에서도 단계별로 작성` to `새 매뉴얼 직접 작성` / `빈 매뉴얼에서 제목과 단계를 직접 작성`.
+- Verified `npm run verify:quality`, `npm run lint`, `npx tsc --noEmit --pretty false`, and `npm run build` passed.
+- Did not touch `main`, Production deploy, DB/auth/storage, Chrome extension capture, native desktop capture, publish/share state, or real uploads.
+
+## 2026-07-20 - Public-ready manual copy gate expansion
+
+- Started the Parro public-ready manual sentence quality track on current `origin/dev` and re-read `AGENTS.md`, `CLAUDE.md`, `docs/mistakes.md`, and `docs/MANUAL_CONTENT_RULES.md` before changes.
+- Added RED regression cases for public-facing weak copy that still passed the quality detector: `버튼 클릭`, `메뉴 클릭`, `주요 영역 클릭`, `제목 입력`, `이름 입력`, `버튼을 클릭합니다.`, `메뉴를 클릭합니다.`, domain `주요 영역을 클릭합니다.`, and content-only input scripts.
+- Hardened `capture-fallback` low-quality title/script detection so generic UI targets and bare field labels are rejected by the publish/regeneration quality gate instead of appearing user-ready.
+- Kept the change to detector/test/doc scope only; did not touch `main`, Production deploy, DB/auth/storage, Chrome extension capture, native desktop capture, publish/share state, or real uploads.
+
+
+## 2026-07-20 - AI rewrite purpose-quality regression
+
+- Added a focused regression verifier for AI rewrite output quality so purpose-light rewrites such as `검색어를 입력합니다.`, `내용을 작성합니다.`, and `입력 영역을 선택합니다.` are rejected instead of being accepted as public-ready manual copy.
+- Wired the new verifier into `npm run verify:quality` so rewrite quality is checked with the existing capture fallback, regeneration set, and follow-config quality gates.
+- Hardened `text-quality` validation and reinforced `rewriteSentence` / `rewriteAllSteps` prompts to require why/next-state guidance rather than action-only sentences.
+- Kept the change to text quality, prompt, test, and documentation scope only; did not touch `main`, Production deploy, DB/auth/storage, Chrome extension capture, native desktop capture, publish/share state, or real uploads.
+
+
+## 2026-07-20 - B2C/B2B pricing boundary principles
+
+- Documented the strategic boundary for Parro B2C viral discovery and B2B monetization so Codex/MAX can apply the same product rules in future development.
+- Added `docs/B2C_B2B_PRICING_BOUNDARY_PRINCIPLES.md` with Free/Pro/Team/Business feature classification rules, public-vs-controlled access boundaries, anti-abuse posture, and B2C experiment constraints.
+- Reaffirmed that public sharing can be free while private/team/governed operations should be paid.
+- No code, billing enforcement, DB/auth/storage, main merge, or Production deployment changes were made.

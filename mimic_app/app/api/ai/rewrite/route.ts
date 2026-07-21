@@ -4,6 +4,7 @@ import { hasAnthropicApiKey, rewriteSentence } from '@/lib/ai/claude';
 import { validateGeneratedManualScript } from '@/lib/ai/text-quality';
 import { rateLimitAi } from '@/lib/rate-limit';
 import { z } from 'zod';
+import { requireUserEntitlement } from '@/lib/auth/entitlement-guard';
 
 const rewriteSchema = z.object({
   text: z.string().min(1).max(500),
@@ -13,6 +14,8 @@ const rewriteSchema = z.object({
 export async function POST(req: NextRequest) {
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.response;
+  const entitlement = await requireUserEntitlement(auth.userId, 'ai_rewrite');
+  if (!entitlement.ok) return entitlement.response;
 
   const limited = rateLimitAi(auth.userId);
   if (limited) return limited;

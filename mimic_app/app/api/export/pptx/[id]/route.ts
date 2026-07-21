@@ -6,6 +6,7 @@ import { assertStorageUrl } from '@/lib/validate-storage-url';
 import { drawAnnotationsOnPptx } from '@/lib/export/annotate-pptx';
 import { getImageDims, type ExportAnnotation } from '@/lib/export/annotations-shared';
 import { isPaidPlan } from '@/lib/plan';
+import { requireTutorialEntitlement } from '@/lib/auth/entitlement-guard';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const PptxGenJS = require('pptxgenjs');
 
@@ -194,6 +195,8 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   const access = await guardTutorialAccess(id, auth.userId, 'viewer');
   if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
+  const entitlement = await requireTutorialEntitlement(id, 'office_export', supabase);
+  if (!entitlement.ok) return entitlement.response;
 
   const { data: tutorial } = await supabase
     .from('mm_tutorials')

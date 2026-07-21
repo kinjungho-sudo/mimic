@@ -30,12 +30,19 @@ export default function AdminUsersPage() {
   const [updating, setUpdating] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     fetch('/api/admin/users')
-      .then(r => r.json())
-      .then(d => { setUsers(d.users ?? []); setLoading(false); })
-      .catch(() => setLoading(false));
+      .then(async r => {
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error ?? '사용자 목록을 불러오지 못했습니다.');
+        return d;
+      })
+      .then(d => { setUsers(d.users ?? []); setCurrentUserId(d.currentUserId ?? null); })
+      .catch(e => setError(e instanceof Error ? e.message : '사용자 목록을 불러오지 못했습니다.'))
+      .finally(() => setLoading(false));
   }, []);
 
   async function deleteUser(userId: string, email: string) {
@@ -60,13 +67,20 @@ export default function AdminUsersPage() {
 
   async function changePlan(userId: string, plan: string) {
     setUpdating(userId);
-    await fetch('/api/admin/users', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, plan }),
-    });
-    setUsers(prev => prev.map(u => u.id === userId ? { ...u, plan: plan as User['plan'] } : u));
-    setUpdating(null);
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, plan }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? '플랜 변경에 실패했습니다.');
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, plan: plan as User['plan'] } : u));
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '플랜 변경에 실패했습니다.');
+    } finally {
+      setUpdating(null);
+    }
   }
 
   const filtered = users.filter(u =>
@@ -75,7 +89,7 @@ export default function AdminUsersPage() {
   );
 
   return (
-    <div style={{ padding: '36px 40px' }}>
+    <div className="admin-page" style={{ padding: '36px 40px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px' }}>
         <div>
           <h1 style={{ fontSize: '22px', fontWeight: 600, margin: '0 0 4px', color: '#0F172A' }}>유저 관리</h1>
@@ -92,7 +106,8 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
-      <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden' }}>
+      {error && <div role="alert" style={{ marginBottom: '14px', padding: '12px 14px', borderRadius: '8px', background: '#FEF2F2', color: '#B91C1C' }}>{error}</div>}
+      <div className="admin-table-scroll" style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid #F1F5F9', background: '#F8FAFC' }}>
@@ -141,10 +156,11 @@ export default function AdminUsersPage() {
                   </select>
                   <button
                     onClick={() => deleteUser(user.id, user.email)}
-                    disabled={deleting === user.id}
-                    style={{ padding: '5px 8px', borderRadius: '6px', border: '1px solid #FCA5A5', fontSize: '12px', color: '#EF4444', background: '#FFF5F5', cursor: 'pointer', opacity: deleting === user.id ? 0.5 : 1 }}
+                    disabled={deleting === user.id || currentUserId === user.id}
+                    title={currentUserId === user.id ? '현재 로그인한 관리자 계정은 삭제할 수 없습니다.' : undefined}
+                    style={{ padding: '5px 8px', borderRadius: '6px', border: '1px solid #FCA5A5', fontSize: '12px', color: '#EF4444', background: '#FFF5F5', cursor: deleting === user.id || currentUserId === user.id ? 'not-allowed' : 'pointer', opacity: deleting === user.id || currentUserId === user.id ? 0.5 : 1 }}
                   >
-                    {deleting === user.id ? '삭제 중...' : '삭제'}
+                    {currentUserId === user.id ? '현재 관리자' : deleting === user.id ? '삭제 중...' : '삭제'}
                   </button>
                 </td>
               </tr>

@@ -15,7 +15,23 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: '파일 크기는 2MB 이하여야 합니다.' }, { status: 400 });
   }
 
-  const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg';
+  const allowedTypes: Record<string, string> = {
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp',
+  };
+  const ext = allowedTypes[file.type];
+  if (!ext) return NextResponse.json({ error: 'JPG, PNG, WebP 이미지만 업로드할 수 있습니다.' }, { status: 400 });
+  const signature = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+  const isJpeg = signature[0] === 0xff && signature[1] === 0xd8 && signature[2] === 0xff;
+  const isPng = signature[0] === 0x89 && signature[1] === 0x50 && signature[2] === 0x4e && signature[3] === 0x47;
+  const isWebp = signature[0] === 0x52 && signature[1] === 0x49
+    && signature[2] === 0x46 && signature[3] === 0x46
+    && signature[8] === 0x57 && signature[9] === 0x45
+    && signature[10] === 0x42 && signature[11] === 0x50;
+  if ((ext === 'jpg' && !isJpeg) || (ext === 'png' && !isPng) || (ext === 'webp' && !isWebp)) {
+    return NextResponse.json({ error: '이미지 파일 형식이 올바르지 않습니다.' }, { status: 400 });
+  }
   const path = `${auth.userId}/avatar.${ext}`;
   const supabase = createServiceRoleClient();
 

@@ -114,6 +114,7 @@ create table mm_steps (
   viewport_h integer,
   element_selector text,
   element_xpath text,
+  target_context jsonb,
   crop_rect jsonb,
   pii_detected boolean default false,
   image_zoom double precision,
@@ -190,6 +191,7 @@ create table mm_capture_events (
   element_rect jsonb,
   element_selector text,
   element_xpath text,
+  target_context jsonb,
   step_number integer,
   audio_offset_ms integer,
   crop_box jsonb,
@@ -221,7 +223,7 @@ create table mm_pro_signups (
   id uuid primary key default gen_random_uuid(),
   user_id uuid,
   email text not null,
-  plan_interested text not null default 'pro' check (plan_interested in ('pro','team')),
+  plan_interested text not null default 'pro' check (plan_interested in ('basic','pro','team')),
   source text not null default 'landing' check (source in ('landing','editor','limit_modal','mypage')),
   created_at timestamptz not null default now()
 );

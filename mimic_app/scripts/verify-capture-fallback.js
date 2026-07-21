@@ -2,8 +2,11 @@ async function main() {
   const {
     buildCaptureFallbackDraft,
     buildCaptureFallbackTutorialTitle,
+    buildCaptureIdentityTutorialTitle,
     buildCaptureAnnotationLabel,
     cleanCaptureTypeText,
+    isCaptureTitleGrounded,
+    isCaptureTutorialTitleGrounded,
     isLowQualityCaptureScript,
     isLowQualityCaptureTitle,
     isLowQualityCaptureTutorialTitle,
@@ -199,17 +202,34 @@ async function main() {
     failures.push({ name: 'tutorial title fallback', expected: '대회소개 확인하기', actual: fallbackTitle });
   }
 
-  const gardenTitle = buildCaptureFallbackTutorialTitle([
+  const actionEndingTitle = buildCaptureFallbackTutorialTitle([
+    { user_title: '알림 신청하기 클릭' },
+  ]);
+  if (actionEndingTitle !== '알림 신청하기') {
+    failures.push({ name: 'tutorial title keeps action ending', expected: '알림 신청하기', actual: actionEndingTitle });
+  }
+
+  const directionalDraft = buildCaptureFallbackDraft(
+    { id: 'arrow-1', step_number: 3, ai_title: '→ 클릭', ai_description: null, page_url: 'https://faolai-landingpage.pages.dev/', domain_name: 'Faolai' },
+    { actionInfo: { type: 'click', label: '→', targetContext: { contextLabel: '고객 후기' } }, elementText: '→' },
+  );
+  if (directionalDraft.user_title !== '다음 후기 보기' || directionalDraft.user_script !== '후기 목록에서 다음 내용을 확인합니다.') {
+    failures.push({ name: 'directional control gets contextual copy', expected: { user_title: '다음 후기 보기', user_script: '후기 목록에서 다음 내용을 확인합니다.' }, actual: directionalDraft });
+  }
+
+  const uncertainSearchTitle = buildCaptureFallbackTutorialTitle([
     { user_title: '상품 검색어 입력' },
     { user_title: '무료배송 조건 선택' },
     { user_title: '최소 가격 설정' },
     { user_title: '입력 내용 적용' },
-    { user_title: '오프라인 매장 둘러보기' },
-    { user_title: '매장 정보 확인' },
-    { user_title: '온라인 쇼핑으로 이동' },
-  ]);
-  if (gardenTitle !== '상품 검색 후 매장 정보 확인하기') {
-    failures.push({ name: 'garden tutorial title fallback', expected: '상품 검색 후 매장 정보 확인하기', actual: gardenTitle });
+  ], { serviceNames: ['FoalAI'], pageTitles: ['공고마당 | FoalAI'] });
+  if (uncertainSearchTitle !== 'FoalAI 공고마당') {
+    failures.push({ name: 'uncertain search uses page identity', expected: 'FoalAI 공고마당', actual: uncertainSearchTitle });
+  }
+
+  const serviceOnlyTitle = buildCaptureIdentityTutorialTitle({ serviceNames: ['foal.ai'] });
+  if (serviceOnlyTitle !== 'FoalAI') {
+    failures.push({ name: 'service-only identity fallback', expected: 'FoalAI', actual: serviceOnlyTitle });
   }
 
   const notionScheduleTitle = buildCaptureFallbackTutorialTitle([
@@ -327,8 +347,42 @@ async function main() {
   if (!isLowQualityCaptureTutorialTitle('메일 보내기 클릭하기')) {
     failures.push({ name: 'click tutorial title rejected', expected: true, actual: false });
   }
+  if (!isLowQualityCaptureTutorialTitle('알림 신청하기 확인하기')) {
+    failures.push({ name: 'duplicated action tutorial title rejected', expected: true, actual: false });
+  }
   if (!isLowQualityCaptureTutorialTitle('최소 입력하기')) {
     failures.push({ name: 'raw input tutorial title rejected', expected: true, actual: false });
+  }
+  if (!isLowQualityCaptureTitle('항목명 (선택) 입력')) {
+    failures.push({ name: 'optional field label title rejected', expected: true, actual: false });
+  }
+  if (!isLowQualityCaptureTitle('설정 클릭')) {
+    failures.push({ name: 'settings click title rejected', expected: true, actual: false });
+  }
+  if (!isLowQualityCaptureScript('항목명 (선택)로 내용을 입력합니다.')) {
+    failures.push({ name: 'optional field label script rejected', expected: true, actual: false });
+  }
+  if (!isLowQualityCaptureScript('설정을 클릭합니다.')) {
+    failures.push({ name: 'settings click script rejected', expected: true, actual: false });
+  }
+  const publicQualityRejects = [
+    { type: 'title', value: '버튼 클릭', name: 'generic button click title rejected' },
+    { type: 'title', value: '메뉴 클릭', name: 'generic menu click title rejected' },
+    { type: 'title', value: '주요 영역 클릭', name: 'generic main area click title rejected' },
+    { type: 'title', value: '제목 입력', name: 'generic field title input rejected' },
+    { type: 'title', value: '이름 입력', name: 'generic field name input rejected' },
+    { type: 'script', value: '버튼을 클릭합니다.', name: 'generic button click script rejected' },
+    { type: 'script', value: '메뉴를 클릭합니다.', name: 'generic menu click script rejected' },
+    { type: 'script', value: '주요 영역을 클릭합니다.', name: 'generic main area click script rejected' },
+    { type: 'script', value: 'example.com 주요 영역을 클릭합니다.', name: 'domain main area click script rejected' },
+    { type: 'script', value: '내용을 입력합니다.', name: 'content-only input script rejected' },
+    { type: 'script', value: '제목에 내용을 입력합니다.', name: 'generic title field script rejected' },
+  ];
+  for (const check of publicQualityRejects) {
+    const rejected = check.type === 'title'
+      ? isLowQualityCaptureTitle(check.value)
+      : isLowQualityCaptureScript(check.value);
+    if (!rejected) failures.push({ name: check.name, expected: true, actual: false });
   }
   if (!isLowQualityCaptureTutorialTitle('Code 클릭')) {
     failures.push({ name: 'raw code tutorial title rejected', expected: true, actual: false });
@@ -387,6 +441,70 @@ async function main() {
     user_script: '0\ub97c \ud074\ub9ad\ud569\ub2c8\ub2e4.',
   })) {
     failures.push({ name: 'usable draft rejects numeric script', expected: false, actual: true });
+  }
+
+  if (isCaptureTitleGrounded('결제 완료 클릭', {
+    pageUrl: 'https://example.com/settings',
+    actionInfo: { type: 'click', label: '저장', targetContext: { accessibleName: '저장' } },
+    elementText: '저장',
+  })) {
+    failures.push({ name: 'ungrounded hallucinated step title rejected', expected: false, actual: true });
+  }
+  if (!isCaptureTitleGrounded('설정 저장 클릭', {
+    pageUrl: 'https://example.com/settings',
+    actionInfo: { type: 'click', label: '설정 저장', targetContext: { accessibleName: '설정 저장' } },
+    elementText: '설정 저장',
+  })) {
+    failures.push({ name: 'evidence-backed step title accepted', expected: true, actual: false });
+  }
+  if (isCaptureTitleGrounded('검색 버튼 클릭', {
+    pageUrl: 'https://example.com/search',
+    actionInfo: { type: 'type', label: '검색어' },
+    elementText: '검색어',
+  })) {
+    failures.push({ name: 'action verb mismatch rejected', expected: false, actual: true });
+  }
+  if (!isCaptureTitleGrounded('새 문서 만들기 클릭', {
+    pageUrl: 'https://desktop.parro.local/notepad',
+    actionInfo: {
+      type: 'click',
+      label: '메모장',
+      targetContext: { captureSurface: 'desktop', captureApp: 'notepad', pageTitle: '제목 없음 - 메모장' },
+    },
+  })) {
+    failures.push({ name: 'desktop vision title accepted without DOM evidence', expected: true, actual: false });
+  }
+  if (isCaptureTitleGrounded('계산기 클릭', {
+    pageUrl: 'https://desktop.parro.local/ApplicationFrameHost',
+    actionInfo: {
+      type: 'click',
+      label: '계산기',
+      targetContext: { captureSurface: 'desktop', captureApp: 'ApplicationFrameHost', pageTitle: '계산기', contextLabel: '계산기' },
+    },
+  })) {
+    failures.push({ name: 'desktop app-only title rejected', expected: false, actual: true });
+  }
+  if (!isCaptureTitleGrounded('더하기 선택', {
+    pageUrl: 'https://desktop.parro.local/ApplicationFrameHost',
+    actionInfo: {
+      type: 'click',
+      label: '더하기',
+      targetContext: { captureSurface: 'desktop', captureApp: 'ApplicationFrameHost', accessibleName: '더하기', pageTitle: '계산기' },
+    },
+  })) {
+    failures.push({ name: 'desktop control-specific title accepted', expected: true, actual: false });
+  }
+  if (isCaptureTutorialTitleGrounded('Slack 결제 완료하기', {
+    stepTitles: ['Slack 앱 생성', '워크스페이스 설치', '에이전트 응답 테스트'],
+    serviceNames: ['Slack'],
+  })) {
+    failures.push({ name: 'ungrounded tutorial goal rejected', expected: false, actual: true });
+  }
+  if (!isCaptureTutorialTitleGrounded('Slack AI 에이전트 앱 만들고 테스트하기', {
+    stepTitles: ['Slack 앱 생성', '워크스페이스 설치', '에이전트 응답 테스트'],
+    serviceNames: ['Slack'],
+  })) {
+    failures.push({ name: 'grounded tutorial goal accepted', expected: true, actual: false });
   }
   if (isUsableCaptureDraft({
     user_title: '0 \ud074\ub9ad',

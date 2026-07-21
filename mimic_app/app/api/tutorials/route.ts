@@ -2,6 +2,7 @@
 import { requireAuth } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { z } from 'zod';
+import { requireWorkspaceEntitlement } from '@/lib/auth/entitlement-guard';
 
 const tutorialCreateSchema = z.object({
   workspace_id: z.string().uuid().optional().nullable(),
@@ -90,6 +91,9 @@ export async function POST(request: NextRequest) {
   const supabase = createServiceRoleClient();
 
   if (workspaceId) {
+    const entitlement = await requireWorkspaceEntitlement(workspaceId, 'team_workspace', supabase);
+    if (!entitlement.ok) return entitlement.response;
+
     // 워크스페이스 멤버 또는 owner인지 확인 (editor 이상만 생성 가능)
     const { data: ws } = await supabase
       .from('mm_workspaces')

@@ -15,6 +15,16 @@ export type CaptureFallbackActionInfo = {
   tag?: string;
   role?: string;
   href?: string;
+  targetContext?: {
+    accessibleName?: string;
+    contextLabel?: string;
+    pageTitle?: string;
+    captureSurface?: 'web' | 'desktop';
+    captureApp?: string;
+    geometryConfidence?: 'low' | 'medium' | 'high';
+    selectorConfidence?: 'low' | 'medium' | 'high';
+    frameAccess?: string;
+  };
 } | null | undefined;
 
 export type CaptureFallbackContext = {
@@ -77,6 +87,20 @@ const SLACK_LABEL_CONTEXTS = new Map([
   ['apps', '앱 메뉴'],
   ['app', '앱 메뉴'],
   ['oauth', 'OAuth 설정'],
+  ['create new app', 'Slack 앱 생성'],
+  ['use a manifest file to add your app’s basic info, scopes, settings & features to', '매니페스트 방식'],
+  ['select a team', '워크스페이스'],
+  ['next', '다음 설정'],
+  ['create', 'Slack 앱 생성'],
+  ['connections:write', '연결 권한'],
+  ['generate', '앱 연결 토큰'],
+  ['copy', '생성된 연결 정보'],
+  ['done', '연결 설정'],
+  ['oauth & permissions', 'OAuth 권한 설정'],
+  ['allow', '앱 설치 승인'],
+  ['허용', '앱 설치 승인'],
+  ['chat', '에이전트 채팅'],
+  ['채팅', '에이전트 채팅'],
   ['general', 'general 채널'],
   ['functions', 'Functions 메뉴'],
   ['function', 'Functions 메뉴'],
@@ -137,6 +161,8 @@ function hasCountNoise(value: string | null | undefined): boolean {
 function hasMachineToken(value: string | null | undefined): boolean {
   const text = cleanText(value);
   if (!text) return false;
+  if (/\b[ACDGWUTB][A-Z0-9]{8,}\b/.test(text)) return true;
+  if (/\b(?:xox[baprs]-|xapp-|sk-|pk_)[a-z0-9_-]{8,}\b/i.test(text)) return true;
   const tokens = text.match(/[a-z0-9][a-z0-9_-]{7,}/gi) ?? [];
   return tokens.some(token => {
     const compact = token.replace(/[-_]/g, '');
@@ -199,11 +225,19 @@ function actionBaseFromTitle(value: string): string {
 function isLikelyRawDomActionBase(value: string): boolean {
   const text = cleanText(value);
   if (!text) return true;
+  if (/^[\[\]{}(),.;:'"`~!@#$%^&*+=|\\/?<>_-]+$/.test(text)) return true;
+  if (/^(next|back|previous|continue|create|generate|copy|done|finish|save|cancel|allow|deny|select a team)$/i.test(text)) return true;
+  if (/^(허용|거부|완료|다음|이전|복사|저장|생성|채팅|메일 보내기)$/i.test(text)) return true;
+  if (/^use a manifest file\b/i.test(text)) return true;
+  if (/^[a-z][a-z0-9\s&:.'’/_-]{2,}$/i.test(text)) return true;
+  if (/^[A-Z][A-Za-z0-9._-]*[가-힣][A-Za-z가-힣0-9._-]*$/.test(text)) return true;
+  if (/\?$/.test(text)) return true;
+  if (/\[[^\]]*(식별자|보안 토큰|이메일|연락처|비밀번호)[^\]]*\]/.test(text)) return true;
   if (/^[a-z]$/i.test(text)) return true;
   if (/^(code|homepage|open menu)$/i.test(text)) return true;
   if (hasAccessibilityShortcutNoise(text)) return true;
   if (/^(search|검색)$/i.test(text)) return true;
-  if (/^(최소|최대|적용)$/i.test(text)) return true;
+  if (/^(최소|최대|적용|설정|항목명(?:\s*\(선택\))?|버튼|메뉴|주요\s*영역|제목|이름|내용)$/i.test(text)) return true;
   if (/검색하세요|선택하세요|입력하세요|확인하세요/.test(text)) return true;
   if (/무료\s*배송|매장\s*구경하기|매장\s*위치\s*보기|^쇼핑하기$/i.test(text)) return true;
   if (/\.{3}|…|—/.test(text)) return true;
@@ -226,6 +260,10 @@ function isLikelyRawDomActionTitle(value: string | null | undefined): boolean {
 export function isLowQualityCaptureTitle(value: string | null | undefined): boolean {
   const text = cleanText(value);
   if (isWeakTitle(text)) return true;
+  if (/\b(?:desktop|windows)\.parro\.(?:local|app)\b/i.test(text)) return true;
+  if (/^use a manifest file\b/i.test(text)) return true;
+  if (/\b[a-z0-9.-]+\.[a-z]{2,}\s+(?:주요 영역|화면)\s*(?:클릭|확인|선택|입력|이동)?$/i.test(text)) return true;
+  if (/^[\[\]{}(),.;:'"`~!@#$%^&*+=|\\/?<>_-]+(?:\s+(?:클릭|확인|선택|입력|이동))?$/.test(text)) return true;
   if (isLowQualityCaptureLabel(text)) return true;
   if (hasEmailAddress(text)) return true;
   if (hasCountNoise(text)) return true;
@@ -235,15 +273,80 @@ export function isLowQualityCaptureTitle(value: string | null | undefined): bool
   return new RegExp(`^(${rawLabelPattern}|edit|button|link|menu|untitled|click)\\s+(클릭|확인|선택|입력|이동)$`, 'i').test(text);
 }
 
+const TITLE_EVIDENCE_STOPWORDS = new Set([
+  '클릭', '선택', '입력', '확인', '이동', '열기', '누르기', '버튼', '메뉴', '화면', '항목',
+  'click', 'select', 'type', 'open', 'view', 'button', 'menu', 'item', 'page',
+]);
+
+function evidenceTokens(value: string | null | undefined): string[] {
+  const text = normalized(value)
+    .replace(/^https?:\/\//, '')
+    .replace(/[^0-9a-z가-힣]+/gi, ' ');
+  return text.split(/\s+/)
+    .map(token => token.replace(/(에서|으로|에게|에는|하기|합니다|하세요|버튼|메뉴)$/g, ''))
+    .filter(token => token.length >= 2 && !TITLE_EVIDENCE_STOPWORDS.has(token));
+}
+
+function actionVerbMatches(title: string, actionType?: string): boolean {
+  if (!actionType) return true;
+  if (actionType === 'type') return /입력|작성|기록|검색/.test(title) && !/클릭|누르/.test(title);
+  if (actionType === 'upload') return /업로드|첨부|파일/.test(title);
+  if (actionType === 'toggle' || actionType === 'select') return !/입력|작성/.test(title);
+  return true;
+}
+
+export function isCaptureTitleGrounded(
+  value: string | null | undefined,
+  context: CaptureFallbackContext & { pageUrl?: string | null } = {},
+): boolean {
+  const title = cleanText(value);
+  if (!title || isLowQualityCaptureTitle(title) || !actionVerbMatches(title, context.actionInfo?.type)) return false;
+  const target = context.actionInfo?.targetContext;
+  // Desktop captures use screenshot analysis and optional Windows UI Automation
+  // evidence. Reject titles that merely repeat the app/window name with a
+  // generic action because they hide which control was actually clicked.
+  if (target?.captureSurface === 'desktop') {
+    const titleBase = normalized(title).replace(/\s*(클릭|확인|선택|실행|열기|이동|입력|누르기)$/g, '').trim();
+    const desktopContexts = [
+      target.contextLabel,
+      target.pageTitle,
+      target.captureApp,
+    ].map(normalized).filter(Boolean);
+    if (/^(화면|앱|프로그램|대상|버튼|항목)$/.test(titleBase)) return false;
+    if (desktopContexts.some(source => source === titleBase)) return false;
+    return true;
+  }
+  const evidence = [
+    context.actionInfo?.label,
+    context.actionInfo?.text,
+    context.elementText,
+    target?.accessibleName,
+    target?.contextLabel,
+    target?.pageTitle,
+    target?.captureApp,
+    context.pageUrl,
+  ].flatMap(evidenceTokens);
+  if (!evidence.length) return false;
+  const titleParts = evidenceTokens(title);
+  if (!titleParts.length) return false;
+  return titleParts.some(part => evidence.some(source => source.includes(part) || part.includes(source)));
+}
+
 export function isLowQualityCaptureScript(value: string | null | undefined): boolean {
   const text = cleanText(value);
   if (!text) return true;
+  if (/\b(?:desktop|windows)\.parro\.(?:local|app)\b/i.test(text)) return true;
   if (hasMachineToken(text)) return true;
   if (hasEmailAddress(text)) return true;
   if (hasCountNoise(text)) return true;
   if (isLongCapturedContent(text)) return true;
   if (hasCapturedEditorChrome(text)) return true;
   if (/^(최소|최대)(로|에)?\s*내용을\s*입력합니다\.?$/i.test(text)) return true;
+  if (/^항목명\s*(?:\(선택\))?\s*(?:로|에)?\s*내용을\s*입력합니다\.?$/i.test(text)) return true;
+  if (/^(?:제목|이름|내용)\s*(?:로|에)?\s*내용을\s*입력합니다\.?$/i.test(text)) return true;
+  if (/^설정을\s*클릭합니다\.?$/i.test(text)) return true;
+  if (/^(?:버튼|메뉴|주요\s*영역)(?:을|를)?\s*클릭합니다\.?$/i.test(text)) return true;
+  if (/\b[a-z0-9.-]+\.[a-z]{2,}\s+주요\s*영역(?:을|를)?\s*클릭합니다\.?$/i.test(text)) return true;
   if (/^\d+(을|를)?\s*(클릭|확인|선택|입력|이동)합니다\.?$/i.test(text)) return true;
   const actionScriptMatch = /^(.+?)(을|를)?\s*(클릭|확인|선택|입력|이동)합니다\.?$/i.exec(text);
   if (actionScriptMatch && isLikelyRawDomActionBase(actionScriptMatch[1])) return true;
@@ -491,6 +594,34 @@ function dedupeActionNoun(title: string): string {
     .replace(/(확인)\s+\1/g, '$1');
 }
 
+function directionalAction(value: string | null | undefined): 'next' | 'previous' | null {
+  const text = String(value ?? '').replace(/\s+/g, ' ').trim();
+  if (/^(?:→|➡|➜|➔|›|»|right\s*arrow)$/i.test(text)) return 'next';
+  if (/^(?:←|⬅|‹|«|left\s*arrow)$/i.test(text)) return 'previous';
+  return null;
+}
+
+function directionalFallbackDraft(
+  values: Array<string | null | undefined>,
+  contextValues: Array<string | null | undefined>,
+): { user_title: string; user_script: string } | null {
+  const direction = values.map(directionalAction).find(Boolean);
+  if (!direction) return null;
+
+  const context = contextValues.map(cleanText).filter(Boolean).join(' ');
+  const subject = /후기|리뷰|이야기|사례|testimonial/i.test(context) ? '후기' : '항목';
+  if (direction === 'previous') {
+    return {
+      user_title: `이전 ${subject} 보기`,
+      user_script: `${subject} 목록에서 이전 내용을 확인합니다.`,
+    };
+  }
+  return {
+    user_title: `다음 ${subject} 보기`,
+    user_script: `${subject} 목록에서 다음 내용을 확인합니다.`,
+  };
+}
+
 export function buildCaptureFallbackDraft(
   step: CaptureFallbackStepInput,
   context: CaptureFallbackContext = {}
@@ -502,8 +633,22 @@ export function buildCaptureFallbackDraft(
   const safeActionLabel = isStale(context.actionInfo?.label) ? null : context.actionInfo?.label;
   const safeActionText = isStale(context.actionInfo?.text) ? null : context.actionInfo?.text;
   const safeElementText = isStale(context.elementText) ? null : context.elementText;
+  const safeAccessibleName = isStale(context.actionInfo?.targetContext?.accessibleName)
+    ? null
+    : context.actionInfo?.targetContext?.accessibleName;
+  const safeContextLabel = isStale(context.actionInfo?.targetContext?.contextLabel)
+    ? null
+    : context.actionInfo?.targetContext?.contextLabel;
   const safeAiTitle = isStale(step.ai_title) ? null : step.ai_title;
-  const capturedValues = [safeActionLabel, safeActionText, safeElementText, safeAiTitle];
+  const directionalDraft = directionalFallbackDraft(
+    [safeActionLabel, safeActionText, safeElementText, safeAccessibleName],
+    [safeContextLabel, context.actionInfo?.targetContext?.pageTitle, step.ai_title, step.domain_name],
+  );
+  if (directionalDraft) {
+    return { id: step.id, ...directionalDraft };
+  }
+  const aiTitleGrounded = isCaptureTitleGrounded(safeAiTitle, { ...context, pageUrl: step.page_url });
+  const capturedValues = [safeActionLabel, safeActionText, safeElementText, safeAccessibleName, safeContextLabel, safeAiTitle];
   const capturedInputContext = (actionType === 'type' || actionType === 'focus_input')
     && capturedValues.some(value => isLongCapturedContent(value))
     ? '메일 본문'
@@ -519,14 +664,18 @@ export function buildCaptureFallbackDraft(
     || contextFromCapturedLabel(safeActionLabel)
     || contextFromCapturedLabel(safeActionText)
     || contextFromCapturedLabel(safeElementText)
+    || contextFromCapturedLabel(safeAccessibleName)
+    || contextFromCapturedLabel(safeContextLabel)
     || contextFromCapturedLabel(safeAiTitle);
   const specificBase = firstUseful([
-    safeAiTitle && !isLowQualityCaptureTitle(safeAiTitle) ? safeAiTitle : null,
+    safeAiTitle && aiTitleGrounded ? safeAiTitle : null,
     labelContext,
     capturedLabelContext,
     safeActionLabel,
     safeActionText,
     safeElementText,
+    safeAccessibleName,
+    safeContextLabel,
     pageContext,
     labelFromUrl(step.page_url),
     step.domain_name,
@@ -534,7 +683,7 @@ export function buildCaptureFallbackDraft(
   const base = specificBase || '화면';
   const noAction = noActionFromEvent || !specificBase;
   const verb = titleVerbFor(base, actionType, noAction);
-  const userTitle = safeAiTitle && !isLowQualityCaptureTitle(safeAiTitle)
+  const userTitle = safeAiTitle && aiTitleGrounded
     ? dedupeActionNoun(cleanText(safeAiTitle))
     : purposeTitleFor(base, verb) ?? `${base} ${verb}`;
   const userScript = !isContextuallyStaleLabel(step.ai_description, step.page_url) && !isLowQualityCaptureScript(step.ai_description)
@@ -565,15 +714,24 @@ export function buildCaptureAnnotationLabel(title: string | null | undefined, ac
 
 export function isUsableCaptureDraft(
   draft: { user_title?: string | null; user_script?: string | null } | null | undefined,
-  context: { pageUrl?: string | null } = {}
+  context: CaptureFallbackContext & { pageUrl?: string | null } = {}
 ): boolean {
   const title = draft?.user_title?.trim() || '';
   const script = draft?.user_script?.trim() || '';
+  const hasGroundingEvidence = !!(
+    context.pageUrl
+    || context.elementText
+    || context.actionInfo?.label
+    || context.actionInfo?.text
+    || context.actionInfo?.targetContext?.accessibleName
+    || context.actionInfo?.targetContext?.contextLabel
+  );
   return !!title
     && !!script
     && !isContextuallyStaleLabel(title, context.pageUrl)
     && !isContextuallyStaleLabel(script, context.pageUrl)
     && !isLowQualityCaptureTitle(title)
+    && (!hasGroundingEvidence || isCaptureTitleGrounded(title, context))
     && !isLowQualityCaptureScript(script);
 }
 
@@ -625,10 +783,22 @@ export function isLowQualityCaptureTutorialTitle(
   if (!text) return true;
   if (isLowQualityCaptureTitle(text.replace(/하기$/, ''))) return true;
   if (isLikelyRawDomActionBase(text.replace(/하기$/, ''))) return true;
+  if (/하기\s+확인하기$/.test(text)) return true;
   if (/(클릭|선택|입력)하기$/.test(text)) return true;
   if (/^(메일|메뉴|버튼|링크|아이콘)\s*(클릭|선택)하기$/.test(text)) return true;
   if (/^(?:.+(?:에서|에)\s*)?(?:앱|메뉴|화면|항목|버튼|링크)\s*(?:추가|열기|확인)하기$/i.test(text)) return true;
   return missesTerminalGoalCoverage(text, context.stepTitles ?? []);
+}
+
+export function isCaptureTutorialTitleGrounded(
+  value: string | null | undefined,
+  context: CaptureTutorialTitleContext & { serviceNames?: Array<string | null | undefined> } = {},
+): boolean {
+  const title = cleanText(value);
+  if (!title || isLowQualityCaptureTutorialTitle(title, context)) return false;
+  const sources = [...(context.stepTitles ?? []), ...(context.serviceNames ?? [])].flatMap(evidenceTokens);
+  const titleParts = evidenceTokens(title);
+  return titleParts.some(part => sources.some(source => source.includes(part) || part.includes(source)));
 }
 
 function tutorialTitleFromStepTitle(value: string): string {
@@ -642,6 +812,7 @@ function tutorialTitleFromStepTitle(value: string): string {
   const base = action[1].trim();
   const verb = action[2];
   if (!base) return '';
+  if (base.endsWith('하기')) return base.slice(0, 30);
   if (verb === '입력') return `${base} 입력하기`.slice(0, 30);
   if (verb === '선택') return `${base} 선택하기`.slice(0, 30);
   if (verb === '이동') return `${base} 이동하기`.slice(0, 30);
@@ -654,8 +825,12 @@ function tutorialTitleFromStepTitle(value: string): string {
 
 export function buildCaptureFallbackTutorialTitle(
   drafts: Array<{ user_title: string; user_script?: string }>,
-  context: { serviceNames?: Array<string | null | undefined> } = {}
+  context: {
+    serviceNames?: Array<string | null | undefined>;
+    pageTitles?: Array<string | null | undefined>;
+  } = {}
 ): string {
+  const identityTitle = buildCaptureIdentityTutorialTitle(context);
   const serviceNames = (context.serviceNames ?? []).map(cleanText).filter(Boolean).join(' ');
   const draftText = drafts
     .flatMap(draft => [cleanText(draft.user_title), cleanText(draft.user_script)])
@@ -685,18 +860,68 @@ export function buildCaptureFallbackTutorialTitle(
     if (titles.some(title => /메일함|받은편지함/.test(title))) return '메일함 확인하기';
   }
 
-  const hasProductSearch = titles.some(title => /상품 검색|검색어|검색 조건|최소 가격|최대 가격|무료배송/.test(title));
-  const hasStoreInfo = titles.some(title => /오프라인 매장|매장 정보/.test(title));
-  if (hasProductSearch && hasStoreInfo) return '상품 검색 후 매장 정보 확인하기';
-  if (hasProductSearch) return '상품 조건 검색하기';
-  if (hasStoreInfo) return '매장 정보 확인하기';
-
   const completionTitle = [...titles].reverse().find(title =>
     /(보내기|발송|완료|저장|게시|등록|신청|구매|생성|만들기|공유|초대|로그인|제출)(?:\s*(?:클릭|확인|선택|입력|이동))?$/.test(title)
   );
+  if (!completionTitle && identityTitle) return identityTitle;
   const finalMeaningfulTitle = [...titles].reverse().find(title => !/(^.+\s클릭$|^.+\s선택$)/.test(title));
   const goalTitle = completionTitle || finalMeaningfulTitle || titles.at(-1);
 
   if (!goalTitle) return '';
   return tutorialTitleFromStepTitle(goalTitle);
+}
+
+function mostFrequentIdentity(values: Array<string | null | undefined>): string {
+  const counts = new Map<string, { value: string; count: number }>();
+  for (const rawValue of values) {
+    const value = cleanText(rawValue);
+    if (!value || /^(?:서비스|웹\s*페이지|화면|Windows)$/i.test(value)) continue;
+    if (/(?:desktop|windows)\.parro\.(?:local|app)/i.test(value)) continue;
+    const key = value.toLowerCase();
+    const entry = counts.get(key);
+    counts.set(key, { value, count: (entry?.count ?? 0) + 1 });
+  }
+  return Array.from(counts.values()).sort((a, b) => b.count - a.count)[0]?.value ?? '';
+}
+
+function serviceDisplayName(value: string): string {
+  const clean = cleanText(value).replace(/^www\./i, '');
+  if (!/^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/i.test(clean)) return clean;
+  const parts = clean.split('.');
+  const root = parts.length > 2 ? parts.at(-2)! : parts[0];
+  const capitalized = root.charAt(0).toUpperCase() + root.slice(1);
+  return parts.at(-1)?.toLowerCase() === 'ai' && !root.toLowerCase().endsWith('ai')
+    ? `${capitalized}AI`
+    : capitalized;
+}
+
+export function buildCaptureIdentityTutorialTitle(
+  context: {
+    serviceNames?: Array<string | null | undefined>;
+    pageTitles?: Array<string | null | undefined>;
+  } = {}
+): string {
+  const serviceName = serviceDisplayName(mostFrequentIdentity(context.serviceNames ?? []));
+  const pageTitle = mostFrequentIdentity(context.pageTitles ?? []);
+  if (!pageTitle) return serviceName.slice(0, 30);
+
+  const parts = pageTitle
+    .split(/\s*(?:\||·|•|–|—|\s+-\s+)\s*/)
+    .map(cleanText)
+    .filter(part => part && !/^(?:Chrome|Microsoft Edge|Safari|Firefox)$/i.test(part));
+  const normalizedService = serviceName.replace(/[^a-z0-9가-힣]/gi, '').toLowerCase();
+  const pageName = parts
+    .map(part => {
+      if (!serviceName) return part;
+      if (part.toLowerCase().startsWith(serviceName.toLowerCase())) return cleanText(part.slice(serviceName.length));
+      if (part.toLowerCase().endsWith(serviceName.toLowerCase())) return cleanText(part.slice(0, -serviceName.length));
+      return part;
+    })
+    .find(part => {
+      const normalizedPart = part.replace(/[^a-z0-9가-힣]/gi, '').toLowerCase();
+      return normalizedPart && normalizedPart !== normalizedService && !/^(?:home|홈|메인|dashboard|대시보드)$/i.test(part);
+    });
+
+  if (serviceName && pageName) return `${serviceName} ${pageName}`.slice(0, 30);
+  return (serviceName || pageName || pageTitle).slice(0, 30);
 }

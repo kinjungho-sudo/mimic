@@ -6,6 +6,14 @@ The production Desktop App can later replace this host with a signed Tauri binar
 
 - `START_CAPTURE_SESSION`
 - `STOP_CAPTURE_SESSION`
+- `PAUSE_CAPTURE_SESSION`
+- `RESUME_CAPTURE_SESSION`
+- `REQUEST_MANUAL_CAPTURE`
+- `UNDO_CAPTURE_STEP`
+- `MARK_NEXT_CAPTURE_PRIVATE`
+- `UPDATE_TOOLBAR_BOUNDS`
+- `GET_CAPTURE_SESSION`
+- `READ_CAPTURE_IMAGE_CHUNK`
 - `PING`
 
 ## What this verifies
@@ -16,8 +24,15 @@ This dev host verifies the first Desktop Companion contract:
 2. The extension sends the same `capture_session_id` to the desktop host.
 3. The desktop host keeps the active session while recording is running.
 4. The extension sends a stop message when recording ends.
+5. Scribe-like recording controls stay native-host backed: pause/resume,
+   manual capture, undo last step, mark the next capture private, and toolbar
+   bounds exclusion all use local control files inside the active session
+   directory.
 
-This stage does not watch files yet. File creation, modification, active app detection, and upload correlation are the next implementation layer.
+The current preview captures Windows clicks, the foreground application/window,
+and either the active window or current monitor. When the session is completed,
+the Recorder reads the local images in bounded Native Messaging chunks, runs the
+existing Parro AI analysis/upload pipeline, creates a manual, and opens its editor.
 
 ## 사용자 사용 흐름
 
@@ -27,7 +42,7 @@ This stage does not watch files yet. File creation, modification, active app det
 2. 사용자는 Windows 설치 파일을 실행합니다.
 3. 설치가 끝나면 Chrome Recorder와 Desktop Companion 연결 상태를 확인합니다.
 4. 이후 녹화를 시작하면 Desktop Companion이 같은 `capture_session_id`로 세션에 붙습니다.
-5. 웹에서 파일을 다운로드하고, PC에서 수정/저장하고, 다시 업로드하는 흐름을 하나의 Parro 매뉴얼 단계로 복원합니다.
+5. 녹화를 종료하면 데스크톱 캡처를 Parro 단계로 변환하고 완성된 매뉴얼 편집기로 이동합니다.
 
 MVP 원칙:
 
@@ -35,6 +50,7 @@ MVP 원칙:
 - 파일 내용은 기본으로 업로드하지 않습니다.
 - 기록 중인 세션에서만 파일 작업 흐름을 감지합니다.
 - 비밀번호, OTP, 결제, 개인 인증 화면은 자동 기록 대상에서 제외합니다.
+- 다중 모니터 전체가 아니라 자동 클릭은 활성 앱 창, 수동 캡처는 현재 모니터만 저장합니다.
 
 ## Install for local Chrome dev
 
@@ -107,8 +123,9 @@ HKCU\Software\Google\Chrome\NativeMessagingHosts\com.mimic.desktop_companion.dev
 Default allowed Chrome extension IDs:
 
 - current Parro dev extension: `pnkkalnfddapkmiobbhnkbhplakamaok`
-- dev unpacked extension: `dhfcmomnambegkibjnandckacihnaelb`
-- Chrome Web Store extension: `ehbhcdkapcbfehinjapabgoegcjmmbgd`
+- legacy dev unpacked extension: `dhfcmomnambegkibjnandckacihnaelb`
+- replacement Chrome Web Store extension under review: `lefkpmfgdbhckcemfghpegleknaepekm`
+- currently published Chrome Web Store extension: `ehbhcdkapcbfehinjapabgoegcjmmbgd`
 
 To allow extra extension IDs, set `PARRO_EXTENSION_ID` before running the installer. Multiple IDs can be comma-separated. `MIMIC_EXTENSION_ID` remains supported for compatibility.
 

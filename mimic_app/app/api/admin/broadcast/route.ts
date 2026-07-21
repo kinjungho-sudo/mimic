@@ -42,7 +42,8 @@ export async function POST(request: NextRequest) {
   if (test) {
     const adminEmail = (process.env.ADMIN_EMAIL ?? '').trim();
     const ok = await sendParroEmail({ to: adminEmail, subject: `[미리보기] ${subject}`, html });
-    return NextResponse.json({ test: true, sent: ok ? 1 : 0, to: adminEmail });
+    if (!ok) return NextResponse.json({ error: '미리보기 이메일 발송에 실패했습니다.' }, { status: 502 });
+    return NextResponse.json({ test: true, sent: 1, to: adminEmail });
   }
 
   // 수신 동의자 조회

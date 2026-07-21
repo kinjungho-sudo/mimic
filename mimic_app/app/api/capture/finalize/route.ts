@@ -3,7 +3,7 @@ import { requireExtensionToken } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { captureFinalizeSchema } from '@/lib/validators';
 import { analyzeScreenshot, generateStepDescription, generateDraft, extractCoverColors, detectPII, cleanTranscripts } from '@/lib/ai/claude';
-import { buildCaptureAnnotationLabel, buildCaptureFallbackDraft, buildCaptureFallbackTutorialTitle, cleanCaptureTypeText, isLowQualityCaptureLabel, isLowQualityCaptureScript, isLowQualityCaptureTitle, isLowQualityCaptureTutorialTitle, isUsableCaptureDraft, type CaptureFallbackActionInfo } from '@/lib/ai/capture-fallback';
+import { buildCaptureAnnotationLabel, buildCaptureFallbackDraft, buildCaptureFallbackTutorialTitle, cleanCaptureTypeText, isCaptureTitleGrounded, isCaptureTutorialTitleGrounded, isLowQualityCaptureLabel, isLowQualityCaptureScript, isUsableCaptureDraft, type CaptureFallbackActionInfo } from '@/lib/ai/capture-fallback';
 import { resolveFavicon } from '@/lib/favicon';
 import { buildClickHighlight } from '@/lib/annotations';
 import { transcribeAudio, assignSegmentsToSteps, computeStepWindows } from '@/lib/voice/voice';
@@ -92,16 +92,25 @@ function blockedStepMessage(reason: unknown): string {
 }
 
 function isMissingExceptionStepColumns(error: { code?: string; message?: string } | null | undefined) {
-  return error?.code === '42703'
-    || /step_type|capture_source|capture_failure_reason/i.test(error?.message ?? '');
+  return /step_type|capture_source|capture_failure_reason/i.test(error?.message ?? '');
 }
 
-function stripExceptionStepColumns<T extends Record<string, unknown>>(steps: T[]): T[] {
+function isMissingTargetContextColumn(error: { code?: string; message?: string } | null | undefined) {
+  return /target_context/i.test(error?.message ?? '');
+}
+
+function stripUnsupportedStepColumns<T extends Record<string, unknown>>(
+  steps: T[],
+  error: { code?: string; message?: string } | null | undefined,
+): T[] {
   return steps.map(step => {
     const next = { ...step };
-    delete next.step_type;
-    delete next.capture_source;
-    delete next.capture_failure_reason;
+    if (isMissingExceptionStepColumns(error)) {
+      delete next.step_type;
+      delete next.capture_source;
+      delete next.capture_failure_reason;
+    }
+    if (isMissingTargetContextColumn(error)) delete next.target_context;
     return next;
   });
 }
@@ -213,6 +222,7 @@ export async function POST(request: NextRequest) {
   if (tutError || !tutorial) {
     return NextResponse.json({ error: 'Failed to create tutorial' }, { status: 500 });
   }
+  let expectedAutoTitle = tutorialTitle;
 
   // favicon 보완: 호스트명별로 한 번만 resolveFavicon 호출 (중복 요청 방지)
   const faviconCache = new Map<string, string | null>();
@@ -369,6 +379,7 @@ export async function POST(request: NextRequest) {
       element_rect:      elementRect,
       element_selector:  explanationOnly ? null : (ev.element_selector  ?? null),
       element_xpath:     explanationOnly ? null : (ev.element_xpath     ?? null),
+      target_context:    explanationOnly ? null : (ev.target_context ?? (ev.action_info as { targetContext?: unknown } | null)?.targetContext ?? null),
       follow_config:     explanationOnly ? { kind: 'none' } : null,
       // crop_box(캡처 확대)가 있으면 image_zoom로 프레이밍하므로 crop_rect는 비움(렌더 경로 일관성).
       crop_rect:         cropBox ? null : calcCropRect(elementRect, clickX, clickY),
@@ -382,10 +393,10 @@ export async function POST(request: NextRequest) {
     .from('mm_steps')
     .insert(steps);
 
-  if (isMissingExceptionStepColumns(stepsError)) {
+  if (isMissingExceptionStepColumns(stepsError) || isMissingTargetContextColumn(stepsError)) {
     const retry = await supabase
       .from('mm_steps')
-      .insert(stripExceptionStepColumns(steps));
+      .insert(stripUnsupportedStepColumns(steps, stepsError));
     stepsError = retry.error;
   }
 
@@ -485,7 +496,11 @@ export async function POST(request: NextRequest) {
                 image.mediaType
               ).catch(() => null);
 
-              if (analysis?.title?.trim() && !isLowQualityCaptureTitle(analysis.title)) {
+              if (analysis?.title?.trim() && isCaptureTitleGrounded(analysis.title, {
+                pageUrl: firstStep.page_url,
+                actionInfo: actionInfoByStepNum.get(firstStep.step_number),
+                elementText: elementTextByStepNum.get(firstStep.step_number),
+              })) {
                 firstTitle = analysis.title.trim();
                 firstAiPatch.ai_title = firstTitle;
               }
@@ -513,8 +528,12 @@ export async function POST(request: NextRequest) {
       const fallbackTutorialTitle = buildCaptureFallbackTutorialTitle(Array.from(draftsById.values()), {
         serviceNames: initialSteps.map(step => step.domain_name),
       });
-      if (fallbackTutorialTitle) {
-        await supabase.from('mm_tutorials').update({ title: fallbackTutorialTitle }).eq('id', tutorial.id);
+      if (!title && fallbackTutorialTitle) {
+        await supabase.from('mm_tutorials')
+          .update({ title: fallbackTutorialTitle })
+          .eq('id', tutorial.id)
+          .eq('title', expectedAutoTitle);
+        expectedAutoTitle = fallbackTutorialTitle;
       }
 
       await Promise.all(initialSteps.map(async step => {
@@ -578,7 +597,7 @@ export async function POST(request: NextRequest) {
   try {
     const { data: createdSteps } = await supabase
       .from('mm_steps')
-      .select('id, step_number, ai_title, ai_description, page_url, screenshot_url, domain_name')
+      .select('id, step_number, ai_title, ai_description, user_title, user_script, page_url, screenshot_url, domain_name')
       .eq('tutorial_id', tutorial.id)
       .order('step_number', { ascending: true });
 
@@ -595,7 +614,13 @@ export async function POST(request: NextRequest) {
       for (const step of createdSteps) {
         const existingAiTitle = step.ai_title?.trim() || null;
         const existingAiDescription = step.ai_description?.trim() || null;
-        const existingTitleUsable = !!existingAiTitle && !isLowQualityCaptureTitle(existingAiTitle);
+        const stepActionInfo = actionInfoByStepNum.get(step.step_number);
+        const stepElementText = elementTextByStepNum.get(step.step_number);
+        const existingTitleUsable = !!existingAiTitle && isCaptureTitleGrounded(existingAiTitle, {
+          pageUrl: step.page_url,
+          actionInfo: stepActionInfo,
+          elementText: stepElementText,
+        });
         const existingDescriptionUsable = !!existingAiDescription && !isLowQualityCaptureScript(existingAiDescription);
         if ((existingTitleUsable && existingDescriptionUsable) || !step.screenshot_url) {
           enrichedSteps.push(step);
@@ -641,7 +666,14 @@ export async function POST(request: NextRequest) {
                 return null;
               });
 
-          const aiTitle = existingTitleUsable ? existingAiTitle : analysis?.title?.trim() || null;
+          const analyzedTitle = analysis?.title?.trim() || null;
+          const aiTitle = existingTitleUsable
+            ? existingAiTitle
+            : (isCaptureTitleGrounded(analyzedTitle, {
+                pageUrl: step.page_url,
+                actionInfo: stepActionInfo,
+                elementText: stepElementText,
+              }) ? analyzedTitle : null);
           const aiDescription = existingDescriptionUsable
             ? existingAiDescription
             : (aiTitle
@@ -714,27 +746,41 @@ export async function POST(request: NextRequest) {
         });
         return fallback;
       });
-      const fallbackTitleContext = { serviceNames: enrichedSteps.map(step => step.domain_name) };
+      const fallbackTitleContext = {
+        serviceNames: enrichedSteps.map(step => step.domain_name),
+        pageTitles: enrichedSteps.map(step => actionInfoByStepNum.get(step.step_number)?.targetContext?.pageTitle),
+      };
       let fallbackTutorialTitle = buildCaptureFallbackTutorialTitle(drafts, fallbackTitleContext);
       let aiDraftStatus = 'not_called';
+      let tutorialTitleBasis = 'unknown';
       let discardedAiDrafts = 0;
 
       try {
         const draftResult = await generateDraft(
           enrichedSteps.map(s => {
             const actionInfo = actionInfoByStepNum.get(s.step_number);
+            const elementText = elementTextByStepNum.get(s.step_number);
             return {
               ...s,
-              ai_title: isLowQualityCaptureTitle(s.ai_title) ? null : s.ai_title,
+              ai_title: isCaptureTitleGrounded(s.ai_title, {
+                pageUrl: s.page_url,
+                actionInfo,
+                elementText,
+              }) ? s.ai_title : null,
               ai_description: isLowQualityCaptureScript(s.ai_description) ? null : s.ai_description,
               noAction: noActionByStepNum.get(s.step_number) ?? false,
               action_type: actionInfo?.type ?? null,
               action_label: actionInfo?.label ?? actionInfo?.text ?? null,
-              element_text: elementTextByStepNum.get(s.step_number) ?? null,
+              element_text: elementText ?? null,
+              context_label: actionInfo?.targetContext?.contextLabel ?? null,
+              page_title: actionInfo?.targetContext?.pageTitle ?? null,
+              capture_surface: actionInfo?.targetContext?.captureSurface ?? null,
+              capture_app: actionInfo?.targetContext?.captureApp ?? null,
             };
           })
         );
         aiDraftStatus = draftResult.status;
+        tutorialTitleBasis = draftResult.tutorial_title_basis;
         tutorial_title = draftResult.tutorial_title;
         const aiDraftsById = new Map(draftResult.steps.map(d => [d.id, d]));
         drafts = enrichedSteps.map(step => {
@@ -746,7 +792,11 @@ export async function POST(request: NextRequest) {
           const aiDraft = aiDraftsById.get(step.id);
           const aiTitle = aiDraft?.user_title?.trim() || '';
           const aiScript = aiDraft?.user_script?.trim() || '';
-          const useAiDraft = isUsableCaptureDraft(aiDraft, { pageUrl: step.page_url });
+          const useAiDraft = isUsableCaptureDraft(aiDraft, {
+            pageUrl: step.page_url,
+            actionInfo: actionInfoByStepNum.get(step.step_number),
+            elementText: elementTextByStepNum.get(step.step_number),
+          });
           if (aiDraft && !useAiDraft) discardedAiDrafts += 1;
           return {
             id: step.id,
@@ -802,6 +852,7 @@ export async function POST(request: NextRequest) {
         tutorialId: tutorial.id,
         sessionId: session_id,
         aiDraftStatus,
+        tutorialTitleBasis,
         fallbackOnly,
         discardedAiDrafts,
         emptyTitles,
@@ -809,14 +860,24 @@ export async function POST(request: NextRequest) {
       }, emptyTitles || emptyScripts ? 'warn' : 'info');
 
       // tutorial 제목 + cover_color 업데이트
-      const tutorialUpdate: Record<string, string> = {};
-      const safeTutorialTitle = !isLowQualityCaptureTutorialTitle(tutorial_title, {
+      const tutorialTitleContext = {
         stepTitles: drafts.map(draft => draft.user_title),
-      }) ? tutorial_title : '';
-      if (safeTutorialTitle || fallbackTutorialTitle) tutorialUpdate.title = safeTutorialTitle || fallbackTutorialTitle;
-      if (coverColors) tutorialUpdate.cover_color = `${coverColors.color1},${coverColors.color2}`;
-      if (Object.keys(tutorialUpdate).length > 0) {
-        await supabase.from('mm_tutorials').update(tutorialUpdate).eq('id', tutorial.id);
+        serviceNames: enrichedSteps.map(step => step.domain_name),
+      };
+      const safeTutorialTitle = isCaptureTutorialTitleGrounded(tutorial_title, tutorialTitleContext)
+        ? tutorial_title
+        : '';
+      const generatedTutorialTitle = safeTutorialTitle || fallbackTutorialTitle;
+      if (!title && generatedTutorialTitle) {
+        await supabase.from('mm_tutorials')
+          .update({ title: generatedTutorialTitle })
+          .eq('id', tutorial.id)
+          .eq('title', expectedAutoTitle);
+      }
+      if (coverColors) {
+        await supabase.from('mm_tutorials')
+          .update({ cover_color: `${coverColors.color1},${coverColors.color2}` })
+          .eq('id', tutorial.id);
       }
 
       // 스텝 초안 업데이트
@@ -829,11 +890,19 @@ export async function POST(request: NextRequest) {
               user_title: d.user_title,
               user_script: d.user_script,
             };
-            return supabase
+            const original = createdSteps.find(step => step.id === d.id);
+            let query = supabase
               .from('mm_steps')
               .update(patch)
               .eq('id', d.id)
               .eq('tutorial_id', tutorial.id);
+            query = original?.user_title == null
+              ? query.is('user_title', null)
+              : query.eq('user_title', original.user_title);
+            query = original?.user_script == null
+              ? query.is('user_script', null)
+              : query.eq('user_script', original.user_script);
+            return query;
           })
         );
       }
