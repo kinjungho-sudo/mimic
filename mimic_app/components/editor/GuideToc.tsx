@@ -110,6 +110,26 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
     setDragOverId(null);
   };
 
+  const moveSelected = (direction: 'up' | 'down') => {
+    if (!onReorder || selectedIds.size === 0) return;
+    const next = [...steps];
+    let moved = false;
+    if (direction === 'up') {
+      for (let index = 1; index < next.length; index++) {
+        if (!selectedIds.has(next[index].id) || selectedIds.has(next[index - 1].id)) continue;
+        [next[index - 1], next[index]] = [next[index], next[index - 1]];
+        moved = true;
+      }
+    } else {
+      for (let index = next.length - 2; index >= 0; index--) {
+        if (!selectedIds.has(next[index].id) || selectedIds.has(next[index + 1].id)) continue;
+        [next[index], next[index + 1]] = [next[index + 1], next[index]];
+        moved = true;
+      }
+    }
+    if (moved) onReorder(next.map((step, index) => ({ ...step, number: index + 1 })));
+  };
+
   // ── 도메인 그룹핑 — hostname 기준 전역 중복 제거 (A→B→A = 2그룹이 아닌 동일 그룹) ──
   type DomainGroup = { hostname: string | null; name: string | null; favicon: string | null; count: number };
   const hostnameToGroupIdx = new Map<string | null, number>();
@@ -138,6 +158,8 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
 
   const isDraggingActive = draggingIds.size > 0;
   const selectedCount = selectedIds.size;
+  const canMoveSelectedUp = steps.some((step, index) => selectedIds.has(step.id) && index > 0 && !selectedIds.has(steps[index - 1].id));
+  const canMoveSelectedDown = steps.some((step, index) => selectedIds.has(step.id) && index < steps.length - 1 && !selectedIds.has(steps[index + 1].id));
 
   return (
     <aside style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
@@ -154,6 +176,30 @@ export function GuideToc({ steps, activeId, onSelect, editable, onReorder, onDel
                 <span style={{ fontSize: '11px', fontWeight: 600, color: '#009B8E' }}>
                   {selectedCount}개
                 </span>
+                {onReorder && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => moveSelected('up')}
+                      disabled={!canMoveSelectedUp}
+                      aria-label="선택 단계를 한 칸 위로 이동"
+                      title="선택 단계를 한 칸 위로 이동"
+                      style={{ width: '20px', height: '20px', borderRadius: '4px', border: '1px solid #D1D5DB', background: 'white', color: canMoveSelectedUp ? '#374151' : '#D1D5DB', display: 'grid', placeItems: 'center', cursor: canMoveSelectedUp ? 'pointer' : 'not-allowed', padding: 0 }}
+                    >
+                      <span aria-hidden="true">↑</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveSelected('down')}
+                      disabled={!canMoveSelectedDown}
+                      aria-label="선택 단계를 한 칸 아래로 이동"
+                      title="선택 단계를 한 칸 아래로 이동"
+                      style={{ width: '20px', height: '20px', borderRadius: '4px', border: '1px solid #D1D5DB', background: 'white', color: canMoveSelectedDown ? '#374151' : '#D1D5DB', display: 'grid', placeItems: 'center', cursor: canMoveSelectedDown ? 'pointer' : 'not-allowed', padding: 0 }}
+                    >
+                      <span aria-hidden="true">↓</span>
+                    </button>
+                  </>
+                )}
                 {onDelete && (
                   <button
                     onClick={() => { Array.from(selectedIds).forEach(id => onDelete(id)); setSelectedIds(new Set()); }}

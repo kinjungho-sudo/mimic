@@ -26,6 +26,7 @@ export type ManualQualityIssue = {
   message: string;
   stepId?: string;
   stepNumber?: number;
+  relatedStepNumbers?: number[];
 };
 
 const EXPLANATION_STEP_TYPES = new Set(['visual_only_step', 'visual_overlay_step', 'manual_capture_step', 'blocked_step']);
@@ -55,10 +56,12 @@ export function assessManualQuality(title: string | null | undefined, steps: Man
     });
   }
 
-  const titleCounts = new Map<string, number>();
-  stepTitles.forEach(value => {
+  const titleGroups = new Map<string, number[]>();
+  stepTitles.forEach((value, index) => {
     const normalized = normalizeStepTitleForComparison(value);
-    if (normalized) titleCounts.set(normalized, (titleCounts.get(normalized) ?? 0) + 1);
+    if (!normalized) return;
+    const stepNumber = visibleSteps[index].step_number ?? index + 1;
+    titleGroups.set(normalized, [...(titleGroups.get(normalized) ?? []), stepNumber]);
   });
 
   visibleSteps.forEach((step, index) => {
@@ -112,14 +115,16 @@ export function assessManualQuality(title: string | null | undefined, steps: Man
     }
 
     const normalizedStepTitle = normalizeStepTitleForComparison(stepTitle);
-    if (normalizedStepTitle && (titleCounts.get(normalizedStepTitle) ?? 0) > 1) {
+    const duplicateStepNumbers = normalizedStepTitle ? (titleGroups.get(normalizedStepTitle) ?? []) : [];
+    if (duplicateStepNumbers.length > 1) {
       const firstDuplicate = visibleSteps.findIndex(candidate => (
         normalizeStepTitleForComparison(plain(candidate.user_title || candidate.ai_title)) === normalizedStepTitle
       ));
       if (firstDuplicate === index) {
         issues.push({
           code: 'duplicate_title', severity: 'warning', ...meta,
-          message: `같거나 거의 같은 제목 “${stepTitle}”이 반복됩니다. 각 단계의 목적을 구분해주세요.`,
+          relatedStepNumbers: duplicateStepNumbers,
+          message: `${duplicateStepNumbers.join('·')}단계에 같거나 거의 같은 제목 “${stepTitle}”이 반복됩니다. 각 단계의 목적을 구분해주세요.`,
         });
       }
     }

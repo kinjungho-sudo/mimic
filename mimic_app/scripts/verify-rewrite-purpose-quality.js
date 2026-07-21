@@ -44,12 +44,16 @@ async function main() {
   if (duplicateIssues.length !== 1 || duplicateIssues[0].stepId !== 'step-1') {
     failures.push({ name: 'near-duplicate titles produce one actionable quality warning', actual: duplicateIssues });
   }
+  if (duplicateIssues[0]?.message !== '1·2단계에 같거나 거의 같은 제목 “검색창 선택”이 반복됩니다. 각 단계의 목적을 구분해주세요.'
+      || JSON.stringify(duplicateIssues[0]?.relatedStepNumbers) !== JSON.stringify([1, 2])) {
+    failures.push({ name: 'duplicate warning identifies every affected step', actual: duplicateIssues[0] });
+  }
 
   if (failures.length) {
     console.error(JSON.stringify({ ok: false, failures }, null, 2));
     process.exit(1);
   }
-  console.log(JSON.stringify({ ok: true, checks: lowQualityScripts.length + 3 }));
+  console.log(JSON.stringify({ ok: true, checks: lowQualityScripts.length + 4 }));
 }
 
 main().catch(error => {

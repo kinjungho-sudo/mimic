@@ -38,16 +38,35 @@ export function ManualQualityDialog({ issues, onClose, onRegenerate, onSelectSte
             {warnings.length > 0 && <span style={{ padding: '4px 8px', borderRadius: 20, background: '#FEF3C7', color: '#92400E', fontSize: 11.5, fontWeight: 700 }}>개선 제안 {warnings.length}</span>}
           </div>
           <div style={{ display: 'grid', gap: 7 }}>
-            {issues.slice(0, 12).map((issue, index) => (
-              <button
-                key={`${issue.code}-${issue.stepId ?? index}`}
-                onClick={() => issue.stepNumber && onSelectStep?.(issue.stepNumber)}
-                disabled={!issue.stepNumber || !onSelectStep}
-                style={{ textAlign: 'left', padding: '10px 11px', borderRadius: 9, border: `1px solid ${issue.severity === 'error' ? '#FECACA' : '#FDE68A'}`, background: issue.severity === 'error' ? '#FFF7F7' : '#FFFBEB', color: '#374151', fontSize: 12.5, lineHeight: 1.5, cursor: issue.stepNumber && onSelectStep ? 'pointer' : 'default' }}
-              >
-                {issue.message}
-              </button>
-            ))}
+            {issues.slice(0, 12).map((issue, index) => {
+              const stepNumbers = issue.relatedStepNumbers?.length
+                ? issue.relatedStepNumbers
+                : issue.stepNumber ? [issue.stepNumber] : [];
+              return (
+                <div
+                  key={`${issue.code}-${issue.stepId ?? index}`}
+                  style={{ textAlign: 'left', padding: '10px 11px', borderRadius: 9, border: `1px solid ${issue.severity === 'error' ? '#FECACA' : '#FDE68A'}`, background: issue.severity === 'error' ? '#FFF7F7' : '#FFFBEB', color: '#374151', fontSize: 12.5, lineHeight: 1.5 }}
+                >
+                  <div>{issue.message}</div>
+                  {onSelectStep && stepNumbers.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 7 }}>
+                      {stepNumbers.map(stepNumber => (
+                        <button
+                          key={stepNumber}
+                          type="button"
+                          data-testid="quality-step-link"
+                          onClick={() => onSelectStep(stepNumber)}
+                          aria-label={`${stepNumber}단계 편집으로 이동`}
+                          style={{ height: 25, padding: '0 8px', borderRadius: 6, border: '1px solid #D1D5DB', background: 'white', color: '#374151', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}
+                        >
+                          {stepNumber}단계 열기
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
           {issues.length > 12 && <p style={{ margin: '10px 2px 0', fontSize: 11.5, color: '#9CA3AF' }}>그 외 {issues.length - 12}개 항목이 더 있습니다.</p>}
           {regenerateMessage && (
