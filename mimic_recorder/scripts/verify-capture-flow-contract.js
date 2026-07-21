@@ -53,6 +53,17 @@ check(() => {
   assert.match(block, /ensureContentScript\(tabId\)/);
   assert.match(block, /chrome\.tabs\.sendMessage\(tabId, \{ type: 'START_RECORDING' \}/);
   assert.match(block, /storageSet\(\{ isRecording: true \}\)/);
+  assert.doesNotMatch(block, /notifyDesktopCaptureStarted/);
+  assert.doesNotMatch(block, /START_CAPTURE_SESSION/);
+});
+
+check(() => {
+  const start = background.indexOf("chrome.storage.onChanged.addListener");
+  const end = background.indexOf('// ── 액션 레이블 생성', start);
+  const block = background.slice(start, end);
+  assert.ok(start >= 0 && end > start, 'browser recording storage listener must be present');
+  assert.doesNotMatch(block, /notifyDesktopCaptureStarted/);
+  assert.doesNotMatch(block, /notifyDesktopCaptureStopped/);
 });
 
 check(() => {
@@ -103,8 +114,12 @@ check(() => {
 });
 
 check(() => {
-  assert.match(background, /if \(message\.action === 'START_DESKTOP_RECORDING'\)/);
-  assert.match(background, /if \(message\.action === 'STOP_DESKTOP_RECORDING'\)/);
+  const start = background.indexOf("if (message.action === 'START_DESKTOP_RECORDING')");
+  const end = background.indexOf("if (message.action === 'PAUSE_DESKTOP_RECORDING'", start);
+  const block = background.slice(start, end);
+  assert.ok(start >= 0 && end > start, 'explicit desktop recording handlers must be present');
+  assert.match(block, /notifyDesktopCaptureStarted\(/);
+  assert.match(block, /notifyDesktopCaptureStopped\(/);
   assert.match(background, /desktop_paid_plan_required/);
   assert.match(background, /recorderVersion: chrome\.runtime\.getManifest\(\)\.version/);
   assert.match(background, /async function importDesktopCaptureSession\(nativeSessionId\)/);

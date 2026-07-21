@@ -1143,14 +1143,11 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         return;
       }
 
-      // 6) isRecording 세팅 — _directStartTabId로 onChanged 중복 차단
-      //    (캡처는 captureVisibleTab 사용 — Gemini/Docs 포함 일반 https 페이지 모두 동작 확인됨.
-      //     desktopCapture 스트림은 DRM 등 진짜 차단 페이지 대비용으로 코드만 유지)
+      // 6) 브라우저 녹화 상태만 시작 — _directStartTabId로 onChanged 중복 차단
+      //    데스크톱 캡처는 START_DESKTOP_RECORDING에서만 시작한다. 두 모드를
+      //    묶으면 웹 캡처 선택만으로 Native Host가 함께 실행되어 세션이 충돌한다.
       _directStartTabId = tabId;
       await storageSet({ isRecording: true });
-      notifyDesktopCaptureStartedForPaidUser({ sessionId, targetTabId: tabId, source: 'external_start' }).catch((err) => {
-        log('warn', 'desktop', 'desktop start notify failed:', err?.message || err);
-      });
       _directStartTabId = null;
       sendResponse({ ok: true });
     })();
@@ -2413,18 +2410,10 @@ chrome.storage.onChanged.addListener((changes, area) => {
     if (nowRecording && _directStartTabId) return;  // onMessageExternal이 직접 처리 중
 
     if (nowRecording) {
+      // 브라우저 녹화 상태는 Native Host를 시작하지 않는다. 데스크톱 캡처는
+      // 명시적인 START_DESKTOP_RECORDING / STOP_DESKTOP_RECORDING 경로만 사용한다.
       resetLastSavedHash();  // 새 녹화 → 디덥 기준 해시 초기화
-      storageGet(['sessionId', 'targetTabId']).then(({ sessionId, targetTabId }) => {
-        notifyDesktopCaptureStartedForPaidUser({ sessionId, targetTabId, source: 'storage_start' }).catch((err) => {
-          log('warn', 'desktop', 'desktop start notify failed:', err?.message || err);
-        });
-      });
     } else {
-      storageGet('sessionId').then(({ sessionId }) => {
-        notifyDesktopCaptureStopped({ sessionId, reason: 'storage_stop' }).catch((err) => {
-          log('warn', 'desktop', 'desktop stop notify failed:', err?.message || err);
-        });
-      });
       chrome.storage.local.remove(['pendingCapture', 'spaNavCapturing']);
       stopDisplayStream().catch(() => {});
     }
@@ -2871,12 +2860,6 @@ async function getUserPlan(forceRefresh = false) {
     const { _planCache } = await storageGet('_planCache');
     return _planCache || { plan: 'free', isPro: false, time: 0 };
   }
-}
-
-async function notifyDesktopCaptureStartedForPaidUser(options) {
-  const plan = await getUserPlan();
-  if (!plan?.isPro) return { ok: false, error: 'desktop_paid_plan_required' };
-  return notifyDesktopCaptureStarted(options);
 }
 
 // ── AI 분석 — 웹앱 API 경유 ──────────────────────────────────────
