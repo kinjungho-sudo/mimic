@@ -26,6 +26,7 @@ type StudioStep = {
   id: string;
   number: number;
   screenshotUrl: string | null;
+  imageAltText: string | null;
   pageUrl: string | null;
   title: string;             // user_title (편집) — 문서 매뉴얼과 공유. ai_title 폴백으로 초기화
   description: string;       // user_script (편집, HTML 제거) — 문서 매뉴얼과 공유
@@ -56,6 +57,7 @@ function toStudioStep(s: Step): StudioStep {
     id: s.id,
     number: s.step_number,
     screenshotUrl: s.screenshot_url || null,
+    imageAltText: s.image_alt_text ?? null,
     pageUrl: s.page_url ?? null,
     title: s.user_title || s.ai_title || '',
     description: (s.user_script || s.ai_description || '').replace(/<[^>]+>/g, ''),
@@ -520,6 +522,7 @@ export default function StudioPage() {
       title: s.title,
       body: s.description || null,
       screenshotUrl: s.screenshotUrl || undefined,
+      imageAltText: s.imageAltText,
       clickXPct: s.clickXPct,
       clickYPct: s.clickYPct,
       audioUrl: audio?.url ?? null,
@@ -648,6 +651,7 @@ export default function StudioPage() {
               <div style={{ position: 'relative', lineHeight: 0, boxShadow: '0 12px 50px rgba(0,0,0,0.5)', filter: hidden ? 'grayscale(0.75) brightness(0.5)' : 'none' }}>
                 <FollowStage
                   screenshotUrl={active.screenshotUrl}
+                  imageAltText={active.imageAltText}
                   hotspotX={rv?.hotspotX ?? null}
                   hotspotY={rv?.hotspotY ?? null}
                   allowCornerHotspot={rv?.userPlaced}

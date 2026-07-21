@@ -12,6 +12,7 @@ type StepRow = {
   user_script: string | null;
   ai_description: string | null;
   screenshot_url: string | null;
+  image_alt_text: string | null;
   user_annotations: unknown;
 };
 
@@ -63,7 +64,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
     if (allowedIds.length) {
       const { data: steps } = await supabase
         .from('mm_steps')
-        .select('id, tutorial_id, step_number, user_title, ai_title, user_script, ai_description, screenshot_url, user_annotations')
+        .select('id, tutorial_id, step_number, user_title, ai_title, user_script, ai_description, screenshot_url, image_alt_text, user_annotations')
         .in('tutorial_id', allowedIds)
         .order('step_number', { ascending: true });
 
@@ -81,6 +82,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
         title: s.user_title || s.ai_title || '',
         caption: s.user_script || s.ai_description || '',
         screenshot_url: s.screenshot_url,
+        image_alt_text: s.image_alt_text,
         annotations: s.user_annotations ?? [],
       }));
       guides[t.id] = { id: t.id, title: t.title, steps };

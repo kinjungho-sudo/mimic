@@ -10,6 +10,7 @@ export interface FollowStep {
   title: string;
   body?: string;
   screenshotUrl?: string | null;
+  imageAltText?: string | null;
   hotspotX?: number | null;            // 0~100 (%)
   hotspotY?: number | null;            // 0~100 (%)
   hotspotUserPlaced?: boolean;         // 스튜디오에서 직접 찍은 좌표 — 좌상단도 유효(가짜 0,0 센티넬 제외)
@@ -248,6 +249,7 @@ export function InteractiveFollowPlayer({ steps, title, initialStepIndex = 0, on
                 <FollowStage
                   key={idx}
                   screenshotUrl={step.screenshotUrl}
+                  imageAltText={step.imageAltText}
                   hotspotX={hx ?? null}
                   hotspotY={hy ?? null}
                   allowCornerHotspot={step.hotspotUserPlaced}

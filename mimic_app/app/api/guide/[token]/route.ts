@@ -103,7 +103,7 @@ export async function GET(request: NextRequest, { params }: Params) {
 async function fetchSteps(supabase: ReturnType<typeof createServiceRoleClient>, tutorialId: string, title: string, ownerId: string, ttsEnabled: boolean) {
   const baseSelect =
     'id, step_number, user_title, ai_title, user_script, ai_description, ' +
-    'page_url, element_selector, element_xpath, element_rect, click_x, click_y, screenshot_url, user_annotations, follow_config, type_text, ' +
+    'page_url, element_selector, element_xpath, element_rect, click_x, click_y, screenshot_url, image_alt_text, user_annotations, follow_config, type_text, ' +
     'voice_audio_url, voice_audio_start_ms, voice_audio_end_ms';
   let { data: rawSteps, error: stepsError } = await supabase
     .from('mm_steps')
@@ -180,6 +180,7 @@ async function fetchSteps(supabase: ReturnType<typeof createServiceRoleClient>, 
       click_x: explanationOnly ? null : (s.click_x ?? null),
       click_y: explanationOnly ? null : (s.click_y ?? null),
       screenshot_url: s.screenshot_url ?? null,
+      image_alt_text: s.image_alt_text ?? null,
       user_annotations: (s.user_annotations as unknown[] | null) ?? [],
       step_type: stepType,
       capture_source: s.capture_source ?? null,

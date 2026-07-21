@@ -59,6 +59,7 @@ async function fetchTutorialData(token: string) {
     voice_audio_start_ms: voiceEnabled ? ((s as Record<string, unknown>).voice_audio_start_ms as number | null ?? null) : null,
     voice_audio_end_ms: voiceEnabled ? ((s as Record<string, unknown>).voice_audio_end_ms as number | null ?? null) : null,
     screenshot_url: s.screenshot_url ?? null,
+    image_alt_text: (s as Record<string, unknown>).image_alt_text as string | null ?? null,
     order_index: s.order_index,
     page_url: s.page_url ?? null,
     element_selector: (s as Record<string, unknown>).element_selector ?? null,

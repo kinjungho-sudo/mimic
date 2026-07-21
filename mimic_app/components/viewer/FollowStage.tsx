@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useId } from 'react';
 import { AnnotationPreview } from '@/components/editor/AnnotationPreview';
 import { ParroMascot, type ParroMascotState } from '@/components/brand/ParroMascot';
 import { BRAND_COLORS } from '@/lib/brand';
+import { resolveImageAlt } from '@/lib/image-alt';
 import type { Annotation } from '@/components/editor/ImageAnnotationEditor';
 
 // 따라하기 시각 레이어(이미지 + 핫스팟 인디케이터 + AI 캐릭터 말풍선).
@@ -28,6 +29,7 @@ export function Mascot({ size = 40, state = 'talk' }: { size?: number; state?: P
 
 interface Props {
   screenshotUrl?: string | null;
+  imageAltText?: string | null;
   hotspotX: number | null;          // 0~100 (%) — none/이동단계는 null
   hotspotY: number | null;
   allowCornerHotspot?: boolean;     // true=사용자가 직접 찍은 좌상단 핫스팟 허용(0,0 가짜 센티넬 억제 해제)
@@ -63,7 +65,7 @@ interface Props {
 }
 
 export function FollowStage({
-  screenshotUrl, hotspotX: hx, hotspotY: hy, allowCornerHotspot = false, kind, typeText, typeInputMode, typeBoxWidth, typeBoxHeight, typeTextColor, guideMode = 'interactive', annotations = null, animateType = false,
+  screenshotUrl, imageAltText, hotspotX: hx, hotspotY: hy, allowCornerHotspot = false, kind, typeText, typeInputMode, typeBoxWidth, typeBoxHeight, typeTextColor, guideMode = 'interactive', annotations = null, animateType = false,
   showTypeIndicator = true,
   isFirstStep = false, stepNumber = null, title, body,
   minimized = false, showAudioBadge = false, nudge = false, spotlight = false,
@@ -243,7 +245,7 @@ export function FollowStage({
       {/* onClick은 스케일 적용된 이 div에 부착 — getBoundingClientRect가 줌 후 박스를 반환해 클릭 좌표가 원본 이미지 좌표로 정확히 매핑됨 */}
       <div onClick={onImageClick} style={{ position: 'relative', lineHeight: 0, ...zoomStyle }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={screenshotUrl} alt={title} draggable={false} style={{ display: 'block', maxWidth: '100%', maxHeight: imgMaxHeight, width: 'auto', height: 'auto', userSelect: 'none' }} />
+        <img src={screenshotUrl} alt={resolveImageAlt(imageAltText, title, body)} draggable={false} style={{ display: 'block', maxWidth: '100%', maxHeight: imgMaxHeight, width: 'auto', height: 'auto', userSelect: 'none' }} />
         {!!annotations?.length && (
           <AnnotationPreview annotations={annotations} imageUrl={screenshotUrl} />
         )}

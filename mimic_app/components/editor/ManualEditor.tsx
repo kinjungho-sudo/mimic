@@ -14,6 +14,7 @@ import { pixelateRegion, type BlurRegion } from '@/lib/pixelate';
 import { faviconUrl, faviconFallbackUrl, hostnameToServiceName } from '@/lib/favicon';
 import { hasGuideConfig } from '@/lib/follow';
 import { annotationsBox, fitFramingToBox } from '@/lib/framing';
+import { resolveImageAlt } from '@/lib/image-alt';
 import type { FollowConfig } from '@/types';
 
 export interface ManualStep {
@@ -24,6 +25,7 @@ export interface ManualStep {
   followConfig?: FollowConfig | null;  // 라이브 가이드 설정(kind/typeText 등) — 편집기·스튜디오 공유
   description: string;       // stored as HTML string
   screenshotUrl?: string;
+  imageAltText?: string | null;
   // 영구 블러 적용 전 원본 URL (있으면 '되돌리기' 가능)
   originalScreenshotUrl?: string | null;
   annotations?: Annotation[];
@@ -1061,6 +1063,28 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
         onFraming={patch => onSave(patch)}
       />
 
+      {step.screenshotUrl && (
+        <div data-testid="step-image-alt-editor" style={{ padding: '0 24px 18px' }}>
+          <label htmlFor={`image-alt-${step.id}`} style={{ display: 'flex', alignItems: 'baseline', gap: '7px', marginBottom: '6px', fontSize: '12px', fontWeight: 600, color: '#374151' }}>
+            이미지 대체 텍스트
+            <span style={{ fontSize: '10.5px', fontWeight: 400, color: '#9CA3AF' }}>스크린 리더용</span>
+          </label>
+          <input
+            id={`image-alt-${step.id}`}
+            value={step.imageAltText ?? ''}
+            maxLength={500}
+            onFocus={onFocus}
+            onChange={event => onUpdate({ imageAltText: event.target.value })}
+            onBlur={event => onSave({ imageAltText: event.target.value.trim() || null })}
+            placeholder={resolveImageAlt(null, step.actionTitle, step.description)}
+            style={{ width: '100%', height: '36px', padding: '0 10px', borderRadius: '7px', border: '1px solid #DDE3E8', background: 'white', color: '#374151', fontSize: '12.5px', outline: 'none', boxSizing: 'border-box' }}
+          />
+          <p style={{ margin: '5px 0 0', color: '#9CA3AF', fontSize: '10.5px', lineHeight: 1.45 }}>
+            비워두면 단계 제목과 설명을 조합해 자동으로 읽습니다.
+          </p>
+        </div>
+      )}
+
     </div>
   );
 }
@@ -1403,7 +1427,7 @@ function ScreenshotArea({ step, onUploadClick, onDrop, onAnnotate, onRemove, onF
         transformOrigin: 'center center',
       }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={step.screenshotUrl} alt={step.actionTitle} draggable={false} style={{ width: 'auto', maxWidth: '100%', maxHeight: 'calc(100vh - 320px)', height: 'auto', display: 'block', userSelect: 'none' }} />
+        <img src={step.screenshotUrl} alt={resolveImageAlt(step.imageAltText, step.actionTitle, step.description)} draggable={false} style={{ width: 'auto', maxWidth: '100%', maxHeight: 'calc(100vh - 320px)', height: 'auto', display: 'block', userSelect: 'none' }} />
 
         {/* Annotation SVG overlay (read-only preview) — 확대 시 어노테이션은 일정 크기 유지(역보정) */}
         {hasAnnotations && (

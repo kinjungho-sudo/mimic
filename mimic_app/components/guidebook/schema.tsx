@@ -10,12 +10,14 @@ import { createReactBlockSpec } from '@blocknote/react';
 import { AnnotationPreview } from '@/components/editor/AnnotationPreview';
 import type { Annotation } from '@/components/editor/ImageAnnotationEditor';
 import { BRAND_COLORS } from '@/lib/brand';
+import { resolveImageAlt } from '@/lib/image-alt';
 
 export type GuideStep = {
   step_number: number;
   title: string;
   caption: string;
   screenshot_url: string | null;
+  image_alt_text?: string | null;
   annotations: Annotation[];
 };
 export type GuideData = { id: string; title: string; steps: GuideStep[] };
@@ -194,7 +196,7 @@ function GuideViewCard({ defaultOpen, guide }: { defaultOpen: boolean; guide: Gu
               {s.screenshot_url && (
                 <div style={{ position: 'relative', lineHeight: 0, borderRadius: '8px', overflow: 'hidden', border: '1px solid #F3F4F6' }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={s.screenshot_url} alt={s.title} style={{ width: '100%', display: 'block' }} />
+                  <img src={s.screenshot_url} alt={resolveImageAlt(s.image_alt_text, s.title, s.caption)} style={{ width: '100%', display: 'block' }} />
                   {(s.annotations?.length ?? 0) > 0 && (
                     <AnnotationPreview imageUrl={s.screenshot_url} annotations={s.annotations ?? []} />
                   )}

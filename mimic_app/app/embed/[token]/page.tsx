@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { AnnotationPreview } from '@/components/editor/AnnotationPreview';
 import type { Annotation } from '@/components/editor/ImageAnnotationEditor';
 import { BRAND_COLORS, BRAND_NAME } from '@/lib/brand';
+import { resolveImageAlt } from '@/lib/image-alt';
 
 const BRAND_RING_SOFT = 'rgba(0,155,142,0.15)';
 
@@ -13,6 +14,7 @@ interface EmbedStep {
   title: string;
   caption: string;
   screenshot_url: string | null;
+  image_alt_text?: string | null;
   user_annotations?: Annotation[];
 }
 
@@ -106,7 +108,7 @@ export default function EmbedPage() {
               {step.screenshot_url && (
                 <div style={{ position: 'relative', background: '#F3F4F6' }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={step.screenshot_url} alt={step.title} style={{ width: '100%', display: 'block' }} />
+                  <img src={step.screenshot_url} alt={resolveImageAlt(step.image_alt_text, step.title, step.caption)} style={{ width: '100%', display: 'block' }} />
                   {(step.user_annotations?.length ?? 0) > 0 && (
                     <AnnotationPreview
                       annotations={step.user_annotations!}
