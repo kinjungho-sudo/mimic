@@ -10,9 +10,23 @@ export type RegenerationQualityResult =
 
 const INTERNAL_CAPTURE_HOST = /\b(?:desktop|windows)\.parro\.(?:local|app)\b/i;
 const GENERIC_TITLE = /^(?:(?:Windows|서비스|데스크톱|화면)\s*)?(?:설정 진행|작업 진행|화면 확인|다음 단계 준비|최종 결과 확인)$/i;
+const ACTION_NOUN = '(?:클릭|선택|확인|입력|작성|열기|이동|진행|저장|적용|전송|완료|시작)';
+
+export function normalizeStepTitleForComparison(value: string): string {
+  return value
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/[\s\u00a0]+/g, ' ')
+    .replace(/[.!?。！？]+$/g, '')
+    .trim()
+    .toLowerCase()
+    .replace(/(?:하기|합니다|해요)$/g, '')
+    .replace(new RegExp(`([가-힣a-z0-9]+)(?:을|를)\\s+(?=${ACTION_NOUN}$)`, 'gi'), '$1 ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
 function normalized(value: string): string {
-  return value.replace(/\s+/g, ' ').trim().toLowerCase();
+  return normalizeStepTitleForComparison(value);
 }
 
 function isRepetitive(values: string[]): boolean {

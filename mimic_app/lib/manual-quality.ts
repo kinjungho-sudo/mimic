@@ -1,4 +1,5 @@
 import { isLowQualityCaptureScript, isLowQualityCaptureTitle, isLowQualityCaptureTutorialTitle } from '@/lib/ai/capture-fallback';
+import { normalizeStepTitleForComparison } from '@/lib/ai/regeneration-quality';
 import { containsSensitiveText, redactSensitive } from '@/lib/redact';
 
 export type ManualQualityStep = {
@@ -56,7 +57,7 @@ export function assessManualQuality(title: string | null | undefined, steps: Man
 
   const titleCounts = new Map<string, number>();
   stepTitles.forEach(value => {
-    const normalized = value.toLowerCase();
+    const normalized = normalizeStepTitleForComparison(value);
     if (normalized) titleCounts.set(normalized, (titleCounts.get(normalized) ?? 0) + 1);
   });
 
@@ -110,12 +111,15 @@ export function assessManualQuality(title: string | null | undefined, steps: Man
       });
     }
 
-    if (stepTitle && (titleCounts.get(stepTitle.toLowerCase()) ?? 0) > 1) {
-      const firstDuplicate = visibleSteps.findIndex(candidate => plain(candidate.user_title || candidate.ai_title).toLowerCase() === stepTitle.toLowerCase());
+    const normalizedStepTitle = normalizeStepTitleForComparison(stepTitle);
+    if (normalizedStepTitle && (titleCounts.get(normalizedStepTitle) ?? 0) > 1) {
+      const firstDuplicate = visibleSteps.findIndex(candidate => (
+        normalizeStepTitleForComparison(plain(candidate.user_title || candidate.ai_title)) === normalizedStepTitle
+      ));
       if (firstDuplicate === index) {
         issues.push({
           code: 'duplicate_title', severity: 'warning', ...meta,
-          message: `같은 제목 “${stepTitle}”이 반복됩니다. 각 단계의 목적을 구분해주세요.`,
+          message: `같거나 거의 같은 제목 “${stepTitle}”이 반복됩니다. 각 단계의 목적을 구분해주세요.`,
         });
       }
     }

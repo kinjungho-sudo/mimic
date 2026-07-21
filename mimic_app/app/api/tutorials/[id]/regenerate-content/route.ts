@@ -363,15 +363,77 @@ export async function POST(request: NextRequest, { params }: Params) {
     );
   }
 
+  const updateTutorialTitle = async (fromTitle: string, toTitle: string) => {
+    const result = await supabase
+      .from('mm_tutorials')
+      .update({ title: toTitle })
+      .eq('id', id)
+      .eq('title', fromTitle)
+      .select('id')
+      .maybeSingle();
+    return {
+      error: result.error ?? (result.data ? null : { message: '다른 편집에서 전체 제목이 변경되었습니다.' }),
+    };
+  };
+  const updateStepCopy = async (
+    stepId: string,
+    fromTitle: string | null,
+    fromScript: string | null,
+    toTitle: string | null,
+    toScript: string | null,
+  ) => {
+    let query = supabase
+      .from('mm_steps')
+      .update({ user_title: toTitle, user_script: toScript })
+      .eq('id', stepId)
+      .eq('tutorial_id', id);
+    query = fromTitle == null ? query.is('user_title', null) : query.eq('user_title', fromTitle);
+    query = fromScript == null ? query.is('user_script', null) : query.eq('user_script', fromScript);
+    const result = await query.select('id').maybeSingle();
+    return {
+      error: result.error ?? (result.data ? null : { message: `다른 편집에서 ${stepId} 단계 문구가 변경되었습니다.` }),
+    };
+  };
+
   const updates = await Promise.all([
-    supabase.from('mm_tutorials').update({ title: tutorialTitle }).eq('id', id),
-    ...drafts.map(draft => supabase.from('mm_steps').update({
-      user_title: draft.user_title,
-      user_script: draft.user_script,
-    }).eq('id', draft.id).eq('tutorial_id', id)),
+    updateTutorialTitle(tutorial.title, tutorialTitle),
+    ...drafts.map((draft, index) => updateStepCopy(
+      draft.id,
+      steps[index].user_title,
+      steps[index].user_script,
+      draft.user_title,
+      draft.user_script,
+    )),
   ]);
   const failed = updates.find(result => result.error);
-  if (failed?.error) return NextResponse.json({ error: failed.error.message }, { status: 500 });
+  if (failed?.error) {
+    // A multi-row rewrite is presented as one operation. Restore every original
+    // value if any write fails so the editor never lands in a partially rewritten
+    // state while reporting an error to the user.
+    const rollbackResults = await Promise.all([
+      updateTutorialTitle(tutorialTitle, tutorial.title),
+      ...steps.map((step, index) => updateStepCopy(
+        step.id,
+        drafts[index].user_title,
+        drafts[index].user_script,
+        step.user_title,
+        step.user_script,
+      )),
+    ]);
+    const rollbackFailed = rollbackResults.find(result => result.error);
+    if (rollbackFailed?.error) {
+      console.error('[regenerate-content] rollback failed:', {
+        tutorialId: id,
+        updateError: failed.error.message,
+        rollbackError: rollbackFailed.error.message,
+      });
+      return NextResponse.json(
+        { error: 'AI 재작성 저장과 원문 복구에 실패했습니다. 새로고침 후 내용을 확인해주세요.' },
+        { status: 500 },
+      );
+    }
+    return NextResponse.json({ error: failed.error.message }, { status: 500 });
+  }
 
   return NextResponse.json({
     title: tutorialTitle,
