@@ -23,6 +23,9 @@ const settingAutoNav   = document.getElementById('settingAutoNav');
 const settingVoiceRecord = document.getElementById('settingVoiceRecord');
 const settingSaveText    = document.getElementById('settingSaveText');
 const settingCaptureInputClicks = document.getElementById('settingCaptureInputClicks');
+const captureReadiness = document.getElementById('captureReadiness');
+const captureReadinessCopy = document.getElementById('captureReadinessCopy');
+const captureReadinessRetry = document.getElementById('captureReadinessRetry');
 
 const PROD_EXTENSION_IDS = new Set([
   'lefkpmfgdbhckcemfghpegleknaepekm',
@@ -34,6 +37,7 @@ let isPaused     = false;
 let _userIsPro   = false;   // 캡처별 음성 메모 게이팅 (GET_PLAN으로 갱신)
 let _voiceEnabled = false;  // 설정의 음성 메모 사용 여부 (마이크 버튼 노출)
 let capturedStepCount = 0;
+let _readinessCheck = null;
 
 // ── 설정 기본값 ──────────────────────────────────────────────────
 const SETTINGS_DEFAULTS = {
@@ -72,8 +76,71 @@ async function init() {
       void chrome.runtime.lastError;
       _userIsPro = !!(p && p.isPro);
     });
+    void checkCaptureReadiness();
   }
 }
+
+function setCaptureReadiness(state, message = '') {
+  if (!captureReadiness || !captureReadinessCopy || !captureReadinessRetry) return;
+  captureReadiness.dataset.state = state;
+  captureReadinessCopy.textContent = message;
+  captureReadinessRetry.disabled = state === 'checking';
+  captureReadinessRetry.style.display = state === 'issue' ? 'inline' : 'none';
+}
+
+async function resolveCaptureServiceOrigin() {
+  const { webappOrigin } = await storageGet('webappOrigin');
+  if (typeof webappOrigin === 'string' && /^https?:\/\//.test(webappOrigin)) {
+    return webappOrigin.replace(/\/$/, '');
+  }
+  return PROD_EXTENSION_IDS.has(chrome.runtime.id)
+    ? 'https://mimic-nine-ashen.vercel.app'
+    : 'https://parro-guide-dev.vercel.app';
+}
+
+// 작업을 시작한 뒤 빈 캡처를 발견하지 않도록 네트워크와 Parro 서비스 연결을 먼저 확인한다.
+// HEAD 요청은 계정이나 캡처 데이터를 만들거나 바꾸지 않는다.
+function checkCaptureReadiness() {
+  if (_readinessCheck) return _readinessCheck;
+
+  const pending = (async () => {
+    if (!navigator.onLine) {
+      setCaptureReadiness('issue', '인터넷에 연결되어 있지 않습니다. 연결을 복구한 뒤 다시 확인해주세요.');
+      return false;
+    }
+
+    setCaptureReadiness('checking', '캡처 연결을 확인하고 있습니다…');
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+    try {
+      const origin = await resolveCaptureServiceOrigin();
+      await fetch(origin, {
+        method: 'HEAD',
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+      setCaptureReadiness('hidden');
+      return true;
+    } catch {
+      setCaptureReadiness('issue', 'Parro 서버에 연결할 수 없습니다. 네트워크나 보안 설정을 확인한 뒤 다시 시도해주세요.');
+      return false;
+    } finally {
+      clearTimeout(timeout);
+    }
+  })();
+
+  _readinessCheck = pending;
+  void pending.finally(() => {
+    if (_readinessCheck === pending) _readinessCheck = null;
+  });
+  return pending;
+}
+
+captureReadinessRetry?.addEventListener('click', () => { void checkCaptureReadiness(); });
+window.addEventListener('offline', () => {
+  setCaptureReadiness('issue', '인터넷에 연결되어 있지 않습니다. 연결을 복구한 뒤 다시 확인해주세요.');
+});
+window.addEventListener('online', () => { void checkCaptureReadiness(); });
 
 // 마이크 권한 확보 — 이미 허용이면 통과, 아니면 권한 창을 띄운다.
 async function ensureMicPermission() {
@@ -1115,11 +1182,19 @@ function hideBlockedBanner() {
 
 // ── 녹화 시작 공통 함수 ──────────────────────────────────────────
 async function startRecording() {
+  btnStart.disabled = true;
+  const captureReady = await checkCaptureReadiness();
+  if (!captureReady) {
+    btnStart.disabled = false;
+    return;
+  }
+
   const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
   const targetTab = tabs.find(t => t.url?.startsWith('http://') || t.url?.startsWith('https://'));
 
   if (!targetTab || isBlockedUrl(targetTab.url)) {
     showBlockedBanner();
+    btnStart.disabled = false;
     return;
   }
   hideBlockedBanner();

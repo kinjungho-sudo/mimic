@@ -70,6 +70,40 @@
       text-align: center;
     }
     .privacy-notice a { color: #00796F; font-weight: 650; text-decoration: underline; text-underline-offset: 2px; }
+    .capture-readiness {
+      display: none;
+      align-items: flex-start;
+      gap: 9px;
+      margin-top: 10px;
+      padding: 10px 11px;
+      border: 1px solid #FDE68A;
+      border-radius: 9px;
+      background: #FFFBEB;
+      color: #92400E;
+      font-size: 11px;
+      line-height: 1.5;
+      text-align: left;
+    }
+    .capture-readiness[data-state="checking"],
+    .capture-readiness[data-state="issue"] { display: flex; }
+    .capture-readiness[data-state="checking"] {
+      border-color: #BFEDE7;
+      background: #F0FDFA;
+      color: #00796F;
+    }
+    .capture-readiness-copy { flex: 1; }
+    .capture-readiness-retry {
+      flex-shrink: 0;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      font-weight: 700;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      cursor: pointer;
+    }
+    .capture-readiness-retry:disabled { opacity: 0.55; cursor: wait; }
 
     /* 전체 페이지 캡처는 헤더의 작은 아이콘(btn-settings 스타일 재사용)으로 이동 */
     /* 캡처 차단 토스트 등에서 공유하는 등장 애니메이션 */
@@ -460,6 +494,10 @@
         녹화 중 선택한 화면, 페이지 URL·제목, 클릭 및 입력 화면이 매뉴얼 생성을 위해 Parro로 전송됩니다.
         비밀번호 값은 저장하지 않습니다. <a href="https://parro-guide-dev.vercel.app/legal/privacy" target="_blank" rel="noopener noreferrer">개인정보 처리방침</a>
       </p>
+      <div class="capture-readiness" id="captureReadiness" role="status" aria-live="polite" data-state="hidden">
+        <span class="capture-readiness-copy" id="captureReadinessCopy"></span>
+        <button class="capture-readiness-retry" id="captureReadinessRetry" type="button">다시 확인</button>
+      </div>
     </div>
   </div>
 
