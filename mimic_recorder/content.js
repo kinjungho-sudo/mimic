@@ -63,6 +63,7 @@
   let typingTimer        = null;
   let _pointerDownSnapshot = null;
   let _pointerClickFallbackTimer = null;
+  let _captureSequence   = 0;
   let typingFocusSnapshot = null;
   let _countingDown      = false;
   let _lastTypingFrameTime = 0;     // 롤링 타이핑 프레임 throttle 기준
@@ -338,6 +339,7 @@
     const clickY = focusSnapshot?.clickY ?? (topRect.reliable ? cy : null);
     const role = focusSnapshot?.role || el.getAttribute('role') || undefined;
     const labelDebug = focusSnapshot?.labelDebug ?? buildLabelDebug(el, label);
+    const captureId = opts.captureId || (opts.usePrecapture ? focusSnapshot?.captureId : null);
 
     lastCapturedTarget = el;
     lastCapturedTime   = Date.now();
@@ -347,7 +349,8 @@
       windowWidth: vw, windowHeight: vh,
       viewportW: vw, viewportH: vh,
       stepNumber: stepForThis, overwrite: true, useTypingFrame: true,
-      usePrecapture: !!opts.usePrecapture, peekPrecapture: !!opts.peekPrecapture,
+      captureId: captureId ?? null,
+      usePrecapture: !!opts.usePrecapture && !!captureId, peekPrecapture: !!opts.peekPrecapture,
       typedText,
       elementRect, elementSelector, elementXPath, elementContext,
       actionInfo: { type: 'type', label, text: label, typedText, masked: isMasked, tag: el.tagName.toLowerCase(), role, labelDebug },
@@ -728,6 +731,47 @@
     return event?.target ? [event.target] : [];
   }
 
+  function parentElementAcrossRoots(el) {
+    if (!el) return null;
+    return el.parentElement || el.getRootNode?.()?.host || null;
+  }
+
+  function elementPathFrom(el, event = null) {
+    const eventPath = event ? eventElementPath(event) : [];
+    if (eventPath.length) return eventPath;
+    const path = [];
+    let current = el;
+    for (let i = 0; current && i < 16; i++) {
+      path.push(current);
+      current = parentElementAcrossRoots(current);
+    }
+    return path;
+  }
+
+  function pointerBoundaryTarget(path) {
+    let candidate = null;
+    let inPointerChain = false;
+    const viewportArea = Math.max(1, window.innerWidth * window.innerHeight);
+
+    for (const node of path.slice(0, 12)) {
+      if (!node?.matches || node === document.body || node === document.documentElement) break;
+      let cursor = '';
+      try { cursor = window.getComputedStyle(node).cursor; } catch { /* noop */ }
+      if (cursor !== 'pointer') {
+        if (inPointerChain) break;
+        continue;
+      }
+      inPointerChain = true;
+      const rect = node.getBoundingClientRect?.();
+      if (!rect || rect.width < 1 || rect.height < 1) continue;
+      const reasonable = rect.width <= window.innerWidth * 0.92
+        && rect.height <= window.innerHeight * 0.92
+        && (rect.width * rect.height) / viewportArea <= 0.65;
+      if (reasonable) candidate = node;
+    }
+    return candidate;
+  }
+
   function isDisabledTarget(el) {
     return !!el && (el.disabled === true || el.getAttribute?.('aria-disabled') === 'true');
   }
@@ -738,7 +782,7 @@
 
     // Shadow DOM 이벤트는 document에서 target이 host로 retarget될 수 있다. composedPath의
     // 가장 안쪽 노드부터 검사해야 실제로 사용자가 누른 컨트롤을 보존할 수 있다.
-    const path = event ? eventElementPath(event) : [el];
+    const path = elementPathFrom(el, event);
     for (const node of path) {
       if (!node.matches || node === document.documentElement) continue;
       if (node.matches(INTERACTIVE) && !isDisabledTarget(node)) return node;
@@ -747,14 +791,10 @@
     const found = el.closest?.(INTERACTIVE);
     if (found && !isDisabledTarget(found)) return found;
 
-    let cur = el;
-    for (let i = 0; i < 8; i++) {
-      if (!cur || cur === document.documentElement) break;
-      if (window.getComputedStyle(cur).cursor === 'pointer') return cur;
-      cur = cur.parentElement;
-    }
+    const pointerTarget = pointerBoundaryTarget(path);
+    if (pointerTarget) return pointerTarget;
 
-    cur = el;
+    let cur = el;
     for (let i = 0; i < 8; i++) {
       if (!cur || cur === document.documentElement || cur === document.body) break;
       if (
@@ -948,9 +988,40 @@
 
   // Freeze click metadata before the target DOM can react or move.
 
+  function createCaptureId() {
+    _captureSequence = (_captureSequence + 1) % 1000000;
+    return `${Date.now().toString(36)}-${_captureSequence.toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  function pointInsideRect(rect, x, y, pad = 4) {
+    return !!rect
+      && x >= rect.left - pad
+      && x <= rect.right + pad
+      && y >= rect.top - pad
+      && y <= rect.bottom + pad;
+  }
+
+  function normalizedRectAtClick(el, event, vw, vh) {
+    if (!el || typeof el.getBoundingClientRect !== 'function') return null;
+    const rect = el.getBoundingClientRect();
+    if (rect.width < 1 || rect.height < 1 || !pointInsideRect(rect, event.clientX, event.clientY)) return null;
+    const topRect = toTopRect(rect);
+    return topRect.reliable ? normalizeRect(topRect, vw, vh) : null;
+  }
+
+  function annotationTargetFor(actionTarget, clickedEl, event = null) {
+    if (!actionTarget) return null;
+    // Selector/replay target와 annotation rect의 역할을 분리한다. 표준 컨트롤은 컨트롤 자체,
+    // 커스텀 카드형 클릭 영역은 상속된 cursor가 끝나는 시각적 경계를 사용한다.
+    if (actionTarget.matches?.(INTERACTIVE)) return actionTarget;
+    const boundary = pointerBoundaryTarget(elementPathFrom(clickedEl, event));
+    return boundary && actionTarget.contains?.(boundary) ? boundary : actionTarget;
+  }
+
   function buildPointerDownSnapshot(captureEl, target, clickedEl, event) {
-    if (!captureEl || typeof captureEl.getBoundingClientRect !== 'function') return null;
-    const rect = captureEl.getBoundingClientRect();
+    const annotationTarget = annotationTargetFor(captureEl, clickedEl, event);
+    if (!captureEl || !annotationTarget || typeof annotationTarget.getBoundingClientRect !== 'function') return null;
+    const rect = annotationTarget.getBoundingClientRect();
     if (!rect.width || !rect.height) return null;
     const { vw, vh } = getViewportSize();
     const topClick = toTopPoint(event.clientX, event.clientY);
@@ -959,12 +1030,16 @@
     const href = captureEl.getAttribute('href') || captureEl.closest('a')?.getAttribute('href') || target.getAttribute('href') || target.closest('a')?.getAttribute('href') || '';
     return {
       target: captureEl,
+      annotationTarget,
+      captureId: createCaptureId(),
       time: Date.now(),
       x: event.clientX,
       y: event.clientY,
       clickX: topClick.reliable ? topClick.x : null,
       clickY: topClick.reliable ? topClick.y : null,
-      elementRect: topRect.reliable ? normalizeRect(topRect, vw, vh) : null,
+      elementRect: pointInsideRect(rect, event.clientX, event.clientY) && topRect.reliable
+        ? normalizeRect(topRect, vw, vh)
+        : null,
       elementSelector: getElementSelector(captureEl),
       elementXPath: getElementXPath(captureEl),
       elementContext: getElementContext(captureEl, label),
@@ -981,6 +1056,11 @@
     if ((Date.now() - _pointerDownSnapshot.time) > 1200) return null;
     if (Math.abs(_pointerDownSnapshot.x - event.clientX) > 12) return null;
     if (Math.abs(_pointerDownSnapshot.y - event.clientY) > 12) return null;
+    return _pointerDownSnapshot;
+  }
+
+  function getFreshPointerSnapshot() {
+    if (!_pointerDownSnapshot || (Date.now() - _pointerDownSnapshot.time) > 1200) return null;
     return _pointerDownSnapshot;
   }
 
@@ -1018,7 +1098,8 @@
         viewportW: getViewportSize().vw,
         viewportH: getViewportSize().vh,
         stepNumber,
-        usePrecapture: true,
+        captureId: snapshot.captureId,
+        usePrecapture: !!snapshot.captureId,
         elementRect: snapshot.elementRect,
         elementSelector: snapshot.elementSelector,
         elementXPath: snapshot.elementXPath,
@@ -1246,6 +1327,7 @@
   document.addEventListener('pointerdown', (e) => {
     if (!isRecording || isPaused || isCapturing) return;
     if (e.button !== undefined && e.button !== 0) return;  // 좌클릭만
+    _pointerDownSnapshot = null;
     const clickedEl = eventElement(e);
     const target = findInteractiveTarget(clickedEl, e);
     if (!target) return;
@@ -1255,11 +1337,12 @@
     _pointerDownSnapshot = buildPointerDownSnapshot(captureEl, target, clickedEl, e);
     hideHoverPointer();                          // 호버 테두리 제거
     suppressHoverUntil = Date.now() + 500;       // 캡처 끝날 때까지 재등장 억제
-    // 테두리 제거가 화면에 리페인트된 다음 프레임에 선캡처 요청 — 라이브 캡처 경로의
-    // double-rAF와 동일한 보장. (동기 전송 시 background가 리페인트 전 프레임을 잡아 테두리가 굽힘)
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      chrome.runtime.sendMessage({ type: 'PRECAPTURE_FRAME' }, () => { void chrome.runtime.lastError; });
-    }));
+    // 실제 click 이벤트보다 먼저 background 캡처를 큐에 넣는다. rAF를 기다리면 매우 빠른
+    // 클릭에서 click 핸들러/화면 전환이 먼저 실행돼 DOM rect와 이미지가 어긋날 수 있다.
+    const captureId = _pointerDownSnapshot?.captureId;
+    if (captureId) {
+      chrome.runtime.sendMessage({ type: 'PRECAPTURE_FRAME', captureId }, () => { void chrome.runtime.lastError; });
+    }
   }, true);
 
   document.addEventListener('pointerup', (e) => {
@@ -1282,6 +1365,7 @@
     if (document.visibilityState !== 'visible') return;
 
     const clickedEl = eventElement(e);
+    const pointerSnapshot = getRecentPointerSnapshot(e);
 
     // Parro 자체 오버레이 클릭 무시
     if (clickedEl && typeof clickedEl.id === 'string') {
@@ -1338,7 +1422,7 @@
       // 다른 필드로 옮겼을 때만 이전 입력을 마감(flush가 세션을 끝냄 → 새 스텝).
       // 같은 필드 재클릭·리치 에디터 재마운트는 세션을 유지해 입력 스텝이 쪼개지지 않게 한다.
       if (typingTarget && typingTarget !== target && !isRemountedTyping(typingTarget)) {
-        flushTyping(typingTarget, true, { usePrecapture: true, peekPrecapture: true });
+        flushTyping(typingTarget, true, { usePrecapture: !!pointerSnapshot?.captureId, peekPrecapture: true, captureId: pointerSnapshot?.captureId });
       }
       typingTarget = target;
       typingFocusSnapshot = getRecentPointerSnapshot(e);
@@ -1349,21 +1433,19 @@
     } else {
       // 진행 중이던 타이핑 flush — 클릭(액션) 직전 선캡처 프레임을 타이핑 스텝 이미지로 쓰고,
       // 소비하지 않아(peek) 아래 클릭 스텝이 같은 프레임을 재사용한다.
-      if (typingTarget) flushTyping(typingTarget, true, { usePrecapture: true, peekPrecapture: true });
+      if (typingTarget) flushTyping(typingTarget, true, { usePrecapture: !!pointerSnapshot?.captureId, peekPrecapture: true, captureId: pointerSnapshot?.captureId });
     }
 
     showClickHighlight(e.clientX, e.clientY);
 
     const captureEl = actionType === 'focus_input' ? target : actionTarget;
-    const pointerSnapshot = getRecentPointerSnapshot(e);
-    const rect  = captureEl.getBoundingClientRect();
+    const annotationTarget = pointerSnapshot?.annotationTarget ?? annotationTargetFor(captureEl, clickedEl, e);
     const label = pointerSnapshot?.label || getElementLabel(captureEl, clickedEl);
     const href  = captureEl.getAttribute('href') || captureEl.closest('a')?.getAttribute('href') || target.getAttribute('href') || target.closest('a')?.getAttribute('href') || '';
     const role  = pointerSnapshot?.role || captureEl.getAttribute('role') || target.getAttribute('role') || undefined;
     const { vw, vh } = getViewportSize();
     const topClick = toTopPoint(e.clientX, e.clientY);
-    const topRect = toTopRect(rect);
-    const elementRect = pointerSnapshot?.elementRect ?? (topRect.reliable ? normalizeRect(topRect, vw, vh) : null);
+    const elementRect = pointerSnapshot?.elementRect ?? normalizedRectAtClick(annotationTarget, e, vw, vh);
     const elementSelector = pointerSnapshot?.elementSelector ?? getElementSelector(captureEl);
     const elementXPath = pointerSnapshot?.elementXPath ?? getElementXPath(captureEl);
     const elementContext = pointerSnapshot?.elementContext ?? getElementContext(captureEl, label);
@@ -1383,7 +1465,7 @@
         clickX: topClick.reliable ? topClick.x : null, clickY: topClick.reliable ? topClick.y : null,
         windowWidth: vw, windowHeight: vh,
         viewportW: vw, viewportH: vh,
-        stepNumber, usePrecapture: true,
+        stepNumber, captureId: pointerSnapshot?.captureId ?? null, usePrecapture: !!pointerSnapshot?.captureId,
         elementRect,
         elementSelector,
         elementXPath,
@@ -1405,7 +1487,7 @@
       clickX: topClick.reliable ? topClick.x : null, clickY: topClick.reliable ? topClick.y : null,
       windowWidth: vw, windowHeight: vh,
       viewportW: vw, viewportH: vh,
-      stepNumber, usePrecapture: true,
+      stepNumber, captureId: pointerSnapshot?.captureId ?? null, usePrecapture: !!pointerSnapshot?.captureId,
       elementRect,
       elementSelector,
       elementXPath,
@@ -1522,8 +1604,9 @@
       // Enter 제출 직전(폼 제출·페이지 이동·입력창 초기화 전) 화면을 그 순간 선캡처해
       // 타이핑 스텝 이미지로 쓴다 — 클릭의 pointerdown 선캡처와 동일한 '액션 정렬' 기법.
       hideHoverPointer();
-      chrome.runtime.sendMessage({ type: 'PRECAPTURE_FRAME' }, () => { void chrome.runtime.lastError; });
-      flushTyping(el, true, { usePrecapture: true });
+      const captureId = createCaptureId();
+      chrome.runtime.sendMessage({ type: 'PRECAPTURE_FRAME', captureId }, () => { void chrome.runtime.lastError; });
+      flushTyping(el, true, { usePrecapture: true, captureId });
     }
   }, true);
 
@@ -1538,7 +1621,12 @@
     if (!e.relatedTarget && IS_TOP_FRAME) return;  // 페이지 밖으로 포커스 이탈(창 전환)은 무시
     // relatedTarget(다음 포커스 대상)이 있다 = 그 요소의 pointerdown 선캡처가 떠 있다.
     // 그 '액션 직전' 프레임(완성 텍스트)을 타이핑 스텝 이미지로 쓰고, peek로 클릭 스텝과 공유한다.
-    flushTyping(typingTarget, true, { usePrecapture: true, peekPrecapture: true });
+    const pointerSnapshot = getFreshPointerSnapshot();
+    flushTyping(typingTarget, true, {
+      usePrecapture: !!pointerSnapshot?.captureId,
+      peekPrecapture: true,
+      captureId: pointerSnapshot?.captureId,
+    });
   }, true);
 
   // ── 파일 업로드 캡처 ─────────────────────────────────────────────

@@ -5,14 +5,20 @@ const recorderRoot = path.resolve(process.cwd(), '..', 'mimic_recorder');
 const contentScript = path.join(recorderRoot, 'content.js');
 const guideScript = path.join(recorderRoot, 'guide-engine.js');
 
-async function loadContent(page: Page) {
+async function loadContent(page: Page, options: { recording?: boolean } = {}) {
   await page.setContent('<main id="fixture"></main>');
-  await page.evaluate(() => {
+  await page.evaluate(({ recording }) => {
     const noop = () => {};
+    (window as unknown as { __parroMessages: unknown[] }).__parroMessages = [];
     (window as unknown as { chrome: unknown }).chrome = {
       runtime: {
         lastError: null,
-        sendMessage: (_message: unknown, callback?: (response?: unknown) => void) => callback?.({}),
+        sendMessage: (message: { type?: string }, callback?: (response?: unknown) => void) => {
+          (window as unknown as { __parroMessages: unknown[] }).__parroMessages.push(message);
+          callback?.(message.type === 'GET_TAB_RECORDING_STATE'
+            ? { isRecording: recording, isPaused: false, stepNumber: 0 }
+            : {});
+        },
         onMessage: { addListener: noop },
       },
       storage: {
@@ -23,7 +29,7 @@ async function loadContent(page: Page) {
         onChanged: { addListener: noop },
       },
     };
-  });
+  }, { recording: !!options.recording });
   await page.addScriptTag({ path: contentScript });
 }
 
@@ -52,6 +58,58 @@ test('analytics data attributes do not make a container clickable', async ({ pag
     return api.findInteractiveTarget(span)?.id ?? null;
   });
   expect(target).toBeNull();
+});
+
+test('inherited pointer cursor resolves to the card boundary, not its inner grid cell', async ({ page }) => {
+  await loadContent(page);
+  const result = await page.evaluate(() => {
+    const fixture = document.querySelector('#fixture')!;
+    fixture.innerHTML = `
+      <div id="card" style="cursor:pointer;width:360px;height:200px;padding:20px">
+        <div id="layout"><span id="metadata">중소벤처기업부 · 청년정책과</span></div>
+      </div>`;
+    const metadata = document.querySelector('#metadata')!;
+    const api = (window as unknown as { ParroRecorderInternals: any }).ParroRecorderInternals;
+    return api.findInteractiveTarget(metadata)?.id ?? null;
+  });
+  expect(result).toBe('card');
+});
+
+test('a same-frame fast click keeps one capture id and the card rect', async ({ page }) => {
+  await loadContent(page, { recording: true });
+  const result = await page.evaluate(async () => {
+    const fixture = document.querySelector('#fixture')!;
+    fixture.innerHTML = `
+      <div id="card" style="cursor:pointer;width:360px;height:200px;padding:20px">
+        <div id="empty-cell" style="width:90px;height:40px">정책과</div>
+      </div>`;
+    const cell = document.querySelector('#empty-cell')!;
+    const rect = cell.getBoundingClientRect();
+    const init = { bubbles: true, composed: true, clientX: rect.left + 10, clientY: rect.top + 10, button: 0 };
+    cell.dispatchEvent(new PointerEvent('pointerdown', init));
+    cell.dispatchEvent(new PointerEvent('pointerup', init));
+    cell.dispatchEvent(new MouseEvent('click', init));
+    await new Promise(resolve => setTimeout(resolve, 80));
+
+    const messages = (window as unknown as { __parroMessages: Array<any> }).__parroMessages;
+    const pre = messages.find(message => message.type === 'PRECAPTURE_FRAME');
+    const capture = messages.find(message => message.type === 'CAPTURE_SCREENSHOT');
+    return {
+      preIndex: messages.indexOf(pre),
+      captureIndex: messages.indexOf(capture),
+      preId: pre?.captureId,
+      captureId: capture?.stepData?.captureId,
+      selector: capture?.stepData?.elementSelector,
+      rect: capture?.stepData?.elementRect,
+    };
+  });
+
+  expect(result.preId).toBeTruthy();
+  expect(result.preIndex).toBeLessThan(result.captureIndex);
+  expect(result.captureId).toBe(result.preId);
+  expect(result.selector).toBe('#card');
+  expect(result.rect.width).toBeGreaterThan(0.25);
+  expect(result.rect.height).toBeGreaterThan(0.20);
 });
 
 test('composedPath preserves a button inside an open shadow root', async ({ page }) => {
