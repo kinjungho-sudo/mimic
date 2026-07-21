@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, requireAdmin } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
-import { FREE_PLAYBOOK_LIMIT } from '@/lib/plan';
+import { FREE_PLAYBOOK_LIMIT, isPaidPlan } from '@/lib/plan';
 import { z } from 'zod';
+import { entitlementsForPlan, hasEntitlement } from '@/lib/entitlements';
 
 const schema = z.object({
   plan: z.enum(['free', 'pro_waitlist', 'pro', 'team']),
 });
-
-const FREE_LIVE_GUIDE_LIMIT = 5;
-const PAID_PLANS = ['pro', 'team', 'enterprise'];
 
 // GET /api/user/plan — 현재 플랜 + 라이브 가이드 사용량(소유자 페이월 UI용)
 export async function GET(request: NextRequest) {
@@ -24,7 +22,8 @@ export async function GET(request: NextRequest) {
     .single();
 
   const plan = data?.plan ?? 'free';
-  const paid = PAID_PLANS.includes(plan);
+  const paid = isPaidPlan(plan);
+  const entitlements = entitlementsForPlan(plan);
   const used = data?.live_guide_runs ?? 0;
 
   // 플레이북 보유 개수 (개인, 비삭제)
@@ -38,10 +37,12 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     plan,
     paid,
+    entitlements,
     liveGuide: {
       used,
-      limit: FREE_LIVE_GUIDE_LIMIT,
-      remaining: paid ? null : Math.max(0, FREE_LIVE_GUIDE_LIMIT - used),
+      limit: entitlements.live_guide ? null : 0,
+      remaining: entitlements.live_guide ? null : 0,
+      enabled: hasEntitlement(plan, 'live_guide'),
     },
     playbook: {
       used: playbookUsed ?? 0,

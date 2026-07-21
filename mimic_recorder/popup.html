@@ -62,6 +62,48 @@
     }
     .btn-start:hover { background: #00796F; }
     .btn-start:disabled { background: #9AD8D0; cursor: not-allowed; }
+    .privacy-notice {
+      margin-top: 10px;
+      color: #667085;
+      font-size: 11px;
+      line-height: 1.55;
+      text-align: center;
+    }
+    .privacy-notice a { color: #00796F; font-weight: 650; text-decoration: underline; text-underline-offset: 2px; }
+    .capture-readiness {
+      display: none;
+      align-items: flex-start;
+      gap: 9px;
+      margin-top: 10px;
+      padding: 10px 11px;
+      border: 1px solid #FDE68A;
+      border-radius: 9px;
+      background: #FFFBEB;
+      color: #92400E;
+      font-size: 11px;
+      line-height: 1.5;
+      text-align: left;
+    }
+    .capture-readiness[data-state="checking"],
+    .capture-readiness[data-state="issue"] { display: flex; }
+    .capture-readiness[data-state="checking"] {
+      border-color: #BFEDE7;
+      background: #F0FDFA;
+      color: #00796F;
+    }
+    .capture-readiness-copy { flex: 1; }
+    .capture-readiness-retry {
+      flex-shrink: 0;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      font-weight: 700;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      cursor: pointer;
+    }
+    .capture-readiness-retry:disabled { opacity: 0.55; cursor: wait; }
 
     /* 전체 페이지 캡처는 헤더의 작은 아이콘(btn-settings 스타일 재사용)으로 이동 */
     /* 캡처 차단 토스트 등에서 공유하는 등장 애니메이션 */
@@ -448,6 +490,14 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg>
         녹화 시작
       </button>
+      <p class="privacy-notice">
+        녹화 중 선택한 화면, 페이지 URL·제목, 클릭 및 입력 화면이 매뉴얼 생성을 위해 Parro로 전송됩니다.
+        비밀번호 값은 저장하지 않습니다. <a href="https://parro-guide-dev.vercel.app/legal/privacy" target="_blank" rel="noopener noreferrer">개인정보 처리방침</a>
+      </p>
+      <div class="capture-readiness" id="captureReadiness" role="status" aria-live="polite" data-state="hidden">
+        <span class="capture-readiness-copy" id="captureReadinessCopy"></span>
+        <button class="capture-readiness-retry" id="captureReadinessRetry" type="button">다시 확인</button>
+      </div>
     </div>
   </div>
 
@@ -624,8 +674,8 @@
     <!-- 헤더 -->
     <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #e8e8f0;flex-shrink:0;">
       <div style="display:flex;align-items:center;gap:8px;">
-        <div style="width:26px;height:26px;border-radius:50%;overflow:hidden;flex-shrink:0;">
-          <img src="icons/icon48.png" alt="Parro" style="width:100%;height:100%;object-fit:cover;">
+        <div style="width:30px;height:30px;border-radius:9px;overflow:hidden;flex-shrink:0;background:linear-gradient(135deg,#F1FBF9,#E4F3F6);box-shadow:0 3px 10px rgba(0,155,142,.2);">
+          <img src="assets/parro-ai-avatar-neutral.png?v=20260720" alt="Parro AI 가이드" style="width:100%;height:100%;object-fit:contain;">
         </div>
         <span style="font-size:14px;font-weight:700;color:#1e1e2e;">Live Guide Beta</span>
       </div>
@@ -641,6 +691,13 @@
       <div style="height:4px;background:#f0f0f8;border-radius:4px;overflow:hidden;">
         <div id="guideProgressBar" style="height:100%;width:0%;background:linear-gradient(90deg,#009B8E,#8DD63F);border-radius:4px;transition:width 0.3s ease;"></div>
       </div>
+      <div id="guideTargetStatus" style="display:flex;align-items:center;gap:6px;margin-top:9px;font-size:11px;color:#8A8FA3;">
+        <span style="width:6px;height:6px;border-radius:50%;background:#F59E0B;"></span>
+        <span>대상 페이지로 이동 중</span>
+      </div>
+      <button id="guideTargetRetry" type="button" style="display:none;margin-top:8px;padding:6px 10px;border:1px solid #DDE2EA;border-radius:7px;background:#fff;color:#4B5563;font-size:11px;font-weight:600;cursor:pointer;">
+        현재 화면에서 다시 찾기
+      </button>
     </div>
 
     <!-- 스텝 내용 -->

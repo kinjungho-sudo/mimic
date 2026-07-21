@@ -3,9 +3,12 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { BrandMark } from '@/components/common/BrandMark';
+import { ParroMascot } from '@/components/brand/ParroMascot';
 import { FollowStage } from '@/components/viewer/FollowStage';
 import { BRAND_COPY, BRAND_NAME, BRAND_SUPPORT_EMAIL, BRAND_TAGLINE } from '@/lib/brand';
+import { LANDING_FAQS } from '@/lib/landing-faq';
 import { HeroRecordingDemo, ProductDemo } from '@/components/landing/ProductDemo';
+import { PRODUCT_PLANS } from '@/lib/product-plans';
 
 const CheckIcon = ({ size = 14, color = 'currentColor' }: { size?: number; color?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3">
@@ -725,7 +728,7 @@ function StepScreen({ step, mode }: { step: number; mode: 'card' | 'guide' | 're
         {/* AI 말풍선 — 커서 왼쪽 위에 고정 부착 */}
         <div style={{ position: 'absolute', bottom: '100%', right: '4px', marginBottom: '10px', background: 'white', borderRadius: '10px 10px 10px 2px', padding: '9px 12px 8px', boxShadow: '0 10px 32px rgba(0,0,0,0.26), 0 0 0 1px rgba(0,0,0,0.05)', width: '190px', pointerEvents: 'none' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '5px' }}>
-            <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: 'linear-gradient(135deg,#12B886,#009B8E)', display: 'grid', placeItems: 'center', fontSize: '12px', flexShrink: 0 }}>🤖</div>
+            <ParroMascot size={22} state="point" />
             <span style={{ fontSize: '9px', fontWeight: 800, color: '#12B886', letterSpacing: '0.04em' }}>{BRAND_NAME} AI</span>
           </div>
           <div style={{ fontSize: '10px', fontWeight: 700, color: '#111827', marginBottom: '3px' }}>{GUIDE_STEPS[step]?.title}</div>
@@ -1256,7 +1259,7 @@ function MockGuideMe() {
           {/* AI 로봇 아바타 + 말풍선 */}
           <div style={{ padding: '10px 11px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '7px' }}>
-              <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'linear-gradient(135deg,#007C72,#12B886)', display: 'grid', placeItems: 'center', fontSize: '15px', flexShrink: 0 }}>🤖</div>
+              <ParroMascot size={28} state="talk" />
               <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: '8px', padding: '6px 9px' }}>
                 <div style={{ fontSize: '9px', color: '#e2d9f3', lineHeight: 1.5 }}>파란 <span style={{ color: '#8DD63F', fontWeight: 700 }}>발급하기</span> 버튼을 클릭하세요 👆</div>
               </div>
@@ -1630,18 +1633,9 @@ export default function LandingPage() {
   };
 
   const prices = {
-    basic: billing === 'month' ? '₩9,900' : '₩8,250',
-    pro: billing === 'month' ? '₩19,900' : '₩16,580',
+    basic: billing === 'month' ? PRODUCT_PLANS.basic.monthlyPrice : PRODUCT_PLANS.basic.yearlyMonthlyPrice,
+    pro: billing === 'month' ? PRODUCT_PLANS.pro.monthlyPrice : PRODUCT_PLANS.pro.yearlyMonthlyPrice,
   };
-
-  const faqs = [
-    { q: '언제든 취소할 수 있나요?', a: '네, 마이페이지에서 언제든 구독을 해지할 수 있어요. 해지 후에도 결제한 기간까지는 모든 기능을 그대로 사용하실 수 있습니다.' },
-    { q: '무료 플랜의 매뉴얼은 어떻게 보관되나요?', a: '무료 플랜에서 만든 매뉴얼은 영구 보관됩니다. 매일 만들 수 있는 개수만 3개로 제한되며, 기존에 만든 매뉴얼 열람·편집·공유는 평생 자유롭게 가능합니다.' },
-    { q: '어떤 결제 방법을 지원하나요?', a: '국내·해외 주요 신용카드와 카카오페이, 토스페이를 지원합니다. 기업 결제는 세금계산서 발행이 가능합니다.' },
-    { q: '플랜은 자유롭게 변경할 수 있나요?', a: '언제든 업그레이드·다운그레이드할 수 있어요. 업그레이드는 즉시 반영되고, 다운그레이드는 다음 결제 주기부터 적용됩니다.' },
-    { q: '환불 정책은 어떻게 되나요?', a: '결제 후 7일 이내, 유료 기능을 한 번도 사용하지 않은 경우 전액 환불이 가능합니다. 자세한 내용은 환불 정책 페이지를 참고해주세요.' },
-    { q: '팀이나 회사 단위로 사용하려면 어떻게 하나요?', a: '팀 워크스페이스를 만들고 팀원을 초대하면 매뉴얼을 공유 폴더로 함께 관리할 수 있습니다. 멤버 권한으로 볼 수 있는 사람과 편집할 수 있는 사람을 나누고, 기업 맞춤 도입(보안 검토, 세금계산서 등)은 기업 데모 신청을 통해 상담해 드립니다.' },
-  ];
 
   return (
     <div className="landing-page" style={{ fontFamily: "'Pretendard', 'Pretendard Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif", color: '#111827', background: '#fff', WebkitFontSmoothing: 'antialiased' }}>
@@ -1932,25 +1926,25 @@ export default function LandingPage() {
               {
                 name: 'Free', sub: '신용카드 없이 바로 시작', amount: '₩0', per: '/ 월', featured: false,
                 planKey: null as null | 'basic' | 'pro' | 'team',
-                features: ['매일 매뉴얼 3개', `${BRAND_COPY.extensionDisplayName} 확장 설치`, '텍스트·도형 편집', '링크 공유 + PDF', '500MB 저장 공간'],
+                features: PRODUCT_PLANS.free.features,
                 cta: '무료로 시작',
               },
               {
                 name: 'Basic', sub: '입문자와 가벼운 사용자', amount: prices.basic, per: '/ 월', featured: false,
                 planKey: 'basic' as const,
-                features: ['매뉴얼 생성 한도 확대', 'AI 다듬기 월 100회', 'PPTX·Word 내보내기', '비공개 + 비밀번호 보호', '2GB 저장 공간'],
+                features: PRODUCT_PLANS.basic.features,
                 cta: '출시 알림 받기',
               },
               {
                 name: 'Pro', sub: '개인 크리에이터와 파워 유저', amount: prices.pro, per: '/ 월', featured: true,
                 planKey: 'pro' as const,
-                features: ['Basic 플랜 모든 기능', 'AI 다듬기 무제한', 'AI 상세 설명 생성', '학습 가이드 + Live Guide Beta', 'AI 음성 편집', '5GB 저장 공간'],
+                features: PRODUCT_PLANS.pro.features,
                 cta: '출시 알림 받기',
               },
               {
                 name: 'Team', sub: '팀·기업을 위한 맞춤 플랜', amount: '협의', per: '', featured: false,
                 planKey: 'team' as const,
-                features: ['Pro 플랜 모든 기능', '팀 워크스페이스', '멤버 권한 관리', '확장 저장 공간', '전용 온보딩 지원', '세금계산서 발행', '우선 지원 (SLA)'],
+                features: PRODUCT_PLANS.team.features,
                 cta: '도입 문의하기',
               },
             ] as const).map(plan => (
@@ -1990,7 +1984,7 @@ export default function LandingPage() {
 
           <div className="b2b-btns" style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
             <a href={`mailto:${BRAND_SUPPORT_EMAIL}?subject=기업 데모 신청`} style={{ display: 'inline-flex', alignItems: 'center', padding: '15px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 600, background: 'white', color: '#111827', textDecoration: 'none', boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }}>기업 데모 신청하기</a>
-            <a href={`mailto:${BRAND_SUPPORT_EMAIL}?subject=자료 요청`} style={{ display: 'inline-flex', alignItems: 'center', padding: '15px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 500, color: 'rgba(255,255,255,0.85)', border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.06)', textDecoration: 'none' }}>자료 다운로드</a>
+            <a href={`mailto:${BRAND_SUPPORT_EMAIL}?subject=Parro 자료 요청`} style={{ display: 'inline-flex', alignItems: 'center', padding: '15px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 500, color: 'rgba(255,255,255,0.85)', border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.06)', textDecoration: 'none' }}>소개 자료 요청</a>
           </div>
         </div>
       </section>
@@ -2003,7 +1997,7 @@ export default function LandingPage() {
           <p style={{ textAlign: 'center', fontSize: '16px', color: '#6B7280', maxWidth: '560px', margin: '0 auto 64px', lineHeight: 1.65 }}>결제, 사용법, 보안까지. 더 궁금한 점은 1:1 문의로 보내주세요.</p>
 
           <div style={{ maxWidth: '760px', margin: '0 auto' }}>
-            {faqs.map((faq, i) => (
+            {LANDING_FAQS.map((faq, i) => (
               <div key={i} style={{ borderBottom: '1px solid #F3F4F6', overflow: 'hidden' }}>
                 <button
                   onClick={() => setFaqOpen(faqOpen === i ? null : i)}
@@ -2082,10 +2076,10 @@ export default function LandingPage() {
               </p>
             </div>
             {[
-              { title: '제품', links: [{ label: '기능', href: '#features' }, { label: '사용 방법', href: '#tour' }, { label: '요금제', href: '#pricing' }, { label: '변경 사항', href: '#' }] },
-              { title: '회사', links: [{ label: '소개', href: '#' }, { label: '블로그', href: '#' }, { label: '채용', href: '#' }, { label: '기업 문의', href: '#b2b' }] },
-              { title: '지원', links: [{ label: '이용 가이드', href: '/help' }, { label: 'FAQ', href: '#faq' }, { label: '고객센터', href: `mailto:${BRAND_SUPPORT_EMAIL}` }, { label: '상태 페이지', href: '#' }] },
-              { title: '법적 고지', links: [{ label: '이용약관', href: '/legal/terms' }, { label: '개인정보처리방침', href: '/legal/privacy' }, { label: '보안', href: '#' }, { label: '환불 정책', href: '#' }] },
+              { title: '제품', links: [{ label: '기능', href: '#features' }, { label: '사용 방법', href: '#tour' }, { label: '요금제', href: '#pricing' }] },
+              { title: '도입', links: [{ label: '기업 도입', href: '#b2b' }, { label: '소개 자료 요청', href: `mailto:${BRAND_SUPPORT_EMAIL}?subject=Parro 자료 요청` }] },
+              { title: '지원', links: [{ label: '이용 가이드', href: '/help' }, { label: 'FAQ', href: '#faq' }, { label: '고객센터', href: `mailto:${BRAND_SUPPORT_EMAIL}` }] },
+              { title: '법적 고지', links: [{ label: '이용약관', href: '/legal/terms' }, { label: '개인정보처리방침', href: '/legal/privacy' }] },
             ].map(col => (
               <div key={col.title}>
                 <h5 style={{ margin: '0 0 18px', fontSize: '11.5px', color: 'rgba(255,255,255,0.5)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{col.title}</h5>
@@ -2105,8 +2099,8 @@ export default function LandingPage() {
           <div className="landing-footer-bottom" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '24px', fontSize: '12px', color: '#374151' }}>
             <div>© 2026 코마인드웍스 · {BRAND_NAME}</div>
             <div style={{ display: 'flex', gap: '20px' }}>
-              {['한국어', 'English', BRAND_SUPPORT_EMAIL].map(l => (
-                <a key={l} href={l.includes('@') ? `mailto:${l}` : '#'} style={{ color: '#374151', textDecoration: 'none' }}
+              {['한국어', BRAND_SUPPORT_EMAIL].map(l => (
+                <a key={l} href={l.includes('@') ? `mailto:${l}` : '/landingpage'} aria-current={l === '한국어' ? 'page' : undefined} style={{ color: '#374151', textDecoration: 'none' }}
                   onMouseEnter={e => e.currentTarget.style.color = '#6B7280'}
                   onMouseLeave={e => e.currentTarget.style.color = '#374151'}
                 >{l}</a>

@@ -56,20 +56,75 @@ export const captureDiscardSchema = z.object({
 const SENSITIVE_INPUT_TYPES_RE = /^(password|tel|credit.?card|cc.?num|ssn)$/i;
 const SENSITIVE_LABEL_RE = /비밀번호|패스워드|암호|password|카드.?번호|card.?number|주민.?번호|주민.?등록|rrn|ssn|계좌.?번호|account.?number|cvv|cvc|보안.?코드|security.?code|\bpin\b|otp|인증.?번호|인증.?코드|verification.?code|토큰|token|\bsecret\b|api.?key/i;
 
+const targetConfidenceSchema = z.enum(['low', 'medium', 'high']);
+
+const targetContextSchema = z.object({
+  schemaVersion: z.number().int().min(1).max(10).optional(),
+  coordinateSpace: z.literal('top-viewport-css-px').optional(),
+  captureSurface: z.enum(['web', 'desktop']).optional(),
+  captureApp: optionalActionString(120),
+  geometryConfidence: targetConfidenceSchema.optional(),
+  selectorConfidence: targetConfidenceSchema.optional(),
+  targetScore: z.number().finite().nullable().optional(),
+  targetMargin: z.number().finite().nullable().optional(),
+  accessibleName: optionalActionString(200),
+  contextLabel: optionalActionString(200),
+  pageTitle: optionalActionString(200),
+  framePath: z.array(z.string().max(500)).max(8).optional(),
+  frameAccess: z.enum(['top', 'same-origin', 'cross-origin', 'unknown']).optional(),
+  shadowPath: z.array(z.string().max(500)).max(8).optional(),
+  localRect: z.object({
+    x: z.number().finite(),
+    y: z.number().finite(),
+    width: z.number().finite().nonnegative(),
+    height: z.number().finite().nonnegative(),
+  }).nullable().optional(),
+  devicePixelRatio: z.number().positive().max(10).optional(),
+  visualViewport: z.object({
+    offsetLeft: z.number().finite(),
+    offsetTop: z.number().finite(),
+    scale: z.number().positive().max(10),
+  }).nullable().optional(),
+}).optional();
+
+const labelDebugSchema = z.object({
+  chosenLabel: optionalActionString(200),
+  rawText: optionalActionString(500),
+  ariaLabel: optionalActionString(200),
+  title: optionalActionString(200),
+  role: optionalActionString(50),
+  selector: optionalActionString(500),
+  fallbackReason: optionalActionString(80),
+}).optional();
+
 export const actionInfoSchema = z.object({
   type: z.enum(['click', 'navigate', 'toggle', 'select', 'focus_input', 'type', 'upload']),
   label: optionalActionString(200),
   tag: optionalActionString(30),
   role: optionalActionString(50),
   href: optionalActionString(500),
+  labelDebug: labelDebugSchema,
+  targetContext: targetContextSchema,
   // text(실제 입력값)와 inputType은 수신하되 즉시 폐기 — password 등 민감정보가 서버/AI에 도달하지 않도록
   text: optionalActionString(1000).transform(() => undefined),
   inputType: optionalActionString(30).transform(() => undefined),
 }).transform(data => {
   // input type이 민감하거나 label 자체가 민감 패턴이면 label도 제거
   const rawLabel = (data as { label?: string }).label;
-  if (rawLabel && SENSITIVE_LABEL_RE.test(rawLabel)) {
-    return { ...data, label: undefined };
+  const targetContext = data.targetContext;
+  const sensitiveTargetText = [targetContext?.accessibleName, targetContext?.contextLabel, targetContext?.pageTitle]
+    .some(value => value && SENSITIVE_LABEL_RE.test(value));
+  if ((rawLabel && SENSITIVE_LABEL_RE.test(rawLabel)) || sensitiveTargetText) {
+    return {
+      ...data,
+      label: rawLabel && SENSITIVE_LABEL_RE.test(rawLabel) ? undefined : rawLabel,
+      targetContext: targetContext ? {
+        ...targetContext,
+        accessibleName: undefined,
+        contextLabel: undefined,
+        pageTitle: undefined,
+      } : undefined,
+    };
   }
   return data;
 }).optional().nullable();
@@ -232,7 +287,7 @@ export const surveySchema = z.object({
 
 export const proSignupSchema = z.object({
   email: z.string().email(),
-  plan_interested: z.enum(['pro', 'team']),
+  plan_interested: z.enum(['basic', 'pro', 'team']),
   source: z.enum(['landing', 'editor', 'limit_modal', 'mypage']),
   user_id: z.string().uuid().optional(),
 });

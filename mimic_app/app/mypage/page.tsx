@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { resetPassword, getCurrentUser } from '@/lib/auth/auth-client';
 import { BrandMark } from '@/components/common/BrandMark';
 import { BRAND_COLORS, BRAND_NAME } from '@/lib/brand';
+import { PRODUCT_PLANS } from '@/lib/product-plans';
 
 const BRAND_GRADIENT = `linear-gradient(135deg, ${BRAND_COLORS.primary} 0%, ${BRAND_COLORS.guide} 100%)`;
 const BRAND_RING = 'rgba(0,155,142,0.28)';
@@ -29,6 +30,7 @@ const NAV_ITEMS = [
 
 const PLAN_LABELS: Record<string, string> = {
   free: 'Free',
+  basic: 'Basic',
   pro_waitlist: 'Pro 대기',
   pro: 'Pro',
   team: 'Team',
@@ -41,6 +43,7 @@ function formatDate(dateStr: string) {
 export default function MyPage() {
   const router = useRouter();
   const { user, loading, signOut, updateUser } = useAuth();
+  const userId = user?.id;
 
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState('');
@@ -48,16 +51,18 @@ export default function MyPage() {
   const [nameError, setNameError] = useState('');
 
   const [avatarLoading, setAvatarLoading] = useState(false);
+  const [avatarError, setAvatarError] = useState('');
 
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleteInput, setDeleteInput] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const [totalManuals, setTotalManuals] = useState<number | null>(null);
 
   // 페이지 진입 시 최신 daily_manual_count + 전체 매뉴얼 수 로드
   useEffect(() => {
-    if (!loading && user) {
+    if (!loading && userId) {
       getCurrentUser().then(fresh => {
         if (fresh) updateUser({ daily_manual_count: fresh.daily_manual_count });
       }).catch(() => {});
@@ -66,7 +71,7 @@ export default function MyPage() {
         .then(list => setTotalManuals(Array.isArray(list) ? list.length : 0))
         .catch(() => setTotalManuals(0));
     }
-  }, [loading]);
+  }, [loading, userId, updateUser]);
 
   const isPro = user?.plan === 'pro' || user?.plan === 'team';
 
@@ -102,6 +107,17 @@ export default function MyPage() {
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setAvatarError('');
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setAvatarError('JPG, PNG, WebP 이미지만 업로드할 수 있습니다.');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setAvatarError('이미지 크기는 2MB 이하여야 합니다.');
+      e.target.value = '';
+      return;
+    }
     setAvatarLoading(true);
     try {
       const fd = new FormData();
@@ -112,10 +128,10 @@ export default function MyPage() {
         updateUser({ avatar_url: data.avatar_url });
       } else {
         const err = await res.json();
-        alert(err.error ?? '업로드에 실패했습니다.');
+        setAvatarError(err.error ?? '업로드에 실패했습니다.');
       }
     } catch {
-      alert('네트워크 오류가 발생했습니다.');
+      setAvatarError('네트워크 오류가 발생했습니다.');
     } finally {
       setAvatarLoading(false);
       e.target.value = '';
@@ -124,12 +140,18 @@ export default function MyPage() {
 
   const handleDeleteAccount = async () => {
     setDeleteLoading(true);
+    setDeleteError('');
     try {
       const res = await fetch('/api/user/delete', { method: 'DELETE' });
       if (res.ok) {
         await signOut();
         router.push('/landingpage');
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setDeleteError(data.error ?? '회원 탈퇴에 실패했습니다. 잠시 후 다시 시도해주세요.');
       }
+    } catch {
+      setDeleteError('네트워크 오류로 회원 탈퇴를 완료하지 못했습니다.');
     } finally {
       setDeleteLoading(false);
     }
@@ -202,7 +224,7 @@ export default function MyPage() {
           {/* 우측 상단: Google 사진 or 이니셜 */}
           {displayAvatar ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={displayAvatar} alt={user?.name ?? ''} width={36} height={36} style={{ borderRadius: '50%', display: 'block', flexShrink: 0 }} referrerPolicy="no-referrer" />
+            <img src={displayAvatar} alt={`${user?.name ?? BRAND_NAME} 프로필`} width={36} height={36} style={{ width: '36px', height: '36px', borderRadius: '50%', display: 'block', flexShrink: 0, objectFit: 'cover' }} referrerPolicy="no-referrer" />
           ) : (
             <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: BRAND_GRADIENT, color: 'white', display: 'grid', placeItems: 'center', fontSize: '14px', fontWeight: 600, flexShrink: 0 }}>
               {user?.name?.charAt(0)?.toUpperCase() ?? ''}
@@ -222,7 +244,7 @@ export default function MyPage() {
             <div style={{ position: 'relative', flexShrink: 0 }}>
               {displayAvatar ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={displayAvatar} alt={user?.name ?? ''} width={52} height={52} style={{ borderRadius: '50%', display: 'block' }} referrerPolicy="no-referrer" />
+                <img src={displayAvatar} alt={`${user?.name ?? BRAND_NAME} 프로필`} width={52} height={52} style={{ width: '52px', height: '52px', borderRadius: '50%', display: 'block', objectFit: 'cover' }} referrerPolicy="no-referrer" />
               ) : (
                 <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: BRAND_GRADIENT, color: 'white', display: 'grid', placeItems: 'center', fontSize: '20px', fontWeight: 600 }}>
                   {user?.name?.charAt(0)?.toUpperCase() ?? ''}
@@ -230,8 +252,8 @@ export default function MyPage() {
               )}
               {/* 이메일 계정만 업로드 버튼 표시 */}
               {!isGoogle && (
-                <label style={{ position: 'absolute', bottom: 0, right: 0, width: '20px', height: '20px', borderRadius: '50%', background: avatarLoading ? '#9CA3AF' : BRAND_COLORS.primary, border: '2px solid white', display: 'grid', placeItems: 'center', cursor: avatarLoading ? 'default' : 'pointer' }}>
-                  <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={handleAvatarChange} disabled={avatarLoading} />
+                <label aria-label="프로필 이미지 변경" title="프로필 이미지 변경" style={{ position: 'absolute', bottom: 0, right: 0, width: '20px', height: '20px', borderRadius: '50%', background: avatarLoading ? '#9CA3AF' : BRAND_COLORS.primary, border: '2px solid white', display: 'grid', placeItems: 'center', cursor: avatarLoading ? 'default' : 'pointer' }}>
+                  <input aria-label="프로필 이미지 파일 선택" type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={handleAvatarChange} disabled={avatarLoading} />
                   {avatarLoading ? (
                     <div style={{ width: '8px', height: '8px', borderRadius: '50%', border: '1.5px solid rgba(255,255,255,0.4)', borderTopColor: 'white', animation: 'spin 0.7s linear infinite' }} />
                   ) : (
@@ -281,6 +303,7 @@ export default function MyPage() {
                 </div>
               )}
               <p style={{ fontSize: '13.5px', color: '#4B5563', margin: 0 }}>{user?.email}</p>
+              {avatarError && <p role="alert" style={{ fontSize: '12px', color: '#DC2626', margin: '8px 0 0' }}>{avatarError}</p>}
             </div>
           </div>
 
@@ -324,16 +347,16 @@ export default function MyPage() {
           {!isPro && (
             <div style={{ margin: '20px 24px', borderRadius: '14px', border: `2px solid ${BRAND_COLORS.primary}`, overflow: 'hidden', boxShadow: `0 8px 24px ${BRAND_RING_SOFT}` }}>
               <div style={{ background: BRAND_GRADIENT, padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Pro 플랜으로 업그레이드</span>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Basic 플랜 출시 알림</span>
                 <span style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', background: 'rgba(255,255,255,0.15)', padding: '2px 8px', borderRadius: '999px' }}>가장 인기</span>
               </div>
               <div style={{ background: 'white', padding: '20px' }}>
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', marginBottom: '16px' }}>
-                  <span style={{ fontSize: '36px', fontWeight: 700, letterSpacing: '-0.03em', color: '#0D0D14', lineHeight: 1 }}>₩9,900</span>
-                  <span style={{ fontSize: '13px', color: '#9CA3AF', paddingBottom: '4px' }}>/ 월</span>
+                  <span style={{ fontSize: '36px', fontWeight: 700, letterSpacing: '-0.03em', color: '#0D0D14', lineHeight: 1 }}>{PRODUCT_PLANS.basic.monthlyPrice}</span>
+                  <span style={{ fontSize: '13px', color: '#9CA3AF', paddingBottom: '4px' }}>{PRODUCT_PLANS.basic.priceSuffix}</span>
                 </div>
                 <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {['매뉴얼 무제한 생성', 'AI 다듬기 무제한', 'HTML·MD 내보내기', '비공개 + 비밀번호 보호', '5GB 저장 공간'].map(f => (
+                  {PRODUCT_PLANS.basic.features.map(f => (
                     <li key={f} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#374151' }}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={BRAND_COLORS.primary} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                       {f}
@@ -344,7 +367,7 @@ export default function MyPage() {
                   onClick={() => router.push('/landingpage#pricing')}
                   style={{ display: 'block', width: '100%', padding: '13px 0', borderRadius: '10px', fontSize: '14px', fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: BRAND_GRADIENT, color: 'white', border: 'none', boxShadow: `0 4px 12px ${BRAND_RING}`, fontFamily: 'inherit' }}
                 >
-                  Pro 구독하기
+                  Basic 출시 알림 받기
                 </button>
               </div>
             </div>
@@ -440,6 +463,7 @@ export default function MyPage() {
                     취소
                   </button>
                 </div>
+                {deleteError && <p role="alert" style={{ fontSize: '12px', color: '#DC2626', margin: '10px 0 0' }}>{deleteError}</p>}
               </div>
             )}
           </div>

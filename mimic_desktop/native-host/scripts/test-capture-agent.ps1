@@ -92,6 +92,7 @@ try {
   $firstEvents = Wait-EventCount 1
   if ($firstEvents[0].event_type -ne "manual") { throw "Manual capture event type was not recorded." }
   if (-not (Test-Path -LiteralPath $firstEvents[0].screenshot_path)) { throw "Manual screenshot was not created." }
+  if ($firstEvents[0].screen.mode -ne "monitor") { throw "Manual capture must be limited to the current monitor." }
 
   Write-Command $blurFile "blur-next"
   Write-Command $manualFile "manual"
@@ -128,6 +129,7 @@ try {
     undo = $true
     blur_next = $true
     toolbar_click_exclusion_bounds = $true
+    privacy_scoped_capture = $true
   }
 } finally {
   if ($agent -and -not $agent.HasExited) {

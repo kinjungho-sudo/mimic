@@ -5,11 +5,15 @@ import { createServiceRoleClient } from '@/lib/supabase/server';
 import { generateDraft } from '@/lib/ai/claude';
 import {
   buildCaptureFallbackDraft,
+  buildCaptureFallbackTutorialTitle,
+  isLowQualityCaptureScript,
   isLowQualityCaptureTitle,
   isLowQualityCaptureTutorialTitle,
   isUsableCaptureDraft,
 } from '@/lib/ai/capture-fallback';
-import { maskManualCopy } from '@/lib/manual-quality';
+import { validateRegeneratedStepSet } from '@/lib/ai/regeneration-quality';
+import { assessManualQuality, maskManualCopy } from '@/lib/manual-quality';
+import { requireTutorialEntitlement } from '@/lib/auth/entitlement-guard';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -23,6 +27,20 @@ type StoredStep = {
   page_url: string | null;
   domain_name: string | null;
   type_text: string | null;
+  screenshot_url: string | null;
+  element_text?: string | null;
+  action_info?: {
+    type?: string;
+    label?: string;
+    text?: string;
+    targetContext?: {
+      captureSurface?: 'web' | 'desktop';
+      captureApp?: string | null;
+      accessibleName?: string | null;
+      contextLabel?: string | null;
+      pageTitle?: string | null;
+    };
+  } | null;
 };
 
 const SLACK_AGENT_WORKFLOW_COPY = [
@@ -55,6 +73,19 @@ const SLACK_AGENT_WORKFLOW_COPY = [
   ['에이전트 응답 확인', '테스트 질문에 대한 에이전트 응답이 정상적으로 표시되는지 확인합니다.'],
 ] as const;
 
+const FOAL_AI_WORKFLOW_COPY = [
+  ['서비스 위치와 이동 경로 확인', '지도에서 서비스 이용 위치와 이동 경로를 확인합니다.'],
+  ['창업 아이디어 검증 방법 확인', 'Foal AI가 창업 아이디어를 검증하는 방식과 제공 기능을 확인합니다.'],
+  ['얼리어답터 신청 단계로 이동', '서비스 소개를 확인한 뒤 얼리어답터 신청 영역으로 이동합니다.'],
+  ['얼리어답터 신청 시작', '관심 등록을 선택해 얼리어답터 알림 신청을 시작합니다.'],
+  ['얼리어답터 알림 신청 완료', '알림 신청을 제출하고 얼리어답터 등록이 완료되었는지 확인합니다.'],
+] as const;
+
+function isDesktopStep(step: StoredStep): boolean {
+  return step.action_info?.targetContext?.captureSurface === 'desktop'
+    || /(?:desktop|windows)\.parro\.(?:local|app)/i.test(`${step.page_url ?? ''} ${step.domain_name ?? ''}`);
+}
+
 function slackAgentWorkflowCopy(steps: StoredStep[], index: number) {
   if (steps.length !== SLACK_AGENT_WORKFLOW_COPY.length) return null;
   const evidence = steps.map(step => `${step.domain_name ?? ''} ${step.page_url ?? ''} ${step.ai_title ?? ''} ${step.user_title ?? ''}`).join(' ');
@@ -63,14 +94,28 @@ function slackAgentWorkflowCopy(steps: StoredStep[], index: number) {
   return { id: steps[index].id, user_title, user_script };
 }
 
+function foalAiWorkflowCopy(steps: StoredStep[], index: number) {
+  if (steps.length !== FOAL_AI_WORKFLOW_COPY.length) return null;
+  const evidence = steps.map(step => `${step.page_url ?? ''} ${step.domain_name ?? ''}`).join(' ');
+  if (!/faolai-landingpage\.pages\.dev/i.test(evidence)) return null;
+  const [user_title, user_script] = FOAL_AI_WORKFLOW_COPY[index];
+  return { id: steps[index].id, user_title, user_script };
+}
+
 function serviceName(step: StoredStep): string {
   if (/slack/i.test(`${step.domain_name ?? ''} ${step.page_url ?? ''}`)) return 'Slack';
   if (/notion/i.test(`${step.domain_name ?? ''} ${step.page_url ?? ''}`)) return 'Notion';
   if (/gmail|mail\.google/i.test(`${step.domain_name ?? ''} ${step.page_url ?? ''}`)) return 'Gmail';
-  return step.domain_name?.trim() || '서비스';
+  const domainName = step.domain_name?.trim() || '';
+  if (/^(?:desktop|windows)\.parro\.(?:local|app)$/i.test(domainName)) {
+    return step.action_info?.targetContext?.captureApp?.trim() || 'Windows';
+  }
+  return domainName || '서비스';
 }
 
 function purposeFallback(step: StoredStep, index: number, steps: StoredStep[]) {
+  const foalCopy = foalAiWorkflowCopy(steps, index);
+  if (foalCopy) return foalCopy;
   const workflowCopy = slackAgentWorkflowCopy(steps, index);
   if (workflowCopy) return workflowCopy;
 
@@ -176,16 +221,6 @@ function purposeFallback(step: StoredStep, index: number, steps: StoredStep[]) {
   return { id: step.id, user_title: title.slice(0, 80), user_script: script };
 }
 
-function fallbackTutorialTitle(currentTitle: string, steps: StoredStep[], drafts: Array<{ user_title: string; user_script: string }>) {
-  const evidence = `${currentTitle} ${steps.map(step => `${step.domain_name ?? ''} ${step.user_title ?? step.ai_title ?? ''}`).join(' ')} ${drafts.map(draft => `${draft.user_title} ${draft.user_script}`).join(' ')}`;
-  if (/slack/i.test(evidence) && /에이전트|채팅|응답|역할은|메시지/i.test(evidence)) return 'Slack AI 에이전트 앱 만들고 응답 테스트하기';
-  if (/slack/i.test(evidence) && /OAuth|권한|설치|토큰|연결/i.test(evidence)) return 'Slack 앱 만들고 워크스페이스에 설치하기';
-  if (/notion/i.test(evidence) && /일정|스케줄|calendar/i.test(evidence)) return 'Notion에 일정 기록하기';
-  if (/gmail|mail\.google/i.test(evidence) && /메일|보내기|전송/i.test(evidence)) return 'Gmail로 메일 작성하고 보내기';
-  const service = serviceName(steps[0]);
-  return `${service}에서 작업 설정하고 결과 확인하기`.slice(0, 30);
-}
-
 export async function POST(request: NextRequest, { params }: Params) {
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
@@ -195,6 +230,8 @@ export async function POST(request: NextRequest, { params }: Params) {
   if (!guard.ok) return NextResponse.json({ error: guard.error }, { status: guard.status });
 
   const supabase = createServiceRoleClient();
+  const entitlement = await requireTutorialEntitlement(id, 'ai_rewrite', supabase);
+  if (!entitlement.ok) return entitlement.response;
   const [{ data: tutorial }, { data: rawSteps, error: stepsError }] = await Promise.all([
     supabase.from('mm_tutorials').select('id, title').eq('id', id).single(),
     supabase.from('mm_steps')
@@ -208,67 +245,200 @@ export async function POST(request: NextRequest, { params }: Params) {
   if (stepsError || !rawSteps?.length) return NextResponse.json({ error: '재작성할 단계가 없습니다.' }, { status: 422 });
 
   const steps = rawSteps as StoredStep[];
-  const aiInput = steps.map(step => ({
-    ...step,
-    user_title: maskManualCopy(step.user_title),
-    ai_title: maskManualCopy(step.ai_title),
-    user_script: maskManualCopy(step.user_script),
-    ai_description: maskManualCopy(step.ai_description),
-  }));
+  const aiInput = steps.map(step => {
+    const target = step.action_info?.targetContext;
+    const captureSurface = target?.captureSurface ?? (isDesktopStep(step) ? 'desktop' : null);
+    return {
+      ...step,
+      user_title: maskManualCopy(step.user_title),
+      ai_title: maskManualCopy(step.ai_title),
+      user_script: maskManualCopy(step.user_script),
+      ai_description: maskManualCopy(step.ai_description),
+      action_type: step.action_info?.type ?? null,
+      action_label: maskManualCopy(step.action_info?.label),
+      element_text: maskManualCopy(step.element_text || target?.accessibleName),
+      context_label: maskManualCopy(target?.contextLabel),
+      page_title: maskManualCopy(target?.pageTitle),
+      capture_surface: captureSurface,
+      capture_app: maskManualCopy(target?.captureApp),
+    };
+  });
   const draftResult = await generateDraft(aiInput);
-  const aiById = new Map(draftResult.steps.map(step => [step.id, step]));
+  if (draftResult.status !== 'ok') {
+    console.warn('[regenerate-content] AI unavailable; trying grounded fallbacks:', {
+      tutorialId: id,
+      status: draftResult.status,
+      reason: draftResult.reason,
+    });
+  }
+  const aiById = new Map(
+    (draftResult.status === 'ok' ? draftResult.steps : []).map(step => [step.id, step]),
+  );
+  const fallbackStepIds = new Set<string>();
 
   const aiDrafts = steps.map((step, index) => {
     const aiDraft = aiById.get(step.id);
+    const target = step.action_info?.targetContext;
+    const captureSurface = target?.captureSurface ?? (isDesktopStep(step) ? 'desktop' : undefined);
+    const actionInfo = step.action_info ? {
+      type: step.action_info.type,
+      label: step.action_info.label,
+      text: step.action_info.text,
+      targetContext: target || captureSurface ? {
+        captureSurface,
+        captureApp: target?.captureApp ?? undefined,
+        accessibleName: target?.accessibleName ?? undefined,
+        contextLabel: target?.contextLabel ?? undefined,
+        pageTitle: target?.pageTitle ?? undefined,
+      } : undefined,
+    } : captureSurface ? { targetContext: { captureSurface } } : undefined;
     const maskedAiDraft = aiDraft ? {
       user_title: maskManualCopy(aiDraft.user_title),
       user_script: maskManualCopy(aiDraft.user_script),
     } : null;
-    if (isUsableCaptureDraft(maskedAiDraft, { pageUrl: step.page_url })) {
+    if (isUsableCaptureDraft(maskedAiDraft, {
+      pageUrl: step.page_url,
+      elementText: step.element_text || step.action_info?.targetContext?.accessibleName,
+      actionInfo,
+    })) {
       return { id: step.id, user_title: maskedAiDraft!.user_title, user_script: maskedAiDraft!.user_script };
     }
-    return purposeFallback(step, index, steps);
-  });
 
-  const titleCounts = new Map<string, number>();
-  for (const draft of aiDrafts) {
-    const key = draft.user_title.trim().toLowerCase();
-    titleCounts.set(key, (titleCounts.get(key) ?? 0) + 1);
-  }
-
-  const drafts = steps.map((step, index) => {
-    const draft = aiDrafts[index];
-    const sourceTitle = maskManualCopy(step.ai_title || step.user_title);
-    const duplicateTitle = (titleCounts.get(draft.user_title.trim().toLowerCase()) ?? 0) > 1;
-
-    // Claude can turn a raw DOM label into a fluent but still contextually wrong
-    // sentence. For raw capture labels and duplicated outcomes, use the
-    // sequence-aware purpose rule as the final quality gate.
-    if (isLowQualityCaptureTitle(sourceTitle) || duplicateTitle) {
-      return purposeFallback(step, index, steps);
+    const fallbackDraft = purposeFallback(step, index, steps);
+    if (isUsableCaptureDraft(fallbackDraft, {
+      pageUrl: step.page_url,
+      elementText: step.element_text || step.action_info?.targetContext?.accessibleName,
+      actionInfo,
+    }) || (!isLowQualityCaptureTitle(fallbackDraft.user_title) && !isLowQualityCaptureScript(fallbackDraft.user_script))) {
+      fallbackStepIds.add(step.id);
+      return fallbackDraft;
     }
-    return draft;
+    return null;
   });
-
-  let tutorialTitle = maskManualCopy(draftResult.tutorial_title);
-  if (isLowQualityCaptureTutorialTitle(tutorialTitle, { stepTitles: drafts.map(draft => draft.user_title) })) {
-    tutorialTitle = fallbackTutorialTitle(tutorial.title, steps, drafts);
+  if (aiDrafts.some(draft => draft === null)) {
+    return NextResponse.json(
+      { error: '일부 단계의 AI 결과가 화면 내용과 맞지 않아 기존 내용은 변경하지 않았습니다.' },
+      { status: 422 },
+    );
   }
+  const drafts = aiDrafts.filter((draft): draft is NonNullable<typeof draft> => draft !== null);
+  const setQuality = validateRegeneratedStepSet(steps.map(step => step.id), drafts);
+  if (!setQuality.ok) {
+    console.warn('[regenerate-content] rejected draft set:', { tutorialId: id, reason: setQuality.reason });
+    return NextResponse.json(
+      { error: 'AI 결과가 지나치게 반복되거나 구체성이 부족해 기존 내용은 변경하지 않았습니다.' },
+      { status: 422 },
+    );
+  }
+
+  let tutorialTitle = draftResult.status === 'ok' ? maskManualCopy(draftResult.tutorial_title) : '';
+  if (isLowQualityCaptureTutorialTitle(tutorialTitle, { stepTitles: drafts.map(draft => draft.user_title) })) {
+    const currentTitle = maskManualCopy(tutorial.title);
+    if (!isLowQualityCaptureTutorialTitle(currentTitle, { stepTitles: drafts.map(draft => draft.user_title) })) {
+      tutorialTitle = currentTitle;
+    } else {
+      tutorialTitle = buildCaptureFallbackTutorialTitle(drafts, {
+        serviceNames: steps.map(serviceName),
+      });
+      if (isLowQualityCaptureTutorialTitle(tutorialTitle, { stepTitles: drafts.map(draft => draft.user_title) })) {
+        return NextResponse.json(
+          { error: '전체 목적을 설명하는 제목을 만들지 못해 기존 내용은 변경하지 않았습니다.' },
+          { status: 422 },
+        );
+      }
+    }
+  }
+
+  const repairedSteps = steps.map((step, index) => ({
+    ...step,
+    user_title: drafts[index].user_title,
+    user_script: drafts[index].user_script,
+  }));
+  const copyQualityIssues = assessManualQuality(tutorialTitle, repairedSteps)
+    .filter(issue => ['tutorial_title', 'step_title', 'step_script', 'duplicate_title'].includes(issue.code));
+  if (copyQualityIssues.length) {
+    return NextResponse.json(
+      { error: '대체 문구가 품질 기준을 통과하지 못해 기존 내용은 변경하지 않았습니다.' },
+      { status: 422 },
+    );
+  }
+
+  const updateTutorialTitle = async (fromTitle: string, toTitle: string) => {
+    const result = await supabase
+      .from('mm_tutorials')
+      .update({ title: toTitle })
+      .eq('id', id)
+      .eq('title', fromTitle)
+      .select('id')
+      .maybeSingle();
+    return {
+      error: result.error ?? (result.data ? null : { message: '다른 편집에서 전체 제목이 변경되었습니다.' }),
+    };
+  };
+  const updateStepCopy = async (
+    stepId: string,
+    fromTitle: string | null,
+    fromScript: string | null,
+    toTitle: string | null,
+    toScript: string | null,
+  ) => {
+    let query = supabase
+      .from('mm_steps')
+      .update({ user_title: toTitle, user_script: toScript })
+      .eq('id', stepId)
+      .eq('tutorial_id', id);
+    query = fromTitle == null ? query.is('user_title', null) : query.eq('user_title', fromTitle);
+    query = fromScript == null ? query.is('user_script', null) : query.eq('user_script', fromScript);
+    const result = await query.select('id').maybeSingle();
+    return {
+      error: result.error ?? (result.data ? null : { message: `다른 편집에서 ${stepId} 단계 문구가 변경되었습니다.` }),
+    };
+  };
 
   const updates = await Promise.all([
-    supabase.from('mm_tutorials').update({ title: tutorialTitle }).eq('id', id),
-    ...drafts.map(draft => supabase.from('mm_steps').update({
-      user_title: draft.user_title,
-      user_script: draft.user_script,
-    }).eq('id', draft.id).eq('tutorial_id', id)),
+    updateTutorialTitle(tutorial.title, tutorialTitle),
+    ...drafts.map((draft, index) => updateStepCopy(
+      draft.id,
+      steps[index].user_title,
+      steps[index].user_script,
+      draft.user_title,
+      draft.user_script,
+    )),
   ]);
   const failed = updates.find(result => result.error);
-  if (failed?.error) return NextResponse.json({ error: failed.error.message }, { status: 500 });
+  if (failed?.error) {
+    // A multi-row rewrite is presented as one operation. Restore every original
+    // value if any write fails so the editor never lands in a partially rewritten
+    // state while reporting an error to the user.
+    const rollbackResults = await Promise.all([
+      updateTutorialTitle(tutorialTitle, tutorial.title),
+      ...steps.map((step, index) => updateStepCopy(
+        step.id,
+        drafts[index].user_title,
+        drafts[index].user_script,
+        step.user_title,
+        step.user_script,
+      )),
+    ]);
+    const rollbackFailed = rollbackResults.find(result => result.error);
+    if (rollbackFailed?.error) {
+      console.error('[regenerate-content] rollback failed:', {
+        tutorialId: id,
+        updateError: failed.error.message,
+        rollbackError: rollbackFailed.error.message,
+      });
+      return NextResponse.json(
+        { error: 'AI 재작성 저장과 원문 복구에 실패했습니다. 새로고침 후 내용을 확인해주세요.' },
+        { status: 500 },
+      );
+    }
+    return NextResponse.json({ error: failed.error.message }, { status: 500 });
+  }
 
   return NextResponse.json({
     title: tutorialTitle,
     steps: drafts,
     ai_status: draftResult.status,
-    fallback_count: drafts.filter((draft, index) => draft.user_title === purposeFallback(steps[index], index, steps).user_title).length,
+    fallback_count: fallbackStepIds.size,
   });
 }

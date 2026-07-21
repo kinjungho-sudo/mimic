@@ -4,6 +4,7 @@ import { createServiceRoleClient } from '@/lib/supabase/server';
 import { guardWorkspaceAccess } from '@/lib/auth/workspace-guard';
 import { FREE_PLAYBOOK_LIMIT, isPaidPlan } from '@/lib/plan';
 import { z } from 'zod';
+import { requireWorkspaceEntitlement } from '@/lib/auth/entitlement-guard';
 
 const createSchema = z.object({
   title: z.string().max(200).optional(),
@@ -59,6 +60,8 @@ export async function POST(request: NextRequest) {
   const workspaceId = input.workspace_id ?? null;
 
   if (workspaceId) {
+    const entitlement = await requireWorkspaceEntitlement(workspaceId, 'team_workspace');
+    if (!entitlement.ok) return entitlement.response;
     const guard = await guardWorkspaceAccess(workspaceId, auth.userId, 'editor');
     if (!guard.ok) return NextResponse.json({ error: guard.error }, { status: guard.status });
   }

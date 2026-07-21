@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { BRAND_COLORS } from '@/lib/brand';
 import { z } from 'zod';
+import { requireUserEntitlement } from '@/lib/auth/entitlement-guard';
 
 const DEFAULTS = {
   logo_url: null as string | null,
@@ -49,6 +50,8 @@ export async function PATCH(request: NextRequest) {
   }
 
   const supabase = createServiceRoleClient();
+  const entitlement = await requireUserEntitlement(auth.userId, 'branding', supabase);
+  if (!entitlement.ok) return entitlement.response;
   const { error } = await supabase
     .from('mm_branding')
     .upsert({
@@ -83,6 +86,8 @@ export async function PUT(request: NextRequest) {
   const ext = file.type === 'image/png' ? 'png' : 'jpg';
   const path = `${auth.userId}/logo.${ext}`;
   const supabase = createServiceRoleClient();
+  const entitlement = await requireUserEntitlement(auth.userId, 'branding', supabase);
+  if (!entitlement.ok) return entitlement.response;
 
   const { error: uploadError } = await supabase.storage
     .from('branding')

@@ -23,12 +23,21 @@ const settingAutoNav   = document.getElementById('settingAutoNav');
 const settingVoiceRecord = document.getElementById('settingVoiceRecord');
 const settingSaveText    = document.getElementById('settingSaveText');
 const settingCaptureInputClicks = document.getElementById('settingCaptureInputClicks');
+const captureReadiness = document.getElementById('captureReadiness');
+const captureReadinessCopy = document.getElementById('captureReadinessCopy');
+const captureReadinessRetry = document.getElementById('captureReadinessRetry');
+
+const PROD_EXTENSION_IDS = new Set([
+  'lefkpmfgdbhckcemfghpegleknaepekm',
+  'ehbhcdkapcbfehinjapabgoegcjmmbgd',
+]);
 
 let isRecording  = false;
 let isPaused     = false;
 let _userIsPro   = false;   // 캡처별 음성 메모 게이팅 (GET_PLAN으로 갱신)
 let _voiceEnabled = false;  // 설정의 음성 메모 사용 여부 (마이크 버튼 노출)
 let capturedStepCount = 0;
+let _readinessCheck = null;
 
 // ── 설정 기본값 ──────────────────────────────────────────────────
 const SETTINGS_DEFAULTS = {
@@ -67,8 +76,71 @@ async function init() {
       void chrome.runtime.lastError;
       _userIsPro = !!(p && p.isPro);
     });
+    void checkCaptureReadiness();
   }
 }
+
+function setCaptureReadiness(state, message = '') {
+  if (!captureReadiness || !captureReadinessCopy || !captureReadinessRetry) return;
+  captureReadiness.dataset.state = state;
+  captureReadinessCopy.textContent = message;
+  captureReadinessRetry.disabled = state === 'checking';
+  captureReadinessRetry.style.display = state === 'issue' ? 'inline' : 'none';
+}
+
+async function resolveCaptureServiceOrigin() {
+  const { webappOrigin } = await storageGet('webappOrigin');
+  if (typeof webappOrigin === 'string' && /^https?:\/\//.test(webappOrigin)) {
+    return webappOrigin.replace(/\/$/, '');
+  }
+  return PROD_EXTENSION_IDS.has(chrome.runtime.id)
+    ? 'https://mimic-nine-ashen.vercel.app'
+    : 'https://parro-guide-dev.vercel.app';
+}
+
+// 작업을 시작한 뒤 빈 캡처를 발견하지 않도록 네트워크와 Parro 서비스 연결을 먼저 확인한다.
+// HEAD 요청은 계정이나 캡처 데이터를 만들거나 바꾸지 않는다.
+function checkCaptureReadiness() {
+  if (_readinessCheck) return _readinessCheck;
+
+  const pending = (async () => {
+    if (!navigator.onLine) {
+      setCaptureReadiness('issue', '인터넷에 연결되어 있지 않습니다. 연결을 복구한 뒤 다시 확인해주세요.');
+      return false;
+    }
+
+    setCaptureReadiness('checking', '캡처 연결을 확인하고 있습니다…');
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+    try {
+      const origin = await resolveCaptureServiceOrigin();
+      await fetch(origin, {
+        method: 'HEAD',
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+      setCaptureReadiness('hidden');
+      return true;
+    } catch {
+      setCaptureReadiness('issue', 'Parro 서버에 연결할 수 없습니다. 네트워크나 보안 설정을 확인한 뒤 다시 시도해주세요.');
+      return false;
+    } finally {
+      clearTimeout(timeout);
+    }
+  })();
+
+  _readinessCheck = pending;
+  void pending.finally(() => {
+    if (_readinessCheck === pending) _readinessCheck = null;
+  });
+  return pending;
+}
+
+captureReadinessRetry?.addEventListener('click', () => { void checkCaptureReadiness(); });
+window.addEventListener('offline', () => {
+  setCaptureReadiness('issue', '인터넷에 연결되어 있지 않습니다. 연결을 복구한 뒤 다시 확인해주세요.');
+});
+window.addEventListener('online', () => { void checkCaptureReadiness(); });
 
 // 마이크 권한 확보 — 이미 허용이면 통과, 아니면 권한 창을 띄운다.
 async function ensureMicPermission() {
@@ -214,7 +286,7 @@ function updateLoginState(hasToken, expired = false) {
   btn.textContent = expired ? '다시 연동하기' : '로그인 / 연동하기';
   btn.addEventListener('click', () => {
     // 웹스토어 배포본=운영 / 개발자 언패킹=dev(Preview) — chrome.runtime.id로 자동 분기
-    const origin = chrome.runtime.id === 'ehbhcdkapcbfehinjapabgoegcjmmbgd'
+    const origin = PROD_EXTENSION_IDS.has(chrome.runtime.id)
       ? 'https://mimic-nine-ashen.vercel.app'
       : 'https://parro-guide-dev.vercel.app';
     chrome.tabs.create({ url: `${origin}/extension-link?extension_id=${encodeURIComponent(chrome.runtime.id)}` });
@@ -317,10 +389,8 @@ function renderSteps(steps) {
       lastDomain = domainKey;
     }
     const card = buildStepCard(step, i + 1);
-    // 모든 스텝 썸네일 즉시 펼침
-    const tw = card.querySelector('.step-thumb');
-    if (tw) tw.style.display = 'block';
-    card.classList.add('expanded');
+    // 새로 렌더된 스텝은 즉시 확인할 수 있도록 펼친 상태로 시작한다.
+    setStepCardExpanded(card, true);
     stepsList.appendChild(card);
   });
 
@@ -386,6 +456,14 @@ function getStepDisplayLabel(step, num) {
 
 let expandedStepId = null;
 
+function setStepCardExpanded(card, expanded) {
+  card.classList.toggle('expanded', expanded);
+  const thumb = card.querySelector('.step-thumb');
+  if (thumb) thumb.style.display = expanded ? 'block' : 'none';
+  const toggle = card.querySelector('.step-card-toggle');
+  if (toggle) toggle.setAttribute('aria-expanded', String(expanded));
+}
+
 function buildStepCard(step, num) {
   const card = document.createElement('div');
   card.className = 'step-card';
@@ -450,10 +528,24 @@ function buildStepCard(step, num) {
 
   // ── 카드 클릭 → 펼침 토글 ────────────────────────────────────
   const topRow = document.createElement('div');
+  topRow.className = 'step-card-toggle';
+  topRow.setAttribute('role', 'button');
+  topRow.setAttribute('aria-expanded', 'false');
+  topRow.tabIndex = 0;
   topRow.style.cssText = 'display:flex;align-items:flex-start;gap:10px;cursor:pointer;';
   topRow.append(numBadge, info);
 
-  // 썸네일은 항상 펼쳐진 상태 — 클릭 토글 없음
+  const toggleExpanded = () => {
+    const expanded = !card.classList.contains('expanded');
+    setStepCardExpanded(card, expanded);
+    expandedStepId = expanded ? step.id : null;
+  };
+  topRow.addEventListener('click', toggleExpanded);
+  topRow.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    toggleExpanded();
+  });
 
   const delBtn = document.createElement('button');
   delBtn.className = 'step-delete';
@@ -527,9 +619,7 @@ function buildStepVoiceButton(step) {
 
 function collapseAllThumb() {
   stepsList.querySelectorAll('.step-card').forEach((c) => {
-    c.classList.remove('expanded');
-    const tw = c.querySelector('.step-thumb');
-    if (tw) tw.style.display = 'none';
+    setStepCardExpanded(c, false);
   });
 }
 
@@ -1092,11 +1182,19 @@ function hideBlockedBanner() {
 
 // ── 녹화 시작 공통 함수 ──────────────────────────────────────────
 async function startRecording() {
+  btnStart.disabled = true;
+  const captureReady = await checkCaptureReadiness();
+  if (!captureReady) {
+    btnStart.disabled = false;
+    return;
+  }
+
   const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
   const targetTab = tabs.find(t => t.url?.startsWith('http://') || t.url?.startsWith('https://'));
 
   if (!targetTab || isBlockedUrl(targetTab.url)) {
     showBlockedBanner();
+    btnStart.disabled = false;
     return;
   }
   hideBlockedBanner();
@@ -1269,33 +1367,33 @@ function showFinalizingOverlay() {
       'display:flex', 'flex-direction:column',
       'align-items:center', 'justify-content:center', 'gap:16px',
     ].join(';');
-
-    const spinner = document.createElement('div');
-    spinner.style.cssText = [
-      'width:40px', 'height:40px', 'border-radius:50%',
-      'border:3px solid rgba(0,155,142,0.18)',
-      'border-top-color:#009B8E',
-      'animation:popupSpin 0.9s linear infinite',
-    ].join(';');
-
-    const msg = document.createElement('p');
-    msg.id = 'finalizingMsg';
-    msg.style.cssText = 'font-size:14px;font-weight:600;color:#1F2937;margin:0;';
-    msg.textContent = '매뉴얼을 생성하고 있습니다...';
-
-    const sub = document.createElement('p');
-    sub.style.cssText = 'font-size:12px;color:#6B7280;margin:0;';
-    sub.textContent = 'AI 분석 중 — 잠시만 기다려 주세요';
-
-    const style = document.createElement('style');
-    style.textContent = '@keyframes popupSpin { to { transform: rotate(360deg); } }';
-
-    ov.append(style, spinner, msg, sub);
     document.body.appendChild(ov);
   }
-  // 에러 상태 초기화
-  const msgEl = document.getElementById('finalizingMsg');
-  if (msgEl) msgEl.textContent = '매뉴얼을 생성하고 있습니다...';
+
+  // 오류 화면이 자식 노드를 교체하므로 재시도할 때 로딩 UI를 다시 구성한다.
+  ov.replaceChildren();
+
+  const spinner = document.createElement('div');
+  spinner.style.cssText = [
+    'width:40px', 'height:40px', 'border-radius:50%',
+    'border:3px solid rgba(0,155,142,0.18)',
+    'border-top-color:#009B8E',
+    'animation:popupSpin 0.9s linear infinite',
+  ].join(';');
+
+  const msg = document.createElement('p');
+  msg.id = 'finalizingMsg';
+  msg.style.cssText = 'font-size:14px;font-weight:600;color:#1F2937;margin:0;';
+  msg.textContent = '매뉴얼을 생성하고 있습니다...';
+
+  const sub = document.createElement('p');
+  sub.style.cssText = 'font-size:12px;color:#6B7280;margin:0;';
+  sub.textContent = 'AI 분석 중 — 잠시만 기다려 주세요';
+
+  const style = document.createElement('style');
+  style.textContent = '@keyframes popupSpin { to { transform: rotate(360deg); } }';
+
+  ov.append(style, spinner, msg, sub);
   ov.style.display = 'flex';
 }
 
@@ -1329,8 +1427,11 @@ function showFinalizingError(detail) {
     'border:none', 'border-radius:8px',
     'font-size:13px', 'font-weight:600', 'cursor:pointer',
   ].join(';');
-  btn.textContent = '닫기';
-  btn.addEventListener('click', hideFinalizingOverlay);
+  btn.textContent = '다시 시도';
+  btn.addEventListener('click', () => {
+    hideFinalizingOverlay();
+    btnFinish.click();
+  });
 
   ov.append(icon, msg, sub, btn);
 }
@@ -1518,12 +1619,37 @@ const guideNextBtn    = document.getElementById('guideNextBtn');
 const guideStepLabel  = document.getElementById('guideStepLabel');
 const guidePctLabel   = document.getElementById('guidePctLabel');
 const guideProgressBar = document.getElementById('guideProgressBar');
+const guideTargetStatus = document.getElementById('guideTargetStatus');
+const guideTargetRetry = document.getElementById('guideTargetRetry');
 const guideStepTitle  = document.getElementById('guideStepTitle');
 const guideStepInstr  = document.getElementById('guideStepInstruction');
 const guideStepDots   = document.getElementById('guideStepDots');
 
 let guideSteps = [];
 let guideCurrentStep = 0;
+
+function renderGuideTargetStatus(status) {
+  if (!guideTargetStatus) return;
+  const states = {
+    navigating: { label: '대상 페이지로 이동 중', color: '#F59E0B' },
+    searching: { label: '정확한 대상을 찾는 중', color: '#F59E0B' },
+    ready: { label: '대상 확인됨', color: '#12B886' },
+    page_mismatch: { label: '기록된 페이지에서 대기 중', color: '#EF4444' },
+    not_found: { label: '대상을 찾지 못했습니다', color: '#EF4444' },
+  };
+  const current = states[status] || states.navigating;
+  if (guideTargetStatus.firstElementChild) guideTargetStatus.firstElementChild.style.background = current.color;
+  if (guideTargetStatus.lastElementChild) guideTargetStatus.lastElementChild.textContent = current.label;
+  if (guideTargetRetry) guideTargetRetry.style.display = status === 'not_found' || status === 'page_mismatch' ? 'block' : 'none';
+}
+
+guideTargetRetry?.addEventListener('click', () => {
+  renderGuideTargetStatus('searching');
+  chrome.runtime.sendMessage({ type: 'SHOW_OVERLAY_FOR_STEP', stepIndex: guideCurrentStep }, (res) => {
+    void chrome.runtime.lastError;
+    if (!res?.ok) renderGuideTargetStatus('not_found');
+  });
+});
 
 // Live Guide는 녹화 UI와 완전히 분리해 단독으로 보이게 한다 —
 // 헤더(스텝 카운트·전체캡처·설정), '캡처된 스텝' 목록, 하단 액션 바를 모두 숨긴다.
@@ -1658,7 +1784,7 @@ guideNextBtn.addEventListener('click', () => {
   const isLast = guideCurrentStep >= guideSteps.length - 1;
   if (isLast) {
     // 가이드 완료
-    chrome.runtime.sendMessage({ type: 'EXIT_GUIDE' }, () => {
+    chrome.runtime.sendMessage({ type: 'GUIDE_COMPLETE', reason: 'side_panel' }, () => {
       void chrome.runtime.lastError;
       guideSteps = [];
       guideCurrentStep = 0;
@@ -1683,23 +1809,30 @@ chrome.runtime.sendMessage({ type: 'GUIDE_VALIDATE' }, (r) => {
     guideCurrentStep = r.currentStep || 0;
     showGuideView();
     renderGuideStep(guideSteps, guideCurrentStep);
+    renderGuideTargetStatus(r.targetStatus);
   }
 });
 
 // storage 변화 감지: START_GUIDE 이후 guideModeActive가 세팅되면 Guide Me 뷰로 전환
 chrome.storage.onChanged.addListener((changes) => {
   if (changes.guideModeActive?.newValue === true) {
-    storageGet(['guideSteps', 'guideCurrentStep']).then((r) => {
+    storageGet(['guideSteps', 'guideCurrentStep', 'guideTargetStatus']).then((r) => {
       guideSteps = r.guideSteps || [];
       guideCurrentStep = r.guideCurrentStep || 0;
       if (guideSteps.length > 0) {
         showGuideView();
         renderGuideStep(guideSteps, guideCurrentStep);
+        renderGuideTargetStatus(r.guideTargetStatus);
       }
     });
   }
   if (changes.guideModeActive?.newValue === undefined && changes.guideModeActive?.oldValue) {
+    guideSteps = [];
+    guideCurrentStep = 0;
     hideGuideView();
+  }
+  if (changes.guideTargetStatus?.newValue) {
+    renderGuideTargetStatus(changes.guideTargetStatus.newValue);
   }
   // 오버레이에서 스텝 이동 시 사이드패널 동기화
   if (changes.guideCurrentStep !== undefined && guideSteps.length > 0) {

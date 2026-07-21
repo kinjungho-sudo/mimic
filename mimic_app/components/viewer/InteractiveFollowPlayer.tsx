@@ -10,6 +10,7 @@ export interface FollowStep {
   title: string;
   body?: string;
   screenshotUrl?: string | null;
+  imageAltText?: string | null;
   hotspotX?: number | null;            // 0~100 (%)
   hotspotY?: number | null;            // 0~100 (%)
   hotspotUserPlaced?: boolean;         // 스튜디오에서 직접 찍은 좌표 — 좌상단도 유효(가짜 0,0 센티넬 제외)
@@ -36,6 +37,7 @@ type AnimPhase = 'raw' | 'zooming' | 'focused';
 interface Props {
   steps: FollowStep[];
   title?: string;
+  initialStepIndex?: number;
   onClose?: () => void;
   onComplete?: () => void;
   closeLabel?: string;
@@ -46,8 +48,8 @@ const HIT_PCT = 7; // 핫스팟 정답 클릭 허용 반경(%)
 const GUIDE_GRADIENT = `linear-gradient(135deg,${BRAND_COLORS.primary},${BRAND_COLORS.guide})`;
 const GUIDE_SOFT = 'rgba(0,155,142,0.10)';
 
-export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, closeLabel = '닫기', lockAfterStep = null }: Props) {
-  const [idx, setIdx] = useState(0);
+export function InteractiveFollowPlayer({ steps, title, initialStepIndex = 0, onClose, onComplete, closeLabel = '닫기', lockAfterStep = null }: Props) {
+  const [idx, setIdx] = useState(() => Math.max(0, Math.min(initialStepIndex, steps.length - 1)));
   const [done, setDone] = useState(false);
   const [nudge, setNudge] = useState(false);
   const [minimized, setMinimized] = useState(false);
@@ -65,6 +67,14 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
   const total = steps.length;
   const step = steps[idx];
   const hasAnyAudio = steps.some(s => !!s.audioUrl);
+  const zoomOn = !!step?.domRect && !!step?.zoomAnim;
+
+  useEffect(() => {
+    const nextIndex = Math.max(0, Math.min(initialStepIndex, steps.length - 1));
+    setIdx(nextIndex);
+    setDone(false);
+    setShowSkipConfirm(false);
+  }, [initialStepIndex, steps.length]);
 
   // 스텝 바뀌면 툴팁 다시 펼침 (#3)
   useEffect(() => { setMinimized(false); setShowSkipConfirm(false); }, [idx]);
@@ -75,14 +85,13 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
   useEffect(() => {
     phaseTimers.current.forEach(clearTimeout);
     phaseTimers.current = [];
-    const zoomOn = !!(steps[idx]?.domRect) && !!(steps[idx]?.zoomAnim);
     if (!zoomOn) { setAnimPhase('focused'); return; }
     setAnimPhase('raw');
     const t1 = setTimeout(() => setAnimPhase('zooming'), 1000);
     const t2 = setTimeout(() => setAnimPhase('focused'), 2400);
     phaseTimers.current = [t1, t2];
     return () => { phaseTimers.current.forEach(clearTimeout); phaseTimers.current = []; };
-  }, [idx, done]); // done 추가: '다시 연습하기'(idx 변화 없이 done→false)에서도 줌 시퀀스 재생 // eslint-disable-line react-hooks/exhaustive-deps
+  }, [idx, done, zoomOn]); // done 추가: '다시 연습하기'(idx 변화 없이 done→false)에서도 줌 시퀀스 재생
 
   // 언마운트 정리: 전환 중 닫히면 setState 경고/오디오 누수가 나므로 타이머·오디오 해제
   useEffect(() => () => {
@@ -213,7 +222,7 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
     <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '10px', gap: '10px' }}>
       {done ? (
         <div style={{ background: 'white', borderRadius: '18px', padding: '36px 40px', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', maxWidth: '380px' }}>
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}><Mascot size={56} /></div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}><Mascot size={56} state="success" /></div>
           <div style={{ fontSize: '20px', fontWeight: 800, color: '#111827', marginBottom: '6px' }}>연습을 완료하셨어요! 🎉</div>
           <div style={{ fontSize: '13.5px', color: '#6B7280', lineHeight: 1.6, marginBottom: skippedSteps.size > 0 ? '8px' : '18px' }}>{total}단계를 모두 확인했습니다.</div>
           {skippedSteps.size > 0 && <div style={{ margin: '0 auto 18px', padding: '8px 10px', borderRadius: 8, background: '#FFFBEB', color: '#92400E', fontSize: 12, lineHeight: 1.45 }}>{skippedSteps.size}개 단계의 행동을 건너뛰었습니다. 실제 업무 전 다시 확인해보세요.</div>}
@@ -240,6 +249,7 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
                 <FollowStage
                   key={idx}
                   screenshotUrl={step.screenshotUrl}
+                  imageAltText={step.imageAltText}
                   hotspotX={hx ?? null}
                   hotspotY={hy ?? null}
                   allowCornerHotspot={step.hotspotUserPlaced}
@@ -271,8 +281,9 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
           </div>
 
           {step.riskNotice && (
-            <div role="note" style={{ maxWidth: 'min(920px, 94%)', margin: '-2px auto 0', padding: '7px 12px', borderRadius: 9, border: '1px solid rgba(245,158,11,0.5)', background: 'rgba(255,251,235,0.97)', color: '#92400E', fontSize: 11.5, lineHeight: 1.45, boxShadow: '0 4px 16px rgba(0,0,0,0.18)' }}>
-              안전 확인 · {step.riskNotice}
+            <div role="note" style={{ maxWidth: 'min(920px, 94%)', margin: '-2px auto 0', padding: '5px 12px 5px 7px', borderRadius: 9, border: '1px solid rgba(245,158,11,0.5)', background: 'rgba(255,251,235,0.97)', color: '#92400E', fontSize: 11.5, lineHeight: 1.45, boxShadow: '0 4px 16px rgba(0,0,0,0.18)', display: 'flex', alignItems: 'center', gap: 7 }}>
+              <Mascot size={30} state="warning" />
+              <span><b>안전 확인</b> · {step.riskNotice}</span>
             </div>
           )}
 
@@ -301,7 +312,7 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
       {showGate && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 20, background: 'rgba(10,10,18,0.78)', backdropFilter: 'blur(3px)', display: 'grid', placeItems: 'center', padding: '20px' }}>
           <div style={{ background: 'white', borderRadius: '18px', padding: '32px 30px', textAlign: 'center', boxShadow: '0 24px 70px rgba(0,0,0,0.45)', maxWidth: '360px', width: '100%' }}>
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '14px' }}><Mascot size={52} /></div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '14px' }}><Mascot size={52} state="clarify" /></div>
             <div style={{ fontSize: '18px', fontWeight: 800, color: '#111827', marginBottom: '8px' }}>여기까지 미리보기예요</div>
             <div style={{ fontSize: '13px', color: '#6B7280', lineHeight: 1.6, marginBottom: '20px' }}>무료로 로그인하면 끝까지 따라할 수 있어요.<br />가입은 몇 초면 끝나요.</div>
             <button onClick={() => { const next = encodeURIComponent(window.location.pathname + window.location.search); window.location.href = `/auth/login?next=${next}`; }} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: 'none', background: GUIDE_GRADIENT, color: 'white', fontSize: '14px', fontWeight: 700, cursor: 'pointer', marginBottom: '10px' }}>무료로 로그인하고 계속하기</button>
@@ -313,6 +324,7 @@ export function InteractiveFollowPlayer({ steps, title, onClose, onComplete, clo
       {showSkipConfirm && !done && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 19, background: 'rgba(10,10,18,0.56)', display: 'grid', placeItems: 'center', padding: 20 }}>
           <div role="dialog" aria-modal="true" aria-labelledby="skip-step-title" style={{ width: 'min(360px, 100%)', borderRadius: 15, background: 'white', color: '#111827', padding: 22, textAlign: 'center', boxShadow: '0 22px 60px rgba(0,0,0,0.4)' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}><Mascot size={52} state="blocked" /></div>
             <div id="skip-step-title" style={{ fontSize: 17, fontWeight: 800, marginBottom: 7 }}>이 단계의 행동을 건너뛸까요?</div>
             <p style={{ margin: '0 0 17px', color: '#6B7280', fontSize: 12.5, lineHeight: 1.55 }}>표시된 위치를 직접 클릭하면 학습 완료로 기록됩니다. 건너뛰어도 계속할 수 있지만 완료 화면에 표시됩니다.</p>
             <div style={{ display: 'flex', justifyContent: 'center', gap: 8 }}>

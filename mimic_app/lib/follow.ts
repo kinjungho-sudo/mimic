@@ -56,6 +56,7 @@ export type FollowSource = {
   title: string;
   body?: string | null;
   screenshotUrl?: string | null;
+  imageAltText?: string | null;
   clickXPct: number | null;        // 0~100 (녹화 좌표, 이미 변환됨)
   clickYPct: number | null;
   audioUrl?: string | null;
@@ -88,6 +89,7 @@ export function toFollowSteps(sources: FollowSource[]): FollowStep[] {
         title: s.title,
         body: s.body ?? undefined,
         screenshotUrl: s.screenshotUrl,
+        imageAltText: s.imageAltText,
         hotspotX: isNone ? null : (fc.hotspotX != null ? fc.hotspotX : s.clickXPct),
         hotspotY: isNone ? null : (fc.hotspotY != null ? fc.hotspotY : s.clickYPct),
         // 스튜디오 저작 좌표는 좌상단도 유효 — 자동추론 0,0 아티팩트만 억제

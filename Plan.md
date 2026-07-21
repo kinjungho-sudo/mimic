@@ -1,6 +1,8 @@
 # Parro MVP Plan
 
 > 최종 수정: 2026-06-15
+>
+> **현행 정책 주의(2026-07-21):** 이 문서의 아래 요금제 수치와 Guide Me 명칭은 과거 설계 이력입니다. 현재 제품 계약의 기준은 `mimic_app/lib/product-plans.ts`, `mimic_app/lib/entitlements.ts`, `mimic_app/docs/B2C_B2B_PRICING_BOUNDARY_PRINCIPLES.md`입니다. 현행 Free는 매일 매뉴얼 3개이며, 제품 명칭은 학습 가이드·Live Guide Beta·플레이북입니다.
 
 ---
 

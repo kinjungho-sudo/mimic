@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { verifyPassword } from '@/lib/auth/password';
 import { isPaidPlan } from '@/lib/plan';
+import { hasEntitlement } from '@/lib/entitlements';
 import { isFreshVoiceAsset } from '@/lib/voice/playback';
 import { mergeCapturedTypeText } from '@/lib/follow';
 import { maskManualCopy } from '@/lib/manual-quality';
@@ -26,7 +27,7 @@ async function fetchTutorialData(token: string) {
     .eq('id', tutorial.user_id)
     .single();
   const ownerPlan = owner?.plan ?? 'free';
-  const voiceEnabled = isPaidPlan(ownerPlan) && tutorial.tts_enabled;
+  const voiceEnabled = hasEntitlement(ownerPlan, 'ai_voice') && tutorial.tts_enabled;
 
   const { data: rawSteps } = await supabase
     .from('mm_steps')
@@ -58,10 +59,12 @@ async function fetchTutorialData(token: string) {
     voice_audio_start_ms: voiceEnabled ? ((s as Record<string, unknown>).voice_audio_start_ms as number | null ?? null) : null,
     voice_audio_end_ms: voiceEnabled ? ((s as Record<string, unknown>).voice_audio_end_ms as number | null ?? null) : null,
     screenshot_url: s.screenshot_url ?? null,
+    image_alt_text: (s as Record<string, unknown>).image_alt_text as string | null ?? null,
     order_index: s.order_index,
     page_url: s.page_url ?? null,
     element_selector: (s as Record<string, unknown>).element_selector ?? null,
     element_xpath: (s as Record<string, unknown>).element_xpath ?? null,
+    target_context: (s as Record<string, unknown>).target_context ?? null,
     crop_rect: (s as Record<string, unknown>).crop_rect ?? null,
     click_x: (s as Record<string, unknown>).click_x as number | null ?? null,
     click_y: (s as Record<string, unknown>).click_y as number | null ?? null,

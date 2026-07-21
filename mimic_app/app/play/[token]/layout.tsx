@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { createServiceRoleClient } from '@/lib/supabase/server';
-import { BRAND_NAME, getBrandAppUrl } from '@/lib/brand';
+import { buildManualShareMetadata, buildMissingShareMetadata } from '@/lib/share-metadata';
 
 type Props = { params: Promise<{ token: string }> };
 
@@ -10,38 +10,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const { data } = await supabase
     .from('mm_tutorials')
-    .select('title, thumbnail_url')
+    .select('title, thumbnail_url, visibility, share_password')
     .eq('share_token', token)
     .eq('status', 'published')
     .is('deleted_at', null)
     .single();
 
   if (!data) {
-    return { title: `${BRAND_NAME} 매뉴얼` };
+    return buildMissingShareMetadata('매뉴얼');
   }
 
-  const title = `${data.title} — ${BRAND_NAME} 매뉴얼`;
-  const description = `${BRAND_NAME}로 만든 단계별 인터랙티브 매뉴얼입니다.`;
-  const appUrl = getBrandAppUrl();
-  const pageUrl = `${appUrl}/play/${token}`;
-
-  return {
-    title,
-    description,
-    openGraph: {
-      title,
-      description,
-      url: pageUrl,
-      type: 'website',
-      ...(data.thumbnail_url ? { images: [{ url: data.thumbnail_url, width: 1200, height: 630 }] } : {}),
-    },
-    twitter: {
-      card: data.thumbnail_url ? 'summary_large_image' : 'summary',
-      title,
-      description,
-      ...(data.thumbnail_url ? { images: [data.thumbnail_url] } : {}),
-    },
-  };
+  return buildManualShareMetadata({
+    token,
+    title: data.title,
+    thumbnailUrl: data.thumbnail_url,
+    visibility: data.visibility,
+    passwordProtected: Boolean(data.share_password),
+  });
 }
 
 export default function PlayLayout({ children }: { children: React.ReactNode }) {

@@ -4,6 +4,7 @@ import { createServiceRoleClient } from '@/lib/supabase/server';
 import { guardWorkspaceAccess } from '@/lib/auth/workspace-guard';
 import { BRAND_COLORS } from '@/lib/brand';
 import { z } from 'zod';
+import { requireWorkspaceEntitlement } from '@/lib/auth/entitlement-guard';
 
 const createSchema = z.object({
   name: z.string().min(1).max(40),
@@ -54,6 +55,8 @@ export async function POST(request: NextRequest) {
 
   const workspaceId = parsed.data.workspace_id ?? null;
   if (workspaceId) {
+    const entitlement = await requireWorkspaceEntitlement(workspaceId, 'team_workspace');
+    if (!entitlement.ok) return entitlement.response;
     // 팀 폴더 생성 — editor 이상
     const guard = await guardWorkspaceAccess(workspaceId, auth.userId, 'editor');
     if (!guard.ok) return NextResponse.json({ error: guard.error }, { status: guard.status });

@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { generateDraft } from '@/lib/ai/claude';
 import { isLowQualityCaptureTutorialTitle } from '@/lib/ai/capture-fallback';
+import { requireTutorialEntitlement } from '@/lib/auth/entitlement-guard';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -12,6 +13,8 @@ export async function POST(request: NextRequest, { params }: Params) {
 
   const { id } = await params;
   const supabase = createServiceRoleClient();
+  const entitlement = await requireTutorialEntitlement(id, 'ai_rewrite', supabase);
+  if (!entitlement.ok) return entitlement.response;
 
   const { data: tutorial } = await supabase
     .from('mm_tutorials')

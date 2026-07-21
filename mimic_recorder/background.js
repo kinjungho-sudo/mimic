@@ -1,10 +1,13 @@
 // ── 환경 자동 판별 ────────────────────────────────────────────────
 // 웹스토어 배포본(고정 ID)=운영 / 개발자 언패킹(다른 ID)=dev.
 // chrome.runtime.id로 자동 구분 → 배포본이 실수로 dev를 가리킬 위험 없음.
-importScripts('desktop-bridge.js');
+importScripts('desktop-import.js', 'desktop-bridge.js');
 
-const PROD_EXTENSION_ID = 'ehbhcdkapcbfehinjapabgoegcjmmbgd';
-const IS_DEV = chrome.runtime.id !== PROD_EXTENSION_ID;
+const PROD_EXTENSION_IDS = new Set([
+  'lefkpmfgdbhckcemfghpegleknaepekm', // replacement listing under review
+  'ehbhcdkapcbfehinjapabgoegcjmmbgd', // currently published listing
+]);
+const IS_DEV = !PROD_EXTENSION_IDS.has(chrome.runtime.id);
 
 // ── 상수 (환경별) ─────────────────────────────────────────────────
 const SUPABASE_URL      = IS_DEV
@@ -17,6 +20,15 @@ const SUPABASE_BUCKET   = 'naviaction';
 const WEBAPP_ORIGIN     = IS_DEV
   ? 'https://parro-guide-dev.vercel.app'         // dev: Parro Preview alias
   : 'https://mimic-nine-ashen.vercel.app';        // 운영
+const DEV_WEBAPP_ORIGINS = new Set([
+  'https://parro-guide-dev.vercel.app',
+  'https://mimic-git-dev-kinjungho-7735s-projects.vercel.app',
+]);
+const PROD_WEBAPP_ORIGINS = new Set([
+  'https://parro-guide.vercel.app',
+  'https://mimic-nine-ashen.vercel.app',
+  'https://mimicflow.com',
+]);
 if (IS_DEV) console.warn('[Parro Recorder] DEV 모드 — dev DB/Preview 연결 (id:', chrome.runtime.id, ')');
 const JPEG_QUALITY_DEFAULT = 0.92;
 const MAX_STEPS         = 30;
@@ -35,6 +47,25 @@ const TYPED_LABEL_MAX         = 80;    // 이보다 짧은 입력은 라벨에 �
 const LOG_KEY      = '_mimicLogs';
 const LOG_MAX      = 300;
 const LOG_LEVELS   = { debug: 0, info: 1, warn: 2, error: 3 };
+
+function normalizeAllowedWebappOrigin(candidate) {
+  try {
+    const origin = new URL(candidate).origin;
+    if (IS_DEV && /^http:\/\/localhost(?::(?:3000|3001))?$/.test(origin)) return origin;
+    const allowed = IS_DEV ? DEV_WEBAPP_ORIGINS : PROD_WEBAPP_ORIGINS;
+    return allowed.has(origin) ? origin : null;
+  } catch {
+    return null;
+  }
+}
+
+function resolveGuideRequestOrigin(senderOrigin, requestedOrigin) {
+  const senderWebappOrigin = normalizeAllowedWebappOrigin(senderOrigin);
+  if (!senderWebappOrigin) return null;
+  if (requestedOrigin == null) return senderWebappOrigin;
+  const requestedWebappOrigin = normalizeAllowedWebappOrigin(requestedOrigin);
+  return requestedWebappOrigin === senderWebappOrigin ? requestedWebappOrigin : null;
+}
 const _tabWindowIdCache = new Map();
 
 function log(level, source, ...args) {
@@ -189,6 +220,71 @@ storageGet(['targetTabId', 'lastCaptureTime', 'lastStepHash', 'lastNavKey', 'las
 function sendTabMessage(tabId, msg) {
   return new Promise((resolve) => {
     chrome.tabs.sendMessage(tabId, msg, () => { void chrome.runtime.lastError; resolve(); });
+  });
+}
+
+const CONTENT_READY_PING_TIMEOUT_MS = 700;
+const CONTENT_READY_RETRY_COUNT = 6;
+const CONTENT_READY_RETRY_DELAY_MS = 150;
+const LIVE_TARGET_PICK_RESPONSE_TIMEOUT_MS = 32_000;
+
+function waitMs(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function pingContentScript(tabId, timeoutMs = CONTENT_READY_PING_TIMEOUT_MS) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      resolve(result);
+    };
+    const timeoutId = setTimeout(() => finish({ ok: false, error: 'content_ready_timeout' }), timeoutMs);
+
+    chrome.tabs.sendMessage(tabId, { type: 'PARRO_CONTENT_READY' }, { frameId: 0 }, (response) => {
+      const error = chrome.runtime.lastError?.message || null;
+      finish({
+        ok: !error && response?.ok === true && response?.ready === true,
+        error: error || (response?.ready === true ? null : 'content_not_ready'),
+      });
+    });
+  });
+}
+
+function requestLiveTargetPick(tabId, timeoutMs = LIVE_TARGET_PICK_RESPONSE_TIMEOUT_MS) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      resolve(result);
+    };
+    const timeoutId = setTimeout(() => {
+      chrome.tabs.sendMessage(tabId, { type: 'CANCEL_LIVE_TARGET_PICK' }, { frameId: 0 }, () => {
+        void chrome.runtime.lastError;
+      });
+      finish({
+        ok: false,
+        reason: 'timeout',
+        error: '대상 선택 응답이 지연되었습니다. 대상 탭을 새로고침한 뒤 다시 시도해주세요.',
+      });
+    }, timeoutMs);
+
+    chrome.tabs.sendMessage(tabId, { type: 'LIVE_TARGET_PICK' }, { frameId: 0 }, (response) => {
+      const error = chrome.runtime.lastError?.message;
+      if (error) {
+        finish({
+          ok: false,
+          reason: 'content_script_unreachable',
+          error: `대상 탭의 Parro 연결이 끊어졌습니다. 탭을 새로고침한 뒤 다시 시도해주세요. (${error})`,
+        });
+        return;
+      }
+      finish(response || { ok: false, reason: 'empty_response', error: '대상 선택 응답이 없습니다.' });
+    });
   });
 }
 
@@ -392,18 +488,39 @@ async function captureTab(windowId) {
 // 확장 설치/리로드 전에 열려 있던 탭에는 content_script가 없을 수 있다.
 // START_RECORDING/STOP/수동캡처 전에 호출해 메시지가 유실되지 않게 한다.
 // content.js 상단의 window.__parroContentLoaded / legacy __mimicContentLoaded 가드가 중복 초기화를 막는다.
-function ensureContentScript(tabId) {
-  return new Promise((resolve) => {
-    chrome.scripting.executeScript({ target: { tabId, allFrames: true }, files: ['guide-engine.js', 'content.js'] }, () => {
+async function ensureContentScript(tabId) {
+  const existing = await pingContentScript(tabId);
+  if (existing.ok) return { ok: true, source: 'existing' };
+
+  const injection = await new Promise((resolve) => {
+    chrome.scripting.executeScript({ target: { tabId, allFrames: true }, files: ['targeting.js', 'guide-engine.js', 'content.js'] }, () => {
       const error = chrome.runtime.lastError?.message || null;
-      if (error) {
-        log('warn', 'bg', 'content script injection failed:', { tabId, error });
-        resolve({ ok: false, error });
-        return;
-      }
-      resolve({ ok: true });
+      resolve(error ? { ok: false, error } : { ok: true });
     });
   });
+  if (!injection.ok) {
+    log('warn', 'bg', 'content script injection failed:', { tabId, error: injection.error });
+    return {
+      ok: false,
+      reason: 'content_script_failed',
+      error: `Parro가 대상 탭에 연결할 수 없습니다. 페이지를 새로고침하거나 일반 웹페이지에서 다시 시도해주세요. (${injection.error})`,
+    };
+  }
+
+  let lastError = existing.error;
+  for (let attempt = 0; attempt < CONTENT_READY_RETRY_COUNT; attempt += 1) {
+    const readiness = await pingContentScript(tabId);
+    if (readiness.ok) return { ok: true, source: 'injected', attempts: attempt + 1 };
+    lastError = readiness.error;
+    if (attempt < CONTENT_READY_RETRY_COUNT - 1) await waitMs(CONTENT_READY_RETRY_DELAY_MS);
+  }
+
+  log('warn', 'bg', 'content script readiness failed:', { tabId, error: lastError });
+  return {
+    ok: false,
+    reason: 'content_script_not_ready',
+    error: 'Parro 연결 준비가 완료되지 않았습니다. 대상 탭을 새로고침한 뒤 다시 시도해주세요.',
+  };
 }
 
 function classifyRecordableUrl(url) {
@@ -421,6 +538,119 @@ function classifyRecordableUrl(url) {
 function isSafeNavUrl(url) {
   try { const u = new URL(url); return u.protocol === 'http:' || u.protocol === 'https:'; }
   catch { return false; }
+}
+
+const GUIDE_STORAGE_KEYS = [
+  'guideSteps',
+  'guideCurrentStep',
+  'guideModeActive',
+  'guidePendingOverlay',
+  'guideTabId',
+  'guideSurvey',
+  'guideTargetStatus',
+  'guideTargetEvidence',
+];
+const VOLATILE_GUIDE_QUERY_KEY = /^(utm_.+|fbclid|gclid|_ga|code|state|session|session_id|timestamp|ts|_t)$/i;
+
+function normalizedGuidePath(pathname) {
+  const value = String(pathname || '/').replace(/\/{2,}/g, '/');
+  return value.length > 1 ? value.replace(/\/$/, '') : value;
+}
+
+function guideRouteHash(url) {
+  const hash = decodeURIComponent(url.hash || '');
+  if (!/^#!?\//.test(hash)) return '';
+  return hash.replace(/^#!?/, '').split('?')[0].replace(/\/$/, '') || '/';
+}
+
+function guidePageMatches(currentUrl, targetUrl) {
+  try {
+    const current = new URL(currentUrl);
+    const target = new URL(targetUrl);
+    if (!/^https?:$/.test(current.protocol) || !/^https?:$/.test(target.protocol)) return false;
+    if (current.origin !== target.origin || normalizedGuidePath(current.pathname) !== normalizedGuidePath(target.pathname)) return false;
+    const targetHashRoute = guideRouteHash(target);
+    if (targetHashRoute && targetHashRoute !== guideRouteHash(current)) return false;
+    for (const [key, value] of target.searchParams.entries()) {
+      if (VOLATILE_GUIDE_QUERY_KEY.test(key)) continue;
+      if (current.searchParams.get(key) !== value) return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function guideOriginMatches(currentUrl, targetUrl) {
+  try {
+    return new URL(currentUrl).origin === new URL(targetUrl).origin;
+  } catch {
+    return false;
+  }
+}
+
+function navigateGuideTab(tabId, url) {
+  return new Promise((resolve) => {
+    chrome.tabs.update(tabId, { url }, (updated) => {
+      const error = chrome.runtime.lastError?.message;
+      if (error) {
+        log('warn', 'bg', 'guide tab navigation failed:', error);
+        resolve(false);
+        return;
+      }
+      resolve(!!updated);
+    });
+  });
+}
+
+function createGuideTab(url, windowId) {
+  return new Promise((resolve) => {
+    const options = { url, active: true };
+    if (windowId != null) options.windowId = windowId;
+    chrome.tabs.create(options, (tab) => resolve(chrome.runtime.lastError ? null : tab));
+  });
+}
+
+async function hideGuideOverlayEverywhere() {
+  const tabs = await new Promise((resolve) => chrome.tabs.query({}, (items) => {
+    resolve(chrome.runtime.lastError ? [] : (items || []));
+  }));
+  tabs.forEach((tab) => {
+    if (tab?.id != null && /^https?:/.test(tab.url || '')) sendTabMessage(tab.id, { type: 'HIDE_OVERLAY' });
+  });
+}
+
+async function clearGuideSession() {
+  await storageRemove(GUIDE_STORAGE_KEYS);
+  await hideGuideOverlayEverywhere();
+}
+
+function scheduleGuideOverlay(tabId, delayMs = 450) {
+  setTimeout(async () => {
+    const state = await storageGet([
+      'guideModeActive', 'guideTabId', 'guideSteps', 'guideCurrentStep', 'guideSurvey',
+    ]);
+    if (!state.guideModeActive || state.guideTabId !== tabId || !state.guideSteps?.length) return;
+    const index = state.guideCurrentStep || 0;
+    const step = state.guideSteps[index];
+    if (!step?.page_url) return;
+    const tab = await new Promise((resolve) => chrome.tabs.get(tabId, (value) => {
+      resolve(chrome.runtime.lastError ? null : value);
+    }));
+    if (!tab?.id || !guidePageMatches(tab.url, step.page_url)) {
+      await storageSet({ guideTargetStatus: 'page_mismatch' });
+      return;
+    }
+    const injection = await ensureContentScript(tab.id);
+    if (!injection?.ok) return;
+    sendTabMessage(tab.id, {
+      type: 'SHOW_OVERLAY',
+      step,
+      index,
+      total: state.guideSteps.length,
+      survey: state.guideSurvey || null,
+    });
+  }, Math.max(0, delayMs));
 }
 
 // ── 이미지 평균 해시(aHash) — 동일 이미지 중복 캡처 디덥 ─────────
@@ -513,26 +743,106 @@ async function compressToJpeg(pngDataUrl, quality = JPEG_QUALITY_DEFAULT) {
   return canvas.convertToBlob({ type: 'image/jpeg', quality });
 }
 
+const _desktopImports = new Map();
+
+async function importDesktopCaptureSession(nativeSessionId) {
+  if (_desktopImports.has(nativeSessionId)) return _desktopImports.get(nativeSessionId);
+  const work = (async () => {
+    const { extensionToken, desktopImportedSessions } = await storageGet(['extensionToken', 'desktopImportedSessions']);
+    if (!extensionToken) throw new Error('not_linked');
+    const prior = desktopImportedSessions?.[nativeSessionId];
+    if (prior?.tutorial_id) return { ...prior, reused: true };
+
+    const capture = await getDesktopCaptureSession(nativeSessionId);
+    const events = Array.isArray(capture.events)
+      ? capture.events.filter(event => event?.step_number && event?.screenshot_size > 0).slice(0, 200)
+      : [];
+    if (!events.length) throw new Error('desktop_capture_empty');
+
+    const sessionId = crypto.randomUUID();
+    resetLastSavedHash();
+    await storageSet({
+      sessionId,
+      stepNumber: 0,
+      steps: [],
+      _undoStack: [],
+      contentMode: 'action',
+      desktopImportProgress: { nativeSessionId, status: 'processing', completed: 0, total: events.length },
+    });
+
+    const completedSteps = [];
+    for (let index = 0; index < events.length; index += 1) {
+      const event = events[index];
+      const pngBlob = await readDesktopCaptureImage(nativeSessionId, event.step_number, event.screenshot_size);
+      const pngDataUrl = await blobToDataUrl(pngBlob);
+      const stepData = ParroDesktopImport.buildStepData(event, index);
+      const prepared = await prepareCapture(pngDataUrl, stepData, null);
+      if (!prepared) continue;
+      await processStepUpload(prepared);
+      completedSteps.push(stepData.stepNumber);
+      await storageSet({
+        desktopImportProgress: {
+          nativeSessionId,
+          status: 'processing',
+          completed: index + 1,
+          total: events.length,
+        },
+      });
+    }
+
+    if (!completedSteps.length) throw new Error('desktop_import_no_steps');
+    const finalized = await finalizeSession(sessionId, completedSteps);
+    if (!finalized?.tutorial_id) throw new Error('desktop_finalize_failed');
+    const result = {
+      tutorial_id: finalized.tutorial_id,
+      step_count: finalized.step_count || completedSteps.length,
+      webapp_origin: finalized.webapp_origin || await getWebappOrigin(),
+    };
+    const imported = { ...(desktopImportedSessions || {}) };
+    imported[nativeSessionId] = result;
+    const recentEntries = Object.entries(imported).slice(-20);
+    await storageSet({
+      desktopImportedSessions: Object.fromEntries(recentEntries),
+      desktopImportProgress: { nativeSessionId, status: 'complete', completed: events.length, total: events.length, ...result },
+    });
+    return result;
+  })();
+  _desktopImports.set(nativeSessionId, work);
+  try {
+    return await work;
+  } finally {
+    _desktopImports.delete(nativeSessionId);
+  }
+}
+
 // ── 외부(웹페이지) 메시지 라우터 ────────────────────────────────
 chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
   if (message.action === 'DESKTOP_COMPANION_STATUS') {
     (async () => {
-      await pingDesktopCompanion().catch(() => {});
-      await new Promise((resolve) => setTimeout(resolve, 250));
-      sendResponse({ ok: true, desktop: desktopBridgeStatus() });
+      const pong = await pingDesktopCompanion().catch((error) => ({ ok: false, error: error?.message }));
+      sendResponse({
+        ok: !!pong?.ok,
+        recorderVersion: chrome.runtime.getManifest().version,
+        desktop: desktopBridgeStatus(),
+        error: pong?.error,
+      });
     })();
     return true;
   }
 
   if (message.action === 'START_DESKTOP_RECORDING') {
     (async () => {
+      const plan = await getUserPlan(true);
+      if (!plan?.isPro) {
+        sendResponse({ ok: false, error: 'desktop_paid_plan_required', desktop: desktopBridgeStatus() });
+        return;
+      }
       const sessionId = crypto.randomUUID();
       const result = await notifyDesktopCaptureStarted({
         sessionId,
         targetTabId: null,
         source: 'desktop_setup',
       });
-      await new Promise((resolve) => setTimeout(resolve, 250));
       const desktop = desktopBridgeStatus();
       sendResponse({
         ok: !!result?.ok && !!desktop.connected,
@@ -546,16 +856,87 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 
   if (message.action === 'STOP_DESKTOP_RECORDING') {
     (async () => {
-      const result = await notifyDesktopCaptureStopped({
-        sessionId: message.sessionId || null,
-        reason: 'desktop_setup_stop',
-      });
-      sendResponse({
-        ok: !!result?.ok,
-        sessionId: message.sessionId || null,
-        desktop: desktopBridgeStatus(),
-        error: result?.error,
-      });
+      const sessionId = message.sessionId || null;
+      try {
+        const stopped = await notifyDesktopCaptureStopped({
+          sessionId,
+          reason: 'desktop_setup_stop',
+        });
+        if (!stopped?.ok) throw new Error(stopped?.error || 'desktop_stop_failed');
+        const imported = await importDesktopCaptureSession(sessionId);
+        sendResponse({
+          ok: true,
+          sessionId,
+          desktop: desktopBridgeStatus(),
+          tutorialId: imported.tutorial_id,
+          stepCount: imported.step_count,
+          editorUrl: `${imported.webapp_origin}/manual/${imported.tutorial_id}/editor`,
+        });
+      } catch (error) {
+        sendResponse({
+          ok: false,
+          sessionId,
+          desktop: desktopBridgeStatus(),
+          error: error?.message || 'desktop_import_failed',
+        });
+      }
+    })();
+    return true;
+  }
+
+  if (message.action === 'PAUSE_DESKTOP_RECORDING' || message.action === 'RESUME_DESKTOP_RECORDING') {
+    (async () => {
+      try {
+        const paused = message.action === 'PAUSE_DESKTOP_RECORDING';
+        const result = await setDesktopCapturePaused({ sessionId: message.sessionId || null, paused });
+        sendResponse({ ok: !!result?.ok, sessionId: message.sessionId || null, paused, error: result?.error });
+      } catch (error) {
+        sendResponse({ ok: false, sessionId: message.sessionId || null, error: error?.message || 'desktop_pause_failed' });
+      }
+    })();
+    return true;
+  }
+
+  if (message.action === 'UNDO_DESKTOP_CAPTURE') {
+    (async () => {
+      try {
+        const result = await undoDesktopCaptureStep(message.sessionId || null);
+        sendResponse({
+          ok: !!result?.ok,
+          sessionId: message.sessionId || null,
+          capturedSteps: Number(result?.captured_steps) || 0,
+          error: result?.error,
+        });
+      } catch (error) {
+        sendResponse({ ok: false, sessionId: message.sessionId || null, error: error?.message || 'desktop_undo_failed' });
+      }
+    })();
+    return true;
+  }
+
+  if (message.action === 'IMPORT_DESKTOP_CAPTURE') {
+    (async () => {
+      const sessionId = message.sessionId || null;
+      try {
+        const plan = await getUserPlan(true);
+        if (!plan?.isPro) throw new Error('desktop_paid_plan_required');
+        const imported = await importDesktopCaptureSession(sessionId);
+        sendResponse({
+          ok: true,
+          sessionId,
+          desktop: desktopBridgeStatus(),
+          tutorialId: imported.tutorial_id,
+          stepCount: imported.step_count,
+          editorUrl: `${imported.webapp_origin}/manual/${imported.tutorial_id}/editor`,
+        });
+      } catch (error) {
+        sendResponse({
+          ok: false,
+          sessionId,
+          desktop: desktopBridgeStatus(),
+          error: error?.message || 'desktop_import_failed',
+        });
+      }
     })();
     return true;
   }
@@ -609,9 +990,15 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
   if (message.action === 'PICK_LIVE_TARGET') {
     (async () => {
       try {
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        const requestedTabId = Number.isInteger(message.tab_id) ? message.tab_id : null;
+        const [activeBeforePick] = await chrome.tabs.query({ active: true, currentWindow: true });
+        const senderTabId = sender.tab?.id ?? activeBeforePick?.id ?? null;
+        const senderWindowId = sender.tab?.windowId ?? activeBeforePick?.windowId ?? null;
+        const tab = requestedTabId != null
+          ? await chrome.tabs.get(requestedTabId).catch(() => null)
+          : (await chrome.tabs.query({ active: true, currentWindow: true }))[0];
         if (!tab?.id) {
-          sendResponse({ ok: false, reason: 'tab_not_found', error: '활성 탭을 찾지 못했습니다.' });
+          sendResponse({ ok: false, reason: 'tab_not_found', error: '선택한 대상 탭을 찾지 못했습니다.' });
           return;
         }
 
@@ -627,14 +1014,20 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
           return;
         }
 
-        chrome.tabs.sendMessage(tab.id, { type: 'LIVE_TARGET_PICK' }, (response) => {
-          const error = chrome.runtime.lastError?.message;
-          if (error) {
-            sendResponse({ ok: false, reason: 'content_script_unreachable', error });
-            return;
-          }
-          sendResponse(response || { ok: false, reason: 'empty_response', error: '대상 선택 응답이 없습니다.' });
-        });
+        if (tab.windowId != null) {
+          await chrome.windows.update(tab.windowId, { focused: true }).catch(() => {});
+        }
+        await chrome.tabs.update(tab.id, { active: true }).catch(() => {});
+
+        const restoreStudioTab = async () => {
+          if (senderTabId == null || senderTabId === tab.id) return;
+          if (senderWindowId != null) await chrome.windows.update(senderWindowId, { focused: true }).catch(() => {});
+          await chrome.tabs.update(senderTabId, { active: true }).catch(() => {});
+        };
+
+        const pickResult = await requestLiveTargetPick(tab.id);
+        await restoreStudioTab();
+        sendResponse(pickResult);
       } catch (error) {
         sendResponse({ ok: false, reason: 'error', error: error?.message || String(error) });
       }
@@ -750,14 +1143,11 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         return;
       }
 
-      // 6) isRecording 세팅 — _directStartTabId로 onChanged 중복 차단
-      //    (캡처는 captureVisibleTab 사용 — Gemini/Docs 포함 일반 https 페이지 모두 동작 확인됨.
-      //     desktopCapture 스트림은 DRM 등 진짜 차단 페이지 대비용으로 코드만 유지)
+      // 6) 브라우저 녹화 상태만 시작 — _directStartTabId로 onChanged 중복 차단
+      //    데스크톱 캡처는 START_DESKTOP_RECORDING에서만 시작한다. 두 모드를
+      //    묶으면 웹 캡처 선택만으로 Native Host가 함께 실행되어 세션이 충돌한다.
       _directStartTabId = tabId;
       await storageSet({ isRecording: true });
-      notifyDesktopCaptureStarted({ sessionId, targetTabId: tabId, source: 'external_start' }).catch((err) => {
-        log('warn', 'desktop', 'desktop start notify failed:', err?.message || err);
-      });
       _directStartTabId = null;
       sendResponse({ ok: true });
     })();
@@ -791,7 +1181,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
   if (message.action === 'CONNECT') {
     (async () => {
       const { extensionToken } = await storageGet('extensionToken');
-      sendResponse({ ok: true, linked: !!extensionToken });
+      sendResponse({ ok: true, linked: !!extensionToken, recorderVersion: chrome.runtime.getManifest().version });
     })();
     return true;
   }
@@ -799,6 +1189,12 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
   if (message.action === 'START_GUIDE') {
     const rawToken = message.tutorial_id || message.share_token;
     if (!rawToken) { sendResponse({ ok: false, error: 'no token' }); return false; }
+
+    const guideRequestOrigin = resolveGuideRequestOrigin(sender.origin, message.webapp_origin);
+    if (!guideRequestOrigin) {
+      sendResponse({ ok: false, error: 'invalid guide origin' });
+      return false;
+    }
 
     // 경로 삽입 방지: UUID 또는 URL-안전 alphanumeric(1~80자)만 허용
     const UUID_RE    = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -811,7 +1207,6 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
     const isUuid = UUID_RE.test(guideToken);
 
     // ★ await 이전에 동기 캡처 — async IIFE 안에서는 sender가 변질될 수 있음
-    const senderTabId    = sender.tab?.id    ?? null;
     const senderWindowId = sender.tab?.windowId ?? null;
 
     // ★ user gesture 살아있는 지금(= await 이전) 동기 호출 — await 후에는 제스처 소멸
@@ -824,9 +1219,9 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 
     (async () => {
       try {
-        const origin = await getWebappOrigin();
+        const origin = guideRequestOrigin;
         // UUID(소유자 미리보기)는 쿠키 필요; share_token(공개)은 불필요
-        const fetchOpts = isUuid ? { credentials: 'include' } : {};
+        const fetchOpts = isUuid ? { credentials: 'include', cache: 'no-store' } : { cache: 'no-store' };
         const res    = await fetch(`${origin}/api/guide/${encodeURIComponent(guideToken)}`, fetchOpts);
         if (!res.ok) throw new Error(`guide fetch failed: ${res.status}`);
         const data  = await res.json();
@@ -838,60 +1233,40 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         }
         const steps = data.steps || [];
         if (steps.length === 0) throw new Error('no steps');
+        const firstStep = steps[0];
+        if (!firstStep?.page_url || !isSafeNavUrl(firstStep.page_url)) {
+          sendResponse({ ok: false, error: 'guide_start_url_missing' });
+          return;
+        }
         const guideSurvey = data.survey?.enabled ? {
           enabled: true,
           tutorialId: data.tutorial_id,
           viewerSessionId: `live_guide:${data.tutorial_id}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`,
         } : null;
 
-        // sender 탭에 직접 카운트다운 전송 — active tab query는 다중창/탭전환 시 엉뚱한 탭을 잡음
-        if (senderTabId) {
-          await ensureContentScript(senderTabId);
-          sendTabMessage(senderTabId, { type: 'SHOW_GUIDE_COUNTDOWN' });
+        // Tango Guide Me처럼 시작 페이지를 별도 탭으로 연다. 편집기/워크스페이스 탭을
+        // 재사용하면 그 화면의 카드 이미지나 우연히 일치한 DOM에 가이드가 붙을 수 있다.
+        await clearGuideSession();
+        const guideTab = await createGuideTab(firstStep.page_url, senderWindowId);
+        if (!guideTab?.id) throw new Error('guide tab create failed');
+        await storageSet({
+          guideSteps: steps,
+          guideCurrentStep: 0,
+          guideModeActive: true,
+          guideSurvey,
+          guideTabId: guideTab.id,
+          guidePendingOverlay: true,
+          guideTargetStatus: 'navigating',
+          guideTargetEvidence: null,
+        });
+        sendResponse({ ok: true, tabId: guideTab.id });
+        if (guideTab.status === 'complete') {
+          await storageRemove('guidePendingOverlay');
         }
-
-        await storageSet({ guideSteps: steps, guideCurrentStep: 0, guideModeActive: true, guideSurvey });
-
-        sendResponse({ ok: true });
-
-        // 카운트다운 완료 후 오버레이 주입 (+200ms 여유)
-        setTimeout(async () => {
-          try {
-            // sender 탭을 직접 사용 — active tab query 대신 (타이밍 경쟁 방지)
-            if (!senderTabId) return;
-            const tab = await new Promise((resolve) => chrome.tabs.get(senderTabId, (t) => {
-              resolve(chrome.runtime.lastError ? null : t);
-            }));
-            if (!tab?.id) return;
-
-            // 가이드를 이 탭에 고정 — 이후 단계 전환이 활성 탭이 아니라 이 탭에서만 동작한다.
-            await storageSet({ guideTabId: tab.id });
-
-            const firstStep = steps[0];
-            await ensureContentScript(tab.id);
-            const injectOverlay = (tabId) => sendTabMessage(tabId, { type: 'SHOW_OVERLAY', step: firstStep, index: 0, total: steps.length, survey: guideSurvey });
-
-            if (!firstStep.page_url || !isSafeNavUrl(firstStep.page_url)) {
-              // page_url 없음 또는 비안전 프로토콜 → 현재 탭에 바로 오버레이 주입
-              injectOverlay(tab.id);
-            } else {
-              try {
-                const currentUrl = new URL(tab.url);
-                const targetUrl  = new URL(firstStep.page_url);
-                if (currentUrl.origin + currentUrl.pathname === targetUrl.origin + targetUrl.pathname) {
-                  injectOverlay(tab.id);
-                } else {
-                  chrome.tabs.update(tab.id, { url: firstStep.page_url });
-                  await storageSet({ guidePendingOverlay: true });
-                }
-              } catch {
-                injectOverlay(tab.id);
-              }
-            }
-          } catch (err) {
-            log('error', 'bg', 'guide overlay inject error:', err.message);
-          }
-        }, 3600);
+        // A very fast target page can finish before guide state is persisted, so
+        // tabs.onUpdated may miss the only complete event. Always schedule a
+        // post-persist overlay attempt; onUpdated remains the slower-page retry.
+        scheduleGuideOverlay(guideTab.id, guideTab.status === 'complete' ? 80 : 650);
       } catch (err) {
         log('error', 'bg', 'START_GUIDE error:', err.message);
         sendResponse({ ok: false, error: err.message });
@@ -904,9 +1279,16 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 // ── 내부 메시지 라우터 ────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'DESKTOP_COMPANION_STATUS') {
-    pingDesktopCompanion().catch(() => {});
-    sendResponse({ ok: true, desktop: desktopBridgeStatus() });
-    return false;
+    (async () => {
+      const pong = await pingDesktopCompanion().catch((error) => ({ ok: false, error: error?.message }));
+      sendResponse({
+        ok: !!pong?.ok,
+        recorderVersion: chrome.runtime.getManifest().version,
+        desktop: desktopBridgeStatus(),
+        error: pong?.error,
+      });
+    })();
+    return true;
   }
 
   // pointerdown 선캡처 — 클릭으로 화면이 바뀌기 전 프레임을 미리 잡아 버퍼에 보관
@@ -1157,6 +1539,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           const origin = data.webapp_origin || await getWebappOrigin();
           chrome.tabs.create({ url: `${origin}/manual/${data.tutorial_id}/editor?from=recording` });
           await storageSet({ isRecording: false, isPaused: false, stepNumber: 0, steps: [], sessionId: null, _undoStack: [] });
+          // 서버 전송이 끝난 캡처 Blob은 기기에 남겨둘 이유가 없다.
+          // 개인정보처리방침의 "완료 후 로컬 임시 데이터 삭제"와 실제 동작을 일치시킨다.
+          await idbClear().catch((error) => log('warn', 'bg', 'finalize local cache clear failed:', error?.message || error));
         }
         sendResponse({ ok: true, ...data });
       } catch (err) {
@@ -1337,25 +1722,35 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (guideTabId != null) {
         const tab = await getGuideTab();
         if (!tab?.id) {
-          await storageRemove(['guideSteps', 'guideCurrentStep', 'guideModeActive', 'guidePendingOverlay', 'guideTabId', 'guideSurvey']);
+          await clearGuideSession();
           sendResponse({ active: false });
           return;
         }
       }
-      sendResponse({ active: true, steps: guideSteps, currentStep: guideCurrentStep || 0 });
+      const { guideTargetStatus } = await storageGet('guideTargetStatus');
+      sendResponse({ active: true, steps: guideSteps, currentStep: guideCurrentStep || 0, targetStatus: guideTargetStatus || 'navigating' });
     })();
     return true;
   }
 
   if (message.type === 'GUIDE_NEXT' || message.type === 'GUIDE_PREV') {
     (async () => {
-      const { guideSteps, guideCurrentStep, guideSurvey } = await storageGet(['guideSteps', 'guideCurrentStep', 'guideSurvey']);
+      const { guideModeActive, guideSteps, guideCurrentStep, guideSurvey } = await storageGet(['guideModeActive', 'guideSteps', 'guideCurrentStep', 'guideSurvey']);
       const steps = guideSteps || [];
+      if (!guideModeActive || !steps.length) {
+        sendResponse({ ok: false, error: 'guide_not_active' });
+        return;
+      }
       let idx = guideCurrentStep || 0;
-      if (message.type === 'GUIDE_NEXT') idx = Math.min(idx + 1, steps.length - 1);
+      if (message.type === 'GUIDE_NEXT' && idx >= steps.length - 1) {
+        await clearGuideSession();
+        sendResponse({ ok: true, completed: true, currentStep: steps.length });
+        return;
+      }
+      if (message.type === 'GUIDE_NEXT') idx += 1;
       else idx = Math.max(idx - 1, 0);
 
-      await storageSet({ guideCurrentStep: idx });
+      await storageSet({ guideCurrentStep: idx, guideTargetStatus: 'navigating', guideTargetEvidence: null });
       const step = steps[idx];
       sendResponse({ ok: true, currentStep: idx, step });
 
@@ -1363,20 +1758,33 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const tab = await getGuideTab();
       if (!tab?.id) return;
 
-      if (step && step.page_url) {
-        try {
-          const currentUrl = new URL(tab.url);
-          const targetUrl  = new URL(step.page_url);
-          if (currentUrl.origin + currentUrl.pathname !== targetUrl.origin + targetUrl.pathname) {
-            await storageSet({ guidePendingOverlay: true });
-            // 자동진행(타깃 클릭)이면 클릭 자체가 이동을 유발하므로 중복 내비 방지.
-            // 수동 '다음'이면 직접 이동시킨다. (둘 다 onUpdated에서 오버레이 재주입)
-            if (!message.viaClick && isSafeNavUrl(step.page_url)) chrome.tabs.update(tab.id, { url: step.page_url });
-            return;
-          }
-        } catch { /* same-tab fallback */ }
+      sendTabMessage(tab.id, { type: 'HIDE_OVERLAY' });
+      if (!step?.page_url || !isSafeNavUrl(step.page_url)) {
+        await storageSet({ guideTargetStatus: 'page_mismatch' });
+        return;
       }
-      sendTabMessage(tab.id, { type: 'SHOW_OVERLAY', step, index: idx, total: steps.length, survey: guideSurvey || null });
+      if (!guidePageMatches(tab.url, step.page_url)) {
+        await storageSet({ guidePendingOverlay: true });
+        if (!message.viaClick || !guideOriginMatches(tab.url, step.page_url)) {
+          // 서로 다른 사이트로 넘어가는 단계는 실제 클릭이 현재 페이지를 이동시킬 수 있다고
+          // 가정하지 않는다. 기록 URL로 즉시 이동해 가이드가 조용히 멈추는 상태를 막는다.
+          const navigated = await navigateGuideTab(tab.id, step.page_url);
+          if (!navigated) await storageSet({ guideTargetStatus: 'page_mismatch' });
+        } else {
+          // 실제 클릭 이동을 우선하되, SPA/차단으로 이동이 일어나지 않으면 기록 URL로 복구한다.
+          setTimeout(async () => {
+            const current = await getGuideTab();
+            const state = await storageGet(['guideModeActive', 'guideCurrentStep']);
+            if (!state.guideModeActive || state.guideCurrentStep !== idx || !current?.id) return;
+            if (!guidePageMatches(current.url, step.page_url)) {
+              const navigated = await navigateGuideTab(current.id, step.page_url);
+              if (!navigated) await storageSet({ guideTargetStatus: 'page_mismatch' });
+            }
+          }, 1400);
+        }
+        return;
+      }
+      scheduleGuideOverlay(tab.id, 80);
     })();
     return true;
   }
@@ -1387,7 +1795,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const { guideSteps, guideSurvey } = await storageGet(['guideSteps', 'guideSurvey']);
       const steps = guideSteps || [];
       const idx = Math.max(0, Math.min(message.stepIndex || 0, steps.length - 1));
-      await storageSet({ guideCurrentStep: idx });
+      await storageSet({ guideCurrentStep: idx, guideTargetStatus: 'navigating', guideTargetEvidence: null });
       const step = steps[idx];
       sendResponse({ ok: true, currentStep: idx, step });
       if (!step) return;
@@ -1395,18 +1803,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const tab = await getGuideTab();  // 가이드 고정 탭
       if (!tab?.id) return;
 
-      if (step.page_url) {
-        try {
-          const currentUrl = new URL(tab.url);
-          const targetUrl  = new URL(step.page_url);
-          if (currentUrl.origin + currentUrl.pathname !== targetUrl.origin + targetUrl.pathname) {
-            await storageSet({ guidePendingOverlay: true });
-            if (isSafeNavUrl(step.page_url)) chrome.tabs.update(tab.id, { url: step.page_url });  // 수동 점프 → 직접 이동
-            return;
-          }
-        } catch { /* same-tab fallback */ }
+      sendTabMessage(tab.id, { type: 'HIDE_OVERLAY' });
+      if (!step.page_url || !isSafeNavUrl(step.page_url)) {
+        await storageSet({ guideTargetStatus: 'page_mismatch' });
+        return;
       }
-      sendTabMessage(tab.id, { type: 'SHOW_OVERLAY', step, index: idx, total: steps.length, survey: guideSurvey || null });
+      if (!guidePageMatches(tab.url, step.page_url)) {
+        await storageSet({ guidePendingOverlay: true });
+        chrome.tabs.update(tab.id, { url: step.page_url });
+        return;
+      }
+      scheduleGuideOverlay(tab.id, 80);
     })();
     return true;
   }
@@ -1435,14 +1842,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message.type === 'EXIT_GUIDE') {
+  if (message.type === 'GUIDE_TARGET_STATUS') {
     (async () => {
-      const tab = await getGuideTab();  // 고정 탭의 오버레이를 정리
-      await storageRemove(['guideSteps', 'guideCurrentStep', 'guideModeActive', 'guidePendingOverlay', 'guideTabId', 'guideSurvey']);
-      if (tab?.id) sendTabMessage(tab.id, { type: 'HIDE_OVERLAY' });
-      // 혹시 다른 탭(메시지 발신 탭)에 남은 오버레이도 정리
-      if (sender.tab?.id && sender.tab.id !== tab?.id) sendTabMessage(sender.tab.id, { type: 'HIDE_OVERLAY' });
+      const { guideModeActive, guideTabId, guideCurrentStep } = await storageGet([
+        'guideModeActive', 'guideTabId', 'guideCurrentStep',
+      ]);
+      const allowed = new Set(['navigating', 'searching', 'ready', 'page_mismatch', 'not_found']);
+      if (!guideModeActive || sender.tab?.id !== guideTabId || Number(message.stepIndex) !== Number(guideCurrentStep) || !allowed.has(message.status)) {
+        sendResponse({ ok: false });
+        return;
+      }
+      const evidence = message.evidence && typeof message.evidence === 'object'
+        ? {
+            source: String(message.evidence.source || '').slice(0, 24),
+            confidence: String(message.evidence.confidence || '').slice(0, 12),
+            score: Number.isFinite(Number(message.evidence.score)) ? Number(message.evidence.score) : null,
+            margin: Number.isFinite(Number(message.evidence.margin)) ? Number(message.evidence.margin) : null,
+          }
+        : null;
+      await storageSet({ guideTargetStatus: message.status, guideTargetEvidence: evidence });
       sendResponse({ ok: true });
+    })();
+    return true;
+  }
+
+  if (message.type === 'EXIT_GUIDE' || message.type === 'GUIDE_COMPLETE') {
+    (async () => {
+      await clearGuideSession();
+      sendResponse({ ok: true, completed: message.type === 'GUIDE_COMPLETE' });
     })();
     return true;
   }
@@ -1562,7 +1989,7 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
   // guideModeActive가 남아 죽은 스텝(유령)이 뜬다. storage 변경이 popup의 onChanged를 깨워 뷰를 닫는다.
   const { guideModeActive, guideTabId } = await storageGet(['guideModeActive', 'guideTabId']);
   if (guideModeActive && guideTabId === tabId) {
-    await storageRemove(['guideSteps', 'guideCurrentStep', 'guideModeActive', 'guidePendingOverlay', 'guideTabId', 'guideSurvey']);
+    await clearGuideSession();
   }
 
   const { isRecording, targetTabId, _prevTargetTabId } = await storageGet(['isRecording', 'targetTabId', '_prevTargetTabId']);
@@ -1600,7 +2027,9 @@ chrome.windows.onFocusChanged.addListener((windowId) => {
 
 // ── URL 변경 탐지 (cross-origin 이동 캡처) ───────────────────────
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-  if (changeInfo.status !== 'complete') return;
+  const completedLoad = changeInfo.status === 'complete';
+  const changedUrl = typeof changeInfo.url === 'string';
+  if (!completedLoad && !changedUrl) return;
   if (!tab.url?.startsWith('http')) return;
 
   // 한 번의 이동에 complete가 여러 번 와도(리다이렉트/iframe 로드) 첫 이벤트만 처리
@@ -1613,22 +2042,20 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   try {
     const r = await storageGet(['isRecording', 'isPaused', 'targetTabId', 'stepNumber', 'settings', 'pendingCapture', 'guideModeActive', 'guidePendingOverlay', 'guideSteps', 'guideCurrentStep', 'guideTabId', 'guideSurvey', 'spaNavCapturing', 'lastCaptureTime']);
 
-    // 가이드 재주입은 '고정 탭'에서 로드가 끝났을 때만 — 다른 탭 로드에는 반응하지 않는다.
-    // (a) 가이드가 의도한 이동(guidePendingOverlay): 페이지 정착 후 주입.
-    // (b) 그 외 임의 이동(외부 링크·OAuth 리다이렉트 등)도 가이드 활성 탭이면 현재 스텝 복원 —
-    //     일회성 플래그에 의존하지 않는다. 도착지가 스텝 page_url이 아니면 guide-engine의
-    //     pageMatches()가 막아 조용히 대기(오버레이 없음), 스텝 페이지로 복귀하면 자동 표시.
+    // 고정 탭의 full load와 SPA URL 변경을 모두 추적한다. 도착 URL을 백그라운드에서도
+    // 검증해 잘못된 페이지에는 content overlay 메시지 자체를 보내지 않는다.
     if (r.guideModeActive && r.guideTabId === tabId && r.guideSteps?.length) {
       const intended = !!r.guidePendingOverlay;
-      if (intended) await storageRemove('guidePendingOverlay');
       const gSteps = r.guideSteps;
       const gIdx = r.guideCurrentStep || 0;
       const step = gSteps[gIdx];
-      if (step) {
-        // 새 도메인엔 manifest content_scripts 주입이 늦거나 누락될 수 있어 보장(멱등).
-        await ensureContentScript(tabId);
-        // 페이지 정착(특히 SPA) 후 오버레이 주입 — 요소 매칭 확률 ↑
-        setTimeout(() => sendTabMessage(tabId, { type: 'SHOW_OVERLAY', step, index: gIdx, total: gSteps.length, survey: r.guideSurvey || null }), intended ? 500 : 400);
+      if (step?.page_url && guidePageMatches(tab.url, step.page_url)) {
+        if (intended) await storageRemove('guidePendingOverlay');
+        await storageSet({ guideTargetStatus: 'searching', guideTargetEvidence: null });
+        scheduleGuideOverlay(tabId, completedLoad ? 450 : 280);
+      } else {
+        sendTabMessage(tabId, { type: 'HIDE_OVERLAY' });
+        await storageSet({ guideTargetStatus: 'page_mismatch', guideTargetEvidence: null });
       }
     }
 
@@ -1983,18 +2410,10 @@ chrome.storage.onChanged.addListener((changes, area) => {
     if (nowRecording && _directStartTabId) return;  // onMessageExternal이 직접 처리 중
 
     if (nowRecording) {
+      // 브라우저 녹화 상태는 Native Host를 시작하지 않는다. 데스크톱 캡처는
+      // 명시적인 START_DESKTOP_RECORDING / STOP_DESKTOP_RECORDING 경로만 사용한다.
       resetLastSavedHash();  // 새 녹화 → 디덥 기준 해시 초기화
-      storageGet(['sessionId', 'targetTabId']).then(({ sessionId, targetTabId }) => {
-        notifyDesktopCaptureStarted({ sessionId, targetTabId, source: 'storage_start' }).catch((err) => {
-          log('warn', 'desktop', 'desktop start notify failed:', err?.message || err);
-        });
-      });
     } else {
-      storageGet('sessionId').then(({ sessionId }) => {
-        notifyDesktopCaptureStopped({ sessionId, reason: 'storage_stop' }).catch((err) => {
-          log('warn', 'desktop', 'desktop stop notify failed:', err?.message || err);
-        });
-      });
       chrome.storage.local.remove(['pendingCapture', 'spaNavCapturing']);
       stopDisplayStream().catch(() => {});
     }
@@ -2204,8 +2623,9 @@ async function prepareCapture(pngDataUrl, stepData, tab) {
 
   const winW   = stepData.windowWidth  || 1280;
   const winH   = stepData.windowHeight || 800;
-  const clickX = (stepData.clickX && winW) ? Math.min(stepData.clickX / winW, 1) : 0;
-  const clickY = (stepData.clickY && winH) ? Math.min(stepData.clickY / winH, 1) : 0;
+  const coordinateSpace = stepData.actionInfo?.targetContext?.coordinateSpace;
+  const clickX = normalizeCoord(stepData.clickX, winW, coordinateSpace);
+  const clickY = normalizeCoord(stepData.clickY, winH, coordinateSpace);
 
   const domainInfo  = extractDomainInfo(stepData.url, tab);
   const actionLabel = makeActionLabel(stepData.actionInfo, stepNum, domainInfo);
@@ -2232,8 +2652,8 @@ async function processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base
     const [imageResult, analysisResult] = await Promise.allSettled([
       uploadImage(imagePath, jpegBlob),
       analyzeWithClaude(base64Image, stepData.url, stepData.actionInfo, {
-        clickX:          stepData.clickX && stepData.windowWidth  ? stepData.clickX  / stepData.windowWidth  : null,
-        clickY:          stepData.clickY && stepData.windowHeight ? stepData.clickY  / stepData.windowHeight : null,
+        clickX:          clickX || null,
+        clickY:          clickY || null,
         elementRect:     denormalizeRectForAnalyze(stepData.elementRect, stepData.windowWidth, stepData.windowHeight),
         viewportW:       stepData.windowWidth     ?? null,
         viewportH:       stepData.windowHeight    ?? null,
@@ -2509,9 +2929,13 @@ async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, 
   return res.json();
 }
 
-function normalizeCoord(value, size) {
+function normalizeCoord(value, size, coordinateSpace) {
   const n = Number(value);
-  if (!Number.isFinite(n) || n <= 0) return 0;
+  if (!Number.isFinite(n) || n < 0) return 0;
+  if (coordinateSpace === 'top-viewport-css-px') {
+    return size ? Math.max(0, Math.min(n / size, 1)) : 0;
+  }
+  if (n === 0) return 0;
   const normalized = n <= 1 ? n : (size ? n / size : 0);
   return Math.max(0, Math.min(normalized, 1));
 }
@@ -2529,8 +2953,9 @@ async function syncLocalStepsBeforeFinalize(sessionId, stepNumbers, localSteps) 
 
     const viewportW = step.windowWidth || step.viewportW || 1280;
     const viewportH = step.windowHeight || step.viewportH || 800;
-    const clickX = normalizeCoord(step.clickX, viewportW);
-    const clickY = normalizeCoord(step.clickY, viewportH);
+    const coordinateSpace = step.actionInfo?.targetContext?.coordinateSpace;
+    const clickX = normalizeCoord(step.clickX, viewportW, coordinateSpace);
+    const clickY = normalizeCoord(step.clickY, viewportH, coordinateSpace);
     const cropBox = step.cropBox ?? computeCropBox(step.elementRect, clickX, clickY, step.actionInfo);
 
     await saveStep({

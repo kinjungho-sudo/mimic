@@ -129,6 +129,7 @@ export type Step = {
   step_number: number;
   order_index: number;
   screenshot_url: string | null;
+  image_alt_text?: string | null;
   page_url: string | null;
   ai_title: string | null;
   ai_description: string | null;
@@ -143,6 +144,7 @@ export type Step = {
   element_selector?: string | null;
   element_xpath?: string | null;
   element_rect?: { x: number; y: number; width: number; height: number } | null;
+  target_context?: Record<string, unknown> | null;
   click_x?: number | null;
   click_y?: number | null;
   type_text?: string | null;

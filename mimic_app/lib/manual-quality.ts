@@ -1,4 +1,5 @@
 import { isLowQualityCaptureScript, isLowQualityCaptureTitle, isLowQualityCaptureTutorialTitle } from '@/lib/ai/capture-fallback';
+import { normalizeStepTitleForComparison } from '@/lib/ai/regeneration-quality';
 import { containsSensitiveText, redactSensitive } from '@/lib/redact';
 
 export type ManualQualityStep = {
@@ -49,14 +50,14 @@ export function assessManualQuality(title: string | null | undefined, steps: Man
   if (isLowQualityCaptureTutorialTitle(title, { stepTitles })) {
     issues.push({
       code: 'tutorial_title',
-      severity: 'error',
+      severity: 'warning',
       message: '전체 제목을 사용자가 최종적으로 달성하는 결과로 바꿔주세요.',
     });
   }
 
   const titleCounts = new Map<string, number>();
   stepTitles.forEach(value => {
-    const normalized = value.toLowerCase();
+    const normalized = normalizeStepTitleForComparison(value);
     if (normalized) titleCounts.set(normalized, (titleCounts.get(normalized) ?? 0) + 1);
   });
 
@@ -68,13 +69,13 @@ export function assessManualQuality(title: string | null | undefined, steps: Man
 
     if (isLowQualityCaptureTitle(stepTitle)) {
       issues.push({
-        code: 'step_title', severity: 'error', ...meta,
+        code: 'step_title', severity: 'warning', ...meta,
         message: `${stepNumber}단계 제목이 버튼명·식별자 중심입니다. 업무 목적이 드러나게 다시 작성해주세요.`,
       });
     }
     if (isLowQualityCaptureScript(stepScript)) {
       issues.push({
-        code: 'step_script', severity: 'error', ...meta,
+        code: 'step_script', severity: 'warning', ...meta,
         message: `${stepNumber}단계 설명에 수행 이유와 완료 상태를 한 문장으로 작성해주세요.`,
       });
     }
@@ -110,12 +111,15 @@ export function assessManualQuality(title: string | null | undefined, steps: Man
       });
     }
 
-    if (stepTitle && (titleCounts.get(stepTitle.toLowerCase()) ?? 0) > 1) {
-      const firstDuplicate = visibleSteps.findIndex(candidate => plain(candidate.user_title || candidate.ai_title).toLowerCase() === stepTitle.toLowerCase());
+    const normalizedStepTitle = normalizeStepTitleForComparison(stepTitle);
+    if (normalizedStepTitle && (titleCounts.get(normalizedStepTitle) ?? 0) > 1) {
+      const firstDuplicate = visibleSteps.findIndex(candidate => (
+        normalizeStepTitleForComparison(plain(candidate.user_title || candidate.ai_title)) === normalizedStepTitle
+      ));
       if (firstDuplicate === index) {
         issues.push({
           code: 'duplicate_title', severity: 'warning', ...meta,
-          message: `같은 제목 “${stepTitle}”이 반복됩니다. 각 단계의 목적을 구분해주세요.`,
+          message: `같거나 거의 같은 제목 “${stepTitle}”이 반복됩니다. 각 단계의 목적을 구분해주세요.`,
         });
       }
     }

@@ -2,12 +2,19 @@
   "functions": {
     "app/api/capture/finalize/route.ts": {
       "maxDuration": 60
+    },
+    "app/api/cron/cleanup-trash/route.ts": {
+      "maxDuration": 60
     }
   },
   "crons": [
     {
       "path": "/api/cron/cleanup-sessions",
       "schedule": "0 18 * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-trash",
+      "schedule": "15 18 * * *"
     }
   ]
 }

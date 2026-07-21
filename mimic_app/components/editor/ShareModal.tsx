@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Link2, Check, Lock, Eye, EyeOff, Code2, ChevronDown } from 'lucide-react';
 import { BRAND_NAME } from '@/lib/brand';
 import { TutorialApiError } from '@/lib/api/tutorials';
 import type { ManualQualityIssue } from '@/lib/manual-quality';
+import { buildStepShareUrl } from '@/lib/share-links';
 
 interface ShareModalProps {
   title: string;
@@ -18,6 +19,8 @@ interface ShareModalProps {
   onPublishAndShare: () => Promise<{ share_token: string; share_url?: string }>;
   onUnpublish: () => Promise<void>;
   onClose: () => void;
+  passwordProtectionEnabled?: boolean;
+  shareStep?: { id: string; number: number; title?: string };
 }
 
 function shareUrlForMode(value: string | null | undefined, mode: 'document' | 'follow' | 'slides') {
@@ -32,15 +35,19 @@ function shareUrlForMode(value: string | null | undefined, mode: 'document' | 'f
   }
 }
 
-export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPassword, visibility: initialVisibility = 'private', defaultMode = 'document', onRequestRegenerate, onPublishAndShare, onUnpublish, onClose }: ShareModalProps) {
+export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPassword, visibility: initialVisibility = 'private', defaultMode = 'document', onRequestRegenerate, onPublishAndShare, onUnpublish, onClose, passwordProtectionEnabled = false, shareStep }: ShareModalProps) {
+  const canProtectSharing = passwordProtectionEnabled;
   const [url, setUrl] = useState(() => shareUrlForMode(shareUrl, defaultMode));
   const [copied, setCopied] = useState(false);
+  const [stepCopied, setStepCopied] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [unpublishing, setUnpublishing] = useState(false);
   const [qualityChecking, setQualityChecking] = useState(true);
   const [qualityIssues, setQualityIssues] = useState<ManualQualityIssue[]>([]);
   const [publishError, setPublishError] = useState<string | null>(null);
+  const [warningApproved, setWarningApproved] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const publishStartedRef = useRef(false);
 
   // 공개 범위
   const [vis, setVis] = useState<'private' | 'public'>(initialVisibility);
@@ -80,13 +87,18 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
 
   const handleSavePassword = async () => {
     if (!pwInput.trim()) return;
+    if (!canProtectSharing) {
+      window.location.assign('/landingpage#pricing');
+      return;
+    }
     setPwSaving(true);
     try {
-      await fetch(`/api/tutorials/${tutorialId}`, {
+      const response = await fetch(`/api/tutorials/${tutorialId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ share_password: pwInput }),
       });
+      if (!response.ok) throw new Error('password save failed');
       setPwEnabled(true);
       setPwInput('');
       setPwSaved(true);
@@ -140,6 +152,8 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
   useEffect(() => {
     let cancelled = false;
     setQualityChecking(true);
+    setWarningApproved(false);
+    publishStartedRef.current = false;
     fetch(`/api/tutorials/${tutorialId}/quality`)
       .then(async response => {
         const data = await response.json().catch(() => ({}));
@@ -154,24 +168,36 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
     return () => { cancelled = true; };
   }, [tutorialId]);
 
-  useEffect(() => {
-    if (shareToken) return;
+  const publishNow = useCallback(async () => {
+    if (shareToken || publishStartedRef.current) return;
+    publishStartedRef.current = true;
     setPublishing(true);
-    onPublishAndShare()
-      .then(result => {
-        const resolved = result.share_url ?? `${window.location.origin}/play/${result.share_token}`;
-        setUrl(shareUrlForMode(resolved, defaultMode));
-      })
-      .catch(err => {
-        setPublishError(err instanceof Error ? err.message : '공유 링크를 만들 수 없습니다.');
-        if (err instanceof TutorialApiError && err.issues.length > 0) setQualityIssues(err.issues);
-      })
-      .finally(() => setPublishing(false));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    setPublishError(null);
+    try {
+      const result = await onPublishAndShare();
+      const resolved = result.share_url ?? `${window.location.origin}/play/${result.share_token}`;
+      setUrl(shareUrlForMode(resolved, defaultMode));
+    } catch (err) {
+      publishStartedRef.current = false;
+      setPublishError(err instanceof Error ? err.message : '공유 링크를 만들 수 없습니다.');
+      if (err instanceof TutorialApiError && err.issues.length > 0) setQualityIssues(err.issues);
+    } finally {
+      setPublishing(false);
+    }
+  }, [defaultMode, onPublishAndShare, shareToken]);
+
+  useEffect(() => {
+    if (shareToken || qualityChecking || publishError || publishStartedRef.current) return;
+    const hasError = qualityIssues.some(issue => issue.severity === 'error');
+    const hasWarning = qualityIssues.some(issue => issue.severity === 'warning');
+    if (hasError || hasWarning) return;
+    void publishNow();
+  }, [publishError, publishNow, qualityChecking, qualityIssues, shareToken]);
 
   const hasBlockingIssues = qualityIssues.some(issue => issue.severity === 'error');
-  const sharingBlocked = publishing || qualityChecking || hasBlockingIssues || !!publishError;
+  const hasQualitySuggestions = qualityIssues.some(issue => issue.severity === 'warning');
+  const awaitingWarningApproval = !shareToken && !url && hasQualitySuggestions && !warningApproved;
+  const sharingBlocked = publishing || qualityChecking || hasBlockingIssues || awaitingWarningApproval || !!publishError;
 
   const handleCopy = async () => {
     if (!url || sharingBlocked) return;
@@ -179,6 +205,14 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
     setCopied(true);
     inputRef.current?.select();
     setTimeout(() => setCopied(false), 2200);
+  };
+
+  const stepUrl = !sharingBlocked && url && shareStep?.id ? buildStepShareUrl(url, shareStep.id) : '';
+  const handleCopyStep = async () => {
+    if (!stepUrl) return;
+    await navigator.clipboard.writeText(stepUrl).catch(() => {});
+    setStepCopied(true);
+    setTimeout(() => setStepCopied(false), 2200);
   };
 
   const embedUrl = !sharingBlocked && url ? url.replace('/play/', '/embed/') : '';
@@ -275,20 +309,25 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
             {title}
           </p>
 
-          {(qualityChecking || hasBlockingIssues || publishError) && (
-            <div style={{ marginBottom: 12, padding: '11px 12px', borderRadius: 10, border: `1px solid ${hasBlockingIssues || publishError ? '#FECACA' : '#D1FAE5'}`, background: hasBlockingIssues || publishError ? '#FFF7F7' : '#F0FDF4' }}>
-              <div style={{ fontSize: 12.5, fontWeight: 700, color: hasBlockingIssues || publishError ? '#B91C1C' : '#047857', marginBottom: 4 }}>
-                {qualityChecking ? '공유 전 품질을 확인하고 있어요…' : '공유 전에 수정이 필요해요'}
+          {(qualityChecking || hasBlockingIssues || hasQualitySuggestions || publishError) && (
+            <div style={{ marginBottom: 12, padding: '11px 12px', borderRadius: 10, border: `1px solid ${hasBlockingIssues || publishError ? '#FECACA' : hasQualitySuggestions ? '#FDE68A' : '#D1FAE5'}`, background: hasBlockingIssues || publishError ? '#FFF7F7' : hasQualitySuggestions ? '#FFFBEB' : '#F0FDF4' }}>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: hasBlockingIssues || publishError ? '#B91C1C' : hasQualitySuggestions ? '#92400E' : '#047857', marginBottom: 4 }}>
+                {qualityChecking ? '공유 전 품질을 확인하고 있어요…' : hasBlockingIssues || publishError ? '공유 전에 확인이 필요해요' : '더 좋은 안내를 위한 제안이 있어요'}
               </div>
               {!qualityChecking && (
                 <>
                   <p style={{ margin: 0, fontSize: 11.5, lineHeight: 1.5, color: '#6B7280' }}>
-                    {publishError ?? qualityIssues.find(issue => issue.severity === 'error')?.message}
-                    {qualityIssues.filter(issue => issue.severity === 'error').length > 1 && ` 외 ${qualityIssues.filter(issue => issue.severity === 'error').length - 1}개`}
+                    {publishError ?? qualityIssues.find(issue => issue.severity === 'error')?.message ?? qualityIssues.find(issue => issue.severity === 'warning')?.message}
+                    {qualityIssues.length > 1 && ` 외 ${qualityIssues.length - 1}개`}
                   </p>
-                  {onRequestRegenerate && hasBlockingIssues && (
-                    <button onClick={() => { onClose(); onRequestRegenerate(); }} style={{ marginTop: 8, height: 30, padding: '0 10px', borderRadius: 7, border: 'none', background: '#B91C1C', color: 'white', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>
-                      전체 제목·본문 AI 재작성
+                  {onRequestRegenerate && qualityIssues.some(issue => ['tutorial_title', 'step_title', 'step_script', 'duplicate_title'].includes(issue.code)) && (
+                    <button onClick={() => { onClose(); onRequestRegenerate(); }} style={{ marginTop: 8, height: 30, padding: '0 10px', borderRadius: 7, border: 'none', background: 'linear-gradient(135deg,#009B8E,#12B886)', color: 'white', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>
+                      AI로 문구 다듬기
+                    </button>
+                  )}
+                  {awaitingWarningApproval && (
+                    <button onClick={() => { setWarningApproved(true); void publishNow(); }} disabled={publishing} style={{ marginTop: 8, marginLeft: onRequestRegenerate ? 7 : 0, height: 30, padding: '0 10px', borderRadius: 7, border: '1px solid #D97706', background: 'white', color: '#92400E', fontSize: 11.5, fontWeight: 700, cursor: publishing ? 'not-allowed' : 'pointer' }}>
+                      제안 확인 후 게시
                     </button>
                   )}
                 </>
@@ -301,7 +340,7 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
             <input
               ref={inputRef}
               readOnly
-              value={publishing ? '링크 생성 중...' : sharingBlocked ? '품질 점검을 통과하면 링크가 표시됩니다.' : url}
+              value={publishing ? '링크 생성 중...' : awaitingWarningApproval ? '제안을 확인한 뒤 게시할 수 있습니다.' : sharingBlocked ? '품질 점검을 통과하면 링크가 표시됩니다.' : url}
               style={{
                 flex: 1, minWidth: 0, height: '40px', padding: '0 12px',
                 border: '1.5px solid #E5E7EB', borderRadius: '10px',
@@ -327,6 +366,25 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
               {copied ? '복사됨!' : '링크 복사'}
             </button>
           </div>
+
+          {shareStep && (
+            <button
+              type="button"
+              data-testid="copy-current-step-link"
+              onClick={handleCopyStep}
+              disabled={!stepUrl}
+              aria-label={`${shareStep.number}단계부터 시작하는 링크 복사`}
+              style={{ width: '100%', minHeight: 48, margin: '0 0 14px', padding: '9px 11px', borderRadius: 10, border: `1px solid ${stepCopied ? '#10B981' : '#DDE7E4'}`, background: stepCopied ? '#F0FDF4' : '#F8FFFC', color: '#111827', cursor: stepUrl ? 'pointer' : 'not-allowed', opacity: stepUrl ? 1 : 0.55, display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left' }}
+            >
+              <span style={{ width: 28, height: 28, borderRadius: 8, background: stepCopied ? '#10B981' : '#DFF7EF', color: stepCopied ? 'white' : '#007D72', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                {stepCopied ? <Check size={13} /> : <Link2 size={13} />}
+              </span>
+              <span style={{ minWidth: 0, flex: 1 }}>
+                <strong style={{ display: 'block', fontSize: 12.5 }}>{stepCopied ? '단계 링크를 복사했어요' : `${shareStep.number}단계부터 공유`}</strong>
+                <span style={{ display: 'block', marginTop: 2, fontSize: 11.5, color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{shareStep.title || '받는 사람이 이 단계에서 바로 시작합니다.'}</span>
+              </span>
+            </button>
+          )}
 
           {/* 공개 범위 */}
           <div style={rowStyle}>
@@ -358,11 +416,12 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
 
           {/* 비밀번호 보호 */}
           <div style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch', gap: '0' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0 0', cursor: 'pointer' }}
-              onClick={() => { if (!pwEnabled) setPwExpanded(e => !e); }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0 0', cursor: canProtectSharing || pwEnabled ? 'pointer' : 'default' }}
+              onClick={() => { if (!pwEnabled && canProtectSharing) setPwExpanded(e => !e); }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Lock size={14} style={{ color: pwEnabled ? '#009B8E' : '#9CA3AF' }} />
                 <span style={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}>비밀번호 보호</span>
+                {!canProtectSharing && !pwEnabled && <span style={{ fontSize: '10.5px', color: '#9CA3AF' }}>Basic 이상</span>}
                 {pwEnabled && (
                   <span style={{ fontSize: '10.5px', padding: '1px 7px', borderRadius: '20px', background: '#E8FFF7', color: '#009B8E', fontWeight: 600 }}>
                     {pwSaved ? '변경됨!' : '설정됨'}
@@ -376,11 +435,14 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
                     해제
                   </button>
                 )}
-                {!pwEnabled && (
+                {!pwEnabled && canProtectSharing && (
                   <ChevronDown size={14} style={{ color: '#9CA3AF', transform: pwExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
                 )}
               </div>
             </div>
+            {!canProtectSharing && !pwEnabled && (
+              <a href="/landingpage#pricing" style={{ marginTop: 7, color: '#009B8E', fontSize: 11.5, fontWeight: 700, textDecoration: 'none' }}>플랜 보기</a>
+            )}
             {!pwEnabled && pwExpanded && (
               <div style={{ padding: '10px 0 4px', display: 'flex', gap: '6px' }}>
                 <div style={{ flex: 1, position: 'relative' }}>

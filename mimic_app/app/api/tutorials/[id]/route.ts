@@ -4,8 +4,10 @@ import { createServiceRoleClient } from '@/lib/supabase/server';
 import { tutorialPatchSchema } from '@/lib/validators';
 import { hashPassword } from '@/lib/auth/password';
 import { guardTutorialAccess } from '@/lib/auth/workspace-guard';
-import { isPaidPlan } from '@/lib/plan';
 import { isFreshVoiceAsset } from '@/lib/voice/playback';
+import { requireTutorialEntitlement, requireWorkspaceEntitlement } from '@/lib/auth/entitlement-guard';
+import { hasEntitlement } from '@/lib/entitlements';
+import { entitlementsForPlan } from '@/lib/entitlements';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -34,12 +36,21 @@ export async function GET(request: NextRequest, { params }: Params) {
   }
   const myRole = accessGuard.role;
 
+  let billingUserId = tutorial.user_id;
+  if (tutorial.workspace_id) {
+    const { data: workspace } = await supabase
+      .from('mm_workspaces')
+      .select('owner_id')
+      .eq('id', tutorial.workspace_id)
+      .maybeSingle();
+    billingUserId = workspace?.owner_id ?? billingUserId;
+  }
   const { data: owner } = await supabase
     .from('mm_users')
     .select('plan')
-    .eq('id', tutorial.user_id)
+    .eq('id', billingUserId)
     .single();
-  const voiceEnabled = isPaidPlan(owner?.plan) && tutorial.tts_enabled;
+  const voiceEnabled = hasEntitlement(owner?.plan, 'ai_voice') && tutorial.tts_enabled;
 
   const { data: steps } = await supabase
     .from('mm_steps')
@@ -72,6 +83,7 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   return NextResponse.json({
     ...tutorial,
+    entitlements: entitlementsForPlan(owner?.plan),
     tts_enabled: voiceEnabled,
     my_role: myRole,
     steps: safeSteps,
@@ -106,13 +118,21 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   }
 
   const supabase = createServiceRoleClient();
+  if (typeof parsed.data.workspace_id === 'string') {
+    const workspaceEntitlement = await requireWorkspaceEntitlement(parsed.data.workspace_id, 'team_workspace', supabase);
+    if (!workspaceEntitlement.ok) return workspaceEntitlement.response;
+  }
+  if (typeof parsed.data.share_password === 'string' && parsed.data.share_password.length > 0) {
+    const entitlement = await requireTutorialEntitlement(id, 'protected_sharing', supabase);
+    if (!entitlement.ok) return entitlement.response;
+  }
   if (parsed.data.tts_enabled === true) {
     const { data: user } = await supabase
       .from('mm_users')
       .select('plan')
       .eq('id', auth.userId)
       .single();
-    if (!isPaidPlan(user?.plan)) {
+    if (!hasEntitlement(user?.plan, 'ai_voice')) {
       return NextResponse.json(
         { error: 'AI voice is available on Pro or Team plans.' },
         { status: 403 }
@@ -152,7 +172,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
 
   const supabase = createServiceRoleClient();
 
-  // soft delete — 휴지통으로 이동 (30일 후 Cron이 영구 삭제)
+  // soft delete — 휴지통으로 이동 (7일 후 Cron이 영구 삭제)
   const { error } = await supabase
     .from('mm_tutorials')
     .update({ deleted_at: new Date().toISOString() })

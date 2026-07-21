@@ -93,6 +93,10 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <a className="parro-skip-link" href="#parro-main-content">
+          본문으로 바로가기
+        </a>
+        <span id="parro-main-content" className="parro-main-target" tabIndex={-1} />
         {children}
       </body>
     </html>

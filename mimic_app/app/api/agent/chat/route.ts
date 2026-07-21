@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { QUICK_QUESTIONS } from '@/lib/faq-data';
 import { BRAND_COPY, BRAND_NAME, BRAND_SUPPORT_EMAIL } from '@/lib/brand';
+import { PRODUCT_PLANS } from '@/lib/product-plans';
 
 // ── 정적 FAQ 데이터 ────────────────────────────────────────
 // Haiku API 없이 키워드 매칭으로 응답 — API 비용 0
@@ -23,6 +24,11 @@ const FAQ_DB: Record<string, FAQ> = {
     keywords: ['설치', '확장', '크롬', 'chrome', '프로그램', '다운', '어디서'],
     answer: `${BRAND_COPY.extensionDisplayName}는 Chrome 확장 프로그램입니다.\n\n**설치 방법**\n1. Chrome 웹 스토어에서 "${BRAND_COPY.extensionDisplayName}" 검색\n2. 확장 프로그램 설치\n3. ${BRAND_NAME} 웹앱에서 계정 생성 후 확장과 연결\n\nChromium 기반 브라우저(Edge, Brave)도 지원합니다. Firefox, Safari는 현재 미지원입니다.\n\n👉 [설치 가이드 보기](${HELP_URL})`,
     related: ['record', 'what'],
+  },
+  'desktop': {
+    keywords: ['desktop companion', 'desktop', '데스크톱', '윈도우 앱', 'windows 앱', 'pc 앱', '컴패니언'],
+    answer: `**Desktop Companion 설치 방법**\n1. ${BRAND_NAME} 홈 또는 설정에서 **Desktop 설치**를 선택합니다.\n2. Windows 설치 프로그램을 내려받아 실행합니다.\n3. 설치 화면으로 돌아와 **연결 다시 확인**을 선택합니다.\n4. 상태가 준비됨으로 표시되면 데스크톱 녹화를 시작합니다.\n\nDesktop Companion은 Excel·파일 탐색기·PDF 뷰어처럼 Chrome 밖의 Windows 앱 작업을 기록할 때 사용합니다. Chrome 웹페이지 녹화만 필요하면 ${BRAND_COPY.extensionDisplayName}만 연결하면 됩니다.\n\n👉 [Desktop Companion 설치 화면](/desktop-setup?source=help-bot)`,
+    related: ['install', 'record'],
   },
   'record': {
     keywords: ['녹화', '캡처', '촬영', '어떻게', '만들기', '생성', '시작'],
@@ -51,12 +57,12 @@ const FAQ_DB: Record<string, FAQ> = {
   },
   'price': {
     keywords: ['요금', '가격', '플랜', '유료', '무료', 'pro', 'team', '비용', '얼마'],
-    answer: `**요금제 안내**\n\n**무료**: 일 3회 매뉴얼 생성, 기본 공유, PDF 내보내기, 제한된 라이브 가이드 Beta 사용\n\n**Pro**: 무제한 생성, PDF/PPTX/Word 내보내기, 비밀번호 보호, 학습 가이드·Live Guide Beta 제작\n\n**Team**: Pro 포함 + 팀 워크스페이스, 멤버 관리, 팀 단위 지원\n\nPro/Team 가격 문의: ${BRAND_SUPPORT_EMAIL}\n\n👉 [요금제 상세](${HELP_URL}#plans)`,
+    answer: `**요금제 안내**\n\n**${PRODUCT_PLANS.free.name} (${PRODUCT_PLANS.free.monthlyPrice})**\n${PRODUCT_PLANS.free.features.map(feature => `- ${feature}`).join('\n')}\n\n**${PRODUCT_PLANS.basic.name} (${PRODUCT_PLANS.basic.monthlyPrice}${PRODUCT_PLANS.basic.priceSuffix})**\n${PRODUCT_PLANS.basic.features.map(feature => `- ${feature}`).join('\n')}\n\n**${PRODUCT_PLANS.pro.name} (${PRODUCT_PLANS.pro.monthlyPrice}${PRODUCT_PLANS.pro.priceSuffix})**\n${PRODUCT_PLANS.pro.features.map(feature => `- ${feature}`).join('\n')}\n\n**${PRODUCT_PLANS.team.name} (${PRODUCT_PLANS.team.monthlyPrice})**\n${PRODUCT_PLANS.team.features.map(feature => `- ${feature}`).join('\n')}\n\nTeam 문의: ${BRAND_SUPPORT_EMAIL}\n\n👉 [요금제 상세](${HELP_URL}#plans)`,
     related: ['limit', 'workspace'],
   },
   'limit': {
     keywords: ['한도', '제한', '3회', '일일', '초과', '더 만들', '안돼', '못'],
-    answer: `무료 플랜은 **하루 3회**까지 매뉴얼을 생성할 수 있습니다.\n\n한도 초과 시:\n- 내일 자정에 횟수가 초기화됩니다\n- Pro 플랜 업그레이드 시 매뉴얼 생성 한도를 해제할 수 있습니다\n\n업그레이드 문의: ${BRAND_SUPPORT_EMAIL}\n\n👉 [요금제 보기](${HELP_URL}#plans)`,
+    answer: `무료 플랜은 **하루 3회**까지 매뉴얼을 생성할 수 있습니다.\n\n한도 초과 시:\n- 내일 자정에 횟수가 초기화됩니다\n- Basic 또는 Pro 플랜에서 더 많은 생성 한도를 이용할 수 있습니다\n\n플랜 출시 알림 및 Team 문의: ${BRAND_SUPPORT_EMAIL}\n\n👉 [요금제 보기](${HELP_URL}#plans)`,
     related: ['price'],
   },
   'workspace': {

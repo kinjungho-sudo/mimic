@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Bot, X, Minus, Send, Mail } from 'lucide-react';
+import { X, Minus, Send, Mail } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { BRAND_COLORS, BRAND_NAME } from '@/lib/brand';
+import { ParroMascot } from '@/components/brand/ParroMascot';
 
 const BRAND_GRADIENT = `linear-gradient(135deg, ${BRAND_COLORS.primary}, ${BRAND_COLORS.guide})`;
 const BRAND_RING_STRONG = 'rgba(0,155,142,0.40)';
@@ -116,7 +117,7 @@ export function AgentChat() {
           id: 'welcome',
           role: 'assistant',
           text: `안녕하세요! ${BRAND_NAME} 도움말 봇입니다. 자주 묻는 질문을 고르거나 궁금한 점을 입력해주세요.`,
-          related: (data.quickQuestions ?? []).slice(0, 5),
+          related: (data.quickQuestions ?? []).slice(0, 6),
         }]);
       })
       .catch(() => {
@@ -145,11 +146,15 @@ export function AgentChat() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query, faqId }),
       });
-      const data = await res.json() as { answer: string; related: QuickQ[] };
+      const data = await res.json() as { answer?: string; related?: QuickQ[]; error?: string };
+      if (!res.ok || typeof data.answer !== 'string') {
+        throw new Error(data.error ?? '답변을 불러오지 못했습니다.');
+      }
+      const answer = data.answer;
 
       setMessages(prev => prev.map(m =>
         m.id === assistantId
-          ? { ...m, text: data.answer, related: data.related }
+          ? { ...m, text: answer, related: data.related ?? [] }
           : m
       ));
     } catch {
@@ -174,10 +179,22 @@ export function AgentChat() {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
+  const lastAssistantText = [...messages].reverse().find(message => message.role === 'assistant')?.text ?? '';
+  const hasAssistantError = /오류|실패|문제|불러오지 못|찾지 못/.test(lastAssistantText);
+  const headerMascotState = contactSending || isLoading
+    ? 'search'
+    : contactResult?.ok
+      ? 'success'
+      : contactResult || hasAssistantError
+        ? 'error'
+        : input.trim()
+          ? 'listen'
+          : 'neutral';
+
   // ── 토글 버튼 ──
   if (!isOpen) {
     return (
-      <button onClick={() => setIsOpen(true)} title="도움말 열기"
+      <button onClick={() => setIsOpen(true)} title="도움말 열기" aria-label="도움말 열기"
         style={{
           position: 'fixed', bottom: '24px', right: '24px', zIndex: 9000,
           width: '52px', height: '52px', borderRadius: '50%',
@@ -190,7 +207,7 @@ export function AgentChat() {
         onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.08)'; }}
         onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
       >
-        <Bot size={22} color="white" />
+        <ParroMascot size={42} state="neutral" />
       </button>
     );
   }
@@ -206,11 +223,11 @@ export function AgentChat() {
         padding: '8px 16px 8px 10px', border: '1px solid #E5E7EB',
       }}>
         <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: BRAND_GRADIENT, display: 'grid', placeItems: 'center' }}>
-          <Bot size={15} color="white" />
+          <ParroMascot size={28} state="neutral" />
         </div>
         <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>도움말 봇</span>
         <button onClick={() => setIsMinimized(false)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#9CA3AF', marginLeft: '4px', fontSize: '13px' }}>열기</button>
-        <button onClick={() => { setIsOpen(false); setIsMinimized(false); }} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#9CA3AF' }}><X size={14} /></button>
+        <button aria-label="도움말 닫기" onClick={() => { setIsOpen(false); setIsMinimized(false); }} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#9CA3AF' }}><X size={14} /></button>
       </div>
     );
   }
@@ -224,7 +241,7 @@ export function AgentChat() {
 
   // ── 풀 패널 ──
   return (
-    <div style={{
+    <div role="dialog" aria-modal="false" aria-labelledby="parro-help-title" style={{
       position: 'fixed', bottom: '90px', right: '24px', zIndex: 9000,
       width: 'min(360px, calc(100vw - 32px))', height: 'min(540px, calc(100vh - 120px))',
       background: 'white', borderRadius: '16px',
@@ -239,10 +256,10 @@ export function AgentChat() {
         background: BRAND_GRADIENT, color: 'white',
       }}>
         <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(255,255,255,0.2)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-          <Bot size={15} color="white" />
+          <ParroMascot size={26} state={headerMascotState} />
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: '13px', fontWeight: 700 }}>도움말 봇</div>
+          <div id="parro-help-title" style={{ fontSize: '13px', fontWeight: 700 }}>도움말 봇</div>
           <div style={{ fontSize: '11px', opacity: 0.78, marginTop: '1px' }}>FAQ 기반 빠른 답변</div>
         </div>
         <button onClick={() => { setContactMode(true); setContactResult(null); }}
@@ -250,10 +267,10 @@ export function AgentChat() {
           style={{ background: 'rgba(255,255,255,0.15)', border: 'none', cursor: 'pointer', color: 'white', borderRadius: '6px', padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}>
           <Mail size={12} /> 문의하기
         </button>
-        <button onClick={() => setIsMinimized(true)} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', cursor: 'pointer', color: 'white', borderRadius: '6px', padding: '4px 6px', display: 'grid', placeItems: 'center' }}>
+        <button aria-label="도움말 최소화" onClick={() => setIsMinimized(true)} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', cursor: 'pointer', color: 'white', borderRadius: '6px', padding: '4px 6px', display: 'grid', placeItems: 'center' }}>
           <Minus size={13} />
         </button>
-        <button onClick={() => setIsOpen(false)} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', cursor: 'pointer', color: 'white', borderRadius: '6px', padding: '4px 6px', display: 'grid', placeItems: 'center' }}>
+        <button aria-label="도움말 닫기" onClick={() => setIsOpen(false)} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', cursor: 'pointer', color: 'white', borderRadius: '6px', padding: '4px 6px', display: 'grid', placeItems: 'center' }}>
           <X size={13} />
         </button>
       </div>
@@ -268,7 +285,7 @@ export function AgentChat() {
 
           {contactResult?.ok ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-              <div style={{ fontSize: '36px' }}>✅</div>
+              <ParroMascot size={64} state="success" />
               <p style={{ margin: '0 0 4px', fontSize: '14px', fontWeight: 700, color: '#15803D', textAlign: 'center' }}>문의가 접수되었어요!</p>
               <p style={{ margin: 0, fontSize: '12px', color: '#4B5563', lineHeight: 1.7, textAlign: 'center' }}>
                 답변은 <b>1~3 영업일</b> 내에 이메일로 드립니다.<br />
@@ -393,7 +410,7 @@ export function AgentChat() {
             onFocus={e => { e.currentTarget.style.borderColor = BRAND_COLORS.primary; }}
             onBlur={e => { e.currentTarget.style.borderColor = '#E5E7EB'; }}
           />
-          <button onClick={handleSend} disabled={!input.trim() || isLoading}
+          <button aria-label="질문 보내기" onClick={handleSend} disabled={!input.trim() || isLoading}
             style={{
               width: '36px', height: '36px', borderRadius: '10px', border: 'none',
               background: input.trim() && !isLoading ? BRAND_GRADIENT : '#E5E7EB',

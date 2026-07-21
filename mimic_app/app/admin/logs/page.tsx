@@ -62,6 +62,7 @@ export default function AdminLogsPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(false);
+  const [error, setError] = useState('');
   const qRef = useRef(q);
   qRef.current = q;
 
@@ -75,14 +76,20 @@ export default function AdminLogsPage() {
     const isMore = !!opts?.before;
     if (isMore) setLoadingMore(true); else setLoading(true);
     try {
+      setError('');
       const res = await fetch(`/api/admin/logs?${params.toString()}`);
       const data = await res.json();
-      if (!res.ok) { if (!isMore) setRows([]); return; }
+      if (!res.ok) {
+        if (!isMore) setRows([]);
+        setError(data.error ?? '로그를 불러오지 못했습니다.');
+        return;
+      }
       setRows(prev => isMore ? [...prev, ...(data.rows ?? [])] : (data.rows ?? []));
       setNextCursor(data.nextCursor ?? null);
       if (data.summary) setSummary(data.summary);
     } catch {
       if (!isMore) setRows([]);
+      setError('로그를 불러오지 못했습니다. 네트워크 연결을 확인해주세요.');
     } finally {
       if (isMore) setLoadingMore(false); else setLoading(false);
     }
@@ -99,7 +106,7 @@ export default function AdminLogsPage() {
   }, [autoRefresh, fetchLogs]);
 
   return (
-    <div style={{ padding: '36px 40px' }}>
+    <div className="admin-page" style={{ padding: '36px 40px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
         <div>
           <h1 style={{ fontSize: '22px', fontWeight: 600, margin: '0 0 4px', color: '#0F172A' }}>로그 / 모니터링</h1>
@@ -152,8 +159,9 @@ export default function AdminLogsPage() {
       </div>
 
       {/* 테이블 */}
-      <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '130px 70px 90px 70px 1fr', gap: '12px', padding: '10px 16px', background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', fontSize: '11px', fontWeight: 600, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+      {error && <div role="alert" style={{ marginBottom: '14px', padding: '12px 14px', borderRadius: '8px', background: '#FEF2F2', color: '#B91C1C' }}>{error}</div>}
+      <div className="admin-table-scroll" style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden' }}>
+        <div className="admin-log-row" style={{ display: 'grid', gridTemplateColumns: '130px 70px 90px 70px 1fr', gap: '12px', padding: '10px 16px', background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', fontSize: '11px', fontWeight: 600, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
           <div>시각</div><div>레벨</div><div>카테고리</div><div>소스</div><div>이벤트 / 메시지</div>
         </div>
 
@@ -163,7 +171,7 @@ export default function AdminLogsPage() {
           <div style={{ padding: '40px', textAlign: 'center', color: '#94A3B8', fontSize: '14px' }}>로그가 없습니다.</div>
         ) : rows.map(r => (
           <div key={r.id}>
-            <div onClick={() => setExpanded(expanded === r.id ? null : r.id)} style={{ display: 'grid', gridTemplateColumns: '130px 70px 90px 70px 1fr', gap: '12px', padding: '10px 16px', borderBottom: '1px solid #F1F5F9', fontSize: '12.5px', color: '#334155', cursor: 'pointer', alignItems: 'center' }}>
+            <div className="admin-log-row" onClick={() => setExpanded(expanded === r.id ? null : r.id)} style={{ display: 'grid', gridTemplateColumns: '130px 70px 90px 70px 1fr', gap: '12px', padding: '10px 16px', borderBottom: '1px solid #F1F5F9', fontSize: '12.5px', color: '#334155', cursor: 'pointer', alignItems: 'center' }}>
               <div style={{ color: '#64748B', fontVariantNumeric: 'tabular-nums' }}>{fmtTime(r.created_at)}</div>
               <div><Badge text={r.level} color={LEVEL_COLOR[r.level]} /></div>
               <div><Badge text={r.category} color={CAT_COLOR[r.category] ?? LEVEL_COLOR.debug} /></div>

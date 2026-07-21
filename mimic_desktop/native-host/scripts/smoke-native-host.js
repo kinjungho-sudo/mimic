@@ -1,4 +1,5 @@
 const { spawn } = require("child_process");
+const fs = require("fs");
 const path = require("path");
 
 const hostPath = process.argv[2]
@@ -31,8 +32,12 @@ function decodeAvailable(buffer) {
 }
 
 async function main() {
+  const testDataDir = path.resolve(__dirname, "..", "dist", "native-host-smoke");
+  fs.rmSync(testDataDir, { recursive: true, force: true });
+  fs.mkdirSync(testDataDir, { recursive: true });
   const child = spawn(nodePath, [hostPath], {
     stdio: ["pipe", "pipe", "inherit"],
+    env: { ...process.env, PARRO_DESKTOP_DATA_DIR: testDataDir },
   });
 
   let pending = Buffer.alloc(0);
@@ -52,8 +57,21 @@ async function main() {
     extension_id: "dev-extension",
   }));
   child.stdin.write(encode({
+    type: "PAUSE_CAPTURE_SESSION",
+    capture_session_id: "cap_smoke",
+  }));
+  child.stdin.write(encode({
+    type: "RESUME_CAPTURE_SESSION",
+    capture_session_id: "cap_smoke",
+  }));
+  child.stdin.write(encode({
     type: "STOP_CAPTURE_SESSION",
     capture_session_id: "cap_smoke",
+  }));
+  child.stdin.write(encode({
+    type: "GET_CAPTURE_SESSION",
+    capture_session_id: "cap_smoke",
+    request_id: "summary-1",
   }));
   child.stdin.end();
 
@@ -67,8 +85,15 @@ async function main() {
 
   const types = received.map((message) => message.type);
   if (!types.includes("PONG")) throw new Error("missing PONG");
+  const pong = received.find((message) => message.type === "PONG");
+  if (pong?.version !== "0.5.0") throw new Error(`unexpected desktop version: ${pong?.version || "missing"}`);
   if (!types.includes("CAPTURE_SESSION_STARTED")) throw new Error("missing CAPTURE_SESSION_STARTED");
+  if (!types.includes("CAPTURE_SESSION_PAUSED")) throw new Error("missing CAPTURE_SESSION_PAUSED");
+  if (!types.includes("CAPTURE_SESSION_RESUMED")) throw new Error("missing CAPTURE_SESSION_RESUMED");
   if (!types.includes("CAPTURE_SESSION_STOPPED")) throw new Error("missing CAPTURE_SESSION_STOPPED");
+  const summary = received.find((message) => message.type === "CAPTURE_SESSION");
+  if (!summary || summary.request_id !== "summary-1") throw new Error("missing capture session summary");
+  if (!Array.isArray(summary.events)) throw new Error("capture session events are missing");
 
   console.log(JSON.stringify({ ok: true, nodePath, hostPath, received }, null, 2));
 }

@@ -18,13 +18,14 @@ type StepTargetPatch = {
   element_selector?: string | null;
   element_xpath?: string | null;
   element_rect?: { x: number; y: number; width: number; height: number } | null;
+  target_context?: Record<string, unknown> | null;
   click_x?: number | null;
   click_y?: number | null;
 };
 
 export async function updateStep(
   id: string,
-  patch: { user_title?: string | null; user_script?: string | null; title_font_size?: number | null; user_annotations?: unknown; image_zoom?: number | null; image_offset_x?: number | null; image_offset_y?: number | null; domain_name?: string | null; domain_hostname?: string | null; follow_config?: FollowConfig | null } & StepTargetPatch
+  patch: { user_title?: string | null; user_script?: string | null; image_alt_text?: string | null; title_font_size?: number | null; user_annotations?: unknown; image_zoom?: number | null; image_offset_x?: number | null; image_offset_y?: number | null; domain_name?: string | null; domain_hostname?: string | null; follow_config?: FollowConfig | null } & StepTargetPatch
 ): Promise<void> {
   await apiFetch(`/api/steps/${id}`, {
     method: 'PATCH',
