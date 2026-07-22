@@ -443,7 +443,7 @@
   .coachmarkHeading strong { font-size: 10px; }
   .coachmark p { font-size: 8px; }
   .liveProgress strong { display: none; }
-  .compactScene .recorderWorkspace { grid-template-columns: minmax(0,1fr) 145px; }
+  .compactScene .recorderWorkspace { grid-template-columns: minmax(0,74%) minmax(0,26%); }
   .compactScene .savedSteps { grid-template-columns: 1fr; }
   .editorChrome { height: 34px; padding: 0 8px; }
   .editorAddress { width: 70%; height: 21px; }
@@ -466,6 +466,26 @@
   .savedToast { right: 10px; bottom: 10px; min-width: 220px; }
 }
 
+.parroMark { overflow: hidden; color: transparent; background: #f1fffb; }
+.parroMark img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.savedStep { grid-template-columns: 48px 28px minmax(0,1fr); }
+.stepThumbnail { display: block; width: 48px; height: 30px; border: 1px solid #dce7e4; border-radius: 6px; background: #eef3f2; object-fit: cover; object-position: top left; }
+.guideCoach .guideAvatar { opacity: 1; transform: none; animation: none !important; }
+
+@media (max-width: 700px) {
+  .compactScene .recorderPanel { overflow: hidden; padding: 7px 5px; }
+  .compactScene .recorderHeader { justify-content: center; padding-bottom: 7px; }
+  .compactScene .recorderHeader strong { display: none; }
+  .compactScene .recordingState, .compactScene .readyState, .compactScene .buildingState { gap: 0; font-size: 0; }
+  .compactScene .recordingTitle, .compactScene .autoSave { display: none; }
+  .compactScene .savedStep { position: relative; display: block; min-width: 0; overflow: hidden; padding: 3px; }
+  .compactScene .stepThumbnail { width: 100%; height: auto; aspect-ratio: 16 / 9; }
+  .compactScene .savedStep > span { position: absolute; left: 6px; top: 6px; width: 14px; height: 14px; border-radius: 4px; font-size: 6px; box-shadow: 0 1px 4px rgba(16,35,31,.18); }
+  .compactScene .savedStep > div { display: none; }
+  .compactScene .finishArea > span { display: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .targetBox, .pointer, .clickPulse, .guideCoach, .guideAvatar, .captureBadge::before, .savedStep, .editorAnnotation, .generatingCard, .generatingCard em, .savedToast, .fieldEditing i, .editingText i, .shareDemoLayer, .shareDemoModal, .finishPointer, .finishClickPulse, .manualBuildOverlay, .panelGeneratingContent em { animation: none !important; }
+  .savedToast { display: none !important; }
 }
