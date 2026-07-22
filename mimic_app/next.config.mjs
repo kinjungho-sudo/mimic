@@ -3,6 +3,15 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['@pdf-lib/fontkit', 'pptxgenjs', '@resvg/resvg-js'],
   },
+  async redirects() {
+    return [
+      {
+        source: '/',
+        destination: '/landingpage',
+        permanent: false,
+      },
+    ];
+  },
   async headers() {
     return [
       {
