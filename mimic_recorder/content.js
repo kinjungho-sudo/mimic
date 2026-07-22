@@ -307,24 +307,48 @@
   }
 
   // ── 필드 레이블 추출 ─────────────────────────────────────────────
+  function isInstructionalAccessibilityLabel(value) {
+    const text = String(value || '').replace(/\s+/g, ' ').trim();
+    if (!text) return false;
+    if (/비어\s*있|입력하여|작성해\s*보세요|입력해\s*보세요|선택해\s*보세요|클릭해\s*보세요|입력하세요|작성하세요|선택하세요|클릭하세요|확인하세요/.test(text)) return true;
+    if (/\b(?:type|enter|write|compose|click|select)\b.{0,48}\b(?:to|here|below|new|your)\b/i.test(text)) return true;
+    return text.length >= 28 && /(?:입력|작성|게시물|댓글|메시지).*(?:하세요|보세요|있습니다)/.test(text);
+  }
+
+  function semanticFieldLabel(value) {
+    const text = String(value || '').replace(/\s+/g, ' ').trim();
+    if (/댓글|답글|comment|reply/i.test(text)) return '댓글 내용';
+    if (/게시물|새\s*소식|새로운\s*소식|post|thread/i.test(text)) return '게시물 내용';
+    if (/검색|search/i.test(text)) return '검색어';
+    if (/메일|메시지|message|mail/i.test(text)) return '메시지 내용';
+    return '입력 내용';
+  }
+
   function getFieldLabel(el) {
     if (document.designMode === 'on' && el === document.body) return '본문';
     if (el.id) {
       const label = document.querySelector(`label[for="${CSS.escape(el.id)}"]`);
-      if (label) return label.textContent.trim().slice(0, 60);
+      if (label) {
+        const text = label.textContent.trim();
+        if (text) return isInstructionalAccessibilityLabel(text) ? semanticFieldLabel(text) : text.slice(0, 60);
+      }
     }
     const parentLabel = el.closest('label');
     if (parentLabel) {
-      const text = parentLabel.textContent.trim().slice(0, 60);
-      if (text) return text;
+      const text = parentLabel.textContent.trim();
+      if (text) return isInstructionalAccessibilityLabel(text) ? semanticFieldLabel(text) : text.slice(0, 60);
     }
-    return (
-      el.getAttribute('aria-label') ||
-      el.getAttribute('placeholder') ||
-      el.getAttribute('title') ||
-      el.getAttribute('name') ||
-      '텍스트'
-    ).trim().slice(0, 60);
+    const ariaLabel = el.getAttribute('aria-label') || '';
+    const candidates = [
+      el.getAttribute('placeholder'),
+      ariaLabel,
+      el.getAttribute('title'),
+      el.getAttribute('name'),
+    ];
+    const concise = candidates.find(value => value && !isInstructionalAccessibilityLabel(value));
+    if (concise) return concise.trim().slice(0, 60);
+    if (ariaLabel) return semanticFieldLabel(ariaLabel);
+    return '입력 내용';
   }
 
   // ── PII 블러 ──────────────────────────────────────────────────────
@@ -343,7 +367,7 @@
     const editor = node.closest?.(
       '[contenteditable="true"],[contenteditable="plaintext-only"],[role="textbox"],.ProseMirror,.ql-editor,.se2_inputarea,.se_editArea,.note-editable,[data-contents="true"]'
     );
-    if (editor && editor.isContentEditable) {
+    if (editor && (editor.isContentEditable || editor.matches('[role="textbox"],.ProseMirror,.ql-editor,.se2_inputarea,.se_editArea,.note-editable,[data-contents="true"]'))) {
       return editor;
     }
     if (node.isContentEditable) {
@@ -1044,6 +1068,11 @@
     if (!el || el === document.documentElement) return null;
     if (document.designMode === 'on') return document.body;
 
+    // 입력창 내부의 클릭은 바깥쪽 클릭 핸들러보다 실제 편집 대상을 우선한다.
+    // 그렇지 않으면 포커스 클릭과 이어지는 입력이 서로 다른 두 단계로 기록된다.
+    const editableTarget = getEditableTarget(el);
+    if (editableTarget) return editableTarget;
+
     const candidates = eventElementPath(el, event)
       .map((candidate, index) => ({ element: candidate, ...targetFacts(candidate, event, index) }))
       .filter(candidate => candidate.facts.nativeInteractive || candidate.facts.semanticRole || candidate.facts.hasClickHandler || candidate.facts.pointerCursor);
@@ -1127,19 +1156,15 @@
   function bestLabelFrom(el) {
     if (!el || !el.getAttribute) return '';
     const raw = collectLabelCandidates(el);
-    const specific = [
-      raw.labelledBy,
-      raw.associatedLabel,
-      raw.ariaLabel,
-      raw.title,
-      raw.describedBy,
-      raw.directText,
-      raw.rawText,
-      raw.placeholder,
-      raw.value,
-      raw.name,
-      raw.googleFileTitle,
-    ].find(v => v && !isGenericLabel(v));
+    const editable = !!getEditableTarget(el);
+    const ordered = editable
+      ? [raw.labelledBy, raw.associatedLabel, raw.placeholder, raw.ariaLabel, raw.title, raw.name, raw.describedBy, raw.directText, raw.rawText, raw.value, raw.googleFileTitle]
+      : [raw.labelledBy, raw.associatedLabel, raw.ariaLabel, raw.title, raw.describedBy, raw.directText, raw.rawText, raw.placeholder, raw.value, raw.name, raw.googleFileTitle];
+    const specific = ordered.find(v => v && !isGenericLabel(v) && !isInstructionalAccessibilityLabel(v));
+    if (!specific && editable) {
+      const instructional = [raw.ariaLabel, raw.placeholder, raw.describedBy].find(isInstructionalAccessibilityLabel);
+      if (instructional) return semanticFieldLabel(instructional);
+    }
     return specific || raw.googleFileTitle || raw.directText || raw.rawText || raw.ariaLabel || raw.title || raw.role || '';
   }
 
@@ -1531,6 +1556,7 @@
   }
 
   function getActionType(el) {
+    if (getEditableTarget(el)) return 'focus_input';
     const tag  = el.tagName.toLowerCase();
     const type = el.getAttribute('type') || '';
     if (tag === 'a') return 'navigate';
@@ -1959,6 +1985,10 @@
     eventElement: (event) => eventElementPath(event?.target, event)[0] || event?.target || null,
     findInteractiveTarget,
     refineActionTarget,
+    getEditableTarget,
+    getActionType,
+    getElementLabel,
+    getFieldLabel,
     replaySelector,
   });
 

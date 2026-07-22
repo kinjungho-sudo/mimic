@@ -3,7 +3,7 @@ import { requireExtensionToken } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { captureFinalizeSchema } from '@/lib/validators';
 import { analyzeScreenshot, generateStepDescription, generateDraft, extractCoverColors, detectPII, cleanTranscripts } from '@/lib/ai/claude';
-import { buildCaptureAnnotationLabel, buildCaptureFallbackDraft, buildCaptureFallbackTutorialTitle, cleanCaptureTypeText, isCaptureTitleGrounded, isCaptureTutorialTitleGrounded, isLowQualityCaptureLabel, isLowQualityCaptureScript, isUsableCaptureDraft, type CaptureFallbackActionInfo } from '@/lib/ai/capture-fallback';
+import { buildCaptureAnnotationLabel, buildCaptureFallbackDraft, buildCaptureFallbackTutorialTitle, cleanCaptureTypeText, isCaptureTitleGrounded, isCaptureTutorialTitleGrounded, isInstructionalAccessibilityText, isLowQualityCaptureLabel, isLowQualityCaptureScript, isUsableCaptureDraft, type CaptureFallbackActionInfo } from '@/lib/ai/capture-fallback';
 import { resolveFavicon } from '@/lib/favicon';
 import { buildClickHighlight } from '@/lib/annotations';
 import { transcribeAudio, assignSegmentsToSteps, computeStepWindows } from '@/lib/voice/voice';
@@ -40,11 +40,49 @@ async function fetchScreenshotForAi(url: string): Promise<{ base64: string; medi
 
 function cleanActionInfoForDraft(actionInfo: CaptureFallbackActionInfo): CaptureFallbackActionInfo {
   if (!actionInfo) return actionInfo;
+  // 원문은 의미 분류(예: 긴 게시물 작성 안내 → 게시물 내용)에만 사용한다.
+  // buildCaptureFallbackDraft가 표시 후보에서는 저품질 값을 제거하므로 그대로 보존한다.
   return {
     ...actionInfo,
-    label: isLowQualityCaptureLabel(actionInfo.label) ? undefined : actionInfo.label,
-    text: isLowQualityCaptureLabel(actionInfo.text) ? undefined : actionInfo.text,
+    targetContext: actionInfo.targetContext ? { ...actionInfo.targetContext } : undefined,
   };
+}
+
+function actionLabelValues(event: Record<string, unknown>): string[] {
+  const actionInfo = (event.action_info as CaptureFallbackActionInfo) ?? null;
+  return [
+    actionInfo?.label,
+    actionInfo?.text,
+    actionInfo?.targetContext?.accessibleName,
+    actionInfo?.targetContext?.contextLabel,
+    event.element_text as string | null,
+  ].map(value => String(value ?? '').replace(/\s+/g, ' ').trim()).filter(Boolean);
+}
+
+function rectsOverlap(a: unknown, b: unknown): boolean {
+  const first = a as { x?: number; y?: number; width?: number; height?: number } | null;
+  const second = b as { x?: number; y?: number; width?: number; height?: number } | null;
+  if (!first || !second || [first.x, first.y, first.width, first.height, second.x, second.y, second.width, second.height].some(value => typeof value !== 'number')) return false;
+  const overlapWidth = Math.min(first.x! + first.width!, second.x! + second.width!) - Math.max(first.x!, second.x!);
+  const overlapHeight = Math.min(first.y! + first.height!, second.y! + second.height!) - Math.max(first.y!, second.y!);
+  return overlapWidth > 0 && overlapHeight > 0;
+}
+
+function isInputFocusDuplicate(current: Record<string, unknown>, next: Record<string, unknown> | undefined): boolean {
+  if (!next || current.url !== next.url) return false;
+  const currentAction = (current.action_info as { type?: string } | null)?.type ?? 'click';
+  const nextAction = (next.action_info as { type?: string } | null)?.type ?? 'click';
+  if (!['click', 'focus_input'].includes(currentAction) || nextAction !== 'type') return false;
+  if (!actionLabelValues(current).some(isInstructionalAccessibilityText)) return false;
+
+  const elapsed = new Date(next.created_at as string).getTime() - new Date(current.created_at as string).getTime();
+  if (!Number.isFinite(elapsed) || elapsed < 0 || elapsed > 15_000) return false;
+  const currentSelector = String(current.element_selector ?? '').trim();
+  const nextSelector = String(next.element_selector ?? '').trim();
+  const sharedLabel = actionLabelValues(current).some(label => actionLabelValues(next).includes(label));
+  return (currentSelector && currentSelector === nextSelector)
+    || rectsOverlap(current.element_rect, next.element_rect)
+    || sharedLabel;
 }
 
 type GuideStepType =
@@ -183,7 +221,7 @@ export async function POST(request: NextRequest) {
   //   1) 동일 screenshot_url 연속 → 첫 번째만 유지
   //   2) 동일 page_url + created_at 차이 500ms 미만 연속 → 마지막만 유지 (타이핑 덮어쓰기)
   //   3) screenshot_url 없는 이벤트 제거
-  const deduped = liveEvents.filter((ev, i, arr) => {
+  const dedupedByFrame = liveEvents.filter((ev, i, arr) => {
     const prev = arr[i - 1];
     if (!prev) return true;
     // 동일 screenshot_url 연속 제거 (첫 번째 유지)
@@ -200,6 +238,11 @@ export async function POST(request: NextRequest) {
     ) return false;
     return true;
   });
+  // 접근성 안내 문장을 입력창 이름으로 오인한 구버전 기록도 복구한다.
+  // 같은 입력 대상의 포커스 클릭 뒤 실제 입력 이벤트가 오면 클릭 단계만 제거한다.
+  const deduped = dedupedByFrame.filter((ev, index, eventsForSession) => (
+    !isInputFocusDuplicate(ev as Record<string, unknown>, eventsForSession[index + 1] as Record<string, unknown> | undefined)
+  ));
 
   // 튜토리얼 생성
   // Actual title is updated after AI draft generation.

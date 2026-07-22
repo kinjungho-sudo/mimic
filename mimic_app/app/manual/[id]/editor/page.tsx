@@ -121,6 +121,8 @@ export default function EditorPage() {
   const tempIdCounter = useRef(0);
   const refineAbortRef = useRef<AbortController | null>(null);
   const refineCancelReasonRef = useRef<'user' | 'timeout' | null>(null);
+  const autoRefineTutorialRef = useRef<string | null>(null);
+  const titleDirtyRef = useRef(false);
   const [tocSelectedIds, setTocSelectedIds] = useState<Set<string>>(new Set());
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [autoGenProgress, setAutoGenProgress] = useState<{ done: number; total: number } | null>(null);
@@ -379,8 +381,12 @@ export default function EditorPage() {
   // Autosave title
   useAutosave(id, titleDirty ? { title } : null);
 
+  useEffect(() => {
+    titleDirtyRef.current = titleDirty;
+  }, [titleDirty]);
+
   // 기존 매뉴얼까지 목적 중심 제목·본문으로 다시 생성한다.
-  const refineAllText = useCallback(async () => {
+  const refineAllText = useCallback(async (options: { automatic?: boolean } = {}) => {
     if (refineAbortRef.current) return;
     if (!manualSteps.some(step => !step.id.startsWith('step-'))) {
       setRegenerateNotice('AI로 다시 작성할 저장된 단계가 없습니다. 잠시 후 다시 시도해주세요.');
@@ -395,7 +401,7 @@ export default function EditorPage() {
       controller.abort();
     }, 45_000);
     setRefiningText(true);
-    setRegenerateNotice(null);
+    setRegenerateNotice(options.automatic ? 'AI가 녹화 내용을 목적 중심 제목과 설명으로 정리하고 있습니다.' : null);
     setRegenerateFailed(false);
     try {
       const res = await fetch(`/api/tutorials/${id}/regenerate-content`, {
@@ -408,12 +414,19 @@ export default function EditorPage() {
       const regenerated = new Map<string, { user_title: string; user_script: string }>(
         (Array.isArray(data.steps) ? data.steps : []).map((step: { id: string; user_title: string; user_script: string }) => [step.id, step])
       );
-      const next = manualSteps.map(step => {
-        const copy = regenerated.get(step.id);
-        return copy ? { ...step, actionTitle: copy.user_title, description: copy.user_script } : step;
-      });
-      setManualStepsWithHistory(next);
-      if (data.title) {
+      if (options.automatic) {
+        setManualSteps(current => current.map(step => {
+          const copy = regenerated.get(step.id);
+          return copy ? { ...step, actionTitle: copy.user_title, description: copy.user_script } : step;
+        }));
+      } else {
+        const next = manualSteps.map(step => {
+          const copy = regenerated.get(step.id);
+          return copy ? { ...step, actionTitle: copy.user_title, description: copy.user_script } : step;
+        });
+        setManualStepsWithHistory(next);
+      }
+      if (data.title && (!options.automatic || !titleDirtyRef.current)) {
         setTitle(data.title);
         setTitleDirty(false);
       }
@@ -436,6 +449,18 @@ export default function EditorPage() {
       setRefiningText(false);
     }
   }, [id, manualSteps, setManualStepsWithHistory]);
+
+  // 녹화 직후에는 결정적 초안을 즉시 보여준 뒤, 가능한 플랜에서 AI 정리를 비동기로 이어간다.
+  useEffect(() => {
+    if (!isRecordingFinalizeView || !canUseAiRewrite || !tutorial?.id || loading) return;
+    if (manualSteps.length === 0 || !manualSteps.some(step => !step.id.startsWith('step-'))) return;
+    if (autoRefineTutorialRef.current === tutorial.id) return;
+    const sessionKey = `parro:auto-refine:${tutorial.id}`;
+    if (window.sessionStorage.getItem(sessionKey)) return;
+    autoRefineTutorialRef.current = tutorial.id;
+    window.sessionStorage.setItem(sessionKey, '1');
+    void refineAllText({ automatic: true });
+  }, [canUseAiRewrite, isRecordingFinalizeView, loading, manualSteps, refineAllText, tutorial?.id]);
 
   const handleRefineAllText = useCallback(() => {
     setShowRefineConfirm(true);
