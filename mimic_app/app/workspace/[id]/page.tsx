@@ -267,7 +267,7 @@ export default function WorkspacePage() {
                 <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: '10px', background: isMe ? '#F9FAFB' : 'transparent' }}>
                   {m.user?.avatar_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={m.user.avatar_url} alt={m.user.name} style={{ width: '34px', height: '34px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                    <img src={m.user.avatar_url} alt={m.user.name} width={34} height={34} loading="lazy" decoding="async" style={{ width: '34px', height: '34px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
                   ) : (
                     <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: `linear-gradient(135deg, ${BRAND_COLORS.primary}, ${BRAND_COLORS.guide})`, color: 'white', display: 'grid', placeItems: 'center', fontSize: '13px', fontWeight: 700, flexShrink: 0 }}>{initial}</div>
                   )}

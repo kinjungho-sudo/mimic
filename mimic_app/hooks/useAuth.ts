@@ -20,9 +20,14 @@ export function useAuth(): AuthState {
   useEffect(() => {
     const supabase = createClient();
     let cancelled = false;
+    let appliedUserId: string | null | undefined;
 
     const applySession = (session: Session | null) => {
       if (cancelled) return;
+
+      const nextUserId = session?.user?.id ?? null;
+      if (appliedUserId === nextUserId) return;
+      appliedUserId = nextUserId;
 
       if (!session?.user) {
         setUser(null);
@@ -35,9 +40,9 @@ export function useAuth(): AuthState {
       setLoading(false);
 
       getCurrentUser().then(profile => {
-        if (!cancelled) setUser(profile ?? authUser);
+        if (!cancelled && appliedUserId === authUser.id) setUser(profile ?? authUser);
       }).catch(() => {
-        if (!cancelled) setUser(authUser);
+        if (!cancelled && appliedUserId === authUser.id) setUser(authUser);
       });
     };
 
@@ -45,25 +50,25 @@ export function useAuth(): AuthState {
       if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
         applySession(session);
       } else if (event === 'SIGNED_OUT') {
+        appliedUserId = null;
         setUser(null);
         setLoading(false);
       }
     });
 
-    const fallback = setTimeout(() => {
-      supabase.auth.getSession()
-        .then(({ data: { session } }) => applySession(session))
-        .catch(() => {
-          if (!cancelled) {
-            setUser(null);
-            setLoading(false);
-          }
-        });
-    }, 4000);
+    // 세션은 브라우저 저장소에서 읽을 수 있으므로 INITIAL_SESSION 이벤트를
+    // 오래 기다리지 않고 즉시 복원한다. 동일 세션은 applySession에서 중복 처리하지 않는다.
+    void supabase.auth.getSession()
+      .then(({ data: { session } }) => applySession(session))
+      .catch(() => {
+        if (!cancelled) {
+          setUser(null);
+          setLoading(false);
+        }
+      });
 
     return () => {
       cancelled = true;
-      clearTimeout(fallback);
       subscription.unsubscribe();
     };
   }, []);

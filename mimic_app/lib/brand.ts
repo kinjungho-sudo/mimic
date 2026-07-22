@@ -6,7 +6,7 @@ export const BRAND_TAGLINE = 'AI Live Guide for hands-on training';
 export const BRAND_DESCRIPTION =
   'Parro helps instructors and teams turn hands-on software workflows into step-by-step live guidance.';
 
-// Interim public contact until a Parro custom-domain mailbox is provisioned.
+// Interim public contact until a verified Parro mailbox is provisioned.
 export const BRAND_SUPPORT_EMAIL = 'kinjungho@gmail.com';
 export const BRAND_APP_URL_FALLBACK = 'https://mimic-nine-ashen.vercel.app';
 export const BRAND_LOGO_IMAGE_PATH = '/brand/parro-mark.png';

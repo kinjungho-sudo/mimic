@@ -4,7 +4,7 @@ export const PRODUCT_PLANS = {
     monthlyPrice: '₩0',
     yearlyMonthlyPrice: '₩0',
     priceSuffix: '',
-    features: ['매일 매뉴얼 3개', 'Parro Recorder 확장 설치', '텍스트·도형 편집', '링크 공유 + PDF', '500MB 저장 공간'],
+    features: ['매일 매뉴얼 3개', '클릭 동작 자동 캡처', '텍스트·도형 편집', '링크 공유 + PDF', '500MB 저장 공간'],
   },
   basic: {
     name: 'Basic',
