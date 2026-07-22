@@ -27,6 +27,12 @@ const SCENES = [
   },
 ] as const;
 
+const STEP_PREVIEWS = [
+  '/help/dashboard.png',
+  '/help/product-overview.png',
+  '/help/share-player.png',
+] as const;
+
 function usePlayback(rootMargin = '80px') {
   const ref = useRef<HTMLDivElement>(null);
   const [inView, setInView] = useState(false);
@@ -60,7 +66,7 @@ function usePlayback(rootMargin = '80px') {
     return () => observer.disconnect();
   }, [rootMargin]);
 
-  return { ref, playing: inView && !reducedMotion, reducedMotion, duration: mobile ? 5600 : 7200 };
+  return { ref, playing: inView && !reducedMotion, reducedMotion, mobile, duration: mobile ? 5600 : 7200 };
 }
 
 function BrowserChrome({ url, recording = false }: { url: string; recording?: boolean }) {
@@ -81,10 +87,10 @@ function Pointer() {
   );
 }
 
-export function RecordingScene({ reducedMotion = false }: SceneProps) {
+export function RecordingScene({ compact = false, reducedMotion = false }: SceneProps) {
   const steps = ['문서 열기', '메뉴 펼치기', '공유 버튼 클릭'];
   return (
-    <div className={`${styles.scene} ${styles.recordingScene} ${reducedMotion ? styles.staticScene : ''}`}>
+    <div className={`${styles.scene} ${styles.recordingScene} ${compact ? styles.compactScene : ''} ${reducedMotion ? styles.staticScene : ''}`}>
       <BrowserChrome url="docs.company.com/onboarding" recording />
       <div className={styles.recordingBody}>
         <div className={styles.workSurface}>
@@ -100,12 +106,13 @@ export function RecordingScene({ reducedMotion = false }: SceneProps) {
           </div>
         </div>
         <aside className={styles.recorderPanel}>
-          <div className={styles.panelBrand}><span className={styles.parroMark}>P</span><strong>Parro Recorder</strong></div>
+          <div className={styles.panelBrand}><span className={styles.parroMark}><Image src="/brand/parro-mark.svg" alt="" width={22} height={22} /></span><strong>Parro Recorder</strong></div>
           <div className={styles.panelStatus}><span><i /> 녹화 중</span><b>자동 저장</b></div>
           <p>캡처된 스텝</p>
           <div className={styles.stepList}>
             {steps.map((step, index) => (
               <div className={styles.recordStep} style={{ '--step': index } as React.CSSProperties} key={step}>
+                <Image className={styles.stepThumbnail} src={STEP_PREVIEWS[index]} alt="" width={72} height={44} sizes="72px" />
                 <span>{index + 1}</span><div><strong>{step}</strong><small>클릭 위치와 화면 저장됨</small></div><em>✓</em>
               </div>
             ))}
@@ -123,7 +130,7 @@ export function EditingScene({ reducedMotion = false }: SceneProps) {
       <BrowserChrome url="app.parro.so/manual/onboarding/edit" />
       <div className={styles.editorBody}>
         <aside className={styles.editorSteps}>
-          <div className={styles.panelBrand}><span className={styles.parroMark}>P</span><strong>온보딩 매뉴얼</strong></div>
+          <div className={styles.panelBrand}><span className={styles.parroMark}><Image src="/brand/parro-mark.svg" alt="" width={22} height={22} /></span><strong>온보딩 매뉴얼</strong></div>
           {['문서 열기', '메뉴 펼치기', '공유 버튼 클릭', '링크 복사'].map((step, index) => <div className={index === 2 ? styles.activeEditorStep : ''} key={step}><span>{index + 1}</span>{step}</div>)}
         </aside>
         <main className={styles.editorCanvas}>
@@ -188,7 +195,7 @@ export function HeroRecordingDemo() {
 }
 
 export function ProductDemo() {
-  const { ref, playing, reducedMotion, duration } = usePlayback();
+  const { ref, playing, reducedMotion, mobile, duration } = usePlayback();
   const [active, setActive] = useState(0);
   const [cycle, setCycle] = useState(0);
 
@@ -198,19 +205,19 @@ export function ProductDemo() {
   }, []);
 
   useEffect(() => {
-    if (!playing) return;
+    if (!playing || mobile) return;
     const timer = window.setTimeout(() => {
       setActive(current => (current + 1) % SCENES.length);
       setCycle(value => value + 1);
     }, duration);
     return () => window.clearTimeout(timer);
-  }, [active, cycle, duration, playing]);
+  }, [active, cycle, duration, mobile, playing]);
 
   const Scene = active === 0 ? RecordingScene : active === 1 ? EditingScene : LiveGuideScene;
 
   return (
     <section id="tour" className={styles.productSection}>
-      <div ref={ref} className={styles.productInner} data-playing={playing}>
+      <div ref={ref} className={styles.productInner} data-playing={playing && !mobile}>
         <div className={styles.sectionHeading}>
           <span>Product demo</span>
           <h2>기록부터 실행까지, 한 흐름으로 보세요</h2>
@@ -226,10 +233,10 @@ export function ProductDemo() {
         <div className={styles.stageShell}>
           <div className={styles.sceneCopy}><span>0{active + 1}</span><div><h3>{SCENES[active].title}</h3><p>{SCENES[active].caption}</p></div></div>
           <div id="product-demo-panel" role="tabpanel" aria-labelledby={`product-demo-tab-${active}`} className={styles.stage} aria-live="polite">
-            <Scene key={`${active}-${cycle}`} reducedMotion={reducedMotion} />
+            <Scene key={`${active}-${cycle}`} reducedMotion={reducedMotion || mobile} />
           </div>
         </div>
-        <p className={styles.motionNote}>{reducedMotion ? '모션 감소 설정에 따라 핵심 화면만 표시합니다.' : '장면은 자동으로 전환됩니다. 탭을 눌러 직접 살펴볼 수도 있습니다.'}</p>
+        <p className={styles.motionNote}>{reducedMotion ? '모션 감소 설정에 따라 핵심 화면만 표시합니다.' : mobile ? '모바일에서는 탭을 눌러 장면을 직접 살펴보세요.' : '장면은 자동으로 전환됩니다. 탭을 눌러 직접 살펴볼 수도 있습니다.'}</p>
       </div>
     </section>
   );
