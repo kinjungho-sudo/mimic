@@ -373,6 +373,7 @@ function EditorChrome({ saved }: { saved: boolean }) {
 function SharedViewerScene({ reducedMotion }: { reducedMotion: boolean }) {
   const [viewMode, setViewMode] = useState<'document' | 'slides'>('document');
   const [slideIndex, setSlideIndex] = useState(0);
+  const issueButtonRect = DEMO_STEPS[1].rect;
 
   useEffect(() => {
     if (reducedMotion) return;
@@ -433,7 +434,15 @@ function SharedViewerScene({ reducedMotion }: { reducedMotion: boolean }) {
               <div className={styles.slideChapter}><span>Step {slideIndex + 1}</span><strong>{DEMO_STEPS[slideIndex].title}</strong></div>
               <div className={styles.slideImageFrame}>
                 <img src={DEMO_STEPS[slideIndex].screenshotUrl} alt="" draggable={false} />
-                <div className={styles.slideAnnotation} />
+                <div
+                  className={styles.slideAnnotation}
+                  style={{
+                    left: `${issueButtonRect.x}%`,
+                    top: `${issueButtonRect.y}%`,
+                    width: `${issueButtonRect.width}%`,
+                    height: `${issueButtonRect.height}%`,
+                  }}
+                />
               </div>
               <div className={styles.slideControls}><span>‹</span><strong>{slideIndex + 1} / {DEMO_STEPS.length}</strong><span>›</span></div>
             </div>

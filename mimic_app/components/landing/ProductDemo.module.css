@@ -128,12 +128,12 @@
 .liveProgress strong { margin-left: auto; color: #00897d; font-size: 9px; }
 
 .editorTimeline { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; margin: 0 0 22px; }
-.editorTimeline button { display: grid; grid-template-columns: 34px minmax(0,1fr); align-items: center; gap: 9px; min-width: 0; padding: 11px 12px; border: 1px solid #dce6e3; border-radius: 14px; text-align: left; color: #77847f; background: rgba(255,255,255,.82); cursor: pointer; transition: border-color .2s ease, background .2s ease, transform .2s ease; }
+.editorTimeline button { display: grid; grid-template-columns: 40px minmax(0,1fr); align-items: center; gap: 11px; min-width: 0; min-height: 80px; padding: 12px 14px; border: 1px solid #dce6e3; border-radius: 14px; text-align: left; color: #77847f; background: rgba(255,255,255,.82); cursor: pointer; transition: border-color .2s ease, background .2s ease, transform .2s ease; }
 .editorTimeline button:hover { transform: translateY(-2px); }
-.editorTimeline button > span { display: grid; width: 31px; height: 31px; place-items: center; border-radius: 10px; color: #6f7e79; background: #edf3f1; font-size: 11px; font-weight: 900; }
+.editorTimeline button > span { display: grid; width: 38px; height: 38px; place-items: center; border-radius: 11px; color: #6f7e79; background: #edf3f1; font-size: 13px; font-weight: 900; }
 .editorTimeline button strong, .editorTimeline button small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.editorTimeline button strong { margin-bottom: 3px; color: #2b3633; font-size: 11px; }
-.editorTimeline button small { font-size: 8.5px; }
+.editorTimeline button strong { margin-bottom: 4px; color: #2b3633; font-size: 14px; line-height: 1.25; }
+.editorTimeline button small { display: -webkit-box; color: #687671; font-size: 11px; line-height: 1.35; white-space: normal; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .editorTimeline .activeEditorPhase { border-color: rgba(0,155,142,.4); color: #45736c; background: #eafff8; box-shadow: 0 10px 25px rgba(0,155,142,.1); }
 .editorTimeline .activeEditorPhase > span { color: #fff; background: #009b8e; }
 .editorTimeline .activeEditorPhase strong { color: #006d64; }
@@ -246,7 +246,7 @@
 .slideImageFrame > img { display: block; width: auto; max-width: 100%; max-height: 300px; border-radius: 8px; box-shadow: 0 12px 30px rgba(0,0,0,.4); animation: slideAdvance .42s cubic-bezier(.2,.75,.3,1) both; }
 .slideChapter { position: absolute; z-index: 2; left: 14px; top: 12px; display: flex; align-items: center; gap: 6px; max-width: calc(100% - 28px); padding: 5px 8px; border-radius: 7px; color: #111827; background: rgba(255,255,255,.94); box-shadow: 0 6px 18px rgba(0,0,0,.24); }
 .slideChapter span { padding: 2px 5px; border-radius: 999px; color: #fff; background: #009b8e; font-size: 10px; }.slideChapter strong { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.slideAnnotation { position: absolute; z-index: 3; right: 5.5%; top: 65%; width: 28%; height: 9%; border: 3px solid #ff6259; border-radius: 7px; box-shadow: 0 5px 16px rgba(255,98,89,.3); }
+.slideAnnotation { position: absolute; z-index: 3; box-sizing: border-box; border: 3px solid #ff6259; border-radius: 7px; box-shadow: 0 5px 16px rgba(255,98,89,.3); pointer-events: none; }
 .slideControls { position: absolute; left: 50%; bottom: 11px; display: flex; align-items: center; gap: 16px; color: rgba(255,255,255,.74); transform: translateX(-50%); }
 .slideControls span { display: grid; width: 26px; height: 26px; place-items: center; border-radius: 50%; background: rgba(255,255,255,.1); font-size: 13px; }.slideControls strong { font-size: 10px; }
 .editorAppBar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; height: 50px; padding: 0 15px; border-bottom: 1px solid #dfe7e5; background: #fff; }
@@ -427,7 +427,9 @@
   .flowTabs button { padding: 10px 12px; }
   .demoShell { padding: 10px; border-radius: 20px; }
   .editorTimeline { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; }
-  .editorTimeline button { padding: 8px; }
+  .editorTimeline button { grid-template-columns: 34px minmax(0,1fr); min-height: 56px; padding: 9px; }
+  .editorTimeline button > span { width: 32px; height: 32px; font-size: 11px; }
+  .editorTimeline button strong { font-size: 12px; }
   .editorTimeline button small { display: none; }
   .editorDemoShell { padding: 10px; border-radius: 20px; }
   .stageTopline { padding: 0 2px 10px; } .stageTopline strong { font-size: 11px; } .stageTopline > span, .stagePill { display: none; }
