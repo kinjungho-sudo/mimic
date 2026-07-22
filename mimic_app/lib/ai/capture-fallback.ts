@@ -186,6 +186,14 @@ function hasAccessibilityShortcutNoise(value: string | null | undefined): boolea
   return /open\s*menu.*homepage|homepage.*g\s*then\s*d|g\s*then\s*d|[a-z][A-Z]then\s+[a-z][A-Z]/i.test(text);
 }
 
+export function isInstructionalAccessibilityText(value: string | null | undefined): boolean {
+  const text = cleanText(value);
+  if (!text) return false;
+  if (/비어\s*있|입력하여|작성해\s*보세요|입력해\s*보세요|선택해\s*보세요|클릭해\s*보세요|입력하세요|작성하세요|선택하세요|클릭하세요|확인하세요/.test(text)) return true;
+  if (/\b(?:type|enter|write|compose|click|select)\b.{0,48}\b(?:to|here|below|new|your)\b/i.test(text)) return true;
+  return text.length >= 28 && /(?:입력|작성|게시물|댓글|메시지).*(?:하세요|보세요|있습니다)/.test(text);
+}
+
 export function cleanCaptureTypeText(value: string | null | undefined): string | null {
   const raw = cleanText(value);
   if (!raw) return null;
@@ -207,6 +215,7 @@ export function isLowQualityCaptureLabel(value: string | null | undefined): bool
     || isRawCaptureLabel(text)
     || hasMachineToken(text)
     || isLongCapturedContent(text)
+    || isInstructionalAccessibilityText(text)
     || hasCapturedEditorChrome(text)
     || hasAccessibilityShortcutNoise(text);
 }
@@ -228,6 +237,7 @@ function isLikelyRawDomActionBase(value: string): boolean {
   if (/^[\[\]{}(),.;:'"`~!@#$%^&*+=|\\/?<>_-]+$/.test(text)) return true;
   if (/^(next|back|previous|continue|create|generate|copy|done|finish|save|cancel|allow|deny|select a team)$/i.test(text)) return true;
   if (/^(허용|거부|완료|다음|이전|복사|저장|생성|채팅|메일 보내기)$/i.test(text)) return true;
+  if (/^(게시|publish|post)$/i.test(text)) return true;
   if (/^use a manifest file\b/i.test(text)) return true;
   if (/^[a-z][a-z0-9\s&:.'’/_-]{2,}$/i.test(text)) return true;
   if (/^[A-Z][A-Za-z0-9._-]*[가-힣][A-Za-z가-힣0-9._-]*$/.test(text)) return true;
@@ -391,6 +401,9 @@ function titleVerbFor(base: string, actionType: string | undefined, noAction: bo
 }
 
 function purposeTitleFor(base: string, verb: ReturnType<typeof verbForAction>): string | null {
+  if (base === '게시물 내용' && verb === '입력') return '게시물 내용 입력';
+  if (base === '게시 버튼' && verb === '클릭') return '게시물 게시';
+  if (base === '댓글 내용' && verb === '입력') return '댓글 내용 입력';
   if (base === '검색창' && verb === '입력') return '상품 검색어 입력';
   if (base === '무료배송 조건') return '무료배송 조건 선택';
   if (base === '최소 가격') return '최소 가격 설정';
@@ -427,6 +440,9 @@ function scriptFor(base: string, verb: ReturnType<typeof verbForAction>): string
 }
 
 function purposeScriptFor(base: string, verb: ReturnType<typeof verbForAction>): string | null {
+  if (base === '게시물 내용' && verb === '입력') return '새 게시물에 공유할 내용을 입력합니다.';
+  if (base === '게시 버튼' && verb === '클릭') return '작성한 내용을 확인한 뒤 게시 버튼을 눌러 공개합니다.';
+  if (base === '댓글 내용' && verb === '입력') return '게시물에 남길 댓글 내용을 입력합니다.';
   if (base === '검색창' && verb === '입력') return '원하는 항목을 찾을 수 있도록 검색창에 검색어를 입력합니다.';
   if (base === '무료배송 조건') return '배송비가 없는 항목만 확인할 수 있도록 무료배송 조건을 선택합니다.';
   if (base === '최소 가격') return '원하는 가격대로 결과를 좁히기 위해 최소 가격을 입력합니다.';
@@ -441,6 +457,9 @@ function purposeScriptFor(base: string, verb: ReturnType<typeof verbForAction>):
 function contextFromCapturedLabel(label: string | null | undefined): string {
   const text = cleanText(label);
   if (!text) return '';
+  if (/댓글|답글|comment|reply/i.test(text) && /내용|입력|작성|비어\s*있|field|box/i.test(text)) return '댓글 내용';
+  if (/게시물\s*내용|새\s*게시물|게시물을?\s*작성|새로운?\s*소식|new\s+post|what'?s\s+new|thread\s+composer/i.test(text)) return '게시물 내용';
+  if (/^(게시|post|publish)(?:\s*버튼)?$/i.test(text)) return '게시 버튼';
   if (/^(search|검색)$/i.test(text) || /검색\s*(창|어|필드|입력)/i.test(text) || /검색하세요/.test(text)) return '검색창';
   if (/무료\s*배송/i.test(text)) return '무료배송 조건';
   if (/^(최소|min(?:imum)?)$/i.test(text)) return '최소 가격';
@@ -626,20 +645,32 @@ export function buildCaptureFallbackDraft(
   step: CaptureFallbackStepInput,
   context: CaptureFallbackContext = {}
 ): { id: string; user_title: string; user_script: string } {
-  const actionType = context.actionInfo?.type;
+  const originalActionType = context.actionInfo?.type;
   const noActionFromEvent = context.noAction ?? false;
   const isStale = (value: string | null | undefined) =>
     isContextuallyStaleLabel(value, step.page_url) || isGitHubChromeLabel(value, step.page_url);
-  const safeActionLabel = isStale(context.actionInfo?.label) ? null : context.actionInfo?.label;
-  const safeActionText = isStale(context.actionInfo?.text) ? null : context.actionInfo?.text;
-  const safeElementText = isStale(context.elementText) ? null : context.elementText;
-  const safeAccessibleName = isStale(context.actionInfo?.targetContext?.accessibleName)
+  const isUnsafe = (value: string | null | undefined) => isStale(value) || isLowQualityCaptureLabel(value);
+  const rawCapturedValues = [
+    context.actionInfo?.label,
+    context.actionInfo?.text,
+    context.elementText,
+    context.actionInfo?.targetContext?.accessibleName,
+    context.actionInfo?.targetContext?.contextLabel,
+    step.ai_title,
+  ];
+  const actionType = originalActionType === 'click' && rawCapturedValues.some(isInstructionalAccessibilityText)
+    ? 'type'
+    : originalActionType;
+  const safeActionLabel = isUnsafe(context.actionInfo?.label) ? null : context.actionInfo?.label;
+  const safeActionText = isUnsafe(context.actionInfo?.text) ? null : context.actionInfo?.text;
+  const safeElementText = isUnsafe(context.elementText) ? null : context.elementText;
+  const safeAccessibleName = isUnsafe(context.actionInfo?.targetContext?.accessibleName)
     ? null
     : context.actionInfo?.targetContext?.accessibleName;
-  const safeContextLabel = isStale(context.actionInfo?.targetContext?.contextLabel)
+  const safeContextLabel = isUnsafe(context.actionInfo?.targetContext?.contextLabel)
     ? null
     : context.actionInfo?.targetContext?.contextLabel;
-  const safeAiTitle = isStale(step.ai_title) ? null : step.ai_title;
+  const safeAiTitle = isUnsafe(step.ai_title) || isLowQualityCaptureTitle(step.ai_title) ? null : step.ai_title;
   const directionalDraft = directionalFallbackDraft(
     [safeActionLabel, safeActionText, safeElementText, safeAccessibleName],
     [safeContextLabel, context.actionInfo?.targetContext?.pageTitle, step.ai_title, step.domain_name],
@@ -648,7 +679,7 @@ export function buildCaptureFallbackDraft(
     return { id: step.id, ...directionalDraft };
   }
   const aiTitleGrounded = isCaptureTitleGrounded(safeAiTitle, { ...context, pageUrl: step.page_url });
-  const capturedValues = [safeActionLabel, safeActionText, safeElementText, safeAccessibleName, safeContextLabel, safeAiTitle];
+  const capturedValues = rawCapturedValues;
   const capturedInputContext = (actionType === 'type' || actionType === 'focus_input')
     && capturedValues.some(value => isLongCapturedContent(value))
     ? '메일 본문'
@@ -661,12 +692,12 @@ export function buildCaptureFallbackDraft(
     noActionFromEvent
   );
   const capturedLabelContext = capturedInputContext
-    || contextFromCapturedLabel(safeActionLabel)
-    || contextFromCapturedLabel(safeActionText)
-    || contextFromCapturedLabel(safeElementText)
-    || contextFromCapturedLabel(safeAccessibleName)
-    || contextFromCapturedLabel(safeContextLabel)
-    || contextFromCapturedLabel(safeAiTitle);
+    || contextFromCapturedLabel(isStale(context.actionInfo?.label) ? null : context.actionInfo?.label)
+    || contextFromCapturedLabel(isStale(context.actionInfo?.text) ? null : context.actionInfo?.text)
+    || contextFromCapturedLabel(isStale(context.elementText) ? null : context.elementText)
+    || contextFromCapturedLabel(isStale(context.actionInfo?.targetContext?.accessibleName) ? null : context.actionInfo?.targetContext?.accessibleName)
+    || contextFromCapturedLabel(isStale(context.actionInfo?.targetContext?.contextLabel) ? null : context.actionInfo?.targetContext?.contextLabel)
+    || contextFromCapturedLabel(isStale(step.ai_title) ? null : step.ai_title);
   const specificBase = firstUseful([
     safeAiTitle && aiTitleGrounded ? safeAiTitle : null,
     labelContext,
@@ -690,10 +721,27 @@ export function buildCaptureFallbackDraft(
     ? cleanText(step.ai_description)
     : purposeScriptFor(base, verb) ?? scriptFor(base, verb);
 
+  const finalTitle = userTitle.slice(0, 80);
+  const finalScript = userScript;
+  const leakedUnsafeCapture = [...rawCapturedValues, step.ai_description]
+    .map(cleanText)
+    .filter(value => value.length >= 12 && isLowQualityCaptureLabel(value))
+    .some(value => finalTitle.includes(value) || finalScript.includes(value));
+  if (!finalTitle || !finalScript || leakedUnsafeCapture) {
+    const safeDraft = noAction
+      ? { user_title: '화면 상태 확인', user_script: '현재 화면의 상태를 확인한 뒤 다음 단계로 진행합니다.' }
+      : actionType === 'type' || actionType === 'focus_input'
+        ? { user_title: '작업 내용 입력', user_script: '필요한 내용을 입력해 다음 작업을 준비합니다.' }
+        : actionType === 'select' || actionType === 'toggle'
+          ? { user_title: '작업 항목 선택', user_script: '필요한 항목을 선택해 설정을 적용합니다.' }
+          : { user_title: '대상 기능 실행', user_script: '필요한 기능을 실행해 다음 단계로 진행합니다.' };
+    return { id: step.id, ...safeDraft };
+  }
+
   return {
     id: step.id,
-    user_title: userTitle.slice(0, 80),
-    user_script: userScript,
+    user_title: finalTitle,
+    user_script: finalScript,
   };
 }
 
@@ -783,6 +831,7 @@ export function isLowQualityCaptureTutorialTitle(
   if (!text) return true;
   if (isLowQualityCaptureTitle(text.replace(/하기$/, ''))) return true;
   if (isLikelyRawDomActionBase(text.replace(/하기$/, ''))) return true;
+  if (/^(게시|발행|공개)\s*확인하기$/.test(text)) return true;
   if (/하기\s+확인하기$/.test(text)) return true;
   if (/(클릭|선택|입력)하기$/.test(text)) return true;
   if (/^(메일|메뉴|버튼|링크|아이콘)\s*(클릭|선택)하기$/.test(text)) return true;
@@ -850,6 +899,10 @@ export function buildCaptureFallbackTutorialTitle(
   const titles = drafts
     .map(draft => cleanText(draft.user_title))
     .filter(title => title && !isLowQualityCaptureTitle(title) && title !== '화면 확인');
+
+  const hasPostContent = titles.some(title => /게시물\s*내용\s*입력/.test(title));
+  const hasPostPublish = titles.some(title => /게시물\s*게시|게시\s*버튼/.test(title));
+  if (hasPostContent && hasPostPublish) return '새 게시물 작성하기';
 
   const hasMailContext = titles.some(title => /메일|받은편지함|받는 사람|참조|본문|제목|보내기|발송/.test(title));
   if (hasMailContext) {

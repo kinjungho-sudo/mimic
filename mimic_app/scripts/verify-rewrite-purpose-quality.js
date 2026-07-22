@@ -44,16 +44,48 @@ async function main() {
   if (duplicateIssues.length !== 1 || duplicateIssues[0].stepId !== 'step-1') {
     failures.push({ name: 'near-duplicate titles produce one actionable quality warning', actual: duplicateIssues });
   }
+  if (duplicateIssues[0]?.severity !== 'error') {
+    failures.push({ name: 'duplicate titles block publishing', expected: 'error', actual: duplicateIssues[0]?.severity });
+  }
   if (duplicateIssues[0]?.message !== '1·2단계에 같거나 거의 같은 제목 “검색창 선택”이 반복됩니다. 각 단계의 목적을 구분해주세요.'
       || JSON.stringify(duplicateIssues[0]?.relatedStepNumbers) !== JSON.stringify([1, 2])) {
     failures.push({ name: 'duplicate warning identifies every affected step', actual: duplicateIssues[0] });
+  }
+
+  const brokenThreadsIssues = assessManualQuality('게시 확인하기', [
+    {
+      id: 'threads-1', step_number: 1,
+      user_title: '텍스트 필드가 비어 있습니다. 입력하여 새 게시물을 작성해보세요. 클릭',
+      user_script: '텍스트 필드가 비어 있습니다. 입력하여 새 게시물을 작성해보세요.를 클릭합니다.',
+      screenshot_url: 'one.png', element_selector: '#composer',
+    },
+    {
+      id: 'threads-2', step_number: 2,
+      user_title: '텍스트 필드가 비어 있습니다. 입력하여 새 게시물을 작성해보세요. 클릭',
+      user_script: '텍스트 필드가 비어 있습니다. 입력하여 새 게시물을 작성해보세요.를 클릭합니다.',
+      screenshot_url: 'two.png', element_selector: '#composer',
+    },
+  ]);
+  const blockingTextCodes = new Set(['tutorial_title', 'step_title', 'step_script', 'duplicate_title']);
+  if (!brokenThreadsIssues.some(issue => issue.code === 'tutorial_title')
+      || !brokenThreadsIssues.some(issue => issue.code === 'duplicate_title')
+      || brokenThreadsIssues.some(issue => blockingTextCodes.has(issue.code) && issue.severity !== 'error')) {
+    failures.push({ name: 'broken Threads copy is blocked before publishing', actual: brokenThreadsIssues });
+  }
+
+  const correctedThreadsIssues = assessManualQuality('새 게시물 작성하기', [
+    { id: 'threads-fixed-1', step_number: 1, user_title: '게시물 내용 입력', user_script: '새 게시물에 공유할 내용을 입력합니다.', screenshot_url: 'one.png', element_selector: '#composer' },
+    { id: 'threads-fixed-2', step_number: 2, user_title: '게시물 게시', user_script: '작성한 내용을 확인한 뒤 게시 버튼을 눌러 공개합니다.', screenshot_url: 'two.png', element_selector: '#publish' },
+  ]).filter(issue => blockingTextCodes.has(issue.code));
+  if (correctedThreadsIssues.length !== 0) {
+    failures.push({ name: 'corrected Threads copy passes text quality gate', actual: correctedThreadsIssues });
   }
 
   if (failures.length) {
     console.error(JSON.stringify({ ok: false, failures }, null, 2));
     process.exit(1);
   }
-  console.log(JSON.stringify({ ok: true, checks: lowQualityScripts.length + 4 }));
+  console.log(JSON.stringify({ ok: true, checks: lowQualityScripts.length + 8 }));
 }
 
 main().catch(error => {

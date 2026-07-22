@@ -58,6 +58,43 @@ test('nested text and badges resolve to the semantic control', async ({ page }) 
   expect(result).toEqual({ found: 'save', refined: 'save', isButton: true });
 });
 
+test('Threads composer resolves to one editable target with a concise field label', async ({ page }) => {
+  await loadContent(page, { recording: true });
+  const result = await page.evaluate(() => {
+    const fixture = document.querySelector('#fixture')!;
+    fixture.innerHTML = `
+      <div id="composer-shell" role="button" style="cursor:pointer;padding:16px">
+        <div id="composer" role="textbox" aria-label="텍스트 필드가 비어 있습니다. 입력하여 새 게시물을 작성해보세요." style="display:block;width:320px;height:44px">
+          <span id="composer-caret"></span>
+        </div>
+      </div>`;
+    const caret = document.querySelector('#composer-caret')!;
+    const api = (window as unknown as { ParroRecorderInternals: any }).ParroRecorderInternals;
+    const target = api.findInteractiveTarget(caret);
+    return {
+      targetId: target?.id,
+      actionType: api.getActionType(target),
+      elementLabel: api.getElementLabel(target, caret),
+      fieldLabel: api.getFieldLabel(target),
+    };
+  });
+
+  expect(result).toEqual({
+    targetId: 'composer',
+    actionType: 'focus_input',
+    elementLabel: '게시물 내용',
+    fieldLabel: '게시물 내용',
+  });
+
+  await page.locator('#composer').click();
+  await page.waitForTimeout(80);
+  const captureTypes = await page.evaluate(() => (
+    (window as unknown as { __parroMessages: Array<{ type?: string }> }).__parroMessages
+      .map(message => message.type)
+  ));
+  expect(captureTypes).not.toContain('CAPTURE_SCREENSHOT');
+});
+
 test('analytics data attributes do not make a container clickable', async ({ page }) => {
   await loadContent(page);
   const target = await page.evaluate(() => {

@@ -8,6 +8,7 @@ async function main() {
     isCaptureTitleGrounded,
     isCaptureTutorialTitleGrounded,
     isLowQualityCaptureScript,
+    isLowQualityCaptureLabel,
     isLowQualityCaptureTitle,
     isLowQualityCaptureTutorialTitle,
     isUsableCaptureDraft,
@@ -120,6 +121,33 @@ async function main() {
       script: '검색창을 클릭합니다.',
     },
     {
+      name: 'Threads accessibility instruction becomes post content input',
+      step: {
+        id: 'threads-1',
+        step_number: 1,
+        ai_title: '텍스트 필드가 비어 있습니다. 입력하여 새 게시물을 작성해보세요. 클릭',
+        ai_description: '텍스트 필드가 비어 있습니다. 입력하여 새 게시물을 작성해보세요.를 클릭합니다.',
+        page_url: 'https://www.threads.com/',
+        domain_name: 'Threads',
+      },
+      context: {
+        actionInfo: {
+          type: 'click',
+          label: '텍스트 필드가 비어 있습니다. 입력하여 새 게시물을 작성해보세요.',
+          targetContext: { accessibleName: '텍스트 필드가 비어 있습니다. 입력하여 새 게시물을 작성해보세요.' },
+        },
+      },
+      title: '게시물 내용 입력',
+      script: '새 게시물에 공유할 내용을 입력합니다.',
+    },
+    {
+      name: 'Threads publish button becomes completion step',
+      step: { id: 'threads-2', step_number: 2, ai_title: '게시 클릭', ai_description: '게시를 클릭합니다.', page_url: 'https://www.threads.com/', domain_name: 'Threads' },
+      context: { actionInfo: { type: 'click', label: '게시' } },
+      title: '게시물 게시',
+      script: '작성한 내용을 확인한 뒤 게시 버튼을 눌러 공개합니다.',
+    },
+    {
       name: 'stale add-to-cart label rejected on checkout page',
       step: { id: '10', step_number: 10, ai_title: '장바구니 담기 클릭', ai_description: '장바구니 담기를 클릭합니다.', page_url: 'https://www.coupang.com/order/checkout', domain_name: 'Coupang' },
       context: { actionInfo: { type: 'click', label: '장바구니 담기' } },
@@ -178,6 +206,11 @@ async function main() {
   ];
 
   const failures = [];
+
+  const threadsInstruction = '텍스트 필드가 비어 있습니다. 입력하여 새 게시물을 작성해보세요.';
+  if (!isLowQualityCaptureLabel(threadsInstruction)) {
+    failures.push({ name: 'Threads instructional accessibility label is rejected', actual: false });
+  }
   for (const testCase of cases) {
     const actual = buildCaptureFallbackDraft(testCase.step, testCase.context);
     if (actual.user_title !== testCase.title || actual.user_script !== testCase.script) {
@@ -200,6 +233,14 @@ async function main() {
   ]);
   if (fallbackTitle !== '대회소개 확인하기') {
     failures.push({ name: 'tutorial title fallback', expected: '대회소개 확인하기', actual: fallbackTitle });
+  }
+
+  const threadsTitle = buildCaptureFallbackTutorialTitle([
+    { user_title: '게시물 내용 입력', user_script: '새 게시물에 공유할 내용을 입력합니다.' },
+    { user_title: '게시물 게시', user_script: '작성한 내용을 확인한 뒤 게시 버튼을 눌러 공개합니다.' },
+  ], { serviceNames: ['Threads'] });
+  if (threadsTitle !== '새 게시물 작성하기') {
+    failures.push({ name: 'Threads workflow title states the completed goal', expected: '새 게시물 작성하기', actual: threadsTitle });
   }
 
   const actionEndingTitle = buildCaptureFallbackTutorialTitle([

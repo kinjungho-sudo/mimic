@@ -43,17 +43,32 @@ const DEMO_STEPS: DemoStep[] = [
   },
 ];
 
+const STEP_PREVIEWS = [
+  '/help/dashboard.png',
+  '/help/product-overview.png',
+  '/help/share-player.png',
+] as const;
+
 function usePlayback(rootMargin = '80px') {
   const ref = useRef<HTMLDivElement>(null);
   const [inView, setInView] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [mobile, setMobile] = useState(false);
 
   useEffect(() => {
-    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const sync = () => setReducedMotion(query.matches);
-    sync();
-    query.addEventListener('change', sync);
-    return () => query.removeEventListener('change', sync);
+    const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const mobileQuery = window.matchMedia('(max-width: 700px)');
+    const syncPreferences = () => {
+      setReducedMotion(motionQuery.matches);
+      setMobile(mobileQuery.matches);
+    };
+    syncPreferences();
+    motionQuery.addEventListener('change', syncPreferences);
+    mobileQuery.addEventListener('change', syncPreferences);
+    return () => {
+      motionQuery.removeEventListener('change', syncPreferences);
+      mobileQuery.removeEventListener('change', syncPreferences);
+    };
   }, []);
 
   useEffect(() => {
@@ -67,7 +82,7 @@ function usePlayback(rootMargin = '80px') {
     return () => observer.disconnect();
   }, [rootMargin]);
 
-  return { ref, playing: inView && !reducedMotion, reducedMotion };
+  return { ref, playing: inView && !reducedMotion, reducedMotion, mobile };
 }
 
 function Pointer() {
@@ -90,6 +105,10 @@ function BrowserChrome({ live = false, generating = false }: { live?: boolean; g
       </div>
     </div>
   );
+}
+
+function ParroMark() {
+  return <span className={styles.parroMark}><img src="/brand/parro-mark.svg" alt="" width="25" height="25" /></span>;
 }
 
 function TargetViewport({ step, previousStep, live, reducedMotion, settled = false }: {
@@ -166,7 +185,7 @@ function RecorderPanel({ phase }: { phase: number }) {
     return (
       <aside className={`${styles.recorderPanel} ${styles.generatingPanel}`}>
         <div className={styles.recorderHeader}>
-          <div><span className={styles.parroMark}>P</span><strong>Parro Recorder</strong></div>
+          <div><ParroMark /><strong>Parro Recorder</strong></div>
           <span className={styles.buildingState}><i /> 생성 중</span>
         </div>
         <div className={styles.panelGeneratingContent}>
@@ -183,7 +202,7 @@ function RecorderPanel({ phase }: { phase: number }) {
   return (
     <aside className={`${styles.recorderPanel} ${readyToFinish ? styles.readyPanel : ''}`}>
       <div className={styles.recorderHeader}>
-        <div><span className={styles.parroMark}>P</span><strong>Parro Recorder</strong></div>
+        <div><ParroMark /><strong>Parro Recorder</strong></div>
         <span className={readyToFinish ? styles.readyState : styles.recordingState}><i /> {readyToFinish ? '캡처 완료' : '녹화 중'}</span>
       </div>
       <div className={styles.recordingTitle}>
@@ -198,6 +217,7 @@ function RecorderPanel({ phase }: { phase: number }) {
           const active = index === phase && !readyToFinish;
           return (
             <div key={step.title} className={`${styles.savedStep} ${saved ? styles.saved : ''} ${active ? styles.saving : ''}`}>
+              <img className={styles.stepThumbnail} src={STEP_PREVIEWS[index]} alt="" width="72" height="44" loading="lazy" decoding="async" />
               <span>{saved ? '✓' : index + 1}</span>
               <div><strong>{step.title}</strong><small>{saved ? '자동 저장됨' : active ? '클릭 감지 중…' : '다음 행동 대기'}</small></div>
             </div>
@@ -372,7 +392,7 @@ function SharedViewerScene({ reducedMotion }: { reducedMotion: boolean }) {
     <div className={`${styles.editorScene} ${styles.viewerScene} ${reducedMotion ? styles.reducedMotion : ''}`}>
       <EditorChrome saved />
       <div className={styles.viewerAppBar}>
-        <div className={styles.viewerBrand}><span className={styles.parroMark}>P</span><strong>Parro</strong><i />정부24에서 주민등록표 등본 발급하기</div>
+        <div className={styles.viewerBrand}><ParroMark /><strong>Parro</strong><i />정부24에서 주민등록표 등본 발급하기</div>
         <div className={styles.viewerActions}>
           <button type="button">⚡ 라이브 가이드 Beta</button>
           <div className={styles.viewerToggle}>
@@ -487,7 +507,7 @@ function ManualEditorScene({ phase, reducedMotion }: { phase: number; reducedMot
       {phase === 0 && (
         <div className={styles.generatingOverlay}>
           <div className={styles.generatingCard}>
-            <span className={styles.parroMark}>P</span>
+            <ParroMark />
             <strong>카드형 매뉴얼을 자동으로 완성하고 있어요</strong>
             <p>녹화한 화면과 클릭 정보를 바탕으로 제목·단계 설명·강조 위치를 구성합니다.</p>
             <i><em /></i>
@@ -515,20 +535,20 @@ function ManualEditorScene({ phase, reducedMotion }: { phase: number; reducedMot
 }
 
 export function ProductDemo() {
-  const { ref, playing, reducedMotion } = usePlayback();
+  const { ref, playing, reducedMotion, mobile } = usePlayback();
   const [phase, setPhase] = useState(0);
 
   const selectPhase = useCallback((next: number) => setPhase(next), []);
 
   useEffect(() => {
-    if (!playing) return;
+    if (!playing || mobile) return;
     const timer = window.setTimeout(() => setPhase(current => (current + 1) % EDITOR_PHASES.length), phase === 3 ? 6100 : 2500);
     return () => window.clearTimeout(timer);
-  }, [phase, playing]);
+  }, [mobile, phase, playing]);
 
   return (
     <section id="tour" className={styles.productSection}>
-      <div ref={ref} className={styles.productInner} data-playing={playing}>
+      <div ref={ref} className={styles.productInner} data-playing={playing && !mobile}>
         <div className={styles.sectionHeading}>
           <span>SMART MANUAL WORKFLOW</span>
           <h2>자동으로 완성하고, 카드로 다듬고, URL 하나로 공유합니다</h2>
@@ -551,11 +571,15 @@ export function ProductDemo() {
             </div>
             <span>{phase + 1} / {EDITOR_PHASES.length}</span>
           </div>
-          <ManualEditorScene phase={reducedMotion ? 3 : phase} reducedMotion={reducedMotion} />
+          <ManualEditorScene phase={reducedMotion ? 3 : phase} reducedMotion={reducedMotion || mobile} />
         </div>
 
         <p className={styles.motionNote}>
-          {reducedMotion ? '모션 감소 설정에 따라 공유 완료 상태를 표시합니다.' : '실제 Parro의 매뉴얼 생성과 공유 흐름이 자동 재생되며, 위 단계를 눌러 원하는 장면을 직접 볼 수 있습니다.'}
+          {reducedMotion
+            ? '모션 감소 설정에 따라 공유 완료 상태를 표시합니다.'
+            : mobile
+              ? '모바일에서는 위 단계를 눌러 원하는 장면을 직접 살펴보세요.'
+              : '실제 Parro의 매뉴얼 생성과 공유 흐름이 자동 재생되며, 위 단계를 눌러 원하는 장면을 직접 볼 수 있습니다.'}
         </p>
       </div>
     </section>
