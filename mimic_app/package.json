@@ -9,6 +9,7 @@
     "lint": "next lint",
     "test": "npm run verify:quality",
     "verify:recorder-profile": "node scripts/verify-recorder-profile.mjs",
+    "verify:main-mvp-release": "node scripts/verify-main-mvp-release-contract.mjs",
     "verify:synthetic-capture-ui": "node scripts/verify-synthetic-capture-ui.mjs",
     "verify:synthetic-finish-navigation": "node scripts/verify-synthetic-finish-navigation.mjs",
     "repair:manual-copy": "node --loader ./scripts/ts-path-loader.mjs scripts/repair-existing-manual-copy.mjs",

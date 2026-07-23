@@ -23,7 +23,6 @@ const SECTIONS = [
     icon: '⚡',
     children: [
       { id: 'install', title: '1. 확장 프로그램 설치' },
-      { id: 'desktop-companion', title: '데스크톱 앱 연결' },
       { id: 'record', title: '2. 화면 녹화하기' },
       { id: 'edit', title: '3. 매뉴얼 편집하기' },
       { id: 'share', title: '4. 공유하기' },
@@ -58,7 +57,6 @@ const SECTIONS = [
 
 const ALL_SECTION_IDS = SECTIONS.flatMap(s => [s.id, ...(s.children?.map(c => c.id) ?? [])]);
 const SEARCH_ALIASES: Record<string, string> = {
-  'desktop-companion': 'desktop companion windows 윈도우 pc 앱 엑셀 파일 탐색기 pdf',
   practice: '따라하기 교육 훈련 인터랙티브',
   'guide-me': '오버레이 화면 위 안내 실제 페이지',
   plans: '가격 비용 무료 유료 basic pro team',
@@ -140,41 +138,6 @@ function SectionContent({ id }: { id: string }) {
           {p(`녹화 모달에서 "${BRAND_COPY.extensionDisplayName} 설치하기" 버튼이 나타나면 스토어로 이동해 설치하세요. 설치 후 "설치 완료 — 다시 시도" 버튼을 누르면 바로 연결됩니다.`)}
           {h3('지원 브라우저')}
           {p('현재 Google Chrome 및 Chromium 기반 브라우저(Edge, Brave 등)를 지원합니다. Firefox, Safari는 지원하지 않습니다.')}
-        </div>
-      );
-
-    case 'desktop-companion':
-      return (
-        <div>
-          {h2('Desktop Companion 연결')}
-          {p(`Desktop Companion은 Chrome 밖의 Windows 앱에서 진행하는 클릭 작업을 ${BRAND_NAME} 매뉴얼 단계로 이어주는 설치형 앱입니다. Excel, 파일 탐색기, PDF 뷰어처럼 브라우저 밖의 작업을 기록할 때 사용합니다.`)}
-          <Link href="/desktop-setup?source=help" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: '38px', padding: '0 14px', borderRadius: '8px', background: `linear-gradient(135deg, ${BRAND_COLORS.primary}, ${BRAND_COLORS.guide})`, color: 'white', fontSize: '13px', fontWeight: 700, textDecoration: 'none', margin: '0 0 8px' }}>
-            Desktop Companion 설치하기
-          </Link>
-          {h3('왜 먼저 설치하나요?')}
-          {p('녹화 도중 설치 흐름이 끊기지 않도록, Windows 앱을 기록할 예정이라면 첫 캡처 전에 설치와 연결 확인을 완료하는 것을 권장합니다.')}
-          {h3('동작 원리')}
-          {p(`${BRAND_COPY.extensionDisplayName}가 Chrome Native Messaging으로 Desktop Companion의 설치 상태를 확인합니다. 정상 응답이 확인된 뒤에만 데스크톱 녹화를 시작할 수 있으며, 녹화가 끝나면 캡처된 단계를 기존 ${BRAND_NAME} 분석·업로드 흐름으로 전달합니다.`)}
-          {h3('기록되는 정보')}
-          <ul style={{ paddingLeft: '20px', margin: '0 0 16px' }}>
-            {[
-              '녹화 중 발생한 Windows 왼쪽 클릭 시점',
-              '클릭 당시 활성 앱과 창 정보',
-              '활성 창 또는 현재 모니터의 캡처 화면',
-              '클릭 위치와 캡처 시각',
-            ].map(li)}
-          </ul>
-          {h3('기본 보안 원칙')}
-          <ul style={{ paddingLeft: '20px', margin: '0 0 16px' }}>
-            {[
-              `사용자가 시작한 ${BRAND_NAME} 녹화 세션이 활성화된 동안에만 캡처합니다.`,
-              '파일 원본 자체는 캡처 대상으로 업로드하지 않습니다.',
-              `${BRAND_NAME} 툴바는 Windows 캡처 화면에서 제외합니다.`,
-              '민감한 화면에서는 녹화를 일시 중지하거나 종료한 뒤 작업하세요.',
-            ].map(li)}
-          </ul>
-          {h3('설치 및 연결 확인')}
-          {p('설치 화면에서 Windows 설치 프로그램을 내려받아 실행한 뒤 “연결 다시 확인”을 선택하세요. 연결 상태가 준비됨으로 표시되면 데스크톱 녹화를 시작할 수 있습니다.')}
         </div>
       );
 

@@ -25,11 +25,6 @@ const FAQ_DB: Record<string, FAQ> = {
     answer: `${BRAND_COPY.extensionDisplayName}는 Chrome 확장 프로그램입니다.\n\n**설치 방법**\n1. Chrome 웹 스토어에서 "${BRAND_COPY.extensionDisplayName}" 검색\n2. 확장 프로그램 설치\n3. ${BRAND_NAME} 웹앱에서 계정 생성 후 확장과 연결\n\nChromium 기반 브라우저(Edge, Brave)도 지원합니다. Firefox, Safari는 현재 미지원입니다.\n\n👉 [설치 가이드 보기](${HELP_URL})`,
     related: ['record', 'what'],
   },
-  'desktop': {
-    keywords: ['desktop companion', 'desktop', '데스크톱', '윈도우 앱', 'windows 앱', 'pc 앱', '컴패니언'],
-    answer: `**Desktop Companion 설치 방법**\n1. ${BRAND_NAME} 홈 또는 설정에서 **Desktop 설치**를 선택합니다.\n2. Windows 설치 프로그램을 내려받아 실행합니다.\n3. 설치 화면으로 돌아와 **연결 다시 확인**을 선택합니다.\n4. 상태가 준비됨으로 표시되면 데스크톱 녹화를 시작합니다.\n\nDesktop Companion은 Excel·파일 탐색기·PDF 뷰어처럼 Chrome 밖의 Windows 앱 작업을 기록할 때 사용합니다. Chrome 웹페이지 녹화만 필요하면 ${BRAND_COPY.extensionDisplayName}만 연결하면 됩니다.\n\n👉 [Desktop Companion 설치 화면](/desktop-setup?source=help-bot)`,
-    related: ['install', 'record'],
-  },
   'record': {
     keywords: ['녹화', '캡처', '촬영', '어떻게', '만들기', '생성', '시작'],
     answer: `**화면 녹화 방법**\n1. Chrome 툴바에서 ${BRAND_COPY.extensionDisplayName} 아이콘 클릭\n2. 녹화 시작 버튼 클릭\n3. 평소처럼 업무 진행 (클릭마다 자동 캡처)\n4. 완료 버튼으로 녹화 종료\n\n녹화 후 AI가 자동으로 각 단계의 제목과 설명을 생성합니다.\n\n직접 만들기: 대시보드 → "새 매뉴얼" → "직접 편집하기"\n\n👉 [자세한 안내](${HELP_URL})`,

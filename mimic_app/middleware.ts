@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { hasEntitlement } from './lib/entitlements';
+import { PUBLIC_DESKTOP_ENABLED } from './lib/release-features';
 
 const clean = (v: string | undefined) => v?.replace(/^﻿/, '').trim() ?? '';
 
@@ -28,6 +29,14 @@ function isPaidDesktopPath(pathname: string): boolean {
 }
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  if (!PUBLIC_DESKTOP_ENABLED && isPaidDesktopPath(pathname)) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/landingpage';
+    url.search = '';
+    return NextResponse.redirect(url);
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -60,7 +69,6 @@ export async function middleware(request: NextRequest) {
   const userId = typeof claims?.sub === 'string' ? claims.sub : null;
   const userEmail = typeof claims?.email === 'string' ? claims.email : null;
 
-  const { pathname } = request.nextUrl;
   const isProtected = PROTECTED.some(
     p => pathname === p || pathname.startsWith(`${p}/`)
   );

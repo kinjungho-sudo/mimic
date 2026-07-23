@@ -5,7 +5,6 @@ import { BRAND_NAME } from '@/lib/brand';
 export const QUICK_QUESTIONS = [
   { id: 'what',      label: `${BRAND_NAME}가 뭔가요?` },
   { id: 'install',   label: '확장 프로그램 설치' },
-  { id: 'desktop',   label: 'Desktop Companion 설치' },
   { id: 'record',    label: '매뉴얼 만드는 법' },
   { id: 'guide-me',  label: '연습/라이브 가이드 Beta 차이' },
   { id: 'price',     label: '요금제 안내' },

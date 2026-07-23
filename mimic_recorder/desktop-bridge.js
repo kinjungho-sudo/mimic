@@ -3,7 +3,6 @@ const MIMIC_DESKTOP_HOST = 'com.mimic.desktop_companion.dev';
 let _desktopPort = null;
 let _desktopConnected = false;
 let _desktopLastError = null;
-let _desktopVersion = null;
 let _desktopRequestSeq = 0;
 const _desktopPendingRequests = new Map();
 
@@ -12,7 +11,6 @@ function desktopBridgeStatus() {
     host: MIMIC_DESKTOP_HOST,
     connected: _desktopConnected,
     lastError: _desktopLastError,
-    version: _desktopVersion,
   };
 }
 
@@ -20,7 +18,6 @@ function disconnectDesktopPort() {
   const port = _desktopPort;
   _desktopPort = null;
   _desktopConnected = false;
-  _desktopVersion = null;
   try {
     if (port) port.disconnect();
   } catch {
@@ -43,7 +40,6 @@ function getDesktopPort() {
 
     _desktopPort.onDisconnect.addListener(() => {
       _desktopConnected = false;
-      _desktopVersion = null;
       _desktopLastError = chrome.runtime.lastError?.message || null;
       const disconnectedPort = _desktopPort;
       _desktopPort = null;
@@ -135,31 +131,6 @@ async function undoDesktopCaptureStep(sessionId) {
   });
 }
 
-async function requestDesktopManualCapture(sessionId) {
-  if (!sessionId) throw new Error('missing_session_id');
-  return requestDesktopMessage({
-    type: 'REQUEST_MANUAL_CAPTURE',
-    capture_session_id: sessionId,
-  });
-}
-
-async function markNextDesktopCapturePrivate(sessionId) {
-  if (!sessionId) throw new Error('missing_session_id');
-  return requestDesktopMessage({
-    type: 'MARK_NEXT_CAPTURE_PRIVATE',
-    capture_session_id: sessionId,
-  });
-}
-
-async function updateDesktopToolbarBounds(sessionId, bounds) {
-  if (!sessionId) throw new Error('missing_session_id');
-  return requestDesktopMessage({
-    type: 'UPDATE_TOOLBAR_BOUNDS',
-    capture_session_id: sessionId,
-    bounds,
-  });
-}
-
 async function getDesktopCaptureSession(sessionId) {
   if (!sessionId) throw new Error('missing_session_id');
   const response = await requestDesktopMessage({
@@ -197,13 +168,9 @@ async function readDesktopCaptureImage(sessionId, stepNumber, expectedSize = 0) 
 }
 
 async function pingDesktopCompanion() {
-  const response = await requestDesktopMessage({
+  return requestDesktopMessage({
     type: 'PING',
     extension_id: chrome.runtime.id,
     sent_at: new Date().toISOString(),
   });
-  if (response?.ok) {
-    _desktopVersion = typeof response.version === 'string' ? response.version : null;
-  }
-  return response;
 }
