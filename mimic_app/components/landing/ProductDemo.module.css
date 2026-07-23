@@ -89,6 +89,11 @@
 .currentCaptureCard { flex: 1; min-height: 0; margin: 0 12px; overflow: hidden; border: 1px solid #dbe5e2; border-radius: 12px; background: #fff; box-shadow: 0 8px 20px rgba(31,54,48,.08); }
 .currentCaptureActive { border-color: rgba(234,75,67,.42); box-shadow: 0 0 0 3px rgba(234,75,67,.07),0 8px 20px rgba(31,54,48,.08); }
 .currentCaptureSaved { border-color: rgba(0,155,142,.3); }
+.captureWaitingCard { display: grid; place-items: center; border-style: dashed; background: linear-gradient(180deg,#fbfdfc,#f3f7f6); box-shadow: none; }
+.captureWaitingState { display: grid; max-width: 250px; justify-items: center; padding: 20px; text-align: center; }
+.captureWaitingState > span { display: grid; width: 42px; height: 42px; margin-bottom: 10px; place-items: center; border-radius: 13px; color: #74827e; background: #e7eeec; font-size: 21px; font-weight: 800; }
+.captureWaitingState > strong { color: #35423e; font-size: 11px; }
+.captureWaitingState > small { margin-top: 5px; color: #788681; font-size: 8.5px; line-height: 1.5; }
 .currentCaptureMeta { display: grid; grid-template-columns: 28px minmax(0,1fr) auto; align-items: center; gap: 8px; padding: 8px 9px; }
 .currentCaptureMeta > span { display: grid; width: 27px; height: 27px; place-items: center; border-radius: 8px; color: #fff; background: #e94f47; font-size: 10px; font-weight: 900; }
 .currentCaptureSaved .currentCaptureMeta > span { background: #009b8e; }
@@ -429,6 +434,7 @@
 .compactScene .recordingTitle strong { font-size: 11px; }
 .compactScene .currentCaptureMeta strong { font-size: 10px; }
 .compactScene .currentCapturePreview { min-height: 138px; }
+.compactScene .captureWaitingState > strong { font-size: 10px; }
 .compactScene .autoSave { font-size: 8px; }
 .compactScene .manualReady { grid-template-columns: 22px 1fr; gap: 5px; padding: 7px; }
 .compactScene .manualReady > span { width: 21px; height: 21px; font-size: 8px; }
