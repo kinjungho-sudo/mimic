@@ -315,11 +315,11 @@ function LiveGuideScene({ stepIndex, compact = false, reducedMotion = false }: {
           <div><ParroMark /><span><small>LIVE GUIDE</small><strong>실제 화면에 안내가 적용되고 있습니다</strong></span></div>
           <b>STEP {stepIndex + 1} / {DEMO_STEPS.length}</b>
         </div>
-      </div>
-      <div className={styles.liveProgress}>
-        <span>{stepIndex + 1} / {DEMO_STEPS.length}</span>
-        <i><em style={{ width: `${((stepIndex + 1) / DEMO_STEPS.length) * 100}%` }} /></i>
-        <strong>현재 페이지의 대상 DOM과 실시간 연결됨</strong>
+        <div className={styles.liveProgress}>
+          <span>{stepIndex + 1} / {DEMO_STEPS.length}</span>
+          <i><em style={{ width: `${((stepIndex + 1) / DEMO_STEPS.length) * 100}%` }} /></i>
+          <strong>현재 페이지의 대상 DOM과 실시간 연결됨</strong>
+        </div>
       </div>
     </div>
   );
