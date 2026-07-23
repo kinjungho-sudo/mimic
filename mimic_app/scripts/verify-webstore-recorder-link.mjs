@@ -20,7 +20,14 @@ function check(assertion) {
   checks += 1;
 }
 
-for (const hostname of ['mimic-nine-ashen.vercel.app', 'mimicflow.com', 'app.parro.example']) {
+for (const hostname of [
+  'parro-guide.vercel.app',
+  'parro-guide-production-deployment.vercel.app',
+  'feature-preview.vercel.app',
+  'mimic-nine-ashen.vercel.app',
+  'mimicflow.com',
+  'app.parro.example',
+]) {
   check(() => {
     assert.equal(
       selectPreferredExtensionId({
@@ -48,18 +55,9 @@ check(() => {
 check(() => {
   assert.equal(
     selectPreferredExtensionId({
-      hostname: 'parro-guide.vercel.app',
+      hostname: 'parro-guide-dev.vercel.app',
       configured: BRAND_LEGACY_EXTENSION_ID,
       stored: devExtensionId,
-    }),
-    devExtensionId,
-  );
-});
-check(() => {
-  assert.equal(
-    selectPreferredExtensionId({
-      hostname: 'feature-preview.vercel.app',
-      configured: devExtensionId,
     }),
     devExtensionId,
   );

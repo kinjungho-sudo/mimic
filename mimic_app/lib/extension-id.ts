@@ -13,8 +13,7 @@ function cleanExtensionId(value?: string | null) {
 function allowsDynamicExtensionId(host: string) {
   return host === 'localhost'
     || host === '127.0.0.1'
-    || host === 'parro-guide.vercel.app'
-    || (host.endsWith('.vercel.app') && host !== 'mimic-nine-ashen.vercel.app');
+    || host === 'parro-guide-dev.vercel.app';
 }
 
 interface ExtensionIdSelection {
