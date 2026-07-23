@@ -50,7 +50,10 @@ export const metadata: Metadata = {
     follow: true,
   },
   verification: {
-    google: 'DErEe3J6cjpooLlNywJkFowNINqXHfiC-gZS6b90ZQY',
+    google: [
+      'DErEe3J6cjpooLlNywJkFowNINqXHfiC-gZS6b90ZQY',
+      'wzMjB4SCst9I9ECfPP4z9-5Z_zIGD1iI5nYow0LG1Qs',
+    ],
   },
 };
 
