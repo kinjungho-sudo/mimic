@@ -12,6 +12,7 @@ type DemoStep = {
   description: string;
   screenshotUrl: string;
   rect: { x: number; y: number; width: number; height: number };
+  slideRect?: { x: number; y: number; width: number; height: number };
   coachSide: 'left' | 'right';
 };
 
@@ -39,6 +40,7 @@ const DEMO_STEPS: DemoStep[] = [
     description: '신청 방식 팝업에서 회원 신청하기를 선택합니다.',
     screenshotUrl: `${CAPTURE_BASE}/step_03.jpg`,
     rect: { x: 33.8, y: 46.8, width: 15.3, height: 7.7 },
+    slideRect: { x: 69.1, y: 73.3, width: 27.5, height: 9.4 },
     coachSide: 'right',
   },
 ];
@@ -367,7 +369,7 @@ function EditorChrome({ saved }: { saved: boolean }) {
 function SharedViewerScene({ reducedMotion }: { reducedMotion: boolean }) {
   const [viewMode, setViewMode] = useState<'document' | 'slides'>('document');
   const [slideIndex, setSlideIndex] = useState(0);
-  const activeSlideRect = DEMO_STEPS[slideIndex].rect;
+  const activeSlideRect = DEMO_STEPS[slideIndex].slideRect ?? DEMO_STEPS[slideIndex].rect;
 
   useEffect(() => {
     if (reducedMotion) return;
