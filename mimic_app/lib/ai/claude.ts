@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
 import type { Step } from '@/types';
 import { CLAUDE_MODEL, MANUAL_DRAFT_MODEL } from '@/lib/ai/model';
+import { normalizeCaptureTutorialTitle } from '@/lib/ai/capture-fallback';
 import { BRAND_COLORS } from '@/lib/brand';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -510,6 +511,7 @@ ${stepsText}
 - goal일 때만 30자 이내의 "서비스명으로/에서 + 최종 결과" 또는 "최종 결과" 형식을 사용
 - 첫 스텝의 메뉴명·버튼명·클릭 동작만으로 전체 절차의 목적을 단정하지 않음
 - 특정 상품명·수량·계정명·이메일 주소 포함 금지
+- "완료 확인하기"처럼 완료와 확인을 겹쳐 쓰지 않음. "사이트 등록 절차 완료 확인하기"는 "사이트 등록하기", "알림 신청 완료하기"는 "알림 신청하기"로 작성
 - 좋은 예: "Gmail로 이메일 보내기", "Slack 채널 만들기", "상품 주문 완료하기"
 - 목적이 불확실한 경우의 좋은 예: "FoalAI 공고마당", "FoalAI"
 - 나쁜 예: "받은편지함 클릭", "desktop.parro.local에서 작업 설정하기", "화면 설정 진행", 근거 없이 만든 "상품 조건 검색하기"
@@ -519,7 +521,8 @@ ${stepsText}
 - 화면에 보인 원문이나 접근성 label을 그대로 읽지 말고 앞뒤 단계의 업무 맥락으로 변환
 - 가능하면 "클릭", "버튼", "메뉴"보다 "작성 시작", "내용 확인", "메시지 작성", "전송 완료"처럼 의미와 결과를 표현
 - 같은 제목을 여러 단계에 반복하지 않음
-- uuid/hash/id, 이메일 주소, 내부 도메인 포함 금지
+- uuid/hash/id, 이메일 주소, URL 원문, 내부 도메인 포함 금지
+- 주소를 입력하는 단계는 URL 원문 대신 "사이트 주소 입력"처럼 입력 목적을 표현
 
 [스텝 설명 규칙 — user_script]
 - 1문장 중심의 존댓말
@@ -616,7 +619,7 @@ ${stepsText}
     if (draftSteps.length === 0) {
       console.warn('generateDraft returned empty steps:', { responsePreview: text.slice(0, 500) });
       return {
-        tutorial_title: String(parsed.tutorial_title || ''),
+        tutorial_title: normalizeCaptureTutorialTitle(String(parsed.tutorial_title || '')),
         tutorial_title_basis: tutorialTitleBasis,
         steps: draftSteps,
         status: 'empty_steps',
@@ -626,7 +629,7 @@ ${stepsText}
     }
 
     return {
-      tutorial_title: String(parsed.tutorial_title || '').trim(),
+      tutorial_title: normalizeCaptureTutorialTitle(String(parsed.tutorial_title || '')),
       tutorial_title_basis: tutorialTitleBasis,
       steps: draftSteps,
       status: 'ok',

@@ -10,6 +10,7 @@ import { BrandMark } from '@/components/common/BrandMark';
 import { createTutorial } from '@/lib/api/tutorials';
 import { logError } from '@/lib/logging/logger';
 import { BRAND_COLORS, BRAND_NAME, LEGACY_INTERNAL_IDENTIFIERS } from '@/lib/brand';
+import { normalizeCaptureTutorialTitle } from '@/lib/ai/capture-fallback';
 import type { Tutorial, Workspace, Folder } from '@/types';
 import { hasEntitlement } from '@/lib/entitlements';
 
@@ -393,6 +394,7 @@ function TutorialCard({ tutorial, onContextMenu, onMenuClick, viewMode = 'grid',
   const [thumbnailLoaded, setThumbnailLoaded] = useState(false);
 
   const color = cardColor(tutorial.id);
+  const displayTitle = normalizeCaptureTutorialTitle(tutorial.title);
   const stepCount = tutorial.step_count ?? 0;
   const dateStr = new Date(tutorial.updated_at).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }).replace(/\. /g, '/').replace(/\.$/, '');
   const domain = getDomain(tutorial.first_page_url);
@@ -421,7 +423,7 @@ function TutorialCard({ tutorial, onContextMenu, onMenuClick, viewMode = 'grid',
   const menuBtn = (
     <button
       onClick={e => { e.stopPropagation(); onMenuClick(e, tutorial.id); }}
-      aria-label={`${tutorial.title} 메뉴 열기`}
+      aria-label={`${displayTitle} 메뉴 열기`}
       style={{ flexShrink: 0, width: '28px', height: '28px', borderRadius: '6px', border: 'none', background: hovered ? '#F3F4F6' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6B7280', opacity: hovered ? 1 : 0, transition: 'opacity 0.1s' }}
     >
       <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
@@ -430,7 +432,7 @@ function TutorialCard({ tutorial, onContextMenu, onMenuClick, viewMode = 'grid',
 
   const titleEl = (
     <div style={{ fontSize: '14px', fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-      {tutorial.title}
+      {displayTitle}
     </div>
   );
 
@@ -460,7 +462,7 @@ function TutorialCard({ tutorial, onContextMenu, onMenuClick, viewMode = 'grid',
     onClick: () => { if (onCardClick) onCardClick(tutorial.id); else router.push(`/manual/${tutorial.id}/editor`); },
     role: 'button',
     tabIndex: 0,
-    'aria-label': `${tutorial.title} 매뉴얼 열기`,
+    'aria-label': `${displayTitle} 매뉴얼 열기`,
     onKeyDown: (event: React.KeyboardEvent) => {
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
@@ -503,7 +505,7 @@ function TutorialCard({ tutorial, onContextMenu, onMenuClick, viewMode = 'grid',
           {iconEl(30)}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: '14.5px', fontWeight: 600, color: '#111827', lineHeight: 1.35, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' }}>
-              {tutorial.title}
+              {displayTitle}
             </div>
             {metaEl}
           </div>

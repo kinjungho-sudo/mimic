@@ -178,6 +178,10 @@ function hasEmailAddress(value: string | null | undefined): boolean {
   return /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(cleanText(value));
 }
 
+function hasUrlLiteral(value: string | null | undefined): boolean {
+  return /(?:https?:\/\/|www\.)\S+/i.test(cleanText(value));
+}
+
 function hasCapturedEditorChrome(value: string | null | undefined): boolean {
   const text = cleanText(value);
   return /아이콘 추가|커버 추가|댓글 추가|AI 기능은|명령에는/.test(text);
@@ -215,6 +219,7 @@ export function isLowQualityCaptureLabel(value: string | null | undefined): bool
   return !text
     || isGenericLabel(text)
     || isRawCaptureLabel(text)
+    || hasUrlLiteral(text)
     || hasMachineToken(text)
     || isLongCapturedContent(text)
     || isInstructionalAccessibilityText(text)
@@ -272,6 +277,7 @@ function isLikelyRawDomActionTitle(value: string | null | undefined): boolean {
 export function isLowQualityCaptureTitle(value: string | null | undefined): boolean {
   const text = cleanText(value);
   if (isWeakTitle(text)) return true;
+  if (hasUrlLiteral(text)) return true;
   if (/\b(?:desktop|windows)\.parro\.(?:local|app)\b/i.test(text)) return true;
   if (/^use a manifest file\b/i.test(text)) return true;
   if (/\b[a-z0-9.-]+\.[a-z]{2,}\s+(?:주요 영역|화면)\s*(?:클릭|확인|선택|입력|이동)?$/i.test(text)) return true;
@@ -403,6 +409,7 @@ function titleVerbFor(base: string, actionType: string | undefined, noAction: bo
 }
 
 function purposeTitleFor(base: string, verb: ReturnType<typeof verbForAction>): string | null {
+  if (base === '사이트 주소' && verb === '입력') return '사이트 주소 입력';
   if (base === '게시물 내용' && verb === '입력') return '게시물 내용 입력';
   if (base === '게시 버튼' && verb === '클릭') return '게시물 게시';
   if (base === '댓글 내용' && verb === '입력') return '댓글 내용 입력';
@@ -442,6 +449,7 @@ function scriptFor(base: string, verb: ReturnType<typeof verbForAction>): string
 }
 
 function purposeScriptFor(base: string, verb: ReturnType<typeof verbForAction>): string | null {
+  if (base === '사이트 주소' && verb === '입력') return '등록하거나 확인할 사이트 주소를 입력합니다.';
   if (base === '게시물 내용' && verb === '입력') return '새 게시물에 공유할 내용을 입력합니다.';
   if (base === '게시 버튼' && verb === '클릭') return '작성한 내용을 확인한 뒤 게시 버튼을 눌러 공개합니다.';
   if (base === '댓글 내용' && verb === '입력') return '게시물에 남길 댓글 내용을 입력합니다.';
@@ -684,8 +692,11 @@ export function buildCaptureFallbackDraft(
   const aiTitleGrounded = isCaptureTitleGrounded(safeAiTitle, { ...context, pageUrl: step.page_url });
   const capturedValues = rawCapturedValues;
   const capturedInputContext = (actionType === 'type' || actionType === 'focus_input')
-    && capturedValues.some(value => isLongCapturedContent(value))
-    ? '메일 본문'
+    ? capturedValues.some(hasUrlLiteral)
+      ? '사이트 주소'
+      : capturedValues.some(value => isLongCapturedContent(value))
+        ? '메일 본문'
+        : ''
     : '';
   const pageContext = contextFromUrl(step.page_url, noActionFromEvent);
   const labelContext = contextFromLabel(
@@ -832,6 +843,7 @@ export function isLowQualityCaptureTutorialTitle(
 ): boolean {
   const text = cleanText(value);
   if (!text) return true;
+  if (normalizeCaptureTutorialTitle(text) !== text) return true;
   if (isLowQualityCaptureTitle(text.replace(/하기$/, ''))) return true;
   if (isLikelyRawDomActionBase(text.replace(/하기$/, ''))) return true;
   if (/^(게시|발행|공개)\s*확인하기$/.test(text)) return true;
@@ -853,10 +865,49 @@ export function isCaptureTutorialTitleGrounded(
   return titleParts.some(part => sources.some(source => source.includes(part) || part.includes(source)));
 }
 
-function tutorialTitleFromStepTitle(value: string): string {
+const TUTORIAL_GOAL_ACTION_PATTERN = '등록|신청|인증|저장|게시|공유|초대|제출|설치|연결|다운로드|로그인';
+
+function appendGoalEnding(value: string): string {
   const title = cleanText(value);
   if (!title) return '';
+  if (/(?:하기|보내기|만들기)$/.test(title)) return title;
+  if (new RegExp(`(?:${TUTORIAL_GOAL_ACTION_PATTERN})$`).test(title)) return `${title}하기`;
+  return title;
+}
+
+export function normalizeCaptureTutorialTitle(value: string | null | undefined): string {
+  let title = cleanText(value);
+  if (!title) return '';
+
+  title = title
+    .replace(/^\[([^\]]+)\]\s*(완료(?:\s*확인하기|하기)?)$/, '$1 $2')
+    .replace(/하기\s+확인하기$/, '하기');
+
+  const completedAction = new RegExp(
+    `^(.*?)(${TUTORIAL_GOAL_ACTION_PATTERN})(?:\\s+(?:절차|과정))?\\s+완료(?:\\s*확인하기|하기)?$`,
+  ).exec(title);
+  if (completedAction) {
+    const prefix = cleanText(completedAction[1]);
+    return `${prefix ? `${prefix} ` : ''}${completedAction[2]}하기`.slice(0, 30);
+  }
+
+  const confirmedAction = new RegExp(
+    `^(.*?)(${TUTORIAL_GOAL_ACTION_PATTERN})\\s+확인하기$`,
+  ).exec(title);
+  if (confirmedAction) {
+    const prefix = cleanText(confirmedAction[1]);
+    return `${prefix ? `${prefix} ` : ''}${confirmedAction[2]}하기`.slice(0, 30);
+  }
+
+  return title.slice(0, 30);
+}
+
+function tutorialTitleFromStepTitle(value: string): string {
+  const title = normalizeCaptureTutorialTitle(value);
+  if (!title) return '';
   if (title.endsWith('하기')) return title.slice(0, 30);
+  const goalTitle = appendGoalEnding(title);
+  if (goalTitle !== title) return goalTitle.slice(0, 30);
 
   const action = /^(.*?)\s+(클릭|선택|입력|이동|확인)$/.exec(title);
   if (!action) return `${title} 확인하기`.slice(0, 30);
@@ -869,7 +920,7 @@ function tutorialTitleFromStepTitle(value: string): string {
   if (verb === '선택') return `${base} 선택하기`.slice(0, 30);
   if (verb === '이동') return `${base} 이동하기`.slice(0, 30);
   if (verb === '확인') return `${base} 확인하기`.slice(0, 30);
-  if (/(보내기|발송|전송|작성|생성|등록|저장|다운로드|구매|공유|초대|로그인|제출)$/.test(base)) {
+  if (/(보내기|발송|전송|작성|생성|등록|신청|인증|저장|다운로드|구매|공유|초대|로그인|제출|설치|연결)$/.test(base)) {
     return (base.endsWith('기') ? base : `${base}하기`).slice(0, 30);
   }
   return `${base} 확인하기`.slice(0, 30);

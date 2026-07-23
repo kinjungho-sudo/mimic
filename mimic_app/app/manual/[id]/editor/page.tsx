@@ -391,7 +391,7 @@ export default function EditorPage() {
     titleDirtyRef.current = titleDirty;
   }, [titleDirty]);
 
-  // 기존 매뉴얼까지 목적 중심 제목·본문으로 다시 생성한다.
+  // 최초 생성 결과와 별개로 사용자가 원할 때 문체와 표현을 다시 다듬는다.
   const refineAllText = useCallback(async (options: { automatic?: boolean } = {}) => {
     if (refineAbortRef.current) return;
     if (!manualSteps.some(step => !step.id.startsWith('step-'))) {
@@ -1033,11 +1033,11 @@ export default function EditorPage() {
             <button
               onClick={handleRefineAllText}
               disabled={refiningText || !canUseAiRewrite}
-              title={canUseAiRewrite ? '기존 매뉴얼을 포함해 전체 제목·본문을 사용자 목적 중심으로 다시 작성' : 'Basic 이상 플랜에서 사용할 수 있습니다.'}
+              title={canUseAiRewrite ? '현재 제목과 설명의 문체와 표현을 AI로 다듬기' : 'Basic 이상 플랜에서 사용할 수 있습니다.'}
               style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', flexShrink: 0, height: '28px', padding: '0 10px', borderRadius: '6px', border: '1px solid #E5E7EB', background: 'white', color: '#12B886', fontSize: '12px', fontWeight: 500, cursor: refiningText || !canUseAiRewrite ? 'not-allowed' : 'pointer', opacity: refiningText || !canUseAiRewrite ? 0.55 : 1, transition: 'all 0.15s' }}
             >
               {refiningText ? <Loader2 size={TOP_BAR_ICON_SIZE} style={{ animation: 'spin 1s linear infinite' }} /> : <Wand2 size={TOP_BAR_ICON_SIZE} />}
-              전체 제목·본문 AI 재작성
+              AI 문장 다듬기
             </button>
             {refiningText && (
               <button onClick={cancelRefineAllText} style={{ height: '28px', padding: '0 9px', borderRadius: '6px', border: '1px solid #FCA5A5', background: '#FFF7F7', color: '#B91C1C', fontSize: '11.5px', fontWeight: 600, cursor: 'pointer' }}>
@@ -1187,11 +1187,11 @@ export default function EditorPage() {
         <div onClick={() => setShowRefineConfirm(false)} style={{ position: 'fixed', inset: 0, zIndex: 2100, background: 'rgba(10,10,18,0.50)', backdropFilter: 'blur(3px)', display: 'grid', placeItems: 'center', padding: 20 }}>
           <div role="dialog" aria-modal="true" aria-labelledby="refine-confirm-title" onClick={event => event.stopPropagation()} style={{ width: '100%', maxWidth: 400, borderRadius: 16, background: 'white', padding: 24, boxShadow: '0 20px 60px rgba(0,0,0,0.28)' }}>
             <div style={{ width: 42, height: 42, borderRadius: 12, display: 'grid', placeItems: 'center', background: '#E8FFF7', color: '#009B8E', marginBottom: 14 }}><Wand2 size={20} /></div>
-            <h2 id="refine-confirm-title" style={{ margin: '0 0 8px', fontSize: 17, color: '#111827' }}>전체 문구를 AI로 다시 작성할까요?</h2>
-            <p style={{ margin: '0 0 20px', color: '#6B7280', fontSize: 13, lineHeight: 1.65 }}>현재 단계의 제목과 본문을 사용자 목적 중심으로 다듬습니다. 작업 중에는 취소할 수 있고, 실패하면 다시 시도할 수 있습니다.</p>
+            <h2 id="refine-confirm-title" style={{ margin: '0 0 8px', fontSize: 17, color: '#111827' }}>문장 표현을 AI로 다듬을까요?</h2>
+            <p style={{ margin: '0 0 20px', color: '#6B7280', fontSize: 13, lineHeight: 1.65 }}>최초 생성된 제목과 설명을 바탕으로 문체와 표현을 새롭게 다듬습니다. 작업 중에는 취소할 수 있습니다.</p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
               <button onClick={() => setShowRefineConfirm(false)} style={{ height: 38, padding: '0 15px', borderRadius: 9, border: '1px solid #D1D5DB', background: 'white', color: '#374151', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>취소</button>
-              <button onClick={() => { setShowRefineConfirm(false); void refineAllText(); }} style={{ height: 38, padding: '0 16px', borderRadius: 9, border: 'none', background: 'linear-gradient(135deg,#009B8E,#12B886)', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>AI 재작성 시작</button>
+              <button onClick={() => { setShowRefineConfirm(false); void refineAllText(); }} style={{ height: 38, padding: '0 16px', borderRadius: 9, border: 'none', background: 'linear-gradient(135deg,#009B8E,#12B886)', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>문장 다듬기</button>
             </div>
           </div>
         </div>

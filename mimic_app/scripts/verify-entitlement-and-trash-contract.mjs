@@ -53,7 +53,7 @@ assert.ok(vercel.crons.some(cron => cron.path === '/api/cron/cleanup-trash'));
 
 assert.doesNotMatch(landing, /href:\s*'#'/);
 assert.match(landing, /소개 자료 요청/);
-assert.match(home, /'aria-label': `\$\{tutorial\.title\} 매뉴얼 열기`/);
+assert.match(home, /'aria-label': `\$\{displayTitle\} 매뉴얼 열기`/);
 assert.match(home, /aria-label="공지 닫기"/);
 assert.match(home, /displayedTutorials\.slice\(0, visibleTutorialCount\)/);
 assert.doesNotMatch(desktopSetup, /getDesktopExtensionIds|response\?\.error\}\)`/);

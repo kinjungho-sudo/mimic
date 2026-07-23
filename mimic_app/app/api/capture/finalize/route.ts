@@ -632,9 +632,10 @@ export async function POST(request: NextRequest) {
     console.error('capture finalize initial draft generation error:', err);
   }
 
-  // 모든 스텝은 위의 결정적 fallback으로 즉시 읽을 수 있게 만든다.
-  // 아래 전체 AI 패스는 명시적으로 켠 환경에서만 fallback을 더 자연스럽게 다듬는다.
-  const runFullDraftBeforeResponse = process.env.CAPTURE_FINALIZE_BLOCKING_AI === '1';
+  // 최초 완성본부터 목적 중심 제목과 설명을 제공한다. AI가 실패하거나 제한 시간에
+  // 도달한 경우에만 위에서 저장한 결정적 fallback을 그대로 사용한다.
+  // 운영 장애 시 명시적으로 0을 지정한 경우에만 전체 AI 패스를 우회한다.
+  const runFullDraftBeforeResponse = process.env.CAPTURE_FINALIZE_BLOCKING_AI !== '0';
   if (runFullDraftBeforeResponse) {
   // AI 초안 생성 — tutorial 제목 + 스텝별 user_title/user_script + 커버 색상
   try {

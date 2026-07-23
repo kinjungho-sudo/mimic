@@ -11,6 +11,7 @@ async function main() {
     isLowQualityCaptureLabel,
     isLowQualityCaptureTitle,
     isLowQualityCaptureTutorialTitle,
+    normalizeCaptureTutorialTitle,
     isUsableCaptureDraft,
   } = await import('../lib/ai/capture-fallback.ts');
 
@@ -258,6 +259,39 @@ async function main() {
     failures.push({ name: 'tutorial title keeps action ending', expected: '알림 신청하기', actual: actionEndingTitle });
   }
 
+  const searchConsoleTitle = buildCaptureFallbackTutorialTitle([
+    { user_title: '화면 클릭 확인' },
+    { user_title: '사이트 주소 입력' },
+    { user_title: '소유권 인증 완료' },
+    { user_title: '사이트 등록 절차 완료' },
+    { user_title: '등록 사이트 선택' },
+    { user_title: 'HTML 파일 업로드 방법 확인' },
+    { user_title: '소유권 확인 파일 다운로드' },
+  ]);
+  if (searchConsoleTitle !== '사이트 등록하기') {
+    failures.push({ name: 'site registration workflow gets a natural goal title', expected: '사이트 등록하기', actual: searchConsoleTitle });
+  }
+
+  const normalizedTutorialTitles = [
+    ['사이트 등록 절차 완료 확인하기', '사이트 등록하기'],
+    ['AI 창업 솔루션 관심 등록 확인하기', 'AI 창업 솔루션 관심 등록하기'],
+    ['FoalAI 얼리어답터 알림 신청 완료하기', 'FoalAI 얼리어답터 알림 신청하기'],
+  ];
+  for (const [input, expected] of normalizedTutorialTitles) {
+    const actual = normalizeCaptureTutorialTitle(input);
+    if (actual !== expected) {
+      failures.push({ name: 'awkward completion title is normalized', input, expected, actual });
+    }
+  }
+
+  const urlInputDraft = buildCaptureFallbackDraft(
+    { id: 'url-input', step_number: 1, ai_title: 'https://www.example.com 입력', ai_description: null, page_url: 'https://search.google.com/search-console/welcome', domain_name: 'Google Search Console' },
+    { actionInfo: { type: 'type', label: 'https://www.example.com', text: 'https://www.example.com' } },
+  );
+  if (urlInputDraft.user_title !== '사이트 주소 입력') {
+    failures.push({ name: 'URL input becomes a purpose-based step title', expected: '사이트 주소 입력', actual: urlInputDraft.user_title });
+  }
+
   const directionalDraft = buildCaptureFallbackDraft(
     { id: 'arrow-1', step_number: 3, ai_title: '→ 클릭', ai_description: null, page_url: 'https://faolai-landingpage.pages.dev/', domain_name: 'Faolai' },
     { actionInfo: { type: 'click', label: '→', targetContext: { contextLabel: '고객 후기' } }, elementText: '→' },
@@ -373,6 +407,9 @@ async function main() {
   }
   if (!isLowQualityCaptureTitle('search 클릭')) {
     failures.push({ name: 'raw search title detector', expected: true, actual: false });
+  }
+  if (!isLowQualityCaptureTitle('https://www.example.com 입력')) {
+    failures.push({ name: 'URL title detector', expected: true, actual: false });
   }
   const rawDomTitles = [
     '파일 등 추가 클릭',
