@@ -1684,9 +1684,6 @@ export default function LandingPage() {
             ))}
           </nav>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Link href="/download/desktop" className="landing-header-desktop"
-              style={{ padding: '8px 12px', borderRadius: '8px', fontSize: '13.5px', fontWeight: 600, color: 'rgba(115,231,220,0.9)', textDecoration: 'none' }}
-            >Desktop 앱</Link>
             <Link href="/auth/login" className="landing-header-login"
               style={{ padding: '8px 16px', borderRadius: '8px', fontSize: '13.5px', fontWeight: 500, color: 'rgba(255,255,255,0.55)', textDecoration: 'none', transition: 'color 0.15s' }}
               onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.90)'}
@@ -2484,7 +2481,6 @@ export default function LandingPage() {
           .simulator-stage-header { align-items: flex-start !important; flex-direction: column !important; }
           .simulator-follow-wrap { padding: 10px !important; }
           .landing-header nav,
-          .landing-header-desktop,
           .landing-header-login { display: none !important; }
           .landing-header > div { padding: 0 16px !important; height: 58px !important; }
           .landing-header-primary {

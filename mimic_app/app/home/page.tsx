@@ -876,7 +876,7 @@ export default function DashboardPage() {
   const [showDrawer, setShowDrawer] = useState(false);
 
   // 뷰 모드
-  const [viewMode, setViewMode] = useState<ViewMode>('compact');
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [visibleTutorialCount, setVisibleTutorialCount] = useState(24);
 
   // 공지 배너
