@@ -12,6 +12,7 @@ type DemoStep = {
   description: string;
   screenshotUrl: string;
   rect: { x: number; y: number; width: number; height: number };
+  modalRect?: { x: number; y: number; width: number; height: number };
   slideRect?: { x: number; y: number; width: number; height: number };
   coachSide: 'left' | 'right';
 };
@@ -40,6 +41,7 @@ const DEMO_STEPS: DemoStep[] = [
     description: '신청 방식 팝업에서 회원 신청하기를 선택합니다.',
     screenshotUrl: `${CAPTURE_BASE}/step_03.jpg`,
     rect: { x: 33.8, y: 46.8, width: 15.3, height: 7.7 },
+    modalRect: { x: 27, y: 23.3, width: 44.8, height: 55 },
     slideRect: { x: 69.1, y: 73.3, width: 27.5, height: 9.4 },
     coachSide: 'right',
   },
@@ -140,6 +142,10 @@ function TargetViewport({ step, previousStep, live, reducedMotion, settled = fal
     '--target-y': `${step.rect.y}%`,
     '--target-w': `${step.rect.width}%`,
     '--target-h': `${step.rect.height}%`,
+    '--modal-x': `${step.modalRect?.x ?? 0}%`,
+    '--modal-y': `${step.modalRect?.y ?? 0}%`,
+    '--modal-w': `${step.modalRect?.width ?? 0}%`,
+    '--modal-h': `${step.modalRect?.height ?? 0}%`,
     '--coach-x': `${step.coachSide === 'right' ? step.rect.x + step.rect.width : step.rect.x}%`,
     '--coach-y': `${step.rect.y + step.rect.height / 2}%`,
     '--cursor-from-x': `${from.x}%`,
@@ -155,7 +161,8 @@ function TargetViewport({ step, previousStep, live, reducedMotion, settled = fal
   return (
     <div className={`${styles.targetViewport} ${live ? styles.liveViewport : styles.recordViewport} ${settled ? styles.settledViewport : ''} ${reducedMotion ? styles.reducedMotion : ''}`} style={vars}>
       <img src={step.screenshotUrl} alt={`${step.title} 실제 녹화 화면`} draggable={false} decoding="async" />
-      <div className={styles.targetBox} aria-hidden="true" />
+      {step.modalRect && <div className={styles.modalDepthFocus} aria-hidden="true" />}
+      {live && <div className={styles.targetBox} aria-hidden="true" />}
       <span className={styles.clickPulse} aria-hidden="true" />
       <span className={styles.pointer} aria-hidden="true"><Pointer /></span>
       {live && (
