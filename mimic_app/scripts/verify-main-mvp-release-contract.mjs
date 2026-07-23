@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -46,60 +45,38 @@ for (const internalPath of [
   assert.ok(fs.existsSync(internalPath), `internal Desktop implementation must be preserved: ${internalPath}`);
 }
 
-// SHA-256 values are computed from the public 1.7.2 package after normalizing
-// text files to LF. The source manifest's "(dev)" suffix is removed exactly as
-// the store packaging scripts do before its hash is checked.
-const approvedRecorderHashes = {
-  'manifest.json': '59f8c46f1aa4d50575f5f9988dc7ba8744db4f8d3b1d89e394e8586f91417da5',
-  'background.js': 'ee0ec1d7a5dbceb838fb2eca01b17110515809d15af3cef41c085882e16dc3fc',
-  'content.js': '8a0958b6dc7d557ab627ab0cc9429b2439d9b1ff9ff465c40b19113ae66fa5c0',
-  'guide-engine.js': 'ac3c2dcbf0773dc01d00e430cfca5d0da54d9a355fdded56ebbf7938f2c00c4f',
-  'desktop-bridge.js': '2f61092ce262594bab879cd8b7a925310333fcbd924e332553a71e72da9f908b',
-  'desktop-import.js': 'a75aaac97e631f50951cc4323d94fb764ce6c1b3ce280fac6772035512695548',
-  'targeting.js': '262dd70d198e57dfad00bb6618ae13a54fbc24843399afa8d408f03ce05c8922',
-  'popup.js': '70de8c29af0037140259e34897c38993121e25956b5a7f0f48afe18904392963',
-  'popup.html': 'b77085aaaa8049c424a5ccabb396e8f5c73adb731db21333cc69aa15edbdccac',
-  'offscreen.html': '04de67046e82e2f7122725b0b60f6ca5d20592cb86e35dfcf1f9422d41c925cb',
-  'offscreen.js': '731160db62ea21f84c8c237c37d2d4de6c39973b88c55e911ec37b9d1765c9bf',
-  'request-mic.html': '8464c611098223247501651ff5d0d18adee81ce4565afa03e6e90350b1af9289',
-  'request-mic.js': '30d6afc008a7afab3e12c4efa6024aaaf929259bbfa727ef678b9a0888079058',
-  'icons/icon16.png': 'd725ea52f610510443292d38b54326ba8e4377c7a155180be531b72ff830bffe',
-  'icons/icon48.png': '8f8f3e6084ca3d373b92ac310a00a4ad2a5266459a97d44879d4c0cc3f68ba9d',
-  'icons/icon128.png': '8a70b5bb33a5af1a1382647dc56e828e2895ba96d5f3f7bc343e0bd6aeb2c1f5',
-};
-
-for (const [relativePath, approvedHash] of Object.entries(approvedRecorderHashes)) {
-  const filePath = path.join(repoRoot, 'mimic_recorder', ...relativePath.split('/'));
-  let bytes = fs.readFileSync(filePath);
-
-  if (/\.(?:html|js|json)$/.test(relativePath)) {
-    let text = bytes.toString('utf8').replace(/\r\n/g, '\n');
-    if (relativePath === 'manifest.json') {
-      text = text.replace('Parro Recorder (dev)', 'Parro Recorder');
-    }
-    bytes = Buffer.from(text, 'utf8');
-  }
-
-  const actualHash = crypto.createHash('sha256').update(bytes).digest('hex');
-  assert.equal(actualHash, approvedHash, `${relativePath} must match the approved Recorder 1.7.2 package`);
-}
-
-const recorderManifest = JSON.parse(fs.readFileSync(path.join(repoRoot, 'mimic_recorder', 'manifest.json'), 'utf8'));
-assert.equal(recorderManifest.version, '1.7.2', 'Recorder manifest version must remain 1.7.2');
-
+const publicExtensionId = 'lefkpmfgdbhckcemfghpegleknaepekm';
+const productionOrigin = 'https://mimic-nine-ashen.vercel.app';
 const brand = read('lib', 'brand.ts');
+const extensionResolver = read('lib', 'extension-id.ts');
+const recorderBackground = fs.readFileSync(path.join(repoRoot, 'mimic_recorder', 'background.js'), 'utf8');
+const recorderPopup = fs.readFileSync(path.join(repoRoot, 'mimic_recorder', 'popup.js'), 'utf8');
+const recorderManifest = JSON.parse(fs.readFileSync(path.join(repoRoot, 'mimic_recorder', 'manifest.json'), 'utf8'));
+
 assert.match(
   brand,
-  /BRAND_EXTENSION_ID\s*=\s*'lefkpmfgdbhckcemfghpegleknaepekm'/,
-  'public install links must use the approved Parro Web Store listing',
+  new RegExp(`BRAND_EXTENSION_ID\\s*=\\s*'${publicExtensionId}'`),
+  'public install links must use the stable Parro Web Store item',
+);
+assert.match(
+  extensionResolver,
+  /if \(!allowsDynamicExtensionId\(hostname\)\) return BRAND_EXTENSION_ID/,
+  'production must ignore stale environment/query IDs and use the stable Web Store ID',
+);
+assert.ok(recorderBackground.includes(publicExtensionId), 'Recorder background must recognize the public Web Store ID');
+assert.ok(recorderPopup.includes(publicExtensionId), 'Recorder popup must recognize the public Web Store ID');
+assert.ok(
+  recorderManifest.externally_connectable?.matches?.includes(`${productionOrigin}/*`),
+  'Recorder must allow external messages from the production main origin',
 );
 
 console.log(JSON.stringify({
   ok: true,
-  checks: publicSurfaces.length + 28,
+  checks: publicSurfaces.length + 16,
   scope: 'main-mvp-release-candidate',
   desktopPublic: false,
-  recorderVersion: recorderManifest.version,
-  recorderPackageFilesMatched: Object.keys(approvedRecorderHashes).length,
-  publicExtensionId: 'lefkpmfgdbhckcemfghpegleknaepekm',
+  recorderSourceVersion: recorderManifest.version,
+  recorderVersionPinnedToWebApp: false,
+  publicExtensionId,
+  productionOrigin,
 }));

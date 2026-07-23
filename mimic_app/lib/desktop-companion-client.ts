@@ -64,7 +64,10 @@ export function getDesktopExtensionId(): string {
 
 export function getDesktopExtensionIds(): string[] {
   const configured = process.env.NEXT_PUBLIC_EXTENSION_ID?.replace(/^\uFEFF/, '').trim();
-  return Array.from(new Set([configured, ...BRAND_EXTENSION_IDS].filter((id): id is string => !!id)));
+  return Array.from(new Set([
+    ...BRAND_EXTENSION_IDS,
+    configured,
+  ].filter((id): id is string => !!id)));
 }
 
 export function canTalkToDesktopExtension(): boolean {

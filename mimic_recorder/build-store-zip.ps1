@@ -18,11 +18,26 @@ $files = @(
   'desktop-bridge.js', 'desktop-import.js', 'targeting.js',
   'popup.js', 'popup.html',
   'offscreen.html', 'offscreen.js',
-  'request-mic.html', 'request-mic.js'
+  'request-mic.html', 'request-mic.js',
+  'assets/parro-ai-avatar.png',
+  'assets/parro-ai-avatar-neutral.png',
+  'assets/parro-ai-avatar-listen.png',
+  'assets/parro-ai-avatar-talk.png',
+  'assets/parro-ai-avatar-point.png',
+  'assets/parro-ai-avatar-think.png',
+  'assets/parro-ai-avatar-search.png',
+  'assets/parro-ai-avatar-warning.png',
+  'assets/parro-ai-avatar-error.png',
+  'assets/parro-ai-avatar-blocked.png',
+  'assets/parro-ai-avatar-clarify.png',
+  'assets/parro-ai-avatar-success.png'
 )
 foreach ($f in $files) {
   if (-not (Test-Path $f)) { throw "Missing required file: $f" }
-  Copy-Item $f $stage
+  $destination = Join-Path $stage $f
+  $destinationDir = Split-Path $destination -Parent
+  New-Item -ItemType Directory -Path $destinationDir -Force | Out-Null
+  Copy-Item $f $destination
 }
 foreach ($i in @('icon16.png','icon48.png','icon128.png')) {
   Copy-Item (Join-Path 'icons' $i) (Join-Path $stage 'icons')

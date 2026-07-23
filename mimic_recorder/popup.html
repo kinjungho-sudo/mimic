@@ -70,6 +70,40 @@
       text-align: center;
     }
     .privacy-notice a { color: #00796F; font-weight: 650; text-decoration: underline; text-underline-offset: 2px; }
+    .capture-readiness {
+      display: none;
+      align-items: flex-start;
+      gap: 9px;
+      margin-top: 10px;
+      padding: 10px 11px;
+      border: 1px solid #FDE68A;
+      border-radius: 9px;
+      background: #FFFBEB;
+      color: #92400E;
+      font-size: 11px;
+      line-height: 1.5;
+      text-align: left;
+    }
+    .capture-readiness[data-state="checking"],
+    .capture-readiness[data-state="issue"] { display: flex; }
+    .capture-readiness[data-state="checking"] {
+      border-color: #BFEDE7;
+      background: #F0FDFA;
+      color: #00796F;
+    }
+    .capture-readiness-copy { flex: 1; }
+    .capture-readiness-retry {
+      flex-shrink: 0;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      font-weight: 700;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      cursor: pointer;
+    }
+    .capture-readiness-retry:disabled { opacity: 0.55; cursor: wait; }
 
     /* 전체 페이지 캡처는 헤더의 작은 아이콘(btn-settings 스타일 재사용)으로 이동 */
     /* 캡처 차단 토스트 등에서 공유하는 등장 애니메이션 */
@@ -460,6 +494,10 @@
         녹화 중 선택한 화면, 페이지 URL·제목, 클릭 및 입력 화면이 매뉴얼 생성을 위해 Parro로 전송됩니다.
         비밀번호 값은 저장하지 않습니다. <a href="https://parro-guide-dev.vercel.app/legal/privacy" target="_blank" rel="noopener noreferrer">개인정보 처리방침</a>
       </p>
+      <div class="capture-readiness" id="captureReadiness" role="status" aria-live="polite" data-state="hidden">
+        <span class="capture-readiness-copy" id="captureReadinessCopy"></span>
+        <button class="capture-readiness-retry" id="captureReadinessRetry" type="button">다시 확인</button>
+      </div>
     </div>
   </div>
 
@@ -590,7 +628,7 @@
         <div class="setting-row">
           <div class="setting-info">
             <div class="setting-label">타이핑 텍스트 저장</div>
-            <div class="setting-desc">입력 내용을 스텝에 저장해 Live Guide Beta에서 복사해 붙여넣을 수 있습니다. 비밀번호 등 민감 필드는 자동 제외됩니다</div>
+            <div class="setting-desc">입력 내용을 스텝에 저장해 Live Guide Beta에서 복사해 붙여넣을 수 있습니다. 신규 녹화는 기본으로 켜지며, 비밀번호 등 민감 필드는 자동 제외됩니다</div>
           </div>
           <label class="toggle">
             <input type="checkbox" id="settingSaveText" />
@@ -636,8 +674,8 @@
     <!-- 헤더 -->
     <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #e8e8f0;flex-shrink:0;">
       <div style="display:flex;align-items:center;gap:8px;">
-        <div style="width:26px;height:26px;border-radius:50%;overflow:hidden;flex-shrink:0;">
-          <img src="icons/icon48.png" alt="Parro" style="width:100%;height:100%;object-fit:cover;">
+        <div style="width:30px;height:30px;border-radius:9px;overflow:hidden;flex-shrink:0;background:linear-gradient(135deg,#F1FBF9,#E4F3F6);box-shadow:0 3px 10px rgba(0,155,142,.2);">
+          <img src="assets/parro-ai-avatar-neutral.png?v=20260720" alt="Parro AI 가이드" style="width:100%;height:100%;object-fit:contain;">
         </div>
         <span style="font-size:14px;font-weight:700;color:#1e1e2e;">Live Guide Beta</span>
       </div>
@@ -653,6 +691,13 @@
       <div style="height:4px;background:#f0f0f8;border-radius:4px;overflow:hidden;">
         <div id="guideProgressBar" style="height:100%;width:0%;background:linear-gradient(90deg,#009B8E,#8DD63F);border-radius:4px;transition:width 0.3s ease;"></div>
       </div>
+      <div id="guideTargetStatus" style="display:flex;align-items:center;gap:6px;margin-top:9px;font-size:11px;color:#8A8FA3;">
+        <span style="width:6px;height:6px;border-radius:50%;background:#F59E0B;"></span>
+        <span>대상 페이지로 이동 중</span>
+      </div>
+      <button id="guideTargetRetry" type="button" style="display:none;margin-top:8px;padding:6px 10px;border:1px solid #DDE2EA;border-radius:7px;background:#fff;color:#4B5563;font-size:11px;font-weight:600;cursor:pointer;">
+        현재 화면에서 다시 찾기
+      </button>
     </div>
 
     <!-- 스텝 내용 -->
@@ -667,10 +712,13 @@
       </div>
     </div>
 
-    <!-- 이전 / 다음 버튼 -->
-    <div style="display:flex;gap:8px;padding:12px 16px;border-top:1px solid #e8e8f0;flex-shrink:0;">
+    <!-- 단계 이동 / 명시적 건너뛰기 -->
+    <div style="padding:10px 16px 12px;border-top:1px solid #e8e8f0;flex-shrink:0;">
+      <div id="guideNavHint" style="font-size:11px;color:#888;line-height:1.45;margin-bottom:8px;"></div>
+      <div style="display:flex;gap:8px;">
       <button id="guidePrevBtn" style="flex:1;padding:10px;border:1px solid #e8e8f0;border-radius:9px;background:#fff;color:#555;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;" onmouseover="this.style.borderColor='#009B8E';this.style.color='#009B8E';this.style.background='#E8FFF7'" onmouseout="this.style.borderColor='#e8e8f0';this.style.color='#555';this.style.background='#fff'">← 이전</button>
-      <button id="guideNextBtn" style="flex:2;padding:10px;border:none;border-radius:9px;background:#009B8E;color:#fff;font-size:13px;font-weight:700;cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='#00796F'" onmouseout="this.style.background='#009B8E'">다음 →</button>
+      <button id="guideNextBtn" style="flex:2;padding:10px;border:none;border-radius:9px;background:#009B8E;color:#fff;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.15s;">다음 →</button>
+      </div>
     </div>
 
     <!-- 스텝 번호 목록 -->

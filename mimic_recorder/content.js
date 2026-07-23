@@ -83,7 +83,7 @@
   let settings = {
     highlight: true,
     autoNav:   true,
-    saveText:  false,
+    saveText:  true,
     captureInputClicks: false,
   };
 
@@ -97,11 +97,17 @@
   let typingTimer        = null;
   let _pointerDownSnapshot = null;
   let _pointerClickFallbackTimer = null;
+  let _captureSequence   = 0;
   let typingFocusSnapshot = null;
   let _countingDown      = false;
+  let _guideCountdownComplete = false;
+  let _guideCountdownRunning = false;
+  let _pendingGuideOverlay = null;
+  let _cancelGuideCountdown = null;
   let _lastTypingFrameTime = 0;     // 롤링 타이핑 프레임 throttle 기준
   let _typingFrameTimer  = null;    // 입력 멈춤(완료) 시점 프레임 1장 예약 타이머
   let _isComposing       = false;   // 한/일/중 IME 조합 중 여부 — 조합 중간값 캡처 방지
+  let cancelActiveLiveTargetPick = null;
 
   // 비밀번호 등 민감 입력의 '타이핑 텍스트 저장'을 막는 마스킹용 (블러와 무관)
   const SENSITIVE_INPUT_TYPES = new Set(['password']);
@@ -305,24 +311,48 @@
   }
 
   // ── 필드 레이블 추출 ─────────────────────────────────────────────
+  function isInstructionalAccessibilityLabel(value) {
+    const text = String(value || '').replace(/\s+/g, ' ').trim();
+    if (!text) return false;
+    if (/비어\s*있|입력하여|작성해\s*보세요|입력해\s*보세요|선택해\s*보세요|클릭해\s*보세요|입력하세요|작성하세요|선택하세요|클릭하세요|확인하세요/.test(text)) return true;
+    if (/\b(?:type|enter|write|compose|click|select)\b.{0,48}\b(?:to|here|below|new|your)\b/i.test(text)) return true;
+    return text.length >= 28 && /(?:입력|작성|게시물|댓글|메시지).*(?:하세요|보세요|있습니다)/.test(text);
+  }
+
+  function semanticFieldLabel(value) {
+    const text = String(value || '').replace(/\s+/g, ' ').trim();
+    if (/댓글|답글|comment|reply/i.test(text)) return '댓글 내용';
+    if (/게시물|새\s*소식|새로운\s*소식|post|thread/i.test(text)) return '게시물 내용';
+    if (/검색|search/i.test(text)) return '검색어';
+    if (/메일|메시지|message|mail/i.test(text)) return '메시지 내용';
+    return '입력 내용';
+  }
+
   function getFieldLabel(el) {
     if (document.designMode === 'on' && el === document.body) return '본문';
     if (el.id) {
       const label = document.querySelector(`label[for="${CSS.escape(el.id)}"]`);
-      if (label) return label.textContent.trim().slice(0, 60);
+      if (label) {
+        const text = label.textContent.trim();
+        if (text) return isInstructionalAccessibilityLabel(text) ? semanticFieldLabel(text) : text.slice(0, 60);
+      }
     }
     const parentLabel = el.closest('label');
     if (parentLabel) {
-      const text = parentLabel.textContent.trim().slice(0, 60);
-      if (text) return text;
+      const text = parentLabel.textContent.trim();
+      if (text) return isInstructionalAccessibilityLabel(text) ? semanticFieldLabel(text) : text.slice(0, 60);
     }
-    return (
-      el.getAttribute('aria-label') ||
-      el.getAttribute('placeholder') ||
-      el.getAttribute('title') ||
-      el.getAttribute('name') ||
-      '텍스트'
-    ).trim().slice(0, 60);
+    const ariaLabel = el.getAttribute('aria-label') || '';
+    const candidates = [
+      el.getAttribute('placeholder'),
+      ariaLabel,
+      el.getAttribute('title'),
+      el.getAttribute('name'),
+    ];
+    const concise = candidates.find(value => value && !isInstructionalAccessibilityLabel(value));
+    if (concise) return concise.trim().slice(0, 60);
+    if (ariaLabel) return semanticFieldLabel(ariaLabel);
+    return '입력 내용';
   }
 
   // ── PII 블러 ──────────────────────────────────────────────────────
@@ -341,7 +371,7 @@
     const editor = node.closest?.(
       '[contenteditable="true"],[contenteditable="plaintext-only"],[role="textbox"],.ProseMirror,.ql-editor,.se2_inputarea,.se_editArea,.note-editable,[data-contents="true"]'
     );
-    if (editor && editor.isContentEditable) {
+    if (editor && (editor.isContentEditable || editor.matches('[role="textbox"],.ProseMirror,.ql-editor,.se2_inputarea,.se_editArea,.note-editable,[data-contents="true"]'))) {
       return editor;
     }
     if (node.isContentEditable) {
@@ -458,6 +488,7 @@
     const role = focusSnapshot?.role || el.getAttribute('role') || undefined;
     const labelDebug = focusSnapshot?.labelDebug ?? buildLabelDebug(el, label);
     const targetContext = focusSnapshot?.targetContext ?? buildTargetContext(el, rect, topRect, label);
+    const captureId = opts.captureId || (opts.usePrecapture ? focusSnapshot?.captureId : null);
 
     lastCapturedTarget = el;
     lastCapturedTime   = Date.now();
@@ -467,7 +498,8 @@
       windowWidth: vw, windowHeight: vh,
       viewportW: vw, viewportH: vh,
       stepNumber: stepForThis, overwrite: true, useTypingFrame: true,
-      usePrecapture: !!opts.usePrecapture, peekPrecapture: !!opts.peekPrecapture,
+      captureId: captureId ?? null,
+      usePrecapture: !!opts.usePrecapture && !!captureId, peekPrecapture: !!opts.peekPrecapture,
       typedText,
       elementRect, elementSelector, elementXPath,
       actionInfo: { type: 'type', label, text: label, typedText, masked: isMasked, tag: el.tagName.toLowerCase(), role, labelDebug, targetContext },
@@ -655,6 +687,8 @@
 
   // ── 녹화 시작 카운트다운 오버레이 ──────────────────────────────
   function showCountdown(onDone, opts) {
+    let cancelled = false;
+    let timerId = null;
     const overlay = document.createElement('div');
     overlay.style.cssText = [
       'position:fixed', 'inset:0', 'z-index:2147483647',
@@ -707,6 +741,7 @@
 
     let i = 0;
     function tick() {
+      if (cancelled) return;
       if (i >= steps.length) { overlay.remove(); onDone(); return; }
       const s = steps[i++];
       numEl.textContent = s.text;
@@ -715,13 +750,65 @@
       numEl.style.animation = 'none';
       void numEl.offsetWidth;
       numEl.style.animation = s.anim;
-      setTimeout(tick, i < steps.length ? 900 : 700);
+      timerId = setTimeout(tick, i < steps.length ? 900 : 700);
     }
     tick();
+    return () => {
+      cancelled = true;
+      if (timerId) clearTimeout(timerId);
+      overlay.remove();
+    };
+  }
+
+  function renderLiveGuideOverlay(msg) {
+    const guideApi = window.ParroGuide || window.MimicGuide;
+    if (!guideApi) return;
+    guideApi.show(msg.step, {
+      index: msg.index ?? 0,
+      total: msg.total ?? 1,
+      survey: msg.survey || null,
+      onAdvance: (reason) => chrome.runtime.sendMessage({ type: 'GUIDE_NEXT', viaClick: reason === 'click' }),
+      onPrev:    () => chrome.runtime.sendMessage({ type: 'GUIDE_PREV' }),
+      onExit:    () => { chrome.runtime.sendMessage({ type: 'EXIT_GUIDE' }); guideApi.hide(); },
+      onComplete: (reason) => {
+        guideApi.hide();
+        chrome.runtime.sendMessage({ type: 'GUIDE_COMPLETE', reason: reason || 'complete' });
+      },
+      onTargetStatus: (status, evidence) => chrome.runtime.sendMessage({
+        type: 'GUIDE_TARGET_STATUS',
+        stepIndex: msg.index ?? 0,
+        status,
+        evidence: evidence || null,
+      }),
+    });
+  }
+
+  function queueLiveGuideOverlay(msg) {
+    const isFirstStep = (msg.index ?? 0) === 0;
+    if (!isFirstStep || _guideCountdownComplete) {
+      renderLiveGuideOverlay(msg);
+      return;
+    }
+    _pendingGuideOverlay = msg;
+    if (_guideCountdownRunning) return;
+    _guideCountdownRunning = true;
+    _cancelGuideCountdown = showCountdown(() => {
+      _guideCountdownComplete = true;
+      _guideCountdownRunning = false;
+      _cancelGuideCountdown = null;
+      const pending = _pendingGuideOverlay;
+      _pendingGuideOverlay = null;
+      if (pending) renderLiveGuideOverlay(pending);
+    }, { label: 'Live Guide Beta가 시작됩니다', accentColor: '#17C9B6', startText: 'START' });
   }
 
   // ── 메시지 수신 ──────────────────────────────────────────────────
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+    if (msg.type === 'PARRO_CONTENT_READY') {
+      sendResponse({ ok: true, ready: true, topFrame: IS_TOP_FRAME });
+      return false;
+    }
+
     if (msg.type === 'START_RECORDING') {
       if (isRecording || _countingDown) { sendResponse({ ok: true }); return false; }
       if (!IS_TOP_FRAME) {
@@ -808,7 +895,7 @@
 
     if (msg.type === 'SHOW_GUIDE_COUNTDOWN') {
       if (!IS_TOP_FRAME) { sendResponse({ ok: true }); return false; }
-      showCountdown(() => {}, { label: 'Live Guide Beta 시작됩니다', accentColor: '#17C9B6', startText: 'GO' });
+      showCountdown(() => {}, { label: 'Live Guide Beta가 시작됩니다', accentColor: '#17C9B6', startText: 'START' });
       sendResponse({ ok: true });
       return false;
     }
@@ -819,21 +906,23 @@
       return true;
     }
 
+    if (msg.type === 'CANCEL_LIVE_TARGET_PICK') {
+      if (IS_TOP_FRAME && cancelActiveLiveTargetPick) cancelActiveLiveTargetPick();
+      sendResponse({ ok: true });
+      return false;
+    }
+
     if (msg.type === 'SHOW_OVERLAY' && msg.step) {
       if (!IS_TOP_FRAME) return false;
-      const guideApi = window.ParroGuide || window.MimicGuide;
-      if (guideApi) guideApi.show(msg.step, {
-        index: msg.index ?? 0,
-        total: msg.total ?? 1,
-        survey: msg.survey || null,
-        onAdvance: (reason) => chrome.runtime.sendMessage({ type: 'GUIDE_NEXT', viaClick: reason === 'click' }),
-        onPrev:    () => chrome.runtime.sendMessage({ type: 'GUIDE_PREV' }),
-        onExit:    () => { chrome.runtime.sendMessage({ type: 'EXIT_GUIDE' }); guideApi.hide(); },
-      });
+      queueLiveGuideOverlay(msg);
       return false;
     }
     if (msg.type === 'HIDE_OVERLAY') {
       const guideApi = window.ParroGuide || window.MimicGuide;
+      _pendingGuideOverlay = null;
+      if (_cancelGuideCountdown) _cancelGuideCountdown();
+      _cancelGuideCountdown = null;
+      _guideCountdownRunning = false;
       if (IS_TOP_FRAME && guideApi) guideApi.hide();
       return false;
     }
@@ -843,9 +932,12 @@
 
   // ── 인터랙티브 타겟 탐색 ────────────────────────────────────────
   function startLiveTargetPick(sendResponse) {
+    if (cancelActiveLiveTargetPick) cancelActiveLiveTargetPick();
     let finished = false;
     let timeoutId = null;
     const banner = document.createElement('div');
+    banner.id = 'parro-live-target-picker';
+    banner.dataset.parroLiveTargetPicker = 'true';
     banner.textContent = 'Parro: 라이브 가이드 대상을 클릭하세요';
     Object.assign(banner.style, {
       position: 'fixed',
@@ -868,6 +960,7 @@
       document.removeEventListener('pointerdown', onPointerDown, true);
       if (timeoutId) clearTimeout(timeoutId);
       banner.remove();
+      if (cancelActiveLiveTargetPick === cancelPick) cancelActiveLiveTargetPick = null;
     };
 
     const finish = (payload) => {
@@ -876,6 +969,13 @@
       cleanup();
       sendResponse(payload);
     };
+
+    const cancelPick = () => finish({
+      ok: false,
+      reason: 'cancelled',
+      error: '대상 선택이 취소되었습니다.',
+    });
+    cancelActiveLiveTargetPick = cancelPick;
 
     function onPointerDown(event) {
       const raw = event.target && event.target.nodeType === Node.ELEMENT_NODE
@@ -977,15 +1077,51 @@
     };
   }
 
+  function inheritedPointerBoundary(el) {
+    let current = el;
+    let candidate = null;
+    let inPointerChain = false;
+    const viewportArea = Math.max(1, window.innerWidth * window.innerHeight);
+    for (let depth = 0; current && depth < 12; depth += 1) {
+      if (current === document.body || current === document.documentElement) break;
+      let style;
+      try { style = window.getComputedStyle(current); } catch { break; }
+      if (style.cursor !== 'pointer') {
+        if (inPointerChain) break;
+        current = current.parentElement || current.getRootNode?.().host || null;
+        continue;
+      }
+      inPointerChain = true;
+      const rect = targetClientRect(current);
+      const reasonable = rect && rect.width >= 1 && rect.height >= 1
+        && rect.width <= window.innerWidth * 0.92
+        && rect.height <= window.innerHeight * 0.92
+        && (rect.width * rect.height) / viewportArea <= 0.65;
+      if (reasonable) candidate = current;
+      current = current.parentElement || current.getRootNode?.().host || null;
+    }
+    return candidate;
+  }
+
   function findInteractiveTarget(el, event = null) {
     if (!el || el === document.documentElement) return null;
     if (document.designMode === 'on') return document.body;
+
+    // 입력창 내부의 클릭은 바깥쪽 클릭 핸들러보다 실제 편집 대상을 우선한다.
+    // 그렇지 않으면 포커스 클릭과 이어지는 입력이 서로 다른 두 단계로 기록된다.
+    const editableTarget = getEditableTarget(el);
+    if (editableTarget) return editableTarget;
 
     const candidates = eventElementPath(el, event)
       .map((candidate, index) => ({ element: candidate, ...targetFacts(candidate, event, index) }))
       .filter(candidate => candidate.facts.nativeInteractive || candidate.facts.semanticRole || candidate.facts.hasClickHandler || candidate.facts.pointerCursor);
     const decision = ParroTargeting.chooseTarget(candidates);
     if (!decision.best) return null;
+    const bestFacts = decision.best.facts;
+    if (!bestFacts.nativeInteractive && !bestFacts.semanticRole && !bestFacts.hasClickHandler) {
+      const pointerBoundary = inheritedPointerBoundary(el);
+      if (pointerBoundary) return pointerBoundary;
+    }
     targetDecisionByElement.set(decision.best.element, {
       confidence: decision.confidence,
       score: decision.best.score,
@@ -1059,19 +1195,15 @@
   function bestLabelFrom(el) {
     if (!el || !el.getAttribute) return '';
     const raw = collectLabelCandidates(el);
-    const specific = [
-      raw.labelledBy,
-      raw.associatedLabel,
-      raw.ariaLabel,
-      raw.title,
-      raw.describedBy,
-      raw.directText,
-      raw.rawText,
-      raw.placeholder,
-      raw.value,
-      raw.name,
-      raw.googleFileTitle,
-    ].find(v => v && !isGenericLabel(v));
+    const editable = !!getEditableTarget(el);
+    const ordered = editable
+      ? [raw.labelledBy, raw.associatedLabel, raw.placeholder, raw.ariaLabel, raw.title, raw.name, raw.describedBy, raw.directText, raw.rawText, raw.value, raw.googleFileTitle]
+      : [raw.labelledBy, raw.associatedLabel, raw.ariaLabel, raw.title, raw.describedBy, raw.directText, raw.rawText, raw.placeholder, raw.value, raw.name, raw.googleFileTitle];
+    const specific = ordered.find(v => v && !isGenericLabel(v) && !isInstructionalAccessibilityLabel(v));
+    if (!specific && editable) {
+      const instructional = [raw.ariaLabel, raw.placeholder, raw.describedBy].find(isInstructionalAccessibilityLabel);
+      if (instructional) return semanticFieldLabel(instructional);
+    }
     return specific || raw.googleFileTitle || raw.directText || raw.rawText || raw.ariaLabel || raw.title || raw.role || '';
   }
 
@@ -1166,6 +1298,11 @@
 
   // Freeze click metadata before the target DOM can react or move.
 
+  function createCaptureId() {
+    _captureSequence = (_captureSequence + 1) % 1000000;
+    return `${Date.now().toString(36)}-${_captureSequence.toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  }
+
   function buildPointerDownSnapshot(captureEl, target, clickedEl, event) {
     if (!captureEl || typeof captureEl.getBoundingClientRect !== 'function') return null;
     const rect = targetClientRect(captureEl, event.clientX, event.clientY);
@@ -1177,6 +1314,7 @@
     const topRect = toTopRect(rect);
     return {
       target: captureEl,
+      captureId: createCaptureId(),
       time: Date.now(),
       x: event.clientX,
       y: event.clientY,
@@ -1199,6 +1337,11 @@
     if ((Date.now() - _pointerDownSnapshot.time) > 1200) return null;
     if (Math.abs(_pointerDownSnapshot.x - event.clientX) > 12) return null;
     if (Math.abs(_pointerDownSnapshot.y - event.clientY) > 12) return null;
+    return _pointerDownSnapshot;
+  }
+
+  function getFreshPointerSnapshot() {
+    if (!_pointerDownSnapshot || (Date.now() - _pointerDownSnapshot.time) > 1200) return null;
     return _pointerDownSnapshot;
   }
 
@@ -1236,7 +1379,8 @@
         viewportW: getViewportSize().vw,
         viewportH: getViewportSize().vh,
         stepNumber,
-        usePrecapture: true,
+        captureId: snapshot.captureId,
+        usePrecapture: !!snapshot.captureId,
         elementRect: snapshot.elementRect,
         elementSelector: snapshot.elementSelector,
         elementXPath: snapshot.elementXPath,
@@ -1451,6 +1595,7 @@
   }
 
   function getActionType(el) {
+    if (getEditableTarget(el)) return 'focus_input';
     const tag  = el.tagName.toLowerCase();
     const type = el.getAttribute('type') || '';
     if (tag === 'a') return 'navigate';
@@ -1492,6 +1637,7 @@
     if (!e.isTrusted) return;  // 사이트 스크립트가 만든 가짜 이벤트는 사용자 행동이 아님
     if (!isRecording || isPaused || isCapturing) return;
     if (e.button !== undefined && e.button !== 0) return;  // 좌클릭만
+    _pointerDownSnapshot = null;
     const target = findInteractiveTarget(e.target, e);
     if (!target) return;
     const actionTarget = refineActionTarget(e.target, target);
@@ -1500,11 +1646,11 @@
     _pointerDownSnapshot = buildPointerDownSnapshot(captureEl, target, e.target, e);
     hideHoverPointer();                          // 호버 테두리 제거
     suppressHoverUntil = Date.now() + 500;       // 캡처 끝날 때까지 재등장 억제
-    // 테두리 제거가 화면에 리페인트된 다음 프레임에 선캡처 요청 — 라이브 캡처 경로의
-    // double-rAF와 동일한 보장. (동기 전송 시 background가 리페인트 전 프레임을 잡아 테두리가 굽힘)
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      chrome.runtime.sendMessage({ type: 'PRECAPTURE_FRAME' }, () => { void chrome.runtime.lastError; });
-    }));
+    // 캡처 요청을 click보다 먼저 큐에 넣어 빠른 화면 전환에서도 DOM 좌표와 프레임을 맞춘다.
+    const captureId = _pointerDownSnapshot?.captureId;
+    if (captureId) {
+      chrome.runtime.sendMessage({ type: 'PRECAPTURE_FRAME', captureId }, () => { void chrome.runtime.lastError; });
+    }
   }, true);
 
   document.addEventListener('pointerup', (e) => {
@@ -1532,6 +1678,7 @@
     if (document.visibilityState !== 'visible') return;
 
     const clickedEl = e.target;
+    const pointerSnapshot = getRecentPointerSnapshot(e);
 
     // Parro 자체 오버레이 클릭 무시
     if (clickedEl && typeof clickedEl.id === 'string') {
@@ -1595,7 +1742,7 @@
       // 다른 필드로 옮겼을 때만 이전 입력을 마감(flush가 세션을 끝냄 → 새 스텝).
       // 같은 필드 재클릭·리치 에디터 재마운트는 세션을 유지해 입력 스텝이 쪼개지지 않게 한다.
       if (typingTarget && typingTarget !== target && !isRemountedTyping(typingTarget)) {
-        flushTyping(typingTarget, true, { usePrecapture: true, peekPrecapture: true });
+        flushTyping(typingTarget, true, { usePrecapture: !!pointerSnapshot?.captureId, peekPrecapture: true, captureId: pointerSnapshot?.captureId });
       }
       typingTarget = target;
       typingFocusSnapshot = getRecentPointerSnapshot(e);
@@ -1606,13 +1753,12 @@
     } else {
       // 진행 중이던 타이핑 flush — 클릭(액션) 직전 선캡처 프레임을 타이핑 스텝 이미지로 쓰고,
       // 소비하지 않아(peek) 아래 클릭 스텝이 같은 프레임을 재사용한다.
-      if (typingTarget) flushTyping(typingTarget, true, { usePrecapture: true, peekPrecapture: true });
+      if (typingTarget) flushTyping(typingTarget, true, { usePrecapture: !!pointerSnapshot?.captureId, peekPrecapture: true, captureId: pointerSnapshot?.captureId });
     }
 
     showClickHighlight(e.clientX, e.clientY);
 
     const captureEl = actionType === 'focus_input' ? target : actionTarget;
-    const pointerSnapshot = getRecentPointerSnapshot(e);
     const rect  = targetClientRect(captureEl, e.clientX, e.clientY) || captureEl.getBoundingClientRect();
     const label = pointerSnapshot?.label || getElementLabel(captureEl, clickedEl);
     const href  = captureEl.getAttribute('href') || captureEl.closest('a')?.getAttribute('href') || target.getAttribute('href') || target.closest('a')?.getAttribute('href') || '';
@@ -1641,7 +1787,7 @@
         clickY: topClick.quality === 'low' ? 0 : topClick.y,
         windowWidth: vw, windowHeight: vh,
         viewportW: vw, viewportH: vh,
-        stepNumber, usePrecapture: true,
+        stepNumber, captureId: pointerSnapshot?.captureId ?? null, usePrecapture: !!pointerSnapshot?.captureId,
         elementRect,
         elementSelector,
         elementXPath,
@@ -1663,7 +1809,7 @@
       clickY: topClick.quality === 'low' ? 0 : topClick.y,
       windowWidth: vw, windowHeight: vh,
       viewportW: vw, viewportH: vh,
-      stepNumber, usePrecapture: true,
+      stepNumber, captureId: pointerSnapshot?.captureId ?? null, usePrecapture: !!pointerSnapshot?.captureId,
       elementRect,
       elementSelector,
       elementXPath,
@@ -1785,8 +1931,9 @@
       // Enter 제출 직전(폼 제출·페이지 이동·입력창 초기화 전) 화면을 그 순간 선캡처해
       // 타이핑 스텝 이미지로 쓴다 — 클릭의 pointerdown 선캡처와 동일한 '액션 정렬' 기법.
       hideHoverPointer();
-      chrome.runtime.sendMessage({ type: 'PRECAPTURE_FRAME' }, () => { void chrome.runtime.lastError; });
-      flushTyping(el, true, { usePrecapture: true });
+      const captureId = createCaptureId();
+      chrome.runtime.sendMessage({ type: 'PRECAPTURE_FRAME', captureId }, () => { void chrome.runtime.lastError; });
+      flushTyping(el, true, { usePrecapture: true, captureId });
     }
   }, true);
 
@@ -1801,7 +1948,18 @@
     if (!e.relatedTarget && IS_TOP_FRAME) return;  // 페이지 밖으로 포커스 이탈(창 전환)은 무시
     // relatedTarget(다음 포커스 대상)이 있다 = 그 요소의 pointerdown 선캡처가 떠 있다.
     // 그 '액션 직전' 프레임(완성 텍스트)을 타이핑 스텝 이미지로 쓰고, peek로 클릭 스텝과 공유한다.
-    flushTyping(typingTarget, true, { usePrecapture: true, peekPrecapture: true });
+    // The following click must run before the typing capture sets isCapturing;
+    // otherwise handleClick drops the user's next action as a concurrent capture.
+    const blurredTypingTarget = typingTarget;
+    const pointerSnapshot = getFreshPointerSnapshot();
+    setTimeout(() => {
+      if (!isRecording || isPaused || typingTarget !== blurredTypingTarget) return;
+      flushTyping(blurredTypingTarget, true, {
+        usePrecapture: !!pointerSnapshot?.captureId,
+        peekPrecapture: true,
+        captureId: pointerSnapshot?.captureId,
+      });
+    }, 0);
   }, true);
 
   // ── 파일 업로드 캡처 ─────────────────────────────────────────────
@@ -1862,6 +2020,17 @@
   // (이동의 결과 화면은 다음 사용자 액션에서 자연스럽게 캡처됨)
 
   // ── 클립보드 붙여넣기로 수동 스크린샷 수신 ──────────────────────
+  window.ParroRecorderInternals = Object.freeze({
+    eventElement: (event) => eventElementPath(event?.target, event)[0] || event?.target || null,
+    findInteractiveTarget,
+    refineActionTarget,
+    getEditableTarget,
+    getActionType,
+    getElementLabel,
+    getFieldLabel,
+    replaySelector,
+  });
+
   document.addEventListener('paste', (e) => {
     if (!e.isTrusted) return;
     if (!isRecording || isPaused || isCapturing) return;

@@ -1,3 +1,5 @@
+import { BRAND_EXTENSION_ID } from '@/lib/brand';
+
 const EXTENSION_ID_STORAGE_KEY = 'parro_extension_id';
 const EXTENSION_ID_PATTERN = /^[a-p]{32}$/;
 const EXTENSION_MESSAGE_SOURCE = 'PARRO_RECORDER_EXTENSION';
@@ -8,35 +10,55 @@ function cleanExtensionId(value?: string | null) {
   return EXTENSION_ID_PATTERN.test(id) ? id : '';
 }
 
-function allowsDynamicExtensionId() {
-  if (typeof window === 'undefined') return false;
-  const host = window.location.hostname;
+function allowsDynamicExtensionId(host: string) {
   return host === 'localhost'
     || host === '127.0.0.1'
     || host === 'parro-guide.vercel.app'
     || (host.endsWith('.vercel.app') && host !== 'mimic-nine-ashen.vercel.app');
 }
 
+interface ExtensionIdSelection {
+  hostname: string;
+  configured?: string | null;
+  query?: string | null;
+  stored?: string | null;
+}
+
+export function selectPreferredExtensionId({
+  hostname,
+  configured,
+  query,
+  stored,
+}: ExtensionIdSelection) {
+  // Production always talks to the stable Chrome Web Store item. Recorder
+  // versions can update independently because the extension ID does not change.
+  if (!allowsDynamicExtensionId(hostname)) return BRAND_EXTENSION_ID;
+
+  return cleanExtensionId(query)
+    || cleanExtensionId(stored)
+    || cleanExtensionId(configured);
+}
+
 export function getPreferredExtensionId() {
-  const configured = cleanExtensionId(process.env.NEXT_PUBLIC_EXTENSION_ID);
-  if (typeof window === 'undefined' || !allowsDynamicExtensionId()) return configured;
+  if (typeof window === 'undefined') return BRAND_EXTENSION_ID;
 
   const params = new URLSearchParams(window.location.search);
-  const fromQuery = cleanExtensionId(params.get('extension_id'));
-  if (fromQuery) return fromQuery;
-
-  const fromStorage = cleanExtensionId(window.localStorage.getItem(EXTENSION_ID_STORAGE_KEY));
-  return fromStorage || configured;
+  return selectPreferredExtensionId({
+    hostname: window.location.hostname,
+    configured: process.env.NEXT_PUBLIC_EXTENSION_ID,
+    query: params.get('extension_id'),
+    stored: window.localStorage.getItem(EXTENSION_ID_STORAGE_KEY),
+  });
 }
 
 export function rememberExtensionId(extensionId: string) {
-  if (typeof window === 'undefined' || !allowsDynamicExtensionId()) return;
+  if (typeof window === 'undefined' || !allowsDynamicExtensionId(window.location.hostname)) return;
   const id = cleanExtensionId(extensionId);
   if (id) window.localStorage.setItem(EXTENSION_ID_STORAGE_KEY, id);
 }
 
 export function requestExtensionIdBroadcast() {
-  if (typeof window === 'undefined' || !allowsDynamicExtensionId()) return;
+  if (typeof window === 'undefined' || !allowsDynamicExtensionId(window.location.hostname)) return;
   window.postMessage({
     source: WEBAPP_MESSAGE_SOURCE,
     type: 'REQUEST_EXTENSION_ID',
@@ -44,7 +66,7 @@ export function requestExtensionIdBroadcast() {
 }
 
 export function installExtensionIdListener() {
-  if (typeof window === 'undefined' || !allowsDynamicExtensionId()) return () => {};
+  if (typeof window === 'undefined' || !allowsDynamicExtensionId(window.location.hostname)) return () => {};
 
   const onMessage = (event: MessageEvent) => {
     if (event.source !== window || event.origin !== window.location.origin) return;
@@ -60,7 +82,11 @@ export function installExtensionIdListener() {
 
 export function resolvePreferredExtensionId(timeoutMs = 400): Promise<string> {
   const current = getPreferredExtensionId();
-  if (current || typeof window === 'undefined' || !allowsDynamicExtensionId()) {
+  if (
+    current
+    || typeof window === 'undefined'
+    || !allowsDynamicExtensionId(window.location.hostname)
+  ) {
     return Promise.resolve(current);
   }
 
