@@ -44,6 +44,7 @@
 .targetViewport { position: relative; aspect-ratio: 1344 / 858; min-width: 0; overflow: hidden; background: #e7eeec; }
 .targetViewport > img { display: block; width: 100%; height: 100%; object-fit: fill; object-position: left top; user-select: none; }
 .modalDepthFocus { position: absolute; z-index: 2; left: var(--modal-x); top: var(--modal-y); width: var(--modal-w); height: var(--modal-h); border-radius: 2px; box-shadow: 0 0 0 999px rgba(7,18,16,.22), 0 12px 28px rgba(7,18,16,.24); pointer-events: none; }
+.modalOcclusionPatch { position: absolute; z-index: 2; left: var(--modal-occlusion-x); top: var(--modal-occlusion-y); width: var(--modal-occlusion-w); height: var(--modal-occlusion-h); border-radius: 0 0 2px 0; background: #fff; pointer-events: none; }
 .targetBox { position: absolute; z-index: 3; left: var(--target-x); top: var(--target-y); width: var(--target-w); height: var(--target-h); box-sizing: border-box; border: 3px solid #00a99a; border-radius: 10px; background: rgba(0,169,154,.08); box-shadow: 0 0 0 999px rgba(9,20,18,.35), 0 8px 24px rgba(0,120,110,.28), inset 0 0 0 2px rgba(255,255,255,.75); opacity: 0; pointer-events: none; }
 .clickPulse { position: absolute; z-index: 5; left: calc(var(--target-x) + var(--target-w) / 2); top: calc(var(--target-y) + var(--target-h) / 2); pointer-events: none; opacity: 0; }
 .clickPulse { width: 24px; height: 24px; border: 3px solid #8dd63f; border-radius: 50%; transform: translate(-50%,-50%) scale(.2); }
