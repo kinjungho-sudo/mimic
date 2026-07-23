@@ -312,9 +312,10 @@ function RecorderScene({ phase, compact = false, reducedMotion = false }: {
   );
 }
 
-function LiveGuidePanel({ stepIndex }: { stepIndex: number }) {
-  const step = DEMO_STEPS[stepIndex];
-  const progress = ((stepIndex + 1) / DEMO_STEPS.length) * 100;
+function LiveGuidePanel({ stepIndex, complete = false }: { stepIndex: number; complete?: boolean }) {
+  const safeStepIndex = Math.min(stepIndex, DEMO_STEPS.length - 1);
+  const step = DEMO_STEPS[safeStepIndex];
+  const progress = complete ? 100 : ((safeStepIndex + 1) / DEMO_STEPS.length) * 100;
 
   return (
     <aside className={`${styles.recorderPanel} ${styles.liveSidePanel}`}>
@@ -324,25 +325,32 @@ function LiveGuidePanel({ stepIndex }: { stepIndex: number }) {
       </div>
       <div className={styles.recorderAppHeader}>
         <div><ParroMark /><strong>Parro</strong></div>
-        <span>LIVE</span>
+        <span>{complete ? '완료' : 'LIVE'}</span>
         <button type="button" aria-label="라이브 가이드 설정">⋯</button>
       </div>
-      <div className={styles.livePanelBanner}>
+      <div className={`${styles.livePanelBanner} ${complete ? styles.livePanelCompleteBanner : ''}`}>
         <div>
-          <span><i /> 라이브 가이드 실행 중</span>
-          <b>STEP {stepIndex + 1} / {DEMO_STEPS.length}</b>
+          <span><i /> {complete ? '라이브 가이드 완료' : '라이브 가이드 실행 중'}</span>
+          <b>{complete ? 'DONE' : `STEP ${safeStepIndex + 1} / ${DEMO_STEPS.length}`}</b>
         </div>
-        <strong>현재 화면의 대상과 실시간 연결되었습니다</strong>
+        <strong>{complete ? '모든 안내 단계를 성공적으로 마쳤습니다' : '현재 화면의 대상과 실시간 연결되었습니다'}</strong>
       </div>
-      <div className={styles.livePanelCurrent}>
-        <small>현재 안내</small>
-        <strong>{step.title}</strong>
-        <p>{step.description}</p>
-      </div>
+      {complete ? (
+        <div className={styles.livePanelCompleteCard}>
+          <span>✓</span>
+          <div><small>실행 완료</small><strong>가이드를 모두 완료했습니다</strong><p>사용자가 3개의 안내 단계를 모두 실행했습니다.</p></div>
+        </div>
+      ) : (
+        <div className={styles.livePanelCurrent}>
+          <small>현재 안내</small>
+          <strong>{step.title}</strong>
+          <p>{step.description}</p>
+        </div>
+      )}
       <div className={styles.livePanelSteps}>
         {DEMO_STEPS.map((item, index) => {
-          const done = index < stepIndex;
-          const current = index === stepIndex;
+          const done = complete || index < safeStepIndex;
+          const current = !complete && index === safeStepIndex;
           return (
             <div key={item.title} className={`${done ? styles.liveStepDone : ''} ${current ? styles.liveStepCurrent : ''}`}>
               <span>{done ? '✓' : index + 1}</span>
@@ -355,30 +363,43 @@ function LiveGuidePanel({ stepIndex }: { stepIndex: number }) {
         })}
       </div>
       <div className={styles.livePanelProgress}>
-        <div><span>{stepIndex + 1} / {DEMO_STEPS.length}</span><strong>DOM 연결됨</strong></div>
+        <div><span>{complete ? `${DEMO_STEPS.length} / ${DEMO_STEPS.length}` : `${safeStepIndex + 1} / ${DEMO_STEPS.length}`}</span><strong>{complete ? '완료됨' : 'DOM 연결됨'}</strong></div>
         <i><em style={{ width: `${progress}%` }} /></i>
-        <small>대상을 클릭하면 다음 단계로 자동 이동합니다.</small>
+        <small>{complete ? 'Live Guide 실행 기록이 저장되었습니다.' : '대상을 클릭하면 다음 단계로 자동 이동합니다.'}</small>
       </div>
     </aside>
   );
 }
 
-function LiveGuideScene({ stepIndex, compact = false, reducedMotion = false }: { stepIndex: number; compact?: boolean; reducedMotion?: boolean }) {
-  const step = DEMO_STEPS[stepIndex];
+function LiveGuideScene({ stepIndex, complete = false, compact = false, reducedMotion = false }: { stepIndex: number; complete?: boolean; compact?: boolean; reducedMotion?: boolean }) {
+  const safeStepIndex = Math.min(stepIndex, DEMO_STEPS.length - 1);
+  const step = DEMO_STEPS[safeStepIndex];
   return (
     <div className={`${styles.sceneFrame} ${compact ? styles.compactScene : ''}`}>
       <BrowserChrome />
       <div className={`${styles.recorderWorkspace} ${styles.liveGuideWorkspace}`}>
         <div className={styles.recorderTargetWrap}>
           <TargetViewport
-            key={`live-${stepIndex}`}
+            key={`live-${safeStepIndex}-${complete ? 'complete' : 'active'}`}
             step={step}
-            previousStep={stepIndex > 0 ? DEMO_STEPS[stepIndex - 1] : undefined}
+            previousStep={safeStepIndex > 0 ? DEMO_STEPS[safeStepIndex - 1] : undefined}
             live
             reducedMotion={reducedMotion}
+            settled={complete}
           />
+          {complete && (
+            <div className={styles.liveCompleteOverlay} role="status" aria-live="polite">
+              <div className={styles.liveCompleteModal}>
+                <span>✓</span>
+                <small>LIVE GUIDE COMPLETE</small>
+                <strong>가이드를 모두 완료했습니다</strong>
+                <p>3개의 안내 단계를 성공적으로 마쳤습니다.</p>
+                <button type="button">완료</button>
+              </div>
+            </div>
+          )}
         </div>
-        <LiveGuidePanel stepIndex={stepIndex} />
+        <LiveGuidePanel stepIndex={safeStepIndex} complete={complete} />
       </div>
     </div>
   );
@@ -389,6 +410,7 @@ export function HeroRecordingDemo() {
   const [scene, setScene] = useState<0 | 1>(0);
   const [recordPhase, setRecordPhase] = useState(0);
   const [liveStep, setLiveStep] = useState(0);
+  const liveComplete = scene === 1 && liveStep >= DEMO_STEPS.length;
 
   const selectHeroScene = useCallback((next: 0 | 1) => {
     setScene(next);
@@ -404,12 +426,14 @@ export function HeroRecordingDemo() {
         : recordPhase === DEMO_STEPS.length
           ? 2200
           : 1800
-      : 2600;
+      : liveComplete
+        ? 3200
+        : 2600;
     const timer = window.setTimeout(() => {
       if (scene === 0) {
         if (recordPhase <= DEMO_STEPS.length) setRecordPhase(value => value + 1);
         else { setScene(1); setLiveStep(0); }
-      } else if (liveStep < DEMO_STEPS.length - 1) {
+      } else if (liveStep < DEMO_STEPS.length) {
         setLiveStep(value => value + 1);
       } else {
         setScene(0);
@@ -417,26 +441,30 @@ export function HeroRecordingDemo() {
       }
     }, delay);
     return () => window.clearTimeout(timer);
-  }, [liveStep, playing, recordPhase, scene]);
+  }, [liveComplete, liveStep, playing, recordPhase, scene]);
 
   return (
-    <div ref={ref} className={styles.heroDemo} data-playing={playing} data-record-phase={scene === 0 ? recordPhase : undefined} data-demo-scene={scene === 0 ? 'capture' : 'live-guide'}>
+    <div ref={ref} className={styles.heroDemo} data-playing={playing} data-record-phase={scene === 0 ? recordPhase : undefined} data-demo-scene={scene === 0 ? 'capture' : 'live-guide'} data-live-complete={liveComplete || undefined}>
       <div className={styles.heroEyebrow}>
         <span><i /> 기록부터 실제 실행까지, 한 흐름으로</span>
-        <b>{scene === 0 ? '● 화면 캡처 중' : '● 라이브 가이드 실행 중'}</b>
+        <b>{scene === 0 ? '● 화면 캡처 중' : liveComplete ? '✓ 라이브 가이드 완료' : '● 라이브 가이드 실행 중'}</b>
       </div>
       <div className={styles.heroSceneCaption} role="status" aria-live="polite">
-        <span>{scene === 0 ? 'REC' : 'LIVE'}</span>
+        <span>{scene === 0 ? 'REC' : liveComplete ? 'DONE' : 'LIVE'}</span>
         <div>
           <strong>
             {scene === 0
               ? '지금, 클릭을 자동으로 캡처하고 있어요'
-              : '방금 기록한 가이드가 실제 화면에 실시간 적용되고 있어요'}
+              : liveComplete
+                ? '모든 안내 단계를 완료했습니다'
+                : '방금 기록한 가이드가 실제 화면에 실시간 적용되고 있어요'}
           </strong>
           <small>
             {scene === 0
               ? '작업 화면과 클릭 위치가 단계별 매뉴얼로 저장됩니다.'
-              : '사용자는 화면 위 안내를 따라 다음 행동을 바로 실행합니다.'}
+              : liveComplete
+                ? '완료 화면을 확인한 뒤 실행 기록이 저장됩니다.'
+                : '사용자는 화면 위 안내를 따라 다음 행동을 바로 실행합니다.'}
           </small>
         </div>
       </div>
@@ -451,7 +479,7 @@ export function HeroRecordingDemo() {
       </div>
       {scene === 0
         ? <RecorderScene phase={reducedMotion ? 3 : recordPhase} compact reducedMotion={reducedMotion} />
-        : <LiveGuideScene stepIndex={liveStep} compact reducedMotion={reducedMotion} />}
+        : <LiveGuideScene stepIndex={liveStep} complete={liveComplete} compact reducedMotion={reducedMotion} />}
     </div>
   );
 }

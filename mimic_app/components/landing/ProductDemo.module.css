@@ -147,11 +147,20 @@
 .livePanelBanner > div span i { width: 7px; height: 7px; border-radius: 50%; background: #16b89f; box-shadow: 0 0 0 4px rgba(22,184,159,.12); animation: recordBlink 1.2s ease infinite; }
 .livePanelBanner > div b { color: #247a70; font-size: 9px; }
 .livePanelBanner > strong { display: block; color: #006d64; font-size: 12.5px; line-height: 1.35; }
+.livePanelCompleteBanner { border-color: rgba(96,181,54,.3); background: linear-gradient(135deg,#efffe6,#f9fff5); }
+.livePanelCompleteBanner > div span, .livePanelCompleteBanner > div b, .livePanelCompleteBanner > strong { color: #3b7f22; }
+.livePanelCompleteBanner > div span i { background: #75c54b; animation: none; }
 .livePanelCurrent { flex: none; margin: 0 12px 8px; padding: 10px 11px; border: 1px solid #dbe7e4; border-radius: 11px; background: #fff; box-shadow: 0 7px 18px rgba(31,54,48,.06); }
 .livePanelCurrent small, .livePanelCurrent strong { display: block; }
 .livePanelCurrent small { margin-bottom: 3px; color: #00897d; font-size: 9px; font-weight: 850; }
 .livePanelCurrent strong { overflow: hidden; color: #17201e; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .livePanelCurrent p { display: -webkit-box; overflow: hidden; margin: 4px 0 0; color: #687671; font-size: 9px; line-height: 1.4; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.livePanelCompleteCard { display: grid; flex: none; grid-template-columns: 38px minmax(0,1fr); align-items: center; gap: 10px; margin: 0 12px 8px; padding: 11px; border: 1px solid rgba(96,181,54,.26); border-radius: 11px; background: #fff; box-shadow: 0 7px 18px rgba(31,54,48,.06); }
+.livePanelCompleteCard > span { display: grid; width: 38px; height: 38px; place-items: center; border-radius: 50%; color: #fff; background: linear-gradient(135deg,#12a995,#8dd63f); box-shadow: 0 7px 16px rgba(77,163,49,.2); font-size: 17px; font-weight: 900; }
+.livePanelCompleteCard small, .livePanelCompleteCard strong { display: block; }
+.livePanelCompleteCard small { margin-bottom: 2px; color: #4c8b33; font-size: 8.5px; font-weight: 850; }
+.livePanelCompleteCard strong { color: #183314; font-size: 11px; }
+.livePanelCompleteCard p { margin: 3px 0 0; color: #6c7c68; font-size: 8px; line-height: 1.35; }
 .livePanelSteps { display: grid; flex: 1; min-height: 0; align-content: center; gap: 6px; padding: 0 12px; }
 .livePanelSteps > div { display: grid; grid-template-columns: 27px minmax(0,1fr); align-items: center; gap: 8px; min-height: 43px; padding: 7px 9px; border: 1px solid #e0e8e6; border-radius: 10px; background: rgba(255,255,255,.75); }
 .livePanelSteps > div > span { display: grid; width: 27px; height: 27px; place-items: center; border-radius: 8px; color: #71807b; background: #e8eeec; font-size: 9px; font-weight: 900; }
@@ -173,6 +182,13 @@
 .liveViewport .targetBox { opacity: 1; animation-duration: 3.6s; }
 .liveViewport .pointer { animation-duration: 2.6s; }
 .liveViewport .clickPulse { animation-duration: 3.6s; }
+.liveCompleteOverlay { position: absolute; z-index: 10; inset: 0; display: grid; place-items: center; background: rgba(8,20,17,.48); backdrop-filter: blur(2px); animation: liveCompleteFade .35s ease both; }
+.liveCompleteModal { display: grid; width: min(330px,calc(100% - 36px)); justify-items: center; padding: 24px 24px 20px; border: 1px solid rgba(255,255,255,.72); border-radius: 20px; text-align: center; background: rgba(255,255,255,.98); box-shadow: 0 26px 70px rgba(5,28,23,.32); animation: liveCompleteIn .42s cubic-bezier(.2,.8,.2,1) both; }
+.liveCompleteModal > span { display: grid; width: 54px; height: 54px; margin-bottom: 11px; place-items: center; border-radius: 50%; color: #fff; background: linear-gradient(135deg,#00a998,#8dd63f); box-shadow: 0 10px 24px rgba(35,155,111,.28); font-size: 25px; font-weight: 900; }
+.liveCompleteModal > small { color: #4c8b33; font-size: 8px; font-weight: 900; letter-spacing: .11em; }
+.liveCompleteModal > strong { margin-top: 6px; color: #142a24; font-size: 17px; line-height: 1.35; }
+.liveCompleteModal > p { margin: 7px 0 15px; color: #66766f; font-size: 10.5px; line-height: 1.5; }
+.liveCompleteModal > button { width: 100%; height: 36px; border: 0; border-radius: 10px; color: #fff; background: linear-gradient(135deg,#009b8e,#12b886); box-shadow: 0 8px 20px rgba(0,155,142,.22); font-size: 10px; font-weight: 850; }
 .guideCoach { position: absolute; z-index: 7; left: var(--coach-x); top: var(--coach-y); display: flex; width: max-content; max-width: min(360px,calc(52% - 18px)); align-items: center; gap: 11px; opacity: 0; transform: translate(var(--coach-shift-x),-50%); pointer-events: none; }
 .coachRight { --coach-shift-x: 18px; }
 .coachLeft { --coach-shift-x: calc(-100% - 18px); flex-direction: row-reverse; }
@@ -437,6 +453,8 @@
 .reducedMotion .documentScrollContent, .reducedMotion .viewerSinglePreview, .reducedMotion .slideImageFrame { animation: none !important; }
 
 @keyframes recordBlink { 50% { opacity: .3; } }
+@keyframes liveCompleteFade { from { opacity: 0; } }
+@keyframes liveCompleteIn { from { opacity: 0; transform: translateY(12px) scale(.96); } }
 @keyframes targetReveal { 0%,12% { opacity: 0; transform: scale(.96); } 26%,72% { opacity: 1; transform: scale(1); } 88%,100% { opacity: 0; transform: scale(1.02); } }
 @keyframes pointerJourney {
   0% { left: var(--cursor-from-x); top: var(--cursor-from-y); opacity: .25; transform: translate(-4px,-2px) scale(.96); }
