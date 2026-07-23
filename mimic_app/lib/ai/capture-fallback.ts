@@ -1,3 +1,5 @@
+import { stripDecorativeActionGlyphs } from '@/lib/action-copy';
+
 export type CaptureFallbackStepInput = {
   id: string;
   ai_title: string | null;
@@ -661,18 +663,19 @@ export function buildCaptureFallbackDraft(
   const actionType = originalActionType === 'click' && rawCapturedValues.some(isInstructionalAccessibilityText)
     ? 'type'
     : originalActionType;
-  const safeActionLabel = isUnsafe(context.actionInfo?.label) ? null : context.actionInfo?.label;
-  const safeActionText = isUnsafe(context.actionInfo?.text) ? null : context.actionInfo?.text;
-  const safeElementText = isUnsafe(context.elementText) ? null : context.elementText;
+  const cleanActionValue = (value: string | null | undefined) => stripDecorativeActionGlyphs(value) || null;
+  const safeActionLabel = isUnsafe(context.actionInfo?.label) ? null : cleanActionValue(context.actionInfo?.label);
+  const safeActionText = isUnsafe(context.actionInfo?.text) ? null : cleanActionValue(context.actionInfo?.text);
+  const safeElementText = isUnsafe(context.elementText) ? null : cleanActionValue(context.elementText);
   const safeAccessibleName = isUnsafe(context.actionInfo?.targetContext?.accessibleName)
     ? null
-    : context.actionInfo?.targetContext?.accessibleName;
+    : cleanActionValue(context.actionInfo?.targetContext?.accessibleName);
   const safeContextLabel = isUnsafe(context.actionInfo?.targetContext?.contextLabel)
     ? null
-    : context.actionInfo?.targetContext?.contextLabel;
-  const safeAiTitle = isUnsafe(step.ai_title) || isLowQualityCaptureTitle(step.ai_title) ? null : step.ai_title;
+    : cleanActionValue(context.actionInfo?.targetContext?.contextLabel);
+  const safeAiTitle = isUnsafe(step.ai_title) || isLowQualityCaptureTitle(step.ai_title) ? null : cleanActionValue(step.ai_title);
   const directionalDraft = directionalFallbackDraft(
-    [safeActionLabel, safeActionText, safeElementText, safeAccessibleName],
+    [context.actionInfo?.label, context.actionInfo?.text, context.elementText, context.actionInfo?.targetContext?.accessibleName],
     [safeContextLabel, context.actionInfo?.targetContext?.pageTitle, step.ai_title, step.domain_name],
   );
   if (directionalDraft) {
@@ -721,7 +724,7 @@ export function buildCaptureFallbackDraft(
     ? cleanText(step.ai_description)
     : purposeScriptFor(base, verb) ?? scriptFor(base, verb);
 
-  const finalTitle = userTitle.slice(0, 80);
+  const finalTitle = stripDecorativeActionGlyphs(userTitle).slice(0, 80);
   const finalScript = userScript;
   const leakedUnsafeCapture = [...rawCapturedValues, step.ai_description]
     .map(cleanText)
@@ -746,7 +749,7 @@ export function buildCaptureFallbackDraft(
 }
 
 export function buildCaptureAnnotationLabel(title: string | null | undefined, actionType?: string | null, pageUrl?: string | null): string {
-  const text = dedupeActionNoun(title ?? '').replace(/하기$/, '');
+  const text = stripDecorativeActionGlyphs(dedupeActionNoun(title ?? '')).replace(/하기$/, '');
   if (isContextuallyStaleLabel(text, pageUrl)) {
     const pageContext = contextFromUrl(pageUrl, false);
     return pageContext ? `${pageContext} 확인`.slice(0, 18) : '대상 확인';

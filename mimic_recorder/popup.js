@@ -45,7 +45,7 @@ const SETTINGS_DEFAULTS = {
   autoNav:     true,
   autoZoom:    false,
   voiceRecord: false,
-  saveText:    false,
+  saveText:    true,
   captureInputClicks: false,
 };
 

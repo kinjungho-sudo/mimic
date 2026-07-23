@@ -23,6 +23,14 @@
     return id === OVERLAY_ROOT_ID || id === LEGACY_OVERLAY_ROOT_ID;
   }
 
+  function appendGuideViewportFrame(parent) {
+    const frame = document.createElement('div');
+    frame.setAttribute('aria-hidden', 'true');
+    frame.style.cssText = 'position:fixed;inset:2px;box-sizing:border-box;border:2px solid rgba(18,184,134,.34);border-radius:6px;box-shadow:inset 0 0 18px rgba(18,184,134,.18),0 0 14px rgba(0,155,142,.16);pointer-events:none;z-index:1;';
+    parent.appendChild(frame);
+    return frame;
+  }
+
   // ── 순수 로직 ────────────────────────────────────────────────
   function targetRoot(step) {
     let root = document;
@@ -703,6 +711,7 @@
       .parro-btn,.mimic-btn { pointer-events:auto; cursor:pointer; border:none; border-radius:8px; font-size:13px; font-weight:600; padding:7px 12px; transition:opacity .15s; }
       .parro-btn:active,.mimic-btn:active { opacity:.75; }
     `));
+    appendGuideViewportFrame(root);
 
     // 타깃 하이라이트 (네온 글로우 펄스 — 어둠막 없이 위치만 강조, Tango식)
     const hl = document.createElement('div');
@@ -744,10 +753,11 @@
       ${step.type_text ? `
         <div style="margin-top:10px;background:rgba(0,155,142,.18);border:1px solid rgba(23,201,182,.32);border-radius:8px;padding:8px 10px">
           <div style="display:flex;align-items:center;gap:6px">
-            <span style="font-size:11px;color:#17C9B6;flex-shrink:0">⌨ 직접 입력</span>
-            <span style="margin-left:auto;font-size:10.5px;color:#9FE4DA">일치하면 자동 완료</span>
+            <span style="font-size:11px;color:#17C9B6;flex-shrink:0">⌨ 복사 후 붙여넣기</span>
+            <button class="parro-btn mimic-btn" data-act="copy" style="margin-left:auto;padding:4px 9px;background:#fff;color:#007F75;font-size:10.5px;font-weight:800">복사</button>
           </div>
           <div style="font-size:11.5px;color:#BFEDE7;line-height:1.5;margin-top:5px;word-break:break-all">입력할 내용: ${typeTextSnippet}</div>
+          <div style="font-size:10.5px;color:#9FE4DA;line-height:1.45;margin-top:4px">입력창에 붙여넣으면 자동으로 다음 단계로 진행합니다.</div>
         </div>` : ''}`;
 
     root.appendChild(tooltip);
@@ -825,9 +835,14 @@
             .then(() => {
               const b = e.target;
               b.textContent = '✓ 복사됨';
+              try { state?.typeInputEl?.focus({ preventScroll: true }); } catch { /* noop */ }
               setTimeout(() => { if (b.isConnected) b.textContent = '복사'; }, 1500);
             })
-            .catch(() => {});
+            .catch(() => {
+              const b = e.target;
+              b.textContent = '복사 실패';
+              setTimeout(() => { if (b.isConnected) b.textContent = '복사'; }, 1500);
+            });
         }
       }
     }, true);
@@ -1119,7 +1134,7 @@
         : '';
       return `<div style="position:absolute;left:${box.x1}%;top:${box.y1}%;width:${length}%;height:${stroke}px;background:${color};transform-origin:0 50%;transform:rotate(${angle}deg);border-radius:${stroke}px;pointer-events:none">${head}</div>`;
     }
-    const radius = a.type === 'ellipse' ? '999px' : a.type === 'roundedRect' ? '10px' : '4px';
+    const radius = a.type === 'ellipse' ? '999px' : a.type === 'roundedRect' ? '10px' : '6px';
     const shadow = a.type === 'spotlight' ? 'box-shadow:0 0 0 9999px rgba(0,0,0,.42),0 0 0 2px rgba(255,255,255,.75);' : '';
     const fill = a.type === 'spotlight' ? 'background:transparent;' : 'background:rgba(0,155,142,.08);';
     return `<div style="${base}${fill}border:${stroke}px solid ${borderColor};border-radius:${radius};${shadow}"></div>`;
@@ -1150,7 +1165,7 @@
     const text = step.instruction || '이 단계는 직접 진행한 뒤 다음을 눌러주세요.';
 
     const card = document.createElement('div');
-    card.style.cssText = `position:fixed;right:16px;bottom:16px;width:360px;max-width:calc(100vw - 32px);max-height:calc(100vh - 32px);overflow:auto;background:${TIP_BG};color:#fff;border-radius:16px;padding:16px;box-shadow:0 18px 55px rgba(0,0,0,.48),0 0 0 1px rgba(23,201,182,.16);pointer-events:auto`;
+    card.style.cssText = `position:fixed;right:16px;bottom:16px;width:360px;max-width:calc(100vw - 32px);max-height:calc(100vh - 32px);overflow:auto;background:${TIP_BG};color:#fff;border-radius:16px;padding:16px;box-shadow:0 18px 55px rgba(0,0,0,.48),0 0 0 1px rgba(23,201,182,.16);pointer-events:auto;z-index:2`;
     card.innerHTML = `
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
         <div style="${AVATAR_STYLE}width:38px;height:38px;">${mascotHtml('clarify')}</div>
@@ -1165,6 +1180,7 @@
       <div style="font-size:13px;color:#D1D5DB;line-height:1.55;margin-bottom:14px">${escapeHtml(text)}</div>
       ${renderVisualGuideImage(step)}
       <div style="font-size:11.5px;color:#9CA3AF;line-height:1.45;padding-top:2px">이전·다음 단계는 Parro 사이드 패널에서 선택하세요.</div>`;
+    appendGuideViewportFrame(shadow);
     shadow.appendChild(card);
 
     state = { host, shadow, explanation: true };

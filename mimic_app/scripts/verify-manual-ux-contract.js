@@ -19,8 +19,12 @@ const landingFaq = read('lib', 'landing-faq.ts');
 const desktopSetup = read('app', 'desktop-setup', 'page.tsx');
 const player = read('app', 'play', '[token]', 'page.tsx');
 const followPlayer = read('components', 'viewer', 'InteractiveFollowPlayer.tsx');
+const followStage = read('components', 'viewer', 'FollowStage.tsx');
 const guideToc = read('components', 'editor', 'GuideToc.tsx');
 const qualityDialog = read('components', 'editor', 'ManualQualityDialog.tsx');
+const annotationEditor = read('components', 'editor', 'ImageAnnotationEditor.tsx');
+const annotationPreview = read('components', 'editor', 'AnnotationPreview.tsx');
+const autoAnnotations = read('lib', 'auto-annotations.ts');
 
 assert.match(editor, /new AbortController\(\)/, 'AI rewrite must be cancellable');
 assert.match(editor, /signal: controller\.signal/, 'AI rewrite fetch must use the abort signal');
@@ -35,6 +39,10 @@ assert.match(qualityDialog, /aria-label=\{`\$\{stepNumber\}단계 편집으로 �
 assert.match(guideToc, /const moveSelected = \(direction: 'up' \| 'down'\)/, 'selected steps need non-drag reorder controls');
 assert.match(guideToc, /aria-label="선택 단계를 한 칸 위로 이동"/, 'selected steps need an accessible move-up control');
 assert.match(guideToc, /aria-label="선택 단계를 한 칸 아래로 이동"/, 'selected steps need an accessible move-down control');
+assert.match(annotationEditor, /const latestItems = editingText \? commitTextRef\.current\(\) : itemsRef\.current/, 'annotation save must synchronously commit the latest text edit');
+assert.match(annotationEditor, /onChange\(latestItems\)/, 'annotation save must not persist a stale React render');
+assert.match(annotationPreview, /annotationCornerRadius\(w, h\)/, 'manual annotation rectangles must render with softened corners');
+assert.match(autoAnnotations, /\.filter\(annotation => annotation\.type === 'text'\)/, 'icon-decorated targets must generate text-only annotations');
 
 assert.match(share, /if \(hasError \|\| hasWarning\) return;/, 'publishing must wait for quality results');
 assert.match(share, /제안 확인 후 게시/, 'quality warnings must require explicit approval');
@@ -44,6 +52,10 @@ assert.match(share, /buildStepShareUrl\(url, shareStep\.id\)/, 'step sharing mus
 assert.match(player, /resolveSharedStepIndex\(sharedStepParam, tutorial\.steps\)/, 'shared players must open at the requested step');
 assert.match(player, /initialStepIndex=\{currentStep\}/, 'learning mode must receive the shared step index');
 assert.match(followPlayer, /setIdx\(nextIndex\)/, 'learning player must synchronize a shared initial step after loading');
+assert.match(followStage, /const COACH_SIZE = 64/, 'learning guide coach avatar must use the enlarged size');
+assert.match(followStage, /fontSize: '15px'/, 'learning guide explanation text must use the enlarged size');
+assert.match(followStage, /className="mfp-target-frame-wave"/, 'learning guide click target must use frame-shaped waves');
+assert.doesNotMatch(followStage, /mfp-click-ripple|mfp-target-dot/, 'learning guide must not render the click point or circular waves');
 
 assert.match(studio, /listLiveGuideTargetTabs/, 'Studio must list target tabs before picking');
 assert.match(studio, /이 대상으로 저장할까요\?/, 'Studio must confirm a picked target before saving');
@@ -72,4 +84,4 @@ assert.match(landingFaq, /현재는 사용자가 직접 결제 플랜을 변경�
 assert.doesNotMatch(landingFaq, /카카오페이|토스페이|전액 환불|언제든 구독을 해지/, 'prelaunch FAQ must not promise unavailable billing operations');
 assert.doesNotMatch(desktopSetup, /Parro Recorder 1\.7\.4/, 'desktop setup must not hard-code an obsolete Recorder version');
 
-console.log(JSON.stringify({ ok: true, checks: 43, scope: 'manual-ux-contract' }));
+console.log(JSON.stringify({ ok: true, checks: 51, scope: 'manual-ux-contract' }));

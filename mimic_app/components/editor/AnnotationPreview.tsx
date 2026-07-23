@@ -2,7 +2,7 @@
 
 import { useId, useRef, useState, useEffect } from 'react';
 import type { Annotation } from './ImageAnnotationEditor';
-import { FONT_REF_WIDTH, estimateTextW } from './ImageAnnotationEditor';
+import { FONT_REF_WIDTH, annotationCornerRadius, estimateTextW } from './ImageAnnotationEditor';
 
 // sizeScale: 크롭/줌 확대 시 선·글씨 크기 역보정. cropRect: viewBox를 crop 영역으로 조정해 어노테이션 좌표 불일치 방지.
 export function AnnotationPreview({ annotations, imageUrl, sizeScale = 1, imgRef: externalImgRef, cropRect }: {
@@ -75,7 +75,8 @@ export function AnnotationPreview({ annotations, imageUrl, sizeScale = 1, imgRef
             {spotlights.map(a => {
               const minX = Math.min(a.x1, a.x2), minY = Math.min(a.y1, a.y2);
               const w = Math.abs(a.x2 - a.x1), h = Math.abs(a.y2 - a.y1);
-              return <rect key={a.id} x={px(minX)} y={py(minY)} width={px(w)} height={py(h)} fill="black" />;
+              const width = px(w), height = py(h);
+              return <rect key={a.id} x={px(minX)} y={py(minY)} width={width} height={height} fill="black" rx={annotationCornerRadius(width, height)} />;
             })}
           </mask>
         )}
@@ -109,7 +110,7 @@ export function AnnotationPreview({ annotations, imageUrl, sizeScale = 1, imgRef
         }
 
         if (type === 'highlight') return (
-          <rect key={a.id} x={minX} y={minY} width={w} height={h} fill={color} opacity={0.35} rx={1} />
+          <rect key={a.id} x={minX} y={minY} width={w} height={h} fill={color} opacity={0.35} rx={annotationCornerRadius(w, h)} />
         );
 
         if (type === 'rect' || type === 'recorderBox') {
@@ -118,7 +119,7 @@ export function AnnotationPreview({ annotations, imageUrl, sizeScale = 1, imgRef
           return (
             <rect key={a.id} x={minX - o} y={minY - o} width={w + sp} height={h + sp}
               stroke={type === 'recorderBox' ? '#EF4444' : color}
-              strokeWidth={sp} fill={type === 'recorderBox' ? 'rgba(239,68,68,0.08)' : 'none'} rx={1} />
+              strokeWidth={sp} fill={type === 'recorderBox' ? 'rgba(239,68,68,0.08)' : 'none'} rx={annotationCornerRadius(w, h)} />
           );
         }
 

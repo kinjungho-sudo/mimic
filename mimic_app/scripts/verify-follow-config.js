@@ -35,6 +35,10 @@ async function main() {
   if (resolveGuideTargetRect(buttonRect, 49, 44, 960, 540) !== buttonRect) {
     throw new Error('small DOM targets must keep their detected rectangle');
   }
+  const fallbackRect = resolveGuideTargetRect(null, 3, 4, 960, 540);
+  if (!fallbackRect || fallbackRect.x < 0 || fallbackRect.y < 0 || fallbackRect.w <= 0 || fallbackRect.h <= 0) {
+    throw new Error(`hotspot-only targets must receive a bounded rectangular fallback: ${JSON.stringify(fallbackRect)}`);
+  }
 
   const stageSource = fs.readFileSync(path.join(__dirname, '../components/viewer/FollowStage.tsx'), 'utf8');
   const playerSource = fs.readFileSync(path.join(__dirname, '../components/viewer/InteractiveFollowPlayer.tsx'), 'utf8');
@@ -48,8 +52,14 @@ async function main() {
   if (!stageSource.includes('nextValue === typeStr') || !playerSource.includes('value !== expected')) {
     throw new Error('learning guide must advance only after the user enters the expected text');
   }
-  if (!stageSource.includes('mfp-target-glint') || !stageSource.includes('TARGET_GREEN')) {
-    throw new Error('learning guide target must use the animated green highlight');
+  if (!stageSource.includes('mfp-target-frame-wave') || !stageSource.includes('TARGET_GREEN')) {
+    throw new Error('learning guide target must use the animated green frame highlight');
+  }
+  if (stageSource.includes('mfp-click-ripple') || stageSource.includes('mfp-target-dot') || stageSource.includes('<circle')) {
+    throw new Error('learning guide click targets must not render a central dot or circular ripple');
+  }
+  if (!stageSource.includes('border:1px solid ${TARGET_RING_SOFT}') || !stageSource.includes('inset:-22px')) {
+    throw new Error('learning guide frame waves must remain thin and expand outside the target rectangle');
   }
   if (!stageSource.includes('resolveGuideTargetRect') || !playerSource.includes('!isOversizedGuideTarget(dr)')) {
     throw new Error('large DOM targets must use the compact hotspot-centered visual and hit area');
@@ -58,7 +68,7 @@ async function main() {
     throw new Error('learning guide studio must support persisted step deletion');
   }
 
-  console.log(JSON.stringify({ ok: true, captured_type_text: followStep.typeText, kind: followStep.kind, compact_target: compactTarget, visual_contract: 'original-image-green-highlight-real-input-compact-large-target' }));
+  console.log(JSON.stringify({ ok: true, captured_type_text: followStep.typeText, kind: followStep.kind, compact_target: compactTarget, fallback_target: fallbackRect, visual_contract: 'original-image-green-frame-wave-real-input-compact-large-target' }));
 }
 
 main().catch(error => {

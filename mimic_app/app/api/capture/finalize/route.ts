@@ -6,6 +6,7 @@ import { analyzeScreenshot, generateStepDescription, generateDraft, extractCover
 import { buildCaptureAnnotationLabel, buildCaptureFallbackDraft, buildCaptureFallbackTutorialTitle, cleanCaptureTypeText, isCaptureTitleGrounded, isCaptureTutorialTitleGrounded, isInstructionalAccessibilityText, isLowQualityCaptureLabel, isLowQualityCaptureScript, isUsableCaptureDraft, type CaptureFallbackActionInfo } from '@/lib/ai/capture-fallback';
 import { resolveFavicon } from '@/lib/favicon';
 import { buildClickHighlight } from '@/lib/annotations';
+import { hasDecorativeActionGlyph, stripDecorativeActionGlyphs } from '@/lib/action-copy';
 import { transcribeAudio, assignSegmentsToSteps, computeStepWindows } from '@/lib/voice/voice';
 import { logSystem } from '@/lib/logging/logger-server';
 
@@ -57,6 +58,25 @@ function actionLabelValues(event: Record<string, unknown>): string[] {
     actionInfo?.targetContext?.contextLabel,
     event.element_text as string | null,
   ].map(value => String(value ?? '').replace(/\s+/g, ' ').trim()).filter(Boolean);
+}
+
+function usesTextOnlyAnnotation(
+  title: string | null | undefined,
+  actionInfo: CaptureFallbackActionInfo,
+): boolean {
+  return [
+    title,
+    actionInfo?.label,
+    actionInfo?.text,
+    actionInfo?.targetContext?.accessibleName,
+  ].some(hasDecorativeActionGlyph);
+}
+
+function textOnlyWhenIconDecorated<T extends { type: string }>(
+  annotations: T[],
+  enabled: boolean,
+): T[] {
+  return enabled ? annotations.filter(annotation => annotation.type === 'text') : annotations;
 }
 
 function rectsOverlap(a: unknown, b: unknown): boolean {
@@ -544,7 +564,7 @@ export async function POST(request: NextRequest) {
                 actionInfo: actionInfoByStepNum.get(firstStep.step_number),
                 elementText: elementTextByStepNum.get(firstStep.step_number),
               })) {
-                firstTitle = analysis.title.trim();
+                firstTitle = stripDecorativeActionGlyphs(analysis.title);
                 firstAiPatch.ai_title = firstTitle;
               }
 
@@ -583,7 +603,7 @@ export async function POST(request: NextRequest) {
         const draft = draftsById.get(step.id);
         const isFirst = firstStep?.id === step.id;
         const patch: Record<string, unknown> = {};
-        const titleDraft = draft?.user_title?.trim() || step.ai_title || `Step ${step.step_number}`;
+        const titleDraft = stripDecorativeActionGlyphs(draft?.user_title?.trim() || step.ai_title || `Step ${step.step_number}`);
         if (titleDraft) patch.user_title = titleDraft;
         if (draft?.user_script?.trim() || step.ai_description?.trim()) {
           patch.user_script = draft?.user_script?.trim() || step.ai_description?.trim() || null;
@@ -597,9 +617,13 @@ export async function POST(request: NextRequest) {
           const rect = step.element_rect as { x: number; y: number; width: number; height: number } | null;
           const actionType = actionTypeByStepNum.get(step.step_number) ?? 'click';
           const label = buildCaptureAnnotationLabel(String(patch.user_title ?? step.ai_title ?? ''), actionType, step.page_url);
+          const textOnly = usesTextOnlyAnnotation(titleDraft, actionInfoByStepNum.get(step.step_number));
           const num = step.step_number ?? 1;
           if (rect) {
-            patch.user_annotations = buildClickHighlight({ elementRect: rect, stepNumber: num, label, clickX: step.click_x, clickY: step.click_y, actionType });
+            patch.user_annotations = textOnlyWhenIconDecorated(
+              buildClickHighlight({ elementRect: rect, stepNumber: num, label, clickX: step.click_x, clickY: step.click_y, actionType }),
+              textOnly,
+            );
           } else if (step.click_x != null && step.click_y != null && (step.click_x > 0 || step.click_y > 0)) {
             const estimatedRect = {
               x: Math.max(0, step.click_x - 0.05),
@@ -607,7 +631,10 @@ export async function POST(request: NextRequest) {
               width: Math.min(0.10, 1 - Math.max(0, step.click_x - 0.05)),
               height: Math.min(0.04, 1 - Math.max(0, step.click_y - 0.02)),
             };
-            patch.user_annotations = buildClickHighlight({ elementRect: estimatedRect, stepNumber: num, label, clickX: step.click_x, clickY: step.click_y, actionType });
+            patch.user_annotations = textOnlyWhenIconDecorated(
+              buildClickHighlight({ elementRect: estimatedRect, stepNumber: num, label, clickX: step.click_x, clickY: step.click_y, actionType }),
+              textOnly,
+            );
           }
         }
 
@@ -833,9 +860,10 @@ export async function POST(request: NextRequest) {
             elementText: elementTextByStepNum.get(step.step_number),
           });
           const aiDraft = aiDraftsById.get(step.id);
-          const aiTitle = aiDraft?.user_title?.trim() || '';
+          const aiTitle = stripDecorativeActionGlyphs(aiDraft?.user_title?.trim() || '');
           const aiScript = aiDraft?.user_script?.trim() || '';
-          const useAiDraft = isUsableCaptureDraft(aiDraft, {
+          const sanitizedAiDraft = aiDraft ? { ...aiDraft, user_title: aiTitle } : aiDraft;
+          const useAiDraft = isUsableCaptureDraft(sanitizedAiDraft, {
             pageUrl: step.page_url,
             actionInfo: actionInfoByStepNum.get(step.step_number),
             elementText: elementTextByStepNum.get(step.step_number),
@@ -954,9 +982,12 @@ export async function POST(request: NextRequest) {
       {
         // deduped 순서 = step_number - 1, action_info.type으로 라벨 분기
         const actionTypeByStepNum = new Map<number, string>();
+        const textOnlyByStepNum = new Map<number, boolean>();
         deduped.forEach((ev, idx) => {
-          const t = (ev.action_info as { type?: string } | null)?.type ?? 'click';
+          const actionInfo = (ev.action_info as CaptureFallbackActionInfo) ?? null;
+          const t = actionInfo?.type ?? 'click';
           actionTypeByStepNum.set(idx + 1, t);
+          textOnlyByStepNum.set(idx + 1, usesTextOnlyAnnotation(ev.ai_title as string | null, actionInfo));
         });
 
         const { data: stepsForAnnotation } = await supabase
@@ -988,6 +1019,10 @@ export async function POST(request: NextRequest) {
               } else {
                 return;
               }
+              annotations = textOnlyWhenIconDecorated(
+                annotations,
+                textOnlyByStepNum.get(step.step_number) ?? false,
+              );
 
               await supabase
                 .from('mm_steps')

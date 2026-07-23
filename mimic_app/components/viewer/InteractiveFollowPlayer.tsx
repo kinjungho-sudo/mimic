@@ -366,7 +366,6 @@ export function InteractiveFollowPlayer({ steps, title, initialStepIndex = 0, on
       )}
 
       <style>{`
-        @keyframes mfp-ripple { 0%{opacity:.95;transform:scale(0.4)} 100%{opacity:0;transform:scale(3.4)} }
         @keyframes mfp-caret { 50%{opacity:0} }
         @keyframes mfp-nudge { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
       `}</style>

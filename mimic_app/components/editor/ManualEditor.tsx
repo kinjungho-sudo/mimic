@@ -39,6 +39,7 @@ export interface ManualStep {
   click_x?: number | null;   // 0-100 pct
   click_y?: number | null;
   element_rect?: { x: number; y: number; width: number; height: number } | null; // 0-1 normalized
+  targetContext?: { accessibleName?: string | null } | null;
   is_stale?: boolean;
   pii_detected?: boolean;
   crop_rect?: { x: number; y: number; w: number; h: number } | null;

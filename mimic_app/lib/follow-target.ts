@@ -5,6 +5,8 @@ const LARGE_TARGET_MAX_HEIGHT_PCT = 30;
 const LARGE_TARGET_MAX_AREA = 900;
 const COMPACT_TARGET_MAX_WIDTH_PX = 180;
 const COMPACT_TARGET_MAX_HEIGHT_PX = 112;
+const FALLBACK_TARGET_WIDTH_PX = 112;
+const FALLBACK_TARGET_HEIGHT_PX = 52;
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
@@ -30,7 +32,23 @@ export function resolveGuideTargetRect(
   viewportWidth: number,
   viewportHeight: number,
 ): GuideTargetRect | null {
-  if (!rect) return null;
+  if (!rect) {
+    if (hotspotX == null || hotspotY == null) return null;
+
+    const w = viewportWidth > 0
+      ? clamp((FALLBACK_TARGET_WIDTH_PX / viewportWidth) * 100, 7, 18)
+      : 12;
+    const h = viewportHeight > 0
+      ? clamp((FALLBACK_TARGET_HEIGHT_PX / viewportHeight) * 100, 5, 14)
+      : 8;
+
+    return {
+      x: clamp(hotspotX - w / 2, 0, 100 - w),
+      y: clamp(hotspotY - h / 2, 0, 100 - h),
+      w,
+      h,
+    };
+  }
   if (!isOversizedGuideTarget(rect) || hotspotX == null || hotspotY == null) return rect;
 
   const maxWidthPct = viewportWidth > 0 ? (COMPACT_TARGET_MAX_WIDTH_PX / viewportWidth) * 100 : 18;

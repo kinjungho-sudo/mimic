@@ -265,7 +265,9 @@ try {
   });
 
   await missingGuidePage.waitForLoadState('domcontentloaded');
-  await panel.locator('#guideTargetRetry').waitFor({ state: 'visible', timeout: 12_000 });
+  // The first guide step intentionally waits for the 3, 2, 1, START sequence
+  // before beginning the existing 8-second target recovery window.
+  await panel.locator('#guideTargetRetry').waitFor({ state: 'visible', timeout: 18_000 });
   const missingTargetState = await Promise.all([
     panel.locator('#guideTargetStatus').innerText(),
     missingGuidePage.locator('#parro-overlay-root').count(),

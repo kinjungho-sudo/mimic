@@ -66,6 +66,12 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
       return { x: cr.x, y: cr.y, w: cr.w ?? cr.width ?? 0, h: cr.h ?? cr.height ?? 0 };
     })(),
     element_rect: (s as Step & { element_rect?: { x: number; y: number; width: number; height: number } | null }).element_rect ?? null,
+    targetContext: (() => {
+      const context = (s as Step & { target_context?: Record<string, unknown> | null }).target_context;
+      return context && typeof context.accessibleName === 'string'
+        ? { accessibleName: context.accessibleName }
+        : null;
+    })(),
     imageZoom: (s as Step & { image_zoom?: number | null }).image_zoom ?? 1,
     imageOffsetX: (s as Step & { image_offset_x?: number | null }).image_offset_x ?? 0,
     imageOffsetY: (s as Step & { image_offset_y?: number | null }).image_offset_y ?? 0,

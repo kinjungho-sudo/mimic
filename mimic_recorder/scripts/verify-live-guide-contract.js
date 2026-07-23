@@ -93,13 +93,23 @@ assert.doesNotMatch(engine, /function autoFill\(/);
 const advance = section(engine, 'function advance(reason)', 'function nudge');
 assert.match(advance, /state\.completed = true;[\s\S]*hide\(\);[\s\S]*onComplete/);
 const overlayMessage = section(content, "if (msg.type === 'SHOW_OVERLAY' && msg.step)", "if (msg.type === 'HIDE_OVERLAY')");
-assert.match(overlayMessage, /onComplete:[\s\S]*guideApi\.hide\(\)[\s\S]*GUIDE_COMPLETE/);
+assert.match(overlayMessage, /queueLiveGuideOverlay\(msg\)/);
+const renderOverlay = section(content, 'function renderLiveGuideOverlay(msg)', 'function queueLiveGuideOverlay(msg)');
+assert.match(renderOverlay, /onComplete:[\s\S]*guideApi\.hide\(\)[\s\S]*GUIDE_COMPLETE/);
+const queueOverlay = section(content, 'function queueLiveGuideOverlay(msg)', '// ── 메시지 수신');
+assert.match(queueOverlay, /showCountdown\([\s\S]*startText: 'START'/, 'the first Live Guide step must show 3, 2, 1, START');
+assert.match(queueOverlay, /_pendingGuideOverlay/, 'concurrent first-step overlay attempts must be coalesced during countdown');
+assert.match(engine, /data-act="copy"/, 'typed Live Guide steps must expose a copy button');
+assert.match(engine, /appendGuideViewportFrame\(root\)/, 'resolved Live Guide steps must show the viewport-edge guide frame');
+assert.match(engine, /appendGuideViewportFrame\(shadow\)/, 'explanation Live Guide steps must show the viewport-edge guide frame');
 
 assert.match(popup, /assets\/parro-ai-avatar-neutral\.png\?v=20260720/);
 assert.match(popup, /id="guideTargetStatus"/);
 assert.match(popup, /id="guideTargetRetry"/);
 const popupScript = read('popup.js');
+assert.match(content, /saveText:\s+true/, 'new capture sessions must retain typed text by default');
+assert.match(popupScript, /saveText:\s+true/, 'the Recorder settings UI must default typed-text retention on');
 assert.match(popupScript, /not_found: \{ label: '대상을 찾지 못했습니다'/);
 assert.match(popupScript, /type: 'SHOW_OVERLAY_FOR_STEP', stepIndex: guideCurrentStep/);
 
-console.log(JSON.stringify({ ok: true, checks: 44, scope: 'live-guide-fail-closed-contract' }));
+console.log(JSON.stringify({ ok: true, checks: 52, scope: 'live-guide-fail-closed-contract' }));
