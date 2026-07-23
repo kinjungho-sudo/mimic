@@ -298,28 +298,73 @@ function RecorderScene({ phase, compact = false, reducedMotion = false }: {
   );
 }
 
+function LiveGuidePanel({ stepIndex }: { stepIndex: number }) {
+  const step = DEMO_STEPS[stepIndex];
+  const progress = ((stepIndex + 1) / DEMO_STEPS.length) * 100;
+
+  return (
+    <aside className={`${styles.recorderPanel} ${styles.liveSidePanel}`}>
+      <div className={styles.chromePanelHeader}>
+        <div><ParroMark /><strong>Parro Live Guide</strong></div>
+        <span className={styles.chromePanelActions} aria-hidden="true"><b>⌖</b><b>×</b></span>
+      </div>
+      <div className={styles.recorderAppHeader}>
+        <div><ParroMark /><strong>Parro</strong></div>
+        <span>LIVE</span>
+        <button type="button" aria-label="라이브 가이드 설정">⋯</button>
+      </div>
+      <div className={styles.livePanelBanner}>
+        <div>
+          <span><i /> 라이브 가이드 실행 중</span>
+          <b>STEP {stepIndex + 1} / {DEMO_STEPS.length}</b>
+        </div>
+        <strong>현재 화면의 대상과 실시간 연결되었습니다</strong>
+      </div>
+      <div className={styles.livePanelCurrent}>
+        <small>현재 안내</small>
+        <strong>{step.title}</strong>
+        <p>{step.description}</p>
+      </div>
+      <div className={styles.livePanelSteps}>
+        {DEMO_STEPS.map((item, index) => {
+          const done = index < stepIndex;
+          const current = index === stepIndex;
+          return (
+            <div key={item.title} className={`${done ? styles.liveStepDone : ''} ${current ? styles.liveStepCurrent : ''}`}>
+              <span>{done ? '✓' : index + 1}</span>
+              <div>
+                <strong>{item.title}</strong>
+                <small>{done ? '완료됨' : current ? '현재 화면에서 안내 중' : '다음 단계'}</small>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className={styles.livePanelProgress}>
+        <div><span>{stepIndex + 1} / {DEMO_STEPS.length}</span><strong>DOM 연결됨</strong></div>
+        <i><em style={{ width: `${progress}%` }} /></i>
+        <small>대상을 클릭하면 다음 단계로 자동 이동합니다.</small>
+      </div>
+    </aside>
+  );
+}
+
 function LiveGuideScene({ stepIndex, compact = false, reducedMotion = false }: { stepIndex: number; compact?: boolean; reducedMotion?: boolean }) {
   const step = DEMO_STEPS[stepIndex];
   return (
     <div className={`${styles.sceneFrame} ${compact ? styles.compactScene : ''}`}>
       <BrowserChrome />
-      <div className={styles.liveGuideStage}>
-        <TargetViewport
-          key={`live-${stepIndex}`}
-          step={step}
-          previousStep={stepIndex > 0 ? DEMO_STEPS[stepIndex - 1] : undefined}
-          live
-          reducedMotion={reducedMotion}
-        />
-        <div className={styles.liveGuideRibbon}>
-          <div><ParroMark /><span><small>LIVE GUIDE</small><strong>실제 화면에 안내가 적용되고 있습니다</strong></span></div>
-          <b>STEP {stepIndex + 1} / {DEMO_STEPS.length}</b>
+      <div className={`${styles.recorderWorkspace} ${styles.liveGuideWorkspace}`}>
+        <div className={styles.recorderTargetWrap}>
+          <TargetViewport
+            key={`live-${stepIndex}`}
+            step={step}
+            previousStep={stepIndex > 0 ? DEMO_STEPS[stepIndex - 1] : undefined}
+            live
+            reducedMotion={reducedMotion}
+          />
         </div>
-        <div className={styles.liveProgress}>
-          <span>{stepIndex + 1} / {DEMO_STEPS.length}</span>
-          <i><em style={{ width: `${((stepIndex + 1) / DEMO_STEPS.length) * 100}%` }} /></i>
-          <strong>현재 페이지의 대상 DOM과 실시간 연결됨</strong>
-        </div>
+        <LiveGuidePanel stepIndex={stepIndex} />
       </div>
     </div>
   );
