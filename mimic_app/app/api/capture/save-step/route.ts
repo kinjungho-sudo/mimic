@@ -4,30 +4,7 @@ import { createServiceRoleClient } from '@/lib/supabase/server';
 import { captureSaveStepSchema } from '@/lib/validators';
 import { redactSensitive } from '@/lib/redact';
 import { logServer } from '@/lib/logging/logger-server';
-
-function isMissingActionInfoColumn(error: { code?: string; message?: string } | null | undefined) {
-  return /action_info/i.test(error?.message ?? '');
-}
-
-function isMissingTargetContextColumn(error: { code?: string; message?: string } | null | undefined) {
-  return /target_context/i.test(error?.message ?? '');
-}
-
-function isMissingExceptionStepColumns(error: { code?: string; message?: string } | null | undefined) {
-  return /step_type|capture_source|capture_failure_reason/i.test(error?.message ?? '');
-}
-
-function removeUnsupportedColumns(row: Record<string, unknown>, error: { code?: string; message?: string } | null | undefined) {
-  const legacyRow = { ...row };
-  if (isMissingActionInfoColumn(error)) delete legacyRow.action_info;
-  if (isMissingTargetContextColumn(error)) delete legacyRow.target_context;
-  if (isMissingExceptionStepColumns(error)) {
-    delete legacyRow.step_type;
-    delete legacyRow.capture_source;
-    delete legacyRow.capture_failure_reason;
-  }
-  return legacyRow;
-}
+import { writeWithCaptureSchemaCompatibility } from '@/lib/capture/schema-compat';
 
 export async function POST(request: NextRequest) {
   const auth = await requireExtensionToken(request);
@@ -137,19 +114,13 @@ export async function POST(request: NextRequest) {
     .maybeSingle();
 
   if (existing) {
-    let { error: updateError } = await supabase
-      .from('mm_capture_events')
-      .update(row)
-      .eq('id', existing.id);
-
-    if (isMissingActionInfoColumn(updateError) || isMissingTargetContextColumn(updateError) || isMissingExceptionStepColumns(updateError)) {
-      const legacyRow = removeUnsupportedColumns(row, updateError);
-      const retry = await supabase
+    const { error: updateError } = await writeWithCaptureSchemaCompatibility(
+      row,
+      async candidate => supabase
         .from('mm_capture_events')
-        .update(legacyRow)
-        .eq('id', existing.id);
-      updateError = retry.error;
-    }
+        .update(candidate)
+        .eq('id', existing.id),
+    );
 
     if (updateError) {
       await logServer('error', 'capture.saveStep.updateFail', { sessionId, stepNumber: d.step_number, message: updateError.message });
@@ -158,22 +129,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ id: existing.id, step_number: d.step_number });
   }
 
-  let { data: step, error } = await supabase
-    .from('mm_capture_events')
-    .insert({ session_id: sessionId, step_number: d.step_number, ...row })
-    .select('id')
-    .single();
-
-  if (isMissingActionInfoColumn(error) || isMissingTargetContextColumn(error) || isMissingExceptionStepColumns(error)) {
-    const legacyRow = removeUnsupportedColumns(row, error);
-    const retry = await supabase
+  const { data: step, error } = await writeWithCaptureSchemaCompatibility(
+    { session_id: sessionId, step_number: d.step_number, ...row },
+    async candidate => supabase
       .from('mm_capture_events')
-      .insert({ session_id: sessionId, step_number: d.step_number, ...legacyRow })
+      .insert(candidate)
       .select('id')
-      .single();
-    step = retry.data;
-    error = retry.error;
-  }
+      .single(),
+  );
 
   if (error || !step) {
     console.error('save-step error:', error);

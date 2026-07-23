@@ -9,6 +9,7 @@ import { buildClickHighlight } from '@/lib/annotations';
 import { hasDecorativeActionGlyph, stripDecorativeActionGlyphs } from '@/lib/action-copy';
 import { transcribeAudio, assignSegmentsToSteps, computeStepWindows } from '@/lib/voice/voice';
 import { logSystem } from '@/lib/logging/logger-server';
+import { writeWithCaptureSchemaCompatibility } from '@/lib/capture/schema-compat';
 
 async function fetchScreenshotForAi(url: string): Promise<{ base64: string; mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif' } | null> {
   if (url.startsWith('data:')) {
@@ -147,30 +148,6 @@ function blockedStepMessage(reason: unknown): string {
     return '자동 캡처를 저장하지 못한 단계입니다. 실제 화면에서 필요한 작업을 완료한 뒤 다음을 눌러주세요.';
   }
   return '이 단계는 보안 정책이나 브라우저 제한으로 자동 캡처되지 않았습니다. 화면 안내에 따라 직접 진행한 뒤 다음을 눌러주세요.';
-}
-
-function isMissingExceptionStepColumns(error: { code?: string; message?: string } | null | undefined) {
-  return /step_type|capture_source|capture_failure_reason/i.test(error?.message ?? '');
-}
-
-function isMissingTargetContextColumn(error: { code?: string; message?: string } | null | undefined) {
-  return /target_context/i.test(error?.message ?? '');
-}
-
-function stripUnsupportedStepColumns<T extends Record<string, unknown>>(
-  steps: T[],
-  error: { code?: string; message?: string } | null | undefined,
-): T[] {
-  return steps.map(step => {
-    const next = { ...step };
-    if (isMissingExceptionStepColumns(error)) {
-      delete next.step_type;
-      delete next.capture_source;
-      delete next.capture_failure_reason;
-    }
-    if (isMissingTargetContextColumn(error)) delete next.target_context;
-    return next;
-  });
 }
 
 export async function POST(request: NextRequest) {
@@ -452,16 +429,12 @@ export async function POST(request: NextRequest) {
     };
   });
 
-  let { error: stepsError } = await supabase
-    .from('mm_steps')
-    .insert(steps);
-
-  if (isMissingExceptionStepColumns(stepsError) || isMissingTargetContextColumn(stepsError)) {
-    const retry = await supabase
+  const { error: stepsError } = await writeWithCaptureSchemaCompatibility(
+    steps,
+    async candidate => supabase
       .from('mm_steps')
-      .insert(stripUnsupportedStepColumns(steps, stepsError));
-    stepsError = retry.error;
-  }
+      .insert(candidate),
+  );
 
   if (stepsError) {
     // 롤백: 생성한 튜토리얼 삭제
