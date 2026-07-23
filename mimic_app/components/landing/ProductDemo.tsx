@@ -328,8 +328,23 @@ export function HeroRecordingDemo() {
   return (
     <div ref={ref} className={styles.heroDemo} data-playing={playing} data-record-phase={scene === 0 ? recordPhase : undefined} data-demo-scene={scene === 0 ? 'capture' : 'live-guide'}>
       <div className={styles.heroEyebrow}>
-        <span><i /> 기록부터 실제 실행까지</span>
-        <b>{scene === 0 ? 'CAPTURE' : 'LIVE GUIDE'}</b>
+        <span><i /> 기록부터 실제 실행까지, 한 흐름으로</span>
+        <b>{scene === 0 ? '● 화면 캡처 중' : '● 라이브 가이드 실행 중'}</b>
+      </div>
+      <div className={styles.heroSceneCaption} role="status" aria-live="polite">
+        <span>{scene === 0 ? 'REC' : 'LIVE'}</span>
+        <div>
+          <strong>
+            {scene === 0
+              ? '지금, 클릭을 자동으로 캡처하고 있어요'
+              : '방금 기록한 가이드가 실제 화면에 실시간 적용되고 있어요'}
+          </strong>
+          <small>
+            {scene === 0
+              ? '작업 화면과 클릭 위치가 단계별 매뉴얼로 저장됩니다.'
+              : '사용자는 화면 위 안내를 따라 다음 행동을 바로 실행합니다.'}
+          </small>
+        </div>
       </div>
       <div className={styles.heroFlowTabs} role="tablist" aria-label="Parro 데모 흐름">
         <button type="button" role="tab" aria-selected={scene === 0} onClick={() => selectHeroScene(0)}>

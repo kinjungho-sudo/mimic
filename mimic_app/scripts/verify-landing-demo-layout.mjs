@@ -10,6 +10,8 @@ const authHook = await readFile(new URL('../hooks/useAuth.ts', import.meta.url),
 const plans = await readFile(new URL('../lib/product-plans.ts', import.meta.url), 'utf8');
 
 assert.match(component, /className=\{styles\.slideImageFrame\}[\s\S]*?<img[\s\S]*?className=\{styles\.slideAnnotation\}/);
+assert.match(component, /지금, 클릭을 자동으로 캡처하고 있어요/);
+assert.match(component, /방금 기록한 가이드가 실제 화면에 실시간 적용되고 있어요/);
 assert.match(component, /slideRect:\s*\{\s*x:\s*69\.1,\s*y:\s*73\.3,\s*width:\s*27\.5,\s*height:\s*9\.4\s*\}/);
 assert.match(component, /slideRect\s*\?\?\s*DEMO_STEPS\[slideIndex\]\.rect/);
 assert.match(css, /\.slideImageFrame\s*\{[^}]*position:\s*relative[^}]*max-width:\s*100%/s);
@@ -19,6 +21,8 @@ assert.doesNotMatch(css, /\.slideImageFrame\s*>\s*img\s*\{[^}]*animation:/s);
 assert.doesNotMatch(css, /\.slideCanvas\s*>\s*img/);
 assert.match(css, /\.editorTimeline button strong\s*\{[^}]*font-size:\s*16px/s);
 assert.match(css, /\.editorTimeline button small\s*\{[^}]*font-size:\s*13px/s);
+assert.match(css, /\.heroSceneCaption strong\s*\{[^}]*font-size:\s*15px/s);
+assert.match(css, /\.heroFlowTabs button strong\s*\{[^}]*font-size:\s*11\.5px/s);
 assert.match(css, /\.viewerToggle span,[^\n]*font-size:\s*10px/);
 assert.match(css, /\.previewLabel strong,[^\n]*\.previewLabel small[^\n]*font-size:\s*10px/);
 assert.match(css, /\.slideChapter strong\s*\{[^}]*font-size:\s*11px/s);
