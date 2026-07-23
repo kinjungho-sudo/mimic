@@ -191,7 +191,8 @@ function RecorderPanel({ phase }: { phase: number }) {
   const savedCount = Math.min(phase, DEMO_STEPS.length);
   const readyToFinish = phase === DEMO_STEPS.length;
   const generating = phase > DEMO_STEPS.length;
-  const previewIndex = readyToFinish ? DEMO_STEPS.length - 1 : Math.min(phase, DEMO_STEPS.length - 1);
+  const hasCapture = savedCount > 0;
+  const previewIndex = Math.max(0, savedCount - 1);
   const previewStep = DEMO_STEPS[previewIndex];
   const elapsedSeconds = 8 + Math.min(phase, DEMO_STEPS.length) * 4;
   const nativePanelHeader = (
@@ -236,26 +237,39 @@ function RecorderPanel({ phase }: { phase: number }) {
         <strong>{readyToFinish ? '기록이 매뉴얼로 저장되었습니다' : '화면과 클릭을 기록하고 있습니다'}</strong>
       </div>
       <div className={styles.recordingTitle}>
-        <div><small>{readyToFinish ? '마지막으로 저장된 화면' : '현재 감지 중'}</small><strong>{previewStep.title}</strong></div>
-        <span>{readyToFinish ? '모든 단계 저장됨' : `${savedCount}개 자동 저장`}</span>
+        <div>
+          <small>{readyToFinish ? '마지막으로 저장된 화면' : hasCapture ? '방금 캡처된 단계' : '캡처 대기 중'}</small>
+          <strong>{hasCapture ? previewStep.title : '첫 번째 클릭을 기다리고 있어요'}</strong>
+        </div>
+        <span>{readyToFinish ? '모든 단계 저장됨' : hasCapture ? `${savedCount}개 자동 저장` : '0개 저장'}</span>
       </div>
 
-      <div className={`${styles.currentCaptureCard} ${readyToFinish ? styles.currentCaptureSaved : styles.currentCaptureActive}`}>
-        <div className={styles.currentCaptureMeta}>
-          <span>{readyToFinish ? '✓' : previewIndex + 1}</span>
-          <div><strong>{previewStep.title}</strong><small>{readyToFinish ? '자동 저장됨' : '클릭 위치를 감지하고 있어요'}</small></div>
-          <b>{readyToFinish ? 'SAVED' : 'LIVE'}</b>
-        </div>
-        <div className={styles.currentCapturePreview}>
-          <img src={previewStep.screenshotUrl} alt={`${previewStep.title} 현재 캡처 미리보기`} width="360" height="230" loading="eager" decoding="async" />
-          {!readyToFinish && <span><i /> 클릭 순간 자동 캡처</span>}
-        </div>
+      <div className={`${styles.currentCaptureCard} ${readyToFinish ? styles.currentCaptureSaved : hasCapture ? styles.currentCaptureActive : styles.captureWaitingCard}`}>
+        {hasCapture ? (
+          <>
+            <div className={styles.currentCaptureMeta}>
+              <span>{readyToFinish ? '✓' : previewIndex + 1}</span>
+              <div><strong>{previewStep.title}</strong><small>{readyToFinish ? '자동 저장됨' : '방금 클릭한 화면이 저장됐어요'}</small></div>
+              <b>{readyToFinish ? 'SAVED' : 'NEW'}</b>
+            </div>
+            <div className={styles.currentCapturePreview}>
+              <img src={previewStep.screenshotUrl} alt={`${previewStep.title} 현재 캡처 미리보기`} width="360" height="230" loading="eager" decoding="async" />
+              {!readyToFinish && <span><i /> 클릭과 동시에 저장됨</span>}
+            </div>
+          </>
+        ) : (
+          <div className={styles.captureWaitingState}>
+            <span>◎</span>
+            <strong>아직 캡처된 화면이 없습니다</strong>
+            <small>왼쪽 화면에서 대상을 클릭하면 미리보기와 동작명이 바로 표시됩니다.</small>
+          </div>
+        )}
       </div>
 
       <div className={styles.captureStepRail} aria-label="캡처 단계 진행">
         {DEMO_STEPS.map((step, index) => {
           const saved = index < savedCount || readyToFinish;
-          const current = index === previewIndex && !readyToFinish;
+          const current = index === Math.min(savedCount, DEMO_STEPS.length - 1) && !readyToFinish;
           return (
             <span key={step.title} className={`${saved ? styles.railSaved : ''} ${current ? styles.railCurrent : ''}`}>
               <b>{saved ? '✓' : index + 1}</b>
@@ -274,7 +288,7 @@ function RecorderPanel({ phase }: { phase: number }) {
           </button>
         </div>
       ) : (
-        <div className={styles.autoSave}><i /> 페이지는 그대로 사용하세요. 클릭할 때마다 자동 저장됩니다.</div>
+        <div className={styles.autoSave}><i /> {hasCapture ? '방금 클릭한 화면과 동작명이 함께 저장되었습니다.' : '대상을 클릭하면 우측 미리보기가 즉시 생성됩니다.'}</div>
       )}
     </aside>
   );
@@ -422,7 +436,7 @@ export function HeroRecordingDemo() {
     if (!playing) return;
     const delay = scene === 0
       ? recordPhase < DEMO_STEPS.length
-        ? 2300
+        ? 1800
         : recordPhase === DEMO_STEPS.length
           ? 2200
           : 1800
