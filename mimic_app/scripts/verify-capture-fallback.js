@@ -207,6 +207,14 @@ async function main() {
 
   const failures = [];
 
+  const iconTitleDraft = buildCaptureFallbackDraft(
+    { id: 'icon-title', step_number: 1, ai_title: '⬇️ 가이드 다운로드 클릭', ai_description: null, page_url: 'https://example.com/guide', domain_name: 'Example' },
+    { actionInfo: { type: 'click', label: '⬇️ 가이드 다운로드', targetContext: { accessibleName: '⬇️ 가이드 다운로드' } } },
+  );
+  if (iconTitleDraft.user_title !== '가이드 다운로드 클릭') {
+    failures.push({ name: 'decorative icon removed from generated title', expected: '가이드 다운로드 클릭', actual: iconTitleDraft.user_title });
+  }
+
   const threadsInstruction = '텍스트 필드가 비어 있습니다. 입력하여 새 게시물을 작성해보세요.';
   if (!isLowQualityCaptureLabel(threadsInstruction)) {
     failures.push({ name: 'Threads instructional accessibility label is rejected', actual: false });
@@ -472,6 +480,7 @@ async function main() {
     { name: 'long annotation label', actual: buildCaptureAnnotationLabel('감사하다는 내용과 함께, 꼭 다음번에 같이하자는 내용 써줘.업데이트[받는 사람 성함]님', 'click'), expected: '대상 확인' },
     { name: 'search annotation label', actual: buildCaptureAnnotationLabel('search 클릭', 'click'), expected: '검색창 선택' },
     { name: 'checkout stale annotation label', actual: buildCaptureAnnotationLabel('장바구니 담기 클릭', 'click', 'https://www.coupang.com/order/checkout'), expected: '주문 정보 확인' },
+    { name: 'decorative icon removed from annotation label', actual: buildCaptureAnnotationLabel('⬇️ 가이드 다운로드 클릭', 'click'), expected: '가이드 다운로드 클릭' },
   ];
   for (const check of annotationChecks) {
     if (check.actual !== check.expected) failures.push(check);

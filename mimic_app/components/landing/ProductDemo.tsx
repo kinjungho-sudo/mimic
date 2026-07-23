@@ -89,15 +89,16 @@ function Pointer() {
   );
 }
 
-function BrowserChrome({ live = false, generating = false }: { live?: boolean; generating?: boolean }) {
+function BrowserChrome() {
   return (
     <div className={styles.browserChrome}>
       <span className={styles.windowDot} />
       <span className={styles.windowDot} />
       <span className={styles.windowDot} />
       <div className={styles.addressBar}><span>⌁</span> plus.gov.kr</div>
-      <div className={live ? styles.liveBadge : generating ? styles.generatingBadge : styles.captureBadge}>
-        {live || generating ? <i /> : null} {live ? 'Live Guide 실행 중' : generating ? 'AI 매뉴얼 생성 중' : 'REC'}
+      <div className={styles.browserToolbarActions} aria-hidden="true">
+        <span>☆</span>
+        <span>⋮</span>
       </div>
     </div>
   );
@@ -176,14 +177,28 @@ function RecorderPanel({ phase }: { phase: number }) {
   const savedCount = Math.min(phase, DEMO_STEPS.length);
   const readyToFinish = phase === DEMO_STEPS.length;
   const generating = phase > DEMO_STEPS.length;
+  const previewIndex = readyToFinish ? DEMO_STEPS.length - 1 : Math.min(phase, DEMO_STEPS.length - 1);
+  const previewStep = DEMO_STEPS[previewIndex];
+  const elapsedSeconds = 8 + Math.min(phase, DEMO_STEPS.length) * 4;
+  const nativePanelHeader = (
+    <div className={styles.chromePanelHeader}>
+      <div><ParroMark /><strong>Parro Recorder</strong></div>
+      <span className={styles.chromePanelActions} aria-hidden="true"><b>⌖</b><b>×</b></span>
+    </div>
+  );
+  const appHeader = (
+    <div className={styles.recorderAppHeader}>
+      <div><ParroMark /><strong>Parro</strong></div>
+      <span>{savedCount} / {DEMO_STEPS.length} steps</span>
+      <button type="button" aria-label="녹화 설정">⋯</button>
+    </div>
+  );
 
   if (generating) {
     return (
       <aside className={`${styles.recorderPanel} ${styles.generatingPanel}`}>
-        <div className={styles.recorderHeader}>
-          <div><ParroMark /><strong>Parro Recorder</strong></div>
-          <span className={styles.buildingState}><i /> 생성 중</span>
-        </div>
+        {nativePanelHeader}
+        {appHeader}
         <div className={styles.panelGeneratingContent}>
           <span className={styles.buildSpinner} aria-hidden="true"><i /></span>
           <strong>매뉴얼을 만들고 있어요</strong>
@@ -197,41 +212,55 @@ function RecorderPanel({ phase }: { phase: number }) {
 
   return (
     <aside className={`${styles.recorderPanel} ${readyToFinish ? styles.readyPanel : ''}`}>
-      <div className={styles.recorderHeader}>
-        <div><ParroMark /><strong>Parro Recorder</strong></div>
-        <span className={readyToFinish ? styles.readyState : styles.recordingState}><i /> {readyToFinish ? '캡처 완료' : '녹화 중'}</span>
+      {nativePanelHeader}
+      {appHeader}
+      <div className={`${styles.recordingBanner} ${readyToFinish ? styles.captureCompleteBanner : ''}`}>
+        <div>
+          <span className={readyToFinish ? styles.readyState : styles.recordingState}><i /> {readyToFinish ? '캡처 완료' : '녹화 중'}</span>
+          <time>{readyToFinish ? `${savedCount}개 단계` : `00:${String(elapsedSeconds).padStart(2, '0')}`}</time>
+        </div>
+        <strong>{readyToFinish ? '기록이 매뉴얼로 저장되었습니다' : '화면과 클릭을 기록하고 있습니다'}</strong>
       </div>
       <div className={styles.recordingTitle}>
-        <small>새 매뉴얼</small>
-        <strong>정부24 주민등록표 등본 발급</strong>
-        <span>{savedCount}개 단계 자동 저장</span>
+        <div><small>{readyToFinish ? '마지막으로 저장된 화면' : '현재 감지 중'}</small><strong>{previewStep.title}</strong></div>
+        <span>{readyToFinish ? '모든 단계 저장됨' : `${savedCount}개 자동 저장`}</span>
       </div>
 
-      <div className={styles.savedSteps}>
+      <div className={`${styles.currentCaptureCard} ${readyToFinish ? styles.currentCaptureSaved : styles.currentCaptureActive}`}>
+        <div className={styles.currentCaptureMeta}>
+          <span>{readyToFinish ? '✓' : previewIndex + 1}</span>
+          <div><strong>{previewStep.title}</strong><small>{readyToFinish ? '자동 저장됨' : '클릭 위치를 감지하고 있어요'}</small></div>
+          <b>{readyToFinish ? 'SAVED' : 'LIVE'}</b>
+        </div>
+        <div className={styles.currentCapturePreview}>
+          <img src={previewStep.screenshotUrl} alt={`${previewStep.title} 현재 캡처 미리보기`} width="360" height="230" loading="eager" decoding="async" />
+          {!readyToFinish && <span><i /> 클릭 순간 자동 캡처</span>}
+        </div>
+      </div>
+
+      <div className={styles.captureStepRail} aria-label="캡처 단계 진행">
         {DEMO_STEPS.map((step, index) => {
-          const saved = index < savedCount;
-          const active = index === phase && !readyToFinish;
+          const saved = index < savedCount || readyToFinish;
+          const current = index === previewIndex && !readyToFinish;
           return (
-            <div key={step.title} className={`${styles.savedStep} ${saved ? styles.saved : ''} ${active ? styles.saving : ''}`}>
-              <span>{saved ? '✓' : index + 1}</span>
-              <div><strong>{step.title}</strong><small>{saved ? '자동 저장됨' : active ? '클릭 감지 중…' : '다음 행동 대기'}</small></div>
-              <img className={styles.stepThumbnail} src={step.screenshotUrl} alt={`${step.title} 캡처 미리보기`} width="288" height="184" loading="lazy" decoding="async" />
-            </div>
+            <span key={step.title} className={`${saved ? styles.railSaved : ''} ${current ? styles.railCurrent : ''}`}>
+              <b>{saved ? '✓' : index + 1}</b>
+              <small>{index + 1}단계</small>
+            </span>
           );
         })}
       </div>
 
       {readyToFinish ? (
         <div className={styles.finishArea}>
-          <span>✓ 3개 단계 캡처 완료</span>
           <button type="button" className={styles.finishButton}>
-            완료
+            매뉴얼 만들기
             <i className={styles.finishClickPulse} />
             <b className={styles.finishPointer}><Pointer /></b>
           </button>
         </div>
       ) : (
-        <div className={styles.autoSave}><i /> 클릭할 때마다 화면과 DOM을 자동 저장합니다</div>
+        <div className={styles.autoSave}><i /> 페이지는 그대로 사용하세요. 클릭할 때마다 자동 저장됩니다.</div>
       )}
     </aside>
   );
@@ -246,7 +275,7 @@ function RecorderScene({ phase, compact = false, reducedMotion = false }: {
   const generating = phase > DEMO_STEPS.length;
   return (
     <div className={`${styles.sceneFrame} ${compact ? styles.compactScene : ''}`}>
-      <BrowserChrome generating={generating} />
+      <BrowserChrome />
       <div className={styles.recorderWorkspace}>
         <div className={styles.recorderTargetWrap}>
           <TargetViewport
@@ -273,18 +302,24 @@ function LiveGuideScene({ stepIndex, compact = false, reducedMotion = false }: {
   const step = DEMO_STEPS[stepIndex];
   return (
     <div className={`${styles.sceneFrame} ${compact ? styles.compactScene : ''}`}>
-      <BrowserChrome live />
-      <TargetViewport
-        key={`live-${stepIndex}`}
-        step={step}
-        previousStep={stepIndex > 0 ? DEMO_STEPS[stepIndex - 1] : undefined}
-        live
-        reducedMotion={reducedMotion}
-      />
+      <BrowserChrome />
+      <div className={styles.liveGuideStage}>
+        <TargetViewport
+          key={`live-${stepIndex}`}
+          step={step}
+          previousStep={stepIndex > 0 ? DEMO_STEPS[stepIndex - 1] : undefined}
+          live
+          reducedMotion={reducedMotion}
+        />
+        <div className={styles.liveGuideRibbon}>
+          <div><ParroMark /><span><small>LIVE GUIDE</small><strong>실제 화면에 안내가 적용되고 있습니다</strong></span></div>
+          <b>STEP {stepIndex + 1} / {DEMO_STEPS.length}</b>
+        </div>
+      </div>
       <div className={styles.liveProgress}>
         <span>{stepIndex + 1} / {DEMO_STEPS.length}</span>
         <i><em style={{ width: `${((stepIndex + 1) / DEMO_STEPS.length) * 100}%` }} /></i>
-        <strong>실제 웹의 대상 DOM에 연결됨</strong>
+        <strong>현재 페이지의 대상 DOM과 실시간 연결됨</strong>
       </div>
     </div>
   );
@@ -306,7 +341,7 @@ export function HeroRecordingDemo() {
     if (!playing) return;
     const delay = scene === 0
       ? recordPhase < DEMO_STEPS.length
-        ? 1750
+        ? 2300
         : recordPhase === DEMO_STEPS.length
           ? 2200
           : 1800

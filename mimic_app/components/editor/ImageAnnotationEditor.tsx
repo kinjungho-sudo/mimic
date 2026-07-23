@@ -65,6 +65,10 @@ export function estimateTextW(text: string, fSize: number): number {
   return max;
 }
 
+export function annotationCornerRadius(width: number, height: number): number {
+  return Math.max(1, Math.min(6, width / 2, height / 2));
+}
+
 // 도구 기본값 저장 — 다음 편집/세션에서도 같은 설정을 사용하도록 localStorage에 보존
 const DEFAULTS_KEY = LEGACY_INTERNAL_IDENTIFIERS.annotationDefaultsKey;
 interface ToolDefaults {
@@ -235,6 +239,11 @@ export function ImageAnnotationEditor({
   }, [color, strokeIdx, fontSize, fontBold, borderColor, textAlign, hasBg]);
 
   const [items, setItems] = useState<Annotation[]>(annotations);
+  // React state updates may still be queued when the user clicks 저장 (notably
+  // while a contentEditable text annotation is being committed). Keep the
+  // latest authoritative array available synchronously for the save handler.
+  const itemsRef = useRef<Annotation[]>(annotations);
+  itemsRef.current = items;
   const historyRef = useRef<Annotation[][]>([annotations]);
   const historyIdxRef = useRef(0);
 
@@ -323,15 +332,18 @@ export function ImageAnnotationEditor({
     };
   }, [imgSize]);
 
-  const commitTextRef = useRef<() => void>(() => {});
-  const commitText = useCallback(() => {
-    if (!editingText) return;
+  const commitTextRef = useRef<() => Annotation[]>(() => itemsRef.current);
+  const commitText = useCallback((): Annotation[] => {
+    if (!editingText) return itemsRef.current;
     // innerText로 읽으면 줄바꿈(\n)이 보존됨
     const rawText = (textInputRef.current?.innerText ?? '').replace(/\n$/, '').trimEnd();
     const id = editingText.id;
-    setItems(cur => {
-      if (!rawText) return cur.filter(a => a.id !== id);
-      const item = cur.find(a => a.id === id);
+    const currentItems = itemsRef.current;
+    let nextItems: Annotation[];
+    if (!rawText) {
+      nextItems = currentItems.filter(a => a.id !== id);
+    } else {
+      const item = currentItems.find(a => a.id === id);
       let x2Override: number | undefined, y2Override: number | undefined;
       if (item && imgRef.current) {
         const imgW = imgRef.current.getBoundingClientRect().width;
@@ -351,14 +363,17 @@ export function ImageAnnotationEditor({
           }
         }
       }
-      return cur.map(a => a.id === id ? {
+      nextItems = currentItems.map(a => a.id === id ? {
         ...a, text: rawText,
         ...(x2Override !== undefined ? { x2: x2Override } : {}),
         ...(y2Override !== undefined ? { y2: y2Override } : {}),
       } : a);
-    });
+    }
+    itemsRef.current = nextItems;
+    setItems(nextItems);
     setEditingText(null);
     if (textInputRef.current) textInputRef.current.innerText = '';
+    return nextItems;
   }, [editingText]);
   useEffect(() => { commitTextRef.current = commitText; }, [commitText]);
 
@@ -624,8 +639,8 @@ export function ImageAnnotationEditor({
   }, [editingText]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSave = () => {
-    if (editingText) commitTextRef.current();
-    onChange(items);
+    const latestItems = editingText ? commitTextRef.current() : itemsRef.current;
+    onChange(latestItems);
     onClose();
   };
 
@@ -1147,7 +1162,7 @@ function SpotlightLayer({ items, imgW, imgH, tool, selectedId, preview, onBodyMo
           {spotlights.map(a => {
             const minX = Math.min(a.x1, a.x2)/100*imgW, minY = Math.min(a.y1, a.y2)/100*imgH;
             const w = Math.abs(a.x2-a.x1)/100*imgW, h = Math.abs(a.y2-a.y1)/100*imgH;
-            return <rect key={a.id} x={minX} y={minY} width={w} height={h} fill="black" rx={4} />;
+            return <rect key={a.id} x={minX} y={minY} width={w} height={h} fill="black" rx={annotationCornerRadius(w, h)} />;
           })}
         </mask>
       </defs>
@@ -1184,7 +1199,7 @@ function SpotlightLayer({ items, imgW, imgH, tool, selectedId, preview, onBodyMo
               fill="transparent"
               stroke={isSelected ? '#2563EB' : 'rgba(255,255,255,0.4)'}
               strokeWidth={isSelected ? 1.5 : 1}
-              rx={4}
+              rx={annotationCornerRadius(w, h)}
               style={{ cursor: bodyCursor }}
               onMouseDown={e => { if (isSelectTool && onBodyMouseDown) { e.stopPropagation(); onBodyMouseDown(a.id, e); } }}
             />
@@ -1275,7 +1290,7 @@ function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx
   if (type === 'recorderBox') { const sp = Math.max(2, strokePx), o = sp / 2; return (
     <g>
       {/* 테두리를 요소 바깥쪽에 — 안쪽 콘텐츠/텍스트를 덮지 않도록 */}
-      <rect x={minX - o} y={minY - o} width={w + sp} height={h + sp} rx={2}
+      <rect x={minX - o} y={minY - o} width={w + sp} height={h + sp} rx={annotationCornerRadius(w, h)}
         stroke="#EF4444" strokeWidth={sp} fill="rgba(239,68,68,0.08)"
         style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown} />
       {isSelected && onHandleMouseDown && <SelectionHandles minX={minX} minY={minY} w={w} h={h} onHandle={handleHandle} />}
@@ -1313,10 +1328,10 @@ function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx
 
   if (type === 'highlight') { const sp = Math.max(1.5, strokePx), o = sp / 2; return (
     <g>
-      <rect x={minX} y={minY} width={w} height={h} fill={color} opacity={0.35} rx={1}
+      <rect x={minX} y={minY} width={w} height={h} fill={color} opacity={0.35} rx={annotationCornerRadius(w, h)}
         style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown} />
       {/* 테두리는 요소 바깥쪽에 */}
-      <rect x={minX - o} y={minY - o} width={w + sp} height={h + sp} fill="none" stroke={color} strokeWidth={sp} opacity={0.85} rx={1}
+      <rect x={minX - o} y={minY - o} width={w + sp} height={h + sp} fill="none" stroke={color} strokeWidth={sp} opacity={0.85} rx={annotationCornerRadius(w, h)}
         style={{ pointerEvents: 'none' }} />
       {isSelected && onHandleMouseDown && <SelectionHandles minX={minX} minY={minY} w={w} h={h} onHandle={handleHandle} />}
     </g>
@@ -1325,7 +1340,7 @@ function AnnotationShape({ annotation: a, isSelected, tool, imgW, imgH, strokePx
   if (type === 'rect') { const sp = strokePx, o = sp / 2; return (
     <g>
       {/* 테두리를 요소 바깥쪽에 — 안쪽 콘텐츠/텍스트를 덮지 않도록 */}
-      <rect x={minX - o} y={minY - o} width={w + sp} height={h + sp} rx={1} stroke={color} strokeWidth={sp} fill="none"
+      <rect x={minX - o} y={minY - o} width={w + sp} height={h + sp} rx={annotationCornerRadius(w, h)} stroke={color} strokeWidth={sp} fill="none"
         style={{ cursor: bodyCursor }} onMouseDown={onBodyMouseDown} />
       {isSelected && onHandleMouseDown && <SelectionHandles minX={minX} minY={minY} w={w} h={h} onHandle={handleHandle} />}
     </g>

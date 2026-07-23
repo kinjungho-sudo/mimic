@@ -103,7 +103,7 @@ export type FollowConfig = {
   hotspotX?: number | null;   // 0~100 (%) 핫스팟 위치 오버라이드. 미설정=녹화 click 좌표
   hotspotY?: number | null;
   kind?: 'click' | 'type' | 'none' | null;  // 인디케이터 종류 오버라이드. 미설정=제목 휴리스틱, none=핫스팟 미표시
-  typeText?: string | null;        // 텍스트(type) 인디케이터에 입력될 실제 텍스트. 뷰어에서 자동 타이핑 애니메이션, 라이브 가이드에서 자동 입력
+  typeText?: string | null;        // 캡처/편집한 입력 텍스트. 뷰어 연출 및 라이브 가이드 복사·붙여넣기에 사용
   typeInputMode?: 'copy' | 'auto' | null; // 학습 가이드 입력 방식. copy=복사 후 직접 입력, auto=자동 타이핑 연출
   typeBoxWidth?: number | null;    // 텍스트 입력 인디케이터 너비(px)
   typeBoxHeight?: number | null;   // 텍스트 입력 인디케이터 높이(px)

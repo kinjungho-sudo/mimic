@@ -83,7 +83,7 @@
   let settings = {
     highlight: true,
     autoNav:   true,
-    saveText:  false,
+    saveText:  true,
     captureInputClicks: false,
   };
 
@@ -100,6 +100,10 @@
   let _captureSequence   = 0;
   let typingFocusSnapshot = null;
   let _countingDown      = false;
+  let _guideCountdownComplete = false;
+  let _guideCountdownRunning = false;
+  let _pendingGuideOverlay = null;
+  let _cancelGuideCountdown = null;
   let _lastTypingFrameTime = 0;     // 롤링 타이핑 프레임 throttle 기준
   let _typingFrameTimer  = null;    // 입력 멈춤(완료) 시점 프레임 1장 예약 타이머
   let _isComposing       = false;   // 한/일/중 IME 조합 중 여부 — 조합 중간값 캡처 방지
@@ -683,6 +687,8 @@
 
   // ── 녹화 시작 카운트다운 오버레이 ──────────────────────────────
   function showCountdown(onDone, opts) {
+    let cancelled = false;
+    let timerId = null;
     const overlay = document.createElement('div');
     overlay.style.cssText = [
       'position:fixed', 'inset:0', 'z-index:2147483647',
@@ -735,6 +741,7 @@
 
     let i = 0;
     function tick() {
+      if (cancelled) return;
       if (i >= steps.length) { overlay.remove(); onDone(); return; }
       const s = steps[i++];
       numEl.textContent = s.text;
@@ -743,9 +750,56 @@
       numEl.style.animation = 'none';
       void numEl.offsetWidth;
       numEl.style.animation = s.anim;
-      setTimeout(tick, i < steps.length ? 900 : 700);
+      timerId = setTimeout(tick, i < steps.length ? 900 : 700);
     }
     tick();
+    return () => {
+      cancelled = true;
+      if (timerId) clearTimeout(timerId);
+      overlay.remove();
+    };
+  }
+
+  function renderLiveGuideOverlay(msg) {
+    const guideApi = window.ParroGuide || window.MimicGuide;
+    if (!guideApi) return;
+    guideApi.show(msg.step, {
+      index: msg.index ?? 0,
+      total: msg.total ?? 1,
+      survey: msg.survey || null,
+      onAdvance: (reason) => chrome.runtime.sendMessage({ type: 'GUIDE_NEXT', viaClick: reason === 'click' }),
+      onPrev:    () => chrome.runtime.sendMessage({ type: 'GUIDE_PREV' }),
+      onExit:    () => { chrome.runtime.sendMessage({ type: 'EXIT_GUIDE' }); guideApi.hide(); },
+      onComplete: (reason) => {
+        guideApi.hide();
+        chrome.runtime.sendMessage({ type: 'GUIDE_COMPLETE', reason: reason || 'complete' });
+      },
+      onTargetStatus: (status, evidence) => chrome.runtime.sendMessage({
+        type: 'GUIDE_TARGET_STATUS',
+        stepIndex: msg.index ?? 0,
+        status,
+        evidence: evidence || null,
+      }),
+    });
+  }
+
+  function queueLiveGuideOverlay(msg) {
+    const isFirstStep = (msg.index ?? 0) === 0;
+    if (!isFirstStep || _guideCountdownComplete) {
+      renderLiveGuideOverlay(msg);
+      return;
+    }
+    _pendingGuideOverlay = msg;
+    if (_guideCountdownRunning) return;
+    _guideCountdownRunning = true;
+    _cancelGuideCountdown = showCountdown(() => {
+      _guideCountdownComplete = true;
+      _guideCountdownRunning = false;
+      _cancelGuideCountdown = null;
+      const pending = _pendingGuideOverlay;
+      _pendingGuideOverlay = null;
+      if (pending) renderLiveGuideOverlay(pending);
+    }, { label: 'Live Guide Beta가 시작됩니다', accentColor: '#17C9B6', startText: 'START' });
   }
 
   // ── 메시지 수신 ──────────────────────────────────────────────────
@@ -841,7 +895,7 @@
 
     if (msg.type === 'SHOW_GUIDE_COUNTDOWN') {
       if (!IS_TOP_FRAME) { sendResponse({ ok: true }); return false; }
-      showCountdown(() => {}, { label: 'Live Guide Beta 시작됩니다', accentColor: '#17C9B6', startText: 'GO' });
+      showCountdown(() => {}, { label: 'Live Guide Beta가 시작됩니다', accentColor: '#17C9B6', startText: 'START' });
       sendResponse({ ok: true });
       return false;
     }
@@ -860,30 +914,15 @@
 
     if (msg.type === 'SHOW_OVERLAY' && msg.step) {
       if (!IS_TOP_FRAME) return false;
-      const guideApi = window.ParroGuide || window.MimicGuide;
-      if (guideApi) guideApi.show(msg.step, {
-        index: msg.index ?? 0,
-        total: msg.total ?? 1,
-        survey: msg.survey || null,
-        onAdvance: (reason) => chrome.runtime.sendMessage({ type: 'GUIDE_NEXT', viaClick: reason === 'click' }),
-        onComplete: (reason) => chrome.runtime.sendMessage({ type: 'GUIDE_NEXT', viaClick: reason === 'click' }),
-        onPrev:    () => chrome.runtime.sendMessage({ type: 'GUIDE_PREV' }),
-        onExit:    () => { chrome.runtime.sendMessage({ type: 'EXIT_GUIDE' }); guideApi.hide(); },
-        onComplete: (reason) => {
-          guideApi.hide();
-          chrome.runtime.sendMessage({ type: 'GUIDE_COMPLETE', reason: reason || 'complete' });
-        },
-        onTargetStatus: (status, evidence) => chrome.runtime.sendMessage({
-          type: 'GUIDE_TARGET_STATUS',
-          stepIndex: msg.index ?? 0,
-          status,
-          evidence: evidence || null,
-        }),
-      });
+      queueLiveGuideOverlay(msg);
       return false;
     }
     if (msg.type === 'HIDE_OVERLAY') {
       const guideApi = window.ParroGuide || window.MimicGuide;
+      _pendingGuideOverlay = null;
+      if (_cancelGuideCountdown) _cancelGuideCountdown();
+      _cancelGuideCountdown = null;
+      _guideCountdownRunning = false;
       if (IS_TOP_FRAME && guideApi) guideApi.hide();
       return false;
     }
