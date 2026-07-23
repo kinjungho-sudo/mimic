@@ -11,7 +11,6 @@ const BRAND_GRADIENT = `linear-gradient(135deg, ${BRAND_COLORS.primary} 0%, ${BR
 const BRAND_FOCUS_RING = '0 0 0 3px rgba(0,155,142,0.12)';
 const BRAND_SHADOW = '0 4px 12px rgba(0,155,142,0.25)';
 const BRAND_SHADOW_HOVER = '0 8px 18px rgba(0,155,142,0.32)';
-const BRAND_ICON_SOFT = 'rgba(0,155,142,0.10)';
 
 function LoginForm() {
   const router = useRouter();
@@ -174,12 +173,6 @@ function LoginForm() {
             </button>
           )}
 
-          <div style={{ marginTop: '22px', padding: '12px 14px', background: '#FAFAFA', border: '1px solid #F3F4F6', borderRadius: '10px', fontSize: '12px', color: '#4B5563', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ flexShrink: 0, width: '28px', height: '28px', borderRadius: '7px', background: BRAND_ICON_SOFT, color: BRAND_COLORS.primary, display: 'grid', placeItems: 'center' }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            </span>
-            Chrome 확장 사용자도 여기서 로그인하세요.
-          </div>
         </div>
       </section>
     </div>

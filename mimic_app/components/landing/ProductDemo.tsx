@@ -43,12 +43,6 @@ const DEMO_STEPS: DemoStep[] = [
   },
 ];
 
-const STEP_PREVIEWS = [
-  '/help/dashboard.png',
-  '/help/product-overview.png',
-  '/help/share-player.png',
-] as const;
-
 function usePlayback(rootMargin = '80px') {
   const ref = useRef<HTMLDivElement>(null);
   const [inView, setInView] = useState(false);
@@ -163,7 +157,7 @@ function TargetViewport({ step, previousStep, live, reducedMotion, settled = fal
       <span className={styles.pointer} aria-hidden="true"><Pointer /></span>
       {live && (
         <div className={`${styles.guideCoach} ${step.coachSide === 'right' ? styles.coachRight : styles.coachLeft}`}>
-          <div className={styles.guideAvatar}><ParroMascot size={68} state="point" mirror={step.coachSide === 'right'} /></div>
+          <div className={styles.guideAvatar}><ParroMascot size={68} state="point" motion={false} mirror={step.coachSide === 'right'} /></div>
           <div className={styles.coachmark}>
             <div className={styles.coachmarkHeading}>
               <span>Parro AI Guide</span><strong>{step.title}</strong>
@@ -189,7 +183,7 @@ function RecorderPanel({ phase }: { phase: number }) {
           <span className={styles.buildingState}><i /> 생성 중</span>
         </div>
         <div className={styles.panelGeneratingContent}>
-          <ParroMascot size={64} state="search" />
+          <span className={styles.buildSpinner} aria-hidden="true"><i /></span>
           <strong>매뉴얼을 만들고 있어요</strong>
           <p>제목과 3개의 카드 단계를 자동으로 구성합니다.</p>
           <i><em /></i>
@@ -217,9 +211,9 @@ function RecorderPanel({ phase }: { phase: number }) {
           const active = index === phase && !readyToFinish;
           return (
             <div key={step.title} className={`${styles.savedStep} ${saved ? styles.saved : ''} ${active ? styles.saving : ''}`}>
-              <img className={styles.stepThumbnail} src={STEP_PREVIEWS[index]} alt="" width="72" height="44" loading="lazy" decoding="async" />
               <span>{saved ? '✓' : index + 1}</span>
               <div><strong>{step.title}</strong><small>{saved ? '자동 저장됨' : active ? '클릭 감지 중…' : '다음 행동 대기'}</small></div>
+              <img className={styles.stepThumbnail} src={step.screenshotUrl} alt={`${step.title} 캡처 미리보기`} width="288" height="184" loading="lazy" decoding="async" />
             </div>
           );
         })}
@@ -263,7 +257,7 @@ function RecorderScene({ phase, compact = false, reducedMotion = false }: {
           />
           {generating && (
             <div className={styles.manualBuildOverlay}>
-              <div><ParroMascot size={72} state="search" /><strong>AI가 매뉴얼을 자동 완성하고 있어요</strong><span>잠시 후 Live Guide로 이어집니다</span></div>
+              <div><span className={styles.buildSpinner} aria-hidden="true"><i /></span><strong>AI가 매뉴얼을 자동 완성하고 있어요</strong><span>제목과 단계 설명을 구성하고 있습니다</span></div>
             </div>
           )}
         </div>
@@ -373,7 +367,7 @@ function EditorChrome({ saved }: { saved: boolean }) {
 function SharedViewerScene({ reducedMotion }: { reducedMotion: boolean }) {
   const [viewMode, setViewMode] = useState<'document' | 'slides'>('document');
   const [slideIndex, setSlideIndex] = useState(0);
-  const issueButtonRect = DEMO_STEPS[1].rect;
+  const activeSlideRect = DEMO_STEPS[slideIndex].rect;
 
   useEffect(() => {
     if (reducedMotion) return;
@@ -437,10 +431,10 @@ function SharedViewerScene({ reducedMotion }: { reducedMotion: boolean }) {
                 <div
                   className={styles.slideAnnotation}
                   style={{
-                    left: `${issueButtonRect.x}%`,
-                    top: `${issueButtonRect.y}%`,
-                    width: `${issueButtonRect.width}%`,
-                    height: `${issueButtonRect.height}%`,
+                    left: `${activeSlideRect.x}%`,
+                    top: `${activeSlideRect.y}%`,
+                    width: `${activeSlideRect.width}%`,
+                    height: `${activeSlideRect.height}%`,
                   }}
                 />
               </div>
