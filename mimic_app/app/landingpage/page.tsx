@@ -9,6 +9,7 @@ import { BRAND_COPY, BRAND_NAME, BRAND_SUPPORT_EMAIL, BRAND_TAGLINE } from '@/li
 import { LANDING_FAQS } from '@/lib/landing-faq';
 import { HeroRecordingDemo, ProductDemo } from '@/components/landing/ProductDemo';
 import { PRODUCT_PLANS } from '@/lib/product-plans';
+import { useLocale } from '@/components/i18n/LocaleProvider';
 
 const CheckIcon = ({ size = 14, color = 'currentColor' }: { size?: number; color?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3">
@@ -1592,6 +1593,7 @@ function HeroSection() {
 }
 
 export default function LandingPage() {
+  const { locale, setLocale } = useLocale();
   const [billing, setBilling] = useState<'month' | 'year'>('month');
   const [faqOpen, setFaqOpen] = useState<number | null>(0);
   const [email, setEmail] = useState('');
@@ -1980,8 +1982,8 @@ export default function LandingPage() {
           <p style={{ textAlign: 'center', fontSize: '16px', color: '#9CA3AF', maxWidth: '560px', margin: '0 auto 56px', lineHeight: 1.65 }}>반복 문의를 줄이고, 온보딩 시간을 단축하고, 지식을 조직 전체에 공유하세요. 기업 맞춤 도입 상담을 진행합니다.</p>
 
           <div className="b2b-btns" style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-            <a href={`mailto:${BRAND_SUPPORT_EMAIL}?subject=기업 데모 신청`} style={{ display: 'inline-flex', alignItems: 'center', padding: '15px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 600, background: 'white', color: '#111827', textDecoration: 'none', boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }}>기업 데모 신청하기</a>
-            <a href={`mailto:${BRAND_SUPPORT_EMAIL}?subject=Parro 자료 요청`} style={{ display: 'inline-flex', alignItems: 'center', padding: '15px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 500, color: 'rgba(255,255,255,0.85)', border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.06)', textDecoration: 'none' }}>소개 자료 요청</a>
+            <a href={`mailto:${BRAND_SUPPORT_EMAIL}?subject=${encodeURIComponent(locale === 'en' ? 'Enterprise demo request' : '기업 데모 신청')}`} style={{ display: 'inline-flex', alignItems: 'center', padding: '15px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 600, background: 'white', color: '#111827', textDecoration: 'none', boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }}>기업 데모 신청하기</a>
+            <a href={`mailto:${BRAND_SUPPORT_EMAIL}?subject=${encodeURIComponent(locale === 'en' ? 'Parro overview request' : 'Parro 자료 요청')}`} style={{ display: 'inline-flex', alignItems: 'center', padding: '15px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 500, color: 'rgba(255,255,255,0.85)', border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.06)', textDecoration: 'none' }}>소개 자료 요청</a>
           </div>
         </div>
       </section>
@@ -1998,11 +2000,11 @@ export default function LandingPage() {
               <div key={i} style={{ borderBottom: '1px solid #F3F4F6', overflow: 'hidden' }}>
                 <button
                   onClick={() => setFaqOpen(faqOpen === i ? null : i)}
-                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textAlign: 'left', padding: '22px 0', fontSize: '15.5px', fontWeight: 500, color: faqOpen === i ? '#009B8E' : '#111827', cursor: 'pointer', background: 'none', border: 'none', transition: 'color 0.15s' }}
+                  style={{ width: '100%', boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', textAlign: 'left', padding: '22px 0', fontSize: '15.5px', fontWeight: 500, color: faqOpen === i ? '#009B8E' : '#111827', cursor: 'pointer', background: 'none', border: 'none', transition: 'color 0.15s' }}
                 >
-                  {faq.q}
-                  <span style={{ flexShrink: 0, width: '28px', height: '28px', borderRadius: '50%', background: faqOpen === i ? '#E8FFF7' : '#F9FAFB', display: 'grid', placeItems: 'center', color: faqOpen === i ? '#009B8E' : '#9CA3AF', transform: faqOpen === i ? 'rotate(45deg)' : 'none', transition: 'all 0.2s ease' }}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  <span style={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>{faq.q}</span>
+                  <span style={{ flexShrink: 0, width: '28px', height: '28px', borderRadius: '50%', background: faqOpen === i ? '#E8FFF7' : '#F9FAFB', display: 'grid', placeItems: 'center', color: faqOpen === i ? '#009B8E' : '#9CA3AF', transition: 'all 0.2s ease' }}>
+                    <svg style={{ transform: faqOpen === i ? 'rotate(45deg)' : 'none', transition: 'transform 0.2s ease' }} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                   </span>
                 </button>
                 {faqOpen === i && (
@@ -2053,7 +2055,7 @@ export default function LandingPage() {
                 무료로 시작하기
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
               </Link>
-              <a href={`mailto:${BRAND_SUPPORT_EMAIL}?subject=기업 데모 신청`} style={{ display: 'inline-flex', alignItems: 'center', padding: '15px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 500, color: 'rgba(255,255,255,0.9)', border: '1.5px solid rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.08)', textDecoration: 'none' }}>기업 데모 신청</a>
+              <a href={`mailto:${BRAND_SUPPORT_EMAIL}?subject=${encodeURIComponent(locale === 'en' ? 'Enterprise demo request' : '기업 데모 신청')}`} style={{ display: 'inline-flex', alignItems: 'center', padding: '15px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 500, color: 'rgba(255,255,255,0.9)', border: '1.5px solid rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.08)', textDecoration: 'none' }}>기업 데모 신청</a>
             </div>
           </div>
         </div>
@@ -2074,7 +2076,7 @@ export default function LandingPage() {
             </div>
             {[
               { title: '제품', links: [{ label: '기능', href: '#features' }, { label: '사용 방법', href: '#tour' }, { label: '요금제', href: '#pricing' }] },
-              { title: '도입', links: [{ label: '기업 도입', href: '#b2b' }, { label: '소개 자료 요청', href: `mailto:${BRAND_SUPPORT_EMAIL}?subject=Parro 자료 요청` }] },
+              { title: '도입', links: [{ label: '기업 도입', href: '#b2b' }, { label: '소개 자료 요청', href: `mailto:${BRAND_SUPPORT_EMAIL}?subject=${encodeURIComponent(locale === 'en' ? 'Parro overview request' : 'Parro 자료 요청')}` }] },
               { title: '지원', links: [{ label: '이용 가이드', href: '/help' }, { label: 'FAQ', href: '#faq' }, { label: '고객센터', href: `mailto:${BRAND_SUPPORT_EMAIL}` }] },
               { title: '법적 고지', links: [{ label: '이용약관', href: '/legal/terms' }, { label: '개인정보처리방침', href: '/legal/privacy' }] },
             ].map(col => (
@@ -2096,12 +2098,20 @@ export default function LandingPage() {
           <div className="landing-footer-bottom" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '24px', fontSize: '12px', color: '#374151' }}>
             <div>© 2026 코마인드웍스 · {BRAND_NAME}</div>
             <div style={{ display: 'flex', gap: '20px' }}>
-              {['한국어', BRAND_SUPPORT_EMAIL].map(l => (
-                <a key={l} href={l.includes('@') ? `mailto:${l}` : '/landingpage'} aria-current={l === '한국어' ? 'page' : undefined} style={{ color: '#374151', textDecoration: 'none' }}
-                  onMouseEnter={e => e.currentTarget.style.color = '#6B7280'}
-                  onMouseLeave={e => e.currentTarget.style.color = '#374151'}
-                >{l}</a>
-              ))}
+              <button
+                type="button"
+                data-i18n-ignore
+                onClick={() => setLocale(locale === 'ko' ? 'en' : 'ko')}
+                style={{ padding: 0, border: 0, background: 'none', color: '#374151', font: 'inherit', cursor: 'pointer' }}
+                onMouseEnter={e => e.currentTarget.style.color = '#6B7280'}
+                onMouseLeave={e => e.currentTarget.style.color = '#374151'}
+              >
+                {locale === 'ko' ? 'English' : '한국어'}
+              </button>
+              <a href={`mailto:${BRAND_SUPPORT_EMAIL}`} style={{ color: '#374151', textDecoration: 'none' }}
+                onMouseEnter={e => e.currentTarget.style.color = '#6B7280'}
+                onMouseLeave={e => e.currentTarget.style.color = '#374151'}
+              >{BRAND_SUPPORT_EMAIL}</a>
             </div>
           </div>
         </div>

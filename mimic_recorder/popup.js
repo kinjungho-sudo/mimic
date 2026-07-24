@@ -1,3 +1,5 @@
+const { t, localizeDocument } = ParroI18n;
+localizeDocument();
 
 const viewIdle      = document.getElementById('viewIdle');
 const viewRecording = document.getElementById('viewRecording');
@@ -105,11 +107,11 @@ function checkCaptureReadiness() {
 
   const pending = (async () => {
     if (!navigator.onLine) {
-      setCaptureReadiness('issue', '인터넷에 연결되어 있지 않습니다. 연결을 복구한 뒤 다시 확인해주세요.');
+      setCaptureReadiness('issue', t('internetOffline', '인터넷에 연결되어 있지 않습니다. 연결을 복구한 뒤 다시 확인해주세요.'));
       return false;
     }
 
-    setCaptureReadiness('checking', '캡처 연결을 확인하고 있습니다…');
+    setCaptureReadiness('checking', t('checkingConnection', '캡처 연결을 확인하고 있습니다…'));
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 4000);
     try {
@@ -122,7 +124,7 @@ function checkCaptureReadiness() {
       setCaptureReadiness('hidden');
       return true;
     } catch {
-      setCaptureReadiness('issue', 'Parro 서버에 연결할 수 없습니다. 네트워크나 보안 설정을 확인한 뒤 다시 시도해주세요.');
+      setCaptureReadiness('issue', t('serverUnavailable', 'Parro 서버에 연결할 수 없습니다. 네트워크나 보안 설정을 확인한 뒤 다시 시도해주세요.'));
       return false;
     } finally {
       clearTimeout(timeout);
@@ -138,7 +140,7 @@ function checkCaptureReadiness() {
 
 captureReadinessRetry?.addEventListener('click', () => { void checkCaptureReadiness(); });
 window.addEventListener('offline', () => {
-  setCaptureReadiness('issue', '인터넷에 연결되어 있지 않습니다. 연결을 복구한 뒤 다시 확인해주세요.');
+  setCaptureReadiness('issue', t('internetOffline', '인터넷에 연결되어 있지 않습니다. 연결을 복구한 뒤 다시 확인해주세요.'));
 });
 window.addEventListener('online', () => { void checkCaptureReadiness(); });
 
@@ -247,7 +249,7 @@ function updateLoginState(hasToken, expired = false) {
   if (notice) {
     if (expired) {
       const msgEl = notice.querySelector('[data-msg]');
-      if (msgEl) msgEl.textContent = '세션이 만료되었습니다. 다시 연동해 주세요.';
+      if (msgEl) msgEl.textContent = t('sessionExpired', '세션이 만료되었습니다. 다시 연동해 주세요.');
       Object.assign(notice.style, { background: '#FEF2F2', border: '1px solid #FECACA' });
       const msgStyle = notice.querySelector('[data-msg]');
       if (msgStyle) msgStyle.style.color = '#991B1B';
@@ -272,8 +274,8 @@ function updateLoginState(hasToken, expired = false) {
     color: expired ? '#991B1B' : '#00796F',
   });
   msgEl.textContent = expired
-    ? '세션이 만료되었습니다. 다시 연동해 주세요.'
-    : '녹화를 시작하려면 Parro 계정 연동이 필요합니다.';
+    ? t('sessionExpired', '세션이 만료되었습니다. 다시 연동해 주세요.')
+    : t('linkRequired', '녹화를 시작하려면 Parro 계정 연동이 필요합니다.');
 
   const btn = document.createElement('button');
   Object.assign(btn.style, {
@@ -283,7 +285,9 @@ function updateLoginState(hasToken, expired = false) {
     fontSize: '12px', fontWeight: '600',
     padding: '6px 14px', cursor: 'pointer',
   });
-  btn.textContent = expired ? '다시 연동하기' : '로그인 / 연동하기';
+  btn.textContent = expired
+    ? t('relink', '다시 연동하기')
+    : t('loginLink', '로그인 / 연동하기');
   btn.addEventListener('click', () => {
     // 웹스토어 배포본=운영 / 개발자 언패킹=dev(Preview) — chrome.runtime.id로 자동 분기
     const origin = PROD_EXTENSION_IDS.has(chrome.runtime.id)
@@ -305,7 +309,7 @@ function updateView() {
       recDot.classList.add('paused');
       recLabel.classList.add('paused');
       recLabel.textContent = 'PAUSE';
-      btnPause.title = '재개';
+      btnPause.title = t('resume', '재개');
       // pause 버튼 아이콘 → play
       const svgPlay = btnPause.querySelector('svg');
       svgPlay.replaceChildren();
@@ -317,7 +321,7 @@ function updateView() {
       recDot.classList.remove('paused');
       recLabel.classList.remove('paused');
       recLabel.textContent = 'REC';
-      btnPause.title = '일시정지';
+      btnPause.title = t('pause', '일시정지');
       // pause 버튼 아이콘 → pause
       const svgPause = btnPause.querySelector('svg');
       svgPause.replaceChildren();
@@ -340,7 +344,9 @@ function updateView() {
 
 // ── 스텝 카운트 동기화 ────────────────────────────────────────────
 function updateStepCounts(count) {
-  const text = `${count} step${count !== 1 ? 's' : ''}`;
+  const text = count === 1
+    ? t('stepCount', `${count} step`, [String(count)])
+    : t('stepsCount', `${count} steps`, [String(count)]);
   stepCount.textContent = text;
   recStepCount.textContent = text;
 }
@@ -1321,7 +1327,7 @@ btnFinish.addEventListener('click', async () => {
   // 패널에 남은 스텝이 없으면 finalize 중단 — 빈 목록을 보내면 서버 필터가
   // 비활성화되어 삭제했던 이벤트 전체가 매뉴얼에 포함되는 사고가 난다.
   if (stepNumbers.length === 0) {
-    showToast('남은 스텝이 없습니다 — 캡처 후 완료해주세요', 3000);
+    showToast(t('noRemainingSteps', '남은 스텝이 없습니다 — 캡처 후 완료해주세요'), 3000);
     btnFinish.disabled = false;
     return;
   }
@@ -1345,7 +1351,7 @@ btnFinish.addEventListener('click', async () => {
       isRecording = false;
       updateView();
       renderSteps([]);             // window.close() 실패해도 성공 시에만 스텝 목록 초기화
-      showToast('매뉴얼이 생성되었습니다! 매뉴얼 페이지가 열립니다.', 2500);
+      showToast(t('manualCreated', '매뉴얼이 생성되었습니다! 매뉴얼 페이지가 열립니다.'), 2500);
       window.close();
     } else {
       // 실패 시 에러 안내
@@ -1383,11 +1389,11 @@ function showFinalizingOverlay() {
   const msg = document.createElement('p');
   msg.id = 'finalizingMsg';
   msg.style.cssText = 'font-size:14px;font-weight:600;color:#1F2937;margin:0;';
-  msg.textContent = '매뉴얼을 생성하고 있습니다...';
+  msg.textContent = t('creatingManual', '매뉴얼을 생성하고 있습니다...');
 
   const sub = document.createElement('p');
   sub.style.cssText = 'font-size:12px;color:#6B7280;margin:0;';
-  sub.textContent = 'AI 분석 중 — 잠시만 기다려 주세요';
+  sub.textContent = t('analyzing', 'AI 분석 중 — 잠시만 기다려 주세요');
 
   const style = document.createElement('style');
   style.textContent = '@keyframes popupSpin { to { transform: rotate(360deg); } }';
@@ -1413,11 +1419,11 @@ function showFinalizingError(detail) {
 
   const msg = document.createElement('p');
   msg.style.cssText = 'font-size:14px;font-weight:600;color:#1F2937;margin:0;text-align:center;';
-  msg.textContent = '생성 실패 — 다시 시도해주세요';
+  msg.textContent = t('creationFailed', '생성 실패 — 다시 시도해주세요');
 
   const sub = document.createElement('p');
   sub.style.cssText = 'font-size:12px;color:#6B7280;margin:0;text-align:center;max-width:280px;line-height:1.4;';
-  sub.textContent = detail || '네트워크 연결을 확인하고 다시 시도해 주세요';
+  sub.textContent = detail || t('checkNetwork', '네트워크 연결을 확인하고 다시 시도해 주세요');
 
   const btn = document.createElement('button');
   btn.style.cssText = [
@@ -1426,7 +1432,7 @@ function showFinalizingError(detail) {
     'border:none', 'border-radius:8px',
     'font-size:13px', 'font-weight:600', 'cursor:pointer',
   ].join(';');
-  btn.textContent = '다시 시도';
+  btn.textContent = t('retry', '다시 시도');
   btn.addEventListener('click', () => {
     hideFinalizingOverlay();
     btnFinish.click();
@@ -1643,11 +1649,11 @@ function isGuideExplanationStep(step) {
 function renderGuideTargetStatus(status) {
   if (!guideTargetStatus) return;
   const states = {
-    navigating: { label: '대상 페이지로 이동 중', color: '#F59E0B' },
-    searching: { label: '정확한 대상을 찾는 중', color: '#F59E0B' },
-    ready: { label: '대상 확인됨', color: '#12B886' },
-    page_mismatch: { label: '기록된 페이지에서 대기 중', color: '#EF4444' },
-    not_found: { label: '대상을 찾지 못했습니다', color: '#EF4444' },
+    navigating: { label: t('targetNavigating', '대상 페이지로 이동 중'), color: '#F59E0B' },
+    searching: { label: t('targetSearching', '정확한 대상을 찾는 중'), color: '#F59E0B' },
+    ready: { label: t('targetReady', '대상 확인됨'), color: '#12B886' },
+    page_mismatch: { label: t('targetPageMismatch', '기록된 페이지에서 대기 중'), color: '#EF4444' },
+    not_found: { label: t('targetNotFound', '대상을 찾지 못했습니다'), color: '#EF4444' },
   };
   const current = states[status] || states.navigating;
   if (guideTargetStatus.firstElementChild) guideTargetStatus.firstElementChild.style.background = current.color;
@@ -1733,10 +1739,10 @@ function renderGuideStep(steps, idx) {
   const currentCompleted = guideCompletedSteps.has(idx);
   guideNextBtn.dataset.action = requiresAction && !currentCompleted ? 'skip' : 'next';
   guideNextBtn.textContent = currentCompleted
-    ? (isLast ? '종료 ✓' : '다음 →')
+    ? (isLast ? t('exit', '종료 ✓') : t('next', '다음 →'))
     : requiresAction
-    ? (isLast ? '건너뛰고 종료' : '이 단계 건너뛰기 →')
-    : (isLast ? '완료 ✓' : '다음 →');
+    ? (isLast ? t('skipAndExit', '건너뛰고 종료') : t('skipStep', '이 단계 건너뛰기 →'))
+    : (isLast ? t('finish', '완료') + ' ✓' : t('next', '다음 →'));
   Object.assign(guideNextBtn.style, requiresAction && !currentCompleted ? {
     background: '#FFF7ED', color: '#C2410C', border: '1px solid #FDBA74',
   } : {
@@ -1744,10 +1750,10 @@ function renderGuideStep(steps, idx) {
   });
   if (guideNavHint) {
     guideNavHint.textContent = currentCompleted
-      ? '이 단계를 완료했어요.'
+      ? t('completedStepHint', '이 단계를 완료했어요.')
       : requiresAction
-      ? '대상을 직접 클릭하면 자동으로 다음 단계로 이동해요. 수행하지 않을 때만 건너뛰기를 선택하세요.'
-      : '내용을 확인한 뒤 다음 단계로 이동하세요.';
+      ? t('actionStepHint', '대상을 직접 클릭하면 자동으로 다음 단계로 이동해요. 수행하지 않을 때만 건너뛰기를 선택하세요.')
+      : t('explanationStepHint', '내용을 확인한 뒤 다음 단계로 이동하세요.');
   }
 
   // 스텝 도트 렌더
@@ -1795,7 +1801,7 @@ document.getElementById('guideStepCopyBtn')?.addEventListener('click', () => {
   const btn  = document.getElementById('guideStepCopyBtn');
   if (!text || !btn) return;
   navigator.clipboard.writeText(text)
-    .then(() => { btn.textContent = '✓'; setTimeout(() => { if (btn.isConnected) btn.textContent = '복사'; }, 1500); })
+    .then(() => { btn.textContent = '✓'; setTimeout(() => { if (btn.isConnected) btn.textContent = t('copy', '복사'); }, 1500); })
     .catch(() => {});
 });
 

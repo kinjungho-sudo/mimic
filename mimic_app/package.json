@@ -16,6 +16,7 @@
     "verify:onboarding": "node --loader ./scripts/ts-path-loader.mjs scripts/verify-onboarding-contract.mjs",
     "verify:recorder-onboarding": "node ../mimic_recorder/scripts/verify-onboarding-contract.js",
     "verify:seo": "node scripts/verify-seo-contract.mjs",
+    "verify:i18n": "node scripts/verify-i18n-contract.mjs",
     "test:onboarding-browser": "playwright test --config playwright.onboarding.config.ts",
     "verify:quality": "npm run verify:seo && node --loader ./scripts/ts-path-loader.mjs scripts/verify-capture-fallback.js && node --loader ./scripts/ts-path-loader.mjs scripts/verify-regenerate-content.js && node --loader ./scripts/ts-path-loader.mjs scripts/verify-rewrite-purpose-quality.js && node --loader ./scripts/ts-path-loader.mjs scripts/verify-follow-config.js && node --loader ./scripts/ts-path-loader.mjs scripts/verify-share-links.mjs && node --loader ./scripts/ts-path-loader.mjs scripts/verify-image-alt-text-contract.mjs && node scripts/verify-manual-ux-contract.js && node --loader ./scripts/ts-path-loader.mjs scripts/verify-entitlement-and-trash-contract.mjs && npm run verify:onboarding",
     "verify:desktop": "node scripts/verify-desktop-download-once.mjs && node ../mimic_desktop/native-host/scripts/smoke-native-host.js && node ../mimic_desktop/native-host/scripts/test-native-import.js && node ../mimic_desktop/native-host/scripts/test-scribe-controls.js",

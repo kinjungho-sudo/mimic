@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>마이크 권한 요청 — Parro</title>
+  <title data-i18n="micPageTitle">마이크 권한 요청 — Parro</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -34,10 +34,11 @@
 </head>
 <body>
   <div class="icon" id="icon">🎙️</div>
-  <div class="title" id="title">마이크 권한을 요청하는 중…</div>
-  <div class="desc" id="desc">브라우저 상단에 뜨는 <strong>마이크 허용</strong> 창에서 “허용”을 눌러주세요.</div>
+  <div class="title" id="title" data-i18n="micRequesting">마이크 권한을 요청하는 중…</div>
+  <div class="desc" id="desc" data-i18n-html="micPrompt">브라우저 상단에 뜨는 <strong>마이크 허용</strong> 창에서 “허용”을 눌러주세요.</div>
   <div class="hint" id="hint"></div>
-  <button id="retryBtn" style="display:none">다시 시도</button>
+  <button id="retryBtn" style="display:none" data-i18n="micRetry">다시 시도</button>
+  <script src="i18n.js"></script>
   <script src="request-mic.js"></script>
 </body>
 </html>

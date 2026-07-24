@@ -23,7 +23,6 @@ export async function transcribeAudio(audioUrl: string): Promise<WhisperSegment[
   const result = await openai.audio.transcriptions.create({
     file,
     model: 'whisper-1',
-    language: 'ko',
     response_format: 'verbose_json',
   });
 

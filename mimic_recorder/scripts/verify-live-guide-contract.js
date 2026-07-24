@@ -109,7 +109,7 @@ assert.match(popup, /id="guideTargetRetry"/);
 const popupScript = read('popup.js');
 assert.match(content, /saveText:\s+true/, 'new capture sessions must retain typed text by default');
 assert.match(popupScript, /saveText:\s+true/, 'the Recorder settings UI must default typed-text retention on');
-assert.match(popupScript, /not_found: \{ label: '대상을 찾지 못했습니다'/);
+assert.match(popupScript, /not_found: \{ label: t\('targetNotFound', '대상을 찾지 못했습니다'\)/);
 assert.match(popupScript, /type: 'SHOW_OVERLAY_FOR_STEP', stepIndex: guideCurrentStep/);
 
 console.log(JSON.stringify({ ok: true, checks: 52, scope: 'live-guide-fail-closed-contract' }));

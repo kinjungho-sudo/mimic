@@ -184,6 +184,53 @@ body {
   overflow-wrap: break-word;
 }
 
+.parro-language-switcher {
+  position: fixed;
+  right: 88px;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 10000;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid rgba(17, 24, 39, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 6px 24px rgba(17, 24, 39, 0.12);
+  backdrop-filter: blur(10px);
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.parro-language-switcher button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 3px 5px;
+  border-radius: 999px;
+  color: #6b7280;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.parro-language-switcher button[aria-pressed='true'] {
+  background: #e7f8f5;
+  color: #007f75;
+}
+
+.parro-language-switcher button:focus-visible {
+  outline: 2px solid #009b8e;
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .parro-language-switcher {
+    right: 72px;
+    bottom: max(10px, env(safe-area-inset-bottom));
+  }
+}
+
 /* 홈 레이아웃 반응형 */
 @media (max-width: 768px) {
   .home-layout-grid {

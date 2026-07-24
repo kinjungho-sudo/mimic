@@ -351,12 +351,13 @@ export async function generateScript(
     messages: [
       {
         role: 'user',
-        content: `다음 매뉴얼 단계들을 보고 TTS용 한국어 스크립트를 작성해줘.
+        content: `다음 매뉴얼 단계들을 보고 TTS용 스크립트를 작성해줘.
 
 ${stepsText}${draftSection}
 
 규칙:
-- 자연스럽고 친근한 한국어 (존댓말)
+- 단계 제목과 설명의 주된 언어를 그대로 사용
+- 영어 단계는 자연스럽고 친근한 영어, 한국어 단계는 자연스럽고 친근한 존댓말
 - 각 클릭 위치는 ①②③ 마커로 표시
 - 전체 1분 이내
 - JSON만 응답 (마크다운 없이):

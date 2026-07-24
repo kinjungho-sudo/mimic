@@ -16,7 +16,8 @@ $files = @(
   'manifest.json',
   'background.js', 'content.js', 'guide-engine.js',
   'desktop-bridge.js', 'desktop-import.js', 'targeting.js',
-  'popup.js', 'popup.html',
+  'popup.js', 'popup.html', 'i18n.js',
+  '_locales/ko/messages.json', '_locales/en/messages.json',
   'offscreen.html', 'offscreen.js',
   'request-mic.html', 'request-mic.js',
   'assets/parro-ai-avatar.png',
@@ -43,11 +44,13 @@ foreach ($i in @('icon16.png','icon48.png','icon128.png')) {
   Copy-Item (Join-Path 'icons' $i) (Join-Path $stage 'icons')
 }
 
-# 운영 패키지는 dev 표식 제거 — 소스 manifest는 언팩 dev 구분용으로 "(dev)"를 달고 있다.
-$stagedManifest = Join-Path $stage 'manifest.json'
-$mtext = [System.IO.File]::ReadAllText($stagedManifest)
-$mtext = $mtext.Replace('Parro Recorder (dev)', 'Parro Recorder')
-[System.IO.File]::WriteAllText($stagedManifest, $mtext, (New-Object System.Text.UTF8Encoding($false)))
+# 운영 패키지는 locale의 dev 표식을 제거한다.
+foreach ($localeFile in @('_locales/ko/messages.json', '_locales/en/messages.json')) {
+  $stagedLocale = Join-Path $stage $localeFile
+  $localeText = [System.IO.File]::ReadAllText($stagedLocale)
+  $localeText = $localeText.Replace('Parro Recorder (dev)', 'Parro Recorder')
+  [System.IO.File]::WriteAllText($stagedLocale, $localeText, (New-Object System.Text.UTF8Encoding($false)))
+}
 
 $out = Join-Path $PSScriptRoot "parro-recorder-v$version.zip"
 if (Test-Path $out) { Remove-Item $out -Force }

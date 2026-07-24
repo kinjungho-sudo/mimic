@@ -8,12 +8,15 @@ const titleEl = document.getElementById('title');
 const descEl  = document.getElementById('desc');
 const hintEl  = document.getElementById('hint');
 const retryBtn = document.getElementById('retryBtn');
+const { t, localizeDocument } = ParroI18n;
+
+localizeDocument();
 
 async function requestMic() {
   iconEl.textContent = '🎙️';
-  titleEl.textContent = '마이크 권한을 요청하는 중…';
+  titleEl.textContent = t('micRequesting', '마이크 권한을 요청하는 중…');
   titleEl.className = 'title';
-  descEl.innerHTML = '브라우저 상단에 뜨는 <strong>마이크 허용</strong> 창에서 “허용”을 눌러주세요.';
+  descEl.innerHTML = t('micPrompt', '브라우저 상단에 뜨는 <strong>마이크 허용</strong> 창에서 “허용”을 눌러주세요.');
   hintEl.classList.remove('show');
   retryBtn.style.display = 'none';
 
@@ -22,21 +25,23 @@ async function requestMic() {
     stream.getTracks().forEach(t => t.stop());  // 권한만 획득, 즉시 해제
     await chrome.storage.local.set({ micPermissionGranted: true });
     iconEl.textContent = '✅';
-    titleEl.textContent = '마이크 권한이 허용되었습니다';
+    titleEl.textContent = t('micAllowed', '마이크 권한이 허용되었습니다');
     titleEl.className = 'title ok';
-    descEl.textContent = '잠시 후 이 창이 자동으로 닫힙니다.';
+    descEl.textContent = t('micClosing', '잠시 후 이 창이 자동으로 닫힙니다.');
     setTimeout(() => window.close(), 1300);
   } catch (err) {
     await chrome.storage.local.set({ micPermissionGranted: false });
     iconEl.textContent = '🚫';
-    titleEl.textContent = '마이크 권한이 거부되었습니다';
+    titleEl.textContent = t('micDenied', '마이크 권한이 거부되었습니다');
     titleEl.className = 'title err';
-    descEl.textContent = '음성 설명 녹음을 사용하려면 마이크 권한이 필요합니다.';
-    hintEl.innerHTML =
+    descEl.textContent = t('micRequired', '음성 설명 녹음을 사용하려면 마이크 권한이 필요합니다.');
+    hintEl.innerHTML = t(
+      'micUnblockHint',
       '이미 차단하셨다면 직접 풀어주세요:<br>' +
-      '1) 주소창 왼쪽 <strong>자물쇠/사이트 정보</strong> 아이콘 클릭<br>' +
-      '2) <strong>마이크</strong>를 “허용”으로 변경<br>' +
-      '3) 아래 “다시 시도”를 누르거나 이 창을 닫고 다시 켜기';
+        '1) 주소창 왼쪽 <strong>자물쇠/사이트 정보</strong> 아이콘 클릭<br>' +
+        '2) <strong>마이크</strong>를 “허용”으로 변경<br>' +
+        '3) 아래 “다시 시도”를 누르거나 이 창을 닫고 다시 켜기',
+    );
     hintEl.classList.add('show');
     retryBtn.style.display = 'inline-block';
   }

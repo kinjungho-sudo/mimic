@@ -90,6 +90,9 @@ assert.match(landingPage, /className="final-cta-form"/);
 assert.match(landingPage, /className="final-cta-actions"/);
 assert.match(landingPage, /placeholder="name@company\.com"/);
 assert.doesNotMatch(landingPage, /placeholder="jungho@company\.com"/);
+assert.match(landingPage, /overflowWrap:\s*'anywhere'/);
+assert.match(landingPage, /boxSizing:\s*'border-box'/);
+assert.match(landingPage, /locale === 'ko' \? 'English' : '한국어'/);
 
 assert.match(homePage, /tutorialCacheRef\s*=\s*useRef\(new Map<string, Tutorial\[\]>\(\)\)/);
 assert.match(homePage, /pagesCacheRef\s*=\s*useRef\(new Map<string, typeof pages>\(\)\)/);
