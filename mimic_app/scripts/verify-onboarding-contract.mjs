@@ -125,6 +125,7 @@ check(() => assert.match(home, /window\.addEventListener\('parro:open-create-men
 check(() => assert.match(home, /onboardingMode=/));
 
 check(() => assert.match(provider, /window\.dispatchEvent\(new Event\('parro:open-create-menu'\)\)/));
+check(() => assert.match(provider, /currentStep\.id === 'home-web-recording'/));
 
 const help = readApp('app', 'help', 'page.tsx');
 check(() => assert.match(help, /Live Guide로 다시 보기/));

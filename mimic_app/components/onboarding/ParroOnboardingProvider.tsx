@@ -295,6 +295,12 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
   }, [signal]);
 
   useEffect(() => {
+    if (active && pathname === '/home' && currentStep.id === 'home-web-recording') {
+      window.dispatchEvent(new Event('parro:open-create-menu'));
+    }
+  }, [active, currentStep.id, pathname]);
+
+  useEffect(() => {
     if (!active || completionOpen) return;
     if (
       currentStep.route === 'home'
