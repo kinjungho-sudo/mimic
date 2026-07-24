@@ -22,6 +22,7 @@ const manifest = JSON.parse(read('mimic_recorder/manifest.json'));
 const background = read('mimic_recorder/background.js');
 const content = read('mimic_recorder/content.js');
 const popup = read('mimic_recorder/popup.js');
+const captureFinalizeRoute = read('mimic_app/app/api/capture/finalize/route.ts');
 const desktopBridge = read('mimic_recorder/desktop-bridge.js');
 const nativeHost = read('mimic_desktop/native-host/src/host.js');
 const desktopLauncher = read('mimic_desktop/native-host/installer/launcher/ParroDesktop.cs');
@@ -144,6 +145,17 @@ check(() => {
   assert.match(finalizeBlock, /effectiveStepNumbers/);
   assert.match(finalizeBlock, /syncLocalStepsBeforeFinalize\(sessionId, effectiveStepNumbers, steps\)/);
   assert.match(finalizeBlock, /step_numbers: effectiveStepNumbers/);
+  assert.match(background, /function isSessionAlreadyFinalizedError\(error\)/);
+  assert.match(background, /return \{ alreadyFinalized: true \}/);
+  assert.match(background, /recovering existing manual/);
+
+  assert.match(captureFinalizeRoute, /async function findCompletedCaptureResult\(/);
+  assert.match(captureFinalizeRoute, /id: session_id/);
+  assert.match(captureFinalizeRoute, /already_finalized: true/);
+  assert.match(
+    captureFinalizeRoute,
+    /if \(session\.status !== 'active'\)[\s\S]*findCompletedCaptureResult[\s\S]*NextResponse\.json\(completedResult\)/,
+  );
 
   const finishStart = popup.indexOf("btnFinish.addEventListener('click', async () =>");
   const finishBlock = popup.slice(finishStart, popup.indexOf('function showFinalizingOverlay', finishStart));

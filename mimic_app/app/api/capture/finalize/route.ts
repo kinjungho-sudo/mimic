@@ -188,6 +188,52 @@ function isOnboardingPracticeUrl(rawUrl: unknown, expectedOrigin: string) {
   }
 }
 
+type CaptureFinalizeClient = ReturnType<typeof createServiceRoleClient>;
+
+async function findCompletedCaptureResult(
+  supabase: CaptureFinalizeClient,
+  userId: string,
+  sessionId: string,
+) {
+  const { data: tutorial } = await supabase
+    .from('mm_tutorials')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('session_id', sessionId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!tutorial) return null;
+
+  const { count: stepCount, error: stepCountError } = await supabase
+    .from('mm_steps')
+    .select('id', { count: 'exact', head: true })
+    .eq('tutorial_id', tutorial.id);
+
+  // A tutorial row is inserted before its steps. Only expose it as a completed
+  // retry result after at least one step exists, so concurrent finalize calls
+  // never open a half-built editor.
+  if (stepCountError || !stepCount) return null;
+
+  const { data: onboardingPractice } = await supabase
+    .from('mm_user_onboarding_progress')
+    .select('practice_manual_id')
+    .eq('user_id', userId)
+    .eq('practice_manual_id', tutorial.id)
+    .limit(1)
+    .maybeSingle();
+
+  return {
+    tutorial_id: tutorial.id,
+    step_count: stepCount,
+    share_token: null,
+    completion_pending: true,
+    onboarding_practice: !!onboardingPractice,
+    already_finalized: true,
+  };
+}
+
 export async function POST(request: NextRequest) {
   const auth = await requireExtensionToken(request);
   if (!auth.ok) return auth.response;
@@ -230,6 +276,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Session not found' }, { status: 404 });
   }
   if (session.status !== 'active') {
+    const completedResult = await findCompletedCaptureResult(supabase, userId, session_id);
+    if (completedResult) {
+      return NextResponse.json(completedResult);
+    }
     return NextResponse.json({ error: 'Session already finalized' }, { status: 409 });
   }
 
@@ -315,6 +365,10 @@ export async function POST(request: NextRequest) {
   const { data: tutorial, error: tutError } = await supabase
     .from('mm_tutorials')
     .insert({
+      // One capture session must produce exactly one manual. Reusing the
+      // session UUID as the tutorial UUID makes concurrent/retried finalize
+      // requests converge on the same row without a schema migration.
+      id: session_id,
       user_id: userId,
       title: tutorialTitle,
       session_id,
@@ -328,6 +382,17 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (tutError || !tutorial) {
+    const completedResult = await findCompletedCaptureResult(supabase, userId, session_id);
+    if (completedResult) {
+      // Heal the narrow case where another finalize request created all steps
+      // but its response/state update was interrupted.
+      await supabase
+        .from('mm_capture_sessions')
+        .update({ status: 'completed', ended_at: new Date().toISOString() })
+        .eq('id', session_id)
+        .eq('user_id', userId);
+      return NextResponse.json(completedResult);
+    }
     return NextResponse.json({ error: 'Failed to create tutorial' }, { status: 500 });
   }
   let expectedAutoTitle = tutorialTitle;

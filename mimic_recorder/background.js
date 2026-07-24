@@ -3067,8 +3067,19 @@ async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, 
     method: 'POST',
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error(`save-step failed: ${res.status}: ${await res.text()}`);
+  if (!res.ok) {
+    const responseBody = await res.text();
+    const error = new Error(`save-step failed: ${res.status}: ${responseBody}`);
+    error.status = res.status;
+    error.responseBody = responseBody;
+    throw error;
+  }
   return res.json();
+}
+
+function isSessionAlreadyFinalizedError(error) {
+  return error?.status === 409
+    && /Session already finalized/i.test(error?.responseBody || error?.message || '');
 }
 
 function normalizeCoord(value, size, coordinateSpace) {
@@ -3100,27 +3111,35 @@ async function syncLocalStepsBeforeFinalize(sessionId, stepNumbers, localSteps) 
     const clickY = normalizeCoord(step.clickY, viewportH, coordinateSpace);
     const cropBox = step.cropBox ?? computeCropBox(step.elementRect, clickX, clickY, step.actionInfo);
 
-    await saveStep({
-      sessionId,
-      stepNumber: step.stepNumber,
-      screenshotUrl: step.imageUrl,
-      clickX,
-      clickY,
-      title: step.title ?? '',
-      description: step.description ?? '',
-      url: step.url,
-      domainInfo: step.domainInfo ?? null,
-      viewportW,
-      viewportH,
-      elementSelector: step.elementSelector ?? null,
-      elementXPath: step.elementXPath ?? null,
-      elementRect: step.elementRect ?? null,
-      actionInfo: step.actionInfo ?? null,
-      typedText: step.typedText || null,
-      cropBox,
-      audioOffsetMs: null,
-    });
+    try {
+      await saveStep({
+        sessionId,
+        stepNumber: step.stepNumber,
+        screenshotUrl: step.imageUrl,
+        clickX,
+        clickY,
+        title: step.title ?? '',
+        description: step.description ?? '',
+        url: step.url,
+        domainInfo: step.domainInfo ?? null,
+        viewportW,
+        viewportH,
+        elementSelector: step.elementSelector ?? null,
+        elementXPath: step.elementXPath ?? null,
+        elementRect: step.elementRect ?? null,
+        actionInfo: step.actionInfo ?? null,
+        typedText: step.typedText || null,
+        cropBox,
+        audioOffsetMs: null,
+      });
+    } catch (error) {
+      if (!isSessionAlreadyFinalizedError(error)) throw error;
+      log('info', 'bg', `session ${sessionId} was already finalized; recovering existing manual`);
+      return { alreadyFinalized: true };
+    }
   }
+
+  return { alreadyFinalized: false };
 }
 
 // ── 세션 완료 — 웹앱 API 경유 ───────────────────────────────────
@@ -3144,6 +3163,10 @@ async function finalizeSession(sessionId, stepNumbers, audioUrl = null) {
   const stepVoice = {};
   (steps || []).forEach(s => { if (s.voiceAudioUrl) stepVoice[s.stepNumber] = s.voiceAudioUrl; });
 
+  // A lost popup/service-worker response can leave local steps behind even
+  // though the server already completed the manual. In that case save-step
+  // returns 409; continue to the idempotent finalize endpoint to recover the
+  // existing tutorial instead of surfacing a false creation failure.
   await syncLocalStepsBeforeFinalize(sessionId, effectiveStepNumbers, steps);
 
   const origin = await getWebappOrigin();
