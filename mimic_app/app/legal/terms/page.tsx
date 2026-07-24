@@ -1,12 +1,23 @@
 import Link from 'next/link';
 import { BackLink } from '../BackLink';
 import { BrandMark } from '@/components/common/BrandMark';
-import { BRAND_COLORS, BRAND_COPY, BRAND_NAME, BRAND_SUPPORT_EMAIL } from '@/lib/brand';
+import {
+  BRAND_COLORS,
+  BRAND_COPY,
+  BRAND_NAME,
+  BRAND_SUPPORT_EMAIL,
+  isSearchIndexingEnabled,
+} from '@/lib/brand';
 
 import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: '이용약관',
   description: `${BRAND_NAME} 서비스 이용 시 적용되는 약관과 규정을 안내합니다.`,
+  alternates: { canonical: '/legal/terms' },
+  robots: {
+    index: isSearchIndexingEnabled(),
+    follow: isSearchIndexingEnabled(),
+  },
 };
 
 export default function TermsPage() {

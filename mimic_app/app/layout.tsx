@@ -1,6 +1,14 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
-import { BRAND_DESCRIPTION, BRAND_LOGO_IMAGE_PATH, BRAND_NAME, BRAND_TAGLINE, getBrandAppUrl } from "@/lib/brand";
+import {
+  BRAND_CANONICAL_URL,
+  BRAND_DESCRIPTION,
+  BRAND_LOGO_IMAGE_PATH,
+  BRAND_NAME,
+  BRAND_NAME_KO,
+  BRAND_SUPPORT_EMAIL,
+  BRAND_TAGLINE,
+} from "@/lib/brand";
 import "./globals.css";
 
 const geistSans = localFont({
@@ -14,20 +22,21 @@ const geistMono = localFont({
   weight: "100 900",
 });
 
-const APP_URL = getBrandAppUrl();
+const APP_URL = BRAND_CANONICAL_URL;
+const bingVerification = process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION?.trim();
 
 export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),
   title: {
-    default: `${BRAND_NAME} - ${BRAND_TAGLINE}`,
+    default: `${BRAND_NAME} | ${BRAND_TAGLINE}`,
     template: `%s | ${BRAND_NAME}`,
   },
   description: BRAND_DESCRIPTION,
   openGraph: {
-    title: `${BRAND_NAME} - ${BRAND_TAGLINE}`,
+    title: `${BRAND_NAME} | ${BRAND_TAGLINE}`,
     description: BRAND_DESCRIPTION,
     type: "website",
-    url: APP_URL,
+    url: `${APP_URL}/landingpage`,
     siteName: BRAND_NAME,
     locale: "ko_KR",
     images: [
@@ -35,41 +44,55 @@ export const metadata: Metadata = {
         url: `${APP_URL}/api/og`,
         width: 1200,
         height: 630,
-        alt: `${BRAND_NAME} - ${BRAND_TAGLINE}`,
+        alt: `${BRAND_NAME} | ${BRAND_TAGLINE}`,
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: `${BRAND_NAME} - ${BRAND_TAGLINE}`,
+    title: `${BRAND_NAME} | ${BRAND_TAGLINE}`,
     description: BRAND_DESCRIPTION,
     images: [`${APP_URL}/api/og`],
   },
   robots: {
-    index: true,
-    follow: true,
+    index: false,
+    follow: false,
+    googleBot: {
+      index: false,
+      follow: false,
+      noimageindex: true,
+    },
   },
   verification: {
     google: [
       'DErEe3J6cjpooLlNywJkFowNINqXHfiC-gZS6b90ZQY',
       'wzMjB4SCst9I9ECfPP4z9-5Z_zIGD1iI5nYow0LG1Qs',
     ],
+    other: {
+      'naver-site-verification': '8075e3d1d1095097db53dfe6cc0fc6fc',
+      ...(bingVerification ? { 'msvalidate.01': bingVerification } : {}),
+    },
   },
 };
 
 const organizationJsonLd = {
   "@context": "https://schema.org",
   "@type": "Organization",
+  "@id": `${APP_URL}/#organization`,
   name: BRAND_NAME,
+  alternateName: BRAND_NAME_KO,
   url: APP_URL,
-  logo: `${APP_URL}${BRAND_LOGO_IMAGE_PATH}`,
+  logo: {
+    "@type": "ImageObject",
+    url: `${APP_URL}${BRAND_LOGO_IMAGE_PATH}`,
+  },
   description: BRAND_DESCRIPTION,
   contactPoint: {
     "@type": "ContactPoint",
     contactType: "customer support",
-    availableLanguage: "Korean",
+    email: BRAND_SUPPORT_EMAIL,
+    availableLanguage: ["Korean"],
   },
-  sameAs: [],
 };
 
 export default function RootLayout({

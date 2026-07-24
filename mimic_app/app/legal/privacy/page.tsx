@@ -1,14 +1,17 @@
 import Link from 'next/link';
 import { BackLink } from '../BackLink';
 import { BrandMark } from '@/components/common/BrandMark';
-import { BRAND_COLORS, BRAND_NAME, BRAND_SUPPORT_EMAIL } from '@/lib/brand';
+import { BRAND_COLORS, BRAND_NAME, BRAND_SUPPORT_EMAIL, isSearchIndexingEnabled } from '@/lib/brand';
 
 import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: '개인정보 처리방침',
   description: `${BRAND_NAME} 서비스의 개인정보 수집·이용·보관 및 파기에 관한 방침을 안내합니다.`,
   alternates: { canonical: '/legal/privacy' },
-  robots: { index: true, follow: true },
+  robots: {
+    index: isSearchIndexingEnabled(),
+    follow: isSearchIndexingEnabled(),
+  },
 };
 
 export default function PrivacyPage() {

@@ -82,7 +82,7 @@ assert.match(home, /`\$\{playbook\.used\} \/ 무제한`/, 'Playbook paid usage n
 
 assert.match(landing, /LANDING_FAQS\.map/, 'visible landing FAQ must use the shared FAQ source');
 assert.match(landingLayout, /LANDING_FAQS\.map/, 'FAQ structured data must use the shared FAQ source');
-assert.match(landingLayout, /title:\s*SEO_TITLE/, 'landing metadata must use the focused Korean SEO title');
+assert.match(landingLayout, /title:\s*LANDING_TITLE/, 'landing metadata must use the dedicated SEO title without duplicating the Parro suffix');
 assert.match(landingLayout, /canonical:\s*LANDING_URL/, 'landing metadata must declare one canonical URL');
 assert.match(sitemap, /url:\s*`\$\{BASE_URL\}\/landingpage`/, 'sitemap must include the canonical landing page');
 assert.doesNotMatch(sitemap, /url:\s*`\$\{BASE_URL\}\/`[,]/, 'sitemap must not include the redirecting root URL');

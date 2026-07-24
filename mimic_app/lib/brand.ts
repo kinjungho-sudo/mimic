@@ -2,13 +2,14 @@ export const BRAND_NAME = 'Parro';
 export const BRAND_NAME_KO = '\uD328\uB85C';
 export const BRAND_FULL_NAME = 'Parro AI Live Guide';
 export const BRAND_PRODUCT_CATEGORY = 'B2B AI Live Guide for hands-on training';
-export const BRAND_TAGLINE = 'AI Live Guide for hands-on training';
+export const BRAND_TAGLINE = '화면 녹화로 만드는 AI 업무 매뉴얼과 라이브 가이드';
 export const BRAND_DESCRIPTION =
-  'Parro helps instructors and teams turn hands-on software workflows into step-by-step live guidance.';
+  'Parro는 업무 화면을 녹화하면 클릭 과정을 단계별 매뉴얼로 정리하고, 필요한 순간 실제 화면 위 라이브 가이드로 실행까지 안내하는 서비스입니다.';
 
 // Interim public contact until a verified Parro mailbox is provisioned.
 export const BRAND_SUPPORT_EMAIL = 'kinjungho@gmail.com';
-export const BRAND_APP_URL_FALLBACK = 'https://mimic-nine-ashen.vercel.app';
+export const BRAND_CANONICAL_URL = 'https://parro-guide.vercel.app';
+export const BRAND_APP_URL_FALLBACK = BRAND_CANONICAL_URL;
 export const BRAND_LOGO_IMAGE_PATH = '/brand/parro-mark.png';
 // The Parro listing is the approved public Recorder. Keep the legacy MIMIC ID
 // in the compatibility set while existing installations complete the cutover.
@@ -60,4 +61,8 @@ export const BRAND_COLORS = {
 
 export function getBrandAppUrl(): string {
   return (process.env.NEXT_PUBLIC_APP_URL ?? BRAND_APP_URL_FALLBACK).replace(/^\uFEFF/, '').trim();
+}
+
+export function isSearchIndexingEnabled(): boolean {
+  return !process.env.VERCEL_ENV || process.env.VERCEL_ENV === 'production';
 }
