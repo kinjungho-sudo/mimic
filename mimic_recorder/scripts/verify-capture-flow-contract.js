@@ -23,6 +23,7 @@ const background = read('mimic_recorder/background.js');
 const content = read('mimic_recorder/content.js');
 const popup = read('mimic_recorder/popup.js');
 const captureFinalizeRoute = read('mimic_app/app/api/capture/finalize/route.ts');
+const captureSaveStepRoute = read('mimic_app/app/api/capture/save-step/route.ts');
 const desktopBridge = read('mimic_recorder/desktop-bridge.js');
 const nativeHost = read('mimic_desktop/native-host/src/host.js');
 const desktopLauncher = read('mimic_desktop/native-host/installer/launcher/ParroDesktop.cs');
@@ -156,6 +157,12 @@ check(() => {
     captureFinalizeRoute,
     /if \(session\.status !== 'active'\)[\s\S]*findCompletedCaptureResult[\s\S]*NextResponse\.json\(completedResult\)/,
   );
+  assert.match(
+    captureSaveStepRoute,
+    /existingSession\.status === 'completed' \|\| existingSession\.status === 'done'/,
+  );
+  assert.match(captureSaveStepRoute, /tutorial_id: completedTutorial\.id/);
+  assert.match(captureSaveStepRoute, /already_finalized: true/);
 
   const finishStart = popup.indexOf("btnFinish.addEventListener('click', async () =>");
   const finishBlock = popup.slice(finishStart, popup.indexOf('function showFinalizingOverlay', finishStart));
