@@ -8,7 +8,7 @@ const nextConfig = {
       {
         source: '/',
         destination: '/landingpage',
-        permanent: false,
+        permanent: true,
       },
     ];
   },

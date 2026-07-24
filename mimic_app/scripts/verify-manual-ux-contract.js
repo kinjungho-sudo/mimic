@@ -78,7 +78,7 @@ assert.match(home, /`\$\{playbook\.used\} \/ 무제한`/, 'Playbook paid usage n
 
 assert.match(landing, /LANDING_FAQS\.map/, 'visible landing FAQ must use the shared FAQ source');
 assert.match(landingLayout, /LANDING_FAQS\.map/, 'FAQ structured data must use the shared FAQ source');
-assert.match(landingLayout, /title:\s*BRAND_TAGLINE/, 'landing metadata must not duplicate the Parro brand suffix');
+assert.match(landingLayout, /title:\s*LANDING_TITLE/, 'landing metadata must use the dedicated SEO title without duplicating the Parro suffix');
 assert.match(landingFaq, /아직 일반 결제를 받고 있지 않습니다/, 'prelaunch FAQ must describe billing availability truthfully');
 assert.match(landingFaq, /현재는 사용자가 직접 결제 플랜을 변경하는 기능이 제공되지 않습니다/, 'prelaunch FAQ must not promise unavailable self-service plan changes');
 assert.doesNotMatch(landingFaq, /카카오페이|토스페이|전액 환불|언제든 구독을 해지/, 'prelaunch FAQ must not promise unavailable billing operations');
