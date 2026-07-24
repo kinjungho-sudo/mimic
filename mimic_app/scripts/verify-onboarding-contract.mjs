@@ -121,7 +121,10 @@ check(() => assert.match(home, /data-parro-guide="home-workspaces"/));
 check(() => assert.match(home, /data-parro-guide="home-create-trigger"/));
 check(() => assert.match(home, /data-parro-guide="home-create-menu"/));
 check(() => assert.match(home, /data-parro-guide="home-web-recording"/));
+check(() => assert.match(home, /window\.addEventListener\('parro:open-create-menu', openCreateMenu\)/));
 check(() => assert.match(home, /onboardingMode=/));
+
+check(() => assert.match(provider, /window\.dispatchEvent\(new Event\('parro:open-create-menu'\)\)/));
 
 const help = readApp('app', 'help', 'page.tsx');
 check(() => assert.match(help, /Live Guide로 다시 보기/));

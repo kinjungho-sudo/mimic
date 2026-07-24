@@ -228,7 +228,12 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
       await finishAndShowCompletion();
       return;
     }
-    if (await moveToStep(next)) emitEvent('step_complete', currentStep.id);
+    if (await moveToStep(next)) {
+      if (next.id === 'home-web-recording') {
+        window.dispatchEvent(new Event('parro:open-create-menu'));
+      }
+      emitEvent('step_complete', currentStep.id);
+    }
   }, [currentStep.id, emitEvent, finishAndShowCompletion, mobileTour, moveToStep]);
 
   const goBack = useCallback(async () => {

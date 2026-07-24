@@ -897,6 +897,12 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
+    const openCreateMenu = () => setShowNewMenu(true);
+    window.addEventListener('parro:open-create-menu', openCreateMenu);
+    return () => window.removeEventListener('parro:open-create-menu', openCreateMenu);
+  }, []);
+
+  useEffect(() => {
     const reopenRecorder = () => {
       setRecordingModalMode('web');
       setShowRecordingModal(true);
