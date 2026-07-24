@@ -1330,9 +1330,8 @@ btnFinish.addEventListener('click', async () => {
   hideCaptureBlockedToast();
 
   // isRecording: false 먼저 세팅 → background가 targetTabId로 STOP_RECORDING 전송
-  storageSet({ isRecording: false }).then(() => {
-    chrome.storage.local.remove(['targetTabId', 'lastStepHash']);
-  });
+  await storageSet({ isRecording: false });
+  chrome.storage.local.remove(['targetTabId', 'lastStepHash']);
 
   // 매뉴얼 생성 중 — 사용자 대기 UI
   showFinalizingOverlay();

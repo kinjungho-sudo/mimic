@@ -201,11 +201,31 @@ let _lastNavKey        = null;  // 직전 '이동' 캡처 페이지 키 (origin+
 let _lastNavKeyTime    = 0;
 const _navBusyTabs     = new Set();          // onUpdated complete 동시(중복) 이벤트 차단
 let _captureChain      = Promise.resolve();  // 캡처 디덥~로컬 저장 직렬화 큐
+const _captureJobs     = new Set();          // 준비 + 업로드 + save-step까지 진행 중인 캡처 작업
 const PRECAPTURE_MAX_AGE_MS = 1500;          // 이보다 오래된 선캡처는 폐기 (클릭과 무관)
 const PRECAPTURE_WAIT_MS    = 500;           // 선캡처가 in-flight(쿼터 재시도)면 이만큼 기다려 받는다
 const _preCaptureFrames = globalThis.ParroPreCapture.createBuffer({ maxAgeMs: PRECAPTURE_MAX_AGE_MS, maxEntries: 12 });
 let _typingFrame       = null;               // { dataUrl, time, tabId } — 타이핑 중 롤링 프레임 (전송 직전 화면)
 const TYPING_FRAME_MAX_AGE_MS = 3000;        // 이보다 오래된 타이핑 프레임은 사용 안 함
+
+function runCaptureJob(task) {
+  const job = Promise.resolve().then(task);
+  _captureJobs.add(job);
+  const release = () => _captureJobs.delete(job);
+  job.then(release, release);
+  return job;
+}
+
+async function waitForCapturePipelineIdle() {
+  while (true) {
+    const chain = _captureChain;
+    await chain.catch(() => {});
+    const jobs = [..._captureJobs];
+    if (jobs.length) await Promise.allSettled(jobs);
+    await Promise.resolve();
+    if (chain === _captureChain && _captureJobs.size === 0) return;
+  }
+}
 
 // SW 시작 시 캐시 초기화
 storageGet(['targetTabId', 'lastCaptureTime', 'lastStepHash', 'lastNavKey', 'lastNavKeyTime']).then((r) => {
@@ -1366,7 +1386,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const tabId = sender.tab?.id;
     if (!tabId) { sendResponse({ ok: false }); return true; }
 
-    (async () => {
+    runCaptureJob(async () => {
       const captureState = await storageGet(['isRecording', 'isPaused', 'targetTabId']);
       if (!captureState.isRecording || captureState.isPaused || captureState.targetTabId !== tabId) {
         sendResponse({ ok: false, reason: 'inactive_recording_target' });
@@ -1461,10 +1481,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       restore();
       sendResponse({ ok: true });
-      handleCapture(dataUrl, stepData, tab)
-        .then(() => updateBadge())
-        .catch((err) => log('error', 'bg', 'handleCapture error:', err.message));
-    })();
+      await handleCapture(dataUrl, stepData, tab);
+      updateBadge();
+    }).catch((err) => log('error', 'bg', 'capture job error:', err.message));
     return true;
   }
 
@@ -1472,8 +1491,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const { dataUrl, stepData } = message;
     if (!dataUrl || !stepData) { sendResponse({ ok: false }); return false; }
 
-    (async () => {
-      const { targetTabId, stepNumber } = await storageGet(['targetTabId', 'stepNumber']);
+    runCaptureJob(async () => {
+      const { targetTabId, stepNumber, isRecording } = await storageGet(['targetTabId', 'stepNumber', 'isRecording']);
+      if (!isRecording) {
+        sendResponse({ ok: false, error: 'inactive recording' });
+        return;
+      }
       const stepNum = (stepNumber || 0) + 1;
       await storageSet({ stepNumber: stepNum });
 
@@ -1486,15 +1509,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       await handleCapture(dataUrl, { ...stepData, stepNumber: stepNum }, tab);
       updateBadge();
       sendResponse({ ok: true });
-    })().catch(() => sendResponse({ ok: false }));
+    }).catch(() => sendResponse({ ok: false }));
     return true;
   }
 
   if (message.type === 'MANUAL_CAPTURE') {
     // 수동 캡처는 content의 isRecording 상태에 의존하지 않고 background에서 직접 처리한다 (#6).
     const directTabId = sender.tab?.id;
-    (async () => {
-      const { targetTabId } = await storageGet(['targetTabId']);
+    runCaptureJob(async () => {
+      const { targetTabId, isRecording } = await storageGet(['targetTabId', 'isRecording']);
+      if (!isRecording) { sendResponse({ ok: false, error: 'inactive recording' }); return; }
       const tabId = directTabId || _cachedTargetTabId || targetTabId;
       if (!tabId) { sendResponse({ ok: false, error: 'no target tab' }); return; }
 
@@ -1548,7 +1572,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       await handleCapture(dataUrl, stepData, tab);
       updateBadge();
       sendResponse({ ok: true });
-    })().catch(() => sendResponse({ ok: false }));
+    }).catch(() => sendResponse({ ok: false }));
     return true;
   }
 
@@ -3055,17 +3079,26 @@ async function syncLocalStepsBeforeFinalize(sessionId, stepNumbers, localSteps) 
 
 // ── 세션 완료 — 웹앱 API 경유 ───────────────────────────────────
 async function finalizeSession(sessionId, stepNumbers, audioUrl = null) {
+  await waitForCapturePipelineIdle();
   const { extensionToken, contentMode, settings, steps } = await storageGet(['extensionToken', 'contentMode', 'settings', 'steps']);
   if (!extensionToken) {
     log('warn', 'bg', 'extensionToken 없음 — /extension-link 에서 연동 필요');
     return { tutorial_id: null, step_count: 0 };
   }
 
+  const currentStepNumbers = [...new Set((steps || [])
+    .map((step) => Number(step?.stepNumber))
+    .filter((stepNumber) => Number.isInteger(stepNumber) && stepNumber > 0))]
+    .sort((a, b) => a - b);
+  const effectiveStepNumbers = currentStepNumbers.length
+    ? currentStepNumbers
+    : (stepNumbers || []);
+
   // per-step 음성 보정(향후 에디터 재녹음용) — 현재는 비어 있을 수 있음
   const stepVoice = {};
   (steps || []).forEach(s => { if (s.voiceAudioUrl) stepVoice[s.stepNumber] = s.voiceAudioUrl; });
 
-  await syncLocalStepsBeforeFinalize(sessionId, stepNumbers, steps);
+  await syncLocalStepsBeforeFinalize(sessionId, effectiveStepNumbers, steps);
 
   const origin = await getWebappOrigin();
   const res = await authedFetch(`${origin}/api/capture/finalize`, {
@@ -3073,7 +3106,7 @@ async function finalizeSession(sessionId, stepNumbers, audioUrl = null) {
     body: JSON.stringify({
       session_id: sessionId,
       // 패널에서 삭제/실행취소되지 않고 남은 스텝만 매뉴얼에 포함
-      ...(stepNumbers?.length ? { step_numbers: stepNumbers } : {}),
+      ...(effectiveStepNumbers.length ? { step_numbers: effectiveStepNumbers } : {}),
       // 웹앱에서 선택한 매뉴얼 유형 ('action' | 'education')
       ...(contentMode && contentMode !== 'action' ? { content_mode: contentMode } : {}),
       // 선택영역 확대 설정 — 스텝 이미지에 클릭 영역 확대(image_zoom) 선적용

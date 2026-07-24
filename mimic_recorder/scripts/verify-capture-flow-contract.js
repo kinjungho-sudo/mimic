@@ -121,6 +121,41 @@ check(() => {
 });
 
 check(() => {
+  assert.match(background, /const _captureJobs\s*=\s*new Set\(\)/);
+  assert.match(background, /function runCaptureJob\(task\)/);
+  assert.match(background, /async function waitForCapturePipelineIdle\(\)/);
+
+  const captureStart = background.indexOf("if (message.type === 'CAPTURE_SCREENSHOT')");
+  const manualImageStart = background.indexOf("if (message.type === 'MANUAL_IMAGE_STEP')", captureStart);
+  const manualCaptureStart = background.indexOf("if (message.type === 'MANUAL_CAPTURE')", manualImageStart);
+  const typingStart = background.indexOf("if (message.type === 'TYPING_PROGRESS')", manualCaptureStart);
+  assert.match(background.slice(captureStart, manualImageStart), /runCaptureJob\(async \(\) =>/);
+  assert.match(background.slice(manualImageStart, manualCaptureStart), /runCaptureJob\(async \(\) =>[\s\S]*isRecording/);
+  assert.match(background.slice(manualCaptureStart, typingStart), /runCaptureJob\(async \(\) =>[\s\S]*isRecording/);
+
+  const finalizeStart = background.indexOf('async function finalizeSession');
+  const finalizeEnd = background.indexOf('// ── Supabase Storage', finalizeStart);
+  const finalizeBlock = background.slice(finalizeStart, finalizeEnd);
+  assert.ok(finalizeStart >= 0 && finalizeEnd > finalizeStart, 'finalizeSession must be present');
+  assert.ok(
+    finalizeBlock.indexOf('await waitForCapturePipelineIdle()') < finalizeBlock.indexOf("storageGet(['extensionToken'"),
+    'finalize must wait for capture jobs before reading local steps',
+  );
+  assert.match(finalizeBlock, /effectiveStepNumbers/);
+  assert.match(finalizeBlock, /syncLocalStepsBeforeFinalize\(sessionId, effectiveStepNumbers, steps\)/);
+  assert.match(finalizeBlock, /step_numbers: effectiveStepNumbers/);
+
+  const finishStart = popup.indexOf("btnFinish.addEventListener('click', async () =>");
+  const finishBlock = popup.slice(finishStart, popup.indexOf('function showFinalizingOverlay', finishStart));
+  assert.ok(finishStart >= 0 && finishBlock.length > 0, 'finish handler must be present');
+  assert.ok(
+    finishBlock.indexOf('await storageSet({ isRecording: false })')
+      < finishBlock.indexOf("chrome.runtime.sendMessage({ type: 'FINALIZE_SESSION'"),
+    'finish must stop accepting captures before requesting finalize',
+  );
+});
+
+check(() => {
   assert.match(desktopSetup, /sendDesktopExtensionMessage\('START_DESKTOP_RECORDING'\)/);
   assert.match(desktopSetup, /sendDesktopExtensionMessage\('STOP_DESKTOP_RECORDING'/);
   assert.match(desktopSetup, /window\.location\.replace\(`\/desktop-import\?source=desktop-app&session=/);
