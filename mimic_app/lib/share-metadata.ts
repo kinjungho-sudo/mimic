@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { BRAND_NAME, getBrandAppUrl } from '@/lib/brand';
+import { BRAND_NAME, getBrandAppUrl, isSearchIndexingEnabled } from '@/lib/brand';
 
 const PRIVATE_SHARE_ROBOTS: Metadata['robots'] = {
   index: false,
@@ -72,7 +72,10 @@ export function buildManualShareMetadata(input: {
   const imageUrl = !input.passwordProtected && input.thumbnailUrl
     ? input.thumbnailUrl
     : ogImageUrl(input.passwordProtected ? protectedTitle : input.title, description);
-  const indexable = input.visibility === 'public' && !input.passwordProtected;
+  const indexable =
+    isSearchIndexingEnabled()
+    && input.visibility === 'public'
+    && !input.passwordProtected;
 
   return {
     title: { absolute: title },
@@ -101,7 +104,7 @@ export function buildPlaybookShareMetadata(input: {
     title: { absolute: title },
     description,
     alternates: { canonical: url },
-    robots: PUBLIC_SHARE_ROBOTS,
+    robots: isSearchIndexingEnabled() ? PUBLIC_SHARE_ROBOTS : PRIVATE_SHARE_ROBOTS,
     ...socialMetadata(title, description, url, imageUrl),
   };
 }
