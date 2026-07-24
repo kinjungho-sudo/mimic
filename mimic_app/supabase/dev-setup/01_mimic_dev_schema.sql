@@ -91,6 +91,39 @@ create table mm_tutorials (
   content_mode text default 'action' check (content_mode in ('action','education'))
 );
 
+create table mm_user_onboarding_progress (
+  user_id uuid not null,
+  guide_key text not null,
+  guide_version integer not null check (guide_version > 0),
+  status text not null default 'not_started' check (status in ('not_started','in_progress','completed','dismissed')),
+  current_step text,
+  initial_completed_at timestamptz,
+  last_started_at timestamptz,
+  last_completed_at timestamptz,
+  dismissed_at timestamptz,
+  run_count integer not null default 0 check (run_count >= 0),
+  practice_manual_id uuid,
+  impression_at timestamptz,
+  practice_capture_token uuid,
+  practice_capture_token_issued_at timestamptz,
+  practice_capture_consumed_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (user_id, guide_key, guide_version)
+);
+
+create table mm_onboarding_events (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null,
+  guide_key text not null,
+  guide_version integer not null check (guide_version > 0),
+  event_type text not null check (event_type in ('onboarding_impression','start','step_view','step_complete','blocked','install_clicked','resume','dismiss','complete','replay_start')),
+  step_id text,
+  browser_type text,
+  extension_state text,
+  created_at timestamptz not null default now()
+);
+
 create table mm_steps (
   id uuid primary key default gen_random_uuid(),
   tutorial_id uuid not null,
@@ -395,6 +428,9 @@ alter table mm_folders add constraint mm_folders_workspace_id_fkey foreign key (
 alter table mm_tutorials add constraint mm_tutorials_user_id_fkey foreign key (user_id) references mm_users(id) on delete cascade;
 alter table mm_tutorials add constraint mm_tutorials_workspace_id_fkey foreign key (workspace_id) references mm_workspaces(id) on delete set null;
 alter table mm_tutorials add constraint mm_tutorials_folder_id_fkey foreign key (folder_id) references mm_folders(id) on delete set null;
+alter table mm_user_onboarding_progress add constraint mm_user_onboarding_progress_user_id_fkey foreign key (user_id) references mm_users(id) on delete cascade;
+alter table mm_user_onboarding_progress add constraint mm_user_onboarding_progress_practice_manual_id_fkey foreign key (practice_manual_id) references mm_tutorials(id) on delete set null;
+alter table mm_onboarding_events add constraint mm_onboarding_events_user_id_fkey foreign key (user_id) references mm_users(id) on delete cascade;
 alter table mm_steps add constraint mm_steps_tutorial_id_fkey foreign key (tutorial_id) references mm_tutorials(id) on delete cascade;
 alter table mm_markers add constraint mm_markers_step_id_fkey foreign key (step_id) references mm_steps(id) on delete cascade;
 alter table mm_annotations add constraint mm_annotations_step_id_fkey foreign key (step_id) references mm_steps(id) on delete cascade;
@@ -452,6 +488,9 @@ create index idx_mm_steps_tutorial_id on mm_steps (tutorial_id);
 create index idx_mm_tutorials_deleted_at on mm_tutorials (deleted_at) where (deleted_at is not null);
 create index idx_mm_tutorials_share_token on mm_tutorials (share_token) where (share_token is not null);
 create index idx_mm_tutorials_user_id on mm_tutorials (user_id);
+create index idx_mm_onboarding_progress_status on mm_user_onboarding_progress (user_id, guide_key, guide_version, status);
+create unique index idx_mm_onboarding_progress_practice_token on mm_user_onboarding_progress (practice_capture_token) where (practice_capture_token is not null);
+create index idx_mm_onboarding_events_user_created on mm_onboarding_events (user_id, created_at desc);
 create index idx_tutorials_folder on mm_tutorials (folder_id);
 create index idx_tutorials_workspace on mm_tutorials (workspace_id);
 create index idx_mm_view_events_tutorial_id on mm_view_events (tutorial_id);
@@ -493,6 +532,7 @@ $$;
 create trigger mm_folders_updated_at before update on mm_folders for each row execute function set_updated_at();
 create trigger mm_workspaces_updated_at before update on mm_workspaces for each row execute function set_updated_at();
 create trigger tutorials_updated_at before update on mm_tutorials for each row execute function update_updated_at();
+create trigger mm_user_onboarding_progress_updated_at before update on mm_user_onboarding_progress for each row execute function set_updated_at();
 create trigger on_auth_user_created after insert on auth.users for each row execute function handle_new_user();
 
 -- ===== 6. RLS 활성화 ==========================================================
@@ -502,6 +542,8 @@ alter table mm_workspace_members enable row level security;
 alter table mm_workspace_invitations enable row level security;
 alter table mm_folders enable row level security;
 alter table mm_tutorials enable row level security;
+alter table mm_user_onboarding_progress enable row level security;
+alter table mm_onboarding_events enable row level security;
 alter table mm_steps enable row level security;
 alter table mm_markers enable row level security;
 alter table mm_annotations enable row level security;
@@ -545,6 +587,10 @@ create policy folders_delete on mm_folders for delete using ((user_id = auth.uid
 
 create policy tutorials_own on mm_tutorials for all using (auth.uid() = user_id);
 create policy tutorials_public_share on mm_tutorials for select using (status = 'published' and share_token is not null);
+
+create policy onboarding_progress_own on mm_user_onboarding_progress for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy onboarding_events_own_select on mm_onboarding_events for select using (auth.uid() = user_id);
+create policy onboarding_events_own_insert on mm_onboarding_events for insert with check (auth.uid() = user_id);
 
 create policy steps_own on mm_steps for all using (tutorial_id in (select id from mm_tutorials where user_id = auth.uid()));
 create policy steps_public_share on mm_steps for select using (tutorial_id in (select id from mm_tutorials where status = 'published' and share_token is not null));

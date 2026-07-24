@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { BRAND_DESCRIPTION, BRAND_LOGO_IMAGE_PATH, BRAND_NAME, BRAND_TAGLINE, getBrandAppUrl } from "@/lib/brand";
+import { ParroOnboardingProvider } from "@/components/onboarding/ParroOnboardingProvider";
 import "./globals.css";
 
 const geistSans = localFont({
@@ -97,7 +98,7 @@ export default function RootLayout({
           본문으로 바로가기
         </a>
         <span id="parro-main-content" className="parro-main-target" tabIndex={-1} />
-        {children}
+        <ParroOnboardingProvider>{children}</ParroOnboardingProvider>
       </body>
     </html>
   );

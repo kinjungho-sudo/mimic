@@ -1086,6 +1086,43 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
     return true;
   }
 
+  if (message.action === 'OPEN_ONBOARDING_PRACTICE') {
+    const requestOrigin = resolveGuideRequestOrigin(sender.origin, message.webapp_origin);
+    if (!requestOrigin) {
+      sendResponse({ ok: false, error: 'invalid onboarding origin' });
+      return false;
+    }
+    let practiceUrl;
+    try {
+      practiceUrl = new URL(message.url);
+    } catch {
+      sendResponse({ ok: false, error: 'invalid onboarding URL' });
+      return false;
+    }
+    if (practiceUrl.origin !== requestOrigin || practiceUrl.pathname !== '/onboarding/practice') {
+      sendResponse({ ok: false, error: 'onboarding URL is not allowed' });
+      return false;
+    }
+
+    chrome.tabs.create({ url: practiceUrl.toString(), active: false }, (tab) => {
+      if (chrome.runtime.lastError || !tab?.id) {
+        sendResponse({ ok: false, error: chrome.runtime.lastError?.message || 'failed to open onboarding tab' });
+        return;
+      }
+      sendResponse({
+        ok: true,
+        tab: {
+          id: tab.id,
+          title: tab.title || 'Parro 연습 페이지',
+          url: practiceUrl.toString(),
+          favIconUrl: tab.favIconUrl,
+          urlAccess: true,
+        },
+      });
+    });
+    return true;
+  }
+
   if (message.action === 'START_RECORDING') {
     const tabId = message.tabId;
     if (!tabId) {
@@ -1114,7 +1151,15 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
       // 1) targetTabId 먼저 저장 → _cachedTargetTabId 캐시 갱신 보장
       // contentMode: 웹앱에서 선택한 매뉴얼 유형 ('action' | 'education'), 미전달 시 'action'
       const contentMode = message.contentMode === 'education' ? 'education' : 'action';
-      await storageSet({ targetTabId: tabId, sessionId, stepNumber: 0, steps: [], _undoStack: [], contentMode });
+      await storageSet({
+        targetTabId: tabId,
+        sessionId,
+        stepNumber: 0,
+        steps: [],
+        _undoStack: [],
+        contentMode,
+        onboardingToken: typeof message.onboardingToken === 'string' ? message.onboardingToken : null,
+      });
 
       const tab = await new Promise((res) => chrome.tabs.get(tabId, (t) => {
         res(chrome.runtime.lastError ? null : t);
@@ -1615,8 +1660,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // service worker는 살아 있으므로 매뉴얼 생성 완료 후 정상 이동된다.
         if (data?.tutorial_id) {
           const origin = data.webapp_origin || await getWebappOrigin();
-          chrome.tabs.create({ url: `${origin}/manual/${data.tutorial_id}/editor?from=recording` });
-          await storageSet({ isRecording: false, isPaused: false, stepNumber: 0, steps: [], sessionId: null, _undoStack: [] });
+          const onboardingQuery = data.onboarding_practice ? '&onboarding=1' : '';
+          chrome.tabs.create({ url: `${origin}/manual/${data.tutorial_id}/editor?from=recording${onboardingQuery}` });
+          await storageSet({ isRecording: false, isPaused: false, stepNumber: 0, steps: [], sessionId: null, _undoStack: [], onboardingToken: null });
           // 서버 전송이 끝난 캡처 Blob은 기기에 남겨둘 이유가 없다.
           // 개인정보처리방침의 "완료 후 로컬 임시 데이터 삭제"와 실제 동작을 일치시킨다.
           await idbClear().catch((error) => log('warn', 'bg', 'finalize local cache clear failed:', error?.message || error));
@@ -3080,7 +3126,7 @@ async function syncLocalStepsBeforeFinalize(sessionId, stepNumbers, localSteps) 
 // ── 세션 완료 — 웹앱 API 경유 ───────────────────────────────────
 async function finalizeSession(sessionId, stepNumbers, audioUrl = null) {
   await waitForCapturePipelineIdle();
-  const { extensionToken, contentMode, settings, steps } = await storageGet(['extensionToken', 'contentMode', 'settings', 'steps']);
+  const { extensionToken, contentMode, settings, steps, onboardingToken } = await storageGet(['extensionToken', 'contentMode', 'settings', 'steps', 'onboardingToken']);
   if (!extensionToken) {
     log('warn', 'bg', 'extensionToken 없음 — /extension-link 에서 연동 필요');
     return { tutorial_id: null, step_count: 0 };
@@ -3115,6 +3161,7 @@ async function finalizeSession(sessionId, stepNumbers, audioUrl = null) {
       ...(audioUrl ? { audio_url: audioUrl } : {}),
       // per-step 음성 보정(있을 때만) — 해당 스텝은 이 클립으로 덮어씀
       ...(Object.keys(stepVoice).length ? { step_voice: stepVoice } : {}),
+      ...(onboardingToken ? { onboarding_token: onboardingToken } : {}),
     }),
   });
   if (!res.ok) throw new Error(`finalize failed: ${res.status}: ${await res.text()}`);

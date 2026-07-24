@@ -20,7 +20,7 @@ const engine = read('guide-engine.js');
 const popup = read('popup.html');
 const manifest = JSON.parse(read('manifest.json'));
 
-assert.equal(manifest.version, '1.7.8');
+assert.equal(manifest.version, '1.7.9');
 assert.deepEqual(
   manifest.content_scripts[0].js.slice(0, 3),
   ['targeting.js', 'guide-engine.js', 'content.js'],

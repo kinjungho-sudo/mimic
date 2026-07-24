@@ -281,7 +281,7 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
   };
 
   return (
-    <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
+    <div data-parro-guide="editor-manual-content" style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
       {/* ── Left TOC (shown only when hideToc is false) ── */}
       {!hideToc && (
         <aside style={{ width: '224px', flexShrink: 0, background: 'white', borderRight: '2px solid #E5E7EB', display: 'flex', flexDirection: 'column', overflowY: 'auto', boxShadow: '2px 0 6px rgba(0,0,0,0.04)' }}>

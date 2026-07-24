@@ -9,6 +9,11 @@ import { buildClickHighlight } from '@/lib/annotations';
 import { hasDecorativeActionGlyph, stripDecorativeActionGlyphs } from '@/lib/action-copy';
 import { transcribeAudio, assignSegmentsToSteps, computeStepWindows } from '@/lib/voice/voice';
 import { logSystem } from '@/lib/logging/logger-server';
+import {
+  PARRO_ONBOARDING_KEY,
+  PARRO_ONBOARDING_PRACTICE_PATH,
+  PARRO_ONBOARDING_VERSION,
+} from '@/lib/onboarding';
 
 async function fetchScreenshotForAi(url: string): Promise<{ base64: string; mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif' } | null> {
   if (url.startsWith('data:')) {
@@ -173,6 +178,16 @@ function stripUnsupportedStepColumns<T extends Record<string, unknown>>(
   });
 }
 
+function isOnboardingPracticeUrl(rawUrl: unknown, expectedOrigin: string) {
+  if (typeof rawUrl !== 'string') return false;
+  try {
+    const url = new URL(rawUrl);
+    return url.origin === expectedOrigin && url.pathname === PARRO_ONBOARDING_PRACTICE_PATH;
+  } catch {
+    return false;
+  }
+}
+
 export async function POST(request: NextRequest) {
   const auth = await requireExtensionToken(request);
   if (!auth.ok) return auth.response;
@@ -192,7 +207,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { session_id, title, step_numbers, content_mode = 'action', auto_zoom = false, audio_url = null, step_voice } = parsed.data;
+  const {
+    session_id,
+    title,
+    step_numbers,
+    content_mode = 'action',
+    auto_zoom = false,
+    audio_url = null,
+    step_voice,
+    onboarding_token,
+  } = parsed.data;
 
   // 세션 소유자 확인
   const { data: session } = await supabase
@@ -231,6 +255,27 @@ export async function POST(request: NextRequest) {
 
   if (liveEvents.length === 0) {
     return NextResponse.json({ error: 'No captured steps' }, { status: 422 });
+  }
+
+  let practiceCandidate = false;
+  if (onboarding_token) {
+    const { data: onboarding } = await supabase
+      .from('mm_user_onboarding_progress')
+      .select('status, practice_capture_token_issued_at, practice_capture_consumed_at')
+      .eq('user_id', userId)
+      .eq('guide_key', PARRO_ONBOARDING_KEY)
+      .eq('guide_version', PARRO_ONBOARDING_VERSION)
+      .eq('practice_capture_token', onboarding_token)
+      .maybeSingle();
+    const issuedAt = onboarding?.practice_capture_token_issued_at
+      ? new Date(onboarding.practice_capture_token_issued_at).getTime()
+      : 0;
+    const tokenAgeMs = Date.now() - issuedAt;
+    practiceCandidate = onboarding?.status === 'in_progress'
+      && !onboarding.practice_capture_consumed_at
+      && tokenAgeMs >= 0
+      && tokenAgeMs <= 30 * 60 * 1000
+      && liveEvents.every(event => isOnboardingPracticeUrl(event.url, request.nextUrl.origin));
   }
 
   // 무료 플랜 여부 확인 (어노테이션 생성 제한)
@@ -484,9 +529,29 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to finalize session' }, { status: 500 });
   }
 
-  const countUpdate = await supabase.rpc('increment_daily_manual_count', { uid: userId });
-  if (countUpdate.error) {
-    console.warn('capture finalize daily count update failed:', countUpdate.error.message);
+  let onboardingPractice = false;
+  if (practiceCandidate && onboarding_token) {
+    const { data: consumed } = await supabase
+      .from('mm_user_onboarding_progress')
+      .update({
+        practice_capture_consumed_at: new Date().toISOString(),
+        practice_manual_id: tutorial.id,
+      })
+      .eq('user_id', userId)
+      .eq('guide_key', PARRO_ONBOARDING_KEY)
+      .eq('guide_version', PARRO_ONBOARDING_VERSION)
+      .eq('practice_capture_token', onboarding_token)
+      .is('practice_capture_consumed_at', null)
+      .select('user_id')
+      .maybeSingle();
+    onboardingPractice = !!consumed;
+  }
+
+  if (!onboardingPractice) {
+    const countUpdate = await supabase.rpc('increment_daily_manual_count', { uid: userId });
+    if (countUpdate.error) {
+      console.warn('capture finalize daily count update failed:', countUpdate.error.message);
+    }
   }
 
   // staging 정리 — 매뉴얼 변환이 끝난 세션의 mm_capture_events 행과,
@@ -1154,5 +1219,6 @@ export async function POST(request: NextRequest) {
     step_count: steps.length,
     share_token: null,
     completion_pending: true,
+    onboarding_practice: onboardingPractice,
   });
 }

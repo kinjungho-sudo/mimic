@@ -719,6 +719,15 @@ export default function HelpPage() {
 
         {/* 본문 */}
         <main className="help-main" style={{ background: 'white', borderRadius: '12px', border: '1px solid #E5E7EB', padding: '36px 40px', minHeight: '500px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', marginBottom: '28px', padding: '16px 18px', border: '1px solid #C7D2FE', borderRadius: '12px', background: '#F5F7FF' }}>
+            <div>
+              <strong style={{ display: 'block', color: '#312E81', fontSize: '14px', marginBottom: '4px' }}>화면에서 직접 안내받고 싶나요?</strong>
+              <span style={{ color: '#6366F1', fontSize: '12.5px', lineHeight: 1.5 }}>완료한 뒤에도 처음부터 언제든 다시 볼 수 있어요.</span>
+            </div>
+            <Link href="/home?onboarding=replay" style={{ flexShrink: 0, padding: '9px 13px', borderRadius: '9px', background: BRAND_COLORS.guide, color: 'white', fontSize: '12.5px', fontWeight: 700, textDecoration: 'none' }}>
+              Live Guide로 다시 보기
+            </Link>
+          </div>
           <SectionContent id={activeId} />
 
           {/* 이전/다음 */}
