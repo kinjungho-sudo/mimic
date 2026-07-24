@@ -14,6 +14,10 @@
     'parro-guide-dev.vercel.app',
     'parro-guide.vercel.app',
   ]);
+  const PROD_EXTENSION_IDS = new Set([
+    'lefkpmfgdbhckcemfghpegleknaepekm',
+    'ehbhcdkapcbfehinjapabgoegcjmmbgd',
+  ]);
 
   function isParroWebappPage() {
     const host = window.location.hostname;
@@ -27,6 +31,7 @@
       source: 'PARRO_RECORDER_EXTENSION',
       type: 'EXTENSION_ID',
       extensionId: chrome.runtime.id,
+      environment: PROD_EXTENSION_IDS.has(chrome.runtime.id) ? 'production' : 'development',
     }, window.location.origin);
   }
 

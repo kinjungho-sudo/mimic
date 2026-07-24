@@ -160,6 +160,12 @@ check(() => assert.match(background, /onboardingToken/));
 check(() => assert.match(background, /onboarding_token: onboardingToken/));
 check(() => assert.match(background, /onboarding_practice \? '&onboarding=1'/));
 
+const extensionId = readApp('lib', 'extension-id.ts');
+const recorderContent = readRepo('mimic_recorder', 'content.js');
+check(() => assert.match(recorderContent, /environment: PROD_EXTENSION_IDS\.has\(chrome\.runtime\.id\) \? 'production' : 'development'/));
+check(() => assert.match(extensionId, /sessionPreferredEnvironment === 'development'/));
+check(() => assert.match(extensionId, /if \(data\.environment === 'development'\) finish\(id\)/));
+
 const finalize = readApp('app', 'api', 'capture', 'finalize', 'route.ts');
 check(() => assert.match(finalize, /liveEvents\.every\(event => isOnboardingPracticeUrl/));
 check(() => assert.match(finalize, /tokenAgeMs <= 30 \* 60 \* 1000/));
