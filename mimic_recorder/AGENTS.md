@@ -1,4 +1,4 @@
-# CLAUDE.md — Parro Recorder (Chrome Extension)
+# AGENTS.md — Parro Recorder (Chrome Extension)
 
 ## ⚠️ 작업 시작 전 필독 문서
 

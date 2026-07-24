@@ -23,4 +23,4 @@ description: MIMIC Chrome 익스텐션(mimic_recorder)의 background.js / conten
 - 최근 content.js / popup.js는 콜백 지옥 → async/await 리팩터링이 끝난 상태다. 새 비동기 코드도 async/await로 일관되게 작성.
 - 익스텐션 manifest 권한·메시지 포맷을 바꾸면 웹앱(RecordingModal, /api/capture/*)의 대응부도 함께 확인하라.
 - 변경 후 `chrome://extensions`에서 리로드가 필요한 변경인지 사용자에게 알려라.
-- CLAUDE.md의 surgical change 원칙 준수: 요청과 직접 연결되지 않는 코드는 건드리지 마라.
+- AGENTS.md의 surgical change 원칙 준수: 요청과 직접 연결되지 않는 코드는 건드리지 마라.

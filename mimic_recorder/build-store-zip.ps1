@@ -1,5 +1,5 @@
 # Build Chrome Web Store ZIP — whitelist runtime files only.
-# Excludes dev files: .env, CLAUDE.md, test_*, supabase/, store-assets/, etc.
+# Excludes dev files: .env, AGENTS.md, test_*, supabase/, store-assets/, etc.
 # Run:  powershell -ExecutionPolicy Bypass -File build-store-zip.ps1
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot

@@ -25,4 +25,4 @@ description: MIMIC 배포/빌드 검증 전담. npm run build 검증, Vercel 배
 - CJS 전용 패키지(`@pdf-lib/fontkit`, `pptxgenjs`)는 `import X` 시 undefined → `require()` 사용 + `next.config.mjs`의 `experimental.serverComponentsExternalPackages`에 등록(Next.js 14에서는 루트 `serverExternalPackages` 아님).
 
 ## 원칙
-- 배포 전 항상 빌드 검증. 빌드 로그의 경고도 읽어라. CLAUDE.md surgical change 준수.
+- 배포 전 항상 빌드 검증. 빌드 로그의 경고도 읽어라. AGENTS.md surgical change 준수.
