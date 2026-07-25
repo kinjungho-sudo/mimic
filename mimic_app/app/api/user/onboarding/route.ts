@@ -40,13 +40,14 @@ async function readProgress(
   supabase: ReturnType<typeof createServiceRoleClient>,
   userId: string,
 ) {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('mm_user_onboarding_progress')
     .select(progressColumns)
     .eq('user_id', userId)
     .eq('guide_key', PARRO_ONBOARDING_KEY)
     .eq('guide_version', PARRO_ONBOARDING_VERSION)
     .maybeSingle();
+  if (error) throw error;
   return data;
 }
 
@@ -55,23 +56,30 @@ export async function GET(request: NextRequest) {
   if (!auth.ok) return auth.response;
 
   const supabase = createServiceRoleClient();
-  const [progress, tutorialsResult, pagesResult, legacyManualsResult] = await Promise.all([
-    readProgress(supabase, auth.userId),
-    supabase
-      .from('mm_tutorials')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', auth.userId)
-      .is('deleted_at', null),
-    supabase
-      .from('mm_pages')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', auth.userId)
-      .is('deleted_at', null),
-    supabase
-      .from('mm_manuals')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', auth.userId),
-  ]);
+  let results;
+  try {
+    results = await Promise.all([
+      readProgress(supabase, auth.userId),
+      supabase
+        .from('mm_tutorials')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', auth.userId)
+        .is('deleted_at', null),
+      supabase
+        .from('mm_pages')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', auth.userId)
+        .is('deleted_at', null),
+      supabase
+        .from('mm_manuals')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', auth.userId),
+    ]);
+  } catch (error) {
+    console.error('[Parro onboarding] Failed to read progress', error);
+    return NextResponse.json({ error: 'Onboarding storage unavailable' }, { status: 503 });
+  }
+  const [progress, tutorialsResult, pagesResult, legacyManualsResult] = results;
 
   const contentCount = (tutorialsResult.count ?? 0)
     + (pagesResult.count ?? 0)
@@ -102,7 +110,13 @@ export async function PATCH(request: NextRequest) {
   }
 
   const supabase = createServiceRoleClient();
-  const existing = await readProgress(supabase, auth.userId);
+  let existing;
+  try {
+    existing = await readProgress(supabase, auth.userId);
+  } catch (error) {
+    console.error('[Parro onboarding] Failed to read progress before save', error);
+    return NextResponse.json({ error: 'Onboarding storage unavailable' }, { status: 503 });
+  }
   const now = new Date().toISOString();
   const key = {
     user_id: auth.userId,
@@ -159,7 +173,8 @@ export async function PATCH(request: NextRequest) {
 
   const { data, error } = await query.select(progressColumns).single();
   if (error) {
-    return NextResponse.json({ error: 'Failed to save onboarding progress' }, { status: 500 });
+    console.error('[Parro onboarding] Failed to save progress', error);
+    return NextResponse.json({ error: 'Onboarding storage unavailable' }, { status: 503 });
   }
 
   return NextResponse.json({ progress: data });

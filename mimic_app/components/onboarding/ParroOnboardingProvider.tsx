@@ -72,14 +72,18 @@ function progressPercent(step: OnboardingStep, mobileTour: boolean) {
 async function requestProgress(
   body: Record<string, unknown>,
 ): Promise<ParroOnboardingProgress | null> {
-  const response = await fetch('/api/user/onboarding', {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) return null;
-  const data = await response.json() as { progress?: ParroOnboardingProgress };
-  return data.progress ?? null;
+  try {
+    const response = await fetch('/api/user/onboarding', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) return null;
+    const data = await response.json() as { progress?: ParroOnboardingProgress };
+    return data.progress ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
@@ -390,6 +394,37 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
         window.setTimeout(() => void goNext(), 100);
       }
     };
+    const hasInputValue = () => {
+      if (!target) return false;
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+        return target.value.trim().length > 0;
+      }
+      return target.isContentEditable && (target.textContent ?? '').trim().length > 0;
+    };
+    const inputChangeListener = (event: Event) => {
+      if (
+        currentStep.advanceOn === 'target-input'
+        && target
+        && event.target instanceof Node
+        && target.contains(event.target)
+        && hasInputValue()
+      ) {
+        window.setTimeout(() => void goNext(), 100);
+      }
+    };
+    const inputKeyListener = (event: KeyboardEvent) => {
+      if (
+        currentStep.advanceOn === 'target-input'
+        && event.key === 'Enter'
+        && !event.isComposing
+        && target
+        && event.target instanceof Node
+        && target.contains(event.target)
+        && hasInputValue()
+      ) {
+        window.setTimeout(() => void goNext(), 100);
+      }
+    };
 
     findTarget();
     const observer = new MutationObserver(findTarget);
@@ -397,6 +432,8 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
     window.addEventListener('resize', updateRect);
     window.addEventListener('scroll', updateRect, true);
     document.addEventListener('click', clickListener, true);
+    document.addEventListener('change', inputChangeListener, true);
+    document.addEventListener('keydown', inputKeyListener, true);
     missingTimer = setTimeout(() => {
       if (!target) {
         setTargetMissing(true);
@@ -414,19 +451,26 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('resize', updateRect);
       window.removeEventListener('scroll', updateRect, true);
       document.removeEventListener('click', clickListener, true);
+      document.removeEventListener('change', inputChangeListener, true);
+      document.removeEventListener('keydown', inputKeyListener, true);
     };
   }, [active, completionOpen, currentStep.advanceOn, currentStep.id, currentStep.target, emitEvent, goNext]);
 
   useEffect(() => {
     if (!active || completionOpen) return;
     const keyListener = (event: KeyboardEvent) => {
+      const eventTarget = event.target;
+      const isEditing = eventTarget instanceof HTMLElement && (
+        eventTarget.matches('input, textarea, select')
+        || eventTarget.isContentEditable
+      );
       if (event.key === 'Escape') {
         event.preventDefault();
         void closeGuide();
-      } else if (event.key === 'ArrowLeft') {
+      } else if (!isEditing && event.key === 'ArrowLeft') {
         event.preventDefault();
         void goBack();
-      } else if (event.key === 'ArrowRight' && currentStep.advanceOn !== 'signal') {
+      } else if (!isEditing && event.key === 'ArrowRight' && currentStep.advanceOn !== 'signal') {
         event.preventDefault();
         void goNext();
       }
@@ -532,6 +576,13 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
                 height: targetRect.height + 12,
               }}
             />
+          )}
+          {!completionOpen && currentStep.sidePanelHint && (
+            <aside className="parro-onboarding-side-panel-hint" aria-label="Parro Recorder 사이드 패널 안내">
+              <span>CHROME SIDE PANEL</span>
+              <strong>{currentStep.sidePanelHint}</strong>
+              <i aria-hidden="true" />
+            </aside>
           )}
           <div
             ref={tooltipRef}
@@ -748,6 +799,55 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
           pointer-events: auto;
           padding: 18px;
         }
+        .parro-onboarding-side-panel-hint {
+          position: fixed;
+          top: 50%;
+          right: 48px;
+          z-index: 4002;
+          width: min(250px, calc(100vw - 96px));
+          padding: 14px 16px;
+          pointer-events: none;
+          border: 1px solid #c7d2fe;
+          border-radius: 14px;
+          background: rgba(255, 255, 255, .98);
+          box-shadow: 0 16px 45px rgba(15, 23, 42, .22);
+          color: #1e293b;
+          transform: translateY(-50%);
+        }
+        .parro-onboarding-side-panel-hint > span {
+          display: block;
+          margin-bottom: 5px;
+          color: #4f46e5;
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: .09em;
+        }
+        .parro-onboarding-side-panel-hint > strong {
+          display: block;
+          font-size: 13px;
+          line-height: 1.55;
+        }
+        .parro-onboarding-side-panel-hint > i {
+          position: absolute;
+          top: 50%;
+          right: -38px;
+          width: 32px;
+          height: 3px;
+          border-radius: 999px;
+          background: #4f46e5;
+          transform: translateY(-50%);
+        }
+        .parro-onboarding-side-panel-hint > i::after {
+          position: absolute;
+          top: 50%;
+          right: -1px;
+          width: 11px;
+          height: 11px;
+          border-top: 3px solid #4f46e5;
+          border-right: 3px solid #4f46e5;
+          content: '';
+          transform: translateY(-50%) rotate(45deg);
+        }
         .parro-onboarding-tooltip.is-complete {
           top: 50%;
           left: 50%;
@@ -868,6 +968,9 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
           margin-top: 0;
         }
         @media (max-width: 767px) {
+          .parro-onboarding-side-panel-hint {
+            display: none;
+          }
           .parro-onboarding-tooltip:not(.is-complete) {
             top: auto !important;
             right: 12px;

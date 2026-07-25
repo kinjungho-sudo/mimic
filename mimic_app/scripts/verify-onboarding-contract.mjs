@@ -34,6 +34,13 @@ check(() => assert.equal(new Set(desktopIds).size, desktopIds.length));
 check(() => assert.equal(new Set(mobileIds).size, mobileIds.length));
 check(() => assert.ok(desktopIds.includes('recording-setup')));
 check(() => assert.ok(desktopIds.includes('practice-finish')));
+check(() => assert.equal(
+  DESKTOP_ONBOARDING_STEPS.find(step => step.id === 'practice-input')?.advanceOn,
+  'target-input',
+));
+check(() => assert.ok(
+  DESKTOP_ONBOARDING_STEPS.find(step => step.id === 'practice-finish')?.sidePanelHint,
+));
 check(() => assert.ok(desktopIds.includes('editor-title')));
 check(() => assert.ok(desktopIds.includes('editor-steps')));
 check(() => assert.ok(desktopIds.includes('editor-content')));
@@ -101,6 +108,8 @@ check(() => assert.match(api, /buildOnboardingStartPatch/));
 check(() => assert.match(api, /buildOnboardingCompletionPatch/));
 check(() => assert.match(api, /clear_practice_manual/));
 check(() => assert.match(api, /mm_onboarding_events/));
+check(() => assert.match(api, /if \(error\) throw error/));
+check(() => assert.match(api, /Onboarding storage unavailable/));
 
 const provider = readApp('components', 'onboarding', 'ParroOnboardingProvider.tsx');
 check(() => assert.match(provider, /MutationObserver/));
@@ -113,6 +122,10 @@ check(() => assert.match(provider, /연습 매뉴얼 열기/));
 check(() => assert.match(provider, /처음부터 다시 보기/));
 check(() => assert.match(provider, /휴지통으로 이동/));
 check(() => assert.match(provider, /completionOpen \? 100/));
+check(() => assert.match(provider, /currentStep\.advanceOn === 'target-input'/));
+check(() => assert.match(provider, /event\.key === 'Enter'/));
+check(() => assert.match(provider, /eventTarget\.isContentEditable/));
+check(() => assert.match(provider, /parro-onboarding-side-panel-hint/));
 check(() => assert.doesNotMatch(provider, /setTimeout\(\(\) => setActive\(false\)/));
 
 const home = readApp('app', 'home', 'page.tsx');

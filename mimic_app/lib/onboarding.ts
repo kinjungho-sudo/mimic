@@ -67,8 +67,9 @@ export type OnboardingStep = {
   body: string;
   target?: string;
   route: 'home' | 'practice' | 'editor' | 'any';
-  advanceOn?: 'next' | 'target-click' | 'signal';
+  advanceOn?: 'next' | 'target-click' | 'target-input' | 'signal';
   signal?: string;
+  sidePanelHint?: string;
 };
 
 export const DESKTOP_ONBOARDING_STEPS: OnboardingStep[] = [
@@ -119,6 +120,7 @@ export const DESKTOP_ONBOARDING_STEPS: OnboardingStep[] = [
     route: 'home',
     advanceOn: 'signal',
     signal: 'recording-started',
+    sidePanelHint: '오른쪽 Parro Recorder 사이드 패널에서 녹화 시작 상태를 확인하세요.',
   },
   {
     id: 'practice-click',
@@ -131,10 +133,10 @@ export const DESKTOP_ONBOARDING_STEPS: OnboardingStep[] = [
   {
     id: 'practice-input',
     title: '연습 문구를 입력해요',
-    body: '입력 내용도 단계의 설명과 재현 정보로 저장할 수 있어요.',
+    body: '문구를 입력한 뒤 Enter를 누르세요. 입력창을 누르기만 해서는 다음 단계로 넘어가지 않아요.',
     target: 'practice-input',
     route: 'practice',
-    advanceOn: 'target-click',
+    advanceOn: 'target-input',
   },
   {
     id: 'practice-finish',
@@ -144,6 +146,7 @@ export const DESKTOP_ONBOARDING_STEPS: OnboardingStep[] = [
     route: 'practice',
     advanceOn: 'signal',
     signal: 'editor-opened',
+    sidePanelHint: '오른쪽 Parro Recorder 사이드 패널에서 잠시 멈춤·실행 취소·완료를 사용해보세요.',
   },
   {
     id: 'editor-title',
