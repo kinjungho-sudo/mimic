@@ -4,6 +4,8 @@
 (function () {
   'use strict';
   if (window.ParroGuide || window.MimicGuide) return; // 중복 주입 방지
+  const i18n = (key, fallback, substitutions) =>
+    chrome.i18n.getMessage(key, substitutions) || fallback;
 
   const Z = 2147483640;
   const HIT_PAD_EL = 6;
@@ -605,7 +607,10 @@
     if (!state) return;
     state.validating = false;
     state.advanced = false;
-    if (state.host) state.host.setAttribute('data-validation-error', message || '입력 내용을 확인해주세요.');
+    if (state.host) state.host.setAttribute(
+      'data-validation-error',
+      message || i18n('checkInput', '입력 내용을 확인해주세요.'),
+    );
     if (state.tooltip) {
       let notice = state.tooltip.querySelector('[data-parro-validation]');
       if (!notice) {
@@ -614,7 +619,11 @@
         notice.style.cssText = 'margin:10px 0 2px;padding:9px 10px;border-radius:8px;background:#FFF1F2;color:#BE123C;font-size:12px;font-weight:700;line-height:1.45;';
         state.tooltip.appendChild(notice);
       }
-      notice.textContent = `${message || '입력 내용을 확인해주세요.'} 오류를 해결한 뒤 다시 눌러주세요.`;
+      notice.textContent = i18n(
+        'resolveInputError',
+        '$MESSAGE$ 오류를 해결한 뒤 다시 눌러주세요.',
+        [message || i18n('checkInput', '입력 내용을 확인해주세요.')],
+      );
     }
     nudge();
   }
@@ -636,7 +645,7 @@
       let invalid = false;
       try { invalid = typeof form.checkValidity === 'function' && !form.checkValidity(); } catch { /* noop */ }
       if (invalid || newMessage) {
-        showValidationProblem(newMessage || '필수 입력값이 올바르지 않습니다.');
+        showValidationProblem(newMessage || i18n('invalidRequiredInput', '필수 입력값이 올바르지 않습니다.'));
         return;
       }
       state.validating = false;
@@ -745,7 +754,7 @@
       <div aria-hidden="true" style="position:absolute;left:-8px;top:30px;width:16px;height:16px;background:${TIP_BG};transform:rotate(45deg);border-radius:2px;box-shadow:-1px 1px 0 rgba(23,201,182,.12);pointer-events:none"></div>
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:7px">
         <span style="font-size:11px;font-weight:700;color:#8DD63F;background:rgba(0,155,142,.24);padding:2px 8px;border-radius:20px">${idx + 1} / ${total}</span>
-        ${resolved.source === 'none' ? '<span style="font-size:10.5px;color:#FFB199">요소 미발견</span>' : ''}
+        ${resolved.source === 'none' ? `<span style="font-size:10.5px;color:#FFB199">${i18n('elementNotFound', '요소 미발견')}</span>` : ''}
         <div style="flex:1"></div>
         <button class="parro-btn mimic-btn" data-act="hide-tooltip" title="말풍선 숨기기" style="background:transparent;color:rgba(255,255,255,.45);padding:3px 6px;font-size:12px">✕</button>
       </div>
@@ -766,7 +775,7 @@
     const restoreBtn = document.createElement('button');
     restoreBtn.className = 'parro-btn mimic-btn';
     restoreBtn.style.cssText = `position:fixed;right:16px;bottom:16px;background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;padding:8px 14px;border-radius:20px;box-shadow:0 4px 16px rgba(0,155,142,.42);pointer-events:auto;z-index:4;font-size:12px;font-weight:700;display:none;`;
-    restoreBtn.textContent = '💬 가이드 보기';
+    restoreBtn.textContent = i18n('showGuide', '💬 가이드 보기');
     restoreBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       if (!state) return;
@@ -834,14 +843,14 @@
           navigator.clipboard.writeText(String(text))
             .then(() => {
               const b = e.target;
-              b.textContent = '✓ 복사됨';
+              b.textContent = i18n('copiedCheck', '✓ 복사됨');
               try { state?.typeInputEl?.focus({ preventScroll: true }); } catch { /* noop */ }
-              setTimeout(() => { if (b.isConnected) b.textContent = '복사'; }, 1500);
+              setTimeout(() => { if (b.isConnected) b.textContent = i18n('copy', '복사'); }, 1500);
             })
             .catch(() => {
               const b = e.target;
-              b.textContent = '복사 실패';
-              setTimeout(() => { if (b.isConnected) b.textContent = '복사'; }, 1500);
+              b.textContent = i18n('copyFailed', '복사 실패');
+              setTimeout(() => { if (b.isConnected) b.textContent = i18n('copy', '복사'); }, 1500);
             });
         }
       }
@@ -882,7 +891,9 @@
           const below = outsideSafeArea && !above;
           if (above || below) {
             const sh = state.scrollHint;
-            sh.textContent = above ? '↑ 여기로 스크롤' : '↓ 여기로 스크롤';
+            sh.textContent = above
+              ? i18n('scrollUpHere', '↑ 여기로 스크롤')
+              : i18n('scrollDownHere', '↓ 여기로 스크롤');
             sh.style.top    = above ? '14px' : 'auto';
             sh.style.bottom = below ? '20px' : 'auto';
             sh.style.display = 'block';
@@ -997,10 +1008,11 @@
     const q2 = Number(getSurveyChoice('q2', '3')) || 3;
     const q3 = Number(getSurveyChoice('q3', '3')) || 3;
     const completed = getSurveyChoice('q4', 'true') !== 'false';
-    const issue = String(getSurveyChoice('issue', '막힌 단계 없음') || '막힌 단계 없음');
+    const noBlockedStep = i18n('noBlockedStep', '막힌 단계 없음');
+    const issue = String(getSurveyChoice('issue', noBlockedStep) || noBlockedStep);
     const comment = state.tooltip.querySelector('[data-survey-comment]')?.value || '';
     if (button) {
-      button.textContent = '제출 중...';
+      button.textContent = i18n('submitting', '제출 중...');
       button.disabled = true;
     }
     chrome.runtime.sendMessage({
@@ -1025,9 +1037,9 @@
       state.tooltip.innerHTML = `
         <div style="text-align:center;padding:12px 4px">
           <div style="${AVATAR_STYLE}margin:0 auto 12px;">${mascotHtml('success')}</div>
-          <div style="font-size:15px;font-weight:800;margin-bottom:6px">고마워요. 반영해둘게요.</div>
-          <div style="font-size:12.5px;color:#9CA3AF;margin-bottom:14px">Live Guide Beta를 더 정확하게 다듬는 데 사용할게요.</div>
-          <button class="parro-btn mimic-btn" data-act="exit" style="background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;padding:9px 24px;width:100%">닫기</button>
+          <div style="font-size:15px;font-weight:800;margin-bottom:6px">${i18n('surveyThanks', '고마워요. 반영해둘게요.')}</div>
+          <div style="font-size:12.5px;color:#9CA3AF;margin-bottom:14px">${i18n('surveyUseFeedback', 'Live Guide Beta를 더 정확하게 다듬는 데 사용할게요.')}</div>
+          <button class="parro-btn mimic-btn" data-act="exit" style="background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;padding:9px 24px;width:100%">${i18n('close', '닫기')}</button>
         </div>`;
     });
   }
@@ -1042,9 +1054,9 @@
     state.tooltip.innerHTML = `
       <div style="text-align:center;padding:10px 4px">
         <div style="${AVATAR_STYLE}margin:0 auto 12px;">${mascotHtml('success')}</div>
-        <div style="font-size:15px;font-weight:700;margin-bottom:6px">Live Guide Beta 완료! 🎉</div>
-        <div style="font-size:12.5px;color:#9CA3AF;margin-bottom:14px">모든 스텝을 완료했습니다.</div>
-        <button class="parro-btn mimic-btn" data-act="exit" style="background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;padding:9px 24px;width:100%">닫기</button>
+        <div style="font-size:15px;font-weight:700;margin-bottom:6px">${i18n('liveGuideComplete', 'Live Guide Beta 완료! 🎉')}</div>
+        <div style="font-size:12.5px;color:#9CA3AF;margin-bottom:14px">${i18n('allStepsComplete', '모든 스텝을 완료했습니다.')}</div>
+        <button class="parro-btn mimic-btn" data-act="exit" style="background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;padding:9px 24px;width:100%">${i18n('close', '닫기')}</button>
       </div>`;
     const survey = state.opts && state.opts.survey && state.opts.survey.enabled ? state.opts.survey : null;
     if (survey) {
@@ -1055,28 +1067,35 @@
           <div style="display:flex;gap:9px;align-items:center;margin-bottom:10px">
             <div style="${AVATAR_STYLE}width:38px;height:38px;flex-shrink:0">${mascotHtml('listen')}</div>
             <div>
-              <div style="font-size:15px;font-weight:800">Live Guide Beta는 어땠나요?</div>
-              <div style="font-size:12px;color:#6B7280;margin-top:2px">선택만 해도 충분해요.</div>
+              <div style="font-size:15px;font-weight:800">${i18n('liveGuideFeedbackTitle', 'Live Guide Beta는 어땠나요?')}</div>
+              <div style="font-size:12px;color:#6B7280;margin-top:2px">${i18n('selectionIsEnough', '선택만 해도 충분해요.')}</div>
             </div>
           </div>
           <div style="display:grid;gap:9px;font-size:12px">
-            <label style="display:grid;gap:5px;font-weight:700">1. 작업 완료에 도움이 됐나요?<div style="display:flex;gap:5px">${rating('q1')}</div></label>
-            <label style="display:grid;gap:5px;font-weight:700">2. 클릭 위치나 다음 행동 안내가 정확했나요?<div style="display:flex;gap:5px">${rating('q2')}</div></label>
-            <label style="display:grid;gap:5px;font-weight:700">3. 다음에도 쓰고 싶나요?<div style="display:flex;gap:5px">${rating('q3')}</div></label>
-            <div style="display:grid;gap:5px;font-weight:700">4. 이번 작업을 끝까지 완료했나요?
+            <label style="display:grid;gap:5px;font-weight:700">1. ${i18n('surveyHelpful', '작업 완료에 도움이 됐나요?')}<div style="display:flex;gap:5px">${rating('q1')}</div></label>
+            <label style="display:grid;gap:5px;font-weight:700">2. ${i18n('surveyAccurate', '클릭 위치나 다음 행동 안내가 정확했나요?')}<div style="display:flex;gap:5px">${rating('q2')}</div></label>
+            <label style="display:grid;gap:5px;font-weight:700">3. ${i18n('surveyUseAgain', '다음에도 쓰고 싶나요?')}<div style="display:flex;gap:5px">${rating('q3')}</div></label>
+            <div style="display:grid;gap:5px;font-weight:700">4. ${i18n('surveyCompleted', '이번 작업을 끝까지 완료했나요?')}
               <div style="display:flex;gap:6px">
-                <button class="parro-btn mimic-btn" data-act="survey-bool:q4:true" data-survey-group="q4" data-survey-value="true" aria-pressed="true" style="flex:1;background:#E8FFF7;color:#00796F;border:1px solid #009B8E">예</button>
-                <button class="parro-btn mimic-btn" data-act="survey-bool:q4:false" data-survey-group="q4" data-survey-value="false" aria-pressed="false" style="flex:1;background:white;color:#4b5563;border:1px solid #e5e7eb">아니오</button>
+                <button class="parro-btn mimic-btn" data-act="survey-bool:q4:true" data-survey-group="q4" data-survey-value="true" aria-pressed="true" style="flex:1;background:#E8FFF7;color:#00796F;border:1px solid #009B8E">${i18n('yes', '예')}</button>
+                <button class="parro-btn mimic-btn" data-act="survey-bool:q4:false" data-survey-group="q4" data-survey-value="false" aria-pressed="false" style="flex:1;background:white;color:#4b5563;border:1px solid #e5e7eb">${i18n('no', '아니오')}</button>
               </div>
             </div>
-            <div style="display:grid;gap:5px;font-weight:700">5. 가장 불편했던 점은 무엇인가요?
-              <div style="display:flex;gap:5px;flex-wrap:wrap">${['막힌 단계 없음','클릭 위치 부정확','설명 부족','화면 전환 문제','텍스트 입력 문제','완료 못함'].map((label, i) => issueBtn(label, i === 0)).join('')}</div>
+            <div style="display:grid;gap:5px;font-weight:700">5. ${i18n('surveyIssue', '가장 불편했던 점은 무엇인가요?')}
+              <div style="display:flex;gap:5px;flex-wrap:wrap">${[
+                i18n('noBlockedStep', '막힌 단계 없음'),
+                i18n('inaccurateClick', '클릭 위치 부정확'),
+                i18n('insufficientDescription', '설명 부족'),
+                i18n('screenTransitionIssue', '화면 전환 문제'),
+                i18n('textInputIssue', '텍스트 입력 문제'),
+                i18n('couldNotComplete', '완료 못함'),
+              ].map((label, i) => issueBtn(label, i === 0)).join('')}</div>
             </div>
-            <textarea data-survey-comment placeholder="더 남기고 싶은 의견이 있으면 적어주세요. (선택)" style="width:100%;min-height:58px;box-sizing:border-box;border:1px solid #e5e7eb;border-radius:8px;padding:8px;font-size:12px;font-family:inherit;resize:vertical"></textarea>
+            <textarea data-survey-comment placeholder="${i18n('surveyCommentPlaceholder', '더 남기고 싶은 의견이 있으면 적어주세요. (선택)')}" style="width:100%;min-height:58px;box-sizing:border-box;border:1px solid #e5e7eb;border-radius:8px;padding:8px;font-size:12px;font-family:inherit;resize:vertical"></textarea>
           </div>
           <div style="display:flex;gap:7px;margin-top:12px">
-            <button class="parro-btn mimic-btn" data-act="exit" style="flex:1;background:white;color:#6b7280;border:1px solid #e5e7eb;padding:9px 10px">건너뛰기</button>
-            <button class="parro-btn mimic-btn" data-act="survey-submit" style="flex:1;background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;padding:9px 10px">제출하기</button>
+            <button class="parro-btn mimic-btn" data-act="exit" style="flex:1;background:white;color:#6b7280;border:1px solid #e5e7eb;padding:9px 10px">${i18n('skip', '건너뛰기')}</button>
+            <button class="parro-btn mimic-btn" data-act="survey-submit" style="flex:1;background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;padding:9px 10px">${i18n('submit', '제출하기')}</button>
           </div>
         </div>`;
     }
@@ -1091,7 +1110,10 @@
       ...step,
       guide_mode: 'explanation',
       kind: 'none',
-      instruction: step.instruction || '이 단계의 대상 화면이 아닙니다. 필요한 화면으로 이동한 뒤 진행해주세요.',
+      instruction: step.instruction || i18n(
+        'wrongTargetScreen',
+        '이 단계의 대상 화면이 아닙니다. 필요한 화면으로 이동한 뒤 진행해주세요.',
+      ),
     }, opts);
   }
 
@@ -1162,7 +1184,10 @@
 
     const idx = opts.index ?? 0, total = opts.total ?? 1;
     const title = step.title || `Step ${idx + 1}`;
-    const text = step.instruction || '이 단계는 직접 진행한 뒤 다음을 눌러주세요.';
+    const text = step.instruction || i18n(
+      'manualStepInstruction',
+      '이 단계는 직접 진행한 뒤 다음을 눌러주세요.',
+    );
 
     const card = document.createElement('div');
     card.style.cssText = `position:fixed;right:16px;bottom:16px;width:360px;max-width:calc(100vw - 32px);max-height:calc(100vh - 32px);overflow:auto;background:${TIP_BG};color:#fff;border-radius:16px;padding:16px;box-shadow:0 18px 55px rgba(0,0,0,.48),0 0 0 1px rgba(23,201,182,.16);pointer-events:auto;z-index:2`;

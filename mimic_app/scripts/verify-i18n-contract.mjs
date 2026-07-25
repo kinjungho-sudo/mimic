@@ -1,5 +1,7 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 const layout = fs.readFileSync(new URL('../app/layout.tsx', import.meta.url), 'utf8');
 const provider = fs.readFileSync(new URL('../components/i18n/LocaleProvider.tsx', import.meta.url), 'utf8');
@@ -16,7 +18,16 @@ assert.match(translations, /'한국어': '한국어'/, 'The Korean locale option
 assert.match(translations, /'영어': 'English'/, 'The English locale option must be translated');
 assert.match(translations, /HELP_ENGLISH_TRANSLATIONS/, 'Help translations must be included');
 assert.match(translations, /LEGAL_ENGLISH_TRANSLATIONS/, 'Legal translations must be included');
+assert.match(translations, /EXTENDED_ENGLISH_TRANSLATIONS/, 'Extended UI translations must be included');
+assert.match(translations, /EXTENDED_DYNAMIC_TRANSLATIONS/, 'Dynamic UI translations must be included');
 assert.match(translations, /실제 녹화 화면/, 'Dynamic demo image alt text must be translated');
 assert.doesNotMatch(voice, /language:\s*['"]ko['"]/, 'Voice transcription must not force Korean');
+execFileSync(process.execPath, [
+  fileURLToPath(new URL('./audit-i18n-coverage.mjs', import.meta.url)),
+  '--ui-strict',
+], { stdio: 'inherit' });
+execFileSync(process.execPath, [
+  fileURLToPath(new URL('./verify-extended-i18n.mjs', import.meta.url)),
+], { stdio: 'inherit' });
 
 console.log('i18n contract verified');

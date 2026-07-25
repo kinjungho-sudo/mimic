@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { QUICK_QUESTIONS } from '@/lib/faq-data';
 import { BRAND_COPY, BRAND_NAME, BRAND_SUPPORT_EMAIL } from '@/lib/brand';
 import { PRODUCT_PLANS } from '@/lib/product-plans';
+import { type AppLocale, translateUiText } from '@/lib/i18n/ui-translations';
 
 // ── 정적 FAQ 데이터 ────────────────────────────────────────
 // Haiku API 없이 키워드 매칭으로 응답 — API 비용 0
@@ -127,13 +128,22 @@ function findAnswer(query: string): { answer: string; related: string[] } {
 
 // ── Route Handler ──────────────────────────────────────────
 
-export async function GET() {
+function localizedQuestions(locale: AppLocale) {
+  if (locale === 'ko') return QUICK_QUESTIONS;
+  return QUICK_QUESTIONS.map(question => ({
+    ...question,
+    label: translateUiText(question.label, locale),
+  }));
+}
+
+export async function GET(request: NextRequest) {
   // 클라이언트가 초기 로드 시 FAQ 목록 요청
-  return NextResponse.json({ quickQuestions: QUICK_QUESTIONS });
+  const locale = request.nextUrl.searchParams.get('locale') === 'en' ? 'en' : 'ko';
+  return NextResponse.json({ quickQuestions: localizedQuestions(locale) });
 }
 
 export async function POST(request: NextRequest) {
-  let body: { query?: string; faqId?: string };
+  let body: { query?: string; faqId?: string; locale?: AppLocale };
   try {
     body = await request.json();
   } catch {
@@ -143,10 +153,14 @@ export async function POST(request: NextRequest) {
   const query = (body.faqId ?? body.query ?? '').trim();
   if (!query) return NextResponse.json({ error: 'query required' }, { status: 400 });
 
+  const locale: AppLocale = body.locale === 'en' ? 'en' : 'ko';
   const { answer, related } = findAnswer(query);
   const relatedQuestions = related
-    .map(id => QUICK_QUESTIONS.find(q => q.id === id))
+    .map(id => localizedQuestions(locale).find(q => q.id === id))
     .filter(Boolean);
 
-  return NextResponse.json({ answer, related: relatedQuestions });
+  return NextResponse.json({
+    answer: translateUiText(answer, locale),
+    related: relatedQuestions,
+  });
 }

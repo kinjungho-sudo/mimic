@@ -1,5 +1,7 @@
 import { HELP_ENGLISH_TRANSLATIONS } from './help-translations';
 import { LEGAL_ENGLISH_TRANSLATIONS } from './legal-translations';
+import { EXTENDED_ENGLISH_TRANSLATIONS } from './extended-translations';
+import { EXTENDED_DYNAMIC_TRANSLATIONS } from './extended-dynamic-translations';
 
 export type AppLocale = 'ko' | 'en';
 
@@ -535,6 +537,7 @@ export const ENGLISH_UI_TRANSLATIONS: Record<string, string> = {
   '실제 고객 데이터가 없는 Parro 연습 페이지입니다. 연습 매뉴얼은 비공개 초안으로 저장되고 사용량에서 제외돼요.': 'This Parro practice page contains no real customer data. The practice manual is saved as a private draft and does not count toward usage.',
   '녹화 시작 후 연습 페이지 탭으로 이동': 'After recording starts, switch to the practice page tab',
   '버튼 클릭과 연습 문구 입력': 'Click the button and enter the practice text',
+  '연습 문구 입력': 'Enter practice text',
   'Recorder에서 잠시 멈춤·실행 취소·완료 사용': 'Use pause, undo, and finish in Recorder',
   '연습 녹화 시작': 'Start practice recording',
   '탭 검색...': 'Search tabs...',
@@ -1078,6 +1081,7 @@ export const ENGLISH_UI_TRANSLATIONS: Record<string, string> = {
   'Parro AI 가이드 — 위치 안내 중': 'Parro AI Guide — showing the target',
   '주민등록등본(초본) 선택 실제 녹화 화면': 'Actual recording screen for selecting a resident registration certificate',
   '← 돌아가기': '← Back',
+  ...EXTENDED_ENGLISH_TRANSLATIONS,
   ...HELP_ENGLISH_TRANSLATIONS,
   ...LEGAL_ENGLISH_TRANSLATIONS,
 };
@@ -1129,6 +1133,11 @@ export function translateUiText(value: string, locale: AppLocale): string {
   for (const [pattern, replacement] of DYNAMIC_TRANSLATIONS) {
     const match = normalized.match(pattern);
     if (match) return `${leading}${replacement(...match.slice(1))}${trailing}`;
+  }
+  for (const [pattern, replacement] of EXTENDED_DYNAMIC_TRANSLATIONS) {
+    if (pattern.test(normalized)) {
+      return `${leading}${normalized.replace(pattern, replacement)}${trailing}`;
+    }
   }
 
   return value;

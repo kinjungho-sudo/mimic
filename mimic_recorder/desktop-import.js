@@ -4,6 +4,14 @@
   if (root) root.ParroDesktopImport = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
+  const i18n = (key, fallback, substitutions = []) => {
+    const translated = typeof chrome !== 'undefined'
+      ? chrome.i18n?.getMessage(key, substitutions)
+      : '';
+    if (translated) return translated;
+    let index = 0;
+    return fallback.replace(/\$[A-Z0-9_]+\$/g, () => String(substitutions[index++] ?? ''));
+  };
 
   function clamp01(value) {
     return Math.max(0, Math.min(1, Number(value) || 0));
@@ -63,7 +71,7 @@
     const automationId = String(uiElement?.automation_id || '').trim().slice(0, 160);
     const controlType = String(uiElement?.control_type || '').trim().slice(0, 80);
     const manual = event?.event_type === 'manual';
-    const contextLabel = windowTitle || processName || 'Windows 데스크톱';
+    const contextLabel = windowTitle || processName || i18n('windowsDesktop', 'Windows 데스크톱');
     const measuredRect = manual ? null : automationRect(uiElement, screen, width, height);
     return {
       url: `https://desktop.parro.local/${encodeURIComponent(processName || 'windows')}`,
@@ -80,7 +88,9 @@
       elementXPath: null,
       actionInfo: {
         type: manual ? 'navigate' : 'click',
-        label: manual ? `${contextLabel} 화면 확인` : (targetName || contextLabel),
+        label: manual
+          ? i18n('reviewScreen', '$CONTEXT$ 화면 확인', [contextLabel])
+          : (targetName || contextLabel),
         tag: 'desktop',
         role: controlType ? controlType.toLowerCase() : 'application',
         targetContext: {

@@ -2,6 +2,8 @@
 // 웹스토어 배포본(고정 ID)=운영 / 개발자 언패킹(다른 ID)=dev.
 // chrome.runtime.id로 자동 구분 → 배포본이 실수로 dev를 가리킬 위험 없음.
 importScripts('desktop-import.js', 'desktop-bridge.js', 'pre-capture-buffer.js');
+const i18n = (key, fallback, substitutions) =>
+  chrome.i18n.getMessage(key, substitutions) || fallback;
 
 const PROD_EXTENSION_IDS = new Set([
   'lefkpmfgdbhckcemfghpegleknaepekm', // replacement listing under review
@@ -289,7 +291,7 @@ function requestLiveTargetPick(tabId, timeoutMs = LIVE_TARGET_PICK_RESPONSE_TIME
       finish({
         ok: false,
         reason: 'timeout',
-        error: '대상 선택 응답이 지연되었습니다. 대상 탭을 새로고침한 뒤 다시 시도해주세요.',
+        error: i18n('targetResponseDelayed', '대상 선택 응답이 지연되었습니다. 대상 탭을 새로고침한 뒤 다시 시도해주세요.'),
       });
     }, timeoutMs);
 
@@ -299,11 +301,15 @@ function requestLiveTargetPick(tabId, timeoutMs = LIVE_TARGET_PICK_RESPONSE_TIME
         finish({
           ok: false,
           reason: 'content_script_unreachable',
-          error: `대상 탭의 Parro 연결이 끊어졌습니다. 탭을 새로고침한 뒤 다시 시도해주세요. (${error})`,
+          error: i18n(
+            'targetConnectionLost',
+            '대상 탭의 Parro 연결이 끊어졌습니다. 탭을 새로고침한 뒤 다시 시도해주세요. ($ERROR$)',
+            [error],
+          ),
         });
         return;
       }
-      finish(response || { ok: false, reason: 'empty_response', error: '대상 선택 응답이 없습니다.' });
+      finish(response || { ok: false, reason: 'empty_response', error: i18n('noTargetResponse', '대상 선택 응답이 없습니다.') });
     });
   });
 }
@@ -330,7 +336,7 @@ async function startDisplayStream(tabId) {
   // → 웹앱 원격 시작 구조에선 불가. desktopCapture로 picker를 띄워 사용자가 직접 선택.
   const streamId = await new Promise((resolve, reject) => {
     chrome.desktopCapture.chooseDesktopMedia(['tab', 'window', 'screen'], (id) => {
-      if (!id) reject(new Error('사용자가 화면 공유를 취소했습니다'));
+      if (!id) reject(new Error(i18n('screenShareCancelled', '사용자가 화면 공유를 취소했습니다')));
       else resolve(id);
     });
   });
@@ -439,11 +445,11 @@ async function discardVoiceRecording() {
 let _voiceStep = null;  // 현재 녹음 중인 스텝 번호
 
 async function startStepVoice(stepNumber) {
-  if (_audioActive) return { ok: false, error: '이미 녹음 중입니다' };
+  if (_audioActive) return { ok: false, error: i18n('alreadyRecordingAudio', '이미 녹음 중입니다') };
   try {
     await ensureOffscreen();
     const res = await chrome.runtime.sendMessage({ target: 'offscreen', type: 'START_AUDIO' });
-    if (!res?.ok) return { ok: false, error: res?.error || '마이크 시작 실패' };
+    if (!res?.ok) return { ok: false, error: res?.error || i18n('micStartFailed', '마이크 시작 실패') };
     _audioActive = true;
     _voiceStep   = stepNumber;
     return { ok: true };
@@ -467,7 +473,7 @@ async function stopStepVoice() {
   }
   if (!_streamActive) await chrome.offscreen.closeDocument().catch(() => {});
 
-  if (!dataUrl || stepNum == null) return { ok: false, error: '녹음 데이터 없음' };
+  if (!dataUrl || stepNum == null) return { ok: false, error: i18n('noRecordingData', '녹음 데이터 없음') };
   try {
     const { sessionId, steps } = await storageGet(['sessionId', 'steps']);
     const blob = await (await fetch(dataUrl)).blob();
@@ -523,7 +529,11 @@ async function ensureContentScript(tabId) {
     return {
       ok: false,
       reason: 'content_script_failed',
-      error: `Parro가 대상 탭에 연결할 수 없습니다. 페이지를 새로고침하거나 일반 웹페이지에서 다시 시도해주세요. (${injection.error})`,
+      error: i18n(
+        'cannotConnectTarget',
+        'Parro가 대상 탭에 연결할 수 없습니다. 페이지를 새로고침하거나 일반 웹페이지에서 다시 시도해주세요. ($ERROR$)',
+        [injection.error],
+      ),
     };
   }
 
@@ -539,7 +549,7 @@ async function ensureContentScript(tabId) {
   return {
     ok: false,
     reason: 'content_script_not_ready',
-    error: 'Parro 연결 준비가 완료되지 않았습니다. 대상 탭을 새로고침한 뒤 다시 시도해주세요.',
+    error: i18n('connectionNotReady', 'Parro 연결 준비가 완료되지 않았습니다. 대상 탭을 새로고침한 뒤 다시 시도해주세요.'),
   };
 }
 
@@ -548,9 +558,13 @@ function classifyRecordableUrl(url) {
   try {
     const parsed = new URL(url);
     if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return { ok: true };
-    return { ok: false, reason: 'unsupported_url', message: `${parsed.protocol} 페이지는 녹화할 수 없습니다.` };
+    return {
+      ok: false,
+      reason: 'unsupported_url',
+      message: i18n('protocolNotRecordable', '$PROTOCOL$ 페이지는 녹화할 수 없습니다.', [parsed.protocol]),
+    };
   } catch {
-    return { ok: false, reason: 'unsupported_url', message: '지원하지 않는 탭 주소입니다.' };
+    return { ok: false, reason: 'unsupported_url', message: i18n('unsupportedTabUrl', '지원하지 않는 탭 주소입니다.') };
   }
 }
 
@@ -1009,7 +1023,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
       if (t.windowId) _tabWindowIdCache.set(t.id, t.windowId);
       return {
         id: t.id,
-        title: t.title || (url ? url : '브라우저 탭'),
+        title: t.title || (url ? url : i18n('browserTab', '브라우저 탭')),
         url,
         favIconUrl: typeof t.favIconUrl === 'string' ? t.favIconUrl : '',
         urlAccess: Boolean(url),
@@ -1049,7 +1063,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
           ? await chrome.tabs.get(requestedTabId).catch(() => null)
           : (await chrome.tabs.query({ active: true, currentWindow: true }))[0];
         if (!tab?.id) {
-          sendResponse({ ok: false, reason: 'tab_not_found', error: '선택한 대상 탭을 찾지 못했습니다.' });
+          sendResponse({ ok: false, reason: 'tab_not_found', error: i18n('targetTabNotFound', '선택한 대상 탭을 찾지 못했습니다.') });
           return;
         }
 
@@ -1061,7 +1075,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 
         const injection = await ensureContentScript(tab.id);
         if (!injection?.ok) {
-          sendResponse({ ok: false, reason: 'content_script_failed', error: injection?.error || 'Recorder를 대상 탭에 연결하지 못했습니다.' });
+          sendResponse({ ok: false, reason: 'content_script_failed', error: injection?.error || i18n('recorderConnectionFailed', 'Recorder를 대상 탭에 연결하지 못했습니다.') });
           return;
         }
 
@@ -1113,7 +1127,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         ok: true,
         tab: {
           id: tab.id,
-          title: tab.title || 'Parro 연습 페이지',
+          title: tab.title || i18n('parroPracticePage', 'Parro 연습 페이지'),
           url: practiceUrl.toString(),
           favIconUrl: tab.favIconUrl,
           urlAccess: true,
@@ -1126,7 +1140,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
   if (message.action === 'START_RECORDING') {
     const tabId = message.tabId;
     if (!tabId) {
-      sendResponse({ ok: false, reason: 'missing_tab', message: '녹화할 탭을 찾지 못했습니다.' });
+      sendResponse({ ok: false, reason: 'missing_tab', message: i18n('recordingTabNotFound', '녹화할 탭을 찾지 못했습니다.') });
       return false;
     }
 
@@ -1165,7 +1179,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         res(chrome.runtime.lastError ? null : t);
       }));
       if (!tab) {
-        sendResponse({ ok: false, reason: 'tab_not_found', message: '선택한 탭을 찾지 못했습니다.' });
+        sendResponse({ ok: false, reason: 'tab_not_found', message: i18n('selectedTabNotFound', '선택한 탭을 찾지 못했습니다.') });
         return;
       }
       const initialUrlCheck = classifyRecordableUrl(tab.url || message.url || '');
@@ -1189,7 +1203,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         res(chrome.runtime.lastError ? null : t);
       }));
       if (!freshTab) {
-        sendResponse({ ok: false, reason: 'tab_not_found', message: '선택한 탭을 다시 확인하지 못했습니다.' });
+        sendResponse({ ok: false, reason: 'tab_not_found', message: i18n('selectedTabRecheckFailed', '선택한 탭을 다시 확인하지 못했습니다.') });
         return;
       }
       const freshUrlCheck = classifyRecordableUrl(freshTab.url || message.url || '');
@@ -1216,7 +1230,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         sendResponse({
           ok: false,
           reason: 'content_script_failed',
-          message: injection?.error || '선택한 페이지에 녹화 스크립트를 주입하지 못했습니다.',
+          message: injection?.error || i18n('recordingScriptInjectionFailed', '선택한 페이지에 녹화 스크립트를 주입하지 못했습니다.'),
         });
         return;
       }
@@ -1234,7 +1248,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         sendResponse({
           ok: false,
           reason: 'content_script_unreachable',
-          message: sent?.error || '선택한 페이지가 녹화 시작 메시지에 응답하지 않았습니다.',
+          message: sent?.error || i18n('recordingStartNoResponse', '선택한 페이지가 녹화 시작 메시지에 응답하지 않았습니다.'),
         });
         return;
       }
@@ -1730,11 +1744,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'FULL_PAGE_CAPTURE') {
     (async () => {
       const { isRecording } = await storageGet('isRecording');
-      if (isRecording) { sendResponse({ ok: false, error: '녹화 중에는 사용할 수 없습니다' }); return; }
+      if (isRecording) { sendResponse({ ok: false, error: i18n('unavailableWhileRecording', '녹화 중에는 사용할 수 없습니다') }); return; }
 
       const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
       const tab  = tabs.find(t => t.url?.startsWith('http://') || t.url?.startsWith('https://'));
-      if (!tab?.id) { sendResponse({ ok: false, error: '캡처 가능한 탭이 없습니다 (http/https 페이지에서 사용)' }); return; }
+      if (!tab?.id) { sendResponse({ ok: false, error: i18n('noCapturableTab', '캡처 가능한 탭이 없습니다 (http/https 페이지에서 사용)') }); return; }
 
       const dataUrl = await captureFullPage(tab);
 
@@ -1747,7 +1761,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ ok: true });
     })().catch((err) => {
       log('error', 'bg', 'full page capture error:', err.message);
-      sendResponse({ ok: false, error: '캡처 실패 — 페이지를 확인해주세요' });
+      sendResponse({ ok: false, error: i18n('captureFailedCheckPage', '캡처 실패 — 페이지를 확인해주세요') });
     });
     return true;
   }
@@ -2291,7 +2305,7 @@ async function captureFullPage(tab) {
       originalY: window.scrollY,
     }),
   });
-  if (!m || !m.viewportH) throw new Error('페이지 정보를 읽을 수 없습니다');
+  if (!m || !m.viewportH) throw new Error(i18n('pageInfoUnavailable', '페이지 정보를 읽을 수 없습니다'));
 
   const totalH   = Math.max(m.viewportH, Math.min(m.scrollHeight, FULLPAGE_MAX_HEIGHT_PX));
   const segments = Math.ceil(totalH / m.viewportH);
@@ -2340,7 +2354,7 @@ async function captureFullPage(tab) {
           resolve(chrome.runtime.lastError ? null : u);
         });
       });
-      if (!url) throw new Error(`조각 ${i + 1}/${segments} 캡처 실패`);
+      if (!url) throw new Error(i18n('segmentCaptureFailed', '조각 $CURRENT$/$TOTAL$ 캡처 실패', [String(i + 1), String(segments)]));
       parts.push({ y, url });
     }
   } finally {
@@ -2654,25 +2668,27 @@ function makeActionLabel(actionInfo, stepNum, domainInfo) {
 
   if (type === 'navigate') {
     const dest = (label && !label.startsWith('/') && !label.startsWith('http')) ? label : (domainInfo?.name || domainInfo?.hostname || '');
-    return dest ? `이동, ${dest.slice(0, 30)}` : '페이지 이동';
+    return dest
+      ? i18n('navigateTo', '이동, $DESTINATION$', [dest.slice(0, 30)])
+      : i18n('pageNavigation', '페이지 이동');
   }
 
   const name = (label || text || '').trim().slice(0, 30);
   switch (type) {
-    case 'click':       return name ? `클릭, ${name}` : '클릭';
-    case 'toggle':      return name ? `선택, ${name}` : '선택';
-    case 'select':      return name ? `선택, ${name}` : '드롭다운 선택';
-    case 'focus_input': return name ? `입력, ${name}` : '입력 필드';
+    case 'click':       return name ? i18n('clickTarget', '클릭, $TARGET$', [name]) : i18n('click', '클릭');
+    case 'toggle':      return name ? i18n('selectTarget', '선택, $TARGET$', [name]) : i18n('select', '선택');
+    case 'select':      return name ? i18n('selectTarget', '선택, $TARGET$', [name]) : i18n('dropdownSelect', '드롭다운 선택');
+    case 'focus_input': return name ? i18n('inputWithLabel', '입력, $LABEL$', [name]) : i18n('inputField', '입력 필드');
     case 'type': {
-      if (actionInfo.masked) return '비밀번호 입력';
+      if (actionInfo.masked) return i18n('passwordInput', '비밀번호 입력');
       // 입력 내용 우선 — 짧으면 '입력, "내용"', 길면 앞부분 프리뷰 + 총 글자수.
       const typed = (actionInfo.typedText || '').trim().replace(/\s+/g, ' ');
       if (typed) {
         return typed.length <= TYPED_LABEL_MAX
-          ? `입력, "${typed}"`
-          : `입력, "${typed.slice(0, 40)}…" (총 ${typed.length}자)`;
+          ? i18n('inputText', '입력, "$TEXT$"', [typed])
+          : i18n('inputTextLength', '입력, "$TEXT$…" (총 $COUNT$자)', [typed.slice(0, 40), String(typed.length)]);
       }
-      return name ? `입력, ${name}` : '텍스트 입력';
+      return name ? i18n('inputWithLabel', '입력, $LABEL$', [name]) : i18n('textInput', '텍스트 입력');
     }
     default:            return name ? name : `Step ${stepNum}`;
   }
@@ -2819,8 +2835,11 @@ async function processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base
           screenshotUrl: null,
           clickX: null,
           clickY: null,
-          title: actionLabel || '수동으로 진행할 단계',
-          description: '자동 캡처를 저장하지 못한 단계입니다. 실제 화면에서 필요한 작업을 완료한 뒤 다음을 눌러주세요.',
+          title: actionLabel || i18n('manualStep', '수동으로 진행할 단계'),
+          description: i18n(
+            'manualCaptureFallback',
+            '자동 캡처를 저장하지 못한 단계입니다. 실제 화면에서 필요한 작업을 완료한 뒤 다음을 눌러주세요.',
+          ),
           url: stepData.url,
           domainInfo,
           viewportW: stepData.viewportW ?? stepData.windowWidth ?? null,

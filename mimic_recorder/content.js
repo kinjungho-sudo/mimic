@@ -4,6 +4,8 @@
   if (window.__parroContentLoaded || window.__mimicContentLoaded) return;
   window.__parroContentLoaded = true;
   window.__mimicContentLoaded = true;
+  const i18n = (key, fallback, substitutions) =>
+    chrome.i18n.getMessage(key, substitutions) || fallback;
 
   // iframe editors need typing capture; visual guide UI stays in the top frame.
   const IS_TOP_FRAME = window === window.top;
@@ -326,15 +328,15 @@
 
   function semanticFieldLabel(value) {
     const text = String(value || '').replace(/\s+/g, ' ').trim();
-    if (/댓글|답글|comment|reply/i.test(text)) return '댓글 내용';
-    if (/게시물|새\s*소식|새로운\s*소식|post|thread/i.test(text)) return '게시물 내용';
-    if (/검색|search/i.test(text)) return '검색어';
-    if (/메일|메시지|message|mail/i.test(text)) return '메시지 내용';
-    return '입력 내용';
+    if (/댓글|답글|comment|reply/i.test(text)) return i18n('commentContent', '댓글 내용');
+    if (/게시물|새\s*소식|새로운\s*소식|post|thread/i.test(text)) return i18n('postContent', '게시물 내용');
+    if (/검색|search/i.test(text)) return i18n('searchTerm', '검색어');
+    if (/메일|메시지|message|mail/i.test(text)) return i18n('messageContent', '메시지 내용');
+    return i18n('inputContent', '입력 내용');
   }
 
   function getFieldLabel(el) {
-    if (document.designMode === 'on' && el === document.body) return '본문';
+    if (document.designMode === 'on' && el === document.body) return i18n('bodyContent', '본문');
     if (el.id) {
       const label = document.querySelector(`label[for="${CSS.escape(el.id)}"]`);
       if (label) {
@@ -357,7 +359,7 @@
     const concise = candidates.find(value => value && !isInstructionalAccessibilityLabel(value));
     if (concise) return concise.trim().slice(0, 60);
     if (ariaLabel) return semanticFieldLabel(ariaLabel);
-    return '입력 내용';
+    return i18n('inputContent', '입력 내용');
   }
 
   // ── PII 블러 ──────────────────────────────────────────────────────
@@ -715,7 +717,9 @@
     const dot = document.createElement('span');
     dot.style.cssText = 'width:8px;height:8px;border-radius:50%;background:#EF4444;flex-shrink:0;animation:parro-blink 1s infinite';
     const badgeText = document.createElement('span');
-    badgeText.textContent = opts && opts.label ? opts.label : '화면 녹화가 시작됩니다';
+    badgeText.textContent = opts && opts.label
+      ? opts.label
+      : i18n('screenRecordingStarting', '화면 녹화가 시작됩니다');
     badge.append(dot, badgeText);
 
     const numEl = document.createElement('div');
@@ -804,7 +808,7 @@
       const pending = _pendingGuideOverlay;
       _pendingGuideOverlay = null;
       if (pending) renderLiveGuideOverlay(pending);
-    }, { label: 'Live Guide Beta가 시작됩니다', accentColor: '#17C9B6', startText: 'START' });
+    }, { label: i18n('liveGuideStarting', 'Live Guide Beta가 시작됩니다'), accentColor: '#17C9B6', startText: 'START' });
   }
 
   // ── 메시지 수신 ──────────────────────────────────────────────────
@@ -900,7 +904,7 @@
 
     if (msg.type === 'SHOW_GUIDE_COUNTDOWN') {
       if (!IS_TOP_FRAME) { sendResponse({ ok: true }); return false; }
-      showCountdown(() => {}, { label: 'Live Guide Beta가 시작됩니다', accentColor: '#17C9B6', startText: 'START' });
+      showCountdown(() => {}, { label: i18n('liveGuideStarting', 'Live Guide Beta가 시작됩니다'), accentColor: '#17C9B6', startText: 'START' });
       sendResponse({ ok: true });
       return false;
     }
@@ -943,7 +947,7 @@
     const banner = document.createElement('div');
     banner.id = 'parro-live-target-picker';
     banner.dataset.parroLiveTargetPicker = 'true';
-    banner.textContent = 'Parro: 라이브 가이드 대상을 클릭하세요';
+    banner.textContent = i18n('clickLiveGuideTarget', 'Parro: 라이브 가이드 대상을 클릭하세요');
     Object.assign(banner.style, {
       position: 'fixed',
       top: '16px',
@@ -978,7 +982,7 @@
     const cancelPick = () => finish({
       ok: false,
       reason: 'cancelled',
-      error: '대상 선택이 취소되었습니다.',
+      error: i18n('targetSelectionCancelled', '대상 선택이 취소되었습니다.'),
     });
     cancelActiveLiveTargetPick = cancelPick;
 
@@ -1019,7 +1023,11 @@
     }
 
     document.addEventListener('pointerdown', onPointerDown, true);
-    timeoutId = setTimeout(() => finish({ ok: false, reason: 'timeout', error: '대상 선택 시간이 초과되었습니다.' }), 30000);
+    timeoutId = setTimeout(() => finish({
+      ok: false,
+      reason: 'timeout',
+      error: i18n('targetSelectionTimedOut', '대상 선택 시간이 초과되었습니다.'),
+    }), 30000);
   }
 
   const targetDecisionByElement = new WeakMap();
@@ -1296,7 +1304,7 @@
     if (ownLabel && !isGenericLabel(ownLabel)) return ownLabel;
     if (clickedLabel && !isGenericLabel(clickedLabel)) return clickedLabel;
     if (isGoogleFileAreaGeneric(ownLabel) || isGoogleFileAreaGeneric(clickedLabel)) {
-      return getGoogleFileTitle() || '파일명 영역';
+      return getGoogleFileTitle() || i18n('filenameArea', '파일명 영역');
     }
     return getGoogleFileTitle() || ownLabel || clickedLabel || '';
   }
@@ -1721,9 +1729,9 @@
         elementRect: null, elementSelector: null,
         actionInfo: {
           type: 'click',
-          label: '화면 클릭',
+          label: i18n('screenClick', '화면 클릭'),
           tag: clickedEl.tagName.toLowerCase(),
-          labelDebug: { chosenLabel: '화면 클릭', rawText: null, ariaLabel: null, title: null, role: null, selector: null, fallbackReason: 'blank-click' },
+          labelDebug: { chosenLabel: i18n('screenClick', '화면 클릭'), rawText: null, ariaLabel: null, title: null, role: null, selector: null, fallbackReason: 'blank-click' },
           targetContext: buildPointContext(topClick.quality),
         },
       }, () => { clearTimeout(safetyTimer); isCapturing = false; });
@@ -1824,7 +1832,7 @@
     const downloadAttr    = target.getAttribute('download');
     const isDownloadLink  = target.tagName.toLowerCase() === 'a' && downloadAttr !== null;
     if (isDownloadLink) {
-      const fileName = downloadAttr || href.split('/').pop().split('?')[0] || '파일';
+      const fileName = downloadAttr || href.split('/').pop().split('?')[0] || i18n('file', '파일');
       showFileHighlight(fileName);
     }
 
@@ -2064,7 +2072,7 @@
             clickX: 0, clickY: 0,
             windowWidth: vw, windowHeight: vh,
             manual: true,
-            actionInfo: { type: 'click', label: '클립보드 붙여넣기 캡처' },
+            actionInfo: { type: 'click', label: i18n('clipboardPasteCapture', '클립보드 붙여넣기 캡처') },
           },
         }, () => { void chrome.runtime.lastError; isCapturing = false; });
       };

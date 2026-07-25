@@ -220,14 +220,14 @@ settingVoiceRecord?.addEventListener('change', async () => {
     _userIsPro = !!(plan && plan.isPro);
     if (!_userIsPro) {
       settingVoiceRecord.checked = false;
-      showToast('캡처별 음성 메모는 PRO 플랜 기능입니다', 3500);
+      showToast(t('voiceMemoProOnly', '캡처별 음성 메모는 PRO 플랜 기능입니다'), 3500);
       return;
     }
     // 마이크 권한 확보
     const ok = await ensureMicPermission();
     if (!ok) {
       settingVoiceRecord.checked = false;
-      showToast('마이크 권한이 필요합니다 — 열린 창에서 허용해주세요', 3500);
+      showToast(t('micPermissionWindow', '마이크 권한이 필요합니다 — 열린 창에서 허용해주세요'), 3500);
       saveSettings();
       return;
     }
@@ -455,7 +455,9 @@ function getStepDisplayLabel(step, num) {
   const info = step.actionInfo || {};
   if (info.type === 'type' || info.type === 'focus_input' || step.typedText) {
     const label = (info.label || info.text || '').trim();
-    return label && !label.startsWith('\uC785\uB825, "') ? `\uC785\uB825, ${label}` : '\uC785\uB825';
+    return label && !label.startsWith('\uC785\uB825, "')
+      ? t('inputWithLabel', '입력, $LABEL$', [label])
+      : t('input', '입력');
   }
   return step.actionLabel || step.title || `Step ${num}`;
 }
@@ -521,7 +523,7 @@ function buildStepCard(step, num) {
 
   const thumbPlaceholder = document.createElement('div');
   thumbPlaceholder.className = 'step-thumb-placeholder';
-  thumbPlaceholder.textContent = '로딩 중...';
+  thumbPlaceholder.textContent = t('loading', '로딩 중...');
 
   // ── 클릭포인트 + 하이라이트 오버레이 ─────────────────────────
   const thumbOverlay = document.createElement('div');
@@ -555,7 +557,7 @@ function buildStepCard(step, num) {
 
   const delBtn = document.createElement('button');
   delBtn.className = 'step-delete';
-  delBtn.title = '이 스텝 삭제';
+  delBtn.title = t('deleteStep', '이 스텝 삭제');
   delBtn.textContent = '✕';
   delBtn.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -576,7 +578,9 @@ function buildStepVoiceButton(step) {
   const btn = document.createElement('button');
   btn.dataset.recording = '0';
   const hasVoice = !!step.voiceAudioUrl;
-  btn.textContent = hasVoice ? '🎙 음성 메모 ✓ (다시 녹음)' : '🎙 음성 메모 녹음';
+  btn.textContent = hasVoice
+    ? t('voiceMemoRerecord', '🎙 음성 메모 ✓ (다시 녹음)')
+    : t('recordVoiceMemo', '🎙 음성 메모 녹음');
   btn.style.cssText = [
     'margin-top:6px', 'width:100%', 'padding:7px',
     'border:1px solid #BFEDE7', 'border-radius:8px',
@@ -586,36 +590,38 @@ function buildStepVoiceButton(step) {
 
   btn.addEventListener('click', async (e) => {
     e.stopPropagation();
-    if (!_userIsPro) { showToast('음성 메모는 PRO 플랜 기능입니다', 3000); return; }
+    if (!_userIsPro) { showToast(t('voiceMemoProOnly', '음성 메모는 PRO 플랜 기능입니다'), 3000); return; }
 
     if (btn.dataset.recording === '1') {
       // 정지
       btn.dataset.recording = '0';
-      btn.textContent = '⏳ 저장 중…';
+      btn.textContent = t('saving', '⏳ 저장 중…');
       btn.disabled = true;
       chrome.runtime.sendMessage({ type: 'STOP_STEP_VOICE' }, (res) => {
         void chrome.runtime.lastError;
         btn.disabled = false;
         btn.style.background = '#E8FFF7'; btn.style.color = '#009B8E'; btn.style.borderColor = '#BFEDE7';
-        btn.textContent = res?.ok ? '🎙 음성 메모 ✓ (다시 녹음)' : '🎙 음성 메모 녹음';
-        showToast(res?.ok ? '음성 메모 저장됨 ✓' : (res?.error || '저장 실패'), 2500);
+        btn.textContent = res?.ok
+          ? t('voiceMemoRerecord', '🎙 음성 메모 ✓ (다시 녹음)')
+          : t('recordVoiceMemo', '🎙 음성 메모 녹음');
+        showToast(res?.ok ? t('voiceMemoSaved', '음성 메모 저장됨 ✓') : (res?.error || t('saveFailed', '저장 실패')), 2500);
       });
       return;
     }
 
     // 시작 — 권한 확보 후 녹음
     const ok = await ensureMicPermission();
-    if (!ok) { showToast('마이크 권한이 필요합니다', 3000); return; }
+    if (!ok) { showToast(t('micRequiredShort', '마이크 권한이 필요합니다'), 3000); return; }
     btn.dataset.recording = '1';
-    btn.textContent = '⏺ 녹음 중… (정지)';
+    btn.textContent = t('recordingStop', '⏺ 녹음 중… (정지)');
     btn.style.background = '#fef2f2'; btn.style.color = '#dc2626'; btn.style.borderColor = '#fecaca';
     chrome.runtime.sendMessage({ type: 'START_STEP_VOICE', stepNumber: step.stepNumber }, (res) => {
       void chrome.runtime.lastError;
       if (!res?.ok) {
         btn.dataset.recording = '0';
-        btn.textContent = '🎙 음성 메모 녹음';
+        btn.textContent = t('recordVoiceMemo', '🎙 음성 메모 녹음');
         btn.style.background = '#E8FFF7'; btn.style.color = '#009B8E'; btn.style.borderColor = '#BFEDE7';
-        showToast(res?.error || '마이크 시작 실패', 3000);
+        showToast(res?.error || t('micStartFailed', '마이크 시작 실패'), 3000);
       }
     });
   });
@@ -681,10 +687,10 @@ async function loadThumb(step, imgEl, placeholder, overlayEl) {
         }
       }
     } else {
-      placeholder.textContent = '이미지 없음';
+      placeholder.textContent = t('noImage', '이미지 없음');
     }
   } catch {
-    placeholder.textContent = '이미지 없음';
+    placeholder.textContent = t('noImage', '이미지 없음');
   }
 }
 
@@ -990,7 +996,7 @@ function startBlurMode(step, zoomImg, originalBlob) {
   const blurBtn = document.getElementById('thumbZoomBlur');
   if (blurBtn) blurBtn.classList.add('active');
 
-  showToast('드래그로 블러할 영역을 선택하세요  (Esc: 취소)', 4000);
+  showToast(t('selectBlurArea', '드래그로 블러할 영역을 선택하세요 (Esc: 취소)'), 4000);
 
   const sel = document.createElement('div');
   sel.style.cssText = [
@@ -1050,7 +1056,7 @@ function startBlurMode(step, zoomImg, originalBlob) {
     const rh = Math.abs(e.clientY - startY) / imgRect.height;
 
     cleanup();
-    if (rw < 0.01 || rh < 0.01) { showToast('영역이 너무 작습니다'); return; }
+    if (rw < 0.01 || rh < 0.01) { showToast(t('areaTooSmall', '영역이 너무 작습니다')); return; }
 
     const region = {
       x: Math.max(0, rx), y: Math.max(0, ry),
@@ -1058,14 +1064,14 @@ function startBlurMode(step, zoomImg, originalBlob) {
       h: Math.min(1 - Math.max(0, ry), rh),
     };
 
-    showToast('블러 처리 중...');
+    showToast(t('applyingBlur', '블러 처리 중...'));
     chrome.runtime.sendMessage({
       type: 'APPLY_BLUR',
       stepNumber: step.stepNumber,
       region,
     }, async (res) => {
       void chrome.runtime.lastError;
-      if (!res?.ok) { showToast('블러 처리 실패'); return; }
+      if (!res?.ok) { showToast(t('blurFailed', '블러 처리 실패')); return; }
 
       const newBlob = await idbGetScreenshot(step.stepNumber);
       if (newBlob) {
@@ -1082,13 +1088,13 @@ function startBlurMode(step, zoomImg, originalBlob) {
           if (cardImg) cardImg.src = newSrc;
         }
       }
-      showToast('블러 처리 완료 ✓');
+      showToast(t('blurComplete', '블러 처리 완료 ✓'));
     });
   }
 
   function onKeyDown(e) {
     if (e.key === 'Escape') {
-      dragging = false; sel.style.display = 'none'; cleanup(); showToast('취소됨');
+      dragging = false; sel.style.display = 'none'; cleanup(); showToast(t('cancelled', '취소됨'));
     }
   }
 
@@ -1175,9 +1181,9 @@ function showBlockedBanner() {
     borderBottom: '1px solid #FECACA',
   });
   const strong = document.createElement('strong');
-  strong.textContent = '이 페이지는 녹화를 차단하고 있습니다.';
+  strong.textContent = t('pageBlocksRecording', '이 페이지는 녹화를 차단하고 있습니다.');
   const br = document.createElement('br');
-  const sub = document.createTextNode('일반 웹페이지(http/https)로 이동한 후 다시 시도해 주세요.');
+  const sub = document.createTextNode(t('useRegularWebpage', '일반 웹페이지(http/https)로 이동한 후 다시 시도해 주세요.'));
   banner.append(strong, br, sub);
   document.body.insertBefore(banner, document.body.firstChild);
 }
@@ -1230,12 +1236,12 @@ btnStart.addEventListener('click', () => startRecording());
 const btnFullPage = document.getElementById('btnFullPage');
 btnFullPage?.addEventListener('click', () => {
   btnFullPage.disabled = true;
-  showToast('전체 페이지 캡처 중... 탭을 조작하지 마세요', 60000);
+  showToast(t('fullPageCapturing', '전체 페이지 캡처 중... 탭을 조작하지 마세요'), 60000);
   chrome.runtime.sendMessage({ type: 'FULL_PAGE_CAPTURE' }, (res) => {
     void chrome.runtime.lastError;
     btnFullPage.disabled = false;
-    if (res?.ok) showToast('전체 페이지 캡처 완료 — 다운로드됨 ✓', 3000);
-    else showToast(res?.error || '캡처 실패', 3000);
+    if (res?.ok) showToast(t('fullPageCaptured', '전체 페이지 캡처 완료 — 다운로드됨 ✓'), 3000);
+    else showToast(res?.error || t('captureFailed', '캡처 실패'), 3000);
   });
 });
 
@@ -1254,7 +1260,7 @@ function triggerManualCapture() {
   chrome.runtime.sendMessage({ type: 'MANUAL_CAPTURE' }, (res) => {
     void chrome.runtime.lastError;
     if (btnSnapBottom) btnSnapBottom.disabled = false;
-    if (!res?.ok) showToast('캡처 실패 — 페이지를 확인해주세요');
+    if (!res?.ok) showToast(t('captureFailedCheckPage', '캡처 실패 — 페이지를 확인해주세요'));
   });
 }
 
@@ -1268,7 +1274,7 @@ btnUndo.addEventListener('click', () => {
 // ── 블러 도구 — 마지막 스텝 이미지를 줌 오버레이에 열고 블러 모드 진입 ─
 btnBlurTool?.addEventListener('click', async () => {
   const { steps } = await storageGet('steps');
-  if (!steps || steps.length === 0) { showToast('블러할 스텝이 없습니다'); return; }
+  if (!steps || steps.length === 0) { showToast(t('noStepsToBlur', '블러할 스텝이 없습니다')); return; }
   const lastStep = steps[steps.length - 1];
 
   const zoomOverlay = document.getElementById('thumbZoomOverlay');
@@ -1287,7 +1293,7 @@ btnBlurTool?.addEventListener('click', async () => {
     zoomImg.src = lastStep.imageUrl;
     zoomOverlay.dataset.imageUrl = lastStep.imageUrl;
   } else {
-    showToast('이미지를 불러올 수 없습니다'); return;
+    showToast(t('imageLoadFailed', '이미지를 불러올 수 없습니다')); return;
   }
   zoomOverlay._step = lastStep;
   zoomOverlay._blob = blob;
@@ -1480,7 +1486,7 @@ chrome.runtime.onMessage.addListener((msg) => {
 
   // 업로드 실패 — 사용자에게 토스트 알림
   if (msg.type === 'UPLOAD_FAILED') {
-    showToast('이미지 업로드 실패 — 다시 시도해주세요', 3500);
+    showToast(t('imageUploadFailed', '이미지 업로드 실패 — 다시 시도해주세요'), 3500);
     return;
   }
 
@@ -1518,12 +1524,12 @@ chrome.runtime.onMessage.addListener((msg) => {
   }
   if (labelEl) {
     if (masked) {
-      labelEl.textContent = '비밀번호 입력 중...';
+      labelEl.textContent = t('typingPassword', '비밀번호 입력 중...');
     } else {
-      const fieldName = label || '텍스트';
+      const fieldName = label || t('textField', '텍스트');
       labelEl.textContent = value
         ? `${fieldName}: ${value.slice(0, 28)}${value.length > 28 ? '…' : ''}`
-        : `${fieldName} 입력 중...`;
+        : t('typingField', '$FIELD$ 입력 중...', [fieldName]);
     }
   }
 });
@@ -1566,7 +1572,7 @@ async function handleManualImage(blob) {
         windowWidth:  stepData.windowWidth  || 1280,
         windowHeight: stepData.windowHeight || 800,
         manual:       true,
-        actionInfo:   { type: 'click', label: '수동 캡처 (차단된 페이지)' },
+        actionInfo:   { type: 'click', label: t('manualCaptureBlockedPage', '수동 캡처 (차단된 페이지)') },
       },
     }, () => { void chrome.runtime.lastError; });
   };
@@ -1593,9 +1599,9 @@ document.getElementById('blockedPasteBtn')?.addEventListener('click', async () =
       }
     }
     // 클립보드에 이미지가 없으면 안내
-    alert('클립보드에 이미지가 없습니다.\nWin+Shift+S 또는 PrtSc로 스크린샷을 찍은 후 시도하세요.');
+    alert(t('clipboardNoImage', '클립보드에 이미지가 없습니다.\nWin+Shift+S 또는 PrtSc로 스크린샷을 찍은 후 시도하세요.'));
   } catch {
-    alert('클립보드 접근 권한이 필요합니다.\n이미지 파일을 직접 업로드해 주세요.');
+    alert(t('clipboardPermissionRequired', '클립보드 접근 권한이 필요합니다.\n이미지 파일을 직접 업로드해 주세요.'));
   }
 });
 
@@ -1781,7 +1787,11 @@ function renderGuideStep(steps, idx) {
       opacity: canOpen ? '1' : '0.65',
     });
     dot.textContent = skipped ? '↷' : (done || completed) ? '✓' : i + 1;
-    dot.title = skipped ? `${i + 1}단계: 건너뜀` : canOpen ? `${i + 1}단계 보기` : '앞 단계부터 진행하세요';
+    dot.title = skipped
+      ? t('stepSkipped', '$STEP$단계: 건너뜀', [String(i + 1)])
+      : canOpen
+        ? t('viewStep', '$STEP$단계 보기', [String(i + 1)])
+        : t('completePreviousSteps', '앞 단계부터 진행하세요');
     if (canOpen) {
       dot.addEventListener('click', () => {
         guideCurrentStep = i;
@@ -1942,7 +1952,7 @@ function renderDebugLogs(logs) {
   if (logs.length === 0) {
     const empty = document.createElement('div');
     empty.style.cssText = 'color:#666;font-size:11px;padding:8px 0;';
-    empty.textContent = '로그 없음';
+    empty.textContent = t('noLogs', '로그 없음');
     debugLogList.appendChild(empty);
     return;
   }
@@ -1984,8 +1994,8 @@ if (btnDebugCopy) btnDebugCopy.addEventListener('click', () => {
     const logs = r?.logs || [];
     const text = logs.map(e => `[${new Date(e.t).toISOString()}][${e.level.toUpperCase()}][${e.source}] ${e.msg}`).join('\n');
     navigator.clipboard.writeText(text).then(() => {
-      btnDebugCopy.textContent = '복사됨!';
-      setTimeout(() => { btnDebugCopy.textContent = '복사'; }, 1500);
+      btnDebugCopy.textContent = t('copied', '복사됨!');
+      setTimeout(() => { btnDebugCopy.textContent = t('copy', '복사'); }, 1500);
     });
   });
 });
