@@ -98,8 +98,6 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [targetMissing, setTargetMissing] = useState(false);
   const [extensionState, setExtensionState] = useState('unknown');
-  const [practiceDecision, setPracticeDecision] = useState<string | null>(null);
-  const [deletingPractice, setDeletingPractice] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const tooltipRef = useRef<HTMLDivElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
@@ -233,27 +231,16 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
       return;
     }
     if (await moveToStep(next)) {
-      if (['home-create-options', 'home-web-recording'].includes(next.id)) {
+      if (next.id === 'home-blank-manual') {
         window.dispatchEvent(new Event('parro:open-create-menu'));
-      }
-      if (currentStep.id === 'home-web-recording') {
-        window.setTimeout(() => {
-          window.dispatchEvent(new Event('parro:onboarding-select-web-recording'));
-        }, 0);
       }
       emitEvent('step_complete', currentStep.id);
     }
   }, [currentStep.id, emitEvent, finishAndShowCompletion, mobileTour, moveToStep]);
 
   const handleNext = useCallback(() => {
-    if (['recording-setup', 'recording-start'].includes(currentStep.id)) {
-      window.dispatchEvent(new CustomEvent('parro:onboarding-next', {
-        detail: { stepId: currentStep.id },
-      }));
-      return;
-    }
     void goNext();
-  }, [currentStep.id, goNext]);
+  }, [goNext]);
 
   const goBack = useCallback(async () => {
     const previous = getPreviousOnboardingStep(currentStep.id, mobileTour);
@@ -317,7 +304,7 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
     if (
       active
       && pathname === '/home'
-      && ['home-create-options', 'home-web-recording'].includes(currentStep.id)
+      && currentStep.id === 'home-blank-manual'
     ) {
       window.dispatchEvent(new Event('parro:open-create-menu'));
     }
@@ -362,16 +349,6 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
       window.clearInterval(timer);
     };
   }, [active, currentStep.route, pathname]);
-
-  useEffect(() => {
-    if (
-      active
-      && pathname.startsWith('/manual/')
-      && currentStep.id === 'practice-finish'
-    ) {
-      signal('editor-opened');
-    }
-  }, [active, currentStep.id, pathname, signal]);
 
   useEffect(() => {
     if (!active || completionOpen || viewedStepRef.current === currentStep.id) return;
@@ -489,23 +466,6 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
     if ((welcomeOpen || active) && tooltipRef.current) tooltipRef.current.focus();
   }, [active, currentStep.id, welcomeOpen]);
 
-  const deletePracticeManual = useCallback(async () => {
-    if (!progress?.practice_manual_id || deletingPractice) return;
-    if (!window.confirm('연습 매뉴얼을 휴지통으로 이동할까요? 이 작업은 휴지통에서 복구할 수 있어요.')) return;
-    setDeletingPractice(true);
-    try {
-      const response = await fetch(`/api/tutorials/${progress.practice_manual_id}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error('delete_failed');
-      const next = await requestProgress({ action: 'clear_practice_manual' });
-      if (next) setProgress(next);
-      setPracticeDecision('연습 매뉴얼을 휴지통으로 이동했어요.');
-    } catch {
-      setPracticeDecision('삭제하지 못했어요. 잠시 후 다시 시도해주세요.');
-    } finally {
-      setDeletingPractice(false);
-    }
-  }, [deletingPractice, progress?.practice_manual_id]);
-
   const contextValue = useMemo<ParroOnboardingContextValue>(() => ({
     isActive: active,
     currentStepId: active ? currentStep.id : null,
@@ -545,9 +505,9 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
           >
             <span className="parro-onboarding-eyebrow">PARRO LIVE GUIDE</span>
             <h2 id="parro-onboarding-welcome-title">30초 만에 Parro 익히기</h2>
-            <p>첫 매뉴얼 만들기부터 편집, 공유 방식까지 실제 화면에서 차근차근 안내해드릴게요.</p>
+            <p>새 매뉴얼을 하나 만들고 제목과 내용을 작성하는 위치만 빠르게 안내해드릴게요.</p>
             <div className="parro-onboarding-notice">
-              모바일에서는 기능 둘러보기를 제공하고, 실제 녹화 연습은 PC Chrome에서 이어갈 수 있어요.
+              Recorder 설치나 녹화 연습 없이 바로 시작할 수 있어요.
             </div>
             {saveError && <p className="parro-onboarding-save-error" role="alert">{saveError}</p>}
             <button className="parro-onboarding-primary" disabled={!welcomeReady} onClick={() => void startGuide(false)}>
@@ -614,10 +574,10 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
               <span style={{ width: `${percent}%` }} />
             </div>
             <h2 id="parro-onboarding-step-title">
-              {completionOpen ? 'Parro 시작 준비가 끝났어요' : currentStep.title}
+              {completionOpen ? '새 매뉴얼 만들기를 익혔어요' : currentStep.title}
             </h2>
             <p>{completionOpen
-              ? '첫 완료가 저장됐어요. 홈과 도움말에서 언제든 Live Guide를 처음부터 다시 볼 수 있습니다.'
+              ? '안내가 끝났어요. 홈과 도움말에서 언제든 Live Guide를 다시 볼 수 있습니다.'
               : currentStep.body}</p>
             {saveError && <p className="parro-onboarding-save-error" role="alert">{saveError}</p>}
 
@@ -639,61 +599,23 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
             )}
 
             {completionOpen ? (
-              <>
-                {progress?.practice_manual_id && (
-                  <div className="parro-onboarding-practice-decision">
-                    <strong>연습 매뉴얼을 어떻게 할까요?</strong>
-                    <span>자동으로 삭제하지 않아요. 보관하거나 직접 휴지통으로 보낼 수 있어요.</span>
-                    <div>
-                      <button onClick={() => setPracticeDecision('연습 매뉴얼을 보관했어요.')}>보관</button>
-                      <button onClick={() => void deletePracticeManual()} disabled={deletingPractice}>
-                        {deletingPractice ? '이동 중…' : '휴지통으로 이동'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-                {practiceDecision && <p className="parro-onboarding-decision-message">{practiceDecision}</p>}
-                <div className="parro-onboarding-complete-actions">
-                  <button
-                    className="parro-onboarding-primary"
-                    onClick={() => {
-                      setActive(false);
-                      window.sessionStorage.setItem('parro-open-create-menu', '1');
-                      router.push('/home');
-                    }}
-                  >
-                    내 매뉴얼 만들기
-                  </button>
-                  {progress?.practice_manual_id && (
-                    <button
-                      className="parro-onboarding-secondary"
-                      onClick={() => {
-                        setActive(false);
-                        router.push(`/manual/${progress.practice_manual_id}/editor`);
-                      }}
-                    >
-                      연습 매뉴얼 열기
-                    </button>
-                  )}
-                  <button className="parro-onboarding-secondary" onClick={() => void startReplay()}>
-                    처음부터 다시 보기
-                  </button>
-                  <button className="parro-onboarding-secondary" onClick={() => void closeGuide()}>
-                    닫기
-                  </button>
-                </div>
-              </>
+              <div className="parro-onboarding-complete-actions">
+                <button className="parro-onboarding-primary" onClick={() => void closeGuide()}>
+                  완료
+                </button>
+                <button className="parro-onboarding-secondary" onClick={() => void startReplay()}>
+                  처음부터 다시 보기
+                </button>
+              </div>
             ) : (
               <div className="parro-onboarding-navigation">
                 <button onClick={() => void goBack()} disabled={!getPreviousOnboardingStep(currentStep.id, mobileTour)}>
                   이전
                 </button>
                 <span>{percent}%</span>
-                {currentStep.id === 'practice-finish' ? (
-                  <button disabled>Recorder에서 완료하면 자동 진행</button>
-                ) : (
-                  <button className="is-primary" onClick={handleNext}>다음</button>
-                )}
+                <button className="is-primary" onClick={handleNext}>
+                  {getNextOnboardingStep(currentStep.id, mobileTour)?.id === 'complete' ? '완료' : '다음'}
+                </button>
               </div>
             )}
           </div>
