@@ -102,7 +102,9 @@ check(() => assert.match(migration, /practice_capture_token uuid/));
 check(() => assert.match(migration, /practice_capture_consumed_at timestamptz/));
 
 const api = readApp('app', 'api', 'user', 'onboarding', 'route.ts');
-check(() => assert.match(api, /eligible_for_auto_prompt: !progress && contentCount === 0/));
+check(() => assert.match(api, /process\.env\.VERCEL_ENV !== 'production'/));
+check(() => assert.match(api, /automatic_onboarding_enabled: automaticOnboardingEnabled/));
+check(() => assert.match(api, /eligible_for_auto_prompt: automaticOnboardingEnabled && !progress && contentCount === 0/));
 check(() => assert.match(api, /mm_tutorials/));
 check(() => assert.match(api, /mm_pages/));
 check(() => assert.match(api, /mm_manuals/));
@@ -126,6 +128,7 @@ check(() => assert.match(provider, /MutationObserver/));
 check(() => assert.match(provider, /prefers-reduced-motion/));
 check(() => assert.match(provider, /window\.confirm/));
 check(() => assert.match(provider, /Live Guide 시작/));
+check(() => assert.match(provider, /data\.automatic_onboarding_enabled && data\.progress\?\.status === 'in_progress'/));
 check(() => assert.match(provider, /30초 만에 Parro 익히기/));
 check(() => assert.doesNotMatch(provider, /3분 만에 Parro 익히기/));
 check(() => assert.doesNotMatch(provider, /이 단계 건너뛰기/));

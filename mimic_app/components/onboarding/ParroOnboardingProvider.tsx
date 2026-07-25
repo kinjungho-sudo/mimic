@@ -26,6 +26,7 @@ import {
 
 type OnboardingApiResponse = {
   progress: ParroOnboardingProgress | null;
+  automatic_onboarding_enabled: boolean;
   eligible_for_auto_prompt: boolean;
 };
 
@@ -178,7 +179,7 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      if (data.progress?.status === 'in_progress') {
+      if (data.automatic_onboarding_enabled && data.progress?.status === 'in_progress') {
         activateProgress(data.progress);
         emitEvent('resume', data.progress.current_step);
         return;

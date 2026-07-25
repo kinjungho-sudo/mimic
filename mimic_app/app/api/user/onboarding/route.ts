@@ -56,6 +56,7 @@ export async function GET(request: NextRequest) {
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
 
+  const automaticOnboardingEnabled = process.env.VERCEL_ENV !== 'production';
   const supabase = createServiceRoleClient();
   let results;
   try {
@@ -90,7 +91,8 @@ export async function GET(request: NextRequest) {
     guide_key: PARRO_ONBOARDING_KEY,
     guide_version: PARRO_ONBOARDING_VERSION,
     progress,
-    eligible_for_auto_prompt: !progress && contentCount === 0,
+    automatic_onboarding_enabled: automaticOnboardingEnabled,
+    eligible_for_auto_prompt: automaticOnboardingEnabled && !progress && contentCount === 0,
   });
 }
 
