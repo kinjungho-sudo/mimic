@@ -23,6 +23,7 @@ const patchSchema = z.discriminatedUnion('action', [
   }),
   z.object({ action: z.literal('complete') }),
   z.object({ action: z.literal('dismiss') }),
+  z.object({ action: z.literal('dismiss_active') }),
   z.object({ action: z.literal('clear_practice_manual') }),
 ]);
 
@@ -153,6 +154,12 @@ export async function PATCH(request: NextRequest) {
       values = existing
         ? { status: 'dismissed', dismissed_at: now }
         : { ...key, status: 'dismissed', dismissed_at: now, run_count: 0 };
+      break;
+    case 'dismiss_active':
+      if (!existing || existing.status !== 'in_progress') {
+        return NextResponse.json({ progress: existing });
+      }
+      values = { status: 'dismissed', dismissed_at: now };
       break;
     case 'clear_practice_manual':
       if (!existing) {

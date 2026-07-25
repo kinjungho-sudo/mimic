@@ -108,10 +108,18 @@ check(() => assert.match(api, /mm_pages/));
 check(() => assert.match(api, /mm_manuals/));
 check(() => assert.match(api, /buildOnboardingStartPatch/));
 check(() => assert.match(api, /buildOnboardingCompletionPatch/));
+check(() => assert.match(api, /action: z\.literal\('dismiss_active'\)/));
+check(() => assert.match(api, /existing\.status !== 'in_progress'/));
 check(() => assert.match(api, /clear_practice_manual/));
 check(() => assert.match(api, /mm_onboarding_events/));
 check(() => assert.match(api, /if \(error\) throw error/));
 check(() => assert.match(api, /Onboarding storage unavailable/));
+
+const authClient = readApp('lib', 'auth', 'auth-client.ts');
+check(() => assert.match(authClient, /body: JSON\.stringify\(\{ action: 'dismiss_active' \}\)/));
+check(() => assert.ok(
+  authClient.indexOf("action: 'dismiss_active'") < authClient.indexOf('supabase.auth.signOut()'),
+));
 
 const provider = readApp('components', 'onboarding', 'ParroOnboardingProvider.tsx');
 check(() => assert.match(provider, /MutationObserver/));

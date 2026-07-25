@@ -63,6 +63,12 @@ export async function signUpWithEmail(
 }
 
 export async function signOut(): Promise<void> {
+  await fetch('/api/user/onboarding', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'dismiss_active' }),
+  }).catch(() => undefined);
+
   const supabase = createClient();
   await supabase.auth.signOut();
 }
