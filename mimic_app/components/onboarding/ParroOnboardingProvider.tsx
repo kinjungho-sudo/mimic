@@ -233,12 +233,27 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
       return;
     }
     if (await moveToStep(next)) {
-      if (next.id === 'home-web-recording') {
+      if (['home-create-options', 'home-web-recording'].includes(next.id)) {
         window.dispatchEvent(new Event('parro:open-create-menu'));
+      }
+      if (currentStep.id === 'home-web-recording') {
+        window.setTimeout(() => {
+          window.dispatchEvent(new Event('parro:onboarding-select-web-recording'));
+        }, 0);
       }
       emitEvent('step_complete', currentStep.id);
     }
   }, [currentStep.id, emitEvent, finishAndShowCompletion, mobileTour, moveToStep]);
+
+  const handleNext = useCallback(() => {
+    if (['recording-setup', 'recording-start'].includes(currentStep.id)) {
+      window.dispatchEvent(new CustomEvent('parro:onboarding-next', {
+        detail: { stepId: currentStep.id },
+      }));
+      return;
+    }
+    void goNext();
+  }, [currentStep.id, goNext]);
 
   const goBack = useCallback(async () => {
     const previous = getPreviousOnboardingStep(currentStep.id, mobileTour);
@@ -299,7 +314,11 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
   }, [signal]);
 
   useEffect(() => {
-    if (active && pathname === '/home' && currentStep.id === 'home-web-recording') {
+    if (
+      active
+      && pathname === '/home'
+      && ['home-create-options', 'home-web-recording'].includes(currentStep.id)
+    ) {
       window.dispatchEvent(new Event('parro:open-create-menu'));
     }
   }, [active, currentStep.id, pathname]);
@@ -401,17 +420,6 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
       }
       return target.isContentEditable && (target.textContent ?? '').trim().length > 0;
     };
-    const inputChangeListener = (event: Event) => {
-      if (
-        currentStep.advanceOn === 'target-input'
-        && target
-        && event.target instanceof Node
-        && target.contains(event.target)
-        && hasInputValue()
-      ) {
-        window.setTimeout(() => void goNext(), 100);
-      }
-    };
     const inputKeyListener = (event: KeyboardEvent) => {
       if (
         currentStep.advanceOn === 'target-input'
@@ -432,7 +440,6 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
     window.addEventListener('resize', updateRect);
     window.addEventListener('scroll', updateRect, true);
     document.addEventListener('click', clickListener, true);
-    document.addEventListener('change', inputChangeListener, true);
     document.addEventListener('keydown', inputKeyListener, true);
     missingTimer = setTimeout(() => {
       if (!target) {
@@ -451,7 +458,6 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('resize', updateRect);
       window.removeEventListener('scroll', updateRect, true);
       document.removeEventListener('click', clickListener, true);
-      document.removeEventListener('change', inputChangeListener, true);
       document.removeEventListener('keydown', inputKeyListener, true);
     };
   }, [active, completionOpen, currentStep.advanceOn, currentStep.id, currentStep.target, emitEvent, goNext]);
@@ -538,7 +544,7 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
             tabIndex={-1}
           >
             <span className="parro-onboarding-eyebrow">PARRO LIVE GUIDE</span>
-            <h2 id="parro-onboarding-welcome-title">3분 만에 Parro 익히기</h2>
+            <h2 id="parro-onboarding-welcome-title">30초 만에 Parro 익히기</h2>
             <p>첫 매뉴얼 만들기부터 편집, 공유 방식까지 실제 화면에서 차근차근 안내해드릴게요.</p>
             <div className="parro-onboarding-notice">
               모바일에서는 기능 둘러보기를 제공하고, 실제 녹화 연습은 PC Chrome에서 이어갈 수 있어요.
@@ -597,7 +603,14 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
               <span>{completionOpen ? '완료' : `${percent}%`}</span>
               <button aria-label="Live Guide 닫기" onClick={() => void closeGuide()}>×</button>
             </div>
-            <div className="parro-onboarding-progress-track" aria-label={`진행률 ${percent}%`}>
+            <div
+              className="parro-onboarding-progress-track"
+              role="progressbar"
+              aria-label="Live Guide 진행률"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={percent}
+            >
               <span style={{ width: `${percent}%` }} />
             </div>
             <h2 id="parro-onboarding-step-title">
@@ -610,7 +623,7 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
 
             {targetMissing && !completionOpen && (
               <div className="parro-onboarding-recovery" role="status">
-                안내할 화면 요소를 아직 찾지 못했어요. 화면이 열린 뒤 다시 찾거나 다음 단계로 이동할 수 있어요.
+                안내할 화면 요소를 아직 찾지 못했어요. 필요한 화면을 다시 연 뒤 이어갈 수 있어요.
                 {['recording-setup', 'recording-start'].includes(currentStep.id) ? (
                   <button onClick={() => window.dispatchEvent(new Event('parro:onboarding-open-recorder'))}>
                     Recorder 준비 다시 열기
@@ -676,10 +689,10 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
                   이전
                 </button>
                 <span>{percent}%</span>
-                {currentStep.advanceOn === 'signal' ? (
-                  <button onClick={() => void goNext()}>이 단계 건너뛰기</button>
+                {currentStep.id === 'practice-finish' ? (
+                  <button disabled>Recorder에서 완료하면 자동 진행</button>
                 ) : (
-                  <button className="is-primary" onClick={() => void goNext()}>다음</button>
+                  <button className="is-primary" onClick={handleNext}>다음</button>
                 )}
               </div>
             )}

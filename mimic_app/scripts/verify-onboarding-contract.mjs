@@ -38,6 +38,14 @@ check(() => assert.equal(
   DESKTOP_ONBOARDING_STEPS.find(step => step.id === 'practice-input')?.advanceOn,
   'target-input',
 ));
+check(() => assert.equal(
+  DESKTOP_ONBOARDING_STEPS.find(step => step.id === 'home-create')?.advanceOn,
+  undefined,
+));
+check(() => assert.equal(
+  DESKTOP_ONBOARDING_STEPS.find(step => step.id === 'home-web-recording')?.advanceOn,
+  undefined,
+));
 check(() => assert.ok(
   DESKTOP_ONBOARDING_STEPS.find(step => step.id === 'practice-finish')?.sidePanelHint,
 ));
@@ -116,14 +124,20 @@ check(() => assert.match(provider, /MutationObserver/));
 check(() => assert.match(provider, /prefers-reduced-motion/));
 check(() => assert.match(provider, /window\.confirm/));
 check(() => assert.match(provider, /Live Guide 시작/));
+check(() => assert.match(provider, /30초 만에 Parro 익히기/));
+check(() => assert.doesNotMatch(provider, /3분 만에 Parro 익히기/));
+check(() => assert.doesNotMatch(provider, /이 단계 건너뛰기/));
+check(() => assert.match(provider, /Recorder에서 완료하면 자동 진행/));
 check(() => assert.match(provider, /나중에 하기/));
 check(() => assert.match(provider, /내 매뉴얼 만들기/));
 check(() => assert.match(provider, /연습 매뉴얼 열기/));
 check(() => assert.match(provider, /처음부터 다시 보기/));
 check(() => assert.match(provider, /휴지통으로 이동/));
 check(() => assert.match(provider, /completionOpen \? 100/));
+check(() => assert.match(provider, /aria-valuenow=\{percent\}/));
 check(() => assert.match(provider, /currentStep\.advanceOn === 'target-input'/));
 check(() => assert.match(provider, /event\.key === 'Enter'/));
+check(() => assert.doesNotMatch(provider, /inputChangeListener/));
 check(() => assert.match(provider, /eventTarget\.isContentEditable/));
 check(() => assert.match(provider, /parro-onboarding-side-panel-hint/));
 check(() => assert.doesNotMatch(provider, /setTimeout\(\(\) => setActive\(false\)/));
@@ -136,9 +150,12 @@ check(() => assert.match(home, /data-parro-guide="home-create-menu"/));
 check(() => assert.match(home, /data-parro-guide="home-web-recording"/));
 check(() => assert.match(home, /window\.addEventListener\('parro:open-create-menu', openCreateMenu\)/));
 check(() => assert.match(home, /onboardingMode=/));
+check(() => assert.match(home, /disabled=\{onboardingCreateLocked\}/));
+check(() => assert.match(home, /parro:onboarding-select-web-recording/));
 
 check(() => assert.match(provider, /window\.dispatchEvent\(new Event\('parro:open-create-menu'\)\)/));
 check(() => assert.match(provider, /currentStep\.id === 'home-web-recording'/));
+check(() => assert.match(provider, /parro:onboarding-next/));
 
 const help = readApp('app', 'help', 'page.tsx');
 check(() => assert.match(help, /Live Guide로 다시 보기/));
@@ -165,6 +182,8 @@ check(() => assert.match(recordingModal, /target="_blank"/));
 check(() => assert.doesNotMatch(recordingModal, /window\.location\.href = STORE_URL/));
 check(() => assert.match(recordingModal, /data-parro-guide="recording-setup"/));
 check(() => assert.match(recordingModal, /data-parro-guide="recording-start"/));
+check(() => assert.match(recordingModal, /data-parro-guide=\{onboardingMode \? 'recording-setup'/));
+check(() => assert.match(recordingModal, /parro:onboarding-next/));
 
 const background = readRepo('mimic_recorder', 'background.js');
 check(() => assert.match(background, /message\.action === 'OPEN_ONBOARDING_PRACTICE'/));

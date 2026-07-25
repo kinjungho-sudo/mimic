@@ -393,6 +393,20 @@ export function RecordingModal({
     onClose();
   }, [onboardingMode, onboardingToken, onClose, onOnboardingSignal, selectedTab]);
 
+  useEffect(() => {
+    if (!onboardingMode) return;
+    const handleOnboardingNext = (event: Event) => {
+      const stepId = (event as CustomEvent<{ stepId?: string }>).detail?.stepId;
+      if (stepId === 'recording-setup') {
+        void enterOnboardingPractice();
+      } else if (stepId === 'recording-start') {
+        void handleStart();
+      }
+    };
+    window.addEventListener('parro:onboarding-next', handleOnboardingNext);
+    return () => window.removeEventListener('parro:onboarding-next', handleOnboardingNext);
+  }, [enterOnboardingPractice, handleStart, onboardingMode]);
+
   const filteredTabs = tabs.filter(t =>
     t.title.toLowerCase().includes(search.toLowerCase()) ||
     (t.url || '').toLowerCase().includes(search.toLowerCase())
@@ -414,6 +428,7 @@ export function RecordingModal({
       <div
         role="dialog"
         aria-modal="true"
+        data-parro-guide={onboardingMode ? 'recording-setup' : undefined}
         style={{
           position: 'fixed', top: '50%', left: '50%',
           transform: 'translate(-50%, -50%)',

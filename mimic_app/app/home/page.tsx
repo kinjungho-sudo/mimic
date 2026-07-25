@@ -857,6 +857,8 @@ export default function DashboardPage() {
   const [recordingModalMode, setRecordingModalMode] = useState<'select' | 'web'>('select');
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [creating, setCreating] = useState(false);
+  const onboardingCreateLocked = onboarding.isActive
+    && ['home-create', 'home-create-options', 'home-web-recording'].includes(onboarding.currentStepId ?? '');
 
   // 워크스페이스 생성
   const [showNewWsInput, setShowNewWsInput] = useState(false);
@@ -909,6 +911,16 @@ export default function DashboardPage() {
     };
     window.addEventListener('parro:onboarding-open-recorder', reopenRecorder);
     return () => window.removeEventListener('parro:onboarding-open-recorder', reopenRecorder);
+  }, []);
+
+  useEffect(() => {
+    const selectWebRecording = () => {
+      setShowNewMenu(false);
+      setRecordingModalMode('web');
+      setShowRecordingModal(true);
+    };
+    window.addEventListener('parro:onboarding-select-web-recording', selectWebRecording);
+    return () => window.removeEventListener('parro:onboarding-select-web-recording', selectWebRecording);
   }, []);
 
   const newMenuRef = useRef<HTMLDivElement>(null);
@@ -1586,8 +1598,10 @@ export default function DashboardPage() {
                         <div><div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '2px' }}>웹 페이지 녹화</div><div style={{ fontSize: '11.5px', color: '#6B7280' }}>Chrome 탭을 선택해 매뉴얼 생성</div></div>
                       </button>
                       <button data-parro-guide="home-desktop-recording" onClick={() => { void handleDesktopCapture('new-menu'); }}
-                        style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', width: '100%', padding: '13px 15px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left' }}
-                        onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                        disabled={onboardingCreateLocked}
+                        aria-describedby={onboardingCreateLocked ? 'onboarding-create-limit' : undefined}
+                        style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', width: '100%', padding: '13px 15px', border: 'none', background: 'none', cursor: onboardingCreateLocked ? 'not-allowed' : 'pointer', textAlign: 'left', opacity: onboardingCreateLocked ? 0.48 : 1 }}
+                        onMouseEnter={e => { if (!onboardingCreateLocked) e.currentTarget.style.background = '#F9FAFB'; }} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
                         <span style={{ width: '30px', height: '30px', borderRadius: '8px', background: '#E0F2FE', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0369A1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
                         </span>
@@ -1607,21 +1621,30 @@ export default function DashboardPage() {
                       </div>
                       <div className="home-recording-divider" style={{ height: '1px', background: '#F3F4F6', margin: '0 12px' }} />
                       <button data-parro-guide="home-blank-manual" onClick={handleCreateBlank}
-                        style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', width: '100%', padding: '13px 15px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left' }}
-                        onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                        disabled={onboardingCreateLocked}
+                        aria-describedby={onboardingCreateLocked ? 'onboarding-create-limit' : undefined}
+                        style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', width: '100%', padding: '13px 15px', border: 'none', background: 'none', cursor: onboardingCreateLocked ? 'not-allowed' : 'pointer', textAlign: 'left', opacity: onboardingCreateLocked ? 0.48 : 1 }}
+                        onMouseEnter={e => { if (!onboardingCreateLocked) e.currentTarget.style.background = '#F9FAFB'; }} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
                         <span style={{ width: '30px', height: '30px', borderRadius: '8px', background: BRAND_PRIMARY_SOFT, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={BRAND_COLORS.primary} strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="12" x2="12" y2="18"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
                         </span>
                         <div><div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '2px' }}>새 매뉴얼 직접 작성</div><div style={{ fontSize: '11.5px', color: '#6B7280' }}>빈 매뉴얼에서 제목과 단계를 직접 작성</div></div>
                       </button>
                       <button data-parro-guide="home-playbook" onClick={handleCreateGuidebook}
-                        style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', width: '100%', padding: '13px 15px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left' }}
-                        onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                        disabled={onboardingCreateLocked}
+                        aria-describedby={onboardingCreateLocked ? 'onboarding-create-limit' : undefined}
+                        style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', width: '100%', padding: '13px 15px', border: 'none', background: 'none', cursor: onboardingCreateLocked ? 'not-allowed' : 'pointer', textAlign: 'left', opacity: onboardingCreateLocked ? 0.48 : 1 }}
+                        onMouseEnter={e => { if (!onboardingCreateLocked) e.currentTarget.style.background = '#F9FAFB'; }} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
                         <span style={{ width: '30px', height: '30px', borderRadius: '8px', background: '#dcfce7', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
                         </span>
                         <div><div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '2px' }}>새 플레이북(통합 문서)</div><div style={{ fontSize: '11.5px', color: '#6B7280' }}>여러 매뉴얼을 한 문서로</div></div>
                       </button>
+                      {onboardingCreateLocked && (
+                        <p id="onboarding-create-limit" style={{ margin: 0, padding: '9px 15px 11px', background: '#EEF2FF', color: '#4338CA', fontSize: '11.5px', lineHeight: 1.5 }}>
+                          이번 연습에서는 웹 페이지 녹화만 선택할 수 있어요.
+                        </p>
+                      )}
                     </div>
                   )}
                   </div>

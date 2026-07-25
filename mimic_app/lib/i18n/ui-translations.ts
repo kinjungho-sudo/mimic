@@ -568,7 +568,7 @@ export const ENGLISH_UI_TRANSLATIONS: Record<string, string> = {
   '연습 매뉴얼을 휴지통으로 이동할까요? 이 작업은 휴지통에서 복구할 수 있어요.': 'Move the practice manual to Trash? You can restore it from Trash.',
   '연습 매뉴얼을 휴지통으로 이동했어요.': 'The practice manual was moved to Trash.',
   '삭제하지 못했어요. 잠시 후 다시 시도해주세요.': 'Could not delete it. Try again in a moment.',
-  '3분 만에 Parro 익히기': 'Learn Parro in 3 minutes',
+  '30초 만에 Parro 익히기': 'Learn Parro in 30 seconds',
   '첫 매뉴얼 만들기부터 편집, 공유 방식까지 실제 화면에서 차근차근 안내해드릴게요.': 'We’ll guide you through creating, editing, and sharing your first manual in the actual interface.',
   '모바일에서는 기능 둘러보기를 제공하고, 실제 녹화 연습은 PC Chrome에서 이어갈 수 있어요.': 'On mobile, you can explore the features and continue the recording practice in Chrome on a PC.',
   'Live Guide 시작': 'Start Live Guide',
