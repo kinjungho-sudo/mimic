@@ -3,12 +3,15 @@ import http from 'node:http';
 
 import {
   createOwnedRecorderProfile,
+  isOwnedRecorderExtensionFixture,
   isOwnedRecorderProfile,
   launchIsolatedRecorder,
   removeOwnedRecorderProfile,
 } from './recorder-profile-harness.mjs';
 
 const profileDir = createOwnedRecorderProfile();
+const extensionFixturePath = process.env.PARRO_RECORDER_EXTENSION_PATH || null;
+const expectedVersion = process.env.PARRO_RECORDER_EXPECTED_VERSION || null;
 const allowedPorts = [3000, 3001];
 
 let context = null;
@@ -139,11 +142,23 @@ try {
   check(() => {
     assert.equal(isOwnedRecorderProfile(profileDir), true);
   });
+  if (extensionFixturePath) {
+    check(() => {
+      assert.equal(
+        isOwnedRecorderExtensionFixture(extensionFixturePath),
+        true,
+        'PARRO_RECORDER_EXTENSION_PATH must be an owned temporary extension fixture',
+      );
+    });
+  }
 
   const fixture = await listenOnAllowedPort();
   fixtureServer = fixture.server;
 
-  const recorder = await launchIsolatedRecorder(profileDir);
+  const recorder = await launchIsolatedRecorder(
+    profileDir,
+    extensionFixturePath ? { extensionPath: extensionFixturePath } : {},
+  );
   context = recorder.context;
   const worker = recorder.worker;
   extensionId = recorder.extensionId;
@@ -156,11 +171,20 @@ try {
   check(() => {
     assert.match(manifest.name, /^Parro Recorder/);
     assert.equal(manifest.side_panel?.default_path, 'popup.html');
+    if (expectedVersion) assert.equal(manifest.version, expectedVersion);
   });
 
   const fixtureUrl = `http://localhost:${fixture.port}/`;
   const page = await context.newPage();
   await page.goto(fixtureUrl, { waitUntil: 'domcontentloaded' });
+
+  const connectResult = await page.evaluate(() => window.sendToParro('CONNECT'));
+  check(() => {
+    assert.equal(connectResult.error, null);
+    assert.equal(connectResult.response?.ok, true);
+    assert.equal(connectResult.response?.linked, false);
+    assert.equal(connectResult.response?.recorderVersion, manifest.version);
+  });
 
   const fixtureTabId = await worker.evaluate(async (url) => {
     const tabs = await chrome.tabs.query({});
@@ -304,6 +328,8 @@ try {
     checks: checkCount,
     browser: 'playwright-chromium',
     profile: 'isolated-temporary',
+    extensionSource: extensionFixturePath ? 'extracted-store-package' : 'source-directory',
+    recorderVersion: manifest.version,
     network: 'localhost-only',
     captureStarted: false,
     liveGuideOverlay: true,

@@ -14,7 +14,7 @@ New-Item -ItemType Directory -Path (Join-Path $stage 'icons') -Force | Out-Null
 # Runtime whitelist (anything not listed here never ends up in the package)
 $files = @(
   'manifest.json',
-  'background.js', 'content.js', 'guide-engine.js',
+  'background.js', 'content.js', 'guide-engine.js', 'pre-capture-buffer.js',
   'desktop-bridge.js', 'desktop-import.js', 'targeting.js',
   'popup.js', 'popup.html', 'i18n.js',
   '_locales/ko/messages.json', '_locales/en/messages.json',
@@ -33,6 +33,26 @@ $files = @(
   'assets/parro-ai-avatar-clarify.png',
   'assets/parro-ai-avatar-success.png'
 )
+
+# A missing importScripts dependency aborts the service worker before CONNECT
+# listeners can be registered, so fail the package build before creating a ZIP.
+$backgroundSource = [System.IO.File]::ReadAllText((Join-Path $PSScriptRoot 'background.js'))
+$workerImports = @()
+foreach ($call in [regex]::Matches(
+  $backgroundSource,
+  '\bimportScripts\s*\((.*?)\)\s*;',
+  [System.Text.RegularExpressions.RegexOptions]::Singleline
+)) {
+  foreach ($quotedPath in [regex]::Matches($call.Groups[1].Value, '[''"]([^''"]+)[''"]')) {
+    $workerImports += $quotedPath.Groups[1].Value
+  }
+}
+foreach ($workerImport in $workerImports) {
+  if ($files -notcontains $workerImport) {
+    throw "background.js importScripts dependency missing from runtime whitelist: $workerImport"
+  }
+}
+
 foreach ($f in $files) {
   if (-not (Test-Path $f)) { throw "Missing required file: $f" }
   $destination = Join-Path $stage $f
@@ -77,6 +97,20 @@ try {
 } finally {
   $archive.Dispose()
 }
+
+$requiredEntries = @($files)
+$requiredEntries += @('icons/icon16.png', 'icons/icon48.png', 'icons/icon128.png')
+$verifyArchive = [System.IO.Compression.ZipFile]::OpenRead($out)
+try {
+  $entryNames = @($verifyArchive.Entries | ForEach-Object { $_.FullName })
+  $missingEntries = @($requiredEntries | Where-Object { $entryNames -notcontains $_ })
+  if ($missingEntries.Count -gt 0) {
+    throw "Built ZIP is missing required file(s): $($missingEntries -join ', ')"
+  }
+} finally {
+  $verifyArchive.Dispose()
+}
+
 Remove-Item $stage -Recurse -Force
 
 $size = [math]::Round((Get-Item $out).Length / 1KB, 1)
