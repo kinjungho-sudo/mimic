@@ -9,6 +9,7 @@
     "lint": "next lint",
     "test": "npm run verify:quality",
     "verify:recorder-profile": "node scripts/verify-recorder-profile.mjs",
+    "verify:recorder-store-package": "node scripts/verify-recorder-store-package.mjs",
     "verify:main-mvp-release": "node scripts/verify-main-mvp-release-contract.mjs",
     "verify:webstore-recorder-link": "node --loader ./scripts/ts-path-loader.mjs scripts/verify-webstore-recorder-link.mjs",
     "verify:capture-schema-compat": "node --loader ./scripts/ts-path-loader.mjs scripts/verify-capture-schema-compat.mjs",
