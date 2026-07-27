@@ -1,17 +1,4 @@
 import type { Tutorial, TutorialDetail } from '@/types';
-import type { ManualQualityIssue } from '@/lib/manual-quality';
-
-export class TutorialApiError extends Error {
-  status: number;
-  issues: ManualQualityIssue[];
-
-  constructor(message: string, status: number, issues: ManualQualityIssue[] = []) {
-    super(message);
-    this.name = 'TutorialApiError';
-    this.status = status;
-    this.issues = issues;
-  }
-}
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
@@ -20,11 +7,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new TutorialApiError(
-      err.error ?? `API error ${res.status}`,
-      res.status,
-      Array.isArray(err.issues) ? err.issues : [],
-    );
+    throw new Error(err.error ?? `API error ${res.status}`);
   }
   if (res.status === 204) return undefined as T;
   return res.json();
