@@ -57,8 +57,8 @@ function ViewportSafeAddBlockButton({ onOpen }: {
       type="button"
       aria-label="블록 추가"
       data-test="viewportSafeAddBlock"
-      onMouseDown={event => event.preventDefault()}
-      onClick={event => {
+      onMouseDown={event => {
+        event.preventDefault();
         event.stopPropagation();
         const rect = event.currentTarget.getBoundingClientRect();
         onOpen(block, { left: rect.left, top: rect.top, bottom: rect.bottom });

@@ -11,6 +11,7 @@ const schema = read('components', 'guidebook', 'schema.tsx');
 
 assert.match(editor, /useState<HTMLElement \| null>\(\(\) => document\.body\)/, 'floating menus must portal to the viewport root on the first render');
 assert.match(editor, /createPortal\(/, 'add-block menu must render outside editor clipping containers');
+assert.match(editor, /onMouseDown=\{event => \{[\s\S]*onOpen\(block,/, 'add-block menu must open before the transient side menu unmounts');
 assert.match(editor, /window\.innerHeight - addMenu\.anchor\.bottom >= 280/, 'add-block menu must choose an upward placement near the viewport bottom');
 assert.match(editor, /role="menu"\s*\n\s*aria-label="블록 삽입"/, 'add-block menu must remain keyboard discoverable');
 assert.match(editor, /strategy:\s*'fixed'/, 'floating menus must use viewport-fixed positioning');
@@ -28,4 +29,4 @@ assert.match(schema, /aria-expanded=\{previewOpen\}/, 'inline preview control mu
 assert.match(schema, /\{previewOpen \? '접기' : '펼치기'\}/, 'embedded guides must expand in the editor');
 assert.match(schema, /<GuideSteps guide=\{guide\} \/>/, 'editor preview must render the selected guide steps');
 
-console.log(JSON.stringify({ ok: true, checks: 16, scope: 'parro-guidebook-contract' }));
+console.log(JSON.stringify({ ok: true, checks: 17, scope: 'parro-guidebook-contract' }));
