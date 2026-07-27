@@ -57,6 +57,8 @@ interface ManualEditorProps {
   steps: ManualStep[];
   onChange: (steps: ManualStep[]) => void;
   onSave?: (id: string, patch: Partial<ManualStep>) => void;
+  onUploadImage?: (id: string, file: File) => Promise<string>;
+  onRemoveImage?: (id: string) => Promise<void>;
   onDeleteStep?: (id: string) => void;
   onDuplicateStep?: (id: string) => void;
   duplicatingStepId?: string | null;
@@ -73,7 +75,7 @@ interface ManualEditorProps {
 
 // ── ManualEditor ──────────────────────────────────────────
 
-export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicateStep, duplicatingStepId, onInsertAfter, onAddStep, hideToc, activeId: externalActiveId, onActiveChange, selectedIds: externalSelectedIds, onSelectChange, onAddComment, aiRewriteEnabled = false }: ManualEditorProps) {
+export function ManualEditor({ steps, onChange, onSave, onUploadImage, onRemoveImage, onDeleteStep, onDuplicateStep, duplicatingStepId, onInsertAfter, onAddStep, hideToc, activeId: externalActiveId, onActiveChange, selectedIds: externalSelectedIds, onSelectChange, onAddComment, aiRewriteEnabled = false }: ManualEditorProps) {
   const canUseAiRewrite = aiRewriteEnabled;
   const [internalActiveId, setInternalActiveId] = useState<string | null>(
     steps.length > 0 ? steps[0].id : null
@@ -421,7 +423,16 @@ export function ManualEditor({ steps, onChange, onSave, onDeleteStep, onDuplicat
                     isDuplicating={duplicatingStepId === step.id}
                     onZoom={() => step.screenshotUrl && setZoomUrl(step.screenshotUrl)}
                     onAnnotate={() => { if (!step.screenshotUrl) return; setActiveId(step.id); setAnnotatingId(step.id); }}
-                    onRemoveImage={() => { updateStep(step.id, { screenshotUrl: undefined, annotations: [] }); onSave?.(step.id, { screenshotUrl: undefined, annotations: [] }); }}
+                    onUploadImage={async file => {
+                      if (!onUploadImage) throw new Error('이미지 업로드 기능을 사용할 수 없습니다.');
+                      const screenshotUrl = await onUploadImage(step.id, file);
+                      updateStep(step.id, { screenshotUrl, annotations: [], followConfig: { kind: 'none' } });
+                    }}
+                    onRemoveImage={async () => {
+                      if (!onRemoveImage) throw new Error('이미지 삭제 기능을 사용할 수 없습니다.');
+                      await onRemoveImage(step.id);
+                      updateStep(step.id, { screenshotUrl: undefined, originalScreenshotUrl: null, annotations: [], imageZoom: 1, imageOffsetX: 0, imageOffsetY: 0 });
+                    }}
                     onAddComment={onAddComment ? () => onAddComment(step.id) : undefined}
                     aiRewriteEnabled={canUseAiRewrite}
                   />
@@ -697,14 +708,16 @@ interface StepCardProps {
   isDuplicating?: boolean;
   onZoom: () => void;
   onAnnotate: () => void;
-  onRemoveImage: () => void;
+  onUploadImage: (file: File) => Promise<void>;
+  onRemoveImage: () => Promise<void>;
   onAddComment?: () => void;
   aiRewriteEnabled: boolean;
 }
 
-function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdate, onSave, onDelete, onDuplicate, isDuplicating, onZoom, onAnnotate, onRemoveImage, onAddComment, aiRewriteEnabled }: StepCardProps) {
+function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdate, onSave, onDelete, onDuplicate, isDuplicating, onZoom, onAnnotate, onUploadImage, onRemoveImage, onAddComment, aiRewriteEnabled }: StepCardProps) {
   const [hovering, setHovering] = useState(false);
   const [descGenerating, setDescGenerating] = useState(false);
+  const [imageSaving, setImageSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
@@ -780,21 +793,38 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
 
   const showControls = hovering || isActive;
 
-  const handleImageUpload = useCallback((file: File) => {
-    const ALLOWED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-    const MAX_MB = 5;
+  const handleImageUpload = useCallback(async (file: File) => {
+    const ALLOWED = ['image/jpeg', 'image/png', 'image/webp'];
+    const MAX_MB = 10;
     if (!ALLOWED.includes(file.type)) {
-      alert('JPG, PNG, WEBP, GIF 형식만 지원합니다.');
+      alert('JPG, PNG, WEBP 형식만 지원합니다.');
       return;
     }
     if (file.size > MAX_MB * 1024 * 1024) {
       alert(`이미지 크기는 ${MAX_MB}MB 이하여야 합니다.`);
       return;
     }
-    const reader = new FileReader();
-    reader.onload = e => onUpdate({ screenshotUrl: e.target?.result as string });
-    reader.readAsDataURL(file);
-  }, [onUpdate]);
+    setImageSaving(true);
+    try {
+      await onUploadImage(file);
+    } catch {
+      alert('이미지를 저장하지 못했습니다. 네트워크 연결을 확인 후 다시 시도해 주세요.');
+    } finally {
+      setImageSaving(false);
+    }
+  }, [onUploadImage]);
+
+  const handleRemoveImage = useCallback(async () => {
+    if (imageSaving) return;
+    setImageSaving(true);
+    try {
+      await onRemoveImage();
+    } catch {
+      alert('이미지 삭제를 저장하지 못했습니다. 네트워크 연결을 확인 후 다시 시도해 주세요.');
+    } finally {
+      setImageSaving(false);
+    }
+  }, [imageSaving, onRemoveImage]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1055,10 +1085,10 @@ function StepCard({ step, isActive, isSelected, onToggleSelect, onFocus, onUpdat
       {/* Screenshot area — 클릭하면 바로 편집 진입 */}
       <ScreenshotArea
         step={step}
-        onUploadClick={() => fileInputRef.current?.click()}
+        onUploadClick={() => { if (!imageSaving) fileInputRef.current?.click(); }}
         onDrop={handleImgDrop}
         onAnnotate={onAnnotate}
-        onRemove={onRemoveImage}
+        onRemove={handleRemoveImage}
         onFraming={patch => onSave(patch)}
       />
 

@@ -27,6 +27,8 @@ const annotationEditor = read('components', 'editor', 'ImageAnnotationEditor.tsx
 const annotationPreview = read('components', 'editor', 'AnnotationPreview.tsx');
 const autoAnnotations = read('lib', 'auto-annotations.ts');
 const captureFinalize = read('app', 'api', 'capture', 'finalize', 'route.ts');
+const stepApi = read('lib', 'api', 'steps.ts');
+const stepImageRoute = read('app', 'api', 'steps', '[id]', 'image', 'route.ts');
 
 assert.match(editor, /new AbortController\(\)/, 'AI rewrite must be cancellable');
 assert.match(editor, /signal: controller\.signal/, 'AI rewrite fetch must use the abort signal');
@@ -44,6 +46,11 @@ assert.match(annotationEditor, /const latestItems = editingText \? commitTextRef
 assert.match(annotationEditor, /onChange\(latestItems\)/, 'annotation save must not persist a stale React render');
 assert.match(annotationPreview, /annotationCornerRadius\(w, h\)/, 'manual annotation rectangles must render with softened corners');
 assert.match(autoAnnotations, /\.filter\(annotation => annotation\.type === 'text'\)/, 'icon-decorated targets must generate text-only annotations');
+assert.equal((editor.match(/onReorder=\{handleReorderSteps\}/g) ?? []).length, 2, 'desktop and mobile step reorder must share the persistent save path');
+assert.match(editor, /onUploadImage=\{uploadStepImage\}/, 'manual image replacement must use the persisted upload API');
+assert.match(editor, /onRemoveImage=\{removeStepImage\}/, 'manual image removal must use the persisted delete API');
+assert.match(stepApi, /fetch\(`\/api\/steps\/\$\{id\}\/image`, \{ method: 'POST', body: formData \}\)/, 'manual image replacement must upload the file');
+assert.match(stepImageRoute, /export async function DELETE/, 'manual image removal needs a server persistence route');
 
 assert.match(share, /if \(shareToken \|\| publishStartedRef\.current\) return;/, 'sharing an unpublished manual must publish immediately');
 assert.doesNotMatch(share, /\/quality|qualityIssues|awaitingWarningApproval/, 'sharing must not run a pre-publish quality gate');
@@ -89,4 +96,4 @@ assert.match(landingFaq, /현재는 사용자가 직접 결제 플랜을 변경�
 assert.doesNotMatch(landingFaq, /카카오페이|토스페이|전액 환불|언제든 구독을 해지/, 'prelaunch FAQ must not promise unavailable billing operations');
 assert.doesNotMatch(desktopSetup, /Parro Recorder 1\.7\.4/, 'desktop setup must not hard-code an obsolete Recorder version');
 
-console.log(JSON.stringify({ ok: true, checks: 48, scope: 'manual-ux-contract' }));
+console.log(JSON.stringify({ ok: true, checks: 53, scope: 'manual-ux-contract' }));

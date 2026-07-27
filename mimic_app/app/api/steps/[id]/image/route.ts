@@ -62,6 +62,11 @@ export async function POST(request: NextRequest, { params }: Params) {
     element_selector: null,
     element_xpath: null,
     follow_config: { kind: 'none' },
+    original_screenshot_url: null,
+    user_annotations: [],
+    image_zoom: 1,
+    image_offset_x: 0,
+    image_offset_y: 0,
   };
 
   let { error: updateError } = await supabase
@@ -69,7 +74,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     .update(update)
     .eq('id', id);
 
-  if (updateError && (updateError.code === '42703' || /step_type|capture_source|capture_failure_reason/i.test(updateError.message))) {
+  if (updateError && (updateError.code === '42703' || /step_type|capture_source|capture_failure_reason|original_screenshot_url|image_zoom|image_offset/i.test(updateError.message))) {
     const legacyUpdate = {
       screenshot_url: publicUrl,
       click_x: null,
@@ -78,6 +83,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       element_selector: null,
       element_xpath: null,
       follow_config: { kind: 'none' },
+      user_annotations: [],
     };
     const retry = await supabase
       .from('mm_steps')
@@ -92,4 +98,41 @@ export async function POST(request: NextRequest, { params }: Params) {
   }
 
   return NextResponse.json({ screenshot_url: publicUrl, step_type: 'visual_overlay_step', capture_source: 'manual' });
+}
+
+export async function DELETE(request: NextRequest, { params }: Params) {
+  const auth = await requireAuth(request);
+  if (!auth.ok) return auth.response;
+
+  const { id } = await params;
+  const guard = await guardStepAccess(id, auth.userId, 'editor');
+  if (!guard.ok) {
+    return NextResponse.json({ error: guard.error }, { status: guard.status });
+  }
+
+  const supabase = createServiceRoleClient();
+  const reset = {
+    screenshot_url: null,
+    original_screenshot_url: null,
+    user_annotations: [],
+    image_zoom: 1,
+    image_offset_x: 0,
+    image_offset_y: 0,
+  };
+  let { error } = await supabase.from('mm_steps').update(reset).eq('id', id);
+
+  if (error && (error.code === '42703' || /original_screenshot_url|image_zoom|image_offset/i.test(error.message))) {
+    const retry = await supabase
+      .from('mm_steps')
+      .update({ screenshot_url: null, user_annotations: [] })
+      .eq('id', id);
+    error = retry.error;
+  }
+
+  if (error) {
+    await logServer('error', 'step.image.delete.fail', { stepId: id, userId: auth.userId, message: error.message });
+    return NextResponse.json({ error: 'Update failed' }, { status: 500 });
+  }
+
+  return new NextResponse(null, { status: 204 });
 }

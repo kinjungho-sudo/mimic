@@ -17,7 +17,7 @@ import { useAutosave } from '@/hooks/useAutosave';
 import { useAuth } from '@/hooks/useAuth';
 import { useCollaboration } from '@/hooks/useCollaboration';
 import type { Collaborator } from '@/hooks/useCollaboration';
-import { updateStep, createStep, deleteStep, reorderSteps, duplicateStep } from '@/lib/api/steps';
+import { updateStep, createStep, deleteStep, reorderSteps, duplicateStep, uploadStepImage, removeStepImage } from '@/lib/api/steps';
 import { getTutorial } from '@/lib/api/tutorials';
 import { logError } from '@/lib/logging/logger';
 import { hasGuideConfig } from '@/lib/follow';
@@ -559,6 +559,19 @@ export default function EditorPage() {
     }
   }, [manualSteps, id, setManualStepsWithHistory, duplicatingStepId]);
 
+  const handleReorderSteps = useCallback((reordered: ManualStep[]) => {
+    setManualStepsWithHistory(reordered);
+    const dbItems = reordered
+      .filter(step => !step.id.startsWith('step-'))
+      .map((step, index) => ({ id: step.id, order_index: index }));
+    if (dbItems.length > 0) {
+      reorderSteps(id, dbItems).catch((error) => logError('step.reorder.fail', {
+        tutorialId: id,
+        message: error instanceof Error ? error.message : String(error),
+      }));
+    }
+  }, [id, setManualStepsWithHistory]);
+
   const handleImportSteps = useCallback(async (sourceTutorialId: string, stepIds: string[]) => {
     const res = await fetch(`/api/tutorials/${id}/import-steps`, {
       method: 'POST',
@@ -901,7 +914,7 @@ export default function EditorPage() {
                   editable={true}
                   selectedIds={tocSelectedIds}
                   onSelectChange={setTocSelectedIds}
-                  onReorder={(reordered) => { setManualStepsWithHistory(reordered); }}
+                  onReorder={handleReorderSteps}
                   onAdd={handleAddStep}
                   onDelete={handleDeleteStep}
                   onInsertAfter={handleInsertAfter}
@@ -920,16 +933,7 @@ export default function EditorPage() {
             editable={true}
             selectedIds={tocSelectedIds}
             onSelectChange={setTocSelectedIds}
-            onReorder={(reordered) => {
-              setManualStepsWithHistory(reordered);
-              // DB order_index 일괄 저장 (임시 ID 제외)
-              const dbItems = reordered
-                .filter(s => !s.id.startsWith('step-'))
-                .map((s, i) => ({ id: s.id, order_index: i }));
-              if (dbItems.length > 0) {
-                reorderSteps(id, dbItems).catch((e) => logError('step.reorder.fail', { tutorialId: id, message: e instanceof Error ? e.message : String(e) }));
-              }
-            }}
+            onReorder={handleReorderSteps}
             onAdd={handleAddStep}
             onDelete={handleDeleteStep}
             onInsertAfter={handleInsertAfter}
@@ -1120,6 +1124,8 @@ export default function EditorPage() {
                 ...(patch.imageOffsetY !== undefined ? { image_offset_y: patch.imageOffsetY } : {}),
               }).catch((e) => logError('step.save.fail', { tutorialId: id, stepId, message: e instanceof Error ? e.message : String(e) }));
             }}
+            onUploadImage={uploadStepImage}
+            onRemoveImage={removeStepImage}
           />
           {showComments && (
             <CommentsPanel
