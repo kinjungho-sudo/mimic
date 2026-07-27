@@ -33,6 +33,22 @@ export async function updateStep(
   });
 }
 
+export async function uploadStepImage(id: string, file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await fetch(`/api/steps/${id}/image`, { method: 'POST', body: formData });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(err.error ?? `API error ${res.status}`);
+  }
+  const data = await res.json() as { screenshot_url: string };
+  return data.screenshot_url;
+}
+
+export async function removeStepImage(id: string): Promise<void> {
+  await apiFetch(`/api/steps/${id}/image`, { method: 'DELETE' });
+}
+
 export async function createStep(
   tutorialId: string,
   orderIndex: number,
