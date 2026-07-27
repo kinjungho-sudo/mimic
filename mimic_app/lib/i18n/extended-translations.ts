@@ -1,4 +1,11 @@
 export const EXTENDED_ENGLISH_TRANSLATIONS: Record<string, string> = {
+  "PNG, JPG, WebP, GIF, MP4, WebM, MOV 영상만 업로드할 수 있습니다.": "Only PNG, JPG, WebP, GIF, MP4, WebM, and MOV files can be uploaded.",
+  "가이드를 불러오는 중…": "Loading guide…",
+  "가이드를 불러오지 못했습니다. 다시 접었다 펼쳐주세요.": "Could not load the guide. Collapse it and expand it again.",
+  "로그인 정보를 확인할 수 없습니다.": "Could not verify your sign-in.",
+  "아직 등록된 단계가 없습니다.": "No steps have been added yet.",
+  "영상은 50MB 이하만 업로드할 수 있습니다.": "Videos must be 50MB or smaller.",
+  "이미지는 20MB 이하만 업로드할 수 있습니다.": "Images must be 20MB or smaller.",
   "— 더블클릭으로 이름 변경": "— Double-click to rename",
   ", Pro는": ", Pro includes",
   "· 가입 대기": "· Pending approval",

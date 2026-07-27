@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { BlockNoteView } from '@blocknote/mantine';
 import '@blocknote/mantine/style.css';
 import {
@@ -21,6 +21,23 @@ import { filterSuggestionItems } from '@blocknote/core';
 import { SideMenuExtension } from '@blocknote/core/extensions';
 import { ko } from '@blocknote/core/locales';
 import { guidebookSchema, GuideContext } from './schema';
+import { createClient } from '@/lib/supabase/client';
+
+const PLAYBOOK_UPLOAD_LIMITS = {
+  image: 20 * 1024 * 1024,
+  video: 50 * 1024 * 1024,
+} as const;
+
+const PLAYBOOK_UPLOAD_EXTENSIONS: Record<string, string> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+  'video/mp4': 'mp4',
+  'video/webm': 'webm',
+  'video/quicktime': 'mov',
+  'video/x-m4v': 'm4v',
+};
 
 // #4: 드래그 핸들 메뉴에서 블록 유형 변환
 function TurnIntoSection() {
@@ -76,18 +93,43 @@ export default function GuidebookEditor({ initialContent, tutorials, onChange }:
   tutorials: { id: string; title: string }[];
   onChange: (doc: unknown[]) => void;
 }) {
+  const supabase = useMemo(() => createClient(), []);
+  const [portalElement, setPortalElement] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setPortalElement(document.body);
+  }, []);
+
   const editor = useCreateBlockNote({
     schema: guidebookSchema,
     dictionary: ko,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     initialContent: (initialContent && initialContent.length ? initialContent : undefined) as any,
     uploadFile: async (file: File) => {
-      const fd = new FormData();
-      fd.append('file', file);
-      const res = await fetch('/api/pages/upload', { method: 'POST', body: fd });
-      if (!res.ok) throw new Error('업로드 실패');
-      const { url } = await res.json();
-      return url as string;
+      const ext = PLAYBOOK_UPLOAD_EXTENSIONS[file.type];
+      if (!ext) {
+        throw new Error('PNG, JPG, WebP, GIF, MP4, WebM, MOV 영상만 업로드할 수 있습니다.');
+      }
+
+      const kind = file.type.startsWith('video/') ? 'video' : 'image';
+      const maxSize = PLAYBOOK_UPLOAD_LIMITS[kind];
+      if (file.size > maxSize) {
+        throw new Error(kind === 'video'
+          ? '영상은 50MB 이하만 업로드할 수 있습니다.'
+          : '이미지는 20MB 이하만 업로드할 수 있습니다.');
+      }
+
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) throw new Error('로그인 정보를 확인할 수 없습니다.');
+
+      const path = `playbook-uploads/${user.id}/${crypto.randomUUID()}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from('naviaction')
+        .upload(path, file, { contentType: file.type, upsert: false });
+      if (uploadError) throw new Error('업로드에 실패했습니다.');
+
+      const { data: { publicUrl } } = supabase.storage.from('naviaction').getPublicUrl(path);
+      return publicUrl;
     },
   });
 
@@ -106,6 +148,9 @@ export default function GuidebookEditor({ initialContent, tutorials, onChange }:
         /* #7: 슬래시 메뉴가 viewport 하단에서 위로 열리도록 — floating-ui가 자동 처리하지만 z-index 보정 */
         .bn-suggestion-menu {
           z-index: 9999 !important;
+          max-height: min(360px, calc(100dvh - 24px)) !important;
+          overflow-y: auto !important;
+          overscroll-behavior: contain;
         }
       `}</style>
       <BlockNoteView
@@ -117,6 +162,7 @@ export default function GuidebookEditor({ initialContent, tutorials, onChange }:
       >
         {/* #4: 드래그 핸들(::) 클릭 시 블록 유형 변환 메뉴 표시 */}
         <SideMenuController
+          portalElement={portalElement}
           sideMenu={(props) => (
             <SideMenu {...props}>
               <AddBlockButton />
@@ -133,6 +179,8 @@ export default function GuidebookEditor({ initialContent, tutorials, onChange }:
 
         <SuggestionMenuController
           triggerCharacter="/"
+          portalElement={portalElement}
+          floatingUIOptions={{ useFloatingOptions: { strategy: 'fixed' } }}
           getItems={async query =>
             filterSuggestionItems(
               [

@@ -1,0 +1,28 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (...parts) => fs.readFileSync(path.join(root, ...parts), 'utf8');
+
+const editor = read('components', 'guidebook', 'GuidebookEditor.tsx');
+const schema = read('components', 'guidebook', 'schema.tsx');
+
+assert.match(editor, /setPortalElement\(document\.body\)/, 'floating menus must portal to the viewport root');
+assert.match(editor, /strategy:\s*'fixed'/, 'floating menus must use viewport-fixed positioning');
+assert.match(editor, /max-height:\s*min\(360px,\s*calc\(100dvh - 24px\)\)/, 'suggestion menu must fit within the viewport');
+assert.match(editor, /overflow-y:\s*auto/, 'suggestion menu must remain scrollable');
+
+assert.match(editor, /'video\/mp4':\s*'mp4'/, 'MP4 uploads must be accepted');
+assert.match(editor, /'video\/webm':\s*'webm'/, 'WebM uploads must be accepted');
+assert.match(editor, /video:\s*50 \* 1024 \* 1024/, 'video uploads must have an explicit limit');
+assert.match(editor, /\.storage\s*\n\s*\.from\('naviaction'\)\s*\n\s*\.upload\(/, 'uploads must go directly to storage');
+assert.doesNotMatch(editor, /fetch\('\/api\/pages\/upload'/, 'video bytes must not pass through the Vercel function body');
+
+assert.match(schema, /fetch\(`\/api\/tutorials\/\$\{tutorialId\}`\)/, 'embedded guides must load an authenticated inline preview');
+assert.match(schema, /aria-expanded=\{previewOpen\}/, 'inline preview control must expose its expanded state');
+assert.match(schema, /\{previewOpen \? '접기' : '펼치기'\}/, 'embedded guides must expand in the editor');
+assert.match(schema, /<GuideSteps guide=\{guide\} \/>/, 'editor preview must render the selected guide steps');
+
+console.log(JSON.stringify({ ok: true, checks: 13, scope: 'parro-guidebook-contract' }));
