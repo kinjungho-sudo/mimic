@@ -129,8 +129,8 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
   if (isOwnerPreview) {
     const serverClient = await createServerClient();
-    const { data: { session } } = await serverClient.auth.getSession();
-    ownerId = session?.user.id;
+    const { data: { user } } = await serverClient.auth.getUser();
+    ownerId = user?.id;
     if (!ownerId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

@@ -189,6 +189,8 @@ check(() => assert.match(editor, /\/play\/\$\{id\}\?preview=1/));
 
 const playApi = readApp('app', 'api', 'play', '[token]', 'route.ts');
 check(() => assert.match(playApi, /createServerClient/));
+check(() => assert.match(playApi, /auth\.getUser\(\)/));
+check(() => assert.doesNotMatch(playApi, /auth\.getSession\(\)/));
 check(() => assert.match(playApi, /ownerId\s*\?\s*tutorialQuery\.eq\('id', token\)\.eq\('user_id', ownerId\)/));
 check(() => assert.match(playApi, /Unauthorized/));
 
