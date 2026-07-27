@@ -3,8 +3,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Link2, Check, Lock, Eye, EyeOff, Code2, ChevronDown } from 'lucide-react';
 import { BRAND_NAME } from '@/lib/brand';
-import { TutorialApiError } from '@/lib/api/tutorials';
-import type { ManualQualityIssue } from '@/lib/manual-quality';
 import { buildStepShareUrl } from '@/lib/share-links';
 
 interface ShareModalProps {
@@ -15,7 +13,6 @@ interface ShareModalProps {
   hasPassword?: boolean;
   visibility?: 'private' | 'public';
   defaultMode?: 'document' | 'follow' | 'slides';
-  onRequestRegenerate?: () => void;
   onPublishAndShare: () => Promise<{ share_token: string; share_url?: string }>;
   onUnpublish: () => Promise<void>;
   onClose: () => void;
@@ -35,17 +32,14 @@ function shareUrlForMode(value: string | null | undefined, mode: 'document' | 'f
   }
 }
 
-export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPassword, visibility: initialVisibility = 'private', defaultMode = 'document', onRequestRegenerate, onPublishAndShare, onUnpublish, onClose, passwordProtectionEnabled = false, shareStep }: ShareModalProps) {
+export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPassword, visibility: initialVisibility = 'private', defaultMode = 'document', onPublishAndShare, onUnpublish, onClose, passwordProtectionEnabled = false, shareStep }: ShareModalProps) {
   const canProtectSharing = passwordProtectionEnabled;
   const [url, setUrl] = useState(() => shareUrlForMode(shareUrl, defaultMode));
   const [copied, setCopied] = useState(false);
   const [stepCopied, setStepCopied] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [unpublishing, setUnpublishing] = useState(false);
-  const [qualityChecking, setQualityChecking] = useState(true);
-  const [qualityIssues, setQualityIssues] = useState<ManualQualityIssue[]>([]);
   const [publishError, setPublishError] = useState<string | null>(null);
-  const [warningApproved, setWarningApproved] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const publishStartedRef = useRef(false);
 
@@ -149,25 +143,6 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
     if (shareUrl) setUrl(shareUrlForMode(shareUrl, defaultMode));
   }, [shareUrl, defaultMode]);
 
-  useEffect(() => {
-    let cancelled = false;
-    setQualityChecking(true);
-    setWarningApproved(false);
-    publishStartedRef.current = false;
-    fetch(`/api/tutorials/${tutorialId}/quality`)
-      .then(async response => {
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data.error ?? '품질을 검사할 수 없습니다.');
-        if (!cancelled) {
-          setQualityIssues(Array.isArray(data.issues) ? data.issues : []);
-          setPublishError(null);
-        }
-      })
-      .catch(err => { if (!cancelled) setPublishError(err instanceof Error ? err.message : '품질을 검사할 수 없습니다.'); })
-      .finally(() => { if (!cancelled) setQualityChecking(false); });
-    return () => { cancelled = true; };
-  }, [tutorialId]);
-
   const publishNow = useCallback(async () => {
     if (shareToken || publishStartedRef.current) return;
     publishStartedRef.current = true;
@@ -180,24 +155,17 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
     } catch (err) {
       publishStartedRef.current = false;
       setPublishError(err instanceof Error ? err.message : '공유 링크를 만들 수 없습니다.');
-      if (err instanceof TutorialApiError && err.issues.length > 0) setQualityIssues(err.issues);
     } finally {
       setPublishing(false);
     }
   }, [defaultMode, onPublishAndShare, shareToken]);
 
   useEffect(() => {
-    if (shareToken || qualityChecking || publishError || publishStartedRef.current) return;
-    const hasError = qualityIssues.some(issue => issue.severity === 'error');
-    const hasWarning = qualityIssues.some(issue => issue.severity === 'warning');
-    if (hasError || hasWarning) return;
+    if (shareToken || publishStartedRef.current) return;
     void publishNow();
-  }, [publishError, publishNow, qualityChecking, qualityIssues, shareToken]);
+  }, [publishNow, shareToken]);
 
-  const hasBlockingIssues = qualityIssues.some(issue => issue.severity === 'error');
-  const hasQualitySuggestions = qualityIssues.some(issue => issue.severity === 'warning');
-  const awaitingWarningApproval = !shareToken && !url && hasQualitySuggestions && !warningApproved;
-  const sharingBlocked = publishing || qualityChecking || hasBlockingIssues || awaitingWarningApproval || !!publishError;
+  const sharingBlocked = publishing || !!publishError;
 
   const handleCopy = async () => {
     if (!url || sharingBlocked) return;
@@ -309,29 +277,11 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
             {title}
           </p>
 
-          {(qualityChecking || hasBlockingIssues || hasQualitySuggestions || publishError) && (
-            <div style={{ marginBottom: 12, padding: '11px 12px', borderRadius: 10, border: `1px solid ${hasBlockingIssues || publishError ? '#FECACA' : hasQualitySuggestions ? '#FDE68A' : '#D1FAE5'}`, background: hasBlockingIssues || publishError ? '#FFF7F7' : hasQualitySuggestions ? '#FFFBEB' : '#F0FDF4' }}>
-              <div style={{ fontSize: 12.5, fontWeight: 700, color: hasBlockingIssues || publishError ? '#B91C1C' : hasQualitySuggestions ? '#92400E' : '#047857', marginBottom: 4 }}>
-                {qualityChecking ? '공유 전 품질을 확인하고 있어요…' : hasBlockingIssues || publishError ? '공유 전에 확인이 필요해요' : '더 좋은 안내를 위한 제안이 있어요'}
-              </div>
-              {!qualityChecking && (
-                <>
-                  <p style={{ margin: 0, fontSize: 11.5, lineHeight: 1.5, color: '#6B7280' }}>
-                    {publishError ?? qualityIssues.find(issue => issue.severity === 'error')?.message ?? qualityIssues.find(issue => issue.severity === 'warning')?.message}
-                    {qualityIssues.length > 1 && ` 외 ${qualityIssues.length - 1}개`}
-                  </p>
-                  {onRequestRegenerate && qualityIssues.some(issue => ['tutorial_title', 'step_title', 'step_script', 'duplicate_title'].includes(issue.code)) && (
-                    <button onClick={() => { onClose(); onRequestRegenerate(); }} style={{ marginTop: 8, height: 30, padding: '0 10px', borderRadius: 7, border: 'none', background: 'linear-gradient(135deg,#009B8E,#12B886)', color: 'white', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>
-                      AI로 문구 다듬기
-                    </button>
-                  )}
-                  {awaitingWarningApproval && (
-                    <button onClick={() => { setWarningApproved(true); void publishNow(); }} disabled={publishing} style={{ marginTop: 8, marginLeft: onRequestRegenerate ? 7 : 0, height: 30, padding: '0 10px', borderRadius: 7, border: '1px solid #D97706', background: 'white', color: '#92400E', fontSize: 11.5, fontWeight: 700, cursor: publishing ? 'not-allowed' : 'pointer' }}>
-                      제안 확인 후 게시
-                    </button>
-                  )}
-                </>
-              )}
+          {publishError && (
+            <div style={{ marginBottom: 12, padding: '11px 12px', borderRadius: 10, border: '1px solid #FECACA', background: '#FFF7F7' }}>
+              <p style={{ margin: 0, fontSize: 11.5, lineHeight: 1.5, color: '#B91C1C' }}>
+                {publishError}
+              </p>
             </div>
           )}
 
@@ -340,7 +290,7 @@ export function ShareModal({ title, shareToken, shareUrl, tutorialId, hasPasswor
             <input
               ref={inputRef}
               readOnly
-              value={publishing ? '링크 생성 중...' : awaitingWarningApproval ? '제안을 확인한 뒤 게시할 수 있습니다.' : sharingBlocked ? '품질 점검을 통과하면 링크가 표시됩니다.' : url}
+              value={publishing ? '링크 생성 중...' : publishError ? '링크를 생성하지 못했습니다.' : url}
               style={{
                 flex: 1, minWidth: 0, height: '40px', padding: '0 12px',
                 border: '1.5px solid #E5E7EB', borderRadius: '10px',

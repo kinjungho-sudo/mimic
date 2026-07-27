@@ -7,7 +7,6 @@ import type { ManualStep } from './ManualEditor';
 import { AnnotationPreview } from './AnnotationPreview';
 import { annotationsBox, fitFramingToBox } from '@/lib/framing';
 import { displayAutoAnnotationsFor } from '@/lib/auto-annotations';
-import { resolveImageAlt } from '@/lib/image-alt';
 
 type OutputRatio = '16:9' | '1:1' | '9:16';
 
@@ -171,7 +170,7 @@ function ViewerStepCard({ step }: { step: ManualStep }) {
             <img
               ref={imgRef}
               src={step.screenshotUrl}
-              alt={resolveImageAlt(step.imageAltText, step.actionTitle, step.description)}
+              alt=""
               draggable={false}
               onLoad={e => {
                 const img = e.currentTarget;

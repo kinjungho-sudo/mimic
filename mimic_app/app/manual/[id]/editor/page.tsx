@@ -10,7 +10,6 @@ import { CommentsPanel } from '@/components/editor/CommentsPanel';
 import { ActivityPanel } from '@/components/editor/ActivityPanel';
 import { ExportModal } from '@/components/editor/ExportModal';
 import { ShareModal } from '@/components/editor/ShareModal';
-import { ManualQualityDialog } from '@/components/editor/ManualQualityDialog';
 import { AgentChat } from '@/components/chat/AgentChat';
 import { FeedbackSurveyModal } from '@/components/survey/FeedbackSurveyModal';
 import { useTutorial } from '@/hooks/useTutorial';
@@ -19,12 +18,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCollaboration } from '@/hooks/useCollaboration';
 import type { Collaborator } from '@/hooks/useCollaboration';
 import { updateStep, createStep, deleteStep, reorderSteps, duplicateStep } from '@/lib/api/steps';
-import { getTutorial, TutorialApiError } from '@/lib/api/tutorials';
+import { getTutorial } from '@/lib/api/tutorials';
 import { logError } from '@/lib/logging/logger';
 import { hasGuideConfig } from '@/lib/follow';
 import { LEGACY_INTERNAL_IDENTIFIERS } from '@/lib/brand';
 import type { Step, Tutorial } from '@/types';
-import type { ManualQualityIssue } from '@/lib/manual-quality';
 import { hasEntitlement } from '@/lib/entitlements';
 
 const TOP_BAR_ICON_SIZE = 14;
@@ -48,7 +46,6 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
     followConfig: (s as Step & { follow_config?: import('@/types').FollowConfig | null }).follow_config ?? null,
     description: s.user_script || s.ai_description || '',
     screenshotUrl: s.screenshot_url || undefined,
-    imageAltText: s.image_alt_text ?? null,
     originalScreenshotUrl: (s as Step & { original_screenshot_url?: string | null }).original_screenshot_url ?? null,
     annotations: (s.user_annotations as import('@/components/editor/ImageAnnotationEditor').Annotation[] | null) ?? [],
     pageUrl:         s.page_url        ?? null,
@@ -105,7 +102,6 @@ export default function EditorPage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [titleDirty, setTitleDirty] = useState(false);
   const [refiningText, setRefiningText] = useState(false);
-  const [qualityIssues, setQualityIssues] = useState<ManualQualityIssue[]>([]);
   const [regenerateNotice, setRegenerateNotice] = useState<string | null>(null);
   const [regenerateFailed, setRegenerateFailed] = useState(false);
   const [showRefineConfirm, setShowRefineConfirm] = useState(false);
@@ -436,7 +432,6 @@ export default function EditorPage() {
         setTitle(data.title);
         setTitleDirty(false);
       }
-      setQualityIssues(current => current.filter(issue => !['tutorial_title', 'step_title', 'step_script', 'duplicate_title'].includes(issue.code)));
       setRegenerateNotice(`전체 ${regenerated.size}단계의 제목과 본문을 다시 작성했습니다.`);
     } catch (err) {
       const aborted = typeof err === 'object' && err !== null && 'name' in err && (err as { name?: unknown }).name === 'AbortError';
@@ -864,10 +859,8 @@ export default function EditorPage() {
                   setRegenerateNotice(null);
                   try {
                     await publish();
-                    setQualityIssues([]);
                   } catch (err) {
-                    if (err instanceof TutorialApiError && err.issues.length > 0) setQualityIssues(err.issues);
-                    else setRegenerateNotice(err instanceof Error ? err.message : '게시에 실패했습니다. 다시 시도해주세요.');
+                    setRegenerateNotice(err instanceof Error ? err.message : '게시에 실패했습니다. 다시 시도해주세요.');
                   }
                   finally { setPublishing(false); }
                 }}
@@ -1121,7 +1114,6 @@ export default function EditorPage() {
                 ...(patch.titleFontSize !== undefined ? { title_font_size: patch.titleFontSize } : {}),
                 ...(patch.followConfig !== undefined ? { follow_config: patch.followConfig } : {}),
                 ...(patch.description !== undefined ? { user_script: patch.description || null } : {}),
-                ...(patch.imageAltText !== undefined ? { image_alt_text: patch.imageAltText || null } : {}),
                 ...(patch.annotations !== undefined ? { user_annotations: patch.annotations } : {}),
                 ...(patch.imageZoom !== undefined ? { image_zoom: patch.imageZoom } : {}),
                 ...(patch.imageOffsetX !== undefined ? { image_offset_x: patch.imageOffsetX } : {}),
@@ -1203,7 +1195,6 @@ export default function EditorPage() {
           shareUrl={(tutorial as Tutorial & { share_token?: string | null }).share_token ? `${typeof window !== 'undefined' ? window.location.origin : ''}/play/${(tutorial as Tutorial & { share_token?: string | null }).share_token}` : null}
           tutorialId={id}
           defaultMode="document"
-          onRequestRegenerate={() => setShowRefineConfirm(true)}
           hasPassword={!!(tutorial as Tutorial & { share_password?: string | null }).share_password}
           passwordProtectionEnabled={tutorialEntitlements?.protected_sharing ?? hasEntitlement(user?.plan, 'protected_sharing')}
           shareStep={activeShareStep ? { id: activeShareStep.id, number: activeShareStep.number, title: activeShareStep.actionTitle } : undefined}
@@ -1211,21 +1202,6 @@ export default function EditorPage() {
           onPublishAndShare={publish}
           onUnpublish={unpublish}
           onClose={() => setShowShare(false)}
-        />
-      )}
-
-      {qualityIssues.length > 0 && (
-        <ManualQualityDialog
-          issues={qualityIssues}
-          regenerating={refiningText}
-          regenerateMessage={regenerateNotice}
-          onClose={() => setQualityIssues([])}
-          onRegenerate={refineAllText}
-          onSelectStep={stepNumber => {
-            const target = manualSteps.find(step => step.number === stepNumber);
-            if (target) setActiveId(target.id);
-            setQualityIssues([]);
-          }}
         />
       )}
 

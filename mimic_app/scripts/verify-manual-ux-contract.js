@@ -22,7 +22,7 @@ const player = read('app', 'play', '[token]', 'page.tsx');
 const followPlayer = read('components', 'viewer', 'InteractiveFollowPlayer.tsx');
 const followStage = read('components', 'viewer', 'FollowStage.tsx');
 const guideToc = read('components', 'editor', 'GuideToc.tsx');
-const qualityDialog = read('components', 'editor', 'ManualQualityDialog.tsx');
+const publishRoute = read('app', 'api', 'tutorials', '[id]', 'publish', 'route.ts');
 const annotationEditor = read('components', 'editor', 'ImageAnnotationEditor.tsx');
 const annotationPreview = read('components', 'editor', 'AnnotationPreview.tsx');
 const autoAnnotations = read('lib', 'auto-annotations.ts');
@@ -37,9 +37,6 @@ assert.match(editor, /다시 시도/, 'AI rewrite failure must expose retry');
 assert.doesNotMatch(editor, /window\.confirm\('전체 제목과 본문/, 'AI rewrite must not use a blocking browser confirm');
 assert.match(editor, /AI 문장 다듬기/, 'AI rewrite must be presented as optional copy refinement');
 assert.match(captureFinalize, /CAPTURE_FINALIZE_BLOCKING_AI !== '0'/, 'initial capture finalization must run the full AI draft by default');
-assert.match(qualityDialog, /issue\.relatedStepNumbers/, 'duplicate quality issues must expose every affected step');
-assert.match(qualityDialog, /data-testid="quality-step-link"/, 'each affected quality step needs a direct edit link');
-assert.match(qualityDialog, /aria-label=\{`\$\{stepNumber\}단계 편집으로 이동`\}/, 'quality step links need accessible labels');
 assert.match(guideToc, /const moveSelected = \(direction: 'up' \| 'down'\)/, 'selected steps need non-drag reorder controls');
 assert.match(guideToc, /aria-label="선택 단계를 한 칸 위로 이동"/, 'selected steps need an accessible move-up control');
 assert.match(guideToc, /aria-label="선택 단계를 한 칸 아래로 이동"/, 'selected steps need an accessible move-down control');
@@ -48,9 +45,9 @@ assert.match(annotationEditor, /onChange\(latestItems\)/, 'annotation save must 
 assert.match(annotationPreview, /annotationCornerRadius\(w, h\)/, 'manual annotation rectangles must render with softened corners');
 assert.match(autoAnnotations, /\.filter\(annotation => annotation\.type === 'text'\)/, 'icon-decorated targets must generate text-only annotations');
 
-assert.match(share, /if \(hasError \|\| hasWarning\) return;/, 'publishing must wait for quality results');
-assert.match(share, /제안 확인 후 게시/, 'quality warnings must require explicit approval');
-assert.match(share, /awaitingWarningApproval/, 'warning approval must block link actions');
+assert.match(share, /if \(shareToken \|\| publishStartedRef\.current\) return;/, 'sharing an unpublished manual must publish immediately');
+assert.doesNotMatch(share, /\/quality|qualityIssues|awaitingWarningApproval/, 'sharing must not run a pre-publish quality gate');
+assert.doesNotMatch(publishRoute, /assessManualQuality|blockingIssues|status:\s*422/, 'the publish API must not block publication on quality suggestions');
 assert.match(share, /data-testid="copy-current-step-link"/, 'share modal must expose current-step sharing');
 assert.match(share, /buildStepShareUrl\(url, shareStep\.id\)/, 'step sharing must use a stable step id');
 assert.match(player, /resolveSharedStepIndex\(sharedStepParam, tutorial\.steps\)/, 'shared players must open at the requested step');
@@ -92,4 +89,4 @@ assert.match(landingFaq, /현재는 사용자가 직접 결제 플랜을 변경�
 assert.doesNotMatch(landingFaq, /카카오페이|토스페이|전액 환불|언제든 구독을 해지/, 'prelaunch FAQ must not promise unavailable billing operations');
 assert.doesNotMatch(desktopSetup, /Parro Recorder 1\.7\.4/, 'desktop setup must not hard-code an obsolete Recorder version');
 
-console.log(JSON.stringify({ ok: true, checks: 51, scope: 'manual-ux-contract' }));
+console.log(JSON.stringify({ ok: true, checks: 48, scope: 'manual-ux-contract' }));
