@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { BlockNoteView } from '@blocknote/mantine';
 import '@blocknote/mantine/style.css';
 import {
@@ -13,13 +14,11 @@ import {
   DragHandleMenu,
   RemoveBlockItem,
   BlockColorsItem,
-  AddBlockButton,
   useBlockNoteEditor,
-  useExtension,
   useExtensionState,
 } from '@blocknote/react';
 import { filterSuggestionItems } from '@blocknote/core';
-import { SideMenuExtension, SuggestionMenu } from '@blocknote/core/extensions';
+import { SideMenuExtension } from '@blocknote/core/extensions';
 import { ko } from '@blocknote/core/locales';
 import { guidebookSchema, GuideContext } from './schema';
 import { createClient } from '@/lib/supabase/client';
@@ -40,19 +39,36 @@ const PLAYBOOK_UPLOAD_EXTENSIONS: Record<string, string> = {
   'video/x-m4v': 'm4v',
 };
 
-// BlockNote의 기본 + 버튼은 블록 삽입과 메뉴 열기를 같은 이벤트에서 처리한다.
-// 하단 블록에서 포털 위치가 다시 계산될 때 메뉴 열림 상태가 유실되지 않도록
-// 삽입 트랜잭션이 반영된 다음 프레임에 메뉴를 한 번 더 확정한다.
-function ViewportSafeAddBlockButton() {
-  const suggestionMenu = useExtension(SuggestionMenu);
+type AddMenuAnchor = { left: number; top: number; bottom: number };
+
+function ViewportSafeAddBlockButton({ onOpen }: {
+  onOpen: (block: unknown, anchor: AddMenuAnchor) => void;
+}) {
+  const block = useExtensionState(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    SideMenuExtension as any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    { selector: (state: any) => state?.block },
+  );
+  if (!block) return null;
 
   return (
-    <span
-      style={{ display: 'inline-flex' }}
-      onClick={() => requestAnimationFrame(() => suggestionMenu.openSuggestionMenu('/'))}
+    <button
+      type="button"
+      aria-label="블록 추가"
+      data-test="viewportSafeAddBlock"
+      onMouseDown={event => event.preventDefault()}
+      onClick={event => {
+        event.stopPropagation();
+        const rect = event.currentTarget.getBoundingClientRect();
+        onOpen(block, { left: rect.left, top: rect.top, bottom: rect.bottom });
+      }}
+      style={{ width: '24px', height: '24px', border: 'none', padding: 0, background: 'transparent', color: '#9CA3AF', display: 'grid', placeItems: 'center', cursor: 'pointer', borderRadius: '5px' }}
     >
-      <AddBlockButton />
-    </span>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+        <path d="M12 5v14M5 12h14" />
+      </svg>
+    </button>
   );
 }
 
@@ -114,6 +130,7 @@ export default function GuidebookEditor({ initialContent, tutorials, onChange }:
   // 이 편집기는 ssr:false로만 마운트되므로 첫 렌더부터 viewport 루트를 사용할 수 있다.
   // 포털 대상을 effect에서 뒤늦게 바꾸면 AddBlockButton이 연 메뉴가 유실될 수 있다.
   const [portalElement] = useState<HTMLElement | null>(() => document.body);
+  const [addMenu, setAddMenu] = useState<{ anchor: AddMenuAnchor } | null>(null);
 
   const editor = useCreateBlockNote({
     schema: guidebookSchema,
@@ -149,9 +166,92 @@ export default function GuidebookEditor({ initialContent, tutorials, onChange }:
   });
 
   const ctx = useMemo(() => ({ mode: 'edit' as const, tutorials, guides: {} }), [tutorials]);
+  const menuItems = useMemo(() => [
+    ...getDefaultReactSlashMenuItems(editor).filter(
+      item => !String((item as { key?: string }).key ?? '').startsWith('toggle_heading'),
+    ),
+    {
+      title: '가이드 임베드',
+      subtext: '내 매뉴얼을 이 문서에 삽입',
+      aliases: ['guide', '가이드', '매뉴얼', 'embed'],
+      group: '임베드',
+      onItemClick: () => {
+        const ref = editor.getTextCursorPosition().block;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        editor.insertBlocks([{ type: 'guide' } as any], ref, 'after');
+      },
+    },
+  ], [editor]);
+
+  const openAddMenu = useCallback((rawBlock: unknown, anchor: AddMenuAnchor) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const block = rawBlock as any;
+    const content = block?.content;
+    let target = block;
+    if (!(Array.isArray(content) && content.length === 0)) {
+      target = editor.insertBlocks([{ type: 'paragraph' }], block, 'after')[0];
+    }
+    editor.setTextCursorPosition(target);
+    setAddMenu({ anchor });
+  }, [editor]);
+
+  const chooseAddMenuItem = useCallback((item: (typeof menuItems)[number]) => {
+    setAddMenu(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (item.onItemClick as any)(editor);
+  }, [editor, menuItems]);
+
+  const addMenuOverlay = addMenu && portalElement ? createPortal(
+    <div
+      role="presentation"
+      onMouseDown={() => setAddMenu(null)}
+      style={{ position: 'fixed', inset: 0, zIndex: 9998 }}
+    >
+      <div
+        role="menu"
+        aria-label="블록 삽입"
+        onMouseDown={event => event.stopPropagation()}
+        style={{
+          position: 'fixed',
+          left: Math.max(12, Math.min(addMenu.anchor.left, window.innerWidth - 332)),
+          ...(window.innerHeight - addMenu.anchor.bottom >= 280
+            ? { top: addMenu.anchor.bottom + 8 }
+            : { bottom: window.innerHeight - addMenu.anchor.top + 8 }),
+          width: '320px',
+          maxWidth: 'calc(100vw - 24px)',
+          maxHeight: `min(360px, calc(100dvh - 24px))`,
+          overflowY: 'auto',
+          overscrollBehavior: 'contain',
+          padding: '6px',
+          border: '1px solid #E5E7EB',
+          borderRadius: '10px',
+          background: 'white',
+          boxShadow: '0 12px 32px rgba(17,24,39,0.16)',
+        }}
+      >
+        {menuItems.map((item, index) => (
+          <button
+            key={`${String(item.title)}-${index}`}
+            type="button"
+            role="menuitem"
+            onClick={() => chooseAddMenuItem(item)}
+            style={{ width: '100%', minHeight: '44px', padding: '7px 9px', border: 'none', borderRadius: '7px', background: 'transparent', display: 'flex', alignItems: 'center', gap: '10px', textAlign: 'left', cursor: 'pointer', color: '#111827' }}
+          >
+            <span style={{ width: '28px', display: 'grid', placeItems: 'center', color: '#6B7280', flexShrink: 0 }}>{item.icon ?? null}</span>
+            <span style={{ minWidth: 0 }}>
+              <span style={{ display: 'block', fontSize: '13px', fontWeight: 600 }}>{item.title}</span>
+              {item.subtext && <span style={{ display: 'block', marginTop: '1px', fontSize: '11px', color: '#9CA3AF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.subtext}</span>}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>,
+    portalElement,
+  ) : null;
 
   return (
     <GuideContext.Provider value={ctx}>
+      {addMenuOverlay}
       <style>{`
         /* #1: 사이드 핸들 색상을 더 진하게 */
         .bn-side-menu .mantine-UnstyledButton-root:not(.mantine-Menu-item) svg {
@@ -180,7 +280,7 @@ export default function GuidebookEditor({ initialContent, tutorials, onChange }:
           portalElement={portalElement}
           sideMenu={(props) => (
             <SideMenu {...props}>
-              <ViewportSafeAddBlockButton />
+              <ViewportSafeAddBlockButton onOpen={openAddMenu} />
               <DragHandleButton {...props} dragHandleMenu={(menuProps) => (
                 <DragHandleMenu {...menuProps}>
                   <TurnIntoSection />
@@ -198,23 +298,7 @@ export default function GuidebookEditor({ initialContent, tutorials, onChange }:
           floatingUIOptions={{ useFloatingOptions: { strategy: 'fixed' } }}
           getItems={async query =>
             filterSuggestionItems(
-              [
-                // 토글 제목(toggle_heading*) 변형 제거
-                ...getDefaultReactSlashMenuItems(editor).filter(
-                  it => !String((it as { key?: string }).key ?? '').startsWith('toggle_heading'),
-                ),
-                {
-                  title: '가이드 임베드',
-                  subtext: '내 매뉴얼을 이 문서에 삽입',
-                  aliases: ['guide', '가이드', '매뉴얼', 'embed'],
-                  group: '임베드',
-                  onItemClick: () => {
-                    const ref = editor.getTextCursorPosition().block;
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    editor.insertBlocks([{ type: 'guide' } as any], ref, 'after');
-                  },
-                },
-              ],
+              menuItems,
               query,
             )
           }
