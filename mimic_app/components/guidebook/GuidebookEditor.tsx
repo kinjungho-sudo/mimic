@@ -209,7 +209,7 @@ export default function GuidebookEditor({ initialContent, tutorials, onChange }:
     setAddMenu(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (item.onItemClick as any)(editor);
-  }, [editor, menuItems]);
+  }, [editor]);
 
   const addMenuOverlay = addMenu && portalElement ? createPortal(
     <div
