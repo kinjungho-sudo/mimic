@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { BlockNoteView } from '@blocknote/mantine';
 import '@blocknote/mantine/style.css';
 import {
@@ -94,11 +94,9 @@ export default function GuidebookEditor({ initialContent, tutorials, onChange }:
   onChange: (doc: unknown[]) => void;
 }) {
   const supabase = useMemo(() => createClient(), []);
-  const [portalElement, setPortalElement] = useState<HTMLElement | null>(null);
-
-  useEffect(() => {
-    setPortalElement(document.body);
-  }, []);
+  // 이 편집기는 ssr:false로만 마운트되므로 첫 렌더부터 viewport 루트를 사용할 수 있다.
+  // 포털 대상을 effect에서 뒤늦게 바꾸면 AddBlockButton이 연 메뉴가 유실될 수 있다.
+  const [portalElement] = useState<HTMLElement | null>(() => document.body);
 
   const editor = useCreateBlockNote({
     schema: guidebookSchema,

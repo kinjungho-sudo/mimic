@@ -9,7 +9,7 @@ const read = (...parts) => fs.readFileSync(path.join(root, ...parts), 'utf8');
 const editor = read('components', 'guidebook', 'GuidebookEditor.tsx');
 const schema = read('components', 'guidebook', 'schema.tsx');
 
-assert.match(editor, /setPortalElement\(document\.body\)/, 'floating menus must portal to the viewport root');
+assert.match(editor, /useState<HTMLElement \| null>\(\(\) => document\.body\)/, 'floating menus must portal to the viewport root on the first render');
 assert.match(editor, /strategy:\s*'fixed'/, 'floating menus must use viewport-fixed positioning');
 assert.match(editor, /max-height:\s*min\(360px,\s*calc\(100dvh - 24px\)\)/, 'suggestion menu must fit within the viewport');
 assert.match(editor, /overflow-y:\s*auto/, 'suggestion menu must remain scrollable');
