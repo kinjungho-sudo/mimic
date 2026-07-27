@@ -15,6 +15,7 @@ import {
   RemoveBlockItem,
   BlockColorsItem,
   useBlockNoteEditor,
+  useComponentsContext,
   useExtensionState,
 } from '@blocknote/react';
 import { filterSuggestionItems } from '@blocknote/core';
@@ -44,31 +45,40 @@ type AddMenuAnchor = { left: number; top: number; bottom: number };
 function ViewportSafeAddBlockButton({ onOpen }: {
   onOpen: (block: unknown, anchor: AddMenuAnchor) => void;
 }) {
+  const components = useComponentsContext();
   const block = useExtensionState(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     SideMenuExtension as any,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     { selector: (state: any) => state?.block },
   );
-  if (!block) return null;
+  if (!block || !components) return null;
 
   return (
-    <button
-      type="button"
-      aria-label="블록 추가"
-      data-test="viewportSafeAddBlock"
-      onMouseDown={event => {
-        event.preventDefault();
-        event.stopPropagation();
-        const rect = event.currentTarget.getBoundingClientRect();
-        onOpen(block, { left: rect.left, top: rect.top, bottom: rect.bottom });
-      }}
-      style={{ width: '24px', height: '24px', border: 'none', padding: 0, background: 'transparent', color: '#9CA3AF', display: 'grid', placeItems: 'center', cursor: 'pointer', borderRadius: '5px' }}
-    >
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-        <path d="M12 5v14M5 12h14" />
-      </svg>
-    </button>
+    <components.SideMenu.Button
+      className="bn-button"
+      label="블록 추가"
+      icon={(
+        <svg
+          data-test="viewportSafeAddBlock"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          onMouseDown={event => {
+            event.preventDefault();
+            event.stopPropagation();
+            const rect = event.currentTarget.getBoundingClientRect();
+            onOpen(block, { left: rect.left, top: rect.top, bottom: rect.bottom });
+          }}
+        >
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+      )}
+    />
   );
 }
 

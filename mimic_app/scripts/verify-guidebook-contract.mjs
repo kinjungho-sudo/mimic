@@ -11,7 +11,7 @@ const schema = read('components', 'guidebook', 'schema.tsx');
 
 assert.match(editor, /useState<HTMLElement \| null>\(\(\) => document\.body\)/, 'floating menus must portal to the viewport root on the first render');
 assert.match(editor, /createPortal\(/, 'add-block menu must render outside editor clipping containers');
-assert.match(editor, /onMouseDown=\{event => \{[\s\S]*onOpen\(block,/, 'add-block menu must open before the transient side menu unmounts');
+assert.match(editor, /<components\.SideMenu\.Button[\s\S]*onMouseDown=\{event => \{[\s\S]*onOpen\(block,/, 'add-block menu must use the editor side-menu control and open before it unmounts');
 assert.match(editor, /window\.innerHeight - addMenu\.anchor\.bottom >= 280/, 'add-block menu must choose an upward placement near the viewport bottom');
 assert.match(editor, /role="menu"\s*\n\s*aria-label="블록 삽입"/, 'add-block menu must remain keyboard discoverable');
 assert.match(editor, /strategy:\s*'fixed'/, 'floating menus must use viewport-fixed positioning');
