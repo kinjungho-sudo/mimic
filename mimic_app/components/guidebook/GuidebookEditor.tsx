@@ -287,7 +287,6 @@ export default function GuidebookEditor({ initialContent, tutorials, onChange }:
       >
         {/* #4: 드래그 핸들(::) 클릭 시 블록 유형 변환 메뉴 표시 */}
         <SideMenuController
-          portalElement={portalElement}
           sideMenu={(props) => (
             <SideMenu {...props}>
               <ViewportSafeAddBlockButton onOpen={openAddMenu} />
