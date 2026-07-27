@@ -15,10 +15,11 @@ import {
   BlockColorsItem,
   AddBlockButton,
   useBlockNoteEditor,
+  useExtension,
   useExtensionState,
 } from '@blocknote/react';
 import { filterSuggestionItems } from '@blocknote/core';
-import { SideMenuExtension } from '@blocknote/core/extensions';
+import { SideMenuExtension, SuggestionMenu } from '@blocknote/core/extensions';
 import { ko } from '@blocknote/core/locales';
 import { guidebookSchema, GuideContext } from './schema';
 import { createClient } from '@/lib/supabase/client';
@@ -38,6 +39,22 @@ const PLAYBOOK_UPLOAD_EXTENSIONS: Record<string, string> = {
   'video/quicktime': 'mov',
   'video/x-m4v': 'm4v',
 };
+
+// BlockNote의 기본 + 버튼은 블록 삽입과 메뉴 열기를 같은 이벤트에서 처리한다.
+// 하단 블록에서 포털 위치가 다시 계산될 때 메뉴 열림 상태가 유실되지 않도록
+// 삽입 트랜잭션이 반영된 다음 프레임에 메뉴를 한 번 더 확정한다.
+function ViewportSafeAddBlockButton() {
+  const suggestionMenu = useExtension(SuggestionMenu);
+
+  return (
+    <span
+      style={{ display: 'inline-flex' }}
+      onClick={() => requestAnimationFrame(() => suggestionMenu.openSuggestionMenu('/'))}
+    >
+      <AddBlockButton />
+    </span>
+  );
+}
 
 // #4: 드래그 핸들 메뉴에서 블록 유형 변환
 function TurnIntoSection() {
@@ -163,7 +180,7 @@ export default function GuidebookEditor({ initialContent, tutorials, onChange }:
           portalElement={portalElement}
           sideMenu={(props) => (
             <SideMenu {...props}>
-              <AddBlockButton />
+              <ViewportSafeAddBlockButton />
               <DragHandleButton {...props} dragHandleMenu={(menuProps) => (
                 <DragHandleMenu {...menuProps}>
                   <TurnIntoSection />
