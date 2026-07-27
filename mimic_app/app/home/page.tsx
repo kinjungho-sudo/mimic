@@ -1083,8 +1083,20 @@ export default function DashboardPage() {
       // 팀 탭에서 워크스페이스가 선택돼 있으면 팀 매뉴얼로 생성
       const wsId = activeTab === 'team' && activeWorkspace ? activeWorkspace : null;
       const tutorial = await createTutorial(wsId ? { workspace_id: wsId } : undefined);
-      router.push(`/manual/${tutorial.id}/editor`);
-    } catch { alert('생성 중 오류가 발생했습니다.'); setCreating(false); }
+      if (onboarding.isActive) {
+        window.dispatchEvent(new CustomEvent('parro:onboarding-manual-created', {
+          detail: { tutorialId: tutorial.id },
+        }));
+      } else {
+        router.push(`/manual/${tutorial.id}/editor`);
+      }
+    } catch {
+      if (onboarding.isActive) {
+        window.dispatchEvent(new Event('parro:onboarding-manual-create-failed'));
+      }
+      alert('생성 중 오류가 발생했습니다.');
+      setCreating(false);
+    }
   };
 
   const handleCreateGuidebook = async () => {

@@ -113,6 +113,7 @@ check(() => assert.match(api, /buildOnboardingCompletionPatch/));
 check(() => assert.match(api, /action: z\.literal\('dismiss_active'\)/));
 check(() => assert.match(api, /existing\.status !== 'in_progress'/));
 check(() => assert.match(api, /clear_practice_manual/));
+check(() => assert.match(api, /practice_manual_id: z\.string\(\)\.uuid\(\)\.optional\(\)/));
 check(() => assert.match(api, /mm_onboarding_events/));
 check(() => assert.match(api, /if \(error\) throw error/));
 check(() => assert.match(api, /Onboarding storage unavailable/));
@@ -136,7 +137,8 @@ check(() => assert.doesNotMatch(provider, /Recorder에서 완료하면 자동 �
 check(() => assert.match(provider, /나중에 하기/));
 check(() => assert.match(provider, /Recorder 설치나 녹화 연습 없이 바로 시작/));
 check(() => assert.match(provider, /처음부터 다시 보기/));
-check(() => assert.match(provider, /'완료' : '다음'/));
+check(() => assert.match(provider, /이동 중…/));
+check(() => assert.match(provider, /disabled=\{isTransitioning\}/));
 check(() => assert.match(provider, /completionOpen \? 100/));
 check(() => assert.match(provider, /aria-valuenow=\{percent\}/));
 check(() => assert.match(provider, /currentStep\.advanceOn === 'target-input'/));
@@ -154,12 +156,15 @@ check(() => assert.match(home, /data-parro-guide="home-create-menu"/));
 check(() => assert.match(home, /data-parro-guide="home-web-recording"/));
 check(() => assert.match(home, /data-parro-guide="home-blank-manual"/));
 check(() => assert.match(home, /window\.addEventListener\('parro:open-create-menu', openCreateMenu\)/));
+check(() => assert.match(home, /parro:onboarding-manual-created/));
 check(() => assert.match(home, /disabled=\{onboardingCreateLocked\}/));
 check(() => assert.doesNotMatch(home, /parro:onboarding-select-web-recording/));
 check(() => assert.match(home, /새 매뉴얼 직접 작성만 선택할 수 있어요/));
 
 check(() => assert.match(provider, /window\.dispatchEvent\(new Event\('parro:open-create-menu'\)\)/));
 check(() => assert.match(provider, /next\.id === 'home-blank-manual'/));
+check(() => assert.match(provider, /parro:onboarding-manual-created/));
+check(() => assert.match(provider, /practice_manual_id: practiceManualId/));
 check(() => assert.doesNotMatch(provider, /parro:onboarding-next/));
 
 const help = readApp('app', 'help', 'page.tsx');
@@ -179,6 +184,13 @@ for (const target of ['editor-title', 'editor-steps', 'editor-autosave', 'editor
   check(() => assert.match(editor, new RegExp(`data-parro-guide="${target}"`)));
 }
 check(() => assert.match(manualEditor, /data-parro-guide="editor-manual-content"/));
+check(() => assert.match(editor, /초안 미리보기 \(소유자 전용, 새 탭\)/));
+check(() => assert.match(editor, /\/play\/\$\{id\}\?preview=1/));
+
+const playApi = readApp('app', 'api', 'play', '[token]', 'route.ts');
+check(() => assert.match(playApi, /createServerClient/));
+check(() => assert.match(playApi, /ownerId\s*\?\s*tutorialQuery\.eq\('id', token\)\.eq\('user_id', ownerId\)/));
+check(() => assert.match(playApi, /Unauthorized/));
 
 const recordingModal = readApp('components', 'dashboard', 'RecordingModal.tsx');
 check(() => assert.match(recordingModal, /OPEN_ONBOARDING_PRACTICE/));

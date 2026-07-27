@@ -20,6 +20,7 @@ const patchSchema = z.discriminatedUnion('action', [
     action: z.literal('progress'),
     current_step: z.string().trim().min(1).max(80)
       .refine(step => ONBOARDING_STEP_IDS.has(step), 'Unknown onboarding step'),
+    practice_manual_id: z.string().uuid().optional(),
   }),
   z.object({ action: z.literal('complete') }),
   z.object({ action: z.literal('dismiss') }),
@@ -144,7 +145,13 @@ export async function PATCH(request: NextRequest) {
       if (!existing) {
         return NextResponse.json({ error: 'Onboarding has not started' }, { status: 409 });
       }
-      values = { status: 'in_progress', current_step: parsed.data.current_step };
+      values = {
+        status: 'in_progress',
+        current_step: parsed.data.current_step,
+        ...(parsed.data.practice_manual_id
+          ? { practice_manual_id: parsed.data.practice_manual_id }
+          : {}),
+      };
       break;
     case 'complete':
       if (!existing) {

@@ -100,11 +100,14 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
   const [targetMissing, setTargetMissing] = useState(false);
   const [extensionState, setExtensionState] = useState('unknown');
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const tooltipRef = useRef<HTMLDivElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const requestedReplayRef = useRef(false);
   const viewedStepRef = useRef<string | null>(null);
   const blockedStepRef = useRef<string | null>(null);
+  const transitionRef = useRef(false);
+  const emittedEventKeysRef = useRef(new Set<string>());
 
   const currentStep = useMemo(
     () => getOnboardingStep(progress?.current_step ?? PARRO_ONBOARDING_FIRST_STEP, mobileTour),
@@ -116,6 +119,9 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
     stepId?: string | null,
     state = extensionState,
   ) => {
+    const eventKey = `${eventType}:${stepId ?? ''}:${state}`;
+    if (emittedEventKeysRef.current.has(eventKey)) return;
+    emittedEventKeysRef.current.add(eventKey);
     void fetch('/api/user/onboarding', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -140,6 +146,7 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const startGuide = useCallback(async (replay: boolean) => {
+    emittedEventKeysRef.current.clear();
     const next = await requestProgress({ action: 'start', replay });
     if (!next) {
       setSaveError('가이드 시작 상태를 저장하지 못했어요. 네트워크를 확인한 뒤 다시 시도해주세요.');
@@ -214,8 +221,12 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
     setActive(true);
   }, [currentStep.id, emitEvent]);
 
-  const moveToStep = useCallback(async (step: OnboardingStep) => {
-    const next = await requestProgress({ action: 'progress', current_step: step.id });
+  const moveToStep = useCallback(async (step: OnboardingStep, practiceManualId?: string) => {
+    const next = await requestProgress({
+      action: 'progress',
+      current_step: step.id,
+      ...(practiceManualId ? { practice_manual_id: practiceManualId } : {}),
+    });
     if (!next) {
       setSaveError('진행 상태를 저장하지 못했어요. 네트워크를 확인한 뒤 다시 시도해주세요.');
       return false;
@@ -226,16 +237,43 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const goNext = useCallback(async () => {
-    const next = getNextOnboardingStep(currentStep.id, mobileTour);
-    if (!next || next.id === 'complete') {
-      await finishAndShowCompletion();
-      return;
-    }
-    if (await moveToStep(next)) {
-      if (next.id === 'home-blank-manual') {
-        window.dispatchEvent(new Event('parro:open-create-menu'));
+    if (transitionRef.current) return;
+    transitionRef.current = true;
+    setIsTransitioning(true);
+    let waitForManualCreation = false;
+    try {
+      if (currentStep.id === 'home-blank-manual') {
+        const createButton = Array.from(document.querySelectorAll<HTMLElement>(
+          '[data-parro-guide="home-blank-manual"]',
+        )).find(element => {
+          const rect = element.getBoundingClientRect();
+          return rect.width > 0 && rect.height > 0;
+        });
+        if (!createButton) {
+          setSaveError('새 매뉴얼 만들기 화면을 찾지 못했어요. 이전 단계로 돌아가 다시 시도해주세요.');
+          return;
+        }
+        waitForManualCreation = true;
+        createButton.click();
+        return;
       }
-      emitEvent('step_complete', currentStep.id);
+
+      const next = getNextOnboardingStep(currentStep.id, mobileTour);
+      if (!next || next.id === 'complete') {
+        await finishAndShowCompletion();
+        return;
+      }
+      if (await moveToStep(next)) {
+        if (next.id === 'home-blank-manual') {
+          window.dispatchEvent(new Event('parro:open-create-menu'));
+        }
+        emitEvent('step_complete', currentStep.id);
+      }
+    } finally {
+      if (!waitForManualCreation) {
+        transitionRef.current = false;
+        setIsTransitioning(false);
+      }
     }
   }, [currentStep.id, emitEvent, finishAndShowCompletion, mobileTour, moveToStep]);
 
@@ -302,6 +340,36 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
   }, [signal]);
 
   useEffect(() => {
+    const createdListener = (event: Event) => {
+      const customEvent = event as CustomEvent<{ tutorialId?: string }>;
+      const tutorialId = customEvent.detail?.tutorialId;
+      if (!active || currentStep.id !== 'home-blank-manual' || !tutorialId) return;
+
+      void (async () => {
+        const next = getNextOnboardingStep(currentStep.id, mobileTour);
+        if (next && await moveToStep(next, tutorialId)) {
+          emitEvent('step_complete', currentStep.id);
+          router.push(`/manual/${tutorialId}/editor?onboarding=1`);
+        }
+        transitionRef.current = false;
+        setIsTransitioning(false);
+      })();
+    };
+    const failedListener = () => {
+      if (!active || currentStep.id !== 'home-blank-manual') return;
+      transitionRef.current = false;
+      setIsTransitioning(false);
+      setSaveError('빈 매뉴얼을 만들지 못했어요. 잠시 후 다시 시도해주세요.');
+    };
+    window.addEventListener('parro:onboarding-manual-created', createdListener);
+    window.addEventListener('parro:onboarding-manual-create-failed', failedListener);
+    return () => {
+      window.removeEventListener('parro:onboarding-manual-created', createdListener);
+      window.removeEventListener('parro:onboarding-manual-create-failed', failedListener);
+    };
+  }, [active, currentStep.id, emitEvent, mobileTour, moveToStep, router]);
+
+  useEffect(() => {
     if (
       active
       && pathname === '/home'
@@ -312,7 +380,7 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
   }, [active, currentStep.id, pathname]);
 
   useEffect(() => {
-    if (!active || completionOpen) return;
+    if (!active || completionOpen || isTransitioning) return;
     if (
       currentStep.route === 'home'
       && pathname !== '/home'
@@ -328,7 +396,7 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
     ) {
       router.replace(`/manual/${progress.practice_manual_id}/editor?onboarding=1`);
     }
-  }, [active, completionOpen, currentStep.route, pathname, progress?.practice_manual_id, router]);
+  }, [active, completionOpen, currentStep.route, isTransitioning, pathname, progress?.practice_manual_id, router]);
 
   useEffect(() => {
     if (
@@ -388,7 +456,12 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
         && event.target instanceof Node
         && target.contains(event.target)
       ) {
-        window.setTimeout(() => void goNext(), 100);
+        if (currentStep.id === 'home-blank-manual') {
+          transitionRef.current = true;
+          setIsTransitioning(true);
+        } else {
+          window.setTimeout(() => void goNext(), 100);
+        }
       }
     };
     const hasInputValue = () => {
@@ -610,12 +683,19 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
               </div>
             ) : (
               <div className="parro-onboarding-navigation">
-                <button onClick={() => void goBack()} disabled={!getPreviousOnboardingStep(currentStep.id, mobileTour)}>
+                <button
+                  onClick={() => void goBack()}
+                  disabled={isTransitioning || !getPreviousOnboardingStep(currentStep.id, mobileTour)}
+                >
                   이전
                 </button>
                 <span>{percent}%</span>
-                <button className="is-primary" onClick={handleNext}>
-                  {getNextOnboardingStep(currentStep.id, mobileTour)?.id === 'complete' ? '완료' : '다음'}
+                <button className="is-primary" onClick={handleNext} disabled={isTransitioning}>
+                  {isTransitioning
+                    ? '이동 중…'
+                    : getNextOnboardingStep(currentStep.id, mobileTour)?.id === 'complete'
+                      ? '완료'
+                      : '다음'}
                 </button>
               </div>
             )}

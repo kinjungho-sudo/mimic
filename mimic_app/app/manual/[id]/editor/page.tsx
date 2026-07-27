@@ -725,16 +725,22 @@ export default function EditorPage() {
 
           {/* 편집기 — 항상 편집 모드 */}
           <>
-            {/* 미리보기 — 게시된 공개 뷰어 새 탭 */}
+            {/* 미리보기 — 초안은 소유자 전용, 게시본은 공개 뷰어 새 탭 */}
             {(() => {
               const shareToken = (tutorial as Tutorial & { share_token?: string | null })?.share_token;
+              const canPreview = manualSteps.length > 0;
+              const previewUrl = shareToken ? `/play/${shareToken}` : `/play/${id}?preview=1`;
               return (
                 <button
-                  onClick={() => { if (shareToken) window.open(`/play/${shareToken}`, '_blank'); }}
-                  title={shareToken ? '공개 뷰어로 미리보기 (새 탭)' : '게시 후 미리보기 가능'}
-                  disabled={!shareToken}
-                  style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: shareToken ? '#374151' : '#D1D5DB', background: 'white', border: '1px solid #E5E7EB', cursor: shareToken ? 'pointer' : 'not-allowed', transition: 'all 0.15s' }}
-                  onMouseEnter={e => { if (shareToken) e.currentTarget.style.background = '#F9FAFB'; }}
+                  onClick={() => { if (canPreview) window.open(previewUrl, '_blank'); }}
+                  title={canPreview
+                    ? shareToken
+                      ? '공개 뷰어로 미리보기 (새 탭)'
+                      : '초안 미리보기 (소유자 전용, 새 탭)'
+                    : '단계를 추가하면 미리볼 수 있어요'}
+                  disabled={!canPreview}
+                  style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: canPreview ? '#374151' : '#D1D5DB', background: 'white', border: '1px solid #E5E7EB', cursor: canPreview ? 'pointer' : 'not-allowed', transition: 'all 0.15s' }}
+                  onMouseEnter={e => { if (canPreview) e.currentTarget.style.background = '#F9FAFB'; }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
                 >
                   <Eye size={TOP_BAR_ICON_SIZE} />

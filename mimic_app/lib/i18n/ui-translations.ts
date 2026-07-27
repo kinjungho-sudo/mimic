@@ -589,6 +589,7 @@ export const ENGLISH_UI_TRANSLATIONS: Record<string, string> = {
   '연습 매뉴얼을 보관했어요.': 'The practice manual was kept.',
   '보관': 'Keep',
   '이동 중…': 'Moving…',
+  '단계를 추가하면 미리볼 수 있어요': 'Add a step to preview the manual',
   '내 매뉴얼 만들기': 'Create my manual',
   '연습 매뉴얼 열기': 'Open practice manual',
   '처음부터 다시 보기': 'Start from the beginning',
