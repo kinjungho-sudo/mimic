@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { BRAND_EXTENSION_ID, BRAND_LEGACY_EXTENSION_ID } from '../lib/brand.ts';
-import { selectPreferredExtensionId } from '../lib/extension-id.ts';
+import { selectExtensionIdCandidates, selectPreferredExtensionId } from '../lib/extension-id.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const repoRoot = path.resolve(appRoot, '..');
@@ -53,6 +53,23 @@ check(() => {
   );
 });
 check(() => {
+  assert.deepEqual(
+    selectExtensionIdCandidates({ hostname: 'parro-guide.vercel.app' }),
+    [BRAND_EXTENSION_ID, BRAND_LEGACY_EXTENSION_ID],
+    'Production recording must probe both approved Web Store IDs during the cutover',
+  );
+});
+check(() => {
+  assert.deepEqual(
+    selectExtensionIdCandidates({
+      hostname: 'parro-guide-dev.vercel.app',
+      stored: devExtensionId,
+    }),
+    [devExtensionId],
+    'dev must keep using only the explicitly discovered unpacked Recorder',
+  );
+});
+check(() => {
   assert.equal(
     selectPreferredExtensionId({
       hostname: 'parro-guide-dev.vercel.app',
@@ -74,6 +91,10 @@ check(() => assert.ok(background.includes(BRAND_EXTENSION_ID)));
 check(() => assert.ok(popup.includes(BRAND_EXTENSION_ID)));
 check(() => assert.ok(manifest.externally_connectable?.matches?.includes('https://mimic-nine-ashen.vercel.app/*')));
 check(() => assert.ok(manifest.externally_connectable?.matches?.includes('https://mimicflow.com/*')));
+
+const recordingModal = fs.readFileSync(path.join(appRoot, 'components', 'dashboard', 'RecordingModal.tsx'), 'utf8');
+check(() => assert.ok(recordingModal.includes("else setStep('not_installed');")));
+check(() => assert.ok(!recordingModal.includes('window.location.href = STORE_URL')));
 
 console.log(JSON.stringify({
   ok: true,

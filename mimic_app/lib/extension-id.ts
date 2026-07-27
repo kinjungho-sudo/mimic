@@ -1,4 +1,4 @@
-import { BRAND_EXTENSION_ID } from '@/lib/brand';
+import { BRAND_EXTENSION_ID, BRAND_EXTENSION_IDS } from '@/lib/brand';
 
 const EXTENSION_ID_STORAGE_KEY = 'parro_extension_id';
 const EXTENSION_ID_PATTERN = /^[a-p]{32}$/;
@@ -38,11 +38,31 @@ export function selectPreferredExtensionId({
     || cleanExtensionId(configured);
 }
 
+export function selectExtensionIdCandidates(selection: ExtensionIdSelection) {
+  const preferred = selectPreferredExtensionId(selection);
+  if (allowsDynamicExtensionId(selection.hostname)) {
+    return preferred ? [preferred] : [];
+  }
+  return Array.from(new Set([preferred, ...BRAND_EXTENSION_IDS].filter(Boolean)));
+}
+
 export function getPreferredExtensionId() {
   if (typeof window === 'undefined') return BRAND_EXTENSION_ID;
 
   const params = new URLSearchParams(window.location.search);
   return selectPreferredExtensionId({
+    hostname: window.location.hostname,
+    configured: process.env.NEXT_PUBLIC_EXTENSION_ID,
+    query: params.get('extension_id'),
+    stored: window.localStorage.getItem(EXTENSION_ID_STORAGE_KEY),
+  });
+}
+
+export function getExtensionIdCandidates() {
+  if (typeof window === 'undefined') return [...BRAND_EXTENSION_IDS];
+
+  const params = new URLSearchParams(window.location.search);
+  return selectExtensionIdCandidates({
     hostname: window.location.hostname,
     configured: process.env.NEXT_PUBLIC_EXTENSION_ID,
     query: params.get('extension_id'),
@@ -111,4 +131,10 @@ export function resolvePreferredExtensionId(timeoutMs = 400): Promise<string> {
     requestExtensionIdBroadcast();
     window.setTimeout(() => finish(), timeoutMs);
   });
+}
+
+export async function resolveExtensionIdCandidates(timeoutMs = 400): Promise<string[]> {
+  const preferred = await resolvePreferredExtensionId(timeoutMs);
+  const current = getExtensionIdCandidates();
+  return Array.from(new Set([preferred, ...current].filter(Boolean)));
 }

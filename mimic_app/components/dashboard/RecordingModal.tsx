@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { installExtensionIdListener, resolvePreferredExtensionId } from '@/lib/extension-id';
+import { installExtensionIdListener, resolveExtensionIdCandidates } from '@/lib/extension-id';
 import { BRAND_COLORS, BRAND_COPY, BRAND_EXTENSION_STORE_URL } from '@/lib/brand';
 
 // 운영(Production)에서만 켜는 플래그 — Vercel Production env에 NEXT_PUBLIC_REQUIRE_EXTENSION=1.
@@ -53,19 +53,14 @@ function isExtensionInstalled(): boolean {
   return !!(typeof window !== 'undefined' && window.chrome?.runtime?.sendMessage);
 }
 
-async function sendMessage(action: string, payload?: Record<string, unknown>): Promise<unknown> {
-  const extensionId = await resolvePreferredExtensionId();
+let connectedExtensionId = '';
+
+function sendMessageToExtension(extensionId: string, action: string, payload?: Record<string, unknown>): Promise<unknown> {
   return new Promise(resolve => {
-    if (!extensionId || !isExtensionInstalled()) {
-      console.warn('[Parro] 확장 없음 또는 extensionId 미설정, 바이패스');
-      resolve(null);
-      return;
-    }
-    // 5초 타임아웃 — 확장이 응답 안 하면 null 반환
     const timer = setTimeout(() => {
-      console.warn('[Parro] sendMessage 타임아웃:', action);
+      console.warn('[Parro] sendMessage 타임아웃:', action, extensionId);
       resolve(null);
-    }, 5000);
+    }, action === 'CONNECT' ? 1500 : 5000);
     window.chrome!.runtime!.sendMessage(extensionId, { action, ...payload }, resp => {
       clearTimeout(timer);
       if (window.chrome?.runtime?.lastError) {
@@ -73,18 +68,35 @@ async function sendMessage(action: string, payload?: Record<string, unknown>): P
         resolve(null);
         return;
       }
-      console.log('[Parro] 응답:', action, resp);
-      resolve(resp);
+      resolve(resp ?? null);
     });
   });
+}
+
+async function sendMessage(action: string, payload?: Record<string, unknown>): Promise<unknown> {
+  if (!isExtensionInstalled()) {
+    console.warn('[Parro] Chrome 외부 메시징 API를 사용할 수 없음:', action);
+    return null;
+  }
+  const candidates = connectedExtensionId
+    ? [connectedExtensionId]
+    : await resolveExtensionIdCandidates();
+  for (const extensionId of candidates) {
+    const resp = await sendMessageToExtension(extensionId, action, payload);
+    if (resp) {
+      connectedExtensionId = extensionId;
+      console.log('[Parro] 응답:', action, resp);
+      return resp;
+    }
+  }
+  return null;
 }
 
 // Service Worker가 잠든 상태일 때 첫 메시지가 실패하는 경쟁 조건 방지.
 // CONNECT ping으로 먼저 깨운 뒤 실제 메시지를 전송한다.
 // 최대 3회 재시도, 회당 600ms 대기.
 async function wakeAndSend(action: string, payload?: Record<string, unknown>, retries = 3): Promise<unknown> {
-  const extensionId = await resolvePreferredExtensionId();
-  if (!extensionId || !isExtensionInstalled()) return null;
+  if (!isExtensionInstalled()) return null;
 
   for (let i = 0; i < retries; i++) {
     // ping
@@ -114,8 +126,7 @@ async function fetchOpenTabs(): Promise<TabsResponse | null> {
 }
 
 async function linkExtensionToCurrentUser(): Promise<boolean> {
-  const extensionId = await resolvePreferredExtensionId();
-  if (!extensionId || !isExtensionInstalled()) return !REQUIRE_EXTENSION;
+  if (!isExtensionInstalled()) return !REQUIRE_EXTENSION;
 
   try {
     const res = await fetch('/api/extension/link', { method: 'POST' });
@@ -237,8 +248,8 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
 
   // 모달 진입 시:
   // - dev/Preview(REQUIRE_EXTENSION 꺼짐): 확장 강제 없이 바로 가이드 (기존 동작)
-  // - 운영(REQUIRE_EXTENSION 켜짐): CONNECT ping으로 설치 여부 확인 → 미설치/미응답이면
-  //   크롬 웹스토어 설치 페이지로 직접 보낸다.
+  // - 운영(REQUIRE_EXTENSION 켜짐): 공개/레거시 Web Store ID에 CONNECT ping.
+  //   미응답이어도 현재 페이지를 떠나지 않고 복구 UI를 보여준다.
   useEffect(() => {
     const cleanupExtensionIdListener = installExtensionIdListener();
     if (!REQUIRE_EXTENSION) {
@@ -251,7 +262,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
       const resp = await wakeAndSend('CONNECT'); // SW 깨우고 설치 여부 확인
       if (!alive) return;
       if (resp) setStep(readyStep);
-      else window.location.href = STORE_URL; // 미설치 → 크롬 웹스토어 설치 페이지로 직접
+      else setStep('not_installed');
     })();
     return () => { alive = false; cleanupExtensionIdListener(); };
   }, [readyStep]);
