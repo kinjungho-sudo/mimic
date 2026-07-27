@@ -243,12 +243,19 @@ export function ParroOnboardingProvider({ children }: { children: ReactNode }) {
     let waitForManualCreation = false;
     try {
       if (currentStep.id === 'home-blank-manual') {
-        const createButton = Array.from(document.querySelectorAll<HTMLElement>(
-          '[data-parro-guide="home-blank-manual"]',
-        )).find(element => {
-          const rect = element.getBoundingClientRect();
-          return rect.width > 0 && rect.height > 0;
-        });
+        window.dispatchEvent(new Event('parro:open-create-menu'));
+        let createButton: HTMLElement | undefined;
+        for (let attempt = 0; attempt < 20 && !createButton; attempt += 1) {
+          createButton = Array.from(document.querySelectorAll<HTMLElement>(
+            '[data-parro-guide="home-blank-manual"]',
+          )).find(element => {
+            const rect = element.getBoundingClientRect();
+            return rect.width > 0 && rect.height > 0;
+          });
+          if (!createButton) {
+            await new Promise(resolve => window.setTimeout(resolve, 50));
+          }
+        }
         if (!createButton) {
           setSaveError('새 매뉴얼 만들기 화면을 찾지 못했어요. 이전 단계로 돌아가 다시 시도해주세요.');
           return;
