@@ -1,7 +1,7 @@
 // ── 환경 자동 판별 ────────────────────────────────────────────────
 // 웹스토어 배포본(고정 ID)=운영 / 개발자 언패킹(다른 ID)=dev.
 // chrome.runtime.id로 자동 구분 → 배포본이 실수로 dev를 가리킬 위험 없음.
-importScripts('desktop-import.js', 'desktop-bridge.js', 'pre-capture-buffer.js');
+importScripts('pre-capture-buffer.js');
 
 const PROD_EXTENSION_IDS = new Set([
   'lefkpmfgdbhckcemfghpegleknaepekm', // replacement listing under review
@@ -745,233 +745,8 @@ async function compressToJpeg(pngDataUrl, quality = JPEG_QUALITY_DEFAULT) {
   return canvas.convertToBlob({ type: 'image/jpeg', quality });
 }
 
-// Desktop 앱이 PC에 저장한 캡처 세션을 한 번만 가져와 기존 웹 캡처 파이프라인으로 변환한다.
-// 세션별 결과를 저장해 새로고침·재시도에도 동일 매뉴얼을 반환하고 중복 생성을 막는다.
-const _desktopImports = new Map();
-
-async function importDesktopCaptureSession(nativeSessionId) {
-  if (_desktopImports.has(nativeSessionId)) return _desktopImports.get(nativeSessionId);
-  const work = (async () => {
-    const { extensionToken, desktopImportedSessions } = await storageGet(['extensionToken', 'desktopImportedSessions']);
-    if (!extensionToken) throw new Error('not_linked');
-    const prior = desktopImportedSessions?.[nativeSessionId];
-    if (prior?.tutorial_id) return { ...prior, reused: true };
-
-    const capture = await getDesktopCaptureSession(nativeSessionId);
-    const events = Array.isArray(capture.events)
-      ? capture.events.filter(event => event?.step_number && event?.screenshot_size > 0).slice(0, 200)
-      : [];
-    if (!events.length) throw new Error('desktop_capture_empty');
-
-    const sessionId = crypto.randomUUID();
-    resetLastSavedHash();
-    await storageSet({
-      sessionId,
-      stepNumber: 0,
-      steps: [],
-      _undoStack: [],
-      contentMode: 'action',
-      desktopImportProgress: { nativeSessionId, status: 'processing', completed: 0, total: events.length },
-    });
-
-    const completedSteps = [];
-    for (let index = 0; index < events.length; index += 1) {
-      const event = events[index];
-      const pngBlob = await readDesktopCaptureImage(nativeSessionId, event.step_number, event.screenshot_size);
-      const pngDataUrl = await blobToDataUrl(pngBlob);
-      const stepData = ParroDesktopImport.buildStepData(event, index);
-      const prepared = await prepareCapture(pngDataUrl, stepData, null);
-      if (!prepared) continue;
-      await processStepUpload(prepared);
-      completedSteps.push(stepData.stepNumber);
-      await storageSet({
-        desktopImportProgress: {
-          nativeSessionId,
-          status: 'processing',
-          completed: index + 1,
-          total: events.length,
-        },
-      });
-    }
-
-    if (!completedSteps.length) throw new Error('desktop_import_no_steps');
-    const finalized = await finalizeSession(sessionId, completedSteps);
-    if (!finalized?.tutorial_id) throw new Error('desktop_finalize_failed');
-    const result = {
-      tutorial_id: finalized.tutorial_id,
-      step_count: finalized.step_count || completedSteps.length,
-      webapp_origin: finalized.webapp_origin || await getWebappOrigin(),
-    };
-    const imported = { ...(desktopImportedSessions || {}) };
-    imported[nativeSessionId] = result;
-    const recentEntries = Object.entries(imported).slice(-20);
-    await storageSet({
-      desktopImportedSessions: Object.fromEntries(recentEntries),
-      desktopImportProgress: { nativeSessionId, status: 'complete', completed: events.length, total: events.length, ...result },
-    });
-    return result;
-  })();
-  _desktopImports.set(nativeSessionId, work);
-  try {
-    return await work;
-  } finally {
-    _desktopImports.delete(nativeSessionId);
-  }
-}
-
 // ── 외부(웹페이지) 메시지 라우터 ────────────────────────────────
 chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
-  if (message.action === 'DESKTOP_COMPANION_STATUS') {
-    (async () => {
-      const pong = await pingDesktopCompanion().catch((error) => ({ ok: false, error: error?.message }));
-      sendResponse({
-        ok: !!pong?.ok,
-        recorderVersion: chrome.runtime.getManifest().version,
-        desktop: desktopBridgeStatus(),
-        error: pong?.error,
-      });
-    })();
-    return true;
-  }
-
-  if (message.action === 'START_DESKTOP_RECORDING') {
-    (async () => {
-      const plan = await getUserPlan(true);
-      if (!plan?.isPro) {
-        sendResponse({ ok: false, error: 'desktop_paid_plan_required', desktop: desktopBridgeStatus() });
-        return;
-      }
-      const sessionId = crypto.randomUUID();
-      const result = await notifyDesktopCaptureStarted({
-        sessionId,
-        targetTabId: null,
-        source: 'desktop_setup',
-      });
-      const desktop = desktopBridgeStatus();
-      sendResponse({
-        ok: !!result?.ok && !!desktop.connected,
-        sessionId,
-        desktop,
-        error: result?.error || (desktop.connected ? undefined : desktop.lastError || 'desktop_host_unavailable'),
-      });
-    })();
-    return true;
-  }
-
-  if (message.action === 'STOP_DESKTOP_RECORDING') {
-    (async () => {
-      const sessionId = message.sessionId || null;
-      try {
-        const stopped = await notifyDesktopCaptureStopped({
-          sessionId,
-          reason: 'desktop_setup_stop',
-        });
-        if (!stopped?.ok) throw new Error(stopped?.error || 'desktop_stop_failed');
-        const imported = await importDesktopCaptureSession(sessionId);
-        sendResponse({
-          ok: true,
-          sessionId,
-          desktop: desktopBridgeStatus(),
-          tutorialId: imported.tutorial_id,
-          stepCount: imported.step_count,
-          editorUrl: `${imported.webapp_origin}/manual/${imported.tutorial_id}/editor`,
-        });
-      } catch (error) {
-        sendResponse({
-          ok: false,
-          sessionId,
-          desktop: desktopBridgeStatus(),
-          error: error?.message || 'desktop_import_failed',
-        });
-      }
-    })();
-    return true;
-  }
-
-  if (message.action === 'PAUSE_DESKTOP_RECORDING' || message.action === 'RESUME_DESKTOP_RECORDING') {
-    (async () => {
-      try {
-        const paused = message.action === 'PAUSE_DESKTOP_RECORDING';
-        const result = await setDesktopCapturePaused({ sessionId: message.sessionId || null, paused });
-        sendResponse({ ok: !!result?.ok, sessionId: message.sessionId || null, paused, error: result?.error });
-      } catch (error) {
-        sendResponse({ ok: false, sessionId: message.sessionId || null, error: error?.message || 'desktop_pause_failed' });
-      }
-    })();
-    return true;
-  }
-
-  if (message.action === 'UNDO_DESKTOP_CAPTURE') {
-    (async () => {
-      try {
-        const result = await undoDesktopCaptureStep(message.sessionId || null);
-        sendResponse({
-          ok: !!result?.ok,
-          sessionId: message.sessionId || null,
-          capturedSteps: Number(result?.captured_steps) || 0,
-          error: result?.error,
-        });
-      } catch (error) {
-        sendResponse({ ok: false, sessionId: message.sessionId || null, error: error?.message || 'desktop_undo_failed' });
-      }
-    })();
-    return true;
-  }
-
-  if (message.action === 'IMPORT_DESKTOP_CAPTURE') {
-    (async () => {
-      const sessionId = message.sessionId || null;
-      try {
-        const plan = await getUserPlan(true);
-        if (!plan?.isPro) throw new Error('desktop_paid_plan_required');
-        const imported = await importDesktopCaptureSession(sessionId);
-        sendResponse({
-          ok: true,
-          sessionId,
-          desktop: desktopBridgeStatus(),
-          tutorialId: imported.tutorial_id,
-          stepCount: imported.step_count,
-          editorUrl: `${imported.webapp_origin}/manual/${imported.tutorial_id}/editor`,
-        });
-      } catch (error) {
-        sendResponse({
-          ok: false,
-          sessionId,
-          desktop: desktopBridgeStatus(),
-          error: error?.message || 'desktop_import_failed',
-        });
-      }
-    })();
-    return true;
-  }
-
-  if (message.action === 'IMPORT_DESKTOP_CAPTURE') {
-    (async () => {
-      const sessionId = message.sessionId || null;
-      try {
-        const plan = await getUserPlan(true);
-        if (!plan?.isPro) throw new Error('desktop_paid_plan_required');
-        const imported = await importDesktopCaptureSession(sessionId);
-        sendResponse({
-          ok: true,
-          sessionId,
-          desktop: desktopBridgeStatus(),
-          tutorialId: imported.tutorial_id,
-          stepCount: imported.step_count,
-          editorUrl: `${imported.webapp_origin}/manual/${imported.tutorial_id}/editor`,
-        });
-      } catch (error) {
-        sendResponse({
-          ok: false,
-          sessionId,
-          desktop: desktopBridgeStatus(),
-          error: error?.message || 'desktop_import_failed',
-        });
-      }
-    })();
-    return true;
-  }
-
   if (message.action === 'GET_TABS') {
     const toRecordableTab = (t) => {
       if (!t || typeof t.id !== 'number') return null;
@@ -1174,9 +949,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         return;
       }
 
-      // 6) 브라우저 녹화 상태만 시작 — _directStartTabId로 onChanged 중복 차단
-      //    데스크톱 캡처는 START_DESKTOP_RECORDING에서만 시작한다. 두 모드를
-      //    묶으면 웹 캡처 선택만으로 Native Host가 함께 실행되어 세션이 충돌한다.
+      // 6) 브라우저 녹화 상태 시작 — _directStartTabId로 onChanged 중복 차단
       _directStartTabId = tabId;
       await storageSet({ isRecording: true });
       _directStartTabId = null;
@@ -1311,19 +1084,6 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 
 // ── 내부 메시지 라우터 ────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === 'DESKTOP_COMPANION_STATUS') {
-    (async () => {
-      const pong = await pingDesktopCompanion().catch((error) => ({ ok: false, error: error?.message }));
-      sendResponse({
-        ok: !!pong?.ok,
-        recorderVersion: chrome.runtime.getManifest().version,
-        desktop: desktopBridgeStatus(),
-        error: pong?.error,
-      });
-    })();
-    return true;
-  }
-
   // pointerdown 선캡처 — 클릭으로 화면이 바뀌기 전 프레임을 미리 잡아 버퍼에 보관
   if (message.type === 'PRECAPTURE_FRAME') {
     const tabId = sender.tab?.id;
@@ -2482,8 +2242,6 @@ chrome.storage.onChanged.addListener((changes, area) => {
     if (nowRecording && _directStartTabId) return;  // onMessageExternal이 직접 처리 중
 
     if (nowRecording) {
-      // 브라우저 녹화 상태는 Native Host를 시작하지 않는다. 데스크톱 캡처는
-      // 명시적인 START_DESKTOP_RECORDING / STOP_DESKTOP_RECORDING 경로만 사용한다.
       resetLastSavedHash();  // 새 녹화 → 디덥 기준 해시 초기화
     } else {
       chrome.storage.local.remove(['pendingCapture', 'spaNavCapturing']);

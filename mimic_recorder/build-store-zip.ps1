@@ -15,7 +15,7 @@ New-Item -ItemType Directory -Path (Join-Path $stage 'icons') -Force | Out-Null
 $files = @(
   'manifest.json',
   'background.js', 'content.js', 'guide-engine.js', 'pre-capture-buffer.js',
-  'desktop-bridge.js', 'desktop-import.js', 'targeting.js',
+  'targeting.js',
   'popup.js', 'popup.html',
   'offscreen.html', 'offscreen.js',
   'request-mic.html', 'request-mic.js',

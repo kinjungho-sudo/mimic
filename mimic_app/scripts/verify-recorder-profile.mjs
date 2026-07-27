@@ -171,6 +171,7 @@ try {
   check(() => {
     assert.match(manifest.name, /^Parro Recorder/);
     assert.equal(manifest.side_panel?.default_path, 'popup.html');
+    assert.equal(manifest.permissions?.includes('nativeMessaging'), false);
     if (expectedVersion) assert.equal(manifest.version, expectedVersion);
   });
 

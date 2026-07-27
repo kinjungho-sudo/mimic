@@ -142,16 +142,11 @@ check(() => {
 });
 
 check(() => {
-  const start = background.indexOf("if (message.action === 'START_DESKTOP_RECORDING')");
-  const end = background.indexOf("if (message.action === 'PAUSE_DESKTOP_RECORDING'", start);
-  const block = background.slice(start, end);
-  assert.ok(start >= 0 && end > start, 'explicit desktop recording handlers must be present');
-  assert.match(block, /notifyDesktopCaptureStarted\(/);
-  assert.match(block, /notifyDesktopCaptureStopped\(/);
-  assert.match(background, /desktop_paid_plan_required/);
-  assert.match(background, /recorderVersion: chrome\.runtime\.getManifest\(\)\.version/);
-  assert.match(background, /async function importDesktopCaptureSession\(nativeSessionId\)/);
-  assert.match(background, /editorUrl: `\$\{imported\.webapp_origin\}\/manual\/\$\{imported\.tutorial_id\}\/editor`/);
+  assert.equal(manifest.permissions.includes('nativeMessaging'), false);
+  assert.doesNotMatch(background, /connectNative/);
+  assert.doesNotMatch(background, /START_DESKTOP_RECORDING/);
+  assert.doesNotMatch(background, /DESKTOP_COMPANION_STATUS/);
+  assert.doesNotMatch(background, /importDesktopCaptureSession/);
 });
 
 check(() => {
