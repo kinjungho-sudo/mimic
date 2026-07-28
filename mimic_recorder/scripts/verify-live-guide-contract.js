@@ -35,6 +35,8 @@ assert.match(background, /function normalizeAllowedWebappOrigin\(candidate\)/);
 assert.match(background, /function resolveGuideRequestOrigin\(senderOrigin, requestedOrigin\)/);
 assert.match(startGuide, /resolveGuideRequestOrigin\(sender\.origin, message\.webapp_origin\)/);
 assert.match(startGuide, /const origin = guideRequestOrigin/);
+assert.match(startGuide, /message\.guide_source === 'playbook'/);
+assert.match(startGuide, /\/api\/guide\/playbook\//);
 assert.match(startGuide, /cache: 'no-store'/);
 assert.match(startGuide, /!firstStep\?\.page_url\s*\|\|\s*!isSafeNavUrl/);
 assert.match(startGuide, /createGuideTab\(firstStep\.page_url/);
@@ -69,8 +71,13 @@ assert.match(guideNavigation, /guideCompletedSteps/);
 assert.match(guideNavigation, /message\.skipped/);
 assert.match(guideNavigation, /guideOriginMatches\(tab\.url, step\.page_url\)/);
 assert.match(guideNavigation, /navigateGuideTab\(tab\.id, step\.page_url\)/);
-assert.match(background, /message\.type === 'EXIT_GUIDE' \|\| message\.type === 'GUIDE_COMPLETE'[\s\S]*clearGuideSession\(\)/);
-assert.match(background, /if \(!state\.guideModeActive \|\| state\.guideTabId !== tabId/);
+const exitGuide = section(background, "if (message.type === 'EXIT_GUIDE')", "if (message.type === 'GUIDE_COMPLETE')");
+assert.match(exitGuide, /clearGuideSession\(\)/, 'only an explicit exit may close the retained final panel');
+const completeGuide = section(background, "if (message.type === 'GUIDE_COMPLETE')", "if (message.type === 'AI_REGROUND')");
+assert.match(completeGuide, /guideFinished: true/);
+assert.match(completeGuide, /hideGuideOverlayEverywhere\(\)/);
+assert.doesNotMatch(completeGuide, /clearGuideSession\(\)/, 'completion must retain the side panel state');
+assert.match(background, /if \(!state\.guideModeActive \|\| state\.guideFinished \|\| state\.guideTabId !== tabId/);
 assert.match(background, /new Set\(\['navigating', 'searching', 'ready', 'page_mismatch', 'not_found'\]\)/);
 assert.match(background, /async function showGuideWrongPage\(tabId, step, index, total\)/);
 assert.match(background, /type: 'SHOW_WRONG_PAGE'/);
@@ -138,10 +145,20 @@ assert.match(popup, /assets\/parro-ai-avatar-neutral\.png\?v=20260720/);
 assert.match(popup, /id="guideTargetStatus"/);
 assert.match(popup, /id="guideTargetRetry"/);
 assert.match(popup, /id="guideStepPreviewBtn"/);
+assert.match(popup, /id="guideManualTitle"/);
 assert.match(popup, /data-i18n-title="openPreviewLarge"/);
 assert.match(popupScript, /guideStepPreviewBtn\?\.addEventListener\('click'/);
 assert.match(popupScript, /chrome\.runtime\.getURL\(`guide-preview\.html\?key=/);
 assert.match(popupScript, /chrome\.windows\.create\(\{ url, type: 'popup', width, height \}/);
+assert.match(popupScript, /let guideFinished = false/);
+assert.match(popupScript, /guideFinishedButton/);
+assert.match(popupScript, /guideFinishedHint/);
+assert.match(popupScript, /step\.manual_title/);
+assert.doesNotMatch(
+  section(popupScript, "guideNextBtn.addEventListener('click'", '// Guide Me 활성화 여부 초기 체크'),
+  /hideGuideView\(\)/,
+  'finishing the last step must not hide the side panel',
+);
 assert.match(previewPage, /id="previewImage"/);
 assert.match(previewPage, /script src="guide-preview\.js"/);
 assert.match(previewScript, /chrome\.storage\.local\.get\(key\)/);
@@ -151,4 +168,4 @@ assert.match(popupScript, /saveText:\s+true/, 'the Recorder settings UI must def
 assert.match(popupScript, /not_found: \{ label: t\('targetNotFound', '대상을 찾지 못했습니다'\)/);
 assert.match(popupScript, /type: 'SHOW_OVERLAY_FOR_STEP', stepIndex: guideCurrentStep/);
 
-console.log(JSON.stringify({ ok: true, checks: 84, scope: 'live-guide-recovery-and-preview-contract' }));
+console.log(JSON.stringify({ ok: true, checks: 96, scope: 'live-guide-recovery-preview-and-completion-contract' }));

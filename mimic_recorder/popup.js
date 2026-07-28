@@ -1632,6 +1632,7 @@ const guidePctLabel   = document.getElementById('guidePctLabel');
 const guideProgressBar = document.getElementById('guideProgressBar');
 const guideTargetStatus = document.getElementById('guideTargetStatus');
 const guideTargetRetry = document.getElementById('guideTargetRetry');
+const guideManualTitle = document.getElementById('guideManualTitle');
 const guideStepTitle  = document.getElementById('guideStepTitle');
 const guideStepInstr  = document.getElementById('guideStepInstruction');
 const guideStepDots   = document.getElementById('guideStepDots');
@@ -1647,6 +1648,7 @@ let guideSteps = [];
 let guideCurrentStep = 0;
 let guideSkippedSteps = new Set();
 let guideCompletedSteps = new Set();
+let guideFinished = false;
 
 function isGuideExplanationStep(step) {
   if (!step) return true;
@@ -1746,6 +1748,10 @@ function renderGuideStep(steps, idx) {
   guideStepLabel.textContent    = `Step ${num} / ${total}`;
   guidePctLabel.textContent     = `${pct}%`;
   guideProgressBar.style.width  = `${pct}%`;
+  if (guideManualTitle) {
+    guideManualTitle.textContent = typeof step.manual_title === 'string' ? step.manual_title : '';
+    guideManualTitle.style.display = guideManualTitle.textContent ? 'block' : 'none';
+  }
   guideStepTitle.textContent    = step.title || `Step ${num}`;
   guideStepInstr.textContent    = step.instruction || '';
 
@@ -1773,26 +1779,33 @@ function renderGuideStep(steps, idx) {
     }
   }
 
-  guidePrevBtn.disabled         = idx === 0;
-  guidePrevBtn.style.opacity    = idx === 0 ? '0.4' : '1';
-  guidePrevBtn.style.cursor     = idx === 0 ? 'not-allowed' : 'pointer';
+  guidePrevBtn.disabled         = idx === 0 || guideFinished;
+  guidePrevBtn.style.opacity    = guidePrevBtn.disabled ? '0.4' : '1';
+  guidePrevBtn.style.cursor     = guidePrevBtn.disabled ? 'not-allowed' : 'pointer';
 
   const isLast = idx === total - 1;
   const requiresAction = !isGuideExplanationStep(step);
   const currentCompleted = guideCompletedSteps.has(idx);
-  guideNextBtn.dataset.action = requiresAction && !currentCompleted ? 'skip' : 'next';
-  guideNextBtn.textContent = currentCompleted
-    ? (isLast ? t('exit', '종료 ✓') : t('next', '다음 →'))
+  guideNextBtn.dataset.action = guideFinished ? 'finished' : requiresAction && !currentCompleted ? 'skip' : 'next';
+  guideNextBtn.disabled = guideFinished;
+  guideNextBtn.textContent = guideFinished
+    ? t('guideFinishedButton', '완료됨 ✓')
+    : currentCompleted
+    ? (isLast ? `${t('finish', '완료')} ✓` : t('next', '다음 →'))
     : requiresAction
-    ? (isLast ? t('skipAndExit', '건너뛰고 종료') : t('skipStep', '이 단계 건너뛰기 →'))
+    ? t('skipStep', '이 단계 건너뛰기 →')
     : (isLast ? t('finish', '완료') + ' ✓' : t('next', '다음 →'));
-  Object.assign(guideNextBtn.style, requiresAction && !currentCompleted ? {
+  Object.assign(guideNextBtn.style, guideFinished ? {
+    background: '#E8FFF7', color: '#00796F', border: '1px solid #BFEDE7', cursor: 'default', opacity: '1',
+  } : requiresAction && !currentCompleted ? {
     background: '#FFF7ED', color: '#C2410C', border: '1px solid #FDBA74',
   } : {
-    background: '#009B8E', color: '#fff', border: '1px solid #009B8E',
+    background: '#009B8E', color: '#fff', border: '1px solid #009B8E', cursor: 'pointer', opacity: '1',
   });
   if (guideNavHint) {
-    guideNavHint.textContent = currentCompleted
+    guideNavHint.textContent = guideFinished
+      ? t('guideFinishedHint', '모든 단계를 완료했어요. 필요한 내용을 확인한 뒤 우측 상단 ×로 종료하세요.')
+      : currentCompleted
       ? t('completedStepHint', '이 단계를 완료했어요.')
       : requiresAction
       ? t('actionStepHint', '대상을 직접 클릭하면 자동으로 다음 단계로 이동해요. 수행하지 않을 때만 건너뛰기를 선택하세요.')
@@ -1807,7 +1820,7 @@ function renderGuideStep(steps, idx) {
     const curr = i === idx;
     const skipped = guideSkippedSteps.has(i);
     const completed = guideCompletedSteps.has(i);
-    const canOpen = i <= idx;
+    const canOpen = !guideFinished && i <= idx;
     Object.assign(dot.style, {
       width: curr ? '28px' : '22px',
       height: '22px',
@@ -1859,6 +1872,7 @@ guideExitBtn.addEventListener('click', () => {
     guideCurrentStep = 0;
     guideSkippedSteps.clear();
     guideCompletedSteps.clear();
+    guideFinished = false;
     hideGuideView();
   });
 });
@@ -1874,6 +1888,7 @@ guidePrevBtn.addEventListener('click', () => {
 });
 
 guideNextBtn.addEventListener('click', () => {
+  if (guideFinished) return;
   const skipped = guideNextBtn.dataset.action === 'skip';
   const isLast = guideCurrentStep >= guideSteps.length - 1;
   chrome.runtime.sendMessage({ type: 'GUIDE_NEXT', skipped }, (res) => {
@@ -1881,14 +1896,9 @@ guideNextBtn.addEventListener('click', () => {
       guideSkippedSteps = new Set(res.skippedSteps || []);
       guideCompletedSteps = new Set(res.completedSteps || []);
       if (isLast || res.completed) {
-        chrome.runtime.sendMessage({ type: 'GUIDE_COMPLETE', reason: 'side_panel' }, () => {
-          void chrome.runtime.lastError;
-          guideSteps = [];
-          guideCurrentStep = 0;
-          guideSkippedSteps.clear();
-          guideCompletedSteps.clear();
-          hideGuideView();
-        });
+        guideFinished = true;
+        guideCurrentStep = res.currentStep;
+        renderGuideStep(guideSteps, guideCurrentStep);
         return;
       }
       guideCurrentStep = res.currentStep;
@@ -1906,6 +1916,7 @@ chrome.runtime.sendMessage({ type: 'GUIDE_VALIDATE' }, (r) => {
     guideCurrentStep = r.currentStep || 0;
     guideSkippedSteps = new Set(r.skippedSteps || []);
     guideCompletedSteps = new Set(r.completedSteps || []);
+    guideFinished = !!r.finished;
     showGuideView();
     renderGuideStep(guideSteps, guideCurrentStep);
     renderGuideTargetStatus(r.targetStatus);
@@ -1915,11 +1926,12 @@ chrome.runtime.sendMessage({ type: 'GUIDE_VALIDATE' }, (r) => {
 // storage 변화 감지: START_GUIDE 이후 guideModeActive가 세팅되면 Guide Me 뷰로 전환
 chrome.storage.onChanged.addListener((changes) => {
   if (changes.guideModeActive?.newValue === true) {
-    storageGet(['guideSteps', 'guideCurrentStep', 'guideSkippedSteps', 'guideCompletedSteps', 'guideTargetStatus']).then((r) => {
+    storageGet(['guideSteps', 'guideCurrentStep', 'guideSkippedSteps', 'guideCompletedSteps', 'guideFinished', 'guideTargetStatus']).then((r) => {
       guideSteps = r.guideSteps || [];
       guideCurrentStep = r.guideCurrentStep || 0;
       guideSkippedSteps = new Set(r.guideSkippedSteps || []);
       guideCompletedSteps = new Set(r.guideCompletedSteps || []);
+      guideFinished = !!r.guideFinished;
       if (guideSteps.length > 0) {
         showGuideView();
         renderGuideStep(guideSteps, guideCurrentStep);
@@ -1930,6 +1942,7 @@ chrome.storage.onChanged.addListener((changes) => {
   if (changes.guideModeActive?.newValue === undefined && changes.guideModeActive?.oldValue) {
     guideSteps = [];
     guideCurrentStep = 0;
+    guideFinished = false;
     hideGuideView();
   }
   if (changes.guideTargetStatus?.newValue) {
@@ -1949,6 +1962,10 @@ chrome.storage.onChanged.addListener((changes) => {
   }
   if (changes.guideCompletedSteps !== undefined && guideSteps.length > 0) {
     guideCompletedSteps = new Set(changes.guideCompletedSteps.newValue || []);
+    renderGuideStep(guideSteps, guideCurrentStep);
+  }
+  if (changes.guideFinished !== undefined && guideSteps.length > 0) {
+    guideFinished = !!changes.guideFinished.newValue;
     renderGuideStep(guideSteps, guideCurrentStep);
   }
 });

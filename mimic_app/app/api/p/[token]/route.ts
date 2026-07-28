@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/lib/supabase/server';
+import { extractPlaybookGuideSequence } from '@/lib/live-guide/playbook';
 
 type Params = { params: Promise<{ token: string }> };
 
@@ -14,8 +15,6 @@ type StepRow = {
   screenshot_url: string | null;
   user_annotations: unknown;
 };
-
-type GuideBlockProps = { type?: string; props?: { tutorialId?: string } };
 
 // GET /api/p/[token] — 공개 플레이북 (BlockNote content) + 가이드 블록 본문 enrich.
 // 가이드(tutorial) 블록은 작성자(또는 동일 워크스페이스) 소유 가이드만 steps 를 함께 내려준다.
@@ -33,15 +32,10 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
   if (!page) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const content: GuideBlockProps[] = Array.isArray(page.content) ? page.content : [];
+  const content: unknown[] = Array.isArray(page.content) ? page.content : [];
 
   // BlockNote content 내 guide 블록의 tutorialId 수집
-  const tutorialIds = Array.from(new Set(
-    content
-      .filter(b => b?.type === 'guide')
-      .map(b => b?.props?.tutorialId)
-      .filter((v): v is string => typeof v === 'string' && v.length > 0)
-  ));
+  const tutorialIds = Array.from(new Set(extractPlaybookGuideSequence(content)));
 
   const guides: Record<string, { id: string; title: string; steps: unknown[] }> = {};
 

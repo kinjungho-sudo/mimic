@@ -579,6 +579,7 @@ const GUIDE_STORAGE_KEYS = [
   'guideCurrentStep',
   'guideSkippedSteps',
   'guideCompletedSteps',
+  'guideFinished',
   'guideModeActive',
   'guidePendingOverlay',
   'guideTabId',
@@ -677,9 +678,9 @@ async function showGuideWrongPage(tabId, step, index, total) {
 function scheduleGuideOverlay(tabId, delayMs = 450) {
   setTimeout(async () => {
     const state = await storageGet([
-      'guideModeActive', 'guideTabId', 'guideSteps', 'guideCurrentStep', 'guideSurvey',
+      'guideModeActive', 'guideTabId', 'guideSteps', 'guideCurrentStep', 'guideSurvey', 'guideFinished',
     ]);
-    if (!state.guideModeActive || state.guideTabId !== tabId || !state.guideSteps?.length) return;
+    if (!state.guideModeActive || state.guideFinished || state.guideTabId !== tabId || !state.guideSteps?.length) return;
     const index = state.guideCurrentStep || 0;
     const step = state.guideSteps[index];
     if (!step?.page_url) return;
@@ -1333,6 +1334,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
     }
     const guideToken = rawToken;
     const isUuid = UUID_RE.test(guideToken);
+    const guideSource = message.guide_source === 'playbook' ? 'playbook' : 'tutorial';
 
     // ★ await 이전에 동기 캡처 — async IIFE 안에서는 sender가 변질될 수 있음
     const senderWindowId = sender.tab?.windowId ?? null;
@@ -1350,7 +1352,10 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         const origin = guideRequestOrigin;
         // UUID(소유자 미리보기)는 쿠키 필요; share_token(공개)은 불필요
         const fetchOpts = isUuid ? { credentials: 'include', cache: 'no-store' } : { cache: 'no-store' };
-        const res    = await fetch(`${origin}/api/guide/${encodeURIComponent(guideToken)}`, fetchOpts);
+        const guidePath = guideSource === 'playbook'
+          ? `/api/guide/playbook/${encodeURIComponent(guideToken)}`
+          : `/api/guide/${encodeURIComponent(guideToken)}`;
+        const res    = await fetch(`${origin}${guidePath}`, fetchOpts);
         if (!res.ok) throw new Error(`guide fetch failed: ${res.status}`);
         const data  = await res.json();
         // 라이브 가이드 유료 게이팅 — 소유자 무료 한도(5회) 소진 시
@@ -1382,6 +1387,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
           guideCurrentStep: 0,
           guideSkippedSteps: [],
           guideCompletedSteps: [],
+          guideFinished: false,
           guideModeActive: true,
           guideSurvey,
           guideTabId: guideTab.id,
@@ -1861,8 +1867,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === 'GET_GUIDE_STATE') {
-    storageGet(['guideSteps', 'guideCurrentStep', 'guideSkippedSteps', 'guideCompletedSteps', 'guideModeActive']).then((r) => {
-      sendResponse({ steps: r.guideSteps || [], currentStep: r.guideCurrentStep || 0, skippedSteps: r.guideSkippedSteps || [], completedSteps: r.guideCompletedSteps || [], active: !!r.guideModeActive });
+    storageGet(['guideSteps', 'guideCurrentStep', 'guideSkippedSteps', 'guideCompletedSteps', 'guideFinished', 'guideModeActive']).then((r) => {
+      sendResponse({ steps: r.guideSteps || [], currentStep: r.guideCurrentStep || 0, skippedSteps: r.guideSkippedSteps || [], completedSteps: r.guideCompletedSteps || [], finished: !!r.guideFinished, active: !!r.guideModeActive });
     });
     return true;
   }
@@ -1871,11 +1877,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // onRemoved가 못 돈 경우) 유령 상태를 정리하고 active:false 반환 → 죽은 스텝이 안 뜬다.
   if (message.type === 'GUIDE_VALIDATE') {
     (async () => {
-      const { guideModeActive, guideSteps, guideCurrentStep, guideSkippedSteps, guideCompletedSteps, guideTabId } =
-        await storageGet(['guideModeActive', 'guideSteps', 'guideCurrentStep', 'guideSkippedSteps', 'guideCompletedSteps', 'guideTabId']);
+      const { guideModeActive, guideSteps, guideCurrentStep, guideSkippedSteps, guideCompletedSteps, guideFinished, guideTabId } =
+        await storageGet(['guideModeActive', 'guideSteps', 'guideCurrentStep', 'guideSkippedSteps', 'guideCompletedSteps', 'guideFinished', 'guideTabId']);
       if (!guideModeActive || !(guideSteps?.length)) { sendResponse({ active: false }); return; }
       // guideTabId가 아직 미지정이면 가이드 시작 직후(고정 전) — 정리하지 말고 그대로 둔다.
-      if (guideTabId != null) {
+      if (!guideFinished && guideTabId != null) {
         const tab = await getGuideTab();
         if (!tab?.id) {
           await clearGuideSession();
@@ -1884,20 +1890,32 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
       }
       const { guideTargetStatus } = await storageGet('guideTargetStatus');
-      sendResponse({ active: true, steps: guideSteps, currentStep: guideCurrentStep || 0, skippedSteps: guideSkippedSteps || [], completedSteps: guideCompletedSteps || [], targetStatus: guideTargetStatus || 'navigating' });
+      sendResponse({ active: true, steps: guideSteps, currentStep: guideCurrentStep || 0, skippedSteps: guideSkippedSteps || [], completedSteps: guideCompletedSteps || [], finished: !!guideFinished, targetStatus: guideTargetStatus || 'navigating' });
     })();
     return true;
   }
 
   if (message.type === 'GUIDE_NEXT' || message.type === 'GUIDE_PREV') {
     (async () => {
-      const { guideModeActive, guideSteps, guideCurrentStep, guideSkippedSteps, guideCompletedSteps, guideSurvey } = await storageGet(['guideModeActive', 'guideSteps', 'guideCurrentStep', 'guideSkippedSteps', 'guideCompletedSteps', 'guideSurvey']);
+      const { guideModeActive, guideSteps, guideCurrentStep, guideSkippedSteps, guideCompletedSteps, guideFinished, guideSurvey } = await storageGet(['guideModeActive', 'guideSteps', 'guideCurrentStep', 'guideSkippedSteps', 'guideCompletedSteps', 'guideFinished', 'guideSurvey']);
       const steps = guideSteps || [];
       if (!guideModeActive || !steps.length) {
         sendResponse({ ok: false, error: 'guide_not_active' });
         return;
       }
       let idx = guideCurrentStep || 0;
+      if (guideFinished) {
+        sendResponse({
+          ok: true,
+          currentStep: idx,
+          step: steps[idx],
+          skippedSteps: guideSkippedSteps || [],
+          completedSteps: guideCompletedSteps || [],
+          completed: true,
+          finished: true,
+        });
+        return;
+      }
       const skipped = new Set(Array.isArray(guideSkippedSteps) ? guideSkippedSteps : []);
       const completedSet = new Set(Array.isArray(guideCompletedSteps) ? guideCompletedSteps : []);
       const previousIdx = idx;
@@ -1918,12 +1936,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       const skippedSteps = [...skipped].sort((a, b) => a - b);
       const completedSteps = [...completedSet].sort((a, b) => a - b);
-      await storageSet({ guideCurrentStep: idx, guideSkippedSteps: skippedSteps, guideCompletedSteps: completedSteps, guideTargetStatus: completed ? 'ready' : 'navigating', guideTargetEvidence: null });
+      await storageSet({ guideCurrentStep: idx, guideSkippedSteps: skippedSteps, guideCompletedSteps: completedSteps, guideFinished: completed, guideTargetStatus: completed ? 'ready' : 'navigating', guideTargetEvidence: null });
       const step = steps[idx];
-      sendResponse({ ok: true, currentStep: idx, step, skippedSteps, completedSteps, completed });
+      sendResponse({ ok: true, currentStep: idx, step, skippedSteps, completedSteps, completed, finished: completed });
 
-      // 마지막 단계는 현재 페이지의 완료 UI를 유지하고, 사이드 패널이 종료 여부를 결정한다.
-      if (completed) return;
+      // 마지막 단계의 페이지 오버레이만 닫고, 사이드 패널은 사용자가 직접 종료할 때까지 유지한다.
+      if (completed) {
+        await hideGuideOverlayEverywhere();
+        return;
+      }
 
       // 가이드 시작 탭으로 고정 — 활성 탭(예: 다른 사이트)을 건드리지 않는다.
       const tab = await getGuideTab();
@@ -1963,8 +1984,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // 사이드패널에서 특정 스텝 도트를 클릭 → 해당 인덱스로 점프
   if (message.type === 'SHOW_OVERLAY_FOR_STEP') {
     (async () => {
-      const { guideSteps, guideSurvey } = await storageGet(['guideSteps', 'guideSurvey']);
+      const { guideSteps, guideSurvey, guideFinished } = await storageGet(['guideSteps', 'guideSurvey', 'guideFinished']);
       const steps = guideSteps || [];
+      if (guideFinished) {
+        sendResponse({ ok: false, error: 'guide_already_finished' });
+        return;
+      }
       const idx = Math.max(0, Math.min(message.stepIndex || 0, steps.length - 1));
       await storageSet({ guideCurrentStep: idx, guideTargetStatus: 'navigating', guideTargetEvidence: null });
       const step = steps[idx];
@@ -2037,10 +2062,37 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message.type === 'EXIT_GUIDE' || message.type === 'GUIDE_COMPLETE') {
+  if (message.type === 'EXIT_GUIDE') {
     (async () => {
       await clearGuideSession();
-      sendResponse({ ok: true, completed: message.type === 'GUIDE_COMPLETE' });
+      sendResponse({ ok: true });
+    })();
+    return true;
+  }
+
+  if (message.type === 'GUIDE_COMPLETE') {
+    (async () => {
+      const { guideModeActive, guideSteps, guideCurrentStep, guideSkippedSteps, guideCompletedSteps } =
+        await storageGet(['guideModeActive', 'guideSteps', 'guideCurrentStep', 'guideSkippedSteps', 'guideCompletedSteps']);
+      if (!guideModeActive || !(guideSteps?.length)) {
+        sendResponse({ ok: false, error: 'guide_not_active' });
+        return;
+      }
+      const lastIndex = guideSteps.length - 1;
+      const currentStep = Math.max(0, Math.min(Number(guideCurrentStep) || 0, lastIndex));
+      const skipped = new Set(Array.isArray(guideSkippedSteps) ? guideSkippedSteps : []);
+      const completed = new Set(Array.isArray(guideCompletedSteps) ? guideCompletedSteps : []);
+      if (!skipped.has(currentStep)) completed.add(currentStep);
+      await storageSet({
+        guideCurrentStep: currentStep,
+        guideCompletedSteps: [...completed].sort((a, b) => a - b),
+        guideFinished: true,
+        guideTargetStatus: 'ready',
+        guideTargetEvidence: null,
+      });
+      await storageRemove('guidePendingOverlay');
+      await hideGuideOverlayEverywhere();
+      sendResponse({ ok: true, completed: true, currentStep });
     })();
     return true;
   }
@@ -2158,8 +2210,8 @@ chrome.tabs.onCreated.addListener(async (tab) => {
 chrome.tabs.onRemoved.addListener(async (tabId) => {
   // 가이드 고정 탭이 닫히면 라이브 가이드 상태를 정리 — 안 그러면 다음 사이드패널 오픈 시
   // guideModeActive가 남아 죽은 스텝(유령)이 뜬다. storage 변경이 popup의 onChanged를 깨워 뷰를 닫는다.
-  const { guideModeActive, guideTabId } = await storageGet(['guideModeActive', 'guideTabId']);
-  if (guideModeActive && guideTabId === tabId) {
+  const { guideModeActive, guideFinished, guideTabId } = await storageGet(['guideModeActive', 'guideFinished', 'guideTabId']);
+  if (guideModeActive && !guideFinished && guideTabId === tabId) {
     await clearGuideSession();
   }
 
@@ -2214,11 +2266,11 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   _navBusyTabs.add(tabId);
 
   try {
-    const r = await storageGet(['isRecording', 'isPaused', 'targetTabId', 'stepNumber', 'settings', 'pendingCapture', 'guideModeActive', 'guidePendingOverlay', 'guideSteps', 'guideCurrentStep', 'guideTabId', 'guideSurvey', 'spaNavCapturing', 'lastCaptureTime']);
+    const r = await storageGet(['isRecording', 'isPaused', 'targetTabId', 'stepNumber', 'settings', 'pendingCapture', 'guideModeActive', 'guideFinished', 'guidePendingOverlay', 'guideSteps', 'guideCurrentStep', 'guideTabId', 'guideSurvey', 'spaNavCapturing', 'lastCaptureTime']);
 
     // 고정 탭의 full load와 SPA URL 변경을 모두 추적한다. 도착 URL을 백그라운드에서도
     // 검증해 잘못된 페이지에는 content overlay 메시지 자체를 보내지 않는다.
-    if (r.guideModeActive && r.guideTabId === tabId && r.guideSteps?.length) {
+    if (r.guideModeActive && !r.guideFinished && r.guideTabId === tabId && r.guideSteps?.length) {
       const intended = !!r.guidePendingOverlay;
       const gSteps = r.guideSteps;
       const gIdx = r.guideCurrentStep || 0;

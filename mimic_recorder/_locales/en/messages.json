@@ -169,6 +169,8 @@
   "openPreviewLarge": { "message": "Open larger preview" },
   "previewWindowTitle": { "message": "Parro preview" },
   "previewOpenFailed": { "message": "Could not open the preview. Please try again." },
+  "guideFinishedButton": { "message": "Completed ✓" },
+  "guideFinishedHint": { "message": "All steps are complete. Review anything you need, then use × in the top right to exit." },
   "noBlockedStep": { "message": "No blocked step" },
   "submitting": { "message": "Submitting..." },
   "inaccurateClick": { "message": "Inaccurate click target" },
