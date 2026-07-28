@@ -168,6 +168,7 @@
   "openRecordedPage": { "message": "기록된 페이지 열기" },
   "openPreviewLarge": { "message": "미리보기 크게 보기" },
   "previewWindowTitle": { "message": "Parro 미리보기" },
+  "previewOpenFailed": { "message": "미리보기를 열지 못했습니다. 다시 시도해주세요." },
   "noBlockedStep": { "message": "막힌 단계 없음" },
   "submitting": { "message": "제출 중..." },
   "inaccurateClick": { "message": "클릭 위치 부정확" },

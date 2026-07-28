@@ -168,6 +168,7 @@
   "openRecordedPage": { "message": "Open recorded page" },
   "openPreviewLarge": { "message": "Open larger preview" },
   "previewWindowTitle": { "message": "Parro preview" },
+  "previewOpenFailed": { "message": "Could not open the preview. Please try again." },
   "noBlockedStep": { "message": "No blocked step" },
   "submitting": { "message": "Submitting..." },
   "inaccurateClick": { "message": "Inaccurate click target" },

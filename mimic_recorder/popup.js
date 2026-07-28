@@ -1636,6 +1636,12 @@ const guideStepTitle  = document.getElementById('guideStepTitle');
 const guideStepInstr  = document.getElementById('guideStepInstruction');
 const guideStepDots   = document.getElementById('guideStepDots');
 const guideNavHint    = document.getElementById('guideNavHint');
+const guideStepPreviewBtn = document.getElementById('guideStepPreviewBtn');
+const guideStepImage = document.getElementById('guideStepImage');
+
+if (guideStepPreviewBtn) {
+  guideStepPreviewBtn.setAttribute('aria-label', t('openPreviewLarge', '미리보기 크게 보기'));
+}
 
 let guideSteps = [];
 let guideCurrentStep = 0;
@@ -1699,6 +1705,36 @@ function hideGuideView() {
   updateView();
 }
 
+async function openGuideStepPreview(step) {
+  const screenshotUrl = String(step?.screenshot_url || '').trim();
+  if (!screenshotUrl) return;
+
+  const previewKey = `parroGuidePreview:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+  const payload = {
+    screenshotUrl,
+    title: step.title || t('previewWindowTitle', 'Parro 미리보기'),
+    createdAt: Date.now(),
+  };
+
+  try {
+    await chrome.storage.local.set({ [previewKey]: payload });
+    const width = Math.max(720, Math.min(1200, (screen.availWidth || 1280) - 80));
+    const height = Math.max(560, Math.min(850, (screen.availHeight || 900) - 80));
+    const url = chrome.runtime.getURL(`guide-preview.html?key=${encodeURIComponent(previewKey)}`);
+    chrome.windows.create({ url, type: 'popup', width, height }, () => {
+      if (!chrome.runtime.lastError) return;
+      chrome.storage.local.remove(previewKey);
+      showToast(t('previewOpenFailed', '미리보기를 열지 못했습니다. 다시 시도해주세요.'), 3000);
+    });
+  } catch {
+    showToast(t('previewOpenFailed', '미리보기를 열지 못했습니다. 다시 시도해주세요.'), 3000);
+  }
+}
+
+guideStepPreviewBtn?.addEventListener('click', () => {
+  void openGuideStepPreview(guideSteps[guideCurrentStep]);
+});
+
 function renderGuideStep(steps, idx) {
   const step = steps[idx];
   if (!step) return;
@@ -1714,13 +1750,14 @@ function renderGuideStep(steps, idx) {
   guideStepInstr.textContent    = step.instruction || '';
 
   // 스텝 스크린샷
-  const imgEl = document.getElementById('guideStepImage');
-  if (imgEl) {
+  if (guideStepImage && guideStepPreviewBtn) {
     if (step.screenshot_url) {
-      imgEl.src = step.screenshot_url;
-      imgEl.style.display = 'block';
+      guideStepImage.src = step.screenshot_url;
+      guideStepImage.alt = step.title || `Step ${num}`;
+      guideStepPreviewBtn.style.display = 'block';
     } else {
-      imgEl.style.display = 'none';
+      guideStepImage.removeAttribute('src');
+      guideStepPreviewBtn.style.display = 'none';
     }
   }
 
