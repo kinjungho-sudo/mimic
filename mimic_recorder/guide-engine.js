@@ -1104,17 +1104,62 @@
     state.tooltip.style.animation = 'parro-tip-in 0.3s ease forwards';
   }
 
-  // 현재 페이지가 단계의 page_url과 다를 때 — 세션을 끝내지 않고 참고 카드로 다음 행동을 안내한다.
+  function safeGuidePageUrl(value) {
+    try {
+      const url = new URL(value);
+      return /^https?:$/.test(url.protocol) ? url : null;
+    } catch {
+      return null;
+    }
+  }
+
+  // 현재 페이지가 단계의 page_url과 다를 때 — 기다리는 화면처럼 보이지 않도록
+  // 복구 전용 카드를 표시한다. 자동 이동하지 않고 사용자가 뒤로 가기 또는 기록 URL 열기를 선택한다.
   function showWrongPage(step, opts) {
-    showExplanation({
-      ...step,
-      guide_mode: 'explanation',
-      kind: 'none',
-      instruction: step.instruction || i18n(
-        'wrongTargetScreen',
-        '이 단계의 대상 화면이 아닙니다. 필요한 화면으로 이동한 뒤 진행해주세요.',
-      ),
-    }, opts);
+    hide();
+    opts = opts || {};
+    const expectedUrl = safeGuidePageUrl(step?.page_url);
+    if (!expectedUrl) return;
+
+    const host = document.createElement('div');
+    host.id = OVERLAY_ROOT_ID;
+    host.setAttribute('data-guide-state', 'wrong-page');
+    host.style.cssText = `all:initial;position:fixed;inset:0;pointer-events:none;z-index:${Z};font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;`;
+    document.documentElement.appendChild(host);
+    const shadow = host.attachShadow({ mode: 'closed' });
+    const card = document.createElement('div');
+    card.style.cssText = `position:fixed;left:50%;bottom:24px;transform:translateX(-50%);width:390px;max-width:calc(100vw - 32px);box-sizing:border-box;padding:18px;background:${TIP_BG};color:#fff;border-radius:16px;box-shadow:0 18px 55px rgba(0,0,0,.48),0 0 0 1px rgba(245,158,11,.34);pointer-events:auto;z-index:2`;
+    card.innerHTML = `
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <div aria-hidden="true" style="display:grid;place-items:center;flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:rgba(245,158,11,.18);color:#FBBF24;font-size:21px;font-weight:900">!</div>
+        <div style="min-width:0;flex:1">
+          <div style="font-size:15px;font-weight:850;line-height:1.35;margin-bottom:5px">${escapeHtml(i18n('wrongPageTitle', '이 단계의 페이지가 아닙니다'))}</div>
+          <div style="font-size:12.5px;color:#D1D5DB;line-height:1.55">${escapeHtml(i18n('wrongPageInstruction', '이전 페이지로 돌아가거나 기록된 단계 페이지를 열어주세요.'))}</div>
+          <div style="margin-top:8px;font-size:11px;color:#9CA3AF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(expectedUrl.hostname + expectedUrl.pathname)}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button type="button" data-act="guide-back" style="flex:1;padding:10px 12px;border:1px solid rgba(255,255,255,.18);border-radius:10px;background:rgba(255,255,255,.07);color:#fff;font-size:12px;font-weight:800;cursor:pointer">${escapeHtml(i18n('goBack', '← 이전 페이지로'))}</button>
+        <button type="button" data-act="open-expected-page" style="flex:1;padding:10px 12px;border:0;border-radius:10px;background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;font-size:12px;font-weight:800;cursor:pointer">${escapeHtml(i18n('openRecordedPage', '기록된 페이지 열기'))}</button>
+      </div>`;
+    shadow.appendChild(card);
+
+    const openExpectedPage = () => window.location.assign(expectedUrl.href);
+    card.addEventListener('click', (event) => {
+      const action = event.target?.closest?.('[data-act]')?.getAttribute('data-act');
+      if (!action) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (action === 'guide-back') {
+        if (window.history.length > 1) window.history.back();
+        else openExpectedPage();
+      } else if (action === 'open-expected-page') {
+        openExpectedPage();
+      }
+    });
+
+    state = { host, shadow, card, wrongPage: true, expectedUrl: expectedUrl.href };
+    opts.onTargetStatus && opts.onTargetStatus('page_mismatch');
   }
 
   // 같은 URL이지만 녹화한 요소가 아직 화면에 없을 때 — 가짜 핫스팟 대신 '찾는 중' 카드를 띄우고
@@ -1169,10 +1214,49 @@
       : Array.isArray(step.annotations) ? step.annotations : [];
     const overlay = annotations.map(renderGuideAnnotation).join('');
     return `
-      <div style="position:relative;margin:0 0 14px;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.12);background:#050507;line-height:0">
+      <button type="button" data-act="open-guide-preview" aria-label="${escapeHtml(i18n('openPreviewLarge', '미리보기 크게 보기'))}" title="${escapeHtml(i18n('openPreviewLarge', '미리보기 크게 보기'))}" style="position:relative;display:block;width:100%;margin:0 0 14px;padding:0;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.12);background:#050507;line-height:0;cursor:zoom-in">
         <img src="${escapeHtml(step.screenshot_url)}" alt="" style="display:block;width:100%;max-height:240px;object-fit:contain;background:#050507">
         ${overlay ? `<div style="position:absolute;inset:0;pointer-events:none;overflow:hidden">${overlay}</div>` : ''}
-      </div>`;
+        <span aria-hidden="true" style="position:absolute;right:9px;top:9px;display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:rgba(15,23,42,.82);box-shadow:0 4px 14px rgba(0,0,0,.28);color:#fff;font-size:16px;line-height:1">⛶</span>
+      </button>`;
+  }
+
+  function openGuidePreview(step) {
+    if (!step?.screenshot_url) return false;
+    const annotations = Array.isArray(step.user_annotations)
+      ? step.user_annotations
+      : Array.isArray(step.annotations) ? step.annotations : [];
+    const overlay = annotations.map(renderGuideAnnotation).join('');
+    const preview = window.open('', 'parro-live-guide-preview', 'popup=yes,width=1200,height=850,resizable=yes,scrollbars=yes');
+    if (!preview) return false;
+    const title = i18n('previewWindowTitle', 'Parro 미리보기');
+    preview.document.open();
+    preview.document.write(`<!doctype html>
+      <html lang="ko">
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width,initial-scale=1">
+          <title>${escapeHtml(title)}</title>
+          <style>
+            *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#0B1020;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+            body{display:flex;flex-direction:column;padding:18px}
+            header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px}
+            h1{margin:0;font-size:16px}button{border:1px solid rgba(255,255,255,.18);border-radius:9px;background:rgba(255,255,255,.08);color:#fff;padding:8px 12px;cursor:pointer}
+            main{display:grid;place-items:center;flex:1;min-height:0}
+            .preview{position:relative;display:inline-block;max-width:100%;max-height:calc(100vh - 84px);overflow:hidden;border-radius:12px;background:#050507;box-shadow:0 18px 60px rgba(0,0,0,.45);line-height:0}
+            img{display:block;max-width:100%;max-height:calc(100vh - 84px);object-fit:contain}
+          </style>
+        </head>
+        <body>
+          <header><h1>${escapeHtml(title)}</h1><button type="button" id="close-preview">${escapeHtml(i18n('close', '닫기'))}</button></header>
+          <main><div class="preview"><img src="${escapeHtml(step.screenshot_url)}" alt="">${overlay ? `<div style="position:absolute;inset:0;pointer-events:none;overflow:hidden">${overlay}</div>` : ''}</div></main>
+        </body>
+      </html>`);
+    preview.document.close();
+    preview.document.getElementById('close-preview')?.addEventListener('click', () => preview.close());
+    try { preview.opener = null; } catch { /* noop */ }
+    preview.focus();
+    return true;
   }
 
   function showExplanation(step, opts) {
@@ -1225,6 +1309,12 @@
     };
     card.addEventListener('click', (event) => {
       const action = event.target?.closest?.('[data-act]')?.getAttribute('data-act');
+      if (action === 'open-guide-preview') {
+        event.preventDefault();
+        event.stopPropagation();
+        openGuidePreview(step);
+        return;
+      }
       if (action !== 'hide-explanation') return;
       event.preventDefault();
       event.stopPropagation();
@@ -1514,7 +1604,7 @@
   function style(css) { const s = document.createElement('style'); s.textContent = css; return s; }
   function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
-  const guideApi = { show, hide, _resolveTarget: resolveTarget, _isHit: isHit, _pointInRect: pointInRect };
+  const guideApi = { show, showWrongPage, hide, _resolveTarget: resolveTarget, _isHit: isHit, _pointInRect: pointInRect };
   window.ParroGuide = guideApi;
   window.MimicGuide = guideApi;
 })();

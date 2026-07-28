@@ -69,6 +69,10 @@ assert.match(guideNavigation, /navigateGuideTab\(tab\.id, step\.page_url\)/);
 assert.match(background, /message\.type === 'EXIT_GUIDE' \|\| message\.type === 'GUIDE_COMPLETE'[\s\S]*clearGuideSession\(\)/);
 assert.match(background, /if \(!state\.guideModeActive \|\| state\.guideTabId !== tabId/);
 assert.match(background, /new Set\(\['navigating', 'searching', 'ready', 'page_mismatch', 'not_found'\]\)/);
+assert.match(background, /async function showGuideWrongPage\(tabId, step, index, total\)/);
+assert.match(background, /type: 'SHOW_WRONG_PAGE'/);
+assert.match(content, /function renderWrongPageGuide\(msg\)/);
+assert.match(content, /msg\.type === 'SHOW_WRONG_PAGE'/);
 
 const show = section(engine, 'function show(step, opts)', 'function advance(reason)');
 assert.ok(
@@ -115,6 +119,17 @@ assert.match(explanation, /aria-label="\$\{escapeHtml\(i18n\('closeReferenceStep
 assert.match(explanation, /setExplanationHidden\(true\)/);
 assert.match(explanation, /setExplanationHidden\(false\)/);
 assert.match(explanation, /host\.setAttribute\('data-explanation-hidden'/);
+assert.match(explanation, /action === 'open-guide-preview'/);
+const wrongPage = section(engine, 'function showWrongPage(step, opts)', 'function safeCssColor(value, fallback)');
+assert.match(wrongPage, /data-guide-state', 'wrong-page'/);
+assert.match(wrongPage, /window\.history\.back\(\)/);
+assert.match(wrongPage, /window\.location\.assign\(expectedUrl\.href\)/);
+assert.match(wrongPage, /data-act="open-expected-page"/);
+const visualPreview = section(engine, 'function renderVisualGuideImage(step)', 'function showExplanation(step, opts)');
+assert.match(visualPreview, /data-act="open-guide-preview"/);
+assert.match(visualPreview, /window\.open\('', 'parro-live-guide-preview'/);
+assert.match(visualPreview, /annotations\.map\(renderGuideAnnotation\)/);
+assert.match(engine, /const guideApi = \{ show, showWrongPage, hide,/);
 
 assert.match(popup, /assets\/parro-ai-avatar-neutral\.png\?v=20260720/);
 assert.match(popup, /id="guideTargetStatus"/);
@@ -125,4 +140,4 @@ assert.match(popupScript, /saveText:\s+true/, 'the Recorder settings UI must def
 assert.match(popupScript, /not_found: \{ label: t\('targetNotFound', '대상을 찾지 못했습니다'\)/);
 assert.match(popupScript, /type: 'SHOW_OVERLAY_FOR_STEP', stepIndex: guideCurrentStep/);
 
-console.log(JSON.stringify({ ok: true, checks: 62, scope: 'live-guide-reference-close-contract' }));
+console.log(JSON.stringify({ ok: true, checks: 75, scope: 'live-guide-recovery-and-preview-contract' }));

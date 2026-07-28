@@ -792,6 +792,21 @@
     });
   }
 
+  function renderWrongPageGuide(msg) {
+    const guideApi = window.ParroGuide || window.MimicGuide;
+    if (!guideApi?.showWrongPage) return;
+    guideApi.showWrongPage(msg.step, {
+      index: msg.index ?? 0,
+      total: msg.total ?? 1,
+      onTargetStatus: (status) => chrome.runtime.sendMessage({
+        type: 'GUIDE_TARGET_STATUS',
+        stepIndex: msg.index ?? 0,
+        status,
+        evidence: null,
+      }),
+    });
+  }
+
   function queueLiveGuideOverlay(msg) {
     const isFirstStep = (msg.index ?? 0) === 0;
     if (!isFirstStep || _guideCountdownComplete) {
@@ -924,6 +939,11 @@
     if (msg.type === 'SHOW_OVERLAY' && msg.step) {
       if (!IS_TOP_FRAME) return false;
       queueLiveGuideOverlay(msg);
+      return false;
+    }
+    if (msg.type === 'SHOW_WRONG_PAGE' && msg.step) {
+      if (!IS_TOP_FRAME) return false;
+      renderWrongPageGuide(msg);
       return false;
     }
     if (msg.type === 'HIDE_OVERLAY') {

@@ -17,6 +17,30 @@ async function loadGuide(page: Page) {
   await page.addScriptTag({ path: guideScript });
 }
 
+async function clickClosedShadowAction(page: Page, action: string) {
+  const cdp = await page.context().newCDPSession(page);
+  const { root } = await cdp.send('DOM.getDocument', { depth: -1, pierce: true });
+  const find = (node: any): any => {
+    const attributes = Array.isArray(node.attributes) ? node.attributes : [];
+    for (let index = 0; index < attributes.length; index += 2) {
+      if (attributes[index] === 'data-act' && attributes[index + 1] === action) return node;
+    }
+    for (const child of [...(node.children || []), ...(node.shadowRoots || [])]) {
+      const match = find(child);
+      if (match) return match;
+    }
+    return null;
+  };
+  const button = find(root);
+  expect(button, `missing closed-shadow button: ${action}`).toBeTruthy();
+  const { model } = await cdp.send('DOM.getBoxModel', { nodeId: button.nodeId });
+  const quad = model.border;
+  const x = (quad[0] + quad[2] + quad[4] + quad[6]) / 4;
+  const y = (quad[1] + quad[3] + quad[5] + quad[7]) / 4;
+  await page.mouse.click(x, y);
+  await cdp.detach();
+}
+
 async function loadContent(page: Page, options: { recording?: boolean } = {}) {
   await page.setContent('<main id="fixture"></main>');
   await page.evaluate(({ recording }) => {
@@ -254,38 +278,58 @@ test('reference step can be closed and reopened without completing the step', as
       kind: 'none',
       title: 'Reference',
       instruction: 'Review this information.',
+      screenshot_url: 'https://example.test/preview.png',
+      user_annotations: [{ type: 'marker', x1: 50, y1: 50, x2: 50, y2: 50, markerNumber: '1' }],
     }, { index: 3, total: 8 });
   });
 
   const host = page.locator('#parro-overlay-root');
   await expect(host).toHaveAttribute('data-explanation-hidden', 'false');
-  const cdp = await page.context().newCDPSession(page);
-  const clickClosedShadowButton = async (action: string) => {
-    const { root } = await cdp.send('DOM.getDocument', { depth: -1, pierce: true });
-    const find = (node: any): any => {
-      const attributes = Array.isArray(node.attributes) ? node.attributes : [];
-      for (let index = 0; index < attributes.length; index += 2) {
-        if (attributes[index] === 'data-act' && attributes[index + 1] === action) return node;
-      }
-      for (const child of [...(node.children || []), ...(node.shadowRoots || [])]) {
-        const match = find(child);
-        if (match) return match;
-      }
-      return null;
-    };
-    const button = find(root);
-    expect(button, `missing closed-shadow button: ${action}`).toBeTruthy();
-    const { object } = await cdp.send('DOM.resolveNode', { nodeId: button.nodeId });
-    await cdp.send('Runtime.callFunctionOn', {
-      objectId: object.objectId,
-      functionDeclaration: 'function () { this.click(); }',
-    });
-  };
 
-  await clickClosedShadowButton('hide-explanation');
+  const popupPromise = page.waitForEvent('popup');
+  await clickClosedShadowAction(page, 'open-guide-preview');
+  const preview = await popupPromise;
+  await expect(preview).toHaveTitle('Parro 미리보기');
+  await expect(preview.locator('img')).toHaveAttribute('src', 'https://example.test/preview.png');
+  await expect(preview.locator('body')).toContainText('1');
+  await preview.close();
+
+  await clickClosedShadowAction(page, 'hide-explanation');
   await expect(host).toHaveAttribute('data-explanation-hidden', 'true');
-  await clickClosedShadowButton('restore-explanation');
+  await clickClosedShadowAction(page, 'restore-explanation');
   await expect(host).toHaveAttribute('data-explanation-hidden', 'false');
+});
+
+test('wrong-page guide explains the mismatch and sends the user back', async ({ page }) => {
+  await page.route('https://example.test/**', route => route.fulfill({
+    contentType: 'text/html',
+    body: '<main>Wrong page fixture</main>',
+  }));
+  await page.goto('https://example.test/start');
+  await page.goto('https://example.test/unexpected');
+  await loadGuide(page);
+  await page.evaluate(() => {
+    (window as unknown as { __guideBackCalled: boolean }).__guideBackCalled = false;
+    Object.defineProperty(window.history, 'back', {
+      configurable: true,
+      value: () => {
+        (window as unknown as { __guideBackCalled: boolean }).__guideBackCalled = true;
+      },
+    });
+    const guide = (window as unknown as { ParroGuide: any }).ParroGuide;
+    guide.showWrongPage({
+      id: 'expected-step',
+      page_url: 'https://example.test/expected',
+      title: 'Expected step',
+    }, { index: 1, total: 4 });
+  });
+
+  const host = page.locator('#parro-overlay-root');
+  await expect(host).toHaveAttribute('data-guide-state', 'wrong-page');
+  await clickClosedShadowAction(page, 'guide-back');
+  await expect.poll(() => page.evaluate(() => (
+    (window as unknown as { __guideBackCalled: boolean }).__guideBackCalled
+  ))).toBe(true);
 });
 
 test('hidden or covered targets are rejected', async ({ page }) => {

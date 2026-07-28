@@ -1658,7 +1658,7 @@ function renderGuideTargetStatus(status) {
     navigating: { label: t('targetNavigating', '대상 페이지로 이동 중'), color: '#F59E0B' },
     searching: { label: t('targetSearching', '정확한 대상을 찾는 중'), color: '#F59E0B' },
     ready: { label: t('targetReady', '대상 확인됨'), color: '#12B886' },
-    page_mismatch: { label: t('targetPageMismatch', '기록된 페이지에서 대기 중'), color: '#EF4444' },
+    page_mismatch: { label: t('targetPageMismatch', '이 단계와 다른 페이지에 있어요'), color: '#EF4444' },
     not_found: { label: t('targetNotFound', '대상을 찾지 못했습니다'), color: '#EF4444' },
   };
   const current = states[status] || states.navigating;

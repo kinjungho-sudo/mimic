@@ -661,6 +661,19 @@ async function clearGuideSession() {
   await hideGuideOverlayEverywhere();
 }
 
+async function showGuideWrongPage(tabId, step, index, total) {
+  if (!Number.isInteger(tabId) || !step?.page_url) return false;
+  const injection = await ensureContentScript(tabId);
+  if (!injection?.ok) return false;
+  sendTabMessage(tabId, {
+    type: 'SHOW_WRONG_PAGE',
+    step,
+    index,
+    total,
+  });
+  return true;
+}
+
 function scheduleGuideOverlay(tabId, delayMs = 450) {
   setTimeout(async () => {
     const state = await storageGet([
@@ -673,8 +686,13 @@ function scheduleGuideOverlay(tabId, delayMs = 450) {
     const tab = await new Promise((resolve) => chrome.tabs.get(tabId, (value) => {
       resolve(chrome.runtime.lastError ? null : value);
     }));
-    if (!tab?.id || !guidePageMatches(tab.url, step.page_url)) {
+    if (!tab?.id) {
       await storageSet({ guideTargetStatus: 'page_mismatch' });
+      return;
+    }
+    if (!guidePageMatches(tab.url, step.page_url)) {
+      await storageSet({ guideTargetStatus: 'page_mismatch' });
+      await showGuideWrongPage(tab.id, step, index, state.guideSteps.length);
       return;
     }
     const injection = await ensureContentScript(tab.id);
@@ -2210,8 +2228,8 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
         await storageSet({ guideTargetStatus: 'searching', guideTargetEvidence: null });
         scheduleGuideOverlay(tabId, completedLoad ? 450 : 280);
       } else {
-        sendTabMessage(tabId, { type: 'HIDE_OVERLAY' });
         await storageSet({ guideTargetStatus: 'page_mismatch', guideTargetEvidence: null });
+        await showGuideWrongPage(tabId, step, gIdx, gSteps.length);
       }
     }
 
