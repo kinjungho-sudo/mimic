@@ -23,7 +23,7 @@ const previewPage = read('guide-preview.html');
 const previewScript = read('guide-preview.js');
 const manifest = JSON.parse(read('manifest.json'));
 
-assert.equal(manifest.version, '1.7.11');
+assert.equal(manifest.version, '1.7.12');
 assert.deepEqual(
   manifest.content_scripts[0].js.slice(0, 3),
   ['targeting.js', 'guide-engine.js', 'content.js'],
