@@ -109,6 +109,12 @@ assert.match(queueOverlay, /_pendingGuideOverlay/, 'concurrent first-step overla
 assert.match(engine, /data-act="copy"/, 'typed Live Guide steps must expose a copy button');
 assert.match(engine, /appendGuideViewportFrame\(root\)/, 'resolved Live Guide steps must show the viewport-edge guide frame');
 assert.match(engine, /appendGuideViewportFrame\(shadow\)/, 'explanation Live Guide steps must show the viewport-edge guide frame');
+const explanation = section(engine, 'function showExplanation(step, opts)', 'function showWaiting(step, opts, initialStatus)');
+assert.match(explanation, /data-act="hide-explanation"/, 'reference steps must expose a close button');
+assert.match(explanation, /aria-label="\$\{escapeHtml\(i18n\('closeReferenceStep', '참고 단계 닫기'\)\)\}"/);
+assert.match(explanation, /setExplanationHidden\(true\)/);
+assert.match(explanation, /setExplanationHidden\(false\)/);
+assert.match(explanation, /host\.setAttribute\('data-explanation-hidden'/);
 
 assert.match(popup, /assets\/parro-ai-avatar-neutral\.png\?v=20260720/);
 assert.match(popup, /id="guideTargetStatus"/);
@@ -119,4 +125,4 @@ assert.match(popupScript, /saveText:\s+true/, 'the Recorder settings UI must def
 assert.match(popupScript, /not_found: \{ label: t\('targetNotFound', '대상을 찾지 못했습니다'\)/);
 assert.match(popupScript, /type: 'SHOW_OVERLAY_FOR_STEP', stepIndex: guideCurrentStep/);
 
-console.log(JSON.stringify({ ok: true, checks: 57, scope: 'live-guide-scroll-guidance-contract' }));
+console.log(JSON.stringify({ ok: true, checks: 62, scope: 'live-guide-reference-close-contract' }));

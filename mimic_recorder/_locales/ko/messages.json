@@ -161,6 +161,7 @@
   "waitingScrollDown": { "message": "화면을 아래로 스크롤해주세요" },
   "waitingScrollUp": { "message": "화면을 위로 스크롤해주세요" },
   "waitingMoveScreen": { "message": "화면을 조금 이동하면 다시 찾아볼게요" },
+  "closeReferenceStep": { "message": "참고 단계 닫기" },
   "noBlockedStep": { "message": "막힌 단계 없음" },
   "submitting": { "message": "제출 중..." },
   "inaccurateClick": { "message": "클릭 위치 부정확" },

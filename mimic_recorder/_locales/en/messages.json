@@ -161,6 +161,7 @@
   "waitingScrollDown": { "message": "Scroll down to continue" },
   "waitingScrollUp": { "message": "Scroll up to continue" },
   "waitingMoveScreen": { "message": "Move the page a little so we can check again" },
+  "closeReferenceStep": { "message": "Close reference step" },
   "noBlockedStep": { "message": "No blocked step" },
   "submitting": { "message": "Submitting..." },
   "inaccurateClick": { "message": "Inaccurate click target" },

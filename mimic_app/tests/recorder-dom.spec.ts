@@ -238,6 +238,56 @@ test('guide shows a scroll prompt while a same-page target is below the viewport
   await expect(prompt).toHaveCount(0);
 });
 
+test('reference step can be closed and reopened without completing the step', async ({ page }) => {
+  await page.route('https://example.test/reference-step', route => route.fulfill({
+    contentType: 'text/html',
+    body: '<main>Reference fixture</main>',
+  }));
+  await page.goto('https://example.test/reference-step');
+  await loadGuide(page);
+  await page.evaluate(() => {
+    const guide = (window as unknown as { ParroGuide: any }).ParroGuide;
+    guide.show({
+      id: 'reference-step',
+      page_url: window.location.href,
+      guide_mode: 'explanation',
+      kind: 'none',
+      title: 'Reference',
+      instruction: 'Review this information.',
+    }, { index: 3, total: 8 });
+  });
+
+  const host = page.locator('#parro-overlay-root');
+  await expect(host).toHaveAttribute('data-explanation-hidden', 'false');
+  const cdp = await page.context().newCDPSession(page);
+  const clickClosedShadowButton = async (action: string) => {
+    const { root } = await cdp.send('DOM.getDocument', { depth: -1, pierce: true });
+    const find = (node: any): any => {
+      const attributes = Array.isArray(node.attributes) ? node.attributes : [];
+      for (let index = 0; index < attributes.length; index += 2) {
+        if (attributes[index] === 'data-act' && attributes[index + 1] === action) return node;
+      }
+      for (const child of [...(node.children || []), ...(node.shadowRoots || [])]) {
+        const match = find(child);
+        if (match) return match;
+      }
+      return null;
+    };
+    const button = find(root);
+    expect(button, `missing closed-shadow button: ${action}`).toBeTruthy();
+    const { object } = await cdp.send('DOM.resolveNode', { nodeId: button.nodeId });
+    await cdp.send('Runtime.callFunctionOn', {
+      objectId: object.objectId,
+      functionDeclaration: 'function () { this.click(); }',
+    });
+  };
+
+  await clickClosedShadowButton('hide-explanation');
+  await expect(host).toHaveAttribute('data-explanation-hidden', 'true');
+  await clickClosedShadowButton('restore-explanation');
+  await expect(host).toHaveAttribute('data-explanation-hidden', 'false');
+});
+
 test('hidden or covered targets are rejected', async ({ page }) => {
   await page.setContent(`
     <button id="hidden" style="visibility:hidden;width:120px;height:40px">숨김</button>

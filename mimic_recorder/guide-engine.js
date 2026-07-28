@@ -1194,21 +1194,50 @@
     card.innerHTML = `
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
         <div style="${AVATAR_STYLE}width:38px;height:38px;">${mascotHtml('clarify')}</div>
-        <div style="min-width:0">
+        <div style="min-width:0;flex:1">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
             <span style="font-size:11px;font-weight:700;color:#8DD63F">${idx + 1} / ${total}</span>
             <span style="font-size:10.5px;font-weight:800;color:#8DD63F;background:rgba(0,155,142,.22);padding:2px 7px;border-radius:999px">참고 단계</span>
           </div>
           <div style="font-size:15px;font-weight:800;line-height:1.35">${escapeHtml(title)}</div>
         </div>
+        <button type="button" data-act="hide-explanation" aria-label="${escapeHtml(i18n('closeReferenceStep', '참고 단계 닫기'))}" title="${escapeHtml(i18n('closeReferenceStep', '참고 단계 닫기'))}" style="align-self:flex-start;display:grid;place-items:center;flex:0 0 30px;width:30px;height:30px;margin:-4px -4px 0 0;padding:0;border:1px solid rgba(255,255,255,.16);border-radius:9px;background:rgba(255,255,255,.06);color:#D1D5DB;font-size:17px;line-height:1;cursor:pointer">✕</button>
       </div>
       <div style="font-size:13px;color:#D1D5DB;line-height:1.55;margin-bottom:14px">${escapeHtml(text)}</div>
       ${renderVisualGuideImage(step)}
       <div style="font-size:11.5px;color:#9CA3AF;line-height:1.45;padding-top:2px">이전·다음 단계는 Parro 사이드 패널에서 선택하세요.</div>`;
-    appendGuideViewportFrame(shadow);
+    const restoreBtn = document.createElement('button');
+    restoreBtn.type = 'button';
+    restoreBtn.setAttribute('data-act', 'restore-explanation');
+    restoreBtn.textContent = i18n('showGuide', '💬 가이드 보기');
+    restoreBtn.style.cssText = 'position:fixed;right:16px;bottom:16px;display:none;align-items:center;padding:9px 14px;border:0;border-radius:999px;background:linear-gradient(135deg,#009B8E,#12B886);box-shadow:0 6px 20px rgba(0,155,142,.34);color:#fff;font-size:12px;font-weight:800;cursor:pointer;pointer-events:auto;z-index:3';
+    const frame = appendGuideViewportFrame(shadow);
     shadow.appendChild(card);
+    shadow.appendChild(restoreBtn);
 
-    state = { host, shadow, explanation: true };
+    const setExplanationHidden = (hidden) => {
+      if (!state?.explanation) return;
+      card.style.display = hidden ? 'none' : 'block';
+      frame.style.display = hidden ? 'none' : 'block';
+      restoreBtn.style.display = hidden ? 'flex' : 'none';
+      host.setAttribute('data-explanation-hidden', hidden ? 'true' : 'false');
+      state.explanationHidden = hidden;
+    };
+    card.addEventListener('click', (event) => {
+      const action = event.target?.closest?.('[data-act]')?.getAttribute('data-act');
+      if (action !== 'hide-explanation') return;
+      event.preventDefault();
+      event.stopPropagation();
+      setExplanationHidden(true);
+    });
+    restoreBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setExplanationHidden(false);
+    });
+
+    state = { host, shadow, explanation: true, explanationHidden: false, card, frame, restoreBtn };
+    host.setAttribute('data-explanation-hidden', 'false');
   }
 
   function showWaiting(step, opts, initialStatus) {
