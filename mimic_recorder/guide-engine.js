@@ -1200,7 +1200,74 @@
     };
     opts.onTargetStatus && opts.onTargetStatus(state.waitStatus);
 
-    // 페이지와 대상 요소가 모두 검증되면 그때 처음으로 DOM 오버레이를 만든다.
+    const updateWaitingPrompt = () => {
+      if (!state?.waiting || !state.waitPrompt) return;
+      const doc = document.documentElement;
+      const maxScrollY = Math.max(0, (doc?.scrollHeight || 0) - window.innerHeight);
+      const canScrollDown = window.scrollY < maxScrollY - 24;
+      const canScrollUp = window.scrollY > 24;
+      const direction = canScrollDown ? 'down' : (canScrollUp ? 'up' : 'still');
+      const arrow = direction === 'down' ? '↓' : (direction === 'up' ? '↑' : '↕');
+      const title = direction === 'down'
+        ? '다음 단계가 화면 아래에 있어요'
+        : (direction === 'up'
+          ? '다음 단계가 화면 위에 있을 수 있어요'
+          : '다음 단계를 찾고 있어요');
+      const instruction = direction === 'down'
+        ? '화면을 아래로 스크롤해주세요'
+        : (direction === 'up'
+          ? '화면을 위로 스크롤해주세요'
+          : '화면을 조금 이동하면 다시 찾아볼게요');
+      state.waitPrompt.dataset.direction = direction;
+      state.waitPromptArrow.textContent = arrow;
+      state.waitPromptTitle.textContent = title;
+      state.waitPromptInstruction.textContent = instruction;
+    };
+
+    const ensureWaitingPrompt = () => {
+      if (!state?.waiting || state.waitPrompt) {
+        updateWaitingPrompt();
+        return;
+      }
+      const host = document.createElement('div');
+      host.id = OVERLAY_ROOT_ID;
+      host.style.cssText = `all:initial;position:fixed;inset:0;z-index:${Z};pointer-events:none;`;
+      const shadow = host.attachShadow({ mode: 'open' });
+      const prompt = document.createElement('button');
+      prompt.type = 'button';
+      prompt.setAttribute('aria-live', 'polite');
+      prompt.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);display:flex;align-items:center;gap:12px;max-width:min(420px,calc(100vw - 32px));padding:13px 18px;border:1px solid rgba(255,255,255,.22);border-radius:16px;background:rgba(22,20,48,.96);box-shadow:0 12px 32px rgba(15,23,42,.34);color:#fff;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-align:left;cursor:pointer;pointer-events:auto;';
+      const arrow = document.createElement('span');
+      arrow.style.cssText = 'display:grid;place-items:center;flex:0 0 36px;width:36px;height:36px;border-radius:999px;background:#12B886;color:#fff;font-size:23px;font-weight:900;animation:parro-wait-bounce 1.1s ease-in-out infinite;';
+      const copy = document.createElement('span');
+      copy.style.cssText = 'display:flex;min-width:0;flex-direction:column;gap:2px;';
+      const title = document.createElement('strong');
+      title.style.cssText = 'font-size:14px;font-weight:800;line-height:1.35;';
+      const instruction = document.createElement('span');
+      instruction.style.cssText = 'font-size:12px;color:#D1D5DB;line-height:1.4;';
+      copy.append(title, instruction);
+      prompt.append(arrow, copy);
+      prompt.addEventListener('click', () => {
+        const direction = prompt.dataset.direction === 'up' ? -1 : 1;
+        window.scrollBy({
+          top: direction * Math.max(240, Math.round(window.innerHeight * 0.7)),
+          behavior: 'smooth',
+        });
+      });
+      shadow.appendChild(style('@keyframes parro-wait-bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(5px)}}'));
+      shadow.appendChild(prompt);
+      (document.documentElement || document.body).appendChild(host);
+      state.host = host;
+      state.shadow = shadow;
+      state.waitPrompt = prompt;
+      state.waitPromptArrow = arrow;
+      state.waitPromptTitle = title;
+      state.waitPromptInstruction = instruction;
+      updateWaitingPrompt();
+    };
+
+    // 다른 페이지에서는 아무 오버레이도 만들지 않는다. 같은 페이지에서 대상이 아직
+    // 보이지 않을 때만 스크롤 안내를 표시하고, 실제 대상이 확인되면 정식 가이드로 교체한다.
     const tryResolve = () => {
       if (!state || !state.waiting) return false;
       if (!step?.page_url || !pageMatches(step.page_url)) {
@@ -1220,6 +1287,7 @@
         show(step, opts);
         return true;
       }
+      ensureWaitingPrompt();
       if (state.matchingSince == null) state.matchingSince = Date.now();
       const nextStatus = Date.now() - state.matchingSince >= 8000 ? 'not_found' : 'searching';
       if (state.waitStatus !== nextStatus) {
@@ -1248,6 +1316,7 @@
     state.findObserver = obs;
     try {
       window.addEventListener('resize', scheduleTryResolve, true);
+      window.addEventListener('scroll', scheduleTryResolve, true);
       state.onWaitViewportChange = scheduleTryResolve;
     } catch { /* noop */ }
 
@@ -1378,6 +1447,7 @@
     if (state.findObserver) state.findObserver.disconnect();
     if (state.onWaitViewportChange) {
       window.removeEventListener('resize', state.onWaitViewportChange, true);
+      window.removeEventListener('scroll', state.onWaitViewportChange, true);
     }
     if (state.onDocClick) document.removeEventListener('click', state.onDocClick, true);
     if (state.onKey) document.removeEventListener('keydown', state.onKey, true);

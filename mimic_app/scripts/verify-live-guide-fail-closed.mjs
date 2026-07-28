@@ -136,7 +136,9 @@ try {
   });
   await page.waitForTimeout(1300);
   const missingTargetOverlayCount = await page.locator('#parro-overlay-root').count();
-  check(() => assert.equal(missingTargetOverlayCount, 0));
+  const waitingPromptCount = await page.locator('#parro-overlay-root button[aria-live="polite"]').count();
+  check(() => assert.equal(missingTargetOverlayCount, 1));
+  check(() => assert.equal(waitingPromptCount, 1));
 
   await sendToTab(worker, tabId, {
     type: 'SHOW_OVERLAY',
@@ -190,7 +192,7 @@ try {
     checks,
     browser: 'playwright-chromium',
     target: 'evidence-selected',
-    missingTargetUi: false,
+    missingTargetUi: 'scroll-prompt',
     wrongPageUi: false,
     completionUi: false,
     invalidSubmitBlocked: true,

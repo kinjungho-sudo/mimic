@@ -76,9 +76,16 @@ assert.ok(
   'page validation must happen before any overlay DOM is created',
 );
 const waiting = section(engine, 'function showWaiting(step, opts, initialStatus)', '// AI 시각 재탐색');
-assert.doesNotMatch(waiting, /document\.createElement/);
 assert.match(waiting, /MutationObserver/);
 assert.match(waiting, /Date\.now\(\) - state\.matchingSince >= 8000 \? 'not_found' : 'searching'/);
+assert.ok(
+  waiting.indexOf("!step?.page_url || !pageMatches(step.page_url)") < waiting.indexOf('ensureWaitingPrompt();'),
+  'the scroll prompt must only appear after the guide page matches',
+);
+assert.match(waiting, /'화면을 아래로 스크롤해주세요'/);
+assert.match(waiting, /window\.scrollBy\(\{/);
+assert.match(waiting, /window\.addEventListener\('scroll', scheduleTryResolve, true\)/);
+assert.match(engine, /window\.removeEventListener\('scroll', state\.onWaitViewportChange, true\)/);
 assert.match(engine, /confidence\s*<\s*0\.85/);
 assert.match(engine, /return \{ el: null, rect: null, source: 'none'/);
 assert.match(engine, /function validationMessages\(\)/);
@@ -112,4 +119,4 @@ assert.match(popupScript, /saveText:\s+true/, 'the Recorder settings UI must def
 assert.match(popupScript, /not_found: \{ label: '대상을 찾지 못했습니다'/);
 assert.match(popupScript, /type: 'SHOW_OVERLAY_FOR_STEP', stepIndex: guideCurrentStep/);
 
-console.log(JSON.stringify({ ok: true, checks: 52, scope: 'live-guide-fail-closed-contract' }));
+console.log(JSON.stringify({ ok: true, checks: 57, scope: 'live-guide-scroll-guidance-contract' }));

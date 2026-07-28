@@ -8,7 +8,10 @@ const guideScript = path.join(recorderRoot, 'guide-engine.js');
 
 async function loadGuide(page: Page) {
   await page.evaluate(() => {
-    (window as unknown as { chrome: unknown }).chrome = { runtime: { getURL: (path: string) => path } };
+    (window as unknown as { chrome: unknown }).chrome = {
+      runtime: { getURL: (path: string) => path },
+      i18n: { getMessage: () => '' },
+    };
   });
   await page.addScriptTag({ path: targetingScript });
   await page.addScriptTag({ path: guideScript });
@@ -37,6 +40,7 @@ async function loadContent(page: Page, options: { recording?: boolean } = {}) {
         },
         onChanged: { addListener: noop },
       },
+      i18n: { getMessage: () => '' },
     };
   }, { recording: !!options.recording });
   await page.addScriptTag({ path: targetingScript });
@@ -188,6 +192,50 @@ test('guide accepts a unique visible selector after responsive movement', async 
     }).source;
   });
   expect(source).toBe('selector');
+});
+
+test('guide shows a scroll prompt while a same-page target is below the viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 600 });
+  await page.route('https://example.test/live-guide', route => route.fulfill({
+    contentType: 'text/html',
+    body: '<main id="virtual-list" style="height:1800px"></main>',
+  }));
+  await page.goto('https://example.test/live-guide');
+  await loadGuide(page);
+
+  await page.evaluate(() => {
+    (window as unknown as { __parroTargetStatuses: string[] }).__parroTargetStatuses = [];
+    window.addEventListener('scroll', () => {
+      if (window.scrollY <= 0 || document.querySelector('#below')) return;
+      const button = document.createElement('button');
+      button.id = 'below';
+      button.textContent = 'Continue';
+      button.style.cssText = `position:absolute;top:${window.scrollY + 180}px;left:80px;width:160px;height:48px`;
+      document.querySelector('#virtual-list')!.appendChild(button);
+    });
+    const guide = (window as unknown as { ParroGuide: any }).ParroGuide;
+    guide.show({
+      id: 'below-step',
+      page_url: window.location.href,
+      element_selector: '#below',
+      title: 'Continue',
+      instruction: 'Select Continue',
+    }, {
+      index: 0,
+      onTargetStatus: (status: string) => {
+        (window as unknown as { __parroTargetStatuses: string[] }).__parroTargetStatuses.push(status);
+      },
+    });
+  });
+
+  const prompt = page.locator('#parro-overlay-root').locator('button');
+  await expect(prompt).toContainText('화면을 아래로 스크롤해주세요');
+  await prompt.click();
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+  await expect.poll(() => page.evaluate(() => (
+    (window as unknown as { __parroTargetStatuses: string[] }).__parroTargetStatuses
+  ))).toContain('ready');
+  await expect(prompt).toHaveCount(0);
 });
 
 test('hidden or covered targets are rejected', async ({ page }) => {
