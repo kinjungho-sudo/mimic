@@ -60,16 +60,20 @@ check(() => assert.deepEqual(flattened.map(step => step.manual_title), [
 check(() => assert.equal(new Set(flattened.map(step => step.id)).size, flattened.length));
 
 const endpoint = read('mimic_app/app/api/guide/playbook/[token]/route.ts');
+const legacyEndpoint = read('mimic_app/app/api/guide/[token]/route.ts');
+const playbookServer = read('mimic_app/lib/live-guide/playbook-server.ts');
 const publicPage = read('mimic_app/app/p/[token]/page.tsx');
 const liveGuideClient = read('mimic_app/lib/api/liveGuide.ts');
 const background = read('mimic_recorder/background.js');
 
-check(() => assert.match(endpoint, /extractPlaybookGuideSequence\(page\.content\)/));
-check(() => assert.match(endpoint, /flattenPlaybookLiveGuideSteps\(sequence, guides\)/));
-check(() => assert.match(endpoint, /tutorial\.user_id === page\.user_id/));
+check(() => assert.match(endpoint, /resolvePublishedPlaybookLiveGuide\(token\)/));
+check(() => assert.match(playbookServer, /extractPlaybookGuideSequence\(page\.content\)/));
+check(() => assert.match(playbookServer, /flattenPlaybookLiveGuideSteps\(sequence, guides\)/));
+check(() => assert.match(playbookServer, /tutorial\.user_id === page\.user_id/));
+check(() => assert.match(legacyEndpoint, /resolvePublishedPlaybookLiveGuide\(token, supabase\)/));
 check(() => assert.match(publicPage, /startPlaybookLiveGuide\(token\)/));
 check(() => assert.match(publicPage, /합쳐진 매뉴얼을 Live Guide로 실행/));
 check(() => assert.match(liveGuideClient, /guide_source: source/));
 check(() => assert.match(background, /guideSource === 'playbook'/));
 
-console.log(JSON.stringify({ ok: true, checks, scope: 'playbook-live-guide-flattening' }));
+console.log(JSON.stringify({ ok: true, checks, scope: 'playbook-live-guide-flattening-and-legacy-recorder-compatibility' }));

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceRoleClient, createServerClient } from '@/lib/supabase/server';
 import { fetchLiveGuideSteps, gateLiveGuide } from '@/lib/live-guide/server';
+import { resolvePublishedPlaybookLiveGuide } from '@/lib/live-guide/playbook-server';
 
 type Params = { params: Promise<{ token: string }> };
 
@@ -59,7 +60,10 @@ export async function GET(request: NextRequest, { params }: Params) {
     .single();
 
   if (!tutorial) {
-    return guideJson({ error: 'Not found' }, 404);
+    // Recorder 1.7.11 이하에서는 guide_source를 전달해도 기존 경로를 사용한다.
+    // 단일 매뉴얼 토큰이 아니면 게시된 플레이북 토큰으로 한 번 더 해석해 하위 호환한다.
+    const playbook = await resolvePublishedPlaybookLiveGuide(token, supabase);
+    return guideJson(playbook.payload, playbook.status);
   }
 
   const gated = await gateLiveGuide(supabase, tutorial.user_id);
