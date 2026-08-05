@@ -10,10 +10,12 @@
   const Z = 2147483640;
   const HIT_PAD_EL = 6;
   const HIT_PAD_COORD = 28;
-  const TIP_W = 292;  // 커진 코치 아바타와 균형을 맞춘 안내 카드 너비
+  const TIP_W = 292;  // 코치 아바타 옆에 독립적으로 나타나는 안내 말풍선 너비
   const TIP_GAP = 46; // 타깃을 가리지 않도록 DOM과 코치 UI 사이에 충분한 간격 확보
   const TIP_M = 12;   // 뷰포트 여백(px)
-  const AVATAR_OUTSET = 82; // 말풍선 왼쪽에 놓이는 단일 아바타 영역
+  const AVATAR_SIZE = 68;
+  const AVATAR_GAP = 14;
+  const AVATAR_OUTSET = AVATAR_SIZE + AVATAR_GAP; // 말풍선 왼쪽의 독립 아바타 영역
   const TIP_BG = 'rgba(22,20,48,.96)'; // 툴팁/화살표/대기카드 공통 배경 — 짙은 남색·보라(흰 배경 가독성)
   const OVERLAY_ROOT_ID = 'parro-overlay-root';
   const LEGACY_OVERLAY_ROOT_ID = 'mimic-overlay-root';
@@ -446,6 +448,25 @@
     return { left, top, arrowDir, arrowLeft };
   }
 
+  function placeCoachAvatar(avatar, bubbleLeft, bubbleTop, bubbleHeight) {
+    if (!avatar) return;
+    let left = bubbleLeft - AVATAR_OUTSET;
+    let top = bubbleTop + 14;
+    let placement = 'left';
+
+    // 작은 뷰포트에서도 아바타가 잘리지 않도록 말풍선 위·아래를 차선으로 사용한다.
+    if (left < TIP_M) {
+      placement = 'stacked';
+      left = bubbleLeft + 12;
+      top = bubbleTop - AVATAR_SIZE - AVATAR_GAP;
+      if (top < TIP_M) top = bubbleTop + (bubbleHeight || 200) + AVATAR_GAP;
+    }
+
+    avatar.setAttribute('data-placement', placement);
+    avatar.style.left = `${Math.max(TIP_M, Math.min(window.innerWidth - AVATAR_SIZE - TIP_M, left))}px`;
+    avatar.style.top = `${Math.max(TIP_M, Math.min(window.innerHeight - AVATAR_SIZE - TIP_M, top))}px`;
+  }
+
   // 웹 제품과 동일한 상태형 AI 가이드 아바타.
   const avatarAsset = (name) => `${chrome.runtime.getURL(`assets/${name}`)}?v=20260720`;
   const MASCOT_IMAGE_URLS = {
@@ -525,7 +546,7 @@
     @media (prefers-reduced-motion:reduce){.parro-avatar-stack,.parro-avatar-layer{animation:none!important}.parro-avatar-layer--secondary{display:none}}
   `;
 
-  const AVATAR_STYLE = `width:68px;height:68px;border-radius:19px;background:linear-gradient(135deg,#F1FBF9,#E4F3F6);box-shadow:0 8px 24px rgba(0,155,142,.34);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;`;
+  const AVATAR_STYLE = `width:${AVATAR_SIZE}px;height:${AVATAR_SIZE}px;border-radius:19px;background:linear-gradient(135deg,#F1FBF9,#E4F3F6);box-shadow:0 8px 24px rgba(0,155,142,.34);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;`;
 
   // ── 오버레이 렌더 ─────────────────────────────────────────────
   const VOLATILE_QUERY_KEY = /^(utm_.+|fbclid|gclid|_ga|code|state|session|session_id|timestamp|ts|_t)$/i;
@@ -714,6 +735,8 @@
       @keyframes mimic-nudge  { 0%,100%{transform:none} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
       @keyframes parro-avatar-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
       @keyframes mimic-avatar-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
+      @keyframes parro-avatar-in { 0%{opacity:0;transform:translateY(5px) scale(.78)} 100%{opacity:1;transform:translateY(0) scale(1)} }
+      @keyframes parro-bubble-in { 0%{opacity:0;transform:translateX(-10px) translateY(3px) scale(.97)} 100%{opacity:1;transform:translateX(0) translateY(0) scale(1)} }
       @keyframes parro-tip-in { 0%{opacity:0;transform:translateY(6px) scale(0.97)} 100%{opacity:1;transform:translateY(0) scale(1)} }
       @keyframes mimic-tip-in { 0%{opacity:0;transform:translateY(6px) scale(0.97)} 100%{opacity:1;transform:translateY(0) scale(1)} }
       ${AVATAR_MOTION_CSS}
@@ -738,8 +761,8 @@
     pulse.appendChild(ripple2);
     root.appendChild(pulse);
 
-    // 단일 코치 아바타가 말풍선 바깥에서 이야기하는 구조.
-    // 타깃 위에 별도 아바타를 겹치지 않고, SVG 프레임 교체 없이 미세한 부유 효과만 준다.
+    // 아바타와 말풍선을 서로 독립된 요소로 만들어,
+    // 아바타가 먼저 등장하고 그 옆으로 말풍선이 이어서 나타나게 한다.
     const idx = opts.index ?? 0, total = opts.total ?? 1;
     const typeTextSnippet = step.type_text
       ? escapeHtml(String(step.type_text).length > 60 ? String(step.type_text).slice(0, 60) + '…' : String(step.type_text))
@@ -747,10 +770,16 @@
     const tooltipText = step.instruction || step.title || '';
     const tooltipMascotState = 'talk';
 
+    const coachAvatar = document.createElement('div');
+    coachAvatar.setAttribute('data-role', 'coach-avatar');
+    coachAvatar.setAttribute('aria-hidden', 'true');
+    coachAvatar.style.cssText = `position:fixed;${AVATAR_STYLE}pointer-events:none;z-index:5;animation:parro-avatar-in .26s cubic-bezier(.2,.8,.2,1) both,parro-avatar-float 4s ease-in-out .26s infinite;`;
+    coachAvatar.innerHTML = mascotHtml(tooltipMascotState);
+
     const tooltip = document.createElement('div');
-    tooltip.style.cssText = `position:fixed;width:${TIP_W}px;box-sizing:border-box;background:${TIP_BG};color:#fff;border-radius:13px;padding:13px;box-shadow:0 12px 40px rgba(0,0,0,.45),0 0 0 1px rgba(23,201,182,.16);z-index:5;pointer-events:auto;animation:parro-tip-in 0.28s ease forwards;`;
+    tooltip.setAttribute('data-role', 'guide-bubble');
+    tooltip.style.cssText = `position:fixed;width:${TIP_W}px;box-sizing:border-box;background:${TIP_BG};color:#fff;border-radius:13px;padding:13px;box-shadow:0 12px 40px rgba(0,0,0,.45),0 0 0 1px rgba(23,201,182,.16);z-index:5;pointer-events:auto;animation:parro-bubble-in .3s cubic-bezier(.2,.8,.2,1) .09s both;`;
     tooltip.innerHTML = `
-      <div data-role="coach-avatar" style="position:absolute;left:-${AVATAR_OUTSET}px;top:14px;${AVATAR_STYLE}pointer-events:none;animation:parro-avatar-float 4s ease-in-out infinite">${mascotHtml(tooltipMascotState)}</div>
       <div aria-hidden="true" style="position:absolute;left:-8px;top:30px;width:16px;height:16px;background:${TIP_BG};transform:rotate(45deg);border-radius:2px;box-shadow:-1px 1px 0 rgba(23,201,182,.12);pointer-events:none"></div>
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:7px">
         <span style="font-size:11px;font-weight:700;color:#8DD63F;background:rgba(0,155,142,.24);padding:2px 8px;border-radius:20px">${idx + 1} / ${total}</span>
@@ -758,7 +787,10 @@
         <div style="flex:1"></div>
         <button class="parro-btn mimic-btn" data-act="hide-tooltip" title="말풍선 숨기기" style="background:transparent;color:rgba(255,255,255,.45);padding:3px 6px;font-size:12px">✕</button>
       </div>
-      ${tooltipText ? `<div style="font-size:12.5px;color:#D1D5DB;line-height:1.55;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${escapeHtml(tooltipText)}</div>` : ''}
+      ${tooltipText ? `
+        <div data-role="guide-copy" data-expanded="false" style="font-size:12.5px;color:#D1D5DB;line-height:1.55;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${escapeHtml(tooltipText)}</div>
+        <button class="parro-btn mimic-btn" data-act="toggle-guide-copy" aria-expanded="false" style="display:none;margin:5px 0 0 auto;padding:2px 0;background:transparent;color:#8DD63F;font-size:11px;font-weight:800">${escapeHtml(i18n('showMore', '… 더보기'))}</button>
+      ` : ''}
       ${step.type_text ? `
         <div style="margin-top:10px;background:rgba(0,155,142,.18);border:1px solid rgba(23,201,182,.32);border-radius:8px;padding:8px 10px">
           <div style="display:flex;align-items:center;gap:6px">
@@ -769,7 +801,16 @@
           <div style="font-size:10.5px;color:#9FE4DA;line-height:1.45;margin-top:4px">입력창에 붙여넣으면 자동으로 다음 단계로 진행합니다.</div>
         </div>` : ''}`;
 
+    root.appendChild(coachAvatar);
     root.appendChild(tooltip);
+    const tooltipCopy = tooltip.querySelector('[data-role="guide-copy"]');
+    const tooltipCopyToggle = tooltip.querySelector('[data-act="toggle-guide-copy"]');
+    if (tooltipCopy && tooltipCopyToggle) {
+      requestAnimationFrame(() => {
+        if (!tooltipCopy.isConnected || !tooltipCopyToggle.isConnected) return;
+        tooltipCopyToggle.style.display = tooltipCopy.scrollHeight > tooltipCopy.clientHeight + 1 ? 'block' : 'none';
+      });
+    }
 
     // 툴팁 복원 버튼 (툴팁 숨김 상태일 때 우하단에 표시)
     const restoreBtn = document.createElement('button');
@@ -797,7 +838,7 @@
 
     shadow.appendChild(root);
 
-    state = { host, shadow, hl, pulse, tooltip, restoreBtn, scrollHint, resolved, step, opts, idx, total, advanced: false, completed: false, tooltipHidden: false, fallbackKey: null };
+    state = { host, shadow, hl, pulse, coachAvatar, tooltip, restoreBtn, scrollHint, resolved, step, opts, idx, total, advanced: false, completed: false, tooltipHidden: false, fallbackKey: null };
 
     // 브라우저의 새로고침/뒤로가기 스크롤 복원이 첫 scrollIntoView를 덮어쓸 수 있어
     // 페이지가 안정된 뒤 한 번 더 확인한다. 사용자가 바로 타깃을 볼 수 있게 즉시 중앙 정렬한다.
@@ -837,6 +878,22 @@
         if (!state) return;
         state.tooltipHidden = true;
       }
+      else if (act === 'toggle-guide-copy') {
+        const copy = tooltip.querySelector('[data-role="guide-copy"]');
+        if (!copy) return;
+        const expanded = copy.getAttribute('data-expanded') === 'true';
+        const nextExpanded = !expanded;
+        copy.setAttribute('data-expanded', nextExpanded ? 'true' : 'false');
+        copy.style.display = nextExpanded ? 'block' : '-webkit-box';
+        copy.style.webkitLineClamp = nextExpanded ? 'unset' : '3';
+        copy.style.webkitBoxOrient = nextExpanded ? 'unset' : 'vertical';
+        copy.style.overflow = nextExpanded ? 'auto' : 'hidden';
+        copy.style.maxHeight = nextExpanded ? 'min(48vh, 360px)' : '';
+        e.target.setAttribute('aria-expanded', nextExpanded ? 'true' : 'false');
+        e.target.textContent = nextExpanded
+          ? i18n('showLess', '접기')
+          : i18n('showMore', '… 더보기');
+      }
       else if (act === 'copy') {
         const text = state && state.step && state.step.type_text;
         if (text) {
@@ -863,6 +920,7 @@
       if (!t || !t.rect) {
         hl.style.display = 'none';
         pulse.style.display = 'none';
+        coachAvatar.style.display = 'none';
         tooltip.style.display = 'none';
         if (state.scrollHint) state.scrollHint.style.display = 'none';
       } else if (t.el && !t.el.isConnected) {
@@ -875,6 +933,7 @@
         if (t.el && (r.width < 1 || r.height < 1)) {
           hl.style.display = 'none';
           pulse.style.display = 'none';
+          coachAvatar.style.display = 'none';
           tooltip.style.display = 'none';
           if (state.scrollHint) state.scrollHint.style.display = 'none';
           state.rafId = requestAnimationFrame(reposition);
@@ -915,24 +974,33 @@
         pulse.style.left = `${cx}px`;
         pulse.style.top  = `${cy}px`;
 
-        // 말풍선과 아바타를 하나의 코치 UI로 함께 배치한다.
+        // 독립된 아바타를 말풍선 왼쪽에 유지한다.
+        coachAvatar.style.display = 'flex';
         tooltip.style.display = 'block';
         const tipH = tooltip.offsetHeight || 200;
         const pos = calcTipPos(r, tipH);
         tooltip.style.left = `${pos.left}px`;
         tooltip.style.top  = `${pos.top}px`;
+        placeCoachAvatar(coachAvatar, pos.left, pos.top, tipH);
 
         // 소유자가 스튜디오에서 지정한 말풍선 위치 — 뷰포트 고정 코너로 override
         const anchor = state.step && state.step.bubble_anchor;
         if (anchor) {
           const tH = tooltip.offsetHeight || tipH;
-          const left = anchor === 'top-left' || anchor === 'bottom-left' ? TIP_M + AVATAR_OUTSET : window.innerWidth - TIP_W - TIP_M;
+          const hasAvatarSideRoom = window.innerWidth >= TIP_W + AVATAR_OUTSET + TIP_M * 2;
+          const left = anchor === 'top-left' || anchor === 'bottom-left'
+            ? (hasAvatarSideRoom ? TIP_M + AVATAR_OUTSET : TIP_M)
+            : Math.max(TIP_M, window.innerWidth - TIP_W - TIP_M);
           const top  = anchor === 'top-left' || anchor === 'top-right'  ? TIP_M : window.innerHeight - tH - TIP_M;
           tooltip.style.left = `${left}px`;
           tooltip.style.top  = `${top}px`;
+          placeCoachAvatar(coachAvatar, left, top, tH);
         }
         // 툴팁 숨김 모드 적용
-        if (state.tooltipHidden) tooltip.style.display = 'none';
+        if (state.tooltipHidden) {
+          coachAvatar.style.display = 'none';
+          tooltip.style.display = 'none';
+        }
         if (state.restoreBtn) state.restoreBtn.style.display = state.tooltipHidden ? 'flex' : 'none';
       }
       state.rafId = requestAnimationFrame(reposition);
@@ -1034,9 +1102,9 @@
     }, () => {
       void chrome.runtime.lastError;
       if (!state || !state.tooltip) return;
+      if (state.coachAvatar) state.coachAvatar.innerHTML = mascotHtml('success');
       state.tooltip.innerHTML = `
         <div style="text-align:center;padding:12px 4px">
-          <div style="${AVATAR_STYLE}margin:0 auto 12px;">${mascotHtml('success')}</div>
           <div style="font-size:15px;font-weight:800;margin-bottom:6px">${i18n('surveyThanks', '고마워요. 반영해둘게요.')}</div>
           <div style="font-size:12.5px;color:#9CA3AF;margin-bottom:14px">${i18n('surveyUseFeedback', 'Live Guide Beta를 더 정확하게 다듬는 데 사용할게요.')}</div>
           <button class="parro-btn mimic-btn" data-act="exit" style="background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;padding:9px 24px;width:100%">${i18n('close', '닫기')}</button>
@@ -1051,21 +1119,24 @@
     state.hl.style.display = 'none';
     state.pulse.style.display = 'none';
     if (state.scrollHint) state.scrollHint.style.display = 'none';
+    if (state.coachAvatar) {
+      state.coachAvatar.innerHTML = mascotHtml('success');
+      state.coachAvatar.style.display = 'flex';
+    }
     state.tooltip.innerHTML = `
       <div style="text-align:center;padding:10px 4px">
-        <div style="${AVATAR_STYLE}margin:0 auto 12px;">${mascotHtml('success')}</div>
         <div style="font-size:15px;font-weight:700;margin-bottom:6px">${i18n('liveGuideComplete', 'Live Guide Beta 완료! 🎉')}</div>
         <div style="font-size:12.5px;color:#9CA3AF;margin-bottom:14px">${i18n('allStepsComplete', '모든 스텝을 완료했습니다.')}</div>
         <button class="parro-btn mimic-btn" data-act="exit" style="background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;padding:9px 24px;width:100%">${i18n('close', '닫기')}</button>
       </div>`;
     const survey = state.opts && state.opts.survey && state.opts.survey.enabled ? state.opts.survey : null;
     if (survey) {
+      if (state.coachAvatar) state.coachAvatar.innerHTML = mascotHtml('listen');
       const rating = (group) => [1, 2, 3, 4, 5].map(n => `<button class="parro-btn mimic-btn" data-act="survey-rate:${group}:${n}" data-survey-group="${group}" data-survey-value="${n}" aria-pressed="false" style="width:30px;height:28px;padding:0;background:white;color:#4b5563;border:1px solid #e5e7eb">${n}</button>`).join('');
       const issueBtn = (label, selected) => `<button class="parro-btn mimic-btn" data-act="survey-rate:issue:${escapeHtml(label)}" data-survey-group="issue" data-survey-value="${escapeHtml(label)}" aria-pressed="${selected ? 'true' : 'false'}" style="padding:6px 8px;background:${selected ? '#E8FFF7' : 'white'};color:${selected ? '#00796F' : '#4b5563'};border:1px solid ${selected ? '#009B8E' : '#e5e7eb'};font-size:11.5px">${escapeHtml(label)}</button>`;
       state.tooltip.innerHTML = `
         <div style="padding:6px 2px;color:#111827">
           <div style="display:flex;gap:9px;align-items:center;margin-bottom:10px">
-            <div style="${AVATAR_STYLE}width:38px;height:38px;flex-shrink:0">${mascotHtml('listen')}</div>
             <div>
               <div style="font-size:15px;font-weight:800">${i18n('liveGuideFeedbackTitle', 'Live Guide Beta는 어땠나요?')}</div>
               <div style="font-size:12px;color:#6B7280;margin-top:2px">${i18n('selectionIsEnough', '선택만 해도 충분해요.')}</div>
@@ -1099,8 +1170,13 @@
           </div>
         </div>`;
     }
-    state.tooltip.style.left = `${Math.max(TIP_M, (window.innerWidth - TIP_W) / 2)}px`;
-    state.tooltip.style.top  = `${Math.max(TIP_M, (window.innerHeight - 220) / 2)}px`;
+    const completeMaxLeft = Math.max(TIP_M, window.innerWidth - TIP_W - TIP_M);
+    const completePreferredLeft = Math.max(TIP_M + AVATAR_OUTSET, (window.innerWidth - TIP_W) / 2);
+    const completeLeft = Math.min(completeMaxLeft, completePreferredLeft);
+    const completeTop = Math.max(TIP_M, (window.innerHeight - 220) / 2);
+    state.tooltip.style.left = `${completeLeft}px`;
+    state.tooltip.style.top  = `${completeTop}px`;
+    placeCoachAvatar(state.coachAvatar, completeLeft, completeTop, state.tooltip.offsetHeight || 220);
     state.tooltip.style.animation = 'parro-tip-in 0.3s ease forwards';
   }
 

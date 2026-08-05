@@ -488,6 +488,8 @@ export const ENGLISH_UI_TRANSLATIONS: Record<string, string> = {
   '반짝이는 녹색 영역을 클릭하면 다음으로 넘어가요': 'Click the glowing green area to continue',
   '음성 듣기': 'Listen',
   '눌러서 접기': 'Click to collapse',
+  '… 더보기': '… Show more',
+  '접기': 'Collapse',
   '안내 펼치기': 'Expand guide',
   '텍스트 입력': 'Text input',
   '직접 입력하세요': 'Enter text yourself',

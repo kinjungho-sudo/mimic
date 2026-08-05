@@ -679,7 +679,10 @@
         </div>
         <span style="font-size:14px;font-weight:700;color:#1e1e2e;">Live Guide Beta</span>
       </div>
-      <button id="guideExitBtn" title="Live Guide Beta 종료" data-i18n-title="exitLiveGuideTitle" style="width:28px;height:28px;border:1px solid #e8e8f0;border-radius:8px;background:#fff;color:#888;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;transition:all 0.15s;" onmouseover="this.style.borderColor='#EF4444';this.style.color='#EF4444';this.style.background='#fff5f5'" onmouseout="this.style.borderColor='#e8e8f0';this.style.color='#888';this.style.background='#fff'">✕</button>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button id="guideVoiceToggle" type="button" title="음성 안내 켜기" data-i18n-title="guideVoiceEnable" aria-pressed="false" style="display:none;width:30px;height:28px;border:1px solid #e8e8f0;border-radius:8px;background:#fff;color:#888;cursor:pointer;align-items:center;justify-content:center;font-size:15px;line-height:1;transition:all 0.15s;">🔇</button>
+        <button id="guideExitBtn" title="Live Guide Beta 종료" data-i18n-title="exitLiveGuideTitle" style="width:28px;height:28px;border:1px solid #e8e8f0;border-radius:8px;background:#fff;color:#888;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;transition:all 0.15s;" onmouseover="this.style.borderColor='#EF4444';this.style.color='#EF4444';this.style.background='#fff5f5'" onmouseout="this.style.borderColor='#e8e8f0';this.style.color='#888';this.style.background='#fff'">✕</button>
+      </div>
     </div>
 
     <!-- 진행률 -->
@@ -709,6 +712,14 @@
       <div id="guideManualTitle" style="display:none;margin-bottom:5px;font-size:10.5px;font-weight:700;color:#009B8E;"></div>
       <div style="font-size:16px;font-weight:700;color:#1e1e2e;margin-bottom:10px;line-height:1.4;" id="guideStepTitle"></div>
       <div style="font-size:13px;color:#555;line-height:1.7;" id="guideStepInstruction"></div>
+      <div id="guideVoiceControls" style="display:none;align-items:center;gap:8px;margin-top:12px;padding:9px 10px;border:1px solid #D8EEE9;border-radius:9px;background:#F1FBF9;">
+        <button id="guideVoicePlayBtn" type="button" title="음성 재생" data-i18n-title="guideVoicePlay" aria-label="음성 재생" style="width:30px;height:30px;flex-shrink:0;border:1px solid #BFEDE7;border-radius:8px;background:#fff;color:#00796F;font-size:13px;font-weight:700;cursor:pointer;">▶</button>
+        <div style="flex:1;min-width:0;">
+          <div id="guideVoiceStatus" style="font-size:11.5px;font-weight:700;color:#27736B;" data-i18n="guideVoiceReady">음성 안내 준비됨</div>
+          <div id="guideVoiceTime" style="margin-top:2px;font-size:10px;color:#7A9692;"></div>
+        </div>
+        <button id="guideVoiceReplayBtn" type="button" title="다시 듣기" data-i18n-title="guideVoiceReplay" aria-label="다시 듣기" style="width:30px;height:30px;flex-shrink:0;border:1px solid #D8EEE9;border-radius:8px;background:#fff;color:#27736B;font-size:16px;cursor:pointer;">↻</button>
+      </div>
       <!-- type_text 복사 영역 — 제목·설명 다음, 컴팩트 인라인 -->
       <div id="guideStepCopyArea" style="display:none;align-items:center;gap:8px;background:#E8FFF7;border:1px solid #BFEDE7;border-radius:8px;padding:6px 8px;margin-top:12px;">
         <div id="guideStepCopyContent" style="flex:1;min-width:0;font-size:11.5px;color:#444;word-break:break-all;line-height:1.5;max-height:46px;overflow-y:auto;"></div>

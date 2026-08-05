@@ -41,6 +41,59 @@ async function clickClosedShadowAction(page: Page, action: string) {
   await cdp.detach();
 }
 
+async function closedShadowAttribute(
+  page: Page,
+  matchAttribute: string,
+  matchValue: string,
+  resultAttribute: string,
+) {
+  const cdp = await page.context().newCDPSession(page);
+  const { root } = await cdp.send('DOM.getDocument', { depth: -1, pierce: true });
+  const find = (node: any): any => {
+    const attributes = Array.isArray(node.attributes) ? node.attributes : [];
+    const values = new Map<string, string>();
+    for (let index = 0; index < attributes.length; index += 2) {
+      values.set(attributes[index], attributes[index + 1]);
+    }
+    if (values.get(matchAttribute) === matchValue) return values.get(resultAttribute) ?? null;
+    for (const child of [...(node.children || []), ...(node.shadowRoots || [])]) {
+      const match = find(child);
+      if (match != null) return match;
+    }
+    return null;
+  };
+  const result = find(root);
+  await cdp.detach();
+  return result;
+}
+
+async function closedShadowBox(page: Page, matchAttribute: string, matchValue: string) {
+  const cdp = await page.context().newCDPSession(page);
+  const { root } = await cdp.send('DOM.getDocument', { depth: -1, pierce: true });
+  const find = (node: any): any => {
+    const attributes = Array.isArray(node.attributes) ? node.attributes : [];
+    for (let index = 0; index < attributes.length; index += 2) {
+      if (attributes[index] === matchAttribute && attributes[index + 1] === matchValue) return node;
+    }
+    for (const child of [...(node.children || []), ...(node.shadowRoots || [])]) {
+      const match = find(child);
+      if (match) return match;
+    }
+    return null;
+  };
+  const node = find(root);
+  expect(node, `missing closed-shadow node: ${matchAttribute}=${matchValue}`).toBeTruthy();
+  const { model } = await cdp.send('DOM.getBoxModel', { nodeId: node.nodeId });
+  const quad = model.border;
+  await cdp.detach();
+  return {
+    left: Math.min(quad[0], quad[2], quad[4], quad[6]),
+    top: Math.min(quad[1], quad[3], quad[5], quad[7]),
+    right: Math.max(quad[0], quad[2], quad[4], quad[6]),
+    bottom: Math.max(quad[1], quad[3], quad[5], quad[7]),
+  };
+}
+
 async function loadContent(page: Page, options: { recording?: boolean } = {}) {
   await page.setContent('<main id="fixture"></main>');
   await page.evaluate(({ recording }) => {
@@ -216,6 +269,70 @@ test('guide accepts a unique visible selector after responsive movement', async 
     }).source;
   });
   expect(source).toBe('selector');
+});
+
+test('long Live Guide copy expands and collapses on explicit request', async ({ page }) => {
+  await page.route('https://example.test/long-copy', route => route.fulfill({
+    contentType: 'text/html',
+    body: '<button id="long-copy-target" style="margin:180px;width:140px;height:44px">Continue</button>',
+  }));
+  await page.goto('https://example.test/long-copy');
+  await loadGuide(page);
+  await page.evaluate(() => {
+    const guide = (window as unknown as { ParroGuide: any }).ParroGuide;
+    guide.show({
+      id: 'long-copy-step',
+      page_url: window.location.href,
+      element_selector: '#long-copy-target',
+      title: 'Continue',
+      instruction: 'This is a deliberately long Live Guide instruction. '.repeat(18),
+    }, { index: 0, total: 2 });
+  });
+
+  await expect.poll(() => closedShadowAttribute(
+    page,
+    'data-act',
+    'toggle-guide-copy',
+    'aria-expanded',
+  )).toBe('false');
+  expect(await closedShadowAttribute(page, 'data-role', 'guide-copy', 'data-expanded')).toBe('false');
+
+  await clickClosedShadowAction(page, 'toggle-guide-copy');
+  expect(await closedShadowAttribute(page, 'data-role', 'guide-copy', 'data-expanded')).toBe('true');
+
+  await clickClosedShadowAction(page, 'toggle-guide-copy');
+  expect(await closedShadowAttribute(page, 'data-role', 'guide-copy', 'data-expanded')).toBe('false');
+});
+
+test('Live Guide avatar stays visually separate beside its speech bubble', async ({ page }) => {
+  await page.setViewportSize({ width: 1000, height: 700 });
+  await page.route('https://example.test/separate-coach', route => route.fulfill({
+    contentType: 'text/html',
+    body: '<button id="separate-coach-target" style="position:absolute;left:430px;top:260px;width:140px;height:44px">Continue</button>',
+  }));
+  await page.goto('https://example.test/separate-coach');
+  await loadGuide(page);
+  await page.evaluate(() => {
+    const guide = (window as unknown as { ParroGuide: any }).ParroGuide;
+    guide.show({
+      id: 'separate-coach-step',
+      page_url: window.location.href,
+      element_selector: '#separate-coach-target',
+      title: 'Continue',
+      instruction: 'The speech bubble appears beside the independent Parro avatar.',
+    }, { index: 0, total: 2 });
+  });
+
+  await expect.poll(async () => {
+    const avatar = await closedShadowBox(page, 'data-role', 'coach-avatar');
+    const bubble = await closedShadowBox(page, 'data-role', 'guide-bubble');
+    return Math.round(bubble.left - avatar.right);
+  }).toBeGreaterThanOrEqual(12);
+
+  const avatar = await closedShadowBox(page, 'data-role', 'coach-avatar');
+  const bubble = await closedShadowBox(page, 'data-role', 'guide-bubble');
+  expect(Math.min(avatar.bottom, bubble.bottom) - Math.max(avatar.top, bubble.top)).toBeGreaterThan(40);
+  expect(await closedShadowAttribute(page, 'data-role', 'coach-avatar', 'data-placement')).toBe('left');
 });
 
 test('guide shows a scroll prompt while a same-page target is below the viewport', async ({ page }) => {

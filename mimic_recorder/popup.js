@@ -1639,6 +1639,12 @@ const guideStepDots   = document.getElementById('guideStepDots');
 const guideNavHint    = document.getElementById('guideNavHint');
 const guideStepPreviewBtn = document.getElementById('guideStepPreviewBtn');
 const guideStepImage = document.getElementById('guideStepImage');
+const guideVoiceToggle = document.getElementById('guideVoiceToggle');
+const guideVoiceControls = document.getElementById('guideVoiceControls');
+const guideVoicePlayBtn = document.getElementById('guideVoicePlayBtn');
+const guideVoiceReplayBtn = document.getElementById('guideVoiceReplayBtn');
+const guideVoiceStatus = document.getElementById('guideVoiceStatus');
+const guideVoiceTime = document.getElementById('guideVoiceTime');
 
 if (guideStepPreviewBtn) {
   guideStepPreviewBtn.setAttribute('aria-label', t('openPreviewLarge', '미리보기 크게 보기'));
@@ -1649,6 +1655,258 @@ let guideCurrentStep = 0;
 let guideSkippedSteps = new Set();
 let guideCompletedSteps = new Set();
 let guideFinished = false;
+const GUIDE_VOICE_PREFERENCE_KEY = 'guideVoiceEnabled';
+const guideAudio = new Audio();
+guideAudio.preload = 'auto';
+let guideVoiceEnabled = false;
+let guideAudioStepKey = '';
+let guideAudioStartSeconds = 0;
+let guideAudioEndSeconds = null;
+let guideAudioLoading = false;
+let guideAudioRequestId = 0;
+
+function guideAudioBounds(step) {
+  const url = typeof step?.audio_url === 'string' ? step.audio_url.trim() : '';
+  if (!url) return null;
+  const rawStart = Number(step.audio_start_ms);
+  const rawEnd = Number(step.audio_end_ms);
+  const start = Number.isFinite(rawStart) && rawStart > 0 ? rawStart / 1000 : 0;
+  const end = Number.isFinite(rawEnd) && rawEnd > start * 1000 ? rawEnd / 1000 : null;
+  return { url, start, end };
+}
+
+function formatGuideAudioTime(seconds) {
+  const safe = Math.max(0, Number.isFinite(seconds) ? seconds : 0);
+  const minutes = Math.floor(safe / 60);
+  const remainder = Math.floor(safe % 60);
+  return `${minutes}:${String(remainder).padStart(2, '0')}`;
+}
+
+function setGuideVoiceStatus(key, fallback) {
+  if (guideVoiceStatus) guideVoiceStatus.textContent = t(key, fallback);
+}
+
+function updateGuideVoiceUi(step = guideSteps[guideCurrentStep]) {
+  const hasAnyAudio = guideSteps.some(item => !!guideAudioBounds(item));
+  const bounds = guideAudioBounds(step);
+  if (guideVoiceToggle) {
+    guideVoiceToggle.style.display = hasAnyAudio ? 'flex' : 'none';
+    guideVoiceToggle.textContent = guideVoiceEnabled ? '🔊' : '🔇';
+    guideVoiceToggle.setAttribute('aria-pressed', guideVoiceEnabled ? 'true' : 'false');
+    guideVoiceToggle.title = guideVoiceEnabled
+      ? t('guideVoiceDisable', '음성 안내 끄기')
+      : t('guideVoiceEnable', '음성 안내 켜기');
+    guideVoiceToggle.setAttribute('aria-label', guideVoiceToggle.title);
+    Object.assign(guideVoiceToggle.style, guideVoiceEnabled ? {
+      borderColor: '#8DD7CE', background: '#E8FFF7', color: '#00796F',
+    } : {
+      borderColor: '#e8e8f0', background: '#fff', color: '#888',
+    });
+  }
+  if (guideVoiceControls) guideVoiceControls.style.display = bounds ? 'flex' : 'none';
+  if (!bounds) return;
+
+  if (guideVoicePlayBtn) {
+    const playing = !guideAudio.paused && !guideAudio.ended;
+    guideVoicePlayBtn.textContent = playing ? 'Ⅱ' : '▶';
+    guideVoicePlayBtn.title = playing
+      ? t('guideVoicePause', '음성 일시정지')
+      : t('guideVoicePlay', '음성 재생');
+    guideVoicePlayBtn.setAttribute('aria-label', guideVoicePlayBtn.title);
+  }
+  if (guideVoiceReplayBtn) {
+    guideVoiceReplayBtn.title = t('guideVoiceReplay', '다시 듣기');
+    guideVoiceReplayBtn.setAttribute('aria-label', guideVoiceReplayBtn.title);
+  }
+  if (!guideVoiceEnabled && guideAudio.paused) {
+    setGuideVoiceStatus('guideVoiceDisabled', '음성 안내 꺼짐');
+  }
+}
+
+function stopGuideAudio({ reset = false, clear = false } = {}) {
+  guideAudioRequestId += 1;
+  guideAudioLoading = false;
+  guideAudio.pause();
+  if (reset && guideAudio.src) {
+    try { guideAudio.currentTime = guideAudioStartSeconds; } catch {}
+  }
+  if (clear) {
+    guideAudio.removeAttribute('src');
+    guideAudio.load();
+    guideAudioStepKey = '';
+    guideAudioStartSeconds = 0;
+    guideAudioEndSeconds = null;
+    if (guideVoiceTime) guideVoiceTime.textContent = '';
+  }
+  updateGuideVoiceUi();
+}
+
+function waitForGuideAudioMetadata() {
+  if (guideAudio.readyState >= 1) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      guideAudio.removeEventListener('loadedmetadata', onReady);
+      guideAudio.removeEventListener('error', onError);
+      if (error) reject(error);
+      else resolve();
+    };
+    const onReady = () => finish();
+    const onError = () => finish(new Error('guide_audio_load_failed'));
+    const timeoutId = setTimeout(() => finish(new Error('guide_audio_load_timeout')), 8000);
+    guideAudio.addEventListener('loadedmetadata', onReady, { once: true });
+    guideAudio.addEventListener('error', onError, { once: true });
+    guideAudio.load();
+  });
+}
+
+async function playGuideAudio({ restart = false } = {}) {
+  const step = guideSteps[guideCurrentStep];
+  const bounds = guideAudioBounds(step);
+  if (!bounds) return;
+  const requestId = ++guideAudioRequestId;
+  guideAudioLoading = true;
+  setGuideVoiceStatus('guideVoiceLoading', '음성 불러오는 중…');
+  try {
+    if (guideAudio.src !== bounds.url) {
+      guideAudio.src = bounds.url;
+      guideAudioStartSeconds = bounds.start;
+      guideAudioEndSeconds = bounds.end;
+    }
+    await waitForGuideAudioMetadata();
+    if (requestId !== guideAudioRequestId) return;
+    const pastEnd = guideAudioEndSeconds != null && guideAudio.currentTime >= guideAudioEndSeconds - 0.05;
+    if (restart || pastEnd || guideAudio.currentTime < guideAudioStartSeconds) {
+      guideAudio.currentTime = guideAudioStartSeconds;
+    }
+    await guideAudio.play();
+    if (requestId !== guideAudioRequestId) {
+      guideAudio.pause();
+      return;
+    }
+    setGuideVoiceStatus('guideVoicePlaying', '음성 안내 재생 중');
+  } catch (error) {
+    const blocked = error?.name === 'NotAllowedError';
+    setGuideVoiceStatus(
+      blocked ? 'guideVoiceNeedsClick' : 'guideVoiceError',
+      blocked ? '재생 버튼을 눌러 음성을 시작하세요.' : '음성을 재생하지 못했습니다.',
+    );
+  } finally {
+    if (requestId === guideAudioRequestId) {
+      guideAudioLoading = false;
+      updateGuideVoiceUi(step);
+    }
+  }
+}
+
+function syncGuideAudioForStep(step, idx) {
+  const bounds = guideAudioBounds(step);
+  const nextKey = bounds
+    ? `${idx}:${String(step?.id ?? '')}:${bounds.url}:${bounds.start}:${bounds.end ?? ''}`
+    : '';
+  if (nextKey === guideAudioStepKey) {
+    updateGuideVoiceUi(step);
+    return;
+  }
+
+  stopGuideAudio({ clear: true });
+  guideAudioStepKey = nextKey;
+  if (!bounds) {
+    updateGuideVoiceUi(step);
+    return;
+  }
+  guideAudio.src = bounds.url;
+  guideAudioStartSeconds = bounds.start;
+  guideAudioEndSeconds = bounds.end;
+  if (guideVoiceTime) {
+    const duration = bounds.end != null ? Math.max(0, bounds.end - bounds.start) : 0;
+    guideVoiceTime.textContent = duration > 0 ? formatGuideAudioTime(duration) : '';
+  }
+  setGuideVoiceStatus(
+    guideVoiceEnabled ? 'guideVoiceReady' : 'guideVoiceDisabled',
+    guideVoiceEnabled ? '음성 안내 준비됨' : '음성 안내 꺼짐',
+  );
+  updateGuideVoiceUi(step);
+  if (guideVoiceEnabled) void playGuideAudio({ restart: true });
+}
+
+guideAudio.addEventListener('play', () => {
+  setGuideVoiceStatus('guideVoicePlaying', '음성 안내 재생 중');
+  updateGuideVoiceUi();
+});
+guideAudio.addEventListener('pause', () => {
+  if (!guideAudio.ended && guideAudio.src && guideVoiceEnabled) {
+    setGuideVoiceStatus('guideVoicePaused', '음성 안내 일시정지');
+  }
+  updateGuideVoiceUi();
+});
+guideAudio.addEventListener('ended', () => {
+  setGuideVoiceStatus('guideVoiceComplete', '음성 안내를 모두 들었어요.');
+  updateGuideVoiceUi();
+});
+guideAudio.addEventListener('timeupdate', () => {
+  if (guideAudioEndSeconds != null && guideAudio.currentTime >= guideAudioEndSeconds - 0.03) {
+    guideAudio.pause();
+    try { guideAudio.currentTime = guideAudioEndSeconds; } catch {}
+    setGuideVoiceStatus('guideVoiceComplete', '음성 안내를 모두 들었어요.');
+  }
+  if (guideVoiceTime) {
+    const elapsed = Math.max(0, guideAudio.currentTime - guideAudioStartSeconds);
+    const total = guideAudioEndSeconds != null
+      ? Math.max(0, guideAudioEndSeconds - guideAudioStartSeconds)
+      : (Number.isFinite(guideAudio.duration) ? Math.max(0, guideAudio.duration - guideAudioStartSeconds) : 0);
+    guideVoiceTime.textContent = total > 0
+      ? `${formatGuideAudioTime(elapsed)} / ${formatGuideAudioTime(total)}`
+      : formatGuideAudioTime(elapsed);
+  }
+});
+guideAudio.addEventListener('error', () => {
+  if (!guideAudio.src) return;
+  setGuideVoiceStatus('guideVoiceError', '음성을 재생하지 못했습니다.');
+  updateGuideVoiceUi();
+});
+
+guideVoiceToggle?.addEventListener('click', () => {
+  guideVoiceEnabled = !guideVoiceEnabled;
+  chrome.storage.local.set({ [GUIDE_VOICE_PREFERENCE_KEY]: guideVoiceEnabled });
+  updateGuideVoiceUi();
+  if (guideVoiceEnabled) void playGuideAudio({ restart: true });
+  else {
+    stopGuideAudio();
+    setGuideVoiceStatus('guideVoiceDisabled', '음성 안내 꺼짐');
+  }
+});
+
+guideVoicePlayBtn?.addEventListener('click', () => {
+  if (!guideVoiceEnabled) {
+    guideVoiceEnabled = true;
+    chrome.storage.local.set({ [GUIDE_VOICE_PREFERENCE_KEY]: true });
+  }
+  if (guideAudio.paused) void playGuideAudio();
+  else {
+    stopGuideAudio();
+    setGuideVoiceStatus('guideVoicePaused', '음성 안내 일시정지');
+  }
+  updateGuideVoiceUi();
+});
+
+guideVoiceReplayBtn?.addEventListener('click', () => {
+  if (!guideVoiceEnabled) {
+    guideVoiceEnabled = true;
+    chrome.storage.local.set({ [GUIDE_VOICE_PREFERENCE_KEY]: true });
+  }
+  void playGuideAudio({ restart: true });
+  updateGuideVoiceUi();
+});
+
+storageGet(GUIDE_VOICE_PREFERENCE_KEY).then((stored) => {
+  guideVoiceEnabled = stored[GUIDE_VOICE_PREFERENCE_KEY] === true;
+  updateGuideVoiceUi();
+  if (guideVoiceEnabled && guideSteps.length > 0) void playGuideAudio({ restart: true });
+});
 
 function isGuideExplanationStep(step) {
   if (!step) return true;
@@ -1701,6 +1959,7 @@ function showGuideView() {
 }
 
 function hideGuideView() {
+  stopGuideAudio({ clear: true });
   viewGuide.style.display = 'none';
   setRecorderChromeHidden(false);  // 녹화 UI 복원
   // 녹화 상태에 맞게 원래 뷰로 복원
@@ -1754,6 +2013,7 @@ function renderGuideStep(steps, idx) {
   }
   guideStepTitle.textContent    = step.title || `Step ${num}`;
   guideStepInstr.textContent    = step.instruction || '';
+  syncGuideAudioForStep(step, idx);
 
   // 스텝 스크린샷
   if (guideStepImage && guideStepPreviewBtn) {

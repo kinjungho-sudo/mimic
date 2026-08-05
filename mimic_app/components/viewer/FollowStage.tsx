@@ -29,6 +29,79 @@ export function Mascot({ size = COACH_SIZE, state = 'talk' }: { size?: number; s
   );
 }
 
+function ExpandableGuideText({ text }: { text: string }) {
+  const textRef = useRef<HTMLDivElement>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [canExpand, setCanExpand] = useState(false);
+
+  useEffect(() => {
+    setExpanded(false);
+    setCanExpand(false);
+  }, [text]);
+
+  useEffect(() => {
+    const element = textRef.current;
+    if (!element || expanded) return;
+    const measure = () => setCanExpand(element.scrollHeight > element.clientHeight + 1);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [expanded, text]);
+
+  return (
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div
+        ref={textRef}
+        data-guide-copy-expanded={expanded ? 'true' : 'false'}
+        style={expanded ? {
+          display: 'block',
+          maxHeight: 'min(46vh, 360px)',
+          overflowY: 'auto',
+          paddingRight: '3px',
+          fontSize: '15px',
+          color: '#374151',
+          lineHeight: 1.5,
+        } : {
+          display: '-webkit-box',
+          WebkitLineClamp: 3,
+          WebkitBoxOrient: 'vertical',
+          overflow: 'hidden',
+          fontSize: '15px',
+          color: '#374151',
+          lineHeight: 1.5,
+        }}
+      >
+        {text}
+      </div>
+      {canExpand && (
+        <button
+          type="button"
+          aria-expanded={expanded}
+          onClick={(event) => {
+            event.stopPropagation();
+            setExpanded(value => !value);
+          }}
+          style={{
+            display: 'block',
+            margin: '5px 0 0 auto',
+            padding: 0,
+            border: 'none',
+            background: 'transparent',
+            color: BRAND_COLORS.primary,
+            fontSize: '12px',
+            fontWeight: 800,
+            lineHeight: 1.4,
+            cursor: 'pointer',
+          }}
+        >
+          {expanded ? '접기' : '… 더보기'}
+        </button>
+      )}
+    </div>
+  );
+}
+
 interface Props {
   screenshotUrl?: string | null;
   hotspotX: number | null;          // 0~100 (%) — none/이동단계는 null
@@ -213,7 +286,7 @@ export function FollowStage({
           <span style={{ flexShrink: 0, width: '24px', height: '24px', borderRadius: '50%', background: GUIDE_GRADIENT, color: '#fff', fontSize: '12px', fontWeight: 800, display: 'grid', placeItems: 'center', boxShadow: `0 2px 6px ${GUIDE_SHADOW}` }}>{stepNumber}</span>
         )}
         {bubbleText && (
-          <div style={{ fontSize: '15px', color: '#374151', lineHeight: 1.5, flex: 1, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{bubbleText}</div>
+          <ExpandableGuideText text={bubbleText} />
         )}
         <span style={{ fontSize: '12px', color: '#C4C9D4', flexShrink: 0, marginTop: '1px' }}>—</span>
       </div>
