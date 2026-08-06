@@ -56,7 +56,7 @@ assert.match(share, /buildStepShareUrl\(url, shareStep\.id\)/, 'step sharing mus
 assert.match(player, /resolveSharedStepIndex\(sharedStepParam, tutorial\.steps\)/, 'shared players must open at the requested step');
 assert.match(player, /initialStepIndex=\{currentStep\}/, 'learning mode must receive the shared step index');
 assert.match(followPlayer, /setIdx\(nextIndex\)/, 'learning player must synchronize a shared initial step after loading');
-assert.match(followStage, /const COACH_SIZE = 64/, 'learning guide coach avatar must use the enlarged size');
+assert.match(followStage, /const COACH_SIZE = 74/, 'learning guide coach avatar must use the enlarged size');
 assert.match(followStage, /fontSize: '15px'/, 'learning guide explanation text must use the enlarged size');
 assert.match(followStage, /className="mfp-target-frame-wave"/, 'learning guide click target must use frame-shaped waves');
 assert.doesNotMatch(followStage, /mfp-click-ripple|mfp-target-dot/, 'learning guide must not render the click point or circular waves');
