@@ -79,6 +79,12 @@ check(() => {
 });
 
 check(() => {
+  assert.doesNotMatch(background, /dskphgxurxebblnpwhax\.supabase\.co/);
+  assert.match(background, /const SUPABASE_URL\s*=\s*'https:\/\/gqynptpjomcqzxyykqic\.supabase\.co'/);
+  assert.match(captureSaveStepRoute, /screenshot_url:\s*d\.screenshot_url \?\? ''/);
+});
+
+check(() => {
   const captureStart = background.indexOf("if (message.type === 'CAPTURE_SCREENSHOT')");
   const captureEnd = background.indexOf("if (message.type === 'MANUAL_IMAGE_STEP')", captureStart);
   const captureBlock = background.slice(captureStart, captureEnd);

@@ -121,7 +121,10 @@ export async function POST(request: NextRequest) {
     ?? '';
 
   const row: Record<string, unknown> = {
-    screenshot_url: d.screenshot_url ?? null,
+    // Production still has the pre-041 NOT NULL constraint. An empty string is
+    // falsey throughout finalize/viewer code and preserves a recovery step
+    // without changing the shared production database schema from dev work.
+    screenshot_url: d.screenshot_url ?? '',
     // click_x/y: recorder가 0~1로 전송, DB는 0~10000 정수로 저장 (editor에서 /100으로 읽어 0~100%)
     click_x: hasClick ? Math.round(clickX * 10000) : null,
     click_y: hasClick ? Math.round(clickY * 10000) : null,

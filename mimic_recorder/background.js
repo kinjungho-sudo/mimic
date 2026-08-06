@@ -12,12 +12,11 @@ const PROD_EXTENSION_IDS = new Set([
 const IS_DEV = !PROD_EXTENSION_IDS.has(chrome.runtime.id);
 
 // ── 상수 (환경별) ─────────────────────────────────────────────────
-const SUPABASE_URL      = IS_DEV
-  ? 'https://dskphgxurxebblnpwhax.supabase.co'   // dev 전용 DB(도쿄)
-  : 'https://gqynptpjomcqzxyykqic.supabase.co';  // 운영(싱가포르)
-const SUPABASE_ANON_KEY = IS_DEV
-  ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRza3BoZ3h1cnhlYmJsbnB3aGF4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczNTUxNjcsImV4cCI6MjA5MjkzMTE2N30.xD80PAqMbzXX1Hdde1O0x2VpX8dXkNWum3jKhOml9ZM'
-  : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxeW5wdHBqb21jcXp4eXlrcWljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NTcyNzMsImV4cCI6MjA4NzEzMzI3M30.7OgewnWhbE2GK1k0tTuuegrKUVkHuJrW_cpvbVRcH1E';
+// 이전 dev Supabase 프로젝트가 삭제되어 별도 dev 백엔드가 준비될 때까지
+// 두 확장 모드 모두 현재 Parro 저장소를 사용한다. API 목적지는 아래
+// WEBAPP_ORIGIN에서 dev/production으로 계속 분리한다.
+const SUPABASE_URL      = 'https://gqynptpjomcqzxyykqic.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxeW5wdHBqb21jcXp4eXlrcWljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NTcyNzMsImV4cCI6MjA4NzEzMzI3M30.7OgewnWhbE2GK1k0tTuuegrKUVkHuJrW_cpvbVRcH1E';
 const SUPABASE_BUCKET   = 'naviaction';
 const WEBAPP_ORIGIN     = IS_DEV
   ? 'https://parro-guide-dev.vercel.app'         // dev: Parro Preview alias
@@ -31,7 +30,7 @@ const PROD_WEBAPP_ORIGINS = new Set([
   'https://mimic-nine-ashen.vercel.app',
   'https://mimicflow.com',
 ]);
-if (IS_DEV) console.warn('[Parro Recorder] DEV 모드 — dev DB/Preview 연결 (id:', chrome.runtime.id, ')');
+if (IS_DEV) console.warn('[Parro Recorder] DEV 모드 — shared storage/Preview 연결 (id:', chrome.runtime.id, ')');
 const JPEG_QUALITY_DEFAULT = 0.92;
 const MAX_STEPS         = 30;
 

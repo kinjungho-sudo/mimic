@@ -129,7 +129,7 @@ create table mm_steps (
   tutorial_id uuid not null,
   step_number integer not null,
   order_index integer not null,
-  screenshot_url text not null,
+  screenshot_url text,
   page_url text,
   ai_title text,
   ai_description text,
@@ -209,7 +209,7 @@ create table mm_capture_sessions (
 create table mm_capture_events (
   id uuid primary key default gen_random_uuid(),
   session_id uuid not null,
-  screenshot_url text not null,
+  screenshot_url text,
   click_x integer not null,
   click_y integer not null,
   url text not null,
