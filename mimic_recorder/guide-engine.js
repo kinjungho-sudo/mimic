@@ -729,8 +729,6 @@
     root.style.cssText = 'position:fixed;inset:0;pointer-events:none;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;';
 
     shadow.appendChild(style(`
-      @keyframes parro-ripple { 0%{transform:scale(.75);opacity:1} 100%{transform:scale(4.6);opacity:0} }
-      @keyframes mimic-ripple { 0%{transform:scale(.75);opacity:1} 100%{transform:scale(4.6);opacity:0} }
       @keyframes parro-glow   { 0%,100%{box-shadow:0 0 0 4px rgba(18,184,134,.32),0 0 18px 5px rgba(0,155,142,.48)} 50%{box-shadow:0 0 0 8px rgba(23,201,182,.42),0 0 36px 12px rgba(18,184,134,.72)} }
       @keyframes mimic-glow   { 0%,100%{box-shadow:0 0 0 4px rgba(18,184,134,.32),0 0 18px 5px rgba(0,155,142,.48)} 50%{box-shadow:0 0 0 8px rgba(23,201,182,.42),0 0 36px 12px rgba(18,184,134,.72)} }
       @keyframes parro-nudge  { 0%,100%{transform:none} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
@@ -751,17 +749,6 @@
     const hl = document.createElement('div');
     hl.style.cssText = `position:fixed;pointer-events:none;box-sizing:border-box;border:3px solid #12B886;background:rgba(18,184,134,.10);border-radius:9px;box-shadow:0 0 0 5px rgba(18,184,134,.3),0 0 24px 8px rgba(0,155,142,.52);z-index:2;transition:left .12s,top .12s,width .12s,height .12s;animation:parro-glow 1.25s ease-in-out infinite;`;
     root.appendChild(hl);
-
-    // 클릭 핀 — 중심 보라 점 제거, 물결 애니메이션만
-    const pulse = document.createElement('div');
-    pulse.style.cssText = `position:fixed;width:0;height:0;pointer-events:none;z-index:3;`;
-    const ripple = document.createElement('div');
-    ripple.style.cssText = `position:absolute;width:56px;height:56px;margin-left:-28px;margin-top:-28px;border-radius:50%;border:4px solid rgba(18,184,134,.96);animation:parro-ripple 1.25s ease-out infinite;`;
-    const ripple2 = document.createElement('div');
-    ripple2.style.cssText = `position:absolute;width:56px;height:56px;margin-left:-28px;margin-top:-28px;border-radius:50%;border:3px solid rgba(23,201,182,.76);animation:parro-ripple 1.25s ease-out .625s infinite;`;
-    pulse.appendChild(ripple);
-    pulse.appendChild(ripple2);
-    root.appendChild(pulse);
 
     // 아바타와 말풍선을 서로 독립된 요소로 만들어,
     // 아바타가 먼저 등장하고 그 옆으로 말풍선이 이어서 나타나게 한다.
@@ -840,7 +827,7 @@
 
     shadow.appendChild(root);
 
-    state = { host, shadow, hl, pulse, coachAvatar, tooltip, restoreBtn, scrollHint, resolved, step, opts, idx, total, advanced: false, completed: false, tooltipHidden: false, fallbackKey: null };
+    state = { host, shadow, hl, coachAvatar, tooltip, restoreBtn, scrollHint, resolved, step, opts, idx, total, advanced: false, completed: false, tooltipHidden: false, fallbackKey: null };
 
     // 브라우저의 새로고침/뒤로가기 스크롤 복원이 첫 scrollIntoView를 덮어쓸 수 있어
     // 페이지가 안정된 뒤 한 번 더 확인한다. 사용자가 바로 타깃을 볼 수 있게 즉시 중앙 정렬한다.
@@ -921,7 +908,6 @@
       const t = state.resolved;
       if (!t || !t.rect) {
         hl.style.display = 'none';
-        pulse.style.display = 'none';
         coachAvatar.style.display = 'none';
         tooltip.style.display = 'none';
         if (state.scrollHint) state.scrollHint.style.display = 'none';
@@ -934,7 +920,6 @@
         // 연결돼 있지만 숨겨졌거나 0크기면 이 프레임은 그리지 않음(깜빡임 방지)
         if (t.el && (r.width < 1 || r.height < 1)) {
           hl.style.display = 'none';
-          pulse.style.display = 'none';
           coachAvatar.style.display = 'none';
           tooltip.style.display = 'none';
           if (state.scrollHint) state.scrollHint.style.display = 'none';
@@ -969,12 +954,6 @@
         hl.style.top  = `${r.top  - P}px`;
         hl.style.width  = `${r.width  + P * 2}px`;
         hl.style.height = `${r.height + P * 2}px`;
-
-        // 클릭 핀
-        const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-        pulse.style.display = 'block';
-        pulse.style.left = `${cx}px`;
-        pulse.style.top  = `${cy}px`;
 
         // 독립된 아바타를 말풍선 왼쪽에 유지한다.
         coachAvatar.style.display = 'flex';
@@ -1119,7 +1098,6 @@
     if (state.rafId) cancelAnimationFrame(state.rafId);
     state.completed = true;
     state.hl.style.display = 'none';
-    state.pulse.style.display = 'none';
     if (state.scrollHint) state.scrollHint.style.display = 'none';
     if (state.coachAvatar) {
       state.coachAvatar.innerHTML = mascotHtml('success');

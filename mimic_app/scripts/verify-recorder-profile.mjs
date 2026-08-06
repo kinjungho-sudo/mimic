@@ -298,7 +298,11 @@ try {
   ]);
   check(() => {
     assert.match(missingTargetState[0], /대상을 찾지 못했습니다/);
-    assert.equal(missingTargetState[1], 0);
+    assert.equal(
+      missingTargetState[1],
+      1,
+      'missing targets must retain the recovery prompt overlay',
+    );
   });
 
   await panel.locator('#guideTargetRetry').click();
