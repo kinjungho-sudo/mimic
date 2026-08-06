@@ -47,41 +47,41 @@
 }
 
 .sequence .primaryLayer {
-  animation: parro-frame-primary 8s ease-in-out infinite;
+  animation: parro-frame-primary 16s ease-in-out infinite;
 }
 
 .sequence .secondaryLayer {
-  animation: parro-frame-secondary 8s ease-in-out infinite;
+  animation: parro-frame-secondary 16s ease-in-out infinite;
 }
 
 .sequenceListen .primaryLayer,
-.sequenceListen .secondaryLayer { animation-duration: 6.4s; }
+.sequenceListen .secondaryLayer { animation-duration: 16s; }
 
 .sequenceTalk .primaryLayer,
-.sequenceTalk .secondaryLayer { animation-duration: 4s; }
+.sequenceTalk .secondaryLayer { animation-duration: 12s; }
 
 .sequencePoint .primaryLayer,
-.sequencePoint .secondaryLayer { animation-duration: 4.4s; }
+.sequencePoint .secondaryLayer { animation-duration: 14s; }
 
 .sequenceThink .primaryLayer,
 .sequenceThink .secondaryLayer,
 .sequenceSearch .primaryLayer,
-.sequenceSearch .secondaryLayer { animation-duration: 3.6s; }
+.sequenceSearch .secondaryLayer { animation-duration: 15s; }
 
 .sequenceWarning .primaryLayer,
-.sequenceWarning .secondaryLayer { animation-duration: 4.6s; }
+.sequenceWarning .secondaryLayer { animation-duration: 15s; }
 
 .sequenceError .primaryLayer,
-.sequenceError .secondaryLayer { animation-duration: 5.4s; }
+.sequenceError .secondaryLayer { animation-duration: 17s; }
 
 .sequenceBlocked .primaryLayer,
-.sequenceBlocked .secondaryLayer { animation-duration: 5.8s; }
+.sequenceBlocked .secondaryLayer { animation-duration: 18s; }
 
 .sequenceClarify .primaryLayer,
-.sequenceClarify .secondaryLayer { animation-duration: 5.2s; }
+.sequenceClarify .secondaryLayer { animation-duration: 16s; }
 
 .sequenceSuccess .primaryLayer,
-.sequenceSuccess .secondaryLayer { animation-duration: 4.2s; }
+.sequenceSuccess .secondaryLayer { animation-duration: 14s; }
 
 @keyframes parro-frame-primary {
   0%, 54%, 100% { opacity: 1; transform: translateY(0) scale(1); }

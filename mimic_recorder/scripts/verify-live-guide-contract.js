@@ -146,6 +146,8 @@ assert.match(engine, /i18n\('showLess', '접기'\)/);
 assert.match(engine, /copy\.style\.webkitLineClamp = nextExpanded \? 'unset' : '3'/);
 assert.match(engine, /copy\.style\.maxHeight = nextExpanded \? 'min\(48vh, 360px\)' : ''/);
 assert.match(engine, /coachAvatar\.setAttribute\('data-role', 'coach-avatar'\)/);
+assert.match(engine, /background:transparent;border:none;box-shadow:none/);
+assert.match(engine, /parro-avatar-sequence--talk \.parro-avatar-layer\{animation-duration:12s\}/);
 assert.match(engine, /tooltip\.setAttribute\('data-role', 'guide-bubble'\)/);
 assert.match(engine, /const BUBBLE_BG = 'rgba\(255,255,255,\.98\)'/);
 assert.match(engine, /const BUBBLE_BORDER = '#17C9B6'/);
@@ -221,4 +223,4 @@ assert.match(popupScript, /saveText:\s+true/, 'the Recorder settings UI must def
 assert.match(popupScript, /not_found: \{ label: t\('targetNotFound', '대상을 찾지 못했습니다'\)/);
 assert.match(popupScript, /type: 'SHOW_OVERLAY_FOR_STEP', stepIndex: guideCurrentStep/);
 
-console.log(JSON.stringify({ ok: true, checks: 125, scope: 'live-guide-recovery-preview-completion-voice-expandable-copy-and-separated-coach-contract' }));
+console.log(JSON.stringify({ ok: true, checks: 127, scope: 'live-guide-recovery-preview-completion-voice-expandable-copy-and-separated-coach-contract' }));

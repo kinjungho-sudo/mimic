@@ -523,8 +523,8 @@
     @keyframes parro-avatar-frame-secondary { 0%,54%,100%{opacity:0;transform:translateY(2%) scale(.98)} 64%,82%{opacity:1;transform:translateY(0) scale(1)} 91%{opacity:0;transform:translateY(-1%) scale(.99)} }
     .parro-avatar-stack{position:relative;display:block;width:100%;height:100%;overflow:hidden;transform-origin:50% 82%;will-change:transform}
     .parro-avatar-layer{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:contain;user-select:none;pointer-events:none;transform-origin:50% 82%;will-change:opacity,transform}
-    .parro-avatar-layer--primary{opacity:1;animation:parro-avatar-frame-primary 8s ease-in-out infinite}
-    .parro-avatar-layer--secondary{opacity:0;animation:parro-avatar-frame-secondary 8s ease-in-out infinite}
+    .parro-avatar-layer--primary{opacity:1;animation:parro-avatar-frame-primary 16s ease-in-out infinite}
+    .parro-avatar-layer--secondary{opacity:0;animation:parro-avatar-frame-secondary 16s ease-in-out infinite}
     .parro-avatar-stack--idle,.parro-avatar-stack--neutral{animation:parro-avatar-idle-motion 3.4s ease-in-out infinite}
     .parro-avatar-stack--listen{animation:parro-avatar-listen-motion 2.8s ease-in-out infinite}
     .parro-avatar-stack--talk{animation:parro-avatar-talk-motion 1.6s ease-in-out infinite}
@@ -536,19 +536,19 @@
     .parro-avatar-stack--blocked{animation:parro-avatar-blocked-motion 3.6s ease-in-out infinite}
     .parro-avatar-stack--clarify{animation:parro-avatar-clarify-motion 2.8s ease-in-out infinite}
     .parro-avatar-stack--success{animation:parro-avatar-success-motion 1.9s cubic-bezier(.34,1.2,.64,1) infinite}
-    .parro-avatar-sequence--listen .parro-avatar-layer{animation-duration:6.4s}
-    .parro-avatar-sequence--talk .parro-avatar-layer{animation-duration:4s}
-    .parro-avatar-sequence--point .parro-avatar-layer{animation-duration:4.4s}
-    .parro-avatar-sequence--think .parro-avatar-layer,.parro-avatar-sequence--search .parro-avatar-layer{animation-duration:3.6s}
-    .parro-avatar-sequence--warning .parro-avatar-layer{animation-duration:4.6s}
-    .parro-avatar-sequence--error .parro-avatar-layer{animation-duration:5.4s}
-    .parro-avatar-sequence--blocked .parro-avatar-layer{animation-duration:5.8s}
-    .parro-avatar-sequence--clarify .parro-avatar-layer{animation-duration:5.2s}
-    .parro-avatar-sequence--success .parro-avatar-layer{animation-duration:4.2s}
+    .parro-avatar-sequence--listen .parro-avatar-layer{animation-duration:16s}
+    .parro-avatar-sequence--talk .parro-avatar-layer{animation-duration:12s}
+    .parro-avatar-sequence--point .parro-avatar-layer{animation-duration:14s}
+    .parro-avatar-sequence--think .parro-avatar-layer,.parro-avatar-sequence--search .parro-avatar-layer{animation-duration:15s}
+    .parro-avatar-sequence--warning .parro-avatar-layer{animation-duration:15s}
+    .parro-avatar-sequence--error .parro-avatar-layer{animation-duration:17s}
+    .parro-avatar-sequence--blocked .parro-avatar-layer{animation-duration:18s}
+    .parro-avatar-sequence--clarify .parro-avatar-layer{animation-duration:16s}
+    .parro-avatar-sequence--success .parro-avatar-layer{animation-duration:14s}
     @media (prefers-reduced-motion:reduce){.parro-avatar-stack,.parro-avatar-layer{animation:none!important}.parro-avatar-layer--secondary{display:none}}
   `;
 
-  const AVATAR_STYLE = `width:${AVATAR_SIZE}px;height:${AVATAR_SIZE}px;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:visible;filter:drop-shadow(0 10px 14px rgba(15,23,42,.24));`;
+  const AVATAR_STYLE = `width:${AVATAR_SIZE}px;height:${AVATAR_SIZE}px;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:visible;background:transparent;border:none;box-shadow:none;`;
 
   // ── 오버레이 렌더 ─────────────────────────────────────────────
   const VOLATILE_QUERY_KEY = /^(utm_.+|fbclid|gclid|_ga|code|state|session|session_id|timestamp|ts|_t)$/i;

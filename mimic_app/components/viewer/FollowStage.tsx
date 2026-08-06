@@ -23,8 +23,21 @@ const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v
 
 export function Mascot({ size = COACH_SIZE, state = 'talk' }: { size?: number; state?: ParroMascotState }) {
   return (
-    <div style={{ width: size, height: size, borderRadius: `${Math.max(14, Math.round(size * 0.28))}px`, background: 'linear-gradient(135deg,#F1FBF9,#E4F3F6)', display: 'grid', placeItems: 'center', flexShrink: 0, boxShadow: `0 4px 14px ${GUIDE_SHADOW}`, overflow: 'hidden' }}>
-      <ParroMascot size={size * 0.96} state={state} />
+    <div
+      data-guide-mascot-frame="borderless"
+      style={{
+        width: size,
+        height: size,
+        display: 'grid',
+        placeItems: 'center',
+        flexShrink: 0,
+        background: 'transparent',
+        border: 'none',
+        boxShadow: 'none',
+        overflow: 'visible',
+      }}
+    >
+      <ParroMascot size={size} state={state} />
     </div>
   );
 }

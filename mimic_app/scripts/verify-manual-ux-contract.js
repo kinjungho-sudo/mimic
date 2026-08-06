@@ -57,6 +57,8 @@ assert.match(player, /resolveSharedStepIndex\(sharedStepParam, tutorial\.steps\)
 assert.match(player, /initialStepIndex=\{currentStep\}/, 'learning mode must receive the shared step index');
 assert.match(followPlayer, /setIdx\(nextIndex\)/, 'learning player must synchronize a shared initial step after loading');
 assert.match(followStage, /const COACH_SIZE = 74/, 'learning guide coach avatar must use the enlarged size');
+assert.match(followStage, /data-guide-mascot-frame="borderless"/, 'learning guide coach avatar must not use a surrounding frame');
+assert.match(followStage, /background: 'transparent'[\s\S]*?border: 'none'[\s\S]*?boxShadow: 'none'/, 'learning guide coach avatar must remain borderless');
 assert.match(followStage, /fontSize: '15px'/, 'learning guide explanation text must use the enlarged size');
 assert.match(followStage, /className="mfp-target-frame-wave"/, 'learning guide click target must use frame-shaped waves');
 assert.doesNotMatch(followStage, /mfp-click-ripple|mfp-target-dot/, 'learning guide must not render the click point or circular waves');
@@ -88,4 +90,4 @@ assert.match(landingFaq, /현재는 사용자가 직접 결제 플랜을 변경�
 assert.doesNotMatch(landingFaq, /카카오페이|토스페이|전액 환불|언제든 구독을 해지/, 'prelaunch FAQ must not promise unavailable billing operations');
 assert.doesNotMatch(desktopSetup, /Parro Recorder 1\.7\.4/, 'desktop setup must not hard-code an obsolete Recorder version');
 
-console.log(JSON.stringify({ ok: true, checks: 53, scope: 'manual-ux-contract' }));
+console.log(JSON.stringify({ ok: true, checks: 55, scope: 'manual-ux-contract' }));
