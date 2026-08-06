@@ -4,6 +4,7 @@
 
 - Confirmed the latest `origin/dev` already switched the learning guide and Live Guide asset mapping to the 3D Parro parrot PNG set.
 - Updated Recorder Live Guide avatar cache-busting query strings from `20260806` to `20260807` so the content-script overlay and Recorder popup load the current 3D parrot character instead of any cached older avatar.
+- Bumped the Recorder extension manifest from `1.7.17` to `1.7.18` for a Web Store-submittable package.
 - Updated the Live Guide contract verifier to assert the new 3D avatar asset version in both the overlay engine and popup.
 - Verified with `node scripts/verify-live-guide-contract.js` in `mimic_recorder` and `node scripts/verify-manual-ux-contract.js` in `mimic_app`.
 - No DB/auth/storage, capture, upload, production deploy, or `main` merge actions were performed.
