@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extensionName__",
-  "version": "1.7.15",
+  "version": "1.7.16",
   "description": "__MSG_extensionDescription__",
   "default_locale": "ko",
   "icons": {
@@ -33,18 +33,10 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "assets/parro-ai-avatar.png",
-        "assets/parro-ai-avatar-neutral.png",
-        "assets/parro-ai-avatar-listen.png",
-        "assets/parro-ai-avatar-talk.png",
-        "assets/parro-ai-avatar-point.png",
-        "assets/parro-ai-avatar-think.png",
-        "assets/parro-ai-avatar-search.png",
-        "assets/parro-ai-avatar-warning.png",
-        "assets/parro-ai-avatar-error.png",
-        "assets/parro-ai-avatar-blocked.png",
-        "assets/parro-ai-avatar-clarify.png",
-        "assets/parro-ai-avatar-success.png"
+        "assets/parro-3d-neutral.png",
+        "assets/parro-3d-talk.png",
+        "assets/parro-3d-point.png",
+        "assets/parro-3d-success.png"
       ],
       "matches": ["<all_urls>"]
     }

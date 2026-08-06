@@ -31,11 +31,21 @@ const playbookServer = fs.readFileSync(
   'utf8',
 );
 
-assert.equal(manifest.version, '1.7.15');
+assert.equal(manifest.version, '1.7.16');
 assert.deepEqual(
   manifest.content_scripts[0].js.slice(0, 3),
   ['targeting.js', 'guide-engine.js', 'content.js'],
   'replay confidence helpers must load before the guide engine',
+);
+assert.deepEqual(
+  manifest.web_accessible_resources[0].resources,
+  [
+    'assets/parro-3d-neutral.png',
+    'assets/parro-3d-talk.png',
+    'assets/parro-3d-point.png',
+    'assets/parro-3d-success.png',
+  ],
+  'the Recorder package must expose only the current Parro 3D mascot states',
 );
 
 const startGuide = section(background, "if (message.action === 'START_GUIDE')", '// ── 내부 메시지 라우터');
@@ -137,6 +147,12 @@ assert.match(engine, /copy\.style\.webkitLineClamp = nextExpanded \? 'unset' : '
 assert.match(engine, /copy\.style\.maxHeight = nextExpanded \? 'min\(48vh, 360px\)' : ''/);
 assert.match(engine, /coachAvatar\.setAttribute\('data-role', 'coach-avatar'\)/);
 assert.match(engine, /tooltip\.setAttribute\('data-role', 'guide-bubble'\)/);
+assert.match(engine, /const BUBBLE_BG = 'rgba\(255,255,255,\.98\)'/);
+assert.match(engine, /const BUBBLE_BORDER = '#17C9B6'/);
+assert.match(engine, /border:3px solid \$\{BUBBLE_BORDER\}/);
+assert.match(engine, /parro-3d-talk\.png/);
+assert.match(engine, /parro-3d-point\.png/);
+assert.match(engine, /parro-3d-success\.png/);
 assert.match(engine, /root\.appendChild\(coachAvatar\);[\s\S]*root\.appendChild\(tooltip\);/);
 assert.match(engine, /placeCoachAvatar\(coachAvatar, pos\.left, pos\.top, tipH\)/);
 assert.match(engine, /animation:parro-avatar-in [^;]+,parro-avatar-float/);
@@ -161,7 +177,7 @@ assert.match(visualPreview, /window\.open\('', 'parro-live-guide-preview'/);
 assert.match(visualPreview, /annotations\.map\(renderGuideAnnotation\)/);
 assert.match(engine, /const guideApi = \{ show, showWrongPage, hide,/);
 
-assert.match(popup, /assets\/parro-ai-avatar-neutral\.png\?v=20260720/);
+assert.match(popup, /assets\/parro-3d-neutral\.png\?v=20260806/);
 assert.match(popup, /id="guideTargetStatus"/);
 assert.match(popup, /id="guideTargetRetry"/);
 assert.match(popup, /id="guideStepPreviewBtn"/);

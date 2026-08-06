@@ -26,18 +26,18 @@ type ParroMascotProps = {
 };
 
 const STATE_ASSETS: Record<ParroMascotState, string> = {
-  idle: '/brand/parro-ai-avatar-neutral.png',
-  neutral: '/brand/parro-ai-avatar-neutral.png',
-  listen: '/brand/parro-ai-avatar-listen.png',
-  talk: '/brand/parro-ai-avatar-talk.png',
-  point: '/brand/parro-ai-avatar-point.png',
-  think: '/brand/parro-ai-avatar-think.png',
-  search: '/brand/parro-ai-avatar-search.png',
-  warning: '/brand/parro-ai-avatar-warning.png',
-  error: '/brand/parro-ai-avatar-error.png',
-  blocked: '/brand/parro-ai-avatar-blocked.png',
-  clarify: '/brand/parro-ai-avatar-clarify.png',
-  success: '/brand/parro-ai-avatar-success.png',
+  idle: '/brand/parro-3d-neutral.png',
+  neutral: '/brand/parro-3d-neutral.png',
+  listen: '/brand/parro-3d-talk.png',
+  talk: '/brand/parro-3d-talk.png',
+  point: '/brand/parro-3d-point.png',
+  think: '/brand/parro-3d-neutral.png',
+  search: '/brand/parro-3d-neutral.png',
+  warning: '/brand/parro-3d-neutral.png',
+  error: '/brand/parro-3d-neutral.png',
+  blocked: '/brand/parro-3d-neutral.png',
+  clarify: '/brand/parro-3d-talk.png',
+  success: '/brand/parro-3d-success.png',
 };
 
 const STATE_SEQUENCES: Record<ParroMascotState, ParroMascotState> = {

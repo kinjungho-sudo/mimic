@@ -20,18 +20,10 @@ $files = @(
   '_locales/ko/messages.json', '_locales/en/messages.json',
   'offscreen.html', 'offscreen.js',
   'request-mic.html', 'request-mic.js',
-  'assets/parro-ai-avatar.png',
-  'assets/parro-ai-avatar-neutral.png',
-  'assets/parro-ai-avatar-listen.png',
-  'assets/parro-ai-avatar-talk.png',
-  'assets/parro-ai-avatar-point.png',
-  'assets/parro-ai-avatar-think.png',
-  'assets/parro-ai-avatar-search.png',
-  'assets/parro-ai-avatar-warning.png',
-  'assets/parro-ai-avatar-error.png',
-  'assets/parro-ai-avatar-blocked.png',
-  'assets/parro-ai-avatar-clarify.png',
-  'assets/parro-ai-avatar-success.png'
+  'assets/parro-3d-neutral.png',
+  'assets/parro-3d-talk.png',
+  'assets/parro-3d-point.png',
+  'assets/parro-3d-success.png'
 )
 
 # A missing importScripts dependency aborts the service worker before CONNECT

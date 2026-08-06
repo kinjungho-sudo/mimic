@@ -13,10 +13,12 @@
   const TIP_W = 292;  // 코치 아바타 옆에 독립적으로 나타나는 안내 말풍선 너비
   const TIP_GAP = 46; // 타깃을 가리지 않도록 DOM과 코치 UI 사이에 충분한 간격 확보
   const TIP_M = 12;   // 뷰포트 여백(px)
-  const AVATAR_SIZE = 68;
-  const AVATAR_GAP = 14;
+  const AVATAR_SIZE = 88;
+  const AVATAR_GAP = 10;
   const AVATAR_OUTSET = AVATAR_SIZE + AVATAR_GAP; // 말풍선 왼쪽의 독립 아바타 영역
   const TIP_BG = 'rgba(22,20,48,.96)'; // 툴팁/화살표/대기카드 공통 배경 — 짙은 남색·보라(흰 배경 가독성)
+  const BUBBLE_BG = 'rgba(255,255,255,.98)';
+  const BUBBLE_BORDER = '#17C9B6';
   const OVERLAY_ROOT_ID = 'parro-overlay-root';
   const LEGACY_OVERLAY_ROOT_ID = 'mimic-overlay-root';
 
@@ -468,20 +470,20 @@
   }
 
   // 웹 제품과 동일한 상태형 AI 가이드 아바타.
-  const avatarAsset = (name) => `${chrome.runtime.getURL(`assets/${name}`)}?v=20260720`;
+  const avatarAsset = (name) => `${chrome.runtime.getURL(`assets/${name}`)}?v=20260806`;
   const MASCOT_IMAGE_URLS = {
-    idle: avatarAsset('parro-ai-avatar-neutral.png'),
-    neutral: avatarAsset('parro-ai-avatar-neutral.png'),
-    listen: avatarAsset('parro-ai-avatar-listen.png'),
-    talk: avatarAsset('parro-ai-avatar-talk.png'),
-    point: avatarAsset('parro-ai-avatar-point.png'),
-    think: avatarAsset('parro-ai-avatar-think.png'),
-    search: avatarAsset('parro-ai-avatar-search.png'),
-    warning: avatarAsset('parro-ai-avatar-warning.png'),
-    error: avatarAsset('parro-ai-avatar-error.png'),
-    blocked: avatarAsset('parro-ai-avatar-blocked.png'),
-    clarify: avatarAsset('parro-ai-avatar-clarify.png'),
-    success: avatarAsset('parro-ai-avatar-success.png'),
+    idle: avatarAsset('parro-3d-neutral.png'),
+    neutral: avatarAsset('parro-3d-neutral.png'),
+    listen: avatarAsset('parro-3d-talk.png'),
+    talk: avatarAsset('parro-3d-talk.png'),
+    point: avatarAsset('parro-3d-point.png'),
+    think: avatarAsset('parro-3d-neutral.png'),
+    search: avatarAsset('parro-3d-neutral.png'),
+    warning: avatarAsset('parro-3d-neutral.png'),
+    error: avatarAsset('parro-3d-neutral.png'),
+    blocked: avatarAsset('parro-3d-neutral.png'),
+    clarify: avatarAsset('parro-3d-talk.png'),
+    success: avatarAsset('parro-3d-success.png'),
   };
   const MASCOT_SEQUENCE_STATES = {
     idle: 'listen',
@@ -546,7 +548,7 @@
     @media (prefers-reduced-motion:reduce){.parro-avatar-stack,.parro-avatar-layer{animation:none!important}.parro-avatar-layer--secondary{display:none}}
   `;
 
-  const AVATAR_STYLE = `width:${AVATAR_SIZE}px;height:${AVATAR_SIZE}px;border-radius:19px;background:linear-gradient(135deg,#F1FBF9,#E4F3F6);box-shadow:0 8px 24px rgba(0,155,142,.34);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;`;
+  const AVATAR_STYLE = `width:${AVATAR_SIZE}px;height:${AVATAR_SIZE}px;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:visible;filter:drop-shadow(0 10px 14px rgba(15,23,42,.24));`;
 
   // ── 오버레이 렌더 ─────────────────────────────────────────────
   const VOLATILE_QUERY_KEY = /^(utm_.+|fbclid|gclid|_ga|code|state|session|session_id|timestamp|ts|_t)$/i;
@@ -778,27 +780,27 @@
 
     const tooltip = document.createElement('div');
     tooltip.setAttribute('data-role', 'guide-bubble');
-    tooltip.style.cssText = `position:fixed;width:${TIP_W}px;box-sizing:border-box;background:${TIP_BG};color:#fff;border-radius:13px;padding:13px;box-shadow:0 12px 40px rgba(0,0,0,.45),0 0 0 1px rgba(23,201,182,.16);z-index:5;pointer-events:auto;animation:parro-bubble-in .3s cubic-bezier(.2,.8,.2,1) .09s both;`;
+    tooltip.style.cssText = `position:fixed;width:${TIP_W}px;box-sizing:border-box;background:${BUBBLE_BG};color:#102038;border:3px solid ${BUBBLE_BORDER};border-radius:22px;padding:13px;box-shadow:0 18px 46px rgba(15,23,42,.18),0 8px 24px rgba(23,201,182,.16);isolation:isolate;z-index:5;pointer-events:auto;animation:parro-bubble-in .3s cubic-bezier(.2,.8,.2,1) .09s both;`;
     tooltip.innerHTML = `
-      <div aria-hidden="true" style="position:absolute;left:-8px;top:30px;width:16px;height:16px;background:${TIP_BG};transform:rotate(45deg);border-radius:2px;box-shadow:-1px 1px 0 rgba(23,201,182,.12);pointer-events:none"></div>
+      <div aria-hidden="true" style="position:absolute;left:-12px;top:31px;width:19px;height:19px;background:#fff;border-left:3px solid ${BUBBLE_BORDER};border-bottom:3px solid ${BUBBLE_BORDER};transform:rotate(45deg);border-radius:2px;pointer-events:none;z-index:-1"></div>
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:7px">
-        <span style="font-size:11px;font-weight:700;color:#8DD63F;background:rgba(0,155,142,.24);padding:2px 8px;border-radius:20px">${idx + 1} / ${total}</span>
-        ${resolved.source === 'none' ? `<span style="font-size:10.5px;color:#FFB199">${i18n('elementNotFound', '요소 미발견')}</span>` : ''}
+        <span style="font-size:11px;font-weight:800;color:#007F75;background:#DDF8F3;padding:2px 8px;border-radius:20px">${idx + 1} / ${total}</span>
+        ${resolved.source === 'none' ? `<span style="font-size:10.5px;color:#C2410C">${i18n('elementNotFound', '요소 미발견')}</span>` : ''}
         <div style="flex:1"></div>
-        <button class="parro-btn mimic-btn" data-act="hide-tooltip" title="말풍선 숨기기" style="background:transparent;color:rgba(255,255,255,.45);padding:3px 6px;font-size:12px">✕</button>
+        <button class="parro-btn mimic-btn" data-act="hide-tooltip" title="말풍선 숨기기" style="background:transparent;color:#64748B;padding:3px 6px;font-size:15px;line-height:1">✕</button>
       </div>
       ${tooltipText ? `
-        <div data-role="guide-copy" data-expanded="false" style="font-size:12.5px;color:#D1D5DB;line-height:1.55;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${escapeHtml(tooltipText)}</div>
-        <button class="parro-btn mimic-btn" data-act="toggle-guide-copy" aria-expanded="false" style="display:none;margin:5px 0 0 auto;padding:2px 0;background:transparent;color:#8DD63F;font-size:11px;font-weight:800">${escapeHtml(i18n('showMore', '… 더보기'))}</button>
+        <div data-role="guide-copy" data-expanded="false" style="font-size:12.5px;color:#102038;line-height:1.6;font-weight:650;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${escapeHtml(tooltipText)}</div>
+        <button class="parro-btn mimic-btn" data-act="toggle-guide-copy" aria-expanded="false" style="display:none;margin:5px 0 0 auto;padding:2px 0;background:transparent;color:#009B8E;font-size:11px;font-weight:800">${escapeHtml(i18n('showMore', '… 더보기'))}</button>
       ` : ''}
       ${step.type_text ? `
-        <div style="margin-top:10px;background:rgba(0,155,142,.18);border:1px solid rgba(23,201,182,.32);border-radius:8px;padding:8px 10px">
+        <div style="margin-top:10px;background:#EDFCF8;border:1px solid #A7EDE3;border-radius:11px;padding:8px 10px">
           <div style="display:flex;align-items:center;gap:6px">
-            <span style="font-size:11px;color:#17C9B6;flex-shrink:0">⌨ 복사 후 붙여넣기</span>
+            <span style="font-size:11px;color:#007F75;font-weight:750;flex-shrink:0">⌨ 복사 후 붙여넣기</span>
             <button class="parro-btn mimic-btn" data-act="copy" style="margin-left:auto;padding:4px 9px;background:#fff;color:#007F75;font-size:10.5px;font-weight:800">복사</button>
           </div>
-          <div style="font-size:11.5px;color:#BFEDE7;line-height:1.5;margin-top:5px;word-break:break-all">입력할 내용: ${typeTextSnippet}</div>
-          <div style="font-size:10.5px;color:#9FE4DA;line-height:1.45;margin-top:4px">입력창에 붙여넣으면 자동으로 다음 단계로 진행합니다.</div>
+          <div style="font-size:11.5px;color:#164E63;line-height:1.5;margin-top:5px;word-break:break-all">입력할 내용: ${typeTextSnippet}</div>
+          <div style="font-size:10.5px;color:#0F766E;line-height:1.45;margin-top:4px">입력창에 붙여넣으면 자동으로 다음 단계로 진행합니다.</div>
         </div>` : ''}`;
 
     root.appendChild(coachAvatar);

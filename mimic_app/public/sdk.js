@@ -799,7 +799,7 @@
     var pct = totalSteps > 0 ? Math.round((stepNum / totalSteps) * 100) : 0;
 
     // 정적 구조만 innerHTML로 (외부 데이터 없음)
-    el.innerHTML = '<span class="mar-icon"><img class="mar-icon-primary" src="' + BASE_URL + '/brand/parro-ai-avatar-talk.png" alt="" draggable="false"><img class="mar-icon-secondary" src="' + BASE_URL + '/brand/parro-ai-avatar-point.png" alt="" draggable="false"></span>'
+    el.innerHTML = '<span class="mar-icon"><img class="mar-icon-primary" src="' + BASE_URL + '/brand/parro-3d-talk.png?v=20260806" alt="" draggable="false"><img class="mar-icon-secondary" src="' + BASE_URL + '/brand/parro-3d-point.png?v=20260806" alt="" draggable="false"></span>'
       + '<span class="mar-label">AI 실행 중 · BETA</span>'
       + '<span class="mar-divider"></span>'
       + '<span class="mar-title" id="parro-ar-title"></span>'

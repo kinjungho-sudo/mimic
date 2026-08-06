@@ -17,7 +17,7 @@ const TARGET_RING_SOFT = 'rgba(23,201,182,0.24)';
 const GUIDE_RING_SOFT = 'rgba(0,155,142,0.14)';
 const GUIDE_RING_STRONG = 'rgba(0,155,142,0.28)';
 const GUIDE_SHADOW = 'rgba(0,155,142,0.34)';
-const COACH_SIZE = 64;
+const COACH_SIZE = 74;
 const TARGET_CLEARANCE = 72;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
@@ -279,8 +279,9 @@ export function FollowStage({
   // 클릭 힌트는 첫 스텝에서만 표시 (type·이동형은 항상)
   const showHint = !hasHotspot || isType || isFirstStep;
 
-  const Bubble = (
-    <div style={{ background: 'rgba(255,255,255,0.97)', borderRadius: '13px', padding: '12px 14px', boxShadow: '0 10px 28px rgba(0,0,0,0.28), 0 1px 5px rgba(0,0,0,0.12)', maxWidth: `${BW}px`, animation: nudge ? 'mfp-nudge 0.4s' : undefined }}>
+  const renderBubble = (tailSide: 'left' | 'right' = 'left') => (
+    <div style={{ position: 'relative', isolation: 'isolate', background: 'rgba(255,255,255,0.98)', color: '#102038', border: '3px solid #17C9B6', borderRadius: '20px', padding: '12px 14px', boxShadow: '0 16px 38px rgba(15,23,42,0.18), 0 8px 24px rgba(23,201,182,0.16)', maxWidth: `${BW}px`, animation: nudge ? 'mfp-nudge 0.4s' : undefined }}>
+      <span aria-hidden style={{ position: 'absolute', top: '28px', [tailSide]: '-11px', width: '18px', height: '18px', background: '#fff', borderLeft: tailSide === 'left' ? '3px solid #17C9B6' : 'none', borderBottom: tailSide === 'left' ? '3px solid #17C9B6' : 'none', borderTop: tailSide === 'right' ? '3px solid #17C9B6' : 'none', borderRight: tailSide === 'right' ? '3px solid #17C9B6' : 'none', transform: 'rotate(45deg)', zIndex: -1 }} />
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '9px' }}>
         {stepNumber != null && (
           <span style={{ flexShrink: 0, width: '24px', height: '24px', borderRadius: '50%', background: GUIDE_GRADIENT, color: '#fff', fontSize: '12px', fontWeight: 800, display: 'grid', placeItems: 'center', boxShadow: `0 2px 6px ${GUIDE_SHADOW}` }}>{stepNumber}</span>
@@ -300,8 +301,8 @@ export function FollowStage({
       {showAudioBadge && <span style={{ position: 'absolute', bottom: -2, right: -2, width: 16, height: 16, borderRadius: '50%', background: '#fff', display: 'grid', placeItems: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.25)' }}><svg width="9" height="9" viewBox="0 0 24 24" fill={BRAND_COLORS.primary}><path d="M3 10v4h4l5 5V5L7 10H3z" /></svg></span>}
     </button>
   );
-  const BubbleBox = (
-    <div onClick={onBubbleClick} title={onBubbleClick ? '눌러서 접기' : undefined} style={{ cursor: onBubbleClick ? 'pointer' : 'default' }}>{Bubble}</div>
+  const bubbleBox = (tailSide: 'left' | 'right') => (
+    <div onClick={onBubbleClick} title={onBubbleClick ? '눌러서 접기' : undefined} style={{ cursor: onBubbleClick ? 'pointer' : 'default' }}>{renderBubble(tailSide)}</div>
   );
   const renderUnit = (side: 'left' | 'right' | 'bottom') => (
     minimized ? (
@@ -309,7 +310,7 @@ export function FollowStage({
       <button onClick={onMascotClick} title="안내 펼치기" style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, pointerEvents: 'auto', marginTop: side !== 'bottom' ? `${UNIT_H - COACH_SIZE}px` : undefined }}><Mascot size={COACH_SIZE} state="idle" /></button>
     ) : (
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', pointerEvents: 'auto' }}>
-        {side === 'left' ? <>{BubbleBox}{MascotBtn}</> : <>{MascotBtn}{BubbleBox}</>}
+        {side === 'left' ? <>{bubbleBox('right')}{MascotBtn}</> : <>{MascotBtn}{bubbleBox('left')}</>}
       </div>
     )
   );
@@ -319,7 +320,7 @@ export function FollowStage({
       <div style={{ width: 'min(520px, calc(100vw - 32px))', minHeight: '260px', display: 'grid', placeItems: 'center', padding: '24px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E5E7EB' }}>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: '10px', maxWidth: '420px' }}>
           <Mascot />
-          {Bubble}
+          {renderBubble('left')}
         </div>
       </div>
     );

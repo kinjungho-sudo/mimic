@@ -111,6 +111,7 @@ export const ENGLISH_UI_TRANSLATIONS: Record<string, string> = {
   '가이드': 'Guide',
   '라이브 가이드': 'Live Guide',
   '플레이북': 'Playbook',
+  '뒤로 가기': 'Go back',
   '스텝': 'Step',
   '단계': 'Step',
   '새 단계': 'New step',
