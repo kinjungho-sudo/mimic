@@ -1,5 +1,13 @@
 # Implementation Log
 
+## 2026-08-07 - Live Guide parrot avatar cache refresh
+
+- Confirmed the Live Guide extension assets already match the current learning-guide Parro parrot avatar PNG set.
+- Updated Recorder Live Guide avatar cache-busting query strings from `20260720` to `20260807` so the content-script overlay and Recorder popup load the current parrot character instead of any cached older avatar.
+- Updated the Live Guide contract verifier to assert the new avatar asset version in both the overlay engine and popup.
+- Verified with `node scripts/verify-live-guide-contract.js` in `mimic_recorder` and `node scripts/verify-manual-ux-contract.js` in `mimic_app`.
+- No DB/auth/storage, capture, upload, production deploy, or `main` merge actions were performed.
+
 ## 2026-07-18 - Parro benchmark loop cycle 4 synthetic finish navigation
 
 - Added an isolated Playwright finish-to-editor test that loads the real

@@ -182,7 +182,8 @@ assert.match(visualPreview, /window\.open\('', 'parro-live-guide-preview'/);
 assert.match(visualPreview, /annotations\.map\(renderGuideAnnotation\)/);
 assert.match(engine, /const guideApi = \{ show, showWrongPage, hide,/);
 
-assert.match(popup, /assets\/parro-3d-neutral\.png\?v=20260806/);
+assert.match(engine, /assets\/\$\{name\}`\)\}\?v=20260807/);
+assert.match(popup, /assets\/parro-3d-neutral\.png\?v=20260807/);
 assert.match(popup, /id="guideTargetStatus"/);
 assert.match(popup, /id="guideTargetRetry"/);
 assert.match(popup, /id="guideStepPreviewBtn"/);
