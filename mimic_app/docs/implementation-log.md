@@ -1,5 +1,13 @@
 # Implementation Log
 
+## 2026-08-07 - Dev Live Guide Parro headset avatar refresh
+
+- Kept the update dev-only on `dev`; no `main`, Production, DB/auth/storage, capture, upload, or Web Store publishing actions were performed.
+- Confirmed the newly added turquoise headset Parro PNG set is present in both `mimic_app/public/brand/parro-3d-*.png` and `mimic_recorder/assets/parro-3d-*.png`.
+- Refreshed Live Guide avatar cache keys from `20260807` to `20260808` in the Recorder overlay and popup so installed dev/unpacked builds load the current Parro images instead of cached older ones.
+- Refreshed the web SDK autorun/live overlay mini-avatar cache key from `20260806` to `20260808` for the same Parro headset assets.
+- Updated the Live Guide contract verifier to assert the new cache key.
+
 ## 2026-08-07 - Live Guide parrot avatar cache refresh
 
 - Confirmed the latest `origin/dev` already switched the learning guide and Live Guide asset mapping to the 3D Parro parrot PNG set.

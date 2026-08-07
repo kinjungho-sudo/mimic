@@ -470,7 +470,7 @@
   }
 
   // 웹 제품과 동일한 상태형 AI 가이드 아바타.
-  const avatarAsset = (name) => `${chrome.runtime.getURL(`assets/${name}`)}?v=20260807`;
+  const avatarAsset = (name) => `${chrome.runtime.getURL(`assets/${name}`)}?v=20260808`;
   const MASCOT_IMAGE_URLS = {
     idle: avatarAsset('parro-3d-neutral.png'),
     neutral: avatarAsset('parro-3d-neutral.png'),
