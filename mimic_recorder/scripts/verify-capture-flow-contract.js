@@ -226,6 +226,27 @@ check(() => {
 });
 
 check(() => {
+  const stopStart = background.indexOf("if (message.action === 'STOP_DESKTOP_RECORDING')");
+  const stopEnd = background.indexOf("if (message.action === 'PAUSE_DESKTOP_RECORDING'", stopStart);
+  const stopBlock = background.slice(stopStart, stopEnd);
+  assert.ok(stopStart >= 0 && stopEnd > stopStart, 'desktop stop handler must be present');
+  assert.match(stopBlock, /let nativeCaptureStopped = false/);
+  assert.match(stopBlock, /nativeCaptureStopped = true/);
+  assert.match(stopBlock, /stopped: nativeCaptureStopped/);
+
+  const uiStopStart = desktopSetup.indexOf('const stopDesktopRecording = useCallback');
+  const uiStopEnd = desktopSetup.indexOf('const toggleDesktopPause = useCallback', uiStopStart);
+  const uiStopBlock = desktopSetup.slice(uiStopStart, uiStopEnd);
+  assert.ok(uiStopStart >= 0 && uiStopEnd > uiStopStart, 'desktop stop UI handler must be present');
+  assert.match(uiStopBlock, /if \(response\?\.stopped\)/);
+  assert.match(uiStopBlock, /setStatus\('stopped'\)/);
+  assert.match(uiStopBlock, /if \(sessionId\) setPendingSessionId\(sessionId\)/);
+  assert.match(uiStopBlock, /setStatus\(status\)/);
+  assert.doesNotMatch(uiStopBlock, /setStatus\('started'\)/);
+  assert.match(desktopClient, /stopped\?: boolean/);
+});
+
+check(() => {
   assert.match(desktopBridge, /type: 'START_CAPTURE_SESSION'/);
   assert.match(desktopBridge, /type: 'STOP_CAPTURE_SESSION'/);
   assert.match(desktopBridge, /type: 'OPEN_DESKTOP_APP'/);

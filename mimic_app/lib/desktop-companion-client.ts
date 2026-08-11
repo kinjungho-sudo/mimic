@@ -14,6 +14,7 @@ export interface DesktopCompanionResponse {
   tutorialId?: string;
   stepCount?: number;
   capturedSteps?: number;
+  stopped?: boolean;
   editorUrl?: string;
   displays?: DesktopDisplay[];
   virtualBounds?: { left: number; top: number; right: number; bottom: number } | null;

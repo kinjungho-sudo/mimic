@@ -1036,17 +1036,20 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
   if (message.action === 'STOP_DESKTOP_RECORDING') {
     (async () => {
       const sessionId = message.sessionId || null;
+      let nativeCaptureStopped = false;
       try {
         const stopped = await notifyDesktopCaptureStopped({
           sessionId,
           reason: 'desktop_setup_stop',
         });
         if (!stopped?.ok) throw new Error(stopped?.error || 'desktop_stop_failed');
+        nativeCaptureStopped = true;
         const imported = await importDesktopCaptureSession(sessionId);
         const editorUrl = await getDesktopEditorUrl(imported);
         sendResponse({
           ok: true,
           sessionId,
+          stopped: true,
           desktop: desktopBridgeStatus(),
           tutorialId: imported.tutorial_id,
           stepCount: imported.step_count,
@@ -1056,6 +1059,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         sendResponse({
           ok: false,
           sessionId,
+          stopped: nativeCaptureStopped,
           desktop: desktopBridgeStatus(),
           error: error?.message || 'desktop_import_failed',
         });
