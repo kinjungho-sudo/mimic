@@ -91,7 +91,6 @@ export default async function DesktopDownloadPage({
               <span><b>03</b> 녹화 시작</span>
             </div>
           </div>
-
           <div className={styles.downloadCard}>
             <div className={styles.cardTopline}>
               <span className={styles.liveDot} />
@@ -117,7 +116,7 @@ export default async function DesktopDownloadPage({
             <div className={styles.trustRow}>
               <span><b>✓</b> 자동 설치로 바로 진행</span>
               <span><b>✓</b> 설치 파일 다운로드 가능</span>
-              <span><b>✓</b> 유료 플랜 전용</span>
+              <span><b>✓</b> PC에 저장 · 완료 시 Parro로 업로드</span>
             </div>
           </div>
         </div>

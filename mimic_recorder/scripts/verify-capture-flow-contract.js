@@ -15,6 +15,8 @@ const recordingModal = read('mimic_app/components/dashboard/RecordingModal.tsx')
 const desktopSetup = read('mimic_app/app/desktop-setup/page.tsx');
 const desktopImport = read('mimic_app/app/desktop-import/page.tsx');
 const desktopDownload = read('mimic_app/app/download/desktop/DownloadButton.tsx');
+const desktopDownloadPage = read('mimic_app/app/download/desktop/page.tsx');
+const extendedTranslations = read('mimic_app/lib/i18n/extended-translations.ts');
 const desktopClient = read('mimic_app/lib/desktop-companion-client.ts');
 const middleware = read('mimic_app/middleware.ts');
 const nextConfig = read('mimic_app/next.config.mjs');
@@ -199,6 +201,9 @@ check(() => {
   assert.match(middleware, /hasEntitlement\(profile\?\.plan, 'desktop_companion'\)/);
   assert.match(nextConfig, /source: '\/downloads\/ParroDesktopSetup\.exe'/);
   assert.match(nextConfig, /Content-Disposition'[\s\S]*attachment; filename="ParroDesktopSetup\.exe"/);
+  assert.match(desktopDownloadPage, /✓ PC에 저장 · 완료 시 Parro로 업로드/);
+  assert.doesNotMatch(desktopDownloadPage, /✓ 캡처 파일은 PC에 저장/);
+  assert.match(extendedTranslations, /"✓ PC에 저장 · 완료 시 Parro로 업로드": "✓ Saved on PC · Uploaded to Parro on completion"/);
 });
 
 check(() => {

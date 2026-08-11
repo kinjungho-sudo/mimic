@@ -1112,6 +1112,7 @@ const DYNAMIC_TRANSLATIONS: Array<[RegExp, (...matches: string[]) => string]> = 
   [/^(.+) 실제 녹화 화면$/, title => `${ENGLISH_UI_TRANSLATIONS[normalizeUiText(title)] ?? title} actual recording screen`],
   [/^(\d+)개 단계$/, count => `${count} steps`],
   [/^(\d+)개 스텝$/, count => `${count} steps`],
+  [/^(\d+)개 매뉴얼 · (\d+)단계$/, (manualCount, stepCount) => `${manualCount} manuals · ${stepCount} steps`],
   [/^(\d+)단계$/, count => `Step ${count}`],
   [/^(\d+)명$/, count => `${count} members`],
   [/^(\d+)건$/, count => `${count}`],
