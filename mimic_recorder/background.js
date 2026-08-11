@@ -3187,7 +3187,15 @@ async function processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base
 }
 
 // ── 로컬 스텝 저장 ───────────────────────────────────────────────
-async function saveStepLocally(stepData) {
+let _localStepMutationChain = Promise.resolve();
+
+function saveStepLocally(stepData) {
+  const queued = _localStepMutationChain.then(() => persistStepLocally(stepData));
+  _localStepMutationChain = queued.then(() => {}, () => {});
+  return queued;
+}
+
+async function persistStepLocally(stepData) {
   const { steps: existing, sessionId } = await storageGet(['steps', 'sessionId']);
   const steps = existing || [];
   const stepNum = stepData.stepNumber;
