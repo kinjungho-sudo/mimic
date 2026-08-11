@@ -1,5 +1,12 @@
 # Implementation Log
 
+## 2026-08-11 - Dev Live Guide Parro avatar package refresh
+
+- Reproduced the dev Live Guide in the user's Chrome and confirmed the installed Recorder still rendered the legacy robot avatar even though current `dev` source already maps every guide state to the Parro headset PNG assets.
+- Bumped the Recorder package to `1.7.19` so Chrome can receive the Parro avatar replacement as an extension update.
+- Refreshed Recorder overlay, Recorder side panel, and web SDK avatar cache keys to `20260811` so the new Parro images cannot be shadowed by an older cached asset.
+- Kept the change dev-only; no `main` or production publication action was performed.
+
 ## 2026-08-07 - Dev Live Guide Parro headset avatar refresh
 
 - Kept the update dev-only on `dev`; no `main`, Production, DB/auth/storage, capture, upload, or Web Store publishing actions were performed.

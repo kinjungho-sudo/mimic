@@ -31,7 +31,7 @@ const playbookServer = fs.readFileSync(
   'utf8',
 );
 
-assert.equal(manifest.version, '1.7.18');
+assert.equal(manifest.version, '1.7.19');
 assert.deepEqual(
   manifest.content_scripts[0].js.slice(0, 3),
   ['targeting.js', 'guide-engine.js', 'content.js'],
@@ -182,8 +182,8 @@ assert.match(visualPreview, /window\.open\('', 'parro-live-guide-preview'/);
 assert.match(visualPreview, /annotations\.map\(renderGuideAnnotation\)/);
 assert.match(engine, /const guideApi = \{ show, showWrongPage, hide,/);
 
-assert.match(engine, /assets\/\$\{name\}`\)\}\?v=20260808/);
-assert.match(popup, /assets\/parro-3d-neutral\.png\?v=20260808/);
+assert.match(engine, /assets\/\$\{name\}`\)\}\?v=20260811/);
+assert.match(popup, /assets\/parro-3d-neutral\.png\?v=20260811/);
 assert.match(popup, /id="guideTargetStatus"/);
 assert.match(popup, /id="guideTargetRetry"/);
 assert.match(popup, /id="guideStepPreviewBtn"/);
