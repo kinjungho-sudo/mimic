@@ -995,30 +995,40 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 
   if (message.action === 'START_DESKTOP_RECORDING') {
     (async () => {
-      const plan = await getUserPlan(true);
-      if (!plan?.isPro) {
-        sendResponse({ ok: false, error: 'desktop_paid_plan_required', desktop: desktopBridgeStatus() });
-        return;
+      let sessionId = null;
+      try {
+        const plan = await getUserPlan(true);
+        if (!plan?.isPro) {
+          sendResponse({ ok: false, error: 'desktop_paid_plan_required', desktop: desktopBridgeStatus() });
+          return;
+        }
+        sessionId = crypto.randomUUID();
+        const requestedTarget = message.captureTarget?.mode === 'all'
+          ? { mode: 'all' }
+          : message.captureTarget?.mode === 'monitor' && typeof message.captureTarget.displayId === 'string'
+            ? { mode: 'monitor', display_id: message.captureTarget.displayId.slice(0, 120) }
+            : { mode: 'auto' };
+        const result = await notifyDesktopCaptureStarted({
+          sessionId,
+          targetTabId: null,
+          source: 'desktop_setup',
+          captureTarget: requestedTarget,
+        });
+        const desktop = desktopBridgeStatus();
+        sendResponse({
+          ok: !!result?.ok && !!desktop.connected,
+          sessionId,
+          desktop,
+          error: result?.error || (desktop.connected ? undefined : desktop.lastError || 'desktop_host_unavailable'),
+        });
+      } catch (error) {
+        sendResponse({
+          ok: false,
+          sessionId,
+          desktop: desktopBridgeStatus(),
+          error: error?.message || 'desktop_start_failed',
+        });
       }
-      const sessionId = crypto.randomUUID();
-      const requestedTarget = message.captureTarget?.mode === 'all'
-        ? { mode: 'all' }
-        : message.captureTarget?.mode === 'monitor' && typeof message.captureTarget.displayId === 'string'
-          ? { mode: 'monitor', display_id: message.captureTarget.displayId.slice(0, 120) }
-          : { mode: 'auto' };
-      const result = await notifyDesktopCaptureStarted({
-        sessionId,
-        targetTabId: null,
-        source: 'desktop_setup',
-        captureTarget: requestedTarget,
-      });
-      const desktop = desktopBridgeStatus();
-      sendResponse({
-        ok: !!result?.ok && !!desktop.connected,
-        sessionId,
-        desktop,
-        error: result?.error || (desktop.connected ? undefined : desktop.lastError || 'desktop_host_unavailable'),
-      });
     })();
     return true;
   }
@@ -3541,4 +3551,3 @@ async function uploadImage(path, blob, contentType = 'image/jpeg') {
   if (!res.ok) throw new Error(`Storage upload failed: ${await res.text()}`);
   return target.public_url;
 }
-

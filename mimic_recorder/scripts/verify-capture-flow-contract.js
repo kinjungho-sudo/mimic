@@ -208,11 +208,16 @@ check(() => {
 
 check(() => {
   const start = background.indexOf("if (message.action === 'START_DESKTOP_RECORDING')");
+  const startEnd = background.indexOf("if (message.action === 'STOP_DESKTOP_RECORDING')", start);
   const end = background.indexOf("if (message.action === 'PAUSE_DESKTOP_RECORDING'", start);
   const block = background.slice(start, end);
-  assert.ok(start >= 0 && end > start, 'explicit desktop recording handlers must be present');
+  const startBlock = background.slice(start, startEnd);
+  assert.ok(start >= 0 && startEnd > start && end > startEnd, 'explicit desktop recording handlers must be present');
   assert.match(block, /notifyDesktopCaptureStarted\(/);
   assert.match(block, /notifyDesktopCaptureStopped\(/);
+  assert.match(startBlock, /try\s*\{/);
+  assert.match(startBlock, /catch\s*\(error\)/);
+  assert.match(startBlock, /error: error\?\.message \|\| 'desktop_start_failed'/);
   assert.match(background, /desktop_paid_plan_required/);
   assert.match(background, /recorderVersion: chrome\.runtime\.getManifest\(\)\.version/);
   assert.match(background, /async function importDesktopCaptureSession\(nativeSessionId\)/);
