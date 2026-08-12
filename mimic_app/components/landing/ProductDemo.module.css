@@ -532,7 +532,7 @@
   .sectionHeading { margin-bottom: 34px; } .sectionHeading p { font-size: 15px; }
   .flowTabs { grid-template-columns: 1fr; gap: 8px; } .flowTabs > i { display: none; }
   .flowTabs button { padding: 10px 12px; }
-  .demoShell { padding: 10px; border-radius: 20px; }
+  .demoShell { padding: 8px; border-radius: 18px; }
   .editorTimeline { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; }
   .editorTimeline button { grid-template-columns: 34px minmax(0,1fr); min-height: 56px; padding: 9px; }
   .editorTimeline button > span { width: 32px; height: 32px; font-size: 11px; }
@@ -545,7 +545,8 @@
   .recorderPanel { border-top: 0; border-left: 1px solid #cfd7d5; }
   .recorderPanel::before { display: none; }
   .manualReady { margin-top: 8px; }
-  .coachmark { width: min(230px,calc(55% - 12px)); padding: 10px 11px; }
+  .guideAvatar { width: 46px; height: 46px; }
+  .coachmark { width: min(230px,calc(62% - 8px)); padding: 9px 10px; }
   .coachmarkHeading strong { font-size: 10px; }
   .coachmark p { font-size: 8px; }
   .compactScene .recorderWorkspace { grid-template-columns: minmax(0,1fr) minmax(118px,38%); aspect-ratio: 2.18 / 1; overflow: hidden; }
@@ -571,6 +572,23 @@
   .manualPage { padding: 13px; }
   .manualPageHeading strong { font-size: 12px; }
   .savedToast { right: 10px; bottom: 10px; min-width: 220px; }
+}
+
+@media (max-width: 480px) {
+  .productSection { padding-inline: 12px; }
+  .heroDemo { padding: 9px; border-radius: 17px; }
+  .heroSceneCaption { margin-bottom: 8px; }
+  .heroFlowTabs { grid-template-columns: 1fr 14px 1fr; gap: 3px; }
+  .heroFlowTabs button { min-width: 0; gap: 6px; }
+  .heroFlowTabs button strong { font-size: 9px; }
+  .compactScene .recorderWorkspace { grid-template-columns: minmax(0,1fr) minmax(104px,36%); }
+  .guideAvatar { width: 42px; height: 42px; }
+  .compactScene .guideAvatar { width: 42px; height: 42px; }
+  .compactScene .guideCoach { max-width: calc(72% - 6px); gap: 6px; }
+  .compactScene .coachmark { min-width: 0; max-width: 210px; padding: 8px 9px; }
+  .compactScene .coachmarkHeading span { font-size: 6px; }
+  .compactScene .coachmarkHeading strong { font-size: 9px; }
+  .compactScene .coachmark p { font-size: 7.5px; }
 }
 
 .parroMark { overflow: hidden; color: transparent; background: #f1fffb; }

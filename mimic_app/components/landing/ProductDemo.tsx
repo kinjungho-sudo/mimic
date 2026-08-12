@@ -4,7 +4,6 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { ParroMascot } from '@/components/brand/ParroMascot';
 import styles from './ProductDemo.module.css';
 
 type DemoStep = {
@@ -225,7 +224,15 @@ function TargetViewport({ step, previousStep, live, reducedMotion, settled = fal
       <span className={styles.pointer} aria-hidden="true"><Pointer /></span>
       {live && (
         <div className={`${styles.guideCoach} ${step.coachSide === 'right' ? styles.coachRight : styles.coachLeft}`}>
-          <div className={styles.guideAvatar}><ParroMascot size={68} state="neutral" motion={false} /></div>
+          <div className={styles.guideAvatar} data-avatar="parro">
+            <img
+              src="/brand/parro-3d-talk.png"
+              alt="안내하는 Parro"
+              width="68"
+              height="68"
+              draggable={false}
+            />
+          </div>
           <div className={styles.coachmark}>
             <div className={styles.coachmarkHeading}>
               <span>Parro AI Guide</span><strong>{step.title}</strong>

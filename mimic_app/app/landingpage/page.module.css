@@ -921,6 +921,9 @@
   }
 }
 @media (max-width: 640px) {
+  .page {
+    overflow-x: clip;
+  }
   .header {
     height: 70px;
   }
@@ -928,23 +931,37 @@
     display: none;
   }
   .headerCta {
-    padding: 10px 13px;
+    min-height: 44px;
+    box-sizing: border-box;
+    padding: 10px 14px;
   }
   .heroGrid {
     padding-top: 46px;
   }
   .hero h1 {
     margin-top: 18px;
-    font-size: 48px;
-    line-height: 1.16;
+    font-size: clamp(42px, 12.2vw, 48px);
+    line-height: 1.12;
   }
   .heroCopy > p {
     font-size: 15px;
   }
   .heroActions {
-    align-items: flex-start;
+    width: 100%;
+    align-items: stretch;
     flex-direction: column;
-    gap: 17px;
+    gap: 10px;
+  }
+  .primaryCta,
+  .textCta {
+    min-height: 48px;
+    box-sizing: border-box;
+    justify-content: center;
+  }
+  .textCta {
+    width: 100%;
+    border: 1px solid rgba(11, 43, 38, 0.14);
+    border-radius: 999px;
   }
   .heroProof {
     margin-top: 40px;
@@ -956,21 +973,21 @@
     font-size: 14px;
   }
   .heroArt {
-    height: 470px;
+    height: 430px;
   }
   .heroCircle {
     top: 360px;
     right: -250px;
   }
   .heroMascot {
-    right: -110px;
-    width: 540px;
+    right: -82px;
+    width: 500px;
   }
   .heroProductCard {
-    top: 85px;
-    left: -5px;
-    width: 260px;
-    padding: 18px;
+    top: 92px;
+    left: 0;
+    width: min(255px, 72vw);
+    padding: 16px;
   }
   .heroArt > p {
     right: 4px;
@@ -1027,7 +1044,7 @@
   .capabilityGrid article {
     min-height: 160px;
   }
-  .featureShowcase{width:calc(100% - 30px);padding-top:80px}.featureCard{border-radius:22px}.featureCopy{padding:32px 24px}.featureCopy h3{font-size:38px}.practiceViewer,.playbookMock,.learnerViewer,.classMock,.featureCard:nth-of-type(even) .playbookMock,.featureCard:nth-of-type(even) .classMock{margin:0 12px 12px}.playbookMock{grid-template-columns:100px 1fr}.playbookMock>main{padding:28px 18px}.classMock{grid-template-columns:105px 1fr}.classMock>main{padding:17px}.learnerBody{grid-template-columns:1fr}.learnerBody aside{display:none}.practiceCoach{left:8%;width:84%;box-sizing:border-box}
+  .featureShowcase{width:calc(100% - 24px);padding-top:72px}.featureShowcaseHeading{margin:0 6px 34px}.featureCard{margin-bottom:18px;border-radius:22px}.featureCopy{padding:30px 22px}.featureCopy h3{font-size:38px}.featureCopy ul{margin-top:24px}.practiceViewer,.playbookMock,.learnerViewer,.classMock,.featureCard:nth-of-type(even) .playbookMock,.featureCard:nth-of-type(even) .classMock{margin:0 10px 10px;border-radius:16px}.playbookMock{grid-template-columns:92px 1fr;height:430px}.playbookMock>main{padding:25px 15px}.classMock{grid-template-columns:96px 1fr;height:430px}.classMock>main{padding:15px}.learnerViewer{height:430px}.learnerBody{grid-template-columns:1fr}.learnerBody aside{display:none}.practiceCoach{left:6%;width:88%;grid-template-columns:26px minmax(0,1fr) 52px;gap:8px;padding:11px 10px;box-sizing:border-box}.practiceCoach img{width:52px;height:52px}.practiceControls{bottom:10px}
   .capabilityGrid h3 {
     margin-top: 24px;
   }
@@ -1087,4 +1104,3 @@
     margin-inline: -12px;
   }
 }
-
