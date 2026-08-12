@@ -18,6 +18,15 @@ type DemoStep = {
   coachSide: 'left' | 'right';
 };
 
+type DemoVariant = 'default' | 'education';
+
+type DemoProfile = {
+  steps: DemoStep[];
+  browserAddress: string;
+  guideTitle: string;
+  domainLabel: string;
+};
+
 const CAPTURE_BASE = 'https://gqynptpjomcqzxyykqic.supabase.co/storage/v1/object/public/naviaction/81d0d80d-e3b6-420e-aaad-3b70a73f02c6';
 
 // Rectangles are measured from the source capture itself. Keeping the image at
@@ -49,6 +58,47 @@ const DEMO_STEPS: DemoStep[] = [
   },
 ];
 
+const EDUCATION_STEPS: DemoStep[] = [
+  {
+    title: '발표 템플릿 선택하기',
+    description: '원하는 표지 템플릿을 선택하세요',
+    screenshotUrl: '/edu/demo/canva-presentation-step-01.png',
+    rect: { x: 6.6, y: 27.3, width: 11.8, height: 12.6 },
+    coachSide: 'right',
+  },
+  {
+    title: '발표 제목 수정하기',
+    description: '제목을 “AI 시대의 학습법”으로 바꾸세요',
+    screenshotUrl: '/edu/demo/canva-presentation-step-02.png',
+    rect: { x: 43.2, y: 36.8, width: 45.5, height: 12.2 },
+    coachSide: 'left',
+  },
+  {
+    title: '공유 링크 복사하기',
+    description: '링크를 복사해 발표자료를 공유하세요',
+    screenshotUrl: '/edu/demo/canva-presentation-step-03.png',
+    rect: { x: 76.5, y: 33.5, width: 21, height: 4.8 },
+    coachSide: 'left',
+  },
+];
+
+const DEFAULT_PROFILE: DemoProfile = {
+  steps: DEMO_STEPS,
+  browserAddress: 'plus.gov.kr',
+  guideTitle: '정부24에서 주민등록표 등본 발급하기',
+  domainLabel: '정부24',
+};
+
+const EDUCATION_PROFILE: DemoProfile = {
+  steps: EDUCATION_STEPS,
+  browserAddress: 'canva.com/design',
+  guideTitle: 'Canva로 수업 발표자료 만들기',
+  domainLabel: 'Canva',
+};
+
+function getDemoProfile(variant: DemoVariant): DemoProfile {
+  return variant === 'education' ? EDUCATION_PROFILE : DEFAULT_PROFILE;
+}
 function usePlayback(rootMargin = '80px') {
   const ref = useRef<HTMLDivElement>(null);
   const [inView, setInView] = useState(false);
@@ -93,13 +143,13 @@ function Pointer() {
   );
 }
 
-function BrowserChrome() {
+function BrowserChrome({ address }: { address: string }) {
   return (
     <div className={styles.browserChrome}>
       <span className={styles.windowDot} />
       <span className={styles.windowDot} />
       <span className={styles.windowDot} />
-      <div className={styles.addressBar}><span>⌁</span> plus.gov.kr</div>
+      <div className={styles.addressBar}><span>⌁</span> {address}</div>
       <div className={styles.browserToolbarActions} aria-hidden="true">
         <span>☆</span>
         <span>⋮</span>
@@ -170,11 +220,12 @@ function TargetViewport({ step, previousStep, live, reducedMotion, settled = fal
       {step.modalRect && <div className={styles.modalDepthFocus} aria-hidden="true" />}
       {step.modalOcclusionRect && <div className={styles.modalOcclusionPatch} aria-hidden="true" />}
       {live && <div className={styles.targetBox} aria-hidden="true" />}
+      {live && <span className={styles.domTargetBadge} aria-hidden="true">DOM</span>}
       <span className={styles.clickPulse} aria-hidden="true" />
       <span className={styles.pointer} aria-hidden="true"><Pointer /></span>
       {live && (
         <div className={`${styles.guideCoach} ${step.coachSide === 'right' ? styles.coachRight : styles.coachLeft}`}>
-          <div className={styles.guideAvatar}><ParroMascot size={68} state="point" motion={false} mirror={step.coachSide === 'right'} /></div>
+          <div className={styles.guideAvatar}><ParroMascot size={68} state="neutral" motion={false} /></div>
           <div className={styles.coachmark}>
             <div className={styles.coachmarkHeading}>
               <span>Parro AI Guide</span><strong>{step.title}</strong>
@@ -187,14 +238,14 @@ function TargetViewport({ step, previousStep, live, reducedMotion, settled = fal
   );
 }
 
-function RecorderPanel({ phase }: { phase: number }) {
-  const savedCount = Math.min(phase, DEMO_STEPS.length);
-  const readyToFinish = phase === DEMO_STEPS.length;
-  const generating = phase > DEMO_STEPS.length;
+function RecorderPanel({ phase, steps }: { phase: number; steps: DemoStep[] }) {
+  const savedCount = Math.min(phase, steps.length);
+  const readyToFinish = phase === steps.length;
+  const generating = phase > steps.length;
   const hasCapture = savedCount > 0;
   const previewIndex = Math.max(0, savedCount - 1);
-  const previewStep = DEMO_STEPS[previewIndex];
-  const elapsedSeconds = 8 + Math.min(phase, DEMO_STEPS.length) * 4;
+  const previewStep = steps[previewIndex];
+  const elapsedSeconds = 8 + Math.min(phase, steps.length) * 4;
   const nativePanelHeader = (
     <div className={styles.chromePanelHeader}>
       <div><ParroMark /><strong>Parro Recorder</strong></div>
@@ -204,7 +255,7 @@ function RecorderPanel({ phase }: { phase: number }) {
   const appHeader = (
     <div className={styles.recorderAppHeader}>
       <div><ParroMark /><strong>Parro</strong></div>
-      <span>{savedCount} / {DEMO_STEPS.length} steps</span>
+      <span>{savedCount} / {steps.length} steps</span>
       <button type="button" aria-label="녹화 설정">⋯</button>
     </div>
   );
@@ -217,7 +268,7 @@ function RecorderPanel({ phase }: { phase: number }) {
         <div className={styles.panelGeneratingContent}>
           <span className={styles.buildSpinner} aria-hidden="true"><i /></span>
           <strong>매뉴얼을 만들고 있어요</strong>
-          <p>제목과 3개의 카드 단계를 자동으로 구성합니다.</p>
+          <p>3개의 단계 카드를 자동으로 만듭니다</p>
           <i><em /></i>
           <small>화면 배치 · 설명 작성 · 강조 위치 연결</small>
         </div>
@@ -244,39 +295,30 @@ function RecorderPanel({ phase }: { phase: number }) {
         <span>{readyToFinish ? '모든 단계 저장됨' : hasCapture ? `${savedCount}개 자동 저장` : '0개 저장'}</span>
       </div>
 
-      <div className={`${styles.currentCaptureCard} ${readyToFinish ? styles.currentCaptureSaved : hasCapture ? styles.currentCaptureActive : styles.captureWaitingCard}`}>
-        {hasCapture ? (
-          <>
-            <div className={styles.currentCaptureMeta}>
-              <span>{readyToFinish ? '✓' : previewIndex + 1}</span>
-              <div><strong>{previewStep.title}</strong><small>{readyToFinish ? '자동 저장됨' : '방금 클릭한 화면이 저장됐어요'}</small></div>
-              <b>{readyToFinish ? 'SAVED' : 'NEW'}</b>
-            </div>
-            <div className={styles.currentCapturePreview}>
-              <img src={previewStep.screenshotUrl} alt={`${previewStep.title} 현재 캡처 미리보기`} width="360" height="230" loading="eager" decoding="async" />
-              {!readyToFinish && <span><i /> 클릭과 동시에 저장됨</span>}
-            </div>
-          </>
-        ) : (
+      <div className={`${styles.captureStack} ${!hasCapture ? styles.captureStackWaiting : ''}`} aria-label="저장된 캡처 단계">
+        {hasCapture ? steps.slice(0, savedCount).map((capturedStep, index) => {
+          const newest = index === savedCount - 1 && !readyToFinish;
+          return (
+            <article key={capturedStep.title} className={`${styles.captureStackCard} ${newest ? styles.captureStackCardNew : ''}`}>
+              <div className={styles.captureStackThumbnail}>
+                <img src={capturedStep.screenshotUrl} alt="" loading="eager" decoding="async" />
+                <span>{index + 1}</span>
+              </div>
+              <div className={styles.captureStackCopy}>
+                <strong>{capturedStep.title}</strong>
+                <small>{capturedStep.description}</small>
+                <em><i /> DOM selector {newest ? '인식 완료' : '저장됨'}</em>
+              </div>
+              <b>{newest ? 'NEW' : '✓'}</b>
+            </article>
+          );
+        }) : (
           <div className={styles.captureWaitingState}>
-            <span>◎</span>
-            <strong>아직 캡처된 화면이 없습니다</strong>
-            <small>왼쪽 화면에서 대상을 클릭하면 미리보기와 동작명이 바로 표시됩니다.</small>
+            <span>⌖</span>
+            <strong>첫 번째 클릭을 기다리고 있어요</strong>
+            <small>클릭하면 단계 카드가 쌓입니다</small>
           </div>
         )}
-      </div>
-
-      <div className={styles.captureStepRail} aria-label="캡처 단계 진행">
-        {DEMO_STEPS.map((step, index) => {
-          const saved = index < savedCount || readyToFinish;
-          const current = index === Math.min(savedCount, DEMO_STEPS.length - 1) && !readyToFinish;
-          return (
-            <span key={step.title} className={`${saved ? styles.railSaved : ''} ${current ? styles.railCurrent : ''}`}>
-              <b>{saved ? '✓' : index + 1}</b>
-              <small>{index + 1}단계</small>
-            </span>
-          );
-        })}
       </div>
 
       {readyToFinish ? (
@@ -288,31 +330,33 @@ function RecorderPanel({ phase }: { phase: number }) {
           </button>
         </div>
       ) : (
-        <div className={styles.autoSave}><i /> {hasCapture ? '방금 클릭한 화면과 동작명이 함께 저장되었습니다.' : '대상을 클릭하면 우측 미리보기가 즉시 생성됩니다.'}</div>
+        <div className={styles.autoSave}><i /> {hasCapture ? '클릭 화면과 동작을 저장했습니다' : '클릭하면 미리보기가 생성됩니다'}</div>
       )}
     </aside>
   );
 }
 
-function RecorderScene({ phase, compact = false, reducedMotion = false }: {
+function RecorderScene({ phase, steps, browserAddress, compact = false, reducedMotion = false }: {
   phase: number;
+  steps: DemoStep[];
+  browserAddress: string;
   compact?: boolean;
   reducedMotion?: boolean;
 }) {
-  const step = DEMO_STEPS[Math.min(phase, DEMO_STEPS.length - 1)];
-  const generating = phase > DEMO_STEPS.length;
+  const step = steps[Math.min(phase, steps.length - 1)];
+  const generating = phase > steps.length;
   return (
     <div className={`${styles.sceneFrame} ${compact ? styles.compactScene : ''}`}>
-      <BrowserChrome />
+      <BrowserChrome address={browserAddress} />
       <div className={styles.recorderWorkspace}>
         <div className={styles.recorderTargetWrap}>
           <TargetViewport
             key={`rec-${phase}`}
             step={step}
-            previousStep={phase > 0 && phase < DEMO_STEPS.length ? DEMO_STEPS[phase - 1] : undefined}
+            previousStep={phase > 0 && phase < steps.length ? steps[phase - 1] : undefined}
             live={false}
             reducedMotion={reducedMotion}
-            settled={phase >= DEMO_STEPS.length}
+            settled={phase >= steps.length}
           />
           {generating && (
             <div className={styles.manualBuildOverlay}>
@@ -320,16 +364,16 @@ function RecorderScene({ phase, compact = false, reducedMotion = false }: {
             </div>
           )}
         </div>
-        <RecorderPanel phase={phase} />
+        <RecorderPanel phase={phase} steps={steps} />
       </div>
     </div>
   );
 }
 
-function LiveGuidePanel({ stepIndex, complete = false }: { stepIndex: number; complete?: boolean }) {
-  const safeStepIndex = Math.min(stepIndex, DEMO_STEPS.length - 1);
-  const step = DEMO_STEPS[safeStepIndex];
-  const progress = complete ? 100 : ((safeStepIndex + 1) / DEMO_STEPS.length) * 100;
+function LiveGuidePanel({ stepIndex, steps, complete = false }: { stepIndex: number; steps: DemoStep[]; complete?: boolean }) {
+  const safeStepIndex = Math.min(stepIndex, steps.length - 1);
+  const step = steps[safeStepIndex];
+  const progress = complete ? 100 : ((safeStepIndex + 1) / steps.length) * 100;
 
   return (
     <aside className={`${styles.recorderPanel} ${styles.liveSidePanel}`}>
@@ -345,14 +389,14 @@ function LiveGuidePanel({ stepIndex, complete = false }: { stepIndex: number; co
       <div className={`${styles.livePanelBanner} ${complete ? styles.livePanelCompleteBanner : ''}`}>
         <div>
           <span><i /> {complete ? '라이브 가이드 완료' : '라이브 가이드 실행 중'}</span>
-          <b>{complete ? 'DONE' : `STEP ${safeStepIndex + 1} / ${DEMO_STEPS.length}`}</b>
+          <b>{complete ? 'DONE' : `STEP ${safeStepIndex + 1} / ${steps.length}`}</b>
         </div>
         <strong>{complete ? '모든 안내 단계를 성공적으로 마쳤습니다' : '현재 화면의 대상과 실시간 연결되었습니다'}</strong>
       </div>
       {complete ? (
         <div className={styles.livePanelCompleteCard}>
           <span>✓</span>
-          <div><small>실행 완료</small><strong>가이드를 모두 완료했습니다</strong><p>사용자가 3개의 안내 단계를 모두 실행했습니다.</p></div>
+          <div><small>실행 완료</small><strong>가이드를 모두 완료했습니다</strong><p>3단계를 모두 실행했습니다</p></div>
         </div>
       ) : (
         <div className={styles.livePanelCurrent}>
@@ -362,7 +406,7 @@ function LiveGuidePanel({ stepIndex, complete = false }: { stepIndex: number; co
         </div>
       )}
       <div className={styles.livePanelSteps}>
-        {DEMO_STEPS.map((item, index) => {
+        {steps.map((item, index) => {
           const done = complete || index < safeStepIndex;
           const current = !complete && index === safeStepIndex;
           return (
@@ -377,26 +421,26 @@ function LiveGuidePanel({ stepIndex, complete = false }: { stepIndex: number; co
         })}
       </div>
       <div className={styles.livePanelProgress}>
-        <div><span>{complete ? `${DEMO_STEPS.length} / ${DEMO_STEPS.length}` : `${safeStepIndex + 1} / ${DEMO_STEPS.length}`}</span><strong>{complete ? '완료됨' : 'DOM 연결됨'}</strong></div>
+        <div><span>{complete ? `${steps.length} / ${steps.length}` : `${safeStepIndex + 1} / ${steps.length}`}</span><strong>{complete ? '완료됨' : 'DOM 연결됨'}</strong></div>
         <i><em style={{ width: `${progress}%` }} /></i>
-        <small>{complete ? 'Live Guide 실행 기록이 저장되었습니다.' : '대상을 클릭하면 다음 단계로 자동 이동합니다.'}</small>
+        <small>{complete ? '실행 기록을 저장했습니다' : '클릭하면 다음 단계로 이동합니다'}</small>
       </div>
     </aside>
   );
 }
 
-function LiveGuideScene({ stepIndex, complete = false, compact = false, reducedMotion = false }: { stepIndex: number; complete?: boolean; compact?: boolean; reducedMotion?: boolean }) {
-  const safeStepIndex = Math.min(stepIndex, DEMO_STEPS.length - 1);
-  const step = DEMO_STEPS[safeStepIndex];
+function LiveGuideScene({ stepIndex, steps, browserAddress, complete = false, compact = false, reducedMotion = false }: { stepIndex: number; steps: DemoStep[]; browserAddress: string; complete?: boolean; compact?: boolean; reducedMotion?: boolean }) {
+  const safeStepIndex = Math.min(stepIndex, steps.length - 1);
+  const step = steps[safeStepIndex];
   return (
     <div className={`${styles.sceneFrame} ${compact ? styles.compactScene : ''}`}>
-      <BrowserChrome />
+      <BrowserChrome address={browserAddress} />
       <div className={`${styles.recorderWorkspace} ${styles.liveGuideWorkspace}`}>
         <div className={styles.recorderTargetWrap}>
           <TargetViewport
             key={`live-${safeStepIndex}-${complete ? 'complete' : 'active'}`}
             step={step}
-            previousStep={safeStepIndex > 0 ? DEMO_STEPS[safeStepIndex - 1] : undefined}
+            previousStep={safeStepIndex > 0 ? steps[safeStepIndex - 1] : undefined}
             live
             reducedMotion={reducedMotion}
             settled={complete}
@@ -407,24 +451,25 @@ function LiveGuideScene({ stepIndex, complete = false, compact = false, reducedM
                 <span>✓</span>
                 <small>LIVE GUIDE COMPLETE</small>
                 <strong>가이드를 모두 완료했습니다</strong>
-                <p>3개의 안내 단계를 성공적으로 마쳤습니다.</p>
+                <p>3단계를 모두 마쳤습니다</p>
                 <button type="button">완료</button>
               </div>
             </div>
           )}
         </div>
-        <LiveGuidePanel stepIndex={safeStepIndex} complete={complete} />
+        <LiveGuidePanel stepIndex={safeStepIndex} steps={steps} complete={complete} />
       </div>
     </div>
   );
 }
 
-export function HeroRecordingDemo() {
+export function HeroRecordingDemo({ variant = 'default' }: { variant?: DemoVariant }) {
+  const { steps, browserAddress } = getDemoProfile(variant);
   const { ref, playing, reducedMotion } = usePlayback('120px');
   const [scene, setScene] = useState<0 | 1>(0);
   const [recordPhase, setRecordPhase] = useState(0);
   const [liveStep, setLiveStep] = useState(0);
-  const liveComplete = scene === 1 && liveStep >= DEMO_STEPS.length;
+  const liveComplete = scene === 1 && liveStep >= steps.length;
 
   const selectHeroScene = useCallback((next: 0 | 1) => {
     setScene(next);
@@ -435,9 +480,9 @@ export function HeroRecordingDemo() {
   useEffect(() => {
     if (!playing) return;
     const delay = scene === 0
-      ? recordPhase < DEMO_STEPS.length
+      ? recordPhase < steps.length
         ? 1800
-        : recordPhase === DEMO_STEPS.length
+        : recordPhase === steps.length
           ? 2200
           : 1800
       : liveComplete
@@ -445,9 +490,9 @@ export function HeroRecordingDemo() {
         : 2600;
     const timer = window.setTimeout(() => {
       if (scene === 0) {
-        if (recordPhase <= DEMO_STEPS.length) setRecordPhase(value => value + 1);
+        if (recordPhase <= steps.length) setRecordPhase(value => value + 1);
         else { setScene(1); setLiveStep(0); }
-      } else if (liveStep < DEMO_STEPS.length) {
+      } else if (liveStep < steps.length) {
         setLiveStep(value => value + 1);
       } else {
         setScene(0);
@@ -455,7 +500,7 @@ export function HeroRecordingDemo() {
       }
     }, delay);
     return () => window.clearTimeout(timer);
-  }, [liveComplete, liveStep, playing, recordPhase, scene]);
+  }, [liveComplete, liveStep, playing, recordPhase, scene, steps.length]);
 
   return (
     <div ref={ref} className={styles.heroDemo} data-playing={playing} data-record-phase={scene === 0 ? recordPhase : undefined} data-demo-scene={scene === 0 ? 'capture' : 'live-guide'} data-live-complete={liveComplete || undefined}>
@@ -475,10 +520,10 @@ export function HeroRecordingDemo() {
           </strong>
           <small>
             {scene === 0
-              ? '작업 화면과 클릭 위치가 단계별 매뉴얼로 저장됩니다.'
+              ? '클릭 위치를 단계별로 저장합니다'
               : liveComplete
-                ? '완료 화면을 확인한 뒤 실행 기록이 저장됩니다.'
-                : '사용자는 화면 위 안내를 따라 다음 행동을 바로 실행합니다.'}
+                ? '실행 기록을 저장했습니다'
+                : '화면 안내를 따라 바로 실행하세요'}
           </small>
         </div>
       </div>
@@ -492,8 +537,8 @@ export function HeroRecordingDemo() {
         </button>
       </div>
       {scene === 0
-        ? <RecorderScene phase={reducedMotion ? 3 : recordPhase} compact reducedMotion={reducedMotion} />
-        : <LiveGuideScene stepIndex={liveStep} complete={liveComplete} compact reducedMotion={reducedMotion} />}
+        ? <RecorderScene phase={reducedMotion ? 3 : recordPhase} steps={steps} browserAddress={browserAddress} compact reducedMotion={reducedMotion} />
+        : <LiveGuideScene stepIndex={liveStep} steps={steps} browserAddress={browserAddress} complete={liveComplete} compact reducedMotion={reducedMotion} />}
     </div>
   );
 }
@@ -517,10 +562,11 @@ function EditorChrome({ saved }: { saved: boolean }) {
   );
 }
 
-function SharedViewerScene({ reducedMotion }: { reducedMotion: boolean }) {
+function SharedViewerScene({ reducedMotion, profile }: { reducedMotion: boolean; profile: DemoProfile }) {
+  const { steps, guideTitle } = profile;
   const [viewMode, setViewMode] = useState<'document' | 'slides'>('document');
   const [slideIndex, setSlideIndex] = useState(0);
-  const activeSlideRect = DEMO_STEPS[slideIndex].slideRect ?? DEMO_STEPS[slideIndex].rect;
+  const activeSlideRect = steps[slideIndex].slideRect ?? steps[slideIndex].rect;
 
   useEffect(() => {
     if (reducedMotion) return;
@@ -531,16 +577,16 @@ function SharedViewerScene({ reducedMotion }: { reducedMotion: boolean }) {
   useEffect(() => {
     if (reducedMotion || viewMode !== 'slides') return;
     const timer = window.setInterval(() => {
-      setSlideIndex(current => Math.min(current + 1, DEMO_STEPS.length - 1));
+      setSlideIndex(current => Math.min(current + 1, steps.length - 1));
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [reducedMotion, viewMode]);
+  }, [reducedMotion, steps.length, viewMode]);
 
   return (
     <div className={`${styles.editorScene} ${styles.viewerScene} ${reducedMotion ? styles.reducedMotion : ''}`}>
       <EditorChrome saved />
       <div className={styles.viewerAppBar}>
-        <div className={styles.viewerBrand}><ParroMark /><strong>Parro</strong><i />정부24에서 주민등록표 등본 발급하기</div>
+        <div className={styles.viewerBrand}><ParroMark /><strong>Parro</strong><i />{guideTitle}</div>
         <div className={styles.viewerActions}>
           <button type="button">⚡ 라이브 가이드 Beta</button>
           <div className={styles.viewerToggle}>
@@ -563,8 +609,8 @@ function SharedViewerScene({ reducedMotion }: { reducedMotion: boolean }) {
             <div className={styles.previewLabel}><span>▤</span><div><strong>웹 문서</strong><small>아래로 스크롤하며 전체 단계 확인</small></div></div>
             <div className={styles.documentPage}>
               <div className={styles.documentScrollContent}>
-                <h3>정부24에서 주민등록표 등본 발급하기</h3>
-                {DEMO_STEPS.map((step, index) => (
+                <h3>{guideTitle}</h3>
+                {steps.map((step, index) => (
                   <div key={step.title} className={styles.documentStepCard}>
                     <div><span>{String(index + 1).padStart(2, '0')}.</span><strong>{step.title}</strong></div>
                     <p>{step.description}</p>
@@ -578,9 +624,9 @@ function SharedViewerScene({ reducedMotion }: { reducedMotion: boolean }) {
           <section key={`slide-${slideIndex}`} className={`${styles.viewerSinglePreview} ${styles.slidesPreview}`}>
             <div className={styles.previewLabel}><span>▰</span><div><strong>슬라이드</strong><small>한 장씩 넘기며 단계에 집중</small></div></div>
             <div className={styles.slideCanvas}>
-              <div className={styles.slideChapter}><span>Step {slideIndex + 1}</span><strong>{DEMO_STEPS[slideIndex].title}</strong></div>
+              <div className={styles.slideChapter}><span>Step {slideIndex + 1}</span><strong>{steps[slideIndex].title}</strong></div>
               <div className={styles.slideImageFrame}>
-                <img src={DEMO_STEPS[slideIndex].screenshotUrl} alt="" draggable={false} />
+                <img src={steps[slideIndex].screenshotUrl} alt="" draggable={false} />
                 <div
                   className={styles.slideAnnotation}
                   style={{
@@ -591,7 +637,7 @@ function SharedViewerScene({ reducedMotion }: { reducedMotion: boolean }) {
                   }}
                 />
               </div>
-              <div className={styles.slideControls}><span>‹</span><strong>{slideIndex + 1} / {DEMO_STEPS.length}</strong><span>›</span></div>
+              <div className={styles.slideControls}><span>‹</span><strong>{slideIndex + 1} / {steps.length}</strong><span>›</span></div>
             </div>
           </section>
         )}
@@ -600,11 +646,11 @@ function SharedViewerScene({ reducedMotion }: { reducedMotion: boolean }) {
   );
 }
 
-function ManualEditorScene({ phase, reducedMotion }: { phase: number; reducedMotion: boolean }) {
+function ManualEditorScene({ phase, reducedMotion, profile }: { phase: number; reducedMotion: boolean; profile: DemoProfile }) {
+  const { steps, guideTitle: title, domainLabel } = profile;
   const selectedStep = phase >= 1 ? 1 : 0;
-  const title = '정부24에서 주민등록표 등본 발급하기';
 
-  if (phase === 3) return <SharedViewerScene reducedMotion={reducedMotion} />;
+  if (phase === 3) return <SharedViewerScene reducedMotion={reducedMotion} profile={profile} />;
 
   return (
     <div className={`${styles.editorScene} ${reducedMotion ? styles.reducedMotion : ''}`}>
@@ -622,9 +668,9 @@ function ManualEditorScene({ phase, reducedMotion }: { phase: number; reducedMot
       <div className={styles.actualEditorWorkspace}>
         <aside className={styles.actualToc}>
           <strong>목차</strong>
-          <div className={styles.tocDomain}><span>G</span><b>정부24</b></div>
+          <div className={styles.tocDomain}><span>P</span><b>{domainLabel}</b></div>
           <div className={styles.actualStepList}>
-            {DEMO_STEPS.map((step, index) => (
+            {steps.map((step, index) => (
               <button type="button" key={step.title} className={selectedStep === index ? styles.selectedEditorStep : ''}>
                 <span>{String(index + 1).padStart(2, '0')}</span>
                 <strong>{step.title}</strong>
@@ -644,14 +690,14 @@ function ManualEditorScene({ phase, reducedMotion }: { phase: number; reducedMot
               <div className={styles.cardFormatBar}><span>본문</span><span>B</span><span>↕</span><span>🔗</span></div>
               <div className={styles.stepCardHeading}>
                 <span>{String(selectedStep + 1).padStart(2, '0')}.</span>
-                <strong>{DEMO_STEPS[selectedStep].title}</strong>
+                <strong>{steps[selectedStep].title}</strong>
               </div>
               <p className={phase === 1 ? styles.editingText : ''}>
-                {selectedStep === 1 ? '서비스 개요 우측의 파란색 발급하기 버튼을 클릭하세요.' : DEMO_STEPS[selectedStep].description}
+                {steps[selectedStep].description}
                 {phase === 1 && <i />}
               </p>
               <div className={styles.stepCardCapture}>
-                <img src={DEMO_STEPS[selectedStep].screenshotUrl} alt="카드형 매뉴얼 편집 화면" draggable={false} />
+                <img src={steps[selectedStep].screenshotUrl} alt="카드형 매뉴얼 편집 화면" draggable={false} />
                 {phase >= 1 && <div className={styles.editorAnnotation}><span>{selectedStep + 1}</span></div>}
               </div>
               <div className={styles.cardFooter}><span>이미지 편집</span><span>댓글</span><span>복제</span></div>
@@ -665,7 +711,7 @@ function ManualEditorScene({ phase, reducedMotion }: { phase: number; reducedMot
           <div className={styles.generatingCard}>
             <ParroMark />
             <strong>카드형 매뉴얼을 자동으로 완성하고 있어요</strong>
-            <p>녹화한 화면과 클릭 정보를 바탕으로 제목·단계 설명·강조 위치를 구성합니다.</p>
+            <p>제목·설명·강조 위치를 자동 구성합니다</p>
             <i><em /></i>
             <small>제목 작성 · 3개 단계 구성 · 화면 배치 중…</small>
           </div>
@@ -690,7 +736,8 @@ function ManualEditorScene({ phase, reducedMotion }: { phase: number; reducedMot
   );
 }
 
-export function ProductDemo() {
+export function ProductDemo({ variant = 'default' }: { variant?: DemoVariant }) {
+  const profile = getDemoProfile(variant);
   const { ref, playing, reducedMotion, mobile } = usePlayback();
   const [phase, setPhase] = useState(0);
 
@@ -707,8 +754,8 @@ export function ProductDemo() {
       <div ref={ref} className={styles.productInner} data-playing={playing && !mobile}>
         <div className={styles.sectionHeading}>
           <span>SMART MANUAL WORKFLOW</span>
-          <h2>자동으로 완성하고, 카드로 다듬고, URL 하나로 공유합니다</h2>
-          <p>녹화가 끝나면 카드형 매뉴얼이 자동 생성됩니다. 필요한 부분만 편집한 뒤 공유 링크를 보내면 웹 문서와 슬라이드로 바로 볼 수 있어요.</p>
+          <h2>녹화하면 가이드가 완성됩니다</h2>
+          <p>AI로 다듬고 링크로 바로 공유하세요</p>
         </div>
 
         <div className={styles.editorTimeline} role="tablist" aria-label="웹 매뉴얼 편집 과정">
@@ -727,15 +774,15 @@ export function ProductDemo() {
             </div>
             <span>{phase + 1} / {EDITOR_PHASES.length}</span>
           </div>
-          <ManualEditorScene phase={reducedMotion ? 3 : phase} reducedMotion={reducedMotion || mobile} />
+          <ManualEditorScene phase={reducedMotion ? 3 : phase} reducedMotion={reducedMotion || mobile} profile={profile} />
         </div>
 
         <p className={styles.motionNote}>
           {reducedMotion
-            ? '모션 감소 설정에 따라 공유 완료 상태를 표시합니다.'
+            ? '공유 완료 상태를 표시합니다'
             : mobile
-              ? '모바일에서는 위 단계를 눌러 원하는 장면을 직접 살펴보세요.'
-              : '실제 Parro의 매뉴얼 생성과 공유 흐름이 자동 재생되며, 위 단계를 눌러 원하는 장면을 직접 볼 수 있습니다.'}
+              ? '단계를 눌러 장면을 확인하세요'
+              : 'Parro의 제작 흐름이 자동 재생됩니다'}
         </p>
       </div>
     </section>
