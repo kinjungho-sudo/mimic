@@ -547,6 +547,7 @@ internal sealed class CaptureForm : Form
 
         Button record = MakeToolbarButton("녹화 중", 120, 14, 76);
         record.Name = "RecordButton";
+        record.TabStop = false;
         ((RoundedButton)record).SetColors(Color.FromArgb(105, 30, 38), Color.FromArgb(255, 226, 230), Color.FromArgb(139, 45, 55));
         toolTip.SetToolTip(record, "현재 데스크톱 클릭 캡처가 진행 중입니다.");
         panel.Controls.Add(record);
@@ -629,7 +630,7 @@ internal sealed class CaptureForm : Form
         button.Size = new Size(width, 40);
         button.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
         button.Cursor = Cursors.Hand;
-        button.TabStop = false;
+        button.TabStop = true;
         return button;
     }
 
@@ -997,6 +998,7 @@ internal sealed class CaptureForm : Form
         Top = screen.WorkingArea.Bottom - Height - 18;
         previewButton.Text = "사이드 패널";
         ApplyCaptureExclusion();
+        manualButton.Focus();
         WriteToolbarBounds();
     }
 
