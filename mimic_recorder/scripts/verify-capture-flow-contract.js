@@ -223,6 +223,11 @@ check(() => {
   assert.match(background, /async function importDesktopCaptureSession\(nativeSessionId\)/);
   assert.match(background, /async function getDesktopEditorUrl\(imported\)/);
   assert.match(background, /const editorUrl = await getDesktopEditorUrl\(imported\)/);
+  assert.equal(
+    background.match(/if \(message\.action === 'IMPORT_DESKTOP_CAPTURE'\)/g)?.length,
+    1,
+    'desktop capture import must have exactly one external message handler',
+  );
 });
 
 check(() => {
