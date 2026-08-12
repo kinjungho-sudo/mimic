@@ -264,6 +264,16 @@ check(() => {
   assert.match(nativeHost, /message\.type === "STOP_CAPTURE_SESSION"/);
   assert.match(nativeHost, /message\.type === "READ_CAPTURE_IMAGE_CHUNK"/);
   assert.match(nativeHost, /version: DESKTOP_COMPANION_VERSION/);
+  assert.equal(
+    nativeHost.match(/if \(message\.type === "GET_CAPTURE_SESSION"\)/g)?.length,
+    1,
+    'native host must have exactly one capture-session reader',
+  );
+  assert.equal(
+    nativeHost.match(/if \(message\.type === "READ_CAPTURE_IMAGE_CHUNK"\)/g)?.length,
+    1,
+    'native host must have exactly one image-chunk reader',
+  );
 });
 
 check(() => {
