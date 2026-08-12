@@ -581,14 +581,30 @@
   .heroFlowTabs { grid-template-columns: 1fr 14px 1fr; gap: 3px; }
   .heroFlowTabs button { min-width: 0; gap: 6px; }
   .heroFlowTabs button strong { font-size: 9px; }
-  .compactScene .recorderWorkspace { grid-template-columns: minmax(0,1fr) minmax(104px,36%); }
+  .compactScene .recorderWorkspace {
+    grid-template-columns: minmax(0, 1fr);
+    aspect-ratio: 16 / 10;
+    background: #e7eeec;
+  }
+  .compactScene .recorderTargetWrap {
+    width: 100%;
+    min-width: 0;
+  }
+  .compactScene .recorderTargetWrap .targetViewport {
+    width: 100%;
+    min-width: 0;
+    aspect-ratio: 16 / 10;
+  }
+  .compactScene .recorderPanel {
+    display: none;
+  }
   .guideAvatar { width: 42px; height: 42px; }
   .compactScene .guideAvatar { width: 42px; height: 42px; }
-  .compactScene .guideCoach { max-width: calc(72% - 6px); gap: 6px; }
-  .compactScene .coachmark { min-width: 0; max-width: 210px; padding: 8px 9px; }
-  .compactScene .coachmarkHeading span { font-size: 6px; }
-  .compactScene .coachmarkHeading strong { font-size: 9px; }
-  .compactScene .coachmark p { font-size: 7.5px; }
+  .compactScene .guideCoach { max-width: calc(78% - 6px); gap: 7px; }
+  .compactScene .coachmark { min-width: 150px; max-width: 220px; padding: 9px 10px; }
+  .compactScene .coachmarkHeading span { font-size: 7px; }
+  .compactScene .coachmarkHeading strong { font-size: 10px; }
+  .compactScene .coachmark p { font-size: 8px; }
 }
 
 .parroMark { overflow: hidden; color: transparent; background: #f1fffb; }
