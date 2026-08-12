@@ -601,6 +601,20 @@
   .guideAvatar { width: 42px; height: 42px; }
   .compactScene .guideAvatar { width: 42px; height: 42px; }
   .compactScene .guideCoach { max-width: calc(78% - 6px); gap: 7px; }
+  .compactScene .coachLeft {
+    left: 7%;
+    top: calc(var(--coach-y) + 24%);
+    max-width: 86%;
+    flex-direction: row;
+    --coach-shift-x: 0px;
+  }
+  .compactScene .coachLeft .coachmark::before {
+    right: auto;
+    left: -6px;
+    border: 0;
+    border-bottom: 1px solid rgba(255,255,255,.14);
+    border-left: 1px solid rgba(255,255,255,.14);
+  }
   .compactScene .coachmark { min-width: 150px; max-width: 220px; padding: 9px 10px; }
   .compactScene .coachmarkHeading span { font-size: 7px; }
   .compactScene .coachmarkHeading strong { font-size: 10px; }
@@ -613,6 +627,39 @@
 
 @media (max-width: 700px) {
   .compactScene .recorderPanel { overflow: hidden; }
+  .heroDemo {
+    border-color: #dce7e3;
+    background: #fff;
+    box-shadow: 0 20px 50px rgba(18,49,43,.12);
+    backdrop-filter: none;
+  }
+  .heroEyebrow { color: #26332f; }
+  .heroDemo[data-demo-scene='capture'] .heroEyebrow b { color: #b93f39; background: #fff0ee; }
+  .heroDemo[data-demo-scene='live-guide'] .heroEyebrow b { color: #397924; background: #effbe8; }
+  .heroSceneCaption {
+    border-color: #dfe8e5;
+    background: #f7faf9;
+    box-shadow: none;
+  }
+  .heroSceneCaption strong { color: #15231f; }
+  .heroSceneCaption small { color: #687772; }
+  .heroDemo[data-demo-scene='capture'] .heroSceneCaption {
+    border-color: #f1c9c5;
+    background: linear-gradient(90deg,#fff3f1,#fff);
+  }
+  .heroDemo[data-demo-scene='live-guide'] .heroSceneCaption {
+    border-color: #cfe7bd;
+    background: linear-gradient(90deg,#f1fbe9,#fff);
+  }
+  .heroFlowTabs > i { color: #9aa7a3; }
+  .heroFlowTabs button {
+    border-color: #dfe7e4;
+    color: #687772;
+    background: #f7faf9;
+  }
+  .heroFlowTabs button > span { color: #687772; background: #eaf0ee; }
+  .heroFlowTabs button:first-child[aria-selected='true'] { color: #9f3732; background: #fff0ee; }
+  .heroFlowTabs button:last-child[aria-selected='true'] { color: #356f25; background: #effbe8; }
   .heroEyebrow { align-items: flex-start; font-size: 10px; }
   .heroEyebrow > span { max-width: 52%; line-height: 1.35; }
   .heroEyebrow b { padding: 5px 7px; font-size: 9px; }

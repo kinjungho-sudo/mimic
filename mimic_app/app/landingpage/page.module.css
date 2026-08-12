@@ -924,6 +924,22 @@
   .page {
     overflow-x: clip;
   }
+  .experience {
+    color: var(--ink);
+    background: #fff;
+  }
+  .darkHeading > span {
+    color: var(--teal);
+  }
+  .darkHeading h2 {
+    color: var(--ink);
+  }
+  .darkHeading h2 em {
+    color: var(--teal);
+  }
+  .darkHeading p {
+    color: #65736f;
+  }
   .header {
     height: 70px;
   }
