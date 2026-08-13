@@ -141,29 +141,28 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
   return (
     <LocaleContext.Provider value={value}>
       {children}
-      <div
-        data-i18n-ignore
-        className="parro-language-switcher"
-        role="group"
-        aria-label={locale === 'ko' ? '언어 선택' : 'Choose language'}
-      >
-        <button
-          type="button"
-          aria-pressed={locale === 'ko'}
-          onClick={() => setLocale('ko')}
-        >
-          한국어
-        </button>
-        <span aria-hidden="true">/</span>
-        <button
-          type="button"
-          aria-pressed={locale === 'en'}
-          onClick={() => setLocale('en')}
-        >
-          English
-        </button>
-      </div>
     </LocaleContext.Provider>
+  );
+}
+
+export function LanguageSwitcher({ tone = 'light' }: { tone?: 'light' | 'dark' }) {
+  const { locale, setLocale } = useLocale();
+
+  return (
+    <div
+      data-i18n-ignore
+      className={`parro-language-switcher parro-language-switcher--${tone}`}
+      role="group"
+      aria-label={locale === 'ko' ? '언어 선택' : 'Choose language'}
+    >
+      <button type="button" aria-pressed={locale === 'ko'} onClick={() => setLocale('ko')}>
+        한국어
+      </button>
+      <span aria-hidden="true">/</span>
+      <button type="button" aria-pressed={locale === 'en'} onClick={() => setLocale('en')}>
+        English
+      </button>
+    </div>
   );
 }
 

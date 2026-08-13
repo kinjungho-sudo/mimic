@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 
 const layout = fs.readFileSync(new URL('../app/layout.tsx', import.meta.url), 'utf8');
 const provider = fs.readFileSync(new URL('../components/i18n/LocaleProvider.tsx', import.meta.url), 'utf8');
+const landing = fs.readFileSync(new URL('../app/landingpage/page.tsx', import.meta.url), 'utf8');
+const workspace = fs.readFileSync(new URL('../app/workspace/[id]/page.tsx', import.meta.url), 'utf8');
 const translations = fs.readFileSync(new URL('../lib/i18n/ui-translations.ts', import.meta.url), 'utf8');
 const voice = fs.readFileSync(new URL('../lib/voice/voice.ts', import.meta.url), 'utf8');
 
@@ -14,6 +16,10 @@ assert.match(provider, /document\.documentElement\.lang = locale/, 'The document
 assert.match(provider, /translateTree\(document\.head, locale\)/, 'Document titles must follow the selected locale');
 assert.match(provider, /characterData: true/, 'Dynamically updated text must be translated');
 assert.match(provider, /data-i18n-ignore/, 'The language switcher must not translate itself');
+assert.match(provider, /export function LanguageSwitcher/, 'The language switcher must be reusable inside page headers');
+assert.doesNotMatch(provider, /\{children\}[\s\S]*className="parro-language-switcher"/, 'The language switcher must not float globally');
+assert.match(landing, /<LanguageSwitcher tone="dark" \/>/, 'The landing header must expose language selection');
+assert.match(workspace, /<LanguageSwitcher \/>/, 'The workspace header must expose language selection');
 assert.match(translations, /'한국어': '한국어'/, 'The Korean locale option must remain readable in English mode');
 assert.match(translations, /'영어': 'English'/, 'The English locale option must be translated');
 assert.match(translations, /HELP_ENGLISH_TRANSLATIONS/, 'Help translations must be included');

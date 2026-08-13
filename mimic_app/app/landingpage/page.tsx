@@ -9,7 +9,7 @@ import { BRAND_COPY, BRAND_NAME, BRAND_SUPPORT_EMAIL, BRAND_TAGLINE } from '@/li
 import { LANDING_FAQS } from '@/lib/landing-faq';
 import { HeroRecordingDemo, ProductDemo } from '@/components/landing/ProductDemo';
 import { PRODUCT_PLANS } from '@/lib/product-plans';
-import { useLocale } from '@/components/i18n/LocaleProvider';
+import { LanguageSwitcher, useLocale } from '@/components/i18n/LocaleProvider';
 
 const CheckIcon = ({ size = 14, color = 'currentColor' }: { size?: number; color?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3">
@@ -1681,6 +1681,7 @@ export default function LandingPage() {
             ))}
           </nav>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <LanguageSwitcher tone="dark" />
             <Link href="/auth/login" className="landing-header-login"
               style={{ padding: '8px 16px', borderRadius: '8px', fontSize: '13.5px', fontWeight: 500, color: 'rgba(255,255,255,0.55)', textDecoration: 'none', transition: 'color 0.15s' }}
               onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.90)'}
