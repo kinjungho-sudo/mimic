@@ -21,9 +21,150 @@
   const BUBBLE_BORDER = '#17C9B6';
   const OVERLAY_ROOT_ID = 'parro-overlay-root';
   const LEGACY_OVERLAY_ROOT_ID = 'mimic-overlay-root';
+  const GUIDE_VOICE_PREFERENCE_KEY = 'guideVoiceEnabled';
 
   let state = null;
+  let guideVoiceEnabled = false;
+  let guideVoicePreferenceReady = false;
+  let guideAudio = null;
+  let guideUtterance = null;
+  let guideAudioEndSeconds = null;
   const regroundCache = new Map();  // AI 시각 재탐색 결과 캐시(key→{x,y} 성공 / null 실패). 재방문 시 재사용
+
+  function guideVoiceBounds(step) {
+    const url = typeof step?.audio_url === 'string' ? step.audio_url.trim() : '';
+    const rawStart = Number(step?.audio_start_ms);
+    const rawEnd = Number(step?.audio_end_ms);
+    const start = Number.isFinite(rawStart) && rawStart > 0 ? rawStart / 1000 : 0;
+    const end = Number.isFinite(rawEnd) && rawEnd > start * 1000 ? rawEnd / 1000 : null;
+    return url ? { url, start, end } : null;
+  }
+
+  function guideVoiceText(step) {
+    return String(step?.instruction || step?.title || '').trim();
+  }
+
+  function updateGuideVoiceButton({ playing = false, blocked = false } = {}) {
+    const button = state?.voiceButton;
+    if (!button) return;
+    button.setAttribute('aria-pressed', guideVoiceEnabled ? 'true' : 'false');
+    button.textContent = guideVoiceEnabled ? (playing ? '🔊' : '🔉') : '🔇';
+    button.title = guideVoiceEnabled
+      ? (blocked ? i18n('guideVoiceNeedsClick', '재생 버튼을 눌러 음성을 시작하세요.') : i18n('guideVoiceDisable', '음성 안내 끄기'))
+      : i18n('guideVoiceEnable', '음성 안내 켜기');
+    button.setAttribute('aria-label', button.title);
+    button.style.background = guideVoiceEnabled ? '#E8FFF7' : 'transparent';
+    button.style.color = guideVoiceEnabled ? '#00796F' : '#64748B';
+    button.style.borderColor = guideVoiceEnabled ? '#8DD7CE' : 'rgba(100,116,139,.24)';
+  }
+
+  function stopGuideVoice() {
+    if (guideAudio) {
+      guideAudio.pause();
+      guideAudio.removeAttribute('src');
+      guideAudio.load();
+      guideAudio = null;
+    }
+    guideAudioEndSeconds = null;
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    guideUtterance = null;
+    updateGuideVoiceButton();
+  }
+
+  function finishGuideVoicePlayback() {
+    if (guideAudio) {
+      guideAudio.pause();
+      guideAudio = null;
+    }
+    guideAudioEndSeconds = null;
+    guideUtterance = null;
+    updateGuideVoiceButton();
+  }
+
+  async function playGuideVoice(step) {
+    stopGuideVoice();
+    if (!guideVoiceEnabled || !state || state.step !== step) return;
+    const bounds = guideVoiceBounds(step);
+    if (bounds) {
+      const audio = new Audio();
+      guideAudio = audio;
+      guideAudioEndSeconds = bounds.end;
+      audio.preload = 'auto';
+      audio.src = bounds.url;
+      audio.addEventListener('loadedmetadata', () => {
+        if (guideAudio !== audio) return;
+        try { audio.currentTime = bounds.start; } catch { /* noop */ }
+      }, { once: true });
+      audio.addEventListener('timeupdate', () => {
+        if (guideAudio !== audio || guideAudioEndSeconds == null) return;
+        if (audio.currentTime >= guideAudioEndSeconds - 0.03) finishGuideVoicePlayback();
+      });
+      audio.addEventListener('ended', finishGuideVoicePlayback, { once: true });
+      audio.addEventListener('error', finishGuideVoicePlayback, { once: true });
+      try {
+        await audio.play();
+        if (guideAudio === audio) updateGuideVoiceButton({ playing: true });
+      } catch (error) {
+        if (guideAudio === audio) updateGuideVoiceButton({ blocked: error?.name === 'NotAllowedError' });
+      }
+      return;
+    }
+
+    const text = guideVoiceText(step);
+    const Utterance = window.SpeechSynthesisUtterance;
+    if (!text || !window.speechSynthesis || typeof Utterance !== 'function') {
+      updateGuideVoiceButton();
+      return;
+    }
+    const utterance = new Utterance(text);
+    guideUtterance = utterance;
+    utterance.lang = /[가-힣]/.test(text) ? 'ko-KR' : 'en-US';
+    utterance.rate = 1;
+    utterance.onstart = () => { if (guideUtterance === utterance) updateGuideVoiceButton({ playing: true }); };
+    utterance.onend = () => { if (guideUtterance === utterance) finishGuideVoicePlayback(); };
+    utterance.onerror = () => { if (guideUtterance === utterance) finishGuideVoicePlayback(); };
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function initializeGuideVoice(step, button) {
+    if (!state) return;
+    state.step = step;
+    state.voiceButton = button;
+    const applyPreference = () => {
+      if (!state || state.step !== step || state.voiceButton !== button) return;
+      updateGuideVoiceButton();
+      if (guideVoiceEnabled) void playGuideVoice(step);
+    };
+    if (guideVoicePreferenceReady) {
+      applyPreference();
+      return;
+    }
+    chrome.storage.local.get(GUIDE_VOICE_PREFERENCE_KEY, (stored) => {
+      guideVoicePreferenceReady = true;
+      guideVoiceEnabled = stored?.[GUIDE_VOICE_PREFERENCE_KEY] === true;
+      applyPreference();
+    });
+  }
+
+  function toggleGuideVoice(step) {
+    guideVoiceEnabled = !guideVoiceEnabled;
+    guideVoicePreferenceReady = true;
+    chrome.storage.local.set({ [GUIDE_VOICE_PREFERENCE_KEY]: guideVoiceEnabled });
+    if (guideVoiceEnabled) void playGuideVoice(step);
+    else stopGuideVoice();
+    updateGuideVoiceButton();
+  }
+
+  chrome.storage.onChanged?.addListener((changes, areaName) => {
+    if (areaName !== 'local' || !changes?.[GUIDE_VOICE_PREFERENCE_KEY]) return;
+    guideVoicePreferenceReady = true;
+    guideVoiceEnabled = changes[GUIDE_VOICE_PREFERENCE_KEY].newValue === true;
+    if (!guideVoiceEnabled) {
+      stopGuideVoice();
+      return;
+    }
+    if (state?.step) void playGuideVoice(state.step);
+  });
 
   function isOverlayRootId(id) {
     return id === OVERLAY_ROOT_ID || id === LEGACY_OVERLAY_ROOT_ID;
@@ -773,6 +914,7 @@
         <span style="font-size:11px;font-weight:800;color:#007F75;background:#DDF8F3;padding:2px 8px;border-radius:20px">${idx + 1} / ${total}</span>
         ${resolved.source === 'none' ? `<span style="font-size:10.5px;color:#C2410C">${i18n('elementNotFound', '요소 미발견')}</span>` : ''}
         <div style="flex:1"></div>
+        <button class="parro-btn mimic-btn" data-act="toggle-guide-voice" aria-pressed="false" title="${escapeHtml(i18n('guideVoiceEnable', '음성 안내 켜기'))}" aria-label="${escapeHtml(i18n('guideVoiceEnable', '음성 안내 켜기'))}" style="display:grid;place-items:center;width:28px;height:28px;padding:0;border:1px solid rgba(100,116,139,.24);border-radius:8px;background:transparent;color:#64748B;font-size:14px;line-height:1">🔇</button>
         <button class="parro-btn mimic-btn" data-act="hide-tooltip" title="말풍선 숨기기" style="background:transparent;color:#64748B;padding:3px 6px;font-size:15px;line-height:1">✕</button>
       </div>
       ${tooltipText ? `
@@ -818,6 +960,7 @@
     shadow.appendChild(root);
 
     state = { host, shadow, hl, coachAvatar, tooltip, restoreBtn, scrollHint, resolved, step, opts, idx, total, advanced: false, completed: false, tooltipHidden: false, fallbackKey: null };
+    initializeGuideVoice(step, tooltip.querySelector('[data-act="toggle-guide-voice"]'));
 
     // 브라우저의 새로고침/뒤로가기 스크롤 복원이 첫 scrollIntoView를 덮어쓸 수 있어
     // 페이지가 안정된 뒤 한 번 더 확인한다. 사용자가 바로 타깃을 볼 수 있게 즉시 중앙 정렬한다.
@@ -856,6 +999,9 @@
       else if (act === 'hide-tooltip') {
         if (!state) return;
         state.tooltipHidden = true;
+      }
+      else if (act === 'toggle-guide-voice') {
+        toggleGuideVoice(step);
       }
       else if (act === 'copy') {
         const text = state && state.step && state.step.type_text;
@@ -1315,6 +1461,7 @@
           </div>
           <div style="font-size:15px;font-weight:800;line-height:1.35">${escapeHtml(title)}</div>
         </div>
+        <button type="button" data-act="toggle-guide-voice" aria-pressed="false" title="${escapeHtml(i18n('guideVoiceEnable', '음성 안내 켜기'))}" aria-label="${escapeHtml(i18n('guideVoiceEnable', '음성 안내 켜기'))}" style="align-self:flex-start;display:grid;place-items:center;flex:0 0 30px;width:30px;height:30px;margin:-4px 0 0 0;padding:0;border:1px solid rgba(255,255,255,.16);border-radius:9px;background:rgba(255,255,255,.06);color:#D1D5DB;font-size:14px;line-height:1;cursor:pointer">🔇</button>
         <button type="button" data-act="hide-explanation" aria-label="${escapeHtml(i18n('closeReferenceStep', '참고 단계 닫기'))}" title="${escapeHtml(i18n('closeReferenceStep', '참고 단계 닫기'))}" style="align-self:flex-start;display:grid;place-items:center;flex:0 0 30px;width:30px;height:30px;margin:-4px -4px 0 0;padding:0;border:1px solid rgba(255,255,255,.16);border-radius:9px;background:rgba(255,255,255,.06);color:#D1D5DB;font-size:17px;line-height:1;cursor:pointer">✕</button>
       </div>
       <div style="font-size:13px;color:#D1D5DB;line-height:1.55;margin-bottom:14px">${escapeHtml(text)}</div>
@@ -1345,6 +1492,12 @@
         openGuidePreview(step);
         return;
       }
+      if (action === 'toggle-guide-voice') {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleGuideVoice(step);
+        return;
+      }
       if (action !== 'hide-explanation') return;
       event.preventDefault();
       event.stopPropagation();
@@ -1356,7 +1509,8 @@
       setExplanationHidden(false);
     });
 
-    state = { host, shadow, explanation: true, explanationHidden: false, card, frame, restoreBtn };
+    state = { host, shadow, explanation: true, explanationHidden: false, card, frame, restoreBtn, step };
+    initializeGuideVoice(step, card.querySelector('[data-act="toggle-guide-voice"]'));
     host.setAttribute('data-explanation-hidden', 'false');
   }
 
@@ -1595,6 +1749,7 @@
   }
 
   function hide() {
+    stopGuideVoice();
     if (!state) {
       const stray = document.getElementById(OVERLAY_ROOT_ID) || document.getElementById(LEGACY_OVERLAY_ROOT_ID);
       if (stray) stray.remove();

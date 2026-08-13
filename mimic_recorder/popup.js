@@ -1830,7 +1830,7 @@ function syncGuideAudioForStep(step, idx) {
     guideVoiceEnabled ? '음성 안내 준비됨' : '음성 안내 꺼짐',
   );
   updateGuideVoiceUi(step);
-  if (guideVoiceEnabled) void playGuideAudio({ restart: true });
+  // 화면 위 Live Guide가 자동 낭독을 담당한다. 사이드 패널은 수동 재생 컨트롤만 유지한다.
 }
 
 guideAudio.addEventListener('play', () => {
@@ -1873,18 +1873,13 @@ guideVoiceToggle?.addEventListener('click', () => {
   guideVoiceEnabled = !guideVoiceEnabled;
   chrome.storage.local.set({ [GUIDE_VOICE_PREFERENCE_KEY]: guideVoiceEnabled });
   updateGuideVoiceUi();
-  if (guideVoiceEnabled) void playGuideAudio({ restart: true });
-  else {
-    stopGuideAudio();
+  stopGuideAudio();
+  if (!guideVoiceEnabled) {
     setGuideVoiceStatus('guideVoiceDisabled', '음성 안내 꺼짐');
   }
 });
 
 guideVoicePlayBtn?.addEventListener('click', () => {
-  if (!guideVoiceEnabled) {
-    guideVoiceEnabled = true;
-    chrome.storage.local.set({ [GUIDE_VOICE_PREFERENCE_KEY]: true });
-  }
   if (guideAudio.paused) void playGuideAudio();
   else {
     stopGuideAudio();
@@ -1894,10 +1889,6 @@ guideVoicePlayBtn?.addEventListener('click', () => {
 });
 
 guideVoiceReplayBtn?.addEventListener('click', () => {
-  if (!guideVoiceEnabled) {
-    guideVoiceEnabled = true;
-    chrome.storage.local.set({ [GUIDE_VOICE_PREFERENCE_KEY]: true });
-  }
   void playGuideAudio({ restart: true });
   updateGuideVoiceUi();
 });
@@ -1905,7 +1896,7 @@ guideVoiceReplayBtn?.addEventListener('click', () => {
 storageGet(GUIDE_VOICE_PREFERENCE_KEY).then((stored) => {
   guideVoiceEnabled = stored[GUIDE_VOICE_PREFERENCE_KEY] === true;
   updateGuideVoiceUi();
-  if (guideVoiceEnabled && guideSteps.length > 0) void playGuideAudio({ restart: true });
+  // 자동 낭독은 페이지 위 Live Guide 오버레이에서 시작한다.
 });
 
 function isGuideExplanationStep(step) {

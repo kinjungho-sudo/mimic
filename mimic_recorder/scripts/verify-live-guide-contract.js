@@ -31,7 +31,7 @@ const playbookServer = fs.readFileSync(
   'utf8',
 );
 
-assert.equal(manifest.version, '1.7.20');
+assert.equal(manifest.version, '1.7.21');
 assert.deepEqual(
   manifest.content_scripts[0].js.slice(0, 3),
   ['targeting.js', 'guide-engine.js', 'content.js'],
@@ -134,6 +134,16 @@ const queueOverlay = section(content, 'function queueLiveGuideOverlay(msg)', '//
 assert.match(queueOverlay, /showCountdown\([\s\S]*startText: 'START'/, 'the first Live Guide step must show 3, 2, 1, START');
 assert.match(queueOverlay, /_pendingGuideOverlay/, 'concurrent first-step overlay attempts must be coalesced during countdown');
 assert.match(engine, /data-act="copy"/, 'typed Live Guide steps must expose a copy button');
+assert.match(engine, /data-act="toggle-guide-voice"/, 'Live Guide bubbles must expose voice playback controls');
+assert.match(engine, /GUIDE_VOICE_PREFERENCE_KEY = 'guideVoiceEnabled'/);
+assert.match(engine, /step\?\.audio_url/);
+assert.match(engine, /new Audio\(\)/);
+assert.match(engine, /window\.SpeechSynthesisUtterance/);
+assert.match(engine, /window\.speechSynthesis\.speak\(utterance\)/);
+assert.match(engine, /chrome\.storage\.onChanged\?\.addListener/);
+assert.match(engine, /utterance\.lang = \/\[가-힣\]\/.test\(text\) \? 'ko-KR' : 'en-US'/);
+assert.match(engine, /function stopGuideVoice\(\)/);
+assert.match(engine, /function hide\(\) \{\s*stopGuideVoice\(\);/);
 assert.match(engine, /data-role="guide-copy"/);
 assert.match(engine, /data-expanded="true"/);
 assert.match(engine, /white-space:normal;overflow-wrap:anywhere/);
@@ -195,6 +205,8 @@ assert.match(popupScript, /guideFinishedHint/);
 assert.match(popupScript, /step\.manual_title/);
 assert.match(popupScript, /const guideAudio = new Audio\(\)/);
 assert.match(popupScript, /GUIDE_VOICE_PREFERENCE_KEY = 'guideVoiceEnabled'/);
+assert.match(popupScript, /화면 위 Live Guide가 자동 낭독을 담당한다/);
+assert.doesNotMatch(popupScript, /if \(guideVoiceEnabled\) void playGuideAudio\(\{ restart: true \}\)/);
 assert.match(popupScript, /step\?\.audio_url/);
 assert.match(popupScript, /step\.audio_start_ms/);
 assert.match(popupScript, /step\.audio_end_ms/);
@@ -220,4 +232,4 @@ assert.match(popupScript, /saveText:\s+true/, 'the Recorder settings UI must def
 assert.match(popupScript, /not_found: \{ label: t\('targetNotFound', '대상을 찾지 못했습니다'\)/);
 assert.match(popupScript, /type: 'SHOW_OVERLAY_FOR_STEP', stepIndex: guideCurrentStep/);
 
-console.log(JSON.stringify({ ok: true, checks: 130, scope: 'live-guide-recovery-preview-completion-voice-expandable-copy-and-separated-coach-contract' }));
+console.log(JSON.stringify({ ok: true, checks: 142, scope: 'live-guide-recovery-preview-completion-overlay-voice-full-copy-and-separated-coach-contract' }));

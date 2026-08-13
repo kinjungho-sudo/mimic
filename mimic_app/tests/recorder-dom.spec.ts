@@ -8,9 +8,21 @@ const guideScript = path.join(recorderRoot, 'guide-engine.js');
 
 async function loadGuide(page: Page) {
   await page.evaluate(() => {
+    (window as unknown as { __parroStorage: Record<string, unknown> }).__parroStorage = {};
     (window as unknown as { chrome: unknown }).chrome = {
       runtime: { getURL: (path: string) => path },
       i18n: { getMessage: () => '' },
+      storage: {
+        local: {
+          get: (key: string, callback: (value: Record<string, unknown>) => void) => {
+            const storage = (window as unknown as { __parroStorage: Record<string, unknown> }).__parroStorage;
+            callback({ [key]: storage[key] });
+          },
+          set: (value: Record<string, unknown>) => {
+            Object.assign((window as unknown as { __parroStorage: Record<string, unknown> }).__parroStorage, value);
+          },
+        },
+      },
     };
   });
   await page.addScriptTag({ path: targetingScript });
@@ -322,6 +334,58 @@ test('Live Guide avatar stays visually separate beside its speech bubble', async
   const bubble = await closedShadowBox(page, 'data-role', 'guide-bubble');
   expect(Math.min(avatar.bottom, bubble.bottom) - Math.max(avatar.top, bubble.top)).toBeGreaterThan(40);
   expect(await closedShadowAttribute(page, 'data-role', 'coach-avatar', 'data-placement')).toBe('left');
+});
+
+test('Live Guide reads step copy with TTS and stops it when hidden', async ({ page }) => {
+  await page.route('https://example.test/live-guide-tts', route => route.fulfill({
+    contentType: 'text/html',
+    body: '<button id="tts-target" style="margin:180px;width:140px;height:44px">Continue</button>',
+  }));
+  await page.goto('https://example.test/live-guide-tts');
+  await page.evaluate(() => {
+    (window as unknown as { __spoken: string[]; __cancelCount: number }).__spoken = [];
+    (window as unknown as { __spoken: string[]; __cancelCount: number }).__cancelCount = 0;
+    class MockUtterance {
+      text: string;
+      lang = '';
+      rate = 1;
+      onstart?: () => void;
+      onend?: () => void;
+      onerror?: () => void;
+      constructor(text: string) { this.text = text; }
+    }
+    Object.defineProperty(window, 'SpeechSynthesisUtterance', { configurable: true, value: MockUtterance });
+    Object.defineProperty(window, 'speechSynthesis', {
+      configurable: true,
+      value: {
+        speak: (utterance: MockUtterance) => {
+          (window as unknown as { __spoken: string[] }).__spoken.push(utterance.text);
+          utterance.onstart?.();
+        },
+        cancel: () => { (window as unknown as { __cancelCount: number }).__cancelCount += 1; },
+      },
+    });
+  });
+  await loadGuide(page);
+  await page.evaluate(() => {
+    (window as unknown as { __parroStorage: Record<string, unknown> }).__parroStorage.guideVoiceEnabled = true;
+    const guide = (window as unknown as { ParroGuide: any }).ParroGuide;
+    guide.show({
+      id: 'tts-step',
+      page_url: window.location.href,
+      element_selector: '#tts-target',
+      title: '계속',
+      instruction: '이 문장을 라이브 가이드에서 읽어주세요.',
+    }, { index: 0, total: 2 });
+  });
+
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __spoken: string[] }).__spoken)).toEqual([
+    '이 문장을 라이브 가이드에서 읽어주세요.',
+  ]);
+  expect(await closedShadowAttribute(page, 'data-act', 'toggle-guide-voice', 'aria-pressed')).toBe('true');
+
+  await page.evaluate(() => (window as unknown as { ParroGuide: any }).ParroGuide.hide());
+  expect(await page.evaluate(() => (window as unknown as { __cancelCount: number }).__cancelCount)).toBeGreaterThan(0);
 });
 
 test('guide shows a scroll prompt while a same-page target is below the viewport', async ({ page }) => {
