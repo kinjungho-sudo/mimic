@@ -246,7 +246,7 @@ export function FollowStage({
           <span style={{ flexShrink: 0, width: '24px', height: '24px', borderRadius: '50%', background: GUIDE_GRADIENT, color: '#fff', fontSize: '12px', fontWeight: 800, display: 'grid', placeItems: 'center', boxShadow: `0 2px 6px ${GUIDE_SHADOW}` }}>{stepNumber}</span>
         )}
         {bubbleText && (
-          <div style={{ fontSize: '15px', color: '#374151', lineHeight: 1.5, flex: 1, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{bubbleText}</div>
+          <ExpandableGuideText text={bubbleText} />
         )}
         <span style={{ fontSize: '12px', color: '#C4C9D4', flexShrink: 0, marginTop: '1px' }}>—</span>
       </div>

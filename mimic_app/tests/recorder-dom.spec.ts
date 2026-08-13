@@ -8,13 +8,78 @@ const guideScript = path.join(recorderRoot, 'guide-engine.js');
 
 async function loadGuide(page: Page) {
   await page.evaluate(() => {
+    (window as unknown as { __parroStorage: Record<string, unknown> }).__parroStorage = {};
     (window as unknown as { chrome: unknown }).chrome = {
       runtime: { getURL: (path: string) => path },
       i18n: { getMessage: () => '' },
+      storage: {
+        local: {
+          get: (key: string, callback: (value: Record<string, unknown>) => void) => {
+            const storage = (window as unknown as { __parroStorage: Record<string, unknown> }).__parroStorage;
+            callback({ [key]: storage[key] });
+          },
+          set: (value: Record<string, unknown>) => {
+            Object.assign((window as unknown as { __parroStorage: Record<string, unknown> }).__parroStorage, value);
+          },
+        },
+      },
     };
   });
   await page.addScriptTag({ path: targetingScript });
   await page.addScriptTag({ path: guideScript });
+}
+
+async function closedShadowAttribute(
+  page: Page,
+  matchAttribute: string,
+  matchValue: string,
+  resultAttribute: string,
+) {
+  const cdp = await page.context().newCDPSession(page);
+  const { root } = await cdp.send('DOM.getDocument', { depth: -1, pierce: true });
+  const find = (node: any): any => {
+    const attributes = Array.isArray(node.attributes) ? node.attributes : [];
+    const values = new Map<string, string>();
+    for (let index = 0; index < attributes.length; index += 2) {
+      values.set(attributes[index], attributes[index + 1]);
+    }
+    if (values.get(matchAttribute) === matchValue) return values.get(resultAttribute) ?? null;
+    for (const child of [...(node.children || []), ...(node.shadowRoots || [])]) {
+      const match = find(child);
+      if (match != null) return match;
+    }
+    return null;
+  };
+  const result = find(root);
+  await cdp.detach();
+  return result;
+}
+
+async function closedShadowBox(page: Page, matchAttribute: string, matchValue: string) {
+  const cdp = await page.context().newCDPSession(page);
+  const { root } = await cdp.send('DOM.getDocument', { depth: -1, pierce: true });
+  const find = (node: any): any => {
+    const attributes = Array.isArray(node.attributes) ? node.attributes : [];
+    for (let index = 0; index < attributes.length; index += 2) {
+      if (attributes[index] === matchAttribute && attributes[index + 1] === matchValue) return node;
+    }
+    for (const child of [...(node.children || []), ...(node.shadowRoots || [])]) {
+      const match = find(child);
+      if (match) return match;
+    }
+    return null;
+  };
+  const node = find(root);
+  expect(node, `missing closed-shadow node: ${matchAttribute}=${matchValue}`).toBeTruthy();
+  const { model } = await cdp.send('DOM.getBoxModel', { nodeId: node.nodeId });
+  const quad = model.border;
+  await cdp.detach();
+  return {
+    left: Math.min(quad[0], quad[2], quad[4], quad[6]),
+    top: Math.min(quad[1], quad[3], quad[5], quad[7]),
+    right: Math.max(quad[0], quad[2], quad[4], quad[6]),
+    bottom: Math.max(quad[1], quad[3], quad[5], quad[7]),
+  };
 }
 
 async function loadContent(page: Page, options: { recording?: boolean } = {}) {
@@ -245,6 +310,58 @@ test('Live Guide avatar stays visually separate beside its speech bubble', async
   const bubble = await closedShadowBox(page, 'data-role', 'guide-bubble');
   expect(Math.min(avatar.bottom, bubble.bottom) - Math.max(avatar.top, bubble.top)).toBeGreaterThan(40);
   expect(await closedShadowAttribute(page, 'data-role', 'coach-avatar', 'data-placement')).toBe('left');
+});
+
+test('Live Guide reads step copy with TTS and stops it when hidden', async ({ page }) => {
+  await page.route('https://example.test/live-guide-tts', route => route.fulfill({
+    contentType: 'text/html',
+    body: '<button id="tts-target" style="margin:180px;width:140px;height:44px">Continue</button>',
+  }));
+  await page.goto('https://example.test/live-guide-tts');
+  await page.evaluate(() => {
+    (window as unknown as { __spoken: string[]; __cancelCount: number }).__spoken = [];
+    (window as unknown as { __spoken: string[]; __cancelCount: number }).__cancelCount = 0;
+    class MockUtterance {
+      text: string;
+      lang = '';
+      rate = 1;
+      onstart?: () => void;
+      onend?: () => void;
+      onerror?: () => void;
+      constructor(text: string) { this.text = text; }
+    }
+    Object.defineProperty(window, 'SpeechSynthesisUtterance', { configurable: true, value: MockUtterance });
+    Object.defineProperty(window, 'speechSynthesis', {
+      configurable: true,
+      value: {
+        speak: (utterance: MockUtterance) => {
+          (window as unknown as { __spoken: string[] }).__spoken.push(utterance.text);
+          utterance.onstart?.();
+        },
+        cancel: () => { (window as unknown as { __cancelCount: number }).__cancelCount += 1; },
+      },
+    });
+  });
+  await loadGuide(page);
+  await page.evaluate(() => {
+    (window as unknown as { __parroStorage: Record<string, unknown> }).__parroStorage.guideVoiceEnabled = true;
+    const guide = (window as unknown as { ParroGuide: any }).ParroGuide;
+    guide.show({
+      id: 'tts-step',
+      page_url: window.location.href,
+      element_selector: '#tts-target',
+      title: '계속',
+      instruction: '이 문장을 라이브 가이드에서 읽어주세요.',
+    }, { index: 0, total: 2 });
+  });
+
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __spoken: string[] }).__spoken)).toEqual([
+    '이 문장을 라이브 가이드에서 읽어주세요.',
+  ]);
+  expect(await closedShadowAttribute(page, 'data-act', 'toggle-guide-voice', 'aria-pressed')).toBe('true');
+
+  await page.evaluate(() => (window as unknown as { ParroGuide: any }).ParroGuide.hide());
+  expect(await page.evaluate(() => (window as unknown as { __cancelCount: number }).__cancelCount)).toBeGreaterThan(0);
 });
 
 test('guide shows a scroll prompt while a same-page target is below the viewport', async ({ page }) => {

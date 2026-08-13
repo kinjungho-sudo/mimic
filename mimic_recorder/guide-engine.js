@@ -15,9 +15,150 @@
   const TIP_BG = 'rgba(22,20,48,.96)'; // 툴팁/화살표/대기카드 공통 배경 — 짙은 남색·보라(흰 배경 가독성)
   const OVERLAY_ROOT_ID = 'parro-overlay-root';
   const LEGACY_OVERLAY_ROOT_ID = 'mimic-overlay-root';
+  const GUIDE_VOICE_PREFERENCE_KEY = 'guideVoiceEnabled';
 
   let state = null;
+  let guideVoiceEnabled = false;
+  let guideVoicePreferenceReady = false;
+  let guideAudio = null;
+  let guideUtterance = null;
+  let guideAudioEndSeconds = null;
   const regroundCache = new Map();  // AI 시각 재탐색 결과 캐시(key→{x,y} 성공 / null 실패). 재방문 시 재사용
+
+  function guideVoiceBounds(step) {
+    const url = typeof step?.audio_url === 'string' ? step.audio_url.trim() : '';
+    const rawStart = Number(step?.audio_start_ms);
+    const rawEnd = Number(step?.audio_end_ms);
+    const start = Number.isFinite(rawStart) && rawStart > 0 ? rawStart / 1000 : 0;
+    const end = Number.isFinite(rawEnd) && rawEnd > start * 1000 ? rawEnd / 1000 : null;
+    return url ? { url, start, end } : null;
+  }
+
+  function guideVoiceText(step) {
+    return String(step?.instruction || step?.title || '').trim();
+  }
+
+  function updateGuideVoiceButton({ playing = false, blocked = false } = {}) {
+    const button = state?.voiceButton;
+    if (!button) return;
+    button.setAttribute('aria-pressed', guideVoiceEnabled ? 'true' : 'false');
+    button.textContent = guideVoiceEnabled ? (playing ? '🔊' : '🔉') : '🔇';
+    button.title = guideVoiceEnabled
+      ? (blocked ? '재생 버튼을 눌러 음성을 시작하세요.' : '음성 안내 끄기')
+      : '음성 안내 켜기';
+    button.setAttribute('aria-label', button.title);
+    button.style.background = guideVoiceEnabled ? '#E8FFF7' : 'transparent';
+    button.style.color = guideVoiceEnabled ? '#00796F' : '#64748B';
+    button.style.borderColor = guideVoiceEnabled ? '#8DD7CE' : 'rgba(100,116,139,.24)';
+  }
+
+  function stopGuideVoice() {
+    if (guideAudio) {
+      guideAudio.pause();
+      guideAudio.removeAttribute('src');
+      guideAudio.load();
+      guideAudio = null;
+    }
+    guideAudioEndSeconds = null;
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    guideUtterance = null;
+    updateGuideVoiceButton();
+  }
+
+  function finishGuideVoicePlayback() {
+    if (guideAudio) {
+      guideAudio.pause();
+      guideAudio = null;
+    }
+    guideAudioEndSeconds = null;
+    guideUtterance = null;
+    updateGuideVoiceButton();
+  }
+
+  async function playGuideVoice(step) {
+    stopGuideVoice();
+    if (!guideVoiceEnabled || !state || state.step !== step) return;
+    const bounds = guideVoiceBounds(step);
+    if (bounds) {
+      const audio = new Audio();
+      guideAudio = audio;
+      guideAudioEndSeconds = bounds.end;
+      audio.preload = 'auto';
+      audio.src = bounds.url;
+      audio.addEventListener('loadedmetadata', () => {
+        if (guideAudio !== audio) return;
+        try { audio.currentTime = bounds.start; } catch { /* noop */ }
+      }, { once: true });
+      audio.addEventListener('timeupdate', () => {
+        if (guideAudio !== audio || guideAudioEndSeconds == null) return;
+        if (audio.currentTime >= guideAudioEndSeconds - 0.03) finishGuideVoicePlayback();
+      });
+      audio.addEventListener('ended', finishGuideVoicePlayback, { once: true });
+      audio.addEventListener('error', finishGuideVoicePlayback, { once: true });
+      try {
+        await audio.play();
+        if (guideAudio === audio) updateGuideVoiceButton({ playing: true });
+      } catch (error) {
+        if (guideAudio === audio) updateGuideVoiceButton({ blocked: error?.name === 'NotAllowedError' });
+      }
+      return;
+    }
+
+    const text = guideVoiceText(step);
+    const Utterance = window.SpeechSynthesisUtterance;
+    if (!text || !window.speechSynthesis || typeof Utterance !== 'function') {
+      updateGuideVoiceButton();
+      return;
+    }
+    const utterance = new Utterance(text);
+    guideUtterance = utterance;
+    utterance.lang = /[가-힣]/.test(text) ? 'ko-KR' : 'en-US';
+    utterance.rate = 1;
+    utterance.onstart = () => { if (guideUtterance === utterance) updateGuideVoiceButton({ playing: true }); };
+    utterance.onend = () => { if (guideUtterance === utterance) finishGuideVoicePlayback(); };
+    utterance.onerror = () => { if (guideUtterance === utterance) finishGuideVoicePlayback(); };
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function initializeGuideVoice(step, button) {
+    if (!state) return;
+    state.step = step;
+    state.voiceButton = button;
+    const applyPreference = () => {
+      if (!state || state.step !== step || state.voiceButton !== button) return;
+      updateGuideVoiceButton();
+      if (guideVoiceEnabled) void playGuideVoice(step);
+    };
+    if (guideVoicePreferenceReady) {
+      applyPreference();
+      return;
+    }
+    chrome.storage.local.get(GUIDE_VOICE_PREFERENCE_KEY, (stored) => {
+      guideVoicePreferenceReady = true;
+      guideVoiceEnabled = stored?.[GUIDE_VOICE_PREFERENCE_KEY] === true;
+      applyPreference();
+    });
+  }
+
+  function toggleGuideVoice(step) {
+    guideVoiceEnabled = !guideVoiceEnabled;
+    guideVoicePreferenceReady = true;
+    chrome.storage.local.set({ [GUIDE_VOICE_PREFERENCE_KEY]: guideVoiceEnabled });
+    if (guideVoiceEnabled) void playGuideVoice(step);
+    else stopGuideVoice();
+    updateGuideVoiceButton();
+  }
+
+  chrome.storage.onChanged?.addListener((changes, areaName) => {
+    if (areaName !== 'local' || !changes?.[GUIDE_VOICE_PREFERENCE_KEY]) return;
+    guideVoicePreferenceReady = true;
+    guideVoiceEnabled = changes[GUIDE_VOICE_PREFERENCE_KEY].newValue === true;
+    if (!guideVoiceEnabled) {
+      stopGuideVoice();
+      return;
+    }
+    if (state?.step) void playGuideVoice(state.step);
+  });
 
   function isOverlayRootId(id) {
     return id === OVERLAY_ROOT_ID || id === LEGACY_OVERLAY_ROOT_ID;
@@ -719,12 +860,13 @@
     tooltip.setAttribute('data-role', 'guide-bubble');
     tooltip.style.cssText = `position:fixed;width:${TIP_W}px;max-height:calc(100vh - 32px);overflow-y:auto;box-sizing:border-box;background:${TIP_BG};color:#fff;border-radius:13px;padding:13px;box-shadow:0 12px 40px rgba(0,0,0,.45),0 0 0 1px rgba(23,201,182,.16);z-index:5;pointer-events:auto;animation:parro-tip-in 0.28s ease forwards;`;
     tooltip.innerHTML = `
-      <div data-role="coach-avatar" style="position:absolute;left:-${AVATAR_OUTSET}px;top:14px;${AVATAR_STYLE}pointer-events:none">${mascotHtml(tooltipMascotState)}</div>
+      <div data-role="coach-avatar" data-placement="left" style="position:absolute;left:-${AVATAR_OUTSET}px;top:14px;${AVATAR_STYLE}pointer-events:none">${mascotHtml(tooltipMascotState)}</div>
       <div aria-hidden="true" style="position:absolute;left:-8px;top:30px;width:16px;height:16px;background:${TIP_BG};transform:rotate(45deg);border-radius:2px;box-shadow:-1px 1px 0 rgba(23,201,182,.12);pointer-events:none"></div>
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:7px">
         <span style="font-size:11px;font-weight:700;color:#8DD63F;background:rgba(0,155,142,.24);padding:2px 8px;border-radius:20px">${idx + 1} / ${total}</span>
         ${resolved.source === 'none' ? '<span style="font-size:10.5px;color:#FFB199">요소 미발견</span>' : ''}
         <div style="flex:1"></div>
+        <button class="parro-btn mimic-btn" data-act="toggle-guide-voice" aria-pressed="false" title="음성 안내 켜기" aria-label="음성 안내 켜기" style="display:grid;place-items:center;width:28px;height:28px;padding:0;border:1px solid rgba(100,116,139,.24);border-radius:8px;background:transparent;color:#64748B;font-size:14px;line-height:1">🔇</button>
         <button class="parro-btn mimic-btn" data-act="hide-tooltip" title="말풍선 숨기기" style="background:transparent;color:rgba(255,255,255,.45);padding:3px 6px;font-size:12px">✕</button>
       </div>
       ${tooltipText ? `
@@ -769,6 +911,7 @@
     shadow.appendChild(root);
 
     state = { host, shadow, hl, tooltip, restoreBtn, scrollHint, resolved, step, opts, idx, total, advanced: false, completed: false, tooltipHidden: false, fallbackKey: null };
+    initializeGuideVoice(step, tooltip.querySelector('[data-act="toggle-guide-voice"]'));
 
     // 브라우저의 새로고침/뒤로가기 스크롤 복원이 첫 scrollIntoView를 덮어쓸 수 있어
     // 페이지가 안정된 뒤 한 번 더 확인한다. 사용자가 바로 타깃을 볼 수 있게 즉시 중앙 정렬한다.
@@ -807,6 +950,9 @@
       else if (act === 'hide-tooltip') {
         if (!state) return;
         state.tooltipHidden = true;
+      }
+      else if (act === 'toggle-guide-voice') {
+        toggleGuideVoice(step);
       }
       else if (act === 'copy') {
         const text = state && state.step && state.step.type_text;
@@ -1147,6 +1293,7 @@
           </div>
           <div style="font-size:15px;font-weight:800;line-height:1.35">${escapeHtml(title)}</div>
         </div>
+        <button type="button" data-act="toggle-guide-voice" aria-pressed="false" title="음성 안내 켜기" aria-label="음성 안내 켜기" style="align-self:flex-start;display:grid;place-items:center;flex:0 0 30px;width:30px;height:30px;margin:-4px 0 0 0;padding:0;border:1px solid rgba(255,255,255,.16);border-radius:9px;background:rgba(255,255,255,.06);color:#D1D5DB;font-size:14px;line-height:1;cursor:pointer">🔇</button>
       </div>
       <div style="font-size:13px;color:#D1D5DB;line-height:1.55;margin-bottom:14px">${escapeHtml(text)}</div>
       ${renderVisualGuideImage(step)}
@@ -1154,7 +1301,15 @@
     appendGuideViewportFrame(shadow);
     shadow.appendChild(card);
 
-    state = { host, shadow, explanation: true };
+    card.addEventListener('click', (event) => {
+      const action = event.target?.closest?.('[data-act]')?.getAttribute('data-act');
+      if (action !== 'toggle-guide-voice') return;
+      event.preventDefault();
+      event.stopPropagation();
+      toggleGuideVoice(step);
+    });
+    state = { host, shadow, explanation: true, card, step };
+    initializeGuideVoice(step, card.querySelector('[data-act="toggle-guide-voice"]'));
   }
 
   function showWaiting(step, opts, initialStatus) {
@@ -1392,6 +1547,7 @@
   }
 
   function hide() {
+    stopGuideVoice();
     if (!state) {
       const stray = document.getElementById(OVERLAY_ROOT_ID) || document.getElementById(LEGACY_OVERLAY_ROOT_ID);
       if (stray) stray.remove();
