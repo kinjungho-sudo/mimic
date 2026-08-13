@@ -25,9 +25,6 @@ FILES = [
     "offscreen.html", "offscreen.js",
     "request-mic.html", "request-mic.js",
     "assets/parro-3d-neutral.png",
-    "assets/parro-3d-talk.png",
-    "assets/parro-3d-point.png",
-    "assets/parro-3d-success.png",
 ]
 ICONS = ["icon16.png", "icon48.png", "icon128.png"]
 

@@ -20,10 +20,7 @@ $files = @(
   '_locales/ko/messages.json', '_locales/en/messages.json',
   'offscreen.html', 'offscreen.js',
   'request-mic.html', 'request-mic.js',
-  'assets/parro-3d-neutral.png',
-  'assets/parro-3d-talk.png',
-  'assets/parro-3d-point.png',
-  'assets/parro-3d-success.png'
+  'assets/parro-3d-neutral.png'
 )
 
 # A missing importScripts dependency aborts the service worker before CONNECT

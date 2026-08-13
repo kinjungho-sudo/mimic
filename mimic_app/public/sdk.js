@@ -700,15 +700,6 @@
       '  0%,100% { box-shadow: inset 0 0 0 4px ' + BRAND_PRIMARY_PULSE + ', inset 0 0 0 6px ' + BRAND_PRIMARY_PULSE_SOFT + '; }',
       '  50%     { box-shadow: inset 0 0 0 4px ' + BRAND_GUIDE_PULSE + ',   inset 0 0 0 10px ' + BRAND_GUIDE_PULSE_SOFT + '; }',
       '}',
-      // 클릭 ripple
-      '@keyframes parroRipple {',
-      '  0%   { transform: translate(-50%,-50%) scale(0); opacity: 1; }',
-      '  100% { transform: translate(-50%,-50%) scale(3); opacity: 0; }',
-      '}',
-      '@keyframes mimicRipple {',
-      '  0%   { transform: translate(-50%,-50%) scale(0); opacity: 1; }',
-      '  100% { transform: translate(-50%,-50%) scale(3); opacity: 0; }',
-      '}',
       // 커서 등장
       '@keyframes parroCursorIn {',
       '  from { opacity: 0; transform: scale(0.5); }',
@@ -762,13 +753,10 @@
       '  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);',
       '  white-space: nowrap;',
       '}',
-      '#parro-autorun-bar .mar-icon,#mimic-autorun-bar .mar-icon { position:relative;display:inline-flex;width:24px;height:24px;flex:none;align-items:center;justify-content:center;overflow:hidden;animation:parroAvatarTalk 1.6s ease-in-out infinite; }',
-      '#parro-autorun-bar .mar-icon img,#mimic-autorun-bar .mar-icon img { position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:contain;user-select:none;pointer-events:none; }',
-      '#parro-autorun-bar .mar-icon-primary,#mimic-autorun-bar .mar-icon-primary { animation:parroAvatarFramePrimary 4s ease-in-out infinite; }',
-      '#parro-autorun-bar .mar-icon-secondary,#mimic-autorun-bar .mar-icon-secondary { opacity:0;animation:parroAvatarFrameSecondary 4s ease-in-out infinite; }',
-      '@media (prefers-reduced-motion:reduce){#parro-autorun-bar .mar-icon,#mimic-autorun-bar .mar-icon,#parro-autorun-bar .mar-icon img,#mimic-autorun-bar .mar-icon img{animation:none!important}#parro-autorun-bar .mar-icon-secondary,#mimic-autorun-bar .mar-icon-secondary{display:none}}',
+      '#parro-autorun-bar .mar-icon,#mimic-autorun-bar .mar-icon { display:inline-flex;width:24px;height:24px;flex:none;align-items:center;justify-content:center;overflow:visible; }',
+      '#parro-autorun-bar .mar-icon img,#mimic-autorun-bar .mar-icon img { display:block;width:100%;height:100%;object-fit:contain;user-select:none;pointer-events:none; }',
       '#parro-autorun-bar .mar-label,#mimic-autorun-bar .mar-label { color: rgba(255,255,255,0.55); font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }',
-      '#parro-autorun-bar .mar-title,#mimic-autorun-bar .mar-title { max-width: 200px; overflow: hidden; text-overflow: ellipsis; }',
+      '#parro-autorun-bar .mar-title,#mimic-autorun-bar .mar-title { max-width: 320px; white-space: normal; overflow-wrap: anywhere; line-height: 1.4; }',
       '#parro-autorun-bar .mar-progress,#mimic-autorun-bar .mar-progress { display: flex; align-items: center; gap: 6px; color: rgba(255,255,255,0.5); font-size: 12px; }',
       '#parro-autorun-bar .mar-bar,#mimic-autorun-bar .mar-bar { width: 80px; height: 3px; background: rgba(255,255,255,0.15); border-radius: 999px; overflow: hidden; }',
       '#parro-autorun-bar .mar-bar-fill,#mimic-autorun-bar .mar-bar-fill { height: 100%; background: ' + BRAND_GUIDE + '; border-radius: 999px; transition: width 0.4s ease; }',
@@ -799,7 +787,7 @@
     var pct = totalSteps > 0 ? Math.round((stepNum / totalSteps) * 100) : 0;
 
     // 정적 구조만 innerHTML로 (외부 데이터 없음)
-    el.innerHTML = '<span class="mar-icon"><img class="mar-icon-primary" src="' + BASE_URL + '/brand/parro-3d-talk.png?v=20260811" alt="" draggable="false"><img class="mar-icon-secondary" src="' + BASE_URL + '/brand/parro-3d-point.png?v=20260811" alt="" draggable="false"></span>'
+    el.innerHTML = '<span class="mar-icon"><img src="' + BASE_URL + '/brand/parro-3d-neutral.png?v=20260813" alt="" draggable="false"></span>'
       + '<span class="mar-label">AI 실행 중 · BETA</span>'
       + '<span class="mar-divider"></span>'
       + '<span class="mar-title" id="parro-ar-title"></span>'
@@ -829,24 +817,6 @@
       if (autoRunApi) autoRunApi.stop();
     };
     return el;
-  }
-
-  function showClickRipple(xPct, yPct) {
-    var ripple = document.createElement('div');
-    ripple.style.cssText = [
-      'position:fixed',
-      'z-index:2147483642',
-      'pointer-events:none',
-      'left:' + xPct + '%',
-      'top:' + yPct + '%',
-      'width:40px',
-      'height:40px',
-      'border:3px solid #ef4444',
-      'border-radius:50%',
-      'animation:parroRipple 0.5s ease-out forwards',
-    ].join(';');
-    document.body.appendChild(ripple);
-    setTimeout(function () { ripple.parentNode && ripple.parentNode.removeChild(ripple); }, 520);
   }
 
   // window.ParroAutoRun 공개 인터페이스. window.MimicAutoRun은 기존 임베드 호환 alias.
@@ -879,10 +849,9 @@
       autoRunCursor.style.top = yPct + '%';
     },
 
-    // AI가 클릭할 때 ripple 효과
+    // AI가 클릭할 때 커서 위치만 갱신한다.
     click: function (xPct, yPct) {
       this.moveCursor(xPct, yPct);
-      showClickRipple(xPct, yPct);
     },
 
     // 일시정지 여부 확인

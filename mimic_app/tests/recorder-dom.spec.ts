@@ -271,7 +271,7 @@ test('guide accepts a unique visible selector after responsive movement', async 
   expect(source).toBe('selector');
 });
 
-test('long Live Guide copy expands and collapses on explicit request', async ({ page }) => {
+test('long Live Guide copy is fully visible immediately', async ({ page }) => {
   await page.route('https://example.test/long-copy', route => route.fulfill({
     contentType: 'text/html',
     body: '<button id="long-copy-target" style="margin:180px;width:140px;height:44px">Continue</button>',
@@ -289,19 +289,8 @@ test('long Live Guide copy expands and collapses on explicit request', async ({ 
     }, { index: 0, total: 2 });
   });
 
-  await expect.poll(() => closedShadowAttribute(
-    page,
-    'data-act',
-    'toggle-guide-copy',
-    'aria-expanded',
-  )).toBe('false');
-  expect(await closedShadowAttribute(page, 'data-role', 'guide-copy', 'data-expanded')).toBe('false');
-
-  await clickClosedShadowAction(page, 'toggle-guide-copy');
   expect(await closedShadowAttribute(page, 'data-role', 'guide-copy', 'data-expanded')).toBe('true');
-
-  await clickClosedShadowAction(page, 'toggle-guide-copy');
-  expect(await closedShadowAttribute(page, 'data-role', 'guide-copy', 'data-expanded')).toBe('false');
+  expect(await closedShadowAttribute(page, 'data-act', 'toggle-guide-copy', 'aria-expanded')).toBeNull();
 });
 
 test('Live Guide avatar stays visually separate beside its speech bubble', async ({ page }) => {

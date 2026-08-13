@@ -13,7 +13,6 @@ export const CORNER = 1.5; // 좌상단 0,0 가짜 핫스팟(이동/캡처 단�
 const MAX_AUTO_ZOOM = 1.6;
 const GUIDE_GRADIENT = `linear-gradient(135deg,${BRAND_COLORS.primary},${BRAND_COLORS.guide})`;
 const TARGET_GREEN = '#12B886';
-const TARGET_RING_SOFT = 'rgba(23,201,182,0.24)';
 const GUIDE_RING_SOFT = 'rgba(0,155,142,0.14)';
 const GUIDE_RING_STRONG = 'rgba(0,155,142,0.28)';
 const GUIDE_SHADOW = 'rgba(0,155,142,0.34)';
@@ -43,74 +42,22 @@ export function Mascot({ size = COACH_SIZE, state = 'talk' }: { size?: number; s
 }
 
 function ExpandableGuideText({ text }: { text: string }) {
-  const textRef = useRef<HTMLDivElement>(null);
-  const [expanded, setExpanded] = useState(false);
-  const [canExpand, setCanExpand] = useState(false);
-
-  useEffect(() => {
-    setExpanded(false);
-    setCanExpand(false);
-  }, [text]);
-
-  useEffect(() => {
-    const element = textRef.current;
-    if (!element || expanded) return;
-    const measure = () => setCanExpand(element.scrollHeight > element.clientHeight + 1);
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [expanded, text]);
-
   return (
     <div style={{ flex: 1, minWidth: 0 }}>
       <div
-        ref={textRef}
-        data-guide-copy-expanded={expanded ? 'true' : 'false'}
-        style={expanded ? {
+        data-guide-copy-expanded="true"
+        style={{
           display: 'block',
-          maxHeight: 'min(46vh, 360px)',
-          overflowY: 'auto',
-          paddingRight: '3px',
+          overflow: 'visible',
           fontSize: '15px',
           color: '#374151',
           lineHeight: 1.5,
-        } : {
-          display: '-webkit-box',
-          WebkitLineClamp: 3,
-          WebkitBoxOrient: 'vertical',
-          overflow: 'hidden',
-          fontSize: '15px',
-          color: '#374151',
-          lineHeight: 1.5,
+          whiteSpace: 'normal',
+          overflowWrap: 'anywhere',
         }}
       >
         {text}
       </div>
-      {canExpand && (
-        <button
-          type="button"
-          aria-expanded={expanded}
-          onClick={(event) => {
-            event.stopPropagation();
-            setExpanded(value => !value);
-          }}
-          style={{
-            display: 'block',
-            margin: '5px 0 0 auto',
-            padding: 0,
-            border: 'none',
-            background: 'transparent',
-            color: BRAND_COLORS.primary,
-            fontSize: '12px',
-            fontWeight: 800,
-            lineHeight: 1.4,
-            cursor: 'pointer',
-          }}
-        >
-          {expanded ? '접기' : '… 더보기'}
-        </button>
-      )}
     </div>
   );
 }
@@ -369,10 +316,7 @@ export function FollowStage({
             boxShadow: '0 0 14px rgba(18,184,134,0.38)',
             pointerEvents: 'none', zIndex: 3,
             animation: isAnimated ? 'mfp-rect-in 0.35s ease-out' : undefined,
-          }}>
-            <span className="mfp-target-frame-wave" />
-            <span className="mfp-target-frame-wave" style={{ animationDelay: '0.72s' }} />
-          </div>
+          }} />
         )}
 
         {/* 타이핑 인디케이터 — focused 시만 */}
@@ -439,16 +383,13 @@ export function FollowStage({
       {children}
 
       <style>{`
-        @keyframes mfp-target-frame-wave { 0%{inset:-3px;opacity:.72;border-radius:10px} 100%{inset:-22px;opacity:0;border-radius:24px} }
         @keyframes mfp-caret { 50%{opacity:0} }
         @keyframes mfp-nudge { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
         @keyframes mfp-field { 0%,100%{box-shadow:0 0 0 4px ${GUIDE_RING_SOFT}, 0 6px 20px rgba(0,0,0,0.28)} 50%{box-shadow:0 0 0 7px ${GUIDE_RING_STRONG}, 0 6px 24px rgba(0,0,0,0.35)} }
         @keyframes mfp-spotlight-in { from{opacity:0} to{opacity:1} }
         @keyframes mfp-rect-in { from{opacity:0} to{opacity:1} }
         @keyframes mfp-bubble-in { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-        .mfp-target-frame-wave { position:absolute; inset:-3px; border:1px solid ${TARGET_RING_SOFT}; border-radius:10px; pointer-events:none; animation:mfp-target-frame-wave 1.9s ease-out infinite; }
         .mfp-practice-input::placeholder { color:#667085; opacity:.42; font-weight:600; }
-        @media (prefers-reduced-motion: reduce) { .mfp-target-frame-wave { animation:none; opacity:.45; } }
       `}</style>
     </div>
   );

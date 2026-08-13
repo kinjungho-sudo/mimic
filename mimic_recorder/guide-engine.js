@@ -470,20 +470,20 @@
   }
 
   // 웹 제품과 동일한 상태형 AI 가이드 아바타.
-  const avatarAsset = (name) => `${chrome.runtime.getURL(`assets/${name}`)}?v=20260811`;
+  const avatarAsset = (name) => `${chrome.runtime.getURL(`assets/${name}`)}?v=20260813`;
   const MASCOT_IMAGE_URLS = {
     idle: avatarAsset('parro-3d-neutral.png'),
     neutral: avatarAsset('parro-3d-neutral.png'),
-    listen: avatarAsset('parro-3d-talk.png'),
-    talk: avatarAsset('parro-3d-talk.png'),
-    point: avatarAsset('parro-3d-point.png'),
+    listen: avatarAsset('parro-3d-neutral.png'),
+    talk: avatarAsset('parro-3d-neutral.png'),
+    point: avatarAsset('parro-3d-neutral.png'),
     think: avatarAsset('parro-3d-neutral.png'),
     search: avatarAsset('parro-3d-neutral.png'),
     warning: avatarAsset('parro-3d-neutral.png'),
     error: avatarAsset('parro-3d-neutral.png'),
     blocked: avatarAsset('parro-3d-neutral.png'),
-    clarify: avatarAsset('parro-3d-talk.png'),
-    success: avatarAsset('parro-3d-success.png'),
+    clarify: avatarAsset('parro-3d-neutral.png'),
+    success: avatarAsset('parro-3d-neutral.png'),
   };
   const MASCOT_SEQUENCE_STATES = {
     idle: 'listen',
@@ -545,7 +545,8 @@
     .parro-avatar-sequence--blocked .parro-avatar-layer{animation-duration:18s}
     .parro-avatar-sequence--clarify .parro-avatar-layer{animation-duration:16s}
     .parro-avatar-sequence--success .parro-avatar-layer{animation-duration:14s}
-    @media (prefers-reduced-motion:reduce){.parro-avatar-stack,.parro-avatar-layer{animation:none!important}.parro-avatar-layer--secondary{display:none}}
+    .parro-avatar-stack,.parro-avatar-layer{animation:none!important}
+    .parro-avatar-layer--secondary{display:none!important}
   `;
 
   const AVATAR_STYLE = `width:${AVATAR_SIZE}px;height:${AVATAR_SIZE}px;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:visible;background:transparent;border:none;box-shadow:none;`;
@@ -753,21 +754,19 @@
     // 아바타와 말풍선을 서로 독립된 요소로 만들어,
     // 아바타가 먼저 등장하고 그 옆으로 말풍선이 이어서 나타나게 한다.
     const idx = opts.index ?? 0, total = opts.total ?? 1;
-    const typeTextSnippet = step.type_text
-      ? escapeHtml(String(step.type_text).length > 60 ? String(step.type_text).slice(0, 60) + '…' : String(step.type_text))
-      : '';
+    const typeTextSnippet = step.type_text ? escapeHtml(String(step.type_text)) : '';
     const tooltipText = step.instruction || step.title || '';
     const tooltipMascotState = 'talk';
 
     const coachAvatar = document.createElement('div');
     coachAvatar.setAttribute('data-role', 'coach-avatar');
     coachAvatar.setAttribute('aria-hidden', 'true');
-    coachAvatar.style.cssText = `position:fixed;${AVATAR_STYLE}pointer-events:none;z-index:5;animation:parro-avatar-in .26s cubic-bezier(.2,.8,.2,1) both,parro-avatar-float 4s ease-in-out .26s infinite;`;
+    coachAvatar.style.cssText = `position:fixed;${AVATAR_STYLE}pointer-events:none;z-index:5;animation:parro-avatar-in .26s cubic-bezier(.2,.8,.2,1) both;`;
     coachAvatar.innerHTML = mascotHtml(tooltipMascotState);
 
     const tooltip = document.createElement('div');
     tooltip.setAttribute('data-role', 'guide-bubble');
-    tooltip.style.cssText = `position:fixed;width:${TIP_W}px;box-sizing:border-box;background:${BUBBLE_BG};color:#102038;border:3px solid ${BUBBLE_BORDER};border-radius:22px;padding:13px;box-shadow:0 18px 46px rgba(15,23,42,.18),0 8px 24px rgba(23,201,182,.16);isolation:isolate;z-index:5;pointer-events:auto;animation:parro-bubble-in .3s cubic-bezier(.2,.8,.2,1) .09s both;`;
+    tooltip.style.cssText = `position:fixed;width:${TIP_W}px;max-height:calc(100vh - 32px);overflow-y:auto;box-sizing:border-box;background:${BUBBLE_BG};color:#102038;border:3px solid ${BUBBLE_BORDER};border-radius:22px;padding:13px;box-shadow:0 18px 46px rgba(15,23,42,.18),0 8px 24px rgba(23,201,182,.16);isolation:isolate;z-index:5;pointer-events:auto;animation:parro-bubble-in .3s cubic-bezier(.2,.8,.2,1) .09s both;`;
     tooltip.innerHTML = `
       <div aria-hidden="true" style="position:absolute;left:-12px;top:31px;width:19px;height:19px;background:#fff;border-left:3px solid ${BUBBLE_BORDER};border-bottom:3px solid ${BUBBLE_BORDER};transform:rotate(45deg);border-radius:2px;pointer-events:none;z-index:-1"></div>
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:7px">
@@ -777,8 +776,7 @@
         <button class="parro-btn mimic-btn" data-act="hide-tooltip" title="말풍선 숨기기" style="background:transparent;color:#64748B;padding:3px 6px;font-size:15px;line-height:1">✕</button>
       </div>
       ${tooltipText ? `
-        <div data-role="guide-copy" data-expanded="false" style="font-size:12.5px;color:#102038;line-height:1.6;font-weight:650;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${escapeHtml(tooltipText)}</div>
-        <button class="parro-btn mimic-btn" data-act="toggle-guide-copy" aria-expanded="false" style="display:none;margin:5px 0 0 auto;padding:2px 0;background:transparent;color:#009B8E;font-size:11px;font-weight:800">${escapeHtml(i18n('showMore', '… 더보기'))}</button>
+        <div data-role="guide-copy" data-expanded="true" style="font-size:12.5px;color:#102038;line-height:1.6;font-weight:650;display:block;white-space:normal;overflow-wrap:anywhere">${escapeHtml(tooltipText)}</div>
       ` : ''}
       ${step.type_text ? `
         <div style="margin-top:10px;background:#EDFCF8;border:1px solid #A7EDE3;border-radius:11px;padding:8px 10px">
@@ -792,14 +790,6 @@
 
     root.appendChild(coachAvatar);
     root.appendChild(tooltip);
-    const tooltipCopy = tooltip.querySelector('[data-role="guide-copy"]');
-    const tooltipCopyToggle = tooltip.querySelector('[data-act="toggle-guide-copy"]');
-    if (tooltipCopy && tooltipCopyToggle) {
-      requestAnimationFrame(() => {
-        if (!tooltipCopy.isConnected || !tooltipCopyToggle.isConnected) return;
-        tooltipCopyToggle.style.display = tooltipCopy.scrollHeight > tooltipCopy.clientHeight + 1 ? 'block' : 'none';
-      });
-    }
 
     // 툴팁 복원 버튼 (툴팁 숨김 상태일 때 우하단에 표시)
     const restoreBtn = document.createElement('button');
@@ -866,22 +856,6 @@
       else if (act === 'hide-tooltip') {
         if (!state) return;
         state.tooltipHidden = true;
-      }
-      else if (act === 'toggle-guide-copy') {
-        const copy = tooltip.querySelector('[data-role="guide-copy"]');
-        if (!copy) return;
-        const expanded = copy.getAttribute('data-expanded') === 'true';
-        const nextExpanded = !expanded;
-        copy.setAttribute('data-expanded', nextExpanded ? 'true' : 'false');
-        copy.style.display = nextExpanded ? 'block' : '-webkit-box';
-        copy.style.webkitLineClamp = nextExpanded ? 'unset' : '3';
-        copy.style.webkitBoxOrient = nextExpanded ? 'unset' : 'vertical';
-        copy.style.overflow = nextExpanded ? 'auto' : 'hidden';
-        copy.style.maxHeight = nextExpanded ? 'min(48vh, 360px)' : '';
-        e.target.setAttribute('aria-expanded', nextExpanded ? 'true' : 'false');
-        e.target.textContent = nextExpanded
-          ? i18n('showLess', '접기')
-          : i18n('showMore', '… 더보기');
       }
       else if (act === 'copy') {
         const text = state && state.step && state.step.type_text;
