@@ -49,7 +49,7 @@ assert.match(activeSource, /parro-3d-neutral\.png/);
 assert.match(activeSource, /ParroMascot/);
 
 const manifest = JSON.parse(fs.readFileSync(path.join(recorderDir, 'manifest.json'), 'utf8'));
-assert.equal(manifest.version, '1.7.22');
+assert.equal(manifest.version, '1.7.23');
 assert.deepEqual(
   manifest.web_accessible_resources[0].resources,
   [`assets/${canonicalName}`],
