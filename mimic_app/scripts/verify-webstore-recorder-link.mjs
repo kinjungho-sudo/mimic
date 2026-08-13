@@ -4,7 +4,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { BRAND_EXTENSION_ID, BRAND_LEGACY_EXTENSION_ID } from '../lib/brand.ts';
-import { selectPreferredExtensionId } from '../lib/extension-id.ts';
+import {
+  getExtensionIdCandidates,
+  selectPreferredExtensionId,
+} from '../lib/extension-id.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const repoRoot = path.resolve(appRoot, '..');
@@ -74,6 +77,36 @@ check(() => assert.ok(background.includes(BRAND_EXTENSION_ID)));
 check(() => assert.ok(popup.includes(BRAND_EXTENSION_ID)));
 check(() => assert.ok(manifest.externally_connectable?.matches?.includes('https://mimic-nine-ashen.vercel.app/*')));
 check(() => assert.ok(manifest.externally_connectable?.matches?.includes('https://mimicflow.com/*')));
+
+const originalWindow = globalThis.window;
+try {
+  const storage = new Map([['parro_extension_id', devExtensionId]]);
+  globalThis.window = {
+    location: {
+      hostname: 'parro-guide.vercel.app',
+      search: `?extension_id=${devExtensionId}`,
+    },
+    localStorage: {
+      getItem(key) {
+        return storage.get(key) ?? null;
+      },
+    },
+  };
+
+  check(() => {
+    assert.deepEqual(
+      getExtensionIdCandidates(),
+      [BRAND_EXTENSION_ID, BRAND_LEGACY_EXTENSION_ID],
+      'production must try every approved Web Store recorder ID instead of failing after one stale ID',
+    );
+  });
+} finally {
+  if (typeof originalWindow === 'undefined') {
+    delete globalThis.window;
+  } else {
+    globalThis.window = originalWindow;
+  }
+}
 
 console.log(JSON.stringify({
   ok: true,

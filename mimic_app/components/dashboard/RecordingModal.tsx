@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { installExtensionIdListener, resolvePreferredExtensionId } from '@/lib/extension-id';
+import { installExtensionIdListener, resolveExtensionIdCandidates } from '@/lib/extension-id';
 import { BRAND_COLORS, BRAND_COPY, BRAND_EXTENSION_STORE_URL } from '@/lib/brand';
 
 // 운영(Production)에서만 켜는 플래그 — Vercel Production env에 NEXT_PUBLIC_REQUIRE_EXTENSION=1.
@@ -53,8 +53,7 @@ function isExtensionInstalled(): boolean {
   return !!(typeof window !== 'undefined' && window.chrome?.runtime?.sendMessage);
 }
 
-async function sendMessage(action: string, payload?: Record<string, unknown>): Promise<unknown> {
-  const extensionId = await resolvePreferredExtensionId();
+function sendMessageToExtension(extensionId: string, action: string, payload?: Record<string, unknown>): Promise<unknown> {
   return new Promise(resolve => {
     if (!extensionId || !isExtensionInstalled()) {
       console.warn('[Parro] 확장 없음 또는 extensionId 미설정, 바이패스');
@@ -79,12 +78,26 @@ async function sendMessage(action: string, payload?: Record<string, unknown>): P
   });
 }
 
+async function sendMessage(action: string, payload?: Record<string, unknown>): Promise<unknown> {
+  const candidates = await resolveExtensionIdCandidates();
+  if (!candidates.length || !isExtensionInstalled()) {
+    console.warn('[Parro] 확장 없음 또는 extensionId 미설정, 바이패스');
+    return null;
+  }
+
+  for (const extensionId of candidates) {
+    const resp = await sendMessageToExtension(extensionId, action, payload);
+    if (resp) return resp;
+  }
+  return null;
+}
+
 // Service Worker가 잠든 상태일 때 첫 메시지가 실패하는 경쟁 조건 방지.
 // CONNECT ping으로 먼저 깨운 뒤 실제 메시지를 전송한다.
 // 최대 3회 재시도, 회당 600ms 대기.
 async function wakeAndSend(action: string, payload?: Record<string, unknown>, retries = 3): Promise<unknown> {
-  const extensionId = await resolvePreferredExtensionId();
-  if (!extensionId || !isExtensionInstalled()) return null;
+  const candidates = await resolveExtensionIdCandidates();
+  if (!candidates.length || !isExtensionInstalled()) return null;
 
   for (let i = 0; i < retries; i++) {
     // ping
@@ -114,8 +127,8 @@ async function fetchOpenTabs(): Promise<TabsResponse | null> {
 }
 
 async function linkExtensionToCurrentUser(): Promise<boolean> {
-  const extensionId = await resolvePreferredExtensionId();
-  if (!extensionId || !isExtensionInstalled()) return !REQUIRE_EXTENSION;
+  const candidates = await resolveExtensionIdCandidates();
+  if (!candidates.length || !isExtensionInstalled()) return !REQUIRE_EXTENSION;
 
   try {
     const res = await fetch('/api/extension/link', { method: 'POST' });
