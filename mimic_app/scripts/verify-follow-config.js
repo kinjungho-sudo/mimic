@@ -52,14 +52,14 @@ async function main() {
   if (!stageSource.includes('nextValue === typeStr') || !playerSource.includes('value !== expected')) {
     throw new Error('learning guide must advance only after the user enters the expected text');
   }
-  if (!stageSource.includes('mfp-target-frame-wave') || !stageSource.includes('TARGET_GREEN')) {
-    throw new Error('learning guide target must use the animated green frame highlight');
+  if (!stageSource.includes('TARGET_GREEN')) {
+    throw new Error('learning guide target must retain the static green frame highlight');
   }
   if (stageSource.includes('mfp-click-ripple') || stageSource.includes('mfp-target-dot') || stageSource.includes('<circle')) {
     throw new Error('learning guide click targets must not render a central dot or circular ripple');
   }
-  if (!stageSource.includes('border:1px solid ${TARGET_RING_SOFT}') || !stageSource.includes('inset:-22px')) {
-    throw new Error('learning guide frame waves must remain thin and expand outside the target rectangle');
+  if (stageSource.includes('mfp-target-frame-wave')) {
+    throw new Error('learning guide target must not render animated frame waves');
   }
   if (!stageSource.includes('resolveGuideTargetRect') || !playerSource.includes('!isOversizedGuideTarget(dr)')) {
     throw new Error('large DOM targets must use the compact hotspot-centered visual and hit area');

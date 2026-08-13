@@ -13,7 +13,6 @@ export const CORNER = 1.5; // 좌상단 0,0 가짜 핫스팟(이동/캡처 단�
 const MAX_AUTO_ZOOM = 1.6;
 const GUIDE_GRADIENT = `linear-gradient(135deg,${BRAND_COLORS.primary},${BRAND_COLORS.guide})`;
 const TARGET_GREEN = '#12B886';
-const TARGET_RING_SOFT = 'rgba(23,201,182,0.24)';
 const GUIDE_RING_SOFT = 'rgba(0,155,142,0.14)';
 const GUIDE_RING_STRONG = 'rgba(0,155,142,0.28)';
 const GUIDE_SHADOW = 'rgba(0,155,142,0.34)';
@@ -23,8 +22,42 @@ const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v
 
 export function Mascot({ size = COACH_SIZE, state = 'talk' }: { size?: number; state?: ParroMascotState }) {
   return (
-    <div style={{ width: size, height: size, borderRadius: `${Math.max(14, Math.round(size * 0.28))}px`, background: 'linear-gradient(135deg,#F1FBF9,#E4F3F6)', display: 'grid', placeItems: 'center', flexShrink: 0, boxShadow: `0 4px 14px ${GUIDE_SHADOW}`, overflow: 'hidden' }}>
-      <ParroMascot size={size * 0.96} state={state} />
+    <div
+      data-guide-mascot-frame="borderless"
+      style={{
+        width: size,
+        height: size,
+        display: 'grid',
+        placeItems: 'center',
+        flexShrink: 0,
+        background: 'transparent',
+        border: 'none',
+        boxShadow: 'none',
+        overflow: 'visible',
+      }}
+    >
+      <ParroMascot size={size} state={state} />
+    </div>
+  );
+}
+
+function ExpandableGuideText({ text }: { text: string }) {
+  return (
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div
+        data-guide-copy-expanded="true"
+        style={{
+          display: 'block',
+          overflow: 'visible',
+          fontSize: '15px',
+          color: '#374151',
+          lineHeight: 1.5,
+          whiteSpace: 'normal',
+          overflowWrap: 'anywhere',
+        }}
+      >
+        {text}
+      </div>
     </div>
   );
 }
@@ -282,10 +315,7 @@ export function FollowStage({
             boxShadow: '0 0 14px rgba(18,184,134,0.38)',
             pointerEvents: 'none', zIndex: 3,
             animation: isAnimated ? 'mfp-rect-in 0.35s ease-out' : undefined,
-          }}>
-            <span className="mfp-target-frame-wave" />
-            <span className="mfp-target-frame-wave" style={{ animationDelay: '0.72s' }} />
-          </div>
+          }} />
         )}
 
         {/* 타이핑 인디케이터 — focused 시만 */}
@@ -352,16 +382,13 @@ export function FollowStage({
       {children}
 
       <style>{`
-        @keyframes mfp-target-frame-wave { 0%{inset:-3px;opacity:.72;border-radius:10px} 100%{inset:-22px;opacity:0;border-radius:24px} }
         @keyframes mfp-caret { 50%{opacity:0} }
         @keyframes mfp-nudge { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
         @keyframes mfp-field { 0%,100%{box-shadow:0 0 0 4px ${GUIDE_RING_SOFT}, 0 6px 20px rgba(0,0,0,0.28)} 50%{box-shadow:0 0 0 7px ${GUIDE_RING_STRONG}, 0 6px 24px rgba(0,0,0,0.35)} }
         @keyframes mfp-spotlight-in { from{opacity:0} to{opacity:1} }
         @keyframes mfp-rect-in { from{opacity:0} to{opacity:1} }
         @keyframes mfp-bubble-in { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-        .mfp-target-frame-wave { position:absolute; inset:-3px; border:1px solid ${TARGET_RING_SOFT}; border-radius:10px; pointer-events:none; animation:mfp-target-frame-wave 1.9s ease-out infinite; }
         .mfp-practice-input::placeholder { color:#667085; opacity:.42; font-weight:600; }
-        @media (prefers-reduced-motion: reduce) { .mfp-target-frame-wave { animation:none; opacity:.45; } }
       `}</style>
     </div>
   );

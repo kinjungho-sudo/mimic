@@ -194,6 +194,59 @@ test('guide accepts a unique visible selector after responsive movement', async 
   expect(source).toBe('selector');
 });
 
+test('long Live Guide copy is fully visible immediately', async ({ page }) => {
+  await page.route('https://example.test/long-copy', route => route.fulfill({
+    contentType: 'text/html',
+    body: '<button id="long-copy-target" style="margin:180px;width:140px;height:44px">Continue</button>',
+  }));
+  await page.goto('https://example.test/long-copy');
+  await loadGuide(page);
+  await page.evaluate(() => {
+    const guide = (window as unknown as { ParroGuide: any }).ParroGuide;
+    guide.show({
+      id: 'long-copy-step',
+      page_url: window.location.href,
+      element_selector: '#long-copy-target',
+      title: 'Continue',
+      instruction: 'This is a deliberately long Live Guide instruction. '.repeat(18),
+    }, { index: 0, total: 2 });
+  });
+
+  expect(await closedShadowAttribute(page, 'data-role', 'guide-copy', 'data-expanded')).toBe('true');
+  expect(await closedShadowAttribute(page, 'data-act', 'toggle-guide-copy', 'aria-expanded')).toBeNull();
+});
+
+test('Live Guide avatar stays visually separate beside its speech bubble', async ({ page }) => {
+  await page.setViewportSize({ width: 1000, height: 700 });
+  await page.route('https://example.test/separate-coach', route => route.fulfill({
+    contentType: 'text/html',
+    body: '<button id="separate-coach-target" style="position:absolute;left:430px;top:260px;width:140px;height:44px">Continue</button>',
+  }));
+  await page.goto('https://example.test/separate-coach');
+  await loadGuide(page);
+  await page.evaluate(() => {
+    const guide = (window as unknown as { ParroGuide: any }).ParroGuide;
+    guide.show({
+      id: 'separate-coach-step',
+      page_url: window.location.href,
+      element_selector: '#separate-coach-target',
+      title: 'Continue',
+      instruction: 'The speech bubble appears beside the independent Parro avatar.',
+    }, { index: 0, total: 2 });
+  });
+
+  await expect.poll(async () => {
+    const avatar = await closedShadowBox(page, 'data-role', 'coach-avatar');
+    const bubble = await closedShadowBox(page, 'data-role', 'guide-bubble');
+    return Math.round(bubble.left - avatar.right);
+  }).toBeGreaterThanOrEqual(12);
+
+  const avatar = await closedShadowBox(page, 'data-role', 'coach-avatar');
+  const bubble = await closedShadowBox(page, 'data-role', 'guide-bubble');
+  expect(Math.min(avatar.bottom, bubble.bottom) - Math.max(avatar.top, bubble.top)).toBeGreaterThan(40);
+  expect(await closedShadowAttribute(page, 'data-role', 'coach-avatar', 'data-placement')).toBe('left');
+});
+
 test('guide shows a scroll prompt while a same-page target is below the viewport', async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 600 });
   await page.route('https://example.test/live-guide', route => route.fulfill({

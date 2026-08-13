@@ -62,8 +62,8 @@ assert.match(player, /initialStepIndex=\{currentStep\}/, 'learning mode must rec
 assert.match(followPlayer, /setIdx\(nextIndex\)/, 'learning player must synchronize a shared initial step after loading');
 assert.match(followStage, /const COACH_SIZE = 64/, 'learning guide coach avatar must use the enlarged size');
 assert.match(followStage, /fontSize: '15px'/, 'learning guide explanation text must use the enlarged size');
-assert.match(followStage, /className="mfp-target-frame-wave"/, 'learning guide click target must use frame-shaped waves');
-assert.doesNotMatch(followStage, /mfp-click-ripple|mfp-target-dot/, 'learning guide must not render the click point or circular waves');
+assert.doesNotMatch(followStage, /mfp-target-frame-wave|mfp-click-ripple|mfp-target-dot/, 'learning guide must not render animated waves or a click point');
+assert.match(followStage, /data-guide-copy-expanded="true"/, 'learning guide copy must be fully visible immediately');
 
 assert.match(studio, /listLiveGuideTargetTabs/, 'Studio must list target tabs before picking');
 assert.match(studio, /이 대상으로 저장할까요\?/, 'Studio must confirm a picked target before saving');

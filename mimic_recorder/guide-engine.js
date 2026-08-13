@@ -445,20 +445,20 @@
   }
 
   // 웹 제품과 동일한 상태형 AI 가이드 아바타.
-  const avatarAsset = (name) => `${chrome.runtime.getURL(`assets/${name}`)}?v=20260720`;
+  const avatarAsset = (name) => `${chrome.runtime.getURL(`assets/${name}`)}?v=20260813`;
   const MASCOT_IMAGE_URLS = {
     idle: avatarAsset('parro-ai-avatar-neutral.png'),
     neutral: avatarAsset('parro-ai-avatar-neutral.png'),
-    listen: avatarAsset('parro-ai-avatar-listen.png'),
-    talk: avatarAsset('parro-ai-avatar-talk.png'),
-    point: avatarAsset('parro-ai-avatar-point.png'),
-    think: avatarAsset('parro-ai-avatar-think.png'),
-    search: avatarAsset('parro-ai-avatar-search.png'),
-    warning: avatarAsset('parro-ai-avatar-warning.png'),
-    error: avatarAsset('parro-ai-avatar-error.png'),
-    blocked: avatarAsset('parro-ai-avatar-blocked.png'),
-    clarify: avatarAsset('parro-ai-avatar-clarify.png'),
-    success: avatarAsset('parro-ai-avatar-success.png'),
+    listen: avatarAsset('parro-ai-avatar-neutral.png'),
+    talk: avatarAsset('parro-ai-avatar-neutral.png'),
+    point: avatarAsset('parro-ai-avatar-neutral.png'),
+    think: avatarAsset('parro-ai-avatar-neutral.png'),
+    search: avatarAsset('parro-ai-avatar-neutral.png'),
+    warning: avatarAsset('parro-ai-avatar-neutral.png'),
+    error: avatarAsset('parro-ai-avatar-neutral.png'),
+    blocked: avatarAsset('parro-ai-avatar-neutral.png'),
+    clarify: avatarAsset('parro-ai-avatar-neutral.png'),
+    success: avatarAsset('parro-ai-avatar-neutral.png'),
   };
   const MASCOT_SEQUENCE_STATES = {
     idle: 'listen',
@@ -511,19 +511,11 @@
     .parro-avatar-stack--blocked{animation:parro-avatar-blocked-motion 3.6s ease-in-out infinite}
     .parro-avatar-stack--clarify{animation:parro-avatar-clarify-motion 2.8s ease-in-out infinite}
     .parro-avatar-stack--success{animation:parro-avatar-success-motion 1.9s cubic-bezier(.34,1.2,.64,1) infinite}
-    .parro-avatar-sequence--listen .parro-avatar-layer{animation-duration:6.4s}
-    .parro-avatar-sequence--talk .parro-avatar-layer{animation-duration:4s}
-    .parro-avatar-sequence--point .parro-avatar-layer{animation-duration:4.4s}
-    .parro-avatar-sequence--think .parro-avatar-layer,.parro-avatar-sequence--search .parro-avatar-layer{animation-duration:3.6s}
-    .parro-avatar-sequence--warning .parro-avatar-layer{animation-duration:4.6s}
-    .parro-avatar-sequence--error .parro-avatar-layer{animation-duration:5.4s}
-    .parro-avatar-sequence--blocked .parro-avatar-layer{animation-duration:5.8s}
-    .parro-avatar-sequence--clarify .parro-avatar-layer{animation-duration:5.2s}
-    .parro-avatar-sequence--success .parro-avatar-layer{animation-duration:4.2s}
-    @media (prefers-reduced-motion:reduce){.parro-avatar-stack,.parro-avatar-layer{animation:none!important}.parro-avatar-layer--secondary{display:none}}
+    .parro-avatar-stack,.parro-avatar-layer{animation:none!important}
+    .parro-avatar-layer--secondary{display:none!important}
   `;
 
-  const AVATAR_STYLE = `width:68px;height:68px;border-radius:19px;background:linear-gradient(135deg,#F1FBF9,#E4F3F6);box-shadow:0 8px 24px rgba(0,155,142,.34);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;`;
+  const AVATAR_STYLE = `width:68px;height:68px;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:visible;background:transparent;border:none;box-shadow:none;`;
 
   // ── 오버레이 렌더 ─────────────────────────────────────────────
   const VOLATILE_QUERY_KEY = /^(utm_.+|fbclid|gclid|_ga|code|state|session|session_id|timestamp|ts|_t)$/i;
@@ -697,8 +689,6 @@
     root.style.cssText = 'position:fixed;inset:0;pointer-events:none;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;';
 
     shadow.appendChild(style(`
-      @keyframes parro-ripple { 0%{transform:scale(.75);opacity:1} 100%{transform:scale(4.6);opacity:0} }
-      @keyframes mimic-ripple { 0%{transform:scale(.75);opacity:1} 100%{transform:scale(4.6);opacity:0} }
       @keyframes parro-glow   { 0%,100%{box-shadow:0 0 0 4px rgba(18,184,134,.32),0 0 18px 5px rgba(0,155,142,.48)} 50%{box-shadow:0 0 0 8px rgba(23,201,182,.42),0 0 36px 12px rgba(18,184,134,.72)} }
       @keyframes mimic-glow   { 0%,100%{box-shadow:0 0 0 4px rgba(18,184,134,.32),0 0 18px 5px rgba(0,155,142,.48)} 50%{box-shadow:0 0 0 8px rgba(23,201,182,.42),0 0 36px 12px rgba(18,184,134,.72)} }
       @keyframes parro-nudge  { 0%,100%{transform:none} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
@@ -718,30 +708,18 @@
     hl.style.cssText = `position:fixed;pointer-events:none;box-sizing:border-box;border:3px solid #12B886;background:rgba(18,184,134,.10);border-radius:9px;box-shadow:0 0 0 5px rgba(18,184,134,.3),0 0 24px 8px rgba(0,155,142,.52);z-index:2;transition:left .12s,top .12s,width .12s,height .12s;animation:parro-glow 1.25s ease-in-out infinite;`;
     root.appendChild(hl);
 
-    // 클릭 핀 — 중심 보라 점 제거, 물결 애니메이션만
-    const pulse = document.createElement('div');
-    pulse.style.cssText = `position:fixed;width:0;height:0;pointer-events:none;z-index:3;`;
-    const ripple = document.createElement('div');
-    ripple.style.cssText = `position:absolute;width:56px;height:56px;margin-left:-28px;margin-top:-28px;border-radius:50%;border:4px solid rgba(18,184,134,.96);animation:parro-ripple 1.25s ease-out infinite;`;
-    const ripple2 = document.createElement('div');
-    ripple2.style.cssText = `position:absolute;width:56px;height:56px;margin-left:-28px;margin-top:-28px;border-radius:50%;border:3px solid rgba(23,201,182,.76);animation:parro-ripple 1.25s ease-out .625s infinite;`;
-    pulse.appendChild(ripple);
-    pulse.appendChild(ripple2);
-    root.appendChild(pulse);
-
     // 단일 코치 아바타가 말풍선 바깥에서 이야기하는 구조.
     // 타깃 위에 별도 아바타를 겹치지 않고, SVG 프레임 교체 없이 미세한 부유 효과만 준다.
     const idx = opts.index ?? 0, total = opts.total ?? 1;
-    const typeTextSnippet = step.type_text
-      ? escapeHtml(String(step.type_text).length > 60 ? String(step.type_text).slice(0, 60) + '…' : String(step.type_text))
-      : '';
+    const typeTextSnippet = step.type_text ? escapeHtml(String(step.type_text)) : '';
     const tooltipText = step.instruction || step.title || '';
     const tooltipMascotState = 'talk';
 
     const tooltip = document.createElement('div');
-    tooltip.style.cssText = `position:fixed;width:${TIP_W}px;box-sizing:border-box;background:${TIP_BG};color:#fff;border-radius:13px;padding:13px;box-shadow:0 12px 40px rgba(0,0,0,.45),0 0 0 1px rgba(23,201,182,.16);z-index:5;pointer-events:auto;animation:parro-tip-in 0.28s ease forwards;`;
+    tooltip.setAttribute('data-role', 'guide-bubble');
+    tooltip.style.cssText = `position:fixed;width:${TIP_W}px;max-height:calc(100vh - 32px);overflow-y:auto;box-sizing:border-box;background:${TIP_BG};color:#fff;border-radius:13px;padding:13px;box-shadow:0 12px 40px rgba(0,0,0,.45),0 0 0 1px rgba(23,201,182,.16);z-index:5;pointer-events:auto;animation:parro-tip-in 0.28s ease forwards;`;
     tooltip.innerHTML = `
-      <div data-role="coach-avatar" style="position:absolute;left:-${AVATAR_OUTSET}px;top:14px;${AVATAR_STYLE}pointer-events:none;animation:parro-avatar-float 4s ease-in-out infinite">${mascotHtml(tooltipMascotState)}</div>
+      <div data-role="coach-avatar" style="position:absolute;left:-${AVATAR_OUTSET}px;top:14px;${AVATAR_STYLE}pointer-events:none">${mascotHtml(tooltipMascotState)}</div>
       <div aria-hidden="true" style="position:absolute;left:-8px;top:30px;width:16px;height:16px;background:${TIP_BG};transform:rotate(45deg);border-radius:2px;box-shadow:-1px 1px 0 rgba(23,201,182,.12);pointer-events:none"></div>
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:7px">
         <span style="font-size:11px;font-weight:700;color:#8DD63F;background:rgba(0,155,142,.24);padding:2px 8px;border-radius:20px">${idx + 1} / ${total}</span>
@@ -749,7 +727,9 @@
         <div style="flex:1"></div>
         <button class="parro-btn mimic-btn" data-act="hide-tooltip" title="말풍선 숨기기" style="background:transparent;color:rgba(255,255,255,.45);padding:3px 6px;font-size:12px">✕</button>
       </div>
-      ${tooltipText ? `<div style="font-size:12.5px;color:#D1D5DB;line-height:1.55;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${escapeHtml(tooltipText)}</div>` : ''}
+      ${tooltipText ? `
+        <div data-role="guide-copy" data-expanded="true" style="font-size:12.5px;color:#D1D5DB;line-height:1.6;font-weight:650;display:block;white-space:normal;overflow-wrap:anywhere">${escapeHtml(tooltipText)}</div>
+      ` : ''}
       ${step.type_text ? `
         <div style="margin-top:10px;background:rgba(0,155,142,.18);border:1px solid rgba(23,201,182,.32);border-radius:8px;padding:8px 10px">
           <div style="display:flex;align-items:center;gap:6px">
@@ -788,7 +768,7 @@
 
     shadow.appendChild(root);
 
-    state = { host, shadow, hl, pulse, tooltip, restoreBtn, scrollHint, resolved, step, opts, idx, total, advanced: false, completed: false, tooltipHidden: false, fallbackKey: null };
+    state = { host, shadow, hl, tooltip, restoreBtn, scrollHint, resolved, step, opts, idx, total, advanced: false, completed: false, tooltipHidden: false, fallbackKey: null };
 
     // 브라우저의 새로고침/뒤로가기 스크롤 복원이 첫 scrollIntoView를 덮어쓸 수 있어
     // 페이지가 안정된 뒤 한 번 더 확인한다. 사용자가 바로 타깃을 볼 수 있게 즉시 중앙 정렬한다.
@@ -853,7 +833,6 @@
       const t = state.resolved;
       if (!t || !t.rect) {
         hl.style.display = 'none';
-        pulse.style.display = 'none';
         tooltip.style.display = 'none';
         if (state.scrollHint) state.scrollHint.style.display = 'none';
       } else if (t.el && !t.el.isConnected) {
@@ -865,7 +844,6 @@
         // 연결돼 있지만 숨겨졌거나 0크기면 이 프레임은 그리지 않음(깜빡임 방지)
         if (t.el && (r.width < 1 || r.height < 1)) {
           hl.style.display = 'none';
-          pulse.style.display = 'none';
           tooltip.style.display = 'none';
           if (state.scrollHint) state.scrollHint.style.display = 'none';
           state.rafId = requestAnimationFrame(reposition);
@@ -897,12 +875,6 @@
         hl.style.top  = `${r.top  - P}px`;
         hl.style.width  = `${r.width  + P * 2}px`;
         hl.style.height = `${r.height + P * 2}px`;
-
-        // 클릭 핀
-        const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-        pulse.style.display = 'block';
-        pulse.style.left = `${cx}px`;
-        pulse.style.top  = `${cy}px`;
 
         // 말풍선과 아바타를 하나의 코치 UI로 함께 배치한다.
         tooltip.style.display = 'block';
@@ -1037,7 +1009,6 @@
     if (state.rafId) cancelAnimationFrame(state.rafId);
     state.completed = true;
     state.hl.style.display = 'none';
-    state.pulse.style.display = 'none';
     if (state.scrollHint) state.scrollHint.style.display = 'none';
     state.tooltip.innerHTML = `
       <div style="text-align:center;padding:10px 4px">

@@ -7,7 +7,6 @@ import { BRAND_COLORS, BRAND_NAME } from '@/lib/brand';
 import { ParroMascot } from '@/components/brand/ParroMascot';
 
 const BRAND_GRADIENT = `linear-gradient(135deg, ${BRAND_COLORS.primary}, ${BRAND_COLORS.guide})`;
-const BRAND_RING_STRONG = 'rgba(0,155,142,0.40)';
 
 interface Message {
   id: string;
@@ -197,11 +196,11 @@ export function AgentChat() {
       <button onClick={() => setIsOpen(true)} title="도움말 열기" aria-label="도움말 열기"
         style={{
           position: 'fixed', bottom: '24px', right: '24px', zIndex: 9000,
-          width: '52px', height: '52px', borderRadius: '50%',
-          background: BRAND_GRADIENT,
+          width: '52px', height: '52px', borderRadius: 0,
+          background: 'transparent',
           border: 'none', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: `0 4px 20px ${BRAND_RING_STRONG}`,
+          boxShadow: 'none',
           transition: 'transform 0.2s',
         }}
         onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.08)'; }}
@@ -222,7 +221,7 @@ export function AgentChat() {
         boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
         padding: '8px 16px 8px 10px', border: '1px solid #E5E7EB',
       }}>
-        <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: BRAND_GRADIENT, display: 'grid', placeItems: 'center' }}>
+        <div style={{ width: '30px', height: '30px', background: 'transparent', display: 'grid', placeItems: 'center' }}>
           <ParroMascot size={28} state="neutral" />
         </div>
         <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>도움말 봇</span>
@@ -255,7 +254,7 @@ export function AgentChat() {
         padding: '12px 14px', flexShrink: 0,
         background: BRAND_GRADIENT, color: 'white',
       }}>
-        <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(255,255,255,0.2)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+        <div style={{ width: '28px', height: '28px', background: 'transparent', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
           <ParroMascot size={26} state={headerMascotState} />
         </div>
         <div style={{ flex: 1 }}>

@@ -170,11 +170,10 @@ function TargetViewport({ step, previousStep, live, reducedMotion, settled = fal
       {step.modalRect && <div className={styles.modalDepthFocus} aria-hidden="true" />}
       {step.modalOcclusionRect && <div className={styles.modalOcclusionPatch} aria-hidden="true" />}
       {live && <div className={styles.targetBox} aria-hidden="true" />}
-      <span className={styles.clickPulse} aria-hidden="true" />
       <span className={styles.pointer} aria-hidden="true"><Pointer /></span>
       {live && (
         <div className={`${styles.guideCoach} ${step.coachSide === 'right' ? styles.coachRight : styles.coachLeft}`}>
-          <div className={styles.guideAvatar}><ParroMascot size={68} state="point" motion={false} mirror={step.coachSide === 'right'} /></div>
+          <div className={styles.guideAvatar}><ParroMascot size={68} state="neutral" motion={false} /></div>
           <div className={styles.coachmark}>
             <div className={styles.coachmarkHeading}>
               <span>Parro AI Guide</span><strong>{step.title}</strong>
@@ -283,7 +282,6 @@ function RecorderPanel({ phase }: { phase: number }) {
         <div className={styles.finishArea}>
           <button type="button" className={styles.finishButton}>
             매뉴얼 만들기
-            <i className={styles.finishClickPulse} />
             <b className={styles.finishPointer}><Pointer /></b>
           </button>
         </div>

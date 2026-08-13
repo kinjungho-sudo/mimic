@@ -500,7 +500,6 @@ function Scene0({ tick }: { tick: number }) {
             <div style={{ padding: '9px 16px', borderRadius: '9px', background: click ? '#007C72' : 'linear-gradient(135deg,#12B886,#009B8E)', color: '#fff', fontSize: '12px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px', boxShadow: hover ? '0 6px 22px rgba(18,184,134,0.5)' : '0 2px 8px rgba(18,184,134,0.3)', transform: click ? 'scale(0.95)' : 'scale(1)', transition: 'all 0.2s' }}>
               <span style={{ fontSize: '14px', lineHeight: 1 }}>+</span> 새로 만들기
             </div>
-            {click && <div style={{ position: 'absolute', top: '50%', left: '50%', width: '64px', height: '64px', borderRadius: '50%', border: '2px solid rgba(18,184,134,0.55)', transform: 'translate(-50%,-50%)', animation: 'rippleOut 0.7s ease-out' }} />}
             {click && (
               <div style={{ position: 'absolute', top: '42px', right: 0, width: '164px', borderRadius: '12px', border: '1px solid #E5E7EB', background: '#fff', overflow: 'hidden', boxShadow: '0 18px 40px rgba(15,23,42,0.16)', zIndex: 12 }}>
                 {['새 매뉴얼(녹화)', '새 플레이북(통합 문서)', '폴더'].map((label, idx) => (
@@ -702,7 +701,6 @@ function StepScreen({ step, mode }: { step: number; mode: 'card' | 'guide' | 're
   // 녹화 모드: 타겟에 커서 + 클릭 리플 (어노테이션 없음)
   const recordOverlay = (
     <>
-      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: '46px', height: '46px', borderRadius: '50%', border: '2px solid rgba(29,78,216,0.55)', animation: 'rippleOut 0.85s ease-out infinite', pointerEvents: 'none', zIndex: 5 }} />
       <div style={{ position: 'absolute', top: '56%', left: '52%', zIndex: 6, pointerEvents: 'none' }}><CursorIcon /></div>
     </>
   );
@@ -722,7 +720,6 @@ function StepScreen({ step, mode }: { step: number; mode: 'card' | 'guide' | 're
   );
   const spotlight = (
     <div style={{ position: 'absolute', inset: '-7px', borderRadius: '12px', boxShadow: '0 0 0 4px #12B886, 0 0 0 2000px rgba(13,13,20,0.52)', zIndex: 4, pointerEvents: 'none' }}>
-      <div style={{ position: 'absolute', inset: '-6px', borderRadius: '14px', border: '3px solid rgba(141,214,63,0.8)', animation: 'rippleOut 1.4s ease-out infinite' }} />
       {/* 커서 + AI 말풍선이 함께 이동 */}
       <div style={{ position: 'absolute', top: '50%', left: '48%', zIndex: 7, animation: 'cursorClick 2.6s ease-in-out infinite' }}>
         {/* AI 말풍선 — 커서 왼쪽 위에 고정 부착 */}
@@ -1051,7 +1048,6 @@ function MockRecord() {
           <div style={{ position: 'relative', display: 'inline-block', marginTop: '10px' }}>
             <div style={{ padding: '8px 18px', borderRadius: '8px', background: '#2563EB', color: 'white', fontSize: '12px', fontWeight: 600 }}>공유</div>
             <div style={{ position: 'absolute', inset: '-4px', border: '2.5px solid #EF4444', borderRadius: '11px', pointerEvents: 'none' }} />
-            <span style={{ position: 'absolute', top: '50%', left: '50%', width: '40px', height: '40px', borderRadius: '50%', border: '2.5px solid rgba(37,99,235,0.5)', transform: 'translate(-50%,-50%)', animation: 'rippleOut 1.4s ease-out infinite' }} />
             <span className="capture-flash" />
             <div className="record-cursor" style={{ position: 'absolute', top: '62%', left: '58%', pointerEvents: 'none' }}><CursorIcon /></div>
           </div>
@@ -1241,7 +1237,6 @@ function MockGuideMe() {
               <div style={{ padding: '8px 18px', borderRadius: '7px', background: '#0d4a9e', color: 'white', fontSize: '11px', fontWeight: 700, boxShadow: '0 0 0 3px #12B886, 0 0 0 2000px rgba(13,13,20,0.52)' }}>
                 발급하기
               </div>
-              <span style={{ position: 'absolute', inset: '-6px', borderRadius: '11px', border: '2px solid rgba(141,214,63,0.9)', animation: 'rippleOut 1.6s ease-out infinite', zIndex: 3 }} />
               {/* 커서 */}
               <div style={{ position: 'absolute', top: '60%', left: '55%', zIndex: 4, pointerEvents: 'none' }}>
                 <CursorIcon size={18} />
@@ -2134,10 +2129,6 @@ export default function LandingPage() {
           0%   { transform: scale(0.4); opacity: 0; }
           60%  { transform: scale(1.12); opacity: 1; }
           100% { transform: scale(1); opacity: 1; }
-        }
-        @keyframes rippleOut {
-          0%   { transform: scale(1); opacity: 0.6; }
-          100% { transform: scale(2.4); opacity: 0; }
         }
         @keyframes cursorClick {
           0%   { transform: translate(30px, 26px) scale(1.05); }

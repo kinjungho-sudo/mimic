@@ -20,11 +20,29 @@ const engine = read('guide-engine.js');
 const popup = read('popup.html');
 const manifest = JSON.parse(read('manifest.json'));
 
-assert.equal(manifest.version, '1.7.11');
+assert.equal(manifest.version, '1.7.12');
 assert.deepEqual(
   manifest.content_scripts[0].js.slice(0, 3),
   ['targeting.js', 'guide-engine.js', 'content.js'],
   'replay confidence helpers must load before the guide engine',
+);
+assert.deepEqual(
+  new Set(manifest.web_accessible_resources[0].resources),
+  new Set([
+    'assets/parro-ai-avatar.png',
+    'assets/parro-ai-avatar-neutral.png',
+    'assets/parro-ai-avatar-listen.png',
+    'assets/parro-ai-avatar-talk.png',
+    'assets/parro-ai-avatar-point.png',
+    'assets/parro-ai-avatar-think.png',
+    'assets/parro-ai-avatar-search.png',
+    'assets/parro-ai-avatar-warning.png',
+    'assets/parro-ai-avatar-error.png',
+    'assets/parro-ai-avatar-blocked.png',
+    'assets/parro-ai-avatar-clarify.png',
+    'assets/parro-ai-avatar-success.png',
+  ]),
+  'the Recorder package must expose the Parro mascot assets',
 );
 
 const startGuide = section(background, "if (message.action === 'START_GUIDE')", '// ── 내부 메시지 라우터');
@@ -107,10 +125,24 @@ const queueOverlay = section(content, 'function queueLiveGuideOverlay(msg)', '//
 assert.match(queueOverlay, /showCountdown\([\s\S]*startText: 'START'/, 'the first Live Guide step must show 3, 2, 1, START');
 assert.match(queueOverlay, /_pendingGuideOverlay/, 'concurrent first-step overlay attempts must be coalesced during countdown');
 assert.match(engine, /data-act="copy"/, 'typed Live Guide steps must expose a copy button');
+assert.match(engine, /data-role="guide-copy"/);
+assert.match(engine, /data-expanded="true"/);
+assert.match(engine, /white-space:normal;overflow-wrap:anywhere/);
+assert.doesNotMatch(engine, /data-act="toggle-guide-copy"|-webkit-line-clamp:3|slice\(0, 60\)/);
+assert.match(engine, /data-role="coach-avatar"/);
+assert.match(engine, /background:transparent;border:none;box-shadow:none/);
+assert.match(engine, /\.parro-avatar-stack,\.parro-avatar-layer\{animation:none!important\}/);
+assert.match(engine, /\.parro-avatar-layer--secondary\{display:none!important\}/);
+assert.doesNotMatch(engine, /parro-ripple|mimic-ripple|const pulse =|state\.pulse/);
+assert.match(popup, /data-guide-mascot-frame="borderless"/);
+assert.match(popup, /assets\/parro-ai-avatar-neutral\.png/);
+assert.match(engine, /tooltip\.setAttribute\('data-role', 'guide-bubble'\)/);
+assert.doesNotMatch(engine, /parro-3d-(talk|point|success)\.png/);
 assert.match(engine, /appendGuideViewportFrame\(root\)/, 'resolved Live Guide steps must show the viewport-edge guide frame');
 assert.match(engine, /appendGuideViewportFrame\(shadow\)/, 'explanation Live Guide steps must show the viewport-edge guide frame');
 
-assert.match(popup, /assets\/parro-ai-avatar-neutral\.png\?v=20260720/);
+assert.match(engine, /assets\/\$\{name\}`\)\}\?v=20260813/);
+assert.match(popup, /assets\/parro-ai-avatar-neutral\.png\?v=20260813/);
 assert.match(popup, /id="guideTargetStatus"/);
 assert.match(popup, /id="guideTargetRetry"/);
 const popupScript = read('popup.js');
