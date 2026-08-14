@@ -56,12 +56,14 @@ assert.match(share, /buildStepShareUrl\(url, shareStep\.id\)/, 'step sharing mus
 assert.match(player, /resolveSharedStepIndex\(sharedStepParam, tutorial\.steps\)/, 'shared players must open at the requested step');
 assert.match(player, /initialStepIndex=\{currentStep\}/, 'learning mode must receive the shared step index');
 assert.match(followPlayer, /setIdx\(nextIndex\)/, 'learning player must synchronize a shared initial step after loading');
-assert.match(followStage, /const COACH_SIZE = 74/, 'learning guide coach avatar must use the enlarged size');
+assert.match(followStage, /const COACH_SIZE = 86/, 'learning guide coach avatar must use the enlarged size');
 assert.match(followStage, /data-guide-mascot-frame="borderless"/, 'learning guide coach avatar must not use a surrounding frame');
 assert.match(followStage, /background: 'transparent'[\s\S]*?border: 'none'[\s\S]*?boxShadow: 'none'/, 'learning guide coach avatar must remain borderless');
 assert.match(followStage, /fontSize: '15px'/, 'learning guide explanation text must use the enlarged size');
 assert.doesNotMatch(followStage, /mfp-target-frame-wave|mfp-click-ripple|mfp-target-dot/, 'learning guide must not render animated waves or a click point');
 assert.match(followStage, /data-guide-copy-expanded="true"/, 'learning guide copy must be fully visible immediately');
+assert.match(followStage, /const effectiveBubbleAnchor = isType \? 'bottom-right' : bubbleAnchor/, 'typing steps must keep the learning guide bubble at bottom-right');
+assert.match(followStage, /stepNumber % 3 === 0 \? 'point' : 'talk'/, 'learning guide must occasionally use the pointing Parro pose');
 
 assert.match(studio, /listLiveGuideTargetTabs/, 'Studio must list target tabs before picking');
 assert.match(studio, /이 대상으로 저장할까요\?/, 'Studio must confirm a picked target before saving');

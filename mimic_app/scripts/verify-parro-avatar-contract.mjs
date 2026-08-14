@@ -11,6 +11,7 @@ const webBrandDir = path.join(appDir, 'public', 'brand');
 const recorderDir = path.join(repoDir, 'mimic_recorder');
 const recorderAssetDir = path.join(recorderDir, 'assets');
 const canonicalName = 'parro-3d-neutral.png';
+const pointNames = new Set(['parro-3d-point.png', 'parro-ai-avatar-point.png']);
 const avatarNamePattern = /^parro-(?:3d-(?:neutral|point|success|talk)|ai-avatar(?:-(?:blocked|clarify|error|listen|neutral|point|search|success|talk|think|warning))?)\.png$/;
 
 function digest(filePath) {
@@ -20,6 +21,8 @@ function digest(filePath) {
 const canonicalPath = path.join(webBrandDir, canonicalName);
 assert.equal(fs.existsSync(canonicalPath), true, 'Canonical Parro avatar is missing');
 const canonicalDigest = digest(canonicalPath);
+const pointDigest = digest(path.join(webBrandDir, 'parro-3d-point.png'));
+assert.notEqual(pointDigest, canonicalDigest, 'The contextual pointing pose must be distinct from neutral Parro');
 
 for (const assetDir of [webBrandDir, recorderAssetDir]) {
   const avatarNames = fs.readdirSync(assetDir).filter(name => avatarNamePattern.test(name)).sort();
@@ -27,8 +30,8 @@ for (const assetDir of [webBrandDir, recorderAssetDir]) {
   for (const name of avatarNames) {
     assert.equal(
       digest(path.join(assetDir, name)),
-      canonicalDigest,
-      `${path.relative(repoDir, path.join(assetDir, name))} is not the approved front-facing Parro avatar`,
+      pointNames.has(name) ? pointDigest : canonicalDigest,
+      `${path.relative(repoDir, path.join(assetDir, name))} is not the approved Parro pose for its state`,
     );
   }
 }
@@ -46,20 +49,22 @@ const activeSource = sourceFiles.map(filePath => fs.readFileSync(filePath, 'utf8
 
 assert.doesNotMatch(activeSource, /(?:robot|bot)[-_ ]?(?:avatar|mascot)|(?:avatar|mascot)[-_ ]?(?:robot|bot)/i);
 assert.match(activeSource, /parro-3d-neutral\.png/);
+assert.match(activeSource, /parro-3d-point\.png/);
 assert.match(activeSource, /ParroMascot/);
 
 const manifest = JSON.parse(fs.readFileSync(path.join(recorderDir, 'manifest.json'), 'utf8'));
-assert.equal(manifest.version, '1.7.23');
+assert.equal(manifest.version, '1.7.24');
 assert.deepEqual(
   manifest.web_accessible_resources[0].resources,
-  [`assets/${canonicalName}`],
-  'Recorder must expose only the approved front-facing Parro avatar',
+  [`assets/${canonicalName}`, 'assets/parro-3d-point.png'],
+  'Recorder must expose the approved neutral and contextual pointing Parro poses',
 );
 
 console.log(JSON.stringify({
   ok: true,
   canonicalAsset: canonicalName,
   sha256: canonicalDigest,
+  pointSha256: pointDigest,
   recorderVersion: manifest.version,
   checkedSurfaces: sourceFiles.length,
 }));

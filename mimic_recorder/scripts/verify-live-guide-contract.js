@@ -31,7 +31,7 @@ const playbookServer = fs.readFileSync(
   'utf8',
 );
 
-assert.equal(manifest.version, '1.7.23');
+assert.equal(manifest.version, '1.7.24');
 assert.deepEqual(
   manifest.content_scripts[0].js.slice(0, 3),
   ['targeting.js', 'guide-engine.js', 'content.js'],
@@ -39,8 +39,8 @@ assert.deepEqual(
 );
 assert.deepEqual(
   manifest.web_accessible_resources[0].resources,
-  ['assets/parro-3d-neutral.png'],
-  'the Recorder package must expose only the stable front-facing Parro mascot',
+  ['assets/parro-3d-neutral.png', 'assets/parro-3d-point.png'],
+  'the Recorder package must expose the neutral and contextual pointing Parro poses',
 );
 
 const startGuide = section(background, "if (message.action === 'START_GUIDE')", '// ── 내부 메시지 라우터');
@@ -149,6 +149,9 @@ assert.match(engine, /data-expanded="true"/);
 assert.match(engine, /white-space:normal;overflow-wrap:anywhere/);
 assert.doesNotMatch(engine, /data-act="toggle-guide-copy"|-webkit-line-clamp:3|slice\(0, 60\)/);
 assert.match(engine, /coachAvatar\.setAttribute\('data-role', 'coach-avatar'\)/);
+assert.match(engine, /coachAvatar\.setAttribute\('data-mascot-state', tooltipMascotState\)/);
+assert.match(engine, /data-role="coach-avatar-image"/);
+assert.match(engine, /coachAvatarImage\?\.addEventListener\('error'/);
 assert.match(engine, /background:transparent;border:none;box-shadow:none/);
 assert.match(engine, /\.parro-avatar-stack,\.parro-avatar-layer\{animation:none!important\}/);
 assert.match(engine, /\.parro-avatar-layer--secondary\{display:none!important\}/);
@@ -159,7 +162,11 @@ assert.match(engine, /tooltip\.setAttribute\('data-role', 'guide-bubble'\)/);
 assert.match(engine, /const BUBBLE_BG = 'rgba\(255,255,255,\.98\)'/);
 assert.match(engine, /const BUBBLE_BORDER = '#17C9B6'/);
 assert.match(engine, /border:3px solid \$\{BUBBLE_BORDER\}/);
-assert.doesNotMatch(engine, /parro-3d-(talk|point|success)\.png/);
+assert.match(engine, /point: avatarAsset\('parro-3d-point\.png'\)/);
+assert.doesNotMatch(engine, /parro-3d-(talk|success)\.png/);
+assert.match(engine, /border-radius:20px;padding:12px 14px;box-shadow:0 16px 38px/);
+assert.match(engine, /const isTypeStep = Boolean\(step\.type_text \|\| step\.kind === 'type' \|\| step\.action_type === 'type'\)/);
+assert.match(engine, /const anchor = isTypeStep \? 'bottom-right'/);
 assert.match(engine, /root\.appendChild\(coachAvatar\);[\s\S]*root\.appendChild\(tooltip\);/);
 assert.match(engine, /placeCoachAvatar\(coachAvatar, pos\.left, pos\.top, tipH\)/);
 assert.match(engine, /animation:parro-avatar-in [^;]+ both;/);
@@ -185,8 +192,8 @@ assert.match(visualPreview, /window\.open\('', 'parro-live-guide-preview'/);
 assert.match(visualPreview, /annotations\.map\(renderGuideAnnotation\)/);
 assert.match(engine, /const guideApi = \{ show, showWrongPage, hide,/);
 
-assert.match(engine, /assets\/\$\{name\}`\)\}\?v=20260814/);
-assert.match(popup, /assets\/parro-3d-neutral\.png\?v=20260814/);
+assert.match(engine, /assets\/\$\{name\}`\)\}\?v=20260814b/);
+assert.match(popup, /assets\/parro-3d-neutral\.png\?v=20260814b/);
 assert.match(popup, /id="guideTargetStatus"/);
 assert.match(popup, /id="guideTargetRetry"/);
 assert.match(popup, /id="guideStepPreviewBtn"/);

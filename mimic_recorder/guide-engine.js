@@ -13,8 +13,8 @@
   const TIP_W = 292;  // 코치 아바타 옆에 독립적으로 나타나는 안내 말풍선 너비
   const TIP_GAP = 46; // 타깃을 가리지 않도록 DOM과 코치 UI 사이에 충분한 간격 확보
   const TIP_M = 12;   // 뷰포트 여백(px)
-  const AVATAR_SIZE = 88;
-  const AVATAR_GAP = 10;
+  const AVATAR_SIZE = 100;
+  const AVATAR_GAP = 12;
   const AVATAR_OUTSET = AVATAR_SIZE + AVATAR_GAP; // 말풍선 왼쪽의 독립 아바타 영역
   const TIP_BG = 'rgba(22,20,48,.96)'; // 툴팁/화살표/대기카드 공통 배경 — 짙은 남색·보라(흰 배경 가독성)
   const BUBBLE_BG = 'rgba(255,255,255,.98)';
@@ -611,13 +611,13 @@
   }
 
   // 웹 제품과 동일한 상태형 AI 가이드 아바타.
-  const avatarAsset = (name) => `${chrome.runtime.getURL(`assets/${name}`)}?v=20260814`;
+  const avatarAsset = (name) => `${chrome.runtime.getURL(`assets/${name}`)}?v=20260814b`;
   const MASCOT_IMAGE_URLS = {
     idle: avatarAsset('parro-3d-neutral.png'),
     neutral: avatarAsset('parro-3d-neutral.png'),
     listen: avatarAsset('parro-3d-neutral.png'),
     talk: avatarAsset('parro-3d-neutral.png'),
-    point: avatarAsset('parro-3d-neutral.png'),
+    point: avatarAsset('parro-3d-point.png'),
     think: avatarAsset('parro-3d-neutral.png'),
     search: avatarAsset('parro-3d-neutral.png'),
     warning: avatarAsset('parro-3d-neutral.png'),
@@ -642,10 +642,8 @@
   };
   const mascotHtml = (stateName = 'neutral') => {
     const safeState = Object.prototype.hasOwnProperty.call(MASCOT_IMAGE_URLS, stateName) ? stateName : 'neutral';
-    const secondaryState = MASCOT_SEQUENCE_STATES[safeState] || 'neutral';
     return `<span class="parro-avatar-stack parro-avatar-stack--${safeState} parro-avatar-sequence--${safeState}">
-      <img class="parro-avatar-layer parro-avatar-layer--primary" src="${MASCOT_IMAGE_URLS[safeState]}" alt="" draggable="false">
-      <img class="parro-avatar-layer parro-avatar-layer--secondary" src="${MASCOT_IMAGE_URLS[secondaryState]}" alt="" draggable="false">
+      <img data-role="coach-avatar-image" class="parro-avatar-layer parro-avatar-layer--primary" src="${MASCOT_IMAGE_URLS[safeState]}" alt="" draggable="false">
     </span>`;
   };
   const AVATAR_MOTION_CSS = `
@@ -897,28 +895,35 @@
     const idx = opts.index ?? 0, total = opts.total ?? 1;
     const typeTextSnippet = step.type_text ? escapeHtml(String(step.type_text)) : '';
     const tooltipText = step.instruction || step.title || '';
-    const tooltipMascotState = 'talk';
+    const isTypeStep = Boolean(step.type_text || step.kind === 'type' || step.action_type === 'type');
+    const tooltipMascotState = !isTypeStep && idx > 0 && idx % 3 === 1 ? 'point' : 'talk';
 
     const coachAvatar = document.createElement('div');
     coachAvatar.setAttribute('data-role', 'coach-avatar');
+    coachAvatar.setAttribute('data-mascot-state', tooltipMascotState);
     coachAvatar.setAttribute('aria-hidden', 'true');
     coachAvatar.style.cssText = `position:fixed;${AVATAR_STYLE}pointer-events:none;z-index:5;animation:parro-avatar-in .26s cubic-bezier(.2,.8,.2,1) both;`;
     coachAvatar.innerHTML = mascotHtml(tooltipMascotState);
+    const coachAvatarImage = coachAvatar.querySelector('[data-role="coach-avatar-image"]');
+    coachAvatarImage?.addEventListener('error', () => {
+      const neutralUrl = MASCOT_IMAGE_URLS.neutral;
+      if (coachAvatarImage.src !== neutralUrl) coachAvatarImage.src = neutralUrl;
+    });
 
     const tooltip = document.createElement('div');
     tooltip.setAttribute('data-role', 'guide-bubble');
-    tooltip.style.cssText = `position:fixed;width:${TIP_W}px;max-height:calc(100vh - 32px);overflow-y:auto;box-sizing:border-box;background:${BUBBLE_BG};color:#102038;border:3px solid ${BUBBLE_BORDER};border-radius:22px;padding:13px;box-shadow:0 18px 46px rgba(15,23,42,.18),0 8px 24px rgba(23,201,182,.16);isolation:isolate;z-index:5;pointer-events:auto;animation:parro-bubble-in .3s cubic-bezier(.2,.8,.2,1) .09s both;`;
+    tooltip.style.cssText = `position:fixed;width:${TIP_W}px;max-height:calc(100vh - 32px);overflow-y:auto;box-sizing:border-box;background:${BUBBLE_BG};color:#102038;border:3px solid ${BUBBLE_BORDER};border-radius:20px;padding:12px 14px;box-shadow:0 16px 38px rgba(15,23,42,.18),0 8px 24px rgba(23,201,182,.16);isolation:isolate;z-index:5;pointer-events:auto;animation:parro-bubble-in .3s cubic-bezier(.2,.8,.2,1) .09s both;`;
     tooltip.innerHTML = `
-      <div aria-hidden="true" style="position:absolute;left:-12px;top:31px;width:19px;height:19px;background:#fff;border-left:3px solid ${BUBBLE_BORDER};border-bottom:3px solid ${BUBBLE_BORDER};transform:rotate(45deg);border-radius:2px;pointer-events:none;z-index:-1"></div>
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:7px">
-        <span style="font-size:11px;font-weight:800;color:#007F75;background:#DDF8F3;padding:2px 8px;border-radius:20px">${idx + 1} / ${total}</span>
+      <div aria-hidden="true" style="position:absolute;left:-11px;top:28px;width:18px;height:18px;background:#fff;border-left:3px solid ${BUBBLE_BORDER};border-bottom:3px solid ${BUBBLE_BORDER};transform:rotate(45deg);pointer-events:none;z-index:-1"></div>
+      <div style="display:flex;align-items:flex-start;gap:9px;margin-bottom:7px">
+        <span title="${idx + 1} / ${total}" style="flex-shrink:0;width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;font-size:12px;font-weight:800;display:grid;place-items:center;box-shadow:0 2px 6px rgba(0,155,142,.34)">${idx + 1}</span>
         ${resolved.source === 'none' ? `<span style="font-size:10.5px;color:#C2410C">${i18n('elementNotFound', '요소 미발견')}</span>` : ''}
         <div style="flex:1"></div>
         <button class="parro-btn mimic-btn" data-act="toggle-guide-voice" aria-pressed="false" title="${escapeHtml(i18n('guideVoiceEnable', '음성 안내 켜기'))}" aria-label="${escapeHtml(i18n('guideVoiceEnable', '음성 안내 켜기'))}" style="display:grid;place-items:center;width:28px;height:28px;padding:0;border:1px solid rgba(100,116,139,.24);border-radius:8px;background:transparent;color:#64748B;font-size:14px;line-height:1">🔇</button>
         <button class="parro-btn mimic-btn" data-act="hide-tooltip" title="말풍선 숨기기" style="background:transparent;color:#64748B;padding:3px 6px;font-size:15px;line-height:1">✕</button>
       </div>
       ${tooltipText ? `
-        <div data-role="guide-copy" data-expanded="true" style="font-size:12.5px;color:#102038;line-height:1.6;font-weight:650;display:block;white-space:normal;overflow-wrap:anywhere">${escapeHtml(tooltipText)}</div>
+        <div data-role="guide-copy" data-expanded="true" style="font-size:15px;color:#374151;line-height:1.5;font-weight:400;display:block;white-space:normal;overflow-wrap:anywhere">${escapeHtml(tooltipText)}</div>
       ` : ''}
       ${step.type_text ? `
         <div style="margin-top:10px;background:#EDFCF8;border:1px solid #A7EDE3;border-radius:11px;padding:8px 10px">
@@ -1085,7 +1090,7 @@
         placeCoachAvatar(coachAvatar, pos.left, pos.top, tipH);
 
         // 소유자가 스튜디오에서 지정한 말풍선 위치 — 뷰포트 고정 코너로 override
-        const anchor = state.step && state.step.bubble_anchor;
+        const anchor = isTypeStep ? 'bottom-right' : state.step && state.step.bubble_anchor;
         if (anchor) {
           const tH = tooltip.offsetHeight || tipH;
           const hasAvatarSideRoom = window.innerWidth >= TIP_W + AVATAR_OUTSET + TIP_M * 2;

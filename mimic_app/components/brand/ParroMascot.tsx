@@ -25,10 +25,12 @@ type ParroMascotProps = {
   mirror?: boolean;
 };
 
-const PARRO_FRONT_ASSET = '/brand/parro-3d-neutral.png';
+const PARRO_FRONT_ASSET = '/brand/parro-3d-neutral.png?v=20260814b';
+const PARRO_POINT_ASSET = '/brand/parro-3d-point.png?v=20260814b';
 
-/** A stable, front-facing Parro guide avatar. State props remain for API compatibility. */
-export function ParroMascot({ size = 48, className, state = 'neutral' }: ParroMascotProps) {
+/** A stable Parro guide avatar with a restrained pointing pose for contextual guidance. */
+export function ParroMascot({ size = 48, className, state = 'neutral', mirror = false }: ParroMascotProps) {
+  const asset = state === 'point' ? PARRO_POINT_ASSET : PARRO_FRONT_ASSET;
   return (
     <span
       className={[styles.frame, className ?? ''].filter(Boolean).join(' ')}
@@ -37,9 +39,9 @@ export function ParroMascot({ size = 48, className, state = 'neutral' }: ParroMa
       role="img"
       aria-label="Parro AI 가이드"
     >
-      <span className={styles.visual}>
+      <span className={styles.visual} style={{ transform: mirror ? 'scaleX(-1)' : undefined }}>
         <span className={styles.stack}>
-          <Image className={styles.layer} src={PARRO_FRONT_ASSET} alt="" width={size} height={size} draggable={false} />
+          <Image className={styles.layer} src={asset} alt="" width={size} height={size} draggable={false} />
         </span>
       </span>
     </span>

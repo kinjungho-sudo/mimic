@@ -16,11 +16,11 @@ const TARGET_GREEN = '#12B886';
 const GUIDE_RING_SOFT = 'rgba(0,155,142,0.14)';
 const GUIDE_RING_STRONG = 'rgba(0,155,142,0.28)';
 const GUIDE_SHADOW = 'rgba(0,155,142,0.34)';
-const COACH_SIZE = 74;
+const COACH_SIZE = 86;
 const TARGET_CLEARANCE = 72;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
-export function Mascot({ size = COACH_SIZE, state = 'talk' }: { size?: number; state?: ParroMascotState }) {
+export function Mascot({ size = COACH_SIZE, state = 'talk', mirror = false }: { size?: number; state?: ParroMascotState; mirror?: boolean }) {
   return (
     <div
       data-guide-mascot-frame="borderless"
@@ -36,7 +36,7 @@ export function Mascot({ size = COACH_SIZE, state = 'talk' }: { size?: number; s
         overflow: 'visible',
       }}
     >
-      <ParroMascot size={size} state={state} />
+      <ParroMascot size={size} state={state} mirror={mirror} />
     </div>
   );
 }
@@ -147,6 +147,8 @@ export function FollowStage({
   // 좌상단 0,0 가짜 핫스팟(자동추론 아티팩트)은 억제하되, 사용자가 직접 찍은 좌표는 그대로 인정
   const hasHotspot = hx != null && hy != null && (allowCornerHotspot || !(hx < CORNER && hy < CORNER));
   const isType = kind === 'type';
+  const effectiveBubbleAnchor = isType ? 'bottom-right' : bubbleAnchor;
+  const mascotState: ParroMascotState = !isType && stepNumber != null && stepNumber % 3 === 0 ? 'point' : 'talk';
   // 큰 카드/컨테이너 DOM은 실제 클릭 지점 주변만 학습 타깃으로 표시한다.
   const targetRect = resolveGuideTargetRect(domRect, hx, hy, box.w, box.h);
 
@@ -187,11 +189,11 @@ export function FollowStage({
 
   // 말풍선 위치 — anchor 고정 위치 우선, 없으면 핫스팟 상대 위치
   const BW = box.w ? clamp(box.w - 32, 210, 320) : 280;
-  const UNIT_W = BW + COACH_SIZE + 10, UNIT_H = 132;
+  const UNIT_W = BW + COACH_SIZE + 10, UNIT_H = 144;
   let bubbleLeft = 0, bubbleTop = 0, bubbleSide: 'left' | 'right' = 'right';
-  if (bubbleAnchor && box.w && box.h) {
-    const isRight = bubbleAnchor.includes('right');
-    const isBottom = bubbleAnchor.includes('bottom');
+  if (effectiveBubbleAnchor && box.w && box.h) {
+    const isRight = effectiveBubbleAnchor.includes('right');
+    const isBottom = effectiveBubbleAnchor.includes('bottom');
     bubbleSide = isRight ? 'left' : 'right';
     bubbleLeft = isRight ? box.w - UNIT_W - 12 : 12;
     bubbleTop = isBottom ? box.h - UNIT_H - 12 : 12;
@@ -212,7 +214,7 @@ export function FollowStage({
   // transform: scale(S) 후 점 (px,py)의 시각 위치 = pivot + (px-pivot)*S
   let outBubbleLeft = bubbleLeft;
   let outBubbleTop = bubbleTop;
-  if (!bubbleAnchor && hasHotspot && box.w && box.h && isAnimated) {
+  if (!effectiveBubbleAnchor && hasHotspot && box.w && box.h && isAnimated) {
     const zoomCXpx = (zoomCX / 100) * box.w;
     const zoomCYpx = (zoomCY / 100) * box.h;
     const visHyPx = zoomCYpx + ((hy! / 100) * box.h - zoomCYpx) * zoomScale;
@@ -255,9 +257,9 @@ export function FollowStage({
     </div>
   );
 
-  const MascotBtn = (
+  const mascotBtn = (side: 'left' | 'right') => (
     <button onClick={onMascotClick} title={showAudioBadge ? '음성 듣기' : '안내'} style={{ border: 'none', background: 'transparent', cursor: onMascotClick ? 'pointer' : 'default', padding: 0, position: 'relative' }}>
-      <Mascot size={COACH_SIZE} />
+      <Mascot size={COACH_SIZE} state={mascotState} mirror={mascotState === 'point' && side === 'left'} />
       {showAudioBadge && <span style={{ position: 'absolute', bottom: -2, right: -2, width: 16, height: 16, borderRadius: '50%', background: '#fff', display: 'grid', placeItems: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.25)' }}><svg width="9" height="9" viewBox="0 0 24 24" fill={BRAND_COLORS.primary}><path d="M3 10v4h4l5 5V5L7 10H3z" /></svg></span>}
     </button>
   );
@@ -270,7 +272,7 @@ export function FollowStage({
       <button onClick={onMascotClick} title="안내 펼치기" style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, pointerEvents: 'auto', marginTop: side !== 'bottom' ? `${UNIT_H - COACH_SIZE}px` : undefined }}><Mascot size={COACH_SIZE} state="idle" /></button>
     ) : (
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', pointerEvents: 'auto' }}>
-        {side === 'left' ? <>{bubbleBox('right')}{MascotBtn}</> : <>{MascotBtn}{bubbleBox('left')}</>}
+        {side === 'left' ? <>{bubbleBox('right')}{mascotBtn('left')}</> : <>{mascotBtn('right')}{bubbleBox('left')}</>}
       </div>
     )
   );
@@ -367,14 +369,14 @@ export function FollowStage({
       </div>
 
       {/* AI 캐릭터 + 말풍선 — zoom wrapper 밖 렌더링으로 확대 영향 없이 항상 화면 안에 표시 */}
-      {showOverlays && (hasHotspot || (bubbleAnchor && box.w > 0)) && (
+      {showOverlays && (hasHotspot || (effectiveBubbleAnchor && box.w > 0)) && (
         <div style={{ position: 'absolute', left: `${outBubbleLeft}px`, top: `${outBubbleTop}px`, zIndex: 6, pointerEvents: 'none', animation: isAnimated ? 'mfp-bubble-in 0.35s ease-out' : undefined }}>
           {renderUnit(bubbleSide)}
         </div>
       )}
 
       {/* 핫스팟 없고 앵커도 없는 이동/설명형 — focused 시만 */}
-      {showOverlays && !hasHotspot && !bubbleAnchor && (
+      {showOverlays && !hasHotspot && !effectiveBubbleAnchor && (
         <div style={{ position: 'absolute', right: '18px', bottom: '18px', zIndex: 6, pointerEvents: 'none', maxWidth: '92%' }}>
           {renderUnit('bottom')}
         </div>

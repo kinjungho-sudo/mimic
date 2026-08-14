@@ -106,6 +106,32 @@ async function closedShadowBox(page: Page, matchAttribute: string, matchValue: s
   };
 }
 
+async function closedShadowImageState(page: Page, matchAttribute: string, matchValue: string) {
+  const cdp = await page.context().newCDPSession(page);
+  const { root } = await cdp.send('DOM.getDocument', { depth: -1, pierce: true });
+  const find = (node: any): any => {
+    const attributes = Array.isArray(node.attributes) ? node.attributes : [];
+    for (let index = 0; index < attributes.length; index += 2) {
+      if (attributes[index] === matchAttribute && attributes[index + 1] === matchValue) return node;
+    }
+    for (const child of [...(node.children || []), ...(node.shadowRoots || [])]) {
+      const match = find(child);
+      if (match) return match;
+    }
+    return null;
+  };
+  const node = find(root);
+  expect(node, `missing closed-shadow image: ${matchAttribute}=${matchValue}`).toBeTruthy();
+  const { object } = await cdp.send('DOM.resolveNode', { nodeId: node.nodeId });
+  const { result } = await cdp.send('Runtime.callFunctionOn', {
+    objectId: object.objectId,
+    functionDeclaration: 'function () { return { complete: this.complete, naturalWidth: this.naturalWidth, src: this.src }; }',
+    returnByValue: true,
+  });
+  await cdp.detach();
+  return result.value as { complete: boolean; naturalWidth: number; src: string };
+}
+
 async function loadContent(page: Page, options: { recording?: boolean } = {}) {
   await page.setContent('<main id="fixture"></main>');
   await page.evaluate(({ recording }) => {
@@ -307,6 +333,10 @@ test('long Live Guide copy is fully visible immediately', async ({ page }) => {
 
 test('Live Guide avatar stays visually separate beside its speech bubble', async ({ page }) => {
   await page.setViewportSize({ width: 1000, height: 700 });
+  await page.route('**/assets/parro-3d-neutral.png*', route => route.fulfill({
+    contentType: 'image/png',
+    path: path.join(recorderRoot, 'assets', 'parro-3d-neutral.png'),
+  }));
   await page.route('https://example.test/separate-coach', route => route.fulfill({
     contentType: 'text/html',
     body: '<button id="separate-coach-target" style="position:absolute;left:430px;top:260px;width:140px;height:44px">Continue</button>',
@@ -334,6 +364,51 @@ test('Live Guide avatar stays visually separate beside its speech bubble', async
   const bubble = await closedShadowBox(page, 'data-role', 'guide-bubble');
   expect(Math.min(avatar.bottom, bubble.bottom) - Math.max(avatar.top, bubble.top)).toBeGreaterThan(40);
   expect(await closedShadowAttribute(page, 'data-role', 'coach-avatar', 'data-placement')).toBe('left');
+  await expect.poll(async () => (await closedShadowImageState(page, 'data-role', 'coach-avatar-image')).naturalWidth).toBeGreaterThan(0);
+});
+
+test('Live Guide occasionally uses the pointing Parro pose', async ({ page }) => {
+  await page.route('**/assets/parro-3d-point.png*', route => route.fulfill({
+    contentType: 'image/png',
+    path: path.join(recorderRoot, 'assets', 'parro-3d-point.png'),
+  }));
+  await page.route('https://example.test/pointing-coach', route => route.fulfill({
+    contentType: 'text/html',
+    body: '<button id="pointing-target" style="margin:220px;width:140px;height:44px">Continue</button>',
+  }));
+  await page.goto('https://example.test/pointing-coach');
+  await loadGuide(page);
+  await page.evaluate(() => {
+    (window as unknown as { ParroGuide: any }).ParroGuide.show({
+      id: 'pointing-step', page_url: window.location.href, element_selector: '#pointing-target',
+      title: 'Continue', instruction: 'Parro points toward the screen.',
+    }, { index: 1, total: 3 });
+  });
+
+  expect(await closedShadowAttribute(page, 'data-role', 'coach-avatar', 'data-mascot-state')).toBe('point');
+  await expect.poll(async () => (await closedShadowImageState(page, 'data-role', 'coach-avatar-image')).naturalWidth).toBeGreaterThan(0);
+  expect((await closedShadowImageState(page, 'data-role', 'coach-avatar-image')).src).toContain('parro-3d-point.png');
+});
+
+test('Live Guide keeps typing-step speech bubbles in the bottom-right corner', async ({ page }) => {
+  await page.setViewportSize({ width: 1000, height: 700 });
+  await page.route('https://example.test/type-corner', route => route.fulfill({
+    contentType: 'text/html',
+    body: '<input id="type-target" style="position:absolute;left:120px;top:120px;width:180px;height:40px">',
+  }));
+  await page.goto('https://example.test/type-corner');
+  await loadGuide(page);
+  await page.evaluate(() => {
+    (window as unknown as { ParroGuide: any }).ParroGuide.show({
+      id: 'type-corner-step', page_url: window.location.href, element_selector: '#type-target',
+      kind: 'type', type_text: 'Parro', title: 'Type', instruction: 'Enter the text.', bubble_anchor: 'top-left',
+    }, { index: 0, total: 1 });
+  });
+
+  await expect.poll(async () => {
+    const bubble = await closedShadowBox(page, 'data-role', 'guide-bubble');
+    return { right: Math.round(1000 - bubble.right), bottom: Math.round(700 - bubble.bottom) };
+  }).toEqual({ right: 12, bottom: 12 });
 });
 
 test('Live Guide reads step copy with TTS and stops it when hidden', async ({ page }) => {
