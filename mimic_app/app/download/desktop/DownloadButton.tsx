@@ -12,6 +12,7 @@ import { releaseDesktopDownloadLock, startDesktopDownloadOnce } from '@/lib/desk
 import styles from './page.module.css';
 
 type InstallState = 'checking' | 'current' | 'outdated' | 'missing' | 'recorder_missing';
+type DownloadIntent = 'auto-install' | 'installer-download';
 
 function DownloadIcon() {
   return (
@@ -35,6 +36,8 @@ export function DownloadButton({
 }) {
   const activeDownloadButton = useRef<HTMLButtonElement | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [downloadIntent, setDownloadIntent] = useState<DownloadIntent | null>(null);
+  const [autoInstallArmed, setAutoInstallArmed] = useState(false);
   const [installState, setInstallState] = useState<InstallState>('checking');
   const [installedVersion, setInstalledVersion] = useState<string | null>(requestedInstalledVersion || null);
   const [recorderVersion, setRecorderVersion] = useState<string | null>(null);
@@ -64,15 +67,31 @@ export function DownloadButton({
     releaseDesktopDownloadLock(activeDownloadButton.current);
   }, []);
 
-  const handleDownload = (event: React.MouseEvent<HTMLButtonElement>) => {
+  useEffect(() => {
+    if (!autoInstallArmed || installState !== 'current') return;
+    window.location.assign(`/desktop-setup?source=${encodeURIComponent(source)}&autostart=1`);
+  }, [autoInstallArmed, installState, source]);
+
+  useEffect(() => {
+    if (!autoInstallArmed) return;
+    const timerId = window.setInterval(() => {
+      void checkInstall();
+    }, 2500);
+    return () => window.clearInterval(timerId);
+  }, [autoInstallArmed, checkInstall]);
+
+  const handleDownload = (intent: DownloadIntent) => (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     const button = event.currentTarget;
+    if (intent === 'auto-install') setAutoInstallArmed(true);
+    setDownloadIntent(intent);
     const started = startDesktopDownloadOnce(button, {
       href,
       filename: 'ParroDesktopSetup.exe',
       lockMs: 4_000,
       onLockChange: locked => {
         setDownloading(locked);
+        if (!locked) setDownloadIntent(null);
         if (!locked && activeDownloadButton.current === button) activeDownloadButton.current = null;
       },
     });
@@ -80,21 +99,37 @@ export function DownloadButton({
   };
 
   const downloadLabel = downloading
-    ? '다운로드 시작됨'
+    ? downloadIntent === 'auto-install'
+      ? '자동 설치 준비 중'
+      : '설치 파일 다운로드 중'
     : installState === 'outdated' || reason === 'update'
-      ? '최신 버전으로 업데이트'
-      : 'Windows용 다운로드';
-  const downloadLink = (
+      ? '자동 설치로 업데이트'
+      : '자동 설치';
+  const autoInstallButton = (
     <button
       type="button"
       className={styles.downloadButton}
-      data-testid="desktop-download"
+      data-testid="desktop-auto-install"
       data-downloading={downloading ? 'true' : 'false'}
-      onClick={handleDownload}
+      disabled={downloading}
+      onClick={handleDownload('auto-install')}
       onDoubleClick={event => event.preventDefault()}
     >
       <DownloadIcon />
       {downloadLabel}
+    </button>
+  );
+  const installerDownloadButton = (
+    <button
+      type="button"
+      className={styles.installerDownloadButton}
+      data-testid="desktop-download"
+      data-downloading={downloading && downloadIntent === 'installer-download' ? 'true' : 'false'}
+      disabled={downloading}
+      onClick={handleDownload('installer-download')}
+      onDoubleClick={event => event.preventDefault()}
+    >
+      설치 파일 다운로드
     </button>
   );
 
@@ -127,13 +162,14 @@ export function DownloadButton({
           Parro Desktop 앱 열기
         </a>
         <button
-          className={styles.secondaryActionButton}
+          className={styles.installerDownloadButton}
           data-testid="desktop-download"
           type="button"
-          onClick={handleDownload}
+          disabled={downloading}
+          onClick={handleDownload('installer-download')}
           onDoubleClick={event => event.preventDefault()}
         >
-          설치 파일 다시 받기
+          설치 파일 다운로드
         </button>
       </div>
     );
@@ -154,15 +190,21 @@ export function DownloadButton({
         </>
       )}
       {installState === 'missing' && (
-        <span className={styles.actionHint}>설치되지 않았습니다. 원할 때 설치 파일을 내려받으세요.</span>
+        <span className={styles.actionHint}>설치되지 않았습니다. 자동 설치를 누르면 설치 파일을 바로 받고, 설치 확인 후 앱을 실행합니다.</span>
       )}
       {installState === 'recorder_missing' && (
         <span className={styles.actionHint}>설치 확인에는 Parro Recorder 확장이 필요합니다.</span>
       )}
-      {downloadLink}
+      {autoInstallButton}
+      {installerDownloadButton}
       <button className={styles.secondaryActionButton} type="button" onClick={() => { void checkInstall(); }}>
         설치 완료 후 다시 확인
       </button>
+      {autoInstallArmed && (
+        <span className={styles.actionHint}>
+          다운로드가 시작되면 <strong>ParroDesktopSetup.exe</strong>를 열어 설치를 완료해주세요. 설치가 확인되면 Parro Desktop 앱으로 바로 이동합니다.
+        </span>
+      )}
       {installState === 'recorder_missing' && (
         <a className={styles.secondaryAction} href={BRAND_EXTENSION_STORE_URL} target="_blank" rel="noopener noreferrer">
           Parro Recorder 설치

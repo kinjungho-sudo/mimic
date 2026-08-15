@@ -81,7 +81,7 @@ export default async function DesktopDownloadPage({
             <h1>설치가 필요해요</h1>
             <p>
               데스크톱 녹화를 시작하려면 Windows용 Parro Desktop 앱이 필요합니다.
-              설치가 끝나면 다시 확인하고 바로 녹화를 시작할 수 있어요.
+              자동 설치로 바로 진행하거나, 설치 파일만 로컬에 내려받을 수 있어요.
             </p>
             <div className={styles.captureFlow} aria-label="Parro Desktop 작업 흐름">
               <span><b>01</b> 다운로드</span>
@@ -115,8 +115,8 @@ export default async function DesktopDownloadPage({
               />
             </div>
             <div className={styles.trustRow}>
-              <span><b>✓</b> 자동 설치 파일 다운로드</span>
-              <span><b>✓</b> 수동 다운로드 가능</span>
+              <span><b>✓</b> 자동 설치로 바로 진행</span>
+              <span><b>✓</b> 설치 파일 다운로드 가능</span>
               <span><b>✓</b> 유료 플랜 전용</span>
             </div>
           </div>
@@ -131,9 +131,9 @@ export default async function DesktopDownloadPage({
         </div>
         <div className={styles.stepsGrid}>
           {[
-            ['01', '설치 파일 다운로드', '자동 다운로드 버튼을 누르거나 수동 다운로드 링크로 설치 파일을 받습니다.'],
-            ['02', '기본 옵션으로 설치', '받은 ParroDesktopSetup.exe를 실행하고 기본 옵션 그대로 설치합니다.'],
-            ['03', '설치 완료 후 다시 확인', '확인이 끝나면 Parro Desktop 앱이 열리고 데스크톱 녹화를 시작할 수 있습니다.'],
+            ['01', '자동 설치 또는 파일 다운로드', '자동 설치를 누르면 설치 파일을 바로 받고 설치 완료를 감지합니다. 파일만 필요하면 설치 파일 다운로드를 선택하세요.'],
+            ['02', '기본 옵션으로 설치', 'ParroDesktopSetup.exe가 열리면 안내에 따라 기본 옵션 그대로 설치합니다.'],
+            ['03', '설치 확인 후 앱 실행', '설치가 확인되면 Parro Desktop 앱으로 이동하고 데스크톱 녹화를 시작할 수 있습니다.'],
           ].map(([number, title, body]) => (
             <article className={styles.stepCard} key={number}>
               <span className={styles.stepNumber}>{number}</span>

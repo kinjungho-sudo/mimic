@@ -28,8 +28,10 @@
 .downloadActionArea { min-width: 245px; display: flex; align-items: stretch; flex-direction: column; gap: 8px; text-align: center; }
 .downloadButton { min-height: 52px; padding: 0 22px; border: 0; border-radius: 12px; display: inline-flex; align-items: center; gap: 9px; background: #007c72; color: white; text-decoration: none; font: inherit; font-size: 14px; font-weight: 800; cursor: pointer; box-shadow: 0 8px 22px rgba(0,124,114,.22); transition: transform .15s, background .15s; }
 .downloadButton:hover { transform: translateY(-2px); background: #00675f; }
+.installerDownloadButton { min-height: 48px; padding: 0 18px; border: 1px solid #cfe2dd; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: rgba(255,255,255,.76); color: #173c35; text-decoration: none; font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; transition: transform .15s, border-color .15s, background .15s; }
+.installerDownloadButton:hover { transform: translateY(-1px); border-color: #99cfc6; background: white; }
 .downloadButton[data-downloading='true'] { pointer-events: none; background: #315f58; box-shadow: none; }
-.downloadButton:disabled { cursor: wait; transform: none; }
+.downloadButton:disabled, .installerDownloadButton:disabled { cursor: wait; transform: none; }
 .checkingButton { min-height: 52px; padding: 0 20px; border: 0; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; background: #dcebe7; color: #42615a; font-size: 13.5px; font-weight: 800; }
 .miniSpinner { width: 15px; height: 15px; border: 2px solid rgba(0,124,114,.2); border-top-color: #007c72; border-radius: 50%; animation: desktopSpin .8s linear infinite; }
 .installBadge { padding: 6px 9px; border-radius: 8px; font-size: 11.5px; font-weight: 800; line-height: 1.4; }
@@ -60,7 +62,7 @@
   .downloadCard { margin-top: 38px; }
   .platformRow { align-items: stretch; flex-direction: column; }
   .downloadActionArea { width: 100%; min-width: 0; }
-  .downloadButton { justify-content: center; width: 100%; }
+  .downloadButton, .installerDownloadButton { justify-content: center; width: 100%; }
   .trustRow { justify-content: flex-start; gap: 8px 16px; }
   .stepsSection { padding: 72px 20px; }
   .sectionHeading h2 { font-size: 30px; }

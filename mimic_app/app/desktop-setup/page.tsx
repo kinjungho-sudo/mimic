@@ -38,6 +38,7 @@ export default function DesktopSetupPage() {
   const [status, setStatus] = useState<DesktopStatus>('checking');
   const [message, setMessage] = useState<string | null>(null);
   const [pendingSessionId, setPendingSessionId] = useState<string | null>(null);
+  const [autoInstallArmed, setAutoInstallArmed] = useState(false);
   const initialFlowStarted = useRef(false);
 
   const installerReady = INSTALLER_URL.length > 0;
@@ -66,15 +67,20 @@ export default function DesktopSetupPage() {
     }
   }, [status]);
 
-  const handleDownload = useCallback(() => {
+  const handleInstallerDownload = useCallback((mode: 'auto' | 'download') => {
     if (!installerReady) {
       setMessage('아직 정식 .exe 설치 파일 URL이 연결되지 않았습니다. NEXT_PUBLIC_DESKTOP_INSTALLER_URL 설정이 필요합니다.');
       return;
     }
+    if (mode === 'auto') setAutoInstallArmed(true);
     const started = triggerInstallerDownload();
-    setMessage(started
-      ? '다운로드가 시작되었습니다. 설치 파일을 실행한 뒤 연결 확인을 눌러주세요.'
-      : '다운로드가 이미 시작되었습니다. 브라우저의 다운로드 목록을 확인해주세요.');
+    if (!started) {
+      setMessage('다운로드가 이미 시작되었습니다. 브라우저의 다운로드 목록을 확인해주세요.');
+      return;
+    }
+    setMessage(mode === 'auto'
+      ? '자동 설치를 준비하고 있습니다. 다운로드된 ParroDesktopSetup.exe를 열어 설치를 완료해주세요. 확인되면 Parro Desktop 앱으로 이동합니다.'
+      : '설치 파일 다운로드가 시작되었습니다. 원하는 때 ParroDesktopSetup.exe를 실행해 설치할 수 있습니다.');
   }, [installerReady]);
 
   const openDesktopApp = useCallback(async () => {
@@ -150,6 +156,14 @@ export default function DesktopSetupPage() {
     void checkInstall(params.get('autostart') === '1');
   }, [checkInstall]);
 
+  useEffect(() => {
+    if (!autoInstallArmed) return;
+    const timerId = window.setInterval(() => {
+      void checkInstall(true);
+    }, 2500);
+    return () => window.clearInterval(timerId);
+  }, [autoInstallArmed, checkInstall]);
+
   const importDesktopCapture = useCallback(async (captureSessionId: string) => {
     if (!captureSessionId) return;
     if (!canTalkToDesktopExtension()) {
@@ -203,15 +217,15 @@ export default function DesktopSetupPage() {
               <p className="desktop-setup-section-label">설치 다운로드</p>
               <h2>Parro Desktop을 설치하면 바로 녹화를 시작할 수 있어요.</h2>
               <p>
-                설치 파일을 내려받아 기본 옵션으로 설치한 뒤, 다시 이 화면에서 연결을 확인해주세요.
+                자동 설치로 바로 진행하거나, 설치 프로그램만 로컬에 내려받을 수 있어요.
               </p>
               <div className="desktop-setup-actions">
-                <button type="button" onClick={handleDownload} disabled={!installerReady}>
-                  자동 설치 파일 다운로드
+                <button type="button" onClick={() => handleInstallerDownload('auto')} disabled={!installerReady}>
+                  자동 설치
                 </button>
-                <a className="desktop-manual-download" href={INSTALLER_URL}>
-                  수동으로 다운로드 받기
-                </a>
+                <button type="button" className="desktop-secondary-install" onClick={() => handleInstallerDownload('download')} disabled={!installerReady}>
+                  설치 파일 다운로드
+                </button>
                 <button type="button" onClick={() => { void checkInstall(false); }}>
                   설치 완료 후 다시 확인
                 </button>
@@ -225,8 +239,8 @@ export default function DesktopSetupPage() {
                 <li>
                   <span>1</span>
                   <div>
-                    <strong>설치 파일 다운로드</strong>
-                    <p><code>ParroDesktopSetup.exe</code>를 내려받습니다.</p>
+                    <strong>자동 설치 또는 파일 다운로드</strong>
+                    <p>자동 설치는 설치 파일을 바로 받고 완료 확인 후 앱 실행까지 이어집니다.</p>
                   </div>
                 </li>
                 <li>
@@ -239,8 +253,8 @@ export default function DesktopSetupPage() {
                 <li>
                   <span>3</span>
                   <div>
-                    <strong>다시 확인</strong>
-                    <p>설치 완료 후 <strong>설치 완료 후 다시 확인</strong>을 누르면 Parro Desktop 앱으로 이동합니다.</p>
+                    <strong>다시 확인 후 앱 실행</strong>
+                    <p>설치가 확인되면 Parro Desktop 앱으로 이동합니다.</p>
                   </div>
                 </li>
               </ol>
@@ -581,11 +595,16 @@ export default function DesktopSetupPage() {
           cursor: pointer;
         }
 
-        .desktop-setup-actions button:first-child,
-        .desktop-setup-actions button:last-child:not(:disabled) {
+        .desktop-setup-actions button:first-child:not(:disabled) {
           border-color: transparent;
           background: #3730a3;
           color: white;
+        }
+
+        .desktop-setup-actions .desktop-secondary-install {
+          border-color: #c7d2fe;
+          background: #eef2ff;
+          color: #312e81;
         }
 
         .desktop-setup-actions button:disabled {
