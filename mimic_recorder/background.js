@@ -12,12 +12,8 @@ const PROD_EXTENSION_IDS = new Set([
 const IS_DEV = !PROD_EXTENSION_IDS.has(chrome.runtime.id);
 
 // ── 상수 (환경별) ─────────────────────────────────────────────────
-// 이전 dev Supabase 프로젝트가 삭제되어 별도 dev 백엔드가 준비될 때까지
-// 두 확장 모드 모두 현재 Parro 저장소를 사용한다. API 목적지는 아래
-// WEBAPP_ORIGIN에서 dev/production으로 계속 분리한다.
-const SUPABASE_URL      = 'https://gqynptpjomcqzxyykqic.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxeW5wdHBqb21jcXp4eXlrcWljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NTcyNzMsImV4cCI6MjA4NzEzMzI3M30.7OgewnWhbE2GK1k0tTuuegrKUVkHuJrW_cpvbVRcH1E';
-const SUPABASE_BUCKET   = 'naviaction';
+// Storage 업로드 대상은 현재 연결된 웹앱의 /api/capture/upload-target에서
+// 발급받는다. Recorder에 Supabase 프로젝트 주소/키를 고정하지 않는다.
 const WEBAPP_ORIGIN     = IS_DEV
   ? 'https://parro-guide-dev.vercel.app'         // dev: Parro Preview alias
   : 'https://mimic-nine-ashen.vercel.app';        // 운영

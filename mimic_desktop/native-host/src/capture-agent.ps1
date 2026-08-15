@@ -6,7 +6,13 @@ param(
   [string]$ManualCaptureFile,
   [string]$UndoFile,
   [string]$BlurNextFile,
-  [string]$ToolbarBoundsFile
+  [string]$ToolbarBoundsFile,
+  [ValidateSet("all", "monitor")][string]$CaptureMode = "all",
+  [int]$CaptureLeft = 0,
+  [int]$CaptureTop = 0,
+  [int]$CaptureWidth = 0,
+  [int]$CaptureHeight = 0,
+  [int]$OwnerProcessId = 0
 )
 
 $ErrorActionPreference = "Stop"
@@ -240,27 +246,28 @@ function Get-CaptureBounds([string]$eventType, $point, $foreground) {
   $virtualWidth = [ParroDesktopInput]::GetSystemMetrics(78)
   $virtualHeight = [ParroDesktopInput]::GetSystemMetrics(79)
 
-  # Automatic clicks produce the clearest manual when only the active app
-  # window is captured. This also avoids leaking unrelated monitors.
-  if ($eventType -eq "click" -and $foreground -and $foreground.process_name -ne "ParroDesktop") {
-    $left = [int]$foreground.left
-    $top = [int]$foreground.top
-    $width = [int]$foreground.width
-    $height = [int]$foreground.height
-    $containsPoint = $point.X -ge $left -and $point.X -lt ($left + $width) -and $point.Y -ge $top -and $point.Y -lt ($top + $height)
-    if ($width -ge 160 -and $height -ge 100 -and $containsPoint) {
-      $right = [Math]::Min($virtualLeft + $virtualWidth, $left + $width)
-      $bottom = [Math]::Min($virtualTop + $virtualHeight, $top + $height)
-      $left = [Math]::Max($virtualLeft, $left)
-      $top = [Math]::Max($virtualTop, $top)
-      return [ordered]@{ left = $left; top = $top; width = $right - $left; height = $bottom - $top; mode = "window" }
-    }
+  if ($CaptureMode -eq "monitor" -and $CaptureWidth -gt 0 -and $CaptureHeight -gt 0) {
+    $right = [Math]::Min($virtualLeft + $virtualWidth, $CaptureLeft + $CaptureWidth)
+    $bottom = [Math]::Min($virtualTop + $virtualHeight, $CaptureTop + $CaptureHeight)
+    $left = [Math]::Max($virtualLeft, $CaptureLeft)
+    $top = [Math]::Max($virtualTop, $CaptureTop)
+    return [ordered]@{ left = $left; top = $top; width = $right - $left; height = $bottom - $top; mode = "selected-monitor" }
   }
 
-  # The manual button temporarily makes Parro the foreground window. Capture
-  # only the monitor containing the toolbar instead of the whole virtual desktop.
+  # 기본 전체 모드는 양쪽 모니터를 한 이미지에 우겨 넣지 않고,
+  # 클릭/수동 캡처가 발생한 모니터 한 장씩 기록한다.
   $monitor = [System.Windows.Forms.Screen]::FromPoint((New-Object System.Drawing.Point($point.X, $point.Y))).Bounds
-  return [ordered]@{ left = $monitor.Left; top = $monitor.Top; width = $monitor.Width; height = $monitor.Height; mode = "monitor" }
+  return [ordered]@{ left = $monitor.Left; top = $monitor.Top; width = $monitor.Width; height = $monitor.Height; mode = "active-monitor" }
+}
+
+function Test-OwnerAlive {
+  if ($OwnerProcessId -le 0) { return $true }
+  try {
+    [void](Get-Process -Id $OwnerProcessId -ErrorAction Stop)
+    return $true
+  } catch {
+    return $false
+  }
 }
 
 function Test-ToolbarPoint($point) {
@@ -401,6 +408,8 @@ Write-Session "recording"
 
 try {
   while (-not (Test-Path -LiteralPath $StopFile)) {
+    if (-not (Test-OwnerAlive)) { break }
+
     if (Test-Path -LiteralPath $UndoFile) {
       Undo-LastCapture
     }
