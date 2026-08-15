@@ -150,7 +150,7 @@ check(() => {
     'finalize must wait for capture jobs before reading local steps',
   );
   assert.match(finalizeBlock, /effectiveStepNumbers/);
-  assert.match(finalizeBlock, /syncLocalStepsBeforeFinalize\(sessionId, effectiveStepNumbers, steps\)/);
+  assert.match(finalizeBlock, /syncLocalStepsBeforeFinalize\(sessionId, effectiveStepNumbers, effectiveLocalSteps\)/);
   assert.match(finalizeBlock, /step_numbers: effectiveStepNumbers/);
   assert.match(background, /function isSessionAlreadyFinalizedError\(error\)/);
   assert.match(background, /return \{ alreadyFinalized: true \}/);
@@ -181,8 +181,7 @@ check(() => {
 });
 
 check(() => {
-  assert.match(desktopSetup, /sendDesktopExtensionMessage\('START_DESKTOP_RECORDING'\)/);
-  assert.match(desktopSetup, /sendDesktopExtensionMessage\('STOP_DESKTOP_RECORDING'/);
+  assert.match(desktopSetup, /sendDesktopExtensionMessage\('OPEN_DESKTOP_APP'(?:,|\))/);
   assert.match(desktopSetup, /window\.location\.replace\(`\/desktop-import\?source=desktop-app&session=/);
   assert.match(desktopImport, /sendDesktopExtensionMessage\(\s*'IMPORT_DESKTOP_CAPTURE'/);
   assert.match(desktopImport, /window\.location\.replace\(response\.editorUrl\)/);
@@ -194,7 +193,7 @@ check(() => {
   assert.match(desktopClient, /resolveDesktopCaptureEntry/);
   assert.match(desktopClient, /desktopCompanionCompatibility/);
   assert.match(desktopDownload, /최신 버전으로 업데이트/);
-  assert.match(desktopDownload, /바로 데스크톱 녹화 시작/);
+  assert.match(desktopDownload, /Parro Desktop 앱 열기/);
   assert.match(middleware, /PAID_DESKTOP_PATHS/);
   assert.match(middleware, /hasEntitlement\(profile\?\.plan, 'desktop_companion'\)/);
   assert.match(nextConfig, /source: '\/downloads\/ParroDesktopSetup\.exe'/);
@@ -211,12 +210,14 @@ check(() => {
   assert.match(background, /desktop_paid_plan_required/);
   assert.match(background, /recorderVersion: chrome\.runtime\.getManifest\(\)\.version/);
   assert.match(background, /async function importDesktopCaptureSession\(nativeSessionId\)/);
-  assert.match(background, /editorUrl: `\$\{imported\.webapp_origin\}\/manual\/\$\{imported\.tutorial_id\}\/editor`/);
+  assert.match(background, /async function getDesktopEditorUrl\(imported\)/);
+  assert.match(background, /const editorUrl = await getDesktopEditorUrl\(imported\)/);
 });
 
 check(() => {
   assert.match(desktopBridge, /type: 'START_CAPTURE_SESSION'/);
   assert.match(desktopBridge, /type: 'STOP_CAPTURE_SESSION'/);
+  assert.match(desktopBridge, /type: 'OPEN_DESKTOP_APP'/);
   assert.match(desktopBridge, /type: 'READ_CAPTURE_IMAGE_CHUNK'/);
   assert.match(desktopBridge, /version: _desktopVersion/);
 });
@@ -229,7 +230,7 @@ check(() => {
 });
 
 check(() => {
-  assert.match(desktopLauncher, /new CountdownForm\(Screen\.FromPoint\(Cursor\.Position\)\)/);
+  assert.match(desktopLauncher, /new CountdownForm\(target\.Screen \?\? Screen\.PrimaryScreen\)/);
   assert.match(desktopLauncher, /internal sealed class CapturePreviewForm/);
   assert.match(desktopLauncher, /previewForm\.RefreshSession\(files\)/);
   assert.match(desktopLauncher, /json\.Append\("\{\\"regions\\":\["\)/);
@@ -240,6 +241,11 @@ check(() => {
 check(() => {
   assert.match(captureAgent, /public static class ParroDesktopClickHighlight/);
   assert.match(captureAgent, /\[ParroDesktopClickHighlight\]::ShowAt\(\$point\.X, \$point\.Y\)/);
+  assert.match(captureAgent, /while \(\(Test-CaptureOwnerAlive\) -and -not \(Test-Path -LiteralPath \$StopFile\)\)/);
+  assert.match(captureAgent, /mode = "active-monitor"/);
+  assert.match(captureAgent, /if \(\(Test-Path -LiteralPath \$StopFile\) -or -not \(Test-CaptureOwnerAlive\)\) \{ break \}/);
+  assert.match(desktopLauncher, /captureProcess\.Kill\(\)/);
+  assert.match(nativeHost, /child\.kill\(\)/);
   assert.match(captureAgent, /WdaExcludeFromCapture/);
   assert.match(captureAgent, /foreach \(\$region in \$regions\)/);
 });

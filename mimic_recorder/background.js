@@ -30,6 +30,10 @@ const PROD_WEBAPP_ORIGINS = new Set([
   'https://mimic-nine-ashen.vercel.app',
   'https://mimicflow.com',
 ]);
+const INSTALL_RETURN_ORIGIN = IS_DEV
+  ? 'https://parro-guide-dev.vercel.app'
+  : 'https://parro-guide.vercel.app';
+const INSTALL_RETURN_URL = `${INSTALL_RETURN_ORIGIN}/home?recorder_install=complete&open_recorder=1`;
 if (IS_DEV) console.warn('[Parro Recorder] DEV 모드 — shared storage/Preview 연결 (id:', chrome.runtime.id, ')');
 const JPEG_QUALITY_DEFAULT = 0.92;
 const MAX_STEPS         = 30;
@@ -67,6 +71,47 @@ function resolveGuideRequestOrigin(senderOrigin, requestedOrigin) {
   const requestedWebappOrigin = normalizeAllowedWebappOrigin(requestedOrigin);
   return requestedWebappOrigin === senderWebappOrigin ? requestedWebappOrigin : null;
 }
+
+async function returnToParroAfterInstall() {
+  try {
+    const tabs = await chrome.tabs.query({});
+    const parroTabs = tabs
+      .filter(tab => {
+        if (!tab.url || tab.id == null) return false;
+        try {
+          return normalizeAllowedWebappOrigin(new URL(tab.url).origin) != null;
+        } catch {
+          return false;
+        }
+      })
+      .sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0));
+
+    const existingTab = parroTabs[0];
+    if (existingTab?.id != null) {
+      const existingOrigin = new URL(existingTab.url).origin;
+      const returnUrl = `${existingOrigin}/home?recorder_install=complete&open_recorder=1`;
+      await chrome.tabs.update(existingTab.id, {
+        url: returnUrl,
+        active: true,
+      });
+      if (existingTab.windowId != null) {
+        await chrome.windows.update(existingTab.windowId, { focused: true });
+      }
+      return;
+    }
+
+    await chrome.tabs.create({ url: INSTALL_RETURN_URL, active: true });
+  } catch (error) {
+    console.warn('[Parro Recorder] 설치 후 Parro 복귀 실패:', error);
+    await chrome.tabs.create({ url: INSTALL_RETURN_URL, active: true }).catch(() => {});
+  }
+}
+
+chrome.runtime.onInstalled.addListener(details => {
+  if (details.reason !== 'install') return;
+  void returnToParroAfterInstall();
+});
+
 const _tabWindowIdCache = new Map();
 
 function log(level, source, ...args) {
@@ -827,6 +872,7 @@ async function importDesktopCaptureSession(nativeSessionId) {
     });
 
     const completedSteps = [];
+    const completedLocalSteps = [];
     for (let index = 0; index < events.length; index += 1) {
       const event = events[index];
       const pngBlob = await readDesktopCaptureImage(nativeSessionId, event.step_number, event.screenshot_size);
@@ -834,8 +880,10 @@ async function importDesktopCaptureSession(nativeSessionId) {
       const stepData = ParroDesktopImport.buildStepData(event, index);
       const prepared = await prepareCapture(pngDataUrl, stepData, null);
       if (!prepared) continue;
-      await processStepUpload(prepared);
+      const savedStep = await processStepUpload(prepared, { requireUploadedImage: true });
+      if (!savedStep?.imageUrl) throw new Error(`desktop step ${stepData.stepNumber} was not saved`);
       completedSteps.push(stepData.stepNumber);
+      completedLocalSteps.push(savedStep);
       await storageSet({
         desktopImportProgress: {
           nativeSessionId,
@@ -847,7 +895,7 @@ async function importDesktopCaptureSession(nativeSessionId) {
     }
 
     if (!completedSteps.length) throw new Error('desktop_import_no_steps');
-    const finalized = await finalizeSession(sessionId, completedSteps);
+    const finalized = await finalizeSession(sessionId, completedSteps, null, completedLocalSteps);
     if (!finalized?.tutorial_id) throw new Error('desktop_finalize_failed');
     const result = {
       tutorial_id: finalized.tutorial_id,
@@ -872,6 +920,25 @@ async function importDesktopCaptureSession(nativeSessionId) {
 }
 
 // ── 외부(웹페이지) 메시지 라우터 ────────────────────────────────
+async function getDesktopEditorUrl(imported) {
+  const fallbackUrl = `${imported.webapp_origin}/manual/${imported.tutorial_id}/editor`;
+  try {
+    const response = await authedFetch(`${imported.webapp_origin}/api/extension/desktop-browser-handoff`, {
+      method: 'POST',
+      body: JSON.stringify({ tutorialId: imported.tutorial_id }),
+    });
+    if (!response.ok) {
+      log('warn', 'desktop', `browser handoff failed: ${response.status}`);
+      return fallbackUrl;
+    }
+    const data = await response.json();
+    return typeof data.editorUrl === 'string' && data.editorUrl ? data.editorUrl : fallbackUrl;
+  } catch (error) {
+    log('warn', 'desktop', 'browser handoff request failed:', error?.message || error);
+    return fallbackUrl;
+  }
+}
+
 chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
   if (message.action === 'DESKTOP_COMPANION_STATUS') {
     (async () => {
@@ -886,6 +953,42 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
     return true;
   }
 
+  if (message.action === 'LIST_DESKTOP_DISPLAYS') {
+    (async () => {
+      try {
+        const result = await listDesktopDisplays();
+        sendResponse({
+          ok: !!result?.ok,
+          recorderVersion: chrome.runtime.getManifest().version,
+          desktop: desktopBridgeStatus(),
+          displays: Array.isArray(result?.displays) ? result.displays : [],
+          virtualBounds: result?.virtual_bounds || null,
+          error: result?.error,
+        });
+      } catch (error) {
+        sendResponse({ ok: false, desktop: desktopBridgeStatus(), displays: [], error: error?.message || 'desktop_display_list_failed' });
+      }
+    })();
+    return true;
+  }
+
+  if (message.action === 'OPEN_DESKTOP_APP') {
+    (async () => {
+      try {
+        const result = await openDesktopApp();
+        sendResponse({
+          ok: !!result?.ok,
+          recorderVersion: chrome.runtime.getManifest().version,
+          desktop: desktopBridgeStatus(),
+          error: result?.error,
+        });
+      } catch (error) {
+        sendResponse({ ok: false, desktop: desktopBridgeStatus(), error: error?.message || 'desktop_app_open_failed' });
+      }
+    })();
+    return true;
+  }
+
   if (message.action === 'START_DESKTOP_RECORDING') {
     (async () => {
       const plan = await getUserPlan(true);
@@ -894,10 +997,16 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         return;
       }
       const sessionId = crypto.randomUUID();
+      const requestedTarget = message.captureTarget?.mode === 'all'
+        ? { mode: 'all' }
+        : message.captureTarget?.mode === 'monitor' && typeof message.captureTarget.displayId === 'string'
+          ? { mode: 'monitor', display_id: message.captureTarget.displayId.slice(0, 120) }
+          : { mode: 'auto' };
       const result = await notifyDesktopCaptureStarted({
         sessionId,
         targetTabId: null,
         source: 'desktop_setup',
+        captureTarget: requestedTarget,
       });
       const desktop = desktopBridgeStatus();
       sendResponse({
@@ -920,13 +1029,14 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         });
         if (!stopped?.ok) throw new Error(stopped?.error || 'desktop_stop_failed');
         const imported = await importDesktopCaptureSession(sessionId);
+        const editorUrl = await getDesktopEditorUrl(imported);
         sendResponse({
           ok: true,
           sessionId,
           desktop: desktopBridgeStatus(),
           tutorialId: imported.tutorial_id,
           stepCount: imported.step_count,
-          editorUrl: `${imported.webapp_origin}/manual/${imported.tutorial_id}/editor`,
+          editorUrl,
         });
       } catch (error) {
         sendResponse({
@@ -977,40 +1087,14 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         const plan = await getUserPlan(true);
         if (!plan?.isPro) throw new Error('desktop_paid_plan_required');
         const imported = await importDesktopCaptureSession(sessionId);
+        const editorUrl = await getDesktopEditorUrl(imported);
         sendResponse({
           ok: true,
           sessionId,
           desktop: desktopBridgeStatus(),
           tutorialId: imported.tutorial_id,
           stepCount: imported.step_count,
-          editorUrl: `${imported.webapp_origin}/manual/${imported.tutorial_id}/editor`,
-        });
-      } catch (error) {
-        sendResponse({
-          ok: false,
-          sessionId,
-          desktop: desktopBridgeStatus(),
-          error: error?.message || 'desktop_import_failed',
-        });
-      }
-    })();
-    return true;
-  }
-
-  if (message.action === 'IMPORT_DESKTOP_CAPTURE') {
-    (async () => {
-      const sessionId = message.sessionId || null;
-      try {
-        const plan = await getUserPlan(true);
-        if (!plan?.isPro) throw new Error('desktop_paid_plan_required');
-        const imported = await importDesktopCaptureSession(sessionId);
-        sendResponse({
-          ok: true,
-          sessionId,
-          desktop: desktopBridgeStatus(),
-          tutorialId: imported.tutorial_id,
-          stepCount: imported.step_count,
-          editorUrl: `${imported.webapp_origin}/manual/${imported.tutorial_id}/editor`,
+          editorUrl,
         });
       } catch (error) {
         sendResponse({
@@ -2870,7 +2954,7 @@ async function prepareCapture(pngDataUrl, stepData, tab) {
 }
 
 // ── 스텝 업로드 처리 (SW keepalive 포함) ─────────────────────────
-async function processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base64Image, stepData, clickX, clickY, domainInfo, actionLabel, cropBox }) {
+async function processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base64Image, stepData, clickX, clickY, domainInfo, actionLabel, cropBox }, { requireUploadedImage = false } = {}) {
   const keepaliveInterval = setInterval(() => {
     chrome.storage.local.set({ _swKeepalive: Date.now() });
   }, SW_KEEPALIVE_MS);
@@ -2897,6 +2981,13 @@ async function processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base
     if (analysisResult.status === 'rejected') log('warn',  'bg', `analyze failed step ${stepNum}:`, analysisResult.reason.message);
 
     if (!uploadedUrl) {
+      chrome.runtime.sendMessage({ type: 'UPLOAD_FAILED', stepNumber: stepNum }, () => { void chrome.runtime.lastError; });
+      if (requireUploadedImage) {
+        const reason = imageResult.status === 'rejected'
+          ? imageResult.reason?.message || 'unknown upload error'
+          : 'missing uploaded URL';
+        throw new Error(`desktop step ${stepNum} upload failed: ${reason}`);
+      }
       try {
         await saveStep({
           sessionId,
@@ -2927,11 +3018,10 @@ async function processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base
       } catch (err) {
         log('warn', 'bg', `blocked save-step API failed step ${stepNum}:`, err.message);
       }
-      chrome.runtime.sendMessage({ type: 'UPLOAD_FAILED', stepNumber: stepNum }, () => { void chrome.runtime.lastError; });
       return;
     }
 
-    await saveStepLocally({ ...stepData, imageUrl: uploadedUrl, title, description, actionInfo: stepData.actionInfo ?? null, actionLabel, domainInfo, cropBox, overwrite: !!stepData.overwrite });
+    const localStep = await saveStepLocally({ ...stepData, imageUrl: uploadedUrl, title, description, actionInfo: stepData.actionInfo ?? null, actionLabel, domainInfo, cropBox, overwrite: !!stepData.overwrite });
     updateBadge();
     idbDelete(stepNum).catch(() => {});
 
@@ -2945,7 +3035,9 @@ async function processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base
       log('info', 'bg', `saved step ${stepNum}: "${title}"`);
     } catch (err) {
       log('warn', 'bg', `save-step API failed step ${stepNum}:`, err.message);
+      if (requireUploadedImage) throw err;
     }
+    return localStep;
   } finally {
     clearInterval(keepaliveInterval);
   }
@@ -2993,6 +3085,7 @@ async function saveStepLocally(stepData) {
 
   await storageSet({ steps });
   if (!stepData.overwrite) await pushUndo({ type: 'add', stepId: newStep.id });
+  return newStep;
 }
 
 // ── sessionId 가져오기 (없으면 생성) ─────────────────────────────
@@ -3057,7 +3150,7 @@ function getWebappFallbackUrl(url) {
 
 async function getWebappOrigin() {
   const { webappOrigin } = await storageGet('webappOrigin');
-  return webappOrigin || WEBAPP_ORIGIN;
+  return normalizeAllowedWebappOrigin(webappOrigin) || WEBAPP_ORIGIN;
 }
 
 // 가이드 고정 탭 조회 — START_GUIDE에서 저장한 guideTabId의 탭. 없거나 닫혔으면 null.
@@ -3231,7 +3324,7 @@ async function syncLocalStepsBeforeFinalize(sessionId, stepNumbers, localSteps) 
 }
 
 // ── 세션 완료 — 웹앱 API 경유 ───────────────────────────────────
-async function finalizeSession(sessionId, stepNumbers, audioUrl = null) {
+async function finalizeSession(sessionId, stepNumbers, audioUrl = null, localStepsOverride = null) {
   await waitForCapturePipelineIdle();
   const { extensionToken, contentMode, settings, steps, onboardingToken } = await storageGet(['extensionToken', 'contentMode', 'settings', 'steps', 'onboardingToken']);
   if (!extensionToken) {
@@ -3239,7 +3332,10 @@ async function finalizeSession(sessionId, stepNumbers, audioUrl = null) {
     return { tutorial_id: null, step_count: 0 };
   }
 
-  const currentStepNumbers = [...new Set((steps || [])
+  const effectiveLocalSteps = Array.isArray(localStepsOverride) && localStepsOverride.length
+    ? localStepsOverride
+    : (steps || []);
+  const currentStepNumbers = [...new Set(effectiveLocalSteps
     .map((step) => Number(step?.stepNumber))
     .filter((stepNumber) => Number.isInteger(stepNumber) && stepNumber > 0))]
     .sort((a, b) => a - b);
@@ -3249,13 +3345,13 @@ async function finalizeSession(sessionId, stepNumbers, audioUrl = null) {
 
   // per-step 음성 보정(향후 에디터 재녹음용) — 현재는 비어 있을 수 있음
   const stepVoice = {};
-  (steps || []).forEach(s => { if (s.voiceAudioUrl) stepVoice[s.stepNumber] = s.voiceAudioUrl; });
+  effectiveLocalSteps.forEach(s => { if (s.voiceAudioUrl) stepVoice[s.stepNumber] = s.voiceAudioUrl; });
 
   // A lost popup/service-worker response can leave local steps behind even
   // though the server already completed the manual. In that case save-step
   // returns 409; continue to the idempotent finalize endpoint to recover the
   // existing tutorial instead of surfacing a false creation failure.
-  await syncLocalStepsBeforeFinalize(sessionId, effectiveStepNumbers, steps);
+  await syncLocalStepsBeforeFinalize(sessionId, effectiveStepNumbers, effectiveLocalSteps);
 
   const origin = await getWebappOrigin();
   const res = await authedFetch(`${origin}/api/capture/finalize`, {
@@ -3284,28 +3380,32 @@ async function finalizeSession(sessionId, stepNumbers, audioUrl = null) {
 }
 
 // ── Supabase Storage 업로드 (실패 시 1회 재시도) ─────────────────
-// extensionToken은 웹앱 자체 토큰(Supabase JWT 아님)이라 쓸 수 없다 — anon key 고정.
-// x-upsert:true는 INSERT + UPDATE 정책 둘 다 필요 (naviaction에 anon 정책 적용됨)
+// 현재 연결된 웹앱에서 일회성 업로드 URL을 발급받아 웹앱과 같은 Storage를 사용한다.
+// Recorder에 프로젝트 주소/키를 고정하면 dev DB 교체 시 이미지와 단계 DB가 갈라질 수 있다.
 async function uploadImage(path, blob, contentType = 'image/jpeg') {
-  const doUpload = () => fetch(
-    `${SUPABASE_URL}/storage/v1/object/${SUPABASE_BUCKET}/${path}`,
-    {
-      method: 'POST',
-      headers: {
-        'apikey':        SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-        'Content-Type':  contentType,
-        'x-upsert':      'true',
-      },
-      body: blob,
-    }
-  );
+  const origin = await getWebappOrigin();
+  const targetResponse = await authedFetch(`${origin}/api/capture/upload-target`, {
+    method: 'POST',
+    body: JSON.stringify({ path, content_type: contentType }),
+  });
+  if (!targetResponse.ok) {
+    throw new Error(`Upload target failed: ${targetResponse.status}: ${await targetResponse.text()}`);
+  }
+  const target = await targetResponse.json();
+  if (!target?.signed_url || !target?.public_url) throw new Error('Upload target response is incomplete');
+
+  const doUpload = () => {
+    const formData = new FormData();
+    formData.append('cacheControl', '3600');
+    formData.append('', blob);
+    return fetch(target.signed_url, { method: 'PUT', body: formData });
+  };
   let res = await doUpload();
   if (!res.ok) {
     await new Promise(r => setTimeout(r, UPLOAD_RETRY_DELAY_MS));
     res = await doUpload();
   }
   if (!res.ok) throw new Error(`Storage upload failed: ${await res.text()}`);
-  return `${SUPABASE_URL}/storage/v1/object/public/${SUPABASE_BUCKET}/${path}`;
+  return target.public_url;
 }
 

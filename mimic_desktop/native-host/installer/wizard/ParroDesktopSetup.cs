@@ -15,8 +15,8 @@ using System.Windows.Forms;
 [assembly: AssemblyCompany("Parro")]
 [assembly: AssemblyProduct("Parro Desktop")]
 [assembly: AssemblyCopyright("Copyright © Parro 2026")]
-[assembly: AssemblyVersion("0.5.0.0")]
-[assembly: AssemblyFileVersion("0.5.0.0")]
+[assembly: AssemblyVersion("0.6.7.0")]
+[assembly: AssemblyFileVersion("0.6.7.0")]
 
 namespace Parro.Desktop.Setup
 {
@@ -151,7 +151,7 @@ namespace Parro.Desktop.Setup
             Label brandCopy = MakeLabel("평소처럼 클릭하면\r\n매뉴얼이 완성됩니다.", 39, 178, 160, 60, 10F, FontStyle.Regular, Color.FromArgb(176, 210, 201));
             brandCopy.AutoSize = false;
             brandPanel.Controls.Add(brandCopy);
-            Label version = MakeLabel("DESKTOP  0.5.0", 39, 388, 150, 24, 8F, FontStyle.Bold, Color.FromArgb(78, 205, 183));
+            Label version = MakeLabel("DESKTOP  0.6.7", 39, 388, 150, 24, 8F, FontStyle.Bold, Color.FromArgb(78, 205, 183));
             brandPanel.Controls.Add(version);
 
             Panel footer = new Panel();
@@ -448,13 +448,14 @@ namespace Parro.Desktop.Setup
     internal static class InstallerEngine
     {
         internal const string HostName = "com.mimic.desktop_companion.dev";
-        internal const string ProductVersion = "0.5.0";
+        internal const string ProductVersion = "0.6.7";
         private const string NativeHostRegistry = @"Software\Google\Chrome\NativeMessagingHosts\com.mimic.desktop_companion.dev";
         private const string UninstallRegistry = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\ParroDesktop";
         private static readonly string[] PayloadFiles = { "node.exe", "host.js", "capture-agent.ps1", "controller.ps1", "parro.ico", "ParroDesktop.exe" };
         private static readonly string[] DefaultExtensionIds = {
             "lefkpmfgdbhckcemfghpegleknaepekm",
             "pnkkalnfddapkmiobbhnkbhplakamaok",
+            "fbpgolbgpdlphhlodhehiilobpanehal",
             "dhfcmomnambegkibjnandckacihnaelb",
             "ehbhcdkapcbfehinjapabgoegcjmmbgd"
         };

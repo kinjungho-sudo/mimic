@@ -98,7 +98,15 @@ function requestDesktopMessage(message, timeoutMs = 15000) {
   });
 }
 
-async function notifyDesktopCaptureStarted({ sessionId, targetTabId, source }) {
+async function listDesktopDisplays() {
+  return requestDesktopMessage({ type: 'LIST_DISPLAYS' });
+}
+
+async function openDesktopApp() {
+  return requestDesktopMessage({ type: 'OPEN_DESKTOP_APP' }, 5000);
+}
+
+async function notifyDesktopCaptureStarted({ sessionId, targetTabId, source, captureTarget }) {
   if (!sessionId) return { ok: false, error: 'missing_session_id' };
   return requestDesktopMessage({
     type: 'START_CAPTURE_SESSION',
@@ -106,6 +114,7 @@ async function notifyDesktopCaptureStarted({ sessionId, targetTabId, source }) {
     target_tab_id: targetTabId || null,
     extension_id: chrome.runtime.id,
     source: source || 'recorder',
+    capture_target: captureTarget || { mode: 'auto' },
     started_at: new Date().toISOString(),
   });
 }

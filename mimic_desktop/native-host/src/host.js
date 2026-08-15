@@ -1,9 +1,9 @@
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
-const { spawn } = require("child_process");
+const { spawn, execFileSync } = require("child_process");
 
-const DESKTOP_COMPANION_VERSION = "0.5.1";
+const DESKTOP_COMPANION_VERSION = "0.6.7";
 
 const state = {
   activeSessionId: null,
@@ -46,6 +46,57 @@ function safeSessionId(value) {
   return String(value || "").replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 120);
 }
 
+function listDisplays() {
+  const command = [
+    "Add-Type -AssemblyName System.Windows.Forms",
+    "$items = @([System.Windows.Forms.Screen]::AllScreens | ForEach-Object {",
+    "  [ordered]@{ id = $_.DeviceName; primary = $_.Primary; left = $_.Bounds.Left; top = $_.Bounds.Top; width = $_.Bounds.Width; height = $_.Bounds.Height }",
+    "})",
+    "$items | ConvertTo-Json -Compress",
+  ].join("; ");
+  const output = execFileSync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", command], {
+    encoding: "utf8",
+    windowsHide: true,
+    timeout: 5000,
+  }).replace(/^\uFEFF/, "").trim();
+  const parsed = output ? JSON.parse(output) : [];
+  return (Array.isArray(parsed) ? parsed : [parsed])
+    .map((display) => ({
+      id: String(display.id || ""),
+      primary: !!display.primary,
+      left: Math.round(Number(display.left) || 0),
+      top: Math.round(Number(display.top) || 0),
+      width: Math.round(Number(display.width) || 0),
+      height: Math.round(Number(display.height) || 0),
+    }))
+    .filter((display) => display.id && display.width > 0 && display.height > 0)
+    .sort((left, right) => left.left - right.left || left.top - right.top);
+}
+
+function openDesktopApp() {
+  const launcherPath = path.join(__dirname, "ParroDesktop.exe");
+  if (!fs.existsSync(launcherPath)) throw new Error("desktop_launcher_missing");
+  const child = spawn(launcherPath, [], {
+    cwd: __dirname,
+    detached: true,
+    stdio: "ignore",
+    windowsHide: false,
+  });
+  child.unref();
+  log({ event: "open_desktop_app", launcher_path: launcherPath });
+  return { ok: true, type: "DESKTOP_APP_OPENED" };
+}
+
+function normalizedCaptureTarget(target) {
+  if (target?.mode === "all") return { mode: "all" };
+  if (target?.mode === "monitor" && typeof target.display_id === "string") {
+    const display = listDisplays().find((item) => item.id === target.display_id);
+    if (!display) throw new Error("capture_display_not_found");
+    return { mode: "monitor", display_id: display.id, ...display };
+  }
+  return { mode: "auto" };
+}
+
 function captureDirectoryFor(sessionId) {
   const safeId = safeSessionId(sessionId);
   if (!safeId) throw new Error("missing_session_id");
@@ -64,10 +115,25 @@ function readJsonFile(filePath) {
 function readCaptureEvents(captureDir) {
   const eventsPath = path.join(captureDir, "events.jsonl");
   if (!fs.existsSync(eventsPath)) return [];
-  return fs.readFileSync(eventsPath, "utf8")
+  const events = fs.readFileSync(eventsPath, "utf8")
     .split(/\r?\n/)
     .filter(Boolean)
     .map((line) => JSON.parse(line));
+  const editsPath = path.join(captureDir, "blur-edits.jsonl");
+  if (!fs.existsSync(editsPath)) return events;
+  const edits = fs.readFileSync(editsPath, "utf8")
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((line) => JSON.parse(line));
+  for (const event of events) {
+    const screenshotName = path.basename(String(event.screenshot_path || ""));
+    const matching = edits.filter((edit) => path.basename(String(edit.screenshot_name || "")) === screenshotName);
+    if (!matching.length) continue;
+    event.blur_applied = true;
+    event.blur_region = matching[matching.length - 1].region || null;
+    event.blur_regions = matching.map((edit) => edit.region).filter(Boolean);
+  }
+  return events;
 }
 
 function writeFallbackStoppedSession(captureDir, sessionId, startedAt = null) {
@@ -107,6 +173,9 @@ function publicCaptureEvent(event, captureDir) {
     screen: event.screen || null,
     blur_applied: !!event.blur_applied,
     blur_region: event.blur_region || null,
+    blur_regions: Array.isArray(event.blur_regions)
+      ? event.blur_regions
+      : (event.blur_region ? [event.blur_region] : []),
     window_title: String(event.window_title || "").slice(0, 300) || null,
     process_name: String(event.process_name || "").slice(0, 120) || null,
     ui_element: event.ui_element ? {
@@ -140,6 +209,7 @@ async function waitForSessionStopped(captureDir, timeoutMs = 6000) {
 }
 
 function stopCaptureAgent() {
+  const child = state.captureProcess;
   if (state.stopFile) {
     try {
       fs.writeFileSync(state.stopFile, new Date().toISOString(), "utf8");
@@ -147,10 +217,18 @@ function stopCaptureAgent() {
       log({ event: "capture_stop_signal_failed", error: error.message });
     }
   }
+  if (child && child.exitCode === null) {
+    const forceStop = setTimeout(() => {
+      if (child.exitCode === null) {
+        try { child.kill(); } catch { }
+      }
+    }, 2500);
+    forceStop.unref();
+  }
   state.captureProcess = null;
 }
 
-function startCaptureAgent(sessionId) {
+function startCaptureAgent(sessionId, requestedTarget) {
   stopCaptureAgent();
 
   const safeId = safeSessionId(sessionId);
@@ -172,6 +250,17 @@ function startCaptureAgent(sessionId) {
   fs.rmSync(blurNextFile, { force: true });
   fs.rmSync(toolbarBoundsFile, { force: true });
 
+  const captureTarget = normalizedCaptureTarget(requestedTarget);
+  const captureArguments = ["-CaptureMode", captureTarget.mode];
+  if (captureTarget.mode === "monitor") {
+    captureArguments.push(
+      "-CaptureLeft", String(captureTarget.left),
+      "-CaptureTop", String(captureTarget.top),
+      "-CaptureWidth", String(captureTarget.width),
+      "-CaptureHeight", String(captureTarget.height),
+    );
+  }
+
   const child = spawn("powershell.exe", [
     "-NoProfile",
     "-ExecutionPolicy", "Bypass",
@@ -184,6 +273,8 @@ function startCaptureAgent(sessionId) {
     "-ManualCaptureFile", manualCaptureFile,
     "-BlurNextFile", blurNextFile,
     "-ToolbarBoundsFile", toolbarBoundsFile,
+    "-OwnerProcessId", String(process.pid),
+    ...captureArguments,
   ], {
     windowsHide: true,
     stdio: "ignore",
@@ -205,7 +296,7 @@ function startCaptureAgent(sessionId) {
   state.manualCaptureFile = manualCaptureFile;
   state.blurNextFile = blurNextFile;
   state.toolbarBoundsFile = toolbarBoundsFile;
-  return captureDir;
+  return { captureDir, captureTarget };
 }
 
 function activeCaptureMatches(sessionId) {
@@ -268,10 +359,29 @@ async function handleMessage(message) {
     };
   }
 
+  if (message.type === "LIST_DISPLAYS") {
+    const displays = listDisplays();
+    return {
+      ok: true,
+      type: "DISPLAY_LIST",
+      displays,
+      virtual_bounds: displays.length ? {
+        left: Math.min(...displays.map((display) => display.left)),
+        top: Math.min(...displays.map((display) => display.top)),
+        right: Math.max(...displays.map((display) => display.left + display.width)),
+        bottom: Math.max(...displays.map((display) => display.top + display.height)),
+      } : null,
+    };
+  }
+
+  if (message.type === "OPEN_DESKTOP_APP") {
+    return openDesktopApp();
+  }
+
   if (message.type === "START_CAPTURE_SESSION") {
     state.activeSessionId = message.capture_session_id || null;
     state.startedAt = new Date().toISOString();
-    const captureDir = startCaptureAgent(state.activeSessionId);
+    const { captureDir, captureTarget } = startCaptureAgent(state.activeSessionId, message.capture_target);
     log({ event: "start_capture_session", message });
     return {
       ok: true,
@@ -279,6 +389,7 @@ async function handleMessage(message) {
       capture_session_id: state.activeSessionId,
       started_at: state.startedAt,
       capture_dir: captureDir,
+      capture_target: captureTarget,
     };
   }
 
@@ -501,13 +612,15 @@ process.stdin.on("data", (chunk) => {
     pending = pending.subarray(4 + length);
 
     messageQueue = messageQueue.then(async () => {
+      let message = null;
       try {
-        const message = JSON.parse(raw);
+        message = JSON.parse(raw);
         const response = await handleMessage(message);
         send(message.request_id ? { ...response, request_id: message.request_id } : response);
       } catch (error) {
         log({ event: "host_error", error: error.message });
-        send({ ok: false, error: "host_error", message: error.message });
+        const response = { ok: false, error: error.message || "host_error" };
+        send(message?.request_id ? { ...response, request_id: message.request_id } : response);
       }
     });
   }

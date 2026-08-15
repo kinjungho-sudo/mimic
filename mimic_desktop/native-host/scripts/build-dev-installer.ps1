@@ -244,7 +244,7 @@ if (-not (Test-Path -LiteralPath $outputPath) -or (Get-Item -LiteralPath $output
 foreach ($artifactPath in @($outputPath, $launcherPath)) {
   Assert-ParroExecutableIcon -ExecutablePath $artifactPath
   $version = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($artifactPath).FileVersion
-  if ($version -ne "0.5.0.0") {
+  if ($version -ne "0.6.7.0") {
     throw "Unexpected desktop artifact version '$version': $artifactPath"
   }
 }
@@ -252,7 +252,18 @@ foreach ($artifactPath in @($outputPath, $launcherPath)) {
 if ($PublishToWebApp) {
   $downloadsDir = Join-Path $repoRoot "mimic_app\public\downloads"
   New-Item -ItemType Directory -Force -Path $downloadsDir | Out-Null
-  Copy-Item -LiteralPath $outputPath -Destination (Join-Path $downloadsDir $OutputName) -Force
+  $publishedInstaller = Join-Path $downloadsDir $OutputName
+  Copy-Item -LiteralPath $outputPath -Destination $publishedInstaller -Force
+  $releaseManifest = [ordered]@{
+    version = "0.6.7"
+    size = (Get-Item -LiteralPath $publishedInstaller).Length
+    sha256 = (Get-FileHash -LiteralPath $publishedInstaller -Algorithm SHA256).Hash
+  } | ConvertTo-Json
+  [System.IO.File]::WriteAllText(
+    (Join-Path $downloadsDir "desktop-release.json"),
+    $releaseManifest + [Environment]::NewLine,
+    [System.Text.UTF8Encoding]::new($false)
+  )
 }
 
 $built = Get-Item -LiteralPath $outputPath

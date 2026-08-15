@@ -15,10 +15,26 @@ export interface DesktopCompanionResponse {
   stepCount?: number;
   capturedSteps?: number;
   editorUrl?: string;
+  displays?: DesktopDisplay[];
+  virtualBounds?: { left: number; top: number; right: number; bottom: number } | null;
 }
 
+export interface DesktopDisplay {
+  id: string;
+  primary: boolean;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+export type DesktopCaptureTarget =
+  | { mode: 'monitor'; displayId: string }
+  | { mode: 'all' }
+  | { mode: 'auto' };
+
 export const DESKTOP_COMPANION_LATEST_VERSION =
-  process.env.NEXT_PUBLIC_DESKTOP_LATEST_VERSION?.replace(/^\uFEFF/, '').trim() || '0.5.0';
+  process.env.NEXT_PUBLIC_DESKTOP_LATEST_VERSION?.replace(/^\uFEFF/, '').trim() || '0.6.7';
 
 export type DesktopCompanionCompatibility = 'current' | 'outdated' | 'unknown';
 
@@ -161,6 +177,9 @@ export async function resolveDesktopCaptureEntry(): Promise<DesktopCaptureEntry>
 
     const response = await sendDesktopExtensionMessage('DESKTOP_COMPANION_STATUS');
     if (!response?.desktop?.connected) {
+      if (isExtensionConnectionError(response?.error)) {
+        return { kind: 'check_failed', error: response?.error };
+      }
       return {
         kind: 'install_required',
         error: response?.desktop?.lastError || response?.error,
@@ -195,17 +214,23 @@ export function desktopCaptureEntryDestination(entry: DesktopCaptureEntry, sourc
     case 'paid_required':
       return `/landingpage?feature=desktop&source=${safeSource}#pricing`;
     case 'sign_in_required': {
-      const next = encodeURIComponent(`/download/desktop?source=${source}`);
+      const next = encodeURIComponent(`/desktop-setup?source=${source}&autostart=1`);
       return `/auth/login?next=${next}`;
     }
     case 'install_required':
       return `/download/desktop?source=${safeSource}&reason=install`;
     default:
-      return `/download/desktop?source=${safeSource}&reason=check`;
+      return `/desktop-setup?source=${safeSource}`;
   }
 }
 
 export function desktopCompanionErrorMessage(error: string | undefined, fallback: string): string {
+  if (error && /finalize failed:\s*422:.*No captured steps/i.test(error)) {
+    return '캡처 파일은 PC에 보관되어 있지만 Recorder가 서버 단계 저장을 완료하지 못했습니다. Recorder를 최신 버전으로 새로고침한 뒤 다시 시도해주세요.';
+  }
+  if (error && /save-step failed|desktop step \d+ was not saved/i.test(error)) {
+    return '캡처 이미지를 서버 단계로 저장하지 못했습니다. 캡처 파일은 PC에 그대로 있으니 잠시 후 다시 시도해주세요.';
+  }
   switch (error) {
     case 'desktop_paid_plan_required':
       return 'Desktop Companion은 유료 플랜에서 사용할 수 있습니다. 요금제를 확인한 뒤 다시 시도해주세요.';

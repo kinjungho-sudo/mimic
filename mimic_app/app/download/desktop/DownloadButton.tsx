@@ -124,7 +124,7 @@ export function DownloadButton({
           className={styles.downloadButton}
           href={`/desktop-setup?source=${encodeURIComponent(source)}&autostart=1`}
         >
-          바로 데스크톱 녹화 시작
+          Parro Desktop 앱 열기
         </a>
         <button
           className={styles.secondaryActionButton}

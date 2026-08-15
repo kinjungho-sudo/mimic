@@ -15,7 +15,7 @@ const STORE_URL = BRAND_EXTENSION_STORE_URL;
 const INSTALLER_URL = process.env.NEXT_PUBLIC_DESKTOP_INSTALLER_URL?.replace(/^\uFEFF/, '').trim()
   || '/downloads/ParroDesktopSetup.exe';
 
-type DesktopStatus = 'idle' | 'checking' | 'ready' | 'missing' | 'extension_missing' | 'starting' | 'started' | 'pausing' | 'paused' | 'stopping' | 'importing' | 'complete' | 'stopped';
+type DesktopStatus = 'idle' | 'checking' | 'ready' | 'missing' | 'extension_missing' | 'launching' | 'started' | 'importing' | 'complete' | 'stopped';
 
 let lastInstallerDownloadAt = 0;
 
@@ -35,9 +35,8 @@ function triggerInstallerDownload(): boolean {
 }
 
 export default function DesktopSetupPage() {
-  const [status, setStatus] = useState<DesktopStatus>('idle');
+  const [status, setStatus] = useState<DesktopStatus>('checking');
   const [message, setMessage] = useState<string | null>(null);
-  const [sessionId, setSessionId] = useState<string | null>(null);
   const [pendingSessionId, setPendingSessionId] = useState<string | null>(null);
   const initialFlowStarted = useRef(false);
 
@@ -52,16 +51,10 @@ export default function DesktopSetupPage() {
         return 'Desktop Companion을 찾지 못했습니다. 설치를 완료한 뒤 다시 확인해주세요.';
       case 'extension_missing':
         return 'Parro Recorder 확장이 먼저 필요합니다.';
-      case 'starting':
-        return '데스크톱 녹화 세션을 시작하고 있습니다.';
+      case 'launching':
+        return 'Parro Desktop 앱을 여는 중입니다.';
       case 'started':
-        return '데스크톱 녹화 세션이 켜졌습니다.';
-      case 'pausing':
-        return '데스크톱 녹화 상태를 변경하고 있습니다.';
-      case 'paused':
-        return '데스크톱 녹화가 일시정지되었습니다.';
-      case 'stopping':
-        return '데스크톱 녹화를 종료하고 캡처를 확인하고 있습니다.';
+        return 'Parro Desktop 앱을 열었습니다.';
       case 'importing':
         return '캡처를 분석해 매뉴얼을 만들고 있습니다. 이 창을 닫지 마세요.';
       case 'complete':
@@ -69,7 +62,7 @@ export default function DesktopSetupPage() {
       case 'stopped':
         return '데스크톱 녹화가 종료되었습니다.';
       default:
-        return '설치 파일을 내려받고 설치를 완료해주세요.';
+        return 'Desktop Companion 상태를 확인하고 있습니다.';
     }
   }, [status]);
 
@@ -84,19 +77,17 @@ export default function DesktopSetupPage() {
       : '다운로드가 이미 시작되었습니다. 브라우저의 다운로드 목록을 확인해주세요.');
   }, [installerReady]);
 
-  const beginDesktopRecording = useCallback(async () => {
-    setStatus('starting');
-    setMessage(null);
-    const response = await sendDesktopExtensionMessage('START_DESKTOP_RECORDING');
-
+  const openDesktopApp = useCallback(async () => {
+    setStatus('launching');
+    setMessage('잠시 후 Parro Desktop 앱에서 화면 선택과 녹화를 진행해주세요.');
+    const response = await sendDesktopExtensionMessage('OPEN_DESKTOP_APP');
     if (response?.ok) {
-      setSessionId(response.sessionId || null);
       setStatus('started');
+      setMessage('Parro Desktop 앱을 열었습니다. 화면 선택 후 녹화를 시작해주세요.');
       return;
     }
-
-    setStatus('missing');
-    setMessage(desktopCompanionErrorMessage(response?.error, 'Desktop Companion 녹화 세션을 시작하지 못했습니다.'));
+    setStatus('ready');
+    setMessage(desktopCompanionErrorMessage(response?.error, 'Parro Desktop 앱을 열지 못했습니다.'));
   }, []);
 
   const checkInstall = useCallback(async (autoStart = false) => {
@@ -108,10 +99,6 @@ export default function DesktopSetupPage() {
     };
 
     if (!canTalkToDesktopExtension()) {
-      if (autoStart) {
-        moveToDownload('install');
-        return;
-      }
       setStatus('extension_missing');
       setMessage('Desktop Companion 상태 확인은 Parro Recorder 확장을 통해 진행됩니다. 확장을 먼저 설치하거나 연결해주세요.');
       return;
@@ -128,19 +115,15 @@ export default function DesktopSetupPage() {
         return;
       }
       if (autoStart) {
-        await beginDesktopRecording();
+        await openDesktopApp();
         return;
       }
       setStatus('ready');
-      setMessage(`최신 버전 ${installedVersion}이 설치되어 있습니다.`);
+      setMessage(`최신 버전 ${installedVersion}이 설치되어 있습니다. Parro Desktop 앱에서 바로 녹화를 시작할 수 있습니다.`);
       return;
     }
 
     if (isExtensionConnectionError(response?.error)) {
-      if (autoStart) {
-        moveToDownload('install');
-        return;
-      }
       setStatus('extension_missing');
       setMessage('Parro Recorder 확장에 연결하지 못했습니다. Chrome 확장 프로그램 관리 화면에서 Parro Recorder를 새로고침한 뒤 다시 시도해주세요.');
       return;
@@ -152,7 +135,7 @@ export default function DesktopSetupPage() {
     }
     setStatus('missing');
     setMessage(response?.desktop?.lastError || '설치된 Desktop Companion에 연결하지 못했습니다.');
-  }, [beginDesktopRecording]);
+  }, [openDesktopApp]);
 
   useEffect(() => {
     if (initialFlowStarted.current) return;
@@ -167,51 +150,6 @@ export default function DesktopSetupPage() {
     void checkInstall(params.get('autostart') === '1');
   }, [checkInstall]);
 
-  const startDesktopRecording = useCallback(async () => {
-    if (status !== 'ready') return;
-    await beginDesktopRecording();
-  }, [beginDesktopRecording, status]);
-
-  const stopDesktopRecording = useCallback(async () => {
-    if (status !== 'started' && status !== 'paused') return;
-    setStatus('stopping');
-    setMessage('캡처 업로드와 AI 분석이 끝나면 편집기로 자동 이동합니다.');
-    const response = await sendDesktopExtensionMessage('STOP_DESKTOP_RECORDING', { sessionId }, 180000);
-
-    if (response?.ok && response.editorUrl) {
-      setStatus('complete');
-      setMessage(`${response.stepCount || 0}개 단계의 매뉴얼이 만들어졌습니다.`);
-      window.location.assign(response.editorUrl);
-      return;
-    }
-
-    setStatus('started');
-    setMessage(desktopCompanionErrorMessage(response?.error, 'Desktop Companion 녹화를 종료하거나 매뉴얼로 만들지 못했습니다.'));
-  }, [sessionId, status]);
-
-  const toggleDesktopPause = useCallback(async () => {
-    if (!sessionId || (status !== 'started' && status !== 'paused')) return;
-    const resume = status === 'paused';
-    setStatus('pausing');
-    setMessage(null);
-    const response = await sendDesktopExtensionMessage(resume ? 'RESUME_DESKTOP_RECORDING' : 'PAUSE_DESKTOP_RECORDING', { sessionId });
-    if (response?.ok) {
-      setStatus(resume ? 'started' : 'paused');
-      return;
-    }
-    setStatus(resume ? 'paused' : 'started');
-    setMessage(desktopCompanionErrorMessage(response?.error, resume ? '녹화를 다시 시작하지 못했습니다.' : '녹화를 일시정지하지 못했습니다.'));
-  }, [sessionId, status]);
-
-  const undoDesktopCapture = useCallback(async () => {
-    if (!sessionId || (status !== 'started' && status !== 'paused')) return;
-    setMessage('최근 캡처를 취소하고 있습니다.');
-    const response = await sendDesktopExtensionMessage('UNDO_DESKTOP_CAPTURE', { sessionId });
-    setMessage(response?.ok
-      ? `최근 캡처를 취소했습니다. 현재 ${response.capturedSteps || 0}개 단계가 남았습니다.`
-      : desktopCompanionErrorMessage(response?.error, '취소할 최근 캡처가 없습니다.'));
-  }, [sessionId, status]);
-
   const importDesktopCapture = useCallback(async (captureSessionId: string) => {
     if (!captureSessionId) return;
     if (!canTalkToDesktopExtension()) {
@@ -219,7 +157,6 @@ export default function DesktopSetupPage() {
       setMessage('Parro Recorder 확장을 설치하고 계정에 연결한 뒤 다시 시도해주세요. 캡처 파일은 PC에 그대로 보관됩니다.');
       return;
     }
-    setSessionId(captureSessionId);
     setStatus('importing');
     setMessage('저장된 데스크톱 캡처를 업로드하고 AI로 제목과 설명을 만드는 중입니다.');
     const response = await sendDesktopExtensionMessage('IMPORT_DESKTOP_CAPTURE', { sessionId: captureSessionId }, 180000);
@@ -241,7 +178,7 @@ export default function DesktopSetupPage() {
             <p className="desktop-setup-kicker">Parro Desktop Companion</p>
             <h1>데스크톱 녹화</h1>
             <p className="desktop-setup-lead">
-              유료 플랜에서 Windows 앱 작업을 기록할 수 있습니다. 최신 버전 {DESKTOP_COMPANION_LATEST_VERSION}이 확인되면 바로 녹화를 시작합니다.
+              최신 버전 {DESKTOP_COMPANION_LATEST_VERSION}이 확인되면 웹 안내 화면을 거치지 않고 Parro Desktop 앱으로 바로 이동합니다.
             </p>
           </div>
           <div className="desktop-setup-status" data-state={status}>
@@ -260,54 +197,68 @@ export default function DesktopSetupPage() {
           </div>
         )}
 
-        <div className="desktop-setup-grid">
-          <section className="desktop-setup-panel">
-            <p className="desktop-setup-section-label">설치 순서</p>
-            <ol className="desktop-setup-steps">
-              <li>
-                <span>1</span>
-                <div>
-                  <strong>설치 파일 다운로드</strong>
-                  <p><strong>설치 파일 다운로드</strong> 버튼을 눌러 <code>ParroDesktopSetup.exe</code>를 받습니다.</p>
-                </div>
-              </li>
-              <li>
-                <span>2</span>
-                <div>
-                  <strong>기본 옵션으로 설치</strong>
-                  <p>설치를 완료하면 Recorder 확장이 Desktop Companion을 감지할 수 있습니다.</p>
-                </div>
-              </li>
-              <li>
-                <span>3</span>
-                <div>
-                  <strong>연결 확인 후 녹화 시작</strong>
-                  <p>설치 확인 후 녹화를 시작하고, 종료하면 캡처가 자동으로 매뉴얼과 편집기로 이어집니다.</p>
-                </div>
-              </li>
-            </ol>
-          </section>
+        {status === 'missing' || status === 'extension_missing' || status === 'idle' ? (
+          <div className="desktop-setup-grid">
+            <section className="desktop-setup-panel desktop-install-primary">
+              <p className="desktop-setup-section-label">설치 다운로드</p>
+              <h2>Parro Desktop을 설치하면 바로 녹화를 시작할 수 있어요.</h2>
+              <p>
+                설치 파일을 내려받아 기본 옵션으로 설치한 뒤, 다시 이 화면에서 연결을 확인해주세요.
+              </p>
+              <div className="desktop-setup-actions">
+                <button type="button" onClick={handleDownload} disabled={!installerReady}>
+                  자동 설치 파일 다운로드
+                </button>
+                <a className="desktop-manual-download" href={INSTALLER_URL}>
+                  수동으로 다운로드 받기
+                </a>
+                <button type="button" onClick={() => { void checkInstall(false); }}>
+                  설치 완료 후 다시 확인
+                </button>
+              </div>
+              {message && <p className="desktop-setup-message">{message}</p>}
+            </section>
 
-          <section className="desktop-setup-panel">
-            <p className="desktop-setup-section-label">실행</p>
-            <div className="desktop-setup-actions">
-              <button type="button" onClick={handleDownload} disabled={!installerReady}>
-                설치 파일 다운로드
+            <section className="desktop-setup-panel">
+              <p className="desktop-setup-section-label">설치 방법</p>
+              <ol className="desktop-setup-steps">
+                <li>
+                  <span>1</span>
+                  <div>
+                    <strong>설치 파일 다운로드</strong>
+                    <p><code>ParroDesktopSetup.exe</code>를 내려받습니다.</p>
+                  </div>
+                </li>
+                <li>
+                  <span>2</span>
+                  <div>
+                    <strong>기본 옵션으로 설치</strong>
+                    <p>설치 창에서 안내에 따라 완료합니다.</p>
+                  </div>
+                </li>
+                <li>
+                  <span>3</span>
+                  <div>
+                    <strong>다시 확인</strong>
+                    <p>설치 완료 후 <strong>설치 완료 후 다시 확인</strong>을 누르면 Parro Desktop 앱으로 이동합니다.</p>
+                  </div>
+                </li>
+              </ol>
+            </section>
+          </div>
+        ) : (
+          <section className="desktop-setup-panel desktop-launcher-panel">
+            <p className="desktop-setup-section-label">앱 실행</p>
+            <h2>{status === 'launching' ? 'Parro Desktop 앱을 여는 중입니다.' : 'Parro Desktop 앱에서 계속하세요.'}</h2>
+            <p>
+              화면 선택, 사이드 패널, 숨김 모드, 녹화 종료는 이제 Windows 앱에서 진행합니다.
+            </p>
+            <div className="desktop-setup-actions desktop-launcher-actions">
+              <button type="button" onClick={openDesktopApp} disabled={status === 'launching' || status === 'checking'}>
+                Parro Desktop 앱 열기
               </button>
-              <button type="button" onClick={() => { void checkInstall(false); }}>
-                설치 완료, 연결 확인
-              </button>
-              <button type="button" onClick={startDesktopRecording} disabled={status !== 'ready'}>
-                데스크톱 녹화 시작
-              </button>
-              <button type="button" onClick={toggleDesktopPause} disabled={status !== 'started' && status !== 'paused'}>
-                {status === 'paused' ? '녹화 계속' : '일시정지'}
-              </button>
-              <button type="button" onClick={undoDesktopCapture} disabled={status !== 'started' && status !== 'paused'}>
-                최근 단계 취소
-              </button>
-              <button type="button" onClick={stopDesktopRecording} disabled={status !== 'started' && status !== 'paused'}>
-                녹화 종료 후 매뉴얼 만들기
+              <button type="button" onClick={() => { void checkInstall(true); }}>
+                연결 다시 확인
               </button>
               {pendingSessionId && (
                 <button
@@ -319,45 +270,12 @@ export default function DesktopSetupPage() {
                 </button>
               )}
             </div>
-            {installerReady && (
-              <p className="desktop-setup-note">
-                자동 다운로드가 시작되지 않으면 <a href={INSTALLER_URL}>여기에서 다시 다운로드</a>할 수 있습니다.
-              </p>
-            )}
             {message && <p className="desktop-setup-message">{message}</p>}
-            {sessionId && (
-              <p className="desktop-setup-session">
-                session: <code>{sessionId}</code>
-              </p>
-            )}
           </section>
-        </div>
-
-        <section className="desktop-setup-panel desktop-setup-principle">
-          <p className="desktop-setup-section-label">동작 원리</p>
-          <div className="desktop-setup-principle-grid">
-            <div>
-              <strong>1. 웹은 직접 Windows를 감지하지 않습니다.</strong>
-              <p>Parro 웹 앱은 Recorder 확장에 설치 상태 확인을 요청합니다. 브라우저 보안상 웹페이지가 임의로 로컬 프로그램을 검사하지 않기 때문입니다.</p>
-            </div>
-            <div>
-              <strong>2. Recorder 확장이 Desktop Companion을 확인합니다.</strong>
-              <p>확장은 Chrome Native Messaging으로 설치된 Desktop Companion에 <code>PING</code>을 보내고, 정상 응답이 와야 설치 완료로 판단합니다.</p>
-            </div>
-            <div>
-              <strong>3. 설치 확인 전에는 녹화를 켤 수 없습니다.</strong>
-              <p>확인 전에는 <strong>데스크톱 녹화 시작</strong> 버튼이 잠겨 있습니다. 설치가 확인되면 확장이 Desktop Companion에 세션 시작 신호를 보내 녹화 흐름을 엽니다.</p>
-            </div>
-            <div>
-              <strong>4. 종료하면 매뉴얼이 자동 생성됩니다.</strong>
-              <p>캡처 이미지와 클릭 위치를 Recorder가 안전하게 읽어 AI 제목·설명을 만든 뒤 Parro 편집기로 이동합니다.</p>
-            </div>
-          </div>
-        </section>
+        )}
 
         <div className="desktop-setup-footer">
           <a href="/home">홈으로 돌아가기</a>
-          <a href="/help#desktop-companion">Desktop Companion 안내 보기</a>
           <a href={STORE_URL} target="_blank" rel="noopener noreferrer">Recorder 확장 설치</a>
         </div>
       </section>
@@ -545,6 +463,111 @@ export default function DesktopSetupPage() {
           display: grid;
           gap: 10px;
           margin-bottom: 14px;
+        }
+
+        .desktop-display-picker {
+          margin: 0 0 18px;
+          padding: 14px;
+          border: 1px solid #cfe7e2;
+          border-radius: 12px;
+          background: #f3fbf9;
+        }
+
+        .desktop-display-picker-heading {
+          display: grid;
+          gap: 4px;
+          margin-bottom: 11px;
+        }
+
+        .desktop-display-picker-heading strong {
+          font-size: 14px;
+          color: #123b33;
+        }
+
+        .desktop-display-picker-heading span {
+          color: #667b75;
+          font-size: 11.5px;
+          line-height: 1.5;
+        }
+
+        .desktop-display-options {
+          display: grid;
+          gap: 8px;
+        }
+
+        .desktop-display-option {
+          min-height: 62px;
+          padding: 9px 11px;
+          border: 1.5px solid #dbe7e3;
+          border-radius: 10px;
+          background: white;
+          display: grid;
+          grid-template-columns: 48px minmax(0, 1fr) auto;
+          align-items: center;
+          gap: 10px;
+          text-align: left;
+          color: #233b36;
+          cursor: pointer;
+        }
+
+        .desktop-display-option[data-selected='true'] {
+          border-color: #008e86;
+          background: #edfaf7;
+          box-shadow: 0 0 0 3px rgba(0, 142, 134, .09);
+        }
+
+        .desktop-display-icon {
+          width: 46px;
+          height: 31px;
+          border: 2px solid #78938d;
+          border-radius: 5px;
+          display: grid;
+          place-items: center;
+          position: relative;
+          background: #edf5f3;
+        }
+
+        .desktop-display-icon::after {
+          content: '';
+          position: absolute;
+          width: 15px;
+          height: 4px;
+          left: 13px;
+          bottom: -7px;
+          border-top: 2px solid #78938d;
+        }
+
+        .desktop-display-icon i {
+          font-style: normal;
+          color: #42635c;
+          font-size: 10px;
+          font-weight: 900;
+        }
+
+        .desktop-display-icon-all {
+          border-color: #008e86;
+          background: #dff6f1;
+        }
+
+        .desktop-display-option > span:nth-child(2) {
+          display: grid;
+          gap: 3px;
+        }
+
+        .desktop-display-option b {
+          font-size: 13px;
+        }
+
+        .desktop-display-option small {
+          color: #71837f;
+          font-size: 10.5px;
+        }
+
+        .desktop-display-option em {
+          color: #007c72;
+          font-size: 10px;
+          font-style: normal;
+          font-weight: 800;
         }
 
         .desktop-setup-actions button {

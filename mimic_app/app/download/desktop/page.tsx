@@ -8,7 +8,7 @@ import { createServerClient, createServiceRoleClient } from '@/lib/supabase/serv
 
 export const metadata: Metadata = {
   title: 'Parro Desktop 다운로드',
-  description: 'Windows 앱의 클릭 과정을 자동으로 캡처하는 Parro Desktop 프리뷰를 다운로드하세요.',
+  description: '데스크톱 녹화를 시작하기 위해 필요한 Parro Desktop 설치 파일을 다운로드하세요.',
 };
 
 const INSTALLER_URL = '/downloads/ParroDesktopSetup.exe';
@@ -75,51 +75,65 @@ export default async function DesktopDownloadPage({
       <section className={styles.hero}>
         <div className={`${styles.glow} ${styles.glowA}`} />
         <div className={`${styles.glow} ${styles.glowB}`} />
-        <div className={styles.heroCopy}>
-          <span className={styles.eyebrow}>PARRO DESKTOP · WINDOWS PREVIEW</span>
-          <h1>웹 밖의 업무도<br />클릭만 하면 기록됩니다</h1>
-          <p>
-            Word, Excel, 사내 프로그램처럼 브라우저 밖에서 진행하는 업무를
-            클릭 단위 스크린샷으로 캡처하세요.
-          </p>
-        </div>
-
-        <div className={styles.downloadCard}>
-          <div className={styles.platformRow}>
-            <div className={styles.platformMain}>
-              <span className={styles.windowsIcon}><WindowsIcon /></span>
-              <div>
-                <strong>Windows</strong>
-                <span>Preview 0.5.0 · 2026년 7월 19일</span>
-                <span>Windows 10/11 · 64-bit · 약 34MB</span>
-              </div>
+        <div className={styles.heroLayout}>
+          <div className={styles.heroCopy}>
+            <span className={styles.eyebrow}>PARRO DESKTOP 설치</span>
+            <h1>설치가 필요해요</h1>
+            <p>
+              데스크톱 녹화를 시작하려면 Windows용 Parro Desktop 앱이 필요합니다.
+              설치가 끝나면 다시 확인하고 바로 녹화를 시작할 수 있어요.
+            </p>
+            <div className={styles.captureFlow} aria-label="Parro Desktop 작업 흐름">
+              <span><b>01</b> 다운로드</span>
+              <i aria-hidden="true">→</i>
+              <span><b>02</b> 설치</span>
+              <i aria-hidden="true">→</i>
+              <span><b>03</b> 녹화 시작</span>
             </div>
-            <DownloadButton
-              href={INSTALLER_URL}
-              reason={searchParams?.reason}
-              requestedInstalledVersion={searchParams?.installedVersion}
-              source={source}
-            />
           </div>
-          <div className={styles.trustRow}>
-            <span>✓ 유료 플랜 전용</span>
-            <span>✓ 설치 후 바로 실행</span>
-            <span>✓ 캡처 파일은 PC에 저장</span>
+
+          <div className={styles.downloadCard}>
+            <div className={styles.cardTopline}>
+              <span className={styles.liveDot} />
+              <span>Windows 설치 파일</span>
+              <span className={styles.previewTag}>PREVIEW</span>
+            </div>
+            <div className={styles.platformRow}>
+              <div className={styles.platformMain}>
+                <span className={styles.windowsIcon}><WindowsIcon /></span>
+                <div>
+                  <strong>Parro Desktop</strong>
+                  <span>Windows 10/11 · 64-bit</span>
+                  <span>Preview 0.6.7 · 약 34MB</span>
+                </div>
+              </div>
+              <DownloadButton
+                href={INSTALLER_URL}
+                reason={searchParams?.reason}
+                requestedInstalledVersion={searchParams?.installedVersion}
+                source={source}
+              />
+            </div>
+            <div className={styles.trustRow}>
+              <span><b>✓</b> 자동 설치 파일 다운로드</span>
+              <span><b>✓</b> 수동 다운로드 가능</span>
+              <span><b>✓</b> 유료 플랜 전용</span>
+            </div>
           </div>
         </div>
       </section>
 
       <section className={styles.stepsSection}>
         <div className={styles.sectionHeading}>
-          <span>HOW IT WORKS</span>
-          <h2>설치부터 첫 캡처까지 1분</h2>
-          <p>Parro Recorder가 설치 상태와 버전을 확인해 필요한 단계만 안내합니다.</p>
+          <span>INSTALL STEPS</span>
+          <h2>설치 방법</h2>
+          <p>복잡한 설명 없이 아래 순서대로만 진행하면 됩니다.</p>
         </div>
         <div className={styles.stepsGrid}>
           {[
-            ['01', '다운로드하고 설치', '설치 파일을 실행하면 바탕화면과 시작 메뉴에 Parro Desktop Capture가 추가됩니다.'],
-            ['02', '캡처 툴바로 기록', '캡처 시작을 누르면 화면 상단 중앙에 작은 Parro 툴바가 열립니다. 이 툴바는 결과 스크린샷에서 제외됩니다.'],
-            ['03', '완료 후 결과 확인', '수동 캡처·블러·실행 취소·일시정지를 사용하고 완료를 누르면 로컬 결과 폴더가 열립니다.'],
+            ['01', '설치 파일 다운로드', '자동 다운로드 버튼을 누르거나 수동 다운로드 링크로 설치 파일을 받습니다.'],
+            ['02', '기본 옵션으로 설치', '받은 ParroDesktopSetup.exe를 실행하고 기본 옵션 그대로 설치합니다.'],
+            ['03', '설치 완료 후 다시 확인', '확인이 끝나면 Parro Desktop 앱이 열리고 데스크톱 녹화를 시작할 수 있습니다.'],
           ].map(([number, title, body]) => (
             <article className={styles.stepCard} key={number}>
               <span className={styles.stepNumber}>{number}</span>
