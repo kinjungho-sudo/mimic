@@ -78,7 +78,7 @@ export default function DesktopSetupPage() {
       return;
     }
     setMessage(mode === 'auto'
-      ? '다운로드가 시작됐어요. 설치가 확인되면 앱을 바로 엽니다.'
+      ? '다운로드가 시작됐어요. 설치 파일을 열어 완료하면 앱을 바로 엽니다.'
       : '설치 파일을 다운로드했어요.');
   }, [installerReady]);
 
@@ -215,7 +215,7 @@ export default function DesktopSetupPage() {
               <p>원하는 방식으로 설치를 진행하세요.</p>
               <div className="desktop-setup-actions">
                 <button type="button" onClick={() => handleInstallerDownload('auto')} disabled={!installerReady}>
-                  자동 설치
+                  설치 시작
                 </button>
                 <button type="button" className="desktop-secondary-install" onClick={() => handleInstallerDownload('download')} disabled={!installerReady}>
                   설치 파일 다운로드

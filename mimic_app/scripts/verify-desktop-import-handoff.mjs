@@ -6,6 +6,8 @@ const root = path.resolve(import.meta.dirname, '..');
 const read = relativePath => fs.readFileSync(path.join(root, relativePath), 'utf8');
 
 const middleware = read('middleware.ts');
+const brand = read('lib/brand.ts');
+const desktopClient = read('lib/desktop-companion-client.ts');
 const recorder = read('../mimic_recorder/background.js');
 const createHandoff = read('app/api/extension/desktop-browser-handoff/route.ts');
 const redeemHandoff = read('app/api/auth/extension-handoff/route.ts');
@@ -13,6 +15,10 @@ const uploadTarget = read('app/api/capture/upload-target/route.ts');
 
 const protectedList = middleware.match(/const PROTECTED = \[([\s\S]*?)\];/)?.[1] || '';
 assert.doesNotMatch(protectedList, /['"]\/desktop-import['"]/, 'desktop-import must load before a web session exists');
+assert.match(brand, /BRAND_DEV_EXTENSION_ID = 'fbpgolbgpdlphhlodhehiilobpanehal'/, 'web app must keep the dev Recorder extension ID reachable');
+assert.match(brand, /BRAND_EXTENSION_IDS = \[BRAND_DEV_EXTENSION_ID, BRAND_NEXT_EXTENSION_ID, BRAND_EXTENSION_ID\]/, 'desktop bridge should try dev, next, and current Recorder IDs');
+assert.match(desktopClient, /isExtensionConnectionError\(error\)/, 'desktop import should classify extension connection errors before showing raw messages');
+assert.match(desktopClient, /Parro Recorder 확장에 연결하지 못했습니다/, 'desktop import should not show raw extension unreachable errors');
 assert.match(recorder, /getDesktopEditorUrl\(imported\)/, 'desktop import must request an authenticated editor handoff');
 assert.equal((recorder.match(/message\.action === 'IMPORT_DESKTOP_CAPTURE'/g) || []).length, 1, 'desktop import must have one external message handler');
 assert.match(createHandoff, /requireExtensionToken\(request\)/, 'handoff creation must require the linked Recorder token');

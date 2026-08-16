@@ -228,6 +228,9 @@ export function desktopCompanionErrorMessage(error: string | undefined, fallback
   if (error && /finalize failed:\s*422:.*No captured steps/i.test(error)) {
     return '캡처 파일은 PC에 보관되어 있지만 Recorder가 서버 단계 저장을 완료하지 못했습니다. Recorder를 최신 버전으로 새로고침한 뒤 다시 시도해주세요.';
   }
+  if (isExtensionConnectionError(error)) {
+    return 'Parro Recorder 확장에 연결하지 못했습니다. 확장을 새로고침한 뒤 다시 시도해주세요. 캡처 파일은 PC에 그대로 보관됩니다.';
+  }
   if (error && /save-step failed|desktop step \d+ was not saved/i.test(error)) {
     return '캡처 이미지를 서버 단계로 저장하지 못했습니다. 캡처 파일은 PC에 그대로 있으니 잠시 후 다시 시도해주세요.';
   }

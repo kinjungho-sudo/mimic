@@ -368,18 +368,18 @@ internal sealed class CaptureForm : Form
         version.BackColor = Color.FromArgb(226, 239, 235);
         header.Controls.Add(version);
 
-        RoundedButton minimize = new RoundedButton("—", 8, Color.Transparent, Color.FromArgb(21, 60, 52), Color.Transparent);
-        minimize.Location = new Point(948, 20);
-        minimize.Size = new Size(32, 32);
-        minimize.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+        WindowControlButton minimize = new WindowControlButton(WindowControlKind.Minimize);
+        minimize.Location = new Point(932, 18);
+        minimize.Size = new Size(36, 36);
         minimize.Click += delegate { WindowState = FormWindowState.Minimized; };
+        toolTip.SetToolTip(minimize, "내리기");
         header.Controls.Add(minimize);
 
-        RoundedButton close = new RoundedButton("×", 8, Color.Transparent, Color.FromArgb(21, 60, 52), Color.Transparent);
-        close.Location = new Point(988, 20);
-        close.Size = new Size(32, 32);
-        close.Font = new Font("Segoe UI", 12F, FontStyle.Regular);
+        WindowControlButton close = new WindowControlButton(WindowControlKind.Close);
+        close.Location = new Point(974, 18);
+        close.Size = new Size(36, 36);
         close.Click += delegate { Close(); };
+        toolTip.SetToolTip(close, "닫기");
         header.Controls.Add(close);
 
         Label eyebrow = new Label();
@@ -461,7 +461,7 @@ internal sealed class CaptureForm : Form
         RoundedButton all = new RoundedButton("모든 화면 자동", 10, Color.FromArgb(239, 245, 243), Color.FromArgb(35, 70, 62), Color.FromArgb(209, 223, 219));
         all.Name = "AllScreensButton";
         all.Location = new Point(18, 40);
-        all.Size = new Size(116, 48);
+        all.Size = new Size(126, 48);
         dock.Controls.Add(all);
 
         Label modeLabel = new Label();
@@ -476,29 +476,29 @@ internal sealed class CaptureForm : Form
         RoundedButton side = new RoundedButton("사이드 패널", 10, Color.FromArgb(7, 105, 95), Color.White, Color.FromArgb(7, 105, 95));
         side.Name = "SidePanelModeButton";
         side.Location = new Point(164, 40);
-        side.Size = new Size(126, 48);
+        side.Size = new Size(132, 48);
         dock.Controls.Add(side);
 
         RoundedButton mini = new RoundedButton("미니 툴바", 10, Color.FromArgb(239, 245, 243), Color.FromArgb(35, 70, 62), Color.FromArgb(209, 223, 219));
         mini.Name = "MiniToolbarModeButton";
-        mini.Location = new Point(298, 40);
-        mini.Size = new Size(116, 48);
+        mini.Location = new Point(306, 40);
+        mini.Size = new Size(132, 48);
         dock.Controls.Add(mini);
 
         Label privacy = new Label();
         privacy.Text = "특정 화면만 녹화하려면\r\n위 미리보기에서 선택하세요.";
-        privacy.Location = new Point(440, 38);
+        privacy.Location = new Point(466, 38);
         privacy.Size = new Size(170, 45);
         privacy.Font = new Font("Segoe UI", 8.5F);
         privacy.ForeColor = Color.FromArgb(91, 112, 107);
         privacy.BackColor = Color.Transparent;
         dock.Controls.Add(privacy);
 
-        Button open = MakeMainButton("저장 폴더", 620, 38, 106);
+        Button open = MakeMainButton("저장 폴더", 650, 38, 108);
         open.Name = "OpenButton";
-        Button stop = MakeMainButton("캡처 중지", 620, 38, 106);
+        Button stop = MakeMainButton("캡처 중지", 650, 38, 108);
         stop.Name = "StopButton";
-        Button start = MakeMainButton("캡처 시작", 738, 38, 186);
+        Button start = MakeMainButton("캡처 시작", 774, 38, 150);
         start.Name = "StartButton";
         ((RoundedButton)start).SetColors(Color.FromArgb(0, 151, 136), Color.White, Color.FromArgb(0, 151, 136));
         open.Enabled = false;
@@ -1350,6 +1350,87 @@ internal sealed class RoundedButton : Button
             (int)(first.R + ((second.R - first.R) * amount)),
             (int)(first.G + ((second.G - first.G) * amount)),
             (int)(first.B + ((second.B - first.B) * amount)));
+    }
+}
+
+internal enum WindowControlKind
+{
+    Minimize,
+    Close
+}
+
+internal sealed class WindowControlButton : Button
+{
+    private readonly WindowControlKind kind;
+    private bool hovered;
+
+    internal WindowControlButton(WindowControlKind controlKind)
+    {
+        kind = controlKind;
+        Text = String.Empty;
+        FlatStyle = FlatStyle.Flat;
+        FlatAppearance.BorderSize = 0;
+        BackColor = Color.Transparent;
+        UseVisualStyleBackColor = false;
+        TabStop = false;
+        Cursor = Cursors.Hand;
+        SetStyle(ControlStyles.ResizeRedraw | ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer, true);
+    }
+
+    protected override void OnMouseEnter(EventArgs eventArgs)
+    {
+        hovered = true;
+        Invalidate();
+        base.OnMouseEnter(eventArgs);
+    }
+
+    protected override void OnMouseLeave(EventArgs eventArgs)
+    {
+        hovered = false;
+        Invalidate();
+        base.OnMouseLeave(eventArgs);
+    }
+
+    protected override void OnPaintBackground(PaintEventArgs eventArgs)
+    {
+        eventArgs.Graphics.Clear(Parent == null ? Color.Transparent : Parent.BackColor);
+    }
+
+    protected override void OnPaint(PaintEventArgs eventArgs)
+    {
+        eventArgs.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        Rectangle bounds = new Rectangle(0, 0, Math.Max(1, Width - 1), Math.Max(1, Height - 1));
+        Color fill = hovered
+            ? (kind == WindowControlKind.Close ? Color.FromArgb(255, 237, 238) : Color.FromArgb(230, 241, 238))
+            : Color.Transparent;
+        Color stroke = hovered && kind == WindowControlKind.Close
+            ? Color.FromArgb(185, 28, 28)
+            : Color.FromArgb(16, 78, 68);
+
+        if (hovered)
+        {
+            using (System.Drawing.Drawing2D.GraphicsPath path = RoundedGeometry.CreatePath(bounds, 12))
+            using (SolidBrush brush = new SolidBrush(fill))
+            {
+                eventArgs.Graphics.FillPath(brush, path);
+            }
+        }
+
+        using (Pen pen = new Pen(stroke, 1.8F))
+        {
+            pen.StartCap = System.Drawing.Drawing2D.LineCap.Round;
+            pen.EndCap = System.Drawing.Drawing2D.LineCap.Round;
+            if (kind == WindowControlKind.Minimize)
+            {
+                int y = bounds.Top + (bounds.Height / 2) + 5;
+                eventArgs.Graphics.DrawLine(pen, bounds.Left + 11, y, bounds.Right - 11, y);
+            }
+            else
+            {
+                eventArgs.Graphics.DrawLine(pen, bounds.Left + 12, bounds.Top + 12, bounds.Right - 12, bounds.Bottom - 12);
+                eventArgs.Graphics.DrawLine(pen, bounds.Right - 12, bounds.Top + 12, bounds.Left + 12, bounds.Bottom - 12);
+            }
+        }
     }
 }
 

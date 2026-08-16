@@ -15,7 +15,8 @@ export const BRAND_LOGO_IMAGE_PATH = '/brand/parro-mark.png';
 // the current Parro listing.
 export const BRAND_EXTENSION_ID = 'ehbhcdkapcbfehinjapabgoegcjmmbgd';
 export const BRAND_NEXT_EXTENSION_ID = 'lefkpmfgdbhckcemfghpegleknaepekm';
-export const BRAND_EXTENSION_IDS = [BRAND_NEXT_EXTENSION_ID, BRAND_EXTENSION_ID] as const;
+export const BRAND_DEV_EXTENSION_ID = 'fbpgolbgpdlphhlodhehiilobpanehal';
+export const BRAND_EXTENSION_IDS = [BRAND_DEV_EXTENSION_ID, BRAND_NEXT_EXTENSION_ID, BRAND_EXTENSION_ID] as const;
 export const BRAND_EXTENSION_STORE_URL =
   `https://chromewebstore.google.com/detail/parro-recorder/${BRAND_NEXT_EXTENSION_ID}`;
 export const BRAND_BOT_USER_AGENT = 'ParroBot/1.0';

@@ -12,7 +12,7 @@ import { releaseDesktopDownloadLock, startDesktopDownloadOnce } from '@/lib/desk
 import styles from './page.module.css';
 
 type InstallState = 'checking' | 'current' | 'outdated' | 'missing' | 'recorder_missing';
-type DownloadIntent = 'auto-install' | 'installer-download';
+type DownloadIntent = 'setup-start' | 'installer-download';
 
 function DownloadIcon() {
   return (
@@ -83,7 +83,7 @@ export function DownloadButton({
   const handleDownload = (intent: DownloadIntent) => (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     const button = event.currentTarget;
-    if (intent === 'auto-install') setAutoInstallArmed(true);
+    if (intent === 'setup-start') setAutoInstallArmed(true);
     setDownloadIntent(intent);
     const started = startDesktopDownloadOnce(button, {
       href,
@@ -99,12 +99,12 @@ export function DownloadButton({
   };
 
   const downloadLabel = downloading
-    ? downloadIntent === 'auto-install'
-      ? '자동 설치 준비 중'
+    ? downloadIntent === 'setup-start'
+      ? '설치 파일 준비 중'
       : '설치 파일 다운로드 중'
     : installState === 'outdated' || reason === 'update'
-      ? '자동 설치로 업데이트'
-      : '자동 설치';
+      ? '업데이트 설치 시작'
+      : '설치 시작';
   const autoInstallButton = (
     <button
       type="button"
@@ -112,7 +112,7 @@ export function DownloadButton({
       data-testid="desktop-auto-install"
       data-downloading={downloading ? 'true' : 'false'}
       disabled={downloading}
-      onClick={handleDownload('auto-install')}
+      onClick={handleDownload('setup-start')}
       onDoubleClick={event => event.preventDefault()}
     >
       <DownloadIcon />
@@ -190,7 +190,7 @@ export function DownloadButton({
         </>
       )}
       {installState === 'missing' && (
-        <span className={styles.actionHint}>설치되지 않았습니다. 자동 설치를 누르면 설치 파일을 바로 받고, 설치 확인 후 앱을 실행합니다.</span>
+        <span className={styles.actionHint}>설치되지 않았습니다. 설치 시작을 누른 뒤 내려받은 파일을 열어 설치해주세요.</span>
       )}
       {installState === 'recorder_missing' && (
         <span className={styles.actionHint}>설치 확인에는 Parro Recorder 확장이 필요합니다.</span>

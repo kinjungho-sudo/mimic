@@ -9,6 +9,8 @@ $checks = [ordered]@{
   modern_toolbar_size = 'ClientSize = new Size\(960, 68\)'
   rounded_panel = 'internal sealed class RoundedPanel'
   rounded_button = 'internal sealed class RoundedButton'
+  window_control_button = 'internal sealed class WindowControlButton'
+  header_controls_safe_inset = 'close\.Location = new Point\(974, 18\)'
   topology_picker = 'internal sealed class MonitorTopologyControl'
   real_monitor_preview = 'CopyFromScreen\(screen\.Bounds\.Location'
   real_monitor_coordinates = 'Rectangle\.Union\(virtualBounds, target\.Screen\.Bounds\)'
