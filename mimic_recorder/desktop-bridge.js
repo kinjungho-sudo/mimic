@@ -7,6 +7,15 @@ let _desktopVersion = null;
 let _desktopRequestSeq = 0;
 const _desktopPendingRequests = new Map();
 
+function rejectDesktopRequestsForPort(port, error) {
+  for (const [requestId, pending] of _desktopPendingRequests.entries()) {
+    if (pending.port !== port) continue;
+    clearTimeout(pending.timer);
+    pending.reject(error);
+    _desktopPendingRequests.delete(requestId);
+  }
+}
+
 function desktopBridgeStatus() {
   return {
     host: MIMIC_DESKTOP_HOST,
@@ -26,40 +35,34 @@ function disconnectDesktopPort() {
   } catch {
     // Ignore disconnect races.
   }
-  for (const pending of _desktopPendingRequests.values()) {
-    clearTimeout(pending.timer);
-    pending.reject(new Error(_desktopLastError || 'desktop_host_disconnected'));
-  }
-  _desktopPendingRequests.clear();
+  rejectDesktopRequestsForPort(port, new Error(_desktopLastError || 'desktop_host_disconnected'));
 }
 
 function getDesktopPort() {
   if (_desktopPort) return _desktopPort;
 
   try {
-    _desktopPort = chrome.runtime.connectNative(MIMIC_DESKTOP_HOST);
+    const port = chrome.runtime.connectNative(MIMIC_DESKTOP_HOST);
+    _desktopPort = port;
     _desktopConnected = true;
     _desktopLastError = null;
 
-    _desktopPort.onDisconnect.addListener(() => {
-      _desktopConnected = false;
-      _desktopVersion = null;
-      _desktopLastError = chrome.runtime.lastError?.message || null;
-      const disconnectedPort = _desktopPort;
-      _desktopPort = null;
-      if (disconnectedPort) {
-        for (const pending of _desktopPendingRequests.values()) {
-          clearTimeout(pending.timer);
-          pending.reject(new Error(_desktopLastError || 'desktop_host_disconnected'));
-        }
-        _desktopPendingRequests.clear();
+    port.onDisconnect.addListener(() => {
+      const error = new Error(chrome.runtime.lastError?.message || 'desktop_host_disconnected');
+      rejectDesktopRequestsForPort(port, error);
+      if (_desktopPort === port) {
+        _desktopConnected = false;
+        _desktopVersion = null;
+        _desktopLastError = chrome.runtime.lastError?.message || null;
+        _desktopPort = null;
       }
     });
 
-    _desktopPort.onMessage.addListener((message) => {
+    port.onMessage.addListener((message) => {
       const requestId = message?.request_id;
       if (requestId && _desktopPendingRequests.has(requestId)) {
         const pending = _desktopPendingRequests.get(requestId);
+        if (pending.port !== port) return;
         _desktopPendingRequests.delete(requestId);
         clearTimeout(pending.timer);
         pending.resolve(message);
@@ -85,9 +88,19 @@ function requestDesktopMessage(message, timeoutMs = 15000) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       _desktopPendingRequests.delete(requestId);
+      if (_desktopPort === port) {
+        _desktopPort = null;
+        _desktopConnected = false;
+        _desktopVersion = null;
+        try {
+          port.disconnect();
+        } catch {
+          // Ignore disconnect races.
+        }
+      }
       reject(new Error('desktop_host_timeout'));
     }, timeoutMs);
-    _desktopPendingRequests.set(requestId, { resolve, reject, timer });
+    _desktopPendingRequests.set(requestId, { resolve, reject, timer, port });
     try {
       port.postMessage({ ...message, request_id: requestId });
     } catch (error) {
