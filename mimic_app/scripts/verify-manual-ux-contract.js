@@ -101,5 +101,10 @@ assert.match(landingFaq, /아직 일반 결제를 받고 있지 않습니다/, '
 assert.match(landingFaq, /현재는 사용자가 직접 결제 플랜을 변경하는 기능이 제공되지 않습니다/, 'prelaunch FAQ must not promise unavailable self-service plan changes');
 assert.doesNotMatch(landingFaq, /카카오페이|토스페이|전액 환불|언제든 구독을 해지/, 'prelaunch FAQ must not promise unavailable billing operations');
 assert.doesNotMatch(desktopSetup, /Parro Recorder 1\.7\.4/, 'desktop setup must not hard-code an obsolete Recorder version');
+assert.doesNotMatch(desktopSetup, /(?<!Parro )Desktop Companion/, 'desktop setup must use the Parro Desktop product name');
+assert.doesNotMatch(desktopCompanionClient, /(?<!Parro )Desktop Companion/, 'desktop errors must use the Parro Desktop product name');
+assert.match(desktopSetup, /Parro Desktop/, 'desktop setup must identify the Parro Desktop product');
+assert.match(desktopSetup, /className="desktop-setup-live-status"\s+role="status"\s+aria-live="polite"\s+aria-atomic="true"/, 'desktop setup state changes need one atomic live status');
+assert.match(desktopSetup, /\{statusText\}\{message \? ` \$\{message\}` : ''\}/, 'desktop setup live status must announce both progress and detailed feedback');
 
-console.log(JSON.stringify({ ok: true, checks: 63, scope: 'manual-ux-contract' }));
+console.log(JSON.stringify({ ok: true, checks: 68, scope: 'manual-ux-contract' }));

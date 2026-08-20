@@ -185,6 +185,9 @@ export default function DesktopSetupPage() {
 
   return (
     <main className="desktop-setup-page">
+      <p className="desktop-setup-live-status" role="status" aria-live="polite" aria-atomic="true">
+        {statusText}{message ? ` ${message}` : ''}
+      </p>
       <section className="desktop-setup-shell">
         <div className="desktop-setup-header">
           <div>
@@ -268,6 +271,18 @@ export default function DesktopSetupPage() {
           color: #111827;
           font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
           padding: 64px 20px;
+        }
+
+        .desktop-setup-live-status {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          padding: 0;
+          margin: -1px;
+          overflow: hidden;
+          clip: rect(0, 0, 0, 0);
+          white-space: nowrap;
+          border: 0;
         }
 
         .desktop-setup-shell {
