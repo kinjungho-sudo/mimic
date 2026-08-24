@@ -20,21 +20,11 @@ FILES = [
     "manifest.json",
     "background.js", "content.js", "guide-engine.js", "pre-capture-buffer.js",
     "targeting.js",
-    "popup.js", "popup.html",
+    "popup.js", "popup.html", "i18n.js",
+    "_locales/ko/messages.json", "_locales/en/messages.json",
     "offscreen.html", "offscreen.js",
     "request-mic.html", "request-mic.js",
-    "assets/parro-ai-avatar.png",
-    "assets/parro-ai-avatar-neutral.png",
-    "assets/parro-ai-avatar-listen.png",
-    "assets/parro-ai-avatar-talk.png",
-    "assets/parro-ai-avatar-point.png",
-    "assets/parro-ai-avatar-think.png",
-    "assets/parro-ai-avatar-search.png",
-    "assets/parro-ai-avatar-warning.png",
-    "assets/parro-ai-avatar-error.png",
-    "assets/parro-ai-avatar-blocked.png",
-    "assets/parro-ai-avatar-clarify.png",
-    "assets/parro-ai-avatar-success.png",
+    "assets/parro-3d-neutral.png",
 ]
 ICONS = ["icon16.png", "icon48.png", "icon128.png"]
 
@@ -80,8 +70,8 @@ def main():
 
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
         for f in FILES:
-            if f == "manifest.json":
-                # 운영 패키지는 dev 표식 제거 — 소스 manifest는 언팩 dev 구분용으로 "(dev)"를 달고 있다.
+            if f in {"_locales/ko/messages.json", "_locales/en/messages.json"}:
+                # 운영 패키지는 locale의 dev 표식을 제거한다.
                 with open(os.path.join(ROOT, f), encoding="utf-8") as mf:
                     text = mf.read().replace("Parro Recorder (dev)", "Parro Recorder")
                 z.writestr(f, text)
