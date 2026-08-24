@@ -29,4 +29,4 @@ description: MIMIC 편집기(components/editor/) 및 어노테이션 로직(lib/
 
 ## 작업 원칙
 - PII 자동 감지/경고 배지 기능이 이미 있다. 어노테이션·스텝 편집 작업 시 PII 처리 흐름을 깨지 않도록 확인.
-- CLAUDE.md surgical change 준수. 좌표계·media_type은 추측하지 말고 위 규칙대로.
+- AGENTS.md surgical change 준수. 좌표계·media_type은 추측하지 말고 위 규칙대로.

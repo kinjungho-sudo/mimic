@@ -44,6 +44,8 @@ export const captureFinalizeSchema = z.object({
   audio_url: z.string().url().optional().nullable(),
   // per-step 음성 보정 — { recorderStepNumber(string): voiceAudioUrl } (해당 스텝 덮어씀)
   step_voice: z.record(z.string(), z.string().url()).optional(),
+  // Parro 시작하기 연습 녹화에만 발급되는 1회용 서버 검증 토큰.
+  onboarding_token: z.string().uuid().optional(),
 });
 
 // 중지(저장 없이) 시 staging 정리 — events 행 + Storage 이미지 삭제

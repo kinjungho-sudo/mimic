@@ -1,5 +1,31 @@
 # Implementation Log
 
+## 2026-08-11 - Dev Live Guide Parro avatar package refresh
+
+- Reproduced the dev Live Guide in the user's Chrome and confirmed the installed Recorder still rendered the legacy robot avatar even though current `dev` source already maps every guide state to the Parro headset PNG assets.
+- Bumped the Recorder package to `1.7.19` so Chrome can receive the Parro avatar replacement as an extension update.
+- Refreshed Recorder overlay, Recorder side panel, and web SDK avatar cache keys to `20260811` so the new Parro images cannot be shadowed by an older cached asset.
+- Kept the change dev-only; no `main` or production publication action was performed.
+
+## 2026-08-07 - Dev Live Guide Parro headset avatar refresh
+
+- Kept the update dev-only on `dev`; no `main`, Production, DB/auth/storage, capture, upload, or Web Store publishing actions were performed.
+- Cropped the provided 3×3 turquoise headset Parro reference sheet into situation-specific transparent PNGs for Live Guide use: `neutral` from the standing front pose, `talk` from the speaking front pose, `point` from the side pointing pose, and `success` from the wing-spread welcome pose.
+- Resized the cropped avatars onto 1024×1024 transparent canvases so the borderless Live Guide avatar remains visible at small UI sizes without showing the source sheet background.
+- Wrote the same processed assets to both `mimic_app/public/brand/parro-3d-*.png` and `mimic_recorder/assets/parro-3d-*.png`.
+- Refreshed Live Guide avatar cache keys from `20260807` to `20260808` in the Recorder overlay and popup so installed dev/unpacked builds load the current Parro images instead of cached older ones.
+- Refreshed the web SDK autorun/live overlay mini-avatar cache key from `20260806` to `20260808` for the same Parro headset assets.
+- Updated the Live Guide contract verifier to assert the new cache key.
+
+## 2026-08-07 - Live Guide parrot avatar cache refresh
+
+- Confirmed the latest `origin/dev` already switched the learning guide and Live Guide asset mapping to the 3D Parro parrot PNG set.
+- Updated Recorder Live Guide avatar cache-busting query strings from `20260806` to `20260807` so the content-script overlay and Recorder popup load the current 3D parrot character instead of any cached older avatar.
+- Bumped the Recorder extension manifest from `1.7.17` to `1.7.18` for a Web Store-submittable package.
+- Updated the Live Guide contract verifier to assert the new 3D avatar asset version in both the overlay engine and popup.
+- Verified with `node scripts/verify-live-guide-contract.js` in `mimic_recorder` and `node scripts/verify-manual-ux-contract.js` in `mimic_app`.
+- No DB/auth/storage, capture, upload, production deploy, or `main` merge actions were performed.
+
 ## 2026-07-18 - Parro benchmark loop cycle 4 synthetic finish navigation
 
 - Added an isolated Playwright finish-to-editor test that loads the real

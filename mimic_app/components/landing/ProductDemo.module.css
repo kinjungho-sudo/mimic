@@ -514,18 +514,17 @@
   .editorDemoShell { padding: 10px; border-radius: 20px; }
   .stageTopline { padding: 0 2px 10px; } .stageTopline strong { font-size: 11px; } .stageTopline > span, .stagePill { display: none; }
   .browserChrome { height: 34px; padding: 0 8px; } .addressBar { width: 72%; height: 22px; } .browserToolbarActions { display: none; }
-  .recorderWorkspace { grid-template-columns: 1fr; }
-  .recorderPanel { border-top: 1px solid #dce6e3; border-left: 0; }
+  .recorderWorkspace { grid-template-columns: minmax(0,1fr) minmax(118px,38%); }
+  .recorderPanel { border-top: 0; border-left: 1px solid #cfd7d5; }
   .recorderPanel::before { display: none; }
   .manualReady { margin-top: 8px; }
   .coachmark { width: min(230px,calc(55% - 12px)); padding: 10px 11px; }
   .coachmarkHeading strong { font-size: 10px; }
   .coachmark p { font-size: 8px; }
-  .compactScene .recorderWorkspace { grid-template-columns: 1fr; }
-  .compactScene .recorderWorkspace { aspect-ratio: auto; overflow: visible; }
-  .compactScene .recorderTargetWrap { height: auto; }
-  .compactScene .recorderTargetWrap .targetViewport { height: auto; aspect-ratio: 1344 / 858; }
-  .compactScene .recorderPanel { min-height: 480px; max-height: none; border-top: 1px solid #dce6e3; border-left: 0; }
+  .compactScene .recorderWorkspace { grid-template-columns: minmax(0,1fr) minmax(118px,38%); aspect-ratio: 2.18 / 1; overflow: hidden; }
+  .compactScene .recorderTargetWrap { height: 100%; }
+  .compactScene .recorderTargetWrap .targetViewport { height: 100%; }
+  .compactScene .recorderPanel { min-height: 0; border-top: 0; border-left: 1px solid #cfd7d5; }
   .editorChrome { height: 34px; padding: 0 8px; }
   .editorAddress { width: 70%; height: 21px; }
   .editorSaveState { display: none; }
@@ -553,9 +552,6 @@
 
 @media (max-width: 700px) {
   .compactScene .recorderPanel { overflow: hidden; }
-  .compactScene .chromePanelHeader { display: none; }
-  .compactScene .currentCaptureCard { min-height: 250px; }
-  .compactScene .currentCapturePreview { min-height: 195px; }
   .heroEyebrow { align-items: flex-start; font-size: 10px; }
   .heroEyebrow > span { max-width: 52%; line-height: 1.35; }
   .heroEyebrow b { padding: 5px 7px; font-size: 9px; }

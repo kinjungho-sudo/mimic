@@ -13,6 +13,7 @@ import { BRAND_COLORS, BRAND_NAME, LEGACY_INTERNAL_IDENTIFIERS } from '@/lib/bra
 import { normalizeCaptureTutorialTitle } from '@/lib/ai/capture-fallback';
 import type { Tutorial, Workspace, Folder } from '@/types';
 import { hasEntitlement } from '@/lib/entitlements';
+import { useParroOnboarding } from '@/components/onboarding/ParroOnboardingProvider';
 
 const BRAND_GRADIENT = `linear-gradient(135deg, ${BRAND_COLORS.primary}, ${BRAND_COLORS.guide})`;
 const BRAND_PRIMARY_SOFT = BRAND_COLORS.guideSoft;
@@ -423,7 +424,7 @@ function TutorialCard({ tutorial, onContextMenu, onMenuClick, viewMode = 'grid',
   const menuBtn = (
     <button
       onClick={e => { e.stopPropagation(); onMenuClick(e, tutorial.id); }}
-      aria-label={`${displayTitle} 메뉴 열기`}
+      aria-label={`${tutorial.title} 메뉴 열기`}
       style={{ flexShrink: 0, width: '28px', height: '28px', borderRadius: '6px', border: 'none', background: hovered ? '#F3F4F6' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6B7280', opacity: hovered ? 1 : 0, transition: 'opacity 0.1s' }}
     >
       <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
@@ -432,7 +433,7 @@ function TutorialCard({ tutorial, onContextMenu, onMenuClick, viewMode = 'grid',
 
   const titleEl = (
     <div style={{ fontSize: '14px', fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-      {displayTitle}
+      {tutorial.title}
     </div>
   );
 
@@ -505,7 +506,7 @@ function TutorialCard({ tutorial, onContextMenu, onMenuClick, viewMode = 'grid',
           {iconEl(30)}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: '14.5px', fontWeight: 600, color: '#111827', lineHeight: 1.35, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' }}>
-              {displayTitle}
+              {tutorial.title}
             </div>
             {metaEl}
           </div>
@@ -836,6 +837,7 @@ function FolderPanel({ folders, tutorials, activeFolder, active, title, onSelect
 export default function DashboardPage() {
   const router = useRouter();
   const { user, loading: authLoading, signOut } = useAuth();
+  const onboarding = useParroOnboarding();
 
   const [tutorials, setTutorials] = useState<Tutorial[]>([]);
   const [tutLoading, setTutLoading] = useState(true);
@@ -852,6 +854,8 @@ export default function DashboardPage() {
   const [showRecordingModal, setShowRecordingModal] = useState(false);
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [creating, setCreating] = useState(false);
+  const onboardingCreateLocked = onboarding.isActive
+    && ['home-create', 'home-blank-manual'].includes(onboarding.currentStepId ?? '');
 
   // 워크스페이스 생성
   const [showNewWsInput, setShowNewWsInput] = useState(false);
@@ -883,6 +887,27 @@ export default function DashboardPage() {
   useEffect(() => {
     setVisibleTutorialCount(24);
   }, [activeFolder, activeTab, activeWorkspace, searchQuery]);
+
+  useEffect(() => {
+    if (window.sessionStorage.getItem('parro-open-create-menu') === '1') {
+      window.sessionStorage.removeItem('parro-open-create-menu');
+      setShowNewMenu(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    const openCreateMenu = () => setShowNewMenu(true);
+    window.addEventListener('parro:open-create-menu', openCreateMenu);
+    return () => window.removeEventListener('parro:open-create-menu', openCreateMenu);
+  }, []);
+
+  useEffect(() => {
+    const reopenRecorder = () => {
+      setShowRecordingModal(true);
+    };
+    window.addEventListener('parro:onboarding-open-recorder', reopenRecorder);
+    return () => window.removeEventListener('parro:onboarding-open-recorder', reopenRecorder);
+  }, []);
 
   const newMenuRef = useRef<HTMLDivElement>(null);
   const tutorialRequestRef = useRef(0);
@@ -1047,8 +1072,20 @@ export default function DashboardPage() {
       // 팀 탭에서 워크스페이스가 선택돼 있으면 팀 매뉴얼로 생성
       const wsId = activeTab === 'team' && activeWorkspace ? activeWorkspace : null;
       const tutorial = await createTutorial(wsId ? { workspace_id: wsId } : undefined);
-      router.push(`/manual/${tutorial.id}/editor`);
-    } catch { alert('생성 중 오류가 발생했습니다.'); setCreating(false); }
+      if (onboarding.isActive) {
+        window.dispatchEvent(new CustomEvent('parro:onboarding-manual-created', {
+          detail: { tutorialId: tutorial.id },
+        }));
+      } else {
+        router.push(`/manual/${tutorial.id}/editor`);
+      }
+    } catch {
+      if (onboarding.isActive) {
+        window.dispatchEvent(new Event('parro:onboarding-manual-create-failed'));
+      }
+      alert('생성 중 오류가 발생했습니다.');
+      setCreating(false);
+    }
   };
 
   const handleCreateGuidebook = async () => {
@@ -1200,7 +1237,11 @@ export default function DashboardPage() {
 
   return (
     <>
-      {showRecordingModal && <RecordingModal onClose={() => setShowRecordingModal(false)} />}
+      {showRecordingModal && (
+        <RecordingModal
+          onClose={() => setShowRecordingModal(false)}
+        />
+      )}
       {ctxMenu && (
         <ContextMenu
           menu={ctxMenu}
@@ -1228,7 +1269,7 @@ export default function DashboardPage() {
             </Link>
 
             {/* ── 워크스페이스 트리 ── */}
-            <div style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
+            <div data-parro-guide="home-workspaces" style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
 
               {/* ① 내 워크스페이스 (클릭 = 폴더 패널 슬라이드 오픈) */}
               <button onClick={() => { if (activeTab !== 'my') { setActiveTab('my'); setActiveFolder('all'); setShowFolderPanel(true); } else { setShowFolderPanel(v => !v); } }}
@@ -1397,6 +1438,16 @@ export default function DashboardPage() {
                 도움말
               </Link>
               {/* 사용자 배지 — 클릭 시 요금제 선택 화면 이동 */}
+              <button
+                type="button"
+                onClick={() => void onboarding.startReplay()}
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', borderRadius: '8px', fontSize: '13px', color: '#4338CA', background: '#EEF2FF', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left', fontWeight: 700 }}
+                onMouseEnter={e => (e.currentTarget.style.background = '#E0E7FF')}
+                onMouseLeave={e => (e.currentTarget.style.background = '#EEF2FF')}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/></svg>
+                Live Guide 다시 보기
+              </button>
               <Link href="/landingpage#pricing"
                 style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '8px 10px', borderRadius: '8px', color: '#374151', textDecoration: 'none', marginTop: '2px' }}
                 onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
@@ -1502,7 +1553,7 @@ export default function DashboardPage() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                   <div ref={newMenuRef} style={{ position: 'relative', flexShrink: 0 }}>
-                    <button onClick={() => setShowNewMenu(v => !v)} disabled={creating}
+                    <button data-parro-guide="home-create-trigger" onClick={() => setShowNewMenu(v => !v)} disabled={creating}
                     className="home-new-btn"
                     style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '8px 14px', borderRadius: '9px', background: BRAND_GRADIENT, color: 'white', border: 'none', cursor: creating ? 'not-allowed' : 'pointer', fontSize: '13.5px', fontWeight: 600, boxShadow: `0 2px 8px ${BRAND_RING}`, opacity: creating ? 0.7 : 1, whiteSpace: 'nowrap' }}>
                     {creating
@@ -1513,10 +1564,12 @@ export default function DashboardPage() {
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ transform: showNewMenu ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}><polyline points="6 9 12 15 18 9"/></svg>
                   </button>
                   {showNewMenu && (
-                    <div className="home-new-menu" style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, width: '244px', background: 'white', borderRadius: '12px', boxShadow: '0 8px 28px rgba(17,24,39,0.14), 0 0 0 1px rgba(0,0,0,0.06)', overflow: 'hidden', zIndex: 100 }}>
-                      <button className="home-recording-btn" onClick={() => { setShowNewMenu(false); setShowRecordingModal(true); }}
-                        style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', width: '100%', padding: '13px 15px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left' }}
-                        onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                    <div data-parro-guide="home-create-menu" className="home-new-menu" style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, width: '244px', background: 'white', borderRadius: '12px', boxShadow: '0 8px 28px rgba(17,24,39,0.14), 0 0 0 1px rgba(0,0,0,0.06)', overflow: 'hidden', zIndex: 100 }}>
+                      <button data-parro-guide="home-web-recording" className="home-recording-btn" onClick={() => { setShowNewMenu(false); setShowRecordingModal(true); }}
+                        disabled={onboardingCreateLocked}
+                        aria-describedby={onboardingCreateLocked ? 'onboarding-create-limit' : undefined}
+                        style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', width: '100%', padding: '13px 15px', border: 'none', background: 'none', cursor: onboardingCreateLocked ? 'not-allowed' : 'pointer', textAlign: 'left', opacity: onboardingCreateLocked ? 0.48 : 1 }}
+                        onMouseEnter={e => { if (!onboardingCreateLocked) e.currentTarget.style.background = '#F9FAFB'; }} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
                         <span style={{ width: '30px', height: '30px', borderRadius: '8px', background: '#FEE2E2', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3" fill="#EF4444"/></svg>
                         </span>
@@ -1529,22 +1582,29 @@ export default function DashboardPage() {
                         <div><div style={{ fontSize: '13px', fontWeight: 600, color: '#6B7280', marginBottom: '2px' }}>화면 캡처</div><div style={{ fontSize: '11.5px', color: '#9CA3AF' }}>PC 브라우저에서 사용할 수 있어요</div></div>
                       </div>
                       <div className="home-recording-divider" style={{ height: '1px', background: '#F3F4F6', margin: '0 12px' }} />
-                      <button onClick={handleCreateBlank}
-                        style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', width: '100%', padding: '13px 15px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left' }}
-                        onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                      <button data-parro-guide="home-blank-manual" onClick={handleCreateBlank}
+                        style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', width: '100%', padding: '13px 15px', border: 'none', background: onboardingCreateLocked ? '#EEF2FF' : 'none', cursor: 'pointer', textAlign: 'left' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = onboardingCreateLocked ? '#E0E7FF' : '#F9FAFB')} onMouseLeave={e => (e.currentTarget.style.background = onboardingCreateLocked ? '#EEF2FF' : 'none')}>
                         <span style={{ width: '30px', height: '30px', borderRadius: '8px', background: BRAND_PRIMARY_SOFT, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={BRAND_COLORS.primary} strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="12" x2="12" y2="18"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
                         </span>
                         <div><div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '2px' }}>새 매뉴얼 직접 작성</div><div style={{ fontSize: '11.5px', color: '#6B7280' }}>빈 매뉴얼에서 제목과 단계를 직접 작성</div></div>
                       </button>
-                      <button onClick={handleCreateGuidebook}
-                        style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', width: '100%', padding: '13px 15px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left' }}
-                        onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                      <button data-parro-guide="home-playbook" onClick={handleCreateGuidebook}
+                        disabled={onboardingCreateLocked}
+                        aria-describedby={onboardingCreateLocked ? 'onboarding-create-limit' : undefined}
+                        style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', width: '100%', padding: '13px 15px', border: 'none', background: 'none', cursor: onboardingCreateLocked ? 'not-allowed' : 'pointer', textAlign: 'left', opacity: onboardingCreateLocked ? 0.48 : 1 }}
+                        onMouseEnter={e => { if (!onboardingCreateLocked) e.currentTarget.style.background = '#F9FAFB'; }} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
                         <span style={{ width: '30px', height: '30px', borderRadius: '8px', background: '#dcfce7', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
                         </span>
                         <div><div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '2px' }}>새 플레이북(통합 문서)</div><div style={{ fontSize: '11.5px', color: '#6B7280' }}>여러 매뉴얼을 한 문서로</div></div>
                       </button>
+                      {onboardingCreateLocked && (
+                        <p id="onboarding-create-limit" style={{ margin: 0, padding: '9px 15px 11px', background: '#EEF2FF', color: '#4338CA', fontSize: '11.5px', lineHeight: 1.5 }}>
+                          이번 안내에서는 새 매뉴얼 직접 작성만 선택할 수 있어요.
+                        </p>
+                      )}
                     </div>
                   )}
                   </div>
@@ -1689,7 +1749,7 @@ export default function DashboardPage() {
                       </button>
                     </div>
                   ) : (
-                    <EmptyState onRecord={() => setShowRecordingModal(true)} onBlank={handleCreateBlank} onGuidebook={handleCreateGuidebook}
+                    <EmptyState onRecord={() => { setShowRecordingModal(true); }} onBlank={handleCreateBlank} onGuidebook={handleCreateGuidebook}
                       label={activeTab === 'team' ? '팀 매뉴얼이 없어요' : activeFolder !== 'all' ? '이 폴더에 매뉴얼이 없어요' : undefined} />
                   )
                 ) : (
@@ -1752,12 +1812,20 @@ export default function DashboardPage() {
                     {item.icon}{item.label}
                   </Link>
                 ))}
+                <button
+                  type="button"
+                  onClick={() => { setShowDrawer(false); void onboarding.startReplay(); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 10px', borderRadius: '8px', fontSize: '13.5px', color: '#4338CA', fontWeight: 700, border: 'none', background: '#EEF2FF', cursor: 'pointer', textAlign: 'left' }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/></svg>
+                  Live Guide 다시 보기
+                </button>
               </nav>
 
               <div style={{ height: '1px', background: 'var(--mm-border-light)', marginBottom: '12px' }} />
 
               {/* 내 워크스페이스 */}
-              <button onClick={() => setMyOpen(v => !v)}
+              <button data-parro-guide="home-workspaces" onClick={() => setMyOpen(v => !v)}
                 style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '7px 10px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'transparent', marginBottom: '2px' }}>
                 <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: activeTab === 'my' ? BRAND_COLORS.primary : '#E5E7EB', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>

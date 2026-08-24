@@ -10,3 +10,22 @@ mimic_recorder/*.zip
 
 # Desktop Companion generated installer artifacts
 mimic_desktop/native-host/dist/
+
+# Local workspace archive
+/backup/
+
+# Generated development artifacts
+/mimic_app/.playwright-mcp/
+/mimic_app/_artifacts/
+/mimic_app/_design_fetch/
+/mimic_app/test-results/
+/mimic_app/tmp/
+/mimic_app/tmp-*
+/mimic_app/verify-*
+/mimic_app/*.png
+/mimic_app/*.jpg
+/mimic_app/*.jpeg
+/mimic_app/*.log
+/packages/mcp-server/node_modules/
+/packages/mcp-server/dist/
+/mimic_recorder_*.zip

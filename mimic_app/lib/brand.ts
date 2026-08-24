@@ -11,13 +11,13 @@ export const BRAND_SUPPORT_EMAIL = 'kinjungho@gmail.com';
 export const BRAND_CANONICAL_URL = 'https://parro-guide.vercel.app';
 export const BRAND_APP_URL_FALLBACK = BRAND_CANONICAL_URL;
 export const BRAND_LOGO_IMAGE_PATH = '/brand/parro-mark.png';
-// The Parro listing is the approved public Recorder. Keep the legacy MIMIC ID
-// in the compatibility set while existing installations complete the cutover.
-export const BRAND_EXTENSION_ID = 'lefkpmfgdbhckcemfghpegleknaepekm';
-export const BRAND_LEGACY_EXTENSION_ID = 'ehbhcdkapcbfehinjapabgoegcjmmbgd';
-export const BRAND_EXTENSION_IDS = [BRAND_EXTENSION_ID, BRAND_LEGACY_EXTENSION_ID] as const;
+// Runtime bridges support both IDs during cutover. Public install links use
+// the current Parro listing.
+export const BRAND_EXTENSION_ID = 'ehbhcdkapcbfehinjapabgoegcjmmbgd';
+export const BRAND_NEXT_EXTENSION_ID = 'lefkpmfgdbhckcemfghpegleknaepekm';
+export const BRAND_EXTENSION_IDS = [BRAND_NEXT_EXTENSION_ID, BRAND_EXTENSION_ID] as const;
 export const BRAND_EXTENSION_STORE_URL =
-  `https://chromewebstore.google.com/detail/parro-recorder/${BRAND_EXTENSION_ID}`;
+  `https://chromewebstore.google.com/detail/parro-recorder/${BRAND_NEXT_EXTENSION_ID}`;
 export const BRAND_BOT_USER_AGENT = 'ParroBot/1.0';
 
 export const BRAND_VISUAL_DIRECTION = 'Wing Pointer';

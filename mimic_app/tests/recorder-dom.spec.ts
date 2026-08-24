@@ -29,6 +29,30 @@ async function loadGuide(page: Page) {
   await page.addScriptTag({ path: guideScript });
 }
 
+async function clickClosedShadowAction(page: Page, action: string) {
+  const cdp = await page.context().newCDPSession(page);
+  const { root } = await cdp.send('DOM.getDocument', { depth: -1, pierce: true });
+  const find = (node: any): any => {
+    const attributes = Array.isArray(node.attributes) ? node.attributes : [];
+    for (let index = 0; index < attributes.length; index += 2) {
+      if (attributes[index] === 'data-act' && attributes[index + 1] === action) return node;
+    }
+    for (const child of [...(node.children || []), ...(node.shadowRoots || [])]) {
+      const match = find(child);
+      if (match) return match;
+    }
+    return null;
+  };
+  const button = find(root);
+  expect(button, `missing closed-shadow button: ${action}`).toBeTruthy();
+  const { model } = await cdp.send('DOM.getBoxModel', { nodeId: button.nodeId });
+  const quad = model.border;
+  const x = (quad[0] + quad[2] + quad[4] + quad[6]) / 4;
+  const y = (quad[1] + quad[3] + quad[5] + quad[7]) / 4;
+  await page.mouse.click(x, y);
+  await cdp.detach();
+}
+
 async function closedShadowAttribute(
   page: Page,
   matchAttribute: string,
@@ -80,6 +104,32 @@ async function closedShadowBox(page: Page, matchAttribute: string, matchValue: s
     right: Math.max(quad[0], quad[2], quad[4], quad[6]),
     bottom: Math.max(quad[1], quad[3], quad[5], quad[7]),
   };
+}
+
+async function closedShadowImageState(page: Page, matchAttribute: string, matchValue: string) {
+  const cdp = await page.context().newCDPSession(page);
+  const { root } = await cdp.send('DOM.getDocument', { depth: -1, pierce: true });
+  const find = (node: any): any => {
+    const attributes = Array.isArray(node.attributes) ? node.attributes : [];
+    for (let index = 0; index < attributes.length; index += 2) {
+      if (attributes[index] === matchAttribute && attributes[index + 1] === matchValue) return node;
+    }
+    for (const child of [...(node.children || []), ...(node.shadowRoots || [])]) {
+      const match = find(child);
+      if (match) return match;
+    }
+    return null;
+  };
+  const node = find(root);
+  expect(node, `missing closed-shadow image: ${matchAttribute}=${matchValue}`).toBeTruthy();
+  const { object } = await cdp.send('DOM.resolveNode', { nodeId: node.nodeId });
+  const { result } = await cdp.send('Runtime.callFunctionOn', {
+    objectId: object.objectId,
+    functionDeclaration: 'function () { return { complete: this.complete, naturalWidth: this.naturalWidth, src: this.src }; }',
+    returnByValue: true,
+  });
+  await cdp.detach();
+  return result.value as { complete: boolean; naturalWidth: number; src: string };
 }
 
 async function loadContent(page: Page, options: { recording?: boolean } = {}) {
@@ -283,6 +333,10 @@ test('long Live Guide copy is fully visible immediately', async ({ page }) => {
 
 test('Live Guide avatar stays visually separate beside its speech bubble', async ({ page }) => {
   await page.setViewportSize({ width: 1000, height: 700 });
+  await page.route('**/assets/parro-3d-neutral.png*', route => route.fulfill({
+    contentType: 'image/png',
+    path: path.join(recorderRoot, 'assets', 'parro-3d-neutral.png'),
+  }));
   await page.route('https://example.test/separate-coach', route => route.fulfill({
     contentType: 'text/html',
     body: '<button id="separate-coach-target" style="position:absolute;left:430px;top:260px;width:140px;height:44px">Continue</button>',
@@ -310,6 +364,51 @@ test('Live Guide avatar stays visually separate beside its speech bubble', async
   const bubble = await closedShadowBox(page, 'data-role', 'guide-bubble');
   expect(Math.min(avatar.bottom, bubble.bottom) - Math.max(avatar.top, bubble.top)).toBeGreaterThan(40);
   expect(await closedShadowAttribute(page, 'data-role', 'coach-avatar', 'data-placement')).toBe('left');
+  await expect.poll(async () => (await closedShadowImageState(page, 'data-role', 'coach-avatar-image')).naturalWidth).toBeGreaterThan(0);
+});
+
+test('Live Guide occasionally uses the pointing Parro pose', async ({ page }) => {
+  await page.route('**/assets/parro-3d-point.png*', route => route.fulfill({
+    contentType: 'image/png',
+    path: path.join(recorderRoot, 'assets', 'parro-3d-point.png'),
+  }));
+  await page.route('https://example.test/pointing-coach', route => route.fulfill({
+    contentType: 'text/html',
+    body: '<button id="pointing-target" style="margin:220px;width:140px;height:44px">Continue</button>',
+  }));
+  await page.goto('https://example.test/pointing-coach');
+  await loadGuide(page);
+  await page.evaluate(() => {
+    (window as unknown as { ParroGuide: any }).ParroGuide.show({
+      id: 'pointing-step', page_url: window.location.href, element_selector: '#pointing-target',
+      title: 'Continue', instruction: 'Parro points toward the screen.',
+    }, { index: 1, total: 3 });
+  });
+
+  expect(await closedShadowAttribute(page, 'data-role', 'coach-avatar', 'data-mascot-state')).toBe('point');
+  await expect.poll(async () => (await closedShadowImageState(page, 'data-role', 'coach-avatar-image')).naturalWidth).toBeGreaterThan(0);
+  expect((await closedShadowImageState(page, 'data-role', 'coach-avatar-image')).src).toContain('parro-3d-point.png');
+});
+
+test('Live Guide keeps typing-step speech bubbles in the bottom-right corner', async ({ page }) => {
+  await page.setViewportSize({ width: 1000, height: 700 });
+  await page.route('https://example.test/type-corner', route => route.fulfill({
+    contentType: 'text/html',
+    body: '<input id="type-target" style="position:absolute;left:120px;top:120px;width:180px;height:40px">',
+  }));
+  await page.goto('https://example.test/type-corner');
+  await loadGuide(page);
+  await page.evaluate(() => {
+    (window as unknown as { ParroGuide: any }).ParroGuide.show({
+      id: 'type-corner-step', page_url: window.location.href, element_selector: '#type-target',
+      kind: 'type', type_text: 'Parro', title: 'Type', instruction: 'Enter the text.', bubble_anchor: 'top-left',
+    }, { index: 0, total: 1 });
+  });
+
+  await expect.poll(async () => {
+    const bubble = await closedShadowBox(page, 'data-role', 'guide-bubble');
+    return { right: Math.round(1000 - bubble.right), bottom: Math.round(700 - bubble.bottom) };
+  }).toEqual({ right: 12, bottom: 12 });
 });
 
 test('Live Guide reads step copy with TTS and stops it when hidden', async ({ page }) => {
@@ -406,6 +505,76 @@ test('guide shows a scroll prompt while a same-page target is below the viewport
     (window as unknown as { __parroTargetStatuses: string[] }).__parroTargetStatuses
   ))).toContain('ready');
   await expect(prompt).toHaveCount(0);
+});
+
+test('reference step can be closed and reopened without completing the step', async ({ page }) => {
+  await page.route('https://example.test/reference-step', route => route.fulfill({
+    contentType: 'text/html',
+    body: '<main>Reference fixture</main>',
+  }));
+  await page.goto('https://example.test/reference-step');
+  await loadGuide(page);
+  await page.evaluate(() => {
+    const guide = (window as unknown as { ParroGuide: any }).ParroGuide;
+    guide.show({
+      id: 'reference-step',
+      page_url: window.location.href,
+      guide_mode: 'explanation',
+      kind: 'none',
+      title: 'Reference',
+      instruction: 'Review this information.',
+      screenshot_url: 'https://example.test/preview.png',
+      user_annotations: [{ type: 'marker', x1: 50, y1: 50, x2: 50, y2: 50, markerNumber: '1' }],
+    }, { index: 3, total: 8 });
+  });
+
+  const host = page.locator('#parro-overlay-root');
+  await expect(host).toHaveAttribute('data-explanation-hidden', 'false');
+
+  const popupPromise = page.waitForEvent('popup');
+  await clickClosedShadowAction(page, 'open-guide-preview');
+  const preview = await popupPromise;
+  await expect(preview).toHaveTitle('Parro 미리보기');
+  await expect(preview.locator('img')).toHaveAttribute('src', 'https://example.test/preview.png');
+  await expect(preview.locator('body')).toContainText('1');
+  await preview.close();
+
+  await clickClosedShadowAction(page, 'hide-explanation');
+  await expect(host).toHaveAttribute('data-explanation-hidden', 'true');
+  await clickClosedShadowAction(page, 'restore-explanation');
+  await expect(host).toHaveAttribute('data-explanation-hidden', 'false');
+});
+
+test('wrong-page guide explains the mismatch and sends the user back', async ({ page }) => {
+  await page.route('https://example.test/**', route => route.fulfill({
+    contentType: 'text/html',
+    body: '<main>Wrong page fixture</main>',
+  }));
+  await page.goto('https://example.test/start');
+  await page.goto('https://example.test/unexpected');
+  await loadGuide(page);
+  await page.evaluate(() => {
+    (window as unknown as { __guideBackCalled: boolean }).__guideBackCalled = false;
+    Object.defineProperty(window.history, 'back', {
+      configurable: true,
+      value: () => {
+        (window as unknown as { __guideBackCalled: boolean }).__guideBackCalled = true;
+      },
+    });
+    const guide = (window as unknown as { ParroGuide: any }).ParroGuide;
+    guide.showWrongPage({
+      id: 'expected-step',
+      page_url: 'https://example.test/expected',
+      title: 'Expected step',
+    }, { index: 1, total: 4 });
+  });
+
+  const host = page.locator('#parro-overlay-root');
+  await expect(host).toHaveAttribute('data-guide-state', 'wrong-page');
+  await clickClosedShadowAction(page, 'guide-back');
+  await expect.poll(() => page.evaluate(() => (
+    (window as unknown as { __guideBackCalled: boolean }).__guideBackCalled
+  ))).toBe(true);
 });
 
 test('hidden or covered targets are rejected', async ({ page }) => {

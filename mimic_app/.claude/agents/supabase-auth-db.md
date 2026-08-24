@@ -28,4 +28,4 @@ description: MIMIC의 Supabase DB · 인증 · API route 전담. 쿼리 작성, 
 
 ## 도구
 - 스키마·CHECK 제약 확인이 필요하면 Supabase MCP(`execute_sql`, `list_tables`)를 적극 사용하라. 추측보다 실제 스키마 확인이 항상 빠르다.
-- CLAUDE.md surgical change 준수.
+- AGENTS.md surgical change 준수.

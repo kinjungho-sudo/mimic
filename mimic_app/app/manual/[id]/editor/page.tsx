@@ -690,7 +690,7 @@ export default function EditorPage() {
               게시됨
             </span>
           )}
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'rgba(16,185,129,0.9)' }}>
+          <span data-parro-guide="editor-autosave" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'rgba(16,185,129,0.9)' }}>
             <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#10B981', display: 'inline-block' }} />
             자동 저장됨
           </span>
@@ -725,16 +725,22 @@ export default function EditorPage() {
 
           {/* 편집기 — 항상 편집 모드 */}
           <>
-            {/* 미리보기 — 게시된 공개 뷰어 새 탭 */}
+            {/* 미리보기 — 초안은 소유자 전용, 게시본은 공개 뷰어 새 탭 */}
             {(() => {
               const shareToken = (tutorial as Tutorial & { share_token?: string | null })?.share_token;
+              const canPreview = manualSteps.length > 0;
+              const previewUrl = shareToken ? `/play/${shareToken}` : `/play/${id}?preview=1`;
               return (
                 <button
-                  onClick={() => { if (shareToken) window.open(`/play/${shareToken}`, '_blank'); }}
-                  title={shareToken ? '공개 뷰어로 미리보기 (새 탭)' : '게시 후 미리보기 가능'}
-                  disabled={!shareToken}
-                  style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: shareToken ? '#374151' : '#D1D5DB', background: 'white', border: '1px solid #E5E7EB', cursor: shareToken ? 'pointer' : 'not-allowed', transition: 'all 0.15s' }}
-                  onMouseEnter={e => { if (shareToken) e.currentTarget.style.background = '#F9FAFB'; }}
+                  onClick={() => { if (canPreview) window.open(previewUrl, '_blank'); }}
+                  title={canPreview
+                    ? shareToken
+                      ? '공개 뷰어로 미리보기 (새 탭)'
+                      : '초안 미리보기 (소유자 전용, 새 탭)'
+                    : '단계를 추가하면 미리볼 수 있어요'}
+                  disabled={!canPreview}
+                  style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: canPreview ? '#374151' : '#D1D5DB', background: 'white', border: '1px solid #E5E7EB', cursor: canPreview ? 'pointer' : 'not-allowed', transition: 'all 0.15s' }}
+                  onMouseEnter={e => { if (canPreview) e.currentTarget.style.background = '#F9FAFB'; }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
                 >
                   <Eye size={TOP_BAR_ICON_SIZE} />
@@ -744,6 +750,7 @@ export default function EditorPage() {
             })()}
 
             <button
+              data-parro-guide="editor-learning-guide"
               onClick={() => router.push(`/manual/${id}/studio`)}
               title="학습 가이드의 화면 안내, 핫스팟, 입력 텍스트를 편집합니다"
               style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#009B8E', background: 'rgba(0,155,142,0.08)', border: '1px solid rgba(0,155,142,0.35)', cursor: 'pointer', transition: 'all 0.15s', fontWeight: 600 }}
@@ -847,6 +854,7 @@ export default function EditorPage() {
 
             {/* 공유 — 게시 후에만. ShareModal(링크 복사·공개범위·임베드) */}
             <button
+              data-parro-guide="editor-share"
               onClick={() => setShowShare(true)}
               disabled={tutorial.status !== 'published'}
               title={tutorial.status === 'published' ? '공유 링크·공개 범위 설정' : '게시 후 공유할 수 있어요'}
@@ -925,7 +933,7 @@ export default function EditorPage() {
         )}
 
         {/* TOC panel — 데스크탑: 고정 / 모바일: 숨김 */}
-        <div className="editor-toc-panel" style={{ width: '280px', flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid #E5E7EB', background: 'white', minHeight: 0 }}>
+        <div data-parro-guide="editor-steps" className="editor-toc-panel" style={{ width: '280px', flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid #E5E7EB', background: 'white', minHeight: 0 }}>
           <GuideToc
             steps={manualSteps}
             activeId={activeId}
@@ -987,7 +995,7 @@ export default function EditorPage() {
         {/* Main content */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
           {/* Title banner — 컴팩트 */}
-          <div className="editor-title-bar" style={{ flexShrink: 0, padding: '8px 20px 7px', borderBottom: '1px solid #E5E7EB', background: 'white', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div data-parro-guide="editor-title" className="editor-title-bar" style={{ flexShrink: 0, padding: '8px 20px 7px', borderBottom: '1px solid #E5E7EB', background: 'white', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <input
               value={title}
               onChange={e => { setTitle(e.target.value); setTitleDirty(true); }}

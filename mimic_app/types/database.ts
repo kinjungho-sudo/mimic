@@ -33,6 +33,72 @@ export interface Database {
         };
         Update: Partial<Database['public']['Tables']['mm_users']['Insert']>;
       };
+      mm_user_onboarding_progress: {
+        Row: {
+          user_id: string;
+          guide_key: string;
+          guide_version: number;
+          status: 'not_started' | 'in_progress' | 'completed' | 'dismissed';
+          current_step: string | null;
+          initial_completed_at: string | null;
+          last_started_at: string | null;
+          last_completed_at: string | null;
+          dismissed_at: string | null;
+          run_count: number;
+          practice_manual_id: string | null;
+          impression_at: string | null;
+          practice_capture_token: string | null;
+          practice_capture_token_issued_at: string | null;
+          practice_capture_consumed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          guide_key: string;
+          guide_version: number;
+          status?: 'not_started' | 'in_progress' | 'completed' | 'dismissed';
+          current_step?: string | null;
+          initial_completed_at?: string | null;
+          last_started_at?: string | null;
+          last_completed_at?: string | null;
+          dismissed_at?: string | null;
+          run_count?: number;
+          practice_manual_id?: string | null;
+          impression_at?: string | null;
+          practice_capture_token?: string | null;
+          practice_capture_token_issued_at?: string | null;
+          practice_capture_consumed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['mm_user_onboarding_progress']['Insert']>;
+      };
+      mm_onboarding_events: {
+        Row: {
+          id: string;
+          user_id: string;
+          guide_key: string;
+          guide_version: number;
+          event_type: 'onboarding_impression' | 'start' | 'step_view' | 'step_complete' | 'blocked' | 'install_clicked' | 'resume' | 'dismiss' | 'complete' | 'replay_start';
+          step_id: string | null;
+          browser_type: string | null;
+          extension_state: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          guide_key: string;
+          guide_version: number;
+          event_type: 'onboarding_impression' | 'start' | 'step_view' | 'step_complete' | 'blocked' | 'install_clicked' | 'resume' | 'dismiss' | 'complete' | 'replay_start';
+          step_id?: string | null;
+          browser_type?: string | null;
+          extension_state?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['mm_onboarding_events']['Insert']>;
+      };
       mm_extension_tokens: {
         Row: {
           id: string;

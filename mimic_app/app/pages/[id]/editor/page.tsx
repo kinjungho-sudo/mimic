@@ -129,7 +129,7 @@ export default function PageEditor() {
       <div style={{ position: 'sticky', top: 0, zIndex: 20, display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 24px', borderBottom: '1px solid #E5E7EB', background: 'white' }}>
         <Link href="/home" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#6B7280', textDecoration: 'none', fontSize: '13px' }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
-          플레이북
+          뒤로 가기
         </Link>
         <div style={{ flex: 1 }} />
         <span style={{ fontSize: '11.5px', color: '#9CA3AF' }}>
