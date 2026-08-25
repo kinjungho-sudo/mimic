@@ -2,7 +2,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { markAnnotationsAsManuallyEdited } from '../lib/auto-annotations.ts';
+import {
+  hasPersistedManualAnnotationState,
+  markAnnotationsAsManuallyEdited,
+} from '../lib/auto-annotations.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = path.resolve(here, '..');
@@ -24,6 +27,10 @@ assert.deepEqual(autoAnnotations.map(annotation => annotation.id), [
 
 const alreadyManual = [{ ...autoAnnotations[0], id: 'ann-existing-manual' }];
 assert.equal(markAnnotationsAsManuallyEdited(alreadyManual)[0].id, 'ann-existing-manual');
+assert.equal(hasPersistedManualAnnotationState([], null), false);
+assert.equal(hasPersistedManualAnnotationState(autoAnnotations, null), false);
+assert.equal(hasPersistedManualAnnotationState(manualAnnotations, null), true);
+assert.equal(hasPersistedManualAnnotationState([], { annotationsManuallyEdited: true }), true);
 
 const manualEditor = fs.readFileSync(
   path.join(appRoot, 'components', 'editor', 'ManualEditor.tsx'),
@@ -50,12 +57,13 @@ assert.match(
 assert.match(annotationEditor, /await onChange\(latestItems\);[\s\S]*onClose\(\);[\s\S]*catch/);
 assert.match(
   editorPage,
-  /annotationsPersisted:\s*s\.user_annotations !== null[\s\S]*return saveRequest\.catch/,
+  /annotationsPersisted:\s*hasPersistedManualAnnotationState\([\s\S]*annotationsManuallyEdited:\s*patch\.annotationsPersisted[\s\S]*return saveRequest\.catch/,
 );
+assert.doesNotMatch(editorPage, /annotationsPersisted:\s*s\.user_annotations !== null/);
 assert.match(editorPage, /if \(patch\.annotations !== undefined\) throw e/);
 
 console.log(JSON.stringify({
   ok: true,
-  checks: 11,
+  checks: 16,
   scope: 'manual-annotation-persistence',
 }));

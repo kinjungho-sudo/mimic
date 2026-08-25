@@ -21,6 +21,7 @@ import { updateStep, createStep, deleteStep, reorderSteps, duplicateStep, upload
 import { getTutorial } from '@/lib/api/tutorials';
 import { logError } from '@/lib/logging/logger';
 import { hasGuideConfig } from '@/lib/follow';
+import { hasPersistedManualAnnotationState } from '@/lib/auto-annotations';
 import { LEGACY_INTERNAL_IDENTIFIERS } from '@/lib/brand';
 import type { Step, Tutorial } from '@/types';
 import { hasEntitlement } from '@/lib/entitlements';
@@ -48,7 +49,10 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
     screenshotUrl: s.screenshot_url || undefined,
     originalScreenshotUrl: (s as Step & { original_screenshot_url?: string | null }).original_screenshot_url ?? null,
     annotations: (s.user_annotations as import('@/components/editor/ImageAnnotationEditor').Annotation[] | null) ?? [],
-    annotationsPersisted: s.user_annotations !== null && s.user_annotations !== undefined,
+    annotationsPersisted: hasPersistedManualAnnotationState(
+      (s.user_annotations as import('@/components/editor/ImageAnnotationEditor').Annotation[] | null) ?? [],
+      (s as Step & { target_context?: Record<string, unknown> | null }).target_context,
+    ),
     pageUrl:         s.page_url        ?? null,
     domainHostname:  s.domain_hostname ?? null,
     domainName:      s.domain_name     ?? null,
@@ -66,9 +70,7 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
     element_rect: (s as Step & { element_rect?: { x: number; y: number; width: number; height: number } | null }).element_rect ?? null,
     targetContext: (() => {
       const context = (s as Step & { target_context?: Record<string, unknown> | null }).target_context;
-      return context && typeof context.accessibleName === 'string'
-        ? { accessibleName: context.accessibleName }
-        : null;
+      return context ?? null;
     })(),
     imageZoom: (s as Step & { image_zoom?: number | null }).image_zoom ?? 1,
     imageOffsetX: (s as Step & { image_offset_x?: number | null }).image_offset_x ?? 0,
@@ -1128,6 +1130,12 @@ export default function EditorPage() {
                 ...(patch.followConfig !== undefined ? { follow_config: patch.followConfig } : {}),
                 ...(patch.description !== undefined ? { user_script: patch.description || null } : {}),
                 ...(patch.annotations !== undefined ? { user_annotations: patch.annotations } : {}),
+                ...(patch.annotationsPersisted !== undefined ? {
+                  target_context: {
+                    ...(manualSteps.find(step => step.id === stepId)?.targetContext ?? {}),
+                    annotationsManuallyEdited: patch.annotationsPersisted,
+                  },
+                } : {}),
                 ...(patch.imageZoom !== undefined ? { image_zoom: patch.imageZoom } : {}),
                 ...(patch.imageOffsetX !== undefined ? { image_offset_x: patch.imageOffsetX } : {}),
                 ...(patch.imageOffsetY !== undefined ? { image_offset_y: patch.imageOffsetY } : {}),
