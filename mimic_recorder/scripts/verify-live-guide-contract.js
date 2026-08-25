@@ -20,7 +20,7 @@ const engine = read('guide-engine.js');
 const popup = read('popup.html');
 const manifest = JSON.parse(read('manifest.json'));
 
-assert.equal(manifest.version, '1.7.14');
+assert.equal(manifest.version, '1.7.15');
 assert.deepEqual(
   manifest.content_scripts[0].js.slice(0, 3),
   ['targeting.js', 'guide-engine.js', 'content.js'],
@@ -172,12 +172,14 @@ const popupScript = read('popup.js');
 assert.match(content, /saveText:\s+true/, 'new capture sessions must retain typed text by default');
 assert.match(content, /function selectionRectForEditable\(el, clientX, clientY\)/,
   'typing captures must be able to use the final contenteditable selection rect');
-assert.match(content, /const rect = typingTargetClientRect\(el, preferredX, preferredY\)/,
-  'typing flush must use fresh final DOM geometry instead of only the focus snapshot');
-assert.match(content, /const elementRect = topRect\.quality === 'low'[\s\S]*normalizeRect\(topRect, vw, vh\)/,
-  'typing element_rect must prefer the fresh final rect when trustworthy');
+assert.match(content, /let typingGeometrySnapshot = null/,
+  'typing captures must cache stable geometry while the user is still typing');
+assert.match(content, /typingGeometrySnapshot = captureTypingGeometrySnapshot\(el\)/,
+  'input events must refresh typing geometry before a send-click can steal focus');
+assert.match(content, /reusableTypingGeometrySnapshot\(el, label\)[\s\S]*captureTypingGeometrySnapshot\(el, label\)/,
+  'typing flush must prefer cached in-field geometry and only then fall back to live DOM');
 assert.match(popupScript, /saveText:\s+true/, 'the Recorder settings UI must default typed-text retention on');
 assert.match(popupScript, /not_found: \{ label: '대상을 찾지 못했습니다'/);
 assert.match(popupScript, /type: 'SHOW_OVERLAY_FOR_STEP', stepIndex: guideCurrentStep/);
 
-console.log(JSON.stringify({ ok: true, checks: 71, scope: 'live-guide-avatar-readable-overlay-voice-contract' }));
+console.log(JSON.stringify({ ok: true, checks: 72, scope: 'live-guide-avatar-readable-overlay-voice-contract' }));

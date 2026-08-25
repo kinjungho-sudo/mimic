@@ -99,6 +99,7 @@
   let _pointerClickFallbackTimer = null;
   let _captureSequence   = 0;
   let typingFocusSnapshot = null;
+  let typingGeometrySnapshot = null;
   let _countingDown      = false;
   let _guideCountdownComplete = false;
   let _guideCountdownRunning = false;
@@ -446,6 +447,7 @@
         typingTarget = null;
         typingUrl = null;
         typingFocusSnapshot = null;
+        typingGeometrySnapshot = null;
       }
     };
 
@@ -474,26 +476,17 @@
     const done = () => { clearTimeout(safetyTimer); isCapturing = false; };
 
     const { vw, vh } = getViewportSize();
+    const geometrySnapshot = reusableTypingGeometrySnapshot(el, label)
+      || captureTypingGeometrySnapshot(el, label);
     const focusSnapshot = typingFocusSnapshot;
-    const rawRect = el.getBoundingClientRect();
-    const preferredX = focusSnapshot?.x ?? (rawRect.left + rawRect.width / 2);
-    const preferredY = focusSnapshot?.y ?? (rawRect.top + rawRect.height / 2);
-    const rect = typingTargetClientRect(el, preferredX, preferredY);
-    const topRect = toTopRect(rect);
-    const elementRect = topRect.quality === 'low'
-      ? (focusSnapshot?.elementRect ?? null)
-      : normalizeRect(topRect, vw, vh);
-    const elementSelector = focusSnapshot?.elementSelector ?? replaySelector(el);
-    const elementXPath = focusSnapshot?.elementXPath ?? replayXPath(el);
-    const localPoint = rectContainsClientPoint(rect, preferredX, preferredY)
-      ? { x: preferredX, y: preferredY }
-      : { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-    const topPoint = toTopPoint(localPoint.x, localPoint.y);
-    const clickX = topPoint.quality === 'low' ? (focusSnapshot?.clickX ?? 0) : topPoint.x;
-    const clickY = topPoint.quality === 'low' ? (focusSnapshot?.clickY ?? 0) : topPoint.y;
-    const role = focusSnapshot?.role || el.getAttribute('role') || undefined;
-    const labelDebug = focusSnapshot?.labelDebug ?? buildLabelDebug(el, label);
-    const targetContext = focusSnapshot?.targetContext ?? buildTargetContext(el, rect, topRect, label);
+    const elementRect = geometrySnapshot?.elementRect ?? null;
+    const elementSelector = geometrySnapshot?.elementSelector ?? focusSnapshot?.elementSelector ?? replaySelector(el);
+    const elementXPath = geometrySnapshot?.elementXPath ?? focusSnapshot?.elementXPath ?? replayXPath(el);
+    const clickX = geometrySnapshot?.clickX ?? focusSnapshot?.clickX ?? 0;
+    const clickY = geometrySnapshot?.clickY ?? focusSnapshot?.clickY ?? 0;
+    const role = geometrySnapshot?.role || focusSnapshot?.role || el.getAttribute('role') || undefined;
+    const labelDebug = geometrySnapshot?.labelDebug ?? focusSnapshot?.labelDebug ?? buildLabelDebug(el, label);
+    const targetContext = geometrySnapshot?.targetContext ?? focusSnapshot?.targetContext ?? null;
     const captureId = opts.captureId || (opts.usePrecapture ? focusSnapshot?.captureId : null);
 
     lastCapturedTarget = el;
@@ -1065,6 +1058,51 @@
 
   function rectContainsClientPoint(rect, x, y, tolerance = 2) {
     return !!rect && ParroTargeting.rectContainsPoint(rect, x, y, tolerance);
+  }
+
+  function captureTypingGeometrySnapshot(el, label = getFieldLabel(el)) {
+    if (!el || typeof el.getBoundingClientRect !== 'function') return null;
+    const { vw, vh } = getViewportSize();
+    const focusSnapshot = typingFocusSnapshot;
+    const rawRect = el.getBoundingClientRect();
+    const preferredX = focusSnapshot?.x ?? (rawRect.left + rawRect.width / 2);
+    const preferredY = focusSnapshot?.y ?? (rawRect.top + rawRect.height / 2);
+    const rect = typingTargetClientRect(el, preferredX, preferredY);
+    const topRect = toTopRect(rect);
+    const elementRect = topRect.quality === 'low'
+      ? (focusSnapshot?.elementRect ?? null)
+      : normalizeRect(topRect, vw, vh);
+    const localPoint = rectContainsClientPoint(rect, preferredX, preferredY)
+      ? { x: preferredX, y: preferredY }
+      : { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    const topPoint = toTopPoint(localPoint.x, localPoint.y);
+    const clickX = topPoint.quality === 'low' ? (focusSnapshot?.clickX ?? 0) : topPoint.x;
+    const clickY = topPoint.quality === 'low' ? (focusSnapshot?.clickY ?? 0) : topPoint.y;
+
+    return {
+      target: el,
+      pageUrl: location.href,
+      time: Date.now(),
+      elementRect,
+      elementSelector: focusSnapshot?.elementSelector ?? replaySelector(el),
+      elementXPath: focusSnapshot?.elementXPath ?? replayXPath(el),
+      clickX,
+      clickY,
+      role: focusSnapshot?.role || el.getAttribute('role') || undefined,
+      labelDebug: buildLabelDebug(el, label),
+      targetContext: buildTargetContext(el, rect, topRect, label),
+    };
+  }
+
+  function reusableTypingGeometrySnapshot(el, label) {
+    if (!typingGeometrySnapshot) return null;
+    if (typingGeometrySnapshot.target !== el) return null;
+    if (typingGeometrySnapshot.pageUrl !== location.href) return null;
+    if ((Date.now() - typingGeometrySnapshot.time) > 60_000) return null;
+    return {
+      ...typingGeometrySnapshot,
+      labelDebug: typingGeometrySnapshot.labelDebug ?? buildLabelDebug(el, label),
+    };
   }
 
   function eventElementPath(el, event) {
@@ -1903,6 +1941,7 @@
     }
     typingTarget = el;
     notifyTypingProgress(el);
+    typingGeometrySnapshot = captureTypingGeometrySnapshot(el);
 
     // 전송 직전 화면을 확보하기 위한 롤링 프레임 — throttle로 쿼터(초당 2회) 보호.
     // 확정(flushTyping) 시 background가 이 최신 프레임을 스텝 이미지로 사용한다.
