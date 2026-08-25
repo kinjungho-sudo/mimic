@@ -779,9 +779,12 @@
       onPrev:    () => chrome.runtime.sendMessage({ type: 'GUIDE_PREV' }),
       onExit:    () => { chrome.runtime.sendMessage({ type: 'EXIT_GUIDE' }); guideApi.hide(); },
       onComplete: (reason) => {
-        guideApi.hide();
-        chrome.runtime.sendMessage({ type: 'GUIDE_COMPLETE', reason: reason || 'complete' });
+        chrome.runtime.sendMessage({ type: 'GUIDE_COMPLETE', reason: reason || 'complete' }, () => {
+          void chrome.runtime.lastError;
+          chrome.runtime.sendMessage({ type: 'EXIT_GUIDE' });
+        });
       },
+      onStay: () => chrome.runtime.sendMessage({ type: 'SHOW_OVERLAY_FOR_STEP', stepIndex: msg.index ?? 0 }),
       onTargetStatus: (status, evidence) => chrome.runtime.sendMessage({
         type: 'GUIDE_TARGET_STATUS',
         stepIndex: msg.index ?? 0,
@@ -789,10 +792,14 @@
         evidence: evidence || null,
       }),
       handRaised: msg.handRaised === true,
-      onHandRaise: (raised) => chrome.runtime.sendMessage({
-        type: 'GUIDE_HAND_RAISE',
+      onHelpRequest: (payload, done) => chrome.runtime.sendMessage({
+        type: 'GUIDE_HELP_REQUEST',
         stepIndex: msg.index ?? 0,
-        raised,
+        message: payload?.message || '',
+        includeScreenshot: payload?.includeScreenshot === true,
+      }, (response) => {
+        void chrome.runtime.lastError;
+        done?.(response || { ok: false, error: 'help_request_failed' });
       }),
       onRetryTarget: () => chrome.runtime.sendMessage({ type: 'SHOW_OVERLAY_FOR_STEP', stepIndex: msg.index ?? 0 }),
     });

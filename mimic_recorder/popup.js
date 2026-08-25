@@ -1648,7 +1648,14 @@ const guideVoiceTime = document.getElementById('guideVoiceTime');
 const guideVoiceModeSelect = document.getElementById('guideVoiceMode');
 const guideHandRaiseBtn = document.getElementById('guideHandRaiseBtn');
 const guideHandRaisePanel = document.getElementById('guideHandRaisePanel');
-const guideLowerHandBtn = document.getElementById('guideLowerHandBtn');
+const guideHelpMessage = document.getElementById('guideHelpMessage');
+const guideHelpScreenshot = document.getElementById('guideHelpScreenshot');
+const guideHelpStatus = document.getElementById('guideHelpStatus');
+const guideHelpCancelBtn = document.getElementById('guideHelpCancelBtn');
+const guideHelpSendBtn = document.getElementById('guideHelpSendBtn');
+const guideCompletionModal = document.getElementById('guideCompletionModal');
+const guideCompletionStayBtn = document.getElementById('guideCompletionStayBtn');
+const guideCompletionExitBtn = document.getElementById('guideCompletionExitBtn');
 
 if (guideStepPreviewBtn) {
   guideStepPreviewBtn.setAttribute('aria-label', t('openPreviewLarge', '미리보기 크게 보기'));
@@ -1665,8 +1672,8 @@ const guideAudio = new Audio();
 guideAudio.preload = 'auto';
 let guideVoiceEnabled = false;
 let guideVoiceMode = 'off';
-let guideUtterance = null;
 let guideHandRaised = null;
+let guideHelpOpen = false;
 let guideAudioStepKey = '';
 let guideAudioStartSeconds = 0;
 let guideAudioEndSeconds = null;
@@ -1689,19 +1696,6 @@ function normalizeGuideVoiceMode(value, legacyValue = false) {
 
 function guideVoiceText(step) {
   return String(step?.instruction || step?.title || '').trim();
-}
-
-function preferredParroVoice(text) {
-  const lang = /[가-힣]/.test(text) ? 'ko' : 'en';
-  const candidates = (window.speechSynthesis?.getVoices?.() || []).filter(voice => String(voice.lang || '').toLowerCase().startsWith(lang));
-  const score = (voice) => {
-    const name = String(voice.name || '').toLowerCase();
-    let value = voice.default ? 1 : 0;
-    if (/male|boy|young|junior|david|daniel|mark|george|guy|민준|현우|준우/.test(name)) value += 6;
-    if (/female|woman|zira|susan|heami|혜미|유나/.test(name)) value -= 5;
-    return value;
-  };
-  return candidates.sort((a, b) => score(b) - score(a))[0] || null;
 }
 
 function formatGuideAudioTime(seconds) {
@@ -1729,7 +1723,7 @@ function updateGuideVoiceUi(step = guideSteps[guideCurrentStep]) {
   if (!hasVoiceText) return;
 
   if (guideVoicePlayBtn) {
-    const playing = (!guideAudio.paused && !guideAudio.ended) || !!guideUtterance;
+    const playing = !guideAudio.paused && !guideAudio.ended;
     guideVoicePlayBtn.textContent = playing ? 'Ⅱ' : '▶';
     guideVoicePlayBtn.title = playing
       ? t('guideVoicePause', '음성 일시정지')
@@ -1740,9 +1734,9 @@ function updateGuideVoiceUi(step = guideSteps[guideCurrentStep]) {
     guideVoiceReplayBtn.title = t('guideVoiceReplay', '다시 듣기');
     guideVoiceReplayBtn.setAttribute('aria-label', guideVoiceReplayBtn.title);
   }
-  if (!guideVoiceEnabled && guideAudio.paused && !guideUtterance) {
+  if (!guideVoiceEnabled && guideAudio.paused) {
     setGuideVoiceStatus('guideVoiceDisabled', '음성 안내 꺼짐');
-  } else if (!bounds && guideVoiceEnabled && !guideUtterance) {
+  } else if (!bounds && guideVoiceEnabled && !guideAudioLoading) {
     setGuideVoiceStatus('guideVoiceReady', 'Parro 음성 안내 준비됨');
   }
 }
@@ -1751,8 +1745,6 @@ function stopGuideAudio({ reset = false, clear = false } = {}) {
   guideAudioRequestId += 1;
   guideAudioLoading = false;
   guideAudio.pause();
-  if (window.speechSynthesis) window.speechSynthesis.cancel();
-  guideUtterance = null;
   if (reset && guideAudio.src) {
     try { guideAudio.currentTime = guideAudioStartSeconds; } catch {}
   }
@@ -1791,28 +1783,29 @@ function waitForGuideAudioMetadata() {
 
 async function playGuideAudio({ restart = false } = {}) {
   const step = guideSteps[guideCurrentStep];
-  const bounds = guideAudioBounds(step);
   const text = guideVoiceText(step);
   if (!guideVoiceEnabled || !text) return;
+  let bounds = guideAudioBounds(step);
   if (!bounds) {
-    stopGuideAudio();
-    const Utterance = window.SpeechSynthesisUtterance;
-    if (!window.speechSynthesis || typeof Utterance !== 'function') {
+    guideAudioLoading = true;
+    setGuideVoiceStatus('guideVoiceLoading', '음성 불러오는 중…');
+    const generated = await new Promise((resolve) => {
+      chrome.runtime.sendMessage({ type: 'GUIDE_TTS_REQUEST', stepIndex: guideCurrentStep }, (response) => {
+        void chrome.runtime.lastError;
+        resolve(response || { ok: false });
+      });
+    });
+    guideAudioLoading = false;
+    if (!generated?.ok || !generated.audio_url) {
       setGuideVoiceStatus('guideVoiceError', '음성을 재생하지 못했습니다.');
+      updateGuideVoiceUi(step);
       return;
     }
-    const utterance = new Utterance(text);
-    guideUtterance = utterance;
-    utterance.lang = /[가-힣]/.test(text) ? 'ko-KR' : 'en-US';
-    utterance.voice = preferredParroVoice(text);
-    utterance.pitch = 1.18;
-    utterance.rate = 0.96;
-    utterance.onstart = () => setGuideVoiceStatus('guideVoicePlaying', 'Parro 음성 안내 재생 중');
-    utterance.onend = () => { if (guideUtterance === utterance) guideUtterance = null; setGuideVoiceStatus('guideVoiceComplete', '음성 안내를 모두 들었어요.'); updateGuideVoiceUi(); };
-    utterance.onerror = () => { if (guideUtterance === utterance) guideUtterance = null; setGuideVoiceStatus('guideVoiceError', '음성을 재생하지 못했습니다.'); updateGuideVoiceUi(); };
-    window.speechSynthesis.speak(utterance);
-    updateGuideVoiceUi(step);
-    return;
+    step.audio_url = generated.audio_url;
+    step.audio_start_ms = generated.audio_start_ms ?? 0;
+    step.audio_end_ms = generated.audio_end_ms ?? null;
+    bounds = guideAudioBounds(step);
+    if (!bounds) return;
   }
   const requestId = ++guideAudioRequestId;
   guideAudioLoading = true;
@@ -1921,7 +1914,7 @@ guideAudio.addEventListener('error', () => {
 });
 
 guideVoiceToggle?.addEventListener('click', () => {
-  if (guideAudio.paused && !guideUtterance) void playGuideAudio();
+  if (guideAudio.paused) void playGuideAudio();
   else stopGuideAudio();
   updateGuideVoiceUi();
 });
@@ -1935,7 +1928,7 @@ guideVoiceModeSelect?.addEventListener('change', () => {
 });
 
 guideVoicePlayBtn?.addEventListener('click', () => {
-  if (guideUtterance || (!guideAudio.paused && !guideAudio.ended)) {
+  if (!guideAudio.paused && !guideAudio.ended) {
     stopGuideAudio();
     setGuideVoiceStatus('guideVoicePaused', '음성 안내 일시정지');
   } else {
@@ -1986,28 +1979,55 @@ function renderGuideHandRaised(value) {
   const raisedHere = guideHandRaised?.stepIndex === guideCurrentStep;
   if (guideHandRaiseBtn) {
     guideHandRaiseBtn.setAttribute('aria-pressed', raisedHere ? 'true' : 'false');
-    guideHandRaiseBtn.title = raisedHere ? t('guideLowerHand', '손 내리기') : t('guideRaiseHand', '도움 요청');
+    guideHandRaiseBtn.title = t('guideRaiseHand', '강사에게 도움 요청');
     Object.assign(guideHandRaiseBtn.style, raisedHere ? {
       borderColor: '#FDBA74', background: '#FFF7ED', color: '#C2410C',
     } : {
       borderColor: '#e8e8f0', background: '#fff', color: '#888',
     });
   }
-  if (guideHandRaisePanel) guideHandRaisePanel.style.display = raisedHere ? 'block' : 'none';
-}
-
-function setGuideHandRaisedFromPanel(raised) {
-  chrome.runtime.sendMessage({ type: 'GUIDE_HAND_RAISE', stepIndex: guideCurrentStep, raised }, (res) => {
-    void chrome.runtime.lastError;
-    if (res?.ok) renderGuideHandRaised(res.handRaised);
-  });
+  if (guideHandRaisePanel) guideHandRaisePanel.style.display = guideHelpOpen || raisedHere ? 'block' : 'none';
+  if (guideHelpStatus && raisedHere) {
+    guideHelpStatus.style.display = 'block';
+    guideHelpStatus.textContent = t('helpRequestSent', '강사에게 도움 요청을 보냈습니다.');
+  }
 }
 
 guideHandRaiseBtn?.addEventListener('click', () => {
-  const raisedHere = guideHandRaised?.raised === true && guideHandRaised?.stepIndex === guideCurrentStep;
-  setGuideHandRaisedFromPanel(!raisedHere);
+  guideHelpOpen = !guideHelpOpen;
+  renderGuideHandRaised(guideHandRaised);
 });
-guideLowerHandBtn?.addEventListener('click', () => setGuideHandRaisedFromPanel(false));
+guideHelpCancelBtn?.addEventListener('click', () => {
+  guideHelpOpen = false;
+  renderGuideHandRaised(guideHandRaised);
+});
+guideHelpSendBtn?.addEventListener('click', () => {
+  guideHelpSendBtn.disabled = true;
+  if (guideHelpStatus) {
+    guideHelpStatus.style.display = 'block';
+    guideHelpStatus.textContent = t('sendingHelpRequest', '강사에게 요청을 보내는 중입니다...');
+  }
+  chrome.runtime.sendMessage({
+    type: 'GUIDE_HELP_REQUEST',
+    stepIndex: guideCurrentStep,
+    message: guideHelpMessage?.value || '',
+    includeScreenshot: guideHelpScreenshot?.checked === true,
+  }, (response) => {
+    void chrome.runtime.lastError;
+    guideHelpSendBtn.disabled = false;
+    if (!response?.ok) {
+      if (guideHelpStatus) guideHelpStatus.textContent = response?.error === 'recorder_not_linked'
+        ? t('linkRecorderForHelp', '강사에게 요청하려면 Parro 계정을 먼저 연결해주세요.')
+        : t('helpRequestFailed', '요청을 보내지 못했습니다. 다시 시도해주세요.');
+      return;
+    }
+    guideHelpOpen = true;
+    renderGuideHandRaised(response.handRaised);
+    if (guideHelpStatus) guideHelpStatus.textContent = response.screenshotAttached
+      ? t('helpScreenshotSent', '현재 화면 캡처도 함께 전달했습니다.')
+      : t('helpMessageSent', '메시지를 전달했습니다.');
+  });
+});
 
 guideTargetRetry?.addEventListener('click', () => {
   renderGuideTargetStatus('searching');
@@ -2036,6 +2056,8 @@ function showGuideView() {
 
 function hideGuideView() {
   stopGuideAudio({ clear: true });
+  if (guideCompletionModal) guideCompletionModal.style.display = 'none';
+  guideHelpOpen = false;
   viewGuide.style.display = 'none';
   setRecorderChromeHidden(false);  // 녹화 UI 복원
   // 녹화 상태에 맞게 원래 뷰로 복원
@@ -2075,6 +2097,13 @@ guideStepPreviewBtn?.addEventListener('click', () => {
 function renderGuideStep(steps, idx) {
   const step = steps[idx];
   if (!step) return;
+  if (guideHandRaised?.stepIndex !== idx) {
+    guideHelpOpen = false;
+    if (guideHelpStatus) {
+      guideHelpStatus.style.display = 'none';
+      guideHelpStatus.textContent = '';
+    }
+  }
 
   const total = steps.length;
   const num   = idx + 1;
@@ -2232,6 +2261,13 @@ guideNextBtn.addEventListener('click', () => {
     if (res?.ok) {
       guideSkippedSteps = new Set(res.skippedSteps || []);
       guideCompletedSteps = new Set(res.completedSteps || []);
+      if (res.confirmationRequired) {
+        guideCurrentStep = res.currentStep;
+        renderGuideStep(guideSteps, guideCurrentStep);
+        if (guideCompletionModal) guideCompletionModal.style.display = 'flex';
+        guideCompletionStayBtn?.focus();
+        return;
+      }
       if (isLast || res.completed) {
         guideFinished = true;
         guideCurrentStep = res.currentStep;
@@ -2241,6 +2277,30 @@ guideNextBtn.addEventListener('click', () => {
       guideCurrentStep = res.currentStep;
       renderGuideStep(guideSteps, guideCurrentStep);
     }
+  });
+});
+
+guideCompletionStayBtn?.addEventListener('click', () => {
+  if (guideCompletionModal) guideCompletionModal.style.display = 'none';
+  chrome.runtime.sendMessage({ type: 'SHOW_OVERLAY_FOR_STEP', stepIndex: guideCurrentStep });
+});
+
+guideCompletionExitBtn?.addEventListener('click', () => {
+  guideCompletionExitBtn.disabled = true;
+  chrome.runtime.sendMessage({ type: 'GUIDE_COMPLETE', reason: 'confirmed_complete' }, (response) => {
+    void chrome.runtime.lastError;
+    if (!response?.ok) {
+      guideCompletionExitBtn.disabled = false;
+      return;
+    }
+    chrome.runtime.sendMessage({ type: 'EXIT_GUIDE' }, () => {
+      void chrome.runtime.lastError;
+      if (guideCompletionModal) guideCompletionModal.style.display = 'none';
+      guideCompletionExitBtn.disabled = false;
+      guideSteps = [];
+      guideFinished = false;
+      hideGuideView();
+    });
   });
 });
 

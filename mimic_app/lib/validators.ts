@@ -268,7 +268,7 @@ export const generateAnnotationsSchema = z.object({
 export const ttsSchema = z.object({
   stepId: z.string().uuid(),
   scriptText: z.string().min(1).max(2000),
-  voice: z.enum(['nova', 'alloy']).optional(),
+  voice: z.enum(['nova', 'alloy', 'cedar']).optional(),
 });
 
 export const eventsSchema = z.object({

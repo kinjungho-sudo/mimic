@@ -633,6 +633,9 @@ const GUIDE_STORAGE_KEYS = [
   'guideTargetStatus',
   'guideTargetEvidence',
   'guideHandRaised',
+  'guideTutorialId',
+  'guideToken',
+  'guideRequestOrigin',
 ];
 const VOLATILE_GUIDE_QUERY_KEY = /^(utm_.+|fbclid|gclid|_ga|code|state|session|session_id|timestamp|ts|_t)$/i;
 
@@ -1482,6 +1485,9 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
           guideTargetStatus: 'navigating',
           guideTargetEvidence: null,
           guideHandRaised: null,
+          guideTutorialId: data.tutorial_id,
+          guideToken,
+          guideRequestOrigin: origin,
         });
         sendResponse({ ok: true, tabId: guideTab.id });
         if (guideTab.status === 'complete') {
@@ -2020,17 +2026,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       } else {
         idx = Math.max(idx - 1, 0);
       }
-      const completed = message.type === 'GUIDE_NEXT' && previousIdx >= steps.length - 1;
+      const completionRequested = message.type === 'GUIDE_NEXT' && previousIdx >= steps.length - 1;
 
       const skippedSteps = [...skipped].sort((a, b) => a - b);
       const completedSteps = [...completedSet].sort((a, b) => a - b);
-      await storageSet({ guideCurrentStep: idx, guideSkippedSteps: skippedSteps, guideCompletedSteps: completedSteps, guideFinished: completed, guideTargetStatus: completed ? 'ready' : 'navigating', guideTargetEvidence: null, guideHandRaised: null });
+      await storageSet({ guideCurrentStep: idx, guideSkippedSteps: skippedSteps, guideCompletedSteps: completedSteps, guideFinished: false, guideTargetStatus: completionRequested ? 'ready' : 'navigating', guideTargetEvidence: null, guideHandRaised: null });
       const step = steps[idx];
-      sendResponse({ ok: true, currentStep: idx, step, skippedSteps, completedSteps, completed, finished: completed });
+      sendResponse({ ok: true, currentStep: idx, step, skippedSteps, completedSteps, completed: false, finished: false, confirmationRequired: completionRequested });
 
-      // 마지막 단계의 페이지 오버레이만 닫고, 사이드 패널은 사용자가 직접 종료할 때까지 유지한다.
-      if (completed) {
-        await hideGuideOverlayEverywhere();
+      if (completionRequested) {
         return;
       }
 
@@ -2165,6 +2169,114 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       await storageSet({ guideHandRaised: next });
       sendResponse({ ok: true, handRaised: next });
       if (Number.isInteger(guideTabId)) scheduleGuideOverlay(guideTabId, 0);
+    })();
+    return true;
+  }
+
+  if (message.type === 'GUIDE_HELP_REQUEST') {
+    (async () => {
+      const state = await storageGet([
+        'guideModeActive', 'guideTabId', 'guideCurrentStep', 'guideSteps',
+        'guideTutorialId', 'guideToken', 'guideRequestOrigin', 'extensionToken',
+      ]);
+      const stepIndex = Number(message.stepIndex);
+      if (!state.guideModeActive
+        || !state.extensionToken
+        || !isGuideInteractionSenderAllowed(sender, state.guideTabId)
+        || stepIndex !== Number(state.guideCurrentStep)) {
+        sendResponse({ ok: false, error: state.extensionToken ? 'guide_request_rejected' : 'recorder_not_linked' });
+        return;
+      }
+      const step = state.guideSteps?.[stepIndex];
+      if (!step?.id || !state.guideTutorialId || !state.guideToken || !state.guideRequestOrigin) {
+        sendResponse({ ok: false, error: 'guide_context_missing' });
+        return;
+      }
+
+      let screenshotDataUrl = null;
+      if (message.includeScreenshot === true) {
+        const tab = await new Promise((resolve) => chrome.tabs.get(state.guideTabId, (value) => {
+          resolve(chrome.runtime.lastError ? null : value);
+        }));
+        const activeTabs = tab?.windowId == null ? [] : await chrome.tabs.query({ active: true, windowId: tab.windowId });
+        if (activeTabs[0]?.id === state.guideTabId) {
+          screenshotDataUrl = await new Promise((resolve) => {
+            chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' }, (value) => {
+              resolve(chrome.runtime.lastError ? null : value);
+            });
+          });
+        }
+      }
+
+      try {
+        const response = await fetch(`${state.guideRequestOrigin}/api/extension/live-guide/help`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${state.extensionToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            tutorial_id: state.guideTutorialId,
+            step_id: step.id,
+            guide_token: state.guideToken,
+            message: String(message.message || '').trim(),
+            screenshot_data_url: screenshotDataUrl,
+            page_url: step.page_url || null,
+          }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error || `help_request_failed_${response.status}`);
+        const next = { raised: true, stepIndex, raisedAt: Date.now(), requestId: payload.request_id };
+        await storageSet({ guideHandRaised: next });
+        sendResponse({ ok: true, handRaised: next, screenshotAttached: !!screenshotDataUrl });
+        if (Number.isInteger(state.guideTabId)) scheduleGuideOverlay(state.guideTabId, 0);
+      } catch (error) {
+        sendResponse({ ok: false, error: error?.message || 'help_request_failed' });
+      }
+    })();
+    return true;
+  }
+
+  if (message.type === 'GUIDE_TTS_REQUEST') {
+    (async () => {
+      const state = await storageGet([
+        'guideModeActive', 'guideCurrentStep', 'guideSteps', 'guideTutorialId',
+        'guideToken', 'guideRequestOrigin', 'extensionToken',
+      ]);
+      const stepIndex = Number(message.stepIndex);
+      const step = state.guideSteps?.[stepIndex];
+      if (!state.guideModeActive || !state.extensionToken || stepIndex !== Number(state.guideCurrentStep)
+        || !step?.id || !state.guideTutorialId || !state.guideToken || !state.guideRequestOrigin) {
+        sendResponse({ ok: false, error: state.extensionToken ? 'guide_context_missing' : 'recorder_not_linked' });
+        return;
+      }
+      try {
+        const response = await fetch(`${state.guideRequestOrigin}/api/extension/live-guide/tts`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${state.extensionToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            tutorial_id: state.guideTutorialId,
+            step_id: step.id,
+            guide_token: state.guideToken,
+          }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.audio_url) throw new Error(payload.error || `tts_request_failed_${response.status}`);
+        const steps = [...state.guideSteps];
+        steps[stepIndex] = {
+          ...step,
+          audio_url: payload.audio_url,
+          audio_start_ms: payload.audio_start_ms ?? null,
+          audio_end_ms: payload.audio_end_ms ?? null,
+        };
+        await storageSet({ guideSteps: steps });
+        sendResponse({ ok: true, ...payload });
+      } catch (error) {
+        sendResponse({ ok: false, error: error?.message || 'tts_request_failed' });
+      }
     })();
     return true;
   }

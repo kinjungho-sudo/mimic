@@ -33,7 +33,7 @@ const playbookServer = fs.readFileSync(
   'utf8',
 );
 
-assert.equal(manifest.version, '1.7.30');
+assert.equal(manifest.version, '1.7.31');
 assert.deepEqual(
   manifest.content_scripts[0].js.slice(0, 3),
   ['targeting.js', 'guide-engine.js', 'content.js'],
@@ -127,11 +127,14 @@ assert.match(engine, /setAttribute\('placeholder', expectedText\)/);
 assert.doesNotMatch(engine, /function autoFill\(/);
 
 const advance = section(engine, 'function advance(reason)', 'function nudge');
-assert.match(advance, /state\.completed = true;[\s\S]*hide\(\);[\s\S]*onComplete/);
+assert.match(advance, /showCompletionDecision\(reason\)/);
+assert.match(engine, /data-act="completion-stay"/);
+assert.match(engine, /data-act="completion-exit"/);
 const overlayMessage = section(content, "if (msg.type === 'SHOW_OVERLAY' && msg.step)", "if (msg.type === 'HIDE_OVERLAY')");
 assert.match(overlayMessage, /queueLiveGuideOverlay\(msg\)/);
 const renderOverlay = section(content, 'function renderLiveGuideOverlay(msg)', 'function queueLiveGuideOverlay(msg)');
-assert.match(renderOverlay, /onComplete:[\s\S]*guideApi\.hide\(\)[\s\S]*GUIDE_COMPLETE/);
+assert.match(renderOverlay, /onComplete:[\s\S]*GUIDE_COMPLETE[\s\S]*EXIT_GUIDE/);
+assert.match(renderOverlay, /onStay:[\s\S]*SHOW_OVERLAY_FOR_STEP/);
 const queueOverlay = section(content, 'function queueLiveGuideOverlay(msg)', '// ── 메시지 수신');
 assert.match(queueOverlay, /showCountdown\([\s\S]*startText: 'START'/, 'the first Live Guide step must show 3, 2, 1, START');
 assert.match(queueOverlay, /_pendingGuideOverlay/, 'concurrent first-step overlay attempts must be coalesced during countdown');
@@ -143,21 +146,18 @@ assert.match(engine, /\['off', 'manual', 'auto'\]/);
 assert.match(engine, /guideVoiceMode === 'auto'/);
 assert.match(engine, /step\?\.audio_url/);
 assert.match(engine, /new Audio\(\)/);
-assert.match(engine, /window\.SpeechSynthesisUtterance/);
-assert.match(engine, /window\.speechSynthesis\.speak\(utterance\)/);
-assert.match(engine, /utterance\.voice = preferredParroVoice\(text\)/);
-assert.match(engine, /utterance\.pitch = 1\.18/);
-assert.match(engine, /utterance\.rate = 0\.96/);
+assert.match(engine, /type: 'GUIDE_TTS_REQUEST'/);
+assert.doesNotMatch(engine, /speechSynthesis|SpeechSynthesisUtterance/);
 assert.match(engine, /chrome\.storage\.onChanged\?\.addListener/);
-assert.match(engine, /utterance\.lang = \/\[가-힣\]\/.test\(text\) \? 'ko-KR' : 'en-US'/);
 assert.match(engine, /function stopGuideVoice\(\)/);
 assert.match(engine, /function hide\(\) \{\s*stopGuideVoice\(\);/);
 assert.match(engine, /data-role="guide-copy"/);
 assert.match(engine, /data-act="toggle-hand-raise"/);
 assert.match(engine, /data-role="hand-raise-panel"/);
-assert.match(engine, /onHandRaise/);
-assert.match(content, /type: 'GUIDE_HAND_RAISE'/);
-assert.match(background, /if \(message\.type === 'GUIDE_HAND_RAISE'\)/);
+assert.match(engine, /onHelpRequest/);
+assert.match(content, /type: 'GUIDE_HELP_REQUEST'/);
+assert.match(background, /if \(message\.type === 'GUIDE_HELP_REQUEST'\)/);
+assert.match(background, /captureVisibleTab/);
 assert.match(background, /guideHandRaised: next/);
 assert.match(background, /function isGuideInteractionSenderAllowed\(sender, guideTabId\)/);
 assert.match(background, /scheduleGuideOverlay\(guideTabId, 0\)/);
@@ -224,6 +224,9 @@ assert.match(popup, /id="guideVoiceToggle"/);
 assert.match(popup, /id="guideVoiceMode"/);
 assert.match(popup, /id="guideHandRaiseBtn"/);
 assert.match(popup, /id="guideHandRaisePanel"/);
+assert.match(popup, /id="guideHelpMessage"/);
+assert.match(popup, /id="guideHelpScreenshot"/);
+assert.match(popup, /id="guideCompletionModal"/);
 assert.match(popup, /id="guideVoiceControls"/);
 assert.match(popup, /id="guideVoicePlayBtn"/);
 assert.match(popup, /id="guideVoiceReplayBtn"/);
@@ -236,10 +239,11 @@ assert.match(popupScript, /guideFinishedButton/);
 assert.match(popupScript, /guideFinishedHint/);
 assert.match(popupScript, /step\.manual_title/);
 assert.match(popupScript, /const guideAudio = new Audio\(\)/);
+assert.match(popupScript, /type: 'GUIDE_TTS_REQUEST'/);
+assert.doesNotMatch(popupScript, /speechSynthesis|SpeechSynthesisUtterance/);
+assert.match(popupScript, /type: 'GUIDE_HELP_REQUEST'/);
+assert.match(popupScript, /confirmationRequired/);
 assert.match(popupScript, /GUIDE_VOICE_MODE_KEY = 'guideVoiceMode'/);
-assert.match(popupScript, /window\.SpeechSynthesisUtterance/);
-assert.match(popupScript, /utterance\.pitch = 1\.18/);
-assert.match(popupScript, /setGuideHandRaisedFromPanel/);
 assert.match(popupScript, /화면 위 Live Guide가 자동 낭독을 담당한다/);
 assert.doesNotMatch(popupScript, /if \(guideVoiceEnabled\) void playGuideAudio\(\{ restart: true \}\)/);
 assert.match(popupScript, /step\?\.audio_url/);
@@ -253,10 +257,10 @@ assert.match(liveGuideServer, /resolveStepAudio\(/);
 assert.match(liveGuideServer, /audio_url: audio\?\.url \?\? null/);
 assert.match(liveGuideServer, /tts_enabled: voiceEnabled/);
 assert.match(playbookServer, /tts_enabled: loaded\.some\(guide => guide\.tts_enabled\)/);
-assert.doesNotMatch(
-  section(popupScript, "guideNextBtn.addEventListener('click'", '// Guide Me 활성화 여부 초기 체크'),
-  /hideGuideView\(\)/,
-  'finishing the last step must not hide the side panel',
+assert.match(
+  section(popupScript, "guideNextBtn.addEventListener('click'", "guideCompletionStayBtn?.addEventListener"),
+  /confirmationRequired[\s\S]*guideCompletionModal/,
+  'finishing the last step must ask whether the practice is complete',
 );
 assert.match(previewPage, /id="previewImage"/);
 assert.match(previewPage, /script src="guide-preview\.js"/);

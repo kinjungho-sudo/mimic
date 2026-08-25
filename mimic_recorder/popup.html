@@ -669,7 +669,7 @@
   </div>
 
   <!-- ── Live Guide 뷰 ── -->
-  <div id="viewGuide" style="display:none; flex-direction:column; height:100vh; overflow:hidden;">
+  <div id="viewGuide" style="display:none; position:relative; flex-direction:column; height:100vh; overflow:hidden;">
 
     <!-- 헤더 -->
     <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #e8e8f0;flex-shrink:0;">
@@ -723,8 +723,14 @@
         <button id="guideVoiceReplayBtn" type="button" title="다시 듣기" data-i18n-title="guideVoiceReplay" aria-label="다시 듣기" style="width:30px;height:30px;flex-shrink:0;border:1px solid #D8EEE9;border-radius:8px;background:#fff;color:#27736B;font-size:16px;cursor:pointer;">↻</button>
       </div>
       <div id="guideHandRaisePanel" style="display:none;margin-top:10px;padding:9px 10px;border:1px solid #FDBA74;border-radius:9px;background:#FFF7ED;color:#9A3412;font-size:11.5px;line-height:1.45;">
-        <div data-i18n="guideHandRaisedMessage">손을 들었어요. Parro가 이 단계를 다시 도와줄게요.</div>
-        <button id="guideLowerHandBtn" type="button" data-i18n="guideLowerHand" style="margin-top:7px;padding:5px 8px;border:1px solid #FDBA74;border-radius:7px;background:#fff;color:#9A3412;font-size:10.5px;cursor:pointer;">손 내리기</button>
+        <div style="font-size:12px;font-weight:800;" data-i18n="guideHelpRequestTitle">강사에게 도움 요청</div>
+        <textarea id="guideHelpMessage" data-i18n-placeholder="guideHelpMessagePlaceholder" placeholder="어려운 점을 강사에게 알려주세요." style="display:block;width:100%;min-height:68px;box-sizing:border-box;margin-top:8px;border:1px solid #FDBA74;border-radius:8px;padding:8px;background:#fff;color:#374151;font:12px/1.45 inherit;resize:vertical;"></textarea>
+        <label style="display:flex;align-items:center;gap:7px;margin-top:7px;cursor:pointer;"><input id="guideHelpScreenshot" type="checkbox" checked><span data-i18n="guideAttachCurrentScreen">현재 화면 캡처 함께 보내기</span></label>
+        <div id="guideHelpStatus" style="display:none;margin-top:7px;font-size:11px;"></div>
+        <div style="display:flex;gap:6px;margin-top:8px;">
+          <button id="guideHelpCancelBtn" type="button" data-i18n="cancel" style="flex:1;padding:7px 8px;border:1px solid #FDBA74;border-radius:7px;background:#fff;color:#9A3412;font-size:10.5px;cursor:pointer;">취소</button>
+          <button id="guideHelpSendBtn" type="button" data-i18n="sendToInstructor" style="flex:1;padding:7px 8px;border:1px solid #F97316;border-radius:7px;background:#F97316;color:#fff;font-size:10.5px;font-weight:700;cursor:pointer;">강사에게 보내기</button>
+        </div>
       </div>
       <!-- type_text 복사 영역 — 제목·설명 다음, 컴팩트 인라인 -->
       <div id="guideStepCopyArea" style="display:none;align-items:center;gap:8px;background:#E8FFF7;border:1px solid #BFEDE7;border-radius:8px;padding:6px 8px;margin-top:12px;">
@@ -745,6 +751,17 @@
     <!-- 스텝 번호 목록 -->
     <div style="padding:0 16px 14px;flex-shrink:0;">
       <div id="guideStepDots" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+    </div>
+
+    <div id="guideCompletionModal" role="dialog" aria-modal="true" aria-labelledby="guideCompletionTitle" style="display:none;position:absolute;inset:0;z-index:20;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.46);">
+      <div style="width:100%;max-width:310px;border:1px solid #D8EEE9;border-radius:8px;background:#fff;padding:18px;box-shadow:0 18px 45px rgba(15,23,42,.24);text-align:center;">
+        <div id="guideCompletionTitle" style="font-size:16px;font-weight:800;color:#1E293B;" data-i18n="guideCompletionTitle">모든 안내 단계를 완료했어요</div>
+        <div style="margin-top:7px;font-size:13px;line-height:1.5;color:#64748B;" data-i18n="guideCompletionQuestion">실제 실습도 완료했나요?</div>
+        <div style="display:grid;gap:8px;margin-top:16px;">
+          <button id="guideCompletionStayBtn" type="button" data-i18n="guideCompletionStay" style="padding:10px;border:1px solid #A7EDE3;border-radius:8px;background:#fff;color:#00796F;font-size:12px;font-weight:700;cursor:pointer;">조금 더 확인할게요</button>
+          <button id="guideCompletionExitBtn" type="button" data-i18n="guideCompletionExit" style="padding:10px;border:0;border-radius:8px;background:#009B8E;color:#fff;font-size:12px;font-weight:800;cursor:pointer;">실습 완료 · 종료</button>
+        </div>
+      </div>
     </div>
   </div>
 

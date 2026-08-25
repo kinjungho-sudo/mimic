@@ -18,7 +18,7 @@ export async function GET(request: NextRequest, { params }: Params) {
   const supabase = createServiceRoleClient();
   const { data, error } = await supabase
     .from('mm_comments')
-    .select('id, tutorial_id, step_id, parent_id, author_id, body, created_at, resolved_at, author:mm_users!mm_comments_author_id_fkey(name, avatar_url, email)')
+    .select('id, tutorial_id, step_id, parent_id, author_id, body, created_at, resolved_at, request_kind, attachment_path, request_context, author:mm_users!mm_comments_author_id_fkey(name, avatar_url, email)')
     .eq('tutorial_id', id)
     .is('deleted_at', null)
     .order('created_at', { ascending: true });
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       author_id: auth.userId,
       body: text.trim(),
     })
-    .select('id, tutorial_id, step_id, parent_id, author_id, body, created_at, resolved_at, author:mm_users!mm_comments_author_id_fkey(name, avatar_url, email)')
+    .select('id, tutorial_id, step_id, parent_id, author_id, body, created_at, resolved_at, request_kind, attachment_path, request_context, author:mm_users!mm_comments_author_id_fkey(name, avatar_url, email)')
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
