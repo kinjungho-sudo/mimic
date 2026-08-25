@@ -1274,7 +1274,7 @@ const clampOffset = (v: number, z: number) => {
   return Math.min(m, Math.max(-m, v));
 };
 
-const EDITOR_SCREENSHOT_FRAME_WIDTH = 'min(calc(100% - 48px), 1040px)';
+const EDITOR_SCREENSHOT_FRAME_WIDTH = 'min(calc(100% - 64px), 920px)';
 
 function ScreenshotArea({ step, onUploadClick, onDrop, onAnnotate, onRemove, onFraming }: ScreenshotAreaProps) {
   const [dragOver, setDragOver] = useState(false);

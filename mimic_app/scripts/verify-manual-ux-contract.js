@@ -48,7 +48,7 @@ assert.match(editor, /onUploadImage=\{uploadStepImage\}/, 'manual image replacem
 assert.match(editor, /onRemoveImage=\{removeStepImage\}/, 'manual image removal must use the persisted delete API');
 assert.match(stepApi, /fetch\(`\/api\/steps\/\$\{id\}\/image`, \{ method: 'POST', body: formData \}\)/, 'manual image replacement must upload the file');
 assert.match(stepImageRoute, /export async function DELETE/, 'manual image removal needs a server persistence route');
-assert.match(manualEditor, /EDITOR_SCREENSHOT_FRAME_WIDTH = 'min\(calc\(100% - 48px\), 1040px\)'/, 'editor screenshots need a restrained responsive width');
+assert.match(manualEditor, /EDITOR_SCREENSHOT_FRAME_WIDTH = 'min\(calc\(100% - 64px\), 920px\)'/, 'editor screenshots need a visibly restrained responsive width');
 assert.match(manualEditor, /data-testid="editor-screenshot-frame"/, 'editor screenshot frame needs a stable visual verification target');
 
 assert.match(share, /if \(shareToken \|\| publishStartedRef\.current\) return;/, 'sharing an unpublished manual must publish immediately');
