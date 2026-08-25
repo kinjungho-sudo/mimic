@@ -285,6 +285,12 @@ function sendTabMessage(tabId, msg) {
   });
 }
 
+function isGuideInteractionSenderAllowed(sender, guideTabId) {
+  const senderUrl = typeof sender?.url === 'string' ? sender.url : '';
+  const fromExtensionPage = senderUrl.startsWith(chrome.runtime.getURL(''));
+  return fromExtensionPage || sender?.tab?.id === guideTabId;
+}
+
 const CONTENT_READY_PING_TIMEOUT_MS = 700;
 const CONTENT_READY_RETRY_COUNT = 6;
 const CONTENT_READY_RETRY_DELAY_MS = 150;
@@ -2150,7 +2156,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         'guideModeActive', 'guideTabId', 'guideCurrentStep',
       ]);
       const stepIndex = Number(message.stepIndex);
-      if (!guideModeActive || (sender.tab?.id != null && sender.tab.id !== guideTabId) || stepIndex !== Number(guideCurrentStep)) {
+      if (!guideModeActive || !isGuideInteractionSenderAllowed(sender, guideTabId) || stepIndex !== Number(guideCurrentStep)) {
         sendResponse({ ok: false });
         return;
       }
@@ -2158,6 +2164,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const next = raised ? { raised: true, stepIndex, raisedAt: Date.now() } : null;
       await storageSet({ guideHandRaised: next });
       sendResponse({ ok: true, handRaised: next });
+      if (Number.isInteger(guideTabId)) scheduleGuideOverlay(guideTabId, 0);
     })();
     return true;
   }

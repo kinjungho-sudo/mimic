@@ -33,7 +33,7 @@ const playbookServer = fs.readFileSync(
   'utf8',
 );
 
-assert.equal(manifest.version, '1.7.29');
+assert.equal(manifest.version, '1.7.30');
 assert.deepEqual(
   manifest.content_scripts[0].js.slice(0, 3),
   ['targeting.js', 'guide-engine.js', 'content.js'],
@@ -159,6 +159,8 @@ assert.match(engine, /onHandRaise/);
 assert.match(content, /type: 'GUIDE_HAND_RAISE'/);
 assert.match(background, /if \(message\.type === 'GUIDE_HAND_RAISE'\)/);
 assert.match(background, /guideHandRaised: next/);
+assert.match(background, /function isGuideInteractionSenderAllowed\(sender, guideTabId\)/);
+assert.match(background, /scheduleGuideOverlay\(guideTabId, 0\)/);
 assert.match(engine, /data-expanded="true"/);
 assert.match(engine, /white-space:normal;overflow-wrap:anywhere/);
 assert.doesNotMatch(engine, /data-act="toggle-guide-copy"|-webkit-line-clamp:3|slice\(0, 60\)/);
@@ -275,4 +277,4 @@ assert.match(popupScript, /saveText:\s+true/, 'the Recorder settings UI must def
 assert.match(popupScript, /not_found: \{ label: t\('targetNotFound', '대상을 찾지 못했습니다'\)/);
 assert.match(popupScript, /type: 'SHOW_OVERLAY_FOR_STEP', stepIndex: guideCurrentStep/);
 
-console.log(JSON.stringify({ ok: true, checks: 191, scope: 'live-guide-recovery-preview-completion-overlay-voice-full-copy-and-separated-coach-contract' }));
+console.log(JSON.stringify({ ok: true, checks: 193, scope: 'live-guide-recovery-preview-completion-overlay-voice-hand-raise-full-copy-and-separated-coach-contract' }));
