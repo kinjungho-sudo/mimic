@@ -8,6 +8,9 @@ const read = (...parts) => fs.readFileSync(path.join(root, ...parts), 'utf8');
 
 const editor = read('components', 'guidebook', 'GuidebookEditor.tsx');
 const schema = read('components', 'guidebook', 'schema.tsx');
+const home = read('app', 'home', 'page.tsx');
+const pageEditor = read('app', 'pages', '[id]', 'editor', 'page.tsx');
+const pageRoute = read('app', 'api', 'pages', '[id]', 'route.ts');
 
 assert.match(editor, /useState<HTMLElement \| null>\(\(\) => document\.body\)/, 'floating menus must portal to the viewport root on the first render');
 assert.match(editor, /createPortal\(/, 'add-block menu must render outside editor clipping containers');
@@ -30,4 +33,13 @@ assert.match(schema, /aria-expanded=\{previewOpen\}/, 'inline preview control mu
 assert.match(schema, /\{previewOpen \? '접기' : '펼치기'\}/, 'embedded guides must expand in the editor');
 assert.match(schema, /<GuideSteps guide=\{guide\} \/>/, 'editor preview must render the selected guide steps');
 
-console.log(JSON.stringify({ ok: true, checks: 18, scope: 'parro-guidebook-contract' }));
+assert.match(pageRoute, /export async function DELETE\(request: NextRequest/, 'playbooks must expose an authenticated delete endpoint');
+assert.match(pageRoute, /\.update\(\{ deleted_at: new Date\(\)\.toISOString\(\) \}\)/, 'playbook deletion must remain recoverable through trash');
+assert.match(home, /function PageCard\(\{ page, viewMode = 'grid', onDelete \}/, 'playbook cards must expose a delete action');
+assert.match(home, /fetch\(`\/api\/pages\/\$\{page\.id\}`, \{ method: 'DELETE' \}\)/, 'home deletion must call the playbook delete endpoint');
+assert.match(home, /pagesCacheRef\.current\.set\(cacheKey, next\)/, 'home deletion must evict the removed playbook from the active cache');
+assert.match(pageEditor, /const deletePage = async \(\) =>/, 'the playbook editor must expose deletion');
+assert.match(pageEditor, /if \(saveTimer\.current\) clearTimeout\(saveTimer\.current\)/, 'deletion must cancel a pending autosave');
+assert.match(pageEditor, /router\.replace\('\/home'\)/, 'successful editor deletion must return to home');
+
+console.log(JSON.stringify({ ok: true, checks: 26, scope: 'parro-guidebook-delete-contract' }));

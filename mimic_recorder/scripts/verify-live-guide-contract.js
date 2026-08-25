@@ -33,7 +33,7 @@ const playbookServer = fs.readFileSync(
   'utf8',
 );
 
-assert.equal(manifest.version, '1.7.33');
+assert.equal(manifest.version, '1.7.34');
 assert.deepEqual(
   manifest.content_scripts[0].js.slice(0, 3),
   ['targeting.js', 'guide-engine.js', 'content.js'],
@@ -255,6 +255,10 @@ assert.match(popupScript, /const guideAudio = new Audio\(\)/);
 assert.match(popupScript, /type: 'GUIDE_TTS_REQUEST'/);
 assert.doesNotMatch(popupScript, /speechSynthesis|SpeechSynthesisUtterance/);
 assert.match(popupScript, /type: 'GUIDE_HELP_REQUEST'/);
+assert.match(popupScript, /guideHelpOpen = false;[\s\S]*renderGuideHandRaised\(response\.handRaised\)[\s\S]*showToast\(t\('helpRequestSent'/,
+  'a successful instructor request must close the form and show a confirmation');
+assert.match(popupScript, /guideHandRaisePanel\.style\.display = guideHelpOpen \? 'block' : 'none'/,
+  'the accepted hand state must not force the request form to stay open');
 assert.match(popupScript, /confirmationRequired/);
 assert.match(popupScript, /GUIDE_VOICE_MODE_KEY = 'guideVoiceMode'/);
 assert.match(popupScript, /화면 위 Live Guide가 자동 낭독을 담당한다/);

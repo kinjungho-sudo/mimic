@@ -2107,7 +2107,7 @@ function renderGuideHandRaised(value) {
       borderColor: '#e8e8f0', background: '#fff', color: '#888',
     });
   }
-  if (guideHandRaisePanel) guideHandRaisePanel.style.display = guideHelpOpen || raisedHere ? 'block' : 'none';
+  if (guideHandRaisePanel) guideHandRaisePanel.style.display = guideHelpOpen ? 'block' : 'none';
   if (guideHelpStatus && raisedHere) {
     guideHelpStatus.style.display = 'block';
     guideHelpStatus.textContent = t('helpRequestSent', '강사에게 도움 요청을 보냈습니다.');
@@ -2142,11 +2142,10 @@ guideHelpSendBtn?.addEventListener('click', () => {
         : t('helpRequestFailed', '요청을 보내지 못했습니다. 다시 시도해주세요.');
       return;
     }
-    guideHelpOpen = true;
+    guideHelpOpen = false;
     renderGuideHandRaised(response.handRaised);
-    if (guideHelpStatus) guideHelpStatus.textContent = response.screenshotAttached
-      ? t('helpScreenshotSent', '현재 화면 캡처도 함께 전달했습니다.')
-      : t('helpMessageSent', '메시지를 전달했습니다.');
+    if (guideHelpMessage) guideHelpMessage.value = '';
+    showToast(t('helpRequestSent', '강사에게 도움 요청이 정상적으로 접수되었습니다.'), 3500);
   });
 });
 

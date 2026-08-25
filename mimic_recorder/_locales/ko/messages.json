@@ -200,7 +200,7 @@
   "sendingHelpRequest": { "message": "강사에게 요청을 보내는 중입니다..." },
   "linkRecorderForHelp": { "message": "강사에게 요청하려면 Parro 계정을 먼저 연결해주세요." },
   "helpRequestFailed": { "message": "요청을 보내지 못했습니다. 다시 시도해주세요." },
-  "helpRequestSent": { "message": "강사에게 도움 요청을 보냈습니다." },
+  "helpRequestSent": { "message": "강사에게 도움 요청이 정상적으로 접수되었습니다." },
   "helpScreenshotSent": { "message": "현재 화면 캡처도 함께 전달했습니다." },
   "helpMessageSent": { "message": "메시지를 전달했습니다." },
   "guideCompletionTitle": { "message": "모든 안내 단계를 완료했어요" },

@@ -17,6 +17,7 @@ import { BRAND_COLORS, BRAND_NAME, LEGACY_INTERNAL_IDENTIFIERS } from '@/lib/bra
 import type { Tutorial, Workspace, Folder } from '@/types';
 import { hasEntitlement } from '@/lib/entitlements';
 import { useParroOnboarding } from '@/components/onboarding/ParroOnboardingProvider';
+import { Trash2 } from 'lucide-react';
 
 const BRAND_GRADIENT = `linear-gradient(135deg, ${BRAND_COLORS.primary}, ${BRAND_COLORS.guide})`;
 const BRAND_PRIMARY_SOFT = BRAND_COLORS.guideSoft;
@@ -301,9 +302,10 @@ function ContextMenu({ menu, folders, tutorials, workspaces, onMove, onMoveToWor
 
 // ── 플레이북 카드 ──────────────────────────────────────────
 
-function PageCard({ page, viewMode = 'grid' }: {
+function PageCard({ page, viewMode = 'grid', onDelete }: {
   page: { id: string; title: string; updated_at: string; block_count?: number; workspace_id?: string | null };
   viewMode?: 'grid' | 'list' | 'compact';
+  onDelete: (page: { id: string; title: string }) => void;
 }) {
   const router = useRouter();
   const [hovered, setHovered] = useState(false);
@@ -350,6 +352,25 @@ function PageCard({ page, viewMode = 'grid' }: {
     onMouseLeave: () => setHovered(false),
   };
 
+  const deleteButton = (
+    <button
+      type="button"
+      title="플레이북 삭제"
+      aria-label={`${page.title || '제목 없음'} 플레이북 삭제`}
+      onClick={(event) => { event.stopPropagation(); onDelete(page); }}
+      onKeyDown={(event) => event.stopPropagation()}
+      style={{
+        flex: '0 0 30px', width: '30px', height: '30px', padding: 0,
+        border: '1px solid transparent', borderRadius: '7px',
+        background: hovered ? '#FEF2F2' : 'transparent', color: hovered ? '#DC2626' : '#9CA3AF',
+        cursor: 'pointer', display: 'grid', placeItems: 'center', opacity: hovered ? 1 : 0.72,
+        transition: 'color 0.12s, background 0.12s, opacity 0.12s',
+      }}
+    >
+      <Trash2 size={15} strokeWidth={2} aria-hidden="true" />
+    </button>
+  );
+
   if (viewMode === 'compact') {
     return (
       <article {...commonProps} style={{ background: 'white', borderRadius: '12px', cursor: 'pointer', border: `1px solid ${hovered ? '#86efac' : '#E5E7EB'}`, boxShadow: hovered ? '0 4px 16px rgba(5,150,105,0.10)' : '0 1px 2px rgba(17,24,39,0.04)', transition: 'border-color 0.12s, box-shadow 0.12s', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -358,6 +379,7 @@ function PageCard({ page, viewMode = 'grid' }: {
             <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
           </svg>
           <div style={{ position: 'absolute', inset: 0, boxShadow: 'inset 0 0 0 1px rgba(17,24,39,0.05)', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', top: '8px', right: '8px' }}>{deleteButton}</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '12px 13px' }}>
           {iconEl(30)}
@@ -376,6 +398,7 @@ function PageCard({ page, viewMode = 'grid' }: {
     <article {...commonProps} style={{ background: 'white', borderRadius: '10px', cursor: 'pointer', border: `1px solid ${hovered ? '#86efac' : '#E5E7EB'}`, boxShadow: hovered ? '0 3px 12px rgba(5,150,105,0.07)' : '0 1px 2px rgba(17,24,39,0.04)', transition: 'border-color 0.12s, box-shadow 0.12s', display: 'flex', alignItems: 'center', gap: '11px', padding: viewMode === 'list' ? '10px 14px' : '11px 13px' }}>
       {iconEl(viewMode === 'list' ? 30 : 34)}
       <div style={{ flex: 1, minWidth: 0 }}>{titleEl}{metaEl}</div>
+      {deleteButton}
     </article>
   );
 }
@@ -1119,6 +1142,27 @@ export default function DashboardPage() {
     } catch { alert('생성 중 오류가 발생했습니다.'); setCreating(false); }
   };
 
+  const handleDeletePage = async (page: { id: string; title: string }) => {
+    const label = page.title || '제목 없음';
+    if (!window.confirm(`"${label}" 플레이북을 삭제할까요?\n삭제한 플레이북은 휴지통에서 복원할 수 있습니다.`)) return;
+    try {
+      const res = await fetch(`/api/pages/${page.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        alert(typeof body?.error === 'string' ? body.error : '플레이북을 삭제하지 못했습니다.');
+        return;
+      }
+      const cacheKey = activeTab === 'team' && activeWorkspace ? activeWorkspace : 'personal';
+      setPages((current) => {
+        const next = current.filter((item) => item.id !== page.id);
+        pagesCacheRef.current.set(cacheKey, next);
+        return next;
+      });
+    } catch {
+      alert('플레이북을 삭제하지 못했습니다. 네트워크 연결을 확인해주세요.');
+    }
+  };
+
   const handleRemove = async (id: string) => {
     const res = await fetch(`/api/tutorials/${id}`, { method: 'DELETE' });
     if (!res.ok) { alert('삭제 중 오류가 발생했습니다.'); return; }
@@ -1737,7 +1781,7 @@ export default function DashboardPage() {
                   )
                 ) : (
                   <div className={viewMode === 'list' ? 'home-card-list' : viewMode === 'compact' ? 'home-card-thumb-grid' : 'home-card-grid'}>
-                    {displayedPages.map(p => <PageCard key={p.id} page={p} viewMode={viewMode} />)}
+                    {displayedPages.map(p => <PageCard key={p.id} page={p} viewMode={viewMode} onDelete={handleDeletePage} />)}
                   </div>
                 )
               ) : (

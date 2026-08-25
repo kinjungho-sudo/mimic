@@ -200,7 +200,7 @@
   "sendingHelpRequest": { "message": "Sending your request to the instructor..." },
   "linkRecorderForHelp": { "message": "Connect your Parro account before asking the instructor for help." },
   "helpRequestFailed": { "message": "Could not send the request. Please try again." },
-  "helpRequestSent": { "message": "Your help request was sent to the instructor." },
+  "helpRequestSent": { "message": "Your help request was received by the instructor." },
   "helpScreenshotSent": { "message": "A capture of the current screen was included." },
   "helpMessageSent": { "message": "Your message was sent." },
   "guideCompletionTitle": { "message": "You completed every guide step" },
