@@ -168,12 +168,17 @@ function containsPoint(rect: Rect, x: number, y: number, tolerance = 0.025): boo
 function refineHighlightRect(rect: Rect, clickX?: number | null, clickY?: number | null, actionType?: string | null): Rect {
   const cx = normalizeUnit(clickX);
   const cy = normalizeUnit(clickY);
+  const isTyping = actionType === 'type' || actionType === 'focus_input';
+
+  // Input steps must describe the editable control, not a compact box around
+  // the caret/click point. The recorder already stores the measured control
+  // boundary, including full-height rich text editors such as Gmail's body.
+  if (isTyping) return rect;
   if (cx == null || cy == null) return rect;
 
-  const isTyping = actionType === 'type' || actionType === 'focus_input';
   if (!containsPoint(rect, cx, cy)) {
-    const width = isTyping ? 0.24 : 0.12;
-    const height = isTyping ? 0.07 : 0.06;
+    const width = 0.12;
+    const height = 0.06;
     return {
       x: clamp(cx - width / 2, 0, 1 - width),
       y: clamp(cy - height / 2, 0, 1 - height),
@@ -185,12 +190,8 @@ function refineHighlightRect(rect: Rect, clickX?: number | null, clickY?: number
   const isLarge = rect.width > 0.34 || rect.height > 0.16 || rect.width * rect.height > 0.055;
   if (!isLarge) return rect;
 
-  const width = isTyping
-    ? clamp(rect.width * 0.55, 0.18, 0.38)
-    : clamp(rect.width * 0.42, 0.08, 0.24);
-  const height = isTyping
-    ? clamp(rect.height * 0.35, 0.045, 0.10)
-    : clamp(rect.height * 0.42, 0.045, 0.12);
+  const width = clamp(rect.width * 0.42, 0.08, 0.24);
+  const height = clamp(rect.height * 0.42, 0.045, 0.12);
 
   const minX = Math.max(0, rect.x);
   const minY = Math.max(0, rect.y);
