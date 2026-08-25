@@ -473,18 +473,24 @@
     const safetyTimer = startCapturingSafely();
     const done = () => { clearTimeout(safetyTimer); isCapturing = false; };
 
-    const { cx, cy } = rectCenter(el);
     const { vw, vh } = getViewportSize();
-    // Preserve the original input-click target for Live Guide replay.
-    const rawRect = el.getBoundingClientRect();
-    const rect = targetClientRect(el, rawRect.left + rawRect.width / 2, rawRect.top + rawRect.height / 2) || rawRect;
-    const topRect = toTopRect(rect);
     const focusSnapshot = typingFocusSnapshot;
-    const elementRect = focusSnapshot?.elementRect ?? (topRect.quality === 'low' ? null : normalizeRect(topRect, vw, vh));
+    const rawRect = el.getBoundingClientRect();
+    const preferredX = focusSnapshot?.x ?? (rawRect.left + rawRect.width / 2);
+    const preferredY = focusSnapshot?.y ?? (rawRect.top + rawRect.height / 2);
+    const rect = typingTargetClientRect(el, preferredX, preferredY);
+    const topRect = toTopRect(rect);
+    const elementRect = topRect.quality === 'low'
+      ? (focusSnapshot?.elementRect ?? null)
+      : normalizeRect(topRect, vw, vh);
     const elementSelector = focusSnapshot?.elementSelector ?? replaySelector(el);
     const elementXPath = focusSnapshot?.elementXPath ?? replayXPath(el);
-    const clickX = focusSnapshot?.clickX ?? cx;
-    const clickY = focusSnapshot?.clickY ?? cy;
+    const localPoint = rectContainsClientPoint(rect, preferredX, preferredY)
+      ? { x: preferredX, y: preferredY }
+      : { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    const topPoint = toTopPoint(localPoint.x, localPoint.y);
+    const clickX = topPoint.quality === 'low' ? (focusSnapshot?.clickX ?? 0) : topPoint.x;
+    const clickY = topPoint.quality === 'low' ? (focusSnapshot?.clickY ?? 0) : topPoint.y;
     const role = focusSnapshot?.role || el.getAttribute('role') || undefined;
     const labelDebug = focusSnapshot?.labelDebug ?? buildLabelDebug(el, label);
     const targetContext = focusSnapshot?.targetContext ?? buildTargetContext(el, rect, topRect, label);
@@ -1025,6 +1031,40 @@
     const rects = typeof el.getClientRects === 'function' ? el.getClientRects() : [];
     return ParroTargeting.pickBestClientRect(rects, clientX, clientY)
       || ParroTargeting.pickBestClientRect([el.getBoundingClientRect()], clientX, clientY);
+  }
+
+  function selectionRectForEditable(el, clientX, clientY) {
+    if (!el || el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return null;
+    const selection = el.ownerDocument?.getSelection?.();
+    if (!selection || selection.rangeCount === 0) return null;
+    const anchor = selection.anchorNode;
+    const focus = selection.focusNode;
+    if ((anchor && !el.contains(anchor)) || (focus && !el.contains(focus))) return null;
+
+    const range = selection.getRangeAt(0).cloneRange();
+    let rect = ParroTargeting.pickBestClientRect(range.getClientRects(), clientX, clientY);
+    if (!rect || rect.height <= 0) {
+      const collapsed = range.getBoundingClientRect();
+      if (collapsed && collapsed.height > 0) rect = collapsed;
+    }
+    if (!rect || rect.height <= 0) return null;
+
+    const editorRect = el.getBoundingClientRect();
+    const lineHeight = Math.max(20, rect.height);
+    const width = Math.max(12, editorRect.width || rect.width || 12);
+    const left = editorRect.left;
+    const top = Math.max(editorRect.top, Math.min(rect.top, editorRect.bottom - lineHeight));
+    return { x: left, y: top, left, top, width, height: lineHeight };
+  }
+
+  function typingTargetClientRect(el, clientX, clientY) {
+    return selectionRectForEditable(el, clientX, clientY)
+      || targetClientRect(el, clientX, clientY)
+      || el.getBoundingClientRect();
+  }
+
+  function rectContainsClientPoint(rect, x, y, tolerance = 2) {
+    return !!rect && ParroTargeting.rectContainsPoint(rect, x, y, tolerance);
   }
 
   function eventElementPath(el, event) {

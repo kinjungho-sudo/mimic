@@ -20,7 +20,7 @@ const engine = read('guide-engine.js');
 const popup = read('popup.html');
 const manifest = JSON.parse(read('manifest.json'));
 
-assert.equal(manifest.version, '1.7.13');
+assert.equal(manifest.version, '1.7.14');
 assert.deepEqual(
   manifest.content_scripts[0].js.slice(0, 3),
   ['targeting.js', 'guide-engine.js', 'content.js'],
@@ -166,8 +166,14 @@ assert.match(popup, /id="guideTargetStatus"/);
 assert.match(popup, /id="guideTargetRetry"/);
 const popupScript = read('popup.js');
 assert.match(content, /saveText:\s+true/, 'new capture sessions must retain typed text by default');
+assert.match(content, /function selectionRectForEditable\(el, clientX, clientY\)/,
+  'typing captures must be able to use the final contenteditable selection rect');
+assert.match(content, /const rect = typingTargetClientRect\(el, preferredX, preferredY\)/,
+  'typing flush must use fresh final DOM geometry instead of only the focus snapshot');
+assert.match(content, /const elementRect = topRect\.quality === 'low'[\s\S]*normalizeRect\(topRect, vw, vh\)/,
+  'typing element_rect must prefer the fresh final rect when trustworthy');
 assert.match(popupScript, /saveText:\s+true/, 'the Recorder settings UI must default typed-text retention on');
 assert.match(popupScript, /not_found: \{ label: '대상을 찾지 못했습니다'/);
 assert.match(popupScript, /type: 'SHOW_OVERLAY_FOR_STEP', stepIndex: guideCurrentStep/);
 
-console.log(JSON.stringify({ ok: true, checks: 66, scope: 'live-guide-avatar-readable-overlay-voice-contract' }));
+console.log(JSON.stringify({ ok: true, checks: 69, scope: 'live-guide-avatar-readable-overlay-voice-contract' }));
