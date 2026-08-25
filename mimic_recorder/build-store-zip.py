@@ -24,7 +24,7 @@ FILES = [
     "_locales/ko/messages.json", "_locales/en/messages.json",
     "offscreen.html", "offscreen.js",
     "request-mic.html", "request-mic.js",
-    "assets/parro-3d-neutral.png",
+    "assets/parro-3d-neutral.png", "assets/parro-3d-point.png",
 ]
 ICONS = ["icon16.png", "icon48.png", "icon128.png"]
 

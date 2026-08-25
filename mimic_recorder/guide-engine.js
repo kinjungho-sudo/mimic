@@ -13,7 +13,7 @@
   const TIP_W = 292;  // 코치 아바타 옆에 독립적으로 나타나는 안내 말풍선 너비
   const TIP_GAP = 46; // 타깃을 가리지 않도록 DOM과 코치 UI 사이에 충분한 간격 확보
   const TIP_M = 12;   // 뷰포트 여백(px)
-  const AVATAR_SIZE = 100;
+  const AVATAR_SIZE = 136;
   const AVATAR_GAP = 12;
   const AVATAR_OUTSET = AVATAR_SIZE + AVATAR_GAP; // 말풍선 왼쪽의 독립 아바타 영역
   const TIP_BG = 'rgba(22,20,48,.96)'; // 툴팁/화살표/대기카드 공통 배경 — 짙은 남색·보라(흰 배경 가독성)
@@ -611,7 +611,7 @@
   }
 
   // 웹 제품과 동일한 상태형 AI 가이드 아바타.
-  const avatarAsset = (name) => `${chrome.runtime.getURL(`assets/${name}`)}?v=20260814b`;
+  const avatarAsset = (name) => `${chrome.runtime.getURL(`assets/${name}`)}?v=20260825a`;
   const MASCOT_IMAGE_URLS = {
     idle: avatarAsset('parro-3d-neutral.png'),
     neutral: avatarAsset('parro-3d-neutral.png'),
@@ -904,11 +904,27 @@
     coachAvatar.setAttribute('aria-hidden', 'true');
     coachAvatar.style.cssText = `position:fixed;${AVATAR_STYLE}pointer-events:none;z-index:5;animation:parro-avatar-in .26s cubic-bezier(.2,.8,.2,1) both;`;
     coachAvatar.innerHTML = mascotHtml(tooltipMascotState);
+    host.setAttribute('data-coach-avatar-status', 'loading');
+    host.setAttribute('data-coach-avatar-size', String(AVATAR_SIZE));
     const coachAvatarImage = coachAvatar.querySelector('[data-role="coach-avatar-image"]');
-    coachAvatarImage?.addEventListener('error', () => {
+    const recoverCoachAvatarImage = () => {
+      if (!coachAvatarImage) return;
+      if (coachAvatarImage.dataset.fallbackApplied === 'true') {
+        host.setAttribute('data-coach-avatar-status', 'error');
+        return;
+      }
+      coachAvatarImage.dataset.fallbackApplied = 'true';
       const neutralUrl = MASCOT_IMAGE_URLS.neutral;
       if (coachAvatarImage.src !== neutralUrl) coachAvatarImage.src = neutralUrl;
+    };
+    coachAvatarImage?.addEventListener('load', () => {
+      host.setAttribute('data-coach-avatar-status', 'loaded');
     });
+    coachAvatarImage?.addEventListener('error', recoverCoachAvatarImage);
+    if (coachAvatarImage?.complete) {
+      if (coachAvatarImage.naturalWidth) host.setAttribute('data-coach-avatar-status', 'loaded');
+      else recoverCoachAvatarImage();
+    }
 
     const tooltip = document.createElement('div');
     tooltip.setAttribute('data-role', 'guide-bubble');

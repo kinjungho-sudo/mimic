@@ -21,6 +21,8 @@ const popup = read('popup.html');
 const popupScript = read('popup.js');
 const previewPage = read('guide-preview.html');
 const previewScript = read('guide-preview.js');
+const pythonPackageBuilder = read('build-store-zip.py');
+const powershellPackageBuilder = read('build-store-zip.ps1');
 const manifest = JSON.parse(read('manifest.json'));
 const liveGuideServer = fs.readFileSync(
   path.resolve(root, '..', 'mimic_app', 'lib', 'live-guide', 'server.ts'),
@@ -31,7 +33,7 @@ const playbookServer = fs.readFileSync(
   'utf8',
 );
 
-assert.equal(manifest.version, '1.7.27');
+assert.equal(manifest.version, '1.7.28');
 assert.deepEqual(
   manifest.content_scripts[0].js.slice(0, 3),
   ['targeting.js', 'guide-engine.js', 'content.js'],
@@ -152,6 +154,10 @@ assert.match(engine, /coachAvatar\.setAttribute\('data-role', 'coach-avatar'\)/)
 assert.match(engine, /coachAvatar\.setAttribute\('data-mascot-state', tooltipMascotState\)/);
 assert.match(engine, /data-role="coach-avatar-image"/);
 assert.match(engine, /coachAvatarImage\?\.addEventListener\('error'/);
+assert.match(engine, /data-coach-avatar-status', 'loaded'/);
+assert.match(engine, /data-coach-avatar-status', 'error'/);
+assert.match(engine, /coachAvatarImage\?\.complete/);
+assert.match(engine, /const AVATAR_SIZE = 136;/);
 assert.match(engine, /background:transparent;border:none;box-shadow:none/);
 assert.match(engine, /\.parro-avatar-stack,\.parro-avatar-layer\{animation:none!important\}/);
 assert.match(engine, /\.parro-avatar-layer--secondary\{display:none!important\}/);
@@ -163,6 +169,8 @@ assert.match(engine, /const BUBBLE_BG = 'rgba\(255,255,255,\.98\)'/);
 assert.match(engine, /const BUBBLE_BORDER = '#17C9B6'/);
 assert.match(engine, /border:3px solid \$\{BUBBLE_BORDER\}/);
 assert.match(engine, /point: avatarAsset\('parro-3d-point\.png'\)/);
+assert.match(pythonPackageBuilder, /"assets\/parro-3d-neutral\.png", "assets\/parro-3d-point\.png"/);
+assert.match(powershellPackageBuilder, /'assets\/parro-3d-neutral\.png', 'assets\/parro-3d-point\.png'/);
 assert.doesNotMatch(engine, /parro-3d-(talk|success)\.png/);
 assert.match(engine, /border-radius:20px;padding:12px 14px;box-shadow:0 16px 38px/);
 assert.match(engine, /const isTypeStep = Boolean\(step\.type_text \|\| step\.kind === 'type' \|\| step\.action_type === 'type'\)/);
@@ -192,8 +200,8 @@ assert.match(visualPreview, /window\.open\('', 'parro-live-guide-preview'/);
 assert.match(visualPreview, /annotations\.map\(renderGuideAnnotation\)/);
 assert.match(engine, /const guideApi = \{ show, showWrongPage, hide,/);
 
-assert.match(engine, /assets\/\$\{name\}`\)\}\?v=20260814b/);
-assert.match(popup, /assets\/parro-3d-neutral\.png\?v=20260814b/);
+assert.match(engine, /assets\/\$\{name\}`\)\}\?v=20260825a/);
+assert.match(popup, /assets\/parro-3d-neutral\.png\?v=20260825a/);
 assert.match(popup, /id="guideTargetStatus"/);
 assert.match(popup, /id="guideTargetRetry"/);
 assert.match(popup, /id="guideStepPreviewBtn"/);

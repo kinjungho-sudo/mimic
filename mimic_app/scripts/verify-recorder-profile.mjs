@@ -246,10 +246,16 @@ try {
 
   await guidePage.waitForLoadState('domcontentloaded');
   await guidePage.waitForSelector('#parro-overlay-root', { state: 'attached', timeout: 5_000 });
+  await guidePage.waitForFunction(() => (
+    document.getElementById('parro-overlay-root')?.getAttribute('data-coach-avatar-status') === 'loaded'
+  ), null, { timeout: 5_000 });
   const guideOverlay = await guidePage.evaluate(() => {
+    const overlay = document.getElementById('parro-overlay-root');
     return {
       count: document.querySelectorAll('#parro-overlay-root').length,
       targetText: document.getElementById('fixture-action')?.textContent?.trim() || null,
+      coachAvatarStatus: overlay?.getAttribute('data-coach-avatar-status') || null,
+      coachAvatarSize: overlay?.getAttribute('data-coach-avatar-size') || null,
     };
   });
   check(() => {
@@ -257,6 +263,8 @@ try {
     assert.deepEqual(guideOverlay, {
       count: 1,
       targetText: 'Fixture action',
+      coachAvatarStatus: 'loaded',
+      coachAvatarSize: '136',
     });
   });
 
