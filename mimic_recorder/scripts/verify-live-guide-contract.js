@@ -31,7 +31,7 @@ const playbookServer = fs.readFileSync(
   'utf8',
 );
 
-assert.equal(manifest.version, '1.7.26');
+assert.equal(manifest.version, '1.7.27');
 assert.deepEqual(
   manifest.content_scripts[0].js.slice(0, 3),
   ['targeting.js', 'guide-engine.js', 'content.js'],
@@ -237,8 +237,10 @@ assert.match(previewScript, /chrome\.storage\.local\.remove\(key\)/);
 assert.match(content, /saveText:\s+true/, 'new capture sessions must retain typed text by default');
 assert.match(content, /let typingGeometrySnapshot = null/,
   'typing captures must cache stable geometry before focus moves to send');
-assert.match(content, /const rect = el\.getBoundingClientRect\(\);[\s\S]*normalizeRect\(topRect, vw, vh\)/,
+assert.match(content, /const rect = typingControlRect\(el\);[\s\S]*normalizeRect\(topRect, vw, vh\)/,
   'typing element_rect must use the complete editable DOM bounds');
+assert.match(content, /function typingControlRect\(el\)[\s\S]*location\.hostname !== 'mail\.google\.com'[\s\S]*usefulBodyExpansion[\s\S]*return parentRect/,
+  'Gmail body typing must expand a collapsed contenteditable rect to its compose container');
 assert.doesNotMatch(content, /selection\.getRangeAt|range\.getBoundingClientRect/,
   'typing geometry must not collapse to a contenteditable caret or selection line');
 assert.match(content, /typingGeometrySnapshot = captureTypingGeometrySnapshot\(el\)/,

@@ -1063,13 +1063,31 @@
     return !!rect && ParroTargeting.rectContainsPoint(rect, x, y, tolerance);
   }
 
+  function typingControlRect(el) {
+    const ownRect = el.getBoundingClientRect();
+    if (location.hostname !== 'mail.google.com') return ownRect;
+    if (!el.isContentEditable || el.getAttribute('role') !== 'textbox') return ownRect;
+
+    // Gmail may expose only the current text block while its compose body is taller.
+    let parent = el.parentElement;
+    for (let depth = 0; parent && depth < 3; depth += 1, parent = parent.parentElement) {
+      const parentRect = parent.getBoundingClientRect();
+      const sameComposeColumn = parentRect.width >= ownRect.width * 0.9
+        && parentRect.width <= ownRect.width * 1.5;
+      const usefulBodyExpansion = parentRect.height >= ownRect.height + 20
+        && parentRect.height <= window.innerHeight * 0.85;
+      if (sameComposeColumn && usefulBodyExpansion) return parentRect;
+    }
+    return ownRect;
+  }
+
   function captureTypingGeometrySnapshot(el, label = getFieldLabel(el)) {
     if (!el || typeof el.getBoundingClientRect !== 'function') return null;
     const { vw, vh } = getViewportSize();
     const focusSnapshot = typingFocusSnapshot;
     // Type steps represent the editable control itself. In rich editors such as
     // Gmail, a selection range only describes the caret line and is too small.
-    const rect = el.getBoundingClientRect();
+    const rect = typingControlRect(el);
     const preferredX = focusSnapshot?.x ?? (rect.left + rect.width / 2);
     const preferredY = focusSnapshot?.y ?? (rect.top + rect.height / 2);
     const topRect = toTopRect(rect);
