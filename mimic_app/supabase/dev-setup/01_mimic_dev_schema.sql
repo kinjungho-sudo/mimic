@@ -291,10 +291,7 @@ create table mm_comments (
   updated_at timestamptz not null default now(),
   deleted_at timestamptz,
   resolved_at timestamptz,
-  resolved_by uuid,
-  request_kind text not null default 'comment' check (request_kind in ('comment','live_guide_help')),
-  attachment_path text,
-  request_context jsonb not null default '{}'::jsonb
+  resolved_by uuid
 );
 
 create table mm_activity (
@@ -654,7 +651,6 @@ insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
   ('avatars','avatars', true, 2097152, array['image/jpeg','image/png','image/webp','image/gif']),
   ('branding','branding', true, null, null),
   ('mimic-tts','mimic-tts', true, 10485760, array['audio/mpeg','audio/mp3']),
-  ('live-guide-help','live-guide-help', false, 5242880, array['image/png','image/jpeg']),
   ('naviaction','naviaction', true, null, null)   -- 확장(mimic_recorder) 원본 캡처 업로드 대상
 on conflict (id) do nothing;
 

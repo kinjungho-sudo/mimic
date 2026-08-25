@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { guardTutorialAccess } from '@/lib/auth/workspace-guard';
 import { logActivity } from '@/lib/activity';
+import { parseHelpRequestBody } from '@/lib/live-guide/help-request';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -18,13 +19,26 @@ export async function GET(request: NextRequest, { params }: Params) {
   const supabase = createServiceRoleClient();
   const { data, error } = await supabase
     .from('mm_comments')
-    .select('id, tutorial_id, step_id, parent_id, author_id, body, created_at, resolved_at, request_kind, attachment_path, request_context, author:mm_users!mm_comments_author_id_fkey(name, avatar_url, email)')
+    .select('id, tutorial_id, step_id, parent_id, author_id, body, created_at, resolved_at, author:mm_users!mm_comments_author_id_fkey(name, avatar_url, email)')
     .eq('tutorial_id', id)
     .is('deleted_at', null)
     .order('created_at', { ascending: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ comments: data ?? [] });
+  const comments = (data ?? []).map(comment => {
+    const help = parseHelpRequestBody(comment.body, id);
+    return {
+      ...comment,
+      body: help?.text ?? comment.body,
+      request_kind: help ? 'live_guide_help' : 'comment',
+      attachment_path: help?.metadata.path ? 'encrypted' : null,
+      request_context: help ? {
+        page_url: help.metadata.page_url,
+        step_number: help.metadata.step_number,
+      } : {},
+    };
+  });
+  return NextResponse.json({ comments });
 }
 
 // POST /api/tutorials/[id]/comments — 댓글 또는 대댓글 작성
@@ -56,7 +70,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       author_id: auth.userId,
       body: text.trim(),
     })
-    .select('id, tutorial_id, step_id, parent_id, author_id, body, created_at, resolved_at, request_kind, attachment_path, request_context, author:mm_users!mm_comments_author_id_fkey(name, avatar_url, email)')
+    .select('id, tutorial_id, step_id, parent_id, author_id, body, created_at, resolved_at, author:mm_users!mm_comments_author_id_fkey(name, avatar_url, email)')
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

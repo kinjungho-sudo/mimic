@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { logActivity } from '@/lib/activity';
 import { requireExtensionToken } from '@/lib/auth/auth-guard';
 import { guardTutorialAccess } from '@/lib/auth/workspace-guard';
+import { encodeHelpRequestBody, encryptHelpScreenshot, type LiveGuideHelpMetadata } from '@/lib/live-guide/help-request';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 
 const bodySchema = z.object({
@@ -17,7 +18,10 @@ const bodySchema = z.object({
   page_url: z.string().url().max(2048).nullable().optional(),
 });
 
-function decodeScreenshot(value: string | null | undefined) {
+function decodeScreenshot(value: string | null | undefined): {
+  buffer: Buffer;
+  contentType: 'image/png' | 'image/jpeg';
+} | null {
   if (!value) return null;
   const match = /^data:image\/(png|jpeg);base64,([A-Za-z0-9+/=]+)$/.exec(value);
   if (!match) return null;
@@ -25,7 +29,6 @@ function decodeScreenshot(value: string | null | undefined) {
   if (!buffer.length || buffer.length > 5 * 1024 * 1024) return null;
   return {
     buffer,
-    extension: match[1] === 'jpeg' ? 'jpg' : 'png',
     contentType: match[1] === 'jpeg' ? 'image/jpeg' : 'image/png',
   };
 }
@@ -79,42 +82,47 @@ export async function POST(request: NextRequest) {
   if (!step) return NextResponse.json({ error: 'Step not found' }, { status: 404 });
 
   let attachmentPath: string | null = null;
+  let encryption: ReturnType<typeof encryptHelpScreenshot> | null = null;
   const screenshot = decodeScreenshot(body.screenshot_data_url);
   if (body.screenshot_data_url && !screenshot) {
     return NextResponse.json({ error: 'Invalid screenshot' }, { status: 400 });
   }
   if (screenshot) {
-    attachmentPath = `${body.tutorial_id}/${auth.userId}/${randomUUID()}.${screenshot.extension}`;
+    attachmentPath = `live-guide-help/${body.tutorial_id}/${auth.userId}/${randomUUID()}.bin`;
+    encryption = encryptHelpScreenshot(screenshot.buffer);
     const { error } = await supabase.storage
-      .from('live-guide-help')
-      .upload(attachmentPath, screenshot.buffer, {
-        contentType: screenshot.contentType,
+      .from('naviaction')
+      .upload(attachmentPath, encryption.encrypted, {
+        contentType: 'application/octet-stream',
         upsert: false,
       });
     if (error) return NextResponse.json({ error: 'Screenshot upload failed' }, { status: 500 });
   }
 
   const text = body.message || `${step.step_number ?? ''}단계에서 도움이 필요합니다.`.trim();
+  const metadata: LiveGuideHelpMetadata = {
+    v: 1,
+    path: attachmentPath,
+    key: encryption?.key ?? null,
+    iv: encryption?.iv ?? null,
+    tag: encryption?.tag ?? null,
+    mime: screenshot?.contentType ?? null,
+    page_url: body.page_url ?? null,
+    step_number: step.step_number ?? null,
+  };
   const { data: comment, error } = await supabase
     .from('mm_comments')
     .insert({
       tutorial_id: body.tutorial_id,
       step_id: body.step_id,
       author_id: auth.userId,
-      body: text,
-      request_kind: 'live_guide_help',
-      attachment_path: attachmentPath,
-      request_context: {
-        source: 'live_guide',
-        step_number: step.step_number,
-        page_url: body.page_url ?? null,
-      },
+      body: encodeHelpRequestBody(text, metadata),
     })
     .select('id, created_at')
     .single();
 
   if (error) {
-    if (attachmentPath) await supabase.storage.from('live-guide-help').remove([attachmentPath]);
+    if (attachmentPath) await supabase.storage.from('naviaction').remove([attachmentPath]);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 

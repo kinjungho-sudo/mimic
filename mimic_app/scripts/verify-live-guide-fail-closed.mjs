@@ -126,6 +126,11 @@ try {
   check(() => assert.equal(page.url(), currentUrl));
 
   await page.click('#target');
+  await page.waitForSelector('#parro-overlay-root');
+  check(() => assert.equal(page.url(), currentUrl));
+  const confirmationOverlayCount = await page.locator('#parro-overlay-root').count();
+  check(() => assert.equal(confirmationOverlayCount, 1));
+  await sendToTab(worker, tabId, { type: 'HIDE_OVERLAY' });
   await page.waitForSelector('#parro-overlay-root', { state: 'detached' });
   check(() => assert.equal(page.url(), currentUrl));
   const completedOverlayCount = await page.locator('#parro-overlay-root').count();
@@ -195,6 +200,10 @@ try {
 
   await page.fill('#email', 'tester@example.com');
   await page.click('#submit-email');
+  await page.waitForSelector('#parro-overlay-root');
+  const validSubmitConfirmationCount = await page.locator('#parro-overlay-root').count();
+  check(() => assert.equal(validSubmitConfirmationCount, 1));
+  await sendToTab(worker, tabId, { type: 'HIDE_OVERLAY' });
   await page.waitForSelector('#parro-overlay-root', { state: 'detached' });
   const validSubmissions = await page.evaluate(() => window.validSubmissions || 0);
   check(() => assert.equal(validSubmissions, 1));
@@ -206,7 +215,7 @@ try {
     target: 'evidence-selected',
     missingTargetUi: 'scroll-prompt',
     wrongPageUi: 'recovery-card',
-    completionUi: false,
+    completionUi: true,
     invalidSubmitBlocked: true,
   }));
 } finally {
