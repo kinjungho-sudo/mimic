@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { requireWorkspaceEntitlement } from '@/lib/auth/entitlement-guard';
+import { canGenerateDefaultTutorialTTS, DEFAULT_TUTORIAL_TTS_SETTING_VOICE } from '@/lib/voice/default-tutorial-tts';
 
 const tutorialCreateSchema = z.object({
   workspace_id: z.string().uuid().optional().nullable(),
@@ -117,6 +118,8 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  const defaultTtsEnabled = await canGenerateDefaultTutorialTTS(auth.userId, workspaceId, supabase);
+
   const { data, error } = await supabase
     .from('mm_tutorials')
     .insert({
@@ -125,6 +128,8 @@ export async function POST(request: NextRequest) {
       title: '제목 없음',
       status: 'draft',
       mode: 'guide',
+      tts_enabled: defaultTtsEnabled,
+      tts_voice: DEFAULT_TUTORIAL_TTS_SETTING_VOICE,
     })
     .select()
     .single();

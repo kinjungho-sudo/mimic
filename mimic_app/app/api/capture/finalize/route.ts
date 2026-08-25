@@ -8,6 +8,11 @@ import { resolveFavicon } from '@/lib/favicon';
 import { buildClickHighlight } from '@/lib/annotations';
 import { hasDecorativeActionGlyph, stripDecorativeActionGlyphs } from '@/lib/action-copy';
 import { transcribeAudio, assignSegmentsToSteps, computeStepWindows } from '@/lib/voice/voice';
+import {
+  canGenerateDefaultTutorialTTS,
+  DEFAULT_TUTORIAL_TTS_SETTING_VOICE,
+  generateDefaultTutorialTTS,
+} from '@/lib/voice/default-tutorial-tts';
 import { logSystem } from '@/lib/logging/logger-server';
 import {
   PARRO_ONBOARDING_KEY,
@@ -283,6 +288,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Session already finalized' }, { status: 409 });
   }
 
+  const defaultTtsEnabled = await canGenerateDefaultTutorialTTS(userId, null, supabase);
+
   // 캡처 이벤트 조회 — step_number(행동 순서) 우선, 없으면 created_at(저장 순서) 폴백.
   // created_at만 쓰면 업로드 완료 순서로 뒤섞여 1-3-2 순서 버그 발생.
   const { data: events } = await supabase
@@ -377,6 +384,9 @@ export async function POST(request: NextRequest) {
       visibility: 'private',
       share_token: null,
       published_at: null,
+      tts_enabled: defaultTtsEnabled,
+      // The current DB constraint accepts nova/alloy. Generated Parro audio uses Cedar.
+      tts_voice: DEFAULT_TUTORIAL_TTS_SETTING_VOICE,
     })
     .select('id')
     .single();
@@ -1246,6 +1256,17 @@ export async function POST(request: NextRequest) {
     } catch (err) {
       console.error('voice transcription error:', err);
       // 전사 실패는 무시 — 매뉴얼은 정상 생성됨
+    }
+  }
+  if (defaultTtsEnabled) {
+    try {
+      const result = await generateDefaultTutorialTTS(tutorial.id, supabase);
+      if (result.failed > 0) {
+        console.warn('capture finalize default TTS partially failed:', { tutorialId: tutorial.id, ...result });
+      }
+    } catch (err) {
+      console.error('capture finalize default TTS error:', err);
+      // TTS is best-effort. A speech provider failure must not discard the manual.
     }
   }
 

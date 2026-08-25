@@ -24,6 +24,7 @@ const guideToc = read('components', 'editor', 'GuideToc.tsx');
 const publishRoute = read('app', 'api', 'tutorials', '[id]', 'publish', 'route.ts');
 const annotationEditor = read('components', 'editor', 'ImageAnnotationEditor.tsx');
 const annotationPreview = read('components', 'editor', 'AnnotationPreview.tsx');
+const manualEditor = read('components', 'editor', 'ManualEditor.tsx');
 const autoAnnotations = read('lib', 'auto-annotations.ts');
 const stepApi = read('lib', 'api', 'steps.ts');
 const stepImageRoute = read('app', 'api', 'steps', '[id]', 'image', 'route.ts');
@@ -47,6 +48,8 @@ assert.match(editor, /onUploadImage=\{uploadStepImage\}/, 'manual image replacem
 assert.match(editor, /onRemoveImage=\{removeStepImage\}/, 'manual image removal must use the persisted delete API');
 assert.match(stepApi, /fetch\(`\/api\/steps\/\$\{id\}\/image`, \{ method: 'POST', body: formData \}\)/, 'manual image replacement must upload the file');
 assert.match(stepImageRoute, /export async function DELETE/, 'manual image removal needs a server persistence route');
+assert.match(manualEditor, /EDITOR_SCREENSHOT_FRAME_WIDTH = 'min\(calc\(100% - 48px\), 1040px\)'/, 'editor screenshots need a restrained responsive width');
+assert.match(manualEditor, /data-testid="editor-screenshot-frame"/, 'editor screenshot frame needs a stable visual verification target');
 
 assert.match(share, /if \(shareToken \|\| publishStartedRef\.current\) return;/, 'sharing an unpublished manual must publish immediately');
 assert.doesNotMatch(share, /\/quality|qualityIssues|awaitingWarningApproval/, 'sharing must not run a pre-publish quality gate');
@@ -92,4 +95,4 @@ assert.match(landingFaq, /현재는 사용자가 직접 결제 플랜을 변경�
 assert.doesNotMatch(landingFaq, /카카오페이|토스페이|전액 환불|언제든 구독을 해지/, 'prelaunch FAQ must not promise unavailable billing operations');
 assert.doesNotMatch(desktopSetup, /Parro Recorder 1\.7\.4/, 'desktop setup must not hard-code an obsolete Recorder version');
 
-console.log(JSON.stringify({ ok: true, checks: 55, scope: 'manual-ux-contract' }));
+console.log(JSON.stringify({ ok: true, checks: 57, scope: 'manual-ux-contract' }));

@@ -35,6 +35,9 @@ const vercel = JSON.parse(read('vercel.json'));
 const landing = read('app', 'landingpage', 'page.tsx');
 const home = read('app', 'home', 'page.tsx');
 const desktopSetup = read('app', 'desktop-setup', 'page.tsx');
+const captureFinalize = read('app', 'api', 'capture', 'finalize', 'route.ts');
+const tutorialsRoute = read('app', 'api', 'tutorials', 'route.ts');
+const defaultTts = read('lib', 'voice', 'default-tutorial-tts.ts');
 
 assert.match(workspaceRoute, /requireUserEntitlement\(auth\.userId, 'team_workspace'/);
 assert.match(brandingRoute, /requireUserEntitlement\(auth\.userId, 'branding'/);
@@ -59,5 +62,10 @@ assert.match(home, /'aria-label': `\$\{tutorial\.title\} 매뉴얼 열기`/);
 assert.match(home, /aria-label="공지 닫기"/);
 assert.match(home, /displayedTutorials\.slice\(0, visibleTutorialCount\)/);
 assert.doesNotMatch(desktopSetup, /getDesktopExtensionIds|response\?\.error\}\)`/);
+assert.match(captureFinalize, /generateDefaultTutorialTTS\(tutorial\.id, supabase\)/);
+assert.match(captureFinalize, /tts_enabled: defaultTtsEnabled/);
+assert.match(tutorialsRoute, /tts_enabled: defaultTtsEnabled/);
+assert.match(defaultTts, /hasEntitlement\(user\?\.plan, 'ai_voice'\)/);
+assert.match(defaultTts, /user_script \|\| step\.ai_description/);
 
-console.log(JSON.stringify({ ok: true, checks: 33, scope: 'entitlement-and-trash-contract' }));
+console.log(JSON.stringify({ ok: true, checks: 38, scope: 'entitlement-and-trash-contract' }));

@@ -1274,6 +1274,8 @@ const clampOffset = (v: number, z: number) => {
   return Math.min(m, Math.max(-m, v));
 };
 
+const EDITOR_SCREENSHOT_FRAME_WIDTH = 'min(calc(100% - 48px), 1040px)';
+
 function ScreenshotArea({ step, onUploadClick, onDrop, onAnnotate, onRemove, onFraming }: ScreenshotAreaProps) {
   const [dragOver, setDragOver] = useState(false);
   const [imgHover, setImgHover] = useState(false);
@@ -1392,7 +1394,7 @@ function ScreenshotArea({ step, onUploadClick, onDrop, onAnnotate, onRemove, onF
         onDragOver={e => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
         style={{
-          margin: '0 12px 12px', height: '180px',
+          width: EDITOR_SCREENSHOT_FRAME_WIDTH, margin: '0 auto 12px', height: '180px',
           background: dragOver ? 'rgba(0,155,142,0.04)' : '#F9FAFB',
           border: `1.5px dashed ${dragOver ? '#009B8E' : '#D1D5DB'}`,
           borderRadius: '8px',
@@ -1427,8 +1429,9 @@ function ScreenshotArea({ step, onUploadClick, onDrop, onAnnotate, onRemove, onF
   return (
     <div
       ref={frameRef}
+      data-testid="editor-screenshot-frame"
       style={{
-        margin: '0 12px 12px', borderRadius: '8px', overflow: 'hidden',
+        width: EDITOR_SCREENSHOT_FRAME_WIDTH, margin: '0 auto 12px', borderRadius: '8px', overflow: 'hidden',
         border: '1px solid #E5E7EB', position: 'relative',
         // 뷰어(ViewerStepCard)와 동일 박스: 중앙정렬 + 회색 배경 (편집 화면 = 최종 화면, WYSIWYG)
         display: 'flex', justifyContent: 'center', background: '#F3F4F6',
