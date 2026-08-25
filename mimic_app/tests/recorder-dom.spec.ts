@@ -14,9 +14,10 @@ async function loadGuide(page: Page) {
       i18n: { getMessage: () => '' },
       storage: {
         local: {
-          get: (key: string, callback: (value: Record<string, unknown>) => void) => {
+          get: (key: string | string[], callback: (value: Record<string, unknown>) => void) => {
             const storage = (window as unknown as { __parroStorage: Record<string, unknown> }).__parroStorage;
-            callback({ [key]: storage[key] });
+            const keys = Array.isArray(key) ? key : [key];
+            callback(Object.fromEntries(keys.map(item => [item, storage[item]])));
           },
           set: (value: Record<string, unknown>) => {
             Object.assign((window as unknown as { __parroStorage: Record<string, unknown> }).__parroStorage, value);
@@ -424,6 +425,8 @@ test('Live Guide reads step copy with TTS and stops it when hidden', async ({ pa
       text: string;
       lang = '';
       rate = 1;
+      pitch = 1;
+      voice: unknown = null;
       onstart?: () => void;
       onend?: () => void;
       onerror?: () => void;
@@ -438,12 +441,13 @@ test('Live Guide reads step copy with TTS and stops it when hidden', async ({ pa
           utterance.onstart?.();
         },
         cancel: () => { (window as unknown as { __cancelCount: number }).__cancelCount += 1; },
+        getVoices: () => [],
       },
     });
   });
   await loadGuide(page);
   await page.evaluate(() => {
-    (window as unknown as { __parroStorage: Record<string, unknown> }).__parroStorage.guideVoiceEnabled = true;
+    (window as unknown as { __parroStorage: Record<string, unknown> }).__parroStorage.guideVoiceMode = 'auto';
     const guide = (window as unknown as { ParroGuide: any }).ParroGuide;
     guide.show({
       id: 'tts-step',
@@ -457,10 +461,54 @@ test('Live Guide reads step copy with TTS and stops it when hidden', async ({ pa
   await expect.poll(() => page.evaluate(() => (window as unknown as { __spoken: string[] }).__spoken)).toEqual([
     '이 문장을 라이브 가이드에서 읽어주세요.',
   ]);
-  expect(await closedShadowAttribute(page, 'data-act', 'toggle-guide-voice', 'aria-pressed')).toBe('true');
+  expect(await closedShadowAttribute(page, 'data-act', 'play-guide-voice', 'aria-label')).toBe('음성 일시정지');
 
   await page.evaluate(() => (window as unknown as { ParroGuide: any }).ParroGuide.hide());
   expect(await page.evaluate(() => (window as unknown as { __cancelCount: number }).__cancelCount)).toBeGreaterThan(0);
+});
+
+test('Live Guide supports button-only TTS and synchronized hand raising', async ({ page }) => {
+  await page.route('https://example.test/manual-tts', route => route.fulfill({
+    contentType: 'text/html',
+    body: '<button id="manual-tts-target" style="margin:160px;width:160px;height:44px">Continue</button>',
+  }));
+  await page.goto('https://example.test/manual-tts');
+  await page.evaluate(() => {
+    (window as unknown as { __spoken: string[]; __raised: boolean[] }).__spoken = [];
+    (window as unknown as { __spoken: string[]; __raised: boolean[] }).__raised = [];
+    class MockUtterance {
+      text: string;
+      lang = '';
+      rate = 1;
+      pitch = 1;
+      voice: unknown = null;
+      onstart?: () => void;
+      constructor(text: string) { this.text = text; }
+    }
+    Object.defineProperty(window, 'SpeechSynthesisUtterance', { configurable: true, value: MockUtterance });
+    Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: {
+      speak: (utterance: MockUtterance) => { (window as unknown as { __spoken: string[] }).__spoken.push(utterance.text); utterance.onstart?.(); },
+      cancel: () => {},
+      getVoices: () => [],
+    } });
+  });
+  await loadGuide(page);
+  await page.evaluate(() => {
+    (window as unknown as { __parroStorage: Record<string, unknown> }).__parroStorage.guideVoiceMode = 'manual';
+    (window as unknown as { ParroGuide: any }).ParroGuide.show({
+      id: 'manual-tts-step', page_url: window.location.href, element_selector: '#manual-tts-target',
+      title: '계속', instruction: '버튼을 누를 때만 읽어주세요.',
+    }, { index: 0, total: 1, onHandRaise: (raised: boolean) => (window as unknown as { __raised: boolean[] }).__raised.push(raised) });
+  });
+
+  expect(await page.evaluate(() => (window as unknown as { __spoken: string[] }).__spoken)).toEqual([]);
+  await clickClosedShadowAction(page, 'play-guide-voice');
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __spoken: string[] }).__spoken)).toEqual(['버튼을 누를 때만 읽어주세요.']);
+  await clickClosedShadowAction(page, 'toggle-hand-raise');
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __raised: boolean[] }).__raised)).toEqual([true]);
+  expect(await closedShadowAttribute(page, 'data-act', 'toggle-hand-raise', 'aria-pressed')).toBe('true');
+  await clickClosedShadowAction(page, 'lower-hand');
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __raised: boolean[] }).__raised)).toEqual([true, false]);
 });
 
 test('guide shows a scroll prompt while a same-page target is below the viewport', async ({ page }) => {

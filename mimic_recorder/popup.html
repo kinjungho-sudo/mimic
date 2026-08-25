@@ -680,7 +680,9 @@
         <span style="font-size:14px;font-weight:700;color:#1e1e2e;">Live Guide Beta</span>
       </div>
       <div style="display:flex;align-items:center;gap:6px;">
-        <button id="guideVoiceToggle" type="button" title="음성 안내 켜기" data-i18n-title="guideVoiceEnable" aria-pressed="false" style="display:none;width:30px;height:28px;border:1px solid #e8e8f0;border-radius:8px;background:#fff;color:#888;cursor:pointer;align-items:center;justify-content:center;font-size:15px;line-height:1;transition:all 0.15s;">🔇</button>
+        <button id="guideVoiceToggle" type="button" title="음성 재생" data-i18n-title="guideVoicePlay" style="display:none;width:30px;height:28px;border:1px solid #e8e8f0;border-radius:8px;background:#fff;color:#888;cursor:pointer;align-items:center;justify-content:center;font-size:12px;line-height:1;">▶</button>
+        <select id="guideVoiceMode" title="음성 재생 방식" data-i18n-title="guideVoiceMode" aria-label="음성 재생 방식" style="height:28px;max-width:82px;border:1px solid #e8e8f0;border-radius:8px;background:#fff;color:#555;font-size:11px;padding:0 4px;"><option value="off" data-i18n="guideVoiceModeOff">끔</option><option value="manual" data-i18n="guideVoiceModeManual">버튼</option><option value="auto" data-i18n="guideVoiceModeAuto">자동</option></select>
+        <button id="guideHandRaiseBtn" type="button" title="도움 요청" data-i18n-title="guideRaiseHand" aria-pressed="false" style="width:30px;height:28px;border:1px solid #e8e8f0;border-radius:8px;background:#fff;color:#888;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;line-height:1;">✋</button>
         <button id="guideExitBtn" title="Live Guide Beta 종료" data-i18n-title="exitLiveGuideTitle" style="width:28px;height:28px;border:1px solid #e8e8f0;border-radius:8px;background:#fff;color:#888;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;transition:all 0.15s;" onmouseover="this.style.borderColor='#EF4444';this.style.color='#EF4444';this.style.background='#fff5f5'" onmouseout="this.style.borderColor='#e8e8f0';this.style.color='#888';this.style.background='#fff'">✕</button>
       </div>
     </div>
@@ -719,6 +721,10 @@
           <div id="guideVoiceTime" style="margin-top:2px;font-size:10px;color:#7A9692;"></div>
         </div>
         <button id="guideVoiceReplayBtn" type="button" title="다시 듣기" data-i18n-title="guideVoiceReplay" aria-label="다시 듣기" style="width:30px;height:30px;flex-shrink:0;border:1px solid #D8EEE9;border-radius:8px;background:#fff;color:#27736B;font-size:16px;cursor:pointer;">↻</button>
+      </div>
+      <div id="guideHandRaisePanel" style="display:none;margin-top:10px;padding:9px 10px;border:1px solid #FDBA74;border-radius:9px;background:#FFF7ED;color:#9A3412;font-size:11.5px;line-height:1.45;">
+        <div data-i18n="guideHandRaisedMessage">손을 들었어요. Parro가 이 단계를 다시 도와줄게요.</div>
+        <button id="guideLowerHandBtn" type="button" data-i18n="guideLowerHand" style="margin-top:7px;padding:5px 8px;border:1px solid #FDBA74;border-radius:7px;background:#fff;color:#9A3412;font-size:10.5px;cursor:pointer;">손 내리기</button>
       </div>
       <!-- type_text 복사 영역 — 제목·설명 다음, 컴팩트 인라인 -->
       <div id="guideStepCopyArea" style="display:none;align-items:center;gap:8px;background:#E8FFF7;border:1px solid #BFEDE7;border-radius:8px;padding:6px 8px;margin-top:12px;">

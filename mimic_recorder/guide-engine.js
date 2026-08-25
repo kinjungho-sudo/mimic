@@ -21,14 +21,16 @@
   const BUBBLE_BORDER = '#17C9B6';
   const OVERLAY_ROOT_ID = 'parro-overlay-root';
   const LEGACY_OVERLAY_ROOT_ID = 'mimic-overlay-root';
-  const GUIDE_VOICE_PREFERENCE_KEY = 'guideVoiceEnabled';
+  const GUIDE_VOICE_MODE_KEY = 'guideVoiceMode';
+  const GUIDE_VOICE_LEGACY_KEY = 'guideVoiceEnabled';
 
   let state = null;
-  let guideVoiceEnabled = false;
+  let guideVoiceMode = 'off';
   let guideVoicePreferenceReady = false;
   let guideAudio = null;
   let guideUtterance = null;
   let guideAudioEndSeconds = null;
+  let guideVoicePlaying = false;
   const regroundCache = new Map();  // AI 시각 재탐색 결과 캐시(key→{x,y} 성공 / null 실패). 재방문 시 재사용
 
   function guideVoiceBounds(step) {
@@ -44,18 +46,39 @@
     return String(step?.instruction || step?.title || '').trim();
   }
 
-  function updateGuideVoiceButton({ playing = false, blocked = false } = {}) {
+  function normalizeGuideVoiceMode(value, legacyValue = false) {
+    return ['off', 'manual', 'auto'].includes(value) ? value : (legacyValue ? 'auto' : 'off');
+  }
+
+  function preferredParroVoice(text) {
+    const lang = /[가-힣]/.test(text) ? 'ko' : 'en';
+    const voices = window.speechSynthesis?.getVoices?.() || [];
+    const candidates = voices.filter(voice => String(voice.lang || '').toLowerCase().startsWith(lang));
+    const score = (voice) => {
+      const name = String(voice.name || '').toLowerCase();
+      let value = voice.default ? 1 : 0;
+      if (/male|boy|young|junior|david|daniel|mark|george|guy|민준|현우|준우/.test(name)) value += 6;
+      if (/female|woman|zira|susan|heami|혜미|유나/.test(name)) value -= 5;
+      if (/google|microsoft|natural/.test(name)) value += 1;
+      return value;
+    };
+    return candidates.sort((a, b) => score(b) - score(a))[0] || null;
+  }
+
+  function updateGuideVoiceButton({ playing = guideVoicePlaying, blocked = false } = {}) {
     const button = state?.voiceButton;
+    const select = state?.voiceModeSelect;
+    if (select) select.value = guideVoiceMode;
     if (!button) return;
-    button.setAttribute('aria-pressed', guideVoiceEnabled ? 'true' : 'false');
-    button.textContent = guideVoiceEnabled ? (playing ? '🔊' : '🔉') : '🔇';
-    button.title = guideVoiceEnabled
-      ? (blocked ? i18n('guideVoiceNeedsClick', '재생 버튼을 눌러 음성을 시작하세요.') : i18n('guideVoiceDisable', '음성 안내 끄기'))
-      : i18n('guideVoiceEnable', '음성 안내 켜기');
+    const enabled = guideVoiceMode !== 'off';
+    button.disabled = !enabled;
+    button.textContent = playing ? 'Ⅱ' : '▶';
+    button.title = blocked
+      ? i18n('guideVoiceNeedsClick', '재생 버튼을 눌러 음성을 시작하세요.')
+      : (playing ? i18n('guideVoicePause', '음성 일시정지') : i18n('guideVoicePlay', '음성 재생'));
     button.setAttribute('aria-label', button.title);
-    button.style.background = guideVoiceEnabled ? '#E8FFF7' : 'transparent';
-    button.style.color = guideVoiceEnabled ? '#00796F' : '#64748B';
-    button.style.borderColor = guideVoiceEnabled ? '#8DD7CE' : 'rgba(100,116,139,.24)';
+    button.style.opacity = enabled ? '1' : '.42';
+    button.style.cursor = enabled ? 'pointer' : 'not-allowed';
   }
 
   function stopGuideVoice() {
@@ -68,6 +91,7 @@
     guideAudioEndSeconds = null;
     if (window.speechSynthesis) window.speechSynthesis.cancel();
     guideUtterance = null;
+    guideVoicePlaying = false;
     updateGuideVoiceButton();
   }
 
@@ -78,12 +102,13 @@
     }
     guideAudioEndSeconds = null;
     guideUtterance = null;
+    guideVoicePlaying = false;
     updateGuideVoiceButton();
   }
 
   async function playGuideVoice(step) {
     stopGuideVoice();
-    if (!guideVoiceEnabled || !state || state.step !== step) return;
+    if (guideVoiceMode === 'off' || !state || state.step !== step) return;
     const bounds = guideVoiceBounds(step);
     if (bounds) {
       const audio = new Audio();
@@ -103,7 +128,10 @@
       audio.addEventListener('error', finishGuideVoicePlayback, { once: true });
       try {
         await audio.play();
-        if (guideAudio === audio) updateGuideVoiceButton({ playing: true });
+        if (guideAudio === audio) {
+          guideVoicePlaying = true;
+          updateGuideVoiceButton({ playing: true });
+        }
       } catch (error) {
         if (guideAudio === audio) updateGuideVoiceButton({ blocked: error?.name === 'NotAllowedError' });
       }
@@ -119,52 +147,79 @@
     const utterance = new Utterance(text);
     guideUtterance = utterance;
     utterance.lang = /[가-힣]/.test(text) ? 'ko-KR' : 'en-US';
-    utterance.rate = 1;
-    utterance.onstart = () => { if (guideUtterance === utterance) updateGuideVoiceButton({ playing: true }); };
+    utterance.voice = preferredParroVoice(text);
+    utterance.pitch = 1.18;
+    utterance.rate = 0.96;
+    utterance.onstart = () => {
+      if (guideUtterance !== utterance) return;
+      guideVoicePlaying = true;
+      updateGuideVoiceButton({ playing: true });
+    };
     utterance.onend = () => { if (guideUtterance === utterance) finishGuideVoicePlayback(); };
     utterance.onerror = () => { if (guideUtterance === utterance) finishGuideVoicePlayback(); };
     window.speechSynthesis.speak(utterance);
   }
 
-  function initializeGuideVoice(step, button) {
+  function initializeGuideVoice(step, button, modeSelect) {
     if (!state) return;
     state.step = step;
     state.voiceButton = button;
+    state.voiceModeSelect = modeSelect;
     const applyPreference = () => {
       if (!state || state.step !== step || state.voiceButton !== button) return;
       updateGuideVoiceButton();
-      if (guideVoiceEnabled) void playGuideVoice(step);
+      if (guideVoiceMode === 'auto') void playGuideVoice(step);
     };
     if (guideVoicePreferenceReady) {
       applyPreference();
       return;
     }
-    chrome.storage.local.get(GUIDE_VOICE_PREFERENCE_KEY, (stored) => {
+    chrome.storage.local.get([GUIDE_VOICE_MODE_KEY, GUIDE_VOICE_LEGACY_KEY], (stored) => {
       guideVoicePreferenceReady = true;
-      guideVoiceEnabled = stored?.[GUIDE_VOICE_PREFERENCE_KEY] === true;
+      guideVoiceMode = normalizeGuideVoiceMode(stored?.[GUIDE_VOICE_MODE_KEY], stored?.[GUIDE_VOICE_LEGACY_KEY] === true);
       applyPreference();
     });
   }
 
-  function toggleGuideVoice(step) {
-    guideVoiceEnabled = !guideVoiceEnabled;
+  function setGuideVoiceMode(step, mode) {
+    guideVoiceMode = normalizeGuideVoiceMode(mode);
     guideVoicePreferenceReady = true;
-    chrome.storage.local.set({ [GUIDE_VOICE_PREFERENCE_KEY]: guideVoiceEnabled });
-    if (guideVoiceEnabled) void playGuideVoice(step);
+    chrome.storage.local.set({ [GUIDE_VOICE_MODE_KEY]: guideVoiceMode, [GUIDE_VOICE_LEGACY_KEY]: guideVoiceMode !== 'off' });
+    if (guideVoiceMode === 'auto') void playGuideVoice(step);
     else stopGuideVoice();
     updateGuideVoiceButton();
   }
 
   chrome.storage.onChanged?.addListener((changes, areaName) => {
-    if (areaName !== 'local' || !changes?.[GUIDE_VOICE_PREFERENCE_KEY]) return;
+    if (areaName !== 'local' || !changes?.[GUIDE_VOICE_MODE_KEY]) return;
     guideVoicePreferenceReady = true;
-    guideVoiceEnabled = changes[GUIDE_VOICE_PREFERENCE_KEY].newValue === true;
-    if (!guideVoiceEnabled) {
+    guideVoiceMode = normalizeGuideVoiceMode(changes[GUIDE_VOICE_MODE_KEY].newValue);
+    if (guideVoiceMode !== 'auto') {
       stopGuideVoice();
       return;
     }
     if (state?.step) void playGuideVoice(state.step);
   });
+
+  function updateGuideHandRaiseUi(raised) {
+    const button = state?.handRaiseButton;
+    const panel = state?.handRaisePanel;
+    if (button) {
+      button.setAttribute('aria-pressed', raised ? 'true' : 'false');
+      button.title = raised ? i18n('guideLowerHand', '손 내리기') : i18n('guideRaiseHand', '도움 요청');
+      button.style.background = raised ? '#FFF7ED' : 'transparent';
+      button.style.borderColor = raised ? '#FDBA74' : 'rgba(100,116,139,.24)';
+    }
+    if (panel) panel.style.display = raised ? 'grid' : 'none';
+    if (state?.coachAvatar && raised) state.coachAvatar.innerHTML = mascotHtml('clarify');
+  }
+
+  function setGuideHandRaised(raised) {
+    if (!state) return;
+    state.handRaised = !!raised;
+    updateGuideHandRaiseUi(state.handRaised);
+    state.opts?.onHandRaise?.(state.handRaised);
+  }
 
   function isOverlayRootId(id) {
     return id === OVERLAY_ROOT_ID || id === LEGACY_OVERLAY_ROOT_ID;
@@ -935,12 +990,26 @@
         <span title="${idx + 1} / ${total}" style="flex-shrink:0;width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;font-size:12px;font-weight:800;display:grid;place-items:center;box-shadow:0 2px 6px rgba(0,155,142,.34)">${idx + 1}</span>
         ${resolved.source === 'none' ? `<span style="font-size:10.5px;color:#C2410C">${i18n('elementNotFound', '요소 미발견')}</span>` : ''}
         <div style="flex:1"></div>
-        <button class="parro-btn mimic-btn" data-act="toggle-guide-voice" aria-pressed="false" title="${escapeHtml(i18n('guideVoiceEnable', '음성 안내 켜기'))}" aria-label="${escapeHtml(i18n('guideVoiceEnable', '음성 안내 켜기'))}" style="display:grid;place-items:center;width:28px;height:28px;padding:0;border:1px solid rgba(100,116,139,.24);border-radius:8px;background:transparent;color:#64748B;font-size:14px;line-height:1">🔇</button>
+        <button class="parro-btn mimic-btn" data-act="play-guide-voice" title="${escapeHtml(i18n('guideVoicePlay', '음성 재생'))}" aria-label="${escapeHtml(i18n('guideVoicePlay', '음성 재생'))}" style="display:grid;place-items:center;width:28px;height:28px;padding:0;border:1px solid rgba(100,116,139,.24);border-radius:8px;background:transparent;color:#64748B;font-size:12px;line-height:1">▶</button>
+        <select data-role="guide-voice-mode" title="${escapeHtml(i18n('guideVoiceMode', '음성 재생 방식'))}" aria-label="${escapeHtml(i18n('guideVoiceMode', '음성 재생 방식'))}" style="height:28px;max-width:76px;border:1px solid rgba(100,116,139,.24);border-radius:8px;background:#fff;color:#475569;font-size:10.5px;padding:0 4px">
+          <option value="off">${escapeHtml(i18n('guideVoiceModeOff', '끔'))}</option>
+          <option value="manual">${escapeHtml(i18n('guideVoiceModeManual', '버튼'))}</option>
+          <option value="auto">${escapeHtml(i18n('guideVoiceModeAuto', '자동'))}</option>
+        </select>
+        <button class="parro-btn mimic-btn" data-act="toggle-hand-raise" aria-pressed="false" title="${escapeHtml(i18n('guideRaiseHand', '도움 요청'))}" aria-label="${escapeHtml(i18n('guideRaiseHand', '도움 요청'))}" style="display:grid;place-items:center;width:28px;height:28px;padding:0;border:1px solid rgba(100,116,139,.24);border-radius:8px;background:transparent;color:#64748B;font-size:15px;line-height:1">✋</button>
         <button class="parro-btn mimic-btn" data-act="hide-tooltip" title="말풍선 숨기기" style="background:transparent;color:#64748B;padding:3px 6px;font-size:15px;line-height:1">✕</button>
       </div>
       ${tooltipText ? `
         <div data-role="guide-copy" data-expanded="true" style="font-size:15px;color:#374151;line-height:1.5;font-weight:400;display:block;white-space:normal;overflow-wrap:anywhere">${escapeHtml(tooltipText)}</div>
       ` : ''}
+      <div data-role="hand-raise-panel" style="display:none;gap:7px;margin-top:10px;padding:9px 10px;border:1px solid #FDBA74;border-radius:10px;background:#FFF7ED;color:#9A3412">
+        <div style="font-size:11.5px;font-weight:750">${escapeHtml(i18n('guideHandRaisedMessage', '손을 들었어요. Parro가 이 단계를 다시 도와줄게요.'))}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="parro-btn mimic-btn" data-act="hand-listen" style="padding:5px 8px;background:#fff;color:#9A3412;border:1px solid #FDBA74;font-size:10.5px">▶ ${escapeHtml(i18n('guideListenAgain', '다시 듣기'))}</button>
+          <button class="parro-btn mimic-btn" data-act="hand-retry-target" style="padding:5px 8px;background:#fff;color:#9A3412;border:1px solid #FDBA74;font-size:10.5px">⌖ ${escapeHtml(i18n('retryTarget', '현재 화면에서 다시 찾기'))}</button>
+          <button class="parro-btn mimic-btn" data-act="lower-hand" style="padding:5px 8px;background:transparent;color:#9A3412;border:1px solid transparent;font-size:10.5px">${escapeHtml(i18n('guideLowerHand', '손 내리기'))}</button>
+        </div>
+      </div>
       ${step.type_text ? `
         <div style="margin-top:10px;background:#EDFCF8;border:1px solid #A7EDE3;border-radius:11px;padding:8px 10px">
           <div style="display:flex;align-items:center;gap:6px">
@@ -980,8 +1049,11 @@
 
     shadow.appendChild(root);
 
-    state = { host, shadow, hl, coachAvatar, tooltip, restoreBtn, scrollHint, resolved, step, opts, idx, total, advanced: false, completed: false, tooltipHidden: false, fallbackKey: null };
-    initializeGuideVoice(step, tooltip.querySelector('[data-act="toggle-guide-voice"]'));
+    state = { host, shadow, hl, coachAvatar, tooltip, restoreBtn, scrollHint, resolved, step, opts, idx, total, advanced: false, completed: false, tooltipHidden: false, handRaised: !!opts.handRaised, fallbackKey: null };
+    state.handRaiseButton = tooltip.querySelector('[data-act="toggle-hand-raise"]');
+    state.handRaisePanel = tooltip.querySelector('[data-role="hand-raise-panel"]');
+    updateGuideHandRaiseUi(state.handRaised);
+    initializeGuideVoice(step, tooltip.querySelector('[data-act="play-guide-voice"]'), tooltip.querySelector('[data-role="guide-voice-mode"]'));
 
     // 브라우저의 새로고침/뒤로가기 스크롤 복원이 첫 scrollIntoView를 덮어쓸 수 있어
     // 페이지가 안정된 뒤 한 번 더 확인한다. 사용자가 바로 타깃을 볼 수 있게 즉시 중앙 정렬한다.
@@ -1021,8 +1093,22 @@
         if (!state) return;
         state.tooltipHidden = true;
       }
-      else if (act === 'toggle-guide-voice') {
-        toggleGuideVoice(step);
+      else if (act === 'play-guide-voice') {
+        if (guideVoicePlaying) stopGuideVoice();
+        else void playGuideVoice(step);
+      }
+      else if (act === 'toggle-hand-raise') {
+        setGuideHandRaised(!state?.handRaised);
+      }
+      else if (act === 'lower-hand') {
+        setGuideHandRaised(false);
+      }
+      else if (act === 'hand-listen') {
+        if (guideVoiceMode === 'off') setGuideVoiceMode(step, 'manual');
+        void playGuideVoice(step);
+      }
+      else if (act === 'hand-retry-target') {
+        state?.opts?.onRetryTarget?.();
       }
       else if (act === 'copy') {
         const text = state && state.step && state.step.type_text;
@@ -1041,6 +1127,9 @@
             });
         }
       }
+    }, true);
+    tooltip.addEventListener('change', (e) => {
+      if (e.target?.matches?.('[data-role="guide-voice-mode"]')) setGuideVoiceMode(step, e.target.value);
     }, true);
 
     // 위치 추적 RAF
@@ -1482,10 +1571,19 @@
           </div>
           <div style="font-size:15px;font-weight:800;line-height:1.35">${escapeHtml(title)}</div>
         </div>
-        <button type="button" data-act="toggle-guide-voice" aria-pressed="false" title="${escapeHtml(i18n('guideVoiceEnable', '음성 안내 켜기'))}" aria-label="${escapeHtml(i18n('guideVoiceEnable', '음성 안내 켜기'))}" style="align-self:flex-start;display:grid;place-items:center;flex:0 0 30px;width:30px;height:30px;margin:-4px 0 0 0;padding:0;border:1px solid rgba(255,255,255,.16);border-radius:9px;background:rgba(255,255,255,.06);color:#D1D5DB;font-size:14px;line-height:1;cursor:pointer">🔇</button>
+        <button type="button" data-act="play-guide-voice" title="${escapeHtml(i18n('guideVoicePlay', '음성 재생'))}" aria-label="${escapeHtml(i18n('guideVoicePlay', '음성 재생'))}" style="align-self:flex-start;display:grid;place-items:center;flex:0 0 30px;width:30px;height:30px;margin:-4px 0 0 0;padding:0;border:1px solid rgba(255,255,255,.16);border-radius:9px;background:rgba(255,255,255,.06);color:#D1D5DB;font-size:12px;line-height:1;cursor:pointer">▶</button>
+        <select data-role="guide-voice-mode" aria-label="${escapeHtml(i18n('guideVoiceMode', '음성 재생 방식'))}" style="height:30px;max-width:72px;margin:-4px 0 0;border:1px solid rgba(255,255,255,.16);border-radius:9px;background:#182235;color:#D1D5DB;font-size:10px"><option value="off">${escapeHtml(i18n('guideVoiceModeOff', '끔'))}</option><option value="manual">${escapeHtml(i18n('guideVoiceModeManual', '버튼'))}</option><option value="auto">${escapeHtml(i18n('guideVoiceModeAuto', '자동'))}</option></select>
+        <button type="button" data-act="toggle-hand-raise" aria-pressed="false" title="${escapeHtml(i18n('guideRaiseHand', '도움 요청'))}" aria-label="${escapeHtml(i18n('guideRaiseHand', '도움 요청'))}" style="align-self:flex-start;display:grid;place-items:center;flex:0 0 30px;width:30px;height:30px;margin:-4px 0 0 0;padding:0;border:1px solid rgba(255,255,255,.16);border-radius:9px;background:rgba(255,255,255,.06);color:#D1D5DB;font-size:15px;line-height:1;cursor:pointer">✋</button>
         <button type="button" data-act="hide-explanation" aria-label="${escapeHtml(i18n('closeReferenceStep', '참고 단계 닫기'))}" title="${escapeHtml(i18n('closeReferenceStep', '참고 단계 닫기'))}" style="align-self:flex-start;display:grid;place-items:center;flex:0 0 30px;width:30px;height:30px;margin:-4px -4px 0 0;padding:0;border:1px solid rgba(255,255,255,.16);border-radius:9px;background:rgba(255,255,255,.06);color:#D1D5DB;font-size:17px;line-height:1;cursor:pointer">✕</button>
       </div>
       <div style="font-size:13px;color:#D1D5DB;line-height:1.55;margin-bottom:14px">${escapeHtml(text)}</div>
+      <div data-role="hand-raise-panel" style="display:none;gap:7px;margin:0 0 12px;padding:9px 10px;border:1px solid #FDBA74;border-radius:10px;background:#FFF7ED;color:#9A3412">
+        <div style="font-size:11.5px;font-weight:750">${escapeHtml(i18n('guideHandRaisedMessage', '손을 들었어요. Parro가 이 단계를 다시 도와줄게요.'))}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button type="button" data-act="hand-listen" style="padding:5px 8px;background:#fff;color:#9A3412;border:1px solid #FDBA74;border-radius:7px;font-size:10.5px;cursor:pointer">▶ ${escapeHtml(i18n('guideListenAgain', '다시 듣기'))}</button>
+          <button type="button" data-act="lower-hand" style="padding:5px 8px;background:transparent;color:#9A3412;border:1px solid transparent;border-radius:7px;font-size:10.5px;cursor:pointer">${escapeHtml(i18n('guideLowerHand', '손 내리기'))}</button>
+        </div>
+      </div>
       ${renderVisualGuideImage(step)}
       <div style="font-size:11.5px;color:#9CA3AF;line-height:1.45;padding-top:2px">이전·다음 단계는 Parro 사이드 패널에서 선택하세요.</div>`;
     const restoreBtn = document.createElement('button');
@@ -1513,10 +1611,30 @@
         openGuidePreview(step);
         return;
       }
-      if (action === 'toggle-guide-voice') {
+      if (action === 'play-guide-voice') {
         event.preventDefault();
         event.stopPropagation();
-        toggleGuideVoice(step);
+        if (guideVoicePlaying) stopGuideVoice();
+        else void playGuideVoice(step);
+        return;
+      }
+      if (action === 'toggle-hand-raise') {
+        event.preventDefault();
+        event.stopPropagation();
+        setGuideHandRaised(!state?.handRaised);
+        return;
+      }
+      if (action === 'hand-listen') {
+        event.preventDefault();
+        event.stopPropagation();
+        if (guideVoiceMode === 'off') setGuideVoiceMode(step, 'manual');
+        void playGuideVoice(step);
+        return;
+      }
+      if (action === 'lower-hand') {
+        event.preventDefault();
+        event.stopPropagation();
+        setGuideHandRaised(false);
         return;
       }
       if (action !== 'hide-explanation') return;
@@ -1530,8 +1648,14 @@
       setExplanationHidden(false);
     });
 
-    state = { host, shadow, explanation: true, explanationHidden: false, card, frame, restoreBtn, step };
-    initializeGuideVoice(step, card.querySelector('[data-act="toggle-guide-voice"]'));
+    card.addEventListener('change', (event) => {
+      if (event.target?.matches?.('[data-role="guide-voice-mode"]')) setGuideVoiceMode(step, event.target.value);
+    });
+    state = { host, shadow, explanation: true, explanationHidden: false, card, frame, restoreBtn, step, opts, handRaised: !!opts.handRaised };
+    state.handRaiseButton = card.querySelector('[data-act="toggle-hand-raise"]');
+    state.handRaisePanel = card.querySelector('[data-role="hand-raise-panel"]');
+    updateGuideHandRaiseUi(state.handRaised);
+    initializeGuideVoice(step, card.querySelector('[data-act="play-guide-voice"]'), card.querySelector('[data-role="guide-voice-mode"]'));
     host.setAttribute('data-explanation-hidden', 'false');
   }
 

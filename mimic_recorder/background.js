@@ -626,6 +626,7 @@ const GUIDE_STORAGE_KEYS = [
   'guideSurvey',
   'guideTargetStatus',
   'guideTargetEvidence',
+  'guideHandRaised',
 ];
 const VOLATILE_GUIDE_QUERY_KEY = /^(utm_.+|fbclid|gclid|_ga|code|state|session|session_id|timestamp|ts|_t)$/i;
 
@@ -718,7 +719,7 @@ async function showGuideWrongPage(tabId, step, index, total) {
 function scheduleGuideOverlay(tabId, delayMs = 450) {
   setTimeout(async () => {
     const state = await storageGet([
-      'guideModeActive', 'guideTabId', 'guideSteps', 'guideCurrentStep', 'guideSurvey', 'guideFinished',
+      'guideModeActive', 'guideTabId', 'guideSteps', 'guideCurrentStep', 'guideSurvey', 'guideFinished', 'guideHandRaised',
     ]);
     if (!state.guideModeActive || state.guideFinished || state.guideTabId !== tabId || !state.guideSteps?.length) return;
     const index = state.guideCurrentStep || 0;
@@ -744,6 +745,7 @@ function scheduleGuideOverlay(tabId, delayMs = 450) {
       index,
       total: state.guideSteps.length,
       survey: state.guideSurvey || null,
+      handRaised: Number(state.guideHandRaised?.stepIndex) === index && state.guideHandRaised?.raised === true,
     });
   }, Math.max(0, delayMs));
 }
@@ -1473,6 +1475,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
           guidePendingOverlay: true,
           guideTargetStatus: 'navigating',
           guideTargetEvidence: null,
+          guideHandRaised: null,
         });
         sendResponse({ ok: true, tabId: guideTab.id });
         if (guideTab.status === 'complete') {
@@ -1968,8 +1971,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           return;
         }
       }
-      const { guideTargetStatus } = await storageGet('guideTargetStatus');
-      sendResponse({ active: true, steps: guideSteps, currentStep: guideCurrentStep || 0, skippedSteps: guideSkippedSteps || [], completedSteps: guideCompletedSteps || [], finished: !!guideFinished, targetStatus: guideTargetStatus || 'navigating' });
+      const { guideTargetStatus, guideHandRaised } = await storageGet(['guideTargetStatus', 'guideHandRaised']);
+      sendResponse({ active: true, steps: guideSteps, currentStep: guideCurrentStep || 0, skippedSteps: guideSkippedSteps || [], completedSteps: guideCompletedSteps || [], finished: !!guideFinished, targetStatus: guideTargetStatus || 'navigating', handRaised: guideHandRaised || null });
     })();
     return true;
   }
@@ -2015,7 +2018,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       const skippedSteps = [...skipped].sort((a, b) => a - b);
       const completedSteps = [...completedSet].sort((a, b) => a - b);
-      await storageSet({ guideCurrentStep: idx, guideSkippedSteps: skippedSteps, guideCompletedSteps: completedSteps, guideFinished: completed, guideTargetStatus: completed ? 'ready' : 'navigating', guideTargetEvidence: null });
+      await storageSet({ guideCurrentStep: idx, guideSkippedSteps: skippedSteps, guideCompletedSteps: completedSteps, guideFinished: completed, guideTargetStatus: completed ? 'ready' : 'navigating', guideTargetEvidence: null, guideHandRaised: null });
       const step = steps[idx];
       sendResponse({ ok: true, currentStep: idx, step, skippedSteps, completedSteps, completed, finished: completed });
 
@@ -2070,7 +2073,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return;
       }
       const idx = Math.max(0, Math.min(message.stepIndex || 0, steps.length - 1));
-      await storageSet({ guideCurrentStep: idx, guideTargetStatus: 'navigating', guideTargetEvidence: null });
+      await storageSet({ guideCurrentStep: idx, guideTargetStatus: 'navigating', guideTargetEvidence: null, guideHandRaised: null });
       const step = steps[idx];
       sendResponse({ ok: true, currentStep: idx, step });
       if (!step) return;
@@ -2137,6 +2140,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         : null;
       await storageSet({ guideTargetStatus: message.status, guideTargetEvidence: evidence });
       sendResponse({ ok: true });
+    })();
+    return true;
+  }
+
+  if (message.type === 'GUIDE_HAND_RAISE') {
+    (async () => {
+      const { guideModeActive, guideTabId, guideCurrentStep } = await storageGet([
+        'guideModeActive', 'guideTabId', 'guideCurrentStep',
+      ]);
+      const stepIndex = Number(message.stepIndex);
+      if (!guideModeActive || (sender.tab?.id != null && sender.tab.id !== guideTabId) || stepIndex !== Number(guideCurrentStep)) {
+        sendResponse({ ok: false });
+        return;
+      }
+      const raised = message.raised === true;
+      const next = raised ? { raised: true, stepIndex, raisedAt: Date.now() } : null;
+      await storageSet({ guideHandRaised: next });
+      sendResponse({ ok: true, handRaised: next });
     })();
     return true;
   }

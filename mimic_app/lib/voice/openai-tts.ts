@@ -4,7 +4,7 @@ import { createServiceRoleClient } from '../supabase/server';
 export async function generateTTS(
   stepId: string,
   scriptText: string,
-  voice: 'nova' | 'alloy' = 'nova'
+  voice: 'nova' | 'alloy' = 'alloy'
 ): Promise<{ audio_url: string; duration_ms: number }> {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   const response = await openai.audio.speech.create({
@@ -12,6 +12,7 @@ export async function generateTTS(
     voice,
     input: scriptText,
     response_format: 'mp3',
+    speed: 1.06,
   });
 
   const buffer = Buffer.from(await response.arrayBuffer());

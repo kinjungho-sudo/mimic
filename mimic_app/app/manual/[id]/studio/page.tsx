@@ -159,7 +159,7 @@ export default function StudioPage() {
   const [showPreview, setShowPreview] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [ttsEnabled, setTtsEnabled] = useState(false);
-  const [ttsVoice, setTtsVoice] = useState<'nova' | 'alloy'>('nova');
+  const [ttsVoice, setTtsVoice] = useState<'nova' | 'alloy'>('alloy');
   const [ttsGenerating, setTtsGenerating] = useState(false);
   const [audioAssets, setAudioAssets] = useState<StudioAudioAsset[]>([]);
   const [uploadingStepId, setUploadingStepId] = useState<string | null>(null);
@@ -191,7 +191,7 @@ export default function StudioPage() {
     setSteps(ss);
     setAudioAssets((tutorial.audio_assets ?? []) as StudioAudioAsset[]);
     setTtsEnabled((tutorial as Tutorial & { tts_enabled?: boolean }).tts_enabled ?? false);
-    setTtsVoice(((tutorial as Tutorial & { tts_voice?: string }).tts_voice as 'nova' | 'alloy') ?? 'nova');
+    setTtsVoice(((tutorial as Tutorial & { tts_voice?: string }).tts_voice as 'nova' | 'alloy') ?? 'alloy');
     setActiveId(prev => prev ?? ss[0]?.id ?? null);
   }, [tutorial]);
 
@@ -764,8 +764,8 @@ export default function StudioPage() {
                       onChange={e => handleTtsVoiceChange(e.target.value as 'nova' | 'alloy')}
                       style={{ width: '100%', height: 32, borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: '#14121c', color: 'white', padding: '0 10px', fontSize: 12 }}
                     >
-                      <option value="nova">Nova</option>
                       <option value="alloy">Alloy</option>
+                      <option value="nova">Nova</option>
                     </select>
                     <button
                       onClick={handleGenerateAllTts}

@@ -788,6 +788,13 @@
         status,
         evidence: evidence || null,
       }),
+      handRaised: msg.handRaised === true,
+      onHandRaise: (raised) => chrome.runtime.sendMessage({
+        type: 'GUIDE_HAND_RAISE',
+        stepIndex: msg.index ?? 0,
+        raised,
+      }),
+      onRetryTarget: () => chrome.runtime.sendMessage({ type: 'SHOW_OVERLAY_FOR_STEP', stepIndex: msg.index ?? 0 }),
     });
   }
 
