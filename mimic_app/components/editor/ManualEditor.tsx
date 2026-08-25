@@ -9,7 +9,7 @@ import {
 import DOMPurify from 'dompurify';
 import { ImageAnnotationEditor, type Annotation } from './ImageAnnotationEditor';
 import { AnnotationPreview } from './AnnotationPreview';
-import { buildAutoAnnotation, displayAutoAnnotationsFor } from '@/lib/auto-annotations';
+import { buildAutoAnnotation, displayAutoAnnotationsFor, markAnnotationsAsManuallyEdited } from '@/lib/auto-annotations';
 import { pixelateRegion, type BlurRegion } from '@/lib/pixelate';
 import { faviconUrl, faviconFallbackUrl, hostnameToServiceName } from '@/lib/favicon';
 import { hasGuideConfig } from '@/lib/follow';
@@ -27,6 +27,7 @@ export interface ManualStep {
   // 영구 블러 적용 전 원본 URL (있으면 '되돌리기' 가능)
   originalScreenshotUrl?: string | null;
   annotations?: Annotation[];
+  annotationsPersisted?: boolean;
   pageUrl?:        string | null;
   domainHostname?: string | null;
   domainName?:     string | null;
@@ -56,7 +57,7 @@ export interface ManualStep {
 interface ManualEditorProps {
   steps: ManualStep[];
   onChange: (steps: ManualStep[]) => void;
-  onSave?: (id: string, patch: Partial<ManualStep>) => void;
+  onSave?: (id: string, patch: Partial<ManualStep>) => void | Promise<void>;
   onUploadImage?: (id: string, file: File) => Promise<string>;
   onRemoveImage?: (id: string) => Promise<void>;
   onDeleteStep?: (id: string) => void;
@@ -158,6 +159,10 @@ export function ManualEditor({ steps, onChange, onSave, onUploadImage, onRemoveI
     for (const step of steps) {
       if (autoHydratedAnnotationIds.current.has(step.id)) continue;
       const existingAnnotations = step.annotations ?? [];
+      if (step.annotationsPersisted && existingAnnotations.length === 0) {
+        autoHydratedAnnotationIds.current.add(step.id);
+        continue;
+      }
       const displayAnnotations = displayAutoAnnotationsFor(step);
       if (existingAnnotations.length > 0 && displayAnnotations === existingAnnotations) continue;
       const annotations = existingAnnotations.length > 0 ? displayAnnotations : buildAutoAnnotation(step);
@@ -168,7 +173,7 @@ export function ManualEditor({ steps, onChange, onSave, onUploadImage, onRemoveI
     hydrated.forEach((_, stepId) => autoHydratedAnnotationIds.current.add(stepId));
     onChange(steps.map(s => {
       const annotations = hydrated.get(s.id);
-      return annotations ? { ...s, annotations } : s;
+      return annotations ? { ...s, annotations, annotationsPersisted: true } : s;
     }));
     hydrated.forEach((annotations, stepId) => onSave?.(stepId, { annotations }));
   }, [steps, onChange, onSave]);
@@ -514,18 +519,26 @@ export function ManualEditor({ steps, onChange, onSave, onUploadImage, onRemoveI
         const step = steps.find(s => s.id === annotatingId)!;
         // element_rect가 있고 annotations가 비어 있으면 화살표+라벨 자동 생성
         const displayAnnotations = displayAnnotationsFor(step);
-        const initialAnnotations = displayAnnotations.length > 0
+        const initialAnnotations = step.annotationsPersisted || displayAnnotations.length > 0
           ? displayAnnotations
           : buildAutoAnnotation(step);
         return (
           <ImageAnnotationEditor
             imageUrl={step.screenshotUrl!}
             annotations={initialAnnotations}
-            onChange={annotations => {
+            onChange={async annotations => {
               // 함수형 업데이트로 stale closure 방지
               const id = annotatingId;
-              onChange(steps.map(s => s.id === id ? { ...s, annotations } : s));
-              onSave?.(id, { annotations });
+              const manualAnnotations = markAnnotationsAsManuallyEdited(annotations);
+              onChange(steps.map(s => s.id === id ? {
+                ...s,
+                annotations: manualAnnotations,
+                annotationsPersisted: true,
+              } : s));
+              await onSave?.(id, {
+                annotations: manualAnnotations,
+                annotationsPersisted: true,
+              });
             }}
             onClose={() => setAnnotatingId(null)}
             onPixelate={async (region: BlurRegion) => {
@@ -702,7 +715,7 @@ interface StepCardProps {
   onToggleSelect: () => void;
   onFocus: () => void;
   onUpdate: (patch: Partial<ManualStep>) => void;
-  onSave: (patch: Partial<ManualStep>) => void;
+  onSave: (patch: Partial<ManualStep>) => void | Promise<void>;
   onDelete: () => void;
   onDuplicate: () => void;
   isDuplicating?: boolean;

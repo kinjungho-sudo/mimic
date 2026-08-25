@@ -48,6 +48,7 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
     screenshotUrl: s.screenshot_url || undefined,
     originalScreenshotUrl: (s as Step & { original_screenshot_url?: string | null }).original_screenshot_url ?? null,
     annotations: (s.user_annotations as import('@/components/editor/ImageAnnotationEditor').Annotation[] | null) ?? [],
+    annotationsPersisted: s.user_annotations !== null && s.user_annotations !== undefined,
     pageUrl:         s.page_url        ?? null,
     domainHostname:  s.domain_hostname ?? null,
     domainName:      s.domain_name     ?? null,
@@ -1121,7 +1122,7 @@ export default function EditorPage() {
               if (patch.actionTitle !== undefined || patch.description !== undefined) {
                 clearTimeout(stepSaveTimers.current[stepId]);
               }
-              updateStep(stepId, {
+              const saveRequest = updateStep(stepId, {
                 ...(patch.actionTitle !== undefined ? { user_title: patch.actionTitle || null } : {}),
                 ...(patch.titleFontSize !== undefined ? { title_font_size: patch.titleFontSize } : {}),
                 ...(patch.followConfig !== undefined ? { follow_config: patch.followConfig } : {}),
@@ -1130,7 +1131,11 @@ export default function EditorPage() {
                 ...(patch.imageZoom !== undefined ? { image_zoom: patch.imageZoom } : {}),
                 ...(patch.imageOffsetX !== undefined ? { image_offset_x: patch.imageOffsetX } : {}),
                 ...(patch.imageOffsetY !== undefined ? { image_offset_y: patch.imageOffsetY } : {}),
-              }).catch((e) => logError('step.save.fail', { tutorialId: id, stepId, message: e instanceof Error ? e.message : String(e) }));
+              });
+              return saveRequest.catch((e) => {
+                logError('step.save.fail', { tutorialId: id, stepId, message: e instanceof Error ? e.message : String(e) });
+                if (patch.annotations !== undefined) throw e;
+              });
             }}
             onUploadImage={uploadStepImage}
             onRemoveImage={removeStepImage}
