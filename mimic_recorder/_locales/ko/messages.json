@@ -188,6 +188,7 @@
   "guideVoiceModeOff": { "message": "끔" },
   "guideVoiceModeManual": { "message": "버튼" },
   "guideVoiceModeAuto": { "message": "자동" },
+  "guideEmailPlaceholder": { "message": "이메일 주소를 입력하거나 붙여넣으세요" },
   "guideRaiseHand": { "message": "강사에게 도움 요청" },
   "guideLowerHand": { "message": "요청 닫기" },
   "guideHandRaisedMessage": { "message": "강사에게 도움 요청을 보냈습니다." },

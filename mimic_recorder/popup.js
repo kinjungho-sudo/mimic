@@ -956,7 +956,7 @@ document.getElementById('thumbZoomBlur')?.addEventListener('click', () => {
   startBlurMode(step, zoomImg, zoomOverlay._blob ?? null);
 });
 
-async function openImagePreviewWindow({ stepNumber = null, screenshotUrl = '', title = '' } = {}) {
+async function openImagePreviewWindow({ stepNumber = null, screenshotUrl = '', title = '', annotations = [] } = {}) {
   if (!Number.isFinite(stepNumber) && !screenshotUrl) return;
 
   const previewKey = `parroImagePreview:${Date.now()}:${Math.random().toString(36).slice(2)}`;
@@ -965,6 +965,7 @@ async function openImagePreviewWindow({ stepNumber = null, screenshotUrl = '', t
       stepNumber: Number.isFinite(stepNumber) ? stepNumber : null,
       screenshotUrl,
       title: title || t('previewWindowTitle', 'Parro 미리보기'),
+      annotations: Array.isArray(annotations) ? annotations : [],
       createdAt: Date.now(),
     },
   });
@@ -1662,7 +1663,10 @@ const guideStepDots   = document.getElementById('guideStepDots');
 const guideNavHint    = document.getElementById('guideNavHint');
 const guideStepPreviewBtn = document.getElementById('guideStepPreviewBtn');
 const guideStepImage = document.getElementById('guideStepImage');
+const guideStepAnnotationLayer = document.getElementById('guideStepAnnotationLayer');
 const guideVoiceToggle = document.getElementById('guideVoiceToggle');
+const guideOptionsBtn = document.getElementById('guideOptionsBtn');
+const guideOptionsPanel = document.getElementById('guideOptionsPanel');
 const guideVoiceControls = document.getElementById('guideVoiceControls');
 const guideVoicePlayBtn = document.getElementById('guideVoicePlayBtn');
 const guideVoiceReplayBtn = document.getElementById('guideVoiceReplayBtn');
@@ -1721,6 +1725,94 @@ function guideVoiceText(step) {
   return String(step?.instruction || step?.title || '').trim();
 }
 
+function guideStepAnnotations(step) {
+  return Array.isArray(step?.user_annotations)
+    ? step.user_annotations
+    : Array.isArray(step?.annotations) ? step.annotations : [];
+}
+
+function guideAnnotationBox(annotation) {
+  const values = ['x1', 'y1', 'x2', 'y2'].map((key) => Number(annotation?.[key]));
+  if (!values.every(Number.isFinite)) return null;
+  const [x1, y1, x2, y2] = values;
+  return {
+    x1, y1, x2, y2,
+    left: Math.max(0, Math.min(x1, x2)),
+    top: Math.max(0, Math.min(y1, y2)),
+    width: Math.max(1, Math.abs(x2 - x1)),
+    height: Math.max(1, Math.abs(y2 - y1)),
+  };
+}
+
+function safeGuideAnnotationColor(value, fallback = '#EF4444') {
+  const color = String(value || '').trim();
+  return /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(color)
+    || /^rgba?\([\d\s.,%]+\)$/i.test(color) ? color : fallback;
+}
+
+function renderGuideAnnotations(layer, step) {
+  if (!layer) return;
+  layer.replaceChildren();
+  guideStepAnnotations(step).forEach((annotation) => {
+    const box = guideAnnotationBox(annotation);
+    if (!box) return;
+    const color = safeGuideAnnotationColor(annotation.color || annotation.borderColor);
+    const borderColor = safeGuideAnnotationColor(annotation.borderColor || annotation.color, color);
+    const stroke = Math.max(1, Math.min(8, Number(annotation.strokeWidth) || 3));
+    const element = document.createElement('span');
+    element.dataset.annotationType = String(annotation.type || 'rect');
+    Object.assign(element.style, {
+      position: 'absolute', pointerEvents: 'none', boxSizing: 'border-box',
+    });
+
+    if (annotation.type === 'text') {
+      Object.assign(element.style, {
+        left: `${box.left}%`, top: `${box.top}%`, minWidth: '72px', maxWidth: '70%',
+        padding: '6px 8px', border: '1px solid rgba(255,255,255,.24)', borderRadius: '8px',
+        background: 'rgba(17,24,39,.88)', color: '#fff', fontSize: '11px', lineHeight: '1.35',
+      });
+      element.textContent = String(annotation.text || '');
+    } else if (annotation.type === 'marker') {
+      Object.assign(element.style, {
+        left: `${box.x1}%`, top: `${box.y1}%`, width: '22px', height: '22px',
+        transform: 'translate(-50%,-50%)', borderRadius: '50%', background: color,
+        color: '#fff', display: 'grid', placeItems: 'center', fontSize: '11px', fontWeight: '800',
+      });
+      element.textContent = String(annotation.markerNumber || '');
+    } else if (annotation.type === 'arrow' || annotation.type === 'line') {
+      const dx = box.x2 - box.x1;
+      const dy = box.y2 - box.y1;
+      Object.assign(element.style, {
+        left: `${box.x1}%`, top: `${box.y1}%`, width: `${Math.max(1, Math.sqrt(dx * dx + dy * dy))}%`,
+        height: `${stroke}px`, background: color, borderRadius: `${stroke}px`,
+        transformOrigin: '0 50%', transform: `rotate(${Math.atan2(dy, dx) * 180 / Math.PI}deg)`,
+      });
+      if (annotation.type === 'arrow') {
+        const head = document.createElement('span');
+        Object.assign(head.style, {
+          position: 'absolute', right: '-2px', top: '50%', width: '8px', height: '8px',
+          borderTop: `${stroke}px solid ${color}`, borderRight: `${stroke}px solid ${color}`,
+          transform: 'translateY(-50%) rotate(45deg)', transformOrigin: 'center',
+        });
+        element.appendChild(head);
+      }
+    } else {
+      Object.assign(element.style, {
+        left: `${box.left}%`, top: `${box.top}%`, width: `${box.width}%`, height: `${box.height}%`,
+        border: `${stroke}px solid ${borderColor}`,
+        borderRadius: annotation.type === 'ellipse' ? '999px' : annotation.type === 'roundedRect' ? '10px' : '6px',
+        background: annotation.type === 'spotlight' ? 'transparent' : 'rgba(239,68,68,.08)',
+        boxShadow: annotation.type === 'spotlight' ? '0 0 0 9999px rgba(0,0,0,.42),0 0 0 2px rgba(255,255,255,.75)' : 'none',
+      });
+    }
+    layer.appendChild(element);
+  });
+}
+
+function isProtectedGuideInput(value) {
+  return /^\[(?:이메일|email|전자우편)\]$/i.test(String(value || '').trim());
+}
+
 function formatGuideAudioTime(seconds) {
   const safe = Math.max(0, Number.isFinite(seconds) ? seconds : 0);
   const minutes = Math.floor(safe / 60);
@@ -1747,7 +1839,7 @@ function updateGuideVoiceUi(step = guideSteps[guideCurrentStep]) {
 
   if (guideVoicePlayBtn) {
     const playing = !guideAudio.paused && !guideAudio.ended;
-    guideVoicePlayBtn.textContent = playing ? 'Ⅱ' : '▶';
+    guideVoicePlayBtn.textContent = playing ? 'Ⅱ' : '🔊';
     guideVoicePlayBtn.title = playing
       ? t('guideVoicePause', '음성 일시정지')
       : t('guideVoicePlay', '음성 재생');
@@ -1942,6 +2034,12 @@ guideVoiceToggle?.addEventListener('click', () => {
   updateGuideVoiceUi();
 });
 
+guideOptionsBtn?.addEventListener('click', () => {
+  const open = guideOptionsPanel?.style.display !== 'flex';
+  if (guideOptionsPanel) guideOptionsPanel.style.display = open ? 'flex' : 'none';
+  guideOptionsBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+});
+
 guideVoiceModeSelect?.addEventListener('change', () => {
   guideVoiceMode = normalizeGuideVoiceMode(guideVoiceModeSelect.value);
   guideVoiceEnabled = guideVoiceMode !== 'off';
@@ -2094,6 +2192,7 @@ async function openGuideStepPreview(step) {
     await openImagePreviewWindow({
       screenshotUrl,
       title: step.title || t('previewWindowTitle', 'Parro 미리보기'),
+      annotations: guideStepAnnotations(step),
     });
   } catch {
     showToast(t('previewOpenFailed', '미리보기를 열지 못했습니다. 다시 시도해주세요.'), 3000);
@@ -2136,9 +2235,11 @@ function renderGuideStep(steps, idx) {
     if (step.screenshot_url) {
       guideStepImage.src = step.screenshot_url;
       guideStepImage.alt = step.title || `Step ${num}`;
+      renderGuideAnnotations(guideStepAnnotationLayer, step);
       guideStepPreviewBtn.style.display = 'block';
     } else {
       guideStepImage.removeAttribute('src');
+      renderGuideAnnotations(guideStepAnnotationLayer, null);
       guideStepPreviewBtn.style.display = 'none';
     }
   }
@@ -2147,7 +2248,7 @@ function renderGuideStep(steps, idx) {
   const copyArea    = document.getElementById('guideStepCopyArea');
   const copyContent = document.getElementById('guideStepCopyContent');
   if (copyArea && copyContent) {
-    if (step.type_text) {
+    if (step.type_text && !isProtectedGuideInput(step.type_text)) {
       copyContent.textContent  = step.type_text;
       copyArea.style.display   = 'flex';
     } else {

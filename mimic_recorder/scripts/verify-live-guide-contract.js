@@ -33,7 +33,7 @@ const playbookServer = fs.readFileSync(
   'utf8',
 );
 
-assert.equal(manifest.version, '1.7.32');
+assert.equal(manifest.version, '1.7.33');
 assert.deepEqual(
   manifest.content_scripts[0].js.slice(0, 3),
   ['targeting.js', 'guide-engine.js', 'content.js'],
@@ -122,8 +122,12 @@ assert.match(engine, /function submissionForm\(target\)/);
 assert.match(engine, /function validateSubmissionThenAdvance\(form\)/);
 assert.match(engine, /if \(form\) validateSubmissionThenAdvance\(form\)/);
 assert.match(engine, /function setupRequiredTextInput\(el, expectedText\)/);
-assert.match(engine, /current === expectedText/);
-assert.match(engine, /setAttribute\('placeholder', expectedText\)/);
+assert.match(engine, /function protectedGuideInputKind\(expectedText\)/);
+assert.match(engine, /function guideInputMatches\(currentValue, expectedText\)/);
+assert.match(engine, /이메일\|email\|전자우편/);
+assert.match(engine, /return \/\^\[\^\\s@\]\+@\[\^\\s@\]\+\\\.\[\^\\s@\]\+\$\/\.test\(current\)/);
+assert.match(engine, /const satisfied = guideInputMatches\(current, expectedText\)/);
+assert.match(engine, /setAttribute\('placeholder', placeholder\)/);
 assert.doesNotMatch(engine, /function autoFill\(/);
 
 const advance = section(engine, 'function advance(reason)', 'function nudge');
@@ -140,7 +144,7 @@ assert.match(queueOverlay, /showCountdown\([\s\S]*startText: 'START'/, 'the firs
 assert.match(queueOverlay, /_pendingGuideOverlay/, 'concurrent first-step overlay attempts must be coalesced during countdown');
 assert.match(engine, /data-act="copy"/, 'typed Live Guide steps must expose a copy button');
 assert.match(engine, /data-act="play-guide-voice"/, 'Live Guide bubbles must expose voice playback controls');
-assert.match(engine, /data-role="guide-voice-mode"/);
+assert.doesNotMatch(engine, /data-role="guide-voice-mode"/, 'voice mode belongs in the side-panel options, not the page bubble');
 assert.match(engine, /GUIDE_VOICE_MODE_KEY = 'guideVoiceMode'/);
 assert.match(engine, /\['off', 'manual', 'auto'\]/);
 assert.match(engine, /guideVoiceMode === 'auto'/);
@@ -152,9 +156,7 @@ assert.match(engine, /chrome\.storage\.onChanged\?\.addListener/);
 assert.match(engine, /function stopGuideVoice\(\)/);
 assert.match(engine, /function hide\(\) \{\s*stopGuideVoice\(\);/);
 assert.match(engine, /data-role="guide-copy"/);
-assert.match(engine, /data-act="toggle-hand-raise"/);
-assert.match(engine, /data-role="hand-raise-panel"/);
-assert.match(engine, /onHelpRequest/);
+assert.doesNotMatch(engine, /data-act="toggle-hand-raise"/, 'hand raise belongs beside the side-panel navigation controls');
 assert.match(content, /type: 'GUIDE_HELP_REQUEST'/);
 assert.match(background, /if \(message\.type === 'GUIDE_HELP_REQUEST'\)/);
 assert.match(background, /captureVisibleTab/);
@@ -221,6 +223,8 @@ assert.match(popup, /id="guideTargetRetry"/);
 assert.match(popup, /id="guideStepPreviewBtn"/);
 assert.match(popup, /id="guideManualTitle"/);
 assert.match(popup, /id="guideVoiceToggle"/);
+assert.match(popup, /id="guideOptionsBtn"/);
+assert.match(popup, /id="guideOptionsPanel"/);
 assert.match(popup, /id="guideVoiceMode"/);
 assert.match(popup, /id="guideHandRaiseBtn"/);
 assert.match(popup, /id="guideHandRaisePanel"/);
@@ -230,8 +234,17 @@ assert.match(popup, /id="guideCompletionModal"/);
 assert.match(popup, /id="guideVoiceControls"/);
 assert.match(popup, /id="guideVoicePlayBtn"/);
 assert.match(popup, /id="guideVoiceReplayBtn"/);
+assert.match(popup, /id="guideStepAnnotationLayer"/);
+assert.match(popup, /id="guidePrevBtn"[\s\S]*id="guideNextBtn"[\s\S]*id="guideHandRaiseBtn"/,
+  'hand raise must sit beside previous and skip/next controls');
+assert.match(popup, /id="guideVoiceToggle"[\s\S]*>🔊<\/button>/);
 assert.match(popup, /data-i18n-title="openPreviewLarge"/);
 assert.match(popupScript, /guideStepPreviewBtn\?\.addEventListener\('click'/);
+assert.match(popupScript, /function renderGuideAnnotations\(layer, step\)/);
+assert.match(popupScript, /annotations: guideStepAnnotations\(step\)/);
+assert.match(popupScript, /renderGuideAnnotations\(guideStepAnnotationLayer, step\)/);
+assert.match(popupScript, /guideOptionsBtn\?\.addEventListener\('click'/);
+assert.match(popupScript, /!isProtectedGuideInput\(step\.type_text\)/);
 assert.match(popupScript, /chrome\.runtime\.getURL\(`guide-preview\.html\?key=/);
 assert.match(popupScript, /chrome\.windows\.create\(\{ url, type: 'popup', width, height \}/);
 assert.match(popupScript, /let guideFinished = false/);
@@ -263,9 +276,12 @@ assert.match(
   'finishing the last step must ask whether the practice is complete',
 );
 assert.match(previewPage, /id="previewImage"/);
+assert.match(previewPage, /id="previewAnnotations"/);
 assert.match(previewPage, /script src="guide-preview\.js"/);
 assert.match(previewScript, /chrome\.storage\.local\.get\(key\)/);
 assert.match(previewScript, /chrome\.storage\.local\.remove\(key\)/);
+assert.match(previewScript, /function renderAnnotations\(annotations\)/);
+assert.match(previewScript, /renderAnnotations\(payload\.annotations\)/);
 assert.match(previewScript, /indexedDB\.open\('mimic_screenshots', 1\)/,
   'the detached image viewer must reload local captures from extension IndexedDB');
 assert.match(popupScript, /parroImagePreview:/,
@@ -294,4 +310,4 @@ assert.match(popupScript, /saveText:\s+true/, 'the Recorder settings UI must def
 assert.match(popupScript, /not_found: \{ label: t\('targetNotFound', '대상을 찾지 못했습니다'\)/);
 assert.match(popupScript, /type: 'SHOW_OVERLAY_FOR_STEP', stepIndex: guideCurrentStep/);
 
-console.log(JSON.stringify({ ok: true, checks: 193, scope: 'live-guide-recovery-preview-completion-overlay-voice-hand-raise-full-copy-and-separated-coach-contract' }));
+console.log(JSON.stringify({ ok: true, checks: 207, scope: 'live-guide-annotated-preview-options-navigation-email-input-contract' }));

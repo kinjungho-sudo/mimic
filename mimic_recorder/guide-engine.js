@@ -57,7 +57,7 @@
     if (!button) return;
     const enabled = guideVoiceMode !== 'off';
     button.disabled = !enabled || guideVoiceLoading;
-    button.textContent = guideVoiceLoading ? '…' : (playing ? 'Ⅱ' : '▶');
+    button.textContent = guideVoiceLoading ? '…' : (playing ? 'Ⅱ' : '🔊');
     button.title = error
       ? i18n('guideVoiceError', 'OpenAI 음성을 불러오지 못했습니다.')
       : blocked
@@ -164,15 +164,6 @@
     });
   }
 
-  function setGuideVoiceMode(step, mode) {
-    guideVoiceMode = normalizeGuideVoiceMode(mode);
-    guideVoicePreferenceReady = true;
-    chrome.storage.local.set({ [GUIDE_VOICE_MODE_KEY]: guideVoiceMode, [GUIDE_VOICE_LEGACY_KEY]: guideVoiceMode !== 'off' });
-    if (guideVoiceMode === 'auto') void playGuideVoice(step);
-    else stopGuideVoice();
-    updateGuideVoiceButton();
-  }
-
   chrome.storage.onChanged?.addListener((changes, areaName) => {
     if (areaName !== 'local' || !changes?.[GUIDE_VOICE_MODE_KEY]) return;
     guideVoicePreferenceReady = true;
@@ -183,68 +174,6 @@
     }
     if (state?.step) void playGuideVoice(state.step);
   });
-
-  function helpRequestPanelHtml(dark = false) {
-    const border = dark ? 'rgba(251,146,60,.5)' : '#FDBA74';
-    const background = dark ? 'rgba(124,45,18,.28)' : '#FFF7ED';
-    const color = dark ? '#FFEDD5' : '#9A3412';
-    return `<div data-role="hand-raise-panel" style="display:none;gap:8px;margin-top:10px;padding:10px;border:1px solid ${border};border-radius:10px;background:${background};color:${color}">
-      <div style="font-size:12px;font-weight:800">${escapeHtml(i18n('guideHelpRequestTitle', '강사에게 도움 요청'))}</div>
-      <textarea data-role="help-request-message" placeholder="${escapeHtml(i18n('guideHelpMessagePlaceholder', '어려운 점을 강사에게 알려주세요.'))}" style="width:100%;min-height:64px;box-sizing:border-box;border:1px solid ${border};border-radius:8px;padding:8px;font:12px/1.45 inherit;resize:vertical;background:#fff;color:#374151"></textarea>
-      <label style="display:flex;align-items:center;gap:7px;font-size:11.5px;cursor:pointer"><input data-role="help-request-screenshot" type="checkbox" checked> ${escapeHtml(i18n('guideAttachCurrentScreen', '현재 화면 캡처 함께 보내기'))}</label>
-      <div data-role="help-request-status" style="display:none;font-size:11px;line-height:1.4"></div>
-      <div style="display:flex;gap:6px">
-        <button type="button" class="parro-btn mimic-btn" data-act="cancel-help-request" style="flex:1;background:transparent;color:${color};border:1px solid ${border};padding:7px 8px">${escapeHtml(i18n('cancel', '취소'))}</button>
-        <button type="button" class="parro-btn mimic-btn" data-act="send-help-request" style="flex:1;background:#F97316;color:#fff;border:1px solid #F97316;padding:7px 8px">${escapeHtml(i18n('sendToInstructor', '강사에게 보내기'))}</button>
-      </div>
-    </div>`;
-  }
-
-  function updateGuideHandRaiseUi(raised) {
-    const button = state?.handRaiseButton;
-    const panel = state?.handRaisePanel;
-    if (button) {
-      button.setAttribute('aria-pressed', raised ? 'true' : 'false');
-      button.title = raised ? i18n('guideLowerHand', '손 내리기') : i18n('guideRaiseHand', '도움 요청');
-      button.style.background = raised ? '#FFF7ED' : 'transparent';
-      button.style.borderColor = raised ? '#FDBA74' : 'rgba(100,116,139,.24)';
-    }
-    if (panel) panel.style.display = state?.helpRequestOpen || raised ? 'grid' : 'none';
-    if (state?.coachAvatar && raised) state.coachAvatar.innerHTML = mascotHtml('clarify');
-  }
-
-  function toggleGuideHelpRequest(open) {
-    if (!state) return;
-    state.helpRequestOpen = !!open;
-    updateGuideHandRaiseUi(state.handRaised);
-  }
-
-  function submitGuideHelpRequest() {
-    if (!state?.handRaisePanel || !state?.opts?.onHelpRequest) return;
-    const message = state.handRaisePanel.querySelector('[data-role="help-request-message"]')?.value || '';
-    const includeScreenshot = state.handRaisePanel.querySelector('[data-role="help-request-screenshot"]')?.checked === true;
-    const status = state.handRaisePanel.querySelector('[data-role="help-request-status"]');
-    const button = state.handRaisePanel.querySelector('[data-act="send-help-request"]');
-    if (button) button.disabled = true;
-    if (status) {
-      status.style.display = 'block';
-      status.textContent = i18n('sendingHelpRequest', '강사에게 요청을 보내는 중입니다...');
-    }
-    state.opts.onHelpRequest({ message: String(message).trim(), includeScreenshot }, (response) => {
-      if (!state?.handRaisePanel) return;
-      if (button) button.disabled = false;
-      if (!response?.ok) {
-        if (status) status.textContent = response?.error === 'recorder_not_linked'
-          ? i18n('linkRecorderForHelp', '강사에게 요청하려면 Parro 계정을 먼저 연결해주세요.')
-          : i18n('helpRequestFailed', '요청을 보내지 못했습니다. 다시 시도해주세요.');
-        return;
-      }
-      state.handRaised = true;
-      state.helpRequestOpen = true;
-      state.handRaisePanel.innerHTML = `<div style="font-size:12px;font-weight:800">${escapeHtml(i18n('helpRequestSent', '강사에게 도움 요청을 보냈습니다.'))}</div><div style="font-size:11px;line-height:1.45">${escapeHtml(response.screenshotAttached ? i18n('helpScreenshotSent', '현재 화면 캡처도 함께 전달했습니다.') : i18n('helpMessageSent', '메시지를 전달했습니다.'))}</div>`;
-      updateGuideHandRaiseUi(true);
-    });
-  }
 
   function isOverlayRootId(id) {
     return id === OVERLAY_ROOT_ID || id === LEGACY_OVERLAY_ROOT_ID;
@@ -974,6 +903,7 @@
     // 아바타가 먼저 등장하고 그 옆으로 말풍선이 이어서 나타나게 한다.
     const idx = opts.index ?? 0, total = opts.total ?? 1;
     const typeTextSnippet = step.type_text ? escapeHtml(String(step.type_text)) : '';
+    const protectedTypeInput = protectedGuideInputKind(step.type_text);
     const tooltipText = step.instruction || step.title || '';
     const isTypeStep = Boolean(step.type_text || step.kind === 'type' || step.action_type === 'type');
     const tooltipMascotState = !isTypeStep && idx > 0 && idx % 3 === 1 ? 'point' : 'talk';
@@ -1015,20 +945,13 @@
         <span title="${idx + 1} / ${total}" style="flex-shrink:0;width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;font-size:12px;font-weight:800;display:grid;place-items:center;box-shadow:0 2px 6px rgba(0,155,142,.34)">${idx + 1}</span>
         ${resolved.source === 'none' ? `<span style="font-size:10.5px;color:#C2410C">${i18n('elementNotFound', '요소 미발견')}</span>` : ''}
         <div style="flex:1"></div>
-        <button class="parro-btn mimic-btn" data-act="play-guide-voice" title="${escapeHtml(i18n('guideVoicePlay', '음성 재생'))}" aria-label="${escapeHtml(i18n('guideVoicePlay', '음성 재생'))}" style="display:grid;place-items:center;width:28px;height:28px;padding:0;border:1px solid rgba(100,116,139,.24);border-radius:8px;background:transparent;color:#64748B;font-size:12px;line-height:1">▶</button>
-        <select data-role="guide-voice-mode" title="${escapeHtml(i18n('guideVoiceMode', '음성 재생 방식'))}" aria-label="${escapeHtml(i18n('guideVoiceMode', '음성 재생 방식'))}" style="height:28px;max-width:76px;border:1px solid rgba(100,116,139,.24);border-radius:8px;background:#fff;color:#475569;font-size:10.5px;padding:0 4px">
-          <option value="off">${escapeHtml(i18n('guideVoiceModeOff', '끔'))}</option>
-          <option value="manual">${escapeHtml(i18n('guideVoiceModeManual', '버튼'))}</option>
-          <option value="auto">${escapeHtml(i18n('guideVoiceModeAuto', '자동'))}</option>
-        </select>
-        <button class="parro-btn mimic-btn" data-act="toggle-hand-raise" aria-pressed="false" title="${escapeHtml(i18n('guideRaiseHand', '도움 요청'))}" aria-label="${escapeHtml(i18n('guideRaiseHand', '도움 요청'))}" style="display:grid;place-items:center;width:28px;height:28px;padding:0;border:1px solid rgba(100,116,139,.24);border-radius:8px;background:transparent;color:#64748B;font-size:15px;line-height:1">✋</button>
+        <button class="parro-btn mimic-btn" data-act="play-guide-voice" title="${escapeHtml(i18n('guideVoicePlay', '음성 재생'))}" aria-label="${escapeHtml(i18n('guideVoicePlay', '음성 재생'))}" style="display:grid;place-items:center;width:28px;height:28px;padding:0;border:1px solid rgba(100,116,139,.24);border-radius:8px;background:transparent;color:#64748B;font-size:15px;line-height:1">🔊</button>
         <button class="parro-btn mimic-btn" data-act="hide-tooltip" title="말풍선 숨기기" style="background:transparent;color:#64748B;padding:3px 6px;font-size:15px;line-height:1">✕</button>
       </div>
       ${tooltipText ? `
         <div data-role="guide-copy" data-expanded="true" style="font-size:15px;color:#374151;line-height:1.5;font-weight:400;display:block;white-space:normal;overflow-wrap:anywhere">${escapeHtml(tooltipText)}</div>
       ` : ''}
-      ${helpRequestPanelHtml(false)}
-      ${step.type_text ? `
+      ${step.type_text && !protectedTypeInput ? `
         <div style="margin-top:10px;background:#EDFCF8;border:1px solid #A7EDE3;border-radius:11px;padding:8px 10px">
           <div style="display:flex;align-items:center;gap:6px">
             <span style="font-size:11px;color:#007F75;font-weight:750;flex-shrink:0">⌨ 복사 후 붙여넣기</span>
@@ -1036,6 +959,9 @@
           </div>
           <div style="font-size:11.5px;color:#164E63;line-height:1.5;margin-top:5px;word-break:break-all">입력할 내용: ${typeTextSnippet}</div>
           <div style="font-size:10.5px;color:#0F766E;line-height:1.45;margin-top:4px">입력창에 붙여넣으면 자동으로 다음 단계로 진행합니다.</div>
+        </div>` : protectedTypeInput ? `
+        <div style="margin-top:10px;background:#F8FAFC;border:1px solid #CBD5E1;border-radius:11px;padding:8px 10px;font-size:11px;color:#475569;line-height:1.5">
+          사용할 이메일 주소를 직접 입력하거나 붙여넣으세요. 개인정보 보호용 표시는 입력값으로 사용하지 않습니다.
         </div>` : ''}`;
 
     root.appendChild(coachAvatar);
@@ -1067,11 +993,8 @@
 
     shadow.appendChild(root);
 
-    state = { host, shadow, hl, coachAvatar, tooltip, restoreBtn, scrollHint, resolved, step, opts, idx, total, advanced: false, completed: false, awaitingCompletion: false, tooltipHidden: false, handRaised: !!opts.handRaised, helpRequestOpen: false, fallbackKey: null };
-    state.handRaiseButton = tooltip.querySelector('[data-act="toggle-hand-raise"]');
-    state.handRaisePanel = tooltip.querySelector('[data-role="hand-raise-panel"]');
-    updateGuideHandRaiseUi(state.handRaised);
-    initializeGuideVoice(step, tooltip.querySelector('[data-act="play-guide-voice"]'), tooltip.querySelector('[data-role="guide-voice-mode"]'));
+    state = { host, shadow, hl, coachAvatar, tooltip, restoreBtn, scrollHint, resolved, step, opts, idx, total, advanced: false, completed: false, awaitingCompletion: false, tooltipHidden: false, fallbackKey: null };
+    initializeGuideVoice(step, tooltip.querySelector('[data-act="play-guide-voice"]'), null);
 
     // 브라우저의 새로고침/뒤로가기 스크롤 복원이 첫 scrollIntoView를 덮어쓸 수 있어
     // 페이지가 안정된 뒤 한 번 더 확인한다. 사용자가 바로 타깃을 볼 수 있게 즉시 중앙 정렬한다.
@@ -1115,15 +1038,6 @@
         if (guideVoicePlaying) stopGuideVoice();
         else void playGuideVoice(step);
       }
-      else if (act === 'toggle-hand-raise') {
-        toggleGuideHelpRequest(!state?.helpRequestOpen);
-      }
-      else if (act === 'cancel-help-request') {
-        toggleGuideHelpRequest(false);
-      }
-      else if (act === 'send-help-request') {
-        submitGuideHelpRequest();
-      }
       else if (act === 'completion-stay') {
         const onStay = state?.opts?.onStay;
         hide();
@@ -1141,7 +1055,7 @@
       }
       else if (act === 'copy') {
         const text = state && state.step && state.step.type_text;
-        if (text) {
+        if (text && !protectedGuideInputKind(text)) {
           navigator.clipboard.writeText(String(text))
             .then(() => {
               const b = e.target;
@@ -1157,10 +1071,6 @@
         }
       }
     }, true);
-    tooltip.addEventListener('change', (e) => {
-      if (e.target?.matches?.('[data-role="guide-voice-mode"]')) setGuideVoiceMode(step, e.target.value);
-    }, true);
-
     // 위치 추적 RAF
     const reposition = () => {
       if (!state) return;
@@ -1623,13 +1533,10 @@
           </div>
           <div style="font-size:15px;font-weight:800;line-height:1.35">${escapeHtml(title)}</div>
         </div>
-        <button type="button" data-act="play-guide-voice" title="${escapeHtml(i18n('guideVoicePlay', '음성 재생'))}" aria-label="${escapeHtml(i18n('guideVoicePlay', '음성 재생'))}" style="align-self:flex-start;display:grid;place-items:center;flex:0 0 30px;width:30px;height:30px;margin:-4px 0 0 0;padding:0;border:1px solid rgba(255,255,255,.16);border-radius:9px;background:rgba(255,255,255,.06);color:#D1D5DB;font-size:12px;line-height:1;cursor:pointer">▶</button>
-        <select data-role="guide-voice-mode" aria-label="${escapeHtml(i18n('guideVoiceMode', '음성 재생 방식'))}" style="height:30px;max-width:72px;margin:-4px 0 0;border:1px solid rgba(255,255,255,.16);border-radius:9px;background:#182235;color:#D1D5DB;font-size:10px"><option value="off">${escapeHtml(i18n('guideVoiceModeOff', '끔'))}</option><option value="manual">${escapeHtml(i18n('guideVoiceModeManual', '버튼'))}</option><option value="auto">${escapeHtml(i18n('guideVoiceModeAuto', '자동'))}</option></select>
-        <button type="button" data-act="toggle-hand-raise" aria-pressed="false" title="${escapeHtml(i18n('guideRaiseHand', '도움 요청'))}" aria-label="${escapeHtml(i18n('guideRaiseHand', '도움 요청'))}" style="align-self:flex-start;display:grid;place-items:center;flex:0 0 30px;width:30px;height:30px;margin:-4px 0 0 0;padding:0;border:1px solid rgba(255,255,255,.16);border-radius:9px;background:rgba(255,255,255,.06);color:#D1D5DB;font-size:15px;line-height:1;cursor:pointer">✋</button>
+        <button type="button" data-act="play-guide-voice" title="${escapeHtml(i18n('guideVoicePlay', '음성 재생'))}" aria-label="${escapeHtml(i18n('guideVoicePlay', '음성 재생'))}" style="align-self:flex-start;display:grid;place-items:center;flex:0 0 30px;width:30px;height:30px;margin:-4px 0 0 0;padding:0;border:1px solid rgba(255,255,255,.16);border-radius:9px;background:rgba(255,255,255,.06);color:#D1D5DB;font-size:15px;line-height:1;cursor:pointer">🔊</button>
         <button type="button" data-act="hide-explanation" aria-label="${escapeHtml(i18n('closeReferenceStep', '참고 단계 닫기'))}" title="${escapeHtml(i18n('closeReferenceStep', '참고 단계 닫기'))}" style="align-self:flex-start;display:grid;place-items:center;flex:0 0 30px;width:30px;height:30px;margin:-4px -4px 0 0;padding:0;border:1px solid rgba(255,255,255,.16);border-radius:9px;background:rgba(255,255,255,.06);color:#D1D5DB;font-size:17px;line-height:1;cursor:pointer">✕</button>
       </div>
       <div style="font-size:13px;color:#D1D5DB;line-height:1.55;margin-bottom:14px">${escapeHtml(text)}</div>
-      ${helpRequestPanelHtml(true)}
       ${renderVisualGuideImage(step)}
       <div style="font-size:11.5px;color:#9CA3AF;line-height:1.45;padding-top:2px">이전·다음 단계는 Parro 사이드 패널에서 선택하세요.</div>`;
     const restoreBtn = document.createElement('button');
@@ -1664,24 +1571,6 @@
         else void playGuideVoice(step);
         return;
       }
-      if (action === 'toggle-hand-raise') {
-        event.preventDefault();
-        event.stopPropagation();
-        toggleGuideHelpRequest(!state?.helpRequestOpen);
-        return;
-      }
-      if (action === 'send-help-request') {
-        event.preventDefault();
-        event.stopPropagation();
-        submitGuideHelpRequest();
-        return;
-      }
-      if (action === 'cancel-help-request') {
-        event.preventDefault();
-        event.stopPropagation();
-        toggleGuideHelpRequest(false);
-        return;
-      }
       if (action !== 'hide-explanation') return;
       event.preventDefault();
       event.stopPropagation();
@@ -1693,14 +1582,8 @@
       setExplanationHidden(false);
     });
 
-    card.addEventListener('change', (event) => {
-      if (event.target?.matches?.('[data-role="guide-voice-mode"]')) setGuideVoiceMode(step, event.target.value);
-    });
-    state = { host, shadow, explanation: true, explanationHidden: false, card, frame, restoreBtn, step, opts, idx: opts.index ?? 0, handRaised: !!opts.handRaised, helpRequestOpen: false };
-    state.handRaiseButton = card.querySelector('[data-act="toggle-hand-raise"]');
-    state.handRaisePanel = card.querySelector('[data-role="hand-raise-panel"]');
-    updateGuideHandRaiseUi(state.handRaised);
-    initializeGuideVoice(step, card.querySelector('[data-act="play-guide-voice"]'), card.querySelector('[data-role="guide-voice-mode"]'));
+    state = { host, shadow, explanation: true, explanationHidden: false, card, frame, restoreBtn, step, opts, idx: opts.index ?? 0 };
+    initializeGuideVoice(step, card.querySelector('[data-act="play-guide-voice"]'), null);
     host.setAttribute('data-explanation-hidden', 'false');
   }
 
@@ -1901,6 +1784,25 @@
     (document.head || document.documentElement).appendChild(node);
   }
 
+  function protectedGuideInputKind(expectedText) {
+    return /^\[(?:이메일|email|전자우편)\]$/i.test(String(expectedText || '').trim()) ? 'email' : '';
+  }
+
+  function guideInputPlaceholder(expectedText) {
+    return protectedGuideInputKind(expectedText) === 'email'
+      ? i18n('guideEmailPlaceholder', '이메일 주소를 입력하거나 붙여넣으세요')
+      : expectedText;
+  }
+
+  function guideInputMatches(currentValue, expectedText) {
+    const current = String(currentValue || '').trim();
+    if (!expectedText) return current.length > 0;
+    if (protectedGuideInputKind(expectedText) === 'email') {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(current);
+    }
+    return String(currentValue || '') === expectedText;
+  }
+
   // 실제 DOM 입력을 감시한다. 기대값이 있으면 빈 필드의 placeholder로만 보여주고,
   // 사용자가 동일한 값을 직접 입력했을 때에만 다음 단계로 진행한다.
   function setupRequiredTextInput(el, expectedText) {
@@ -1913,14 +1815,15 @@
     state.typeInputEl = el;
 
     if (expectedText && editableValue(el).length === 0) {
+      const placeholder = guideInputPlaceholder(expectedText);
       if (isNativeField) {
         state.originalPlaceholder = el.getAttribute('placeholder');
-        el.setAttribute('placeholder', expectedText);
+        el.setAttribute('placeholder', placeholder);
         state.placeholderInjected = true;
       } else {
         ensureContentEditablePlaceholderStyle();
         state.originalGuidePlaceholder = el.getAttribute('data-parro-guide-placeholder');
-        el.setAttribute('data-parro-guide-placeholder', expectedText);
+        el.setAttribute('data-parro-guide-placeholder', placeholder);
         state.guidePlaceholderInjected = true;
       }
     }
@@ -1928,7 +1831,7 @@
     const checkValue = () => {
       if (!state || state.completed || state.advanced) return;
       const current = editableValue(el);
-      const satisfied = expectedText ? current === expectedText : current.trim().length > 0;
+      const satisfied = guideInputMatches(current, expectedText);
       if (satisfied) advance('type');
     };
     el.addEventListener('input', checkValue, true);

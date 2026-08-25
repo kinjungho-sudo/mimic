@@ -669,11 +669,15 @@
         <span style="font-size:14px;font-weight:700;color:#1e1e2e;">Live Guide Beta</span>
       </div>
       <div style="display:flex;align-items:center;gap:6px;">
-        <button id="guideVoiceToggle" type="button" title="음성 재생" data-i18n-title="guideVoicePlay" style="display:none;width:30px;height:28px;border:1px solid #e8e8f0;border-radius:8px;background:#fff;color:#888;cursor:pointer;align-items:center;justify-content:center;font-size:12px;line-height:1;">▶</button>
-        <select id="guideVoiceMode" title="음성 재생 방식" data-i18n-title="guideVoiceMode" aria-label="음성 재생 방식" style="height:28px;max-width:82px;border:1px solid #e8e8f0;border-radius:8px;background:#fff;color:#555;font-size:11px;padding:0 4px;"><option value="off" data-i18n="guideVoiceModeOff">끔</option><option value="manual" data-i18n="guideVoiceModeManual">버튼</option><option value="auto" data-i18n="guideVoiceModeAuto">자동</option></select>
-        <button id="guideHandRaiseBtn" type="button" title="도움 요청" data-i18n-title="guideRaiseHand" aria-pressed="false" style="width:30px;height:28px;border:1px solid #e8e8f0;border-radius:8px;background:#fff;color:#888;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;line-height:1;">✋</button>
+        <button id="guideVoiceToggle" type="button" title="음성 재생" data-i18n-title="guideVoicePlay" style="display:none;width:30px;height:28px;border:1px solid #e8e8f0;border-radius:8px;background:#fff;color:#888;cursor:pointer;align-items:center;justify-content:center;font-size:15px;line-height:1;">🔊</button>
+        <button id="guideOptionsBtn" type="button" title="Live Guide 옵션" aria-label="Live Guide 옵션" aria-expanded="false" style="width:30px;height:28px;border:1px solid #e8e8f0;border-radius:8px;background:#fff;color:#888;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;line-height:1;">⚙</button>
         <button id="guideExitBtn" title="Live Guide Beta 종료" data-i18n-title="exitLiveGuideTitle" style="width:28px;height:28px;border:1px solid #e8e8f0;border-radius:8px;background:#fff;color:#888;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;transition:all 0.15s;" onmouseover="this.style.borderColor='#EF4444';this.style.color='#EF4444';this.style.background='#fff5f5'" onmouseout="this.style.borderColor='#e8e8f0';this.style.color='#888';this.style.background='#fff'">✕</button>
       </div>
+    </div>
+
+    <div id="guideOptionsPanel" style="display:none;align-items:center;justify-content:space-between;gap:12px;padding:9px 16px;border-bottom:1px solid #e8e8f0;background:#FAFBFC;flex-shrink:0;">
+      <label for="guideVoiceMode" data-i18n="guideVoiceMode" style="font-size:11.5px;font-weight:700;color:#4B5563;">음성 재생 방식</label>
+      <select id="guideVoiceMode" title="음성 재생 방식" data-i18n-title="guideVoiceMode" aria-label="음성 재생 방식" style="height:30px;min-width:104px;border:1px solid #DDE2EA;border-radius:7px;background:#fff;color:#374151;font-size:11.5px;padding:0 7px;"><option value="off" data-i18n="guideVoiceModeOff">끔</option><option value="manual" data-i18n="guideVoiceModeManual">직접 재생</option><option value="auto" data-i18n="guideVoiceModeAuto">자동 재생</option></select>
     </div>
 
     <!-- 진행률 -->
@@ -696,15 +700,18 @@
 
     <!-- 스텝 내용 -->
     <div style="flex:1;overflow-y:auto;padding:16px;">
-      <button id="guideStepPreviewBtn" type="button" title="미리보기 크게 보기" data-i18n-title="openPreviewLarge" style="display:none;position:relative;width:100%;margin:0 0 12px;padding:0;border:1px solid #e8e8f0;border-radius:8px;overflow:hidden;background:#0B1020;cursor:zoom-in;line-height:0;">
-        <img id="guideStepImage" style="display:block;width:100%;max-height:280px;object-fit:contain;" alt="">
+      <button id="guideStepPreviewBtn" type="button" title="미리보기 크게 보기" data-i18n-title="openPreviewLarge" style="display:none;position:relative;width:100%;margin:0 0 12px;padding:0;border:1px solid #e8e8f0;border-radius:8px;overflow:hidden;background:#0B1020;cursor:zoom-in;line-height:0;text-align:center;">
+        <span id="guideStepImageCanvas" style="position:relative;display:inline-block;max-width:100%;line-height:0;">
+          <img id="guideStepImage" style="display:block;width:auto;max-width:100%;max-height:280px;object-fit:contain;" alt="">
+          <span id="guideStepAnnotationLayer" aria-hidden="true" style="position:absolute;inset:0;pointer-events:none;overflow:hidden;"></span>
+        </span>
         <span aria-hidden="true" style="position:absolute;right:8px;top:8px;display:grid;place-items:center;width:30px;height:30px;border-radius:8px;background:rgba(15,23,42,.82);box-shadow:0 4px 14px rgba(0,0,0,.28);color:#fff;font-size:16px;line-height:1;">⛶</span>
       </button>
       <div id="guideManualTitle" style="display:none;margin-bottom:5px;font-size:10.5px;font-weight:700;color:#009B8E;"></div>
       <div style="font-size:16px;font-weight:700;color:#1e1e2e;margin-bottom:10px;line-height:1.4;" id="guideStepTitle"></div>
       <div style="font-size:13px;color:#555;line-height:1.7;" id="guideStepInstruction"></div>
       <div id="guideVoiceControls" style="display:none;align-items:center;gap:8px;margin-top:12px;padding:9px 10px;border:1px solid #D8EEE9;border-radius:9px;background:#F1FBF9;">
-        <button id="guideVoicePlayBtn" type="button" title="음성 재생" data-i18n-title="guideVoicePlay" aria-label="음성 재생" style="width:30px;height:30px;flex-shrink:0;border:1px solid #BFEDE7;border-radius:8px;background:#fff;color:#00796F;font-size:13px;font-weight:700;cursor:pointer;">▶</button>
+        <button id="guideVoicePlayBtn" type="button" title="음성 재생" data-i18n-title="guideVoicePlay" aria-label="음성 재생" style="width:30px;height:30px;flex-shrink:0;border:1px solid #BFEDE7;border-radius:8px;background:#fff;color:#00796F;font-size:15px;font-weight:700;cursor:pointer;">🔊</button>
         <div style="flex:1;min-width:0;">
           <div id="guideVoiceStatus" style="font-size:11.5px;font-weight:700;color:#27736B;" data-i18n="guideVoiceReady">음성 안내 준비됨</div>
           <div id="guideVoiceTime" style="margin-top:2px;font-size:10px;color:#7A9692;"></div>
@@ -734,6 +741,7 @@
       <div style="display:flex;gap:8px;">
       <button id="guidePrevBtn" data-i18n="previous" style="flex:1;padding:10px;border:1px solid #e8e8f0;border-radius:9px;background:#fff;color:#555;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;" onmouseover="this.style.borderColor='#009B8E';this.style.color='#009B8E';this.style.background='#E8FFF7'" onmouseout="this.style.borderColor='#e8e8f0';this.style.color='#555';this.style.background='#fff'">← 이전</button>
       <button id="guideNextBtn" data-i18n="next" style="flex:2;padding:10px;border:none;border-radius:9px;background:#009B8E;color:#fff;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.15s;">다음 →</button>
+      <button id="guideHandRaiseBtn" type="button" title="강사에게 도움 요청" data-i18n-title="guideRaiseHand" aria-label="강사에게 도움 요청" aria-pressed="false" style="flex:0 0 42px;width:42px;padding:10px 0;border:1px solid #e8e8f0;border-radius:9px;background:#fff;color:#888;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;">✋</button>
       </div>
     </div>
 

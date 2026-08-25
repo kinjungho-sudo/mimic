@@ -188,6 +188,7 @@
   "guideVoiceModeOff": { "message": "Off" },
   "guideVoiceModeManual": { "message": "Button" },
   "guideVoiceModeAuto": { "message": "Auto" },
+  "guideEmailPlaceholder": { "message": "Enter or paste an email address" },
   "guideRaiseHand": { "message": "Ask instructor for help" },
   "guideLowerHand": { "message": "Close request" },
   "guideHandRaisedMessage": { "message": "Your help request was sent to the instructor." },
