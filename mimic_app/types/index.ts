@@ -12,6 +12,25 @@ export type User = {
   daily_limit: number;
   agreements: Agreements;
   created_at: string;
+  onboarding?: OnboardingProgress | null;
+};
+
+export type OnboardingStatus = 'not_started' | 'in_progress' | 'completed' | 'dismissed';
+
+export type OnboardingProgress = {
+  user_id: string;
+  guide_key: string;
+  guide_version: number;
+  status: OnboardingStatus;
+  current_step: string | null;
+  initial_completed_at: string | null;
+  last_started_at: string | null;
+  last_completed_at: string | null;
+  dismissed_at: string | null;
+  run_count: number;
+  practice_manual_id: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type Agreements = {

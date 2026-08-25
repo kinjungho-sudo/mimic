@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { X, Send, Check, CheckCircle2, MoreHorizontal, MessageSquarePlus } from 'lucide-react';
+import { X, Send, Check, CheckCircle2, MoreHorizontal, MessageSquarePlus, Hand, Camera } from 'lucide-react';
 
 interface CommentAuthor {
   name: string | null;
@@ -17,6 +17,9 @@ interface CommentItem {
   body: string;
   created_at: string;
   resolved_at: string | null;
+  request_kind?: 'comment' | 'live_guide_help';
+  attachment_path?: string | null;
+  request_context?: { page_url?: string | null; step_number?: number | null } | null;
   author: CommentAuthor | null;
 }
 
@@ -76,8 +79,8 @@ export function CommentsPanel({ tutorialId, activeStepId, steps, currentUserId, 
     return steps.find(s => s.id === stepId)?.number ?? null;
   }, [steps]);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const res = await fetch(`/api/tutorials/${tutorialId}/comments`);
       if (res.ok) {
@@ -85,11 +88,15 @@ export function CommentsPanel({ tutorialId, activeStepId, steps, currentUserId, 
         setComments(comments ?? []);
       }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [tutorialId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    void load();
+    const timer = window.setInterval(() => { void load(true); }, 15_000);
+    return () => window.clearInterval(timer);
+  }, [load]);
 
   const post = async (body: string, parentId: string | null, stepId: string | null) => {
     const text = body.trim();
@@ -245,8 +252,9 @@ export function CommentsPanel({ tutorialId, activeStepId, steps, currentUserId, 
             const stepNo = stepNumberOf(c.step_id);
             const mine = c.author_id === currentUserId;
             const resolved = !!c.resolved_at;
+            const isHelpRequest = c.request_kind === 'live_guide_help';
             return (
-              <div key={c.id} style={{ background: 'white', border: '1px solid #E8E8EC', borderRadius: '12px', padding: '12px', boxShadow: '0 1px 2px rgba(17,24,39,0.04)' }}>
+              <div key={c.id} style={{ background: 'white', border: `1px solid ${isHelpRequest ? '#FDBA74' : '#E8E8EC'}`, borderRadius: '12px', padding: '12px', boxShadow: '0 1px 2px rgba(17,24,39,0.04)' }}>
                 {/* 카드 헤더 */}
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
                   <Avatar author={c.author} />
@@ -282,6 +290,12 @@ export function CommentsPanel({ tutorialId, activeStepId, steps, currentUserId, 
                   </div>
                 </div>
 
+                {isHelpRequest && (
+                  <div style={{ marginTop: '9px', display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '4px 8px', borderRadius: '6px', background: '#FFF7ED', color: '#C2410C', fontSize: '11px', fontWeight: 700 }}>
+                    <Hand size={13} /> Live Guide 도움 요청
+                  </div>
+                )}
+
                 {/* 스텝 배지 */}
                 {stepNo != null && (
                   <button onClick={() => onJumpToStep?.(c.step_id!)}
@@ -292,6 +306,14 @@ export function CommentsPanel({ tutorialId, activeStepId, steps, currentUserId, 
 
                 {/* 본문 */}
                 <div style={{ fontSize: '13px', color: '#374151', lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word', marginTop: '8px' }}>{c.body}</div>
+
+                {c.attachment_path && (
+                  <a href={`/api/comments/${c.id}/attachment`} target="_blank" rel="noreferrer" style={{ display: 'block', marginTop: '9px', textDecoration: 'none' }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={`/api/comments/${c.id}/attachment`} alt="도움 요청 당시 화면" style={{ display: 'block', width: '100%', maxHeight: '180px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #E5E7EB' }} />
+                    <span style={{ marginTop: '5px', display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#6B7280', fontSize: '10.5px' }}><Camera size={12} /> 요청 당시 화면 열기</span>
+                  </a>
+                )}
 
                 {/* 대댓글 */}
                 {repliesOf(c.id).map(r => (

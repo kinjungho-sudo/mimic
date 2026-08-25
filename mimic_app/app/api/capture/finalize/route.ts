@@ -8,8 +8,17 @@ import { resolveFavicon } from '@/lib/favicon';
 import { buildClickHighlight } from '@/lib/annotations';
 import { hasDecorativeActionGlyph, stripDecorativeActionGlyphs } from '@/lib/action-copy';
 import { transcribeAudio, assignSegmentsToSteps, computeStepWindows } from '@/lib/voice/voice';
+import {
+  canGenerateDefaultTutorialTTS,
+  DEFAULT_TUTORIAL_TTS_SETTING_VOICE,
+  generateDefaultTutorialTTS,
+} from '@/lib/voice/default-tutorial-tts';
 import { logSystem } from '@/lib/logging/logger-server';
-import { writeWithCaptureSchemaCompatibility } from '@/lib/capture/schema-compat';
+import {
+  PARRO_ONBOARDING_KEY,
+  PARRO_ONBOARDING_PRACTICE_PATH,
+  PARRO_ONBOARDING_VERSION,
+} from '@/lib/onboarding';
 
 async function fetchScreenshotForAi(url: string): Promise<{ base64: string; mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif' } | null> {
   if (url.startsWith('data:')) {
@@ -150,6 +159,86 @@ function blockedStepMessage(reason: unknown): string {
   return '이 단계는 보안 정책이나 브라우저 제한으로 자동 캡처되지 않았습니다. 화면 안내에 따라 직접 진행한 뒤 다음을 눌러주세요.';
 }
 
+function isMissingExceptionStepColumns(error: { code?: string; message?: string } | null | undefined) {
+  return /step_type|capture_source|capture_failure_reason/i.test(error?.message ?? '');
+}
+
+function isMissingTargetContextColumn(error: { code?: string; message?: string } | null | undefined) {
+  return /target_context/i.test(error?.message ?? '');
+}
+
+function stripUnsupportedStepColumns<T extends Record<string, unknown>>(
+  steps: T[],
+  error: { code?: string; message?: string } | null | undefined,
+): T[] {
+  return steps.map(step => {
+    const next = { ...step };
+    if (isMissingExceptionStepColumns(error)) {
+      delete next.step_type;
+      delete next.capture_source;
+      delete next.capture_failure_reason;
+    }
+    if (isMissingTargetContextColumn(error)) delete next.target_context;
+    return next;
+  });
+}
+
+function isOnboardingPracticeUrl(rawUrl: unknown, expectedOrigin: string) {
+  if (typeof rawUrl !== 'string') return false;
+  try {
+    const url = new URL(rawUrl);
+    return url.origin === expectedOrigin && url.pathname === PARRO_ONBOARDING_PRACTICE_PATH;
+  } catch {
+    return false;
+  }
+}
+
+type CaptureFinalizeClient = ReturnType<typeof createServiceRoleClient>;
+
+async function findCompletedCaptureResult(
+  supabase: CaptureFinalizeClient,
+  userId: string,
+  sessionId: string,
+) {
+  const { data: tutorial } = await supabase
+    .from('mm_tutorials')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('session_id', sessionId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!tutorial) return null;
+
+  const { count: stepCount, error: stepCountError } = await supabase
+    .from('mm_steps')
+    .select('id', { count: 'exact', head: true })
+    .eq('tutorial_id', tutorial.id);
+
+  // A tutorial row is inserted before its steps. Only expose it as a completed
+  // retry result after at least one step exists, so concurrent finalize calls
+  // never open a half-built editor.
+  if (stepCountError || !stepCount) return null;
+
+  const { data: onboardingPractice } = await supabase
+    .from('mm_user_onboarding_progress')
+    .select('practice_manual_id')
+    .eq('user_id', userId)
+    .eq('practice_manual_id', tutorial.id)
+    .limit(1)
+    .maybeSingle();
+
+  return {
+    tutorial_id: tutorial.id,
+    step_count: stepCount,
+    share_token: null,
+    completion_pending: true,
+    onboarding_practice: !!onboardingPractice,
+    already_finalized: true,
+  };
+}
+
 export async function POST(request: NextRequest) {
   const auth = await requireExtensionToken(request);
   if (!auth.ok) return auth.response;
@@ -169,7 +258,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { session_id, title, step_numbers, content_mode = 'action', auto_zoom = false, audio_url = null, step_voice } = parsed.data;
+  const {
+    session_id,
+    title,
+    step_numbers,
+    content_mode = 'action',
+    auto_zoom = false,
+    audio_url = null,
+    step_voice,
+    onboarding_token,
+  } = parsed.data;
 
   // 세션 소유자 확인
   const { data: session } = await supabase
@@ -183,8 +281,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Session not found' }, { status: 404 });
   }
   if (session.status !== 'active') {
+    const completedResult = await findCompletedCaptureResult(supabase, userId, session_id);
+    if (completedResult) {
+      return NextResponse.json(completedResult);
+    }
     return NextResponse.json({ error: 'Session already finalized' }, { status: 409 });
   }
+
+  const defaultTtsEnabled = await canGenerateDefaultTutorialTTS(userId, null, supabase);
 
   // 캡처 이벤트 조회 — step_number(행동 순서) 우선, 없으면 created_at(저장 순서) 폴백.
   // created_at만 쓰면 업로드 완료 순서로 뒤섞여 1-3-2 순서 버그 발생.
@@ -208,6 +312,27 @@ export async function POST(request: NextRequest) {
 
   if (liveEvents.length === 0) {
     return NextResponse.json({ error: 'No captured steps' }, { status: 422 });
+  }
+
+  let practiceCandidate = false;
+  if (onboarding_token) {
+    const { data: onboarding } = await supabase
+      .from('mm_user_onboarding_progress')
+      .select('status, practice_capture_token_issued_at, practice_capture_consumed_at')
+      .eq('user_id', userId)
+      .eq('guide_key', PARRO_ONBOARDING_KEY)
+      .eq('guide_version', PARRO_ONBOARDING_VERSION)
+      .eq('practice_capture_token', onboarding_token)
+      .maybeSingle();
+    const issuedAt = onboarding?.practice_capture_token_issued_at
+      ? new Date(onboarding.practice_capture_token_issued_at).getTime()
+      : 0;
+    const tokenAgeMs = Date.now() - issuedAt;
+    practiceCandidate = onboarding?.status === 'in_progress'
+      && !onboarding.practice_capture_consumed_at
+      && tokenAgeMs >= 0
+      && tokenAgeMs <= 30 * 60 * 1000
+      && liveEvents.every(event => isOnboardingPracticeUrl(event.url, request.nextUrl.origin));
   }
 
   // 무료 플랜 여부 확인 (어노테이션 생성 제한)
@@ -247,6 +372,10 @@ export async function POST(request: NextRequest) {
   const { data: tutorial, error: tutError } = await supabase
     .from('mm_tutorials')
     .insert({
+      // One capture session must produce exactly one manual. Reusing the
+      // session UUID as the tutorial UUID makes concurrent/retried finalize
+      // requests converge on the same row without a schema migration.
+      id: session_id,
       user_id: userId,
       title: tutorialTitle,
       session_id,
@@ -255,11 +384,25 @@ export async function POST(request: NextRequest) {
       visibility: 'private',
       share_token: null,
       published_at: null,
+      tts_enabled: defaultTtsEnabled,
+      // The current DB constraint accepts nova/alloy. Generated Parro audio uses Cedar.
+      tts_voice: DEFAULT_TUTORIAL_TTS_SETTING_VOICE,
     })
     .select('id')
     .single();
 
   if (tutError || !tutorial) {
+    const completedResult = await findCompletedCaptureResult(supabase, userId, session_id);
+    if (completedResult) {
+      // Heal the narrow case where another finalize request created all steps
+      // but its response/state update was interrupted.
+      await supabase
+        .from('mm_capture_sessions')
+        .update({ status: 'completed', ended_at: new Date().toISOString() })
+        .eq('id', session_id)
+        .eq('user_id', userId);
+      return NextResponse.json(completedResult);
+    }
     return NextResponse.json({ error: 'Failed to create tutorial' }, { status: 500 });
   }
   let expectedAutoTitle = tutorialTitle;
@@ -429,12 +572,16 @@ export async function POST(request: NextRequest) {
     };
   });
 
-  const { error: stepsError } = await writeWithCaptureSchemaCompatibility(
-    steps,
-    async candidate => supabase
+  let { error: stepsError } = await supabase
+    .from('mm_steps')
+    .insert(steps);
+
+  if (isMissingExceptionStepColumns(stepsError) || isMissingTargetContextColumn(stepsError)) {
+    const retry = await supabase
       .from('mm_steps')
-      .insert(candidate),
-  );
+      .insert(stripUnsupportedStepColumns(steps, stepsError));
+    stepsError = retry.error;
+  }
 
   if (stepsError) {
     // 롤백: 생성한 튜토리얼 삭제
@@ -457,9 +604,29 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to finalize session' }, { status: 500 });
   }
 
-  const countUpdate = await supabase.rpc('increment_daily_manual_count', { uid: userId });
-  if (countUpdate.error) {
-    console.warn('capture finalize daily count update failed:', countUpdate.error.message);
+  let onboardingPractice = false;
+  if (practiceCandidate && onboarding_token) {
+    const { data: consumed } = await supabase
+      .from('mm_user_onboarding_progress')
+      .update({
+        practice_capture_consumed_at: new Date().toISOString(),
+        practice_manual_id: tutorial.id,
+      })
+      .eq('user_id', userId)
+      .eq('guide_key', PARRO_ONBOARDING_KEY)
+      .eq('guide_version', PARRO_ONBOARDING_VERSION)
+      .eq('practice_capture_token', onboarding_token)
+      .is('practice_capture_consumed_at', null)
+      .select('user_id')
+      .maybeSingle();
+    onboardingPractice = !!consumed;
+  }
+
+  if (!onboardingPractice) {
+    const countUpdate = await supabase.rpc('increment_daily_manual_count', { uid: userId });
+    if (countUpdate.error) {
+      console.warn('capture finalize daily count update failed:', countUpdate.error.message);
+    }
   }
 
   // staging 정리 — 매뉴얼 변환이 끝난 세션의 mm_capture_events 행과,
@@ -632,10 +799,9 @@ export async function POST(request: NextRequest) {
     console.error('capture finalize initial draft generation error:', err);
   }
 
-  // 최초 완성본부터 목적 중심 제목과 설명을 제공한다. AI가 실패하거나 제한 시간에
-  // 도달한 경우에만 위에서 저장한 결정적 fallback을 그대로 사용한다.
-  // 운영 장애 시 명시적으로 0을 지정한 경우에만 전체 AI 패스를 우회한다.
-  const runFullDraftBeforeResponse = process.env.CAPTURE_FINALIZE_BLOCKING_AI !== '0';
+  // 모든 스텝은 위의 결정적 fallback으로 즉시 읽을 수 있게 만든다.
+  // 아래 전체 AI 패스는 명시적으로 켠 환경에서만 fallback을 더 자연스럽게 다듬는다.
+  const runFullDraftBeforeResponse = process.env.CAPTURE_FINALIZE_BLOCKING_AI === '1';
   if (runFullDraftBeforeResponse) {
   // AI 초안 생성 — tutorial 제목 + 스텝별 user_title/user_script + 커버 색상
   try {
@@ -1092,6 +1258,17 @@ export async function POST(request: NextRequest) {
       // 전사 실패는 무시 — 매뉴얼은 정상 생성됨
     }
   }
+  if (defaultTtsEnabled) {
+    try {
+      const result = await generateDefaultTutorialTTS(tutorial.id, supabase);
+      if (result.failed > 0) {
+        console.warn('capture finalize default TTS partially failed:', { tutorialId: tutorial.id, ...result });
+      }
+    } catch (err) {
+      console.error('capture finalize default TTS error:', err);
+      // TTS is best-effort. A speech provider failure must not discard the manual.
+    }
+  }
 
   // PII 검사 — 응답 블로킹 없이 백그라운드 실행
   void (async () => {
@@ -1128,5 +1305,6 @@ export async function POST(request: NextRequest) {
     step_count: steps.length,
     share_token: null,
     completion_pending: true,
+    onboarding_practice: onboardingPractice,
   });
 }

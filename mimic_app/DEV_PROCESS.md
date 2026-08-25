@@ -159,7 +159,7 @@ git checkout dev                                 # 복귀
 ### 6-1. 일반 기능 (확장 불필요)
 에디터·뷰어·홈·플레이북·로그인 등 **대부분의 화면은 확장 없이** `npm run dev` + 브라우저(또는 Playwright)로 테스트. dev 계정(`test@naver.com`/`Devtest1234`)으로 로그인.
 
-**원격 dev 표준 주소는 `https://parro-guide-dev.vercel.app`이다.** 이 도메인은 Vercel `parro-guide` 프로젝트의 `dev` 브랜치에 고정되어 있으며 dev Supabase(dskphg…)만 사용한다. `https://parro-guide.vercel.app`은 `main` Production 주소이며, 자동 생성되는 `mimic-*` Vercel 주소는 레거시 내부 식별자이므로 사용자 안내나 개발 표준 주소로 사용하지 않는다.
+**원격 dev 표준 주소는 `https://parro-guide.vercel.app`이다.** 이 도메인은 Vercel `parro-guide` 프로젝트의 `dev` 브랜치에 고정되어 있으며 dev Supabase(dskphg…)만 사용한다. 자동 생성되는 `mimic-*` Vercel 주소는 레거시 내부 식별자이므로 사용자 안내나 개발 표준 주소로 사용하지 않는다.
 
 ### 6-2. 녹화→캡처 흐름 (확장 필요)
 Chrome 확장(`mimic_recorder`)은 **녹화 캡처 파이프라인에서만** 필요. **확장은 자기 ID로 dev/운영을 자동 판별**한다(웹스토어 배포본=운영, 개발자 언패킹=dev). 수동 전환 불필요.
@@ -192,7 +192,7 @@ Chrome 확장(`mimic_recorder`)은 **녹화 캡처 파이프라인에서만** �
 
 ## 8. 미해결 TODO
 - 운영 admin 집계(`mm_view_events`)는 10만 상한 임시 처리 — 데이터 증가 시 SQL 집계 RPC로 전환.
-- (참고) 확장 dev 모드는 완료됨(§6-2). 원격 웹앱에서 확장 연결을 테스트하려면 해당 origin이 manifest `externally_connectable`에 있어야 한다. 표준 dev 주소 `https://parro-guide-dev.vercel.app/*`, Production 주소 `https://parro-guide.vercel.app/*`, 기존 호환 Vercel 주소, `mimicflow.com`, localhost를 허용 대상으로 유지한다.
+- (참고) 확장 dev 모드는 완료됨(§6-2). 원격 웹앱에서 확장 연결을 테스트하려면 해당 origin이 manifest `externally_connectable`에 있어야 한다. 표준 dev 주소 `https://parro-guide.vercel.app/*`, 기존 호환 Vercel 주소, `mimicflow.com`, localhost를 허용 대상으로 유지한다.
 
 ---
 

@@ -4,7 +4,30 @@ import { createServiceRoleClient } from '@/lib/supabase/server';
 import { captureSaveStepSchema } from '@/lib/validators';
 import { redactSensitive } from '@/lib/redact';
 import { logServer } from '@/lib/logging/logger-server';
-import { writeWithCaptureSchemaCompatibility } from '@/lib/capture/schema-compat';
+
+function isMissingActionInfoColumn(error: { code?: string; message?: string } | null | undefined) {
+  return /action_info/i.test(error?.message ?? '');
+}
+
+function isMissingTargetContextColumn(error: { code?: string; message?: string } | null | undefined) {
+  return /target_context/i.test(error?.message ?? '');
+}
+
+function isMissingExceptionStepColumns(error: { code?: string; message?: string } | null | undefined) {
+  return /step_type|capture_source|capture_failure_reason/i.test(error?.message ?? '');
+}
+
+function removeUnsupportedColumns(row: Record<string, unknown>, error: { code?: string; message?: string } | null | undefined) {
+  const legacyRow = { ...row };
+  if (isMissingActionInfoColumn(error)) delete legacyRow.action_info;
+  if (isMissingTargetContextColumn(error)) delete legacyRow.target_context;
+  if (isMissingExceptionStepColumns(error)) {
+    delete legacyRow.step_type;
+    delete legacyRow.capture_source;
+    delete legacyRow.capture_failure_reason;
+  }
+  return legacyRow;
+}
 
 export async function POST(request: NextRequest) {
   const auth = await requireExtensionToken(request);
@@ -48,6 +71,29 @@ export async function POST(request: NextRequest) {
     }
     sessionId = newSession.id;
   } else if (existingSession.status !== 'active') {
+    // Compatibility for already-installed Recorder builds: older clients
+    // replay local steps before retrying finalize. Once a manual exists for
+    // this completed session, acknowledge those writes as an idempotent no-op
+    // so the client can continue to the recoverable finalize endpoint.
+    if (existingSession.status === 'completed' || existingSession.status === 'done') {
+      const { data: completedTutorial } = await supabase
+        .from('mm_tutorials')
+        .select('id')
+        .eq('user_id', auth.userId)
+        .eq('session_id', d.session_id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (completedTutorial) {
+        return NextResponse.json({
+          id: null,
+          step_number: d.step_number,
+          tutorial_id: completedTutorial.id,
+          already_finalized: true,
+        });
+      }
+    }
     return NextResponse.json({ error: 'Session already finalized' }, { status: 409 });
   }
 
@@ -75,7 +121,10 @@ export async function POST(request: NextRequest) {
     ?? '';
 
   const row: Record<string, unknown> = {
-    screenshot_url: d.screenshot_url ?? null,
+    // Production still has the pre-041 NOT NULL constraint. An empty string is
+    // falsey throughout finalize/viewer code and preserves a recovery step
+    // without changing the shared production database schema from dev work.
+    screenshot_url: d.screenshot_url ?? '',
     // click_x/y: recorder가 0~1로 전송, DB는 0~10000 정수로 저장 (editor에서 /100으로 읽어 0~100%)
     click_x: hasClick ? Math.round(clickX * 10000) : null,
     click_y: hasClick ? Math.round(clickY * 10000) : null,
@@ -114,13 +163,19 @@ export async function POST(request: NextRequest) {
     .maybeSingle();
 
   if (existing) {
-    const { error: updateError } = await writeWithCaptureSchemaCompatibility(
-      row,
-      async candidate => supabase
+    let { error: updateError } = await supabase
+      .from('mm_capture_events')
+      .update(row)
+      .eq('id', existing.id);
+
+    if (isMissingActionInfoColumn(updateError) || isMissingTargetContextColumn(updateError) || isMissingExceptionStepColumns(updateError)) {
+      const legacyRow = removeUnsupportedColumns(row, updateError);
+      const retry = await supabase
         .from('mm_capture_events')
-        .update(candidate)
-        .eq('id', existing.id),
-    );
+        .update(legacyRow)
+        .eq('id', existing.id);
+      updateError = retry.error;
+    }
 
     if (updateError) {
       await logServer('error', 'capture.saveStep.updateFail', { sessionId, stepNumber: d.step_number, message: updateError.message });
@@ -129,14 +184,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ id: existing.id, step_number: d.step_number });
   }
 
-  const { data: step, error } = await writeWithCaptureSchemaCompatibility(
-    { session_id: sessionId, step_number: d.step_number, ...row },
-    async candidate => supabase
+  let { data: step, error } = await supabase
+    .from('mm_capture_events')
+    .insert({ session_id: sessionId, step_number: d.step_number, ...row })
+    .select('id')
+    .single();
+
+  if (isMissingActionInfoColumn(error) || isMissingTargetContextColumn(error) || isMissingExceptionStepColumns(error)) {
+    const legacyRow = removeUnsupportedColumns(row, error);
+    const retry = await supabase
       .from('mm_capture_events')
-      .insert(candidate)
+      .insert({ session_id: sessionId, step_number: d.step_number, ...legacyRow })
       .select('id')
-      .single(),
-  );
+      .single();
+    step = retry.data;
+    error = retry.error;
+  }
 
   if (error || !step) {
     console.error('save-step error:', error);

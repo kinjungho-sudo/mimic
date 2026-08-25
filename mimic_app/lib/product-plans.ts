@@ -18,7 +18,7 @@ export const PRODUCT_PLANS = {
     monthlyPrice: '₩19,900',
     yearlyMonthlyPrice: '₩16,580',
     priceSuffix: '/ 월',
-    features: ['Basic 플랜 모든 기능', 'AI 다듬기 무제한', 'AI 상세 설명 생성', '학습 가이드 + Live Guide Beta', 'AI 음성 편집', '5GB 저장 공간'],
+    features: ['Basic 플랜 모든 기능', 'Parro Desktop Companion', 'AI 다듬기 무제한', 'AI 상세 설명 생성', '학습 가이드 + Live Guide Beta', 'AI 음성 편집', '5GB 저장 공간'],
   },
   team: {
     name: 'Team',

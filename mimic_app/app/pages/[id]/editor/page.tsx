@@ -6,6 +6,7 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { BRAND_COLORS } from '@/lib/brand';
 import type { Tutorial, PageAuthor } from '@/types';
+import { Trash2 } from 'lucide-react';
 
 // BlockNote 는 클라이언트 전용 → SSR 비활성화
 const GuidebookEditor = dynamic(() => import('@/components/guidebook/GuidebookEditor'), {
@@ -41,6 +42,7 @@ export default function PageEditor() {
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const titleRef = useRef('');
   const contentRef = useRef<unknown[]>([]);
@@ -118,6 +120,25 @@ export default function PageEditor() {
     if (res.ok) { setStatus('draft'); setShareToken(null); setShareOpen(false); }
   };
 
+  const deletePage = async () => {
+    if (!window.confirm(`"${title || '제목 없음'}" 플레이북을 삭제할까요?\n삭제한 플레이북은 휴지통에서 복원할 수 있습니다.`)) return;
+    setDeleting(true);
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    try {
+      const res = await fetch(`/api/pages/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        alert(typeof body?.error === 'string' ? body.error : '플레이북을 삭제하지 못했습니다.');
+        return;
+      }
+      router.replace('/home');
+    } catch {
+      alert('플레이북을 삭제하지 못했습니다. 네트워크 연결을 확인해주세요.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (loading) return <div style={{ padding: '60px', textAlign: 'center', color: '#9CA3AF' }}>불러오는 중…</div>;
 
   const shareUrl = shareToken ? `${typeof window !== 'undefined' ? window.location.origin : ''}/p/${shareToken}` : '';
@@ -129,7 +150,7 @@ export default function PageEditor() {
       <div style={{ position: 'sticky', top: 0, zIndex: 20, display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 24px', borderBottom: '1px solid #E5E7EB', background: 'white' }}>
         <Link href="/home" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#6B7280', textDecoration: 'none', fontSize: '13px' }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
-          플레이북
+          뒤로 가기
         </Link>
         <div style={{ flex: 1 }} />
         <span style={{ fontSize: '11.5px', color: '#9CA3AF' }}>
@@ -147,6 +168,16 @@ export default function PageEditor() {
         ) : (
           <button onClick={publish} style={{ ...BTN, border: 'none', background: `linear-gradient(135deg, ${BRAND_COLORS.primary} 0%, ${BRAND_COLORS.guide} 100%)`, color: 'white', fontWeight: 600 }}>게시하기</button>
         )}
+        <button
+          type="button"
+          onClick={deletePage}
+          disabled={deleting}
+          title="플레이북 삭제"
+          aria-label="플레이북 삭제"
+          style={{ ...BTN, width: '34px', padding: 0, justifyContent: 'center', color: '#DC2626', borderColor: '#FECACA', background: '#FFF' }}
+        >
+          <Trash2 size={15} strokeWidth={2} aria-hidden="true" />
+        </button>
       </div>
 
       <div style={{ maxWidth: '820px', margin: '0 auto', padding: '40px 24px 120px' }}>

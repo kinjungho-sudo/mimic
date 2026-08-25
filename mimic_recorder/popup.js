@@ -1,3 +1,5 @@
+const { t, localizeDocument } = ParroI18n;
+localizeDocument();
 
 const viewIdle      = document.getElementById('viewIdle');
 const viewRecording = document.getElementById('viewRecording');
@@ -17,7 +19,6 @@ const emptyState    = document.getElementById('emptyState');
 const btnSettings      = document.getElementById('btnSettings');
 const settingsOverlay  = document.getElementById('settingsOverlay');
 const btnBack          = document.getElementById('btnBack');
-const settingHighlight = document.getElementById('settingHighlight');
 const settingAutoZoom  = document.getElementById('settingAutoZoom');
 const settingAutoNav   = document.getElementById('settingAutoNav');
 const settingVoiceRecord = document.getElementById('settingVoiceRecord');
@@ -41,7 +42,6 @@ let _readinessCheck = null;
 
 // ── 설정 기본값 ──────────────────────────────────────────────────
 const SETTINGS_DEFAULTS = {
-  highlight:   true,
   autoNav:     true,
   autoZoom:    false,
   voiceRecord: false,
@@ -105,11 +105,11 @@ function checkCaptureReadiness() {
 
   const pending = (async () => {
     if (!navigator.onLine) {
-      setCaptureReadiness('issue', '인터넷에 연결되어 있지 않습니다. 연결을 복구한 뒤 다시 확인해주세요.');
+      setCaptureReadiness('issue', t('internetOffline', '인터넷에 연결되어 있지 않습니다. 연결을 복구한 뒤 다시 확인해주세요.'));
       return false;
     }
 
-    setCaptureReadiness('checking', '캡처 연결을 확인하고 있습니다…');
+    setCaptureReadiness('checking', t('checkingConnection', '캡처 연결을 확인하고 있습니다…'));
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 4000);
     try {
@@ -122,7 +122,7 @@ function checkCaptureReadiness() {
       setCaptureReadiness('hidden');
       return true;
     } catch {
-      setCaptureReadiness('issue', 'Parro 서버에 연결할 수 없습니다. 네트워크나 보안 설정을 확인한 뒤 다시 시도해주세요.');
+      setCaptureReadiness('issue', t('serverUnavailable', 'Parro 서버에 연결할 수 없습니다. 네트워크나 보안 설정을 확인한 뒤 다시 시도해주세요.'));
       return false;
     } finally {
       clearTimeout(timeout);
@@ -138,7 +138,7 @@ function checkCaptureReadiness() {
 
 captureReadinessRetry?.addEventListener('click', () => { void checkCaptureReadiness(); });
 window.addEventListener('offline', () => {
-  setCaptureReadiness('issue', '인터넷에 연결되어 있지 않습니다. 연결을 복구한 뒤 다시 확인해주세요.');
+  setCaptureReadiness('issue', t('internetOffline', '인터넷에 연결되어 있지 않습니다. 연결을 복구한 뒤 다시 확인해주세요.'));
 });
 window.addEventListener('online', () => { void checkCaptureReadiness(); });
 
@@ -154,7 +154,6 @@ async function ensureMicPermission() {
 // ── 설정 UI 로드 ──────────────────────────────────────────────────
 function loadSettingsUI(saved) {
   const s = { ...SETTINGS_DEFAULTS, ...saved };
-  settingHighlight.checked      = s.highlight;
   settingAutoZoom.checked       = s.autoZoom;
   settingAutoNav.checked        = s.autoNav;
   if (settingVoiceRecord) settingVoiceRecord.checked = s.voiceRecord;
@@ -164,7 +163,6 @@ function loadSettingsUI(saved) {
 
 function saveSettings() {
   const s = {
-    highlight:   settingHighlight.checked,
     autoZoom:    settingAutoZoom.checked,
     autoNav:     settingAutoNav.checked,
     voiceRecord: settingVoiceRecord ? settingVoiceRecord.checked : false,
@@ -188,7 +186,6 @@ settingsOverlay.addEventListener('click', (e) => {
 });
 
 // 각 설정 변경 시 즉시 저장
-settingHighlight.addEventListener('change',   saveSettings);
 settingAutoZoom.addEventListener('change',    saveSettings);
 settingAutoNav.addEventListener('change',     saveSettings);
 if (settingSaveText) settingSaveText.addEventListener('change', saveSettings);
@@ -218,14 +215,14 @@ settingVoiceRecord?.addEventListener('change', async () => {
     _userIsPro = !!(plan && plan.isPro);
     if (!_userIsPro) {
       settingVoiceRecord.checked = false;
-      showToast('캡처별 음성 메모는 PRO 플랜 기능입니다', 3500);
+      showToast(t('voiceMemoProOnly', '캡처별 음성 메모는 PRO 플랜 기능입니다'), 3500);
       return;
     }
     // 마이크 권한 확보
     const ok = await ensureMicPermission();
     if (!ok) {
       settingVoiceRecord.checked = false;
-      showToast('마이크 권한이 필요합니다 — 열린 창에서 허용해주세요', 3500);
+      showToast(t('micPermissionWindow', '마이크 권한이 필요합니다 — 열린 창에서 허용해주세요'), 3500);
       saveSettings();
       return;
     }
@@ -247,7 +244,7 @@ function updateLoginState(hasToken, expired = false) {
   if (notice) {
     if (expired) {
       const msgEl = notice.querySelector('[data-msg]');
-      if (msgEl) msgEl.textContent = '세션이 만료되었습니다. 다시 연동해 주세요.';
+      if (msgEl) msgEl.textContent = t('sessionExpired', '세션이 만료되었습니다. 다시 연동해 주세요.');
       Object.assign(notice.style, { background: '#FEF2F2', border: '1px solid #FECACA' });
       const msgStyle = notice.querySelector('[data-msg]');
       if (msgStyle) msgStyle.style.color = '#991B1B';
@@ -272,8 +269,8 @@ function updateLoginState(hasToken, expired = false) {
     color: expired ? '#991B1B' : '#00796F',
   });
   msgEl.textContent = expired
-    ? '세션이 만료되었습니다. 다시 연동해 주세요.'
-    : '녹화를 시작하려면 Parro 계정 연동이 필요합니다.';
+    ? t('sessionExpired', '세션이 만료되었습니다. 다시 연동해 주세요.')
+    : t('linkRequired', '녹화를 시작하려면 Parro 계정 연동이 필요합니다.');
 
   const btn = document.createElement('button');
   Object.assign(btn.style, {
@@ -283,7 +280,9 @@ function updateLoginState(hasToken, expired = false) {
     fontSize: '12px', fontWeight: '600',
     padding: '6px 14px', cursor: 'pointer',
   });
-  btn.textContent = expired ? '다시 연동하기' : '로그인 / 연동하기';
+  btn.textContent = expired
+    ? t('relink', '다시 연동하기')
+    : t('loginLink', '로그인 / 연동하기');
   btn.addEventListener('click', () => {
     // 웹스토어 배포본=운영 / 개발자 언패킹=dev(Preview) — chrome.runtime.id로 자동 분기
     const origin = PROD_EXTENSION_IDS.has(chrome.runtime.id)
@@ -305,7 +304,7 @@ function updateView() {
       recDot.classList.add('paused');
       recLabel.classList.add('paused');
       recLabel.textContent = 'PAUSE';
-      btnPause.title = '재개';
+      btnPause.title = t('resume', '재개');
       // pause 버튼 아이콘 → play
       const svgPlay = btnPause.querySelector('svg');
       svgPlay.replaceChildren();
@@ -317,7 +316,7 @@ function updateView() {
       recDot.classList.remove('paused');
       recLabel.classList.remove('paused');
       recLabel.textContent = 'REC';
-      btnPause.title = '일시정지';
+      btnPause.title = t('pause', '일시정지');
       // pause 버튼 아이콘 → pause
       const svgPause = btnPause.querySelector('svg');
       svgPause.replaceChildren();
@@ -340,7 +339,9 @@ function updateView() {
 
 // ── 스텝 카운트 동기화 ────────────────────────────────────────────
 function updateStepCounts(count) {
-  const text = `${count} step${count !== 1 ? 's' : ''}`;
+  const text = count === 1
+    ? t('stepCount', `${count} step`, [String(count)])
+    : t('stepsCount', `${count} steps`, [String(count)]);
   stepCount.textContent = text;
   recStepCount.textContent = text;
 }
@@ -449,7 +450,9 @@ function getStepDisplayLabel(step, num) {
   const info = step.actionInfo || {};
   if (info.type === 'type' || info.type === 'focus_input' || step.typedText) {
     const label = (info.label || info.text || '').trim();
-    return label && !label.startsWith('\uC785\uB825, "') ? `\uC785\uB825, ${label}` : '\uC785\uB825';
+    return label && !label.startsWith('\uC785\uB825, "')
+      ? t('inputWithLabel', '입력, $LABEL$', [label])
+      : t('input', '입력');
   }
   return step.actionLabel || step.title || `Step ${num}`;
 }
@@ -515,7 +518,7 @@ function buildStepCard(step, num) {
 
   const thumbPlaceholder = document.createElement('div');
   thumbPlaceholder.className = 'step-thumb-placeholder';
-  thumbPlaceholder.textContent = '로딩 중...';
+  thumbPlaceholder.textContent = t('loading', '로딩 중...');
 
   // ── 클릭포인트 + 하이라이트 오버레이 ─────────────────────────
   const thumbOverlay = document.createElement('div');
@@ -549,7 +552,7 @@ function buildStepCard(step, num) {
 
   const delBtn = document.createElement('button');
   delBtn.className = 'step-delete';
-  delBtn.title = '이 스텝 삭제';
+  delBtn.title = t('deleteStep', '이 스텝 삭제');
   delBtn.textContent = '✕';
   delBtn.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -570,7 +573,9 @@ function buildStepVoiceButton(step) {
   const btn = document.createElement('button');
   btn.dataset.recording = '0';
   const hasVoice = !!step.voiceAudioUrl;
-  btn.textContent = hasVoice ? '🎙 음성 메모 ✓ (다시 녹음)' : '🎙 음성 메모 녹음';
+  btn.textContent = hasVoice
+    ? t('voiceMemoRerecord', '🎙 음성 메모 ✓ (다시 녹음)')
+    : t('recordVoiceMemo', '🎙 음성 메모 녹음');
   btn.style.cssText = [
     'margin-top:6px', 'width:100%', 'padding:7px',
     'border:1px solid #BFEDE7', 'border-radius:8px',
@@ -580,36 +585,38 @@ function buildStepVoiceButton(step) {
 
   btn.addEventListener('click', async (e) => {
     e.stopPropagation();
-    if (!_userIsPro) { showToast('음성 메모는 PRO 플랜 기능입니다', 3000); return; }
+    if (!_userIsPro) { showToast(t('voiceMemoProOnly', '음성 메모는 PRO 플랜 기능입니다'), 3000); return; }
 
     if (btn.dataset.recording === '1') {
       // 정지
       btn.dataset.recording = '0';
-      btn.textContent = '⏳ 저장 중…';
+      btn.textContent = t('saving', '⏳ 저장 중…');
       btn.disabled = true;
       chrome.runtime.sendMessage({ type: 'STOP_STEP_VOICE' }, (res) => {
         void chrome.runtime.lastError;
         btn.disabled = false;
         btn.style.background = '#E8FFF7'; btn.style.color = '#009B8E'; btn.style.borderColor = '#BFEDE7';
-        btn.textContent = res?.ok ? '🎙 음성 메모 ✓ (다시 녹음)' : '🎙 음성 메모 녹음';
-        showToast(res?.ok ? '음성 메모 저장됨 ✓' : (res?.error || '저장 실패'), 2500);
+        btn.textContent = res?.ok
+          ? t('voiceMemoRerecord', '🎙 음성 메모 ✓ (다시 녹음)')
+          : t('recordVoiceMemo', '🎙 음성 메모 녹음');
+        showToast(res?.ok ? t('voiceMemoSaved', '음성 메모 저장됨 ✓') : (res?.error || t('saveFailed', '저장 실패')), 2500);
       });
       return;
     }
 
     // 시작 — 권한 확보 후 녹음
     const ok = await ensureMicPermission();
-    if (!ok) { showToast('마이크 권한이 필요합니다', 3000); return; }
+    if (!ok) { showToast(t('micRequiredShort', '마이크 권한이 필요합니다'), 3000); return; }
     btn.dataset.recording = '1';
-    btn.textContent = '⏺ 녹음 중… (정지)';
+    btn.textContent = t('recordingStop', '⏺ 녹음 중… (정지)');
     btn.style.background = '#fef2f2'; btn.style.color = '#dc2626'; btn.style.borderColor = '#fecaca';
     chrome.runtime.sendMessage({ type: 'START_STEP_VOICE', stepNumber: step.stepNumber }, (res) => {
       void chrome.runtime.lastError;
       if (!res?.ok) {
         btn.dataset.recording = '0';
-        btn.textContent = '🎙 음성 메모 녹음';
+        btn.textContent = t('recordVoiceMemo', '🎙 음성 메모 녹음');
         btn.style.background = '#E8FFF7'; btn.style.color = '#009B8E'; btn.style.borderColor = '#BFEDE7';
-        showToast(res?.error || '마이크 시작 실패', 3000);
+        showToast(res?.error || t('micStartFailed', '마이크 시작 실패'), 3000);
       }
     });
   });
@@ -675,10 +682,10 @@ async function loadThumb(step, imgEl, placeholder, overlayEl) {
         }
       }
     } else {
-      placeholder.textContent = '이미지 없음';
+      placeholder.textContent = t('noImage', '이미지 없음');
     }
   } catch {
-    placeholder.textContent = '이미지 없음';
+    placeholder.textContent = t('noImage', '이미지 없음');
   }
 }
 
@@ -949,12 +956,41 @@ document.getElementById('thumbZoomBlur')?.addEventListener('click', () => {
   startBlurMode(step, zoomImg, zoomOverlay._blob ?? null);
 });
 
-// 새 탭에서 원본 열기 — imageUrl(Supabase) 우선, 없으면 현재 objectURL
+async function openImagePreviewWindow({ stepNumber = null, screenshotUrl = '', title = '', annotations = [] } = {}) {
+  if (!Number.isFinite(stepNumber) && !screenshotUrl) return;
+
+  const previewKey = `parroImagePreview:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+  await chrome.storage.local.set({
+    [previewKey]: {
+      stepNumber: Number.isFinite(stepNumber) ? stepNumber : null,
+      screenshotUrl,
+      title: title || t('previewWindowTitle', 'Parro 미리보기'),
+      annotations: Array.isArray(annotations) ? annotations : [],
+      createdAt: Date.now(),
+    },
+  });
+
+  const width = Math.max(720, Math.min(1400, (screen.availWidth || 1440) - 80));
+  const height = Math.max(560, Math.min(960, (screen.availHeight || 960) - 80));
+  const url = chrome.runtime.getURL(`guide-preview.html?key=${encodeURIComponent(previewKey)}`);
+  chrome.windows.create({ url, type: 'popup', width, height }, () => {
+    if (!chrome.runtime.lastError) return;
+    chrome.storage.local.remove(previewKey);
+    showToast(t('previewOpenFailed', '미리보기를 열지 못했습니다. 다시 시도해주세요.'), 3000);
+  });
+}
+
+// 임시 blob URL을 새 탭에 넘기지 않고, 확장 창이 IndexedDB 원본을 다시 읽는다.
 document.getElementById('thumbZoomNewTab')?.addEventListener('click', (e) => {
   e.stopPropagation();
   const overlay = document.getElementById('thumbZoomOverlay');
-  const src = overlay?.dataset.imageUrl || document.getElementById('thumbZoomImg')?.src;
-  if (src) chrome.tabs.create({ url: src });
+  const step = overlay?._step;
+  if (!step) return;
+  void openImagePreviewWindow({
+    stepNumber: Number(step.stepNumber),
+    screenshotUrl: String(step.imageUrl || ''),
+    title: step.title || step.actionLabel || t('previewWindowTitle', 'Parro 미리보기'),
+  });
 });
 
 // 요소 박스가 아니라 '실제 렌더된 이미지' 영역을 계산 (object-fit:contain 레터박스 보정).
@@ -984,7 +1020,7 @@ function startBlurMode(step, zoomImg, originalBlob) {
   const blurBtn = document.getElementById('thumbZoomBlur');
   if (blurBtn) blurBtn.classList.add('active');
 
-  showToast('드래그로 블러할 영역을 선택하세요  (Esc: 취소)', 4000);
+  showToast(t('selectBlurArea', '드래그로 블러할 영역을 선택하세요 (Esc: 취소)'), 4000);
 
   const sel = document.createElement('div');
   sel.style.cssText = [
@@ -1044,7 +1080,7 @@ function startBlurMode(step, zoomImg, originalBlob) {
     const rh = Math.abs(e.clientY - startY) / imgRect.height;
 
     cleanup();
-    if (rw < 0.01 || rh < 0.01) { showToast('영역이 너무 작습니다'); return; }
+    if (rw < 0.01 || rh < 0.01) { showToast(t('areaTooSmall', '영역이 너무 작습니다')); return; }
 
     const region = {
       x: Math.max(0, rx), y: Math.max(0, ry),
@@ -1052,14 +1088,14 @@ function startBlurMode(step, zoomImg, originalBlob) {
       h: Math.min(1 - Math.max(0, ry), rh),
     };
 
-    showToast('블러 처리 중...');
+    showToast(t('applyingBlur', '블러 처리 중...'));
     chrome.runtime.sendMessage({
       type: 'APPLY_BLUR',
       stepNumber: step.stepNumber,
       region,
     }, async (res) => {
       void chrome.runtime.lastError;
-      if (!res?.ok) { showToast('블러 처리 실패'); return; }
+      if (!res?.ok) { showToast(t('blurFailed', '블러 처리 실패')); return; }
 
       const newBlob = await idbGetScreenshot(step.stepNumber);
       if (newBlob) {
@@ -1076,13 +1112,13 @@ function startBlurMode(step, zoomImg, originalBlob) {
           if (cardImg) cardImg.src = newSrc;
         }
       }
-      showToast('블러 처리 완료 ✓');
+      showToast(t('blurComplete', '블러 처리 완료 ✓'));
     });
   }
 
   function onKeyDown(e) {
     if (e.key === 'Escape') {
-      dragging = false; sel.style.display = 'none'; cleanup(); showToast('취소됨');
+      dragging = false; sel.style.display = 'none'; cleanup(); showToast(t('cancelled', '취소됨'));
     }
   }
 
@@ -1169,9 +1205,9 @@ function showBlockedBanner() {
     borderBottom: '1px solid #FECACA',
   });
   const strong = document.createElement('strong');
-  strong.textContent = '이 페이지는 녹화를 차단하고 있습니다.';
+  strong.textContent = t('pageBlocksRecording', '이 페이지는 녹화를 차단하고 있습니다.');
   const br = document.createElement('br');
-  const sub = document.createTextNode('일반 웹페이지(http/https)로 이동한 후 다시 시도해 주세요.');
+  const sub = document.createTextNode(t('useRegularWebpage', '일반 웹페이지(http/https)로 이동한 후 다시 시도해 주세요.'));
   banner.append(strong, br, sub);
   document.body.insertBefore(banner, document.body.firstChild);
 }
@@ -1224,12 +1260,12 @@ btnStart.addEventListener('click', () => startRecording());
 const btnFullPage = document.getElementById('btnFullPage');
 btnFullPage?.addEventListener('click', () => {
   btnFullPage.disabled = true;
-  showToast('전체 페이지 캡처 중... 탭을 조작하지 마세요', 60000);
+  showToast(t('fullPageCapturing', '전체 페이지 캡처 중... 탭을 조작하지 마세요'), 60000);
   chrome.runtime.sendMessage({ type: 'FULL_PAGE_CAPTURE' }, (res) => {
     void chrome.runtime.lastError;
     btnFullPage.disabled = false;
-    if (res?.ok) showToast('전체 페이지 캡처 완료 — 다운로드됨 ✓', 3000);
-    else showToast(res?.error || '캡처 실패', 3000);
+    if (res?.ok) showToast(t('fullPageCaptured', '전체 페이지 캡처 완료 — 다운로드됨 ✓'), 3000);
+    else showToast(res?.error || t('captureFailed', '캡처 실패'), 3000);
   });
 });
 
@@ -1248,7 +1284,7 @@ function triggerManualCapture() {
   chrome.runtime.sendMessage({ type: 'MANUAL_CAPTURE' }, (res) => {
     void chrome.runtime.lastError;
     if (btnSnapBottom) btnSnapBottom.disabled = false;
-    if (!res?.ok) showToast('캡처 실패 — 페이지를 확인해주세요');
+    if (!res?.ok) showToast(t('captureFailedCheckPage', '캡처 실패 — 페이지를 확인해주세요'));
   });
 }
 
@@ -1262,7 +1298,7 @@ btnUndo.addEventListener('click', () => {
 // ── 블러 도구 — 마지막 스텝 이미지를 줌 오버레이에 열고 블러 모드 진입 ─
 btnBlurTool?.addEventListener('click', async () => {
   const { steps } = await storageGet('steps');
-  if (!steps || steps.length === 0) { showToast('블러할 스텝이 없습니다'); return; }
+  if (!steps || steps.length === 0) { showToast(t('noStepsToBlur', '블러할 스텝이 없습니다')); return; }
   const lastStep = steps[steps.length - 1];
 
   const zoomOverlay = document.getElementById('thumbZoomOverlay');
@@ -1281,7 +1317,7 @@ btnBlurTool?.addEventListener('click', async () => {
     zoomImg.src = lastStep.imageUrl;
     zoomOverlay.dataset.imageUrl = lastStep.imageUrl;
   } else {
-    showToast('이미지를 불러올 수 없습니다'); return;
+    showToast(t('imageLoadFailed', '이미지를 불러올 수 없습니다')); return;
   }
   zoomOverlay._step = lastStep;
   zoomOverlay._blob = blob;
@@ -1321,7 +1357,7 @@ btnFinish.addEventListener('click', async () => {
   // 패널에 남은 스텝이 없으면 finalize 중단 — 빈 목록을 보내면 서버 필터가
   // 비활성화되어 삭제했던 이벤트 전체가 매뉴얼에 포함되는 사고가 난다.
   if (stepNumbers.length === 0) {
-    showToast('남은 스텝이 없습니다 — 캡처 후 완료해주세요', 3000);
+    showToast(t('noRemainingSteps', '남은 스텝이 없습니다 — 캡처 후 완료해주세요'), 3000);
     btnFinish.disabled = false;
     return;
   }
@@ -1330,9 +1366,8 @@ btnFinish.addEventListener('click', async () => {
   hideCaptureBlockedToast();
 
   // isRecording: false 먼저 세팅 → background가 targetTabId로 STOP_RECORDING 전송
-  storageSet({ isRecording: false }).then(() => {
-    chrome.storage.local.remove(['targetTabId', 'lastStepHash']);
-  });
+  await storageSet({ isRecording: false });
+  chrome.storage.local.remove(['targetTabId', 'lastStepHash']);
 
   // 매뉴얼 생성 중 — 사용자 대기 UI
   showFinalizingOverlay();
@@ -1346,7 +1381,7 @@ btnFinish.addEventListener('click', async () => {
       isRecording = false;
       updateView();
       renderSteps([]);             // window.close() 실패해도 성공 시에만 스텝 목록 초기화
-      showToast('매뉴얼이 생성되었습니다! 매뉴얼 페이지가 열립니다.', 2500);
+      showToast(t('manualCreated', '매뉴얼이 생성되었습니다! 매뉴얼 페이지가 열립니다.'), 2500);
       window.close();
     } else {
       // 실패 시 에러 안내
@@ -1384,11 +1419,11 @@ function showFinalizingOverlay() {
   const msg = document.createElement('p');
   msg.id = 'finalizingMsg';
   msg.style.cssText = 'font-size:14px;font-weight:600;color:#1F2937;margin:0;';
-  msg.textContent = '매뉴얼을 생성하고 있습니다...';
+  msg.textContent = t('creatingManual', '매뉴얼을 생성하고 있습니다...');
 
   const sub = document.createElement('p');
   sub.style.cssText = 'font-size:12px;color:#6B7280;margin:0;';
-  sub.textContent = 'AI 분석 중 — 잠시만 기다려 주세요';
+  sub.textContent = t('analyzing', 'AI 분석 중 — 잠시만 기다려 주세요');
 
   const style = document.createElement('style');
   style.textContent = '@keyframes popupSpin { to { transform: rotate(360deg); } }';
@@ -1414,11 +1449,11 @@ function showFinalizingError(detail) {
 
   const msg = document.createElement('p');
   msg.style.cssText = 'font-size:14px;font-weight:600;color:#1F2937;margin:0;text-align:center;';
-  msg.textContent = '생성 실패 — 다시 시도해주세요';
+  msg.textContent = t('creationFailed', '생성 실패 — 다시 시도해주세요');
 
   const sub = document.createElement('p');
   sub.style.cssText = 'font-size:12px;color:#6B7280;margin:0;text-align:center;max-width:280px;line-height:1.4;';
-  sub.textContent = detail || '네트워크 연결을 확인하고 다시 시도해 주세요';
+  sub.textContent = detail || t('checkNetwork', '네트워크 연결을 확인하고 다시 시도해 주세요');
 
   const btn = document.createElement('button');
   btn.style.cssText = [
@@ -1427,7 +1462,7 @@ function showFinalizingError(detail) {
     'border:none', 'border-radius:8px',
     'font-size:13px', 'font-weight:600', 'cursor:pointer',
   ].join(';');
-  btn.textContent = '다시 시도';
+  btn.textContent = t('retry', '다시 시도');
   btn.addEventListener('click', () => {
     hideFinalizingOverlay();
     btnFinish.click();
@@ -1475,7 +1510,7 @@ chrome.runtime.onMessage.addListener((msg) => {
 
   // 업로드 실패 — 사용자에게 토스트 알림
   if (msg.type === 'UPLOAD_FAILED') {
-    showToast('이미지 업로드 실패 — 다시 시도해주세요', 3500);
+    showToast(t('imageUploadFailed', '이미지 업로드 실패 — 다시 시도해주세요'), 3500);
     return;
   }
 
@@ -1513,12 +1548,12 @@ chrome.runtime.onMessage.addListener((msg) => {
   }
   if (labelEl) {
     if (masked) {
-      labelEl.textContent = '비밀번호 입력 중...';
+      labelEl.textContent = t('typingPassword', '비밀번호 입력 중...');
     } else {
-      const fieldName = label || '텍스트';
+      const fieldName = label || t('textField', '텍스트');
       labelEl.textContent = value
         ? `${fieldName}: ${value.slice(0, 28)}${value.length > 28 ? '…' : ''}`
-        : `${fieldName} 입력 중...`;
+        : t('typingField', '$FIELD$ 입력 중...', [fieldName]);
     }
   }
 });
@@ -1561,7 +1596,7 @@ async function handleManualImage(blob) {
         windowWidth:  stepData.windowWidth  || 1280,
         windowHeight: stepData.windowHeight || 800,
         manual:       true,
-        actionInfo:   { type: 'click', label: '수동 캡처 (차단된 페이지)' },
+        actionInfo:   { type: 'click', label: t('manualCaptureBlockedPage', '수동 캡처 (차단된 페이지)') },
       },
     }, () => { void chrome.runtime.lastError; });
   };
@@ -1588,9 +1623,9 @@ document.getElementById('blockedPasteBtn')?.addEventListener('click', async () =
       }
     }
     // 클립보드에 이미지가 없으면 안내
-    alert('클립보드에 이미지가 없습니다.\nWin+Shift+S 또는 PrtSc로 스크린샷을 찍은 후 시도하세요.');
+    alert(t('clipboardNoImage', '클립보드에 이미지가 없습니다.\nWin+Shift+S 또는 PrtSc로 스크린샷을 찍은 후 시도하세요.'));
   } catch {
-    alert('클립보드 접근 권한이 필요합니다.\n이미지 파일을 직접 업로드해 주세요.');
+    alert(t('clipboardPermissionRequired', '클립보드 접근 권한이 필요합니다.\n이미지 파일을 직접 업로드해 주세요.'));
   }
 });
 
@@ -1621,15 +1656,419 @@ const guidePctLabel   = document.getElementById('guidePctLabel');
 const guideProgressBar = document.getElementById('guideProgressBar');
 const guideTargetStatus = document.getElementById('guideTargetStatus');
 const guideTargetRetry = document.getElementById('guideTargetRetry');
+const guideManualTitle = document.getElementById('guideManualTitle');
 const guideStepTitle  = document.getElementById('guideStepTitle');
 const guideStepInstr  = document.getElementById('guideStepInstruction');
 const guideStepDots   = document.getElementById('guideStepDots');
 const guideNavHint    = document.getElementById('guideNavHint');
+const guideStepPreviewBtn = document.getElementById('guideStepPreviewBtn');
+const guideStepImage = document.getElementById('guideStepImage');
+const guideStepAnnotationLayer = document.getElementById('guideStepAnnotationLayer');
+const guideVoiceToggle = document.getElementById('guideVoiceToggle');
+const guideOptionsBtn = document.getElementById('guideOptionsBtn');
+const guideOptionsPanel = document.getElementById('guideOptionsPanel');
+const guideVoiceControls = document.getElementById('guideVoiceControls');
+const guideVoicePlayBtn = document.getElementById('guideVoicePlayBtn');
+const guideVoiceReplayBtn = document.getElementById('guideVoiceReplayBtn');
+const guideVoiceStatus = document.getElementById('guideVoiceStatus');
+const guideVoiceTime = document.getElementById('guideVoiceTime');
+const guideVoiceModeSelect = document.getElementById('guideVoiceMode');
+const guideHandRaiseBtn = document.getElementById('guideHandRaiseBtn');
+const guideHandRaisePanel = document.getElementById('guideHandRaisePanel');
+const guideHelpMessage = document.getElementById('guideHelpMessage');
+const guideHelpScreenshot = document.getElementById('guideHelpScreenshot');
+const guideHelpStatus = document.getElementById('guideHelpStatus');
+const guideHelpCancelBtn = document.getElementById('guideHelpCancelBtn');
+const guideHelpSendBtn = document.getElementById('guideHelpSendBtn');
+const guideCompletionModal = document.getElementById('guideCompletionModal');
+const guideCompletionStayBtn = document.getElementById('guideCompletionStayBtn');
+const guideCompletionExitBtn = document.getElementById('guideCompletionExitBtn');
+
+if (guideStepPreviewBtn) {
+  guideStepPreviewBtn.setAttribute('aria-label', t('openPreviewLarge', '미리보기 크게 보기'));
+}
 
 let guideSteps = [];
 let guideCurrentStep = 0;
 let guideSkippedSteps = new Set();
 let guideCompletedSteps = new Set();
+let guideFinished = false;
+const GUIDE_VOICE_MODE_KEY = 'guideVoiceMode';
+const GUIDE_VOICE_LEGACY_KEY = 'guideVoiceEnabled';
+const guideAudio = new Audio();
+guideAudio.preload = 'auto';
+let guideVoiceEnabled = false;
+let guideVoiceMode = 'off';
+let guideHandRaised = null;
+let guideHelpOpen = false;
+let guideAudioStepKey = '';
+let guideAudioStartSeconds = 0;
+let guideAudioEndSeconds = null;
+let guideAudioLoading = false;
+let guideAudioRequestId = 0;
+
+function guideAudioBounds(step) {
+  const url = typeof step?.audio_url === 'string' ? step.audio_url.trim() : '';
+  if (!url) return null;
+  const rawStart = Number(step.audio_start_ms);
+  const rawEnd = Number(step.audio_end_ms);
+  const start = Number.isFinite(rawStart) && rawStart > 0 ? rawStart / 1000 : 0;
+  const end = Number.isFinite(rawEnd) && rawEnd > start * 1000 ? rawEnd / 1000 : null;
+  return { url, start, end };
+}
+
+function normalizeGuideVoiceMode(value, legacyValue = false) {
+  return ['off', 'manual', 'auto'].includes(value) ? value : (legacyValue ? 'auto' : 'off');
+}
+
+function guideVoiceText(step) {
+  return String(step?.instruction || step?.title || '').trim();
+}
+
+function guideStepAnnotations(step) {
+  return Array.isArray(step?.user_annotations)
+    ? step.user_annotations
+    : Array.isArray(step?.annotations) ? step.annotations : [];
+}
+
+function guideAnnotationBox(annotation) {
+  const values = ['x1', 'y1', 'x2', 'y2'].map((key) => Number(annotation?.[key]));
+  if (!values.every(Number.isFinite)) return null;
+  const [x1, y1, x2, y2] = values;
+  return {
+    x1, y1, x2, y2,
+    left: Math.max(0, Math.min(x1, x2)),
+    top: Math.max(0, Math.min(y1, y2)),
+    width: Math.max(1, Math.abs(x2 - x1)),
+    height: Math.max(1, Math.abs(y2 - y1)),
+  };
+}
+
+function safeGuideAnnotationColor(value, fallback = '#EF4444') {
+  const color = String(value || '').trim();
+  return /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(color)
+    || /^rgba?\([\d\s.,%]+\)$/i.test(color) ? color : fallback;
+}
+
+function renderGuideAnnotations(layer, step) {
+  if (!layer) return;
+  layer.replaceChildren();
+  guideStepAnnotations(step).forEach((annotation) => {
+    const box = guideAnnotationBox(annotation);
+    if (!box) return;
+    const color = safeGuideAnnotationColor(annotation.color || annotation.borderColor);
+    const borderColor = safeGuideAnnotationColor(annotation.borderColor || annotation.color, color);
+    const stroke = Math.max(1, Math.min(8, Number(annotation.strokeWidth) || 3));
+    const element = document.createElement('span');
+    element.dataset.annotationType = String(annotation.type || 'rect');
+    Object.assign(element.style, {
+      position: 'absolute', pointerEvents: 'none', boxSizing: 'border-box',
+    });
+
+    if (annotation.type === 'text') {
+      Object.assign(element.style, {
+        left: `${box.left}%`, top: `${box.top}%`, minWidth: '72px', maxWidth: '70%',
+        padding: '6px 8px', border: '1px solid rgba(255,255,255,.24)', borderRadius: '8px',
+        background: 'rgba(17,24,39,.88)', color: '#fff', fontSize: '11px', lineHeight: '1.35',
+      });
+      element.textContent = String(annotation.text || '');
+    } else if (annotation.type === 'marker') {
+      Object.assign(element.style, {
+        left: `${box.x1}%`, top: `${box.y1}%`, width: '22px', height: '22px',
+        transform: 'translate(-50%,-50%)', borderRadius: '50%', background: color,
+        color: '#fff', display: 'grid', placeItems: 'center', fontSize: '11px', fontWeight: '800',
+      });
+      element.textContent = String(annotation.markerNumber || '');
+    } else if (annotation.type === 'arrow' || annotation.type === 'line') {
+      const dx = box.x2 - box.x1;
+      const dy = box.y2 - box.y1;
+      Object.assign(element.style, {
+        left: `${box.x1}%`, top: `${box.y1}%`, width: `${Math.max(1, Math.sqrt(dx * dx + dy * dy))}%`,
+        height: `${stroke}px`, background: color, borderRadius: `${stroke}px`,
+        transformOrigin: '0 50%', transform: `rotate(${Math.atan2(dy, dx) * 180 / Math.PI}deg)`,
+      });
+      if (annotation.type === 'arrow') {
+        const head = document.createElement('span');
+        Object.assign(head.style, {
+          position: 'absolute', right: '-2px', top: '50%', width: '8px', height: '8px',
+          borderTop: `${stroke}px solid ${color}`, borderRight: `${stroke}px solid ${color}`,
+          transform: 'translateY(-50%) rotate(45deg)', transformOrigin: 'center',
+        });
+        element.appendChild(head);
+      }
+    } else {
+      Object.assign(element.style, {
+        left: `${box.left}%`, top: `${box.top}%`, width: `${box.width}%`, height: `${box.height}%`,
+        border: `${stroke}px solid ${borderColor}`,
+        borderRadius: annotation.type === 'ellipse' ? '999px' : annotation.type === 'roundedRect' ? '10px' : '6px',
+        background: annotation.type === 'spotlight' ? 'transparent' : 'rgba(239,68,68,.08)',
+        boxShadow: annotation.type === 'spotlight' ? '0 0 0 9999px rgba(0,0,0,.42),0 0 0 2px rgba(255,255,255,.75)' : 'none',
+      });
+    }
+    layer.appendChild(element);
+  });
+}
+
+function isProtectedGuideInput(value) {
+  return /^\[(?:이메일|email|전자우편)\]$/i.test(String(value || '').trim());
+}
+
+function formatGuideAudioTime(seconds) {
+  const safe = Math.max(0, Number.isFinite(seconds) ? seconds : 0);
+  const minutes = Math.floor(safe / 60);
+  const remainder = Math.floor(safe % 60);
+  return `${minutes}:${String(remainder).padStart(2, '0')}`;
+}
+
+function setGuideVoiceStatus(key, fallback) {
+  if (guideVoiceStatus) guideVoiceStatus.textContent = t(key, fallback);
+}
+
+function updateGuideVoiceUi(step = guideSteps[guideCurrentStep]) {
+  const bounds = guideAudioBounds(step);
+  const hasVoiceText = !!guideVoiceText(step);
+  guideVoiceEnabled = guideVoiceMode !== 'off';
+  if (guideVoiceModeSelect) guideVoiceModeSelect.value = guideVoiceMode;
+  if (guideVoiceToggle) {
+    guideVoiceToggle.style.display = hasVoiceText ? 'flex' : 'none';
+    guideVoiceToggle.disabled = !guideVoiceEnabled;
+    guideVoiceToggle.style.opacity = guideVoiceEnabled ? '1' : '.42';
+  }
+  if (guideVoiceControls) guideVoiceControls.style.display = hasVoiceText ? 'flex' : 'none';
+  if (!hasVoiceText) return;
+
+  if (guideVoicePlayBtn) {
+    const playing = !guideAudio.paused && !guideAudio.ended;
+    guideVoicePlayBtn.textContent = playing ? 'Ⅱ' : '🔊';
+    guideVoicePlayBtn.title = playing
+      ? t('guideVoicePause', '음성 일시정지')
+      : t('guideVoicePlay', '음성 재생');
+    guideVoicePlayBtn.setAttribute('aria-label', guideVoicePlayBtn.title);
+  }
+  if (guideVoiceReplayBtn) {
+    guideVoiceReplayBtn.title = t('guideVoiceReplay', '다시 듣기');
+    guideVoiceReplayBtn.setAttribute('aria-label', guideVoiceReplayBtn.title);
+  }
+  if (!guideVoiceEnabled && guideAudio.paused) {
+    setGuideVoiceStatus('guideVoiceDisabled', '음성 안내 꺼짐');
+  } else if (!bounds && guideVoiceEnabled && !guideAudioLoading) {
+    setGuideVoiceStatus('guideVoiceReady', 'Parro 음성 안내 준비됨');
+  }
+}
+
+function stopGuideAudio({ reset = false, clear = false } = {}) {
+  guideAudioRequestId += 1;
+  guideAudioLoading = false;
+  guideAudio.pause();
+  if (reset && guideAudio.src) {
+    try { guideAudio.currentTime = guideAudioStartSeconds; } catch {}
+  }
+  if (clear) {
+    guideAudio.removeAttribute('src');
+    guideAudio.load();
+    guideAudioStepKey = '';
+    guideAudioStartSeconds = 0;
+    guideAudioEndSeconds = null;
+    if (guideVoiceTime) guideVoiceTime.textContent = '';
+  }
+  updateGuideVoiceUi();
+}
+
+function waitForGuideAudioMetadata() {
+  if (guideAudio.readyState >= 1) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      guideAudio.removeEventListener('loadedmetadata', onReady);
+      guideAudio.removeEventListener('error', onError);
+      if (error) reject(error);
+      else resolve();
+    };
+    const onReady = () => finish();
+    const onError = () => finish(new Error('guide_audio_load_failed'));
+    const timeoutId = setTimeout(() => finish(new Error('guide_audio_load_timeout')), 8000);
+    guideAudio.addEventListener('loadedmetadata', onReady, { once: true });
+    guideAudio.addEventListener('error', onError, { once: true });
+    guideAudio.load();
+  });
+}
+
+async function playGuideAudio({ restart = false } = {}) {
+  const step = guideSteps[guideCurrentStep];
+  const text = guideVoiceText(step);
+  if (!guideVoiceEnabled || !text) return;
+  let bounds = guideAudioBounds(step);
+  if (!bounds) {
+    guideAudioLoading = true;
+    setGuideVoiceStatus('guideVoiceLoading', '음성 불러오는 중…');
+    const generated = await new Promise((resolve) => {
+      chrome.runtime.sendMessage({ type: 'GUIDE_TTS_REQUEST', stepIndex: guideCurrentStep }, (response) => {
+        void chrome.runtime.lastError;
+        resolve(response || { ok: false });
+      });
+    });
+    guideAudioLoading = false;
+    if (!generated?.ok || !generated.audio_url) {
+      setGuideVoiceStatus('guideVoiceError', '음성을 재생하지 못했습니다.');
+      updateGuideVoiceUi(step);
+      return;
+    }
+    step.audio_url = generated.audio_url;
+    step.audio_start_ms = generated.audio_start_ms ?? 0;
+    step.audio_end_ms = generated.audio_end_ms ?? null;
+    bounds = guideAudioBounds(step);
+    if (!bounds) return;
+  }
+  const requestId = ++guideAudioRequestId;
+  guideAudioLoading = true;
+  setGuideVoiceStatus('guideVoiceLoading', '음성 불러오는 중…');
+  try {
+    if (guideAudio.src !== bounds.url) {
+      guideAudio.src = bounds.url;
+      guideAudioStartSeconds = bounds.start;
+      guideAudioEndSeconds = bounds.end;
+    }
+    await waitForGuideAudioMetadata();
+    if (requestId !== guideAudioRequestId) return;
+    const pastEnd = guideAudioEndSeconds != null && guideAudio.currentTime >= guideAudioEndSeconds - 0.05;
+    if (restart || pastEnd || guideAudio.currentTime < guideAudioStartSeconds) {
+      guideAudio.currentTime = guideAudioStartSeconds;
+    }
+    await guideAudio.play();
+    if (requestId !== guideAudioRequestId) {
+      guideAudio.pause();
+      return;
+    }
+    setGuideVoiceStatus('guideVoicePlaying', '음성 안내 재생 중');
+  } catch (error) {
+    const blocked = error?.name === 'NotAllowedError';
+    setGuideVoiceStatus(
+      blocked ? 'guideVoiceNeedsClick' : 'guideVoiceError',
+      blocked ? '재생 버튼을 눌러 음성을 시작하세요.' : '음성을 재생하지 못했습니다.',
+    );
+  } finally {
+    if (requestId === guideAudioRequestId) {
+      guideAudioLoading = false;
+      updateGuideVoiceUi(step);
+    }
+  }
+}
+
+function syncGuideAudioForStep(step, idx) {
+  const bounds = guideAudioBounds(step);
+  const nextKey = bounds
+    ? `${idx}:${String(step?.id ?? '')}:${bounds.url}:${bounds.start}:${bounds.end ?? ''}`
+    : '';
+  if (nextKey === guideAudioStepKey) {
+    updateGuideVoiceUi(step);
+    return;
+  }
+
+  stopGuideAudio({ clear: true });
+  guideAudioStepKey = nextKey;
+  if (!bounds) {
+    setGuideVoiceStatus(
+      guideVoiceEnabled ? 'guideVoiceReady' : 'guideVoiceDisabled',
+      guideVoiceEnabled ? 'Parro 음성 안내 준비됨' : '음성 안내 꺼짐',
+    );
+    updateGuideVoiceUi(step);
+    return;
+  }
+  guideAudio.src = bounds.url;
+  guideAudioStartSeconds = bounds.start;
+  guideAudioEndSeconds = bounds.end;
+  if (guideVoiceTime) {
+    const duration = bounds.end != null ? Math.max(0, bounds.end - bounds.start) : 0;
+    guideVoiceTime.textContent = duration > 0 ? formatGuideAudioTime(duration) : '';
+  }
+  setGuideVoiceStatus(
+    guideVoiceEnabled ? 'guideVoiceReady' : 'guideVoiceDisabled',
+    guideVoiceEnabled ? '음성 안내 준비됨' : '음성 안내 꺼짐',
+  );
+  updateGuideVoiceUi(step);
+  // 화면 위 Live Guide가 자동 낭독을 담당한다. 사이드 패널은 수동 재생 컨트롤만 유지한다.
+}
+
+guideAudio.addEventListener('play', () => {
+  setGuideVoiceStatus('guideVoicePlaying', '음성 안내 재생 중');
+  updateGuideVoiceUi();
+});
+guideAudio.addEventListener('pause', () => {
+  if (!guideAudio.ended && guideAudio.src && guideVoiceEnabled) {
+    setGuideVoiceStatus('guideVoicePaused', '음성 안내 일시정지');
+  }
+  updateGuideVoiceUi();
+});
+guideAudio.addEventListener('ended', () => {
+  setGuideVoiceStatus('guideVoiceComplete', '음성 안내를 모두 들었어요.');
+  updateGuideVoiceUi();
+});
+guideAudio.addEventListener('timeupdate', () => {
+  if (guideAudioEndSeconds != null && guideAudio.currentTime >= guideAudioEndSeconds - 0.03) {
+    guideAudio.pause();
+    try { guideAudio.currentTime = guideAudioEndSeconds; } catch {}
+    setGuideVoiceStatus('guideVoiceComplete', '음성 안내를 모두 들었어요.');
+  }
+  if (guideVoiceTime) {
+    const elapsed = Math.max(0, guideAudio.currentTime - guideAudioStartSeconds);
+    const total = guideAudioEndSeconds != null
+      ? Math.max(0, guideAudioEndSeconds - guideAudioStartSeconds)
+      : (Number.isFinite(guideAudio.duration) ? Math.max(0, guideAudio.duration - guideAudioStartSeconds) : 0);
+    guideVoiceTime.textContent = total > 0
+      ? `${formatGuideAudioTime(elapsed)} / ${formatGuideAudioTime(total)}`
+      : formatGuideAudioTime(elapsed);
+  }
+});
+guideAudio.addEventListener('error', () => {
+  if (!guideAudio.src) return;
+  setGuideVoiceStatus('guideVoiceError', '음성을 재생하지 못했습니다.');
+  updateGuideVoiceUi();
+});
+
+guideVoiceToggle?.addEventListener('click', () => {
+  if (guideAudio.paused) void playGuideAudio();
+  else stopGuideAudio();
+  updateGuideVoiceUi();
+});
+
+guideOptionsBtn?.addEventListener('click', () => {
+  const open = guideOptionsPanel?.style.display !== 'flex';
+  if (guideOptionsPanel) guideOptionsPanel.style.display = open ? 'flex' : 'none';
+  guideOptionsBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+});
+
+guideVoiceModeSelect?.addEventListener('change', () => {
+  guideVoiceMode = normalizeGuideVoiceMode(guideVoiceModeSelect.value);
+  guideVoiceEnabled = guideVoiceMode !== 'off';
+  chrome.storage.local.set({ [GUIDE_VOICE_MODE_KEY]: guideVoiceMode, [GUIDE_VOICE_LEGACY_KEY]: guideVoiceEnabled });
+  stopGuideAudio();
+  updateGuideVoiceUi();
+});
+
+guideVoicePlayBtn?.addEventListener('click', () => {
+  if (!guideAudio.paused && !guideAudio.ended) {
+    stopGuideAudio();
+    setGuideVoiceStatus('guideVoicePaused', '음성 안내 일시정지');
+  } else {
+    void playGuideAudio();
+  }
+  updateGuideVoiceUi();
+});
+
+guideVoiceReplayBtn?.addEventListener('click', () => {
+  void playGuideAudio({ restart: true });
+  updateGuideVoiceUi();
+});
+
+storageGet([GUIDE_VOICE_MODE_KEY, GUIDE_VOICE_LEGACY_KEY]).then((stored) => {
+  guideVoiceMode = normalizeGuideVoiceMode(stored[GUIDE_VOICE_MODE_KEY], stored[GUIDE_VOICE_LEGACY_KEY] === true);
+  guideVoiceEnabled = guideVoiceMode !== 'off';
+  updateGuideVoiceUi();
+  // 자동 낭독은 페이지 위 Live Guide 오버레이에서 시작한다.
+});
 
 function isGuideExplanationStep(step) {
   if (!step) return true;
@@ -1644,17 +2083,71 @@ function isGuideExplanationStep(step) {
 function renderGuideTargetStatus(status) {
   if (!guideTargetStatus) return;
   const states = {
-    navigating: { label: '대상 페이지로 이동 중', color: '#F59E0B' },
-    searching: { label: '정확한 대상을 찾는 중', color: '#F59E0B' },
-    ready: { label: '대상 확인됨', color: '#12B886' },
-    page_mismatch: { label: '기록된 페이지에서 대기 중', color: '#EF4444' },
-    not_found: { label: '대상을 찾지 못했습니다', color: '#EF4444' },
+    navigating: { label: t('targetNavigating', '대상 페이지로 이동 중'), color: '#F59E0B' },
+    searching: { label: t('targetSearching', '정확한 대상을 찾는 중'), color: '#F59E0B' },
+    ready: { label: t('targetReady', '대상 확인됨'), color: '#12B886' },
+    page_mismatch: { label: t('targetPageMismatch', '이 단계와 다른 페이지에 있어요'), color: '#EF4444' },
+    not_found: { label: t('targetNotFound', '대상을 찾지 못했습니다'), color: '#EF4444' },
   };
   const current = states[status] || states.navigating;
   if (guideTargetStatus.firstElementChild) guideTargetStatus.firstElementChild.style.background = current.color;
   if (guideTargetStatus.lastElementChild) guideTargetStatus.lastElementChild.textContent = current.label;
   if (guideTargetRetry) guideTargetRetry.style.display = status === 'not_found' || status === 'page_mismatch' ? 'block' : 'none';
 }
+
+function renderGuideHandRaised(value) {
+  guideHandRaised = value?.raised === true ? value : null;
+  const raisedHere = guideHandRaised?.stepIndex === guideCurrentStep;
+  if (guideHandRaiseBtn) {
+    guideHandRaiseBtn.setAttribute('aria-pressed', raisedHere ? 'true' : 'false');
+    guideHandRaiseBtn.title = t('guideRaiseHand', '강사에게 도움 요청');
+    Object.assign(guideHandRaiseBtn.style, raisedHere ? {
+      borderColor: '#FDBA74', background: '#FFF7ED', color: '#C2410C',
+    } : {
+      borderColor: '#e8e8f0', background: '#fff', color: '#888',
+    });
+  }
+  if (guideHandRaisePanel) guideHandRaisePanel.style.display = guideHelpOpen ? 'block' : 'none';
+  if (guideHelpStatus && raisedHere) {
+    guideHelpStatus.style.display = 'block';
+    guideHelpStatus.textContent = t('helpRequestSent', '강사에게 도움 요청을 보냈습니다.');
+  }
+}
+
+guideHandRaiseBtn?.addEventListener('click', () => {
+  guideHelpOpen = !guideHelpOpen;
+  renderGuideHandRaised(guideHandRaised);
+});
+guideHelpCancelBtn?.addEventListener('click', () => {
+  guideHelpOpen = false;
+  renderGuideHandRaised(guideHandRaised);
+});
+guideHelpSendBtn?.addEventListener('click', () => {
+  guideHelpSendBtn.disabled = true;
+  if (guideHelpStatus) {
+    guideHelpStatus.style.display = 'block';
+    guideHelpStatus.textContent = t('sendingHelpRequest', '강사에게 요청을 보내는 중입니다...');
+  }
+  chrome.runtime.sendMessage({
+    type: 'GUIDE_HELP_REQUEST',
+    stepIndex: guideCurrentStep,
+    message: guideHelpMessage?.value || '',
+    includeScreenshot: guideHelpScreenshot?.checked === true,
+  }, (response) => {
+    void chrome.runtime.lastError;
+    guideHelpSendBtn.disabled = false;
+    if (!response?.ok) {
+      if (guideHelpStatus) guideHelpStatus.textContent = response?.error === 'recorder_not_linked'
+        ? t('linkRecorderForHelp', '강사에게 요청하려면 Parro 계정을 먼저 연결해주세요.')
+        : t('helpRequestFailed', '요청을 보내지 못했습니다. 다시 시도해주세요.');
+      return;
+    }
+    guideHelpOpen = false;
+    renderGuideHandRaised(response.handRaised);
+    if (guideHelpMessage) guideHelpMessage.value = '';
+    showToast(t('helpRequestSent', '강사에게 도움 요청이 정상적으로 접수되었습니다.'), 3500);
+  });
+});
 
 guideTargetRetry?.addEventListener('click', () => {
   renderGuideTargetStatus('searching');
@@ -1682,15 +2175,43 @@ function showGuideView() {
 }
 
 function hideGuideView() {
+  stopGuideAudio({ clear: true });
+  if (guideCompletionModal) guideCompletionModal.style.display = 'none';
+  guideHelpOpen = false;
   viewGuide.style.display = 'none';
   setRecorderChromeHidden(false);  // 녹화 UI 복원
   // 녹화 상태에 맞게 원래 뷰로 복원
   updateView();
 }
 
+async function openGuideStepPreview(step) {
+  const screenshotUrl = String(step?.screenshot_url || '').trim();
+  if (!screenshotUrl) return;
+  try {
+    await openImagePreviewWindow({
+      screenshotUrl,
+      title: step.title || t('previewWindowTitle', 'Parro 미리보기'),
+      annotations: guideStepAnnotations(step),
+    });
+  } catch {
+    showToast(t('previewOpenFailed', '미리보기를 열지 못했습니다. 다시 시도해주세요.'), 3000);
+  }
+}
+
+guideStepPreviewBtn?.addEventListener('click', () => {
+  void openGuideStepPreview(guideSteps[guideCurrentStep]);
+});
+
 function renderGuideStep(steps, idx) {
   const step = steps[idx];
   if (!step) return;
+  if (guideHandRaised?.stepIndex !== idx) {
+    guideHelpOpen = false;
+    if (guideHelpStatus) {
+      guideHelpStatus.style.display = 'none';
+      guideHelpStatus.textContent = '';
+    }
+  }
 
   const total = steps.length;
   const num   = idx + 1;
@@ -1699,17 +2220,26 @@ function renderGuideStep(steps, idx) {
   guideStepLabel.textContent    = `Step ${num} / ${total}`;
   guidePctLabel.textContent     = `${pct}%`;
   guideProgressBar.style.width  = `${pct}%`;
+  if (guideManualTitle) {
+    guideManualTitle.textContent = typeof step.manual_title === 'string' ? step.manual_title : '';
+    guideManualTitle.style.display = guideManualTitle.textContent ? 'block' : 'none';
+  }
   guideStepTitle.textContent    = step.title || `Step ${num}`;
   guideStepInstr.textContent    = step.instruction || '';
+  syncGuideAudioForStep(step, idx);
+  renderGuideHandRaised(guideHandRaised);
 
   // 스텝 스크린샷
-  const imgEl = document.getElementById('guideStepImage');
-  if (imgEl) {
+  if (guideStepImage && guideStepPreviewBtn) {
     if (step.screenshot_url) {
-      imgEl.src = step.screenshot_url;
-      imgEl.style.display = 'block';
+      guideStepImage.src = step.screenshot_url;
+      guideStepImage.alt = step.title || `Step ${num}`;
+      renderGuideAnnotations(guideStepAnnotationLayer, step);
+      guideStepPreviewBtn.style.display = 'block';
     } else {
-      imgEl.style.display = 'none';
+      guideStepImage.removeAttribute('src');
+      renderGuideAnnotations(guideStepAnnotationLayer, null);
+      guideStepPreviewBtn.style.display = 'none';
     }
   }
 
@@ -1717,7 +2247,7 @@ function renderGuideStep(steps, idx) {
   const copyArea    = document.getElementById('guideStepCopyArea');
   const copyContent = document.getElementById('guideStepCopyContent');
   if (copyArea && copyContent) {
-    if (step.type_text) {
+    if (step.type_text && !isProtectedGuideInput(step.type_text)) {
       copyContent.textContent  = step.type_text;
       copyArea.style.display   = 'flex';
     } else {
@@ -1725,30 +2255,37 @@ function renderGuideStep(steps, idx) {
     }
   }
 
-  guidePrevBtn.disabled         = idx === 0;
-  guidePrevBtn.style.opacity    = idx === 0 ? '0.4' : '1';
-  guidePrevBtn.style.cursor     = idx === 0 ? 'not-allowed' : 'pointer';
+  guidePrevBtn.disabled         = idx === 0 || guideFinished;
+  guidePrevBtn.style.opacity    = guidePrevBtn.disabled ? '0.4' : '1';
+  guidePrevBtn.style.cursor     = guidePrevBtn.disabled ? 'not-allowed' : 'pointer';
 
   const isLast = idx === total - 1;
   const requiresAction = !isGuideExplanationStep(step);
   const currentCompleted = guideCompletedSteps.has(idx);
-  guideNextBtn.dataset.action = requiresAction && !currentCompleted ? 'skip' : 'next';
-  guideNextBtn.textContent = currentCompleted
-    ? (isLast ? '종료 ✓' : '다음 →')
+  guideNextBtn.dataset.action = guideFinished ? 'finished' : requiresAction && !currentCompleted ? 'skip' : 'next';
+  guideNextBtn.disabled = guideFinished;
+  guideNextBtn.textContent = guideFinished
+    ? t('guideFinishedButton', '완료됨 ✓')
+    : currentCompleted
+    ? (isLast ? `${t('finish', '완료')} ✓` : t('next', '다음 →'))
     : requiresAction
-    ? (isLast ? '건너뛰고 종료' : '이 단계 건너뛰기 →')
-    : (isLast ? '완료 ✓' : '다음 →');
-  Object.assign(guideNextBtn.style, requiresAction && !currentCompleted ? {
+    ? t('skipStep', '이 단계 건너뛰기 →')
+    : (isLast ? t('finish', '완료') + ' ✓' : t('next', '다음 →'));
+  Object.assign(guideNextBtn.style, guideFinished ? {
+    background: '#E8FFF7', color: '#00796F', border: '1px solid #BFEDE7', cursor: 'default', opacity: '1',
+  } : requiresAction && !currentCompleted ? {
     background: '#FFF7ED', color: '#C2410C', border: '1px solid #FDBA74',
   } : {
-    background: '#009B8E', color: '#fff', border: '1px solid #009B8E',
+    background: '#009B8E', color: '#fff', border: '1px solid #009B8E', cursor: 'pointer', opacity: '1',
   });
   if (guideNavHint) {
-    guideNavHint.textContent = currentCompleted
-      ? '이 단계를 완료했어요.'
+    guideNavHint.textContent = guideFinished
+      ? t('guideFinishedHint', '모든 단계를 완료했어요. 필요한 내용을 확인한 뒤 우측 상단 ×로 종료하세요.')
+      : currentCompleted
+      ? t('completedStepHint', '이 단계를 완료했어요.')
       : requiresAction
-      ? '대상을 직접 클릭하면 자동으로 다음 단계로 이동해요. 수행하지 않을 때만 건너뛰기를 선택하세요.'
-      : '내용을 확인한 뒤 다음 단계로 이동하세요.';
+      ? t('actionStepHint', '대상을 직접 클릭하면 자동으로 다음 단계로 이동해요. 수행하지 않을 때만 건너뛰기를 선택하세요.')
+      : t('explanationStepHint', '내용을 확인한 뒤 다음 단계로 이동하세요.');
   }
 
   // 스텝 도트 렌더
@@ -1759,7 +2296,7 @@ function renderGuideStep(steps, idx) {
     const curr = i === idx;
     const skipped = guideSkippedSteps.has(i);
     const completed = guideCompletedSteps.has(i);
-    const canOpen = i <= idx;
+    const canOpen = !guideFinished && i <= idx;
     Object.assign(dot.style, {
       width: curr ? '28px' : '22px',
       height: '22px',
@@ -1776,7 +2313,11 @@ function renderGuideStep(steps, idx) {
       opacity: canOpen ? '1' : '0.65',
     });
     dot.textContent = skipped ? '↷' : (done || completed) ? '✓' : i + 1;
-    dot.title = skipped ? `${i + 1}단계: 건너뜀` : canOpen ? `${i + 1}단계 보기` : '앞 단계부터 진행하세요';
+    dot.title = skipped
+      ? t('stepSkipped', '$STEP$단계: 건너뜀', [String(i + 1)])
+      : canOpen
+        ? t('viewStep', '$STEP$단계 보기', [String(i + 1)])
+        : t('completePreviousSteps', '앞 단계부터 진행하세요');
     if (canOpen) {
       dot.addEventListener('click', () => {
         guideCurrentStep = i;
@@ -1796,7 +2337,7 @@ document.getElementById('guideStepCopyBtn')?.addEventListener('click', () => {
   const btn  = document.getElementById('guideStepCopyBtn');
   if (!text || !btn) return;
   navigator.clipboard.writeText(text)
-    .then(() => { btn.textContent = '✓'; setTimeout(() => { if (btn.isConnected) btn.textContent = '복사'; }, 1500); })
+    .then(() => { btn.textContent = '✓'; setTimeout(() => { if (btn.isConnected) btn.textContent = t('copy', '복사'); }, 1500); })
     .catch(() => {});
 });
 
@@ -1807,6 +2348,7 @@ guideExitBtn.addEventListener('click', () => {
     guideCurrentStep = 0;
     guideSkippedSteps.clear();
     guideCompletedSteps.clear();
+    guideFinished = false;
     hideGuideView();
   });
 });
@@ -1822,26 +2364,53 @@ guidePrevBtn.addEventListener('click', () => {
 });
 
 guideNextBtn.addEventListener('click', () => {
+  if (guideFinished) return;
   const skipped = guideNextBtn.dataset.action === 'skip';
   const isLast = guideCurrentStep >= guideSteps.length - 1;
   chrome.runtime.sendMessage({ type: 'GUIDE_NEXT', skipped }, (res) => {
     if (res?.ok) {
       guideSkippedSteps = new Set(res.skippedSteps || []);
       guideCompletedSteps = new Set(res.completedSteps || []);
+      if (res.confirmationRequired) {
+        guideCurrentStep = res.currentStep;
+        renderGuideStep(guideSteps, guideCurrentStep);
+        if (guideCompletionModal) guideCompletionModal.style.display = 'flex';
+        guideCompletionStayBtn?.focus();
+        return;
+      }
       if (isLast || res.completed) {
-        chrome.runtime.sendMessage({ type: 'GUIDE_COMPLETE', reason: 'side_panel' }, () => {
-          void chrome.runtime.lastError;
-          guideSteps = [];
-          guideCurrentStep = 0;
-          guideSkippedSteps.clear();
-          guideCompletedSteps.clear();
-          hideGuideView();
-        });
+        guideFinished = true;
+        guideCurrentStep = res.currentStep;
+        renderGuideStep(guideSteps, guideCurrentStep);
         return;
       }
       guideCurrentStep = res.currentStep;
       renderGuideStep(guideSteps, guideCurrentStep);
     }
+  });
+});
+
+guideCompletionStayBtn?.addEventListener('click', () => {
+  if (guideCompletionModal) guideCompletionModal.style.display = 'none';
+  chrome.runtime.sendMessage({ type: 'SHOW_OVERLAY_FOR_STEP', stepIndex: guideCurrentStep });
+});
+
+guideCompletionExitBtn?.addEventListener('click', () => {
+  guideCompletionExitBtn.disabled = true;
+  chrome.runtime.sendMessage({ type: 'GUIDE_COMPLETE', reason: 'confirmed_complete' }, (response) => {
+    void chrome.runtime.lastError;
+    if (!response?.ok) {
+      guideCompletionExitBtn.disabled = false;
+      return;
+    }
+    chrome.runtime.sendMessage({ type: 'EXIT_GUIDE' }, () => {
+      void chrome.runtime.lastError;
+      if (guideCompletionModal) guideCompletionModal.style.display = 'none';
+      guideCompletionExitBtn.disabled = false;
+      guideSteps = [];
+      guideFinished = false;
+      hideGuideView();
+    });
   });
 });
 
@@ -1854,34 +2423,48 @@ chrome.runtime.sendMessage({ type: 'GUIDE_VALIDATE' }, (r) => {
     guideCurrentStep = r.currentStep || 0;
     guideSkippedSteps = new Set(r.skippedSteps || []);
     guideCompletedSteps = new Set(r.completedSteps || []);
+    guideFinished = !!r.finished;
     showGuideView();
     renderGuideStep(guideSteps, guideCurrentStep);
     renderGuideTargetStatus(r.targetStatus);
+    renderGuideHandRaised(r.handRaised);
   }
 });
 
 // storage 변화 감지: START_GUIDE 이후 guideModeActive가 세팅되면 Guide Me 뷰로 전환
 chrome.storage.onChanged.addListener((changes) => {
   if (changes.guideModeActive?.newValue === true) {
-    storageGet(['guideSteps', 'guideCurrentStep', 'guideSkippedSteps', 'guideCompletedSteps', 'guideTargetStatus']).then((r) => {
+    storageGet(['guideSteps', 'guideCurrentStep', 'guideSkippedSteps', 'guideCompletedSteps', 'guideFinished', 'guideTargetStatus', 'guideHandRaised']).then((r) => {
       guideSteps = r.guideSteps || [];
       guideCurrentStep = r.guideCurrentStep || 0;
       guideSkippedSteps = new Set(r.guideSkippedSteps || []);
       guideCompletedSteps = new Set(r.guideCompletedSteps || []);
+      guideFinished = !!r.guideFinished;
       if (guideSteps.length > 0) {
         showGuideView();
         renderGuideStep(guideSteps, guideCurrentStep);
         renderGuideTargetStatus(r.guideTargetStatus);
+        renderGuideHandRaised(r.guideHandRaised);
       }
     });
   }
   if (changes.guideModeActive?.newValue === undefined && changes.guideModeActive?.oldValue) {
     guideSteps = [];
     guideCurrentStep = 0;
+    guideFinished = false;
     hideGuideView();
   }
   if (changes.guideTargetStatus?.newValue) {
     renderGuideTargetStatus(changes.guideTargetStatus.newValue);
+  }
+  if (changes.guideHandRaised !== undefined) {
+    renderGuideHandRaised(changes.guideHandRaised.newValue);
+  }
+  if (changes.guideVoiceMode !== undefined) {
+    guideVoiceMode = normalizeGuideVoiceMode(changes.guideVoiceMode.newValue);
+    guideVoiceEnabled = guideVoiceMode !== 'off';
+    stopGuideAudio();
+    updateGuideVoiceUi();
   }
   // 오버레이에서 스텝 이동 시 사이드패널 동기화
   if (changes.guideCurrentStep !== undefined && guideSteps.length > 0) {
@@ -1897,6 +2480,10 @@ chrome.storage.onChanged.addListener((changes) => {
   }
   if (changes.guideCompletedSteps !== undefined && guideSteps.length > 0) {
     guideCompletedSteps = new Set(changes.guideCompletedSteps.newValue || []);
+    renderGuideStep(guideSteps, guideCurrentStep);
+  }
+  if (changes.guideFinished !== undefined && guideSteps.length > 0) {
+    guideFinished = !!changes.guideFinished.newValue;
     renderGuideStep(guideSteps, guideCurrentStep);
   }
 });
@@ -1937,7 +2524,7 @@ function renderDebugLogs(logs) {
   if (logs.length === 0) {
     const empty = document.createElement('div');
     empty.style.cssText = 'color:#666;font-size:11px;padding:8px 0;';
-    empty.textContent = '로그 없음';
+    empty.textContent = t('noLogs', '로그 없음');
     debugLogList.appendChild(empty);
     return;
   }
@@ -1979,8 +2566,8 @@ if (btnDebugCopy) btnDebugCopy.addEventListener('click', () => {
     const logs = r?.logs || [];
     const text = logs.map(e => `[${new Date(e.t).toISOString()}][${e.level.toUpperCase()}][${e.source}] ${e.msg}`).join('\n');
     navigator.clipboard.writeText(text).then(() => {
-      btnDebugCopy.textContent = '복사됨!';
-      setTimeout(() => { btnDebugCopy.textContent = '복사'; }, 1500);
+      btnDebugCopy.textContent = t('copied', '복사됨!');
+      setTimeout(() => { btnDebugCopy.textContent = t('copy', '복사'); }, 1500);
     });
   });
 });

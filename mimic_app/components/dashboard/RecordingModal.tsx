@@ -1,8 +1,12 @@
 ﻿'use client';
 
-import { useState, useCallback, useEffect } from 'react';
-import { installExtensionIdListener, resolveExtensionIdCandidates } from '@/lib/extension-id';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { installExtensionIdListener, resolvePreferredExtensionId } from '@/lib/extension-id';
 import { BRAND_COLORS, BRAND_COPY, BRAND_EXTENSION_STORE_URL } from '@/lib/brand';
+import {
+  desktopCaptureEntryDestination,
+  resolveDesktopCaptureEntry,
+} from '@/lib/desktop-companion-client';
 
 // 운영(Production)에서만 켜는 플래그 — Vercel Production env에 NEXT_PUBLIC_REQUIRE_EXTENSION=1.
 // 로컬(npm run dev)·Preview(dev)는 값이 없어 게이트가 꺼진다(개발자 버전 미설치로도 작업 가능).
@@ -45,7 +49,7 @@ interface StartRecordingResponse {
   message?: string;
 }
 
-type ModalStep = 'checking' | 'guide' | 'tab_select' | 'launching' | 'not_installed' | 'dev_unavailable' | 'start_failed' | 'install';
+type ModalStep = 'checking' | 'desktop_checking' | 'mode_select' | 'guide' | 'tab_select' | 'onboarding_ready' | 'launching' | 'not_installed' | 'dev_unavailable' | 'start_failed' | 'install';
 
 // ── 확장 통신 ─────────────────────────────────────────────
 
@@ -53,14 +57,19 @@ function isExtensionInstalled(): boolean {
   return !!(typeof window !== 'undefined' && window.chrome?.runtime?.sendMessage);
 }
 
-let connectedExtensionId = '';
-
-function sendMessageToExtension(extensionId: string, action: string, payload?: Record<string, unknown>): Promise<unknown> {
+async function sendMessage(action: string, payload?: Record<string, unknown>): Promise<unknown> {
+  const extensionId = await resolvePreferredExtensionId();
   return new Promise(resolve => {
-    const timer = setTimeout(() => {
-      console.warn('[Parro] sendMessage 타임아웃:', action, extensionId);
+    if (!extensionId || !isExtensionInstalled()) {
+      console.warn('[Parro] 확장 없음 또는 extensionId 미설정, 바이패스');
       resolve(null);
-    }, action === 'CONNECT' ? 1500 : 5000);
+      return;
+    }
+    // 5초 타임아웃 — 확장이 응답 안 하면 null 반환
+    const timer = setTimeout(() => {
+      console.warn('[Parro] sendMessage 타임아웃:', action);
+      resolve(null);
+    }, 5000);
     window.chrome!.runtime!.sendMessage(extensionId, { action, ...payload }, resp => {
       clearTimeout(timer);
       if (window.chrome?.runtime?.lastError) {
@@ -68,35 +77,18 @@ function sendMessageToExtension(extensionId: string, action: string, payload?: R
         resolve(null);
         return;
       }
-      resolve(resp ?? null);
+      console.log('[Parro] 응답:', action, resp);
+      resolve(resp);
     });
   });
-}
-
-async function sendMessage(action: string, payload?: Record<string, unknown>): Promise<unknown> {
-  if (!isExtensionInstalled()) {
-    console.warn('[Parro] Chrome 외부 메시징 API를 사용할 수 없음:', action);
-    return null;
-  }
-  const candidates = connectedExtensionId
-    ? [connectedExtensionId]
-    : await resolveExtensionIdCandidates();
-  for (const extensionId of candidates) {
-    const resp = await sendMessageToExtension(extensionId, action, payload);
-    if (resp) {
-      connectedExtensionId = extensionId;
-      console.log('[Parro] 응답:', action, resp);
-      return resp;
-    }
-  }
-  return null;
 }
 
 // Service Worker가 잠든 상태일 때 첫 메시지가 실패하는 경쟁 조건 방지.
 // CONNECT ping으로 먼저 깨운 뒤 실제 메시지를 전송한다.
 // 최대 3회 재시도, 회당 600ms 대기.
 async function wakeAndSend(action: string, payload?: Record<string, unknown>, retries = 3): Promise<unknown> {
-  if (!isExtensionInstalled()) return null;
+  const extensionId = await resolvePreferredExtensionId();
+  if (!extensionId || !isExtensionInstalled()) return null;
 
   for (let i = 0; i < retries; i++) {
     // ping
@@ -126,7 +118,8 @@ async function fetchOpenTabs(): Promise<TabsResponse | null> {
 }
 
 async function linkExtensionToCurrentUser(): Promise<boolean> {
-  if (!isExtensionInstalled()) return !REQUIRE_EXTENSION;
+  const extensionId = await resolvePreferredExtensionId();
+  if (!extensionId || !isExtensionInstalled()) return !REQUIRE_EXTENSION;
 
   try {
     const res = await fetch('/api/extension/link', { method: 'POST' });
@@ -150,15 +143,19 @@ async function linkExtensionToCurrentUser(): Promise<boolean> {
   }
 }
 
-async function sendStartRecording(tabId: number, url: string): Promise<StartRecordingResponse> {
+async function sendStartRecording(
+  tabId: number,
+  url: string,
+  onboardingToken?: string | null,
+): Promise<StartRecordingResponse> {
   if (!isExtensionInstalled()) return { ok: true }; // 바이패스
   // 1차: user gesture를 유지한 채 CONNECT 없이 즉시 전송한다.
   //      이래야 확장이 chrome.sidePanel.open()을 제스처 컨텍스트에서 호출해
   //      사이드 패널을 자동으로 열 수 있다 (#2). 탭 선택 직전 GET_TABS로 SW는 이미 깨어있음.
-  let resp = await sendMessage('START_RECORDING', { tabId, url }) as StartRecordingResponse | null;
+  let resp = await sendMessage('START_RECORDING', { tabId, url, onboardingToken: onboardingToken ?? null }) as StartRecordingResponse | null;
   if (resp && resp.ok) return resp;
   // 2차: SW가 잠들어 1차가 실패하면 wake 후 재시도 (제스처 소실 → 패널은 수동 클릭 필요할 수 있음)
-  resp = await wakeAndSend('START_RECORDING', { tabId, url }) as StartRecordingResponse | null;
+  resp = await wakeAndSend('START_RECORDING', { tabId, url, onboardingToken: onboardingToken ?? null }) as StartRecordingResponse | null;
   return resp ?? { ok: false, reason: 'error', message: `${BRAND_COPY.extensionDisplayName}가 응답하지 않았습니다.` };
 }
 
@@ -226,10 +223,18 @@ function FavIcon({ url, favIconUrl }: { url: string; favIconUrl?: string }) {
 
 interface RecordingModalProps {
   onClose: () => void;
+  initialMode?: 'select' | 'web';
+  onboardingMode?: boolean;
+  onOnboardingSignal?: (name: string, detail?: { extensionState?: string }) => void;
 }
 
 const STORE_URL = BRAND_EXTENSION_STORE_URL;
-export function RecordingModal({ onClose }: RecordingModalProps) {
+export function RecordingModal({
+  onClose,
+  initialMode = 'select',
+  onboardingMode = false,
+  onOnboardingSignal,
+}: RecordingModalProps) {
   const [step, setStep] = useState<ModalStep>('checking');
   const [tabs, setTabs] = useState<ChromeTab[]>([]);
   const [tabsLoading, setTabsLoading] = useState(false);
@@ -237,7 +242,13 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
   const [search, setSearch] = useState('');
   const [tabListIssue, setTabListIssue] = useState<string | null>(null);
   const [startFailure, setStartFailure] = useState<StartRecordingResponse | null>(null);
-  const readyStep: ModalStep = 'guide';
+  const [onboardingToken, setOnboardingToken] = useState<string | null>(null);
+  const readyStep: ModalStep = initialMode === 'web' ? 'guide' : 'mode_select';
+  const onboardingSignalRef = useRef(onOnboardingSignal);
+
+  useEffect(() => {
+    onboardingSignalRef.current = onOnboardingSignal;
+  }, [onOnboardingSignal]);
 
   // ESC 닫기
   useEffect(() => {
@@ -248,8 +259,8 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
 
   // 모달 진입 시:
   // - dev/Preview(REQUIRE_EXTENSION 꺼짐): 확장 강제 없이 바로 가이드 (기존 동작)
-  // - 운영(REQUIRE_EXTENSION 켜짐): 공개/레거시 Web Store ID에 CONNECT ping.
-  //   미응답이어도 현재 페이지를 떠나지 않고 복구 UI를 보여준다.
+  // - 운영(REQUIRE_EXTENSION 켜짐): CONNECT ping으로 설치 여부 확인 → 미설치/미응답이면
+  //   크롬 웹스토어 설치 페이지로 직접 보낸다.
   useEffect(() => {
     const cleanupExtensionIdListener = installExtensionIdListener();
     if (!REQUIRE_EXTENSION) {
@@ -261,11 +272,75 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
     (async () => {
       const resp = await wakeAndSend('CONNECT'); // SW 깨우고 설치 여부 확인
       if (!alive) return;
-      if (resp) setStep(readyStep);
-      else setStep('not_installed');
+      if (resp) {
+        onboardingSignalRef.current?.('extension-state', { extensionState: 'installed' });
+        setStep(readyStep);
+      } else {
+        onboardingSignalRef.current?.('extension-state', { extensionState: 'missing' });
+        setStep('install');
+      }
     })();
     return () => { alive = false; cleanupExtensionIdListener(); };
   }, [readyStep]);
+
+  const enterOnboardingPractice = useCallback(async () => {
+    setStep('checking');
+    setStartFailure(null);
+
+    if (!isExtensionInstalled()) {
+      onOnboardingSignal?.('extension-state', { extensionState: 'missing' });
+      setStep('install');
+      return;
+    }
+
+    const linked = await linkExtensionToCurrentUser();
+    if (!linked) {
+      onOnboardingSignal?.('extension-state', { extensionState: 'unlinked' });
+      setStep(REQUIRE_EXTENSION ? 'not_installed' : 'dev_unavailable');
+      return;
+    }
+
+    const sessionResponse = await fetch('/api/user/onboarding/practice-session', {
+      method: 'POST',
+    }).catch(() => null);
+    if (!sessionResponse?.ok) {
+      setStartFailure({ ok: false, reason: 'error', message: '연습 녹화를 준비하지 못했습니다. Live Guide를 다시 시작해주세요.' });
+      setStep('start_failed');
+      return;
+    }
+
+    const session = await sessionResponse.json() as {
+      practice_url?: string;
+      onboarding_token?: string;
+    };
+    if (!session.practice_url || !session.onboarding_token) {
+      setStartFailure({ ok: false, reason: 'error', message: '연습 녹화 정보가 올바르지 않습니다.' });
+      setStep('start_failed');
+      return;
+    }
+
+    const practiceUrl = new URL(session.practice_url, window.location.origin).toString();
+    const opened = await wakeAndSend('OPEN_ONBOARDING_PRACTICE', {
+      url: practiceUrl,
+      webapp_origin: window.location.origin,
+    }) as { ok?: boolean; tab?: ChromeTab; error?: string } | null;
+    if (!opened?.ok || !opened.tab) {
+      setStartFailure({ ok: false, reason: 'error', message: opened?.error ?? 'Parro 연습 페이지를 열지 못했습니다.' });
+      setStep('start_failed');
+      return;
+    }
+
+    setOnboardingToken(session.onboarding_token);
+    setSelectedTab(opened.tab);
+    setStep('onboarding_ready');
+    onOnboardingSignal?.('recording-ready', { extensionState: 'installed' });
+  }, [onOnboardingSignal]);
+
+  const enterDesktopSetup = useCallback(async () => {
+    setStep('desktop_checking');
+    const entry = await resolveDesktopCaptureEntry();
+    window.location.assign(desktopCaptureEntryDestination(entry, 'recording'));
+  }, []);
 
   // 탭 선택 단계 진입 시 목록 로드
   const enterTabSelect = useCallback(async () => {
@@ -308,14 +383,15 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
     if (!selectedTab) return;
     setStep('launching');
     setStartFailure(null);
-    const result = await sendStartRecording(selectedTab.id, selectedTab.url);
+    const result = await sendStartRecording(selectedTab.id, selectedTab.url, onboardingMode ? onboardingToken : null);
     if (!result.ok) {
       setStartFailure(result);
       setStep('start_failed');
       return;
     }
+    onOnboardingSignal?.('recording-started', { extensionState: 'installed' });
     onClose();
-  }, [selectedTab, onClose]);
+  }, [onboardingMode, onboardingToken, onClose, onOnboardingSignal, selectedTab]);
 
   const filteredTabs = tabs.filter(t =>
     t.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -338,6 +414,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
       <div
         role="dialog"
         aria-modal="true"
+        data-parro-guide={onboardingMode ? 'recording-setup' : undefined}
         style={{
           position: 'fixed', top: '50%', left: '50%',
           transform: 'translate(-50%, -50%)',
@@ -367,8 +444,11 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
           </div>
           <h2 style={{ fontSize: '19px', fontWeight: 700, color: 'white', margin: 0, letterSpacing: '-0.02em' }}>
             {step === 'checking' && '확장 프로그램 확인 중…'}
+            {step === 'desktop_checking' && 'Desktop Companion 확인 중…'}
+            {step === 'mode_select' && '녹화 방식 선택'}
             {step === 'guide' && '웹 페이지 녹화 시작'}
             {step === 'tab_select' && '녹화할 페이지 선택'}
+            {step === 'onboarding_ready' && '연습 녹화 준비 완료'}
             {step === 'launching' && 'Recorder 실행 중…'}
             {step === 'not_installed' && '확장 프로그램이 필요해요'}
             {step === 'dev_unavailable' && '개발용 Recorder 연결 필요'}
@@ -377,8 +457,11 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
           </h2>
           <p style={{ fontSize: '12.5px', color: 'rgba(255,255,255,0.72)', marginTop: '3px' }}>
             {step === 'checking' && '잠시만 기다려주세요'}
+            {step === 'desktop_checking' && '플랜, 설치 상태와 앱 버전을 확인하고 있어요'}
+            {step === 'mode_select' && '웹 페이지 또는 데스크톱 작업 중 선택하세요'}
             {step === 'guide' && '웹 페이지 클릭 흐름을 매뉴얼로 만들어드릴게요'}
             {step === 'tab_select' && (tabListIssue || `열린 탭 ${tabs.length}개 · 페이지를 선택하면 오른쪽에 미리보기가 표시됩니다`)}
+            {step === 'onboarding_ready' && 'Parro 연습 페이지에서 안전하게 시작해요'}
             {step === 'launching' && '잠시만 기다려주세요'}
             {step === 'not_installed' && `${BRAND_COPY.extensionDisplayName}를 먼저 설치해야 녹화할 수 있어요`}
             {step === 'dev_unavailable' && `${BRAND_COPY.extensionDisplayName} (dev)가 응답하지 않아요`}
@@ -388,15 +471,66 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
         </div>
 
         {/* ── 확인 중 ── */}
-        {step === 'checking' && (
+        {(step === 'checking' || step === 'desktop_checking') && (
           <div style={{ padding: '48px 28px', textAlign: 'center' }}>
             <div style={{ width: '52px', height: '52px', borderRadius: '50%', border: `3px solid ${BRAND_RING_SOFT}`, borderTopColor: BRAND_COLORS.primary, animation: 'spin 0.9s linear infinite', margin: '0 auto' }} />
+            {step === 'desktop_checking' && (
+              <p style={{ margin: '16px 0 0', color: '#6B7280', fontSize: '12.5px', lineHeight: 1.6 }}>
+                설치되어 있고 최신 버전이면 바로 녹화를 시작합니다.
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* ── 녹화 방식 선택 ── */}
+        {step === 'mode_select' && (
+          <div style={{ padding: '24px 28px 28px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '18px' }}>
+              <button
+                onClick={() => setStep('guide')}
+                style={{ width: '100%', minHeight: '96px', padding: '16px', borderRadius: '12px', border: '1.5px solid #E5E7EB', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '14px', textAlign: 'left' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#C7D2FE'; e.currentTarget.style.background = '#F8FAFF'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.background = 'white'; }}
+              >
+                <span style={{ width: '44px', height: '44px', borderRadius: '10px', background: '#EEF2FF', color: '#3730a3', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 0 20"/><path d="M12 2a15.3 15.3 0 0 0 0 20"/></svg>
+                </span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: 'block', fontSize: '15px', fontWeight: 700, color: '#111827', marginBottom: '4px' }}>웹 페이지 녹화</span>
+                  <span style={{ display: 'block', fontSize: '12.5px', lineHeight: 1.55, color: '#6B7280' }}>Chrome 탭을 선택해 클릭, 입력, 화면 변화를 자동 캡처합니다.</span>
+                </span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="m9 18 6-6-6-6"/></svg>
+              </button>
+
+              <button
+                onClick={enterDesktopSetup}
+                style={{ width: '100%', minHeight: '106px', padding: '16px', borderRadius: '12px', border: '1.5px solid #E5E7EB', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '14px', textAlign: 'left' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#BAE6FD'; e.currentTarget.style.background = '#F7FCFF'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.background = 'white'; }}
+              >
+                <span style={{ width: '44px', height: '44px', borderRadius: '10px', background: '#E0F2FE', color: '#0369A1', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                  <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+                </span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: 'block', fontSize: '15px', fontWeight: 700, color: '#111827', marginBottom: '4px' }}>데스크톱 녹화</span>
+                  <span style={{ display: 'block', fontSize: '12.5px', lineHeight: 1.55, color: '#6B7280' }}>다운로드, 업로드, 설치, 로그인처럼 Windows 작업이 포함된 흐름을 이어서 기록합니다.</span>
+                  <span style={{ display: 'inline-flex', marginTop: '7px', padding: '2px 7px', borderRadius: '999px', background: '#E6F7F3', color: '#007C72', fontSize: '10.5px', fontWeight: 800 }}>유료 플랜</span>
+                </span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="m9 18 6-6-6-6"/></svg>
+              </button>
+            </div>
+            <div style={{ background: '#F9FAFB', border: '1px solid #F3F4F6', borderRadius: '10px', padding: '11px 14px', display: 'flex', gap: '10px' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: '1px' }}><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+              <p style={{ fontSize: '12.5px', color: '#4B5563', lineHeight: 1.55, margin: 0 }}>
+                유료 플랜 전용 기능입니다. 설치 여부와 버전을 자동 확인하며, 필요한 경우 설치 또는 업데이트 화면으로 안내합니다.
+              </p>
+            </div>
           </div>
         )}
 
         {/* ── 가이드 단계 ── */}
         {step === 'guide' && (
-          <div style={{ padding: '24px 28px 28px' }}>
+          <div data-parro-guide="recording-setup" style={{ padding: '24px 28px 28px' }}>
             <p style={{ fontSize: '12.5px', fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '14px' }}>진행 방법</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '22px' }}>
               {GUIDE_STEPS.map((s, i) => (
@@ -423,10 +557,32 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
               </p>
             </div>
             <button
-              onClick={enterTabSelect}
+              data-parro-guide={onboardingMode ? 'recording-start' : undefined}
+              onClick={onboardingMode ? enterOnboardingPractice : enterTabSelect}
               style={{ width: '100%', padding: '13px', borderRadius: '11px', background: BRAND_GRADIENT, color: 'white', fontSize: '14.5px', fontWeight: 600, border: 'none', cursor: 'pointer', boxShadow: `0 4px 14px ${BRAND_RING}` }}
             >
-              페이지 선택하기 →
+              {onboardingMode ? 'Parro 연습 페이지 준비하기 →' : '페이지 선택하기 →'}
+            </button>
+          </div>
+        )}
+
+        {step === 'onboarding_ready' && selectedTab && (
+          <div data-parro-guide="recording-start" style={{ padding: '26px 28px 28px' }}>
+            <div style={{ padding: '15px 16px', border: '1px solid #A7F3D0', borderRadius: '12px', background: '#ECFDF5', marginBottom: '18px' }}>
+              <strong style={{ display: 'block', color: '#047857', fontSize: '14px', marginBottom: '5px' }}>안전한 연습 탭을 열었어요</strong>
+              <span style={{ color: '#065F46', fontSize: '12.5px', lineHeight: 1.55 }}>실제 고객 데이터가 없는 Parro 연습 페이지입니다. 연습 매뉴얼은 비공개 초안으로 저장되고 사용량에서 제외돼요.</span>
+            </div>
+            <ol style={{ margin: '0 0 18px', paddingLeft: '20px', color: '#4B5563', fontSize: '13px', lineHeight: 1.75 }}>
+              <li>녹화 시작 후 연습 페이지 탭으로 이동</li>
+              <li>버튼 클릭과 연습 문구 입력</li>
+              <li>Recorder에서 잠시 멈춤·실행 취소·완료 사용</li>
+            </ol>
+            <button
+              data-parro-guide="recording-start"
+              onClick={handleStart}
+              style={{ width: '100%', padding: '13px', borderRadius: '11px', background: BRAND_GRADIENT, color: 'white', fontSize: '14.5px', fontWeight: 700, border: 'none', cursor: 'pointer', boxShadow: `0 4px 14px ${BRAND_RING}` }}
+            >
+              연습 녹화 시작
             </button>
           </div>
         )}
@@ -511,7 +667,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
               {/* 하단 버튼 */}
               <div style={{ padding: '12px 16px', borderTop: '1px solid #F3F4F6', display: 'flex', gap: '8px' }}>
                 <button
-                  onClick={() => setStep('guide')}
+                  onClick={() => setStep('mode_select')}
                   style={{ flex: 1, padding: '10px', borderRadius: '9px', background: 'white', color: '#4B5563', fontSize: '13px', fontWeight: 500, border: '1.5px solid #E5E7EB', cursor: 'pointer' }}
                 >
                   ← 이전
@@ -605,10 +761,11 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <a href={STORE_URL} target="_blank" rel="noopener noreferrer"
+                onClick={() => onOnboardingSignal?.('install-clicked', { extensionState: 'missing' })}
                 style={{ width: '100%', padding: '12px', borderRadius: '10px', background: BRAND_GRADIENT, color: 'white', fontSize: '14px', fontWeight: 600, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', textDecoration: 'none', boxShadow: `0 4px 14px ${BRAND_RING}`, boxSizing: 'border-box' }}>
                 {BRAND_COPY.extensionDisplayName} 설치하기
               </a>
-              <button onClick={enterTabSelect} style={{ width: '100%', padding: '12px', borderRadius: '10px', background: 'white', color: '#4B5563', fontSize: '14px', fontWeight: 500, border: '1.5px solid #E5E7EB', cursor: 'pointer' }}>
+              <button onClick={onboardingMode ? enterOnboardingPractice : enterTabSelect} style={{ width: '100%', padding: '12px', borderRadius: '10px', background: 'white', color: '#4B5563', fontSize: '14px', fontWeight: 500, border: '1.5px solid #E5E7EB', cursor: 'pointer' }}>
                 설치 완료 — 다시 시도
               </button>
               <button onClick={onClose} style={{ width: '100%', padding: '10px', borderRadius: '10px', background: 'none', color: '#9CA3AF', fontSize: '13px', border: 'none', cursor: 'pointer' }}>
@@ -628,7 +785,7 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
               </p>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <button onClick={enterTabSelect} style={{ width: '100%', padding: '12px', borderRadius: '10px', background: BRAND_GRADIENT, color: 'white', fontSize: '14px', fontWeight: 600, border: 'none', cursor: 'pointer', boxShadow: `0 4px 14px ${BRAND_RING}` }}>
+              <button onClick={onboardingMode ? enterOnboardingPractice : enterTabSelect} style={{ width: '100%', padding: '12px', borderRadius: '10px', background: BRAND_GRADIENT, color: 'white', fontSize: '14px', fontWeight: 600, border: 'none', cursor: 'pointer', boxShadow: `0 4px 14px ${BRAND_RING}` }}>
                 개발용 Recorder 다시 연결
               </button>
               <button onClick={onClose} style={{ width: '100%', padding: '10px', borderRadius: '10px', background: 'none', color: '#9CA3AF', fontSize: '13px', border: 'none', cursor: 'pointer' }}>
@@ -683,15 +840,20 @@ export function RecordingModal({ onClose }: RecordingModalProps) {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <a href={STORE_URL} target="_blank" rel="noopener noreferrer"
+                onClick={() => onOnboardingSignal?.('install-clicked', { extensionState: 'missing' })}
                 style={{ width: '100%', padding: '13px', borderRadius: '11px', background: BRAND_GRADIENT, color: 'white', fontSize: '14.5px', fontWeight: 600, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', textDecoration: 'none', boxShadow: `0 4px 14px ${BRAND_RING}`, boxSizing: 'border-box' }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 {BRAND_COPY.extensionDisplayName} 설치하기
               </a>
               <button
                 onClick={() => {
+                  if (onboardingMode) {
+                    void enterOnboardingPractice();
+                    return;
+                  }
                   if (isExtensionInstalled()) {
                     sendMessage('CONNECT').then(resp => {
-                      if (resp) setStep('guide');
+                      if (resp) setStep('mode_select');
                       else setStep('install');
                     });
                   } else {

@@ -21,6 +21,7 @@ import { updateStep, createStep, deleteStep, reorderSteps, duplicateStep, upload
 import { getTutorial } from '@/lib/api/tutorials';
 import { logError } from '@/lib/logging/logger';
 import { hasGuideConfig } from '@/lib/follow';
+import { hasPersistedManualAnnotationState } from '@/lib/auto-annotations';
 import { LEGACY_INTERNAL_IDENTIFIERS } from '@/lib/brand';
 import type { Step, Tutorial } from '@/types';
 import { hasEntitlement } from '@/lib/entitlements';
@@ -48,6 +49,10 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
     screenshotUrl: s.screenshot_url || undefined,
     originalScreenshotUrl: (s as Step & { original_screenshot_url?: string | null }).original_screenshot_url ?? null,
     annotations: (s.user_annotations as import('@/components/editor/ImageAnnotationEditor').Annotation[] | null) ?? [],
+    annotationsPersisted: hasPersistedManualAnnotationState(
+      (s.user_annotations as import('@/components/editor/ImageAnnotationEditor').Annotation[] | null) ?? [],
+      (s as Step & { target_context?: Record<string, unknown> | null }).target_context,
+    ),
     pageUrl:         s.page_url        ?? null,
     domainHostname:  s.domain_hostname ?? null,
     domainName:      s.domain_name     ?? null,
@@ -65,9 +70,7 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
     element_rect: (s as Step & { element_rect?: { x: number; y: number; width: number; height: number } | null }).element_rect ?? null,
     targetContext: (() => {
       const context = (s as Step & { target_context?: Record<string, unknown> | null }).target_context;
-      return context && typeof context.accessibleName === 'string'
-        ? { accessibleName: context.accessibleName }
-        : null;
+      return context ?? null;
     })(),
     imageZoom: (s as Step & { image_zoom?: number | null }).image_zoom ?? 1,
     imageOffsetX: (s as Step & { image_offset_x?: number | null }).image_offset_x ?? 0,
@@ -387,7 +390,7 @@ export default function EditorPage() {
     titleDirtyRef.current = titleDirty;
   }, [titleDirty]);
 
-  // 최초 생성 결과와 별개로 사용자가 원할 때 문체와 표현을 다시 다듬는다.
+  // 기존 매뉴얼까지 목적 중심 제목·본문으로 다시 생성한다.
   const refineAllText = useCallback(async (options: { automatic?: boolean } = {}) => {
     if (refineAbortRef.current) return;
     if (!manualSteps.some(step => !step.id.startsWith('step-'))) {
@@ -690,7 +693,7 @@ export default function EditorPage() {
               게시됨
             </span>
           )}
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'rgba(16,185,129,0.9)' }}>
+          <span data-parro-guide="editor-autosave" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'rgba(16,185,129,0.9)' }}>
             <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#10B981', display: 'inline-block' }} />
             자동 저장됨
           </span>
@@ -725,16 +728,22 @@ export default function EditorPage() {
 
           {/* 편집기 — 항상 편집 모드 */}
           <>
-            {/* 미리보기 — 게시된 공개 뷰어 새 탭 */}
+            {/* 미리보기 — 초안은 소유자 전용, 게시본은 공개 뷰어 새 탭 */}
             {(() => {
               const shareToken = (tutorial as Tutorial & { share_token?: string | null })?.share_token;
+              const canPreview = manualSteps.length > 0;
+              const previewUrl = shareToken ? `/play/${shareToken}` : `/play/${id}?preview=1`;
               return (
                 <button
-                  onClick={() => { if (shareToken) window.open(`/play/${shareToken}`, '_blank'); }}
-                  title={shareToken ? '공개 뷰어로 미리보기 (새 탭)' : '게시 후 미리보기 가능'}
-                  disabled={!shareToken}
-                  style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: shareToken ? '#374151' : '#D1D5DB', background: 'white', border: '1px solid #E5E7EB', cursor: shareToken ? 'pointer' : 'not-allowed', transition: 'all 0.15s' }}
-                  onMouseEnter={e => { if (shareToken) e.currentTarget.style.background = '#F9FAFB'; }}
+                  onClick={() => { if (canPreview) window.open(previewUrl, '_blank'); }}
+                  title={canPreview
+                    ? shareToken
+                      ? '공개 뷰어로 미리보기 (새 탭)'
+                      : '초안 미리보기 (소유자 전용, 새 탭)'
+                    : '단계를 추가하면 미리볼 수 있어요'}
+                  disabled={!canPreview}
+                  style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: canPreview ? '#374151' : '#D1D5DB', background: 'white', border: '1px solid #E5E7EB', cursor: canPreview ? 'pointer' : 'not-allowed', transition: 'all 0.15s' }}
+                  onMouseEnter={e => { if (canPreview) e.currentTarget.style.background = '#F9FAFB'; }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
                 >
                   <Eye size={TOP_BAR_ICON_SIZE} />
@@ -744,6 +753,7 @@ export default function EditorPage() {
             })()}
 
             <button
+              data-parro-guide="editor-learning-guide"
               onClick={() => router.push(`/manual/${id}/studio`)}
               title="학습 가이드의 화면 안내, 핫스팟, 입력 텍스트를 편집합니다"
               style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#009B8E', background: 'rgba(0,155,142,0.08)', border: '1px solid rgba(0,155,142,0.35)', cursor: 'pointer', transition: 'all 0.15s', fontWeight: 600 }}
@@ -847,6 +857,7 @@ export default function EditorPage() {
 
             {/* 공유 — 게시 후에만. ShareModal(링크 복사·공개범위·임베드) */}
             <button
+              data-parro-guide="editor-share"
               onClick={() => setShowShare(true)}
               disabled={tutorial.status !== 'published'}
               title={tutorial.status === 'published' ? '공유 링크·공개 범위 설정' : '게시 후 공유할 수 있어요'}
@@ -925,7 +936,7 @@ export default function EditorPage() {
         )}
 
         {/* TOC panel — 데스크탑: 고정 / 모바일: 숨김 */}
-        <div className="editor-toc-panel" style={{ width: '280px', flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid #E5E7EB', background: 'white', minHeight: 0 }}>
+        <div data-parro-guide="editor-steps" className="editor-toc-panel" style={{ width: '280px', flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid #E5E7EB', background: 'white', minHeight: 0 }}>
           <GuideToc
             steps={manualSteps}
             activeId={activeId}
@@ -987,7 +998,7 @@ export default function EditorPage() {
         {/* Main content */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
           {/* Title banner — 컴팩트 */}
-          <div className="editor-title-bar" style={{ flexShrink: 0, padding: '8px 20px 7px', borderBottom: '1px solid #E5E7EB', background: 'white', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div data-parro-guide="editor-title" className="editor-title-bar" style={{ flexShrink: 0, padding: '8px 20px 7px', borderBottom: '1px solid #E5E7EB', background: 'white', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <input
               value={title}
               onChange={e => { setTitle(e.target.value); setTitleDirty(true); }}
@@ -1030,11 +1041,11 @@ export default function EditorPage() {
             <button
               onClick={handleRefineAllText}
               disabled={refiningText || !canUseAiRewrite}
-              title={canUseAiRewrite ? '현재 제목과 설명의 문체와 표현을 AI로 다듬기' : 'Basic 이상 플랜에서 사용할 수 있습니다.'}
+              title={canUseAiRewrite ? '기존 매뉴얼을 포함해 전체 제목·본문을 사용자 목적 중심으로 다시 작성' : 'Basic 이상 플랜에서 사용할 수 있습니다.'}
               style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', flexShrink: 0, height: '28px', padding: '0 10px', borderRadius: '6px', border: '1px solid #E5E7EB', background: 'white', color: '#12B886', fontSize: '12px', fontWeight: 500, cursor: refiningText || !canUseAiRewrite ? 'not-allowed' : 'pointer', opacity: refiningText || !canUseAiRewrite ? 0.55 : 1, transition: 'all 0.15s' }}
             >
               {refiningText ? <Loader2 size={TOP_BAR_ICON_SIZE} style={{ animation: 'spin 1s linear infinite' }} /> : <Wand2 size={TOP_BAR_ICON_SIZE} />}
-              AI 문장 다듬기
+              전체 제목·본문 AI 재작성
             </button>
             {refiningText && (
               <button onClick={cancelRefineAllText} style={{ height: '28px', padding: '0 9px', borderRadius: '6px', border: '1px solid #FCA5A5', background: '#FFF7F7', color: '#B91C1C', fontSize: '11.5px', fontWeight: 600, cursor: 'pointer' }}>
@@ -1113,16 +1124,26 @@ export default function EditorPage() {
               if (patch.actionTitle !== undefined || patch.description !== undefined) {
                 clearTimeout(stepSaveTimers.current[stepId]);
               }
-              updateStep(stepId, {
+              const saveRequest = updateStep(stepId, {
                 ...(patch.actionTitle !== undefined ? { user_title: patch.actionTitle || null } : {}),
                 ...(patch.titleFontSize !== undefined ? { title_font_size: patch.titleFontSize } : {}),
                 ...(patch.followConfig !== undefined ? { follow_config: patch.followConfig } : {}),
                 ...(patch.description !== undefined ? { user_script: patch.description || null } : {}),
                 ...(patch.annotations !== undefined ? { user_annotations: patch.annotations } : {}),
+                ...(patch.annotationsPersisted !== undefined ? {
+                  target_context: {
+                    ...(manualSteps.find(step => step.id === stepId)?.targetContext ?? {}),
+                    annotationsManuallyEdited: patch.annotationsPersisted,
+                  },
+                } : {}),
                 ...(patch.imageZoom !== undefined ? { image_zoom: patch.imageZoom } : {}),
                 ...(patch.imageOffsetX !== undefined ? { image_offset_x: patch.imageOffsetX } : {}),
                 ...(patch.imageOffsetY !== undefined ? { image_offset_y: patch.imageOffsetY } : {}),
-              }).catch((e) => logError('step.save.fail', { tutorialId: id, stepId, message: e instanceof Error ? e.message : String(e) }));
+              });
+              return saveRequest.catch((e) => {
+                logError('step.save.fail', { tutorialId: id, stepId, message: e instanceof Error ? e.message : String(e) });
+                if (patch.annotations !== undefined) throw e;
+              });
             }}
             onUploadImage={uploadStepImage}
             onRemoveImage={removeStepImage}
@@ -1185,11 +1206,11 @@ export default function EditorPage() {
         <div onClick={() => setShowRefineConfirm(false)} style={{ position: 'fixed', inset: 0, zIndex: 2100, background: 'rgba(10,10,18,0.50)', backdropFilter: 'blur(3px)', display: 'grid', placeItems: 'center', padding: 20 }}>
           <div role="dialog" aria-modal="true" aria-labelledby="refine-confirm-title" onClick={event => event.stopPropagation()} style={{ width: '100%', maxWidth: 400, borderRadius: 16, background: 'white', padding: 24, boxShadow: '0 20px 60px rgba(0,0,0,0.28)' }}>
             <div style={{ width: 42, height: 42, borderRadius: 12, display: 'grid', placeItems: 'center', background: '#E8FFF7', color: '#009B8E', marginBottom: 14 }}><Wand2 size={20} /></div>
-            <h2 id="refine-confirm-title" style={{ margin: '0 0 8px', fontSize: 17, color: '#111827' }}>문장 표현을 AI로 다듬을까요?</h2>
-            <p style={{ margin: '0 0 20px', color: '#6B7280', fontSize: 13, lineHeight: 1.65 }}>최초 생성된 제목과 설명을 바탕으로 문체와 표현을 새롭게 다듬습니다. 작업 중에는 취소할 수 있습니다.</p>
+            <h2 id="refine-confirm-title" style={{ margin: '0 0 8px', fontSize: 17, color: '#111827' }}>전체 문구를 AI로 다시 작성할까요?</h2>
+            <p style={{ margin: '0 0 20px', color: '#6B7280', fontSize: 13, lineHeight: 1.65 }}>현재 단계의 제목과 본문을 사용자 목적 중심으로 다듬습니다. 작업 중에는 취소할 수 있고, 실패하면 다시 시도할 수 있습니다.</p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
               <button onClick={() => setShowRefineConfirm(false)} style={{ height: 38, padding: '0 15px', borderRadius: 9, border: '1px solid #D1D5DB', background: 'white', color: '#374151', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>취소</button>
-              <button onClick={() => { setShowRefineConfirm(false); void refineAllText(); }} style={{ height: 38, padding: '0 16px', borderRadius: 9, border: 'none', background: 'linear-gradient(135deg,#009B8E,#12B886)', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>문장 다듬기</button>
+              <button onClick={() => { setShowRefineConfirm(false); void refineAllText(); }} style={{ height: 38, padding: '0 16px', borderRadius: 9, border: 'none', background: 'linear-gradient(135deg,#009B8E,#12B886)', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>AI 재작성 시작</button>
             </div>
           </div>
         </div>

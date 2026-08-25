@@ -9,7 +9,7 @@ import {
 import DOMPurify from 'dompurify';
 import { ImageAnnotationEditor, type Annotation } from './ImageAnnotationEditor';
 import { AnnotationPreview } from './AnnotationPreview';
-import { buildAutoAnnotation, displayAutoAnnotationsFor } from '@/lib/auto-annotations';
+import { buildAutoAnnotation, displayAutoAnnotationsFor, markAnnotationsAsManuallyEdited } from '@/lib/auto-annotations';
 import { pixelateRegion, type BlurRegion } from '@/lib/pixelate';
 import { faviconUrl, faviconFallbackUrl, hostnameToServiceName } from '@/lib/favicon';
 import { hasGuideConfig } from '@/lib/follow';
@@ -27,6 +27,7 @@ export interface ManualStep {
   // 영구 블러 적용 전 원본 URL (있으면 '되돌리기' 가능)
   originalScreenshotUrl?: string | null;
   annotations?: Annotation[];
+  annotationsPersisted?: boolean;
   pageUrl?:        string | null;
   domainHostname?: string | null;
   domainName?:     string | null;
@@ -37,7 +38,7 @@ export interface ManualStep {
   click_x?: number | null;   // 0-100 pct
   click_y?: number | null;
   element_rect?: { x: number; y: number; width: number; height: number } | null; // 0-1 normalized
-  targetContext?: { accessibleName?: string | null } | null;
+  targetContext?: (Record<string, unknown> & { accessibleName?: string | null }) | null;
   is_stale?: boolean;
   pii_detected?: boolean;
   crop_rect?: { x: number; y: number; w: number; h: number } | null;
@@ -56,7 +57,7 @@ export interface ManualStep {
 interface ManualEditorProps {
   steps: ManualStep[];
   onChange: (steps: ManualStep[]) => void;
-  onSave?: (id: string, patch: Partial<ManualStep>) => void;
+  onSave?: (id: string, patch: Partial<ManualStep>) => void | Promise<void>;
   onUploadImage?: (id: string, file: File) => Promise<string>;
   onRemoveImage?: (id: string) => Promise<void>;
   onDeleteStep?: (id: string) => void;
@@ -85,6 +86,9 @@ export function ManualEditor({ steps, onChange, onSave, onUploadImage, onRemoveI
   const [zoomUrl, setZoomUrl] = useState<string | null>(null);
   const [insertHoverId, setInsertHoverId] = useState<string | null>(null);
   const [annotatingId, setAnnotatingId] = useState<string | null>(null);
+  const [annotationViewport, setAnnotationViewport] = useState<{
+    frameWidth: number; frameHeight: number; imageWidth: number; imageHeight: number;
+  } | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [internalSelectedIds, setInternalSelectedIds] = useState<Set<string>>(new Set());
@@ -101,6 +105,21 @@ export function ManualEditor({ steps, onChange, onSave, onUploadImage, onRemoveI
   const tempIdCounter = useRef(0);
   // TOC 클릭으로 스크롤 중일 때 IntersectionObserver 역방향 업데이트 억제
   const scrollingByClickRef = useRef(false);
+
+  const openAnnotationEditor = useCallback((step: ManualStep) => {
+    if (!step.screenshotUrl) return;
+    const shell = contentRefs.current[step.id];
+    const frame = shell?.querySelector<HTMLElement>('[data-testid="editor-screenshot-frame"]');
+    const image = frame?.querySelector<HTMLImageElement>('img');
+    setAnnotationViewport(frame && image ? {
+      frameWidth: frame.clientWidth,
+      frameHeight: frame.clientHeight,
+      imageWidth: image.clientWidth,
+      imageHeight: image.clientHeight,
+    } : null);
+    setActiveId(step.id);
+    setAnnotatingId(step.id);
+  }, [setActiveId]);
 
   useEffect(() => {
     if (!internalActiveId && steps.length > 0) setActiveId(steps[0].id);
@@ -158,6 +177,10 @@ export function ManualEditor({ steps, onChange, onSave, onUploadImage, onRemoveI
     for (const step of steps) {
       if (autoHydratedAnnotationIds.current.has(step.id)) continue;
       const existingAnnotations = step.annotations ?? [];
+      if (step.annotationsPersisted && existingAnnotations.length === 0) {
+        autoHydratedAnnotationIds.current.add(step.id);
+        continue;
+      }
       const displayAnnotations = displayAutoAnnotationsFor(step);
       if (existingAnnotations.length > 0 && displayAnnotations === existingAnnotations) continue;
       const annotations = existingAnnotations.length > 0 ? displayAnnotations : buildAutoAnnotation(step);
@@ -168,7 +191,7 @@ export function ManualEditor({ steps, onChange, onSave, onUploadImage, onRemoveI
     hydrated.forEach((_, stepId) => autoHydratedAnnotationIds.current.add(stepId));
     onChange(steps.map(s => {
       const annotations = hydrated.get(s.id);
-      return annotations ? { ...s, annotations } : s;
+      return annotations ? { ...s, annotations, annotationsPersisted: true } : s;
     }));
     hydrated.forEach((annotations, stepId) => onSave?.(stepId, { annotations }));
   }, [steps, onChange, onSave]);
@@ -281,7 +304,7 @@ export function ManualEditor({ steps, onChange, onSave, onUploadImage, onRemoveI
   };
 
   return (
-    <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
+    <div data-parro-guide="editor-manual-content" style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
       {/* ── Left TOC (shown only when hideToc is false) ── */}
       {!hideToc && (
         <aside style={{ width: '224px', flexShrink: 0, background: 'white', borderRight: '2px solid #E5E7EB', display: 'flex', flexDirection: 'column', overflowY: 'auto', boxShadow: '2px 0 6px rgba(0,0,0,0.04)' }}>
@@ -422,7 +445,7 @@ export function ManualEditor({ steps, onChange, onSave, onUploadImage, onRemoveI
                     onDuplicate={() => onDuplicateStep?.(step.id)}
                     isDuplicating={duplicatingStepId === step.id}
                     onZoom={() => step.screenshotUrl && setZoomUrl(step.screenshotUrl)}
-                    onAnnotate={() => { if (!step.screenshotUrl) return; setActiveId(step.id); setAnnotatingId(step.id); }}
+                    onAnnotate={() => openAnnotationEditor(step)}
                     onUploadImage={async file => {
                       if (!onUploadImage) throw new Error('이미지 업로드 기능을 사용할 수 없습니다.');
                       const screenshotUrl = await onUploadImage(step.id, file);
@@ -514,20 +537,41 @@ export function ManualEditor({ steps, onChange, onSave, onUploadImage, onRemoveI
         const step = steps.find(s => s.id === annotatingId)!;
         // element_rect가 있고 annotations가 비어 있으면 화살표+라벨 자동 생성
         const displayAnnotations = displayAnnotationsFor(step);
-        const initialAnnotations = displayAnnotations.length > 0
+        const initialAnnotations = step.annotationsPersisted || displayAnnotations.length > 0
           ? displayAnnotations
           : buildAutoAnnotation(step);
+        const editorFraming = fitFramingToBox(
+          { zoom: step.imageZoom ?? 1, offsetX: step.imageOffsetX ?? 0, offsetY: step.imageOffsetY ?? 0 },
+          annotationsBox(initialAnnotations),
+        );
         return (
           <ImageAnnotationEditor
             imageUrl={step.screenshotUrl!}
             annotations={initialAnnotations}
-            onChange={annotations => {
+            viewport={annotationViewport}
+            framing={editorFraming}
+            onChange={async annotations => {
               // 함수형 업데이트로 stale closure 방지
               const id = annotatingId;
-              onChange(steps.map(s => s.id === id ? { ...s, annotations } : s));
-              onSave?.(id, { annotations });
+              const manualAnnotations = markAnnotationsAsManuallyEdited(annotations);
+              const savedFraming = fitFramingToBox(editorFraming, annotationsBox(manualAnnotations));
+              onChange(steps.map(s => s.id === id ? {
+                ...s,
+                annotations: manualAnnotations,
+                annotationsPersisted: true,
+                imageZoom: savedFraming.zoom,
+                imageOffsetX: savedFraming.offsetX,
+                imageOffsetY: savedFraming.offsetY,
+              } : s));
+              await onSave?.(id, {
+                annotations: manualAnnotations,
+                annotationsPersisted: true,
+                imageZoom: savedFraming.zoom,
+                imageOffsetX: savedFraming.offsetX,
+                imageOffsetY: savedFraming.offsetY,
+              });
             }}
-            onClose={() => setAnnotatingId(null)}
+            onClose={() => { setAnnotatingId(null); setAnnotationViewport(null); }}
             onPixelate={async (region: BlurRegion) => {
               const id = annotatingId;
               const target = steps.find(s => s.id === id);
@@ -702,7 +746,7 @@ interface StepCardProps {
   onToggleSelect: () => void;
   onFocus: () => void;
   onUpdate: (patch: Partial<ManualStep>) => void;
-  onSave: (patch: Partial<ManualStep>) => void;
+  onSave: (patch: Partial<ManualStep>) => void | Promise<void>;
   onDelete: () => void;
   onDuplicate: () => void;
   isDuplicating?: boolean;
@@ -1261,6 +1305,8 @@ const clampOffset = (v: number, z: number) => {
   return Math.min(m, Math.max(-m, v));
 };
 
+const EDITOR_SCREENSHOT_FRAME_WIDTH = 'min(calc(100% - 64px), 920px)';
+
 function ScreenshotArea({ step, onUploadClick, onDrop, onAnnotate, onRemove, onFraming }: ScreenshotAreaProps) {
   const [dragOver, setDragOver] = useState(false);
   const [imgHover, setImgHover] = useState(false);
@@ -1379,7 +1425,7 @@ function ScreenshotArea({ step, onUploadClick, onDrop, onAnnotate, onRemove, onF
         onDragOver={e => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
         style={{
-          margin: '0 12px 12px', height: '180px',
+          width: EDITOR_SCREENSHOT_FRAME_WIDTH, margin: '0 auto 12px', height: '180px',
           background: dragOver ? 'rgba(0,155,142,0.04)' : '#F9FAFB',
           border: `1.5px dashed ${dragOver ? '#009B8E' : '#D1D5DB'}`,
           borderRadius: '8px',
@@ -1414,8 +1460,9 @@ function ScreenshotArea({ step, onUploadClick, onDrop, onAnnotate, onRemove, onF
   return (
     <div
       ref={frameRef}
+      data-testid="editor-screenshot-frame"
       style={{
-        margin: '0 12px 12px', borderRadius: '8px', overflow: 'hidden',
+        width: EDITOR_SCREENSHOT_FRAME_WIDTH, margin: '0 auto 12px', borderRadius: '8px', overflow: 'hidden',
         border: '1px solid #E5E7EB', position: 'relative',
         // 뷰어(ViewerStepCard)와 동일 박스: 중앙정렬 + 회색 배경 (편집 화면 = 최종 화면, WYSIWYG)
         display: 'flex', justifyContent: 'center', background: '#F3F4F6',

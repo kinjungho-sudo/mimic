@@ -4,6 +4,8 @@
   if (window.__parroContentLoaded || window.__mimicContentLoaded) return;
   window.__parroContentLoaded = true;
   window.__mimicContentLoaded = true;
+  const i18n = (key, fallback, substitutions) =>
+    chrome.i18n.getMessage(key, substitutions) || fallback;
 
   // iframe editors need typing capture; visual guide UI stays in the top frame.
   const IS_TOP_FRAME = window === window.top;
@@ -13,6 +15,10 @@
     '127.0.0.1',
     'parro-guide-dev.vercel.app',
     'parro-guide.vercel.app',
+  ]);
+  const PROD_EXTENSION_IDS = new Set([
+    'lefkpmfgdbhckcemfghpegleknaepekm',
+    'ehbhcdkapcbfehinjapabgoegcjmmbgd',
   ]);
 
   function isParroWebappPage() {
@@ -27,6 +33,7 @@
       source: 'PARRO_RECORDER_EXTENSION',
       type: 'EXTENSION_ID',
       extensionId: chrome.runtime.id,
+      environment: PROD_EXTENSION_IDS.has(chrome.runtime.id) ? 'production' : 'development',
     }, window.location.origin);
   }
 
@@ -81,7 +88,6 @@
   let stepNumber       = 0;
 
   let settings = {
-    highlight: true,
     autoNav:   true,
     saveText:  true,
     captureInputClicks: false,
@@ -322,15 +328,15 @@
 
   function semanticFieldLabel(value) {
     const text = String(value || '').replace(/\s+/g, ' ').trim();
-    if (/댓글|답글|comment|reply/i.test(text)) return '댓글 내용';
-    if (/게시물|새\s*소식|새로운\s*소식|post|thread/i.test(text)) return '게시물 내용';
-    if (/검색|search/i.test(text)) return '검색어';
-    if (/메일|메시지|message|mail/i.test(text)) return '메시지 내용';
-    return '입력 내용';
+    if (/댓글|답글|comment|reply/i.test(text)) return i18n('commentContent', '댓글 내용');
+    if (/게시물|새\s*소식|새로운\s*소식|post|thread/i.test(text)) return i18n('postContent', '게시물 내용');
+    if (/검색|search/i.test(text)) return i18n('searchTerm', '검색어');
+    if (/메일|메시지|message|mail/i.test(text)) return i18n('messageContent', '메시지 내용');
+    return i18n('inputContent', '입력 내용');
   }
 
   function getFieldLabel(el) {
-    if (document.designMode === 'on' && el === document.body) return '본문';
+    if (document.designMode === 'on' && el === document.body) return i18n('bodyContent', '본문');
     if (el.id) {
       const label = document.querySelector(`label[for="${CSS.escape(el.id)}"]`);
       if (label) {
@@ -353,7 +359,7 @@
     const concise = candidates.find(value => value && !isInstructionalAccessibilityLabel(value));
     if (concise) return concise.trim().slice(0, 60);
     if (ariaLabel) return semanticFieldLabel(ariaLabel);
-    return '입력 내용';
+    return i18n('inputContent', '입력 내용');
   }
 
   // ── PII 블러 ──────────────────────────────────────────────────────
@@ -479,7 +485,7 @@
     const geometrySnapshot = reusableTypingGeometrySnapshot(el, label)
       || captureTypingGeometrySnapshot(el, label);
     const focusSnapshot = typingFocusSnapshot;
-    const elementRect = geometrySnapshot?.elementRect ?? null;
+    const elementRect = geometrySnapshot?.elementRect ?? focusSnapshot?.elementRect ?? null;
     const elementSelector = geometrySnapshot?.elementSelector ?? focusSnapshot?.elementSelector ?? replaySelector(el);
     const elementXPath = geometrySnapshot?.elementXPath ?? focusSnapshot?.elementXPath ?? replayXPath(el);
     const clickX = geometrySnapshot?.clickX ?? focusSnapshot?.clickX ?? 0;
@@ -527,28 +533,6 @@
   }
 
   // ── 오버레이 헬퍼 ────────────────────────────────────────────────
-  function makeBorderOverlay(rect) {
-    const ov = document.createElement('div');
-    applyOverlayStyle(ov, rect);
-    return ov;
-  }
-
-  function applyOverlayStyle(ov, rawRect) {
-    const P = 3;
-    // 화면보다 큰 요소(긴 텍스트 붙여넣기 등)는 보이는 영역으로 클램프 — 테두리가 화면 밖으로 나가지 않게
-    const rect = clampRectToViewport(rawRect, window.innerWidth, window.innerHeight);
-    ov.style.cssText = [
-      'position:fixed',
-      `left:${rect.left - P}px`, `top:${rect.top - P}px`,
-      `width:${rect.width + P * 2}px`, `height:${rect.height + P * 2}px`,
-      `border-radius:${Math.min(rect.width, rect.height) <= 32 ? Math.floor(Math.min(rect.width, rect.height) / 2) : 6}px`,
-      'border:2px solid #EF4444',
-      'box-shadow:0 0 0 3px rgba(239,68,68,0.3)',
-      'background:transparent',
-      'pointer-events:none', 'z-index:2147483646', 'box-sizing:border-box',
-    ].join(';');
-  }
-
   let fileHighlightOverlay = null;
 
   function showFileHighlight(fileNames) {
@@ -585,27 +569,9 @@
     if (fileHighlightOverlay) { fileHighlightOverlay.remove(); fileHighlightOverlay = null; }
   }
 
-  // ── 호버 포인터 ──────────────────────────────────────────────────
-  let hoverOverlay = null;
-  let hoverTarget  = null;
-  // 선캡처(pointerdown) 직전 호버 테두리를 제거한 뒤, 캡처가 끝나기 전 mousemove로
-  // 다시 그려져 스크린샷에 굽히는 것을 막기 위한 억제 만료 시각.
-  let suppressHoverUntil = 0;
-
-  function showHoverPointer(target) {
-    const rect = target.getBoundingClientRect();
-    if (!hoverOverlay) {
-      hoverOverlay = makeBorderOverlay(rect);
-      document.documentElement.appendChild(hoverOverlay);
-    } else {
-      applyOverlayStyle(hoverOverlay, rect);
-    }
-  }
-
-  function hideHoverPointer() {
-    if (hoverOverlay) { hoverOverlay.remove(); hoverOverlay = null; }
-    hoverTarget = null;
-  }
+  // 캡처 대상 페이지에는 녹화용 강조 DOM을 그리지 않는다. captureVisibleTab은 직전
+  // 합성 프레임을 잡을 수 있어 빠른 클릭에서 테두리가 이미지에 영구 포함될 수 있다.
+  function hideHoverPointer() {}
 
   // ── 캡처 완료 플래시 ─────────────────────────────────────────────
   function flashCapture() {
@@ -624,65 +590,7 @@
     });
   }
 
-  // ── 클릭 위치 붉은 원형 펄스 + 일시 확대 ───────────────────────
-  // 캡처 직전 클릭 펄스/줌 효과 취소용 참조 — 스크린샷에 굽히지 않게
-  let _pulseEl = null;
-
-  function cancelClickEffects() {
-    if (_pulseEl) { _pulseEl.remove(); _pulseEl = null; }
-  }
-
-  function showClickHighlight(x, y) {
-    if (!settings.highlight) return;
-
-    // 붉은 원형 펄스
-    const pulse = document.createElement('div');
-    pulse.style.cssText = [
-      'position:fixed',
-      `left:${x}px`, `top:${y}px`,
-      'width:0', 'height:0',
-      'pointer-events:none', 'z-index:2147483647',
-    ].join(';');
-
-    const ring = document.createElement('div');
-    ring.style.cssText = [
-      'position:absolute',
-      'width:48px', 'height:48px',
-      'border-radius:50%',
-      'background:rgba(239,68,68,0.35)',
-      'border:2.5px solid #EF4444',
-      'transform:translate(-50%,-50%) scale(0)',
-      'transition:transform 0.32s cubic-bezier(0.22,1,0.36,1), opacity 0.32s ease',
-      'opacity:1',
-    ].join(';');
-
-    const dot = document.createElement('div');
-    dot.style.cssText = [
-      'position:absolute',
-      'width:12px', 'height:12px',
-      'border-radius:50%',
-      'background:#EF4444',
-      'transform:translate(-50%,-50%)',
-      'box-shadow:0 0 0 3px rgba(239,68,68,0.4)',
-    ].join(';');
-
-    pulse.append(ring, dot);
-    document.documentElement.appendChild(pulse);
-    _pulseEl = pulse;
-
-    requestAnimationFrame(() => {
-      ring.style.transform = 'translate(-50%,-50%) scale(1)';
-      setTimeout(() => {
-        ring.style.opacity = '0';
-        ring.style.transform = 'translate(-50%,-50%) scale(1.6)';
-        setTimeout(() => {
-          pulse.remove();
-          if (_pulseEl === pulse) _pulseEl = null;
-        }, 350);
-      }, 300);
-    });
-
-  }
+  function cancelClickEffects() {}
 
   // ── 녹화 시작 카운트다운 오버레이 ──────────────────────────────
   function showCountdown(onDone, opts) {
@@ -709,7 +617,9 @@
     const dot = document.createElement('span');
     dot.style.cssText = 'width:8px;height:8px;border-radius:50%;background:#EF4444;flex-shrink:0;animation:parro-blink 1s infinite';
     const badgeText = document.createElement('span');
-    badgeText.textContent = opts && opts.label ? opts.label : '화면 녹화가 시작됩니다';
+    badgeText.textContent = opts && opts.label
+      ? opts.label
+      : i18n('screenRecordingStarting', '화면 녹화가 시작됩니다');
     badge.append(dot, badgeText);
 
     const numEl = document.createElement('div');
@@ -770,14 +680,43 @@
       onPrev:    () => chrome.runtime.sendMessage({ type: 'GUIDE_PREV' }),
       onExit:    () => { chrome.runtime.sendMessage({ type: 'EXIT_GUIDE' }); guideApi.hide(); },
       onComplete: (reason) => {
-        guideApi.hide();
-        chrome.runtime.sendMessage({ type: 'GUIDE_COMPLETE', reason: reason || 'complete' });
+        chrome.runtime.sendMessage({ type: 'GUIDE_COMPLETE', reason: reason || 'complete' }, () => {
+          void chrome.runtime.lastError;
+          chrome.runtime.sendMessage({ type: 'EXIT_GUIDE' });
+        });
       },
+      onStay: () => chrome.runtime.sendMessage({ type: 'SHOW_OVERLAY_FOR_STEP', stepIndex: msg.index ?? 0 }),
       onTargetStatus: (status, evidence) => chrome.runtime.sendMessage({
         type: 'GUIDE_TARGET_STATUS',
         stepIndex: msg.index ?? 0,
         status,
         evidence: evidence || null,
+      }),
+      handRaised: msg.handRaised === true,
+      onHelpRequest: (payload, done) => chrome.runtime.sendMessage({
+        type: 'GUIDE_HELP_REQUEST',
+        stepIndex: msg.index ?? 0,
+        message: payload?.message || '',
+        includeScreenshot: payload?.includeScreenshot === true,
+      }, (response) => {
+        void chrome.runtime.lastError;
+        done?.(response || { ok: false, error: 'help_request_failed' });
+      }),
+      onRetryTarget: () => chrome.runtime.sendMessage({ type: 'SHOW_OVERLAY_FOR_STEP', stepIndex: msg.index ?? 0 }),
+    });
+  }
+
+  function renderWrongPageGuide(msg) {
+    const guideApi = window.ParroGuide || window.MimicGuide;
+    if (!guideApi?.showWrongPage) return;
+    guideApi.showWrongPage(msg.step, {
+      index: msg.index ?? 0,
+      total: msg.total ?? 1,
+      onTargetStatus: (status) => chrome.runtime.sendMessage({
+        type: 'GUIDE_TARGET_STATUS',
+        stepIndex: msg.index ?? 0,
+        status,
+        evidence: null,
       }),
     });
   }
@@ -798,7 +737,7 @@
       const pending = _pendingGuideOverlay;
       _pendingGuideOverlay = null;
       if (pending) renderLiveGuideOverlay(pending);
-    }, { label: 'Live Guide Beta가 시작됩니다', accentColor: '#17C9B6', startText: 'START' });
+    }, { label: i18n('liveGuideStarting', 'Live Guide Beta가 시작됩니다'), accentColor: '#17C9B6', startText: 'START' });
   }
 
   // ── 메시지 수신 ──────────────────────────────────────────────────
@@ -881,7 +820,6 @@
       restorePIIBlur();
       removeFileHighlight();
       isCapturing = false;
-      hoverTarget = null;
       sendResponse({ ok: true });
       return false;
     }
@@ -894,7 +832,7 @@
 
     if (msg.type === 'SHOW_GUIDE_COUNTDOWN') {
       if (!IS_TOP_FRAME) { sendResponse({ ok: true }); return false; }
-      showCountdown(() => {}, { label: 'Live Guide Beta가 시작됩니다', accentColor: '#17C9B6', startText: 'START' });
+      showCountdown(() => {}, { label: i18n('liveGuideStarting', 'Live Guide Beta가 시작됩니다'), accentColor: '#17C9B6', startText: 'START' });
       sendResponse({ ok: true });
       return false;
     }
@@ -914,6 +852,11 @@
     if (msg.type === 'SHOW_OVERLAY' && msg.step) {
       if (!IS_TOP_FRAME) return false;
       queueLiveGuideOverlay(msg);
+      return false;
+    }
+    if (msg.type === 'SHOW_WRONG_PAGE' && msg.step) {
+      if (!IS_TOP_FRAME) return false;
+      renderWrongPageGuide(msg);
       return false;
     }
     if (msg.type === 'HIDE_OVERLAY') {
@@ -937,7 +880,7 @@
     const banner = document.createElement('div');
     banner.id = 'parro-live-target-picker';
     banner.dataset.parroLiveTargetPicker = 'true';
-    banner.textContent = 'Parro: 라이브 가이드 대상을 클릭하세요';
+    banner.textContent = i18n('clickLiveGuideTarget', 'Parro: 라이브 가이드 대상을 클릭하세요');
     Object.assign(banner.style, {
       position: 'fixed',
       top: '16px',
@@ -972,7 +915,7 @@
     const cancelPick = () => finish({
       ok: false,
       reason: 'cancelled',
-      error: '대상 선택이 취소되었습니다.',
+      error: i18n('targetSelectionCancelled', '대상 선택이 취소되었습니다.'),
     });
     cancelActiveLiveTargetPick = cancelPick;
 
@@ -1013,7 +956,11 @@
     }
 
     document.addEventListener('pointerdown', onPointerDown, true);
-    timeoutId = setTimeout(() => finish({ ok: false, reason: 'timeout', error: '대상 선택 시간이 초과되었습니다.' }), 30000);
+    timeoutId = setTimeout(() => finish({
+      ok: false,
+      reason: 'timeout',
+      error: i18n('targetSelectionTimedOut', '대상 선택 시간이 초과되었습니다.'),
+    }), 30000);
   }
 
   const targetDecisionByElement = new WeakMap();
@@ -1026,48 +973,37 @@
       || ParroTargeting.pickBestClientRect([el.getBoundingClientRect()], clientX, clientY);
   }
 
-  function selectionRectForEditable(el, clientX, clientY) {
-    if (!el || el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return null;
-    const selection = el.ownerDocument?.getSelection?.();
-    if (!selection || selection.rangeCount === 0) return null;
-    const anchor = selection.anchorNode;
-    const focus = selection.focusNode;
-    if ((anchor && !el.contains(anchor)) || (focus && !el.contains(focus))) return null;
-
-    const range = selection.getRangeAt(0).cloneRange();
-    let rect = ParroTargeting.pickBestClientRect(range.getClientRects(), clientX, clientY);
-    if (!rect || rect.height <= 0) {
-      const collapsed = range.getBoundingClientRect();
-      if (collapsed && collapsed.height > 0) rect = collapsed;
-    }
-    if (!rect || rect.height <= 0) return null;
-
-    const editorRect = el.getBoundingClientRect();
-    const lineHeight = Math.max(20, rect.height);
-    const width = Math.max(12, editorRect.width || rect.width || 12);
-    const left = editorRect.left;
-    const top = Math.max(editorRect.top, Math.min(rect.top, editorRect.bottom - lineHeight));
-    return { x: left, y: top, left, top, width, height: lineHeight };
-  }
-
-  function typingTargetClientRect(el, clientX, clientY) {
-    return selectionRectForEditable(el, clientX, clientY)
-      || targetClientRect(el, clientX, clientY)
-      || el.getBoundingClientRect();
-  }
-
   function rectContainsClientPoint(rect, x, y, tolerance = 2) {
     return !!rect && ParroTargeting.rectContainsPoint(rect, x, y, tolerance);
+  }
+
+  function typingControlRect(el) {
+    const ownRect = el.getBoundingClientRect();
+    if (location.hostname !== 'mail.google.com') return ownRect;
+    if (!el.isContentEditable || el.getAttribute('role') !== 'textbox') return ownRect;
+
+    // Gmail may expose only the current text block while its compose body is taller.
+    let parent = el.parentElement;
+    for (let depth = 0; parent && depth < 3; depth += 1, parent = parent.parentElement) {
+      const parentRect = parent.getBoundingClientRect();
+      const sameComposeColumn = parentRect.width >= ownRect.width * 0.9
+        && parentRect.width <= ownRect.width * 1.5;
+      const usefulBodyExpansion = parentRect.height >= ownRect.height + 20
+        && parentRect.height <= window.innerHeight * 0.85;
+      if (sameComposeColumn && usefulBodyExpansion) return parentRect;
+    }
+    return ownRect;
   }
 
   function captureTypingGeometrySnapshot(el, label = getFieldLabel(el)) {
     if (!el || typeof el.getBoundingClientRect !== 'function') return null;
     const { vw, vh } = getViewportSize();
     const focusSnapshot = typingFocusSnapshot;
-    const rawRect = el.getBoundingClientRect();
-    const preferredX = focusSnapshot?.x ?? (rawRect.left + rawRect.width / 2);
-    const preferredY = focusSnapshot?.y ?? (rawRect.top + rawRect.height / 2);
-    const rect = typingTargetClientRect(el, preferredX, preferredY);
+    // Type steps represent the editable control itself. In rich editors such as
+    // Gmail, a selection range only describes the caret line and is too small.
+    const rect = typingControlRect(el);
+    const preferredX = focusSnapshot?.x ?? (rect.left + rect.width / 2);
+    const preferredY = focusSnapshot?.y ?? (rect.top + rect.height / 2);
     const topRect = toTopRect(rect);
     const elementRect = topRect.quality === 'low'
       ? (focusSnapshot?.elementRect ?? null)
@@ -1369,7 +1305,7 @@
     if (ownLabel && !isGenericLabel(ownLabel)) return ownLabel;
     if (clickedLabel && !isGenericLabel(clickedLabel)) return clickedLabel;
     if (isGoogleFileAreaGeneric(ownLabel) || isGoogleFileAreaGeneric(clickedLabel)) {
-      return getGoogleFileTitle() || '파일명 영역';
+      return getGoogleFileTitle() || i18n('filenameArea', '파일명 영역');
     }
     return getGoogleFileTitle() || ownLabel || clickedLabel || '';
   }
@@ -1687,26 +1623,6 @@
   }
 
   // ── 호버 이벤트 ──────────────────────────────────────────────────
-  document.addEventListener('mousemove', (e) => {
-    if (!isRecording || isPaused) { hideHoverPointer(); return; }
-    // '클릭 하이라이트' 설정 OFF 시 호버 테두리도 표시하지 않는다
-    // (설정 문구가 "클릭한 요소 주변 빨간 테두리" — 펄스와 테두리 둘 다 이 설정 소관)
-    if (!settings.highlight) { hideHoverPointer(); return; }
-    if (isCapturing && (Date.now() - isCapturingStart) >= CAPTURE_SAFETY_MS) isCapturing = false;
-    if (isCapturing) return;
-    if (Date.now() < suppressHoverUntil) return;  // 선캡처 윈도우 — 테두리 재등장 금지
-    const target = findInteractiveTarget(e.target, e);
-    if (!target) { hideHoverPointer(); return; }
-    const overlayAlive = hoverOverlay && document.documentElement.contains(hoverOverlay);
-    if (target === hoverTarget && overlayAlive) return;
-    hoverTarget = target;
-    showHoverPointer(target);
-  }, true);
-
-  document.documentElement.addEventListener('mouseleave', (e) => {
-    if (e.relatedTarget === null) hideHoverPointer();
-  });
-
   // ── 클릭 직전 프레임 선캡처 ──────────────────────────────────────
   // pointerdown은 click보다 먼저, 페이지가 클릭에 반응(리플로우/전환)하기 전에 발생한다.
   // 이 시점에 미리 한 장 찍어두면, 클릭으로 레이아웃이 바뀌기 전 화면을 스텝
@@ -1723,7 +1639,6 @@
     const captureEl = actionType === 'focus_input' ? target : actionTarget;
     _pointerDownSnapshot = buildPointerDownSnapshot(captureEl, target, e.target, e);
     hideHoverPointer();                          // 호버 테두리 제거
-    suppressHoverUntil = Date.now() + 500;       // 캡처 끝날 때까지 재등장 억제
     // 캡처 요청을 click보다 먼저 큐에 넣어 빠른 화면 전환에서도 DOM 좌표와 프레임을 맞춘다.
     const captureId = _pointerDownSnapshot?.captureId;
     if (captureId) {
@@ -1776,7 +1691,6 @@
       const now = Date.now();
       if (lastCapturedTarget === document.body && (now - lastCapturedTime) < DEDUP_SAME_ELEMENT) return;
 
-      showClickHighlight(e.clientX, e.clientY);
       const safetyTimer = startCapturingSafely();
       stepNumber        += 1;
       lastCapturedTarget = document.body;
@@ -1794,9 +1708,9 @@
         elementRect: null, elementSelector: null,
         actionInfo: {
           type: 'click',
-          label: '화면 클릭',
+          label: i18n('screenClick', '화면 클릭'),
           tag: clickedEl.tagName.toLowerCase(),
-          labelDebug: { chosenLabel: '화면 클릭', rawText: null, ariaLabel: null, title: null, role: null, selector: null, fallbackReason: 'blank-click' },
+          labelDebug: { chosenLabel: i18n('screenClick', '화면 클릭'), rawText: null, ariaLabel: null, title: null, role: null, selector: null, fallbackReason: 'blank-click' },
           targetContext: buildPointContext(topClick.quality),
         },
       }, () => { clearTimeout(safetyTimer); isCapturing = false; });
@@ -1834,7 +1748,6 @@
       if (typingTarget) flushTyping(typingTarget, true, { usePrecapture: !!pointerSnapshot?.captureId, peekPrecapture: true, captureId: pointerSnapshot?.captureId });
     }
 
-    showClickHighlight(e.clientX, e.clientY);
 
     const captureEl = actionType === 'focus_input' ? target : actionTarget;
     const rect  = targetClientRect(captureEl, e.clientX, e.clientY) || captureEl.getBoundingClientRect();
@@ -1897,7 +1810,7 @@
     const downloadAttr    = target.getAttribute('download');
     const isDownloadLink  = target.tagName.toLowerCase() === 'a' && downloadAttr !== null;
     if (isDownloadLink) {
-      const fileName = downloadAttr || href.split('/').pop().split('?')[0] || '파일';
+      const fileName = downloadAttr || href.split('/').pop().split('?')[0] || i18n('file', '파일');
       showFileHighlight(fileName);
     }
 
@@ -2085,7 +1998,6 @@
     // (탭 이동 직후 등) 하이라이트/PII 토글이 즉시 반영되게 한다.
     if ('settings' in changes) {
       settings = { ...settings, ...(changes.settings.newValue || {}) };
-      if (!settings.highlight) hideHoverPointer();
     }
     // background(페이지 이동 캡처 등)가 stepNumber를 올리면 로컬 카운터도 따라 올려
     // content/background 양쪽 카운터 desync로 인한 stepNumber 충돌을 방지한다.
@@ -2138,7 +2050,7 @@
             clickX: 0, clickY: 0,
             windowWidth: vw, windowHeight: vh,
             manual: true,
-            actionInfo: { type: 'click', label: '클립보드 붙여넣기 캡처' },
+            actionInfo: { type: 'click', label: i18n('clipboardPasteCapture', '클립보드 붙여넣기 캡처') },
           },
         }, () => { void chrome.runtime.lastError; isCapturing = false; });
       };

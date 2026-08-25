@@ -8,11 +8,16 @@ import { RecordingModal } from '@/components/dashboard/RecordingModal';
 import { AgentChat } from '@/components/chat/AgentChat';
 import { BrandMark } from '@/components/common/BrandMark';
 import { createTutorial } from '@/lib/api/tutorials';
+import {
+  desktopCaptureEntryDestination,
+  resolveDesktopCaptureEntry,
+} from '@/lib/desktop-companion-client';
 import { logError } from '@/lib/logging/logger';
 import { BRAND_COLORS, BRAND_NAME, LEGACY_INTERNAL_IDENTIFIERS } from '@/lib/brand';
-import { normalizeCaptureTutorialTitle } from '@/lib/ai/capture-fallback';
 import type { Tutorial, Workspace, Folder } from '@/types';
 import { hasEntitlement } from '@/lib/entitlements';
+import { useParroOnboarding } from '@/components/onboarding/ParroOnboardingProvider';
+import { Trash2 } from 'lucide-react';
 
 const BRAND_GRADIENT = `linear-gradient(135deg, ${BRAND_COLORS.primary}, ${BRAND_COLORS.guide})`;
 const BRAND_PRIMARY_SOFT = BRAND_COLORS.guideSoft;
@@ -297,9 +302,10 @@ function ContextMenu({ menu, folders, tutorials, workspaces, onMove, onMoveToWor
 
 // ── 플레이북 카드 ──────────────────────────────────────────
 
-function PageCard({ page, viewMode = 'grid' }: {
+function PageCard({ page, viewMode = 'grid', onDelete }: {
   page: { id: string; title: string; updated_at: string; block_count?: number; workspace_id?: string | null };
   viewMode?: 'grid' | 'list' | 'compact';
+  onDelete: (page: { id: string; title: string }) => void;
 }) {
   const router = useRouter();
   const [hovered, setHovered] = useState(false);
@@ -346,6 +352,25 @@ function PageCard({ page, viewMode = 'grid' }: {
     onMouseLeave: () => setHovered(false),
   };
 
+  const deleteButton = (
+    <button
+      type="button"
+      title="플레이북 삭제"
+      aria-label={`${page.title || '제목 없음'} 플레이북 삭제`}
+      onClick={(event) => { event.stopPropagation(); onDelete(page); }}
+      onKeyDown={(event) => event.stopPropagation()}
+      style={{
+        flex: '0 0 30px', width: '30px', height: '30px', padding: 0,
+        border: '1px solid transparent', borderRadius: '7px',
+        background: hovered ? '#FEF2F2' : 'transparent', color: hovered ? '#DC2626' : '#9CA3AF',
+        cursor: 'pointer', display: 'grid', placeItems: 'center', opacity: hovered ? 1 : 0.72,
+        transition: 'color 0.12s, background 0.12s, opacity 0.12s',
+      }}
+    >
+      <Trash2 size={15} strokeWidth={2} aria-hidden="true" />
+    </button>
+  );
+
   if (viewMode === 'compact') {
     return (
       <article {...commonProps} style={{ background: 'white', borderRadius: '12px', cursor: 'pointer', border: `1px solid ${hovered ? '#86efac' : '#E5E7EB'}`, boxShadow: hovered ? '0 4px 16px rgba(5,150,105,0.10)' : '0 1px 2px rgba(17,24,39,0.04)', transition: 'border-color 0.12s, box-shadow 0.12s', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -354,6 +379,7 @@ function PageCard({ page, viewMode = 'grid' }: {
             <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
           </svg>
           <div style={{ position: 'absolute', inset: 0, boxShadow: 'inset 0 0 0 1px rgba(17,24,39,0.05)', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', top: '8px', right: '8px' }}>{deleteButton}</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '12px 13px' }}>
           {iconEl(30)}
@@ -372,6 +398,7 @@ function PageCard({ page, viewMode = 'grid' }: {
     <article {...commonProps} style={{ background: 'white', borderRadius: '10px', cursor: 'pointer', border: `1px solid ${hovered ? '#86efac' : '#E5E7EB'}`, boxShadow: hovered ? '0 3px 12px rgba(5,150,105,0.07)' : '0 1px 2px rgba(17,24,39,0.04)', transition: 'border-color 0.12s, box-shadow 0.12s', display: 'flex', alignItems: 'center', gap: '11px', padding: viewMode === 'list' ? '10px 14px' : '11px 13px' }}>
       {iconEl(viewMode === 'list' ? 30 : 34)}
       <div style={{ flex: 1, minWidth: 0 }}>{titleEl}{metaEl}</div>
+      {deleteButton}
     </article>
   );
 }
@@ -394,7 +421,6 @@ function TutorialCard({ tutorial, onContextMenu, onMenuClick, viewMode = 'grid',
   const [thumbnailLoaded, setThumbnailLoaded] = useState(false);
 
   const color = cardColor(tutorial.id);
-  const displayTitle = normalizeCaptureTutorialTitle(tutorial.title);
   const stepCount = tutorial.step_count ?? 0;
   const dateStr = new Date(tutorial.updated_at).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }).replace(/\. /g, '/').replace(/\.$/, '');
   const domain = getDomain(tutorial.first_page_url);
@@ -423,7 +449,7 @@ function TutorialCard({ tutorial, onContextMenu, onMenuClick, viewMode = 'grid',
   const menuBtn = (
     <button
       onClick={e => { e.stopPropagation(); onMenuClick(e, tutorial.id); }}
-      aria-label={`${displayTitle} 메뉴 열기`}
+      aria-label={`${tutorial.title} 메뉴 열기`}
       style={{ flexShrink: 0, width: '28px', height: '28px', borderRadius: '6px', border: 'none', background: hovered ? '#F3F4F6' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6B7280', opacity: hovered ? 1 : 0, transition: 'opacity 0.1s' }}
     >
       <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
@@ -432,7 +458,7 @@ function TutorialCard({ tutorial, onContextMenu, onMenuClick, viewMode = 'grid',
 
   const titleEl = (
     <div style={{ fontSize: '14px', fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-      {displayTitle}
+      {tutorial.title}
     </div>
   );
 
@@ -462,7 +488,7 @@ function TutorialCard({ tutorial, onContextMenu, onMenuClick, viewMode = 'grid',
     onClick: () => { if (onCardClick) onCardClick(tutorial.id); else router.push(`/manual/${tutorial.id}/editor`); },
     role: 'button',
     tabIndex: 0,
-    'aria-label': `${displayTitle} 매뉴얼 열기`,
+    'aria-label': `${tutorial.title} 매뉴얼 열기`,
     onKeyDown: (event: React.KeyboardEvent) => {
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
@@ -505,7 +531,7 @@ function TutorialCard({ tutorial, onContextMenu, onMenuClick, viewMode = 'grid',
           {iconEl(30)}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: '14.5px', fontWeight: 600, color: '#111827', lineHeight: 1.35, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' }}>
-              {displayTitle}
+              {tutorial.title}
             </div>
             {metaEl}
           </div>
@@ -836,6 +862,7 @@ function FolderPanel({ folders, tutorials, activeFolder, active, title, onSelect
 export default function DashboardPage() {
   const router = useRouter();
   const { user, loading: authLoading, signOut } = useAuth();
+  const onboarding = useParroOnboarding();
 
   const [tutorials, setTutorials] = useState<Tutorial[]>([]);
   const [tutLoading, setTutLoading] = useState(true);
@@ -850,8 +877,11 @@ export default function DashboardPage() {
   const [activeWorkspace, setActiveWorkspace] = useState<string | null>(null);
 
   const [showRecordingModal, setShowRecordingModal] = useState(false);
+  const [recordingModalMode, setRecordingModalMode] = useState<'select' | 'web'>('select');
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [creating, setCreating] = useState(false);
+  const onboardingCreateLocked = onboarding.isActive
+    && ['home-create', 'home-blank-manual'].includes(onboarding.currentStepId ?? '');
 
   // 워크스페이스 생성
   const [showNewWsInput, setShowNewWsInput] = useState(false);
@@ -883,6 +913,28 @@ export default function DashboardPage() {
   useEffect(() => {
     setVisibleTutorialCount(24);
   }, [activeFolder, activeTab, activeWorkspace, searchQuery]);
+
+  useEffect(() => {
+    if (window.sessionStorage.getItem('parro-open-create-menu') === '1') {
+      window.sessionStorage.removeItem('parro-open-create-menu');
+      setShowNewMenu(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    const openCreateMenu = () => setShowNewMenu(true);
+    window.addEventListener('parro:open-create-menu', openCreateMenu);
+    return () => window.removeEventListener('parro:open-create-menu', openCreateMenu);
+  }, []);
+
+  useEffect(() => {
+    const reopenRecorder = () => {
+      setRecordingModalMode('web');
+      setShowRecordingModal(true);
+    };
+    window.addEventListener('parro:onboarding-open-recorder', reopenRecorder);
+    return () => window.removeEventListener('parro:onboarding-open-recorder', reopenRecorder);
+  }, []);
 
   const newMenuRef = useRef<HTMLDivElement>(null);
   const tutorialRequestRef = useRef(0);
@@ -1041,14 +1093,33 @@ export default function DashboardPage() {
 
   const handleSignOut = async () => { await signOut(); router.push('/auth/login'); };
 
+  const handleDesktopCapture = async (source: string) => {
+    setShowNewMenu(false);
+    setCreating(true);
+    const entry = await resolveDesktopCaptureEntry();
+    window.location.assign(desktopCaptureEntryDestination(entry, source));
+  };
+
   const handleCreateBlank = async () => {
     setShowNewMenu(false); setCreating(true);
     try {
       // 팀 탭에서 워크스페이스가 선택돼 있으면 팀 매뉴얼로 생성
       const wsId = activeTab === 'team' && activeWorkspace ? activeWorkspace : null;
       const tutorial = await createTutorial(wsId ? { workspace_id: wsId } : undefined);
-      router.push(`/manual/${tutorial.id}/editor`);
-    } catch { alert('생성 중 오류가 발생했습니다.'); setCreating(false); }
+      if (onboarding.isActive) {
+        window.dispatchEvent(new CustomEvent('parro:onboarding-manual-created', {
+          detail: { tutorialId: tutorial.id },
+        }));
+      } else {
+        router.push(`/manual/${tutorial.id}/editor`);
+      }
+    } catch {
+      if (onboarding.isActive) {
+        window.dispatchEvent(new Event('parro:onboarding-manual-create-failed'));
+      }
+      alert('생성 중 오류가 발생했습니다.');
+      setCreating(false);
+    }
   };
 
   const handleCreateGuidebook = async () => {
@@ -1069,6 +1140,27 @@ export default function DashboardPage() {
       const page = await res.json();
       router.push(`/pages/${page.id}/editor`);
     } catch { alert('생성 중 오류가 발생했습니다.'); setCreating(false); }
+  };
+
+  const handleDeletePage = async (page: { id: string; title: string }) => {
+    const label = page.title || '제목 없음';
+    if (!window.confirm(`"${label}" 플레이북을 삭제할까요?\n삭제한 플레이북은 휴지통에서 복원할 수 있습니다.`)) return;
+    try {
+      const res = await fetch(`/api/pages/${page.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        alert(typeof body?.error === 'string' ? body.error : '플레이북을 삭제하지 못했습니다.');
+        return;
+      }
+      const cacheKey = activeTab === 'team' && activeWorkspace ? activeWorkspace : 'personal';
+      setPages((current) => {
+        const next = current.filter((item) => item.id !== page.id);
+        pagesCacheRef.current.set(cacheKey, next);
+        return next;
+      });
+    } catch {
+      alert('플레이북을 삭제하지 못했습니다. 네트워크 연결을 확인해주세요.');
+    }
   };
 
   const handleRemove = async (id: string) => {
@@ -1200,7 +1292,12 @@ export default function DashboardPage() {
 
   return (
     <>
-      {showRecordingModal && <RecordingModal onClose={() => setShowRecordingModal(false)} />}
+      {showRecordingModal && (
+        <RecordingModal
+          initialMode={recordingModalMode}
+          onClose={() => setShowRecordingModal(false)}
+        />
+      )}
       {ctxMenu && (
         <ContextMenu
           menu={ctxMenu}
@@ -1228,7 +1325,7 @@ export default function DashboardPage() {
             </Link>
 
             {/* ── 워크스페이스 트리 ── */}
-            <div style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
+            <div data-parro-guide="home-workspaces" style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
 
               {/* ① 내 워크스페이스 (클릭 = 폴더 패널 슬라이드 오픈) */}
               <button onClick={() => { if (activeTab !== 'my') { setActiveTab('my'); setActiveFolder('all'); setShowFolderPanel(true); } else { setShowFolderPanel(v => !v); } }}
@@ -1380,6 +1477,13 @@ export default function DashboardPage() {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
                 설정
               </Link>
+              <Link href="/download/desktop?source=sidebar"
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', borderRadius: '8px', fontSize: '13px', textDecoration: 'none', color: '#0369A1', fontWeight: 700, background: '#E0F2FE' }}
+                onMouseEnter={e => (e.currentTarget.style.background = '#BAE6FD')}
+                onMouseLeave={e => (e.currentTarget.style.background = '#E0F2FE')}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+                Desktop 설치
+              </Link>
               {/* 휴지통 */}
               <Link href="/trash"
                 style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', borderRadius: '8px', fontSize: '13px', textDecoration: 'none', color: '#4B5563' }}
@@ -1397,6 +1501,16 @@ export default function DashboardPage() {
                 도움말
               </Link>
               {/* 사용자 배지 — 클릭 시 요금제 선택 화면 이동 */}
+              <button
+                type="button"
+                onClick={() => void onboarding.startReplay()}
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', borderRadius: '8px', fontSize: '13px', color: '#4338CA', background: '#EEF2FF', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left', fontWeight: 700 }}
+                onMouseEnter={e => (e.currentTarget.style.background = '#E0E7FF')}
+                onMouseLeave={e => (e.currentTarget.style.background = '#EEF2FF')}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/></svg>
+                Live Guide 다시 보기
+              </button>
               <Link href="/landingpage#pricing"
                 style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '8px 10px', borderRadius: '8px', color: '#374151', textDecoration: 'none', marginTop: '2px' }}
                 onMouseEnter={e => (e.currentTarget.style.background = '#F3F4F6')}
@@ -1501,8 +1615,13 @@ export default function DashboardPage() {
                   )}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                  <Link href="/download/desktop?source=home-header"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '8px 12px', borderRadius: '9px', background: '#E0F2FE', color: '#0369A1', border: '1px solid #BAE6FD', textDecoration: 'none', fontSize: '13px', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+                    Desktop 설치
+                  </Link>
                   <div ref={newMenuRef} style={{ position: 'relative', flexShrink: 0 }}>
-                    <button onClick={() => setShowNewMenu(v => !v)} disabled={creating}
+                    <button data-parro-guide="home-create-trigger" onClick={() => setShowNewMenu(v => !v)} disabled={creating}
                     className="home-new-btn"
                     style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '8px 14px', borderRadius: '9px', background: BRAND_GRADIENT, color: 'white', border: 'none', cursor: creating ? 'not-allowed' : 'pointer', fontSize: '13.5px', fontWeight: 600, boxShadow: `0 2px 8px ${BRAND_RING}`, opacity: creating ? 0.7 : 1, whiteSpace: 'nowrap' }}>
                     {creating
@@ -1513,14 +1632,32 @@ export default function DashboardPage() {
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ transform: showNewMenu ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}><polyline points="6 9 12 15 18 9"/></svg>
                   </button>
                   {showNewMenu && (
-                    <div className="home-new-menu" style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, width: '244px', background: 'white', borderRadius: '12px', boxShadow: '0 8px 28px rgba(17,24,39,0.14), 0 0 0 1px rgba(0,0,0,0.06)', overflow: 'hidden', zIndex: 100 }}>
-                      <button className="home-recording-btn" onClick={() => { setShowNewMenu(false); setShowRecordingModal(true); }}
-                        style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', width: '100%', padding: '13px 15px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left' }}
-                        onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                    <div data-parro-guide="home-create-menu" className="home-new-menu" style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, width: '244px', background: 'white', borderRadius: '12px', boxShadow: '0 8px 28px rgba(17,24,39,0.14), 0 0 0 1px rgba(0,0,0,0.06)', overflow: 'hidden', zIndex: 100 }}>
+                      <button data-parro-guide="home-web-recording" className="home-recording-btn" onClick={() => { setShowNewMenu(false); setRecordingModalMode('web'); setShowRecordingModal(true); }}
+                        disabled={onboardingCreateLocked}
+                        aria-describedby={onboardingCreateLocked ? 'onboarding-create-limit' : undefined}
+                        style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', width: '100%', padding: '13px 15px', border: 'none', background: 'none', cursor: onboardingCreateLocked ? 'not-allowed' : 'pointer', textAlign: 'left', opacity: onboardingCreateLocked ? 0.48 : 1 }}
+                        onMouseEnter={e => { if (!onboardingCreateLocked) e.currentTarget.style.background = '#F9FAFB'; }} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
                         <span style={{ width: '30px', height: '30px', borderRadius: '8px', background: '#FEE2E2', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3" fill="#EF4444"/></svg>
                         </span>
                         <div><div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '2px' }}>웹 페이지 녹화</div><div style={{ fontSize: '11.5px', color: '#6B7280' }}>Chrome 탭을 선택해 매뉴얼 생성</div></div>
+                      </button>
+                      <button data-parro-guide="home-desktop-recording" onClick={() => { void handleDesktopCapture('new-menu'); }}
+                        disabled={onboardingCreateLocked}
+                        aria-describedby={onboardingCreateLocked ? 'onboarding-create-limit' : undefined}
+                        style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', width: '100%', padding: '13px 15px', border: 'none', background: 'none', cursor: onboardingCreateLocked ? 'not-allowed' : 'pointer', textAlign: 'left', opacity: onboardingCreateLocked ? 0.48 : 1 }}
+                        onMouseEnter={e => { if (!onboardingCreateLocked) e.currentTarget.style.background = '#F9FAFB'; }} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                        <span style={{ width: '30px', height: '30px', borderRadius: '8px', background: '#E0F2FE', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0369A1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+                        </span>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '2px' }}>
+                            데스크톱 녹화
+                            <span style={{ padding: '1px 6px', borderRadius: '999px', background: '#E6F7F3', color: '#007C72', fontSize: '9.5px', fontWeight: 800 }}>유료</span>
+                          </div>
+                          <div style={{ fontSize: '11.5px', color: '#6B7280' }}>{isPro ? '설치 상태 확인 후 바로 시작' : '유료 플랜에서 사용할 수 있어요'}</div>
+                        </div>
                       </button>
                       <div className="home-mobile-capture-note" style={{ display: 'none' }}>
                         <span style={{ width: '30px', height: '30px', borderRadius: '8px', background: '#F3F4F6', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
@@ -1529,22 +1666,29 @@ export default function DashboardPage() {
                         <div><div style={{ fontSize: '13px', fontWeight: 600, color: '#6B7280', marginBottom: '2px' }}>화면 캡처</div><div style={{ fontSize: '11.5px', color: '#9CA3AF' }}>PC 브라우저에서 사용할 수 있어요</div></div>
                       </div>
                       <div className="home-recording-divider" style={{ height: '1px', background: '#F3F4F6', margin: '0 12px' }} />
-                      <button onClick={handleCreateBlank}
-                        style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', width: '100%', padding: '13px 15px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left' }}
-                        onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                      <button data-parro-guide="home-blank-manual" onClick={handleCreateBlank}
+                        style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', width: '100%', padding: '13px 15px', border: 'none', background: onboardingCreateLocked ? '#EEF2FF' : 'none', cursor: 'pointer', textAlign: 'left' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = onboardingCreateLocked ? '#E0E7FF' : '#F9FAFB')} onMouseLeave={e => (e.currentTarget.style.background = onboardingCreateLocked ? '#EEF2FF' : 'none')}>
                         <span style={{ width: '30px', height: '30px', borderRadius: '8px', background: BRAND_PRIMARY_SOFT, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={BRAND_COLORS.primary} strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="12" x2="12" y2="18"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
                         </span>
                         <div><div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '2px' }}>새 매뉴얼 직접 작성</div><div style={{ fontSize: '11.5px', color: '#6B7280' }}>빈 매뉴얼에서 제목과 단계를 직접 작성</div></div>
                       </button>
-                      <button onClick={handleCreateGuidebook}
-                        style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', width: '100%', padding: '13px 15px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left' }}
-                        onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                      <button data-parro-guide="home-playbook" onClick={handleCreateGuidebook}
+                        disabled={onboardingCreateLocked}
+                        aria-describedby={onboardingCreateLocked ? 'onboarding-create-limit' : undefined}
+                        style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', width: '100%', padding: '13px 15px', border: 'none', background: 'none', cursor: onboardingCreateLocked ? 'not-allowed' : 'pointer', textAlign: 'left', opacity: onboardingCreateLocked ? 0.48 : 1 }}
+                        onMouseEnter={e => { if (!onboardingCreateLocked) e.currentTarget.style.background = '#F9FAFB'; }} onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
                         <span style={{ width: '30px', height: '30px', borderRadius: '8px', background: '#dcfce7', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
                         </span>
                         <div><div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', marginBottom: '2px' }}>새 플레이북(통합 문서)</div><div style={{ fontSize: '11.5px', color: '#6B7280' }}>여러 매뉴얼을 한 문서로</div></div>
                       </button>
+                      {onboardingCreateLocked && (
+                        <p id="onboarding-create-limit" style={{ margin: 0, padding: '9px 15px 11px', background: '#EEF2FF', color: '#4338CA', fontSize: '11.5px', lineHeight: 1.5 }}>
+                          이번 안내에서는 새 매뉴얼 직접 작성만 선택할 수 있어요.
+                        </p>
+                      )}
                     </div>
                   )}
                   </div>
@@ -1649,7 +1793,7 @@ export default function DashboardPage() {
                   )
                 ) : (
                   <div className={viewMode === 'list' ? 'home-card-list' : viewMode === 'compact' ? 'home-card-thumb-grid' : 'home-card-grid'}>
-                    {displayedPages.map(p => <PageCard key={p.id} page={p} viewMode={viewMode} />)}
+                    {displayedPages.map(p => <PageCard key={p.id} page={p} viewMode={viewMode} onDelete={handleDeletePage} />)}
                   </div>
                 )
               ) : (
@@ -1689,7 +1833,7 @@ export default function DashboardPage() {
                       </button>
                     </div>
                   ) : (
-                    <EmptyState onRecord={() => setShowRecordingModal(true)} onBlank={handleCreateBlank} onGuidebook={handleCreateGuidebook}
+                    <EmptyState onRecord={() => { setRecordingModalMode('select'); setShowRecordingModal(true); }} onBlank={handleCreateBlank} onGuidebook={handleCreateGuidebook}
                       label={activeTab === 'team' ? '팀 매뉴얼이 없어요' : activeFolder !== 'all' ? '이 폴더에 매뉴얼이 없어요' : undefined} />
                   )
                 ) : (
@@ -1742,6 +1886,7 @@ export default function DashboardPage() {
                   { label: '홈', href: '/home', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> },
                   { label: '마이페이지', href: '/mypage', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> },
                   { label: '설정', href: '/settings', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> },
+                  { label: 'Desktop 설치', href: '/download/desktop?source=mobile-drawer', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg> },
                   { label: '휴지통', href: '/trash', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg> },
                   { label: '도움말', href: '/help', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> },
                 ].map(item => (
@@ -1752,12 +1897,20 @@ export default function DashboardPage() {
                     {item.icon}{item.label}
                   </Link>
                 ))}
+                <button
+                  type="button"
+                  onClick={() => { setShowDrawer(false); void onboarding.startReplay(); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 10px', borderRadius: '8px', fontSize: '13.5px', color: '#4338CA', fontWeight: 700, border: 'none', background: '#EEF2FF', cursor: 'pointer', textAlign: 'left' }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/></svg>
+                  Live Guide 다시 보기
+                </button>
               </nav>
 
               <div style={{ height: '1px', background: 'var(--mm-border-light)', marginBottom: '12px' }} />
 
               {/* 내 워크스페이스 */}
-              <button onClick={() => setMyOpen(v => !v)}
+              <button data-parro-guide="home-workspaces" onClick={() => setMyOpen(v => !v)}
                 style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '7px 10px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'transparent', marginBottom: '2px' }}>
                 <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: activeTab === 'my' ? BRAND_COLORS.primary : '#E5E7EB', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>

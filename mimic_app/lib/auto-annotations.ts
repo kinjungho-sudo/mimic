@@ -11,7 +11,7 @@ export type AutoAnnotationStep = {
   click_y?: number | null;
   element_rect?: { x: number; y: number; width: number; height: number } | null;
   type_text?: string | null;
-  targetContext?: { accessibleName?: string | null } | null;
+  targetContext?: (Record<string, unknown> & { accessibleName?: string | null }) | null;
 };
 
 function usesTextOnlyAnnotation(step: AutoAnnotationStep): boolean {
@@ -81,6 +81,25 @@ export function displayAutoAnnotationsFor(step: AutoAnnotationStep): Annotation[
     if (annotations.length > 0) return annotations;
   }
   return step.annotations ?? [];
+}
+
+export function markAnnotationsAsManuallyEdited(annotations: Annotation[]): Annotation[] {
+  const editId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
+  return annotations.map((annotation, index) => (
+    typeof annotation.id === 'string' && annotation.id.startsWith('guidde-')
+      ? { ...annotation, id: `manual-${editId}-${index}` }
+      : annotation
+  ));
+}
+
+export function hasPersistedManualAnnotationState(
+  annotations: Annotation[],
+  targetContext?: Record<string, unknown> | null,
+): boolean {
+  if (targetContext?.annotationsManuallyEdited === true) return true;
+  return annotations.some(annotation => (
+    typeof annotation.id === 'string' && !annotation.id.startsWith('guidde-')
+  ));
 }
 
 function normalizeAutoAnnotationLabel(label: string, pageUrl?: string | null): string {

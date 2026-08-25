@@ -9,14 +9,25 @@ const guideScript = path.join(recorderRoot, 'guide-engine.js');
 async function loadGuide(page: Page) {
   await page.evaluate(() => {
     (window as unknown as { __parroStorage: Record<string, unknown> }).__parroStorage = {};
+    (window as unknown as { __runtimeMessages: unknown[] }).__runtimeMessages = [];
     (window as unknown as { chrome: unknown }).chrome = {
-      runtime: { getURL: (path: string) => path },
+      runtime: {
+        getURL: (path: string) => path,
+        sendMessage: (message: Record<string, unknown>, callback?: (value: unknown) => void) => {
+          (window as unknown as { __runtimeMessages: unknown[] }).__runtimeMessages.push(message);
+          callback?.(message.type === 'GUIDE_TTS_REQUEST'
+            ? { ok: true, audio_url: 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=' }
+            : { ok: true });
+        },
+        lastError: null,
+      },
       i18n: { getMessage: () => '' },
       storage: {
         local: {
-          get: (key: string, callback: (value: Record<string, unknown>) => void) => {
+          get: (key: string | string[], callback: (value: Record<string, unknown>) => void) => {
             const storage = (window as unknown as { __parroStorage: Record<string, unknown> }).__parroStorage;
-            callback({ [key]: storage[key] });
+            const keys = Array.isArray(key) ? key : [key];
+            callback(Object.fromEntries(keys.map(item => [item, storage[item]])));
           },
           set: (value: Record<string, unknown>) => {
             Object.assign((window as unknown as { __parroStorage: Record<string, unknown> }).__parroStorage, value);
@@ -411,39 +422,15 @@ test('Live Guide keeps typing-step speech bubbles in the bottom-right corner', a
   }).toEqual({ right: 12, bottom: 12 });
 });
 
-test('Live Guide reads step copy with TTS and stops it when hidden', async ({ page }) => {
+test('Live Guide requests OpenAI TTS for automatic voice guidance', async ({ page }) => {
   await page.route('https://example.test/live-guide-tts', route => route.fulfill({
     contentType: 'text/html',
     body: '<button id="tts-target" style="margin:180px;width:140px;height:44px">Continue</button>',
   }));
   await page.goto('https://example.test/live-guide-tts');
-  await page.evaluate(() => {
-    (window as unknown as { __spoken: string[]; __cancelCount: number }).__spoken = [];
-    (window as unknown as { __spoken: string[]; __cancelCount: number }).__cancelCount = 0;
-    class MockUtterance {
-      text: string;
-      lang = '';
-      rate = 1;
-      onstart?: () => void;
-      onend?: () => void;
-      onerror?: () => void;
-      constructor(text: string) { this.text = text; }
-    }
-    Object.defineProperty(window, 'SpeechSynthesisUtterance', { configurable: true, value: MockUtterance });
-    Object.defineProperty(window, 'speechSynthesis', {
-      configurable: true,
-      value: {
-        speak: (utterance: MockUtterance) => {
-          (window as unknown as { __spoken: string[] }).__spoken.push(utterance.text);
-          utterance.onstart?.();
-        },
-        cancel: () => { (window as unknown as { __cancelCount: number }).__cancelCount += 1; },
-      },
-    });
-  });
   await loadGuide(page);
   await page.evaluate(() => {
-    (window as unknown as { __parroStorage: Record<string, unknown> }).__parroStorage.guideVoiceEnabled = true;
+    (window as unknown as { __parroStorage: Record<string, unknown> }).__parroStorage.guideVoiceMode = 'auto';
     const guide = (window as unknown as { ParroGuide: any }).ParroGuide;
     guide.show({
       id: 'tts-step',
@@ -454,13 +441,64 @@ test('Live Guide reads step copy with TTS and stops it when hidden', async ({ pa
     }, { index: 0, total: 2 });
   });
 
-  await expect.poll(() => page.evaluate(() => (window as unknown as { __spoken: string[] }).__spoken)).toEqual([
-    '이 문장을 라이브 가이드에서 읽어주세요.',
-  ]);
-  expect(await closedShadowAttribute(page, 'data-act', 'toggle-guide-voice', 'aria-pressed')).toBe('true');
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __runtimeMessages: Array<{ type?: string }> }).__runtimeMessages.map(item => item.type))).toContain('GUIDE_TTS_REQUEST');
 
   await page.evaluate(() => (window as unknown as { ParroGuide: any }).ParroGuide.hide());
-  expect(await page.evaluate(() => (window as unknown as { __cancelCount: number }).__cancelCount)).toBeGreaterThan(0);
+});
+
+test('Live Guide supports button-only OpenAI TTS and instructor help requests', async ({ page }) => {
+  await page.route('https://example.test/manual-tts', route => route.fulfill({
+    contentType: 'text/html',
+    body: '<button id="manual-tts-target" style="margin:160px;width:160px;height:44px">Continue</button>',
+  }));
+  await page.goto('https://example.test/manual-tts');
+  await loadGuide(page);
+  await page.evaluate(() => {
+    (window as unknown as { __helpRequests: unknown[] }).__helpRequests = [];
+    (window as unknown as { __parroStorage: Record<string, unknown> }).__parroStorage.guideVoiceMode = 'manual';
+    (window as unknown as { ParroGuide: any }).ParroGuide.show({
+      id: 'manual-tts-step', page_url: window.location.href, element_selector: '#manual-tts-target',
+      title: '계속', instruction: '버튼을 누를 때만 읽어주세요.',
+    }, { index: 0, total: 1, onHelpRequest: (payload: unknown, done: (response: unknown) => void) => {
+      (window as unknown as { __helpRequests: unknown[] }).__helpRequests.push(payload);
+      done({ ok: true, screenshotAttached: true });
+    } });
+  });
+
+  expect(await page.evaluate(() => (window as unknown as { __runtimeMessages: unknown[] }).__runtimeMessages)).toEqual([]);
+  await clickClosedShadowAction(page, 'play-guide-voice');
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __runtimeMessages: Array<{ type?: string }> }).__runtimeMessages.map(item => item.type))).toContain('GUIDE_TTS_REQUEST');
+  await clickClosedShadowAction(page, 'toggle-hand-raise');
+  await clickClosedShadowAction(page, 'send-help-request');
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __helpRequests: unknown[] }).__helpRequests)).toEqual([{ message: '', includeScreenshot: true }]);
+  expect(await closedShadowAttribute(page, 'data-act', 'toggle-hand-raise', 'aria-pressed')).toBe('true');
+});
+
+test('Live Guide confirms practice completion before staying or exiting', async ({ page }) => {
+  await page.route('https://example.test/complete-guide', route => route.fulfill({
+    contentType: 'text/html',
+    body: '<button id="complete-target" style="margin:160px;width:160px;height:44px">Complete</button>',
+  }));
+  await page.goto('https://example.test/complete-guide');
+  await loadGuide(page);
+  await page.evaluate(() => {
+    (window as unknown as { __completionActions: string[] }).__completionActions = [];
+    (window as unknown as { ParroGuide: any }).ParroGuide.show({
+      id: 'complete-step', page_url: window.location.href, element_selector: '#complete-target',
+      title: '완료', instruction: '마지막 작업을 완료하세요.',
+    }, {
+      index: 0,
+      total: 1,
+      onStay: () => (window as unknown as { __completionActions: string[] }).__completionActions.push('stay'),
+      onComplete: () => (window as unknown as { __completionActions: string[] }).__completionActions.push('exit'),
+    });
+  });
+
+  await page.click('#complete-target');
+  expect(await closedShadowAttribute(page, 'data-act', 'completion-stay', 'data-act')).toBe('completion-stay');
+  expect(await closedShadowAttribute(page, 'data-act', 'completion-exit', 'data-act')).toBe('completion-exit');
+  await clickClosedShadowAction(page, 'completion-stay');
+  expect(await page.evaluate(() => (window as unknown as { __completionActions: string[] }).__completionActions)).toEqual(['stay']);
 });
 
 test('guide shows a scroll prompt while a same-page target is below the viewport', async ({ page }) => {

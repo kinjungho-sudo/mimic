@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { QUICK_QUESTIONS } from '@/lib/faq-data';
 import { BRAND_COPY, BRAND_NAME, BRAND_SUPPORT_EMAIL } from '@/lib/brand';
 import { PRODUCT_PLANS } from '@/lib/product-plans';
+import { type AppLocale, translateUiText } from '@/lib/i18n/ui-translations';
 
 // ── 정적 FAQ 데이터 ────────────────────────────────────────
 // Haiku API 없이 키워드 매칭으로 응답 — API 비용 0
@@ -24,6 +25,11 @@ const FAQ_DB: Record<string, FAQ> = {
     keywords: ['설치', '확장', '크롬', 'chrome', '프로그램', '다운', '어디서'],
     answer: `${BRAND_COPY.extensionDisplayName}는 Chrome 확장 프로그램입니다.\n\n**설치 방법**\n1. Chrome 웹 스토어에서 "${BRAND_COPY.extensionDisplayName}" 검색\n2. 확장 프로그램 설치\n3. ${BRAND_NAME} 웹앱에서 계정 생성 후 확장과 연결\n\nChromium 기반 브라우저(Edge, Brave)도 지원합니다. Firefox, Safari는 현재 미지원입니다.\n\n👉 [설치 가이드 보기](${HELP_URL})`,
     related: ['record', 'what'],
+  },
+  'desktop': {
+    keywords: ['desktop companion', 'desktop', '데스크톱', '윈도우 앱', 'windows 앱', 'pc 앱', '컴패니언'],
+    answer: `**Desktop Companion 설치 방법**\n1. ${BRAND_NAME} 홈 또는 설정에서 **Desktop 설치**를 선택합니다.\n2. Windows 설치 프로그램을 내려받아 실행합니다.\n3. 설치 화면으로 돌아와 **연결 다시 확인**을 선택합니다.\n4. 상태가 준비됨으로 표시되면 데스크톱 녹화를 시작합니다.\n\nDesktop Companion은 Excel·파일 탐색기·PDF 뷰어처럼 Chrome 밖의 Windows 앱 작업을 기록할 때 사용합니다. Chrome 웹페이지 녹화만 필요하면 ${BRAND_COPY.extensionDisplayName}만 연결하면 됩니다.\n\n👉 [Desktop Companion 설치 화면](/desktop-setup?source=help-bot)`,
+    related: ['install', 'record'],
   },
   'record': {
     keywords: ['녹화', '캡처', '촬영', '어떻게', '만들기', '생성', '시작'],
@@ -122,13 +128,22 @@ function findAnswer(query: string): { answer: string; related: string[] } {
 
 // ── Route Handler ──────────────────────────────────────────
 
-export async function GET() {
+function localizedQuestions(locale: AppLocale) {
+  if (locale === 'ko') return QUICK_QUESTIONS;
+  return QUICK_QUESTIONS.map(question => ({
+    ...question,
+    label: translateUiText(question.label, locale),
+  }));
+}
+
+export async function GET(request: NextRequest) {
   // 클라이언트가 초기 로드 시 FAQ 목록 요청
-  return NextResponse.json({ quickQuestions: QUICK_QUESTIONS });
+  const locale = request.nextUrl.searchParams.get('locale') === 'en' ? 'en' : 'ko';
+  return NextResponse.json({ quickQuestions: localizedQuestions(locale) });
 }
 
 export async function POST(request: NextRequest) {
-  let body: { query?: string; faqId?: string };
+  let body: { query?: string; faqId?: string; locale?: AppLocale };
   try {
     body = await request.json();
   } catch {
@@ -138,10 +153,14 @@ export async function POST(request: NextRequest) {
   const query = (body.faqId ?? body.query ?? '').trim();
   if (!query) return NextResponse.json({ error: 'query required' }, { status: 400 });
 
+  const locale: AppLocale = body.locale === 'en' ? 'en' : 'ko';
   const { answer, related } = findAnswer(query);
   const relatedQuestions = related
-    .map(id => QUICK_QUESTIONS.find(q => q.id === id))
+    .map(id => localizedQuestions(locale).find(q => q.id === id))
     .filter(Boolean);
 
-  return NextResponse.json({ answer, related: relatedQuestions });
+  return NextResponse.json({
+    answer: translateUiText(answer, locale),
+    related: relatedQuestions,
+  });
 }

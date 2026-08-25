@@ -30,7 +30,7 @@ export interface Annotation {
 interface ImageAnnotationEditorProps {
   imageUrl: string;
   annotations: Annotation[];
-  onChange: (annotations: Annotation[]) => void;
+  onChange: (annotations: Annotation[]) => void | Promise<void>;
   onClose: () => void;
   // 파괴적 영역 블러(픽셀화) — 드래그한 정규화 region(0~1)을 받아 이미지에 영구 반영.
   // 제공되지 않으면 '영구 블러' 도구는 숨겨진다.
@@ -38,6 +38,8 @@ interface ImageAnnotationEditorProps {
   // 블러 되돌리기 — 백업된 원본이 있을 때만 노출.
   onRevertBlur?: () => Promise<void>;
   canRevertBlur?: boolean;
+  viewport?: { frameWidth: number; frameHeight: number; imageWidth: number; imageHeight: number } | null;
+  framing?: { zoom: number; offsetX: number; offsetY: number } | null;
 }
 
 // ── Constants ──────────────────────────────────────────────
@@ -197,6 +199,7 @@ function hitTestAnnotation(a: Annotation, px: number, py: number, r: number, img
 export function ImageAnnotationEditor({
   imageUrl, annotations, onChange, onClose,
   onPixelate, onRevertBlur, canRevertBlur,
+  viewport, framing,
 }: ImageAnnotationEditorProps) {
   // finishDrawing에서 최신 onPixelate를 읽어 stale closure를 방지한다.
   const onPixelateRef = useRef(onPixelate);
@@ -239,6 +242,8 @@ export function ImageAnnotationEditor({
   }, [color, strokeIdx, fontSize, fontBold, borderColor, textAlign, hasBg]);
 
   const [items, setItems] = useState<Annotation[]>(annotations);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   // React state updates may still be queued when the user clicks 저장 (notably
   // while a contentEditable text annotation is being committed). Keep the
   // latest authoritative array available synchronously for the save handler.
@@ -304,9 +309,10 @@ export function ImageAnnotationEditor({
     const img = imgRef.current;
     if (!img) return;
     const update = () => {
-      const r = img.getBoundingClientRect();
-      if (r.width > 0) {
-        setImgSize({ w: r.width, h: r.height });
+      if (img.clientWidth > 0 && img.clientHeight > 0) {
+        // CSS transform 전 레이아웃 크기를 좌표계로 사용한다. getBoundingClientRect는
+        // 카드 프레이밍 확대까지 포함하므로 SVG 좌표가 이중 확대된다.
+        setImgSize({ w: img.clientWidth, h: img.clientHeight });
       } else if (img.naturalWidth > 0) {
         // getBoundingClientRect가 아직 0이면 natural 크기로 fallback
         setImgSize({ w: img.naturalWidth, h: img.naturalHeight });
@@ -638,10 +644,18 @@ export function ImageAnnotationEditor({
     return () => clearTimeout(t);
   }, [editingText]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (saving) return;
     const latestItems = editingText ? commitTextRef.current() : itemsRef.current;
-    onChange(latestItems);
-    onClose();
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await onChange(latestItems);
+      onClose();
+    } catch {
+      setSaveError('저장하지 못했습니다. 네트워크 연결을 확인하고 다시 시도해 주세요.');
+      setSaving(false);
+    }
   };
 
   // 선택된 아이템 속성을 즉시 업데이트 (커서 모드에서 속성 변경)
@@ -668,7 +682,8 @@ export function ImageAnnotationEditor({
 
   // 텍스트 폰트 스케일 — fontSize를 표시 너비에 비례시켜 편집기/뷰어에서 이미지 대비 동일 비율로 보이게 한다.
   // 기준 너비(FONT_REF_WIDTH ≈ 편집기 표시 폭)로 나눠 보정 → 편집기에선 거의 원본 px, 뷰어에선 비례 축소.
-  const fontScale = imgSize ? imgSize.w / FONT_REF_WIDTH : 1;
+  const framingSizeScale = framing && framing.zoom > 1 ? 1 / framing.zoom : 1;
+  const fontScale = imgSize ? imgSize.w * framingSizeScale / FONT_REF_WIDTH : 1;
 
   // 툴바 표시 조건 — tool 또는 select 모드에서 선택된 아이템 타입 기준
   const effectiveType = tool === 'select'
@@ -865,17 +880,23 @@ export function ImageAnnotationEditor({
 
             <div style={{ width: '1px', height: '22px', background: 'rgba(255,255,255,0.12)', margin: '0 4px' }} />
 
-            <button onClick={onClose}
-              style={{ height: '32px', padding: '0 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(255,255,255,0.7)', fontSize: '12px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+            {saveError && (
+              <span role="alert" style={{ maxWidth: '260px', color: '#FCA5A5', fontSize: '11px', lineHeight: 1.3 }}>
+                {saveError}
+              </span>
+            )}
+
+            <button onClick={onClose} disabled={saving}
+              style={{ height: '32px', padding: '0 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(255,255,255,0.7)', fontSize: '12px', cursor: saving ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', opacity: saving ? 0.5 : 1 }}
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
             ><X size={13} /> 닫기</button>
 
-            <button onClick={handleSave}
-              style={{ height: '32px', padding: '0 16px', borderRadius: '6px', border: 'none', background: 'linear-gradient(135deg, #009B8E 0%, #12B886 100%)', color: 'white', fontSize: '12px', fontWeight: 600, cursor: 'pointer', marginLeft: '4px' }}
+            <button onClick={() => { void handleSave(); }} disabled={saving}
+              style={{ height: '32px', padding: '0 16px', borderRadius: '6px', border: 'none', background: 'linear-gradient(135deg, #009B8E 0%, #12B886 100%)', color: 'white', fontSize: '12px', fontWeight: 600, cursor: saving ? 'wait' : 'pointer', marginLeft: '4px', opacity: saving ? 0.75 : 1 }}
               onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,155,142,0.5)'; }}
               onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; }}
-            >저장</button>
+            >{saving ? '저장 중…' : '저장'}</button>
           </div>
 
           {/* ── 2줄: 옵션 바 (색상은 1줄 공통 버튼으로 이동, 여기선 굵기/텍스트 속성/힌트만) ── */}
@@ -974,11 +995,26 @@ export function ImageAnnotationEditor({
 
         {/* ── Canvas wrapper ── */}
         <div
-          style={{ overflow: 'hidden', flex: '1 1 0', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: activeCursor }}
+          data-testid="annotation-editor-viewport"
+          style={{
+            overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: activeCursor,
+            flex: viewport ? '0 0 auto' : '1 1 0',
+            width: viewport ? `${viewport.frameWidth}px` : undefined,
+            height: viewport ? `${viewport.frameHeight}px` : undefined,
+            maxWidth: '100%', maxHeight: '100%', background: '#F3F4F6', alignSelf: 'center',
+          }}
         >
         {/* ── Canvas ── */}
         <div
-          style={{ position: 'relative', display: 'inline-block', lineHeight: 0, flexShrink: 0, cursor: activeCursor }}
+          style={{
+            position: 'relative', display: 'inline-block', lineHeight: 0, flexShrink: 0, cursor: activeCursor,
+            width: viewport ? `${viewport.imageWidth}px` : undefined,
+            height: viewport ? `${viewport.imageHeight}px` : undefined,
+            transform: framing && (framing.zoom !== 1 || framing.offsetX !== 0 || framing.offsetY !== 0)
+              ? `translate(${framing.offsetX * 100}%, ${framing.offsetY * 100}%) scale(${framing.zoom})`
+              : undefined,
+            transformOrigin: 'center center',
+          }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
@@ -986,7 +1022,9 @@ export function ImageAnnotationEditor({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             ref={imgRef} src={imageUrl} alt="편집 중" draggable={false}
-            style={{ display: 'block', maxWidth: 'min(1100px, calc(100vw - 48px))', maxHeight: 'calc(100vh - 200px)', objectFit: 'contain' }}
+            style={viewport
+              ? { display: 'block', width: '100%', height: '100%', objectFit: 'contain' }
+              : { display: 'block', maxWidth: 'min(1100px, calc(100vw - 48px))', maxHeight: 'calc(100vh - 200px)', objectFit: 'contain' }}
           />
 
           <svg
@@ -1024,7 +1062,7 @@ export function ImageAnnotationEditor({
                   key={a.id} annotation={a}
                   isSelected={selectedId === a.id}
                   tool={tool} imgW={imgSize.w} imgH={imgSize.h}
-                  strokePx={(a.strokeWidth / 100) * imgSize.w}
+                  strokePx={(a.strokeWidth / 100) * imgSize.w * framingSizeScale}
                   fontScale={fontScale}
                   imageUrl={imageUrl}
                   onBodyMouseDown={e => startDrag(e, a.id, null)}
@@ -1038,7 +1076,7 @@ export function ImageAnnotationEditor({
               <AnnotationShape
                 annotation={drawing as Annotation} isSelected={false}
                 tool={tool} imgW={imgSize.w} imgH={imgSize.h}
-                strokePx={(drawing.strokeWidth ?? strokeWidth) / 100 * imgSize.w}
+                strokePx={(drawing.strokeWidth ?? strokeWidth) / 100 * imgSize.w * framingSizeScale}
                 fontScale={fontScale}
                 imageUrl={imageUrl}
               />

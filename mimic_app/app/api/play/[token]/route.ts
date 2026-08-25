@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServiceRoleClient } from '@/lib/supabase/server';
+import { createServerClient, createServiceRoleClient } from '@/lib/supabase/server';
 import { verifyPassword } from '@/lib/auth/password';
 import { isPaidPlan } from '@/lib/plan';
 import { hasEntitlement } from '@/lib/entitlements';
@@ -9,15 +9,18 @@ import { maskManualCopy } from '@/lib/manual-quality';
 
 type Params = { params: Promise<{ token: string }> };
 
-async function fetchTutorialData(token: string) {
+async function fetchTutorialData(token: string, ownerId?: string) {
   const supabase = createServiceRoleClient();
 
-  const { data: tutorial, error } = await supabase
+  let tutorialQuery = supabase
     .from('mm_tutorials')
-    .select('*')
-    .eq('share_token', token)
-    .eq('status', 'published')
-    .single();
+    .select('*');
+
+  tutorialQuery = ownerId
+    ? tutorialQuery.eq('id', token).eq('user_id', ownerId)
+    : tutorialQuery.eq('share_token', token).eq('status', 'published');
+
+  const { data: tutorial, error } = await tutorialQuery.single();
 
   if (error || !tutorial) return null;
 
@@ -121,13 +124,25 @@ async function fetchTutorialData(token: string) {
 // GET — 비밀번호 설정 시 { protected: true, title } 반환, 없으면 전체 데이터
 export async function GET(_request: NextRequest, { params }: Params) {
   const { token } = await params;
-  const result = await fetchTutorialData(token);
+  const isOwnerPreview = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token);
+  let ownerId: string | undefined;
+
+  if (isOwnerPreview) {
+    const serverClient = await createServerClient();
+    const { data: { user } } = await serverClient.auth.getUser();
+    ownerId = user?.id;
+    if (!ownerId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+  }
+
+  const result = await fetchTutorialData(token, ownerId);
 
   if (!result) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
-  if (result.tutorial.share_password) {
+  if (!isOwnerPreview && result.tutorial.share_password) {
     return NextResponse.json({ protected: true, title: maskManualCopy(result.tutorial.title) });
   }
 

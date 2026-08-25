@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { guardTutorialAccess } from '@/lib/auth/workspace-guard';
 import { logActivity } from '@/lib/activity';
+import { parseHelpRequestBody } from '@/lib/live-guide/help-request';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -61,7 +62,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
 
   const { data: comment } = await supabase
     .from('mm_comments')
-    .select('id, author_id')
+    .select('id, author_id, tutorial_id, body')
     .eq('id', id)
     .is('deleted_at', null)
     .single();
@@ -77,5 +78,9 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     .eq('id', id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const help = parseHelpRequestBody(comment.body, comment.tutorial_id);
+  if (help?.metadata.path) {
+    await supabase.storage.from('naviaction').remove([help.metadata.path]);
+  }
   return new NextResponse(null, { status: 204 });
 }

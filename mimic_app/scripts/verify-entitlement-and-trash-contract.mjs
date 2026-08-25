@@ -28,12 +28,16 @@ const pptxRoute = read('app', 'api', 'export', 'pptx', '[id]', 'route.ts');
 const docxRoute = read('app', 'api', 'export', 'docx', '[id]', 'route.ts');
 const rewriteRoute = read('app', 'api', 'ai', 'rewrite', 'route.ts');
 const liveGuideRoute = read('app', 'api', 'guide', '[token]', 'route.ts');
+const liveGuideServer = read('lib', 'live-guide', 'server.ts');
 const trashRoute = read('app', 'api', 'trash', 'route.ts');
 const cleanupRoute = read('app', 'api', 'cron', 'cleanup-trash', 'route.ts');
 const vercel = JSON.parse(read('vercel.json'));
 const landing = read('app', 'landingpage', 'page.tsx');
 const home = read('app', 'home', 'page.tsx');
 const desktopSetup = read('app', 'desktop-setup', 'page.tsx');
+const captureFinalize = read('app', 'api', 'capture', 'finalize', 'route.ts');
+const tutorialsRoute = read('app', 'api', 'tutorials', 'route.ts');
+const defaultTts = read('lib', 'voice', 'default-tutorial-tts.ts');
 
 assert.match(workspaceRoute, /requireUserEntitlement\(auth\.userId, 'team_workspace'/);
 assert.match(brandingRoute, /requireUserEntitlement\(auth\.userId, 'branding'/);
@@ -41,7 +45,8 @@ assert.match(tutorialRoute, /requireTutorialEntitlement\(id, 'protected_sharing'
 assert.match(pptxRoute, /requireTutorialEntitlement\(id, 'office_export'/);
 assert.match(docxRoute, /requireTutorialEntitlement\(id, 'office_export'/);
 assert.match(rewriteRoute, /requireUserEntitlement\(auth\.userId, 'ai_rewrite'/);
-assert.match(liveGuideRoute, /hasEntitlement\(plan, 'live_guide'\)/);
+assert.match(liveGuideRoute, /gateLiveGuide\(supabase, tutorial\.user_id\)/);
+assert.match(liveGuideServer, /hasEntitlement\(plan, 'live_guide'\)/);
 assert.doesNotMatch(liveGuideRoute, /consume_free_live_guide_run/);
 
 assert.equal(TRASH_RETENTION_DAYS, 7);
@@ -52,10 +57,19 @@ assert.match(cleanupRoute, /\.lt\('deleted_at', cutoff\)/);
 assert.ok(vercel.crons.some(cron => cron.path === '/api/cron/cleanup-trash'));
 
 assert.doesNotMatch(landing, /href:\s*'#'/);
-assert.match(landing, /소개 자료 요청/);
-assert.match(home, /'aria-label': `\$\{displayTitle\} 매뉴얼 열기`/);
+if (/aria-label="Parro EDU 홈"/.test(landing)) {
+  assert.match(landing, /href="\/auth\/login"/);
+} else {
+  assert.match(landing, /소개 자료 요청/);
+}
+assert.match(home, /'aria-label': `\$\{tutorial\.title\} 매뉴얼 열기`/);
 assert.match(home, /aria-label="공지 닫기"/);
 assert.match(home, /displayedTutorials\.slice\(0, visibleTutorialCount\)/);
 assert.doesNotMatch(desktopSetup, /getDesktopExtensionIds|response\?\.error\}\)`/);
+assert.match(captureFinalize, /generateDefaultTutorialTTS\(tutorial\.id, supabase\)/);
+assert.match(captureFinalize, /tts_enabled: defaultTtsEnabled/);
+assert.match(tutorialsRoute, /tts_enabled: defaultTtsEnabled/);
+assert.match(defaultTts, /hasEntitlement\(user\?\.plan, 'ai_voice'\)/);
+assert.match(defaultTts, /user_script \|\| step\.ai_description/);
 
-console.log(JSON.stringify({ ok: true, checks: 32, scope: 'entitlement-and-trash-contract' }));
+console.log(JSON.stringify({ ok: true, checks: 38, scope: 'entitlement-and-trash-contract' }));
