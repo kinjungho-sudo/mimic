@@ -80,7 +80,8 @@ check(() => {
 
 check(() => {
   assert.doesNotMatch(background, /dskphgxurxebblnpwhax\.supabase\.co/);
-  assert.match(background, /const SUPABASE_URL\s*=\s*'https:\/\/gqynptpjomcqzxyykqic\.supabase\.co'/);
+  assert.doesNotMatch(background, /const SUPABASE_(?:URL|KEY)\s*=/);
+  assert.match(background, /\/api\/capture\/upload-target/);
   assert.match(captureSaveStepRoute, /screenshot_url:\s*d\.screenshot_url \?\? ''/);
 });
 
@@ -192,7 +193,7 @@ check(() => {
   assert.match(desktopClient, /if \(!isExtensionConnectionError\(response\?\.error\)\) return response/);
   assert.match(desktopClient, /resolveDesktopCaptureEntry/);
   assert.match(desktopClient, /desktopCompanionCompatibility/);
-  assert.match(desktopDownload, /최신 버전으로 업데이트/);
+  assert.match(desktopDownload, /자동 설치로 업데이트/);
   assert.match(desktopDownload, /Parro Desktop 앱 열기/);
   assert.match(middleware, /PAID_DESKTOP_PATHS/);
   assert.match(middleware, /hasEntitlement\(profile\?\.plan, 'desktop_companion'\)/);
