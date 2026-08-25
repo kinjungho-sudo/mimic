@@ -43,14 +43,14 @@ assert.match(rootLayout, /'naver-site-verification': '8075e3d1d1095097db53dfe6cc
 assert.match(rootLayout, /'msvalidate\.01'/);
 assert.match(rootLayout, /"@type": "Organization"/);
 
-assert.match(landingLayout, /LANDING_TITLE = 'AI 업무 매뉴얼 제작과 라이브 가이드'/);
+assert.match(landingLayout, /LANDING_TITLE = 'Parro EDU \| 한 번의 시연을 직접 해보는 실습으로'/);
 assert.match(landingLayout, /canonical: LANDING_URL/);
 assert.match(landingLayout, /'ko-KR': LANDING_URL/);
 assert.match(landingLayout, /index: SEARCH_INDEXING_ENABLED/);
 assert.match(landingLayout, /'max-image-preview': 'large'/);
 assert.match(landingLayout, /'@type': 'WebSite'/);
 assert.match(landingLayout, /'@type': 'Service'/);
-assert.match(landingLayout, /'@type': 'FAQPage'/);
+assert.match(landingLayout, /'@type': 'EducationalAudience'/);
 
 assert.match(sitemap, /\/landingpage/);
 assert.match(sitemap, /\/legal\/privacy/);
