@@ -38,11 +38,18 @@ try {
 
   const packagedManifestPath = path.join(fixtureDir, 'manifest.json');
   const packagedBufferPath = path.join(fixtureDir, 'pre-capture-buffer.js');
+  const packagedPreviewPagePath = path.join(fixtureDir, 'guide-preview.html');
+  const packagedPreviewScriptPath = path.join(fixtureDir, 'guide-preview.js');
   assert.equal(fs.existsSync(packagedManifestPath), true, 'Packaged manifest.json is missing');
   assert.equal(
     fs.existsSync(packagedBufferPath),
     true,
     'Packaged pre-capture-buffer.js is missing',
+  );
+  assert.equal(
+    fs.existsSync(packagedPreviewPagePath) && fs.existsSync(packagedPreviewScriptPath),
+    true,
+    'Packaged detached image preview runtime is missing',
   );
 
   const packagedManifest = JSON.parse(fs.readFileSync(packagedManifestPath, 'utf8'));

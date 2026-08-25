@@ -33,7 +33,7 @@ const playbookServer = fs.readFileSync(
   'utf8',
 );
 
-assert.equal(manifest.version, '1.7.31');
+assert.equal(manifest.version, '1.7.32');
 assert.deepEqual(
   manifest.content_scripts[0].js.slice(0, 3),
   ['targeting.js', 'guide-engine.js', 'content.js'],
@@ -266,6 +266,19 @@ assert.match(previewPage, /id="previewImage"/);
 assert.match(previewPage, /script src="guide-preview\.js"/);
 assert.match(previewScript, /chrome\.storage\.local\.get\(key\)/);
 assert.match(previewScript, /chrome\.storage\.local\.remove\(key\)/);
+assert.match(previewScript, /indexedDB\.open\('mimic_screenshots', 1\)/,
+  'the detached image viewer must reload local captures from extension IndexedDB');
+assert.match(popupScript, /parroImagePreview:/,
+  'local screenshots must open through an extension-owned preview window');
+assert.doesNotMatch(
+  section(popupScript, "document.getElementById('thumbZoomNewTab')", 'function renderedImageRect'),
+  /chrome\.tabs\.create\(\{ url: src \}\)/,
+  'temporary blob URLs must not be passed to a separate browser tab',
+);
+assert.doesNotMatch(content, /border:2px solid #EF4444|box-shadow:0 0 0 3px rgba\(239,68,68/,
+  'recording-only red DOM outlines must never be eligible for capture');
+assert.doesNotMatch(content, /function showClickHighlight|function showHoverPointer/,
+  'transient recording highlights must remain outside the captured page DOM');
 assert.match(content, /saveText:\s+true/, 'new capture sessions must retain typed text by default');
 assert.match(content, /let typingGeometrySnapshot = null/,
   'typing captures must cache stable geometry before focus moves to send');

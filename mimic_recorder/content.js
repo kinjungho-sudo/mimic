@@ -88,7 +88,6 @@
   let stepNumber       = 0;
 
   let settings = {
-    highlight: true,
     autoNav:   true,
     saveText:  true,
     captureInputClicks: false,
@@ -534,28 +533,6 @@
   }
 
   // ── 오버레이 헬퍼 ────────────────────────────────────────────────
-  function makeBorderOverlay(rect) {
-    const ov = document.createElement('div');
-    applyOverlayStyle(ov, rect);
-    return ov;
-  }
-
-  function applyOverlayStyle(ov, rawRect) {
-    const P = 3;
-    // 화면보다 큰 요소(긴 텍스트 붙여넣기 등)는 보이는 영역으로 클램프 — 테두리가 화면 밖으로 나가지 않게
-    const rect = clampRectToViewport(rawRect, window.innerWidth, window.innerHeight);
-    ov.style.cssText = [
-      'position:fixed',
-      `left:${rect.left - P}px`, `top:${rect.top - P}px`,
-      `width:${rect.width + P * 2}px`, `height:${rect.height + P * 2}px`,
-      `border-radius:${Math.min(rect.width, rect.height) <= 32 ? Math.floor(Math.min(rect.width, rect.height) / 2) : 6}px`,
-      'border:2px solid #EF4444',
-      'box-shadow:0 0 0 3px rgba(239,68,68,0.3)',
-      'background:transparent',
-      'pointer-events:none', 'z-index:2147483646', 'box-sizing:border-box',
-    ].join(';');
-  }
-
   let fileHighlightOverlay = null;
 
   function showFileHighlight(fileNames) {
@@ -592,27 +569,9 @@
     if (fileHighlightOverlay) { fileHighlightOverlay.remove(); fileHighlightOverlay = null; }
   }
 
-  // ── 호버 포인터 ──────────────────────────────────────────────────
-  let hoverOverlay = null;
-  let hoverTarget  = null;
-  // 선캡처(pointerdown) 직전 호버 테두리를 제거한 뒤, 캡처가 끝나기 전 mousemove로
-  // 다시 그려져 스크린샷에 굽히는 것을 막기 위한 억제 만료 시각.
-  let suppressHoverUntil = 0;
-
-  function showHoverPointer(target) {
-    const rect = target.getBoundingClientRect();
-    if (!hoverOverlay) {
-      hoverOverlay = makeBorderOverlay(rect);
-      document.documentElement.appendChild(hoverOverlay);
-    } else {
-      applyOverlayStyle(hoverOverlay, rect);
-    }
-  }
-
-  function hideHoverPointer() {
-    if (hoverOverlay) { hoverOverlay.remove(); hoverOverlay = null; }
-    hoverTarget = null;
-  }
+  // 캡처 대상 페이지에는 녹화용 강조 DOM을 그리지 않는다. captureVisibleTab은 직전
+  // 합성 프레임을 잡을 수 있어 빠른 클릭에서 테두리가 이미지에 영구 포함될 수 있다.
+  function hideHoverPointer() {}
 
   // ── 캡처 완료 플래시 ─────────────────────────────────────────────
   function flashCapture() {
@@ -631,65 +590,7 @@
     });
   }
 
-  // ── 클릭 위치 붉은 원형 펄스 + 일시 확대 ───────────────────────
-  // 캡처 직전 클릭 펄스/줌 효과 취소용 참조 — 스크린샷에 굽히지 않게
-  let _pulseEl = null;
-
-  function cancelClickEffects() {
-    if (_pulseEl) { _pulseEl.remove(); _pulseEl = null; }
-  }
-
-  function showClickHighlight(x, y) {
-    if (!settings.highlight) return;
-
-    // 붉은 원형 펄스
-    const pulse = document.createElement('div');
-    pulse.style.cssText = [
-      'position:fixed',
-      `left:${x}px`, `top:${y}px`,
-      'width:0', 'height:0',
-      'pointer-events:none', 'z-index:2147483647',
-    ].join(';');
-
-    const ring = document.createElement('div');
-    ring.style.cssText = [
-      'position:absolute',
-      'width:48px', 'height:48px',
-      'border-radius:50%',
-      'background:rgba(239,68,68,0.35)',
-      'border:2.5px solid #EF4444',
-      'transform:translate(-50%,-50%) scale(0)',
-      'transition:transform 0.32s cubic-bezier(0.22,1,0.36,1), opacity 0.32s ease',
-      'opacity:1',
-    ].join(';');
-
-    const dot = document.createElement('div');
-    dot.style.cssText = [
-      'position:absolute',
-      'width:12px', 'height:12px',
-      'border-radius:50%',
-      'background:#EF4444',
-      'transform:translate(-50%,-50%)',
-      'box-shadow:0 0 0 3px rgba(239,68,68,0.4)',
-    ].join(';');
-
-    pulse.append(ring, dot);
-    document.documentElement.appendChild(pulse);
-    _pulseEl = pulse;
-
-    requestAnimationFrame(() => {
-      ring.style.transform = 'translate(-50%,-50%) scale(1)';
-      setTimeout(() => {
-        ring.style.opacity = '0';
-        ring.style.transform = 'translate(-50%,-50%) scale(1.6)';
-        setTimeout(() => {
-          pulse.remove();
-          if (_pulseEl === pulse) _pulseEl = null;
-        }, 350);
-      }, 300);
-    });
-
-  }
+  function cancelClickEffects() {}
 
   // ── 녹화 시작 카운트다운 오버레이 ──────────────────────────────
   function showCountdown(onDone, opts) {
@@ -919,7 +820,6 @@
       restorePIIBlur();
       removeFileHighlight();
       isCapturing = false;
-      hoverTarget = null;
       sendResponse({ ok: true });
       return false;
     }
@@ -1723,26 +1623,6 @@
   }
 
   // ── 호버 이벤트 ──────────────────────────────────────────────────
-  document.addEventListener('mousemove', (e) => {
-    if (!isRecording || isPaused) { hideHoverPointer(); return; }
-    // '클릭 하이라이트' 설정 OFF 시 호버 테두리도 표시하지 않는다
-    // (설정 문구가 "클릭한 요소 주변 빨간 테두리" — 펄스와 테두리 둘 다 이 설정 소관)
-    if (!settings.highlight) { hideHoverPointer(); return; }
-    if (isCapturing && (Date.now() - isCapturingStart) >= CAPTURE_SAFETY_MS) isCapturing = false;
-    if (isCapturing) return;
-    if (Date.now() < suppressHoverUntil) return;  // 선캡처 윈도우 — 테두리 재등장 금지
-    const target = findInteractiveTarget(e.target, e);
-    if (!target) { hideHoverPointer(); return; }
-    const overlayAlive = hoverOverlay && document.documentElement.contains(hoverOverlay);
-    if (target === hoverTarget && overlayAlive) return;
-    hoverTarget = target;
-    showHoverPointer(target);
-  }, true);
-
-  document.documentElement.addEventListener('mouseleave', (e) => {
-    if (e.relatedTarget === null) hideHoverPointer();
-  });
-
   // ── 클릭 직전 프레임 선캡처 ──────────────────────────────────────
   // pointerdown은 click보다 먼저, 페이지가 클릭에 반응(리플로우/전환)하기 전에 발생한다.
   // 이 시점에 미리 한 장 찍어두면, 클릭으로 레이아웃이 바뀌기 전 화면을 스텝
@@ -1759,7 +1639,6 @@
     const captureEl = actionType === 'focus_input' ? target : actionTarget;
     _pointerDownSnapshot = buildPointerDownSnapshot(captureEl, target, e.target, e);
     hideHoverPointer();                          // 호버 테두리 제거
-    suppressHoverUntil = Date.now() + 500;       // 캡처 끝날 때까지 재등장 억제
     // 캡처 요청을 click보다 먼저 큐에 넣어 빠른 화면 전환에서도 DOM 좌표와 프레임을 맞춘다.
     const captureId = _pointerDownSnapshot?.captureId;
     if (captureId) {
@@ -1812,7 +1691,6 @@
       const now = Date.now();
       if (lastCapturedTarget === document.body && (now - lastCapturedTime) < DEDUP_SAME_ELEMENT) return;
 
-      showClickHighlight(e.clientX, e.clientY);
       const safetyTimer = startCapturingSafely();
       stepNumber        += 1;
       lastCapturedTarget = document.body;
@@ -1870,7 +1748,6 @@
       if (typingTarget) flushTyping(typingTarget, true, { usePrecapture: !!pointerSnapshot?.captureId, peekPrecapture: true, captureId: pointerSnapshot?.captureId });
     }
 
-    showClickHighlight(e.clientX, e.clientY);
 
     const captureEl = actionType === 'focus_input' ? target : actionTarget;
     const rect  = targetClientRect(captureEl, e.clientX, e.clientY) || captureEl.getBoundingClientRect();
@@ -2121,7 +1998,6 @@
     // (탭 이동 직후 등) 하이라이트/PII 토글이 즉시 반영되게 한다.
     if ('settings' in changes) {
       settings = { ...settings, ...(changes.settings.newValue || {}) };
-      if (!settings.highlight) hideHoverPointer();
     }
     // background(페이지 이동 캡처 등)가 stepNumber를 올리면 로컬 카운터도 따라 올려
     // content/background 양쪽 카운터 desync로 인한 stepNumber 충돌을 방지한다.

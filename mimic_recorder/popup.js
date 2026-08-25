@@ -19,7 +19,6 @@ const emptyState    = document.getElementById('emptyState');
 const btnSettings      = document.getElementById('btnSettings');
 const settingsOverlay  = document.getElementById('settingsOverlay');
 const btnBack          = document.getElementById('btnBack');
-const settingHighlight = document.getElementById('settingHighlight');
 const settingAutoZoom  = document.getElementById('settingAutoZoom');
 const settingAutoNav   = document.getElementById('settingAutoNav');
 const settingVoiceRecord = document.getElementById('settingVoiceRecord');
@@ -43,7 +42,6 @@ let _readinessCheck = null;
 
 // ── 설정 기본값 ──────────────────────────────────────────────────
 const SETTINGS_DEFAULTS = {
-  highlight:   true,
   autoNav:     true,
   autoZoom:    false,
   voiceRecord: false,
@@ -156,7 +154,6 @@ async function ensureMicPermission() {
 // ── 설정 UI 로드 ──────────────────────────────────────────────────
 function loadSettingsUI(saved) {
   const s = { ...SETTINGS_DEFAULTS, ...saved };
-  settingHighlight.checked      = s.highlight;
   settingAutoZoom.checked       = s.autoZoom;
   settingAutoNav.checked        = s.autoNav;
   if (settingVoiceRecord) settingVoiceRecord.checked = s.voiceRecord;
@@ -166,7 +163,6 @@ function loadSettingsUI(saved) {
 
 function saveSettings() {
   const s = {
-    highlight:   settingHighlight.checked,
     autoZoom:    settingAutoZoom.checked,
     autoNav:     settingAutoNav.checked,
     voiceRecord: settingVoiceRecord ? settingVoiceRecord.checked : false,
@@ -190,7 +186,6 @@ settingsOverlay.addEventListener('click', (e) => {
 });
 
 // 각 설정 변경 시 즉시 저장
-settingHighlight.addEventListener('change',   saveSettings);
 settingAutoZoom.addEventListener('change',    saveSettings);
 settingAutoNav.addEventListener('change',     saveSettings);
 if (settingSaveText) settingSaveText.addEventListener('change', saveSettings);
@@ -961,12 +956,40 @@ document.getElementById('thumbZoomBlur')?.addEventListener('click', () => {
   startBlurMode(step, zoomImg, zoomOverlay._blob ?? null);
 });
 
-// 새 탭에서 원본 열기 — imageUrl(Supabase) 우선, 없으면 현재 objectURL
+async function openImagePreviewWindow({ stepNumber = null, screenshotUrl = '', title = '' } = {}) {
+  if (!Number.isFinite(stepNumber) && !screenshotUrl) return;
+
+  const previewKey = `parroImagePreview:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+  await chrome.storage.local.set({
+    [previewKey]: {
+      stepNumber: Number.isFinite(stepNumber) ? stepNumber : null,
+      screenshotUrl,
+      title: title || t('previewWindowTitle', 'Parro 미리보기'),
+      createdAt: Date.now(),
+    },
+  });
+
+  const width = Math.max(720, Math.min(1400, (screen.availWidth || 1440) - 80));
+  const height = Math.max(560, Math.min(960, (screen.availHeight || 960) - 80));
+  const url = chrome.runtime.getURL(`guide-preview.html?key=${encodeURIComponent(previewKey)}`);
+  chrome.windows.create({ url, type: 'popup', width, height }, () => {
+    if (!chrome.runtime.lastError) return;
+    chrome.storage.local.remove(previewKey);
+    showToast(t('previewOpenFailed', '미리보기를 열지 못했습니다. 다시 시도해주세요.'), 3000);
+  });
+}
+
+// 임시 blob URL을 새 탭에 넘기지 않고, 확장 창이 IndexedDB 원본을 다시 읽는다.
 document.getElementById('thumbZoomNewTab')?.addEventListener('click', (e) => {
   e.stopPropagation();
   const overlay = document.getElementById('thumbZoomOverlay');
-  const src = overlay?.dataset.imageUrl || document.getElementById('thumbZoomImg')?.src;
-  if (src) chrome.tabs.create({ url: src });
+  const step = overlay?._step;
+  if (!step) return;
+  void openImagePreviewWindow({
+    stepNumber: Number(step.stepNumber),
+    screenshotUrl: String(step.imageUrl || ''),
+    title: step.title || step.actionLabel || t('previewWindowTitle', 'Parro 미리보기'),
+  });
 });
 
 // 요소 박스가 아니라 '실제 렌더된 이미지' 영역을 계산 (object-fit:contain 레터박스 보정).
@@ -2067,23 +2090,10 @@ function hideGuideView() {
 async function openGuideStepPreview(step) {
   const screenshotUrl = String(step?.screenshot_url || '').trim();
   if (!screenshotUrl) return;
-
-  const previewKey = `parroGuidePreview:${Date.now()}:${Math.random().toString(36).slice(2)}`;
-  const payload = {
-    screenshotUrl,
-    title: step.title || t('previewWindowTitle', 'Parro 미리보기'),
-    createdAt: Date.now(),
-  };
-
   try {
-    await chrome.storage.local.set({ [previewKey]: payload });
-    const width = Math.max(720, Math.min(1200, (screen.availWidth || 1280) - 80));
-    const height = Math.max(560, Math.min(850, (screen.availHeight || 900) - 80));
-    const url = chrome.runtime.getURL(`guide-preview.html?key=${encodeURIComponent(previewKey)}`);
-    chrome.windows.create({ url, type: 'popup', width, height }, () => {
-      if (!chrome.runtime.lastError) return;
-      chrome.storage.local.remove(previewKey);
-      showToast(t('previewOpenFailed', '미리보기를 열지 못했습니다. 다시 시도해주세요.'), 3000);
+    await openImagePreviewWindow({
+      screenshotUrl,
+      title: step.title || t('previewWindowTitle', 'Parro 미리보기'),
     });
   } catch {
     showToast(t('previewOpenFailed', '미리보기를 열지 못했습니다. 다시 시도해주세요.'), 3000);

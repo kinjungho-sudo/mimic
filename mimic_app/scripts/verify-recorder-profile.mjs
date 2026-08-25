@@ -233,6 +233,71 @@ try {
     assert.equal(panelTitle, 'Parro Recorder');
   });
 
+  const previewStepNumber = 999001;
+  const previewKey = 'parroImagePreview:profile-smoke';
+  await panel.evaluate(async ({ stepNumber, key }) => {
+    const bytes = Uint8Array.from(atob(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+    ), char => char.charCodeAt(0));
+    const blob = new Blob([bytes], { type: 'image/png' });
+    const db = await new Promise((resolve, reject) => {
+      const req = indexedDB.open('mimic_screenshots', 1);
+      req.onupgradeneeded = () => req.result.createObjectStore('screenshots');
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction('screenshots', 'readwrite');
+      tx.objectStore('screenshots').put(blob, stepNumber);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+    await chrome.storage.local.set({
+      [key]: { stepNumber, screenshotUrl: '', title: 'Local preview smoke' },
+    });
+  }, { stepNumber: previewStepNumber, key: previewKey });
+
+  const previewPagePromise = context.waitForEvent('page');
+  await panel.evaluate((key) => new Promise((resolve) => {
+    chrome.windows.create({
+      url: chrome.runtime.getURL(`guide-preview.html?key=${encodeURIComponent(key)}`),
+      type: 'popup',
+      width: 760,
+      height: 600,
+    }, () => resolve());
+  }), previewKey);
+  const previewPage = await previewPagePromise;
+  await previewPage.waitForLoadState('domcontentloaded');
+  await previewPage.waitForFunction(() => document.querySelector('#previewImage')?.naturalWidth === 1);
+  const previewState = await previewPage.evaluate(() => ({
+    title: document.querySelector('#previewTitle')?.textContent,
+    naturalWidth: document.querySelector('#previewImage')?.naturalWidth,
+    errorVisible: getComputedStyle(document.querySelector('#error')).display !== 'none',
+  }));
+  check(() => {
+    assert.deepEqual(previewState, {
+      title: 'Local preview smoke',
+      naturalWidth: 1,
+      errorVisible: false,
+    });
+  });
+  await previewPage.close();
+  await panel.evaluate(async (stepNumber) => {
+    const db = await new Promise((resolve, reject) => {
+      const req = indexedDB.open('mimic_screenshots', 1);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction('screenshots', 'readwrite');
+      tx.objectStore('screenshots').delete(stepNumber);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+  }, previewStepNumber);
+
   const guidePagePromise = context.waitForEvent('page');
   await page.click('#fixture-guide');
   const guidePage = await guidePagePromise;
