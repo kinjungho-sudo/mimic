@@ -83,6 +83,15 @@ export function displayAutoAnnotationsFor(step: AutoAnnotationStep): Annotation[
   return step.annotations ?? [];
 }
 
+export function markAnnotationsAsManuallyEdited(annotations: Annotation[]): Annotation[] {
+  const editId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
+  return annotations.map((annotation, index) => (
+    typeof annotation.id === 'string' && annotation.id.startsWith('guidde-')
+      ? { ...annotation, id: `manual-${editId}-${index}` }
+      : annotation
+  ));
+}
+
 function normalizeAutoAnnotationLabel(label: string, pageUrl?: string | null): string {
   const text = label.trim();
   if (/^(search|검색)(\s*(클릭|확인|선택|입력|이동))?$/i.test(text)) return '검색창 선택';

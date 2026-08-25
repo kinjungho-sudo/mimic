@@ -30,7 +30,7 @@ export interface Annotation {
 interface ImageAnnotationEditorProps {
   imageUrl: string;
   annotations: Annotation[];
-  onChange: (annotations: Annotation[]) => void;
+  onChange: (annotations: Annotation[]) => void | Promise<void>;
   onClose: () => void;
   // 파괴적 영역 블러(픽셀화) — 드래그한 정규화 region(0~1)을 받아 이미지에 영구 반영.
   // 제공되지 않으면 '영구 블러' 도구는 숨겨진다.
@@ -239,6 +239,8 @@ export function ImageAnnotationEditor({
   }, [color, strokeIdx, fontSize, fontBold, borderColor, textAlign, hasBg]);
 
   const [items, setItems] = useState<Annotation[]>(annotations);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   // React state updates may still be queued when the user clicks 저장 (notably
   // while a contentEditable text annotation is being committed). Keep the
   // latest authoritative array available synchronously for the save handler.
@@ -638,10 +640,18 @@ export function ImageAnnotationEditor({
     return () => clearTimeout(t);
   }, [editingText]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (saving) return;
     const latestItems = editingText ? commitTextRef.current() : itemsRef.current;
-    onChange(latestItems);
-    onClose();
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await onChange(latestItems);
+      onClose();
+    } catch {
+      setSaveError('저장하지 못했습니다. 네트워크 연결을 확인하고 다시 시도해 주세요.');
+      setSaving(false);
+    }
   };
 
   // 선택된 아이템 속성을 즉시 업데이트 (커서 모드에서 속성 변경)
@@ -865,17 +875,23 @@ export function ImageAnnotationEditor({
 
             <div style={{ width: '1px', height: '22px', background: 'rgba(255,255,255,0.12)', margin: '0 4px' }} />
 
-            <button onClick={onClose}
-              style={{ height: '32px', padding: '0 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(255,255,255,0.7)', fontSize: '12px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+            {saveError && (
+              <span role="alert" style={{ maxWidth: '260px', color: '#FCA5A5', fontSize: '11px', lineHeight: 1.3 }}>
+                {saveError}
+              </span>
+            )}
+
+            <button onClick={onClose} disabled={saving}
+              style={{ height: '32px', padding: '0 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(255,255,255,0.7)', fontSize: '12px', cursor: saving ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', opacity: saving ? 0.5 : 1 }}
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
             ><X size={13} /> 닫기</button>
 
-            <button onClick={handleSave}
-              style={{ height: '32px', padding: '0 16px', borderRadius: '6px', border: 'none', background: 'linear-gradient(135deg, #009B8E 0%, #12B886 100%)', color: 'white', fontSize: '12px', fontWeight: 600, cursor: 'pointer', marginLeft: '4px' }}
+            <button onClick={() => { void handleSave(); }} disabled={saving}
+              style={{ height: '32px', padding: '0 16px', borderRadius: '6px', border: 'none', background: 'linear-gradient(135deg, #009B8E 0%, #12B886 100%)', color: 'white', fontSize: '12px', fontWeight: 600, cursor: saving ? 'wait' : 'pointer', marginLeft: '4px', opacity: saving ? 0.75 : 1 }}
               onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,155,142,0.5)'; }}
               onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; }}
-            >저장</button>
+            >{saving ? '저장 중…' : '저장'}</button>
           </div>
 
           {/* ── 2줄: 옵션 바 (색상은 1줄 공통 버튼으로 이동, 여기선 굵기/텍스트 속성/힌트만) ── */}

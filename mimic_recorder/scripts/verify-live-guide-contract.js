@@ -20,7 +20,7 @@ const engine = read('guide-engine.js');
 const popup = read('popup.html');
 const manifest = JSON.parse(read('manifest.json'));
 
-assert.equal(manifest.version, '1.7.15');
+assert.equal(manifest.version, '1.7.25');
 assert.deepEqual(
   manifest.content_scripts[0].js.slice(0, 3),
   ['targeting.js', 'guide-engine.js', 'content.js'],
@@ -170,8 +170,10 @@ assert.match(popup, /id="guideTargetStatus"/);
 assert.match(popup, /id="guideTargetRetry"/);
 const popupScript = read('popup.js');
 assert.match(content, /saveText:\s+true/, 'new capture sessions must retain typed text by default');
-assert.match(content, /function selectionRectForEditable\(el, clientX, clientY\)/,
-  'typing captures must be able to use the final contenteditable selection rect');
+assert.match(content, /const rect = el\.getBoundingClientRect\(\);[\s\S]*normalizeRect\(topRect, vw, vh\)/,
+  'typing captures must use the complete editable DOM bounds');
+assert.doesNotMatch(content, /selection\.getRangeAt|range\.getBoundingClientRect/,
+  'typing geometry must not collapse to a contenteditable caret or selection line');
 assert.match(content, /let typingGeometrySnapshot = null/,
   'typing captures must cache stable geometry while the user is still typing');
 assert.match(content, /typingGeometrySnapshot = captureTypingGeometrySnapshot\(el\)/,
@@ -182,4 +184,4 @@ assert.match(popupScript, /saveText:\s+true/, 'the Recorder settings UI must def
 assert.match(popupScript, /not_found: \{ label: '대상을 찾지 못했습니다'/);
 assert.match(popupScript, /type: 'SHOW_OVERLAY_FOR_STEP', stepIndex: guideCurrentStep/);
 
-console.log(JSON.stringify({ ok: true, checks: 72, scope: 'live-guide-avatar-readable-overlay-voice-contract' }));
+console.log(JSON.stringify({ ok: true, checks: 73, scope: 'live-guide-avatar-readable-overlay-voice-contract' }));
