@@ -31,7 +31,7 @@ const playbookServer = fs.readFileSync(
   'utf8',
 );
 
-assert.equal(manifest.version, '1.7.24');
+assert.equal(manifest.version, '1.7.25');
 assert.deepEqual(
   manifest.content_scripts[0].js.slice(0, 3),
   ['targeting.js', 'guide-engine.js', 'content.js'],
@@ -235,8 +235,16 @@ assert.match(previewPage, /script src="guide-preview\.js"/);
 assert.match(previewScript, /chrome\.storage\.local\.get\(key\)/);
 assert.match(previewScript, /chrome\.storage\.local\.remove\(key\)/);
 assert.match(content, /saveText:\s+true/, 'new capture sessions must retain typed text by default');
+assert.match(content, /let typingGeometrySnapshot = null/,
+  'typing captures must cache stable geometry before focus moves to send');
+assert.match(content, /const rect = el\.getBoundingClientRect\(\);[\s\S]*normalizeRect\(topRect, vw, vh\)/,
+  'typing element_rect must use the complete editable DOM bounds');
+assert.doesNotMatch(content, /selection\.getRangeAt|range\.getBoundingClientRect/,
+  'typing geometry must not collapse to a contenteditable caret or selection line');
+assert.match(content, /typingGeometrySnapshot = captureTypingGeometrySnapshot\(el\)/,
+  'input events must refresh geometry while the editable DOM is still mounted');
 assert.match(popupScript, /saveText:\s+true/, 'the Recorder settings UI must default typed-text retention on');
 assert.match(popupScript, /not_found: \{ label: t\('targetNotFound', '대상을 찾지 못했습니다'\)/);
 assert.match(popupScript, /type: 'SHOW_OVERLAY_FOR_STEP', stepIndex: guideCurrentStep/);
 
-console.log(JSON.stringify({ ok: true, checks: 142, scope: 'live-guide-recovery-preview-completion-overlay-voice-full-copy-and-separated-coach-contract' }));
+console.log(JSON.stringify({ ok: true, checks: 146, scope: 'live-guide-recovery-preview-completion-overlay-voice-full-copy-and-separated-coach-contract' }));
