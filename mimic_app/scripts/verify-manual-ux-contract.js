@@ -50,6 +50,12 @@ assert.match(stepApi, /fetch\(`\/api\/steps\/\$\{id\}\/image`, \{ method: 'POST'
 assert.match(stepImageRoute, /export async function DELETE/, 'manual image removal needs a server persistence route');
 assert.match(manualEditor, /EDITOR_SCREENSHOT_FRAME_WIDTH = 'min\(calc\(100% - 64px\), 920px\)'/, 'editor screenshots need a visibly restrained responsive width');
 assert.match(manualEditor, /data-testid="editor-screenshot-frame"/, 'editor screenshot frame needs a stable visual verification target');
+assert.match(manualEditor, /frameWidth: frame\.clientWidth/, 'annotation editor must inherit the rendered card viewport');
+assert.match(manualEditor, /framing=\{editorFraming\}/, 'annotation editor must inherit the rendered card framing');
+assert.match(manualEditor, /imageZoom: savedFraming\.zoom/, 'annotation save must preserve the WYSIWYG framing');
+assert.match(annotationEditor, /data-testid="annotation-editor-viewport"/, 'annotation editor needs a stable WYSIWYG viewport target');
+assert.match(annotationEditor, /img\.clientWidth/, 'annotation coordinates must use the pre-transform image size');
+assert.match(annotationPreview, /img\.clientWidth/, 'annotation preview must use the same pre-transform image size');
 
 assert.match(share, /if \(shareToken \|\| publishStartedRef\.current\) return;/, 'sharing an unpublished manual must publish immediately');
 assert.doesNotMatch(share, /\/quality|qualityIssues|awaitingWarningApproval/, 'sharing must not run a pre-publish quality gate');
@@ -95,4 +101,4 @@ assert.match(landingFaq, /현재는 사용자가 직접 결제 플랜을 변경�
 assert.doesNotMatch(landingFaq, /카카오페이|토스페이|전액 환불|언제든 구독을 해지/, 'prelaunch FAQ must not promise unavailable billing operations');
 assert.doesNotMatch(desktopSetup, /Parro Recorder 1\.7\.4/, 'desktop setup must not hard-code an obsolete Recorder version');
 
-console.log(JSON.stringify({ ok: true, checks: 57, scope: 'manual-ux-contract' }));
+console.log(JSON.stringify({ ok: true, checks: 63, scope: 'manual-ux-contract' }));

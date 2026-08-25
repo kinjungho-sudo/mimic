@@ -86,6 +86,9 @@ export function ManualEditor({ steps, onChange, onSave, onUploadImage, onRemoveI
   const [zoomUrl, setZoomUrl] = useState<string | null>(null);
   const [insertHoverId, setInsertHoverId] = useState<string | null>(null);
   const [annotatingId, setAnnotatingId] = useState<string | null>(null);
+  const [annotationViewport, setAnnotationViewport] = useState<{
+    frameWidth: number; frameHeight: number; imageWidth: number; imageHeight: number;
+  } | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [internalSelectedIds, setInternalSelectedIds] = useState<Set<string>>(new Set());
@@ -102,6 +105,21 @@ export function ManualEditor({ steps, onChange, onSave, onUploadImage, onRemoveI
   const tempIdCounter = useRef(0);
   // TOC 클릭으로 스크롤 중일 때 IntersectionObserver 역방향 업데이트 억제
   const scrollingByClickRef = useRef(false);
+
+  const openAnnotationEditor = useCallback((step: ManualStep) => {
+    if (!step.screenshotUrl) return;
+    const shell = contentRefs.current[step.id];
+    const frame = shell?.querySelector<HTMLElement>('[data-testid="editor-screenshot-frame"]');
+    const image = frame?.querySelector<HTMLImageElement>('img');
+    setAnnotationViewport(frame && image ? {
+      frameWidth: frame.clientWidth,
+      frameHeight: frame.clientHeight,
+      imageWidth: image.clientWidth,
+      imageHeight: image.clientHeight,
+    } : null);
+    setActiveId(step.id);
+    setAnnotatingId(step.id);
+  }, [setActiveId]);
 
   useEffect(() => {
     if (!internalActiveId && steps.length > 0) setActiveId(steps[0].id);
@@ -427,7 +445,7 @@ export function ManualEditor({ steps, onChange, onSave, onUploadImage, onRemoveI
                     onDuplicate={() => onDuplicateStep?.(step.id)}
                     isDuplicating={duplicatingStepId === step.id}
                     onZoom={() => step.screenshotUrl && setZoomUrl(step.screenshotUrl)}
-                    onAnnotate={() => { if (!step.screenshotUrl) return; setActiveId(step.id); setAnnotatingId(step.id); }}
+                    onAnnotate={() => openAnnotationEditor(step)}
                     onUploadImage={async file => {
                       if (!onUploadImage) throw new Error('이미지 업로드 기능을 사용할 수 없습니다.');
                       const screenshotUrl = await onUploadImage(step.id, file);
@@ -522,25 +540,38 @@ export function ManualEditor({ steps, onChange, onSave, onUploadImage, onRemoveI
         const initialAnnotations = step.annotationsPersisted || displayAnnotations.length > 0
           ? displayAnnotations
           : buildAutoAnnotation(step);
+        const editorFraming = fitFramingToBox(
+          { zoom: step.imageZoom ?? 1, offsetX: step.imageOffsetX ?? 0, offsetY: step.imageOffsetY ?? 0 },
+          annotationsBox(initialAnnotations),
+        );
         return (
           <ImageAnnotationEditor
             imageUrl={step.screenshotUrl!}
             annotations={initialAnnotations}
+            viewport={annotationViewport}
+            framing={editorFraming}
             onChange={async annotations => {
               // 함수형 업데이트로 stale closure 방지
               const id = annotatingId;
               const manualAnnotations = markAnnotationsAsManuallyEdited(annotations);
+              const savedFraming = fitFramingToBox(editorFraming, annotationsBox(manualAnnotations));
               onChange(steps.map(s => s.id === id ? {
                 ...s,
                 annotations: manualAnnotations,
                 annotationsPersisted: true,
+                imageZoom: savedFraming.zoom,
+                imageOffsetX: savedFraming.offsetX,
+                imageOffsetY: savedFraming.offsetY,
               } : s));
               await onSave?.(id, {
                 annotations: manualAnnotations,
                 annotationsPersisted: true,
+                imageZoom: savedFraming.zoom,
+                imageOffsetX: savedFraming.offsetX,
+                imageOffsetY: savedFraming.offsetY,
               });
             }}
-            onClose={() => setAnnotatingId(null)}
+            onClose={() => { setAnnotatingId(null); setAnnotationViewport(null); }}
             onPixelate={async (region: BlurRegion) => {
               const id = annotatingId;
               const target = steps.find(s => s.id === id);
