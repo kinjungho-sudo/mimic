@@ -15,6 +15,7 @@ const liveGuideRoute = read('app', 'api', 'guide', '[token]', 'route.ts');
 const home = read('app', 'home', 'page.tsx');
 const landing = read('app', 'landingpage', 'page.tsx');
 const landingLayout = read('app', 'landingpage', 'layout.tsx');
+const sitemap = read('app', 'sitemap.ts');
 const landingFaq = read('lib', 'landing-faq.ts');
 const desktopSetup = read('app', 'desktop-setup', 'page.tsx');
 const player = read('app', 'play', '[token]', 'page.tsx');
@@ -25,6 +26,7 @@ const publishRoute = read('app', 'api', 'tutorials', '[id]', 'publish', 'route.t
 const annotationEditor = read('components', 'editor', 'ImageAnnotationEditor.tsx');
 const annotationPreview = read('components', 'editor', 'AnnotationPreview.tsx');
 const autoAnnotations = read('lib', 'auto-annotations.ts');
+const captureFinalize = read('app', 'api', 'capture', 'finalize', 'route.ts');
 const stepApi = read('lib', 'api', 'steps.ts');
 const stepImageRoute = read('app', 'api', 'steps', '[id]', 'image', 'route.ts');
 
@@ -35,6 +37,8 @@ assert.match(editor, /id="refine-confirm-title"/, 'AI rewrite must use an in-app
 assert.match(editor, /AI 재작성이 45초를 초과했습니다/, 'AI rewrite timeout must be explained');
 assert.match(editor, /다시 시도/, 'AI rewrite failure must expose retry');
 assert.doesNotMatch(editor, /window\.confirm\('전체 제목과 본문/, 'AI rewrite must not use a blocking browser confirm');
+assert.match(editor, /AI 문장 다듬기/, 'AI rewrite must be presented as optional copy refinement');
+assert.match(captureFinalize, /CAPTURE_FINALIZE_BLOCKING_AI !== '0'/, 'initial capture finalization must run the full AI draft by default');
 assert.match(guideToc, /const moveSelected = \(direction: 'up' \| 'down'\)/, 'selected steps need non-drag reorder controls');
 assert.match(guideToc, /aria-label="선택 단계를 한 칸 위로 이동"/, 'selected steps need an accessible move-up control');
 assert.match(guideToc, /aria-label="선택 단계를 한 칸 아래로 이동"/, 'selected steps need an accessible move-down control');
@@ -56,14 +60,10 @@ assert.match(share, /buildStepShareUrl\(url, shareStep\.id\)/, 'step sharing mus
 assert.match(player, /resolveSharedStepIndex\(sharedStepParam, tutorial\.steps\)/, 'shared players must open at the requested step');
 assert.match(player, /initialStepIndex=\{currentStep\}/, 'learning mode must receive the shared step index');
 assert.match(followPlayer, /setIdx\(nextIndex\)/, 'learning player must synchronize a shared initial step after loading');
-assert.match(followStage, /const COACH_SIZE = 86/, 'learning guide coach avatar must use the enlarged size');
-assert.match(followStage, /data-guide-mascot-frame="borderless"/, 'learning guide coach avatar must not use a surrounding frame');
-assert.match(followStage, /background: 'transparent'[\s\S]*?border: 'none'[\s\S]*?boxShadow: 'none'/, 'learning guide coach avatar must remain borderless');
+assert.match(followStage, /const COACH_SIZE = 64/, 'learning guide coach avatar must use the enlarged size');
 assert.match(followStage, /fontSize: '15px'/, 'learning guide explanation text must use the enlarged size');
 assert.doesNotMatch(followStage, /mfp-target-frame-wave|mfp-click-ripple|mfp-target-dot/, 'learning guide must not render animated waves or a click point');
 assert.match(followStage, /data-guide-copy-expanded="true"/, 'learning guide copy must be fully visible immediately');
-assert.match(followStage, /const effectiveBubbleAnchor = isType \? 'bottom-right' : bubbleAnchor/, 'typing steps must keep the learning guide bubble at bottom-right');
-assert.match(followStage, /stepNumber % 3 === 0 \? 'point' : 'talk'/, 'learning guide must occasionally use the pointing Parro pose');
 
 assert.match(studio, /listLiveGuideTargetTabs/, 'Studio must list target tabs before picking');
 assert.match(studio, /이 대상으로 저장할까요\?/, 'Studio must confirm a picked target before saving');
@@ -87,9 +87,13 @@ assert.match(home, /`\$\{playbook\.used\} \/ 무제한`/, 'Playbook paid usage n
 assert.match(landing, /LANDING_FAQS\.map/, 'visible landing FAQ must use the shared FAQ source');
 assert.match(landingLayout, /LANDING_FAQS\.map/, 'FAQ structured data must use the shared FAQ source');
 assert.match(landingLayout, /title:\s*LANDING_TITLE/, 'landing metadata must use the dedicated SEO title without duplicating the Parro suffix');
+assert.match(landingLayout, /canonical:\s*LANDING_URL/, 'landing metadata must declare one canonical URL');
+assert.match(sitemap, /url:\s*`\$\{BASE_URL\}\/landingpage`/, 'sitemap must include the canonical landing page');
+assert.doesNotMatch(sitemap, /url:\s*`\$\{BASE_URL\}\/`[,]/, 'sitemap must not include the redirecting root URL');
+assert.doesNotMatch(sitemap, /\/auth\/(?:login|signup)/, 'sitemap must not include authentication pages');
 assert.match(landingFaq, /아직 일반 결제를 받고 있지 않습니다/, 'prelaunch FAQ must describe billing availability truthfully');
 assert.match(landingFaq, /현재는 사용자가 직접 결제 플랜을 변경하는 기능이 제공되지 않습니다/, 'prelaunch FAQ must not promise unavailable self-service plan changes');
 assert.doesNotMatch(landingFaq, /카카오페이|토스페이|전액 환불|언제든 구독을 해지/, 'prelaunch FAQ must not promise unavailable billing operations');
 assert.doesNotMatch(desktopSetup, /Parro Recorder 1\.7\.4/, 'desktop setup must not hard-code an obsolete Recorder version');
 
-console.log(JSON.stringify({ ok: true, checks: 55, scope: 'manual-ux-contract' }));
+console.log(JSON.stringify({ ok: true, checks: 53, scope: 'manual-ux-contract' }));

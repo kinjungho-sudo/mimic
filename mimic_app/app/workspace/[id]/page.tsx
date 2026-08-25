@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { BRAND_COLORS } from '@/lib/brand';
-import { LanguageSwitcher } from '@/components/i18n/LocaleProvider';
 import type { WorkspaceMember, WorkspaceInvitation, WorkspaceRole } from '@/types';
 
 type WorkspaceDetail = {
@@ -189,9 +188,6 @@ export default function WorkspacePage() {
         <span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '999px', background: ROLE_BG[ws.my_role], color: ROLE_COLOR[ws.my_role], marginLeft: '4px' }}>
           {ROLE_LABEL[ws.my_role]}
         </span>
-        <div style={{ marginLeft: 'auto' }}>
-          <LanguageSwitcher />
-        </div>
       </header>
 
       <div style={{ maxWidth: '760px', margin: '0 auto', padding: '36px 24px' }}>

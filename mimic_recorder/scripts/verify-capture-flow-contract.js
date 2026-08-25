@@ -12,12 +12,20 @@ function read(relativePath) {
 }
 
 const recordingModal = read('mimic_app/components/dashboard/RecordingModal.tsx');
+const desktopSetup = read('mimic_app/app/desktop-setup/page.tsx');
+const desktopImport = read('mimic_app/app/desktop-import/page.tsx');
+const desktopDownload = read('mimic_app/app/download/desktop/DownloadButton.tsx');
+const desktopClient = read('mimic_app/lib/desktop-companion-client.ts');
+const middleware = read('mimic_app/middleware.ts');
+const nextConfig = read('mimic_app/next.config.mjs');
 const manifest = JSON.parse(read('mimic_recorder/manifest.json'));
 const background = read('mimic_recorder/background.js');
 const content = read('mimic_recorder/content.js');
 const popup = read('mimic_recorder/popup.js');
-const captureFinalizeRoute = read('mimic_app/app/api/capture/finalize/route.ts');
-const captureSaveStepRoute = read('mimic_app/app/api/capture/save-step/route.ts');
+const desktopBridge = read('mimic_recorder/desktop-bridge.js');
+const nativeHost = read('mimic_desktop/native-host/src/host.js');
+const desktopLauncher = read('mimic_desktop/native-host/installer/launcher/ParroDesktop.cs');
+const captureAgent = read('mimic_desktop/native-host/src/capture-agent.ps1');
 
 let checks = 0;
 function check(assertion) {
@@ -69,11 +77,6 @@ check(() => {
 });
 
 check(() => {
-  assert.doesNotMatch(background, /dskphgxurxebblnpwhax\.supabase\.co/);
-  assert.match(captureSaveStepRoute, /screenshot_url:\s*d\.screenshot_url \?\? ''/);
-});
-
-check(() => {
   const captureStart = background.indexOf("if (message.type === 'CAPTURE_SCREENSHOT')");
   const captureEnd = background.indexOf("if (message.type === 'MANUAL_IMAGE_STEP')", captureStart);
   const captureBlock = background.slice(captureStart, captureEnd);
@@ -112,61 +115,30 @@ check(() => {
 check(() => {
   assert.match(popup, /type: 'FINALIZE_SESSION'/);
   assert.match(popup, /function showFinalizingError\(detail\)/);
-  assert.match(popup, /btn\.textContent = t\('retry', '다시 시도'\)/);
+  assert.match(popup, /btn\.textContent = '다시 시도'/);
   assert.match(popup, /btnFinish\.click\(\)/);
   assert.match(background, /\/manual\/\$\{data\.tutorial_id\}\/editor\?from=recording/);
 });
 
 check(() => {
-  assert.match(background, /const _captureJobs\s*=\s*new Set\(\)/);
-  assert.match(background, /function runCaptureJob\(task\)/);
-  assert.match(background, /async function waitForCapturePipelineIdle\(\)/);
+  assert.match(desktopSetup, /sendDesktopExtensionMessage\('START_DESKTOP_RECORDING'\)/);
+  assert.match(desktopSetup, /sendDesktopExtensionMessage\('STOP_DESKTOP_RECORDING'/);
+  assert.match(desktopSetup, /window\.location\.replace\(`\/desktop-import\?source=desktop-app&session=/);
+  assert.match(desktopImport, /sendDesktopExtensionMessage\(\s*'IMPORT_DESKTOP_CAPTURE'/);
+  assert.match(desktopImport, /window\.location\.replace\(response\.editorUrl\)/);
+});
 
-  const captureStart = background.indexOf("if (message.type === 'CAPTURE_SCREENSHOT')");
-  const manualImageStart = background.indexOf("if (message.type === 'MANUAL_IMAGE_STEP')", captureStart);
-  const manualCaptureStart = background.indexOf("if (message.type === 'MANUAL_CAPTURE')", manualImageStart);
-  const typingStart = background.indexOf("if (message.type === 'TYPING_PROGRESS')", manualCaptureStart);
-  assert.match(background.slice(captureStart, manualImageStart), /runCaptureJob\(async \(\) =>/);
-  assert.match(background.slice(manualImageStart, manualCaptureStart), /runCaptureJob\(async \(\) =>[\s\S]*isRecording/);
-  assert.match(background.slice(manualCaptureStart, typingStart), /runCaptureJob\(async \(\) =>[\s\S]*isRecording/);
-
-  const finalizeStart = background.indexOf('async function finalizeSession');
-  const finalizeEnd = background.indexOf('// ── Supabase Storage', finalizeStart);
-  const finalizeBlock = background.slice(finalizeStart, finalizeEnd);
-  assert.ok(finalizeStart >= 0 && finalizeEnd > finalizeStart, 'finalizeSession must be present');
-  assert.ok(
-    finalizeBlock.indexOf('await waitForCapturePipelineIdle()') < finalizeBlock.indexOf("storageGet(['extensionToken'"),
-    'finalize must wait for capture jobs before reading local steps',
-  );
-  assert.match(finalizeBlock, /effectiveStepNumbers/);
-  assert.match(finalizeBlock, /syncLocalStepsBeforeFinalize\(sessionId, effectiveStepNumbers, effectiveLocalSteps\)/);
-  assert.match(finalizeBlock, /step_numbers: effectiveStepNumbers/);
-  assert.match(background, /function isSessionAlreadyFinalizedError\(error\)/);
-  assert.match(background, /return \{ alreadyFinalized: true \}/);
-  assert.match(background, /recovering existing manual/);
-
-  assert.match(captureFinalizeRoute, /async function findCompletedCaptureResult\(/);
-  assert.match(captureFinalizeRoute, /id: session_id/);
-  assert.match(captureFinalizeRoute, /already_finalized: true/);
-  assert.match(
-    captureFinalizeRoute,
-    /if \(session\.status !== 'active'\)[\s\S]*findCompletedCaptureResult[\s\S]*NextResponse\.json\(completedResult\)/,
-  );
-  assert.match(
-    captureSaveStepRoute,
-    /existingSession\.status === 'completed' \|\| existingSession\.status === 'done'/,
-  );
-  assert.match(captureSaveStepRoute, /tutorial_id: completedTutorial\.id/);
-  assert.match(captureSaveStepRoute, /already_finalized: true/);
-
-  const finishStart = popup.indexOf("btnFinish.addEventListener('click', async () =>");
-  const finishBlock = popup.slice(finishStart, popup.indexOf('function showFinalizingOverlay', finishStart));
-  assert.ok(finishStart >= 0 && finishBlock.length > 0, 'finish handler must be present');
-  assert.ok(
-    finishBlock.indexOf('await storageSet({ isRecording: false })')
-      < finishBlock.indexOf("chrome.runtime.sendMessage({ type: 'FINALIZE_SESSION'"),
-    'finish must stop accepting captures before requesting finalize',
-  );
+check(() => {
+  assert.match(desktopClient, /for \(const extensionId of extensionIds\)/);
+  assert.match(desktopClient, /if \(!isExtensionConnectionError\(response\?\.error\)\) return response/);
+  assert.match(desktopClient, /resolveDesktopCaptureEntry/);
+  assert.match(desktopClient, /desktopCompanionCompatibility/);
+  assert.match(desktopDownload, /최신 버전으로 업데이트/);
+  assert.match(desktopDownload, /바로 데스크톱 녹화 시작/);
+  assert.match(middleware, /PAID_DESKTOP_PATHS/);
+  assert.match(middleware, /hasEntitlement\(profile\?\.plan, 'desktop_companion'\)/);
+  assert.match(nextConfig, /source: '\/downloads\/ParroDesktopSetup\.exe'/);
+  assert.match(nextConfig, /Content-Disposition'[\s\S]*attachment; filename="ParroDesktopSetup\.exe"/);
 });
 
 check(() => {
@@ -175,6 +147,36 @@ check(() => {
   assert.doesNotMatch(background, /START_DESKTOP_RECORDING/);
   assert.doesNotMatch(background, /DESKTOP_COMPANION_STATUS/);
   assert.doesNotMatch(background, /importDesktopCaptureSession/);
+});
+
+check(() => {
+  assert.match(desktopBridge, /type: 'START_CAPTURE_SESSION'/);
+  assert.match(desktopBridge, /type: 'STOP_CAPTURE_SESSION'/);
+  assert.match(desktopBridge, /type: 'READ_CAPTURE_IMAGE_CHUNK'/);
+  assert.match(desktopBridge, /version: _desktopVersion/);
+});
+
+check(() => {
+  assert.match(nativeHost, /message\.type === "START_CAPTURE_SESSION"/);
+  assert.match(nativeHost, /message\.type === "STOP_CAPTURE_SESSION"/);
+  assert.match(nativeHost, /message\.type === "READ_CAPTURE_IMAGE_CHUNK"/);
+  assert.match(nativeHost, /version: DESKTOP_COMPANION_VERSION/);
+});
+
+check(() => {
+  assert.match(desktopLauncher, /new CountdownForm\(Screen\.FromPoint\(Cursor\.Position\)\)/);
+  assert.match(desktopLauncher, /internal sealed class CapturePreviewForm/);
+  assert.match(desktopLauncher, /previewForm\.RefreshSession\(files\)/);
+  assert.match(desktopLauncher, /json\.Append\("\{\\"regions\\":\["\)/);
+  assert.match(desktopLauncher, /captureProcess\.WaitForExit\(5000\)/);
+  assert.match(desktopLauncher, /\/desktop-import\?source=desktop-app&session=/);
+});
+
+check(() => {
+  assert.match(captureAgent, /public static class ParroDesktopClickHighlight/);
+  assert.match(captureAgent, /\[ParroDesktopClickHighlight\]::ShowAt\(\$point\.X, \$point\.Y\)/);
+  assert.match(captureAgent, /WdaExcludeFromCapture/);
+  assert.match(captureAgent, /foreach \(\$region in \$regions\)/);
 });
 
 console.log(JSON.stringify({

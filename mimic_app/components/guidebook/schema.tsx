@@ -3,7 +3,7 @@
 // 플레이북 공유 스키마 — BlockNote 기본 블록 + 커스텀 "가이드 임베드" 블록.
 // 같은 블록 스펙을 편집기/공개뷰가 공유하며, GuideContext.mode 로 렌더를 분기한다.
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useState } from 'react';
 import { BlockNoteSchema, defaultBlockSpecs, createCodeBlockSpec } from '@blocknote/core';
 import { codeBlockOptions } from '@blocknote/code-block';
 import { createReactBlockSpec } from '@blocknote/react';
@@ -81,45 +81,7 @@ function GuideEditCard({ tutorialId, defaultOpen, tutorials, onChange }: {
   onChange: (patch: { tutorialId?: string; defaultOpen?: boolean }) => void;
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [guide, setGuide] = useState<GuideData | null>(null);
-  const [previewState, setPreviewState] = useState<'idle' | 'loading' | 'error'>('idle');
   const title = tutorials.find(t => t.id === tutorialId)?.title;
-
-  useEffect(() => {
-    setPreviewOpen(false);
-    setGuide(null);
-    setPreviewState('idle');
-  }, [tutorialId]);
-
-  const togglePreview = async () => {
-    if (previewOpen) {
-      setPreviewOpen(false);
-      return;
-    }
-    setPreviewOpen(true);
-    if (guide || !tutorialId) return;
-
-    setPreviewState('loading');
-    try {
-      const res = await fetch(`/api/tutorials/${tutorialId}`);
-      if (!res.ok) throw new Error('Guide request failed');
-      const data = await res.json();
-      const steps: GuideStep[] = (Array.isArray(data.steps) ? data.steps : []).map(
-        (step: Record<string, unknown>, index: number) => ({
-          step_number: Number(step.step_number ?? step.order_index ?? index + 1),
-          title: String(step.user_title ?? step.ai_title ?? step.title ?? ''),
-          caption: String(step.user_script ?? step.ai_description ?? step.caption ?? ''),
-          screenshot_url: typeof step.screenshot_url === 'string' ? step.screenshot_url : null,
-          annotations: Array.isArray(step.user_annotations) ? step.user_annotations as Annotation[] : [],
-        }),
-      );
-      setGuide({ id: tutorialId, title: String(data.title ?? title ?? '가이드'), steps });
-      setPreviewState('idle');
-    } catch {
-      setPreviewState('error');
-    }
-  };
 
   return (
     <div contentEditable={false} style={{ border: '1px solid #E5E7EB', borderRadius: '10px', padding: '12px 14px', background: '#FAFAFA', margin: '4px 0' }}>
@@ -133,13 +95,6 @@ function GuideEditCard({ tutorialId, defaultOpen, tutorials, onChange }: {
           </div>
           <div style={{ fontSize: '11.5px', color: '#9CA3AF' }}>가이드 임베드 (보기 페이지에서 펼쳐짐)</div>
         </div>
-        {tutorialId && (
-          <button onClick={() => void togglePreview()}
-            aria-expanded={previewOpen}
-            style={{ height: '30px', padding: '0 12px', borderRadius: '7px', border: `1px solid ${BRAND_COLORS.border}`, background: previewOpen ? BRAND_COLORS.guideSoft : 'white', color: BRAND_COLORS.primary, fontSize: '12px', fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
-            {previewOpen ? '접기' : '펼치기'}
-          </button>
-        )}
         <button onClick={() => setPickerOpen(true)}
           style={{ height: '30px', padding: '0 12px', borderRadius: '7px', border: `1px solid ${BRAND_COLORS.border}`, background: 'white', color: BRAND_COLORS.primary, fontSize: '12px', fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
           {tutorialId ? '변경' : '선택'}
@@ -150,18 +105,6 @@ function GuideEditCard({ tutorialId, defaultOpen, tutorials, onChange }: {
           <input type="checkbox" checked={defaultOpen} onChange={e => onChange({ defaultOpen: e.target.checked })} />
           기본 펼침
         </label>
-      )}
-
-      {previewOpen && (
-        <div style={{ borderTop: '1px solid #E5E7EB', margin: '12px -14px -12px', padding: '8px 0', background: 'white', borderRadius: '0 0 10px 10px', overflow: 'hidden' }}>
-          {previewState === 'loading' && (
-            <div style={{ padding: '22px', textAlign: 'center', color: '#9CA3AF', fontSize: '13px' }}>가이드를 불러오는 중…</div>
-          )}
-          {previewState === 'error' && (
-            <div style={{ padding: '22px', textAlign: 'center', color: '#B91C1C', fontSize: '13px' }}>가이드를 불러오지 못했습니다. 다시 접었다 펼쳐주세요.</div>
-          )}
-          {previewState === 'idle' && guide && <GuideSteps guide={guide} />}
-        </div>
       )}
 
       {pickerOpen && (
@@ -239,40 +182,28 @@ function GuideViewCard({ defaultOpen, guide }: { defaultOpen: boolean; guide: Gu
 
       {open && (
         <div style={{ borderTop: '1px solid #F3F4F6', padding: '8px 0' }}>
-          <GuideSteps guide={guide} />
+          {guide.steps.map((s, i) => (
+            <div key={i} style={{ padding: '14px 18px', borderBottom: i < guide.steps.length - 1 ? '1px solid #F3F4F6' : 'none' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginBottom: s.screenshot_url ? '10px' : 0 }}>
+                <span style={{ width: '22px', height: '22px', borderRadius: '50%', background: BRAND_COLORS.primary, color: 'white', fontSize: '12px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0 }}>{i + 1}</span>
+                <div style={{ flex: 1 }}>
+                  {s.title && <div style={{ fontSize: '14px', fontWeight: 600, color: '#111827' }}>{s.title}</div>}
+                  {s.caption && <div style={{ fontSize: '13px', color: '#6B7280', lineHeight: 1.6, marginTop: '2px' }}>{s.caption}</div>}
+                </div>
+              </div>
+              {s.screenshot_url && (
+                <div style={{ position: 'relative', lineHeight: 0, borderRadius: '8px', overflow: 'hidden', border: '1px solid #F3F4F6' }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={s.screenshot_url} alt="" style={{ width: '100%', display: 'block' }} />
+                  {(s.annotations?.length ?? 0) > 0 && (
+                    <AnnotationPreview imageUrl={s.screenshot_url} annotations={s.annotations ?? []} />
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       )}
     </div>
-  );
-}
-
-function GuideSteps({ guide }: { guide: GuideData }) {
-  if (guide.steps.length === 0) {
-    return <div style={{ padding: '22px', textAlign: 'center', color: '#9CA3AF', fontSize: '13px' }}>아직 등록된 단계가 없습니다.</div>;
-  }
-
-  return (
-    <>
-      {guide.steps.map((s, i) => (
-        <div key={`${s.step_number}-${i}`} style={{ padding: '14px 18px', borderBottom: i < guide.steps.length - 1 ? '1px solid #F3F4F6' : 'none' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginBottom: s.screenshot_url ? '10px' : 0 }}>
-            <span style={{ width: '22px', height: '22px', borderRadius: '50%', background: BRAND_COLORS.primary, color: 'white', fontSize: '12px', fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0 }}>{i + 1}</span>
-            <div style={{ flex: 1 }}>
-              {s.title && <div style={{ fontSize: '14px', fontWeight: 600, color: '#111827' }}>{s.title}</div>}
-              {s.caption && <div style={{ fontSize: '13px', color: '#6B7280', lineHeight: 1.6, marginTop: '2px' }}>{s.caption}</div>}
-            </div>
-          </div>
-          {s.screenshot_url && (
-            <div style={{ position: 'relative', lineHeight: 0, borderRadius: '8px', overflow: 'hidden', border: '1px solid #F3F4F6' }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={s.screenshot_url} alt="" style={{ width: '100%', display: 'block' }} />
-              {(s.annotations?.length ?? 0) > 0 && (
-                <AnnotationPreview imageUrl={s.screenshot_url} annotations={s.annotations ?? []} />
-              )}
-            </div>
-          )}
-        </div>
-      ))}
-    </>
   );
 }

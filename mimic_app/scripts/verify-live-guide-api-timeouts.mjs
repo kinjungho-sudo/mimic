@@ -29,7 +29,6 @@ globalThis.window = {
 const {
   listLiveGuideTargetTabs,
   pickLiveGuideTarget,
-  startPlaybookLiveGuide,
   startLiveGuide,
 } = await import('../lib/api/liveGuide.ts');
 
@@ -56,12 +55,6 @@ window.chrome.runtime.sendMessage = (_extensionId, message, callback) => {
 const startSuccess = await startLiveGuide('fresh-share-token', 100);
 check(() => assert.equal(startSuccess.ok, true));
 check(() => assert.equal(startGuideMessage?.webapp_origin, 'http://localhost:3000'));
-check(() => assert.equal(startGuideMessage?.guide_source, 'tutorial'));
-
-startGuideMessage = null;
-const playbookStartSuccess = await startPlaybookLiveGuide('playbook-share-token', 100);
-check(() => assert.equal(playbookStartSuccess.ok, true));
-check(() => assert.equal(startGuideMessage?.guide_source, 'playbook'));
 
 window.chrome.runtime.sendMessage = (_extensionId, message, callback) => {
   if (message.action !== 'GET_TABS') return;

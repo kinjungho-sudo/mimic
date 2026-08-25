@@ -5,7 +5,6 @@ import { X, Minus, Send, Mail } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { BRAND_COLORS, BRAND_NAME } from '@/lib/brand';
 import { ParroMascot } from '@/components/brand/ParroMascot';
-import { useLocale } from '@/components/i18n/LocaleProvider';
 
 const BRAND_GRADIENT = `linear-gradient(135deg, ${BRAND_COLORS.primary}, ${BRAND_COLORS.guide})`;
 
@@ -59,7 +58,6 @@ function renderText(text: string) {
 }
 
 export function AgentChat() {
-  const { locale, t } = useLocale();
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -97,13 +95,13 @@ export function AgentChat() {
         }),
       });
       if (res.ok) {
-        setContactResult({ ok: true, msg: t('문의가 접수되었어요.') });
+        setContactResult({ ok: true, msg: '문의가 접수되었어요.' });
         setContactMsg('');
       } else {
-        setContactResult({ ok: false, msg: t('전송에 실패했어요. 다시 시도해주세요.') });
+        setContactResult({ ok: false, msg: '전송에 실패했어요. 다시 시도해주세요.' });
       }
     } catch {
-      setContactResult({ ok: false, msg: t('네트워크 오류가 발생했어요.') });
+      setContactResult({ ok: false, msg: '네트워크 오류가 발생했어요.' });
     } finally {
       setContactSending(false);
     }
@@ -111,20 +109,20 @@ export function AgentChat() {
 
   // 초기 로드: FAQ 목록 + 웰컴 메시지
   useEffect(() => {
-    fetch(`/api/agent/chat?locale=${locale}`)
+    fetch('/api/agent/chat')
       .then(r => r.json())
       .then(data => {
         setMessages([{
           id: 'welcome',
           role: 'assistant',
-          text: t(`안녕하세요! ${BRAND_NAME} 도움말 봇입니다. 자주 묻는 질문을 고르거나 궁금한 점을 입력해주세요.`),
+          text: `안녕하세요! ${BRAND_NAME} 도움말 봇입니다. 자주 묻는 질문을 고르거나 궁금한 점을 입력해주세요.`,
           related: (data.quickQuestions ?? []).slice(0, 6),
         }]);
       })
       .catch(() => {
-        setMessages([{ id: 'welcome', role: 'assistant', text: t(`안녕하세요! ${BRAND_NAME} 도움말 봇입니다. 궁금한 점을 입력해주세요.`) }]);
+        setMessages([{ id: 'welcome', role: 'assistant', text: `안녕하세요! ${BRAND_NAME} 도움말 봇입니다. 궁금한 점을 입력해주세요.` }]);
       });
-  }, [locale, t]);
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -145,11 +143,11 @@ export function AgentChat() {
       const res = await fetch('/api/agent/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, faqId, locale }),
+        body: JSON.stringify({ query, faqId }),
       });
       const data = await res.json() as { answer?: string; related?: QuickQ[]; error?: string };
       if (!res.ok || typeof data.answer !== 'string') {
-        throw new Error(data.error ?? t('답변을 불러오지 못했습니다.'));
+        throw new Error(data.error ?? '답변을 불러오지 못했습니다.');
       }
       const answer = data.answer;
 
@@ -161,14 +159,14 @@ export function AgentChat() {
     } catch {
       setMessages(prev => prev.map(m =>
         m.id === assistantId
-          ? { ...m, text: t('오류가 발생했습니다. 잠시 후 다시 시도해주세요.') }
+          ? { ...m, text: '오류가 발생했습니다. 잠시 후 다시 시도해주세요.' }
           : m
       ));
     } finally {
       setIsLoading(false);
       inputRef.current?.focus();
     }
-  }, [isLoading, locale, t]);
+  }, [isLoading]);
 
   const handleSend = () => {
     const text = input.trim();
@@ -181,7 +179,7 @@ export function AgentChat() {
   };
 
   const lastAssistantText = [...messages].reverse().find(message => message.role === 'assistant')?.text ?? '';
-  const hasAssistantError = /오류|실패|문제|불러오지 못|찾지 못|error|failed|problem|could not/i.test(lastAssistantText);
+  const hasAssistantError = /오류|실패|문제|불러오지 못|찾지 못/.test(lastAssistantText);
   const headerMascotState = contactSending || isLoading
     ? 'search'
     : contactResult?.ok
@@ -353,7 +351,7 @@ export function AgentChat() {
               color: msg.role === 'user' ? 'white' : '#111827',
               fontSize: '13px', lineHeight: 1.6,
               whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-            }} data-i18n-ignore={msg.role === 'user' ? true : undefined}>
+            }}>
               {msg.text
                 ? (msg.role === 'assistant' ? renderText(msg.text) : msg.text)
                 : (isLoading && msg.role === 'assistant'

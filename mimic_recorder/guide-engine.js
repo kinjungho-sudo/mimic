@@ -4,21 +4,15 @@
 (function () {
   'use strict';
   if (window.ParroGuide || window.MimicGuide) return; // 중복 주입 방지
-  const i18n = (key, fallback, substitutions) =>
-    chrome.i18n.getMessage(key, substitutions) || fallback;
 
   const Z = 2147483640;
   const HIT_PAD_EL = 6;
   const HIT_PAD_COORD = 28;
-  const TIP_W = 292;  // 코치 아바타 옆에 독립적으로 나타나는 안내 말풍선 너비
+  const TIP_W = 292;  // 커진 코치 아바타와 균형을 맞춘 안내 카드 너비
   const TIP_GAP = 46; // 타깃을 가리지 않도록 DOM과 코치 UI 사이에 충분한 간격 확보
   const TIP_M = 12;   // 뷰포트 여백(px)
-  const AVATAR_SIZE = 100;
-  const AVATAR_GAP = 12;
-  const AVATAR_OUTSET = AVATAR_SIZE + AVATAR_GAP; // 말풍선 왼쪽의 독립 아바타 영역
+  const AVATAR_OUTSET = 82; // 말풍선 왼쪽에 놓이는 단일 아바타 영역
   const TIP_BG = 'rgba(22,20,48,.96)'; // 툴팁/화살표/대기카드 공통 배경 — 짙은 남색·보라(흰 배경 가독성)
-  const BUBBLE_BG = 'rgba(255,255,255,.98)';
-  const BUBBLE_BORDER = '#17C9B6';
   const OVERLAY_ROOT_ID = 'parro-overlay-root';
   const LEGACY_OVERLAY_ROOT_ID = 'mimic-overlay-root';
   const GUIDE_VOICE_PREFERENCE_KEY = 'guideVoiceEnabled';
@@ -50,8 +44,8 @@
     button.setAttribute('aria-pressed', guideVoiceEnabled ? 'true' : 'false');
     button.textContent = guideVoiceEnabled ? (playing ? '🔊' : '🔉') : '🔇';
     button.title = guideVoiceEnabled
-      ? (blocked ? i18n('guideVoiceNeedsClick', '재생 버튼을 눌러 음성을 시작하세요.') : i18n('guideVoiceDisable', '음성 안내 끄기'))
-      : i18n('guideVoiceEnable', '음성 안내 켜기');
+      ? (blocked ? '재생 버튼을 눌러 음성을 시작하세요.' : '음성 안내 끄기')
+      : '음성 안내 켜기';
     button.setAttribute('aria-label', button.title);
     button.style.background = guideVoiceEnabled ? '#E8FFF7' : 'transparent';
     button.style.color = guideVoiceEnabled ? '#00796F' : '#64748B';
@@ -591,40 +585,21 @@
     return { left, top, arrowDir, arrowLeft };
   }
 
-  function placeCoachAvatar(avatar, bubbleLeft, bubbleTop, bubbleHeight) {
-    if (!avatar) return;
-    let left = bubbleLeft - AVATAR_OUTSET;
-    let top = bubbleTop + 14;
-    let placement = 'left';
-
-    // 작은 뷰포트에서도 아바타가 잘리지 않도록 말풍선 위·아래를 차선으로 사용한다.
-    if (left < TIP_M) {
-      placement = 'stacked';
-      left = bubbleLeft + 12;
-      top = bubbleTop - AVATAR_SIZE - AVATAR_GAP;
-      if (top < TIP_M) top = bubbleTop + (bubbleHeight || 200) + AVATAR_GAP;
-    }
-
-    avatar.setAttribute('data-placement', placement);
-    avatar.style.left = `${Math.max(TIP_M, Math.min(window.innerWidth - AVATAR_SIZE - TIP_M, left))}px`;
-    avatar.style.top = `${Math.max(TIP_M, Math.min(window.innerHeight - AVATAR_SIZE - TIP_M, top))}px`;
-  }
-
   // 웹 제품과 동일한 상태형 AI 가이드 아바타.
-  const avatarAsset = (name) => `${chrome.runtime.getURL(`assets/${name}`)}?v=20260814b`;
+  const avatarAsset = (name) => `${chrome.runtime.getURL(`assets/${name}`)}?v=20260813`;
   const MASCOT_IMAGE_URLS = {
-    idle: avatarAsset('parro-3d-neutral.png'),
-    neutral: avatarAsset('parro-3d-neutral.png'),
-    listen: avatarAsset('parro-3d-neutral.png'),
-    talk: avatarAsset('parro-3d-neutral.png'),
-    point: avatarAsset('parro-3d-point.png'),
-    think: avatarAsset('parro-3d-neutral.png'),
-    search: avatarAsset('parro-3d-neutral.png'),
-    warning: avatarAsset('parro-3d-neutral.png'),
-    error: avatarAsset('parro-3d-neutral.png'),
-    blocked: avatarAsset('parro-3d-neutral.png'),
-    clarify: avatarAsset('parro-3d-neutral.png'),
-    success: avatarAsset('parro-3d-neutral.png'),
+    idle: avatarAsset('parro-ai-avatar-neutral.png'),
+    neutral: avatarAsset('parro-ai-avatar-neutral.png'),
+    listen: avatarAsset('parro-ai-avatar-neutral.png'),
+    talk: avatarAsset('parro-ai-avatar-neutral.png'),
+    point: avatarAsset('parro-ai-avatar-neutral.png'),
+    think: avatarAsset('parro-ai-avatar-neutral.png'),
+    search: avatarAsset('parro-ai-avatar-neutral.png'),
+    warning: avatarAsset('parro-ai-avatar-neutral.png'),
+    error: avatarAsset('parro-ai-avatar-neutral.png'),
+    blocked: avatarAsset('parro-ai-avatar-neutral.png'),
+    clarify: avatarAsset('parro-ai-avatar-neutral.png'),
+    success: avatarAsset('parro-ai-avatar-neutral.png'),
   };
   const MASCOT_SEQUENCE_STATES = {
     idle: 'listen',
@@ -642,8 +617,10 @@
   };
   const mascotHtml = (stateName = 'neutral') => {
     const safeState = Object.prototype.hasOwnProperty.call(MASCOT_IMAGE_URLS, stateName) ? stateName : 'neutral';
+    const secondaryState = MASCOT_SEQUENCE_STATES[safeState] || 'neutral';
     return `<span class="parro-avatar-stack parro-avatar-stack--${safeState} parro-avatar-sequence--${safeState}">
-      <img data-role="coach-avatar-image" class="parro-avatar-layer parro-avatar-layer--primary" src="${MASCOT_IMAGE_URLS[safeState]}" alt="" draggable="false">
+      <img class="parro-avatar-layer parro-avatar-layer--primary" src="${MASCOT_IMAGE_URLS[safeState]}" alt="" draggable="false">
+      <img class="parro-avatar-layer parro-avatar-layer--secondary" src="${MASCOT_IMAGE_URLS[secondaryState]}" alt="" draggable="false">
     </span>`;
   };
   const AVATAR_MOTION_CSS = `
@@ -662,8 +639,8 @@
     @keyframes parro-avatar-frame-secondary { 0%,54%,100%{opacity:0;transform:translateY(2%) scale(.98)} 64%,82%{opacity:1;transform:translateY(0) scale(1)} 91%{opacity:0;transform:translateY(-1%) scale(.99)} }
     .parro-avatar-stack{position:relative;display:block;width:100%;height:100%;overflow:hidden;transform-origin:50% 82%;will-change:transform}
     .parro-avatar-layer{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:contain;user-select:none;pointer-events:none;transform-origin:50% 82%;will-change:opacity,transform}
-    .parro-avatar-layer--primary{opacity:1;animation:parro-avatar-frame-primary 16s ease-in-out infinite}
-    .parro-avatar-layer--secondary{opacity:0;animation:parro-avatar-frame-secondary 16s ease-in-out infinite}
+    .parro-avatar-layer--primary{opacity:1;animation:parro-avatar-frame-primary 8s ease-in-out infinite}
+    .parro-avatar-layer--secondary{opacity:0;animation:parro-avatar-frame-secondary 8s ease-in-out infinite}
     .parro-avatar-stack--idle,.parro-avatar-stack--neutral{animation:parro-avatar-idle-motion 3.4s ease-in-out infinite}
     .parro-avatar-stack--listen{animation:parro-avatar-listen-motion 2.8s ease-in-out infinite}
     .parro-avatar-stack--talk{animation:parro-avatar-talk-motion 1.6s ease-in-out infinite}
@@ -675,20 +652,11 @@
     .parro-avatar-stack--blocked{animation:parro-avatar-blocked-motion 3.6s ease-in-out infinite}
     .parro-avatar-stack--clarify{animation:parro-avatar-clarify-motion 2.8s ease-in-out infinite}
     .parro-avatar-stack--success{animation:parro-avatar-success-motion 1.9s cubic-bezier(.34,1.2,.64,1) infinite}
-    .parro-avatar-sequence--listen .parro-avatar-layer{animation-duration:16s}
-    .parro-avatar-sequence--talk .parro-avatar-layer{animation-duration:12s}
-    .parro-avatar-sequence--point .parro-avatar-layer{animation-duration:14s}
-    .parro-avatar-sequence--think .parro-avatar-layer,.parro-avatar-sequence--search .parro-avatar-layer{animation-duration:15s}
-    .parro-avatar-sequence--warning .parro-avatar-layer{animation-duration:15s}
-    .parro-avatar-sequence--error .parro-avatar-layer{animation-duration:17s}
-    .parro-avatar-sequence--blocked .parro-avatar-layer{animation-duration:18s}
-    .parro-avatar-sequence--clarify .parro-avatar-layer{animation-duration:16s}
-    .parro-avatar-sequence--success .parro-avatar-layer{animation-duration:14s}
     .parro-avatar-stack,.parro-avatar-layer{animation:none!important}
     .parro-avatar-layer--secondary{display:none!important}
   `;
 
-  const AVATAR_STYLE = `width:${AVATAR_SIZE}px;height:${AVATAR_SIZE}px;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:visible;background:transparent;border:none;box-shadow:none;`;
+  const AVATAR_STYLE = `width:68px;height:68px;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:visible;background:transparent;border:none;box-shadow:none;`;
 
   // ── 오버레이 렌더 ─────────────────────────────────────────────
   const VOLATILE_QUERY_KEY = /^(utm_.+|fbclid|gclid|_ga|code|state|session|session_id|timestamp|ts|_t)$/i;
@@ -770,10 +738,7 @@
     if (!state) return;
     state.validating = false;
     state.advanced = false;
-    if (state.host) state.host.setAttribute(
-      'data-validation-error',
-      message || i18n('checkInput', '입력 내용을 확인해주세요.'),
-    );
+    if (state.host) state.host.setAttribute('data-validation-error', message || '입력 내용을 확인해주세요.');
     if (state.tooltip) {
       let notice = state.tooltip.querySelector('[data-parro-validation]');
       if (!notice) {
@@ -782,11 +747,7 @@
         notice.style.cssText = 'margin:10px 0 2px;padding:9px 10px;border-radius:8px;background:#FFF1F2;color:#BE123C;font-size:12px;font-weight:700;line-height:1.45;';
         state.tooltip.appendChild(notice);
       }
-      notice.textContent = i18n(
-        'resolveInputError',
-        '$MESSAGE$ 오류를 해결한 뒤 다시 눌러주세요.',
-        [message || i18n('checkInput', '입력 내용을 확인해주세요.')],
-      );
+      notice.textContent = `${message || '입력 내용을 확인해주세요.'} 오류를 해결한 뒤 다시 눌러주세요.`;
     }
     nudge();
   }
@@ -808,7 +769,7 @@
       let invalid = false;
       try { invalid = typeof form.checkValidity === 'function' && !form.checkValidity(); } catch { /* noop */ }
       if (invalid || newMessage) {
-        showValidationProblem(newMessage || i18n('invalidRequiredInput', '필수 입력값이 올바르지 않습니다.'));
+        showValidationProblem(newMessage || '필수 입력값이 올바르지 않습니다.');
         return;
       }
       state.validating = false;
@@ -875,8 +836,6 @@
       @keyframes mimic-nudge  { 0%,100%{transform:none} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
       @keyframes parro-avatar-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
       @keyframes mimic-avatar-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
-      @keyframes parro-avatar-in { 0%{opacity:0;transform:translateY(5px) scale(.78)} 100%{opacity:1;transform:translateY(0) scale(1)} }
-      @keyframes parro-bubble-in { 0%{opacity:0;transform:translateX(-10px) translateY(3px) scale(.97)} 100%{opacity:1;transform:translateX(0) translateY(0) scale(1)} }
       @keyframes parro-tip-in { 0%{opacity:0;transform:translateY(6px) scale(0.97)} 100%{opacity:1;transform:translateY(0) scale(1)} }
       @keyframes mimic-tip-in { 0%{opacity:0;transform:translateY(6px) scale(0.97)} 100%{opacity:1;transform:translateY(0) scale(1)} }
       ${AVATAR_MOTION_CSS}
@@ -890,59 +849,46 @@
     hl.style.cssText = `position:fixed;pointer-events:none;box-sizing:border-box;border:3px solid #12B886;background:rgba(18,184,134,.10);border-radius:9px;box-shadow:0 0 0 5px rgba(18,184,134,.3),0 0 24px 8px rgba(0,155,142,.52);z-index:2;transition:left .12s,top .12s,width .12s,height .12s;animation:parro-glow 1.25s ease-in-out infinite;`;
     root.appendChild(hl);
 
-    // 아바타와 말풍선을 서로 독립된 요소로 만들어,
-    // 아바타가 먼저 등장하고 그 옆으로 말풍선이 이어서 나타나게 한다.
+    // 단일 코치 아바타가 말풍선 바깥에서 이야기하는 구조.
+    // 타깃 위에 별도 아바타를 겹치지 않고, SVG 프레임 교체 없이 미세한 부유 효과만 준다.
     const idx = opts.index ?? 0, total = opts.total ?? 1;
     const typeTextSnippet = step.type_text ? escapeHtml(String(step.type_text)) : '';
     const tooltipText = step.instruction || step.title || '';
-    const isTypeStep = Boolean(step.type_text || step.kind === 'type' || step.action_type === 'type');
-    const tooltipMascotState = !isTypeStep && idx > 0 && idx % 3 === 1 ? 'point' : 'talk';
-
-    const coachAvatar = document.createElement('div');
-    coachAvatar.setAttribute('data-role', 'coach-avatar');
-    coachAvatar.setAttribute('data-mascot-state', tooltipMascotState);
-    coachAvatar.setAttribute('aria-hidden', 'true');
-    coachAvatar.style.cssText = `position:fixed;${AVATAR_STYLE}pointer-events:none;z-index:5;animation:parro-avatar-in .26s cubic-bezier(.2,.8,.2,1) both;`;
-    coachAvatar.innerHTML = mascotHtml(tooltipMascotState);
-    const coachAvatarImage = coachAvatar.querySelector('[data-role="coach-avatar-image"]');
-    coachAvatarImage?.addEventListener('error', () => {
-      const neutralUrl = MASCOT_IMAGE_URLS.neutral;
-      if (coachAvatarImage.src !== neutralUrl) coachAvatarImage.src = neutralUrl;
-    });
+    const tooltipMascotState = 'talk';
 
     const tooltip = document.createElement('div');
     tooltip.setAttribute('data-role', 'guide-bubble');
-    tooltip.style.cssText = `position:fixed;width:${TIP_W}px;max-height:calc(100vh - 32px);overflow-y:auto;box-sizing:border-box;background:${BUBBLE_BG};color:#102038;border:3px solid ${BUBBLE_BORDER};border-radius:20px;padding:12px 14px;box-shadow:0 16px 38px rgba(15,23,42,.18),0 8px 24px rgba(23,201,182,.16);isolation:isolate;z-index:5;pointer-events:auto;animation:parro-bubble-in .3s cubic-bezier(.2,.8,.2,1) .09s both;`;
+    tooltip.style.cssText = `position:fixed;width:${TIP_W}px;max-height:calc(100vh - 32px);overflow-y:auto;box-sizing:border-box;background:${TIP_BG};color:#fff;border-radius:13px;padding:13px;box-shadow:0 12px 40px rgba(0,0,0,.45),0 0 0 1px rgba(23,201,182,.16);z-index:5;pointer-events:auto;animation:parro-tip-in 0.28s ease forwards;`;
     tooltip.innerHTML = `
-      <div aria-hidden="true" style="position:absolute;left:-11px;top:28px;width:18px;height:18px;background:#fff;border-left:3px solid ${BUBBLE_BORDER};border-bottom:3px solid ${BUBBLE_BORDER};transform:rotate(45deg);pointer-events:none;z-index:-1"></div>
-      <div style="display:flex;align-items:flex-start;gap:9px;margin-bottom:7px">
-        <span title="${idx + 1} / ${total}" style="flex-shrink:0;width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;font-size:12px;font-weight:800;display:grid;place-items:center;box-shadow:0 2px 6px rgba(0,155,142,.34)">${idx + 1}</span>
-        ${resolved.source === 'none' ? `<span style="font-size:10.5px;color:#C2410C">${i18n('elementNotFound', '요소 미발견')}</span>` : ''}
+      <div data-role="coach-avatar" data-placement="left" style="position:absolute;left:-${AVATAR_OUTSET}px;top:14px;${AVATAR_STYLE}pointer-events:none">${mascotHtml(tooltipMascotState)}</div>
+      <div aria-hidden="true" style="position:absolute;left:-8px;top:30px;width:16px;height:16px;background:${TIP_BG};transform:rotate(45deg);border-radius:2px;box-shadow:-1px 1px 0 rgba(23,201,182,.12);pointer-events:none"></div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:7px">
+        <span style="font-size:11px;font-weight:700;color:#8DD63F;background:rgba(0,155,142,.24);padding:2px 8px;border-radius:20px">${idx + 1} / ${total}</span>
+        ${resolved.source === 'none' ? '<span style="font-size:10.5px;color:#FFB199">요소 미발견</span>' : ''}
         <div style="flex:1"></div>
-        <button class="parro-btn mimic-btn" data-act="toggle-guide-voice" aria-pressed="false" title="${escapeHtml(i18n('guideVoiceEnable', '음성 안내 켜기'))}" aria-label="${escapeHtml(i18n('guideVoiceEnable', '음성 안내 켜기'))}" style="display:grid;place-items:center;width:28px;height:28px;padding:0;border:1px solid rgba(100,116,139,.24);border-radius:8px;background:transparent;color:#64748B;font-size:14px;line-height:1">🔇</button>
-        <button class="parro-btn mimic-btn" data-act="hide-tooltip" title="말풍선 숨기기" style="background:transparent;color:#64748B;padding:3px 6px;font-size:15px;line-height:1">✕</button>
+        <button class="parro-btn mimic-btn" data-act="toggle-guide-voice" aria-pressed="false" title="음성 안내 켜기" aria-label="음성 안내 켜기" style="display:grid;place-items:center;width:28px;height:28px;padding:0;border:1px solid rgba(100,116,139,.24);border-radius:8px;background:transparent;color:#64748B;font-size:14px;line-height:1">🔇</button>
+        <button class="parro-btn mimic-btn" data-act="hide-tooltip" title="말풍선 숨기기" style="background:transparent;color:rgba(255,255,255,.45);padding:3px 6px;font-size:12px">✕</button>
       </div>
       ${tooltipText ? `
-        <div data-role="guide-copy" data-expanded="true" style="font-size:15px;color:#374151;line-height:1.5;font-weight:400;display:block;white-space:normal;overflow-wrap:anywhere">${escapeHtml(tooltipText)}</div>
+        <div data-role="guide-copy" data-expanded="true" style="font-size:12.5px;color:#D1D5DB;line-height:1.6;font-weight:650;display:block;white-space:normal;overflow-wrap:anywhere">${escapeHtml(tooltipText)}</div>
       ` : ''}
       ${step.type_text ? `
-        <div style="margin-top:10px;background:#EDFCF8;border:1px solid #A7EDE3;border-radius:11px;padding:8px 10px">
+        <div style="margin-top:10px;background:rgba(0,155,142,.18);border:1px solid rgba(23,201,182,.32);border-radius:8px;padding:8px 10px">
           <div style="display:flex;align-items:center;gap:6px">
-            <span style="font-size:11px;color:#007F75;font-weight:750;flex-shrink:0">⌨ 복사 후 붙여넣기</span>
+            <span style="font-size:11px;color:#17C9B6;flex-shrink:0">⌨ 복사 후 붙여넣기</span>
             <button class="parro-btn mimic-btn" data-act="copy" style="margin-left:auto;padding:4px 9px;background:#fff;color:#007F75;font-size:10.5px;font-weight:800">복사</button>
           </div>
-          <div style="font-size:11.5px;color:#164E63;line-height:1.5;margin-top:5px;word-break:break-all">입력할 내용: ${typeTextSnippet}</div>
-          <div style="font-size:10.5px;color:#0F766E;line-height:1.45;margin-top:4px">입력창에 붙여넣으면 자동으로 다음 단계로 진행합니다.</div>
+          <div style="font-size:11.5px;color:#BFEDE7;line-height:1.5;margin-top:5px;word-break:break-all">입력할 내용: ${typeTextSnippet}</div>
+          <div style="font-size:10.5px;color:#9FE4DA;line-height:1.45;margin-top:4px">입력창에 붙여넣으면 자동으로 다음 단계로 진행합니다.</div>
         </div>` : ''}`;
 
-    root.appendChild(coachAvatar);
     root.appendChild(tooltip);
 
     // 툴팁 복원 버튼 (툴팁 숨김 상태일 때 우하단에 표시)
     const restoreBtn = document.createElement('button');
     restoreBtn.className = 'parro-btn mimic-btn';
     restoreBtn.style.cssText = `position:fixed;right:16px;bottom:16px;background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;padding:8px 14px;border-radius:20px;box-shadow:0 4px 16px rgba(0,155,142,.42);pointer-events:auto;z-index:4;font-size:12px;font-weight:700;display:none;`;
-    restoreBtn.textContent = i18n('showGuide', '💬 가이드 보기');
+    restoreBtn.textContent = '💬 가이드 보기';
     restoreBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       if (!state) return;
@@ -964,7 +910,7 @@
 
     shadow.appendChild(root);
 
-    state = { host, shadow, hl, coachAvatar, tooltip, restoreBtn, scrollHint, resolved, step, opts, idx, total, advanced: false, completed: false, tooltipHidden: false, fallbackKey: null };
+    state = { host, shadow, hl, tooltip, restoreBtn, scrollHint, resolved, step, opts, idx, total, advanced: false, completed: false, tooltipHidden: false, fallbackKey: null };
     initializeGuideVoice(step, tooltip.querySelector('[data-act="toggle-guide-voice"]'));
 
     // 브라우저의 새로고침/뒤로가기 스크롤 복원이 첫 scrollIntoView를 덮어쓸 수 있어
@@ -1014,14 +960,14 @@
           navigator.clipboard.writeText(String(text))
             .then(() => {
               const b = e.target;
-              b.textContent = i18n('copiedCheck', '✓ 복사됨');
+              b.textContent = '✓ 복사됨';
               try { state?.typeInputEl?.focus({ preventScroll: true }); } catch { /* noop */ }
-              setTimeout(() => { if (b.isConnected) b.textContent = i18n('copy', '복사'); }, 1500);
+              setTimeout(() => { if (b.isConnected) b.textContent = '복사'; }, 1500);
             })
             .catch(() => {
               const b = e.target;
-              b.textContent = i18n('copyFailed', '복사 실패');
-              setTimeout(() => { if (b.isConnected) b.textContent = i18n('copy', '복사'); }, 1500);
+              b.textContent = '복사 실패';
+              setTimeout(() => { if (b.isConnected) b.textContent = '복사'; }, 1500);
             });
         }
       }
@@ -1033,7 +979,6 @@
       const t = state.resolved;
       if (!t || !t.rect) {
         hl.style.display = 'none';
-        coachAvatar.style.display = 'none';
         tooltip.style.display = 'none';
         if (state.scrollHint) state.scrollHint.style.display = 'none';
       } else if (t.el && !t.el.isConnected) {
@@ -1045,7 +990,6 @@
         // 연결돼 있지만 숨겨졌거나 0크기면 이 프레임은 그리지 않음(깜빡임 방지)
         if (t.el && (r.width < 1 || r.height < 1)) {
           hl.style.display = 'none';
-          coachAvatar.style.display = 'none';
           tooltip.style.display = 'none';
           if (state.scrollHint) state.scrollHint.style.display = 'none';
           state.rafId = requestAnimationFrame(reposition);
@@ -1062,9 +1006,7 @@
           const below = outsideSafeArea && !above;
           if (above || below) {
             const sh = state.scrollHint;
-            sh.textContent = above
-              ? i18n('scrollUpHere', '↑ 여기로 스크롤')
-              : i18n('scrollDownHere', '↓ 여기로 스크롤');
+            sh.textContent = above ? '↑ 여기로 스크롤' : '↓ 여기로 스크롤';
             sh.style.top    = above ? '14px' : 'auto';
             sh.style.bottom = below ? '20px' : 'auto';
             sh.style.display = 'block';
@@ -1080,33 +1022,24 @@
         hl.style.width  = `${r.width  + P * 2}px`;
         hl.style.height = `${r.height + P * 2}px`;
 
-        // 독립된 아바타를 말풍선 왼쪽에 유지한다.
-        coachAvatar.style.display = 'flex';
+        // 말풍선과 아바타를 하나의 코치 UI로 함께 배치한다.
         tooltip.style.display = 'block';
         const tipH = tooltip.offsetHeight || 200;
         const pos = calcTipPos(r, tipH);
         tooltip.style.left = `${pos.left}px`;
         tooltip.style.top  = `${pos.top}px`;
-        placeCoachAvatar(coachAvatar, pos.left, pos.top, tipH);
 
         // 소유자가 스튜디오에서 지정한 말풍선 위치 — 뷰포트 고정 코너로 override
-        const anchor = isTypeStep ? 'bottom-right' : state.step && state.step.bubble_anchor;
+        const anchor = state.step && state.step.bubble_anchor;
         if (anchor) {
           const tH = tooltip.offsetHeight || tipH;
-          const hasAvatarSideRoom = window.innerWidth >= TIP_W + AVATAR_OUTSET + TIP_M * 2;
-          const left = anchor === 'top-left' || anchor === 'bottom-left'
-            ? (hasAvatarSideRoom ? TIP_M + AVATAR_OUTSET : TIP_M)
-            : Math.max(TIP_M, window.innerWidth - TIP_W - TIP_M);
+          const left = anchor === 'top-left' || anchor === 'bottom-left' ? TIP_M + AVATAR_OUTSET : window.innerWidth - TIP_W - TIP_M;
           const top  = anchor === 'top-left' || anchor === 'top-right'  ? TIP_M : window.innerHeight - tH - TIP_M;
           tooltip.style.left = `${left}px`;
           tooltip.style.top  = `${top}px`;
-          placeCoachAvatar(coachAvatar, left, top, tH);
         }
         // 툴팁 숨김 모드 적용
-        if (state.tooltipHidden) {
-          coachAvatar.style.display = 'none';
-          tooltip.style.display = 'none';
-        }
+        if (state.tooltipHidden) tooltip.style.display = 'none';
         if (state.restoreBtn) state.restoreBtn.style.display = state.tooltipHidden ? 'flex' : 'none';
       }
       state.rafId = requestAnimationFrame(reposition);
@@ -1182,11 +1115,10 @@
     const q2 = Number(getSurveyChoice('q2', '3')) || 3;
     const q3 = Number(getSurveyChoice('q3', '3')) || 3;
     const completed = getSurveyChoice('q4', 'true') !== 'false';
-    const noBlockedStep = i18n('noBlockedStep', '막힌 단계 없음');
-    const issue = String(getSurveyChoice('issue', noBlockedStep) || noBlockedStep);
+    const issue = String(getSurveyChoice('issue', '막힌 단계 없음') || '막힌 단계 없음');
     const comment = state.tooltip.querySelector('[data-survey-comment]')?.value || '';
     if (button) {
-      button.textContent = i18n('submitting', '제출 중...');
+      button.textContent = '제출 중...';
       button.disabled = true;
     }
     chrome.runtime.sendMessage({
@@ -1208,12 +1140,12 @@
     }, () => {
       void chrome.runtime.lastError;
       if (!state || !state.tooltip) return;
-      if (state.coachAvatar) state.coachAvatar.innerHTML = mascotHtml('success');
       state.tooltip.innerHTML = `
         <div style="text-align:center;padding:12px 4px">
-          <div style="font-size:15px;font-weight:800;margin-bottom:6px">${i18n('surveyThanks', '고마워요. 반영해둘게요.')}</div>
-          <div style="font-size:12.5px;color:#9CA3AF;margin-bottom:14px">${i18n('surveyUseFeedback', 'Live Guide Beta를 더 정확하게 다듬는 데 사용할게요.')}</div>
-          <button class="parro-btn mimic-btn" data-act="exit" style="background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;padding:9px 24px;width:100%">${i18n('close', '닫기')}</button>
+          <div style="${AVATAR_STYLE}margin:0 auto 12px;">${mascotHtml('success')}</div>
+          <div style="font-size:15px;font-weight:800;margin-bottom:6px">고마워요. 반영해둘게요.</div>
+          <div style="font-size:12.5px;color:#9CA3AF;margin-bottom:14px">Live Guide Beta를 더 정확하게 다듬는 데 사용할게요.</div>
+          <button class="parro-btn mimic-btn" data-act="exit" style="background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;padding:9px 24px;width:100%">닫기</button>
         </div>`;
     });
   }
@@ -1224,123 +1156,60 @@
     state.completed = true;
     state.hl.style.display = 'none';
     if (state.scrollHint) state.scrollHint.style.display = 'none';
-    if (state.coachAvatar) {
-      state.coachAvatar.innerHTML = mascotHtml('success');
-      state.coachAvatar.style.display = 'flex';
-    }
     state.tooltip.innerHTML = `
       <div style="text-align:center;padding:10px 4px">
-        <div style="font-size:15px;font-weight:700;margin-bottom:6px">${i18n('liveGuideComplete', 'Live Guide Beta 완료! 🎉')}</div>
-        <div style="font-size:12.5px;color:#9CA3AF;margin-bottom:14px">${i18n('allStepsComplete', '모든 스텝을 완료했습니다.')}</div>
-        <button class="parro-btn mimic-btn" data-act="exit" style="background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;padding:9px 24px;width:100%">${i18n('close', '닫기')}</button>
+        <div style="${AVATAR_STYLE}margin:0 auto 12px;">${mascotHtml('success')}</div>
+        <div style="font-size:15px;font-weight:700;margin-bottom:6px">Live Guide Beta 완료! 🎉</div>
+        <div style="font-size:12.5px;color:#9CA3AF;margin-bottom:14px">모든 스텝을 완료했습니다.</div>
+        <button class="parro-btn mimic-btn" data-act="exit" style="background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;padding:9px 24px;width:100%">닫기</button>
       </div>`;
     const survey = state.opts && state.opts.survey && state.opts.survey.enabled ? state.opts.survey : null;
     if (survey) {
-      if (state.coachAvatar) state.coachAvatar.innerHTML = mascotHtml('listen');
       const rating = (group) => [1, 2, 3, 4, 5].map(n => `<button class="parro-btn mimic-btn" data-act="survey-rate:${group}:${n}" data-survey-group="${group}" data-survey-value="${n}" aria-pressed="false" style="width:30px;height:28px;padding:0;background:white;color:#4b5563;border:1px solid #e5e7eb">${n}</button>`).join('');
       const issueBtn = (label, selected) => `<button class="parro-btn mimic-btn" data-act="survey-rate:issue:${escapeHtml(label)}" data-survey-group="issue" data-survey-value="${escapeHtml(label)}" aria-pressed="${selected ? 'true' : 'false'}" style="padding:6px 8px;background:${selected ? '#E8FFF7' : 'white'};color:${selected ? '#00796F' : '#4b5563'};border:1px solid ${selected ? '#009B8E' : '#e5e7eb'};font-size:11.5px">${escapeHtml(label)}</button>`;
       state.tooltip.innerHTML = `
         <div style="padding:6px 2px;color:#111827">
           <div style="display:flex;gap:9px;align-items:center;margin-bottom:10px">
+            <div style="${AVATAR_STYLE}width:38px;height:38px;flex-shrink:0">${mascotHtml('listen')}</div>
             <div>
-              <div style="font-size:15px;font-weight:800">${i18n('liveGuideFeedbackTitle', 'Live Guide Beta는 어땠나요?')}</div>
-              <div style="font-size:12px;color:#6B7280;margin-top:2px">${i18n('selectionIsEnough', '선택만 해도 충분해요.')}</div>
+              <div style="font-size:15px;font-weight:800">Live Guide Beta는 어땠나요?</div>
+              <div style="font-size:12px;color:#6B7280;margin-top:2px">선택만 해도 충분해요.</div>
             </div>
           </div>
           <div style="display:grid;gap:9px;font-size:12px">
-            <label style="display:grid;gap:5px;font-weight:700">1. ${i18n('surveyHelpful', '작업 완료에 도움이 됐나요?')}<div style="display:flex;gap:5px">${rating('q1')}</div></label>
-            <label style="display:grid;gap:5px;font-weight:700">2. ${i18n('surveyAccurate', '클릭 위치나 다음 행동 안내가 정확했나요?')}<div style="display:flex;gap:5px">${rating('q2')}</div></label>
-            <label style="display:grid;gap:5px;font-weight:700">3. ${i18n('surveyUseAgain', '다음에도 쓰고 싶나요?')}<div style="display:flex;gap:5px">${rating('q3')}</div></label>
-            <div style="display:grid;gap:5px;font-weight:700">4. ${i18n('surveyCompleted', '이번 작업을 끝까지 완료했나요?')}
+            <label style="display:grid;gap:5px;font-weight:700">1. 작업 완료에 도움이 됐나요?<div style="display:flex;gap:5px">${rating('q1')}</div></label>
+            <label style="display:grid;gap:5px;font-weight:700">2. 클릭 위치나 다음 행동 안내가 정확했나요?<div style="display:flex;gap:5px">${rating('q2')}</div></label>
+            <label style="display:grid;gap:5px;font-weight:700">3. 다음에도 쓰고 싶나요?<div style="display:flex;gap:5px">${rating('q3')}</div></label>
+            <div style="display:grid;gap:5px;font-weight:700">4. 이번 작업을 끝까지 완료했나요?
               <div style="display:flex;gap:6px">
-                <button class="parro-btn mimic-btn" data-act="survey-bool:q4:true" data-survey-group="q4" data-survey-value="true" aria-pressed="true" style="flex:1;background:#E8FFF7;color:#00796F;border:1px solid #009B8E">${i18n('yes', '예')}</button>
-                <button class="parro-btn mimic-btn" data-act="survey-bool:q4:false" data-survey-group="q4" data-survey-value="false" aria-pressed="false" style="flex:1;background:white;color:#4b5563;border:1px solid #e5e7eb">${i18n('no', '아니오')}</button>
+                <button class="parro-btn mimic-btn" data-act="survey-bool:q4:true" data-survey-group="q4" data-survey-value="true" aria-pressed="true" style="flex:1;background:#E8FFF7;color:#00796F;border:1px solid #009B8E">예</button>
+                <button class="parro-btn mimic-btn" data-act="survey-bool:q4:false" data-survey-group="q4" data-survey-value="false" aria-pressed="false" style="flex:1;background:white;color:#4b5563;border:1px solid #e5e7eb">아니오</button>
               </div>
             </div>
-            <div style="display:grid;gap:5px;font-weight:700">5. ${i18n('surveyIssue', '가장 불편했던 점은 무엇인가요?')}
-              <div style="display:flex;gap:5px;flex-wrap:wrap">${[
-                i18n('noBlockedStep', '막힌 단계 없음'),
-                i18n('inaccurateClick', '클릭 위치 부정확'),
-                i18n('insufficientDescription', '설명 부족'),
-                i18n('screenTransitionIssue', '화면 전환 문제'),
-                i18n('textInputIssue', '텍스트 입력 문제'),
-                i18n('couldNotComplete', '완료 못함'),
-              ].map((label, i) => issueBtn(label, i === 0)).join('')}</div>
+            <div style="display:grid;gap:5px;font-weight:700">5. 가장 불편했던 점은 무엇인가요?
+              <div style="display:flex;gap:5px;flex-wrap:wrap">${['막힌 단계 없음','클릭 위치 부정확','설명 부족','화면 전환 문제','텍스트 입력 문제','완료 못함'].map((label, i) => issueBtn(label, i === 0)).join('')}</div>
             </div>
-            <textarea data-survey-comment placeholder="${i18n('surveyCommentPlaceholder', '더 남기고 싶은 의견이 있으면 적어주세요. (선택)')}" style="width:100%;min-height:58px;box-sizing:border-box;border:1px solid #e5e7eb;border-radius:8px;padding:8px;font-size:12px;font-family:inherit;resize:vertical"></textarea>
+            <textarea data-survey-comment placeholder="더 남기고 싶은 의견이 있으면 적어주세요. (선택)" style="width:100%;min-height:58px;box-sizing:border-box;border:1px solid #e5e7eb;border-radius:8px;padding:8px;font-size:12px;font-family:inherit;resize:vertical"></textarea>
           </div>
           <div style="display:flex;gap:7px;margin-top:12px">
-            <button class="parro-btn mimic-btn" data-act="exit" style="flex:1;background:white;color:#6b7280;border:1px solid #e5e7eb;padding:9px 10px">${i18n('skip', '건너뛰기')}</button>
-            <button class="parro-btn mimic-btn" data-act="survey-submit" style="flex:1;background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;padding:9px 10px">${i18n('submit', '제출하기')}</button>
+            <button class="parro-btn mimic-btn" data-act="exit" style="flex:1;background:white;color:#6b7280;border:1px solid #e5e7eb;padding:9px 10px">건너뛰기</button>
+            <button class="parro-btn mimic-btn" data-act="survey-submit" style="flex:1;background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;padding:9px 10px">제출하기</button>
           </div>
         </div>`;
     }
-    const completeMaxLeft = Math.max(TIP_M, window.innerWidth - TIP_W - TIP_M);
-    const completePreferredLeft = Math.max(TIP_M + AVATAR_OUTSET, (window.innerWidth - TIP_W) / 2);
-    const completeLeft = Math.min(completeMaxLeft, completePreferredLeft);
-    const completeTop = Math.max(TIP_M, (window.innerHeight - 220) / 2);
-    state.tooltip.style.left = `${completeLeft}px`;
-    state.tooltip.style.top  = `${completeTop}px`;
-    placeCoachAvatar(state.coachAvatar, completeLeft, completeTop, state.tooltip.offsetHeight || 220);
+    state.tooltip.style.left = `${Math.max(TIP_M, (window.innerWidth - TIP_W) / 2)}px`;
+    state.tooltip.style.top  = `${Math.max(TIP_M, (window.innerHeight - 220) / 2)}px`;
     state.tooltip.style.animation = 'parro-tip-in 0.3s ease forwards';
   }
 
-  function safeGuidePageUrl(value) {
-    try {
-      const url = new URL(value);
-      return /^https?:$/.test(url.protocol) ? url : null;
-    } catch {
-      return null;
-    }
-  }
-
-  // 현재 페이지가 단계의 page_url과 다를 때 — 기다리는 화면처럼 보이지 않도록
-  // 복구 전용 카드를 표시한다. 자동 이동하지 않고 사용자가 뒤로 가기 또는 기록 URL 열기를 선택한다.
+  // 현재 페이지가 단계의 page_url과 다를 때 — 세션을 끝내지 않고 참고 카드로 다음 행동을 안내한다.
   function showWrongPage(step, opts) {
-    hide();
-    opts = opts || {};
-    const expectedUrl = safeGuidePageUrl(step?.page_url);
-    if (!expectedUrl) return;
-
-    const host = document.createElement('div');
-    host.id = OVERLAY_ROOT_ID;
-    host.setAttribute('data-guide-state', 'wrong-page');
-    host.style.cssText = `all:initial;position:fixed;inset:0;pointer-events:none;z-index:${Z};font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;`;
-    document.documentElement.appendChild(host);
-    const shadow = host.attachShadow({ mode: 'closed' });
-    const card = document.createElement('div');
-    card.style.cssText = `position:fixed;left:50%;bottom:24px;transform:translateX(-50%);width:390px;max-width:calc(100vw - 32px);box-sizing:border-box;padding:18px;background:${TIP_BG};color:#fff;border-radius:16px;box-shadow:0 18px 55px rgba(0,0,0,.48),0 0 0 1px rgba(245,158,11,.34);pointer-events:auto;z-index:2`;
-    card.innerHTML = `
-      <div style="display:flex;gap:12px;align-items:flex-start">
-        <div aria-hidden="true" style="display:grid;place-items:center;flex:0 0 40px;width:40px;height:40px;border-radius:999px;background:rgba(245,158,11,.18);color:#FBBF24;font-size:21px;font-weight:900">!</div>
-        <div style="min-width:0;flex:1">
-          <div style="font-size:15px;font-weight:850;line-height:1.35;margin-bottom:5px">${escapeHtml(i18n('wrongPageTitle', '이 단계의 페이지가 아닙니다'))}</div>
-          <div style="font-size:12.5px;color:#D1D5DB;line-height:1.55">${escapeHtml(i18n('wrongPageInstruction', '이전 페이지로 돌아가거나 기록된 단계 페이지를 열어주세요.'))}</div>
-          <div style="margin-top:8px;font-size:11px;color:#9CA3AF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(expectedUrl.hostname + expectedUrl.pathname)}</div>
-        </div>
-      </div>
-      <div style="display:flex;gap:8px;margin-top:14px">
-        <button type="button" data-act="guide-back" style="flex:1;padding:10px 12px;border:1px solid rgba(255,255,255,.18);border-radius:10px;background:rgba(255,255,255,.07);color:#fff;font-size:12px;font-weight:800;cursor:pointer">${escapeHtml(i18n('goBack', '← 이전 페이지로'))}</button>
-        <button type="button" data-act="open-expected-page" style="flex:1;padding:10px 12px;border:0;border-radius:10px;background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;font-size:12px;font-weight:800;cursor:pointer">${escapeHtml(i18n('openRecordedPage', '기록된 페이지 열기'))}</button>
-      </div>`;
-    shadow.appendChild(card);
-
-    const openExpectedPage = () => window.location.assign(expectedUrl.href);
-    card.addEventListener('click', (event) => {
-      const action = event.target?.closest?.('[data-act]')?.getAttribute('data-act');
-      if (!action) return;
-      event.preventDefault();
-      event.stopPropagation();
-      if (action === 'guide-back') {
-        if (window.history.length > 1) window.history.back();
-        else openExpectedPage();
-      } else if (action === 'open-expected-page') {
-        openExpectedPage();
-      }
-    });
-
-    state = { host, shadow, card, wrongPage: true, expectedUrl: expectedUrl.href };
-    opts.onTargetStatus && opts.onTargetStatus('page_mismatch');
+    showExplanation({
+      ...step,
+      guide_mode: 'explanation',
+      kind: 'none',
+      instruction: step.instruction || '이 단계의 대상 화면이 아닙니다. 필요한 화면으로 이동한 뒤 진행해주세요.',
+    }, opts);
   }
 
   // 같은 URL이지만 녹화한 요소가 아직 화면에 없을 때 — 가짜 핫스팟 대신 '찾는 중' 카드를 띄우고
@@ -1395,49 +1264,10 @@
       : Array.isArray(step.annotations) ? step.annotations : [];
     const overlay = annotations.map(renderGuideAnnotation).join('');
     return `
-      <button type="button" data-act="open-guide-preview" aria-label="${escapeHtml(i18n('openPreviewLarge', '미리보기 크게 보기'))}" title="${escapeHtml(i18n('openPreviewLarge', '미리보기 크게 보기'))}" style="position:relative;display:block;width:100%;margin:0 0 14px;padding:0;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.12);background:#050507;line-height:0;cursor:zoom-in">
+      <div style="position:relative;margin:0 0 14px;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.12);background:#050507;line-height:0">
         <img src="${escapeHtml(step.screenshot_url)}" alt="" style="display:block;width:100%;max-height:240px;object-fit:contain;background:#050507">
         ${overlay ? `<div style="position:absolute;inset:0;pointer-events:none;overflow:hidden">${overlay}</div>` : ''}
-        <span aria-hidden="true" style="position:absolute;right:9px;top:9px;display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:rgba(15,23,42,.82);box-shadow:0 4px 14px rgba(0,0,0,.28);color:#fff;font-size:16px;line-height:1">⛶</span>
-      </button>`;
-  }
-
-  function openGuidePreview(step) {
-    if (!step?.screenshot_url) return false;
-    const annotations = Array.isArray(step.user_annotations)
-      ? step.user_annotations
-      : Array.isArray(step.annotations) ? step.annotations : [];
-    const overlay = annotations.map(renderGuideAnnotation).join('');
-    const preview = window.open('', 'parro-live-guide-preview', 'popup=yes,width=1200,height=850,resizable=yes,scrollbars=yes');
-    if (!preview) return false;
-    const title = i18n('previewWindowTitle', 'Parro 미리보기');
-    preview.document.open();
-    preview.document.write(`<!doctype html>
-      <html lang="ko">
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width,initial-scale=1">
-          <title>${escapeHtml(title)}</title>
-          <style>
-            *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#0B1020;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-            body{display:flex;flex-direction:column;padding:18px}
-            header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px}
-            h1{margin:0;font-size:16px}button{border:1px solid rgba(255,255,255,.18);border-radius:9px;background:rgba(255,255,255,.08);color:#fff;padding:8px 12px;cursor:pointer}
-            main{display:grid;place-items:center;flex:1;min-height:0}
-            .preview{position:relative;display:inline-block;max-width:100%;max-height:calc(100vh - 84px);overflow:hidden;border-radius:12px;background:#050507;box-shadow:0 18px 60px rgba(0,0,0,.45);line-height:0}
-            img{display:block;max-width:100%;max-height:calc(100vh - 84px);object-fit:contain}
-          </style>
-        </head>
-        <body>
-          <header><h1>${escapeHtml(title)}</h1><button type="button" id="close-preview">${escapeHtml(i18n('close', '닫기'))}</button></header>
-          <main><div class="preview"><img src="${escapeHtml(step.screenshot_url)}" alt="">${overlay ? `<div style="position:absolute;inset:0;pointer-events:none;overflow:hidden">${overlay}</div>` : ''}</div></main>
-        </body>
-      </html>`);
-    preview.document.close();
-    preview.document.getElementById('close-preview')?.addEventListener('click', () => preview.close());
-    try { preview.opener = null; } catch { /* noop */ }
-    preview.focus();
-    return true;
+      </div>`;
   }
 
   function showExplanation(step, opts) {
@@ -1449,74 +1279,37 @@
 
     const idx = opts.index ?? 0, total = opts.total ?? 1;
     const title = step.title || `Step ${idx + 1}`;
-    const text = step.instruction || i18n(
-      'manualStepInstruction',
-      '이 단계는 직접 진행한 뒤 다음을 눌러주세요.',
-    );
+    const text = step.instruction || '이 단계는 직접 진행한 뒤 다음을 눌러주세요.';
 
     const card = document.createElement('div');
     card.style.cssText = `position:fixed;right:16px;bottom:16px;width:360px;max-width:calc(100vw - 32px);max-height:calc(100vh - 32px);overflow:auto;background:${TIP_BG};color:#fff;border-radius:16px;padding:16px;box-shadow:0 18px 55px rgba(0,0,0,.48),0 0 0 1px rgba(23,201,182,.16);pointer-events:auto;z-index:2`;
     card.innerHTML = `
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
         <div style="${AVATAR_STYLE}width:38px;height:38px;">${mascotHtml('clarify')}</div>
-        <div style="min-width:0;flex:1">
+        <div style="min-width:0">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
             <span style="font-size:11px;font-weight:700;color:#8DD63F">${idx + 1} / ${total}</span>
             <span style="font-size:10.5px;font-weight:800;color:#8DD63F;background:rgba(0,155,142,.22);padding:2px 7px;border-radius:999px">참고 단계</span>
           </div>
           <div style="font-size:15px;font-weight:800;line-height:1.35">${escapeHtml(title)}</div>
         </div>
-        <button type="button" data-act="toggle-guide-voice" aria-pressed="false" title="${escapeHtml(i18n('guideVoiceEnable', '음성 안내 켜기'))}" aria-label="${escapeHtml(i18n('guideVoiceEnable', '음성 안내 켜기'))}" style="align-self:flex-start;display:grid;place-items:center;flex:0 0 30px;width:30px;height:30px;margin:-4px 0 0 0;padding:0;border:1px solid rgba(255,255,255,.16);border-radius:9px;background:rgba(255,255,255,.06);color:#D1D5DB;font-size:14px;line-height:1;cursor:pointer">🔇</button>
-        <button type="button" data-act="hide-explanation" aria-label="${escapeHtml(i18n('closeReferenceStep', '참고 단계 닫기'))}" title="${escapeHtml(i18n('closeReferenceStep', '참고 단계 닫기'))}" style="align-self:flex-start;display:grid;place-items:center;flex:0 0 30px;width:30px;height:30px;margin:-4px -4px 0 0;padding:0;border:1px solid rgba(255,255,255,.16);border-radius:9px;background:rgba(255,255,255,.06);color:#D1D5DB;font-size:17px;line-height:1;cursor:pointer">✕</button>
+        <button type="button" data-act="toggle-guide-voice" aria-pressed="false" title="음성 안내 켜기" aria-label="음성 안내 켜기" style="align-self:flex-start;display:grid;place-items:center;flex:0 0 30px;width:30px;height:30px;margin:-4px 0 0 0;padding:0;border:1px solid rgba(255,255,255,.16);border-radius:9px;background:rgba(255,255,255,.06);color:#D1D5DB;font-size:14px;line-height:1;cursor:pointer">🔇</button>
       </div>
       <div style="font-size:13px;color:#D1D5DB;line-height:1.55;margin-bottom:14px">${escapeHtml(text)}</div>
       ${renderVisualGuideImage(step)}
       <div style="font-size:11.5px;color:#9CA3AF;line-height:1.45;padding-top:2px">이전·다음 단계는 Parro 사이드 패널에서 선택하세요.</div>`;
-    const restoreBtn = document.createElement('button');
-    restoreBtn.type = 'button';
-    restoreBtn.setAttribute('data-act', 'restore-explanation');
-    restoreBtn.textContent = i18n('showGuide', '💬 가이드 보기');
-    restoreBtn.style.cssText = 'position:fixed;right:16px;bottom:16px;display:none;align-items:center;padding:9px 14px;border:0;border-radius:999px;background:linear-gradient(135deg,#009B8E,#12B886);box-shadow:0 6px 20px rgba(0,155,142,.34);color:#fff;font-size:12px;font-weight:800;cursor:pointer;pointer-events:auto;z-index:3';
-    const frame = appendGuideViewportFrame(shadow);
+    appendGuideViewportFrame(shadow);
     shadow.appendChild(card);
-    shadow.appendChild(restoreBtn);
 
-    const setExplanationHidden = (hidden) => {
-      if (!state?.explanation) return;
-      card.style.display = hidden ? 'none' : 'block';
-      frame.style.display = hidden ? 'none' : 'block';
-      restoreBtn.style.display = hidden ? 'flex' : 'none';
-      host.setAttribute('data-explanation-hidden', hidden ? 'true' : 'false');
-      state.explanationHidden = hidden;
-    };
     card.addEventListener('click', (event) => {
       const action = event.target?.closest?.('[data-act]')?.getAttribute('data-act');
-      if (action === 'open-guide-preview') {
-        event.preventDefault();
-        event.stopPropagation();
-        openGuidePreview(step);
-        return;
-      }
-      if (action === 'toggle-guide-voice') {
-        event.preventDefault();
-        event.stopPropagation();
-        toggleGuideVoice(step);
-        return;
-      }
-      if (action !== 'hide-explanation') return;
+      if (action !== 'toggle-guide-voice') return;
       event.preventDefault();
       event.stopPropagation();
-      setExplanationHidden(true);
+      toggleGuideVoice(step);
     });
-    restoreBtn.addEventListener('click', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      setExplanationHidden(false);
-    });
-
-    state = { host, shadow, explanation: true, explanationHidden: false, card, frame, restoreBtn, step };
+    state = { host, shadow, explanation: true, card, step };
     initializeGuideVoice(step, card.querySelector('[data-act="toggle-guide-voice"]'));
-    host.setAttribute('data-explanation-hidden', 'false');
   }
 
   function showWaiting(step, opts, initialStatus) {
@@ -1542,15 +1335,15 @@
       const direction = canScrollDown ? 'down' : (canScrollUp ? 'up' : 'still');
       const arrow = direction === 'down' ? '↓' : (direction === 'up' ? '↑' : '↕');
       const title = direction === 'down'
-        ? i18n('waitingTargetBelow', '다음 단계가 화면 아래에 있어요')
+        ? '다음 단계가 화면 아래에 있어요'
         : (direction === 'up'
-          ? i18n('waitingTargetAbove', '다음 단계가 화면 위에 있을 수 있어요')
-          : i18n('waitingTargetSearching', '다음 단계를 찾고 있어요'));
+          ? '다음 단계가 화면 위에 있을 수 있어요'
+          : '다음 단계를 찾고 있어요');
       const instruction = direction === 'down'
-        ? i18n('waitingScrollDown', '화면을 아래로 스크롤해주세요')
+        ? '화면을 아래로 스크롤해주세요'
         : (direction === 'up'
-          ? i18n('waitingScrollUp', '화면을 위로 스크롤해주세요')
-          : i18n('waitingMoveScreen', '화면을 조금 이동하면 다시 찾아볼게요'));
+          ? '화면을 위로 스크롤해주세요'
+          : '화면을 조금 이동하면 다시 찾아볼게요');
       state.waitPrompt.dataset.direction = direction;
       state.waitPromptArrow.textContent = arrow;
       state.waitPromptTitle.textContent = title;
@@ -1794,7 +1587,7 @@
   function style(css) { const s = document.createElement('style'); s.textContent = css; return s; }
   function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
-  const guideApi = { show, showWrongPage, hide, _resolveTarget: resolveTarget, _isHit: isHit, _pointInRect: pointInRect };
+  const guideApi = { show, hide, _resolveTarget: resolveTarget, _isHit: isHit, _pointInRect: pointInRect };
   window.ParroGuide = guideApi;
   window.MimicGuide = guideApi;
 })();

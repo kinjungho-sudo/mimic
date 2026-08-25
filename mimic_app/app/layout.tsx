@@ -9,8 +9,6 @@ import {
   BRAND_SUPPORT_EMAIL,
   BRAND_TAGLINE,
 } from "@/lib/brand";
-import { ParroOnboardingProvider } from "@/components/onboarding/ParroOnboardingProvider";
-import { LocaleProvider } from "@/components/i18n/LocaleProvider";
 import "./globals.css";
 
 const geistSans = localFont({
@@ -41,7 +39,6 @@ export const metadata: Metadata = {
     url: `${APP_URL}/landingpage`,
     siteName: BRAND_NAME,
     locale: "ko_KR",
-    alternateLocale: ["en_US"],
     images: [
       {
         url: `${APP_URL}/api/og`,
@@ -94,7 +91,7 @@ const organizationJsonLd = {
     "@type": "ContactPoint",
     contactType: "customer support",
     email: BRAND_SUPPORT_EMAIL,
-    availableLanguage: ["Korean", "English"],
+    availableLanguage: ["Korean"],
   },
 };
 
@@ -126,9 +123,7 @@ export default function RootLayout({
           본문으로 바로가기
         </a>
         <span id="parro-main-content" className="parro-main-target" tabIndex={-1} />
-        <LocaleProvider>
-          <ParroOnboardingProvider>{children}</ParroOnboardingProvider>
-        </LocaleProvider>
+        {children}
       </body>
     </html>
   );

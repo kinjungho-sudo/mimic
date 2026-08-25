@@ -1,68 +1,83 @@
+import { BRAND_EXTENSION_ID, BRAND_EXTENSION_IDS } from '@/lib/brand';
+
 const EXTENSION_ID_STORAGE_KEY = 'parro_extension_id';
 const EXTENSION_ID_PATTERN = /^[a-p]{32}$/;
 const EXTENSION_MESSAGE_SOURCE = 'PARRO_RECORDER_EXTENSION';
 const WEBAPP_MESSAGE_SOURCE = 'PARRO_WEBAPP';
-type ExtensionEnvironment = 'development' | 'production';
-type ExtensionIdAnnouncement = {
-  source?: string;
-  type?: string;
-  extensionId?: string;
-  environment?: ExtensionEnvironment;
-};
-
-let sessionPreferredExtensionId = '';
-let sessionPreferredEnvironment: ExtensionEnvironment | '' = '';
 
 function cleanExtensionId(value?: string | null) {
   const id = value?.replace(/^\uFEFF/, '').trim() ?? '';
   return EXTENSION_ID_PATTERN.test(id) ? id : '';
 }
 
-function allowsDynamicExtensionId() {
-  if (typeof window === 'undefined') return false;
-  const host = window.location.hostname;
+function allowsDynamicExtensionId(host: string) {
   return host === 'localhost'
     || host === '127.0.0.1'
-    || host === 'parro-guide.vercel.app'
-    || (host.endsWith('.vercel.app') && host !== 'mimic-nine-ashen.vercel.app');
+    || host === 'parro-guide-dev.vercel.app';
+}
+
+interface ExtensionIdSelection {
+  hostname: string;
+  configured?: string | null;
+  query?: string | null;
+  stored?: string | null;
+}
+
+export function selectPreferredExtensionId({
+  hostname,
+  configured,
+  query,
+  stored,
+}: ExtensionIdSelection) {
+  // Production always talks to the stable Chrome Web Store item. Recorder
+  // versions can update independently because the extension ID does not change.
+  if (!allowsDynamicExtensionId(hostname)) return BRAND_EXTENSION_ID;
+
+  return cleanExtensionId(query)
+    || cleanExtensionId(stored)
+    || cleanExtensionId(configured);
+}
+
+export function selectExtensionIdCandidates(selection: ExtensionIdSelection) {
+  const preferred = selectPreferredExtensionId(selection);
+  if (allowsDynamicExtensionId(selection.hostname)) {
+    return preferred ? [preferred] : [];
+  }
+  return Array.from(new Set([preferred, ...BRAND_EXTENSION_IDS].filter(Boolean)));
 }
 
 export function getPreferredExtensionId() {
-  const configured = cleanExtensionId(process.env.NEXT_PUBLIC_EXTENSION_ID);
-  if (typeof window === 'undefined' || !allowsDynamicExtensionId()) return configured;
+  if (typeof window === 'undefined') return BRAND_EXTENSION_ID;
 
   const params = new URLSearchParams(window.location.search);
-  const fromQuery = cleanExtensionId(params.get('extension_id'));
-  if (fromQuery) return fromQuery;
-
-  if (sessionPreferredExtensionId) return sessionPreferredExtensionId;
-
-  const fromStorage = cleanExtensionId(window.localStorage.getItem(EXTENSION_ID_STORAGE_KEY));
-  return fromStorage || configured;
+  return selectPreferredExtensionId({
+    hostname: window.location.hostname,
+    configured: process.env.NEXT_PUBLIC_EXTENSION_ID,
+    query: params.get('extension_id'),
+    stored: window.localStorage.getItem(EXTENSION_ID_STORAGE_KEY),
+  });
 }
 
-export function rememberExtensionId(
-  extensionId: string,
-  environment: ExtensionEnvironment | '' = '',
-) {
-  if (typeof window === 'undefined' || !allowsDynamicExtensionId()) return;
+export function getExtensionIdCandidates() {
+  if (typeof window === 'undefined') return [...BRAND_EXTENSION_IDS];
+
+  const params = new URLSearchParams(window.location.search);
+  return selectExtensionIdCandidates({
+    hostname: window.location.hostname,
+    configured: process.env.NEXT_PUBLIC_EXTENSION_ID,
+    query: params.get('extension_id'),
+    stored: window.localStorage.getItem(EXTENSION_ID_STORAGE_KEY),
+  });
+}
+
+export function rememberExtensionId(extensionId: string) {
+  if (typeof window === 'undefined' || !allowsDynamicExtensionId(window.location.hostname)) return;
   const id = cleanExtensionId(extensionId);
-  if (!id) return;
-
-  if (
-    sessionPreferredEnvironment === 'development'
-    && environment !== 'development'
-  ) {
-    return;
-  }
-
-  sessionPreferredExtensionId = id;
-  sessionPreferredEnvironment = environment;
-  window.localStorage.setItem(EXTENSION_ID_STORAGE_KEY, id);
+  if (id) window.localStorage.setItem(EXTENSION_ID_STORAGE_KEY, id);
 }
 
 export function requestExtensionIdBroadcast() {
-  if (typeof window === 'undefined' || !allowsDynamicExtensionId()) return;
+  if (typeof window === 'undefined' || !allowsDynamicExtensionId(window.location.hostname)) return;
   window.postMessage({
     source: WEBAPP_MESSAGE_SOURCE,
     type: 'REQUEST_EXTENSION_ID',
@@ -70,13 +85,13 @@ export function requestExtensionIdBroadcast() {
 }
 
 export function installExtensionIdListener() {
-  if (typeof window === 'undefined' || !allowsDynamicExtensionId()) return () => {};
+  if (typeof window === 'undefined' || !allowsDynamicExtensionId(window.location.hostname)) return () => {};
 
   const onMessage = (event: MessageEvent) => {
     if (event.source !== window || event.origin !== window.location.origin) return;
-    const data = event.data as ExtensionIdAnnouncement | null;
+    const data = event.data as { source?: string; type?: string; extensionId?: string } | null;
     if (data?.source !== EXTENSION_MESSAGE_SOURCE || data.type !== 'EXTENSION_ID') return;
-    rememberExtensionId(data.extensionId || '', data.environment || '');
+    rememberExtensionId(data.extensionId || '');
   };
 
   window.addEventListener('message', onMessage);
@@ -85,42 +100,41 @@ export function installExtensionIdListener() {
 }
 
 export function resolvePreferredExtensionId(timeoutMs = 400): Promise<string> {
-  const configured = cleanExtensionId(process.env.NEXT_PUBLIC_EXTENSION_ID);
-  if (typeof window === 'undefined' || !allowsDynamicExtensionId()) {
-    return Promise.resolve(configured);
+  const current = getPreferredExtensionId();
+  if (
+    current
+    || typeof window === 'undefined'
+    || !allowsDynamicExtensionId(window.location.hostname)
+  ) {
+    return Promise.resolve(current);
   }
 
-  const params = new URLSearchParams(window.location.search);
-  const fromQuery = cleanExtensionId(params.get('extension_id'));
-  if (fromQuery) return Promise.resolve(fromQuery);
-  if (sessionPreferredExtensionId) return Promise.resolve(sessionPreferredExtensionId);
-
-  let fallback = getPreferredExtensionId();
   return new Promise(resolve => {
     let done = false;
     const finish = (extensionId = '') => {
       if (done) return;
       done = true;
       window.removeEventListener('message', onMessage);
-      const resolved = extensionId || fallback || getPreferredExtensionId();
-      if (resolved && !sessionPreferredExtensionId) {
-        rememberExtensionId(resolved);
-      }
-      resolve(resolved);
+      resolve(extensionId || getPreferredExtensionId());
     };
     const onMessage = (event: MessageEvent) => {
       if (event.source !== window || event.origin !== window.location.origin) return;
-      const data = event.data as ExtensionIdAnnouncement | null;
+      const data = event.data as { source?: string; type?: string; extensionId?: string } | null;
       if (data?.source !== EXTENSION_MESSAGE_SOURCE || data.type !== 'EXTENSION_ID') return;
       const id = cleanExtensionId(data.extensionId);
       if (!id) return;
-      fallback = id;
-      rememberExtensionId(id, data.environment || '');
-      if (data.environment === 'development') finish(id);
+      rememberExtensionId(id);
+      finish(id);
     };
 
     window.addEventListener('message', onMessage);
     requestExtensionIdBroadcast();
-    window.setTimeout(() => finish(fallback), timeoutMs);
+    window.setTimeout(() => finish(), timeoutMs);
   });
+}
+
+export async function resolveExtensionIdCandidates(timeoutMs = 400): Promise<string[]> {
+  const preferred = await resolvePreferredExtensionId(timeoutMs);
+  const current = getExtensionIdCandidates();
+  return Array.from(new Set([preferred, ...current].filter(Boolean)));
 }

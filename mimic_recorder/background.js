@@ -2,8 +2,6 @@
 // 웹스토어 배포본(고정 ID)=운영 / 개발자 언패킹(다른 ID)=dev.
 // chrome.runtime.id로 자동 구분 → 배포본이 실수로 dev를 가리킬 위험 없음.
 importScripts('pre-capture-buffer.js');
-const i18n = (key, fallback, substitutions) =>
-  chrome.i18n.getMessage(key, substitutions) || fallback;
 
 const PROD_EXTENSION_IDS = new Set([
   'lefkpmfgdbhckcemfghpegleknaepekm', // replacement listing under review
@@ -12,8 +10,13 @@ const PROD_EXTENSION_IDS = new Set([
 const IS_DEV = !PROD_EXTENSION_IDS.has(chrome.runtime.id);
 
 // ── 상수 (환경별) ─────────────────────────────────────────────────
-// Storage 업로드 대상은 현재 연결된 웹앱의 /api/capture/upload-target에서
-// 발급받는다. Recorder에 Supabase 프로젝트 주소/키를 고정하지 않는다.
+const SUPABASE_URL      = IS_DEV
+  ? 'https://dskphgxurxebblnpwhax.supabase.co'   // dev 전용 DB(도쿄)
+  : 'https://gqynptpjomcqzxyykqic.supabase.co';  // 운영(싱가포르)
+const SUPABASE_ANON_KEY = IS_DEV
+  ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRza3BoZ3h1cnhlYmJsbnB3aGF4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczNTUxNjcsImV4cCI6MjA5MjkzMTE2N30.xD80PAqMbzXX1Hdde1O0x2VpX8dXkNWum3jKhOml9ZM'
+  : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxeW5wdHBqb21jcXp4eXlrcWljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NTcyNzMsImV4cCI6MjA4NzEzMzI3M30.7OgewnWhbE2GK1k0tTuuegrKUVkHuJrW_cpvbVRcH1E';
+const SUPABASE_BUCKET   = 'naviaction';
 const WEBAPP_ORIGIN     = IS_DEV
   ? 'https://parro-guide-dev.vercel.app'         // dev: Parro Preview alias
   : 'https://mimic-nine-ashen.vercel.app';        // 운영
@@ -26,11 +29,7 @@ const PROD_WEBAPP_ORIGINS = new Set([
   'https://mimic-nine-ashen.vercel.app',
   'https://mimicflow.com',
 ]);
-const INSTALL_RETURN_ORIGIN = IS_DEV
-  ? 'https://parro-guide-dev.vercel.app'
-  : 'https://parro-guide.vercel.app';
-const INSTALL_RETURN_URL = `${INSTALL_RETURN_ORIGIN}/home?recorder_install=complete&open_recorder=1`;
-if (IS_DEV) console.warn('[Parro Recorder] DEV 모드 — shared storage/Preview 연결 (id:', chrome.runtime.id, ')');
+if (IS_DEV) console.warn('[Parro Recorder] DEV 모드 — dev DB/Preview 연결 (id:', chrome.runtime.id, ')');
 const JPEG_QUALITY_DEFAULT = 0.92;
 const MAX_STEPS         = 30;
 
@@ -67,47 +66,6 @@ function resolveGuideRequestOrigin(senderOrigin, requestedOrigin) {
   const requestedWebappOrigin = normalizeAllowedWebappOrigin(requestedOrigin);
   return requestedWebappOrigin === senderWebappOrigin ? requestedWebappOrigin : null;
 }
-
-async function returnToParroAfterInstall() {
-  try {
-    const tabs = await chrome.tabs.query({});
-    const parroTabs = tabs
-      .filter(tab => {
-        if (!tab.url || tab.id == null) return false;
-        try {
-          return normalizeAllowedWebappOrigin(new URL(tab.url).origin) != null;
-        } catch {
-          return false;
-        }
-      })
-      .sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0));
-
-    const existingTab = parroTabs[0];
-    if (existingTab?.id != null) {
-      const existingOrigin = new URL(existingTab.url).origin;
-      const returnUrl = `${existingOrigin}/home?recorder_install=complete&open_recorder=1`;
-      await chrome.tabs.update(existingTab.id, {
-        url: returnUrl,
-        active: true,
-      });
-      if (existingTab.windowId != null) {
-        await chrome.windows.update(existingTab.windowId, { focused: true });
-      }
-      return;
-    }
-
-    await chrome.tabs.create({ url: INSTALL_RETURN_URL, active: true });
-  } catch (error) {
-    console.warn('[Parro Recorder] 설치 후 Parro 복귀 실패:', error);
-    await chrome.tabs.create({ url: INSTALL_RETURN_URL, active: true }).catch(() => {});
-  }
-}
-
-chrome.runtime.onInstalled.addListener(details => {
-  if (details.reason !== 'install') return;
-  void returnToParroAfterInstall();
-});
-
 const _tabWindowIdCache = new Map();
 
 function log(level, source, ...args) {
@@ -243,31 +201,11 @@ let _lastNavKey        = null;  // 직전 '이동' 캡처 페이지 키 (origin+
 let _lastNavKeyTime    = 0;
 const _navBusyTabs     = new Set();          // onUpdated complete 동시(중복) 이벤트 차단
 let _captureChain      = Promise.resolve();  // 캡처 디덥~로컬 저장 직렬화 큐
-const _captureJobs     = new Set();          // 준비 + 업로드 + save-step까지 진행 중인 캡처 작업
 const PRECAPTURE_MAX_AGE_MS = 1500;          // 이보다 오래된 선캡처는 폐기 (클릭과 무관)
 const PRECAPTURE_WAIT_MS    = 500;           // 선캡처가 in-flight(쿼터 재시도)면 이만큼 기다려 받는다
 const _preCaptureFrames = globalThis.ParroPreCapture.createBuffer({ maxAgeMs: PRECAPTURE_MAX_AGE_MS, maxEntries: 12 });
 let _typingFrame       = null;               // { dataUrl, time, tabId } — 타이핑 중 롤링 프레임 (전송 직전 화면)
 const TYPING_FRAME_MAX_AGE_MS = 3000;        // 이보다 오래된 타이핑 프레임은 사용 안 함
-
-function runCaptureJob(task) {
-  const job = Promise.resolve().then(task);
-  _captureJobs.add(job);
-  const release = () => _captureJobs.delete(job);
-  job.then(release, release);
-  return job;
-}
-
-async function waitForCapturePipelineIdle() {
-  while (true) {
-    const chain = _captureChain;
-    await chain.catch(() => {});
-    const jobs = [..._captureJobs];
-    if (jobs.length) await Promise.allSettled(jobs);
-    await Promise.resolve();
-    if (chain === _captureChain && _captureJobs.size === 0) return;
-  }
-}
 
 // SW 시작 시 캐시 초기화
 storageGet(['targetTabId', 'lastCaptureTime', 'lastStepHash', 'lastNavKey', 'lastNavKeyTime']).then((r) => {
@@ -331,7 +269,7 @@ function requestLiveTargetPick(tabId, timeoutMs = LIVE_TARGET_PICK_RESPONSE_TIME
       finish({
         ok: false,
         reason: 'timeout',
-        error: i18n('targetResponseDelayed', '대상 선택 응답이 지연되었습니다. 대상 탭을 새로고침한 뒤 다시 시도해주세요.'),
+        error: '대상 선택 응답이 지연되었습니다. 대상 탭을 새로고침한 뒤 다시 시도해주세요.',
       });
     }, timeoutMs);
 
@@ -341,15 +279,11 @@ function requestLiveTargetPick(tabId, timeoutMs = LIVE_TARGET_PICK_RESPONSE_TIME
         finish({
           ok: false,
           reason: 'content_script_unreachable',
-          error: i18n(
-            'targetConnectionLost',
-            '대상 탭의 Parro 연결이 끊어졌습니다. 탭을 새로고침한 뒤 다시 시도해주세요. ($ERROR$)',
-            [error],
-          ),
+          error: `대상 탭의 Parro 연결이 끊어졌습니다. 탭을 새로고침한 뒤 다시 시도해주세요. (${error})`,
         });
         return;
       }
-      finish(response || { ok: false, reason: 'empty_response', error: i18n('noTargetResponse', '대상 선택 응답이 없습니다.') });
+      finish(response || { ok: false, reason: 'empty_response', error: '대상 선택 응답이 없습니다.' });
     });
   });
 }
@@ -376,7 +310,7 @@ async function startDisplayStream(tabId) {
   // → 웹앱 원격 시작 구조에선 불가. desktopCapture로 picker를 띄워 사용자가 직접 선택.
   const streamId = await new Promise((resolve, reject) => {
     chrome.desktopCapture.chooseDesktopMedia(['tab', 'window', 'screen'], (id) => {
-      if (!id) reject(new Error(i18n('screenShareCancelled', '사용자가 화면 공유를 취소했습니다')));
+      if (!id) reject(new Error('사용자가 화면 공유를 취소했습니다'));
       else resolve(id);
     });
   });
@@ -485,11 +419,11 @@ async function discardVoiceRecording() {
 let _voiceStep = null;  // 현재 녹음 중인 스텝 번호
 
 async function startStepVoice(stepNumber) {
-  if (_audioActive) return { ok: false, error: i18n('alreadyRecordingAudio', '이미 녹음 중입니다') };
+  if (_audioActive) return { ok: false, error: '이미 녹음 중입니다' };
   try {
     await ensureOffscreen();
     const res = await chrome.runtime.sendMessage({ target: 'offscreen', type: 'START_AUDIO' });
-    if (!res?.ok) return { ok: false, error: res?.error || i18n('micStartFailed', '마이크 시작 실패') };
+    if (!res?.ok) return { ok: false, error: res?.error || '마이크 시작 실패' };
     _audioActive = true;
     _voiceStep   = stepNumber;
     return { ok: true };
@@ -513,7 +447,7 @@ async function stopStepVoice() {
   }
   if (!_streamActive) await chrome.offscreen.closeDocument().catch(() => {});
 
-  if (!dataUrl || stepNum == null) return { ok: false, error: i18n('noRecordingData', '녹음 데이터 없음') };
+  if (!dataUrl || stepNum == null) return { ok: false, error: '녹음 데이터 없음' };
   try {
     const { sessionId, steps } = await storageGet(['sessionId', 'steps']);
     const blob = await (await fetch(dataUrl)).blob();
@@ -569,11 +503,7 @@ async function ensureContentScript(tabId) {
     return {
       ok: false,
       reason: 'content_script_failed',
-      error: i18n(
-        'cannotConnectTarget',
-        'Parro가 대상 탭에 연결할 수 없습니다. 페이지를 새로고침하거나 일반 웹페이지에서 다시 시도해주세요. ($ERROR$)',
-        [injection.error],
-      ),
+      error: `Parro가 대상 탭에 연결할 수 없습니다. 페이지를 새로고침하거나 일반 웹페이지에서 다시 시도해주세요. (${injection.error})`,
     };
   }
 
@@ -589,7 +519,7 @@ async function ensureContentScript(tabId) {
   return {
     ok: false,
     reason: 'content_script_not_ready',
-    error: i18n('connectionNotReady', 'Parro 연결 준비가 완료되지 않았습니다. 대상 탭을 새로고침한 뒤 다시 시도해주세요.'),
+    error: 'Parro 연결 준비가 완료되지 않았습니다. 대상 탭을 새로고침한 뒤 다시 시도해주세요.',
   };
 }
 
@@ -598,13 +528,9 @@ function classifyRecordableUrl(url) {
   try {
     const parsed = new URL(url);
     if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return { ok: true };
-    return {
-      ok: false,
-      reason: 'unsupported_url',
-      message: i18n('protocolNotRecordable', '$PROTOCOL$ 페이지는 녹화할 수 없습니다.', [parsed.protocol]),
-    };
+    return { ok: false, reason: 'unsupported_url', message: `${parsed.protocol} 페이지는 녹화할 수 없습니다.` };
   } catch {
-    return { ok: false, reason: 'unsupported_url', message: i18n('unsupportedTabUrl', '지원하지 않는 탭 주소입니다.') };
+    return { ok: false, reason: 'unsupported_url', message: '지원하지 않는 탭 주소입니다.' };
   }
 }
 
@@ -619,7 +545,6 @@ const GUIDE_STORAGE_KEYS = [
   'guideCurrentStep',
   'guideSkippedSteps',
   'guideCompletedSteps',
-  'guideFinished',
   'guideModeActive',
   'guidePendingOverlay',
   'guideTabId',
@@ -702,38 +627,20 @@ async function clearGuideSession() {
   await hideGuideOverlayEverywhere();
 }
 
-async function showGuideWrongPage(tabId, step, index, total) {
-  if (!Number.isInteger(tabId) || !step?.page_url) return false;
-  const injection = await ensureContentScript(tabId);
-  if (!injection?.ok) return false;
-  sendTabMessage(tabId, {
-    type: 'SHOW_WRONG_PAGE',
-    step,
-    index,
-    total,
-  });
-  return true;
-}
-
 function scheduleGuideOverlay(tabId, delayMs = 450) {
   setTimeout(async () => {
     const state = await storageGet([
-      'guideModeActive', 'guideTabId', 'guideSteps', 'guideCurrentStep', 'guideSurvey', 'guideFinished',
+      'guideModeActive', 'guideTabId', 'guideSteps', 'guideCurrentStep', 'guideSurvey',
     ]);
-    if (!state.guideModeActive || state.guideFinished || state.guideTabId !== tabId || !state.guideSteps?.length) return;
+    if (!state.guideModeActive || state.guideTabId !== tabId || !state.guideSteps?.length) return;
     const index = state.guideCurrentStep || 0;
     const step = state.guideSteps[index];
     if (!step?.page_url) return;
     const tab = await new Promise((resolve) => chrome.tabs.get(tabId, (value) => {
       resolve(chrome.runtime.lastError ? null : value);
     }));
-    if (!tab?.id) {
+    if (!tab?.id || !guidePageMatches(tab.url, step.page_url)) {
       await storageSet({ guideTargetStatus: 'page_mismatch' });
-      return;
-    }
-    if (!guidePageMatches(tab.url, step.page_url)) {
-      await storageSet({ guideTargetStatus: 'page_mismatch' });
-      await showGuideWrongPage(tab.id, step, index, state.guideSteps.length);
       return;
     }
     const injection = await ensureContentScript(tab.id);
@@ -857,7 +764,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
       if (t.windowId) _tabWindowIdCache.set(t.id, t.windowId);
       return {
         id: t.id,
-        title: t.title || (url ? url : i18n('browserTab', '브라우저 탭')),
+        title: t.title || (url ? url : '브라우저 탭'),
         url,
         favIconUrl: typeof t.favIconUrl === 'string' ? t.favIconUrl : '',
         urlAccess: Boolean(url),
@@ -897,7 +804,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
           ? await chrome.tabs.get(requestedTabId).catch(() => null)
           : (await chrome.tabs.query({ active: true, currentWindow: true }))[0];
         if (!tab?.id) {
-          sendResponse({ ok: false, reason: 'tab_not_found', error: i18n('targetTabNotFound', '선택한 대상 탭을 찾지 못했습니다.') });
+          sendResponse({ ok: false, reason: 'tab_not_found', error: '선택한 대상 탭을 찾지 못했습니다.' });
           return;
         }
 
@@ -909,7 +816,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 
         const injection = await ensureContentScript(tab.id);
         if (!injection?.ok) {
-          sendResponse({ ok: false, reason: 'content_script_failed', error: injection?.error || i18n('recorderConnectionFailed', 'Recorder를 대상 탭에 연결하지 못했습니다.') });
+          sendResponse({ ok: false, reason: 'content_script_failed', error: injection?.error || 'Recorder를 대상 탭에 연결하지 못했습니다.' });
           return;
         }
 
@@ -934,47 +841,10 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
     return true;
   }
 
-  if (message.action === 'OPEN_ONBOARDING_PRACTICE') {
-    const requestOrigin = resolveGuideRequestOrigin(sender.origin, message.webapp_origin);
-    if (!requestOrigin) {
-      sendResponse({ ok: false, error: 'invalid onboarding origin' });
-      return false;
-    }
-    let practiceUrl;
-    try {
-      practiceUrl = new URL(message.url);
-    } catch {
-      sendResponse({ ok: false, error: 'invalid onboarding URL' });
-      return false;
-    }
-    if (practiceUrl.origin !== requestOrigin || practiceUrl.pathname !== '/onboarding/practice') {
-      sendResponse({ ok: false, error: 'onboarding URL is not allowed' });
-      return false;
-    }
-
-    chrome.tabs.create({ url: practiceUrl.toString(), active: false }, (tab) => {
-      if (chrome.runtime.lastError || !tab?.id) {
-        sendResponse({ ok: false, error: chrome.runtime.lastError?.message || 'failed to open onboarding tab' });
-        return;
-      }
-      sendResponse({
-        ok: true,
-        tab: {
-          id: tab.id,
-          title: tab.title || i18n('parroPracticePage', 'Parro 연습 페이지'),
-          url: practiceUrl.toString(),
-          favIconUrl: tab.favIconUrl,
-          urlAccess: true,
-        },
-      });
-    });
-    return true;
-  }
-
   if (message.action === 'START_RECORDING') {
     const tabId = message.tabId;
     if (!tabId) {
-      sendResponse({ ok: false, reason: 'missing_tab', message: i18n('recordingTabNotFound', '녹화할 탭을 찾지 못했습니다.') });
+      sendResponse({ ok: false, reason: 'missing_tab', message: '녹화할 탭을 찾지 못했습니다.' });
       return false;
     }
 
@@ -999,21 +869,13 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
       // 1) targetTabId 먼저 저장 → _cachedTargetTabId 캐시 갱신 보장
       // contentMode: 웹앱에서 선택한 매뉴얼 유형 ('action' | 'education'), 미전달 시 'action'
       const contentMode = message.contentMode === 'education' ? 'education' : 'action';
-      await storageSet({
-        targetTabId: tabId,
-        sessionId,
-        stepNumber: 0,
-        steps: [],
-        _undoStack: [],
-        contentMode,
-        onboardingToken: typeof message.onboardingToken === 'string' ? message.onboardingToken : null,
-      });
+      await storageSet({ targetTabId: tabId, sessionId, stepNumber: 0, steps: [], _undoStack: [], contentMode });
 
       const tab = await new Promise((res) => chrome.tabs.get(tabId, (t) => {
         res(chrome.runtime.lastError ? null : t);
       }));
       if (!tab) {
-        sendResponse({ ok: false, reason: 'tab_not_found', message: i18n('selectedTabNotFound', '선택한 탭을 찾지 못했습니다.') });
+        sendResponse({ ok: false, reason: 'tab_not_found', message: '선택한 탭을 찾지 못했습니다.' });
         return;
       }
       const initialUrlCheck = classifyRecordableUrl(tab.url || message.url || '');
@@ -1037,7 +899,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         res(chrome.runtime.lastError ? null : t);
       }));
       if (!freshTab) {
-        sendResponse({ ok: false, reason: 'tab_not_found', message: i18n('selectedTabRecheckFailed', '선택한 탭을 다시 확인하지 못했습니다.') });
+        sendResponse({ ok: false, reason: 'tab_not_found', message: '선택한 탭을 다시 확인하지 못했습니다.' });
         return;
       }
       const freshUrlCheck = classifyRecordableUrl(freshTab.url || message.url || '');
@@ -1064,7 +926,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         sendResponse({
           ok: false,
           reason: 'content_script_failed',
-          message: injection?.error || i18n('recordingScriptInjectionFailed', '선택한 페이지에 녹화 스크립트를 주입하지 못했습니다.'),
+          message: injection?.error || '선택한 페이지에 녹화 스크립트를 주입하지 못했습니다.',
         });
         return;
       }
@@ -1082,12 +944,12 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         sendResponse({
           ok: false,
           reason: 'content_script_unreachable',
-          message: sent?.error || i18n('recordingStartNoResponse', '선택한 페이지가 녹화 시작 메시지에 응답하지 않았습니다.'),
+          message: sent?.error || '선택한 페이지가 녹화 시작 메시지에 응답하지 않았습니다.',
         });
         return;
       }
 
-      // 6) 브라우저 녹화 상태만 시작 — _directStartTabId로 onChanged 중복 차단
+      // 6) 브라우저 녹화 상태 시작 — _directStartTabId로 onChanged 중복 차단
       _directStartTabId = tabId;
       await storageSet({ isRecording: true });
       _directStartTabId = null;
@@ -1147,7 +1009,6 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
     }
     const guideToken = rawToken;
     const isUuid = UUID_RE.test(guideToken);
-    const guideSource = message.guide_source === 'playbook' ? 'playbook' : 'tutorial';
 
     // ★ await 이전에 동기 캡처 — async IIFE 안에서는 sender가 변질될 수 있음
     const senderWindowId = sender.tab?.windowId ?? null;
@@ -1165,10 +1026,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         const origin = guideRequestOrigin;
         // UUID(소유자 미리보기)는 쿠키 필요; share_token(공개)은 불필요
         const fetchOpts = isUuid ? { credentials: 'include', cache: 'no-store' } : { cache: 'no-store' };
-        const guidePath = guideSource === 'playbook'
-          ? `/api/guide/playbook/${encodeURIComponent(guideToken)}`
-          : `/api/guide/${encodeURIComponent(guideToken)}`;
-        const res    = await fetch(`${origin}${guidePath}`, fetchOpts);
+        const res    = await fetch(`${origin}/api/guide/${encodeURIComponent(guideToken)}`, fetchOpts);
         if (!res.ok) throw new Error(`guide fetch failed: ${res.status}`);
         const data  = await res.json();
         // 라이브 가이드 유료 게이팅 — 소유자 무료 한도(5회) 소진 시
@@ -1200,7 +1058,6 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
           guideCurrentStep: 0,
           guideSkippedSteps: [],
           guideCompletedSteps: [],
-          guideFinished: false,
           guideModeActive: true,
           guideSurvey,
           guideTabId: guideTab.id,
@@ -1269,7 +1126,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const tabId = sender.tab?.id;
     if (!tabId) { sendResponse({ ok: false }); return true; }
 
-    runCaptureJob(async () => {
+    (async () => {
       const captureState = await storageGet(['isRecording', 'isPaused', 'targetTabId']);
       if (!captureState.isRecording || captureState.isPaused || captureState.targetTabId !== tabId) {
         sendResponse({ ok: false, reason: 'inactive_recording_target' });
@@ -1364,9 +1221,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       restore();
       sendResponse({ ok: true });
-      await handleCapture(dataUrl, stepData, tab);
-      updateBadge();
-    }).catch((err) => log('error', 'bg', 'capture job error:', err.message));
+      handleCapture(dataUrl, stepData, tab)
+        .then(() => updateBadge())
+        .catch((err) => log('error', 'bg', 'handleCapture error:', err.message));
+    })();
     return true;
   }
 
@@ -1374,12 +1232,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const { dataUrl, stepData } = message;
     if (!dataUrl || !stepData) { sendResponse({ ok: false }); return false; }
 
-    runCaptureJob(async () => {
-      const { targetTabId, stepNumber, isRecording } = await storageGet(['targetTabId', 'stepNumber', 'isRecording']);
-      if (!isRecording) {
-        sendResponse({ ok: false, error: 'inactive recording' });
-        return;
-      }
+    (async () => {
+      const { targetTabId, stepNumber } = await storageGet(['targetTabId', 'stepNumber']);
       const stepNum = (stepNumber || 0) + 1;
       await storageSet({ stepNumber: stepNum });
 
@@ -1392,16 +1246,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       await handleCapture(dataUrl, { ...stepData, stepNumber: stepNum }, tab);
       updateBadge();
       sendResponse({ ok: true });
-    }).catch(() => sendResponse({ ok: false }));
+    })().catch(() => sendResponse({ ok: false }));
     return true;
   }
 
   if (message.type === 'MANUAL_CAPTURE') {
     // 수동 캡처는 content의 isRecording 상태에 의존하지 않고 background에서 직접 처리한다 (#6).
     const directTabId = sender.tab?.id;
-    runCaptureJob(async () => {
-      const { targetTabId, isRecording } = await storageGet(['targetTabId', 'isRecording']);
-      if (!isRecording) { sendResponse({ ok: false, error: 'inactive recording' }); return; }
+    (async () => {
+      const { targetTabId } = await storageGet(['targetTabId']);
       const tabId = directTabId || _cachedTargetTabId || targetTabId;
       if (!tabId) { sendResponse({ ok: false, error: 'no target tab' }); return; }
 
@@ -1455,7 +1308,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       await handleCapture(dataUrl, stepData, tab);
       updateBadge();
       sendResponse({ ok: true });
-    }).catch(() => sendResponse({ ok: false }));
+    })().catch(() => sendResponse({ ok: false }));
     return true;
   }
 
@@ -1498,9 +1351,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // service worker는 살아 있으므로 매뉴얼 생성 완료 후 정상 이동된다.
         if (data?.tutorial_id) {
           const origin = data.webapp_origin || await getWebappOrigin();
-          const onboardingQuery = data.onboarding_practice ? '&onboarding=1' : '';
-          chrome.tabs.create({ url: `${origin}/manual/${data.tutorial_id}/editor?from=recording${onboardingQuery}` });
-          await storageSet({ isRecording: false, isPaused: false, stepNumber: 0, steps: [], sessionId: null, _undoStack: [], onboardingToken: null });
+          chrome.tabs.create({ url: `${origin}/manual/${data.tutorial_id}/editor?from=recording` });
+          await storageSet({ isRecording: false, isPaused: false, stepNumber: 0, steps: [], sessionId: null, _undoStack: [] });
           // 서버 전송이 끝난 캡처 Blob은 기기에 남겨둘 이유가 없다.
           // 개인정보처리방침의 "완료 후 로컬 임시 데이터 삭제"와 실제 동작을 일치시킨다.
           await idbClear().catch((error) => log('warn', 'bg', 'finalize local cache clear failed:', error?.message || error));
@@ -1568,11 +1420,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'FULL_PAGE_CAPTURE') {
     (async () => {
       const { isRecording } = await storageGet('isRecording');
-      if (isRecording) { sendResponse({ ok: false, error: i18n('unavailableWhileRecording', '녹화 중에는 사용할 수 없습니다') }); return; }
+      if (isRecording) { sendResponse({ ok: false, error: '녹화 중에는 사용할 수 없습니다' }); return; }
 
       const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
       const tab  = tabs.find(t => t.url?.startsWith('http://') || t.url?.startsWith('https://'));
-      if (!tab?.id) { sendResponse({ ok: false, error: i18n('noCapturableTab', '캡처 가능한 탭이 없습니다 (http/https 페이지에서 사용)') }); return; }
+      if (!tab?.id) { sendResponse({ ok: false, error: '캡처 가능한 탭이 없습니다 (http/https 페이지에서 사용)' }); return; }
 
       const dataUrl = await captureFullPage(tab);
 
@@ -1585,7 +1437,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ ok: true });
     })().catch((err) => {
       log('error', 'bg', 'full page capture error:', err.message);
-      sendResponse({ ok: false, error: i18n('captureFailedCheckPage', '캡처 실패 — 페이지를 확인해주세요') });
+      sendResponse({ ok: false, error: '캡처 실패 — 페이지를 확인해주세요' });
     });
     return true;
   }
@@ -1667,8 +1519,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === 'GET_GUIDE_STATE') {
-    storageGet(['guideSteps', 'guideCurrentStep', 'guideSkippedSteps', 'guideCompletedSteps', 'guideFinished', 'guideModeActive']).then((r) => {
-      sendResponse({ steps: r.guideSteps || [], currentStep: r.guideCurrentStep || 0, skippedSteps: r.guideSkippedSteps || [], completedSteps: r.guideCompletedSteps || [], finished: !!r.guideFinished, active: !!r.guideModeActive });
+    storageGet(['guideSteps', 'guideCurrentStep', 'guideSkippedSteps', 'guideCompletedSteps', 'guideModeActive']).then((r) => {
+      sendResponse({ steps: r.guideSteps || [], currentStep: r.guideCurrentStep || 0, skippedSteps: r.guideSkippedSteps || [], completedSteps: r.guideCompletedSteps || [], active: !!r.guideModeActive });
     });
     return true;
   }
@@ -1677,11 +1529,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // onRemoved가 못 돈 경우) 유령 상태를 정리하고 active:false 반환 → 죽은 스텝이 안 뜬다.
   if (message.type === 'GUIDE_VALIDATE') {
     (async () => {
-      const { guideModeActive, guideSteps, guideCurrentStep, guideSkippedSteps, guideCompletedSteps, guideFinished, guideTabId } =
-        await storageGet(['guideModeActive', 'guideSteps', 'guideCurrentStep', 'guideSkippedSteps', 'guideCompletedSteps', 'guideFinished', 'guideTabId']);
+      const { guideModeActive, guideSteps, guideCurrentStep, guideSkippedSteps, guideCompletedSteps, guideTabId } =
+        await storageGet(['guideModeActive', 'guideSteps', 'guideCurrentStep', 'guideSkippedSteps', 'guideCompletedSteps', 'guideTabId']);
       if (!guideModeActive || !(guideSteps?.length)) { sendResponse({ active: false }); return; }
       // guideTabId가 아직 미지정이면 가이드 시작 직후(고정 전) — 정리하지 말고 그대로 둔다.
-      if (!guideFinished && guideTabId != null) {
+      if (guideTabId != null) {
         const tab = await getGuideTab();
         if (!tab?.id) {
           await clearGuideSession();
@@ -1690,32 +1542,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
       }
       const { guideTargetStatus } = await storageGet('guideTargetStatus');
-      sendResponse({ active: true, steps: guideSteps, currentStep: guideCurrentStep || 0, skippedSteps: guideSkippedSteps || [], completedSteps: guideCompletedSteps || [], finished: !!guideFinished, targetStatus: guideTargetStatus || 'navigating' });
+      sendResponse({ active: true, steps: guideSteps, currentStep: guideCurrentStep || 0, skippedSteps: guideSkippedSteps || [], completedSteps: guideCompletedSteps || [], targetStatus: guideTargetStatus || 'navigating' });
     })();
     return true;
   }
 
   if (message.type === 'GUIDE_NEXT' || message.type === 'GUIDE_PREV') {
     (async () => {
-      const { guideModeActive, guideSteps, guideCurrentStep, guideSkippedSteps, guideCompletedSteps, guideFinished, guideSurvey } = await storageGet(['guideModeActive', 'guideSteps', 'guideCurrentStep', 'guideSkippedSteps', 'guideCompletedSteps', 'guideFinished', 'guideSurvey']);
+      const { guideModeActive, guideSteps, guideCurrentStep, guideSkippedSteps, guideCompletedSteps, guideSurvey } = await storageGet(['guideModeActive', 'guideSteps', 'guideCurrentStep', 'guideSkippedSteps', 'guideCompletedSteps', 'guideSurvey']);
       const steps = guideSteps || [];
       if (!guideModeActive || !steps.length) {
         sendResponse({ ok: false, error: 'guide_not_active' });
         return;
       }
       let idx = guideCurrentStep || 0;
-      if (guideFinished) {
-        sendResponse({
-          ok: true,
-          currentStep: idx,
-          step: steps[idx],
-          skippedSteps: guideSkippedSteps || [],
-          completedSteps: guideCompletedSteps || [],
-          completed: true,
-          finished: true,
-        });
-        return;
-      }
       const skipped = new Set(Array.isArray(guideSkippedSteps) ? guideSkippedSteps : []);
       const completedSet = new Set(Array.isArray(guideCompletedSteps) ? guideCompletedSteps : []);
       const previousIdx = idx;
@@ -1736,15 +1576,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       const skippedSteps = [...skipped].sort((a, b) => a - b);
       const completedSteps = [...completedSet].sort((a, b) => a - b);
-      await storageSet({ guideCurrentStep: idx, guideSkippedSteps: skippedSteps, guideCompletedSteps: completedSteps, guideFinished: completed, guideTargetStatus: completed ? 'ready' : 'navigating', guideTargetEvidence: null });
+      await storageSet({ guideCurrentStep: idx, guideSkippedSteps: skippedSteps, guideCompletedSteps: completedSteps, guideTargetStatus: completed ? 'ready' : 'navigating', guideTargetEvidence: null });
       const step = steps[idx];
-      sendResponse({ ok: true, currentStep: idx, step, skippedSteps, completedSteps, completed, finished: completed });
+      sendResponse({ ok: true, currentStep: idx, step, skippedSteps, completedSteps, completed });
 
-      // 마지막 단계의 페이지 오버레이만 닫고, 사이드 패널은 사용자가 직접 종료할 때까지 유지한다.
-      if (completed) {
-        await hideGuideOverlayEverywhere();
-        return;
-      }
+      // 마지막 단계는 현재 페이지의 완료 UI를 유지하고, 사이드 패널이 종료 여부를 결정한다.
+      if (completed) return;
 
       // 가이드 시작 탭으로 고정 — 활성 탭(예: 다른 사이트)을 건드리지 않는다.
       const tab = await getGuideTab();
@@ -1784,12 +1621,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // 사이드패널에서 특정 스텝 도트를 클릭 → 해당 인덱스로 점프
   if (message.type === 'SHOW_OVERLAY_FOR_STEP') {
     (async () => {
-      const { guideSteps, guideSurvey, guideFinished } = await storageGet(['guideSteps', 'guideSurvey', 'guideFinished']);
+      const { guideSteps, guideSurvey } = await storageGet(['guideSteps', 'guideSurvey']);
       const steps = guideSteps || [];
-      if (guideFinished) {
-        sendResponse({ ok: false, error: 'guide_already_finished' });
-        return;
-      }
       const idx = Math.max(0, Math.min(message.stepIndex || 0, steps.length - 1));
       await storageSet({ guideCurrentStep: idx, guideTargetStatus: 'navigating', guideTargetEvidence: null });
       const step = steps[idx];
@@ -1862,37 +1695,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message.type === 'EXIT_GUIDE') {
+  if (message.type === 'EXIT_GUIDE' || message.type === 'GUIDE_COMPLETE') {
     (async () => {
       await clearGuideSession();
-      sendResponse({ ok: true });
-    })();
-    return true;
-  }
-
-  if (message.type === 'GUIDE_COMPLETE') {
-    (async () => {
-      const { guideModeActive, guideSteps, guideCurrentStep, guideSkippedSteps, guideCompletedSteps } =
-        await storageGet(['guideModeActive', 'guideSteps', 'guideCurrentStep', 'guideSkippedSteps', 'guideCompletedSteps']);
-      if (!guideModeActive || !(guideSteps?.length)) {
-        sendResponse({ ok: false, error: 'guide_not_active' });
-        return;
-      }
-      const lastIndex = guideSteps.length - 1;
-      const currentStep = Math.max(0, Math.min(Number(guideCurrentStep) || 0, lastIndex));
-      const skipped = new Set(Array.isArray(guideSkippedSteps) ? guideSkippedSteps : []);
-      const completed = new Set(Array.isArray(guideCompletedSteps) ? guideCompletedSteps : []);
-      if (!skipped.has(currentStep)) completed.add(currentStep);
-      await storageSet({
-        guideCurrentStep: currentStep,
-        guideCompletedSteps: [...completed].sort((a, b) => a - b),
-        guideFinished: true,
-        guideTargetStatus: 'ready',
-        guideTargetEvidence: null,
-      });
-      await storageRemove('guidePendingOverlay');
-      await hideGuideOverlayEverywhere();
-      sendResponse({ ok: true, completed: true, currentStep });
+      sendResponse({ ok: true, completed: message.type === 'GUIDE_COMPLETE' });
     })();
     return true;
   }
@@ -2010,8 +1816,8 @@ chrome.tabs.onCreated.addListener(async (tab) => {
 chrome.tabs.onRemoved.addListener(async (tabId) => {
   // 가이드 고정 탭이 닫히면 라이브 가이드 상태를 정리 — 안 그러면 다음 사이드패널 오픈 시
   // guideModeActive가 남아 죽은 스텝(유령)이 뜬다. storage 변경이 popup의 onChanged를 깨워 뷰를 닫는다.
-  const { guideModeActive, guideFinished, guideTabId } = await storageGet(['guideModeActive', 'guideFinished', 'guideTabId']);
-  if (guideModeActive && !guideFinished && guideTabId === tabId) {
+  const { guideModeActive, guideTabId } = await storageGet(['guideModeActive', 'guideTabId']);
+  if (guideModeActive && guideTabId === tabId) {
     await clearGuideSession();
   }
 
@@ -2066,11 +1872,11 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   _navBusyTabs.add(tabId);
 
   try {
-    const r = await storageGet(['isRecording', 'isPaused', 'targetTabId', 'stepNumber', 'settings', 'pendingCapture', 'guideModeActive', 'guideFinished', 'guidePendingOverlay', 'guideSteps', 'guideCurrentStep', 'guideTabId', 'guideSurvey', 'spaNavCapturing', 'lastCaptureTime']);
+    const r = await storageGet(['isRecording', 'isPaused', 'targetTabId', 'stepNumber', 'settings', 'pendingCapture', 'guideModeActive', 'guidePendingOverlay', 'guideSteps', 'guideCurrentStep', 'guideTabId', 'guideSurvey', 'spaNavCapturing', 'lastCaptureTime']);
 
     // 고정 탭의 full load와 SPA URL 변경을 모두 추적한다. 도착 URL을 백그라운드에서도
     // 검증해 잘못된 페이지에는 content overlay 메시지 자체를 보내지 않는다.
-    if (r.guideModeActive && !r.guideFinished && r.guideTabId === tabId && r.guideSteps?.length) {
+    if (r.guideModeActive && r.guideTabId === tabId && r.guideSteps?.length) {
       const intended = !!r.guidePendingOverlay;
       const gSteps = r.guideSteps;
       const gIdx = r.guideCurrentStep || 0;
@@ -2080,8 +1886,8 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
         await storageSet({ guideTargetStatus: 'searching', guideTargetEvidence: null });
         scheduleGuideOverlay(tabId, completedLoad ? 450 : 280);
       } else {
+        sendTabMessage(tabId, { type: 'HIDE_OVERLAY' });
         await storageSet({ guideTargetStatus: 'page_mismatch', guideTargetEvidence: null });
-        await showGuideWrongPage(tabId, step, gIdx, gSteps.length);
       }
     }
 
@@ -2175,7 +1981,7 @@ async function captureFullPage(tab) {
       originalY: window.scrollY,
     }),
   });
-  if (!m || !m.viewportH) throw new Error(i18n('pageInfoUnavailable', '페이지 정보를 읽을 수 없습니다'));
+  if (!m || !m.viewportH) throw new Error('페이지 정보를 읽을 수 없습니다');
 
   const totalH   = Math.max(m.viewportH, Math.min(m.scrollHeight, FULLPAGE_MAX_HEIGHT_PX));
   const segments = Math.ceil(totalH / m.viewportH);
@@ -2224,7 +2030,7 @@ async function captureFullPage(tab) {
           resolve(chrome.runtime.lastError ? null : u);
         });
       });
-      if (!url) throw new Error(i18n('segmentCaptureFailed', '조각 $CURRENT$/$TOTAL$ 캡처 실패', [String(i + 1), String(segments)]));
+      if (!url) throw new Error(`조각 ${i + 1}/${segments} 캡처 실패`);
       parts.push({ y, url });
     }
   } finally {
@@ -2536,27 +2342,25 @@ function makeActionLabel(actionInfo, stepNum, domainInfo) {
 
   if (type === 'navigate') {
     const dest = (label && !label.startsWith('/') && !label.startsWith('http')) ? label : (domainInfo?.name || domainInfo?.hostname || '');
-    return dest
-      ? i18n('navigateTo', '이동, $DESTINATION$', [dest.slice(0, 30)])
-      : i18n('pageNavigation', '페이지 이동');
+    return dest ? `이동, ${dest.slice(0, 30)}` : '페이지 이동';
   }
 
   const name = (label || text || '').trim().slice(0, 30);
   switch (type) {
-    case 'click':       return name ? i18n('clickTarget', '클릭, $TARGET$', [name]) : i18n('click', '클릭');
-    case 'toggle':      return name ? i18n('selectTarget', '선택, $TARGET$', [name]) : i18n('select', '선택');
-    case 'select':      return name ? i18n('selectTarget', '선택, $TARGET$', [name]) : i18n('dropdownSelect', '드롭다운 선택');
-    case 'focus_input': return name ? i18n('inputWithLabel', '입력, $LABEL$', [name]) : i18n('inputField', '입력 필드');
+    case 'click':       return name ? `클릭, ${name}` : '클릭';
+    case 'toggle':      return name ? `선택, ${name}` : '선택';
+    case 'select':      return name ? `선택, ${name}` : '드롭다운 선택';
+    case 'focus_input': return name ? `입력, ${name}` : '입력 필드';
     case 'type': {
-      if (actionInfo.masked) return i18n('passwordInput', '비밀번호 입력');
+      if (actionInfo.masked) return '비밀번호 입력';
       // 입력 내용 우선 — 짧으면 '입력, "내용"', 길면 앞부분 프리뷰 + 총 글자수.
       const typed = (actionInfo.typedText || '').trim().replace(/\s+/g, ' ');
       if (typed) {
         return typed.length <= TYPED_LABEL_MAX
-          ? i18n('inputText', '입력, "$TEXT$"', [typed])
-          : i18n('inputTextLength', '입력, "$TEXT$…" (총 $COUNT$자)', [typed.slice(0, 40), String(typed.length)]);
+          ? `입력, "${typed}"`
+          : `입력, "${typed.slice(0, 40)}…" (총 ${typed.length}자)`;
       }
-      return name ? i18n('inputWithLabel', '입력, $LABEL$', [name]) : i18n('textInput', '텍스트 입력');
+      return name ? `입력, ${name}` : '텍스트 입력';
     }
     default:            return name ? name : `Step ${stepNum}`;
   }
@@ -2669,7 +2473,7 @@ async function prepareCapture(pngDataUrl, stepData, tab) {
 }
 
 // ── 스텝 업로드 처리 (SW keepalive 포함) ─────────────────────────
-async function processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base64Image, stepData, clickX, clickY, domainInfo, actionLabel, cropBox }, { requireUploadedImage = false } = {}) {
+async function processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base64Image, stepData, clickX, clickY, domainInfo, actionLabel, cropBox }) {
   const keepaliveInterval = setInterval(() => {
     chrome.storage.local.set({ _swKeepalive: Date.now() });
   }, SW_KEEPALIVE_MS);
@@ -2696,13 +2500,6 @@ async function processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base
     if (analysisResult.status === 'rejected') log('warn',  'bg', `analyze failed step ${stepNum}:`, analysisResult.reason.message);
 
     if (!uploadedUrl) {
-      chrome.runtime.sendMessage({ type: 'UPLOAD_FAILED', stepNumber: stepNum }, () => { void chrome.runtime.lastError; });
-      if (requireUploadedImage) {
-        const reason = imageResult.status === 'rejected'
-          ? imageResult.reason?.message || 'unknown upload error'
-          : 'missing uploaded URL';
-        throw new Error(`step ${stepNum} upload failed: ${reason}`);
-      }
       try {
         await saveStep({
           sessionId,
@@ -2710,11 +2507,8 @@ async function processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base
           screenshotUrl: null,
           clickX: null,
           clickY: null,
-          title: actionLabel || i18n('manualStep', '수동으로 진행할 단계'),
-          description: i18n(
-            'manualCaptureFallback',
-            '자동 캡처를 저장하지 못한 단계입니다. 실제 화면에서 필요한 작업을 완료한 뒤 다음을 눌러주세요.',
-          ),
+          title: actionLabel || '수동으로 진행할 단계',
+          description: '자동 캡처를 저장하지 못한 단계입니다. 실제 화면에서 필요한 작업을 완료한 뒤 다음을 눌러주세요.',
           url: stepData.url,
           domainInfo,
           viewportW: stepData.viewportW ?? stepData.windowWidth ?? null,
@@ -2733,10 +2527,11 @@ async function processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base
       } catch (err) {
         log('warn', 'bg', `blocked save-step API failed step ${stepNum}:`, err.message);
       }
+      chrome.runtime.sendMessage({ type: 'UPLOAD_FAILED', stepNumber: stepNum }, () => { void chrome.runtime.lastError; });
       return;
     }
 
-    const localStep = await saveStepLocally({ ...stepData, imageUrl: uploadedUrl, title, description, actionInfo: stepData.actionInfo ?? null, actionLabel, domainInfo, cropBox, overwrite: !!stepData.overwrite });
+    await saveStepLocally({ ...stepData, imageUrl: uploadedUrl, title, description, actionInfo: stepData.actionInfo ?? null, actionLabel, domainInfo, cropBox, overwrite: !!stepData.overwrite });
     updateBadge();
     idbDelete(stepNum).catch(() => {});
 
@@ -2750,9 +2545,7 @@ async function processStepUpload({ sessionId, stepNum, imagePath, jpegBlob, base
       log('info', 'bg', `saved step ${stepNum}: "${title}"`);
     } catch (err) {
       log('warn', 'bg', `save-step API failed step ${stepNum}:`, err.message);
-      if (requireUploadedImage) throw err;
     }
-    return localStep;
   } finally {
     clearInterval(keepaliveInterval);
   }
@@ -2800,7 +2593,6 @@ async function saveStepLocally(stepData) {
 
   await storageSet({ steps });
   if (!stepData.overwrite) await pushUndo({ type: 'add', stepId: newStep.id });
-  return newStep;
 }
 
 // ── sessionId 가져오기 (없으면 생성) ─────────────────────────────
@@ -2865,7 +2657,7 @@ function getWebappFallbackUrl(url) {
 
 async function getWebappOrigin() {
   const { webappOrigin } = await storageGet('webappOrigin');
-  return normalizeAllowedWebappOrigin(webappOrigin) || WEBAPP_ORIGIN;
+  return webappOrigin || WEBAPP_ORIGIN;
 }
 
 // 가이드 고정 탭 조회 — START_GUIDE에서 저장한 guideTabId의 탭. 없거나 닫혔으면 null.
@@ -2963,19 +2755,8 @@ async function saveStep({ sessionId, stepNumber, screenshotUrl, clickX, clickY, 
     method: 'POST',
     body: JSON.stringify(payload),
   });
-  if (!res.ok) {
-    const responseBody = await res.text();
-    const error = new Error(`save-step failed: ${res.status}: ${responseBody}`);
-    error.status = res.status;
-    error.responseBody = responseBody;
-    throw error;
-  }
+  if (!res.ok) throw new Error(`save-step failed: ${res.status}: ${await res.text()}`);
   return res.json();
-}
-
-function isSessionAlreadyFinalizedError(error) {
-  return error?.status === 409
-    && /Session already finalized/i.test(error?.responseBody || error?.message || '');
 }
 
 function normalizeCoord(value, size, coordinateSpace) {
@@ -3007,66 +2788,42 @@ async function syncLocalStepsBeforeFinalize(sessionId, stepNumbers, localSteps) 
     const clickY = normalizeCoord(step.clickY, viewportH, coordinateSpace);
     const cropBox = step.cropBox ?? computeCropBox(step.elementRect, clickX, clickY, step.actionInfo);
 
-    try {
-      await saveStep({
-        sessionId,
-        stepNumber: step.stepNumber,
-        screenshotUrl: step.imageUrl,
-        clickX,
-        clickY,
-        title: step.title ?? '',
-        description: step.description ?? '',
-        url: step.url,
-        domainInfo: step.domainInfo ?? null,
-        viewportW,
-        viewportH,
-        elementSelector: step.elementSelector ?? null,
-        elementXPath: step.elementXPath ?? null,
-        elementRect: step.elementRect ?? null,
-        actionInfo: step.actionInfo ?? null,
-        typedText: step.typedText || null,
-        cropBox,
-        audioOffsetMs: null,
-      });
-    } catch (error) {
-      if (!isSessionAlreadyFinalizedError(error)) throw error;
-      log('info', 'bg', `session ${sessionId} was already finalized; recovering existing manual`);
-      return { alreadyFinalized: true };
-    }
+    await saveStep({
+      sessionId,
+      stepNumber: step.stepNumber,
+      screenshotUrl: step.imageUrl,
+      clickX,
+      clickY,
+      title: step.title ?? '',
+      description: step.description ?? '',
+      url: step.url,
+      domainInfo: step.domainInfo ?? null,
+      viewportW,
+      viewportH,
+      elementSelector: step.elementSelector ?? null,
+      elementXPath: step.elementXPath ?? null,
+      elementRect: step.elementRect ?? null,
+      actionInfo: step.actionInfo ?? null,
+      typedText: step.typedText || null,
+      cropBox,
+      audioOffsetMs: null,
+    });
   }
-
-  return { alreadyFinalized: false };
 }
 
 // ── 세션 완료 — 웹앱 API 경유 ───────────────────────────────────
-async function finalizeSession(sessionId, stepNumbers, audioUrl = null, localStepsOverride = null) {
-  await waitForCapturePipelineIdle();
-  const { extensionToken, contentMode, settings, steps, onboardingToken } = await storageGet(['extensionToken', 'contentMode', 'settings', 'steps', 'onboardingToken']);
+async function finalizeSession(sessionId, stepNumbers, audioUrl = null) {
+  const { extensionToken, contentMode, settings, steps } = await storageGet(['extensionToken', 'contentMode', 'settings', 'steps']);
   if (!extensionToken) {
     log('warn', 'bg', 'extensionToken 없음 — /extension-link 에서 연동 필요');
     return { tutorial_id: null, step_count: 0 };
   }
 
-  const effectiveLocalSteps = Array.isArray(localStepsOverride) && localStepsOverride.length
-    ? localStepsOverride
-    : (steps || []);
-  const currentStepNumbers = [...new Set(effectiveLocalSteps
-    .map((step) => Number(step?.stepNumber))
-    .filter((stepNumber) => Number.isInteger(stepNumber) && stepNumber > 0))]
-    .sort((a, b) => a - b);
-  const effectiveStepNumbers = currentStepNumbers.length
-    ? currentStepNumbers
-    : (stepNumbers || []);
-
   // per-step 음성 보정(향후 에디터 재녹음용) — 현재는 비어 있을 수 있음
   const stepVoice = {};
-  effectiveLocalSteps.forEach(s => { if (s.voiceAudioUrl) stepVoice[s.stepNumber] = s.voiceAudioUrl; });
+  (steps || []).forEach(s => { if (s.voiceAudioUrl) stepVoice[s.stepNumber] = s.voiceAudioUrl; });
 
-  // A lost popup/service-worker response can leave local steps behind even
-  // though the server already completed the manual. In that case save-step
-  // returns 409; continue to the idempotent finalize endpoint to recover the
-  // existing tutorial instead of surfacing a false creation failure.
-  await syncLocalStepsBeforeFinalize(sessionId, effectiveStepNumbers, effectiveLocalSteps);
+  await syncLocalStepsBeforeFinalize(sessionId, stepNumbers, steps);
 
   const origin = await getWebappOrigin();
   const res = await authedFetch(`${origin}/api/capture/finalize`, {
@@ -3074,7 +2831,7 @@ async function finalizeSession(sessionId, stepNumbers, audioUrl = null, localSte
     body: JSON.stringify({
       session_id: sessionId,
       // 패널에서 삭제/실행취소되지 않고 남은 스텝만 매뉴얼에 포함
-      ...(effectiveStepNumbers.length ? { step_numbers: effectiveStepNumbers } : {}),
+      ...(stepNumbers?.length ? { step_numbers: stepNumbers } : {}),
       // 웹앱에서 선택한 매뉴얼 유형 ('action' | 'education')
       ...(contentMode && contentMode !== 'action' ? { content_mode: contentMode } : {}),
       // 선택영역 확대 설정 — 스텝 이미지에 클릭 영역 확대(image_zoom) 선적용
@@ -3083,7 +2840,6 @@ async function finalizeSession(sessionId, stepNumbers, audioUrl = null, localSte
       ...(audioUrl ? { audio_url: audioUrl } : {}),
       // per-step 음성 보정(있을 때만) — 해당 스텝은 이 클립으로 덮어씀
       ...(Object.keys(stepVoice).length ? { step_voice: stepVoice } : {}),
-      ...(onboardingToken ? { onboarding_token: onboardingToken } : {}),
     }),
   });
   if (!res.ok) throw new Error(`finalize failed: ${res.status}: ${await res.text()}`);
@@ -3095,32 +2851,28 @@ async function finalizeSession(sessionId, stepNumbers, audioUrl = null, localSte
 }
 
 // ── Supabase Storage 업로드 (실패 시 1회 재시도) ─────────────────
-// 현재 연결된 웹앱에서 일회성 업로드 URL을 발급받아 웹앱과 같은 Storage를 사용한다.
-// Recorder에 프로젝트 주소/키를 고정하면 dev DB 교체 시 이미지와 단계 DB가 갈라질 수 있다.
+// extensionToken은 웹앱 자체 토큰(Supabase JWT 아님)이라 쓸 수 없다 — anon key 고정.
+// x-upsert:true는 INSERT + UPDATE 정책 둘 다 필요 (naviaction에 anon 정책 적용됨)
 async function uploadImage(path, blob, contentType = 'image/jpeg') {
-  const origin = await getWebappOrigin();
-  const targetResponse = await authedFetch(`${origin}/api/capture/upload-target`, {
-    method: 'POST',
-    body: JSON.stringify({ path, content_type: contentType }),
-  });
-  if (!targetResponse.ok) {
-    throw new Error(`Upload target failed: ${targetResponse.status}: ${await targetResponse.text()}`);
-  }
-  const target = await targetResponse.json();
-  if (!target?.signed_url || !target?.public_url) throw new Error('Upload target response is incomplete');
-
-  const doUpload = () => {
-    const formData = new FormData();
-    formData.append('cacheControl', '3600');
-    formData.append('', blob);
-    return fetch(target.signed_url, { method: 'PUT', body: formData });
-  };
+  const doUpload = () => fetch(
+    `${SUPABASE_URL}/storage/v1/object/${SUPABASE_BUCKET}/${path}`,
+    {
+      method: 'POST',
+      headers: {
+        'apikey':        SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type':  contentType,
+        'x-upsert':      'true',
+      },
+      body: blob,
+    }
+  );
   let res = await doUpload();
   if (!res.ok) {
     await new Promise(r => setTimeout(r, UPLOAD_RETRY_DELAY_MS));
     res = await doUpload();
   }
   if (!res.ok) throw new Error(`Storage upload failed: ${await res.text()}`);
-  return target.public_url;
+  return `${SUPABASE_URL}/storage/v1/object/public/${SUPABASE_BUCKET}/${path}`;
 }
 

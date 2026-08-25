@@ -97,11 +97,7 @@ function sendRuntimeMessage(
   });
 }
 
-export async function startLiveGuide(
-  shareToken: string,
-  timeoutMs = RUNTIME_MESSAGE_TIMEOUT_MS,
-  source: 'tutorial' | 'playbook' = 'tutorial',
-): Promise<LiveGuideResult> {
+export async function startLiveGuide(shareToken: string, timeoutMs = RUNTIME_MESSAGE_TIMEOUT_MS): Promise<LiveGuideResult> {
   const extensionId = await resolvePreferredExtensionId();
   if (!extensionId || !window.chrome?.runtime?.sendMessage) {
     return Promise.resolve({
@@ -114,7 +110,6 @@ export async function startLiveGuide(
   const delivery = await sendRuntimeMessage(extensionId, {
     action: 'START_GUIDE',
     share_token: shareToken,
-    guide_source: source,
     webapp_origin: window.location.origin,
   }, timeoutMs);
   if (delivery.timedOut) {
@@ -135,13 +130,6 @@ export async function startLiveGuide(
     };
   }
   return { ok: false, reason: 'error', message: data.error ?? '라이브 가이드 Beta를 시작하지 못했습니다.' };
-}
-
-export function startPlaybookLiveGuide(
-  shareToken: string,
-  timeoutMs = RUNTIME_MESSAGE_TIMEOUT_MS,
-): Promise<LiveGuideResult> {
-  return startLiveGuide(shareToken, timeoutMs, 'playbook');
 }
 
 export async function listLiveGuideTargetTabs(timeoutMs = RUNTIME_MESSAGE_TIMEOUT_MS): Promise<LiveGuideTargetTabsResult> {

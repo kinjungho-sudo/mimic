@@ -30,15 +30,6 @@ async function sendToTab(worker, tabId, message) {
   }), { targetTabId: tabId, payload: message });
 }
 
-async function waitForContentReady(worker, tabId) {
-  for (let attempt = 0; attempt < 30; attempt += 1) {
-    const result = await sendToTab(worker, tabId, { type: 'PARRO_CONTENT_READY' });
-    if (!result.error && result.response?.ok === true && result.response?.ready === true) return;
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-  throw new Error('Recorder content script did not become ready');
-}
-
 try {
   server = http.createServer((_request, response) => {
     response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
@@ -102,7 +93,6 @@ try {
     return tabs.find((tab) => tab.url === url)?.id || null;
   }, currentUrl);
   assert.ok(tabId, 'fixture tab was not visible to the Recorder');
-  await waitForContentReady(worker, tabId);
 
   const validStep = {
     id: 'live-guide-valid-target',
@@ -151,16 +141,14 @@ try {
   check(() => assert.equal(waitingPromptCount, 1));
 
   await sendToTab(worker, tabId, {
-    type: 'SHOW_WRONG_PAGE',
+    type: 'SHOW_OVERLAY',
     step: { ...validStep, id: 'wrong-page', page_url: `${origin}/different-page` },
     index: 0,
     total: 1,
   });
   await page.waitForTimeout(300);
   const wrongPageOverlayCount = await page.locator('#parro-overlay-root').count();
-  const wrongPageState = await page.locator('#parro-overlay-root').getAttribute('data-guide-state');
-  check(() => assert.equal(wrongPageOverlayCount, 1));
-  check(() => assert.equal(wrongPageState, 'wrong-page'));
+  check(() => assert.equal(wrongPageOverlayCount, 0));
 
   await sendToTab(worker, tabId, {
     type: 'SHOW_OVERLAY',
@@ -205,7 +193,7 @@ try {
     browser: 'playwright-chromium',
     target: 'evidence-selected',
     missingTargetUi: 'scroll-prompt',
-    wrongPageUi: 'recovery-card',
+    wrongPageUi: false,
     completionUi: false,
     invalidSubmitBlocked: true,
   }));

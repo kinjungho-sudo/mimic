@@ -12,13 +12,7 @@ import { createClient } from '@/lib/supabase/client';
 import { toFollowSteps, clickToPct } from '@/lib/follow';
 import { startLiveGuide } from '@/lib/api/liveGuide';
 import { resolveStepAudio } from '@/lib/voice/playback';
-import {
-  BRAND_COLORS,
-  BRAND_EXTENSION_STORE_URL,
-  BRAND_LOGO_IMAGE_PATH,
-  BRAND_NAME,
-  LEGACY_INTERNAL_IDENTIFIERS,
-} from '@/lib/brand';
+import { BRAND_COLORS, BRAND_LOGO_IMAGE_PATH, BRAND_NAME, LEGACY_INTERNAL_IDENTIFIERS } from '@/lib/brand';
 import { resolveSharedStepIndex } from '@/lib/share-links';
 import type { FollowConfig } from '@/types';
 import type { Annotation as DrawAnnotation } from '@/components/editor/ImageAnnotationEditor';
@@ -644,10 +638,6 @@ export default function PlayerPage() {
   const handleStartLiveGuide = useCallback(async () => {
     const result = await startLiveGuide(token);
     if (result.ok) return;
-    if (result.reason === 'not_installed') {
-      window.location.assign(BRAND_EXTENSION_STORE_URL);
-      return;
-    }
     if (result.reason === 'gated' && result.upgradeUrl && confirm(`${result.message}\n설정 화면으로 이동할까요?`)) {
       window.location.href = result.upgradeUrl;
       return;
