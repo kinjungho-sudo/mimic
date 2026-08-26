@@ -49,6 +49,15 @@ async function main() {
   if (!stageSource.includes('className="mfp-practice-input"') || !stageSource.includes('placeholder={hasTypeText ? typeStr')) {
     throw new Error('learning guide must render a real text input with the authored text as its hint');
   }
+  if (!stageSource.includes('const typeTargetRect = isType && domRect ? domRect : targetRect') || !stageSource.includes('width: `${typeTargetRect.w}%`')) {
+    throw new Error('learning guide typing overlays must inherit the recorded DOM rectangle at responsive sizes');
+  }
+  if (!stageSource.includes('aria-label="현재 단계 음성 재생"') || !playerSource.includes("height: '44px'")) {
+    throw new Error('learning guide voice controls must expose a reliable 44px click target');
+  }
+  if (!playerSource.includes('setMinimized(value => !value)') || !stageSource.includes('aria-label="Parro 안내 최소화"')) {
+    throw new Error('clicking Parro must minimize and restore the learning guide coach unit');
+  }
   if (!stageSource.includes('nextValue === typeStr') || !playerSource.includes('value !== expected')) {
     throw new Error('learning guide must advance only after the user enters the expected text');
   }

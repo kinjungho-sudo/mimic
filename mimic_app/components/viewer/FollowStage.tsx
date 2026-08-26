@@ -89,6 +89,7 @@ interface Props {
   imgMaxHeight?: string;
   onImageClick?: (e: React.MouseEvent<HTMLDivElement>) => void;
   onMascotClick?: (e: React.MouseEvent) => void;
+  onVoiceClick?: (e: React.MouseEvent) => void;
   onBubbleClick?: (e: React.MouseEvent) => void;   // 플레이어: 접기
   typeValue?: string;
   onTypeValueChange?: (value: string) => void;
@@ -108,7 +109,7 @@ export function FollowStage({
   minimized = false, showAudioBadge = false, nudge = false, spotlight = false,
   imageCursor = 'default', imgMaxHeight = 'calc(100vh - 150px)',
   bubbleAnchor, animPhase, domRect = null,
-  onImageClick, onMascotClick, onBubbleClick, typeValue = '', onTypeValueChange, onTypeComplete, wrapRef, children,
+  onImageClick, onMascotClick, onVoiceClick, onBubbleClick, typeValue = '', onTypeValueChange, onTypeComplete, wrapRef, children,
 }: Props) {
   const innerRef = useRef<HTMLDivElement>(null);
   const ref = wrapRef ?? innerRef;
@@ -151,6 +152,9 @@ export function FollowStage({
   const mascotState: ParroMascotState = !isType && stepNumber != null && stepNumber % 3 === 0 ? 'point' : 'talk';
   // 큰 카드/컨테이너 DOM은 실제 클릭 지점 주변만 학습 타깃으로 표시한다.
   const targetRect = resolveGuideTargetRect(domRect, hx, hy, box.w, box.h);
+  // 입력 단계는 녹화된 DOM 전체가 곧 입력면이다. 고정 px 인디케이터를 중심점에
+  // 얹으면 반응형 축소 시 어긋나므로, DOM의 정규화 좌표를 그대로 사용한다.
+  const typeTargetRect = isType && domRect ? domRect : targetRect;
 
   // 시네마틱 시퀀스 — animPhase가 없으면(스튜디오) 애니메이션 없이 항상 focused 상태
   const isAnimated = animPhase != null;
@@ -251,6 +255,17 @@ export function FollowStage({
         {bubbleText && (
           <ExpandableGuideText text={bubbleText} />
         )}
+        {showAudioBadge && onVoiceClick && (
+          <button
+            type="button"
+            aria-label="현재 단계 음성 재생"
+            title="현재 단계 음성 재생"
+            onClick={event => { event.stopPropagation(); onVoiceClick(event); }}
+            style={{ flexShrink: 0, width: 44, height: 44, margin: '-8px -8px -8px 0', borderRadius: 10, border: `1px solid ${BRAND_COLORS.border}`, background: '#F8FAFC', color: BRAND_COLORS.primary, cursor: 'pointer', display: 'grid', placeItems: 'center' }}
+          >
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d="M3 10v4h4l5 5V5L7 10H3z" /><path d="M16.5 8.2a5 5 0 0 1 0 7.6M19.2 5.5a9 9 0 0 1 0 13" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
+          </button>
+        )}
         <span style={{ fontSize: '12px', color: '#C4C9D4', flexShrink: 0, marginTop: '1px' }}>—</span>
       </div>
       {showHint && <div style={{ fontSize: '12px', color: BRAND_COLORS.primary, marginTop: '8px', fontWeight: 600, lineHeight: 1.4 }}>{hint}</div>}
@@ -258,20 +273,18 @@ export function FollowStage({
   );
 
   const mascotBtn = (side: 'left' | 'right') => (
-    <button onClick={onMascotClick} title={showAudioBadge ? '음성 듣기' : '안내'} style={{ border: 'none', background: 'transparent', cursor: onMascotClick ? 'pointer' : 'default', padding: 0, position: 'relative' }}>
+    <button onClick={onMascotClick} aria-label="Parro 안내 최소화" title="Parro 안내 최소화" style={{ border: 'none', background: 'transparent', cursor: onMascotClick ? 'pointer' : 'default', padding: 0, position: 'relative' }}>
       <Mascot size={COACH_SIZE} state={mascotState} mirror={mascotState === 'point' && side === 'left'} />
-      {showAudioBadge && <span style={{ position: 'absolute', bottom: -2, right: -2, width: 16, height: 16, borderRadius: '50%', background: '#fff', display: 'grid', placeItems: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.25)' }}><svg width="9" height="9" viewBox="0 0 24 24" fill={BRAND_COLORS.primary}><path d="M3 10v4h4l5 5V5L7 10H3z" /></svg></span>}
     </button>
   );
   const bubbleBox = (tailSide: 'left' | 'right') => (
-    <div onClick={onBubbleClick} title={onBubbleClick ? '눌러서 접기' : undefined} style={{ cursor: onBubbleClick ? 'pointer' : 'default' }}>{renderBubble(tailSide)}</div>
+    <div data-guide-bubble="true" onClick={onBubbleClick} title={onBubbleClick ? '눌러서 접기' : undefined} style={{ cursor: onBubbleClick ? 'pointer' : 'default' }}>{renderBubble(tailSide)}</div>
   );
   const renderUnit = (side: 'left' | 'right' | 'bottom') => (
     minimized ? (
-      // 접고 펼칠 때 아바타의 세로 위치가 튀지 않도록 펼친 안내 높이를 보존한다.
-      <button onClick={onMascotClick} title="안내 펼치기" style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, pointerEvents: 'auto', marginTop: side !== 'bottom' ? `${UNIT_H - COACH_SIZE}px` : undefined }}><Mascot size={COACH_SIZE} state="idle" /></button>
+      <button onClick={onMascotClick} aria-label="Parro 안내 펼치기" title="Parro 안내 펼치기" style={{ border: 'none', background: 'rgba(255,255,255,.94)', cursor: 'pointer', padding: 3, pointerEvents: 'auto', borderRadius: 14, boxShadow: '0 8px 24px rgba(15,23,42,.22)' }}><Mascot size={54} state="idle" /></button>
     ) : (
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', pointerEvents: 'auto' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', pointerEvents: 'auto' }}>
         {side === 'left' ? <>{bubbleBox('right')}{mascotBtn('left')}</> : <>{mascotBtn('right')}{bubbleBox('left')}</>}
       </div>
     )
@@ -322,9 +335,11 @@ export function FollowStage({
         )}
 
         {/* 타이핑 인디케이터 — focused 시만 */}
-        {showTypeIndicator && showOverlays && hasHotspot && isType && (
-          <div style={{ position: 'absolute', left: `${hx}%`, top: `${hy}%`, transform: 'translate(-50%,-50%)', pointerEvents: hasInteractiveTypeInput || showCopyControl ? 'auto' : 'none', zIndex: 4 }}>
-            <div style={{ position: 'relative', minWidth: typeIndicatorWidth == null ? '128px' : undefined, width: typeIndicatorWidth == null ? undefined : `${typeIndicatorWidth}px`, maxWidth: typeIndicatorWidth == null ? '320px' : undefined, height: `${typeIndicatorHeight}px`, borderRadius: '9px', border: `2px solid ${BRAND_COLORS.guide}`, background: 'rgba(255,255,255,0.96)', boxShadow: `0 0 0 4px ${GUIDE_RING_SOFT}, 0 6px 20px rgba(0,0,0,0.28)`, display: 'flex', alignItems: 'center', padding: '0 12px', animation: 'mfp-field 1.8s ease-in-out infinite' }}>
+        {showTypeIndicator && showOverlays && hasHotspot && isType && typeTargetRect && (
+          <div style={domRect
+            ? { position: 'absolute', left: `${typeTargetRect.x}%`, top: `${typeTargetRect.y}%`, width: `${typeTargetRect.w}%`, height: `${typeTargetRect.h}%`, pointerEvents: hasInteractiveTypeInput || showCopyControl ? 'auto' : 'none', zIndex: 4 }
+            : { position: 'absolute', left: `${hx}%`, top: `${hy}%`, transform: 'translate(-50%,-50%)', pointerEvents: hasInteractiveTypeInput || showCopyControl ? 'auto' : 'none', zIndex: 4 }}>
+            <div style={{ position: 'relative', boxSizing: 'border-box', minWidth: domRect ? 0 : typeIndicatorWidth == null ? '128px' : undefined, width: domRect ? '100%' : typeIndicatorWidth == null ? undefined : `${typeIndicatorWidth}px`, maxWidth: domRect ? 'none' : typeIndicatorWidth == null ? '320px' : undefined, height: domRect ? '100%' : `${typeIndicatorHeight}px`, borderRadius: '9px', border: `2px solid ${BRAND_COLORS.guide}`, background: 'rgba(255,255,255,0.96)', boxShadow: `0 0 0 4px ${GUIDE_RING_SOFT}, 0 6px 20px rgba(0,0,0,0.28)`, display: 'flex', alignItems: domRect && typeTargetRect.h > 12 ? 'flex-start' : 'center', padding: domRect && typeTargetRect.h > 12 ? '12px' : '0 12px', animation: 'mfp-field 1.8s ease-in-out infinite' }}>
               {hasInteractiveTypeInput ? (
                 <input
                   autoFocus

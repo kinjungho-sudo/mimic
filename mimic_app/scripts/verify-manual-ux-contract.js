@@ -49,6 +49,7 @@ assert.match(editor, /onRemoveImage=\{removeStepImage\}/, 'manual image removal 
 assert.match(stepApi, /fetch\(`\/api\/steps\/\$\{id\}\/image`, \{ method: 'POST', body: formData \}\)/, 'manual image replacement must upload the file');
 assert.match(stepImageRoute, /export async function DELETE/, 'manual image removal needs a server persistence route');
 assert.match(manualEditor, /EDITOR_SCREENSHOT_FRAME_WIDTH = 'min\(calc\(100% - 64px\), 920px\)'/, 'editor screenshots need a visibly restrained responsive width');
+assert.match(manualEditor, /maxWidth: '1032px'/, 'editor card width must shrink with the 920px screenshot frame plus its 64px inset');
 assert.match(manualEditor, /data-testid="editor-screenshot-frame"/, 'editor screenshot frame needs a stable visual verification target');
 assert.match(manualEditor, /frameWidth: frame\.clientWidth/, 'annotation editor must inherit the rendered card viewport');
 assert.match(manualEditor, /framing=\{editorFraming\}/, 'annotation editor must inherit the rendered card framing');
