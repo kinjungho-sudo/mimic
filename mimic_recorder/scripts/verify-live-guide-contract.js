@@ -16,6 +16,7 @@ const section = (source, start, end) => {
 
 const background = read('background.js');
 const content = read('content.js');
+const targeting = read('targeting.js');
 const engine = read('guide-engine.js');
 const popup = read('popup.html');
 const popupScript = read('popup.js');
@@ -33,7 +34,7 @@ const playbookServer = fs.readFileSync(
   'utf8',
 );
 
-assert.equal(manifest.version, '1.7.36');
+assert.equal(manifest.version, '1.7.37');
 assert.deepEqual(
   manifest.content_scripts[0].js.slice(0, 3),
   ['targeting.js', 'guide-engine.js', 'content.js'],
@@ -126,6 +127,12 @@ assert.match(engine, /EDITABLE_TARGET_SELECTOR/,
   'Live Guide must share an explicit editable-control candidate set for type steps');
 assert.match(engine, /if \(isTypeStep\(step\) && !editableTarget\) return null/,
   'type steps must reject non-editable replay candidates');
+assert.match(targeting, /facts\.typeStep && facts\.editableTarget/,
+  'type steps must receive dedicated editable-field replay evidence');
+assert.match(targeting, /const requiredMargin = typeTarget \? 6 : 10/,
+  'responsive type fields must use a narrower but still fail-closed candidate margin');
+assert.match(engine, /geometryMatch >= 0\.52/,
+  'type-field recovery must use current-screen geometry when labels drift');
 assert.match(engine, /promoteHitTarget\(document\.elementFromPoint\(x, y\), step\)/,
   'coordinate recovery must promote rich text fields with type-step context');
 assert.match(engine, /'\[contenteditable="true"\]'/,
@@ -253,9 +260,11 @@ assert.match(popup, /id="guidePrevBtn"[\s\S]*id="guideNextBtn"[\s\S]*id="guideHa
 assert.match(popup, /id="guideVoiceToggle"[\s\S]*>🔊<\/button>/);
 assert.match(popup, /data-i18n-title="openPreviewLarge"/);
 assert.match(popupScript, /guideStepPreviewBtn\?\.addEventListener\('click'/);
-assert.match(popupScript, /function renderGuideAnnotations\(layer, step\)/);
+assert.match(popupScript, /function renderGuideAnnotations\(layer, step, \{ compact = false \} = \{\}\)/);
 assert.match(popupScript, /annotations: guideStepAnnotations\(step\)/);
-assert.match(popupScript, /renderGuideAnnotations\(guideStepAnnotationLayer, step\)/);
+assert.match(popupScript, /renderGuideAnnotations\(guideStepAnnotationLayer, step, \{ compact: true \}\)/);
+assert.match(popupScript, /createElementNS\('http:\/\/www\.w3\.org\/2000\/svg', 'line'\)/,
+  'guide annotations must use aspect-ratio-safe SVG lines');
 assert.match(popupScript, /guideOptionsBtn\?\.addEventListener\('click'/);
 assert.match(popupScript, /!isProtectedGuideInput\(step\.type_text\)/);
 assert.match(popupScript, /chrome\.runtime\.getURL\(`guide-preview\.html\?key=/);
@@ -299,6 +308,8 @@ assert.match(previewScript, /chrome\.storage\.local\.get\(key\)/);
 assert.match(previewScript, /chrome\.storage\.local\.remove\(key\)/);
 assert.match(previewScript, /function renderAnnotations\(annotations\)/);
 assert.match(previewScript, /renderAnnotations\(payload\.annotations\)/);
+assert.match(previewScript, /vector-effect', 'non-scaling-stroke'/,
+  'detached preview arrows must preserve their geometry at every image aspect ratio');
 assert.match(previewScript, /indexedDB\.open\('mimic_screenshots', 1\)/,
   'the detached image viewer must reload local captures from extension IndexedDB');
 assert.match(popupScript, /parroImagePreview:/,

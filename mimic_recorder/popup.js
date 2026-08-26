@@ -1750,15 +1750,17 @@ function safeGuideAnnotationColor(value, fallback = '#EF4444') {
     || /^rgba?\([\d\s.,%]+\)$/i.test(color) ? color : fallback;
 }
 
-function renderGuideAnnotations(layer, step) {
+function renderGuideAnnotations(layer, step, { compact = false } = {}) {
   if (!layer) return;
   layer.replaceChildren();
   guideStepAnnotations(step).forEach((annotation) => {
+    if (compact && (annotation.type === 'text' || annotation.type === 'arrow' || annotation.type === 'line')) return;
     const box = guideAnnotationBox(annotation);
     if (!box) return;
     const color = safeGuideAnnotationColor(annotation.color || annotation.borderColor);
     const borderColor = safeGuideAnnotationColor(annotation.borderColor || annotation.color, color);
-    const stroke = Math.max(1, Math.min(8, Number(annotation.strokeWidth) || 3));
+    const rawStroke = Number(annotation.strokeWidth);
+    const stroke = Number.isFinite(rawStroke) ? Math.max(0, Math.min(8, rawStroke)) : 3;
     const element = document.createElement('span');
     element.dataset.annotationType = String(annotation.type || 'rect');
     Object.assign(element.style, {
@@ -1780,22 +1782,41 @@ function renderGuideAnnotations(layer, step) {
       });
       element.textContent = String(annotation.markerNumber || '');
     } else if (annotation.type === 'arrow' || annotation.type === 'line') {
-      const dx = box.x2 - box.x1;
-      const dy = box.y2 - box.y1;
-      Object.assign(element.style, {
-        left: `${box.x1}%`, top: `${box.y1}%`, width: `${Math.max(1, Math.sqrt(dx * dx + dy * dy))}%`,
-        height: `${stroke}px`, background: color, borderRadius: `${stroke}px`,
-        transformOrigin: '0 50%', transform: `rotate(${Math.atan2(dy, dx) * 180 / Math.PI}deg)`,
-      });
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', '0 0 100 100');
+      svg.setAttribute('preserveAspectRatio', 'none');
+      Object.assign(svg.style, { position: 'absolute', inset: '0', width: '100%', height: '100%', overflow: 'visible', pointerEvents: 'none' });
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', String(box.x1));
+      line.setAttribute('y1', String(box.y1));
+      line.setAttribute('x2', String(box.x2));
+      line.setAttribute('y2', String(box.y2));
+      line.setAttribute('stroke', color);
+      line.setAttribute('stroke-width', String(Math.max(1, stroke)));
+      line.setAttribute('vector-effect', 'non-scaling-stroke');
+      line.setAttribute('stroke-linecap', 'round');
       if (annotation.type === 'arrow') {
-        const head = document.createElement('span');
-        Object.assign(head.style, {
-          position: 'absolute', right: '-2px', top: '50%', width: '8px', height: '8px',
-          borderTop: `${stroke}px solid ${color}`, borderRight: `${stroke}px solid ${color}`,
-          transform: 'translateY(-50%) rotate(45deg)', transformOrigin: 'center',
-        });
-        element.appendChild(head);
+        const markerId = `parro-popup-arrow-${Math.random().toString(36).slice(2, 10)}`;
+        const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+        const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+        marker.setAttribute('id', markerId);
+        marker.setAttribute('markerWidth', '8');
+        marker.setAttribute('markerHeight', '8');
+        marker.setAttribute('refX', '7');
+        marker.setAttribute('refY', '4');
+        marker.setAttribute('orient', 'auto');
+        marker.setAttribute('markerUnits', 'strokeWidth');
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', 'M0,0 L8,4 L0,8 Z');
+        path.setAttribute('fill', color);
+        marker.appendChild(path);
+        defs.appendChild(marker);
+        svg.appendChild(defs);
+        line.setAttribute('marker-end', `url(#${markerId})`);
       }
+      svg.appendChild(line);
+      layer.appendChild(svg);
+      return;
     } else {
       Object.assign(element.style, {
         left: `${box.left}%`, top: `${box.top}%`, width: `${box.width}%`, height: `${box.height}%`,
@@ -2234,7 +2255,7 @@ function renderGuideStep(steps, idx) {
     if (step.screenshot_url) {
       guideStepImage.src = step.screenshot_url;
       guideStepImage.alt = step.title || `Step ${num}`;
-      renderGuideAnnotations(guideStepAnnotationLayer, step);
+      renderGuideAnnotations(guideStepAnnotationLayer, step, { compact: true });
       guideStepPreviewBtn.style.display = 'block';
     } else {
       guideStepImage.removeAttribute('src');
