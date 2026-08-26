@@ -371,11 +371,23 @@ test('Live Guide avatar stays visually separate beside its speech bubble', async
     return Math.round(bubble.left - avatar.right);
   }).toBeGreaterThanOrEqual(12);
 
+  await page.waitForTimeout(400);
   const avatar = await closedShadowBox(page, 'data-role', 'coach-avatar');
   const bubble = await closedShadowBox(page, 'data-role', 'guide-bubble');
+  const voice = await closedShadowBox(page, 'data-act', 'play-guide-voice');
   expect(Math.min(avatar.bottom, bubble.bottom) - Math.max(avatar.top, bubble.top)).toBeGreaterThan(40);
+  expect(Math.abs(avatar.top - bubble.top)).toBeLessThanOrEqual(2);
+  expect(voice.right - voice.left).toBeGreaterThanOrEqual(44);
+  expect(voice.bottom - voice.top).toBeGreaterThanOrEqual(44);
   expect(await closedShadowAttribute(page, 'data-role', 'coach-avatar', 'data-placement')).toBe('left');
   await expect.poll(async () => (await closedShadowImageState(page, 'data-role', 'coach-avatar-image')).naturalWidth).toBeGreaterThan(0);
+
+  await clickClosedShadowAction(page, 'toggle-coach');
+  await expect.poll(() => page.locator('#parro-overlay-root').getAttribute('data-coach-minimized')).toBe('true');
+  const minimizedAvatar = await closedShadowBox(page, 'data-role', 'coach-avatar');
+  expect(minimizedAvatar.right - minimizedAvatar.left).toBe(64);
+  await clickClosedShadowAction(page, 'toggle-coach');
+  await expect.poll(() => page.locator('#parro-overlay-root').getAttribute('data-coach-minimized')).toBe('false');
 });
 
 test('Live Guide occasionally uses the pointing Parro pose', async ({ page }) => {
@@ -446,7 +458,7 @@ test('Live Guide requests OpenAI TTS for automatic voice guidance', async ({ pag
   await page.evaluate(() => (window as unknown as { ParroGuide: any }).ParroGuide.hide());
 });
 
-test('Live Guide supports button-only OpenAI TTS and instructor help requests', async ({ page }) => {
+test('Live Guide supports button-only OpenAI TTS', async ({ page }) => {
   await page.route('https://example.test/manual-tts', route => route.fulfill({
     contentType: 'text/html',
     body: '<button id="manual-tts-target" style="margin:160px;width:160px;height:44px">Continue</button>',
@@ -454,24 +466,16 @@ test('Live Guide supports button-only OpenAI TTS and instructor help requests', 
   await page.goto('https://example.test/manual-tts');
   await loadGuide(page);
   await page.evaluate(() => {
-    (window as unknown as { __helpRequests: unknown[] }).__helpRequests = [];
     (window as unknown as { __parroStorage: Record<string, unknown> }).__parroStorage.guideVoiceMode = 'manual';
     (window as unknown as { ParroGuide: any }).ParroGuide.show({
       id: 'manual-tts-step', page_url: window.location.href, element_selector: '#manual-tts-target',
       title: '계속', instruction: '버튼을 누를 때만 읽어주세요.',
-    }, { index: 0, total: 1, onHelpRequest: (payload: unknown, done: (response: unknown) => void) => {
-      (window as unknown as { __helpRequests: unknown[] }).__helpRequests.push(payload);
-      done({ ok: true, screenshotAttached: true });
-    } });
+    }, { index: 0, total: 1 });
   });
 
   expect(await page.evaluate(() => (window as unknown as { __runtimeMessages: unknown[] }).__runtimeMessages)).toEqual([]);
   await clickClosedShadowAction(page, 'play-guide-voice');
   await expect.poll(() => page.evaluate(() => (window as unknown as { __runtimeMessages: Array<{ type?: string }> }).__runtimeMessages.map(item => item.type))).toContain('GUIDE_TTS_REQUEST');
-  await clickClosedShadowAction(page, 'toggle-hand-raise');
-  await clickClosedShadowAction(page, 'send-help-request');
-  await expect.poll(() => page.evaluate(() => (window as unknown as { __helpRequests: unknown[] }).__helpRequests)).toEqual([{ message: '', includeScreenshot: true }]);
-  expect(await closedShadowAttribute(page, 'data-act', 'toggle-hand-raise', 'aria-pressed')).toBe('true');
 });
 
 test('Live Guide confirms practice completion before staying or exiting', async ({ page }) => {

@@ -432,7 +432,7 @@ export function ManualEditor({ steps, onChange, onSave, onUploadImage, onRemoveI
                 data-step-id={step.id}
                 style={{ scrollSnapAlign: 'start', minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px 0', boxSizing: 'border-box' }}
               >
-                <div className="manual-step-width" style={{ width: '100%', maxWidth: '1120px', padding: '0 24px', boxSizing: 'border-box' }}>
+                <div className="manual-step-width" style={{ width: '100%', maxWidth: '1032px', padding: '0 24px', boxSizing: 'border-box' }}>
                   <StepCard
                     step={step}
                     isActive={activeId === step.id}

@@ -54,7 +54,7 @@ export function InteractiveFollowPlayer({ steps, title, initialStepIndex = 0, on
   const [nudge, setNudge] = useState(false);
   const [minimized, setMinimized] = useState(false);
   const [showGate, setShowGate] = useState(false);  // 맛보기 후 로그인 월 (소프트 게이트)
-  const [voiceOn, setVoiceOn] = useState(false);  // 음성 자동재생 토글 (기본 OFF — 아바타 클릭 재생)
+  const [voiceOn, setVoiceOn] = useState(false);  // 음성 자동재생 토글 (기본 OFF)
   const [visible, setVisible] = useState(true);    // 스텝 전환 페이드 제어
   const [animPhase, setAnimPhase] = useState<AnimPhase>('raw'); // 줌인 시퀀스: raw→zooming→focused
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
@@ -137,8 +137,12 @@ export function InteractiveFollowPlayer({ steps, title, initialStepIndex = 0, on
 
   const onMascotClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (minimized) { setMinimized(false); return; }
-    if (step.audioUrl) playVoice(step);
+    setMinimized(value => !value);
+  };
+
+  const onVoiceClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    playVoice(step);
   };
 
   // 스텝 전환: 페이드아웃 → 인덱스 변경 → 페이드인. 연속 클릭 시 마지막만 실행
@@ -302,6 +306,7 @@ export function InteractiveFollowPlayer({ steps, title, initialStepIndex = 0, on
                   onTypeComplete={completeTypeStep}
                   onImageClick={onImageClick}
                   onMascotClick={onMascotClick}
+                  onVoiceClick={onVoiceClick}
                   onBubbleClick={(e) => { e.stopPropagation(); setMinimized(true); }}
                 />
               </div>
@@ -320,9 +325,9 @@ export function InteractiveFollowPlayer({ steps, title, initialStepIndex = 0, on
             {step.section && <span style={{ fontSize: 11.5, fontWeight: 700, color: '#475569', paddingRight: 10, borderRight: '1px solid #E5E7EB' }}>{step.section}</span>}
             <span style={{ fontSize: '12px', fontWeight: 700, color: BRAND_COLORS.primary, background: BRAND_COLORS.guideSoft, padding: '3px 10px', borderRadius: '20px' }}>{idx + 1} / {total}</span>
             {hasAnyAudio && (
-              <button onClick={() => setVoiceOn(v => !v)} title={voiceOn ? '음성 자동재생 끄기 (아바타 클릭으로 듣기)' : '음성 자동재생 켜기'}
-                style={{ height: '32px', padding: '0 10px', borderRadius: '8px', border: `1px solid ${voiceOn ? BRAND_COLORS.primary : '#E5E7EB'}`, background: voiceOn ? GUIDE_SOFT : 'white', color: voiceOn ? BRAND_COLORS.primary : '#9CA3AF', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <button onClick={() => setVoiceOn(v => !v)} title={voiceOn ? '음성 자동재생 끄기' : '음성 자동재생 켜기'} aria-label={voiceOn ? '음성 자동재생 끄기' : '음성 자동재생 켜기'}
+                style={{ minWidth: '44px', height: '44px', padding: '0 12px', borderRadius: '10px', border: `1px solid ${voiceOn ? BRAND_COLORS.primary : '#D1D5DB'}`, background: voiceOn ? GUIDE_SOFT : 'white', color: voiceOn ? BRAND_COLORS.primary : '#64748B', fontSize: '12px', fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
                   {voiceOn ? <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" /> : <><line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" /></>}
                 </svg>

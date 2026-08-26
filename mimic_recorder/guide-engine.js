@@ -630,7 +630,8 @@
   function placeCoachAvatar(avatar, bubbleLeft, bubbleTop, bubbleHeight) {
     if (!avatar) return;
     let left = bubbleLeft - AVATAR_OUTSET;
-    let top = bubbleTop + 14;
+    // 말풍선 꼬리와 Parro의 머리가 같은 높이에서 이어지도록 상단을 맞춘다.
+    let top = bubbleTop;
     let placement = 'left';
 
     // 작은 뷰포트에서도 아바타가 잘리지 않도록 말풍선 위·아래를 차선으로 사용한다.
@@ -937,9 +938,13 @@
 
     const coachAvatar = document.createElement('div');
     coachAvatar.setAttribute('data-role', 'coach-avatar');
+    coachAvatar.setAttribute('data-act', 'toggle-coach');
     coachAvatar.setAttribute('data-mascot-state', tooltipMascotState);
-    coachAvatar.setAttribute('aria-hidden', 'true');
-    coachAvatar.style.cssText = `position:fixed;${AVATAR_STYLE}pointer-events:none;z-index:5;animation:parro-avatar-in .26s cubic-bezier(.2,.8,.2,1) both;`;
+    coachAvatar.setAttribute('role', 'button');
+    coachAvatar.setAttribute('tabindex', '0');
+    coachAvatar.setAttribute('aria-label', i18n('minimizeGuide', 'Parro 안내 최소화'));
+    coachAvatar.setAttribute('title', i18n('minimizeGuide', 'Parro 안내 최소화'));
+    coachAvatar.style.cssText = `position:fixed;${AVATAR_STYLE}pointer-events:auto;cursor:pointer;z-index:5;animation:parro-avatar-in .26s cubic-bezier(.2,.8,.2,1) both;`;
     coachAvatar.innerHTML = mascotHtml(tooltipMascotState);
     host.setAttribute('data-coach-avatar-status', 'loading');
     host.setAttribute('data-coach-avatar-size', String(AVATAR_SIZE));
@@ -972,7 +977,7 @@
         <span title="${idx + 1} / ${total}" style="flex-shrink:0;width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;font-size:12px;font-weight:800;display:grid;place-items:center;box-shadow:0 2px 6px rgba(0,155,142,.34)">${idx + 1}</span>
         ${resolved.source === 'none' ? `<span style="font-size:10.5px;color:#C2410C">${i18n('elementNotFound', '요소 미발견')}</span>` : ''}
         <div style="flex:1"></div>
-        <button class="parro-btn mimic-btn" data-act="play-guide-voice" title="${escapeHtml(i18n('guideVoicePlay', '음성 재생'))}" aria-label="${escapeHtml(i18n('guideVoicePlay', '음성 재생'))}" style="display:grid;place-items:center;width:28px;height:28px;padding:0;border:1px solid rgba(100,116,139,.24);border-radius:8px;background:transparent;color:#64748B;font-size:15px;line-height:1">🔊</button>
+        <button class="parro-btn mimic-btn" data-act="play-guide-voice" title="${escapeHtml(i18n('guideVoicePlay', '음성 재생'))}" aria-label="${escapeHtml(i18n('guideVoicePlay', '음성 재생'))}" style="display:grid;place-items:center;width:44px;height:44px;margin:-8px 0;padding:0;border:1px solid rgba(100,116,139,.24);border-radius:10px;background:#F8FAFC;color:#007F75;font-size:19px;line-height:1">🔊</button>
         <button class="parro-btn mimic-btn" data-act="hide-tooltip" title="말풍선 숨기기" style="background:transparent;color:#64748B;padding:3px 6px;font-size:15px;line-height:1">✕</button>
       </div>
       ${tooltipText ? `
@@ -997,7 +1002,7 @@
     // 툴팁 복원 버튼 (툴팁 숨김 상태일 때 우하단에 표시)
     const restoreBtn = document.createElement('button');
     restoreBtn.className = 'parro-btn mimic-btn';
-    restoreBtn.style.cssText = `position:fixed;right:16px;bottom:16px;background:linear-gradient(135deg,#009B8E,#12B886);color:#fff;padding:8px 14px;border-radius:20px;box-shadow:0 4px 16px rgba(0,155,142,.42);pointer-events:auto;z-index:4;font-size:12px;font-weight:700;display:none;`;
+    restoreBtn.style.cssText = 'display:none;';
     restoreBtn.textContent = i18n('showGuide', '💬 가이드 보기');
     restoreBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1005,6 +1010,23 @@
       state.tooltipHidden = false;
     });
     root.appendChild(restoreBtn);
+
+    const setTooltipHidden = (hidden) => {
+      if (!state) return;
+      state.tooltipHidden = hidden;
+      host.setAttribute('data-coach-minimized', hidden ? 'true' : 'false');
+      coachAvatar.setAttribute('aria-label', i18n(hidden ? 'showGuide' : 'minimizeGuide', hidden ? 'Parro 안내 펼치기' : 'Parro 안내 최소화'));
+      coachAvatar.setAttribute('title', i18n(hidden ? 'showGuide' : 'minimizeGuide', hidden ? 'Parro 안내 펼치기' : 'Parro 안내 최소화'));
+    };
+    const toggleCoach = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setTooltipHidden(!state?.tooltipHidden);
+    };
+    coachAvatar.addEventListener('click', toggleCoach);
+    coachAvatar.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') toggleCoach(event);
+    });
 
     // 스크롤 방향 힌트 — 타깃(요소)이 뷰포트 밖으로 스크롤됐을 때 상/하단에 표시.
     // 클릭하면 타깃을 화면 중앙으로 스크롤해 길을 잃지 않게 한다. (좌표 타깃은 뷰포트 고정이라 해당 없음)
@@ -1021,6 +1043,7 @@
     shadow.appendChild(root);
 
     state = { host, shadow, hl, coachAvatar, tooltip, restoreBtn, scrollHint, resolved, step, opts, idx, total, advanced: false, completed: false, awaitingCompletion: false, tooltipHidden: false, fallbackKey: null };
+    host.setAttribute('data-coach-minimized', 'false');
     initializeGuideVoice(step, tooltip.querySelector('[data-act="play-guide-voice"]'), null);
 
     // 브라우저의 새로고침/뒤로가기 스크롤 복원이 첫 scrollIntoView를 덮어쓸 수 있어
@@ -1058,8 +1081,7 @@
         submitGuideSurvey(e.target);
       }
       else if (act === 'hide-tooltip') {
-        if (!state) return;
-        state.tooltipHidden = true;
+        setTooltipHidden(true);
       }
       else if (act === 'play-guide-voice') {
         if (guideVoicePlaying) stopGuideVoice();
@@ -1158,8 +1180,27 @@
         hl.style.width  = `${r.width  + P * 2}px`;
         hl.style.height = `${r.height + P * 2}px`;
 
+        if (state.tooltipHidden) {
+          hl.style.display = 'block';
+          tooltip.style.display = 'none';
+          coachAvatar.style.display = 'flex';
+          coachAvatar.style.width = '64px';
+          coachAvatar.style.height = '64px';
+          coachAvatar.style.left = 'auto';
+          coachAvatar.style.top = 'auto';
+          coachAvatar.style.right = '16px';
+          coachAvatar.style.bottom = '16px';
+          if (state.restoreBtn) state.restoreBtn.style.display = 'none';
+          state.rafId = requestAnimationFrame(reposition);
+          return;
+        }
+
         // 독립된 아바타를 말풍선 왼쪽에 유지한다.
         coachAvatar.style.display = 'flex';
+        coachAvatar.style.width = `${AVATAR_SIZE}px`;
+        coachAvatar.style.height = `${AVATAR_SIZE}px`;
+        coachAvatar.style.right = 'auto';
+        coachAvatar.style.bottom = 'auto';
         tooltip.style.display = 'block';
         const tipH = tooltip.offsetHeight || 200;
         const pos = calcTipPos(r, tipH);
@@ -1180,12 +1221,7 @@
           tooltip.style.top  = `${top}px`;
           placeCoachAvatar(coachAvatar, left, top, tH);
         }
-        // 툴팁 숨김 모드 적용
-        if (state.tooltipHidden) {
-          coachAvatar.style.display = 'none';
-          tooltip.style.display = 'none';
-        }
-        if (state.restoreBtn) state.restoreBtn.style.display = state.tooltipHidden ? 'flex' : 'none';
+        if (state.restoreBtn) state.restoreBtn.style.display = 'none';
       }
       state.rafId = requestAnimationFrame(reposition);
     };
@@ -1540,6 +1576,7 @@
     host.style.cssText = `all:initial;position:fixed;inset:0;pointer-events:none;z-index:${Z};font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;`;
     document.documentElement.appendChild(host);
     const shadow = host.attachShadow({ mode: 'closed' });
+    shadow.appendChild(style(AVATAR_MOTION_CSS));
 
     const idx = opts.index ?? 0, total = opts.total ?? 1;
     const title = step.title || `Step ${idx + 1}`;
@@ -1552,7 +1589,7 @@
     card.style.cssText = `position:fixed;right:16px;bottom:16px;width:360px;max-width:calc(100vw - 32px);max-height:calc(100vh - 32px);overflow:auto;background:${TIP_BG};color:#fff;border-radius:16px;padding:16px;box-shadow:0 18px 55px rgba(0,0,0,.48),0 0 0 1px rgba(23,201,182,.16);pointer-events:auto;z-index:2`;
     card.innerHTML = `
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-        <div style="${AVATAR_STYLE}width:38px;height:38px;">${mascotHtml('clarify')}</div>
+        <button type="button" data-act="hide-explanation" aria-label="${escapeHtml(i18n('minimizeGuide', 'Parro 안내 최소화'))}" title="${escapeHtml(i18n('minimizeGuide', 'Parro 안내 최소화'))}" style="${AVATAR_STYLE}width:44px;height:44px;padding:0;cursor:pointer;">${mascotHtml('clarify')}</button>
         <div style="min-width:0;flex:1">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
             <span style="font-size:11px;font-weight:700;color:#8DD63F">${idx + 1} / ${total}</span>
@@ -1560,7 +1597,7 @@
           </div>
           <div style="font-size:15px;font-weight:800;line-height:1.35">${escapeHtml(title)}</div>
         </div>
-        <button type="button" data-act="play-guide-voice" title="${escapeHtml(i18n('guideVoicePlay', '음성 재생'))}" aria-label="${escapeHtml(i18n('guideVoicePlay', '음성 재생'))}" style="align-self:flex-start;display:grid;place-items:center;flex:0 0 30px;width:30px;height:30px;margin:-4px 0 0 0;padding:0;border:1px solid rgba(255,255,255,.16);border-radius:9px;background:rgba(255,255,255,.06);color:#D1D5DB;font-size:15px;line-height:1;cursor:pointer">🔊</button>
+        <button type="button" data-act="play-guide-voice" title="${escapeHtml(i18n('guideVoicePlay', '음성 재생'))}" aria-label="${escapeHtml(i18n('guideVoicePlay', '음성 재생'))}" style="align-self:flex-start;display:grid;place-items:center;flex:0 0 44px;width:44px;height:44px;margin:-4px 0 0 0;padding:0;border:1px solid rgba(255,255,255,.2);border-radius:10px;background:rgba(255,255,255,.08);color:#E5E7EB;font-size:19px;line-height:1;cursor:pointer">🔊</button>
         <button type="button" data-act="hide-explanation" aria-label="${escapeHtml(i18n('closeReferenceStep', '참고 단계 닫기'))}" title="${escapeHtml(i18n('closeReferenceStep', '참고 단계 닫기'))}" style="align-self:flex-start;display:grid;place-items:center;flex:0 0 30px;width:30px;height:30px;margin:-4px -4px 0 0;padding:0;border:1px solid rgba(255,255,255,.16);border-radius:9px;background:rgba(255,255,255,.06);color:#D1D5DB;font-size:17px;line-height:1;cursor:pointer">✕</button>
       </div>
       <div style="font-size:13px;color:#D1D5DB;line-height:1.55;margin-bottom:14px">${escapeHtml(text)}</div>
@@ -1569,8 +1606,10 @@
     const restoreBtn = document.createElement('button');
     restoreBtn.type = 'button';
     restoreBtn.setAttribute('data-act', 'restore-explanation');
-    restoreBtn.textContent = i18n('showGuide', '💬 가이드 보기');
-    restoreBtn.style.cssText = 'position:fixed;right:16px;bottom:16px;display:none;align-items:center;padding:9px 14px;border:0;border-radius:999px;background:linear-gradient(135deg,#009B8E,#12B886);box-shadow:0 6px 20px rgba(0,155,142,.34);color:#fff;font-size:12px;font-weight:800;cursor:pointer;pointer-events:auto;z-index:3';
+    restoreBtn.setAttribute('aria-label', i18n('showGuide', 'Parro 안내 펼치기'));
+    restoreBtn.setAttribute('title', i18n('showGuide', 'Parro 안내 펼치기'));
+    restoreBtn.innerHTML = mascotHtml('idle');
+    restoreBtn.style.cssText = 'position:fixed;right:16px;bottom:16px;display:none;align-items:center;justify-content:center;width:64px;height:64px;padding:3px;border:0;border-radius:14px;background:rgba(255,255,255,.96);box-shadow:0 8px 24px rgba(15,23,42,.28);cursor:pointer;pointer-events:auto;z-index:3';
     const frame = appendGuideViewportFrame(shadow);
     shadow.appendChild(card);
     shadow.appendChild(restoreBtn);
