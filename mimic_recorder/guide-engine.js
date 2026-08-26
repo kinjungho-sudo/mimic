@@ -23,6 +23,12 @@
   const LEGACY_OVERLAY_ROOT_ID = 'mimic-overlay-root';
   const GUIDE_VOICE_MODE_KEY = 'guideVoiceMode';
   const GUIDE_VOICE_LEGACY_KEY = 'guideVoiceEnabled';
+  const EDITABLE_TARGET_SELECTOR = [
+    'input:not([type="hidden"])', 'textarea', '[role="textbox"]',
+    '[contenteditable="true"]', '[contenteditable="plaintext-only"]',
+    '.ProseMirror', '.ql-editor', '.se2_inputarea', '.se_editArea',
+    '.note-editable', '[data-contents="true"]',
+  ].join(',');
 
   let state = null;
   let guideVoiceMode = 'off';
@@ -179,6 +185,18 @@
     return id === OVERLAY_ROOT_ID || id === LEGACY_OVERLAY_ROOT_ID;
   }
 
+  function isTypeStep(step) {
+    return Boolean(step?.type_text || step?.kind === 'type' || step?.action_type === 'type');
+  }
+
+  function isEditableTarget(el) {
+    if (!el?.matches) return false;
+    if (el.matches(':disabled,[aria-disabled="true"]')) return false;
+    return el.matches(EDITABLE_TARGET_SELECTOR)
+      || el.isContentEditable
+      || (el.ownerDocument?.designMode === 'on' && el === el.ownerDocument.body);
+  }
+
   function appendGuideViewportFrame(parent) {
     const frame = document.createElement('div');
     frame.setAttribute('aria-hidden', 'true');
@@ -311,10 +329,15 @@
     return { left, top, width, height };
   }
 
-  function promoteHitTarget(hit) {
+  function promoteHitTarget(hit, step) {
     if (!hit || isOverlayRootId(hit.id)) return null;
+    if (isTypeStep(step)) {
+      const editable = hit.closest?.(EDITABLE_TARGET_SELECTOR);
+      if (editable && !isOverlayRootId(editable.id)) return editable;
+      if (hit.isContentEditable) return hit;
+    }
     const semantic = hit.closest && hit.closest(
-      'button,a[href],input,select,textarea,label,[role="button"],[role="link"],[role="menuitem"],[role="option"],[role="tab"],[onclick],[tabindex]:not([tabindex="-1"])'
+      `button,a[href],select,label,[role="button"],[role="link"],[role="menuitem"],[role="option"],[role="tab"],[onclick],[tabindex]:not([tabindex="-1"]),${EDITABLE_TARGET_SELECTOR}`
     );
     if (!semantic || isOverlayRootId(semantic.id)) return hit;
     const rect = rectOf(semantic);
@@ -368,7 +391,8 @@
     if (!el?.matches) return false;
     if (el.matches(':disabled,[aria-disabled="true"]')) return false;
     const style = (el.ownerDocument?.defaultView || window).getComputedStyle(el);
-    return el.matches('button,a[href],input:not([type="hidden"]),select,textarea,summary,label,[role="button"],[role="link"],[role="menuitem"],[role="option"],[role="tab"],[role="checkbox"],[role="radio"],[role="switch"],[role="combobox"],[role="textbox"],[onclick],[tabindex]:not([tabindex="-1"])')
+    return isEditableTarget(el)
+      || el.matches('button,a[href],select,summary,label,[role="button"],[role="link"],[role="menuitem"],[role="option"],[role="tab"],[role="checkbox"],[role="radio"],[role="switch"],[role="combobox"],[onclick],[tabindex]:not([tabindex="-1"])')
       || style.cursor === 'pointer';
   }
 
@@ -391,6 +415,8 @@
 
   function replayCandidate(el, step, source, evidence) {
     if (!el || !el.isConnected || isOverlayRootId(el.id) || /^(HTML|BODY)$/.test(el.tagName || '')) return null;
+    const editableTarget = isEditableTarget(el);
+    if (isTypeStep(step) && !editableTarget) return null;
     const rect = rectOf(el);
     if (!rect || rect.width < 1 || rect.height < 1 || !isVisibleEl(el)) return null;
     if (isElementOccluded(el)) return null;
@@ -402,6 +428,7 @@
       visible: true,
       disabled: !!el.matches?.(':disabled,[aria-disabled="true"]'),
       interactive: isInteractiveElement(el),
+      editableTarget,
       stableAttribute: ['id', 'data-testid', 'data-cy', 'data-test', 'aria-label', 'name'].some(attr => !!el.getAttribute?.(attr)),
       accessibleSimilarity: context.accessibleName ? similarity(accessibleNameOf(el), context.accessibleName) : 0,
       contextSimilarity: context.contextLabel ? similarity(contextLabelOf(el), context.contextLabel) : 0,
@@ -432,7 +459,7 @@
 
   function resolvePointElement(x, y, step, source, evidence) {
     if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight) return null;
-    const hit = promoteHitTarget(document.elementFromPoint(x, y));
+    const hit = promoteHitTarget(document.elementFromPoint(x, y), step);
     if (!hit || !isInteractiveElement(hit)) return null;
     return chooseElementCandidates([hit], step, source, evidence);
   }
@@ -538,7 +565,7 @@
   function fuzzyFind(step) {
     const hint = extractHint(step);
     if (!hint.text && !hint.attrVal && !hint.contextText) return null;
-    let sel = 'a,button,input,select,textarea,label,[role],[onclick],[tabindex]';
+    let sel = `a,button,select,label,[role],[onclick],[tabindex],${EDITABLE_TARGET_SELECTOR}`;
     if (hint.tag && /^[a-z][a-z0-9]*$/.test(hint.tag)) sel = hint.tag + ',' + sel;
     let nodes;
     try { nodes = document.querySelectorAll(sel); } catch { return null; }
@@ -905,8 +932,8 @@
     const typeTextSnippet = step.type_text ? escapeHtml(String(step.type_text)) : '';
     const protectedTypeInput = protectedGuideInputKind(step.type_text);
     const tooltipText = step.instruction || step.title || '';
-    const isTypeStep = Boolean(step.type_text || step.kind === 'type' || step.action_type === 'type');
-    const tooltipMascotState = !isTypeStep && idx > 0 && idx % 3 === 1 ? 'point' : 'talk';
+    const typeStep = isTypeStep(step);
+    const tooltipMascotState = !typeStep && idx > 0 && idx % 3 === 1 ? 'point' : 'talk';
 
     const coachAvatar = document.createElement('div');
     coachAvatar.setAttribute('data-role', 'coach-avatar');
@@ -1141,7 +1168,7 @@
         placeCoachAvatar(coachAvatar, pos.left, pos.top, tipH);
 
         // 소유자가 스튜디오에서 지정한 말풍선 위치 — 뷰포트 고정 코너로 override
-        const anchor = isTypeStep ? 'bottom-right' : state.step && state.step.bubble_anchor;
+        const anchor = typeStep ? 'bottom-right' : state.step && state.step.bubble_anchor;
         if (anchor) {
           const tH = tooltip.offsetHeight || tipH;
           const hasAvatarSideRoom = window.innerWidth >= TIP_W + AVATAR_OUTSET + TIP_M * 2;

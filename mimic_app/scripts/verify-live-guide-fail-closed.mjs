@@ -52,6 +52,7 @@ try {
             #target { position: absolute; left: 40px; top: 40px; width: 140px; height: 44px; }
             #screenshot-card { position: absolute; left: 280px; top: 180px; width: 620px; height: 360px; background: #eee; }
             #signup { position: absolute; left: 40px; top: 120px; display: flex; gap: 8px; }
+            #rich-editor { position: absolute; left: 40px; top: 220px; width: 200px; height: 160px; border: 1px solid #aaa; }
           </style>
         </head>
         <body>
@@ -61,6 +62,7 @@ try {
             <button id="submit-email" type="submit">알림 신청</button>
             <span id="email-error" role="alert" hidden></span>
           </form>
+          <div id="rich-editor" contenteditable="true"></div>
           <div class="guide-target" id="screenshot-card">워크스페이스 스크린샷 썸네일</div>
           <script>
             document.querySelector('#target').addEventListener('click', () => { window.targetClicks = (window.targetClicks || 0) + 1; });
@@ -142,6 +144,36 @@ try {
     type: 'SHOW_OVERLAY',
     step: {
       ...validStep,
+      id: 'rich-text-input-coordinate-recovery',
+      title: '본문 입력',
+      instruction: '본문을 입력합니다.',
+      kind: 'type',
+      type_text: '라이브 가이드 입력 테스트',
+      element_selector: '#stale-rich-editor-selector',
+      element_xpath: null,
+      click_x: 1200,
+      click_y: 4200,
+      target_context: {
+        ...validStep.target_context,
+        accessibleName: null,
+        contextLabel: null,
+        selectorConfidence: 'low',
+      },
+    },
+    index: 0,
+    total: 1,
+  });
+  await page.waitForSelector('#parro-overlay-root');
+  await page.waitForTimeout(250);
+  const richInputWaitingPromptCount = await page.locator('#parro-overlay-root button[aria-live="polite"]').count();
+  check(() => assert.equal(richInputWaitingPromptCount, 0));
+  await sendToTab(worker, tabId, { type: 'HIDE_OVERLAY' });
+  await page.waitForSelector('#parro-overlay-root', { state: 'detached' });
+
+  await sendToTab(worker, tabId, {
+    type: 'SHOW_OVERLAY',
+    step: {
+      ...validStep,
       id: 'missing-target',
       element_selector: '#not-present',
       target_context: { ...validStep.target_context, accessibleName: '존재하지 않는 대상' },
@@ -217,6 +249,7 @@ try {
     wrongPageUi: 'recovery-card',
     completionUi: true,
     invalidSubmitBlocked: true,
+    richTextInputTargetRecovered: true,
   }));
 } finally {
   if (context) await context.close();

@@ -122,6 +122,14 @@ assert.match(engine, /function submissionForm\(target\)/);
 assert.match(engine, /function validateSubmissionThenAdvance\(form\)/);
 assert.match(engine, /if \(form\) validateSubmissionThenAdvance\(form\)/);
 assert.match(engine, /function setupRequiredTextInput\(el, expectedText\)/);
+assert.match(engine, /EDITABLE_TARGET_SELECTOR/,
+  'Live Guide must share an explicit editable-control candidate set for type steps');
+assert.match(engine, /if \(isTypeStep\(step\) && !editableTarget\) return null/,
+  'type steps must reject non-editable replay candidates');
+assert.match(engine, /promoteHitTarget\(document\.elementFromPoint\(x, y\), step\)/,
+  'coordinate recovery must promote rich text fields with type-step context');
+assert.match(engine, /'\[contenteditable="true"\]'/,
+  'contenteditable controls must be eligible for Live Guide highlighting');
 assert.match(engine, /function protectedGuideInputKind\(expectedText\)/);
 assert.match(engine, /function guideInputMatches\(currentValue, expectedText\)/);
 assert.match(engine, /이메일\|email\|전자우편/);
@@ -189,8 +197,9 @@ assert.match(pythonPackageBuilder, /"assets\/parro-3d-neutral\.png", "assets\/pa
 assert.match(powershellPackageBuilder, /'assets\/parro-3d-neutral\.png', 'assets\/parro-3d-point\.png'/);
 assert.doesNotMatch(engine, /parro-3d-(talk|success)\.png/);
 assert.match(engine, /border-radius:20px;padding:12px 14px;box-shadow:0 16px 38px/);
-assert.match(engine, /const isTypeStep = Boolean\(step\.type_text \|\| step\.kind === 'type' \|\| step\.action_type === 'type'\)/);
-assert.match(engine, /const anchor = isTypeStep \? 'bottom-right'/);
+assert.match(engine, /function isTypeStep\(step\)[\s\S]*step\?\.kind === 'type'/);
+assert.match(engine, /const typeStep = isTypeStep\(step\)/);
+assert.match(engine, /const anchor = typeStep \? 'bottom-right'/);
 assert.match(engine, /root\.appendChild\(coachAvatar\);[\s\S]*root\.appendChild\(tooltip\);/);
 assert.match(engine, /placeCoachAvatar\(coachAvatar, pos\.left, pos\.top, tipH\)/);
 assert.match(engine, /animation:parro-avatar-in [^;]+ both;/);

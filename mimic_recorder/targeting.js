@@ -112,6 +112,7 @@
     if (facts.fuzzyMatch) score += 6;
     if (facts.manualTarget) score += 18;
     if (facts.interactive) score += 12;
+    if (facts.editableTarget) score += 18;
     if (facts.stableAttribute) score += 8;
     score += Math.max(0, Math.min(1, finite(facts.accessibleSimilarity))) * 34;
     score += Math.max(0, Math.min(1, finite(facts.contextSimilarity))) * 12;
