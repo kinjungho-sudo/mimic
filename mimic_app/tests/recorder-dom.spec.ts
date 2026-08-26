@@ -320,6 +320,52 @@ test('guide accepts a unique visible selector after responsive movement', async 
   expect(source).toBe('selector');
 });
 
+test('type guide resolves the correct field among responsive dialog inputs', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.setContent(`
+    <section role="dialog" aria-labelledby="dialog-title" style="position:absolute;left:320px;top:70px;width:560px;padding:28px">
+      <h2 id="dialog-title">예약된 작업</h2>
+      <label>이름 <input id="task-name" placeholder="예: 뉴스 요약" style="display:block;width:500px;height:52px;margin-top:8px"></label>
+      <label style="display:block;margin-top:44px">요청 사항 <input id="task-request" placeholder="예: 뉴스 요약 보내기" style="display:block;width:500px;height:52px;margin-top:8px"></label>
+    </section>
+  `);
+  await loadGuide(page);
+  const resolvedId = await page.evaluate(() => {
+    const guide = (window as unknown as { ParroGuide: any }).ParroGuide;
+    return guide._resolveTarget({
+      type_text: '뉴스 요약',
+      element_selector: 'input.obsolete-recorder-class',
+      element_rect: { x: 0.31, y: 0.19, width: 0.39, height: 0.065 },
+      target_context: {
+        accessibleName: '뉴스 요약',
+        contextLabel: '예약된 작업',
+        pageTitle: document.title,
+      },
+    }).el?.id ?? null;
+  });
+  expect(resolvedId).toBe('task-name');
+});
+
+test('type guide still rejects indistinguishable editable fields', async ({ page }) => {
+  await page.setContent(`
+    <section role="dialog" aria-labelledby="dialog-title">
+      <h2 id="dialog-title">예약된 작업</h2>
+      <input class="same" placeholder="작업 이름">
+      <input class="same" placeholder="작업 이름">
+    </section>
+  `);
+  await loadGuide(page);
+  const source = await page.evaluate(() => {
+    const guide = (window as unknown as { ParroGuide: any }).ParroGuide;
+    return guide._resolveTarget({
+      type_text: '뉴스 요약',
+      element_selector: 'input.same',
+      target_context: { accessibleName: '작업 이름', contextLabel: '예약된 작업' },
+    }).source;
+  });
+  expect(source).toBe('none');
+});
+
 test('long Live Guide copy is fully visible immediately', async ({ page }) => {
   await page.route('https://example.test/long-copy', route => route.fulfill({
     contentType: 'text/html',
@@ -566,7 +612,10 @@ test('reference step can be closed and reopened without completing the step', as
       title: 'Reference',
       instruction: 'Review this information.',
       screenshot_url: 'https://example.test/preview.png',
-      user_annotations: [{ type: 'marker', x1: 50, y1: 50, x2: 50, y2: 50, markerNumber: '1' }],
+      user_annotations: [
+        { type: 'marker', x1: 50, y1: 50, x2: 50, y2: 50, markerNumber: '1' },
+        { type: 'arrow', x1: 72, y1: 82, x2: 40, y2: 24, color: '#EF4444', strokeWidth: 2 },
+      ],
     }, { index: 3, total: 8 });
   });
 
@@ -579,6 +628,7 @@ test('reference step can be closed and reopened without completing the step', as
   await expect(preview).toHaveTitle('Parro 미리보기');
   await expect(preview.locator('img')).toHaveAttribute('src', 'https://example.test/preview.png');
   await expect(preview.locator('body')).toContainText('1');
+  await expect(preview.locator('svg line[marker-end]')).toHaveCount(1);
   await preview.close();
 
   await clickClosedShadowAction(page, 'hide-explanation');

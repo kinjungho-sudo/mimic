@@ -424,16 +424,20 @@
     const context = step.target_context || {};
     const targeting = window.ParroTargeting;
     const similarity = targeting?.textSimilarity || ((a, b) => cleanText(a).toLowerCase() === cleanText(b).toLowerCase() ? 1 : 0);
+    const accessibleSimilarity = context.accessibleName ? similarity(accessibleNameOf(el), context.accessibleName) : 0;
+    const contextSimilarity = context.contextLabel ? similarity(contextLabelOf(el), context.contextLabel) : 0;
+    const candidateGeometrySimilarity = geometrySimilarity(rect, step);
     const facts = {
       visible: true,
       disabled: !!el.matches?.(':disabled,[aria-disabled="true"]'),
       interactive: isInteractiveElement(el),
       editableTarget,
-      stableAttribute: ['id', 'data-testid', 'data-cy', 'data-test', 'aria-label', 'name'].some(attr => !!el.getAttribute?.(attr)),
-      accessibleSimilarity: context.accessibleName ? similarity(accessibleNameOf(el), context.accessibleName) : 0,
-      contextSimilarity: context.contextLabel ? similarity(contextLabelOf(el), context.contextLabel) : 0,
+      stableAttribute: ['id', 'data-testid', 'data-cy', 'data-test', 'aria-label', 'name', 'placeholder'].some(attr => !!el.getAttribute?.(attr)),
+      accessibleSimilarity,
+      contextSimilarity,
       pageTitleSimilarity: context.pageTitle ? similarity(document.title, context.pageTitle) : 0,
-      geometrySimilarity: geometrySimilarity(rect, step),
+      geometrySimilarity: candidateGeometrySimilarity,
+      typeStep: isTypeStep(step),
       areaRatio,
       ...(evidence || {}),
     };
@@ -564,7 +568,7 @@
 
   function fuzzyFind(step) {
     const hint = extractHint(step);
-    if (!hint.text && !hint.attrVal && !hint.contextText) return null;
+    if (!hint.text && !hint.attrVal && !hint.contextText && !isTypeStep(step)) return null;
     let sel = `a,button,select,label,[role],[onclick],[tabindex],${EDITABLE_TARGET_SELECTOR}`;
     if (hint.tag && /^[a-z][a-z0-9]*$/.test(hint.tag)) sel = hint.tag + ',' + sel;
     let nodes;
@@ -576,7 +580,8 @@
       const nameMatch = hint.text ? similarity(accessibleNameOf(el), hint.text) : 0;
       const contextMatch = hint.contextText ? similarity(contextLabelOf(el), hint.contextText) : 0;
       const attrMatch = hint.attrVal && el.getAttribute(hint.attrName) === hint.attrVal;
-      return attrMatch || nameMatch >= 0.55 || contextMatch >= 0.72;
+      const geometryMatch = isTypeStep(step) ? geometrySimilarity(rectOf(el), step) : 0;
+      return attrMatch || nameMatch >= 0.55 || contextMatch >= 0.72 || geometryMatch >= 0.52;
     });
     return chooseElementCandidates(candidates, step, 'fuzzy', { fuzzyMatch: true });
   }
@@ -1495,7 +1500,8 @@
     if (!box) return '';
     const color = safeCssColor(a.color || a.borderColor, '#009B8E');
     const borderColor = safeCssColor(a.borderColor || a.color, color);
-    const stroke = Math.max(1, Math.min(8, Number(a.strokeWidth) || 3));
+    const rawStroke = Number(a.strokeWidth);
+    const stroke = Number.isFinite(rawStroke) ? Math.max(0, Math.min(8, rawStroke)) : 3;
     const base = `position:absolute;left:${box.left}%;top:${box.top}%;width:${box.width}%;height:${box.height}%;box-sizing:border-box;pointer-events:none;`;
     if (a.type === 'text') {
       return `<div style="${base}width:auto;min-width:72px;max-width:70%;height:auto;background:rgba(17,24,39,.88);color:#fff;border:1px solid rgba(255,255,255,.24);border-radius:8px;padding:6px 8px;font-size:11px;line-height:1.35;box-shadow:0 8px 24px rgba(0,0,0,.28)">${escapeHtml(a.text || '')}</div>`;
@@ -1504,13 +1510,11 @@
       return `<div style="position:absolute;left:${box.x1}%;top:${box.y1}%;transform:translate(-50%,-50%);width:22px;height:22px;border-radius:50%;background:${color};color:#fff;display:grid;place-items:center;font-size:11px;font-weight:800;box-shadow:0 6px 16px rgba(0,0,0,.25);pointer-events:none">${escapeHtml(a.markerNumber || '')}</div>`;
     }
     if (a.type === 'arrow' || a.type === 'line') {
-      const dx = box.x2 - box.x1, dy = box.y2 - box.y1;
-      const length = Math.max(1, Math.sqrt(dx * dx + dy * dy));
-      const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-      const head = a.type === 'arrow'
-        ? `<span style="position:absolute;right:-2px;top:50%;width:8px;height:8px;border-top:${stroke}px solid ${color};border-right:${stroke}px solid ${color};transform:translateY(-50%) rotate(45deg);transform-origin:center"></span>`
+      const markerId = `parro-arrow-${Math.random().toString(36).slice(2, 10)}`;
+      const marker = a.type === 'arrow'
+        ? `<defs><marker id="${markerId}" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,4 L0,8 Z" fill="${color}"></path></marker></defs>`
         : '';
-      return `<div style="position:absolute;left:${box.x1}%;top:${box.y1}%;width:${length}%;height:${stroke}px;background:${color};transform-origin:0 50%;transform:rotate(${angle}deg);border-radius:${stroke}px;pointer-events:none">${head}</div>`;
+      return `<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none">${marker}<line x1="${box.x1}" y1="${box.y1}" x2="${box.x2}" y2="${box.y2}" stroke="${color}" stroke-width="${Math.max(1, stroke)}" vector-effect="non-scaling-stroke" stroke-linecap="round"${a.type === 'arrow' ? ` marker-end="url(#${markerId})"` : ''}></line></svg>`;
     }
     const radius = a.type === 'ellipse' ? '999px' : a.type === 'roundedRect' ? '10px' : '6px';
     const shadow = a.type === 'spotlight' ? 'box-shadow:0 0 0 9999px rgba(0,0,0,.42),0 0 0 2px rgba(255,255,255,.75);' : '';

@@ -113,6 +113,15 @@
     if (facts.manualTarget) score += 18;
     if (facts.interactive) score += 12;
     if (facts.editableTarget) score += 18;
+    if (facts.typeStep && facts.editableTarget) {
+      // Responsive side panels can move a modal without changing which field it is.
+      // Give type steps additional evidence from editable geometry and labels so
+      // two inputs in the same dialog do not remain artificially tied.
+      score += 10;
+      score += Math.max(0, Math.min(1, finite(facts.geometrySimilarity))) * 18;
+      if (finite(facts.accessibleSimilarity) >= 0.55) score += 14;
+      if (finite(facts.contextSimilarity) >= 0.72) score += 6;
+    }
     if (facts.stableAttribute) score += 8;
     score += Math.max(0, Math.min(1, finite(facts.accessibleSimilarity))) * 34;
     score += Math.max(0, Math.min(1, finite(facts.contextSimilarity))) * 12;
@@ -132,8 +141,11 @@
     const best = scored[0] || null;
     const runnerUp = scored[1] || null;
     const margin = best ? best.score - (runnerUp?.score ?? 0) : 0;
-    const unambiguous = !runnerUp || margin >= 10;
-    const confidence = !best || best.score < 58 || !unambiguous
+    const typeTarget = !!(best?.facts?.typeStep && best?.facts?.editableTarget);
+    const requiredMargin = typeTarget ? 6 : 10;
+    const minimumScore = typeTarget ? 64 : 58;
+    const unambiguous = !runnerUp || margin >= requiredMargin;
+    const confidence = !best || best.score < minimumScore || !unambiguous
       ? 'low'
       : (best.score >= 72 && (!runnerUp || margin >= 12) ? 'high' : 'medium');
     return {
