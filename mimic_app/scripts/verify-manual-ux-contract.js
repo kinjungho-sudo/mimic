@@ -15,8 +15,8 @@ const liveGuideRoute = read('app', 'api', 'guide', '[token]', 'route.ts');
 const home = read('app', 'home', 'page.tsx');
 const landing = read('app', 'landingpage', 'page.tsx');
 const landingLayout = read('app', 'landingpage', 'layout.tsx');
-const landingFaq = read('lib', 'landing-faq.ts');
 const desktopSetup = read('app', 'desktop-setup', 'page.tsx');
+const desktopCompanionClient = read('lib', 'desktop-companion-client.ts');
 const player = read('app', 'play', '[token]', 'page.tsx');
 const followPlayer = read('components', 'viewer', 'InteractiveFollowPlayer.tsx');
 const followStage = read('components', 'viewer', 'FollowStage.tsx');
@@ -94,12 +94,12 @@ assert.match(home, /firstName \? `\$\{firstName\}님의 워크스페이스` : '�
 assert.match(home, /`\$\{liveGuide\.used\} \/ 무제한`/, 'Live Guide paid usage needs a readable separator');
 assert.match(home, /`\$\{playbook\.used\} \/ 무제한`/, 'Playbook paid usage needs a readable separator');
 
-assert.match(landing, /LANDING_FAQS\.map/, 'visible landing FAQ must use the shared FAQ source');
-assert.match(landingLayout, /LANDING_FAQS\.map/, 'FAQ structured data must use the shared FAQ source');
-assert.match(landingLayout, /title:\s*LANDING_TITLE/, 'landing metadata must use the dedicated SEO title without duplicating the Parro suffix');
-assert.match(landingFaq, /아직 일반 결제를 받고 있지 않습니다/, 'prelaunch FAQ must describe billing availability truthfully');
-assert.match(landingFaq, /현재는 사용자가 직접 결제 플랜을 변경하는 기능이 제공되지 않습니다/, 'prelaunch FAQ must not promise unavailable self-service plan changes');
-assert.doesNotMatch(landingFaq, /카카오페이|토스페이|전액 환불|언제든 구독을 해지/, 'prelaunch FAQ must not promise unavailable billing operations');
+assert.match(landing, /export default function EduLandingPage/, 'landing page must expose the current Parro EDU experience');
+assert.match(landing, /instructor:\s*"https:\/\/parro-edu-dev\.vercel\.app\/edu\/instructor"/, 'landing instructor CTA must use the dedicated EDU experience');
+assert.match(landing, /join:\s*"https:\/\/parro-edu-dev\.vercel\.app\/edu\/join"/, 'landing learner CTA must use the dedicated EDU experience');
+assert.match(landing, /id="experience"[\s\S]*id="workflow"[\s\S]*id="instructor"/, 'landing navigation targets must remain available in document order');
+assert.match(landingLayout, /const LANDING_TITLE = 'Parro EDU \|/, 'landing metadata must identify the current Parro EDU product');
+assert.match(landingLayout, /'@type': 'Service'[\s\S]*name: 'Parro EDU'/, 'landing structured data must describe the Parro EDU service');
 assert.doesNotMatch(desktopSetup, /Parro Recorder 1\.7\.4/, 'desktop setup must not hard-code an obsolete Recorder version');
 assert.doesNotMatch(desktopSetup, /(?<!Parro )Desktop Companion/, 'desktop setup must use the Parro Desktop product name');
 assert.doesNotMatch(desktopCompanionClient, /(?<!Parro )Desktop Companion/, 'desktop errors must use the Parro Desktop product name');

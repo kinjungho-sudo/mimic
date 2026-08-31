@@ -234,18 +234,18 @@ export function desktopCompanionErrorMessage(error: string | undefined, fallback
   }
   switch (error) {
     case 'desktop_paid_plan_required':
-      return 'Desktop Companion은 유료 플랜에서 사용할 수 있습니다. 요금제를 확인한 뒤 다시 시도해주세요.';
+      return 'Parro Desktop은 유료 플랜에서 사용할 수 있습니다. 요금제를 확인한 뒤 다시 시도해주세요.';
     case 'desktop_update_required':
-      return `Desktop Companion을 최신 버전(${DESKTOP_COMPANION_LATEST_VERSION})으로 업데이트한 뒤 다시 시도해주세요.`;
+      return `Parro Desktop을 최신 버전(${DESKTOP_COMPANION_LATEST_VERSION})으로 업데이트한 뒤 다시 시도해주세요.`;
     case 'not_linked':
       return 'Parro에 로그인하고 Recorder를 계정에 연결한 뒤 다시 시도해주세요. 캡처 파일은 PC에 그대로 보관됩니다.';
     case 'desktop_capture_empty':
       return '저장된 캡처 단계가 없습니다. 캡처를 시작한 뒤 대상 앱을 한 번 이상 클릭해주세요.';
     case 'desktop_host_unavailable':
     case 'desktop_host_disconnected':
-      return 'Desktop Companion에 연결하지 못했습니다. 앱 설치 상태를 확인한 뒤 다시 시도해주세요.';
+      return 'Parro Desktop에 연결하지 못했습니다. 앱 설치 상태를 확인한 뒤 다시 시도해주세요.';
     case 'desktop_host_timeout':
-      return 'Desktop Companion 응답이 지연되고 있습니다. 캡처 파일은 보존되므로 잠시 후 다시 시도해주세요.';
+      return 'Parro Desktop 응답이 지연되고 있습니다. 캡처 파일은 보존되므로 잠시 후 다시 시도해주세요.';
     case 'nothing_to_undo':
       return '취소할 캡처 단계가 없습니다.';
     default:

@@ -201,7 +201,7 @@ check(() => {
   assert.match(middleware, /hasEntitlement\(profile\?\.plan, 'desktop_companion'\)/);
   assert.match(nextConfig, /source: '\/downloads\/ParroDesktopSetup\.exe'/);
   assert.match(nextConfig, /Content-Disposition'[\s\S]*attachment; filename="ParroDesktopSetup\.exe"/);
-  assert.match(desktopDownloadPage, /✓ PC에 저장 · 완료 시 Parro로 업로드/);
+  assert.match(desktopDownloadPage, /PC에 저장 · 완료 시 Parro로 업로드/);
   assert.doesNotMatch(desktopDownloadPage, /✓ 캡처 파일은 PC에 저장/);
   assert.match(extendedTranslations, /"✓ PC에 저장 · 완료 시 Parro로 업로드": "✓ Saved on PC · Uploaded to Parro on completion"/);
 });
@@ -239,15 +239,8 @@ check(() => {
   assert.match(stopBlock, /nativeCaptureStopped = true/);
   assert.match(stopBlock, /stopped: nativeCaptureStopped/);
 
-  const uiStopStart = desktopSetup.indexOf('const stopDesktopRecording = useCallback');
-  const uiStopEnd = desktopSetup.indexOf('const toggleDesktopPause = useCallback', uiStopStart);
-  const uiStopBlock = desktopSetup.slice(uiStopStart, uiStopEnd);
-  assert.ok(uiStopStart >= 0 && uiStopEnd > uiStopStart, 'desktop stop UI handler must be present');
-  assert.match(uiStopBlock, /if \(response\?\.stopped\)/);
-  assert.match(uiStopBlock, /setStatus\('stopped'\)/);
-  assert.match(uiStopBlock, /if \(sessionId\) setPendingSessionId\(sessionId\)/);
-  assert.match(uiStopBlock, /setStatus\(status\)/);
-  assert.doesNotMatch(uiStopBlock, /setStatus\('started'\)/);
+  assert.match(desktopSetup, /const openDesktopApp = useCallback/);
+  assert.match(desktopSetup, /녹화 종료는 이제 Windows 앱에서 진행합니다/);
   assert.match(desktopClient, /stopped\?: boolean/);
 });
 
@@ -288,9 +281,9 @@ check(() => {
 check(() => {
   assert.match(captureAgent, /public static class ParroDesktopClickHighlight/);
   assert.match(captureAgent, /\[ParroDesktopClickHighlight\]::ShowAt\(\$point\.X, \$point\.Y\)/);
-  assert.match(captureAgent, /while \(\(Test-CaptureOwnerAlive\) -and -not \(Test-Path -LiteralPath \$StopFile\)\)/);
+  assert.match(captureAgent, /while \(-not \(Test-Path -LiteralPath \$StopFile\)\)/);
   assert.match(captureAgent, /mode = "active-monitor"/);
-  assert.match(captureAgent, /if \(\(Test-Path -LiteralPath \$StopFile\) -or -not \(Test-CaptureOwnerAlive\)\) \{ break \}/);
+  assert.match(captureAgent, /if \(-not \(Test-OwnerAlive\)\) \{ break \}/);
   assert.match(desktopLauncher, /captureProcess\.Kill\(\)/);
   assert.match(nativeHost, /child\.kill\(\)/);
   assert.match(captureAgent, /WdaExcludeFromCapture/);

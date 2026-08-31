@@ -20,7 +20,7 @@ check(() => assert.match(background, /async function fetchWithTimeout\(/));
 check(() => assert.match(background, /controller\.abort\(\)/));
 check(() => assert.match(background, /REQUEST_TIMEOUT/));
 check(() => assert.match(background, /timeoutMs:\s*FINALIZE_API_TIMEOUT_MS/));
-check(() => assert.match(background, /STORAGE_UPLOAD_TIMEOUT_MS,\s*\n\s*\)/));
+check(() => assert.match(background, /fetchWithTimeout\(target\.signed_url, \{ method: 'PUT', body: formData \}, STORAGE_UPLOAD_TIMEOUT_MS\)/));
 check(() => assert.match(finalizeRoute, /INITIAL_AI_POLISH_TIMEOUT_MS\s*=\s*12_000/));
 check(() => assert.match(finalizeRoute, /await withTimeout\(\(async \(\) =>/));
 check(() => assert.match(finalizeRoute, /INITIAL_AI_POLISH_TIMEOUT_MS\)/));
