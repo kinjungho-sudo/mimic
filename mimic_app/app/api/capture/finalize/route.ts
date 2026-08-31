@@ -194,6 +194,21 @@ function isOnboardingPracticeUrl(rawUrl: unknown, expectedOrigin: string) {
 }
 
 type CaptureFinalizeClient = ReturnType<typeof createServiceRoleClient>;
+const INITIAL_AI_POLISH_TIMEOUT_MS = 12_000;
+
+async function withTimeout<T>(work: Promise<T>, timeoutMs: number): Promise<T | null> {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      work,
+      new Promise<null>(resolve => {
+        timer = setTimeout(() => resolve(null), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
 
 async function findCompletedCaptureResult(
   supabase: CaptureFinalizeClient,
@@ -691,26 +706,33 @@ export async function POST(request: NextRequest) {
               const noAction = noActionByStepNum.get(firstStep.step_number) ?? false;
               const clickX = !noAction && event?.click_x != null ? event.click_x / 10000 : undefined;
               const clickY = !noAction && event?.click_y != null ? event.click_y / 10000 : undefined;
-              const analysis = await analyzeScreenshot(
-                image.base64,
-                firstStep.page_url ?? '',
-                actionInfoByStepNum.get(firstStep.step_number) ?? undefined,
-                { clickX, clickY },
-                image.mediaType
-              ).catch(() => null);
+              const analysis = await withTimeout((async () => {
+                const result = await analyzeScreenshot(
+                  image.base64,
+                  firstStep.page_url ?? '',
+                  actionInfoByStepNum.get(firstStep.step_number) ?? undefined,
+                  { clickX, clickY },
+                  image.mediaType
+                ).catch(() => null);
+                if (!result) return null;
 
-              if (analysis?.title?.trim() && isCaptureTitleGrounded(analysis.title, {
-                pageUrl: firstStep.page_url,
-                actionInfo: actionInfoByStepNum.get(firstStep.step_number),
-                elementText: elementTextByStepNum.get(firstStep.step_number),
-              })) {
-                firstTitle = stripDecorativeActionGlyphs(analysis.title);
+                const groundedTitle = result.title?.trim() && isCaptureTitleGrounded(result.title, {
+                  pageUrl: firstStep.page_url,
+                  actionInfo: actionInfoByStepNum.get(firstStep.step_number),
+                  elementText: elementTextByStepNum.get(firstStep.step_number),
+                }) ? stripDecorativeActionGlyphs(result.title) : '';
+                const description = groundedTitle
+                  ? await generateStepDescription(groundedTitle, firstStep.page_url, image.base64, image.mediaType).catch(() => '')
+                  : '';
+                return { groundedTitle, description };
+              })(), INITIAL_AI_POLISH_TIMEOUT_MS);
+
+              if (analysis?.groundedTitle) {
+                firstTitle = analysis.groundedTitle;
                 firstAiPatch.ai_title = firstTitle;
               }
 
-              const generated = firstTitle
-                ? await generateStepDescription(firstTitle, firstStep.page_url, image.base64, image.mediaType).catch(() => '')
-                : '';
+              const generated = analysis?.description ?? '';
               if (generated.trim() && !isLowQualityCaptureScript(generated)) {
                 firstScript = generated.trim();
                 firstAiPatch.ai_description = firstScript;

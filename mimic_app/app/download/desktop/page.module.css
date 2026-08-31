@@ -54,6 +54,12 @@
 .footer .brand { color: rgba(255,255,255,.72); font-size: 14px; }
 @keyframes desktopSpin { to { transform: rotate(360deg); } }
 
+@media (prefers-reduced-motion: reduce) {
+  .downloadButton { transition: none; }
+  .downloadButton:hover { transform: none; }
+  .miniSpinner { animation: none; }
+}
+
 @media (max-width: 760px) {
   .siteHeader { height: 64px; padding: 0 20px; }
   .hero { padding: 72px 20px 70px; }

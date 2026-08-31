@@ -37,6 +37,9 @@ const CAPTURE_HIDE_TIMEOUT_MS = 3000;
 const CAPTURE_RAF_DELAY_MS    = 50;
 const UPLOAD_RETRY_DELAY_MS   = 1500;
 const SW_KEEPALIVE_MS         = 20000;
+const CAPTURE_API_TIMEOUT_MS  = 45000;
+const FINALIZE_API_TIMEOUT_MS = 120000;
+const STORAGE_UPLOAD_TIMEOUT_MS = 45000;
 const AUTONAV_COOLDOWN_MS     = 3000;
 const DEDUP_HASH_THRESHOLD    = 6;     // aHash(256bit) 해밍거리 ≤ 6 이면 동일 이미지로 간주
 const NAV_URL_DEDUP_MS        = 5000;  // 같은 페이지(origin+pathname) '이동' 재캡처 금지 윈도우
@@ -3262,12 +3265,31 @@ async function handleTokenExpired() {
 }
 
 // ── fetch 래퍼 — 401 시 handleTokenExpired 자동 호출 ────────────
+async function fetchWithTimeout(url, options = {}, timeoutMs = CAPTURE_API_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      const timeoutError = new Error(`REQUEST_TIMEOUT:${timeoutMs}`);
+      timeoutError.code = 'REQUEST_TIMEOUT';
+      throw timeoutError;
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function authedFetch(url, options = {}) {
   const { extensionToken } = await storageGet('extensionToken');
   if (!extensionToken) throw new Error('Not linked — extensionToken 없음');
 
+  const { timeoutMs = CAPTURE_API_TIMEOUT_MS, ...fetchOptions } = options;
+
   const requestOptions = {
-    ...options,
+    ...fetchOptions,
     headers: {
       'Authorization': `Bearer ${extensionToken}`,
       'Content-Type':  'application/json',
@@ -3277,12 +3299,12 @@ async function authedFetch(url, options = {}) {
 
   let res;
   try {
-    res = await fetch(url, requestOptions);
+    res = await fetchWithTimeout(url, requestOptions, timeoutMs);
   } catch (err) {
     const fallbackUrl = getWebappFallbackUrl(url);
-    if (!fallbackUrl) throw err;
+    if (!fallbackUrl || err?.code === 'REQUEST_TIMEOUT') throw err;
     log('warn', 'bg', `fetch failed for ${url}; retrying ${fallbackUrl}:`, err.message);
-    res = await fetch(fallbackUrl, requestOptions);
+    res = await fetchWithTimeout(fallbackUrl, requestOptions, timeoutMs);
   }
 
   if (res.status === 401) {
@@ -3511,6 +3533,7 @@ async function finalizeSession(sessionId, stepNumbers, audioUrl = null, localSte
   const origin = await getWebappOrigin();
   const res = await authedFetch(`${origin}/api/capture/finalize`, {
     method: 'POST',
+    timeoutMs: FINALIZE_API_TIMEOUT_MS,
     body: JSON.stringify({
       session_id: sessionId,
       // 패널에서 삭제/실행취소되지 않고 남은 스텝만 매뉴얼에 포함
@@ -3553,7 +3576,7 @@ async function uploadImage(path, blob, contentType = 'image/jpeg') {
     const formData = new FormData();
     formData.append('cacheControl', '3600');
     formData.append('', blob);
-    return fetch(target.signed_url, { method: 'PUT', body: formData });
+    return fetchWithTimeout(target.signed_url, { method: 'PUT', body: formData }, STORAGE_UPLOAD_TIMEOUT_MS);
   };
   let res = await doUpload();
   if (!res.ok) {

@@ -19,7 +19,7 @@ function check(assertion) {
 }
 
 async function closeServer() {
-  if (!server) return;
+  if (!server?.listening) return;
   await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
 }
 
