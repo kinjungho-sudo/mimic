@@ -17,11 +17,9 @@ const IS_DEV = !PROD_EXTENSION_IDS.has(chrome.runtime.id);
 const WEBAPP_ORIGIN     = IS_DEV
   ? 'https://parro-guide-dev.vercel.app'         // dev: Parro Preview alias
   : 'https://mimic-nine-ashen.vercel.app';        // 운영
-const DEV_WEBAPP_ORIGINS = new Set([
+const TRUSTED_WEBAPP_ORIGINS = new Set([
   'https://parro-guide-dev.vercel.app',
   'https://mimic-git-dev-kinjungho-7735s-projects.vercel.app',
-]);
-const PROD_WEBAPP_ORIGINS = new Set([
   'https://parro-guide.vercel.app',
   'https://mimic-nine-ashen.vercel.app',
   'https://mimicflow.com',
@@ -53,8 +51,7 @@ function normalizeAllowedWebappOrigin(candidate) {
   try {
     const origin = new URL(candidate).origin;
     if (IS_DEV && /^http:\/\/localhost(?::(?:3000|3001))?$/.test(origin)) return origin;
-    const allowed = IS_DEV ? DEV_WEBAPP_ORIGINS : PROD_WEBAPP_ORIGINS;
-    return allowed.has(origin) ? origin : null;
+    return TRUSTED_WEBAPP_ORIGINS.has(origin) ? origin : null;
   } catch {
     return null;
   }

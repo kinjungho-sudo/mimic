@@ -3,6 +3,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const vm = require('node:vm');
 
 const root = path.resolve(__dirname, '..');
 const read = (name) => fs.readFileSync(path.join(root, name), 'utf8');
@@ -34,7 +35,7 @@ const playbookServer = fs.readFileSync(
   'utf8',
 );
 
-assert.equal(manifest.version, '1.7.37');
+assert.equal(manifest.version, '1.7.38');
 assert.deepEqual(
   manifest.content_scripts[0].js.slice(0, 3),
   ['targeting.js', 'guide-engine.js', 'content.js'],
@@ -49,7 +50,51 @@ assert.deepEqual(
 const startGuide = section(background, "if (message.action === 'START_GUIDE')", '// ── 내부 메시지 라우터');
 assert.match(background, /function normalizeAllowedWebappOrigin\(candidate\)/);
 assert.match(background, /function resolveGuideRequestOrigin\(senderOrigin, requestedOrigin\)/);
+assert.match(background, /const TRUSTED_WEBAPP_ORIGINS = new Set\(\[/);
+assert.match(background, /'https:\/\/parro-guide-dev\.vercel\.app'/);
+assert.match(background, /'https:\/\/parro-guide\.vercel\.app'/);
+assert.match(background, /return TRUSTED_WEBAPP_ORIGINS\.has\(origin\) \? origin : null/);
+assert.doesNotMatch(background, /const (?:DEV|PROD)_WEBAPP_ORIGINS/);
+assert.match(background, /requestedWebappOrigin === senderWebappOrigin/);
 assert.match(startGuide, /resolveGuideRequestOrigin\(sender\.origin, message\.webapp_origin\)/);
+
+const originPolicySource = section(
+  background,
+  'const TRUSTED_WEBAPP_ORIGINS = new Set([',
+  'async function returnToParroAfterInstall()',
+);
+const loadOriginPolicy = isDev => vm.runInNewContext(
+  `(() => {
+    const IS_DEV = ${isDev};
+    ${originPolicySource}
+    return { normalizeAllowedWebappOrigin, resolveGuideRequestOrigin };
+  })()`,
+  { URL, console: { warn() {} }, chrome: { runtime: { id: 'contract-test' } } },
+);
+for (const isDev of [true, false]) {
+  const policy = loadOriginPolicy(isDev);
+  assert.equal(
+    policy.resolveGuideRequestOrigin('https://parro-guide.vercel.app', 'https://parro-guide.vercel.app'),
+    'https://parro-guide.vercel.app',
+  );
+  assert.equal(
+    policy.resolveGuideRequestOrigin('https://parro-guide-dev.vercel.app', 'https://parro-guide-dev.vercel.app'),
+    'https://parro-guide-dev.vercel.app',
+  );
+  assert.equal(
+    policy.resolveGuideRequestOrigin('https://parro-guide.vercel.app', 'https://parro-guide-dev.vercel.app'),
+    null,
+  );
+  assert.equal(
+    policy.resolveGuideRequestOrigin('https://untrusted-preview.vercel.app', 'https://untrusted-preview.vercel.app'),
+    null,
+  );
+}
+assert.equal(
+  loadOriginPolicy(true).normalizeAllowedWebappOrigin('http://localhost:3000'),
+  'http://localhost:3000',
+);
+assert.equal(loadOriginPolicy(false).normalizeAllowedWebappOrigin('http://localhost:3000'), null);
 assert.match(startGuide, /const origin = guideRequestOrigin/);
 assert.match(startGuide, /message\.guide_source === 'playbook'/);
 assert.match(startGuide, /\/api\/guide\/playbook\//);
