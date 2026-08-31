@@ -41,3 +41,4 @@ export async function POST(request: NextRequest) {
     onboarding_token: token,
   });
 }
+

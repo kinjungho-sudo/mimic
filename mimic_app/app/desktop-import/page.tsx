@@ -106,6 +106,7 @@ export default function DesktopImportPage() {
         .desktop-import-actions button,.desktop-import-actions a { min-height:40px; display:inline-flex; align-items:center; justify-content:center; padding:0 15px; border:1px solid #cfe1dc; border-radius:9px; background:white; color:#31534c; font:inherit; font-size:13px; font-weight:750; text-decoration:none; cursor:pointer; }
         .desktop-import-actions button { border-color:#009b8e; background:#009b8e; color:white; }
         @keyframes spin { to { transform:rotate(360deg); } }
+        @media (prefers-reduced-motion:reduce) { .desktop-import-ring { animation:none; } }
         @media (max-width:560px) { .desktop-import-card{padding:26px 20px}.desktop-import-progress{grid-template-columns:1fr}.desktop-import-steps{grid-template-columns:1fr}h1{font-size:24px} }
       `}</style>
     </main>

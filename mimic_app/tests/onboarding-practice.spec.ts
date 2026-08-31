@@ -19,3 +19,4 @@ test('safe Parro practice flow is usable and never claims to publish', async ({ 
   await expect(page.getByRole('button', { name: '확인 완료 ✓' })).toBeVisible();
   await expect(page.getByText(/자동 게시·공유되지 않습니다/)).toBeVisible();
 });
+

@@ -35,6 +35,7 @@ $requiredFiles = @(
 $requiredExtensionIds = @(
   "lefkpmfgdbhckcemfghpegleknaepekm",
   "pnkkalnfddapkmiobbhnkbhplakamaok",
+  "fbpgolbgpdlphhlodhehiilobpanehal",
   "ehbhcdkapcbfehinjapabgoegcjmmbgd"
 )
 
@@ -67,8 +68,8 @@ if ([System.IO.Path]::GetFullPath($registeredIcon) -ne [System.IO.Path]::GetFull
   throw "Uninstall icon mismatch. Expected '$expectedIconPath', got '$registeredIcon'."
 }
 $registeredVersion = (Get-ItemProperty -Path $uninstallRegistryPath).DisplayVersion
-if ($registeredVersion -ne "0.5.0") {
-  throw "Installed version mismatch. Expected '0.5.0', got '$registeredVersion'."
+if ($registeredVersion -ne "0.6.7") {
+  throw "Installed version mismatch. Expected '0.6.7', got '$registeredVersion'."
 }
 
 foreach ($file in $requiredFiles) {

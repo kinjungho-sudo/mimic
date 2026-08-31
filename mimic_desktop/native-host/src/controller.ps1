@@ -43,19 +43,19 @@ $xaml = @"
       <RowDefinition Height="*" />
       <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
-    <TextBlock Grid.Row="0" Text="Desktop Capture" FontSize="25" FontWeight="Bold" Foreground="#111827" />
-    <TextBlock Grid.Row="1" Margin="0,8,0,0" Text="Captures the full desktop each time you click." FontSize="14" Foreground="#4B5563" />
+    <TextBlock Grid.Row="0" Text="Parro Desktop Capture" FontSize="25" FontWeight="Bold" Foreground="#111827" />
+    <TextBlock Grid.Row="1" Margin="0,8,0,0" Text="Windows 작업을 클릭 단위로 기록합니다." FontSize="14" Foreground="#4B5563" />
     <Border Grid.Row="2" Margin="0,22,0,0" Padding="15" CornerRadius="10" Background="#EEF2FF">
       <StackPanel>
-        <TextBlock x:Name="StatusText" Text="Ready" FontSize="15" FontWeight="SemiBold" Foreground="#3730A3" />
-        <TextBlock x:Name="PathText" Margin="0,6,0,0" Text="The capture folder will appear after recording starts." TextWrapping="Wrap" FontSize="12" Foreground="#6B7280" />
+        <TextBlock x:Name="StatusText" Text="준비 완료" FontSize="15" FontWeight="SemiBold" Foreground="#3730A3" />
+        <TextBlock x:Name="PathText" Margin="0,6,0,0" Text="캡처를 시작하면 저장 폴더가 표시됩니다." TextWrapping="Wrap" FontSize="12" Foreground="#6B7280" />
       </StackPanel>
     </Border>
-    <TextBlock Grid.Row="3" Margin="0,18,0,0" Text="Privacy: pause recording before using password or payment screens." TextWrapping="Wrap" FontSize="12" Foreground="#B45309" />
+    <TextBlock Grid.Row="3" Margin="0,18,0,0" Text="개인정보 안내: 비밀번호·결제 화면에서는 일시정지를 사용하세요." TextWrapping="Wrap" FontSize="12" Foreground="#B45309" />
     <StackPanel Grid.Row="4" Margin="0,22,0,0" Orientation="Horizontal" HorizontalAlignment="Right">
-      <Button x:Name="OpenButton" Content="Open folder" Width="120" Height="40" Margin="0,0,10,0" IsEnabled="False" />
-      <Button x:Name="StopButton" Content="Stop" Width="100" Height="40" Margin="0,0,10,0" IsEnabled="False" />
-      <Button x:Name="StartButton" Content="Start capture" Width="100" Height="40" Background="#4F46E5" Foreground="White" FontWeight="Bold" />
+      <Button x:Name="OpenButton" Content="폴더 열기" Width="120" Height="40" Margin="0,0,10,0" IsEnabled="False" />
+      <Button x:Name="StopButton" Content="중지" Width="100" Height="40" Margin="0,0,10,0" IsEnabled="False" />
+      <Button x:Name="StartButton" Content="캡처 시작" Width="100" Height="40" Background="#4F46E5" Foreground="White" FontWeight="Bold" />
     </StackPanel>
   </Grid>
 </Window>
@@ -86,7 +86,7 @@ function Stop-Capture {
   try {
     [System.IO.File]::WriteAllText($script:stopFile, (Get-Date).ToUniversalTime().ToString("o"))
   } catch {}
-  $statusText.Text = "Capture stopped"
+  $statusText.Text = "캡처 중지됨"
   $pathText.Text = $script:outputDir
   $startButton.IsEnabled = $true
   $stopButton.IsEnabled = $false
@@ -97,7 +97,7 @@ function Stop-Capture {
 
 $startButton.Add_Click({
   if (-not (Test-Path -LiteralPath $agentPath)) {
-    [System.Windows.MessageBox]::Show("Capture engine not found. Please reinstall the app.", "Parro Desktop Capture") | Out-Null
+    [System.Windows.MessageBox]::Show("캡처 엔진을 찾을 수 없습니다. 앱을 다시 설치해 주세요.", "Parro Desktop Capture") | Out-Null
     return
   }
 
@@ -115,7 +115,7 @@ $startButton.Add_Click({
     "-StopFile", "`"$script:stopFile`""
   )
   $script:captureProcess = Start-Process powershell.exe -ArgumentList $arguments -WindowStyle Hidden -PassThru
-  $statusText.Text = "Recording - click inside any Windows app."
+  $statusText.Text = "기록 중 - Windows 앱에서 작업을 진행하세요."
   $pathText.Text = $script:outputDir
   $startButton.IsEnabled = $false
   $stopButton.IsEnabled = $true

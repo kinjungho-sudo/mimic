@@ -11,18 +11,14 @@ const PROTECTED = [
   '/extension-link',
   '/settings',
   '/download',
-  '/downloads',
   '/desktop-setup',
-  '/desktop-import',
 ];
 
 const SUPABASE_REQUEST_TIMEOUT_MS = 4_000;
 
 const PAID_DESKTOP_PATHS = [
   '/download/desktop',
-  '/downloads/ParroDesktopSetup.exe',
   '/desktop-setup',
-  '/desktop-import',
 ];
 
 function isPaidDesktopPath(pathname: string): boolean {

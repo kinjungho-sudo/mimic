@@ -38,20 +38,22 @@ try {
 
   const packagedManifestPath = path.join(fixtureDir, 'manifest.json');
   const packagedBufferPath = path.join(fixtureDir, 'pre-capture-buffer.js');
-  const packagedDesktopBridgePath = path.join(fixtureDir, 'desktop-bridge.js');
-  const packagedDesktopImportPath = path.join(fixtureDir, 'desktop-import.js');
+  const packagedPreviewPagePath = path.join(fixtureDir, 'guide-preview.html');
+  const packagedPreviewScriptPath = path.join(fixtureDir, 'guide-preview.js');
   assert.equal(fs.existsSync(packagedManifestPath), true, 'Packaged manifest.json is missing');
   assert.equal(
     fs.existsSync(packagedBufferPath),
     true,
     'Packaged pre-capture-buffer.js is missing',
   );
+  assert.equal(
+    fs.existsSync(packagedPreviewPagePath) && fs.existsSync(packagedPreviewScriptPath),
+    true,
+    'Packaged detached image preview runtime is missing',
+  );
 
   const packagedManifest = JSON.parse(fs.readFileSync(packagedManifestPath, 'utf8'));
   assert.equal(packagedManifest.version, sourceManifest.version);
-  assert.equal(packagedManifest.permissions?.includes('nativeMessaging'), false);
-  assert.equal(fs.existsSync(packagedDesktopBridgePath), false);
-  assert.equal(fs.existsSync(packagedDesktopImportPath), false);
 
   run(process.execPath, [path.join(scriptDir, 'verify-recorder-profile.mjs')], {
     env: {

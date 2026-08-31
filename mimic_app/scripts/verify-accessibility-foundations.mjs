@@ -3,6 +3,8 @@ import { readFile } from 'node:fs/promises';
 
 const layout = await readFile(new URL('../app/layout.tsx', import.meta.url), 'utf8');
 const globals = await readFile(new URL('../app/globals.css', import.meta.url), 'utf8');
+const desktopImport = await readFile(new URL('../app/desktop-import/page.tsx', import.meta.url), 'utf8');
+const desktopDownload = await readFile(new URL('../app/download/desktop/page.module.css', import.meta.url), 'utf8');
 
 assert.match(layout, /className="parro-skip-link" href="#parro-main-content"/);
 assert.match(layout, />\s*본문으로 바로가기\s*</);
@@ -11,6 +13,9 @@ assert.match(globals, /\.parro-skip-link:focus-visible\s*\{[^}]*transform:\s*tra
 assert.match(globals, /:where\(a\[href\], button, input, textarea, select,/);
 assert.match(globals, /\):focus-visible\s*\{\s*outline: 3px solid var\(--mm-accent\)/s);
 assert.match(globals, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
+assert.match(desktopImport, /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{[^}]*\.desktop-import-ring\s*\{\s*animation:\s*none/s);
+assert.match(desktopDownload, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
+assert.match(desktopDownload, /\.miniSpinner\s*\{\s*animation:\s*none/);
 assert.doesNotMatch(layout, /MIMIC/);
 
-console.log('Accessibility foundation contract: 8 checks passed.');
+console.log('Accessibility foundation contract: 11 checks passed.');

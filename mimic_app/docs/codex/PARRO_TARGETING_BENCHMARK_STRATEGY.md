@@ -290,3 +290,4 @@ Exit: unsupported pages are recoverable without code changes or silent failure.
 - Do not claim success from source-contract tests without rendered screenshots.
 - Do not promote a candidate when the target is merely present; it must be the
   correct target.
+

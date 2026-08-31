@@ -91,7 +91,7 @@ export default function PublicPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '0 0 24px', padding: '12px 14px', border: `1px solid ${BRAND_COLORS.border}`, borderRadius: '12px', background: BRAND_COLORS.guideSoft }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F766E' }}>합쳐진 매뉴얼을 Live Guide로 실행</div>
-                <div style={{ marginTop: '2px', fontSize: '11.5px', color: '#6B7280' }}>{Object.keys(page.guides).length}개 매뉴얼 · {liveGuideStepCount}단계</div>
+                <div style={{ marginTop: '2px', fontSize: '11.5px', color: '#6B7280' }}>{`${Object.keys(page.guides).length}개 매뉴얼 · ${liveGuideStepCount}단계`}</div>
               </div>
               <button
                 type="button"

@@ -15,6 +15,8 @@ const recordingModal = read('mimic_app/components/dashboard/RecordingModal.tsx')
 const desktopSetup = read('mimic_app/app/desktop-setup/page.tsx');
 const desktopImport = read('mimic_app/app/desktop-import/page.tsx');
 const desktopDownload = read('mimic_app/app/download/desktop/DownloadButton.tsx');
+const desktopDownloadPage = read('mimic_app/app/download/desktop/page.tsx');
+const extendedTranslations = read('mimic_app/lib/i18n/extended-translations.ts');
 const desktopClient = read('mimic_app/lib/desktop-companion-client.ts');
 const middleware = read('mimic_app/middleware.ts');
 const nextConfig = read('mimic_app/next.config.mjs');
@@ -22,6 +24,8 @@ const manifest = JSON.parse(read('mimic_recorder/manifest.json'));
 const background = read('mimic_recorder/background.js');
 const content = read('mimic_recorder/content.js');
 const popup = read('mimic_recorder/popup.js');
+const captureFinalizeRoute = read('mimic_app/app/api/capture/finalize/route.ts');
+const captureSaveStepRoute = read('mimic_app/app/api/capture/save-step/route.ts');
 const desktopBridge = read('mimic_recorder/desktop-bridge.js');
 const nativeHost = read('mimic_desktop/native-host/src/host.js');
 const desktopLauncher = read('mimic_desktop/native-host/installer/launcher/ParroDesktop.cs');
@@ -77,6 +81,13 @@ check(() => {
 });
 
 check(() => {
+  assert.doesNotMatch(background, /dskphgxurxebblnpwhax\.supabase\.co/);
+  assert.doesNotMatch(background, /const SUPABASE_(?:URL|KEY)\s*=/);
+  assert.match(background, /\/api\/capture\/upload-target/);
+  assert.match(captureSaveStepRoute, /screenshot_url:\s*d\.screenshot_url \?\? ''/);
+});
+
+check(() => {
   const captureStart = background.indexOf("if (message.type === 'CAPTURE_SCREENSHOT')");
   const captureEnd = background.indexOf("if (message.type === 'MANUAL_IMAGE_STEP')", captureStart);
   const captureBlock = background.slice(captureStart, captureEnd);
@@ -121,8 +132,59 @@ check(() => {
 });
 
 check(() => {
-  assert.match(desktopSetup, /sendDesktopExtensionMessage\('START_DESKTOP_RECORDING'\)/);
-  assert.match(desktopSetup, /sendDesktopExtensionMessage\('STOP_DESKTOP_RECORDING'/);
+  assert.match(background, /const _captureJobs\s*=\s*new Set\(\)/);
+  assert.match(background, /function runCaptureJob\(task\)/);
+  assert.match(background, /async function waitForCapturePipelineIdle\(\)/);
+
+  const captureStart = background.indexOf("if (message.type === 'CAPTURE_SCREENSHOT')");
+  const manualImageStart = background.indexOf("if (message.type === 'MANUAL_IMAGE_STEP')", captureStart);
+  const manualCaptureStart = background.indexOf("if (message.type === 'MANUAL_CAPTURE')", manualImageStart);
+  const typingStart = background.indexOf("if (message.type === 'TYPING_PROGRESS')", manualCaptureStart);
+  assert.match(background.slice(captureStart, manualImageStart), /runCaptureJob\(async \(\) =>/);
+  assert.match(background.slice(manualImageStart, manualCaptureStart), /runCaptureJob\(async \(\) =>[\s\S]*isRecording/);
+  assert.match(background.slice(manualCaptureStart, typingStart), /runCaptureJob\(async \(\) =>[\s\S]*isRecording/);
+
+  const finalizeStart = background.indexOf('async function finalizeSession');
+  const finalizeEnd = background.indexOf('// ── Supabase Storage', finalizeStart);
+  const finalizeBlock = background.slice(finalizeStart, finalizeEnd);
+  assert.ok(finalizeStart >= 0 && finalizeEnd > finalizeStart, 'finalizeSession must be present');
+  assert.ok(
+    finalizeBlock.indexOf('await waitForCapturePipelineIdle()') < finalizeBlock.indexOf("storageGet(['extensionToken'"),
+    'finalize must wait for capture jobs before reading local steps',
+  );
+  assert.match(finalizeBlock, /effectiveStepNumbers/);
+  assert.match(finalizeBlock, /syncLocalStepsBeforeFinalize\(sessionId, effectiveStepNumbers, effectiveLocalSteps\)/);
+  assert.match(finalizeBlock, /step_numbers: effectiveStepNumbers/);
+  assert.match(background, /function isSessionAlreadyFinalizedError\(error\)/);
+  assert.match(background, /return \{ alreadyFinalized: true \}/);
+  assert.match(background, /recovering existing manual/);
+
+  assert.match(captureFinalizeRoute, /async function findCompletedCaptureResult\(/);
+  assert.match(captureFinalizeRoute, /id: session_id/);
+  assert.match(captureFinalizeRoute, /already_finalized: true/);
+  assert.match(
+    captureFinalizeRoute,
+    /if \(session\.status !== 'active'\)[\s\S]*findCompletedCaptureResult[\s\S]*NextResponse\.json\(completedResult\)/,
+  );
+  assert.match(
+    captureSaveStepRoute,
+    /existingSession\.status === 'completed' \|\| existingSession\.status === 'done'/,
+  );
+  assert.match(captureSaveStepRoute, /tutorial_id: completedTutorial\.id/);
+  assert.match(captureSaveStepRoute, /already_finalized: true/);
+
+  const finishStart = popup.indexOf("btnFinish.addEventListener('click', async () =>");
+  const finishBlock = popup.slice(finishStart, popup.indexOf('function showFinalizingOverlay', finishStart));
+  assert.ok(finishStart >= 0 && finishBlock.length > 0, 'finish handler must be present');
+  assert.ok(
+    finishBlock.indexOf('await storageSet({ isRecording: false })')
+      < finishBlock.indexOf("chrome.runtime.sendMessage({ type: 'FINALIZE_SESSION'"),
+    'finish must stop accepting captures before requesting finalize',
+  );
+});
+
+check(() => {
+  assert.match(desktopSetup, /sendDesktopExtensionMessage\('OPEN_DESKTOP_APP'(?:,|\))/);
   assert.match(desktopSetup, /window\.location\.replace\(`\/desktop-import\?source=desktop-app&session=/);
   assert.match(desktopImport, /sendDesktopExtensionMessage\(\s*'IMPORT_DESKTOP_CAPTURE'/);
   assert.match(desktopImport, /window\.location\.replace\(response\.editorUrl\)/);
@@ -133,25 +195,59 @@ check(() => {
   assert.match(desktopClient, /if \(!isExtensionConnectionError\(response\?\.error\)\) return response/);
   assert.match(desktopClient, /resolveDesktopCaptureEntry/);
   assert.match(desktopClient, /desktopCompanionCompatibility/);
-  assert.match(desktopDownload, /최신 버전으로 업데이트/);
-  assert.match(desktopDownload, /바로 데스크톱 녹화 시작/);
+  assert.match(desktopDownload, /자동 설치로 업데이트/);
+  assert.match(desktopDownload, /Parro Desktop 앱 열기/);
   assert.match(middleware, /PAID_DESKTOP_PATHS/);
   assert.match(middleware, /hasEntitlement\(profile\?\.plan, 'desktop_companion'\)/);
   assert.match(nextConfig, /source: '\/downloads\/ParroDesktopSetup\.exe'/);
   assert.match(nextConfig, /Content-Disposition'[\s\S]*attachment; filename="ParroDesktopSetup\.exe"/);
+  assert.match(desktopDownloadPage, /PC에 저장 · 완료 시 Parro로 업로드/);
+  assert.doesNotMatch(desktopDownloadPage, /✓ 캡처 파일은 PC에 저장/);
+  assert.match(extendedTranslations, /"✓ PC에 저장 · 완료 시 Parro로 업로드": "✓ Saved on PC · Uploaded to Parro on completion"/);
 });
 
 check(() => {
-  assert.equal(manifest.permissions.includes('nativeMessaging'), false);
-  assert.doesNotMatch(background, /connectNative/);
-  assert.doesNotMatch(background, /START_DESKTOP_RECORDING/);
-  assert.doesNotMatch(background, /DESKTOP_COMPANION_STATUS/);
-  assert.doesNotMatch(background, /importDesktopCaptureSession/);
+  const start = background.indexOf("if (message.action === 'START_DESKTOP_RECORDING')");
+  const startEnd = background.indexOf("if (message.action === 'STOP_DESKTOP_RECORDING')", start);
+  const end = background.indexOf("if (message.action === 'PAUSE_DESKTOP_RECORDING'", start);
+  const block = background.slice(start, end);
+  const startBlock = background.slice(start, startEnd);
+  assert.ok(start >= 0 && startEnd > start && end > startEnd, 'explicit desktop recording handlers must be present');
+  assert.match(block, /notifyDesktopCaptureStarted\(/);
+  assert.match(block, /notifyDesktopCaptureStopped\(/);
+  assert.match(startBlock, /try\s*\{/);
+  assert.match(startBlock, /catch\s*\(error\)/);
+  assert.match(startBlock, /error: error\?\.message \|\| 'desktop_start_failed'/);
+  assert.match(background, /desktop_paid_plan_required/);
+  assert.match(background, /recorderVersion: chrome\.runtime\.getManifest\(\)\.version/);
+  assert.match(background, /async function importDesktopCaptureSession\(nativeSessionId\)/);
+  assert.match(background, /async function getDesktopEditorUrl\(imported\)/);
+  assert.match(background, /const editorUrl = await getDesktopEditorUrl\(imported\)/);
+  assert.equal(
+    background.match(/if \(message\.action === 'IMPORT_DESKTOP_CAPTURE'\)/g)?.length,
+    1,
+    'desktop capture import must have exactly one external message handler',
+  );
+});
+
+check(() => {
+  const stopStart = background.indexOf("if (message.action === 'STOP_DESKTOP_RECORDING')");
+  const stopEnd = background.indexOf("if (message.action === 'PAUSE_DESKTOP_RECORDING'", stopStart);
+  const stopBlock = background.slice(stopStart, stopEnd);
+  assert.ok(stopStart >= 0 && stopEnd > stopStart, 'desktop stop handler must be present');
+  assert.match(stopBlock, /let nativeCaptureStopped = false/);
+  assert.match(stopBlock, /nativeCaptureStopped = true/);
+  assert.match(stopBlock, /stopped: nativeCaptureStopped/);
+
+  assert.match(desktopSetup, /const openDesktopApp = useCallback/);
+  assert.match(desktopSetup, /녹화 종료는 이제 Windows 앱에서 진행합니다/);
+  assert.match(desktopClient, /stopped\?: boolean/);
 });
 
 check(() => {
   assert.match(desktopBridge, /type: 'START_CAPTURE_SESSION'/);
   assert.match(desktopBridge, /type: 'STOP_CAPTURE_SESSION'/);
+  assert.match(desktopBridge, /type: 'OPEN_DESKTOP_APP'/);
   assert.match(desktopBridge, /type: 'READ_CAPTURE_IMAGE_CHUNK'/);
   assert.match(desktopBridge, /version: _desktopVersion/);
 });
@@ -161,10 +257,20 @@ check(() => {
   assert.match(nativeHost, /message\.type === "STOP_CAPTURE_SESSION"/);
   assert.match(nativeHost, /message\.type === "READ_CAPTURE_IMAGE_CHUNK"/);
   assert.match(nativeHost, /version: DESKTOP_COMPANION_VERSION/);
+  assert.equal(
+    nativeHost.match(/if \(message\.type === "GET_CAPTURE_SESSION"\)/g)?.length,
+    1,
+    'native host must have exactly one capture-session reader',
+  );
+  assert.equal(
+    nativeHost.match(/if \(message\.type === "READ_CAPTURE_IMAGE_CHUNK"\)/g)?.length,
+    1,
+    'native host must have exactly one image-chunk reader',
+  );
 });
 
 check(() => {
-  assert.match(desktopLauncher, /new CountdownForm\(Screen\.FromPoint\(Cursor\.Position\)\)/);
+  assert.match(desktopLauncher, /new CountdownForm\(target\.Screen \?\? Screen\.PrimaryScreen\)/);
   assert.match(desktopLauncher, /internal sealed class CapturePreviewForm/);
   assert.match(desktopLauncher, /previewForm\.RefreshSession\(files\)/);
   assert.match(desktopLauncher, /json\.Append\("\{\\"regions\\":\["\)/);
@@ -175,6 +281,11 @@ check(() => {
 check(() => {
   assert.match(captureAgent, /public static class ParroDesktopClickHighlight/);
   assert.match(captureAgent, /\[ParroDesktopClickHighlight\]::ShowAt\(\$point\.X, \$point\.Y\)/);
+  assert.match(captureAgent, /while \(-not \(Test-Path -LiteralPath \$StopFile\)\)/);
+  assert.match(captureAgent, /mode = "active-monitor"/);
+  assert.match(captureAgent, /if \(-not \(Test-OwnerAlive\)\) \{ break \}/);
+  assert.match(desktopLauncher, /captureProcess\.Kill\(\)/);
+  assert.match(nativeHost, /child\.kill\(\)/);
   assert.match(captureAgent, /WdaExcludeFromCapture/);
   assert.match(captureAgent, /foreach \(\$region in \$regions\)/);
 });

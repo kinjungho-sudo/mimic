@@ -1737,17 +1737,6 @@
       updateWaitingPrompt();
     };
 
-    const removeWaitingPrompt = () => {
-      if (!state?.waiting) return;
-      if (state.host) state.host.remove();
-      state.host = null;
-      state.shadow = null;
-      state.waitPrompt = null;
-      state.waitPromptArrow = null;
-      state.waitPromptTitle = null;
-      state.waitPromptInstruction = null;
-    };
-
     // 다른 페이지에서는 아무 오버레이도 만들지 않는다. 같은 페이지에서 대상이 아직
     // 보이지 않을 때만 스크롤 안내를 표시하고, 실제 대상이 확인되면 정식 가이드로 교체한다.
     const tryResolve = () => {
@@ -1769,10 +1758,9 @@
         show(step, opts);
         return true;
       }
+      ensureWaitingPrompt();
       if (state.matchingSince == null) state.matchingSince = Date.now();
       const nextStatus = Date.now() - state.matchingSince >= 8000 ? 'not_found' : 'searching';
-      if (nextStatus === 'not_found') removeWaitingPrompt();
-      else ensureWaitingPrompt();
       if (state.waitStatus !== nextStatus) {
         state.waitStatus = nextStatus;
         opts.onTargetStatus && opts.onTargetStatus(nextStatus);

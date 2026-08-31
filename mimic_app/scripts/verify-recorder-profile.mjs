@@ -171,7 +171,6 @@ try {
   check(() => {
     assert.match(manifest.name, /^Parro Recorder/);
     assert.equal(manifest.side_panel?.default_path, 'popup.html');
-    assert.equal(manifest.permissions?.includes('nativeMessaging'), false);
     if (expectedVersion) assert.equal(manifest.version, expectedVersion);
   });
 
@@ -234,6 +233,71 @@ try {
     assert.equal(panelTitle, 'Parro Recorder');
   });
 
+  const previewStepNumber = 999001;
+  const previewKey = 'parroImagePreview:profile-smoke';
+  await panel.evaluate(async ({ stepNumber, key }) => {
+    const bytes = Uint8Array.from(atob(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+    ), char => char.charCodeAt(0));
+    const blob = new Blob([bytes], { type: 'image/png' });
+    const db = await new Promise((resolve, reject) => {
+      const req = indexedDB.open('mimic_screenshots', 1);
+      req.onupgradeneeded = () => req.result.createObjectStore('screenshots');
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction('screenshots', 'readwrite');
+      tx.objectStore('screenshots').put(blob, stepNumber);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+    await chrome.storage.local.set({
+      [key]: { stepNumber, screenshotUrl: '', title: 'Local preview smoke' },
+    });
+  }, { stepNumber: previewStepNumber, key: previewKey });
+
+  const previewPagePromise = context.waitForEvent('page');
+  await panel.evaluate((key) => new Promise((resolve) => {
+    chrome.windows.create({
+      url: chrome.runtime.getURL(`guide-preview.html?key=${encodeURIComponent(key)}`),
+      type: 'popup',
+      width: 760,
+      height: 600,
+    }, () => resolve());
+  }), previewKey);
+  const previewPage = await previewPagePromise;
+  await previewPage.waitForLoadState('domcontentloaded');
+  await previewPage.waitForFunction(() => document.querySelector('#previewImage')?.naturalWidth === 1);
+  const previewState = await previewPage.evaluate(() => ({
+    title: document.querySelector('#previewTitle')?.textContent,
+    naturalWidth: document.querySelector('#previewImage')?.naturalWidth,
+    errorVisible: getComputedStyle(document.querySelector('#error')).display !== 'none',
+  }));
+  check(() => {
+    assert.deepEqual(previewState, {
+      title: 'Local preview smoke',
+      naturalWidth: 1,
+      errorVisible: false,
+    });
+  });
+  await previewPage.close();
+  await panel.evaluate(async (stepNumber) => {
+    const db = await new Promise((resolve, reject) => {
+      const req = indexedDB.open('mimic_screenshots', 1);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction('screenshots', 'readwrite');
+      tx.objectStore('screenshots').delete(stepNumber);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+  }, previewStepNumber);
+
   const guidePagePromise = context.waitForEvent('page');
   await page.click('#fixture-guide');
   const guidePage = await guidePagePromise;
@@ -247,10 +311,16 @@ try {
 
   await guidePage.waitForLoadState('domcontentloaded');
   await guidePage.waitForSelector('#parro-overlay-root', { state: 'attached', timeout: 5_000 });
+  await guidePage.waitForFunction(() => (
+    document.getElementById('parro-overlay-root')?.getAttribute('data-coach-avatar-status') === 'loaded'
+  ), null, { timeout: 5_000 });
   const guideOverlay = await guidePage.evaluate(() => {
+    const overlay = document.getElementById('parro-overlay-root');
     return {
       count: document.querySelectorAll('#parro-overlay-root').length,
       targetText: document.getElementById('fixture-action')?.textContent?.trim() || null,
+      coachAvatarStatus: overlay?.getAttribute('data-coach-avatar-status') || null,
+      coachAvatarSize: overlay?.getAttribute('data-coach-avatar-size') || null,
     };
   });
   check(() => {
@@ -258,6 +328,8 @@ try {
     assert.deepEqual(guideOverlay, {
       count: 1,
       targetText: 'Fixture action',
+      coachAvatarStatus: 'loaded',
+      coachAvatarSize: '136',
     });
   });
 
@@ -299,7 +371,11 @@ try {
   ]);
   check(() => {
     assert.match(missingTargetState[0], /대상을 찾지 못했습니다/);
-    assert.equal(missingTargetState[1], 0);
+    assert.equal(
+      missingTargetState[1],
+      1,
+      'missing targets must retain the recovery prompt overlay',
+    );
   });
 
   await panel.locator('#guideTargetRetry').click();

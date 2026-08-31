@@ -175,10 +175,6 @@ assert.ok(
 );
 assert.match(waiting, /i18n\('waitingScrollDown', '화면을 아래로 스크롤해주세요'\)/);
 assert.match(waiting, /window\.scrollBy\(\{/);
-assert.match(waiting, /const removeWaitingPrompt = \(\) =>/,
-  'missing-target waits must remove the page overlay when the target is declared not found');
-assert.match(waiting, /if \(nextStatus === 'not_found'\) removeWaitingPrompt\(\)/,
-  'not_found must leave the page clean while the side panel retry stays available');
 assert.match(waiting, /window\.addEventListener\('scroll', scheduleTryResolve, true\)/);
 assert.match(engine, /window\.removeEventListener\('scroll', state\.onWaitViewportChange, true\)/);
 assert.match(engine, /confidence\s*<\s*0\.85/);
@@ -403,4 +399,4 @@ assert.match(popupScript, /saveText:\s+true/, 'the Recorder settings UI must def
 assert.match(popupScript, /not_found: \{ label: t\('targetNotFound', '대상을 찾지 못했습니다'\)/);
 assert.match(popupScript, /type: 'SHOW_OVERLAY_FOR_STEP', stepIndex: guideCurrentStep/);
 
-console.log(JSON.stringify({ ok: true, checks: 209, scope: 'live-guide-annotated-preview-options-navigation-email-input-contract' }));
+console.log(JSON.stringify({ ok: true, checks: 207, scope: 'live-guide-annotated-preview-options-navigation-email-input-contract' }));

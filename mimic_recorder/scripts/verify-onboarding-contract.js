@@ -21,3 +21,4 @@ check(() => assert.match(background, /onboardingQuery = data\.onboarding_practic
 check(() => assert.match(background, /onboardingToken: null/));
 
 console.log(JSON.stringify({ ok: true, checks, scope: 'recorder-onboarding-contract' }));
+

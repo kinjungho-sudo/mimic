@@ -57,11 +57,7 @@ assert.match(cleanupRoute, /\.lt\('deleted_at', cutoff\)/);
 assert.ok(vercel.crons.some(cron => cron.path === '/api/cron/cleanup-trash'));
 
 assert.doesNotMatch(landing, /href:\s*'#'/);
-if (/aria-label="Parro EDU 홈"/.test(landing)) {
-  assert.match(landing, /href="\/auth\/login"/);
-} else {
-  assert.match(landing, /소개 자료 요청/);
-}
+assert.match(landing, /className=\{styles\.headerCta\} href="\/auth\/login"/);
 assert.match(home, /'aria-label': `\$\{tutorial\.title\} 매뉴얼 열기`/);
 assert.match(home, /aria-label="공지 닫기"/);
 assert.match(home, /displayedTutorials\.slice\(0, visibleTutorialCount\)/);
