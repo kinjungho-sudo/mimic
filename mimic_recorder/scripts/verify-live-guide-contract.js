@@ -14,6 +14,18 @@ const section = (source, start, end) => {
   assert.notEqual(to, -1, `missing section boundary: ${end}`);
   return source.slice(from, to);
 };
+const functionSource = (source, name) => {
+  const from = source.indexOf(`function ${name}(`);
+  assert.notEqual(from, -1, `missing function: ${name}`);
+  const bodyStart = source.indexOf('{', from);
+  let depth = 0;
+  for (let index = bodyStart; index < source.length; index += 1) {
+    if (source[index] === '{') depth += 1;
+    if (source[index] === '}') depth -= 1;
+    if (depth === 0) return source.slice(from, index + 1);
+  }
+  assert.fail(`unterminated function: ${name}`);
+};
 
 const background = read('background.js');
 const content = read('content.js');
@@ -58,11 +70,15 @@ assert.doesNotMatch(background, /const (?:DEV|PROD)_WEBAPP_ORIGINS/);
 assert.match(background, /requestedWebappOrigin === senderWebappOrigin/);
 assert.match(startGuide, /resolveGuideRequestOrigin\(sender\.origin, message\.webapp_origin\)/);
 
-const originPolicySource = section(
-  background,
-  'const TRUSTED_WEBAPP_ORIGINS = new Set([',
-  'async function returnToParroAfterInstall()',
-);
+const trustedOriginsSource = background.match(
+  /const TRUSTED_WEBAPP_ORIGINS = new Set\(\[[\s\S]*?\]\);/,
+)?.[0];
+assert.ok(trustedOriginsSource, 'missing trusted origin set');
+const originPolicySource = [
+  trustedOriginsSource,
+  functionSource(background, 'normalizeAllowedWebappOrigin'),
+  functionSource(background, 'resolveGuideRequestOrigin'),
+].join('\n');
 const loadOriginPolicy = isDev => vm.runInNewContext(
   `(() => {
     const IS_DEV = ${isDev};
