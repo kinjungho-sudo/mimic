@@ -38,6 +38,8 @@ try {
 
   const packagedManifestPath = path.join(fixtureDir, 'manifest.json');
   const packagedBufferPath = path.join(fixtureDir, 'pre-capture-buffer.js');
+  const packagedDesktopBridgePath = path.join(fixtureDir, 'desktop-bridge.js');
+  const packagedDesktopImportPath = path.join(fixtureDir, 'desktop-import.js');
   const packagedPreviewPagePath = path.join(fixtureDir, 'guide-preview.html');
   const packagedPreviewScriptPath = path.join(fixtureDir, 'guide-preview.js');
   assert.equal(fs.existsSync(packagedManifestPath), true, 'Packaged manifest.json is missing');
@@ -54,6 +56,9 @@ try {
 
   const packagedManifest = JSON.parse(fs.readFileSync(packagedManifestPath, 'utf8'));
   assert.equal(packagedManifest.version, sourceManifest.version);
+  const includesNativeMessaging = packagedManifest.permissions?.includes('nativeMessaging') === true;
+  assert.equal(fs.existsSync(packagedDesktopBridgePath), includesNativeMessaging);
+  assert.equal(fs.existsSync(packagedDesktopImportPath), includesNativeMessaging);
 
   run(process.execPath, [path.join(scriptDir, 'verify-recorder-profile.mjs')], {
     env: {
