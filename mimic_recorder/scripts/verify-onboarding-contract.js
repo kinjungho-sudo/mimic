@@ -11,7 +11,7 @@ const check = (assertion) => {
 };
 
 check(() => assert.match(background, /message\.action === 'OPEN_ONBOARDING_PRACTICE'/));
-check(() => assert.match(background, /resolveGuideRequestOrigin\(sender\.origin, message\.webapp_origin\)/));
+check(() => assert.match(background, /resolveGuideRequestOrigin\(sender, message\.webapp_origin\)/));
 check(() => assert.match(background, /practiceUrl\.origin !== requestOrigin/));
 check(() => assert.match(background, /practiceUrl\.pathname !== '\/onboarding\/practice'/));
 check(() => assert.match(background, /chrome\.tabs\.create\(\{ url: practiceUrl\.toString\(\), active: false \}/));

@@ -47,7 +47,7 @@ const playbookServer = fs.readFileSync(
   'utf8',
 );
 
-assert.equal(manifest.version, '1.7.38');
+assert.equal(manifest.version, '1.7.39');
 assert.deepEqual(
   manifest.content_scripts[0].js.slice(0, 3),
   ['targeting.js', 'guide-engine.js', 'content.js'],
@@ -61,14 +61,15 @@ assert.deepEqual(
 
 const startGuide = section(background, "if (message.action === 'START_GUIDE')", '// ── 내부 메시지 라우터');
 assert.match(background, /function normalizeAllowedWebappOrigin\(candidate\)/);
-assert.match(background, /function resolveGuideRequestOrigin\(senderOrigin, requestedOrigin\)/);
+assert.match(background, /function resolveExternalSenderOrigin\(sender\)/);
+assert.match(background, /function resolveGuideRequestOrigin\(sender, requestedOrigin\)/);
 assert.match(background, /const TRUSTED_WEBAPP_ORIGINS = new Set\(\[/);
 assert.match(background, /'https:\/\/parro-guide-dev\.vercel\.app'/);
 assert.match(background, /'https:\/\/parro-guide\.vercel\.app'/);
 assert.match(background, /return TRUSTED_WEBAPP_ORIGINS\.has\(origin\) \? origin : null/);
 assert.doesNotMatch(background, /const (?:DEV|PROD)_WEBAPP_ORIGINS/);
 assert.match(background, /requestedWebappOrigin === senderWebappOrigin/);
-assert.match(startGuide, /resolveGuideRequestOrigin\(sender\.origin, message\.webapp_origin\)/);
+assert.match(startGuide, /resolveGuideRequestOrigin\(sender, message\.webapp_origin\)/);
 
 const trustedOriginsSource = background.match(
   /const TRUSTED_WEBAPP_ORIGINS = new Set\(\[[\s\S]*?\]\);/,
@@ -77,32 +78,54 @@ assert.ok(trustedOriginsSource, 'missing trusted origin set');
 const originPolicySource = [
   trustedOriginsSource,
   functionSource(background, 'normalizeAllowedWebappOrigin'),
+  functionSource(background, 'resolveExternalSenderOrigin'),
   functionSource(background, 'resolveGuideRequestOrigin'),
 ].join('\n');
 const loadOriginPolicy = isDev => vm.runInNewContext(
   `(() => {
     const IS_DEV = ${isDev};
     ${originPolicySource}
-    return { normalizeAllowedWebappOrigin, resolveGuideRequestOrigin };
+    return { normalizeAllowedWebappOrigin, resolveExternalSenderOrigin, resolveGuideRequestOrigin };
   })()`,
   { URL, console: { warn() {} }, chrome: { runtime: { id: 'contract-test' } } },
 );
 for (const isDev of [true, false]) {
   const policy = loadOriginPolicy(isDev);
   assert.equal(
-    policy.resolveGuideRequestOrigin('https://parro-guide.vercel.app', 'https://parro-guide.vercel.app'),
+    policy.resolveGuideRequestOrigin({ origin: 'https://parro-guide.vercel.app' }, 'https://parro-guide.vercel.app'),
     'https://parro-guide.vercel.app',
   );
   assert.equal(
-    policy.resolveGuideRequestOrigin('https://parro-guide-dev.vercel.app', 'https://parro-guide-dev.vercel.app'),
+    policy.resolveGuideRequestOrigin({ origin: 'https://parro-guide-dev.vercel.app' }, 'https://parro-guide-dev.vercel.app'),
     'https://parro-guide-dev.vercel.app',
   );
   assert.equal(
-    policy.resolveGuideRequestOrigin('https://parro-guide.vercel.app', 'https://parro-guide-dev.vercel.app'),
+    policy.resolveGuideRequestOrigin({ origin: 'https://parro-guide.vercel.app' }, 'https://parro-guide-dev.vercel.app'),
     null,
   );
   assert.equal(
-    policy.resolveGuideRequestOrigin('https://untrusted-preview.vercel.app', 'https://untrusted-preview.vercel.app'),
+    policy.resolveGuideRequestOrigin({ origin: 'https://untrusted-preview.vercel.app' }, 'https://untrusted-preview.vercel.app'),
+    null,
+  );
+  assert.equal(
+    policy.resolveGuideRequestOrigin(
+      { url: 'https://parro-guide.vercel.app/manual/example' },
+      'https://parro-guide.vercel.app',
+    ),
+    'https://parro-guide.vercel.app',
+  );
+  assert.equal(
+    policy.resolveGuideRequestOrigin(
+      { origin: 'null', url: 'https://parro-guide-dev.vercel.app/manual/example' },
+      'https://parro-guide-dev.vercel.app',
+    ),
+    'https://parro-guide-dev.vercel.app',
+  );
+  assert.equal(
+    policy.resolveGuideRequestOrigin(
+      { origin: 'https://untrusted-preview.vercel.app', url: 'https://parro-guide.vercel.app/manual/example' },
+      'https://parro-guide.vercel.app',
+    ),
     null,
   );
 }

@@ -60,8 +60,21 @@ function normalizeAllowedWebappOrigin(candidate) {
   }
 }
 
-function resolveGuideRequestOrigin(senderOrigin, requestedOrigin) {
-  const senderWebappOrigin = normalizeAllowedWebappOrigin(senderOrigin);
+function resolveExternalSenderOrigin(sender) {
+  const explicitOrigin = typeof sender?.origin === 'string' ? sender.origin.trim() : '';
+  if (explicitOrigin && explicitOrigin !== 'null') {
+    return normalizeAllowedWebappOrigin(explicitOrigin);
+  }
+
+  try {
+    return normalizeAllowedWebappOrigin(new URL(sender?.url).origin);
+  } catch {
+    return null;
+  }
+}
+
+function resolveGuideRequestOrigin(sender, requestedOrigin) {
+  const senderWebappOrigin = resolveExternalSenderOrigin(sender);
   if (!senderWebappOrigin) return null;
   if (requestedOrigin == null) return senderWebappOrigin;
   const requestedWebappOrigin = normalizeAllowedWebappOrigin(requestedOrigin);
@@ -1224,7 +1237,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
   }
 
   if (message.action === 'OPEN_ONBOARDING_PRACTICE') {
-    const requestOrigin = resolveGuideRequestOrigin(sender.origin, message.webapp_origin);
+    const requestOrigin = resolveGuideRequestOrigin(sender, message.webapp_origin);
     if (!requestOrigin) {
       sendResponse({ ok: false, error: 'invalid onboarding origin' });
       return false;
@@ -1423,7 +1436,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
     const rawToken = message.tutorial_id || message.share_token;
     if (!rawToken) { sendResponse({ ok: false, error: 'no token' }); return false; }
 
-    const guideRequestOrigin = resolveGuideRequestOrigin(sender.origin, message.webapp_origin);
+    const guideRequestOrigin = resolveGuideRequestOrigin(sender, message.webapp_origin);
     if (!guideRequestOrigin) {
       sendResponse({ ok: false, error: 'invalid guide origin' });
       return false;
