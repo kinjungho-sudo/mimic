@@ -15,20 +15,32 @@ New-Item -ItemType Directory -Path (Join-Path $stage 'icons') -Force | Out-Null
 $files = @(
   'manifest.json',
   'background.js', 'content.js', 'guide-engine.js', 'pre-capture-buffer.js',
-  'desktop-bridge.js', 'desktop-import.js', 'targeting.js',
+  'targeting.js',
   'popup.js', 'popup.html', 'guide-preview.html', 'guide-preview.js', 'i18n.js',
   '_locales/ko/messages.json', '_locales/en/messages.json',
   'offscreen.html', 'offscreen.js',
   'request-mic.html', 'request-mic.js',
   'assets/parro-3d-neutral.png', 'assets/parro-3d-point.png'
 )
+$desktopRuntimeFiles = @('desktop-bridge.js', 'desktop-import.js')
+$includeDesktopRuntime = $manifest.permissions -contains 'nativeMessaging'
+if ($includeDesktopRuntime) {
+  $files += $desktopRuntimeFiles
+}
 
 # A missing importScripts dependency aborts the service worker before CONNECT
 # listeners can be registered, so fail the package build before creating a ZIP.
 $backgroundSource = [System.IO.File]::ReadAllText((Join-Path $PSScriptRoot 'background.js'))
+$packagedBackgroundSource = $backgroundSource
+if (-not $includeDesktopRuntime) {
+  $packagedBackgroundSource = $packagedBackgroundSource.Replace(
+    "importScripts('desktop-import.js', 'desktop-bridge.js', 'pre-capture-buffer.js');",
+    "importScripts('pre-capture-buffer.js');"
+  )
+}
 $workerImports = @()
 foreach ($call in [regex]::Matches(
-  $backgroundSource,
+  $packagedBackgroundSource,
   '\bimportScripts\s*\((.*?)\)\s*;',
   [System.Text.RegularExpressions.RegexOptions]::Singleline
 )) {
@@ -49,6 +61,11 @@ foreach ($f in $files) {
   New-Item -ItemType Directory -Path $destinationDir -Force | Out-Null
   Copy-Item $f $destination
 }
+[System.IO.File]::WriteAllText(
+  (Join-Path $stage 'background.js'),
+  $packagedBackgroundSource,
+  (New-Object System.Text.UTF8Encoding($false))
+)
 foreach ($i in @('icon16.png','icon48.png','icon128.png')) {
   Copy-Item (Join-Path 'icons' $i) (Join-Path $stage 'icons')
 }
