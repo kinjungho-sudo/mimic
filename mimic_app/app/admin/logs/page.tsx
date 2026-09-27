@@ -14,6 +14,8 @@ type LogRow = {
   user_id: string | null;
   tutorial_id: string | null;
   url: string | null;
+  user_email: string | null;
+  tutorial_title: string | null;
 };
 
 type Summary = { error: number; network: number; audit: number; system: number; errorLevel: number; warnLevel: number; total: number };
@@ -22,7 +24,7 @@ const CATEGORIES = [
   { key: 'all', label: '전체' },
   { key: 'error', label: '에러' },
   { key: 'network', label: '네트워크' },
-  { key: 'audit', label: '감사' },
+  { key: 'audit', label: '사용자 활동' },
   { key: 'system', label: '시스템' },
 ] as const;
 
@@ -37,6 +39,15 @@ const CAT_COLOR: Record<string, { bg: string; fg: string }> = {
   network: { bg: '#DBEAFE', fg: '#1D4ED8' },
   audit: { bg: '#DCFCE7', fg: '#15803D' },
   system: { bg: '#F3E8FF', fg: '#7E22CE' },
+};
+
+const EVENT_LABELS: Record<string, string> = {
+  'user.access': '서비스 접속',
+  'manual.created': '매뉴얼 생성',
+  'manual.opened': '매뉴얼 열람',
+  'auth.login.success': '로그인',
+  'auth.login.fail': '로그인 실패',
+  'auth.signup': '회원가입',
 };
 
 function Badge({ text, color }: { text: string; color: { bg: string; fg: string } }) {
@@ -110,7 +121,7 @@ export default function AdminLogsPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
         <div>
           <h1 style={{ fontSize: '22px', fontWeight: 600, margin: '0 0 4px', color: '#0F172A' }}>로그 / 모니터링</h1>
-          <p style={{ color: '#64748B', fontSize: '13px', margin: 0 }}>에러·네트워크·감사·시스템 로그 (최근 24시간 요약)</p>
+          <p style={{ color: '#64748B', fontSize: '13px', margin: 0 }}>매뉴얼 생성·열람·서비스 접속과 운영 로그 (최근 24시간 요약)</p>
         </div>
         <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#475569', cursor: 'pointer' }}>
           <input type="checkbox" checked={autoRefresh} onChange={e => setAutoRefresh(e.target.checked)} />
@@ -126,7 +137,7 @@ export default function AdminLogsPage() {
             { label: '에러', value: summary.errorLevel, color: '#B91C1C' },
             { label: '경고', value: summary.warnLevel, color: '#B45309' },
             { label: '네트워크', value: summary.network, color: '#1D4ED8' },
-            { label: '감사', value: summary.audit, color: '#15803D' },
+            { label: '사용자 활동', value: summary.audit, color: '#15803D' },
             { label: '시스템', value: summary.system, color: '#7E22CE' },
           ].map(c => (
             <div key={c.label} style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '14px 16px' }}>
@@ -161,8 +172,8 @@ export default function AdminLogsPage() {
       {/* 테이블 */}
       {error && <div role="alert" style={{ marginBottom: '14px', padding: '12px 14px', borderRadius: '8px', background: '#FEF2F2', color: '#B91C1C' }}>{error}</div>}
       <div className="admin-table-scroll" style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden' }}>
-        <div className="admin-log-row" style={{ display: 'grid', gridTemplateColumns: '130px 70px 90px 70px 1fr', gap: '12px', padding: '10px 16px', background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', fontSize: '11px', fontWeight: 600, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-          <div>시각</div><div>레벨</div><div>카테고리</div><div>소스</div><div>이벤트 / 메시지</div>
+        <div className="admin-log-row" style={{ display: 'grid', gridTemplateColumns: '130px 70px 90px 70px 180px 1fr', gap: '12px', padding: '10px 16px', background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', fontSize: '11px', fontWeight: 600, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+          <div>시각</div><div>레벨</div><div>카테고리</div><div>소스</div><div>사용자</div><div>이벤트 / 매뉴얼</div>
         </div>
 
         {loading ? (
@@ -171,13 +182,15 @@ export default function AdminLogsPage() {
           <div style={{ padding: '40px', textAlign: 'center', color: '#94A3B8', fontSize: '14px' }}>로그가 없습니다.</div>
         ) : rows.map(r => (
           <div key={r.id}>
-            <div className="admin-log-row" onClick={() => setExpanded(expanded === r.id ? null : r.id)} style={{ display: 'grid', gridTemplateColumns: '130px 70px 90px 70px 1fr', gap: '12px', padding: '10px 16px', borderBottom: '1px solid #F1F5F9', fontSize: '12.5px', color: '#334155', cursor: 'pointer', alignItems: 'center' }}>
+            <div className="admin-log-row" onClick={() => setExpanded(expanded === r.id ? null : r.id)} style={{ display: 'grid', gridTemplateColumns: '130px 70px 90px 70px 180px 1fr', gap: '12px', padding: '10px 16px', borderBottom: '1px solid #F1F5F9', fontSize: '12.5px', color: '#334155', cursor: 'pointer', alignItems: 'center' }}>
               <div style={{ color: '#64748B', fontVariantNumeric: 'tabular-nums' }}>{fmtTime(r.created_at)}</div>
               <div><Badge text={r.level} color={LEVEL_COLOR[r.level]} /></div>
               <div><Badge text={r.category} color={CAT_COLOR[r.category] ?? LEVEL_COLOR.debug} /></div>
               <div style={{ color: '#94A3B8', fontSize: '11.5px' }}>{r.source}</div>
+              <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.user_email ?? r.user_id ?? ''}>{r.user_email ?? r.user_id ?? '—'}</div>
               <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                <span style={{ fontWeight: 600, color: '#0F172A' }}>{r.event}</span>
+                <span style={{ fontWeight: 600, color: '#0F172A' }}>{EVENT_LABELS[r.event] ?? r.event}</span>
+                {r.tutorial_title && <span style={{ color: '#64748B' }}> — {r.tutorial_title}</span>}
                 {r.message && <span style={{ color: '#64748B' }}> — {r.message}</span>}
               </div>
             </div>
@@ -186,6 +199,7 @@ export default function AdminLogsPage() {
                 <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', marginBottom: '10px', color: '#475569' }}>
                   <span><b style={{ color: '#94A3B8' }}>user_id:</b> {r.user_id ?? '—'}</span>
                   <span><b style={{ color: '#94A3B8' }}>tutorial_id:</b> {r.tutorial_id ?? '—'}</span>
+                  <span><b style={{ color: '#94A3B8' }}>event:</b> {r.event}</span>
                   <span style={{ wordBreak: 'break-all' }}><b style={{ color: '#94A3B8' }}>url:</b> {r.url ?? '—'}</span>
                 </div>
                 <pre style={{ margin: 0, padding: '12px', background: '#0F172A', color: '#E2E8F0', borderRadius: '8px', fontSize: '11.5px', overflow: 'auto', maxHeight: '300px' }}>{r.context ? JSON.stringify(r.context, null, 2) : '(context 없음)'}</pre>

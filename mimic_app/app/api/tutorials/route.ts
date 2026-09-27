@@ -4,6 +4,7 @@ import { createServiceRoleClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { requireWorkspaceEntitlement } from '@/lib/auth/entitlement-guard';
 import { canGenerateDefaultTutorialTTS, DEFAULT_TUTORIAL_TTS_SETTING_VOICE } from '@/lib/voice/default-tutorial-tts';
+import { logAudit } from '@/lib/logging/logger-server';
 
 const tutorialCreateSchema = z.object({
   workspace_id: z.string().uuid().optional().nullable(),
@@ -138,5 +139,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  await logAudit('manual.created', { userId: auth.userId, tutorialId: data.id, source: 'web' });
   return NextResponse.json(data, { status: 201 });
 }

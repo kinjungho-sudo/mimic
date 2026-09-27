@@ -8,6 +8,7 @@ import { isFreshVoiceAsset } from '@/lib/voice/playback';
 import { requireTutorialEntitlement, requireWorkspaceEntitlement } from '@/lib/auth/entitlement-guard';
 import { hasEntitlement } from '@/lib/entitlements';
 import { entitlementsForPlan } from '@/lib/entitlements';
+import { logAudit } from '@/lib/logging/logger-server';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -81,6 +82,7 @@ export async function GET(request: NextRequest, { params }: Params) {
       })
     : [];
 
+  await logAudit('manual.opened', { userId: auth.userId, tutorialId: id, url: `/manual/${id}` });
   return NextResponse.json({
     ...tutorial,
     entitlements: entitlementsForPlan(owner?.plan),
