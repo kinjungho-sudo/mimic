@@ -34,10 +34,10 @@ export async function signInWithEmail(
   const supabase = createClient();
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
-    logAuditClient('auth.login.fail', { email, method: 'password', reason: error.message }, 'warn');
+    logAuditClient('auth.login.fail', { method: 'password', reason: error.message }, 'warn');
     throw new Error(translateAuthError(error.message));
   }
-  logAuditClient('auth.login.success', { userId: data.user?.id ?? null, email, method: 'password' });
+  logAuditClient('auth.login.success', { method: 'password' });
 
   const profile = await getCurrentUser();
   return { user: profile, session: data.session };
