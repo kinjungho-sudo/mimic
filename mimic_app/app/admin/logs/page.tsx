@@ -189,7 +189,7 @@ export default function AdminLogsPage() {
               <div style={{ color: '#94A3B8', fontSize: '11.5px' }}>{r.source}</div>
               <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.user_email ?? r.user_id ?? ''}>{r.user_email ?? r.user_id ?? '—'}</div>
               <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                <span style={{ fontWeight: 600, color: '#0F172A' }}>{EVENT_LABELS[r.event] ?? r.event}</span>
+                <span style={{ fontWeight: 600, color: '#0F172A' }}>{r.category === 'audit' ? (EVENT_LABELS[r.event] ?? r.event) : r.event}</span>
                 {r.tutorial_title && <span style={{ color: '#64748B' }}> — {r.tutorial_title}</span>}
                 {r.message && <span style={{ color: '#64748B' }}> — {r.message}</span>}
               </div>
