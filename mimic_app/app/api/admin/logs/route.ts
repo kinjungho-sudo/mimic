@@ -55,21 +55,45 @@ export async function GET(request: NextRequest) {
   const page = hasMore ? rows.slice(0, limit) : rows;
   const nextCursor = hasMore ? page[page.length - 1].created_at : null;
 
-  // 최근 24시간 요약 — 카테고리별 건수 + 에러/경고 건수.
+  const userIds = Array.from(new Set(page.map(row => row.user_id).filter((id): id is string => Boolean(id))));
+  const tutorialIds = Array.from(new Set(page.map(row => row.tutorial_id).filter((id): id is string => Boolean(id))));
+  const [usersRes, tutorialsRes] = await Promise.all([
+    userIds.length ? service.from('mm_users').select('id, email').in('id', userIds) : Promise.resolve({ data: [] }),
+    tutorialIds.length ? service.from('mm_tutorials').select('id, title').in('id', tutorialIds) : Promise.resolve({ data: [] }),
+  ]);
+  const userEmails = new Map((usersRes.data ?? []).map(user => [user.id, user.email]));
+  const tutorialTitles = new Map((tutorialsRes.data ?? []).map(tutorial => [tutorial.id, tutorial.title]));
+  const enrichedPage = page.map(row => ({
+    ...row,
+    user_email: row.user_id ? userEmails.get(row.user_id) ?? null : null,
+    tutorial_title: row.tutorial_id ? tutorialTitles.get(row.tutorial_id) ?? null : null,
+  }));
+
+  // 최근 24시간 요약 — 전체 행을 가져오지 않고 정확한 개수를 집계한다.
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const { data: recent } = await service
-    .from('mm_logs')
-    .select('category, level')
-    .gte('created_at', since)
-    .limit(5000);
-
-  const summary = { error: 0, network: 0, audit: 0, system: 0, errorLevel: 0, warnLevel: 0, total: 0 };
-  for (const r of recent ?? []) {
-    summary.total++;
-    if (r.category in summary) (summary as Record<string, number>)[r.category]++;
-    if (r.level === 'error') summary.errorLevel++;
-    else if (r.level === 'warn') summary.warnLevel++;
+  const countBy = (column?: 'category' | 'level', value?: string) => {
+    let countQuery = service.from('mm_logs').select('id', { count: 'exact', head: true }).gte('created_at', since);
+    if (column && value) countQuery = countQuery.eq(column, value);
+    return countQuery;
+  };
+  const [total, errorCount, network, audit, system, errorLevel, warnLevel] = await Promise.all([
+    countBy(), countBy('category', 'error'), countBy('category', 'network'),
+    countBy('category', 'audit'), countBy('category', 'system'),
+    countBy('level', 'error'), countBy('level', 'warn'),
+  ]);
+  const countError = [total, errorCount, network, audit, system, errorLevel, warnLevel].find(result => result.error);
+  if (countError?.error) {
+    return NextResponse.json({ error: 'summary_query_failed' }, { status: 500 });
   }
+  const summary = {
+    total: total.count ?? 0,
+    error: errorCount.count ?? 0,
+    network: network.count ?? 0,
+    audit: audit.count ?? 0,
+    system: system.count ?? 0,
+    errorLevel: errorLevel.count ?? 0,
+    warnLevel: warnLevel.count ?? 0,
+  };
 
-  return NextResponse.json({ rows: page, nextCursor, summary });
+  return NextResponse.json({ rows: enrichedPage, nextCursor, summary });
 }

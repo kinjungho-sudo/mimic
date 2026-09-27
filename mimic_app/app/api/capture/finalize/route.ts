@@ -13,7 +13,7 @@ import {
   DEFAULT_TUTORIAL_TTS_SETTING_VOICE,
   generateDefaultTutorialTTS,
 } from '@/lib/voice/default-tutorial-tts';
-import { logSystem } from '@/lib/logging/logger-server';
+import { logAudit, logSystem } from '@/lib/logging/logger-server';
 import {
   PARRO_ONBOARDING_KEY,
   PARRO_ONBOARDING_PRACTICE_PATH,
@@ -1322,6 +1322,7 @@ export async function POST(request: NextRequest) {
     } catch { /* PII 검사 전체 실패 무시 */ }
   })();
 
+  await logAudit('manual.created', { userId, tutorialId: tutorial.id, source: 'recorder' });
   return NextResponse.json({
     tutorial_id: tutorial.id,
     step_count: steps.length,
