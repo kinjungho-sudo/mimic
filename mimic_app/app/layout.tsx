@@ -11,6 +11,7 @@ import {
 } from "@/lib/brand";
 import { ParroOnboardingProvider } from "@/components/onboarding/ParroOnboardingProvider";
 import { LocaleProvider } from "@/components/i18n/LocaleProvider";
+import { UserAccessTracker } from "@/components/analytics/UserAccessTracker";
 import "./globals.css";
 
 const geistSans = localFont({
@@ -127,6 +128,7 @@ export default function RootLayout({
         </a>
         <span id="parro-main-content" className="parro-main-target" tabIndex={-1} />
         <LocaleProvider>
+          <UserAccessTracker />
           <ParroOnboardingProvider>{children}</ParroOnboardingProvider>
         </LocaleProvider>
       </body>

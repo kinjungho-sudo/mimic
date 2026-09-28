@@ -23,7 +23,7 @@ export async function logServer(
 
   try {
     const supabase = createServiceRoleClient();
-    await supabase.from('mm_logs').insert({
+    const { error } = await supabase.from('mm_logs').insert({
       level,
       category,
       source: 'server',
@@ -34,8 +34,9 @@ export async function logServer(
       tutorial_id: (tutorialId as string | null) ?? null,
       url: (url as string | null) ?? null,
     });
-  } catch {
-    /* 로깅 실패는 무시 */
+    if (error) console.error('[audit-log] insert failed:', error.message);
+  } catch (error) {
+    console.error('[audit-log] insert failed:', error instanceof Error ? error.message : 'unknown error');
   }
 }
 

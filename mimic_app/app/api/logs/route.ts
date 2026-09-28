@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { z } from 'zod';
+import { requireAuth } from '@/lib/auth/auth-guard';
 
 // 클라이언트 로그 수집 엔드포인트.
 // 인증 불필요(로그아웃 상태 오류도 수집). error/warn만 mm_logs에 저장.
@@ -23,6 +24,20 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) return NextResponse.json({ ok: false }, { status: 400 });
 
   const d = parsed.data;
+  if (['manual.created', 'manual.opened', 'user.access', 'auth.login.success'].includes(d.event) && d.category !== 'audit') {
+    return NextResponse.json({ ok: false }, { status: 400 });
+  }
+  let verifiedAuditUserId: string | null = null;
+  if (d.category === 'audit') {
+    if (d.event !== 'auth.login.success' && d.event !== 'auth.login.fail') {
+      return NextResponse.json({ ok: false }, { status: 400 });
+    }
+    if (d.event === 'auth.login.success') {
+      const auth = await requireAuth(request);
+      if (!auth.ok) return auth.response;
+      verifiedAuditUserId = auth.userId;
+    }
+  }
   // error 카테고리는 error/warn만 저장(기존 규칙). network/audit/system은 레벨과 무관하게 저장.
   const shouldPersist = d.category === 'error' ? (d.level === 'error' || d.level === 'warn') : true;
   if (!shouldPersist) return NextResponse.json({ ok: true });
@@ -36,7 +51,7 @@ export async function POST(request: NextRequest) {
       event: d.event,
       message: d.message ?? null,
       context: d.context ?? null,
-      user_id: d.userId ?? null,
+      user_id: d.category === 'audit' ? verifiedAuditUserId : (d.userId ?? null),
       tutorial_id: d.tutorialId ?? null,
       url: d.url ?? null,
     });
