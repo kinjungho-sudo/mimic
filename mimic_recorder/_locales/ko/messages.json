@@ -1,5 +1,5 @@
 {
-  "extensionName": { "message": "Parro Recorder (dev)" },
+  "extensionName": { "message": "Parro Recorder" },
   "extensionDescription": { "message": "Parro Recorder는 웹페이지의 클릭 동작을 단계별로 자동 캡처하여 매뉴얼·가이드 문서를 손쉽게 만들어주는 스크린샷 레코더입니다." },
   "fullPageCaptureTitle": { "message": "전체 페이지 캡처 (스크롤 끝까지 → PNG 저장)" },
   "settings": { "message": "설정" },

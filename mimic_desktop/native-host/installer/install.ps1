@@ -17,6 +17,7 @@ $sourceRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $defaultExtensionIds = @(
   "lefkpmfgdbhckcemfghpegleknaepekm",
   "pnkkalnfddapkmiobbhnkbhplakamaok",
+  "fbpgolbgpdlphhlodhehiilobpanehal",
   "dhfcmomnambegkibjnandckacihnaelb",
   "ehbhcdkapcbfehinjapabgoegcjmmbgd"
 )
