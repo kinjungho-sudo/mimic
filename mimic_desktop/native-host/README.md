@@ -12,6 +12,7 @@ The production Desktop App can later replace this host with a signed Tauri binar
 - `UNDO_CAPTURE_STEP`
 - `MARK_NEXT_CAPTURE_PRIVATE`
 - `UPDATE_TOOLBAR_BOUNDS`
+- `LIST_DISPLAYS`
 - `GET_CAPTURE_SESSION`
 - `READ_CAPTURE_IMAGE_CHUNK`
 - `PING`
@@ -29,8 +30,9 @@ This dev host verifies the first Desktop Companion contract:
    bounds exclusion all use local control files inside the active session
    directory.
 
-The current preview captures Windows clicks, the foreground application/window,
-and either the active window or current monitor. When the session is completed,
+The current preview lets the user choose one connected monitor or all monitors
+before recording. A selected monitor records only clicks on that screen; the
+all-monitor option stores the Windows virtual desktop as one image. When the session is completed,
 the Recorder reads the local images in bounded Native Messaging chunks, runs the
 existing Parro AI analysis/upload pipeline, creates a manual, and opens its editor.
 
@@ -50,7 +52,7 @@ MVP 원칙:
 - 파일 내용은 기본으로 업로드하지 않습니다.
 - 기록 중인 세션에서만 파일 작업 흐름을 감지합니다.
 - 비밀번호, OTP, 결제, 개인 인증 화면은 자동 기록 대상에서 제외합니다.
-- 다중 모니터 전체가 아니라 자동 클릭은 활성 앱 창, 수동 캡처는 현재 모니터만 저장합니다.
+- 다중 모니터에서는 녹화 전 한 화면 또는 모든 화면을 명시적으로 선택합니다.
 
 ## Install for local Chrome dev
 
@@ -123,6 +125,7 @@ HKCU\Software\Google\Chrome\NativeMessagingHosts\com.mimic.desktop_companion.dev
 Default allowed Chrome extension IDs:
 
 - current Parro dev extension: `pnkkalnfddapkmiobbhnkbhplakamaok`
+- active Parro dev extension: `fbpgolbgpdlphhlodhehiilobpanehal`
 - legacy dev unpacked extension: `dhfcmomnambegkibjnandckacihnaelb`
 - replacement Chrome Web Store extension under review: `lefkpmfgdbhckcemfghpegleknaepekm`
 - currently published Chrome Web Store extension: `ehbhcdkapcbfehinjapabgoegcjmmbgd`

@@ -4,6 +4,7 @@
 
 import { logNetwork } from '@/lib/logging/logger-server';
 import { BRAND_COLORS, BRAND_NAME, BRAND_SUPPORT_EMAIL, BRAND_TAGLINE, LEGACY_INTERNAL_IDENTIFIERS, getBrandAppUrl } from '@/lib/brand';
+import type { ServerLocale } from '@/lib/i18n/server-locale';
 
 const clean = (v?: string) => v?.replace(/^﻿/, '').trim() ?? '';
 const APP_URL = getBrandAppUrl();
@@ -87,11 +88,12 @@ export function newsletterHtml(subject: string, bodyText: string): string {
 }
 
 // 가입 환영 메일 HTML
-export function welcomeEmailHtml(name?: string | null): string {
-  const greet = name ? `${name}님, ` : '';
+export function welcomeEmailHtml(name?: string | null, locale: ServerLocale = 'ko'): string {
+  const isEnglish = locale === 'en';
+  const greet = name ? (isEnglish ? `${name}, ` : `${name}님, `) : '';
   return `
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="${locale}">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#F8F9FA;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#F8F9FA;padding:40px 0;">
@@ -100,29 +102,30 @@ export function welcomeEmailHtml(name?: string | null): string {
         <tr>
           <td style="background:${EMAIL_GRADIENT};padding:34px 40px;text-align:center;">
             <p style="margin:0;font-size:24px;font-weight:800;color:white;letter-spacing:-0.5px;">${BRAND_NAME}</p>
-            <p style="margin:8px 0 0;font-size:13px;color:rgba(255,255,255,0.75);">${BRAND_TAGLINE}</p>
+            <p style="margin:8px 0 0;font-size:13px;color:rgba(255,255,255,0.75);">${isEnglish ? 'AI workflow manuals and Live Guides from screen recordings' : BRAND_TAGLINE}</p>
           </td>
         </tr>
         <tr>
           <td style="padding:36px 40px;">
-            <h1 style="margin:0 0 14px;font-size:21px;font-weight:700;color:#111827;line-height:1.4;">${greet}${BRAND_NAME} 가입을 환영해요 🎉</h1>
+            <h1 style="margin:0 0 14px;font-size:21px;font-weight:700;color:#111827;line-height:1.4;">${greet}${isEnglish ? `welcome to ${BRAND_NAME}` : `${BRAND_NAME} 가입을 환영해요`} 🎉</h1>
             <p style="margin:0 0 22px;font-size:15px;color:#4B5563;line-height:1.7;">
-              이제 클릭 몇 번이면 업무 화면이 <b>단계별 인터랙티브 매뉴얼</b>로 완성됩니다.
-              만든 매뉴얼은 링크로 공유하거나, 실제 화면 위에서 <b>라이브 가이드 Beta</b>로 안내할 수 있어요.
+              ${isEnglish
+                ? 'A few clicks turn your workflow into a <b>step-by-step interactive manual</b>. Share it by link or guide people directly on the live page with <b>Live Guide Beta</b>.'
+                : '이제 클릭 몇 번이면 업무 화면이 <b>단계별 인터랙티브 매뉴얼</b>로 완성됩니다. 만든 매뉴얼은 링크로 공유하거나, 실제 화면 위에서 <b>라이브 가이드 Beta</b>로 안내할 수 있어요.'}
             </p>
             <table cellpadding="0" cellspacing="0"><tr><td>
               <a href="${APP_URL}/home" style="display:inline-block;padding:14px 28px;background:${EMAIL_GRADIENT};color:white;font-size:15px;font-weight:600;text-decoration:none;border-radius:10px;">
-                지금 시작하기 →
+                ${isEnglish ? 'Get started →' : '지금 시작하기 →'}
               </a>
             </td></tr></table>
             <p style="margin:24px 0 0;font-size:13px;color:#9CA3AF;line-height:1.6;">
-              궁금한 점은 이 메일에 회신해 주세요. 좋은 매뉴얼 만드시길 응원합니다!
+              ${isEnglish ? 'Reply to this email if you have any questions. We hope you enjoy creating with Parro!' : '궁금한 점은 이 메일에 회신해 주세요. 좋은 매뉴얼 만드시길 응원합니다!'}
             </p>
           </td>
         </tr>
         <tr>
           <td style="padding:20px 40px;border-top:1px solid #F3F4F6;text-align:center;">
-            <p style="margin:0;font-size:12px;color:#9CA3AF;">${BRAND_NAME} · AI 인터랙티브 매뉴얼 플랫폼</p>
+            <p style="margin:0;font-size:12px;color:#9CA3AF;">${BRAND_NAME} · ${isEnglish ? 'AI interactive manual platform' : 'AI 인터랙티브 매뉴얼 플랫폼'}</p>
           </td>
         </tr>
       </table>

@@ -1,5 +1,5 @@
 {
-  "extensionName": { "message": "Parro Recorder (dev)" },
+  "extensionName": { "message": "Parro Recorder" },
   "extensionDescription": { "message": "Parro Recorder automatically captures your clicks step by step and turns them into clear manuals and guides." },
   "fullPageCaptureTitle": { "message": "Capture full page (scroll to the end → save PNG)" },
   "settings": { "message": "Settings" },

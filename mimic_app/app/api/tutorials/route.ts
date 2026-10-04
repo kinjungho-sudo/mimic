@@ -3,8 +3,7 @@ import { requireAuth } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { requireWorkspaceEntitlement } from '@/lib/auth/entitlement-guard';
-import { canGenerateDefaultTutorialTTS, DEFAULT_TUTORIAL_TTS_SETTING_VOICE } from '@/lib/voice/default-tutorial-tts';
-import { logAudit } from '@/lib/logging/logger-server';
+import { isDesktopStep } from '@/lib/manual-surface';
 
 const tutorialCreateSchema = z.object({
   workspace_id: z.string().uuid().optional().nullable(),
@@ -20,7 +19,7 @@ export async function GET(request: NextRequest) {
 
   let query = supabase
     .from('mm_tutorials')
-    .select(`*, mm_steps(screenshot_url, page_url, step_number)`)
+    .select(`*, mm_steps(screenshot_url, page_url, domain_name, target_context, step_number)`)
     .order('updated_at', { ascending: false });
 
   if (workspaceId) {
@@ -61,7 +60,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const enriched = (data ?? []).map((t: Record<string, unknown> & { mm_steps?: { screenshot_url: string; page_url: string | null; step_number: number }[] }) => {
+  const enriched = (data ?? []).map((t: Record<string, unknown> & { mm_steps?: { screenshot_url: string; page_url: string | null; domain_name?: string | null; target_context?: Record<string, unknown> | null; step_number: number }[] }) => {
     const steps = t.mm_steps ?? [];
     const sorted = [...steps].sort((a, b) => a.step_number - b.step_number);
     const { mm_steps, ...rest } = t;
@@ -72,6 +71,7 @@ export async function GET(request: NextRequest) {
       thumbnail_url: sorted[0]?.screenshot_url ?? null,
       cover_color: (rest.cover_color as string | null) ?? null,
       first_page_url: sorted[0]?.page_url ?? null,
+      capture_surface: steps.some(isDesktopStep) ? 'desktop' : 'web',
     };
   });
 
@@ -119,8 +119,6 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const defaultTtsEnabled = await canGenerateDefaultTutorialTTS(auth.userId, workspaceId, supabase);
-
   const { data, error } = await supabase
     .from('mm_tutorials')
     .insert({
@@ -129,8 +127,6 @@ export async function POST(request: NextRequest) {
       title: '제목 없음',
       status: 'draft',
       mode: 'guide',
-      tts_enabled: defaultTtsEnabled,
-      tts_voice: DEFAULT_TUTORIAL_TTS_SETTING_VOICE,
     })
     .select()
     .single();
@@ -139,6 +135,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  await logAudit('manual.created', { userId: auth.userId, tutorialId: data.id, source: 'web' });
   return NextResponse.json(data, { status: 201 });
 }

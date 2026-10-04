@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { RecordingModal } from '@/components/dashboard/RecordingModal';
 import { AgentChat } from '@/components/chat/AgentChat';
 import { BrandMark } from '@/components/common/BrandMark';
+import { LanguageSwitcher } from '@/components/i18n/LocaleProvider';
 import { createTutorial } from '@/lib/api/tutorials';
 import {
   desktopCaptureEntryDestination,
@@ -14,6 +15,7 @@ import {
 } from '@/lib/desktop-companion-client';
 import { logError } from '@/lib/logging/logger';
 import { BRAND_COLORS, BRAND_NAME, LEGACY_INTERNAL_IDENTIFIERS } from '@/lib/brand';
+import { isDesktopTutorial } from '@/lib/manual-surface';
 import type { Tutorial, Workspace, Folder } from '@/types';
 import { hasEntitlement } from '@/lib/entitlements';
 import { useParroOnboarding } from '@/components/onboarding/ParroOnboardingProvider';
@@ -421,6 +423,7 @@ function TutorialCard({ tutorial, onContextMenu, onMenuClick, viewMode = 'grid',
   const [thumbnailLoaded, setThumbnailLoaded] = useState(false);
 
   const color = cardColor(tutorial.id);
+  const isDesktopManual = isDesktopTutorial(tutorial);
   const stepCount = tutorial.step_count ?? 0;
   const dateStr = new Date(tutorial.updated_at).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }).replace(/\. /g, '/').replace(/\.$/, '');
   const domain = getDomain(tutorial.first_page_url);
@@ -468,6 +471,7 @@ function TutorialCard({ tutorial, onContextMenu, onMenuClick, viewMode = 'grid',
       {domain && <span style={{ width: '2px', height: '2px', borderRadius: '50%', background: '#D1D5DB', flexShrink: 0 }} />}
       <span style={{ fontSize: '12px', color: '#111827', flexShrink: 0, display: 'inline-flex', alignItems: 'center', lineHeight: 1 }}>{dateStr}</span>
       {stepCount > 0 && <><span style={{ width: '2px', height: '2px', borderRadius: '50%', background: '#D1D5DB', flexShrink: 0 }} /><span style={{ fontSize: '12px', color: '#9CA3AF', flexShrink: 0 }}>{stepCount}단계</span></>}
+      {isDesktopManual && <span style={{ fontSize: '10px', fontWeight: 700, color: '#0369A1', background: '#E0F2FE', padding: '1px 6px', borderRadius: '999px', flexShrink: 0 }}>Desktop</span>}
       {tutorial.status === 'published' && <span style={{ fontSize: '10px', fontWeight: 600, color: '#16A34A', background: '#DCFCE7', padding: '1px 5px', borderRadius: '999px', flexShrink: 0 }}>공유</span>}
       {(tutorial as Tutorial & { workspace_id?: string | null }).workspace_id && (
         <span style={{ fontSize: '10px', fontWeight: 600, color: BRAND_COLORS.primary, background: BRAND_PRIMARY_SOFT, padding: '1px 5px', borderRadius: '999px', flexShrink: 0 }}>팀</span>
@@ -878,6 +882,7 @@ export default function DashboardPage() {
 
   const [showRecordingModal, setShowRecordingModal] = useState(false);
   const [recordingModalMode, setRecordingModalMode] = useState<'select' | 'web'>('select');
+  const [resumeRecorderAfterInstall, setResumeRecorderAfterInstall] = useState(false);
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [creating, setCreating] = useState(false);
   const onboardingCreateLocked = onboarding.isActive
@@ -919,6 +924,27 @@ export default function DashboardPage() {
       window.sessionStorage.removeItem('parro-open-create-menu');
       setShowNewMenu(true);
     }
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (
+      params.get('recorder_install') !== 'complete'
+      || params.get('open_recorder') !== '1'
+    ) return;
+
+    params.delete('recorder_install');
+    params.delete('open_recorder');
+    const nextSearch = params.toString();
+    window.history.replaceState(
+      window.history.state,
+      '',
+      `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}${window.location.hash}`,
+    );
+
+    setRecordingModalMode('web');
+    setResumeRecorderAfterInstall(true);
+    setShowRecordingModal(true);
   }, []);
 
   useEffect(() => {
@@ -1288,6 +1314,10 @@ export default function DashboardPage() {
   })();
 
   // 폴더 트리 아이템 공통 스타일 헬퍼
+  const manualActionTutorial = manualActionModal
+    ? tutorials.find(t => t.id === manualActionModal) ?? null
+    : null;
+  const manualActionIsDesktop = isDesktopTutorial(manualActionTutorial);
   const folderItemActive = (id: string | null | 'all') => activeFolder === id && activeTab === 'my';
 
   return (
@@ -1295,7 +1325,11 @@ export default function DashboardPage() {
       {showRecordingModal && (
         <RecordingModal
           initialMode={recordingModalMode}
-          onClose={() => setShowRecordingModal(false)}
+          autoResumeAfterInstall={resumeRecorderAfterInstall}
+          onClose={() => {
+            setShowRecordingModal(false);
+            setResumeRecorderAfterInstall(false);
+          }}
         />
       )}
       {ctxMenu && (
@@ -1323,6 +1357,7 @@ export default function DashboardPage() {
               <BrandMark />
               <span style={{ fontSize: '16px', fontWeight: 800, color: BRAND_COLORS.primary, letterSpacing: '-0.03em' }}>{BRAND_NAME}</span>
             </Link>
+            <LanguageSwitcher className="parro-language-switcher--workspace-sidebar" />
 
             {/* ── 워크스페이스 트리 ── */}
             <div data-parro-guide="home-workspaces" style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
@@ -1578,6 +1613,7 @@ export default function DashboardPage() {
                   <span style={{ fontSize: '15px', fontWeight: 800, color: BRAND_COLORS.primary, letterSpacing: '-0.03em' }}>{BRAND_NAME}</span>
                 </Link>
               </div>
+              <LanguageSwitcher className="parro-language-switcher--workspace-mobile-header" />
               {/* 모바일 전용: 햄버거 버튼 */}
               <button className="home-hamburger-btn"
                 onClick={() => setShowDrawer(true)}
@@ -2029,13 +2065,18 @@ export default function DashboardPage() {
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: '11px', fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '5px' }}>매뉴얼 열기</div>
                 <div style={{ fontSize: '19px', fontWeight: 700, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '600px' }}>
-                  {tutorials.find(t => t.id === manualActionModal)?.title ?? '매뉴얼'}
+                  {manualActionTutorial?.title ?? '매뉴얼'}
                 </div>
               </div>
               <button onClick={() => setManualActionModal(null)} style={{ width: '30px', height: '30px', borderRadius: '8px', border: 'none', background: '#F3F4F6', cursor: 'pointer', display: 'grid', placeItems: 'center', color: '#6B7280', flexShrink: 0 }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
+            {manualActionIsDesktop && (
+              <div style={{ margin: '-8px 0 18px', padding: '10px 12px', borderRadius: '10px', background: '#F0F9FF', border: '1px solid #BAE6FD', color: '#075985', fontSize: '12.5px', lineHeight: 1.55 }}>
+                이 매뉴얼은 데스크톱 앱 화면을 캡처해 만든 매뉴얼입니다. 현재 Live Guide Beta는 웹 브라우저 화면에서만 실행되고, 이 매뉴얼은 문서 보기와 캡처 화면 가이드로 사용할 수 있어요.
+              </div>
+            )}
             <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
               {/* 매뉴얼 편집 */}
               <button onClick={() => { router.push(`/manual/${manualActionModal}/editor`); setManualActionModal(null); }}
@@ -2091,8 +2132,12 @@ export default function DashboardPage() {
                   </svg>
                 </div>
                 <div style={{ padding: '14px 16px 16px' }}>
-                  <div style={{ fontSize: '16px', fontWeight: 700, color: '#111827' }}>학습 가이드 스튜디오</div>
-                  <div style={{ fontSize: '12.5px', color: '#6B7280', marginTop: '3px' }}>캡처 화면 위에서 단계별로 연습해요</div>
+                  <div style={{ fontSize: '16px', fontWeight: 700, color: '#111827' }}>
+                    {manualActionIsDesktop ? '캡처 화면 가이드' : '학습 가이드 스튜디오'}
+                  </div>
+                  <div style={{ fontSize: '12.5px', color: '#6B7280', marginTop: '3px' }}>
+                    {manualActionIsDesktop ? '데스크톱 캡처 화면 위에서 단계별로 확인해요' : '캡처 화면 위에서 단계별로 연습해요'}
+                  </div>
                 </div>
               </button>
             </div>

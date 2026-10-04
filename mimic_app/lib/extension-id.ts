@@ -1,3 +1,5 @@
+import { BRAND_EXTENSION_ID, BRAND_EXTENSION_IDS } from '@/lib/brand';
+
 const EXTENSION_ID_STORAGE_KEY = 'parro_extension_id';
 const EXTENSION_ID_PATTERN = /^[a-p]{32}$/;
 const EXTENSION_MESSAGE_SOURCE = 'PARRO_RECORDER_EXTENSION';
@@ -23,13 +25,17 @@ function allowsDynamicExtensionId() {
   const host = window.location.hostname;
   return host === 'localhost'
     || host === '127.0.0.1'
-    || host === 'parro-guide.vercel.app'
-    || (host.endsWith('.vercel.app') && host !== 'mimic-nine-ashen.vercel.app');
+    || host === 'parro-guide-dev.vercel.app'
+    || (host.endsWith('.vercel.app')
+      && host !== 'parro-guide.vercel.app'
+      && host !== 'mimic-nine-ashen.vercel.app');
 }
 
 export function getPreferredExtensionId() {
   const configured = cleanExtensionId(process.env.NEXT_PUBLIC_EXTENSION_ID);
-  if (typeof window === 'undefined' || !allowsDynamicExtensionId()) return configured;
+  if (typeof window === 'undefined' || !allowsDynamicExtensionId()) {
+    return configured || BRAND_EXTENSION_ID;
+  }
 
   const params = new URLSearchParams(window.location.search);
   const fromQuery = cleanExtensionId(params.get('extension_id'));
@@ -39,6 +45,17 @@ export function getPreferredExtensionId() {
 
   const fromStorage = cleanExtensionId(window.localStorage.getItem(EXTENSION_ID_STORAGE_KEY));
   return fromStorage || configured;
+}
+
+export function getExtensionIdCandidates() {
+  if (typeof window === 'undefined' || !allowsDynamicExtensionId()) {
+    const configured = cleanExtensionId(process.env.NEXT_PUBLIC_EXTENSION_ID);
+    return Array.from(new Set([configured || BRAND_EXTENSION_ID, ...BRAND_EXTENSION_IDS].filter(Boolean)));
+  }
+
+  const preferred = getPreferredExtensionId();
+  const configured = cleanExtensionId(process.env.NEXT_PUBLIC_EXTENSION_ID);
+  return Array.from(new Set([preferred, configured, ...BRAND_EXTENSION_IDS].filter(Boolean)));
 }
 
 export function rememberExtensionId(
@@ -87,7 +104,7 @@ export function installExtensionIdListener() {
 export function resolvePreferredExtensionId(timeoutMs = 400): Promise<string> {
   const configured = cleanExtensionId(process.env.NEXT_PUBLIC_EXTENSION_ID);
   if (typeof window === 'undefined' || !allowsDynamicExtensionId()) {
-    return Promise.resolve(configured);
+    return Promise.resolve(configured || BRAND_EXTENSION_ID);
   }
 
   const params = new URLSearchParams(window.location.search);
@@ -123,4 +140,9 @@ export function resolvePreferredExtensionId(timeoutMs = 400): Promise<string> {
     requestExtensionIdBroadcast();
     window.setTimeout(() => finish(fallback), timeoutMs);
   });
+}
+
+export async function resolveExtensionIdCandidates(timeoutMs = 400): Promise<string[]> {
+  const preferred = await resolvePreferredExtensionId(timeoutMs);
+  return Array.from(new Set([preferred, ...getExtensionIdCandidates()].filter(Boolean)));
 }

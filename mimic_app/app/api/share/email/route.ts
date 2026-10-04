@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireAuth } from '@/lib/auth/auth-guard';
 import { BRAND_COLORS, BRAND_NAME, BRAND_SUPPORT_EMAIL, BRAND_TAGLINE, LEGACY_INTERNAL_IDENTIFIERS } from '@/lib/brand';
+import { getRequestLocale } from '@/lib/i18n/server-locale';
 
 const schema = z.object({
   to: z.string().email('올바른 이메일 주소를 입력해주세요.'),
@@ -18,6 +19,8 @@ const EMAIL_PRIMARY = BRAND_COLORS.primary;
 // Resend는 인증 도메인이 없어 보류 — n8n Gmail 노드는 사용자 Gmail 계정으로 인증하므로 도메인 불필요.
 // 앱은 완성된 HTML을 웹훅으로 넘기고, n8n은 받은 그대로 전송하는 얇은 릴레이 역할.
 export async function POST(request: NextRequest) {
+  const locale = getRequestLocale(request);
+  const isEnglish = locale === 'en';
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
 
@@ -28,7 +31,9 @@ export async function POST(request: NextRequest) {
 
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? '입력값 오류' }, { status: 400 });
+    return NextResponse.json({
+      error: isEnglish ? 'Enter a valid email address.' : (parsed.error.issues[0]?.message ?? '입력값 오류'),
+    }, { status: 400 });
   }
 
   const { to, tutorialTitle, shareUrl, senderName } = parsed.data;
@@ -43,7 +48,7 @@ export async function POST(request: NextRequest) {
   const safeTitle = tutorialTitle.replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const html = `
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="${locale}">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#F8F9FA;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#F8F9FA;padding:40px 0;">
@@ -53,24 +58,24 @@ export async function POST(request: NextRequest) {
         <tr>
           <td style="background:${EMAIL_GRADIENT};padding:32px 40px;text-align:center;">
             <p style="margin:0;font-size:22px;font-weight:800;color:white;letter-spacing:-0.5px;">${BRAND_NAME}</p>
-            <p style="margin:6px 0 0;font-size:13px;color:rgba(255,255,255,0.7);">${BRAND_TAGLINE}</p>
+            <p style="margin:6px 0 0;font-size:13px;color:rgba(255,255,255,0.7);">${isEnglish ? 'AI workflow manuals and Live Guides from screen recordings' : BRAND_TAGLINE}</p>
           </td>
         </tr>
         <!-- 본문 -->
         <tr>
           <td style="padding:36px 40px;">
-            <p style="margin:0 0 8px;font-size:14px;color:#6B7280;">매뉴얼을 공유받으셨어요</p>
+            <p style="margin:0 0 8px;font-size:14px;color:#6B7280;">${isEnglish ? 'A manual was shared with you' : '매뉴얼을 공유받으셨어요'}</p>
             <h1 style="margin:0 0 24px;font-size:22px;font-weight:700;color:#111827;line-height:1.4;">${safeTitle}</h1>
             <p style="margin:0 0 28px;font-size:15px;color:#4B5563;line-height:1.6;">
-              아래 버튼을 클릭하면 단계별 인터랙티브 매뉴얼을 바로 확인할 수 있어요.
+              ${isEnglish ? 'Select the button below to open the step-by-step interactive manual.' : '아래 버튼을 클릭하면 단계별 인터랙티브 매뉴얼을 바로 확인할 수 있어요.'}
             </p>
             <table cellpadding="0" cellspacing="0"><tr><td>
               <a href="${shareUrl}" style="display:inline-block;padding:14px 28px;background:${EMAIL_GRADIENT};color:white;font-size:15px;font-weight:600;text-decoration:none;border-radius:10px;letter-spacing:-0.2px;">
-                매뉴얼 보러 가기 →
+                ${isEnglish ? 'Open manual →' : '매뉴얼 보러 가기 →'}
               </a>
             </td></tr></table>
             <p style="margin:24px 0 0;font-size:12px;color:#9CA3AF;">
-              또는 이 링크를 브라우저에 복사하세요:<br>
+              ${isEnglish ? 'Or copy this link into your browser:' : '또는 이 링크를 브라우저에 복사하세요:'}<br>
               <a href="${shareUrl}" style="color:${EMAIL_PRIMARY};word-break:break-all;">${shareUrl}</a>
             </p>
           </td>
@@ -79,7 +84,7 @@ export async function POST(request: NextRequest) {
         <tr>
           <td style="padding:20px 40px;border-top:1px solid #F3F4F6;text-align:center;">
             <p style="margin:0;font-size:12px;color:#9CA3AF;">
-              ${BRAND_NAME} · AI 인터랙티브 매뉴얼 플랫폼
+              ${BRAND_NAME} · ${isEnglish ? 'AI interactive manual platform' : 'AI 인터랙티브 매뉴얼 플랫폼'}
             </p>
           </td>
         </tr>
@@ -99,11 +104,11 @@ export async function POST(request: NextRequest) {
     });
     if (!res.ok) {
       console.error('[share/email] n8n webhook error:', res.status, await res.text().catch(() => ''));
-      return NextResponse.json({ error: '이메일 발송에 실패했습니다.' }, { status: 500 });
+      return NextResponse.json({ error: isEnglish ? 'Failed to send the email.' : '이메일 발송에 실패했습니다.' }, { status: 500 });
     }
   } catch (e) {
     console.error('[share/email] n8n webhook fetch failed:', e);
-    return NextResponse.json({ error: '이메일 발송에 실패했습니다.' }, { status: 500 });
+    return NextResponse.json({ error: isEnglish ? 'Failed to send the email.' : '이메일 발송에 실패했습니다.' }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });

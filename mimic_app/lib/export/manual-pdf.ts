@@ -15,6 +15,7 @@ type ManualPdfTutorial = {
   ownerName?: string | null;
   logoUrl?: string | null;
   primaryColor?: string | null;
+  locale?: 'ko' | 'en';
 };
 
 export type ManualPdfStep = StepImageFrame & {
@@ -104,6 +105,7 @@ async function embedLogo(pdfDoc: PDFDocument, logoUrl: string | null | undefined
 }
 
 export async function buildManualPdf(tutorial: ManualPdfTutorial, steps: ManualPdfStep[]): Promise<Uint8Array> {
+  const isEnglish = tutorial.locale === 'en';
   const pdfDoc = await PDFDocument.create();
   pdfDoc.registerFontkit(fontkit);
 
@@ -125,12 +127,12 @@ export async function buildManualPdf(tutorial: ManualPdfTutorial, steps: ManualP
     ]
     : null;
 
-  const companyName = plainText(tutorial.companyName) || '회사명';
-  const ownerName = plainText(tutorial.ownerName) || '담당자명';
+  const companyName = plainText(tutorial.companyName) || (isEnglish ? 'Company' : '회사명');
+  const ownerName = plainText(tutorial.ownerName) || (isEnglish ? 'Owner' : '담당자명');
   const brand = hexToRgb(tutorial.primaryColor);
   const brandColor = rgb(brand.r, brand.g, brand.b);
   const logoImage = await embedLogo(pdfDoc, tutorial.logoUrl);
-  const generatedAt = new Date().toLocaleDateString('ko-KR', {
+  const generatedAt = new Date().toLocaleDateString(isEnglish ? 'en-US' : 'ko-KR', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -166,9 +168,9 @@ export async function buildManualPdf(tutorial: ManualPdfTutorial, steps: ManualP
 
   const metaY = PH * 0.74 - titleLines.length * 38 - 24;
   [
-    `회사명 ${companyName}`,
-    `작성일 ${generatedAt}`,
-    `담당자 ${ownerName}`,
+    `${isEnglish ? 'Company' : '회사명'} ${companyName}`,
+    `${isEnglish ? 'Created' : '작성일'} ${generatedAt}`,
+    `${isEnglish ? 'Owner' : '담당자'} ${ownerName}`,
   ].forEach((line, index) => {
     cover.drawText(line, {
       x: ML,
@@ -179,7 +181,9 @@ export async function buildManualPdf(tutorial: ManualPdfTutorial, steps: ManualP
     });
   });
 
-  cover.drawText('실제 화면 흐름과 하이라이트 주석을 따라 실행할 수 있는 업무 매뉴얼입니다.', {
+  cover.drawText(isEnglish
+    ? 'A workflow manual you can follow using real screens and highlighted annotations.'
+    : '실제 화면 흐름과 하이라이트 주석을 따라 실행할 수 있는 업무 매뉴얼입니다.', {
     x: ML,
     y: PH * 0.49,
     size: 13,
@@ -210,7 +214,8 @@ export async function buildManualPdf(tutorial: ManualPdfTutorial, steps: ManualP
     const numW = fontBold.widthOfTextAtSize(numStr, 11);
     page.drawText(numStr, { x: badgeX + (badgeSize - numW) / 2, y: badgeY + 7, size: 11, font: fontBold, color: rgb(1, 1, 1) });
 
-    const stepTitle = plainText(step.user_title ?? step.ai_title) || `단계 ${step.step_number}`;
+    const stepTitle = plainText(step.user_title ?? step.ai_title)
+      || (isEnglish ? `Step ${step.step_number}` : `단계 ${step.step_number}`);
     wrapText(stepTitle, fontBold, 14, cardW - badgeSize - 42).slice(0, 2).forEach((line, index, arr) => {
       page.drawText(line, {
         x: badgeX + badgeSize + 10,
@@ -258,7 +263,7 @@ export async function buildManualPdf(tutorial: ManualPdfTutorial, steps: ManualP
       } else {
         imgBlockH = 140;
         page.drawRectangle({ x: imgX, y: cursorY - imgBlockH, width: imgW, height: imgBlockH, color: rgb(0.949, 0.953, 0.961) });
-        page.drawText('스크린샷 없음', { x: imgX + 220, y: cursorY - imgBlockH / 2 - 5, size: 11, font, color: rgb(0.612, 0.620, 0.647) });
+        page.drawText(isEnglish ? 'No screenshot' : '스크린샷 없음', { x: imgX + 220, y: cursorY - imgBlockH / 2 - 5, size: 11, font, color: rgb(0.612, 0.620, 0.647) });
       }
     } catch {
       imgBlockH = 140;

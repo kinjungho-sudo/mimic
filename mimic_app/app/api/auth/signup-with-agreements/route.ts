@@ -4,6 +4,7 @@ import { createServiceRoleClient } from '@/lib/supabase/server';
 import { sendParroEmail, welcomeEmailHtml } from '@/lib/email/email-n8n';
 import { logAudit } from '@/lib/logging/logger-server';
 import { BRAND_NAME } from '@/lib/brand';
+import { getRequestLocale } from '@/lib/i18n/server-locale';
 
 const INVISIBLE = new Set([0x00AD, 0x200B, 0x200C, 0x200D, 0x200E, 0x200F, 0xFEFF]);
 
@@ -12,6 +13,7 @@ function sanitize(s: string): string {
 }
 
 export async function POST(request: NextRequest) {
+  const locale = getRequestLocale(request);
   let body: unknown;
   try {
     body = await request.json();
@@ -61,7 +63,11 @@ export async function POST(request: NextRequest) {
     logAudit('auth.signup', { userId: data.user.id, email, method: 'email' });
 
     // 환영 이메일 발송 (n8n → Gmail, 실패해도 가입 자체는 성공 처리)
-    sendParroEmail({ to: email, subject: `${BRAND_NAME} 가입을 환영해요 🎉`, html: welcomeEmailHtml(name) })
+    sendParroEmail({
+      to: email,
+      subject: locale === 'en' ? `Welcome to ${BRAND_NAME} 🎉` : `${BRAND_NAME} 가입을 환영해요 🎉`,
+      html: welcomeEmailHtml(name, locale),
+    })
       .catch(() => {});
   }
 

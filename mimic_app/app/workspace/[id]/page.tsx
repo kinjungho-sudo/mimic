@@ -162,7 +162,7 @@ export default function WorkspacePage() {
       fontFamily: "'Pretendard Variable', -apple-system, sans-serif", fontSize: '13.5px', color: '#111827',
     }}>
       {/* 헤더 */}
-      <header style={{ background: 'white', borderBottom: '1px solid #F3F4F6', padding: '0 32px', height: '60px', display: 'flex', alignItems: 'center', gap: '12px', position: 'sticky', top: 0, zIndex: 30 }}>
+      <header className="workspace-header" style={{ background: 'white', borderBottom: '1px solid #F3F4F6', padding: '0 32px', height: '60px', display: 'flex', alignItems: 'center', gap: '12px', position: 'sticky', top: 0, zIndex: 30 }}>
         <Link href="/home" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#9CA3AF', textDecoration: 'none', fontSize: '13px' }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
           홈
@@ -189,9 +189,7 @@ export default function WorkspacePage() {
         <span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '999px', background: ROLE_BG[ws.my_role], color: ROLE_COLOR[ws.my_role], marginLeft: '4px' }}>
           {ROLE_LABEL[ws.my_role]}
         </span>
-        <div style={{ marginLeft: 'auto' }}>
-          <LanguageSwitcher />
-        </div>
+        <LanguageSwitcher className="parro-language-switcher--workspace-header" />
       </header>
 
       <div style={{ maxWidth: '760px', margin: '0 auto', padding: '36px 24px' }}>

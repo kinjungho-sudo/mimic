@@ -24,3 +24,30 @@ export const LANDING_FAQS = [
     a: '팀 워크스페이스는 제한된 베타로 운영 중입니다. 기업 데모를 신청하면 팀 규모, 권한, 보안 요구사항에 맞춰 도입 방법을 안내해 드립니다.',
   },
 ] as const;
+
+export const LANDING_FAQS_EN = [
+  {
+    q: 'When will paid plans launch?',
+    a: 'Basic and Pro are not generally available yet. We are accepting launch-update signups and will publish pricing, cancellation terms, and the refund policy before billing begins.',
+  },
+  {
+    q: 'How are manuals stored on the Free plan?',
+    a: 'The Free plan lets you create up to three manuals per day. Manuals you do not delete remain available to view, edit, and share. We will announce policy changes in advance.',
+  },
+  {
+    q: 'Can I subscribe to a paid plan now?',
+    a: 'General billing is not available yet. You can sign up for Basic and Pro launch updates or contact us about a team rollout.',
+  },
+  {
+    q: 'Can I change plans?',
+    a: 'Self-service plan changes are not available yet. We will explain how and when plan changes take effect when paid plans launch.',
+  },
+  {
+    q: 'What is the refund policy?',
+    a: 'There are currently no general paid subscriptions to refund. We will publish refund terms and procedures before paid plans launch.',
+  },
+  {
+    q: 'How can my team or company use Parro?',
+    a: 'Team workspaces are in limited beta. Request an enterprise demo and we will recommend a rollout based on your team size, permissions, and security needs.',
+  },
+] as const;

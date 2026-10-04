@@ -4,6 +4,7 @@ import { createServiceRoleClient } from '@/lib/supabase/server';
 import { guardTutorialAccess } from '@/lib/auth/workspace-guard';
 import { logActivity } from '@/lib/activity';
 import { sendManualShareInvitation } from '@/lib/email/email';
+import { getRequestLocale } from '@/lib/i18n/server-locale';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -41,6 +42,7 @@ export async function GET(request: NextRequest, { params }: Params) {
 
 // POST — 이메일 초대 (email, role)
 export async function POST(request: NextRequest, { params }: Params) {
+  const locale = getRequestLocale(request);
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
 
@@ -102,6 +104,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       manualTitle: tutorial?.title ?? '매뉴얼',
       role: roleNorm,
       url: `${APP_URL}${path}`,
+      locale,
     });
   } catch (e) {
     console.error('manual share email failed:', e);

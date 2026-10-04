@@ -10,6 +10,7 @@ import type { ExportAnnotation } from '@/lib/export/annotations-shared';
 import { renderStepImage } from '@/lib/export/render-step-image';
 import { requireTutorialEntitlement } from '@/lib/auth/entitlement-guard';
 import { BRAND_COLORS } from '@/lib/brand';
+import { getRequestLocale, localeTag } from '@/lib/i18n/server-locale';
 
 type Params = { params: Promise<{ id: string }> };
 type DocxImage = { data: Buffer; type: 'png' | 'jpg'; width: number; height: number };
@@ -79,6 +80,8 @@ function textParagraph(text: string, options: { size?: number; color?: string; b
 }
 
 export async function GET(request: NextRequest, { params }: Params) {
+  const locale = getRequestLocale(request);
+  const isEnglish = locale === 'en';
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
 
@@ -131,9 +134,9 @@ export async function GET(request: NextRequest, { params }: Params) {
   })();
 
   const brandColor = hexColor(branding?.primary_color);
-  const companyName = cleanText(branding?.company_name) || '회사명';
-  const ownerName = cleanText(owner?.name) || '담당자명';
-  const generatedAt = new Date().toLocaleDateString('ko-KR', {
+  const companyName = cleanText(branding?.company_name) || (isEnglish ? 'Company' : '회사명');
+  const ownerName = cleanText(owner?.name) || (isEnglish ? 'Owner' : '담당자명');
+  const generatedAt = new Date().toLocaleDateString(localeTag(locale), {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -164,14 +167,17 @@ export async function GET(request: NextRequest, { params }: Params) {
       alignment: AlignmentType.LEFT,
       spacing: { after: 180 },
     }),
-    textParagraph(`회사명 ${companyName}`, { size: 21, color: '4B5563', after: 80 }),
-    textParagraph(`작성일 ${generatedAt}`, { size: 21, color: '4B5563', after: 80 }),
-    textParagraph(`담당자 ${ownerName}`, { size: 21, color: '4B5563', after: 260 }),
-    textParagraph('실제 화면 흐름과 하이라이트 주석을 따라 실행할 수 있는 업무 매뉴얼입니다.', { size: 22, color: '374151', after: 420 }),
+    textParagraph(`${isEnglish ? 'Company' : '회사명'} ${companyName}`, { size: 21, color: '4B5563', after: 80 }),
+    textParagraph(`${isEnglish ? 'Created' : '작성일'} ${generatedAt}`, { size: 21, color: '4B5563', after: 80 }),
+    textParagraph(`${isEnglish ? 'Owner' : '담당자'} ${ownerName}`, { size: 21, color: '4B5563', after: 260 }),
+    textParagraph(isEnglish
+      ? 'A workflow manual you can follow using real screens and highlighted annotations.'
+      : '실제 화면 흐름과 하이라이트 주석을 따라 실행할 수 있는 업무 매뉴얼입니다.', { size: 22, color: '374151', after: 420 }),
   );
 
   for (const step of steps) {
-    const stepTitle = cleanText(step.user_title ?? step.ai_title) || `단계 ${step.step_number}`;
+    const stepTitle = cleanText(step.user_title ?? step.ai_title)
+      || (isEnglish ? `Step ${step.step_number}` : `단계 ${step.step_number}`);
     children.push(new Paragraph({
       children: [
         new TextRun({ text: String(step.step_number).padStart(2, '0'), bold: true, color: brandColor, size: 22, font: 'Malgun Gothic' }),
@@ -233,7 +239,7 @@ export async function GET(request: NextRequest, { params }: Params) {
   const buffer = await Packer.toBuffer(doc);
 
   const safeTitle = tutorial.title.replace(/[/\\?%*:|"<>]/g, '-').trim() || 'manual';
-  const dateStr = new Date().toLocaleDateString('ko-KR', {
+  const dateStr = new Date().toLocaleDateString(localeTag(locale), {
     year: '2-digit',
     month: '2-digit',
     day: '2-digit',

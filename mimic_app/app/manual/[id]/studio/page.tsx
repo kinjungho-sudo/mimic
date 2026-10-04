@@ -16,6 +16,7 @@ import { ShareModal } from '@/components/editor/ShareModal';
 import { logError } from '@/lib/logging/logger';
 import type { Step, Tutorial, FollowConfig } from '@/types';
 import { BRAND_COPY, BRAND_EXTENSION_STORE_URL } from '@/lib/brand';
+import { isDesktopTutorial } from '@/lib/manual-surface';
 
 const TOP_BAR_ICON_SIZE = 14;
 const STUDIO_PREVIEW_LAYER_Z_INDEX = 80;
@@ -184,6 +185,7 @@ export default function StudioPage() {
   stepsRef.current = steps;
 
   const isViewer = tutorial ? (tutorial as Tutorial & { my_role?: string }).my_role === 'viewer' : false;
+  const isDesktopManual = isDesktopTutorial(tutorial);
 
   useEffect(() => {
     if (!tutorial) return;
@@ -199,6 +201,10 @@ export default function StudioPage() {
   const active = steps.find(s => s.id === activeId) ?? null;
 
   const openTargetPicker = useCallback(async () => {
+    if (isDesktopManual) {
+      setTargetError('이 매뉴얼은 데스크톱 앱 화면을 캡처해 만든 매뉴얼입니다. 현재 Live Guide Beta 대상 선택은 웹 브라우저 캡처 매뉴얼에서만 사용할 수 있어요.');
+      return;
+    }
     if (!active) return;
     setLoadingTargetTabs(true);
     setTargetError(null);
@@ -220,7 +226,7 @@ export default function StudioPage() {
     } finally {
       setLoadingTargetTabs(false);
     }
-  }, [active]);
+  }, [active, isDesktopManual]);
 
   const handlePickTarget = useCallback(async (tab: LiveGuideTargetTab) => {
     if (!active) return;
@@ -592,21 +598,29 @@ export default function StudioPage() {
       <header style={{ flexShrink: 0, height: 56, padding: '0 18px', display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(10,10,15,0.9)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
         <button onClick={() => router.push(`/manual/${id}/editor`)} style={ghostBtn} title="편집기로 돌아가기"><ArrowLeft size={TOP_BAR_ICON_SIZE} /></button>
         <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          <span style={{ fontSize: 13.5, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>학습 가이드 편집</span>
+          <span style={{ fontSize: 13.5, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{isDesktopManual ? '캡처 화면 가이드 편집' : '학습 가이드 편집'}</span>
           <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.45)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tutorial.title}</span>
         </div>
         <div style={{ flex: 1 }} />
         <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.4)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
           {savingId ? <><Loader2 size={TOP_BAR_ICON_SIZE} className="spin" /> 저장 중…</> : savedTick > 0 ? <><Check size={TOP_BAR_ICON_SIZE} color="#34d399" /> 저장됨</> : null}
         </span>
-        <button onClick={openTargetPicker} disabled={!active || pickingTarget || loadingTargetTabs} title="대상 웹페이지 탭을 고른 뒤 안내할 요소를 선택합니다" style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5, opacity: !active || pickingTarget || loadingTargetTabs ? 0.55 : 1 }}>
-          {pickingTarget || loadingTargetTabs ? <Loader2 size={TOP_BAR_ICON_SIZE} className="spin" /> : <MousePointerClick size={TOP_BAR_ICON_SIZE} />} {pickingTarget ? '대상 페이지에서 요소 선택 중' : '대상 탭·요소 선택'}
-        </button>
-        <button onClick={() => setShowPreview(true)} title="학습 가이드(웹) 화면으로 미리보기 — 핫스팟·말풍선·입력 텍스트 설정을 확인합니다. 실제 Live Guide Beta 오버레이 외형과는 다를 수 있어요." style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5 }}><Play size={TOP_BAR_ICON_SIZE} /> 학습 가이드 미리보기</button>
-        <button onClick={() => setShowShare(true)} title="학습 가이드와 Live Guide Beta에서 함께 쓰는 공유 링크를 엽니다" style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5 }}>
+        {!isDesktopManual && (
+          <button onClick={openTargetPicker} disabled={!active || pickingTarget || loadingTargetTabs} title="대상 웹페이지 탭을 고른 뒤 안내할 요소를 선택합니다" style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5, opacity: !active || pickingTarget || loadingTargetTabs ? 0.55 : 1 }}>
+            {pickingTarget || loadingTargetTabs ? <Loader2 size={TOP_BAR_ICON_SIZE} className="spin" /> : <MousePointerClick size={TOP_BAR_ICON_SIZE} />} {pickingTarget ? '대상 페이지에서 요소 선택 중' : '대상 탭·요소 선택'}
+          </button>
+        )}
+        <button onClick={() => setShowPreview(true)} title={isDesktopManual ? '데스크톱 캡처 화면 위에서 단계별 가이드를 미리봅니다.' : '학습 가이드(웹) 화면으로 미리보기 — 핫스팟·말풍선·입력 텍스트 설정을 확인합니다. 실제 Live Guide Beta 오버레이 외형과는 다를 수 있어요.'} style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5 }}><Play size={TOP_BAR_ICON_SIZE} /> {isDesktopManual ? '캡처 화면 미리보기' : '학습 가이드 미리보기'}</button>
+        <button onClick={() => setShowShare(true)} title={isDesktopManual ? '데스크톱 캡처 매뉴얼 공유 링크를 엽니다' : '학습 가이드와 Live Guide Beta에서 함께 쓰는 공유 링크를 엽니다'} style={{ ...ghostBtn, width: 'auto', padding: '0 12px', gap: 6, display: 'inline-flex', alignItems: 'center', fontSize: 12.5 }}>
           <Link2 size={TOP_BAR_ICON_SIZE} /> 공유
         </button>
       </header>
+
+      {isDesktopManual && (
+        <div style={{ flexShrink: 0, padding: '9px 18px', background: '#082F49', borderBottom: '1px solid rgba(186,230,253,0.18)', color: '#BAE6FD', fontSize: 12.5, lineHeight: 1.45 }}>
+          이 매뉴얼은 데스크톱 캡처 화면 위에서 확인하는 가이드입니다. 실제 Live Guide Beta 대상 선택은 웹 브라우저 캡처 매뉴얼에서 사용할 수 있어요.
+        </div>
+      )}
 
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         {/* 좌측 스텝 리스트 — 드래그앤드롭으로 순서 변경 */}

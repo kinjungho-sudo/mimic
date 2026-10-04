@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { X, Clock } from 'lucide-react';
+import { useLocale } from '@/components/i18n/LocaleProvider';
 
 interface Actor { name: string | null; avatar_url: string | null; email: string | null; }
 interface ActivityItem {
@@ -19,7 +20,7 @@ interface ActivityPanelProps {
   onClose: () => void;
 }
 
-function timeAgo(iso: string): string {
+function timeAgo(iso: string, locale: 'ko' | 'en'): string {
   const diff = Date.now() - new Date(iso).getTime();
   const m = Math.floor(diff / 60000);
   if (m < 1) return '방금 전';
@@ -28,7 +29,7 @@ function timeAgo(iso: string): string {
   if (h < 24) return `${h}시간 전`;
   const d = Math.floor(h / 24);
   if (d < 7) return `${d}일 전`;
-  return new Date(iso).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+  return new Date(iso).toLocaleDateString(locale === 'en' ? 'en-US' : 'ko-KR', { month: 'short', day: 'numeric' });
 }
 
 function actorName(a: Actor | null): string {
@@ -74,6 +75,7 @@ function Avatar({ actor }: { actor: Actor | null }) {
 }
 
 export function ActivityPanel({ tutorialId, onClose }: ActivityPanelProps) {
+  const { locale } = useLocale();
   const [items, setItems] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -119,7 +121,7 @@ export function ActivityPanel({ tutorialId, onClose }: ActivityPanelProps) {
                 {typeof a.meta?.snippet === 'string' && a.meta.snippet && (
                   <div style={{ fontSize: '11.5px', color: '#9CA3AF', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>&ldquo;{a.meta.snippet as string}&rdquo;</div>
                 )}
-                <div style={{ fontSize: '12px', color: '#6B7280', marginTop: '2px' }}>{timeAgo(a.created_at)}</div>
+                <div style={{ fontSize: '12px', color: '#6B7280', marginTop: '2px' }}>{timeAgo(a.created_at, locale)}</div>
               </div>
             </div>
           ))

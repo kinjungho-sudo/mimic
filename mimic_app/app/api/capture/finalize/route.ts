@@ -307,12 +307,20 @@ export async function POST(request: NextRequest) {
 
   // 캡처 이벤트 조회 — step_number(행동 순서) 우선, 없으면 created_at(저장 순서) 폴백.
   // created_at만 쓰면 업로드 완료 순서로 뒤섞여 1-3-2 순서 버그 발생.
-  const { data: events } = await supabase
+  const { data: events, error: eventsError } = await supabase
     .from('mm_capture_events')
     .select('*')
     .eq('session_id', session_id)
     .order('step_number', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: true });
+
+  if (eventsError) {
+    await logSystem('capture.finalize.eventsLoadFail', {
+      sessionId: session_id,
+      message: eventsError.message,
+    }, 'error');
+    return NextResponse.json({ error: 'Failed to load captured steps' }, { status: 500 });
+  }
 
   if (!events || events.length === 0) {
     return NextResponse.json({ error: 'No captured steps' }, { status: 422 });

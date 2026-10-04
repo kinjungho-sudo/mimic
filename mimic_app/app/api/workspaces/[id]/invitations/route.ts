@@ -4,6 +4,7 @@ import { createServiceRoleClient } from '@/lib/supabase/server';
 import { sendWorkspaceInvitation } from '@/lib/email/email';
 import { z } from 'zod';
 import { requireWorkspaceEntitlement } from '@/lib/auth/entitlement-guard';
+import { getRequestLocale } from '@/lib/i18n/server-locale';
 
 const inviteSchema = z.object({
   email: z.string().email(),
@@ -15,6 +16,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const locale = getRequestLocale(request);
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
 
@@ -79,6 +81,7 @@ export async function POST(
       workspaceName: ws.name,
       role: parsed.data.role,
       token: invitation.token,
+      locale,
     });
   } catch (emailErr) {
     console.error('Email send failed:', emailErr);

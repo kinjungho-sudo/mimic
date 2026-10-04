@@ -7,6 +7,7 @@ import { drawAnnotationsOnPptx } from '@/lib/export/annotate-pptx';
 import { getImageDims, type ExportAnnotation } from '@/lib/export/annotations-shared';
 import { isPaidPlan } from '@/lib/plan';
 import { requireTutorialEntitlement } from '@/lib/auth/entitlement-guard';
+import { getRequestLocale, localeTag, type ServerLocale } from '@/lib/i18n/server-locale';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const PptxGenJS = require('pptxgenjs');
 
@@ -100,6 +101,7 @@ function addCoverSlide(pptx: PptxLike, options: {
   generatedAt: string;
   customerLogo: PptxImage | null;
   showParro: boolean;
+  locale: ServerLocale;
 }) {
   const slide = pptx.addSlide();
   slide.background = { color: WHITE };
@@ -126,7 +128,9 @@ function addCoverSlide(pptx: PptxLike, options: {
     margin: 0,
     fit: 'shrink',
   });
-  slide.addText('(화면 캡처 · 하이라이트 주석 · 실행 설명)', {
+  slide.addText(options.locale === 'en'
+    ? '(Screen captures · Highlighted annotations · Action instructions)'
+    : '(화면 캡처 · 하이라이트 주석 · 실행 설명)', {
     x: 2.2,
     y: 2.7,
     w: 8.95,
@@ -187,6 +191,8 @@ function addCoverSlide(pptx: PptxLike, options: {
 }
 
 export async function GET(request: NextRequest, { params }: Params) {
+  const locale = getRequestLocale(request);
+  const isEnglish = locale === 'en';
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
 
@@ -232,11 +238,11 @@ export async function GET(request: NextRequest, { params }: Params) {
       .maybeSingle(),
   ]);
 
-  const companyName = cleanText(branding?.company_name) || '회사명';
-  const ownerName = cleanText(owner?.name) || '담당자명';
+  const companyName = cleanText(branding?.company_name) || (isEnglish ? 'Company' : '회사명');
+  const ownerName = cleanText(owner?.name) || (isEnglish ? 'Owner' : '담당자명');
   const showParroWatermark = !isPaidPlan(owner?.plan);
   const customerLogo = await fetchPptxImage(branding?.logo_url);
-  const generatedAt = new Date().toLocaleDateString('ko-KR', {
+  const generatedAt = new Date().toLocaleDateString(localeTag(locale), {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -263,6 +269,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     generatedAt,
     customerLogo,
     showParro: showParroWatermark,
+    locale,
   });
 
   const FRAME_W = 10.6;
@@ -276,7 +283,8 @@ export async function GET(request: NextRequest, { params }: Params) {
     slide.background = { color: NAVY };
     if (showParroWatermark) addParroWatermark(slide);
 
-    const stepTitle = cleanText(step.user_title ?? step.ai_title) || `단계 ${step.step_number}`;
+    const stepTitle = cleanText(step.user_title ?? step.ai_title)
+      || (isEnglish ? `Step ${step.step_number}` : `단계 ${step.step_number}`);
     slide.addText(`${idx + 1}. ${stepTitle}`, {
       x: 0.25,
       y: 0.17,
@@ -312,7 +320,7 @@ export async function GET(request: NextRequest, { params }: Params) {
           drawRect,
         );
       } else {
-        slide.addText('스크린샷 없음', {
+        slide.addText(isEnglish ? 'No screenshot' : '스크린샷 없음', {
           x: FRAME_X,
           y: FRAME_Y,
           w: FRAME_W,
@@ -324,7 +332,7 @@ export async function GET(request: NextRequest, { params }: Params) {
         });
       }
     } catch {
-      slide.addText('스크린샷 없음', {
+      slide.addText(isEnglish ? 'No screenshot' : '스크린샷 없음', {
         x: FRAME_X,
         y: FRAME_Y,
         w: FRAME_W,
@@ -413,7 +421,7 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   const pptxBuffer: Buffer = await pptx.write({ outputType: 'nodebuffer' });
   const safeTitle = tutorial.title.replace(/[/\\?%*:|"<>]/g, '-').trim() || 'manual';
-  const dateStr = new Date().toLocaleDateString('ko-KR', {
+  const dateStr = new Date().toLocaleDateString(localeTag(locale), {
     year: '2-digit',
     month: '2-digit',
     day: '2-digit',

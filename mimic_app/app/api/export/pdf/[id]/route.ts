@@ -3,10 +3,12 @@ import { requireAuth } from '@/lib/auth/auth-guard';
 import { guardTutorialAccess } from '@/lib/auth/workspace-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { buildManualPdf, type ManualPdfStep } from '@/lib/export/manual-pdf';
+import { getRequestLocale, localeTag } from '@/lib/i18n/server-locale';
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function GET(request: NextRequest, { params }: Params) {
+  const locale = getRequestLocale(request);
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
 
@@ -51,8 +53,9 @@ export async function GET(request: NextRequest, { params }: Params) {
     ownerName: owner?.name ?? null,
     logoUrl: branding?.logo_url ?? null,
     primaryColor: branding?.primary_color ?? null,
+    locale,
   }, steps as ManualPdfStep[]);
-  const dateStr = new Date().toLocaleDateString('ko-KR', {
+  const dateStr = new Date().toLocaleDateString(localeTag(locale), {
     year: '2-digit',
     month: '2-digit',
     day: '2-digit',

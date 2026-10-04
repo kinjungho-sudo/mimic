@@ -1,4 +1,5 @@
 import { Resend } from 'resend';
+import type { ServerLocale } from '@/lib/i18n/server-locale';
 import { BRAND_COLORS, BRAND_COPY, BRAND_LOGO_IMAGE_PATH, BRAND_NAME, BRAND_SUPPORT_EMAIL, BRAND_TAGLINE } from '@/lib/brand';
 
 const FROM = process.env.RESEND_FROM_EMAIL ?? `${BRAND_NAME} <onboarding@resend.dev>`;
@@ -162,23 +163,30 @@ export async function sendManualShareInvitation({
   manualTitle,
   role,
   url,
+  locale = 'ko',
 }: {
   to: string;
   inviterName: string;
   manualTitle: string;
   role: 'viewer' | 'editor';
   url: string;
+  locale?: ServerLocale;
 }) {
   const resend = new Resend(process.env.RESEND_API_KEY);
-  const roleLabel = role === 'editor' ? '편집' : '보기';
+  const isEnglish = locale === 'en';
+  const roleLabel = isEnglish
+    ? (role === 'editor' ? 'Editor' : 'Viewer')
+    : (role === 'editor' ? '편집' : '보기');
 
   await resend.emails.send({
     from: FROM,
     to,
-    subject: `${inviterName}님이 '${manualTitle}' 매뉴얼을 공유했습니다`,
+    subject: isEnglish
+      ? `${inviterName} shared the '${manualTitle}' manual with you`
+      : `${inviterName}님이 '${manualTitle}' 매뉴얼을 공유했습니다`,
     html: `
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="${locale}">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#F0F0F5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
   <table width="100%" cellpadding="0" cellspacing="0" style="padding:48px 20px">
@@ -188,24 +196,24 @@ export async function sendManualShareInvitation({
           <p style="margin:0;font-size:24px;font-weight:800;color:white;letter-spacing:-0.03em;line-height:1">${BRAND_NAME}</p>
         </td></tr>
         <tr><td style="padding:40px 48px 36px;text-align:center">
-          <p style="margin:0 0 10px;font-size:22px;font-weight:800;color:#0F172A;letter-spacing:-0.02em">매뉴얼 공유</p>
+          <p style="margin:0 0 10px;font-size:22px;font-weight:800;color:#0F172A;letter-spacing:-0.02em">${isEnglish ? 'Manual shared' : '매뉴얼 공유'}</p>
           <p style="margin:0 0 28px;font-size:15px;color:#6B7280;line-height:1.7">
-            <strong style="color:#111827">${inviterName}</strong>님이<br>
-            <strong style="color:${EMAIL_PRIMARY};font-size:16px">${manualTitle}</strong> 매뉴얼을<br>
-            <strong style="color:#111827">${roleLabel}</strong> 권한으로 공유했습니다.
+            ${isEnglish
+              ? `<strong style="color:#111827">${inviterName}</strong> shared<br><strong style="color:${EMAIL_PRIMARY};font-size:16px">${manualTitle}</strong><br>with <strong style="color:#111827">${roleLabel}</strong> access.`
+              : `<strong style="color:#111827">${inviterName}</strong>님이<br><strong style="color:${EMAIL_PRIMARY};font-size:16px">${manualTitle}</strong> 매뉴얼을<br><strong style="color:#111827">${roleLabel}</strong> 권한으로 공유했습니다.`}
           </p>
           <table cellpadding="0" cellspacing="0" style="margin:0 auto 28px">
             <tr><td style="background:${EMAIL_GRADIENT};border-radius:12px">
-              <a href="${url}" style="display:block;padding:15px 36px;color:white;text-decoration:none;font-weight:700;font-size:15px;letter-spacing:-0.01em">매뉴얼 열기 &rarr;</a>
+              <a href="${url}" style="display:block;padding:15px 36px;color:white;text-decoration:none;font-weight:700;font-size:15px;letter-spacing:-0.01em">${isEnglish ? 'Open manual' : '매뉴얼 열기'} &rarr;</a>
             </td></tr>
           </table>
           <p style="margin:0;font-size:12.5px;color:#9CA3AF;line-height:1.8">
-            ${BRAND_NAME} 계정(${to})으로 로그인하면 접근할 수 있습니다.
+            ${isEnglish ? `Sign in to your ${BRAND_NAME} account (${to}) to open it.` : `${BRAND_NAME} 계정(${to})으로 로그인하면 접근할 수 있습니다.`}
           </p>
         </td></tr>
         <tr><td style="padding:0 48px"><div style="height:1px;background:#F3F4F6"></div></td></tr>
         <tr><td style="padding:24px 48px 28px;text-align:center">
-          <p style="margin:0;font-size:11.5px;color:#9CA3AF">매뉴얼을 더 쉽고 빠르게 · © 2026 ${BRAND_NAME}</p>
+          <p style="margin:0;font-size:11.5px;color:#9CA3AF">${isEnglish ? 'Manuals made easier' : '매뉴얼을 더 쉽고 빠르게'} · © 2026 ${BRAND_NAME}</p>
         </td></tr>
       </table>
     </td></tr>
@@ -221,24 +229,31 @@ export async function sendWorkspaceInvitation({
   workspaceName,
   role,
   token,
+  locale = 'ko',
 }: {
   to: string;
   inviterName: string;
   workspaceName: string;
   role: string;
   token: string;
+  locale?: ServerLocale;
 }) {
   const resend = new Resend(process.env.RESEND_API_KEY);
+  const isEnglish = locale === 'en';
   const acceptUrl = `${APP_URL}/workspace/invite/${token}`;
-  const roleLabel = role === 'admin' ? '관리자' : role === 'editor' ? '편집자' : '뷰어';
+  const roleLabel = isEnglish
+    ? (role === 'admin' ? 'Admin' : role === 'editor' ? 'Editor' : 'Viewer')
+    : (role === 'admin' ? '관리자' : role === 'editor' ? '편집자' : '뷰어');
 
   await resend.emails.send({
     from: FROM,
     to,
-    subject: `${inviterName}님이 '${workspaceName}' 워크스페이스에 초대했습니다`,
+    subject: isEnglish
+      ? `${inviterName} invited you to the '${workspaceName}' workspace`
+      : `${inviterName}님이 '${workspaceName}' 워크스페이스에 초대했습니다`,
     html: `
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="${locale}">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#F0F0F5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
   <table width="100%" cellpadding="0" cellspacing="0" style="padding:48px 20px">
@@ -267,26 +282,27 @@ export async function sendWorkspaceInvitation({
             </td></tr>
           </table>
 
-          <p style="margin:0 0 10px;font-size:24px;font-weight:800;color:#0F172A;letter-spacing:-0.02em">팀 워크스페이스 초대</p>
+          <p style="margin:0 0 10px;font-size:24px;font-weight:800;color:#0F172A;letter-spacing:-0.02em">${isEnglish ? 'Team workspace invitation' : '팀 워크스페이스 초대'}</p>
           <p style="margin:0 0 28px;font-size:15px;color:#6B7280;line-height:1.7">
-            <strong style="color:#111827">${inviterName}</strong>님이<br>
-            <strong style="color:${EMAIL_PRIMARY};font-size:16px">${workspaceName}</strong> 워크스페이스에<br>
-            <strong style="color:#111827">${roleLabel}</strong> 권한으로 초대했습니다.
+            ${isEnglish
+              ? `<strong style="color:#111827">${inviterName}</strong> invited you to<br><strong style="color:${EMAIL_PRIMARY};font-size:16px">${workspaceName}</strong><br>with the <strong style="color:#111827">${roleLabel}</strong> role.`
+              : `<strong style="color:#111827">${inviterName}</strong>님이<br><strong style="color:${EMAIL_PRIMARY};font-size:16px">${workspaceName}</strong> 워크스페이스에<br><strong style="color:#111827">${roleLabel}</strong> 권한으로 초대했습니다.`}
           </p>
 
           <!-- 수락 버튼 -->
           <table cellpadding="0" cellspacing="0" style="margin:0 auto 32px">
             <tr><td style="background:${EMAIL_GRADIENT};border-radius:12px">
               <a href="${acceptUrl}" style="display:block;padding:15px 36px;color:white;text-decoration:none;font-weight:700;font-size:15px;letter-spacing:-0.01em">
-                초대 수락하기 &rarr;
+                ${isEnglish ? 'Accept invitation' : '초대 수락하기'} &rarr;
               </a>
             </td></tr>
           </table>
 
           <!-- 유효기간 안내 -->
           <p style="margin:0;font-size:12.5px;color:#9CA3AF;line-height:1.8">
-            이 링크는 <strong style="color:#6B7280">7일간</strong> 유효합니다.<br>
-            초대를 원하지 않으면 무시하셔도 됩니다.
+            ${isEnglish
+              ? 'This link is valid for <strong style="color:#6B7280">7 days</strong>.<br>You can ignore this email if you do not want to join.'
+              : '이 링크는 <strong style="color:#6B7280">7일간</strong> 유효합니다.<br>초대를 원하지 않으면 무시하셔도 됩니다.'}
           </p>
         </td></tr>
 
@@ -296,7 +312,7 @@ export async function sendWorkspaceInvitation({
         <!-- 푸터 -->
         <tr><td style="padding:24px 48px 28px;text-align:center">
           <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:${EMAIL_PRIMARY};letter-spacing:-0.01em">${BRAND_NAME}</p>
-          <p style="margin:0;font-size:11.5px;color:#9CA3AF">매뉴얼을 더 쉽고 빠르게 · © 2025 ${BRAND_NAME}</p>
+          <p style="margin:0;font-size:11.5px;color:#9CA3AF">${isEnglish ? 'Manuals made easier' : '매뉴얼을 더 쉽고 빠르게'} · © 2025 ${BRAND_NAME}</p>
         </td></tr>
 
       </table>

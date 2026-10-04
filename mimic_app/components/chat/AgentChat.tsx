@@ -198,7 +198,7 @@ export function AgentChat() {
       <button onClick={() => setIsOpen(true)} title="도움말 열기" aria-label="도움말 열기"
         style={{
           position: 'fixed', bottom: '24px', right: '24px', zIndex: 9000,
-          width: '52px', height: '52px', borderRadius: 0,
+          width: '52px', height: '52px', borderRadius: '50%',
           background: 'transparent',
           border: 'none', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -223,7 +223,7 @@ export function AgentChat() {
         boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
         padding: '8px 16px 8px 10px', border: '1px solid #E5E7EB',
       }}>
-        <div style={{ width: '30px', height: '30px', background: 'transparent', display: 'grid', placeItems: 'center' }}>
+        <div style={{ width: '30px', height: '30px', display: 'grid', placeItems: 'center' }}>
           <ParroMascot size={28} state="neutral" />
         </div>
         <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>도움말 봇</span>
@@ -256,7 +256,7 @@ export function AgentChat() {
         padding: '12px 14px', flexShrink: 0,
         background: BRAND_GRADIENT, color: 'white',
       }}>
-        <div style={{ width: '28px', height: '28px', background: 'transparent', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+        <div style={{ width: '28px', height: '28px', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
           <ParroMascot size={26} state={headerMascotState} />
         </div>
         <div style={{ flex: 1 }}>

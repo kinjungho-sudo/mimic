@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { installExtensionIdListener, resolvePreferredExtensionId } from '@/lib/extension-id';
+import { installExtensionIdListener, resolveExtensionIdCandidates } from '@/lib/extension-id';
 import { BRAND_COLORS, BRAND_COPY, BRAND_EXTENSION_STORE_URL } from '@/lib/brand';
 import {
   desktopCaptureEntryDestination,
@@ -57,8 +57,7 @@ function isExtensionInstalled(): boolean {
   return !!(typeof window !== 'undefined' && window.chrome?.runtime?.sendMessage);
 }
 
-async function sendMessage(action: string, payload?: Record<string, unknown>): Promise<unknown> {
-  const extensionId = await resolvePreferredExtensionId();
+function sendMessageToExtension(extensionId: string, action: string, payload?: Record<string, unknown>): Promise<unknown> {
   return new Promise(resolve => {
     if (!extensionId || !isExtensionInstalled()) {
       console.warn('[Parro] 확장 없음 또는 extensionId 미설정, 바이패스');
@@ -83,12 +82,26 @@ async function sendMessage(action: string, payload?: Record<string, unknown>): P
   });
 }
 
+async function sendMessage(action: string, payload?: Record<string, unknown>): Promise<unknown> {
+  const candidates = await resolveExtensionIdCandidates();
+  if (!candidates.length || !isExtensionInstalled()) {
+    console.warn('[Parro] 확장 없음 또는 extensionId 미설정, 바이패스');
+    return null;
+  }
+
+  for (const extensionId of candidates) {
+    const resp = await sendMessageToExtension(extensionId, action, payload);
+    if (resp) return resp;
+  }
+  return null;
+}
+
 // Service Worker가 잠든 상태일 때 첫 메시지가 실패하는 경쟁 조건 방지.
 // CONNECT ping으로 먼저 깨운 뒤 실제 메시지를 전송한다.
 // 최대 3회 재시도, 회당 600ms 대기.
 async function wakeAndSend(action: string, payload?: Record<string, unknown>, retries = 3): Promise<unknown> {
-  const extensionId = await resolvePreferredExtensionId();
-  if (!extensionId || !isExtensionInstalled()) return null;
+  const candidates = await resolveExtensionIdCandidates();
+  if (!candidates.length || !isExtensionInstalled()) return null;
 
   for (let i = 0; i < retries; i++) {
     // ping
@@ -118,8 +131,8 @@ async function fetchOpenTabs(): Promise<TabsResponse | null> {
 }
 
 async function linkExtensionToCurrentUser(): Promise<boolean> {
-  const extensionId = await resolvePreferredExtensionId();
-  if (!extensionId || !isExtensionInstalled()) return !REQUIRE_EXTENSION;
+  const candidates = await resolveExtensionIdCandidates();
+  if (!candidates.length || !isExtensionInstalled()) return !REQUIRE_EXTENSION;
 
   try {
     const res = await fetch('/api/extension/link', { method: 'POST' });
@@ -224,6 +237,7 @@ function FavIcon({ url, favIconUrl }: { url: string; favIconUrl?: string }) {
 interface RecordingModalProps {
   onClose: () => void;
   initialMode?: 'select' | 'web';
+  autoResumeAfterInstall?: boolean;
   onboardingMode?: boolean;
   onOnboardingSignal?: (name: string, detail?: { extensionState?: string }) => void;
 }
@@ -232,6 +246,7 @@ const STORE_URL = BRAND_EXTENSION_STORE_URL;
 export function RecordingModal({
   onClose,
   initialMode = 'select',
+  autoResumeAfterInstall = false,
   onboardingMode = false,
   onOnboardingSignal,
 }: RecordingModalProps) {
@@ -245,6 +260,7 @@ export function RecordingModal({
   const [onboardingToken, setOnboardingToken] = useState<string | null>(null);
   const readyStep: ModalStep = initialMode === 'web' ? 'guide' : 'mode_select';
   const onboardingSignalRef = useRef(onOnboardingSignal);
+  const autoResumeStartedRef = useRef(false);
 
   useEffect(() => {
     onboardingSignalRef.current = onOnboardingSignal;
@@ -263,6 +279,10 @@ export function RecordingModal({
   //   크롬 웹스토어 설치 페이지로 직접 보낸다.
   useEffect(() => {
     const cleanupExtensionIdListener = installExtensionIdListener();
+    if (autoResumeAfterInstall) {
+      setStep('checking');
+      return cleanupExtensionIdListener;
+    }
     if (!REQUIRE_EXTENSION) {
       setStep(readyStep);
       return cleanupExtensionIdListener;
@@ -281,7 +301,7 @@ export function RecordingModal({
       }
     })();
     return () => { alive = false; cleanupExtensionIdListener(); };
-  }, [readyStep]);
+  }, [autoResumeAfterInstall, readyStep]);
 
   const enterOnboardingPractice = useCallback(async () => {
     setStep('checking');
@@ -378,6 +398,12 @@ export function RecordingModal({
     }
     setTabsLoading(false);
   }, []);
+
+  useEffect(() => {
+    if (!autoResumeAfterInstall || autoResumeStartedRef.current) return;
+    autoResumeStartedRef.current = true;
+    void enterTabSelect();
+  }, [autoResumeAfterInstall, enterTabSelect]);
 
   const handleStart = useCallback(async () => {
     if (!selectedTab) return;

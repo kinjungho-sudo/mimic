@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { buildManualPdf, type ManualPdfStep } from '@/lib/export/manual-pdf';
+import { getRequestLocale, localeTag } from '@/lib/i18n/server-locale';
 
 type Params = { params: Promise<{ token: string }> };
 
-export async function GET(_req: NextRequest, { params }: Params) {
+export async function GET(request: NextRequest, { params }: Params) {
+  const locale = getRequestLocale(request);
   const { token } = await params;
   const supabase = createServiceRoleClient();
 
@@ -44,9 +46,10 @@ export async function GET(_req: NextRequest, { params }: Params) {
     ownerName: owner?.name ?? null,
     logoUrl: branding?.logo_url ?? null,
     primaryColor: branding?.primary_color ?? null,
+    locale,
   }, steps as ManualPdfStep[]);
 
-  const dateStr = new Date().toLocaleDateString('ko-KR', {
+  const dateStr = new Date().toLocaleDateString(localeTag(locale), {
     year: '2-digit',
     month: '2-digit',
     day: '2-digit',

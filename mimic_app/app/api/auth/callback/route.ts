@@ -4,8 +4,10 @@ import { createServiceRoleClient } from '@/lib/supabase/server';
 import { sendParroEmail, welcomeEmailHtml } from '@/lib/email/email-n8n';
 import { logAudit } from '@/lib/logging/logger-server';
 import { BRAND_NAME } from '@/lib/brand';
+import { getRequestLocale } from '@/lib/i18n/server-locale';
 
 export async function GET(request: NextRequest) {
+  const locale = getRequestLocale(request);
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
   const type = searchParams.get('type');
@@ -59,8 +61,8 @@ export async function GET(request: NextRequest) {
         if (user.email) {
           await sendParroEmail({
             to: user.email,
-            subject: `${BRAND_NAME} 가입을 환영해요 🎉`,
-            html: welcomeEmailHtml(meta.full_name ?? meta.name ?? null),
+            subject: locale === 'en' ? `Welcome to ${BRAND_NAME} 🎉` : `${BRAND_NAME} 가입을 환영해요 🎉`,
+            html: welcomeEmailHtml(meta.full_name ?? meta.name ?? null, locale),
           }).catch(() => {});
         }
       } else {
