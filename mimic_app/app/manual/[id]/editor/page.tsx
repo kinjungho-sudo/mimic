@@ -21,8 +21,8 @@ import { updateStep, createStep, deleteStep, reorderSteps, duplicateStep, upload
 import { getTutorial } from '@/lib/api/tutorials';
 import { logError } from '@/lib/logging/logger';
 import { hasGuideConfig } from '@/lib/follow';
-import { hasPersistedManualAnnotationState } from '@/lib/auto-annotations';
 import { LEGACY_INTERNAL_IDENTIFIERS } from '@/lib/brand';
+import { isDesktopTutorial } from '@/lib/manual-surface';
 import type { Step, Tutorial } from '@/types';
 import { hasEntitlement } from '@/lib/entitlements';
 
@@ -49,10 +49,7 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
     screenshotUrl: s.screenshot_url || undefined,
     originalScreenshotUrl: (s as Step & { original_screenshot_url?: string | null }).original_screenshot_url ?? null,
     annotations: (s.user_annotations as import('@/components/editor/ImageAnnotationEditor').Annotation[] | null) ?? [],
-    annotationsPersisted: hasPersistedManualAnnotationState(
-      (s.user_annotations as import('@/components/editor/ImageAnnotationEditor').Annotation[] | null) ?? [],
-      (s as Step & { target_context?: Record<string, unknown> | null }).target_context,
-    ),
+    annotationsPersisted: s.user_annotations !== null && s.user_annotations !== undefined,
     pageUrl:         s.page_url        ?? null,
     domainHostname:  s.domain_hostname ?? null,
     domainName:      s.domain_name     ?? null,
@@ -70,7 +67,9 @@ function stepsToManualSteps(steps: Step[]): ManualStep[] {
     element_rect: (s as Step & { element_rect?: { x: number; y: number; width: number; height: number } | null }).element_rect ?? null,
     targetContext: (() => {
       const context = (s as Step & { target_context?: Record<string, unknown> | null }).target_context;
-      return context ?? null;
+      return context && typeof context.accessibleName === 'string'
+        ? { accessibleName: context.accessibleName }
+        : null;
     })(),
     imageZoom: (s as Step & { image_zoom?: number | null }).image_zoom ?? 1,
     imageOffsetX: (s as Step & { image_offset_x?: number | null }).image_offset_x ?? 0,
@@ -98,6 +97,7 @@ export default function EditorPage() {
   const tutorialEntitlements = (tutorial as Tutorial & { entitlements?: { ai_rewrite?: boolean; office_export?: boolean; protected_sharing?: boolean } } | null)?.entitlements;
   const canUseAiRewrite = tutorialEntitlements?.ai_rewrite ?? hasEntitlement(user?.plan, 'ai_rewrite');
   const canUseOfficeExport = tutorialEntitlements?.office_export ?? hasEntitlement(user?.plan, 'office_export');
+  const isDesktopManual = isDesktopTutorial(tutorial);
   const isRecordingFinalizeView = searchParams.get('from') === 'recording';
 
   const [title, setTitle] = useState('');
@@ -238,7 +238,8 @@ export default function EditorPage() {
     }
     setDownloadingFmt(fmt);
     try {
-      const res = await fetch(`/api/export/${fmt}/${id}`);
+      const locale = document.documentElement.lang === 'en' ? 'en' : 'ko';
+      const res = await fetch(`/api/export/${fmt}/${id}?locale=${locale}`);
       if (!res.ok) { alert('다운로드 실패. 스텝이 없거나 오류가 발생했습니다.'); return; }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -755,13 +756,13 @@ export default function EditorPage() {
             <button
               data-parro-guide="editor-learning-guide"
               onClick={() => router.push(`/manual/${id}/studio`)}
-              title="학습 가이드의 화면 안내, 핫스팟, 입력 텍스트를 편집합니다"
+              title={isDesktopManual ? '데스크톱 캡처 화면 위에서 확인할 가이드를 편집합니다. 실제 Live Guide Beta는 웹 브라우저 화면에서만 실행됩니다.' : '학습 가이드의 화면 안내, 핫스팟, 입력 텍스트를 편집합니다'}
               style={{ height: '32px', padding: '0 12px', borderRadius: '7px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#009B8E', background: 'rgba(0,155,142,0.08)', border: '1px solid rgba(0,155,142,0.35)', cursor: 'pointer', transition: 'all 0.15s', fontWeight: 600 }}
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,155,142,0.13)'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,155,142,0.08)'; }}
             >
               <Play size={TOP_BAR_ICON_SIZE} />
-              학습 가이드
+              {isDesktopManual ? '캡처 화면 가이드' : '학습 가이드'}
             </button>
 
             {/* 댓글 패널 토글 — 팀 협업 의견 공유 */}
@@ -1009,6 +1010,14 @@ export default function EditorPage() {
                 fontFamily: 'inherit', cursor: 'text', minWidth: 0,
               }}
             />
+            {isDesktopManual && (
+              <span
+                title="데스크톱 앱 화면을 캡처해 만든 매뉴얼입니다. 현재 Live Guide Beta는 웹 브라우저 화면에서만 실행됩니다."
+                style={{ height: '26px', padding: '0 9px', borderRadius: '999px', display: 'inline-flex', alignItems: 'center', gap: 5, background: '#E0F2FE', color: '#0369A1', border: '1px solid #BAE6FD', fontSize: 11.5, fontWeight: 800, flexShrink: 0 }}
+              >
+                Desktop
+              </span>
+            )}
             {/* 전체 색상 — 모든 스텝 어노테이션 일괄 재색 (편집 #4) */}
             <div style={{ position: 'relative', flexShrink: 0 }}>
               <button
@@ -1130,12 +1139,6 @@ export default function EditorPage() {
                 ...(patch.followConfig !== undefined ? { follow_config: patch.followConfig } : {}),
                 ...(patch.description !== undefined ? { user_script: patch.description || null } : {}),
                 ...(patch.annotations !== undefined ? { user_annotations: patch.annotations } : {}),
-                ...(patch.annotationsPersisted !== undefined ? {
-                  target_context: {
-                    ...(manualSteps.find(step => step.id === stepId)?.targetContext ?? {}),
-                    annotationsManuallyEdited: patch.annotationsPersisted,
-                  },
-                } : {}),
                 ...(patch.imageZoom !== undefined ? { image_zoom: patch.imageZoom } : {}),
                 ...(patch.imageOffsetX !== undefined ? { image_offset_x: patch.imageOffsetX } : {}),
                 ...(patch.imageOffsetY !== undefined ? { image_offset_y: patch.imageOffsetY } : {}),

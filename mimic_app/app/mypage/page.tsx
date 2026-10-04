@@ -8,6 +8,7 @@ import { resetPassword, getCurrentUser } from '@/lib/auth/auth-client';
 import { BrandMark } from '@/components/common/BrandMark';
 import { BRAND_COLORS, BRAND_NAME } from '@/lib/brand';
 import { PRODUCT_PLANS } from '@/lib/product-plans';
+import { useLocale } from '@/components/i18n/LocaleProvider';
 
 const BRAND_GRADIENT = `linear-gradient(135deg, ${BRAND_COLORS.primary} 0%, ${BRAND_COLORS.guide} 100%)`;
 const BRAND_RING = 'rgba(0,155,142,0.28)';
@@ -36,11 +37,16 @@ const PLAN_LABELS: Record<string, string> = {
   team: 'Team',
 };
 
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+function formatDate(dateStr: string, locale: 'ko' | 'en') {
+  return new Date(dateStr).toLocaleDateString(locale === 'en' ? 'en-US' : 'ko-KR', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
 }
 
 export default function MyPage() {
+  const { locale } = useLocale();
   const router = useRouter();
   const { user, loading, signOut, updateUser } = useAuth();
   const userId = user?.id;
@@ -311,7 +317,7 @@ export default function MyPage() {
           <div className="mypage-info-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
             {[
               { label: '이메일', value: user?.email ?? '-' },
-              { label: '가입일', value: user?.created_at ? formatDate(user.created_at) : '-' },
+              { label: '가입일', value: user?.created_at ? formatDate(user.created_at, locale) : '-' },
               { label: '로그인 방식', value: isGoogle ? 'Google 계정' : '이메일/비밀번호' },
               { label: '현재 플랜', value: PLAN_LABELS[user?.plan ?? 'free'] ?? user?.plan ?? '-' },
             ].map((row, i) => (

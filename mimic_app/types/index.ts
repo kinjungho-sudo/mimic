@@ -63,6 +63,7 @@ export type Tutorial = {
   folder_id?: string | null;
   workspace_id?: string | null;
   content_mode?: 'action' | 'education';
+  capture_surface?: 'web' | 'desktop' | null;
   // enriched by list API
   step_count?: number;
 };

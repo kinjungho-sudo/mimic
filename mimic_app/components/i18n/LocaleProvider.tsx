@@ -8,6 +8,7 @@ import {
   useMemo,
   useState,
 } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   type AppLocale,
   DEFAULT_LOCALE,
@@ -97,18 +98,42 @@ function preferredLocale(): AppLocale {
 }
 
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<AppLocale>(DEFAULT_LOCALE);
+  const pathname = usePathname();
+  const router = useRouter();
+  const routeLocale: AppLocale | null = pathname.startsWith('/en/') || pathname === '/en'
+    ? 'en'
+    : pathname === '/landingpage'
+      ? 'ko'
+      : null;
+  const [locale, setLocaleState] = useState<AppLocale>(routeLocale ?? DEFAULT_LOCALE);
+  const hasEmbeddedWorkspaceSwitcher = pathname === '/home'
+    || /^\/workspace\/[^/]+\/?$/.test(pathname);
 
   useEffect(() => {
-    setLocaleState(preferredLocale());
-  }, []);
+    setLocaleState(routeLocale ?? preferredLocale());
+  }, [routeLocale]);
 
   useEffect(() => {
     document.documentElement.lang = locale;
     document.documentElement.dataset.locale = locale;
     window.localStorage.setItem(LOCALE_STORAGE_KEY, locale);
+    document.cookie = `${LOCALE_STORAGE_KEY}=${locale}; Path=/; Max-Age=31536000; SameSite=Lax`;
     translateTree(document.body, locale);
     translateTree(document.head, locale);
+
+    const nativeAlert = window.alert.bind(window);
+    const nativeConfirm = window.confirm.bind(window);
+    const nativePrompt = window.prompt.bind(window);
+    window.alert = message => nativeAlert(
+      typeof message === 'string' ? translateUiText(message, locale) : message,
+    );
+    window.confirm = message => nativeConfirm(
+      typeof message === 'string' ? translateUiText(message, locale) : message,
+    );
+    window.prompt = (message, defaultValue) => nativePrompt(
+      typeof message === 'string' ? translateUiText(message, locale) : message,
+      defaultValue,
+    );
 
     const observer = new MutationObserver(mutations => {
       for (const mutation of mutations) {
@@ -129,40 +154,28 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
       subtree: true,
       characterData: true,
     });
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      window.alert = nativeAlert;
+      window.confirm = nativeConfirm;
+      window.prompt = nativePrompt;
+    };
   }, [locale]);
 
   const setLocale = useCallback((nextLocale: AppLocale) => {
     setLocaleState(nextLocale);
-  }, []);
+    if (pathname === '/landingpage' || pathname === '/en/landingpage') {
+      router.push(nextLocale === 'en' ? '/en/landingpage' : '/landingpage');
+    }
+  }, [pathname, router]);
   const t = useCallback((korean: string) => translateUiText(korean, locale), [locale]);
   const value = useMemo(() => ({ locale, setLocale, t }), [locale, setLocale, t]);
 
   return (
     <LocaleContext.Provider value={value}>
       {children}
+      {!hasEmbeddedWorkspaceSwitcher && <LanguageSwitcher />}
     </LocaleContext.Provider>
-  );
-}
-
-export function LanguageSwitcher({ tone = 'light' }: { tone?: 'light' | 'dark' }) {
-  const { locale, setLocale } = useLocale();
-
-  return (
-    <div
-      data-i18n-ignore
-      className={`parro-language-switcher parro-language-switcher--${tone}`}
-      role="group"
-      aria-label={locale === 'ko' ? '언어 선택' : 'Choose language'}
-    >
-      <button type="button" aria-pressed={locale === 'ko'} onClick={() => setLocale('ko')}>
-        한국어
-      </button>
-      <span aria-hidden="true">/</span>
-      <button type="button" aria-pressed={locale === 'en'} onClick={() => setLocale('en')}>
-        English
-      </button>
-    </div>
   );
 }
 
@@ -170,6 +183,35 @@ export function useLocale(): LocaleContextValue {
   const context = useContext(LocaleContext);
   if (!context) throw new Error('useLocale must be used inside LocaleProvider');
   return context;
+}
+
+export function LanguageSwitcher({ className = '' }: { className?: string }) {
+  const { locale, setLocale } = useLocale();
+
+  return (
+    <div
+      data-i18n-ignore
+      className={`parro-language-switcher ${className}`.trim()}
+      role="group"
+      aria-label={locale === 'ko' ? '언어 선택' : 'Choose language'}
+    >
+      <button
+        type="button"
+        aria-pressed={locale === 'ko'}
+        onClick={() => setLocale('ko')}
+      >
+        한국어
+      </button>
+      <span aria-hidden="true">/</span>
+      <button
+        type="button"
+        aria-pressed={locale === 'en'}
+        onClick={() => setLocale('en')}
+      >
+        English
+      </button>
+    </div>
+  );
 }
 
 export function isKnownUiTranslation(value: string): boolean {

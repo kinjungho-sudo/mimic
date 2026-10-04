@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BRAND_EXTENSION_STORE_URL } from '@/lib/brand';
 import {
   canTalkToDesktopExtension,
+  DESKTOP_COMPANION_LATEST_VERSION,
   desktopCompanionCompatibility,
   desktopCompanionErrorMessage,
   isExtensionConnectionError,
@@ -44,25 +45,25 @@ export default function DesktopSetupPage() {
   const statusText = useMemo(() => {
     switch (status) {
       case 'checking':
-        return '연결 확인 중';
+        return 'Desktop Companion 연결을 확인하고 있습니다.';
       case 'ready':
-        return '설치 완료';
+        return '설치가 확인되었습니다. 이제 데스크톱 녹화를 시작할 수 있습니다.';
       case 'missing':
-        return '설치 필요';
+        return 'Desktop Companion을 찾지 못했습니다. 설치를 완료한 뒤 다시 확인해주세요.';
       case 'extension_missing':
-        return 'Recorder 필요';
+        return 'Parro Recorder 확장이 먼저 필요합니다.';
       case 'launching':
-        return '앱 여는 중';
+        return 'Parro Desktop 앱을 여는 중입니다.';
       case 'started':
-        return '앱 실행됨';
+        return 'Parro Desktop 앱을 열었습니다.';
       case 'importing':
-        return '가져오는 중';
+        return '캡처를 분석해 매뉴얼을 만들고 있습니다. 이 창을 닫지 마세요.';
       case 'complete':
-        return '완료';
+        return '매뉴얼이 완성되었습니다. 편집기로 이동합니다.';
       case 'stopped':
-        return '녹화 종료';
+        return '데스크톱 녹화가 종료되었습니다.';
       default:
-        return '확인 중';
+        return 'Desktop Companion 상태를 확인하고 있습니다.';
     }
   }, [status]);
 
@@ -78,17 +79,17 @@ export default function DesktopSetupPage() {
       return;
     }
     setMessage(mode === 'auto'
-      ? '다운로드가 시작됐어요. 설치가 확인되면 앱을 바로 엽니다.'
-      : '설치 파일을 다운로드했어요.');
+      ? '자동 설치를 준비하고 있습니다. 다운로드된 ParroDesktopSetup.exe를 열어 설치를 완료해주세요. 확인되면 Parro Desktop 앱으로 이동합니다.'
+      : '설치 파일 다운로드가 시작되었습니다. 원하는 때 ParroDesktopSetup.exe를 실행해 설치할 수 있습니다.');
   }, [installerReady]);
 
   const openDesktopApp = useCallback(async () => {
     setStatus('launching');
-    setMessage('Parro Desktop을 여는 중입니다.');
+    setMessage('잠시 후 Parro Desktop 앱에서 화면 선택과 녹화를 진행해주세요.');
     const response = await sendDesktopExtensionMessage('OPEN_DESKTOP_APP');
     if (response?.ok) {
       setStatus('started');
-      setMessage('Parro Desktop 앱이 열렸습니다.');
+      setMessage('Parro Desktop 앱을 열었습니다. 화면 선택 후 녹화를 시작해주세요.');
       return;
     }
     setStatus('ready');
@@ -105,7 +106,7 @@ export default function DesktopSetupPage() {
 
     if (!canTalkToDesktopExtension()) {
       setStatus('extension_missing');
-      setMessage('Parro Recorder 확장을 먼저 연결해주세요.');
+      setMessage('Desktop Companion 상태 확인은 Parro Recorder 확장을 통해 진행됩니다. 확장을 먼저 설치하거나 연결해주세요.');
       return;
     }
 
@@ -124,13 +125,13 @@ export default function DesktopSetupPage() {
         return;
       }
       setStatus('ready');
-      setMessage(`최신 버전 ${installedVersion}이 설치되어 있습니다.`);
+      setMessage(`최신 버전 ${installedVersion}이 설치되어 있습니다. Parro Desktop 앱에서 바로 녹화를 시작할 수 있습니다.`);
       return;
     }
 
     if (isExtensionConnectionError(response?.error)) {
       setStatus('extension_missing');
-      setMessage('Parro Recorder 확장 연결이 필요합니다.');
+      setMessage('Parro Recorder 확장에 연결하지 못했습니다. Chrome 확장 프로그램 관리 화면에서 Parro Recorder를 새로고침한 뒤 다시 시도해주세요.');
       return;
     }
 
@@ -139,7 +140,7 @@ export default function DesktopSetupPage() {
       return;
     }
     setStatus('missing');
-    setMessage(response?.desktop?.lastError || 'Parro Desktop 설치가 필요합니다.');
+    setMessage(response?.desktop?.lastError || '설치된 Desktop Companion에 연결하지 못했습니다.');
   }, [openDesktopApp]);
 
   useEffect(() => {
@@ -185,15 +186,18 @@ export default function DesktopSetupPage() {
 
   return (
     <main className="desktop-setup-page">
-      <p className="desktop-setup-live-status" role="status" aria-live="polite" aria-atomic="true">
-        {statusText}{message ? ` ${message}` : ''}
-      </p>
       <section className="desktop-setup-shell">
         <div className="desktop-setup-header">
           <div>
             <p className="desktop-setup-kicker">Parro Desktop Companion</p>
-            <h1>데스크톱 녹화 준비</h1>
-            <p className="desktop-setup-lead">Parro Desktop을 설치하면 바로 녹화를 시작할 수 있어요.</p>
+            <h1>데스크톱 녹화</h1>
+            <p className="desktop-setup-lead">
+              최신 버전 {DESKTOP_COMPANION_LATEST_VERSION}이 확인되면 웹 안내 화면을 거치지 않고 Parro Desktop 앱으로 바로 이동합니다.
+            </p>
+          </div>
+          <div className="desktop-setup-status" data-state={status}>
+            <span />
+            {statusText}
           </div>
         </div>
 
@@ -210,12 +214,11 @@ export default function DesktopSetupPage() {
         {status === 'missing' || status === 'extension_missing' || status === 'idle' ? (
           <div className="desktop-setup-grid">
             <section className="desktop-setup-panel desktop-install-primary">
-              <div className="desktop-setup-card-top">
-                <p className="desktop-setup-section-label">설치</p>
-                <span className="desktop-setup-status-pill" data-state={status}>{statusText}</span>
-              </div>
-              <h2>Parro Desktop 설치</h2>
-              <p>원하는 방식으로 설치를 진행하세요.</p>
+              <p className="desktop-setup-section-label">설치 다운로드</p>
+              <h2>Parro Desktop을 설치하면 바로 녹화를 시작할 수 있어요.</h2>
+              <p>
+                자동 설치로 바로 진행하거나, 설치 프로그램만 로컬에 내려받을 수 있어요.
+              </p>
               <div className="desktop-setup-actions">
                 <button type="button" onClick={() => handleInstallerDownload('auto')} disabled={!installerReady}>
                   자동 설치
@@ -228,6 +231,33 @@ export default function DesktopSetupPage() {
                 </button>
               </div>
               {message && <p className="desktop-setup-message">{message}</p>}
+            </section>
+
+            <section className="desktop-setup-panel">
+              <p className="desktop-setup-section-label">설치 방법</p>
+              <ol className="desktop-setup-steps">
+                <li>
+                  <span>1</span>
+                  <div>
+                    <strong>자동 설치 또는 파일 다운로드</strong>
+                    <p>자동 설치는 설치 파일을 바로 받고 완료 확인 후 앱 실행까지 이어집니다.</p>
+                  </div>
+                </li>
+                <li>
+                  <span>2</span>
+                  <div>
+                    <strong>기본 옵션으로 설치</strong>
+                    <p>설치 창에서 안내에 따라 완료합니다.</p>
+                  </div>
+                </li>
+                <li>
+                  <span>3</span>
+                  <div>
+                    <strong>다시 확인 후 앱 실행</strong>
+                    <p>설치가 확인되면 Parro Desktop 앱으로 이동합니다.</p>
+                  </div>
+                </li>
+              </ol>
             </section>
           </div>
         ) : (
@@ -270,81 +300,77 @@ export default function DesktopSetupPage() {
           background: #f8fafc;
           color: #111827;
           font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-          padding: 64px 20px;
-        }
-
-        .desktop-setup-live-status {
-          position: absolute;
-          width: 1px;
-          height: 1px;
-          padding: 0;
-          margin: -1px;
-          overflow: hidden;
-          clip: rect(0, 0, 0, 0);
-          white-space: nowrap;
-          border: 0;
+          padding: 48px 20px;
         }
 
         .desktop-setup-shell {
-          width: min(640px, 100%);
+          width: min(960px, 100%);
           margin: 0 auto;
         }
 
         .desktop-setup-header {
-          margin-bottom: 22px;
-          text-align: center;
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) 300px;
+          gap: 28px;
+          align-items: end;
+          margin-bottom: 20px;
         }
 
         .desktop-setup-kicker,
         .desktop-setup-section-label {
-          margin: 0;
-          font-size: 11px;
-          font-weight: 800;
+          margin: 0 0 10px;
+          font-size: 12px;
+          font-weight: 700;
           color: #4f46e5;
-          letter-spacing: 0.12em;
+          letter-spacing: 0.08em;
           text-transform: uppercase;
         }
 
         .desktop-setup-header h1 {
-          margin: 12px 0 0;
-          font-size: 36px;
+          margin: 0;
+          font-size: 34px;
           line-height: 1.15;
-          letter-spacing: -0.04em;
+          letter-spacing: 0;
         }
 
         .desktop-setup-lead {
-          margin: 12px auto 0;
-          max-width: 420px;
-          color: #64748b;
-          line-height: 1.55;
+          margin: 12px 0 0;
+          max-width: 620px;
+          color: #4b5563;
+          line-height: 1.65;
           font-size: 15px;
         }
 
-        .desktop-setup-status-pill {
-          min-height: 28px;
-          padding: 0 10px;
+        .desktop-setup-status {
+          min-height: 74px;
           border: 1px solid #e5e7eb;
-          border-radius: 999px;
-          background: #f8fafc;
+          background: white;
+          border-radius: 8px;
+          padding: 16px;
           display: flex;
           align-items: center;
-          color: #475569;
-          font-size: 12px;
-          font-weight: 700;
+          gap: 10px;
+          color: #374151;
+          font-size: 13px;
+          line-height: 1.5;
         }
 
-        .desktop-setup-status-pill[data-state='ready'],
-        .desktop-setup-status-pill[data-state='started'] {
-          border-color: #bbf7d0;
-          background: #f0fdf4;
-          color: #047857;
+        .desktop-setup-status span {
+          width: 10px;
+          height: 10px;
+          border-radius: 999px;
+          background: #9ca3af;
+          flex: 0 0 auto;
         }
 
-        .desktop-setup-status-pill[data-state='missing'],
-        .desktop-setup-status-pill[data-state='extension_missing'] {
-          border-color: #fed7aa;
-          background: #fff7ed;
-          color: #c2410c;
+        .desktop-setup-status[data-state='ready'] span,
+        .desktop-setup-status[data-state='started'] span {
+          background: #059669;
+        }
+
+        .desktop-setup-status[data-state='missing'] span,
+        .desktop-setup-status[data-state='extension_missing'] span {
+          background: #d97706;
         }
 
         .desktop-setup-warning {
@@ -372,38 +398,16 @@ export default function DesktopSetupPage() {
         }
 
         .desktop-setup-grid {
-          display: block;
+          display: grid;
+          grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
+          gap: 16px;
         }
 
         .desktop-setup-panel {
-          border: 1px solid #e2e8f0;
+          border: 1px solid #e5e7eb;
           background: white;
-          border-radius: 18px;
-          padding: 28px;
-          box-shadow: 0 18px 48px rgba(15, 23, 42, .06);
-        }
-
-        .desktop-setup-card-top {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          margin-bottom: 18px;
-        }
-
-        .desktop-install-primary h2,
-        .desktop-launcher-panel h2 {
-          margin: 0;
-          font-size: 22px;
-          letter-spacing: -0.03em;
-        }
-
-        .desktop-install-primary > p,
-        .desktop-launcher-panel > p {
-          margin: 8px 0 22px;
-          color: #64748b;
-          font-size: 14px;
-          line-height: 1.55;
+          border-radius: 8px;
+          padding: 20px;
         }
 
         .desktop-setup-principle {
@@ -471,8 +475,8 @@ export default function DesktopSetupPage() {
 
         .desktop-setup-actions {
           display: grid;
-          gap: 9px;
-          margin-bottom: 12px;
+          gap: 10px;
+          margin-bottom: 14px;
         }
 
         .desktop-display-picker {
@@ -581,13 +585,13 @@ export default function DesktopSetupPage() {
         }
 
         .desktop-setup-actions button {
-          min-height: 50px;
-          border-radius: 12px;
-          border: 1.5px solid #e2e8f0;
+          min-height: 44px;
+          border-radius: 8px;
+          border: 1.5px solid #e5e7eb;
           background: white;
-          color: #1e293b;
+          color: #374151;
           font-size: 14px;
-          font-weight: 800;
+          font-weight: 700;
           cursor: pointer;
         }
 
@@ -599,7 +603,7 @@ export default function DesktopSetupPage() {
 
         .desktop-setup-actions .desktop-secondary-install {
           border-color: #c7d2fe;
-          background: #f1f5ff;
+          background: #eef2ff;
           color: #312e81;
         }
 
@@ -616,12 +620,8 @@ export default function DesktopSetupPage() {
         }
 
         .desktop-setup-message {
-          margin-top: 12px;
-          padding: 10px 12px;
-          border-radius: 10px;
-          background: #fff7ed;
-          color: #9a3412;
-          font-size: 12.5px;
+          margin-top: 10px;
+          color: #92400e;
         }
 
         .desktop-setup-session {
@@ -630,16 +630,15 @@ export default function DesktopSetupPage() {
 
         .desktop-setup-footer {
           display: flex;
-          justify-content: center;
-          gap: 16px;
+          gap: 14px;
           flex-wrap: wrap;
-          margin-top: 20px;
-          font-size: 12.5px;
+          margin-top: 18px;
+          font-size: 13px;
         }
 
         .desktop-setup-footer a,
         .desktop-setup-note a {
-          color: #475569;
+          color: #3730a3;
           font-weight: 700;
           text-decoration: none;
         }

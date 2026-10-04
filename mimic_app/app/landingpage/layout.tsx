@@ -37,6 +37,7 @@ export const metadata: Metadata = {
     canonical: LANDING_URL,
     languages: {
       'ko-KR': LANDING_URL,
+      'en-US': `${BRAND_CANONICAL_URL}/en/landingpage`,
       'x-default': LANDING_URL,
     },
   },
