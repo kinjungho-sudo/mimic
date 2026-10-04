@@ -9,6 +9,10 @@
       "Read",
       "Glob",
       "Grep"
+    ],
+    "deny": [
+      "mcp__mimic__execute_sql",
+      "mcp__mimic__apply_migration"
     ]
   }
 }

@@ -500,14 +500,14 @@ create index idx_workspace_members_user on mm_workspace_members (user_id);
 create index idx_workspace_members_workspace on mm_workspace_members (workspace_id);
 
 -- ===== 4. 함수 ================================================================
-create or replace function public.set_updated_at() returns trigger language plpgsql as $$
+create or replace function public.set_updated_at() returns trigger language plpgsql set search_path = '' as $$
 begin new.updated_at = now(); return new; end; $$;
 
-create or replace function public.update_updated_at() returns trigger language plpgsql as $$
+create or replace function public.update_updated_at() returns trigger language plpgsql set search_path = '' as $$
 begin new.updated_at = now(); return new; end; $$;
 
 create or replace function public.handle_new_user() returns trigger
-  language plpgsql security definer set search_path to 'public' as $$
+  language plpgsql security definer set search_path = '' as $$
 begin
   insert into public.mm_users (id, email, name, avatar_url, auth_provider, plan, daily_limit)
   values (
@@ -520,13 +520,16 @@ begin
   on conflict (id) do nothing;
   return new;
 end; $$;
+revoke execute on function public.handle_new_user() from public, anon, authenticated, service_role;
 
 create or replace function public.consume_free_live_guide_run(uid uuid, free_limit integer)
-  returns integer language sql security definer as $$
-  update mm_users set live_guide_runs = coalesce(live_guide_runs, 0) + 1
+  returns integer language sql security definer set search_path = '' as $$
+  update public.mm_users set live_guide_runs = coalesce(live_guide_runs, 0) + 1
   where id = uid and coalesce(live_guide_runs, 0) < free_limit
   returning live_guide_runs;
 $$;
+revoke execute on function public.consume_free_live_guide_run(uuid, integer) from public, anon, authenticated;
+grant execute on function public.consume_free_live_guide_run(uuid, integer) to service_role;
 
 -- ===== 5. 트리거 ==============================================================
 create trigger mm_folders_updated_at before update on mm_folders for each row execute function set_updated_at();
@@ -642,7 +645,9 @@ create policy "own step results" on mm_step_results for all using (execution_ses
 create policy mm_manuals_owner on mm_manuals for all using (auth.uid() = user_id);
 create policy mm_manuals_public_read on mm_manuals for select using (visibility = 'public' and share_token is not null);
 
-create policy mm_subscriptions_owner on mm_subscriptions for all using (auth.uid() = user_id);
+create policy mm_subscriptions_owner_read on mm_subscriptions for select to authenticated using ((select auth.uid()) = user_id);
+revoke insert, update, delete on table public.mm_subscriptions from anon, authenticated;
+grant select on table public.mm_subscriptions to authenticated;
 
 -- ===== 8. Storage 버킷 + 정책 =================================================
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types) values
@@ -656,7 +661,7 @@ on conflict (id) do nothing;
 
 -- screenshots
 create policy "public read screenshots" on storage.objects for select to public using (bucket_id = 'screenshots');
-create policy "authenticated upload screenshots" on storage.objects for insert to authenticated with check (bucket_id = 'screenshots');
+create policy "authenticated upload own screenshots" on storage.objects for insert to authenticated with check (bucket_id = 'screenshots' and (storage.foldername(name))[1] = (select auth.uid()::text));
 create policy "owner delete screenshots" on storage.objects for delete to authenticated using (bucket_id = 'screenshots' and (storage.foldername(name))[1] = (auth.uid())::text);
 -- audio
 create policy "audio_read_public" on storage.objects for select to public using (bucket_id = 'audio');
@@ -664,13 +669,14 @@ create policy "audio_upload_own" on storage.objects for insert to authenticated 
 create policy "audio_update_own" on storage.objects for update to authenticated using (bucket_id = 'audio' and (storage.foldername(name))[1] = (auth.uid())::text);
 -- mimic-tts
 create policy "mimic_tts_public_select" on storage.objects for select to public using (bucket_id = 'mimic-tts');
-create policy "mimic_tts_auth_insert" on storage.objects for insert to authenticated with check (bucket_id = 'mimic-tts');
-create policy "mimic_tts_auth_update" on storage.objects for update to authenticated using (bucket_id = 'mimic-tts');
--- naviaction (확장이 anon 키로 업로드 — INSERT+UPDATE(upsert)+SELECT 모두 anon 필요)
-create policy "anon upload" on storage.objects for insert to anon with check (bucket_id = 'naviaction');
-create policy "anon update naviaction" on storage.objects for update to anon using (bucket_id = 'naviaction') with check (bucket_id = 'naviaction');
-create policy "anon read" on storage.objects for select to anon using (bucket_id = 'naviaction');
-create policy "authenticated upload naviaction" on storage.objects for insert to authenticated with check (bucket_id = 'naviaction');
+-- 생성·갱신은 API Route의 service role만 수행한다.
+-- naviaction: Recorder는 서버가 발급한 일회성 signed upload URL을 사용한다.
+-- 브라우저 직접 업로드는 GuidebookEditor의 사용자별 playbook-uploads 경로만 허용한다.
+create policy "authenticated playbook upload" on storage.objects for insert to authenticated with check (
+  bucket_id = 'naviaction'
+  and (storage.foldername(name))[1] = 'playbook-uploads'
+  and (storage.foldername(name))[2] = (select auth.uid()::text)
+);
 -- avatars / branding: public 읽기 + 업로드는 서버(service role)에서 처리 → 추가 정책 불필요
 --   (운영에도 objects 정책이 없음. 만약 클라이언트 직접 업로드가 필요하면 정책 추가)
 
