@@ -47,7 +47,7 @@ const playbookServer = fs.readFileSync(
   'utf8',
 );
 
-assert.equal(manifest.version, '1.7.39');
+assert.equal(manifest.version, '1.7.40');
 assert.deepEqual(
   manifest.content_scripts[0].js.slice(0, 3),
   ['targeting.js', 'guide-engine.js', 'content.js'],
@@ -66,7 +66,9 @@ assert.match(background, /function resolveGuideRequestOrigin\(sender, requestedO
 assert.match(background, /const TRUSTED_WEBAPP_ORIGINS = new Set\(\[/);
 assert.match(background, /'https:\/\/parro-guide-dev\.vercel\.app'/);
 assert.match(background, /'https:\/\/parro-guide\.vercel\.app'/);
-assert.match(background, /return TRUSTED_WEBAPP_ORIGINS\.has\(origin\) \? origin : null/);
+assert.match(background, /if \(!TRUSTED_WEBAPP_ORIGINS\.has\(origin\)\) return null/);
+assert.match(background, /if \(IS_DEV\) return origin === 'https:\/\/parro-guide-dev\.vercel\.app' \? origin : null/);
+assert.match(background, /return origin === 'https:\/\/parro-guide\.vercel\.app' \? origin : null/);
 assert.doesNotMatch(background, /const (?:DEV|PROD)_WEBAPP_ORIGINS/);
 assert.match(background, /requestedWebappOrigin === senderWebappOrigin/);
 assert.match(startGuide, /resolveGuideRequestOrigin\(sender, message\.webapp_origin\)/);
@@ -93,11 +95,11 @@ for (const isDev of [true, false]) {
   const policy = loadOriginPolicy(isDev);
   assert.equal(
     policy.resolveGuideRequestOrigin({ origin: 'https://parro-guide.vercel.app' }, 'https://parro-guide.vercel.app'),
-    'https://parro-guide.vercel.app',
+    isDev ? null : 'https://parro-guide.vercel.app',
   );
   assert.equal(
     policy.resolveGuideRequestOrigin({ origin: 'https://parro-guide-dev.vercel.app' }, 'https://parro-guide-dev.vercel.app'),
-    'https://parro-guide-dev.vercel.app',
+    isDev ? 'https://parro-guide-dev.vercel.app' : null,
   );
   assert.equal(
     policy.resolveGuideRequestOrigin({ origin: 'https://parro-guide.vercel.app' }, 'https://parro-guide-dev.vercel.app'),
@@ -112,14 +114,14 @@ for (const isDev of [true, false]) {
       { url: 'https://parro-guide.vercel.app/manual/example' },
       'https://parro-guide.vercel.app',
     ),
-    'https://parro-guide.vercel.app',
+    isDev ? null : 'https://parro-guide.vercel.app',
   );
   assert.equal(
     policy.resolveGuideRequestOrigin(
       { origin: 'null', url: 'https://parro-guide-dev.vercel.app/manual/example' },
       'https://parro-guide-dev.vercel.app',
     ),
-    'https://parro-guide-dev.vercel.app',
+    isDev ? 'https://parro-guide-dev.vercel.app' : null,
   );
   assert.equal(
     policy.resolveGuideRequestOrigin(

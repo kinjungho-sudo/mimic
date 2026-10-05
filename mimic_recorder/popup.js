@@ -32,6 +32,14 @@ const PROD_EXTENSION_IDS = new Set([
   'lefkpmfgdbhckcemfghpegleknaepekm',
   'ehbhcdkapcbfehinjapabgoegcjmmbgd',
 ]);
+const PROD_WEBAPP_ORIGIN = 'https://parro-guide.vercel.app';
+const DEV_WEBAPP_ORIGIN = 'https://parro-guide-dev.vercel.app';
+
+function getDefaultWebappOrigin() {
+  return PROD_EXTENSION_IDS.has(chrome.runtime.id)
+    ? PROD_WEBAPP_ORIGIN
+    : DEV_WEBAPP_ORIGIN;
+}
 
 let isRecording  = false;
 let isPaused     = false;
@@ -90,12 +98,19 @@ function setCaptureReadiness(state, message = '') {
 
 async function resolveCaptureServiceOrigin() {
   const { webappOrigin } = await storageGet('webappOrigin');
-  if (typeof webappOrigin === 'string' && /^https?:\/\//.test(webappOrigin)) {
-    return webappOrigin.replace(/\/$/, '');
+  const defaultOrigin = getDefaultWebappOrigin();
+  if (typeof webappOrigin === 'string') {
+    try {
+      const storedOrigin = new URL(webappOrigin).origin;
+      if (storedOrigin === defaultOrigin) return storedOrigin;
+      if (!PROD_EXTENSION_IDS.has(chrome.runtime.id) && /^http:\/\/localhost(?::(?:3000|3001))?$/.test(storedOrigin)) {
+        return storedOrigin;
+      }
+    } catch {
+      // Ignore invalid or retired origins and use the environment's Parro origin.
+    }
   }
-  return PROD_EXTENSION_IDS.has(chrome.runtime.id)
-    ? 'https://mimic-nine-ashen.vercel.app'
-    : 'https://parro-guide-dev.vercel.app';
+  return defaultOrigin;
 }
 
 // 작업을 시작한 뒤 빈 캡처를 발견하지 않도록 네트워크와 Parro 서비스 연결을 먼저 확인한다.
@@ -285,9 +300,7 @@ function updateLoginState(hasToken, expired = false) {
     : t('loginLink', '로그인 / 연동하기');
   btn.addEventListener('click', () => {
     // 웹스토어 배포본=운영 / 개발자 언패킹=dev(Preview) — chrome.runtime.id로 자동 분기
-    const origin = PROD_EXTENSION_IDS.has(chrome.runtime.id)
-      ? 'https://mimic-nine-ashen.vercel.app'
-      : 'https://parro-guide-dev.vercel.app';
+    const origin = getDefaultWebappOrigin();
     chrome.tabs.create({ url: `${origin}/extension-link?extension_id=${encodeURIComponent(chrome.runtime.id)}` });
   });
 

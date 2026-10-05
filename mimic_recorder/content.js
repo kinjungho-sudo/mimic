@@ -23,8 +23,7 @@
 
   function isParroWebappPage() {
     const host = window.location.hostname;
-    return PARRO_WEBAPP_HOSTS.has(host)
-      || (host.endsWith('.vercel.app') && host !== 'mimic-nine-ashen.vercel.app');
+    return PARRO_WEBAPP_HOSTS.has(host);
   }
 
   function announceExtensionId() {

@@ -14,19 +14,14 @@ const IS_DEV = !PROD_EXTENSION_IDS.has(chrome.runtime.id);
 // ── 상수 (환경별) ─────────────────────────────────────────────────
 // Storage 업로드 대상은 현재 연결된 웹앱의 /api/capture/upload-target에서
 // 발급받는다. Recorder에 Supabase 프로젝트 주소/키를 고정하지 않는다.
-const WEBAPP_ORIGIN     = IS_DEV
-  ? 'https://parro-guide-dev.vercel.app'         // dev: Parro Preview alias
-  : 'https://mimic-nine-ashen.vercel.app';        // 운영
+const PROD_WEBAPP_ORIGIN = 'https://parro-guide.vercel.app';
+const DEV_WEBAPP_ORIGIN = 'https://parro-guide-dev.vercel.app';
+const WEBAPP_ORIGIN = IS_DEV ? DEV_WEBAPP_ORIGIN : PROD_WEBAPP_ORIGIN;
 const TRUSTED_WEBAPP_ORIGINS = new Set([
   'https://parro-guide-dev.vercel.app',
-  'https://mimic-git-dev-kinjungho-7735s-projects.vercel.app',
   'https://parro-guide.vercel.app',
-  'https://mimic-nine-ashen.vercel.app',
-  'https://mimicflow.com',
 ]);
-const INSTALL_RETURN_ORIGIN = IS_DEV
-  ? 'https://parro-guide-dev.vercel.app'
-  : 'https://parro-guide.vercel.app';
+const INSTALL_RETURN_ORIGIN = WEBAPP_ORIGIN;
 const INSTALL_RETURN_URL = `${INSTALL_RETURN_ORIGIN}/home?recorder_install=complete&open_recorder=1`;
 if (IS_DEV) console.warn('[Parro Recorder] DEV 모드 — shared storage/Preview 연결 (id:', chrome.runtime.id, ')');
 const JPEG_QUALITY_DEFAULT = 0.92;
@@ -54,7 +49,9 @@ function normalizeAllowedWebappOrigin(candidate) {
   try {
     const origin = new URL(candidate).origin;
     if (IS_DEV && /^http:\/\/localhost(?::(?:3000|3001))?$/.test(origin)) return origin;
-    return TRUSTED_WEBAPP_ORIGINS.has(origin) ? origin : null;
+    if (!TRUSTED_WEBAPP_ORIGINS.has(origin)) return null;
+    if (IS_DEV) return origin === 'https://parro-guide-dev.vercel.app' ? origin : null;
+    return origin === 'https://parro-guide.vercel.app' ? origin : null;
   } catch {
     return null;
   }
@@ -1404,7 +1401,8 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
     const { token } = message;
     if (!token) { sendResponse({ ok: false, error: 'no token' }); return false; }
 
-    const origin = sender.origin || WEBAPP_ORIGIN;
+    const origin = normalizeAllowedWebappOrigin(sender.origin);
+    if (!origin) { sendResponse({ ok: false, error: 'untrusted origin' }); return false; }
     (async () => {
       try {
         const res = await fetch(`${origin}/api/extension/redeem`, {
@@ -3340,7 +3338,10 @@ function getWebappFallbackUrl(url) {
 
 async function getWebappOrigin() {
   const { webappOrigin } = await storageGet('webappOrigin');
-  return normalizeAllowedWebappOrigin(webappOrigin) || WEBAPP_ORIGIN;
+  const allowedOrigin = normalizeAllowedWebappOrigin(webappOrigin);
+  if (allowedOrigin) return allowedOrigin;
+  if (webappOrigin) await storageSet({ webappOrigin: WEBAPP_ORIGIN });
+  return WEBAPP_ORIGIN;
 }
 
 // 가이드 고정 탭 조회 — START_GUIDE에서 저장한 guideTabId의 탭. 없거나 닫혔으면 null.

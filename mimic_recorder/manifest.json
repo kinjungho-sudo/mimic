@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extensionName__",
-  "version": "1.7.39",
+  "version": "1.7.40",
   "description": "__MSG_extensionDescription__",
   "default_locale": "ko",
   "icons": {
@@ -55,20 +55,15 @@
     "<all_urls>",
     "https://*.supabase.co/*",
     "https://parro-guide-dev.vercel.app/*",
-    "https://parro-guide.vercel.app/*",
-    "https://mimic-nine-ashen.vercel.app/*",
-    "https://mimic-git-dev-kinjungho-7735s-projects.vercel.app/*"
+    "https://parro-guide.vercel.app/*"
   ],
   "externally_connectable": {
     "matches": [
       "https://parro-guide-dev.vercel.app/*",
       "https://parro-guide.vercel.app/*",
-      "https://mimic-nine-ashen.vercel.app/*",
-      "https://mimicflow.com/*",
       "http://localhost/*",
       "http://localhost:3000/*",
-      "http://localhost:3001/*",
-      "https://mimic-git-dev-kinjungho-7735s-projects.vercel.app/*"
+      "http://localhost:3001/*"
     ]
   }
 }
