@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireExtensionToken } from '@/lib/auth/auth-guard';
 import { createServiceRoleClient } from '@/lib/supabase/server';
+import { hasEntitlement } from '@/lib/entitlements';
+import { FREE_DAILY_MANUAL_LIMIT } from '@/lib/product-plans';
 import { captureFinalizeSchema } from '@/lib/validators';
 import { analyzeScreenshot, generateStepDescription, generateDraft, extractCoverColors, detectPII, cleanTranscripts } from '@/lib/ai/claude';
 import { buildCaptureAnnotationLabel, buildCaptureFallbackDraft, buildCaptureFallbackTutorialTitle, cleanCaptureTypeText, isCaptureTitleGrounded, isCaptureTutorialTitleGrounded, isInstructionalAccessibilityText, isLowQualityCaptureLabel, isLowQualityCaptureScript, isUsableCaptureDraft, type CaptureFallbackActionInfo } from '@/lib/ai/capture-fallback';
@@ -254,6 +256,34 @@ async function findCompletedCaptureResult(
   };
 }
 
+async function enforceFreeDailyManualLimit(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  userId: string,
+): Promise<NextResponse | null> {
+  const { data: owner } = await supabase.from('mm_users').select('plan').eq('id', userId).maybeSingle();
+  if (hasEntitlement(owner?.plan ?? 'free', 'unlimited_manuals')) return null;
+
+  const { count, error } = await supabase
+    .from('mm_tutorials')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .gte('created_at', startOfKstDay().toISOString());
+  // 집계 실패 시 생성을 막지 않는다(녹화 데이터 보존 우선).
+  if (error || count === null || count < FREE_DAILY_MANUAL_LIMIT) return null;
+
+  return NextResponse.json({
+    error: 'daily_limit_reached',
+    limit: FREE_DAILY_MANUAL_LIMIT,
+    message: `무료 플랜은 하루 ${FREE_DAILY_MANUAL_LIMIT}개까지 매뉴얼을 만들 수 있습니다. 녹화는 보관되어 있으니 내일 다시 시도하거나 플랜을 업그레이드해 주세요.`,
+  }, { status: 429 });
+}
+
+function startOfKstDay(now = new Date()): Date {
+  const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+  const kst = new Date(now.getTime() + KST_OFFSET_MS);
+  return new Date(Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth(), kst.getUTCDate()) - KST_OFFSET_MS);
+}
+
 export async function POST(request: NextRequest) {
   const auth = await requireExtensionToken(request);
   if (!auth.ok) return auth.response;
@@ -350,9 +380,13 @@ export async function POST(request: NextRequest) {
       && liveEvents.every(event => isOnboardingPracticeUrl(event.url, request.nextUrl.origin));
   }
 
-  // 무료 플랜 여부 확인 (어노테이션 생성 제한)
-
-  // TODO: 정식 서비스 전 플랜별 한도 복구 (daily_limit 체크 비활성화 중)
+  // Free 플랜 일일 생성 한도. mm_users.daily_manual_count는 매일 초기화되지 않으므로
+  // 오늘(KST) 실제로 만든 매뉴얼 수를 센다. 휴지통 이동분도 포함해 생성·삭제 반복을 막는다.
+  // 온보딩 실습 녹화는 한도에서 제외한다.
+  if (!practiceCandidate) {
+    const limitResponse = await enforceFreeDailyManualLimit(supabase, userId);
+    if (limitResponse) return limitResponse;
+  }
 
   // 중복 이벤트 제거:
   //   1) 동일 screenshot_url 연속 → 첫 번째만 유지

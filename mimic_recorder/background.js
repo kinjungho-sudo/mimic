@@ -3568,7 +3568,16 @@ async function finalizeSession(sessionId, stepNumbers, audioUrl = null, localSte
       ...(onboardingToken ? { onboarding_token: onboardingToken } : {}),
     }),
   });
-  if (!res.ok) throw new Error(`finalize failed: ${res.status}: ${await res.text()}`);
+  if (!res.ok) {
+    const body = await res.text();
+    // 무료 일일 한도: 서버 안내 문구를 그대로 보여준다. 로컬 녹화는 지우지 않으므로 나중에 다시 만들 수 있다.
+    let limitMessage = null;
+    try {
+      const parsed = JSON.parse(body);
+      if (parsed?.error === 'daily_limit_reached' && typeof parsed.message === 'string') limitMessage = parsed.message;
+    } catch { /* not JSON */ }
+    throw new Error(limitMessage || `finalize failed: ${res.status}: ${body}`);
+  }
   await storageRemove(['audioStartTime']);
   const data = await res.json();
   const webappOrigin = new URL(res.url).origin;

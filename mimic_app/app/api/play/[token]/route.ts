@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient, createServiceRoleClient } from '@/lib/supabase/server';
 import { verifyPassword } from '@/lib/auth/password';
 import { createShareAccessProof } from '@/lib/auth/share-access';
+import { clientIp, rateLimitShared } from '@/lib/rate-limit';
 import { isPaidPlan } from '@/lib/plan';
 import { hasEntitlement } from '@/lib/entitlements';
 import { isFreshVoiceAsset } from '@/lib/voice/playback';
@@ -162,6 +163,12 @@ export async function POST(request: NextRequest, { params }: Params) {
   }
 
   if (result.tutorial.share_password) {
+    // 비밀번호 추측 방어: IP·매뉴얼별 15분 10회, 매뉴얼 전체 1시간 100회 (인스턴스 간 공유)
+    const limited =
+      await rateLimitShared(`share-pw:${result.tutorial.id}:${clientIp(request)}`, 10, 15 * 60_000)
+      ?? await rateLimitShared(`share-pw:${result.tutorial.id}`, 100, 60 * 60_000);
+    if (limited) return limited;
+
     const ok = password ? await verifyPassword(password, result.tutorial.share_password) : false;
     if (!ok) {
       return NextResponse.json({ error: 'Wrong password' }, { status: 401 });

@@ -1,8 +1,12 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
 import { proSignupSchema } from '@/lib/validators';
 import { createServiceRoleClient } from '@/lib/supabase/server';
+import { rateLimitPublic } from '@/lib/rate-limit';
 
 export async function POST(request: NextRequest) {
+  const limited = await rateLimitPublic(request, 'pro-signup', 5, 10 * 60_000);
+  if (limited) return limited;
+
   let body: unknown;
   try {
     body = await request.json();

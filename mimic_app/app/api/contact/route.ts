@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { sendParroEmail } from '@/lib/email/email-n8n';
 import { BRAND_COLORS, BRAND_NAME } from '@/lib/brand';
+import { rateLimitPublic } from '@/lib/rate-limit';
 
 const EMAIL_GRADIENT = `linear-gradient(135deg,${BRAND_COLORS.primary},${BRAND_COLORS.guide})`;
 
@@ -18,6 +19,9 @@ const categoryEmoji: Record<string, string> = {
 };
 
 export async function POST(request: NextRequest) {
+  const limited = await rateLimitPublic(request, 'contact', 5, 10 * 60_000);
+  if (limited) return limited;
+
   let body: unknown;
   try { body = await request.json(); } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });

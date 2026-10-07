@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
   const entitlement = await requireUserEntitlement(auth.userId, 'ai_rewrite');
   if (!entitlement.ok) return entitlement.response;
 
-  const limited = rateLimitAi(auth.userId);
+  const limited = await rateLimitAi(auth.userId);
   if (limited) return limited;
 
   if (!hasAnthropicApiKey()) {

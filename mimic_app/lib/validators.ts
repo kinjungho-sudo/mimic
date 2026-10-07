@@ -273,14 +273,14 @@ export const ttsSchema = z.object({
 
 export const eventsSchema = z.object({
   tutorial_id: z.string().uuid(),
-  viewer_session_id: z.string().min(1),
+  viewer_session_id: z.string().min(1).max(128),
   event_type: z.enum(['enter', 'step', 'complete', 'exit']),
   step_number: z.number().int().positive().optional(),
 });
 
 export const surveySchema = z.object({
   tutorial_id: z.string().uuid(),
-  viewer_session_id: z.string().min(1),
+  viewer_session_id: z.string().min(1).max(128),
   q1_easier_than_pdf: z.number().int().min(1).max(5),
   q2_would_use_again: z.number().int().min(1).max(5),
   q3_useful_for_work: z.number().int().min(1).max(5),

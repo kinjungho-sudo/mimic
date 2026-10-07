@@ -8,7 +8,8 @@ export type ProductEntitlement =
   | 'live_guide'
   | 'office_export'
   | 'protected_sharing'
-  | 'team_workspace';
+  | 'team_workspace'
+  | 'unlimited_manuals';
 
 const ENTITLED_PLANS: Record<ProductEntitlement, readonly ProductPlan[]> = {
   ai_rewrite: ['basic', 'pro', 'team', 'enterprise'],
@@ -19,6 +20,7 @@ const ENTITLED_PLANS: Record<ProductEntitlement, readonly ProductPlan[]> = {
   office_export: ['basic', 'pro', 'team', 'enterprise'],
   protected_sharing: ['basic', 'pro', 'team', 'enterprise'],
   team_workspace: ['team', 'enterprise'],
+  unlimited_manuals: ['basic', 'pro', 'team', 'enterprise'],
 };
 
 export const ENTITLEMENT_UPGRADE_COPY: Record<ProductEntitlement, string> = {
@@ -30,6 +32,7 @@ export const ENTITLEMENT_UPGRADE_COPY: Record<ProductEntitlement, string> = {
   office_export: 'PPTX·Word 내보내기는 Basic 이상 플랜에서 사용할 수 있습니다.',
   protected_sharing: '비밀번호 보호는 Basic 이상 플랜에서 사용할 수 있습니다.',
   team_workspace: '팀 워크스페이스는 Team 플랜에서 사용할 수 있습니다.',
+  unlimited_manuals: '무료 플랜은 하루 3개까지 매뉴얼을 만들 수 있습니다. Basic 이상 플랜은 제한이 없습니다.',
 };
 
 export function normalizeProductPlan(plan: string | null | undefined): ProductPlan {
@@ -56,5 +59,6 @@ export function entitlementsForPlan(plan: string | null | undefined): Record<Pro
     office_export: hasEntitlement(plan, 'office_export'),
     protected_sharing: hasEntitlement(plan, 'protected_sharing'),
     team_workspace: hasEntitlement(plan, 'team_workspace'),
+    unlimited_manuals: hasEntitlement(plan, 'unlimited_manuals'),
   };
 }

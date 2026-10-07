@@ -15,7 +15,7 @@ export async function POST(
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
 
-  const limited = rateLimitAi(auth.userId);
+  const limited = await rateLimitAi(auth.userId);
   if (limited) return limited;
 
   if (!hasAnthropicApiKey()) {
