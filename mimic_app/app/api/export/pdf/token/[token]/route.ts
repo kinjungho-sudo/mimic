@@ -1,21 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/lib/supabase/server';
+import { hasShareAccess } from '@/lib/auth/share-access';
 import { buildManualPdf, type ManualPdfStep } from '@/lib/export/manual-pdf';
 
 type Params = { params: Promise<{ token: string }> };
 
-export async function GET(_req: NextRequest, { params }: Params) {
+export async function GET(req: NextRequest, { params }: Params) {
   const { token } = await params;
   const supabase = createServiceRoleClient();
 
   const { data: tutorial } = await supabase
     .from('mm_tutorials')
-    .select('id, title, user_id')
+    .select('id, title, user_id, share_password')
     .eq('share_token', token)
     .eq('status', 'published')
     .single();
 
   if (!tutorial) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (!hasShareAccess(req, tutorial)) {
+    return NextResponse.json({ error: 'password_required', protected: true }, { status: 401 });
+  }
 
   const { data: steps } = await supabase
     .from('mm_steps')

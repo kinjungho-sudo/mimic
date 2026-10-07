@@ -76,6 +76,8 @@ type AudioAsset = {
 type Tutorial = {
   id: string;
   title: string;
+  /** Proof issued after a share password unlock; forwarded to Live Guide. */
+  share_access?: string;
   tts_enabled: boolean;
   survey_enabled?: boolean;
   steps: Step[];
@@ -642,7 +644,7 @@ export default function PlayerPage() {
   }, [isPlaying, tutorial, viewMode]);
 
   const handleStartLiveGuide = useCallback(async () => {
-    const result = await startLiveGuide(token);
+    const result = await startLiveGuide(token, undefined, 'tutorial', tutorial?.share_access);
     if (result.ok) return;
     if (result.reason === 'not_installed') {
       window.location.assign(BRAND_EXTENSION_STORE_URL);
@@ -653,7 +655,7 @@ export default function PlayerPage() {
       return;
     }
     alert(result.message);
-  }, [token]);
+  }, [token, tutorial?.share_access]);
 
   useEffect(() => {
     if (!tutorial || modeParam !== 'live' || liveAutoStartedRef.current) return;

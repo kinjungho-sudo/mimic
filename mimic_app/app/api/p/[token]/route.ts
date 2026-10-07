@@ -42,14 +42,17 @@ export async function GET(_request: NextRequest, { params }: Params) {
   if (tutorialIds.length) {
     const { data: tutorials } = await supabase
       .from('mm_tutorials')
-      .select('id, title, user_id, workspace_id')
+      .select('id, title, user_id, workspace_id, share_password')
       .in('id', tutorialIds)
       .is('deleted_at', null);
 
-    // 페이지 작성자 소유 또는 동일 워크스페이스 가이드만 허용
+    // 페이지 작성자 소유 또는 동일 워크스페이스 가이드만 허용.
+    // 비밀번호 보호 가이드는 공개 플레이북에 본문을 싣지 않는다(/play 잠금 우회 방지).
     const allowed = (tutorials ?? []).filter(t =>
-      t.user_id === page.user_id ||
-      (page.workspace_id != null && t.workspace_id === page.workspace_id)
+      !t.share_password && (
+        t.user_id === page.user_id ||
+        (page.workspace_id != null && t.workspace_id === page.workspace_id)
+      )
     );
     const allowedIds = allowed.map(t => t.id);
 

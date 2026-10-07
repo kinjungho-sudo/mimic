@@ -45,13 +45,16 @@ export async function resolvePublishedPlaybookLiveGuide(
   const uniqueIds = Array.from(new Set(sequence));
   const { data: tutorials } = await supabase
     .from('mm_tutorials')
-    .select('id, title, user_id, workspace_id, tts_enabled')
+    .select('id, title, user_id, workspace_id, tts_enabled, share_password')
     .in('id', uniqueIds)
     .is('deleted_at', null);
 
+  // 비밀번호 보호 가이드는 공개 플레이북 라이브 가이드에서 제외한다(/play 잠금 우회 방지).
   const allowed = (tutorials ?? []).filter(tutorial =>
-    tutorial.user_id === page.user_id
-    || (page.workspace_id != null && tutorial.workspace_id === page.workspace_id)
+    !tutorial.share_password && (
+      tutorial.user_id === page.user_id
+      || (page.workspace_id != null && tutorial.workspace_id === page.workspace_id)
+    )
   );
 
   const loaded = await Promise.all(allowed.map(tutorial =>

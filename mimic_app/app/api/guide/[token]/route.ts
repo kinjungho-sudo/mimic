@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServiceRoleClient, createServerClient } from '@/lib/supabase/server';
+import { createServiceRoleClient } from '@/lib/supabase/server';
+import { requireAuth } from '@/lib/auth/auth-guard';
+import { hasShareAccess } from '@/lib/auth/share-access';
 import { fetchLiveGuideSteps, gateLiveGuide } from '@/lib/live-guide/server';
 import { resolvePublishedPlaybookLiveGuide } from '@/lib/live-guide/playbook-server';
 
@@ -26,10 +28,9 @@ export async function GET(request: NextRequest, { params }: Params) {
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token);
 
   if (isUuid) {
-    // 로그인 세션 확인
-    const serverClient = await createServerClient();
-    const { data: { session } } = await serverClient.auth.getSession();
-    if (!session?.user) {
+    // 로그인 확인 — getClaims로 JWT를 검증한다(getSession은 쿠키를 그대로 신뢰).
+    const auth = await requireAuth(request);
+    if (!auth.ok) {
       return guideJson({ error: 'Unauthorized' }, 401);
     }
 
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest, { params }: Params) {
       .from('mm_tutorials')
       .select('id, title, user_id, tts_enabled')
       .eq('id', token)
-      .eq('user_id', session.user.id)
+      .eq('user_id', auth.userId)
       .single();
 
     if (!tutorial) {
@@ -54,7 +55,7 @@ export async function GET(request: NextRequest, { params }: Params) {
   // share_token으로 published 튜토리얼 조회 (공개)
   const { data: tutorial } = await supabase
     .from('mm_tutorials')
-    .select('id, title, user_id, tts_enabled')
+    .select('id, title, user_id, tts_enabled, share_password')
     .eq('share_token', token)
     .eq('status', 'published')
     .single();
@@ -64,6 +65,10 @@ export async function GET(request: NextRequest, { params }: Params) {
     // 단일 매뉴얼 토큰이 아니면 게시된 플레이북 토큰으로 한 번 더 해석해 하위 호환한다.
     const playbook = await resolvePublishedPlaybookLiveGuide(token, supabase);
     return guideJson(playbook.payload, playbook.status);
+  }
+
+  if (!hasShareAccess(request, tutorial)) {
+    return guideJson({ error: 'password_required', protected: true }, 401);
   }
 
   const gated = await gateLiveGuide(supabase, tutorial.user_id);

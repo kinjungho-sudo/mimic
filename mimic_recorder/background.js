@@ -1450,6 +1450,10 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
     const guideToken = rawToken;
     const isUuid = UUID_RE.test(guideToken);
     const guideSource = message.guide_source === 'playbook' ? 'playbook' : 'tutorial';
+    // 비밀번호 보호 매뉴얼: 웹앱이 잠금 해제 후 받은 증명을 그대로 전달한다 ("<만료ms>.<서명>").
+    const shareAccess = typeof message.share_access === 'string' && /^\d{10,16}\.[A-Za-z0-9_-]{20,128}$/.test(message.share_access)
+      ? message.share_access
+      : null;
 
     // ★ await 이전에 동기 캡처 — async IIFE 안에서는 sender가 변질될 수 있음
     const senderWindowId = sender.tab?.windowId ?? null;
@@ -1467,6 +1471,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         const origin = guideRequestOrigin;
         // UUID(소유자 미리보기)는 쿠키 필요; share_token(공개)은 불필요
         const fetchOpts = isUuid ? { credentials: 'include', cache: 'no-store' } : { cache: 'no-store' };
+        if (shareAccess) fetchOpts.headers = { 'X-Parro-Share-Access': shareAccess };
         const guidePath = guideSource === 'playbook'
           ? `/api/guide/playbook/${encodeURIComponent(guideToken)}`
           : `/api/guide/${encodeURIComponent(guideToken)}`;

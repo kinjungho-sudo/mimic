@@ -101,6 +101,7 @@ export async function startLiveGuide(
   shareToken: string,
   timeoutMs = RUNTIME_MESSAGE_TIMEOUT_MS,
   source: 'tutorial' | 'playbook' = 'tutorial',
+  shareAccess?: string,
 ): Promise<LiveGuideResult> {
   const extensionId = await resolvePreferredExtensionId();
   if (!extensionId || !window.chrome?.runtime?.sendMessage) {
@@ -116,6 +117,7 @@ export async function startLiveGuide(
     share_token: shareToken,
     guide_source: source,
     webapp_origin: window.location.origin,
+    ...(shareAccess ? { share_access: shareAccess } : {}),
   }, timeoutMs);
   if (delivery.timedOut) {
     return { ok: false, reason: 'timeout', message: 'Recorder 응답이 지연되고 있습니다. 확장 프로그램을 다시 로드한 뒤 재시도해주세요.' };

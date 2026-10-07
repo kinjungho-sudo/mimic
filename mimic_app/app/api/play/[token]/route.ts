@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient, createServiceRoleClient } from '@/lib/supabase/server';
 import { verifyPassword } from '@/lib/auth/password';
+import { createShareAccessProof } from '@/lib/auth/share-access';
 import { isPaidPlan } from '@/lib/plan';
 import { hasEntitlement } from '@/lib/entitlements';
 import { isFreshVoiceAsset } from '@/lib/voice/playback';
@@ -165,6 +166,10 @@ export async function POST(request: NextRequest, { params }: Params) {
     if (!ok) {
       return NextResponse.json({ error: 'Wrong password' }, { status: 401 });
     }
+    return NextResponse.json({
+      ...result.payload,
+      share_access: createShareAccessProof(result.tutorial.id, result.tutorial.share_password),
+    });
   }
 
   return NextResponse.json(result.payload);
