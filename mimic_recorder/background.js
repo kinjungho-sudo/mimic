@@ -957,6 +957,14 @@ async function getDesktopEditorUrl(imported) {
 }
 
 chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
+  // 모든 외부 메시지는 신뢰된 Parro 웹앱 origin에서 온 것만 처리한다.
+  // (운영: parro-guide.vercel.app / 개발: parro-guide-dev.vercel.app·localhost:3000/3001)
+  // 개별 핸들러에 검증을 맡기면 GET_TABS·START_RECORDING처럼 빠뜨리는 경로가 생긴다.
+  if (!resolveExternalSenderOrigin(sender)) {
+    sendResponse({ ok: false, error: 'untrusted_sender' });
+    return false;
+  }
+
   if (message.action === 'DESKTOP_COMPANION_STATUS') {
     (async () => {
       const pong = await pingDesktopCompanion().catch((error) => ({ ok: false, error: error?.message }));

@@ -209,7 +209,9 @@
         quality: topRect.quality === 'low' || !frameSelector ? 'low' : 'high',
         viewportW: topViewport.vw,
         viewportH: topViewport.vh,
-      }, '*');
+      // 요청한 프레임의 origin으로만 응답한다(그 사이 다른 사이트로 이동한 프레임에 좌표가 새지 않도록).
+      // sandbox 프레임은 origin이 'null'이라 '*' 외에는 전달할 방법이 없다.
+      }, event.origin && event.origin !== 'null' ? event.origin : '*');
       return;
     }
 

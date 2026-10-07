@@ -41,6 +41,14 @@ assert.match(background, /return origin === 'https:\/\/parro-guide\.vercel\.app'
 assert.match(popup, /function getDefaultWebappOrigin\(\)/);
 assert.match(popup, /const origin = getDefaultWebappOrigin\(\)/);
 assert.doesNotMatch(content, /host\.endsWith\('\.vercel\.app'\)/);
+// Every external message must pass the origin gate before any handler runs.
+assert.match(
+  background,
+  /chrome\.runtime\.onMessageExternal\.addListener\(\(message, sender, sendResponse\) => \{\s*(?:\/\/[^\n]*\n\s*)*if \(!resolveExternalSenderOrigin\(sender\)\) \{\s*sendResponse\(\{ ok: false, error: 'untrusted_sender' \}\);\s*return false;/,
+  'onMessageExternal must reject untrusted senders before dispatching',
+);
+assert.ok(background.includes('if (IS_DEV && /^http:\\/\\/localhost'), 'localhost senders are accepted only by dev builds');
+assert.doesNotMatch(content, /\}, '\*'\);\s*return;\s*\}\s*if \(data\.type === FRAME_GEOMETRY_RESPONSE/, 'frame geometry replies must target the requesting origin');
 
 console.log(JSON.stringify({
   ok: true,

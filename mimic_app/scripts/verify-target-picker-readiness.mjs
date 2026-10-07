@@ -31,10 +31,17 @@ try {
         <body><button id="target" aria-label="알림 신청">알림 신청</button></body>
       </html>`);
   });
-  await new Promise((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', resolve);
-  });
+  // The page sends external messages to the Recorder, which dev builds accept
+  // only from localhost:3000/3001 (see resolveExternalSenderOrigin).
+  let listening = false;
+  for (const port of [3000, 3001]) {
+    listening = await new Promise((resolve, reject) => {
+      server.once('error', (error) => (error.code === 'EADDRINUSE' ? resolve(false) : reject(error)));
+      server.listen(port, resolve.bind(null, true));
+    });
+    if (listening) break;
+  }
+  assert.ok(listening, 'target picker readiness requires free localhost port 3000 or 3001');
   const address = server.address();
   assert.ok(address && typeof address === 'object');
   const targetUrl = `http://localhost:${address.port}/target`;
@@ -55,11 +62,17 @@ try {
   assert.ok(tabId, 'fixture tab was not visible to the Recorder');
   assert.ok(extensionId, 'Recorder extension id is required');
 
-  const readiness = await worker.evaluate((targetTabId) => new Promise((resolve) => {
-    chrome.tabs.sendMessage(targetTabId, { type: 'PARRO_CONTENT_READY' }, { frameId: 0 }, (response) => {
-      resolve({ response: response || null, error: chrome.runtime.lastError?.message || null });
-    });
-  }), tabId);
+  // Content scripts inject at document_idle, which can land after domcontentloaded.
+  let readiness = { response: null, error: 'not attempted' };
+  for (let attempt = 0; attempt < 25; attempt += 1) {
+    readiness = await worker.evaluate((targetTabId) => new Promise((resolve) => {
+      chrome.tabs.sendMessage(targetTabId, { type: 'PARRO_CONTENT_READY' }, { frameId: 0 }, (response) => {
+        resolve({ response: response || null, error: chrome.runtime.lastError?.message || null });
+      });
+    }), tabId);
+    if (!readiness.error) break;
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
   check(() => assert.equal(readiness.error, null));
   check(() => assert.equal(readiness.response?.ready, true));
 
