@@ -15,7 +15,7 @@
 ## 1. 게스트 계정
 
 - **이메일**: `devtest@mimic.dev`
-- **비밀번호**: `Devtest1234!`
+- **비밀번호**: 비밀번호 관리자에서 확인. 게스트 버튼은 `.env.development.local`의 `NEXT_PUBLIC_DEV_GUEST_EMAIL`·`NEXT_PUBLIC_DEV_GUEST_PASSWORD`를 쓴다.
 - 위치: 개발 DB(project2), `plan=pro`, 약관 동의 완료.
 - **로그인 화면(`/auth/login`)에 개발 전용 버튼 `🧪 게스트로 테스트 입장`** 이 있음 → 원클릭 로그인. (prod 빌드엔 미노출)
 

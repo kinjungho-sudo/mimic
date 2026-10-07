@@ -40,11 +40,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Token expired' }, { status: 401 });
   }
 
-  // 링크 토큰 즉시 소각 — expires_at을 now()로 당겨 5분 내 재사용도 차단
-  await supabase
+  // 링크 토큰 즉시 소각 — 미사용·미만료 조건을 UPDATE에 걸어 원자적으로 한 번만 성공시킨다.
+  // (동시에 두 요청이 들어와도 세션 토큰은 하나만 발급된다.)
+  const now = new Date().toISOString();
+  const { data: consumed } = await supabase
     .from('mm_extension_tokens')
-    .update({ used_at: new Date().toISOString(), expires_at: new Date().toISOString() })
-    .eq('id', tokenRow.id);
+    .update({ used_at: now, expires_at: now })
+    .eq('id', tokenRow.id)
+    .is('used_at', null)
+    .gt('expires_at', now)
+    .select('id')
+    .maybeSingle();
+  if (!consumed) {
+    return NextResponse.json({ error: 'Token already used' }, { status: 401 });
+  }
 
   // 30일 세션 토큰 발급
   const sessionToken = randomBytes(32).toString('hex');

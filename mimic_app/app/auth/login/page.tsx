@@ -47,15 +47,15 @@ function LoginForm() {
     }
   };
 
-  // 개발 모드 전용 게스트 로그인 — 시드된 dev 계정(project2)으로 원클릭 진입.
-  // prod 빌드에선 아래 자격증명이 NODE_ENV 분기로 ''가 되어 dead-code 제거되고, 버튼도 렌더되지 않음.
+  // 개발 모드 전용 게스트 로그인 — .env.development.local의 dev 계정으로 원클릭 진입.
+  // 자격증명은 저장소에 두지 않는다. prod 빌드에선 NODE_ENV 분기로 ''가 되고 버튼도 렌더되지 않음.
   const handleGuest = async () => {
     setLoading(true);
     setError('');
     try {
       await signInWithEmail(
-        process.env.NODE_ENV === 'development' ? 'devtest@mimic.dev' : '',
-        process.env.NODE_ENV === 'development' ? 'Devtest1234!' : '',
+        process.env.NODE_ENV === 'development' ? (process.env.NEXT_PUBLIC_DEV_GUEST_EMAIL ?? '') : '',
+        process.env.NODE_ENV === 'development' ? (process.env.NEXT_PUBLIC_DEV_GUEST_PASSWORD ?? '') : '',
       );
       router.push(next);
     } catch (err: unknown) {

@@ -15,7 +15,7 @@ npm run build
 `.env` 파일 생성:
 
 ```
-SUPABASE_URL=https://gqynptpjomcqzxyykqic.supabase.co
+SUPABASE_URL=https://<project-ref>.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=<service_role_key>
 ```
 
@@ -30,7 +30,7 @@ SUPABASE_SERVICE_ROLE_KEY=<service_role_key>
       "command": "node",
       "args": ["<절대경로>/packages/mcp-server/dist/index.js"],
       "env": {
-        "SUPABASE_URL": "https://gqynptpjomcqzxyykqic.supabase.co",
+        "SUPABASE_URL": "https://<project-ref>.supabase.co",
         "SUPABASE_SERVICE_ROLE_KEY": "<service_role_key>"
       }
     },

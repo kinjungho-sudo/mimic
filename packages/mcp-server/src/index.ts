@@ -196,7 +196,27 @@ server.tool(
     error_message: z.string().optional().describe('실패 시 오류 메시지'),
   },
   async ({ execution_session_id, step_id, step_number, status, selector_used, error_message }) => {
-    await supabase.from('mm_step_results').insert({
+    // service-role은 RLS를 우회하므로 세션·스텝 소유권을 직접 확인한다.
+    const { data: session } = await supabase
+      .from('mm_execution_sessions')
+      .select('id, tutorial_id')
+      .eq('id', execution_session_id)
+      .eq('user_id', OWNER_USER_ID)
+      .maybeSingle();
+    if (!session) {
+      return { content: [{ type: 'text', text: JSON.stringify({ saved: false, error: 'execution session not found' }) }], isError: true };
+    }
+    const { data: step } = await supabase
+      .from('mm_steps')
+      .select('id')
+      .eq('id', step_id)
+      .eq('tutorial_id', session.tutorial_id)
+      .maybeSingle();
+    if (!step) {
+      return { content: [{ type: 'text', text: JSON.stringify({ saved: false, error: 'step does not belong to this session' }) }], isError: true };
+    }
+
+    const { error: insertError } = await supabase.from('mm_step_results').insert({
       execution_session_id,
       step_id,
       step_number,
@@ -204,6 +224,9 @@ server.tool(
       selector_used: selector_used ?? null,
       error_message: error_message ?? null,
     });
+    if (insertError) {
+      return { content: [{ type: 'text', text: JSON.stringify({ saved: false, error: insertError.message }) }], isError: true };
+    }
 
     if (status === 'success') {
       await supabase.rpc('increment_execution_completed', { session_id: execution_session_id });

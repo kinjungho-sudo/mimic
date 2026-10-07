@@ -29,3 +29,6 @@ mimic_desktop/native-host/dist/
 /packages/mcp-server/node_modules/
 /packages/mcp-server/dist/
 /mimic_recorder_*.zip
+
+# Local git worktrees created inside the checkout
+_worktrees/

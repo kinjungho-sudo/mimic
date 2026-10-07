@@ -1,5 +1,8 @@
 # Parro 개발 프로세스 가이드 (필수)
 
+> 브랜치·검증·배포 **순서**의 기준은 [`docs/DEV_PROCESS.md`](docs/DEV_PROCESS.md)다. 이 문서는 DB·환경변수·로컬 테스트 상세를 다룬다. 둘이 다르면 `docs/DEV_PROCESS.md`를 따른다.
+> 마이그레이션 기준은 [`supabase/migrations/README.md`](supabase/migrations/README.md).
+
 > 로컬 개발 → 검증 → 배포까지 **반드시 이 순서·규칙을 따른다.** 모든 에이전트/작업자 공통.
 > 최종 갱신: 2026-06-22 (dev 전용 DB 신설 반영). 이전 "dev=project2" 기술은 폐기됨.
 
@@ -52,7 +55,7 @@ git pull --rebase origin <현재브랜치>     # 3) 뒤처졌으면 최신화 (f
 - 옛 공유 dev(project2, xsfriegbpygydcqhsqqq)는 **폐기** — Parro 관련 `mm_*` 정리됨. 그 프로젝트의 타 앱 표는 건드리지 말 것.
 
 ### dev 테스트 계정
-`test@naver.com` / `Devtest1234` (이메일 인증 완료). 새 dev 프로젝트 대시보드 Authentication에서 관리.
+dev DB 대시보드 Authentication에서 관리한다. 계정 정보는 비밀번호 관리자에 두고 저장소·문서에 적지 않는다.
 
 ---
 
@@ -157,7 +160,7 @@ git checkout dev                                 # 복귀
 ## 6. 로컬 테스트
 
 ### 6-1. 일반 기능 (확장 불필요)
-에디터·뷰어·홈·플레이북·로그인 등 **대부분의 화면은 확장 없이** `npm run dev` + 브라우저(또는 Playwright)로 테스트. dev 계정(`test@naver.com`/`Devtest1234`)으로 로그인.
+에디터·뷰어·홈·플레이북·로그인 등 **대부분의 화면은 확장 없이** `npm run dev` + 브라우저(또는 Playwright)로 테스트. dev 계정(`test@naver.com`, 비밀번호는 비밀번호 관리자)으로 로그인.
 
 **원격 dev 표준 주소는 `https://parro-guide.vercel.app`이다.** 이 도메인은 Vercel `parro-guide` 프로젝트의 `dev` 브랜치에 고정되어 있으며 dev Supabase(dskphg…)만 사용한다. 자동 생성되는 `mimic-*` Vercel 주소는 레거시 내부 식별자이므로 사용자 안내나 개발 표준 주소로 사용하지 않는다.
 
@@ -168,7 +171,7 @@ Chrome 확장(`mimic_recorder`)은 **녹화 캡처 파이프라인에서만** �
 1. `chrome://extensions` → 개발자 모드 ON → **압축해제된 확장 프로그램 로드** → `mimic_recorder` 폴더 선택. (현재 dev 확장 ID = `pnkkalnfddapkmiobbhnkbhplakamaok`)
    - 확장이 자동으로 **dev DB(dskphg…) + localhost:3000** 을 타깃 (서비스워커 콘솔에 `DEV 모드` 로그 확인).
 2. **dev 서버를 반드시 포트 3000으로** 실행: `NODE_OPTIONS="--use-system-ca" npm run dev` (3000이 점유면 다른 인스턴스 종료 후 재실행 — 확장 연동이 localhost:3000에 고정).
-3. localhost:3000 로그인(`test@naver.com`/`Devtest1234`) → 확장 팝업 **'연동하기'** → `localhost:3000/extension-link`에서 토큰 발급(웹앱이 `.env.development.local`의 `NEXT_PUBLIC_EXTENSION_ID`=dev 확장 ID로 전달).
+3. localhost:3000 로그인(`test@naver.com`) → 확장 팝업 **'연동하기'** → `localhost:3000/extension-link`에서 토큰 발급(웹앱이 `.env.development.local`의 `NEXT_PUBLIC_EXTENSION_ID`=dev 확장 ID로 전달).
 4. 이제 녹화 → 캡처는 **dev DB + dev `naviaction` 버킷**에 기록된다(운영 무영향).
 
 > 운영은 웹스토어 배포본(ID `ehbhcdkap…`)이 담당하며 Vercel Production env의 `NEXT_PUBLIC_EXTENSION_ID`=운영 ID를 사용. **개발자 언패킹 확장과 웹스토어 배포본은 ID가 달라 서로 섞이지 않는다.**

@@ -134,4 +134,4 @@ dev   ←  개발 통합. 모든 작업은 여기서 시작.
 - 모든 **테스트·시드·실험·디버깅 쿼리는 dev**에서. 운영은 읽기/진단도 최소화.
 - **스키마 변경 = "복사/이전"이 아니라 "양쪽에 같은 DDL을 각각 적용"**: 운영=MCP `apply_migration`(project_id 확인), dev=대시보드 SQL Editor. 데이터는 절대 옮기지 않는다.
 - 운영에 쓰기/마이그레이션이 꼭 필요하면 **실행 전 사용자에게 명시적으로 확인**받는다.
-- dev 테스트 계정: `test@naver.com`(PRO) / `testfree@naver.com`(FREE), 둘 다 `Devtest1234`.
+- dev 테스트 계정: `test@naver.com`(PRO) / `testfree@naver.com`(FREE), 비밀번호는 비밀번호 관리자에서 확인(저장소에 기록 금지).
