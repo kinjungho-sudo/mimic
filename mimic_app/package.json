@@ -8,7 +8,7 @@
     "start": "node --use-system-ca ./node_modules/next/dist/bin/next start",
     "lint": "next lint",
     "test": "npm run verify:quality",
-    "verify:p0-security": "node scripts/verify-p0-security-hardening.mjs && node scripts/verify-p1-rls-lockdown.mjs && node --conditions=react-server --loader ./scripts/ts-path-loader.mjs scripts/verify-share-access.mjs && node scripts/verify-shared-rate-limits.mjs",
+    "verify:p0-security": "node scripts/verify-p0-security-hardening.mjs && node scripts/verify-p1-rls-lockdown.mjs && node --conditions=react-server --loader ./scripts/ts-path-loader.mjs scripts/verify-share-access.mjs && node scripts/verify-shared-rate-limits.mjs && node scripts/verify-shared-config.mjs",
     "verify:recorder-profile": "node scripts/verify-recorder-profile.mjs",
     "verify:recorder-origin": "node ../mimic_recorder/scripts/verify-webapp-origin-contract.js",
     "verify:recorder-store-package": "node scripts/verify-recorder-store-package.mjs",

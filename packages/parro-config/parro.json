@@ -1,0 +1,23 @@
+{
+  "$comment": "Single source of truth for identifiers copied into the Recorder, Desktop, and web app. mimic_app/scripts/verify-shared-config.mjs fails when a copy drifts.",
+  "webappOrigins": {
+    "production": "https://parro-guide.vercel.app",
+    "development": "https://parro-guide-dev.vercel.app",
+    "local": ["http://localhost:3000", "http://localhost:3001"]
+  },
+  "recorder": {
+    "productionExtensionIds": [
+      "lefkpmfgdbhckcemfghpegleknaepekm",
+      "ehbhcdkapcbfehinjapabgoegcjmmbgd"
+    ],
+    "developmentExtensionIds": [
+      "pnkkalnfddapkmiobbhnkbhplakamaok",
+      "fbpgolbgpdlphhlodhehiilobpanehal",
+      "dhfcmomnambegkibjnandckacihnaelb"
+    ]
+  },
+  "desktop": {
+    "version": "0.6.8",
+    "nativeHostName": "com.mimic.desktop_companion.dev"
+  }
+}
