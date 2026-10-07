@@ -244,7 +244,7 @@ if (-not (Test-Path -LiteralPath $outputPath) -or (Get-Item -LiteralPath $output
 foreach ($artifactPath in @($outputPath, $launcherPath)) {
   Assert-ParroExecutableIcon -ExecutablePath $artifactPath
   $version = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($artifactPath).FileVersion
-  if ($version -ne "0.6.7.0") {
+  if ($version -ne "0.6.8.0") {
     throw "Unexpected desktop artifact version '$version': $artifactPath"
   }
 }
@@ -255,7 +255,7 @@ if ($PublishToWebApp) {
   $publishedInstaller = Join-Path $downloadsDir $OutputName
   Copy-Item -LiteralPath $outputPath -Destination $publishedInstaller -Force
   $releaseManifest = [ordered]@{
-    version = "0.6.7"
+    version = "0.6.8"
     size = (Get-Item -LiteralPath $publishedInstaller).Length
     sha256 = (Get-FileHash -LiteralPath $publishedInstaller -Algorithm SHA256).Hash
   } | ConvertTo-Json

@@ -10,8 +10,8 @@ using System.Windows.Forms;
 [assembly: System.Reflection.AssemblyTitle("Parro Desktop Capture")]
 [assembly: System.Reflection.AssemblyProduct("Parro Desktop Capture")]
 [assembly: System.Reflection.AssemblyCompany("Parro")]
-[assembly: System.Reflection.AssemblyVersion("0.6.7.0")]
-[assembly: System.Reflection.AssemblyFileVersion("0.6.7.0")]
+[assembly: System.Reflection.AssemblyVersion("0.6.8.0")]
+[assembly: System.Reflection.AssemblyFileVersion("0.6.8.0")]
 
 internal static class ParroDesktopProgram
 {
@@ -53,8 +53,25 @@ internal static class ParroDesktopProgram
             RenderPreview(args[1], String.Equals(args[0], "--render-toolbar-preview", StringComparison.OrdinalIgnoreCase));
             return;
         }
+        if (args != null && args.Length == 2 && String.Equals(args[0], "--webapp-origin", StringComparison.OrdinalIgnoreCase)
+            && Array.IndexOf(TrustedWebappOrigins, args[1]) >= 0)
+        {
+            WebappOrigin = args[1];
+        }
         Application.Run(new CaptureForm());
     }
+
+    // 캡처 완료 후 매뉴얼을 만들 웹앱. Recorder가 연결된 웹앱 주소를 넘기며, 단독 실행 시에는 운영 주소.
+    // host.js TRUSTED_WEBAPP_ORIGINS와 동일하게 유지한다.
+    internal const string ProductionWebappOrigin = "https://parro-guide.vercel.app";
+    private static readonly string[] TrustedWebappOrigins = new[]
+    {
+        ProductionWebappOrigin,
+        "https://parro-guide-dev.vercel.app",
+        "http://localhost:3000",
+        "http://localhost:3001",
+    };
+    internal static string WebappOrigin = ProductionWebappOrigin;
 
     private static string JsonSafe(string value)
     {
@@ -359,7 +376,7 @@ internal sealed class CaptureForm : Form
         header.Controls.Add(brand);
 
         Label version = new Label();
-        version.Text = "PREVIEW 0.6.7";
+        version.Text = "PREVIEW 0.6.8";
         version.Location = new Point(250, 26);
         version.Size = new Size(95, 19);
         version.Font = new Font("Segoe UI", 7.5F, FontStyle.Bold);
@@ -824,7 +841,7 @@ internal sealed class CaptureForm : Form
     {
         try
         {
-            string url = "https://parro-guide-dev.vercel.app/desktop-import?source=desktop-app&session=" +
+            string url = ParroDesktopProgram.WebappOrigin + "/desktop-import?source=desktop-app&session=" +
                 Uri.EscapeDataString(completedSessionId);
             Process.Start(url);
             statusLabel.Text = "캡처 완료 · 브라우저에서 매뉴얼을 만들고 있습니다.";

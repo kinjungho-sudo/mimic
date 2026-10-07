@@ -54,7 +54,17 @@ function Test-CaptureTarget([string]$name, [string]$mode, [System.Drawing.Rectan
     if (-not (Test-Path -LiteralPath $eventsFile)) { throw "$name capture did not create an event." }
     $event = Get-Content -LiteralPath $eventsFile -Encoding UTF8 | Select-Object -First 1 | ConvertFrom-Json
     if ($event.screen.mode -ne $expectedMode) { throw "$name mode mismatch: $($event.screen.mode)" }
-    if ($event.screen.left -ne $bounds.Left -or $event.screen.top -ne $bounds.Top -or $event.screen.width -ne $bounds.Width -or $event.screen.height -ne $bounds.Height) {
+    if ($expectedMode -eq "active-monitor") {
+      # The agent captures the monitor under the cursor at capture time; the cursor may have
+      # moved since $active was sampled, so accept any single monitor's exact bounds.
+      $matching = [System.Windows.Forms.Screen]::AllScreens | Where-Object {
+        $_.Bounds.Left -eq $event.screen.left -and $_.Bounds.Top -eq $event.screen.top -and
+        $_.Bounds.Width -eq $event.screen.width -and $_.Bounds.Height -eq $event.screen.height
+      } | Select-Object -First 1
+      if (-not $matching) { throw "$name bounds mismatch: $($event.screen | ConvertTo-Json -Compress)" }
+      $bounds = $matching.Bounds
+    }
+    elseif ($event.screen.left -ne $bounds.Left -or $event.screen.top -ne $bounds.Top -or $event.screen.width -ne $bounds.Width -or $event.screen.height -ne $bounds.Height) {
       throw "$name bounds mismatch: $($event.screen | ConvertTo-Json -Compress)"
     }
     $image = [System.Drawing.Image]::FromFile([string]$event.screenshot_path)
@@ -93,6 +103,7 @@ $primary = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
 $active = [System.Windows.Forms.Screen]::FromPoint([System.Windows.Forms.Cursor]::Position).Bounds
 Test-CaptureTarget "selected" "monitor" $primary "selected-monitor"
 Test-CaptureTarget "all" "all" $active "active-monitor"
+Test-CaptureTarget "auto" "auto" $active "active-monitor"
 Test-OrphanOwnerGuard
 
 [pscustomobject]@{

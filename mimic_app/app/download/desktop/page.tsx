@@ -103,7 +103,7 @@ export default async function DesktopDownloadPage({
                 <div>
                   <strong>Parro Desktop</strong>
                   <span>Windows 10/11 · 64-bit</span>
-                  <span>Preview 0.6.7 · 약 34MB</span>
+                  <span>Preview 0.6.8 · 약 34MB</span>
                 </div>
               </div>
               <DownloadButton

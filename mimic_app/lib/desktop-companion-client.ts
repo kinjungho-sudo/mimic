@@ -35,7 +35,7 @@ export type DesktopCaptureTarget =
   | { mode: 'auto' };
 
 export const DESKTOP_COMPANION_LATEST_VERSION =
-  process.env.NEXT_PUBLIC_DESKTOP_LATEST_VERSION?.replace(/^\uFEFF/, '').trim() || '0.6.7';
+  process.env.NEXT_PUBLIC_DESKTOP_LATEST_VERSION?.replace(/^\uFEFF/, '').trim() || '0.6.8';
 
 export type DesktopCompanionCompatibility = 'current' | 'outdated' | 'unknown';
 

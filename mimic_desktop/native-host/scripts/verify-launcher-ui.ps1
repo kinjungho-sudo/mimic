@@ -27,7 +27,9 @@ $checks = [ordered]@{
   renderable_side_panel = '"--render-side-panel-preview"'
   renderable_area_blur = '"--render-side-panel-blur-preview"'
   verifiable_side_panel_behavior = '"--verify-side-panel-behavior"'
-  current_version = 'PREVIEW 0\.6\.7'
+  current_version = 'PREVIEW 0\.6\.8'
+  import_uses_linked_webapp = 'ParroDesktopProgram\.WebappOrigin \+ "/desktop-import'
+  no_hardcoded_dev_import = '^(?![\s\S]*parro-guide-dev\.vercel\.app/desktop-import)'
   movable_panel = 'BeginPanelDrag'
   resizable_panel = 'BeginPanelResize'
   right_edge_docking = 'DockToRight'
@@ -82,7 +84,7 @@ try {
 [pscustomobject]@{
   ok = $true
   checks = $checks.Count
-  version = "0.6.7"
+  version = "0.6.8"
   main_size = "1040x720"
   toolbar_size = "960x68"
   recording_default = "side-panel"

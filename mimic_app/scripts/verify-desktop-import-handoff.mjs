@@ -27,7 +27,7 @@ assert.match(recorder, /if \(requireUploadedImage\) throw err;/, 'desktop import
 assert.match(recorder, /effectiveLocalSteps = Array\.isArray\(localStepsOverride\)/, 'finalize must synchronize the explicit desktop step list');
 assert.match(recorder, /\/api\/capture\/upload-target/, 'Recorder uploads must use the currently linked web app storage target');
 assert.doesNotMatch(recorder, /const SUPABASE_URL\s*=/, 'Recorder must not pin a Supabase project URL');
-assert.match(recorder, /return normalizeAllowedWebappOrigin\(webappOrigin\) \|\| WEBAPP_ORIGIN/, 'dev Recorder must not reuse a production web app origin');
+assert.match(recorder, /const allowedOrigin = normalizeAllowedWebappOrigin\(webappOrigin\);\s*if \(allowedOrigin\) return allowedOrigin;[\s\S]{0,120}return WEBAPP_ORIGIN;/, 'dev Recorder must not reuse a production web app origin');
 assert.match(uploadTarget, /requireExtensionToken\(request\)/, 'upload targets must require the linked Recorder token');
 assert.match(uploadTarget, /existingSession\.user_id !== auth\.userId/, 'upload targets must enforce capture-session ownership');
 assert.match(uploadTarget, /createSignedUploadUrl\(path, \{ upsert: true \}\)/, 'upload targets must use a short-lived signed Storage upload');

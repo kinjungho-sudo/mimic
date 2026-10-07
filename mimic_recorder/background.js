@@ -1000,7 +1000,8 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
   if (message.action === 'OPEN_DESKTOP_APP') {
     (async () => {
       try {
-        const result = await openDesktopApp();
+        // 데스크톱 녹화 종료 후 런처가 열 웹앱 주소. 입구에서 이미 검증된 origin만 전달된다.
+        const result = await openDesktopApp(resolveExternalSenderOrigin(sender));
         sendResponse({
           ok: !!result?.ok,
           recorderVersion: chrome.runtime.getManifest().version,

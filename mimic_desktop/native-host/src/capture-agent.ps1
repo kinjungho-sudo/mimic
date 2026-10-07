@@ -7,7 +7,7 @@ param(
   [string]$UndoFile,
   [string]$BlurNextFile,
   [string]$ToolbarBoundsFile,
-  [ValidateSet("all", "monitor")][string]$CaptureMode = "all",
+  [ValidateSet("auto", "all", "monitor")][string]$CaptureMode = "auto",
   [int]$CaptureLeft = 0,
   [int]$CaptureTop = 0,
   [int]$CaptureWidth = 0,

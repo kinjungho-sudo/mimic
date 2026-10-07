@@ -3,7 +3,7 @@ const os = require("os");
 const path = require("path");
 const { spawn, execFileSync } = require("child_process");
 
-const DESKTOP_COMPANION_VERSION = "0.6.7";
+const DESKTOP_COMPANION_VERSION = "0.6.8";
 
 const state = {
   activeSessionId: null,
@@ -73,10 +73,20 @@ function listDisplays() {
     .sort((left, right) => left.left - right.left || left.top - right.top);
 }
 
-function openDesktopApp() {
+// The launcher opens /desktop-import on this origin after a capture.
+// Must stay in sync with ParroDesktop.cs TrustedWebappOrigins.
+const TRUSTED_WEBAPP_ORIGINS = new Set([
+  "https://parro-guide.vercel.app",
+  "https://parro-guide-dev.vercel.app",
+  "http://localhost:3000",
+  "http://localhost:3001",
+]);
+
+function openDesktopApp(webappOrigin) {
   const launcherPath = path.join(__dirname, "ParroDesktop.exe");
   if (!fs.existsSync(launcherPath)) throw new Error("desktop_launcher_missing");
-  const child = spawn(launcherPath, [], {
+  const launcherArgs = TRUSTED_WEBAPP_ORIGINS.has(webappOrigin) ? ["--webapp-origin", webappOrigin] : [];
+  const child = spawn(launcherPath, launcherArgs, {
     cwd: __dirname,
     detached: true,
     stdio: "ignore",
@@ -375,7 +385,7 @@ async function handleMessage(message) {
   }
 
   if (message.type === "OPEN_DESKTOP_APP") {
-    return openDesktopApp();
+    return openDesktopApp(message.webapp_origin);
   }
 
   if (message.type === "START_CAPTURE_SESSION") {

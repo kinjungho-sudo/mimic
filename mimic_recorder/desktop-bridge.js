@@ -115,8 +115,11 @@ async function listDesktopDisplays() {
   return requestDesktopMessage({ type: 'LIST_DISPLAYS' });
 }
 
-async function openDesktopApp() {
-  return requestDesktopMessage({ type: 'OPEN_DESKTOP_APP' }, 5000);
+async function openDesktopApp(webappOrigin = null) {
+  return requestDesktopMessage({
+    type: 'OPEN_DESKTOP_APP',
+    ...(webappOrigin ? { webapp_origin: webappOrigin } : {}),
+  }, 5000);
 }
 
 async function notifyDesktopCaptureStarted({ sessionId, targetTabId, source, captureTarget }) {
