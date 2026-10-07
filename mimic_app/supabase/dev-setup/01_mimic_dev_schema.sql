@@ -572,7 +572,6 @@ alter table mm_subscriptions enable row level security;
 
 -- ===== 7. RLS 정책 ============================================================
 create policy users_select_own on mm_users for select using (auth.uid() = id);
-create policy users_update_own on mm_users for update using (auth.uid() = id);
 
 create policy ws_select on mm_workspaces for select using (owner_id = auth.uid() or exists (select 1 from mm_workspace_members where mm_workspace_members.workspace_id = mm_workspaces.id and mm_workspace_members.user_id = auth.uid()));
 create policy ws_insert on mm_workspaces for insert with check (owner_id = auth.uid());
@@ -589,36 +588,27 @@ create policy folders_update on mm_folders for update using ((user_id = auth.uid
 create policy folders_delete on mm_folders for delete using ((user_id = auth.uid()) or ((workspace_id is not null) and ((exists (select 1 from mm_workspace_members m where m.workspace_id = mm_folders.workspace_id and m.user_id = auth.uid())) or (exists (select 1 from mm_workspaces w where w.id = mm_folders.workspace_id and w.owner_id = auth.uid())))));
 
 create policy tutorials_own on mm_tutorials for all using (auth.uid() = user_id);
-create policy tutorials_public_share on mm_tutorials for select using (status = 'published' and share_token is not null);
 
 create policy onboarding_progress_own on mm_user_onboarding_progress for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy onboarding_events_own_select on mm_onboarding_events for select using (auth.uid() = user_id);
 create policy onboarding_events_own_insert on mm_onboarding_events for insert with check (auth.uid() = user_id);
 
 create policy steps_own on mm_steps for all using (tutorial_id in (select id from mm_tutorials where user_id = auth.uid()));
-create policy steps_public_share on mm_steps for select using (tutorial_id in (select id from mm_tutorials where status = 'published' and share_token is not null));
 
 create policy markers_own on mm_markers for all using (step_id in (select s.id from mm_steps s join mm_tutorials t on t.id = s.tutorial_id where t.user_id = auth.uid()));
-create policy markers_public_share on mm_markers for select using (step_id in (select s.id from mm_steps s join mm_tutorials t on t.id = s.tutorial_id where t.status = 'published' and t.share_token is not null));
 
 create policy annotations_own on mm_annotations for all using (step_id in (select s.id from mm_steps s join mm_tutorials t on t.id = s.tutorial_id where t.user_id = auth.uid()));
-create policy annotations_public_share on mm_annotations for select using (step_id in (select s.id from mm_steps s join mm_tutorials t on t.id = s.tutorial_id where t.status = 'published' and t.share_token is not null));
 
 create policy audio_own on mm_audio_assets for all using (step_id in (select s.id from mm_steps s join mm_tutorials t on t.id = s.tutorial_id where t.user_id = auth.uid()));
-create policy audio_assets_public_share on mm_audio_assets for select using (step_id in (select s.id from mm_steps s join mm_tutorials t on t.id = s.tutorial_id where t.status = 'published' and t.share_token is not null));
 
 create policy mm_capture_sessions_owner on mm_capture_sessions for all using (auth.uid() = user_id);
 create policy mm_capture_events_owner on mm_capture_events for all using (session_id in (select id from mm_capture_sessions where user_id = auth.uid()));
 
-create policy events_anon_insert on mm_view_events for insert with check (true);
 create policy events_own_select on mm_view_events for select using (tutorial_id in (select id from mm_tutorials where user_id = auth.uid()));
 
-create policy survey_anon_insert on mm_survey_responses for insert with check (true);
 create policy survey_own_select on mm_survey_responses for select using (tutorial_id in (select id from mm_tutorials where user_id = auth.uid()));
 
-create policy pro_signups_anon_insert on mm_pro_signups for insert with check (true);
 
-create policy ext_tokens_own on mm_extension_tokens for all using (auth.uid() = user_id);
 
 create policy comments_access on mm_comments for all using (tutorial_id in (
   select mm_tutorials.id from mm_tutorials where mm_tutorials.user_id = auth.uid()
@@ -634,20 +624,23 @@ create policy manual_shares_owner on mm_manual_shares for all using (tutorial_id
 create policy manual_shares_self on mm_manual_shares for select using ((user_id = auth.uid()) or (lower(email) = lower((select email from mm_users where id = auth.uid()))));
 
 create policy pages_owner_all on mm_pages for all using ((user_id = auth.uid()) or ((workspace_id is not null) and ((exists (select 1 from mm_workspace_members m where m.workspace_id = mm_pages.workspace_id and m.user_id = auth.uid())) or (exists (select 1 from mm_workspaces w where w.id = mm_pages.workspace_id and w.owner_id = auth.uid()))))) with check ((user_id = auth.uid()) or ((workspace_id is not null) and ((exists (select 1 from mm_workspace_members m where m.workspace_id = mm_pages.workspace_id and m.user_id = auth.uid())) or (exists (select 1 from mm_workspaces w where w.id = mm_pages.workspace_id and w.owner_id = auth.uid())))));
-create policy pages_public_read on mm_pages for select using (status = 'published' and share_token is not null);
 
 create policy page_blocks_owner_all on mm_page_blocks for all using (exists (select 1 from mm_pages p where p.id = mm_page_blocks.page_id and p.user_id = auth.uid())) with check (exists (select 1 from mm_pages p where p.id = mm_page_blocks.page_id and p.user_id = auth.uid()));
-create policy page_blocks_public_read on mm_page_blocks for select using (exists (select 1 from mm_pages p where p.id = mm_page_blocks.page_id and p.status = 'published' and p.share_token is not null));
 
 create policy "own sessions" on mm_execution_sessions for all using (user_id = auth.uid());
 create policy "own step results" on mm_step_results for all using (execution_session_id in (select id from mm_execution_sessions where user_id = auth.uid()));
 
 create policy mm_manuals_owner on mm_manuals for all using (auth.uid() = user_id);
-create policy mm_manuals_public_read on mm_manuals for select using (visibility = 'public' and share_token is not null);
 
 create policy mm_subscriptions_owner_read on mm_subscriptions for select to authenticated using ((select auth.uid()) = user_id);
 revoke insert, update, delete on table public.mm_subscriptions from anon, authenticated;
 grant select on table public.mm_subscriptions to authenticated;
+-- P1 RLS lockdown (20261008090000): server-only writes and token-checked public reads.
+revoke insert, update, delete on table public.mm_users from anon, authenticated;
+revoke all on table public.mm_extension_tokens from anon, authenticated;
+revoke insert, update, delete on table public.mm_view_events from anon, authenticated;
+revoke insert, update, delete on table public.mm_survey_responses from anon, authenticated;
+revoke insert, update, delete on table public.mm_pro_signups from anon, authenticated;
 
 -- ===== 8. Storage 버킷 + 정책 =================================================
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types) values
